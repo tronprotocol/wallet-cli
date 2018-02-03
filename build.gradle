@@ -16,6 +16,10 @@ sourceSets {
         proto {
             srcDir 'src/main/protos'
         }
+	java {
+	     srcDir 'src/main/gen'
+	     srcDir 'src/main/java'
+	}
     }
 
 }
