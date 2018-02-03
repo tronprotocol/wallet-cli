@@ -6,6 +6,7 @@ import io.grpc.ManagedChannelBuilder;
 import java.util.concurrent.TimeUnit;
 import org.tron.api.GrpcAPI;
 import org.tron.api.WalletGrpc;
+import org.tron.protos.Protocal.Account;
 import org.tron.protos.Protocal.Transaction;
 
 public class GrpcClient {
@@ -26,8 +27,8 @@ public class GrpcClient {
 
   public long getBalance(byte[] address) {
     ByteString addressBS = ByteString.copyFrom(address);
-    GrpcAPI.Account request = GrpcAPI.Account.newBuilder().setAddress(addressBS).build();
-    GrpcAPI.Account response = blockingStub.getBalance(request);
+    Account request = Account.newBuilder().setAddress(addressBS).build();
+    Account response = blockingStub.getBalance(request);
     return response.getBalance();
   }
 
