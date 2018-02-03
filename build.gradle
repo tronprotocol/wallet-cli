@@ -11,6 +11,14 @@ repositories {
     mavenCentral()
 }
 
+sourceSets {
+    main {
+        proto {
+            srcDir 'src/main/protos'
+        }
+    }
+
+}
 buildscript {
     repositories {
         mavenCentral()
