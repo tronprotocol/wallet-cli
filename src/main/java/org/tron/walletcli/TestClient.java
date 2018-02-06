@@ -213,6 +213,11 @@ public class TestClient {
           sendCoin(parameters);
           break;
         }
+        case "exit":
+        case "quit":{
+          logger.info("Exit !!");
+          return;
+        }
         default: {
           logger.warning("Invalid cmd: " + cmd);
           break;
