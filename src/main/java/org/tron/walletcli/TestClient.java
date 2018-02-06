@@ -8,9 +8,9 @@ import java.util.logging.Logger;
 public class TestClient {
 
   private static final Logger logger = Logger.getLogger("TestClient");
-  Client client = new Client();
+  private Client client = new Client();
 
-  public void registerWallet(String[] parameters) {
+  private void registerWallet(String[] parameters) {
     if (parameters == null) {
       logger.warning("Warning: RegisterWallet need 1 parameter but get nothing");
       return;
@@ -28,7 +28,7 @@ public class TestClient {
     }
   }
 
-  public void importWallet(String[] parameters) {
+  private void importWallet(String[] parameters) {
     if (parameters == null) {
       logger.warning("Warning: ImportWallet need 2 parameters but get nothing");
       return;
@@ -47,7 +47,7 @@ public class TestClient {
     }
   }
 
-  public void changePassword(String[] parameters) {
+  private void changePassword(String[] parameters) {
     if (parameters == null) {
       logger.warning("Warning: ChangePassword need 2 parameters but get nothing");
       return;
@@ -65,7 +65,7 @@ public class TestClient {
     }
   }
 
-  public void login(String[] parameters) {
+  private void login(String[] parameters) {
     if (parameters == null) {
       logger.warning("Warning: Login need 1 parameter but get nothing");
       return;
@@ -84,7 +84,7 @@ public class TestClient {
     }
   }
 
-  public void logout(String[] parameters) {
+  private void logout(String[] parameters) {
     if (parameters != null && parameters.length != 0) {
       logger.warning("Warning: Logout needn't parameter but get " + parameters.length);
       return;
@@ -94,7 +94,7 @@ public class TestClient {
     logger.info("Logout successful !!!");
   }
 
-  public void backupWallet(String[] parameters) {
+  private void backupWallet(String[] parameters) {
     if (parameters == null) {
       logger.warning("Warning: BackupWallet need 2 parameters but get nothing");
       return;
@@ -104,7 +104,7 @@ public class TestClient {
       return;
     }
     String password = parameters[0];
-    String password2 = null;
+    String password2;
     if (parameters.length == 2) {
       password2 = parameters[1];
     } else {
@@ -118,7 +118,7 @@ public class TestClient {
     }
   }
 
-  public void getAddress(String[] parameters) {
+  private void getAddress(String[] parameters) {
     if (parameters != null && parameters.length != 0) {
       logger.warning("Warning: GetAddress needn't parameter but get " + parameters.length);
       return;
@@ -131,7 +131,7 @@ public class TestClient {
     }
   }
 
-  public void getBalance(String[] parameters) {
+  private void getBalance(String[] parameters) {
     if (parameters != null && parameters.length != 0) {
       logger.warning("Warning: GetBalance needn't parameter but get " + parameters.length);
       return;
@@ -141,7 +141,7 @@ public class TestClient {
     logger.info("Balance = " + balance);
   }
 
-  public void sendCoin(String[] parameters) {
+  private void sendCoin(String[] parameters) {
     if (parameters == null) {
       logger.warning("Warning: SendCoin need 3 parameters but get nothing");
       return;
@@ -163,7 +163,7 @@ public class TestClient {
     }
   }
 
-  public void run() {
+  private void run() {
     Scanner in = new Scanner(System.in);
     while (true) {
       String cmdLine = in.nextLine().trim();
@@ -235,6 +235,5 @@ public class TestClient {
         .parse(args);
 
     cli.run();
-    return;
   }
 }
