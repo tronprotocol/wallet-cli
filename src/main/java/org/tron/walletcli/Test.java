@@ -18,20 +18,20 @@ public class Test {
     ByteString bsTo = ByteString.copyFrom(ByteArray
         .fromHexString("00112233445566778899AABBCCDDEEFF00112233"));
 
-    txInputBuilder.setTxID(bsTxID);
+    txInputBuilder.getRawDataBuilder().setTxID(bsTxID);
 
-    txInputBuilder.setVout(0);
+    txInputBuilder.getRawDataBuilder().setVout(0);
     TXInput txInput = txInputBuilder.build();
-    transactionBuilder.addVin(0, txInput);
-    txInputBuilder.setVout(0);
+    transactionBuilder.getRawDataBuilder().addVin(0, txInput);
+    txInputBuilder.getRawDataBuilder().setVout(0);
     txInput = txInputBuilder.build();
-    transactionBuilder.addVin(1, txInput);
+    transactionBuilder.getRawDataBuilder().addVin(1, txInput);
 
     txOutputBuilder.setValue(10);
     txOutputBuilder.setPubKeyHash(bsTo);
     TXOutput txOutput = txOutputBuilder.build();
-    transactionBuilder.addVout(0, txOutput);
-
+    transactionBuilder.getRawDataBuilder().addVout(0, txOutput);
+    transactionBuilder.getRawDataBuilder().setType(Transaction.TranscationType.Transfer);
     Transaction transaction = transactionBuilder.build();
     return transaction;
   }
