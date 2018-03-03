@@ -19,7 +19,7 @@ public class WalletClient {
   private static final String FilePath = "Wallet";
   private ECKey ecKey = null;
   private boolean loginState = false;
-  private GrpcClient rpcCli = new GrpcClient("192.168.10.165", 50051);
+  private GrpcClient rpcCli = new GrpcClient("127.0.0.1", 50051);
 
   /**
    * Creates a new WalletClient with a random ECKey or no ECKey.

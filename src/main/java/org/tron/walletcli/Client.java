@@ -195,8 +195,8 @@ public class Client {
       //signTransaction
       trx = wallet.signTransaction(trx);
       boolean res = TransactionUtils.validTransaction(trx);
-      return res;
-      //    return wallet.broadcastTransaction(trx);
+     // return res;
+      return wallet.broadcastTransaction(trx);
     } catch (Exception ex) {
       ex.printStackTrace();
       return false;

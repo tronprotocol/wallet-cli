@@ -142,8 +142,6 @@ public class TransactionUtils {
       vinBuilder.setSignature(ByteString.copyFrom(signBA));
       transactionBuilderSigned.getRawDataBuilder().setVin(i, vinBuilder.build());
     }
-    byte[] hash = TransactionUtils.getHash(transactionBuilderSigned.build());
-  //  transactionBuilderSigned.setId(ByteString.copyFrom(hash));
     transaction = transactionBuilderSigned.build();
     return transaction;
   }
