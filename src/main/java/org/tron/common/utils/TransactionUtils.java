@@ -50,10 +50,10 @@ public class TransactionUtils {
    * @return boolean true for coinbase, false for not coinbase
    */
   public static boolean isCoinbaseTransaction(Transaction transaction) {
-    return  transaction.getRawData().getVinList().size() == 1 && transaction.getRawData().getVin(0).getRawData().getTxID().size() == 0 &&
-            transaction.getRawData().getVin(0).getRawData().getVout() == -1;
-   // return transaction.getVinList().size() == 1 && transaction.getVin(0)
-      //  .getTxID().size() == 0 && transaction.getVin(0).getVout() == -1;
+    return transaction.getRawData().getVinList().size() == 1 && transaction.getRawData().getVin(0).getRawData().getTxID().size() == 0 &&
+        transaction.getRawData().getVin(0).getRawData().getVout() == -1;
+    // return transaction.getVinList().size() == 1 && transaction.getVin(0)
+    //  .getTxID().size() == 0 && transaction.getVin(0).getVout() == -1;
   }
 
   /*
@@ -67,11 +67,11 @@ public class TransactionUtils {
       return true;
     }
     //1. check hash
-   // ByteString idBS = signedTransaction.getRawData().getId(); //hash
+    // ByteString idBS = signedTransaction.getRawData().getId(); //hash
     byte[] hash = TransactionUtils.getHash(signedTransaction);
     ByteString hashBS = ByteString.copyFrom(hash);
-   // if (idBS == null || !idBS.equals(idBS)) {
-     // return false;
+    // if (idBS == null || !idBS.equals(idBS)) {
+    // return false;
     //}
     Transaction.Builder transactionBuilderSigned = signedTransaction.toBuilder();
     Transaction.Builder transactionBuilderBeforSign = signedTransaction.toBuilder();
@@ -127,21 +127,28 @@ public class TransactionUtils {
     }
     ByteString lockSript = ByteString.copyFrom(myKey.getAddress());
     Transaction.Builder transactionBuilderSigned = transaction.toBuilder();
-    for (int i = 0; i < transaction.getRawData().getVinList().size(); i++) {
-      Transaction.Builder transactionBuilderForSign = transaction.toBuilder();
-      TXInput vin = transaction.getRawData().getVin(i);
-      TXInput.Builder vinBuilder = vin.toBuilder();
-      vinBuilder.clearSignature();
-      vinBuilder.getRawDataBuilder().setPubKey(lockSript);
-      transactionBuilderForSign.getRawDataBuilder().setVin(i, vinBuilder.build());
-      byte[] hash = TransactionUtils.getHash(transactionBuilderForSign.build());
-      ECDSASignature signature = myKey.sign(hash);
-      byte[] signBA = signature.toByteArray();
 
-      vinBuilder.getRawDataBuilder().setPubKey(ByteString.copyFrom(myKey.getPubKey()));
-      vinBuilder.setSignature(ByteString.copyFrom(signBA));
-      transactionBuilderSigned.getRawDataBuilder().setVin(i, vinBuilder.build());
+    if (transaction.getRawData().getType() == Transaction.TranscationType.UtxoType) {
+      for (int i = 0; i < transaction.getRawData().getVinList().size(); i++) {
+        Transaction.Builder transactionBuilderForSign = transaction.toBuilder();
+        TXInput vin = transaction.getRawData().getVin(i);
+        TXInput.Builder vinBuilder = vin.toBuilder();
+        vinBuilder.clearSignature();
+        vinBuilder.getRawDataBuilder().setPubKey(lockSript);
+        transactionBuilderForSign.getRawDataBuilder().setVin(i, vinBuilder.build());
+        byte[] hash = TransactionUtils.getHash(transactionBuilderForSign.build());
+        ECDSASignature signature = myKey.sign(hash);
+        byte[] signBA = signature.toByteArray();
+
+        vinBuilder.getRawDataBuilder().setPubKey(ByteString.copyFrom(myKey.getPubKey()));
+        vinBuilder.setSignature(ByteString.copyFrom(signBA));
+        transactionBuilderSigned.getRawDataBuilder().setVin(i, vinBuilder.build());
+      }
+    } else {
+      //TODO:
     }
+
+
     transaction = transactionBuilderSigned.build();
     return transaction;
   }

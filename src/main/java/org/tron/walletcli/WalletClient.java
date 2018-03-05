@@ -15,6 +15,9 @@ import org.tron.common.utils.TransactionUtils;
 import org.tron.common.utils.Utils;
 import org.tron.protos.Protocal.Transaction;
 import org.tron.protos.Contract.TransferContract;
+import org.tron.protos.Contract.AccountCreateContract;
+import org.tron.protos.Contract.AssetIssueContract;
+import org.tron.protos.Protocal.AccountType;
 
 public class WalletClient {
 
@@ -146,19 +149,46 @@ public class WalletClient {
   public Transaction createTransaction(byte[] to, long amount) {
     byte[] owner = getAddress();
     TransferContract contract = createTransferContract(to, owner, amount);
-    return  rpcCli.createTransaction(contract);
+    return rpcCli.createTransaction(contract);
   }
 
-  public TransferContract createTransferContract(byte[] to, byte[] owner, long amount){
+  public boolean createAccount(AccountType accountType, byte[] accountName, byte[] address) {
+    AccountCreateContract contract = createAccountCreateContract(accountType, accountName, address);
+    Transaction transaction = rpcCli.createAccount(contract);
+    if ( transaction == null ) {
+      return false;
+    }
+    transaction = signTransaction(transaction);
+    return rpcCli.broadcastTransaction(transaction);
+  }
 
+  public TransferContract createTransferContract(byte[] to, byte[] owner, long amount) {
     TransferContract.Builder builder = TransferContract.newBuilder();
-
     ByteString bsTo = ByteString.copyFrom(to);
     ByteString bsOwner = ByteString.copyFrom(owner);
     builder.setToAddress(bsTo);
     builder.setOwnerAddress(bsOwner);
     builder.setAmount(amount);
 
+    return builder.build();
+  }
+
+  public AccountCreateContract createAccountCreateContract(AccountType accountType, byte[] accountName, byte[] address) {
+    AccountCreateContract.Builder builder = AccountCreateContract.newBuilder();
+    ByteString bsaAdress = ByteString.copyFrom(address);
+    ByteString bsAccountName = ByteString.copyFrom(accountName);
+    builder.setType(accountType);
+    builder.setAccountName(bsAccountName);
+    builder.setOwnerAddress(bsaAdress);
+
+    return builder.build();
+  }
+
+  public AssetIssueContract createAssetIssueContract(byte[] address) {
+    AssetIssueContract.Builder builder = AssetIssueContract.newBuilder();
+    ByteString bsaAdress = ByteString.copyFrom(address);
+    builder.setOwnerAddress(bsaAdress);
+    //TODO
     return builder.build();
   }
 

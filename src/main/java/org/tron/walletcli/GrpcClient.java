@@ -3,13 +3,15 @@ package org.tron.walletcli;
 import com.google.protobuf.ByteString;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+
 import java.util.concurrent.TimeUnit;
+
 import org.tron.api.GrpcAPI;
 import org.tron.api.WalletGrpc;
-import org.tron.protos.Contract;
 import org.tron.protos.Protocal.Account;
 import org.tron.protos.Protocal.Transaction;
 import org.tron.protos.Contract.TransferContract;
+import org.tron.protos.Contract.AccountCreateContract;
 
 public class GrpcClient {
 
@@ -35,8 +37,11 @@ public class GrpcClient {
   }
 
   public Transaction createTransaction(TransferContract contract) {
-    Transaction transaction = blockingStub.createTransaction(contract);
-    return transaction;
+    return blockingStub.createTransaction(contract);
+  }
+
+  public Transaction createAccount(AccountCreateContract contract) {
+    return blockingStub.createAccount(contract);
   }
 
   public boolean broadcastTransaction(Transaction signaturedTransaction) {

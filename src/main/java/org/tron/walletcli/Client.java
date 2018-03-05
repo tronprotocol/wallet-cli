@@ -2,14 +2,11 @@ package org.tron.walletcli;
 
 import java.util.logging.Logger;
 
-import com.google.protobuf.Any;
-import com.google.protobuf.ByteString;
 import org.spongycastle.util.encoders.Hex;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.SymmEncoder;
 import org.tron.common.utils.ByteArray;
-import org.tron.common.utils.TransactionUtils;
-import org.tron.protos.Contract;
+import org.tron.protos.Protocal;
 import org.tron.protos.Protocal.Transaction;
 
 public class Client {
@@ -17,13 +14,17 @@ public class Client {
   private static final Logger logger = Logger.getLogger("Client");
   private WalletClient wallet;
 
-  public boolean registerWallet(String password) {
+  public boolean registerWallet(String userName, String password) {
     if (!WalletClient.passwordValid(password)) {
       return false;
     }
     wallet = new WalletClient(true);
-    wallet.store(password);
-    return true;
+    // create account at network
+    Boolean ret = wallet.createAccount(Protocal.AccountType.Normal, userName.getBytes(), wallet.getAddress());
+    if (ret) {
+      wallet.store(password);
+    }
+    return ret;
   }
 
   public boolean importWallet(String password, String priKey) {
@@ -195,12 +196,15 @@ public class Client {
       //createTransaction
       byte[] toBA = Hex.decode(toAddress);
       Transaction trx = wallet.createTransaction(toBA, amount);
+      if (trx == null || trx.getRawData() == null ){
+        return false;
+      }
       //Transaction trx = Test.createTransactionEx();
       //Contract.TransferContract trCon  = trx.getRawData().getContract(0).getParameter().unpack(Contract.TransferContract.class);
       //signTransaction
       trx = wallet.signTransaction(trx);
-      boolean res = TransactionUtils.validTransaction(trx);
-     // return res;
+      // boolean res = TransactionUtils.validTransaction(trx);
+      // return res;
       return wallet.broadcastTransaction(trx);
     } catch (Exception ex) {
       ex.printStackTrace();

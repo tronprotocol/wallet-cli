@@ -1,6 +1,7 @@
 package org.tron.walletcli;
 
 import com.beust.jcommander.JCommander;
+
 import java.util.Arrays;
 import java.util.Scanner;
 import java.util.logging.Logger;
@@ -12,16 +13,17 @@ public class TestClient {
 
   private void registerWallet(String[] parameters) {
     if (parameters == null) {
-      logger.warning("Warning: RegisterWallet need 1 parameter but get nothing");
+      logger.warning("Warning: RegisterWallet need 2 parameter but get nothing");
       return;
     }
-    if (parameters.length != 1) {
-      logger.warning("Warning: RegisterWallet need 1 parameter but get " + parameters.length);
+    if (parameters.length != 2) {
+      logger.warning("Warning: RegisterWallet need 2 parameter but get " + parameters.length);
       return;
     }
-    String password = parameters[0];
+    String userName = parameters[0];
+    String password = parameters[1];
 
-    if (client.registerWallet(password)) {
+    if (client.registerWallet(userName, password)) {
       logger.info("Register a wallet and store it successful !!");
     } else {
       logger.info("Register wallet failed !!");
@@ -214,7 +216,7 @@ public class TestClient {
           break;
         }
         case "exit":
-        case "quit":{
+        case "quit": {
           logger.info("Exit !!");
           return;
         }
