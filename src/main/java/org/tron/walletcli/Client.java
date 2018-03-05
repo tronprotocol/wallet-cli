@@ -1,11 +1,15 @@
 package org.tron.walletcli;
 
 import java.util.logging.Logger;
+
+import com.google.protobuf.Any;
+import com.google.protobuf.ByteString;
 import org.spongycastle.util.encoders.Hex;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.SymmEncoder;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.TransactionUtils;
+import org.tron.protos.Contract;
 import org.tron.protos.Protocal.Transaction;
 
 public class Client {
@@ -190,8 +194,9 @@ public class Client {
     try {
       //createTransaction
       byte[] toBA = Hex.decode(toAddress);
-//      Transaction trx = wallet.createTransaction(toBA, amount);
-      Transaction trx = Test.createTransaction();
+      Transaction trx = wallet.createTransaction(toBA, amount);
+      //Transaction trx = Test.createTransactionEx();
+      //Contract.TransferContract trCon  = trx.getRawData().getContract(0).getParameter().unpack(Contract.TransferContract.class);
       //signTransaction
       trx = wallet.signTransaction(trx);
       boolean res = TransactionUtils.validTransaction(trx);

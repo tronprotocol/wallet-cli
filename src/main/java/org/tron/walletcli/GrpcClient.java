@@ -9,6 +9,7 @@ import org.tron.api.WalletGrpc;
 import org.tron.protos.Contract;
 import org.tron.protos.Protocal.Account;
 import org.tron.protos.Protocal.Transaction;
+import org.tron.protos.Contract.TransferContract;
 
 public class GrpcClient {
 
@@ -33,17 +34,8 @@ public class GrpcClient {
     return response.getBalance();
   }
 
-  public Transaction createTransaction(byte[] from, byte[] to, long amount) {
-    ByteString fromBS = ByteString.copyFrom(from);
-    ByteString toBS = ByteString.copyFrom(to);
-    //Contract.TransferContractOrBuilder builder = Contract.TransferContract.newBuilder();
-    Contract.TransferContract.Builder builder = Contract.TransferContract.newBuilder();
-    builder = builder.setOwnerAddress(fromBS);
-    builder = builder.setToAddress(toBS);
-    builder = builder.setAmount(amount);
-    Contract.TransferContract request = builder.build();
-
-    Transaction transaction = blockingStub.createTransaction(request);
+  public Transaction createTransaction(TransferContract contract) {
+    Transaction transaction = blockingStub.createTransaction(contract);
     return transaction;
   }
 

@@ -3,6 +3,8 @@ package org.tron.walletcli;
 import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.logging.Logger;
+
+import com.google.protobuf.ByteString;
 import org.spongycastle.util.encoders.Hex;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.Hash;
@@ -12,6 +14,7 @@ import org.tron.common.utils.FileUtil;
 import org.tron.common.utils.TransactionUtils;
 import org.tron.common.utils.Utils;
 import org.tron.protos.Protocal.Transaction;
+import org.tron.protos.Contract.TransferContract;
 
 public class WalletClient {
 
@@ -141,8 +144,22 @@ public class WalletClient {
   }
 
   public Transaction createTransaction(byte[] to, long amount) {
-    byte[] from = getAddress();
-    return rpcCli.createTransaction(from, to, amount);
+    byte[] owner = getAddress();
+    TransferContract contract = createTransferContract(to, owner, amount);
+    return  rpcCli.createTransaction(contract);
+  }
+
+  public TransferContract createTransferContract(byte[] to, byte[] owner, long amount){
+
+    TransferContract.Builder builder = TransferContract.newBuilder();
+
+    ByteString bsTo = ByteString.copyFrom(to);
+    ByteString bsOwner = ByteString.copyFrom(owner);
+    builder.setToAddress(bsTo);
+    builder.setOwnerAddress(bsOwner);
+    builder.setAmount(amount);
+
+    return builder.build();
   }
 
   private static String loadPassword() {
