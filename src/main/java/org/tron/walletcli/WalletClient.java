@@ -189,6 +189,7 @@ public class WalletClient {
     ByteString bsaAdress = ByteString.copyFrom(address);
     builder.setOwnerAddress(bsaAdress);
     //TODO
+
     return builder.build();
   }
 

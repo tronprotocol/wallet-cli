@@ -27,6 +27,8 @@ import org.tron.protos.Protocal.TXInput;
 import org.tron.protos.Protocal.Transaction;
 import org.tron.protos.Protocal.Transaction.Contract;
 
+import java.security.SignatureException;
+import java.util.Arrays;
 import java.util.List;
 
 public class TransactionUtils {
@@ -47,7 +49,7 @@ public class TransactionUtils {
     return sha256(tmp.build().toByteArray());
   }
 
-  public static ByteString getAddress(Contract contract) {
+  public static byte[] getOwner(Transaction.Contract contract) {
     ByteString owner;
     try {
       switch (contract.getType()) {
@@ -78,12 +80,22 @@ public class TransactionUtils {
         default:
           return null;
       }
-      return owner;
+      return owner.toByteArray();
     } catch (Exception ex) {
       ex.printStackTrace();
       return null;
     }
+  }
 
+  public static String getBase64FromByteString(ByteString sign) {
+    byte[] r = sign.substring(0, 32).toByteArray();
+    byte[] s = sign.substring(32, 64).toByteArray();
+    byte v = sign.byteAt(64);
+    if (v < 27) {
+      v += 27; //revId -> v
+    }
+    ECDSASignature signature = ECDSASignature.fromComponents(r, s, v);
+    return signature.toBase64();
   }
 
   /**
@@ -156,7 +168,7 @@ public class TransactionUtils {
         System.arraycopy(signBA, 0, r, 0, 32);
         System.arraycopy(signBA, 32, s, 0, 32);
         byte revID = signBA[64];
-        if ( revID < 27 ) {
+        if (revID < 27) {
           revID += 27; //revId -> v
         }
         ECDSASignature signature = ECDSASignature.fromComponents(r, s, revID);
@@ -168,30 +180,22 @@ public class TransactionUtils {
 
       return true; //Can't check balance
     } else {
+      assert (signedTransaction.getSignatureCount() ==
+          signedTransaction.getRawData().getContractCount());
+      List<Transaction.Contract> listContract = signedTransaction.getRawData().getContractList();
       byte[] hash = sha256(signedTransaction.getRawData().toByteArray());
-      List<Contract> listContract = signedTransaction.getRawData().getContractList();
-      for (int i = 0; i < listContract.size(); i++) {
-        ByteString sign = signedTransaction.getSignature(i);
-        byte[] r = sign.substring(0, 32).toByteArray();
-        byte[] s = sign.substring(32, 64).toByteArray();
-        byte v = sign.byteAt(64);
-        if ( v < 27 ) {
-          v += 27; //revId -> v
-        }
-        ECDSASignature signature = ECDSASignature.fromComponents(r, s, v);
-        String signBase64 = signature.toBase64();
-        Contract contract = listContract.get(i);
-        ByteString owner = getAddress(contract);
+      for (int i = 0; i < signedTransaction.getSignatureCount(); ++i) {
         try {
-          byte[] address = ECKey.signatureToAddress(hash, signBase64);
-          if (address == null || !owner.equals(ByteString.copyFrom(address))) {
+          Transaction.Contract contract = listContract.get(i);
+          byte[] owner = getOwner(contract);
+          byte[] address = ECKey.signatureToAddress(hash, getBase64FromByteString(signedTransaction.getSignature(i)));
+          if (!Arrays.equals(owner, address)) {
             return false;
           }
-        } catch (Exception ex) {
-          ex.printStackTrace();
+        } catch (SignatureException e) {
+          e.printStackTrace();
           return false;
         }
-
       }
       return true;
     }

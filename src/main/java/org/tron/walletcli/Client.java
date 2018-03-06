@@ -197,11 +197,11 @@ public class Client {
     try {
       //createTransaction
       byte[] toBA = Hex.decode(toAddress);
-      Transaction trx = wallet.createTransaction(toBA, amount);
-      if (trx == null || trx.getRawData() == null || trx.getRawData().getContractCount() == 0 ) {
-        return false;
-      }
-      //     Transaction trx = Test.createTransactionEx(toAddress, amount);
+   //   Transaction trx = wallet.createTransaction(toBA, amount);
+   //   if (trx == null || trx.getRawData() == null || trx.getRawData().getContractCount() == 0 ) {
+   //     return false;
+   //   }
+      Transaction trx = Test.createTransactionEx(toAddress, amount);
       //  Contract.TransferContract trCon = trx.getRawData().getContract(0).getParameter().unpack(Contract.TransferContract.class);
       //signTransaction
       trx = wallet.signTransaction(trx);
