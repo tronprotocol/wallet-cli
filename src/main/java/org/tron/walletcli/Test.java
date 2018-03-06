@@ -11,65 +11,66 @@ import com.google.protobuf.Any;
 
 public class Test {
 
-    public static Transaction createTransaction() {
-        Transaction.Builder transactionBuilder = Transaction.newBuilder();
-        TXInput.Builder txInputBuilder = TXInput.newBuilder();
-        TXOutput.Builder txOutputBuilder = TXOutput.newBuilder();
+  public static Transaction createTransaction() {
+    Transaction.Builder transactionBuilder = Transaction.newBuilder();
+    TXInput.Builder txInputBuilder = TXInput.newBuilder();
+    TXOutput.Builder txOutputBuilder = TXOutput.newBuilder();
 
-        ByteString bsTxID = ByteString.copyFrom(ByteArray
-                .fromHexString("00112233445566778899AABBCCDDEEFF00112233445566778899AABBCCDDEEFF"));
-        ByteString bsTo = ByteString.copyFrom(ByteArray
-                .fromHexString("00112233445566778899AABBCCDDEEFF00112233"));
+    ByteString bsTxID = ByteString.copyFrom(ByteArray
+        .fromHexString("00112233445566778899AABBCCDDEEFF00112233445566778899AABBCCDDEEFF"));
+    ByteString bsTo = ByteString.copyFrom(ByteArray
+        .fromHexString("00112233445566778899AABBCCDDEEFF00112233"));
 
-        txInputBuilder.getRawDataBuilder().setTxID(bsTxID);
+    txInputBuilder.getRawDataBuilder().setTxID(bsTxID);
 
-        txInputBuilder.getRawDataBuilder().setVout(0);
-        TXInput txInput = txInputBuilder.build();
-        transactionBuilder.getRawDataBuilder().addVin(0, txInput);
-        txInputBuilder.getRawDataBuilder().setVout(0);
-        txInput = txInputBuilder.build();
-        transactionBuilder.getRawDataBuilder().addVin(1, txInput);
+    txInputBuilder.getRawDataBuilder().setVout(0);
+    TXInput txInput = txInputBuilder.build();
+    transactionBuilder.getRawDataBuilder().addVin(0, txInput);
+    txInputBuilder.getRawDataBuilder().setVout(0);
+    txInput = txInputBuilder.build();
+    transactionBuilder.getRawDataBuilder().addVin(1, txInput);
 
-        txOutputBuilder.setValue(10);
-        txOutputBuilder.setPubKeyHash(bsTo);
-        TXOutput txOutput = txOutputBuilder.build();
-        transactionBuilder.getRawDataBuilder().addVout(0, txOutput);
-        transactionBuilder.getRawDataBuilder().setType(Transaction.TranscationType.UtxoType);
-        Transaction transaction = transactionBuilder.build();
-        return transaction;
-    }
+    txOutputBuilder.setValue(10);
+    txOutputBuilder.setPubKeyHash(bsTo);
+    TXOutput txOutput = txOutputBuilder.build();
+    transactionBuilder.getRawDataBuilder().addVout(0, txOutput);
+    transactionBuilder.getRawDataBuilder().setType(Transaction.TranscationType.UtxoType);
+    Transaction transaction = transactionBuilder.build();
+    return transaction;
+  }
 
-    public static Transaction createTransaction(TransferContract contract) {
+  public static Transaction createTransaction(TransferContract contract) {
+    return null;
+  }
+
+  public static Transaction createTransactionEx(String toAddress, long amount) {
+    Transaction.Builder transactionBuilder = Transaction.newBuilder();
+
+    for ( int i = 0; i < 10; i++ ) {
+      Transaction.Contract.Builder contractBuilder = Transaction.Contract.newBuilder();
+      Contract.TransferContract.Builder transferContractBuilder = Contract.TransferContract.newBuilder();
+      transferContractBuilder.setAmount(amount);
+      ByteString bsTo = ByteString.copyFrom(ByteArray
+          .fromHexString(toAddress));
+      ByteString bsOwner = ByteString.copyFrom(ByteArray
+          .fromHexString("e1a17255ccf15d6b12dcc074ca1152477ccf9b84"));
+      transferContractBuilder.setToAddress(bsTo);
+      transferContractBuilder.setOwnerAddress(bsOwner);
+      try {
+        Any anyTo = Any.pack(transferContractBuilder.build());
+        contractBuilder.setParameter(anyTo);
+      } catch (Exception e) {
         return null;
+      }
+      contractBuilder.setType(Transaction.Contract.ContractType.TransferContract);
+
+      transactionBuilder.getRawDataBuilder().addContract(contractBuilder);
+      amount++;
     }
-
-    public static Transaction createTransactionEx() {
-        Transaction.Builder transactionBuilder = Transaction.newBuilder();
-        Transaction.Contract.Builder contractBuilder = Transaction.Contract.newBuilder();
-        Contract.TransferContract.Builder transferContractBuilder = Contract.TransferContract.newBuilder();
-
-        transferContractBuilder.setAmount(10);
-        ByteString bsTo = ByteString.copyFrom(ByteArray
-                .fromHexString("00112233445566778899AABBCCDDEEFF00112233"));
-        ByteString bsOwner = ByteString.copyFrom(ByteArray
-                .fromHexString("00112233445566778899AABBCCDDEEFF00112233"));
-        transferContractBuilder.setToAddress(bsTo);
-        transferContractBuilder.setOwnerAddress(bsOwner);
+    transactionBuilder.getRawDataBuilder().setType(Transaction.TranscationType.ContractType);
 
 
-        try {
-            Any anyTo = Any.pack(transferContractBuilder.build());
-            contractBuilder.setParameter(anyTo);
-        } catch (Exception e) {
-            return null;
-        }
-
-        contractBuilder.setType(Transaction.Contract.ContractType.TransferContract);
-        transactionBuilder.getRawDataBuilder().addContract(contractBuilder);
-        transactionBuilder.getRawDataBuilder().setType(Transaction.TranscationType.ContractType);
-
-
-        Transaction transaction = transactionBuilder.build();
-        return transaction;
-    }
+    Transaction transaction = transactionBuilder.build();
+    return transaction;
+  }
 }
