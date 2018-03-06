@@ -11,6 +11,7 @@ import org.tron.common.utils.TransactionUtils;
 import org.tron.protos.Contract;
 import org.tron.protos.Protocal;
 import org.tron.protos.Protocal.Transaction;
+import org.tron.walletserver.WalletClient;
 
 public class Client {
 
