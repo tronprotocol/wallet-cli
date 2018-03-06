@@ -1,8 +1,10 @@
 package org.tron.walletcli;
 
 import com.beust.jcommander.JCommander;
+import org.tron.common.utils.Utils;
 
 import java.util.Arrays;
+import java.util.Date;
 import java.util.Scanner;
 import java.util.logging.Logger;
 
@@ -165,6 +167,43 @@ public class TestClient {
     }
   }
 
+  private void assetIssue(String[] parameters) {
+    if (parameters == null) {
+      logger.warning("Warning: SendCoin need 10 parameters but get nothing");
+      return;
+    }
+    if (parameters.length != 10) {
+      logger.warning("Warning: SendCoin need 10 parameters but get " + parameters.length);
+      return;
+    }
+
+    String password = parameters[0];
+    String name = parameters[1];
+    String totalSupplyStr = parameters[2];
+    String trxNumStr = parameters[3];
+    String icoNumStr = parameters[4];
+    String stratYyyyMmDd = parameters[5];
+    String endYyyyMmDd = parameters[6];
+    String decayRatioStr = parameters[7];
+    String description = parameters[8];
+    String url = parameters[9];
+    long totalSupply = new Long(totalSupplyStr);
+    int trxNum = new Integer(trxNumStr);
+    int icoNum = new Integer(icoNumStr);
+    Date startDate = Utils.strToDateLong(stratYyyyMmDd);
+    Date endDate = Utils.strToDateLong(endYyyyMmDd);
+    long startTime = startDate.getTime();
+    long endTime = endDate.getTime();
+    int decayRatio = new Integer(decayRatioStr);
+
+    boolean result = client.assetIssue(password, name, totalSupply, trxNum, icoNum, startTime, endTime, decayRatio, 0, description, url);
+    if (result) {
+      logger.info("AssetIssue " + name + " successful !!");
+    } else {
+      logger.info("AssetIssue " + name + " failed !!");
+    }
+  }
+
   private void run() {
     Scanner in = new Scanner(System.in);
     while (true) {
@@ -213,6 +252,10 @@ public class TestClient {
         }
         case "sendcoin": {
           sendCoin(parameters);
+          break;
+        }
+        case "assetissue": {
+          assetIssue(parameters);
           break;
         }
         case "exit":

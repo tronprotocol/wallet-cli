@@ -2,6 +2,7 @@ package org.tron.walletcli;
 
 import java.util.logging.Logger;
 
+import com.google.protobuf.ByteString;
 import org.spongycastle.util.encoders.Hex;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.SymmEncoder;
@@ -197,10 +198,10 @@ public class Client {
     try {
       //createTransaction
       byte[] toBA = Hex.decode(toAddress);
-   //   Transaction trx = wallet.createTransaction(toBA, amount);
-   //   if (trx == null || trx.getRawData() == null || trx.getRawData().getContractCount() == 0 ) {
-   //     return false;
-   //   }
+      //   Transaction trx = wallet.createTransaction(toBA, amount);
+      //   if (trx == null || trx.getRawData() == null || trx.getRawData().getContractCount() == 0 ) {
+      //     return false;
+      //   }
       Transaction trx = Test.createTransactionEx(toAddress, amount);
       //  Contract.TransferContract trCon = trx.getRawData().getContract(0).getParameter().unpack(Contract.TransferContract.class);
       //signTransaction
@@ -208,6 +209,66 @@ public class Client {
       boolean res = TransactionUtils.validTransaction(trx);
       // return res;
       return wallet.broadcastTransaction(trx);
+    } catch (Exception ex) {
+      ex.printStackTrace();
+      return false;
+    }
+  }
+
+  public boolean assetIssue(String password, String name, long totalSupply, int trxNum, int icoNum, long startTime, long endTime, int decayRatio, int voteScore, String description, String url) {
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warning("Warning: SendCoin failed,  Please login first !!");
+      return false;
+    }
+    if (!WalletClient.passwordValid(password)) {
+      return false;
+    }
+
+
+    if (wallet.getEcKey() == null || wallet.getEcKey().getPrivKey() == null) {
+      wallet = WalletClient.GetWalletByStorage(password);
+      if (wallet == null) {
+        logger.warning("Warning: SendCoin failed, Load wallet failed !!");
+        return false;
+      }
+    }
+
+    try {
+      Contract.AssetIssueContract.Builder builder = Contract.AssetIssueContract.newBuilder();
+      builder.setOwnerAddress(ByteString.copyFrom(wallet.getAddress()));
+      builder.setName(ByteString.copyFrom(name.getBytes()));
+      if (totalSupply <= 0) {
+        return false;
+      }
+      builder.setTotalSupply(totalSupply);
+      if (trxNum <= 0) {
+        return false;
+      }
+      builder.setTrxNum(trxNum);
+      if (icoNum <= 0) {
+        return false;
+      }
+      builder.setNum(icoNum);
+      long now = System.currentTimeMillis();
+      if (startTime <= now) {
+        return false;
+      }
+      if (endTime <= startTime) {
+        return false;
+      }
+      builder.setStartTime(startTime);
+      builder.setEndTime(endTime);
+      builder.setDecayRatio(decayRatio);
+      builder.setVoteScore(voteScore);
+      builder.setDescription(ByteString.copyFrom(description.getBytes()));
+      builder.setUrl(ByteString.copyFrom(url.getBytes()));
+
+      Transaction transaction = wallet.createAssetIssue(builder.build());
+      //signTransaction
+      transaction = wallet.signTransaction(transaction);
+      //boolean res = TransactionUtils.validTransaction(transaction);
+      // return res;
+      return wallet.broadcastTransaction(transaction);
     } catch (Exception ex) {
       ex.printStackTrace();
       return false;

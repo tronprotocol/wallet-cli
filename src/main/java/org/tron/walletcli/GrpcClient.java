@@ -8,6 +8,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.tron.api.GrpcAPI;
 import org.tron.api.WalletGrpc;
+import org.tron.protos.Contract.AssetIssueContract;
 import org.tron.protos.Protocal.Account;
 import org.tron.protos.Protocal.Transaction;
 import org.tron.protos.Contract.TransferContract;
@@ -42,6 +43,10 @@ public class GrpcClient {
 
   public Transaction createAccount(AccountCreateContract contract) {
     return blockingStub.createAccount(contract);
+  }
+
+  public Transaction createAssetIssue(AssetIssueContract contract) {
+    return blockingStub.createAssetIssue(contract);
   }
 
   public boolean broadcastTransaction(Transaction signaturedTransaction) {

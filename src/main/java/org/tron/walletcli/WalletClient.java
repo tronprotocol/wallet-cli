@@ -155,11 +155,15 @@ public class WalletClient {
   public boolean createAccount(AccountType accountType, byte[] accountName, byte[] address) {
     AccountCreateContract contract = createAccountCreateContract(accountType, accountName, address);
     Transaction transaction = rpcCli.createAccount(contract);
-    if ( transaction == null ) {
+    if (transaction == null) {
       return false;
     }
     transaction = signTransaction(transaction);
     return rpcCli.broadcastTransaction(transaction);
+  }
+
+  public Transaction createAssetIssue(AssetIssueContract contract) {
+    return rpcCli.createAssetIssue(contract);
   }
 
   public TransferContract createTransferContract(byte[] to, byte[] owner, long amount) {
@@ -180,15 +184,6 @@ public class WalletClient {
     builder.setType(accountType);
     builder.setAccountName(bsAccountName);
     builder.setOwnerAddress(bsaAdress);
-
-    return builder.build();
-  }
-
-  public AssetIssueContract createAssetIssueContract(byte[] address) {
-    AssetIssueContract.Builder builder = AssetIssueContract.newBuilder();
-    ByteString bsaAdress = ByteString.copyFrom(address);
-    builder.setOwnerAddress(bsaAdress);
-    //TODO
 
     return builder.build();
   }
