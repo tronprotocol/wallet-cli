@@ -169,11 +169,11 @@ public class TestClient {
 
   private void assetIssue(String[] parameters) {
     if (parameters == null) {
-      logger.warning("Warning: SendCoin need 10 parameters but get nothing");
+      logger.warning("Warning: createAssetIssue need 10 parameters but get nothing");
       return;
     }
     if (parameters.length != 10) {
-      logger.warning("Warning: SendCoin need 10 parameters but get " + parameters.length);
+      logger.warning("Warning: createAssetIssue need 10 parameters but get " + parameters.length);
       return;
     }
 
@@ -201,6 +201,50 @@ public class TestClient {
       logger.info("AssetIssue " + name + " successful !!");
     } else {
       logger.info("AssetIssue " + name + " failed !!");
+    }
+  }
+
+  private void createWitness(String[] parameters){
+    if (parameters == null) {
+      logger.warning("Warning: createWitness need 2 parameters but get nothing");
+      return;
+    }
+    if (parameters.length != 2) {
+      logger.warning("Warning: createWitness need 2 parameters but get " + parameters.length);
+      return;
+    }
+
+    String password = parameters[0];
+    String url = parameters[1];
+
+    boolean result = client.createWitness(password, url);
+    if (result) {
+      logger.info("CreateWitness "  + " successful !!");
+    } else {
+      logger.info("CreateWitness "  + " failed !!");
+    }
+  }
+
+  private void voteWitness(String[] parameters){
+    if (parameters == null) {
+      logger.warning("Warning: voteWitness need 3 parameters but get nothing");
+      return;
+    }
+    if (parameters.length != 3) {
+      logger.warning("Warning: voteWitness need 3 parameters but get " + parameters.length);
+      return;
+    }
+
+    String password = parameters[0];
+    String address = parameters[1];
+    String countStr = parameters[2];
+    int count = new Integer(countStr);
+
+    boolean result = client.voteWitness(password, address, count);
+    if (result) {
+      logger.info("CreateWitness "  + " successful !!");
+    } else {
+      logger.info("CreateWitness "  + " failed !!");
     }
   }
 
@@ -256,6 +300,14 @@ public class TestClient {
         }
         case "assetissue": {
           assetIssue(parameters);
+          break;
+        }
+        case "createwitness" :{
+          createWitness(parameters);
+          break;
+        }
+        case "votewitness":{
+          voteWitness(parameters);
           break;
         }
         case "exit":

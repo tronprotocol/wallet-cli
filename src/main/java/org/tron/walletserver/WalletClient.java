@@ -2,6 +2,7 @@ package org.tron.walletserver;
 
 import java.math.BigInteger;
 import java.util.Arrays;
+import java.util.List;
 import java.util.logging.Logger;
 
 import com.google.protobuf.ByteString;
@@ -13,10 +14,8 @@ import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.FileUtil;
 import org.tron.common.utils.TransactionUtils;
 import org.tron.common.utils.Utils;
+import org.tron.protos.Contract;
 import org.tron.protos.Protocal.Transaction;
-import org.tron.protos.Contract.TransferContract;
-import org.tron.protos.Contract.AccountCreateContract;
-import org.tron.protos.Contract.AssetIssueContract;
 import org.tron.protos.Protocal.AccountType;
 
 public class WalletClient {
@@ -134,7 +133,7 @@ public class WalletClient {
     return balance;
   }
 
-  public Transaction signTransaction(Transaction transaction) {
+  private Transaction signTransaction(Transaction transaction) {
     if (this.ecKey == null || this.ecKey.getPrivKey() == null) {
       logger.warning("Warning: Can't sign,there is no private key !!");
       return null;
@@ -142,18 +141,19 @@ public class WalletClient {
     return TransactionUtils.sign(transaction, this.ecKey);
   }
 
-  public boolean broadcastTransaction(Transaction signaturedTransaction) {
-    return rpcCli.broadcastTransaction(signaturedTransaction);
-  }
-
-  public Transaction createTransaction(byte[] to, long amount) {
+  public boolean sendCoin(byte[] to, long amount) {
     byte[] owner = getAddress();
-    TransferContract contract = createTransferContract(to, owner, amount);
-    return rpcCli.createTransaction(contract);
+    Contract.TransferContract contract = createTransferContract(to, owner, amount);
+    Transaction transaction = rpcCli.createTransaction(contract);
+    if (transaction == null) {
+      return false;
+    }
+    transaction = signTransaction(transaction);
+    return rpcCli.broadcastTransaction(transaction);
   }
 
   public boolean createAccount(AccountType accountType, byte[] accountName, byte[] address) {
-    AccountCreateContract contract = createAccountCreateContract(accountType, accountName, address);
+    Contract.AccountCreateContract contract = createAccountCreateContract(accountType, accountName, address);
     Transaction transaction = rpcCli.createAccount(contract);
     if (transaction == null) {
       return false;
@@ -162,12 +162,39 @@ public class WalletClient {
     return rpcCli.broadcastTransaction(transaction);
   }
 
-  public Transaction createAssetIssue(AssetIssueContract contract) {
-    return rpcCli.createAssetIssue(contract);
+  public boolean createAssetIssue(Contract.AssetIssueContract contract) {
+    Transaction transaction = rpcCli.createAssetIssue(contract);
+    if (transaction == null) {
+      return false;
+    }
+    transaction = signTransaction(transaction);
+    return rpcCli.broadcastTransaction(transaction);
   }
 
-  public TransferContract createTransferContract(byte[] to, byte[] owner, long amount) {
-    TransferContract.Builder builder = TransferContract.newBuilder();
+  public boolean createWitness(byte[] url) {
+    byte[] owner = getAddress();
+    Contract.WitnessCreateContract contract = createWitnessCreateContract(owner, url);
+    Transaction transaction = rpcCli.createWitness(contract);
+    if (transaction == null) {
+      return false;
+    }
+    transaction = signTransaction(transaction);
+    return rpcCli.broadcastTransaction(transaction);
+  }
+
+  public boolean voteWitness(byte[] address, int count) {
+    byte[] owner = getAddress();
+    Contract.VoteWitnessContract contract = createVoteWitnessContract(owner, address, count);
+    Transaction transaction = rpcCli.voteWitnessAccount(contract);
+    if (transaction == null) {
+      return false;
+    }
+    transaction = signTransaction(transaction);
+    return rpcCli.broadcastTransaction(transaction);
+  }
+
+  public Contract.TransferContract createTransferContract(byte[] to, byte[] owner, long amount) {
+    Contract.TransferContract.Builder builder = Contract.TransferContract.newBuilder();
     ByteString bsTo = ByteString.copyFrom(to);
     ByteString bsOwner = ByteString.copyFrom(owner);
     builder.setToAddress(bsTo);
@@ -177,13 +204,30 @@ public class WalletClient {
     return builder.build();
   }
 
-  public AccountCreateContract createAccountCreateContract(AccountType accountType, byte[] accountName, byte[] address) {
-    AccountCreateContract.Builder builder = AccountCreateContract.newBuilder();
+  public Contract.AccountCreateContract createAccountCreateContract(AccountType accountType, byte[] accountName, byte[] address) {
+    Contract.AccountCreateContract.Builder builder = Contract.AccountCreateContract.newBuilder();
     ByteString bsaAdress = ByteString.copyFrom(address);
     ByteString bsAccountName = ByteString.copyFrom(accountName);
     builder.setType(accountType);
     builder.setAccountName(bsAccountName);
     builder.setOwnerAddress(bsaAdress);
+
+    return builder.build();
+  }
+
+  public Contract.WitnessCreateContract createWitnessCreateContract(byte[] owner, byte[] url) {
+    Contract.WitnessCreateContract.Builder builder = Contract.WitnessCreateContract.newBuilder();
+    builder.setOwnerAddress(ByteString.copyFrom(owner));
+    builder.setUrl(ByteString.copyFrom(url));
+
+    return builder.build();
+  }
+
+  public Contract.VoteWitnessContract createVoteWitnessContract(byte[] owner, byte[] voteAddress, int count) {
+    Contract.VoteWitnessContract.Builder builder = Contract.VoteWitnessContract.newBuilder();
+    builder.setOwnerAddress(ByteString.copyFrom(owner));
+    builder.addVoteAddress(ByteString.copyFrom(voteAddress));
+    builder.setCount(count);
 
     return builder.build();
   }
