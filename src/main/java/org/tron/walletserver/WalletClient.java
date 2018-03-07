@@ -152,7 +152,8 @@ public class WalletClient {
     return rpcCli.broadcastTransaction(transaction);
   }
 
-  public boolean createAccount(AccountType accountType, byte[] accountName, byte[] address) {
+  public boolean createAccount(AccountType accountType, byte[] accountName) {
+    byte[] address = getAddress();
     Contract.AccountCreateContract contract = createAccountCreateContract(accountType, accountName, address);
     Transaction transaction = rpcCli.createAccount(contract);
     if (transaction == null) {

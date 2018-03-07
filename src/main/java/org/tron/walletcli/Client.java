@@ -24,7 +24,7 @@ public class Client {
     }
     wallet = new WalletClient(true);
     // create account at network
-    Boolean ret = wallet.createAccount(Protocal.AccountType.Normal, userName.getBytes(), wallet.getAddress());
+    Boolean ret = wallet.createAccount(Protocal.AccountType.Normal, userName.getBytes());
     if (ret) {
       wallet.store(password);
     }

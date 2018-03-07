@@ -169,11 +169,11 @@ public class TestClient {
 
   private void assetIssue(String[] parameters) {
     if (parameters == null) {
-      logger.warning("Warning: createAssetIssue need 10 parameters but get nothing");
+      logger.warning("Warning: assetIssue need 10 parameters but get nothing");
       return;
     }
     if (parameters.length != 10) {
-      logger.warning("Warning: createAssetIssue need 10 parameters but get " + parameters.length);
+      logger.warning("Warning: assetIssue need 10 parameters but get " + parameters.length);
       return;
     }
 
