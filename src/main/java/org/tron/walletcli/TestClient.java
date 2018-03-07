@@ -5,6 +5,7 @@ import org.tron.common.utils.Utils;
 
 import java.util.Arrays;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Scanner;
 import java.util.logging.Logger;
 
@@ -227,24 +228,27 @@ public class TestClient {
 
   private void voteWitness(String[] parameters){
     if (parameters == null) {
-      logger.warning("Warning: voteWitness need 3 parameters but get nothing");
+      logger.warning("Warning: voteWitness need parameters but get nothing");
       return;
     }
-    if (parameters.length != 3) {
-      logger.warning("Warning: voteWitness need 3 parameters but get " + parameters.length);
+    if (parameters.length < 3 || (parameters.length&1) != 1) {
+      logger.warning("Warning: voteWitness need an odd number of parameters but get " + parameters.length);
       return;
     }
 
     String password = parameters[0];
-    String address = parameters[1];
-    String countStr = parameters[2];
-    int count = new Integer(countStr);
+    HashMap<String, String> witness = new HashMap<String, String>();
+    for (int i = 1; i < parameters.length; i+=2 ){
+      String address = parameters[i];
+      String countStr = parameters[i+1];
+      witness.put(address, countStr);
+    }
 
-    boolean result = client.voteWitness(password, address, count);
+    boolean result = client.voteWitness(password, witness);
     if (result) {
-      logger.info("CreateWitness "  + " successful !!");
+      logger.info("VoteWitness "  + " successful !!");
     } else {
-      logger.info("CreateWitness "  + " failed !!");
+      logger.info("VoteWitness "  + " failed !!");
     }
   }
 

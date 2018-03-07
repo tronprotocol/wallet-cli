@@ -1,5 +1,6 @@
 package org.tron.walletcli;
 
+import java.util.HashMap;
 import java.util.logging.Logger;
 
 import com.google.protobuf.ByteString;
@@ -284,7 +285,7 @@ public class Client {
     }
   }
 
-  public boolean voteWitness(String password, String address, int count) {
+  public boolean voteWitness(String password, HashMap<String, String> witness) {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warning("Warning: SendCoin failed,  Please login first !!");
       return false;
@@ -302,7 +303,7 @@ public class Client {
     }
 
     try {
-      return wallet.voteWitness(address.getBytes(), count);
+      return wallet.voteWitness(witness);
     } catch (Exception ex) {
       ex.printStackTrace();
       return false;

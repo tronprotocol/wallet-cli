@@ -2,6 +2,7 @@ package org.tron.walletserver;
 
 import java.math.BigInteger;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.logging.Logger;
 
@@ -183,9 +184,9 @@ public class WalletClient {
     return rpcCli.broadcastTransaction(transaction);
   }
 
-  public boolean voteWitness(byte[] address, int count) {
+  public boolean voteWitness(HashMap<String, String> witness) {
     byte[] owner = getAddress();
-    Contract.VoteWitnessContract contract = createVoteWitnessContract(owner, address, count);
+    Contract.VoteWitnessContract contract = createVoteWitnessContract(owner, witness);
     Transaction transaction = rpcCli.voteWitnessAccount(contract);
     if (transaction == null) {
       return false;
@@ -224,11 +225,17 @@ public class WalletClient {
     return builder.build();
   }
 
-  public Contract.VoteWitnessContract createVoteWitnessContract(byte[] owner, byte[] voteAddress, int count) {
+  public Contract.VoteWitnessContract createVoteWitnessContract(byte[] owner, HashMap<String, String> witness) {
     Contract.VoteWitnessContract.Builder builder = Contract.VoteWitnessContract.newBuilder();
     builder.setOwnerAddress(ByteString.copyFrom(owner));
-    builder.addVoteAddress(ByteString.copyFrom(voteAddress));
-    builder.setCount(count);
+    for (String address : witness.keySet()) {
+      String value = witness.get(address);
+      long count = Long.parseLong(value);
+      Contract.VoteWitnessContract.Vote.Builder voteBuilder = Contract.VoteWitnessContract.Vote.newBuilder();
+      voteBuilder.setVoteAddress(ByteString.copyFrom(address.getBytes()));
+      voteBuilder.setVoteCount(count);
+      builder.addVotes(voteBuilder.build());
+    }
 
     return builder.build();
   }
