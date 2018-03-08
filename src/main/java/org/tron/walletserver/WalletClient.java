@@ -146,7 +146,7 @@ public class WalletClient {
     byte[] owner = getAddress();
     Contract.TransferContract contract = createTransferContract(to, owner, amount);
     Transaction transaction = rpcCli.createTransaction(contract);
-    if (transaction == null) {
+    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
       return false;
     }
     transaction = signTransaction(transaction);
@@ -157,7 +157,7 @@ public class WalletClient {
     byte[] address = getAddress();
     Contract.AccountCreateContract contract = createAccountCreateContract(accountType, accountName, address);
     Transaction transaction = rpcCli.createAccount(contract);
-    if (transaction == null) {
+    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
       return false;
     }
     transaction = signTransaction(transaction);
@@ -166,7 +166,7 @@ public class WalletClient {
 
   public boolean createAssetIssue(Contract.AssetIssueContract contract) {
     Transaction transaction = rpcCli.createAssetIssue(contract);
-    if (transaction == null) {
+    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
       return false;
     }
     transaction = signTransaction(transaction);
@@ -177,7 +177,7 @@ public class WalletClient {
     byte[] owner = getAddress();
     Contract.WitnessCreateContract contract = createWitnessCreateContract(owner, url);
     Transaction transaction = rpcCli.createWitness(contract);
-    if (transaction == null) {
+    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
       return false;
     }
     transaction = signTransaction(transaction);
@@ -188,7 +188,7 @@ public class WalletClient {
     byte[] owner = getAddress();
     Contract.VoteWitnessContract contract = createVoteWitnessContract(owner, witness);
     Transaction transaction = rpcCli.voteWitnessAccount(contract);
-    if (transaction == null) {
+    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
       return false;
     }
     transaction = signTransaction(transaction);
