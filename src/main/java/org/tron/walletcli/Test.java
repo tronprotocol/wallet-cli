@@ -3,9 +3,9 @@ package org.tron.walletcli;
 import com.google.protobuf.ByteString;
 import org.tron.common.utils.ByteArray;
 import org.tron.protos.Contract;
-import org.tron.protos.Protocal.TXInput;
-import org.tron.protos.Protocal.TXOutput;
-import org.tron.protos.Protocal.Transaction;
+import org.tron.protos.Protocol.TXInput;
+import org.tron.protos.Protocol.TXOutput;
+import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Contract.TransferContract;
 import com.google.protobuf.Any;
 
@@ -34,7 +34,7 @@ public class Test {
     txOutputBuilder.setPubKeyHash(bsTo);
     TXOutput txOutput = txOutputBuilder.build();
     transactionBuilder.getRawDataBuilder().addVout(0, txOutput);
-    transactionBuilder.getRawDataBuilder().setType(Transaction.TranscationType.UtxoType);
+    transactionBuilder.getRawDataBuilder().setType(Transaction.TransactionType.UtxoType);
     Transaction transaction = transactionBuilder.build();
     return transaction;
   }
@@ -67,7 +67,7 @@ public class Test {
       transactionBuilder.getRawDataBuilder().addContract(contractBuilder);
       amount++;
     }
-    transactionBuilder.getRawDataBuilder().setType(Transaction.TranscationType.ContractType);
+    transactionBuilder.getRawDataBuilder().setType(Transaction.TransactionType.ContractType);
 
 
     Transaction transaction = transactionBuilder.build();

@@ -23,9 +23,9 @@ import org.slf4j.LoggerFactory;
 import org.spongycastle.util.encoders.Base64;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.ECKey.ECDSASignature;
-import org.tron.protos.Protocal.TXInput;
-import org.tron.protos.Protocal.Transaction;
-import org.tron.protos.Protocal.Transaction.Contract;
+import org.tron.protos.Protocol.TXInput;
+import org.tron.protos.Protocol.Transaction;
+import org.tron.protos.Protocol.Transaction.Contract;
 
 import java.security.SignatureException;
 import java.util.Arrays;
@@ -122,7 +122,7 @@ public class TransactionUtils {
       return true;
     }
 
-    if (signedTransaction.getRawData().getType() == Transaction.TranscationType.UtxoType) {
+    if (signedTransaction.getRawData().getType() == Transaction.TransactionType.UtxoType) {
       //1. check hash
       // ByteString idBS = signedTransaction.getRawData().getId(); //hash
       byte[] hash = TransactionUtils.getHash(signedTransaction);
@@ -208,7 +208,7 @@ public class TransactionUtils {
     ByteString lockSript = ByteString.copyFrom(myKey.getAddress());
     Transaction.Builder transactionBuilderSigned = transaction.toBuilder();
 
-    if (transaction.getRawData().getType() == Transaction.TranscationType.UtxoType) {
+    if (transaction.getRawData().getType() == Transaction.TransactionType.UtxoType) {
       for (int i = 0; i < transaction.getRawData().getVinList().size(); i++) {
         Transaction.Builder transactionBuilderForSign = transaction.toBuilder();
         TXInput vin = transaction.getRawData().getVin(i);

@@ -16,8 +16,8 @@ import org.tron.common.utils.FileUtil;
 import org.tron.common.utils.TransactionUtils;
 import org.tron.common.utils.Utils;
 import org.tron.protos.Contract;
-import org.tron.protos.Protocal.Transaction;
-import org.tron.protos.Protocal.AccountType;
+import org.tron.protos.Protocol.Transaction;
+import org.tron.protos.Protocol.AccountType;
 
 public class WalletClient {
 

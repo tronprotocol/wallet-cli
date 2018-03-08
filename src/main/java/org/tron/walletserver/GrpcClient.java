@@ -9,8 +9,8 @@ import java.util.concurrent.TimeUnit;
 import org.tron.api.GrpcAPI;
 import org.tron.api.WalletGrpc;
 import org.tron.protos.Contract;
-import org.tron.protos.Protocal.Account;
-import org.tron.protos.Protocal.Transaction;
+import org.tron.protos.Protocol.Account;
+import org.tron.protos.Protocol.Transaction;
 
 public class GrpcClient {
 

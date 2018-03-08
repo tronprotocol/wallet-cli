@@ -8,10 +8,9 @@ import org.spongycastle.util.encoders.Hex;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.SymmEncoder;
 import org.tron.common.utils.ByteArray;
-import org.tron.common.utils.TransactionUtils;
 import org.tron.protos.Contract;
-import org.tron.protos.Protocal;
-import org.tron.protos.Protocal.Transaction;
+import org.tron.protos.Protocol;
+import org.tron.protos.Protocol.Transaction;
 import org.tron.walletserver.WalletClient;
 
 public class Client {
@@ -25,7 +24,7 @@ public class Client {
     }
     wallet = new WalletClient(true);
     // create account at network
-    Boolean ret = wallet.createAccount(Protocal.AccountType.Normal, userName.getBytes());
+    Boolean ret = wallet.createAccount(Protocol.AccountType.Normal, userName.getBytes());
     if (ret) {
       wallet.store(password);
     }
