@@ -98,6 +98,10 @@ dependencies {
     compile "org.apache.commons:commons-collections4:4.0"
     compile "org.apache.commons:commons-lang3:3.4"
 
+    //swagger2 api
+    compile group: 'io.springfox', name: 'springfox-swagger2', version: '2.7.0'
+    compile group: 'io.springfox', name: 'springfox-swagger-ui', version: '2.7.0'
+
     compile group: 'com.mitchellbosecke', name: 'pebble-spring-boot-starter', version: '2.4.0'
 
 
