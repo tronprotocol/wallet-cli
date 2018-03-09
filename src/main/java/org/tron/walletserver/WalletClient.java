@@ -4,10 +4,14 @@ import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
-import java.util.logging.Logger;
+import java.util.Optional;
 
 import com.google.protobuf.ByteString;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.spongycastle.util.encoders.Hex;
+import org.tron.api.GrpcAPI.AccountList;
+import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.Hash;
 import org.tron.common.crypto.SymmEncoder;
@@ -21,7 +25,7 @@ import org.tron.protos.Protocol.AccountType;
 
 public class WalletClient {
 
-  private static final Logger logger = Logger.getLogger("WalletClient");
+  private static final Logger logger = LoggerFactory.getLogger("WalletClient");
   private static final String FilePath = "Wallet";
   private ECKey ecKey = null;
   private boolean loginState = false;
@@ -97,7 +101,7 @@ public class WalletClient {
 
   public void store(String password) {
     if (ecKey == null || ecKey.getPrivKey() == null) {
-      logger.warning("Warning: Store wallet failed, PrivKey is null !!");
+      logger.warn("Warning: Store wallet failed, PrivKey is null !!");
       return;
     }
     byte[] pwd = getPassWord(password);
@@ -122,7 +126,7 @@ public class WalletClient {
     if (this.ecKey == null) {
       String pubKey = loadPubKey(); //04 PubKey[128]
       if (pubKey == null || "".equals(pubKey)) {
-        logger.warning("Warning: GetBalance failed, no wallet address !!");
+        logger.warn("Warning: GetBalance failed, no wallet address !!");
         return 0;
       }
       byte[] pubKeyAsc = pubKey.getBytes();
@@ -136,7 +140,7 @@ public class WalletClient {
 
   private Transaction signTransaction(Transaction transaction) {
     if (this.ecKey == null || this.ecKey.getPrivKey() == null) {
-      logger.warning("Warning: Can't sign,there is no private key !!");
+      logger.warn("Warning: Can't sign,there is no private key !!");
       return null;
     }
     return TransactionUtils.sign(transaction, this.ecKey);
@@ -335,11 +339,11 @@ public class WalletClient {
 
   public static boolean passwordValid(String password) {
     if (password == null || "".equals(password)) {
-      logger.warning("Warning: Password is empty !!");
+      logger.warn("Warning: Password is empty !!");
       return false;
     }
     if (password.length() < 6) {
-      logger.warning("Warning: Password is too short !!");
+      logger.warn("Warning: Password is too short !!");
       return false;
     }
     //Other rule;
@@ -348,11 +352,11 @@ public class WalletClient {
 
   public static boolean addressValid(String address) {
     if (address == null || "".equals(address)) {
-      logger.warning("Warning: Address is empty !!");
+      logger.warn("Warning: Address is empty !!");
       return false;
     }
     if (address.length() != 40) {
-      logger.warning("Warning: Address length need 64 but " + address.length() + " !!");
+      logger.warn("Warning: Address length need 64 but " + address.length() + " !!");
       return false;
     }
     //Other rule;
@@ -361,14 +365,23 @@ public class WalletClient {
 
   public static boolean priKeyValid(String priKey) {
     if (priKey == null || "".equals(priKey)) {
-      logger.warning("Warning: PrivateKey is empty !!");
+      logger.warn("Warning: PrivateKey is empty !!");
       return false;
     }
     if (priKey.length() != 64) {
-      logger.warning("Warning: PrivateKey length need 64 but " + priKey.length() + " !!");
+      logger.warn("Warning: PrivateKey length need 64 but " + priKey.length() + " !!");
       return false;
     }
     //Other rule;
     return true;
+  }
+
+  public Optional<AccountList> listAccounts() {
+    return rpcCli.listAccounts();
+
+  }
+
+  public Optional<WitnessList> listWitnesses() {
+    return rpcCli.listWitnesses();
   }
 }
