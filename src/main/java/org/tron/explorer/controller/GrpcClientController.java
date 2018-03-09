@@ -1,6 +1,8 @@
 package org.tron.explorer.controller;
 
 import com.google.protobuf.ByteString;
+import io.swagger.annotations.ApiImplicitParam;
+import io.swagger.annotations.ApiOperation;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,7 +26,8 @@ public class GrpcClientController {
     return new ModelAndView("index");
   }
 
-  // 4154ca3d1de87d61ab9f96891b6b2c359d6e8a94
+  @ApiOperation(value="get Balance", notes="query balance")
+  @ApiImplicitParam(name = "address", value = "address", required = true, dataType = "String")
   @RequestMapping("/balance/{address}")
   public String getBalance(@PathVariable(value = "address") String address) {
     try {
