@@ -137,8 +137,7 @@ public class WalletClient {
   }
 
   public static long getBalance(byte[] address) {
-    long balance = rpcCli.getBalance(address);//call rpc
-    return balance;
+    return rpcCli.getBalance(address);//call rpc
   }
 
   private Transaction signTransaction(Transaction transaction) {
