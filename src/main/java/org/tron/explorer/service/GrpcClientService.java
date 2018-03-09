@@ -4,8 +4,9 @@ import io.grpc.Channel;
 import org.springframework.stereotype.Service;
 import org.tron.api.WalletGrpc;
 import org.tron.api.WalletGrpc.WalletBlockingStub;
-import org.tron.protos.Protocal.Account;
 import org.tron.explorer.configure.autoconfigure.GrpcClient;
+import org.tron.protos.Protocol.Account;
+
 
 @Service
 public class GrpcClientService {
@@ -13,9 +14,9 @@ public class GrpcClientService {
     @GrpcClient("local-grpc-server")
     private Channel serverChannel;
 
-    public Account getBalance(Account account) {
+    public Long getBalance(Account account) {
         WalletBlockingStub walletBlockingStub = WalletGrpc.newBlockingStub(serverChannel);
-        Account balance = walletBlockingStub.getBalance(account);
+        long balance = walletBlockingStub.getBalance(account).getBalance();
         return balance;
     }
 }
