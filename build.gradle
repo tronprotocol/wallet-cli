@@ -2,12 +2,24 @@ group 'Tron'
 version '1.0-SNAPSHOT'
 
 apply plugin: 'java'
+apply plugin: 'idea'
 apply plugin: 'com.google.protobuf'
+apply plugin: 'org.springframework.boot'
+apply plugin: "io.spring.dependency-management"
 
 sourceCompatibility = 1.8
+targetCompatibility = JavaVersion.VERSION_1_8
 [compileJava, compileTestJava]*.options*.encoding = 'UTF-8'
 
+compileJava.options*.compilerArgs = [
+        "-Xlint:serial", "-Xlint:varargs", "-Xlint:classfile", "-Xlint:dep-ann",
+        "-Xlint:divzero", "-Xlint:empty", "-Xlint:finally", "-Xlint:overrides",
+        "-Xlint:path", "-Xlint:static", "-Xlint:try", "-Xlint:fallthrough",
+        "-Xlint:deprecation", "-Xlint:unchecked", "-Xlint:-options"
+]
+
 repositories {
+    mavenLocal()
     mavenCentral()
 }
 
@@ -25,11 +37,36 @@ sourceSets {
 }
 buildscript {
     repositories {
+        mavenLocal()
         mavenCentral()
     }
+    ext {
+        projectVersion = '1.3.0-RELEASE'
+
+        grpcVersion = '1.6.1'
+        protobufVersion = '3.3.0'
+        protobufGradlePluginVersion = '0.8.0'
+
+        springBootVersion = '1.5.6.RELEASE'
+
+        springSleuthVersion = '1.2.4.RELEASE'
+        springCloudVersion = 'Dalston.SR3'
+        springCloudConsulVersion = '1.2.1.RELEASE'
+        springCloudEurekaVersion = '1.3.4.RELEASE'
+    }
+
     dependencies {
         classpath 'com.google.protobuf:protobuf-gradle-plugin:0.8.3'
+
+        classpath "io.spring.gradle:dependency-management-plugin:0.6.1.RELEASE"
+        classpath"org.springframework.boot:spring-boot-gradle-plugin:${springBootVersion}"
+
+
     }
+}
+
+task wrapper(type: Wrapper) {
+    gradleVersion = '3.3'
 }
 
 dependencies {
@@ -49,12 +86,28 @@ dependencies {
 
     compile "com.google.code.findbugs:jsr305:3.0.0"
 
+    //explorer
+    compile'org.projectlombok:lombok:1.16.6'
+    compile"org.springframework.boot:spring-boot-configuration-processor:${springBootVersion}"
+    compile"org.springframework.boot:spring-boot-starter:${springBootVersion}"
+
+    compile"org.springframework.cloud:spring-cloud-starter-sleuth:${springSleuthVersion}"
+    compile"org.springframework.cloud:spring-cloud-starter-consul-discovery:${springCloudConsulVersion}"
+    compile"org.springframework.cloud:spring-cloud-starter-eureka:${springCloudEurekaVersion}"
+
+    compile "org.apache.commons:commons-collections4:4.0"
+    compile "org.apache.commons:commons-lang3:3.4"
+
+    compile group: 'com.mitchellbosecke', name: 'pebble-spring-boot-starter', version: '2.4.0'
+
+
 }
 
 protobuf {
     generatedFilesBaseDir = "$projectDir/src/"
     protoc {
         artifact = "com.google.protobuf:protoc:3.5.1-1"
+
     }
     plugins {
         grpc {
