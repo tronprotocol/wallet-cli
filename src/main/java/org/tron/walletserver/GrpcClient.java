@@ -4,9 +4,13 @@ import com.google.protobuf.ByteString;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import org.tron.api.GrpcAPI;
+import org.tron.api.GrpcAPI.AccountList;
+import org.tron.api.GrpcAPI.EmptyMessage;
+import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.api.WalletGrpc;
 import org.tron.protos.Contract;
 import org.tron.protos.Protocol.Account;
@@ -58,5 +62,22 @@ public class GrpcClient {
   public boolean broadcastTransaction(Transaction signaturedTransaction) {
     GrpcAPI.Return response = blockingStub.broadcastTransaction(signaturedTransaction);
     return response.getResult();
+  }
+
+
+  public Optional<AccountList> listAccounts() {
+    AccountList accountList = blockingStub.listAccounts(EmptyMessage.newBuilder().build());
+    if(accountList != null){
+      return Optional.of(accountList);
+    }
+    return Optional.empty();
+  }
+
+  public Optional<WitnessList> listWitnesses() {
+    WitnessList witnessList = blockingStub.listWitnesses(EmptyMessage.newBuilder().build());
+    if(witnessList != null){
+      return Optional.of(witnessList);
+    }
+    return Optional.empty();
   }
 }
