@@ -1,0 +1,19 @@
+server:
+  port: 8088
+spring:
+  application:
+    name: local-grpc-client
+
+grpc:
+  client:
+    local-grpc-server:
+      host:
+        - 127.0.0.1
+      port:
+        - 50051
+      enableKeepAlive: true
+      keepAliveWithoutCalls: true
+
+
+pebble:
+  cache: false
