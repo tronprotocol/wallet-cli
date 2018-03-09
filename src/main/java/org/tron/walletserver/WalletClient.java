@@ -378,7 +378,6 @@ public class WalletClient {
 
   public Optional<AccountList> listAccounts() {
     return rpcCli.listAccounts();
-
   }
 
   public Optional<WitnessList> listWitnesses() {
