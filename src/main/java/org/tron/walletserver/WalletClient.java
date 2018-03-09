@@ -29,7 +29,7 @@ public class WalletClient {
   private static final String FilePath = "Wallet";
   private ECKey ecKey = null;
   private boolean loginState = false;
-  private GrpcClient rpcCli = new GrpcClient("127.0.0.1", 50051);
+  private static final GrpcClient rpcCli = new GrpcClient("127.0.0.1", 50051);
 
   /**
    * Creates a new WalletClient with a random ECKey or no ECKey.
@@ -133,7 +133,10 @@ public class WalletClient {
       byte[] pubKeyHex = Hex.decode(pubKeyAsc);
       this.ecKey = ECKey.fromPublicOnly(pubKeyHex);
     }
-    address = getAddress();
+    return getBalance(getAddress());
+  }
+
+  public static long getBalance(byte[] address) {
     long balance = rpcCli.getBalance(address);//call rpc
     return balance;
   }
@@ -159,7 +162,8 @@ public class WalletClient {
 
   public boolean createAccount(AccountType accountType, byte[] accountName) {
     byte[] address = getAddress();
-    Contract.AccountCreateContract contract = createAccountCreateContract(accountType, accountName, address);
+    Contract.AccountCreateContract contract = createAccountCreateContract(accountType, accountName,
+        address);
     Transaction transaction = rpcCli.createAccount(contract);
     if (transaction == null || transaction.getRawData().getContractCount() == 0) {
       return false;
@@ -210,7 +214,8 @@ public class WalletClient {
     return builder.build();
   }
 
-  public Contract.AccountCreateContract createAccountCreateContract(AccountType accountType, byte[] accountName, byte[] address) {
+  public Contract.AccountCreateContract createAccountCreateContract(AccountType accountType,
+      byte[] accountName, byte[] address) {
     Contract.AccountCreateContract.Builder builder = Contract.AccountCreateContract.newBuilder();
     ByteString bsaAdress = ByteString.copyFrom(address);
     ByteString bsAccountName = ByteString.copyFrom(accountName);
@@ -229,13 +234,15 @@ public class WalletClient {
     return builder.build();
   }
 
-  public Contract.VoteWitnessContract createVoteWitnessContract(byte[] owner, HashMap<String, String> witness) {
+  public Contract.VoteWitnessContract createVoteWitnessContract(byte[] owner,
+      HashMap<String, String> witness) {
     Contract.VoteWitnessContract.Builder builder = Contract.VoteWitnessContract.newBuilder();
     builder.setOwnerAddress(ByteString.copyFrom(owner));
     for (String address : witness.keySet()) {
       String value = witness.get(address);
       long count = Long.parseLong(value);
-      Contract.VoteWitnessContract.Vote.Builder voteBuilder = Contract.VoteWitnessContract.Vote.newBuilder();
+      Contract.VoteWitnessContract.Vote.Builder voteBuilder = Contract.VoteWitnessContract.Vote
+          .newBuilder();
       voteBuilder.setVoteAddress(ByteString.copyFrom(address.getBytes()));
       voteBuilder.setVoteCount(count);
       builder.addVotes(voteBuilder.build());
