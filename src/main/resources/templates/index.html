@@ -31,5 +31,19 @@
   </p>
   </form>
 </div>
+
+<div align="center">
+  <h1>Register Account</h1>
+  <form action="#" th:action="@{/register}" th:object="${account}" method="post">
+    <p>
+      name: <input type="text" th:field="*{name}" />
+      address: <input type="text" th:field="*{address}" />
+    </p>
+    <p>
+      <input type="submit" value="Commit" />
+      <input type="reset" value="Reset" />
+    </p>
+  </form>
+</div>
 </body>
 </html>

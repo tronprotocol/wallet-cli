@@ -29,7 +29,7 @@ public class WalletClient {
   private static final String FilePath = "Wallet";
   private ECKey ecKey = null;
   private boolean loginState = false;
-  private static final GrpcClient rpcCli = new GrpcClient("127.0.0.1", 50051);
+  private static final GrpcClient rpcCli = new GrpcClient("192.168.10.134", 50051);
 
   /**
    * Creates a new WalletClient with a random ECKey or no ECKey.
@@ -160,15 +160,19 @@ public class WalletClient {
   }
 
   public boolean createAccount(AccountType accountType, byte[] accountName) {
-    byte[] address = getAddress();
-    Contract.AccountCreateContract contract = createAccountCreateContract(accountType, accountName,
-        address);
-    Transaction transaction = rpcCli.createAccount(contract);
+    Transaction transaction = createAccountTransaction(accountType, accountName, getAddress());
     if (transaction == null || transaction.getRawData().getContractCount() == 0) {
       return false;
     }
     transaction = signTransaction(transaction);
     return rpcCli.broadcastTransaction(transaction);
+  }
+
+  public static Transaction createAccountTransaction(AccountType accountType, byte[] accountName,
+      byte[] address) {
+    Contract.AccountCreateContract contract = createAccountCreateContract(accountType, accountName,
+        address);
+    return rpcCli.createAccount(contract);
   }
 
   public boolean createAssetIssue(Contract.AssetIssueContract contract) {
@@ -213,7 +217,7 @@ public class WalletClient {
     return builder.build();
   }
 
-  public Contract.AccountCreateContract createAccountCreateContract(AccountType accountType,
+  public static Contract.AccountCreateContract createAccountCreateContract(AccountType accountType,
       byte[] accountName, byte[] address) {
     Contract.AccountCreateContract.Builder builder = Contract.AccountCreateContract.newBuilder();
     ByteString bsaAdress = ByteString.copyFrom(address);
