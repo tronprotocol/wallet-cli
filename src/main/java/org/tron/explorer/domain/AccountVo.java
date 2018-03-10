@@ -12,19 +12,20 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 package org.tron.explorer.domain;
 
 
-public class Account {
+public class AccountVo {
  public String address;
  public String balance;
 
-  public Account(String address, String balance) {
+  public AccountVo(String address, String balance) {
     this.address = address;
     this.balance = balance;
   }
 
-  public Account() {
+  public AccountVo() {
   }
 
   public String getAddress() {
@@ -45,9 +46,9 @@ public class Account {
 
   @Override
   public String toString() {
-    return "Account{" +
-        "address='" + address + '\'' +
-        ", balance='" + balance + '\'' +
-        '}';
+    return "AccountVo{"
+        + "address='" + address + '\''
+        + ", balance='" + balance + '\''
+        + '}';
   }
 }

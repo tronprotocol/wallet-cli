@@ -1,0 +1,31 @@
+<!DOCTYPE HTML>
+<html  xmlns:th="http://www.thymeleaf.org">
+  <head>
+    <title>account list</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+  </head>
+
+  <body>
+    <h1>witness list</h1>
+      <table>
+        <tr>
+          <th>address</th>
+          <th>url</th>
+          <th>pubKey</th>
+          <th>totalMissed</th>
+          <th>totalProduced</th>
+          <th>voteCount</th>
+          <th>latestBlockNum</th>
+        </tr>
+        <tr th:each="witness : ${witnessList}">
+          <td th:text="${witness.address}"></td>
+          <td th:text="${witness.url}"></td>
+          <td th:text="${witness.pubKey}"></td>
+          <td th:text="${witness.totalMissed}"></td>
+          <td th:text="${witness.totalProduced}"></td>
+          <td th:text="${witness.voteCount}"></td>
+          <td th:text="${witness.latestBlockNum}"></td>
+        </tr>
+      </table>
+  </body>
+ </html>

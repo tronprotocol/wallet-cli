@@ -13,13 +13,15 @@
     <ul class="uk-navbar-nav">
       <li><a target="_blank" href="https://tron.network/">Tron's official website</a></li>
       <li><a target="_blank" href="https://github.com/tronprotocol">Tron's github </a></li>
+      <li><a target="_blank" href="/accountList">account List </a></li>
+      <li><a target="_blank" href="/witnessList">witness List </a></li>
     </ul>
   </div>
 </div>
 
 <div align="center">
 <h1>Query Balance</h1>
-  <form action="#" th:action="@{/balance}" th:object="${account}" method="post">
+  <form action="#" th:action="@{/balance}" th:object="${accountVo}" method="post">
   <p>
     address: <input type="text" th:field="*{address}" />
   </p>
