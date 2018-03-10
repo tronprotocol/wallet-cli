@@ -4,21 +4,8 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.SerializationFeature;
-import com.mitchellbosecke.pebble.PebbleEngine;
-import com.mitchellbosecke.pebble.extension.AbstractExtension;
-import com.mitchellbosecke.pebble.extension.Extension;
-import com.mitchellbosecke.pebble.extension.Filter;
-import com.mitchellbosecke.pebble.loader.ClasspathLoader;
-import com.mitchellbosecke.pebble.spring4.PebbleViewResolver;
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
@@ -33,21 +20,6 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurerAdapter
 @EnableScheduling
 @SpringBootApplication
 public class GrpcClientApplication {
-  @Value("${pebble.cache:false}")
-  boolean pebbleCache;
-
-
-  @Bean
-    public PebbleViewResolver pebbleViewResolver() {
-    PebbleViewResolver viewResolver = new PebbleViewResolver();
-    viewResolver.setPrefix("templates/");
-    viewResolver.setSuffix("");
-    viewResolver.setPebbleEngine(
-        new PebbleEngine.Builder().cacheActive(pebbleCache).loader(new ClasspathLoader())
-                .build());
-    return viewResolver;
-  }
-
 
   @Bean
     public ObjectMapper objectMapper() {

@@ -1,8 +1,19 @@
+
 server:
   port: 8088
+  tomcat:
+    uri-encoding: UTF-8
+
 spring:
   application:
     name: local-grpc-client
+  thymeleaf:
+    mode: HTML5
+    encoding: UTF-8
+    content-type: text/html
+    cache: false
+
+
 
 grpc:
   client:
@@ -15,5 +26,4 @@ grpc:
       keepAliveWithoutCalls: true
 
 
-pebble:
-  cache: false
+

@@ -1,6 +1,22 @@
-<html>
-<h1>Hello, yang !</h1>
-<p>Welcome to visit tron block chain explorer !</p>
+
+<!DOCTYPE HTML>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <title>tron block chain explorer</title>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+</head>
+<body>
+<h1>Query Balance</h1>
+<form action="#" th:action="@{/balance}" th:object="${account}" method="post">
+
+  <p>
+    address: <input type="text" th:field="*{address}" />
+  </p>
+
+  <p>
+    <input type="submit" value="Submit" />
+    <input type="reset" value="Reset" />
+  </p>
+</form>
+</body>
 </html>
-
-

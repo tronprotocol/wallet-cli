@@ -102,7 +102,9 @@ dependencies {
     compile group: 'io.springfox', name: 'springfox-swagger2', version: '2.7.0'
     compile group: 'io.springfox', name: 'springfox-swagger-ui', version: '2.7.0'
 
-    compile group: 'com.mitchellbosecke', name: 'pebble-spring-boot-starter', version: '2.4.0'
+    compile group: 'org.springframework.boot', name: 'spring-boot-starter-thymeleaf', version: '1.5.6.RELEASE'
+
+
 
 
 }

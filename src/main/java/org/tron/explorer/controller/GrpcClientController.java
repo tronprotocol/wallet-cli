@@ -1,17 +1,18 @@
 package org.tron.explorer.controller;
 
-import com.google.protobuf.ByteString;
+
+
 import io.swagger.annotations.ApiImplicitParam;
 import io.swagger.annotations.ApiOperation;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.ModelAndView;
 import org.tron.common.utils.ByteArray;
+import org.tron.explorer.domain.Account;
 import org.tron.walletserver.WalletClient;
 
 
@@ -26,18 +27,24 @@ public class GrpcClientController {
     return new ModelAndView("index");
   }
 
-  @ApiOperation(value="get Balance", notes="query balance")
-  @ApiImplicitParam(name = "address", value = "address", required = true, dataType = "String")
-  @RequestMapping("/balance/{address}")
-  public String getBalance(@PathVariable(value = "address") String address) {
-    try {
-      long balance = WalletClient.getBalance(ByteArray.fromHexString(address));
-      return String.valueOf(balance);
-    } catch (Exception e) {
-      e.printStackTrace();
-      return "Error:: getBalance faild :: " + e.getMessage();
-    }
+
+  @ModelAttribute
+  Account setAccount () {
+    return new Account ();
   }
 
+  @ApiOperation(value="get Balance", notes="query balance")
+  @ApiImplicitParam(name = "address", value = "address", required = true, dataType = "String")
+
+  @PostMapping("/balance")
+  public ModelAndView getBalance(@ModelAttribute Account account) {
+
+    long balance = WalletClient.getBalance(ByteArray.fromHexString(account.getAddress()));
+    ModelAndView modelAndView = new ModelAndView("balance");
+    modelAndView.addObject("address",account.address);
+    modelAndView.addObject("balance",balance);
+
+    return modelAndView;
+  }
 
 }
