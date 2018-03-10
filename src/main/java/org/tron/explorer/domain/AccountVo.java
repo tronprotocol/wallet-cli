@@ -17,15 +17,31 @@ package org.tron.explorer.domain;
 
 
 public class AccountVo {
- public String address;
- public String balance;
+
+  private String name;
+  private String address;
+  private String balance;
 
   public AccountVo(String address, String balance) {
     this.address = address;
     this.balance = balance;
   }
 
+  public AccountVo(String name, String address, String balance) {
+    this.name = name;
+    this.address = address;
+    this.balance = balance;
+  }
+
   public AccountVo() {
+  }
+
+  public String getName() {
+    return name;
+  }
+
+  public void setName(String name) {
+    this.name = name;
   }
 
   public String getAddress() {
@@ -47,8 +63,13 @@ public class AccountVo {
   @Override
   public String toString() {
     return "AccountVo{"
-        + "address='" + address + '\''
-        + ", balance='" + balance + '\''
-        + '}';
+        +
+        "name='" + name + '\''
+        +
+        ", address='" + address + '\''
+        +
+        ", balance='" + balance + '\''
+        +
+        '}';
   }
 }
