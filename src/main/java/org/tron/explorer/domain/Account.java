@@ -16,10 +16,18 @@ package org.tron.explorer.domain;
 
 
 public class Account {
- public String address;
- public String balance;
+
+  private String name;
+  private String address;
+  private String balance;
 
   public Account(String address, String balance) {
+    this.address = address;
+    this.balance = balance;
+  }
+
+  public Account(String name, String address, String balance) {
+    this.name = name;
     this.address = address;
     this.balance = balance;
   }
@@ -27,8 +35,16 @@ public class Account {
   public Account() {
   }
 
+  public String getName() {
+    return this.name;
+  }
+
+  public void setName(String name) {
+    this.name = name;
+  }
+
   public String getAddress() {
-    return address;
+    return this.address;
   }
 
   public void setAddress(String address) {
@@ -36,7 +52,7 @@ public class Account {
   }
 
   public String getBalance() {
-    return balance;
+    return this.balance;
   }
 
   public void setBalance(String balance) {
@@ -46,6 +62,7 @@ public class Account {
   @Override
   public String toString() {
     return "Account{" +
+        "name='" + name + '\'' +
         "address='" + address + '\'' +
         ", balance='" + balance + '\'' +
         '}';
