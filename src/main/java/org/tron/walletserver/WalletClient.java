@@ -386,7 +386,7 @@ public class WalletClient {
     return rpcCli.listAccounts();
   }
 
-  public Optional<WitnessList> listWitnesses() {
+  public static Optional<WitnessList> listWitnesses() {
     return rpcCli.listWitnesses();
   }
 }
