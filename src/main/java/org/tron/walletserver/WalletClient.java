@@ -382,7 +382,7 @@ public class WalletClient {
     return true;
   }
 
-  public Optional<AccountList> listAccounts() {
+  public static Optional<AccountList> listAccounts() {
     return rpcCli.listAccounts();
   }
 
