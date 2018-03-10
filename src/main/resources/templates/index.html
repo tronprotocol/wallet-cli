@@ -6,17 +6,28 @@
   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 </head>
 <body>
-<h1>Query Balance</h1>
-<form action="#" th:action="@{/balance}" th:object="${account}" method="post">
 
+<div class="uk-navbar uk-navbar-attached">
+  <div class="uk-container uk-container-center">
+    <a href="/" class="uk-navbar-brand"><i class="uk-icon-bitcoin"></i> Tron Block Chain</a>
+    <ul class="uk-navbar-nav">
+      <li><a target="_blank" href="https://tron.network/">Tron's official website</a></li>
+      <li><a target="_blank" href="https://github.com/tronprotocol">Tron's github </a></li>
+    </ul>
+  </div>
+</div>
+
+<div align="center">
+<h1>Query Balance</h1>
+  <form action="#" th:action="@{/balance}" th:object="${account}" method="post">
   <p>
     address: <input type="text" th:field="*{address}" />
   </p>
-
   <p>
-    <input type="submit" value="Submit" />
+    <input type="submit" value="query" />
     <input type="reset" value="Reset" />
   </p>
-</form>
+  </form>
+</div>
 </body>
 </html>
