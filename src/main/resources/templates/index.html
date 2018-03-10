@@ -34,7 +34,7 @@
 
 <div align="center">
   <h1>Register Account</h1>
-  <form action="#" th:action="@{/register}" th:object="${account}" method="post">
+  <form action="#" th:action="@{/register}" th:object="${accountVo}" method="post">
     <p>
       name: <input type="text" th:field="*{name}" />
       address: <input type="text" th:field="*{address}" />
