@@ -19,9 +19,11 @@ import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.FileUtil;
 import org.tron.common.utils.TransactionUtils;
 import org.tron.common.utils.Utils;
+import org.tron.core.config.Configuration;
 import org.tron.protos.Contract;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.AccountType;
+import com.typesafe.config.Config;
 
 public class WalletClient {
 
@@ -29,7 +31,14 @@ public class WalletClient {
   private static final String FilePath = "Wallet";
   private ECKey ecKey = null;
   private boolean loginState = false;
-  private static final GrpcClient rpcCli = new GrpcClient("192.168.10.134", 50051);
+
+  private static GrpcClient rpcCli = init();
+
+  public static GrpcClient init() {
+    Config config = Configuration.getByPath("config.conf");
+    List<String> fullnodelist = config.getStringList("fullnode.ip.list");
+    return new GrpcClient(fullnodelist.get(0));
+  }
 
   /**
    * Creates a new WalletClient with a random ECKey or no ECKey.
