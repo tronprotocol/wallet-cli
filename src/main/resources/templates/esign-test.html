@@ -1,60 +1,77 @@
 <html>
 
 <head>
-    <title>E-Sign Demo with Elliptic</title>
-    <script src="../static/cryptohash/lib/elliptic.min.js"></script>
-    <script src="../static/cryptohash/lib/sha3-256.js"></script>
-    <script src="../static/cryptohash/crypto.js"></script>
-    <script src="../static/utils/code.js"></script>
+  <title>E-Sign Demo with Elliptic</title>
+  <script src="../static/cryptohash/lib/elliptic.min.js"></script>
+  <script src="../static/cryptohash/lib/sha3-256.js"></script>
+  <script src="../static/cryptohash/crypto.js"></script>
+  <script src="../static/utils/code.js"></script>
 </head>
 <script>
 
-    function doTest() {
-      /*
-        var EC = elliptic.ec;
+  function testComputeAddress() {
+    var pubKeyHex = "04547d4722546ec2a5a83d708e4c93cf51bb7cf17c223a7fca8ae1fd4c38b7acbb2583d551b1e41643217679faae9a2279e2162c4265911d60210bfb90b36f4ef2";
+    var pubKeyBytes = hexStr2byteArray(pubKeyHex);
 
-        // Create and initialize EC context
-        // (better do it once and reuse it)
-        var ec = new EC('secp256k1');
+    var address = computeAddress(pubKeyBytes);
+    console.log(address);
+  }
 
-        // Generate keys
-        var key = ec.genKeyPair();
-        key.getPrivate();
+  function testECKeySign() {
+    var msg = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    var priKeyHex = "b4e469165c7e4d3abcf2999eef7ba5b1c54b3b774f492d6dc7dc13eb1d3d3186";
+    return ECKeySign(msg, priKeyHex);
+  }
 
-        var pubKey = key.getPublic();
-        var pubkeyb = pubKey.toLocaleString();
+  function testSha256() {
+    var msg = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    return SHA256(msg);
+  }
 
-      console.log("pubkeyb:::" + pubkeyb);
+  function doTest() {
+    testSha256();
+    testComputeAddress();
+    testECKeySign();
+    /*
+      var EC = elliptic.ec;
 
-        console.log("key = " + JSON.stringify(key));
+      // Create and initialize EC context
+      // (better do it once and reuse it)
+      var ec = new EC('secp256k1');
 
-        // Sign the message's hash (input must be an array, or a hex-string)
-        var msgHash = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-        var signature = key.sign(msgHash);
+      // Generate keys
+      var key = ec.genKeyPair();
+      key.getPrivate();
 
-        // Export DER encoded signature in Array
-        var derSign = signature.toDER();
+      var pubKey = key.getPublic();
+      var pubkeyb = pubKey.toLocaleString();
 
-        // Verify signature
+    console.log("pubkeyb:::" + pubkeyb);
+
+      console.log("key = " + JSON.stringify(key));
+
+      // Sign the message's hash (input must be an array, or a hex-string)
+      var msgHash = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+      var signature = key.sign(msgHash);
+
+      // Export DER encoded signature in Array
+      var derSign = signature.toDER();
+
       // Verify signature
-      var result = key.verify(msgHash, derSign);
-      console.log(result);
-      alert(result);
+    // Verify signature
+    var result = key.verify(msgHash, derSign);
+    console.log(result);
+    alert(result);
 */
 
-      var pubKeyHex = "04547d4722546ec2a5a83d708e4c93cf51bb7cf17c223a7fca8ae1fd4c38b7acbb2583d551b1e41643217679faae9a2279e2162c4265911d60210bfb90b36f4ef2";
-      var pubKeyBytes = hexStr2byteArray(pubKeyHex);
-
-      var address = computeAddress(pubKeyBytes);
-      console.log(address);
-    }
+  }
 </script>
 
 <body>
-    <h1>This a Elliptic Demo page</h1>
-    <input name="signkey" />
-    <button onclick="doTest()">Go</button>
-    <div id="content"></div>
+<h1>This a Elliptic Demo page</h1>
+<input name="signkey"/>
+<button onclick="doTest()">Go</button>
+<div id="content"></div>
 </body>
 
 </html>
