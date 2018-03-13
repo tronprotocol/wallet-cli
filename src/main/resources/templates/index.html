@@ -28,7 +28,7 @@
         var publicKey = key.getPublic();
 
         var shaObj = new jsSHA("SHA3-256", "BYTES");
-        shaObj.update("12345678");
+        shaObj.update(publicKey);
         var hash = shaObj.getHash("HEX");
 
 
