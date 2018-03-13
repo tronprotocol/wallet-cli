@@ -4,6 +4,81 @@
 <head>
   <title>tron block chain explorer</title>
   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+  <script src="/static/js/jquery.js"></script>
+  <script src="/static/cryptohash/elliptic.min.js"></script>
+  <script src="/static/cryptohash/sha.js"></script>
+
+  <script type="text/javascript">
+
+    $(function () {
+
+
+      $("#query").on('click', function(){
+
+        var address = $("#buttonSpanName").val();
+        address=address.replace(/(^\s*)|(\s*$)/g, "");
+
+        var EC = elliptic.ec;
+        var ec = new EC('secp256k1');
+
+        // Generate keys
+        var key = ec.genKeyPair();
+
+        var privateKey= key.getPrivate();
+        var publicKey = key.getPublic();
+
+        var shaObj = new jsSHA("SHA3-256", "BYTES");
+        shaObj.update("12345678");
+        var hash = shaObj.getHash("HEX");
+
+
+        // $.ajax({
+        //   url:"/register",
+        //   type:"post",
+        //   data:{address:address},
+        //   dataType : "json",
+        //
+        // });
+
+      });
+
+    });
+
+
+    function showPrivateKey() {
+      var EC = elliptic.ec;
+      var ec = new EC('secp256k1');
+      // Generate keys
+      var key = ec.genKeyPair();
+      var privateKey= key.getPrivate();
+      return privateKey;
+    }
+
+
+    function doSign() {
+      var EC = elliptic.ec;
+      var ec = new EC('secp256k1');
+
+      // Generate keys
+      var key = ec.genKeyPair();
+
+     var privateKey= key.getPrivate();
+     var publicKey = key.getPublic()
+
+      var shaObj = new jsSHA("SHA3-256", "BYTES");
+      shaObj.update(publicKey);
+      var hash = shaObj.getHash("HEX");
+
+      var subHash= hash.substr(12);
+
+      console.log(subHash);
+
+      return hash;
+
+    }
+
+  </script>
+
 </head>
 <body>
 
@@ -36,11 +111,11 @@
   <h1>Register Account</h1>
   <form action="#" th:action="@{/register}" th:object="${accountVo}" method="post">
     <p>
-      name: <input type="text" th:field="*{name}" />
+      name: <input id="buttonSpanName" type="text" th:field="*{name}" />
       address: <input type="text" th:field="*{address}" />
     </p>
     <p>
-      <input type="submit" value="Commit" />
+      <input id="query" type="submit" value="Commit" />
       <input type="reset" value="Reset" />
     </p>
   </form>
