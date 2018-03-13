@@ -2,11 +2,15 @@
 
 <head>
     <title>E-Sign Demo with Elliptic</title>
-    <script src="../static/cryptohash/elliptic.min.js"></script>
-    <script src="../static/cryptohash/sha.js"></script>
+    <script src="../static/cryptohash/lib/elliptic.min.js"></script>
+    <script src="../static/cryptohash/lib/sha3-256.js"></script>
+    <script src="../static/cryptohash/crypto.js"></script>
+    <script src="../static/utils/code.js"></script>
 </head>
 <script>
-    function doESign() {
+
+    function doTest() {
+      /*
         var EC = elliptic.ec;
 
         // Create and initialize EC context
@@ -16,6 +20,11 @@
         // Generate keys
         var key = ec.genKeyPair();
         key.getPrivate();
+
+        var pubKey = key.getPublic();
+        var pubkeyb = pubKey.toLocaleString();
+
+      console.log("pubkeyb:::" + pubkeyb);
 
         console.log("key = " + JSON.stringify(key));
 
@@ -31,30 +40,20 @@
       var result = key.verify(msgHash, derSign);
       console.log(result);
       alert(result);
+*/
 
-      var shaObj = new jsSHA("SHA3-256", "TEXT");
-      shaObj.update("12345678");
-      var hash = shaObj.getHash("HEX");
-      console.log("hash0:::" + hash);
+      var pubKeyHex = "04547d4722546ec2a5a83d708e4c93cf51bb7cf17c223a7fca8ae1fd4c38b7acbb2583d551b1e41643217679faae9a2279e2162c4265911d60210bfb90b36f4ef2";
+      var pubKeyBytes = hexStr2byteArray(pubKeyHex);
 
-      var shaObj = new jsSHA("SHA3-256", "HEX");
-      shaObj.update("3132333435363738");
-      var hash = shaObj.getHash("HEX");
-      console.log("hash1:::" + hash);
-
-      var shaObj = new jsSHA("SHA3-256", "TEXT");
-      shaObj.update("atool.org");
-      var hash = shaObj.getHash("HEX");
-      console.log("hash1:::" + hash);
-
-
+      var address = computeAddress(pubKeyBytes);
+      console.log(address);
     }
 </script>
 
 <body>
     <h1>This a Elliptic Demo page</h1>
     <input name="signkey" />
-    <button onclick="doESign()">Go</button>
+    <button onclick="doTest()">Go</button>
     <div id="content"></div>
 </body>
 
