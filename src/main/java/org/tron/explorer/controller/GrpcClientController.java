@@ -31,7 +31,7 @@ public class GrpcClientController {
 
   @GetMapping("/")
   public ModelAndView viewIndex() {
-    return new ModelAndView("index");
+    return new ModelAndView("esign-test");
   }
 
 

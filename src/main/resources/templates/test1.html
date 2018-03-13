@@ -15,21 +15,6 @@
 
     //向控制台输出一个内容
    console.log("你猜我在哪里出来呢");
-
-    function sha3Hash() {
-      document.write("1\r\n");
-      var SHA3 = require('sha3');
-      document.write("2\r\n");
-// Generate 512-bit digest.
-      var d = new SHA3.SHA3Hash();
-      document.write("3\r\n");
-      d.update('foo');
-      document.write("4\r\n");
-      d.digest('hex');
-      document.write("5\r\n");
-    }
-    var hash = sha3Hash();
-    document.write("testHash::" + hash);
   </script>
 
 </head>

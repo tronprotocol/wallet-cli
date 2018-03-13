@@ -1,0 +1,61 @@
+<html>
+
+<head>
+    <title>E-Sign Demo with Elliptic</title>
+    <script src="../static/cryptohash/elliptic.min.js"></script>
+    <script src="../static/cryptohash/sha.js"></script>
+</head>
+<script>
+    function doESign() {
+        var EC = elliptic.ec;
+
+        // Create and initialize EC context
+        // (better do it once and reuse it)
+        var ec = new EC('secp256k1');
+
+        // Generate keys
+        var key = ec.genKeyPair();
+        key.getPrivate();
+
+        console.log("key = " + JSON.stringify(key));
+
+        // Sign the message's hash (input must be an array, or a hex-string)
+        var msgHash = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+        var signature = key.sign(msgHash);
+
+        // Export DER encoded signature in Array
+        var derSign = signature.toDER();
+
+        // Verify signature
+      // Verify signature
+      var result = key.verify(msgHash, derSign);
+      console.log(result);
+      alert(result);
+
+      var shaObj = new jsSHA("SHA3-256", "TEXT");
+      shaObj.update("12345678");
+      var hash = shaObj.getHash("HEX");
+      console.log("hash0:::" + hash);
+
+      var shaObj = new jsSHA("SHA3-256", "HEX");
+      shaObj.update("3132333435363738");
+      var hash = shaObj.getHash("HEX");
+      console.log("hash1:::" + hash);
+
+      var shaObj = new jsSHA("SHA3-256", "TEXT");
+      shaObj.update("atool.org");
+      var hash = shaObj.getHash("HEX");
+      console.log("hash1:::" + hash);
+
+
+    }
+</script>
+
+<body>
+    <h1>This a Elliptic Demo page</h1>
+    <input name="signkey" />
+    <button onclick="doESign()">Go</button>
+    <div id="content"></div>
+</body>
+
+</html>
