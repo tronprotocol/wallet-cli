@@ -28,6 +28,13 @@ public class GrpcClient {
     blockingStub = WalletGrpc.newBlockingStub(channel);
   }
 
+  public GrpcClient(String host) {
+    channel = ManagedChannelBuilder.forTarget(host)
+        .usePlaintext(true)
+        .build();
+    blockingStub = WalletGrpc.newBlockingStub(channel);
+  }
+
   public void shutdown() throws InterruptedException {
     channel.shutdown().awaitTermination(5, TimeUnit.SECONDS);
   }
