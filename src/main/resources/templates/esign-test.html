@@ -18,9 +18,11 @@
   }
 
   function testECKeySign() {
-    var msg = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-    var priKeyHex = "b4e469165c7e4d3abcf2999eef7ba5b1c54b3b774f492d6dc7dc13eb1d3d3186";
-    return ECKeySign(msg, priKeyHex);
+    var msg = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15];
+    var priKeyHex = "bba587a6abd2eb162d660f4c656668b1b8ba6891f4e18667a3494aabfc475b57";
+    var priKeyBytes = hexStr2byteArray(priKeyHex);
+    var signBytes = ECKeySign(msg, priKeyBytes);
+    console.log("signBytes:::" + byteArray2hexStr(signBytes));
   }
 
   function testSha256() {
@@ -29,8 +31,8 @@
   }
 
   function doTest() {
-    testSha256();
-    testComputeAddress();
+   // testSha256();
+  //  testComputeAddress();
     testECKeySign();
     /*
       var EC = elliptic.ec;

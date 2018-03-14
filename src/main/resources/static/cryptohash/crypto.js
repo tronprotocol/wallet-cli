@@ -13,9 +13,17 @@ function computeAddress (pubBytes) {
 function ECKeySign(hashBytes, priKeyBytes) {
   var EC = elliptic.ec;
   var ec = new EC('secp256k1');
-  var key = ec.keyFromPrivate(priKeyBytes, 'hex');
+  var key = ec.keyFromPrivate(priKeyBytes, 'bytes');
   var signature = key.sign(hashBytes);
-  return signature;
+  var r = signature.r;
+  var s = signature.s;
+  var id = signature.recoveryParam;
+  var rStr = r.toString('hex');
+  var sStr = s.toString('hex');
+  var idStr = byte2hexStr(id);
+  var signStr = rStr+sStr+idStr;
+  var signByts = hexStr2byteArray(signStr);
+  return signByts;
 }
 
 //toDO:
