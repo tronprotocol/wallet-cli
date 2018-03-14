@@ -232,7 +232,7 @@ public class TestClient {
         + "\nclientDest now " + clientDest.getBalance()
         + "\nclientDest diff " + Math.abs(balanceDest - clientDest.getBalance())
         + "\ntotal balance " + totalBalance
-        + "\ndiff " + (totalBalance - clientSrc.getBalance() - clientDest.getBalance()));
+        + "\ndiff " + (totalBalance - clientSrc.getBalance() - clientDest.getBalance() - succeedTimes.get()));
   }
 
   private void assetIssue(String[] parameters) {
