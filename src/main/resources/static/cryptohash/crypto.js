@@ -10,6 +10,7 @@ function computeAddress(pubBytes) {
   return addressBytes;
 }
 
+//return address by bytes, priKeyBytes is byte[]
 function getAddressFromPriKey(priKeyBytes) {
   var pubBytes = getPubKeyFromPriKey(priKeyBytes);
   var addressBytes = computeAddress(pubBytes);
