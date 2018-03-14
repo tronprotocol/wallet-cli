@@ -1,8 +1,18 @@
 package org.tron.walletcli;
 
 import com.beust.jcommander.JCommander;
+import com.google.common.primitives.Ints;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Random;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.IntStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tron.api.GrpcAPI.AccountList;
@@ -171,6 +181,58 @@ public class TestClient {
     } else {
       logger.info("Send " + amountInt + " TRX to " + toAddress + " failed !!");
     }
+  }
+
+  private void pressureSendCoin() {
+    String password = "123456";
+    Client clientSrc = new Client();
+    clientSrc.importWallet(password,
+        "cba92a516ea09f620a16ff7ee95ce0df1d56550a8babe9964981a7144c8a784a");
+    clientSrc.login(password);
+
+    Client clientDest = new Client();
+    clientDest.registerWallet("testtransfer", password);
+    clientDest.login(password);
+
+    long balanceSrc = clientSrc.getBalance();
+    long balanceDest = clientDest.getBalance();
+    long totalBalance = balanceSrc + balanceDest;
+
+    ExecutorService service = Executors.newFixedThreadPool(10);
+    AtomicInteger succeedTimes = new AtomicInteger(0);
+    List<Future<?>> futures = new ArrayList<>();
+    Random transferRandom = new Random(System.currentTimeMillis());
+    IntStream.rangeClosed(0, 5000).mapToObj(integer -> service.submit(() -> {
+      int transfer = transferRandom.nextInt(50);
+      boolean result = clientSrc.sendCoin(password, clientDest.getAddress(), transfer);
+      if (result) {
+        succeedTimes.getAndIncrement();
+        logger.info("Send " + transfer + " TRX to " + clientDest.getAddress() + " successful !!");
+      } else {
+        logger.info("Send " + transfer + " TRX to " + clientDest.getAddress() + " failed !!");
+      }})).forEach(futures::add);
+
+    futures.forEach(future -> {
+      try {
+        future.get();
+      } catch (InterruptedException | ExecutionException e) {
+        e.printStackTrace();
+      }
+    });
+
+    boolean equals = clientSrc.getBalance()
+        + clientDest.getBalance()
+        + succeedTimes.get() == totalBalance;
+    logger.info("succeed times(service charge) " + succeedTimes.get()
+        + "\nequals " + equals
+        + "\nclientSrc ago " + balanceSrc
+        + "\nclientSrc now " + clientSrc.getBalance()
+        + "\nclientSrc diff " + Math.abs(balanceSrc - clientSrc.getBalance())
+        + "\nclientDest ago " + balanceDest
+        + "\nclientDest now " + clientDest.getBalance()
+        + "\nclientDest diff " + Math.abs(balanceDest - clientDest.getBalance())
+        + "\ntotal balance " + totalBalance
+        + "\ndiff " + (totalBalance - clientSrc.getBalance() - clientDest.getBalance()));
   }
 
   private void assetIssue(String[] parameters) {
@@ -350,6 +412,11 @@ public class TestClient {
         }
         case "listwitnesses": {
           listWitnesses();
+          break;
+        }
+        // Transfer pressure test for the server.
+        case "pressuretestsendcoin": {
+          pressureSendCoin();
           break;
         }
         case "exit":
