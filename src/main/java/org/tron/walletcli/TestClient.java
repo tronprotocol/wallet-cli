@@ -183,7 +183,17 @@ public class TestClient {
     }
   }
 
-  private void pressureSendCoin() {
+  private void pressureSendCoin(String[] parameters) {
+    if (parameters == null) {
+      logger.warn("Warning: SendCoin need 1 parameters but get nothing");
+      return;
+    }
+    if (parameters.length != 1) {
+      logger.warn("Warning: SendCoin need 1 parameters but get " + parameters.length);
+      return;
+    }
+
+    int transferTimes = Integer.valueOf(parameters[0]);
     String password = "123456";
     Client clientSrc = new Client();
     clientSrc.importWallet(password,
@@ -202,7 +212,7 @@ public class TestClient {
     AtomicInteger succeedTimes = new AtomicInteger(0);
     List<Future<?>> futures = new ArrayList<>();
     Random transferRandom = new Random(System.currentTimeMillis());
-    IntStream.rangeClosed(0, 5000).mapToObj(integer -> service.submit(() -> {
+    IntStream.rangeClosed(0, transferTimes).mapToObj(integer -> service.submit(() -> {
       int transfer = transferRandom.nextInt(50);
       boolean result = clientSrc.sendCoin(password, clientDest.getAddress(), transfer);
       if (result) {
@@ -416,7 +426,7 @@ public class TestClient {
         }
         // Transfer pressure test for the server.
         case "pressuretestsendcoin": {
-          pressureSendCoin();
+          pressureSendCoin(parameters);
           break;
         }
         case "exit":
