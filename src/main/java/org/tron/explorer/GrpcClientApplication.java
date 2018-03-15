@@ -11,6 +11,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 import org.springframework.http.converter.HttpMessageConverter;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
+import org.springframework.http.converter.protobuf.ProtobufHttpMessageConverter;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
@@ -35,8 +36,16 @@ public class GrpcClientApplication {
   @Autowired
   ObjectMapper objectMapper;
 
+
+  @Bean
+  ProtobufHttpMessageConverter protobufHttpMessageConverter() {
+    return new ProtobufHttpMessageConverter();
+  }
+
   @Bean
   public WebMvcConfigurer webMvcConfigurer() {
+
+
     return new WebMvcConfigurerAdapter() {
           /**
            * Keep "/static/**" prefix.
@@ -53,7 +62,8 @@ public class GrpcClientApplication {
              */
             @Override
             public void configureMessageConverters(List<HttpMessageConverter<?>> converters) {
-                final MappingJackson2HttpMessageConverter converter = new MappingJackson2HttpMessageConverter();
+             // final ProtobufHttpMessageConverter converter = new ProtobufHttpMessageConverter();
+               final MappingJackson2HttpMessageConverter converter = new MappingJackson2HttpMessageConverter();
                 converter.setObjectMapper(objectMapper);
                 converters.add(converter);
                 super.configureMessageConverters(converters);
