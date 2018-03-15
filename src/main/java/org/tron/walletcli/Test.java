@@ -1,8 +1,10 @@
 package org.tron.walletcli;
 
 import com.google.protobuf.ByteString;
+import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.UnsupportedEncodingException;
 import java.util.Base64;
+import java.util.Base64.Decoder;
 import java.util.Base64.Encoder;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.ECKey.ECDSASignature;
@@ -10,6 +12,7 @@ import org.tron.common.crypto.Hash;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Utils;
 import org.tron.protos.Contract;
+import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.TXInput;
 import org.tron.protos.Protocol.TXOutput;
 import org.tron.protos.Protocol.Transaction;
@@ -88,6 +91,18 @@ public class Test {
     System.out.println("encodeString ::: " + encodeString);
   }
 
+  public static void testDecode64()
+      throws UnsupportedEncodingException, InvalidProtocolBufferException {
+
+
+    Decoder decoder = Base64.getDecoder();
+    byte[] code64 = "EAEaFGwi77+977+9e++/ve+/ve+/ve+/vXFI77+9J++/vW/vv73vv71P77+9".getBytes();
+    byte[] decode = decoder.decode(code64);
+    Account account = Account.parseFrom(decode);
+    System.out.println("address::::" + ByteArray.toHexString(account.getAddress().toByteArray()));
+  }
+
+
   public static void testECKey(){
     Transaction transaction = createTransactionEx("e1a17255ccf15d6b12dcc074ca1152477ccf9b84", 10);
     byte[] bytes = transaction.toByteArray();
@@ -110,8 +125,8 @@ public class Test {
     System.out.println("id:::" + signature.v);
   }
 
-  public static void main(String[] args) throws UnsupportedEncodingException {
-    test64();
+  public static void main(String[] args) throws Exception {
+    testDecode64();
 
 
 /*
