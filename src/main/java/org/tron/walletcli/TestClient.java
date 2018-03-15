@@ -212,7 +212,7 @@ public class TestClient {
     AtomicInteger succeedTimes = new AtomicInteger(0);
     List<Future<?>> futures = new ArrayList<>();
     Random transferRandom = new Random(System.currentTimeMillis());
-    IntStream.rangeClosed(0, transferTimes).mapToObj(integer -> service.submit(() -> {
+    IntStream.range(0, transferTimes).mapToObj(integer -> service.submit(() -> {
       int transfer = transferRandom.nextInt(50);
       boolean result = clientSrc.sendCoin(password, clientDest.getAddress(), transfer);
       if (result) {
