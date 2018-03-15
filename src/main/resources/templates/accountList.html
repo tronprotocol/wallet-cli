@@ -15,7 +15,6 @@
           <th>ACCOUNT TYPE</th>
         </tr>
         <tr th:each="account : ${accountList}">
-          <td th:text="test"></td>
           <td th:text="${account.address}"></td>
           <td th:text="${account.balance}"></td>
           <td th:text="${account.accountName}"></td>
