@@ -58,12 +58,30 @@
     console.log("address:::" + byteArray2hexStr(address));
   }
 
+  function test64() {
+    var stringTest = "test string ";
+    var bytesTest = stringToBytes(stringTest);
+    var bytes64 = base64Encode(bytesTest);
+    var string64 = bytesToString(bytes64);
+
+    var bytesDecode = base64Decode(bytes64);
+    var stringDecode = bytesToString(bytesDecode);
+
+    console.log("stringTest:::" + stringTest);
+    console.log("string64:::" + string64);
+    console.log("stringDecode:::" + stringDecode);
+
+  }
   function doTest() {
+    test64();
+    /*
     testSha256();
     testGetAddressFromPriKey();
     testGetPubKeyFromPriKey();
     testComputeAddress();
     testECKeySign();
+    */
+
 /*
     var EC = elliptic.ec;
 

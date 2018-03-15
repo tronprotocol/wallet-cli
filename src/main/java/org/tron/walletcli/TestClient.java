@@ -165,11 +165,14 @@ public class TestClient {
     String amountStr = parameters[2];
     int amountInt = new Integer(amountStr);
 
-    boolean result = client.sendCoin(password, toAddress, amountInt);
-    if (result) {
-      logger.info("Send " + amountInt + " TRX to " + toAddress + " successful !!");
-    } else {
-      logger.info("Send " + amountInt + " TRX to " + toAddress + " failed !!");
+    for(int i = 0; i < 10000; i++) {
+      boolean result = client.sendCoin(password, toAddress, amountInt);
+      if (result) {
+        logger.info("Send " + amountInt + " TRX to " + toAddress + " successful !!");
+      } else {
+        logger.info("Send " + amountInt + " TRX to " + toAddress + " failed !!");
+        break;
+      }
     }
   }
 
