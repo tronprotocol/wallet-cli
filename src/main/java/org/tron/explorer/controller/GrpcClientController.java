@@ -82,7 +82,7 @@ public class GrpcClientController {
   }
 
   @GetMapping("/alTest") //HttpServletRequest req, HttpServletResponse resp
-  public  String getAcountListForTest()
+  public  byte[] getAcountListForTest()
       throws IOException {
 
     final List<Account> accountsList = WalletClient.listAccounts().get().getAccountsList();
@@ -93,8 +93,11 @@ public class GrpcClientController {
     byte[] accountsBytes = accountsList.get(0).toByteArray();
     byte[] accountsBytes1 = accountsList.get(1).toByteArray();
     byte[] accountsBytes2 = accountsList.get(2).toByteArray();
+
     final byte[] encode = encoder.encode(accountsBytes);
+
     String   encodeString = new String(encode,"ISO-8859-1");
+
     String   encodeString1 = new String(encode,"UTF-8");
     String   encodeString2 = encode.toString();
 
@@ -117,7 +120,7 @@ public class GrpcClientController {
 
     // os.write(encodeString);
    // os.close();
-    return  encodeString;
+    return  encode;
   }
 
 
