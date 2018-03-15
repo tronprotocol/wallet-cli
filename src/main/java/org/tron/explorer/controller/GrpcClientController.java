@@ -82,45 +82,29 @@ public class GrpcClientController {
   }
 
   @GetMapping("/alTest") //HttpServletRequest req, HttpServletResponse resp
-  public String getAcountListForTest()
+  public  byte[] getAcountListForTest()
       throws IOException {
 
     final List<Account> accountsList = WalletClient.listAccounts().get().getAccountsList();
 
   //  PrintWriter os = resp.getWriter();
   //  resp.setContentType("application/octet-stream");
-    final Encoder encoder = Base64.getEncoder();
-    byte[] accountsBytes = accountsList.get(0).toByteArray();
-    byte[] accountsBytes1 = accountsList.get(1).toByteArray();
-    byte[] accountsBytes2 = accountsList.get(2).toByteArray();
+    Account account = accountsList.get(0);
 
+    final Encoder encoder = Base64.getEncoder();
+    byte[] accountsBytes = account.toByteArray();
     final byte[] encode = encoder.encode(accountsBytes);
 
     String   encodeString = new String(encode,"ISO-8859-1");
 
-    String   encodeString1 = new String(encode,"UTF-8");
-    String   encodeString2 = encode.toString();
+    System.out.println("Name::: " + ByteArray.toHexString(account.getAccountName().toByteArray()));
+    System.out.println("Address::: " + ByteArray.toHexString(account.getAddress().toByteArray()));
+    System.out.println("Balance::: " + account.getBalance());
 
-    final Account account = Account.parseFrom(accountsBytes);
-
-    System.out.println(ByteArray.toHexString(account.getAccountName().toByteArray()));
-    System.out.println(ByteArray.toHexString(account.getAddress().toByteArray()));
+    System.out.println("base64String::: " + encodeString);
 
 
-    System.out.println(ByteArray.toHexString(accountsList.get(0).getAccountName().toByteArray()));
-    System.out.println(ByteArray.toHexString(accountsList.get(0).getAddress().toByteArray()));
-
-    final Decoder decoder = Base64.getDecoder();
-    final byte[] decode = decoder.decode(encode);
-
-    final Account account1 = Account.parseFrom(decode);
-
-    System.out.println(ByteArray.toHexString(account1.getAccountName().toByteArray()));
-    System.out.println(ByteArray.toHexString(account1.getAddress().toByteArray()));
-
-    // os.write(encodeString);
-   // os.close();
-    return  encodeString;
+    return  accountsBytes;
   }
 
 

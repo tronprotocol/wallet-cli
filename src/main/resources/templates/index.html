@@ -108,6 +108,7 @@
 
             var bytes = stringToBytes(data);
             var bytsDecode = base64Decode(bytes);
+            console.log("base64String " + bytesToString(data));
 
             var t = proto.protocol.Account.deserializeBinary(bytsDecode);
 
@@ -116,6 +117,7 @@
             var address = t.getAddress();
             var addressString = byteArray2hexStr(address);
             console.log("addressString "+addressString);
+
 
 
           }
