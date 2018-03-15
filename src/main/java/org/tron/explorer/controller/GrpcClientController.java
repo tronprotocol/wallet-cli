@@ -82,7 +82,7 @@ public class GrpcClientController {
   }
 
   @GetMapping("/alTest") //HttpServletRequest req, HttpServletResponse resp
-  public  byte[] getAcountListForTest()
+  public String getAcountListForTest()
       throws IOException {
 
     final List<Account> accountsList = WalletClient.listAccounts().get().getAccountsList();
@@ -120,7 +120,7 @@ public class GrpcClientController {
 
     // os.write(encodeString);
    // os.close();
-    return  encode;
+    return  encodeString;
   }
 
 

@@ -8,6 +8,13 @@
   <script src="/static/cryptohash/lib/elliptic.min.js"></script>
   <script src="/static/cryptohash/lib/sha.js"></script>
 
+
+  <script src="/static/protolib/protobuf.js"></script>
+  <script src="/static/protolib/pbj.js"></script>
+  <script src="/static/protolib/protobuf.js"></script>
+  <script src="/static/trondatajs/bundle.js"></script>
+  <script src="/static/utils/code.js"></script>
+
   <script type="text/javascript">
 
     $(function () {
@@ -99,12 +106,17 @@
 
           success: function (data) {
 
-            JSON.stringify(data);
-            alert("good");
+            var bytes = stringToBytes(data);
+            var bytsDecode = base64Decode(bytes);
 
-            console.log(data.length);
-            console.log(JSON.stringify(data));
-            console.log(data);
+            var t = proto.protocol.Account.deserializeBinary(bytsDecode);
+
+            console.log("name "+t.getAccountName());
+            console.log("address "+t.getAddress());
+            var address = t.getAddress();
+            var addressString = byteArray2hexStr(address);
+            console.log("addressString "+addressString);
+
 
           }
         });
