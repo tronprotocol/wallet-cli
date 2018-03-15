@@ -12,11 +12,14 @@
           <th>ADDRESS</th>
           <th>BALANCE</th>
           <th>ACCOUNT NAME</th>
+          <th>ACCOUNT TYPE</th>
         </tr>
         <tr th:each="account : ${accountList}">
           <td th:text="${account.address}"></td>
           <td th:text="${account.balance}"></td>
           <td th:text="${account.accountName}"></td>
+          <td th:text="${account.type}"></td>
+          <td th:text="${account.votesCount}"></td>
         </tr>
       </table>
   </body>

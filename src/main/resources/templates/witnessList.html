@@ -18,9 +18,9 @@
           <th>latestBlockNum</th>
         </tr>
         <tr th:each="witness : ${witnessList}">
-          <td th:text="${witness.address}"></td>
+          <td th:text="${witness.address.toStringUtf8()}"></td>
           <td th:text="${witness.url}"></td>
-          <td th:text="${witness.pubKey}"></td>
+          <td th:text="${witness.pubKey.toByteArray()}"></td>
           <td th:text="${witness.totalMissed}"></td>
           <td th:text="${witness.totalProduced}"></td>
           <td th:text="${witness.voteCount}"></td>

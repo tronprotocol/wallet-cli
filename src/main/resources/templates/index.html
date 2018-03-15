@@ -42,6 +42,9 @@
 
       });
 
+
+
+
     });
 
 
@@ -79,7 +82,42 @@
 
   </script>
 
-</head>
+  <script type="text/javascript"  th:inline="javascript">
+
+    /*<![CDATA[*/
+
+    $(function () {
+
+      $("#queryAccount").on('click', function () {
+
+        $.ajax({
+          type: 'get',
+          dataType: 'json',
+          // url:'http：localhost:8088/alTest', contentType:"application/x-protobuf;charset=utf-8", // application/json
+         // contentType:"application/x-protobuf;charset=utf-8",
+          url:/*[[@{/alTest}]]*/,
+
+          success: function (data) {
+
+            JSON.stringify(data);
+            alert("good");
+           for (var i = 0; i<data.length; i++){
+
+            console.log(data.length);
+            console.log(JSON.stringify(data));
+
+           }
+          }
+        });
+
+      });
+    });
+
+    /*]]>*/
+
+  </script>
+
+    </head>
 <body>
 
 <div class="uk-navbar uk-navbar-attached">
@@ -120,5 +158,13 @@
     </p>
   </form>
 </div>
+
+
+<div >
+  <button  id="queryAccount"  type="button">query</button>
+  <div  id="name"></div>
+</div>
+
+
 </body>
 </html>

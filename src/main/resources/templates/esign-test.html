@@ -32,7 +32,7 @@
       console.log(result);
       alert(result);
 
-      var shaObj = new jsSHA("SHA3-256", "TEXT");
+      var shaObj = new jsSHA("SHA3-256", "BYTES");
       shaObj.update("12345678");
       var hash = shaObj.getHash("HEX");
       console.log("hash0:::" + hash);
