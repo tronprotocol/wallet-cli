@@ -7,6 +7,7 @@
     <script src="../static/protolib/pbj.js"></script>
     <script src="../static/protolib/protobuf.js"></script>
     <script src="../static/trondatajs/bundle.js"></script>
+    <script src="../static/utils/code.js"></script>
 
 
 </head>
@@ -37,11 +38,16 @@
    // console.log("account : "+account);
 
     var data="EAEaFESNU7LfDNeBWPbwrs32DBwQsVQT";
+    var bytes = stringToBytes(data);
+    var bytsDecode = base64Decode(bytes);
 
-    var t = account.ParseFromStream(new PROTO.Base64Stream(data));
+    var t = proto.protocol.Account.deserializeBinary(bytsDecode);
 
-    console.log("s "+account.getAccountName());
-
+    console.log("name "+t.getAccountName());
+   console.log("address "+t.getAddress());
+   var address = t.getAddress();
+   var addressString = byteArray2hexStr(address);
+   console.log("addressString "+addressString);
     //
 
     // var s = new proto.protocol.Account();
