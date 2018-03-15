@@ -81,14 +81,13 @@ public class GrpcClientController {
     return modelAndView;
   }
 
-  @GetMapping("/alTest") //HttpServletRequest req, HttpServletResponse resp
+  @GetMapping("/alTest")
   public  byte[] getAcountListForTest()
       throws IOException {
 
     final List<Account> accountsList = WalletClient.listAccounts().get().getAccountsList();
 
-  //  PrintWriter os = resp.getWriter();
-  //  resp.setContentType("application/octet-stream");
+
     Account account = accountsList.get(0);
 
     final Encoder encoder = Base64.getEncoder();
