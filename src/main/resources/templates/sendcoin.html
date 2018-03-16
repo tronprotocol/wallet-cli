@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Title</title>
+</head>
+<script type="text/javascript">
+  function login() {
+    $("#tobyte").val(stringToBytes($("#password").val()));
+    $("#Address").val(getAddressFromPriKey(stringToBytes($("#password").val())));
+
+    $("#PubKey").val(getPubKeyFromPriKey(stringToBytes($("#password").val())));
+    $("#form").submit();
+
+  }
+</script>
+
+<div align="center">
+  <h1>Send Coin</h1>
+  <form id="form1" action="/sendcoin2" method="post" id="form">
+    <input hidden="hidden" name="tobyte" id="tobyte" value="111"/>
+    <input hidden="hidden" name="Address" id="Address" value="122"/>
+    <input hidden="hidden" name="PubKey" id="PubKey" value="133"/>
+
+
+    <p>
+      ownAddress: <input id="password" name="password" type="text"/>
+    </p>
+    <p>
+      <input id="send" type="button" value="commit" onclick="login()"/>
+    </p>
+  </form>
+</div>
+
+
+<body>
+
+</body>
+</html>

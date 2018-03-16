@@ -6,7 +6,6 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.googlecode.protobuf.format.JsonFormat;
 import io.swagger.annotations.ApiImplicitParam;
 import io.swagger.annotations.ApiOperation;
-import java.awt.SystemTray;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
@@ -18,12 +17,13 @@ import org.apache.commons.logging.LogFactory;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.ModelAndView;
 import org.tron.common.utils.ByteArray;
 import org.tron.explorer.domain.AccountVo;
+import org.tron.explorer.domain.Address;
 import org.tron.protos.Contract.AccountCreateContract;
+import org.tron.protos.Contract.TransferContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.AccountType;
 import org.tron.protos.Protocol.Transaction;
@@ -181,7 +181,7 @@ public class GrpcClientController {
   @GetMapping("/getTransaction")
   public byte[] getTransaction() {
     Transaction transaction = Test.createTransactionAccount();
-    return  transaction.toByteArray();
+    return transaction.toByteArray();
   }
 
   @PostMapping("/register")
@@ -219,5 +219,13 @@ public class GrpcClientController {
     return transaction.toByteArray();
   }
 
+  @PostMapping("/sendcoin2")
+  public byte[] sendCoin2(@ModelAttribute Address address) {
+    TransferContract contract = WalletClient
+        .createTransferContract(address.getToAddress().getBytes(), address.getAddress().getBytes(),
+            ByteArray.toLong(address.getAmount().getBytes()));
+    Transaction transaction = WalletClient.createTransaction4Transfer(contract);
+    return transaction.toByteArray();
+  }
 
 }
