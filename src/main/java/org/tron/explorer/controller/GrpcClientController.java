@@ -88,6 +88,16 @@ public class GrpcClientController {
     final List<Account> accountsList = WalletClient.listAccounts().get().getAccountsList();
 
 
+    for (Account account:accountsList) {
+
+      final Encoder encoder = Base64.getEncoder();
+      byte[] accountsBytes = account.toByteArray();
+      final byte[] encode = encoder.encode(accountsBytes);
+      String   encodeString = new String(encode,"ISO-8859-1");
+
+      System.out.println("account ::: " + encodeString);
+    }
+
     Account account = accountsList.get(0);
 
     final Encoder encoder = Base64.getEncoder();
@@ -132,8 +142,6 @@ public class GrpcClientController {
 
     List<Witness> witnessList = WalletClient.listWitnesses().get().getWitnessesList();
     ModelAndView modelAndView = new ModelAndView("witnessList");
-    witnessList.forEach(witness -> {
-    });
 
 
     System.out.println("Address "+ByteArray.toHexString(witnessList.get(0).getAddress().toByteArray()));
@@ -169,4 +177,21 @@ public class GrpcClientController {
     }
     return modelAndView;
   }
+
+  //check account is exist
+  @PostMapping("/check")
+  public Boolean isAccountExist(@ModelAttribute AccountVo accountVo) {
+
+    return null;
+  }
+
+  // return accountCreateContract
+  public byte[] getAccountCreateContract(@ModelAttribute AccountVo account) {
+    Transaction transaction = WalletClient
+        .createAccountTransaction(AccountType.Normal, account.getName().getBytes(),
+            ByteArray.fromHexString(account.getAddress()));
+
+    return  transaction.toByteArray();
+  }
+
 }
