@@ -41,8 +41,13 @@ public class GrpcClientController {
   }
 
   @GetMapping("/queryAccount")
-  public ModelAndView viewqueryAccount() {
+  public ModelAndView viewQueryAccount() {
     return new ModelAndView("accountList");
+  }
+
+  @GetMapping("/queryWitness")
+  public ModelAndView viewQueryWitness() {
+    return new ModelAndView("witnessList");
   }
 
 
@@ -73,37 +78,36 @@ public class GrpcClientController {
   public byte[] getAcountList()
       throws IOException {
 
-    List<Account> accountsList = WalletClient.listAccounts().get().getAccountsList();
+    List<Account> objectList = WalletClient.listAccounts().get().getAccountsList();
 
-    int accountsSize = 0;
-    for (int i = 0; i < accountsList.size(); i++) {
-      Account account = accountsList.get(i);
-      accountsSize += account.getSerializedSize();
-      accountsSize += 2;  //Length
+    int objectsSize = 0;
+    for (int i = 0; i < objectList.size(); i++) {
+      Account object = objectList.get(i);
+      objectsSize += object.getSerializedSize();
+      objectsSize += 2;  //Length
     }
 
-    byte[] returnBytes = new byte[accountsSize];
+    byte[] returnBytes = new byte[objectsSize];
 
-    accountsSize = 0;
-    for (int i = 0; i < accountsList.size(); i++) {
-      Account account = accountsList.get(i);
-      byte[] accountsBytes = account.toByteArray();
-      int length = accountsBytes.length;
-      returnBytes[accountsSize++] = (byte) ((length & 0xFFFF) >> 8);
-      returnBytes[accountsSize++] = (byte) (length & 0xFF);
-      System.arraycopy(accountsBytes, 0, returnBytes, accountsSize, length);
-      accountsSize += length;
+    objectsSize = 0;
+    for (int i = 0; i < objectList.size(); i++) {
+      Account object = objectList.get(i);
+      byte[] objectBytes = object.toByteArray();
+      int length = objectBytes.length;
+      returnBytes[objectsSize++] = (byte) ((length & 0xFFFF) >> 8);
+      returnBytes[objectsSize++] = (byte) (length & 0xFF);
+      System.arraycopy(objectBytes, 0, returnBytes, objectsSize, length);
+      objectsSize += length;
     }
 
     return returnBytes;
   }
 
   @GetMapping("/alTest")
-  public  byte[] getAcountListForTest()
+  public byte[] getAcountListForTest()
       throws IOException {
 
     final List<Account> accountsList = WalletClient.listAccounts().get().getAccountsList();
-
 
     Account account = accountsList.get(0);
 
@@ -111,7 +115,7 @@ public class GrpcClientController {
     byte[] accountsBytes = account.toByteArray();
     final byte[] encode = encoder.encode(accountsBytes);
 
-    String   encodeString = new String(encode,"ISO-8859-1");
+    String encodeString = new String(encode, "ISO-8859-1");
 
     System.out.println("Name::: " + ByteArray.toHexString(account.getAccountName().toByteArray()));
     System.out.println("Address::: " + ByteArray.toHexString(account.getAddress().toByteArray()));
@@ -119,10 +123,8 @@ public class GrpcClientController {
 
     System.out.println("base64String::: " + encodeString);
 
-
-    return  accountsBytes;
+    return accountsBytes;
   }
-
 
 
   @GetMapping("/aTest")
@@ -145,22 +147,34 @@ public class GrpcClientController {
   }
 
   @GetMapping("/witnessList")
-  public ModelAndView getWitnessList() {
+  public byte[] getWitnessList()
+      throws IOException {
 
-    List<Witness> witnessList = WalletClient.listWitnesses().get().getWitnessesList();
-    ModelAndView modelAndView = new ModelAndView("witnessList");
-    witnessList.forEach(witness -> {
-    });
+    List<Witness> objectList = WalletClient.listWitnesses().get().getWitnessesList();
 
-    System.out
-        .println("Address " + ByteArray.toHexString(witnessList.get(0).getAddress().toByteArray()));
-    System.out
-        .println("PubKey " + ByteArray.toHexString(witnessList.get(0).getPubKey().toByteArray()));
+    int objectsSize = 0;
+    for (int i = 0; i < objectList.size(); i++) {
+      Witness object = objectList.get(i);
+      objectsSize += object.getSerializedSize();
+      objectsSize += 2;  //Length
+    }
 
-    modelAndView.addObject("witnessList", witnessList);
+    byte[] returnBytes = new byte[objectsSize];
 
-    return modelAndView;
+    objectsSize = 0;
+    for (int i = 0; i < objectList.size(); i++) {
+      Witness object = objectList.get(i);
+      byte[] objectBytes = object.toByteArray();
+      int length = objectBytes.length;
+      returnBytes[objectsSize++] = (byte) ((length & 0xFFFF) >> 8);
+      returnBytes[objectsSize++] = (byte) (length & 0xFF);
+      System.arraycopy(objectBytes, 0, returnBytes, objectsSize, length);
+      objectsSize += length;
+    }
+
+    return returnBytes;
   }
+
 
   @PostMapping("/register")
   public ModelAndView registerAccount(@ModelAttribute AccountVo account) {
