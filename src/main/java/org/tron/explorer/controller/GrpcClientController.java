@@ -17,6 +17,7 @@ import org.apache.commons.logging.LogFactory;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.ModelAndView;
 import org.tron.common.utils.ByteArray;
@@ -26,6 +27,7 @@ import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.AccountType;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.Witness;
+import org.tron.walletcli.Test;
 import org.tron.walletserver.WalletClient;
 
 
@@ -175,6 +177,11 @@ public class GrpcClientController {
     return returnBytes;
   }
 
+  @GetMapping("/getTransaction")
+  public byte[] getTransaction() {
+    Transaction transaction = Test.createTransactionEx("e1a17255ccf15d6b12dcc074ca1152477ccf9b84", 1000);
+    return  transaction.toByteArray();
+  }
 
   @PostMapping("/register")
   public ModelAndView registerAccount(@ModelAttribute AccountVo account) {

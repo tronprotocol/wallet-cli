@@ -85,6 +85,35 @@
 
     }
 
+    function testParseTransaction() {
+      $.ajax({
+        type: 'get',
+        dataType: 'json',
+        // url:'http：localhost:8088/testTransaction', contentType:"application/x-protobuf;charset=utf-8", // application/json
+        // contentType:"application/x-protobuf;charset=utf-8",
+        url:/*[[@{/getTransaction}]]*/,
+
+        success: function (data) {
+
+          var bytes = stringToBytes(data);
+          var bytesDecode = base64Decode(bytes);
+          console.log("base64String " + bytesToString(data));
+
+          var transaction = proto.protocol.Transaction.deserializeBinary(bytsDecode);
+          //toDO: assert ret is SUCESS
+          var raw = transaction.getRawData();
+          var type = raw.getType();
+          var contract = raw.getContractList();
+          var size = contract.size();
+          var any = contract.get(0); //regist only one
+
+
+
+
+        }
+      });
+    }
+
   </script>
 
   <script type="text/javascript"  th:inline="javascript">
