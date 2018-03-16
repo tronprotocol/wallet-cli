@@ -1,23 +1,17 @@
 package org.tron.explorer.controller;
 
 
-
-
 import com.google.protobuf.Any;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.googlecode.protobuf.format.JsonFormat;
 import io.swagger.annotations.ApiImplicitParam;
 import io.swagger.annotations.ApiOperation;
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.Base64;
-import java.util.Base64.Decoder;
 import java.util.Base64.Encoder;
 import java.util.List;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -46,6 +40,12 @@ public class GrpcClientController {
     return new ModelAndView("index");
   }
 
+  @GetMapping("/queryAccount")
+  public ModelAndView viewqueryAccount() {
+    return new ModelAndView("accountList");
+  }
+
+
   @GetMapping("/myproto")
   public ModelAndView viewMyproto() {
     return new ModelAndView("myproto");
@@ -69,16 +69,33 @@ public class GrpcClientController {
     return modelAndView;
   }
 
-  @ApiOperation(value = "get AcountList", notes = "query AcountList")
   @GetMapping("/accountList")
-  public ModelAndView getAcountList() {
+  public byte[] getAcountList()
+      throws IOException {
 
-    List<Account> accountList = WalletClient.listAccounts().get().getAccountsList();
+    List<Account> accountsList = WalletClient.listAccounts().get().getAccountsList();
 
-    ModelAndView modelAndView = new ModelAndView("accountList");
-    modelAndView.addObject("accountList", accountList);
+    int accountsSize = 0;
+    for (int i = 0; i < accountsList.size(); i++) {
+      Account account = accountsList.get(i);
+      accountsSize += account.getSerializedSize();
+      accountsSize += 2;  //Length
+    }
 
-    return modelAndView;
+    byte[] returnBytes = new byte[accountsSize];
+
+    accountsSize = 0;
+    for (int i = 0; i < accountsList.size(); i++) {
+      Account account = accountsList.get(i);
+      byte[] accountsBytes = account.toByteArray();
+      int length = accountsBytes.length;
+      returnBytes[accountsSize++] = (byte) ((length & 0xFFFF) >> 8);
+      returnBytes[accountsSize++] = (byte) (length & 0xFF);
+      System.arraycopy(accountsBytes, 0, returnBytes, accountsSize, length);
+      accountsSize += length;
+    }
+
+    return returnBytes;
   }
 
   @GetMapping("/alTest")
@@ -109,18 +126,18 @@ public class GrpcClientController {
 
 
   @GetMapping("/aTest")
-  public  String getAcountForTest() {
+  public String getAcountForTest() {
 
     final List<Account> accountsList = WalletClient.listAccounts().get().getAccountsList();
 
     final JsonFormat jsonFormat = new JsonFormat();
-      List list =new ArrayList();
-    for (Account account: accountsList) {
+    List list = new ArrayList();
+    for (Account account : accountsList) {
       final String accountStr = ByteArray.toHexString(account.getAddress().toByteArray());
 
       final String s = jsonFormat.printToString(account);
       list.add(s);
-      System.out.println("s :" +s);
+      System.out.println("s :" + s);
 
     }
     return list.toString();
@@ -135,9 +152,10 @@ public class GrpcClientController {
     witnessList.forEach(witness -> {
     });
 
-
-    System.out.println("Address "+ByteArray.toHexString(witnessList.get(0).getAddress().toByteArray()));
-    System.out.println("PubKey "+ByteArray.toHexString(witnessList.get(0).getPubKey().toByteArray()));
+    System.out
+        .println("Address " + ByteArray.toHexString(witnessList.get(0).getAddress().toByteArray()));
+    System.out
+        .println("PubKey " + ByteArray.toHexString(witnessList.get(0).getPubKey().toByteArray()));
 
     modelAndView.addObject("witnessList", witnessList);
 
