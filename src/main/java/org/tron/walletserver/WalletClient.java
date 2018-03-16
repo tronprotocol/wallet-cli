@@ -1,12 +1,12 @@
 package org.tron.walletserver;
 
-import com.google.protobuf.ByteString;
-import com.typesafe.config.Config;
 import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
+
+import com.google.protobuf.ByteString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.spongycastle.util.encoders.Hex;
@@ -21,8 +21,9 @@ import org.tron.common.utils.TransactionUtils;
 import org.tron.common.utils.Utils;
 import org.tron.core.config.Configuration;
 import org.tron.protos.Contract;
-import org.tron.protos.Protocol.AccountType;
 import org.tron.protos.Protocol.Transaction;
+import org.tron.protos.Protocol.AccountType;
+import com.typesafe.config.Config;
 
 public class WalletClient {
 
@@ -119,7 +120,6 @@ public class WalletClient {
     byte[] aseKey = getEncKey(password);
     byte[] privKeyEnced = SymmEncoder.AES128EcbEnc(privKeyPlain, aseKey);
     String privKeyStr = ByteArray.toHexString(privKeyEnced);
-    System.out.println("privKeyStr:" + ByteArray.toHexString(privKeyPlain));
     byte[] pubKeyBytes = ecKey.getPubKey();
     String pubKeyStr = ByteArray.toHexString(pubKeyBytes);
     // SAVE PASSWORD
@@ -166,11 +166,6 @@ public class WalletClient {
     }
     transaction = signTransaction(transaction);
     return rpcCli.broadcastTransaction(transaction);
-  }
-
-  public static Transaction createTransaction4Transfer(Contract.TransferContract contract) {
-    Transaction transaction = rpcCli.createTransaction(contract);
-    return transaction;
   }
 
   public boolean createAccount(AccountType accountType, byte[] accountName) {
@@ -220,8 +215,7 @@ public class WalletClient {
     return rpcCli.broadcastTransaction(transaction);
   }
 
-  public static Contract.TransferContract createTransferContract(byte[] to, byte[] owner,
-      long amount) {
+  public Contract.TransferContract createTransferContract(byte[] to, byte[] owner, long amount) {
     Contract.TransferContract.Builder builder = Contract.TransferContract.newBuilder();
     ByteString bsTo = ByteString.copyFrom(to);
     ByteString bsOwner = ByteString.copyFrom(owner);
