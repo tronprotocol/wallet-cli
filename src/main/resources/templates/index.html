@@ -14,15 +14,17 @@
   <script src="/static/tronjslib/tron.js"></script>
   <script src="/static/tronjslib/troninv.js"></script>
   <script src="/static/utils/code.js"></script>
+  <script src="/static/cryptohash/crypto.js"></script>
 
   <script type="text/javascript">
 
     $(function () {
 
 
+
       $("#query").on('click', function(){
 
-        var address = $("#buttonSpanName").val();
+        var address = $("#accountName").val();
         address=address.replace(/(^\s*)|(\s*$)/g, "");
 
         var EC = elliptic.ec;
@@ -139,6 +141,25 @@
         });
 
       });
+
+
+
+      //send account and address
+      $("#accountName1").focus(function(){
+        $("#accountName1").css("background-color","#FFFFCC");
+
+      });
+      $("#accountName1").blur(function(){
+        $("#accountName1").css("background-color","#D6D6FF");
+
+        var priKeyBytes=genPriKey();
+        var addressBytes= getAddressFromPriKey(priKeyBytes);
+
+        $("#addressName1").val(addressBytes);
+      });
+
+
+
     });
     function testParseTransaction() {
       $.ajax({
@@ -174,6 +195,7 @@
 
         }
       });
+
     }
     /*]]>*/
 
@@ -214,11 +236,26 @@
   <h1>Register Account</h1>
   <form action="#" th:action="@{/register}" th:object="${accountVo}" method="post">
     <p>
-      name: <input id="buttonSpanName" type="text" th:field="*{name}" />
-      address: <input type="text" th:field="*{address}" />
+      name: <input id="accountName" type="text" th:field="*{name}" />
+      address: <input id="addressName" type="text" th:field="*{address}" readonly="readonly"/>
     </p>
     <p>
       <input id="query" type="submit" value="Commit" />
+      <input type="reset" value="Reset" />
+    </p>
+  </form>
+</div>
+
+
+<div align="center">
+  <h1>Register Account</h1>
+  <form >
+    <p>
+      name: <input id="accountName1" type="text"  />
+      address: <input id="addressName1" type="text"  readonly="readonly"/>
+    </p>
+    <p>
+      <input id="register" type="button" value="register" />
       <input type="reset" value="Reset" />
     </p>
   </form>
