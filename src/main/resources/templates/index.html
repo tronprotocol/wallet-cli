@@ -166,7 +166,7 @@
           var any = oneContract.getParameter();
           var contarcType = oneContract.getType();
           var unpack = proto.google.protobuf.Any.prototype.unpack;　
-          var account = any.unpack(deserializeBinary, "protocol.AccountCreateContract");
+          var account = any.unpack(proto.protocol.AccountCreateContract.deserializeBinary, "protocol.AccountCreateContract");
           var accountType = account.getType();
           var accountName = account.getAccountName();
           var ownerAddress = account.getOwnerAddress();
