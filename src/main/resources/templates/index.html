@@ -11,8 +11,8 @@
 
   <script src="/static/protolib/protobuf.js"></script>
   <script src="/static/tronjslib/contract.js"></script>
-  <script src="/static/trondatajs/tron.js"></script>
-  <script src="/static/trondatajs/troninv.js"></script>
+  <script src="/static/tronjslib/tron.js"></script>
+  <script src="/static/tronjslib/troninv.js"></script>
   <script src="/static/utils/code.js"></script>
 
   <script type="text/javascript">
@@ -97,44 +97,6 @@
 
         success: function (data) {
 
-          var bytes = stringToBytes(data);
-          var bytesDecode = base64Decode(bytes);
-          console.log("base64String " + bytesToString(data));
-
-          var transaction = proto.protocol.Transaction.deserializeBinary(bytsDecode);
-          //toDO: assert ret is SUCESS
-          var raw = transaction.getRawData();
-          var type = raw.getType();
-          var contract = raw.getContractList();
-          var size = contract.size();
-          var any = contract.get(0).getParameter(); //regist only one
-          var contarcType = contract.get(0).getType();
-          var account = proto.google.protobuf.Any.prototype.unpack(any, "AccountCreateContract");
-          var accountType = account.getType();
-          var accountName = account.getAccountName();
-          var ownerAddress = account.getOwnerAddress();
-
-
-          //
-          var transaction = proto.protocol.Transaction.deserializeBinary(bytsDecode);
-          var rawData=transaction.getRawData();
-          var rawDataStr=stringToBytes(rawData);
-
-          var priKeyBytes =genPriKey();
-          var signBytes=ECKeySign(rawData,priKeyBytes);
-
-          var transactionType=rawData.getType();
-          var contractList=  rawData.getContractList();
-
-          for(var i=0;i<=contractList.length;i++){
-            var contractType= contractList[i].getType();
-            if(contractType==0){
-              var accountCreateContract =contractType;
-
-              proto.google.protobuf.Any.prototype.unpack(accountCreateContract,"AccountCreateContract");
-
-            }
-          }
 
         }
       });
@@ -188,8 +150,6 @@
 
         success: function (data) {
 
-          var  bytesss  = getRowBytesFromTransactionBase64(data);
-          console.log("row Data::: " + byteArray2hexStr(bytesss));
           var bytes = stringToBytes(data);
           var bytesDecode = base64Decode(bytes);
           console.log("base64String " + bytesToString(data));
@@ -203,11 +163,12 @@
           var oneContract = contract[0];
           var any = oneContract.getParameter();
           var contarcType = oneContract.getType();
-          var unpack = proto.google.protobuf.Any.prototype.unpack;　
-          var account = any.unpack(deserializeBinary, "protocol.AccountCreateContract");
+      //    var unpack = proto.google.protobuf.Any.prototype.unpack;
+          var account = any.unpack(proto.protocol.AccountCreateContract.deserializeBinary, "protocol.AccountCreateContract");
           var accountType = account.getType();
           var accountName = account.getAccountName();
           var ownerAddress = account.getOwnerAddress();
+          console.log("ownerAddress:::" + byteArray2hexStr(ownerAddress));
 
 
         }
