@@ -105,8 +105,9 @@
           var type = raw.getType();
           var contract = raw.getContractList();
           var size = contract.size();
-          var any = contract.get(0); //regist only one
-          var account = proto.google.protobuf.Any.prototype.unpack(contract, "AccountCreateContract");
+          var any = contract.get(0).getParameter(); //regist only one
+          var contarcType = contract.get(0).getType();
+          var account = proto.google.protobuf.Any.prototype.unpack(any, "AccountCreateContract");
           var accountType = account.getType();
           var accountName = account.getAccountName();
           var ownerAddress = account.getOwnerAddress();
