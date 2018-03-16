@@ -21,7 +21,7 @@ public class AccountVo {
   private String name;
   private String address;
   private String balance;
-
+  private int accountType;
   public AccountVo(String address, String balance) {
     this.address = address;
     this.balance = balance;
@@ -33,8 +33,16 @@ public class AccountVo {
     this.balance = balance;
   }
 
+  public AccountVo(String name, String address, String balance, int accountType) {
+    this.name = name;
+    this.address = address;
+    this.balance = balance;
+    this.accountType = accountType;
+  }
+
   public AccountVo() {
   }
+
 
   public String getName() {
     return name;
@@ -60,16 +68,21 @@ public class AccountVo {
     this.balance = balance;
   }
 
+  public int getAccountType() {
+    return accountType;
+  }
+
+  public void setAccountType(int accountType) {
+    this.accountType = accountType;
+  }
+
   @Override
   public String toString() {
     return "AccountVo{"
-        +
-        "name='" + name + '\''
-        +
-        ", address='" + address + '\''
-        +
-        ", balance='" + balance + '\''
-        +
-        '}';
+        + "name='" + name + '\''
+        + ", address='" + address + '\''
+        + ", balance='" + balance + '\''
+        + ", accountType=" + accountType
+        + '}';
   }
 }
