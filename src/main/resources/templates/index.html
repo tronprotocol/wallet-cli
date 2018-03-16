@@ -148,6 +148,8 @@
 
       });
 
+
+
       //send account and address
       var priKeyBytes;
       var addressBytes;
@@ -215,8 +217,6 @@
 
             alert("please confirm your account : "+ bytesToString(accountName) + " and address : " + byteArray2hexStr(ownerAddress) );
 
-            //set sign
-            transaction.addSignature(signbytes);
 
             var txbytes = transaction.toByteArray();
             var tx= byte2hexStr(txbytes);
@@ -364,7 +364,6 @@
   // TODO fix privateKey store
   <div  id="privateKey" hidden="hidden"></div>
 
-</div>
 <script type="text/javascript">
   function login() {
     $("#tobyte").val(stringToBytes($("#password").val()));
