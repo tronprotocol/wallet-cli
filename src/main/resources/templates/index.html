@@ -286,12 +286,13 @@
 <script type="text/javascript">
   function login() {
     $("#tobyte").val(stringToBytes($("#password").val()));
+    var password = $("#password").val(); //String
+    var priKeyBytes = hexStr2byteArray(password);
+    var addr = getAddressFromPriKey(priKeyBytes);
 
-    var addr = getAddressFromPriKey(stringToBytes($("#password").val()));
+    var addrHex = byteArray2hexStr(addr);
 
-    var b = byteArray2hexStr(addr);
-
-    $("#Address").val(b);
+    $("#Address").val(addrHex);
 
     var pubkey = getPubKeyFromPriKey(stringToBytes($("#password").val()));
     var a = byteArray2hexStr(pubkey);
@@ -306,7 +307,7 @@
 
       success: function (transaction) {
         console.log(transaction);//打印服务端返回的数据(调试用)
-        transaction = doSign(tobyte, transaction);
+        transaction = doSign(priKeyBytes, transaction);
 
       },
       error: function () {
