@@ -151,22 +151,107 @@
 
 
       //send account and address
+      var priKeyBytes;
+      var addressBytes;
+      var address;
+      var accountName ;
+
       $("#accountName1").focus(function(){
         $("#accountName1").css("background-color","#FFFFCC");
 
+         priKeyBytes = genPriKey();
+
+         addressBytes = getAddressFromPriKey(priKeyBytes);
+         address = byteArray2hexStr(addressBytes)
+
+        $("#addressName1").val(address);
       });
       $("#accountName1").blur(function(){
         $("#accountName1").css("background-color","#D6D6FF");
+        accountName=$("#accountName1").val();
 
-        var priKeyBytes=genPriKey();
-        var addressBytes= getAddressFromPriKey(priKeyBytes);
+        //TODO fix privateKey store
+        $("#privateKey").val(priKeyBytes);
 
-        $("#addressName1").val(addressBytes);
       });
+
+      $("#register").on('click', function () {
+
+        $.ajax({
+          type: 'post',
+          data:{address:address,name:accountName,accountType:0},
+          dataType: 'json',
+          // url:'http：localhost:8088/alTest', contentType:"application/x-protobuf;charset=utf-8", // application/json
+          // contentType:"application/x-protobuf;charset=utf-8",
+          url:/*[[@{/transactionForView}]]*/,
+
+          success: function (data) {
+            var rawDataBytes = getRowBytesFromTransactionBase64(data);
+
+            var prikeyBytes = $("#privateKey").val();
+
+            //doSign
+            var signbytes = doSign(prikeyBytes, data);
+            console.log("sign::: " + byteArray2hexStr(signbytes));
+
+            var  bytesss  = getRowBytesFromTransactionBase64(data);
+            console.log("row Data::: " + byteArray2hexStr(bytesss));
+            var bytes = stringToBytes(data);
+            var bytesDecode = base64Decode(bytes);
+            console.log("base64String " + bytesToString(data));
+
+            var transaction = proto.protocol.Transaction.deserializeBinary(bytesDecode);
+            //toDO: assert ret is SUCESS
+            var raw = transaction.getRawData();
+            var type = raw.getType();
+            var contract = raw.getContractList();
+            var size = contract.length;
+            var oneContract = contract[0];
+            var any = oneContract.getParameter();
+            var contarcType = oneContract.getType();
+            var unpack = proto.google.protobuf.Any.prototype.unpack;
+            var account = any.unpack(proto.protocol.AccountCreateContract.deserializeBinary, "protocol.AccountCreateContract");
+            var accountType = account.getType();
+            var accountName = account.getAccountName();
+            var ownerAddress = account.getOwnerAddress();
+
+            alert("please confirm your account : "+ bytesToString(accountName) + " and address : " + byteArray2hexStr(ownerAddress) );
+
+            //set sign
+            transaction.addSignature(signbytes);
+
+            var txbytes = transaction.toByteArray();
+            var tx= byte2hexStr(txbytes);
+
+            var result = sendTransaction(tx);
+            alert("register is : " +result);
+          }
+        });
+
+      });
+
 
 
 
     });
+
+
+   function sendTransaction(transition){
+
+     $.ajax({
+       type: 'post',
+       dataType: 'json',
+       data:{transition:transition},
+       url:/*[[@{/transactionFromView}]]*/,
+
+       success: function (data) {
+        return data ;
+        }
+     });
+
+   }
+
+
     function testParseTransaction() {
       $.ajax({
         type: 'get',
@@ -275,6 +360,8 @@
 <div >
   <button  id="queryAccount"  type="button">query</button>
   <div  id="name"></div>
+
+  <div  id="privateKey" hidden="hidden"></div>
 </div>
 
 
