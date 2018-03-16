@@ -114,7 +114,25 @@
 
 
           //
+          var transaction = proto.protocol.Transaction.deserializeBinary(bytsDecode);
+          var rawData=transaction.getRawData();
+          var rawDataStr=stringToBytes(rawData);
 
+          var priKeyBytes =genPriKey();
+          var signBytes=ECKeySign(rawData,priKeyBytes);
+
+          var transactionType=rawData.getType();
+          var contractList=  rawData.getContractList();
+
+          for(var i=0;i<=contractList.length;i++){
+            var contractType= contractList[i].getType();
+            if(contractType==0){
+              var accountCreateContract =contractType;
+
+              proto.google.protobuf.Any.prototype.unpack(accountCreateContract,"AccountCreateContract");
+
+            }
+          }
 
         }
       });
