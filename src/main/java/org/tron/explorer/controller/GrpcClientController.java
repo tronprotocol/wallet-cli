@@ -6,6 +6,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.googlecode.protobuf.format.JsonFormat;
 import io.swagger.annotations.ApiImplicitParam;
 import io.swagger.annotations.ApiOperation;
+import java.awt.SystemTray;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
@@ -179,7 +180,8 @@ public class GrpcClientController {
 
   @GetMapping("/getTransaction")
   public byte[] getTransaction() {
-    Transaction transaction = Test.createTransactionEx("e1a17255ccf15d6b12dcc074ca1152477ccf9b84", 1000);
+    Transaction transaction = Test.createTransactionAccount();
+    System.out.println("RowData::: " + ByteArray.toHexString(transaction.getRawData().toByteArray()));
     return  transaction.toByteArray();
   }
 

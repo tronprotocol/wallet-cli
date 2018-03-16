@@ -56,9 +56,10 @@ public class Test {
   public static Transaction createTransactionEx(String toAddress, long amount) {
     Transaction.Builder transactionBuilder = Transaction.newBuilder();
 
-    for ( int i = 0; i < 10; i++ ) {
+    for (int i = 0; i < 10; i++) {
       Transaction.Contract.Builder contractBuilder = Transaction.Contract.newBuilder();
-      Contract.TransferContract.Builder transferContractBuilder = Contract.TransferContract.newBuilder();
+      Contract.TransferContract.Builder transferContractBuilder = Contract.TransferContract
+          .newBuilder();
       transferContractBuilder.setAmount(amount);
       ByteString bsTo = ByteString.copyFrom(ByteArray
           .fromHexString(toAddress));
@@ -79,6 +80,33 @@ public class Test {
     }
     transactionBuilder.getRawDataBuilder().setType(Transaction.TransactionType.ContractType);
 
+    Transaction transaction = transactionBuilder.build();
+    return transaction;
+  }
+
+  public static Transaction createTransactionAccount() {
+    Transaction.Builder transactionBuilder = Transaction.newBuilder();
+
+    for (int i = 0; i < 10; i++) {
+      Transaction.Contract.Builder contractBuilder = Transaction.Contract.newBuilder();
+      Contract.AccountCreateContract.Builder accountCreateContract = Contract.AccountCreateContract
+          .newBuilder();
+      accountCreateContract.setAccountName(ByteString.copyFrom("zawtest".getBytes()));
+
+      ByteString bsOwner = ByteString.copyFrom(ByteArray
+          .fromHexString("e1a17255ccf15d6b12dcc074ca1152477ccf9b84"));
+      accountCreateContract.setOwnerAddress(bsOwner);
+      try {
+        Any anyTo = Any.pack(accountCreateContract.build());
+        contractBuilder.setParameter(anyTo);
+      } catch (Exception e) {
+        return null;
+      }
+      contractBuilder.setType(Transaction.Contract.ContractType.AccountCreateContract);
+
+      transactionBuilder.getRawDataBuilder().addContract(contractBuilder);
+    }
+    transactionBuilder.getRawDataBuilder().setType(Transaction.TransactionType.ContractType);
 
     Transaction transaction = transactionBuilder.build();
     return transaction;
@@ -87,13 +115,12 @@ public class Test {
   public static void test64() throws UnsupportedEncodingException {
     Encoder encoder = Base64.getEncoder();
     byte[] encode = encoder.encode("test string ".getBytes());
-    String   encodeString = new String(encode,"ISO-8859-1");
+    String encodeString = new String(encode, "ISO-8859-1");
     System.out.println("encodeString ::: " + encodeString);
   }
 
   public static void testDecode64()
       throws UnsupportedEncodingException, InvalidProtocolBufferException {
-
 
     Decoder decoder = Base64.getDecoder();
     byte[] code64 = "EAEaFGwi77+977+9e++/ve+/ve+/ve+/vXFI77+9J++/vW/vv73vv71P77+9".getBytes();
@@ -103,7 +130,7 @@ public class Test {
   }
 
 
-  public static void testECKey(){
+  public static void testECKey() {
     Transaction transaction = createTransactionEx("e1a17255ccf15d6b12dcc074ca1152477ccf9b84", 10);
     byte[] bytes = transaction.toByteArray();
 
@@ -114,7 +141,8 @@ public class Test {
     System.out.println("prikey ::: " + ByteArray.toHexString(priKey));
     System.out.println("pubKey ::: " + ByteArray.toHexString(pubKey));
     System.out.println("addresss ::: " + ByteArray.toHexString(addresss));
-    byte[] msg = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15};
+    byte[] msg = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0, 1, 2, 3, 4, 5, 6, 7, 8,
+        9, 10, 11, 12, 13, 14, 15};
 
     byte[] sha256 = Hash.sha256(msg);
     ECDSASignature signature = eCkey.sign(sha256);
