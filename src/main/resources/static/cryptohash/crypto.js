@@ -1,3 +1,17 @@
+//gen Ecc priKey for bytes
+function genPriKey() {
+  var EC = elliptic.ec;
+  var ec = new EC('secp256k1');
+  var key = ec.genKeyPair();
+  var priKey = key.getPrivate();
+  var priKeyHex  = priKey.toString('hex');
+  while (priKeyHex.length < 64){
+    priKeyHex = "00" + priKeyHex;
+  }
+  var priKeyBytes = hexStr2byteArray(priKeyHex);
+  return priKeyBytes;
+}
+
 //return address by bytes, pubBytes is byte[]
 function computeAddress(pubBytes) {
   var pubKey = bin2String(pubBytes);

@@ -155,8 +155,8 @@ function byteArray2hexStr(byteArray)
 function  base64Decode(bytes64) {
   var string64 = bytesToString(bytes64);
   var b = new Base64();
-  var decodeString = b.decode(string64);
-  var decodeBytes = stringToBytes(decodeString);
+  var decodeBytes = b.decodeToByteArray(string64);
+//  var decodeBytes = stringToBytes(decodeString);
   return decodeBytes;
 }
 
@@ -224,6 +224,46 @@ function Base64() {
     }
     output = _utf8_decode(output);
     return output;
+  }
+
+  // public method for decoding
+  this.decodeToByteArray = function (input) {
+    var output = "";
+    var chr1, chr2, chr3;
+    var enc1, enc2, enc3, enc4;
+    var i = 0;
+    input = input.replace(/[^A-Za-z0-9\+\/\=]/g, "");
+    while (i < input.length) {
+      enc1 = _keyStr.indexOf(input.charAt(i++));
+      enc2 = _keyStr.indexOf(input.charAt(i++));
+      enc3 = _keyStr.indexOf(input.charAt(i++));
+      enc4 = _keyStr.indexOf(input.charAt(i++));
+      chr1 = (enc1 << 2) | (enc2 >> 4);
+      chr2 = ((enc2 & 15) << 4) | (enc3 >> 2);
+      chr3 = ((enc3 & 3) << 6) | enc4;
+      output = output + String.fromCharCode(chr1);
+      if (enc3 != 64) {
+        output = output + String.fromCharCode(chr2);
+      }
+      if (enc4 != 64) {
+        output = output + String.fromCharCode(chr3);
+      }
+    }
+    var outBytes = _out2ByteArray(output);
+    return outBytes;
+  }
+
+  // private method for UTF-8 decoding
+  _out2ByteArray = function (utftext) {
+    var byteArray = new Array(utftext.length)
+    var i = 0;
+    var c = c1 = c2 = 0;
+    while ( i < utftext.length ) {
+      c = utftext.charCodeAt(i);
+      byteArray[i] = c;
+      i++;
+    }
+    return byteArray;
   }
 
   // private method for UTF-8 encoding

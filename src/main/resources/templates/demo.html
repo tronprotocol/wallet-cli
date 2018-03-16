@@ -23,6 +23,31 @@
 <span style="white-space:pre">   </span>
 <script type="text/javascript">
 
+  function decodeUTF8(utf8Bytes) {
+    var ascii = new Array(utf8Bytes.length)
+    var i = 0;
+    var c = c1 = c2 = 0;
+    var j = 0;
+    while ( i < utf8Bytes.length ) {
+      c = utf8Bytes[i];
+      if (c < 128) {
+        ascii[j++] = c;
+        i++;
+      } else if((c > 191) && (c < 224)) {
+        c2 = utf8Bytes[i+1];
+        tmp = ((c & 31) << 6) | (c2 & 63)
+        ascii[j++] = tmp;
+        i += 2;
+      } else {
+        c2 = utf8Bytes[i+1];
+        c3 = utf8Bytes[i+2];
+        tmp = ((c & 15) << 12) | ((c2 & 63) << 6) | (c3 & 63)
+        ascii[j++]  = tmp;
+        i += 3;
+      }
+    }
+    return ascii;
+  }
 
    var account= new proto.protocol.Account();
 
@@ -35,10 +60,11 @@
    //
    // console.log("account : "+account);
 
-    var data="GhQhg5zl0xQFrW6ztpa6RpcxULcvHiD//////////38=";
+//    var data="GhQhg5zl0xQFrW6ztpa6RpcxULcvHiD//////////38=";
+    var data="EAEaFGwiwa97+7Kw4HFI7LontW+BpU/P";
     var bytes = stringToBytes(data);
     var bytsDecode = base64Decode(bytes);
-
+    //var bytesAsii = decodeUTF8(bytsDecode);
     var t = proto.protocol.Account.deserializeBinary(bytsDecode);
 
     console.log("name "+t.getAccountName());

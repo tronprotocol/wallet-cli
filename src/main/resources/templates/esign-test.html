@@ -58,6 +58,15 @@
     console.log("address:::" + byteArray2hexStr(address));
   }
 
+  function testGenPriKey() {
+    var  i = 0;
+    for ( i = 0; i < 100; i++ )
+    {
+      var priKeyBytes = genPriKey();
+      console.log("priKeyBytes " + i + " :: " + byteArray2hexStr(priKeyBytes));
+    }
+  }
+
   function test64() {
     var stringTest = "test string ";
     var bytesTest = stringToBytes(stringTest);
@@ -73,7 +82,7 @@
 
   }
   function doTest() {
-    test64();
+    testGenPriKey();
     /*
     testSha256();
     testGetAddressFromPriKey();

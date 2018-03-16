@@ -1,26 +1,90 @@
 <!DOCTYPE HTML>
-<html  xmlns:th="http://www.thymeleaf.org">
-  <head>
-    <title>account list</title>
-    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-  </head>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <title>tron block chain explorer</title>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <script src="/static/js/jquery.js"></script>
+  <script src="/static/cryptohash/lib/elliptic.min.js"></script>
+  <script src="/static/cryptohash/lib/sha.js"></script>
 
-  <body>
-    <h1>account list</h1>
-      <table>
-        <tr>
-          <th>ADDRESS</th>
-          <th>BALANCE</th>
-          <th>ACCOUNT NAME</th>
-          <th>ACCOUNT TYPE</th>
-        </tr>
-        <tr th:each="account : ${accountList}">
-          <td th:text="${account.address}"></td>
-          <td th:text="${account.balance}"></td>
-          <td th:text="${account.accountName}"></td>
-          <td th:text="${account.type}"></td>
-          <td th:text="${account.votesCount}"></td>
-        </tr>
-      </table>
-  </body>
- </html>
+
+  <script src="/static/protolib/protobuf.js"></script>
+  <script src="/static/trondatajs/bundle.js"></script>
+  <script src="/static/utils/code.js"></script>
+
+
+  <script type="text/javascript" th:inline="javascript">
+
+    /*<![CDATA[*/
+
+    function listAccounts() {
+
+      $.ajax({
+        type: 'get',
+        dataType: 'json',
+        // url:'http：localhost:8088/alTest', contentType:"application/x-protobuf;charset=utf-8", // application/json
+        // contentType:"application/x-protobuf;charset=utf-8",
+        url:/*[[@{/accountList}]]*/,
+
+        success: function (data) {
+
+          console.log("base64String " + bytesToString(data));
+
+          var bytes = stringToBytes(data);
+          var bytesAccountList = base64Decode(bytes);
+
+          var pos = 0;
+          var size = bytesAccountList.length;
+          document.write("<table border=\"1\">");
+          document.write("<tr>Account list</tr>");
+          document.write("<tr>");
+          document.write(" <th>Address</th>");
+          document.write(" <th>Accountname</th>");
+          document.write(" <th>balance</th>");
+          document.write("</tr>");
+
+          while (pos < size) {
+            var len = bytesAccountList[pos] * 256 + bytesAccountList[pos + 1];
+            pos += 2;
+            if (pos + len > size) {
+              break;
+            }
+            var bytesAccount = bytesAccountList.slice(pos, pos + len);
+            pos += len;
+            var account = proto.protocol.Account.deserializeBinary(bytesAccount);
+
+            var address = account.getAddress();
+            var addressHex = byteArray2hexStr(address);
+            console.log("addressHex:: " + addressHex);
+
+            var name = account.getAccountName();
+            var nameString = bytesToString(name);
+            console.log("nameString:: " + nameString);
+
+            var balance = account.getBalance();
+            console.log("balance:: " + balance);
+
+            document.write("<tr>");
+            document.write("<td>" + addressHex + "</td>");
+            document.write("<td>" + name + "</td>");
+            document.write("<td>" + balance + "</td>");
+            document.write("</tr>");
+          }
+          document.write("</table>");
+        }
+      });
+
+    }
+
+    /*]]>*/
+
+  </script>
+
+</head>
+<body>
+<script type="text/javascript">
+  listAccounts();
+</script>
+
+</body>
+</html>

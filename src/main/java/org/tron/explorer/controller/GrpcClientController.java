@@ -1,23 +1,17 @@
 package org.tron.explorer.controller;
 
 
-
-
 import com.google.protobuf.Any;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.googlecode.protobuf.format.JsonFormat;
 import io.swagger.annotations.ApiImplicitParam;
 import io.swagger.annotations.ApiOperation;
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.Base64;
-import java.util.Base64.Decoder;
 import java.util.Base64.Encoder;
 import java.util.List;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -46,6 +40,17 @@ public class GrpcClientController {
     return new ModelAndView("index");
   }
 
+  @GetMapping("/queryAccount")
+  public ModelAndView viewQueryAccount() {
+    return new ModelAndView("accountList");
+  }
+
+  @GetMapping("/queryWitness")
+  public ModelAndView viewQueryWitness() {
+    return new ModelAndView("witnessList");
+  }
+
+
   @GetMapping("/myproto")
   public ModelAndView viewMyproto() {
     return new ModelAndView("myproto");
@@ -69,34 +74,40 @@ public class GrpcClientController {
     return modelAndView;
   }
 
-  @ApiOperation(value = "get AcountList", notes = "query AcountList")
   @GetMapping("/accountList")
-  public ModelAndView getAcountList() {
+  public byte[] getAcountList()
+      throws IOException {
 
-    List<Account> accountList = WalletClient.listAccounts().get().getAccountsList();
+    List<Account> objectList = WalletClient.listAccounts().get().getAccountsList();
 
-    ModelAndView modelAndView = new ModelAndView("accountList");
-    modelAndView.addObject("accountList", accountList);
+    int objectsSize = 0;
+    for (int i = 0; i < objectList.size(); i++) {
+      Account object = objectList.get(i);
+      objectsSize += object.getSerializedSize();
+      objectsSize += 2;  //Length
+    }
 
-    return modelAndView;
+    byte[] returnBytes = new byte[objectsSize];
+
+    objectsSize = 0;
+    for (int i = 0; i < objectList.size(); i++) {
+      Account object = objectList.get(i);
+      byte[] objectBytes = object.toByteArray();
+      int length = objectBytes.length;
+      returnBytes[objectsSize++] = (byte) ((length & 0xFFFF) >> 8);
+      returnBytes[objectsSize++] = (byte) (length & 0xFF);
+      System.arraycopy(objectBytes, 0, returnBytes, objectsSize, length);
+      objectsSize += length;
+    }
+
+    return returnBytes;
   }
 
   @GetMapping("/alTest")
-  public  byte[] getAcountListForTest()
+  public byte[] getAcountListForTest()
       throws IOException {
 
     final List<Account> accountsList = WalletClient.listAccounts().get().getAccountsList();
-
-
-    for (Account account:accountsList) {
-
-      final Encoder encoder = Base64.getEncoder();
-      byte[] accountsBytes = account.toByteArray();
-      final byte[] encode = encoder.encode(accountsBytes);
-      String   encodeString = new String(encode,"ISO-8859-1");
-
-      System.out.println("account ::: " + encodeString);
-    }
 
     Account account = accountsList.get(0);
 
@@ -104,7 +115,7 @@ public class GrpcClientController {
     byte[] accountsBytes = account.toByteArray();
     final byte[] encode = encoder.encode(accountsBytes);
 
-    String   encodeString = new String(encode,"ISO-8859-1");
+    String encodeString = new String(encode, "ISO-8859-1");
 
     System.out.println("Name::: " + ByteArray.toHexString(account.getAccountName().toByteArray()));
     System.out.println("Address::: " + ByteArray.toHexString(account.getAddress().toByteArray()));
@@ -112,25 +123,23 @@ public class GrpcClientController {
 
     System.out.println("base64String::: " + encodeString);
 
-
-    return  accountsBytes;
+    return accountsBytes;
   }
 
 
-
   @GetMapping("/aTest")
-  public  String getAcountForTest() {
+  public String getAcountForTest() {
 
     final List<Account> accountsList = WalletClient.listAccounts().get().getAccountsList();
 
     final JsonFormat jsonFormat = new JsonFormat();
-      List list =new ArrayList();
-    for (Account account: accountsList) {
+    List list = new ArrayList();
+    for (Account account : accountsList) {
       final String accountStr = ByteArray.toHexString(account.getAddress().toByteArray());
 
       final String s = jsonFormat.printToString(account);
       list.add(s);
-      System.out.println("s :" +s);
+      System.out.println("s :" + s);
 
     }
     return list.toString();
@@ -138,19 +147,34 @@ public class GrpcClientController {
   }
 
   @GetMapping("/witnessList")
-  public ModelAndView getWitnessList() {
+  public byte[] getWitnessList()
+      throws IOException {
 
-    List<Witness> witnessList = WalletClient.listWitnesses().get().getWitnessesList();
-    ModelAndView modelAndView = new ModelAndView("witnessList");
+    List<Witness> objectList = WalletClient.listWitnesses().get().getWitnessesList();
 
+    int objectsSize = 0;
+    for (int i = 0; i < objectList.size(); i++) {
+      Witness object = objectList.get(i);
+      objectsSize += object.getSerializedSize();
+      objectsSize += 2;  //Length
+    }
 
-    System.out.println("Address "+ByteArray.toHexString(witnessList.get(0).getAddress().toByteArray()));
-    System.out.println("PubKey "+ByteArray.toHexString(witnessList.get(0).getPubKey().toByteArray()));
+    byte[] returnBytes = new byte[objectsSize];
 
-    modelAndView.addObject("witnessList", witnessList);
+    objectsSize = 0;
+    for (int i = 0; i < objectList.size(); i++) {
+      Witness object = objectList.get(i);
+      byte[] objectBytes = object.toByteArray();
+      int length = objectBytes.length;
+      returnBytes[objectsSize++] = (byte) ((length & 0xFFFF) >> 8);
+      returnBytes[objectsSize++] = (byte) (length & 0xFF);
+      System.arraycopy(objectBytes, 0, returnBytes, objectsSize, length);
+      objectsSize += length;
+    }
 
-    return modelAndView;
+    return returnBytes;
   }
+
 
   @PostMapping("/register")
   public ModelAndView registerAccount(@ModelAttribute AccountVo account) {
@@ -177,21 +201,4 @@ public class GrpcClientController {
     }
     return modelAndView;
   }
-
-  //check account is exist
-  @PostMapping("/check")
-  public Boolean isAccountExist(@ModelAttribute AccountVo accountVo) {
-
-    return null;
-  }
-
-  // return accountCreateContract
-  public byte[] getAccountCreateContract(@ModelAttribute AccountVo account) {
-    Transaction transaction = WalletClient
-        .createAccountTransaction(AccountType.Normal, account.getName().getBytes(),
-            ByteArray.fromHexString(account.getAddress()));
-
-    return  transaction.toByteArray();
-  }
-
 }
