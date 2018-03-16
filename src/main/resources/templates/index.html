@@ -85,6 +85,38 @@
 
     }
 
+    function testParseTransaction() {
+      $.ajax({
+        type: 'get',
+        dataType: 'json',
+        // url:'http：localhost:8088/testTransaction', contentType:"application/x-protobuf;charset=utf-8", // application/json
+        // contentType:"application/x-protobuf;charset=utf-8",
+        url:/*[[@{/getTransaction}]]*/,
+
+        success: function (data) {
+
+          var bytes = stringToBytes(data);
+          var bytesDecode = base64Decode(bytes);
+          console.log("base64String " + bytesToString(data));
+
+          var transaction = proto.protocol.Transaction.deserializeBinary(bytsDecode);
+          //toDO: assert ret is SUCESS
+          var raw = transaction.getRawData();
+          var type = raw.getType();
+          var contract = raw.getContractList();
+          var size = contract.size();
+          var any = contract.get(0).getParameter(); //regist only one
+          var contarcType = contract.get(0).getType();
+          var account = proto.google.protobuf.Any.prototype.unpack(any, "AccountCreateContract");
+          var accountType = account.getType();
+          var accountName = account.getAccountName();
+          var ownerAddress = account.getOwnerAddress();
+
+
+        }
+      });
+    }
+
   </script>
 
   <script type="text/javascript"  th:inline="javascript">
