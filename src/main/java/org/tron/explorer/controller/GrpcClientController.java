@@ -208,4 +208,15 @@ public class GrpcClientController {
     }
     return modelAndView;
   }
+
+  //get account transaction
+  @PostMapping("/transaction")
+  public byte[] getTransactionToView(@ModelAttribute AccountVo account) {
+    Transaction transaction = WalletClient
+        .createAccountTransaction(AccountType.Normal, account.getName().getBytes(),
+            ByteArray.fromHexString(account.getAddress()));
+    return transaction.toByteArray();
+  }
+
+
 }
