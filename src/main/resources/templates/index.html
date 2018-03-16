@@ -150,6 +150,8 @@
 
         success: function (data) {
 
+          var  bytesss  = getRowBytesFromTransactionBase64(data);
+          console.log("row Data::: " + byteArray2hexStr(bytesss));
           var bytes = stringToBytes(data);
           var bytesDecode = base64Decode(bytes);
           console.log("base64String " + bytesToString(data));
@@ -163,12 +165,11 @@
           var oneContract = contract[0];
           var any = oneContract.getParameter();
           var contarcType = oneContract.getType();
-      //    var unpack = proto.google.protobuf.Any.prototype.unpack;
-          var account = any.unpack(proto.protocol.AccountCreateContract.deserializeBinary, "protocol.AccountCreateContract");
+          var unpack = proto.google.protobuf.Any.prototype.unpack;　
+          var account = any.unpack(deserializeBinary, "protocol.AccountCreateContract");
           var accountType = account.getType();
           var accountName = account.getAccountName();
           var ownerAddress = account.getOwnerAddress();
-          console.log("ownerAddress:::" + byteArray2hexStr(ownerAddress));
 
 
         }
