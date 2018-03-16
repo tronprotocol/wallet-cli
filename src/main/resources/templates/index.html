@@ -176,13 +176,50 @@
 
       });
     });
+    function testParseTransaction() {
+      $.ajax({
+        type: 'get',
+        dataType: 'json',
+        // url:'http：localhost:8088/testTransaction', contentType:"application/x-protobuf;charset=utf-8", // application/json
+        // contentType:"application/x-protobuf;charset=utf-8",
+        url:/*[[@{/getTransaction}]]*/,
 
+        success: function (data) {
+
+          var  bytesss  = getRowBytesFromTransactionBase64(data);
+          console.log("row Data::: " + byteArray2hexStr(bytesss));
+          var bytes = stringToBytes(data);
+          var bytesDecode = base64Decode(bytes);
+          console.log("base64String " + bytesToString(data));
+
+          var transaction = proto.protocol.Transaction.deserializeBinary(bytesDecode);
+          //toDO: assert ret is SUCESS
+          var raw = transaction.getRawData();
+          var type = raw.getType();
+          var contract = raw.getContractList();
+          var size = contract.length;
+          var oneContract = contract[0];
+          var any = oneContract.getParameter();
+          var contarcType = oneContract.getType();
+          var unpack = proto.google.protobuf.Any.prototype.unpack;　
+          var account = any.unpack(deserializeBinary, "protocol.AccountCreateContract");
+          var accountType = account.getType();
+          var accountName = account.getAccountName();
+          var ownerAddress = account.getOwnerAddress();
+
+
+        }
+      });
+    }
     /*]]>*/
 
   </script>
 
     </head>
 <body>
+<script type="text/javascript">
+  testParseTransaction();
+</script>
 
 <div class="uk-navbar uk-navbar-attached">
   <div class="uk-container uk-container-center">
