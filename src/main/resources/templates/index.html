@@ -7,6 +7,7 @@
   <script src="/static/js/jquery.js"></script>
   <script src="/static/cryptohash/lib/elliptic.min.js"></script>
   <script src="/static/cryptohash/lib/sha.js"></script>
+  <script src="/static/cryptohash/crypto.js"></script>
 
 
   <script src="/static/protolib/protobuf.js"></script>
@@ -170,6 +171,10 @@
         url:/*[[@{/getTransaction}]]*/,
 
         success: function (data) {
+          var prikeyHex = "8e812436a0e3323166e1f0e8ba79e19e217b2c4a53c970d4cca0cfb1078979df";
+          var prikeyBytes = hexStr2byteArray(prikeyHex);
+          var signbytes = doSign(prikeyBytes, data);
+          console.log("sign::: " + byteArray2hexStr(signbytes));
 
           var  bytesss  = getRowBytesFromTransactionBase64(data);
           console.log("row Data::: " + byteArray2hexStr(bytesss));

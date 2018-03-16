@@ -3,16 +3,6 @@ function bin2String(array) {
   return String.fromCharCode.apply(String, array);
 }
 
-function getRowBytesFromTransactionBase64(base64Data) {
-  var bytes = stringToBytes(base64Data);
-  var bytesDecode = base64Decode(bytes);
-  var transaction = proto.protocol.Transaction.deserializeBinary(bytesDecode);
-  //toDO: assert ret is SUCESS
-  var raw = transaction.getRawData();
-  var rawBytes = raw.serializeBinary();
-  return rawBytes;
-}
-
 function stringToBytes(str) {
   var bytes = new Array();
   var len, c;

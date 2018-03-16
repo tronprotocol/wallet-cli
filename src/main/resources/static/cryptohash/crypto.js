@@ -1,3 +1,23 @@
+//return sign by 65 bytes r s id. id < 27
+function doSign(priKeyBytes, base64Data) {
+  var rowBytes = getRowBytesFromTransactionBase64(base64Data);
+  var hashBytes = SHA256(rowBytes);
+  var signBytes = ECKeySign(hashBytes, priKeyBytes);
+  return signBytes;
+}
+
+//return bytes of rowdata, use to sign.
+function getRowBytesFromTransactionBase64(base64Data) {
+  var bytes = stringToBytes(base64Data);
+  var bytesDecode = base64Decode(bytes);
+  var transaction = proto.protocol.Transaction.deserializeBinary(bytesDecode);
+  //toDO: assert ret is SUCESS
+  var raw = transaction.getRawData();
+  var rawBytes = raw.serializeBinary();
+  return rawBytes;
+}
+
+
 //gen Ecc priKey for bytes
 function genPriKey() {
   var EC = elliptic.ec;

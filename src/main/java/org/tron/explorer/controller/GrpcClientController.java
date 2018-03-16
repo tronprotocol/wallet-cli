@@ -181,7 +181,6 @@ public class GrpcClientController {
   @GetMapping("/getTransaction")
   public byte[] getTransaction() {
     Transaction transaction = Test.createTransactionAccount();
-    System.out.println("RowData::: " + ByteArray.toHexString(transaction.getRawData().toByteArray()));
     return  transaction.toByteArray();
   }
 
