@@ -3,6 +3,7 @@ package org.tron.walletcli;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.UnsupportedEncodingException;
+import java.math.BigInteger;
 import java.util.Base64;
 import java.util.Base64.Decoder;
 import java.util.Base64.Encoder;
@@ -153,8 +154,50 @@ public class Test {
     System.out.println("id:::" + signature.v);
   }
 
+  public static void testTransaction(){
+    Transaction transaction = createTransactionAccount();
+    String priKey = "8e812436a0e3323166e1f0e8ba79e19e217b2c4a53c970d4cca0cfb1078979df";
+
+    ECKey eCkey = null;
+    try {
+      BigInteger priK = new BigInteger(priKey, 16);
+      eCkey = ECKey.fromPrivate(priK);
+    } catch (Exception ex) {
+      ex.printStackTrace();
+    }
+    byte[] msg = transaction.getRawData().toByteArray();
+    byte[] sha256 = Hash.sha256(msg);
+    eCkey.sign(sha256);
+
+    ECDSASignature signature = eCkey.sign(sha256);
+
+    System.out.println("msg:::" + ByteArray.toHexString(msg));
+    System.out.println("priKey:::" + ByteArray.toHexString(eCkey.getPrivKeyBytes()));
+    System.out.println("pubKey::" + ByteArray.toHexString(eCkey.getPubKey()) );
+    System.out.println("hash:::" + ByteArray.toHexString(sha256));
+    System.out.println("r:::" + ByteArray.toHexString(signature.r.toByteArray()));
+    System.out.println("s:::" + ByteArray.toHexString(signature.s.toByteArray()));
+    System.out.println("id:::" + signature.v);
+  }
+
+  public static  void testVerify() {
+    String hashBytes = "630211D6CA9440639F4965AA24831EB84815AB6BEF11E8BE6962A8540D861339";
+    String priKeyBytes = "8E812436A0E3323166E1F0E8BA79E19E217B2C4A53C970D4CCA0CFB1078979DF";
+    String sign = "1D89243F93670AA2F209FD1E0BDACA67E327B78FA54D728628F4EBBF6B7917E5BB0642717EC2234D21BEFAA7577D5FC6B4D47C94F2C0618862CD4C9E3C839C464";
+    ECKey eCkey = null;
+    String signatureBase64 = "";
+    try {
+      signatureBase64 = new String(Base64.getEncoder().encode(ByteArray.fromHexString(sign)), "UTF-8");
+
+      byte[] pubKey = ECKey.signatureToKeyBytes(ByteArray.fromHexString(hashBytes), signatureBase64);
+      System.out.println("pubKey::" + ByteArray.toHexString(pubKey) );
+    } catch (Exception ex) {
+      ex.printStackTrace();
+    }
+  }
   public static void main(String[] args) throws Exception {
-    testDecode64();
+    testTransaction();
+    testVerify();
 
 
 /*
