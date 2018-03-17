@@ -58,8 +58,6 @@
 
       $("#register").on('click', function () {
 
-        $("#privateKey").css("display:none");
-
         $.ajax({
           type: 'post',
           data: {address: address, name: accountName, accountType: 0},
