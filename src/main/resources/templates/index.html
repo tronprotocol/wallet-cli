@@ -92,7 +92,8 @@
             var accountName = account.getAccountName();
             var ownerAddress = account.getOwnerAddress();
 
-            alert("please confirm your account : "+ bytesToString(accountName) + " and address : " + byteArray2hexStr(ownerAddress) );
+            alert("please confirm your account : " + bytesToString(accountName) + " and address : "
+                + byteArray2hexStr(ownerAddress));
 
             //set sign
             transaction.addSignature(signbytes);
@@ -103,10 +104,10 @@
               dataType: 'json',
               data: {transactionData: tx},
               url:/*[[@{/transactionFromView}]]*/,
-              async:false,
+              async: false,
               success: function (data) {
-                if(data==true){
-                  alert("tx : "+data);
+                if (data == true) {
+                  alert("tx : " + data);
                   alert("register is : " + result);
                 }
 
@@ -119,18 +120,13 @@
 
     });
 
-
-
-
     /*]]>*/
 
   </script>
 
 </head>
 <body>
-<script type="text/javascript">
-  testParseTransaction();
-</script>
+
 
 <div class="uk-navbar uk-navbar-attached">
   <div class="uk-container uk-container-center">
@@ -266,61 +262,6 @@
     </p>
   </form>
 </div>
-<script type="text/javascript">
-  function login() {
-    $("#tobyte").val(stringToBytes($("#password").val()));
-    var password = $("#password").val(); //String
-    var priKeyBytes = hexStr2byteArray(password);
-    var addr = getAddressFromPriKey(priKeyBytes);
 
-    var addrHex = byteArray2hexStr(addr);
-
-    $("#Address").val(addrHex);
-
-    var pubkey = getPubKeyFromPriKey(stringToBytes($("#password").val()));
-    var a = byteArray2hexStr(pubkey);
-
-    $("#PubKey").val(a);
-    $.ajax({
-
-      type: "POST",//方法类型
-      dataType: "json",//预期服务器返回的数据类型
-      url: "/sendcoin2",//url
-      data: $('#form1').serialize(),
-      async: false,
-
-      success: function (transaction) {
-        console.log(transaction);//打印服务端返回的数据(调试用)
-        transaction = doSign(priKeyBytes, transaction);
-        //var txbytes = transaction.toByteArray();
-        //var tx = byte2hexStr(transaction);
-
-        var tx = byteArray2hexStr(transaction);
-        $.ajax({
-
-          type: "POST",
-          dataType: "json",
-          url: "/sendTransaction",//url
-          data: {tx: tx},
-          async: false,
-
-          success: function (result) {
-            if (result != null) {
-
-              alert(" tx is : " + result);
-              alert("转账成功");
-            }
-          },
-          error: function () {
-            alert("异常！");
-          }
-        });
-      },
-      error: function () {
-        alert("异常！");
-      }
-    });
-  }
-</script>
 </body>
 </html>
