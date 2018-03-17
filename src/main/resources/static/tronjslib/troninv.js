@@ -176,10 +176,10 @@ proto.protocol.InventoryItems.prototype.setType = function(value) {
 
 /**
  * repeated bytes items = 2;
- * @return {!(Array<!Uint8Array>|Array<string>)}
+ * @return {!Array.<string>}
  */
 proto.protocol.InventoryItems.prototype.getItemsList = function() {
-  return /** @type {!(Array<!Uint8Array>|Array<string>)} */ (jspb.Message.getRepeatedField(this, 2));
+  return /** @type {!Array.<string>} */ (jspb.Message.getRepeatedField(this, 2));
 };
 
 
