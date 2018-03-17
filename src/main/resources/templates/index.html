@@ -1,9 +1,8 @@
-
 <!DOCTYPE HTML>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
   <title>tron block chain explorer</title>
-  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
   <script src="/static/js/jquery.js"></script>
   <script src="/static/cryptohash/lib/elliptic.min.js"></script>
   <script src="/static/cryptohash/lib/sha.js"></script>
@@ -26,12 +25,10 @@
 
     $(function () {
 
-
-
-      $("#query").on('click', function(){
+      $("#query").on('click', function () {
 
         var address = $("#accountName").val();
-        address=address.replace(/(^\s*)|(\s*$)/g, "");
+        address = address.replace(/(^\s*)|(\s*$)/g, "");
 
         var EC = elliptic.ec;
         var ec = new EC('secp256k1');
@@ -39,13 +36,12 @@
         // Generate keys
         var key = ec.genKeyPair();
 
-        var privateKey= key.getPrivate();
+        var privateKey = key.getPrivate();
         var publicKey = key.getPublic();
 
         var shaObj = new jsSHA("SHA3-256", "BYTES");
         shaObj.update(publicKey);
         var hash = shaObj.getHash("HEX");
-
 
         // $.ajax({
         //   url:"/register",
@@ -57,21 +53,16 @@
 
       });
 
-
-
-
     });
-
 
     function showPrivateKey() {
       var EC = elliptic.ec;
       var ec = new EC('secp256k1');
       // Generate keys
       var key = ec.genKeyPair();
-      var privateKey= key.getPrivate();
+      var privateKey = key.getPrivate();
       return privateKey;
     }
-
 
     function doSign() {
       var EC = elliptic.ec;
@@ -80,14 +71,14 @@
       // Generate keys
       var key = ec.genKeyPair();
 
-     var privateKey= key.getPrivate();
-     var publicKey = key.getPublic()
+      var privateKey = key.getPrivate();
+      var publicKey = key.getPublic()
 
       var shaObj = new jsSHA("SHA3-256", "BYTES");
       shaObj.update(publicKey);
       var hash = shaObj.getHash("HEX");
 
-      var subHash= hash.substr(12);
+      var subHash = hash.substr(12);
 
       console.log(subHash);
 
@@ -105,14 +96,13 @@
 
         success: function (data) {
 
-
         }
       });
     }
 
   </script>
 
-  <script type="text/javascript"  th:inline="javascript">
+  <script type="text/javascript" th:inline="javascript">
 
     /*<![CDATA[*/
 
@@ -124,7 +114,7 @@
           type: 'get',
           dataType: 'json',
           // url:'http：localhost:8088/alTest', contentType:"application/x-protobuf;charset=utf-8", // application/json
-         // contentType:"application/x-protobuf;charset=utf-8",
+          // contentType:"application/x-protobuf;charset=utf-8",
           url:/*[[@{/alTest}]]*/,
 
           success: function (data) {
@@ -135,40 +125,36 @@
 
             var t = proto.protocol.Account.deserializeBinary(bytsDecode);
 
-            console.log("name "+t.getAccountName());
-            console.log("address "+t.getAddress());
+            console.log("name " + t.getAccountName());
+            console.log("address " + t.getAddress());
             var address = t.getAddress();
             var addressString = byteArray2hexStr(address);
-            console.log("addressString "+addressString);
-
-
+            console.log("addressString " + addressString);
 
           }
         });
 
       });
 
-
-
       //send account and address
       var priKeyBytes;
       var addressBytes;
       var address;
-      var accountName ;
+      var accountName;
 
-      $("#accountName1").focus(function(){
-        $("#accountName1").css("background-color","#FFFFCC");
+      $("#accountName1").focus(function () {
+        $("#accountName1").css("background-color", "#FFFFCC");
 
-         priKeyBytes = genPriKey();
+        priKeyBytes = genPriKey();
 
-         addressBytes = getAddressFromPriKey(priKeyBytes);
-         address = byteArray2hexStr(addressBytes)
+        addressBytes = getAddressFromPriKey(priKeyBytes);
+        address = byteArray2hexStr(addressBytes)
 
         $("#addressName1").val(address);
       });
-      $("#accountName1").blur(function(){
-        $("#accountName1").css("background-color","#D6D6FF");
-        accountName=$("#accountName1").val();
+      $("#accountName1").blur(function () {
+        $("#accountName1").css("background-color", "#D6D6FF");
+        accountName = $("#accountName1").val();
 
         //TODO fix privateKey store
         $("#privateKey").val(priKeyBytes);
@@ -179,7 +165,7 @@
 
         $.ajax({
           type: 'post',
-          data:{address:address,name:accountName,accountType:0},
+          data: {address: address, name: accountName, accountType: 0},
           dataType: 'json',
           // url:'http：localhost:8088/alTest', contentType:"application/x-protobuf;charset=utf-8", // application/json
           // contentType:"application/x-protobuf;charset=utf-8",
@@ -194,7 +180,7 @@
             var signbytes = doSign(prikeyBytes, data);
             console.log("sign::: " + byteArray2hexStr(signbytes));
 
-            var  bytesss  = getRowBytesFromTransactionBase64(data);
+            var bytesss = getRowBytesFromTransactionBase64(data);
             console.log("row Data::: " + byteArray2hexStr(bytesss));
             var bytes = stringToBytes(data);
             var bytesDecode = base64Decode(bytes);
@@ -210,45 +196,41 @@
             var any = oneContract.getParameter();
             var contarcType = oneContract.getType();
             var unpack = proto.google.protobuf.Any.prototype.unpack;
-            var account = any.unpack(proto.protocol.AccountCreateContract.deserializeBinary, "protocol.AccountCreateContract");
+            var account = any.unpack(proto.protocol.AccountCreateContract.deserializeBinary,
+                "protocol.AccountCreateContract");
             var accountType = account.getType();
             var accountName = account.getAccountName();
             var ownerAddress = account.getOwnerAddress();
 
-            alert("please confirm your account : "+ bytesToString(accountName) + " and address : " + byteArray2hexStr(ownerAddress) );
-
+            alert("please confirm your account : " + bytesToString(accountName) + " and address : "
+                + byteArray2hexStr(ownerAddress));
 
             var txbytes = transaction.toByteArray();
-            var tx= byte2hexStr(txbytes);
+            var tx = byte2hexStr(txbytes);
 
             var result = sendTransaction(tx);
-            alert("register is : " +result);
+            alert("register is : " + result);
           }
         });
 
       });
 
-
-
-
     });
 
+    function sendTransaction(transition) {
 
-   function sendTransaction(transition){
+      $.ajax({
+        type: 'post',
+        dataType: 'json',
+        data: {transition: transition},
+        url:/*[[@{/transactionFromView}]]*/,
 
-     $.ajax({
-       type: 'post',
-       dataType: 'json',
-       data:{transition:transition},
-       url:/*[[@{/transactionFromView}]]*/,
-
-       success: function (data) {
-        return data ;
+        success: function (data) {
+          return data;
         }
-     });
+      });
 
-   }
-
+    }
 
     function testParseTransaction() {
       $.ajax({
@@ -314,15 +296,15 @@
 </div>
 
 <div align="center">
-<h1>Query Balance</h1>
+  <h1>Query Balance</h1>
   <form action="#" th:action="@{/balance}" th:object="${accountVo}" method="post">
-  <p>
-    address: <input type="text" th:field="*{address}" />
-  </p>
-  <p>
-    <input type="submit" value="query" />
-    <input type="reset" value="Reset" />
-  </p>
+    <p>
+      address: <input type="text" th:field="*{address}"/>
+    </p>
+    <p>
+      <input type="submit" value="query"/>
+      <input type="reset" value="Reset"/>
+    </p>
   </form>
 </div>
 
@@ -330,12 +312,12 @@
   <h1>Register Account</h1>
   <form action="#" th:action="@{/register}" th:object="${accountVo}" method="post">
     <p>
-      name: <input id="accountName" type="text" th:field="*{name}" />
+      name: <input id="accountName" type="text" th:field="*{name}"/>
       address: <input id="addressName" type="text" th:field="*{address}" readonly="readonly"/>
     </p>
     <p>
-      <input id="query" type="submit" value="Commit" />
-      <input type="reset" value="Reset" />
+      <input id="query" type="submit" value="Commit"/>
+      <input type="reset" value="Reset"/>
     </p>
   </form>
 </div>
@@ -343,26 +325,26 @@
 
 <div align="center">
   <h1>Register Account</h1>
-  <form >
+  <form>
     <p>
-      name: <input id="accountName1" type="text"  />
-      address: <input id="addressName1" type="text"  readonly="readonly"/>
+      name: <input id="accountName1" type="text"/>
+      address: <input id="addressName1" type="text" readonly="readonly"/>
     </p>
     <p>
-      <input id="register" type="button" value="register" />
-      <input type="reset" value="Reset" />
+      <input id="register" type="button" value="register"/>
+      <input type="reset" value="Reset"/>
     </p>
   </form>
 </div>
 
 
-<div >
-  <button  id="queryAccount"  type="button">query</button>
-  <div  id="name"></div>
+<div>
+  <button id="queryAccount" type="button">query</button>
+  <div id="name"></div>
 </div>
 
-  // TODO fix privateKey store
-  <div  id="privateKey" hidden="hidden"></div>
+// TODO fix privateKey store
+<div id="privateKey" hidden="hidden"></div>
 
 <script type="text/javascript">
   function login() {
@@ -415,6 +397,76 @@
     });
   }
 </script>
+<div align="center">
+  <h1>Send Coin</h1>
+  <form action="##" method="post" id="form1">
+    <input hidden="hidden" name="tobyte" id="tobyte"/>
+    <input hidden="hidden" name="Address" id="Address"/>
+    <input hidden="hidden" name="PubKey" id="PubKey"/>
 
+
+    <p>
+      ownAddress: <input id="password" name="password" type="text"/>
+      toAddress: <input id="toAddress" name="toAddress" type="text"/>
+
+      amount: <input id="Amount" name="Amount" type="text"/>
+
+    </p>
+    <p>
+      <input id="send" type="button" value="commit" onclick="login()"/>
+    </p>
+  </form>
+</div>
+<script type="text/javascript">
+  function login() {
+    $("#tobyte").val(stringToBytes($("#password").val()));
+    var password = $("#password").val(); //String
+    var priKeyBytes = hexStr2byteArray(password);
+    var addr = getAddressFromPriKey(priKeyBytes);
+
+    var addrHex = byteArray2hexStr(addr);
+
+    $("#Address").val(addrHex);
+
+    var pubkey = getPubKeyFromPriKey(stringToBytes($("#password").val()));
+    var a = byteArray2hexStr(pubkey);
+
+    $("#PubKey").val(a);
+    $.ajax({
+
+      type: "POST",//方法类型
+      dataType: "json",//预期服务器返回的数据类型
+      url: "/sendcoin2",//url
+      data: $('#form1').serialize(),
+
+      success: function (transaction) {
+        console.log(transaction);//打印服务端返回的数据(调试用)
+        transaction = doSign(priKeyBytes, transaction);
+        //var txbytes = transaction.toByteArray();
+        var tx = byte2hexStr(transaction);
+        $.ajax({
+
+          type: "POST",//方法类型
+          dataType: "json",//预期服务器返回的数据类型
+          url: "/sendTransaction",//url
+          data: tx,
+
+          success: function (result) {
+            if (result == true) {
+
+              alert("转账成功");
+            }
+          },
+          error: function () {
+            alert("异常！");
+          }
+        });
+      },
+      error: function () {
+        alert("异常！");
+      }
+    });
+  }
+</script>
 </body>
 </html>
