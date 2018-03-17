@@ -157,14 +157,6 @@ public class WalletClient {
     return TransactionUtils.sign(transaction, this.ecKey);
   }
 
-  // TODO signTransactionAndBroadcastTransaction
-
-  private static boolean signTransactionAndBroadcastTransaction(Transaction transaction) {
-
-    return new Boolean("");
-  }
-
-
   public boolean sendCoin(byte[] to, long amount) {
     byte[] owner = getAddress();
     Contract.TransferContract contract = createTransferContract(to, owner, amount);
@@ -196,6 +188,9 @@ public class WalletClient {
   public static boolean broadcastTransaction(byte[] transactionBytes)
       throws InvalidProtocolBufferException {
     Transaction transaction = Transaction.parseFrom(transactionBytes);
+    if (false == TransactionUtils.validTransaction(transaction)) {
+      return false;
+    }
     return rpcCli.broadcastTransaction(transaction);
   }
 
