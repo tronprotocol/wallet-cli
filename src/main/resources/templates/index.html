@@ -49,6 +49,11 @@
         //TODO fix privateKey store
         $("#privateKey").val(priKeyBytes);
 
+       var basePrivateKey= base64Encode(priKeyBytes);
+       var pk= bytesToString(basePrivateKey);
+        alert("Please save your private key  :"+pk);
+
+
       });
 
       $("#register").on('click', function () {
@@ -74,7 +79,6 @@
             var bytesDecode = base64Decode(bytes);
 
             var transaction = proto.protocol.Transaction.deserializeBinary(bytesDecode);
-            //toDO: assert ret is SUCESS
             var raw = transaction.getRawData();
             var type = raw.getType();
             var contract = raw.getContractList();
@@ -89,9 +93,9 @@
             var accountName = account.getAccountName();
             var ownerAddress = account.getOwnerAddress();
 
-            alert("please confirm your account : "+ bytesToString(accountName) + " and address : " + byteArray2hexStr(ownerAddress) );
-            var uint8Array = new Uint8Array( signbytes );
-
+            alert("please confirm your account : " + bytesToString(accountName) + " and address : "
+                + byteArray2hexStr(ownerAddress));
+            var uint8Array = new Uint8Array(signbytes);
 
             //set sign after base64.
             transaction.addSignature(uint8Array);
@@ -105,8 +109,8 @@
               url:/*[[@{/transactionFromView}]]*/,
               async:false,
               success: function (data) {
-                if(data==true){
-                  alert("tx : "+data);
+                if (data == true) {
+                  alert("tx : " + data);
                   alert("register is : " + result);
                 }
 
@@ -118,9 +122,6 @@
       });
 
     });
-
-
-
 
     /*]]>*/
 
@@ -156,7 +157,7 @@
   </form>
 </div>
 
-<div align="center">
+<!--<div align="center">
   <h1>Register Account</h1>
   <form action="#" th:action="@{/register}" th:object="${accountVo}" method="post">
     <p>
@@ -168,7 +169,7 @@
       <input type="reset" value="Reset"/>
     </p>
   </form>
-</div>
+</div>-->
 
 
 <div align="center">
@@ -182,17 +183,22 @@
       <input id="register" type="button" value="register"/>
       <input type="reset" value="Reset"/>
     </p>
+
+    <p>
+      <!--// TODO fix privateKey store-->
+    <div id="privateKey" hidden="hidden"></div>
+    </p>
+
   </form>
 </div>
 
 
-<div>
+<!--<div>
   <button id="queryAccount" type="button">query</button>
   <div id="name"></div>
-</div>
+</div>-->
 
-<!--// TODO fix privateKey store-->
-<div id="privateKey" hidden="hidden"></div>
+
 
 <script type="text/javascript">
   function login() {
@@ -222,18 +228,22 @@
         var bytes = stringToBytes(data);
         var bytesDecode = base64Decode(bytes);
         var transaction = proto.protocol.Transaction.deserializeBinary(bytesDecode);
-        transaction.addSignature(signbytes);
+        var uint8Array = new Uint8Array(signbytes);
 
-        var tx = byte2hexStr(transaction);
+        //set sign after base64.
+        transaction.addSignature(uint8Array);
+        var transactionBytes = transaction.serializeBinary();
+
+        var trxString = byteArray2hexStr(transactionBytes);
         $.ajax({
 
-          type: "POST",//方法类型
-          dataType: "json",//预期服务器返回的数据类型
-          url: "/sendTransaction",//url
-          data: {tx: tx},
+          type: "POST",
+          dataType: "json",
+          url: "/transactionFromView",
+          data: {transactionData: trxString},
 
           success: function (result) {
-            if (result != null) {
+            if (result == true) {
 
               alert("转账成功");
             }

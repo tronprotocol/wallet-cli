@@ -174,17 +174,11 @@ public class GrpcClientController {
     TransferContract contract = WalletClient
         .createTransferContract(ByteArray.fromHexString(address.getToAddress()),
             ByteArray.fromHexString(address.getAddress()),
-            ByteArray.toLong(address.getAmount().getBytes()));
+            Long.parseLong(address.getAmount()));
     Transaction transaction = WalletClient.createTransaction4Transfer(contract);
     return transaction.toByteArray();
   }
 
-  @PostMapping("/sendTransaction")
-  public boolean getTransaction(String tx) throws InvalidProtocolBufferException {
-    System.out.println("transaction : " + tx);
-    final byte[] transactionbytes = ByteArray.fromHexString(tx);
-    return WalletClient.broadcastTransaction(transactionbytes);
-  }
 
   //send account transaction to view
   @PostMapping("/transactionForView")
