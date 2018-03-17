@@ -108,7 +108,7 @@
               success: function (data) {
                 if (data == true) {
                   alert("tx : " + data);
-                  alert("register is : " + result);
+                  alert("register is : " + data);
                 }
 
               }
@@ -225,16 +225,16 @@
         transaction.addSignature(uint8Array);
         var transactionBytes = transaction.serializeBinary();
 
-        var tx = byte2hexStr(transactionBytes);
+        var trxString = byteArray2hexStr(transactionBytes);
         $.ajax({
 
-          type: "POST",//方法类型
-          dataType: "json",//预期服务器返回的数据类型
-          url: "/sendTransaction",//url
-          data: {tx: tx},
+          type: "POST",
+          dataType: "json",
+          url: "/transactionFromView",
+          data: {transactionData: trxString},
 
           success: function (result) {
-            if (result != null) {
+            if (result == true) {
 
               alert("转账成功");
             }
