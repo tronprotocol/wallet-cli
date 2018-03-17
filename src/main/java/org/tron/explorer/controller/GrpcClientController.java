@@ -210,15 +210,6 @@ public class GrpcClientController {
     return modelAndView;
   }
 
-  //get account transaction
-  @PostMapping("/transaction")
-  public byte[] getTransactionToView(@ModelAttribute AccountVo account) {
-    Transaction transaction = WalletClient
-        .createAccountTransaction(AccountType.Normal, account.getName().getBytes(),
-            ByteArray.fromHexString(account.getAddress()));
-    return transaction.toByteArray();
-  }
-
   @PostMapping("/sendcoin2")
   public byte[] sendCoin2(@ModelAttribute Address address) {
     TransferContract contract = WalletClient
@@ -231,5 +222,27 @@ public class GrpcClientController {
   public byte[] broadcast(String transaction) {
     final byte[] transactionbytes = ByteArray.fromHexString(transaction);
     return transactionbytes;
+  }
+
+  //send account transaction to view
+  @PostMapping("/transactionForView")
+  public byte[] getTransactionToView(@ModelAttribute AccountVo account) {
+    Transaction transaction = WalletClient
+        .createAccountTransaction(AccountType.Normal, account.getName().getBytes(),
+            ByteArray.fromHexString(account.getAddress()));
+    return transaction.toByteArray();
+  }
+
+  //get account transaction from view
+  @PostMapping("/transactionFromView")
+  public boolean transactionFromView(String transaction) {
+
+    final byte[] transactionbytes = ByteArray.fromHexString(transaction);
+
+   // final WalletClient walletClient = new WalletClient();
+
+   // transaction = signTransaction(transaction);
+   // return rpcCli.broadcastTransaction(transaction);
+    return new Boolean("");
   }
 }
