@@ -49,9 +49,9 @@
         //TODO fix privateKey store
         $("#privateKey").val(priKeyBytes);
 
-       var privateKey= byteArray2hexStr(priKeyBytes);
-
-        alert("Please save your private key  :"+privateKey);
+       var basePrivateKey= base64Encode(priKeyBytes);
+       var pk= bytesToString(basePrivateKey);
+        alert("Please save your private key  :"+pk);
 
 
       });
