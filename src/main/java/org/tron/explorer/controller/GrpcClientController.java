@@ -220,10 +220,10 @@ public class GrpcClientController {
   }
 
   @PostMapping("/sendTransaction")
-  public byte[] getTransaction(String tx) {
+  public boolean getTransaction(String tx) throws InvalidProtocolBufferException {
     System.out.println("transaction : " + tx);
     final byte[] transactionbytes = ByteArray.fromHexString(tx);
-    return transactionbytes;
+    return WalletClient.broadcastTransaction(transactionbytes);
   }
 
   //send account transaction to view
