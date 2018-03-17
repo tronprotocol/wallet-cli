@@ -202,14 +202,26 @@
             var accountName = account.getAccountName();
             var ownerAddress = account.getOwnerAddress();
 
-            alert("please confirm your account : " + bytesToString(accountName) + " and address : "
-                + byteArray2hexStr(ownerAddress));
+            alert("please confirm your account : "+ bytesToString(account) + " and address : " + byteArray2hexStr(ownerAddress) );
 
-            var txbytes = transaction.toByteArray();
-            var tx = byte2hexStr(txbytes);
+            //set sign
+            transaction.addSignature(signbytes);
+            var tx = byteArray2hexStr(transaction);
 
-            var result = sendTransaction(tx);
-            alert("register is : " + result);
+            $.ajax({
+              type: 'post',
+              dataType: 'json',
+              data: {transactionData: tx},
+              url:/*[[@{/transactionFromView}]]*/,
+              async:false,
+              success: function (data) {
+                if(data==true){
+                  alert("tx : "+data);
+                  alert("register is : " + result);
+                }
+
+              }
+            });
           }
         });
 
@@ -217,20 +229,7 @@
 
     });
 
-    function sendTransaction(transition) {
 
-      $.ajax({
-        type: 'post',
-        dataType: 'json',
-        data: {transition: transition},
-        url:/*[[@{/transactionFromView}]]*/,
-
-        success: function (data) {
-          return data;
-        }
-      });
-
-    }
 
     function testParseTransaction() {
       $.ajax({
@@ -343,7 +342,7 @@
   <div id="name"></div>
 </div>
 
-// TODO fix privateKey store
+<!--// TODO fix privateKey store-->
 <div id="privateKey" hidden="hidden"></div>
 
 <script type="text/javascript">
