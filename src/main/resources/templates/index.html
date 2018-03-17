@@ -90,9 +90,9 @@
             var accountName = account.getAccountName();
             var ownerAddress = account.getOwnerAddress();
 
-            alert("please confirm your account : "+ bytesToString(accountName) + " and address : " + byteArray2hexStr(ownerAddress) );
-            var uint8Array = new Uint8Array( signbytes );
-
+            alert("please confirm your account : " + bytesToString(accountName) + " and address : "
+                + byteArray2hexStr(ownerAddress));
+            var uint8Array = new Uint8Array(signbytes);
 
             //set sign after base64.
             transaction.addSignature(uint8Array);
@@ -107,7 +107,8 @@
               async:false,
               success: function (data) {
                 if(data==true){
-                  alert("register is : " + data);
+                  alert("tx : "+data);
+                  alert("register is : " + result);
                 }
 
               }
@@ -118,9 +119,6 @@
       });
 
     });
-
-
-
 
     /*]]>*/
 
@@ -221,9 +219,13 @@
         var bytes = stringToBytes(data);
         var bytesDecode = base64Decode(bytes);
         var transaction = proto.protocol.Transaction.deserializeBinary(bytesDecode);
-        transaction.addSignature(signbytes);
+        var uint8Array = new Uint8Array(signbytes);
 
-        var tx = byte2hexStr(transaction);
+        //set sign after base64.
+        transaction.addSignature(uint8Array);
+        var transactionBytes = transaction.serializeBinary();
+
+        var tx = byte2hexStr(transactionBytes);
         $.ajax({
 
           type: "POST",//方法类型
