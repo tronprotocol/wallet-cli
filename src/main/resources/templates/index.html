@@ -202,7 +202,7 @@
             var accountName = account.getAccountName();
             var ownerAddress = account.getOwnerAddress();
 
-            alert("please confirm your account : "+ bytesToString(account) + " and address : " + byteArray2hexStr(ownerAddress) );
+            alert("please confirm your account : "+ bytesToString(accountName) + " and address : " + byteArray2hexStr(ownerAddress) );
 
             //set sign
             transaction.addSignature(signbytes);
