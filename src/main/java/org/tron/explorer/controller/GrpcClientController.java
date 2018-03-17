@@ -20,7 +20,9 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.ModelAndView;
 import org.tron.common.utils.ByteArray;
 import org.tron.explorer.domain.AccountVo;
+import org.tron.explorer.domain.Address;
 import org.tron.protos.Contract.AccountCreateContract;
+import org.tron.protos.Contract.TransferContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.AccountType;
 import org.tron.protos.Protocol.Transaction;
@@ -205,6 +207,23 @@ public class GrpcClientController {
       modelAndView.addObject("message", "invalid transaction!!!");
     }
     return modelAndView;
+  }
+
+  @PostMapping("/sendcoin2")
+  public byte[] sendCoin2(@ModelAttribute Address address) {
+    TransferContract contract = WalletClient
+        .createTransferContract(ByteArray.fromHexString(address.getToAddress()),
+            ByteArray.fromHexString(address.getAddress()),
+            ByteArray.toLong(address.getAmount().getBytes()));
+    Transaction transaction = WalletClient.createTransaction4Transfer(contract);
+    return transaction.toByteArray();
+  }
+
+  @PostMapping("/sendTransaction")
+  public byte[] getTransaction(String tx) {
+    System.out.println("transaction : " + tx);
+    final byte[] transactionbytes = ByteArray.fromHexString(tx);
+    return transactionbytes;
   }
 
   //send account transaction to view
