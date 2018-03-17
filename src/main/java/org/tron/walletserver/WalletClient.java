@@ -1,6 +1,7 @@
 package org.tron.walletserver;
 
 import com.google.protobuf.ByteString;
+import com.google.protobuf.InvalidProtocolBufferException;
 import com.typesafe.config.Config;
 import java.math.BigInteger;
 import java.util.Arrays;
@@ -156,16 +157,12 @@ public class WalletClient {
     return TransactionUtils.sign(transaction, this.ecKey);
   }
 
-
   // TODO signTransactionAndBroadcastTransaction
 
   private static boolean signTransactionAndBroadcastTransaction(Transaction transaction) {
 
-
-
     return new Boolean("");
   }
-
 
 
   public boolean sendCoin(byte[] to, long amount) {
@@ -194,6 +191,12 @@ public class WalletClient {
     Contract.AccountCreateContract contract = createAccountCreateContract(accountType, accountName,
         address);
     return rpcCli.createAccount(contract);
+  }
+
+  public static boolean broadcastTransaction(byte[] transactionBytes)
+      throws InvalidProtocolBufferException {
+    Transaction transaction = Transaction.parseFrom(transactionBytes);
+    return rpcCli.broadcastTransaction(transaction);
   }
 
   public boolean createAssetIssue(Contract.AssetIssueContract contract) {

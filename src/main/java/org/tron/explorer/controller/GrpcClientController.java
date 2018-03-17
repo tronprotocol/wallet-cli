@@ -1,6 +1,5 @@
 package org.tron.explorer.controller;
 
-
 import com.google.protobuf.Any;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.googlecode.protobuf.format.JsonFormat;
@@ -238,16 +237,8 @@ public class GrpcClientController {
 
   //get account transaction from view
   @PostMapping("/transactionFromView")
-  public boolean transactionFromView(String transactionData) {
-
-    final byte[] transactionbytes = ByteArray.fromHexString(transactionData);
-
-    System.out.println(" transaction : " +transactionData);
-    System.out.println(" transactionbytes : " +transactionbytes);
-   // final WalletClient walletClient = new WalletClient();
-
-   // transaction = signTransaction(transaction);
-   // return rpcCli.broadcastTransaction(transaction);
-    return new Boolean("true");
+  public boolean transactionFromView(String transactionData) throws InvalidProtocolBufferException {
+    final byte[] bytes = ByteArray.fromHexString(transactionData);
+    return WalletClient.broadcastTransaction(bytes);
   }
 }

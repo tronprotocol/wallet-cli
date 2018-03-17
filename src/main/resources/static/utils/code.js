@@ -159,7 +159,7 @@ function  base64Decode(bytes64) {
 //  var decodeBytes = stringToBytes(decodeString);
   return decodeBytes;
 }
-
+//return baset64 bytes
 function  base64Encode(bytes) {
   var string = bytesToString(bytes);
   var b = new Base64();
