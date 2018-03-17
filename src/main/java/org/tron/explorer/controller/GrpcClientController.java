@@ -177,12 +177,6 @@ public class GrpcClientController {
     return returnBytes;
   }
 
-  @GetMapping("/getTransaction")
-  public byte[] getTransaction() {
-    Transaction transaction = Test.createTransactionAccount();
-    return transaction.toByteArray();
-  }
-
   @PostMapping("/register")
   public ModelAndView registerAccount(@ModelAttribute AccountVo account) {
     ModelAndView modelAndView;
