@@ -308,7 +308,25 @@
       success: function (transaction) {
         console.log(transaction);//打印服务端返回的数据(调试用)
         transaction = doSign(priKeyBytes, transaction);
+        //var txbytes = transaction.toByteArray();
+        var tx = byte2hexStr(transaction);
+        $.ajax({
 
+          type: "POST",//方法类型
+          dataType: "json",//预期服务器返回的数据类型
+          url: "/sendTransaction",//url
+          data: tx,
+
+          success: function (result) {
+            if (result == true) {
+
+              alert("转账成功");
+            }
+          },
+          error: function () {
+            alert("异常！");
+          }
+        });
       },
       error: function () {
         alert("异常！");
