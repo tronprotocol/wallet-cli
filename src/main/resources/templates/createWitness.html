@@ -58,11 +58,12 @@
             alert("Error onwerAddress !!!!");
             return;
           }
-          if (url1 != onwerUrl) {
+          var onwerUrlBytes = stringToBytes(onwerUrl);
+          if (false == arrayEquals(url1, onwerUrlBytes)) {
             alert("Error url !!!!");
             return;
           }
-          var transactionSigned = signTransaction(transaction);
+          var transactionSigned = signTransaction(priKeyBytes, transaction);
           var transactionBytes = transactionSigned.serializeBinary();
           var transactionString = byteArray2hexStr(transactionBytes);
 
@@ -72,8 +73,8 @@
             data: {transactionData: transactionString},
             url: "/transactionFromView",
             async: false,
-            success: function (data) {
-              if (data == true) {
+            success: function (result) {
+              if (result == true) {
                 alert("CreateWitness : " + result);
               }
 

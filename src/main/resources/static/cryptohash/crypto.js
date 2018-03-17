@@ -9,9 +9,9 @@
 function signTransaction(priKeyBytes, transaction) {
   var raw = transaction.getRawData();
   var rawBytes = raw.serializeBinary();
-  var hashBytes = SHA256(rowBytes);
+  var hashBytes = SHA256(rawBytes);
   var signBytes = ECKeySign(hashBytes, priKeyBytes);
-  var uint8Array = new Uint8Array(signbytes);
+  var uint8Array = new Uint8Array(signBytes);
   transaction.addSignature(uint8Array);
   return transaction;
 }

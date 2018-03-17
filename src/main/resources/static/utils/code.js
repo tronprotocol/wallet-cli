@@ -244,9 +244,9 @@ function base64Decode(bytes64) {
 
 //return baset64 bytes
 function base64Encode(bytes) {
-  var string = bytesToString(bytes);
+  // var string = bytesToString(bytes);
   var b = new Base64();
-  var string64 = b.encode(string);
+  var string64 = b.encodeIgnoreUtf8(bytes);
   var bytes64 = stringToBytes(string64);
   return bytes64;
 }
@@ -261,11 +261,37 @@ function Base64() {
     var output = "";
     var chr1, chr2, chr3, enc1, enc2, enc3, enc4;
     var i = 0;
-    input = _utf8_encode(input);
+//    input = _utf8_encode(input);
     while (i < input.length) {
       chr1 = input.charCodeAt(i++);
       chr2 = input.charCodeAt(i++);
       chr3 = input.charCodeAt(i++);
+      enc1 = chr1 >> 2;
+      enc2 = ((chr1 & 3) << 4) | (chr2 >> 4);
+      enc3 = ((chr2 & 15) << 2) | (chr3 >> 6);
+      enc4 = chr3 & 63;
+      if (isNaN(chr2)) {
+        enc3 = enc4 = 64;
+      } else if (isNaN(chr3)) {
+        enc4 = 64;
+      }
+      output = output +
+          _keyStr.charAt(enc1) + _keyStr.charAt(enc2) +
+          _keyStr.charAt(enc3) + _keyStr.charAt(enc4);
+    }
+    return output;
+  }
+
+  // public method for encoding
+  this.encodeIgnoreUtf8 = function (inputBytes) {
+    var output = "";
+    var chr1, chr2, chr3, enc1, enc2, enc3, enc4;
+    var i = 0;
+//    input = _utf8_encode(input);
+    while (i < inputBytes.length) {
+      chr1 = inputBytes[i++];
+      chr2 = inputBytes[i++];
+      chr3 = inputBytes[i++];
       enc1 = chr1 >> 2;
       enc2 = ((chr1 & 3) << 4) | (chr2 >> 4);
       enc3 = ((chr2 & 15) << 2) | (chr3 >> 6);
