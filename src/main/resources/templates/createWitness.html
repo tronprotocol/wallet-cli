@@ -23,10 +23,6 @@
 <body>
 <script type="text/javascript">
   $(function () {
-    function CreateWitness(priKeyBytes, onwerUrl) {
-
-    }
-
     $("#CreateWitness").on('click', function () {
       var password = $("#password").val();
       var onwerUrl = $("#url").val();
@@ -75,7 +71,10 @@
             async: false,
             success: function (result) {
               if (result == true) {
-                alert("CreateWitness : " + result);
+                alert("CreateWitness successful !!!");
+              }
+              else {
+                alert("CreateWitness failure !!!");
               }
 
             }
