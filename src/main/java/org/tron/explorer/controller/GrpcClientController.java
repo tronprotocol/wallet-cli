@@ -222,14 +222,17 @@ public class GrpcClientController {
   @PostMapping("/sendcoin2")
   public byte[] sendCoin2(@ModelAttribute Address address) {
     TransferContract contract = WalletClient
-        .createTransferContract(ByteArray.fromHexString(address.getToAddress()), ByteArray.fromHexString(address.getAddress()),
+        .createTransferContract(ByteArray.fromHexString(address.getToAddress()),
+            ByteArray.fromHexString(address.getAddress()),
             ByteArray.toLong(address.getAmount().getBytes()));
     Transaction transaction = WalletClient.createTransaction4Transfer(contract);
     return transaction.toByteArray();
   }
+
   @PostMapping("/sendTransaction")
-  public byte[] broadcast(String transaction) {
-    final byte[] transactionbytes = ByteArray.fromHexString(transaction);
+  public byte[] getTransaction(String tx) {
+    System.out.println("transaction : " + tx);
+    final byte[] transactionbytes = ByteArray.fromHexString(tx);
     return transactionbytes;
   }
 }

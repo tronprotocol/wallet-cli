@@ -438,22 +438,27 @@
       dataType: "json",//预期服务器返回的数据类型
       url: "/sendcoin2",//url
       data: $('#form1').serialize(),
+      async: false,
 
       success: function (transaction) {
         console.log(transaction);//打印服务端返回的数据(调试用)
         transaction = doSign(priKeyBytes, transaction);
         //var txbytes = transaction.toByteArray();
-        var tx = byte2hexStr(transaction);
+        //var tx = byte2hexStr(transaction);
+
+        var tx = byteArray2hexStr(transaction);
         $.ajax({
 
-          type: "POST",//方法类型
-          dataType: "json",//预期服务器返回的数据类型
+          type: "POST",
+          dataType: "json",
           url: "/sendTransaction",//url
-          data: tx,
+          data: {tx: tx},
+          async: false,
 
           success: function (result) {
-            if (result == true) {
+            if (result != null) {
 
+              alert(" tx is : " + result);
               alert("转账成功");
             }
           },
