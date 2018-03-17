@@ -157,6 +157,18 @@ public class WalletClient {
     return TransactionUtils.sign(transaction, this.ecKey);
   }
 
+
+  // TODO signTransactionAndBroadcastTransaction
+
+  private static boolean signTransactionAndBroadcastTransaction(Transaction transaction) {
+
+
+
+    return new Boolean("");
+  }
+
+
+
   public boolean sendCoin(byte[] to, long amount) {
     byte[] owner = getAddress();
     Contract.TransferContract contract = createTransferContract(to, owner, amount);
@@ -177,7 +189,8 @@ public class WalletClient {
     return rpcCli.broadcastTransaction(transaction);
   }
 
-  public static Transaction createAccountTransaction(AccountType accountType, byte[] accountName,
+  public static Transaction
+  createAccountTransaction(AccountType accountType, byte[] accountName,
       byte[] address) {
     Contract.AccountCreateContract contract = createAccountCreateContract(accountType, accountName,
         address);
