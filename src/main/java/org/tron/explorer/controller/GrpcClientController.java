@@ -242,6 +242,8 @@ public class GrpcClientController {
 
     final byte[] transactionbytes = ByteArray.fromHexString(transactionData);
 
+    System.out.println(" transaction : " +transactionData);
+    System.out.println(" transactionbytes : " +transactionbytes);
    // final WalletClient walletClient = new WalletClient();
 
    // transaction = signTransaction(transaction);
