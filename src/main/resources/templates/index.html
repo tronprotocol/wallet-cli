@@ -49,6 +49,11 @@
         //TODO fix privateKey store
         $("#privateKey").val(priKeyBytes);
 
+       var basePrivateKey= base64Encode(priKeyBytes);
+       var pk= bytesToString(basePrivateKey);
+        alert("Please save your private key  :"+pk);
+
+
       });
 
       $("#register").on('click', function () {
@@ -104,11 +109,11 @@
               dataType: 'json',
               data: {transactionData: trxString},
               url:/*[[@{/transactionFromView}]]*/,
-              async: false,
+              async:false,
               success: function (data) {
                 if (data == true) {
                   alert("tx : " + data);
-                  alert("register is : " + data);
+                  alert("register is : " + result);
                 }
 
               }
@@ -153,7 +158,7 @@
   </form>
 </div>
 
-<div align="center">
+<!--<div align="center">
   <h1>Register Account</h1>
   <form action="#" th:action="@{/register}" th:object="${accountVo}" method="post">
     <p>
@@ -165,7 +170,7 @@
       <input type="reset" value="Reset"/>
     </p>
   </form>
-</div>
+</div>-->
 
 
 <div align="center">
@@ -179,17 +184,22 @@
       <input id="register" type="button" value="register"/>
       <input type="reset" value="Reset"/>
     </p>
+
+    <p>
+      <!--// TODO fix privateKey store-->
+    <div id="privateKey" hidden="hidden"></div>
+    </p>
+
   </form>
 </div>
 
 
-<div>
+<!--<div>
   <button id="queryAccount" type="button">query</button>
   <div id="name"></div>
-</div>
+</div>-->
 
-<!--// TODO fix privateKey store-->
-<div id="privateKey" hidden="hidden"></div>
+
 
 <script type="text/javascript">
   function login() {
