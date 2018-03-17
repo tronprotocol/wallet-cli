@@ -1,0 +1,105 @@
+<!DOCTYPE HTML>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <title>tron block chain explorer</title>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <script src="/static/js/jquery.js"></script>
+  <script src="/static/cryptohash/lib/elliptic.min.js"></script>
+  <script src="/static/cryptohash/lib/sha.js"></script>
+  <script src="/static/cryptohash/lib/sha1.js"></script>
+  <script src="/static/cryptohash/lib/sha3.js"></script>
+  <script src="/static/cryptohash/lib/sha3-256.js"></script>
+  <script src="/static/cryptohash/lib/sha256.js"></script>
+  <script src="/static/cryptohash/lib/sha512.js"></script>
+  <script src="/static/cryptohash/lib/sha_dev.js"></script>
+  <script src="/static/protolib/protobuf.js"></script>
+  <script src="/static/tronjslib/contract.js"></script>
+  <script src="/static/tronjslib/tron.js"></script>
+  <script src="/static/tronjslib/troninv.js"></script>
+  <script src="/static/utils/code.js"></script>
+  <script src="/static/cryptohash/crypto.js"></script>
+
+</head>
+<body>
+<script type="text/javascript">
+  $(function () {
+    function CreateWitness(priKeyBytes, onwerUrl) {
+
+    }
+
+    $("#CreateWitness").on('click', function () {
+      var password = $("#password").val();
+      var onwerUrl = $("#url").val();
+      var priKeyBytes = hexStr2byteArray(password);
+      //     CreateWitness(priKeyBytes, onwerUrl);
+      var onwerAddress = getAddressFromPriKey(priKeyBytes);
+      var address64 = base64Encode(onwerAddress);
+      var address64Str = bytesToString(address64);
+
+      $.ajax({
+        type: 'post',
+        data: {"address": address64Str, "onwerUrl": onwerUrl},
+        dataType: 'json',
+        url: "/createWitnessToView",
+
+        success: function (data) {
+          transaction = getTransActionFromBase64String(data);
+          var contractList = getContractListFromTransaction(transaction);
+          var contract = contractList[0];  //only one
+          var contractType = typeof(contract);
+          if (!(contract instanceof proto.protocol.WitnessCreateContract)) {
+            alert("Invalid contract type !!!!!");
+            return null;
+          }
+
+          var ownerAddress1 = contract.getOwnerAddress();
+          var url1 = contract.getUrl();
+          if (false == arrayEquals(ownerAddress1, onwerAddress)) {
+            alert("Error onwerAddress !!!!");
+            return;
+          }
+          if (url1 != onwerUrl) {
+            alert("Error url !!!!");
+            return;
+          }
+          var transactionSigned = signTransaction(transaction);
+          var transactionBytes = transactionSigned.serializeBinary();
+          var transactionString = byteArray2hexStr(transactionBytes);
+
+          $.ajax({
+            type: 'post',
+            dataType: 'json',
+            data: {transactionData: transactionString},
+            url: "/transactionFromView",
+            async: false,
+            success: function (data) {
+              if (data == true) {
+                alert("CreateWitness : " + result);
+              }
+
+            }
+          });
+        }
+      });
+    });
+
+  });
+
+</script>
+
+<div align="center">
+  <h1>Create Witness</h1>
+  <form>
+    <p>
+      password: <input id="password" type="text"/>
+      url: <input id="url" type="text"/>
+    </p>
+    <p>
+      <input id="CreateWitness" type="button" value="CreateWitness"/>
+      <input type="reset" value="Reset"/>
+    </p>
+  </form>
+</div>
+
+</body>
+</html>

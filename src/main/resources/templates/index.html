@@ -70,7 +70,6 @@
             var signbytes = doSign(prikeyBytes, data);
             console.log("sign::: " + byteArray2hexStr(signbytes));
 
-            var bytesss = getRowBytesFromTransactionBase64(data);
             var bytes = stringToBytes(data);
             var bytesDecode = base64Decode(bytes);
 
@@ -90,9 +89,9 @@
             var accountName = account.getAccountName();
             var ownerAddress = account.getOwnerAddress();
 
-            alert("please confirm your account : " + bytesToString(accountName) + " and address : "
-                + byteArray2hexStr(ownerAddress));
-            var uint8Array = new Uint8Array(signbytes);
+            alert("please confirm your account : "+ bytesToString(accountName) + " and address : " + byteArray2hexStr(ownerAddress) );
+            var uint8Array = new Uint8Array( signbytes );
+
 
             //set sign after base64.
             transaction.addSignature(uint8Array);
@@ -120,6 +119,9 @@
 
     });
 
+
+
+
     /*]]>*/
 
   </script>
@@ -136,6 +138,7 @@
       <li><a target="_blank" href="https://github.com/tronprotocol">Tron's github </a></li>
       <li><a target="_blank" href="/queryAccount">account List </a></li>
       <li><a target="_blank" href="/queryWitness">witness List </a></li>
+      <li><a target="_blank" href="/createWitness">Create Witness </a></li>
     </ul>
   </div>
 </div>
@@ -219,13 +222,9 @@
         var bytes = stringToBytes(data);
         var bytesDecode = base64Decode(bytes);
         var transaction = proto.protocol.Transaction.deserializeBinary(bytesDecode);
-        var uint8Array = new Uint8Array(signbytes);
+        transaction.addSignature(signbytes);
 
-        //set sign after base64.
-        transaction.addSignature(uint8Array);
-        var transactionBytes = transaction.serializeBinary();
-
-        var tx = byte2hexStr(transactionBytes);
+        var tx = byte2hexStr(transaction);
         $.ajax({
 
           type: "POST",//方法类型
