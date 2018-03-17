@@ -1,6 +1,5 @@
 package org.tron.explorer.controller;
 
-
 import com.google.protobuf.Any;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.googlecode.protobuf.format.JsonFormat;
@@ -21,9 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.ModelAndView;
 import org.tron.common.utils.ByteArray;
 import org.tron.explorer.domain.AccountVo;
-import org.tron.explorer.domain.Address;
 import org.tron.protos.Contract.AccountCreateContract;
-import org.tron.protos.Contract.TransferContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.AccountType;
 import org.tron.protos.Protocol.Transaction;
@@ -181,7 +178,7 @@ public class GrpcClientController {
   @GetMapping("/getTransaction")
   public byte[] getTransaction() {
     Transaction transaction = Test.createTransactionAccount();
-    return transaction.toByteArray();
+    return  transaction.toByteArray();
   }
 
   @PostMapping("/register")
@@ -210,8 +207,8 @@ public class GrpcClientController {
     return modelAndView;
   }
 
-  //get account transaction
-  @PostMapping("/transaction")
+  //send account transaction to view
+  @PostMapping("/transactionForView")
   public byte[] getTransactionToView(@ModelAttribute AccountVo account) {
     Transaction transaction = WalletClient
         .createAccountTransaction(AccountType.Normal, account.getName().getBytes(),
@@ -219,13 +216,16 @@ public class GrpcClientController {
     return transaction.toByteArray();
   }
 
-  @PostMapping("/sendcoin2")
-  public byte[] sendCoin2(@ModelAttribute Address address) {
-    TransferContract contract = WalletClient
-        .createTransferContract(ByteArray.fromHexString(address.getToAddress()), ByteArray.fromHexString(address.getAddress()),
-            ByteArray.toLong(address.getAmount().getBytes()));
-    Transaction transaction = WalletClient.createTransaction4Transfer(contract);
-    return transaction.toByteArray();
-  }
+  //get account transaction from view
+  @PostMapping("/transactionFromView")
+  public boolean transactionFromView(String transaction) {
 
+    final byte[] transactionbytes = ByteArray.fromHexString(transaction);
+
+   // final WalletClient walletClient = new WalletClient();
+
+   // transaction = signTransaction(transaction);
+   // return rpcCli.broadcastTransaction(transaction);
+    return new Boolean("");
+  }
 }
