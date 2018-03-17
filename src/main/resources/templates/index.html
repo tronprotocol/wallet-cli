@@ -80,7 +80,6 @@
             var bytesDecode = base64Decode(bytes);
 
             var transaction = proto.protocol.Transaction.deserializeBinary(bytesDecode);
-            //toDO: assert ret is SUCESS
             var raw = transaction.getRawData();
             var type = raw.getType();
             var contract = raw.getContractList();
