@@ -235,14 +235,14 @@ public class GrpcClientController {
 
   //get account transaction from view
   @PostMapping("/transactionFromView")
-  public boolean transactionFromView(String transaction) {
+  public boolean transactionFromView(String transactionData) {
 
-    final byte[] transactionbytes = ByteArray.fromHexString(transaction);
+    final byte[] transactionbytes = ByteArray.fromHexString(transactionData);
 
    // final WalletClient walletClient = new WalletClient();
 
    // transaction = signTransaction(transaction);
    // return rpcCli.broadcastTransaction(transaction);
-    return new Boolean("");
+    return new Boolean("true");
   }
 }
