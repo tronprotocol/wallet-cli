@@ -26,20 +26,14 @@
     var password = $("#password").val(); //String
     var priKeyBytes = hexStr2byteArray(password);
     var addr = getAddressFromPriKey(priKeyBytes);
-
     var addrHex = byteArray2hexStr(addr);
-
     $("#Address").val(addrHex);
 
-    var pubkey = getPubKeyFromPriKey(stringToBytes($("#password").val()));
-    var a = byteArray2hexStr(pubkey);
-
-    $("#PubKey").val(a);
     $.ajax({
 
       type: "POST",
       dataType: "json",
-      url: "/sendcoin",
+      url: "/sendCoinToView",
       data: $('#form1').serialize(),
 
       success: function (data) {
@@ -50,7 +44,6 @@
         var transaction = proto.protocol.Transaction.deserializeBinary(bytesDecode);
         var uint8Array = new Uint8Array(signbytes);
 
-        //set sign after base64.
         transaction.addSignature(uint8Array);
         var transactionBytes = transaction.serializeBinary();
 
@@ -83,9 +76,6 @@
   <h1>Send Coin</h1>
   <form action="##" method="post" id="form1">
     <input hidden="hidden" name="Address" id="Address"/>
-    <input hidden="hidden" name="PubKey" id="PubKey"/>
-
-
     <p>
       PrivateKey: <input id="password" name="password" type="text"/>
       toAddress: <input id="toAddress" name="toAddress" type="text"/>
