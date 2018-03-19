@@ -20,13 +20,12 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.ModelAndView;
 import org.tron.common.utils.ByteArray;
 import org.tron.explorer.domain.AccountVo;
-import org.tron.explorer.domain.Address;
+import org.tron.explorer.domain.Transfer;
 import org.tron.protos.Contract.AccountCreateContract;
 import org.tron.protos.Contract.TransferContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.AccountType;
 import org.tron.protos.Protocol.Transaction;
-import org.tron.protos.Protocol.Witness;
 import org.tron.walletcli.Test;
 import org.tron.walletserver.WalletClient;
 
@@ -169,12 +168,12 @@ public class GrpcClientController {
     return modelAndView;
   }
 
-  @PostMapping("/sendcoin2")
-  public byte[] sendCoin2(@ModelAttribute Address address) {
+  @PostMapping("/sendcoin")
+  public byte[] sendCoin(@ModelAttribute Transfer transfer) {
     TransferContract contract = WalletClient
-        .createTransferContract(ByteArray.fromHexString(address.getToAddress()),
-            ByteArray.fromHexString(address.getAddress()),
-            Long.parseLong(address.getAmount()));
+        .createTransferContract(ByteArray.fromHexString(transfer.getToAddress()),
+            ByteArray.fromHexString(transfer.getAddress()),
+            Long.parseLong(transfer.getAmount()));
     Transaction transaction = WalletClient.createTransaction4Transfer(contract);
     return transaction.toByteArray();
   }

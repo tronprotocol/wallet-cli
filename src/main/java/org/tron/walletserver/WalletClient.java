@@ -120,6 +120,7 @@ public class WalletClient {
     byte[] aseKey = getEncKey(password);
     byte[] privKeyEnced = SymmEncoder.AES128EcbEnc(privKeyPlain, aseKey);
     String privKeyStr = ByteArray.toHexString(privKeyEnced);
+    System.out.println("privKeyStr:" + privKeyStr);
     byte[] pubKeyBytes = ecKey.getPubKey();
     String pubKeyStr = ByteArray.toHexString(pubKeyBytes);
     // SAVE PASSWORD
@@ -205,7 +206,7 @@ public class WalletClient {
 
   public boolean createWitness(byte[] url) {
     byte[] owner = getAddress();
-    Transaction transaction  = createWitnessTransaction(owner, url);
+    Transaction transaction = createWitnessTransaction(owner, url);
     if (transaction == null || transaction.getRawData().getContractCount() == 0) {
       return false;
     }
@@ -213,7 +214,7 @@ public class WalletClient {
     return rpcCli.broadcastTransaction(transaction);
   }
 
-  public static Transaction createWitnessTransaction(byte[] owner, byte[] url){
+  public static Transaction createWitnessTransaction(byte[] owner, byte[] url) {
     Contract.WitnessCreateContract contract = createWitnessCreateContract(owner, url);
     return rpcCli.createWitness(contract);
   }
@@ -258,7 +259,8 @@ public class WalletClient {
     return builder.build();
   }
 
-  public static Contract.WitnessCreateContract createWitnessCreateContract(byte[] owner, byte[] url) {
+  public static Contract.WitnessCreateContract createWitnessCreateContract(byte[] owner,
+      byte[] url) {
     Contract.WitnessCreateContract.Builder builder = Contract.WitnessCreateContract.newBuilder();
     builder.setOwnerAddress(ByteString.copyFrom(owner));
     builder.setUrl(ByteString.copyFrom(url));

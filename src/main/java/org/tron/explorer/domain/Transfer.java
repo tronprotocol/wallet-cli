@@ -2,49 +2,55 @@ package org.tron.explorer.domain;
 
 public class Transfer {
 
-  private String password;
+  private String Address;
+  private String PubKey;
   private String toAddress;
-  private String coin;
+  private String Amount;
 
-  public Transfer(String password, String toAddress, String coin) {
-    this.password = password;
-    this.toAddress = toAddress;
-    this.coin = coin;
-  }
-
-  public Transfer() {
-  }
-
-  @Override
-  public String toString() {
-    return "Transfer{" +
-        "password='" + password + '\'' +
-        ", toAddress='" + toAddress + '\'' +
-        ", coin='" + coin + '\'' +
-        '}';
-  }
-
-  public String getPassword() {
-    return password;
-  }
-
-  public String getToAddress() {
-    return toAddress;
-  }
-
-  public String getCoin() {
-    return coin;
-  }
-
-  public void setPassword(String password) {
-    this.password = password;
+  public String getAmount() {
+    return Amount;
   }
 
   public void setToAddress(String toAddress) {
     this.toAddress = toAddress;
   }
 
-  public void setCoin(String coin) {
-    this.coin = coin;
+  public void setAmount(String amount) {
+    Amount = amount;
+  }
+
+  public String getToAddress() {
+    return toAddress;
+  }
+
+  public Transfer() {
+  }
+
+
+  public void setAddress(String address) {
+    Address = address;
+  }
+
+  public void setPubKey(String pubKey) {
+    PubKey = pubKey;
+  }
+
+
+  public String getAddress() {
+    return Address;
+  }
+
+  public String getPubKey() {
+    return PubKey;
+  }
+
+  @Override
+  public String toString() {
+    return "Address{" +
+        "Address='" + Address + '\'' +
+        ", PubKey='" + PubKey + '\'' +
+        ", toAddress='" + toAddress + '\'' +
+        ", Amount='" + Amount + '\'' +
+        '}';
   }
 }

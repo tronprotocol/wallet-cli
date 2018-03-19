@@ -49,10 +49,9 @@
         //TODO fix privateKey store
         $("#privateKey").val(priKeyBytes);
 
-       var basePrivateKey= base64Encode(priKeyBytes);
-       var pk= bytesToString(basePrivateKey);
-        alert("Please save your private key  :"+pk);
-
+        var basePrivateKey = base64Encode(priKeyBytes);
+        var pk = bytesToString(basePrivateKey);
+        alert("Please save your private key  :" + pk);
 
       });
 
@@ -107,7 +106,7 @@
               dataType: 'json',
               data: {transactionData: trxString},
               url:/*[[@{/transactionFromView}]]*/,
-              async:false,
+              async: false,
               success: function (data) {
                 alert("register is : " + data);
 
@@ -137,6 +136,8 @@
       <li><a target="_blank" href="/queryAccount">account List </a></li>
       <li><a target="_blank" href="/queryWitness">witness List </a></li>
       <li><a target="_blank" href="/createWitness">Create Witness </a></li>
+      <li><a target="_blank" href="/sendCoin">SendCoin </a></li>
+
     </ul>
   </div>
 </div>
@@ -196,10 +197,9 @@
 </div>-->
 
 
-
 <script type="text/javascript">
-  function login() {
-    $("#tobyte").val(stringToBytes($("#password").val()));
+  function transfer() {
+    $("#sprivateKey").val(stringToBytes($("#password").val()));
     var password = $("#password").val(); //String
     var priKeyBytes = hexStr2byteArray(password);
     var addr = getAddressFromPriKey(priKeyBytes);
@@ -216,7 +216,7 @@
 
       type: "POST",
       dataType: "json",
-      url: "/sendcoin2",
+      url: "/sendcoin",
       data: $('#form1').serialize(),
 
       success: function (data) {
@@ -259,20 +259,20 @@
 <div align="center">
   <h1>Send Coin</h1>
   <form action="##" method="post" id="form1">
-    <input hidden="hidden" name="tobyte" id="tobyte"/>
+    <input hidden="hidden" name="privateKey" id="sprivateKey"/>
     <input hidden="hidden" name="Address" id="Address"/>
     <input hidden="hidden" name="PubKey" id="PubKey"/>
 
 
     <p>
-      ownAddress: <input id="password" name="password" type="text"/>
+      PrivateKey: <input id="password" name="password" type="text"/>
       toAddress: <input id="toAddress" name="toAddress" type="text"/>
 
       amount: <input id="Amount" name="Amount" type="text"/>
 
     </p>
     <p>
-      <input id="send" type="button" value="commit" onclick="login()"/>
+      <input id="send" type="button" value="commit" onclick="transfer()"/>
     </p>
   </form>
 </div>
