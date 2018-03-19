@@ -29,48 +29,48 @@ import java.util.List;
 @SpringBootApplication
 public class GrpcClientApplication extends SpringBootServletInitializer {
 
-  @Bean
+    @Bean
     public ObjectMapper objectMapper() {
-    final ObjectMapper mapper = new ObjectMapper();
-    mapper.setPropertyNamingStrategy(PropertyNamingStrategy.SNAKE_CASE);
-    // disabled features:
-    mapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
-    mapper.disable(SerializationFeature.FAIL_ON_EMPTY_BEANS);
-    mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-    return mapper;
-  }
+        final ObjectMapper mapper = new ObjectMapper();
+        mapper.setPropertyNamingStrategy(PropertyNamingStrategy.SNAKE_CASE);
+        // disabled features:
+        mapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+        mapper.disable(SerializationFeature.FAIL_ON_EMPTY_BEANS);
+        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        return mapper;
+    }
 
-  @Autowired
-  ObjectMapper objectMapper;
-
-
-  @Bean
-  ProtobufHttpMessageConverter protobufHttpMessageConverter() {
-    return new ProtobufHttpMessageConverter();
-  }
-
-  @Bean
-  public WebMvcConfigurer webMvcConfigurer() {
+    @Autowired
+    ObjectMapper objectMapper;
 
 
-    return new WebMvcConfigurerAdapter() {
-          /**
-           * Keep "/static/**" prefix.
-           */
-          @Override
+    @Bean
+    ProtobufHttpMessageConverter protobufHttpMessageConverter() {
+        return new ProtobufHttpMessageConverter();
+    }
+
+    @Bean
+    public WebMvcConfigurer webMvcConfigurer() {
+
+
+        return new WebMvcConfigurerAdapter() {
+            /**
+             * Keep "/static/**" prefix.
+             */
+            @Override
             public void addResourceHandlers(ResourceHandlerRegistry registry) {
-            super.addResourceHandlers(registry);
-            registry.addResourceHandler("/static/**")
-            .addResourceLocations("classpath:/static/");
-        }
+                super.addResourceHandlers(registry);
+                registry.addResourceHandler("/static/**")
+                        .addResourceLocations("classpath:/static/");
+            }
 
             /**
              * Add Java8 time support for Jackson.
              */
             @Override
             public void configureMessageConverters(List<HttpMessageConverter<?>> converters) {
-             // final ProtobufHttpMessageConverter converter = new ProtobufHttpMessageConverter();
-               final MappingJackson2HttpMessageConverter converter = new MappingJackson2HttpMessageConverter();
+                // final ProtobufHttpMessageConverter converter = new ProtobufHttpMessageConverter();
+                final MappingJackson2HttpMessageConverter converter = new MappingJackson2HttpMessageConverter();
                 converter.setObjectMapper(objectMapper);
                 converters.add(converter);
                 super.configureMessageConverters(converters);
@@ -78,29 +78,28 @@ public class GrpcClientApplication extends SpringBootServletInitializer {
         };
     }
 
-  @Configuration
-  public class CorsConfig {
-    private CorsConfiguration buildConfig() {
-      CorsConfiguration corsConfiguration = new CorsConfiguration();
-      corsConfiguration.addAllowedOrigin("*"); // 1
-      corsConfiguration.addAllowedHeader("*"); // 2
-      corsConfiguration.addAllowedMethod("*"); // 3
-      return corsConfiguration;
-    }
+    @Configuration
+    public class CorsConfig {
+        private CorsConfiguration buildConfig() {
+            CorsConfiguration corsConfiguration = new CorsConfiguration();
+            corsConfiguration.addAllowedOrigin("*"); // 1
+            corsConfiguration.addAllowedHeader("*"); // 2
+            corsConfiguration.addAllowedMethod("*"); // 3
+            return corsConfiguration;
+        }
 
-    @Bean
-    public CorsFilter corsFilter() {
-      UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-      source.registerCorsConfiguration("/**", buildConfig()); // 4
-      return new CorsFilter(source);
-    }
+        @Bean
+        public CorsFilter corsFilter() {
+            UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+            source.registerCorsConfiguration("/**", buildConfig()); // 4
+            return new CorsFilter(source);
+        }
 
-  }
+    }
 
     protected SpringApplicationBuilder configure(SpringApplicationBuilder application) {
         return application.sources(GrpcClientApplication.class);
     }
-
 
 
     public static void main(String[] args) {
