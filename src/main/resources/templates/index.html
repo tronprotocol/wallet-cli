@@ -49,9 +49,10 @@
         //TODO fix privateKey store
         $("#privateKey").val(priKeyBytes);
 
-        var basePrivateKey = base64Encode(priKeyBytes);
-        var pk = bytesToString(basePrivateKey);
-        alert("Please save your private key  :" + pk);
+       var basePrivateKey= base64Encode(priKeyBytes);
+       var pk= bytesToString(basePrivateKey);
+        alert("Please save your private key  : "+pk);
+
 
       });
 
@@ -61,9 +62,7 @@
           type: 'post',
           data: {address: address, name: accountName, accountType: 0},
           dataType: 'json',
-          // url:'http：localhost:8088/alTest', contentType:"application/x-protobuf;charset=utf-8", // application/json
-          // contentType:"application/x-protobuf;charset=utf-8",
-          url:/*[[@{/transactionForView}]]*/,
+          url:'/transactionForView',
 
           success: function (data) {
             var rawDataBytes = getRowBytesFromTransactionBase64(data);
@@ -105,8 +104,8 @@
               type: 'post',
               dataType: 'json',
               data: {transactionData: trxString},
-              url:/*[[@{/transactionFromView}]]*/,
-              async: false,
+              url:'/transactionFromView',
+              async:false,
               success: function (data) {
                 alert("register is : " + data);
 
@@ -136,6 +135,7 @@
       <li><a target="_blank" href="/queryAccount">account List </a></li>
       <li><a target="_blank" href="/queryWitness">witness List </a></li>
       <li><a target="_blank" href="/createWitness">Create Witness </a></li>
+      <li><a target="_blank" href="/createAssetIssue">AssetIssue </a></li>
       <li><a target="_blank" href="/sendCoin">SendCoin </a></li>
 
     </ul>

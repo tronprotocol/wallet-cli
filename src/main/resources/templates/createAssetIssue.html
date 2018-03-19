@@ -1,0 +1,137 @@
+<!DOCTYPE HTML>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <title>tron block chain explorer</title>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <script src="/static/js/jquery.js"></script>
+  <script src="/static/cryptohash/lib/elliptic.min.js"></script>
+  <script src="/static/cryptohash/lib/sha.js"></script>
+  <script src="/static/cryptohash/lib/sha1.js"></script>
+  <script src="/static/cryptohash/lib/sha3.js"></script>
+  <script src="/static/cryptohash/lib/sha3-256.js"></script>
+  <script src="/static/cryptohash/lib/sha256.js"></script>
+  <script src="/static/cryptohash/lib/sha512.js"></script>
+  <script src="/static/cryptohash/lib/sha_dev.js"></script>
+  <script src="/static/protolib/protobuf.js"></script>
+  <script src="/static/tronjslib/contract.js"></script>
+  <script src="/static/tronjslib/tron.js"></script>
+  <script src="/static/tronjslib/troninv.js"></script>
+  <script src="/static/utils/code.js"></script>
+  <script src="/static/cryptohash/crypto.js"></script>
+
+</head>
+<body>
+<script type="text/javascript">
+  $(function () {
+    $("#CreateAssetIssue").on('click', function () {
+      var password = $("#password").val();
+      var name = $("#name").val();
+      var totalSupplyStr = $("#totalSupplyStr").val();
+      var trxNumStr = $("#trxNumStr").val();
+      var icoNumStr = $("#icoNumStr").val();
+      var startYyyyMmDd = $("#startYyyyMmDd").val();
+      var startData = strToDate(startYyyyMmDd);
+      var startTime = startData.getTime();
+      var endYyyyMmDd = $("#endYyyyMmDd").val();
+      var endData = strToDate(endYyyyMmDd);
+      var endTime = endData.getTime();
+      var decayRatioStr = $("#decayRatioStr").val();
+      var voteScore = $("#voteScore").val();
+      var description = $("#description").val();
+      var urlico = $("#url").val();
+
+      var priKeyBytes = hexStr2byteArray(password);
+      var ownerAddress = getAddressFromPriKey(priKeyBytes);
+      var owner64String = base64EncodeToString(ownerAddress);
+
+      $.ajax({
+        type: 'post',
+        data: {
+          ownerAddress: owner64String,
+          name: name,
+          totalSupply: totalSupplyStr,
+          trxNum: trxNumStr,
+          icoNum: icoNumStr,
+          startTime: startTime,
+          endTime: endTime,
+          decayRatio: decayRatioStr,
+          voteScore: voteScore,
+          description: description,
+          url: urlico
+        },
+        dataType: 'json',
+        url: "/createAssetIssueToView",
+
+        success: function (data) {
+          transaction = getTransActionFromBase64String(data);
+          var contractList = getContractListFromTransaction(transaction);
+          var contract = contractList[0];  //only one
+          var contractType = typeof(contract);
+          if (!(contract instanceof proto.protocol.AssetIssueContract)) {
+            alert("Invalid contract type !!!!!");
+            return null;
+          }
+
+          var ownerAddress1 = contract.getOwnerAddress();
+          var url1 = contract.getUrl();
+          if (false == arrayEquals(ownerAddress1, ownerAddress)) {
+            alert("Error onwerAddress !!!!");
+            return;
+          }
+          if (url1 == urlico) {
+            alert("Error url !!!!");
+            return;
+          }
+          //TODO: more check for befor sign
+          var transactionSigned = signTransaction(priKeyBytes, transaction);
+          var transactionBytes = transactionSigned.serializeBinary();
+          var transactionString = byteArray2hexStr(transactionBytes);
+
+          $.ajax({
+            type: 'post',
+            dataType: 'json',
+            data: {transactionData: transactionString},
+            url: "/transactionFromView",
+            async: false,
+            success: function (result) {
+              if (result == true) {
+                alert("CreateAssetIssue successful !!!");
+              }
+              else {
+                alert("CreateAssetIssue failure !!!");
+              }
+
+            }
+          });
+        }
+      });
+    });
+
+  });
+
+</script>
+
+<div align="center">
+  <h1>Asset Issue</h1>
+  <form>
+    <p> password: <input id="password" type="text"/></p>
+    <p> name: <input id="name" type="text"/></p>
+    <p> totalSupply: <input id="totalSupplyStr" type="text"/></p>
+    <p> trxNum: <input id="trxNumStr" type="text"/></p>
+    <p> icoNum: <input id="icoNumStr" type="text"/></p>
+    <p> stratYyyyMmDd: <input id="startYyyyMmDd" type="date"/></p>
+    <p> endYyyyMmDd: <input id="endYyyyMmDd" type="date"/></p>
+    <p> decayRatio: <input id="decayRatioStr" type="text"/></p>
+    <p> voteScore: <input id="voteScore" type="text"/></p>
+    <p> description: <input id="description" type="text"/></p>
+    <p> url: <input id="url" type="text"/></p>
+
+    <p>
+      <input id="CreateAssetIssue" type="button" value="CreateAssetIssue"/>
+      <input type="reset" value="Reset"/>
+    </p>
+  </form>
+</div>
+
+</body>
+</html>

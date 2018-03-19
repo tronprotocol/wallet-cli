@@ -219,6 +219,11 @@ public class WalletClient {
     return rpcCli.createWitness(contract);
   }
 
+  public static Transaction createAssetIssueTransaction(Contract.AssetIssueContract contract) {
+    return rpcCli.createAssetIssue(contract);
+  }
+
+
   public boolean voteWitness(HashMap<String, String> witness) {
     byte[] owner = getAddress();
     Contract.VoteWitnessContract contract = createVoteWitnessContract(owner, witness);
