@@ -242,6 +242,14 @@ function base64Decode(bytes64) {
   return decodeBytes;
 }
 
+//return baset64 String
+function base64EncodeToString(bytes){
+  // var string = bytesToString(bytes);
+  var b = new Base64();
+  var string64 = b.encodeIgnoreUtf8(bytes);
+  return string64
+}
+
 //return baset64 bytes
 function base64Encode(bytes) {
   // var string = bytesToString(bytes);
@@ -420,4 +428,22 @@ function Base64() {
     }
     return string;
   }
+}
+
+//yyyy-MM-DD HH-mm-ss
+function strToDate(str) {
+  var tempStrs = str.split(" ");
+  var dateStrs = tempStrs[0].split("-");
+  var year = parseInt(dateStrs[0], 10);
+  var month = parseInt(dateStrs[1], 10) - 1;
+  var day = parseInt(dateStrs[2], 10);
+  if ( tempStrs.length > 1 ) {
+    var timeStrs = tempStrs[1].split("-");
+    var hour = parseInt(timeStrs [0], 10);
+    var minute = parseInt(timeStrs[1], 10) - 1;
+    var second = parseInt(timeStrs[2], 10);
+    return new Date(year, month, day, hour, minute, second);
+  }
+
+  return new Date(year, month, day);
 }
