@@ -24,7 +24,7 @@
 <script type="text/javascript">
   function transfer() {
     var password = $("#password").val(); //String
-    var priKeyBytes = base64DecodeFromString(password)
+    var priKeyBytes = base64DecodeFromString(password);
     var addr = getAddressFromPriKey(priKeyBytes);
     var addrHex = byteArray2hexStr(addr);
     $("#Address").val(addrHex);
