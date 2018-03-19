@@ -13,9 +13,14 @@
   function testComputeAddress() {
     console.log("Star testComputeAddress");
 
-    var pubKeyHex = "04a5bb3b28466f578e6e93fbfd5f75cee1ae86033aa4bbea690e3312c087181eb366f9a1d1d6a437a9bf9fc65ec853b9fd60fa322be3997c47144eb20da658b3d1";
-    var pubKeyBytes = hexStr2byteArray(pubKeyHex);
+    //  var pubKeyHex = "04a5bb3b28466f578e6e93fbfd5f75cee1ae86033aa4bbea690e3312c087181eb366f9a1d1d6a437a9bf9fc65ec853b9fd60fa322be3997c47144eb20da658b3d1";
+    //  var pubKeyBytes = hexStr2byteArray(pubKeyHex);
+    var priKeyBase64 = "48/6rrrYf5Gd2HgMlX0JOVKjHGNxMX/NGSOf+QCrw3I=";
+    var priKeyBytes = base64DecodeFromString(priKeyBase64);
+    var pubKeyBytes = getPubKeyFromPriKey(priKeyBytes);
     var address = computeAddress(pubKeyBytes);
+    console.log("priKeyBytes:::" + byteArray2hexStr(priKeyBytes));
+    console.log("pubKeyBytes:::" + byteArray2hexStr(pubKeyBytes));
     console.log("address:::" + byteArray2hexStr(address));
   }
 
@@ -59,11 +64,12 @@
   }
 
   function testGenPriKey() {
-    var  i = 0;
-    for ( i = 0; i < 100; i++ )
-    {
+    var i = 0;
+    for (i = 0; i < 10; i++) {
       var priKeyBytes = genPriKey();
       console.log("priKeyBytes " + i + " :: " + byteArray2hexStr(priKeyBytes));
+      var address = getAddressFromPriKey(priKeyBytes);
+      console.log("address:::" + byteArray2hexStr(address));
     }
   }
 
@@ -80,13 +86,14 @@
     console.log("string64:::" + string64);
     console.log("stringDecode:::" + stringDecode);
 
-    var bytes = [129, 130 ,131, 132 ,133, 134, 135];
+    var bytes = [129, 130, 131, 132, 133, 134, 135];
     var bytes641 = base64Encode(bytes);
     var bytesDecode1 = base64Decode(bytes641);
 
   }
+
   function doTest() {
-    test64();
+    testGenPriKey();
 
     /*
     testSha256();
@@ -96,37 +103,37 @@
     testECKeySign();
     */
 
-/*
-    var EC = elliptic.ec;
+    /*
+        var EC = elliptic.ec;
 
-    // Create and initialize EC context
-    // (better do it once and reuse it)
-    var ec = new EC('secp256k1');
+        // Create and initialize EC context
+        // (better do it once and reuse it)
+        var ec = new EC('secp256k1');
 
-    // Generate keys
-    var key = ec.genKeyPair();
-    key.getPrivate();
+        // Generate keys
+        var key = ec.genKeyPair();
+        key.getPrivate();
 
-    var pubKey = key.getPublic();
-    var pubkeyb = pubKey.toLocaleString();
+        var pubKey = key.getPublic();
+        var pubkeyb = pubKey.toLocaleString();
 
-    console.log("pubkeyb:::" + pubkeyb);
+        console.log("pubkeyb:::" + pubkeyb);
 
-    console.log("key = " + JSON.stringify(key));
+        console.log("key = " + JSON.stringify(key));
 
-    // Sign the message's hash (input must be an array, or a hex-string)
-    var msgHash = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-    var signature = key.sign(msgHash);
+        // Sign the message's hash (input must be an array, or a hex-string)
+        var msgHash = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+        var signature = key.sign(msgHash);
 
-    // Export DER encoded signature in Array
-    var derSign = signature.toDER();
+        // Export DER encoded signature in Array
+        var derSign = signature.toDER();
 
-    // Verify signature
-    // Verify signature
-    var result = key.verify(msgHash, derSign);
-    console.log(result);
-    alert(result);
-  */
+        // Verify signature
+        // Verify signature
+        var result = key.verify(msgHash, derSign);
+        console.log(result);
+        alert(result);
+      */
 
   }
 </script>

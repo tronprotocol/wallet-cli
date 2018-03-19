@@ -242,6 +242,13 @@ function base64Decode(bytes64) {
   return decodeBytes;
 }
 
+function base64DecodeFromString(string64) {
+  var b = new Base64();
+  var decodeBytes = b.decodeToByteArray(string64);
+//  var decodeBytes = stringToBytes(decodeString);
+  return decodeBytes;
+}
+
 //return baset64 String
 function base64EncodeToString(bytes){
   // var string = bytesToString(bytes);
