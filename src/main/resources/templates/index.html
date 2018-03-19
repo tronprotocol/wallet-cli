@@ -20,9 +20,8 @@
   <script src="/static/cryptohash/crypto.js"></script>
 
 
-  <script type="text/javascript" th:inline="javascript">
+  <script type="text/javascript">
 
-    /*<![CDATA[*/
 
     $(function () {
 
@@ -49,10 +48,9 @@
         //TODO fix privateKey store
         $("#privateKey").val(priKeyBytes);
 
-       var basePrivateKey= base64Encode(priKeyBytes);
-       var pk= bytesToString(basePrivateKey);
-        alert("Please save your private key  : "+pk);
-
+        var basePrivateKey = base64Encode(priKeyBytes);
+        var pk = bytesToString(basePrivateKey);
+        alert("Please save your private key  : " + pk);
 
       });
 
@@ -62,7 +60,7 @@
           type: 'post',
           data: {address: address, name: accountName, accountType: 0},
           dataType: 'json',
-          url:'/transactionForView',
+          url: '/transactionForView',
 
           success: function (data) {
             var rawDataBytes = getRowBytesFromTransactionBase64(data);
@@ -104,8 +102,8 @@
               type: 'post',
               dataType: 'json',
               data: {transactionData: trxString},
-              url:'/transactionFromView',
-              async:false,
+              url: '/transactionFromView',
+              async: false,
               success: function (data) {
                 alert("register is : " + data);
 
@@ -118,7 +116,6 @@
 
     });
 
-    /*]]>*/
 
   </script>
 
@@ -191,91 +188,6 @@
 </div>
 
 
-<!--<div>
-  <button id="queryAccount" type="button">query</button>
-  <div id="name"></div>
-</div>-->
-
-
-<script type="text/javascript">
-  function transfer() {
-    $("#sprivateKey").val(stringToBytes($("#password").val()));
-    var password = $("#password").val(); //String
-    var priKeyBytes = hexStr2byteArray(password);
-    var addr = getAddressFromPriKey(priKeyBytes);
-
-    var addrHex = byteArray2hexStr(addr);
-
-    $("#Address").val(addrHex);
-
-    var pubkey = getPubKeyFromPriKey(stringToBytes($("#password").val()));
-    var a = byteArray2hexStr(pubkey);
-
-    $("#PubKey").val(a);
-    $.ajax({
-
-      type: "POST",
-      dataType: "json",
-      url: "/sendcoin",
-      data: $('#form1').serialize(),
-
-      success: function (data) {
-        console.log(data);
-        var signbytes = doSign(priKeyBytes, data);
-        var bytes = stringToBytes(data);
-        var bytesDecode = base64Decode(bytes);
-        var transaction = proto.protocol.Transaction.deserializeBinary(bytesDecode);
-        var uint8Array = new Uint8Array(signbytes);
-
-        //set sign after base64.
-        transaction.addSignature(uint8Array);
-        var transactionBytes = transaction.serializeBinary();
-
-        var trxString = byteArray2hexStr(transactionBytes);
-        $.ajax({
-
-          type: "POST",
-          dataType: "json",
-          url: "/transactionFromView",
-          data: {transactionData: trxString},
-
-          success: function (result) {
-            if (result == true) {
-
-              alert("转账成功");
-            }
-          },
-          error: function () {
-            alert("异常！");
-          }
-        });
-      },
-      error: function () {
-        alert("异常！");
-      }
-    });
-  }
-</script>
-<div align="center">
-  <h1>Send Coin</h1>
-  <form action="##" method="post" id="form1">
-    <input hidden="hidden" name="privateKey" id="sprivateKey"/>
-    <input hidden="hidden" name="Address" id="Address"/>
-    <input hidden="hidden" name="PubKey" id="PubKey"/>
-
-
-    <p>
-      PrivateKey: <input id="password" name="password" type="text"/>
-      toAddress: <input id="toAddress" name="toAddress" type="text"/>
-
-      amount: <input id="Amount" name="Amount" type="text"/>
-
-    </p>
-    <p>
-      <input id="send" type="button" value="commit" onclick="transfer()"/>
-    </p>
-  </form>
-</div>
 
 </body>
 </html>
