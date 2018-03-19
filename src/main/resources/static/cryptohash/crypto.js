@@ -1,10 +1,14 @@
+document.write("<script src='/static/cryptohash/lib/elliptic.min.js'></script>");
+document.write("<script src='/static/cryptohash/lib/sha.js'></script>");
+document.write("<script src='/static/cryptohash/lib/sha3-256.js'></script>");
+document.write("<script src='/static/cryptohash/lib/sha256.js'></script>");
+
 /**
  * Sign A Transaction by priKey.
- * signature is
+ * signature is 65 bytes, r[32] || s[32] || id[1](<27)
  * @returns  a Transaction object signed
  * @param priKeyBytes: privateKey for ECC
  * @param transaction: a Transaction object unSigned
- * TODO: multy sign
  */
 function signTransaction(priKeyBytes, transaction) {
   var raw = transaction.getRawData();
@@ -12,7 +16,10 @@ function signTransaction(priKeyBytes, transaction) {
   var hashBytes = SHA256(rawBytes);
   var signBytes = ECKeySign(hashBytes, priKeyBytes);
   var uint8Array = new Uint8Array(signBytes);
-  transaction.addSignature(uint8Array);
+  var count = raw.getContractList().length;
+  for ( i = 0; i < count; i++ ){
+    transaction.addSignature(uint8Array); //TODO: multy priKey
+  }
   return transaction;
 }
 
