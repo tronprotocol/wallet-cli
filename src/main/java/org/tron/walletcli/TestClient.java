@@ -28,6 +28,7 @@ public class TestClient {
 
   private static final Logger logger = LoggerFactory.getLogger("TestClient");
   private Client client = new Client();
+  private Client clientDest;
 
   private void registerWallet(String[] parameters) {
     if (parameters == null) {
@@ -200,9 +201,11 @@ public class TestClient {
         "cba92a516ea09f620a16ff7ee95ce0df1d56550a8babe9964981a7144c8a784a");
     clientSrc.login(password);
 
-    Client clientDest = new Client();
-    clientDest.registerWallet("testtransfer", password);
-    clientDest.login(password);
+    if (clientDest == null || clientDest.getBalance() == 0) {
+      clientDest = new Client();
+      clientDest.registerWallet("testtransfer", password);
+      clientDest.login(password);
+    }
 
     long balanceSrc = clientSrc.getBalance();
     long balanceDest = clientDest.getBalance();
@@ -214,7 +217,7 @@ public class TestClient {
     Random transferRandom = new Random(System.currentTimeMillis());
     IntStream.range(0, transferTimes).mapToObj(integer -> service.submit(() -> {
       int transfer = transferRandom.nextInt(50);
-      boolean result = clientSrc.sendCoin(password, clientDest.getAddress(), transfer);
+      boolean result = clientSrc.sendCoin(password, clientDest.getAddress(), 10);
       if (result) {
         succeedTimes.getAndIncrement();
         logger.info("Send " + transfer + " TRX to " + clientDest.getAddress() + " successful !!");
@@ -235,10 +238,10 @@ public class TestClient {
         + succeedTimes.get() == totalBalance;
     logger.info("succeed times(service charge) " + succeedTimes.get()
         + "\nequals " + equals
-        + "\nclientSrc ago " + balanceSrc
+        + "\nclientSrc ago " + balanceSrc + ", address:" + clientSrc.getAddress()
         + "\nclientSrc now " + clientSrc.getBalance()
         + "\nclientSrc diff " + Math.abs(balanceSrc - clientSrc.getBalance())
-        + "\nclientDest ago " + balanceDest
+        + "\nclientDest ago " + balanceDest + ", address:" + clientDest.getAddress()
         + "\nclientDest now " + clientDest.getBalance()
         + "\nclientDest diff " + Math.abs(balanceDest - clientDest.getBalance())
         + "\ntotal balance " + totalBalance
