@@ -62,6 +62,16 @@ public class GrpcClientController {
     return modelAndView;
   }
 
+  @PostMapping("/getBalance")
+  public AccountVo getBalanceForRest(@ModelAttribute AccountVo accountVo) {
+
+    long balance = WalletClient.getBalance(ByteArray.fromHexString(accountVo.getAddress()));
+    final AccountVo account = new AccountVo();
+    account.setAddress(accountVo.getAddress());
+    account.setBalance(balance);
+    return account;
+  }
+
   @GetMapping("/accountList")
   public byte[] getAcountList()
       throws IOException {
