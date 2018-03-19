@@ -20,20 +20,20 @@ public class AccountVo {
 
   private String name;
   private String address;
-  private String balance;
+  private long balance;
   private int accountType;
-  public AccountVo(String address, String balance) {
+  public AccountVo(String address, long balance) {
     this.address = address;
     this.balance = balance;
   }
 
-  public AccountVo(String name, String address, String balance) {
+  public AccountVo(String name, String address, long balance) {
     this.name = name;
     this.address = address;
     this.balance = balance;
   }
 
-  public AccountVo(String name, String address, String balance, int accountType) {
+  public AccountVo(String name, String address, long balance, int accountType) {
     this.name = name;
     this.address = address;
     this.balance = balance;
@@ -60,11 +60,11 @@ public class AccountVo {
     this.address = address;
   }
 
-  public String getBalance() {
+  public long getBalance() {
     return balance;
   }
 
-  public void setBalance(String balance) {
+  public void setBalance(long balance) {
     this.balance = balance;
   }
 
