@@ -265,7 +265,7 @@ public class Client {
 
   public boolean createWitness(String password, String url) {
     if (wallet == null || !wallet.isLoginState()) {
-      logger.warn("Warning: SendCoin failed,  Please login first !!");
+      logger.warn("Warning: createWitness failed,  Please login first !!");
       return false;
     }
     if (!WalletClient.passwordValid(password)) {
@@ -275,7 +275,7 @@ public class Client {
     if (wallet.getEcKey() == null || wallet.getEcKey().getPrivKey() == null) {
       wallet = WalletClient.GetWalletByStorage(password);
       if (wallet == null) {
-        logger.warn("Warning: SendCoin failed, Load wallet failed !!");
+        logger.warn("Warning: createWitness failed, Load wallet failed !!");
         return false;
       }
     }

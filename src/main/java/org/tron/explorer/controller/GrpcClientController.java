@@ -47,17 +47,6 @@ public class GrpcClientController {
     return new ModelAndView("accountList");
   }
 
-  @GetMapping("/queryWitness")
-  public ModelAndView viewQueryWitness() {
-    return new ModelAndView("witnessList");
-  }
-
-
-  @GetMapping("/myproto")
-  public ModelAndView viewMyproto() {
-    return new ModelAndView("myproto");
-  }
-
   @ModelAttribute
   AccountVo setAccountVo() {
     return new AccountVo();
@@ -148,33 +137,10 @@ public class GrpcClientController {
 
   }
 
-  @GetMapping("/witnessList")
-  public byte[] getWitnessList()
-      throws IOException {
-
-    List<Witness> objectList = WalletClient.listWitnesses().get().getWitnessesList();
-
-    int objectsSize = 0;
-    for (int i = 0; i < objectList.size(); i++) {
-      Witness object = objectList.get(i);
-      objectsSize += object.getSerializedSize();
-      objectsSize += 2;  //Length
-    }
-
-    byte[] returnBytes = new byte[objectsSize];
-
-    objectsSize = 0;
-    for (int i = 0; i < objectList.size(); i++) {
-      Witness object = objectList.get(i);
-      byte[] objectBytes = object.toByteArray();
-      int length = objectBytes.length;
-      returnBytes[objectsSize++] = (byte) ((length & 0xFFFF) >> 8);
-      returnBytes[objectsSize++] = (byte) (length & 0xFF);
-      System.arraycopy(objectBytes, 0, returnBytes, objectsSize, length);
-      objectsSize += length;
-    }
-
-    return returnBytes;
+  @GetMapping("/getTransaction")
+  public byte[] getTransaction() {
+    Transaction transaction = Test.createTransactionAccount();
+    return transaction.toByteArray();
   }
 
   @PostMapping("/register")

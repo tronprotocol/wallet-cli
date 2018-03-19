@@ -80,9 +80,13 @@
     console.log("string64:::" + string64);
     console.log("stringDecode:::" + stringDecode);
 
+    var bytes = [129, 130 ,131, 132 ,133, 134, 135];
+    var bytes641 = base64Encode(bytes);
+    var bytesDecode1 = base64Decode(bytes641);
+
   }
   function doTest() {
-    testGenPriKey();
+    test64();
 
     /*
     testSha256();

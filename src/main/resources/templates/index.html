@@ -75,7 +75,6 @@
             var signbytes = doSign(prikeyBytes, data);
             console.log("sign::: " + byteArray2hexStr(signbytes));
 
-            var bytesss = getRowBytesFromTransactionBase64(data);
             var bytes = stringToBytes(data);
             var bytesDecode = base64Decode(bytes);
 
@@ -137,6 +136,7 @@
       <li><a target="_blank" href="https://github.com/tronprotocol">Tron's github </a></li>
       <li><a target="_blank" href="/queryAccount">account List </a></li>
       <li><a target="_blank" href="/queryWitness">witness List </a></li>
+      <li><a target="_blank" href="/createWitness">Create Witness </a></li>
     </ul>
   </div>
 </div>

@@ -1,3 +1,22 @@
+/**
+ * Sign A Transaction by priKey.
+ * signature is
+ * @returns  a Transaction object signed
+ * @param priKeyBytes: privateKey for ECC
+ * @param transaction: a Transaction object unSigned
+ * TODO: multy sign
+ */
+function signTransaction(priKeyBytes, transaction) {
+  var raw = transaction.getRawData();
+  var rawBytes = raw.serializeBinary();
+  var hashBytes = SHA256(rawBytes);
+  var signBytes = ECKeySign(hashBytes, priKeyBytes);
+  var uint8Array = new Uint8Array(signBytes);
+  transaction.addSignature(uint8Array);
+  return transaction;
+}
+
+
 //return sign by 65 bytes r s id. id < 27
 function doSign(priKeyBytes, base64Data) {
   var rowBytes = getRowBytesFromTransactionBase64(base64Data);
