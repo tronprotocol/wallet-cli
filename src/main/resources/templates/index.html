@@ -20,7 +20,7 @@
   <script src="/static/cryptohash/crypto.js"></script>
 
 
-  <script type="text/javascript" >
+  <script type="text/javascript">
 
 
     $(function () {
@@ -48,10 +48,9 @@
         //TODO fix privateKey store
         $("#privateKey").val(priKeyBytes);
 
-       var basePrivateKey= base64Encode(priKeyBytes);
-       var pk= bytesToString(basePrivateKey);
-        alert("Please save your private key  :    "+pk);
-
+        var basePrivateKey = base64Encode(priKeyBytes);
+        var pk = bytesToString(basePrivateKey);
+        alert("Please save your private key  :    " + pk);
 
       });
 
@@ -61,7 +60,7 @@
           type: 'post',
           data: {address: address, name: accountName, accountType: 0},
           dataType: 'json',
-          url:'/transactionForView',
+          url: '/transactionForView',
 
           success: function (data) {
             var rawDataBytes = getRowBytesFromTransactionBase64(data);
@@ -103,8 +102,8 @@
               type: 'post',
               dataType: 'json',
               data: {transactionData: trxString},
-              url:'/transactionFromView',
-              async:false,
+              url: '/transactionFromView',
+              async: false,
               success: function (data) {
                 alert("register is : " + data);
 
