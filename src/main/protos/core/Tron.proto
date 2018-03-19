@@ -1,24 +1,33 @@
 syntax = "proto3";
 
-package protocal;
+import "google/protobuf/any.proto";
+
+package protocol;
+
 
 option java_package = "org.tron.protos"; //Specify the name of the package that generated the Java file
-option java_outer_classname = "Protocal"; //Specify the class name of the generated Java file
+option java_outer_classname = "Protocol"; //Specify the class name of the generated Java file
+
+
+enum AccountType {
+  Normal = 0;
+  AssetIssue = 1;
+  Contract = 2;
+}
 
 // Account
 message Account {
-  bytes address = 1;
-  int64 balance = 2;
-  repeated string votes = 3;
-  map<string, int64> asset = 4;
-  int32 type = 5;
-}
-
-// Contract
-message Contract {
-  bytes address = 1;
-  bytes scripts = 2;
-  string name = 3;
+  message Vote {
+    bytes vote_address = 1;
+    int64 vote_count = 2;
+  }
+  bytes account_name = 1;
+  AccountType type = 2;
+  bytes address = 3;
+  int64 balance = 4;
+  repeated Vote votes = 5;
+  map<string, int64> asset = 6;
+  int64 latest_opration_time = 10;
 }
 
 // Witness
@@ -30,6 +39,8 @@ message Witness {
   int64 totalProduced = 5;
   int64 totalMissed = 6;
   int64 latestBlockNum = 7;
+  int64 latestSlotNum = 8;
+  bool isJobs = 9;
 }
 
 // Transcation
@@ -40,10 +51,13 @@ message TXOutput {
 }
 
 message TXInput {
-  bytes txID = 1;
-  int64 vout = 2;
-  bytes signature = 3;
-  bytes pubKey = 4;
+  message raw {
+    bytes txID = 1;
+    int64 vout = 2;
+    bytes pubKey = 3;
+  }
+  raw raw_data = 1;
+  bytes signature = 4;
 }
 
 message TXOutputs {
@@ -51,43 +65,98 @@ message TXOutputs {
 }
 
 message Transaction {
-  enum TranscationType {
-    Transfer = 0;
-    DeployContract = 1;
-    CreateAccount = 2;
-    VoteWitess = 3;
+  enum TransactionType {
+    UtxoType = 0;
+    ContractType = 1;
   }
-  bytes id = 1;
-  TranscationType type = 2;
-  repeated TXInput vin = 3;
-  repeated TXOutput vout = 4;
-  bytes data = 10;
-  bytes scripts = 12;
+  message Contract {
+    enum ContractType {
+      AccountCreateContract = 0;
+      TransferContract = 1;
+      TransferAssertContract = 2;
+      VoteAssetContract = 3;
+      VoteWitnessContract = 4;
+      WitnessCreateContract = 5;
+      AssetIssueContract = 6;
+      DeployContract = 7;
+      WitnessUpdateContract = 8;
+    }
+    ContractType type = 1;
+    google.protobuf.Any parameter = 2;
+  }
+
+  message Result {
+    enum code {
+      SUCESS = 0;
+      FAILED = 1;
+    }
+    int64 fee = 1;
+    code ret = 2;
+  }
+
+  message raw {
+    TransactionType type = 2;
+    repeated TXInput vin = 5;
+    repeated TXOutput vout = 7;
+    int64 expiration = 8;
+    bytes data = 10;
+    repeated Contract contract = 11;
+    bytes scripts = 16;
+  }
+
+  raw raw_data = 1;
+  repeated bytes signature = 2;
+  repeated Result ret = 5;
 }
 
 message BlockHeader {
-  int64 timestamp = 1;
-  bytes txTrieRoot = 2;
-  bytes parentHash = 3;
-  bytes hash = 4;
-  bytes nonce = 5;
-  bytes difficulty = 6;
-  uint64 number = 7;
-  uint64 witness_id = 8;
+  message raw {
+    int64 timestamp = 1;
+    bytes txTrieRoot = 2;
+    bytes parentHash = 3;
+    //bytes nonce = 5;
+    //bytes difficulty = 6;
+    int64 number = 7;
+    int64 witness_id = 8;
+    bytes witness_address = 9;
+  }
+  raw raw_data = 1;
+  bytes witness_signature = 2;
 }
 
 // block
-
 message Block {
   repeated Transaction transactions = 1;
-  BlockHeader blockHeader = 2;
+  BlockHeader block_header = 2;
+}
+
+message ChainInventory {
+  message BlockId {
+    bytes hash = 1;
+    int64 number = 2;
+  }
+  repeated BlockId ids = 1;
+  int64 remain_num = 2;
 }
 
 // Inventory
+message BlockInventory {
+  enum Type {
+    SYNC = 0;
+    ADVTISE = 1;
+    FETCH = 2;
+  }
+
+  message BlockId {
+    bytes hash = 1;
+    int64 number = 2;
+  }
+  repeated BlockId ids = 1;
+  Type type = 2;
+}
 
 message Inventory {
-  enum InventoryType //枚举消息类型
-  {
+  enum InventoryType {
     TRX = 0;
     BLOCK = 1;
   }
@@ -95,11 +164,9 @@ message Inventory {
   repeated bytes ids = 2;
 }
 
-
 message Items {
-  enum ItemType //枚举消息类型
-  {
-    ERR = 0; //proto3版本中，首成员必须为0，成员不应有相同的值
+  enum ItemType {
+    ERR = 0;
     TRX = 1;
     BLOCK = 2;
     BLOCKHEADER = 3;
@@ -107,6 +174,6 @@ message Items {
 
   ItemType type = 1;
   repeated Block blocks = 2;
-  repeated BlockHeader blockHeaders = 3;
+  repeated BlockHeader block_headers = 3;
   repeated Transaction transactions = 4;
 }

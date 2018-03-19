@@ -21,6 +21,9 @@ package org.tron.common.utils;
 import java.security.SecureRandom;
 import java.nio.*;
 import java.nio.charset.Charset;
+import java.text.ParsePosition;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 public class Utils {
   private static SecureRandom random = new SecureRandom();
@@ -47,5 +50,18 @@ public class Utils {
     CharBuffer cb = cs.decode (bb);
 
     return cb.array();
+  }
+
+  /**
+   * yyyy-MM-dd
+   *
+   * @param strDate
+   * @return
+   */
+  public static Date strToDateLong(String strDate) {
+    SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
+    ParsePosition pos = new ParsePosition(0);
+    Date strtodate = formatter.parse(strDate, pos);
+    return strtodate;
   }
 }

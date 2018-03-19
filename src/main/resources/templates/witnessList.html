@@ -1,0 +1,92 @@
+<!DOCTYPE HTML>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <title>tron block chain explorer</title>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <script src="/static/js/jquery.js"></script>
+  <script src="/static/cryptohash/lib/elliptic.min.js"></script>
+  <script src="/static/cryptohash/lib/sha.js"></script>
+
+
+  <script src="/static/protolib/protobuf.js"></script>
+  <script src="/static/tronjslib/tron.js"></script>
+  <script src="/static/tronjslib/troninv.js"></script>
+  <script src="/static/tronjslib/contract.js"></script>
+  <script src="/static/utils/code.js"></script>
+
+
+  <script type="text/javascript" th:inline="javascript">
+
+    /*<![CDATA[*/
+
+    function listWitness() {
+
+      $.ajax({
+        type: 'get',
+        dataType: 'json',
+        // url:'http：localhost:8088/witnessList', contentType:"application/x-protobuf;charset=utf-8", // application/json
+        // contentType:"application/x-protobuf;charset=utf-8",
+        url:/*[[@{/witnessList}]]*/,
+
+        success: function (data) {
+
+          console.log("base64String " + bytesToString(data));
+
+          var bytes = stringToBytes(data);
+          var bytesObjectList = base64Decode(bytes);
+
+          var pos = 0;
+          var size = bytesObjectList.length;
+          document.write("<table border=\"1\">");
+          document.write("<tr>Witness list</tr>");
+          document.write("<tr>");
+          document.write(" <th>Address</th>");
+          document.write(" <th>url</th>");
+          document.write(" <th>voteCount</th>");
+
+          document.write("</tr>");
+
+          while (pos < size) {
+            var len = bytesObjectList[pos] * 256 + bytesObjectList[pos + 1];
+            pos += 2;
+            if (pos + len > size) {
+              break;
+            }
+            var bytesObject = bytesObjectList.slice(pos, pos + len);
+            pos += len;
+            var witness = proto.protocol.Witness.deserializeBinary(bytesObject);
+
+            var address = witness.getAddress();
+            var addressHex = byteArray2hexStr(address);
+            console.log("addressHex:: " + addressHex);
+
+            var url = witness.getUrl();
+            console.log("url:: " + url);
+
+            var voteCount = witness.getVotecount();
+            console.log("voteCount:: " + voteCount);
+
+            document.write("<tr>");
+            document.write("<td>" + addressHex + "</td>");
+            document.write("<td>" + url + "</td>");
+            document.write("<td>" + voteCount + "</td>");
+            document.write("</tr>");
+          }
+          document.write("</table>");
+        }
+      });
+
+    }
+
+    /*]]>*/
+
+  </script>
+
+</head>
+<body>
+<script type="text/javascript">
+  listWitness();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,41 @@
+<!DOCTYPE HTML>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <title>tron block chain explorer</title>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <script src="/static/js/api/api.js"></script>
+</head>
+<body>
+<script type="text/javascript">
+  $(function () {
+    $("#CreateAssetIssue").on('click', function () {
+      CreateAssetIssue();
+     });
+  });
+
+</script>
+
+<div align="center">
+  <h1>Asset Issue</h1>
+  <form>
+    <p> password: <input id="password" type="text"/></p>
+    <p> name: <input id="name" type="text"/></p>
+    <p> totalSupply: <input id="totalSupplyStr" type="text"/></p>
+    <p> trxNum: <input id="trxNumStr" type="text"/></p>
+    <p> icoNum: <input id="icoNumStr" type="text"/></p>
+    <p> stratYyyyMmDd: <input id="startYyyyMmDd" type="date"/></p>
+    <p> endYyyyMmDd: <input id="endYyyyMmDd" type="date"/></p>
+    <p> decayRatio: <input id="decayRatioStr" type="text"/></p>
+    <p> voteScore: <input id="voteScore" type="text"/></p>
+    <p> description: <input id="description" type="text"/></p>
+    <p> url: <input id="url" type="text"/></p>
+
+    <p>
+      <input id="CreateAssetIssue" type="button" value="CreateAssetIssue"/>
+      <input type="reset" value="Reset"/>
+    </p>
+  </form>
+</div>
+
+</body>
+</html>
