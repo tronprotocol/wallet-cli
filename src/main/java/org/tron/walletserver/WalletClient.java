@@ -155,6 +155,7 @@ public class WalletClient {
       logger.warn("Warning: Can't sign,there is no private key !!");
       return null;
     }
+    transaction = TransactionUtils.setTimestamp(transaction);
     return TransactionUtils.sign(transaction, this.ecKey);
   }
 

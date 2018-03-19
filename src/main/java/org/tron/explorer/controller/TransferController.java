@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.ModelAndView;
 import org.tron.common.utils.ByteArray;
+import org.tron.common.utils.TransactionUtils;
 import org.tron.explorer.domain.Transfer;
 import org.tron.protos.Contract.TransferContract;
 import org.tron.protos.Protocol.Transaction;
@@ -32,6 +33,7 @@ public class TransferController {
             ByteArray.fromHexString(transfer.getAddress()),
             Long.parseLong(transfer.getAmount()));
     Transaction transaction = WalletClient.createTransaction4Transfer(contract);
+    transaction = TransactionUtils.setTimestamp(transaction);
     return transaction.toByteArray();
   }
 
