@@ -72,8 +72,7 @@ public class GrpcClientController {
   }
 
   @GetMapping("/accountList")
-  public byte[] getAcountList()
-      throws IOException {
+  public byte[] getAcountList() {
 
     List<Account> objectList = WalletClient.listAccounts().get().getAccountsList();
 
