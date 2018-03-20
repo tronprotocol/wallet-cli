@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.ModelAndView;
+import org.tron.common.utils.TransactionUtils;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.Witness;
 import org.tron.walletserver.WalletClient;
@@ -65,6 +66,7 @@ public class WitnessController {
     Decoder decoder = Base64.getDecoder();
     byte[] owner = decoder.decode(address.getBytes());
     Transaction transaction = WalletClient.createWitnessTransaction(owner, onwerUrl.getBytes());
+    transaction = TransactionUtils.setTimestamp(transaction);
     return transaction.toByteArray();
   }
 

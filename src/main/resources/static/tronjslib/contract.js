@@ -18,7 +18,7 @@ var core_Tron_pb = require('./Tron_pb.js');
 goog.exportSymbol('proto.protocol.AccountCreateContract', null, global);
 goog.exportSymbol('proto.protocol.AssetIssueContract', null, global);
 goog.exportSymbol('proto.protocol.DeployContract', null, global);
-goog.exportSymbol('proto.protocol.TransferAssertContract', null, global);
+goog.exportSymbol('proto.protocol.TransferAssetContract', null, global);
 goog.exportSymbol('proto.protocol.TransferContract', null, global);
 goog.exportSymbol('proto.protocol.VoteAssetContract', null, global);
 goog.exportSymbol('proto.protocol.VoteWitnessContract', null, global);
@@ -524,12 +524,12 @@ proto.protocol.TransferContract.prototype.setAmount = function(value) {
  * @extends {jspb.Message}
  * @constructor
  */
-proto.protocol.TransferAssertContract = function(opt_data) {
+proto.protocol.TransferAssetContract = function(opt_data) {
   jspb.Message.initialize(this, opt_data, 0, -1, null, null);
 };
-goog.inherits(proto.protocol.TransferAssertContract, jspb.Message);
+goog.inherits(proto.protocol.TransferAssetContract, jspb.Message);
 if (goog.DEBUG && !COMPILED) {
-  proto.protocol.TransferAssertContract.displayName = 'proto.protocol.TransferAssertContract';
+  proto.protocol.TransferAssetContract.displayName = 'proto.protocol.TransferAssetContract';
 }
 
 
@@ -544,8 +544,8 @@ if (jspb.Message.GENERATE_TO_OBJECT) {
  *     for transitional soy proto support: http://goto/soy-param-migration
  * @return {!Object}
  */
-proto.protocol.TransferAssertContract.prototype.toObject = function(opt_includeInstance) {
-  return proto.protocol.TransferAssertContract.toObject(opt_includeInstance, this);
+proto.protocol.TransferAssetContract.prototype.toObject = function(opt_includeInstance) {
+  return proto.protocol.TransferAssetContract.toObject(opt_includeInstance, this);
 };
 
 
@@ -554,11 +554,11 @@ proto.protocol.TransferAssertContract.prototype.toObject = function(opt_includeI
  * @param {boolean|undefined} includeInstance Whether to include the JSPB
  *     instance for transitional soy proto support:
  *     http://goto/soy-param-migration
- * @param {!proto.protocol.TransferAssertContract} msg The msg instance to transform.
+ * @param {!proto.protocol.TransferAssetContract} msg The msg instance to transform.
  * @return {!Object}
  * @suppress {unusedLocalVariables} f is only used for nested messages
  */
-proto.protocol.TransferAssertContract.toObject = function(includeInstance, msg) {
+proto.protocol.TransferAssetContract.toObject = function(includeInstance, msg) {
   var f, obj = {
     assertName: msg.getAssertName_asB64(),
     ownerAddress: msg.getOwnerAddress_asB64(),
@@ -577,23 +577,23 @@ proto.protocol.TransferAssertContract.toObject = function(includeInstance, msg) 
 /**
  * Deserializes binary data (in protobuf wire format).
  * @param {jspb.ByteSource} bytes The bytes to deserialize.
- * @return {!proto.protocol.TransferAssertContract}
+ * @return {!proto.protocol.TransferAssetContract}
  */
-proto.protocol.TransferAssertContract.deserializeBinary = function(bytes) {
+proto.protocol.TransferAssetContract.deserializeBinary = function(bytes) {
   var reader = new jspb.BinaryReader(bytes);
-  var msg = new proto.protocol.TransferAssertContract;
-  return proto.protocol.TransferAssertContract.deserializeBinaryFromReader(msg, reader);
+  var msg = new proto.protocol.TransferAssetContract;
+  return proto.protocol.TransferAssetContract.deserializeBinaryFromReader(msg, reader);
 };
 
 
 /**
  * Deserializes binary data (in protobuf wire format) from the
  * given reader into the given message object.
- * @param {!proto.protocol.TransferAssertContract} msg The message object to deserialize into.
+ * @param {!proto.protocol.TransferAssetContract} msg The message object to deserialize into.
  * @param {!jspb.BinaryReader} reader The BinaryReader to use.
- * @return {!proto.protocol.TransferAssertContract}
+ * @return {!proto.protocol.TransferAssetContract}
  */
-proto.protocol.TransferAssertContract.deserializeBinaryFromReader = function(msg, reader) {
+proto.protocol.TransferAssetContract.deserializeBinaryFromReader = function(msg, reader) {
   while (reader.nextField()) {
     if (reader.isEndGroup()) {
       break;
@@ -629,9 +629,9 @@ proto.protocol.TransferAssertContract.deserializeBinaryFromReader = function(msg
  * Serializes the message to binary data (in protobuf wire format).
  * @return {!Uint8Array}
  */
-proto.protocol.TransferAssertContract.prototype.serializeBinary = function() {
+proto.protocol.TransferAssetContract.prototype.serializeBinary = function() {
   var writer = new jspb.BinaryWriter();
-  proto.protocol.TransferAssertContract.serializeBinaryToWriter(this, writer);
+  proto.protocol.TransferAssetContract.serializeBinaryToWriter(this, writer);
   return writer.getResultBuffer();
 };
 
@@ -639,11 +639,11 @@ proto.protocol.TransferAssertContract.prototype.serializeBinary = function() {
 /**
  * Serializes the given message to binary data (in protobuf wire
  * format), writing to the given BinaryWriter.
- * @param {!proto.protocol.TransferAssertContract} message
+ * @param {!proto.protocol.TransferAssetContract} message
  * @param {!jspb.BinaryWriter} writer
  * @suppress {unusedLocalVariables} f is only used for nested messages
  */
-proto.protocol.TransferAssertContract.serializeBinaryToWriter = function(message, writer) {
+proto.protocol.TransferAssetContract.serializeBinaryToWriter = function(message, writer) {
   var f = undefined;
   f = message.getAssertName_asU8();
   if (f.length > 0) {
@@ -680,7 +680,7 @@ proto.protocol.TransferAssertContract.serializeBinaryToWriter = function(message
  * optional bytes assert_name = 1;
  * @return {string}
  */
-proto.protocol.TransferAssertContract.prototype.getAssertName = function() {
+proto.protocol.TransferAssetContract.prototype.getAssertName = function() {
   return /** @type {string} */ (jspb.Message.getFieldWithDefault(this, 1, ""));
 };
 
@@ -690,7 +690,7 @@ proto.protocol.TransferAssertContract.prototype.getAssertName = function() {
  * This is a type-conversion wrapper around `getAssertName()`
  * @return {string}
  */
-proto.protocol.TransferAssertContract.prototype.getAssertName_asB64 = function() {
+proto.protocol.TransferAssetContract.prototype.getAssertName_asB64 = function() {
   return /** @type {string} */ (jspb.Message.bytesAsB64(
       this.getAssertName()));
 };
@@ -703,14 +703,14 @@ proto.protocol.TransferAssertContract.prototype.getAssertName_asB64 = function()
  * This is a type-conversion wrapper around `getAssertName()`
  * @return {!Uint8Array}
  */
-proto.protocol.TransferAssertContract.prototype.getAssertName_asU8 = function() {
+proto.protocol.TransferAssetContract.prototype.getAssertName_asU8 = function() {
   return /** @type {!Uint8Array} */ (jspb.Message.bytesAsU8(
       this.getAssertName()));
 };
 
 
 /** @param {!(string|Uint8Array)} value */
-proto.protocol.TransferAssertContract.prototype.setAssertName = function(value) {
+proto.protocol.TransferAssetContract.prototype.setAssertName = function(value) {
   jspb.Message.setProto3BytesField(this, 1, value);
 };
 
@@ -719,7 +719,7 @@ proto.protocol.TransferAssertContract.prototype.setAssertName = function(value) 
  * optional bytes owner_address = 2;
  * @return {string}
  */
-proto.protocol.TransferAssertContract.prototype.getOwnerAddress = function() {
+proto.protocol.TransferAssetContract.prototype.getOwnerAddress = function() {
   return /** @type {string} */ (jspb.Message.getFieldWithDefault(this, 2, ""));
 };
 
@@ -729,7 +729,7 @@ proto.protocol.TransferAssertContract.prototype.getOwnerAddress = function() {
  * This is a type-conversion wrapper around `getOwnerAddress()`
  * @return {string}
  */
-proto.protocol.TransferAssertContract.prototype.getOwnerAddress_asB64 = function() {
+proto.protocol.TransferAssetContract.prototype.getOwnerAddress_asB64 = function() {
   return /** @type {string} */ (jspb.Message.bytesAsB64(
       this.getOwnerAddress()));
 };
@@ -742,14 +742,14 @@ proto.protocol.TransferAssertContract.prototype.getOwnerAddress_asB64 = function
  * This is a type-conversion wrapper around `getOwnerAddress()`
  * @return {!Uint8Array}
  */
-proto.protocol.TransferAssertContract.prototype.getOwnerAddress_asU8 = function() {
+proto.protocol.TransferAssetContract.prototype.getOwnerAddress_asU8 = function() {
   return /** @type {!Uint8Array} */ (jspb.Message.bytesAsU8(
       this.getOwnerAddress()));
 };
 
 
 /** @param {!(string|Uint8Array)} value */
-proto.protocol.TransferAssertContract.prototype.setOwnerAddress = function(value) {
+proto.protocol.TransferAssetContract.prototype.setOwnerAddress = function(value) {
   jspb.Message.setProto3BytesField(this, 2, value);
 };
 
@@ -758,7 +758,7 @@ proto.protocol.TransferAssertContract.prototype.setOwnerAddress = function(value
  * optional bytes to_address = 3;
  * @return {string}
  */
-proto.protocol.TransferAssertContract.prototype.getToAddress = function() {
+proto.protocol.TransferAssetContract.prototype.getToAddress = function() {
   return /** @type {string} */ (jspb.Message.getFieldWithDefault(this, 3, ""));
 };
 
@@ -768,7 +768,7 @@ proto.protocol.TransferAssertContract.prototype.getToAddress = function() {
  * This is a type-conversion wrapper around `getToAddress()`
  * @return {string}
  */
-proto.protocol.TransferAssertContract.prototype.getToAddress_asB64 = function() {
+proto.protocol.TransferAssetContract.prototype.getToAddress_asB64 = function() {
   return /** @type {string} */ (jspb.Message.bytesAsB64(
       this.getToAddress()));
 };
@@ -781,14 +781,14 @@ proto.protocol.TransferAssertContract.prototype.getToAddress_asB64 = function() 
  * This is a type-conversion wrapper around `getToAddress()`
  * @return {!Uint8Array}
  */
-proto.protocol.TransferAssertContract.prototype.getToAddress_asU8 = function() {
+proto.protocol.TransferAssetContract.prototype.getToAddress_asU8 = function() {
   return /** @type {!Uint8Array} */ (jspb.Message.bytesAsU8(
       this.getToAddress()));
 };
 
 
 /** @param {!(string|Uint8Array)} value */
-proto.protocol.TransferAssertContract.prototype.setToAddress = function(value) {
+proto.protocol.TransferAssetContract.prototype.setToAddress = function(value) {
   jspb.Message.setProto3BytesField(this, 3, value);
 };
 
@@ -797,13 +797,13 @@ proto.protocol.TransferAssertContract.prototype.setToAddress = function(value) {
  * optional int64 amount = 4;
  * @return {number}
  */
-proto.protocol.TransferAssertContract.prototype.getAmount = function() {
+proto.protocol.TransferAssetContract.prototype.getAmount = function() {
   return /** @type {number} */ (jspb.Message.getFieldWithDefault(this, 4, 0));
 };
 
 
 /** @param {number} value */
-proto.protocol.TransferAssertContract.prototype.setAmount = function(value) {
+proto.protocol.TransferAssetContract.prototype.setAmount = function(value) {
   jspb.Message.setProto3IntField(this, 4, value);
 };
 
@@ -4860,7 +4860,7 @@ proto.protocol.Transaction.Contract.serializeBinaryToWriter = function(message, 
 proto.protocol.Transaction.Contract.ContractType = {
   ACCOUNTCREATECONTRACT: 0,
   TRANSFERCONTRACT: 1,
-  TRANSFERASSERTCONTRACT: 2,
+  TRANSFERASSETCONTRACT: 2,
   VOTEASSETCONTRACT: 3,
   VOTEWITNESSCONTRACT: 4,
   WITNESSCREATECONTRACT: 5,

@@ -1,18 +1,24 @@
 package org.tron.walletcli;
 
 import com.beust.jcommander.JCommander;
+import com.google.protobuf.ByteString;
 import java.util.List;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tron.api.GrpcAPI.AccountList;
+import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.WitnessList;
+import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Utils;
 
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Scanner;
+import org.tron.protos.Protocol.Block;
+import org.tron.protos.Protocol.BlockHeader;
+import org.tron.protos.Protocol.BlockHeader.raw;
 
 public class TestClient {
 
@@ -165,14 +171,35 @@ public class TestClient {
     String amountStr = parameters[2];
     int amountInt = new Integer(amountStr);
 
-    for(int i = 0; i < 10000; i++) {
-      boolean result = client.sendCoin(password, toAddress, amountInt);
-      if (result) {
-        logger.info("Send " + amountInt + " TRX to " + toAddress + " successful !!");
-      } else {
-        logger.info("Send " + amountInt + " TRX to " + toAddress + " failed !!");
-        break;
-      }
+    boolean result = client.sendCoin(password, toAddress, amountInt);
+    if (result) {
+      logger.info("Send " + amountInt + " TRX to " + toAddress + " successful !!");
+    } else {
+      logger.info("Send " + amountInt + " TRX to " + toAddress + " failed !!");
+    }
+  }
+
+  private void transferAsset(String[] parameters){
+    if (parameters == null) {
+      logger.warn("Warning: TransferAsset need 4 parameters but get nothing");
+      return;
+    }
+    if (parameters.length != 3) {
+      logger.warn("Warning: TransferAsset need 4 parameters but get " + parameters.length);
+      return;
+    }
+
+    String password = parameters[0];
+    String toAddress = parameters[1];
+    String assertName = parameters[2];
+    String amountStr = parameters[3];
+    int amountInt = new Integer(amountStr);
+
+    boolean result = client.transferAsset(password, toAddress, assertName, amountInt);
+    if (result) {
+      logger.info("TransferAsset " + amountInt + " to " + toAddress + " successful !!");
+    } else {
+      logger.info("TransferAsset " + amountInt + " to " + toAddress + " failed !!");
     }
   }
 
@@ -258,6 +285,50 @@ public class TestClient {
     }
   }
 
+  private void getAssetIssueList() {
+    Optional<AssetIssueList> result = client.getAssetIssueList();
+    if (result.isPresent()) {
+      AssetIssueList assetIssueList = result.get();
+      logger.info("GetAssetIssueList " + " successful !!");
+    } else {
+      logger.info("GetAssetIssueList " + " failed !!");
+    }
+  }
+
+  private void GetBlock(String[] parameters) {
+    long blockNum = -1;
+
+    if (parameters == null || parameters.length == 0) {
+      logger.info("Get current block !!!!");
+    }
+    else {
+      if ( parameters.length != 1 ){
+        logger.info("Get block too many paramters !!!");
+      }
+      blockNum = Long.parseLong(parameters[0]);
+    }
+    Block block = client.GetBlock(blockNum);
+    if ( block == null ){
+      logger.info("No block for num : " + blockNum);
+      return;
+    }
+    int transactionCount = block.getTransactionsCount();
+    BlockHeader header = block.getBlockHeader();
+    raw data = header.getRawData();
+    ByteString witnessAddress = data.getWitnessAddress();
+    long witnessID = data.getWitnessId();
+    ByteString parentHash = data.getParentHash();
+    ByteString txTrieRoot = data.getTxTrieRoot();
+    long blockNum1 = data.getNumber();
+
+    logger.info("Block num is : " + blockNum1);
+    logger.info("witnessID is : " + witnessID);
+    logger.info("TransactionCount is : " + transactionCount);
+    logger.info("ParentHash is : " + ByteArray.toHexString(parentHash.toByteArray()));
+    logger.info("TxTrieRoot is : " + ByteArray.toHexString(txTrieRoot.toByteArray()));
+    logger.info("WitnessAddress is : " + ByteArray.toHexString(witnessAddress.toByteArray()));
+  }
+
   private void voteWitness(String[] parameters) {
     if (parameters == null) {
       logger.warn("Warning: voteWitness need parameters but get nothing");
@@ -335,6 +406,10 @@ public class TestClient {
           sendCoin(parameters);
           break;
         }
+        case "transferasset":{
+          transferAsset(parameters);
+          break;
+        }
         case "assetissue": {
           assetIssue(parameters);
           break;
@@ -353,6 +428,14 @@ public class TestClient {
         }
         case "listwitnesses": {
           listWitnesses();
+          break;
+        }
+        case "listassetissue": {
+          getAssetIssueList();
+          break;
+        }
+        case "getblock":{
+          GetBlock(parameters);
           break;
         }
         case "exit":

@@ -9,11 +9,14 @@ import java.util.concurrent.TimeUnit;
 
 import org.tron.api.GrpcAPI;
 import org.tron.api.GrpcAPI.AccountList;
+import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.EmptyMessage;
+import org.tron.api.GrpcAPI.NumberMessage;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.api.WalletGrpc;
 import org.tron.protos.Contract;
 import org.tron.protos.Protocol.Account;
+import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.Transaction;
 
 public class GrpcClient {
@@ -50,6 +53,10 @@ public class GrpcClient {
     return blockingStub.createTransaction(contract);
   }
 
+  public Transaction createTransferAssetTransaction(Contract.TransferAssetContract contract){
+    return blockingStub.transferAsset(contract);
+  }
+
   public Transaction createAccount(Contract.AccountCreateContract contract) {
     return blockingStub.createAccount(contract);
   }
@@ -71,10 +78,18 @@ public class GrpcClient {
     return response.getResult();
   }
 
+  public Block getBlock(long blockNum) {
+    if (blockNum < 0) {
+      return blockingStub.getNowBlock(EmptyMessage.newBuilder().build());
+    }
+    NumberMessage.Builder builder = NumberMessage.newBuilder();
+    builder.setNum(blockNum);
+    return blockingStub.getBlockByNum(builder.build());
+  }
 
   public Optional<AccountList> listAccounts() {
     AccountList accountList = blockingStub.listAccounts(EmptyMessage.newBuilder().build());
-    if(accountList != null){
+    if (accountList != null) {
       return Optional.of(accountList);
     }
     return Optional.empty();
@@ -82,8 +97,17 @@ public class GrpcClient {
 
   public Optional<WitnessList> listWitnesses() {
     WitnessList witnessList = blockingStub.listWitnesses(EmptyMessage.newBuilder().build());
-    if(witnessList != null){
+    if (witnessList != null) {
       return Optional.of(witnessList);
+    }
+    return Optional.empty();
+  }
+
+  public Optional<AssetIssueList> getAssetIssueList() {
+    AssetIssueList assetIssueList = blockingStub
+        .getAssetIssueList(EmptyMessage.newBuilder().build());
+    if (assetIssueList != null) {
+      return Optional.of(assetIssueList);
     }
     return Optional.empty();
   }

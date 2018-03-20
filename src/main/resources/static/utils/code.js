@@ -59,10 +59,10 @@ function getContractListFromTransaction(transaction) {
             "protocol.TransferContract");
         break;
 
-      case proto.protocol.Transaction.Contract.ContractType.TRANSFERASSERTCONTRACT:
+      case proto.protocol.Transaction.Contract.ContractType.TRANSFERASSETCONTRACT:
         obje = any.unpack(
-            proto.protocol.TransferAssertContract.deserializeBinary,
-            "protocol.TransferAssertContract");
+            proto.protocol.TransferAsstContract.deserializeBinary,
+            "protocol.TransferAssetContract");
         break;
 
       case proto.protocol.Transaction.Contract.ContractType.VOTEASSETCONTRACT:
@@ -236,6 +236,13 @@ function byteArray2hexStr(byteArray) {
 
 function base64Decode(bytes64) {
   var string64 = bytesToString(bytes64);
+  var b = new Base64();
+  var decodeBytes = b.decodeToByteArray(string64);
+//  var decodeBytes = stringToBytes(decodeString);
+  return decodeBytes;
+}
+
+function base64DecodeFromString(string64) {
   var b = new Base64();
   var decodeBytes = b.decodeToByteArray(string64);
 //  var decodeBytes = stringToBytes(decodeString);

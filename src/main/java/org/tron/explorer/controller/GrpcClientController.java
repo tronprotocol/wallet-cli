@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.ModelAndView;
 import org.tron.common.utils.ByteArray;
+import org.tron.common.utils.TransactionUtils;
 import org.tron.explorer.domain.AccountVo;
 import org.tron.protos.Contract.AccountCreateContract;
 import org.tron.protos.Protocol.Account;
@@ -62,9 +63,17 @@ public class GrpcClientController {
     return modelAndView;
   }
 
+  @PostMapping("/getBalance")
+  public AccountVo getBalanceForRest(@ModelAttribute AccountVo accountVo) {
+    long balance = WalletClient.getBalance(ByteArray.fromHexString(accountVo.getAddress()));
+    final AccountVo account = new AccountVo();
+    account.setAddress(accountVo.getAddress());
+    account.setBalance(balance);
+    return account;
+  }
+
   @GetMapping("/accountList")
-  public byte[] getAcountList()
-      throws IOException {
+  public byte[] getAcountList() {
 
     List<Account> objectList = WalletClient.listAccounts().get().getAccountsList();
 
@@ -137,6 +146,7 @@ public class GrpcClientController {
   @GetMapping("/getTransaction")
   public byte[] getTransaction() {
     Transaction transaction = Test.createTransactionAccount();
+    transaction = TransactionUtils.setTimestamp(transaction);
     return transaction.toByteArray();
   }
 
@@ -172,6 +182,7 @@ public class GrpcClientController {
     Transaction transaction = WalletClient
         .createAccountTransaction(AccountType.Normal, account.getName().getBytes(),
             ByteArray.fromHexString(account.getAddress()));
+    transaction = TransactionUtils.setTimestamp(transaction);
     return transaction.toByteArray();
   }
 

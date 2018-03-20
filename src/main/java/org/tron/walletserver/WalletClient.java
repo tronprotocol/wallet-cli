@@ -12,6 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.spongycastle.util.encoders.Hex;
 import org.tron.api.GrpcAPI.AccountList;
+import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.Hash;
@@ -23,6 +24,7 @@ import org.tron.common.utils.Utils;
 import org.tron.core.config.Configuration;
 import org.tron.protos.Contract;
 import org.tron.protos.Protocol.AccountType;
+import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.Transaction;
 
 public class WalletClient {
@@ -155,6 +157,7 @@ public class WalletClient {
       logger.warn("Warning: Can't sign,there is no private key !!");
       return null;
     }
+    transaction = TransactionUtils.setTimestamp(transaction);
     return TransactionUtils.sign(transaction, this.ecKey);
   }
 
@@ -162,6 +165,17 @@ public class WalletClient {
     byte[] owner = getAddress();
     Contract.TransferContract contract = createTransferContract(to, owner, amount);
     Transaction transaction = rpcCli.createTransaction(contract);
+    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
+      return false;
+    }
+    transaction = signTransaction(transaction);
+    return rpcCli.broadcastTransaction(transaction);
+  }
+
+  public boolean transferAsset(byte[] to, byte[] assertName, long amount){
+    byte[] owner = getAddress();
+    Contract.TransferAssetContract contract = createTransferAssetContract(to, assertName, owner, amount);
+    Transaction transaction = rpcCli.createTransferAssetTransaction(contract);
     if (transaction == null || transaction.getRawData().getContractCount() == 0) {
       return false;
     }
@@ -219,10 +233,20 @@ public class WalletClient {
     return rpcCli.createWitness(contract);
   }
 
+
+  public static Transaction createVoteWitnessTransaction(byte[] owner,
+      HashMap<String, String> witness) {
+    Contract.VoteWitnessContract contract = createVoteWitnessContract(owner, witness);
+    return rpcCli.voteWitnessAccount(contract);
+  }
+
   public static Transaction createAssetIssueTransaction(Contract.AssetIssueContract contract) {
     return rpcCli.createAssetIssue(contract);
   }
 
+  public static Block GetBlock(long blockNum) {
+    return rpcCli.getBlock(blockNum);
+  }
 
   public boolean voteWitness(HashMap<String, String> witness) {
     byte[] owner = getAddress();
@@ -241,6 +265,20 @@ public class WalletClient {
     ByteString bsTo = ByteString.copyFrom(to);
     ByteString bsOwner = ByteString.copyFrom(owner);
     builder.setToAddress(bsTo);
+    builder.setOwnerAddress(bsOwner);
+    builder.setAmount(amount);
+
+    return builder.build();
+  }
+
+  public static Contract.TransferAssetContract createTransferAssetContract(byte[] to, byte[] assertName, byte[] owner,
+      long amount) {
+    Contract.TransferAssetContract.Builder builder = Contract.TransferAssetContract.newBuilder();
+    ByteString bsTo = ByteString.copyFrom(to);
+    ByteString bsName = ByteString.copyFrom(assertName);
+    ByteString bsOwner = ByteString.copyFrom(owner);
+    builder.setToAddress(bsTo);
+    builder.setAssetName(bsName);
     builder.setOwnerAddress(bsOwner);
     builder.setAmount(amount);
 
@@ -273,7 +311,7 @@ public class WalletClient {
     return builder.build();
   }
 
-  public Contract.VoteWitnessContract createVoteWitnessContract(byte[] owner,
+  public static Contract.VoteWitnessContract createVoteWitnessContract(byte[] owner,
       HashMap<String, String> witness) {
     Contract.VoteWitnessContract.Builder builder = Contract.VoteWitnessContract.newBuilder();
     builder.setOwnerAddress(ByteString.copyFrom(owner));
@@ -428,5 +466,9 @@ public class WalletClient {
 
   public static Optional<WitnessList> listWitnesses() {
     return rpcCli.listWitnesses();
+  }
+
+  public static Optional<AssetIssueList> getAssetIssueList(){
+    return rpcCli.getAssetIssueList();
   }
 }

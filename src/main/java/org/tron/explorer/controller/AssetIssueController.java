@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.ModelAndView;
+import org.tron.common.utils.TransactionUtils;
 import org.tron.explorer.domain.AssetIssueVo;
 import org.tron.protos.Contract;
 import org.tron.protos.Protocol.Transaction;
@@ -49,6 +50,7 @@ public class AssetIssueController {
 
     Contract.AssetIssueContract contract = builder.build();
     Transaction transaction = WalletClient.createAssetIssueTransaction(contract);
+    transaction = TransactionUtils.setTimestamp(transaction);
     return transaction.toByteArray();
   }
 
