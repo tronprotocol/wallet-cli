@@ -59,10 +59,10 @@ function getContractListFromTransaction(transaction) {
             "protocol.TransferContract");
         break;
 
-      case proto.protocol.Transaction.Contract.ContractType.TRANSFERASSERTCONTRACT:
+      case proto.protocol.Transaction.Contract.ContractType.TRANSFERASSECONTRACT:
         obje = any.unpack(
-            proto.protocol.TransferAssertContract.deserializeBinary,
-            "protocol.TransferAssertContract");
+            proto.protocol.TransferAsstContract.deserializeBinary,
+            "protocol.TransferAssetContract");
         break;
 
       case proto.protocol.Transaction.Contract.ContractType.VOTEASSETCONTRACT:

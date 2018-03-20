@@ -210,9 +210,9 @@ public class Client {
     }
   }
 
-  public boolean transferAssert(String password, String toAddress, String assertName, long amount){
+  public boolean transferAsset(String password, String toAddress, String assertName, long amount){
     if (wallet == null || !wallet.isLoginState()) {
-      logger.warn("Warning: TransferAssert failed,  Please login first !!");
+      logger.warn("Warning: TransferAsset failed,  Please login first !!");
       return false;
     }
     if (!WalletClient.passwordValid(password)) {
@@ -225,14 +225,14 @@ public class Client {
     if (wallet.getEcKey() == null || wallet.getEcKey().getPrivKey() == null) {
       wallet = WalletClient.GetWalletByStorage(password);
       if (wallet == null) {
-        logger.warn("Warning: TransferAssert failed, Load wallet failed !!");
+        logger.warn("Warning: TransferAsset failed, Load wallet failed !!");
         return false;
       }
     }
 
     try {
       byte[] to = Hex.decode(toAddress);
-      return wallet.transferAssert(to, assertName.getBytes(), amount);
+      return wallet.transferAsset(to, assertName.getBytes(), amount);
     } catch (Exception ex) {
       ex.printStackTrace();
       return false;

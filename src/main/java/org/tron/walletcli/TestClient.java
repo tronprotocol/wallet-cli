@@ -179,13 +179,13 @@ public class TestClient {
     }
   }
 
-  private void transferAssert(String[] parameters){
+  private void transferAsset(String[] parameters){
     if (parameters == null) {
-      logger.warn("Warning: TransferAssert need 4 parameters but get nothing");
+      logger.warn("Warning: TransferAsset need 4 parameters but get nothing");
       return;
     }
     if (parameters.length != 3) {
-      logger.warn("Warning: TransferAssert need 4 parameters but get " + parameters.length);
+      logger.warn("Warning: TransferAsset need 4 parameters but get " + parameters.length);
       return;
     }
 
@@ -195,11 +195,11 @@ public class TestClient {
     String amountStr = parameters[3];
     int amountInt = new Integer(amountStr);
 
-    boolean result = client.transferAssert(password, toAddress, assertName, amountInt);
+    boolean result = client.transferAsset(password, toAddress, assertName, amountInt);
     if (result) {
-      logger.info("TransferAssert " + amountInt + " to " + toAddress + " successful !!");
+      logger.info("TransferAsset " + amountInt + " to " + toAddress + " successful !!");
     } else {
-      logger.info("TransferAssert " + amountInt + " to " + toAddress + " failed !!");
+      logger.info("TransferAsset " + amountInt + " to " + toAddress + " failed !!");
     }
   }
 
@@ -406,8 +406,8 @@ public class TestClient {
           sendCoin(parameters);
           break;
         }
-        case "transferassert":{
-          transferAssert(parameters);
+        case "transferasset":{
+          transferAsset(parameters);
           break;
         }
         case "assetissue": {
