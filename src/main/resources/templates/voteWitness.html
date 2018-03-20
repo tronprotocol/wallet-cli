@@ -25,18 +25,13 @@
   $(function () {
     $("#CreateVoteWitness").on('click', function () {
 
-      // var password = $("#password").val();
-      // var priKeyBytes = hexStr2byteArray(password);
-      // var onwerAddress = getAddressFromPriKey(priKeyBytes);
-      // var address64 = base64Encode(onwerAddress);
-      // var address64Str = bytesToString(address64);
-      var password = $("#password").val(); //String
-      var priKeyBytes = hexStr2byteArray(password);
+      var password = $("#password").val();
+      var priKeyBytes = base64DecodeFromString(password);
       var addr = getAddressFromPriKey(priKeyBytes);
       var address64Str = byteArray2hexStr(addr);
 
-      var addressandacount = $("#witness1").val() + "," + $("#countStr1").val();
-      countStr1
+      var addressandacount = $("#witness1").val() + "," + $("#countStr1").val() + "," + $(
+          "#witness1").val() + "," + $("#countStr1").val();
       $.ajax({
         type: 'post',
         data: {owner: address64Str, list: addressandacount},
