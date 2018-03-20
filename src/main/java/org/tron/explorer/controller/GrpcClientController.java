@@ -39,7 +39,7 @@ public class GrpcClientController {
 
   @GetMapping("/")
   public ModelAndView viewIndex() {
-    return new ModelAndView("test1");
+    return new ModelAndView("index");
   }
 
   @GetMapping("/queryAccount")
