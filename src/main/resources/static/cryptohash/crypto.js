@@ -52,7 +52,7 @@ function genPriKey() {
   var priKey = key.getPrivate();
   var priKeyHex  = priKey.toString('hex');
   while (priKeyHex.length < 64){
-    priKeyHex = "00" + priKeyHex;
+    priKeyHex = "0" + priKeyHex;
   }
   var priKeyBytes = hexStr2byteArray(priKeyHex);
   return priKeyBytes;
@@ -87,11 +87,11 @@ function getPubKeyFromPriKey(priKeyBytes) {
   var y = pubkey.y;
   var xHex = x.toString('hex');
   while (xHex.length < 64) {
-    xHex = "00" + xHex;
+    xHex = "0" + xHex;
   }
   var yHex = y.toString('hex');
   while (yHex.length < 64) {
-    yHex = "00" + yHex;
+    yHex = "0" + yHex;
   }
   var pubkeyHex = "04" + xHex + yHex;
   var pubkeyBytes = hexStr2byteArray(pubkeyHex);
@@ -109,11 +109,11 @@ function ECKeySign(hashBytes, priKeyBytes) {
   var id = signature.recoveryParam;
   var rHex = r.toString('hex');
   while (rHex.length < 64) {
-    rHex = "00" + rHex;
+    rHex = "0" + rHex;
   }
   var sHex = s.toString('hex');
   while (sHex.length < 64) {
-    sHex = "00" + sHex;
+    sHex = "0" + sHex;
   }
   var idHex = byte2hexStr(id);
   var signHex = rHex + sHex + idHex;

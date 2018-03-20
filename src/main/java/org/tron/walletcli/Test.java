@@ -198,6 +198,27 @@ public class Test {
     }
   }
 
+  public static void testGenKey() {
+    ECKey eCkey = null;
+    String priKeyHex = "9d4ce29ec3e5d6204e8e7eb75f738b58f5cb67f72c184c4a2e207055ce3db235";
+    try {
+      BigInteger priK = new BigInteger(priKeyHex, 16);
+      eCkey = ECKey.fromPrivate(priK);
+    } catch (Exception ex) {
+      ex.printStackTrace();
+      return;
+    }
+    byte[] priKey = eCkey.getPrivKeyBytes();
+    byte[] pubKey = eCkey.getPubKey();
+    byte[] address = eCkey.getAddress();
+
+    String priKeyString = ByteArray.toHexString(priKey);
+    String pubKeyString = ByteArray.toHexString(pubKey);
+    System.out.println("priKeyHex:::" + priKeyHex);
+    System.out.println("priKeyString:::" + priKeyString);
+    System.out.println("pubKeyString:::" + pubKeyString);
+  }
+
   public static void testSignEx() {
     byte[] priKey = {
         0,
@@ -251,7 +272,7 @@ public class Test {
   }
 
   public static void main(String[] args) throws Exception {
-    testSignEx();
+    testGenKey();
 
 
 /*
