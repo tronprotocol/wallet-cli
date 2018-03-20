@@ -7,6 +7,7 @@ import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tron.api.GrpcAPI.AccountList;
+import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Utils;
@@ -260,6 +261,16 @@ public class TestClient {
     }
   }
 
+  private void getAssetIssueList() {
+    Optional<AssetIssueList> result = client.getAssetIssueList();
+    if (result.isPresent()) {
+      AssetIssueList assetIssueList = result.get();
+      logger.info("GetAssetIssueList " + " successful !!");
+    } else {
+      logger.info("GetAssetIssueList " + " failed !!");
+    }
+  }
+
   private void GetBlock(String[] parameters) {
     long blockNum = -1;
 
@@ -389,6 +400,10 @@ public class TestClient {
         }
         case "listwitnesses": {
           listWitnesses();
+          break;
+        }
+        case "listassetissue": {
+          getAssetIssueList();
           break;
         }
         case "getblock":{

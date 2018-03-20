@@ -8,6 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.spongycastle.util.encoders.Hex;
 import org.tron.api.GrpcAPI.AccountList;
+import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.SymmEncoder;
@@ -289,8 +290,8 @@ public class Client {
     }
   }
 
-  public Block GetBlock(long blockNum){
-    return  WalletClient.GetBlock(blockNum);
+  public Block GetBlock(long blockNum) {
+    return WalletClient.GetBlock(blockNum);
   }
 
   public boolean voteWitness(String password, HashMap<String, String> witness) {
@@ -319,13 +320,8 @@ public class Client {
   }
 
   public Optional<AccountList> listAccounts() {
-    if (wallet == null) {
-      logger.error("Wallet is null");
-      return Optional.empty();
-    }
-
     try {
-      return wallet.listAccounts();
+      return WalletClient.listAccounts();
     } catch (Exception ex) {
       ex.printStackTrace();
       return Optional.empty();
@@ -333,13 +329,17 @@ public class Client {
   }
 
   public Optional<WitnessList> listWitnesses() {
-    if (wallet == null) {
-      logger.error("Wallet is null");
+    try {
+      return WalletClient.listWitnesses();
+    } catch (Exception ex) {
+      ex.printStackTrace();
       return Optional.empty();
     }
+  }
 
+  public Optional<AssetIssueList> getAssetIssueList() {
     try {
-      return wallet.listWitnesses();
+      return WalletClient.getAssetIssueList();
     } catch (Exception ex) {
       ex.printStackTrace();
       return Optional.empty();
