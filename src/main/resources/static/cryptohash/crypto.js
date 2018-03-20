@@ -2,6 +2,11 @@ document.write("<script src='/static/cryptohash/lib/elliptic.min.js'></script>")
 document.write("<script src='/static/cryptohash/lib/sha.js'></script>");
 document.write("<script src='/static/cryptohash/lib/sha3-256.js'></script>");
 document.write("<script src='/static/cryptohash/lib/sha256.js'></script>");
+document.write("<script src='/static/protolib/protobuf.js'></script>");
+document.write("<script src='/static/tronjslib/contract.js'></script>");
+document.write("<script src='/static/tronjslib/tron.js'></script>");
+document.write("<script src='/static/tronjslib/troninv.js'></script>");
+document.write("<script src='/static/tronjslib/message.js'></script>");
 
 /**
  * Sign A Transaction by priKey.
@@ -30,6 +35,31 @@ function doSign(priKeyBytes, base64Data) {
   var hashBytes = SHA256(rowBytes);
   var signBytes = ECKeySign(hashBytes, priKeyBytes);
   return signBytes;
+}
+
+
+/**
+ * return a signed transaction Hex String
+ * @param priKeyBytes private Key
+ * @param base64Data
+ */
+function getSignedTransactionHexString(priKeyBytes, base64Data) {
+
+  var bytes = stringToBytes(base64Data);
+  var bytesDecode = base64Decode(bytes);
+
+  var transaction = proto.protocol.Transaction.deserializeBinary(bytesDecode);
+
+  // do sign
+  var signBytes = doSign(priKeyBytes, base64Data);
+  var uint8ArraySign = new Uint8Array(signBytes);
+
+  // add sign
+  transaction.addSignature(uint8ArraySign);
+  var transactionBytes = transaction.serializeBinary();
+  var transactionHexString = byteArray2hexStr(transactionBytes);
+
+  return transactionHexString;
 }
 
 //return bytes of rowdata, use to sign.

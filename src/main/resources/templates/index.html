@@ -16,6 +16,7 @@
   <script src="/static/tronjslib/contract.js"></script>
   <script src="/static/tronjslib/tron.js"></script>
   <script src="/static/tronjslib/troninv.js"></script>
+  <script src="/static/tronjslib/message.js"></script>
   <script src="/static/utils/code.js"></script>
   <script src="/static/cryptohash/crypto.js"></script>
 
@@ -63,41 +64,9 @@
           url: '/transactionForView',
 
           success: function (data) {
-            var rawDataBytes = getRowBytesFromTransactionBase64(data);
 
-            var prikeyBytes = $("#privateKey").val();
-
-            //doSign
-            var signbytes = doSign(prikeyBytes, data);
-            console.log("sign::: " + byteArray2hexStr(signbytes));
-
-            var bytes = stringToBytes(data);
-            var bytesDecode = base64Decode(bytes);
-
-            var transaction = proto.protocol.Transaction.deserializeBinary(bytesDecode);
-            var raw = transaction.getRawData();
-            var type = raw.getType();
-            var contract = raw.getContractList();
-            var size = contract.length;
-            var oneContract = contract[0];
-            var any = oneContract.getParameter();
-            var contarcType = oneContract.getType();
-            var unpack = proto.google.protobuf.Any.prototype.unpack;
-            var account = any.unpack(proto.protocol.AccountCreateContract.deserializeBinary,
-                "protocol.AccountCreateContract");
-            var accountType = account.getType();
-            var accountName = account.getAccountName();
-            var ownerAddress = account.getOwnerAddress();
-
-            alert("please confirm your account : " + bytesToString(accountName) + " and address : "
-                + byteArray2hexStr(ownerAddress));
-            var uint8Array = new Uint8Array(signbytes);
-
-            //set sign after base64.
-            transaction.addSignature(uint8Array);
-            var transactionBytes = transaction.serializeBinary();
-            var trxString = byteArray2hexStr(transactionBytes);
-
+            var privateKeyBytes = $("#privateKey").val();
+            var trxString = getSignedTransactionHexString(privateKeyBytes, data);
             $.ajax({
               type: 'post',
               dataType: 'json',
