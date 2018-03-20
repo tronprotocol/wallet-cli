@@ -16,6 +16,7 @@ import java.util.Arrays;
 import java.util.Base64;
 import java.util.Base64.Encoder;
 import java.util.List;
+import java.util.Optional;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,6 +24,8 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.ModelAndView;
+import org.tron.api.GrpcAPI.AccountList;
+import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.ECKey.ECDSASignature;
 import org.tron.common.utils.ByteArray;
@@ -44,7 +47,7 @@ public class GrpcClientController {
 
   @GetMapping("/")
   public ModelAndView viewIndex() {
-    return new ModelAndView("test1");
+    return new ModelAndView("index");
   }
 
   @GetMapping("/queryAccount")
@@ -81,30 +84,14 @@ public class GrpcClientController {
 
   @GetMapping("/accountList")
   public byte[] getAcountList() {
-
-    List<Account> objectList = WalletClient.listAccounts().get().getAccountsList();
-
-    int objectsSize = 0;
-    for (int i = 0; i < objectList.size(); i++) {
-      Account object = objectList.get(i);
-      objectsSize += object.getSerializedSize();
-      objectsSize += 2;  //Length
+    Optional<AccountList> result = WalletClient.listAccounts();
+    if (result.isPresent()) {
+      AccountList accountList = result.get();
+      return accountList.toByteArray();
     }
-
-    byte[] returnBytes = new byte[objectsSize];
-
-    objectsSize = 0;
-    for (int i = 0; i < objectList.size(); i++) {
-      Account object = objectList.get(i);
-      byte[] objectBytes = object.toByteArray();
-      int length = objectBytes.length;
-      returnBytes[objectsSize++] = (byte) ((length & 0xFFFF) >> 8);
-      returnBytes[objectsSize++] = (byte) (length & 0xFF);
-      System.arraycopy(objectBytes, 0, returnBytes, objectsSize, length);
-      objectsSize += length;
+    else {
+      return null;
     }
-
-    return returnBytes;
   }
 
   @GetMapping("/alTest")
