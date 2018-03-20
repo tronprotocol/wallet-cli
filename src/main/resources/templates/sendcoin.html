@@ -24,7 +24,7 @@
 <script type="text/javascript">
   function transfer() {
     var password = $("#password").val(); //String
-    var priKeyBytes = hexStr2byteArray(password);
+    var priKeyBytes = base64DecodeFromString(password);
     var addr = getAddressFromPriKey(priKeyBytes);
     var addrHex = byteArray2hexStr(addr);
     $("#Address").val(addrHex);
@@ -37,23 +37,17 @@
       data: $('#form1').serialize(),
 
       success: function (data) {
-        console.log(data);
-        var signbytes = doSign(priKeyBytes, data);
-        var bytes = stringToBytes(data);
-        var bytesDecode = base64Decode(bytes);
-        var transaction = proto.protocol.Transaction.deserializeBinary(bytesDecode);
-        var uint8Array = new Uint8Array(signbytes);
+        var transaction = getTransActionFromBase64String(data);
+        var transactionSigned = signTransaction(priKeyBytes, transaction);
+        var transactionBytes = transactionSigned.serializeBinary();
+        var transactionString = byteArray2hexStr(transactionBytes);
 
-        transaction.addSignature(uint8Array);
-        var transactionBytes = transaction.serializeBinary();
-
-        var trxString = byteArray2hexStr(transactionBytes);
         $.ajax({
 
           type: "POST",
           dataType: "json",
           url: "/transactionFromView",
-          data: {transactionData: trxString},
+          data: {transactionData: transactionString},
 
           success: function (result) {
             if (result == true) {

@@ -9,7 +9,8 @@ document.write("<script src='/static/tronjslib/troninv.js'></script></script>");
 function CreateWitness() {
   var password = $("#password").val();
   var onwerUrl = $("#url").val();
-  var priKeyBytes = hexStr2byteArray(password);
+//  var priKeyBytes = hexStr2byteArray(password);
+  var priKeyBytes = base64DecodeFromString(password);
   //     CreateWitness(priKeyBytes, onwerUrl);
   var onwerAddress = getAddressFromPriKey(priKeyBytes);
   var address64 = base64Encode(onwerAddress);
@@ -84,7 +85,8 @@ function CreateAssetIssue() {
   var description = $("#description").val();
   var urlico = $("#url").val();
 
-  var priKeyBytes = hexStr2byteArray(password);
+//  var priKeyBytes = hexStr2byteArray(password);
+  var priKeyBytes = base64DecodeFromString(password);
   var ownerAddress = getAddressFromPriKey(priKeyBytes);
   var owner64String = base64EncodeToString(ownerAddress);
 

@@ -237,4 +237,14 @@ public class TransactionUtils {
     transaction = transactionBuilderSigned.build();
     return transaction;
   }
+
+  public static Transaction setTimestamp(Transaction transaction){
+    long currenTime = System.nanoTime();
+    Transaction.Builder builder = transaction.toBuilder();
+    org.tron.protos.Protocol.Transaction.raw.Builder rowBuilder = transaction.getRawData()
+        .toBuilder();
+    rowBuilder.setTimestamp(currenTime);
+    builder.setRawData(rowBuilder.build());
+    return builder.build();
+  }
 }

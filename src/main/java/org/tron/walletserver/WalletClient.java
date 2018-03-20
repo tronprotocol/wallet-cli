@@ -23,6 +23,7 @@ import org.tron.common.utils.Utils;
 import org.tron.core.config.Configuration;
 import org.tron.protos.Contract;
 import org.tron.protos.Protocol.AccountType;
+import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.Transaction;
 
 public class WalletClient {
@@ -155,6 +156,7 @@ public class WalletClient {
       logger.warn("Warning: Can't sign,there is no private key !!");
       return null;
     }
+    transaction = TransactionUtils.setTimestamp(transaction);
     return TransactionUtils.sign(transaction, this.ecKey);
   }
 
@@ -230,6 +232,9 @@ public class WalletClient {
     return rpcCli.createAssetIssue(contract);
   }
 
+  public static Block GetBlock(long blockNum) {
+    return rpcCli.getBlock(blockNum);
+  }
 
   public boolean voteWitness(HashMap<String, String> witness) {
     byte[] owner = getAddress();

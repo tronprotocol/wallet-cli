@@ -64,7 +64,7 @@ function computeAddress(pubBytes) {
   if (pubKey.length == 65) {
     pubKey = pubKey.substring(1);
   }
-  var hash = CryptoJS.SHA3(pubKey).toString();
+  var hash = CryptoJS.SHA3(pubKey).toString(CryptoJS.enc.Hex);
   var addressHex = hash.substring(24);
   var addressBytes = hexStr2byteArray(addressHex);
   return addressBytes;
