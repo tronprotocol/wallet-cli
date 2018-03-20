@@ -172,7 +172,7 @@ public class WalletClient {
     return rpcCli.broadcastTransaction(transaction);
   }
 
-  public boolean transferAsset(byte[] to, byte[] assertName, long amount){
+  public boolean transferAsset(byte[] to, byte[] assertName, long amount) {
     byte[] owner = getAddress();
     Contract.TransferAssetContract contract = createTransferAssetContract(to, assertName, owner, amount);
     Transaction transaction = rpcCli.createTransferAssetTransaction(contract);
