@@ -48,7 +48,7 @@
   function testGetPubKeyFromPriKey() {
     console.log("Star testGetPubKeyFromPriKey");
 
-    var priKeyHex = "8e812436a0e3323166e1f0e8ba79e19e217b2c4a53c970d4cca0cfb1078979df";
+    var priKeyHex = "b6e0f7f88c3fe19040258bf4a82a80cb29b65ceb56a78499b3f3e39024f6a5ea";
     var priKeyBytes = hexStr2byteArray(priKeyHex);
     var pubKeyBytes = getPubKeyFromPriKey(priKeyBytes);
     console.log("pubKeyBytes:::" + byteArray2hexStr(pubKeyBytes));
@@ -93,7 +93,7 @@
   }
 
   function doTest() {
-    testGenPriKey();
+    testGetPubKeyFromPriKey();
 
     /*
     testSha256();
