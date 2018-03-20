@@ -8,6 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.spongycastle.util.encoders.Hex;
 import org.tron.api.GrpcAPI.AccountList;
+import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.SymmEncoder;
@@ -209,6 +210,35 @@ public class Client {
     }
   }
 
+  public boolean transferAsset(String password, String toAddress, String assertName, long amount){
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warning: TransferAsset failed,  Please login first !!");
+      return false;
+    }
+    if (!WalletClient.passwordValid(password)) {
+      return false;
+    }
+    if (!WalletClient.addressValid(toAddress)) {
+      return false;
+    }
+
+    if (wallet.getEcKey() == null || wallet.getEcKey().getPrivKey() == null) {
+      wallet = WalletClient.GetWalletByStorage(password);
+      if (wallet == null) {
+        logger.warn("Warning: TransferAsset failed, Load wallet failed !!");
+        return false;
+      }
+    }
+
+    try {
+      byte[] to = Hex.decode(toAddress);
+      return wallet.transferAsset(to, assertName.getBytes(), amount);
+    } catch (Exception ex) {
+      ex.printStackTrace();
+      return false;
+    }
+  }
+
   public boolean assetIssue(String password, String name, long totalSupply, int trxNum, int icoNum,
       long startTime, long endTime, int decayRatio, int voteScore, String description, String url) {
     if (wallet == null || !wallet.isLoginState()) {
@@ -289,8 +319,8 @@ public class Client {
     }
   }
 
-  public Block GetBlock(long blockNum){
-    return  WalletClient.GetBlock(blockNum);
+  public Block GetBlock(long blockNum) {
+    return WalletClient.GetBlock(blockNum);
   }
 
   public boolean voteWitness(String password, HashMap<String, String> witness) {
@@ -319,13 +349,8 @@ public class Client {
   }
 
   public Optional<AccountList> listAccounts() {
-    if (wallet == null) {
-      logger.error("Wallet is null");
-      return Optional.empty();
-    }
-
     try {
-      return wallet.listAccounts();
+      return WalletClient.listAccounts();
     } catch (Exception ex) {
       ex.printStackTrace();
       return Optional.empty();
@@ -333,13 +358,17 @@ public class Client {
   }
 
   public Optional<WitnessList> listWitnesses() {
-    if (wallet == null) {
-      logger.error("Wallet is null");
+    try {
+      return WalletClient.listWitnesses();
+    } catch (Exception ex) {
+      ex.printStackTrace();
       return Optional.empty();
     }
+  }
 
+  public Optional<AssetIssueList> getAssetIssueList() {
     try {
-      return wallet.listWitnesses();
+      return WalletClient.getAssetIssueList();
     } catch (Exception ex) {
       ex.printStackTrace();
       return Optional.empty();

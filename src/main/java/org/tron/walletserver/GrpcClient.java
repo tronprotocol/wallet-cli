@@ -9,6 +9,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.tron.api.GrpcAPI;
 import org.tron.api.GrpcAPI.AccountList;
+import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.EmptyMessage;
 import org.tron.api.GrpcAPI.NumberMessage;
 import org.tron.api.GrpcAPI.WitnessList;
@@ -50,6 +51,10 @@ public class GrpcClient {
 
   public Transaction createTransaction(Contract.TransferContract contract) {
     return blockingStub.createTransaction(contract);
+  }
+
+  public Transaction createTransferAssetTransaction(Contract.TransferAssetContract contract){
+    return blockingStub.transferAsset(contract);
   }
 
   public Transaction createAccount(Contract.AccountCreateContract contract) {
@@ -94,6 +99,15 @@ public class GrpcClient {
     WitnessList witnessList = blockingStub.listWitnesses(EmptyMessage.newBuilder().build());
     if (witnessList != null) {
       return Optional.of(witnessList);
+    }
+    return Optional.empty();
+  }
+
+  public Optional<AssetIssueList> getAssetIssueList() {
+    AssetIssueList assetIssueList = blockingStub
+        .getAssetIssueList(EmptyMessage.newBuilder().build());
+    if (assetIssueList != null) {
+      return Optional.of(assetIssueList);
     }
     return Optional.empty();
   }

@@ -7,6 +7,7 @@ import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tron.api.GrpcAPI.AccountList;
+import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Utils;
@@ -178,6 +179,30 @@ public class TestClient {
     }
   }
 
+  private void transferAsset(String[] parameters){
+    if (parameters == null) {
+      logger.warn("Warning: TransferAsset need 4 parameters but get nothing");
+      return;
+    }
+    if (parameters.length != 3) {
+      logger.warn("Warning: TransferAsset need 4 parameters but get " + parameters.length);
+      return;
+    }
+
+    String password = parameters[0];
+    String toAddress = parameters[1];
+    String assertName = parameters[2];
+    String amountStr = parameters[3];
+    int amountInt = new Integer(amountStr);
+
+    boolean result = client.transferAsset(password, toAddress, assertName, amountInt);
+    if (result) {
+      logger.info("TransferAsset " + amountInt + " to " + toAddress + " successful !!");
+    } else {
+      logger.info("TransferAsset " + amountInt + " to " + toAddress + " failed !!");
+    }
+  }
+
   private void assetIssue(String[] parameters) {
     if (parameters == null) {
       logger.warn("Warning: assetIssue need 10 parameters but get nothing");
@@ -257,6 +282,16 @@ public class TestClient {
       logger.info("List witnesses " + " successful !!");
     } else {
       logger.info("List witnesses " + " failed !!");
+    }
+  }
+
+  private void getAssetIssueList() {
+    Optional<AssetIssueList> result = client.getAssetIssueList();
+    if (result.isPresent()) {
+      AssetIssueList assetIssueList = result.get();
+      logger.info("GetAssetIssueList " + " successful !!");
+    } else {
+      logger.info("GetAssetIssueList " + " failed !!");
     }
   }
 
@@ -371,6 +406,10 @@ public class TestClient {
           sendCoin(parameters);
           break;
         }
+        case "transferasset":{
+          transferAsset(parameters);
+          break;
+        }
         case "assetissue": {
           assetIssue(parameters);
           break;
@@ -389,6 +428,10 @@ public class TestClient {
         }
         case "listwitnesses": {
           listWitnesses();
+          break;
+        }
+        case "listassetissue": {
+          getAssetIssueList();
           break;
         }
         case "getblock":{

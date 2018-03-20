@@ -12,6 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.spongycastle.util.encoders.Hex;
 import org.tron.api.GrpcAPI.AccountList;
+import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.Hash;
@@ -171,6 +172,17 @@ public class WalletClient {
     return rpcCli.broadcastTransaction(transaction);
   }
 
+  public boolean transferAsset(byte[] to, byte[] assertName, long amount){
+    byte[] owner = getAddress();
+    Contract.TransferAssetContract contract = createTransferAssetContract(to, assertName, owner, amount);
+    Transaction transaction = rpcCli.createTransferAssetTransaction(contract);
+    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
+      return false;
+    }
+    transaction = signTransaction(transaction);
+    return rpcCli.broadcastTransaction(transaction);
+  }
+
   public boolean createAccount(AccountType accountType, byte[] accountName) {
     Transaction transaction = createAccountTransaction(accountType, accountName, getAddress());
     if (transaction == null || transaction.getRawData().getContractCount() == 0) {
@@ -253,6 +265,20 @@ public class WalletClient {
     ByteString bsTo = ByteString.copyFrom(to);
     ByteString bsOwner = ByteString.copyFrom(owner);
     builder.setToAddress(bsTo);
+    builder.setOwnerAddress(bsOwner);
+    builder.setAmount(amount);
+
+    return builder.build();
+  }
+
+  public static Contract.TransferAssetContract createTransferAssetContract(byte[] to, byte[] assertName, byte[] owner,
+      long amount) {
+    Contract.TransferAssetContract.Builder builder = Contract.TransferAssetContract.newBuilder();
+    ByteString bsTo = ByteString.copyFrom(to);
+    ByteString bsName = ByteString.copyFrom(assertName);
+    ByteString bsOwner = ByteString.copyFrom(owner);
+    builder.setToAddress(bsTo);
+    builder.setAssetName(bsName);
     builder.setOwnerAddress(bsOwner);
     builder.setAmount(amount);
 
@@ -440,5 +466,9 @@ public class WalletClient {
 
   public static Optional<WitnessList> listWitnesses() {
     return rpcCli.listWitnesses();
+  }
+
+  public static Optional<AssetIssueList> getAssetIssueList(){
+    return rpcCli.getAssetIssueList();
   }
 }

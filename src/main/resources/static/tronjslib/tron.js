@@ -2154,7 +2154,7 @@ proto.protocol.Transaction.Contract.serializeBinaryToWriter = function(message, 
 proto.protocol.Transaction.Contract.ContractType = {
   ACCOUNTCREATECONTRACT: 0,
   TRANSFERCONTRACT: 1,
-  TRANSFERASSERTCONTRACT: 2,
+  TRANSFERASSETCONTRACT: 2,
   VOTEASSETCONTRACT: 3,
   VOTEWITNESSCONTRACT: 4,
   WITNESSCREATECONTRACT: 5,
