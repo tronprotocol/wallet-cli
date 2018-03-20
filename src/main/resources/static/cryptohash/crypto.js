@@ -54,7 +54,7 @@ function getSignedTransactionHexString(priKeyBytes, base64Data) {
   var signBytes = doSign(priKeyBytes, base64Data);
   var uint8ArraySign = new Uint8Array(signBytes);
 
-  // add sign
+  //transaction add sign
   transaction.addSignature(uint8ArraySign);
   var transactionBytes = transaction.serializeBinary();
   var transactionHexString = byteArray2hexStr(transactionBytes);
