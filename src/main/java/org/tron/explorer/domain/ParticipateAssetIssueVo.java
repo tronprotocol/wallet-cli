@@ -3,9 +3,9 @@ package org.tron.explorer.domain;
 public class ParticipateAssetIssueVo {
 
     private String ownerAddress;
-    private String getToAddress;
+    private String toAddress;
     private String name;
-    private long Amount;
+    private long amount;
 
     public String getOwnerAddress() {
         return ownerAddress;
@@ -15,12 +15,12 @@ public class ParticipateAssetIssueVo {
         this.ownerAddress = ownerAddress;
     }
 
-    public String getGetToAddress() {
-        return getToAddress;
+    public String getToAddress() {
+        return toAddress;
     }
 
-    public void setGetToAddress(String getToAddress) {
-        this.getToAddress = getToAddress;
+    public void setToAddress(String toAddress) {
+        this.toAddress = toAddress;
     }
 
     public String getName() {
@@ -32,10 +32,11 @@ public class ParticipateAssetIssueVo {
     }
 
     public long getAmount() {
-        return Amount;
+        return amount;
     }
 
     public void setAmount(long amount) {
-        Amount = amount;
+        this.amount = amount;
     }
+
 }
