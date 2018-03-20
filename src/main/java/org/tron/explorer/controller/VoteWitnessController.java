@@ -1,14 +1,13 @@
 package org.tron.explorer.controller;
 
-import java.util.HashMap;
+import java.util.List;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.ModelAndView;
-import org.tron.common.utils.ByteArray;
-import org.tron.protos.Protocol.Transaction;
+import org.tron.protos.Protocol.Witness;
 import org.tron.walletserver.WalletClient;
 
 
@@ -23,18 +22,10 @@ public class VoteWitnessController {
   }
 
   @PostMapping("/createVoteWitnessToView")
-  public byte[] getTransactionToView(String owner, String list) {
-    String[] sourceStrArray = list.split(",");
-    HashMap m = new HashMap<>();
+  public List<Witness> getTransactionToView(String owner, String list) {
+    List<Witness> witnessesList = WalletClient.listWitnesses().get().getWitnessesList();
+    return witnessesList;
 
-    for (int i = 0; i + 1 < sourceStrArray.length; i += 2) {
-      String address = sourceStrArray[i];
-      String acount = sourceStrArray[i + 1];
-      m.put(address, acount);
-    }
-    Transaction transaction = WalletClient
-        .createVoteWitnessTransaction(ByteArray.fromHexString(owner), m);
-    return transaction.toByteArray();
   }
 
 
