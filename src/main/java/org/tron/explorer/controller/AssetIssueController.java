@@ -1,10 +1,8 @@
 package org.tron.explorer.controller;
 
 import com.google.protobuf.ByteString;
-import java.io.IOException;
 import java.util.Base64;
 import java.util.Base64.Decoder;
-import java.util.List;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -16,7 +14,6 @@ import org.tron.common.utils.TransactionUtils;
 import org.tron.explorer.domain.AssetIssueVo;
 import org.tron.protos.Contract;
 import org.tron.protos.Protocol.Transaction;
-import org.tron.protos.Protocol.Witness;
 import org.tron.walletserver.WalletClient;
 
 
