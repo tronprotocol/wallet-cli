@@ -210,6 +210,35 @@ public class Client {
     }
   }
 
+  public boolean transferAssert(String password, String toAddress, String assertName, long amount){
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warning: TransferAssert failed,  Please login first !!");
+      return false;
+    }
+    if (!WalletClient.passwordValid(password)) {
+      return false;
+    }
+    if (!WalletClient.addressValid(toAddress)) {
+      return false;
+    }
+
+    if (wallet.getEcKey() == null || wallet.getEcKey().getPrivKey() == null) {
+      wallet = WalletClient.GetWalletByStorage(password);
+      if (wallet == null) {
+        logger.warn("Warning: TransferAssert failed, Load wallet failed !!");
+        return false;
+      }
+    }
+
+    try {
+      byte[] to = Hex.decode(toAddress);
+      return wallet.transferAssert(to, assertName.getBytes(), amount);
+    } catch (Exception ex) {
+      ex.printStackTrace();
+      return false;
+    }
+  }
+
   public boolean assetIssue(String password, String name, long totalSupply, int trxNum, int icoNum,
       long startTime, long endTime, int decayRatio, int voteScore, String description, String url) {
     if (wallet == null || !wallet.isLoginState()) {
