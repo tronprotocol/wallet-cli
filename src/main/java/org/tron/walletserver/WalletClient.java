@@ -222,6 +222,13 @@ public class WalletClient {
     return rpcCli.createWitness(contract);
   }
 
+
+  public static Transaction createVoteWitnessTransaction(byte[] owner,
+      HashMap<String, String> witness) {
+    Contract.VoteWitnessContract contract = createVoteWitnessContract(owner, witness);
+    return rpcCli.voteWitnessAccount(contract);
+  }
+
   public static Transaction createAssetIssueTransaction(Contract.AssetIssueContract contract) {
     return rpcCli.createAssetIssue(contract);
   }
@@ -279,7 +286,7 @@ public class WalletClient {
     return builder.build();
   }
 
-  public Contract.VoteWitnessContract createVoteWitnessContract(byte[] owner,
+  public static Contract.VoteWitnessContract createVoteWitnessContract(byte[] owner,
       HashMap<String, String> witness) {
     Contract.VoteWitnessContract.Builder builder = Contract.VoteWitnessContract.newBuilder();
     builder.setOwnerAddress(ByteString.copyFrom(owner));
