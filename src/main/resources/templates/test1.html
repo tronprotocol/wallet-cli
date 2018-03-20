@@ -2,24 +2,172 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
   <meta charset="UTF-8"/>
+  <script src="/static/js/api/api.js"></script>
   <title></title>
-  <!--
-             描述：JS代码需要编写到script标签中
-         -->
   <script type="text/javascript">
-    //控制浏览器弹出一个警告框
-    alert("这是我的第一行JS代码");
+    function TestAddress() {
 
-    //可以向body中输出一个内容
-   document.write("看我出不出来");
+      var priKeyBytes = genPriKey();
+      var priKeyHex = byteArray2hexStr(priKeyBytes);
+      var pubKeyBytes = getPubKeyFromPriKey(priKeyBytes);
+      var pubKeyHex = byteArray2hexStr(pubKeyBytes);
+      var addressBytes = getAddressFromPriKey(priKeyBytes);
+      var addressHex = byteArray2hexStr(addressBytes);
 
-    //向控制台输出一个内容
-   console.log("你猜我在哪里出来呢");
+      $.ajax({
+        type: 'post',
+        //String priKeyHex, String priKeyHex, String addressHex
+        data: {"priKeyHex": priKeyHex, "pubKeyHex": pubKeyHex, "addressHex": addressHex},
+        dataType: 'json',
+        url: "/testAddress",
+
+        success: function (data) {
+          if (true != data) {
+            alert("Test Address faild!!!!");
+          }
+        }
+      });
+    }
+
+
+  </script>
+
+  <script type="text/javascript">
+    function TestSign() {
+
+      var priKeyBytes = genPriKey();
+      var priKeyHex = byteArray2hexStr(priKeyBytes);
+      var pubKeyBytes = getPubKeyFromPriKey(priKeyBytes);
+      var pubKeyHex = byteArray2hexStr(pubKeyBytes);
+      var addressBytes = getAddressFromPriKey(priKeyBytes);
+      var addressHex = byteArray2hexStr(addressBytes);
+      var hash = SHA256(addressBytes);
+      var hashHex = byteArray2hexStr(hash);
+
+      var signBytes = ECKeySign(hash, priKeyBytes);
+      var signHex = byteArray2hexStr(signBytes);
+      $.ajax({
+        type: 'post',
+        //String priKeyHex, String priKeyHex, String addressHex
+        data: {"signHex": signHex, "pubKeyHex": pubKeyHex, "msgHex": addressHex, "hashHex": hashHex},
+        dataType: 'json',
+        url: "/testSign",
+
+        success: function (data) {
+          if (true != data) {
+            alert("Test Sign faild!!!!");
+          }
+        }
+      });
+    }
   </script>
 
 </head>
 
 <body>
+<script type="text/javascript">
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  alert("Test Sign complet!!!!");
+</script>
 </body>
 
 </html>

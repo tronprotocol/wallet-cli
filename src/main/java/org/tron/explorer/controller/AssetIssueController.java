@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.util.Base64;
 import java.util.Base64.Decoder;
 import java.util.List;
+import java.util.Optional;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -12,8 +13,12 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.ModelAndView;
+import org.tron.api.GrpcAPI.AssetIssueList;
+import org.tron.api.GrpcAPI.WitnessList;
+import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.TransactionUtils;
 import org.tron.explorer.domain.AssetIssueVo;
+import org.tron.explorer.domain.TransferAsset;
 import org.tron.protos.Contract;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.Witness;
@@ -53,6 +58,30 @@ public class AssetIssueController {
     transaction = TransactionUtils.setTimestamp(transaction);
     return transaction.toByteArray();
   }
+
+  @GetMapping("/getAssetIssueList")
+  public byte[] getAssetIssueList()
+      throws IOException {
+    Optional<AssetIssueList> result = WalletClient.getAssetIssueList();
+    if (result.isPresent()) {
+      AssetIssueList assetIssueList = result.get();
+      return assetIssueList.toByteArray();
+    } else {
+      return null;
+    }
+  }
+
+  @PostMapping("/TransferAssetToView")
+  public byte[] getTransactionToView(@ModelAttribute TransferAsset transferAsset) {
+    Transaction transaction = WalletClient
+        .createTransferAssetTransaction(ByteArray.fromHexString(transferAsset.getToAddress()),
+            ByteArray.fromHexString(transferAsset.getAssetName()),
+            ByteArray.fromHexString(transferAsset.getAddress()),
+            Long.parseLong(transferAsset.getAmount()));
+    transaction = TransactionUtils.setTimestamp(transaction);
+    return transaction.toByteArray();
+  }
+
 
 
 }

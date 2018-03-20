@@ -2,6 +2,11 @@ document.write("<script src='/static/cryptohash/lib/elliptic.min.js'></script>")
 document.write("<script src='/static/cryptohash/lib/sha.js'></script>");
 document.write("<script src='/static/cryptohash/lib/sha3-256.js'></script>");
 document.write("<script src='/static/cryptohash/lib/sha256.js'></script>");
+document.write("<script src='/static/protolib/protobuf.js'></script>");
+document.write("<script src='/static/tronjslib/contract.js'></script>");
+document.write("<script src='/static/tronjslib/tron.js'></script>");
+document.write("<script src='/static/tronjslib/troninv.js'></script>");
+document.write("<script src='/static/tronjslib/message.js'></script>");
 
 /**
  * Sign A Transaction by priKey.
@@ -32,6 +37,31 @@ function doSign(priKeyBytes, base64Data) {
   return signBytes;
 }
 
+
+/**
+ * return a signed transaction Hex String
+ * @param priKeyBytes private Key
+ * @param base64Data
+ */
+function getSignedTransactionHexString(priKeyBytes, base64Data) {
+
+  var bytes = stringToBytes(base64Data);
+  var bytesDecode = base64Decode(bytes);
+
+  var transaction = proto.protocol.Transaction.deserializeBinary(bytesDecode);
+
+  // do sign
+  var signBytes = doSign(priKeyBytes, base64Data);
+  var uint8ArraySign = new Uint8Array(signBytes);
+
+  //transaction add sign
+  transaction.addSignature(uint8ArraySign);
+  var transactionBytes = transaction.serializeBinary();
+  var transactionHexString = byteArray2hexStr(transactionBytes);
+
+  return transactionHexString;
+}
+
 //return bytes of rowdata, use to sign.
 function getRowBytesFromTransactionBase64(base64Data) {
   var bytes = stringToBytes(base64Data);
@@ -52,13 +82,19 @@ function genPriKey() {
   var priKey = key.getPrivate();
   var priKeyHex  = priKey.toString('hex');
   while (priKeyHex.length < 64){
-    priKeyHex = "00" + priKeyHex;
+    priKeyHex = "0" + priKeyHex;
   }
   var priKeyBytes = hexStr2byteArray(priKeyHex);
   return priKeyBytes;
 }
 
 //return address by bytes, pubBytes is byte[]
+//TODO: There is a bug。Hundreds of computing addresses, possibly with one error.
+//For example,
+//pubBytes = 0405BE4D534BC638CF97BC41E47B62789454F96C232D21B5DE5DE4ACA127E8C169A62487D42546414C0B7CB6A3CD6129C5CAAD157EB0652867994DFAA203AA11B4
+//Compute the result of the address will be:28E0309DA5FCF9CE4C2BC5FA75EC7388597112A8
+//but Compute the function public static byte[] computeAddress(byte[] pubBytes) of ECKey.java will get f1fb4f6095c057bfa2bb6933e1ad6b9609fba865
+//Maybe CryptoJS.SHA3 was a little wrong.
 function computeAddress(pubBytes) {
   var pubKey = bin2String(pubBytes);
   if (pubKey.length == 65) {
@@ -87,11 +123,11 @@ function getPubKeyFromPriKey(priKeyBytes) {
   var y = pubkey.y;
   var xHex = x.toString('hex');
   while (xHex.length < 64) {
-    xHex = "00" + xHex;
+    xHex = "0" + xHex;
   }
   var yHex = y.toString('hex');
   while (yHex.length < 64) {
-    yHex = "00" + yHex;
+    yHex = "0" + yHex;
   }
   var pubkeyHex = "04" + xHex + yHex;
   var pubkeyBytes = hexStr2byteArray(pubkeyHex);
@@ -109,11 +145,11 @@ function ECKeySign(hashBytes, priKeyBytes) {
   var id = signature.recoveryParam;
   var rHex = r.toString('hex');
   while (rHex.length < 64) {
-    rHex = "00" + rHex;
+    rHex = "0" + rHex;
   }
   var sHex = s.toString('hex');
   while (sHex.length < 64) {
-    sHex = "00" + sHex;
+    sHex = "0" + sHex;
   }
   var idHex = byte2hexStr(id);
   var signHex = rHex + sHex + idHex;
