@@ -173,9 +173,9 @@ public class TestClient {
 
     boolean result = client.sendCoin(password, toAddress, amountInt);
     if (result) {
-      logger.info("Send " + amountInt + " TRX to " + toAddress + " successful !!");
+      logger.info("Send " + amountInt + " dron to " + toAddress + " successful !!");
     } else {
-      logger.info("Send " + amountInt + " TRX to " + toAddress + " failed !!");
+      logger.info("Send " + amountInt + " dron to " + toAddress + " failed !!");
     }
   }
 
@@ -200,6 +200,29 @@ public class TestClient {
       logger.info("TransferAsset " + amountInt + " to " + toAddress + " successful !!");
     } else {
       logger.info("TransferAsset " + amountInt + " to " + toAddress + " failed !!");
+    }
+  }
+
+  private void transferTokenToAsset(String[] parameters) {
+    if (parameters == null) {
+      logger.warn("Warning: TransferAsset need 4 parameters but get nothing");
+      return;
+    }
+    if (parameters.length != 3) {
+      logger.warn("Warning: TransferAsset need 4 parameters but get " + parameters.length);
+      return;
+    }
+
+    String password = parameters[0];
+    String toAddress = parameters[1];
+    String assertName = parameters[2];
+    String trxNumStr = parameters[3];
+    int trxNumInt = new Integer(trxNumStr);
+    boolean result = client.transferTokenToAsset(password, toAddress, assertName, trxNumInt);
+    if (result) {
+      logger.info("TransferTokenToAsset " + trxNumInt + " to " + toAddress + " successful !!");
+    } else {
+      logger.info("TransferTokenToAsset " + trxNumInt + " to " + toAddress + " failed !!");
     }
   }
 
@@ -408,6 +431,10 @@ public class TestClient {
         }
         case "transferasset":{
           transferAsset(parameters);
+          break;
+        }
+        case "transfertokentoasset":{
+          transferTokenToAsset(parameters);
           break;
         }
         case "assetissue": {
