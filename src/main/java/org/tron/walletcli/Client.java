@@ -14,6 +14,7 @@ import org.tron.common.crypto.SymmEncoder;
 import org.tron.common.utils.ByteArray;
 import org.tron.protos.Contract;
 import org.tron.protos.Protocol;
+import org.tron.protos.Protocol.Block;
 import org.tron.walletserver.WalletClient;
 
 public class Client {
@@ -286,6 +287,10 @@ public class Client {
       ex.printStackTrace();
       return false;
     }
+  }
+
+  public Block GetBlock(long blockNum){
+    return  WalletClient.GetBlock(blockNum);
   }
 
   public boolean voteWitness(String password, HashMap<String, String> witness) {

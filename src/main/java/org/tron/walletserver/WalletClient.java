@@ -23,6 +23,7 @@ import org.tron.common.utils.Utils;
 import org.tron.core.config.Configuration;
 import org.tron.protos.Contract;
 import org.tron.protos.Protocol.AccountType;
+import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.Transaction;
 
 public class WalletClient {
@@ -224,6 +225,9 @@ public class WalletClient {
     return rpcCli.createAssetIssue(contract);
   }
 
+  public static Block GetBlock(long blockNum) {
+    return rpcCli.getBlock(blockNum);
+  }
 
   public boolean voteWitness(HashMap<String, String> witness) {
     byte[] owner = getAddress();
