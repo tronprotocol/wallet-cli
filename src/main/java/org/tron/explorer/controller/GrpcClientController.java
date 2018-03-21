@@ -50,50 +50,6 @@ public class GrpcClientController {
     return new ModelAndView("index");
   }
 
-  @GetMapping("/queryAccount")
-  public ModelAndView viewQueryAccount() {
-    return new ModelAndView("accountList");
-  }
-
-  @ModelAttribute
-  AccountVo setAccountVo() {
-    return new AccountVo();
-  }
-
-
-  @ApiOperation(value = "get Balance", notes = "query balance")
-  @ApiImplicitParam(name = "address", value = "address", required = true, dataType = "String")
-  @PostMapping("/balance")
-  public ModelAndView getBalance(@ModelAttribute AccountVo accountVo) {
-
-    long balance = WalletClient.getBalance(ByteArray.fromHexString(accountVo.getAddress()));
-    ModelAndView modelAndView = new ModelAndView("balance");
-    modelAndView.addObject("address", accountVo.getAddress());
-    modelAndView.addObject("balance", balance);
-    return modelAndView;
-  }
-
-  @PostMapping("/getBalance")
-  public AccountVo getBalanceForRest(@ModelAttribute AccountVo accountVo) {
-    long balance = WalletClient.getBalance(ByteArray.fromHexString(accountVo.getAddress()));
-    final AccountVo account = new AccountVo();
-    account.setAddress(accountVo.getAddress());
-    account.setBalance(balance);
-    return account;
-  }
-
-  @GetMapping("/accountList")
-  public byte[] getAcountList() {
-    Optional<AccountList> result = WalletClient.listAccounts();
-    if (result.isPresent()) {
-      AccountList accountList = result.get();
-      return accountList.toByteArray();
-    }
-    else {
-      return null;
-    }
-  }
-
   @GetMapping("/alTest")
   public byte[] getAcountListForTest()
       throws IOException {

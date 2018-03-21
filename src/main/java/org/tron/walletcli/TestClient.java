@@ -16,6 +16,7 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Scanner;
+import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.BlockHeader;
 import org.tron.protos.Protocol.BlockHeader.raw;
@@ -152,9 +153,14 @@ public class TestClient {
       logger.warn("Warning: GetBalance needn't parameter but get " + parameters.length);
       return;
     }
+    Account account = client.getBalance();
+    if (account == null) {
+      logger.info("Get Balance failed !!!!");
 
-    long balance = client.getBalance();
-    logger.info("Balance = " + balance);
+    } else {
+      long balance = account.getBalance();
+      logger.info("Balance = " + balance);
+    }
   }
 
   private void sendCoin(String[] parameters) {
@@ -179,7 +185,7 @@ public class TestClient {
     }
   }
 
-  private void transferAsset(String[] parameters){
+  private void transferAsset(String[] parameters) {
     if (parameters == null) {
       logger.warn("Warning: TransferAsset need 4 parameters but get nothing");
       return;
@@ -220,9 +226,11 @@ public class TestClient {
     long amount = new Integer(amountStr);
     boolean result = client.participateAssetIssue(password, toAddress, assertName, amount);
     if (result) {
-      logger.info("ParticipateAssetIssue " + assertName + " " + amount + " from " + toAddress + " successful !!");
+      logger.info("ParticipateAssetIssue " + assertName + " " + amount + " from " + toAddress
+          + " successful !!");
     } else {
-      logger.info("ParticipateAssetIssue " + assertName + " " + amount + " from " + toAddress + " failed !!");
+      logger.info("ParticipateAssetIssue " + assertName + " " + amount + " from " + toAddress
+          + " failed !!");
     }
   }
 
@@ -323,15 +331,14 @@ public class TestClient {
 
     if (parameters == null || parameters.length == 0) {
       logger.info("Get current block !!!!");
-    }
-    else {
-      if ( parameters.length != 1 ){
+    } else {
+      if (parameters.length != 1) {
         logger.info("Get block too many paramters !!!");
       }
       blockNum = Long.parseLong(parameters[0]);
     }
     Block block = client.GetBlock(blockNum);
-    if ( block == null ){
+    if (block == null) {
       logger.info("No block for num : " + blockNum);
       return;
     }
@@ -429,11 +436,11 @@ public class TestClient {
           sendCoin(parameters);
           break;
         }
-        case "transferasset":{
+        case "transferasset": {
           transferAsset(parameters);
           break;
         }
-        case "participateAssetIssue":{
+        case "participateAssetIssue": {
           participateAssetIssue(parameters);
           break;
         }
@@ -461,7 +468,7 @@ public class TestClient {
           getAssetIssueList();
           break;
         }
-        case "getblock":{
+        case "getblock": {
           GetBlock(parameters);
           break;
         }

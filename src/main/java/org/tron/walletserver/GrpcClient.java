@@ -42,11 +42,10 @@ public class GrpcClient {
     channel.shutdown().awaitTermination(5, TimeUnit.SECONDS);
   }
 
-  public long getBalance(byte[] address) {
+  public Account queryAccount(byte[] address) {
     ByteString addressBS = ByteString.copyFrom(address);
     Account request = Account.newBuilder().setAddress(addressBS).build();
-    Account response = blockingStub.getBalance(request);
-    return response.getBalance();
+    return blockingStub.getAccount(request);
   }
 
   public Transaction createTransaction(Contract.TransferContract contract) {

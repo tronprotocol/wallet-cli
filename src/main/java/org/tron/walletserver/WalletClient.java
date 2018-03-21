@@ -23,6 +23,7 @@ import org.tron.common.utils.TransactionUtils;
 import org.tron.common.utils.Utils;
 import org.tron.core.config.Configuration;
 import org.tron.protos.Contract;
+import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.AccountType;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.Transaction;
@@ -133,23 +134,23 @@ public class WalletClient {
     FileUtil.saveData(FilePath, privKeyStr, true);
   }
 
-  public long getBalance() {
+  public Account queryAccount() {
     byte[] address;
     if (this.ecKey == null) {
       String pubKey = loadPubKey(); //04 PubKey[128]
       if (pubKey == null || "".equals(pubKey)) {
-        logger.warn("Warning: GetBalance failed, no wallet address !!");
-        return 0;
+        logger.warn("Warning: QueryAccount failed, no wallet address !!");
+        return null;
       }
       byte[] pubKeyAsc = pubKey.getBytes();
       byte[] pubKeyHex = Hex.decode(pubKeyAsc);
       this.ecKey = ECKey.fromPublicOnly(pubKeyHex);
     }
-    return getBalance(getAddress());
+    return queryAccount(getAddress());
   }
 
-  public static long getBalance(byte[] address) {
-    return rpcCli.getBalance(address);//call rpc
+  public static Account queryAccount(byte[] address) {
+    return rpcCli.queryAccount(address);//call rpc
   }
 
   private Transaction signTransaction(Transaction transaction) {
@@ -201,7 +202,8 @@ public class WalletClient {
 
   public static Transaction participateAssetIssueTransaction(byte[] to, byte[] assertName,
       byte[] owner, long amount) {
-    Contract.ParticipateAssetIssueContract contract = participateAssetIssueContract(to, assertName, owner,
+    Contract.ParticipateAssetIssueContract contract = participateAssetIssueContract(to, assertName,
+        owner,
         amount);
     return rpcCli.createParticipateAssetIssueTransaction(contract);
   }
@@ -313,7 +315,8 @@ public class WalletClient {
   public static Contract.ParticipateAssetIssueContract participateAssetIssueContract(byte[] to,
       byte[] assertName, byte[] owner,
       long amount) {
-    Contract.ParticipateAssetIssueContract.Builder builder = Contract.ParticipateAssetIssueContract.newBuilder();
+    Contract.ParticipateAssetIssueContract.Builder builder = Contract.ParticipateAssetIssueContract
+        .newBuilder();
     ByteString bsTo = ByteString.copyFrom(to);
     ByteString bsName = ByteString.copyFrom(assertName);
     ByteString bsOwner = ByteString.copyFrom(owner);
