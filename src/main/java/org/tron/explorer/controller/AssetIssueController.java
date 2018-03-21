@@ -18,6 +18,7 @@ import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.TransactionUtils;
 import org.tron.explorer.domain.AssetIssueVo;
+import org.tron.explorer.domain.ParticipateAssetIssueVo;
 import org.tron.explorer.domain.TransferAsset;
 import org.tron.protos.Contract;
 import org.tron.protos.Protocol.Transaction;
@@ -82,6 +83,17 @@ public class AssetIssueController {
     return transaction.toByteArray();
   }
 
+  @PostMapping("/ParticipateAssetIssueToView")
+  public byte[] getTransactionToView(@ModelAttribute ParticipateAssetIssueVo articipateAssetIssue) {
+    Transaction transaction = WalletClient
+        .participateAssetIssueTransaction(
+            ByteArray.fromHexString(articipateAssetIssue.getToAddress()),
+            ByteArray.fromHexString(articipateAssetIssue.getName()),
+            ByteArray.fromHexString(articipateAssetIssue.getOwnerAddress()),
+            articipateAssetIssue.getAmount());
+    transaction = TransactionUtils.setTimestamp(transaction);
+    return transaction.toByteArray();
+  }
 
 
 }

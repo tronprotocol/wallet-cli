@@ -1,9 +1,9 @@
 package org.tron.explorer.domain;
 
 public class TransferAsset {
+  private String assetName;
   private String Address;
   private String toAddress;
-  private String assetName;
   private String Amount;
 
   public TransferAsset(String address, String toAddress, String assetName, String amount) {
