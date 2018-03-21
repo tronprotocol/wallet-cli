@@ -1,17 +1,8 @@
 package org.tron.explorer.controller;
 
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Optional;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.TransactionUtils;
@@ -19,6 +10,10 @@ import org.tron.explorer.domain.VoteWitness;
 import org.tron.explorer.domain.Witness;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.walletserver.WalletClient;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Optional;
 
 
 @RestController
@@ -45,7 +40,7 @@ public class VoteWitnessController {
 
 
   @PostMapping("/createVoteWitnessToView")
-  public byte[] getTransactionToView(@ModelAttribute VoteWitness voteWitness) {
+  public byte[] getTransactionToView(@RequestBody VoteWitness voteWitness) {
     try {
       if (voteWitness.getOwnerAddress() == null || voteWitness.getList() == null) {
         return null;
