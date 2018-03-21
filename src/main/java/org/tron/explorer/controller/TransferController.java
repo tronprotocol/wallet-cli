@@ -28,6 +28,7 @@ public class TransferController {
 
   @PostMapping("/sendCoinToView")
   public byte[] getTransactionToView(@ModelAttribute Transfer transfer) {
+
     TransferContract contract = WalletClient
         .createTransferContract(ByteArray.fromHexString(transfer.getToAddress()),
             ByteArray.fromHexString(transfer.getAddress()),
