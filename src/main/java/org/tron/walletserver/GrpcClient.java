@@ -45,7 +45,7 @@ public class GrpcClient {
   public Account queryAccount(byte[] address) {
     ByteString addressBS = ByteString.copyFrom(address);
     Account request = Account.newBuilder().setAddress(addressBS).build();
-    return blockingStub.getBalance(request);
+    return blockingStub.getAccount(request);
   }
 
   public Transaction createTransaction(Contract.TransferContract contract) {
