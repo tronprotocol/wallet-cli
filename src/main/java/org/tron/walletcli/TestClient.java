@@ -76,7 +76,7 @@ public class TestClient {
   }
 
   private void login(String[] parameters) {
-    if (parameters == null || parameters.length != 2 ) {
+    if (parameters == null || parameters.length != 1 ) {
       System.out.println("Login need 1 parameter like following: ");
       System.out.println("Login Password ");
       return;
