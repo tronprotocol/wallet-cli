@@ -514,4 +514,8 @@ public class WalletClient {
   public static Optional<AssetIssueList> getAssetIssueList() {
     return rpcCli.getAssetIssueList();
   }
+  public static Optional<AssetIssueList> getAssetIssueByAccount(byte[] address) {
+    return rpcCli.getAssetIssueByAccount(address);
+  }
+
 }

@@ -6,6 +6,10 @@ public class TransferAsset {
   private String toAddress;
   private String Amount;
 
+  public TransferAsset() {
+
+  }
+
   public TransferAsset(String address, String toAddress, String assetName, String amount) {
     Address = address;
     this.toAddress = toAddress;

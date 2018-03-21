@@ -20,7 +20,6 @@ public class TransferController {
 
   protected final Log log = LogFactory.getLog(getClass());
 
-
   @GetMapping("/sendCoin")
   public ModelAndView sendCoin() {
     return new ModelAndView("sendCoin");
@@ -33,6 +32,7 @@ public class TransferController {
 
   @PostMapping("/sendCoinToView")
   public byte[] getTransactionToView(@ModelAttribute Transfer transfer) {
+    System.out.println(transfer.getAddress());
     try {
       if (transfer.getAddress() == null || transfer.getAmount() == null
           || transfer.getToAddress() == null) {

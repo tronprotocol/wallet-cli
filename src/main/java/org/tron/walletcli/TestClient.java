@@ -184,6 +184,27 @@ public class TestClient {
     }
   }
 
+  private void getAssetIssueByAccount(String[] parameters) {
+    if (parameters == null) {
+      logger.warn("Warning: GetAssetIssueByAccount need 1 parameters but get nothing");
+      return;
+    }
+    if (parameters.length != 1) {
+      logger.warn("Warning: GetAssetIssueByAccount need 1 parameters but get " + parameters.length);
+      return;
+    }
+    String address = parameters[0];
+    byte[] addressBytes = ByteArray.fromHexString(address);
+    Optional<AssetIssueList> result = WalletClient.getAssetIssueByAccount(addressBytes);
+    if (result.isPresent()) {
+      AssetIssueList assetIssueList = result.get();
+      logger.info("assetIssueList[" + assetIssueList.getAssetIssueList() + "]");
+
+    } else {
+      logger.info("GetAssetIssueByAccount " + " failed !!");
+    }
+  }
+
   private void sendCoin(String[] parameters) {
     if (parameters == null) {
       logger.warn("Warning: SendCoin need 3 parameters but get nothing");
@@ -456,6 +477,10 @@ public class TestClient {
         }
         case "getaccount": {
           getAccount(parameters);
+          break;
+        }
+        case "getassetissuebyaccount": {
+          getAssetIssueByAccount(parameters);
           break;
         }
         case "sendcoin": {

@@ -52,11 +52,12 @@ public class GrpcClient {
     return blockingStub.createTransaction(contract);
   }
 
-  public Transaction createTransferAssetTransaction(Contract.TransferAssetContract contract){
+  public Transaction createTransferAssetTransaction(Contract.TransferAssetContract contract) {
     return blockingStub.transferAsset(contract);
   }
 
-  public Transaction createParticipateAssetIssueTransaction(Contract.ParticipateAssetIssueContract contract){
+  public Transaction createParticipateAssetIssueTransaction(
+      Contract.ParticipateAssetIssueContract contract) {
     return blockingStub.participateAssetIssue(contract);
   }
 
@@ -114,4 +115,16 @@ public class GrpcClient {
     }
     return Optional.empty();
   }
+
+  public Optional<AssetIssueList> getAssetIssueByAccount(byte[] address) {
+    ByteString addressBS = ByteString.copyFrom(address);
+    Account request = Account.newBuilder().setAddress(addressBS).build();
+    AssetIssueList assetIssueList = blockingStub
+        .getAssetIssueByAccount(request);
+    if (assetIssueList != null) {
+      return Optional.of(assetIssueList);
+    }
+    return Optional.empty();
+  }
+
 }
