@@ -104,6 +104,41 @@
 
       });
 
+   // var witness=  "{"+ "address" +":"+ "1111" +","+ "WitnessList"+":" + "["+"{"address +":"+ "qqq223"+","+ "voteCount"+":"+ "102"+","+ "url"+":"+"http://Olivier.org"+","+  "isJobs"+":"+"true"+"}"+"]"+"}"
+
+      var witness={
+        "ownerAddress": "1111",
+
+        "list": [
+
+          {
+
+            "address": "qqq223",
+
+            "amount": "102",
+
+            "url": "http://Olivier.org",
+            "isJobs": "true"
+          }  ]
+      }
+
+       var v= JSON.stringify(witness);
+      $("#witness").on('click', function () {
+        $.ajax({
+          type: 'post',
+          data:{voteWitness:v},
+          dataType: 'json',
+          url: '/createVoteWitnessToView',
+          success: function (base64Data) {
+
+
+            alert(base64Data);
+
+
+          }
+        });
+
+      });
 
 
 
@@ -131,6 +166,10 @@
 
       <li>
         <button id="block" type="button">blocks</button>
+      </li>
+
+      <li>
+        <button id="witness" type="button">witness</button>
       </li>
 
 

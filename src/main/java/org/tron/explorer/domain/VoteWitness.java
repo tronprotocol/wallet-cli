@@ -12,6 +12,9 @@ public class VoteWitness {
     this.list = list;
   }
 
+  public VoteWitness() {
+  }
+
   public String getOwnerAddress() {
     return ownerAddress;
   }

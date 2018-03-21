@@ -7,12 +7,14 @@ import java.util.Optional;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.utils.ByteArray;
+import org.tron.explorer.domain.AccountVo;
 import org.tron.explorer.domain.VoteWitness;
 import org.tron.explorer.domain.Witness;
 import org.tron.protos.Protocol.Transaction;
@@ -39,7 +41,7 @@ public class VoteWitnessController {
   }
 
 
-  @RequestMapping(value = "/voteWitnessListForTest",produces = "application/x-protobuf", method =
+  @RequestMapping(value = "/voteWitnessListForTest", method =
       { RequestMethod.GET })
   public WitnessList getVoteWitnessListForTest()
       throws IOException {
@@ -52,10 +54,13 @@ public class VoteWitnessController {
     }
   }
 
-
+  @ModelAttribute
+  VoteWitness setVoteWitness() {
+    return new VoteWitness();
+  }
 
   @PostMapping("/createVoteWitnessToView")
-  public byte[] getTransactionToView(VoteWitness voteWitness) {
+  public byte[] getTransactionToView(@ModelAttribute  VoteWitness voteWitness) {
     List<Witness> list = voteWitness.getList();
     String ownerAddress = voteWitness.getOwnerAddress();
     HashMap m = new HashMap<>();
