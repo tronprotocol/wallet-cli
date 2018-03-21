@@ -20,6 +20,7 @@ import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.BlockHeader;
 import org.tron.protos.Protocol.BlockHeader.raw;
+import org.tron.walletserver.WalletClient;
 
 public class TestClient {
 
@@ -153,13 +154,33 @@ public class TestClient {
       logger.warn("Warning: GetBalance needn't parameter but get " + parameters.length);
       return;
     }
-    Account account = client.getBalance();
+    Account account = client.queryAccount();
     if (account == null) {
       logger.info("Get Balance failed !!!!");
 
     } else {
       long balance = account.getBalance();
       logger.info("Balance = " + balance);
+    }
+  }
+
+  private void getAccount(String[] parameters) {
+    if (parameters == null) {
+      logger.warn("Warning: GetAccount need 1 parameters but get nothing");
+      return;
+    }
+    if (parameters.length != 1) {
+      logger.warn("Warning: GetAccount need 1 parameters but get " + parameters.length);
+      return;
+    }
+    String address = parameters[0];
+    byte[] addressBytes = ByteArray.fromHexString(address);
+    Account account = WalletClient.queryAccount(addressBytes);
+    if (account == null) {
+      logger.info("Get Account failed !!!!");
+
+    } else {
+      logger.info("Account[" + account + "]");
     }
   }
 
@@ -190,7 +211,7 @@ public class TestClient {
       logger.warn("Warning: TransferAsset need 4 parameters but get nothing");
       return;
     }
-    if (parameters.length != 3) {
+    if (parameters.length != 4) {
       logger.warn("Warning: TransferAsset need 4 parameters but get " + parameters.length);
       return;
     }
@@ -214,7 +235,7 @@ public class TestClient {
       logger.warn("Warning: ParticipateAssetIssue need 4 parameters but get nothing");
       return;
     }
-    if (parameters.length != 3) {
+    if (parameters.length != 4) {
       logger.warn("Warning: ParticipateAssetIssue need 4 parameters but get " + parameters.length);
       return;
     }
@@ -320,7 +341,8 @@ public class TestClient {
     Optional<AssetIssueList> result = client.getAssetIssueList();
     if (result.isPresent()) {
       AssetIssueList assetIssueList = result.get();
-      logger.info("GetAssetIssueList " + " successful !!");
+      logger.info("assetIssueList[" + assetIssueList.getAssetIssueList() + "]");
+
     } else {
       logger.info("GetAssetIssueList " + " failed !!");
     }
@@ -432,6 +454,10 @@ public class TestClient {
           getBalance(parameters);
           break;
         }
+        case "getaccount": {
+          getAccount(parameters);
+          break;
+        }
         case "sendcoin": {
           sendCoin(parameters);
           break;
@@ -440,7 +466,7 @@ public class TestClient {
           transferAsset(parameters);
           break;
         }
-        case "participateAssetIssue": {
+        case "participateassetissue": {
           participateAssetIssue(parameters);
           break;
         }

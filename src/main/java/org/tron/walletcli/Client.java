@@ -160,16 +160,16 @@ public class Client {
     return ByteArray.toHexString(wallet.getAddress());
   }
 
-  public Account getBalance() {
+  public Account queryAccount() {
     if (wallet == null || !wallet.isLoginState()) {
-      logger.warn("Warning: GetBalance failed,  Please login first !!");
+      logger.warn("Warning: QueryAccount failed,  Please login first !!");
       return null;
     }
 
     if (wallet.getEcKey() == null) {
       wallet = WalletClient.GetWalletByStorageIgnorPrivKey();
       if (wallet == null) {
-        logger.warn("Warning: GetBalance failed, Load wallet failed !!");
+        logger.warn("Warning: QueryAccount failed, Load wallet failed !!");
         return null;
       }
     }
