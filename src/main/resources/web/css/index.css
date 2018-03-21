@@ -1,0 +1,11 @@
+body ,html{
+    height: 100%;
+    width: 100%;
+}
+.logo{
+    height: 65px;
+    width: 70px;
+    float: left;
+    margin-left: 50px;
+    padding: 8px;
+}

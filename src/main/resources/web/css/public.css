@@ -1,0 +1,44 @@
+/* CSS Document */
+*{ margin:0; padding:0;}
+img{ border:none;}
+a{ text-decoration:none;}
+ul,ol li{ list-style:none;}
+/*清除浮动*/
+.clearfix:before, .clearfix:after { content:"";display: table;}
+.clearfix:after{clear:both;	overflow: hidden;}
+.clearfix{zoom:1;clear:both;}
+input,textarea,select{margin:0px;padding:0px;outline:none;border:none; }
+.show{ display:block;}
+.none{ display:none;}
+.fl{ float:left;}
+.fr{ float:right;}
+input[type="text"], input[type="email"], input[type="tel"], input[type="submit"], input[type="search"], input[type="password"], input[type=button], input[type=date], select {
+    -webkit-appearance: none;
+    outline: none;
+}
+
+.input::-webkit-input-placeholder {
+    color:#FFFFFF;
+	filter:alpha(opacity=50); /*IE滤镜，透明度50%*/
+	-moz-opacity:0.5; /*Firefox私有，透明度50%*/
+	opacity:0.5;/*其他，透明度50%*/
+}
+.input:-moz-placeholder {
+    color:#FFFFFF;
+	filter:alpha(opacity=50); /*IE滤镜，透明度50%*/
+	-moz-opacity:0.5; /*Firefox私有，透明度50%*/
+	opacity:0.5;/*其他，透明度50%*/
+}
+
+html{font-size:14px;}
+
+body{font-size:0.14px; font-family:"Microsoft YaHei UI"; }
+
+
+
+
+
+
+
+
+
