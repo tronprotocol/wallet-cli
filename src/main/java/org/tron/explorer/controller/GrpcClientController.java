@@ -50,28 +50,6 @@ public class GrpcClientController {
     return new ModelAndView("index");
   }
 
-  @GetMapping("/queryAccount")
-  public ModelAndView viewQueryAccount() {
-    return new ModelAndView("accountList");
-  }
-
-  @ModelAttribute
-  AccountVo setAccountVo() {
-    return new AccountVo();
-  }
-
-  @GetMapping("/accountList")
-  public byte[] getAcountList() {
-    Optional<AccountList> result = WalletClient.listAccounts();
-    if (result.isPresent()) {
-      AccountList accountList = result.get();
-      return accountList.toByteArray();
-    }
-    else {
-      return null;
-    }
-  }
-
   @GetMapping("/alTest")
   public byte[] getAcountListForTest()
       throws IOException {
