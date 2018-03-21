@@ -6,10 +6,12 @@ apply plugin: 'idea'
 apply plugin: 'com.google.protobuf'
 apply plugin: 'org.springframework.boot'
 apply plugin: "io.spring.dependency-management"
+apply plugin: 'application'
 
 sourceCompatibility = 1.8
 targetCompatibility = JavaVersion.VERSION_1_8
 [compileJava, compileTestJava]*.options*.encoding = 'UTF-8'
+mainClassName = 'org.tron.walletcli.TestClient'
 
 compileJava.options*.compilerArgs = [
         "-Xlint:serial", "-Xlint:varargs", "-Xlint:classfile", "-Xlint:dep-ann",
@@ -28,10 +30,10 @@ sourceSets {
         proto {
             srcDir 'src/main/protos'
         }
-	java {
-	     srcDir 'src/main/gen'
-	     srcDir 'src/main/java'
-	}
+        java {
+            srcDir 'src/main/gen'
+            srcDir 'src/main/java'
+        }
     }
 
 }
@@ -59,7 +61,7 @@ buildscript {
         classpath 'com.google.protobuf:protobuf-gradle-plugin:0.8.3'
 
         classpath "io.spring.gradle:dependency-management-plugin:0.6.1.RELEASE"
-        classpath"org.springframework.boot:spring-boot-gradle-plugin:${springBootVersion}"
+        classpath "org.springframework.boot:spring-boot-gradle-plugin:${springBootVersion}"
 
 
     }
@@ -94,13 +96,13 @@ dependencies {
     compile group: 'com.typesafe', name: 'config', version: '1.3.2'
 
     //explorer
-    compile'org.projectlombok:lombok:1.16.6'
-    compile"org.springframework.boot:spring-boot-configuration-processor:${springBootVersion}"
-    compile"org.springframework.boot:spring-boot-starter:${springBootVersion}"
+    compile 'org.projectlombok:lombok:1.16.6'
+    compile "org.springframework.boot:spring-boot-configuration-processor:${springBootVersion}"
+    compile "org.springframework.boot:spring-boot-starter:${springBootVersion}"
 
-    compile"org.springframework.cloud:spring-cloud-starter-sleuth:${springSleuthVersion}"
-    compile"org.springframework.cloud:spring-cloud-starter-consul-discovery:${springCloudConsulVersion}"
-    compile"org.springframework.cloud:spring-cloud-starter-eureka:${springCloudEurekaVersion}"
+    compile "org.springframework.cloud:spring-cloud-starter-sleuth:${springSleuthVersion}"
+    compile "org.springframework.cloud:spring-cloud-starter-consul-discovery:${springCloudConsulVersion}"
+    compile "org.springframework.cloud:spring-cloud-starter-eureka:${springCloudEurekaVersion}"
 
     compile "org.apache.commons:commons-collections4:4.0"
     compile "org.apache.commons:commons-lang3:3.4"
@@ -135,4 +137,8 @@ protobuf {
             }
         }
     }
+}
+
+run {
+    standardInput = System.in
 }
