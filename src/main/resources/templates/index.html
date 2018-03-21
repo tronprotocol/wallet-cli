@@ -95,8 +95,8 @@
             var bytes = stringToBytes(base64Data);
             var bytesDecode = base64Decode(bytes);
 
-            var account= proto.protocol.Account(bytesDecode);
-            alert(account.accountType);
+            var block= proto.protocol.Block.deserializeBinary(bytesDecode);
+            alert(block.getBlockHeader().getRawData().getNumber());
 
             // var html = " ";
             // var currentnum = data.current_bnum;
