@@ -239,7 +239,7 @@ public class Client {
     }
   }
 
-  public boolean transferTokenToAsset(String password, String toAddress, String assertName, long amount){
+  public boolean participateAssetIssue(String password, String toAddress, String assertName, long amount){
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: TransferAsset failed,  Please login first !!");
       return false;
@@ -261,7 +261,7 @@ public class Client {
 
     try {
       byte[] to = Hex.decode(toAddress);
-      return wallet.transferTokenToAsset(to, assertName.getBytes(), amount);
+      return wallet.participateAssetIssue(to, assertName.getBytes(), amount);
     } catch (Exception ex) {
       ex.printStackTrace();
       return false;
