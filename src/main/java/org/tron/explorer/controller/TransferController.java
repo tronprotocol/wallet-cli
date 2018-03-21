@@ -26,15 +26,34 @@ public class TransferController {
     return new ModelAndView("sendCoin");
   }
 
+  @ModelAttribute
+  Transfer setTransfer() {
+    return new Transfer();
+  }
+
   @PostMapping("/sendCoinToView")
   public byte[] getTransactionToView(@ModelAttribute Transfer transfer) {
-    TransferContract contract = WalletClient
-        .createTransferContract(ByteArray.fromHexString(transfer.getToAddress()),
-            ByteArray.fromHexString(transfer.getAddress()),
-            Long.parseLong(transfer.getAmount()));
-    Transaction transaction = WalletClient.createTransaction4Transfer(contract);
-    transaction = TransactionUtils.setTimestamp(transaction);
-    return transaction.toByteArray();
+    try {
+      if (transfer.getAddress() == null || transfer.getAmount() == null
+          || transfer.getToAddress() == null) {
+        return null;
+      }
+      if (!WalletClient.addressValid(transfer.getAddress()) || !WalletClient
+          .addressValid(transfer.getToAddress())) {
+        return null;
+      }
+      TransferContract contract = WalletClient
+          .createTransferContract(ByteArray.fromHexString(transfer.getToAddress()),
+              ByteArray.fromHexString(transfer.getAddress()),
+              Long.parseLong(transfer.getAmount()));
+      Transaction transaction = WalletClient.createTransaction4Transfer(contract);
+      transaction = TransactionUtils.setTimestamp(transaction);
+      return transaction.toByteArray();
+    } catch (Exception e) {
+      e.printStackTrace();
+      return null;
+    }
+
   }
 
 
