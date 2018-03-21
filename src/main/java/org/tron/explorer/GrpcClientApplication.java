@@ -45,10 +45,10 @@ public class GrpcClientApplication extends SpringBootServletInitializer {
     ObjectMapper objectMapper;
 
 
-    @Bean
-    ProtobufHttpMessageConverter protobufHttpMessageConverter() {
-        return new ProtobufHttpMessageConverter();
-    }
+//    @Bean
+//    ProtobufHttpMessageConverter protobufHttpMessageConverter() {
+//        return new ProtobufHttpMessageConverter();
+//    }
 
     @Bean
     public WebMvcConfigurer webMvcConfigurer() {
@@ -62,10 +62,11 @@ public class GrpcClientApplication extends SpringBootServletInitializer {
              */
             @Override
             public void configureMessageConverters(List<HttpMessageConverter<?>> converters) {
-                // final ProtobufHttpMessageConverter converter = new ProtobufHttpMessageConverter();
+                 final ProtobufHttpMessageConverter protobufconverter = new ProtobufHttpMessageConverter();
                 final MappingJackson2HttpMessageConverter converter = new MappingJackson2HttpMessageConverter();
                 converter.setObjectMapper(objectMapper);
                 converters.add(converter);
+                converters.add(protobufconverter);
                 super.configureMessageConverters(converters);
             }
         };
