@@ -3,7 +3,6 @@ package org.tron.explorer.domain;
 public class Transfer {
 
   private String Address;
-  private String PubKey;
   private String toAddress;
   private String Amount;
 
@@ -31,24 +30,16 @@ public class Transfer {
     Address = address;
   }
 
-  public void setPubKey(String pubKey) {
-    PubKey = pubKey;
-  }
-
 
   public String getAddress() {
     return Address;
   }
 
-  public String getPubKey() {
-    return PubKey;
-  }
 
   @Override
   public String toString() {
     return "Address{" +
         "Address='" + Address + '\'' +
-        ", PubKey='" + PubKey + '\'' +
         ", toAddress='" + toAddress + '\'' +
         ", Amount='" + Amount + '\'' +
         '}';

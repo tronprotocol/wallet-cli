@@ -174,14 +174,38 @@ public class WalletClient {
 
   public boolean transferAsset(byte[] to, byte[] assertName, long amount) {
     byte[] owner = getAddress();
-    Contract.TransferAssetContract contract = createTransferAssetContract(to, assertName, owner, amount);
-    Transaction transaction = rpcCli.createTransferAssetTransaction(contract);
+    Transaction transaction = createTransferAssetTransaction(to, assertName, owner, amount);
     if (transaction == null || transaction.getRawData().getContractCount() == 0) {
       return false;
     }
     transaction = signTransaction(transaction);
     return rpcCli.broadcastTransaction(transaction);
   }
+
+  public static Transaction createTransferAssetTransaction(byte[] to, byte[] assertName,
+      byte[] owner, long amount) {
+    Contract.TransferAssetContract contract = createTransferAssetContract(to, assertName, owner,
+        amount);
+    return rpcCli.createTransferAssetTransaction(contract);
+  }
+
+  public boolean participateAssetIssue(byte[] to, byte[] assertName, long amount) {
+    byte[] owner = getAddress();
+    Transaction transaction = participateAssetIssueTransaction(to, assertName, owner, amount);
+    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
+      return false;
+    }
+    transaction = signTransaction(transaction);
+    return rpcCli.broadcastTransaction(transaction);
+  }
+
+  public static Transaction participateAssetIssueTransaction(byte[] to, byte[] assertName,
+      byte[] owner, long amount) {
+    Contract.ParticipateAssetIssueContract contract = participateAssetIssueContract(to, assertName, owner,
+        amount);
+    return rpcCli.createParticipateAssetIssueTransaction(contract);
+  }
+
 
   public boolean createAccount(AccountType accountType, byte[] accountName) {
     Transaction transaction = createAccountTransaction(accountType, accountName, getAddress());
@@ -271,9 +295,25 @@ public class WalletClient {
     return builder.build();
   }
 
-  public static Contract.TransferAssetContract createTransferAssetContract(byte[] to, byte[] assertName, byte[] owner,
+  public static Contract.TransferAssetContract createTransferAssetContract(byte[] to,
+      byte[] assertName, byte[] owner,
       long amount) {
     Contract.TransferAssetContract.Builder builder = Contract.TransferAssetContract.newBuilder();
+    ByteString bsTo = ByteString.copyFrom(to);
+    ByteString bsName = ByteString.copyFrom(assertName);
+    ByteString bsOwner = ByteString.copyFrom(owner);
+    builder.setToAddress(bsTo);
+    builder.setAssetName(bsName);
+    builder.setOwnerAddress(bsOwner);
+    builder.setAmount(amount);
+
+    return builder.build();
+  }
+
+  public static Contract.ParticipateAssetIssueContract participateAssetIssueContract(byte[] to,
+      byte[] assertName, byte[] owner,
+      long amount) {
+    Contract.ParticipateAssetIssueContract.Builder builder = Contract.ParticipateAssetIssueContract.newBuilder();
     ByteString bsTo = ByteString.copyFrom(to);
     ByteString bsName = ByteString.copyFrom(assertName);
     ByteString bsOwner = ByteString.copyFrom(owner);
@@ -468,7 +508,7 @@ public class WalletClient {
     return rpcCli.listWitnesses();
   }
 
-  public static Optional<AssetIssueList> getAssetIssueList(){
+  public static Optional<AssetIssueList> getAssetIssueList() {
     return rpcCli.getAssetIssueList();
   }
 }

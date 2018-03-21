@@ -169,13 +169,13 @@ public class TestClient {
     String password = parameters[0];
     String toAddress = parameters[1];
     String amountStr = parameters[2];
-    int amountInt = new Integer(amountStr);
+    long amount = new Long(amountStr);
 
-    boolean result = client.sendCoin(password, toAddress, amountInt);
+    boolean result = client.sendCoin(password, toAddress, amount);
     if (result) {
-      logger.info("Send " + amountInt + " TRX to " + toAddress + " successful !!");
+      logger.info("Send " + amount + " dron to " + toAddress + " successful !!");
     } else {
-      logger.info("Send " + amountInt + " TRX to " + toAddress + " failed !!");
+      logger.info("Send " + amount + " dron to " + toAddress + " failed !!");
     }
   }
 
@@ -193,13 +193,36 @@ public class TestClient {
     String toAddress = parameters[1];
     String assertName = parameters[2];
     String amountStr = parameters[3];
-    int amountInt = new Integer(amountStr);
+    long amount = new Long(amountStr);
 
-    boolean result = client.transferAsset(password, toAddress, assertName, amountInt);
+    boolean result = client.transferAsset(password, toAddress, assertName, amount);
     if (result) {
-      logger.info("TransferAsset " + amountInt + " to " + toAddress + " successful !!");
+      logger.info("TransferAsset " + amount + " to " + toAddress + " successful !!");
     } else {
-      logger.info("TransferAsset " + amountInt + " to " + toAddress + " failed !!");
+      logger.info("TransferAsset " + amount + " to " + toAddress + " failed !!");
+    }
+  }
+
+  private void participateAssetIssue(String[] parameters) {
+    if (parameters == null) {
+      logger.warn("Warning: ParticipateAssetIssue need 4 parameters but get nothing");
+      return;
+    }
+    if (parameters.length != 3) {
+      logger.warn("Warning: ParticipateAssetIssue need 4 parameters but get " + parameters.length);
+      return;
+    }
+
+    String password = parameters[0];
+    String toAddress = parameters[1];
+    String assertName = parameters[2];
+    String amountStr = parameters[3];
+    long amount = new Integer(amountStr);
+    boolean result = client.participateAssetIssue(password, toAddress, assertName, amount);
+    if (result) {
+      logger.info("ParticipateAssetIssue " + assertName + " " + amount + " from " + toAddress + " successful !!");
+    } else {
+      logger.info("ParticipateAssetIssue " + assertName + " " + amount + " from " + toAddress + " failed !!");
     }
   }
 
@@ -408,6 +431,10 @@ public class TestClient {
         }
         case "transferasset":{
           transferAsset(parameters);
+          break;
+        }
+        case "participateAssetIssue":{
+          participateAssetIssue(parameters);
           break;
         }
         case "assetissue": {

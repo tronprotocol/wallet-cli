@@ -4,12 +4,15 @@ import java.io.IOException;
 import java.util.Base64;
 import java.util.Base64.Decoder;
 import java.util.List;
+import java.util.Optional;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.ModelAndView;
+import org.tron.api.GrpcAPI.AssetIssueList;
+import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.utils.TransactionUtils;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.Witness;
@@ -35,30 +38,13 @@ public class WitnessController {
   @GetMapping("/witnessList")
   public byte[] getWitnessList()
       throws IOException {
-
-    List<Witness> objectList = WalletClient.listWitnesses().get().getWitnessesList();
-
-    int objectsSize = 0;
-    for (int i = 0; i < objectList.size(); i++) {
-      Witness object = objectList.get(i);
-      objectsSize += object.getSerializedSize();
-      objectsSize += 2;  //Length
+    Optional<WitnessList> result = WalletClient.listWitnesses();
+    if (result.isPresent()) {
+      WitnessList witnessList = result.get();
+      return witnessList.toByteArray();
+    } else {
+      return null;
     }
-
-    byte[] returnBytes = new byte[objectsSize];
-
-    objectsSize = 0;
-    for (int i = 0; i < objectList.size(); i++) {
-      Witness object = objectList.get(i);
-      byte[] objectBytes = object.toByteArray();
-      int length = objectBytes.length;
-      returnBytes[objectsSize++] = (byte) ((length & 0xFFFF) >> 8);
-      returnBytes[objectsSize++] = (byte) (length & 0xFF);
-      System.arraycopy(objectBytes, 0, returnBytes, objectsSize, length);
-      objectsSize += length;
-    }
-
-    return returnBytes;
   }
 
   @PostMapping("/createWitnessToView")

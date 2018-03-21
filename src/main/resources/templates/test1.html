@@ -32,21 +32,141 @@
 
   </script>
 
+  <script type="text/javascript">
+    function TestSign() {
+
+      var priKeyBytes = genPriKey();
+      var priKeyHex = byteArray2hexStr(priKeyBytes);
+      var pubKeyBytes = getPubKeyFromPriKey(priKeyBytes);
+      var pubKeyHex = byteArray2hexStr(pubKeyBytes);
+      var addressBytes = getAddressFromPriKey(priKeyBytes);
+      var addressHex = byteArray2hexStr(addressBytes);
+      var hash = SHA256(addressBytes);
+      var hashHex = byteArray2hexStr(hash);
+
+      var signBytes = ECKeySign(hash, priKeyBytes);
+      var signHex = byteArray2hexStr(signBytes);
+      $.ajax({
+        type: 'post',
+        //String priKeyHex, String priKeyHex, String addressHex
+        data: {"signHex": signHex, "pubKeyHex": pubKeyHex, "msgHex": addressHex, "hashHex": hashHex},
+        dataType: 'json',
+        url: "/testSign",
+
+        success: function (data) {
+          if (true != data) {
+            alert("Test Sign faild!!!!");
+          }
+        }
+      });
+    }
+  </script>
+
 </head>
 
 <body>
 <script type="text/javascript">
-    TestAddress();
-    TestAddress();
-    TestAddress();
-    TestAddress();
-    TestAddress();
-    TestAddress();
-    TestAddress();
-    TestAddress();
-    TestAddress();
-    TestAddress();
-
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  TestSign();
+  alert("Test Sign complet!!!!");
 </script>
 </body>
 
