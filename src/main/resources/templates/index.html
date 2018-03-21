@@ -83,6 +83,30 @@
 
       });
 
+
+      $("#block").on('click', function () {
+        $.ajax({
+          type: 'get',
+          data:{num:0},
+          dataType: 'json',
+          url: '/getBlockByNumToView',
+          success: function (base64Data) {
+
+            var bytes = stringToBytes(base64Data);
+            var bytesDecode = base64Decode(bytes);
+
+            var block= proto.protocol.Block.deserializeBinary(bytesDecode);
+            alert(block.getBlockHeader().getRawData().getNumber());
+
+
+          }
+        });
+
+      });
+
+
+
+
     });
 
 
@@ -104,6 +128,10 @@
       <li><a target="_blank" href="/createAssetIssue">AssetIssue </a></li>
       <li><a target="_blank" href="/sendCoin">SendCoin </a></li>
       <li><a target="_blank" href="/voteWitness">voteWitness </a></li>
+
+      <li>
+        <button id="block" type="button">blocks</button>
+      </li>
 
 
     </ul>
