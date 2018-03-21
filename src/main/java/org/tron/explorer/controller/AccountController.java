@@ -43,20 +43,40 @@ public class AccountController {
 
   protected final Log log = LogFactory.getLog(getClass());
 
+  @ModelAttribute
+  AccountVo setAccountVo() {
+    return new AccountVo();
+  }
+
   @PostMapping("/queryAccount")
   public byte[] queryAccount(@ModelAttribute AccountVo accountVo) {
-    Account account = WalletClient.queryAccount(ByteArray.fromHexString(accountVo.getAddress()));
-    return account.toByteArray();
+    try {
+      if (accountVo == null) {
+        return null;
+      }
+      String address = accountVo.getAddress();
+      if (!WalletClient.addressValid(address)) {
+        return null;
+      }
+      Account account = WalletClient.queryAccount(ByteArray.fromHexString(address));
+      return account.toByteArray();
+    } catch (Exception e) {
+      e.printStackTrace();
+      return null;
+    }
   }
 
   @GetMapping("/accountList")
   public byte[] getAcountList() {
-    Optional<AccountList> result = WalletClient.listAccounts();
-    if (result.isPresent()) {
-      AccountList accountList = result.get();
-      return accountList.toByteArray();
-    } else {
-      return null;
+    try {
+      Optional<AccountList> result = WalletClient.listAccounts();
+      if (result.isPresent()) {
+        AccountList accountList = result.get();
+        return accountList.toByteArray();
+      }
+    } catch (Exception e) {
+      e.printStackTrace();
     }
+    return null;
   }
 }

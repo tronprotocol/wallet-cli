@@ -8,6 +8,8 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.utils.ByteArray;
@@ -22,8 +24,10 @@ public class VoteWitnessController {
 
   protected final Log log = LogFactory.getLog(getClass());
 
-  @GetMapping("/witnessList")
-  public byte[] getWitnessList()
+ // @GetMapping("/voteWitnessList")
+  @RequestMapping(value = "/voteWitnessList",produces = "application/x-protobuf", method =
+      { RequestMethod.GET })
+  public byte[] getVoteWitnessList()
       throws IOException {
     Optional<WitnessList> result = WalletClient.listWitnesses();
     if (result.isPresent()) {

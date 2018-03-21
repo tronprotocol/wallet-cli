@@ -34,26 +34,38 @@ public class WitnessController {
     return new ModelAndView("createWitness");
   }
 
-
   @GetMapping("/witnessList")
-  public byte[] getWitnessList()
-      throws IOException {
-    Optional<WitnessList> result = WalletClient.listWitnesses();
-    if (result.isPresent()) {
-      WitnessList witnessList = result.get();
-      return witnessList.toByteArray();
-    } else {
-      return null;
+  public byte[] getWitnessList() {
+    try {
+      Optional<WitnessList> result = WalletClient.listWitnesses();
+      if (result.isPresent()) {
+        WitnessList witnessList = result.get();
+        return witnessList.toByteArray();
+      }
+    } catch (Exception e) {
+      e.printStackTrace();
     }
+    return null;
   }
 
   @PostMapping("/createWitnessToView")
   public byte[] getTransactionToView(String address, String onwerUrl) {
-    Decoder decoder = Base64.getDecoder();
-    byte[] owner = decoder.decode(address.getBytes());
-    Transaction transaction = WalletClient.createWitnessTransaction(owner, onwerUrl.getBytes());
-    transaction = TransactionUtils.setTimestamp(transaction);
-    return transaction.toByteArray();
+    try {
+      if (!WalletClient.addressValid(address)) {
+        return null;
+      }
+      if (onwerUrl == null || onwerUrl.equals("")) {
+        return null;
+      }
+      Decoder decoder = Base64.getDecoder();
+      byte[] owner = decoder.decode(address.getBytes());
+      Transaction transaction = WalletClient.createWitnessTransaction(owner, onwerUrl.getBytes());
+      transaction = TransactionUtils.setTimestamp(transaction);
+      return transaction.toByteArray();
+    } catch (Exception e) {
+      e.printStackTrace();
+      return null;
+    }
   }
 
 
