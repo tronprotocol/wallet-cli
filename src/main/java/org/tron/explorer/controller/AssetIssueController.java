@@ -79,7 +79,27 @@ public class AssetIssueController {
       e.printStackTrace();
     }
     return null;
+  }
 
+  @GetMapping("/getAssetIssueByAccount")
+  public byte[] getAssetIssueByAccount(String address)
+      throws IOException {
+    try {
+      if (!WalletClient.addressValid(address)) {
+        return null;
+      }
+      Decoder decoder = Base64.getDecoder();
+      byte[] owner = decoder.decode(address.getBytes());
+
+      Optional<AssetIssueList> result = WalletClient.getAssetIssueByAccount(owner);
+      if (result.isPresent()) {
+        AssetIssueList assetIssueList = result.get();
+        return assetIssueList.toByteArray();
+      }
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+    return null;
   }
 
   @PostMapping("/TransferAssetToView")
