@@ -19,8 +19,8 @@ public class VoteWitnessController {
 
   protected final Log log = LogFactory.getLog(getClass());
 
-  @GetMapping("/witnessList")
-  public byte[] getWitnessList()
+  @GetMapping("/voteWitnessList")
+  public byte[] getVoteWitnessList()
       throws IOException {
     Optional<WitnessList> result = WalletClient.listWitnesses();
     if (result.isPresent()) {
