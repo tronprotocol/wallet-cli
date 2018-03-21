@@ -13,9 +13,9 @@ spring:
     content-type: text/html
     cache: false
   mvc:
-    static-path-pattern: /static/**
+    static-path-pattern: /**
   resources:
-    static-locations: classpath:/static/
+    static-locations: classpath:/web/,classpath:/static/
 
 
 

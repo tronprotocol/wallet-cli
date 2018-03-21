@@ -1,16 +1,8 @@
 package org.tron.explorer.controller;
 
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Optional;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.TransactionUtils;
@@ -19,17 +11,23 @@ import org.tron.explorer.domain.Witness;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.walletserver.WalletClient;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Optional;
+
 
 @RestController
 public class VoteWitnessController {
 
   protected final Log log = LogFactory.getLog(getClass());
 
-  // @GetMapping("/voteWitnessList")
-  @RequestMapping(value = "/voteWitnessList", produces = "application/x-protobuf", method =
-      {RequestMethod.GET})
-  public byte[] getVoteWitnessList()
-      throws IOException {
+  @ModelAttribute
+  VoteWitness setVoteWitness() {
+    return new VoteWitness();
+  }
+
+ @GetMapping("/voteWitnessList")
+  public byte[] getVoteWitnessList() {
     Optional<WitnessList> result = WalletClient.listWitnesses();
     if (result.isPresent()) {
       WitnessList witnessList = result.get();
@@ -40,26 +38,9 @@ public class VoteWitnessController {
   }
 
 
-  @RequestMapping(value = "/voteWitnessListForTest", method =
-      {RequestMethod.GET})
-  public WitnessList getVoteWitnessListForTest()
-      throws IOException {
-    Optional<WitnessList> result = WalletClient.listWitnesses();
-    if (result.isPresent()) {
-      WitnessList witnessList = result.get();
-      return witnessList;
-    } else {
-      return null;
-    }
-  }
-
-  @ModelAttribute
-  VoteWitness setVoteWitness() {
-    return new VoteWitness();
-  }
 
   @PostMapping("/createVoteWitnessToView")
-  public byte[] getTransactionToView(@ModelAttribute VoteWitness voteWitness) {
+  public byte[] getTransactionToView(@RequestBody VoteWitness voteWitness) {
     try {
       if (voteWitness.getOwnerAddress() == null || voteWitness.getList() == null) {
         return null;
