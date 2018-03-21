@@ -25,6 +25,14 @@ public class Transfer {
   public Transfer() {
   }
 
+  @Override
+  public String toString() {
+    return "Transfer{" +
+        "Address='" + Address + '\'' +
+        ", toAddress='" + toAddress + '\'' +
+        ", Amount='" + Amount + '\'' +
+        '}';
+  }
 
   public void setAddress(String address) {
     Address = address;
@@ -36,12 +44,4 @@ public class Transfer {
   }
 
 
-  @Override
-  public String toString() {
-    return "Address{" +
-        "Address='" + Address + '\'' +
-        ", toAddress='" + toAddress + '\'' +
-        ", Amount='" + Amount + '\'' +
-        '}';
-  }
 }

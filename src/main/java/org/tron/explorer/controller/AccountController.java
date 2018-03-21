@@ -43,6 +43,11 @@ public class AccountController {
 
   protected final Log log = LogFactory.getLog(getClass());
 
+  @ModelAttribute
+  AccountVo setAccountVo() {
+    return new AccountVo();
+  }
+
   @PostMapping("/queryAccount")
   public byte[] queryAccount(@ModelAttribute AccountVo accountVo) {
     try {

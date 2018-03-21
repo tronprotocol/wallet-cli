@@ -29,4 +29,12 @@ public class BlockController {
     return currentBlock.toByteArray();
 
   }
+
+  @GetMapping("/getBlockToView")
+  public byte[] getBlockToView() {
+
+    Block currentBlock = WalletClient.GetBlock(-1);
+    return currentBlock.toByteArray();
+  }
+
 }

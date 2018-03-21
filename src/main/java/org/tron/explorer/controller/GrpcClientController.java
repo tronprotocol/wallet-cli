@@ -45,6 +45,12 @@ public class GrpcClientController {
   protected final Log log = LogFactory.getLog(getClass());
 
 
+  @ModelAttribute
+  AccountVo setAccountVo() {
+    return new AccountVo();
+  }
+
+
   @GetMapping("/")
   public ModelAndView viewIndex() {
     return new ModelAndView("index");

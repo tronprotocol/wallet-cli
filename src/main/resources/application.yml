@@ -12,6 +12,10 @@ spring:
     encoding: UTF-8
     content-type: text/html
     cache: false
+  mvc:
+    static-path-pattern: /static/**
+  resources:
+    static-locations: classpath:/static/
 
 
 
