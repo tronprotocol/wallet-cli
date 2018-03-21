@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Optional;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -25,11 +26,13 @@ public class VoteWitnessController {
 
   protected final Log log = LogFactory.getLog(getClass());
 
-  // @GetMapping("/voteWitnessList")
-  @RequestMapping(value = "/voteWitnessList", produces = "application/x-protobuf", method =
-      {RequestMethod.GET})
-  public byte[] getVoteWitnessList()
-      throws IOException {
+  @ModelAttribute
+  VoteWitness setVoteWitness() {
+    return new VoteWitness();
+  }
+
+ @GetMapping("/voteWitnessList")
+  public byte[] getVoteWitnessList() {
     Optional<WitnessList> result = WalletClient.listWitnesses();
     if (result.isPresent()) {
       WitnessList witnessList = result.get();
@@ -40,23 +43,6 @@ public class VoteWitnessController {
   }
 
 
-  @RequestMapping(value = "/voteWitnessListForTest", method =
-      {RequestMethod.GET})
-  public WitnessList getVoteWitnessListForTest()
-      throws IOException {
-    Optional<WitnessList> result = WalletClient.listWitnesses();
-    if (result.isPresent()) {
-      WitnessList witnessList = result.get();
-      return witnessList;
-    } else {
-      return null;
-    }
-  }
-
-  @ModelAttribute
-  VoteWitness setVoteWitness() {
-    return new VoteWitness();
-  }
 
   @PostMapping("/createVoteWitnessToView")
   public byte[] getTransactionToView(@ModelAttribute VoteWitness voteWitness) {

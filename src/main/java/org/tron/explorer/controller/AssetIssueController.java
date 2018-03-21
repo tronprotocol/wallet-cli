@@ -29,10 +29,27 @@ public class AssetIssueController {
 
   protected final Log log = LogFactory.getLog(getClass());
 
+  @ModelAttribute
+   AssetIssueVo setAssetIssueVo() {
+    return  new AssetIssueVo();
+  }
+
+  @ModelAttribute
+   TransferAsset setTransferAsset() {
+    return new TransferAsset();
+  }
+
+  @ModelAttribute
+  ParticipateAssetIssueVo setParticipateAssetIssueVo() {
+    return new ParticipateAssetIssueVo();
+  }
+
+
   @GetMapping("/createAssetIssue")
   public ModelAndView viewCreateWitness() {
     return new ModelAndView("createAssetIssue");
   }
+
 
 
   @PostMapping("/createAssetIssueToView")
