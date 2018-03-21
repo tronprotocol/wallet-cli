@@ -29,19 +29,19 @@ import java.util.List;
 @SpringBootApplication
 public class GrpcClientApplication extends SpringBootServletInitializer {
 
-    @Bean
-    public ObjectMapper objectMapper() {
-        final ObjectMapper mapper = new ObjectMapper();
-        mapper.setPropertyNamingStrategy(PropertyNamingStrategy.SNAKE_CASE);
-        // disabled features:
-        mapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
-        mapper.disable(SerializationFeature.FAIL_ON_EMPTY_BEANS);
-        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
-        return mapper;
-    }
-
-    @Autowired
-    ObjectMapper objectMapper;
+//    @Bean
+//    public ObjectMapper objectMapper() {
+//        final ObjectMapper mapper = new ObjectMapper();
+//        mapper.setPropertyNamingStrategy(PropertyNamingStrategy.SNAKE_CASE);
+//        // disabled features:
+//        mapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
+//        mapper.disable(SerializationFeature.FAIL_ON_EMPTY_BEANS);
+//        mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+//        return mapper;
+//    }
+//
+//    @Autowired
+//    ObjectMapper objectMapper;
 
 
     @Bean
@@ -49,35 +49,36 @@ public class GrpcClientApplication extends SpringBootServletInitializer {
         return new ProtobufHttpMessageConverter();
     }
 
-    @Bean
-    public WebMvcConfigurer webMvcConfigurer() {
+//    @Bean
+//    public WebMvcConfigurer webMvcConfigurer() {
+//
+//
+//        return new WebMvcConfigurerAdapter() {
+//            /**
+//             * Keep "/static/**" prefix.
+//             */
+//            @Override
+//            public void addResourceHandlers(ResourceHandlerRegistry registry) {
+//                super.addResourceHandlers(registry);
+//                registry.addResourceHandler("/static/**")
+//                        .addResourceLocations("classpath:/static/");
+//            }
+//
+//            /**
+//             * Add Java8 time support for Jackson.
+//             */
+//            @Override
+//            public void configureMessageConverters(List<HttpMessageConverter<?>> converters) {
+//                // final ProtobufHttpMessageConverter converter = new ProtobufHttpMessageConverter();
+//                final MappingJackson2HttpMessageConverter converter = new MappingJackson2HttpMessageConverter();
+//                converter.setObjectMapper(objectMapper);
+//                converters.add(converter);
+//                super.configureMessageConverters(converters);
+//            }
+//        };
+//    }
 
-
-        return new WebMvcConfigurerAdapter() {
-            /**
-             * Keep "/static/**" prefix.
-             */
-            @Override
-            public void addResourceHandlers(ResourceHandlerRegistry registry) {
-                super.addResourceHandlers(registry);
-                registry.addResourceHandler("/static/**")
-                        .addResourceLocations("classpath:/static/");
-            }
-
-            /**
-             * Add Java8 time support for Jackson.
-             */
-            @Override
-            public void configureMessageConverters(List<HttpMessageConverter<?>> converters) {
-                // final ProtobufHttpMessageConverter converter = new ProtobufHttpMessageConverter();
-                final MappingJackson2HttpMessageConverter converter = new MappingJackson2HttpMessageConverter();
-                converter.setObjectMapper(objectMapper);
-                converters.add(converter);
-                super.configureMessageConverters(converters);
-            }
-        };
-    }
-
+    //fix cors
     @Configuration
     public class CorsConfig {
         private CorsConfiguration buildConfig() {
