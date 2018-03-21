@@ -15,6 +15,7 @@ import org.tron.common.crypto.SymmEncoder;
 import org.tron.common.utils.ByteArray;
 import org.tron.protos.Contract;
 import org.tron.protos.Protocol;
+import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
 import org.tron.walletserver.WalletClient;
 
@@ -159,25 +160,25 @@ public class Client {
     return ByteArray.toHexString(wallet.getAddress());
   }
 
-  public long getBalance() {
+  public Account getBalance() {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: GetBalance failed,  Please login first !!");
-      return 0;
+      return null;
     }
 
     if (wallet.getEcKey() == null) {
       wallet = WalletClient.GetWalletByStorageIgnorPrivKey();
       if (wallet == null) {
         logger.warn("Warning: GetBalance failed, Load wallet failed !!");
-        return 0;
+        return null;
       }
     }
 
     try {
-      return wallet.getBalance();
+      return wallet.queryAccount();
     } catch (Exception ex) {
       ex.printStackTrace();
-      return 0;
+      return null;
     }
   }
 
