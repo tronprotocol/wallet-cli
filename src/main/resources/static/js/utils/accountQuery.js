@@ -10,14 +10,9 @@
 
  function QueryAccountSuccess(data) {
     var str = ''
-
-<<<<<<< Updated upstream
-=======
     //字符串转byteArray数据格式
-   // var bytes = stringToBytes(data);
-
+   // var bytes = stringToBytes(data);git
     //从base64字符串中解码出原文，格式为byteArray格式
->>>>>>> Stashed changes
     var bytesAccountList = base64DecodeFromString(data);
 
     //调用方法deserializeBinary解析
