@@ -16,8 +16,7 @@ function arrayEquals(array1, array2) {
 }
 //从base64字符串中解析TransAction对象
 function getTransActionFromBase64String(base64String) {
-  var base64Bytes = stringToBytes(base64String);
-  var bytesDecode = base64Decode(base64Bytes);
+  var bytesDecode = base64DecodeFromString(base64String);
   var transaction = proto.protocol.Transaction.deserializeBinary(bytesDecode);
   //ToDo : ret is success
   return transaction;
@@ -237,13 +236,6 @@ function byteArray2hexStr(byteArray) {
   return str;
 }
 
-function base64Decode(bytes64) {
-  var string64 = bytesToString(bytes64);
-  var b = new Base64();
-  var decodeBytes = b.decodeToByteArray(string64);
-//  var decodeBytes = stringToBytes(decodeString);
-  return decodeBytes;
-}
 //从base64字符串中解码出原文，格式为byteArray格式
 function base64DecodeFromString(string64) {
   var b = new Base64();
@@ -259,15 +251,6 @@ function base64EncodeToString(bytes){
   var b = new Base64();
   var string64 = b.encodeIgnoreUtf8(bytes);
   return string64
-}
-
-//return baset64 bytes
-function base64Encode(bytes) {
-  // var string = bytesToString(bytes);
-  var b = new Base64();
-  var string64 = b.encodeIgnoreUtf8(bytes);
-  var bytes64 = stringToBytes(string64);
-  return bytes64;
 }
 
 function Base64() {

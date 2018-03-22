@@ -52,6 +52,9 @@ $(document).ready(function(){
         console.log(data);
          var bytes = stringToBytes(data);
         var bytesDecode = base64Decode(bytes);
+        // debugger
+        //var bytesDecode = base64DecodeFromString(data);
+
         var block= proto.protocol.WitnessList.deserializeBinary(bytesDecode);
 
         console.log(block.getWitnessesList().length);

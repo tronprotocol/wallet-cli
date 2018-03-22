@@ -8,8 +8,7 @@ function doSign(priKeyBytes, base64Data) {
 
 //return bytes of rowdata, use to sign.
 function getRowBytesFromTransactionBase64(base64Data) {
-  var bytes = stringToBytes(base64Data);
-  var bytesDecode = base64Decode(bytes);
+  var bytesDecode = base64DecodeFromString(base64Data);
   var transaction = proto.protocol.Transaction.deserializeBinary(bytesDecode);
   //toDO: assert ret is SUCESS
   var raw = transaction.getRawData();

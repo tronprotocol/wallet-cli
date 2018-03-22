@@ -7,6 +7,7 @@
     height: 100%;
     background-color: #fff;
     border-right: 1px solid #d4dde7;
+    display: none;
 }
 .w_form  p {
     line-height: 40px;
@@ -19,10 +20,12 @@
 }
 .w_table{
     width: 80%;
-    float: right;
+    /*float: right;*/
     font-size: 14px;
     background-color: #fafbfc;
+    margin: auto;
     margin-top: 60px;
+
 }
 .w_table tbody tr{
     border-bottom: 1px solid #d4dde7;
