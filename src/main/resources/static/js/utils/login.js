@@ -11,6 +11,25 @@ var pk;
 $('.login_html').on('click',function () {
     $('#wel_login').css('display','none');
     $('.article_login').css('display','block')
+});
+$('.wel_active').on('click',function () {
+    $('.motal').css('display','block')
+});
+$('#repawd').bind('input propertychange',function(){
+    $('.mona_warn').css('display','none')
+})
+$('.no').on('click',function () {
+    $('.motal').css('display','none');
+    $('.mona_warn').css('display','none')
+})
+$('#login').on('click',function () {
+    if($('#repawd').val() == ''){
+        $('.mona_warn').css('display','block')
+    }else{
+        $('#create').css('display','none')
+        $('#header_login').css('display','inline-block');
+        $('#center').css('display','inline-block');
+    }
 })
 //注册账户 复制文本
 function copyUrl2 (repeat) {

@@ -61,20 +61,24 @@ header span{
     top: 50px;
     border: 1px solid #000000;
 }
-.article_login{
+.article_login {
     display: block;
-    height: 600px;
+    /*text-align: center;*/
+    height: auto;
     width: 400px;
     position:absolute;
     left:50%;
     top:50%;
     margin-left: -200px;
     margin-top: -300px;
-    padding: 10px;
+    padding: 10px 10px 50px 10px;
     color: #4194f8;
     background-color: #d2d5dd;
     border-radius: 5px;
     /*display: none;*/
+}
+#wel_login{
+    text-align: center;
 }
 #article_login{
     display: none;
@@ -224,9 +228,7 @@ form input{
     margin-top: 20px;
 }
 
-.wel_login{
-    text-align: center;
-}
+
 
 .adress,.cret_pwd{
     margin: 10px 0;
@@ -237,14 +239,45 @@ form input{
     width: 100px;
 }
 
+.motal{
+    font-size: 14px;
+    display: block;
+    /*text-align: center;*/
+    height: 200px;
+    width: 400px;
+    position:absolute;
+    left:50%;
+    top:50%;
+    margin-left: -200px;
+    margin-top: -100px;
+    padding: 30px;
+    color: #4194f8;
+    background-color: rgba(255,255,255,0.8);
+    border-radius: 5px;
+    display: none;
+}
+.mona_warn{
+    font-size: 12px;
+    color: #d5453e;
+}
+.motal .add ,.motal .no{
+    height: 30px;
+    width: 100px;
+    border: 0;
+    border-radius: 5px;
+    margin-top: 20px;
+}
+#repawd{
+    width: 100%;
+}
 
+.motal .add {
+    margin-left: 90px;
+}
 
-
-
-
-
-
-
+.mona_warn{
+    display: none;
+}
 
 
 
