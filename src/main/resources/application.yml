@@ -8,10 +8,16 @@ spring:
   application:
     name: local-grpc-client
   thymeleaf:
-    mode: HTML5
+#    mode: HTML5
+    mode: LEGACYHTML5
     encoding: UTF-8
     content-type: text/html
     cache: false
+
+  mvc:
+    static-path-pattern: /**
+  resources:
+    static-locations: classpath:/static/
 
 
 

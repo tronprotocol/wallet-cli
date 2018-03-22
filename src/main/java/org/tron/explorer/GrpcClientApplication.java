@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -22,12 +23,12 @@ import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurerAdapter;
 
-import java.util.List;
-
 
 @EnableScheduling
 @SpringBootApplication
 public class GrpcClientApplication extends SpringBootServletInitializer {
+
+
 
     @Bean
     public ObjectMapper objectMapper() {
@@ -44,40 +45,36 @@ public class GrpcClientApplication extends SpringBootServletInitializer {
     ObjectMapper objectMapper;
 
 
-    @Bean
-    ProtobufHttpMessageConverter protobufHttpMessageConverter() {
-        return new ProtobufHttpMessageConverter();
-    }
+//    @Bean
+//    ProtobufHttpMessageConverter protobufHttpMessageConverter() {
+//        return new ProtobufHttpMessageConverter();
+//    }
 
     @Bean
     public WebMvcConfigurer webMvcConfigurer() {
 
 
         return new WebMvcConfigurerAdapter() {
-            /**
-             * Keep "/static/**" prefix.
-             */
-            @Override
-            public void addResourceHandlers(ResourceHandlerRegistry registry) {
-                super.addResourceHandlers(registry);
-                registry.addResourceHandler("/static/**")
-                        .addResourceLocations("classpath:/static/");
-            }
+
 
             /**
              * Add Java8 time support for Jackson.
              */
             @Override
             public void configureMessageConverters(List<HttpMessageConverter<?>> converters) {
-                // final ProtobufHttpMessageConverter converter = new ProtobufHttpMessageConverter();
+                 final ProtobufHttpMessageConverter protobufconverter = new ProtobufHttpMessageConverter();
                 final MappingJackson2HttpMessageConverter converter = new MappingJackson2HttpMessageConverter();
                 converter.setObjectMapper(objectMapper);
                 converters.add(converter);
+                converters.add(protobufconverter);
                 super.configureMessageConverters(converters);
             }
         };
     }
 
+
+
+    //fix cors
     @Configuration
     public class CorsConfig {
         private CorsConfiguration buildConfig() {

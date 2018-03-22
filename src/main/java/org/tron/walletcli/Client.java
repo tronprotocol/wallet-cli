@@ -8,12 +8,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.spongycastle.util.encoders.Hex;
 import org.tron.api.GrpcAPI.AccountList;
+import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.SymmEncoder;
 import org.tron.common.utils.ByteArray;
 import org.tron.protos.Contract;
 import org.tron.protos.Protocol;
+import org.tron.protos.Protocol.Account;
+import org.tron.protos.Protocol.Block;
 import org.tron.walletserver.WalletClient;
 
 public class Client {
@@ -21,17 +24,15 @@ public class Client {
   private static final Logger logger = LoggerFactory.getLogger("Client");
   private WalletClient wallet;
 
-  public boolean registerWallet(String userName, String password) {
+  public boolean registerWallet(String password) {
     if (!WalletClient.passwordValid(password)) {
       return false;
     }
     wallet = new WalletClient(true);
     // create account at network
-    Boolean ret = wallet.createAccount(Protocol.AccountType.Normal, userName.getBytes());
-    if (ret) {
-      wallet.store(password);
-    }
-    return ret;
+//    Boolean ret = wallet.createAccount(Protocol.AccountType.Normal, userName.getBytes());getBytes
+    wallet.store(password);
+    return true;
   }
 
   public boolean importWallet(String password, String priKey) {
@@ -157,25 +158,25 @@ public class Client {
     return ByteArray.toHexString(wallet.getAddress());
   }
 
-  public long getBalance() {
+  public Account queryAccount() {
     if (wallet == null || !wallet.isLoginState()) {
-      logger.warn("Warning: GetBalance failed,  Please login first !!");
-      return 0;
+      logger.warn("Warning: QueryAccount failed,  Please login first !!");
+      return null;
     }
 
     if (wallet.getEcKey() == null) {
       wallet = WalletClient.GetWalletByStorageIgnorPrivKey();
       if (wallet == null) {
-        logger.warn("Warning: GetBalance failed, Load wallet failed !!");
-        return 0;
+        logger.warn("Warning: QueryAccount failed, Load wallet failed !!");
+        return null;
       }
     }
 
     try {
-      return wallet.getBalance();
+      return wallet.queryAccount();
     } catch (Exception ex) {
       ex.printStackTrace();
-      return 0;
+      return null;
     }
   }
 
@@ -202,6 +203,65 @@ public class Client {
     try {
       byte[] to = Hex.decode(toAddress);
       return wallet.sendCoin(to, amount);
+    } catch (Exception ex) {
+      ex.printStackTrace();
+      return false;
+    }
+  }
+
+  public boolean transferAsset(String password, String toAddress, String assertName, long amount) {
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warning: TransferAsset failed,  Please login first !!");
+      return false;
+    }
+    if (!WalletClient.passwordValid(password)) {
+      return false;
+    }
+    if (!WalletClient.addressValid(toAddress)) {
+      return false;
+    }
+
+    if (wallet.getEcKey() == null || wallet.getEcKey().getPrivKey() == null) {
+      wallet = WalletClient.GetWalletByStorage(password);
+      if (wallet == null) {
+        logger.warn("Warning: TransferAsset failed, Load wallet failed !!");
+        return false;
+      }
+    }
+
+    try {
+      byte[] to = Hex.decode(toAddress);
+      return wallet.transferAsset(to, assertName.getBytes(), amount);
+    } catch (Exception ex) {
+      ex.printStackTrace();
+      return false;
+    }
+  }
+
+  public boolean participateAssetIssue(String password, String toAddress, String assertName,
+      long amount) {
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warning: TransferAsset failed,  Please login first !!");
+      return false;
+    }
+    if (!WalletClient.passwordValid(password)) {
+      return false;
+    }
+    if (!WalletClient.addressValid(toAddress)) {
+      return false;
+    }
+
+    if (wallet.getEcKey() == null || wallet.getEcKey().getPrivKey() == null) {
+      wallet = WalletClient.GetWalletByStorage(password);
+      if (wallet == null) {
+        logger.warn("Warning: TransferAsset failed, Load wallet failed !!");
+        return false;
+      }
+    }
+
+    try {
+      byte[] to = Hex.decode(toAddress);
+      return wallet.participateAssetIssue(to, assertName.getBytes(), amount);
     } catch (Exception ex) {
       ex.printStackTrace();
       return false;
@@ -288,6 +348,10 @@ public class Client {
     }
   }
 
+  public Block GetBlock(long blockNum) {
+    return WalletClient.GetBlock(blockNum);
+  }
+
   public boolean voteWitness(String password, HashMap<String, String> witness) {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: SendCoin failed,  Please login first !!");
@@ -314,13 +378,8 @@ public class Client {
   }
 
   public Optional<AccountList> listAccounts() {
-    if (wallet == null) {
-      logger.error("Wallet is null");
-      return Optional.empty();
-    }
-
     try {
-      return wallet.listAccounts();
+      return WalletClient.listAccounts();
     } catch (Exception ex) {
       ex.printStackTrace();
       return Optional.empty();
@@ -328,13 +387,17 @@ public class Client {
   }
 
   public Optional<WitnessList> listWitnesses() {
-    if (wallet == null) {
-      logger.error("Wallet is null");
+    try {
+      return WalletClient.listWitnesses();
+    } catch (Exception ex) {
+      ex.printStackTrace();
       return Optional.empty();
     }
+  }
 
+  public Optional<AssetIssueList> getAssetIssueList() {
     try {
-      return wallet.listWitnesses();
+      return WalletClient.getAssetIssueList();
     } catch (Exception ex) {
       ex.printStackTrace();
       return Optional.empty();

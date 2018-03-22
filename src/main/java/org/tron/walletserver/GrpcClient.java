@@ -9,11 +9,14 @@ import java.util.concurrent.TimeUnit;
 
 import org.tron.api.GrpcAPI;
 import org.tron.api.GrpcAPI.AccountList;
+import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.EmptyMessage;
+import org.tron.api.GrpcAPI.NumberMessage;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.api.WalletGrpc;
 import org.tron.protos.Contract;
 import org.tron.protos.Protocol.Account;
+import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.Transaction;
 
 public class GrpcClient {
@@ -39,15 +42,23 @@ public class GrpcClient {
     channel.shutdown().awaitTermination(5, TimeUnit.SECONDS);
   }
 
-  public long getBalance(byte[] address) {
+  public Account queryAccount(byte[] address) {
     ByteString addressBS = ByteString.copyFrom(address);
     Account request = Account.newBuilder().setAddress(addressBS).build();
-    Account response = blockingStub.getBalance(request);
-    return response.getBalance();
+    return blockingStub.getAccount(request);
   }
 
   public Transaction createTransaction(Contract.TransferContract contract) {
     return blockingStub.createTransaction(contract);
+  }
+
+  public Transaction createTransferAssetTransaction(Contract.TransferAssetContract contract) {
+    return blockingStub.transferAsset(contract);
+  }
+
+  public Transaction createParticipateAssetIssueTransaction(
+      Contract.ParticipateAssetIssueContract contract) {
+    return blockingStub.participateAssetIssue(contract);
   }
 
   public Transaction createAccount(Contract.AccountCreateContract contract) {
@@ -71,10 +82,18 @@ public class GrpcClient {
     return response.getResult();
   }
 
+  public Block getBlock(long blockNum) {
+    if (blockNum < 0) {
+      return blockingStub.getNowBlock(EmptyMessage.newBuilder().build());
+    }
+    NumberMessage.Builder builder = NumberMessage.newBuilder();
+    builder.setNum(blockNum);
+    return blockingStub.getBlockByNum(builder.build());
+  }
 
   public Optional<AccountList> listAccounts() {
     AccountList accountList = blockingStub.listAccounts(EmptyMessage.newBuilder().build());
-    if(accountList != null){
+    if (accountList != null) {
       return Optional.of(accountList);
     }
     return Optional.empty();
@@ -82,9 +101,30 @@ public class GrpcClient {
 
   public Optional<WitnessList> listWitnesses() {
     WitnessList witnessList = blockingStub.listWitnesses(EmptyMessage.newBuilder().build());
-    if(witnessList != null){
+    if (witnessList != null) {
       return Optional.of(witnessList);
     }
     return Optional.empty();
   }
+
+  public Optional<AssetIssueList> getAssetIssueList() {
+    AssetIssueList assetIssueList = blockingStub
+        .getAssetIssueList(EmptyMessage.newBuilder().build());
+    if (assetIssueList != null) {
+      return Optional.of(assetIssueList);
+    }
+    return Optional.empty();
+  }
+
+  public Optional<AssetIssueList> getAssetIssueByAccount(byte[] address) {
+    ByteString addressBS = ByteString.copyFrom(address);
+    Account request = Account.newBuilder().setAddress(addressBS).build();
+    AssetIssueList assetIssueList = blockingStub
+        .getAssetIssueByAccount(request);
+    if (assetIssueList != null) {
+      return Optional.of(assetIssueList);
+    }
+    return Optional.empty();
+  }
+
 }

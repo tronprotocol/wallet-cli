@@ -1,0 +1,193 @@
+
+.accountQuery{
+	width:100%;
+	height:auto;
+	margin: auto;
+	padding:30px 60px 0 60px;
+	overflow: hidden;
+}
+.accountQuery h4{
+	color: #428dff;
+	font-size:20px;
+	font-weight: 600;
+	text-align: left;
+	margin-bottom: 20px;
+}
+.search #search{
+	width: 70%;
+	height: 40px;
+	line-height: 40px;
+	padding: 0px 4px 0px 30px;
+	font-size:14px;
+	border:1px solid #0077ff;
+	border-radius: 5px;
+	float: left;
+}
+.main{
+	font-size: 14px;
+}
+.main table{
+	width: 100%;
+	height: auto;
+	overflow: hidden;
+	border: none;
+	text-align: center;
+	font-size: 14px;
+}
+.main table tr{
+	height: 50px;
+	line-height: 50px;
+}
+#tablHtml tr{
+	color: #45425e;
+}
+.tbody tr:nth-of-type(odd){
+	background: none;
+}
+#tablHtml tr:nth-of-type(even),#myac_table .account_tab{
+	border: 1px solid #d4dde7;
+	border-radius: 2px;
+	background-color: #fff;
+}
+.tbody tr td:nth-child(2){
+	color: #428dff;
+}
+#tablHtml tr td:nth-child(2) span{
+	display: block;
+	width: 30%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	margin: auto;
+	line-height: 50px;
+}
+#tablHtml  td:nth-last-of-type(2) {
+	border-top-right-radius: 5px;
+	border-bottom-right-radius: 5px;
+}
+#tablHtml td:nth-last-of-type(1){
+	border-top: 0;
+	border-bottom: 0;
+	background-color: #fafbfc;
+}
+#myac_table tbody .account_tab   td {
+	border: 1px solid #d4d8da;
+	border-right: 0;
+	border-left: 0;
+	padding: 5px;
+}
+/*#tablHtml  tr td:nth-child(2){*/
+	/*color: #428dff;*/
+/*}*/
+/*
+count_detail
+*/
+.main p{
+	font-size: 18px;
+	color: #428dff;
+}
+.main p>i{
+	font-size: 12px;
+	color: #f24d66;
+}
+#myac_table tbody{
+	color: #505050;
+	/*color: #d7d6d6;*/
+}
+
+#search{
+	float: left;
+}
+#creat_asset,#my_asset{
+	border-radius: 5px;
+	width: 80px;
+	line-height: 40px;
+	float: left;
+	margin: 0 10px;
+}
+#creat_asset{
+	float: right;
+	width: 100px;
+	margin-top: -50px;
+}
+.myaccount,.account_list{
+	display: none;
+}
+#myac_table tbody .account_tab  td:nth-last-of-type(1){
+	border-right: 1px solid #d4d8da;
+}
+#myac_table tbody .account_tab  td:nth-of-type(1){
+	border-left: 1px solid #d4d8da;
+}
+
+#myac_table .account_tab{
+	line-height: 10px;
+}
+.time_end{
+
+}
+.add_account {
+	border: 1px solid #428dff;
+	color: #428dff;
+	border-radius: 5px;
+	height: 30px;
+	width: 50px;
+}
+.creat_account input{
+	border-radius: 5px ;
+	border: 1px solid #d4dde7;
+	width: 70%;
+	height: 40px;
+	margin: 10px 0;
+}
+.creat_account .account_num{
+	width: 100%;
+}
+.account_inline{
+	color: #5ea0fe;
+}
+.account_inline:after{
+	display: block;
+	content: '';
+	clear: both;
+}
+.account_inline div{
+	float: left;
+	width: 45%;
+}
+.account_inline div:nth-of-type(1){
+	margin-right: 50px;
+}
+.creat_account .create_account{
+	display: block;
+	width: 530px;
+	text-align: center;
+	margin: auto;
+	margin-top: 40px;
+}
+
+.end_time,.start_time{
+	display: inline-block;
+	font-size: 14px;
+	margin:20px 0 20px 0 ;
+}
+.start_time {
+	margin-right: 40%;
+}
+.creat_account .all_count{
+	width: 100px;
+	float: right;
+}
+.time_end{
+	color: #ccc;
+	border: 1px solid #ccc;
+}
+
+.tbody tr .stop{
+	background: url("../img/stop.png") no-repeat 50%;
+	color: #ccc;
+}
+
+.tbody tr:nth-of-type(even){
+	background: #fff;
+}
