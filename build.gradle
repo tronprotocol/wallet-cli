@@ -11,7 +11,7 @@ apply plugin: 'application'
 sourceCompatibility = 1.8
 targetCompatibility = JavaVersion.VERSION_1_8
 [compileJava, compileTestJava]*.options*.encoding = 'UTF-8'
-mainClassName = 'org.tron.walletcli.TestClient'
+//mainClassName = 'org.tron.walletcli.TestClient'
 
 compileJava.options*.compilerArgs = [
         "-Xlint:serial", "-Xlint:varargs", "-Xlint:classfile", "-Xlint:dep-ann",
@@ -139,6 +139,6 @@ protobuf {
     }
 }
 
-run {
-    standardInput = System.in
-}
+//run {
+//    standardInput = System.in
+//}
