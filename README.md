@@ -11,16 +11,16 @@ git clone https://github.com/tronprotocol/wallet-cli.git
 Build and run java-tron
 
 cd java-tron
- ./gradlew build      
- ./gradlew run
+./gradlew build      
+./gradlew run
  
 
 Build and run wallet-cli  
 Create a new command line terminal window.
 
 cd wallet-cli
- ./gradlew build      
- ./gradlew run -Pcmd
+./gradlew build      
+./gradlew run -Pcmd
  
 You can enter the following command: 
 RegisterWallet
