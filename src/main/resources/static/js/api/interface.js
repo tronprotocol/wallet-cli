@@ -10,3 +10,5 @@ var witnessList = baseUrl +'witnessList'; //查询见证人列表
 var getBlockToView = baseUrl +'getBlockToView'; //查询账户列表
 var getAccountInfo = baseUrl +'queryAccount'; //查询账户详情
 
+var createAssetView = baseUrl + 'createAssetIssueToView' //发行资产
+
