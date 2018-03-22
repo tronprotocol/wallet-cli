@@ -3,14 +3,22 @@ $(document).ready(function() {
     $("#creatAssetBtn").click(function() {
         var address = getAddressFromPriKeyBase64String($("#privateKey").val());
         var data = $("#createAssetForm").serialize() + "&ownerAddress=" + address;
-        ajaxRequest("post", createAssetView, data, TransSuccessCallback, TransFailureCallback);
+        ajaxRequest("post", createAssetView, data, createAssetSuccessCallback, createAssetFailureCallback);
     })
 })
 
-TransSuccessCallback = function (data) {
-    alert(data);
+createAssetSuccessCallback = function (data) {
+    var privateKey = base64DecodeFromString($("#privateKey").val());
+    var transation = getTransActionFromBase64String(data);
+    var transationAfterSign = signTransaction(privateKey, transation);
+    var transationHex = byteArray2hexStr(transationAfterSign)
+    ajaxRequest("post", signView, transationHex, signSuccessCallback, createAssetFailureCallback)
 }
 
-TransFailureCallback = function (data) {
-    alert("err");
+signSuccessCallback = function (data) {
+    alert("发行资产成功");
+}
+
+createAssetFailureCallback = function (data) {
+    alert("发行资产失败");
 }
