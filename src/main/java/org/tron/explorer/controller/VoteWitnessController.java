@@ -2,7 +2,10 @@ package org.tron.explorer.controller;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RestController;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.TransactionUtils;
@@ -37,10 +40,8 @@ public class VoteWitnessController {
     }
   }
 
-
-
   @PostMapping("/createVoteWitnessToView")
-  public byte[] getTransactionToView(@RequestBody VoteWitness voteWitness) {
+  public byte[] getTransactionToView(@ModelAttribute VoteWitness voteWitness) {
     try {
       if (voteWitness.getOwnerAddress() == null || voteWitness.getList() == null) {
         return null;

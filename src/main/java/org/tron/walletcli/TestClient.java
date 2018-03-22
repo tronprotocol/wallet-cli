@@ -28,12 +28,9 @@ public class TestClient {
   private Client client = new Client();
 
   private void registerWallet(String[] parameters) {
-    if (parameters == null) {
-      logger.warn("Warning: RegisterWallet need 2 parameter but get nothing");
-      return;
-    }
-    if (parameters.length != 2) {
-      logger.warn("Warning: RegisterWallet need 2 parameter but get " + parameters.length);
+    if (parameters == null || parameters.length != 2 ) {
+      System.out.println("RegisterWallet need 2 parameter like following: ");
+      System.out.println("RegisterWallet UserName Password");
       return;
     }
     String userName = parameters[0];
@@ -47,12 +44,10 @@ public class TestClient {
   }
 
   private void importWallet(String[] parameters) {
-    if (parameters == null) {
-      logger.warn("Warning: ImportWallet need 2 parameters but get nothing");
-      return;
-    }
-    if (parameters.length != 2) {
-      logger.warn("Warning: ImportWallet need 2 parameters but get " + parameters.length);
+    if (parameters == null || parameters.length != 2 ) {
+      System.out.println("ImportWallet need 2 parameter like following: ");
+      System.out.println("ImportWallet Password PriKey");
+      System.out.println("PriKey need Hex string format.");
       return;
     }
     String password = parameters[0];
@@ -66,12 +61,9 @@ public class TestClient {
   }
 
   private void changePassword(String[] parameters) {
-    if (parameters == null) {
-      logger.warn("Warning: ChangePassword need 2 parameters but get nothing");
-      return;
-    }
-    if (parameters.length != 2) {
-      logger.warn("Warning: ChangePassword need 2 parameters but get " + parameters.length);
+    if (parameters == null || parameters.length != 2 ) {
+      System.out.println("ChangePassword need 2 parameter like following: ");
+      System.out.println("ChangePassword OldPassword NewPassword ");
       return;
     }
     String oldPassword = parameters[0];
@@ -84,12 +76,9 @@ public class TestClient {
   }
 
   private void login(String[] parameters) {
-    if (parameters == null) {
-      logger.warn("Warning: Login need 1 parameter but get nothing");
-      return;
-    }
-    if (parameters.length != 1) {
-      logger.warn("Warning: Login need 1 parameter but get " + parameters.length);
+    if (parameters == null || parameters.length != 1 ) {
+      System.out.println("Login need 1 parameter like following: ");
+      System.out.println("Login Password ");
       return;
     }
     String password = parameters[0];
@@ -104,7 +93,8 @@ public class TestClient {
 
   private void logout(String[] parameters) {
     if (parameters != null && parameters.length != 0) {
-      logger.warn("Warning: Logout needn't parameter but get " + parameters.length);
+      System.out.println("Logout needn't parameter, just like following: ");
+      System.out.println("Logout ");
       return;
     }
 
@@ -525,12 +515,34 @@ public class TestClient {
         }
         case "exit":
         case "quit": {
-          logger.info("Exit !!");
+          System.out.println("Exit !!!");
           return;
         }
         default: {
-          logger.warn("Invalid cmd: " + cmd);
-          break;
+          System.out.println("Invalid cmd: " + cmd);
+          System.out.println("You can enter the following command: ");
+
+          System.out.println("RegisterWallet");
+          System.out.println("ImportWallet");
+          System.out.println("ChangePassword");
+          System.out.println("Login");
+          System.out.println("Logout");
+          System.out.println("BackupWallet");
+          System.out.println("Getaddress");
+          System.out.println("GetBalance");
+          System.out.println("GetAccount");
+          System.out.println("GetAssetissueByAccount");
+          System.out.println("SendCoin");
+          System.out.println("TransferAsset");
+          System.out.println("ParticipateAssetissue");
+          System.out.println("Assetissue");
+          System.out.println("CreateWitness");
+          System.out.println("VoteWitness");
+          System.out.println("Listaccounts");
+          System.out.println("Listwitnesses");
+          System.out.println("Listassetissue");
+          System.out.println("Getblock");
+          System.out.println("Exit or Quit");
         }
       }
     }
