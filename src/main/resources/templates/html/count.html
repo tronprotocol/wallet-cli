@@ -1,0 +1,153 @@
+
+<section class="accountQuery account_list">
+    <h4>资产列表</h4>
+    <form action="" method="post" class="myform">
+        <div class="search">
+            <input type="text" value=""  placeholder="搜索账户" id="search" name="search">
+            <input type="button" id="creat_asset" class="liner_granet" value="创建资产">
+            <input type="button" id="my_asset" class="liner_granet" value="我的资产">
+        </div>
+    </form>
+
+    <div class="main">
+        <table cellpadding="0" cellspacing="0" >
+            <thead>
+            <tr>
+                <th >资产名称</th>
+                <th >发行人</th>
+                <th >总供应量</th>
+                <th>起止时间</th>
+            </tr>
+            </thead>
+            <tbody id="tablHtml" class="tbody">
+            <tr>
+                <td>1</td>
+                <td>1</td>
+                <td>1</td>
+                <td>1</td>
+            </tr>
+            <tr>
+                <td>1</td>
+                <td>1</td>
+                <td>1</td>
+                <td>1</td>
+            </tr>
+            <tr>
+                <td>1</td>
+                <td>1</td>
+                <td>1</td>
+                <td>1</td>
+            </tr>
+            <tr>
+                <td>1</td>
+                <td>1</td>
+                <td>1</td>
+                <td>1</td>
+            </tr>
+            <tr>
+                <td>1</td>
+                <td>1</td>
+                <td>1</td>
+                <td>1</td>
+            </tr>
+            <tr>
+                <td>1</td>
+                <td>1</td>
+                <td>1</td>
+                <td>1</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+<section class="accountQuery myaccount">
+    <h4>我的资产</h4>
+    <div class="main table">
+        <table cellpadding="0" cellspacing="0" id="myac_table">
+            <tbody id="" class="tbody">
+            <tr class="account_tab">
+                <td >资产名称</td>
+                <td >发行人</td>
+                <td >总供应量</td>
+                <td>起止时间</td>
+            </tr>
+            <tr>
+                <td>1</td>
+                <td>1</td>
+                <td>1</td>
+                <td>1</td>
+            </tr>
+            <tr>
+                <td>1</td>
+                <td>1</td>
+                <td>1</td>
+                <td>1</td>
+            </tr>
+            <tr>
+                <td>1</td>
+                <td>1</td>
+                <td>1</td>
+                <td>1</td>
+            </tr>
+            <tr>
+                <td>1</td>
+                <td>1</td>
+                <td>1</td>
+                <td>1</td>
+            </tr>
+            <tr>
+                <td>1</td>
+                <td>1</td>
+                <td>1</td>
+                <td>1</td>
+            </tr>
+            <tr>
+                <td>1</td>
+                <td>1</td>
+                <td>1</td>
+                <td>1</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</section>
+
+ <section class="creat_account accountQuery">
+     <div class="main ">
+         <p>资产名称 <i>资产名称最少三个字符</i></p>
+         <input type="text">
+         <p>资产供应总量 <i>资产供应总量必须大于0</i></p>
+         <input type="text">
+         <div class="account_inline">
+             <div>
+                 <span >标价资产数量</span> <br>
+                 <input type="text" class="account_num">
+            </div>
+             <div>
+                 <span >基准资产数量</span> <br>
+                 <input type="text" class="account_num">
+             </div>
+
+         </div>
+         <p>单价：1.0000/TRX</p>
+         <p>
+             <span class="start_time">起止时间:2018年03月01日</span>
+             <span class="end_time">结束时间:2018年03月01日</span>
+         </p>
+         <p>标价资产数量</p>
+         <input type="text">
+         <input type="button " class="liner_granet create_account" value="创建资产">
+     </div>
+
+ </section>
+<script type="text/javascript">
+    $('#creat_asset').on('click',function () {
+        $('.account_list').css('display','none');
+        $('.creat_account').css('display','block')
+    })
+    $('#my_asset').on('click',function () {
+        $('.account_list').css('display','none');
+        $('.myaccount').css('display','block');
+    })
+</script>
