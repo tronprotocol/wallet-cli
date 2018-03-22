@@ -1,0 +1,91 @@
+
+<div class="article_login wel_login" id="wel_login">
+    <span class="welcome">
+        <img src="img/logo.png" alt=""/>
+        <h5>欢迎使用波场区块链浏览器</h5>
+    </span>
+    <p class="wel_detail">
+        交易方式决定内容的分发、订阅、推送，赋能内容创造者，形成去中心化的内容娱乐生态。波场平台应用合作伙伴（陪我APP，Obike，GIFTO，Uplive）用户规模突破四千万，波场平台也是全球DAPP用户最多的智能合约区块链平台。
+    </p>
+
+    <select name="" id="">
+        <option value="">china</option>
+        <option value="">English</option>
+    </select>
+    <p class="wel_creat">
+        <button class=" liner_granet login_html">创建账户</button>
+        <button class="wel_active">登陆</button>
+    </p>
+</div>
+
+
+<div class="article_login" id="article_login">
+    <span class="create">
+        <img src="img/logo.png" alt=""/>
+        <p>创建帐户</p>
+    </span>
+
+    <form action="">
+           <p class="adress">生成地址</p>
+           <p class="pwd" id="contents"></p>
+        <input type="button" class="repeat liner_granet" value="复制" onClick="copyUrl2('contents')"/>
+        <p cla>生成密码</p>
+        <p class="pwd" id="pwd"></p>
+
+        <input type="button" class="repeat liner_granet" value="复制" onClick="copyUrl2('pwd')"/>
+        <p class="pw_warn">请确认密码</p>
+        <br>
+        <ul class="warn_list">
+            <li>我理解如果我丢失了密码，我将永远无法访问我的资产</li>
+            <li>我理解如果我忘记或丢失了密码，将没有任何人能够帮助我恢复</li>
+            <li>我已经写下了或者用其它方式保存了我的密码</li>
+        </ul>
+        <input type="button" class="submit liner_granet" id="submit" value="点击生成地址和密码"/>
+    </form>
+</div>
+<div class="sy">
+    <p>建议在纸张上抄记您的私钥</p>
+    <p id="sytext"></p>
+    <button class="liner_granet" id="sy_sure">确定</button>
+</div>
+<!--<div class="motal">-->
+    <!--<span class="motal_close">x</span>-->
+    <!--<form action="">-->
+        <!--<p>账户名</p>-->
+        <!--<input class="name" type="text" name="firstname" value="" id="rename">-->
+        <!--<p class="mo_warn">请输入正确帐号</p>-->
+        <!--<br>-->
+        <!--<p> 密码</p>-->
+        <!--<input class="pwd" type="text" name="paswd" value="" id="repawd">-->
+        <!--<p class="mona_warn">请输入正确密码</p>-->
+        <!--<br>-->
+        <!--<p> 请输入私钥</p>-->
+        <!--<input class="pwd" type="text" name="repaswd" value="" id="resy">-->
+        <!--<p class="mopwd_warn">请输入私钥</p>-->
+        <!--<br>-->
+        <!--<input type="button" class="login add" value="创建账户" id="login">-->
+        <!--<input type="button" class="no" value="取消">-->
+    <!--</form>-->
+<!--</div>-->
+<script src="/static/js/api/interface.js"></script>
+<script src="/static/js/cryptohash/lib/elliptic.min.js"></script>
+<script src="/static/js/cryptohash/lib/sha.js"></script>
+<script src="/static/js/cryptohash/lib/sha1.js"></script>
+<script src="/static/js/cryptohash/lib/sha3.js"></script>
+<script src="/static/js/cryptohash/lib/sha3-256.js"></script>
+<script src="/static/js/cryptohash/lib/sha256.js"></script>
+<script src="/static/js/cryptohash/lib/sha512.js"></script>
+<script src="/static/js/cryptohash/lib/sha_dev.js"></script>
+
+<script src="/static/js/tronjs/protobuf.js"></script>
+<script src="/static/js/tronjs/contract.js"></script>
+<script src="/static/js/tronjs/tron.js"></script>
+<script src="/static/js/tronjs/troninv.js"></script>
+<script src="/static/js/tronjs/api.js"></script>
+<script src="/static/js/tronjs/message.js"></script>
+
+
+
+<script src="/static/js/cryptohash/lib/code.js"></script>
+<script src="/static/js/cryptohash/crypto.js"></script>
+<script src="/static/js/utils/login.js"></script>
