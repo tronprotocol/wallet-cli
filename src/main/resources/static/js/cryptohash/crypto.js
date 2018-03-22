@@ -63,12 +63,13 @@ function getAddressFromPriKey(priKeyBytes) {
   return addressBytes;
 }
 
-//return address by String, priKeyBytes is base64String
+//return address by bytes, priKeyBase64String is base64String
 function getAddressFromPriKeyBase64String(priKeyBase64String) {
     var priKeyBytes = base64DecodeFromString(priKeyBase64String);
     var pubBytes = getPubKeyFromPriKey(priKeyBytes);
     var addressBytes = computeAddress(pubBytes);
-    return addressBytes;
+    var addressString = byteArray2hexStr(addressBytes);
+    return addressString;
 }
 
 //return pubkey by 65 bytes, priKeyBytes is byte[]

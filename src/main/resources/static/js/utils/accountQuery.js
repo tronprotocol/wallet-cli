@@ -10,7 +10,9 @@
 
  function QueryAccountSuccess(data) {
     var str = ''
-
+    //字符串转byteArray数据格式
+   // var bytes = stringToBytes(data);git
+    //从base64字符串中解码出原文，格式为byteArray格式
     var bytesAccountList = base64DecodeFromString(data);
 
     //调用方法deserializeBinary解析
@@ -39,13 +41,12 @@
  *
  方法说明
  *
- @method 查询账户列表处理数据数据 QueryAccountSuccess
+ @method 查询账户列表处理数据数据 QueryAccountFail
  *
  @param {data}  请求失败返回的数据
  */
 
 function QueryAccountFail(data) {
-    console.log(data);
     console.log('error');
 }
 

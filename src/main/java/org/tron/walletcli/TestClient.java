@@ -1,9 +1,22 @@
 package org.tron.walletcli;
 
 import com.beust.jcommander.JCommander;
+<<<<<<< HEAD
 import com.google.protobuf.ByteString;
+=======
+import com.google.common.primitives.Ints;
+import java.util.ArrayList;
+>>>>>>> remotes/origin/pressureSendCoin
 import java.util.List;
 import java.util.Optional;
+import java.util.Random;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.IntStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tron.api.GrpcAPI.AccountList;
@@ -28,6 +41,7 @@ public class TestClient {
 
   private static final Logger logger = LoggerFactory.getLogger("TestClient");
   private Client client = new Client();
+  private Client clientDest;
 
   private void registerWallet(String[] parameters) {
     if (parameters == null || parameters.length != 1) {
@@ -204,6 +218,7 @@ public class TestClient {
     }
   }
 
+<<<<<<< HEAD
   private void transferAsset(String[] parameters) {
     if (parameters == null || parameters.length != 4) {
       System.out.println("TransferAsset need 4 parameter like following: ");
@@ -228,6 +243,75 @@ public class TestClient {
     if (parameters == null || parameters.length != 4) {
       System.out.println("ParticipateAssetIssue need 4 parameter like following: ");
       System.out.println("ParticipateAssetIssue Password ToAddress AssertName Amount");
+=======
+  private void pressureSendCoin(String[] parameters) {
+    if (parameters == null) {
+      logger.warn("Warning: SendCoin need 1 parameters but get nothing");
+      return;
+    }
+    if (parameters.length != 1) {
+      logger.warn("Warning: SendCoin need 1 parameters but get " + parameters.length);
+      return;
+    }
+
+    int transferTimes = Integer.valueOf(parameters[0]);
+    String password = "123456";
+    Client clientSrc = new Client();
+    clientSrc.importWallet(password,
+        "cba92a516ea09f620a16ff7ee95ce0df1d56550a8babe9964981a7144c8a784a");
+    clientSrc.login(password);
+
+    if (clientDest == null || clientDest.getBalance() == 0) {
+      clientDest = new Client();
+      clientDest.registerWallet("testtransfer", password);
+      clientDest.login(password);
+    }
+
+    long balanceSrc = clientSrc.getBalance();
+    long balanceDest = clientDest.getBalance();
+    long totalBalance = balanceSrc + balanceDest;
+
+    ExecutorService service = Executors.newFixedThreadPool(10);
+    AtomicInteger succeedTimes = new AtomicInteger(0);
+    List<Future<?>> futures = new ArrayList<>();
+    Random transferRandom = new Random(System.currentTimeMillis());
+    IntStream.range(0, transferTimes).mapToObj(integer -> service.submit(() -> {
+      int transfer = transferRandom.nextInt(50);
+      boolean result = clientSrc.sendCoin(password, clientDest.getAddress(), 10);
+      if (result) {
+        succeedTimes.getAndIncrement();
+        logger.info("Send " + transfer + " TRX to " + clientDest.getAddress() + " successful !!");
+      } else {
+        logger.info("Send " + transfer + " TRX to " + clientDest.getAddress() + " failed !!");
+      }})).forEach(futures::add);
+
+    futures.forEach(future -> {
+      try {
+        future.get();
+      } catch (InterruptedException | ExecutionException e) {
+        e.printStackTrace();
+      }
+    });
+
+    boolean equals = clientSrc.getBalance()
+        + clientDest.getBalance()
+        + succeedTimes.get() == totalBalance;
+    logger.info("succeed times(service charge) " + succeedTimes.get()
+        + "\nequals " + equals
+        + "\nclientSrc ago " + balanceSrc + ", address:" + clientSrc.getAddress()
+        + "\nclientSrc now " + clientSrc.getBalance()
+        + "\nclientSrc diff " + Math.abs(balanceSrc - clientSrc.getBalance())
+        + "\nclientDest ago " + balanceDest + ", address:" + clientDest.getAddress()
+        + "\nclientDest now " + clientDest.getBalance()
+        + "\nclientDest diff " + Math.abs(balanceDest - clientDest.getBalance())
+        + "\ntotal balance " + totalBalance
+        + "\ndiff " + (totalBalance - clientSrc.getBalance() - clientDest.getBalance() - succeedTimes.get()));
+  }
+
+  private void assetIssue(String[] parameters) {
+    if (parameters == null) {
+      logger.warn("Warning: assetIssue need 10 parameters but get nothing");
+>>>>>>> remotes/origin/pressureSendCoin
       return;
     }
     String password = parameters[0];
@@ -495,12 +579,18 @@ public class TestClient {
           listWitnesses();
           break;
         }
+<<<<<<< HEAD
         case "listassetissue": {
           getAssetIssueList();
           break;
         }
         case "getblock": {
           GetBlock(parameters);
+=======
+        // Transfer pressure test for the server.
+        case "pressuretestsendcoin": {
+          pressureSendCoin(parameters);
+>>>>>>> remotes/origin/pressureSendCoin
           break;
         }
         case "exit":
