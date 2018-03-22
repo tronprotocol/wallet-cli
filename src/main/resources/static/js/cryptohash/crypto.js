@@ -8,8 +8,7 @@ function doSign(priKeyBytes, base64Data) {
 
 //return bytes of rowdata, use to sign.
 function getRowBytesFromTransactionBase64(base64Data) {
-  var bytes = stringToBytes(base64Data);
-  var bytesDecode = base64Decode(bytes);
+  var bytesDecode = base64DecodeFromString(base64Data);
   var transaction = proto.protocol.Transaction.deserializeBinary(bytesDecode);
   //toDO: assert ret is SUCESS
   var raw = transaction.getRawData();
@@ -49,6 +48,14 @@ function getAddressFromPriKey(priKeyBytes) {
   var pubBytes = getPubKeyFromPriKey(priKeyBytes);
   var addressBytes = computeAddress(pubBytes);
   return addressBytes;
+}
+
+//return address by String, priKeyBytes is base64String
+function getAddressFromPriKeyBase64String(priKeyBase64String) {
+    var priKeyBytes = base64DecodeFromString(priKeyBase64String);
+    var pubBytes = getPubKeyFromPriKey(priKeyBytes);
+    var addressBytes = computeAddress(pubBytes);
+    return addressBytes;
 }
 
 //return pubkey by 65 bytes, priKeyBytes is byte[]
