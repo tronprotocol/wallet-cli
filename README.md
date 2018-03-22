@@ -20,7 +20,28 @@ Create a new command line terminal window.
 
 cd wallet-cli
  ./gradlew build      
- ./gradlew run
+ ./gradlew run -Pcmd
  
- 
-The manual of command line wallet.
+You can enter the following command: 
+RegisterWallet
+ImportWallet
+ChangePassword
+Login
+Logout
+BackupWallet
+Getaddress
+GetBalance
+GetAccount
+GetAssetissueByAccount
+SendCoin
+TransferAsset
+ParticipateAssetissue
+Assetissue
+CreateWitness
+VoteWitness
+Listaccounts
+Listwitnesses
+Listassetissue
+Getblock
+Exit or Quit
+Input any one of then, you will get more tips.

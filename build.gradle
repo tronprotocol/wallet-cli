@@ -11,7 +11,6 @@ apply plugin: 'application'
 sourceCompatibility = 1.8
 targetCompatibility = JavaVersion.VERSION_1_8
 [compileJava, compileTestJava]*.options*.encoding = 'UTF-8'
-//mainClassName = 'org.tron.walletcli.TestClient'
 
 compileJava.options*.compilerArgs = [
         "-Xlint:serial", "-Xlint:varargs", "-Xlint:classfile", "-Xlint:dep-ann",
@@ -111,14 +110,7 @@ dependencies {
     compile group: 'io.springfox', name: 'springfox-swagger2', version: '2.7.0'
     compile group: 'io.springfox', name: 'springfox-swagger-ui', version: '2.7.0'
 
-    //thymeleaf
     compile group: 'org.springframework.boot', name: 'spring-boot-starter-thymeleaf', version: '1.5.6.RELEASE'
-    compile group: 'net.sourceforge.nekohtml', name: 'nekohtml', version: '1.9.22'
-
-    //spring-boot-devtools
-    compile group: 'org.springframework.boot', name: 'spring-boot-devtools', version: '1.5.6.RELEASE'
-
-
 }
 
 protobuf {
@@ -146,10 +138,9 @@ protobuf {
     }
 }
 
-//run {
-//    standardInput = System.in
-//}
-
-bootRun {
-    addResources = true
+run {
+    if (project.hasProperty('cmd')) {
+        standardInput = System.in
+        mainClassName = 'org.tron.walletcli.TestClient'
+    }
 }
