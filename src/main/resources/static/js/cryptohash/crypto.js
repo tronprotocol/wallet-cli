@@ -1,9 +1,22 @@
-//return sign by 65 bytes r s id. id < 27
-function doSign(priKeyBytes, base64Data) {
-  var rowBytes = getRowBytesFromTransactionBase64(base64Data);
-  var hashBytes = SHA256(rowBytes);
+
+/**
+ * Sign A Transaction by priKey.
+ * signature is 65 bytes, r[32] || s[32] || id[1](<27)
+ * @returns  a Transaction object signed
+ * @param priKeyBytes: privateKey for ECC
+ * @param transaction: a Transaction object unSigned
+ */
+function signTransaction(priKeyBytes, transaction) {
+  var raw = transaction.getRawData();
+  var rawBytes = raw.serializeBinary();
+  var hashBytes = SHA256(rawBytes);
   var signBytes = ECKeySign(hashBytes, priKeyBytes);
-  return signBytes;
+  var uint8Array = new Uint8Array(signBytes);
+  var count = raw.getContractList().length;
+  for ( i = 0; i < count; i++ ){
+    transaction.addSignature(uint8Array); //TODO: multy priKey
+  }
+  return transaction;
 }
 
 //return bytes of rowdata, use to sign.
