@@ -1,21 +1,25 @@
 
 
-
 ajaxRequest( "GET",getBlockToView,data,TransSuccessCallback,TransFailureCallback);
 
 var data ={
 
 };
 
-var contractType;
-var contractList;
+
+
 TransSuccessCallback = function (data) {
 
+  var str = ''
 
-
+  var contractType;
+  var contractList;
+  var balance;
+  var sendname;
+  var toname;
+  var time;
   var currentBlock = base64DecodeFromString(data);
 
-  //调用方法deserializeBinary解析
   var blockData = proto.protocol.Block.deserializeBinary(currentBlock);
   var blockNumber= blockData.getBlockHeader().getRawData().getNumber();
   var witnessId=blockData.getBlockHeader().getRawData().getWitnessId();
@@ -25,22 +29,35 @@ TransSuccessCallback = function (data) {
 
   var txlist= blockData.getTransactionsList();
 
-  for(var i=0; i<txlist.length;i++){
-    var transactionType = txlist[i].getRawData().getType();
+  if(txlist.length >0) {
+    for (var i = 0; i < txlist.length; i++) {
+      var transactionType = txlist[i].getRawData().getType();
 
-    if(transactionType==1){
-         contractList = transactionType.getContractList();
-        for(var i=0; i<contractList.length;i++){
+      if (transactionType == 1) {
+        contractList = transactionType.getContractList();
+        for (var i = 0; i < contractList.length; i++) {
           contractType = contractList[i].getType();
-         if(contractType==1){
-           console.log("contract is : " + contractList[i]);
-           console.log("contractType is : " + contractType);
-         }
+          if (contractType == 1) {
+            console.log("contract is : " + contractList[i]);
+            console.log("contractType is : " + contractType);
+
+
+
+            str += '<p class="transfer">'
+                +'<button >转账</button>'
+                +'<span class="tran_name">'+sendname+'</span>'
+                +'<span>将'+balance+ 'TRX转帐给</span>'
+                +'<span class="tran_name">'+toname+'</span>'
+                +'<span>'+time+'秒钟前</span>'
+                +'</p>';
+
+          }
         }
-    }
+      }
 
     }
-
+  }
+   $('#tablHtml').html(str);
     $("#block_num").text(blockNumber);
     $("#witness_num").text(witnessNum);
 
