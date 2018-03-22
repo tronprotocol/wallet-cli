@@ -18,21 +18,23 @@
     var bytesAccountList = base64Decode(bytes);
 
     //调用方法deserializeBinary解析
-    var accountList = proto.protocol.AccountList.deserializeBinary(bytesAccountList);
+    var account = proto.protocol.AccountList.deserializeBinary(bytesAccountList);
+    var accountList = account.getAccountsList()
 
-    console.log('accountList'+accountList+'len'+accountList.length)
-    //账户名称
-    var name =  account.getAccountName()
-    var nameString = byteArray2hexStr(name);
-    console.log("nameString:: " + nameString)
-    var balance = account.getBalance();
-    console.log("balance:: " + balance);
-    str += '<tr>'
-       // +'<td>'+addressHex+'</td>'
-        +'<td style="table-layout:fixed;width=500px;word-break:break-all">'+nameString+'</td>'
-        +'<td>'+balance+'</td>'
-        +'</tr>';
-// }
+   if(accountList.length >0){
+       for(var i = 0; i<accountList.length;i++){
+           var name = byteArray2hexStr(accountList[i].getAccountName())
+           var balance = accountList[i].getBalance();
+           str += '<tr>'
+               +'<td>'+(i+1)+'</td>'
+               +'<td style="table-layout:fixed;width=500px;word-break:break-all">'+name+'</td>'
+               +'<td>'+balance+'</td>'
+               +'</tr>';
+       }
+   }else{
+        str = '<td align="center" valign="middle">没有查到账户</td>'
+        }
+
     $('#tablHtml').html(str)
 }
 
