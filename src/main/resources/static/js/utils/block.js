@@ -12,10 +12,8 @@ var contractList;
 TransSuccessCallback = function (data) {
 
 
-  //字符串转byteArray数据格式
-  var bytes = stringToBytes(data);
-  //从base64字符串中解码出原文，格式为byteArray格式
-  var currentBlock = base64DecodeFromString(bytes);
+
+  var currentBlock = base64DecodeFromString(data);
 
   //调用方法deserializeBinary解析
   var blockData = proto.protocol.Block.deserializeBinary(currentBlock);

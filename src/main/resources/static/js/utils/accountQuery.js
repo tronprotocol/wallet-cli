@@ -11,7 +11,7 @@
  function QueryAccountSuccess(data) {
     var str = ''
 
-    var bytesAccountList = base64DecodeFromString(bytes);
+    var bytesAccountList = base64DecodeFromString(data);
 
     //调用方法deserializeBinary解析
     var account = proto.protocol.AccountList.deserializeBinary(bytesAccountList);
