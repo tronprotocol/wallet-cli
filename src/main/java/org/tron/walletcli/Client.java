@@ -24,17 +24,15 @@ public class Client {
   private static final Logger logger = LoggerFactory.getLogger("Client");
   private WalletClient wallet;
 
-  public boolean registerWallet(String userName, String password) {
+  public boolean registerWallet(String password) {
     if (!WalletClient.passwordValid(password)) {
       return false;
     }
     wallet = new WalletClient(true);
     // create account at network
-    Boolean ret = wallet.createAccount(Protocol.AccountType.Normal, userName.getBytes());
-    if (ret) {
-      wallet.store(password);
-    }
-    return ret;
+//    Boolean ret = wallet.createAccount(Protocol.AccountType.Normal, userName.getBytes());getBytes
+    wallet.store(password);
+    return true;
   }
 
   public boolean importWallet(String password, String priKey) {
@@ -211,7 +209,7 @@ public class Client {
     }
   }
 
-  public boolean transferAsset(String password, String toAddress, String assertName, long amount){
+  public boolean transferAsset(String password, String toAddress, String assertName, long amount) {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: TransferAsset failed,  Please login first !!");
       return false;
@@ -240,7 +238,8 @@ public class Client {
     }
   }
 
-  public boolean participateAssetIssue(String password, String toAddress, String assertName, long amount){
+  public boolean participateAssetIssue(String password, String toAddress, String assertName,
+      long amount) {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: TransferAsset failed,  Please login first !!");
       return false;
