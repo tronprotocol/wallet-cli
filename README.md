@@ -5,6 +5,7 @@ Wallet CLI
 Download java-tron and wallet-cli
 
 git clone https://github.com/tronprotocol/java-tron.git
+
 git clone https://github.com/tronprotocol/wallet-cli.git
 
 
@@ -26,24 +27,45 @@ cd wallet-cli
  
 You can enter the following command: 
 RegisterWallet
+
 ImportWallet
+
 ChangePassword
+
 Login
+
 Logout
+
 BackupWallet
+
 Getaddress
+
 GetBalance
+
 GetAccount
+
 GetAssetissueByAccount
+
 SendCoin
+
 TransferAsset
+
 ParticipateAssetissue
+
 Assetissue
+
 CreateWitness
+
 VoteWitness
+
 Listaccounts
+
 Listwitnesses
+
 Listassetissue
+
 Getblock
+
 Exit or Quit
+
 Input any one of then, you will get more tips.
