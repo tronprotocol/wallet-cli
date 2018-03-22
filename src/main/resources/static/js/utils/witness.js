@@ -1,40 +1,69 @@
 
+
+
+
 /**
  *
  方法说明
  *
- @method 查询账户列表处理数据数据 QueryAccountSuccess
+ @method 查询见证人处理数据数据 QueryAccountSuccess
  *
  @param {data}  请求成功返回的数据
  */
 
-function QueryAccountSuccess(data) {
+function QueryWitnessSuccess(data) {
     var str = ''
     //字符串转byteArray数据格式
-    var bytes = stringToBytes(data);
-
+    //var bytes = stringToBytes(data);
     //从base64字符串中解码出原文，格式为byteArray格式
-    var bytesAccountList = base64Decode(bytes);
+    var bytesWitnessList = base64DecodeFromString(data);
 
     //调用方法deserializeBinary解析
-    var account = proto.protocol.AccountList.deserializeBinary(bytesAccountList);
-    var accountList = account.getAccountsList()
+    var witness = proto.protocol.WitnessList.deserializeBinary(bytesWitnessList);
+    var witnessList = witness.getWitnessesList()
 
-    if(accountList.length >0){
-        for(var i = 0; i<accountList.length;i++){
-            var name = byteArray2hexStr(accountList[i].getAccountName())
-            var balance = accountList[i].getBalance();
+    if(witnessList.length >0){
+        for(var i = 0; i<witnessList.length;i++){
+            //账户地址
+            var address = byteArray2hexStr(witnessList[i].getAddress());
+            //上次生成块
+            var latestblocknum = witnessList[i].getLatestblocknum()
+            //总出块数
+            var producedtotal =  witnessList[i].getTotalproduced()
+            //缺失区块数
+            var missedtotal = witnessList[i].getTotalmissed()
+            //得票
+            var votecount = witnessList[i].getVotecount();
+            // var name = byteArray2hexStr(accountList[i].getAccountName())
+            // var balance = accountList[i].getBalance();
             str += '<tr>'
-                +'<td>'+(i+1)+'</td>'
-                +'<td style="table-layout:fixed;width=500px;word-break:break-all">'+name+'</td>'
-                +'<td>'+balance+'</td>'
+                +'<td><span class="num">'+(i+1)+'</span></td>'
+                +'<td style="table-layout:fixed;word-break:break-all">'+address+'</td>'
+                +'<td>'+latestblocknum+'</td>'
+                +'<td>'+producedtotal+'</td>'
+                +'<td>'+missedtotal+'</td>'
+                +'<td>'+votecount+'</td>'
                 +'</tr>';
         }
     }else{
         str = '<td align="center" valign="middle">没有查到账户</td>'
     }
 
-    $('#tablHtml').html(str)
+    $('#witnessDate').append(str)
+
+    $("#witnessDate tr").hover(function(){
+        $(this).addClass('b_acitve')
+    },function(){
+        $(this).removeClass('b_acitve')
+    });
+    // <tr class="">
+    //     <td> </td>
+    //     <td>$100</td>
+    //     <td>1</td>
+    //     <td>$100</td>
+    //     <td class="deletion">January</td>
+    //     <td>$100</td>
+    //     </tr>
 }
 
 
@@ -42,12 +71,12 @@ function QueryAccountSuccess(data) {
  *
  方法说明
  *
- @method 查询账户列表处理数据数据 QueryAccountSuccess
+ @method 查询账户列表处理数据数据 QueryWitnessFail
  *
  @param {data}  请求失败返回的数据
  */
 
-function QueryAccountFail(data) {
+function QueryWitnessFail(data) {
     console.log(data);
     console.log('error');
 }
@@ -56,16 +85,16 @@ function QueryAccountFail(data) {
  *
  方法说明
  *
- @method 查询账户列表 getAccountList
+ @method 查询账户列表 getWitnessList
  *
  @param
  */
 
-function getAccountList( ) {
-    ajaxRequest( "get",accountList,{},QueryAccountSuccess,QueryAccountFail)
+function getWitnessList( ) {
+    ajaxRequest( "get",witnessList,{},QueryWitnessSuccess,QueryWitnessFail)
 }
 
 
 //调用接口
-getAccountList()
+getWitnessList()
 

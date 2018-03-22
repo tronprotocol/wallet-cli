@@ -136,19 +136,21 @@
  <section class="creat_account accountQuery">
      <div class="main ">
          <input type="button" class="all_count liner_granet" value="全部资产列表">
+         <p>我的密码</p>
+         <input type="text" id="privateKey" name="privateKey"/>
          <p>资产名称 <i>资产名称最少三个字符</i></p>
-         <input type="text" id="assetName"/>
+         <input type="text" id="name" name="name"/>
          <p>资产供应总量 <i>资产供应总量必须大于0</i></p>
-         <input type="text" id="assetTotal"/>
+         <input type="text" id="totalSupply" name="totalSupply"/>
          <div class="account_inline">
              <div>
                  <span >本资产数量</span> <br>
-                 <input type="text" class="account_num" id="assetNum"/>
+                 <input type="text" class="account_num" id="num" name="num"/>
             </div>
 
              <div>
                  <span >TRX数量</span> <br>
-                 <input type="text" class="account_num" id="trxNum"/>
+                 <input type="text" class="account_num" id="trxNum" name="trxNum"/>
              </div>
 
          </div>
@@ -158,9 +160,9 @@
              <span class="end_time">结束时间:2018年03月01日</span>
          </p>
          <p>资产描述</p>
-         <input type="text" id="assetDesc"/>
+         <input type="text" id="description" name="description"/>
          <p>资产描述URL</p>
-         <input type="text" id="assetUrl"/>
+         <input type="text" id="url" name="url"/>
          <input type="button " class="liner_granet create_account" id="creatAssetBtn" value="创建资产"/>
      </div>
 
