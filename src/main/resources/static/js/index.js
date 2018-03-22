@@ -53,8 +53,7 @@ $('#a_witness').on('click',function () {
 
     TransSuccessCallback = function (data) {
         console.log(data);
-         var bytes = stringToBytes(data);
-        var bytesDecode = base64Decode(bytes);
+        var bytesDecode = base64DecodeFromString(data);
         var block= proto.protocol.WitnessList.deserializeBinary(bytesDecode);
         console.log(block.getWitnessesList().length);
 

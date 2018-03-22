@@ -42,14 +42,12 @@ $('#submit').on('click',function () {
     accountName = $("#name").val();
     //TODO fix privateKey store
    // $("#privateKey").val(priKeyBytes);
-    var basePrivateKey= base64Encode(priKeyBytes);
-    pk= bytesToString(basePrivateKey);
+    var pk = base64EncodeToString(priKeyBytes);
     $("#contents").text(address);
     // console.log($("#contents").text())
 
     // priKeyBytes = genPriKey();
-    var basePrivateKey= base64Encode(priKeyBytes);
-    var pk= bytesToString(basePrivateKey);
+    var pk = base64EncodeToString(priKeyBytes);
     // console.log(pk)
     $('#pwd').text(pk);
     $('#create').css('display','none')
