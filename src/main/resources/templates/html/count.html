@@ -135,7 +135,9 @@
 
  <section class="creat_account accountQuery">
      <div class="main ">
+
          <input type="button" class="all_count liner_granet" value="全部资产列表">
+         <form id="createAssetForm" action="#">
          <p>我的密码</p>
          <input type="text" id="privateKey" name="privateKey"/>
          <p>资产名称 <i>资产名称最少三个字符</i></p>
@@ -164,6 +166,7 @@
          <p>资产描述URL</p>
          <input type="text" id="url" name="url"/>
          <input type="button " class="liner_granet create_account" id="creatAssetBtn" value="创建资产"/>
+         </form>
      </div>
 
  </section>
@@ -203,3 +206,4 @@
         $('#addcount').css('display','block');
     })
 </script>
+<script src="/js/utils/asset.js"></script>
