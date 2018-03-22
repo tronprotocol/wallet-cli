@@ -1,5 +1,7 @@
 
-var baseUrl = 'http://192.168.10.131:8088/';
+//var baseUrl = 'http://192.168.10.131:8088/';
+
+var baseUrl = 'http://localhost:8088/';
 
 // var create =http://192.168.10.131:8088/sendCoinToView;
 var trans = baseUrl+'sendCoinToView'; //转账接口
