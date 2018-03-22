@@ -56,14 +56,6 @@ function QueryWitnessSuccess(data) {
     },function(){
         $(this).removeClass('b_acitve')
     });
-    // <tr class="">
-    //     <td> </td>
-    //     <td>$100</td>
-    //     <td>1</td>
-    //     <td>$100</td>
-    //     <td class="deletion">January</td>
-    //     <td>$100</td>
-    //     </tr>
 }
 
 

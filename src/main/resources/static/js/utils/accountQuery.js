@@ -11,10 +11,9 @@
  function QueryAccountSuccess(data) {
     var str = ''
     //字符串转byteArray数据格式
-   // var bytes = stringToBytes(data);git
+    // var bytes = stringToBytes(data);
     //从base64字符串中解码出原文，格式为byteArray格式
     var bytesAccountList = base64DecodeFromString(data);
-
     //调用方法deserializeBinary解析
     var account = proto.protocol.AccountList.deserializeBinary(bytesAccountList);
     var accountList = account.getAccountsList()
