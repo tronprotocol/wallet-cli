@@ -111,8 +111,13 @@ dependencies {
     compile group: 'io.springfox', name: 'springfox-swagger2', version: '2.7.0'
     compile group: 'io.springfox', name: 'springfox-swagger-ui', version: '2.7.0'
 
+    //thymeleaf
     compile group: 'org.springframework.boot', name: 'spring-boot-starter-thymeleaf', version: '1.5.6.RELEASE'
     compile group: 'net.sourceforge.nekohtml', name: 'nekohtml', version: '1.9.22'
+
+    //spring-boot-devtools
+    compile group: 'org.springframework.boot', name: 'spring-boot-devtools', version: '1.5.6.RELEASE'
+
 
 }
 
@@ -144,3 +149,7 @@ protobuf {
 //run {
 //    standardInput = System.in
 //}
+
+bootRun {
+    addResources = true
+}
