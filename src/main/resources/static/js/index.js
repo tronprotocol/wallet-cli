@@ -44,17 +44,15 @@ $(document).ready(function(){
         $(this).addClass('header_active').siblings().removeClass('header_active')
         $('#text').load('html/count.html');
     });
-$('#a_witness').on('click',function () {
-    ajaxRequest( "GET",witelist,data,TransSuccessCallback,TransFailureCallback)
-})
-    data={}
-
-
+    $('#a_witness').on('click',function () {
+        ajaxRequest( "GET",witelist,data,TransSuccessCallback,TransFailureCallback)
+    })
 
     TransSuccessCallback = function (data) {
         console.log(data);
         var bytesDecode = base64DecodeFromString(data);
         var block= proto.protocol.WitnessList.deserializeBinary(bytesDecode);
+
         console.log(block.getWitnessesList().length);
 
     };
@@ -65,6 +63,7 @@ $('#a_witness').on('click',function () {
 
 
 })
+
 
 //
 

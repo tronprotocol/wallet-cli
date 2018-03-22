@@ -31,13 +31,11 @@ function copyUrl2 (repeat) {
     document.execCommand('Copy','false',null);
 }
 $('#submit').on('click',function () {
-    // 转码 产生秘钥
+
     priKeyBytes = genPriKey();
     //return address by bytes, priKeyBytes is byte[]
-    //根据私钥计算地址，输入私钥的byteArray格式数据，返回地址的byteArray格式数据
     addressBytes = getAddressFromPriKey(priKeyBytes);
     //return 32 bytes
-    //计算Hash，SHA256算法，输入数据的byteArray格式数据，返回hash的byteArray格式数据
     address = byteArray2hexStr(addressBytes);
     accountName = $("#name").val();
     //TODO fix privateKey store
