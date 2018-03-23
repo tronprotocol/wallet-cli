@@ -289,9 +289,9 @@ public class Client {
       }
       builder.setNum(icoNum);
       long now = System.currentTimeMillis();
-//      if (startTime <= now) {
-//        return false;
-//      }
+      if (startTime <= now) {
+        return false;
+      }
       if (endTime <= startTime) {
         return false;
       }
