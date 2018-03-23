@@ -39,6 +39,37 @@ function participateAssetIssue(i) {
     $('#desc').text(desc);
 }
 
+function submitParticipateAssetIssue() {
+    var name = byteArray2hexStr(stringToBytes($('#assetName').text()));
+    var ownerAddress = getHexStrAddressFromPriKeyBase64String($('#myKey').val());
+    var toAddress = $('#ownAddress').text();
+    var amount = $('#amount').val();
+    var data = "name=" + name + "&ownerAddress=" + ownerAddress + "&toAddress=" + toAddress + "&amount=" + amount;
+    ajaxRequest("post", "/ParticipateAssetIssueToView", data, submitParticipateAssetIssueSuccessCallback, submitAssetIssueFailureCallback)
+}
+
+submitParticipateAssetIssueSuccessCallback = function (data) {
+    var privateKey = base64DecodeFromString($("#mykey").val());
+    var transation = getTransActionFromBase64String(data);
+    var transationAfterSign = signTransaction(privateKey, transation);
+    var transationHex = byteArray2hexStr(transationAfterSign.serializeBinary());
+    var para = "transactionData=" + transationHex;
+    ajaxRequest("post", signView, para, submitAssetIssueSuccessCallback, submitAssetIssueFailureCallback)
+}
+
+submitAssetIssueSuccessCallback = function (data) {
+    if(data) {
+        alert("参与成功");
+    }else{
+        alert("参与失败");
+    }
+}
+
+submitAssetIssueFailureCallback = function (data) {
+    alert("参与失败");
+}
+
+
 getAssetListSuccessCallback = function (data) {
     var curTime = new Date().getTime();
     var content = "";
@@ -95,7 +126,7 @@ signSuccessCallback = function (data) {
 }
 
 createAssetFailureCallback = function (data) {
-    alert("发行资产失败1");
+    alert("发行资产失败");
 }
 
 function getAssetIssueListFun(){

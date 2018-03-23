@@ -1,4 +1,5 @@
 
+<script src="/js/utils/asset.js" type="text/javascript"></script>
 <section class="accountQuery account_list">
     <h4>资产列表</h4>
     <form action="" method="post" class="myform">
@@ -126,13 +127,14 @@
         <span id="desc">
 
         </span></p>
-    <p class="cou_hei"><span>参与数量</span><span><input type="text"> =10000TRX</span></p>
-    <p class="cou_hei"><span>输入密码</span><span><input type="text"></span></p>
+    <p class="cou_hei"><span>参与数量</span><span><input type="text" id="amount" name="amount" /></span></p>
+    <!--<p class="cou_hei"><span>参与数量</span><span><input type="text"> =10000TRX</span></p>-->
+    <p class="cou_hei"><span>输入密码</span><span><input type="text" id="myKey" name="myKey" /></span></p>
     <p class="check">
         <input type="checkbox">
         我已确认花费1000.000TRX参与资产发行，获得ABITS.CNY100.0000数量的资产
     </p>
-    <input type="button" class="liner_granet sure_dele" value="确认交易">
+    <input type="button" class="liner_granet sure_dele" id="participateBtn" onclick="submitParticipateAssetIssue()" value="确认交易">
 </scetion>
 <script type="text/javascript">
     $('.all_count').on('click',function () {
@@ -150,5 +152,3 @@
     //     $('#addcount').css('display','block');
     // })
 </script>
-
-<script src="/js/utils/asset.js" type="text/javascript"></script>
