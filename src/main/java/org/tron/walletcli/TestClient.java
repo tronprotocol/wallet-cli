@@ -160,7 +160,8 @@ public class TestClient {
       List<AssetIssueContract> list = assetIssueList.getAssetIssueList();
       for (int i = 0; i < list.size(); i++) {
         AssetIssueContract assetIssueContract = list.get(i);
-        logger.info("Address::" + ByteArray.toHexString(assetIssueContract.getOwnerAddress().toByteArray()));
+        logger.info("Address::" + ByteArray
+            .toHexString(assetIssueContract.getOwnerAddress().toByteArray()));
         logger.info("assetIssueContract[" + assetIssueContract + "]");
       }
     } else {
@@ -181,7 +182,7 @@ public class TestClient {
 
     boolean result = client.sendCoin(password, toAddress, amount);
     if (result) {
-      logger.info("Send " + amount+ " dron to " + toAddress + " successful !!");
+      logger.info("Send " + amount + " dron to " + toAddress + " successful !!");
     } else {
       logger.info("Send " + amount + " dron to " + toAddress + " failed !!");
     }
@@ -324,7 +325,8 @@ public class TestClient {
       List<AssetIssueContract> list = assetIssueList.getAssetIssueList();
       for (int i = 0; i < list.size(); i++) {
         AssetIssueContract assetIssueContract = list.get(i);
-        logger.info("Address::" + ByteArray.toHexString(assetIssueContract.getOwnerAddress().toByteArray()));
+        logger.info("Address::" + ByteArray
+            .toHexString(assetIssueContract.getOwnerAddress().toByteArray()));
         logger.info("assetIssueContract[" + assetIssueContract + "]");
       }
     } else {
@@ -392,7 +394,7 @@ public class TestClient {
     }
   }
 
-  private void help(){
+  private void help() {
     System.out.println("You can enter the following command: ");
 
     System.out.println("RegisterWallet");
@@ -434,7 +436,7 @@ public class TestClient {
       String cmdLowerCase = cmd.toLowerCase();
 
       switch (cmdLowerCase) {
-        case "help":{
+        case "help": {
           help();
           break;
         }
