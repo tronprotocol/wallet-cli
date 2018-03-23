@@ -20,6 +20,7 @@ function QueryWitnessSuccess(data) {
 
     //调用方法deserializeBinary解析
     var witness = proto.protocol.WitnessList.deserializeBinary(bytesWitnessList);
+
     var witnessList = witness.getWitnessesList()
 
     if(witnessList.length >0){

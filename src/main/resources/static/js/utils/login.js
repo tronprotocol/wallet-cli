@@ -32,8 +32,8 @@ $('#login').on('click',function () {
         $('#header_login').css('display','inline-block');
         $('#center').css('display','inline-block');
         $('.motal').css('display','none');
-        $('#repawd').val('');
         window.localStorage.setItem('key',$('#repawd').val());
+        $('#repawd').val('');
     }
 })
 //注册账户 复制文本
