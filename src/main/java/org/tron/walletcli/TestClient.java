@@ -389,7 +389,7 @@ public class TestClient {
   private void voteWitness(String[] parameters) {
     if (parameters == null || parameters.length < 3 || (parameters.length & 1) != 1) {
       System.out.println("Use VoteWitness command you need like: ");
-      System.out.println("VoteWitness Address0 Count0 ... AddressN CountN");
+      System.out.println("VoteWitness Password Address0 Count0 ... AddressN CountN");
       return;
     }
 
@@ -409,6 +409,34 @@ public class TestClient {
     }
   }
 
+  private void help(){
+    System.out.println("You can enter the following command: ");
+
+    System.out.println("RegisterWallet");
+    System.out.println("ImportWallet");
+    System.out.println("ChangePassword");
+    System.out.println("Login");
+    System.out.println("Logout");
+    System.out.println("BackupWallet");
+    System.out.println("Getaddress");
+    System.out.println("GetBalance");
+    System.out.println("GetAccount");
+    System.out.println("GetAssetissueByAccount");
+    System.out.println("SendCoin");
+    System.out.println("TransferAsset");
+    System.out.println("ParticipateAssetissue");
+    System.out.println("Assetissue");
+    System.out.println("CreateWitness");
+    System.out.println("VoteWitness");
+    System.out.println("Listaccounts");
+    System.out.println("Listwitnesses");
+    System.out.println("Listassetissue");
+    System.out.println("Getblock");
+    System.out.println("Exit or Quit");
+
+    System.out.println("Input any one of then, you will get more tips.");
+  }
+
   private void run() {
     Scanner in = new Scanner(System.in);
     while (true) {
@@ -423,6 +451,10 @@ public class TestClient {
       String cmdLowerCase = cmd.toLowerCase();
 
       switch (cmdLowerCase) {
+        case "help":{
+          help();
+          break;
+        }
         case "registerwallet": {
           registerWallet(parameters);
           break;
@@ -510,31 +542,8 @@ public class TestClient {
         }
         default: {
           System.out.println("Invalid cmd: " + cmd);
-          System.out.println("You can enter the following command: ");
+          help();
 
-          System.out.println("RegisterWallet");
-          System.out.println("ImportWallet");
-          System.out.println("ChangePassword");
-          System.out.println("Login");
-          System.out.println("Logout");
-          System.out.println("BackupWallet");
-          System.out.println("Getaddress");
-          System.out.println("GetBalance");
-          System.out.println("GetAccount");
-          System.out.println("GetAssetissueByAccount");
-          System.out.println("SendCoin");
-          System.out.println("TransferAsset");
-          System.out.println("ParticipateAssetissue");
-          System.out.println("Assetissue");
-          System.out.println("CreateWitness");
-          System.out.println("VoteWitness");
-          System.out.println("Listaccounts");
-          System.out.println("Listwitnesses");
-          System.out.println("Listassetissue");
-          System.out.println("Getblock");
-          System.out.println("Exit or Quit");
-
-          System.out.println("Input any one of then, you will get more tips.");
         }
       }
     }
