@@ -188,7 +188,7 @@ public class TestClient {
   private void sendCoin(String[] parameters) {
     if (parameters == null || parameters.length != 3) {
       System.out.println("SendCoin need 3 parameter like following: ");
-      System.out.println("GetAssetIssueByAccount Password ToAddress Amount");
+      System.out.println("SendCoin Password ToAddress Amount");
       return;
     }
     String password = parameters[0];
