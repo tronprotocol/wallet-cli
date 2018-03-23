@@ -11,12 +11,17 @@ createAssetSuccessCallback = function (data) {
     var privateKey = base64DecodeFromString($("#privateKey").val());
     var transation = getTransActionFromBase64String(data);
     var transationAfterSign = signTransaction(privateKey, transation);
-    var transationHex = byteArray2hexStr(transationAfterSign)
-    ajaxRequest("post", signView, transationHex, signSuccessCallback, createAssetFailureCallback)
+    var transationHex = byteArray2hexStr(transationAfterSign.serializeBinary());
+    var para = "transactionData=" + transationHex;
+    ajaxRequest("post", signView, para, signSuccessCallback, createAssetFailureCallback)
 }
 
 signSuccessCallback = function (data) {
-    alert("发行资产成功");
+    if(data) {
+        alert("发行资产成功");
+    }else{
+        alert("发行资产失败");
+    }
 }
 
 createAssetFailureCallback = function (data) {
