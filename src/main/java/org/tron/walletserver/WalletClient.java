@@ -119,11 +119,11 @@ public class WalletClient {
     byte[] pwd = getPassWord(password);
     String pwdAsc = ByteArray.toHexString(pwd);
     byte[] privKeyPlain = ecKey.getPrivKeyBytes();
+    System.out.println("privKey:" + ByteArray.toHexString(privKeyPlain));
     //encrypted by password
     byte[] aseKey = getEncKey(password);
     byte[] privKeyEnced = SymmEncoder.AES128EcbEnc(privKeyPlain, aseKey);
     String privKeyStr = ByteArray.toHexString(privKeyEnced);
-    System.out.println("privKeyStr:" + privKeyStr);
     byte[] pubKeyBytes = ecKey.getPubKey();
     String pubKeyStr = ByteArray.toHexString(pubKeyBytes);
     // SAVE PASSWORD

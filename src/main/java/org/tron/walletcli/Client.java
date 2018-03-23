@@ -106,17 +106,13 @@ public class Client {
   }
 
   //password is current, will be enc by password2.
-  public String backupWallet(String password, String encPassword) {
+  public String backupWallet(String password) {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: BackupWallet failed, Please login first !!");
       return null;
     }
     if (!WalletClient.passwordValid(password)) {
       logger.warn("Warning: BackupWallet failed, password is Invalid !!");
-      return null;
-    }
-    if (!WalletClient.passwordValid(encPassword)) {
-      logger.warn("Warning: BackupWallet failed, encPassword is Invalid !!");
       return null;
     }
 
@@ -139,9 +135,7 @@ public class Client {
     ECKey ecKey = wallet.getEcKey();
     byte[] privKeyPlain = ecKey.getPrivKeyBytes();
     //Enced by encPassword
-    byte[] aseKey = WalletClient.getEncKey(encPassword);
-    byte[] privKeyEnced = SymmEncoder.AES128EcbEnc(privKeyPlain, aseKey);
-    String priKey = ByteArray.toHexString(privKeyEnced);
+    String priKey = ByteArray.toHexString(privKeyPlain);
 
     return priKey;
   }
@@ -295,9 +289,9 @@ public class Client {
       }
       builder.setNum(icoNum);
       long now = System.currentTimeMillis();
-      if (startTime <= now) {
-        return false;
-      }
+//      if (startTime <= now) {
+//        return false;
+//      }
       if (endTime <= startTime) {
         return false;
       }
