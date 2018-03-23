@@ -100,12 +100,10 @@
          </div>
          <p>单价：1.0000/TRX</p>
          <p>
-             <span class="start_time">起始时间:
-                 <div class="layui-input-inline">
-                     <input type="text" class="layui-input"  placeholder="yyyy-MM-dd HH:mm:ss" >
-                </div>
+             <span class="start_time">起始时间:<input type="text" class="layui-input" id="startTimeFormat" name="startTimeFormat"/>
+
              </span>
-             <span class="end_time">结束时间:2018年03月01日</span>
+             <span class="end_time">结束时间: <input type="text" class="layui-input" id="endTimeFormat" name="endTimeFormat"/></span>
          </p>
          <p>资产描述</p>
          <input type="text" id="description" name="description"/>
@@ -148,7 +146,8 @@
         $('.account_list').css('display','none');
         $('.myaccount').css('display','block');
     })
-    $('.add_account').on('click',function () {
+    console.log($('.add_account'))
+    $('tbody').delegate('.add_account','click',function () {
         $('.account_list').css('display','none');
         $('#addcount').css('display','block');
     })

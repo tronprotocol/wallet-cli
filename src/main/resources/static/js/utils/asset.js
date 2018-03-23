@@ -28,7 +28,7 @@ getAssetListSuccessCallback = function (data) {
         var endTime = assetIssueList[i].getEndTime();
         var formattedStartTime = formateDate(startTime);
         var formattedEndTime = formateDate(endTime);
-        if((startTime < curTime && curTime< endTime)){
+        if(!(startTime < curTime && curTime< endTime)){
             content += "<tr><td>" + name + "</td><td>" + ownerAddress + "</td><td>" + totalSupply + "</td> <td class='stop'>1</td><td><input type='button' class='add_account time_end' value='参与'/></td></tr>";
         }else{
             content += "<tr><td>" + name + "</td><td>" + ownerAddress + "</td><td>" + totalSupply + "</td> <td > " + formattedStartTime + " - " + formattedEndTime + " </td><td><input type='button' class='add_account' value='参与'/></td></tr>";
@@ -46,8 +46,10 @@ getAssetListFailureCallback = function (data) {
 $(document).ready(function() {
     $("#creatAssetBtn").click(function() {
         var address = getAddressFromPriKeyBase64String($("#privateKey").val());
-        var data = $("#createAssetForm").serialize() + "&ownerAddress=" + address;
-        ajaxRequest("post", createAssetView, data, createAssetSuccessCallback, createAssetFailureCallback);
+        var start = Date.parse(new Date($("#startTimeFormat").val()));
+        var end = Date.parse(new Date($("#endTimeFormat").val()));
+        var data = $("#createAssetForm").serialize() + "&ownerAddress=" + address + "&startTime=" + start + "&endTime=" + end;
+        ajaxRequest("post", "/createAssetIssueToView", data, createAssetSuccessCallback, createAssetFailureCallback);
     })
 })
 
@@ -69,7 +71,7 @@ signSuccessCallback = function (data) {
 }
 
 createAssetFailureCallback = function (data) {
-    alert("发行资产失败");
+    alert("发行资产失败1");
 }
 
 function getAssetIssueListFun(){
