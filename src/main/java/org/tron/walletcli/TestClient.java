@@ -2,8 +2,6 @@ package org.tron.walletcli;
 
 import com.beust.jcommander.JCommander;
 import com.google.protobuf.ByteString;
-import java.util.List;
-import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tron.api.GrpcAPI.AccountList;
@@ -11,11 +9,6 @@ import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Utils;
-
-import java.util.Arrays;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Scanner;
 import org.tron.protos.Contract.AssetIssueContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
@@ -23,6 +16,8 @@ import org.tron.protos.Protocol.BlockHeader;
 import org.tron.protos.Protocol.BlockHeader.raw;
 import org.tron.protos.Protocol.Witness;
 import org.tron.walletserver.WalletClient;
+
+import java.util.*;
 
 public class TestClient {
 
@@ -196,11 +191,14 @@ public class TestClient {
     String amountStr = parameters[2];
     long amount = new Long(amountStr);
 
-    boolean result = client.sendCoin(password, toAddress, amount);
-    if (result) {
-      logger.info("Send " + amount + " dron to " + toAddress + " successful !!");
-    } else {
-      logger.info("Send " + amount + " dron to " + toAddress + " failed !!");
+    for (int i = 0; i < 10000; i++){
+      boolean result = client.sendCoin(password, toAddress, amount+i);
+      if (result) {
+        logger.info("Send " + (amount+i) + " dron to " + toAddress + " successful !!");
+      } else {
+        logger.info("Send " + (amount+i) + " dron to " + toAddress + " failed !!");
+        break;
+      }
     }
   }
 
