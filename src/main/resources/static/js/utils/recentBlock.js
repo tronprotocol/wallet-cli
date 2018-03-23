@@ -1,11 +1,5 @@
 
-var currentNum=$("#block_num").text();
-var current=Number(currentNum)
 
-
-var data ={
- "num" : current -1
-};
 
 TransSuccessCallback = function (data) {
   var recentBlock = base64DecodeFromString(data);
@@ -22,16 +16,14 @@ TransSuccessCallback = function (data) {
   console.log(blockNumber+" ::: "+time+" ::: "+witnessAddressHex+" ::: "+transactionNum);
 
 
-
-
-var html= '<div  class="mr_left">'
-    + '<p>区块  #'+ blockNumber+'</p>'
-    + '<p>'+time+'前</p>'
-    + ' </div>'
-    + '<div class="mr_right">'
-    + '<p>见证人'+witnessAddressHex+'  </p><p>'
-    + '<span>交易数：'+transactionNum+'</span>'
-    +'<span>大小：'+big+'</span></p></div>';
+  var html= '<div  class="mr_left">'
+      + '<p>区块  #'+ blockNumber+'</p>'
+      + '<p>'+time+'前</p>'
+      + ' </div>'
+      + '<div class="mr_right">'
+      + '<p>见证人'+witnessAddressHex+'  </p><p>'
+      + '<span>交易数：'+transactionNum+'</span>'
+      +'<span>大小：'+big+'</span></p></div>';
 
 $("#recentBlock").html(html);
 
