@@ -117,16 +117,14 @@
 
 <scetion id="addcount">
     <h4>参与资产发行</h4>
-    <p><span>资产名称</span><span>90E1DB0D7DC07FD</span></p>
-    <p><span>资产发行人</span><span>90E1DB0D7DCF4F5FD</span></p>
-    <p><span>资产总供应量</span><span>90E1DBFD</span></p>
-    <p><span>资产单价</span><span>90E1DB0DF278707FD</span></p>
-    <p><span>起止时间</span><span>90E1DFF278707FD</span></p>
+    <p><span>资产名称</span><span id="assetName"></span></p>
+    <p><span>资产发行人</span><span id="ownAddress"></span></p>
+    <p><span>资产总供应量</span><span id="assetTotalSupply"></span></p>
+    <p><span>资产单价</span><span id="price"></span></p>
+    <p><span>起止时间</span><span id="lastTime"></span></p>
     <p><span>描述信息</span>
-        <span>
-            <select name="" >
-                <option value="">3241</option>
-            </select>
+        <span id="desc">
+
         </span></p>
     <p class="cou_hei"><span>参与数量</span><span><input type="text"> =10000TRX</span></p>
     <p class="cou_hei"><span>输入密码</span><span><input type="text"></span></p>
@@ -147,10 +145,10 @@
         $('.myaccount').css('display','block');
     })
     console.log($('.add_account'))
-    $('tbody').delegate('.add_account','click',function () {
-        $('.account_list').css('display','none');
-        $('#addcount').css('display','block');
-    })
+    // $('tbody').delegate('.add_account','click',function () {
+    //     $('.account_list').css('display','none');
+    //     $('#addcount').css('display','block');
+    // })
 </script>
 
 <script src="/js/utils/asset.js" type="text/javascript"></script>

@@ -26,6 +26,7 @@ GetAccountSuccessCallback = function (account) {
   var AccountData = proto.protocol.Account.deserializeBinary(account);
   var AssetMap = AccountData.getAssetMap().toArray();
 
+
   str = ''
   console.log("balance:" + AccountData.getBalance());
   if (AccountData.getBalance() > 0) {
