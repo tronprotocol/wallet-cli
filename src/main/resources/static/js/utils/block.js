@@ -15,6 +15,7 @@ TransSuccessCallback = function (data) {
   var parenthash
   var parenthashHex;
   var currentBlock = base64DecodeFromString(data);
+  var contractList
 
   var blockData = proto.protocol.Block.deserializeBinary(currentBlock);
   var blockNumber= blockData.getBlockHeader().getRawData().getNumber();
@@ -34,7 +35,7 @@ TransSuccessCallback = function (data) {
     for (var i = 0; i < txlist.length; i++) {
 
       var transaction = txlist[i];
-      var contractList = getContractListFromTransaction(transaction);
+       contractList = getContractListFromTransaction(transaction);
 
       for (var i = 0; i < contractList.length; i++) {
 
