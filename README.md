@@ -27,45 +27,26 @@ cd wallet-cli
  
 You can enter the following command: 
 RegisterWallet
-
 ImportWallet
-
+ImportwalletByBase64
 ChangePassword
-
 Login
-
 Logout
-
 BackupWallet
-
+BackupWallet2Base64
 Getaddress
-
 GetBalance
-
 GetAccount
-
 GetAssetissueByAccount
-
 SendCoin
-
 TransferAsset
-
 ParticipateAssetissue
-
 Assetissue
-
 CreateWitness
-
 VoteWitness
-
 Listaccounts
-
 Listwitnesses
-
 Listassetissue
-
 Getblock
-
 Exit or Quit
-
 Input any one of then, you will get more tips.
