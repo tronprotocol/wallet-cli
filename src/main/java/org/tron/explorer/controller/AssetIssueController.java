@@ -85,8 +85,7 @@ public class AssetIssueController {
   }
 
   @GetMapping("/getAssetIssueList")
-  public byte[] getAssetIssueList()
-      throws IOException {
+  public byte[] getAssetIssueList() throws IOException {
     try {
       Optional<AssetIssueList> result = WalletClient.getAssetIssueList();
       if (result.isPresent()) {
@@ -100,8 +99,7 @@ public class AssetIssueController {
   }
 
   @GetMapping("/getAssetIssueByAccount")
-  public byte[] getAssetIssueByAccount(String address)
-      throws IOException {
+  public byte[] getAssetIssueByAccount(String address) throws IOException {
     try {
       if (!WalletClient.addressValid(address)) {
         return null;

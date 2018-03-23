@@ -1,5 +1,7 @@
 
-var baseUrl = 'http://localhost:8088/';
+//var baseUrl = 'http://localhost:8088/';
+var baseUrl = 'http://192.168.10.195:8088/';
+
 
 
 var trans = baseUrl+'sendCoinToView'; //转账接口
@@ -12,4 +14,5 @@ var getBlockByNumToView = baseUrl +'getBlockByNumToView' //recent block
 
 var createAssetView = baseUrl + 'createAssetIssueToView' //发行资产
 var signView = baseUrl + 'transactionFromView'; //签名接口
+var assetIssueListView = baseUrl + 'getAssetIssueList'; //资产列表
 
