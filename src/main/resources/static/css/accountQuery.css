@@ -191,3 +191,32 @@ count_detail
 .tbody tr:nth-of-type(even){
 	background: #fff;
 }
+#coun_pwd{
+	font-size: 14px;
+	display: none;
+}
+#coun_pwd p{
+	color: #333;
+	margin-left: 10px;
+	line-height: 30px;
+}
+#coun_pwd p span{
+	display: inline-block;
+	width:40%;
+}
+#coun_pwd p span:nth-of-type(2){
+	margin-left: 50px;
+}
+.sele_ctcount{
+	width: 100%;
+}
+.select select{
+	width: 80%;
+	margin: 10px;
+}
+.count_pwd{
+	width: 80%;
+	border: 1px solid #ccc;
+	border-radius: 2px;
+	margin: 10px 0 0 10px;
+}
