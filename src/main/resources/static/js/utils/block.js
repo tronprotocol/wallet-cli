@@ -55,7 +55,7 @@ TransSuccessCallback = function (data) {
     $("#witness_num").text(witnessNum);
 
 
-
+// get before block
   ajaxRequest( "GET",getBlockByNumToView,{num:blockNumber-1},TransSuccessCallback,TransFailureCallback);
 
 };
