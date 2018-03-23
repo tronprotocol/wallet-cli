@@ -45,7 +45,7 @@ $(document).ready(function(){
         $('#text').load('html/count.html');
     });
     $('#a_witness').on('click',function () {
-        ajaxRequest( "GET",witelist,data,TransSuccessCallback,TransFailureCallback)
+        ajaxGet(witelist, data, TransSuccessCallback, TransFailureCallback);
     })
 
     TransSuccessCallback = function (data) {

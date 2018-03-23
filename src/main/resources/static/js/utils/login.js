@@ -119,7 +119,7 @@ $('#change').on('click',function () {
         $('.num_warn').css('display','block');
         return;
     };
-     ajaxRequest( "POST",trans,data,TransSuccessCallback,TransFailureCallback)
+    ajaxPost(trans, data, TransSuccessCallback, TransFailureCallback);
 })
 var data ={
     "Address":com_text,

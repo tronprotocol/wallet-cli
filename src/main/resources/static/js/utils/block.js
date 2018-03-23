@@ -5,7 +5,7 @@ $(function () {
 });
 
 
-ajaxRequest( "GET",getBlockToView,data,TransSuccessCallback,TransFailureCallback);
+ajaxGet(getBlockToView, data, TransSuccessCallback, TransFailureCallback);
 
 var data ={
 
