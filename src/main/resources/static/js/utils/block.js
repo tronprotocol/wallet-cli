@@ -31,16 +31,14 @@ TransSuccessCallback = function (data) {
 
   if(txlist.length >0) {
     for (var i = 0; i < txlist.length; i++) {
-      var transactionType = txlist[i].getRawData().getType();
 
-      if (transactionType == 1) {
-        contractList = transactionType.getContractList();
-        for (var i = 0; i < contractList.length; i++) {
-          contractType = contractList[i].getType();
-          if (contractType == 1) {
-            console.log("contract is : " + contractList[i]);
-            console.log("contractType is : " + contractType);
+      var transaction = txlist[i];
+      var contractList = getContractListFromTransaction(transaction);
 
+      for (var i = 0; i < contractList.length; i++) {
+
+        console.log("tx is : "+contractList[i]);
+      }
 
 
             str += '<p class="transfer">'
@@ -53,11 +51,8 @@ TransSuccessCallback = function (data) {
 
           }
         }
-      }
 
-    }
-  }
-   $('#tablHtml').html(str);
+
     $("#block_num").text(blockNumber);
     $("#witness_num").text(witnessNum);
 

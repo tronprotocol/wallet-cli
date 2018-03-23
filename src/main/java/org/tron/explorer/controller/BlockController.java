@@ -24,8 +24,9 @@ public class BlockController {
 
 
   @GetMapping("/getBlockByNumToView")
-
   public byte[] getBlockByNumToView(long num) {
+    System.out.println("num is : " +num);
+
     Block currentBlock = WalletClient.GetBlock(num);
     return currentBlock.toByteArray();
 
