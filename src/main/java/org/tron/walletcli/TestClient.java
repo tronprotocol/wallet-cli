@@ -2,6 +2,8 @@ package org.tron.walletcli;
 
 import com.beust.jcommander.JCommander;
 import com.google.protobuf.ByteString;
+import java.util.Base64.Decoder;
+import java.util.Base64.Encoder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tron.api.GrpcAPI.AccountList;
@@ -48,6 +50,25 @@ public class TestClient {
     }
     String password = parameters[0];
     String priKey = parameters[1];
+
+    if (client.importWallet(password, priKey)) {
+      logger.info("Import a wallet and store it successful !!");
+    } else {
+      logger.info("Import a wallet failed !!");
+    }
+  }
+
+  private void importwalletByBase64(String[] parameters) {
+    if (parameters == null || parameters.length != 2) {
+      System.out.println("ImportwalletByBase64 need 2 parameter like following: ");
+      System.out.println("ImportwalletByBase64 Password PriKey");
+      System.out.println("PriKey need base64 string format.");
+      return;
+    }
+    String password = parameters[0];
+    String priKey64 = parameters[1];
+    Decoder decoder = Base64.getDecoder();
+    String priKey = ByteArray.toHexString(decoder.decode(priKey64));
 
     if (client.importWallet(password, priKey)) {
       logger.info("Import a wallet and store it successful !!");
@@ -105,6 +126,22 @@ public class TestClient {
     if (priKey != null) {
       logger.info("Backup a wallet successful !!");
       logger.info("priKey = " + priKey);
+    }
+  }
+
+  private void backupWallet2Base64(String[] parameters) {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("BackupWallet2Base64 need 1 parameter like following: ");
+      System.out.println("BackupWallet2Base64 Password ");
+      return;
+    }
+    String password = parameters[0];
+    String priKey = client.backupWallet(password);
+    Encoder encoder = Base64.getEncoder();
+    String priKey64 = encoder.encodeToString(ByteArray.fromHexString(priKey));
+    if (priKey != null) {
+      logger.info("Backup a wallet successful !!");
+      logger.info("priKey = " + priKey64);
     }
   }
 
@@ -399,10 +436,12 @@ public class TestClient {
 
     System.out.println("RegisterWallet");
     System.out.println("ImportWallet");
+    System.out.println("ImportwalletByBase64");
     System.out.println("ChangePassword");
     System.out.println("Login");
     System.out.println("Logout");
     System.out.println("BackupWallet");
+    System.out.println("BackupWallet2Base64");
     System.out.println("Getaddress");
     System.out.println("GetBalance");
     System.out.println("GetAccount");
@@ -448,6 +487,10 @@ public class TestClient {
           importWallet(parameters);
           break;
         }
+        case "importwalletbybase64": {
+          importwalletByBase64(parameters);
+          break;
+        }
         case "changepassword": {
           changePassword(parameters);
           break;
@@ -462,6 +505,10 @@ public class TestClient {
         }
         case "backupwallet": {
           backupWallet(parameters);
+          break;
+        }
+        case "backupwallet2base64": {
+          backupWallet2Base64(parameters);
           break;
         }
         case "getaddress": {

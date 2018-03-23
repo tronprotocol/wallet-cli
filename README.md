@@ -26,9 +26,12 @@ cd wallet-cli
 ./gradlew run -Pcmd
  
 You can enter the following command: 
+
 RegisterWallet
 
 ImportWallet
+
+ImportwalletByBase64
 
 ChangePassword
 
@@ -37,6 +40,8 @@ Login
 Logout
 
 BackupWallet
+
+BackupWallet2Base64
 
 Getaddress
 
