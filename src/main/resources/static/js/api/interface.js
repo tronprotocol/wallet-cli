@@ -12,4 +12,5 @@ var getBlockByNumToView = baseUrl +'getBlockByNumToView' //recent block
 
 var createAssetView = baseUrl + 'createAssetIssueToView' //发行资产
 var signView = baseUrl + 'transactionFromView'; //签名接口
+var assetIssueListView = baseUrl + 'getAssetIssueList'; //资产列表
 
