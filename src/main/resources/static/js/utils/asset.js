@@ -49,12 +49,12 @@ function submitParticipateAssetIssue() {
 }
 
 submitParticipateAssetIssueSuccessCallback = function (data) {
-    var privateKey = base64DecodeFromString($("#mykey").val());
+    var privateKey = base64DecodeFromString($("#myKey").val());
     var transation = getTransActionFromBase64String(data);
     var transationAfterSign = signTransaction(privateKey, transation);
     var transationHex = byteArray2hexStr(transationAfterSign.serializeBinary());
     var para = "transactionData=" + transationHex;
-    ajaxRequest("post", signView, para, submitAssetIssueSuccessCallback, submitAssetIssueFailureCallback)
+    ajaxRequest("post", "/transactionFromView", para, submitAssetIssueSuccessCallback, submitAssetIssueFailureCallback)
 }
 
 submitAssetIssueSuccessCallback = function (data) {
