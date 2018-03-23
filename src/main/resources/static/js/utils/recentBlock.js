@@ -30,7 +30,7 @@ var html= '<div  class="mr_left">'
   '<span>交易数：'+transactionNum+'</span>'
   '<span>大小：2456</span></p></div>'
 
-$("#currentBlock").html(html);
+$("#recentBlock").html(html);
 
 
 };
