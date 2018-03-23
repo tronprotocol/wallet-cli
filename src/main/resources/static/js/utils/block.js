@@ -12,11 +12,18 @@ TransSuccessCallback = function (data) {
   var sendname;
   var toname;
   var time;
+  var parenthash
+  var parenthashHex;
   var currentBlock = base64DecodeFromString(data);
 
   var blockData = proto.protocol.Block.deserializeBinary(currentBlock);
   var blockNumber= blockData.getBlockHeader().getRawData().getNumber();
   var witnessId=blockData.getBlockHeader().getRawData().getWitnessId();
+   parenthash=blockData.getBlockHeader().getRawData().getParenthash();
+   parenthashHex=byteArray2hexStr(parenthash);
+
+  console.log("parenthashHex : "+parenthashHex);
+
   var witnessNum=1;
 
   console.log("blockNumber : "+blockNumber+" witnessId : "+witnessId);
@@ -53,6 +60,8 @@ TransSuccessCallback = function (data) {
 
     $("#block_num").text(blockNumber);
     $("#witness_num").text(witnessNum);
+
+   // $("#beforeBlock").text(parenthashHex);
 
 
 // get before block
