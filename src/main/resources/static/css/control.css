@@ -116,8 +116,13 @@
     background-image: -moz-linear-gradient(top, #80afff, #2185ff); /* Firefox */
     background-image: -webkit-gradient(linear, left top, left bottom, color-stop(0, #80afff), color-stop(1, #2185ff)); /* Saf4+, Chrome */
     filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#80afff', endColorstr='#2185ff'); /* IE*/
-
 }
+
+.disable_btn{
+    background-image: -moz-linear-gradient(top, #97aec7, #97aec7); /* Firefox */
+    background-image:-webkit-gradient(linear, left top, left bottom, color-stop(0, #97aec7), color-stop(1, #97aec7))
+}
+
 /*
 vote
 */

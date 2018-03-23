@@ -12,6 +12,7 @@ $('.login_html').on('click',function () {
     $('#wel_login').css('display','none');
     $('.article_login').css('display','block')
 });
+
 $('.wel_active').on('click',function () {
     $('.motal').css('display','block')
 });
@@ -20,15 +21,19 @@ $('#repawd').bind('input propertychange',function(){
 })
 $('.no').on('click',function () {
     $('.motal').css('display','none');
-    $('.mona_warn').css('display','none')
+    $('.mona_warn').css('display','none');
+    $('#repawd').val('');
 })
 $('#login').on('click',function () {
-    if($('#repawd').val() == ''){
+    if($('#repawd').val() == ''||$('#repawd').val().length<20){
         $('.mona_warn').css('display','block')
     }else{
-        $('#create').css('display','none')
+        $('#create').css('display','none');
         $('#header_login').css('display','inline-block');
         $('#center').css('display','inline-block');
+        $('.motal').css('display','none');
+        $('#repawd').val('');
+        window.localStorage.setItem('key',$('#repawd').val());
     }
 })
 //注册账户 复制文本
@@ -50,7 +55,6 @@ function copyUrl2 (repeat) {
     document.execCommand('Copy','false',null);
 }
 $('#submit').on('click',function () {
-
     priKeyBytes = genPriKey();
     //return address by bytes, priKeyBytes is byte[]
     addressBytes = getAddressFromPriKey(priKeyBytes);
@@ -58,10 +62,7 @@ $('#submit').on('click',function () {
     address = byteArray2hexStr(addressBytes);
     accountName = $("#name").val();
     //TODO fix privateKey store
-   // $("#privateKey").val(priKeyBytes);
     $("#contents").text(address);
-    // console.log($("#contents").text())
-
     // priKeyBytes = genPriKey();
     var pk = base64EncodeToString(priKeyBytes);
     // console.log(pk)
@@ -69,6 +70,7 @@ $('#submit').on('click',function () {
     $('#create').css('display','none')
     $('#header_login').css('display','inline-block');
     $('#center').css('display','inline-block');
+    window.localStorage.setItem('key',pk)
 })
 
 /*
