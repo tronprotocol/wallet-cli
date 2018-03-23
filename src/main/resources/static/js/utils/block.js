@@ -35,40 +35,38 @@ TransSuccessCallback = function (data) {
     for (var i = 0; i < txlist.length; i++) {
 
       var transaction = txlist[i];
-       contractList = getContractListFromTransaction(transaction);
+      if (transaction.length > 0) {
+        contractList = getContractListFromTransaction(transaction);
 
-      for (var i = 0; i < contractList.length; i++) {
+        for (var i = 0; i < contractList.length; i++) {
 
+          var tx = base64EncodeToString(contractList[i]);
 
-        var tx= base64EncodeToString(contractList[i]);
+          console.log("tx is : " + tx);
 
-        console.log("tx is : "+tx);
-
-      }
-
-
-            str += '<p class="transfer">'
-                +'<button >转账</button>'
-                +'<span class="tran_name">'+sendname+'</span>'
-                +'<span>将'+balance+ 'TRX转帐给</span>'
-                +'<span class="tran_name">'+toname+'</span>'
-                +'<span>'+time+'秒钟前</span>'
-                +'</p>';
-
-          }
         }
 
+        str += '<p class="transfer">'
+            + '<button >转账</button>'
+            + '<span class="tran_name">' + sendname + '</span>'
+            + '<span>将' + balance + 'TRX转帐给</span>'
+            + '<span class="tran_name">' + toname + '</span>'
+            + '<span>' + time + '秒钟前</span>'
+            + '</p>';
+
+      }
+    }
 
     $("#block_num").text(blockNumber);
     $("#witness_num").text(witnessNum);
 
-   // $("#beforeBlock").text(parenthashHex);
-
+    // $("#beforeBlock").text(parenthashHex);
 
 // get before block
-  ajaxRequest( "GET",getBlockByNumToView,{num:blockNumber-1},TransSuccessCallback,TransFailureCallback);
-
-};
+    ajaxRequest("GET", getBlockByNumToView, {num: blockNumber - 1},
+        TransSuccessCallback, TransFailureCallback);
+   }
+  };
 
 TransFailureCallback = function (err) {
   console.log('err')
