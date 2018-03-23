@@ -1,11 +1,5 @@
 
 
-ajaxRequest( "GET",getBlockToView,data,TransSuccessCallback,TransFailureCallback);
-
-var data ={
-
-};
-
 
 
 TransSuccessCallback = function (data) {
@@ -63,3 +57,7 @@ TransSuccessCallback = function (data) {
 TransFailureCallback = function (err) {
   console.log('err')
 };
+
+ajaxRequest( "GET",getBlockToView,{},TransSuccessCallback,TransFailureCallback);
+
+
