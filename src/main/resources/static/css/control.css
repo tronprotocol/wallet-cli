@@ -147,12 +147,10 @@ vote
     filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#80afff', endColorstr='#2185ff'); /* IE*/
 }
 .vote_act{
-    height: 30px;
-    width: 60px;
-    border-radius: 5px;
-    border: 0;
-    background-color: #b4b4b4;
-    color: #d8d8de;
+    font-size: 12px;
+    border-radius: 3px;
+    border: 1px solid #ccc;
+
 }
 .voted{
     background-color: #fff;
@@ -228,14 +226,13 @@ set
     content: '';
 }
 .balance ,.price{
-    height: 370px;
-    width: 48%;
+    height: auto;
+    width: 100%;
     background-color: #fff;
     box-shadow: 5px 5px 10px #f0f3f6;
-    float: left;
-}
-.price{
-    float: right;
+    /*float: left;*/
+    font-size: 14px;
+    padding: 20px;
 }
 .information{
     float: left;
@@ -261,9 +258,24 @@ set
     color: #64768a;
     margin-right: 100px;
 }
+.price table{
+    font-size: 14px;
+    width: 100%;
+    text-align: center;
 
-
-
+}
+.price h6{
+    font-size: 20px;
+    display: inline-block;
+    color: #ccc;
+}
+.price .liner_granet{
+    float: right;
+    border: 0;
+    width: 90px;
+    height: 20px;
+    border-radius: 2px;
+}
 
 
 

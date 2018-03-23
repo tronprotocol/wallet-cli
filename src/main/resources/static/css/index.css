@@ -9,3 +9,44 @@ body ,html{
     margin-left: 50px;
     padding: 8px;
 }
+/*发行资产*/
+#addcount{
+    /*display: block;*/
+    font-size: 14px;
+    width: 50%;
+    margin: auto;
+    display: none;
+}
+#addcount h4{
+    font-size: 18px;
+    color: #428dff;
+    margin: 20px 0;
+}
+#addcount p{
+    line-height: 30px;
+}
+#addcount p span{
+    display: inline-block;
+    width: 45%;
+}
+#addcount p span:nth-of-type(2){
+    width: 30%;
+}
+#addcount p span input{
+border: 1px solid #ccc;
+    border-radius: 2px;
+    height: 20px;
+}
+#addcount .cou_hei{
+    line-height: 50px;
+}
+.sure_dele{
+    display: block;
+    height: 30px;
+    width: 400px;
+    border-radius: 5px;
+    margin:50px auto;
+}
+.check{
+    margin-top: 100px;
+}

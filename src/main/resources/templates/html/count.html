@@ -3,9 +3,9 @@
     <h4>资产列表</h4>
     <form action="" method="post" class="myform">
         <div class="search">
-            <input type="text" value="" placeholder="搜索账户" id="search" name="search">
-            <input type="button" id="creat_asset" class="liner_granet" value="创建资产">
-            <input type="button" id="my_asset" class="liner_granet" value="我的资产">
+            <!--<input type="text" value=""  placeholder="搜索账户" id="search" name="search">-->
+            <input type="button" id="creat_asset" class="liner_granet" value="我发行的资产">
+            <!--<input type="button" id="my_asset" class="liner_granet" value="我的资产">-->
         </div>
     </form>
 
@@ -24,7 +24,33 @@
                 <td>1</td>
                 <td>1</td>
                 <td>1</td>
+                <td class="stop">1</td>
+                <td><input type="button" class="add_account time_end" value="参与"/></td>
+
+            </tr>
+            <tr>
                 <td>1</td>
+                <td>1</td>
+                <td>1</td>
+                <td>1</td>
+                <td><input type="button" class="add_account" value="参与"/></td>
+
+            </tr>
+            <tr>
+                <td>1</td>
+                <td>1</td>
+                <td>1</td>
+                <td>1</td>
+                <td><input type="button" class="add_account" value="参与"/></td>
+
+            </tr>
+            <tr>
+                <td>1</td>
+                <td>1</td>
+                <td>1</td>
+                <td>1</td>
+                <td><input type="button" class="add_account" value="参与"/></td>
+
             </tr>
             <tr>
                 <td>1</td>
@@ -37,24 +63,8 @@
                 <td>1</td>
                 <td>1</td>
                 <td>1</td>
-            </tr>
-            <tr>
-                <td>1</td>
-                <td>1</td>
-                <td>1</td>
-                <td>1</td>
-            </tr>
-            <tr>
-                <td>1</td>
-                <td>1</td>
-                <td>1</td>
-                <td>1</td>
-            </tr>
-            <tr>
-                <td>1</td>
-                <td>1</td>
-                <td>1</td>
-                <td>1</td>
+                <td><input type="button" class="add_account " value="参与"/></td>
+
             </tr>
             </tbody>
         </table>
@@ -65,45 +75,55 @@
     <h4>我的资产</h4>
     <div class="main table">
         <table cellpadding="0" cellspacing="0" id="myac_table">
+            <thead>
+            <tr >
+                <th >资产名称</th>
+                <th >资产供应总量</th>
+                <th >资产单价</th>
+                <th >描述</th>
+                <th>起止时间</th>
+                <th></th>
+            </tr>
+            </thead>
             <tbody id="" class="tbody">
+            <tr >
+                <td>1</td>
+                <td><span>资产供应总量</span></td>
+                <td>1</td>
+                <td>1</td>
+                <td>1</td>
+            </tr>
             <tr class="account_tab">
-                <td >资产名称</td>
-                <td >发行人</td>
-                <td >总供应量</td>
-                <td>起止时间</td>
-            </tr>
-            <tr>
                 <td>1</td>
+                <td><span>资产供应总量</span></td>
                 <td>1</td>
                 <td>1</td>
                 <td>1</td>
             </tr>
-            <tr>
+            <tr >
                 <td>1</td>
-                <td>1</td>
-                <td>1</td>
-                <td>1</td>
-            </tr>
-            <tr>
-                <td>1</td>
+                <td><span>资产供应总量</span></td>
                 <td>1</td>
                 <td>1</td>
                 <td>1</td>
             </tr>
-            <tr>
+            <tr class="account_tab">
                 <td>1</td>
-                <td>1</td>
-                <td>1</td>
-                <td>1</td>
-            </tr>
-            <tr>
-                <td>1</td>
+                <td><span>资产供应总量</span></td>
                 <td>1</td>
                 <td>1</td>
                 <td>1</td>
             </tr>
-            <tr>
+            <tr >
                 <td>1</td>
+                <td><span>资产供应总量</span></td>
+                <td>1</td>
+                <td>1</td>
+                <td>1</td>
+            </tr>
+            <tr  class="account_tab">
+                <td>1</td>
+                <td><span>资产供应总量</span></td>
                 <td>1</td>
                 <td>1</td>
                 <td>1</td>
@@ -115,19 +135,24 @@
 
  <section class="creat_account accountQuery">
      <div class="main ">
+
+         <input type="button" class="all_count liner_granet" value="全部资产列表">
+         <form id="createAssetForm" action="#">
+         <p>我的密码</p>
+         <input type="text" id="privateKey" name="privateKey"/>
          <p>资产名称 <i>资产名称最少三个字符</i></p>
-         <input type="text" id="assetName"/>
+         <input type="text" id="name" name="name"/>
          <p>资产供应总量 <i>资产供应总量必须大于0</i></p>
-         <input type="text" id="assetTotal"/>
+         <input type="text" id="totalSupply" name="totalSupply"/>
          <div class="account_inline">
              <div>
                  <span >本资产数量</span> <br>
-                 <input type="text" class="account_num" id="assetNum"/>
+                 <input type="text" class="account_num" id="num" name="num"/>
             </div>
 
              <div>
                  <span >TRX数量</span> <br>
-                 <input type="text" class="account_num" id="trxNum"/>
+                 <input type="text" class="account_num" id="trxNum" name="trxNum"/>
              </div>
 
          </div>
@@ -137,20 +162,48 @@
              <span class="end_time">结束时间:2018年03月01日</span>
          </p>
          <p>资产描述</p>
-         <input type="text" id="assetDesc"/>
+         <input type="text" id="description" name="description"/>
          <p>资产描述URL</p>
-         <input type="text" id="assetUrl"/>
+         <input type="text" id="url" name="url"/>
          <input type="button " class="liner_granet create_account" id="creatAssetBtn" value="创建资产"/>
+         </form>
      </div>
 
  </section>
+
+<scetion id="addcount">
+    <h4>参与资产发行</h4>
+    <p><span>资产名称</span><span>90E1DB0D7DC07FD</span></p>
+    <p><span>资产发行人</span><span>90E1DB0D7DCF4F5FD</span></p>
+    <p><span>资产总供应量</span><span>90E1DBFD</span></p>
+    <p><span>资产单价</span><span>90E1DB0DF278707FD</span></p>
+    <p><span>起止时间</span><span>90E1DFF278707FD</span></p>
+    <p><span>描述信息</span>
+        <span>
+            <select name="" id="">
+                <option value="">3241</option>
+            </select>
+        </span></p>
+    <p class="cou_hei"><span>参与数量</span><span><input type="text"> =10000TRX</span></p>
+    <p class="cou_hei"><span>输入密码</span><span><input type="text"></span></p>
+    <p class="check">
+        <input type="checkbox">
+        我已确认花费1000.000TRX参与资产发行，获得ABITS.CNY100.0000数量的资产
+    </p>
+    <input type="button" class="liner_granet sure_dele" value="确认交易">
+</scetion>
 <script type="text/javascript">
-    $('#creat_asset').on('click',function () {
-        $('.account_list').css('display','none');
-        $('.creat_account').css('display','block')
+    $('.all_count').on('click',function () {
+        $('.creat_account').css('display','none');
+        $('.account_list').css('display','block')
     })
-    $('#my_asset').on('click',function () {
+    $('#creat_asset').on('click',function () {
         $('.account_list').css('display','none');
         $('.myaccount').css('display','block');
     })
+    $('.add_account').on('click',function () {
+        $('.account_list').css('display','none');
+        $('#addcount').css('display','block');
+    })
 </script>
+<script src="/js/utils/asset.js"></script>

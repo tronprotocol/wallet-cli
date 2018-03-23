@@ -164,14 +164,6 @@ public class Client {
       return null;
     }
 
-    if (wallet.getEcKey() == null) {
-      wallet = WalletClient.GetWalletByStorageIgnorPrivKey();
-      if (wallet == null) {
-        logger.warn("Warning: QueryAccount failed, Load wallet failed !!");
-        return null;
-      }
-    }
-
     try {
       return wallet.queryAccount();
     } catch (Exception ex) {

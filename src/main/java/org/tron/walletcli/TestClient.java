@@ -16,10 +16,12 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Scanner;
+import org.tron.protos.Contract.AssetIssueContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.BlockHeader;
 import org.tron.protos.Protocol.BlockHeader.raw;
+import org.tron.protos.Protocol.Witness;
 import org.tron.walletserver.WalletClient;
 
 public class TestClient {
@@ -154,8 +156,8 @@ public class TestClient {
     Account account = WalletClient.queryAccount(addressBytes);
     if (account == null) {
       logger.info("Get Account failed !!!!");
-
     } else {
+      logger.info("Address::" + ByteArray.toHexString(account.getAddress().toByteArray()));
       logger.info("Account[" + account + "]");
     }
   }
@@ -172,8 +174,12 @@ public class TestClient {
     Optional<AssetIssueList> result = WalletClient.getAssetIssueByAccount(addressBytes);
     if (result.isPresent()) {
       AssetIssueList assetIssueList = result.get();
-      logger.info("assetIssueList[" + assetIssueList.getAssetIssueList() + "]");
-
+      List<AssetIssueContract> list = assetIssueList.getAssetIssueList();
+      for (int i = 0; i < list.size(); i++) {
+        AssetIssueContract assetIssueContract = list.get(i);
+        logger.info("Address::" + ByteArray.toHexString(assetIssueContract.getOwnerAddress().toByteArray()));
+        logger.info("assetIssueContract[" + assetIssueContract + "]");
+      }
     } else {
       logger.info("GetAssetIssueByAccount " + " failed !!");
     }
@@ -182,7 +188,7 @@ public class TestClient {
   private void sendCoin(String[] parameters) {
     if (parameters == null || parameters.length != 3) {
       System.out.println("SendCoin need 3 parameter like following: ");
-      System.out.println("GetAssetIssueByAccount Password ToAddress Amount");
+      System.out.println("SendCoin Password ToAddress Amount");
       return;
     }
     String password = parameters[0];
@@ -302,8 +308,12 @@ public class TestClient {
     Optional<AccountList> result = client.listAccounts();
     if (result.isPresent()) {
       AccountList accountList = result.get();
-      logger.info("accountList[" + accountList.getAccountsList() + "]");
-      logger.info("List accounts " + " successful !!");
+      List<Account> list = accountList.getAccountsList();
+      for (int i = 0; i < list.size(); i++) {
+        Account account = list.get(i);
+        logger.info("Address::" + ByteArray.toHexString(account.getAddress().toByteArray()));
+        logger.info("Account[" + account + "]");
+      }
     } else {
       logger.info("List accounts " + " failed !!");
     }
@@ -313,8 +323,12 @@ public class TestClient {
     Optional<WitnessList> result = client.listWitnesses();
     if (result.isPresent()) {
       WitnessList witnessList = result.get();
-      logger.info("witnessList[" + witnessList.getWitnessesList() + "]");
-      logger.info("List witnesses " + " successful !!");
+      List<Witness> list = witnessList.getWitnessesList();
+      for (int i = 0; i < list.size(); i++) {
+        Witness witness = list.get(i);
+        logger.info("Address::" + ByteArray.toHexString(witness.getAddress().toByteArray()));
+        logger.info("Witness[" + witness + "]");
+      }
     } else {
       logger.info("List witnesses " + " failed !!");
     }
@@ -324,8 +338,12 @@ public class TestClient {
     Optional<AssetIssueList> result = client.getAssetIssueList();
     if (result.isPresent()) {
       AssetIssueList assetIssueList = result.get();
-      logger.info("assetIssueList[" + assetIssueList.getAssetIssueList() + "]");
-
+      List<AssetIssueContract> list = assetIssueList.getAssetIssueList();
+      for (int i = 0; i < list.size(); i++) {
+        AssetIssueContract assetIssueContract = list.get(i);
+        logger.info("Address::" + ByteArray.toHexString(assetIssueContract.getOwnerAddress().toByteArray()));
+        logger.info("assetIssueContract[" + assetIssueContract + "]");
+      }
     } else {
       logger.info("GetAssetIssueList " + " failed !!");
     }
@@ -371,7 +389,7 @@ public class TestClient {
   private void voteWitness(String[] parameters) {
     if (parameters == null || parameters.length < 3 || (parameters.length & 1) != 1) {
       System.out.println("Use VoteWitness command you need like: ");
-      System.out.println("VoteWitness Address0 Count0 ... AddressN CountN");
+      System.out.println("VoteWitness Password Address0 Count0 ... AddressN CountN");
       return;
     }
 
@@ -391,6 +409,34 @@ public class TestClient {
     }
   }
 
+  private void help(){
+    System.out.println("You can enter the following command: ");
+
+    System.out.println("RegisterWallet");
+    System.out.println("ImportWallet");
+    System.out.println("ChangePassword");
+    System.out.println("Login");
+    System.out.println("Logout");
+    System.out.println("BackupWallet");
+    System.out.println("Getaddress");
+    System.out.println("GetBalance");
+    System.out.println("GetAccount");
+    System.out.println("GetAssetissueByAccount");
+    System.out.println("SendCoin");
+    System.out.println("TransferAsset");
+    System.out.println("ParticipateAssetissue");
+    System.out.println("Assetissue");
+    System.out.println("CreateWitness");
+    System.out.println("VoteWitness");
+    System.out.println("Listaccounts");
+    System.out.println("Listwitnesses");
+    System.out.println("Listassetissue");
+    System.out.println("Getblock");
+    System.out.println("Exit or Quit");
+
+    System.out.println("Input any one of then, you will get more tips.");
+  }
+
   private void run() {
     Scanner in = new Scanner(System.in);
     while (true) {
@@ -405,6 +451,10 @@ public class TestClient {
       String cmdLowerCase = cmd.toLowerCase();
 
       switch (cmdLowerCase) {
+        case "help":{
+          help();
+          break;
+        }
         case "registerwallet": {
           registerWallet(parameters);
           break;
@@ -492,31 +542,8 @@ public class TestClient {
         }
         default: {
           System.out.println("Invalid cmd: " + cmd);
-          System.out.println("You can enter the following command: ");
+          help();
 
-          System.out.println("RegisterWallet");
-          System.out.println("ImportWallet");
-          System.out.println("ChangePassword");
-          System.out.println("Login");
-          System.out.println("Logout");
-          System.out.println("BackupWallet");
-          System.out.println("Getaddress");
-          System.out.println("GetBalance");
-          System.out.println("GetAccount");
-          System.out.println("GetAssetissueByAccount");
-          System.out.println("SendCoin");
-          System.out.println("TransferAsset");
-          System.out.println("ParticipateAssetissue");
-          System.out.println("Assetissue");
-          System.out.println("CreateWitness");
-          System.out.println("VoteWitness");
-          System.out.println("Listaccounts");
-          System.out.println("Listwitnesses");
-          System.out.println("Listassetissue");
-          System.out.println("Getblock");
-          System.out.println("Exit or Quit");
-
-          System.out.println("Input any one of then, you will get more tips.");
         }
       }
     }

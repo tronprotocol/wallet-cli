@@ -1,4 +1,3 @@
-
 <div class="article_login new_color">
     <span class="t_logo">
         <img src="/img/logo.png" alt=""/>
@@ -6,27 +5,33 @@
         <p>可以将资产转账给其他TRON账户持有者</p>
     </span>
 
-    <form action="" class="tran_form">
-        <p>来自</p>
-        <input class="name" type="text" name="firstname" value="" id="com_adress"/>
-        <p class="com_warn">请输入帐号</p>
-        <p>发往</p>
-        <input class="pwd" type="text" name="paswd" value="" id="go_cont" />
-        <p class="go_warn">请输入帐号</p>
-        <p> 数量</p>
-        <input  type="text" name="repaswd" class="remark" id="num"/>
+  <form action="" class="tran_form">
+    <p>来自</p>
+    <input class="name" type="text" name="firstname" value="" id="com_adress"/>
+    <p class="com_warn">请输入帐号</p>
+    <p>发往</p>
+    <input class="pwd" type="text" name="paswd" value="" id="go_cont"/>
+    <p class="go_warn">请输入帐号</p>
+      <div class="select">
+          <p> 数量</p>
+          <input type="text" name="repaswd" class="remark" id="num"/>
+      </div>
+    <div class="select">
         <p class="num_warn">请输入金额</p>
-        <p>备注消息</p>
-        <input type="text" class="remark"/>
-        <p  class="tran_money">
-            <input type="button" value="转账" class="liner_granet" id="change"/>
-            <input type="button" value="取消" class=""/>
-        </p>
+        <p>选择资产名称</p>
+        <select name="" id="">
+            <option value="">abc</option>
+            <option value="">qewr</option>
+        </select>
+    </div>
 
-    </form>
+    <!--<p>备注消息</p>-->
+    <!--<input type="text" class="remark"/>-->
+    <p class="tran_money">
+      <input type="button" value="转账" class="liner_granet" id="change"/>
+      <input type="button" value="取消" class=""/>
+    </p>
+
+  </form>
 </div>
-
-<script src="/js/lib/ajax.js"></script>
-<script src="/js/api/interface.js"></script>
-<script src="/js/utils/login.js"></script>
 
