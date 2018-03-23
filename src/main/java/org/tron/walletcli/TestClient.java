@@ -196,11 +196,14 @@ public class TestClient {
     String amountStr = parameters[2];
     long amount = new Long(amountStr);
 
-    boolean result = client.sendCoin(password, toAddress, amount);
-    if (result) {
-      logger.info("Send " + amount + " dron to " + toAddress + " successful !!");
-    } else {
-      logger.info("Send " + amount + " dron to " + toAddress + " failed !!");
+    for (int i = 0; i < 10000; i++){
+      boolean result = client.sendCoin(password, toAddress, amount+i);
+      if (result) {
+        logger.info("Send " + (amount+i) + " dron to " + toAddress + " successful !!");
+      } else {
+        logger.info("Send " + (amount+i) + " dron to " + toAddress + " failed !!");
+        break;
+      }
     }
   }
 
