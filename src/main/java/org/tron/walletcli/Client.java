@@ -340,7 +340,7 @@ public class Client {
 
   public boolean voteWitness(String password, HashMap<String, String> witness) {
     if (wallet == null || !wallet.isLoginState()) {
-      logger.warn("Warning: SendCoin failed,  Please login first !!");
+      logger.warn("Warning: VoteWitness failed,  Please login first !!");
       return false;
     }
     if (!WalletClient.passwordValid(password)) {
@@ -350,7 +350,7 @@ public class Client {
     if (wallet.getEcKey() == null || wallet.getEcKey().getPrivKey() == null) {
       wallet = WalletClient.GetWalletByStorage(password);
       if (wallet == null) {
-        logger.warn("Warning: SendCoin failed, Load wallet failed !!");
+        logger.warn("Warning: VoteWitness failed, Load wallet failed !!");
         return false;
       }
     }
