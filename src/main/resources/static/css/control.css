@@ -105,7 +105,14 @@
     margin: 100px 0 0 180px;
     padding-bottom: 100px;
 }
-.ord_btn{
+.ord_input{
+    height: 35px;
+    width: 400px;
+    border-radius: 5px;
+    margin:20px auto 0 auto;
+    display: block;
+}
+.ord_btn,.ord_suc{
     height: 35px;
     width: 280px;
     border-radius: 5px;
@@ -118,6 +125,9 @@
     filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#80afff', endColorstr='#2185ff'); /* IE*/
 }
 
+.ord_suc{
+    display: none;
+}
 .disable_btn{
     background-image: -moz-linear-gradient(top, #97aec7, #97aec7); /* Firefox */
     background-image:-webkit-gradient(linear, left top, left bottom, color-stop(0, #97aec7), color-stop(1, #97aec7))
