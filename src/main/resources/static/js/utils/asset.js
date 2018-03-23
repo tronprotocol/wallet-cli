@@ -1,7 +1,22 @@
 
-
+function formateDate(timeStamp) {
+    var dateObj = new Date(timeStamp);
+    var year=dateObj.getFullYear();
+    var month=dateObj.getMonth() + 1;
+    if(month<10) month = "0" + month;
+    var date=dateObj.getDate();
+    if(date<10) date = "0" + date;
+    var hour=dateObj.getHours();
+    if(hour<10) hour = "0" + hour;
+    var minute=dateObj.getMinutes();
+    if(minute<10) minute = "0" + minute;
+    var second=dateObj.getSeconds();
+    if(second<10) second = "0" + second;
+    return year+"-"+month+"-"+date+" "+hour+":"+minute+":"+second;
+}
 
 getAssetListSuccessCallback = function (data) {
+    var curTime = new Date().getTime();
     var content = "";
     var assetIssueListObj = proto.protocol.AssetIssueList.deserializeBinary(base64DecodeFromString(data));
     var assetIssueList = assetIssueListObj.getAssetissueList();
@@ -9,7 +24,15 @@ getAssetListSuccessCallback = function (data) {
         var name = bytesToString(assetIssueList[i].getName());
         var ownerAddress = byteArray2hexStr(assetIssueList[i].getOwnerAddress());
         var totalSupply = assetIssueList[i].getTotalSupply();
-        content += "<tr><td>" + name + "</td><td>" + ownerAddress + "</td><td>" + totalSupply + "</td>></tr>";
+        var startTime = assetIssueList[i].getStartTime();
+        var endTime = assetIssueList[i].getEndTime();
+        var formattedStartTime = formateDate(startTime);
+        var formattedEndTime = formateDate(endTime);
+        if((startTime < curTime && curTime< endTime)){
+            content += "<tr><td>" + name + "</td><td>" + ownerAddress + "</td><td>" + totalSupply + "</td> <td class='stop'>1</td><td><input type='button' class='add_account time_end' value='参与'/></td></tr>";
+        }else{
+            content += "<tr><td>" + name + "</td><td>" + ownerAddress + "</td><td>" + totalSupply + "</td> <td > " + formattedStartTime + " - " + formattedEndTime + " </td><td><input type='button' class='add_account' value='参与'/></td></tr>";
+        }
     }
     $('#assetIssueListTable').append(content);
 
@@ -50,5 +73,5 @@ createAssetFailureCallback = function (data) {
 }
 
 function getAssetIssueListFun(){
-    ajaxRequest("get", assetIssueListView, {}, getAssetListSuccessCallback, getAssetListFailureCallback);
+    ajaxRequest("get", "/getAssetIssueList", {}, getAssetListSuccessCallback, getAssetListFailureCallback);
 }
