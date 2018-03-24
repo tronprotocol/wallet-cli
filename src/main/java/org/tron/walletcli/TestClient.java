@@ -225,6 +225,54 @@ public class TestClient {
     }
   }
 
+  private void testTransaction(String[] parameters) {
+    if (parameters == null || parameters.length != 4) {
+      System.out.println("testTransaction need 4 parameter like following: ");
+      System.out.println("testTransaction Password ToAddress assertName times");
+      return;
+    }
+    String password = parameters[0];
+    String toAddress = parameters[1];
+    String assertName = parameters[2];
+    String loopTime = parameters[3];
+
+    long times = new Long(loopTime);
+
+    for (int i = 0; i < times; i++) {
+      long amount = i + 1;
+      boolean result = client.sendCoin(password, toAddress,  amount);
+      if (result) {
+        logger.info("Send " + amount + " dron to " + toAddress + " successful !!");
+        try {
+          Thread.sleep(500);
+        } catch (Exception e) {
+          e.printStackTrace();
+          break;
+        }
+
+      } else {
+        logger.info("Send " + amount + " dron to " + toAddress + " failed !!");
+        break;
+      }
+
+      result = client.transferAsset(password, toAddress, assertName, amount);
+      if (result) {
+        logger.info("transferAsset " + assertName + " dron to " + toAddress + " successful !!");
+        try {
+          Thread.sleep(500);
+        } catch (Exception e) {
+          e.printStackTrace();
+          break;
+        }
+
+      } else {
+        logger.info("transferAsset " + assertName + " dron to " + toAddress + " failed !!");
+        break;
+      }
+    }
+
+  }
+
   private void transferAsset(String[] parameters) {
     if (parameters == null || parameters.length != 4) {
       System.out.println("TransferAsset need 4 parameter like following: ");
@@ -527,8 +575,8 @@ public class TestClient {
           getAssetIssueByAccount(parameters);
           break;
         }
-        case "sendcoin": {
-          sendCoin(parameters);
+        case "testtransaction": {
+          testTransaction(parameters);
           break;
         }
         case "transferasset": {
@@ -565,6 +613,10 @@ public class TestClient {
         }
         case "getblock": {
           GetBlock(parameters);
+          break;
+        }
+        case "testTransaction": {
+          testTransaction(parameters);
           break;
         }
         case "exit":
