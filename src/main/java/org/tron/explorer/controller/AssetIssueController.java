@@ -102,8 +102,7 @@ public class AssetIssueController {
       if (!WalletClient.addressValid(address)) {
         return null;
       }
-      Decoder decoder = Base64.getDecoder();
-      byte[] owner = decoder.decode(address.getBytes());
+      byte[] owner = ByteArray.fromHexString(address);
 
       Optional<AssetIssueList> result = WalletClient.getAssetIssueByAccount(owner);
       if (result.isPresent()) {
