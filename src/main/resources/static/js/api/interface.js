@@ -20,4 +20,5 @@ var signView = baseUrl + 'transactionFromView'; //签名接口
 var assetIssueListView = baseUrl + 'getAssetIssueList'; //资产列表
 var createWitness = baseUrl + 'createWitnessToView'; //申请成为见证人
 var participateAssetView = baseUrl + 'ParticipateAssetIssueToView'; //参与资产发行接口
+var voteWitnessView = baseUrl + 'createVoteWitnessToView'; //投票接口
 
