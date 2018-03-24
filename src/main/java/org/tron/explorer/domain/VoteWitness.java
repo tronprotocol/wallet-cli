@@ -3,33 +3,31 @@ package org.tron.explorer.domain;
 import java.util.List;
 
 public class VoteWitness {
+  private String owner;
+  private List<Witness> list;
 
-  private String ownerAddress;
-
-  private List<Witness> witnessList;
-
-  public VoteWitness(String ownerAddress, List<Witness> witnessList) {
-    this.ownerAddress = ownerAddress;
-    this.witnessList = witnessList;
+  public String getOwner() {
+    return owner;
   }
 
-  public VoteWitness() {
+  public void setOwner(String owner) {
+    this.owner = owner;
   }
 
-
-  public String getOwnerAddress() {
-    return ownerAddress;
+  public List<Witness> getList() {
+    return list;
   }
 
-  public void setOwnerAddress(String ownerAddress) {
-    this.ownerAddress = ownerAddress;
+  public void setList(List<Witness> list) {
+    this.list = list;
   }
 
-  public List<Witness> getWitnessList() {
-    return witnessList;
+  public VoteWitness(String owner, List<Witness> list) {
+    this.owner = owner;
+    this.list = list;
   }
 
-  public void setWitnessList(List<Witness> witnessList) {
-    this.witnessList = witnessList;
+  public VoteWitness(){
+
   }
 }
