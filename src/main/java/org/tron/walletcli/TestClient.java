@@ -2,6 +2,8 @@ package org.tron.walletcli;
 
 import com.beust.jcommander.JCommander;
 import com.google.protobuf.ByteString;
+import java.util.Base64.Decoder;
+import java.util.Base64.Encoder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tron.api.GrpcAPI.AccountList;
@@ -56,6 +58,25 @@ public class TestClient {
     }
   }
 
+  private void importwalletByBase64(String[] parameters) {
+    if (parameters == null || parameters.length != 2) {
+      System.out.println("ImportwalletByBase64 need 2 parameter like following: ");
+      System.out.println("ImportwalletByBase64 Password PriKey");
+      System.out.println("PriKey need base64 string format.");
+      return;
+    }
+    String password = parameters[0];
+    String priKey64 = parameters[1];
+    Decoder decoder = Base64.getDecoder();
+    String priKey = ByteArray.toHexString(decoder.decode(priKey64));
+
+    if (client.importWallet(password, priKey)) {
+      logger.info("Import a wallet and store it successful !!");
+    } else {
+      logger.info("Import a wallet failed !!");
+    }
+  }
+
   private void changePassword(String[] parameters) {
     if (parameters == null || parameters.length != 2) {
       System.out.println("ChangePassword need 2 parameter like following: ");
@@ -94,29 +115,33 @@ public class TestClient {
   }
 
   private void backupWallet(String[] parameters) {
-    if (parameters == null || (parameters.length != 1 && parameters.length != 2)) {
-      System.out.println("BackupWallet need 1 or 2 parameter like following: ");
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("BackupWallet need 1 parameter like following: ");
       System.out.println("BackupWallet Password ");
-      System.out
-          .println("The private key of wallet will be export and be encrypted with the password.");
-      System.out.println("BackupWallet Password Password2");
-      System.out.println(
-          "The private key of wallet will be decryption with password and be encrypted with the password2.");
       return;
     }
     String password = parameters[0];
-    String password2;
 
-    if (parameters.length == 2) {
-      password2 = parameters[1];
-    } else {
-      password2 = parameters[0];    //same password
-    }
-
-    String priKey = client.backupWallet(password, password2);
+    String priKey = client.backupWallet(password);
     if (priKey != null) {
       logger.info("Backup a wallet successful !!");
       logger.info("priKey = " + priKey);
+    }
+  }
+
+  private void backupWallet2Base64(String[] parameters) {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("BackupWallet2Base64 need 1 parameter like following: ");
+      System.out.println("BackupWallet2Base64 Password ");
+      return;
+    }
+    String password = parameters[0];
+    String priKey = client.backupWallet(password);
+    Encoder encoder = Base64.getEncoder();
+    String priKey64 = encoder.encodeToString(ByteArray.fromHexString(priKey));
+    if (priKey != null) {
+      logger.info("Backup a wallet successful !!");
+      logger.info("priKey = " + priKey64);
     }
   }
 
@@ -172,7 +197,8 @@ public class TestClient {
       List<AssetIssueContract> list = assetIssueList.getAssetIssueList();
       for (int i = 0; i < list.size(); i++) {
         AssetIssueContract assetIssueContract = list.get(i);
-        logger.info("Address::" + ByteArray.toHexString(assetIssueContract.getOwnerAddress().toByteArray()));
+        logger.info("Address::" + ByteArray
+            .toHexString(assetIssueContract.getOwnerAddress().toByteArray()));
         logger.info("assetIssueContract[" + assetIssueContract + "]");
       }
     } else {
@@ -191,15 +217,60 @@ public class TestClient {
     String amountStr = parameters[2];
     long amount = new Long(amountStr);
 
-    for (int i = 0; i < 10000; i++){
-      boolean result = client.sendCoin(password, toAddress, amount+i);
+    boolean result = client.sendCoin(password, toAddress, amount);
+    if (result) {
+      logger.info("Send " + amount + " dron to " + toAddress + " successful !!");
+    } else {
+      logger.info("Send " + amount + " dron to " + toAddress + " failed !!");
+    }
+  }
+
+  private void testTransaction(String[] parameters) {
+    if (parameters == null || parameters.length != 4) {
+      System.out.println("testTransaction need 4 parameter like following: ");
+      System.out.println("testTransaction Password ToAddress assertName times");
+      return;
+    }
+    String password = parameters[0];
+    String toAddress = parameters[1];
+    String assertName = parameters[2];
+    String loopTime = parameters[3];
+
+    long times = new Long(loopTime);
+
+    for (int i = 0; i < times; i++) {
+      long amount = i + 1;
+      boolean result = client.sendCoin(password, toAddress,  amount);
       if (result) {
-        logger.info("Send " + (amount+i) + " dron to " + toAddress + " successful !!");
+        logger.info("Send " + amount + " dron to " + toAddress + " successful !!");
+        try {
+          Thread.sleep(500);
+        } catch (Exception e) {
+          e.printStackTrace();
+          break;
+        }
+
       } else {
-        logger.info("Send " + (amount+i) + " dron to " + toAddress + " failed !!");
+        logger.info("Send " + amount + " dron to " + toAddress + " failed !!");
+        break;
+      }
+
+      result = client.transferAsset(password, toAddress, assertName, amount);
+      if (result) {
+        logger.info("transferAsset " + assertName + " dron to " + toAddress + " successful !!");
+        try {
+          Thread.sleep(500);
+        } catch (Exception e) {
+          e.printStackTrace();
+          break;
+        }
+
+      } else {
+        logger.info("transferAsset " + assertName + " dron to " + toAddress + " failed !!");
         break;
       }
     }
+
   }
 
   private void transferAsset(String[] parameters) {
@@ -287,7 +358,7 @@ public class TestClient {
   private void createWitness(String[] parameters) {
     if (parameters == null || parameters.length != 2) {
       System.out.println("CreateWitness need 2 parameter like following: ");
-      System.out.println("ImportWallet Password Url");
+      System.out.println("CreateWitness Password Url");
       return;
     }
 
@@ -339,7 +410,8 @@ public class TestClient {
       List<AssetIssueContract> list = assetIssueList.getAssetIssueList();
       for (int i = 0; i < list.size(); i++) {
         AssetIssueContract assetIssueContract = list.get(i);
-        logger.info("Address::" + ByteArray.toHexString(assetIssueContract.getOwnerAddress().toByteArray()));
+        logger.info("Address::" + ByteArray
+            .toHexString(assetIssueContract.getOwnerAddress().toByteArray()));
         logger.info("assetIssueContract[" + assetIssueContract + "]");
       }
     } else {
@@ -407,15 +479,17 @@ public class TestClient {
     }
   }
 
-  private void help(){
+  private void help() {
     System.out.println("You can enter the following command: ");
 
     System.out.println("RegisterWallet");
     System.out.println("ImportWallet");
+    System.out.println("ImportwalletByBase64");
     System.out.println("ChangePassword");
     System.out.println("Login");
     System.out.println("Logout");
     System.out.println("BackupWallet");
+    System.out.println("BackupWallet2Base64");
     System.out.println("Getaddress");
     System.out.println("GetBalance");
     System.out.println("GetAccount");
@@ -449,7 +523,7 @@ public class TestClient {
       String cmdLowerCase = cmd.toLowerCase();
 
       switch (cmdLowerCase) {
-        case "help":{
+        case "help": {
           help();
           break;
         }
@@ -459,6 +533,10 @@ public class TestClient {
         }
         case "importwallet": {
           importWallet(parameters);
+          break;
+        }
+        case "importwalletbybase64": {
+          importwalletByBase64(parameters);
           break;
         }
         case "changepassword": {
@@ -475,6 +553,10 @@ public class TestClient {
         }
         case "backupwallet": {
           backupWallet(parameters);
+          break;
+        }
+        case "backupwallet2base64": {
+          backupWallet2Base64(parameters);
           break;
         }
         case "getaddress": {
@@ -495,6 +577,10 @@ public class TestClient {
         }
         case "sendcoin": {
           sendCoin(parameters);
+          break;
+        }
+        case "testtransaction": {
+          testTransaction(parameters);
           break;
         }
         case "transferasset": {
@@ -531,6 +617,10 @@ public class TestClient {
         }
         case "getblock": {
           GetBlock(parameters);
+          break;
+        }
+        case "testTransaction": {
+          testTransaction(parameters);
           break;
         }
         case "exit":

@@ -12,6 +12,7 @@ $('.login_html').on('click',function () {
     $('#wel_login').css('display','none');
     $('.article_login').css('display','block')
 });
+
 $('.wel_active').on('click',function () {
     $('.motal').css('display','block')
 });
@@ -32,6 +33,7 @@ $('#login').on('click',function () {
         $('#center').css('display','inline-block');
         $('.motal').css('display','none');
         window.localStorage.setItem('key',$('#repawd').val());
+        $('#repawd').val('');
     }
 })
 //注册账户 复制文本

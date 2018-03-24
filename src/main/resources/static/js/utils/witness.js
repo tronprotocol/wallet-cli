@@ -20,6 +20,7 @@ function QueryWitnessSuccess(data) {
 
     //调用方法deserializeBinary解析
     var witness = proto.protocol.WitnessList.deserializeBinary(bytesWitnessList);
+
     var witnessList = witness.getWitnessesList()
 
     if(witnessList.length >0){
@@ -39,9 +40,9 @@ function QueryWitnessSuccess(data) {
             str += '<tr>'
                 +'<td><span class="num">'+(i+1)+'</span></td>'
                 +'<td style="table-layout:fixed;word-break:break-all">'+address+'</td>'
-                +'<td>'+latestblocknum+'</td>'
-                +'<td>'+producedtotal+'</td>'
-                +'<td>'+missedtotal+'</td>'
+                // +'<td>'+latestblocknum+'</td>'
+                // +'<td>'+producedtotal+'</td>'
+                // +'<td>'+missedtotal+'</td>'
                 +'<td>'+votecount+'</td>'
                 +'</tr>';
         }

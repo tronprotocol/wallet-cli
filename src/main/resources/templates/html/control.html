@@ -1,7 +1,7 @@
 
 
 <ul class="c_form">
-        <li class="c_active">账户详情</li>
+        <li class="c_active" id="accountInfo">账户详情</li>
         <!--<li>近期活动</li>-->
         <i></i>
         <li>申请成为见证人</li>
@@ -21,34 +21,19 @@
                     <thead>
                     <tr>
                         <th>资产名称</th>
-                        <th>发行人</th>
                         <th>我的总量</th>
                     </tr>
                     </thead>
-                    <tbody>
-                    <tr class="">
-                        <td> <span class="num">1</span></td>
-                        <td>$100</td>
-                        <td>1</td>
+                    <tbody id="accountInfoView">
 
-                    </tr>
-                    <tr>
-                        <td ><span class="num">1</span></td>
-                        <td>$100</td>
-                        <td>1</td>
-                    </tr>
                     </tbody>
                 </table>
             </div>
             <div class="information">
                 <h6>账户信息</h6>
                 <p>
-                    <span>账户名称</span>
-                    <span>tron</span>
-                </p>
-                <p>
                     <span>账户地址</span>
-                    <span>tron</span>
+                    <span id="tronAddress"></span>
                 </p>
 
             </div>
@@ -108,7 +93,9 @@
                 <input type="checkbox"> <span >我已理解见证人注意事项，确认申请见证人候选人</span>
             </p>
         </span>
-        <button class="ord_btn">申请成为见证人候选人</button>
+        <input type="text" class="ord_input" placeholder="请输入您的个人站点">
+        <button class="ord_btn disable_btn" id="tobeWitness">申请成为见证人候选人</button>
+        <button class="ord_suc">您已申请成为见证人</button>
 
 
     </div>
@@ -202,6 +189,8 @@
     </div>
     <div>帮助</div>
 </div>
-<script src="../static/js/utils/control.js"></script>
 
+<script src="/js/utils/control.js"></script>
+<script src="/js/utils/beWitness.js"></script>
+<script src="/js/utils/accountInfo.js"></script>
 

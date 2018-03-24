@@ -20,11 +20,13 @@
 
    if(accountList.length >0){
        for(var i = 0; i<accountList.length;i++){
-           var name = byteArray2hexStr(accountList[i].getAccountName())
+           var name = bytesToString(accountList[i].getAccountName())
+           var address = byteArray2hexStr(accountList[i].getAddress())
            var balance = accountList[i].getBalance();
            str += '<tr>'
                +'<td>'+(i+1)+'</td>'
-               +'<td style="table-layout:fixed;width=500px;word-break:break-all">'+name+'</td>'
+               +'<td style="table-layout:fixed;;word-break:break-all">'+address+'</td>'
+               +'<td style="table-layout:fixed;;word-break:break-all">'+name+'</td>'
                +'<td>'+balance+'</td>'
                +'</tr>';
        }
