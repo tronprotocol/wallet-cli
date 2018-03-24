@@ -39,8 +39,9 @@ $(document).ready(function(){
         var transactionSigned = signTransaction(com_priKeyBytes, transaction);
         var transactionBytes = transactionSigned.serializeBinary();
         var transactionString = byteArray2hexStr(transactionBytes);
+        var para = "transactionData=" + transactionString;
 
-        ajaxRequest("POST", anintran, {transactionData:transactionString}, TransBroadSuccessCallback,
+        ajaxRequest("POST", anintran, para, TransBroadSuccessCallback,
             TransBroadFailureCallback)
 
     }
@@ -60,11 +61,12 @@ $(document).ready(function(){
      function TransBroadSuccessCallback(data) {
             if(data){
                 alert('申请成功');
+                $('#tobeWitness').css('display','none')
+                $('.ord_suc').css('display','block')
             }else{
                 alert('申请失败');
             }
-            $('#tobeWitness').css('display','none')
-            $('.ord_suc').css('display','block')
+
 
      };
 

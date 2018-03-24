@@ -40,9 +40,9 @@ function QueryWitnessSuccess(data) {
             str += '<tr>'
                 +'<td><span class="num">'+(i+1)+'</span></td>'
                 +'<td style="table-layout:fixed;word-break:break-all">'+address+'</td>'
-                +'<td>'+latestblocknum+'</td>'
-                +'<td>'+producedtotal+'</td>'
-                +'<td>'+missedtotal+'</td>'
+                // +'<td>'+latestblocknum+'</td>'
+                // +'<td>'+producedtotal+'</td>'
+                // +'<td>'+missedtotal+'</td>'
                 +'<td>'+votecount+'</td>'
                 +'</tr>';
         }

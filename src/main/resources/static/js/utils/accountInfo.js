@@ -144,9 +144,9 @@ $(document).ready(function(){
                 console.log(address+'==============='+com_text)
 
                 if(address == com_text){
-                    alert(111)
+                    //alert(111)
                 }else{
-                   alert(222)
+                   //gitalert(222)
                 }
             }
         }else{
