@@ -1,30 +1,14 @@
 
 
 <ul class="c_form">
-        <li class="c_active" id="accountInfo">
-            <img src="/img/manyact.png" alt="" >
-            <img src="/img/many.png" class="none" alt="">
-            账户详情
-        </li>
+        <li class="c_active" id="accountInfo">账户详情</li>
         <!--<li>近期活动</li>-->
         <i></i>
-        <li>
-            <img src="/img/docact.png" alt="" class="none">
-            <img src="/img/doc.png" alt="">
-            申请成为见证人
-        </li>
-        <li onclick="voteInit()">
-            <img src="/img/graphact.png" alt="" class="none">
-            <img src="/img/graph.png" alt="">
-            投票
-        </li>
+        <li>申请成为见证人</li>
+        <li onclick="voteInit()">投票</li>
         <i></i>
         <!--<li>设置</li>-->
-       <li>
-           <img src="/img/shareact.png" alt="" class="none">
-           <img src="/img/share.png" alt="">
-           帮助
-       </li>
+       <li>帮助</li>
 </ul>
 
 <div class="c_table">
@@ -121,51 +105,16 @@
             <tr>
                 <th>#</th>
                 <th>账户地址</th>
-                <th>上一周得票数</th>
+                <th>当前票数</th>
                 <th>我的投票</th>
             </tr>
             </thead>
-            <tbody>
-            <tr class="">
-                <td class="">1</td>
-                <td>tron2</td>
-                <td>1243,4212,4213</td>
-                <td>
-                    <input class=" vote_act" type="text" placeholder="请输入您的投票数">
-                </td>
-                <!--<td><button class=" vote_act">已投票</button></td>-->
-            </tr>
-            <tr>
-                <td class="">2</td>
-                <td>tron2</td>
-                <td>1243,4212,4213</td>
-                <td>
-                    <input class=" vote_act" type="text" placeholder="请输入您的投票数">
-                </td>
-                <!--<td><button class="vote_d">投票</button></td>-->
-            </tr>
-            <tr class="">
-                <td class="">3</td>
-                <td>tron2</td>
-                <td>1243,4212,4213</td>
-                <td>
-                    <input class=" vote_act" type="text" placeholder="请输入您的投票数">
-                </td>
-                <!--<td><button class="vote_d">投票</button></td>-->
-            </tr>
-            <tr>
-                <td class="">4</td>
-                <td>tron2</td>
-                <td>1243,4212,4213</td>
-                <td>
-                    <input class=" vote_act" type="text" placeholder="请输入您的投票数">
-                </td>
-                <!--<td><button class="vote_d">投票</button></td>-->
-            </tr>
+            <tbody id="witnessList">
             </tbody>
 
         </table>
-        <button class="ord_btn">投票</button>
+        <input type="text" class="ord_input" placeholder="请输入您的个人密码" id="myKey" />
+        <button class="ord_btn" id="voteBtn" onclick="voteSubmit()">投票</button>
     </div>
     <div class="set">
         <span>
@@ -209,4 +158,5 @@
 <script src="/js/utils/control.js"></script>
 <script src="/js/utils/beWitness.js"></script>
 <script src="/js/utils/accountInfo.js"></script>
+<script src="/js/utils/vote.js"></script>
 
