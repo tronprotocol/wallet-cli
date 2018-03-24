@@ -74,7 +74,6 @@ voteSubmitSuccessCallback = function (data) {
     var transationAfterSign = signTransaction(privateKey, transation);
     var transationHex = byteArray2hexStr(transationAfterSign.serializeBinary());
     var para = "transactionData=" + transationHex;
-    alert(1111)
     ajaxRequest("post", signView, para, voteSuccessCallback, voteFailureCallback)
 }
 
