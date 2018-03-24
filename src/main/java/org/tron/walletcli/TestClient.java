@@ -358,7 +358,7 @@ public class TestClient {
   private void createWitness(String[] parameters) {
     if (parameters == null || parameters.length != 2) {
       System.out.println("CreateWitness need 2 parameter like following: ");
-      System.out.println("ImportWallet Password Url");
+      System.out.println("CreateWitness Password Url");
       return;
     }
 
