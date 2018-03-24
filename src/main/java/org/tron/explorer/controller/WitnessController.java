@@ -1,9 +1,5 @@
 package org.tron.explorer.controller;
 
-import java.io.IOException;
-import java.util.Base64;
-import java.util.Base64.Decoder;
-import java.util.List;
 import java.util.Optional;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -11,11 +7,10 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.ModelAndView;
-import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.WitnessList;
+import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.TransactionUtils;
 import org.tron.protos.Protocol.Transaction;
-import org.tron.protos.Protocol.Witness;
 import org.tron.walletserver.WalletClient;
 
 
@@ -57,9 +52,9 @@ public class WitnessController {
       if (onwerUrl == null || onwerUrl.equals("")) {
         return null;
       }
-      Decoder decoder = Base64.getDecoder();
-      byte[] owner = decoder.decode(address.getBytes());
-      Transaction transaction = WalletClient.createWitnessTransaction(owner, onwerUrl.getBytes());
+
+      Transaction transaction = WalletClient
+          .createWitnessTransaction(ByteArray.fromHexString(address), onwerUrl.getBytes());
       transaction = TransactionUtils.setTimestamp(transaction);
       return transaction.toByteArray();
     } catch (Exception e) {

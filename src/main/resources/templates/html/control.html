@@ -13,7 +13,7 @@
             <img src="/img/doc.png" alt="">
             申请成为见证人
         </li>
-        <li>
+        <li onclick="voteInit()">
             <img src="/img/graphact.png" alt="" class="none">
             <img src="/img/graph.png" alt="">
             投票
@@ -96,15 +96,20 @@
             <h6>见证人通知</h6>
             <p>见证人</p>
             <p>
-                申请成为见证人需要您的账户TRX余额>0，输入您的个人网站地址，点击申请按钮，即可申请成为见证候选人。通过用户投票，得票最多的几个人，会成为见证人。成为见证人可以打包交易，生成区块并获取对应的TRX奖励。
-
+                见证人是为区块链打包生成新的区块的实体。每一个见证人由股东批准，打包经验证的交易，生成并签署区块。每一条进入网络的交易最终将被所有见证人验证。
             </p>
-            <input type="text" class="ord_input" placeholder="请输入您的个人网站地址">
+            <p>
+                共识机制
+            </p>
+            <p>
+                由谁在什么时间来打包生成区块是由被称为Delegated Proof of Stak (DPOS)的共识算法决定的。算法的本质是 BitShares
+                的股东(BTS的持有者)能通过投票来决定他们期望的块打包者。由获得最多票数的所谓"见证人"来打包生成区块。
+            </p>
             <p class="c_check">
                 <input type="checkbox"> <span >我已理解见证人注意事项，确认申请见证人候选人</span>
             </p>
         </span>
-
+        <input type="text" class="ord_input" placeholder="请输入您的个人站点">
         <button class="ord_btn disable_btn" id="tobeWitness">申请成为见证人候选人</button>
         <button class="ord_suc">您已申请成为见证人</button>
 
@@ -160,126 +165,48 @@
             </tbody>
 
         </table>
-        <button class="ord_btn">提交投票结果</button>
+        <button class="ord_btn">投票</button>
     </div>
-    <!--<div class="set">-->
-        <!--<span>-->
-            <!--<p>语言选择</p>-->
-            <!--<p>-->
-                <!--设置您喜欢的语言-->
-                <!--<select name="" class="langu">-->
-                    <!--<option value="">English</option>-->
-                    <!--<option value="">简体中文</option>-->
-                <!--</select>-->
-            <!--</p>-->
-        <!--</span>-->
-        <!--<span>-->
-             <!--<p>记账单位</p>-->
-            <!--<p>-->
-                <!--选择您想要的记账单位-->
-                <!--<select name="" id="" class="langu">-->
-                     <!--<option value="">English</option>-->
-                    <!--<option value="">简体中文</option>-->
-                <!--</select>-->
-            <!--</p>-->
-        <!--</span>-->
-        <!--<span>-->
-            <!--<p>-->
-                <!--浏览器通知-->
-                <!--<i class="langu">-->
-                     <!--<input type="checkbox">启用浏览器通知-->
-                <!--</i>-->
-            <!--</p>-->
+    <div class="set">
+        <span>
+            <p>语言选择</p>
+            <p>
+                设置您喜欢的语言
+                <select name="" class="langu">
+                    <option value="">English</option>
+                    <option value="">简体中文</option>
+                </select>
+            </p>
+        </span>
+        <span>
+             <p>记账单位</p>
+            <p>
+                选择您想要的记账单位
+                <select name="" id="" class="langu">
+                     <option value="">English</option>
+                    <option value="">简体中文</option>
+                </select>
+            </p>
+        </span>
+        <span>
+            <p>
+                浏览器通知
+                <i class="langu">
+                     <input type="checkbox">启用浏览器通知
+                </i>
+            </p>
 
-        <!--</span>-->
-        <!--<span>-->
-            <!--<p>自动注销</p>-->
-            <!--<i class="langu"><button class="langu_btn">10minutes</button></i>-->
-            <!--<p>一段时间不活动后，您的账户将自动注销</p>-->
-        <!--</span>-->
-    <!--</div>-->
-    <div class="help">
-        <div class="help_de">
-            <p class="help_list">
-                <i class="ques">Q</i>
-                <span class="title">TRON区块链浏览器有哪些功能?</span>
-                <img src="/img/listbot.png" alt="" class="h_list ">
-                <img src="/img/right.png" alt="" class="none ">
-            </p>
-            <p class="help_detail">
-                <i class="ans">A</i>
-                <span>目前TRON区块链浏览器包括账户管理功能和5大版块：区块信息、账户查询、见证人、钱包、资产发行。</span>
-            </p>
-        </div>
-        <div class="help_de">
-            <p class="help_list">
-                <i class="ques">Q</i>
-                <span class="title">如何注册TRON区块链浏览器账户？?</span>
-                <img src="/img/listbot.png" alt="" class="h_list ">
-                <img src="/img/right.png" alt="" class="none ">
-            </p>
-            <p class="help_detail">
-                <i class="ans">A</i>
-                <span class="more">TRON区块链浏览器钱包和资产发行功能，需要用户登录账户进行操作。未登录用户需通过账户管理功能，注册TRON账户，将注册密码保存在本地（切记不可泄漏公开），通过密码即可进行登录操作。</span>
-            </p>
-        </div>
-        <div class="help_de">
-            <p class="help_list">
-                <i class="ques">Q</i>
-                <span class="title">如何用TRON区块链浏览器发行资产或参与资产发行?</span>
-                <img src="/img/listbot.png" alt="" class="h_list ">
-                <img src="/img/right.png" alt="" class="none ">
-            </p>
-            <p class="help_detail">
-                <i class="ans">A</i>
-                <span class="more">
-                    TRON区块链浏览器支持用户一键发行资产和参与资产发行。
-                    <br>
-                    【1】发行资产<br>
-                    点击上部导航栏中资产发行，切换到资产发行页。输入您要发行的数字资产信息，一键就可以发行数字资产。每次资产发行需要消耗发行账户100,000 TRX。
-                    <br>
-                    【2】参与资产发行<br>
-                    通过查看全部资产列表，可以参与到发行当中。
-                </span>
-            </p>
-        </div>
-        <div class="help_de">
-            <p class="help_list">
-                <i class="ques">Q</i>
-                <span class="title">如何使用TRON钱包进行资产交易?</span>
-                <img src="/img/listbot.png" alt="" class="h_list ">
-                <img src="/img/right.png" alt="" class="none ">
-            </p>
-            <p class="help_detail">
-                <i class="ans">A</i>
-                <span>TRON钱包支持用户进行资产交易，通过转账操作，向对方账户转出资产。</span>
-            </p>
-        </div>
-        <div class="help_de">
-            <p class="help_list">
-                <i class="ques">Q</i>
-                <span class="title">如何成为TRON主链见证人？</span>
-                <img src="/img/listbot.png" alt="" class="h_list ">
-                <img src="/img/right.png" alt="" class="none ">
-            </p>
-            <p class="help_detail">
-                <i class="ans">A</i>
-                <span class="more">只要当前账户拥有TRX，即可在账户管理功能中申请成为见证人。同时可以对当前见证候选人进行投票，每个账户可以多次投票，每次最大投票数小于等于TRX数（拥有N个TRX，就能投小于等于N票），可以投给多个候选人。最终一轮投票结束，得票最多的几个人，会成为见证人。申请成为见证人以及投票操作均不消耗TRX。</span>
-            </p>
-        </div>
+        </span>
+        <span>
+            <p>自动注销</p>
+            <i class="langu"><button class="langu_btn">10minutes</button></i>
+            <p>一段时间不活动后，您的账户将自动注销</p>
+        </span>
     </div>
+    <div>帮助</div>
 </div>
 
 <script src="/js/utils/control.js"></script>
 <script src="/js/utils/beWitness.js"></script>
 <script src="/js/utils/accountInfo.js"></script>
 
-<script type="text/javascript">
-    $('.help_list').each(function (i,item) {
-        $(this).on('click',function () {
-            $(event.target).find(".h_list").removeClass('h_list').addClass('none').siblings('img').addClass('h_list').removeClass('none')
-            $(this).siblings().slideToggle()
-        })
-    })
-
-</script>

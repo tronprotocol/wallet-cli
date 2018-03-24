@@ -2,8 +2,13 @@ package org.tron.explorer.domain;
 
 public class Witness {
 
-  String address;
-  String amount;
+  private String address;
+  private String amount;
+
+  public Witness(String address, String amount){
+    this.address = address;
+    this.amount = amount;
+  }
 
   public Witness() {
   }

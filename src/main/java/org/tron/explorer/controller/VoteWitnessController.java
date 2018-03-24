@@ -1,11 +1,9 @@
 package org.tron.explorer.controller;
 
+import org.apache.catalina.servlet4preview.http.HttpServletRequest;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.TransactionUtils;
@@ -24,10 +22,6 @@ public class VoteWitnessController {
 
   protected final Log log = LogFactory.getLog(getClass());
 
-  @ModelAttribute
-  VoteWitness setVoteWitness() {
-    return new VoteWitness();
-  }
 
  @GetMapping("/voteWitnessList")
   public byte[] getVoteWitnessList() {
@@ -40,27 +34,35 @@ public class VoteWitnessController {
     }
   }
 
+  @RequestMapping("/addUser2")
+  public String addUser2(HttpServletRequest request) {
+    System.out.println("request" + request.getParameter("sss"));
+    return "";
+  }
+
   @PostMapping("/createVoteWitnessToView")
-  public byte[] getTransactionToView(@ModelAttribute VoteWitness voteWitness) {
+  public byte[] getTransactionToView(@RequestBody VoteWitness voteWitness) {
+      
+      System.out.println("voteWitness=" + voteWitness.getOwnerAddress());
     try {
-      if (voteWitness.getOwnerAddress() == null || voteWitness.getList() == null) {
+      if (voteWitness.getOwnerAddress() == null || voteWitness.getWitnessList() == null) {
         return null;
       }
       if (!WalletClient.addressValid(voteWitness.getOwnerAddress())) {
         return null;
       }
-      List<Witness> list = voteWitness.getList();
+      List<Witness> list = voteWitness.getWitnessList();
       String ownerAddress = voteWitness.getOwnerAddress();
-      HashMap m = new HashMap<>();
+      HashMap voteMap = new HashMap<>();
 
       for (int i = 0; i <= list.size(); i++) {
-        String address = list.get(i).getAddress();
-        String acount = list.get(i).getAmount();
-        m.put(address, acount);
+        String addressHex = list.get(i).getAddress();
+        String count = list.get(i).getAmount();
+        voteMap.put(addressHex, count);
       }
 
       Transaction transaction = WalletClient
-          .createVoteWitnessTransaction(ByteArray.fromHexString(ownerAddress), m);
+          .createVoteWitnessTransaction(ByteArray.fromHexString(ownerAddress), voteMap);
       transaction = TransactionUtils.setTimestamp(transaction);
 
       return transaction.toByteArray();
@@ -70,5 +72,4 @@ public class VoteWitnessController {
       return null;
     }
   }
-
 }

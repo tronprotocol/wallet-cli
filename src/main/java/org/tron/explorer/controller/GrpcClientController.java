@@ -145,6 +145,9 @@ public class GrpcClientController {
   //get account transaction from view
   @PostMapping("/transactionFromView")
   public boolean transactionFromView(String transactionData) throws InvalidProtocolBufferException {
+    if ( transactionData == null || transactionData.equals("")){
+      return false;
+    }
     final byte[] bytes = ByteArray.fromHexString(transactionData);
     return WalletClient.broadcastTransaction(bytes);
   }

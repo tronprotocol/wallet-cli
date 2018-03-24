@@ -187,7 +187,11 @@ public class TransactionUtils {
           signedTransaction.getRawData().getContractCount());
       List<Transaction.Contract> listContract = signedTransaction.getRawData().getContractList();
       byte[] hash = sha256(signedTransaction.getRawData().toByteArray());
-      for (int i = 0; i < signedTransaction.getSignatureCount(); ++i) {
+      int count = signedTransaction.getSignatureCount();
+      if ( count == 0 ){
+        return false;
+      }
+      for (int i = 0; i < count; ++i) {
         try {
           Transaction.Contract contract = listContract.get(i);
           byte[] owner = getOwner(contract);
