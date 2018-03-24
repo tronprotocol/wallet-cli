@@ -88,7 +88,7 @@ function QueryAccountInfoFail(data) {
  */
 
 function getAcInfo() {
-    ajaxRequest( "get",getAccountInfo,{},QueryAccountInfoSuccess,QueryAccountInfoFail)
+    ajaxRequest( "post",getAccountInfo,{},QueryAccountInfoSuccess,QueryAccountInfoFail)
 }
 
 

@@ -34,11 +34,14 @@ $(document).ready(function(){
     })
 
     function createWitnessSuccess(data) {
+        console.log(data)
         var transaction = getTransActionFromBase64String(data);
         var transactionSigned = signTransaction(com_priKeyBytes, transaction);
         var transactionBytes = transactionSigned.serializeBinary();
         var transactionString = byteArray2hexStr(transactionBytes);
-        ajaxRequest("POST", anintran, transactionString, TransBroadSuccessCallback,
+        var para = "transactionData=" + transactionString;
+
+        ajaxRequest("POST", anintran, para, TransBroadSuccessCallback,
             TransBroadFailureCallback)
 
     }
@@ -56,16 +59,23 @@ $(document).ready(function(){
     }
      //验签成功
      function TransBroadSuccessCallback(data) {
-            console.log(data)
-            alert('申请成功');
-            $('#tobeWitness').css('display','none')
-            $('.ord_suc').css('display','block')
+            if(data){
+                alert('申请成功');
+                $('#tobeWitness').css('display','none')
+                $('.ord_suc').css('display','block')
+            }else{
+                alert('申请失败');
+            }
+
 
      };
 
     function TransBroadFailureCallback(data) {
         console.log(data)
     }
+
+
+
 
 
 });
