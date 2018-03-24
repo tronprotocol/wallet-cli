@@ -18,7 +18,6 @@ $(document).ready(function(){
         $('#accountInfoView').html('')
         //从base64字符串中解码出原文，格式为byteArray格式
         var bytesAccountInfo = base64DecodeFromString(data);
-        console.log(bytesAccountInfo)
         //调用方法deserializeBinary解析
         var accountInfo = proto.protocol.Account.deserializeBinary(bytesAccountInfo);
         var Map = accountInfo.getAssetMap().toArray();

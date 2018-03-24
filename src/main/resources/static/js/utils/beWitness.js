@@ -3,27 +3,27 @@ $(document).ready(function(){
     $(".c_check input").on("click", function () {
         if ($(this).is(":checked")) {
             if($('.ord_input').val() != ''){
-                $('.ord_btn').removeClass('disable_btn')
+                $('#tobeWitness').removeClass('disable_btn')
             } else {
-                $('.ord_btn').addClass('disable_btn')
+                $('#tobeWitness').addClass('disable_btn')
             }
         }else{
-            $('.ord_btn').addClass('disable_btn')
+            $('#tobeWitness').addClass('disable_btn')
         }
     })
     $('.ord_input').on('blur',function(){
         if($('.ord_input').val() != ''){
             if ($(".c_check input").is(":checked")) {
-                $('.ord_btn').removeClass('disable_btn')
+                $('#tobeWitness').removeClass('disable_btn')
             }else {
-                $('.ord_btn').addClass('disable_btn')
+                $('#tobeWitness').addClass('disable_btn')
             }
         }else{
-            $('.ord_btn').addClass('disable_btn')
+            $('#tobeWitness').addClass('disable_btn')
         }
     })
 
-    $('.ord_btn').on('click',function () {
+    $('#tobeWitness').on('click',function () {
         if(!$(".c_check input").is(":checked")){
             alert('请阅读见证人通知，并勾选')
         }else if($('.ord_input').val() == ''){
@@ -58,7 +58,7 @@ $(document).ready(function(){
      function TransBroadSuccessCallback(data) {
             console.log(data)
             alert('申请成功');
-            $('.ord_btn').css('display','none')
+            $('#tobeWitness').css('display','none')
             $('.ord_suc').css('display','block')
 
      };
