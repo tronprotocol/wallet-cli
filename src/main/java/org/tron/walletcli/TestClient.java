@@ -575,6 +575,10 @@ public class TestClient {
           getAssetIssueByAccount(parameters);
           break;
         }
+        case "sendcoin": {
+          sendCoin(parameters);
+          break;
+        }
         case "testtransaction": {
           testTransaction(parameters);
           break;
