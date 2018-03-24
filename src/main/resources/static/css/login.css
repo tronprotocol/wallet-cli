@@ -124,18 +124,23 @@ header span{
     background:none;
     border: 0;
     border-bottom: 1px solid #acb4c3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 form input{
     margin:0 0 10px 0;
 }
 .submit{
-    height: 50px;
-    width: 100%;
+    display: block;
+    height: 40px;
+    width: 90%;
     border-radius: 5px;
     margin: auto;
-    font-size: 20px;
+    font-size: 16px;
     border: 0;
     margin-top: 40px;
+
 }
 .article_login form .l_warn ,.mo_warn,.pw_warn,.mopwd_warn,.com_warn,.go_warn,.num_warn{
     font-size: 12px;
@@ -145,6 +150,7 @@ form input{
 .repeat{
     width: 50px;
     border-radius: 5px;
+    vertical-align: middle;
 }
 .create img{
     display: block;
@@ -189,6 +195,10 @@ form input{
     height: 35px;
     border-radius: 5px;
     border:1px solid #117eff;
+    color: #117eff;
+}
+.wel_creat .liner_granet{
+    color: #fff;
 }
 .wel_active{
     background-color: #d2d5dd;
@@ -252,7 +262,7 @@ form input{
     margin-top: -100px;
     padding: 30px;
     color: #4194f8;
-    background-color: rgba(255,255,255,0.8);
+    background-color: rgba(255,255,255,0.9);
     border-radius: 5px;
     display: none;
 }
@@ -278,7 +288,9 @@ form input{
 .mona_warn{
     display: none;
 }
-
+#wel_select{
+    margin-top: 60px;
+}
 
 
 

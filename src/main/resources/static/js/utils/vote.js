@@ -43,40 +43,29 @@ function QueryWitnessFail(data) {
 }
 
 function voteSubmit() {
-    // var ownerAddress = getHexStrAddressFromPriKeyBase64String($("#myKey").val());
-    // var para = "{\"ownerAddress\": \"" + ownerAddress + "\", \"witnessList\": [";
-    //
-    // for(var i=0; i<$("#witnessList tr").length; i++){
-    //     var addressHex = $("#witnessList tr").eq(i).find('td').eq(1).text();
-    //     var voteCount = $("#witnessList tr").eq(i).find('td input').eq(0).val();
-    //     if(voteCount > 0){
-    //         para += "{\"address\": \"" + addressHex + "\", \"amount\":\"" + voteCount + "\"},"
-    //     }
-    // }
-    // para = para.substr(0, para.length - 1);
-    // para += "]}";
-    //
-    // alert(para);
+    var ownerAddress = getHexStrAddressFromPriKeyBase64String($("#myKey").val());
+    var para = "{\"owner\": \"" + ownerAddress + "\", \"list\": [";
 
-    var aa = {
-        "ownerAddress":"BACE534D4779DAD72051EB3D967E2A493DE83A01",
-        "witnessList": [
-                {
-                    "address":"299F3DB80A24B20A254B89CE639D59132F157F13",
-                    "amount":"11"}
-                ]
-    };
+    for(var i=0; i<$("#witnessList tr").length; i++){
+        var addressHex = $("#witnessList tr").eq(i).find('td').eq(1).text();
+        var voteCount = $("#witnessList tr").eq(i).find('td input').eq(0).val();
+        if(voteCount > 0){
+            para += "{\"address\": \"" + addressHex + "\", \"amount\":\"" + voteCount + "\"},"
+        }
+    }
+    para = para.substr(0, para.length - 1);
+    para += "]}";
+
+    alert(para)
     $.ajax({
-        type: "post",
+        type: "POST",
         url: "/createVoteWitnessToView",
+        dataType: "json",
         contentType: "application/json",
-        data: JSON.stringify(aa),
+        data: para,
         success: voteSubmitSuccessCallback,
         error: voteFailureCallback,
     });
-
-
-   // ajaxRequest("post", voteWitnessView, para, voteSubmitSuccessCallback, voteFailureCallback);
 }
 
 voteSubmitSuccessCallback = function (data) {
