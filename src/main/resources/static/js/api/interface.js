@@ -1,7 +1,7 @@
 
-//var baseUrl = 'http://localhost:8088/';
+var baseUrl = 'http://localhost:8088/';
 //var baseUrl = 'http://192.168.10.195:8088/';
-var baseUrl = 'http://192.168.10.55:8088/';
+//var baseUrl = 'http://192.168.10.55:8088/';
 
 
 
@@ -19,4 +19,5 @@ var createAssetView = baseUrl + 'createAssetIssueToView'; //发行资产
 var signView = baseUrl + 'transactionFromView'; //签名接口
 var assetIssueListView = baseUrl + 'getAssetIssueList'; //资产列表
 var createWitness = baseUrl + 'createWitnessToView'; //申请成为见证人
+var participateAssetView = baseUrl + 'ParticipateAssetIssueToView'; //参与资产发行接口
 
