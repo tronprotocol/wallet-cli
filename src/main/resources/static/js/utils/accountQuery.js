@@ -34,7 +34,14 @@
         str = '<td align="center" valign="middle">没有查到账户</td>'
         }
 
-    $('#tablHtml').html(str)
+    $('#tablHtml').html(str);
+
+    $("#tablHtml tr").hover(function(){
+        $(this).addClass('b_acitve')
+    },function(){
+        $(this).removeClass('b_acitve')
+    });
+
 }
 
 
