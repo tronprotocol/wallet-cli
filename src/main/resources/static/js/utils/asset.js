@@ -45,7 +45,7 @@ function submitParticipateAssetIssue() {
     var toAddress = $('#ownAddress').text();
     var amount = $('#amount').val();
     var data = "name=" + name + "&ownerAddress=" + ownerAddress + "&toAddress=" + toAddress + "&amount=" + amount;
-    ajaxRequest("post", "/ParticipateAssetIssueToView", data, submitParticipateAssetIssueSuccessCallback, submitAssetIssueFailureCallback)
+    ajaxRequest("post", participateAssetView, data, submitParticipateAssetIssueSuccessCallback, submitAssetIssueFailureCallback)
 }
 
 submitParticipateAssetIssueSuccessCallback = function (data) {
@@ -54,7 +54,7 @@ submitParticipateAssetIssueSuccessCallback = function (data) {
     var transationAfterSign = signTransaction(privateKey, transation);
     var transationHex = byteArray2hexStr(transationAfterSign.serializeBinary());
     var para = "transactionData=" + transationHex;
-    ajaxRequest("post", "/transactionFromView", para, submitAssetIssueSuccessCallback, submitAssetIssueFailureCallback)
+    ajaxRequest("post", signView, para, submitAssetIssueSuccessCallback, submitAssetIssueFailureCallback)
 }
 
 submitAssetIssueSuccessCallback = function (data) {
@@ -104,7 +104,7 @@ $(document).ready(function() {
         var start = Date.parse(new Date($("#startTimeFormat").val()));
         var end = Date.parse(new Date($("#endTimeFormat").val()));
         var data = $("#createAssetForm").serialize() + "&ownerAddress=" + address + "&startTime=" + start + "&endTime=" + end;
-        ajaxRequest("post", "/createAssetIssueToView", data, createAssetSuccessCallback, createAssetFailureCallback);
+        ajaxRequest("post", createAssetView, data, createAssetSuccessCallback, createAssetFailureCallback);
     })
 })
 
@@ -130,5 +130,5 @@ createAssetFailureCallback = function (data) {
 }
 
 function getAssetIssueListFun(){
-    ajaxRequest("get", "/getAssetIssueList", {}, getAssetListSuccessCallback, getAssetListFailureCallback);
+    ajaxRequest("get", assetIssueListView, {}, getAssetListSuccessCallback, getAssetListFailureCallback);
 }
