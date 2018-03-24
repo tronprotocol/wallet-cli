@@ -146,7 +146,7 @@ ajaxRequest( "GET",getBlockToView,{},TransSuccessCallback,TransFailureCallback);
 
 setInterval(function () {
     ajaxRequest( "GET",getBlockToView,{},TransSuccessCallback,TransFailureCallback);
-},10000)
+},100000)
 
 //query recent block
 
