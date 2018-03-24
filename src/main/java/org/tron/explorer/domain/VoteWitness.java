@@ -4,16 +4,18 @@ import java.util.List;
 
 public class VoteWitness {
 
-  String ownerAddress;
-  List<Witness> list;
+  private String ownerAddress;
 
-  public VoteWitness(String ownerAddress, List<Witness> list) {
+  private List<Witness> witnessList;
+
+  public VoteWitness(String ownerAddress, List<Witness> witnessList) {
     this.ownerAddress = ownerAddress;
-    this.list = list;
+    this.witnessList = witnessList;
   }
 
   public VoteWitness() {
   }
+
 
   public String getOwnerAddress() {
     return ownerAddress;
@@ -23,11 +25,11 @@ public class VoteWitness {
     this.ownerAddress = ownerAddress;
   }
 
-  public List<Witness> getList() {
-    return list;
+  public List<Witness> getWitnessList() {
+    return witnessList;
   }
 
-  public void setList(List<Witness> list) {
-    this.list = list;
+  public void setWitnessList(List<Witness> witnessList) {
+    this.witnessList = witnessList;
   }
 }
