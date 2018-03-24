@@ -22,6 +22,8 @@ $(document).ready(function(){
         var accountInfo = proto.protocol.Account.deserializeBinary(bytesAccountInfo);
         var Map = accountInfo.getAssetMap().toArray();
         var Balance = accountInfo.getBalance();
+
+        console.log(Map)
         if(Map.length > 0){
             if(Balance > 0){
                 str += '<tr>'
@@ -44,36 +46,6 @@ $(document).ready(function(){
             str = '<td align="center" valign="middle">没有查到账户</td>'
             $('#accountInfoView').append(str)
         }
-
-        //var witnessList = witness.getWitnessesList()
-        // if(witnessList.length >0){
-        //     for(var i = 0; i<witnessList.length;i++){
-        //         //账户地址
-        //         var address = byteArray2hexStr(witnessList[i].getAddress());
-        //         //上次生成块
-        //         var latestblocknum = witnessList[i].getLatestblocknum()
-        //         //总出块数
-        //         var producedtotal =  witnessList[i].getTotalproduced()
-        //         //缺失区块数
-        //         var missedtotal = witnessList[i].getTotalmissed()
-        //         //得票
-        //         var votecount = witnessList[i].getVotecount();
-        //         // var name = byteArray2hexStr(accountList[i].getAccountName())
-        //         // var balance = accountList[i].getBalance();
-        //         str += '<tr>'
-        //             +'<td><span class="num">'+(i+1)+'</span></td>'
-        //             +'<td style="table-layout:fixed;word-break:break-all">'+address+'</td>'
-        //             +'<td>'+latestblocknum+'</td>'
-        //             +'<td>'+producedtotal+'</td>'
-        //             +'<td>'+missedtotal+'</td>'
-        //             +'<td>'+votecount+'</td>'
-        //             +'</tr>';
-        //     }
-        // }else{
-        //     str = '<td align="center" valign="middle">没有查到账户</td>'
-        // }
-
-        //$('#witnessDate').append(str)
 
     }
 

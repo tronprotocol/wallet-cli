@@ -120,13 +120,17 @@ TransTrxSuccessCallback = function (data) {
   var transactionSigned = signTransaction(com_priKeyBytes, transaction);
   var transactionBytes = transactionSigned.serializeBinary();
   var transactionString = byteArray2hexStr(transactionBytes);
+  var para = "transactionData=" + transactionString;
   //签名验证
-  ajaxRequest("POST", anintran, transactionString, TransBroadSuccessCallback, TransBroadFailureCallback)
+  ajaxRequest("POST", anintran, para, TransBroadSuccessCallback, TransBroadFailureCallback)
 };
 
-TransBroadSuccessCallback = function (success) {
-  alert("转账成功");
-  console.log('转账成功')
+TransBroadSuccessCallback = function (data) {
+    if(data){
+        alert("转账成功");
+    }else{
+        alert("转账失败");
+    }
 
 };
 TransFailureCallback = function (err) {
