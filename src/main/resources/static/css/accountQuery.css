@@ -44,11 +44,6 @@
 .tbody tr:nth-of-type(odd){
 	background: none;
 }
-#tablHtml tr:nth-of-type(even),#myac_table .account_tab{
-	border: 1px solid #d4dde7;
-	border-radius: 2px;
-	background-color: #fff;
-}
 .tbody tr td:nth-child(2){
 	color: #428dff;
 }
@@ -61,27 +56,13 @@
 	margin: auto;
 	line-height: 50px;
 }
-#tablHtml  td:nth-last-of-type(2) {
-	border-top-right-radius: 5px;
-	border-bottom-right-radius: 5px;
-}
-#tablHtml td:nth-last-of-type(1){
-	border-top: 0;
-	border-bottom: 0;
-	background-color: #fafbfc;
-}
+
 #myac_table tbody .account_tab   td {
 	border: 1px solid #d4d8da;
 	border-right: 0;
 	border-left: 0;
 	padding: 5px;
 }
-/*#tablHtml  tr td:nth-child(2){*/
-	/*color: #428dff;*/
-/*}*/
-/*
-count_detail
-*/
 .main p{
 	font-size: 18px;
 	color: #428dff;
@@ -188,9 +169,6 @@ count_detail
 	color: #ccc;
 }
 
-.tbody tr:nth-of-type(even){
-	background: #fff;
-}
 #coun_pwd{
 	font-size: 14px;
 	display: none;
@@ -219,4 +197,25 @@ count_detail
 	border: 1px solid #ccc;
 	border-radius: 2px;
 	margin: 10px 0 0 10px;
+}
+/**/
+.tbody tr  td {
+	border: 1px solid transparent;
+	padding: 5px;
+}
+.tbody .b_acitve  td {
+	border: 1px solid #d4d8da;
+	border-right: 0;
+	border-left: 0;
+	padding: 5px;
+	background-color: #fff;
+}
+.tbody .b_acitve td:nth-last-of-type(1){
+	border-right: 1px solid #d4d8da;
+}
+.tbody .b_acitve td:nth-of-type(1){
+	border-left: 1px solid #d4d8da;
+}
+.main thead{
+	font-size: 16px;
 }

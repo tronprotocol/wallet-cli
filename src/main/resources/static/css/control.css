@@ -51,15 +51,22 @@
     float: left;
     font-size: 14px;
     color: #8d9ba9;
-    padding: 20px;
+    padding: 20px 20px 20px 0;
     height: 100%;
     background-color: #fff;
     border-right: 1px solid #d4dde7;
 }
 .c_form  li {
     line-height: 40px;
-    text-align: center;
+    text-align: left;
     cursor: pointer;
+    padding-left: 80px;
+}
+.c_form  li img{
+    vertical-align: middle;
+    height: 20px;
+    width: 20px;
+    margin-right: 10px;
 }
 .c_form .c_active{
     color: #3291fe;
@@ -91,6 +98,7 @@
     font-weight: 700;
     margin: auto;
     text-align: left;
+    line-height: 25px;
     /**/
 }
 .order p:nth-of-type(even){
@@ -104,12 +112,14 @@
     font-weight: 500;
     margin: 100px 0 0 180px;
     padding-bottom: 100px;
+    color: #c5c4c4;
 }
 .ord_input{
     height: 35px;
     width: 400px;
+    border: 1px solid #ccc;
     border-radius: 5px;
-    margin:20px auto 0 auto;
+    margin:70px  0 0 180px;
     display: block;
 }
 .ord_btn,.ord_suc{
@@ -245,7 +255,7 @@ set
     width: 100%;
     background-color: #fff;
     box-shadow: 5px 5px 10px #f0f3f6;
-    /*float: left;*/
+    border-radius: 5px;
     font-size: 14px;
     padding: 20px;
 }
@@ -257,6 +267,7 @@ set
     padding: 20px;
     box-shadow: 5px 5px 10px #f0f3f6;
     background-color: #fff;
+    border-radius: 5px;
 }
 .information h6{
     color: #a0b4cc;
@@ -282,7 +293,7 @@ set
 .price h6{
     font-size: 20px;
     display: inline-block;
-    color: #ccc;
+    color: #a0b4cc;
 }
 .price .liner_granet{
     float: right;
@@ -291,18 +302,56 @@ set
     height: 20px;
     border-radius: 2px;
 }
+.none{
+    display: none;
+}
 
+.help{
+    font-size: 14px;
+    color: #818181;
+}
+.help>div>p{
+    line-height: 50px;
+    padding:0 160px 0 40px;
+}
+.help>div>p>.title{
+    font-size: 16px;
+    color: #2e3a60;
+}
+.help>div>p:nth-of-type(1){
+    cursor: pointer;
+}
+.ques,.ans{
+    display: inline-block;
+    height: 20px;
+    width: 20px;
+    color: #fff;
+    text-align: center;
+    line-height: 20px;
+    border-radius: 5px;
+    background-color:#0077ff ;
+}
+.ans{
+    background-color:#818181 ;
+}
+.h_list{
+    float: right;
+    margin-top: 20px;
+}
+.help_detail >i,.help_detail>span{
+    display: inline-block;
+}
 
-
-
-
-
-
-
-
-
-
-
+.help_detail>span{
+    margin-left: 40px;
+    margin-top: -50px;
+}
+.help_list >span{
+    margin-left: 40px;
+}
+.help_detail>.more{
+    margin-left: 60px;
+}
 
 
 

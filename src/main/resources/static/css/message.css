@@ -31,7 +31,11 @@
     line-height: 30px;
 }
 .ml_message p{
+    width: 100%;
 line-height: 40px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 .ml_font{
     font-size: 14px;
