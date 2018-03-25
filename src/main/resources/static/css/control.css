@@ -158,9 +158,10 @@ vote
 .vote table thead{
     color: #3291fe;
 }
-.vote table tr{
+.vote table tr {
     line-height: 50px;
     border: 1px solid transparent;
+}
 .vote_d{
     height: 30px;
     width: 60px;
