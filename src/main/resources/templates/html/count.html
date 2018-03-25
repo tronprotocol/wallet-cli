@@ -147,8 +147,36 @@
         $('.myaccount').css('display','block');
     })
     console.log($('.add_account'))
-    // $('tbody').delegate('.add_account','click',function () {
-    //     $('.account_list').css('display','none');
-    //     $('#addcount').css('display','block');
-    // })
+
+    function time(){
+        var start = {
+            elem: '#startTimeFormat',
+            type:'date',
+            show: true,
+            closeStop: '#start',
+            type:'datetime'
+
+        };
+        var end = {
+            elem: '#endTimeFormat',
+            type:'date',
+            show: true,
+            closeStop: '#end',
+            type:'datetime'
+        };
+        lay('#startTimeFormat').on('click', function(e){
+            if($('#endTimeFormat').val() != null && $('#endTimeFormat').val() != undefined && $('#endTimeFormat').val() != ''){
+                start.max = $('#endTimeFormat').val();
+            }
+            laydate.render(start);
+        });
+        lay('#endTimeFormat').on('click', function(e){
+            if($('#startTimeFormat').val() != null && $('#startTimeFormat').val() != undefined && $('#startTimeFormat').val() != ''){
+                end.min = $('#startTimeFormat').val();
+            }
+            laydate.render(end);
+        });
+
+    }
+    time()
 </script>
