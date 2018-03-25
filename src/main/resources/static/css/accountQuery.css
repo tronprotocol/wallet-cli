@@ -225,3 +225,7 @@
 .main thead{
 	font-size: 16px;
 }
+#priceByTrx{
+	font-size: 18px;
+	color: #428dff;
+}
