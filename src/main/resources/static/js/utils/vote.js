@@ -61,7 +61,6 @@ function voteSubmit() {
     para = para.substr(0, para.length - 1);
     para += "]}";
 
-    alert(para)
     $.ajax({
         type: "POST",
         url: voteWitnessView,

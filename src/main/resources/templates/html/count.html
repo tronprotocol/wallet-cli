@@ -127,12 +127,12 @@
         <span id="desc">
 
         </span></p>
-    <p class="cou_hei"><span>参与数量</span><span><input type="text" id="amount" name="amount" /></span></p>
+    <p class="cou_hei"><span>参与数量</span><span><input type="text" id="amount" name="amount" onblur="checkFunction()"/></span></p>
     <!--<p class="cou_hei"><span>参与数量</span><span><input type="text"> =10000TRX</span></p>-->
     <p class="cou_hei"><span>输入密码</span><span><input type="text" id="myKey" name="myKey" /></span></p>
     <p class="check">
-        <input type="checkbox">
-        我已确认花费1000.000TRX参与资产发行，获得ABITS.CNY100.0000数量的资产
+        <input type="checkbox" id="checkParticipate" />
+        我已确认花费<i id="trxNumCheck" >0</i>TRX参与资产发行，获得<i id="assetInfoCheck">0</i>数量的资产
     </p>
     <input type="button" class="liner_granet sure_dele" id="participateBtn" onclick="submitParticipateAssetIssue()" value="确认交易">
 </scetion>
