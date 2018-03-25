@@ -41,7 +41,7 @@ $('#login').on('click',function () {
         $('.motal-mask').css('display','none');
         window.localStorage.setItem('key',$('#repawd').val());
         $('#repawd').val('');
-        $('#text').load('/html/message.html');
+        $('#text').load('/html/ message.html');
         $('#text').css('background','none');
     }
 })
@@ -156,7 +156,7 @@ $('#creatAccount').on('click',function () {
             $('#center').css('display','inline-block');
             $('#text').css('background','none');
             $(this).addClass('header_active').siblings().removeClass('header_active');
-            $('#text').load('/html/message.html');
+            $('#text').load('/html/ message.html');
             window.localStorage.setItem('key',pk)
         }else{
             alert('请您认真阅读并勾选创建账户须知')

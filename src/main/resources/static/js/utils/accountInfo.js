@@ -22,12 +22,12 @@ $(document).ready(function(){
         var accountInfo = proto.protocol.Account.deserializeBinary(bytesAccountInfo);
         var Map = accountInfo.getAssetMap().toArray();
         var Balance = accountInfo.getBalance();
-        var BalanceNum = (Balance/10000000).toFixed(6)
+        var BalanceNum = (Balance/1000000).toFixed(6)
 
         if(Balance > 0){
             str += '<tr>'
                 +'<td>TRX</td>'
-                +'<td>'+Balance+' TRX</td>'
+                +'<td>'+BalanceNum+' TRX</td>'
                 +'</tr>';
             $('#accountInfoView').append(str)
         }else{
@@ -44,7 +44,7 @@ $(document).ready(function(){
                     +'<td>'+nameBalance+'</td>'
                     +'</tr>';
             }
-            $('#accountInfoView').append(str+str2)
+            $('#accountInfoView').append(str2)
         }
     }
 

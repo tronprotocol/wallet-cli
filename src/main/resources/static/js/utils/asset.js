@@ -77,6 +77,9 @@ submitParticipateAssetIssueSuccessCallback = function (data) {
 submitAssetIssueSuccessCallback = function (data) {
     if(data) {
         alert("参与成功");
+        $('#text').css('background','none');
+        $('.header span').removeClass('header_active');
+        $('#text').load('/html/control.html');
     }else{
         alert("参与失败");
     }
@@ -137,6 +140,9 @@ createAssetSuccessCallback = function (data) {
 signSuccessCallback = function (data) {
     if(data) {
         alert("发行资产成功");
+        $('#text').css('background','none');
+        $('.header span').removeClass('header_active');
+        $('#text').load('/html/control.html');
     }else{
         alert("发行资产失败");
     }

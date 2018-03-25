@@ -127,13 +127,28 @@ TransSuccessCallback = function (data) {
   }
       // get before block
     for(var i= 1;i<7;i++){
-        ajaxRequest("GET", getBlockByNumToView, {num: blockNumber - i},
-            TransSuccessByNumToViewCallback, TransFailureCallback);
+        getBeforeBlockByNumToView(getBlockByNumToView,blockNumber,i,TransSuccessByNumToViewCallback,TransFailureCallback)
     }
 
   }
 };
 
+
+function getBeforeBlockByNumToView(getBlockByNumToView,blockNumber,i,TransSuccessByNumToViewCallback,TransFailureCallback) {
+    $.ajax({
+        url: getBlockByNumToView,
+        type: 'get',
+        dataType: 'json',
+        data:{num: blockNumber - i},
+        async: false,   // 是否异步
+        success: function (data) {
+            TransSuccessByNumToViewCallback(data)
+        },
+        fail: function (data) {
+            TransFailureCallback(data)
+        }
+    })
+}
 
 
 TransFailureCallback = function (err) {
@@ -163,20 +178,29 @@ TransSuccessByNumToViewCallback = function (data) {
   var transactionNum= blockData.getTransactionsList().length;
   var contraxtType=proto.protocol.Transaction.Contract.ContractType;
   //var big = 255;
-
+  var timeStr = '';
   //当前时间戳
   var timestamp=new Date().getTime();
   //当前时间戳 - 块生成的时间戳
   var accordTimes = Math.floor(timestamp - time);
   console.log('accordTimes====='+accordTimes);
-  var sec = Math.floor(accordTimes/1000);
+  if(Math.floor(accordTimes/1000) > 60){
 
-  console.log(blockNumber+" ::: "+time+" ::: "+witnessAddressHex+" ::: "+transactionNum);
+      var sec = Math.floor(accordTimes/60000);
+      timeStr = sec+ '分'
+  }else{
+      var sec = Math.floor(accordTimes/1000);
+      timeStr = sec+ '秒'
+  }
+
+
+
+  //console.log(blockNumber+" ::: "+time+" ::: "+witnessAddressHex+" ::: "+transactionNum);
 
 
   var html= '<div class="before-block"><div  class="mr_left">'
       + '<p>区块  #'+ blockNumber+'</p>'
-      + '<p>'+sec+'秒前</p>'
+      + '<p>'+timeStr+'前</p>'
       + ' </div>'
       + '<div class="mr_right">'
       + '<p>出块人: '+witnessAddressHexSix+'  </p><p>'

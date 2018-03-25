@@ -43,7 +43,7 @@ function QueryWitnessSuccess(data) {
                 // +'<td>'+latestblocknum+'</td>'
                 // +'<td>'+producedtotal+'</td>'
                 // +'<td>'+missedtotal+'</td>'
-                +'<td>'+votecount+'</td>'
+                +'<td>'+votecount+' TRX</td>'
                 +'</tr>';
         }
     }else{
