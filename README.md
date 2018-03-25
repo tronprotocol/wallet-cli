@@ -74,3 +74,12 @@ Getblock
 Exit or Quit
 
 Input any one of then, you will get more tips.
+
+## Build webpack
+
+Building the frontend requires [nodejs](https://nodejs.org/en/) and [yarn](https://yarnpkg.com/en/)
+
+```
+> yarn install
+> yarn build:dev
+```
