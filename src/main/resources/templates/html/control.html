@@ -80,20 +80,14 @@
             <h6>出块人通知</h6>
             <p>出块人</p>
             <p>
-                出块人是为区块链打包生成新的区块的实体。每一个出块人由股东批准，打包经验证的交易，生成并签署区块。每一条进入网络的交易最终将被所有出块人验证。
-            </p>
-            <p>
-                共识机制
-            </p>
-            <p>
-                由谁在什么时间来打包生成区块是由被称为Delegated Proof of Stak (DPOS)的共识算法决定的。算法的本质是 BitShares
-                的股东(BTS的持有者)能通过投票来决定他们期望的块打包者。由获得最多票数的所谓"出块人"来打包生成区块。
+                申请成为出块者需要您的账户TRX余额>0，点击申请按钮，输入您的账户密码，即可申请成为出块候选者。通过用户投票，得票最多的几个人，会成为出块者。成为出块者可以打包交易，生成区块并获取对应的TRX奖励。
             </p>
             <p class="c_check">
+                 <input type="text" class="ord_input" placeholder="请输入您的个人站点">
                 <input type="checkbox"> <span >我已理解出块人注意事项，确认申请出块人候选人</span>
             </p>
         </span>
-        <input type="text" class="ord_input" placeholder="请输入您的个人站点">
+
         <button class="ord_btn disable_btn" id="tobeWitness">申请成为出块人候选人</button>
         <button class="ord_suc">您已申请成为出块人</button>
 
@@ -154,11 +148,11 @@
     <!--</div>-->
     <div class="help">
        <div>
-           <p class="help_detail">
+           <p class="help_list">
                <i class="ques">Q</i>
                <span class="title">TRON区块链浏览器有哪些功能?</span>
-               <img src="../static/img/listbot.png" alt="" class="h_list">
-               <img src="../static/img/right.png" alt="" class="none">
+               <img src="/img/listbot.png" alt="" class="h_list">
+               <img src="/img/right.png" alt="" class="none">
            </p>
            <p class="help_detail">
                <i class="ans">A</i>
@@ -166,11 +160,11 @@
            </p>
        </div>
         <div>
-            <p class="help_detail">
+            <p class="help_list">
                 <i class="ques">Q</i>
                 <span class="title">如何注册TRON区块链浏览器账户?</span>
-                <img src="../static/img/listbot.png" alt="" class="h_list">
-                <img src="../static/img/right.png" alt="" class="none">
+                <img src="/img/listbot.png" alt="" class="h_list">
+                <img src="/img/right.png" alt="" class="none">
             </p>
             <p class="help_detail">
                 <i class="ans">A</i>
@@ -178,11 +172,11 @@
             </p>
         </div>
         <div>
-            <p class="help_detail">
+            <p class="help_list">
                 <i class="ques">Q</i>
                 <span class="title">如何用TRON区块链浏览器发行资产或参与资产发行?</span>
-                <img src="../static/img/listbot.png" alt="" class="h_list">
-                <img src="../static/img/right.png" alt="" class="none">
+                <img src="/img/listbot.png" alt="" class="h_list">
+                <img src="/img/right.png" alt="" class="none">
             </p>
             <p class="help_detail">
                 <i class="ans">A</i>
@@ -197,11 +191,11 @@
             </p>
         </div>
         <div>
-            <p class="help_detail">
+            <p class="help_list">
                 <i class="ques">Q</i>
                 <span class="title">如何使用TRON钱包进行资产交易？</span>
-                <img src="../static/img/listbot.png" alt="" class="h_list">
-                <img src="../static/img/right.png" alt="" class="none">
+                <img src="/img/listbot.png" alt="" class="h_list">
+                <img src="/img/right.png" alt="" class="none">
             </p>
             <p class="help_detail">
                 <i class="ans">A</i>
@@ -209,11 +203,11 @@
             </p>
         </div>
         <div>
-            <p class="help_detail">
+            <p class="help_list">
                 <i class="ques">Q</i>
                 <span class="title">如何成为TRON主链见证人？</span>
-                <img src="../static/img/listbot.png" alt="" class="h_list">
-                <img src="../static/img/right.png" alt="" class="none">
+                <img src="/img/listbot.png" alt="" class="h_list">
+                <img src="/img/right.png" alt="" class="none">
             </p>
             <p class="help_detail">
                 <i class="ans">A</i>
@@ -224,7 +218,7 @@
     </div>
 </div>
 <script type="text/javascript">
-$('.help_detail').each(function (i,item) {
+$('.help_list').each(function (i,item) {
     $(this).on('click',function () {
         $(this).find(".h_list").addClass('none').removeClass('h_list').siblings('img').addClass('h_list').removeClass('none')
         $(this).siblings().slideToggle()
