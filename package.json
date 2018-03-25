@@ -1,0 +1,9 @@
+{
+  "name": "wallet-cli",
+  "version": "0.1",
+  "description": "Tron Network Wallet",
+  "main": "index.js",
+  "repository": "git@github.com:tronprotocol/wallet-cli.git",
+  "author": "Tron",
+  "license": "MIT"
+}
