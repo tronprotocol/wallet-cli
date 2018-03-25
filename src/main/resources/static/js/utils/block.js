@@ -71,7 +71,7 @@ TransSuccessCallback = function (data) {
   var txlist = blockData.getTransactionsList();
 
   if (txlist.length > 0) {
-    var txlistFive = txlist.slice(0,10)
+    var txlistFive = txlist.slice(0,12)
     for (var index in txlistFive) {
       // console.log(txlist[index]);
       var tx = txlist[index];
@@ -124,12 +124,12 @@ TransSuccessCallback = function (data) {
         }
       }
 
-
-
   }
       // get before block
-      ajaxRequest("GET", getBlockByNumToView, {num: blockNumber - 1},
-          TransSuccessByNumToViewCallback, TransFailureCallback);
+    for(var i= 1;i<7;i++){
+        ajaxRequest("GET", getBlockByNumToView, {num: blockNumber - i},
+            TransSuccessByNumToViewCallback, TransFailureCallback);
+    }
 
   }
 };
@@ -152,7 +152,8 @@ setInterval(function () {
 
 TransSuccessByNumToViewCallback = function (data) {
   var recentBlock = base64DecodeFromString(data);
-
+  //区块大小
+  var big = recentBlock.length;
   var blockData = proto.protocol.Block.deserializeBinary(recentBlock);
   var blockNumber= blockData.getBlockHeader().getRawData().getNumber();
   var witnessAddress= blockData.getBlockHeader().getRawData().getWitnessAddress();
@@ -161,24 +162,28 @@ TransSuccessByNumToViewCallback = function (data) {
   var time= blockData.getBlockHeader().getRawData().getTimestamp();
   var transactionNum= blockData.getTransactionsList().length;
   var contraxtType=proto.protocol.Transaction.Contract.ContractType;
-  var big = 255;
-  var newDate = new Date(time);
+  //var big = 255;
+
+  //当前时间戳
+  var timestamp=new Date().getTime();
+  //当前时间戳 - 块生成的时间戳
+  var accordTimes = timestamp - time;
+  console.log('accordTimes====='+accordTimes)
+  var newDate = new Date(accordTimes);
   var minutes = newDate.getMinutes();
- // console.log(blockNumber+" ::: "+time+" ::: "+witnessAddressHex+" ::: "+transactionNum);
+  console.log(blockNumber+" ::: "+time+" ::: "+witnessAddressHex+" ::: "+transactionNum);
 
 
-  var html= '<div  class="mr_left">'
+  var html= '<div class="before-block"><div  class="mr_left">'
       + '<p>区块  #'+ blockNumber+'</p>'
       + '<p>'+minutes+'分前</p>'
       + ' </div>'
       + '<div class="mr_right">'
       + '<p>见证人: '+witnessAddressHexSix+'  </p><p>'
       + '<span>交易数：'+transactionNum+'</span>'
-      +'<span>大小：'+big+'</span></p></div>';
+      +'<span>大小：'+big+'</span></p></div></div>';
 
-  $("#recentBlock").html(html);
-
-
+  $("#recentBlock").append(html);
 };
 
 TransFailureCallback = function (err) {

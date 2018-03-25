@@ -159,8 +159,8 @@ vote
     color: #3291fe;
 }
 .vote table tr{
-    line-height: 60px;
-}
+    line-height: 50px;
+    border: 1px solid transparent;
 .vote_d{
     height: 30px;
     width: 60px;
@@ -189,7 +189,7 @@ vote
     border-spacing:0px 20px;
     margin: auto;
     color: #64768a;
-    padding: 0 20px;
+    /*padding: 0 20px;*/
     border-radius: 5px;
 }
 .vote table thead{
@@ -353,6 +353,21 @@ set
     margin-left: 60px;
 }
 
+/**/
+
+#witnessList .b_acitve td {
+    border: 1px solid #d4d8da;
+    border-right: 0;
+    border-left: 0;
+    /*padding: 5px;*/
+    background-color: #fff;
+}
+#witnessList .b_acitve td:nth-last-of-type(1){
+    border-right: 1px solid #d4d8da;
+}
+#witnessList .b_acitve td:nth-of-type(1){
+    border-left: 1px solid #d4d8da;
+}
 
 
 

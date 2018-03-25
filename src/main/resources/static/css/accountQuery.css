@@ -27,16 +27,21 @@
 	font-size: 14px;
 }
 .main table{
-	width: 100%;
+	width: 80%;
 	height: auto;
 	overflow: hidden;
 	border: none;
 	text-align: center;
 	font-size: 14px;
+    margin: auto;
+}
+#text .main{
+    margin-top: 40px;
 }
 .main table tr{
 	height: 50px;
 	line-height: 50px;
+    color: #428dff;
 }
 #tablHtml tr{
 	color: #45425e;
