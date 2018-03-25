@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.SerializationFeature;
-import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -19,16 +18,15 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
-import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurerAdapter;
+
+import java.util.List;
 
 
 @EnableScheduling
 @SpringBootApplication
 public class GrpcClientApplication extends SpringBootServletInitializer {
-
-
 
     @Bean
     public ObjectMapper objectMapper() {
@@ -44,7 +42,6 @@ public class GrpcClientApplication extends SpringBootServletInitializer {
     @Autowired
     ObjectMapper objectMapper;
 
-
 //    @Bean
 //    ProtobufHttpMessageConverter protobufHttpMessageConverter() {
 //        return new ProtobufHttpMessageConverter();
@@ -52,8 +49,6 @@ public class GrpcClientApplication extends SpringBootServletInitializer {
 
     @Bean
     public WebMvcConfigurer webMvcConfigurer() {
-
-
         return new WebMvcConfigurerAdapter() {
 
 
@@ -62,7 +57,7 @@ public class GrpcClientApplication extends SpringBootServletInitializer {
              */
             @Override
             public void configureMessageConverters(List<HttpMessageConverter<?>> converters) {
-                 final ProtobufHttpMessageConverter protobufconverter = new ProtobufHttpMessageConverter();
+                final ProtobufHttpMessageConverter protobufconverter = new ProtobufHttpMessageConverter();
                 final MappingJackson2HttpMessageConverter converter = new MappingJackson2HttpMessageConverter();
                 converter.setObjectMapper(objectMapper);
                 converters.add(converter);
@@ -71,7 +66,6 @@ public class GrpcClientApplication extends SpringBootServletInitializer {
             }
         };
     }
-
 
 
     //fix cors

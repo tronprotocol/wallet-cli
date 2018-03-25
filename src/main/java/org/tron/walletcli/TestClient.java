@@ -238,8 +238,8 @@ public class TestClient {
 
     long times = new Long(loopTime);
 
-    for (int i = 0; i < times; i++) {
-      long amount = i + 1;
+    for (int i = 1; i <= times; i++) {
+      long amount = i;
       boolean result = client.sendCoin(password, toAddress,  amount);
       if (result) {
         logger.info("Send " + amount + " dron to " + toAddress + " successful !!");
