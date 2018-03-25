@@ -15,20 +15,26 @@ $(document).ready(function(){
         var nameBalance = '';
         var str = '';
         var str2 = '';
-        $('#accountInfoView').html('')
+        $('#accountInfoView').html('');
         //从base64字符串中解码出原文，格式为byteArray格式
         var bytesAccountInfo = base64DecodeFromString(data);
         //调用方法deserializeBinary解析
         var accountInfo = proto.protocol.Account.deserializeBinary(bytesAccountInfo);
         var Map = accountInfo.getAssetMap().toArray();
         var Balance = accountInfo.getBalance();
+        var BalanceNum = (Balance/10000000).toFixed(6)
 
-        console.log(Map)
-        str += '<tr>'
-            +'<td>TRX</td>'
-            +'<td>'+Balance+'</td>'
-            +'</tr>';
-        $('#accountInfoView').append(str)
+        if(Balance > 0){
+            str += '<tr>'
+                +'<td>TRX</td>'
+                +'<td>'+Balance+' TRX</td>'
+                +'</tr>';
+            $('#accountInfoView').append(str)
+        }else{
+            str = '<tr><td>TRX</td><td>0</td></tr>'
+            $('#accountInfoView').append(str)
+
+        }
         if(Map.length > 0){
             for (var key in Map) {
                 name = Map[key][0];
@@ -38,7 +44,7 @@ $(document).ready(function(){
                     +'<td>'+nameBalance+'</td>'
                     +'</tr>';
             }
-            $('#accountInfoView').append(str2)
+            $('#accountInfoView').append(str+str2)
         }
     }
 

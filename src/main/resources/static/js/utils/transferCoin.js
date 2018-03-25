@@ -27,6 +27,7 @@ GetAccountSuccessCallback = function (account) {
     var Map = accountInfo.getAssetMap().toArray();
     var Balance = accountInfo.getBalance();
     var str = ''
+    $('#coinSelect').html()
     if (Balance > 0) {
       str = '<option value="">请选择币种</option>'
             +'<option value="TRX">TRX</option>'
@@ -39,6 +40,7 @@ GetAccountSuccessCallback = function (account) {
         str += '<option value="'+name+'">'+ name +'</option>'
     }
     $('#coinSelect').append(str)
+    $('#coinSelect_box').css('display','block')
 }
 
 GetAccountFailureCallback = function () {
