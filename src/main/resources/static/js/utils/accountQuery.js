@@ -23,7 +23,10 @@
            var name = bytesToString(accountList[i].getAccountName())
            var address = byteArray2hexStr(accountList[i].getAddress())
            var balance = accountList[i].getBalance();
-           var balanceNum = (balance/1000000).toFixed(6);
+           var balanceNum = 0;
+           if(balance != 0) {
+               balanceNum = (balance / 1000000).toFixed(6);
+           }
            str += '<tr>'
                +'<td><span class="num">'+(i+1)+'</span></td>'
                +'<td style="table-layout:fixed;;word-break:break-all">'+address+'</td>'

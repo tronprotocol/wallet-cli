@@ -40,8 +40,10 @@ function participateAssetIssue(i) {
 }
 
 function calPriceByTrx() {
-    var priceByTrx = $('#trxNum').val() / $('#num').val();
-    $('#priceByTrx').text(priceByTrx);
+    if($('#assetNum').val()!="" &&  $('#trxNum').val()!="") {
+        var priceByTrx = $('#trxNum').val() / $('#assetNum').val();
+        $('#priceByTrx').text(priceByTrx);
+    }
 }
 
 function checkFunction() {
