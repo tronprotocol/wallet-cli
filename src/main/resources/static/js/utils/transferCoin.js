@@ -34,7 +34,7 @@ GetAccountSuccessCallback = function (account) {
         str = '<option value="">请选择币种</option>'
     }
     for (var key in Map) {
-        name = Map[key][0];
+        var name = Map[key][0];
         //nameBalance = Map[key][1];
         str += '<option value="'+name+'">'+ name +'</option>'
     }
