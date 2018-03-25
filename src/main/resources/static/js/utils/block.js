@@ -58,7 +58,7 @@ TransSuccessCallback = function (data) {
 
 
 
-  $("#block_num").text(blockNumber);
+  $("#block_num").text('#'+blockNumber);
   $("#witness_num").text(witnessNum);
   $("#beforeBlock").text(parenthashHexSix);
 
@@ -167,23 +167,22 @@ TransSuccessByNumToViewCallback = function (data) {
   //当前时间戳
   var timestamp=new Date().getTime();
   //当前时间戳 - 块生成的时间戳
-  var accordTimes = timestamp - time;
-  console.log('accordTimes====='+accordTimes)
-  var newDate = new Date(accordTimes);
-  var minutes = newDate.getMinutes();
+  var accordTimes = Math.floor(timestamp - time);
+  console.log('accordTimes====='+accordTimes);
+  var sec = Math.floor(accordTimes/1000);
+
   console.log(blockNumber+" ::: "+time+" ::: "+witnessAddressHex+" ::: "+transactionNum);
 
 
   var html= '<div class="before-block"><div  class="mr_left">'
       + '<p>区块  #'+ blockNumber+'</p>'
-      + '<p>'+minutes+'分前</p>'
+      + '<p>'+sec+'秒前</p>'
       + ' </div>'
       + '<div class="mr_right">'
       + '<p>出块人: '+witnessAddressHexSix+'  </p><p>'
       + '<span>交易数：'+transactionNum+'</span>'
-      +'<span>大小：'+big+'</span></p></div></div>';
-
-  $("#recentBlock").append(html);
+      +'<span>大小：'+big+'bytes</span></p></div></div>';
+      $("#recentBlock").append(html);
 };
 
 TransFailureCallback = function (err) {

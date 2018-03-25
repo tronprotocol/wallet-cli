@@ -128,6 +128,10 @@ header span{
     text-overflow: ellipsis;
     white-space: nowrap;
     margin-left: 10px;
+    outline:none;
+}
+#repawd{
+    margin-left: 0;
 }
 form input{
     margin:0 0 10px 0;
@@ -196,6 +200,7 @@ form input{
     border-radius: 5px;
     border:1px solid #117eff;
     color: #117eff;
+    background-color: #fff;
 }
 .wel_creat .liner_granet{
     color: #fff;
@@ -338,7 +343,30 @@ form input{
     border-radius: 5px;
     border: solid 1px rgb(126, 153, 185);
     margin-left: 20px;
+    margin-top: 10px;
+    margin-bottom: 10px;
 }
-#transform_box .tran_form p,#num{
+#transform_box .tran_form p{
     margin-left: 20px;
+}
+
+#num{
+    width: 218px;
+    height: 26px;
+    background-color: rgb(255, 255, 255);
+    box-shadow: 0px 9px 14px 1px
+    rgba(126, 153, 185, 0.13);
+    border-radius: 5px;
+    border: solid 1px rgb(126, 153, 185);
+    margin-left: 20px;
+}
+#coinSelect{
+    width: 218px;
+    height: 26px;
+    background-color: rgb(255, 255, 255);
+    margin-left: 20px;
+
+}
+#coinSelect_box{
+    display: none;
 }

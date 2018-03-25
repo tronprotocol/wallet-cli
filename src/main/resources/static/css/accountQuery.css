@@ -49,9 +49,9 @@
 .tbody tr:nth-of-type(odd){
 	background: none;
 }
-.tbody tr td:nth-child(2){
-	color: #428dff;
-}
+/*.tbody tr td:nth-child(2){*/
+	/*color: #428dff;*/
+/*}*/
 #tablHtml tr td:nth-child(2) span{
 	display: block;
 	width: 30%;
