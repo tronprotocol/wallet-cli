@@ -27,7 +27,7 @@
                +'<td><span class="num">'+(i+1)+'</span></td>'
                +'<td style="table-layout:fixed;;word-break:break-all">'+address+'</td>'
                +'<td style="table-layout:fixed;;word-break:break-all">'+name+'</td>'
-               +'<td>'+balance+'</td>'
+               +'<td>'+balance+' TRX</td>'
                +'</tr>';
        }
    }else{
