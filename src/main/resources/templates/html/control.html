@@ -83,7 +83,7 @@
                 申请成为出块者需要您的账户TRX余额>0，点击申请按钮，输入您的账户密码，即可申请成为出块候选者。通过用户投票，得票最多的几个人，会成为出块者。成为出块者可以打包交易，生成区块并获取对应的TRX奖励。
             </p>
             <p class="c_check">
-                 <input type="text" class="ord_input" placeholder="请输入您的个人站点">
+                 <input type="text" class="ord_input" id="ordInputUrl" placeholder="请输入您的个人站点">
                 <input type="checkbox"> <span >我已理解出块人注意事项，确认申请出块人候选人</span>
             </p>
         </span>
@@ -107,7 +107,7 @@
             </tbody>
 
         </table>
-        <input type="text" class="ord_input" placeholder="请输入您的个人密码" id="myKey" />
+        <input type="text" class="ord_input" placeholder="请输入您的个人密码" id="myKey"  style="margin: 0 auto"/>
         <button class="ord_btn" id="voteBtn" onclick="voteSubmit()">投票</button>
     </div>
     <!--<div class="set">-->

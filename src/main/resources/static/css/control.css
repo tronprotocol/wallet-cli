@@ -121,6 +121,7 @@
     border-radius: 5px;
     margin-bottom:30px;
     display: block;
+    text-align: center;
 }
 .ord_btn,.ord_suc{
     height: 35px;

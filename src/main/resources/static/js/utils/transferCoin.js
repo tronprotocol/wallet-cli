@@ -44,7 +44,7 @@ GetAccountSuccessCallback = function (account) {
 }
 
 GetAccountFailureCallback = function () {
-  console.log(111)
+  console.log(err)
 }
 
 //监听输入框 非空效验
@@ -95,18 +95,18 @@ $('#change').off('click').on('click', function () {
   var com_prik = $('#com_adress').val();
   var go_text = $('#go_cont').val();
   var num_text = $('#num').val();
-
+  var numTrx  = Number(num_text)*1000000;
 
   var dataOther = {
     "assetName": com_asset,
     "Address": com_text,
     "toAddress": go_text,
-    "Amount": num_text
+    "Amount": numTrx
   }
   var dataTrx = {
       "Address": com_text,
       "toAddress": go_text,
-      "Amount": num_text
+      "Amount": numTrx
     }
   if(com_asset == 'TRX'){
       ajaxRequest("POST", transTrx, dataTrx, TransTrxSuccessCallback, TransFailureCallback)

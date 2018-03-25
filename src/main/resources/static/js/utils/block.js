@@ -125,6 +125,7 @@ TransSuccessCallback = function (data) {
       }
 
   }
+    $("#recentBlock").html("");
       // get before block
     for(var i= 1;i<7;i++){
         getBeforeBlockByNumToView(getBlockByNumToView,blockNumber,i,TransSuccessByNumToViewCallback,TransFailureCallback)

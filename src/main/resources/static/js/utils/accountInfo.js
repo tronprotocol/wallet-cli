@@ -115,7 +115,7 @@ $(document).ready(function(){
                 console.log(address+'==============='+com_text)
 
                 if(address == com_text){
-                    $('.ord_input').css('display','none');
+                    $('#ordInputUrl').css('display','none');
                     $('#tobeWitness').css('display','none');
                     $('.c_check').css('display','none');
                     $('.ord_suc').css('display','block');
