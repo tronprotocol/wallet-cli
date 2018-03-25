@@ -24,14 +24,12 @@ $(document).ready(function(){
         var Balance = accountInfo.getBalance();
 
         console.log(Map)
+        str += '<tr>'
+            +'<td>TRX</td>'
+            +'<td>'+Balance+'</td>'
+            +'</tr>';
+        $('#accountInfoView').append(str)
         if(Map.length > 0){
-            if(Balance > 0){
-                str += '<tr>'
-                    +'<td>TRX</td>'
-                    +'<td>'+Balance+'</td>'
-                    +'</tr>';
-                $('#accountInfoView').append(str)
-            }
             for (var key in Map) {
                 name = Map[key][0];
                 nameBalance = Map[key][1];
@@ -41,12 +39,7 @@ $(document).ready(function(){
                     +'</tr>';
             }
             $('#accountInfoView').append(str2)
-
-        }else{
-            str = '<td align="center" valign="middle">没有查到账户</td>'
-            $('#accountInfoView').append(str)
         }
-
     }
 
 
