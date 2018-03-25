@@ -219,9 +219,9 @@ public class TestClient {
 
     boolean result = client.sendCoin(password, toAddress, amount);
     if (result) {
-      logger.info("Send " + amount + " dron to " + toAddress + " successful !!");
+      logger.info("Send " + amount + " drop to " + toAddress + " successful !!");
     } else {
-      logger.info("Send " + amount + " dron to " + toAddress + " failed !!");
+      logger.info("Send " + amount + " drop to " + toAddress + " failed !!");
     }
   }
 
