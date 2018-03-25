@@ -38,8 +38,19 @@ function participateAssetIssue(i) {
     $('#lastTime').text(formattedStartTime + " - " + formattedEndTime);
     $('#desc').text(desc);
 }
+function checkFunction() {
+    $('#trxNumCheck').text($('#amount').val());
+    var assetNum = $('#price').text() * $('#amount').val();
+    var info = $('#assetName').text() + assetNum;
+    $('#assetInfoCheck').text(info);
+}
 
 function submitParticipateAssetIssue() {
+    var isChecked = $('#checkParticipate').prop('checked');
+    if(!isChecked){
+        alert("请确认参与资产发行");
+        return;
+    }
     var name = byteArray2hexStr(stringToBytes($('#assetName').text()));
     var ownerAddress = getHexStrAddressFromPriKeyBase64String($('#myKey').val());
     var toAddress = $('#ownAddress').text();
