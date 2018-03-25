@@ -35,6 +35,11 @@ function QueryWitnessSuccess(data) {
         str = '<td align="center" valign="middle">没有查到账户</td>'
     }
     $('#witnessList').append(str);
+    $("#witnessList tr").hover(function(){
+        $(this).addClass('b_acitve')
+    },function(){
+        $(this).removeClass('b_acitve')
+    });
 }
 
 function QueryWitnessFail(data) {

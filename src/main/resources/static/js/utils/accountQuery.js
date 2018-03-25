@@ -24,7 +24,7 @@
            var address = byteArray2hexStr(accountList[i].getAddress())
            var balance = accountList[i].getBalance();
            str += '<tr>'
-               +'<td>'+(i+1)+'</td>'
+               +'<td><span class="num">'+(i+1)+'</span></td>'
                +'<td style="table-layout:fixed;;word-break:break-all">'+address+'</td>'
                +'<td style="table-layout:fixed;;word-break:break-all">'+name+'</td>'
                +'<td>'+balance+'</td>'
@@ -35,12 +35,12 @@
         }
 
     $('#tablHtml').html(str);
-
     $("#tablHtml tr").hover(function(){
         $(this).addClass('b_acitve')
     },function(){
         $(this).removeClass('b_acitve')
     });
+
 
 }
 
