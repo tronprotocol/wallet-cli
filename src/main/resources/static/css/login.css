@@ -371,3 +371,7 @@ form input{
 #coinSelect_box{
     display: none;
 }
+
+.login_html{
+    border:none;
+}
