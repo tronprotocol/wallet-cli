@@ -82,6 +82,13 @@
 .ml_vote{
     margin-top: 30px;
 }
+
+.before-block{
+    margin-top: 35px;
+}
+.before-block:nth-child(1){
+    margin-top: 0px;
+}
 .mr_left{
     height: 80px;
     width: 175px;
@@ -90,7 +97,7 @@
     display: inline-block;
     text-align: center;
     line-height: 30px;
-    margin: 0 20px 0 70px;
+    margin: 0 20px 0 85px;
     padding: 10px;
 }
 .mr_left p{
@@ -105,6 +112,10 @@
     overflow:hidden;
     text-overflow:ellipsis;
     white-space:nowrap;
+}
+
+.mr_right p span:nth-child(2){
+    margin-left: 20px;
 }
 .serch_msg{
     margin: 20px 0 20px 80px;
