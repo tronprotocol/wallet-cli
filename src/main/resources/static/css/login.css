@@ -31,7 +31,8 @@ header .left_list{
 .left_list button{
     display: inline-block;
     height: 30px;
-    width: 80px;
+    width: auto;
+    padding: 0 5px;
     border-radius: 2px;
     border: 0;
     cursor: pointer;
