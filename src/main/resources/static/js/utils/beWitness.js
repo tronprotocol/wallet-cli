@@ -25,7 +25,7 @@ $(document).ready(function(){
 
     $('#tobeWitness').on('click',function () {
         if(!$(".c_check input").is(":checked")){
-            alert('请阅读见证人通知，并勾选')
+            alert('请阅读出块人通知，并勾选')
         }else if($('.ord_input').val() == ''){
             alert('请输入您的个人站点')
         }else{

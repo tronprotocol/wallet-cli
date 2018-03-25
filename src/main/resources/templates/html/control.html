@@ -4,7 +4,7 @@
         <li class="c_active" id="accountInfo">账户详情</li>
         <!--<li>近期活动</li>-->
         <i></i>
-        <li>申请成为见证人</li>
+        <li>申请成为出块人</li>
         <li onclick="voteInit()">投票</li>
         <i></i>
         <!--<li>设置</li>-->
@@ -16,7 +16,7 @@
         <div class="count_outer">
             <div class="price">
                 <h6>资产列表</h6>
-                <input type="button" class="liner_granet" value="资产转账">
+                <input type="button" class="liner_granet" value="资产转账" id="transfer_accounts">
                 <table class="table">
                     <thead>
                     <tr>
@@ -77,25 +77,25 @@
     <!--</div>-->
     <div>
         <span class="order">
-            <h6>见证人通知</h6>
-            <p>见证人</p>
+            <h6>出块人通知</h6>
+            <p>出块人</p>
             <p>
-                见证人是为区块链打包生成新的区块的实体。每一个见证人由股东批准，打包经验证的交易，生成并签署区块。每一条进入网络的交易最终将被所有见证人验证。
+                出块人是为区块链打包生成新的区块的实体。每一个出块人由股东批准，打包经验证的交易，生成并签署区块。每一条进入网络的交易最终将被所有出块人验证。
             </p>
             <p>
                 共识机制
             </p>
             <p>
                 由谁在什么时间来打包生成区块是由被称为Delegated Proof of Stak (DPOS)的共识算法决定的。算法的本质是 BitShares
-                的股东(BTS的持有者)能通过投票来决定他们期望的块打包者。由获得最多票数的所谓"见证人"来打包生成区块。
+                的股东(BTS的持有者)能通过投票来决定他们期望的块打包者。由获得最多票数的所谓"出块人"来打包生成区块。
             </p>
             <p class="c_check">
-                <input type="checkbox"> <span >我已理解见证人注意事项，确认申请见证人候选人</span>
+                <input type="checkbox"> <span >我已理解出块人注意事项，确认申请出块人候选人</span>
             </p>
         </span>
         <input type="text" class="ord_input" placeholder="请输入您的个人站点">
-        <button class="ord_btn disable_btn" id="tobeWitness">申请成为见证人候选人</button>
-        <button class="ord_suc">您已申请成为见证人</button>
+        <button class="ord_btn disable_btn" id="tobeWitness">申请成为出块人候选人</button>
+        <button class="ord_suc">您已申请成为出块人</button>
 
 
     </div>
