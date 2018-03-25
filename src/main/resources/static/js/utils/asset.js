@@ -38,6 +38,12 @@ function participateAssetIssue(i) {
     $('#lastTime').text(formattedStartTime + " - " + formattedEndTime);
     $('#desc').text(desc);
 }
+
+function calPriceByTrx() {
+    var priceByTrx = $('#trxNum').val() / $('#num').val();
+    $('#priceByTrx').text(priceByTrx);
+}
+
 function checkFunction() {
     $('#trxNumCheck').text($('#amount').val());
     var assetNum = $('#price').text() * $('#amount').val();

@@ -89,17 +89,18 @@
          <input type="text" id="totalSupply" name="totalSupply"/>
          <div class="account_inline">
              <div>
-                 <span >本资产数量</span> <br>
+                 <span >本资产数量</span>  <span > &nbsp;&nbsp;&nbsp;&nbsp;/</span> <br/>
+
                  <input type="text" class="account_num" id="num" name="num"/>
             </div>
 
              <div>
-                 <span >TRX数量</span> <br>
-                 <input type="text" class="account_num" id="trxNum" name="trxNum"/>
+                 <span >TRX数量</span> <br/>
+                 <input type="text" class="account_num" id="trxNum" name="trxNum" onblur="calPriceByTrx()"/>
              </div>
 
          </div>
-         <p>单价：1.0000/TRX</p>
+         <p>单价：<i id="priceByTrx" >0</i>/TRX</p>
          <p>
              <span class="start_time">起始时间:<input type="text" class="layui-input" id="startTimeFormat" name="startTimeFormat"/>
 
