@@ -66,6 +66,7 @@ $(document).ready(function(){
     $('#nemoney').click(function () {
         $(this).addClass('header_active').siblings().removeClass('header_active');
         $('#text').load('html/count.html');
+        $('#text').css('background','none');
         // if(window.localStorage.getItem('key')){
         //     $('#text').css('background','none');
         //     $('#text').load('html/count.html');
