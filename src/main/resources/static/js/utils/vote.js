@@ -59,7 +59,7 @@ function voteSubmit() {
     alert(para)
     $.ajax({
         type: "POST",
-        url: "/createVoteWitnessToView",
+        url: voteWitnessView,
         dataType: "json",
         contentType: "application/json",
         data: para,
