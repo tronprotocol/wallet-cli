@@ -179,7 +179,7 @@ TransSuccessByNumToViewCallback = function (data) {
       + '<p>'+minutes+'分前</p>'
       + ' </div>'
       + '<div class="mr_right">'
-      + '<p>见证人: '+witnessAddressHexSix+'  </p><p>'
+      + '<p>出块人: '+witnessAddressHexSix+'  </p><p>'
       + '<span>交易数：'+transactionNum+'</span>'
       +'<span>大小：'+big+'</span></p></div></div>';
 
