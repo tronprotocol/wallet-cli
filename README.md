@@ -47,8 +47,9 @@ rpc TransferAsset (TransferAssetContract) returns (Transaction)
 rpc ParticipateAssetIssue (ParticipateAssetIssueContract) returns (Transaction)       
 rpc ListNodes (EmptyMessage) returns (NodeList)      
 rpc GetAssetIssueList (EmptyMessage) returns (AssetIssueList)      
-rpc GetAssetIssueByAccount (Account) returns (AssetIssueList)      
-rpc GetNowBlock (EmptyMessage) returns (Block)      
+rpc GetAssetIssueByAccount (Account) returns (AssetIssueList)    
+rpc GetAssetIssueByName (BytesMessage) returns (AssetIssueContract)       
+rpc GetNowBlock (EmptyMessage) returns (Block)         
 rpc GetBlockByNum (NumberMessage) returns (Block)       
  
 Wallet-cli supported command list:
