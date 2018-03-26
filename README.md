@@ -16,8 +16,8 @@ cd java-tron
 ./gradlew run -Pwitness
  
 
-Build and run wallet-cli
-------------------------
+Build and run wallet-cli by command line
+----------------------------------------
 Create a new command line terminal window.
 
 cd wallet-cli  
@@ -26,8 +26,8 @@ cd wallet-cli
 
 How wallet-cli connects to java-tron :
 --------------------------------------
-Wallet-cli connect to java-tron by grpc protocol. 
-Java-tron nodes can be deployed locally or remotely. 
+Wallet-cli connect to java-tron by grpc protocol.          
+Java-tron nodes can be deployed locally or remotely.          
 We can set the connected java-tron node IP in config.conf of wallet-cli.
 
 Java-tron provides grpc api list:
