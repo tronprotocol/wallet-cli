@@ -244,16 +244,22 @@ public class TestClient {
   }
 
   private void testTransaction(String[] parameters) {
-    if (parameters == null || parameters.length != 4) {
-      System.out.println("testTransaction need 4 parameter like following: ");
+    if (parameters == null || (parameters.length != 4 && parameters.length != 5)) {
+      System.out.println("testTransaction need 4 or 5 parameter like following: ");
       System.out.println("testTransaction Password ToAddress assertName times");
+      System.out.println("testTransaction Password ToAddress assertName times interval");
       return;
     }
     String password = parameters[0];
     String toAddress = parameters[1];
     String assertName = parameters[2];
     String loopTime = parameters[3];
-
+    int intervalInt = 10;//s
+    if ( parameters.length == 5 ){
+      String interval = parameters[4];
+      intervalInt = Integer.parseInt(interval);//s
+    }
+    intervalInt *= 500; //ms
     long times = new Long(loopTime);
 
     for (int i = 1; i <= times; i++) {
@@ -262,7 +268,7 @@ public class TestClient {
       if (result) {
         logger.info("Send " + amount + " dron to " + toAddress + " successful !!");
         try {
-          Thread.sleep(500);
+          Thread.sleep(intervalInt);
         } catch (Exception e) {
           e.printStackTrace();
           break;
@@ -277,7 +283,7 @@ public class TestClient {
       if (result) {
         logger.info("transferAsset " + assertName + " dron to " + toAddress + " successful !!");
         try {
-          Thread.sleep(500);
+          Thread.sleep(intervalInt);
         } catch (Exception e) {
           e.printStackTrace();
           break;
