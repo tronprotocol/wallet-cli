@@ -3,3 +3,8 @@ build
 out
 .idea
 .gradle
+node_modules
+src/main/genjs
+src/genjs
+src/gen
+tools
