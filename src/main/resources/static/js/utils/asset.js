@@ -46,11 +46,11 @@ function calPriceByTrx() {
     }
 }
 
-function checkFunction() {
-    $('#trxNumCheck').text($('#amount').val()+ '');
+function checkFunction() {trxNumCheck
+    $('#assetInfoCheck').text($('#amount').val()+ ' ' +$('#assetName').text());
     var assetNum = $('#price').text() * $('#amount').val();
-    var info = $('#assetName').text() +' '+ assetNum;
-    $('#assetInfoCheck').text(info);
+    var info = assetNum;
+    $('#trxNumCheck').text(info);
 }
 
 function submitParticipateAssetIssue() {
