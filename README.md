@@ -2,7 +2,7 @@
 Wallet CLI
 
 
-Download java-tron and wallet-cli
+#Download java-tron and wallet-cli
 
 git clone https://github.com/tronprotocol/java-tron.git
 
