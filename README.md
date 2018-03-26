@@ -2,22 +2,23 @@
 Wallet CLI
 
 
-#Download java-tron and wallet-cli
-
+##Download java-tron and wallet-cli
+---------------------------------
 git clone https://github.com/tronprotocol/java-tron.git
 
 git clone https://github.com/tronprotocol/wallet-cli.git
 
 
-Build and run java-tron
-
+##Build and run java-tron
+-------------------------
 cd java-tron
 
 ./gradlew build      
-./gradlew run
+./gradlew run -Pwitness
  
 
-Build and run wallet-cli  
+##Build and run wallet-cli
+------------------------
 Create a new command line terminal window.
 
 cd wallet-cli
