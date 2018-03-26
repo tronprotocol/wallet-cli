@@ -129,22 +129,22 @@ TransTrxSuccessCallback = function (data) {
 
 TransBroadSuccessCallback = function (data) {
     if(data){
-        alert("转账成功");
+        layer.alert("转账成功");
         //跳转到账户管理
         $('#text').css('background','none');
         $('.header span').removeClass('header_active');
         $('#text').load('/html/control.html');
     }else{
-        alert("转账失败");
+        layer.alert("转账失败");
     }
 
 };
 TransFailureCallback = function (err) {
-  alert("转账失败，生成交易失败");
+  layer.alert("转账失败，生成交易失败");
   console.log('转账失败，生成交易失败')
 };
 
 TransBroadFailureCallback = function (err) {
-  alert("转账失败，签名失败");
+  layer.alert("转账失败，签名失败");
   console.log('转账失败，签名失败')
 };

@@ -23,12 +23,12 @@ TransSuccessCallback = function (data) {
   var parenthashHex;
   var blockNumber;
   var currentBlock = base64DecodeFromString(data);
-  var contractList
+  var contractList;
 
   var blockData = proto.protocol.Block.deserializeBinary(currentBlock);
   blockNumber = blockData.getBlockHeader().getRawData().getNumber();
   var witnessId = blockData.getBlockHeader().getRawData().getWitnessId();
-  var witnessNum=1
+  var witnessNum=1;
   parenthash = blockData.getBlockHeader().getRawData().getParenthash();
   parenthashHex = byteArray2hexStr(parenthash);
   parenthashHexSix = parenthashHex.substr(0,6) + '...'
@@ -51,12 +51,8 @@ TransSuccessCallback = function (data) {
         + '<span class="tran_name">' + toHex + '</span>'
         // + '<span>' + time + '秒钟前</span>'
         + '</li>';
-
     $("#recentHtml").html(str);
-
   }
-
-
 
   $("#block_num").text('#'+blockNumber);
   $("#witness_num").text(witnessNum);
@@ -188,7 +184,6 @@ TransSuccessByNumToViewCallback = function (data) {
   var accordTimes = Math.floor(timestamp - time);
   console.log('accordTimes====='+accordTimes);
   if(Math.floor(accordTimes/1000) > 60){
-
       var sec = Math.floor(accordTimes/60000);
       timeStr = sec+ '分'
   }else{
@@ -209,6 +204,7 @@ TransSuccessByNumToViewCallback = function (data) {
       + '<p>出块人: '+witnessAddressHexSix+'  </p><p>'
       + '<span>交易数：'+transactionNum+'</span>'
       +'<span>大小：'+big+'bytes</span></p></div></div>';
+
       $("#recentBlock").append(html);
 };
 
