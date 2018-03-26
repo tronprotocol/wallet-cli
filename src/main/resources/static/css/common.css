@@ -5,13 +5,13 @@
   box-sizing: border-box;
 }
 html {
-  font-size: 625%;
+  /*font-size: 625%;*/
   width: 100%;
 }
 body {
   font-family: Arial, "Microsoft YaHei", "微软雅黑";
   width: 100%;
-  font-size: 30px;
+  /*font-size: 30px;*/
   min-width: 1200px;
 }
 a {
