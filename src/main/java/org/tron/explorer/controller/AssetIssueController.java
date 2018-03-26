@@ -19,6 +19,7 @@ import org.tron.explorer.domain.AssetIssueVo;
 import org.tron.explorer.domain.ParticipateAssetIssueVo;
 import org.tron.explorer.domain.TransferAsset;
 import org.tron.protos.Contract;
+import org.tron.protos.Contract.AssetIssueContract;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.walletserver.WalletClient;
 
@@ -108,6 +109,19 @@ public class AssetIssueController {
       if (result.isPresent()) {
         AssetIssueList assetIssueList = result.get();
         return assetIssueList.toByteArray();
+      }
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+    return null;
+  }
+
+  @GetMapping("/getAssetIssueByName")
+  public byte[] getAssetIssueByName(String assetName) throws IOException {
+    try {
+      AssetIssueContract assetIssueContract = WalletClient.getAssetIssueByName(assetName);
+      if (assetIssueContract != null) {
+        return assetIssueContract.toByteArray();
       }
     } catch (Exception e) {
       e.printStackTrace();

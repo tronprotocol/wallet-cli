@@ -206,6 +206,24 @@ public class TestClient {
     }
   }
 
+  private void getAssetIssueByName(String[] parameters) {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("GetAssetIssueByName need 1 parameter like following: ");
+      System.out.println("GetAssetIssueByName AssetName ");
+      return;
+    }
+    String assetName = parameters[0];
+
+    AssetIssueContract assetIssueContract = WalletClient.getAssetIssueByName(assetName);
+    if (assetIssueContract != null) {
+      logger.info("Address::" + ByteArray
+          .toHexString(assetIssueContract.getOwnerAddress().toByteArray()));
+      logger.info("assetIssueContract[" + assetIssueContract + "]");
+    } else {
+      logger.info("GetAssetIssueByName " + " failed !!");
+    }
+  }
+
   private void sendCoin(String[] parameters) {
     if (parameters == null || parameters.length != 3) {
       System.out.println("SendCoin need 3 parameter like following: ");
@@ -240,7 +258,7 @@ public class TestClient {
 
     for (int i = 1; i <= times; i++) {
       long amount = i;
-      boolean result = client.sendCoin(password, toAddress,  amount);
+      boolean result = client.sendCoin(password, toAddress, amount);
       if (result) {
         logger.info("Send " + amount + " dron to " + toAddress + " successful !!");
         try {
@@ -494,6 +512,7 @@ public class TestClient {
     System.out.println("GetBalance");
     System.out.println("GetAccount");
     System.out.println("GetAssetissueByAccount");
+    System.out.println("GetAssetIssueByName");
     System.out.println("SendCoin");
     System.out.println("TransferAsset");
     System.out.println("ParticipateAssetissue");
@@ -573,6 +592,10 @@ public class TestClient {
         }
         case "getassetissuebyaccount": {
           getAssetIssueByAccount(parameters);
+          break;
+        }
+        case "getassetissuebyname": {
+          getAssetIssueByName(parameters);
           break;
         }
         case "sendcoin": {
