@@ -42,11 +42,6 @@ public class GrpcClientApplication extends SpringBootServletInitializer {
     @Autowired
     ObjectMapper objectMapper;
 
-//    @Bean
-//    ProtobufHttpMessageConverter protobufHttpMessageConverter() {
-//        return new ProtobufHttpMessageConverter();
-//    }
-
     @Bean
     public WebMvcConfigurer webMvcConfigurer() {
         return new WebMvcConfigurerAdapter() {
@@ -67,8 +62,6 @@ public class GrpcClientApplication extends SpringBootServletInitializer {
         };
     }
 
-
-    //fix cors
     @Configuration
     public class CorsConfig {
         private CorsConfiguration buildConfig() {
@@ -85,13 +78,11 @@ public class GrpcClientApplication extends SpringBootServletInitializer {
             source.registerCorsConfiguration("/**", buildConfig()); // 4
             return new CorsFilter(source);
         }
-
     }
 
     protected SpringApplicationBuilder configure(SpringApplicationBuilder application) {
         return application.sources(GrpcClientApplication.class);
     }
-
 
     public static void main(String[] args) {
         SpringApplication.run(GrpcClientApplication.class, args);
