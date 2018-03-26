@@ -4,7 +4,6 @@ import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.util.Base64;
 import java.util.Base64.Decoder;
-import java.util.List;
 import java.util.Optional;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -30,12 +29,12 @@ public class AssetIssueController {
   protected final Log log = LogFactory.getLog(getClass());
 
   @ModelAttribute
-   AssetIssueVo setAssetIssueVo() {
-    return  new AssetIssueVo();
+  AssetIssueVo setAssetIssueVo() {
+    return new AssetIssueVo();
   }
 
   @ModelAttribute
-   TransferAsset setTransferAsset() {
+  TransferAsset setTransferAsset() {
     return new TransferAsset();
   }
 
@@ -49,7 +48,6 @@ public class AssetIssueController {
   public ModelAndView viewCreateWitness() {
     return new ModelAndView("createAssetIssue");
   }
-
 
 
   @PostMapping("/createAssetIssueToView")
@@ -78,14 +76,14 @@ public class AssetIssueController {
       transaction = TransactionUtils.setTimestamp(transaction);
       return transaction.toByteArray();
     } catch (Exception e) {
+      System.out.printf("error=====" + e.getMessage());
       e.printStackTrace();
       return null;
     }
   }
 
   @GetMapping("/getAssetIssueList")
-  public byte[] getAssetIssueList()
-      throws IOException {
+  public byte[] getAssetIssueList() throws IOException {
     try {
       Optional<AssetIssueList> result = WalletClient.getAssetIssueList();
       if (result.isPresent()) {
@@ -99,14 +97,12 @@ public class AssetIssueController {
   }
 
   @GetMapping("/getAssetIssueByAccount")
-  public byte[] getAssetIssueByAccount(String address)
-      throws IOException {
+  public byte[] getAssetIssueByAccount(String address) throws IOException {
     try {
       if (!WalletClient.addressValid(address)) {
         return null;
       }
-      Decoder decoder = Base64.getDecoder();
-      byte[] owner = decoder.decode(address.getBytes());
+      byte[] owner = ByteArray.fromHexString(address);
 
       Optional<AssetIssueList> result = WalletClient.getAssetIssueByAccount(owner);
       if (result.isPresent()) {
@@ -127,7 +123,7 @@ public class AssetIssueController {
       }
       Transaction transaction = WalletClient
           .createTransferAssetTransaction(ByteArray.fromHexString(transferAsset.getToAddress()),
-              ByteArray.fromHexString(transferAsset.getAssetName()),
+              ByteArray.fromString(transferAsset.getAssetName()),
               ByteArray.fromHexString(transferAsset.getAddress()),
               Long.parseLong(transferAsset.getAmount()));
       transaction = TransactionUtils.setTimestamp(transaction);

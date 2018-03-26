@@ -25,7 +25,7 @@ public class CommController {
   @RequestMapping(value = "/html/{pageName}", method = { RequestMethod.POST, RequestMethod.GET })
   public String toPage(@PathVariable("pageName") String pageName) {
 
-    return "/html/" + pageName;
+    return "html/" + pageName;
   }
 
 }

@@ -1,10 +1,11 @@
 
+<script src="/js/utils/asset.js" type="text/javascript"></script>
 <section class="accountQuery account_list">
     <h4>资产列表</h4>
     <form action="" method="post" class="myform">
         <div class="search">
             <!--<input type="text" value=""  placeholder="搜索账户" id="search" name="search">-->
-            <input type="button" id="creat_asset" class="liner_granet" value="我发行的资产">
+            <!--<input type="button" id="creat_asset" class="liner_granet" value="我发行的资产">-->
             <!--<input type="button" id="my_asset" class="liner_granet" value="我的资产">-->
         </div>
     </form>
@@ -19,53 +20,22 @@
                 <th>起止时间</th>
             </tr>
             </thead>
-            <tbody id="tablHtml" class="tbody">
-            <tr>
-                <td>1</td>
-                <td>1</td>
-                <td>1</td>
-                <td class="stop">1</td>
-                <td><input type="button" class="add_account time_end" value="参与"/></td>
+            <tbody id="assetIssueListTable" class="tbody">
+            <!--<tr>-->
+                <!--<td>1</td>-->
+                <!--<td>1</td>-->
+                <!--<td>1</td>-->
+                <!--<td class="stop">1</td>-->
+                <!--<td><input type="button" class="add_account time_end" value="参与"/></td>-->
+            <!--</tr>-->
 
-            </tr>
-            <tr>
-                <td>1</td>
-                <td>1</td>
-                <td>1</td>
-                <td>1</td>
-                <td><input type="button" class="add_account" value="参与"/></td>
-
-            </tr>
-            <tr>
-                <td>1</td>
-                <td>1</td>
-                <td>1</td>
-                <td>1</td>
-                <td><input type="button" class="add_account" value="参与"/></td>
-
-            </tr>
-            <tr>
-                <td>1</td>
-                <td>1</td>
-                <td>1</td>
-                <td>1</td>
-                <td><input type="button" class="add_account" value="参与"/></td>
-
-            </tr>
-            <tr>
-                <td>1</td>
-                <td>1</td>
-                <td>1</td>
-                <td>1</td>
-            </tr>
-            <tr>
-                <td>1</td>
-                <td>1</td>
-                <td>1</td>
-                <td>1</td>
-                <td><input type="button" class="add_account " value="参与"/></td>
-
-            </tr>
+            <!--<tr>-->
+                <!--<td>1</td>-->
+                <!--<td>1</td>-->
+                <!--<td>1</td>-->
+                <!--<td>1</td>-->
+                <!--<td><input type="button" class="add_account " value="参与"/></td>-->
+            <!--</tr>-->
             </tbody>
         </table>
     </div>
@@ -100,34 +70,7 @@
                 <td>1</td>
                 <td>1</td>
             </tr>
-            <tr >
-                <td>1</td>
-                <td><span>资产供应总量</span></td>
-                <td>1</td>
-                <td>1</td>
-                <td>1</td>
-            </tr>
-            <tr class="account_tab">
-                <td>1</td>
-                <td><span>资产供应总量</span></td>
-                <td>1</td>
-                <td>1</td>
-                <td>1</td>
-            </tr>
-            <tr >
-                <td>1</td>
-                <td><span>资产供应总量</span></td>
-                <td>1</td>
-                <td>1</td>
-                <td>1</td>
-            </tr>
-            <tr  class="account_tab">
-                <td>1</td>
-                <td><span>资产供应总量</span></td>
-                <td>1</td>
-                <td>1</td>
-                <td>1</td>
-            </tr>
+
             </tbody>
         </table>
     </div>
@@ -135,43 +78,106 @@
 
  <section class="creat_account accountQuery">
      <div class="main ">
+
          <input type="button" class="all_count liner_granet" value="全部资产列表">
+         <form id="createAssetForm" action="#">
+         <p>我的密码</p>
+         <input type="text" id="privateKey" name="privateKey"/>
          <p>资产名称 <i>资产名称最少三个字符</i></p>
-         <input type="text" id="assetName"/>
+         <input type="text" id="name" name="name"/>
          <p>资产供应总量 <i>资产供应总量必须大于0</i></p>
-         <input type="text" id="assetTotal"/>
+         <input type="text" id="totalSupply" name="totalSupply"/>
          <div class="account_inline">
              <div>
-                 <span >本资产数量</span> <br>
-                 <input type="text" class="account_num" id="assetNum"/>
+                 <span >本资产数量</span><br/>
+
+                 <input type="text" class="account_num" id="assetNum" name="num"/>
             </div>
 
              <div>
-                 <span >TRX数量</span> <br>
-                 <input type="text" class="account_num" id="trxNum"/>
+                 <span >TRX数量</span> <br/>
+                 <input type="text" class="account_num" id="trxNum" name="trxNum" onblur="calPriceByTrx()"/>
              </div>
 
          </div>
-         <p>单价：1.0000/TRX</p>
+         <p>单价：<i id="priceByTrx" >0</i>/TRX</p>
          <p>
-             <span class="start_time">起止时间:2018年03月01日</span>
-             <span class="end_time">结束时间:2018年03月01日</span>
+             <span class="start_time">起始时间:<input type="text" class="layui-input" id="startTimeFormat" name="startTimeFormat"/>
+
+             </span>
+             <span class="end_time">结束时间: <input type="text" class="layui-input" id="endTimeFormat" name="endTimeFormat"/></span>
          </p>
          <p>资产描述</p>
-         <input type="text" id="assetDesc"/>
+         <input type="text" id="description" name="description"/>
          <p>资产描述URL</p>
-         <input type="text" id="assetUrl"/>
-         <input type="button " class="liner_granet create_account" id="creatAssetBtn" value="创建资产"/>
+         <input type="text" id="url" name="url"/>
+         <input type="button" class="liner_granet create_account" id="creatAssetBtn" value="创建资产"/>
+         </form>
      </div>
 
  </section>
+
+<scetion id="addcount">
+    <h4>参与资产发行</h4>
+    <p><span>资产名称</span><span id="assetName"></span></p>
+    <p><span>资产发行人</span><span id="ownAddress"></span></p>
+    <p><span>资产总供应量</span><span id="assetTotalSupply"></span></p>
+    <p><span>资产单价</span><span id="price"></span></p>
+    <p><span>起止时间</span><span id="lastTime"></span></p>
+    <p><span>描述信息</span>
+        <span id="desc">
+
+        </span></p>
+    <p class="cou_hei"><span>参与数量</span><span><input type="text" id="amount" name="amount" onblur="checkFunction()"/></span></p>
+    <!--<p class="cou_hei"><span>参与数量</span><span><input type="text"> =10000TRX</span></p>-->
+    <p class="cou_hei"><span>输入密码</span><span><input type="text" id="myKey" name="myKey" /></span></p>
+    <p class="check">
+        <input type="checkbox" id="checkParticipate" />
+        我已确认花费<i id="trxNumCheck" >0</i>TRX参与资产发行，获得<i id="assetInfoCheck">0</i>数量的资产
+    </p>
+    <input type="button" class="liner_granet sure_dele" id="participateBtn" onclick="submitParticipateAssetIssue()" value="确认交易">
+</scetion>
 <script type="text/javascript">
     $('.all_count').on('click',function () {
         $('.creat_account').css('display','none');
-        $('.account_list').css('display','block')
+        $('.account_list').css('display','block');
+        getAssetIssueListFun();
     })
     $('#creat_asset').on('click',function () {
         $('.account_list').css('display','none');
         $('.myaccount').css('display','block');
     })
+    console.log($('.add_account'))
+
+    function time(){
+        var start = {
+            elem: '#startTimeFormat',
+            type:'date',
+            show: true,
+            closeStop: '#start',
+            type:'datetime'
+
+        };
+        var end = {
+            elem: '#endTimeFormat',
+            type:'date',
+            show: true,
+            closeStop: '#end',
+            type:'datetime'
+        };
+//        lay('#startTimeFormat').on('click', function(e){
+//            if($('#endTimeFormat').val() != null && $('#endTimeFormat').val() != undefined && $('#endTimeFormat').val() != ''){
+//                start.max = $('#endTimeFormat').val();
+//            }
+//            laydate.render(start);
+//        });
+//        lay('#endTimeFormat').on('click', function(e){
+//            if($('#startTimeFormat').val() != null && $('#startTimeFormat').val() != undefined && $('#startTimeFormat').val() != ''){
+//                end.min = $('#startTimeFormat').val();
+//            }
+//            laydate.render(end);
+//        });
+
+    }
+    time()
 </script>

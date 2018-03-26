@@ -41,7 +41,7 @@
 }
 .w_table table thead{
     line-height: 40px;
-    font-size: 12px;
+    font-size: 16px;
     font-weight: 500;
     color: #428dff;
 }
@@ -163,7 +163,7 @@
 }
 /**/
 .table tbody tr  td {
-    border: 0;
+    border: 1px solid transparent;
     padding: 5px;
 }
 .table tbody .b_acitve  td {

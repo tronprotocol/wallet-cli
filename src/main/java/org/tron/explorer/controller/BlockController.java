@@ -15,8 +15,6 @@
 package org.tron.explorer.controller;
 
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 import org.tron.walletserver.WalletClient;
 import org.tron.protos.Protocol.Block;
@@ -26,8 +24,9 @@ public class BlockController {
 
 
   @GetMapping("/getBlockByNumToView")
+  public byte[] getBlockByNumToView( long num) {
+    System.out.println("num is : " +num);
 
-  public byte[] getBlockByNumToView(long num) {
     Block currentBlock = WalletClient.GetBlock(num);
     return currentBlock.toByteArray();
 

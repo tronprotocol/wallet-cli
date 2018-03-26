@@ -106,17 +106,13 @@ public class Client {
   }
 
   //password is current, will be enc by password2.
-  public String backupWallet(String password, String encPassword) {
+  public String backupWallet(String password) {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: BackupWallet failed, Please login first !!");
       return null;
     }
     if (!WalletClient.passwordValid(password)) {
       logger.warn("Warning: BackupWallet failed, password is Invalid !!");
-      return null;
-    }
-    if (!WalletClient.passwordValid(encPassword)) {
-      logger.warn("Warning: BackupWallet failed, encPassword is Invalid !!");
       return null;
     }
 
@@ -139,9 +135,7 @@ public class Client {
     ECKey ecKey = wallet.getEcKey();
     byte[] privKeyPlain = ecKey.getPrivKeyBytes();
     //Enced by encPassword
-    byte[] aseKey = WalletClient.getEncKey(encPassword);
-    byte[] privKeyEnced = SymmEncoder.AES128EcbEnc(privKeyPlain, aseKey);
-    String priKey = ByteArray.toHexString(privKeyEnced);
+    String priKey = ByteArray.toHexString(privKeyPlain);
 
     return priKey;
   }
@@ -162,14 +156,6 @@ public class Client {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: QueryAccount failed,  Please login first !!");
       return null;
-    }
-
-    if (wallet.getEcKey() == null) {
-      wallet = WalletClient.GetWalletByStorageIgnorPrivKey();
-      if (wallet == null) {
-        logger.warn("Warning: QueryAccount failed, Load wallet failed !!");
-        return null;
-      }
     }
 
     try {
@@ -354,7 +340,7 @@ public class Client {
 
   public boolean voteWitness(String password, HashMap<String, String> witness) {
     if (wallet == null || !wallet.isLoginState()) {
-      logger.warn("Warning: SendCoin failed,  Please login first !!");
+      logger.warn("Warning: VoteWitness failed,  Please login first !!");
       return false;
     }
     if (!WalletClient.passwordValid(password)) {
@@ -364,7 +350,7 @@ public class Client {
     if (wallet.getEcKey() == null || wallet.getEcKey().getPrivKey() == null) {
       wallet = WalletClient.GetWalletByStorage(password);
       if (wallet == null) {
-        logger.warn("Warning: SendCoin failed, Load wallet failed !!");
+        logger.warn("Warning: VoteWitness failed, Load wallet failed !!");
         return false;
       }
     }

@@ -3,24 +3,15 @@ package org.tron.explorer.domain;
 import java.util.List;
 
 public class VoteWitness {
+  private String owner;
+  private List<Witness> list;
 
-  String ownerAddress;
-  List<Witness> list;
-
-  public VoteWitness(String ownerAddress, List<Witness> list) {
-    this.ownerAddress = ownerAddress;
-    this.list = list;
+  public String getOwner() {
+    return owner;
   }
 
-  public VoteWitness() {
-  }
-
-  public String getOwnerAddress() {
-    return ownerAddress;
-  }
-
-  public void setOwnerAddress(String ownerAddress) {
-    this.ownerAddress = ownerAddress;
+  public void setOwner(String owner) {
+    this.owner = owner;
   }
 
   public List<Witness> getList() {
@@ -29,5 +20,14 @@ public class VoteWitness {
 
   public void setList(List<Witness> list) {
     this.list = list;
+  }
+
+  public VoteWitness(String owner, List<Witness> list) {
+    this.owner = owner;
+    this.list = list;
+  }
+
+  public VoteWitness(){
+
   }
 }
