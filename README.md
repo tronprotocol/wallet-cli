@@ -24,6 +24,15 @@ cd wallet-cli
 ./gradlew build      
 ./gradlew run -Pcmd
 
+Build and run web wallet
+----------------------------------------
+cd wallet-cli  
+./gradlew build      
+cd build
+cd libs
+java -jar wallet-1.0-SNAPSHOT.jar
+
+
 How wallet-cli connects to java-tron :
 --------------------------------------
 Wallet-cli connect to java-tron by grpc protocol.          
@@ -52,6 +61,13 @@ rpc GetAssetIssueByName (BytesMessage) returns (AssetIssueContract)
 rpc GetNowBlock (EmptyMessage) returns (Block)         
 rpc GetBlockByNum (NumberMessage) returns (Block)       
  
+ 
+Web wallet host
+----------------------------------
+127.0.0.0:8088
+Note: make sure the baseUrl configured in interface.js is what you want, for example 127.0.0.1:8088.
+
+
 Wallet-cli supported command list:
 ----------------------------------
 
@@ -66,8 +82,8 @@ BackupWallet2Base64
 Getaddress  
 GetBalance  
 GetAccount  
-GetAssetissueByAccount
-GetAssetIssueByName
+GetAssetissueByAccount                          
+GetAssetIssueByName                       
 SendCoin  
 TransferAsset  
 ParticipateAssetissue  
