@@ -3,3 +3,5 @@ build
 out
 .idea
 .gradle
+src/main/resources/static/dist
+node_modules
