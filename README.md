@@ -102,7 +102,7 @@ Input any one of then, you will get more tips.
 
 How to get trx
 ----------------------------------
-use command line：
+use command line：                       
 importWallet 123456 cba92a516ea09f620a16ff7ee95ce0df1d56550a8babe9964981a7144c8a784a                              
 or            
 importwalletByBase64 123456 y6kqUW6gn2IKFv9+6Vzg3x1WVQqLq+mWSYGnFEyKeEo=                  
