@@ -65,7 +65,8 @@ BackupWallet2Base64
 Getaddress  
 GetBalance  
 GetAccount  
-GetAssetissueByAccount  
+GetAssetissueByAccount
+GetAssetIssueByName
 SendCoin  
 TransferAsset  
 ParticipateAssetissue  
@@ -74,8 +75,9 @@ CreateWitness
 VoteWitness  
 Listaccounts  
 Listwitnesses  
-Listassetissue  
-Getblock  
+Listassetissue
+GetAssetIssueByName   
+Getblock   
 Exit or Quit  
 help  
 
