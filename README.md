@@ -29,7 +29,7 @@ Build and run web wallet
 cd wallet-cli  
 ./gradlew build      
 cd build
-cd libs
+cd libs          
 java -jar wallet-1.0-SNAPSHOT.jar
 
 
@@ -64,7 +64,7 @@ rpc GetBlockByNum (NumberMessage) returns (Block)
  
 Web wallet host
 ----------------------------------
-127.0.0.0:8088
+127.0.0.0:8088                     
 Note: make sure the baseUrl configured in interface.js is what you want, for example 127.0.0.1:8088.
 
 
@@ -99,5 +99,18 @@ Exit or Quit
 help  
 
 Input any one of then, you will get more tips.
+
+How to get trx
+----------------------------------
+use command line：
+importWallet 123456 cba92a516ea09f620a16ff7ee95ce0df1d56550a8babe9964981a7144c8a784a                              
+or            
+importwalletByBase64 123456 y6kqUW6gn2IKFv9+6Vzg3x1WVQqLq+mWSYGnFEyKeEo=                  
+
+use web wallte             
+You can login by y6kqUW6gn2IKFv9+6Vzg3x1WVQqLq+mWSYGnFEyKeEo= 
+
+Now that you have a lot of trx, you can send it to any address.                             
+With enough trx, you can issue assets, participate in asset, apply for witnesses, and more.
 
 
