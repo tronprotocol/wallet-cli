@@ -65,9 +65,6 @@ buildscript {
         classpath "gradle.plugin.com.liferay:gradle-plugins-node:4.3.0"
         classpath "io.spring.gradle:dependency-management-plugin:0.6.1.RELEASE"
         classpath "org.springframework.boot:spring-boot-gradle-plugin:${springBootVersion}"
-        classpath "org.springframework.boot:spring-boot-gradle-plugin:${springBootVersion}"
-
-
     }
 }
 
@@ -139,11 +136,13 @@ protobuf {
     generateProtoTasks {
         all().each { task ->
             task.builtins {
-                java { outputSubDir = "gen" }
+                java {
+                    outputSubDir = "gen"
+                }
 
                 js {
                     outputSubDir = "genjs/"
-                    option "import_style=commonjs"
+                    option "import_style=browser"
                     option "binary"
                 }
             }
