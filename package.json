@@ -1,0 +1,15 @@
+{
+  "scripts": {
+    "build": "browserify exports.js > src/main/resources/static/js/tronjs/tron-protoc.js"
+  },
+  "dependencies": {
+    "browserify": "^16.1.1",
+    "require": "^2.4.20",
+    "google-protobuf": "^3.5.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/npm/npm.git"
+  },
+  "private": true
+}
