@@ -146,7 +146,7 @@ protobuf {
 
                 js {
                     outputSubDir = "genjs/"
-                    option "import_style=browser"
+                    option "import_style=commonjs"
                     option "binary"
                 }
             }
