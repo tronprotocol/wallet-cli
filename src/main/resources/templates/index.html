@@ -83,7 +83,7 @@
     $('#text').load('/html/message.html');
     $('#searchBtn').on('click',function () {
         window.localStorage.setItem('address',$('#searchInput').val());
-<<<<<<< HEAD
+
         if(getStringType($('#searchInput').val()) == 1) {
             $('#text').css('background', 'none');
             $('#acco').addClass('header_active').siblings().removeClass('header_active');
@@ -99,12 +99,9 @@
             $('#nemoney').addClass('header_active').siblings().removeClass('header_active');
             $('#text').load('html/searchAsset.html');
         }
-=======
-
         $('#text').css('background','none');
         $('#acco').addClass('header_active').siblings().removeClass('header_active');
         $('#text').load('/html/searchAccount.html');
->>>>>>> 5a36222cf2bcc6a3a186cf0952b3a37083a3a1fc
     })
 </script>
 

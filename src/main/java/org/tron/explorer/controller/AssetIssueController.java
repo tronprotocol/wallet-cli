@@ -20,8 +20,6 @@ import org.tron.protos.Protocol.Transaction;
 import org.tron.walletserver.WalletClient;
 
 import java.io.IOException;
-import java.util.Base64;
-import java.util.Base64.Decoder;
 import java.util.Optional;
 
 
@@ -58,10 +56,9 @@ public class AssetIssueController {
       if (assetIssueVo == null) {
         return null;
       }
-      Decoder decoder = Base64.getDecoder();
 
       Contract.AssetIssueContract.Builder builder = Contract.AssetIssueContract.newBuilder();
-      builder.setOwnerAddress(ByteString.copyFrom(decoder.decode(assetIssueVo.getOwnerAddress())));
+      builder.setOwnerAddress(ByteString.copyFrom(ByteArray.fromHexString(assetIssueVo.getOwnerAddress())));
       builder.setName(ByteString.copyFrom(assetIssueVo.getName().getBytes()));
       builder.setTotalSupply(assetIssueVo.getTotalSupply());
       builder.setTrxNum(assetIssueVo.getTrxNum());

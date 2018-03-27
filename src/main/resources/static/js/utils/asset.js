@@ -134,7 +134,7 @@ getAssetListFailureCallback = function (data) {
 
 $(document).ready(function() {
     $("#creatAssetBtn").click(function() {
-        var address = getAddressFromPriKeyBase64String($("#privateKey").val());
+        var address = getHexStrAddressFromPriKeyBase64String($("#privateKey").val());
         var start = Date.parse(new Date($("#startTimeFormat").val()));
         var end = Date.parse(new Date($("#endTimeFormat").val()));
         var data = $("#createAssetForm").serialize() + "&ownerAddress=" + address + "&startTime=" + start + "&endTime=" + end;
