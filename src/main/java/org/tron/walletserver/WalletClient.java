@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import org.spongycastle.util.encoders.Hex;
 import org.tron.api.GrpcAPI.AccountList;
 import org.tron.api.GrpcAPI.AssetIssueList;
+import org.tron.api.GrpcAPI.NodeList;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.Hash;
@@ -516,6 +517,9 @@ public class WalletClient {
 
   public static Optional<AssetIssueList> getAssetIssueList() {
     return rpcCli.getAssetIssueList();
+  }
+  public static Optional<NodeList> listNodes() {
+    return rpcCli.listNodes();
   }
 
   public static Optional<AssetIssueList> getAssetIssueByAccount(byte[] address) {

@@ -12,6 +12,7 @@ import org.tron.api.GrpcAPI.AccountList;
 import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.BytesMessage;
 import org.tron.api.GrpcAPI.EmptyMessage;
+import org.tron.api.GrpcAPI.NodeList;
 import org.tron.api.GrpcAPI.NumberMessage;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.api.WalletGrpc;
@@ -114,6 +115,15 @@ public class GrpcClient {
         .getAssetIssueList(EmptyMessage.newBuilder().build());
     if (assetIssueList != null) {
       return Optional.of(assetIssueList);
+    }
+    return Optional.empty();
+  }
+
+  public Optional<NodeList> listNodes() {
+    NodeList nodeList = blockingStub
+        .listNodes(EmptyMessage.newBuilder().build());
+    if (nodeList != null) {
+      return Optional.of(nodeList);
     }
     return Optional.empty();
   }

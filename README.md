@@ -92,7 +92,8 @@ CreateWitness
 VoteWitness  
 Listaccounts  
 Listwitnesses  
-Listassetissue
+Listassetissue    
+listNodes               
 GetAssetIssueByName   
 Getblock   
 Exit or Quit  
