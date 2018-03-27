@@ -1,19 +1,21 @@
 function bin2String(array) {
   return String.fromCharCode.apply(String, array);
 }
+
 //比较两个byteArray是否相等
 function arrayEquals(array1, array2) {
-  if (array1.length != array2.length){
+  if (array1.length != array2.length) {
     return false;
   }
   var i;
-  for(i = 0; i < array1.length; i++){
-    if (array1[i] != array2[i]){
+  for (i = 0; i < array1.length; i++) {
+    if (array1[i] != array2[i]) {
       return false;
     }
   }
   return true;
 }
+
 //从base64字符串中解析TransAction对象
 function getTransActionFromBase64String(base64String) {
   var bytesDecode = base64DecodeFromString(base64String);
@@ -105,6 +107,7 @@ function getContractListFromTransaction(transaction) {
   }
   return array;
 }
+
 //字符串转byteArray数据格式
 function stringToBytes(str) {
   var bytes = new Array();
@@ -131,6 +134,7 @@ function stringToBytes(str) {
   return bytes;
 
 }
+
 //byteArray数据格式转字符串
 function bytesToString(arr) {
   if (typeof arr === 'string') {
@@ -193,6 +197,7 @@ function isHexChar(c) {
 }
 
 /* Convert HEX string to byte array */
+
 //16进制的ASCII字符串转为byteArray格式。
 function hexStr2byteArray(str) {
   var byteArray = Array();
@@ -226,6 +231,7 @@ function byte2hexStr(byte) {
 }
 
 /* Convert byte arry to HEX string */
+
 //byteArray格式数据转为16进制的ASCII字符串。
 function byteArray2hexStr(byteArray) {
   var str = "";
@@ -246,7 +252,7 @@ function base64DecodeFromString(string64) {
 
 //return baset64 String
 //将byteArray格式数据编码为base64字符串
-function base64EncodeToString(bytes){
+function base64EncodeToString(bytes) {
   // var string = bytesToString(bytes);
   var b = new Base64();
   var string64 = b.encodeIgnoreUtf8(bytes);
@@ -431,7 +437,7 @@ function strToDate(str) {
   var year = parseInt(dateStrs[0], 10);
   var month = parseInt(dateStrs[1], 10) - 1;
   var day = parseInt(dateStrs[2], 10);
-  if ( tempStrs.length > 1 ) {
+  if (tempStrs.length > 1) {
     var timeStrs = tempStrs[1].split("-");
     var hour = parseInt(timeStrs [0], 10);
     var minute = parseInt(timeStrs[1], 10) - 1;
@@ -440,4 +446,61 @@ function strToDate(str) {
   }
 
   return new Date(year, month, day);
+}
+
+function isNumber(c) {
+  if (c >= '0' && c <= '9') {
+    return 1;
+  }
+  return 0;
+}
+
+//return 1: address  --- 20Bytes HexString
+//return 2: blockNumber ------ Decimal number
+//return 3: assetName ------ String
+//return other: error
+function getStringType(str) {
+  if (null == str) {
+    return -1;
+  }
+
+  if (typeof(str) != 'string') {
+    return -1;
+  }
+
+  if (str.length == 0 || str == "") {
+    return -1;
+  }
+
+  var i = 0;
+  if (str.length == 40) {
+    for (; i < 40; i++) {
+      var c = str.charAt(i);
+      if (!isHexChar(c)) {
+        break;
+      }
+    }
+  }
+  if (i == 40) {
+    return 1;  //40 Hex, Address
+  }
+
+  for (i = 0; i < str.length; i++) {
+    var c = str.charAt(i);
+    if (!isNumber(c)) {
+      break;
+    }
+  }
+  if (i == str.length) {
+    return 2;  //Alll Decimal number, BlockNumber
+  }
+
+  for (i = 0; i < str.length; i++) {
+    var c = str.charAt(i);
+    if (c > ' ') {
+      return 3;   //At least one visible character
+    }
+  }
+
+  return -1;
 }
