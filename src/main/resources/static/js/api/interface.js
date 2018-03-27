@@ -1,7 +1,8 @@
 
-var baseUrl = 'http://47.95.14.107:8088/';
+//var baseUrl = 'http://47.95.14.107:8088/';
 //var baseUrl = 'http://192.168.10.195:8088/';
 //var baseUrl = 'http://192.168.10.55:8088/';
+var baseUrl = 'http://localhost:8088/';
 
 
 
@@ -21,6 +22,4 @@ var assetIssueListView = baseUrl + 'getAssetIssueList'; //资产列表
 var createWitness = baseUrl + 'createWitnessToView'; //申请成为出块人
 var participateAssetView = baseUrl + 'ParticipateAssetIssueToView'; //参与资产发行接口
 var voteWitnessView = baseUrl + 'createVoteWitnessToView'; //投票接口
-
-
-var accountListReferer = "list";
+var getAssetByNameView = baseUrl + 'getAssetIssueByName'; //根据资产名字获取资产信息

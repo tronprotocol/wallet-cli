@@ -1,12 +1,49 @@
 
 
 var addr  = window.localStorage.getItem('address');
-searchAccount(addr)
-function searchAccount(address) {
-    ajaxRequest( "post",getAccountInfo,{'address':address},searchAccountInfoSuccess,searchAccountInfoFailure)
+
+
+if(getStringType(addr) == 1) {
+    searchAccount(addr);
+}
+if(getStringType(addr) == 3) {
+    searchAsset(addr);
 }
 
- function searchAccountInfoSuccess(data) {
+
+searchAssetSuccess = function (data) {
+    var curTime = new Date().getTime();
+    var content = "";
+    var assetIssueContract = proto.protocol.AssetIssueContract.deserializeBinary(base64DecodeFromString(data));
+    var name = bytesToString(assetIssueContract.getName());
+    var ownerAddress = byteArray2hexStr(assetIssueContract.getOwnerAddress());
+    var totalSupply = assetIssueContract.getTotalSupply();
+    var startTime = assetIssueContract.getStartTime();
+    var endTime = assetIssueContract.getEndTime();
+    var formattedStartTime = formateDate(startTime);
+    var formattedEndTime = formateDate(endTime);
+    if(!(startTime < curTime && curTime< endTime)){
+        content += "<tr><td>" + name + "</td><td>" + ownerAddress + "</td><td>" + totalSupply + "</td> <td class='stop'>1</td><td><input type='button' class='add_account time_end' value='参与'/></td></tr>";
+    }else{
+        content += "<tr><td>" + name + "</td><td>" + ownerAddress + "</td><td>" + totalSupply + "</td> <td > " + formattedStartTime + " - " + formattedEndTime + " </td><td><input type='button' class='add_account' value='参与' onclick=\"participateAssetIssue(" + i + ")\"/></td></tr>";
+    }
+    $('#searchAssetResult').append(content);
+}
+
+searchAssetFailure = function (data) {
+    layer.alert("获取资产列表失败");
+}
+
+function searchAsset(assetNameStr) {
+    alert(assetNameStr);
+    ajaxRequest("post", getAssetByNameView, {'assetName':assetNameStr}, searchAssetSuccess, searchAssetFailure);
+}
+
+function searchAccount(address) {
+    ajaxRequest("post", getAccountInfo, {'address':address}, searchAccountInfoSuccess, searchAccountInfoFailure)
+}
+
+function searchAccountInfoSuccess(data) {
     var str = ''
     var bytesAccount = base64DecodeFromString(data);
     //调用方法deserializeBinary解析
@@ -29,25 +66,12 @@ function searchAccount(address) {
     }else{
         str = '<td align="center" valign="middle">没有查到账户</td>'
     }
-
-
-    //跳到账户列表
     $('#searchAccountResult').html(str);
 }
 
 function searchAccountInfoFailure(data) {
-
-    //跳到账户列表
-    $('#text').css('background','none');
-    $('#acco').addClass('header_active').siblings().removeClass('header_active');
-    $('#text').load('/html/accountQuery.html');
-
     var str = '<td align="center" valign="middle">没有查到账户</td>';
-    $('#tablHtml').html(str);
-    $("#tablHtml tr").hover(function(){
-        $(this).addClass('b_acitve')
-    },function(){
-        $(this).removeClass('b_acitve')
-    });
+    $('#searchAccountResult').html(str);
 }
+
 
