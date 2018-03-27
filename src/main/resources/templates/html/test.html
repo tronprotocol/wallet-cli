@@ -9,6 +9,9 @@
   <script src="/js/cryptohash/lib/elliptic.min.js"></script>
   <script src="/js/cryptohash/crypto.js"></script>
   <script src="/js/lib/jquery-1.9.1.min.js" type="text/javascript"></script>
+  <script src="/js/protolib/protobuf.js" type="text/javascript"></script>
+  <script src="/js/tronjs/tron-protoc.js" type="text/javascript"></script>
+
 
 </head>
 <script>
@@ -43,6 +46,31 @@ function testAddress() {
   });
 }
 
+function testListNode() {
+  $.ajax({
+    type: "get",
+    url: "http://127.0.0.1:8088/"+"nodeList",
+    data: "",
+    success: function (msg) {
+      var bytesNodeList = base64DecodeFromString(msg);
+
+      //调用方法deserializeBinary解析
+      var nodelist = proto.protocol.NodeList.deserializeBinary(bytesNodeList);
+
+      var nodes = nodelist.getNodesList();
+      if(nodes.length >0){
+        for (var  i = 0; i<nodes.length; i++){
+          var node = nodes[i];
+          console.info("IP::::" + node.getAddress().getHost());
+          console.info("Port::::" + node.getAddress().getPort());
+        }
+      }
+    },
+    error: function (msg) {
+      alert(msg);
+    }
+  });
+}
   function doTest() {
     for (var i =0; i< 10000;i++){
       testAddress();
@@ -55,7 +83,7 @@ function testAddress() {
 <body>
 <h1>This a Elliptic Demo page</h1>
 <input name="signkey"/>
-<button onclick="doTest()">Go</button>
+<button onclick="testListNode()">Go</button>
 <div id="content"></div>
 </body>
 

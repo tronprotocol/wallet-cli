@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 import org.spongycastle.util.encoders.Hex;
 import org.tron.api.GrpcAPI.AccountList;
 import org.tron.api.GrpcAPI.AssetIssueList;
+import org.tron.api.GrpcAPI.NodeList;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.SymmEncoder;
@@ -389,4 +390,14 @@ public class Client {
       return Optional.empty();
     }
   }
+
+  public Optional<NodeList> listNodes() {
+    try {
+      return WalletClient.listNodes();
+    } catch (Exception ex) {
+      ex.printStackTrace();
+      return Optional.empty();
+    }
+  }
+
 }
