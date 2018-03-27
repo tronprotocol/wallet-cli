@@ -8,6 +8,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tron.api.GrpcAPI.AccountList;
 import org.tron.api.GrpcAPI.AssetIssueList;
+import org.tron.api.GrpcAPI.Node;
+import org.tron.api.GrpcAPI.NodeList;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Utils;
@@ -443,6 +445,21 @@ public class TestClient {
     }
   }
 
+  private void listNodes() {
+    Optional<NodeList> result = client.listNodes();
+    if (result.isPresent()) {
+      NodeList nodeList = result.get();
+      List<Node> list = nodeList.getNodesList();
+      for (int i = 0; i < list.size(); i++) {
+        Node node = list.get(i);
+        logger.info("IP::" +  ByteArray.toStr(node.getAddress().getHost().toByteArray()));
+        logger.info("Port::" +  node.getAddress().getPort());
+      }
+    } else {
+      logger.info("GetAssetIssueList " + " failed !!");
+    }
+  }
+
   private void GetBlock(String[] parameters) {
     long blockNum = -1;
 
@@ -528,6 +545,7 @@ public class TestClient {
     System.out.println("Listaccounts");
     System.out.println("Listwitnesses");
     System.out.println("Listassetissue");
+    System.out.println("listNodes");
     System.out.println("Getblock");
     System.out.println("Exit or Quit");
 
@@ -642,6 +660,10 @@ public class TestClient {
         }
         case "listassetissue": {
           getAssetIssueList();
+          break;
+        }
+        case "listnodes": {
+          listNodes();
           break;
         }
         case "getblock": {
