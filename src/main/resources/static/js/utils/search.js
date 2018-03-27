@@ -1,10 +1,12 @@
 
 
-function searchAccount(address, from) {
+var addr  = window.localStorage.getItem('address');
+searchAccount(addr)
+function searchAccount(address) {
     ajaxRequest( "post",getAccountInfo,{'address':address},searchAccountInfoSuccess,searchAccountInfoFailure)
 }
 
-searchAccountInfoSuccess = function (data) {
+ function searchAccountInfoSuccess(data) {
     var str = ''
     var bytesAccount = base64DecodeFromString(data);
     //调用方法deserializeBinary解析
@@ -30,14 +32,10 @@ searchAccountInfoSuccess = function (data) {
 
 
     //跳到账户列表
-    $('#text').css('background','none');
-    $('#acco').addClass('header_active').siblings().removeClass('header_active');
-    $('#text').load('/html/searchAccount.html');
-    alert(str);
     $('#searchAccountResult').html(str);
 }
 
-searchAccountInfoFailure = function (data) {
+function searchAccountInfoFailure(data) {
 
     //跳到账户列表
     $('#text').css('background','none');
