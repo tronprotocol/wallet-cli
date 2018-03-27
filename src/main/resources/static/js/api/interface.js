@@ -22,3 +22,5 @@ var createWitness = baseUrl + 'createWitnessToView'; //申请成为出块人
 var participateAssetView = baseUrl + 'ParticipateAssetIssueToView'; //参与资产发行接口
 var voteWitnessView = baseUrl + 'createVoteWitnessToView'; //投票接口
 
+
+var accountListReferer = "list";
