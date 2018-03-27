@@ -141,7 +141,6 @@ public class GrpcClientController {
   //get account transaction from view
   @PostMapping("/transactionFromView")
   public boolean transactionFromView(String transactionData) throws InvalidProtocolBufferException {
-    System.out.println("pppppppppppp");
     if ( transactionData == null || transactionData.equals("")){
       return false;
     }

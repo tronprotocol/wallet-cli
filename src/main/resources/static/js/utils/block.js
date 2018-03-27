@@ -24,7 +24,7 @@ TransSuccessCallback = function (data) {
   var blockNumber;
   var currentBlock = base64DecodeFromString(data);
   var contractList;
-
+  var sendTrx,toTrx,contractName;
   var blockData = proto.protocol.Block.deserializeBinary(currentBlock);
   blockNumber = blockData.getBlockHeader().getRawData().getNumber();
   var witnessId = blockData.getBlockHeader().getRawData().getWitnessId();
@@ -35,7 +35,6 @@ TransSuccessCallback = function (data) {
   var contraxtType=proto.protocol.Transaction.Contract.ContractType;
 
   var contractType;
-  var contractName;
 
   var ownerHex = "";
   var toHex = "";
@@ -43,11 +42,28 @@ TransSuccessCallback = function (data) {
   // time
   var time =10;
   var str="";
+
+  if(getCookie("userLanguage")){
+      nowLanguage = getCookie("userLanguage")
+  }else{
+      sendTrx = '将';
+      toTrx = '转帐给';
+      contractName = '转帐';
+  }
+  if(nowLanguage == 'zh-CN'){
+      sendTrx = '将';
+      toTrx = '转帐给';
+      contractName = '转帐';
+  }else if(nowLanguage == 'en'){
+      sendTrx = 'send';
+      toTrx = 'to';
+      contractName = 'send';
+  }
   function getTx(contractName,ownerHex,amount,toHex) {
     str += '<li class="transfer">'
         + '<button >'+contractName+'</button>'
         + '<span class="tran_name">' + ownerHex + '</span>'
-        + '<span>将' + amount + ' TRX转帐给</span>'
+        + '<span>'+sendTrx+' ' + amount + ' TRX '+toTrx+'</span>'
         + '<span class="tran_name">' + toHex + '</span>'
         // + '<span>' + time + '秒钟前</span>'
         + '</li>';
@@ -92,7 +108,6 @@ TransSuccessCallback = function (data) {
 
           case contraxtType.TRANSFERCONTRACT:
             contractType=contraxtType.TRANSFERCONTRACT;
-            contractName="转账";
 
             obje = any.unpack(
                 proto.protocol.TransferContract.deserializeBinary,
@@ -177,18 +192,45 @@ TransSuccessByNumToViewCallback = function (data) {
   var transactionNum= blockData.getTransactionsList().length;
   var contraxtType=proto.protocol.Transaction.Contract.ContractType;
   //var big = 255;
-  var timeStr = '';
+  var timeStr,secTime,minTime,blockStr,represStr,transStr;
+
+    if(getCookie("userLanguage")){
+        nowLanguage = getCookie("userLanguage")
+    }else{
+        secTime = '秒前';
+        minTime = '分前';
+        blockStr = '区块  #';
+        represStr = '超级代表: ';
+        transStr = '交易数：';
+        transSize = '大小：';
+
+    }
+    if(nowLanguage == 'zh-CN'){
+        secTime = '秒前';
+        minTime = '分前';
+        blockStr = '区块  #';
+        represStr = '超级代表: ';
+        transStr = '交易数：';
+        transSize = '大小：';
+    }else if(nowLanguage == 'en'){
+        secTime = 'seconds ago';
+        minTime = 'minutes ago';
+        blockStr = 'block  #';
+        represStr = 'Mined by: ';
+        transStr = 'Transactions：';
+        transSize = 'Size：';
+    }
   //当前时间戳
   var timestamp=new Date().getTime();
   //当前时间戳 - 块生成的时间戳
   var accordTimes = Math.floor(timestamp - time);
   console.log('accordTimes====='+accordTimes);
   if(Math.floor(accordTimes/1000) > 60){
-      var sec = Math.floor(accordTimes/60000);
-      timeStr = sec+ '分'
+      var min = Math.floor(accordTimes/60000);
+      timeStr = min+ minTime
   }else{
       var sec = Math.floor(accordTimes/1000);
-      timeStr = sec+ '秒'
+      timeStr = sec+ secTime
   }
 
 
@@ -197,13 +239,13 @@ TransSuccessByNumToViewCallback = function (data) {
 
 
   var html= '<div class="before-block"><div  class="mr_left">'
-      + '<p>区块  #'+ blockNumber+'</p>'
-      + '<p>'+timeStr+'前</p>'
+      + '<p>'+blockStr+ blockNumber+'</p>'
+      + '<p>'+timeStr+'</p>'
       + ' </div>'
       + '<div class="mr_right">'
-      + '<p>出块人: '+witnessAddressHexSix+'  </p><p>'
-      + '<span>交易数：'+transactionNum+'</span>'
-      +'<span>大小：'+big+'bytes</span></p></div></div>';
+      + '<p>'+represStr+witnessAddressHexSix+'  </p><p>'
+      + '<span>'+transStr+transactionNum+'</span>'
+      +'<span>'+transSize+big+'bytes</span></p></div></div>';
 
       $("#recentBlock").append(html);
 };
