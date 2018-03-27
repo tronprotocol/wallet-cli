@@ -78,9 +78,7 @@ header span{
     border-radius: 5px;
     /*display: none;*/
 }
-#wel_login{
-    text-align: center;
-}
+
 #article_login{
     display: none;
 }
@@ -193,7 +191,11 @@ form input{
     margin: 40px;
 }
 .wel_creat{
-    margin-top: 40px;
+    width: 200px;
+    margin: 40px auto 0;
+}
+.wel_creat button:nth-child(2){
+    margin-left: 10px;
 }
 .wel_creat button{
     width: 90px;
@@ -321,8 +323,10 @@ form input{
 .mona_warn{
     display: none;
 }
-#wel_select{
-    margin-top: 60px;
+#language{
+    width: 100px;
+    margin: 60px auto 0;
+    display: block;
 }
 
 

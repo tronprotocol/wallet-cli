@@ -105,10 +105,22 @@ getAssetListSuccessCallback = function (data) {
         var endTime = assetIssueList[i].getEndTime();
         var formattedStartTime = formateDate(startTime);
         var formattedEndTime = formateDate(endTime);
-        if(!(startTime < curTime && curTime< endTime)){
-            content += "<tr><td>" + name + "</td><td>" + ownerAddress + "</td><td>" + totalSupply + "</td> <td class='stop'>1</td><td><input type='button' class='add_account time_end' value='参与'/></td></tr>";
+        var partStr = '';
+        if(getCookie("userLanguage")){
+            nowLanguage = getCookie("userLanguage")
+            if(nowLanguage == 'zh-CN'){
+                var partStr = '参与'
+            }else if(nowLanguage == 'en'){
+                var partStr = 'Participate'
+            }
         }else{
-            content += "<tr><td>" + name + "</td><td>" + ownerAddress + "</td><td>" + totalSupply + "</td> <td > " + formattedStartTime + " - " + formattedEndTime + " </td><td><input type='button' class='add_account' value='参与' onclick=\"participateAssetIssue(" + i + ")\"/></td></tr>";
+            var partStr = '参与'
+        }
+
+        if(!(startTime < curTime && curTime< endTime)){
+            content += "<tr><td>" + name + "</td><td>" + ownerAddress + "</td><td>" + totalSupply + "</td> <td class='stop'>1</td><td><input type='button' class='add_account time_end' value='"+partStr+"'/></td></tr>";
+        }else{
+            content += "<tr><td>" + name + "</td><td>" + ownerAddress + "</td><td>" + totalSupply + "</td> <td > " + formattedStartTime + " - " + formattedEndTime + " </td><td><input type='button' class='add_account' value='"+partStr+"' onclick=\"participateAssetIssue(" + i + ")\"/></td></tr>";
         }
     }
     $('#assetIssueListTable').append(content);

@@ -167,6 +167,7 @@ $('#creatAccount').on('click',function () {
 })
 
 
+//国际化
 
 
 
