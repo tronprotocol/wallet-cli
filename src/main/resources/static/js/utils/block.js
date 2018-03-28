@@ -44,21 +44,22 @@ TransSuccessCallback = function (data) {
   var str="";
 
   if(getCookie("userLanguage")){
-      nowLanguage = getCookie("userLanguage")
+      var nowLanguage = getCookie("userLanguage")
+      if(nowLanguage == 'zh-CN'){
+          sendTrx = '将';
+          toTrx = '转帐给';
+          contractName = '转帐';
+      }else if(nowLanguage == 'en'){
+          sendTrx = 'send';
+          toTrx = 'to';
+          contractName = 'send';
+      }
   }else{
       sendTrx = '将';
       toTrx = '转帐给';
       contractName = '转帐';
   }
-  if(nowLanguage == 'zh-CN'){
-      sendTrx = '将';
-      toTrx = '转帐给';
-      contractName = '转帐';
-  }else if(nowLanguage == 'en'){
-      sendTrx = 'send';
-      toTrx = 'to';
-      contractName = 'send';
-  }
+
   function getTx(contractName,ownerHex,amount,toHex) {
     str += '<li class="transfer">'
         + '<button >'+contractName+'</button>'
@@ -195,7 +196,22 @@ TransSuccessByNumToViewCallback = function (data) {
   var timeStr,secTime,minTime,blockStr,represStr,transStr;
 
     if(getCookie("userLanguage")){
-        nowLanguage = getCookie("userLanguage")
+        var nowLanguage = getCookie("userLanguage")
+        if(nowLanguage == 'zh-CN'){
+            secTime = '秒前';
+            minTime = '分前';
+            blockStr = '区块  #';
+            represStr = '超级代表: ';
+            transStr = '交易数：';
+            transSize = '大小：';
+        }else if(nowLanguage == 'en'){
+            secTime = 'seconds ago';
+            minTime = 'minutes ago';
+            blockStr = 'block  #';
+            represStr = 'Mined by: ';
+            transStr = 'Transactions：';
+            transSize = 'Size：';
+        }
     }else{
         secTime = '秒前';
         minTime = '分前';
@@ -205,21 +221,7 @@ TransSuccessByNumToViewCallback = function (data) {
         transSize = '大小：';
 
     }
-    if(nowLanguage == 'zh-CN'){
-        secTime = '秒前';
-        minTime = '分前';
-        blockStr = '区块  #';
-        represStr = '超级代表: ';
-        transStr = '交易数：';
-        transSize = '大小：';
-    }else if(nowLanguage == 'en'){
-        secTime = 'seconds ago';
-        minTime = 'minutes ago';
-        blockStr = 'block  #';
-        represStr = 'Mined by: ';
-        transStr = 'Transactions：';
-        transSize = 'Size：';
-    }
+
   //当前时间戳
   var timestamp=new Date().getTime();
   //当前时间戳 - 块生成的时间戳

@@ -28,16 +28,17 @@ GetAccountSuccessCallback = function (account) {
     var Balance = accountInfo.getBalance();
     var str,choseStr;
     if(getCookie("userLanguage")){
-        nowLanguage = getCookie("userLanguage")
+        var nowLanguage = getCookie("userLanguage")
+        if(nowLanguage == 'zh-CN'){
+            choseStr = '请选择资产名称'
+        }else if(nowLanguage == 'en'){
+            choseStr = 'choose tokens'
+        }
     }else{
         choseStr = '请选择资产名称'
 
     }
-    if(nowLanguage == 'zh-CN'){
-        choseStr = '请选择资产名称'
-    }else if(nowLanguage == 'en'){
-        choseStr = 'choose tokens'
-    }
+
     $('#coinSelect').html('')
     if (Balance > 0) {
       str = '<option value="">'+choseStr+'</option>'

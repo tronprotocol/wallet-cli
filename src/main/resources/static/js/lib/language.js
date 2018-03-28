@@ -115,7 +115,7 @@ var execI18n = function(){
 
         jQuery.i18n.properties({
             name : 'index', //资源文件名称
-            path : '../static/js/i18n/' + i18nLanguage +'/', //资源文件路径
+            path : '/js/i18n/' + i18nLanguage +'/', //资源文件路径
             mode : 'map', //用Map的方式使用资源文件中的值
             language: i18nLanguage,
             callback: function () {//加载成功后设置显示内容
