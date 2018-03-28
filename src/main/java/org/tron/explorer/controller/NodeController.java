@@ -44,62 +44,89 @@ public class NodeController {
   static final String splitString1 = "\\|\\|\\|";
   private static Map<String, String> ipCity = loadCityMap();
 
-  public static void addNewIp(String ip, Map ipCity) throws IOException, GeoIp2Exception {
+  public static void addNewIp(String ip, Map ipCity) {
     String dbPath = WalletClient.getDbPath();
-    File database = new File(dbPath);
-    DatabaseReader reader = new DatabaseReader.Builder(database).build();
-    InetAddress ipAddress = InetAddress.getByName(ip);
-    if (ipAddress == null) {
-      return;
-    }
-    CityResponse response = reader.city(ipAddress);
-
-    Country country = response.getCountry();
-    //    Subdivision subdivision = response.getMostSpecificSubdivision();
-    City city = response.getCity();
-    //    Postal postal = response.getPostal();
-    Location location = response.getLocation();
-
-    String jsonData = "{\"country\":\"";
-    jsonData += country.getName();
-    jsonData += "\"";
-    jsonData += ",\"city\":\"";
-    jsonData += city.getName();
-    jsonData += "\"";
-    jsonData += ",\"longitude\":\"";
-    jsonData += location.getLongitude();
-    jsonData += "\"";
-    jsonData += ",\"latitude\":\"";
-    jsonData += location.getLatitude();
-    jsonData += "\"}";
-
     String txtPath = WalletClient.getTxtPath();
-    File txtFile = new File(txtPath);
-    if (!txtFile.exists()) {
-      txtFile.createNewFile();
-    }
-    FileWriter fw = new FileWriter(txtFile, true);
-    BufferedWriter bw = new BufferedWriter(fw);
-    bw.write(ip);
-    bw.write(splitString0);
-    bw.write(jsonData);
-    bw.write("\n");
-    bw.close();
-    fw.close();
+    File database = null;
+    DatabaseReader reader = null;
+    File txtFile = null;
+    FileWriter fw = null;
+    BufferedWriter bw = null;
 
-    ipCity.put(ip, jsonData);
+    try {
+      database = new File(dbPath);
+      reader = new DatabaseReader.Builder(database).build();
+      InetAddress ipAddress = InetAddress.getByName(ip);
+      if (ipAddress == null) {
+        return;
+      }
+      CityResponse response = reader.city(ipAddress);
+
+      Country country = response.getCountry();
+      //    Subdivision subdivision = response.getMostSpecificSubdivision();
+      City city = response.getCity();
+      //    Postal postal = response.getPostal();
+      Location location = response.getLocation();
+
+      String jsonData = "{\"country\":\"";
+      jsonData += country.getName();
+      jsonData += "\"";
+      jsonData += ",\"city\":\"";
+      jsonData += city.getName();
+      jsonData += "\"";
+      jsonData += ",\"longitude\":\"";
+      jsonData += location.getLongitude();
+      jsonData += "\"";
+      jsonData += ",\"latitude\":\"";
+      jsonData += location.getLatitude();
+      jsonData += "\"}";
+
+      txtFile = new File(txtPath);
+      if (!txtFile.exists()) {
+        txtFile.createNewFile();
+      }
+      fw = new FileWriter(txtFile, true);
+      bw = new BufferedWriter(fw);
+      bw.write(ip);
+      bw.write(splitString0);
+      bw.write(jsonData);
+      bw.write("\n");
+      ipCity.put(ip, jsonData);
+
+    } catch (IOException ioEx) {
+      ioEx.printStackTrace();
+    } catch (GeoIp2Exception geoIp2Ex) {
+      geoIp2Ex.printStackTrace();
+    } finally {
+      try {
+        if (reader != null) {
+          reader.close();
+        }
+        if (bw != null) {
+          bw.close();
+        }
+        if (fw != null) {
+          fw.close();
+        }
+      } catch (IOException e) {
+        e.printStackTrace();
+      }
+    }
   }
 
   private static Map<String, String> loadCityMap() {
     Map<String, String> ipCity = new HashMap<String, String>();
+    String txtPath = WalletClient.getTxtPath();
+    File txtFile = null;
+    FileReader fr = null;
+    BufferedReader br = null;
     try {
-      String txtPath = WalletClient.getTxtPath();
-      File txtFile = new File(txtPath);
+      txtFile = new File(txtPath);
       if (!txtFile.exists()) {
         return ipCity;
       }
-      FileReader fr = new FileReader(txtFile);
-      BufferedReader br = new BufferedReader(fr);
+      fr = new FileReader(txtFile);
+      br = new BufferedReader(fr);
       String line = br.readLine();
       if (line == null) {
         return ipCity;
@@ -114,6 +141,17 @@ public class NodeController {
       }
     } catch (IOException io) {
       io.printStackTrace();
+    } finally {
+      try {
+        if (br != null) {
+          br.close();
+        }
+        if (fr != null) {
+          fr.close();
+        }
+      } catch (IOException e) {
+        e.printStackTrace();
+      }
     }
     return ipCity;
   }
