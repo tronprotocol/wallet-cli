@@ -4,6 +4,7 @@
     margin: auto;
     padding: 30px 60px 0 60px;
     overflow: hidden;
+    background: #fff;
 }
 .map_bold{
 	font-weight: bold;
