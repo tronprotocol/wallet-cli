@@ -67,7 +67,7 @@ function submitParticipateAssetIssue() {
     ajaxRequest("post", participateAssetView, data, submitParticipateAssetIssueSuccessCallback, submitAssetIssueFailureCallback)
 }
 
-submitParticipateAssetIssueSuccessCallback = function (data) {
+function submitParticipateAssetIssueSuccessCallback(data) {
     var privateKey = base64DecodeFromString($("#myKey").val());
     var transation = getTransActionFromBase64String(data);
     var transationAfterSign = signTransaction(privateKey, transation);
@@ -76,7 +76,7 @@ submitParticipateAssetIssueSuccessCallback = function (data) {
     ajaxRequest("post", signView, para, submitAssetIssueSuccessCallback, submitAssetIssueFailureCallback)
 }
 
-submitAssetIssueSuccessCallback = function (data) {
+function submitAssetIssueSuccessCallback(data) {
     if(data) {
         layer.alert("参与成功");
         $('#text').css('background','none');
@@ -87,12 +87,11 @@ submitAssetIssueSuccessCallback = function (data) {
     }
 }
 
-submitAssetIssueFailureCallback = function (data) {
+function submitAssetIssueFailureCallback(data) {
     layer.alert("参与失败");
 }
 
-
-getAssetListSuccessCallback = function (data) {
+function getAssetListSuccessCallback(data) {
     var curTime = new Date().getTime();
     var content = "";
     var assetIssueListObj = proto.protocol.AssetIssueList.deserializeBinary(base64DecodeFromString(data));
@@ -127,7 +126,7 @@ getAssetListSuccessCallback = function (data) {
 
 }
 
-getAssetListFailureCallback = function (data) {
+function getAssetListFailureCallback(data) {
     layer.alert("获取资产列表失败");
 }
 
@@ -142,7 +141,7 @@ $(document).ready(function() {
     })
 })
 
-createAssetSuccessCallback = function (data) {
+function createAssetSuccessCallback(data) {
     var privateKey = base64DecodeFromString($("#privateKey").val());
     var transation = getTransActionFromBase64String(data);
     var transationAfterSign = signTransaction(privateKey, transation);
@@ -151,7 +150,7 @@ createAssetSuccessCallback = function (data) {
     ajaxRequest("post", signView, para, signSuccessCallback, createAssetFailureCallback)
 }
 
-signSuccessCallback = function (data) {
+function signSuccessCallback(data) {
     if(data) {
         layer.alert("发行资产成功");
         $('#text').css('background','none');
@@ -162,7 +161,7 @@ signSuccessCallback = function (data) {
     }
 }
 
-createAssetFailureCallback = function (data) {
+function createAssetFailureCallback(data) {
     layer.alert("发行资产失败");
 }
 

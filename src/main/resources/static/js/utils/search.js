@@ -8,9 +8,7 @@ if(getStringType(addr) == 1) {
 if(getStringType(addr) == 2) {
     searchBlock(addr);
 }
-if(getStringType(addr) == 3) {
-    searchAsset(addr);
-}
+
 
 function searchBlock(height){
     $.ajax({
@@ -27,8 +25,6 @@ function searchBlock(height){
         }
     })
 }
-
-
 
 function searchBlockSuccessCallback(data) {
     if(data) {
@@ -82,7 +78,6 @@ function searchBlockSuccessCallback(data) {
                             break;
                     }
                 }
-
             }
             $("#txList").html(htmlStr);
         }
@@ -110,11 +105,35 @@ function formateDate(timeStamp) {
     return year+"-"+month+"-"+date+" "+hour+":"+minute+":"+second;
 }
 
+var assetIssueContractObj;
+function participateAssetIssueInSearch() {
+    $('.account_list').css('display','none');
+    $('#addcount').css('display','block');
+    var name = bytesToString(assetIssueContractObj.getName());
+    var ownerAddress = byteArray2hexStr(assetIssueContractObj.getOwnerAddress());
+    var totalSupply = assetIssueContractObj.getTotalSupply();
+    var startTime = assetIssueContractObj.getStartTime();
+    var endTime = assetIssueContractObj.getEndTime();
+    var desc = bytesToString(assetIssueContractObj.getDescription())
+    var num = assetIssueContractObj.getNum();
+    var trxNum = assetIssueContractObj.getTrxNum();
+    var price = trxNum/num;
+    var formattedStartTime = formateDate(startTime);
+    var formattedEndTime = formateDate(endTime);
+    $('#assetName').text(name);
+    $('#ownAddress').text(ownerAddress);
+    $('#assetTotalSupply').text(totalSupply);
+    $('#price').text(price);
+    $('#lastTime').text(formattedStartTime + " - " + formattedEndTime);
+    $('#desc').text(desc);
+}
+
 function searchAssetSuccess(data) {
     if(data) {
         var curTime = new Date().getTime();
         var content = "";
         var assetIssueContract = proto.protocol.AssetIssueContract.deserializeBinary(base64DecodeFromString(data));
+        assetIssueContractObj = assetIssueContract;
         var name = bytesToString(assetIssueContract.getName());
         var ownerAddress = byteArray2hexStr(assetIssueContract.getOwnerAddress());
         var totalSupply = assetIssueContract.getTotalSupply();
@@ -125,9 +144,9 @@ function searchAssetSuccess(data) {
         if (!(startTime < curTime && curTime < endTime)) {
             content += "<tr><td>" + name + "</td><td>" + ownerAddress + "</td><td>" + totalSupply + "</td> <td class='stop'>1</td><td><input type='button' class='add_account time_end' value='参与'/></td></tr>";
         } else {
-            content += "<tr><td>" + name + "</td><td>" + ownerAddress + "</td><td>" + totalSupply + "</td> <td > " + formattedStartTime + " - " + formattedEndTime + " </td><td><input type='button' class='add_account' value='参与' onclick=\"participateAssetIssue(" + i + ")\"/></td></tr>";
+            content += "<tr><td>" + name + "</td><td>" + ownerAddress + "</td><td>" + totalSupply + "</td> <td > " + formattedStartTime + " - " + formattedEndTime + " </td><td><input type='button' class='add_account' value='参与' onclick=\"participateAssetIssueInSearch()\"/></td></tr>";
         }
-        $('#searchAssetResult').append(content);
+        $('#assetIssueListTable').append(content);
     }
 }
 
@@ -173,5 +192,3 @@ function searchAccountInfoFailure(data) {
     var str = '<td align="center" valign="middle">没有查到账户</td>';
     $('#searchAccountResult').html(str);
 }
-
-
