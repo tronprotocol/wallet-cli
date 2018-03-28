@@ -1,8 +1,8 @@
 
-var baseUrl = 'http://47.95.14.107:8088/';
+//var baseUrl = 'http://47.95.14.107:8088/';
 //var baseUrl = 'http://192.168.10.195:8088/';
 //var baseUrl = 'http://192.168.10.55:8088/';
-//var baseUrl = 'http://localhost:8088/';
+var baseUrl = 'http://localhost:8088/';
 
 
 

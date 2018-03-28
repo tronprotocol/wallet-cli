@@ -10,6 +10,10 @@ if(getStringType(addr) == 3) {
     searchAsset(addr);
 }
 
+function searchBlock(height){
+
+}
+
 
 searchAssetSuccess = function (data) {
     var curTime = new Date().getTime();
