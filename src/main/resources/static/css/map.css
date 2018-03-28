@@ -4,6 +4,7 @@
     margin: auto;
     padding: 30px 60px 0 60px;
     overflow: hidden;
+    background: #fff;
 }
 .map_bold{
 	font-weight: bold;
@@ -12,7 +13,8 @@
 	background: #fff;
 }
 .map_left{
-	width: 330px;
+	max-width: 350px;
+	width: 27%;
 	display: inline-block;
 	vertical-align: top;
 }
@@ -41,12 +43,14 @@
 }
 .map_nav_left{
 	width: 20%;
+	padding-left: 5px;
 }
 .map_nav_middle{
 	width: 60%;
 }
 .map_nav_right{
 	width: 20%;
+	padding-right: 5px;
 }
 
 .map_left_list{
@@ -128,8 +132,10 @@
 	display: inline-block;
 	vertical-align: top;
 	position: relative;
+	width: 70%;
 }
 #nodemap{
-	width: 950px;
+	/*width: 950px;*/
+	width: 100%;
 	height: 520px;
 }
