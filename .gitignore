@@ -4,7 +4,8 @@ out
 .idea
 .gradle
 node_modules
-src/main/genjs
+src/main/genjs/api
+src/main/genjs/core
 src/genjs
 src/gen
 tools

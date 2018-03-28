@@ -46,11 +46,11 @@ function calPriceByTrx() {
     }
 }
 
-function checkFunction() {
-    $('#trxNumCheck').text($('#amount').val()+ '');
+function checkFunction() {trxNumCheck
+    $('#assetInfoCheck').text($('#amount').val()+ ' ' +$('#assetName').text());
     var assetNum = $('#price').text() * $('#amount').val();
-    var info = $('#assetName').text() +' '+ assetNum;
-    $('#assetInfoCheck').text(info);
+    var info = assetNum;
+    $('#trxNumCheck').text(info);
 }
 
 function submitParticipateAssetIssue() {
@@ -67,7 +67,7 @@ function submitParticipateAssetIssue() {
     ajaxRequest("post", participateAssetView, data, submitParticipateAssetIssueSuccessCallback, submitAssetIssueFailureCallback)
 }
 
-submitParticipateAssetIssueSuccessCallback = function (data) {
+function submitParticipateAssetIssueSuccessCallback(data) {
     var privateKey = base64DecodeFromString($("#myKey").val());
     var transation = getTransActionFromBase64String(data);
     var transationAfterSign = signTransaction(privateKey, transation);
@@ -76,7 +76,7 @@ submitParticipateAssetIssueSuccessCallback = function (data) {
     ajaxRequest("post", signView, para, submitAssetIssueSuccessCallback, submitAssetIssueFailureCallback)
 }
 
-submitAssetIssueSuccessCallback = function (data) {
+function submitAssetIssueSuccessCallback(data) {
     if(data) {
         layer.alert("参与成功");
         $('#text').css('background','none');
@@ -87,12 +87,11 @@ submitAssetIssueSuccessCallback = function (data) {
     }
 }
 
-submitAssetIssueFailureCallback = function (data) {
+function submitAssetIssueFailureCallback(data) {
     layer.alert("参与失败");
 }
 
-
-getAssetListSuccessCallback = function (data) {
+function getAssetListSuccessCallback(data) {
     var curTime = new Date().getTime();
     var content = "";
     var assetIssueListObj = proto.protocol.AssetIssueList.deserializeBinary(base64DecodeFromString(data));
@@ -105,24 +104,36 @@ getAssetListSuccessCallback = function (data) {
         var endTime = assetIssueList[i].getEndTime();
         var formattedStartTime = formateDate(startTime);
         var formattedEndTime = formateDate(endTime);
-        if(!(startTime < curTime && curTime< endTime)){
-            content += "<tr><td>" + name + "</td><td>" + ownerAddress + "</td><td>" + totalSupply + "</td> <td class='stop'>1</td><td><input type='button' class='add_account time_end' value='参与'/></td></tr>";
+        var partStr = '';
+        if(getCookie("userLanguage")){
+            nowLanguage = getCookie("userLanguage")
+            if(nowLanguage == 'zh-CN'){
+                var partStr = '参与'
+            }else if(nowLanguage == 'en'){
+                var partStr = 'Participate'
+            }
         }else{
-            content += "<tr><td>" + name + "</td><td>" + ownerAddress + "</td><td>" + totalSupply + "</td> <td > " + formattedStartTime + " - " + formattedEndTime + " </td><td><input type='button' class='add_account' value='参与' onclick=\"participateAssetIssue(" + i + ")\"/></td></tr>";
+            var partStr = '参与'
+        }
+
+        if(!(startTime < curTime && curTime< endTime)){
+            content += "<tr><td>" + name + "</td><td>" + ownerAddress + "</td><td>" + totalSupply + "</td> <td class='stop'>1</td><td><input type='button' class='add_account time_end' value='"+partStr+"'/></td></tr>";
+        }else{
+            content += "<tr><td>" + name + "</td><td>" + ownerAddress + "</td><td>" + totalSupply + "</td> <td > " + formattedStartTime + " - " + formattedEndTime + " </td><td><input type='button' class='add_account' value='"+partStr+"' onclick=\"participateAssetIssue(" + i + ")\"/></td></tr>";
         }
     }
     $('#assetIssueListTable').append(content);
 
 }
 
-getAssetListFailureCallback = function (data) {
+function getAssetListFailureCallback(data) {
     layer.alert("获取资产列表失败");
 }
 
 
 $(document).ready(function() {
     $("#creatAssetBtn").click(function() {
-        var address = getAddressFromPriKeyBase64String($("#privateKey").val());
+        var address = getHexStrAddressFromPriKeyBase64String($("#privateKey").val());
         var start = Date.parse(new Date($("#startTimeFormat").val()));
         var end = Date.parse(new Date($("#endTimeFormat").val()));
         var data = $("#createAssetForm").serialize() + "&ownerAddress=" + address + "&startTime=" + start + "&endTime=" + end;
@@ -130,7 +141,7 @@ $(document).ready(function() {
     })
 })
 
-createAssetSuccessCallback = function (data) {
+function createAssetSuccessCallback(data) {
     var privateKey = base64DecodeFromString($("#privateKey").val());
     var transation = getTransActionFromBase64String(data);
     var transationAfterSign = signTransaction(privateKey, transation);
@@ -139,7 +150,7 @@ createAssetSuccessCallback = function (data) {
     ajaxRequest("post", signView, para, signSuccessCallback, createAssetFailureCallback)
 }
 
-signSuccessCallback = function (data) {
+function signSuccessCallback(data) {
     if(data) {
         layer.alert("发行资产成功");
         $('#text').css('background','none');
@@ -150,7 +161,7 @@ signSuccessCallback = function (data) {
     }
 }
 
-createAssetFailureCallback = function (data) {
+function createAssetFailureCallback(data) {
     layer.alert("发行资产失败");
 }
 

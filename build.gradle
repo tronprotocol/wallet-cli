@@ -79,6 +79,9 @@ dependencies {
     compile group: 'org.slf4j', name: 'jcl-over-slf4j', version: '1.7.25'
     compile group: 'ch.qos.logback', name: 'logback-classic', version: '1.2.3'
 
+    //
+    compile 'com.maxmind.geoip2:geoip2:2.10.0'
+
     // google grpc
     compile group: 'io.grpc', name: 'grpc-netty', version: '1.9.0'
     compile group: 'io.grpc', name: 'grpc-protobuf', version: '1.9.0'
@@ -146,7 +149,7 @@ protobuf {
 
                 js {
                     outputSubDir = "genjs/"
-                    option "import_style=browser"
+                    option "import_style=commonjs"
                     option "binary"
                 }
             }
@@ -174,5 +177,7 @@ allprojects {
     plugins.withId("com.liferay.node") {
         node.global = true
         node.nodeDir = "$projectDir/src/genjs"
+        node.nodeVersion="8.10.0"
+
     }
 }

@@ -8,6 +8,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tron.api.GrpcAPI.AccountList;
 import org.tron.api.GrpcAPI.AssetIssueList;
+import org.tron.api.GrpcAPI.Node;
+import org.tron.api.GrpcAPI.NodeList;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Utils;
@@ -206,6 +208,24 @@ public class TestClient {
     }
   }
 
+  private void getAssetIssueByName(String[] parameters) {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("GetAssetIssueByName need 1 parameter like following: ");
+      System.out.println("GetAssetIssueByName AssetName ");
+      return;
+    }
+    String assetName = parameters[0];
+
+    AssetIssueContract assetIssueContract = WalletClient.getAssetIssueByName(assetName);
+    if (assetIssueContract != null) {
+      logger.info("Address::" + ByteArray
+          .toHexString(assetIssueContract.getOwnerAddress().toByteArray()));
+      logger.info("assetIssueContract[" + assetIssueContract + "]");
+    } else {
+      logger.info("GetAssetIssueByName " + " failed !!");
+    }
+  }
+
   private void sendCoin(String[] parameters) {
     if (parameters == null || parameters.length != 3) {
       System.out.println("SendCoin need 3 parameter like following: ");
@@ -226,47 +246,53 @@ public class TestClient {
   }
 
   private void testTransaction(String[] parameters) {
-    if (parameters == null || parameters.length != 4) {
-      System.out.println("testTransaction need 4 parameter like following: ");
+    if (parameters == null || (parameters.length != 4 && parameters.length != 5)) {
+      System.out.println("testTransaction need 4 or 5 parameter like following: ");
       System.out.println("testTransaction Password ToAddress assertName times");
+      System.out.println("testTransaction Password ToAddress assertName times interval");
       return;
     }
     String password = parameters[0];
     String toAddress = parameters[1];
     String assertName = parameters[2];
     String loopTime = parameters[3];
-
+    int intervalInt = 10;//s
+    if (parameters.length == 5) {
+      String interval = parameters[4];
+      intervalInt = Integer.parseInt(interval);//s
+    }
+    intervalInt *= 500; //ms
     long times = new Long(loopTime);
 
     for (int i = 1; i <= times; i++) {
       long amount = i;
-      boolean result = client.sendCoin(password, toAddress,  amount);
+      boolean result = client.sendCoin(password, toAddress, amount);
       if (result) {
-        logger.info("Send " + amount + " dron to " + toAddress + " successful !!");
+        logger.info("Send " + amount + " drop to " + toAddress + " successful !!");
         try {
-          Thread.sleep(500);
+          Thread.sleep(intervalInt);
         } catch (Exception e) {
           e.printStackTrace();
           break;
         }
 
       } else {
-        logger.info("Send " + amount + " dron to " + toAddress + " failed !!");
+        logger.info("Send " + amount + " drop to " + toAddress + " failed !!");
         break;
       }
 
       result = client.transferAsset(password, toAddress, assertName, amount);
       if (result) {
-        logger.info("transferAsset " + assertName + " dron to " + toAddress + " successful !!");
+        logger.info("transferAsset " + amount + assertName + " to " + toAddress + " successful !!");
         try {
-          Thread.sleep(500);
+          Thread.sleep(intervalInt);
         } catch (Exception e) {
           e.printStackTrace();
           break;
         }
 
       } else {
-        logger.info("transferAsset " + assertName + " dron to " + toAddress + " failed !!");
+        logger.info("transferAsset " + amount + assertName + " to " + toAddress + " failed !!");
         break;
       }
     }
@@ -419,6 +445,21 @@ public class TestClient {
     }
   }
 
+  private void listNodes() {
+    Optional<NodeList> result = client.listNodes();
+    if (result.isPresent()) {
+      NodeList nodeList = result.get();
+      List<Node> list = nodeList.getNodesList();
+      for (int i = 0; i < list.size(); i++) {
+        Node node = list.get(i);
+        logger.info("IP::" + ByteArray.toStr(node.getAddress().getHost().toByteArray()));
+        logger.info("Port::" + node.getAddress().getPort());
+      }
+    } else {
+      logger.info("GetAssetIssueList " + " failed !!");
+    }
+  }
+
   private void GetBlock(String[] parameters) {
     long blockNum = -1;
 
@@ -494,6 +535,7 @@ public class TestClient {
     System.out.println("GetBalance");
     System.out.println("GetAccount");
     System.out.println("GetAssetissueByAccount");
+    System.out.println("GetAssetIssueByName");
     System.out.println("SendCoin");
     System.out.println("TransferAsset");
     System.out.println("ParticipateAssetissue");
@@ -503,6 +545,7 @@ public class TestClient {
     System.out.println("Listaccounts");
     System.out.println("Listwitnesses");
     System.out.println("Listassetissue");
+    System.out.println("listNodes");
     System.out.println("Getblock");
     System.out.println("Exit or Quit");
 
@@ -575,6 +618,10 @@ public class TestClient {
           getAssetIssueByAccount(parameters);
           break;
         }
+        case "getassetissuebyname": {
+          getAssetIssueByName(parameters);
+          break;
+        }
         case "sendcoin": {
           sendCoin(parameters);
           break;
@@ -613,6 +660,10 @@ public class TestClient {
         }
         case "listassetissue": {
           getAssetIssueList();
+          break;
+        }
+        case "listnodes": {
+          listNodes();
           break;
         }
         case "getblock": {

@@ -26,13 +26,25 @@ GetAccountSuccessCallback = function (account) {
     var accountInfo = proto.protocol.Account.deserializeBinary(bytesAccountInfo);
     var Map = accountInfo.getAssetMap().toArray();
     var Balance = accountInfo.getBalance();
-    var str = ''
+    var str,choseStr;
+    if(getCookie("userLanguage")){
+        var nowLanguage = getCookie("userLanguage")
+        if(nowLanguage == 'zh-CN'){
+            choseStr = '请选择资产名称'
+        }else if(nowLanguage == 'en'){
+            choseStr = 'choose tokens'
+        }
+    }else{
+        choseStr = '请选择资产名称'
+
+    }
+
     $('#coinSelect').html('')
     if (Balance > 0) {
-      str = '<option value="">请选择币种</option>'
+      str = '<option value="">'+choseStr+'</option>'
             +'<option value="TRX">TRX</option>'
     }else{
-        str = '<option value="">请选择币种</option>'
+        str = '<option value="">'+choseStr+'</option>'
     }
     for (var key in Map) {
         var name = Map[key][0];

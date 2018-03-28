@@ -43,19 +43,11 @@ function genPriKey() {
 }
 
 //return address by bytes, pubBytes is byte[]
-//return address by bytes, pubBytes is byte[]
-//TODO: There have a bug。Hundreds of computing addresses, possibly with once error.
-//For example,
-//pubBytes = 0405BE4D534BC638CF97BC41E47B62789454F96C232D21B5DE5DE4ACA127E8C169A62487D42546414C0B7CB6A3CD6129C5CAAD157EB0652867994DFAA203AA11B4
-//Compute the result of the address will be:28E0309DA5FCF9CE4C2BC5FA75EC7388597112A8
-//but Compute the function public static byte[] computeAddress(byte[] pubBytes) of ECKey.java will get f1fb4f6095c057bfa2bb6933e1ad6b9609fba865
-//Maybe CryptoJS.SHA3 was a little wrong.
 function computeAddress(pubBytes) {
-  var pubKey = bin2String(pubBytes);
-  if (pubKey.length == 65) {
-    pubKey = pubKey.substring(1);
+  if (pubBytes.length == 65) {
+    pubBytes = pubBytes.slice(1);
   }
-  var hash = CryptoJS.SHA3(pubKey).toString();
+  var hash = CryptoJS.SHA3(pubBytes).toString();
   var addressHex = hash.substring(24);
   var addressBytes = hexStr2byteArray(addressHex);
   return addressBytes;

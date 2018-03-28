@@ -3,11 +3,13 @@ package org.tron.walletserver;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.typesafe.config.Config;
+import java.io.File;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.spongycastle.util.encoders.Hex;
 import org.tron.api.GrpcAPI.AccountList;
 import org.tron.api.GrpcAPI.AssetIssueList;
+import org.tron.api.GrpcAPI.NodeList;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.Hash;
@@ -18,6 +20,7 @@ import org.tron.common.utils.TransactionUtils;
 import org.tron.common.utils.Utils;
 import org.tron.core.config.Configuration;
 import org.tron.protos.Contract;
+import org.tron.protos.Contract.AssetIssueContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.AccountType;
 import org.tron.protos.Protocol.Block;
@@ -37,11 +40,24 @@ public class WalletClient {
   private boolean loginState = false;
 
   private static GrpcClient rpcCli = init();
+  private static String dbPath;
+  private static String txtPath;
 
   public static GrpcClient init() {
     Config config = Configuration.getByPath("config.conf");
+    dbPath = config.getString("CityDb.DbPath");
+    txtPath = config.getString("CityDb.TxtPath");
+
     List<String> fullnodelist = config.getStringList("fullnode.ip.list");
     return new GrpcClient(fullnodelist.get(0));
+  }
+
+  public static String getDbPath() {
+    return dbPath;
+  }
+
+  public static String getTxtPath() {
+    return txtPath;
   }
 
   /**
@@ -516,8 +532,16 @@ public class WalletClient {
   public static Optional<AssetIssueList> getAssetIssueList() {
     return rpcCli.getAssetIssueList();
   }
+
+  public static Optional<NodeList> listNodes() {
+    return rpcCli.listNodes();
+  }
+
   public static Optional<AssetIssueList> getAssetIssueByAccount(byte[] address) {
     return rpcCli.getAssetIssueByAccount(address);
   }
 
+  public static AssetIssueContract getAssetIssueByName(String assetName) {
+    return rpcCli.getAssetIssueByName(assetName);
+  }
 }
