@@ -48,7 +48,7 @@ $(document).ready(function(){
         $('#center').css('display','none');
         $('.header span').removeClass('header_active');
         $('#text').css('background','url(/img/bg.png)')
-        $('#text').load('/html/login.html');
+        $('#text').load('html/login.html');
     });
     $('#money').click(function () {
         $(this).addClass('header_active').siblings().removeClass('header_active');
@@ -76,7 +76,7 @@ $(document).ready(function(){
         //     $('#text').css('background','none');
         //     $('#text').load('/html/count.html');
         // }else{
-        //     $('#text').load('/html/login.html');
+        //     $('#text').load('html/login.html');
         //     $('#text').css('background','url(/img/bg.png)')
         // }
 

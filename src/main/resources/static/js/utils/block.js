@@ -59,14 +59,17 @@ TransSuccessCallback = function (data) {
       toTrx = '转帐给';
       contractName = '转帐';
   }
-
   function getTx(contractName,ownerHex,amount,toHex) {
-    str += '<li class="transfer">'
-        + '<button >'+contractName+'</button>'
-        + '<span class="tran_name">' + ownerHex + '</span>'
-        + '<span>'+sendTrx+' ' + amount + ' TRX '+toTrx+'</span>'
-        + '<span class="tran_name">' + toHex + '</span>'
-        // + '<span>' + time + '秒钟前</span>'
+    str += '<li><span class="trans-line fl"></span>'
+        + '<i class="fl"></i>'
+        + '<p class="type fl">'+contractName+'</p>'
+        + '<p class="trans-info fl">'
+        + '<span class="red">' + ownerHex + '</span>'
+        + '<span>'+sendTrx+'</span>'
+        + '<span class="block-num">'+amount+'</span>'
+        + '<span>TRX</span>'
+        + '<span>'+toTrx+'</span>'
+        + '<span class="red">'+toHex+'</span>'
         + '</li>';
     $("#recentHtml").html(str);
   }
@@ -235,19 +238,16 @@ TransSuccessByNumToViewCallback = function (data) {
       timeStr = sec+ secTime
   }
 
-
-
   //console.log(blockNumber+" ::: "+time+" ::: "+witnessAddressHex+" ::: "+transactionNum);
 
-
-  var html= '<div class="before-block"><div  class="mr_left">'
+  var html= '<li class="clearfix"><div class="block-box fl">'
       + '<p>'+blockStr+ blockNumber+'</p>'
       + '<p>'+timeStr+'</p>'
-      + ' </div>'
-      + '<div class="mr_right">'
-      + '<p>'+represStr+witnessAddressHexSix+'  </p><p>'
-      + '<span>'+transStr+transactionNum+'</span>'
-      +'<span>'+transSize+big+'bytes</span></p></div></div>';
+      + '</div>'
+      + '<div class="block-box-info fl">'
+      + '<p>'+represStr+witnessAddressHexSix+'</p><p>'
+      + '<span>'+transStr+'<i>'+transactionNum+'</i></span>'
+      + '<span>'+transSize+'<i>'+big+'</i>bytes</span></p></div></li>';
 
       $("#recentBlock").append(html);
 };
@@ -259,3 +259,23 @@ TransFailureCallback = function (err) {
 
 // ajaxRequest("GET", getBlockByNumToView, {num: 1233},
 //     TransSuccessCallback, TransFailureCallback);
+function TrxPriceSuccessCallback(data) {
+    console.log(data.tickers)
+
+    var Trxprice = data.data.tickers[0].price.toFixed(5)
+    var change1d = data.data.tickers[0].change1d
+    $('#trxprice').text(Trxprice)
+    $('#change1d').text(change1d+'%')
+}
+function TrxPriceFailureCallback(data) {
+    console.log(data)
+}
+//TRX Price
+function getTrxPrice() {
+    ajaxRequest("GET", 'https://block.cc/api/v1/coin/tickers', {'coin': 'tron','page':0,'size':1},TrxPriceSuccessCallback, TrxPriceFailureCallback);
+}
+
+getTrxPrice()
+setInterval(function () {
+    getTrxPrice()
+},21600000)

@@ -50,3 +50,8 @@ border: 1px solid #ccc;
 .check{
     margin-top: 100px;
 }
+
+.text-box{
+    width: 1320px;
+    margin: 20px auto 0;
+}
