@@ -5,6 +5,9 @@ var addr = $('#searchInput').val();
 if(getStringType(addr) == 1) {
     searchAccount(addr);
 }
+if(getStringType(addr) == 2) {
+    searchBlock(addr);
+}
 if(getStringType(addr) == 3) {
     searchAsset(addr);
 }
@@ -17,13 +20,78 @@ function searchBlock(height){
         data:{num: height},
         async: true,   // 是否异步
         success: function (data) {
-            TransSuccessByNumToViewCallback(data)
+            searchBlockSuccessCallback(data)
         },
         fail: function (data) {
-            TransFailureCallback(data)
+            searchBlockFailureCallback(data)
         }
     })
 }
+
+
+
+function searchBlockSuccessCallback(data) {
+    if(data) {
+        var recentBlock = base64DecodeFromString(data);
+        //区块大小
+        var big = recentBlock.length;
+        var blockData = proto.protocol.Block.deserializeBinary(recentBlock);
+        var blockNumber = blockData.getBlockHeader().getRawData().getNumber();
+        var witnessAddress = blockData.getBlockHeader().getRawData().getWitnessAddress();
+        var witnessAddressHex = byteArray2hexStr(witnessAddress);
+        var time = blockData.getBlockHeader().getRawData().getTimestamp();
+        var parentHash = blockData.getBlockHeader().getRawData().getParenthash_asB64();
+
+        var txList = blockData.getTransactionsList();
+        var transactionNum = txList.length;
+        var contraxtType = proto.protocol.Transaction.Contract.ContractType;
+
+        $(".search_title_txt").text("#" + blockNumber);
+        $("#blockHeight").text(blockNumber);
+        $("#createTime").text(formateDate(time));
+        $("#witness").text(witnessAddressHex);
+        $("#parentHash").text(parentHash);
+        $("#bytesNum").text(big + "bytes");
+        $("#txNum").text(transactionNum);
+
+        if (txList.length > 0) {
+            var htmlStr = "";
+            var txTopn = txList.slice(0,12)
+            for (var index in txTopn) {
+                var tx = txList[index];
+                var contractList = tx.getRawData().getContractList();
+                for (var conIndex in contractList) {
+                    var contract = contractList[conIndex]
+                    var any = contract.getParameter();
+                    switch (contract.getType()) {
+
+                        case contraxtType.TRANSFERCONTRACT:
+
+                            var obj = any.unpack( proto.protocol.TransferContract.deserializeBinary, "protocol.TransferContract");
+                            var ownerHex = byteArray2hexStr(obj.getOwnerAddress());
+                            var ownerHexSix = ownerHex.substr(0,10) + '...';
+                            var toHex = byteArray2hexStr(obj.getToAddress());
+                            var toHexSix = toHex.substr(0,10) + '...';
+                            var amount = obj.getAmount();
+
+                            htmlStr += "<div class='search_table_list'>"
+                                + "<div class='search_table_li table_txt_elpis'>" + ownerHexSix + "</div>"
+                                + "<div class='search_table_li table_txt_red'>将" + amount + "TRX转账给</div>"
+                                + "<div class='search_table_li table_txt_elpis'>" + toHexSix + "</div>"
+                                + "</div>";
+                            break;
+                    }
+                }
+
+            }
+            $("#txList").html(htmlStr);
+        }
+    }
+};
+
+function searchBlockFailureCallback(err) {
+    console.log('err')
+};
 
 
 function formateDate(timeStamp) {

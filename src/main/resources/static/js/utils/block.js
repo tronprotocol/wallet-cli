@@ -17,18 +17,6 @@
 //     up();
 // });
 
-
-function getTx(contractName,ownerHex,amount,toHex) {
-    str += '<li class="transfer">'
-        + '<button >'+contractName+'</button>'
-        + '<span class="tran_name">' + ownerHex + '</span>'
-        + '<span>'+sendTrx+' ' + amount + ' TRX '+toTrx+'</span>'
-        + '<span class="tran_name">' + toHex + '</span>'
-        // + '<span>' + time + '秒钟前</span>'
-        + '</li>';
-    $("#recentHtml").html(str);
-}
-
 TransSuccessCallback = function (data) {
 
   var parenthash;
@@ -71,7 +59,16 @@ TransSuccessCallback = function (data) {
       toTrx = 'to';
       contractName = 'send';
   }
-
+  function getTx(contractName,ownerHex,amount,toHex) {
+    str += '<li class="transfer">'
+        + '<button >'+contractName+'</button>'
+        + '<span class="tran_name">' + ownerHex + '</span>'
+        + '<span>'+sendTrx+' ' + amount + ' TRX '+toTrx+'</span>'
+        + '<span class="tran_name">' + toHex + '</span>'
+        // + '<span>' + time + '秒钟前</span>'
+        + '</li>';
+    $("#recentHtml").html(str);
+  }
 
   $("#block_num").text('#'+blockNumber);
   $("#witness_num").text(witnessNum);
