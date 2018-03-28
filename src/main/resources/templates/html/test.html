@@ -52,19 +52,21 @@ function testListNode() {
     url: "http://127.0.0.1:8088/"+"nodeList",
     data: "",
     success: function (msg) {
-      var bytesNodeList = base64DecodeFromString(msg);
-
-      //调用方法deserializeBinary解析
-      var nodelist = proto.protocol.NodeList.deserializeBinary(bytesNodeList);
-
-      var nodes = nodelist.getNodesList();
-      if(nodes.length >0){
-        for (var  i = 0; i<nodes.length; i++){
-          var node = nodes[i];
-          console.info("IP::::" + node.getAddress().getHost());
-          console.info("Port::::" + node.getAddress().getPort());
+    //  var parseJSON = parse-json.parseJSON;
+      var type = typeof msg;
+      var nodes = JSON.parse(msg);
+      var nodeList = nodes.nodes;
+      if ( nodeList.length > 0 ){
+        for (var i = 0; i < nodeList.length; i++ ){
+          var nodeObj = nodeList[i];
+          var country = nodeObj.country;
+          var city = nodeObj.city;
+          var longitude = nodeObj.longitude;
+          var latitude = nodeObj.latitude;
+          console.info(country +" " + city + " " + longitude + " " +  latitude);
         }
       }
+
     },
     error: function (msg) {
       alert(msg);
