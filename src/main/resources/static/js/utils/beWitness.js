@@ -25,7 +25,7 @@ $(document).ready(function(){
 
     $('#tobeWitness').on('click',function () {
         if(!$(".c_check input").is(":checked")){
-            layer.alert('请阅读出块人通知，并勾选')
+            layer.alert('请阅读超级代表通知，并勾选')
         }else if($('.ord_input').val() == ''){
             layer.alert('请输入您的个人站点')
         }else{

@@ -34,9 +34,12 @@ public class BlockController {
 
   @GetMapping("/getBlockToView")
   public byte[] getBlockToView() {
-
     Block currentBlock = WalletClient.GetBlock(-1);
-    return currentBlock.toByteArray();
+    if(currentBlock != null) {
+      return currentBlock.toByteArray();
+    }else{
+      return null;
+    }
   }
 
 }

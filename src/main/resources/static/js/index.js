@@ -42,7 +42,7 @@ $(document).ready(function(){
         $('#header_login').css('display','none');
         $('#center').css('display','none');
         $('.header span').removeClass('header_active');
-        $('#text').css('background','url(/../static/img/bg.png)')
+        $('#text').css('background','url(/img/bg.png)')
         $('#text').load('/html/login.html');
     });
     $('#money').click(function () {
@@ -72,7 +72,7 @@ $(document).ready(function(){
         //     $('#text').load('/html/count.html');
         // }else{
         //     $('#text').load('/html/login.html');
-        //     $('#text').css('background','url(/../static/img/bg.png)')
+        //     $('#text').css('background','url(/img/bg.png)')
         // }
 
     });

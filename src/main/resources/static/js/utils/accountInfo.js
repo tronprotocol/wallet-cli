@@ -93,7 +93,7 @@ $(document).ready(function(){
      *
      方法说明
      *
-     @method 查询出块人处理数据数据 QueryAccountSuccess
+     @method 查询超级代表处理数据数据 QueryAccountSuccess
      *
      @param {data}  请求成功返回的数据
      */

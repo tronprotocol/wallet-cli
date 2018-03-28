@@ -177,5 +177,6 @@ allprojects {
     plugins.withId("com.liferay.node") {
         node.global = true
         node.nodeDir = "$projectDir/src/genjs"
+        node.nodeVersion="8.10.0"
     }
 }
