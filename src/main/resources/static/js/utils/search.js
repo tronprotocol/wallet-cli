@@ -10,7 +10,19 @@ if(getStringType(addr) == 3) {
 }
 
 function searchBlock(height){
-    ajaxRequest( "GET",getBlockToView,{},TransSuccessCallback,TransFailureCallback);
+    $.ajax({
+        url: getBlockByNumToView,
+        type: 'get',
+        dataType: 'json',
+        data:{num: height},
+        async: true,   // 是否异步
+        success: function (data) {
+            TransSuccessByNumToViewCallback(data)
+        },
+        fail: function (data) {
+            TransFailureCallback(data)
+        }
+    })
 }
 
 
