@@ -16,6 +16,7 @@ searchAssetSuccess = function (data) {
     var content = "";
     var assetIssueContract = proto.protocol.AssetIssueContract.deserializeBinary(base64DecodeFromString(data));
     var name = bytesToString(assetIssueContract.getName());
+    alert(name)
     var ownerAddress = byteArray2hexStr(assetIssueContract.getOwnerAddress());
     var totalSupply = assetIssueContract.getTotalSupply();
     var startTime = assetIssueContract.getStartTime();
@@ -35,7 +36,6 @@ searchAssetFailure = function (data) {
 }
 
 function searchAsset(assetNameStr) {
-    alert(assetNameStr);
     ajaxRequest("post", getAssetByNameView, {'assetName':assetNameStr}, searchAssetSuccess, searchAssetFailure);
 }
 
