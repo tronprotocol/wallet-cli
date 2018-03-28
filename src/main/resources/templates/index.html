@@ -85,7 +85,6 @@
     $('#text').load('/html/message.html');
     $('#searchBtn').on('click',function () {
       //  window.localStorage.setItem('address',$('#searchInput').val());
-
         if(getStringType($('#searchInput').val()) == 1) {
             $('#text').css('background', 'none');
             $('#acco').addClass('header_active').siblings().removeClass('header_active');
