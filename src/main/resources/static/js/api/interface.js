@@ -22,4 +22,8 @@ var assetIssueListView = baseUrl + 'getAssetIssueList'; //资产列表
 var createWitness = baseUrl + 'createWitnessToView'; //申请成为出块人
 var participateAssetView = baseUrl + 'ParticipateAssetIssueToView'; //参与资产发行接口
 var voteWitnessView = baseUrl + 'createVoteWitnessToView'; //投票接口
+
 var getAssetByNameView = baseUrl + 'getAssetIssueByName'; //根据资产名字获取资产信息
+
+var nodeMapDots = baseUrl + 'nodeList'; //节点地图里的位置
+
