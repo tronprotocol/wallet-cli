@@ -39,7 +39,6 @@ function searchBlockSuccessCallback(data) {
         var blockNumber = blockData.getBlockHeader().getRawData().getNumber();
         var witnessAddress = blockData.getBlockHeader().getRawData().getWitnessAddress();
         var witnessAddressHex = byteArray2hexStr(witnessAddress);
-        var witnessAddressHexSix = witnessAddressHex.substr(0, 10) + '...';
         var time = blockData.getBlockHeader().getRawData().getTimestamp();
         var parentHash = blockData.getBlockHeader().getRawData().getParenthash_asB64();
 
@@ -47,9 +46,16 @@ function searchBlockSuccessCallback(data) {
         var transactionNum = txList.length;
         var contraxtType = proto.protocol.Transaction.Contract.ContractType;
 
-
+        $(".search_title_txt").text("#" + blockNumber);
+        $("#blockHeight").text(blockNumber);
+        $("#createTime").text(formateDate(time));
+        $("#witness").text(witnessAddressHex);
+        $("#parentHash").text(parentHash);
+        $("#bytesNum").text(big + "bytes");
+        $("#txNum").text(transactionNum);
 
         if (txList.length > 0) {
+            var htmlStr = "";
             var txTopn = txList.slice(0,12)
             for (var index in txTopn) {
                 var tx = txList[index];
@@ -60,72 +66,26 @@ function searchBlockSuccessCallback(data) {
                     switch (contract.getType()) {
 
                         case contraxtType.TRANSFERCONTRACT:
-                           // contractType = contraxtType.TRANSFERCONTRACT;
+
                             var obj = any.unpack( proto.protocol.TransferContract.deserializeBinary, "protocol.TransferContract");
                             var ownerHex = byteArray2hexStr(obj.getOwnerAddress());
-                            var ownerHexSix = ownerHex.substr(0,6) + '...';
+                            var ownerHexSix = ownerHex.substr(0,10) + '...';
                             var toHex = byteArray2hexStr(obj.getToAddress());
-                            var toHexSix = toHex.substr(0,6) + '...';
+                            var toHexSix = toHex.substr(0,10) + '...';
                             var amount = obj.getAmount();
-                            alert(ownerHex + "\t" + toHex + "\t" + amount);
+
+                            htmlStr += "<div class='search_table_list'>"
+                                + "<div class='search_table_li table_txt_elpis'>" + ownerHexSix + "</div>"
+                                + "<div class='search_table_li table_txt_red'>将" + amount + "TRX转账给</div>"
+                                + "<div class='search_table_li table_txt_elpis'>" + toHexSix + "</div>"
+                                + "</div>";
                             break;
                     }
                 }
 
             }
+            $("#txList").html(htmlStr);
         }
-
-        //
-        // var timeStr,secTime,minTime,blockStr,represStr,transStr;
-        //
-        // if(getCookie("userLanguage")){
-        //     nowLanguage = getCookie("userLanguage")
-        // }else{
-        //     secTime = '秒前';
-        //     minTime = '分前';
-        //     blockStr = '区块  #';
-        //     represStr = '超级代表: ';
-        //     transStr = '交易数：';
-        //     transSize = '大小：';
-        //
-        // }
-        // if(nowLanguage == 'zh-CN'){
-        //     secTime = '秒前';
-        //     minTime = '分前';
-        //     blockStr = '区块  #';
-        //     represStr = '超级代表: ';
-        //     transStr = '交易数：';
-        //     transSize = '大小：';
-        // }else if(nowLanguage == 'en'){
-        //     secTime = 'seconds ago';
-        //     minTime = 'minutes ago';
-        //     blockStr = 'block  #';
-        //     represStr = 'Mined by: ';
-        //     transStr = 'Transactions：';
-        //     transSize = 'Size：';
-        // }
-        // //当前时间戳
-        // var timestamp=new Date().getTime();
-        // //当前时间戳 - 块生成的时间戳
-        // var accordTimes = Math.floor(timestamp - time);
-        // console.log('accordTimes====='+accordTimes);
-        // if(Math.floor(accordTimes/1000) > 60){
-        //     var min = Math.floor(accordTimes/60000);
-        //     timeStr = min+ minTime
-        // }else{
-        //     var sec = Math.floor(accordTimes/1000);
-        //     timeStr = sec+ secTime
-        // }
-        // var html= '<div class="before-block"><div  class="mr_left">'
-        //     + '<p>'+blockStr+ blockNumber+'</p>'
-        //     + '<p>'+timeStr+'</p>'
-        //     + ' </div>'
-        //     + '<div class="mr_right">'
-        //     + '<p>'+represStr+witnessAddressHexSix+'  </p><p>'
-        //     + '<span>'+transStr+transactionNum+'</span>'
-        //     +'<span>'+transSize+big+'bytes</span></p></div></div>';
-        //
-        // $("#recentBlock").append(html);
     }
 };
 
