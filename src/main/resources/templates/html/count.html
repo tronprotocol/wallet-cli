@@ -102,22 +102,23 @@
  </section>
 
 <scetion id="addcount">
-    <h4>参与资产发行</h4>
-    <p><span data-i18n-text="currntBlock">资产名称</span><span id="assetName"></span></p>
-    <p><span data-i18n-text="currntBlock">资产发行人</span><span id="ownAddress"></span></p>
-    <p><span data-i18n-text="currntBlock">资产总供应量</span><span id="assetTotalSupply"></span></p>
-    <p><span data-i18n-text="currntBlock">资产单价</span><span id="price"></span></p>
-    <p><span data-i18n-text="currntBlock">起止时间</span><span id="lastTime"></span></p>
-    <p><span data-i18n-text="currntBlock">描述信息</span>
+    <h4 data-i18n-text="issuedToken">参与资产发行</h4>
+    <p><span data-i18n-text="issTokenName">资产名称</span><span id="assetName"></span></p>
+    <p><span data-i18n-text="issIssuer">资产发行人</span><span id="ownAddress"></span></p>
+    <p><span data-i18n-text="issTotalSupply">资产总供应量</span><span id="assetTotalSupply"></span></p>
+    <p><span data-i18n-text="issPrice">资产单价</span><span id="price"></span></p>
+    <p><span data-i18n-text="issTime">起止时间</span><span id="lastTime"></span></p>
+    <p><span data-i18n-text="issDescription">描述信息</span>
+
         <span id="desc">
 
         </span></p>
-    <p class="cou_hei"><span data-i18n-text="currntBlock">参与数量</span><span><input type="text" id="amount" name="amount" onblur="checkFunction()"/></span></p>
+    <p class="cou_hei"><span data-i18n-text="issAmount">参与数量</span><span><input type="text" id="amount" name="amount" onblur="checkFunction()"/></span></p>
     <!--<p class="cou_hei"><span>参与数量</span><span><input type="text"> =10000TRX</span></p>-->
-    <p class="cou_hei"><span data-i18n-text="currntBlock">输入密码</span><span><input type="text" id="myKey" name="myKey" /></span></p>
+    <p class="cou_hei"><span data-i18n-text="issPassword">输入密码</span><span><input type="text" id="myKey" name="myKey" /></span></p>
     <p class="check">
         <input type="checkbox" id="checkParticipate" />
-        我已确认花费<i id="trxNumCheck" >0</i>TRX参与资产发行，获得<i id="assetInfoCheck">0</i>数量的资产
+        <i data-i18n-text="issNoticeFir">我已确认花费</i><i id="trxNumCheck" >0</i><i data-i18n-text="issNoticeSec">TRX参与资产发行，获得</i><i id="assetInfoCheck">0</i> <i data-i18n-text="issNoticeThr"></i>
     </p>
     <input type="button" class="liner_granet sure_dele" id="participateBtn" onclick="submitParticipateAssetIssue()" value="确认交易">
 </scetion>
