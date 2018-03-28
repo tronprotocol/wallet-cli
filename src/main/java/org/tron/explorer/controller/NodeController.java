@@ -171,14 +171,17 @@ public class NodeController {
   private static String NodeList2Json(NodeList nodeList) throws IOException, GeoIp2Exception {
     List<Node> listNode = nodeList.getNodesList();
     String nodes = "{\"nodes\":[";  // + node0 + "," + node1 +
-
-    for (int i = 0; i < listNode.size(); i++) {
+    for (int i = 0, j = 0; i < listNode.size(); i++) {
       Node node = listNode.get(i);
       String nodeString = Node2Json(node);
-      if (i > 0) {
+      if (nodeString == null || nodeString.equals("")) {
+        continue;
+      }
+      if (j > 0) {
         nodes += ",";
       }
       nodes += nodeString;
+      j++;
     }
 
     nodes += "]}";
