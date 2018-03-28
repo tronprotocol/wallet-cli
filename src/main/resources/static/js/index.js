@@ -32,7 +32,7 @@ $(document).ready(function(){
     $('#map').click(function () {
         $('#text').css('background','none');
         $(this).addClass('header_active').siblings().removeClass('header_active');
-        $('#text').load('html/searchBlock.html');
+        $('#text').load('html/map.html');
     });
     $('.j_left').click(function () {
         $('#text').css('background','none');
