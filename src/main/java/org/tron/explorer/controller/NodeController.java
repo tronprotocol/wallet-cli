@@ -22,9 +22,11 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.net.UnknownHostException;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.tron.api.GrpcAPI.Node;
@@ -68,18 +70,31 @@ public class NodeController {
       //    Postal postal = response.getPostal();
       Location location = response.getLocation();
 
-      String jsonData = "{\"country\":\"";
-      jsonData += country.getName();
-      jsonData += "\"";
-      jsonData += ",\"city\":\"";
-      jsonData += city.getName();
-      jsonData += "\"";
-      jsonData += ",\"longitude\":\"";
-      jsonData += location.getLongitude();
-      jsonData += "\"";
-      jsonData += ",\"latitude\":\"";
-      jsonData += location.getLatitude();
-      jsonData += "\"}";
+      String countryName = null;
+      String cityName = null;
+      if (country != null) {
+        countryName = country.getName();
+      }
+      if (city != null) {
+        cityName = city.getName();
+      }
+      if (countryName == null && cityName != null) {
+        countryName = cityName;
+      }
+      if (countryName != null && cityName == null) {
+        cityName = countryName;
+      }
+      Double longitude = 0.0;
+      Double latitude = 0.0;
+      if (location != null) {
+        longitude = location.getLongitude();
+        latitude = location.getLatitude();
+      }
+
+      String jsonData = "\"country\":\"" + countryName + "\",";
+      jsonData += "\"city\":\"" + cityName + "\",";
+      jsonData += "\"longitude\":" + longitude + ",";
+      jsonData += "\"latitude\":" + latitude;
 
       txtFile = new File(txtPath);
       if (!txtFile.exists()) {
@@ -170,20 +185,36 @@ public class NodeController {
 
   private static String NodeList2Json(NodeList nodeList) throws IOException, GeoIp2Exception {
     List<Node> listNode = nodeList.getNodesList();
-    String nodes = "{\"nodes\":[";  // + node0 + "," + node1 +
-    for (int i = 0, j = 0; i < listNode.size(); i++) {
+    Map<String, Integer> cityCount = new HashMap<String, Integer>();
+    for (int i = 0; i < listNode.size(); i++) {
       Node node = listNode.get(i);
       String nodeString = Node2Json(node);
       if (nodeString == null || nodeString.equals("")) {
         continue;
       }
+      Integer count = 0;
+      if (cityCount.containsKey(nodeString)) {
+        count = cityCount.get(nodeString);
+      }
+      count++;
+      cityCount.put(nodeString, count);
+    }
+
+    String nodes = "{\"citys\":[";  // + node0 + "," + node1 +
+
+    Iterator iter = cityCount.entrySet().iterator();
+    int j = 0;
+    while (iter.hasNext()) {
+      Map.Entry entry = (Map.Entry) iter.next();
+      String nodeString = (String) entry.getKey();
+      Integer count = (Integer) entry.getValue();
+      nodeString = "{" + nodeString + ",\"count\":" + count + "}";
       if (j > 0) {
         nodes += ",";
       }
       nodes += nodeString;
       j++;
     }
-
     nodes += "]}";
     return nodes;
   }

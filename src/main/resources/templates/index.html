@@ -84,7 +84,7 @@
 <script type="text/javascript">
     $('#text').load('/html/message.html');
     $('#searchBtn').on('click',function () {
-        window.localStorage.setItem('address',$('#searchInput').val());
+      //  window.localStorage.setItem('address',$('#searchInput').val());
 
         if(getStringType($('#searchInput').val()) == 1) {
             $('#text').css('background', 'none');
@@ -101,9 +101,6 @@
             $('#nemoney').addClass('header_active').siblings().removeClass('header_active');
             $('#text').load('html/searchAsset.html');
         }
-        $('#text').css('background','none');
-        $('#acco').addClass('header_active').siblings().removeClass('header_active');
-        $('#text').load('/html/searchAccount.html');
     })
 </script>
 

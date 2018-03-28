@@ -257,7 +257,7 @@ public class TestClient {
     String assertName = parameters[2];
     String loopTime = parameters[3];
     int intervalInt = 10;//s
-    if ( parameters.length == 5 ){
+    if (parameters.length == 5) {
       String interval = parameters[4];
       intervalInt = Integer.parseInt(interval);//s
     }
@@ -268,7 +268,7 @@ public class TestClient {
       long amount = i;
       boolean result = client.sendCoin(password, toAddress, amount);
       if (result) {
-        logger.info("Send " + amount + " dron to " + toAddress + " successful !!");
+        logger.info("Send " + amount + " drop to " + toAddress + " successful !!");
         try {
           Thread.sleep(intervalInt);
         } catch (Exception e) {
@@ -277,13 +277,13 @@ public class TestClient {
         }
 
       } else {
-        logger.info("Send " + amount + " dron to " + toAddress + " failed !!");
+        logger.info("Send " + amount + " drop to " + toAddress + " failed !!");
         break;
       }
 
       result = client.transferAsset(password, toAddress, assertName, amount);
       if (result) {
-        logger.info("transferAsset " + assertName + " dron to " + toAddress + " successful !!");
+        logger.info("transferAsset " + amount + assertName + " to " + toAddress + " successful !!");
         try {
           Thread.sleep(intervalInt);
         } catch (Exception e) {
@@ -292,7 +292,7 @@ public class TestClient {
         }
 
       } else {
-        logger.info("transferAsset " + assertName + " dron to " + toAddress + " failed !!");
+        logger.info("transferAsset " + amount + assertName + " to " + toAddress + " failed !!");
         break;
       }
     }
@@ -452,8 +452,8 @@ public class TestClient {
       List<Node> list = nodeList.getNodesList();
       for (int i = 0; i < list.size(); i++) {
         Node node = list.get(i);
-        logger.info("IP::" +  ByteArray.toStr(node.getAddress().getHost().toByteArray()));
-        logger.info("Port::" +  node.getAddress().getPort());
+        logger.info("IP::" + ByteArray.toStr(node.getAddress().getHost().toByteArray()));
+        logger.info("Port::" + node.getAddress().getPort());
       }
     } else {
       logger.info("GetAssetIssueList " + " failed !!");
