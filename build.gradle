@@ -178,5 +178,6 @@ allprojects {
         node.global = true
         node.nodeDir = "$projectDir/src/genjs"
         node.nodeVersion="8.10.0"
+
     }
 }
