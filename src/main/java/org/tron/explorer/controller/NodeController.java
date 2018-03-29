@@ -14,30 +14,23 @@
  */
 package org.tron.explorer.controller;
 
+import com.maxmind.geoip2.DatabaseReader;
 import com.maxmind.geoip2.exception.GeoIp2Exception;
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.net.UnknownHostException;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import com.maxmind.geoip2.model.CityResponse;
+import com.maxmind.geoip2.record.City;
+import com.maxmind.geoip2.record.Country;
+import com.maxmind.geoip2.record.Location;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.tron.api.GrpcAPI.Node;
 import org.tron.api.GrpcAPI.NodeList;
 import org.tron.common.utils.ByteArray;
 import org.tron.walletserver.WalletClient;
-import com.maxmind.geoip2.DatabaseReader;
-import com.maxmind.geoip2.model.CityResponse;
-import com.maxmind.geoip2.record.*;
-import java.io.File;
+
+import java.io.*;
 import java.net.InetAddress;
+import java.util.*;
 
 @RestController
 public class NodeController {
@@ -132,16 +125,16 @@ public class NodeController {
   private static Map<String, String> loadCityMap() {
     Map<String, String> ipCity = new HashMap<String, String>();
     String txtPath = WalletClient.getTxtPath();
-    File txtFile = null;
-    FileReader fr = null;
+    InputStreamReader inputStreamReader = null;
     BufferedReader br = null;
     try {
-      txtFile = new File(txtPath);
-      if (!txtFile.exists()) {
+      ClassPathResource classPathResource = new ClassPathResource(txtPath);
+      InputStream input = classPathResource.getInputStream();
+      if (input == null) {
         return ipCity;
       }
-      fr = new FileReader(txtFile);
-      br = new BufferedReader(fr);
+      inputStreamReader = new InputStreamReader(input);
+      br = new BufferedReader(inputStreamReader);
       String line = br.readLine();
       if (line == null) {
         return ipCity;
@@ -161,8 +154,8 @@ public class NodeController {
         if (br != null) {
           br.close();
         }
-        if (fr != null) {
-          fr.close();
+        if (inputStreamReader != null) {
+          inputStreamReader.close();
         }
       } catch (IOException e) {
         e.printStackTrace();
@@ -176,10 +169,10 @@ public class NodeController {
     if (ipCity.containsKey(ip)) {
       return ipCity.get(ip);
     }
-    addNewIp(ip, ipCity);
-    if (ipCity.containsKey(ip)) {
-      return ipCity.get(ip);
-    }
+//    addNewIp(ip, ipCity);
+//    if (ipCity.containsKey(ip)) {
+//      return ipCity.get(ip);
+//    }
     return "";
   }
 
