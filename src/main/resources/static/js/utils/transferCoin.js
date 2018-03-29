@@ -145,7 +145,7 @@ TransBroadSuccessCallback = function (data) {
         //跳转到账户管理
         $('#text').css('background','none');
         $('.header span').removeClass('header_active');
-        $('#text').load('/html/control.html');
+        $('#text').load('//html/control.html');
     }else{
         layer.alert("转账失败");
     }

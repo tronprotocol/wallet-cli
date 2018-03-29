@@ -81,7 +81,7 @@ function submitAssetIssueSuccessCallback(data) {
         layer.alert("参与成功");
         $('#text').css('background','none');
         $('.header span').removeClass('header_active');
-        $('#text').load('/html/control.html');
+        $('#text').load('//html/control.html');
     }else{
         layer.alert("参与失败");
     }
@@ -155,7 +155,7 @@ function signSuccessCallback(data) {
         layer.alert("发行资产成功");
         $('#text').css('background','none');
         $('.header span').removeClass('header_active');
-        $('#text').load('/html/control.html');
+        $('#text').load('//html/control.html');
     }else{
         layer.alert("发行资产失败");
     }
