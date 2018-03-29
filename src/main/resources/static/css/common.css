@@ -16,7 +16,6 @@ del,ins,u,s,a,a:hover{text-decoration:none;}
 body,textarea,input,button,select,keygen,legend{outline:0;font-family: '微软雅黑'}
 a,a:hover{-webkit-tap-highlight-color:rgba(0,0,0,0); }
 body,html {
-  height:100%;
   min-height:100%;
   background-color: #fff;
 }
@@ -70,16 +69,8 @@ a {
 .text-c{
   text-align: center;
 }
-
-/**/
-td:first-child{
-  border-top-left-radius: 5px;
-  border-bottom-left-radius: 5px;
-}
-
-td:last-child{
-  border-top-right-radius: 5px;
-  border-bottom-right-radius: 5px;
+.hide{
+  display:none
 }
 /**/
 .liner_granet{
@@ -90,7 +81,7 @@ td:last-child{
 }
 .table{
   border-collapse:separate;
-  border-spacing:0px 20px;
+  /*border-spacing:0px 20px;*/
 }
 .table tbody tr  td {
   border: 0;
@@ -99,5 +90,6 @@ td:last-child{
 
 body{
   width: 100%;
-  background-color: #f7f7f7 !important;
+  min-height: 100%;
+  background-color: #f7f7f7 ;
 }

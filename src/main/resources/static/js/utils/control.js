@@ -6,9 +6,11 @@ $(".c_form li").each(function(i,item){
     })
     $('#transfer_accounts').on('click',function () {
         $('#text').css('background','url(/img/bg.png)')
-        $('#text').load('//html/transform.html');
+        $('#text').load('/html/transform.html');
+
     })
 });
+
 
 
 

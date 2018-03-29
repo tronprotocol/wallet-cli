@@ -9,13 +9,12 @@ var accountName;
 
 var pk;
 //创建账户
-$('.login_html').on('click',function () {
+$('.creat-account-btn').on('click',function () {
     $('#wel_login').css('display','none');
     $('#article_login').css('display','block')
-    $('#article_login').css('top','50%')
 });
 
-$('.wel_active').on('click',function () {
+$('.wel-login-btn').on('click',function () {
 
     $('.motal-mask').css('display','block')
     $('.motal').css('display','block')
@@ -23,7 +22,7 @@ $('.wel_active').on('click',function () {
 $('#repawd').bind('input propertychange',function(){
     $('.mona_warn').css('display','none')
 })
-$('.no').on('click',function () {
+$('.no,#motal-close').on('click',function () {
     $('.motal').css('display','none');
     $('.mona_warn').css('display','none');
     $('#repawd').val('');
@@ -41,7 +40,7 @@ $('#login').on('click',function () {
         $('.motal-mask').css('display','none');
         window.localStorage.setItem('key',$('#repawd').val());
         $('#repawd').val('');
-        $('#text').load('//html/message.html');
+        $('#text').load('/html/message.html');
         $('#text').css('background','none');
     }
 })
@@ -156,7 +155,7 @@ $('#creatAccount').on('click',function () {
             $('#center').css('display','inline-block');
             $('#text').css('background','none');
             $(this).addClass('header_active').siblings().removeClass('header_active');
-            $('#text').load('//html/message.html');
+            $('#text').load('/html/message.html');
             window.localStorage.setItem('key',pk)
         }else{
             layer.alert('请您认真阅读并勾选创建账户须知')

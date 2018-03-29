@@ -38,7 +38,7 @@
 	/*width: 33%;*/
 	font-size: 20px;
 	text-align: center;
-	display: inline-block;
+	float: left;
 	vertical-align: middle;
 }
 .map_nav_left{
@@ -46,7 +46,7 @@
 	padding-left: 5px;
 }
 .map_nav_middle{
-	width: 60%;
+	width: 55%;
 }
 .map_nav_right{
 	width: 20%;

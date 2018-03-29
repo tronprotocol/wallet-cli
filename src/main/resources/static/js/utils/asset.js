@@ -81,7 +81,7 @@ function submitAssetIssueSuccessCallback(data) {
         layer.alert("参与成功");
         $('#text').css('background','none');
         $('.header span').removeClass('header_active');
-        $('#text').load('//html/control.html');
+        $('#text').load('/html/control.html');
     }else{
         layer.alert("参与失败");
     }
@@ -109,15 +109,18 @@ function getAssetListSuccessCallback(data) {
             nowLanguage = getCookie("userLanguage")
             if(nowLanguage == 'zh-CN'){
                 var partStr = '参与'
+                var timeClose= '已关闭'
             }else if(nowLanguage == 'en'){
                 var partStr = 'Participate'
+                var timeClose= 'Closed'
             }
         }else{
             var partStr = '参与'
+            var timeClose= '已关闭'
         }
 
         if(!(startTime < curTime && curTime< endTime)){
-            content += "<tr><td>" + name + "</td><td>" + ownerAddress + "</td><td>" + totalSupply + "</td> <td class='stop'>1</td><td><input type='button' class='add_account time_end' value='"+partStr+"'/></td></tr>";
+            content += "<tr><td>" + name + "</td><td>" + ownerAddress + "</td><td>" + totalSupply + "</td> <td class='stop'>1</td><td><input type='button' class='add_account time_end' value='"+timeClose+"'/></td></tr>";
         }else{
             content += "<tr><td>" + name + "</td><td>" + ownerAddress + "</td><td>" + totalSupply + "</td> <td > " + formattedStartTime + " - " + formattedEndTime + " </td><td><input type='button' class='add_account' value='"+partStr+"' onclick=\"participateAssetIssue(" + i + ")\"/></td></tr>";
         }
@@ -155,7 +158,8 @@ function signSuccessCallback(data) {
         layer.alert("发行资产成功");
         $('#text').css('background','none');
         $('.header span').removeClass('header_active');
-        $('#text').load('//html/control.html');
+        $('#text').load('/html/control.html');
+
     }else{
         layer.alert("发行资产失败");
     }

@@ -13,8 +13,6 @@ $('#com_adress').on('blur', function () {
     com_text = byteArray2hexStr(com_addressBytes);
     //查询用户账户资产
     ajaxRequest("POST", getAccountInfo, {'address': com_text}, GetAccountSuccessCallback, GetAccountFailureCallback)
-  } else {
-    $('.com_warn').css('display', 'block');
   }
 });
 
@@ -145,7 +143,7 @@ TransBroadSuccessCallback = function (data) {
         //跳转到账户管理
         $('#text').css('background','none');
         $('.header span').removeClass('header_active');
-        $('#text').load('//html/control.html');
+        $('#text').load('/html/control.html');
     }else{
         layer.alert("转账失败");
     }
