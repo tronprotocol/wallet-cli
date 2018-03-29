@@ -3,6 +3,7 @@ package org.tron.walletserver;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.typesafe.config.Config;
+import java.io.File;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.spongycastle.util.encoders.Hex;
@@ -46,7 +47,7 @@ public class WalletClient {
   public static GrpcClient init() {
     Config config = Configuration.getByPath("config.conf");
     dbPath = config.getString("CityDb.DbPath");
-    txtPath = config.getString("CityDb.TxtPath");
+    txtPath = System.getProperty("user.dir")+'/' +config.getString("CityDb.TxtPath");
 
     List<String> fullnodelist = config.getStringList("fullnode.ip.list");
     return new GrpcClient(fullnodelist.get(0));

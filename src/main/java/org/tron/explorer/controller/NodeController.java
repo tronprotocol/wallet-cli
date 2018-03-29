@@ -20,6 +20,8 @@ import com.maxmind.geoip2.model.CityResponse;
 import com.maxmind.geoip2.record.City;
 import com.maxmind.geoip2.record.Country;
 import com.maxmind.geoip2.record.Location;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -35,6 +37,7 @@ import java.util.*;
 @RestController
 public class NodeController {
 
+  private static final Log log = LogFactory.getLog(NodeController.class);
   static final String splitString0 = "|||";
   static final String splitString1 = "\\|\\|\\|";
   private static Map<String, String> ipCity = loadCityMap();
@@ -42,15 +45,16 @@ public class NodeController {
   public static void addNewIp(String ip, Map ipCity) {
     String dbPath = WalletClient.getDbPath();
     String txtPath = WalletClient.getTxtPath();
-    File database = null;
+    InputStream input = null;
     DatabaseReader reader = null;
     File txtFile = null;
     FileWriter fw = null;
     BufferedWriter bw = null;
 
     try {
-      database = new File(dbPath);
-      reader = new DatabaseReader.Builder(database).build();
+      ClassPathResource classPathResource = new ClassPathResource(dbPath);
+      input = classPathResource.getInputStream();
+      reader = new DatabaseReader.Builder(input).build();
       InetAddress ipAddress = InetAddress.getByName(ip);
       if (ipAddress == null) {
         return;
@@ -102,13 +106,16 @@ public class NodeController {
       ipCity.put(ip, jsonData);
 
     } catch (IOException ioEx) {
-      ioEx.printStackTrace();
+      log.error(ioEx.getMessage());
     } catch (GeoIp2Exception geoIp2Ex) {
-      geoIp2Ex.printStackTrace();
+      log.error(geoIp2Ex.getMessage());
     } finally {
       try {
         if (reader != null) {
           reader.close();
+        }
+        if (input != null) {
+          input.close();
         }
         if (bw != null) {
           bw.close();
@@ -117,7 +124,7 @@ public class NodeController {
           fw.close();
         }
       } catch (IOException e) {
-        e.printStackTrace();
+        log.error(e.getMessage());
       }
     }
   }
@@ -125,11 +132,12 @@ public class NodeController {
   private static Map<String, String> loadCityMap() {
     Map<String, String> ipCity = new HashMap<String, String>();
     String txtPath = WalletClient.getTxtPath();
+    InputStream input = null;
     InputStreamReader inputStreamReader = null;
     BufferedReader br = null;
     try {
       ClassPathResource classPathResource = new ClassPathResource(txtPath);
-      InputStream input = classPathResource.getInputStream();
+      input = classPathResource.getInputStream();
       if (input == null) {
         return ipCity;
       }
@@ -148,7 +156,7 @@ public class NodeController {
         line = br.readLine();
       }
     } catch (IOException io) {
-      io.printStackTrace();
+      log.error(io.getMessage());
     } finally {
       try {
         if (br != null) {
@@ -157,8 +165,11 @@ public class NodeController {
         if (inputStreamReader != null) {
           inputStreamReader.close();
         }
+        if (input != null) {
+          input.close();
+        }
       } catch (IOException e) {
-        e.printStackTrace();
+        log.error(e.getMessage());
       }
     }
     return ipCity;
@@ -169,10 +180,10 @@ public class NodeController {
     if (ipCity.containsKey(ip)) {
       return ipCity.get(ip);
     }
-//    addNewIp(ip, ipCity);
-//    if (ipCity.containsKey(ip)) {
-//      return ipCity.get(ip);
-//    }
+    addNewIp(ip, ipCity);
+    if (ipCity.containsKey(ip)) {
+      return ipCity.get(ip);
+    }
     return "";
   }
 
@@ -221,7 +232,7 @@ public class NodeController {
         return NodeList2Json(nodeList);
       }
     } catch (Exception e) {
-      e.printStackTrace();
+      log.error(e.getMessage());
     }
     return "";
   }
