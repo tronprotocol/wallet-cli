@@ -2,15 +2,9 @@ package org.tron.walletcli;
 
 import com.beust.jcommander.JCommander;
 import com.google.protobuf.ByteString;
-import java.util.Base64.Decoder;
-import java.util.Base64.Encoder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.tron.api.GrpcAPI.AccountList;
-import org.tron.api.GrpcAPI.AssetIssueList;
-import org.tron.api.GrpcAPI.Node;
-import org.tron.api.GrpcAPI.NodeList;
-import org.tron.api.GrpcAPI.WitnessList;
+import org.tron.api.GrpcAPI.*;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Utils;
 import org.tron.protos.Contract.AssetIssueContract;
@@ -22,6 +16,8 @@ import org.tron.protos.Protocol.Witness;
 import org.tron.walletserver.WalletClient;
 
 import java.util.*;
+import java.util.Base64.Decoder;
+import java.util.Base64.Encoder;
 
 public class TestClient {
 
@@ -520,6 +516,16 @@ public class TestClient {
     }
   }
 
+  private void getTotalTransaction() {
+    try {
+      NumberMessage totalTransition = client.getTotalTransaction();
+      logger.info("Total transaction is : " + totalTransition.getNum());
+
+    }catch (Exception e){
+      logger.info("GetTotalTransaction " + " failed !!");
+    }
+  }
+
   private void help() {
     System.out.println("You can enter the following command: ");
 
@@ -547,6 +553,7 @@ public class TestClient {
     System.out.println("Listassetissue");
     System.out.println("listNodes");
     System.out.println("Getblock");
+    System.out.println("getTotalTransaction");
     System.out.println("Exit or Quit");
 
     System.out.println("Input any one of then, you will get more tips.");
@@ -672,6 +679,10 @@ public class TestClient {
         }
         case "testTransaction": {
           testTransaction(parameters);
+          break;
+        }
+        case "gettotaltransaction":{
+          getTotalTransaction();
           break;
         }
         case "exit":

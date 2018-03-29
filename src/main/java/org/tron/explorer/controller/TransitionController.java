@@ -8,6 +8,6 @@ import org.tron.walletserver.WalletClient;
 public class TransitionController {
     @GetMapping("/getTotalTransition")
     public byte[] getTotalTransition(){
-        return WalletClient.getTotalTransition().toByteArray();
+        return WalletClient.getTotalTransaction().toByteArray();
     }
 }

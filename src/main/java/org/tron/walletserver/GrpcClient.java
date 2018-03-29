@@ -138,7 +138,7 @@ public class GrpcClient {
     return blockingStub.getAssetIssueByName(request);
   }
 
-  public NumberMessage getTotalTransition(){
+  public NumberMessage getTotalTransaction(){
     return blockingStub.totalTransaction(EmptyMessage.newBuilder().build());
   }
 }

@@ -545,7 +545,7 @@ public class WalletClient {
     return rpcCli.getAssetIssueByName(assetName);
   }
 
-  public static NumberMessage getTotalTransition(){
-    return rpcCli.getTotalTransition();
+  public static NumberMessage getTotalTransaction(){
+    return rpcCli.getTotalTransaction();
   }
 }
