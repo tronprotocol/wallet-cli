@@ -137,28 +137,30 @@ function getAssetListFailureCallback(data) {
 }
 
 
-$(document).ready(function() {
-    //btn 是否可点击
-    $(".assetComtrx-checkbox").on("click", function () {
-        if ($(this).is(":checked")) {
-            $('#creatAssetBtn').removeClass('disable_btn')
-        }else{
-            $('#creatAssetBtn').addClass('disable_btn')
-        }
-    })
-    $("#creatAssetBtn").click(function() {
-        if(!$("assetComtrx").is(":checked")){
-            layer.alert('请勾选，同意花费1024TRX来创建通证')
-        }else if($('.creat_asset_main input[type="text"]').val() != ''){
-            layer.alert('请填写发行资产信息')
-        }
-        var address = getHexStrAddressFromPriKeyBase64String($("#privateKey").val());
-        var start = Date.parse(new Date($("#startTimeFormat").val()));
-        var end = Date.parse(new Date($("#endTimeFormat").val()));
-        var data = $("#createAssetForm").serialize() + "&ownerAddress=" + address + "&startTime=" + start + "&endTime=" + end;
-        ajaxRequest("post", createAssetView, data, createAssetSuccessCallback, createAssetFailureCallback);
-    })
+
+//btn 是否可点击
+$(".assetComtrx-checkbox").on("click", function () {
+    if ($(this).is(":checked")) {
+        $('#creatAssetBtn').removeClass('disable_btn')
+    }else{
+        $('#creatAssetBtn').addClass('disable_btn')
+    }
 })
+$("#creatAssetBtn").off('click').on('click',function() {
+    if(!$(".assetComtrx-checkbox").is(":checked")){
+        layer.alert('请勾选，同意花费1000TRX来创建通证')
+        return;
+    }else if(!$('.creat_asset_main input[type="text"]').val() != ''){
+        layer.alert('请填写发行资产信息')
+        return;
+    }
+    var address = getHexStrAddressFromPriKeyBase64String($("#privateKey").val());
+    var start = Date.parse(new Date($("#startTimeFormat").val()));
+    var end = Date.parse(new Date($("#endTimeFormat").val()));
+    var data = $("#createAssetForm").serialize() + "&ownerAddress=" + address + "&startTime=" + start + "&endTime=" + end;
+    ajaxRequest("post", createAssetView, data, createAssetSuccessCallback, createAssetFailureCallback);
+})
+
 
 function createAssetSuccessCallback(data) {
     var privateKey = base64DecodeFromString($("#privateKey").val());

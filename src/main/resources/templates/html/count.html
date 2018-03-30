@@ -17,42 +17,6 @@
     </div>
 </section>
 
-
-<!--<section class="accountQuery myaccount">-->
-<!--<h4>我的通证</h4>-->
-<!--<div class="main table">-->
-<!--<table cellpadding="0" cellspacing="0" id="myac_table">-->
-<!--<thead>-->
-<!--<tr >-->
-<!--<th >通证名称</th>-->
-<!--<th >通证供应总量</th>-->
-<!--<th >通证单价</th>-->
-<!--<th >描述</th>-->
-<!--<th>起止时间</th>-->
-<!--<th></th>-->
-<!--</tr>-->
-<!--</thead>-->
-<!--<tbody id="" class="tbody">-->
-<!--<tr >-->
-<!--<td>1</td>-->
-<!--<td><span>通证供应总量</span></td>-->
-<!--<td>1</td>-->
-<!--<td>1</td>-->
-<!--<td>1</td>-->
-<!--</tr>-->
-<!--<tr class="account_tab">-->
-<!--<td>1</td>-->
-<!--<td><span>通证供应总量</span></td>-->
-<!--<td>1</td>-->
-<!--<td>1</td>-->
-<!--<td>1</td>-->
-<!--</tr>-->
-
-<!--</tbody>-->
-<!--</table>-->
-<!--</div>-->
-<!--</section>-->
-
 <section class="creat_asset">
     <div class="creat_asset_main">
         <input type="button" class="all_count liner_granet" data-i18n-value="allAssets" value="全部通证列表">
@@ -64,13 +28,13 @@
                 </div>
                 <div class="lang-input-r fl">
                     <p data-i18n-text="totalSupply">通证供应总量</p>
-                    <input type="text" id="totalSupply" name="totalSupply" class="asset-lang-input"/>
+                    <input type="text" id="totalSupply" name="totalSupply" class="asset-lang-input" value="100000"/>
                 </div>
             </div>
             <div class="asset-info clearfix">
                 <div class="fl">
                     <p data-i18n-text="quoteTokenAmount">本通证数量</p>
-                    <input type="text" class="account_num asset-lang-input" id="assetNum" name="num"/>
+                    <input type="text" class="account_num asset-lang-input" id="assetNum" name="num" value="10"/>
                 </div>
                 <div class="lang-input-r fl">
                     <p>
@@ -84,23 +48,28 @@
             <div class="asset-info clearfix">
                 <div class="asset-time fl">
                     <span class="start_time fl" data-i18n-text="beginningTime">起始时间:</span>
-                    <input class="fl" type="text" class="layui-input" id="startTimeFormat" name="startTimeFormat"/>
-                    <i id="asset_beginningTime"></i>
+                    <div class="asset-time-input-box">
+                        <input class="fl" type="text" class="layui-input" id="startTimeFormat" name="startTimeFormat"/>
+                        <i id="asset_beginningTime"></i>
+                    </div>
+
                 </div>
                 <div class="asset-time fl asset-time-r">
                     <span class="end_time fl" data-i18n-text="endingTime">结束时间: </span>
-                    <input class="fl" type="text" class="layui-input" id="endTimeFormat" name="endTimeFormat"/>
-                    <i id="asset_endingTime"></i>
+                    <div class="asset-time-input-box">
+                        <input class="fl" type="text" class="layui-input" id="endTimeFormat" name="endTimeFormat"/>
+                        <i id="asset_endingTime"></i>
+                    </div>
                 </div>
             </div>
             <div class="asset-info clearfix">
                 <div class="fl">
                     <p data-i18n-text="description">通证描述</p>
-                    <input type="text" id="description" name="description" class="asset-lang-input"/>
+                    <input type="text" id="description" name="description" class="asset-lang-input" placeholder="选填" data-i18n-placeholder="descriptionPlace"/>
                 </div>
                 <div class="lang-input-r fl">
                     <p data-i18n-text="descriptionUrl">通证描述URL</p>
-                    <input type="text" id="url" name="url" class="asset-lang-input"/>
+                    <input type="text" id="url" name="url" class="asset-lang-input" value="https://tron.network"/>
                 </div>
             </div>
 
@@ -108,7 +77,6 @@
                 <p data-i18n-text="myPassword">我的密码</p>
                 <input type="text" id="privateKey" name="privateKey" class="asset-lang-input"/>
             </div>
-
             <input type="checkbox" class="assetComtrx-checkbox"> <span data-i18n-text="assetComtrx" class="assetComtrx">我同意花费1024TRX来创建通证</span>
             <input type="button" class="create_account disable_btn" id="creatAssetBtn" value="创建资产" data-i18n-value="createToken"/>
         </form>
@@ -191,14 +159,16 @@
         type: 'datetime',
         format: 'yyyy-MM-dd HH:mm:ss',
         min: '1900-01-01 00:00:00',
-        max: '2099-12-31 23:59:59'
+        max: '2099-12-31 23:59:59',
+        theme: '#a90000'
     })
     laydate.render({
         elem: '#endTimeFormat',
         type: 'datetime',
         format: 'yyyy-MM-dd HH:mm:ss',
         min: '1900-01-01 00:00:00',
-        max: '2099-12-31 23:59:59'
+        max: '2099-12-31 23:59:59',
+        theme: '#a90000'
 
     });
 

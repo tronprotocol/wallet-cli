@@ -205,7 +205,11 @@ var execI18n = function(){
 
 /*页面执行加载执行*/
 $(function(){
-
+    layer.config({
+        title: $.i18n.prop('title'),
+        skin: 'theme_trx',
+        btn: $.i18n.prop('btninfo')
+    })
     /*执行I18n翻译*/
     execI18n();
     /*将语言选择默认选中缓存中的值*/

@@ -93,3 +93,7 @@ body{
   min-height: 100%;
   background-color: #f7f7f7 ;
 }
+
+body .theme_trx .layui-layer-title{ background: #a90000; color:#fff; border: none;}
+
+body .theme_trx .layui-layer-btn a{background: #a90000; font-size: 14px;border-color: #a90000;}

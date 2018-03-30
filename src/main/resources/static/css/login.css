@@ -93,6 +93,7 @@ header span {
     color: #2c2c2c;
     margin-top: 18px;
     line-height: 30px;
+    overflow: hidden;
 }
 .signUpT-text  input{
     position: absolute;

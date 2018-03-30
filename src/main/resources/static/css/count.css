@@ -45,14 +45,22 @@
 
 .asset-time{
     width: 580px;
-    position: relative;
 }
-.asset-time i{
+
+.asset-time-input-box{
+    margin-left: 10px;
+    font-size: 20px;
+    width: 240px;
+    height: 36px;
+    position: relative;
+    float: left;
+}
+.asset-time-input-box i{
     width: 21px;
     height: 18px;
     background: url("../img/date_time.png") no-repeat;
     position: absolute;
-    left: 105px;
+    left: 20px;
     top: 5px;
     cursor:pointer;
 }

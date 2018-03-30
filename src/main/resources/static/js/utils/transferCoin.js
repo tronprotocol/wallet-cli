@@ -105,13 +105,14 @@ $('#change').off('click').on('click', function () {
   var com_prik = $('#com_adress').val();
   var go_text = $('#go_cont').val();
   var num_text = $('#num').val();
+  var numOther  =num_text
   var numTrx  = Number(num_text)*1000000;
 
   var dataOther = {
     "assetName": com_asset,
     "Address": com_text,
     "toAddress": go_text,
-    "Amount": numTrx
+    "Amount": numOther
   }
   var dataTrx = {
       "Address": com_text,
@@ -139,11 +140,23 @@ TransTrxSuccessCallback = function (data) {
 
 TransBroadSuccessCallback = function (data) {
     if(data){
-        layer.alert($.i18n.prop('layer.transfersuccess'));
-        //跳转到账户管理
-        $('#text').css('background','none');
-        $('.header span').removeClass('header_active');
-        $('#text').load('/html/control.html');
+        layer.open({
+            type: 1,
+            shadeClose: false, //点击遮罩关闭
+            content: $.i18n.prop('layer.transfersuccess'),
+            btn: ['确定'],
+            area: ['250px', '175px'],
+            yes: function(index, layero){
+                layer.close(index);
+                $('body').css('background','#fafbfc');
+                $('.header ul li').eq(1).addClass('header_active').siblings().removeClass('header_active');
+                //跳转到首页
+                $('#text').load('/html/message.html');
+            }
+
+        });
+
+
     }else{
         layer.alert($.i18n.prop('layer.transferfail'));
     }
