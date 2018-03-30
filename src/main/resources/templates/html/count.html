@@ -16,6 +16,7 @@
         </table>
     </div>
 </section>
+<<<<<<< HEAD
 
 
 <!--<section class="accountQuery myaccount">-->
@@ -53,6 +54,8 @@
 <!--</div>-->
 <!--</section>-->
 
+=======
+>>>>>>> 516cbf7a1f86bf260c14a20062cc4eb33349e563
 <section class="creat_asset">
     <div class="creat_asset_main">
         <input type="button" class="all_count liner_granet" data-i18n-value="allAssets" value="全部通证列表">
@@ -85,10 +88,12 @@
                 <div class="asset-time fl">
                     <span class="start_time fl" data-i18n-text="beginningTime">起始时间:</span>
                     <input class="fl" type="text" class="layui-input" id="startTimeFormat" name="startTimeFormat"/>
+                    <i id="asset_beginningTime"></i>
                 </div>
                 <div class="asset-time fl asset-time-r">
                     <span class="end_time fl" data-i18n-text="endingTime">结束时间: </span>
                     <input class="fl" type="text" class="layui-input" id="endTimeFormat" name="endTimeFormat"/>
+                    <i id="asset_endingTime"></i>
                 </div>
             </div>
             <div class="asset-info clearfix">
@@ -106,8 +111,9 @@
                 <p data-i18n-text="myPassword">我的密码</p>
                 <input type="text" id="privateKey" name="privateKey" class="asset-lang-input"/>
             </div>
-            <input type="checkbox"> <span data-i18n-text="assetComtrx" class="assetComtrx">我同意花费1024TRX来创建通证</span>
-            <input type="button" class="create_account" id="creatAssetBtn" value="创建通证" data-i18n-value="createToken"/>
+
+            <input type="checkbox" class="assetComtrx-checkbox"> <span data-i18n-text="assetComtrx" class="assetComtrx">我同意花费1024TRX来创建通证</span>
+            <input type="button" class="create_account disable_btn" id="creatAssetBtn" value="创建资产" data-i18n-value="createToken"/>
         </form>
     </div>
 

@@ -28,7 +28,35 @@ TransSuccessCallback = function (data) {
   var blockData = proto.protocol.Block.deserializeBinary(currentBlock);
   blockNumber = blockData.getBlockHeader().getRawData().getNumber();
   var witnessId = blockData.getBlockHeader().getRawData().getWitnessId();
-  var witnessNum=1;
+  var witnessNum = 0;
+    $.ajax({
+        url:witnessList,
+        type: 'get',
+        dataType: 'json',
+        data:{},
+        success: function (data) {
+            var bytesWitnessList = base64DecodeFromString(data);
+            //调用方法deserializeBinary解析
+            var witness = proto.protocol.WitnessList.deserializeBinary(bytesWitnessList);
+            var witnessList = witness.getWitnessesList()
+            if(witnessList.length >0) {
+                for (var i = 0; i < witnessList.length; i++) {
+                    //账户地址
+                    var Isjobs = witnessList[i].getIsjobs();
+                    console.log(Isjobs)
+                    if(Isjobs){
+                        witnessNum++
+                    }
+                }
+                //活跃超级代表
+                $("#witness_num").text(witnessNum);
+            }
+        },
+        fail: function (data) {
+            console.log('witnessNum false')
+        }
+    })
+
   parenthash = blockData.getBlockHeader().getRawData().getParenthash();
   parenthashHex = byteArray2hexStr(parenthash);
   parenthashHexSix = parenthashHex.substr(0,6) + '...'
@@ -75,29 +103,21 @@ TransSuccessCallback = function (data) {
   }
 
   $("#block_num").text('#'+blockNumber);
-  $("#witness_num").text(witnessNum);
+
   $("#beforeBlock").text(parenthashHexSix);
 
- // console.log("parenthashHex : " + parenthashHex);
-
-  var witnessNum = 1;
-
-  console.log("blockNumber : " + blockNumber + " witnessId : " + witnessId);
 
   var txlist = blockData.getTransactionsList();
 
   if (txlist.length > 0) {
-    var txlistFive = txlist.slice(0,12)
+    var txlistFive = txlist.slice(0,6)
     for (var index in txlistFive) {
-      // console.log(txlist[index]);
       var tx = txlist[index];
       contractList = tx.getRawData().getContractList();
-      //console.log(contractList)
       for (var conIndex in contractList) {
         var contract = contractList[conIndex]
         var any = contract.getParameter();
-        //    console.log("contract  "+contract);
-        //   console.log("type1  "+contract.getType());
+
         switch (contract.getType()) {
 
           case contraxtType.ACCOUNTCREATECONTRACT:
@@ -126,11 +146,8 @@ TransSuccessCallback = function (data) {
 
              toHexSix = toHex.substr(0,6) + '...';
 
-             amount = obje.getAmount();
+             amount = obje.getAmount()/1000000;
 
-            // console.log("ownerHex " + ownerHex);
-            // console.log("to  " + toHex);
-            // console.log("amount  " + amount);
 
             getTx(contractName,ownerHexSix,amount,toHexSix);
 
@@ -229,7 +246,6 @@ TransSuccessByNumToViewCallback = function (data) {
   var timestamp=new Date().getTime();
   //当前时间戳 - 块生成的时间戳
   var accordTimes = Math.floor(timestamp - time);
-  console.log('accordTimes====='+accordTimes);
   if(Math.floor(accordTimes/1000) > 60){
       var min = Math.floor(accordTimes/60000);
       timeStr = min+ minTime
@@ -237,8 +253,6 @@ TransSuccessByNumToViewCallback = function (data) {
       var sec = Math.floor(accordTimes/1000);
       timeStr = sec+ secTime
   }
-
-  //console.log(blockNumber+" ::: "+time+" ::: "+witnessAddressHex+" ::: "+transactionNum);
 
   var html= '<li class="clearfix"><div class="block-box fl">'
       + '<p>'+blockStr+ blockNumber+'</p>'
@@ -260,11 +274,14 @@ TransFailureCallback = function (err) {
 // ajaxRequest("GET", getBlockByNumToView, {num: 1233},
 //     TransSuccessCallback, TransFailureCallback);
 function TrxPriceSuccessCallback(data) {
-    console.log(data.tickers)
-
-    var Trxprice = data.data.tickers[0].price.toFixed(5)
-    var change1d = data.data.tickers[0].change1d
+    var Trxprice = data.data.data[0].price.toFixed(5);
+    var change1d = data.data.data[0].change1d;
     $('#trxprice').text(Trxprice)
+    if(change1d > 0 &&change1d == 0){
+        $('#change1d').css('color','#42bd31')
+    }else{
+        $('#change1d').css('color','#ea0000')
+    }
     $('#change1d').text(change1d+'%')
 }
 function TrxPriceFailureCallback(data) {
@@ -272,10 +289,36 @@ function TrxPriceFailureCallback(data) {
 }
 //TRX Price
 function getTrxPrice() {
-    ajaxRequest("GET", 'https://block.cc/api/v1/coin/tickers', {'coin': 'tron','page':0,'size':1},TrxPriceSuccessCallback, TrxPriceFailureCallback);
+    ajaxRequest("GET", 'https://block.cc/api/v1/query', {'str':'TRX','act':'q'},TrxPriceSuccessCallback, TrxPriceFailureCallback);
 }
 
 getTrxPrice()
 setInterval(function () {
     getTrxPrice()
 },21600000)
+
+//TRX getTotalTransaction
+function TotalTransaction() {
+    ajaxRequest("GET", getTotalTrans, {},TrxTotalSuccessCallback, TrxTotaFailureCallback);
+}
+
+function TrxTotalSuccessCallback(data) {
+    console.log('Success'+data)
+    var total = '';
+    if(!data){
+        total = 0
+    }else{
+        var totalTransaction = base64DecodeFromString(data);
+        var totalData = proto.protocol.NumberMessage.deserializeBinary(totalTransaction);
+        var totalNumber= totalData.getNum();
+        total = totalNumber
+    }
+    $('#total').text(total)
+
+}
+
+function TrxTotaFailureCallback(data){
+    console.log('TotaFailureCall'+data)
+}
+//getTotalTransaction
+TotalTransaction()

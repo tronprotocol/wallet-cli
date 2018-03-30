@@ -17,6 +17,7 @@ package org.tron.explorer.controller;
 import com.google.protobuf.InvalidProtocolBufferException;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,6 +34,7 @@ import org.tron.protos.Protocol.Transaction;
 @SpringBootTest(classes=GrpcClientApplication.class)
 @WebAppConfiguration
 @Slf4j
+@Ignore
 public class TransferControllerTest {
 
   @Autowired

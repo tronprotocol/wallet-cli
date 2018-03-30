@@ -72,9 +72,13 @@ $('#submit').on('click',function () {
     //TODO fix privateKey store
     $("#contents").text(address);
     // priKeyBytes = genPriKey();
+
     pk = base64EncodeToString(priKeyBytes);
     // console.log(pk)
     $('#pwd').text(pk);
+    //prikey_pwd
+    prikey_pwd = byteArray2hexStr(priKeyBytes);
+    $('#prikey_pwd').text(prikey_pwd)
 
     if($('.warn-info1').is(":checked")&&$('.warn-info2').is(":checked")&&$('.warn-info3').is(":checked")){
         $('#creatAccount').removeClass('disable_btn')
