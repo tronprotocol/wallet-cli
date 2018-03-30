@@ -80,7 +80,7 @@ public class AccountControllerTest {
 
         log.info("accountName  is : {}",accountName);
         log.info("addressHex  is : {}",addressHex);
-        log.info("balance  is {}: ",balance);
+        log.info("balance  is ：{} ",balance);
         log.info("----------------------");
       });
 
