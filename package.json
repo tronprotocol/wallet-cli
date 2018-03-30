@@ -1,6 +1,6 @@
 {
   "scripts": {
-    "build": "browserify exports.js > src/main/resources/static../static/js/tronjs/tron-protoc.js"
+    "build": "browserify exports.js > src/main/resources/static/js/tronjs/tron-protoc.js"
   },
   "dependencies": {
     "browserify": "^16.1.1",
