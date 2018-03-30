@@ -154,11 +154,11 @@
     })
     console.log($('.add_account'))
 
-    var Date = new Date()
+    var DateTime = new Date()
     laydate.render({
         elem: '#startTimeFormat',
         type: 'datetime',
-        value: Date.getTime(),
+        value: new Date(DateTime.getTime()),
         format: 'yyyy-MM-dd HH:mm:ss',
         min: '1900-01-01 00:00:00',
         max: '2099-12-31 23:59:59',
@@ -167,7 +167,7 @@
     laydate.render({
         elem: '#endTimeFormat',
         type: 'datetime',
-        value:Date.getTime()+15724800000,
+        value:new Date(DateTime.getTime()+15724800000),
         format: 'yyyy-MM-dd HH:mm:ss',
         min: '1900-01-01 00:00:00',
         max: '2099-12-31 23:59:59',
