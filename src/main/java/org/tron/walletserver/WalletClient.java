@@ -3,16 +3,13 @@ package org.tron.walletserver;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.typesafe.config.Config;
-import java.math.BigInteger;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Optional;
+import java.io.File;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.spongycastle.util.encoders.Hex;
 import org.tron.api.GrpcAPI.AccountList;
 import org.tron.api.GrpcAPI.AssetIssueList;
+import org.tron.api.GrpcAPI.NodeList;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.Hash;
@@ -23,10 +20,17 @@ import org.tron.common.utils.TransactionUtils;
 import org.tron.common.utils.Utils;
 import org.tron.core.config.Configuration;
 import org.tron.protos.Contract;
+import org.tron.protos.Contract.AssetIssueContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.AccountType;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.Transaction;
+
+import java.math.BigInteger;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Optional;
 
 public class WalletClient {
 
@@ -36,11 +40,24 @@ public class WalletClient {
   private boolean loginState = false;
 
   private static GrpcClient rpcCli = init();
+  private static String dbPath;
+  private static String txtPath;
 
   public static GrpcClient init() {
     Config config = Configuration.getByPath("config.conf");
+    dbPath = config.getString("CityDb.DbPath");
+    txtPath = config.getString("CityDb.TxtPath");
+
     List<String> fullnodelist = config.getStringList("fullnode.ip.list");
     return new GrpcClient(fullnodelist.get(0));
+  }
+
+  public static String getDbPath() {
+    return dbPath;
+  }
+
+  public static String getTxtPath() {
+    return txtPath;
   }
 
   /**
@@ -119,11 +136,11 @@ public class WalletClient {
     byte[] pwd = getPassWord(password);
     String pwdAsc = ByteArray.toHexString(pwd);
     byte[] privKeyPlain = ecKey.getPrivKeyBytes();
+    System.out.println("privKey:" + ByteArray.toHexString(privKeyPlain));
     //encrypted by password
     byte[] aseKey = getEncKey(password);
     byte[] privKeyEnced = SymmEncoder.AES128EcbEnc(privKeyPlain, aseKey);
     String privKeyStr = ByteArray.toHexString(privKeyEnced);
-    System.out.println("privKeyStr:" + privKeyStr);
     byte[] pubKeyBytes = ecKey.getPubKey();
     String pubKeyStr = ByteArray.toHexString(pubKeyBytes);
     // SAVE PASSWORD
@@ -358,12 +375,13 @@ public class WalletClient {
       HashMap<String, String> witness) {
     Contract.VoteWitnessContract.Builder builder = Contract.VoteWitnessContract.newBuilder();
     builder.setOwnerAddress(ByteString.copyFrom(owner));
-    for (String address : witness.keySet()) {
-      String value = witness.get(address);
+    for (String addressHex : witness.keySet()) {
+      String value = witness.get(addressHex);
       long count = Long.parseLong(value);
       Contract.VoteWitnessContract.Vote.Builder voteBuilder = Contract.VoteWitnessContract.Vote
           .newBuilder();
-      voteBuilder.setVoteAddress(ByteString.copyFrom(address.getBytes()));
+      byte[] address = ByteArray.fromHexString(addressHex);
+      voteBuilder.setVoteAddress(ByteString.copyFrom(address));
       voteBuilder.setVoteCount(count);
       builder.addVotes(voteBuilder.build());
     }
@@ -514,8 +532,16 @@ public class WalletClient {
   public static Optional<AssetIssueList> getAssetIssueList() {
     return rpcCli.getAssetIssueList();
   }
+
+  public static Optional<NodeList> listNodes() {
+    return rpcCli.listNodes();
+  }
+
   public static Optional<AssetIssueList> getAssetIssueByAccount(byte[] address) {
     return rpcCli.getAssetIssueByAccount(address);
   }
 
+  public static AssetIssueContract getAssetIssueByName(String assetName) {
+    return rpcCli.getAssetIssueByName(assetName);
+  }
 }

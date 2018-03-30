@@ -51,15 +51,22 @@
     float: left;
     font-size: 14px;
     color: #8d9ba9;
-    padding: 20px;
+    padding: 20px 20px 20px 0;
     height: 100%;
     background-color: #fff;
     border-right: 1px solid #d4dde7;
 }
 .c_form  li {
     line-height: 40px;
-    text-align: center;
+    text-align: left;
     cursor: pointer;
+    padding-left: 80px;
+}
+.c_form  li img{
+    vertical-align: middle;
+    height: 20px;
+    width: 20px;
+    margin-right: 10px;
 }
 .c_form .c_active{
     color: #3291fe;
@@ -91,6 +98,7 @@
     font-weight: 700;
     margin: auto;
     text-align: left;
+    line-height: 25px;
     /**/
 }
 .order p:nth-of-type(even){
@@ -104,8 +112,18 @@
     font-weight: 500;
     margin: 100px 0 0 180px;
     padding-bottom: 100px;
+    color: #c5c4c4;
 }
-.ord_btn{
+.ord_input{
+    height: 35px;
+    width: 400px;
+    border: 1px solid #3291fe;
+    border-radius: 5px;
+    margin-bottom:30px;
+    display: block;
+    text-align: center;
+}
+.ord_btn,.ord_suc{
     height: 35px;
     width: 280px;
     border-radius: 5px;
@@ -116,8 +134,16 @@
     background-image: -moz-linear-gradient(top, #80afff, #2185ff); /* Firefox */
     background-image: -webkit-gradient(linear, left top, left bottom, color-stop(0, #80afff), color-stop(1, #2185ff)); /* Saf4+, Chrome */
     filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#80afff', endColorstr='#2185ff'); /* IE*/
-
 }
+
+.ord_suc{
+    display: none;
+}
+.disable_btn{
+    background-image: -moz-linear-gradient(top, #97aec7, #97aec7); /* Firefox */
+    background-image:-webkit-gradient(linear, left top, left bottom, color-stop(0, #97aec7), color-stop(1, #97aec7))
+}
+
 /*
 vote
 */
@@ -133,8 +159,9 @@ vote
 .vote table thead{
     color: #3291fe;
 }
-.vote table tr{
-    line-height: 60px;
+.vote table tr {
+    line-height: 50px;
+    border: 1px solid transparent;
 }
 .vote_d{
     height: 30px;
@@ -164,7 +191,7 @@ vote
     border-spacing:0px 20px;
     margin: auto;
     color: #64768a;
-    padding: 0 20px;
+    /*padding: 0 20px;*/
     border-radius: 5px;
 }
 .vote table thead{
@@ -230,7 +257,7 @@ set
     width: 100%;
     background-color: #fff;
     box-shadow: 5px 5px 10px #f0f3f6;
-    /*float: left;*/
+    border-radius: 5px;
     font-size: 14px;
     padding: 20px;
 }
@@ -242,6 +269,7 @@ set
     padding: 20px;
     box-shadow: 5px 5px 10px #f0f3f6;
     background-color: #fff;
+    border-radius: 5px;
 }
 .information h6{
     color: #a0b4cc;
@@ -267,7 +295,7 @@ set
 .price h6{
     font-size: 20px;
     display: inline-block;
-    color: #ccc;
+    color: #a0b4cc;
 }
 .price .liner_granet{
     float: right;
@@ -276,19 +304,72 @@ set
     height: 20px;
     border-radius: 2px;
 }
+.none{
+    display: none;
+}
 
+.help{
+    font-size: 14px;
+    color: #818181;
+}
+.help>div>p{
+    line-height: 50px;
+    padding:0 160px 0 40px;
+}
+.help>div>p>.title{
+    font-size: 16px;
+    color: #2e3a60;
+}
+.help>div>p:nth-of-type(1){
+    cursor: pointer;
+}
+.ques,.ans{
+    display: inline-block;
+    height: 20px;
+    width: 20px;
+    color: #fff;
+    text-align: center;
+    line-height: 20px;
+    border-radius: 5px;
+    background-color:#0077ff ;
+}
+.ans{
+    background-color:#818181 ;
+}
+.h_list{
+    float: right;
+    margin-top: 20px;
+}
+.help_detail >i,.help_detail>span{
+    display: inline-block;
+}
 
+.help_detail>span{
+    margin-left: 40px;
+    margin-top: -50px;
+}
+.help_list >span{
+    margin-left: 40px;
+}
+.help_detail>.more{
+    margin-left: 60px;
+}
 
+/**/
 
-
-
-
-
-
-
-
-
-
+#witnessList .b_acitve td {
+    border: 1px solid #d4d8da;
+    border-right: 0;
+    border-left: 0;
+    /*padding: 5px;*/
+    background-color: #fff;
+}
+#witnessList .b_acitve td:nth-last-of-type(1){
+    border-right: 1px solid #d4d8da;
+}
+#witnessList .b_acitve td:nth-of-type(1){
+    border-left: 1px solid #d4d8da;
+}
 
 
 

@@ -10,11 +10,14 @@ import java.util.concurrent.TimeUnit;
 import org.tron.api.GrpcAPI;
 import org.tron.api.GrpcAPI.AccountList;
 import org.tron.api.GrpcAPI.AssetIssueList;
+import org.tron.api.GrpcAPI.BytesMessage;
 import org.tron.api.GrpcAPI.EmptyMessage;
+import org.tron.api.GrpcAPI.NodeList;
 import org.tron.api.GrpcAPI.NumberMessage;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.api.WalletGrpc;
 import org.tron.protos.Contract;
+import org.tron.protos.Contract.AssetIssueContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.Transaction;
@@ -116,6 +119,15 @@ public class GrpcClient {
     return Optional.empty();
   }
 
+  public Optional<NodeList> listNodes() {
+    NodeList nodeList = blockingStub
+        .listNodes(EmptyMessage.newBuilder().build());
+    if (nodeList != null) {
+      return Optional.of(nodeList);
+    }
+    return Optional.empty();
+  }
+
   public Optional<AssetIssueList> getAssetIssueByAccount(byte[] address) {
     ByteString addressBS = ByteString.copyFrom(address);
     Account request = Account.newBuilder().setAddress(addressBS).build();
@@ -125,6 +137,12 @@ public class GrpcClient {
       return Optional.of(assetIssueList);
     }
     return Optional.empty();
+  }
+
+  public AssetIssueContract getAssetIssueByName(String assetName) {
+    ByteString assetNameBs = ByteString.copyFrom(assetName.getBytes());
+    BytesMessage request = BytesMessage.newBuilder().setValue(assetNameBs).build();
+    return blockingStub.getAssetIssueByName(request);
   }
 
 }

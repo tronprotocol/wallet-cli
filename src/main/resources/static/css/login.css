@@ -31,7 +31,8 @@ header .left_list{
 .left_list button{
     display: inline-block;
     height: 30px;
-    width: 80px;
+    width: auto;
+    padding: 0 5px;
     border-radius: 2px;
     border: 0;
     cursor: pointer;
@@ -68,7 +69,7 @@ header span{
     width: 400px;
     position:absolute;
     left:50%;
-    top:50%;
+    top:65%;
     margin-left: -200px;
     margin-top: -300px;
     padding: 10px 10px 50px 10px;
@@ -77,9 +78,7 @@ header span{
     border-radius: 5px;
     /*display: none;*/
 }
-#wel_login{
-    text-align: center;
-}
+
 #article_login{
     display: none;
 }
@@ -124,18 +123,28 @@ header span{
     background:none;
     border: 0;
     border-bottom: 1px solid #acb4c3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin-left: 10px;
+    outline:none;
+}
+#repawd{
+    margin-left: 0;
 }
 form input{
     margin:0 0 10px 0;
 }
 .submit{
-    height: 50px;
-    width: 100%;
+    display: block;
+    height: 40px;
+    width: 90%;
     border-radius: 5px;
     margin: auto;
-    font-size: 20px;
+    font-size: 16px;
     border: 0;
     margin-top: 40px;
+
 }
 .article_login form .l_warn ,.mo_warn,.pw_warn,.mopwd_warn,.com_warn,.go_warn,.num_warn{
     font-size: 12px;
@@ -145,6 +154,7 @@ form input{
 .repeat{
     width: 50px;
     border-radius: 5px;
+    vertical-align: middle;
 }
 .create img{
     display: block;
@@ -162,8 +172,7 @@ form input{
     margin-top: 20px;
 }
 .warn_list li{
-    list-style: square;
-    margin-left: 20px;
+    margin-left: 10px;
     line-height: 25px;
 }
 
@@ -182,13 +191,22 @@ form input{
     margin: 40px;
 }
 .wel_creat{
-    margin-top: 40px;
+    width: 200px;
+    margin: 40px auto 0;
+}
+.wel_creat button:nth-child(2){
+    margin-left: 10px;
 }
 .wel_creat button{
     width: 90px;
     height: 35px;
     border-radius: 5px;
     border:1px solid #117eff;
+    color: #117eff;
+    background-color: #fff;
+}
+.wel_creat .liner_granet{
+    color: #fff;
 }
 .wel_active{
     background-color: #d2d5dd;
@@ -197,6 +215,11 @@ form input{
     font-size: 20px;
     text-align: center;
 }
+.t_logo p:nth-child(3){
+    font-size: 14px;
+    margin-top: 16px;
+}
+
 .t_logo img{
     display: block;
     height: 53px;
@@ -231,7 +254,7 @@ form input{
 
 
 .adress,.cret_pwd{
-    margin: 10px 0;
+    margin: 10px 10px 0;
 }
 .tran_money input{
     height: 30px;
@@ -250,17 +273,39 @@ form input{
     top:50%;
     margin-left: -200px;
     margin-top: -100px;
-    padding: 30px;
+    padding: 40px 30px 30px 30px;
     color: #4194f8;
-    background-color: rgba(255,255,255,0.8);
+    background-color: rgba(255,255,255,0.9);
     border-radius: 5px;
     display: none;
+    z-index: 999;
 }
 .mona_warn{
     font-size: 12px;
     color: #d5453e;
 }
-.motal .add ,.motal .no{
+.motal-mask{
+    width: 100%;
+    height:100%;
+    position: fixed;
+    top:0;
+    bottom:0;
+    left: 0;
+    right: 0;
+    background-color: rgba(51,51,51,0.4);
+    z-index: 998;
+    display: none;
+}
+.motal .no{
+    height: 30px;
+    width: 100px;
+    border: 0;
+    border-radius: 5px;
+    margin-top: 20px;
+    border: 1px solid #117eff;
+    color: #117eff;
+}
+.motal .add{
     height: 30px;
     width: 100px;
     border: 0;
@@ -272,14 +317,65 @@ form input{
 }
 
 .motal .add {
-    margin-left: 90px;
+    margin-left: 70px;
 }
 
 .mona_warn{
     display: none;
 }
+#language{
+    width: 100px;
+    margin: 60px auto 0;
+    display: block;
+}
 
 
+.disable_btn{
+    background-image: -moz-linear-gradient(top, #97aec7, #97aec7); /* Firefox */
+    background-image:-webkit-gradient(linear, left top, left bottom, color-stop(0, #97aec7), color-stop(1, #97aec7))
+}
 
+.new_top{
+    top:55%;
+}
 
+#transform_box .tran_form .name,#transform_box .tran_form .pwd{
+    width: 340px;
+    height: 26px;
+    background-color: rgb(255, 255, 255);
+    box-shadow: 0px 9px 14px 1px
+    rgba(126, 153, 185, 0.13);
+    border-radius: 5px;
+    border: solid 1px rgb(126, 153, 185);
+    margin-left: 20px;
+    margin-top: 10px;
+    margin-bottom: 10px;
+}
+#transform_box .tran_form p{
+    margin-left: 20px;
+}
 
+#num{
+    width: 218px;
+    height: 26px;
+    background-color: rgb(255, 255, 255);
+    box-shadow: 0px 9px 14px 1px
+    rgba(126, 153, 185, 0.13);
+    border-radius: 5px;
+    border: solid 1px rgb(126, 153, 185);
+    margin-left: 20px;
+}
+#coinSelect{
+    width: 218px;
+    height: 26px;
+    background-color: rgb(255, 255, 255);
+    margin-left: 20px;
+
+}
+#coinSelect_box{
+    display: none;
+}
+
+.login_html{
+    border:none;
+}

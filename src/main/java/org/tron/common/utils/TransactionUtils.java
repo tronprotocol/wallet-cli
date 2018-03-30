@@ -74,6 +74,9 @@ public class TransactionUtils {
         case AssetIssueContract:
           owner = contract.getParameter().unpack(org.tron.protos.Contract.AssetIssueContract.class).getOwnerAddress();
           break;
+        case ParticipateAssetIssueContract:
+          owner = contract.getParameter().unpack(org.tron.protos.Contract.ParticipateAssetIssueContract.class).getOwnerAddress();
+          break;
         case DeployContract:
           owner = contract.getParameter().unpack(org.tron.protos.Contract.AssetIssueContract.class).getOwnerAddress();
           break;
@@ -184,7 +187,11 @@ public class TransactionUtils {
           signedTransaction.getRawData().getContractCount());
       List<Transaction.Contract> listContract = signedTransaction.getRawData().getContractList();
       byte[] hash = sha256(signedTransaction.getRawData().toByteArray());
-      for (int i = 0; i < signedTransaction.getSignatureCount(); ++i) {
+      int count = signedTransaction.getSignatureCount();
+      if ( count == 0 ){
+        return false;
+      }
+      for (int i = 0; i < count; ++i) {
         try {
           Transaction.Contract contract = listContract.get(i);
           byte[] owner = getOwner(contract);

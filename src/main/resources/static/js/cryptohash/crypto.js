@@ -1,9 +1,21 @@
-//return sign by 65 bytes r s id. id < 27
-function doSign(priKeyBytes, base64Data) {
-  var rowBytes = getRowBytesFromTransactionBase64(base64Data);
-  var hashBytes = SHA256(rowBytes);
+/**
+ * Sign A Transaction by priKey.
+ * signature is 65 bytes, r[32] || s[32] || id[1](<27)
+ * @returns  a Transaction object signed
+ * @param priKeyBytes: privateKey for ECC
+ * @param transaction: a Transaction object unSigned
+ */
+function signTransaction(priKeyBytes, transaction) {
+  var raw = transaction.getRawData();
+  var rawBytes = raw.serializeBinary();
+  var hashBytes = SHA256(rawBytes);
   var signBytes = ECKeySign(hashBytes, priKeyBytes);
-  return signBytes;
+  var uint8Array = new Uint8Array(signBytes);
+  var count = raw.getContractList().length;
+  for (i = 0; i < count; i++) {
+    transaction.addSignature(uint8Array); //TODO: multy priKey
+  }
+  return transaction;
 }
 
 //return bytes of rowdata, use to sign.
@@ -16,15 +28,14 @@ function getRowBytesFromTransactionBase64(base64Data) {
   return rawBytes;
 }
 
-
 //gen Ecc priKey for bytes
 function genPriKey() {
   var EC = elliptic.ec;
   var ec = new EC('secp256k1');
   var key = ec.genKeyPair();
   var priKey = key.getPrivate();
-  var priKeyHex  = priKey.toString('hex');
-  while (priKeyHex.length < 64){
+  var priKeyHex = priKey.toString('hex');
+  while (priKeyHex.length < 64) {
     priKeyHex = "0" + priKeyHex;
   }
   var priKeyBytes = hexStr2byteArray(priKeyHex);
@@ -33,11 +44,10 @@ function genPriKey() {
 
 //return address by bytes, pubBytes is byte[]
 function computeAddress(pubBytes) {
-  var pubKey = bin2String(pubBytes);
-  if (pubKey.length == 65) {
-    pubKey = pubKey.substring(1);
+  if (pubBytes.length == 65) {
+    pubBytes = pubBytes.slice(1);
   }
-  var hash = CryptoJS.SHA3(pubKey).toString();
+  var hash = CryptoJS.SHA3(pubBytes).toString();
   var addressHex = hash.substring(24);
   var addressBytes = hexStr2byteArray(addressHex);
   return addressBytes;
@@ -48,6 +58,22 @@ function getAddressFromPriKey(priKeyBytes) {
   var pubBytes = getPubKeyFromPriKey(priKeyBytes);
   var addressBytes = computeAddress(pubBytes);
   return addressBytes;
+}
+//return address by String, priKeyBytes is base64String
+function getHexStrAddressFromPriKeyBase64String(priKeyBase64String) {
+    var priKeyBytes = base64DecodeFromString(priKeyBase64String);
+    var pubBytes = getPubKeyFromPriKey(priKeyBytes);
+    var addressBytes = computeAddress(pubBytes);
+    var addressHex = byteArray2hexStr(addressBytes);
+    return addressHex;
+}
+//return address by String, priKeyBytes is base64String
+function getAddressFromPriKeyBase64String(priKeyBase64String) {
+  var priKeyBytes = base64DecodeFromString(priKeyBase64String);
+  var pubBytes = getPubKeyFromPriKey(priKeyBytes);
+  var addressBytes = computeAddress(pubBytes);
+  var addressBase64 = base64EncodeToString(addressBytes);
+  return addressBase64;
 }
 
 //return pubkey by 65 bytes, priKeyBytes is byte[]

@@ -1,6 +1,7 @@
 syntax = "proto3";
 
 import "google/protobuf/any.proto";
+import "core/Discover.proto";
 
 package protocol;
 
@@ -73,6 +74,7 @@ message Transaction {
     enum ContractType {
       AccountCreateContract = 0;
       TransferContract = 1;
+
       TransferAssetContract = 2;
       VoteAssetContract = 3;
       VoteWitnessContract = 4;
@@ -194,7 +196,7 @@ enum ReasonCode {
   LOCAL_IDENTITY = 10;
   PING_TIMEOUT = 11;
   USER_REASON = 12;
-  UNKNOWN = 13;
+  UNKNOWN = 255;
 }
 
 message DisconnectMessage {
@@ -202,8 +204,6 @@ message DisconnectMessage {
 }
 
 message HelloMessage {
-  int32 p2pVersion = 1;
-  string clientId = 2;
-  int32 listenPort = 4;
-  string peerId = 5;
+  Endpoint from = 1;
+  int32 version = 2;
 }

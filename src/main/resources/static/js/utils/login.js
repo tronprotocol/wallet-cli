@@ -6,13 +6,18 @@ var priKeyBytes;
 var addressBytes;
 var address;
 var accountName;
+
 var pk;
 //创建账户
 $('.login_html').on('click',function () {
     $('#wel_login').css('display','none');
-    $('.article_login').css('display','block')
+    $('#article_login').css('display','block')
+    $('#article_login').css('top','50%')
 });
+
 $('.wel_active').on('click',function () {
+
+    $('.motal-mask').css('display','block')
     $('.motal').css('display','block')
 });
 $('#repawd').bind('input propertychange',function(){
@@ -20,15 +25,24 @@ $('#repawd').bind('input propertychange',function(){
 })
 $('.no').on('click',function () {
     $('.motal').css('display','none');
-    $('.mona_warn').css('display','none')
+    $('.mona_warn').css('display','none');
+    $('#repawd').val('');
+    $('.motal-mask').css('display','none')
 })
 $('#login').on('click',function () {
-    if($('#repawd').val() == ''){
+    if($('#repawd').val() == ''||$('#repawd').val().length<20){
         $('.mona_warn').css('display','block')
     }else{
-        $('#create').css('display','none')
+        $('.header span').eq(0).addClass('header_active');
+        $('#create').css('display','none');
         $('#header_login').css('display','inline-block');
         $('#center').css('display','inline-block');
+        $('.motal').css('display','none');
+        $('.motal-mask').css('display','none');
+        window.localStorage.setItem('key',$('#repawd').val());
+        $('#repawd').val('');
+        $('#text').load('/html/message.html');
+        $('#text').css('background','none');
     }
 })
 //注册账户 复制文本
@@ -45,12 +59,11 @@ function copyUrl2 (repeat) {
         selection.removeAllRanges();
         selection.addRange(range);
     } else {
-        alert("none");
+        layer.alert("none");
     }
     document.execCommand('Copy','false',null);
 }
 $('#submit').on('click',function () {
-
     priKeyBytes = genPriKey();
     //return address by bytes, priKeyBytes is byte[]
     addressBytes = getAddressFromPriKey(priKeyBytes);
@@ -58,18 +71,16 @@ $('#submit').on('click',function () {
     address = byteArray2hexStr(addressBytes);
     accountName = $("#name").val();
     //TODO fix privateKey store
-   // $("#privateKey").val(priKeyBytes);
     $("#contents").text(address);
-    // console.log($("#contents").text())
-
     // priKeyBytes = genPriKey();
-    var pk = base64EncodeToString(priKeyBytes);
+    pk = base64EncodeToString(priKeyBytes);
     // console.log(pk)
     $('#pwd').text(pk);
-    $('#create').css('display','none')
-    $('#header_login').css('display','inline-block');
-    $('#center').css('display','inline-block');
-})
+
+    if($('.warn-info1').is(":checked")&&$('.warn-info2').is(":checked")&&$('.warn-info3').is(":checked")){
+        $('#creatAccount').removeClass('disable_btn')
+    }
+});
 
 /*
 * 转账
@@ -82,8 +93,6 @@ var go_text='' ;
 var num_text='' ;
 $('#com_adress').bind('input propertychange',function(){
     com_text = $('#com_adress').val();
-    console.log(typeof($('#com_adress').val()))
-
     if(this!=''){
         $('.com_warn').css('display','none');
         return;
@@ -100,7 +109,6 @@ $('#go_cont').bind('input propertychange',function(){
 })
 $('#num').bind('input propertychange',function(){
     num_text =$('#num').val();
-console.log(typeof($('#num').val()) )
     if(this!=''){
         $('.num_warn').css('display','none');
         return;
@@ -134,11 +142,32 @@ TransFailureCallback = function (err) {
     console.log('err')
 };
 
+$('.warn_list input[type="checkbox"]').on('click',function (i) {
+    if($('.warn-info1').is(":checked")&&$('.warn-info2').is(":checked")&&$('.warn-info3').is(":checked")){
+        $('#creatAccount').removeClass('disable_btn')
+    }
+});
+
+$('#creatAccount').on('click',function () {
+    if($("#contents").text()&&$("#pwd").text()){
+        if($('.warn-info1').is(":checked")&&$('.warn-info2').is(":checked")&&$('.warn-info3').is(":checked")){
+            $('#create').css('display','none')
+            $('#header_login').css('display','inline-block');
+            $('#center').css('display','inline-block');
+            $('#text').css('background','none');
+            $(this).addClass('header_active').siblings().removeClass('header_active');
+            $('#text').load('/html/message.html');
+            window.localStorage.setItem('key',pk)
+        }else{
+            layer.alert('请您认真阅读并勾选创建账户须知')
+        }
+    }else{
+        layer.alert('请生成账户地址和密码')
+    }
+})
 
 
-
-
-
+//国际化
 
 
 
