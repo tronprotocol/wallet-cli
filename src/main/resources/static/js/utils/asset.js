@@ -173,10 +173,23 @@ function createAssetSuccessCallback(data) {
 
 function signSuccessCallback(data) {
     if(data) {
-        layer.alert($.i18n.prop('layer.issuesuccess'));
-        $('#text').css('background','none');
+        layer.open({
+            type: 1,
+            shadeClose: false, //点击遮罩关闭
+            content: $.i18n.prop('layer.transfersuccess'),
+            btn: ['确定'],
+            area: ['250px', '175px'],
+            yes: function(index, layero){
+                layer.close(index);
+                //跳转到首页
+                $('#text').load('/html/control.html');
+            }
+
+        });
+        layer.alert();
+
         $('.header span').removeClass('header_active');
-        $('#text').load('/html/control.html');
+
 
     }else{
         layer.alert($.i18n.prop('layer.issuefail'));
