@@ -49,7 +49,7 @@ function calPriceByTrx() {
     }
 }
 
-function checkFunction() {trxNumCheck
+function checkFunction() {
     $('#assetInfoCheck').text($('#amount').val()+ ' ' +$('#assetName').text());
     var assetNum = $('#price').text() * $('#amount').val();
     var info = assetNum;

@@ -32,6 +32,7 @@
     float: right;
     margin-top: 2px;
     border-radius: 5px;
+    cursor: pointer;
 }
 
 .asset-price{
@@ -91,6 +92,7 @@
     display: block;
     margin: 50px auto 0 auto;
     background-image: linear-gradient(0deg, #ea0000 0%, #c6352c 100%), linear-gradient(#a61c1c, #a61c1c);
+    cursor: pointer;
 }
 
 .assetComtrx{

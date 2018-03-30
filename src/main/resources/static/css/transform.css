@@ -90,4 +90,5 @@
     height: 40px;
     background-image: linear-gradient(0deg, #ea0000 0%, #c6352c 100%), linear-gradient(#a61c1c, #a61c1c);
     border-radius: 5px;
+    cursor: pointer;
 }

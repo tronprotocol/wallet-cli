@@ -433,4 +433,5 @@ set
 	background-image: -moz-linear-gradient(top, #c8332a, #e60605);
     background-image: -webkit-gradient(linear, left top, left bottom, color-stop(0, #c8332a), color-stop(1, #e60605));
     filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#c8332a', endColorstr='#e60605');
+    cursor: pointer;
 }

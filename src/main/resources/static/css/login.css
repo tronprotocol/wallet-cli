@@ -72,6 +72,7 @@ header span {
     font-size: 14px;
     margin-top: 30px;
     color: #ffffff;
+    cursor: pointer;
 }
 .article_login .article-adress,.article_login .cret_pwd{
     margin-top: 16px;
@@ -102,6 +103,7 @@ header span {
     background-image: linear-gradient(0deg, #ea0000 0%, #c6352c 100%), linear-gradient(#a61c1c, #a61c1c);
     color: #ffffff;
     line-height: 20px;
+    cursor: pointer;
 }
 .create {
     display: block;
@@ -348,6 +350,7 @@ form input {
     background-color: #ffffff;
     color: #cb2d25;
     border-radius: 5px;
+    cursor: pointer;
 }
 
 .motal-btn .add {
@@ -356,6 +359,7 @@ form input {
     background-image: linear-gradient(0deg, #ea0000 0%, #c6352c 100%), linear-gradient(#a61c1c, #a61c1c);
     color: #ffffff;
     border-radius: 5px;
+    cursor: pointer;
 }
 
 .mona_warn {
@@ -456,6 +460,7 @@ form input {
     background-image: linear-gradient(0deg, #ea0000 0%, #c6352c 100%), linear-gradient(#a61c1c, #a61c1c);
     color: #ffffff;
     border-radius: 5px;
+    cursor: pointer;
 }
 .wel-login-btn{
     width: 90px;
@@ -464,5 +469,6 @@ form input {
     background-color: #ffffff;
     color: #cb2d25;
     border-radius: 5px;
+    cursor: pointer;
 }
 

@@ -34,7 +34,7 @@
             <div class="asset-info clearfix">
                 <div class="fl">
                     <p data-i18n-text="quoteTokenAmount">本通证数量</p>
-                    <input type="text" class="account_num asset-lang-input" id="assetNum" name="num" value="10"/>
+                    <input type="text" class="account_num asset-lang-input" id="assetNum" name="num"/>
                 </div>
                 <div class="lang-input-r fl">
                     <p>
@@ -65,7 +65,7 @@
             <div class="asset-info clearfix">
                 <div class="fl">
                     <p data-i18n-text="description">通证描述</p>
-                    <input type="text" id="description" name="description" class="asset-lang-input" placeholder="选填" data-i18n-placeholder="descriptionPlace"/>
+                    <input type="text" id="description" name="description" class="asset-lang-input" data-i18n-value="descriptionValue"/>
                 </div>
                 <div class="lang-input-r fl">
                     <p data-i18n-text="descriptionUrl">通证描述URL</p>
@@ -137,7 +137,7 @@
     var address = $('#searchInput').val();
     if (type == 3) {
         window.localStorage.removeItem("type");
-        $('.creat_account').css('display', 'none');
+        $('.creat_asset_main').css('display', 'none');
         $('.account_list').css('display', 'block');
         if (getStringType(address) == 3) {
             searchAsset(address);

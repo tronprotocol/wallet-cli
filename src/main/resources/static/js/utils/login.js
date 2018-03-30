@@ -41,7 +41,7 @@ $('#login').on('click',function () {
         window.localStorage.setItem('key',$('#repawd').val());
         $('#repawd').val('');
         $('#text').load('/html/message.html');
-        $('#text').css('background','none');
+        $('#text').css('background','#fafbfc');
     }
 })
 //注册账户 复制文本
