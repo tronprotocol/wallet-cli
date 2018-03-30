@@ -246,13 +246,14 @@ public class TestClient {
       System.out.println("testTransaction need 4 or 5 parameter like following: ");
       System.out.println("testTransaction Password ToAddress assertName times");
       System.out.println("testTransaction Password ToAddress assertName times interval");
+      System.out.println("If needn't transferAsset, assertName input null");
       return;
     }
     String password = parameters[0];
     String toAddress = parameters[1];
     String assertName = parameters[2];
     String loopTime = parameters[3];
-    int intervalInt = 10;//s
+    int intervalInt = 0;//s
     if (parameters.length == 5) {
       String interval = parameters[4];
       intervalInt = Integer.parseInt(interval);//s
@@ -265,31 +266,36 @@ public class TestClient {
       boolean result = client.sendCoin(password, toAddress, amount);
       if (result) {
         logger.info("Send " + amount + " drop to " + toAddress + " successful !!");
-        try {
-          Thread.sleep(intervalInt);
-        } catch (Exception e) {
-          e.printStackTrace();
-          break;
+        if (intervalInt > 0) {
+          try {
+            Thread.sleep(intervalInt);
+          } catch (Exception e) {
+            e.printStackTrace();
+            break;
+          }
         }
-
       } else {
         logger.info("Send " + amount + " drop to " + toAddress + " failed !!");
         break;
       }
 
-      result = client.transferAsset(password, toAddress, assertName, amount);
-      if (result) {
-        logger.info("transferAsset " + amount + assertName + " to " + toAddress + " successful !!");
-        try {
-          Thread.sleep(intervalInt);
-        } catch (Exception e) {
-          e.printStackTrace();
+      if (!"null".equalsIgnoreCase(assertName)) {
+        result = client.transferAsset(password, toAddress, assertName, amount);
+        if (result) {
+          logger
+              .info("transferAsset " + amount + assertName + " to " + toAddress + " successful !!");
+          if (intervalInt > 0) {
+            try {
+              Thread.sleep(intervalInt);
+            } catch (Exception e) {
+              e.printStackTrace();
+              break;
+            }
+          }
+        } else {
+          logger.info("transferAsset " + amount + assertName + " to " + toAddress + " failed !!");
           break;
         }
-
-      } else {
-        logger.info("transferAsset " + amount + assertName + " to " + toAddress + " failed !!");
-        break;
       }
     }
 
@@ -519,9 +525,9 @@ public class TestClient {
   private void getTotalTransaction() {
     try {
       NumberMessage totalTransition = client.getTotalTransaction();
-      logger.info("Total transaction is : " + totalTransition.getNum());
+      logger.info("The num of total transactions is : " + totalTransition.getNum());
 
-    }catch (Exception e){
+    } catch (Exception e) {
       logger.info("GetTotalTransaction " + " failed !!");
     }
   }
@@ -681,7 +687,7 @@ public class TestClient {
           testTransaction(parameters);
           break;
         }
-        case "gettotaltransaction":{
+        case "gettotaltransaction": {
           getTotalTransaction();
           break;
         }

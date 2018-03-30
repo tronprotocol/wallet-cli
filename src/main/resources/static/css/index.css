@@ -22,6 +22,7 @@
     font-size: 20px;
     text-align: center;
     margin-left: 25px;
+    cursor: pointer;
 }
 .header ul li:nth-child(1){
     margin-left: 30px;
@@ -33,27 +34,28 @@
     margin-top: -2px;
 }
 .searchInput-box{
-    margin-left: 30px;
+    margin-left: 15px;
     position: relative;
 }
 .searchInput{
-    width: 100px;
+    width: 155px;
     height: 28px;
     border:1px solid #acacac;
     border-radius: 13px;
     background-color: #2c2c2c;
     margin-top: 18px;
     color: #ffffff;
-    padding-left: 30px;
+    padding-left: 10px;
 
 }
 .searchInput-box i{
     position: absolute;
-    left: 5px;
-    top:25px;
+    right: 5px;
+    top: 23px;
     background: url("../img/search.png") no-repeat;
     width: 20px;
     height: 20px;
+    cursor: pointer;
 }
 .btn-list{
     float: left;
@@ -103,7 +105,7 @@
     height: 20px;
     position: absolute;
     background: url("../img/center_icon.png");
-    left: 15px;
+    left: 5px;
     top:5px;
 }
 

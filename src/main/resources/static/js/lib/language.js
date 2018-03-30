@@ -58,6 +58,32 @@ var getNavLanguage = function(){
 }
 
 /**
+ * 获取浏览器参数
+ * @return {string} 浏览器参数值
+ */
+var getUrlParam = function (name){
+    name = name.replace(/[\[]/, "\\[").replace(/[\]]/, "\\]");
+    var  regex = new RegExp("[\\?&]" + name + "=([^&#]*)"), results = regex.exec(location.search);
+    return results == null  ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '))
+}
+
+/**
+ * 获取本地VPN语言类型
+ * @return {string} VPN语言类型
+ */
+var getVpnLanguage = function () {
+    if (getUrlParam('language')) {
+        return getUrlParam('language')
+    }else{
+        if (remote_ip_info.country=='中国') {
+            return "zh-CN";
+        }else{
+            return "en";
+        }
+    }
+}
+
+/**
  * 设置语言类型： 默认为中文
  */
 var i18nLanguage = "zh-CN";
@@ -65,7 +91,8 @@ var i18nLanguage = "zh-CN";
 /*
 设置一下网站支持的语言种类
  */
-var webLanguage = ['zh-CN'];
+var webLanguage = ['zh-CN', 'en'];
+
 
 
 
@@ -91,8 +118,7 @@ var execI18n = function(){
             i18nLanguage = getCookie("userLanguage");
         } else {
             // 获取浏览器语言
-            var navLanguage = getNavLanguage();
-            console.log(navLanguage)
+            var navLanguage = getVpnLanguage();
             if (navLanguage) {
                 // 判断是否在网站支持语言数组里
                 var charSize = $.inArray(navLanguage, webLanguage);
@@ -115,7 +141,7 @@ var execI18n = function(){
 
         jQuery.i18n.properties({
             name : 'index', //资源文件名称
-            path : '../static/js/i18n/' + i18nLanguage +'/', //资源文件路径
+            path : '/js/i18n/' + i18nLanguage +'/', //资源文件路径
             mode : 'map', //用Map的方式使用资源文件中的值
             language: i18nLanguage,
             callback: function () {//加载成功后设置显示内容
@@ -189,8 +215,7 @@ $(function(){
         var language = $(this).children('option:selected').val()
         console.log(language);
         getCookie("userLanguage",language,{
-            expires: 30,
-            path:'/'
+            expires: 30
         });
         location.reload();
     });

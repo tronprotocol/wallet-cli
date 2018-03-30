@@ -45,18 +45,30 @@
 
 .asset-time{
     width: 580px;
+    position: relative;
 }
+.asset-time i{
+    width: 21px;
+    height: 18px;
+    background: url("../img/date_time.png") no-repeat;
+    position: absolute;
+    left: 175px;
+    top: 5px;
+    cursor:pointer;
+}
+
 .asset-time:nth-child(2){
    margin-left: 34px;
 }
 .asset-time span{
     display: block;
 }
-.asset-time input{
+.asset-time input {
     border: none;
     background-color: #f7f7f7;
+    margin-left: 85px;
+    font-size: 20px;
 }
-
 .create_account {
     width: 280px;
     height: 35px;
