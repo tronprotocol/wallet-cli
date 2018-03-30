@@ -81,17 +81,17 @@ function submitParticipateAssetIssueSuccessCallback(data) {
 
 function submitAssetIssueSuccessCallback(data) {
     if(data) {
-        layer.alert($i18n.prop('layer.partsuccess'));
+        layer.alert($.i18n.prop('layer.partsuccess'));
         $('#text').css('background','none');
         $('.header span').removeClass('header_active');
         $('#text').load('/html/control.html');
     }else{
-        layer.alert($i18n.prop('layer.partfail'));
+        layer.alert($.i18n.prop('layer.partfail'));
     }
 }
 
 function submitAssetIssueFailureCallback(data) {
-    layer.alert($i18n.prop('layer.partfail'));
+    layer.alert($.i18n.prop('layer.partfail'));
 }
 
 function getAssetListSuccessCallback(data) {
