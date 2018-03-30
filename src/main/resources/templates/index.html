@@ -5,19 +5,12 @@
     <meta charset="UTF-8">
     <title class="i18n" name='title'></title>
     <meta id="i18n_pagename">
-    <meta name="viewport" content="width=device-width">
     <meta name="keywords" content="" />
     <meta name="description" content=""/>
-    <!-- <link rel="stylesheet" href="css/index.css"> -->
-</head>
-
-
-<head>
-    <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
-    <title></title>
-
-     <link rel="stylesheet" href="/css/common.css" type="text/css"  />
+    <link rel="icon" href="/img/favicon.ico" type="image/x-icon">
+    <title>TRON BlockChain Explorer</title>
+    <link rel="stylesheet" href="/css/common.css" type="text/css"  />
     <link rel="stylesheet" href="/css/login.css"  type="text/css" />
     <link rel="stylesheet" href="/css/witness.css" type="text/css" />
     <link rel="stylesheet" href="/css/count.css" type="text/css" />
@@ -54,28 +47,31 @@
 <body>
 <header class="header clearfix">
     <!--<img class="logo"  alt="" th:src="@{img/logo.png}"/>-->
-    <div class="logo fl">
-        <a href="https://tron.network/" target="_top">
-            <img src="/img/tron_logo.png" alt="LOGO"/>
-        </a>
+    <div class="header-box">
+        <div class="logo fl">
+            <a href="https://tron.network/" target="_top">
+                <img src="/img/tron_logo.png" alt="LOGO"/>
+            </a>
+        </div>
+        <ul class="fl">
+            <li class="header_active j_left" id="message" data-i18n-text="blocks">区块信息</li>
+            <li id="acco" data-i18n-text="accounts">账户列表</li>
+            <li id="a_witness" data-i18n-text="representative">超级代表</li>
+            <li id="money" data-i18n-text="send">转账</li>
+            <li id="nemoney" data-i18n-text="tokens">通证发行</li>
+            <li id="map" data-i18n-text="nodemap">通证发行</li>
+        </ul>
+        <div class="searchInput-box fl">
+            <input name="searchInput" id="searchInput" class="searchInput" value="" placeholder="search" data-i18n-placeholder="search"/>
+            <i id="searchBtn"></i>
+        </div>
+        <div class="btn-list">
+            <button id="create" class="create-account-num" data-i18n-text="register">创建账户/登录</button>
+            <span class="header_login hide" id="header_login" ><i></i><b data-i18n-text="personalCenter">账户管理</b></span>
+            <button id="center" class="sign-out hide" data-i18n-text="signOut">退出</button>
+        </div>
     </div>
-    <ul class="fl">
-        <li class="header_active j_left" id="message" data-i18n-text="blocks">区块信息</li>
-        <li id="acco" data-i18n-text="accounts">账户列表</li>
-        <li id="a_witness" data-i18n-text="representative">超级代表</li>
-        <li id="money" data-i18n-text="send">转账</li>
-        <li id="nemoney" data-i18n-text="tokens">通证发行</li>
-        <li id="map" data-i18n-text="nodemap">通证发行</li>
-    </ul>
-    <div class="searchInput-box fl">
-        <input name="searchInput" id="searchInput" class="searchInput" value="" placeholder="search" data-i18n-placeholder="search"/>
-        <i id="searchBtn"></i>
-    </div>
-    <div class="btn-list">
-        <button id="create" class="create-account-num" data-i18n-text="register">创建账户/登录</button>
-        <span class="header_login hide" id="header_login" ><i></i><b data-i18n-text="personalCenter">账户管理</b></span>
-        <button id="center" class="sign-out hide" data-i18n-text="signOut">退出</button>
-    </div>
+
 
 </header>
 
