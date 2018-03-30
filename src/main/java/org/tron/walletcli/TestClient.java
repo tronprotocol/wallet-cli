@@ -568,141 +568,146 @@ public class TestClient {
   private void run() {
     Scanner in = new Scanner(System.in);
     while (true) {
-      String cmdLine = in.nextLine().trim();
-      String[] cmdArray = cmdLine.split("\\s+");
-      // split on trim() string will always return at the minimum: [""]
-      String cmd = cmdArray[0];
-      if ("".equals(cmd)) {
-        continue;
-      }
-      String[] parameters = Arrays.copyOfRange(cmdArray, 1, cmdArray.length);
-      String cmdLowerCase = cmd.toLowerCase();
+      try {
+        String cmdLine = in.nextLine().trim();
+        String[] cmdArray = cmdLine.split("\\s+");
+        // split on trim() string will always return at the minimum: [""]
+        String cmd = cmdArray[0];
+        if ("".equals(cmd)) {
+          continue;
+        }
+        String[] parameters = Arrays.copyOfRange(cmdArray, 1, cmdArray.length);
+        String cmdLowerCase = cmd.toLowerCase();
 
-      switch (cmdLowerCase) {
-        case "help": {
-          help();
-          break;
-        }
-        case "registerwallet": {
-          registerWallet(parameters);
-          break;
-        }
-        case "importwallet": {
-          importWallet(parameters);
-          break;
-        }
-        case "importwalletbybase64": {
-          importwalletByBase64(parameters);
-          break;
-        }
-        case "changepassword": {
-          changePassword(parameters);
-          break;
-        }
-        case "login": {
-          login(parameters);
-          break;
-        }
-        case "logout": {
-          logout();
-          break;
-        }
-        case "backupwallet": {
-          backupWallet(parameters);
-          break;
-        }
-        case "backupwallet2base64": {
-          backupWallet2Base64(parameters);
-          break;
-        }
-        case "getaddress": {
-          getAddress();
-          break;
-        }
-        case "getbalance": {
-          getBalance();
-          break;
-        }
-        case "getaccount": {
-          getAccount(parameters);
-          break;
-        }
-        case "getassetissuebyaccount": {
-          getAssetIssueByAccount(parameters);
-          break;
-        }
-        case "getassetissuebyname": {
-          getAssetIssueByName(parameters);
-          break;
-        }
-        case "sendcoin": {
-          sendCoin(parameters);
-          break;
-        }
-        case "testtransaction": {
-          testTransaction(parameters);
-          break;
-        }
-        case "transferasset": {
-          transferAsset(parameters);
-          break;
-        }
-        case "participateassetissue": {
-          participateAssetIssue(parameters);
-          break;
-        }
-        case "assetissue": {
-          assetIssue(parameters);
-          break;
-        }
-        case "createwitness": {
-          createWitness(parameters);
-          break;
-        }
-        case "votewitness": {
-          voteWitness(parameters);
-          break;
-        }
-        case "listaccounts": {
-          listAccounts();
-          break;
-        }
-        case "listwitnesses": {
-          listWitnesses();
-          break;
-        }
-        case "listassetissue": {
-          getAssetIssueList();
-          break;
-        }
-        case "listnodes": {
-          listNodes();
-          break;
-        }
-        case "getblock": {
-          GetBlock(parameters);
-          break;
-        }
-        case "testTransaction": {
-          testTransaction(parameters);
-          break;
-        }
-        case "gettotaltransaction": {
-          getTotalTransaction();
-          break;
-        }
-        case "exit":
-        case "quit": {
-          System.out.println("Exit !!!");
-          return;
-        }
-        default: {
-          System.out.println("Invalid cmd: " + cmd);
-          help();
+        switch (cmdLowerCase) {
+          case "help": {
+            help();
+            break;
+          }
+          case "registerwallet": {
+            registerWallet(parameters);
+            break;
+          }
+          case "importwallet": {
+            importWallet(parameters);
+            break;
+          }
+          case "importwalletbybase64": {
+            importwalletByBase64(parameters);
+            break;
+          }
+          case "changepassword": {
+            changePassword(parameters);
+            break;
+          }
+          case "login": {
+            login(parameters);
+            break;
+          }
+          case "logout": {
+            logout();
+            break;
+          }
+          case "backupwallet": {
+            backupWallet(parameters);
+            break;
+          }
+          case "backupwallet2base64": {
+            backupWallet2Base64(parameters);
+            break;
+          }
+          case "getaddress": {
+            getAddress();
+            break;
+          }
+          case "getbalance": {
+            getBalance();
+            break;
+          }
+          case "getaccount": {
+            getAccount(parameters);
+            break;
+          }
+          case "getassetissuebyaccount": {
+            getAssetIssueByAccount(parameters);
+            break;
+          }
+          case "getassetissuebyname": {
+            getAssetIssueByName(parameters);
+            break;
+          }
+          case "sendcoin": {
+            sendCoin(parameters);
+            break;
+          }
+          case "testtransaction": {
+            testTransaction(parameters);
+            break;
+          }
+          case "transferasset": {
+            transferAsset(parameters);
+            break;
+          }
+          case "participateassetissue": {
+            participateAssetIssue(parameters);
+            break;
+          }
+          case "assetissue": {
+            assetIssue(parameters);
+            break;
+          }
+          case "createwitness": {
+            createWitness(parameters);
+            break;
+          }
+          case "votewitness": {
+            voteWitness(parameters);
+            break;
+          }
+          case "listaccounts": {
+            listAccounts();
+            break;
+          }
+          case "listwitnesses": {
+            listWitnesses();
+            break;
+          }
+          case "listassetissue": {
+            getAssetIssueList();
+            break;
+          }
+          case "listnodes": {
+            listNodes();
+            break;
+          }
+          case "getblock": {
+            GetBlock(parameters);
+            break;
+          }
+          case "testTransaction": {
+            testTransaction(parameters);
+            break;
+          }
+          case "gettotaltransaction": {
+            getTotalTransaction();
+            break;
+          }
+          case "exit":
+          case "quit": {
+            System.out.println("Exit !!!");
+            return;
+          }
+          default: {
+            System.out.println("Invalid cmd: " + cmd);
+            help();
 
+          }
         }
+      } catch (Exception e) {
+        logger.error(e.getMessage());
       }
     }
+
   }
 
   public static void main(String[] args) {
