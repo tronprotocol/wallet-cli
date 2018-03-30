@@ -525,7 +525,7 @@ public class TestClient {
   private void getTotalTransaction() {
     try {
       NumberMessage totalTransition = client.getTotalTransaction();
-      logger.info("Total transaction is : " + totalTransition.getNum());
+      logger.info("The num of total transactions is : " + totalTransition.getNum());
 
     } catch (Exception e) {
       logger.info("GetTotalTransaction " + " failed !!");
