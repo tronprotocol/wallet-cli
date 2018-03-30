@@ -56,7 +56,7 @@ function checkFunction() {trxNumCheck
 function submitParticipateAssetIssue() {
     var isChecked = $('#checkParticipate').prop('checked');
     if(!isChecked){
-        layer.alert("请确认参与资产发行");
+        layer.alert($.i18n.prop('layer.confimedtoken'));
         return;
     }
     var name = byteArray2hexStr(stringToBytes($('#assetName').text()));
@@ -78,17 +78,17 @@ function submitParticipateAssetIssueSuccessCallback(data) {
 
 function submitAssetIssueSuccessCallback(data) {
     if(data) {
-        layer.alert("参与成功");
+        layer.alert($i18n.prop('layer.partsuccess'));
         $('#text').css('background','none');
         $('.header span').removeClass('header_active');
         $('#text').load('/html/control.html');
     }else{
-        layer.alert("参与失败");
+        layer.alert($i18n.prop('layer.partfail'));
     }
 }
 
 function submitAssetIssueFailureCallback(data) {
-    layer.alert("参与失败");
+    layer.alert($i18n.prop('layer.partfail'));
 }
 
 function getAssetListSuccessCallback(data) {
@@ -130,7 +130,7 @@ function getAssetListSuccessCallback(data) {
 }
 
 function getAssetListFailureCallback(data) {
-    layer.alert("获取资产列表失败");
+    layer.alert($.i18n.prop('layer.gettokenfail'));
 }
 
 
@@ -155,18 +155,18 @@ function createAssetSuccessCallback(data) {
 
 function signSuccessCallback(data) {
     if(data) {
-        layer.alert("发行资产成功");
+        layer.alert($.i18n.prop('layer.issuesuccess'));
         $('#text').css('background','none');
         $('.header span').removeClass('header_active');
         $('#text').load('/html/control.html');
 
     }else{
-        layer.alert("发行资产失败");
+        layer.alert($.i18n.prop('layer.issuefail'));
     }
 }
 
 function createAssetFailureCallback(data) {
-    layer.alert("发行资产失败");
+    layer.alert($.i18n.prop('layer.issuefail'));
 }
 
 function getAssetIssueListFun(){

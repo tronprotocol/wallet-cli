@@ -11,12 +11,12 @@ $('#com_adress').on('blur', function () {
     com_priKeyBytes = base64DecodeFromString($('#com_adress').val());
     com_addressBytes = getAddressFromPriKey(com_priKeyBytes);
     com_text = byteArray2hexStr(com_addressBytes);
-    //查询用户账户资产
+    //查询用户账户通证
     ajaxRequest("POST", getAccountInfo, {'address': com_text}, GetAccountSuccessCallback, GetAccountFailureCallback)
   }
 });
 
-//查询用户账户资产 数据处理
+//查询用户账户通证 数据处理
 GetAccountSuccessCallback = function (account) {
     //从base64字符串中解码出原文，格式为byteArray格式
     var bytesAccountInfo = base64DecodeFromString(account);
@@ -28,12 +28,12 @@ GetAccountSuccessCallback = function (account) {
     if(getCookie("userLanguage")){
         var nowLanguage = getCookie("userLanguage")
         if(nowLanguage == 'zh-CN'){
-            choseStr = '请选择资产名称'
+            choseStr = '请选择通证名称'
         }else if(nowLanguage == 'en'){
             choseStr = 'choose tokens'
         }
     }else{
-        choseStr = '请选择资产名称'
+        choseStr = '请选择通证名称'
 
     }
 
@@ -139,22 +139,22 @@ TransTrxSuccessCallback = function (data) {
 
 TransBroadSuccessCallback = function (data) {
     if(data){
-        layer.alert("转账成功");
+        layer.alert($.i18n.prop('layer.transfersuccess'));
         //跳转到账户管理
         $('#text').css('background','none');
         $('.header span').removeClass('header_active');
         $('#text').load('/html/control.html');
     }else{
-        layer.alert("转账失败");
+        layer.alert($.i18n.prop('layer.transferfail'));
     }
 
 };
 TransFailureCallback = function (err) {
-  layer.alert("转账失败，生成交易失败");
-  console.log('转账失败，生成交易失败')
+  layer.alert($.i18n.prop('layer.exchangefail'));
+  console.log($.i18n.prop('layer.exchangefail'))
 };
 
 TransBroadFailureCallback = function (err) {
-  layer.alert("转账失败，签名失败");
-  console.log('转账失败，签名失败')
+  layer.alert($.i18n.prop('layer.signfail'));
+  console.log($.i18n.prop('layer.signfail'))
 };

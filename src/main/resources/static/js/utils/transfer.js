@@ -70,17 +70,17 @@ TransSuccessCallback = function (data) {
       TransBroadFailureCallback)
 };
 TransBroadSuccessCallback = function (success) {
-  layer.alert("转账成功");
-  console.log('转账成功')
+  layer.alert($.i18n.prop('layer.transfersuccess'));
+  console.log($.i18n.prop('layer.transfersuccess'))
 
 };
 TransFailureCallback = function (err) {
-  layer.alert("转账失败，生成交易失败");
+  layer.alert($.i18n.prop('layer.exchangefail'));
 
-  console.log('转账失败，生成交易失败')
+  console.log($.i18n.prop('layer.exchangefail'))
 };
 TransBroadFailureCallback = function (err) {
-  layer.alert("转账失败，签名失败");
+  layer.alert($.i18n.prop('layer.signfail'));
 
-  console.log('转账失败，签名失败')
+  console.log($.i18n.prop('layer.signfail'))
 };

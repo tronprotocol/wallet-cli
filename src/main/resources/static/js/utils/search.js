@@ -151,7 +151,7 @@ function searchAssetSuccess(data) {
 }
 
 function searchAssetFailure(data) {
-    layer.alert("获取资产列表失败");
+    layer.alert($.i18n.prop('layer.gettokenfail'));
 }
 
 function searchAsset(assetNameStr) {

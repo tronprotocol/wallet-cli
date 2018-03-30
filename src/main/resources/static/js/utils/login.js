@@ -58,7 +58,7 @@ function copyUrl2 (repeat) {
         selection.removeAllRanges();
         selection.addRange(range);
     } else {
-        layer.alert("none");
+        layer.alert($.i18n.prop('layer.copyfail'));
     }
     document.execCommand('Copy','false',null);
 }
@@ -158,10 +158,10 @@ $('#creatAccount').on('click',function () {
             $('#text').load('/html/message.html');
             window.localStorage.setItem('key',pk)
         }else{
-            layer.alert('请您认真阅读并勾选创建账户须知')
+            layer.alert($.i18n.prop('layer.accountread'))
         }
     }else{
-        layer.alert('请生成账户地址和密码')
+        layer.alert($.i18n.prop('layer.createdaccount'))
     }
 })
 

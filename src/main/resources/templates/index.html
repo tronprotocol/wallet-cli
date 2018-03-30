@@ -64,8 +64,8 @@
         <li id="acco" data-i18n-text="accounts">账户列表</li>
         <li id="a_witness" data-i18n-text="representative">超级代表</li>
         <li id="money" data-i18n-text="send">转账</li>
-        <li id="nemoney" data-i18n-text="tokens">资产发行</li>
-        <li id="map" data-i18n-text="nodemap">资产发行</li>
+        <li id="nemoney" data-i18n-text="tokens">通证发行</li>
+        <li id="map" data-i18n-text="nodemap">通证发行</li>
     </ul>
     <div class="searchInput-box fl">
         <input name="searchInput" id="searchInput" class="searchInput" value="" placeholder="search" data-i18n-placeholder="search"/>
@@ -115,6 +115,10 @@
             $('#text').load('/html/count.html');
         }
     })
+    window.onload = function(){
+        console.log($.i18n.prop('layer'))
+    }
+   
 </script>
 
 </body>
