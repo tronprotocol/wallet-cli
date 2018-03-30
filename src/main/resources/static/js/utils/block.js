@@ -28,7 +28,35 @@ TransSuccessCallback = function (data) {
   var blockData = proto.protocol.Block.deserializeBinary(currentBlock);
   blockNumber = blockData.getBlockHeader().getRawData().getNumber();
   var witnessId = blockData.getBlockHeader().getRawData().getWitnessId();
-  var witnessNum=1;
+  var witnessNum = 0;
+    $.ajax({
+        url:witnessList,
+        type: 'get',
+        dataType: 'json',
+        data:{},
+        success: function (data) {
+            var bytesWitnessList = base64DecodeFromString(data);
+            //调用方法deserializeBinary解析
+            var witness = proto.protocol.WitnessList.deserializeBinary(bytesWitnessList);
+            var witnessList = witness.getWitnessesList()
+            if(witnessList.length >0) {
+                for (var i = 0; i < witnessList.length; i++) {
+                    //账户地址
+                    var Isjobs = witnessList[i].getIsjobs();
+                    console.log(Isjobs)
+                    if(Isjobs){
+                        witnessNum++
+                    }
+                }
+                //活跃超级代表
+                $("#witness_num").text(witnessNum);
+            }
+        },
+        fail: function (data) {
+            console.log('witnessNum false')
+        }
+    })
+
   parenthash = blockData.getBlockHeader().getRawData().getParenthash();
   parenthashHex = byteArray2hexStr(parenthash);
   parenthashHexSix = parenthashHex.substr(0,6) + '...'
@@ -75,15 +103,14 @@ TransSuccessCallback = function (data) {
   }
 
   $("#block_num").text('#'+blockNumber);
-  $("#witness_num").text(witnessNum);
+
   $("#beforeBlock").text(parenthashHexSix);
 
-  var witnessNum = 1;
 
   var txlist = blockData.getTransactionsList();
 
   if (txlist.length > 0) {
-    var txlistFive = txlist.slice(0,12)
+    var txlistFive = txlist.slice(0,6)
     for (var index in txlistFive) {
       var tx = txlist[index];
       contractList = tx.getRawData().getContractList();
@@ -119,7 +146,7 @@ TransSuccessCallback = function (data) {
 
              toHexSix = toHex.substr(0,6) + '...';
 
-             amount = obje.getAmount();
+             amount = obje.getAmount()/1000000;
 
 
             getTx(contractName,ownerHexSix,amount,toHexSix);

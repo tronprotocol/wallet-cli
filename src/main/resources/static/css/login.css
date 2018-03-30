@@ -69,7 +69,7 @@ header span {
     border-radius: 5px;
     margin: 0 auto;
     background-image: linear-gradient(0deg, #ea0000 0%, #c6352c 100%), linear-gradient(#a61c1c, #a61c1c);
-    font-size: 16px;
+    font-size: 14px;
     margin-top: 30px;
     color: #ffffff;
 }
@@ -97,9 +97,10 @@ header span {
 .signUpT-text  input{
     position: absolute;
     right: 10px;
-    top:45px;
+    top: 44px;
     background-image: linear-gradient(0deg, #ea0000 0%, #c6352c 100%), linear-gradient(#a61c1c, #a61c1c);
     color: #ffffff;
+    line-height: 20px;
 }
 .create {
     display: block;
@@ -361,8 +362,8 @@ form input {
 }
 
 .disable_btn {
-    background-image: -moz-linear-gradient(top, #97aec7, #97aec7); /* Firefox */
-    background-image: -webkit-gradient(linear, left top, left bottom, color-stop(0, #97aec7), color-stop(1, #97aec7))
+    background-image: -moz-linear-gradient(top, #97aec7, #97aec7)!important; /* Firefox */
+    background-image: -webkit-gradient(linear, left top, left bottom, color-stop(0, #97aec7), color-stop(1, #97aec7)) !important;
 }
 
 .new_top {

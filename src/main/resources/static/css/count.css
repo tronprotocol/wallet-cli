@@ -52,7 +52,7 @@
     height: 18px;
     background: url("../img/date_time.png") no-repeat;
     position: absolute;
-    left: 175px;
+    left: 105px;
     top: 5px;
     cursor:pointer;
 }
@@ -64,10 +64,16 @@
     display: block;
 }
 .asset-time input {
-    border: none;
-    background-color: #f7f7f7;
-    margin-left: 85px;
+    margin-left: 10px;
     font-size: 20px;
+    width: 240px;
+    height: 36px;
+    background-color: rgba(255, 255, 255, 0.8);
+    border-radius: 5px;
+    border: solid 1px rgba(49, 49, 49, 0.3);
+    margin-top: -5px;
+    padding-left: 40px;
+
 }
 .create_account {
     width: 280px;
