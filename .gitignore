@@ -3,6 +3,7 @@ build
 out
 .idea
 .gradle
+wallet-cli.iml
 node_modules
 src/main/genjs/api
 src/main/genjs/core
