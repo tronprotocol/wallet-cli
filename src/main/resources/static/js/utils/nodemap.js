@@ -106,16 +106,15 @@ function updateNodes() {
 					
 				}
 			}
-			console.log('end',cityObj);
+
 			cityArr.sort(compare("count"));
-			console.log('end3333',cityArr);
 //			for(var i in cityObj){
 //				flag++;
 //				$('.map_left_list').append('<li class="map_list_li"><span class="map_list_li_item map_nav_left"><i>'+flag+'</i></span><span class="map_list_li_item map_nav_middle">'+i+'</span><span class="map_list_li_item map_nav_right">'+cityObj[i]+'</span></li>');
 //				totalNum += cityObj[i];
 //			}
 			for(var i in cityArr){
-				$('.map_left_list').append('<li class="map_list_li"><span class="map_list_li_item map_nav_left"><i>'+i+'</i></span><span class="map_list_li_item map_nav_middle">'+cityArr[i].name+'</span><span class="map_list_li_item map_nav_right">'+cityArr[i].count+'</span></li>');
+				$('.map_left_list').append('<li class="map_list_li"><span class="map_list_li_item map_nav_left"><i>'+(Number(i)+1)+'</i></span><span class="map_list_li_item map_nav_middle">'+cityArr[i].name+'</span><span class="map_list_li_item map_nav_right">'+cityArr[i].count+'</span></li>');
 				totalNum += cityArr[i].count;
 			}
 			$('.map_left_title').find('span').html(totalNum);

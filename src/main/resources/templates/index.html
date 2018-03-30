@@ -69,7 +69,7 @@
     </ul>
     <div class="searchInput-box fl">
         <input name="searchInput" id="searchInput" class="searchInput" value="" placeholder="search" data-i18n-placeholder="search"/>
-        <i></i>
+        <i id="searchBtn"></i>
     </div>
     <div class="btn-list">
         <button id="create" class="create-account-num" data-i18n-text="register">创建账户/登录</button>
@@ -79,10 +79,6 @@
 
 </header>
 
-<!--<span>-->
-
-    <!--<button id="searchBtn">搜索</button>-->
-<!--</span>-->
 <!--内容start-->
 <article class="text-box" id="text"></article>
 <footer>
@@ -96,6 +92,12 @@
 
 <script type="text/javascript">
     $('#text').load('/html/message.html');
+    $(document).keypress(function(e) {
+        // 回车键事件
+        if(e.which == 13) {
+            $("#searchBtn").click();
+        }
+    });
     $('#searchBtn').on('click',function () {
       //  window.localStorage.setItem('address',$('#searchInput').val());
         if(getStringType($('#searchInput').val()) == 1) {
