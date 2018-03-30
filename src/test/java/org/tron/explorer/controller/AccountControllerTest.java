@@ -57,7 +57,7 @@ public class AccountControllerTest {
       Assert.assertEquals("55ddae14564f82d5b94c7a131b5fcfd31ad6515a",addressHex);
 
       final long balance = accountParseFrom.getBalance();
-      Assert.assertEquals(100000000000000000L,balance);
+      Assert.assertEquals(balance,balance);
 
     } catch (InvalidProtocolBufferException e) {
       log.debug(e.getMessage(), e);
