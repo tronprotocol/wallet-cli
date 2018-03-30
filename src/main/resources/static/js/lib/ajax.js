@@ -1,16 +1,20 @@
-var ajaxGet = function (targetUrl, requestData, successCallback, failureCallback) {
-    $.get(targetUrl, requestData, function (msg) {
-        successCallback(msg);
-    }).error(function (msg) {
-        failureCallback(msg);
-    });
-};
-
-var ajaxPost = function (targetUrl, requestData, successCallback, failureCallback) {
-    $.post(targetUrl, requestData, function (msg) {
-        successCallback(msg);
-    }).error(function (msg) {
-        failureCallback(msg);
+/** @brief  封装ajax请求 create by zsj 2018-03-19
+ *  @param  targetUrl     请求接口
+ *  @param  requestData        请求接口传参
+ *  @param  successCallback     回调方法
+ *  @param  failureCallback     失败方法
+ */
+ajaxRequest = function (typeIn, targetUrl, requestData, successCallback, failureCallback) {
+    $.ajax({
+        type: typeIn,
+        url: targetUrl,
+        data: requestData,
+        success: function (msg) {
+            successCallback(msg);
+        },
+        error: function (msg) {
+            failureCallback(msg);
+        }
     });
 };
 

@@ -72,7 +72,7 @@ function QueryAccountFail(data) {
  */
 
 function getAccountList( ) {
-    ajaxGet(accountList, {}, QueryAccountSuccess, QueryAccountFail);
+    ajaxRequest( "get",accountList,{},QueryAccountSuccess,QueryAccountFail)
 }
 
 
