@@ -16,6 +16,7 @@ package org.tron.explorer.controller;
 
 import com.google.protobuf.InvalidProtocolBufferException;
 import lombok.extern.slf4j.Slf4j;
+import org.junit.Ignore;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -30,6 +31,7 @@ import org.junit.Test;
 @SpringBootTest(classes=GrpcClientApplication.class)
 @WebAppConfiguration
 @Slf4j
+@Ignore
 public class VoteWitnessControllerTest {
 
   @Autowired

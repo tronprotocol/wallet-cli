@@ -14,10 +14,10 @@
  */
 package org.tron.explorer.controller;
 
-import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.util.List;
 import lombok.extern.slf4j.Slf4j;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,6 +34,7 @@ import org.tron.protos.Protocol.Transaction;
 @SpringBootTest(classes=GrpcClientApplication.class)
 @WebAppConfiguration
 @Slf4j
+@Ignore
 public class BlockControllerTest {
 
   @Autowired
