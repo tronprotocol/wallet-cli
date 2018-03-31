@@ -93,7 +93,11 @@ function submitAssetIssueSuccessCallback(data) {
 function submitAssetIssueFailureCallback(data) {
     layer.alert($.i18n.prop('layer.partfail'));
 }
-
+function getUrlParam(name){
+    name = name.replace(/[\[]/, "\\[").replace(/[\]]/, "\\]");
+    var  regex = new RegExp("[\\?&]" + name + "=([^&#]*)"), results = regex.exec(location.search);
+    return results == null  ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '))
+}
 function getAssetListSuccessCallback(data) {
     var curTime = new Date().getTime();
     var content = "";
@@ -108,8 +112,8 @@ function getAssetListSuccessCallback(data) {
         var formattedStartTime = formateDate(startTime);
         var formattedEndTime = formateDate(endTime);
         var partStr = '';
-        if(getCookie("userLanguage")){
-            nowLanguage = getCookie("userLanguage")
+        if(getUrlParam('language')){
+            var nowLanguage = getUrlParam('language')
             if(nowLanguage == 'zh-CN'){
                 var partStr = '参与'
                 var timeClose= '已关闭'
@@ -118,9 +122,22 @@ function getAssetListSuccessCallback(data) {
                 var timeClose= 'Closed'
             }
         }else{
-            var partStr = '参与'
-            var timeClose= '已关闭'
+            if(getCookie("userLanguage")){
+                var nowLanguage = getCookie("userLanguage")
+                if(nowLanguage == 'zh-CN'){
+                    var partStr = '参与'
+                    var timeClose= '已关闭'
+                }else if(nowLanguage == 'en'){
+                    var partStr = 'Participate'
+                    var timeClose= 'Closed'
+                }
+            }else{
+                var partStr = '参与'
+                var timeClose= '已关闭'
+            }
         }
+
+
 
         if(!(startTime < curTime && curTime< endTime)){
             content += "<tr><td>" + name + "</td><td>" + ownerAddress + "</td><td>" + totalSupply + "</td> <td class='stop'>1</td><td><input type='button' class='add_account time_end' value='"+timeClose+"'/></td></tr>";

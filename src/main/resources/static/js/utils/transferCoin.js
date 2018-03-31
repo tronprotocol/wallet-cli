@@ -16,6 +16,11 @@ $('#com_adress').on('blur', function () {
   }
 });
 
+function getUrlParam(name){
+    name = name.replace(/[\[]/, "\\[").replace(/[\]]/, "\\]");
+    var  regex = new RegExp("[\\?&]" + name + "=([^&#]*)"), results = regex.exec(location.search);
+    return results == null  ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '))
+}
 //查询用户账户通证 数据处理
 GetAccountSuccessCallback = function (account) {
     //从base64字符串中解码出原文，格式为byteArray格式
@@ -25,17 +30,27 @@ GetAccountSuccessCallback = function (account) {
     var Map = accountInfo.getAssetMap().toArray();
     var Balance = accountInfo.getBalance();
     var str,choseStr;
-    if(getCookie("userLanguage")){
-        var nowLanguage = getCookie("userLanguage")
+    if (getUrlParam('language')) {
+        var nowLanguage = getUrlParam('language')
         if(nowLanguage == 'zh-CN'){
             choseStr = '请选择通证名称'
         }else if(nowLanguage == 'en'){
             choseStr = 'choose tokens'
         }
     }else{
-        choseStr = '请选择通证名称'
+        if(getCookie("userLanguage")){
+            var nowLanguage = getCookie("userLanguage")
+            if(nowLanguage == 'zh-CN'){
+                choseStr = '请选择通证名称'
+            }else if(nowLanguage == 'en'){
+                choseStr = 'choose tokens'
+            }
+        }else{
+            choseStr = '请选择通证名称'
 
+        }
     }
+
 
     $('#coinSelect').html('')
     if (Balance > 0) {
