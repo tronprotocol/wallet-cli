@@ -27,3 +27,34 @@ var getAssetByNameView = baseUrl + 'getAssetIssueByName'; //根据资产名字�
 
 var nodeMapDots = baseUrl + 'nodeList'; //节点地图里的位置
 
+var interfaces = (function () {
+    var baseUrl = 'http://47.95.14.107:8088/';
+    //var baseUrl = 'http://192.168.10.195:8088/';
+    //var baseUrl = 'http://192.168.10.55:8088/';
+    //var baseUrl = 'http://localhost:8088/';
+
+    var urls = {
+        transTrx: 'sendCoinToView', //转账接口
+        transOther: 'TransferAssetToView', //资产转让
+        anintran: 'transactionFromView', // 签名接口
+        getAccountInfo: 'queryAccount', //查询账户详情
+        accountList: 'accountList', //查询账户列表
+        witnessList: 'witnessList', //查询出块人列表
+        getBlockToView: 'getBlockToView', //current block
+        getBlockByNumToView: 'getBlockByNumToView', //recent block
+        createAssetView: 'createAssetIssueToView', //发行资产
+        signView: 'transactionFromView', //签名接口
+        assetIssueListView: 'getAssetIssueList', //资产列表
+        createWitness: 'createWitnessToView', //申请成为出块人
+        participateAssetView: 'ParticipateAssetIssueToView', //参与资产发行接口
+        voteWitnessView: 'createVoteWitnessToView', //投票接口
+        getAssetByNameView: 'getAssetIssueByName', //根据资产名字获取资产信息
+        nodeMapDots: 'nodeList' //节点地图里的位置
+    };
+
+    return {
+        get: function (name) {
+            return baseUrl + urls[name];
+        }
+    }
+})();
