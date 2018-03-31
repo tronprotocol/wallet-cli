@@ -18,6 +18,22 @@ ajaxRequest = function (typeIn, targetUrl, requestData, successCallback, failure
     });
 };
 
+var ajaxGet = function (targetUrl, requestData, successCallback, failureCallback) {
+    $.get(targetUrl, requestData, function (msg) {
+        successCallback(msg);
+    }).error(function (msg) {
+        failureCallback(msg);
+    });
+};
+
+var ajaxPost = function (targetUrl, requestData, successCallback, failureCallback) {
+    $.post(targetUrl, requestData, function (msg) {
+        successCallback(msg);
+    }).error(function (msg) {
+        failureCallback(msg);
+    });
+};
+
 /**
  * subStrData   处理时间
  * @param str   传入的时间字段 string
