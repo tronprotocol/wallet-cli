@@ -223,9 +223,8 @@ $(function(){
     $("#language").on('change', function() {
         var language = $(this).children('option:selected').val()
         console.log(language);
-        getCookie("userLanguage",language,{
-            expires: 30
-        });
-        location.reload();
+        getCookie("userLanguage",language);
+        window.location.href='https://tronscan.io/'
+        // location.reload();
     });
 });
