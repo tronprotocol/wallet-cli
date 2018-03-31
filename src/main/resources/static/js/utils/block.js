@@ -75,19 +75,19 @@ TransSuccessCallback = function (data) {
   // time
   var time =10;
   var str="";
-    if (getUrlParam('language')) {
-        var nowLanguage = getUrlParam('language')
-        var nowLanguage = getCookie("userLanguage")
-        if(nowLanguage == 'zh-CN'){
-            sendTrx = '将';
-            toTrx = '转帐给';
-            contractName = '转帐';
-        }else if(nowLanguage == 'en'){
-            sendTrx = 'send';
-            toTrx = 'to';
-            contractName = 'send';
-        }
-    }else{
+    // if (getUrlParam('language')) {
+    //     var nowLanguage = getUrlParam('language')
+    //     var nowLanguage = getCookie("userLanguage")
+    //     if(nowLanguage == 'zh-CN'){
+    //         sendTrx = '将';
+    //         toTrx = '转帐给';
+    //         contractName = '转帐';
+    //     }else if(nowLanguage == 'en'){
+    //         sendTrx = 'send';
+    //         toTrx = 'to';
+    //         contractName = 'send';
+    //     }
+    // }else{
         if(getCookie("userLanguage")){
             var nowLanguage = getCookie("userLanguage")
             if(nowLanguage == 'zh-CN'){
@@ -104,7 +104,7 @@ TransSuccessCallback = function (data) {
             toTrx = '转帐给';
             contractName = '转帐';
         }
-    }
+    //}
 
   function getTx(contractName,ownerHex,amount,toHex) {
     str += '<li><span class="trans-line fl"></span>'
@@ -233,24 +233,24 @@ TransSuccessByNumToViewCallback = function (data) {
   var contraxtType=proto.protocol.Transaction.Contract.ContractType;
   //var big = 255;
   var timeStr,secTime,minTime,blockStr,represStr,transStr;
-    if (getUrlParam('language')) {
-        var nowLanguage = getUrlParam("language")
-        if(nowLanguage == 'zh-CN'){
-            secTime = '秒前';
-            minTime = '分前';
-            blockStr = '区块  #';
-            represStr = '超级代表: ';
-            transStr = '交易数：';
-            transSize = '大小：';
-        }else if(nowLanguage == 'en'){
-            secTime = 'seconds ago';
-            minTime = 'minutes ago';
-            blockStr = 'block  #';
-            represStr = 'Mined by: ';
-            transStr = 'Transactions：';
-            transSize = 'Size：';
-        }
-    }else{
+    // if (getUrlParam('language')) {
+    //     var nowLanguage = getUrlParam("language")
+    //     if(nowLanguage == 'zh-CN'){
+    //         secTime = '秒前';
+    //         minTime = '分前';
+    //         blockStr = '区块  #';
+    //         represStr = '超级代表: ';
+    //         transStr = '交易数：';
+    //         transSize = '大小：';
+    //     }else if(nowLanguage == 'en'){
+    //         secTime = 'seconds ago';
+    //         minTime = 'minutes ago';
+    //         blockStr = 'block  #';
+    //         represStr = 'Mined by: ';
+    //         transStr = 'Transactions：';
+    //         transSize = 'Size：';
+    //     }
+    // }else{
         if(getCookie("userLanguage")){
             var nowLanguage = getCookie("userLanguage")
             if(nowLanguage == 'zh-CN'){
@@ -275,9 +275,8 @@ TransSuccessByNumToViewCallback = function (data) {
             represStr = '超级代表: ';
             transStr = '交易数：';
             transSize = '大小：';
-
         }
-    }
+   // }
 
 
 

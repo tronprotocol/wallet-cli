@@ -112,16 +112,16 @@ function getAssetListSuccessCallback(data) {
         var formattedStartTime = formateDate(startTime);
         var formattedEndTime = formateDate(endTime);
         var partStr = '';
-        if(getUrlParam('language')){
-            var nowLanguage = getUrlParam('language')
-            if(nowLanguage == 'zh-CN'){
-                var partStr = '参与'
-                var timeClose= '已关闭'
-            }else if(nowLanguage == 'en'){
-                var partStr = 'Participate'
-                var timeClose= 'Closed'
-            }
-        }else{
+        // if(getUrlParam('language')){
+        //     var nowLanguage = getUrlParam('language')
+        //     if(nowLanguage == 'zh-CN'){
+        //         var partStr = '参与'
+        //         var timeClose= '已关闭'
+        //     }else if(nowLanguage == 'en'){
+        //         var partStr = 'Participate'
+        //         var timeClose= 'Closed'
+        //     }
+        // }else{
             if(getCookie("userLanguage")){
                 var nowLanguage = getCookie("userLanguage")
                 if(nowLanguage == 'zh-CN'){
@@ -135,7 +135,7 @@ function getAssetListSuccessCallback(data) {
                 var partStr = '参与'
                 var timeClose= '已关闭'
             }
-        }
+       // }
 
 
 
@@ -165,10 +165,10 @@ $(".assetComtrx-checkbox").on("click", function () {
 })
 $("#creatAssetBtn").off('click').on('click',function() {
     if(!$(".assetComtrx-checkbox").is(":checked")){
-        layer.alert('请勾选，同意花费1000TRX来创建通证')
+        layer.alert($.i18n.prop('layer.asset'));
         return;
     }else if(!$('.creat_asset_main input[type="text"]').val() != ''){
-        layer.alert('请填写发行资产信息')
+        layer.alert($.i18n.prop('layer.assetenter'))
         return;
     }
     var address = getHexStrAddressFromPriKeyBase64String($("#privateKey").val());

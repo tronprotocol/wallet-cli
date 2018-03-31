@@ -30,14 +30,14 @@ GetAccountSuccessCallback = function (account) {
     var Map = accountInfo.getAssetMap().toArray();
     var Balance = accountInfo.getBalance();
     var str,choseStr;
-    if (getUrlParam('language')) {
-        var nowLanguage = getUrlParam('language')
-        if(nowLanguage == 'zh-CN'){
-            choseStr = '请选择通证名称'
-        }else if(nowLanguage == 'en'){
-            choseStr = 'choose tokens'
-        }
-    }else{
+    // if (getUrlParam('language')) {
+    //     var nowLanguage = getUrlParam('language')
+    //     if(nowLanguage == 'zh-CN'){
+    //         choseStr = '请选择通证名称'
+    //     }else if(nowLanguage == 'en'){
+    //         choseStr = 'choose tokens'
+    //     }
+   // }else{
         if(getCookie("userLanguage")){
             var nowLanguage = getCookie("userLanguage")
             if(nowLanguage == 'zh-CN'){
@@ -49,7 +49,7 @@ GetAccountSuccessCallback = function (account) {
             choseStr = '请选择通证名称'
 
         }
-    }
+   // }
 
 
     $('#coinSelect').html('')

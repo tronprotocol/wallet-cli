@@ -112,7 +112,9 @@ var execI18n = function() {
     首先获取用户浏览器设备之前选择过的语言类型
      */
     if (getUrlParam('language')) {
-        i18nLanguage = getUrlParam('language')
+        // 存到缓存中
+        getCookie("userLanguage", getUrlParam('language'));
+        i18nLanguage = getUrlParam('language');
     } else {
         if (getCookie("userLanguage")) {
             i18nLanguage = getCookie("userLanguage");
