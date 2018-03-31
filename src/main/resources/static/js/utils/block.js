@@ -213,9 +213,9 @@ TransFailureCallback = function (err) {
 // query current block
 ajaxRequest( "GET",getBlockToView,{},TransSuccessCallback,TransFailureCallback);
 
-setInterval(function () {
-    ajaxRequest( "GET",getBlockToView,{},TransSuccessCallback,TransFailureCallback);
-},100000)
+// setInterval(function () {
+//     ajaxRequest( "GET",getBlockToView,{},TransSuccessCallback,TransFailureCallback);
+// },100000)
 
 //query recent block
 
