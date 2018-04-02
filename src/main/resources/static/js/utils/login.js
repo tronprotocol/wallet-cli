@@ -154,13 +154,7 @@ $('.warn_list input[type="checkbox"]').on('click',function (i) {
 $('#creatAccount').on('click',function () {
     if($("#contents").text()&&$("#pwd").text()){
         if($('.warn-info1').is(":checked")&&$('.warn-info2').is(":checked")&&$('.warn-info3').is(":checked")){
-            $('#create').css('display','none')
-            $('#header_login').css('display','inline-block');
-            $('#center').css('display','inline-block');
-            $('body').css('background','#fafbfc');
-            $(this).addClass('header_active').siblings().removeClass('header_active');
-            $('#text').load('/html/message.html');
-            window.localStorage.setItem('key',pk)
+           $('.login-prompt-box').css('display','block')
         }else{
             layer.alert($.i18n.prop('layer.accountread'))
         }
@@ -169,8 +163,18 @@ $('#creatAccount').on('click',function () {
     }
 })
 
+$('.prompt-know').on('click',function () {
+    //国际化
+    $('#create').css('display','none')
+    $('#header_login').css('display','inline-block');
+    $('#center').css('display','inline-block');
+    $('body').css('background','#fafbfc');
+    $(this).addClass('header_active').siblings().removeClass('header_active');
+    $('#text').load('/html/message.html');
+    window.localStorage.setItem('key',pk)
+})
 
-//国际化
+
 
 
 
