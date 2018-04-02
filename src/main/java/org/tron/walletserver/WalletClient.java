@@ -20,6 +20,7 @@ import org.tron.common.utils.FileUtil;
 import org.tron.common.utils.TransactionUtils;
 import org.tron.common.utils.Utils;
 import org.tron.core.config.Configuration;
+import org.tron.core.config.Parameter.CommonConstant;
 import org.tron.protos.Contract;
 import org.tron.protos.Contract.AssetIssueContract;
 import org.tron.protos.Protocol.Account;
@@ -47,7 +48,7 @@ public class WalletClient {
   public static GrpcClient init() {
     Config config = Configuration.getByPath("config.conf");
     dbPath = config.getString("CityDb.DbPath");
-    txtPath = System.getProperty("user.dir")+'/' +config.getString("CityDb.TxtPath");
+    txtPath = System.getProperty("user.dir") + '/' + config.getString("CityDb.TxtPath");
 
     List<String> fullnodelist = config.getStringList("fullnode.ip.list");
     return new GrpcClient(fullnodelist.get(0));
@@ -501,8 +502,14 @@ public class WalletClient {
       logger.warn("Warning: Address is empty !!");
       return false;
     }
-    if (address.length() != 40) {
-      logger.warn("Warning: Address length need 64 but " + address.length() + " !!");
+    if (address.length() != CommonConstant.ADDRESS_SIZE) {
+      logger.warn("Warning: Address length need "+ CommonConstant.ADDRESS_SIZE + " but " + address.length() + " !!");
+      return false;
+    }
+    String preFixString = address.substring(0, 2);
+    if (!preFixString.equalsIgnoreCase(CommonConstant.ADD_PRE_FIX_STRING)) {
+      logger.warn("Warning: Address need prefix with " + CommonConstant.ADD_PRE_FIX_STRING + " but "
+          + preFixString + " !!");
       return false;
     }
     //Other rule;
@@ -546,7 +553,7 @@ public class WalletClient {
     return rpcCli.getAssetIssueByName(assetName);
   }
 
-  public static GrpcAPI.NumberMessage getTotalTransaction(){
+  public static GrpcAPI.NumberMessage getTotalTransaction() {
     return rpcCli.getTotalTransaction();
   }
 }

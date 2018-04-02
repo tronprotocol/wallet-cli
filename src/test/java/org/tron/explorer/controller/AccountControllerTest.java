@@ -27,6 +27,7 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import org.springframework.test.context.web.WebAppConfiguration;
 import org.tron.api.GrpcAPI.AccountList;
 import org.tron.common.utils.ByteArray;
+import org.tron.core.config.Parameter.CommonConstant;
 import org.tron.explorer.GrpcClientApplication;
 import org.tron.protos.Protocol.Account;
 
@@ -43,7 +44,7 @@ public class AccountControllerTest {
 
   @Test
   public void testQueryAccount() {
-    String address = "55ddae14564f82d5b94c7a131b5fcfd31ad6515a";
+    String address = CommonConstant.ADD_PRE_FIX_STRING +"55ddae14564f82d5b94c7a131b5fcfd31ad6515a";
     final byte[] account = accountController.queryAccount(address);
 
     try {
@@ -54,7 +55,7 @@ public class AccountControllerTest {
 
       final byte[] addressBytes = accountParseFrom.getAddress().toByteArray();
       final String addressHex = ByteArray.toHexString(addressBytes);
-      Assert.assertEquals("55ddae14564f82d5b94c7a131b5fcfd31ad6515a",addressHex);
+      Assert.assertEquals(CommonConstant.ADD_PRE_FIX_STRING +"55ddae14564f82d5b94c7a131b5fcfd31ad6515a",addressHex);
 
       final long balance = accountParseFrom.getBalance();
       Assert.assertEquals(balance,balance);

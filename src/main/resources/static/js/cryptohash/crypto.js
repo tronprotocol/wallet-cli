@@ -1,3 +1,5 @@
+var add_pre_fix = 'a0';   //a0 + address  ,a0 is version
+
 /**
  * Sign A Transaction by priKey.
  * signature is 65 bytes, r[32] || s[32] || id[1](<27)
@@ -49,6 +51,7 @@ function computeAddress(pubBytes) {
   }
   var hash = CryptoJS.SHA3(pubBytes).toString();
   var addressHex = hash.substring(24);
+  addressHex = add_pre_fix + addressHex;
   var addressBytes = hexStr2byteArray(addressHex);
   return addressBytes;
 }
@@ -59,14 +62,16 @@ function getAddressFromPriKey(priKeyBytes) {
   var addressBytes = computeAddress(pubBytes);
   return addressBytes;
 }
+
 //return address by String, priKeyBytes is base64String
 function getHexStrAddressFromPriKeyBase64String(priKeyBase64String) {
-    var priKeyBytes = base64DecodeFromString(priKeyBase64String);
-    var pubBytes = getPubKeyFromPriKey(priKeyBytes);
-    var addressBytes = computeAddress(pubBytes);
-    var addressHex = byteArray2hexStr(addressBytes);
-    return addressHex;
+  var priKeyBytes = base64DecodeFromString(priKeyBase64String);
+  var pubBytes = getPubKeyFromPriKey(priKeyBytes);
+  var addressBytes = computeAddress(pubBytes);
+  var addressHex = byteArray2hexStr(addressBytes);
+  return addressHex;
 }
+
 //return address by String, priKeyBytes is base64String
 function getAddressFromPriKeyBase64String(priKeyBase64String) {
   var priKeyBytes = base64DecodeFromString(priKeyBase64String);
