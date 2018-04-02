@@ -82,9 +82,9 @@ voteSubmitSuccessCallback = function (data) {
 }
 
 voteSuccessCallback = function (data) {
-    layer.alert("投票成功");
+    layer.alert($.i18n.prop('layer.votesuccess'));
 }
 
 voteFailureCallback = function (data) {
-    layer.alert("投票失败");
+    layer.alert($.i18n.prop('layer.votefail'));
 }

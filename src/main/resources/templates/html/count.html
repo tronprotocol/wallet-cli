@@ -1,20 +1,11 @@
-
-
+<script src="/js/utils/asset.js" type="text/javascript"></script>
 <section class="accountQuery account_list">
-    <h4 data-i18n-text="Tokens">资产列表</h4>
-    <form action="" method="post" class="myform">
-        <div class="search">
-            <!--<input type="text" value=""  placeholder="搜索账户" id="search" name="search">-->
-            <!--<input type="button" id="creat_asset" class="liner_granet" value="我发行的资产">-->
-            <!--<input type="button" id="my_asset" class="liner_granet" value="我的资产">-->
-        </div>
-    </form>
-
+    <h4 data-i18n-text="Tokens">通证列表</h4>
     <div class="main">
-        <table cellpadding="0" cellspacing="0" >
+        <table cellpadding="0" cellspacing="0">
             <thead>
             <tr>
-                <th data-i18n-text="TokenName">资产名称</th>
+                <th data-i18n-text="TokenName">通证名称</th>
                 <th data-i18n-text="issuer">发行人</th>
                 <th data-i18n-text="totalSupply">总供应量</th>
                 <th data-i18n-text="BeginningEndingTime">起止时间</th>
@@ -26,141 +17,166 @@
     </div>
 </section>
 
-<section class="accountQuery myaccount">
-    <h4>我的资产</h4>
-    <div class="main table">
-        <table cellpadding="0" cellspacing="0" id="myac_table">
-            <thead>
-            <tr >
-                <th >资产名称</th>
-                <th >资产供应总量</th>
-                <th >资产单价</th>
-                <th >描述</th>
-                <th>起止时间</th>
-                <th></th>
-            </tr>
-            </thead>
-            <tbody id="" class="tbody">
-            <tr >
-                <td>1</td>
-                <td><span>资产供应总量</span></td>
-                <td>1</td>
-                <td>1</td>
-                <td>1</td>
-            </tr>
-            <tr class="account_tab">
-                <td>1</td>
-                <td><span>资产供应总量</span></td>
-                <td>1</td>
-                <td>1</td>
-                <td>1</td>
-            </tr>
+<section class="creat_asset">
+    <div class="creat_asset_main">
+        <input type="button" class="all_count liner_granet" data-i18n-value="allAssets" value="全部通证列表">
+        <form id="createAssetForm" action="#">
+            <div class="asset-info clearfix">
+                <div class="fl">
+                    <p data-i18n-text="tokenName">通证名称</p>
+                    <input type="text" id="name" name="name" class="asset-lang-input"/>
+                </div>
+                <div class="lang-input-r fl">
+                    <p data-i18n-text="totalSupply">通证供应总量</p>
+                    <input type="text" id="totalSupply" name="totalSupply" class="asset-lang-input" value="100000"/>
+                </div>
+            </div>
+            <div class="asset-info clearfix">
+                <div class="fl">
+                    <p data-i18n-text="quoteTokenAmount">本通证数量</p>
+                    <input type="text" class="account_num asset-lang-input" id="assetNum" name="num"/>
+                </div>
+                <div class="lang-input-r fl">
+                    <p>
+                        <p data-i18n-text="baseTokenAmount" style="display: inline-block">TRX数量</p>
+                        <span class="asset-price"><span data-i18n-text="price">单价： </span><b
+                            id="priceByTrx">0</b>/TRX</span></p>
+                    <input type="text" class="account_num asset-lang-input" id="trxNum" name="trxNum"
+                           onblur="calPriceByTrx()"/>
+                </div>
+            </div>
+            <div class="asset-info clearfix">
+                <div class="asset-time fl">
+                    <span class="start_time fl" data-i18n-text="beginningTime">起始时间:</span>
+                    <div class="asset-time-input-box">
+                        <input class="fl" type="text" class="layui-input" id="startTimeFormat" name="startTimeFormat"/>
+                        <i id="asset_beginningTime"></i>
+                    </div>
 
-            </tbody>
-        </table>
-    </div>
-</section>
-
- <section class="creat_account accountQuery">
-     <div class="main ">
-
-         <input type="button" class="all_count liner_granet" data-i18n-value="allAssets" value="全部资产列表">
-         <form id="createAssetForm" action="#">
-         <p data-i18n-text="myPassword">我的密码</p>
-         <input type="text" id="privateKey" name="privateKey"/>
-         <p data-i18n-text="tokenName">资产名称</p>
-         <input type="text" id="name" name="name"/>
-         <p data-i18n-text="totalSupply">资产供应总量</p>
-         <input type="text" id="totalSupply" name="totalSupply"/>
-         <div class="account_inline">
-             <div>
-                 <span data-i18n-text="quoteTokenAmount">本资产数量</span><br/>
-                 <input type="text" class="account_num" id="assetNum" name="num"/>
+                </div>
+                <div class="asset-time fl asset-time-r">
+                    <span class="end_time fl" data-i18n-text="endingTime">结束时间: </span>
+                    <div class="asset-time-input-box">
+                        <input class="fl" type="text" class="layui-input" id="endTimeFormat" name="endTimeFormat"/>
+                        <i id="asset_endingTime"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="asset-info clearfix">
+                <div class="fl">
+                    <p data-i18n-text="description">通证描述</p>
+                    <input type="text" id="description" name="description" class="asset-lang-input" data-i18n-value="descriptionValue"/>
+                </div>
+                <div class="lang-input-r fl">
+                    <p data-i18n-text="descriptionUrl">通证描述URL</p>
+                    <input type="text" id="url" name="url" class="asset-lang-input" />
+                </div>
             </div>
 
-             <div>
-                 <span data-i18n-text="baseTokenAmount">TRX数量</span> <br/>
-                 <input type="text" class="account_num" id="trxNum" name="trxNum" onblur="calPriceByTrx()"/>
-             </div>
+            <div class="asset-info">
+                <p data-i18n-text="myPassword">我的密码</p>
+                <input type="text" id="privateKey" name="privateKey" class="asset-lang-input"/>
+            </div>
+            <input type="checkbox" class="assetComtrx-checkbox"> <span data-i18n-text="assetComtrx" class="assetComtrx">我同意花费1024TRX来创建通证</span>
+            <input type="button" class="create_account disable_btn" id="creatAssetBtn" value="创建资产" data-i18n-value="createToken"/>
+        </form>
+    </div>
 
-         </div>
-         <p data-i18n-text="price">单价：<i id="priceByTrx" >0</i>/TRX</p>
-         <p>
-             <span class="start_time" data-i18n-text="beginningTime">起始时间:<input type="text" class="layui-input" id="startTimeFormat" name="startTimeFormat"/>
+</section>
 
-             </span>
-             <span class="end_time" data-i18n-text="endingTime">结束时间: <input type="text" class="layui-input" id="endTimeFormat" name="endTimeFormat"/></span>
-         </p>
-         <p data-i18n-text="description">资产描述</p>
-         <input type="text" id="description" name="description"/>
-         <p data-i18n-text="descriptionUrl">资产描述URL</p>
-         <input type="text" id="url" name="url"/>
-         <input type="button" class="liner_granet create_account" id="creatAssetBtn" value="创建资产" data-i18n-value="createToken"/>
-         </form>
-     </div>
+<scetion class="add-count" id="addcount">
+    <h4 data-i18n-text="issuedToken">参与通证发行</h4>
+    <hr/>
+    <div class="clearfix count-top">
+        <p data-i18n-text="issTokenName">通证名称</p>
+        <p id="assetName">></p>
+    </div>
+    <div class="clearfix">
+        <p data-i18n-text="issIssuer">通证发行人</p>
+        <p id="ownAddress">></p>
+    </div>
+    <div class="clearfix">
+        <p data-i18n-text="issTotalSupply">通证总供应量</p>
+        <p id="assetTotalSupply">></p>
+    </div>
+    <div class="clearfix">
+        <p data-i18n-text="issPrice">通证单价</p>
+        <p id="price">></p>
+    </div>
+    <div class="clearfix">
+        <p data-i18n-text="issTime">起止时间</p>
+        <p id="lastTime">></p>
+    </div>
+    <div class="clearfix">
+        <p data-i18n-text="issDescription">描述信息</p>
+        <p id="desc"></p>
+    </div>
+    <div class="clearfix">
+        <p data-i18n-text="issAmount">参与数量</p>
+        <p>
+            <input type="text" id="amount" name="amount" onblur="checkFunction()"/>
+        </p>
+    </div>
+    <div class="clearfix">
+        <p data-i18n-text="issPassword">输入密码</p>
+        <p>
+            <input type="text" id="myKey" name="myKey"/>
+        </p>
+    </div>
 
- </section>
-
-<scetion id="addcount">
-    <h4 data-i18n-text="issuedToken">参与资产发行</h4>
-    <p><span data-i18n-text="issTokenName">资产名称</span><span id="assetName"></span></p>
-    <p><span data-i18n-text="issIssuer">资产发行人</span><span id="ownAddress"></span></p>
-    <p><span data-i18n-text="issTotalSupply">资产总供应量</span><span id="assetTotalSupply"></span></p>
-    <p><span data-i18n-text="issPrice">资产单价</span><span id="price"></span></p>
-    <p><span data-i18n-text="issTime">起止时间</span><span id="lastTime"></span></p>
-    <p><span data-i18n-text="issDescription">描述信息</span>
-
-        <span id="desc">
-
-        </span></p>
-    <p class="cou_hei"><span data-i18n-text="issAmount">参与数量</span><span><input type="text" id="amount" name="amount" onblur="checkFunction()"/></span></p>
-    <!--<p class="cou_hei"><span>参与数量</span><span><input type="text"> =10000TRX</span></p>-->
-    <p class="cou_hei"><span data-i18n-text="issPassword">输入密码</span><span><input type="text" id="myKey" name="myKey" /></span></p>
     <p class="check">
-        <input type="checkbox" id="checkParticipate" />
-        <i data-i18n-text="issNoticeFir">我已确认花费</i><i id="trxNumCheck" >0</i><i data-i18n-text="issNoticeSec">TRX参与资产发行，获得</i><i id="assetInfoCheck">0</i> <i data-i18n-text="issNoticeThr"></i>
+        <input type="checkbox" id="checkParticipate"/>
+        <i data-i18n-text="issNoticeFir">我已确认花费</i><i id="trxNumCheck">0</i><i data-i18n-text="issNoticeSec">TRX参与通证发行，获得</i><i
+            id="assetInfoCheck">0</i> <i data-i18n-text="issNoticeThr"></i>
     </p>
-    <input type="button" class="liner_granet sure_dele" id="participateBtn" onclick="submitParticipateAssetIssue()" value="确认交易">
+    <input type="button" class="sure_dele" id="participateBtn" onclick="submitParticipateAssetIssue()"
+           value="确认交易">
 </scetion>
 <script type="text/javascript">
     var type = window.localStorage.getItem("type");
     var address = $('#searchInput').val();
-    if(type  == 3){
+    if (type == 3) {
         window.localStorage.removeItem("type");
-        $('.creat_account').css('display','none');
-        $('.account_list').css('display','block');
-        if(getStringType(address) == 3) {
+        $('.creat_asset_main').css('display', 'none');
+        $('.account_list').css('display', 'block');
+        if (getStringType(address) == 3) {
             searchAsset(address);
         }
     }
-    $('.all_count').on('click',function () {
-        $('.creat_account').css('display','none');
-        $('.account_list').css('display','block');
+    $('.all_count').on('click', function () {
+        $('.creat_asset').css('display', 'none');
+        $('.account_list').css('display', 'block');
         getAssetIssueListFun();
     })
-    $('#creat_asset').on('click',function () {
-        $('.account_list').css('display','none');
-        $('.myaccount').css('display','block');
+    $('#creat_asset').on('click', function () {
+        $('.account_list').css('display', 'none');
+        $('.myaccount').css('display', 'block');
     })
     console.log($('.add_account'))
 
+    var DateTime = new Date()
     laydate.render({
         elem: '#startTimeFormat',
         type: 'datetime',
+        value: new Date(DateTime.getTime()),
         format: 'yyyy-MM-dd HH:mm:ss',
         min: '1900-01-01 00:00:00',
-        max: '2099-12-31 23:59:59'
+        max: '2099-12-31 23:59:59',
+        theme: '#a90000'
     })
     laydate.render({
         elem: '#endTimeFormat',
         type: 'datetime',
+        value:new Date(DateTime.getTime()+15724800000),
         format: 'yyyy-MM-dd HH:mm:ss',
         min: '1900-01-01 00:00:00',
-        max: '2099-12-31 23:59:59'
+        max: '2099-12-31 23:59:59',
+        theme: '#a90000'
 
     });
 
 </script>
 <script src="/js/lib/language.js" type="text/javascript"></script>
 <script src="/js/utils/asset.js" type="text/javascript"></script>
-<script src="/js/utils/search.js"></script>
+<script src="/js/utils/search.js"></script>gi
+

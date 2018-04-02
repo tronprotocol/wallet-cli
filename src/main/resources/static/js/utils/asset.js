@@ -1,4 +1,7 @@
 
+
+
+
 var assetIssueList;
 
 function formateDate(timeStamp) {
@@ -46,7 +49,7 @@ function calPriceByTrx() {
     }
 }
 
-function checkFunction() {trxNumCheck
+function checkFunction() {
     $('#assetInfoCheck').text($('#amount').val()+ ' ' +$('#assetName').text());
     var assetNum = $('#price').text() * $('#amount').val();
     var info = assetNum;
@@ -56,7 +59,7 @@ function checkFunction() {trxNumCheck
 function submitParticipateAssetIssue() {
     var isChecked = $('#checkParticipate').prop('checked');
     if(!isChecked){
-        layer.alert("请确认参与资产发行");
+        layer.alert($.i18n.prop('layer.confimedtoken'));
         return;
     }
     var name = byteArray2hexStr(stringToBytes($('#assetName').text()));
@@ -78,19 +81,23 @@ function submitParticipateAssetIssueSuccessCallback(data) {
 
 function submitAssetIssueSuccessCallback(data) {
     if(data) {
-        layer.alert("参与成功");
+        layer.alert($.i18n.prop('layer.partsuccess'));
         $('#text').css('background','none');
         $('.header span').removeClass('header_active');
         $('#text').load('/html/control.html');
     }else{
-        layer.alert("参与失败");
+        layer.alert($.i18n.prop('layer.partfail'));
     }
 }
 
 function submitAssetIssueFailureCallback(data) {
-    layer.alert("参与失败");
+    layer.alert($.i18n.prop('layer.partfail'));
 }
-
+function getUrlParam(name){
+    name = name.replace(/[\[]/, "\\[").replace(/[\]]/, "\\]");
+    var  regex = new RegExp("[\\?&]" + name + "=([^&#]*)"), results = regex.exec(location.search);
+    return results == null  ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '))
+}
 function getAssetListSuccessCallback(data) {
     var curTime = new Date().getTime();
     var content = "";
@@ -105,19 +112,35 @@ function getAssetListSuccessCallback(data) {
         var formattedStartTime = formateDate(startTime);
         var formattedEndTime = formateDate(endTime);
         var partStr = '';
-        if(getCookie("userLanguage")){
-            nowLanguage = getCookie("userLanguage")
-            if(nowLanguage == 'zh-CN'){
+        // if(getUrlParam('language')){
+        //     var nowLanguage = getUrlParam('language')
+        //     if(nowLanguage == 'zh-CN'){
+        //         var partStr = '参与'
+        //         var timeClose= '已关闭'
+        //     }else if(nowLanguage == 'en'){
+        //         var partStr = 'Participate'
+        //         var timeClose= 'Closed'
+        //     }
+        // }else{
+            if(getCookie("userLanguage")){
+                var nowLanguage = getCookie("userLanguage")
+                if(nowLanguage == 'zh-CN'){
+                    var partStr = '参与'
+                    var timeClose= '已关闭'
+                }else if(nowLanguage == 'en'){
+                    var partStr = 'Participate'
+                    var timeClose= 'Closed'
+                }
+            }else{
                 var partStr = '参与'
-            }else if(nowLanguage == 'en'){
-                var partStr = 'Participate'
+                var timeClose= '已关闭'
             }
-        }else{
-            var partStr = '参与'
-        }
+       // }
+
+
 
         if(!(startTime < curTime && curTime< endTime)){
-            content += "<tr><td>" + name + "</td><td>" + ownerAddress + "</td><td>" + totalSupply + "</td> <td class='stop'>1</td><td><input type='button' class='add_account time_end' value='"+partStr+"'/></td></tr>";
+            content += "<tr><td>" + name + "</td><td>" + ownerAddress + "</td><td>" + totalSupply + "</td> <td class='stop'>1</td><td><input type='button' class='add_account time_end' value='"+timeClose+"'/></td></tr>";
         }else{
             content += "<tr><td>" + name + "</td><td>" + ownerAddress + "</td><td>" + totalSupply + "</td> <td > " + formattedStartTime + " - " + formattedEndTime + " </td><td><input type='button' class='add_account' value='"+partStr+"' onclick=\"participateAssetIssue(" + i + ")\"/></td></tr>";
         }
@@ -127,19 +150,34 @@ function getAssetListSuccessCallback(data) {
 }
 
 function getAssetListFailureCallback(data) {
-    layer.alert("获取资产列表失败");
+    layer.alert($.i18n.prop('layer.gettokenfail'));
 }
 
 
-$(document).ready(function() {
-    $("#creatAssetBtn").click(function() {
-        var address = getHexStrAddressFromPriKeyBase64String($("#privateKey").val());
-        var start = Date.parse(new Date($("#startTimeFormat").val()));
-        var end = Date.parse(new Date($("#endTimeFormat").val()));
-        var data = $("#createAssetForm").serialize() + "&ownerAddress=" + address + "&startTime=" + start + "&endTime=" + end;
-        ajaxRequest("post", createAssetView, data, createAssetSuccessCallback, createAssetFailureCallback);
-    })
+
+//btn 是否可点击
+$(".assetComtrx-checkbox").on("click", function () {
+    if ($(this).is(":checked")) {
+        $('#creatAssetBtn').removeClass('disable_btn')
+    }else{
+        $('#creatAssetBtn').addClass('disable_btn')
+    }
 })
+$("#creatAssetBtn").off('click').on('click',function() {
+    if(!$(".assetComtrx-checkbox").is(":checked")){
+        layer.alert($.i18n.prop('layer.asset'));
+        return;
+    }else if(!$('.creat_asset_main input[type="text"]').val() != ''){
+        layer.alert($.i18n.prop('layer.assetenter'))
+        return;
+    }
+    var address = getHexStrAddressFromPriKeyBase64String($("#privateKey").val());
+    var start = Date.parse(new Date($("#startTimeFormat").val()));
+    var end = Date.parse(new Date($("#endTimeFormat").val()));
+    var data = $("#createAssetForm").serialize() + "&ownerAddress=" + address + "&startTime=" + start + "&endTime=" + end;
+    ajaxRequest("post", createAssetView, data, createAssetSuccessCallback, createAssetFailureCallback);
+})
+
 
 function createAssetSuccessCallback(data) {
     var privateKey = base64DecodeFromString($("#privateKey").val());
@@ -152,17 +190,31 @@ function createAssetSuccessCallback(data) {
 
 function signSuccessCallback(data) {
     if(data) {
-        layer.alert("发行资产成功");
-        $('#text').css('background','none');
+        layer.open({
+            type: 1,
+            shadeClose: false, //点击遮罩关闭
+            content: $.i18n.prop('layer.transfersuccess'),
+            btn: ['确定'],
+            area: ['250px', '175px'],
+            yes: function(index, layero){
+                layer.close(index);
+                //跳转到首页
+                $('#text').load('/html/control.html');
+            }
+
+        });
+        layer.alert();
+
         $('.header span').removeClass('header_active');
-        $('#text').load('/html/control.html');
+
+
     }else{
-        layer.alert("发行资产失败");
+        layer.alert($.i18n.prop('layer.issuefail'));
     }
 }
 
 function createAssetFailureCallback(data) {
-    layer.alert("发行资产失败");
+    layer.alert($.i18n.prop('layer.issuefail'));
 }
 
 function getAssetIssueListFun(){

@@ -16,6 +16,11 @@
 //     }
 //     up();
 // });
+function getUrlParam(name){
+    name = name.replace(/[\[]/, "\\[").replace(/[\]]/, "\\]");
+    var  regex = new RegExp("[\\?&]" + name + "=([^&#]*)"), results = regex.exec(location.search);
+    return results == null  ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '))
+}
 
 TransSuccessCallback = function (data) {
 
@@ -28,7 +33,35 @@ TransSuccessCallback = function (data) {
   var blockData = proto.protocol.Block.deserializeBinary(currentBlock);
   blockNumber = blockData.getBlockHeader().getRawData().getNumber();
   var witnessId = blockData.getBlockHeader().getRawData().getWitnessId();
-  var witnessNum=1;
+  var witnessNum = 0;
+    $.ajax({
+        url:witnessList,
+        type: 'get',
+        dataType: 'json',
+        data:{},
+        success: function (data) {
+            var bytesWitnessList = base64DecodeFromString(data);
+            //调用方法deserializeBinary解析
+            var witness = proto.protocol.WitnessList.deserializeBinary(bytesWitnessList);
+            var witnessList = witness.getWitnessesList()
+            if(witnessList.length >0) {
+                for (var i = 0; i < witnessList.length; i++) {
+                    //账户地址
+                    var Isjobs = witnessList[i].getIsjobs();
+                    console.log(Isjobs)
+                    if(Isjobs){
+                        witnessNum++
+                    }
+                }
+                //活跃超级代表
+                $("#witness_num").text(witnessNum);
+            }
+        },
+        fail: function (data) {
+            console.log('witnessNum false')
+        }
+    })
+
   parenthash = blockData.getBlockHeader().getRawData().getParenthash();
   parenthashHex = byteArray2hexStr(parenthash);
   parenthashHexSix = parenthashHex.substr(0,6) + '...'
@@ -42,59 +75,68 @@ TransSuccessCallback = function (data) {
   // time
   var time =10;
   var str="";
-
-  if(getCookie("userLanguage")){
-      var nowLanguage = getCookie("userLanguage")
-      if(nowLanguage == 'zh-CN'){
-          sendTrx = '将';
-          toTrx = '转帐给';
-          contractName = '转帐';
-      }else if(nowLanguage == 'en'){
-          sendTrx = 'send';
-          toTrx = 'to';
-          contractName = 'send';
-      }
-  }else{
-      sendTrx = '将';
-      toTrx = '转帐给';
-      contractName = '转帐';
-  }
+    // if (getUrlParam('language')) {
+    //     var nowLanguage = getUrlParam('language')
+    //     var nowLanguage = getCookie("userLanguage")
+    //     if(nowLanguage == 'zh-CN'){
+    //         sendTrx = '将';
+    //         toTrx = '转帐给';
+    //         contractName = '转帐';
+    //     }else if(nowLanguage == 'en'){
+    //         sendTrx = 'send';
+    //         toTrx = 'to';
+    //         contractName = 'send';
+    //     }
+    // }else{
+        if(getCookie("userLanguage")){
+            var nowLanguage = getCookie("userLanguage")
+            if(nowLanguage == 'zh-CN'){
+                sendTrx = '将';
+                toTrx = '转帐给';
+                contractName = '转帐';
+            }else if(nowLanguage == 'en'){
+                sendTrx = 'send';
+                toTrx = 'to';
+                contractName = 'send';
+            }
+        }else{
+            sendTrx = '将';
+            toTrx = '转帐给';
+            contractName = '转帐';
+        }
+    //}
 
   function getTx(contractName,ownerHex,amount,toHex) {
-    str += '<li class="transfer">'
-        + '<button >'+contractName+'</button>'
-        + '<span class="tran_name">' + ownerHex + '</span>'
-        + '<span>'+sendTrx+' ' + amount + ' TRX '+toTrx+'</span>'
-        + '<span class="tran_name">' + toHex + '</span>'
-        // + '<span>' + time + '秒钟前</span>'
+    str += '<li><span class="trans-line fl"></span>'
+        + '<i class="fl"></i>'
+        + '<p class="type fl">'+contractName+'</p>'
+        + '<p class="trans-info fl">'
+        + '<span class="red">' + ownerHex + '</span>'
+        + '<span>'+sendTrx+'</span>'
+        + '<span class="block-num">'+amount+'</span>'
+        + '<span>TRX</span>'
+        + '<span>'+toTrx+'</span>'
+        + '<span class="red">'+toHex+'</span>'
         + '</li>';
     $("#recentHtml").html(str);
   }
 
   $("#block_num").text('#'+blockNumber);
-  $("#witness_num").text(witnessNum);
+
   $("#beforeBlock").text(parenthashHexSix);
 
- // console.log("parenthashHex : " + parenthashHex);
-
-  var witnessNum = 1;
-
-  console.log("blockNumber : " + blockNumber + " witnessId : " + witnessId);
 
   var txlist = blockData.getTransactionsList();
 
   if (txlist.length > 0) {
-    var txlistFive = txlist.slice(0,12)
+    var txlistFive = txlist.slice(0,6)
     for (var index in txlistFive) {
-      // console.log(txlist[index]);
       var tx = txlist[index];
       contractList = tx.getRawData().getContractList();
-      //console.log(contractList)
       for (var conIndex in contractList) {
         var contract = contractList[conIndex]
         var any = contract.getParameter();
-        //    console.log("contract  "+contract);
-        //   console.log("type1  "+contract.getType());
+
         switch (contract.getType()) {
 
           case contraxtType.ACCOUNTCREATECONTRACT:
@@ -123,11 +165,8 @@ TransSuccessCallback = function (data) {
 
              toHexSix = toHex.substr(0,6) + '...';
 
-             amount = obje.getAmount();
+             amount = obje.getAmount()/1000000;
 
-            // console.log("ownerHex " + ownerHex);
-            // console.log("to  " + toHex);
-            // console.log("amount  " + amount);
 
             getTx(contractName,ownerHexSix,amount,toHexSix);
 
@@ -174,9 +213,9 @@ TransFailureCallback = function (err) {
 // query current block
 ajaxRequest( "GET",getBlockToView,{},TransSuccessCallback,TransFailureCallback);
 
-setInterval(function () {
-    ajaxRequest( "GET",getBlockToView,{},TransSuccessCallback,TransFailureCallback);
-},100000)
+// setInterval(function () {
+//     ajaxRequest( "GET",getBlockToView,{},TransSuccessCallback,TransFailureCallback);
+// },100000)
 
 //query recent block
 
@@ -194,39 +233,57 @@ TransSuccessByNumToViewCallback = function (data) {
   var contraxtType=proto.protocol.Transaction.Contract.ContractType;
   //var big = 255;
   var timeStr,secTime,minTime,blockStr,represStr,transStr;
-
-    if(getCookie("userLanguage")){
-        var nowLanguage = getCookie("userLanguage")
-        if(nowLanguage == 'zh-CN'){
+    // if (getUrlParam('language')) {
+    //     var nowLanguage = getUrlParam("language")
+    //     if(nowLanguage == 'zh-CN'){
+    //         secTime = '秒前';
+    //         minTime = '分前';
+    //         blockStr = '区块  #';
+    //         represStr = '超级代表: ';
+    //         transStr = '交易数：';
+    //         transSize = '大小：';
+    //     }else if(nowLanguage == 'en'){
+    //         secTime = 'seconds ago';
+    //         minTime = 'minutes ago';
+    //         blockStr = 'block  #';
+    //         represStr = 'Mined by: ';
+    //         transStr = 'Transactions：';
+    //         transSize = 'Size：';
+    //     }
+    // }else{
+        if(getCookie("userLanguage")){
+            var nowLanguage = getCookie("userLanguage")
+            if(nowLanguage == 'zh-CN'){
+                secTime = '秒前';
+                minTime = '分前';
+                blockStr = '区块  #';
+                represStr = '超级代表: ';
+                transStr = '交易数：';
+                transSize = '大小：';
+            }else if(nowLanguage == 'en'){
+                secTime = 'seconds ago';
+                minTime = 'minutes ago';
+                blockStr = 'block  #';
+                represStr = 'Mined by: ';
+                transStr = 'Transactions：';
+                transSize = 'Size：';
+            }
+        }else{
             secTime = '秒前';
             minTime = '分前';
             blockStr = '区块  #';
             represStr = '超级代表: ';
             transStr = '交易数：';
             transSize = '大小：';
-        }else if(nowLanguage == 'en'){
-            secTime = 'seconds ago';
-            minTime = 'minutes ago';
-            blockStr = 'block  #';
-            represStr = 'Mined by: ';
-            transStr = 'Transactions：';
-            transSize = 'Size：';
         }
-    }else{
-        secTime = '秒前';
-        minTime = '分前';
-        blockStr = '区块  #';
-        represStr = '超级代表: ';
-        transStr = '交易数：';
-        transSize = '大小：';
+   // }
 
-    }
+
 
   //当前时间戳
   var timestamp=new Date().getTime();
   //当前时间戳 - 块生成的时间戳
   var accordTimes = Math.floor(timestamp - time);
-  console.log('accordTimes====='+accordTimes);
   if(Math.floor(accordTimes/1000) > 60){
       var min = Math.floor(accordTimes/60000);
       timeStr = min+ minTime
@@ -235,19 +292,14 @@ TransSuccessByNumToViewCallback = function (data) {
       timeStr = sec+ secTime
   }
 
-
-
-  //console.log(blockNumber+" ::: "+time+" ::: "+witnessAddressHex+" ::: "+transactionNum);
-
-
-  var html= '<div class="before-block"><div  class="mr_left">'
+  var html= '<li class="clearfix"><div class="block-box fl">'
       + '<p>'+blockStr+ blockNumber+'</p>'
       + '<p>'+timeStr+'</p>'
-      + ' </div>'
-      + '<div class="mr_right">'
-      + '<p>'+represStr+witnessAddressHexSix+'  </p><p>'
-      + '<span>'+transStr+transactionNum+'</span>'
-      +'<span>'+transSize+big+'bytes</span></p></div></div>';
+      + '</div>'
+      + '<div class="block-box-info fl">'
+      + '<p>'+represStr+witnessAddressHexSix+'</p><p>'
+      + '<span>'+transStr+'<i>'+transactionNum+'</i></span>'
+      + '<span>'+transSize+'<i>'+big+'</i>bytes</span></p></div></li>';
 
       $("#recentBlock").append(html);
 };
@@ -259,3 +311,52 @@ TransFailureCallback = function (err) {
 
 // ajaxRequest("GET", getBlockByNumToView, {num: 1233},
 //     TransSuccessCallback, TransFailureCallback);
+function TrxPriceSuccessCallback(data) {
+    var Trxprice = data.data.data[0].price.toFixed(5);
+    var change1d = data.data.data[0].change1d;
+    $('#trxprice').text(Trxprice)
+    if(change1d > 0 &&change1d == 0){
+        $('#change1d').css('color','#42bd31')
+    }else{
+        $('#change1d').css('color','#ea0000')
+    }
+    $('#change1d').text(change1d+'%')
+}
+function TrxPriceFailureCallback(data) {
+    console.log(data)
+}
+//TRX Price
+function getTrxPrice() {
+    ajaxRequest("GET", 'https://block.cc/api/v1/query', {'str':'TRX','act':'q'},TrxPriceSuccessCallback, TrxPriceFailureCallback);
+}
+
+getTrxPrice()
+setInterval(function () {
+    getTrxPrice()
+},21600000)
+
+//TRX getTotalTransaction
+function TotalTransaction() {
+    ajaxRequest("GET", getTotalTrans, {},TrxTotalSuccessCallback, TrxTotaFailureCallback);
+}
+
+function TrxTotalSuccessCallback(data) {
+    console.log('Success'+data)
+    var total = '';
+    if(!data){
+        total = 0
+    }else{
+        var totalTransaction = base64DecodeFromString(data);
+        var totalData = proto.protocol.NumberMessage.deserializeBinary(totalTransaction);
+        var totalNumber= totalData.getNum();
+        total = totalNumber
+    }
+    $('#total').text(total)
+
+}
+
+function TrxTotaFailureCallback(data){
+    console.log('TotaFailureCall'+data)
+}
+//getTotalTransaction
+TotalTransaction()

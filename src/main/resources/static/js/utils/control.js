@@ -5,10 +5,12 @@ $(".c_form li").each(function(i,item){
         $('.c_table>div').eq(i).show().siblings().hide();
     })
     $('#transfer_accounts').on('click',function () {
-        $('#text').css('background','url(/img/bg.png)')
+
         $('#text').load('/html/transform.html');
+
     })
 });
+
 
 
 

@@ -1,24 +1,23 @@
 package org.tron.walletcli;
 
-import java.util.HashMap;
-import java.util.Optional;
-
 import com.google.protobuf.ByteString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.spongycastle.util.encoders.Hex;
+import org.tron.api.GrpcAPI;
 import org.tron.api.GrpcAPI.AccountList;
 import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.NodeList;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.crypto.ECKey;
-import org.tron.common.crypto.SymmEncoder;
 import org.tron.common.utils.ByteArray;
 import org.tron.protos.Contract;
-import org.tron.protos.Protocol;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
 import org.tron.walletserver.WalletClient;
+
+import java.util.HashMap;
+import java.util.Optional;
 
 public class Client {
 
@@ -398,6 +397,10 @@ public class Client {
       ex.printStackTrace();
       return Optional.empty();
     }
+  }
+
+  public GrpcAPI.NumberMessage getTotalTransaction(){
+    return WalletClient.getTotalTransaction();
   }
 
 }

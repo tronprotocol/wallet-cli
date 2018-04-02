@@ -15,27 +15,27 @@ $(document).ready(function(){
     }
 
     $("#header_login").click(function(){
-        $('#text').css('background','none');
+        $('body').css('background','#f7f7f7')
         $('.header span').removeClass('header_active');
         $('#text').load('/html/control.html');
     });
     $("#a_witness").click(function(){
-        $('#text').css('background','none');
+        $('body').css('background','#f7f7f7')
         $(this).addClass('header_active').siblings().removeClass('header_active');
         $('#text').load('/html/witness.html');
     });
     $('#acco').click(function () {
-        $('#text').css('background','none');
+        $('body').css('background','#f7f7f7')
         $(this).addClass('header_active').siblings().removeClass('header_active');
         $('#text').load('/html/accountQuery.html');
     });
     $('#map').click(function () {
-        $('#text').css('background','none');
+        $('body').css('background','#f7f7f7');
         $(this).addClass('header_active').siblings().removeClass('header_active');
         $('#text').load('/html/map.html');
     });
     $('.j_left').click(function () {
-        $('#text').css('background','none');
+        $('body').css('background','#f7f7f7')
         $(this).addClass('header_active').siblings().removeClass('header_active');
         $('#text').load('/html/message.html');
     });
@@ -47,12 +47,11 @@ $(document).ready(function(){
         $('#header_login').css('display','none');
         $('#center').css('display','none');
         $('.header span').removeClass('header_active');
-        $('#text').css('background','url(/img/bg.png)')
         $('#text').load('/html/login.html');
     });
     $('#money').click(function () {
         $(this).addClass('header_active').siblings().removeClass('header_active');
-        $('#text').css('background','url(/img/bg.png)')
+        $('body').css('background','#2c2c2c')
         $('#text').load('/html/transform.html');
         // if(window.localStorage.getItem('key')){
         //     $('#text').load('/html/transform.html');
@@ -64,20 +63,20 @@ $(document).ready(function(){
     $('#create').click(function () {
         $('#text').load('/html/login.html');
         $('.header span').removeClass('header_active');
-        $('#text').css('background','url(/img/bg.png)')
+        $('body').css('background','#2c2c2c')
     });
 
-    //资产发行
+    //通证发行
     $('#nemoney').click(function () {
         $(this).addClass('header_active').siblings().removeClass('header_active');
         $('#text').load('/html/count.html');
-        $('#text').css('background','none');
+        $('body').css('background','#f7f7f7');
         // if(window.localStorage.getItem('key')){
         //     $('#text').css('background','none');
         //     $('#text').load('/html/count.html');
         // }else{
         //     $('#text').load('/html/login.html');
-        //     $('#text').css('background','url(/img/bg.png)')
+        //     $('#text').css('background','url(../static/img/bg.png)')
         // }
 
     });

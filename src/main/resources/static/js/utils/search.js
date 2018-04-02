@@ -68,7 +68,7 @@ function searchBlockSuccessCallback(data) {
                             var ownerHexSix = ownerHex.substr(0,10) + '...';
                             var toHex = byteArray2hexStr(obj.getToAddress());
                             var toHexSix = toHex.substr(0,10) + '...';
-                            var amount = obj.getAmount();
+                            var amount = obj.getAmount()/1000000;
 
                             htmlStr += "<div class='search_table_list'>"
                                 + "<div class='search_table_li table_txt_elpis'>" + ownerHexSix + "</div>"
@@ -151,7 +151,7 @@ function searchAssetSuccess(data) {
 }
 
 function searchAssetFailure(data) {
-    layer.alert("获取资产列表失败");
+    layer.alert($.i18n.prop('layer.gettokenfail'));
 }
 
 function searchAsset(assetNameStr) {

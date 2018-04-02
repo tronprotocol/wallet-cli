@@ -3,24 +3,17 @@ package org.tron.walletserver;
 import com.google.protobuf.ByteString;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
-
-import java.util.Optional;
-import java.util.concurrent.TimeUnit;
-
 import org.tron.api.GrpcAPI;
-import org.tron.api.GrpcAPI.AccountList;
-import org.tron.api.GrpcAPI.AssetIssueList;
-import org.tron.api.GrpcAPI.BytesMessage;
-import org.tron.api.GrpcAPI.EmptyMessage;
-import org.tron.api.GrpcAPI.NodeList;
-import org.tron.api.GrpcAPI.NumberMessage;
-import org.tron.api.GrpcAPI.WitnessList;
+import org.tron.api.GrpcAPI.*;
 import org.tron.api.WalletGrpc;
 import org.tron.protos.Contract;
 import org.tron.protos.Contract.AssetIssueContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.Transaction;
+
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 public class GrpcClient {
 
@@ -145,4 +138,7 @@ public class GrpcClient {
     return blockingStub.getAssetIssueByName(request);
   }
 
+  public NumberMessage getTotalTransaction(){
+    return blockingStub.totalTransaction(EmptyMessage.newBuilder().build());
+  }
 }

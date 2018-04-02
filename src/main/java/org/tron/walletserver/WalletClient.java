@@ -7,6 +7,7 @@ import java.io.File;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.spongycastle.util.encoders.Hex;
+import org.tron.api.GrpcAPI;
 import org.tron.api.GrpcAPI.AccountList;
 import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.NodeList;
@@ -46,7 +47,7 @@ public class WalletClient {
   public static GrpcClient init() {
     Config config = Configuration.getByPath("config.conf");
     dbPath = config.getString("CityDb.DbPath");
-    txtPath = config.getString("CityDb.TxtPath");
+    txtPath = System.getProperty("user.dir")+'/' +config.getString("CityDb.TxtPath");
 
     List<String> fullnodelist = config.getStringList("fullnode.ip.list");
     return new GrpcClient(fullnodelist.get(0));
@@ -543,5 +544,9 @@ public class WalletClient {
 
   public static AssetIssueContract getAssetIssueByName(String assetName) {
     return rpcCli.getAssetIssueByName(assetName);
+  }
+
+  public static GrpcAPI.NumberMessage getTotalTransaction(){
+    return rpcCli.getTotalTransaction();
   }
 }

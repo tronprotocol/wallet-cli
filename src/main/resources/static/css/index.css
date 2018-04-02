@@ -1,52 +1,120 @@
-body ,html{
-    height: 100%;
-    width: 100%;
+.header{
+    min-width: 1320px !important;
+    color: #7a7a7a;
+    background-color: #2c2c2c;
+    height: 66px;
+
 }
-.logo{
-    height: 65px;
-    width: 70px;
-    float: left;
-    margin-left: 50px;
-    padding: 8px;
+.header-box{
+    width: 1350px;
+    margin: 0 auto;.
 }
-/*发行资产*/
-#addcount{
-    /*display: block;*/
-    font-size: 14px;
-    width: 50%;
-    margin: auto;
-    display: none;
-}
-#addcount h4{
-    font-size: 18px;
-    color: #428dff;
-    margin: 20px 0;
-}
-#addcount p{
-    line-height: 30px;
-}
-#addcount p span{
-    display: inline-block;
-    width: 45%;
-}
-#addcount p span:nth-of-type(2){
-    width: 30%;
-}
-#addcount p span input{
-border: 1px solid #ccc;
-    border-radius: 2px;
-    height: 20px;
-}
-#addcount .cou_hei{
-    line-height: 50px;
-}
-.sure_dele{
+.header .logo img{
+    width: 122px;
+    height: 43px;
+    margin-top: 12px;
     display: block;
-    height: 30px;
-    width: 400px;
-    border-radius: 5px;
-    margin:50px auto;
 }
-.check{
-    margin-top: 100px;
+.header ul{
+    width: 820px;
+    display: flex;
+
+}
+.header ul li{
+    float: left;
+    flex: 1;
+    line-height: 66px;
+    font-size: 20px;
+    text-align: center;
+    margin-left: 25px;
+    cursor: pointer;
+}
+.header ul li:nth-child(1){
+    margin-left: 30px;
+}
+
+.header_active{
+    color: #ffffff;
+    border-bottom: 2px solid #ea0000;
+    margin-top: -2px;
+}
+.searchInput-box{
+    margin-left: 15px;
+    position: relative;
+}
+.searchInput{
+    width: 155px;
+    height: 28px;
+    border:1px solid #acacac;
+    border-radius: 13px;
+    background-color: #2c2c2c;
+    margin-top: 18px;
+    color: #ffffff;
+    padding-left: 10px;
+
+}
+.searchInput-box i{
+    position: absolute;
+    right: 5px;
+    top: 23px;
+    background: url("../img/search.png") no-repeat;
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+}
+.btn-list{
+    float: left;
+    margin-left: 14px;
+    color: #ffffff;
+    margin-top: 18px;
+    font-size: 12px;
+
+}
+
+.btn-list .create-account-num{
+    width: 130px;
+    height: 32px;
+    background-color: #a90000;
+    border-radius: 5px;
+    line-height: 32px;
+    color: #ffffff;
+
+}
+
+.btn-list button{
+    float: left;
+    cursor: pointer;
+}
+.btn-list .header_login{
+    width: 130px;
+    height: 32px;
+    background-color: #a90000;
+    border-radius: 5px;
+    line-height: 32px;
+    color: #ffffff;
+    display: block;
+    position: relative;
+    font-size: 12px;
+}
+.header_login b{
+    margin-left: 20px;
+}
+.btn-list .sign-out{
+    background-color: #2c2c2c;
+    color: #ffffff;
+    margin-top: 6px;
+    margin-left: 10px;
+}
+.btn-list i{
+    width: 20px;
+    height: 20px;
+    position: absolute;
+    background: url("../img/center_icon.png");
+    left: 5px;
+    top:5px;
+}
+
+.text-box{
+    width: 1320px;
+    margin: 0 auto;
 }

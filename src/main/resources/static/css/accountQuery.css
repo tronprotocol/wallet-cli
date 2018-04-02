@@ -1,57 +1,47 @@
-
 .accountQuery{
 	width:100%;
-	height:auto;
-	margin: auto;
-	padding:30px 60px 0 60px;
 	overflow: hidden;
 }
-.accountQuery h4{
-	color: #428dff;
-	font-size:20px;
-	font-weight: 600;
-	text-align: left;
-	margin-bottom: 20px;
-}
-.search #search{
-	width: 70%;
-	height: 40px;
-	line-height: 40px;
-	padding: 0px 4px 0px 30px;
-	font-size:14px;
-	border:1px solid #0077ff;
-	border-radius: 5px;
-	float: left;
-}
 .main{
-	font-size: 14px;
+	background: #f7f7f7;
 }
 .main table{
-	width: 80%;
+	min-width: 860px;
 	height: auto;
 	overflow: hidden;
 	border: none;
-	text-align: center;
 	font-size: 14px;
-    margin: auto;
+    margin:0 auto;
 }
-#text .main{
-    margin-top: 40px;
+.main thead tr{
+	height: 86px;
+	line-height: 86px;
+	color: #7f7a7a;
+	font-size: 20px;
 }
-.main table tr{
-	height: 50px;
-	line-height: 50px;
-    color: #428dff;
+.tbody tr td{
+	padding-left: 40px;
+	text-align: center;
 }
-#tablHtml tr{
-	color: #45425e;
+.main thead tr th{
+	text-align: center;
+	padding-left: 20px;
 }
-.tbody tr:nth-of-type(odd){
-	background: none;
+.main tbody tr{
+	width: 100%;
+	height: 60px;
+	line-height: 60px;
+    color: #7f7a7a;
+	text-align: left;
+	border: 1px solid transparent;
+	background-color: #fff;
 }
-/*.tbody tr td:nth-child(2){*/
-	/*color: #428dff;*/
-/*}*/
+.tbody tr:nth-child(odd){
+	background: #eeeeee;
+}
+.tbody tr:nth-child(even){
+	background: #f7f7f7;
+}
 #tablHtml tr td:nth-child(2) span{
 	display: block;
 	width: 30%;
@@ -67,6 +57,8 @@
 	border-right: 0;
 	border-left: 0;
 	padding: 5px;
+	text-align: left;
+	color: #2c2c2c;
 }
 .main p{
 	font-size: 18px;
@@ -113,11 +105,16 @@
 
 }
 .add_account {
-	border: 1px solid #428dff;
-	color: #428dff;
+	color: #a90000;
 	border-radius: 5px;
-	height: 30px;
-	width: 50px;
+	font-size: 12px;
+	background-color: #ffffff;
+	width: 74px;
+	height: 24px;
+	border-radius: 5px;
+	border: solid 1px #a90000;
+	text-align: center;
+	line-height: 24px;
 }
 .creat_account input{
 	border-radius: 5px ;
@@ -152,14 +149,7 @@
 	margin-top: 40px;
 }
 
-.end_time,.start_time{
-	display: inline-block;
-	font-size: 14px;
-	margin:20px 0 20px 0 ;
-}
-.start_time {
-	margin-right: 40%;
-}
+
 .creat_account .all_count{
 	width: 100px;
 	float: right;
@@ -171,7 +161,6 @@
 
 .tbody tr .stop{
 	background: url("../img/stop.png") no-repeat 50%;
-
 	color: #ccc;
 }
 
@@ -205,27 +194,12 @@
 	margin: 10px 0 0 10px;
 }
 /**/
-.tbody tr  td {
-	border: 1px solid transparent;
-	padding: 5px;
-}
 .tbody .b_acitve  td {
 	border: 1px solid #d4d8da;
 	border-right: 0;
 	border-left: 0;
-	padding: 5px;
 	background-color: #fff;
-}
-.tbody .b_acitve td:nth-last-of-type(1){
-	border-right: 1px solid #d4d8da;
-}
-.tbody .b_acitve td:nth-of-type(1){
-	border-left: 1px solid #d4d8da;
 }
 .main thead{
 	font-size: 16px;
-}
-#priceByTrx{
-	font-size: 18px;
-	color: #428dff;
 }
