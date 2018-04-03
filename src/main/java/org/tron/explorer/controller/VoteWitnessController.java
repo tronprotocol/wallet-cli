@@ -24,7 +24,6 @@ public class VoteWitnessController {
 
     protected final Log log = LogFactory.getLog(getClass());
 
-
     @GetMapping("/voteWitnessList")
     public byte[] getVoteWitnessList() {
         Optional<WitnessList> result = WalletClient.listWitnesses();
@@ -35,7 +34,6 @@ public class VoteWitnessController {
             return null;
         }
     }
-
 
     @PostMapping("/createVoteWitnessToView")
     public byte[] getTransactionToView(@RequestBody VoteWitness voteWitness) {

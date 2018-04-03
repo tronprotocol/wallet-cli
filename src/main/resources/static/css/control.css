@@ -324,6 +324,9 @@ set
     padding: 50px;
 }
 .information p>span{
+    width: 120px;
+    display: block;
+    float: left;
     color: #64768a;
     margin-right: 100px;
 }
@@ -434,4 +437,11 @@ set
     background-image: -webkit-gradient(linear, left top, left bottom, color-stop(0, #c8332a), color-stop(1, #e60605));
     filter: progid:DXImageTransform.Microsoft.gradient(startColorstr='#c8332a', endColorstr='#e60605');
     cursor: pointer;
+}
+
+.tronAddress-warn{
+    color: #e40807!important;
+    font-size: 16px;
+    margin-left: 215px;
+    margin-right: 0px!important;
 }
