@@ -1,6 +1,5 @@
 package org.tron.explorer.controller;
 
-import java.util.Optional;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -12,6 +11,8 @@ import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.TransactionUtils;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.walletserver.WalletClient;
+
+import java.util.Optional;
 
 
 @RestController
@@ -62,6 +63,4 @@ public class WitnessController {
       return null;
     }
   }
-
-
 }
