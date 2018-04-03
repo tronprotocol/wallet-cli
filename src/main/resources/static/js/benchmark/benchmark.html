@@ -1,0 +1,180 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>SHA Benchmark</title>
+
+    <!-- Benchmarkjs -->
+    <script src="lib/Benchmarkjs/lodash.js"></script>
+    <script src="lib/Benchmarkjs/platform.js"></script>
+    <script src="lib/Benchmarkjs/benchmark.js"></script>
+
+    <!-- Crypto library-->
+    <!-- Crypto-JS -->
+    <script src="lib/Crypto-JS/sha1.js"></script>
+    <script src="lib/Crypto-JS/sha256.js"></script>
+    <script src="lib/Crypto-JS/sha3.js"></script>
+
+    <!-- Paj -->
+    <script src="lib/Paj/sha1.js"></script>
+    <script src="lib/Paj/sha256.js"></script>
+
+    <!-- jsSHA -->
+    <script src="lib/jsSHA/sha.js"></script>
+
+    <!-- sjcl -->
+    <script src="lib/sjcl/sjcl.js"></script>
+
+    <!-- forge -->
+    <script src="lib/forge/forge.js"></script>
+
+    <!-- js-sha -->
+    <script src="lib/js-sha/js-sha3.js"></script>
+    <script src="lib/js-sha/js-sha256.js"></script>
+
+    <!-- rusha -->
+    <script src="lib/rusha/rusha.js"></script>
+
+    <!-- crypto-browserify -->
+    <script src="lib/crypto-browserify/sha.js"></script>
+
+    <!-- solidity-sha3 -->
+    <script src="lib/solidity-sha3/sha3.js"></script>
+
+    <!-- drostie sha3 -->
+    <script src="lib/drostie/sha3-js.js"></script>
+
+    <!-- Crypto library-->
+
+    <!-- YUI -->
+    <script src="http://yui.yahooapis.com/3.18.1/build/yui/yui-min.js"></script>
+
+    <!-- Tester -->
+    <script>
+        var suite1 = new Benchmark.Suite;
+        var suite2 = new Benchmark.Suite;
+        var suite3 = new Benchmark.Suite;
+
+        var consoleOpt = {
+            height: '600px',
+            width: '500px',
+            style: 'inline',
+            newestOnTop: false,
+            render: true
+        };
+
+        /*SHA3*/
+        YUI().use('test-console', function (Y) {
+            new Y.Console(consoleOpt);
+
+            suite3
+                .add('Crypto-JS(512)', function () {
+                    var hash = CryptoJS.SHA3('abc') + '';
+                })
+                .add('Crypto-JS(256)', function () {
+                    var hash = CryptoJS.SHA3('abc', {outputLength: 256}) + '';
+                })
+                .add('jsSHA(256)', function () {
+                    var shaObj = new jsSHA('SHA3-256', 'TEXT');
+                    shaObj.update('abc');
+                    var hash = shaObj.getHash('HEX');
+                })
+                .add('js-sha(256)', function () {
+                    var hasher = sha3_256.create();
+                    hasher.update('abc');
+                    var hash = hasher.hex();
+                })
+                .add('solidity-sha3', function () {
+                    var hash = sha3('abc');
+                })
+                .add('drostie', function () {
+                    var hash = keccak('abc') + '';
+                })
+                .on('cycle', function (event) {
+                    Y.log(String(event.target), 'info', 'SHA3');
+                })
+                .on('complete', function () {
+                    Y.log('Fastest is ' + this.filter('fastest').map('name'), 'info', 'SHA3');
+                });
+        });
+        /*SHA256*/
+        YUI().use('test-console', function (Y) {
+            new Y.Console(consoleOpt);
+
+            suite2
+                .add('Crypto-JS', function () {
+                    var hash = CryptoJS.SHA256('abc') + '';
+                })
+                .add('Paj', function () {
+                    var hash = hex_sha256('abc') + '';
+                })
+                .add('jsSHA', function () {
+                    var shaObj = new jsSHA('SHA-256', 'TEXT');
+                    shaObj.update('abc');
+                    var hash = shaObj.getHash('HEX');
+                })
+                .add('js-sha', function () {
+                    var hasher = sha256.create();
+                    hasher.update('abc');
+                    var hash = hasher.hex();
+                })
+                .add('sjcl', function () {
+                    var hash = sjcl.codec.hex.fromBits(sjcl.hash.sha256.hash('abc'));
+                })
+                .add('forge', function () {
+                    var hasher = forge.md.sha256.create();
+                    hasher.update('abc', 'utf8');
+                    var hash = hasher.digest().toHex();
+                })
+                .add('crypto-browserify', function () {
+                    var hash = shajs('sha256').update('abc').digest('hex');
+                })
+                .on('cycle', function (event) {
+                    Y.log(String(event.target), 'info', 'SHA256');
+                })
+                .on('complete', function () {
+                    Y.log('Fastest is ' + this.filter('fastest').map('name'), 'info', 'SHA256');
+                    suite3.run({'async': true});
+                });
+        });
+        /*SHA1*/
+        YUI().use('test-console', function (Y) {
+            new Y.Console(consoleOpt);
+
+            suite1
+                .add('Crypto-JS', function () {
+                    var hash = CryptoJS.SHA1('abc') + '';
+                })
+                .add('Paj', function () {
+                    var hash = hex_sha1('abc') + '';
+                })
+                .add('jsSHA', function () {
+                    var shaObj = new jsSHA('SHA-1', 'TEXT');
+                    shaObj.update('abc');
+                    var hash = shaObj.getHash('HEX');
+                })
+                .add('forge', function () {
+                    var hasher = forge.md.sha1.create();
+                    hasher.update('abc', 'utf8');
+                    var hash = hasher.digest().toHex();
+                })
+                .add('rusha', function () {
+                    var hash = Rusha.createHash().update('abc').digest('hex');
+                })
+                .add('crypto-browserify', function () {
+                    var hash = shajs('sha1').update('abc').digest('hex');
+                })
+                .on('cycle', function (event) {
+                    Y.log(String(event.target), 'info', 'SHA1');
+                })
+                .on('complete', function () {
+                    Y.log('Fastest is ' + this.filter('fastest').map('name'), 'info', 'SHA1');
+                    suite2.run({'async': true});
+                })
+                .run({'async': true});
+        });
+    </script>
+</head>
+<body class="yui3-skin-sam">
+</body>
+</html>
