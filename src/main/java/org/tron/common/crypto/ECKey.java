@@ -358,9 +358,10 @@ public class ECKey implements Serializable {
    * Compute an address from an encoded public key.
    *
    * @param pubBytes an encoded (uncompressed) public key
-   * @return 20-byte address
+   * @return 21-byte address
    */
   public static byte[] computeAddress(byte[] pubBytes) {
+
     return Hash.sha3omit12(
         Arrays.copyOfRange(pubBytes, 1, pubBytes.length));
   }
@@ -369,7 +370,7 @@ public class ECKey implements Serializable {
    * Compute an address from a public point.
    *
    * @param pubPoint a public point
-   * @return 20-byte address
+   * @return 21-byte address
    */
   public static byte[] computeAddress(ECPoint pubPoint) {
     return computeAddress(pubPoint.getEncoded(/* uncompressed */ false));

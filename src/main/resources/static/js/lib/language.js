@@ -58,6 +58,28 @@ var getNavLanguage = function(){
 }
 
 /**
+ * 获取浏览器参数
+ * @return {string} 浏览器参数值
+ */
+var getUrlParam = function (name){
+    name = name.replace(/[\[]/, "\\[").replace(/[\]]/, "\\]");
+    var  regex = new RegExp("[\\?&]" + name + "=([^&#]*)"), results = regex.exec(location.search);
+    return results == null  ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '))
+}
+
+/**
+ * 获取本地VPN语言类型
+ * @return {string} VPN语言类型
+ */
+var getVpnLanguage = function () {
+    if (remote_ip_info.country=='中国') {
+        return "zh-CN";
+    }else{
+        return "en";
+    }
+}
+
+/**
  * 设置语言类型： 默认为中文
  */
 var i18nLanguage = "zh-CN";
@@ -65,7 +87,8 @@ var i18nLanguage = "zh-CN";
 /*
 设置一下网站支持的语言种类
  */
-var webLanguage = ['zh-CN'];
+var webLanguage = ['zh-CN', 'en'];
+
 
 
 
@@ -75,7 +98,7 @@ var webLanguage = ['zh-CN'];
  * 执行页面i18n方法
  * @return
  */ 
-var execI18n = function(){
+var execI18n = function() {
     /*
     获取一下资源文件名
      */
@@ -83,29 +106,37 @@ var execI18n = function(){
     if (optionEle.length < 1) {
         console.log("未找到页面名称元素，请在页面写入\n <meta id=\"i18n_pagename\" content=\"页面名(对应语言包的语言文件名)\">");
         return false;
-    };
-        /*
-        首先获取用户浏览器设备之前选择过的语言类型
-         */
+    }
+    ;
+    /*
+    首先获取用户浏览器设备之前选择过的语言类型
+     */
+    if (getUrlParam('language')) {
+        // 存到缓存中
+        getCookie("userLanguage", getUrlParam('language'));
+        i18nLanguage = getUrlParam('language');
+    } else {
         if (getCookie("userLanguage")) {
             i18nLanguage = getCookie("userLanguage");
         } else {
             // 获取浏览器语言
-            var navLanguage = getNavLanguage();
-            console.log(navLanguage)
+            var navLanguage = getVpnLanguage();
             if (navLanguage) {
                 // 判断是否在网站支持语言数组里
                 var charSize = $.inArray(navLanguage, webLanguage);
                 if (charSize > -1) {
                     i18nLanguage = navLanguage;
                     // 存到缓存中
-                    getCookie("userLanguage",navLanguage);
-                };
-            } else{
+                    getCookie("userLanguage", navLanguage);
+                }
+                ;
+            } else {
                 console.log("not navigator");
                 return false;
             }
         }
+    }
+
         /* 需要引入 i18n 文件*/
         if ($.i18n == undefined) {
             console.log("请引入i18n js 文件")
@@ -179,7 +210,11 @@ var execI18n = function(){
 
 /*页面执行加载执行*/
 $(function(){
-
+    layer.config({
+        title: $.i18n.prop('title'),
+        skin: 'theme_trx',
+        btn: $.i18n.prop('btninfo')
+    })
     /*执行I18n翻译*/
     execI18n();
     /*将语言选择默认选中缓存中的值*/
@@ -188,10 +223,8 @@ $(function(){
     $("#language").on('change', function() {
         var language = $(this).children('option:selected').val()
         console.log(language);
-        getCookie("userLanguage",language,{
-            expires: 30,
-            path:'/'
-        });
-        location.reload();
+        getCookie("userLanguage",language);
+        window.location.href='https://tronscan.io/'
+        // location.reload();
     });
 });

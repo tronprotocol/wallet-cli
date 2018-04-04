@@ -60,65 +60,55 @@ function updateNodes() {
         url: nodeUrl,
         data: "",
         success: function(data) {
-        		data = JSON.parse(data);
-        		nodeMapData = data.citys;
-            allNodes = data.citys;
-            console.log('all ',nodeMapData);
-			for(var i=0;i<nodeMapData.length;i++){
-				if(nodeMapData[i].country == 'China'){
-					num1 = cityObj['China'];
-					num1 = num1 + nodeMapData[i].count;
-					cityObj['China'] = num1;
-				}else if(nodeMapData[i].country == 'Hong Kong'){
-					num2 = cityObj['Hong Kong'];
-					num2 = num2 + nodeMapData[i].count;
-					cityObj['Hong Kong'] = num2;
-				}else if(nodeMapData[i].country == 'United States'){
-					num3 = cityObj['United States'];
-					num3 = num3 + nodeMapData[i].count;
-					cityObj['United States'] = num3;
-				}else if(nodeMapData[i].country == 'Germany'){
-					num4 = cityObj['Germany'];
-					num4 = num4 + nodeMapData[i].count;
-					cityObj['Germany'] = num4;
-				}else{
-					
-				}
-			}
-			for(var i=0;i<nodeMapData.length;i++){
-				if(nodeMapData[i].country == 'China'){
-					num1 = cityArr[0].count;
-					num1 = num1 + nodeMapData[i].count;
-					cityArr[0].count = num1;
-				}else if(nodeMapData[i].country == 'Hong Kong'){
-					num2 = cityArr[1].count;
-					num2 = num2 + nodeMapData[i].count;
-					cityArr[1].count = num2;
-				}else if(nodeMapData[i].country == 'United States'){
-					num3 = cityArr[2].count;
-					num3 = num3 + nodeMapData[i].count;
-					cityArr[2].count = num3;
-				}else if(nodeMapData[i].country == 'Germany'){
-					num4 = cityArr[3].count;
-					num4 = num4 + nodeMapData[i].count;
-					cityArr[3].count = num4;
-				}else{
-					
-				}
-			}
-			console.log('end',cityObj);
-			cityArr.sort(compare("count"));
-			console.log('end3333',cityArr);
+                var data = JSON.parse(data);
+        		var nodes = data.citys;
+                allNodes =  data.citys;
+                console.log('allNodes',allNodes)
+                var newNodes = [];
+                var sameNodes = [];
+                var total = 0
+                $.each(nodes,function(i,v){
+                    var flag = true;
+                    if(newNodes.length > 0){
+
+                        $.each(newNodes,function(n,m){
+                            if(newNodes[n].country == nodes[i].country){
+                                flag = false;
+                                console.log('newNodes[n].country',newNodes[n].country,newNodes[n].count,nodes[i].city,nodes[i].count)
+                                newNodes[n].count += nodes[i].count
+
+                            };
+                        });
+                    };
+                    if(flag){
+                        newNodes.push(nodes[i]);
+                    }
+                });
+                $.each(newNodes,function(i,v){
+                    total += newNodes[i].count
+                });
+
+            if(newNodes.length>10){
+               $('.map-left-more').css('display','block')
+               $('.map-left-more').on('click',function () {
+                   $('.map_left_list').css('height','auto')
+                   $(this).css('display','none')
+               })
+            }
+            var countries =  _.sortBy(newNodes, [function(o) { return o.count; }]);
+            countries.reverse();
+            console.log('countries',countries);
 //			for(var i in cityObj){
 //				flag++;
 //				$('.map_left_list').append('<li class="map_list_li"><span class="map_list_li_item map_nav_left"><i>'+flag+'</i></span><span class="map_list_li_item map_nav_middle">'+i+'</span><span class="map_list_li_item map_nav_right">'+cityObj[i]+'</span></li>');
 //				totalNum += cityObj[i];
 //			}
-			for(var i in cityArr){
-				$('.map_left_list').append('<li class="map_list_li"><span class="map_list_li_item map_nav_left"><i>'+i+'</i></span><span class="map_list_li_item map_nav_middle">'+cityArr[i].name+'</span><span class="map_list_li_item map_nav_right">'+cityArr[i].count+'</span></li>');
-				totalNum += cityArr[i].count;
+//             $('.map_left_list').html('');
+			for(var i in countries){
+				$('.map_left_list').append('<li class="map_list_li"><span class="map_list_li_item map_nav_left"><i>'+(Number(i)+1)+'</i></span><span class="map_list_li_item map_nav_middle">'+countries[i].country+'</span><span class="map_list_li_item map_nav_right">'+countries[i].count+'</span></li>');
 			}
-			$('.map_left_title').find('span').html(totalNum);
+			$('.map_left_title').find('span').html(total);
+
             updateMap();
         },
         error: function(e){

@@ -5,23 +5,16 @@
     <meta charset="UTF-8">
     <title class="i18n" name='title'></title>
     <meta id="i18n_pagename">
-    <meta name="viewport" content="width=device-width">
     <meta name="keywords" content="" />
     <meta name="description" content=""/>
-    <!-- <link rel="stylesheet" href="css/index.css"> -->
-</head>
-
-
-<head>
-    <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"/>
-    <title></title>
-
-     <link rel="stylesheet" href="/css/common.css" type="text/css"  />
+    <link rel="icon" href="/img/favicon.ico" type="image/x-icon">
+    <link rel="stylesheet" href="/css/common.css" type="text/css"  />
     <link rel="stylesheet" href="/css/login.css"  type="text/css" />
     <link rel="stylesheet" href="/css/witness.css" type="text/css" />
-    <link rel="stylesheet" href="/css/creat.css" type="text/css" />
+    <link rel="stylesheet" href="/css/count.css" type="text/css" />
     <link rel="stylesheet" href="/css/index.css" type="text/css" />
+    <link rel="stylesheet" href="/css/transform.css" type="text/css" />
     <link rel="stylesheet" href="/css/accountQuery.css" type="text/css" />
     <link rel="stylesheet" href="/css/control.css" type="text/css" />
     <link rel="stylesheet" href="/css/message.css" type="text/css" />
@@ -32,8 +25,8 @@
     <script src="/js/lib/layer/layer.js" type="text/javascript"></script>
     <script src="/js/lib/laydate/laydate.js" type="text/javascript"></script>
     <script src="/js/lib/jquery.i18n.properties-min.js" type="text/javascript"></script>
+    <script type="text/javascript" src="https://int.dpool.sina.com.cn/iplookup/iplookup.php?format=js" charset="utf-8"></script>
     <script src="/js/api/interface.js" type="text/javascript"></script>
-
     <script src="/js/cryptohash/lib/elliptic.min.js" type="text/javascript"></script>
     <script src="/js/cryptohash/lib/sha.js" type="text/javascript"></script>
     <script src="/js/cryptohash/lib/core.js" type="text/javascript"></script>
@@ -48,42 +41,58 @@
     <script src="/js/lib/language.js" type="text/javascript"></script>
     <script src="/js/utils/search.js" type="text/javascript"></script>
 
+
 </head>
 <body>
-<header class="header">
-    <img class="logo"  alt="" th:src="@{img/logo.png}"/>
-    <span class="header_active j_left" id="message" data-i18n-text="blocks">区块信息</span>
-    <span id="acco" data-i18n-text="accounts">账户列表</span>
-    <span id="a_witness" data-i18n-text="representative">超级代表</span>
-    <span id="money" data-i18n-text="send">转账</span>
-    <span id="nemoney" data-i18n-text="tokens">资产发行</span>
-    <span id="map">节点地图</span>
-    <i class="left_list">
-        <button id="create" data-i18n-text="register">创建账户/登录</button>
-        <button class="header_login" id="header_login" data-i18n-text="personalCenter">账户管理</button>
-        <button id="center" data-i18n-text="signOut">退出</button>
-    </i>
+<header class="header clearfix">
+    <!--<img class="logo"  alt="" th:src="@{img/logo.png}"/>-->
+    <div class="header-box">
+        <div class="logo fl">
+            <a href="https://tron.network/" target="_top">
+                <img src="/img/tron_logo.png" alt="LOGO"/>
+            </a>
+        </div>
+        <ul class="fl">
+            <li class="header_active j_left" id="message" data-i18n-text="blocks">区块信息</li>
+            <li id="acco" data-i18n-text="accounts">账户列表</li>
+            <li id="a_witness" data-i18n-text="representative">超级代表</li>
+            <li id="money" data-i18n-text="send">转账</li>
+            <li id="nemoney" data-i18n-text="tokens">通证发行</li>
+            <li id="map" data-i18n-text="nodemap">通证发行</li>
+        </ul>
+        <div class="searchInput-box fl">
+            <input name="searchInput" id="searchInput" class="searchInput" value="" placeholder="search" data-i18n-placeholder="search"/>
+            <i id="searchBtn"></i>
+        </div>
+        <div class="btn-list">
+            <button id="create" class="create-account-num" data-i18n-text="register">创建账户/登录</button>
+            <span class="header_login hide" id="header_login" ><i></i><b data-i18n-text="personalCenter">账户管理</b></span>
+            <button id="center" class="sign-out hide" data-i18n-text="signOut">退出</button>
+        </div>
+    </div>
+
+
 </header>
 
-<span>
-    <input name="searchInput" id="searchInput" value="" />
-    <button id="searchBtn">搜索</button>
-</span>
-
-<article id="text">
-
-</article>
+<!--内容start-->
+<article class="text-box" id="text"></article>
 <footer>
 
 </footer>
 
-
 <script src="/js/lib/ajax.js"></script>
 <script src="/js/index.js"></script>
+<script src="/js/lib/language.js" type="text/javascript"></script>
 
 
 <script type="text/javascript">
     $('#text').load('/html/message.html');
+    $(document).keypress(function(e) {
+        // 回车键事件
+        if(e.which == 13) {
+            $("#searchBtn").click();
+        }
+    });
     $('#searchBtn').on('click',function () {
       //  window.localStorage.setItem('address',$('#searchInput').val());
         if(getStringType($('#searchInput').val()) == 1) {
@@ -103,6 +112,10 @@
             $('#text').load('/html/count.html');
         }
     })
+    window.onload = function(){
+        console.log($.i18n.prop('layer'))
+    }
+   
 </script>
 
 </body>

@@ -1,180 +1,202 @@
-.w_form{
-    width: 20%;
-    float: left;
+.witness{
+    width:100%;
+    overflow: hidden;
+}
+.main{
+    background: #f7f7f7;
+}
+.main table{
+    min-width: 860px;
+    height: auto;
+    overflow: hidden;
+    border: none;
     font-size: 14px;
-    color: #428dff;
-    padding: 20px;
-    height: 100%;
+    margin:0 auto;
+}
+.main thead tr{
+    height: 86px;
+    line-height: 86px;
+    color: #7f7a7a;
+    font-size: 20px;
+}
+.tbody tr td span.num{
+    width: 20px;
+    height: 20px;
+    line-height: 20px;
+    display: block;
+    background-color: #e30a09;
+    color: #ffffff;
+    border-radius: 5px;
+    text-align: center;
+}
+.tbody tr td{
+    padding-left: 40px;
+    text-align: center;
+}
+.main thead tr th{
+    text-align: center;
+    padding-left: 20px;
+}
+.main tbody tr{
+    width: 100%;
+    height: 60px;
+    line-height: 60px;
+    color: #7f7a7a;
+    text-align: left;
+    border: 1px solid transparent;
     background-color: #fff;
-    border-right: 1px solid #d4dde7;
+}
+.tbody tr:nth-child(odd){
+    background: #eeeeee;
+}
+.tbody tr:nth-child(even){
+    background: #f7f7f7;
+}
+#witnessDate tr td:nth-child(2) span{
+    display: block;
+    width: 30%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin: auto;
+    line-height: 50px;
+}
+
+#myac_table tbody .account_tab   td {
+    border: 1px solid #d4d8da;
+    border-right: 0;
+    border-left: 0;
+    padding: 5px;
+    text-align: left;
+    color: #2c2c2c;
+}
+.main p{
+    font-size: 18px;
+    color: #428dff;
+}
+.main p>i{
+    font-size: 12px;
+    color: #f24d66;
+}
+#myac_table tbody{
+    color: #505050;
+    /*color: #d7d6d6;*/
+}
+
+#search{
+    float: left;
+}
+#creat_asset,#my_asset{
+    border-radius: 5px;
+    width: 80px;
+    line-height: 40px;
+    float: left;
+    margin: 0 10px;
+}
+#creat_asset{
+    float: right;
+    width: 100px;
+    margin-top: -50px;
+}
+.myaccount,.account_list{
     display: none;
 }
-.w_form  p {
-    line-height: 40px;
+#myac_table tbody .account_tab  td:nth-last-of-type(1){
+    border-right: 1px solid #d4d8da;
 }
-.w_form  .cheek input{
-    width: 60%;
-    margin-left: 10px;
-    border: 0;
-    border-bottom: 1px solid #d4dde7;
-}
-.w_table{
-    width: 80%;
-    /*float: right;*/
-    font-size: 14px;
-    background-color: #fafbfc;
-    margin: auto;
-    margin-top: 60px;
-
-}
-.w_table tbody tr{
-    border-bottom: 1px solid #d4dde7;
-}
-#text{
-    height: calc(100% - 66px);
-}
-.w_table table{
-    width: 80%;
-    border: 0;
-    text-align: center;
-    margin: auto;
-}
-.w_table table thead{
-    line-height: 40px;
-    font-size: 16px;
-    font-weight: 500;
-    color: #428dff;
+#myac_table tbody .account_tab  td:nth-of-type(1){
+    border-left: 1px solid #d4d8da;
 }
 
-.w_table table tbody tr{
-    line-height: 40px;
+#myac_table .account_tab{
+    line-height: 10px;
 }
-/**/
-.vote table{
-    width: 100%;
-    font-size: 14px;
-    text-align: center;
-    border-collapse:separate;
-    border-spacing:0px 20px;
-    margin: auto;
-    color: #64768a;
-    padding: 0 20px;
-    border-radius: 5px;
+.time_end{
+
 }
-.vote table thead{
-    color: #449bff;
-}
-.vote table tbody .voted{
-    line-height: 50px;
-    background-color: #fff;
-    margin: 30px 0;
+.creat_account input{
+    border-radius: 5px ;
+    border: 1px solid #d4dde7;
     width: 70%;
-    border-left: 1px solid #ccc ;
-    box-shadow: 3px 3px 15px #ecf0f5;
+    height: 40px;
+    margin: 10px 0;
 }
-.vote table .voted td {
-    border: 1px solid #d4d8da;
-    border-right: 0;
-    border-left: 0;
-    padding: 5px;
+.creat_account .account_num{
+    width: 100%;
 }
-.vote table .voted td:nth-last-of-type(1){
-    border-right: 1px solid #d4d8da;
+.account_inline{
+    color: #5ea0fe;
 }
-.vote table .voted td:nth-of-type(1){
-    border-left: 1px solid #d4d8da;
-}
-/**/
-
-.w_form  i{
+.account_inline:after{
     display: block;
-    height: 1px;
-    color: #cccccc;
-    background-color: #d4dde7;
-    margin:5px 0 10px 0 ;
+    content: '';
+    clear: both;
 }
-/**/
-.t_list{
-    height: 210px;
-    width: 30%;
-    border-left: 2px solid #0077ff;
-    background-color: #fff;
+.account_inline div{
     float: left;
-    margin: 0 18px;
-    -moz-box-shadow: 3px 3px 10px #d4dde7; /* 老的 Firefox */
-    box-shadow: 3px 3px 15px #d4dde7;
+    width: 45%;
 }
-.t_list p{
-    margin: 0 10px;
-    color: #64768a;
-    line-height: 25px;
-    padding: 0 5px;
+.account_inline div:nth-of-type(1){
+    margin-right: 50px;
 }
-.t_list p:nth-of-type(3){
-    background-color: #7e99b9;
-    color: #fff;
-}
-.ticket_detail{
-    float: right;
-}
-.num{
-    display: inline-block;
-    height: 20px;
-    width: 20px;
-    background-color: #0077ff;
-    text-align: center;
-    line-height: 20px;
-    border-radius: 2px;
-    color: #fff;
-}
-.w_table tbody .b_acitve{
-    border: 1px solid #0077ff;
-    border-radius: 5px;
-    background-color: #fff;
-}
-.deletion{
-    color: #97aec7;
-}
-.ka{
-    float: right;
-    width: 96px;
-    height: 38px;
-    background-color: #97aec7;
-    font-size: 18px;
-    color: #fff;
-    border-radius: 5px;
-    margin-top: 10px;
-}
-.t_list .t_title{
-    text-align: center;
-    background-color: #428dff;
-    line-height: 30px;
-    color: #fff;
-    font-size: 18px;
-    margin: 0;
-    padding: 0 10px;
-}
-.t_list .t_peo{
-    height: 66px;
-    width: 66px;
+.creat_account .create_account{
     display: block;
+    width: 530px;
+    text-align: center;
     margin: auto;
-    border-radius: 50%;
+    margin-top: 40px;
+}
+.creat_account .all_count{
+    width: 100px;
+    float: right;
+}
+.time_end{
+    color: #ccc;
+    border: 1px solid #ccc;
+}
+
+.tbody tr .stop{
+    background: url("../img/stop.png") no-repeat 50%;
+
+    color: #ccc;
+}
+
+#coun_pwd{
+    font-size: 14px;
+    display: none;
+}
+#coun_pwd p{
+    color: #333;
+    margin-left: 10px;
+    line-height: 30px;
+}
+#coun_pwd p span{
+    display: inline-block;
+    width:40%;
+}
+#coun_pwd p span:nth-of-type(2){
+    margin-left: 50px;
+}
+.sele_ctcount{
+    width: 100%;
+}
+.select select{
+    width: 80%;
+    margin: 10px;
+}
+.count_pwd{
+    width: 80%;
+    border: 1px solid #ccc;
+    border-radius: 2px;
+    margin: 10px 0 0 10px;
 }
 /**/
-.table tbody tr  td {
-    border: 1px solid transparent;
-    padding: 5px;
-}
-.table tbody .b_acitve  td {
+.tbody .b_acitve  td {
     border: 1px solid #d4d8da;
     border-right: 0;
     border-left: 0;
-    padding: 5px;
+    background-color: #fff;
 }
-.table tbody .b_acitve td:nth-last-of-type(1){
-    border-right: 1px solid #d4d8da;
-}
-.table tbody .b_acitve td:nth-of-type(1){
-    border-left: 1px solid #d4d8da;
+.main thead{
+    font-size: 16px;
 }

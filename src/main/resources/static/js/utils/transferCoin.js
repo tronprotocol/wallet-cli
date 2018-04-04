@@ -11,14 +11,17 @@ $('#com_adress').on('blur', function () {
     com_priKeyBytes = base64DecodeFromString($('#com_adress').val());
     com_addressBytes = getAddressFromPriKey(com_priKeyBytes);
     com_text = byteArray2hexStr(com_addressBytes);
-    //查询用户账户资产
+    //查询用户账户通证
     ajaxRequest("POST", getAccountInfo, {'address': com_text}, GetAccountSuccessCallback, GetAccountFailureCallback)
-  } else {
-    $('.com_warn').css('display', 'block');
   }
 });
 
-//查询用户账户资产 数据处理
+function getUrlParam(name){
+    name = name.replace(/[\[]/, "\\[").replace(/[\]]/, "\\]");
+    var  regex = new RegExp("[\\?&]" + name + "=([^&#]*)"), results = regex.exec(location.search);
+    return results == null  ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '))
+}
+//查询用户账户通证 数据处理
 GetAccountSuccessCallback = function (account) {
     //从base64字符串中解码出原文，格式为byteArray格式
     var bytesAccountInfo = base64DecodeFromString(account);
@@ -27,17 +30,27 @@ GetAccountSuccessCallback = function (account) {
     var Map = accountInfo.getAssetMap().toArray();
     var Balance = accountInfo.getBalance();
     var str,choseStr;
-    if(getCookie("userLanguage")){
-        var nowLanguage = getCookie("userLanguage")
-        if(nowLanguage == 'zh-CN'){
-            choseStr = '请选择资产名称'
-        }else if(nowLanguage == 'en'){
-            choseStr = 'choose tokens'
-        }
-    }else{
-        choseStr = '请选择资产名称'
+    // if (getUrlParam('language')) {
+    //     var nowLanguage = getUrlParam('language')
+    //     if(nowLanguage == 'zh-CN'){
+    //         choseStr = '请选择通证名称'
+    //     }else if(nowLanguage == 'en'){
+    //         choseStr = 'choose tokens'
+    //     }
+   // }else{
+        if(getCookie("userLanguage")){
+            var nowLanguage = getCookie("userLanguage")
+            if(nowLanguage == 'zh-CN'){
+                choseStr = '请选择通证名称'
+            }else if(nowLanguage == 'en'){
+                choseStr = 'choose tokens'
+            }
+        }else{
+            choseStr = '请选择通证名称'
 
-    }
+        }
+   // }
+
 
     $('#coinSelect').html('')
     if (Balance > 0) {
@@ -107,13 +120,14 @@ $('#change').off('click').on('click', function () {
   var com_prik = $('#com_adress').val();
   var go_text = $('#go_cont').val();
   var num_text = $('#num').val();
+  var numOther  =num_text
   var numTrx  = Number(num_text)*1000000;
 
   var dataOther = {
     "assetName": com_asset,
     "Address": com_text,
     "toAddress": go_text,
-    "Amount": numTrx
+    "Amount": numOther
   }
   var dataTrx = {
       "Address": com_text,
@@ -141,22 +155,34 @@ TransTrxSuccessCallback = function (data) {
 
 TransBroadSuccessCallback = function (data) {
     if(data){
-        layer.alert("转账成功");
-        //跳转到账户管理
-        $('#text').css('background','none');
-        $('.header span').removeClass('header_active');
-        $('#text').load('/html/control.html');
+        layer.open({
+            type: 1,
+            shadeClose: false, //点击遮罩关闭
+            content: $.i18n.prop('layer.transfersuccess'),
+            btn: ['确定'],
+            area: ['250px', '175px'],
+            yes: function(index, layero){
+                layer.close(index);
+                $('body').css('background','#fafbfc');
+                $('.header ul li').eq(1).addClass('header_active').siblings().removeClass('header_active');
+                //跳转到首页
+                $('#text').load('/html/message.html');
+            }
+
+        });
+
+
     }else{
-        layer.alert("转账失败");
+        layer.alert($.i18n.prop('layer.transferfail'));
     }
 
 };
 TransFailureCallback = function (err) {
-  layer.alert("转账失败，生成交易失败");
-  console.log('转账失败，生成交易失败')
+  layer.alert($.i18n.prop('layer.exchangefail'));
+  console.log($.i18n.prop('layer.exchangefail'))
 };
 
 TransBroadFailureCallback = function (err) {
-  layer.alert("转账失败，签名失败");
-  console.log('转账失败，签名失败')
+  layer.alert($.i18n.prop('layer.signfail'));
+  console.log($.i18n.prop('layer.signfail'))
 };

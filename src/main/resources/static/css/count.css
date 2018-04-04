@@ -1,0 +1,165 @@
+.creat_asset{
+    margin-top: 18px;
+    width: 100%;
+}
+.creat_asset_main{
+    margin: 18px auto 0;
+    min-width: 1200px;
+    min-height: 737px;
+}
+.asset-info{
+    margin-top: 18px;
+}
+.asset-info div p,.asset-info div span{
+    font-size: 22px;
+    color: rgba(44,44,44,1)
+}
+.asset-info .asset-lang-input{
+    width: 580px;
+    height: 36px;
+    background-color: rgba(255, 255, 255, 0.8);
+    border-radius: 5px;
+    border: solid 1px rgba(49, 49, 49, 0.3);
+    margin-top: 26px;
+}
+.lang-input-r{
+    margin-left:34px;
+}
+.all_count{
+    width: 90px;
+    height: 30px;
+    background-image: linear-gradient(0deg, #ea0000 0%, #c6352c 100%), linear-gradient(#a61c1c, #a61c1c);
+    float: right;
+    margin-top: 2px;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.asset-price{
+    float: right;
+}
+.asset-price b{
+    font-size: 22px;
+    font-weight: normal;
+    color: rgba(44, 44, 44, 0.99);
+}
+
+.asset-time{
+    width: 580px;
+}
+
+.asset-time-input-box{
+    margin-left: 10px;
+    font-size: 20px;
+    width: 240px;
+    height: 36px;
+    position: relative;
+    float: left;
+}
+.asset-time-input-box i{
+    width: 21px;
+    height: 18px;
+    background: url("../img/date_time.png") no-repeat;
+    position: absolute;
+    left: 20px;
+    top: 5px;
+    cursor:pointer;
+}
+
+.asset-time:nth-child(2){
+   margin-left: 34px;
+}
+.asset-time span{
+    display: block;
+}
+.asset-time input {
+    margin-left: 10px;
+    font-size: 20px;
+    width: 240px;
+    height: 36px;
+    background-color: rgba(255, 255, 255, 0.8);
+    border-radius: 5px;
+    border: solid 1px rgba(49, 49, 49, 0.3);
+    margin-top: -5px;
+    padding-left: 40px;
+
+}
+.create_account {
+    width: 280px;
+    height: 35px;
+    border-radius: 5px;
+    color: #fff;
+    display: block;
+    margin: 50px auto 0 auto;
+    background-image: linear-gradient(0deg, #ea0000 0%, #c6352c 100%), linear-gradient(#a61c1c, #a61c1c);
+    cursor: pointer;
+}
+
+.assetComtrx{
+    color:rgba(146,145,145,0.8)
+}
+
+/*发行通证*/
+.add-count{
+    width: 1320px;
+    min-height: 790px;
+    margin:44px auto 0;
+    overflow: hidden;
+    background-color: #ffffff;
+    display: none;
+    box-shadow: 1px 1px 5px 0px rgba(171, 171, 171, 0.17);
+    border-radius: 5px;
+}
+.add-count h4{
+    width: 100%;
+    font-size: 22px;
+    height: 64px;
+    line-height: 64px;
+    margin-left: 34px;
+    color: #2c2c2c;
+}
+.add-count hr{
+    color: #e2e2e2;
+}
+.count-top{
+    margin-top: 20px;
+}
+.add-count>div p:nth-child(1){
+    width: 50%;
+    font-size: 18px;
+    line-height:32px ;
+    margin-top: 20px;
+    margin-left: 34px;
+    float: left;
+}
+.add-count>div p:nth-child(2){
+    width: 45%;
+    font-size: 18px;
+    line-height:32px ;
+    margin-top: 20px;
+    text-align: left;
+    float: left;
+}
+.add-count>div p:nth-child(2) input{
+    width: 285px;
+    height: 29px;
+    background-color: rgba(255, 255, 255, 0.31);
+    border-radius: 5px;
+    border: solid 1px rgba(126, 153, 185, 0.31);
+}
+
+.check{
+    margin-top: 110px;
+    margin-left: 34px;
+    color: rgba(146,145,145,0.8);
+}
+.sure_dele{
+    width: 280px;
+    height: 35px;
+    border-radius: 5px;
+    color: #fff;
+    display: block;
+    margin: 50px auto 0 auto;
+    background-image: linear-gradient(0deg, #ea0000 0%, #c6352c 100%), linear-gradient(#a61c1c, #a61c1c);
+}
+

@@ -1,37 +1,74 @@
-<div class="article_login new_color new_top" id="transform_box">
-    <span class="t_logo">
-        <img src="/img/logo.png" alt=""/>
-        <p data-i18n-text="transfer"></p>
-        <p data-i18n-text="forSending"></p>
-    </span>
+<section class="transform-box" id="transform_box">
+    <div class="transform-coin">
+        <div class="transform-logo">
+            <img src="/img/trans_tron_logo.png" alt="LOGO"/>
+        </div>
+        <p data-i18n-text="transfer" class="transfer"></p>
+        <p data-i18n-text="forSending" class="forSending"></p>
+        <form action="" class="form-box">
+            <div>
+                <p data-i18n-text="sendPassword"></p>
+                <input class="com_adress" type="text" name="firstname" value="" id="com_adress"
+                       data-i18n-placeholder="inputPassword"/>
+            </div>
+            <div>
+                <p data-i18n-text="sendTo"></p>
+                <input class="topwd" type="text" name="paswd" value="" id="go_cont" placeholder=""
+                       data-i18n-placeholder="receiverAccount"/>
+            </div>
+            <div class="clearfix">
+                <div class="coin-select fl" id="coinSelect_box">
+                    <p data-i18n-text="chooseTokens">选择通证名称</p>
+                    <select id="coinSelect">
 
-  <form action="" class="tran_form">
-    <p data-i18n-text="sendPassword">请输入密码</p>
-    <input class="name" type="text" name="firstname" value="" id="com_adress" data-i18n-placeholder = "inputPassword"/>
-    <p class="com_warn" data-i18n-text="sendPassword">请输入密码</p>
-    <p data-i18n-text="sendTo">发往</p>
-    <input class="pwd" type="text" name="paswd" value="" id="go_cont" placeholder="请输入接方账户地址" data-i18n-placeholder = "receiverAccount"/>
-    <p class="go_warn" data-i18n-text="receiverAcc">请输入帐号</p>
-      <div class="select">
-          <p data-i18n-text="sendAmount"> 数量</p>
-          <input type="text" name="repaswd" class="remark" id="num"/>
-      </div>
-    <div class="select" id="coinSelect_box">
-        <p data-i18n-text="chooseTokens">选择资产名称</p>
-        <select id="coinSelect">
-
-        </select>
+                    </select>
+                </div>
+                <div class="coin-sendAmount fl">
+                    <p data-i18n-text="sendAmount">数量</p>
+                    <input type="text" name="repaswd" class="remark" id="num"/>
+                </div>
+            </div>
+            <p class="trans-change">
+                <input type="button" value="转账" class="liner_granet" id="change" data-i18n-value="send"/>
+            </p>
+        </form>
     </div>
 
-    <!--<p>备注消息</p>-->
-    <!--<input type="text" class="remark"/>-->
-    <p class="tran_money">
-      <input type="button" value="转账" class="liner_granet" id="change" data-i18n-value="send"/>
-      <!--<input type="button" value="取消" class=""/>-->
-    </p>
+</section>
+<!--<div class="article_login new_color new_top" id="">-->
+<!--<span class="t_logo">-->
+<!--<img src="/img/logo.png" alt=""/>-->
+<!--<p data-i18n-text="transfer"></p>-->
+<!--<p data-i18n-text="forSending"></p>-->
+<!--</span>-->
 
-  </form>
-</div>
+<!--<form action="" class="tran_form">-->
+<!--<p >请输入密码</p>-->
+<!--<input class="name" type="text" name="firstname" value="" id="com_adress" data-i18n-placeholder = "inputPassword"/>-->
+<!--<p class="com_warn" data-i18n-text="sendPassword">请输入密码</p>-->
+<!--<p data-i18n-text="sendTo">发往</p>-->
+<!--<input class="pwd" type="text" name="paswd" value="" id="go_cont" placeholder="请输入接方账户地址" data-i18n-placeholder = "receiverAccount"/>-->
+<!--<p class="go_warn" data-i18n-text="receiverAcc">请输入帐号</p>-->
+<!--<div class="select">-->
+<!--<p data-i18n-text="sendAmount"> 数量</p>-->
+<!--<input type="text" name="repaswd" class="remark" id="num"/>-->
+<!--</div>-->
+<!--<div class="select" id="coinSelect_box">-->
+<!--<p data-i18n-text="chooseTokens">选择通证名称</p>-->
+<!--<select id="coinSelect">-->
+
+<!--</select>-->
+<!--</div>-->
+
+<!--&lt;!&ndash;<p>备注消息</p>&ndash;&gt;-->
+<!--&lt;!&ndash;<input type="text" class="remark"/>&ndash;&gt;-->
+<!--<p class="tran_money">-->
+<!--<input type="button" value="转账" class="liner_granet" id="change" data-i18n-value="send"/>-->
+<!--&lt;!&ndash;<input type="button" value="取消" class=""/>&ndash;&gt;-->
+<!--</p>-->
+
+<!--</form>-->
+<!--</div>-->
 <script src="/js/utils/transferCoin.js"></script>
 <script src="/js/lib/language.js" type="text/javascript"></script>
 

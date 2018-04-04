@@ -2,17 +2,17 @@
 	<div class="map-main">
 		<!--left 列表-->
 		<div class="map_left">
-			<p class="map_left_title"><span>0</span> NODES</p>
+			<p class="map_left_title" data-i18n-text="NODES"><span>0</span> NODES</p>
 			<div class="map_left_nav">
-				<div class="map_left_item map_bold map_nav_left">RANK</div>
-				<div class="map_left_item map_nav_middle">Countries/Regions</div>
-				<div class="map_left_item map_nav_right">Nodes</div>
+				<div class="map_left_item map_bold map_nav_left" data-i18n-text="RANK">RANK</div>
+				<div class="map_left_item map_nav_middle" data-i18n-text="Countries">Countries/Regions</div>
+				<div class="map_left_item map_nav_right" data-i18n-text="Nodes">Nodes</div>
 			</div>
 			<ul class="map_left_list">
 				
 			</ul>
+			<span class="map-left-more">more>></span>
 		</div>
-		
 		<!--right 地图-->
 		<div class="map_right">
 			<section class="section section--main">
@@ -24,7 +24,10 @@
 		</div>
 	</div>
 </section>
+
+<script src="/js/lib/lodash.js"></script>
 <script src="/js/lib/echarts.min.js"></script>
 <script src="/js/lib/world.js"></script>
-<script src="/js/utils/map.js" ></script>
 <script src="/js/utils/nodemap.js" ></script>
+<script src="/js/lib/language.js" type="text/javascript"></script>
+

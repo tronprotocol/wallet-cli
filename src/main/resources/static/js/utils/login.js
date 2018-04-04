@@ -9,13 +9,12 @@ var accountName;
 
 var pk;
 //创建账户
-$('.login_html').on('click',function () {
+$('.creat-account-btn').on('click',function () {
     $('#wel_login').css('display','none');
     $('#article_login').css('display','block')
-    $('#article_login').css('top','50%')
 });
 
-$('.wel_active').on('click',function () {
+$('.wel-login-btn').on('click',function () {
 
     $('.motal-mask').css('display','block')
     $('.motal').css('display','block')
@@ -23,7 +22,7 @@ $('.wel_active').on('click',function () {
 $('#repawd').bind('input propertychange',function(){
     $('.mona_warn').css('display','none')
 })
-$('.no').on('click',function () {
+$('.no,#motal-close').on('click',function () {
     $('.motal').css('display','none');
     $('.mona_warn').css('display','none');
     $('#repawd').val('');
@@ -42,7 +41,7 @@ $('#login').on('click',function () {
         window.localStorage.setItem('key',$('#repawd').val());
         $('#repawd').val('');
         $('#text').load('/html/message.html');
-        $('#text').css('background','none');
+        $('body').css('background','#fafbfc');
     }
 })
 //注册账户 复制文本
@@ -59,7 +58,7 @@ function copyUrl2 (repeat) {
         selection.removeAllRanges();
         selection.addRange(range);
     } else {
-        layer.alert("none");
+        layer.alert($.i18n.prop('layer.copyfail'));
     }
     document.execCommand('Copy','false',null);
 }
@@ -73,9 +72,13 @@ $('#submit').on('click',function () {
     //TODO fix privateKey store
     $("#contents").text(address);
     // priKeyBytes = genPriKey();
+
     pk = base64EncodeToString(priKeyBytes);
     // console.log(pk)
     $('#pwd').text(pk);
+    //prikey_pwd
+    prikey_pwd = byteArray2hexStr(priKeyBytes);
+    $('#prikey_pwd').text(prikey_pwd)
 
     if($('.warn-info1').is(":checked")&&$('.warn-info2').is(":checked")&&$('.warn-info3').is(":checked")){
         $('#creatAccount').removeClass('disable_btn')
@@ -151,23 +154,27 @@ $('.warn_list input[type="checkbox"]').on('click',function (i) {
 $('#creatAccount').on('click',function () {
     if($("#contents").text()&&$("#pwd").text()){
         if($('.warn-info1').is(":checked")&&$('.warn-info2').is(":checked")&&$('.warn-info3').is(":checked")){
-            $('#create').css('display','none')
-            $('#header_login').css('display','inline-block');
-            $('#center').css('display','inline-block');
-            $('#text').css('background','none');
-            $(this).addClass('header_active').siblings().removeClass('header_active');
-            $('#text').load('/html/message.html');
-            window.localStorage.setItem('key',pk)
+           $('.login-prompt-box').css('display','block')
         }else{
-            layer.alert('请您认真阅读并勾选创建账户须知')
+            layer.alert($.i18n.prop('layer.accountread'))
         }
     }else{
-        layer.alert('请生成账户地址和密码')
+        layer.alert($.i18n.prop('layer.createdaccount'))
     }
 })
 
+$('.prompt-know').on('click',function () {
+    //国际化
+    $('#create').css('display','none')
+    $('#header_login').css('display','inline-block');
+    $('#center').css('display','inline-block');
+    $('body').css('background','#fafbfc');
+    $(this).addClass('header_active').siblings().removeClass('header_active');
+    $('#text').load('/html/message.html');
+    window.localStorage.setItem('key',pk)
+})
 
-//国际化
+
 
 
 

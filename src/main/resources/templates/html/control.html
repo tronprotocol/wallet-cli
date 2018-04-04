@@ -3,10 +3,8 @@
 <ul class="c_form">
         <li class="c_active" id="accountInfo" data-i18n-text="accountInfo">账户详情</li>
         <!--<li>近期活动</li>-->
-        <i></i>
         <li data-i18n-text="applyForBlockProducer">申请成为超级代表</li>
         <li onclick="voteInit()" data-i18n-text="accountVotes">投票</li>
-        <i></i>
         <!--<li>设置</li>-->
        <!--<li>帮助</li>-->
 </ul>
@@ -15,12 +13,12 @@
     <div class="d_active">
         <div class="count_outer">
             <div class="price">
-                <h6>资产列表</h6>
-                <input type="button" class="liner_granet" value="资产转账" id="transfer_accounts" data-i18n-value="accountSend">
+                <h6 data-i18n-text="Tokens">通证列表</h6>
+                <input type="button" class="liner_granet" value="通证转账" id="transfer_accounts" data-i18n-value="accountSend">
                 <table class="table">
                     <thead>
                     <tr>
-                        <th data-i18n-text="accountTokenName">资产名称</th>
+                        <th data-i18n-text="accountTokenName">通证名称</th>
                         <th data-i18n-text="accountTokenBalance">我的总量</th>
                     </tr>
                     </thead>
@@ -31,9 +29,12 @@
             </div>
             <div class="information">
                 <h6 data-i18n-text="myAccount">账户信息</h6>
-                <p>
+                <p class="clearfix">
                     <span data-i18n-text="accountAddress">账户地址</span>
                     <span id="tronAddress"></span>
+                </p>
+                <p class="clearfix">
+                    <p class="tronAddress-warn" data-i18n-text="tronAddresswarn">请不要从您的钱包或交易所，向测试网账户地址进行TRX转账。</p>
                 </p>
 
             </div>
@@ -80,7 +81,7 @@
             <h6 data-i18n-text="announcement">超级代表通知</h6>
            <!-- <p>超级代表</p>-->
             <p data-i18n-text="TRXholders">
-                申请成为超级代表需要您的账户TRX余额>0，点击申请按钮，输入您的账户密码，即可申请成为出块候选者。通过用户投票，得票最多的几个人，会成为超级代表。成为超级代表可以打包交易，生成区块并获取对应的TRX奖励。
+                申请成为超级代表需要您的账户TRX余额>0，点击申请按钮，输入您的账户密码，即可申请成为超级代表候选者。通过用户投票，得票最多的几个人，会成为超级代表。成为超级代表可以打包交易，生成区块并获取对应的TRX奖励。
             </p>
             <p class="c_check">
                  <input type="text" class="ord_input" id="ordInputUrl" placeholder="请输入您的个人站点" data-i18n-placeholder="webSite">
@@ -155,7 +156,7 @@
            <!--</p>-->
            <!--<p class="help_detail">-->
                <!--<i class="ans">A</i>-->
-               <!--<span class="">目前TRON区块链浏览器包括账户管理功能和5大版块：区块信息、账户查询、超级代表、钱包、资产发行。</span>-->
+               <!--<span class="">目前TRON区块链浏览器包括账户管理功能和5大版块：区块信息、账户查询、超级代表、钱包、通证发行。</span>-->
            <!--</p>-->
        <!--</div>-->
         <!--<div>-->
@@ -167,24 +168,24 @@
             <!--</p>-->
             <!--<p class="help_detail">-->
                 <!--<i class="ans">A</i>-->
-                <!--<span class=" more">TRON区块链浏览器钱包和资产发行功能，需要用户登录账户进行操作。未登录用户需通过账户管理功能，注册TRON账户，将注册密码保存在本地（切记不可泄漏公开），通过密码即可进行登录操作。</span>-->
+                <!--<span class=" more">TRON区块链浏览器钱包和通证发行功能，需要用户登录账户进行操作。未登录用户需通过账户管理功能，注册TRON账户，将注册密码保存在本地（切记不可泄漏公开），通过密码即可进行登录操作。</span>-->
             <!--</p>-->
         <!--</div>-->
         <!--<div>-->
             <!--<p class="help_list">-->
                 <!--<i class="ques">Q</i>-->
-                <!--<span class="title">如何用TRON区块链浏览器发行资产或参与资产发行?</span>-->
+                <!--<span class="title">如何用TRON区块链浏览器发行通证或参与通证发行?</span>-->
                 <!--<img src="/img/listbot.png" alt="" class="h_list">-->
                 <!--<img src="/img/right.png" alt="" class="none">-->
             <!--</p>-->
             <!--<p class="help_detail">-->
                 <!--<i class="ans">A</i>-->
                 <!--<span class=" more">-->
-                    <!--TRON区块链浏览器支持用户一键发行资产和参与资产发行。-->
-                  <!--<br>  【1】发行资产-->
-                 <!--<br>   点击上部导航栏中资产发行，切换到资产发行页。输入您要发行的数字资产信息，一键就可以发行数字资产。每次资产发行需要消耗发行账户100,000 TRX。-->
-                 <!--<br>   【2】参与资产发行-->
-                 <!--<br>   通过查看全部资产列表，可以参与到发行当中。-->
+                    <!--TRON区块链浏览器支持用户一键发行通证和参与通证发行。-->
+                  <!--<br>  【1】发行通证-->
+                 <!--<br>   点击上部导航栏中通证发行，切换到通证发行页。输入您要发行的数字通证信息，一键就可以发行数字通证。每次通证发行需要消耗发行账户100,000 TRX。-->
+                 <!--<br>   【2】参与通证发行-->
+                 <!--<br>   通过查看全部通证列表，可以参与到发行当中。-->
 
                 <!--</span>-->
             <!--</p>-->
@@ -192,13 +193,13 @@
         <!--<div>-->
             <!--<p class="help_list">-->
                 <!--<i class="ques">Q</i>-->
-                <!--<span class="title">如何使用TRON钱包进行资产交易？</span>-->
+                <!--<span class="title">如何使用TRON钱包进行通证交易？</span>-->
                 <!--<img src="/img/listbot.png" alt="" class="h_list">-->
                 <!--<img src="/img/right.png" alt="" class="none">-->
             <!--</p>-->
             <!--<p class="help_detail">-->
                 <!--<i class="ans">A</i>-->
-                <!--<span class="">TRON钱包支持用户进行资产交易，通过转账操作，向对方账户转出资产。</span>-->
+                <!--<span class="">TRON钱包支持用户进行通证交易，通过转账操作，向对方账户转出通证。</span>-->
             <!--</p>-->
         <!--</div>-->
         <!--<div>-->
@@ -225,11 +226,11 @@ $('.help_list').each(function (i,item) {
     })
 })
 </script>
-
+<script src="/js/lib/language.js" type="text/javascript"></script>
 <script src="/js/utils/control.js"></script>
 <script src="/js/utils/beWitness.js"></script>
 <script src="/js/utils/accountInfo.js"></script>
 <script src="/js/utils/vote.js"></script>
-<script src="/js/lib/language.js" type="text/javascript"></script>
+
 
 
