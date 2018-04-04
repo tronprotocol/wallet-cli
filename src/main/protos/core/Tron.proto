@@ -99,8 +99,6 @@ message Transaction {
 
   message raw {
     TransactionType type = 2;
-    repeated TXInput vin = 5;
-    repeated TXOutput vout = 7;
     int64 expiration = 8;
     bytes data = 10;
     repeated Contract contract = 11;
@@ -196,6 +194,7 @@ enum ReasonCode {
   LOCAL_IDENTITY = 10;
   PING_TIMEOUT = 11;
   USER_REASON = 12;
+  RESET = 16;
   UNKNOWN = 255;
 }
 
