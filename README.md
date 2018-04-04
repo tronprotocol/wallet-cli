@@ -110,16 +110,7 @@ Input any one of then, you will get more tips.
 
 How to get trx
 ----------------------------------
-use command line：                       
-importWallet 123456 63ea9502165977c7b2be2be25d3070c51b7b33a4aeb0b13ac578001104bef75f                              
-or            
-importwalletByBase64 123456 Y+qVAhZZd8eyviviXTBwxRt7M6SusLE6xXgAEQS+918=                  
 
-use web wallte             
-You can login by Y+qVAhZZd8eyviviXTBwxRt7M6SusLE6xXgAEQS+918= 
-
-Now that you have a lot of trx, you can send it to any address.                             
-With enough trx, you can issue assets, participate in asset, apply for witnesses, and more.
 
 
 Command line operation flow example
