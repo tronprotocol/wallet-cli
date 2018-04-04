@@ -110,13 +110,7 @@ Input any one of then, you will get more tips.
 
 How to get trx
 ----------------------------------
-use command line：                       
-importWallet 123456 63ea9502165977c7b2be2be25d3070c51b7b33a4aeb0b13ac578001104bef75f                              
-or            
-importwalletByBase64 123456 Y+qVAhZZd8eyviviXTBwxRt7M6SusLE6xXgAEQS+918=                  
-
-use web wallte             
-You can login by Y+qVAhZZd8eyviviXTBwxRt7M6SusLE6xXgAEQS+918= 
+you can gen one keypair and address by command line, then modify java-tron config.conf set genesis.block.assets address to yours. 
 
 Now that you have a lot of trx, you can send it to any address.                             
 With enough trx, you can issue assets, participate in asset, apply for witnesses, and more.
@@ -130,20 +124,12 @@ cd wallet-cli
 ./gradlew run -Pcmd                                                                                  
 RegisterWallet 123456      (password = 123456)                                                        
 login 123456                                                                                           
-getAddress                 (Print 'address = f286522619d962e6f93235ca27b2cb67a9e5c27b', backup it)                                                        
+getAddress                 (Print 'address = f286522619d962e6f93235ca27b2cb67a9e5c27b', backup it)                                                       
 BackupWallet 123456        (Print 'priKey = 22be575f19b9ac6e94c7646a19a4c89e06fe99e2c054bd242c0af2b6282a65e9', backup it) (BackupWallet2Base64 option)                                                    
-getbalance                 (Print 'Balance = 0')                                                                                      
-importWallet 123456 63ea9502165977c7b2be2be25d3070c51b7b33a4aeb0b13ac578001104bef75f   (the private key of Zion that Configured in the config.conf)(importwalletByBase64 123456 Y+qVAhZZd8eyviviXTBwxRt7M6SusLE6xXgAEQS+918=  option)
-login 123456                                                                                                         
-getbalance                 (Print 'Balance = 100000000000000000')                                                         
-
-SendCoin 123456 f286522619d962e6f93235ca27b2cb67a9e5c27b 10000000000                                               
-getbalance                 (Print 'Balance = 99999990000000000')                                                
-
-importWallet 123456 22be575f19b9ac6e94c7646a19a4c89e06fe99e2c054bd242c0af2b6282a65e9      (change to your account)                     
-login 123456                                                                                                                                                                                        
-getbalance                 (Print 'Balance = 10000000000')                                            
-
+getbalance                 (Print 'Balance = 0')                                                                                                                                          
+ //set genesis.block.assets address to yours. restart java-tron.
+getbalance                                                             
+          
 assetIssue 123456 testAssetIssue00001 10000000000000000 1 100 2018-4-1 2018-4-30 1 just-test https://github.com/tronprotocol/wallet-cli/                   
 getaccount  f286522619d962e6f93235ca27b2cb67a9e5c27b                                                                        
 (Print balance: 9999900000                                                                          
