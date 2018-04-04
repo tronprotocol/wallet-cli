@@ -409,6 +409,11 @@ public class TestClient {
       for (int i = 0; i < list.size(); i++) {
         Account account = list.get(i);
         logger.info("Address::" + ByteArray.toHexString(account.getAddress().toByteArray()));
+        for (Account.Vote vote : account.getVotesList()) {
+          String voteAddress = ByteArray.toHexString(vote.getVoteAddress().toByteArray());
+          long voteCount = vote.getVoteCount();
+          logger.info("voteAddress::" + voteAddress + ", voteCount::" + voteCount);
+        }
         logger.info("Account[" + account + "]");
       }
     } else {
