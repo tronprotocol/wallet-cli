@@ -25,6 +25,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import org.springframework.test.context.web.WebAppConfiguration;
 import org.tron.common.utils.ByteArray;
+import org.tron.core.config.Parameter.CommonConstant;
 import org.tron.explorer.GrpcClientApplication;
 import org.tron.protos.Contract.WitnessCreateContract;
 import org.tron.protos.Protocol.Transaction;
@@ -42,7 +43,7 @@ public class WitnessControllerTest {
   @Test
   public void testGetTransactionToView() {
 
-    String address = "8a164d6e6d3d4dd6f9f6b8b6460a7e63bb3bb96d";
+    String address = CommonConstant.ADD_PRE_FIX_STRING +"8a164d6e6d3d4dd6f9f6b8b6460a7e63bb3bb96d";
     String onwerUrl = "http://Mercury.org";
 
     final byte[] transactionToView = witnessController.getTransactionToView(address, onwerUrl);

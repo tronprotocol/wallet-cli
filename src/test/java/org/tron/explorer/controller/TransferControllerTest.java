@@ -25,6 +25,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import org.springframework.test.context.web.WebAppConfiguration;
 import org.tron.common.utils.ByteArray;
+import org.tron.core.config.Parameter.CommonConstant;
 import org.tron.explorer.GrpcClientApplication;
 import org.tron.explorer.domain.Transfer;
 import org.tron.protos.Contract.TransferContract;
@@ -43,8 +44,8 @@ public class TransferControllerTest {
   @Test
   public void testGetTransactionToView() {
     Transfer transfer = new Transfer();
-    String address="4948C2E8A756D9437037DCD8C7E0C73D560CA38D".toLowerCase();
-    String toAddress="ABD4B9367799EAA3197FECB144EB71DE1E049150".toLowerCase();
+    String address= (CommonConstant.ADD_PRE_FIX_STRING +"4948C2E8A756D9437037DCD8C7E0C73D560CA38D").toLowerCase();
+    String toAddress= (CommonConstant.ADD_PRE_FIX_STRING +"ABD4B9367799EAA3197FECB144EB71DE1E049150").toLowerCase();
     transfer.setAddress(address);
     transfer.setToAddress(toAddress);
 

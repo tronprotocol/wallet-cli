@@ -27,6 +27,7 @@ import java.security.Security;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tron.common.crypto.jce.TronCastleProvider;
+import org.tron.core.config.Parameter.CommonConstant;
 
 public class Hash {
 
@@ -126,10 +127,12 @@ public class Hash {
    * Calculates RIGTMOST160(SHA3(input)). This is used in address calculations. *
    *
    * @param input - data
-   * @return - 20 right bytes of the hash keccak of the data
+   * @return - add_pre_fix + 20 right bytes of the hash keccak of the data
    */
   public static byte[] sha3omit12(byte[] input) {
     byte[] hash = sha3(input);
-    return copyOfRange(hash, 12, hash.length);
+    byte[] address = copyOfRange(hash, 11, hash.length);
+    address[0] = CommonConstant.ADD_PRE_FIX_BYTE;
+    return address;
   }
 }
