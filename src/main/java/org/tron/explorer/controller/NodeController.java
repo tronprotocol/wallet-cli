@@ -47,7 +47,6 @@ public class NodeController {
     String txtPath = WalletClient.getTxtPath();
     InputStream input = null;
     DatabaseReader reader = null;
-    File txtFile = null;
     FileWriter fw = null;
     BufferedWriter bw = null;
 
@@ -93,7 +92,7 @@ public class NodeController {
       jsonData += "\"longitude\":" + longitude + ",";
       jsonData += "\"latitude\":" + latitude;
 
-      txtFile = new File(txtPath);
+      File txtFile = new File(txtPath);
       if (!txtFile.exists()) {
         txtFile.createNewFile();
       }
@@ -132,17 +131,12 @@ public class NodeController {
   private static Map<String, String> loadCityMap() {
     Map<String, String> ipCity = new HashMap<String, String>();
     String txtPath = WalletClient.getTxtPath();
-    InputStream input = null;
-    InputStreamReader inputStreamReader = null;
+    FileReader fr = null;
     BufferedReader br = null;
     try {
-      ClassPathResource classPathResource = new ClassPathResource(txtPath);
-      input = classPathResource.getInputStream();
-      if (input == null) {
-        return ipCity;
-      }
-      inputStreamReader = new InputStreamReader(input);
-      br = new BufferedReader(inputStreamReader);
+      File txtFile = new File(txtPath);
+      fr = new FileReader(txtFile);
+      br = new BufferedReader(fr);
       String line = br.readLine();
       if (line == null) {
         return ipCity;
@@ -162,11 +156,8 @@ public class NodeController {
         if (br != null) {
           br.close();
         }
-        if (inputStreamReader != null) {
-          inputStreamReader.close();
-        }
-        if (input != null) {
-          input.close();
+        if (fr != null) {
+          fr.close();
         }
       } catch (IOException e) {
         log.error(e.getMessage());
