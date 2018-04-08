@@ -34,6 +34,7 @@
 35.200.219.132|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
 35.205.54.154|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
 35.198.230.33|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
+35.195.78.99|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
 37.15.62.16|||"country":"Spain","city":"Sant Cugat del Vallès","longitude":2.0833,"latitude":41.4667
 175.142.24.22|||"country":"Malaysia","city":"Shah Alam","longitude":101.5304,"latitude":3.0538
 35.190.177.167|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
@@ -276,4 +277,8 @@
 185.233.104.132|||"country":"Germany","city":"Germany","longitude":9.491,"latitude":51.2993
 35.185.18.226|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
 74.87.20.170|||"country":"United States","city":"Hawthorne","longitude":-118.3439,"latitude":33.9129
+92.44.165.130|||"country":"Turkey","city":"Akdamlar","longitude":30.5187,"latitude":36.8729
+35.197.236.200|||"country":"null","city":"null","longitude":8.0,"latitude":47.0
+35.195.86.199|||"country":"null","city":"null","longitude":8.0,"latitude":47.0
+35.198.148.244|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
 92.44.165.130|||"country":"Turkey","city":"Akdamlar","longitude":30.5187,"latitude":36.8729
