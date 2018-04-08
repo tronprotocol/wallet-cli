@@ -1,0 +1,284 @@
+35.201.1.248|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
+35.204.12.147|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
+35.229.177.12|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
+35.200.157.106|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
+35.195.1.174|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
+35.204.11.182|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
+35.204.190.59|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
+35.201.5.41|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
+35.200.67.111|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
+35.195.107.1|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
+35.195.72.9|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
+35.200.138.90|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
+35.204.43.231|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
+35.204.115.96|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
+35.197.201.205|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
+35.197.167.119|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
+35.204.6.83|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
+35.195.61.87|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
+35.200.148.60|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
+35.195.16.23|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
+35.204.222.154|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
+35.204.21.242|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
+35.200.142.85|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
+35.204.13.174|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
+35.197.208.116|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
+35.204.75.35|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
+35.204.2.199|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
+35.201.129.98|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
+35.204.15.132|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
+35.204.109.45|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
+35.204.7.64|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
+35.204.149.80|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
+35.195.68.60|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
+35.200.219.132|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
+35.205.54.154|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
+35.198.230.33|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
+35.195.78.99|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
+37.15.62.16|||"country":"Spain","city":"Sant Cugat del Vallès","longitude":2.0833,"latitude":41.4667
+175.142.24.22|||"country":"Malaysia","city":"Shah Alam","longitude":101.5304,"latitude":3.0538
+35.190.177.167|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+116.14.48.200|||"country":"Singapore","city":"Singapore","longitude":103.8558,"latitude":1.2931
+35.198.104.16|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+83.27.245.65|||"country":"Poland","city":"Sekowa","longitude":21.3361,"latitude":49.562
+35.196.27.42|||"country":"United States","city":"United States","longitude":-77.2497,"latitude":38.6582
+35.197.66.185|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+35.194.60.96|||"country":"United States","city":"United States","longitude":-77.2497,"latitude":38.6582
+35.190.135.174|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+159.153.136.112|||"country":"Canada","city":"Burnaby","longitude":-122.9938,"latitude":49.2478
+35.190.152.28|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+35.185.245.163|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+138.75.47.18|||"country":"Singapore","city":"Singapore","longitude":103.8558,"latitude":1.2931
+99.122.212.152|||"country":"United States","city":"Miami","longitude":-80.3347,"latitude":25.6032
+83.85.29.135|||"country":"Netherlands","city":"Rijswijk","longitude":4.3221,"latitude":52.0328
+35.189.2.124|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+35.198.12.9|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+35.185.180.214|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+47.254.144.25|||"country":"Germany","city":"Frankfurt am Main","longitude":8.6823,"latitude":50.1153
+35.196.94.222|||"country":"United States","city":"United States","longitude":-77.2497,"latitude":38.6582
+82.217.144.196|||"country":"Netherlands","city":"Amstelveen","longitude":4.827,"latitude":52.2812
+35.197.12.115|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+194.182.75.189|||"country":"Czechia","city":"Czechia","longitude":14.411200000000001,"latitude":50.0848
+35.187.160.140|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+35.196.1.78|||"country":"United States","city":"United States","longitude":-77.2497,"latitude":38.6582
+35.186.158.175|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+60.54.91.163|||"country":"Malaysia","city":"Shah Alam","longitude":101.5355,"latitude":3.0639
+35.192.172.75|||"country":"United States","city":"United States","longitude":-77.2497,"latitude":38.6582
+35.230.132.124|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+35.197.71.201|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+77.238.65.207|||"country":"Bulgaria","city":"Bulgaria","longitude":23.3333,"latitude":42.7
+70.121.119.121|||"country":"United States","city":"Austin","longitude":-97.6437,"latitude":30.366
+119.61.19.34|||"country":"China","city":"Chaoyang","longitude":120.4586,"latitude":41.5703
+35.190.184.76|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+35.189.4.178|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+35.189.17.21|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+88.5.79.87|||"country":"Spain","city":"Pamplona","longitude":-1.6412,"latitude":42.8141
+35.192.64.195|||"country":"United States","city":"United States","longitude":-77.2497,"latitude":38.6582
+185.25.151.32|||"country":"Poland","city":"Poland","longitude":21.0362,"latitude":52.2394
+35.189.99.140|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+69.129.204.172|||"country":"United States","city":"Verona","longitude":-89.5679,"latitude":42.9925
+35.185.207.119|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+69.119.233.184|||"country":"United States","city":"Stamford","longitude":-73.5429,"latitude":41.061
+217.114.218.23|||"country":"Germany","city":"Germany","longitude":9.491,"latitude":51.2993
+197.253.66.60|||"country":"Ghana","city":"Accra","longitude":-0.2167,"latitude":5.55
+35.185.96.67|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+217.138.80.34|||"country":"United Kingdom","city":"London","longitude":-0.0931,"latitude":51.5142
+47.93.9.236|||"country":"China","city":"Hangzhou","longitude":120.1614,"latitude":30.2936
+35.190.195.139|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+92.53.66.246|||"country":"Russia","city":"Russia","longitude":37.6068,"latitude":55.7386
+35.184.7.0|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+35.185.225.105|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+94.174.38.215|||"country":"United Kingdom","city":"Slough","longitude":-0.5833,"latitude":51.5
+35.189.22.204|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+47.93.33.201|||"country":"China","city":"Hangzhou","longitude":120.1614,"latitude":30.2936
+47.254.146.147|||"country":"Germany","city":"Frankfurt am Main","longitude":8.6823,"latitude":50.1153
+35.190.188.132|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+35.187.181.185|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+35.185.109.127|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+217.131.93.7|||"country":"Turkey","city":"Istanbul","longitude":28.9647,"latitude":41.0186
+47.91.216.69|||"country":"Hong Kong","city":"Hong Kong","longitude":114.1667,"latitude":22.25
+46.249.77.13|||"country":"Bulgaria","city":"Sofia","longitude":23.3167,"latitude":42.6833
+35.203.1.32|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+35.184.181.253|||"country":"United States","city":"Plainfield","longitude":-86.4106,"latitude":39.6858
+178.43.232.128|||"country":"Poland","city":"Wrocław","longitude":17.0049,"latitude":51.1164
+103.39.29.27|||"country":"India","city":"Thane","longitude":72.9667,"latitude":19.2
+35.189.126.109|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+173.14.84.113|||"country":"United States","city":"Naples","longitude":-81.7641,"latitude":26.2385
+35.190.144.163|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+169.255.192.155|||"country":"South Africa","city":"Johannesburg","longitude":28.0583,"latitude":-26.2309
+35.198.123.55|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+188.2.120.64|||"country":"Serbia","city":"Zrenjanin","longitude":20.3819,"latitude":45.3836
+51.136.26.62|||"country":"Netherlands","city":"Amsterdam","longitude":4.9167,"latitude":52.35
+223.71.166.85|||"country":"China","city":"Beijing","longitude":116.3883,"latitude":39.9289
+35.197.63.131|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+35.190.211.8|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+35.188.141.204|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+74.15.222.118|||"country":"Canada","city":"Québec","longitude":-71.3605,"latitude":46.8083
+121.7.140.210|||"country":"Singapore","city":"Singapore","longitude":103.8558,"latitude":1.2931
+35.197.13.142|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+104.173.194.105|||"country":"United States","city":"Los Angeles","longitude":-118.3852,"latitude":34.0523
+35.231.83.11|||"country":"United States","city":"United States","longitude":-77.2497,"latitude":38.6582
+35.188.91.172|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+154.70.208.132|||"country":"South Africa","city":"Cape Town","longitude":18.4232,"latitude":-33.9258
+176.198.33.27|||"country":"Germany","city":"Dortmund","longitude":7.4063,"latitude":51.5005
+35.196.251.247|||"country":"United States","city":"United States","longitude":-77.2497,"latitude":38.6582
+35.186.153.222|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+35.185.96.2|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+31.55.30.16|||"country":"United Kingdom","city":"Birmingham","longitude":-1.9167,"latitude":52.4667
+35.196.71.192|||"country":"United States","city":"United States","longitude":-77.2497,"latitude":38.6582
+35.190.184.188|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+35.197.30.224|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+97.116.8.73|||"country":"United States","city":"Minneapolis","longitude":-93.3033,"latitude":45.0629
+194.126.200.32|||"country":"Switzerland","city":"Switzerland","longitude":8.1551,"latitude":47.1449
+71.69.37.201|||"country":"United States","city":"Grundy","longitude":-82.0522,"latitude":37.3137
+35.186.167.236|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+35.198.138.194|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+74.58.221.228|||"country":"Canada","city":"Québec","longitude":-71.4157,"latitude":46.7903
+194.126.200.37|||"country":"Switzerland","city":"Switzerland","longitude":8.1551,"latitude":47.1449
+35.187.71.5|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+90.253.147.142|||"country":"United Kingdom","city":"Cardiff","longitude":-3.2,"latitude":51.5
+35.224.144.253|||"country":"United States","city":"United States","longitude":-77.2497,"latitude":38.6582
+73.199.153.53|||"country":"United States","city":"Fords","longitude":-74.3111,"latitude":40.5377
+23.239.19.106|||"country":"United States","city":"Atlanta","longitude":-84.388,"latitude":33.749
+35.198.118.241|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+35.188.9.145|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+35.203.84.14|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+35.196.29.80|||"country":"United States","city":"United States","longitude":-77.2497,"latitude":38.6582
+35.186.159.171|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+51.136.52.50|||"country":"Netherlands","city":"Amsterdam","longitude":4.9167,"latitude":52.35
+35.189.18.187|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+35.189.26.120|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+124.149.138.21|||"country":"Australia","city":"South Yarra","longitude":144.9833,"latitude":-37.8333
+142.44.246.252|||"country":"Canada","city":"Montreal","longitude":-73.5747,"latitude":45.504
+35.185.185.51|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+23.251.138.136|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+71.215.39.94|||"country":"United States","city":"Fort Myers","longitude":-81.8754,"latitude":26.6231
+35.230.130.2|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+18.188.111.53|||"country":"United States","city":"Columbus","longitude":-83.0235,"latitude":39.9653
+166.62.125.81|||"country":"United States","city":"Scottsdale","longitude":-111.8906,"latitude":33.6119
+189.123.129.82|||"country":"Brazil","city":"Goiânia","longitude":-49.2668,"latitude":-16.701
+35.187.168.61|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+35.189.19.158|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+35.186.169.56|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+76.184.194.109|||"country":"United States","city":"McKinney","longitude":-96.6863,"latitude":33.2542
+197.253.66.16|||"country":"Ghana","city":"Accra","longitude":-0.2167,"latitude":5.55
+47.254.16.55|||"country":"United States","city":"San Mateo","longitude":-122.3558,"latitude":37.526
+35.188.81.184|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+35.190.166.128|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+35.196.48.113|||"country":"United States","city":"United States","longitude":-77.2497,"latitude":38.6582
+35.198.10.51|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+130.211.151.87|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+185.87.37.161|||"country":"Andorra","city":"Arans","longitude":1.5167000000000002,"latitude":42.5833
+47.74.243.124|||"country":"Singapore","city":"Singapore","longitude":103.8558,"latitude":1.2931
+35.185.189.196|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+35.231.219.59|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+47.93.184.2|||"country":"China","city":"Hangzhou","longitude":120.1614,"latitude":30.2936
+207.148.25.210|||"country":"United States","city":"Piscataway","longitude":-74.4637,"latitude":40.5516
+35.203.93.122|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+35.187.114.171|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+35.196.118.24|||"country":"United States","city":"United States","longitude":-77.2497,"latitude":38.6582
+35.189.21.91|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+35.189.86.93|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+35.196.44.36|||"country":"United States","city":"United States","longitude":-77.2497,"latitude":38.6582
+39.106.220.120|||"country":"China","city":"Hangzhou","longitude":120.1614,"latitude":30.2936
+122.178.249.220|||"country":"India","city":"Bengaluru","longitude":77.5833,"latitude":12.9833
+35.197.51.57|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+82.202.212.55|||"country":"Russia","city":"Russia","longitude":37.6068,"latitude":55.7386
+46.101.161.79|||"country":"Germany","city":"Frankfurt am Main","longitude":8.6833,"latitude":50.1167
+35.189.103.83|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+146.148.17.177|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+95.111.62.196|||"country":"Bulgaria","city":"Sofia","longitude":23.3167,"latitude":42.6833
+35.189.49.204|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+35.189.213.221|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+78.56.68.91|||"country":"Republic of Lithuania","city":"Vilnius","longitude":25.3464,"latitude":54.7345
+35.197.120.26|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+35.186.154.88|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+47.91.246.252|||"country":"Hong Kong","city":"Hong Kong","longitude":114.1667,"latitude":22.25
+35.196.123.4|||"country":"United States","city":"United States","longitude":-77.2497,"latitude":38.6582
+168.235.68.117|||"country":"United States","city":"Atlanta","longitude":-84.3846,"latitude":33.8379
+35.189.135.212|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+65.99.91.72|||"country":"Japan","city":"Koriyama","longitude":140.3833,"latitude":37.4
+217.198.124.139|||"country":"Czechia","city":"Brno","longitude":16.6333,"latitude":49.2
+34.218.208.163|||"country":"United States","city":"Boardman","longitude":-119.529,"latitude":45.7788
+188.213.161.146|||"country":"Italy","city":"Arezzo","longitude":11.9109,"latitude":43.4995
+35.231.183.246|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+67.207.92.229|||"country":"United States","city":"North Bergen","longitude":-74.0246,"latitude":40.7904
+103.39.29.34|||"country":"India","city":"Mumbai","longitude":72.8258,"latitude":18.975
+54.219.41.56|||"country":"United States","city":"San Jose","longitude":-121.895,"latitude":37.3394
+93.206.39.44|||"country":"Germany","city":"Sindelfingen","longitude":8.9988,"latitude":48.7094
+35.196.78.200|||"country":"United States","city":"United States","longitude":-77.2497,"latitude":38.6582
+35.189.11.109|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+217.198.124.133|||"country":"Czechia","city":"Brno","longitude":16.6333,"latitude":49.2
+76.184.49.50|||"country":"United States","city":"Dallas","longitude":-96.7467,"latitude":32.8266
+185.101.94.98|||"country":"Germany","city":"Germany","longitude":9.491,"latitude":51.2993
+95.195.136.150|||"country":"Sweden","city":"Helsingborg","longitude":12.7,"latitude":56.05
+41.242.138.25|||"country":"Ghana","city":"Accra","longitude":-0.2167,"latitude":5.55
+35.197.43.115|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+34.214.241.188|||"country":"United States","city":"Boardman","longitude":-119.529,"latitude":45.7788
+35.188.96.227|||"country":"United States","city":"New York","longitude":-73.9439,"latitude":40.7921
+35.185.95.168|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+35.202.205.167|||"country":"United States","city":"United States","longitude":-77.2497,"latitude":38.6582
+35.196.30.55|||"country":"United States","city":"United States","longitude":-77.2497,"latitude":38.6582
+72.194.205.40|||"country":"United States","city":"Irvine","longitude":-117.7339,"latitude":33.6751
+35.185.101.191|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+192.94.226.250|||"country":"Austria","city":"Austria","longitude":16.3667,"latitude":48.2
+35.189.69.200|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+31.17.125.216|||"country":"Germany","city":"Oldenburg","longitude":13.55,"latitude":53.95
+35.187.74.95|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+35.187.229.206|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+35.203.10.55|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+69.180.141.247|||"country":"United States","city":"Maple Grove","longitude":-93.4947,"latitude":45.1234
+185.230.127.29|||"country":"Germany","city":"Berlin","longitude":13.4096,"latitude":52.5213
+36.73.70.237|||"country":"Indonesia","city":"Klaten","longitude":110.6064,"latitude":-7.7058
+35.189.13.74|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+88.147.219.73|||"country":"Russia","city":"Saratov","longitude":46.0086,"latitude":51.5406
+35.196.163.249|||"country":"United States","city":"United States","longitude":-77.2497,"latitude":38.6582
+35.189.11.203|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+35.197.106.251|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+71.184.251.73|||"country":"United States","city":"Abington","longitude":-70.959,"latitude":42.1193
+79.158.34.161|||"country":"Spain","city":"Ibiza Town","longitude":1.433,"latitude":38.9088
+35.192.137.66|||"country":"United States","city":"United States","longitude":-77.2497,"latitude":38.6582
+103.39.29.124|||"country":"India","city":"Mumbai","longitude":72.8258,"latitude":18.975
+35.231.208.79|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+35.196.80.174|||"country":"United States","city":"United States","longitude":-77.2497,"latitude":38.6582
+35.189.20.31|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+67.170.202.211|||"country":"United States","city":"San Jose","longitude":-121.9144,"latitude":37.3239
+41.242.138.54|||"country":"Ghana","city":"Accra","longitude":-0.2167,"latitude":5.55
+85.214.158.132|||"country":"Germany","city":"Berlin","longitude":13.4,"latitude":52.5167
+181.166.199.146|||"country":"Argentina","city":"City Bell","longitude":-58.051,"latitude":-34.8789
+192.180.218.94|||"country":"United States","city":"Lexington","longitude":-84.4847,"latitude":38.0159
+35.185.122.217|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+46.86.191.171|||"country":"Germany","city":"Garmisch-Partenkirchen","longitude":11.0958,"latitude":47.4921
+89.201.166.70|||"country":"Croatia","city":"Zagreb","longitude":15.9667,"latitude":45.7333
+176.55.172.132|||"country":"Turkey","city":"Istanbul","longitude":28.9647,"latitude":41.0186
+86.19.71.0|||"country":"United Kingdom","city":"Swindon","longitude":-1.7833,"latitude":51.5167
+139.99.173.27|||"country":"Australia","city":"Sydney","longitude":151.2055,"latitude":-33.8615
+88.17.92.202|||"country":"Spain","city":"Alhaurin de la Torre","longitude":-4.5614,"latitude":36.664
+39.107.80.135|||"country":"China","city":"Hangzhou","longitude":120.1614,"latitude":30.2936
+35.185.29.7|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+35.190.176.50|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+35.184.82.96|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+35.202.146.67|||"country":"United States","city":"United States","longitude":-77.2497,"latitude":38.6582
+35.189.19.186|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+96.94.210.185|||"country":"United States","city":"Culpeper","longitude":-77.9866,"latitude":38.4348
+35.198.10.200|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+173.66.15.34|||"country":"United States","city":"Fairfax","longitude":-77.3375,"latitude":38.8357
+66.45.251.18|||"country":"United States","city":"New York","longitude":-74.005,"latitude":40.7055
+35.185.108.117|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+35.196.47.93|||"country":"United States","city":"United States","longitude":-77.2497,"latitude":38.6582
+217.198.117.155|||"country":"Czechia","city":"Brno","longitude":16.6333,"latitude":49.2
+35.196.20.37|||"country":"United States","city":"United States","longitude":-77.2497,"latitude":38.6582
+107.223.191.106|||"country":"United States","city":"Apex","longitude":-78.8862,"latitude":35.7114
+35.185.6.84|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+35.185.104.49|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+45.79.73.16|||"country":"United States","city":"Fremont","longitude":-121.9886,"latitude":37.5483
+35.189.8.50|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+123.56.10.6|||"country":"China","city":"Hangzhou","longitude":120.1614,"latitude":30.2936
+185.233.104.132|||"country":"Germany","city":"Germany","longitude":9.491,"latitude":51.2993
+35.185.18.226|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+74.87.20.170|||"country":"United States","city":"Hawthorne","longitude":-118.3439,"latitude":33.9129
+92.44.165.130|||"country":"Turkey","city":"Akdamlar","longitude":30.5187,"latitude":36.8729
+35.197.236.200|||"country":"null","city":"null","longitude":8.0,"latitude":47.0
+35.195.86.199|||"country":"null","city":"null","longitude":8.0,"latitude":47.0
+35.198.148.244|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+92.44.165.130|||"country":"Turkey","city":"Akdamlar","longitude":30.5187,"latitude":36.8729
