@@ -195,7 +195,7 @@ public class Test {
 
   public static void testGenKey() {
     ECKey eCkey = null;
-    String priKeyHex = "ab586052ebbea85f3342dd213abbe197ab3fd70c5edf0b2ceab52bd4143e1a52";
+    String priKeyHex = "cba92a516ea09f620a16ff7ee95ce0df1d56550a8babe9964981a7144c8a784a";
     try {
       BigInteger priK = new BigInteger(priKeyHex, 16);
       eCkey = ECKey.fromPrivate(priK);
@@ -321,6 +321,6 @@ public class Test {
 
   public static void main(String[] args) throws Exception {
 
-    testBase58();
+    testGenKey();
   }
 }

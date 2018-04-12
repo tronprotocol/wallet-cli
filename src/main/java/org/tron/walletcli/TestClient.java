@@ -191,7 +191,10 @@ public class TestClient {
       return;
     }
     String address = parameters[0];
-    byte[] addressBytes = ByteArray.fromHexString(address);
+    byte[] addressBytes = WalletClient.decodeFromBase58Check(address);
+    if ( addressBytes == null ){
+      return;
+    }
 
     Optional<AssetIssueList> result = WalletClient.getAssetIssueByAccount(addressBytes);
     if (result.isPresent()) {

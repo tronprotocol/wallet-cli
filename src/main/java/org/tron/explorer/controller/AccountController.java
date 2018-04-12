@@ -36,7 +36,7 @@ public class AccountController {
       if (baAddress == null) {
         return null;
       }
-      Account account = WalletClient.queryAccount(ByteArray.fromHexString(address));
+      Account account = WalletClient.queryAccount(baAddress);
       return account.toByteArray();
     } catch (Exception e) {
       e.printStackTrace();

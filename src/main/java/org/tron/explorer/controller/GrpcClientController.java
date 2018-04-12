@@ -49,9 +49,12 @@ public class GrpcClientController {
   public ModelAndView registerAccount(@ModelAttribute AccountVo account) {
     ModelAndView modelAndView;
     try {
+      byte[] address = WalletClient.decodeFromBase58Check(account.getAddress());
+      if (address == null) {
+        return null;
+      }
       Transaction transaction = WalletClient
-          .createAccountTransaction(AccountType.Normal, account.getName().getBytes(),
-              ByteArray.fromHexString(account.getAddress()));
+          .createAccountTransaction(AccountType.Normal, account.getName().getBytes(), address);
       Any contract = transaction.getRawData().getContract(0).getParameter();
       AccountCreateContract accountCreateContract = contract.unpack(AccountCreateContract.class);
       modelAndView = new ModelAndView("register");
@@ -74,9 +77,12 @@ public class GrpcClientController {
   //send account transaction to view
   @PostMapping("/transactionForView")
   public byte[] getTransactionToView(@ModelAttribute AccountVo account) {
+    byte[] address = WalletClient.decodeFromBase58Check(account.getAddress());
+    if (address == null) {
+      return null;
+    }
     Transaction transaction = WalletClient
-        .createAccountTransaction(AccountType.Normal, account.getName().getBytes(),
-            ByteArray.fromHexString(account.getAddress()));
+        .createAccountTransaction(AccountType.Normal, account.getName().getBytes(), address);
     transaction = TransactionUtils.setTimestamp(transaction);
     return transaction.toByteArray();
   }
@@ -84,7 +90,7 @@ public class GrpcClientController {
   //get account transaction from view
   @PostMapping("/transactionFromView")
   public boolean transactionFromView(String transactionData) throws InvalidProtocolBufferException {
-    if ( transactionData == null || transactionData.equals("")){
+    if (transactionData == null || transactionData.equals("")) {
       return false;
     }
     final byte[] bytes = ByteArray.fromHexString(transactionData);
