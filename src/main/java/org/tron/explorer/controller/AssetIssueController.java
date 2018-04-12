@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.ModelAndView;
 import org.tron.api.GrpcAPI.AssetIssueList;
+import org.tron.common.utils.Base58;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.TransactionUtils;
 import org.tron.explorer.domain.AssetIssueVo;
@@ -58,7 +59,8 @@ public class AssetIssueController {
       }
 
       Contract.AssetIssueContract.Builder builder = Contract.AssetIssueContract.newBuilder();
-      builder.setOwnerAddress(ByteString.copyFrom(ByteArray.fromHexString(assetIssueVo.getOwnerAddress())));
+      builder.setOwnerAddress(
+          ByteString.copyFrom(ByteArray.fromHexString(assetIssueVo.getOwnerAddress())));
       builder.setName(ByteString.copyFrom(assetIssueVo.getName().getBytes()));
       builder.setTotalSupply(assetIssueVo.getTotalSupply());
       builder.setTrxNum(assetIssueVo.getTrxNum());
@@ -98,10 +100,10 @@ public class AssetIssueController {
   @GetMapping("/getAssetIssueByAccount")
   public byte[] getAssetIssueByAccount(String address) throws IOException {
     try {
-      if (!WalletClient.addressValid(address)) {
+      byte[] owner = WalletClient.decodeFromBase58Check(address);
+      if (owner == null) {
         return null;
       }
-      byte[] owner = ByteArray.fromHexString(address);
 
       Optional<AssetIssueList> result = WalletClient.getAssetIssueByAccount(owner);
       if (result.isPresent()) {

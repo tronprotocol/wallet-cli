@@ -20,33 +20,6 @@ public class Base58 {
     }
   }
 
-  public static String encode58Check(byte[] input) {
-    byte[] hash0 = Hash.sha256(input);
-    byte[] hash1 = Hash.sha256(hash0);
-    byte[] inputCheck = new byte[input.length + 4];
-    System.arraycopy(input, 0, inputCheck, 0, input.length);
-    System.arraycopy(hash1, 0, inputCheck, input.length, 4);
-    return encode(inputCheck);
-  }
-
-  public static byte[] decode58Check(String input) {
-    byte[] decodeCheck = decode(input);
-    if (decodeCheck.length <= 4) {
-      return null;
-    }
-    byte[] decodeData = new byte[decodeCheck.length - 4];
-    System.arraycopy(decodeCheck, 0, decodeData, 0, decodeData.length);
-    byte[] hash0 = Hash.sha256(decodeData);
-    byte[] hash1 = Hash.sha256(hash0);
-    if (hash1[0] == decodeCheck[decodeData.length] &&
-        hash1[1] == decodeCheck[decodeData.length + 1] &&
-        hash1[2] == decodeCheck[decodeData.length + 2] &&
-        hash1[3] == decodeCheck[decodeData.length + 3]) {
-      return decodeData;
-    }
-    return null;
-  }
-
   /**
    * Encodes the given bytes in base58. No checksum is appended.
    */

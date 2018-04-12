@@ -24,17 +24,20 @@ public class AssetTransferController {
       if (transferAsset == null) {
         return null;
       }
+      byte[] address = WalletClient.decodeFromBase58Check(transferAsset.getAddress());
+      byte[] toAddress = WalletClient.decodeFromBase58Check(transferAsset.getToAddress());
+      if (address == null || toAddress == null) {
+        return null;
+      }
       if (transferAsset.getAssetName() != "TRX") {
         transaction = WalletClient
-            .createTransferAssetTransaction(ByteArray.fromHexString(transferAsset.getToAddress()),
+            .createTransferAssetTransaction(toAddress,
                 ByteArray.fromHexString(transferAsset.getAssetName()),
-                ByteArray.fromHexString(transferAsset.getAddress()),
+                address,
                 Long.parseLong(transferAsset.getAmount()));
       } else {
         TransferContract contract = WalletClient
-            .createTransferContract(ByteArray.fromHexString(transferAsset.getToAddress()),
-                ByteArray.fromHexString(transferAsset.getAddress()),
-                Long.parseLong(transferAsset.getAmount()));
+            .createTransferContract(toAddress, address, Long.parseLong(transferAsset.getAmount()));
         transaction = WalletClient.createTransaction4Transfer(contract);
       }
 

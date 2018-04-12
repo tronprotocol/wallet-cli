@@ -5,6 +5,7 @@ import com.google.protobuf.ByteString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tron.api.GrpcAPI.*;
+import org.tron.common.utils.Base58;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Utils;
 import org.tron.protos.Contract.AssetIssueContract;
@@ -169,7 +170,10 @@ public class TestClient {
       return;
     }
     String address = parameters[0];
-    byte[] addressBytes = ByteArray.fromHexString(address);
+    byte[] addressBytes = WalletClient.decodeFromBase58Check(address);
+    if (addressBytes == null) {
+      return;
+    }
 
     Account account = WalletClient.queryAccount(addressBytes);
     if (account == null) {

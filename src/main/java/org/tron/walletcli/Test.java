@@ -41,6 +41,7 @@ import org.tron.protos.Protocol.TXOutput;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Contract.TransferContract;
 import com.google.protobuf.Any;
+import org.tron.walletserver.WalletClient;
 
 public class Test {
 
@@ -284,14 +285,14 @@ public class Test {
     hexAddresList.add("a014eebe4d30a6acb505c8b00b218bdc4733433c68");
     hexAddresList.add("a04711bf7afbdf44557defbdf4c4e7aa6138c6331f");
 
-    for (String hexString: hexAddresList) {
+    for (String hexString : hexAddresList) {
       byte[] address = ByteArray.fromHexString(hexString);
-      String base58 = Base58.encode58Check(address);
+      String base58 = WalletClient.encode58Check(address);
       System.out.println("hexAddress = " + hexString);
       System.out.println("base58Check = " + base58);
-      byte[] decode58 = Base58.decode58Check(base58);
+      byte[] decode58 = WalletClient.decodeFromBase58Check(base58);
       System.out.println("decode58 = " + ByteArray.toHexString(decode58));
-      if ( !Arrays.equals(decode58, address) ){
+      if (!Arrays.equals(decode58, address)) {
         System.out.println("Error, address is not equals to  decode58 !!!!");
         return;
       }
