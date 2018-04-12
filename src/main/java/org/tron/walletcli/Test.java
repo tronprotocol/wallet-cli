@@ -20,6 +20,7 @@ import java.io.UnsupportedEncodingException;
 import java.math.BigInteger;
 import java.net.InetAddress;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Base64.Decoder;
 import java.util.Base64.Encoder;
@@ -285,9 +286,15 @@ public class Test {
 
     for (String hexString: hexAddresList) {
       byte[] address = ByteArray.fromHexString(hexString);
-      String base58 = Base58.encode(address);
+      String base58 = Base58.encode58Check(address);
       System.out.println("hexAddress = " + hexString);
-      System.out.println("base58 = " + base58);
+      System.out.println("base58Check = " + base58);
+      byte[] decode58 = Base58.decode58Check(base58);
+      System.out.println("decode58 = " + ByteArray.toHexString(decode58));
+      if ( !Arrays.equals(decode58, address) ){
+        System.out.println("Error, address is not equals to  decode58 !!!!");
+        return;
+      }
     }
   }
 
