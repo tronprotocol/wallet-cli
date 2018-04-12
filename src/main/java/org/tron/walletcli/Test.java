@@ -195,7 +195,7 @@ public class Test {
 
   public static void testGenKey() {
     ECKey eCkey = null;
-    String priKeyHex = "9d4ce29ec3e5d6204e8e7eb75f738b58f5cb67f72c184c4a2e207055ce3db235";
+    String priKeyHex = "ab586052ebbea85f3342dd213abbe197ab3fd70c5edf0b2ceab52bd4143e1a52";
     try {
       BigInteger priK = new BigInteger(priKeyHex, 16);
       eCkey = ECKey.fromPrivate(priK);
@@ -203,15 +203,32 @@ public class Test {
       ex.printStackTrace();
       return;
     }
-    byte[] priKey = eCkey.getPrivKeyBytes();
-    byte[] pubKey = eCkey.getPubKey();
-    byte[] address = eCkey.getAddress();
 
-    String priKeyString = ByteArray.toHexString(priKey);
+    byte[] pubKey = eCkey.getPubKey();
+    byte[] hash = Hash.sha3(Arrays.copyOfRange(pubKey, 1, pubKey.length));
+    byte[] hash_ = Hash.sha3(pubKey);
+    byte[] address = eCkey.getAddress();
+    byte[] hash0 = Hash.sha256(address);
+    byte[] hash1 = Hash.sha256(hash0);
+    byte[] checkSum = Arrays.copyOfRange(hash1, 0, 4);
+    byte[] addchecksum = new byte[address.length + 4];
+    System.arraycopy(address, 0, addchecksum, 0, address.length);
+    System.arraycopy(checkSum, 0, addchecksum, address.length, 4);
+    String base58 = Base58.encode(addchecksum);
+    String base58Address = WalletClient.encode58Check(address);
+
     String pubKeyString = ByteArray.toHexString(pubKey);
     System.out.println("priKeyHex:::" + priKeyHex);
-    System.out.println("priKeyString:::" + priKeyString);
     System.out.println("pubKeyString:::" + pubKeyString);
+    System.out.println("hash:::" + ByteArray.toHexString(hash));
+    System.out.println("hash_:::" + ByteArray.toHexString(hash_));
+    System.out.println("address:::" + ByteArray.toHexString(address));
+    System.out.println("hash0:::" + ByteArray.toHexString(hash0));
+    System.out.println("hash1:::" + ByteArray.toHexString(hash1));
+    System.out.println("checkSum:::" + ByteArray.toHexString(checkSum));
+    System.out.println("addchecksum:::" + ByteArray.toHexString(addchecksum));
+    System.out.println("base58:::" + base58);
+    System.out.println("base58Address:::" + base58Address);
   }
 
   public static void testSignEx() {
@@ -284,6 +301,8 @@ public class Test {
     hexAddresList.add("a0fab5fbf6afb681e4e37e9d33bddb7e923d6132e5");
     hexAddresList.add("a014eebe4d30a6acb505c8b00b218bdc4733433c68");
     hexAddresList.add("a04711bf7afbdf44557defbdf4c4e7aa6138c6331f");
+    hexAddresList.add("A0F25675B364B0E45E2668C1CDD59370136AD8EC2F");
+    hexAddresList.add("A04948C2E8A756D9437037DCD8C7E0C73D560CA38D");
 
     for (String hexString : hexAddresList) {
       byte[] address = ByteArray.fromHexString(hexString);
