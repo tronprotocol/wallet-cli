@@ -318,9 +318,14 @@ public class Test {
     }
   }
 
-
+public static void testSha3(){
+    String testData = "tools.jb51.net";
+    byte[] hash = Hash.sha3(testData.getBytes());
+    System.out.println("testData::" +testData);
+    System.out.println("hash::" +ByteArray.toHexString(hash));
+}
   public static void main(String[] args) throws Exception {
 
-    testGenKey();
+    testSha3();
   }
 }

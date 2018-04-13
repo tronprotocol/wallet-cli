@@ -61,7 +61,7 @@ public class GrpcClientController {
       modelAndView.addObject("name",
           new String(accountCreateContract.getAccountName().toByteArray(), "ISO-8859-1"));
       modelAndView.addObject("address",
-          ByteArray.toHexString(accountCreateContract.getOwnerAddress().toByteArray()));
+          WalletClient.encode58Check(accountCreateContract.getOwnerAddress().toByteArray()));
     } catch (InvalidProtocolBufferException e) {
       e.printStackTrace();
       modelAndView = new ModelAndView("error");
