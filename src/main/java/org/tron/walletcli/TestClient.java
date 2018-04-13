@@ -179,8 +179,7 @@ public class TestClient {
     if (account == null) {
       logger.info("Get Account failed !!!!");
     } else {
-      logger.info("Address::" + WalletClient.encode58Check(account.getAddress().toByteArray()));
-      logger.info("Account[" + account + "]");
+      logger.info("\n" + Utils.printAccount(account));
     }
   }
 
@@ -192,7 +191,7 @@ public class TestClient {
     }
     String address = parameters[0];
     byte[] addressBytes = WalletClient.decodeFromBase58Check(address);
-    if ( addressBytes == null ){
+    if (addressBytes == null) {
       return;
     }
 
@@ -202,8 +201,7 @@ public class TestClient {
       List<AssetIssueContract> list = assetIssueList.getAssetIssueList();
       for (int i = 0; i < list.size(); i++) {
         AssetIssueContract assetIssueContract = list.get(i);
-        logger.info("Address::" + WalletClient.encode58Check(assetIssueContract.getOwnerAddress().toByteArray()));
-        logger.info("assetIssueContract[" + assetIssueContract + "]");
+        logger.info(Utils.printAssetIssueList(assetIssueList));
       }
     } else {
       logger.info("GetAssetIssueByAccount " + " failed !!");
@@ -220,8 +218,7 @@ public class TestClient {
 
     AssetIssueContract assetIssueContract = WalletClient.getAssetIssueByName(assetName);
     if (assetIssueContract != null) {
-      logger.info("Address::" + WalletClient.encode58Check(assetIssueContract.getOwnerAddress().toByteArray()));
-      logger.info("assetIssueContract[" + assetIssueContract + "]");
+      logger.info("\n" + Utils.printAssetIssue(assetIssueContract));
     } else {
       logger.info("GetAssetIssueByName " + " failed !!");
     }
@@ -410,17 +407,7 @@ public class TestClient {
     Optional<AccountList> result = client.listAccounts();
     if (result.isPresent()) {
       AccountList accountList = result.get();
-      List<Account> list = accountList.getAccountsList();
-      for (int i = 0; i < list.size(); i++) {
-        Account account = list.get(i);
-        logger.info("Address::" + WalletClient.encode58Check(account.getAddress().toByteArray()));
-        for (Account.Vote vote : account.getVotesList()) {
-          String voteAddress = WalletClient.encode58Check(vote.getVoteAddress().toByteArray());
-          long voteCount = vote.getVoteCount();
-          logger.info("voteAddress::" + voteAddress + ", voteCount::" + voteCount);
-        }
-        logger.info("Account[" + account + "]");
-      }
+      logger.info(Utils.printAccountList(accountList));
     } else {
       logger.info("List accounts " + " failed !!");
     }
@@ -430,12 +417,7 @@ public class TestClient {
     Optional<WitnessList> result = client.listWitnesses();
     if (result.isPresent()) {
       WitnessList witnessList = result.get();
-      List<Witness> list = witnessList.getWitnessesList();
-      for (int i = 0; i < list.size(); i++) {
-        Witness witness = list.get(i);
-        logger.info("Address::" + WalletClient.encode58Check(witness.getAddress().toByteArray()));
-        logger.info("Witness[" + witness + "]");
-      }
+      logger.info(Utils.printWitnessList(witnessList));
     } else {
       logger.info("List witnesses " + " failed !!");
     }
@@ -445,12 +427,7 @@ public class TestClient {
     Optional<AssetIssueList> result = client.getAssetIssueList();
     if (result.isPresent()) {
       AssetIssueList assetIssueList = result.get();
-      List<AssetIssueContract> list = assetIssueList.getAssetIssueList();
-      for (int i = 0; i < list.size(); i++) {
-        AssetIssueContract assetIssueContract = list.get(i);
-        logger.info("Address::" + WalletClient.encode58Check(assetIssueContract.getOwnerAddress().toByteArray()));
-        logger.info("assetIssueContract[" + assetIssueContract + "]");
-      }
+      logger.info(Utils.printAssetIssueList(assetIssueList));
     } else {
       logger.info("GetAssetIssueList " + " failed !!");
     }
