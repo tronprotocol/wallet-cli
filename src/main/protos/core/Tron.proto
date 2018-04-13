@@ -8,6 +8,7 @@ package protocol;
 
 option java_package = "org.tron.protos"; //Specify the name of the package that generated the Java file
 option java_outer_classname = "Protocol"; //Specify the class name of the generated Java file
+option go_package = "github.com/tronprotocol/go-client-api/core";
 
 
 enum AccountType {
@@ -98,12 +99,14 @@ message Transaction {
   }
 
   message raw {
-    TransactionType type = 2;
+    TransactionType type = 1;
+    int64 ref_block_num = 3;
+    bytes ref_block_hash = 4;
     int64 expiration = 8;
     bytes data = 10;
     repeated Contract contract = 11;
-    bytes scripts = 16;
-    int64 timestamp = 17;
+    bytes scripts = 12;
+    int64 timestamp = 14;
   }
 
   raw raw_data = 1;
@@ -178,6 +181,11 @@ message Items {
   repeated Block blocks = 2;
   repeated BlockHeader block_headers = 3;
   repeated Transaction transactions = 4;
+}
+
+// DynamicProperties
+message DynamicProperties {
+  int64 last_solidity_block_num = 1;
 }
 
 enum ReasonCode {
