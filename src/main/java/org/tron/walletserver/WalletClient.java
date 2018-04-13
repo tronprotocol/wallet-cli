@@ -3,7 +3,9 @@ package org.tron.walletserver;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.typesafe.config.Config;
-import java.io.File;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.spongycastle.util.encoders.Hex;
@@ -15,7 +17,6 @@ import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.Hash;
 import org.tron.common.crypto.SymmEncoder;
-import org.tron.common.utils.Base58;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.FileUtil;
 import org.tron.common.utils.TransactionUtils;
@@ -34,6 +35,21 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
+import org.tron.protos.Protocol.Witness;
+
+class AccountComparator implements Comparator {
+
+  public int compare(Object o1, Object o2) {
+    return Long.compare(((Account) o2).getBalance(), ((Account) o1).getBalance());
+  }
+}
+
+class WitnessComparator implements Comparator {
+
+  public int compare(Object o1, Object o2) {
+    return Long.compare(((Witness) o2).getVoteCount(), ((Witness) o1).getVoteCount());
+  }
+}
 
 public class WalletClient {
 
@@ -582,11 +598,33 @@ public class WalletClient {
   }
 
   public static Optional<AccountList> listAccounts() {
-    return rpcCli.listAccounts();
+    Optional<AccountList> result = rpcCli.listAccounts();
+    if (result.isPresent()) {
+      AccountList accountList = result.get();
+      List<Account> list = accountList.getAccountsList();
+      List<Account> newList =  new ArrayList();
+      newList.addAll(list);
+      newList.sort(new AccountComparator());
+      AccountList.Builder builder = AccountList.newBuilder();
+      newList.forEach(account -> builder.addAccounts(account));
+      result = Optional.of(builder.build());
+    }
+    return result;
   }
 
   public static Optional<WitnessList> listWitnesses() {
-    return rpcCli.listWitnesses();
+    Optional<WitnessList> result = rpcCli.listWitnesses();
+    if (result.isPresent()) {
+      WitnessList witnessList = result.get();
+      List<Witness> list = witnessList.getWitnessesList();
+      List<Witness> newList =  new ArrayList();
+      newList.addAll(list);
+      newList.sort(new WitnessComparator());
+      WitnessList.Builder builder = WitnessList.newBuilder();
+      newList.forEach(witness -> builder.addWitnesses(witness));
+      result = Optional.of(builder.build());
+    }
+    return result;
   }
 
   public static Optional<AssetIssueList> getAssetIssueList() {
