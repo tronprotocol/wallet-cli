@@ -89,36 +89,24 @@ public class GrpcClient {
 
   public Optional<AccountList> listAccounts() {
     AccountList accountList = blockingStub.listAccounts(EmptyMessage.newBuilder().build());
-    if (accountList != null) {
-      return Optional.of(accountList);
-    }
-    return Optional.empty();
+    return Optional.ofNullable(accountList);
   }
 
   public Optional<WitnessList> listWitnesses() {
     WitnessList witnessList = blockingStub.listWitnesses(EmptyMessage.newBuilder().build());
-    if (witnessList != null) {
-      return Optional.of(witnessList);
-    }
-    return Optional.empty();
+    return Optional.ofNullable(witnessList);
   }
 
   public Optional<AssetIssueList> getAssetIssueList() {
     AssetIssueList assetIssueList = blockingStub
         .getAssetIssueList(EmptyMessage.newBuilder().build());
-    if (assetIssueList != null) {
-      return Optional.of(assetIssueList);
-    }
-    return Optional.empty();
+    return Optional.ofNullable(assetIssueList);
   }
 
   public Optional<NodeList> listNodes() {
     NodeList nodeList = blockingStub
         .listNodes(EmptyMessage.newBuilder().build());
-    if (nodeList != null) {
-      return Optional.of(nodeList);
-    }
-    return Optional.empty();
+    return Optional.ofNullable(nodeList);
   }
 
   public Optional<AssetIssueList> getAssetIssueByAccount(byte[] address) {
@@ -126,10 +114,7 @@ public class GrpcClient {
     Account request = Account.newBuilder().setAddress(addressBS).build();
     AssetIssueList assetIssueList = blockingStub
         .getAssetIssueByAccount(request);
-    if (assetIssueList != null) {
-      return Optional.of(assetIssueList);
-    }
-    return Optional.empty();
+    return Optional.ofNullable(assetIssueList);
   }
 
   public AssetIssueContract getAssetIssueByName(String assetName) {
