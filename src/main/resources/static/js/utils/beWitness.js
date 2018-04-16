@@ -53,7 +53,7 @@ $(document).ready(function(){
         var onwerUrl = $('.ord_input').val();
         com_priKeyBytes = base64DecodeFromString(com_pri);
         var com_addressBytes = getAddressFromPriKey(com_priKeyBytes);
-        var com_text = byteArray2hexStr(com_addressBytes);
+        var com_text = getBase58CheckAddress(com_addressBytes);
         console.log(com_text)
         ajaxRequest( "post",createWitness,{'address':com_text,'onwerUrl':onwerUrl},createWitnessSuccess,createWitnessFail)
     }

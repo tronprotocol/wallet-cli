@@ -10,7 +10,7 @@ $('#com_adress').on('blur', function () {
   if($('#com_adress').val()) {
     com_priKeyBytes = base64DecodeFromString($('#com_adress').val());
     com_addressBytes = getAddressFromPriKey(com_priKeyBytes);
-    com_text = byteArray2hexStr(com_addressBytes);
+    com_text = getBase58CheckAddress(com_addressBytes);
     //查询用户账户通证
     ajaxRequest("POST", getAccountInfo, {'address': com_text}, GetAccountSuccessCallback, GetAccountFailureCallback)
   }

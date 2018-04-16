@@ -26,7 +26,7 @@ function QueryWitnessSuccess(data) {
     if(witnessList.length >0){
         for(var i = 0; i<witnessList.length;i++){
             //账户地址
-            var address = byteArray2hexStr(witnessList[i].getAddress());
+            var address = getBase58CheckAddress(Array.from(witnessList[i].getAddress()));
             //上次生成块
             var latestblocknum = witnessList[i].getLatestblocknum()
             //总出块数

@@ -19,14 +19,18 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.math.BigInteger;
 import java.net.InetAddress;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Base64.Decoder;
 import java.util.Base64.Encoder;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.ECKey.ECDSASignature;
 import org.tron.common.crypto.Hash;
+import org.tron.common.utils.Base58;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Utils;
 import org.tron.explorer.controller.NodeController;
@@ -37,6 +41,7 @@ import org.tron.protos.Protocol.TXOutput;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Contract.TransferContract;
 import com.google.protobuf.Any;
+import org.tron.walletserver.WalletClient;
 
 public class Test {
 
@@ -190,7 +195,7 @@ public class Test {
 
   public static void testGenKey() {
     ECKey eCkey = null;
-    String priKeyHex = "9d4ce29ec3e5d6204e8e7eb75f738b58f5cb67f72c184c4a2e207055ce3db235";
+    String priKeyHex = "cba92a516ea09f620a16ff7ee95ce0df1d56550a8babe9964981a7144c8a784a";
     try {
       BigInteger priK = new BigInteger(priKeyHex, 16);
       eCkey = ECKey.fromPrivate(priK);
@@ -198,15 +203,32 @@ public class Test {
       ex.printStackTrace();
       return;
     }
-    byte[] priKey = eCkey.getPrivKeyBytes();
-    byte[] pubKey = eCkey.getPubKey();
-    byte[] address = eCkey.getAddress();
 
-    String priKeyString = ByteArray.toHexString(priKey);
+    byte[] pubKey = eCkey.getPubKey();
+    byte[] hash = Hash.sha3(Arrays.copyOfRange(pubKey, 1, pubKey.length));
+    byte[] hash_ = Hash.sha3(pubKey);
+    byte[] address = eCkey.getAddress();
+    byte[] hash0 = Hash.sha256(address);
+    byte[] hash1 = Hash.sha256(hash0);
+    byte[] checkSum = Arrays.copyOfRange(hash1, 0, 4);
+    byte[] addchecksum = new byte[address.length + 4];
+    System.arraycopy(address, 0, addchecksum, 0, address.length);
+    System.arraycopy(checkSum, 0, addchecksum, address.length, 4);
+    String base58 = Base58.encode(addchecksum);
+    String base58Address = WalletClient.encode58Check(address);
+
     String pubKeyString = ByteArray.toHexString(pubKey);
     System.out.println("priKeyHex:::" + priKeyHex);
-    System.out.println("priKeyString:::" + priKeyString);
     System.out.println("pubKeyString:::" + pubKeyString);
+    System.out.println("hash:::" + ByteArray.toHexString(hash));
+    System.out.println("hash_:::" + ByteArray.toHexString(hash_));
+    System.out.println("address:::" + ByteArray.toHexString(address));
+    System.out.println("hash0:::" + ByteArray.toHexString(hash0));
+    System.out.println("hash1:::" + ByteArray.toHexString(hash1));
+    System.out.println("checkSum:::" + ByteArray.toHexString(checkSum));
+    System.out.println("addchecksum:::" + ByteArray.toHexString(addchecksum));
+    System.out.println("base58:::" + base58);
+    System.out.println("base58Address:::" + base58Address);
   }
 
   public static void testSignEx() {
@@ -261,72 +283,49 @@ public class Test {
 
   }
 
+  public static void testBase58() {
+    List<String> hexAddresList = new ArrayList<String>();
+    hexAddresList.add("a04154ca3d1de87d61ab9f96891b6b2c359d6e8a94");
+    hexAddresList.add("a099357684bc659f5166046b56c95a0e99f1265cbd");
+    hexAddresList.add("a0b4750e2cd76e19dca331bf5d089b71c3c2798548");
+    hexAddresList.add("a025a3aae39b24a257f95769c701e8d6978ebe9fc5");
+    hexAddresList.add("a0559ccf55fadffdf814a42aff331de9688c132612");
+    hexAddresList.add("a0904fe896536f4bebc64c95326b5054a2c3d27df6");
+    hexAddresList.add("a0807337f180b62a77576377c1d0c9c24df5c0dd62");
+    hexAddresList.add("a05430a3f089154e9e182ddd6fe136a62321af22a7");
+    hexAddresList.add("a08beaa1a8e2d45367af7bae7c490b9932a4fa4301");
+    hexAddresList.add("a0b070b2b58f4328e293dc9d6012f59c263d3a1df6");
+    hexAddresList.add("a00a9309758508413039e4bc5a3d113f3ecc55031d");
+    hexAddresList.add("a06a17a49648a8ad32055c06f60fa14ae46df94cc1");
+    hexAddresList.add("a0ec6525979a351a54fa09fea64beb4cce33ffbb7a");
+    hexAddresList.add("a0fab5fbf6afb681e4e37e9d33bddb7e923d6132e5");
+    hexAddresList.add("a014eebe4d30a6acb505c8b00b218bdc4733433c68");
+    hexAddresList.add("a04711bf7afbdf44557defbdf4c4e7aa6138c6331f");
+    hexAddresList.add("A0F25675B364B0E45E2668C1CDD59370136AD8EC2F");
+    hexAddresList.add("A04948C2E8A756D9437037DCD8C7E0C73D560CA38D");
 
+    for (String hexString : hexAddresList) {
+      byte[] address = ByteArray.fromHexString(hexString);
+      String base58 = WalletClient.encode58Check(address);
+      System.out.println("hexAddress = " + hexString);
+      System.out.println("base58Check = " + base58);
+      byte[] decode58 = WalletClient.decodeFromBase58Check(base58);
+      System.out.println("decode58 = " + ByteArray.toHexString(decode58));
+      if (!Arrays.equals(decode58, address)) {
+        System.out.println("Error, address is not equals to  decode58 !!!!");
+        return;
+      }
+    }
+  }
 
+public static void testSha3(){
+    String testData = "tools.jb51.net";
+    byte[] hash = Hash.sha3(testData.getBytes());
+    System.out.println("testData::" +testData);
+    System.out.println("hash::" +ByteArray.toHexString(hash));
+}
   public static void main(String[] args) throws Exception {
-/*
-    byte[] pubkey1 = new byte[64];
-    System.arraycopy(pubKey, 1, pubkey1, 0,64);
-    byte[] sha3  = Hash.sha3(pubkey1);
-    System.out.println("sha3  ::: " + ByteArray.toHexString(sha3));
 
-    String testString = "79e4ffe0246d841d068b940475ec113e8319d8c30cbfc6f91898eac671c195a837fd52b3a5bf10947d4a76ca0fb679a935e40a056d96412f8ccf1bb435606fea";
-    byte[] sha3 = Hash.sha3(testString.getBytes());
-    System.out.println("sha3  ::: " + ByteArray.toHexString(sha3));
-    byte[] sha256 = Hash.sha256(testString.getBytes());
-    System.out.println("sha25 ::: " + ByteArray.toHexString(sha256));
-    sha3 = Hash.sha3(testString.getBytes());
-    System.out.println("sha3  ::: " + ByteArray.toHexString(sha3));
-    Keccak keccak256 = new Keccak(32);
-    keccak256.update("12345678".getBytes());
-    sha3 = keccak256.digest();
-    System.out.println("sha3  ::: " + ByteArray.toHexString(sha3));
-
-    ECDSASignature signature = null;
-    try {
-      int i = 0;
-      while (true) {
-
-        ECKey myKey = new ECKey(Utils.getRandom());
-        signature = myKey.sign(sha256);
-        ByteString bsSign = ByteString.copyFrom(signature.toByteArray());
-        if (bsSign.size() < 65) {
-
-          System.out.println("r:::" + ByteArray.toHexString(signature.r.toByteArray()));
-          System.out.println("s:::" + ByteArray.toHexString(signature.s.toByteArray()));
-
-          bsSign = ByteString.copyFrom(signature.toByteArray());
-          byte[] address = ECKey.signatureToAddress(sha256,
-              TransactionUtils.getBase64FromByteString(bsSign));
-          byte[] ecKeyAddress = myKey.getAddress();
-          System.out.println("address:::" + ByteArray.toHexString(address));
-          System.out.println("ecKeyAddress:::" + ByteArray.toHexString(ecKeyAddress));
-
-          return;
-        }
-        byte[] address0 = ECKey.signatureToAddress(sha256,
-            TransactionUtils.getBase64FromByteString(bsSign));
-        byte[] ecKeyAddress0 = myKey.getAddress();
-        System.out.println("i::: " + i);
-        i++;
-      }
-    } catch (Exception e) {
-      System.out.println("r:::" + ByteArray.toHexString(signature.r.toByteArray()));
-      System.out.println("s:::" + ByteArray.toHexString(signature.s.toByteArray()));
-
-      System.out.println("v:::" + signature.v);
-
-      ByteString bsSign = ByteString.copyFrom(signature.toByteArray());
-      try {
-        byte[] address0 = ECKey.signatureToAddress(sha256,
-            TransactionUtils.getBase64FromByteString(bsSign));
-      } catch (Exception ee) {
-
-      }
-
-      e.printStackTrace();
-      return;
-    }*/
-
+    testSha3();
   }
 }

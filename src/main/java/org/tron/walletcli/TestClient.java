@@ -5,6 +5,7 @@ import com.google.protobuf.ByteString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tron.api.GrpcAPI.*;
+import org.tron.common.utils.Base58;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Utils;
 import org.tron.protos.Contract.AssetIssueContract;
@@ -169,14 +170,16 @@ public class TestClient {
       return;
     }
     String address = parameters[0];
-    byte[] addressBytes = ByteArray.fromHexString(address);
+    byte[] addressBytes = WalletClient.decodeFromBase58Check(address);
+    if (addressBytes == null) {
+      return;
+    }
 
     Account account = WalletClient.queryAccount(addressBytes);
     if (account == null) {
       logger.info("Get Account failed !!!!");
     } else {
-      logger.info("Address::" + ByteArray.toHexString(account.getAddress().toByteArray()));
-      logger.info("Account[" + account + "]");
+      logger.info("\n" + Utils.printAccount(account));
     }
   }
 
@@ -187,7 +190,10 @@ public class TestClient {
       return;
     }
     String address = parameters[0];
-    byte[] addressBytes = ByteArray.fromHexString(address);
+    byte[] addressBytes = WalletClient.decodeFromBase58Check(address);
+    if (addressBytes == null) {
+      return;
+    }
 
     Optional<AssetIssueList> result = WalletClient.getAssetIssueByAccount(addressBytes);
     if (result.isPresent()) {
@@ -195,9 +201,7 @@ public class TestClient {
       List<AssetIssueContract> list = assetIssueList.getAssetIssueList();
       for (int i = 0; i < list.size(); i++) {
         AssetIssueContract assetIssueContract = list.get(i);
-        logger.info("Address::" + ByteArray
-            .toHexString(assetIssueContract.getOwnerAddress().toByteArray()));
-        logger.info("assetIssueContract[" + assetIssueContract + "]");
+        logger.info(Utils.printAssetIssueList(assetIssueList));
       }
     } else {
       logger.info("GetAssetIssueByAccount " + " failed !!");
@@ -214,9 +218,7 @@ public class TestClient {
 
     AssetIssueContract assetIssueContract = WalletClient.getAssetIssueByName(assetName);
     if (assetIssueContract != null) {
-      logger.info("Address::" + ByteArray
-          .toHexString(assetIssueContract.getOwnerAddress().toByteArray()));
-      logger.info("assetIssueContract[" + assetIssueContract + "]");
+      logger.info("\n" + Utils.printAssetIssue(assetIssueContract));
     } else {
       logger.info("GetAssetIssueByName " + " failed !!");
     }
@@ -405,17 +407,7 @@ public class TestClient {
     Optional<AccountList> result = client.listAccounts();
     if (result.isPresent()) {
       AccountList accountList = result.get();
-      List<Account> list = accountList.getAccountsList();
-      for (int i = 0; i < list.size(); i++) {
-        Account account = list.get(i);
-        logger.info("Address::" + ByteArray.toHexString(account.getAddress().toByteArray()));
-        for (Account.Vote vote : account.getVotesList()) {
-          String voteAddress = ByteArray.toHexString(vote.getVoteAddress().toByteArray());
-          long voteCount = vote.getVoteCount();
-          logger.info("voteAddress::" + voteAddress + ", voteCount::" + voteCount);
-        }
-        logger.info("Account[" + account + "]");
-      }
+      logger.info(Utils.printAccountList(accountList));
     } else {
       logger.info("List accounts " + " failed !!");
     }
@@ -425,12 +417,7 @@ public class TestClient {
     Optional<WitnessList> result = client.listWitnesses();
     if (result.isPresent()) {
       WitnessList witnessList = result.get();
-      List<Witness> list = witnessList.getWitnessesList();
-      for (int i = 0; i < list.size(); i++) {
-        Witness witness = list.get(i);
-        logger.info("Address::" + ByteArray.toHexString(witness.getAddress().toByteArray()));
-        logger.info("Witness[" + witness + "]");
-      }
+      logger.info(Utils.printWitnessList(witnessList));
     } else {
       logger.info("List witnesses " + " failed !!");
     }
@@ -440,13 +427,7 @@ public class TestClient {
     Optional<AssetIssueList> result = client.getAssetIssueList();
     if (result.isPresent()) {
       AssetIssueList assetIssueList = result.get();
-      List<AssetIssueContract> list = assetIssueList.getAssetIssueList();
-      for (int i = 0; i < list.size(); i++) {
-        AssetIssueContract assetIssueContract = list.get(i);
-        logger.info("Address::" + ByteArray
-            .toHexString(assetIssueContract.getOwnerAddress().toByteArray()));
-        logger.info("assetIssueContract[" + assetIssueContract + "]");
-      }
+      logger.info(Utils.printAssetIssueList(assetIssueList));
     } else {
       logger.info("GetAssetIssueList " + " failed !!");
     }
@@ -501,7 +482,7 @@ public class TestClient {
     logger.info("TransactionCount is : " + transactionCount);
     logger.info("ParentHash is : " + ByteArray.toHexString(parentHash.toByteArray()));
     logger.info("TxTrieRoot is : " + ByteArray.toHexString(txTrieRoot.toByteArray()));
-    logger.info("WitnessAddress is : " + ByteArray.toHexString(witnessAddress.toByteArray()));
+    logger.info("WitnessAddress is : " + WalletClient.encode58Check(witnessAddress.toByteArray()));
   }
 
   private void voteWitness(String[] parameters) {

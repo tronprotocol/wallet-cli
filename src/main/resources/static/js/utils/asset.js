@@ -24,7 +24,7 @@ function participateAssetIssue(i) {
     $('.account_list').css('display','none');
     $('#addcount').css('display','block');
     var name = bytesToString(assetIssueList[i].getName());
-    var ownerAddress = byteArray2hexStr(assetIssueList[i].getOwnerAddress());
+    var ownerAddress = getBase58CheckAddress(Array.from(assetIssueList[i].getOwnerAddress()));
     var totalSupply = assetIssueList[i].getTotalSupply();
     var startTime = assetIssueList[i].getStartTime();
     var endTime = assetIssueList[i].getEndTime();
@@ -63,7 +63,7 @@ function submitParticipateAssetIssue() {
         return;
     }
     var name = byteArray2hexStr(stringToBytes($('#assetName').text()));
-    var ownerAddress = getHexStrAddressFromPriKeyBase64String($('#myKey').val());
+    var ownerAddress = getBase58CheckAddressFromPriKeyBase64String($('#myKey').val());
     var toAddress = $('#ownAddress').text();
     var amount = $('#amount').val();
     var data = "name=" + name + "&ownerAddress=" + ownerAddress + "&toAddress=" + toAddress + "&amount=" + amount;
@@ -105,7 +105,7 @@ function getAssetListSuccessCallback(data) {
     assetIssueList = assetIssueListObj.getAssetissueList();
     for(var i = 0; i<assetIssueList.length; i++){
         var name = bytesToString(assetIssueList[i].getName());
-        var ownerAddress = byteArray2hexStr(assetIssueList[i].getOwnerAddress());
+        var ownerAddress = getBase58CheckAddress(Array.from(assetIssueList[i].getOwnerAddress()));
         var totalSupply = assetIssueList[i].getTotalSupply();
         var startTime = assetIssueList[i].getStartTime();
         var endTime = assetIssueList[i].getEndTime();
@@ -171,7 +171,7 @@ $("#creatAssetBtn").off('click').on('click',function() {
         layer.alert($.i18n.prop('layer.assetenter'))
         return;
     }
-    var address = getHexStrAddressFromPriKeyBase64String($("#privateKey").val());
+    var address = getBase58CheckAddressFromPriKeyBase64String($("#privateKey").val());
     var start = Date.parse(new Date($("#startTimeFormat").val()));
     var end = Date.parse(new Date($("#endTimeFormat").val()));
     var data = $("#createAssetForm").serialize() + "&ownerAddress=" + address + "&startTime=" + start + "&endTime=" + end;
