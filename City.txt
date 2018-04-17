@@ -48,33 +48,13 @@
 35.200.155.204|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
 35.201.162.55|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
 35.200.155.199|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
-35.195.128.142|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
-35.204.19.79|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
-35.204.23.149|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
-35.195.150.85|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
-35.197.218.89|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
-35.204.8.243|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
-35.204.9.178|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
-35.204.19.83|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
-35.204.20.176|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
-35.204.26.165|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
-35.204.36.148|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
-35.204.0.122|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
-35.204.20.171|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
-35.204.24.7|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
-35.204.21.240|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
-35.204.25.221|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
-35.204.13.185|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
-35.201.167.15|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
-35.201.197.121|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
-35.200.154.160|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
-35.204.7.6|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
-35.204.0.221|||""country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
-35.200.137.1|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
-35.204.12.95|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
-35.200.130.74|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
-35.204.3.221|||"country":"United States","city":"Ann Arbor","longitude":-83.7133,"latitude":42.2734
 37.15.62.16|||"country":"Spain","city":"Sant Cugat del Vallès","longitude":2.0833,"latitude":41.4667
+35.204.7.6|||"country":"Spain","city":"Sant Cugat del Vallès","longitude":2.0833,"latitude":41.4667
+35.204.0.221|||"country":"Spain","city":"Sant Cugat del Vallès","longitude":2.0833,"latitude":41.4667
+35.200.137.1|||"country":"Spain","city":"Sant Cugat del Vallès","longitude":2.0833,"latitude":41.4667
+35.204.12.95|||"country":"Spain","city":"Sant Cugat del Vallès","longitude":2.0833,"latitude":41.4667
+35.200.130.74|||"country":"Spain","city":"Sant Cugat del Vallès","longitude":2.0833,"latitude":41.4667
+35.204.3.221|||"country":"Spain","city":"Sant Cugat del Vallès","longitude":2.0833,"latitude":41.4667
 175.142.24.22|||"country":"Malaysia","city":"Shah Alam","longitude":101.5304,"latitude":3.0538
 35.190.177.167|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
 116.14.48.200|||"country":"Singapore","city":"Singapore","longitude":103.8558,"latitude":1.2931
@@ -395,15 +375,3 @@
 35.197.34.68|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
 92.192.243.124|||"country":"Germany","city":"Germany","longitude":9.491,"latitude":51.2993
 82.253.45.57|||"country":"France","city":"Paris","longitude":2.3487999999999998,"latitude":48.8534
-35.185.146.17|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
-120.9.200.107|||"country":"China","city":"Hebei","longitude":115.275,"latitude":39.8897
-179.247.251.91|||"country":"Brazil","city":"Americana","longitude":-47.3301,"latitude":-22.7528
-35.169.113.187|||"country":"United States","city":"Ashburn","longitude":-77.6452,"latitude":39.0853
-47.254.18.49|||"country":"United States","city":"San Mateo","longitude":-122.3558,"latitude":37.526
-95.97.227.101|||"country":"Netherlands","city":"Andelst","longitude":5.7267,"latitude":51.9091
-47.74.190.150|||"country":"Singapore","city":"Singapore","longitude":103.8558,"latitude":1.2931
-159.65.153.60|||"country":"India","city":"Bengaluru","longitude":77.5833,"latitude":12.9833
-35.189.121.65|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
-217.121.194.239|||"country":"Netherlands","city":"Den Helder","longitude":4.742,"latitude":52.8896
-37.187.124.30|||"country":"France","city":"France","longitude":2.3387000000000002,"latitude":48.8582
-98.228.233.55|||"country":"United States","city":"Arlington Heights","longitude":-87.9807,"latitude":42.113

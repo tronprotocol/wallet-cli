@@ -7,7 +7,6 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.ModelAndView;
-import org.tron.common.utils.Base58;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.TransactionUtils;
 import org.tron.explorer.domain.Transfer;
@@ -39,13 +38,14 @@ public class TransferController {
           || transfer.getToAddress() == null) {
         return null;
       }
-      byte[] address = WalletClient.decodeFromBase58Check(transfer.getAddress());
-      byte[] toAddress = WalletClient.decodeFromBase58Check(transfer.getToAddress());
-      if (address == null || toAddress == null) {
+      if (!WalletClient.addressValid(transfer.getAddress()) || !WalletClient
+          .addressValid(transfer.getToAddress())) {
         return null;
       }
       TransferContract contract = WalletClient
-          .createTransferContract(toAddress, address, Long.parseLong(transfer.getAmount()));
+          .createTransferContract(ByteArray.fromHexString(transfer.getToAddress()),
+              ByteArray.fromHexString(transfer.getAddress()),
+              Long.parseLong(transfer.getAmount()));
       Transaction transaction = WalletClient.createTransaction4Transfer(contract);
       transaction = TransactionUtils.setTimestamp(transaction);
       return transaction.toByteArray();
