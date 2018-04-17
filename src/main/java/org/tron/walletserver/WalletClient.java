@@ -675,8 +675,4 @@ public class WalletClient {
   public static GrpcAPI.NumberMessage getTotalTransaction() {
     return rpcCli.getTotalTransaction();
   }
-
-  public static void main(String[] args) {
-
-  }
 }
