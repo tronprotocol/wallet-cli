@@ -22,44 +22,43 @@ import java.util.Optional;
 @RestController
 public class VoteWitnessController {
 
-    protected final Log log = LogFactory.getLog(getClass());
+  protected final Log log = LogFactory.getLog(getClass());
 
-    @GetMapping("/voteWitnessList")
-    public byte[] getVoteWitnessList() {
-        Optional<WitnessList> result = WalletClient.listWitnesses();
-        if (result.isPresent()) {
-            WitnessList witnessList = result.get();
-            return witnessList.toByteArray();
-        } else {
-            return null;
-        }
+  @GetMapping("/voteWitnessList")
+  public byte[] getVoteWitnessList() {
+    Optional<WitnessList> result = WalletClient.listWitnesses();
+    if (result.isPresent()) {
+      WitnessList witnessList = result.get();
+      return witnessList.toByteArray();
+    } else {
+      return null;
     }
+  }
 
-    @PostMapping("/createVoteWitnessToView")
-    public byte[] getTransactionToView(@RequestBody VoteWitness voteWitness) {
-        try {
-            if (voteWitness.getOwner() == null || voteWitness.getList() == null) {
-                return null;
-            }
-            if (!WalletClient.addressValid(voteWitness.getOwner())) {
-                return null;
-            }
-            List<Witness> list = voteWitness.getList();
-            String ownerAddress = voteWitness.getOwner();
-            HashMap voteMap = new HashMap<>();
+  @PostMapping("/createVoteWitnessToView")
+  public byte[] getTransactionToView(@RequestBody VoteWitness voteWitness) {
+    try {
+      if (voteWitness.getOwner() == null || voteWitness.getList() == null) {
+        return null;
+      }
+      byte[] owner = WalletClient.decodeFromBase58Check(voteWitness.getOwner());
+      if (owner == null) {
+        return null;
+      }
+      List<Witness> list = voteWitness.getList();
+      HashMap voteMap = new HashMap<>();
 
-            for (int i = 0; i < list.size(); i++) {
-                String addressHex = list.get(i).getAddress();
-                String count = list.get(i).getAmount();
-                voteMap.put(addressHex, count);
-            }
-            Protocol.Transaction transaction = WalletClient
-                    .createVoteWitnessTransaction(ByteArray.fromHexString(ownerAddress), voteMap);
-            transaction = TransactionUtils.setTimestamp(transaction);
-            return transaction.toByteArray();
-        } catch (Exception e) {
-            e.printStackTrace();
-            return null;
-        }
+      for (int i = 0; i < list.size(); i++) {
+        String addressBase58 = list.get(i).getAddress();
+        String count = list.get(i).getAmount();
+        voteMap.put(addressBase58, count);
+      }
+      Protocol.Transaction transaction = WalletClient.createVoteWitnessTransaction(owner, voteMap);
+      transaction = TransactionUtils.setTimestamp(transaction);
+      return transaction.toByteArray();
+    } catch (Exception e) {
+      e.printStackTrace();
+      return null;
     }
+  }
 }

@@ -21,7 +21,7 @@
    if(accountList.length >0){
        for(var i = 0; i<accountList.length;i++){
            var name = bytesToString(accountList[i].getAccountName())
-           var address = byteArray2hexStr(accountList[i].getAddress())
+           var address = getBase58CheckAddress(Array.from(accountList[i].getAddress()));
            var balance = accountList[i].getBalance();
            var balanceNum = 0;
            if(balance != 0) {

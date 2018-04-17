@@ -47,7 +47,7 @@ $('#change').off('click').on('click', function () {
 
   com_priKeyBytes = base64DecodeFromString(com_prik);
   com_addressBytes = getAddressFromPriKey(com_priKeyBytes);
-  com_text = byteArray2hexStr(com_addressBytes);
+  com_text = getBase58CheckAddress(com_addressBytes);
   // layer.alert("com_priKeyBytes:" + com_priKeyBytes);
   // layer.alert("com_text:" + com_text);
   // layer.alert("go_text:" + go_text);
