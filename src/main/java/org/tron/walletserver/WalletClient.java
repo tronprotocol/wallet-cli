@@ -3,9 +3,7 @@ package org.tron.walletserver;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.typesafe.config.Config;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
+import com.typesafe.config.ConfigObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.spongycastle.util.encoders.Hex;
@@ -17,26 +15,15 @@ import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.Hash;
 import org.tron.common.crypto.SymmEncoder;
-import org.tron.common.utils.Base58;
-import org.tron.common.utils.ByteArray;
-import org.tron.common.utils.FileUtil;
-import org.tron.common.utils.TransactionUtils;
-import org.tron.common.utils.Utils;
+import org.tron.common.utils.*;
 import org.tron.core.config.Configuration;
 import org.tron.core.config.Parameter.CommonConstant;
 import org.tron.protos.Contract;
 import org.tron.protos.Contract.AssetIssueContract;
-import org.tron.protos.Protocol.Account;
-import org.tron.protos.Protocol.AccountType;
-import org.tron.protos.Protocol.Block;
-import org.tron.protos.Protocol.Transaction;
+import org.tron.protos.Protocol.*;
 
 import java.math.BigInteger;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Optional;
-import org.tron.protos.Protocol.Witness;
+import java.util.*;
 
 class AccountComparator implements Comparator {
 
@@ -63,6 +50,15 @@ public class WalletClient {
   private static String dbPath;
   private static String txtPath;
 
+  static {
+    new Timer().schedule(new TimerTask() {
+      @Override
+      public void run() {
+        rpcCli = new GrpcClient(selectFullNode());
+      }
+    }, 3 * 60 * 1000,3 * 60 * 1000);
+  }
+
   public static GrpcClient init() {
     Config config = Configuration.getByPath("config.conf");
     dbPath = config.getString("CityDb.DbPath");
@@ -70,6 +66,38 @@ public class WalletClient {
 
     List<String> fullnodelist = config.getStringList("fullnode.ip.list");
     return new GrpcClient(fullnodelist.get(0));
+  }
+
+  public static String selectFullNode(){
+      Map<String, String> witnessMap = new HashMap<>();
+      Config config = Configuration.getByPath("config.conf");
+      List list = config.getObjectList("witnesses.witnessList");
+      for (int i = 0; i < list.size(); i++) {
+          ConfigObject obj = (ConfigObject) list.get(i);
+          String ip = obj.get("ip").unwrapped().toString();
+          String url = obj.get("url").unwrapped().toString();
+          witnessMap.put(url, ip);
+      }
+
+      Optional<WitnessList> result = rpcCli.listWitnesses();
+      long minMissedNum = 100000000L;
+      String minMissedWitness = "";
+      if (result.isPresent()) {
+          List<Witness> witnessList = result.get().getWitnessesList();
+          for (Witness witness : witnessList) {
+              String url = witness.getUrl();
+              long missedBlocks = witness.getTotalMissed();
+              if(missedBlocks < minMissedNum){
+                  minMissedNum = missedBlocks;
+                  minMissedWitness = url;
+              }
+          }
+      }
+      if(witnessMap.containsKey(minMissedWitness)){
+          return witnessMap.get(minMissedWitness);
+      }else{
+          return "";
+      }
   }
 
   public static String getDbPath() {
@@ -646,5 +674,9 @@ public class WalletClient {
 
   public static GrpcAPI.NumberMessage getTotalTransaction() {
     return rpcCli.getTotalTransaction();
+  }
+
+  public static void main(String[] args) {
+
   }
 }
