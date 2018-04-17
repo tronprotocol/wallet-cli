@@ -157,11 +157,11 @@ TransSuccessCallback = function (data) {
                 "protocol.TransferContract");
 
             var owner = obje.getOwnerAddress();
-             ownerHex = byteArray2hexStr(owner);
+             ownerHex = getBase58CheckAddress(owner);
              ownerHexSix = ownerHex.substr(0,6) + '...';
 
             var to = obje.getToAddress();
-             toHex = byteArray2hexStr(to);
+             toHex = getBase58CheckAddress(to);
 
              toHexSix = toHex.substr(0,6) + '...';
 
@@ -226,8 +226,8 @@ TransSuccessByNumToViewCallback = function (data) {
   var blockData = proto.protocol.Block.deserializeBinary(recentBlock);
   var blockNumber= blockData.getBlockHeader().getRawData().getNumber();
   var witnessAddress= blockData.getBlockHeader().getRawData().getWitnessAddress();
-  var witnessAddressHex=byteArray2hexStr(witnessAddress);
-  var witnessAddressHexSix = witnessAddressHex.substr(0,10) + '...';
+  var witnessAddressBase58=getBase58CheckAddress(Array.from(witnessAddress));
+  var witnessAddressBase58Six = witnessAddressBase58.substr(0,10) + '...';
   var time= blockData.getBlockHeader().getRawData().getTimestamp();
   var transactionNum= blockData.getTransactionsList().length;
   var contraxtType=proto.protocol.Transaction.Contract.ContractType;
@@ -297,7 +297,7 @@ TransSuccessByNumToViewCallback = function (data) {
       + '<p>'+timeStr+'</p>'
       + '</div>'
       + '<div class="block-box-info fl">'
-      + '<p>'+represStr+witnessAddressHexSix+'</p><p>'
+      + '<p>'+represStr+witnessAddressBase58Six+'</p><p>'
       + '<span>'+transStr+'<i>'+transactionNum+'</i></span>'
       + '<span>'+transSize+'<i>'+big+'</i>bytes</span></p></div></li>';
 

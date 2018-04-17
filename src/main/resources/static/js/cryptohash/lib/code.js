@@ -473,16 +473,10 @@ function getStringType(str) {
   }
 
   var i = 0;
-  if (str.length == 40) {
-    for (; i < 40; i++) {
-      var c = str.charAt(i);
-      if (!isHexChar(c)) {
-        break;
-      }
+  if (str.length == 35) {
+    if(validAddress(str)){
+      return 1;
     }
-  }
-  if (i == 40) {
-    return 1;  //40 Hex, Address
   }
 
   for (i = 0; i < str.length; i++) {

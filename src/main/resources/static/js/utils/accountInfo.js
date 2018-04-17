@@ -76,7 +76,7 @@ $(document).ready(function(){
         var com_pri = window.localStorage.getItem('key');
         com_priKeyBytes = base64DecodeFromString(com_pri);
         com_addressBytes = getAddressFromPriKey(com_priKeyBytes);
-        com_text = byteArray2hexStr(com_addressBytes);
+        com_text = getBase58CheckAddress(com_addressBytes);
         $('#tronAddress').text(com_text)
         ajaxRequest( "post",getAccountInfo,{'address':com_text},QueryAccountInfoSuccess,QueryAccountInfoFail)
     }
@@ -111,7 +111,7 @@ $(document).ready(function(){
         if(witnessList.length >0){
             for(var i = 0; i<witnessList.length;i++){
                 //账户地址
-                var address = byteArray2hexStr(witnessList[i].getAddress());
+                var address = getBase58CheckAddress(Array.from(witnessList[i].getAddress()));
                 console.log(address+'==============='+com_text)
 
                 if(address == com_text){
