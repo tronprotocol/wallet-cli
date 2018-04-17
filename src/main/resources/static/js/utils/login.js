@@ -67,7 +67,7 @@ $('#submit').on('click',function () {
     //return address by bytes, priKeyBytes is byte[]
     addressBytes = getAddressFromPriKey(priKeyBytes);
     //return 32 bytes
-    address = getBase58CheckAddress(addressBytes);
+    address = byteArray2hexStr(addressBytes);
     accountName = $("#name").val();
     //TODO fix privateKey store
     $("#contents").text(address);

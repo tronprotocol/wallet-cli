@@ -34,7 +34,7 @@ function searchBlockSuccessCallback(data) {
         var blockData = proto.protocol.Block.deserializeBinary(recentBlock);
         var blockNumber = blockData.getBlockHeader().getRawData().getNumber();
         var witnessAddress = blockData.getBlockHeader().getRawData().getWitnessAddress();
-        var witnessAddressHex = getBase58CheckAddress(Array.from(witnessAddress));
+        var witnessAddressHex = byteArray2hexStr(witnessAddress);
         var time = blockData.getBlockHeader().getRawData().getTimestamp();
         var parentHash = blockData.getBlockHeader().getRawData().getParenthash_asB64();
 
@@ -64,9 +64,9 @@ function searchBlockSuccessCallback(data) {
                         case contraxtType.TRANSFERCONTRACT:
 
                             var obj = any.unpack( proto.protocol.TransferContract.deserializeBinary, "protocol.TransferContract");
-                            var ownerHex = getBase58CheckAddress(Array.from(obj.getOwnerAddress()));
+                            var ownerHex = byteArray2hexStr(obj.getOwnerAddress());
                             var ownerHexSix = ownerHex.substr(0,10) + '...';
-                            var toHex = getBase58CheckAddress(Array.from(obj.getToAddress()));
+                            var toHex = byteArray2hexStr(obj.getToAddress());
                             var toHexSix = toHex.substr(0,10) + '...';
                             var amount = obj.getAmount()/1000000;
 
@@ -110,7 +110,7 @@ function participateAssetIssueInSearch() {
     $('.account_list').css('display','none');
     $('#addcount').css('display','block');
     var name = bytesToString(assetIssueContractObj.getName());
-    var ownerAddress = getBase58CheckAddress(Array.from(assetIssueContractObj.getOwnerAddress()));
+    var ownerAddress = byteArray2hexStr(assetIssueContractObj.getOwnerAddress());
     var totalSupply = assetIssueContractObj.getTotalSupply();
     var startTime = assetIssueContractObj.getStartTime();
     var endTime = assetIssueContractObj.getEndTime();
@@ -135,7 +135,7 @@ function searchAssetSuccess(data) {
         var assetIssueContract = proto.protocol.AssetIssueContract.deserializeBinary(base64DecodeFromString(data));
         assetIssueContractObj = assetIssueContract;
         var name = bytesToString(assetIssueContract.getName());
-        var ownerAddress = getBase58CheckAddress(Array.from(assetIssueContract.getOwnerAddress()));
+        var ownerAddress = byteArray2hexStr(assetIssueContract.getOwnerAddress());
         var totalSupply = assetIssueContract.getTotalSupply();
         var startTime = assetIssueContract.getStartTime();
         var endTime = assetIssueContract.getEndTime();
@@ -170,7 +170,7 @@ function searchAccountInfoSuccess(data) {
 
     if(account != null){
         var name = bytesToString(account.getAccountName())
-        var address = getBase58CheckAddress(Array.from(account.getAddress()));
+        var address = byteArray2hexStr(account.getAddress())
         var balance = account.getBalance();
         var balanceNum = 0;
         if(balance != 0) {

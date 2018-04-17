@@ -7,7 +7,6 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.tron.api.GrpcAPI.AccountList;
-import org.tron.common.utils.Base58;
 import org.tron.common.utils.ByteArray;
 import org.tron.explorer.domain.AccountVo;
 import org.tron.protos.Protocol.Account;
@@ -32,11 +31,10 @@ public class AccountController {
       if (address == null) {
         return null;
       }
-      byte[] baAddress = WalletClient.decodeFromBase58Check(address);
-      if (baAddress == null) {
+      if (!WalletClient.addressValid(address)) {
         return null;
       }
-      Account account = WalletClient.queryAccount(baAddress);
+      Account account = WalletClient.queryAccount(ByteArray.fromHexString(address));
       return account.toByteArray();
     } catch (Exception e) {
       e.printStackTrace();

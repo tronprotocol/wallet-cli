@@ -9,7 +9,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.ModelAndView;
 import org.tron.api.GrpcAPI.AssetIssueList;
-import org.tron.common.utils.Base58;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.TransactionUtils;
 import org.tron.explorer.domain.AssetIssueVo;
@@ -57,13 +56,9 @@ public class AssetIssueController {
       if (assetIssueVo == null) {
         return null;
       }
-      byte[] owner = WalletClient.decodeFromBase58Check(assetIssueVo.getOwnerAddress());
-      if (owner == null) {
-        return null;
-      }
 
       Contract.AssetIssueContract.Builder builder = Contract.AssetIssueContract.newBuilder();
-      builder.setOwnerAddress(ByteString.copyFrom(owner));
+      builder.setOwnerAddress(ByteString.copyFrom(ByteArray.fromHexString(assetIssueVo.getOwnerAddress())));
       builder.setName(ByteString.copyFrom(assetIssueVo.getName().getBytes()));
       builder.setTotalSupply(assetIssueVo.getTotalSupply());
       builder.setTrxNum(assetIssueVo.getTrxNum());
@@ -103,10 +98,10 @@ public class AssetIssueController {
   @GetMapping("/getAssetIssueByAccount")
   public byte[] getAssetIssueByAccount(String address) throws IOException {
     try {
-      byte[] owner = WalletClient.decodeFromBase58Check(address);
-      if (owner == null) {
+      if (!WalletClient.addressValid(address)) {
         return null;
       }
+      byte[] owner = ByteArray.fromHexString(address);
 
       Optional<AssetIssueList> result = WalletClient.getAssetIssueByAccount(owner);
       if (result.isPresent()) {
@@ -138,14 +133,11 @@ public class AssetIssueController {
       if (transferAsset == null) {
         return null;
       }
-      byte[] address = WalletClient.decodeFromBase58Check(transferAsset.getAddress());
-      byte[] toAddress = WalletClient.decodeFromBase58Check(transferAsset.getToAddress());
-      if (address == null || toAddress == null) {
-        return null;
-      }
-      Transaction transaction = WalletClient.createTransferAssetTransaction(toAddress,
-          ByteArray.fromString(transferAsset.getAssetName()), address,
-          Long.parseLong(transferAsset.getAmount()));
+      Transaction transaction = WalletClient
+          .createTransferAssetTransaction(ByteArray.fromHexString(transferAsset.getToAddress()),
+              ByteArray.fromString(transferAsset.getAssetName()),
+              ByteArray.fromHexString(transferAsset.getAddress()),
+              Long.parseLong(transferAsset.getAmount()));
       transaction = TransactionUtils.setTimestamp(transaction);
       return transaction.toByteArray();
     } catch (Exception e) {
@@ -160,14 +152,12 @@ public class AssetIssueController {
       if (articipateAssetIssue == null) {
         return null;
       }
-      byte[] owner = WalletClient.decodeFromBase58Check(articipateAssetIssue.getOwnerAddress());
-      byte[] to = WalletClient.decodeFromBase58Check(articipateAssetIssue.getToAddress());
-      if (owner == null || to == null) {
-        return null;
-      }
-      Transaction transaction = WalletClient.participateAssetIssueTransaction(to,
-          ByteArray.fromHexString(articipateAssetIssue.getName()), owner,
-          articipateAssetIssue.getAmount());
+      Transaction transaction = WalletClient
+          .participateAssetIssueTransaction(
+              ByteArray.fromHexString(articipateAssetIssue.getToAddress()),
+              ByteArray.fromHexString(articipateAssetIssue.getName()),
+              ByteArray.fromHexString(articipateAssetIssue.getOwnerAddress()),
+              articipateAssetIssue.getAmount());
       transaction = TransactionUtils.setTimestamp(transaction);
       return transaction.toByteArray();
     } catch (Exception e) {

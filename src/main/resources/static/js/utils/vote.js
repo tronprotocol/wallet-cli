@@ -13,7 +13,7 @@ function QueryWitnessSuccess(data) {
     if(witnessList.length >0){
         for(var i = 0; i<witnessList.length;i++){
             //账户地址
-            var address = getBase58CheckAddress(Array.from(witnessList[i].getAddress()));
+            var address = byteArray2hexStr(witnessList[i].getAddress());
             //上次生成块
             var latestblocknum = witnessList[i].getLatestblocknum()
             //总出块数
@@ -48,7 +48,7 @@ function QueryWitnessFail(data) {
 }
 
 function voteSubmit() {
-    var ownerAddress = getBase58CheckAddressFromPriKeyBase64String($("#myKey").val());
+    var ownerAddress = getHexStrAddressFromPriKeyBase64String($("#myKey").val());
     var para = "{\"owner\": \"" + ownerAddress + "\", \"list\": [";
 
     for(var i=0; i<$("#witnessList tr").length; i++){

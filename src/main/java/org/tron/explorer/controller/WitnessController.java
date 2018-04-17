@@ -47,14 +47,15 @@ public class WitnessController {
   @PostMapping("/createWitnessToView")
   public byte[] getTransactionToView(String address, String onwerUrl) {
     try {
+      if (!WalletClient.addressValid(address)) {
+        return null;
+      }
       if (onwerUrl == null || onwerUrl.equals("")) {
         return null;
       }
-      byte[] owner = WalletClient.decodeFromBase58Check(address);
-      if (owner == null) {
-        return null;
-      }
-      Transaction transaction = WalletClient.createWitnessTransaction(owner, onwerUrl.getBytes());
+
+      Transaction transaction = WalletClient
+          .createWitnessTransaction(ByteArray.fromHexString(address), onwerUrl.getBytes());
       transaction = TransactionUtils.setTimestamp(transaction);
       return transaction.toByteArray();
     } catch (Exception e) {

@@ -10,7 +10,6 @@ import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.NodeList;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.crypto.ECKey;
-import org.tron.common.utils.Base58;
 import org.tron.common.utils.ByteArray;
 import org.tron.protos.Contract;
 import org.tron.protos.Protocol.Account;
@@ -150,7 +149,7 @@ public class Client {
     if (wallet.getEcKey() == null) {
       return WalletClient.getAddressByStorage();
     }
-    return WalletClient.encode58Check(wallet.getAddress());
+    return ByteArray.toHexString(wallet.getAddress());
   }
 
   public Account queryAccount() {
@@ -175,8 +174,7 @@ public class Client {
     if (!WalletClient.passwordValid(password)) {
       return false;
     }
-    byte[] to = WalletClient.decodeFromBase58Check(toAddress);
-    if (to == null) {
+    if (!WalletClient.addressValid(toAddress)) {
       return false;
     }
 
@@ -188,7 +186,13 @@ public class Client {
       }
     }
 
-    return wallet.sendCoin(to, amount);
+    try {
+      byte[] to = Hex.decode(toAddress);
+      return wallet.sendCoin(to, amount);
+    } catch (Exception ex) {
+      ex.printStackTrace();
+      return false;
+    }
   }
 
   public boolean transferAsset(String password, String toAddress, String assertName, long amount) {
@@ -199,8 +203,7 @@ public class Client {
     if (!WalletClient.passwordValid(password)) {
       return false;
     }
-    byte[] to = WalletClient.decodeFromBase58Check(toAddress);
-    if (to == null) {
+    if (!WalletClient.addressValid(toAddress)) {
       return false;
     }
 
@@ -212,7 +215,13 @@ public class Client {
       }
     }
 
-    return wallet.transferAsset(to, assertName.getBytes(), amount);
+    try {
+      byte[] to = Hex.decode(toAddress);
+      return wallet.transferAsset(to, assertName.getBytes(), amount);
+    } catch (Exception ex) {
+      ex.printStackTrace();
+      return false;
+    }
   }
 
   public boolean participateAssetIssue(String password, String toAddress, String assertName,
@@ -224,8 +233,7 @@ public class Client {
     if (!WalletClient.passwordValid(password)) {
       return false;
     }
-    byte[] to = WalletClient.decodeFromBase58Check(toAddress);
-    if (to == null) {
+    if (!WalletClient.addressValid(toAddress)) {
       return false;
     }
 
@@ -237,7 +245,13 @@ public class Client {
       }
     }
 
-    return wallet.participateAssetIssue(to, assertName.getBytes(), amount);
+    try {
+      byte[] to = Hex.decode(toAddress);
+      return wallet.participateAssetIssue(to, assertName.getBytes(), amount);
+    } catch (Exception ex) {
+      ex.printStackTrace();
+      return false;
+    }
   }
 
   public boolean assetIssue(String password, String name, long totalSupply, int trxNum, int icoNum,
@@ -385,7 +399,7 @@ public class Client {
     }
   }
 
-  public GrpcAPI.NumberMessage getTotalTransaction() {
+  public GrpcAPI.NumberMessage getTotalTransaction(){
     return WalletClient.getTotalTransaction();
   }
 
