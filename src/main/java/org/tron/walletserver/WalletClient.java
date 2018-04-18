@@ -50,17 +50,19 @@ public class WalletClient {
   private static String dbPath;
   private static String txtPath;
 
-  static {
-    new Timer().schedule(new TimerTask() {
-      @Override
-      public void run() {
-        String fullnode = selectFullNode();
-        if(!"".equals(fullnode)) {
-          rpcCli = new GrpcClient(fullnode);
-        }
-      }
-    }, 3 * 60 * 1000,3 * 60 * 1000);
-  }
+//  static {
+//    new Timer().schedule(new TimerTask() {
+//      @Override
+//      public void run() {
+//        String fullnode = selectFullNode();
+//        if(!"".equals(fullnode)) {
+//          rpcCli = new GrpcClient(fullnode);
+//        }
+//      }
+//    }, 3 * 60 * 1000,3 * 60 * 1000);
+//  }
+
+
 
   public static GrpcClient init() {
     Config config = Configuration.getByPath("config.conf");
