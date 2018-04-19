@@ -389,4 +389,57 @@ public class Client {
     return WalletClient.getTotalTransaction();
   }
 
+
+//  public boolean sendCoin(String password, String toAddress, long amount) {
+//    if (wallet == null || !wallet.isLoginState()) {
+//      logger.warn("Warning: SendCoin failed,  Please login first !!");
+//      return false;
+//    }
+//    if (!WalletClient.passwordValid(password)) {
+//      return false;
+//    }
+//    if (!WalletClient.addressValid(toAddress)) {
+//      return false;
+//    }
+//
+//    if (wallet.getEcKey() == null || wallet.getEcKey().getPrivKey() == null) {
+//      wallet = WalletClient.GetWalletByStorage(password);
+//      if (wallet == null) {
+//        logger.warn("Warning: SendCoin failed, Load wallet failed !!");
+//        return false;
+//      }
+//    }
+//
+//    try {
+//      byte[] to = Hex.decode(toAddress);
+//      return wallet.sendCoin(to, amount);
+//    } catch (Exception ex) {
+//      ex.printStackTrace();
+//      return false;
+//    }
+//  }
+
+  public boolean updateAccount(byte[] addressBytes, byte[] accountNameBytes) {
+
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warnging: updateAccount failed, Please login first !!");
+      return false;
+    }
+
+    //    if (wallet.getEcKey() == null || wallet.getEcKey().getPrivKey() == null) {
+//      wallet = WalletClient.GetWalletByStorage(password);
+//      if (wallet == null) {
+//        logger.warn("Warning: SendCoin failed, Load wallet failed !!");
+//        return false;
+//      }
+//    }
+//
+
+    try {
+      return wallet.updateAccount(addressBytes, accountNameBytes);
+    } catch (Exception ex) {
+      ex.printStackTrace();
+      return false;
+    }
+  }
 }

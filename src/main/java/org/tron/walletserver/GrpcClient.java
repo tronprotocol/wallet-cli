@@ -48,6 +48,10 @@ public class GrpcClient {
     return blockingStub.createTransaction(contract);
   }
 
+  public Transaction createTransaction(Contract.AccountUpdateContract contract) {
+    return blockingStub.updateAccount(contract);
+  }
+
   public Transaction createTransferAssetTransaction(Contract.TransferAssetContract contract) {
     return blockingStub.transferAsset(contract);
   }
