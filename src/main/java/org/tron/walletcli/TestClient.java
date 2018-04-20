@@ -184,27 +184,24 @@ public class TestClient {
   }
 
   private void updateAccount(String[] parameters) {
-    if (parameters == null || parameters.length != 2) {
-      // todo 添加明确的信息
-      System.out.println("errr");
+    if (parameters == null || parameters.length != 3) {
+      System.out.println("UpdateAccount need 3 parameter like following: ");
+      System.out.println("UpdateAccount Password Address AccountName ");
       return;
     }
 
-    String address = parameters[0];
-    String accountName = parameters[1];
-    byte[] addressBytes = ByteArray.fromHexString(address);
+    String password = parameters[0];
+    String address = parameters[1];
+    String accountName = parameters[2];
+    byte[] addressBytes = WalletClient.decodeFromBase58Check(address);
     byte[] accountNameBytes = ByteArray.fromString(accountName);
 
-    boolean suc = client.updateAccount(addressBytes, accountNameBytes);
-    Account account = WalletClient.queryAccount(addressBytes);
-
-    if (suc) {
-      logger.info("Update Account failed !!!!");
+    boolean ret = client.updateAccount(password, addressBytes, accountNameBytes);
+    if (ret) {
+      logger.info("Update Account success !!!!");
     } else {
-      logger.info("Address::" + ByteArray.toHexString(account.getAddress().toByteArray()));
-      logger.info("Account[" + account + "]");
+      logger.info("Update Account failed !!!!");
     }
-
   }
 
   private void getAssetIssueByAccount(String[] parameters) {
