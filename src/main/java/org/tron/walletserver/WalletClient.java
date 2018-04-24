@@ -291,6 +291,11 @@ public class WalletClient {
     return rpcCli.createParticipateAssetIssueTransaction(contract);
   }
 
+  public static Transaction updateAccountTransaction(byte[] addressBytes, byte[] accountNameBytes) {
+    Contract.AccountUpdateContract contract = createAccountUpdateContract(accountNameBytes, addressBytes);
+    return rpcCli.createTransaction(contract);
+  }
+
 
   public boolean createAccount(AccountType accountType, byte[] accountName) {
     Transaction transaction = createAccountTransaction(accountType, accountName, getAddress());

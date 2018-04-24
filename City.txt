@@ -407,3 +407,10 @@
 217.121.194.239|||"country":"Netherlands","city":"Den Helder","longitude":4.742,"latitude":52.8896
 37.187.124.30|||"country":"France","city":"France","longitude":2.3387000000000002,"latitude":48.8582
 98.228.233.55|||"country":"United States","city":"Arlington Heights","longitude":-87.9807,"latitude":42.113
+47.89.249.92|||"country":"United States","city":"San Mateo","longitude":-122.3558,"latitude":37.526
+185.101.157.48|||"country":"Switzerland","city":"Switzerland","longitude":8.1551,"latitude":47.1449
+197.89.158.36|||"country":"South Africa","city":"Johannesburg","longitude":28.0583,"latitude":-26.2309
+45.56.83.254|||"country":"United States","city":"Fremont","longitude":-121.9886,"latitude":37.5483
+95.131.238.82|||"country":"Malta","city":"Malta","longitude":14.5833,"latitude":35.8333
+139.162.177.66|||"country":"Germany","city":"Frankfurt am Main","longitude":8.6833,"latitude":50.1167
+39.106.205.224|||"country":"China","city":"Hangzhou","longitude":120.1614,"latitude":30.2936
