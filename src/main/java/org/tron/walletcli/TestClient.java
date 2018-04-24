@@ -183,6 +183,27 @@ public class TestClient {
     }
   }
 
+  private void updateAccount(String[] parameters) {
+    if (parameters == null || parameters.length != 3) {
+      System.out.println("UpdateAccount need 3 parameter like following: ");
+      System.out.println("UpdateAccount Password Address AccountName ");
+      return;
+    }
+
+    String password = parameters[0];
+    String address = parameters[1];
+    String accountName = parameters[2];
+    byte[] addressBytes = WalletClient.decodeFromBase58Check(address);
+    byte[] accountNameBytes = ByteArray.fromString(accountName);
+
+    boolean ret = client.updateAccount(password, addressBytes, accountNameBytes);
+    if (ret) {
+      logger.info("Update Account success !!!!");
+    } else {
+      logger.info("Update Account failed !!!!");
+    }
+  }
+
   private void getAssetIssueByAccount(String[] parameters) {
     if (parameters == null || parameters.length != 1) {
       System.out.println("GetAssetIssueByAccount need 1 parameter like following: ");
@@ -612,6 +633,10 @@ public class TestClient {
           }
           case "getaccount": {
             getAccount(parameters);
+            break;
+          }
+          case "updateaccount": {
+            updateAccount(parameters);
             break;
           }
           case "getassetissuebyaccount": {

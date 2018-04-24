@@ -389,4 +389,26 @@ public class Client {
     return WalletClient.getTotalTransaction();
   }
 
+
+  public boolean updateAccount(String password, byte[] addressBytes, byte[] accountNameBytes) {
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warnging: updateAccount failed, Please login first !!");
+      return false;
+    }
+
+    if (wallet.getEcKey() == null || wallet.getEcKey().getPrivKey() == null) {
+      wallet = WalletClient.GetWalletByStorage(password);
+      if (wallet == null) {
+        logger.warn("Warning: updateAccount failed, Load wallet failed !!");
+        return false;
+      }
+    }
+
+    try {
+      return wallet.updateAccount(addressBytes, accountNameBytes);
+    } catch (Exception ex) {
+      ex.printStackTrace();
+      return false;
+    }
+  }
 }

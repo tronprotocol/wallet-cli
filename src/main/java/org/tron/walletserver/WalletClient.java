@@ -243,6 +243,19 @@ public class WalletClient {
     return rpcCli.broadcastTransaction(transaction);
   }
 
+  public boolean updateAccount(byte[] addressBytes, byte[] accountNameBytes) {
+    byte[] owner = getAddress();
+    Contract.AccountUpdateContract contract = createAccountUpdateContract(accountNameBytes, addressBytes);
+    Transaction transaction = rpcCli.createTransaction(contract);
+
+    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
+      return false;
+    }
+
+    transaction = signTransaction(transaction);
+    return rpcCli.broadcastTransaction(transaction);
+  }
+
   public boolean transferAsset(byte[] to, byte[] assertName, long amount) {
     byte[] owner = getAddress();
     Transaction transaction = createTransferAssetTransaction(to, assertName, owner, amount);
@@ -411,6 +424,17 @@ public class WalletClient {
     builder.setType(accountType);
     builder.setAccountName(bsAccountName);
     builder.setOwnerAddress(bsaAdress);
+
+    return builder.build();
+  }
+
+  public static Contract.AccountUpdateContract createAccountUpdateContract(byte[] accountName, byte[] address) {
+    Contract.AccountUpdateContract.Builder builder = Contract.AccountUpdateContract.newBuilder();
+    ByteString basAddreess = ByteString.copyFrom(address);
+    ByteString bsAccountName = ByteString.copyFrom(accountName);
+
+    builder.setAccountName(bsAccountName);
+    builder.setOwnerAddress(basAddreess);
 
     return builder.build();
   }
