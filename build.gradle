@@ -122,6 +122,8 @@ dependencies {
     //spring-boot-devtools
     compile group: 'org.springframework.boot', name: 'spring-boot-devtools', version: '1.5.6.RELEASE'
 
+    compile group: 'com.google.api.grpc', name: 'googleapis-common-protos', version: '0.0.3'
+
     //spring test
     testCompile group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '1.5.6.RELEASE'
     testCompile group: 'org.springframework', name: 'spring-test', version: '4.3.10.RELEASE'
