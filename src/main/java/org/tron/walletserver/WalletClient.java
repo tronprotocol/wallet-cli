@@ -242,7 +242,9 @@ public class WalletClient {
       return false;
     }
     transaction = signTransaction(transaction);
-    System.out.println("txid = " + Hash.sha256(transaction.toByteArray()));
+    System.out.println("--------------------------");
+    System.out.println("txid = " +  ByteArray.toHexString(Hash.sha256(transaction.toByteArray())));
+    System.out.println("--------------------------");
     return rpcCli.broadcastTransaction(transaction);
   }
 

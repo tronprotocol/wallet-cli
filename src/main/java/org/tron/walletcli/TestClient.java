@@ -819,8 +819,9 @@ public class TestClient {
             getTransactionsByTimestamp(parameters);
             break;
           }
-          case "getTransactionById":{
+          case "gettransactionbyid":{
             getTransactionById(parameters);
+            break;
           }
           case "exit":
           case "quit": {
