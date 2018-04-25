@@ -139,4 +139,11 @@ public class GrpcClient {
   public NumberMessage getTotalTransaction() {
     return blockingStubSolidity.totalTransaction(EmptyMessage.newBuilder().build());
   }
+
+  public Optional<AssetIssueList> getAssetIssueListByTimestamp(long time){
+    NumberMessage.Builder timeStamp = NumberMessage.newBuilder();
+    timeStamp.setNum(time);
+    AssetIssueList assetIssueList = blockingStubSolidity.getAssetIssueListByTimestamp(timeStamp.build());
+    return Optional.ofNullable(assetIssueList);
+  }
 }

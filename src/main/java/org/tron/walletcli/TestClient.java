@@ -5,7 +5,6 @@ import com.google.protobuf.ByteString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tron.api.GrpcAPI.*;
-import org.tron.common.utils.Base58;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Utils;
 import org.tron.protos.Contract.AssetIssueContract;
@@ -13,7 +12,6 @@ import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.BlockHeader;
 import org.tron.protos.Protocol.BlockHeader.raw;
-import org.tron.protos.Protocol.Witness;
 import org.tron.walletserver.WalletClient;
 
 import java.util.*;
@@ -539,6 +537,28 @@ public class TestClient {
     }
   }
 
+  private void getAssetIssueListByTimestamp(String[] parameters){
+    long timeStamp = -1;
+    if (parameters == null || parameters.length == 0) {
+      System.out.println("no timestamp input, use current timestamp");
+      timeStamp = System.currentTimeMillis();
+    } else {
+      if (parameters.length != 1) {
+        System.out.println("GetAssetIssueListByTimestamp too many paramters !!!");
+        System.out.println("You can GetAssetIssueListByTimestamp like:");
+        System.out.println("GetAssetIssueListByTimestamp timestamp");
+      }
+      timeStamp = Long.parseLong(parameters[0]);
+    }
+    Optional<AssetIssueList> result = WalletClient.getAssetIssueListByTimestamp(timeStamp);
+    if (result.isPresent()) {
+      AssetIssueList assetIssueList = result.get();
+      logger.info(Utils.printAssetIssueList(assetIssueList));
+    } else {
+      logger.info("GetAssetIssueListByTimestamp " + " failed !!");
+    }
+  }
+
   private void help() {
     System.out.println("You can enter the following command: ");
 
@@ -566,7 +586,8 @@ public class TestClient {
     System.out.println("Listassetissue");
     System.out.println("listNodes");
     System.out.println("Getblock");
-    System.out.println("getTotalTransaction");
+    System.out.println("GetTotalTransaction");
+    System.out.println("GetAssetIssueListByTimestamp");
     System.out.println("Exit or Quit");
 
     System.out.println("Input any one of then, you will get more tips.");
@@ -701,6 +722,10 @@ public class TestClient {
           }
           case "gettotaltransaction": {
             getTotalTransaction();
+            break;
+          }
+          case "getassetissuelistbytimestamp":{
+            getAssetIssueListByTimestamp(parameters);
             break;
           }
           case "exit":

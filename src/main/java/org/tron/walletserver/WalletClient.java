@@ -60,7 +60,7 @@ public class WalletClient {
 //          rpcCli = new GrpcClient(fullnode);
 //        }
 //      }
-//    }, 3 * 60 * 1000,3 * 60 * 1000);
+//    }, 3 * 60 * 1000, 3 * 60 * 1000);
 //  }
 
 
@@ -692,6 +692,10 @@ public class WalletClient {
       result = Optional.of(builder.build());
     }
     return result;
+  }
+
+  public static Optional<AssetIssueList> getAssetIssueListByTimestamp(long timestamp) {
+    return rpcCli.getAssetIssueListByTimestamp(timestamp);
   }
 
   public static Optional<AssetIssueList> getAssetIssueList() {
