@@ -140,10 +140,24 @@ public class GrpcClient {
     return blockingStubSolidity.totalTransaction(EmptyMessage.newBuilder().build());
   }
 
-  public Optional<AssetIssueList> getAssetIssueListByTimestamp(long time){
+  public Optional<AssetIssueList> getAssetIssueListByTimestamp(long time) {
     NumberMessage.Builder timeStamp = NumberMessage.newBuilder();
     timeStamp.setNum(time);
     AssetIssueList assetIssueList = blockingStubSolidity.getAssetIssueListByTimestamp(timeStamp.build());
     return Optional.ofNullable(assetIssueList);
+  }
+
+  public Optional<TransactionList> getTransactionsFromThis(byte[] address) {
+    ByteString addressBS = ByteString.copyFrom(address);
+    Account request = Account.newBuilder().setAddress(addressBS).build();
+    TransactionList transactionList = blockingStubSolidity.getTransactionsFromThis(request);
+    return Optional.ofNullable(transactionList);
+  }
+
+  public Optional<TransactionList> getTransactionsToThis(byte[] address) {
+    ByteString addressBS = ByteString.copyFrom(address);
+    Account request = Account.newBuilder().setAddress(addressBS).build();
+    TransactionList transactionList = blockingStubSolidity.getTransactionsToThis(request);
+    return Optional.ofNullable(transactionList);
   }
 }

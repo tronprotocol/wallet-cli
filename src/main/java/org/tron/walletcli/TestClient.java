@@ -217,11 +217,7 @@ public class TestClient {
     Optional<AssetIssueList> result = WalletClient.getAssetIssueByAccount(addressBytes);
     if (result.isPresent()) {
       AssetIssueList assetIssueList = result.get();
-      List<AssetIssueContract> list = assetIssueList.getAssetIssueList();
-      for (int i = 0; i < list.size(); i++) {
-        AssetIssueContract assetIssueContract = list.get(i);
-        logger.info(Utils.printAssetIssueList(assetIssueList));
-      }
+      logger.info(Utils.printAssetIssueList(assetIssueList));
     } else {
       logger.info("GetAssetIssueByAccount " + " failed !!");
     }
@@ -537,7 +533,7 @@ public class TestClient {
     }
   }
 
-  private void getAssetIssueListByTimestamp(String[] parameters){
+  private void getAssetIssueListByTimestamp(String[] parameters) {
     long timeStamp = -1;
     if (parameters == null || parameters.length == 0) {
       System.out.println("no timestamp input, use current timestamp");
@@ -556,6 +552,48 @@ public class TestClient {
       logger.info(Utils.printAssetIssueList(assetIssueList));
     } else {
       logger.info("GetAssetIssueListByTimestamp " + " failed !!");
+    }
+  }
+
+  private void getTransactionsFromThis(String[] parameters) {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("GetTransactionsFromThis need 1 parameter like following: ");
+      System.out.println("GetTransactionsFromThis Address ");
+      return;
+    }
+    String address = parameters[0];
+    byte[] addressBytes = WalletClient.decodeFromBase58Check(address);
+    if (addressBytes == null) {
+      return;
+    }
+
+    Optional<TransactionList> result = WalletClient.getTransactionsFromThis(addressBytes);
+    if (result.isPresent()) {
+      TransactionList transactionList = result.get();
+      logger.info(Utils.printTransactionList(transactionList));
+    } else {
+      logger.info("GetTransactionsFromThis " + " failed !!");
+    }
+  }
+
+  private void getTransactionsToThis(String[] parameters) {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("getTransactionsToThis need 1 parameter like following: ");
+      System.out.println("getTransactionsToThis Address ");
+      return;
+    }
+    String address = parameters[0];
+    byte[] addressBytes = WalletClient.decodeFromBase58Check(address);
+    if (addressBytes == null) {
+      return;
+    }
+
+    Optional<TransactionList> result = WalletClient.getTransactionsToThis(addressBytes);
+    if (result.isPresent()) {
+      TransactionList transactionList = result.get();
+      logger.info(Utils.printTransactionList(transactionList));
+    } else {
+      logger.info("getTransactionsToThis " + " failed !!");
     }
   }
 
@@ -588,6 +626,9 @@ public class TestClient {
     System.out.println("Getblock");
     System.out.println("GetTotalTransaction");
     System.out.println("GetAssetIssueListByTimestamp");
+    System.out.println("getTotalTransaction");
+    System.out.println("getTransactionsFromThis");
+    System.out.println("getTransactionsToThis");
     System.out.println("Exit or Quit");
 
     System.out.println("Input any one of then, you will get more tips.");
@@ -716,16 +757,20 @@ public class TestClient {
             GetBlock(parameters);
             break;
           }
-          case "testTransaction": {
-            testTransaction(parameters);
-            break;
-          }
           case "gettotaltransaction": {
             getTotalTransaction();
             break;
           }
-          case "getassetissuelistbytimestamp":{
+          case "getassetissuelistbytimestamp": {
             getAssetIssueListByTimestamp(parameters);
+            break;
+          }
+          case "gettransactionsfromthis": {
+            getTransactionsFromThis(parameters);
+            break;
+          }
+          case "gettransactionstothis": {
+            getTransactionsToThis(parameters);
             break;
           }
           case "exit":

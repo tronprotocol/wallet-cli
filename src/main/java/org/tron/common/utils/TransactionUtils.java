@@ -78,7 +78,7 @@ public class TransactionUtils {
           owner = contract.getParameter().unpack(org.tron.protos.Contract.ParticipateAssetIssueContract.class).getOwnerAddress();
           break;
         case DeployContract:
-          owner = contract.getParameter().unpack(org.tron.protos.Contract.AssetIssueContract.class).getOwnerAddress();
+          owner = contract.getParameter().unpack(org.tron.protos.Contract.DeployContract.class).getOwnerAddress();
           break;
         default:
           return null;
