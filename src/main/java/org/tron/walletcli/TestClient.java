@@ -567,8 +567,8 @@ public class TestClient {
       start = parameters[0] + " " + parameters[1];
       end = parameters[2] + " " + parameters[3];
     }
-    long startTime = Timestamp.valueOf(start).getTime() * 100;
-    long endTime = Timestamp.valueOf(end).getTime() * 100;
+    long startTime = Timestamp.valueOf(start).getTime();
+    long endTime = Timestamp.valueOf(end).getTime();
     Optional<TransactionList> result = WalletClient.getTransactionsByTimestamp(startTime, endTime);
     if (result.isPresent()) {
       TransactionList transactionList = result.get();
