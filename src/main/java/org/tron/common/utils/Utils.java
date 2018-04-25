@@ -30,10 +30,19 @@ import org.tron.api.GrpcAPI.AccountList;
 import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.TransactionList;
 import org.tron.api.GrpcAPI.WitnessList;
+import org.tron.protos.Contract.AccountCreateContract;
 import org.tron.protos.Contract.AssetIssueContract;
+import org.tron.protos.Contract.DeployContract;
+import org.tron.protos.Contract.ParticipateAssetIssueContract;
+import org.tron.protos.Contract.TransferAssetContract;
+import org.tron.protos.Contract.TransferContract;
+import org.tron.protos.Contract.VoteAssetContract;
+import org.tron.protos.Contract.VoteWitnessContract;
+import org.tron.protos.Contract.WitnessCreateContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Account.Vote;
 import org.tron.protos.Protocol.Transaction;
+import org.tron.protos.Protocol.Transaction.Contract;
 import org.tron.protos.Protocol.Transaction.Result;
 import org.tron.protos.Protocol.Witness;
 import org.tron.walletserver.WalletClient;
@@ -252,12 +261,196 @@ public class Utils {
     return result;
   }
 
+  public static String printContract(Transaction.Contract contract) {
+    String result = "";
+    try {
+      switch (contract.getType()) {
+        case AccountCreateContract:
+          AccountCreateContract accountCreateContract = contract.getParameter()
+              .unpack(AccountCreateContract.class);
+          result += "type: ";
+          result += accountCreateContract.getTypeValue();
+          result += "\n";
+          if (accountCreateContract.getAccountName() != null
+              && accountCreateContract.getAccountName().size() > 0) {
+            result += "account_name: ";
+            result += new String(accountCreateContract.getAccountName().toByteArray(),
+                Charset.forName("UTF-8"));
+            result += "\n";
+          }
+          result += "owner_address: ";
+          result += WalletClient
+              .encode58Check(accountCreateContract.getOwnerAddress().toByteArray());
+          result += "\n";
+          break;
+        case TransferContract:
+          TransferContract transferContract = contract.getParameter()
+              .unpack(TransferContract.class);
+          result += "owner_address: ";
+          result += WalletClient
+              .encode58Check(transferContract.getOwnerAddress().toByteArray());
+          result += "\n";
+          result += "to_address: ";
+          result += WalletClient
+              .encode58Check(transferContract.getToAddress().toByteArray());
+          result += "\n";
+          result += "amount: ";
+          result += transferContract.getAmount();
+          result += "\n";
+          break;
+        case TransferAssetContract:
+          TransferAssetContract transferAssetContract = contract.getParameter()
+              .unpack(TransferAssetContract.class);
+          result += "asset_name: ";
+          result += new String(transferAssetContract.getAssetName().toByteArray(),
+              Charset.forName("UTF-8"));
+          result += "\n";
+          result += "owner_address: ";
+          result += WalletClient
+              .encode58Check(transferAssetContract.getOwnerAddress().toByteArray());
+          result += "\n";
+          result += "to_address: ";
+          result += WalletClient
+              .encode58Check(transferAssetContract.getToAddress().toByteArray());
+          result += "\n";
+          result += "amount: ";
+          result += transferAssetContract.getAmount();
+          result += "\n";
+          break;
+        case VoteAssetContract:
+          VoteAssetContract voteAssetContract = contract.getParameter()
+              .unpack(VoteAssetContract.class);
+          break;
+        case VoteWitnessContract:
+          VoteWitnessContract voteWitnessContract = contract.getParameter()
+              .unpack(VoteWitnessContract.class);
+          result += "owner_address: ";
+          result += WalletClient
+              .encode58Check(voteWitnessContract.getOwnerAddress().toByteArray());
+          result += "\n";
+          result += "votes: ";
+          result += "\n";
+          result += "{";
+          result += "\n";
+          for (VoteWitnessContract.Vote vote : voteWitnessContract.getVotesList()) {
+            result += "[";
+            result += "\n";
+            result += "vote_address: ";
+            result += WalletClient
+                .encode58Check(vote.getVoteAddress().toByteArray());
+            result += "\n";
+            result += "vote_count: ";
+            result += vote.getVoteCount();
+            result += "\n";
+            result += "]";
+            result += "\n";
+          }
+          result += "}";
+          result += "\n";
+          break;
+        case WitnessCreateContract:
+          WitnessCreateContract witnessCreateContract = contract.getParameter()
+              .unpack(WitnessCreateContract.class);
+          result += "owner_address: ";
+          result += WalletClient
+              .encode58Check(witnessCreateContract.getOwnerAddress().toByteArray());
+          result += "\n";
+          result += "url: ";
+          result += new String(witnessCreateContract.getUrl().toByteArray(),
+              Charset.forName("UTF-8"));
+          result += "\n";
+          break;
+        case AssetIssueContract:
+          AssetIssueContract assetIssueContract = contract.getParameter()
+              .unpack(AssetIssueContract.class);
+          printAssetIssue(assetIssueContract);
+          break;
+        case ParticipateAssetIssueContract:
+          ParticipateAssetIssueContract participateAssetIssueContract = contract.getParameter()
+              .unpack(ParticipateAssetIssueContract.class);
+          result += "asset_name: ";
+          result += new String(participateAssetIssueContract.getAssetName().toByteArray(),
+              Charset.forName("UTF-8"));
+          result += "\n";
+          result += "owner_address: ";
+          result += WalletClient
+              .encode58Check(participateAssetIssueContract.getOwnerAddress().toByteArray());
+          result += "\n";
+          result += "to_address: ";
+          result += WalletClient
+              .encode58Check(participateAssetIssueContract.getToAddress().toByteArray());
+          result += "\n";
+          result += "amount: ";
+          result += participateAssetIssueContract.getAmount();
+          result += "\n";
+          break;
+        case DeployContract:
+          DeployContract deployContract = contract.getParameter().unpack(DeployContract.class);
+          break;
+        default:
+          return "";
+      }
+    } catch (Exception ex) {
+      ex.printStackTrace();
+      return "";
+    }
+    return result;
+  }
+
+  public static String printContractList(List<Contract> contractList) {
+    String result = "";
+    int i = 0;
+    for (Contract contract : contractList) {
+      result += "contract " + i + " :::";
+      result += "\n";
+      result += "[";
+      result += "\n";
+      result += printContract(contract);
+      result += "]";
+      result += "\n";
+      result += "\n";
+      i++;
+    }
+    return result;
+  }
+
   public static String printTransactionRow(Transaction.raw raw) {
-    return "";
+    String result = "";
+    result += "type: ";
+    result += raw.getType();
+    result += "\n";
+
+    if (raw.getContractCount() > 0) {
+      result += "contract: ";
+      result += "\n";
+      result += "{";
+      result += "\n";
+      result += printContractList(raw.getContractList());
+      result += "}";
+      result += "\n";
+    }
+
+    result += "timestamp: ";
+    result += new Date(raw.getTimestamp());
+    result += "\n";
+    return result;
   }
 
   public static String printSignature(List<ByteString> signatureList) {
-    return "";
+    String result = "";
+    int i = 0;
+    for (ByteString signature : signatureList) {
+      result += "signature " + i + " :::";
+      result += "\n";
+      result += "[";
+      result += "\n";
+      result += ByteArray.toHexString(signature.toByteArray());
+      result += "]";
+      result += "\n";
+      result += "\n";
+      i++;
+    }
+    return result;
   }
 
   public static String printRet(List<Result> resultList) {

@@ -733,19 +733,15 @@ public class TestClient {
             GetBlock(parameters);
             break;
           }
-          case "testTransaction": {
-            testTransaction(parameters);
-            break;
-          }
           case "gettotaltransaction": {
             getTotalTransaction();
             break;
           }
-          case "getTransactionsFromThis": {
+          case "gettransactionsfromthis": {
             getTransactionsFromThis(parameters);
             break;
           }
-          case "getTransactionsToThis": {
+          case "gettransactionstothis": {
             getTransactionsToThis(parameters);
             break;
           }
