@@ -154,11 +154,11 @@ public class TransactionUtils {
   }
 
   public static Transaction setTimestamp(Transaction transaction){
-    long currenTime = System.nanoTime();
+    long currentTime = System.currentTimeMillis()*1000000 + System.nanoTime()%1000000;
     Transaction.Builder builder = transaction.toBuilder();
     org.tron.protos.Protocol.Transaction.raw.Builder rowBuilder = transaction.getRawData()
         .toBuilder();
-    rowBuilder.setTimestamp(currenTime);
+    rowBuilder.setTimestamp(currentTime);
     builder.setRawData(rowBuilder.build());
     return builder.build();
   }

@@ -431,7 +431,7 @@ public class Utils {
     }
 
     result += "timestamp: ";
-    result += new Date(raw.getTimestamp());
+    result += new Date(raw.getTimestamp()/1000000);
     result += "\n";
     return result;
   }
@@ -440,13 +440,8 @@ public class Utils {
     String result = "";
     int i = 0;
     for (ByteString signature : signatureList) {
-      result += "signature " + i + " :::";
-      result += "\n";
-      result += "[";
-      result += "\n";
+      result += "signature " + i + " :";
       result += ByteArray.toHexString(signature.toByteArray());
-      result += "]";
-      result += "\n";
       result += "\n";
       i++;
     }
