@@ -139,4 +139,18 @@ public class GrpcClient {
   public NumberMessage getTotalTransaction() {
     return blockingStubSolidity.totalTransaction(EmptyMessage.newBuilder().build());
   }
+
+  public Optional<TransactionList> getTransactionsFromThis(byte[] address) {
+    ByteString addressBS = ByteString.copyFrom(address);
+    Account request = Account.newBuilder().setAddress(addressBS).build();
+    TransactionList transactionList = blockingStubSolidity.getTransactionsFromThis(request);
+    return Optional.ofNullable(transactionList);
+  }
+
+  public Optional<TransactionList> getTransactionsToThis(byte[] address) {
+    ByteString addressBS = ByteString.copyFrom(address);
+    Account request = Account.newBuilder().setAddress(addressBS).build();
+    TransactionList transactionList = blockingStubSolidity.getTransactionsToThis(request);
+    return Optional.ofNullable(transactionList);
+  }
 }

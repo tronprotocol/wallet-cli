@@ -12,6 +12,7 @@ import org.tron.api.GrpcAPI;
 import org.tron.api.GrpcAPI.AccountList;
 import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.NodeList;
+import org.tron.api.GrpcAPI.TransactionList;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.Hash;
@@ -713,4 +714,12 @@ public class WalletClient {
   public static GrpcAPI.NumberMessage getTotalTransaction() {
     return rpcCli.getTotalTransaction();
   }
+
+  public static Optional<TransactionList> getTransactionsFromThis(byte[] address) {
+    return rpcCli.getTransactionsFromThis(address);
+  }
+  public static Optional<TransactionList> getTransactionsToThis(byte[] address) {
+    return rpcCli.getTransactionsToThis(address);
+  }
+
 }

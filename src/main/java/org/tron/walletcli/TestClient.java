@@ -5,7 +5,6 @@ import com.google.protobuf.ByteString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tron.api.GrpcAPI.*;
-import org.tron.common.utils.Base58;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Utils;
 import org.tron.protos.Contract.AssetIssueContract;
@@ -13,7 +12,6 @@ import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.BlockHeader;
 import org.tron.protos.Protocol.BlockHeader.raw;
-import org.tron.protos.Protocol.Witness;
 import org.tron.walletserver.WalletClient;
 
 import java.util.*;
@@ -219,11 +217,7 @@ public class TestClient {
     Optional<AssetIssueList> result = WalletClient.getAssetIssueByAccount(addressBytes);
     if (result.isPresent()) {
       AssetIssueList assetIssueList = result.get();
-      List<AssetIssueContract> list = assetIssueList.getAssetIssueList();
-      for (int i = 0; i < list.size(); i++) {
-        AssetIssueContract assetIssueContract = list.get(i);
-        logger.info(Utils.printAssetIssueList(assetIssueList));
-      }
+      logger.info(Utils.printAssetIssueList(assetIssueList));
     } else {
       logger.info("GetAssetIssueByAccount " + " failed !!");
     }
@@ -539,6 +533,48 @@ public class TestClient {
     }
   }
 
+  private void getTransactionsFromThis(String[] parameters) {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("GetTransactionsFromThis need 1 parameter like following: ");
+      System.out.println("GetTransactionsFromThis Address ");
+      return;
+    }
+    String address = parameters[0];
+    byte[] addressBytes = WalletClient.decodeFromBase58Check(address);
+    if (addressBytes == null) {
+      return;
+    }
+
+    Optional<TransactionList> result = WalletClient.getTransactionsFromThis(addressBytes);
+    if (result.isPresent()) {
+      TransactionList transactionList = result.get();
+      logger.info(Utils.printTransactionList(transactionList));
+    } else {
+      logger.info("GetTransactionsFromThis " + " failed !!");
+    }
+  }
+
+  private void getTransactionsToThis(String[] parameters) {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("getTransactionsToThis need 1 parameter like following: ");
+      System.out.println("getTransactionsToThis Address ");
+      return;
+    }
+    String address = parameters[0];
+    byte[] addressBytes = WalletClient.decodeFromBase58Check(address);
+    if (addressBytes == null) {
+      return;
+    }
+
+    Optional<TransactionList> result = WalletClient.getTransactionsToThis(addressBytes);
+    if (result.isPresent()) {
+      TransactionList transactionList = result.get();
+      logger.info(Utils.printTransactionList(transactionList));
+    } else {
+      logger.info("getTransactionsToThis " + " failed !!");
+    }
+  }
+
   private void help() {
     System.out.println("You can enter the following command: ");
 
@@ -567,6 +603,8 @@ public class TestClient {
     System.out.println("listNodes");
     System.out.println("Getblock");
     System.out.println("getTotalTransaction");
+    System.out.println("getTransactionsFromThis");
+    System.out.println("getTransactionsToThis");
     System.out.println("Exit or Quit");
 
     System.out.println("Input any one of then, you will get more tips.");
@@ -701,6 +739,14 @@ public class TestClient {
           }
           case "gettotaltransaction": {
             getTotalTransaction();
+            break;
+          }
+          case "getTransactionsFromThis": {
+            getTransactionsFromThis(parameters);
+            break;
+          }
+          case "getTransactionsToThis": {
+            getTransactionsToThis(parameters);
             break;
           }
           case "exit":

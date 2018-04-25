@@ -18,18 +18,23 @@
 
 package org.tron.common.utils;
 
+import com.google.protobuf.ByteString;
 import java.security.SecureRandom;
 import java.nio.*;
 import java.nio.charset.Charset;
 import java.text.ParsePosition;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.List;
 import org.tron.api.GrpcAPI.AccountList;
 import org.tron.api.GrpcAPI.AssetIssueList;
+import org.tron.api.GrpcAPI.TransactionList;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.protos.Contract.AssetIssueContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Account.Vote;
+import org.tron.protos.Protocol.Transaction;
+import org.tron.protos.Protocol.Transaction.Result;
 import org.tron.protos.Protocol.Witness;
 import org.tron.walletserver.WalletClient;
 
@@ -104,7 +109,7 @@ public class Utils {
       }
     }
     if (account.getAssetCount() > 0) {
-      for(String name: account.getAssetMap().keySet()){
+      for (String name : account.getAssetMap().keySet()) {
         result += "asset";
         result += "\n";
         result += "{";
@@ -126,10 +131,10 @@ public class Utils {
     return result;
   }
 
-  public static String printAccountList(AccountList accountList){
+  public static String printAccountList(AccountList accountList) {
     String result = "\n";
     int i = 0;
-    for ( Account account: accountList.getAccountsList()){
+    for (Account account : accountList.getAccountsList()) {
       result += "account " + i + " :::";
       result += "\n";
       result += "[";
@@ -175,10 +180,10 @@ public class Utils {
     return result;
   }
 
-  public static String printWitnessList(WitnessList witnessList){
+  public static String printWitnessList(WitnessList witnessList) {
     String result = "\n";
     int i = 0;
-    for ( Witness witness: witnessList.getWitnessesList()){
+    for (Witness witness : witnessList.getWitnessesList()) {
       result += "witness " + i + " :::";
       result += "\n";
       result += "[";
@@ -230,15 +235,76 @@ public class Utils {
     return result;
   }
 
-  public static String printAssetIssueList(AssetIssueList assetIssueList){
+  public static String printAssetIssueList(AssetIssueList assetIssueList) {
     String result = "\n";
     int i = 0;
-    for ( AssetIssueContract assetIssue: assetIssueList.getAssetIssueList()){
+    for (AssetIssueContract assetIssue : assetIssueList.getAssetIssueList()) {
       result += "assetIssue " + i + " :::";
       result += "\n";
       result += "[";
       result += "\n";
       result += printAssetIssue(assetIssue);
+      result += "]";
+      result += "\n";
+      result += "\n";
+      i++;
+    }
+    return result;
+  }
+
+  public static String printTransactionRow(Transaction.raw raw) {
+    return "";
+  }
+
+  public static String printSignature(List<ByteString> signatureList) {
+    return "";
+  }
+
+  public static String printRet(List<Result> resultList) {
+    return "";
+  }
+
+  public static String printTransaction(Transaction transaction) {
+    String result = "";
+    if (transaction.getRawData() != null) {
+      result += "raw_data: ";
+      result += "\n";
+      result += "{";
+      result += "\n";
+      result += printTransactionRow(transaction.getRawData());
+      result += "}";
+      result += "\n";
+    }
+    if (transaction.getSignatureCount() > 0) {
+      result += "signature: ";
+      result += "\n";
+      result += "{";
+      result += "\n";
+      result += printSignature(transaction.getSignatureList());
+      result += "}";
+      result += "\n";
+    }
+    if (transaction.getRetCount() != 0) {
+      result += "ret: ";
+      result += "\n";
+      result += "{";
+      result += "\n";
+      result += printRet(transaction.getRetList());
+      result += "}";
+      result += "\n";
+    }
+    return result;
+  }
+
+  public static String printTransactionList(TransactionList transactionList) {
+    String result = "\n";
+    int i = 0;
+    for (Transaction transaction : transactionList.getTransactionList()) {
+      result += "transaction " + i + " :::";
+      result += "\n";
+      result += "[";
+      result += "\n";
+      result += printTransaction(transaction);
       result += "]";
       result += "\n";
       result += "\n";
