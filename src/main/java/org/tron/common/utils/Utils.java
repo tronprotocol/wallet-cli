@@ -431,7 +431,7 @@ public class Utils {
     }
 
     result += "timestamp: ";
-    result += new Date(raw.getTimestamp()/1000000);
+    result += new Date(raw.getTimestamp());
     result += "\n";
     return result;
   }
