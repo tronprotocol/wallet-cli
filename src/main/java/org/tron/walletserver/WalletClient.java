@@ -242,11 +242,11 @@ public class WalletClient {
       return false;
     }
     transaction = signTransaction(transaction);
+    System.out.println("txid = " + Hash.sha256(transaction.toByteArray()));
     return rpcCli.broadcastTransaction(transaction);
   }
 
   public boolean updateAccount(byte[] addressBytes, byte[] accountNameBytes) {
-    byte[] owner = getAddress();
     Contract.AccountUpdateContract contract = createAccountUpdateContract(accountNameBytes,
         addressBytes);
     Transaction transaction = rpcCli.createTransaction(contract);
@@ -699,6 +699,10 @@ public class WalletClient {
     return rpcCli.getAssetIssueListByTimestamp(timestamp);
   }
 
+  public static Optional<TransactionList> getTransactionsByTimestamp(long start, long end){
+    return rpcCli.getTransactionsByTimestamp(start, end);
+  }
+
   public static Optional<AssetIssueList> getAssetIssueList() {
     return rpcCli.getAssetIssueList();
   }
@@ -722,8 +726,12 @@ public class WalletClient {
   public static Optional<TransactionList> getTransactionsFromThis(byte[] address) {
     return rpcCli.getTransactionsFromThis(address);
   }
+
   public static Optional<TransactionList> getTransactionsToThis(byte[] address) {
     return rpcCli.getTransactionsToThis(address);
   }
 
+  public static Optional<Transaction> getTransactionById(String txID){
+    return rpcCli.getTransactionById(txID);
+  }
 }

@@ -8,12 +8,14 @@ import org.tron.api.GrpcAPI.*;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Utils;
 import org.tron.protos.Contract.AssetIssueContract;
+import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.BlockHeader;
 import org.tron.protos.Protocol.BlockHeader.raw;
 import org.tron.walletserver.WalletClient;
 
+import java.sql.Timestamp;
 import java.util.*;
 import java.util.Base64.Decoder;
 import java.util.Base64.Encoder;
@@ -555,6 +557,44 @@ public class TestClient {
     }
   }
 
+  private void getTransactionsByTimestamp(String[] parameters){
+    String start = "";
+    String end = "";
+    if (parameters == null || parameters.length != 4) {
+      System.out.println("getTransactionsByTimestamp needs 2 parameters, start_time and end_time, time format is yyyy-mm-dd hh:mm:ss");
+      return;
+    } else {
+      start = parameters[0] + " " + parameters[1];
+      end = parameters[2] + " " + parameters[3];
+    }
+    long startTime = Timestamp.valueOf(start).getTime() * 100;
+    long endTime = Timestamp.valueOf(end).getTime() * 100;
+    Optional<TransactionList> result = WalletClient.getTransactionsByTimestamp(startTime, endTime);
+    if (result.isPresent()) {
+      TransactionList transactionList = result.get();
+      logger.info(Utils.printTransactionList(transactionList));
+    } else {
+      logger.info("getTransactionsByTimestamp " + " failed !!");
+    }
+  }
+
+  private void getTransactionById(String[] parameters){
+    String txid = "";
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("getTransactionById needs 1 parameters, transaction id");
+      return;
+    } else {
+      txid = parameters[0];
+    }
+    Optional<Transaction> result = WalletClient.getTransactionById(txid);
+    if(result.isPresent()){
+      Transaction transaction = result.get();
+      logger.info(Utils.printTransaction(transaction));
+    }else{
+      logger.info("getTransactionById " + " failed !!");
+    }
+  }
+
   private void getTransactionsFromThis(String[] parameters) {
     if (parameters == null || parameters.length != 1) {
       System.out.println("GetTransactionsFromThis need 1 parameter like following: ");
@@ -626,7 +666,9 @@ public class TestClient {
     System.out.println("Getblock");
     System.out.println("GetTotalTransaction");
     System.out.println("GetAssetIssueListByTimestamp");
-    System.out.println("getTotalTransaction");
+    System.out.println("GetTotalTransaction");
+    System.out.println("GetTransactionsByTimestamp");
+    System.out.println("GetTransactionById");
     System.out.println("getTransactionsFromThis");
     System.out.println("getTransactionsToThis");
     System.out.println("Exit or Quit");
@@ -772,6 +814,13 @@ public class TestClient {
           case "gettransactionstothis": {
             getTransactionsToThis(parameters);
             break;
+          }
+          case "gettransactionsbytimestamp" :{
+            getTransactionsByTimestamp(parameters);
+            break;
+          }
+          case "getTransactionById":{
+            getTransactionById(parameters);
           }
           case "exit":
           case "quit": {
