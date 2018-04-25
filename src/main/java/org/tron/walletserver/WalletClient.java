@@ -4,6 +4,7 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigObject;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.spongycastle.util.encoders.Hex;
@@ -63,7 +64,6 @@ public class WalletClient {
 //  }
 
 
-
   public static GrpcClient init() {
     Config config = Configuration.getByPath("config.conf");
     dbPath = config.getString("CityDb.DbPath");
@@ -74,7 +74,7 @@ public class WalletClient {
     return new GrpcClient(fullnodelist.get(0), soliditynodelist.get(0));
   }
 
-  public static String selectFullNode(){
+  public static String selectFullNode() {
     Map<String, String> witnessMap = new HashMap<>();
     Config config = Configuration.getByPath("config.conf");
     List list = config.getObjectList("witnesses.witnessList");
@@ -93,15 +93,15 @@ public class WalletClient {
       for (Witness witness : witnessList) {
         String url = witness.getUrl();
         long missedBlocks = witness.getTotalMissed();
-        if(missedBlocks < minMissedNum){
+        if (missedBlocks < minMissedNum) {
           minMissedNum = missedBlocks;
           minMissedWitness = url;
         }
       }
     }
-    if(witnessMap.containsKey(minMissedWitness)){
+    if (witnessMap.containsKey(minMissedWitness)) {
       return witnessMap.get(minMissedWitness);
-    }else{
+    } else {
       return "";
     }
   }
@@ -209,7 +209,7 @@ public class WalletClient {
     byte[] address;
     if (this.ecKey == null) {
       String pubKey = loadPubKey(); //04 PubKey[128]
-      if (pubKey == null || "".equals(pubKey)) {
+      if (StringUtils.isEmpty(pubKey)) {
         logger.warn("Warning: QueryAccount failed, no wallet address !!");
         return null;
       }
@@ -246,7 +246,8 @@ public class WalletClient {
 
   public boolean updateAccount(byte[] addressBytes, byte[] accountNameBytes) {
     byte[] owner = getAddress();
-    Contract.AccountUpdateContract contract = createAccountUpdateContract(accountNameBytes, addressBytes);
+    Contract.AccountUpdateContract contract = createAccountUpdateContract(accountNameBytes,
+        addressBytes);
     Transaction transaction = rpcCli.createTransaction(contract);
 
     if (transaction == null || transaction.getRawData().getContractCount() == 0) {
@@ -293,7 +294,8 @@ public class WalletClient {
   }
 
   public static Transaction updateAccountTransaction(byte[] addressBytes, byte[] accountNameBytes) {
-    Contract.AccountUpdateContract contract = createAccountUpdateContract(accountNameBytes, addressBytes);
+    Contract.AccountUpdateContract contract = createAccountUpdateContract(accountNameBytes,
+        addressBytes);
     return rpcCli.createTransaction(contract);
   }
 
@@ -434,7 +436,8 @@ public class WalletClient {
     return builder.build();
   }
 
-  public static Contract.AccountUpdateContract createAccountUpdateContract(byte[] accountName, byte[] address) {
+  public static Contract.AccountUpdateContract createAccountUpdateContract(byte[] accountName,
+      byte[] address) {
     Contract.AccountUpdateContract.Builder builder = Contract.AccountUpdateContract.newBuilder();
     ByteString basAddreess = ByteString.copyFrom(address);
     ByteString bsAccountName = ByteString.copyFrom(accountName);
@@ -508,7 +511,7 @@ public class WalletClient {
   public static WalletClient GetWalletByStorageIgnorPrivKey() {
     try {
       String pubKey = loadPubKey(); //04 PubKey[128]
-      if (pubKey == null || "".equals(pubKey)) {
+      if (StringUtils.isEmpty(pubKey)) {
         return null;
       }
       byte[] pubKeyAsc = pubKey.getBytes();
@@ -524,7 +527,7 @@ public class WalletClient {
   public static String getAddressByStorage() {
     try {
       String pubKey = loadPubKey(); //04 PubKey[128]
-      if (pubKey == null || "".equals(pubKey)) {
+      if (StringUtils.isEmpty(pubKey)) {
         return null;
       }
       byte[] pubKeyAsc = pubKey.getBytes();
@@ -569,7 +572,7 @@ public class WalletClient {
   }
 
   public static boolean passwordValid(String password) {
-    if (password == null || "".equals(password)) {
+    if (StringUtils.isEmpty(password)) {
       logger.warn("Warning: Password is empty !!");
       return false;
     }
@@ -630,7 +633,7 @@ public class WalletClient {
   }
 
   public static byte[] decodeFromBase58Check(String addressBase58) {
-    if (addressBase58 == null || addressBase58.length() == 0) {
+    if (StringUtils.isEmpty(addressBase58)) {
       logger.warn("Warning: Address is empty !!");
       return null;
     }
@@ -649,7 +652,7 @@ public class WalletClient {
   }
 
   public static boolean priKeyValid(String priKey) {
-    if (priKey == null || "".equals(priKey)) {
+    if (StringUtils.isEmpty(priKey)) {
       logger.warn("Warning: PrivateKey is empty !!");
       return false;
     }
@@ -666,7 +669,7 @@ public class WalletClient {
     if (result.isPresent()) {
       AccountList accountList = result.get();
       List<Account> list = accountList.getAccountsList();
-      List<Account> newList =  new ArrayList();
+      List<Account> newList = new ArrayList();
       newList.addAll(list);
       newList.sort(new AccountComparator());
       AccountList.Builder builder = AccountList.newBuilder();
@@ -681,7 +684,7 @@ public class WalletClient {
     if (result.isPresent()) {
       WitnessList witnessList = result.get();
       List<Witness> list = witnessList.getWitnessesList();
-      List<Witness> newList =  new ArrayList();
+      List<Witness> newList = new ArrayList();
       newList.addAll(list);
       newList.sort(new WitnessComparator());
       WitnessList.Builder builder = WitnessList.newBuilder();
