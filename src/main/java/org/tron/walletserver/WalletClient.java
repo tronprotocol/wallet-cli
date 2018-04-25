@@ -70,7 +70,8 @@ public class WalletClient {
     txtPath = System.getProperty("user.dir") + '/' + config.getString("CityDb.TxtPath");
 
     List<String> fullnodelist = config.getStringList("fullnode.ip.list");
-    return new GrpcClient(fullnodelist.get(0));
+    List<String> soliditynodelist = config.getStringList("soliditynode.ip.list");
+    return new GrpcClient(fullnodelist.get(0), soliditynodelist.get(0));
   }
 
   public static String selectFullNode(){

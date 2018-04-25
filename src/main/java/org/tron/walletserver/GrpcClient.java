@@ -6,6 +6,7 @@ import io.grpc.ManagedChannelBuilder;
 import org.tron.api.GrpcAPI;
 import org.tron.api.GrpcAPI.*;
 import org.tron.api.WalletGrpc;
+import org.tron.api.WalletSolidityGrpc;
 import org.tron.protos.Contract;
 import org.tron.protos.Contract.AssetIssueContract;
 import org.tron.protos.Protocol.Account;
@@ -17,98 +18,106 @@ import java.util.concurrent.TimeUnit;
 
 public class GrpcClient {
 
-  private final ManagedChannel channel;
-  private final WalletGrpc.WalletBlockingStub blockingStub;
+  private final ManagedChannel channelFull;
+  private final ManagedChannel channelSolidity;
+  private final WalletGrpc.WalletBlockingStub blockingStubFull;
+  private final WalletSolidityGrpc.WalletSolidityBlockingStub blockingStubSolidity;
 
-  public GrpcClient(String host, int port) {
-    channel = ManagedChannelBuilder.forAddress(host, port)
+//  public GrpcClient(String host, int port) {
+//    channel = ManagedChannelBuilder.forAddress(host, port)
+//        .usePlaintext(true)
+//        .build();
+//    blockingStub = WalletGrpc.newBlockingStub(channel);
+//  }
+
+  public GrpcClient(String fullnode, String soliditynode) {
+    channelFull = ManagedChannelBuilder.forTarget(fullnode)
         .usePlaintext(true)
         .build();
-    blockingStub = WalletGrpc.newBlockingStub(channel);
-  }
+    blockingStubFull = WalletGrpc.newBlockingStub(channelFull);
 
-  public GrpcClient(String host) {
-    channel = ManagedChannelBuilder.forTarget(host)
+    channelSolidity = ManagedChannelBuilder.forTarget(soliditynode)
         .usePlaintext(true)
         .build();
-    blockingStub = WalletGrpc.newBlockingStub(channel);
+    blockingStubSolidity = WalletSolidityGrpc.newBlockingStub(channelSolidity);
   }
 
   public void shutdown() throws InterruptedException {
-    channel.shutdown().awaitTermination(5, TimeUnit.SECONDS);
+    channelFull.shutdown().awaitTermination(5, TimeUnit.SECONDS);
+    channelSolidity.shutdown().awaitTermination(5, TimeUnit.SECONDS);
   }
 
   public Account queryAccount(byte[] address) {
     ByteString addressBS = ByteString.copyFrom(address);
     Account request = Account.newBuilder().setAddress(addressBS).build();
-    return blockingStub.getAccount(request);
+    return blockingStubSolidity.getAccount(request);
   }
 
   public Transaction createTransaction(Contract.TransferContract contract) {
-    return blockingStub.createTransaction(contract);
+    return blockingStubFull.createTransaction(contract);
   }
 
   public Transaction createTransaction(Contract.AccountUpdateContract contract) {
-    return blockingStub.updateAccount(contract);
+    return blockingStubFull.updateAccount(contract);
   }
 
   public Transaction createTransferAssetTransaction(Contract.TransferAssetContract contract) {
-    return blockingStub.transferAsset(contract);
+    return blockingStubFull.transferAsset(contract);
   }
 
   public Transaction createParticipateAssetIssueTransaction(
       Contract.ParticipateAssetIssueContract contract) {
-    return blockingStub.participateAssetIssue(contract);
+    return blockingStubFull.participateAssetIssue(contract);
   }
 
   public Transaction createAccount(Contract.AccountCreateContract contract) {
-    return blockingStub.createAccount(contract);
+    return blockingStubFull.createAccount(contract);
   }
 
   public Transaction createAssetIssue(Contract.AssetIssueContract contract) {
-    return blockingStub.createAssetIssue(contract);
+    return blockingStubFull.createAssetIssue(contract);
   }
 
   public Transaction voteWitnessAccount(Contract.VoteWitnessContract contract) {
-    return blockingStub.voteWitnessAccount(contract);
+    return blockingStubFull.voteWitnessAccount(contract);
   }
 
   public Transaction createWitness(Contract.WitnessCreateContract contract) {
-    return blockingStub.createWitness(contract);
+    return blockingStubFull.createWitness(contract);
   }
 
   public boolean broadcastTransaction(Transaction signaturedTransaction) {
-    GrpcAPI.Return response = blockingStub.broadcastTransaction(signaturedTransaction);
+    GrpcAPI.Return response = blockingStubFull.broadcastTransaction(signaturedTransaction);
     return response.getResult();
   }
 
   public Block getBlock(long blockNum) {
     if (blockNum < 0) {
-      return blockingStub.getNowBlock(EmptyMessage.newBuilder().build());
+      return blockingStubSolidity.getNowBlock(EmptyMessage.newBuilder().build());
     }
     NumberMessage.Builder builder = NumberMessage.newBuilder();
     builder.setNum(blockNum);
-    return blockingStub.getBlockByNum(builder.build());
+    return blockingStubSolidity.getBlockByNum(builder.build());
   }
 
   public Optional<AccountList> listAccounts() {
-    AccountList accountList = blockingStub.listAccounts(EmptyMessage.newBuilder().build());
+    AccountList accountList = blockingStubSolidity.listAccounts(EmptyMessage.newBuilder().build());
     return Optional.ofNullable(accountList);
   }
 
   public Optional<WitnessList> listWitnesses() {
-    WitnessList witnessList = blockingStub.listWitnesses(EmptyMessage.newBuilder().build());
+    WitnessList witnessList = blockingStubSolidity.listWitnesses(EmptyMessage.newBuilder().build());
     return Optional.ofNullable(witnessList);
   }
 
   public Optional<AssetIssueList> getAssetIssueList() {
-    AssetIssueList assetIssueList = blockingStub
+    AssetIssueList assetIssueList = blockingStubSolidity
         .getAssetIssueList(EmptyMessage.newBuilder().build());
     return Optional.ofNullable(assetIssueList);
   }
 
   public Optional<NodeList> listNodes() {
-    NodeList nodeList = blockingStub
+    NodeList nodeList = blockingStubSolidity
         .listNodes(EmptyMessage.newBuilder().build());
     return Optional.ofNullable(nodeList);
   }
@@ -116,7 +125,7 @@ public class GrpcClient {
   public Optional<AssetIssueList> getAssetIssueByAccount(byte[] address) {
     ByteString addressBS = ByteString.copyFrom(address);
     Account request = Account.newBuilder().setAddress(addressBS).build();
-    AssetIssueList assetIssueList = blockingStub
+    AssetIssueList assetIssueList = blockingStubSolidity
         .getAssetIssueByAccount(request);
     return Optional.ofNullable(assetIssueList);
   }
@@ -124,10 +133,10 @@ public class GrpcClient {
   public AssetIssueContract getAssetIssueByName(String assetName) {
     ByteString assetNameBs = ByteString.copyFrom(assetName.getBytes());
     BytesMessage request = BytesMessage.newBuilder().setValue(assetNameBs).build();
-    return blockingStub.getAssetIssueByName(request);
+    return blockingStubSolidity.getAssetIssueByName(request);
   }
 
-  public NumberMessage getTotalTransaction(){
-    return blockingStub.totalTransaction(EmptyMessage.newBuilder().build());
+  public NumberMessage getTotalTransaction() {
+    return blockingStubSolidity.totalTransaction(EmptyMessage.newBuilder().build());
   }
 }
