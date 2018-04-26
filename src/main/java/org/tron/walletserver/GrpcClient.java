@@ -118,7 +118,7 @@ public class GrpcClient {
   }
 
   public Optional<NodeList> listNodes() {
-    NodeList nodeList = blockingStubSolidity
+    NodeList nodeList = blockingStubFull
         .listNodes(EmptyMessage.newBuilder().build());
     return Optional.ofNullable(nodeList);
   }
