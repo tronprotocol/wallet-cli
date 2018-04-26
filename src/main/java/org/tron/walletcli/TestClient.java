@@ -538,15 +538,16 @@ public class TestClient {
   private void getAssetIssueListByTimestamp(String[] parameters) {
     long timeStamp = -1;
     if (parameters == null || parameters.length == 0) {
-      System.out.println("no timestamp input, use current timestamp");
+      System.out.println("no time input, use current time");
       timeStamp = System.currentTimeMillis();
     } else {
-      if (parameters.length != 1) {
-        System.out.println("GetAssetIssueListByTimestamp too many paramters !!!");
+      if (parameters.length != 2) {
         System.out.println("You can GetAssetIssueListByTimestamp like:");
-        System.out.println("GetAssetIssueListByTimestamp timestamp");
+        System.out.println("GetAssetIssueListByTimestamp yyyy-mm-dd hh:mm:ss");
+        return;
+      }else{
+        timeStamp = Timestamp.valueOf(parameters[0] + " " + parameters[1]).getTime();
       }
-      timeStamp = Long.parseLong(parameters[0]);
     }
     Optional<AssetIssueList> result = WalletClient.getAssetIssueListByTimestamp(timeStamp);
     if (result.isPresent()) {

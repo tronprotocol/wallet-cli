@@ -242,9 +242,9 @@ public class WalletClient {
       return false;
     }
     transaction = signTransaction(transaction);
-    System.out.println("--------------------------");
-    System.out.println("txid = " +  ByteArray.toHexString(Hash.sha256(transaction.toByteArray())));
-    System.out.println("--------------------------");
+    System.out.println("--------------------------------");
+    System.out.println("txid = " +  ByteArray.toHexString(Hash.sha256(transaction.getRawData().toByteArray())));
+    System.out.println("--------------------------------");
     return rpcCli.broadcastTransaction(transaction);
   }
 
@@ -290,9 +290,7 @@ public class WalletClient {
 
   public static Transaction participateAssetIssueTransaction(byte[] to, byte[] assertName,
       byte[] owner, long amount) {
-    Contract.ParticipateAssetIssueContract contract = participateAssetIssueContract(to, assertName,
-        owner,
-        amount);
+    Contract.ParticipateAssetIssueContract contract = participateAssetIssueContract(to, assertName, owner, amount);
     return rpcCli.createParticipateAssetIssueTransaction(contract);
   }
 
