@@ -10,7 +10,6 @@ import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.NodeList;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.crypto.ECKey;
-import org.tron.common.utils.Base58;
 import org.tron.common.utils.ByteArray;
 import org.tron.protos.Contract;
 import org.tron.protos.Protocol.Account;
@@ -388,7 +387,6 @@ public class Client {
   public GrpcAPI.NumberMessage getTotalTransaction() {
     return WalletClient.getTotalTransaction();
   }
-
 
   public boolean updateAccount(String password, byte[] addressBytes, byte[] accountNameBytes) {
     if (wallet == null || !wallet.isLoginState()) {

@@ -5,17 +5,17 @@ import com.google.protobuf.ByteString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tron.api.GrpcAPI.*;
-import org.tron.common.utils.Base58;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Utils;
 import org.tron.protos.Contract.AssetIssueContract;
+import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.BlockHeader;
 import org.tron.protos.Protocol.BlockHeader.raw;
-import org.tron.protos.Protocol.Witness;
 import org.tron.walletserver.WalletClient;
 
+import java.sql.Timestamp;
 import java.util.*;
 import java.util.Base64.Decoder;
 import java.util.Base64.Encoder;
@@ -219,11 +219,7 @@ public class TestClient {
     Optional<AssetIssueList> result = WalletClient.getAssetIssueByAccount(addressBytes);
     if (result.isPresent()) {
       AssetIssueList assetIssueList = result.get();
-      List<AssetIssueContract> list = assetIssueList.getAssetIssueList();
-      for (int i = 0; i < list.size(); i++) {
-        AssetIssueContract assetIssueContract = list.get(i);
-        logger.info(Utils.printAssetIssueList(assetIssueList));
-      }
+      logger.info(Utils.printAssetIssueList(assetIssueList));
     } else {
       logger.info("GetAssetIssueByAccount " + " failed !!");
     }
@@ -539,6 +535,109 @@ public class TestClient {
     }
   }
 
+  private void getAssetIssueListByTimestamp(String[] parameters) {
+    long timeStamp = -1;
+    if (parameters == null || parameters.length == 0) {
+      System.out.println("no time input, use current time");
+      timeStamp = System.currentTimeMillis();
+    } else {
+      if (parameters.length != 2) {
+        System.out.println("You can GetAssetIssueListByTimestamp like:");
+        System.out.println("GetAssetIssueListByTimestamp yyyy-mm-dd hh:mm:ss");
+        return;
+      }else{
+        timeStamp = Timestamp.valueOf(parameters[0] + " " + parameters[1]).getTime();
+      }
+    }
+    Optional<AssetIssueList> result = WalletClient.getAssetIssueListByTimestamp(timeStamp);
+    if (result.isPresent()) {
+      AssetIssueList assetIssueList = result.get();
+      logger.info(Utils.printAssetIssueList(assetIssueList));
+    } else {
+      logger.info("GetAssetIssueListByTimestamp " + " failed !!");
+    }
+  }
+
+  private void getTransactionsByTimestamp(String[] parameters){
+    String start = "";
+    String end = "";
+    if (parameters == null || parameters.length != 4) {
+      System.out.println("getTransactionsByTimestamp needs 2 parameters, start_time and end_time, time format is yyyy-mm-dd hh:mm:ss");
+      return;
+    } else {
+      start = parameters[0] + " " + parameters[1];
+      end = parameters[2] + " " + parameters[3];
+    }
+    long startTime = Timestamp.valueOf(start).getTime();
+    long endTime = Timestamp.valueOf(end).getTime();
+    Optional<TransactionList> result = WalletClient.getTransactionsByTimestamp(startTime, endTime);
+    if (result.isPresent()) {
+      TransactionList transactionList = result.get();
+      logger.info(Utils.printTransactionList(transactionList));
+    } else {
+      logger.info("getTransactionsByTimestamp " + " failed !!");
+    }
+  }
+
+  private void getTransactionById(String[] parameters){
+    String txid = "";
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("getTransactionById needs 1 parameters, transaction id");
+      return;
+    } else {
+      txid = parameters[0];
+    }
+    Optional<Transaction> result = WalletClient.getTransactionById(txid);
+    if(result.isPresent()){
+      Transaction transaction = result.get();
+      logger.info(Utils.printTransaction(transaction));
+    }else{
+      logger.info("getTransactionById " + " failed !!");
+    }
+  }
+
+  private void getTransactionsFromThis(String[] parameters) {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("GetTransactionsFromThis need 1 parameter like following: ");
+      System.out.println("GetTransactionsFromThis Address ");
+      return;
+    }
+    String address = parameters[0];
+    byte[] addressBytes = WalletClient.decodeFromBase58Check(address);
+    if (addressBytes == null) {
+      return;
+    }
+
+    Optional<TransactionList> result = WalletClient.getTransactionsFromThis(addressBytes);
+    if (result.isPresent()) {
+      TransactionList transactionList = result.get();
+      logger.info(Utils.printTransactionList(transactionList));
+    } else {
+      logger.info("GetTransactionsFromThis " + " failed !!");
+    }
+  }
+
+  private void getTransactionsToThis(String[] parameters) {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("getTransactionsToThis need 1 parameter like following: ");
+      System.out.println("getTransactionsToThis Address ");
+      return;
+    }
+    String address = parameters[0];
+    byte[] addressBytes = WalletClient.decodeFromBase58Check(address);
+    if (addressBytes == null) {
+      return;
+    }
+
+    Optional<TransactionList> result = WalletClient.getTransactionsToThis(addressBytes);
+    if (result.isPresent()) {
+      TransactionList transactionList = result.get();
+      logger.info(Utils.printTransactionList(transactionList));
+    } else {
+      logger.info("getTransactionsToThis " + " failed !!");
+    }
+  }
+
   private void help() {
     System.out.println("You can enter the following command: ");
 
@@ -566,7 +665,13 @@ public class TestClient {
     System.out.println("Listassetissue");
     System.out.println("listNodes");
     System.out.println("Getblock");
-    System.out.println("getTotalTransaction");
+    System.out.println("GetTotalTransaction");
+    System.out.println("GetAssetIssueListByTimestamp");
+    System.out.println("GetTotalTransaction");
+    System.out.println("GetTransactionsByTimestamp");
+    System.out.println("GetTransactionById");
+    System.out.println("getTransactionsFromThis");
+    System.out.println("getTransactionsToThis");
     System.out.println("Exit or Quit");
 
     System.out.println("Input any one of then, you will get more tips.");
@@ -695,12 +800,28 @@ public class TestClient {
             GetBlock(parameters);
             break;
           }
-          case "testTransaction": {
-            testTransaction(parameters);
-            break;
-          }
           case "gettotaltransaction": {
             getTotalTransaction();
+            break;
+          }
+          case "getassetissuelistbytimestamp": {
+            getAssetIssueListByTimestamp(parameters);
+            break;
+          }
+          case "gettransactionsfromthis": {
+            getTransactionsFromThis(parameters);
+            break;
+          }
+          case "gettransactionstothis": {
+            getTransactionsToThis(parameters);
+            break;
+          }
+          case "gettransactionsbytimestamp" :{
+            getTransactionsByTimestamp(parameters);
+            break;
+          }
+          case "gettransactionbyid":{
+            getTransactionById(parameters);
             break;
           }
           case "exit":
