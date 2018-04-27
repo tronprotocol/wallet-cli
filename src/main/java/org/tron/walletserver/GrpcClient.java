@@ -176,4 +176,40 @@ public class GrpcClient {
     Transaction transaction = blockingStubSolidity.getTransactionById(request);
     return Optional.ofNullable(transaction);
   }
+
+  public Optional<Block> getBlockById(String blockID){
+    ByteString bsTxid = ByteString.copyFrom(ByteArray.fromHexString(blockID));
+    BytesMessage request = BytesMessage.newBuilder().setValue(bsTxid).build();
+    Block block = blockingStubFull.getBlockById(request);
+    return Optional.ofNullable(block);
+  }
+
+  public Optional<BlockList> getBlockByLimitNext(long start, long end){
+    BlockLimit.Builder builder = BlockLimit.newBuilder();
+    builder.setStartNum(start);
+    builder.setEndNum(end);
+    BlockList blockList = blockingStubFull.getBlockByLimitNext(builder.build());
+    return Optional.ofNullable(blockList);
+  }
+
+  public Optional<BlockList> getBlockByLatestNum(long num){
+    NumberMessage numberMessage = NumberMessage.newBuilder().setNum(num).build();
+    BlockList blockList = blockingStubFull.getBlockByLatestNum(numberMessage);
+    return Optional.ofNullable(blockList);
+  }
+
+  public Optional<Transaction> getTransactionOnFullNodeById(String txID){
+    ByteString bsTxid = ByteString.copyFrom(ByteArray.fromHexString(txID));
+    BytesMessage request = BytesMessage.newBuilder().setValue(bsTxid).build();
+    Transaction transaction = blockingStubFull.getTransactionById(request);
+    return Optional.ofNullable(transaction);
+  }
+
+  public Optional<TransactionList> getTransactionByLimitPrev(String txID, long num){
+    TransactionLimit.Builder builder = TransactionLimit.newBuilder();
+    builder.setLimitNum(num);
+    builder.setTransactionId(ByteString.copyFrom(ByteArray.fromHexString(txID)));
+    TransactionList transactionList = blockingStubFull.getTransactionByLimitPrev(builder.build());
+    return Optional.ofNullable(transactionList);
+  }
 }

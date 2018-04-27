@@ -2,6 +2,7 @@ package org.tron.walletcli;
 
 import com.beust.jcommander.JCommander;
 import com.google.protobuf.ByteString;
+import com.googlecode.protobuf.format.JsonFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tron.api.GrpcAPI.*;
@@ -638,6 +639,95 @@ public class TestClient {
     }
   }
 
+  private void getBlockById(String[] parameters){
+    String blockID = "";
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("getBlockById needs 1 parameters, block id which is hex format");
+      return;
+    } else {
+      blockID = parameters[0];
+    }
+    Optional<Block> result = WalletClient.getBlockById(blockID);
+    if(result.isPresent()){
+      Block block = result.get();
+      logger.info(new JsonFormat().printToString(block));
+    }else{
+      logger.info("getBlockById " + " failed !!");
+    }
+  }
+
+  private void getBlockByLimitNext(String[] parameters){
+    long start = 0;
+    long end = 0;
+    if (parameters == null || parameters.length != 2) {
+      System.out.println("GetBlockByLimitNext needs 2 parameters, start block id and end block id");
+      return;
+    } else {
+      start = Long.parseLong(parameters[0]);
+      end = Long.parseLong(parameters[1]);
+    }
+    Optional<BlockList> result = WalletClient.getBlockByLimitNext(start, end);
+    if(result.isPresent()){
+      BlockList blockList = result.get();
+      logger.info(new JsonFormat().printToString(blockList));
+    }else{
+      logger.info("GetBlockByLimitNext " + " failed !!");
+    }
+  }
+
+  private void getBlockByLatestNum(String[] parameters){
+    long num = 0;
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("getBlockByLatestNum needs 1 parameters, block num");
+      return;
+    } else {
+      num = Long.parseLong(parameters[0]);
+    }
+    Optional<BlockList> result = WalletClient.getBlockByLatestNum(num);
+    if(result.isPresent()){
+      BlockList blockList = result.get();
+      logger.info(new JsonFormat().printToString(blockList));
+    }else{
+      logger.info("getBlockByLatestNum " + " failed !!");
+    }
+  }
+
+  private void getTransactionOnFullNodeById(String[] parameters){
+    String txID = "";
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("getTransactionById needs 1 parameters, transaction id");
+      return;
+    } else {
+      txID = parameters[0];
+    }
+    Optional<Transaction> result = WalletClient.getTransactionOnFullNodeById(txID);
+    if(result.isPresent()){
+      Transaction transaction = result.get();
+      logger.info(Utils.printTransaction(transaction));
+    }else{
+      logger.info("getTransactionOnFullNodeById " + " failed !!");
+    }
+  }
+
+  private void getTransactionByLimitPrev(String[] parameters){
+    String txID = "";
+    long num = 0;
+    if (parameters == null || parameters.length != 2) {
+      System.out.println("getTransactionByLimitPrev needs 2 parameters, start block id and num");
+      return;
+    } else {
+      txID = parameters[0];
+      num = Long.parseLong(parameters[1]);
+    }
+    Optional<TransactionList> result = WalletClient.getTransactionByLimitPrev(txID, num);
+    if(result.isPresent()){
+      TransactionList transactionList = result.get();
+      logger.info(new JsonFormat().printToString(transactionList));
+    }else{
+      logger.info("getTransactionByLimitPrev " + " failed !!");
+    }
+  }
+
   private void help() {
     System.out.println("You can enter the following command: ");
 
@@ -672,6 +762,11 @@ public class TestClient {
     System.out.println("GetTransactionById");
     System.out.println("getTransactionsFromThis");
     System.out.println("getTransactionsToThis");
+    System.out.println("getBlockById");
+    System.out.println("getBlockByLimitNext");
+    System.out.println("getBlockByLatestNum");
+    System.out.println("getTransactionOnFullNodeById");
+    System.out.println("getTransactionByLimitPrev");
     System.out.println("Exit or Quit");
 
     System.out.println("Input any one of then, you will get more tips.");
@@ -822,6 +917,26 @@ public class TestClient {
           }
           case "gettransactionbyid":{
             getTransactionById(parameters);
+            break;
+          }
+          case "getblockbyid":{
+            getBlockById(parameters);
+            break;
+          }
+          case "getblockbylimitnext":{
+            getBlockByLimitNext(parameters);
+            break;
+          }
+          case "getblockbylatestnum":{
+            getBlockByLatestNum(parameters);
+            break;
+          }
+          case "gettransactiononfullnodebyid":{
+            getTransactionOnFullNodeById(parameters);
+            break;
+          }
+          case "gettransactionbylimitprev":{
+            getTransactionByLimitPrev(parameters);
             break;
           }
           case "exit":
