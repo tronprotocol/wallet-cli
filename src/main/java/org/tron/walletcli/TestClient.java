@@ -562,17 +562,17 @@ public class TestClient {
 
   private void withdrawBalance(String[] parameters) {
     if (parameters == null || parameters.length != 1) {
-      System.out.println("Use freezeBalance command you need like: ");
-      System.out.println("freezeBalance Password ");
+      System.out.println("Use withdrawBalance command you need like: ");
+      System.out.println("withdrawBalance Password ");
       return;
     }
     String password = parameters[0];
 
     boolean result = client.withdrawBalance(password);
     if (result) {
-      logger.info("unfreezeBalance " + " successful !!");
+      logger.info("withdrawBalance " + " successful !!");
     } else {
-      logger.info("unfreezeBalance " + " failed !!");
+      logger.info("withdrawBalance " + " failed !!");
     }
   }
 
@@ -724,6 +724,9 @@ public class TestClient {
     System.out.println("GetTransactionById");
     System.out.println("getTransactionsFromThis");
     System.out.println("getTransactionsToThis");
+    System.out.println("freezebalance");
+    System.out.println("unfreezebalance");
+    System.out.println("withdrawbalance");
     System.out.println("Exit or Quit");
 
     System.out.println("Input any one of then, you will get more tips.");
@@ -832,15 +835,15 @@ public class TestClient {
             voteWitness(parameters);
             break;
           }
-          case "FreezeBalance": {
+          case "freezebalance": {
             freezeBalance(parameters);
             break;
           }
-          case "UnfreezeBalance": {
+          case "unfreezebalance": {
             unfreezeBalance(parameters);
             break;
           }
-          case "WithdrawBalance": {
+          case "withdrawbalance": {
             withdrawBalance(parameters);
             break;
           }
