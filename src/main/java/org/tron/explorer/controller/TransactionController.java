@@ -11,11 +11,17 @@ import org.tron.walletserver.WalletClient;
 public class TransactionController {
 
   @GetMapping("/getTotalTransaction")
+  /**
+   * @deprecated This function will be remove.The Wallet-cli will not provide HTTP services in the future.
+   */
   public byte[] getTotalTransaction() {
     return WalletClient.getTotalTransaction().toByteArray();
   }
 
   @GetMapping("/getTransactionsFromThis")
+  /**
+   * @deprecated This function will be remove.The Wallet-cli will not provide HTTP services in the future.
+   */
   public byte[] getTransactionsFromThis(String address) {
     try {
       byte[] owner = WalletClient.decodeFromBase58Check(address);
@@ -35,6 +41,9 @@ public class TransactionController {
   }
 
   @GetMapping("/getTransactionsToThis")
+  /**
+   * @deprecated This function will be remove.The Wallet-cli will not provide HTTP services in the future.
+   */
   public byte[] getTransactionsToThis(String address) {
     try {
       byte[] owner = WalletClient.decodeFromBase58Check(address);
