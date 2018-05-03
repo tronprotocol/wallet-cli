@@ -40,6 +40,7 @@ import org.tron.protos.Contract.VoteAssetContract;
 import org.tron.protos.Contract.VoteWitnessContract;
 import org.tron.protos.Contract.WitnessCreateContract;
 import org.tron.protos.Protocol.Account;
+import org.tron.protos.Protocol.Account.Frozen;
 import org.tron.protos.Protocol.Account.Vote;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.Transaction.Contract;
@@ -101,6 +102,30 @@ public class Utils {
     result += "balance: ";
     result += account.getBalance();
     result += "\n";
+    if (account.getFrozenCount() > 0) {
+      for (Frozen frozen : account.getFrozenList()) {
+        result += "frozen";
+        result += "\n";
+        result += "{";
+        result += "\n";
+        result += "  frozen_balance: ";
+        result += frozen.getFrozenBalance();
+        result += "\n";
+        result += "  expire_time: ";
+        result += frozen.getExpireTime();
+        result += "\n";
+        result += "}";
+        result += "\n";
+      }
+    }
+    result += "bandwidth: ";
+    result += account.getBandwidth();
+    result += "\n";
+    if (account.getCreateTime() != 0) {
+      result += "create_time: ";
+      result += new Date(account.getCreateTime());
+      result += "\n";
+    }
     if (account.getVotesCount() > 0) {
       for (Vote vote : account.getVotesList()) {
         result += "votes";
@@ -416,9 +441,22 @@ public class Utils {
 
   public static String printTransactionRow(Transaction.raw raw) {
     String result = "";
-    result += "type: ";
-    result += raw.getType();
+
+    if (raw.getRefBlockBytes() != null) {
+      result += "ref_block_bytes: ";
+      result += ByteArray.toHexString(raw.getRefBlockBytes().toByteArray());
+      result += "\n";
+    }
+
+    result += "ref_block_num: ";
+    result += raw.getRefBlockNum();
     result += "\n";
+
+    if (raw.getRefBlockHash() != null) {
+      result += "ref_block_hash: ";
+      result += ByteArray.toHexString(raw.getRefBlockHash().toByteArray());
+      result += "\n";
+    }
 
     if (raw.getContractCount() > 0) {
       result += "contract: ";
