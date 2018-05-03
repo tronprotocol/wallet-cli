@@ -409,4 +409,72 @@ public class Client {
       return false;
     }
   }
+
+  public boolean freezeBalance(String password, long frozen_balance, long frozen_duration) {
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warnging: freezeBalance failed, Please login first !!");
+      return false;
+    }
+
+    if (wallet.getEcKey() == null || wallet.getEcKey().getPrivKey() == null) {
+      wallet = WalletClient.GetWalletByStorage(password);
+      if (wallet == null) {
+        logger.warn("Warning: freezeBalance failed, Load wallet failed !!");
+        return false;
+      }
+    }
+
+    try {
+      return wallet.freezeBalance(frozen_balance, frozen_duration);
+    } catch (Exception ex) {
+      ex.printStackTrace();
+      return false;
+    }
+  }
+
+  public boolean unfreezeBalance(String password) {
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warnging: unfreezeBalance failed, Please login first !!");
+      return false;
+    }
+
+    if (wallet.getEcKey() == null || wallet.getEcKey().getPrivKey() == null) {
+      wallet = WalletClient.GetWalletByStorage(password);
+      if (wallet == null) {
+        logger.warn("Warning: unfreezeBalance failed, Load wallet failed !!");
+        return false;
+      }
+    }
+
+    try {
+      return wallet.unfreezeBalance();
+    } catch (Exception ex) {
+      ex.printStackTrace();
+      return false;
+    }
+  }
+
+  public boolean withdrawBalance(String password) {
+
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warnging: withdrawBalance failed, Please login first !!");
+      return false;
+    }
+
+    if (wallet.getEcKey() == null || wallet.getEcKey().getPrivKey() == null) {
+      wallet = WalletClient.GetWalletByStorage(password);
+      if (wallet == null) {
+        logger.warn("Warning: withdrawBalance failed, Load wallet failed !!");
+        return false;
+      }
+    }
+
+    try {
+      return wallet.withdrawBalance();
+    } catch (Exception ex) {
+      ex.printStackTrace();
+      return false;
+    }
+  }
+
 }
