@@ -25,6 +25,9 @@ public class VoteWitnessController {
   protected final Log log = LogFactory.getLog(getClass());
 
   @GetMapping("/voteWitnessList")
+  /**
+   * @deprecated This function will be remove.The Wallet-cli will not provide HTTP services in the future.
+   */
   public byte[] getVoteWitnessList() {
     Optional<WitnessList> result = WalletClient.listWitnesses();
     if (result.isPresent()) {
@@ -36,6 +39,9 @@ public class VoteWitnessController {
   }
 
   @PostMapping("/createVoteWitnessToView")
+  /**
+   * @deprecated This function will be remove.The Wallet-cli will not provide HTTP services in the future.
+   */
   public byte[] getTransactionToView(@RequestBody VoteWitness voteWitness) {
     try {
       if (voteWitness.getOwner() == null || voteWitness.getList() == null) {

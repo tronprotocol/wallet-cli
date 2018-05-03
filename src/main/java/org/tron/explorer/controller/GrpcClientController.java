@@ -34,11 +34,17 @@ public class GrpcClientController {
 
 
   @GetMapping("/")
+  /**
+   * @deprecated This function will be remove.The Wallet-cli will not provide HTTP services in the future.
+   */
   public ModelAndView viewIndex() {
     return new ModelAndView("index");
   }
 
   @GetMapping("/getTransaction")
+  /**
+   * @deprecated This function will be remove.The Wallet-cli will not provide HTTP services in the future.
+   */
   public byte[] getTransaction() {
     Transaction transaction = Test.createTransactionAccount();
     transaction = TransactionUtils.setTimestamp(transaction);
@@ -46,6 +52,9 @@ public class GrpcClientController {
   }
 
   @PostMapping("/register")
+  /**
+   * @deprecated This function will be remove.The Wallet-cli will not provide HTTP services in the future.
+   */
   public ModelAndView registerAccount(@ModelAttribute AccountVo account) {
     ModelAndView modelAndView;
     try {
@@ -76,6 +85,9 @@ public class GrpcClientController {
 
   //send account transaction to view
   @PostMapping("/transactionForView")
+  /**
+   * @deprecated This function will be remove.The Wallet-cli will not provide HTTP services in the future.
+   */
   public byte[] getTransactionToView(@ModelAttribute AccountVo account) {
     byte[] address = WalletClient.decodeFromBase58Check(account.getAddress());
     if (address == null) {
@@ -89,6 +101,9 @@ public class GrpcClientController {
 
   //get account transaction from view
   @PostMapping("/transactionFromView")
+  /**
+   * @deprecated This function will be remove.The Wallet-cli will not provide HTTP services in the future.
+   */
   public boolean transactionFromView(String transactionData) throws InvalidProtocolBufferException {
     if (transactionData == null || transactionData.equals("")) {
       return false;

@@ -46,12 +46,18 @@ public class AssetIssueController {
 
 
   @GetMapping("/createAssetIssue")
+  /**
+   * @deprecated This function will be remove.The Wallet-cli will not provide HTTP services in the future.
+   */
   public ModelAndView viewCreateWitness() {
     return new ModelAndView("createAssetIssue");
   }
 
 
   @PostMapping("/createAssetIssueToView")
+  /**
+   * @deprecated This function will be remove.The Wallet-cli will not provide HTTP services in the future.
+   */
   public byte[] getTransactionToView(@ModelAttribute AssetIssueVo assetIssueVo) {
     try {
       if (assetIssueVo == null) {
@@ -87,6 +93,9 @@ public class AssetIssueController {
   }
 
   @GetMapping("/getAssetIssueList")
+  /**
+   * @deprecated This function will be remove.The Wallet-cli will not provide HTTP services in the future.
+   */
   public byte[] getAssetIssueList() throws IOException {
     try {
       Optional<AssetIssueList> result = WalletClient.getAssetIssueList();
@@ -101,6 +110,9 @@ public class AssetIssueController {
   }
 
   @GetMapping("/getAssetIssueByAccount")
+  /**
+   * @deprecated This function will be remove.The Wallet-cli will not provide HTTP services in the future.
+   */
   public byte[] getAssetIssueByAccount(String address) throws IOException {
     try {
       byte[] owner = WalletClient.decodeFromBase58Check(address);
@@ -120,6 +132,9 @@ public class AssetIssueController {
   }
 
   @PostMapping("/getAssetIssueByName")
+  /**
+   * @deprecated This function will be remove.The Wallet-cli will not provide HTTP services in the future.
+   */
   public byte[] getAssetIssueByName(String assetName) throws IOException {
     try {
       AssetIssueContract assetIssueContract = WalletClient.getAssetIssueByName(assetName);
@@ -133,6 +148,9 @@ public class AssetIssueController {
   }
 
   @PostMapping("/TransferAssetToView")
+  /**
+   * @deprecated This function will be remove.The Wallet-cli will not provide HTTP services in the future.
+   */
   public byte[] getTransactionToView(@ModelAttribute TransferAsset transferAsset) {
     try {
       if (transferAsset == null) {
@@ -155,6 +173,9 @@ public class AssetIssueController {
   }
 
   @PostMapping("/ParticipateAssetIssueToView")
+  /**
+   * @deprecated This function will be remove.The Wallet-cli will not provide HTTP services in the future.
+   */
   public byte[] getTransactionToView(@ModelAttribute ParticipateAssetIssueVo articipateAssetIssue) {
     try {
       if (articipateAssetIssue == null) {
@@ -175,6 +196,4 @@ public class AssetIssueController {
       return null;
     }
   }
-
-
 }
