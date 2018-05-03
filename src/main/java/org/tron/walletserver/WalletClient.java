@@ -22,6 +22,9 @@ import org.tron.core.config.Configuration;
 import org.tron.core.config.Parameter.CommonConstant;
 import org.tron.protos.Contract;
 import org.tron.protos.Contract.AssetIssueContract;
+import org.tron.protos.Contract.FreezeBalanceContract;
+import org.tron.protos.Contract.UnfreezeBalanceContract;
+import org.tron.protos.Contract.WithdrawBalanceContract;
 import org.tron.protos.Protocol.*;
 
 import java.math.BigInteger;
@@ -243,7 +246,8 @@ public class WalletClient {
     }
     transaction = signTransaction(transaction);
     System.out.println("--------------------------------");
-    System.out.println("txid = " +  ByteArray.toHexString(Hash.sha256(transaction.getRawData().toByteArray())));
+    System.out.println(
+        "txid = " + ByteArray.toHexString(Hash.sha256(transaction.getRawData().toByteArray())));
     System.out.println("--------------------------------");
     return rpcCli.broadcastTransaction(transaction);
   }
@@ -290,7 +294,8 @@ public class WalletClient {
 
   public static Transaction participateAssetIssueTransaction(byte[] to, byte[] assertName,
       byte[] owner, long amount) {
-    Contract.ParticipateAssetIssueContract contract = participateAssetIssueContract(to, assertName, owner, amount);
+    Contract.ParticipateAssetIssueContract contract = participateAssetIssueContract(to, assertName,
+        owner, amount);
     return rpcCli.createParticipateAssetIssueTransaction(contract);
   }
 
@@ -699,7 +704,7 @@ public class WalletClient {
     return rpcCli.getAssetIssueListByTimestamp(timestamp);
   }
 
-  public static Optional<TransactionList> getTransactionsByTimestamp(long start, long end){
+  public static Optional<TransactionList> getTransactionsByTimestamp(long start, long end) {
     return rpcCli.getTransactionsByTimestamp(start, end);
   }
 
@@ -731,7 +736,84 @@ public class WalletClient {
     return rpcCli.getTransactionsToThis(address);
   }
 
-  public static Optional<Transaction> getTransactionById(String txID){
+  public static Optional<Transaction> getTransactionById(String txID) {
     return rpcCli.getTransactionById(txID);
+  }
+
+  public boolean freezeBalance(long frozen_balance, long frozen_duration) {
+
+    Contract.FreezeBalanceContract contract = createFreezeBalanceContract(frozen_balance,
+        frozen_duration);
+
+    Transaction transaction = rpcCli.createTransaction(contract);
+
+    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
+      return false;
+    }
+
+    transaction = signTransaction(transaction);
+    return rpcCli.broadcastTransaction(transaction);
+  }
+
+  private FreezeBalanceContract createFreezeBalanceContract(long frozen_balance,
+      long frozen_duration) {
+    byte[] address = getAddress();
+    Contract.FreezeBalanceContract.Builder builder = Contract.FreezeBalanceContract.newBuilder();
+    ByteString byteAddreess = ByteString.copyFrom(address);
+
+    builder.setOwnerAddress(byteAddreess).setFrozenBalance(frozen_balance)
+        .setFrozenDuration(frozen_duration);
+
+    return builder.build();
+  }
+
+  public boolean unfreezeBalance() {
+    Contract.UnfreezeBalanceContract contract = createUnfreezeBalanceContract();
+
+    Transaction transaction = rpcCli.createTransaction(contract);
+
+    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
+      return false;
+    }
+
+    transaction = signTransaction(transaction);
+    return rpcCli.broadcastTransaction(transaction);
+  }
+
+  private UnfreezeBalanceContract createUnfreezeBalanceContract() {
+
+    byte[] address = getAddress();
+    Contract.UnfreezeBalanceContract.Builder builder = Contract.UnfreezeBalanceContract
+        .newBuilder();
+    ByteString byteAddreess = ByteString.copyFrom(address);
+
+    builder.setOwnerAddress(byteAddreess);
+
+    return builder.build();
+  }
+
+  public boolean withdrawBalance() {
+    Contract.WithdrawBalanceContract contract = createWithdrawBalanceContract();
+
+    Transaction transaction = rpcCli.createTransaction(contract);
+
+    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
+      return false;
+    }
+
+    transaction = signTransaction(transaction);
+    return rpcCli.broadcastTransaction(transaction);
+  }
+
+  private WithdrawBalanceContract createWithdrawBalanceContract() {
+
+    byte[] address = getAddress();
+    Contract.WithdrawBalanceContract.Builder builder = Contract.WithdrawBalanceContract
+        .newBuilder();
+    ByteString byteAddreess = ByteString.copyFrom(address);
+
+    builder.setOwnerAddress(byteAddreess);
+
+    return builder.build();
   }
 }

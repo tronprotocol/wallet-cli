@@ -10,6 +10,9 @@ import org.tron.api.WalletSolidityGrpc;
 import org.tron.common.utils.ByteArray;
 import org.tron.protos.Contract;
 import org.tron.protos.Contract.AssetIssueContract;
+import org.tron.protos.Contract.FreezeBalanceContract;
+import org.tron.protos.Contract.UnfreezeBalanceContract;
+import org.tron.protos.Contract.WithdrawBalanceContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.Transaction;
@@ -54,12 +57,24 @@ public class GrpcClient {
     return blockingStubSolidity.getAccount(request);
   }
 
+  public Transaction createTransaction(Contract.AccountUpdateContract contract) {
+    return blockingStubFull.updateAccount(contract);
+  }
+
   public Transaction createTransaction(Contract.TransferContract contract) {
     return blockingStubFull.createTransaction(contract);
   }
 
-  public Transaction createTransaction(Contract.AccountUpdateContract contract) {
-    return blockingStubFull.updateAccount(contract);
+  public Transaction createTransaction(FreezeBalanceContract contract) {
+    return blockingStubFull.freezeBalance(contract);
+  }
+
+  public Transaction createTransaction(WithdrawBalanceContract contract) {
+    return blockingStubFull.withdrawBalance(contract);
+  }
+
+  public Transaction createTransaction(UnfreezeBalanceContract contract) {
+    return blockingStubFull.unfreezeBalance(contract);
   }
 
   public Transaction createTransferAssetTransaction(Contract.TransferAssetContract contract) {

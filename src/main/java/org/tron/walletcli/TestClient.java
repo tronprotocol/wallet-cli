@@ -525,6 +525,57 @@ public class TestClient {
     }
   }
 
+  private void freezeBalance(String[] parameters) {
+    if (parameters == null || parameters.length != 3) {
+      System.out.println("Use freezeBalance command you need like: ");
+      System.out.println("freezeBalance Password frozen_balance frozen_duration ");
+      return;
+    }
+
+    String password = parameters[0];
+    long frozen_balance = Long.parseLong(parameters[1]);
+    long frozen_duration = Long.parseLong(parameters[2]);
+
+    boolean result = client.freezeBalance(password, frozen_balance, frozen_duration);
+    if (result) {
+      logger.info("freezeBalance " + " successful !!");
+    } else {
+      logger.info("freezeBalance " + " failed !!");
+    }
+  }
+
+  private void unfreezeBalance(String[] parameters) {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("Use freezeBalance command you need like: ");
+      System.out.println("freezeBalance Password ");
+      return;
+    }
+    String password = parameters[0];
+
+    boolean result = client.unfreezeBalance(password);
+    if (result) {
+      logger.info("unfreezeBalance " + " successful !!");
+    } else {
+      logger.info("unfreezeBalance " + " failed !!");
+    }
+  }
+
+  private void withdrawBalance(String[] parameters) {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("Use withdrawBalance command you need like: ");
+      System.out.println("withdrawBalance Password ");
+      return;
+    }
+    String password = parameters[0];
+
+    boolean result = client.withdrawBalance(password);
+    if (result) {
+      logger.info("withdrawBalance " + " successful !!");
+    } else {
+      logger.info("withdrawBalance " + " failed !!");
+    }
+  }
+
   private void getTotalTransaction() {
     try {
       NumberMessage totalTransition = client.getTotalTransaction();
@@ -545,7 +596,7 @@ public class TestClient {
         System.out.println("You can GetAssetIssueListByTimestamp like:");
         System.out.println("GetAssetIssueListByTimestamp yyyy-mm-dd hh:mm:ss");
         return;
-      }else{
+      } else {
         timeStamp = Timestamp.valueOf(parameters[0] + " " + parameters[1]).getTime();
       }
     }
@@ -558,11 +609,12 @@ public class TestClient {
     }
   }
 
-  private void getTransactionsByTimestamp(String[] parameters){
+  private void getTransactionsByTimestamp(String[] parameters) {
     String start = "";
     String end = "";
     if (parameters == null || parameters.length != 4) {
-      System.out.println("getTransactionsByTimestamp needs 2 parameters, start_time and end_time, time format is yyyy-mm-dd hh:mm:ss");
+      System.out.println(
+          "getTransactionsByTimestamp needs 2 parameters, start_time and end_time, time format is yyyy-mm-dd hh:mm:ss");
       return;
     } else {
       start = parameters[0] + " " + parameters[1];
@@ -579,7 +631,7 @@ public class TestClient {
     }
   }
 
-  private void getTransactionById(String[] parameters){
+  private void getTransactionById(String[] parameters) {
     String txid = "";
     if (parameters == null || parameters.length != 1) {
       System.out.println("getTransactionById needs 1 parameters, transaction id");
@@ -588,10 +640,10 @@ public class TestClient {
       txid = parameters[0];
     }
     Optional<Transaction> result = WalletClient.getTransactionById(txid);
-    if(result.isPresent()){
+    if (result.isPresent()) {
       Transaction transaction = result.get();
       logger.info(Utils.printTransaction(transaction));
-    }else{
+    } else {
       logger.info("getTransactionById " + " failed !!");
     }
   }
@@ -672,6 +724,9 @@ public class TestClient {
     System.out.println("GetTransactionById");
     System.out.println("getTransactionsFromThis");
     System.out.println("getTransactionsToThis");
+    System.out.println("freezebalance");
+    System.out.println("unfreezebalance");
+    System.out.println("withdrawbalance");
     System.out.println("Exit or Quit");
 
     System.out.println("Input any one of then, you will get more tips.");
@@ -780,6 +835,18 @@ public class TestClient {
             voteWitness(parameters);
             break;
           }
+          case "freezebalance": {
+            freezeBalance(parameters);
+            break;
+          }
+          case "unfreezebalance": {
+            unfreezeBalance(parameters);
+            break;
+          }
+          case "withdrawbalance": {
+            withdrawBalance(parameters);
+            break;
+          }
           case "listaccounts": {
             listAccounts();
             break;
@@ -816,11 +883,11 @@ public class TestClient {
             getTransactionsToThis(parameters);
             break;
           }
-          case "gettransactionsbytimestamp" :{
+          case "gettransactionsbytimestamp": {
             getTransactionsByTimestamp(parameters);
             break;
           }
-          case "gettransactionbyid":{
+          case "gettransactionbyid": {
             getTransactionById(parameters);
             break;
           }
