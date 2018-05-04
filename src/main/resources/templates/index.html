@@ -41,7 +41,80 @@
     <script src="/js/tronjs/tron-protoc.js" type="text/javascript"></script>
     <script src="/js/lib/language.js" type="text/javascript"></script>
     <script src="/js/utils/search.js" type="text/javascript"></script>
+    <style>
+        .login-prompt-box{
+            position: fixed;
+            left:0;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 9999;
+            display: block;
+            background-color: rgba(0,0,0,0.8);
+        }
+        .login-prompt{
+            width: 625px;
+            height: 590px;
+            background-color: #ffffff;
+            box-shadow: 0px 0px 8px 0px rgba(67, 66, 66, 0.21);
+            border-radius: 10px;
+            font-size: 16px;
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            margin-left: -310px;
+            margin-top: -280px;
 
+
+        }
+        .prompt-text{
+            width: 526px;
+            height: 240px;
+            color: #000000;
+            margin: 100px auto 0;
+            margin-top: 80px;
+            line-height: 30px;
+        }
+        .prompt-text span{
+
+            font-size:34px;
+        }
+        .prompt-text span a{
+            color:#db1612;
+            text-decoration: underline;
+        }
+        .prompt-text p:nth-child(3){
+            margin-top:32px ;
+        }
+        .prompt-text p:nth-child(4){
+            float: right;
+            margin-top:12px;
+        }
+
+        .prompt-know-button {
+            width: 100%;
+            height: 40px;
+            background-image: linear-gradient(0deg,
+            #ea0000 0%,
+            #c6352c 100%),
+            linear-gradient(
+                    #a61c1c,
+                    #a61c1c);
+            border-radius: 5px;
+            font-size: 16px;
+            color: #ffffff;
+            cursor: pointer;
+
+        }
+        .tronscan-button{
+            margin-top:160px;
+            margin-left: 160px;
+            width: 300px;
+            height: 40px;
+            display: block;
+
+        }
+    </style>
 
 </head>
 <body>
@@ -81,6 +154,24 @@
 
 </footer>
 
+<div class="login-prompt-box">
+    <div class="login-prompt">
+        <div class="prompt-text">
+            <p style="text-align: center;font-weight: 800;font-size:34px;">Notice</p>
+            <p style="margin-top: 30px;">Due to system upgrade, TRON’s block explorer and Web wallet have been moved to the following address:
+                <br><br>
+                <span><a href="https://tronscan.org" style="font-weight: 800;font-size:34px;">https://tronscan.org</a></span>
+            </p>
+            <p>
+                Please visit the new link for information on TRON’s block explorer and Web wallet, and to participate in the TRON Super Representative election on June 26 (GMT+8).
+            </p>
+            <p>TRON Foundation</p>
+        </div>
+        <a href="https://tronscan.org" class="tronscan-button">
+            <input type="button" class="prompt-know-button" id="prompt-know" value="Access TRON BlockExplorer">
+        </a>
+    </div>
+</div>
 <script src="/js/lib/ajax.js"></script>
 <script src="/js/index.js"></script>
 <script src="/js/lib/language.js" type="text/javascript"></script>
@@ -90,9 +181,9 @@
     $('#text').load('/html/message.html');
     $(document).keypress(function(e) {
         // 回车键事件
-        if(e.which == 13) {
-            $("#searchBtn").click();
-        }
+//        if(e.which == 13) {
+//            $("#searchBtn").click();
+//        }
     });
     $('#searchBtn').on('click',function () {
       //  window.localStorage.setItem('address',$('#searchInput').val());

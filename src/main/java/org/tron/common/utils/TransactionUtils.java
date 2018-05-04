@@ -54,31 +54,41 @@ public class TransactionUtils {
     try {
       switch (contract.getType()) {
         case AccountCreateContract:
-          owner = contract.getParameter().unpack(org.tron.protos.Contract.AccountCreateContract.class).getOwnerAddress();
+          owner = contract.getParameter()
+              .unpack(org.tron.protos.Contract.AccountCreateContract.class).getOwnerAddress();
           break;
         case TransferContract:
-          owner = contract.getParameter().unpack(org.tron.protos.Contract.TransferContract.class).getOwnerAddress();
+          owner = contract.getParameter().unpack(org.tron.protos.Contract.TransferContract.class)
+              .getOwnerAddress();
           break;
         case TransferAssetContract:
-          owner = contract.getParameter().unpack(org.tron.protos.Contract.TransferAssetContract.class).getOwnerAddress();
+          owner = contract.getParameter()
+              .unpack(org.tron.protos.Contract.TransferAssetContract.class).getOwnerAddress();
           break;
         case VoteAssetContract:
-          owner = contract.getParameter().unpack(org.tron.protos.Contract.VoteAssetContract.class).getOwnerAddress();
+          owner = contract.getParameter().unpack(org.tron.protos.Contract.VoteAssetContract.class)
+              .getOwnerAddress();
           break;
         case VoteWitnessContract:
-          owner = contract.getParameter().unpack(org.tron.protos.Contract.VoteWitnessContract.class).getOwnerAddress();
+          owner = contract.getParameter().unpack(org.tron.protos.Contract.VoteWitnessContract.class)
+              .getOwnerAddress();
           break;
         case WitnessCreateContract:
-          owner = contract.getParameter().unpack(org.tron.protos.Contract.WitnessCreateContract.class).getOwnerAddress();
+          owner = contract.getParameter()
+              .unpack(org.tron.protos.Contract.WitnessCreateContract.class).getOwnerAddress();
           break;
         case AssetIssueContract:
-          owner = contract.getParameter().unpack(org.tron.protos.Contract.AssetIssueContract.class).getOwnerAddress();
+          owner = contract.getParameter().unpack(org.tron.protos.Contract.AssetIssueContract.class)
+              .getOwnerAddress();
           break;
         case ParticipateAssetIssueContract:
-          owner = contract.getParameter().unpack(org.tron.protos.Contract.ParticipateAssetIssueContract.class).getOwnerAddress();
+          owner = contract.getParameter()
+              .unpack(org.tron.protos.Contract.ParticipateAssetIssueContract.class)
+              .getOwnerAddress();
           break;
         case DeployContract:
-          owner = contract.getParameter().unpack(org.tron.protos.Contract.DeployContract.class).getOwnerAddress();
+          owner = contract.getParameter().unpack(org.tron.protos.Contract.DeployContract.class)
+              .getOwnerAddress();
           break;
         default:
           return null;
@@ -108,52 +118,49 @@ public class TransactionUtils {
    * 4. check balance
    */
   public static boolean validTransaction(Transaction signedTransaction) {
-    if (signedTransaction.getRawData().getType() == Transaction.TransactionType.ContractType) {
-      assert (signedTransaction.getSignatureCount() ==
-          signedTransaction.getRawData().getContractCount());
-      List<Transaction.Contract> listContract = signedTransaction.getRawData().getContractList();
-      byte[] hash = sha256(signedTransaction.getRawData().toByteArray());
-      int count = signedTransaction.getSignatureCount();
-      if ( count == 0 ){
-        return false;
-      }
-      for (int i = 0; i < count; ++i) {
-        try {
-          Transaction.Contract contract = listContract.get(i);
-          byte[] owner = getOwner(contract);
-          byte[] address = ECKey.signatureToAddress(hash, getBase64FromByteString(signedTransaction.getSignature(i)));
-          if (!Arrays.equals(owner, address)) {
-            return false;
-          }
-        } catch (SignatureException e) {
-          e.printStackTrace();
+    assert (signedTransaction.getSignatureCount() ==
+        signedTransaction.getRawData().getContractCount());
+    List<Transaction.Contract> listContract = signedTransaction.getRawData().getContractList();
+    byte[] hash = sha256(signedTransaction.getRawData().toByteArray());
+    int count = signedTransaction.getSignatureCount();
+    if (count == 0) {
+      return false;
+    }
+    for (int i = 0; i < count; ++i) {
+      try {
+        Transaction.Contract contract = listContract.get(i);
+        byte[] owner = getOwner(contract);
+        byte[] address = ECKey
+            .signatureToAddress(hash, getBase64FromByteString(signedTransaction.getSignature(i)));
+        if (!Arrays.equals(owner, address)) {
           return false;
         }
+      } catch (SignatureException e) {
+        e.printStackTrace();
+        return false;
       }
-      return true;
     }
-    return false;
+    return true;
   }
 
   public static Transaction sign(Transaction transaction, ECKey myKey) {
     ByteString lockSript = ByteString.copyFrom(myKey.getAddress());
     Transaction.Builder transactionBuilderSigned = transaction.toBuilder();
 
-    if (transaction.getRawData().getType() == Transaction.TransactionType.ContractType) {
-      byte[] hash = sha256(transaction.getRawData().toByteArray());
-      List<Contract> listContract = transaction.getRawData().getContractList();
-      for (int i = 0; i < listContract.size(); i++) {
-        ECDSASignature signature = myKey.sign(hash);
-        ByteString bsSign = ByteString.copyFrom(signature.toByteArray());
-        transactionBuilderSigned.addSignature(bsSign);//Each contract may be signed with a different private key in the future.
-      }
+    byte[] hash = sha256(transaction.getRawData().toByteArray());
+    List<Contract> listContract = transaction.getRawData().getContractList();
+    for (int i = 0; i < listContract.size(); i++) {
+      ECDSASignature signature = myKey.sign(hash);
+      ByteString bsSign = ByteString.copyFrom(signature.toByteArray());
+      transactionBuilderSigned.addSignature(
+          bsSign);//Each contract may be signed with a different private key in the future.
     }
 
     transaction = transactionBuilderSigned.build();
     return transaction;
   }
 
-  public static Transaction setTimestamp(Transaction transaction){
+  public static Transaction setTimestamp(Transaction transaction) {
     long currentTime = System.currentTimeMillis();//*1000000 + System.nanoTime()%1000000;
     Transaction.Builder builder = transaction.toBuilder();
     org.tron.protos.Protocol.Transaction.raw.Builder rowBuilder = transaction.getRawData()

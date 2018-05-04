@@ -74,7 +74,7 @@ public class Test {
       transactionBuilder.getRawDataBuilder().addContract(contractBuilder);
       amount++;
     }
-    transactionBuilder.getRawDataBuilder().setType(Transaction.TransactionType.ContractType);
+    transactionBuilder.getRawDataBuilder();
 
     Transaction transaction = transactionBuilder.build();
     return transaction;
@@ -102,7 +102,7 @@ public class Test {
 
       transactionBuilder.getRawDataBuilder().addContract(contractBuilder);
     }
-    transactionBuilder.getRawDataBuilder().setType(Transaction.TransactionType.ContractType);
+    transactionBuilder.getRawDataBuilder();
 
     Transaction transaction = transactionBuilder.build();
     return transaction;

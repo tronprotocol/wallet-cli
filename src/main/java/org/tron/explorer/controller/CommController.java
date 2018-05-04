@@ -23,6 +23,9 @@ import org.springframework.web.bind.annotation.RequestMethod;
 public class CommController {
 
   @RequestMapping(value = "/html/{pageName}", method = { RequestMethod.POST, RequestMethod.GET })
+  /**
+   * @deprecated This function will be remove.The Wallet-cli will not provide HTTP services in the future.
+   */
   public String toPage(@PathVariable("pageName") String pageName) {
     return "html/" + pageName;
   }

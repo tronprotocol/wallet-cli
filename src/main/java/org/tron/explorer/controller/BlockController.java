@@ -24,12 +24,18 @@ public class BlockController {
 
 
   @GetMapping("/getBlockByNumToView")
+  /**
+   * @deprecated This function will be remove.The Wallet-cli will not provide HTTP services in the future.
+   */
   public byte[] getBlockByNumToView( long num) {
     Block currentBlock = WalletClient.GetBlock(num);
     return currentBlock.toByteArray();
   }
 
   @GetMapping("/getBlockToView")
+  /**
+   * @deprecated This function will be remove.The Wallet-cli will not provide HTTP services in the future.
+   */
   public byte[] getBlockToView() {
     Block currentBlock = WalletClient.GetBlock(-1);
     if(currentBlock != null) {

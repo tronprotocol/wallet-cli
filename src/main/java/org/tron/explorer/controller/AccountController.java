@@ -32,6 +32,9 @@ public class AccountController {
   }
 
   @PostMapping("/queryAccount")
+  /**
+   * @deprecated This function will be remove.The Wallet-cli will not provide HTTP services in the future.
+   */
   public byte[] queryAccount(String address) {
     try {
       if (address == null) {
@@ -50,6 +53,9 @@ public class AccountController {
   }
 
   @GetMapping("/accountList")
+  /**
+   * @deprecated This function will be remove.The Wallet-cli will not provide HTTP services in the future.
+   */
   public byte[] getAcountList() {
     try {
       Optional<AccountList> result = WalletClient.listAccounts();
@@ -64,12 +70,18 @@ public class AccountController {
   }
 
   @GetMapping("/updateAccount")
+  /**
+   * @deprecated This function will be remove.The Wallet-cli will not provide HTTP services in the future.
+   */
   public ModelAndView viewCreateWitness() {
     return new ModelAndView("updateAccount");
   }
 
 
   @PostMapping("/updateAccountToView")
+  /**
+   * @deprecated This function will be remove.The Wallet-cli will not provide HTTP services in the future.
+   */
   public byte[] updateAccount(@ModelAttribute AccountVo account) {
     String address = account.getAddress();
     String accountName = account.getName();
