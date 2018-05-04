@@ -9,11 +9,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.spongycastle.util.encoders.Hex;
 import org.tron.api.GrpcAPI;
-import org.tron.api.GrpcAPI.AccountList;
-import org.tron.api.GrpcAPI.AssetIssueList;
-import org.tron.api.GrpcAPI.NodeList;
-import org.tron.api.GrpcAPI.TransactionList;
-import org.tron.api.GrpcAPI.WitnessList;
+import org.tron.api.GrpcAPI.*;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.Hash;
 import org.tron.common.crypto.SymmEncoder;
@@ -73,9 +69,15 @@ public class WalletClient {
     dbPath = config.getString("CityDb.DbPath");
     txtPath = System.getProperty("user.dir") + '/' + config.getString("CityDb.TxtPath");
 
-    List<String> fullnodelist = config.getStringList("fullnode.ip.list");
-    List<String> soliditynodelist = config.getStringList("soliditynode.ip.list");
-    return new GrpcClient(fullnodelist.get(0), soliditynodelist.get(0));
+    String fullNode = "";
+    String solidityNode = "";
+    if(config.hasPath("soliditynode.ip.list")) {
+      solidityNode = config.getStringList("soliditynode.ip.list").get(0);
+    }
+    if(config.hasPath("fullnode.ip.list")){
+      fullNode = config.getStringList("fullnode.ip.list").get(0);
+    }
+    return new GrpcClient(fullNode, solidityNode);
   }
 
   public static String selectFullNode() {
@@ -815,5 +817,17 @@ public class WalletClient {
     builder.setOwnerAddress(byteAddreess);
 
     return builder.build();
+  }
+
+  public static Optional<Block> getBlockById(String blockID) {
+    return rpcCli.getBlockById(blockID);
+  }
+
+  public static Optional<BlockList> getBlockByLimitNext(long start, long end) {
+    return rpcCli.getBlockByLimitNext(start, end);
+  }
+
+  public static Optional<BlockList> getBlockByLatestNum(long num) {
+    return rpcCli.getBlockByLatestNum(num);
   }
 }
