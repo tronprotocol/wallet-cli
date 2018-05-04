@@ -71,10 +71,13 @@ public class WalletClient {
         Config config = Configuration.getByPath("config.conf");
         dbPath = config.getString("CityDb.DbPath");
         txtPath = System.getProperty("user.dir") + '/' + config.getString("CityDb.TxtPath");
-
-        List<String> fullnodelist = config.getStringList("fullnode.ip.list");
-        List<String> soliditynodelist = config.getStringList("soliditynode.ip.list");
-        return new GrpcClient(fullnodelist.get(0), soliditynodelist.get(0));
+        String node = "";
+        if(config.hasPath("soliditynode.ip.list")){
+            node = config.getStringList("soliditynode.ip.list").get(0);
+        }else if(config.hasPath("fullnode.ip.list")){
+            node = config.getStringList("fullnode.ip.list").get(0);
+        }
+        return new GrpcClient(node, node);
     }
 
     public static String selectFullNode() {
