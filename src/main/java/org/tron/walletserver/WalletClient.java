@@ -307,24 +307,6 @@ public class WalletClient {
     return rpcCli.createTransaction(contract);
   }
 
-
-  public boolean createAccount(AccountType accountType, byte[] accountName) {
-    Transaction transaction = createAccountTransaction(accountType, accountName, getAddress());
-    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
-      return false;
-    }
-    transaction = signTransaction(transaction);
-    return rpcCli.broadcastTransaction(transaction);
-  }
-
-  public static Transaction
-  createAccountTransaction(AccountType accountType, byte[] accountName,
-      byte[] address) {
-    Contract.AccountCreateContract contract = createAccountCreateContract(accountType, accountName,
-        address);
-    return rpcCli.createAccount(contract);
-  }
-
   public static boolean broadcastTransaction(byte[] transactionBytes)
       throws InvalidProtocolBufferException {
     Transaction transaction = Transaction.parseFrom(transactionBytes);
