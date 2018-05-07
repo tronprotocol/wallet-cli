@@ -1,6 +1,5 @@
 package org.tron.explorer.controller;
 
-import com.google.protobuf.Any;
 import com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -12,13 +11,9 @@ import org.springframework.web.servlet.ModelAndView;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.TransactionUtils;
 import org.tron.explorer.domain.AccountVo;
-import org.tron.protos.Contract.AccountCreateContract;
-import org.tron.protos.Protocol.AccountType;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.walletcli.Test;
 import org.tron.walletserver.WalletClient;
-
-import java.io.UnsupportedEncodingException;
 
 
 @RestController
@@ -47,54 +42,6 @@ public class GrpcClientController {
    */
   public byte[] getTransaction() {
     Transaction transaction = Test.createTransactionAccount();
-    transaction = TransactionUtils.setTimestamp(transaction);
-    return transaction.toByteArray();
-  }
-
-  @PostMapping("/register")
-  /**
-   * @deprecated This function will be remove.The Wallet-cli will not provide HTTP services in the future.
-   */
-  public ModelAndView registerAccount(@ModelAttribute AccountVo account) {
-    ModelAndView modelAndView;
-    try {
-      byte[] address = WalletClient.decodeFromBase58Check(account.getAddress());
-      if (address == null) {
-        return null;
-      }
-      Transaction transaction = WalletClient
-          .createAccountTransaction(AccountType.Normal, account.getName().getBytes(), address);
-      Any contract = transaction.getRawData().getContract(0).getParameter();
-      AccountCreateContract accountCreateContract = contract.unpack(AccountCreateContract.class);
-      modelAndView = new ModelAndView("register");
-      modelAndView.addObject("name",
-          new String(accountCreateContract.getAccountName().toByteArray(), "ISO-8859-1"));
-      modelAndView.addObject("address",
-          WalletClient.encode58Check(accountCreateContract.getOwnerAddress().toByteArray()));
-    } catch (InvalidProtocolBufferException e) {
-      e.printStackTrace();
-      modelAndView = new ModelAndView("error");
-      modelAndView.addObject("message", "invalid transaction!!!");
-    } catch (UnsupportedEncodingException e) {
-      e.printStackTrace();
-      modelAndView = new ModelAndView("error");
-      modelAndView.addObject("message", "invalid transaction!!!");
-    }
-    return modelAndView;
-  }
-
-  //send account transaction to view
-  @PostMapping("/transactionForView")
-  /**
-   * @deprecated This function will be remove.The Wallet-cli will not provide HTTP services in the future.
-   */
-  public byte[] getTransactionToView(@ModelAttribute AccountVo account) {
-    byte[] address = WalletClient.decodeFromBase58Check(account.getAddress());
-    if (address == null) {
-      return null;
-    }
-    Transaction transaction = WalletClient
-        .createAccountTransaction(AccountType.Normal, account.getName().getBytes(), address);
     transaction = TransactionUtils.setTimestamp(transaction);
     return transaction.toByteArray();
   }
