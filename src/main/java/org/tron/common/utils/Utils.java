@@ -28,6 +28,7 @@ import java.util.Date;
 import java.util.List;
 import org.tron.api.GrpcAPI.AccountList;
 import org.tron.api.GrpcAPI.AssetIssueList;
+import org.tron.api.GrpcAPI.BlockList;
 import org.tron.api.GrpcAPI.TransactionList;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.protos.Contract.AccountCreateContract;
@@ -42,6 +43,8 @@ import org.tron.protos.Contract.WitnessCreateContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Account.Frozen;
 import org.tron.protos.Protocol.Account.Vote;
+import org.tron.protos.Protocol.Block;
+import org.tron.protos.Protocol.BlockHeader;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.Transaction.Contract;
 import org.tron.protos.Protocol.Transaction.Result;
@@ -523,14 +526,100 @@ public class Utils {
   }
 
   public static String printTransactionList(TransactionList transactionList) {
+    return printTransactions(transactionList.getTransactionList());
+  }
+
+  public static String printTransactions(List<Transaction> transactionList) {
     String result = "\n";
     int i = 0;
-    for (Transaction transaction : transactionList.getTransactionList()) {
+    for (Transaction transaction : transactionList) {
       result += "transaction " + i + " :::";
       result += "\n";
       result += "[";
       result += "\n";
       result += printTransaction(transaction);
+      result += "]";
+      result += "\n";
+      result += "\n";
+      i++;
+    }
+    return result;
+  }
+
+  public static String printBlockRow(BlockHeader.raw raw) {
+    String result = "";
+
+    result += "timestamp: ";
+    result += new Date(raw.getTimestamp());
+    result += "\n";
+
+    result += "txTrieRoot: ";
+    result += ByteArray.toHexString(raw.getTxTrieRoot().toByteArray());
+    result += "\n";
+
+    result += "parentHash: ";
+    result += ByteArray.toHexString(raw.getParentHash().toByteArray());
+    result += "\n";
+
+    result += "number: ";
+    result += raw.getNumber();
+    result += "\n";
+
+    result += "witness_id: ";
+    result += raw.getWitnessId();
+    result += "\n";
+
+    result += "witness_address: ";
+    result += ByteArray.toHexString(raw.getWitnessAddress().toByteArray());
+    result += "\n";
+
+    return result;
+  }
+
+
+  public static String printBlockHeader(BlockHeader blockHeader) {
+    String result = "";
+    result += "raw_data: ";
+    result += "\n";
+    result += "{";
+    result += "\n";
+    result += printBlockRow(blockHeader.getRawData());
+    result += "}";
+    result += "\n";
+
+    result += "witness_signature: ";
+    result += "\n";
+    result += ByteArray.toHexString(blockHeader.getWitnessSignature().toByteArray());
+    result += "\n";
+    return result;
+  }
+
+  public static String printBlock(Block block) {
+    String result = "\n";
+    if (block.getBlockHeader() != null) {
+      result += "block_header: ";
+      result += "\n";
+      result += "{";
+      result += "\n";
+      result += printBlockHeader(block.getBlockHeader());
+      result += "}";
+      result += "\n";
+    }
+    if (block.getTransactionsCount() > 0) {
+      result += printTransactions(block.getTransactionsList());
+    }
+    return result;
+  }
+
+  public static String printBlockList(BlockList blockList) {
+    String result = "\n";
+    int i = 0;
+    for (Block block : blockList.getBlockList()) {
+      result += "block " + i + " :::";
+      result += "\n";
+      result += "[";
+      result += "\n";
+      result += printBlock(block);
       result += "]";
       result += "\n";
       result += "\n";
