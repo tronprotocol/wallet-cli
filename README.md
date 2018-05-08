@@ -60,6 +60,9 @@ rpc GetAssetIssueByAccount (Account) returns (AssetIssueList)
 rpc GetAssetIssueByName (BytesMessage) returns (AssetIssueContract)       
 rpc GetNowBlock (EmptyMessage) returns (Block)         
 rpc GetBlockByNum (NumberMessage) returns (Block)       
+rpc FreezeBalance (FreezeBalanceContract) returns (Transaction)       
+rpc UnfreezeBalance (UnfreezeBalanceContract) returns (Transaction)       
+rpc WithdrawBalance (WithdrawBalanceContract) returns (Transaction)       
  
  
 Web wallet host
@@ -97,6 +100,9 @@ ParticipateAssetissue
 Assetissue  
 CreateWitness  
 VoteWitness  
+FreezeBalance
+UnfreezeBalance
+WithdrawBalance
 Listaccounts  
 Listwitnesses  
 Listassetissue    
@@ -114,6 +120,60 @@ you can gen one keypair and address by command line, then modify java-tron confi
 
 Now that you have a lot of trx, you can send it to any address.                             
 With enough trx, you can issue assets, participate in asset, apply for witnesses, and more.
+
+How to freeze/unfreeze balance
+----------------------------------
+
+
+冻结资金后，将获得对应数量的股权及带宽，股权可以用来投票，带宽用于交易。股权及带宽的使用及计算规则在后文中介绍。
+
+冻结命令如下：
+
+freezebalance password amount time
+amount:冻结资金，最小1TRX
+time：冻结时间，该值目前仅允许为3天
+
+
+例子：
+freezebalance 123455 1000000 3
+
+冻结操作后，冻结的资金将从账户Balance中转移到Frozen，在解冻后由Frozen转移回Balance，该冻结的资金无法用于交易。
+
+当需要更多的股权或带宽时，可以通过追加冻结资金，此时冻结时间是最后一次操作的时间。
+
+在冻结时间过后，可以解冻资金。
+
+解冻命令如下：
+
+unfreezebalance password 
+
+
+
+
+How to vote
+----------------------------------
+
+投票需要股权，股权可以通过冻结资金获得。股权的计算方法是：每冻结1TRX，就可以获得1单位股权。在解冻命令后投票失效，可以通过重新冻结避免投票失效。
+
+
+
+How to calculate bandwidth
+----------------------------------
+
+带宽的计算规则是： 锁定资金 * 天数 * 常数 ，假设冻结1TRX（1_000_000 DROP），时间为3天，带宽=1_000_000*3*1 = 3_000_000.
+
+任何合约都需要消耗带宽，包括转账、转移资产、投票、冻结等，查询不消耗带宽，每个合约需要消耗100_000个带宽。
+
+如果距离上次合约超过一定时间（10s），本次执行不消耗带宽。
+
+发生解冻操作时，带宽不会清空，下次冻结时，新增加的带宽进行累加。
+
+
+How to withdraw balance
+----------------------------------
+
+每次出块完成后，出块奖励发到账户的allowance中，每24h允许一次提取操作。从allowance转移到balance中。allowance中资金不允许锁定、交易。
+
 
 
 Command line operation flow example
