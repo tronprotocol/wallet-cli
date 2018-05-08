@@ -131,17 +131,21 @@ After the funds are frozen, the corresponding number of shares and bandwidth wil
 
 **Freeze operation is as follows：**
 
+```
 freezebalance password amount time
+```
 
-amount:The amount of frozen funds，the unit is drop.
-The minimum value is 1000000 drop(1TRX).
+*amount:The amount of frozen funds，the unit is drop.
+The minimum value is **1000000 drop(1TRX)**.*
 
-time：Freeze time, this value is currently only allowed for 3 days
+*time：Freeze time, this value is currently only allowed for **3 days***
 
 
 For example：
-
+```
 freezebalance 123455 10000000 3
+```
+
 
 After the freeze operation,frozen funds will be transferred from Account Balance to Frozen,
 You can view frozen funds from your account information.
@@ -155,9 +159,9 @@ After the freezing time expires, funds can be unfroze.
 
 
 **Unfreeze operation is as follows：**
-
+```
 unfreezebalance password 
-
+```
 
 
 
@@ -166,18 +170,20 @@ How to vote
 
 Voting requires share. Share can be obtained by freezing funds.
 
-- The share calculation method is: 1 unit of share can be obtained for every 1TRX frozen. 
+- The share calculation method is: **1** unit of share can be obtained for every **1TRX** frozen. 
 - After unfreezing, previous vote will expire. You can avoid the invalidation of the vote by re-freezing and voting.
 
 **Note:** The Tron Network only records the status of your last vote, which means that each of your votes will cover all previous voting results.
 
 For example：
 
+```
 freezebalance 123455 10000000 3   // Freeze 10TRX and acquire 10 units of shares
 
 votewitness 123455 witness1 4 witness2 6   // Cast 4 votes for witness1 and 6 votes for witness2 at the same time.
 
 votewitness 123455 witness1 10   // Voted 10 votes for witness1.
+```
 
 The final result of the above command was 10 votes for witness1 and 0 votes for witness2.
 
@@ -186,13 +192,16 @@ The final result of the above command was 10 votes for witness1 and 0 votes for 
 How to calculate bandwidth
 ----------------------------------
 
-The bandwidth calculation rule is：Locked amount of funds * days * constant.
-Assuming Freeze 1TRX（1_000_000 DROP），3 days，bandwidth obtained = 1_000_000 * 3 * 1 = 3_000_000. 
+The bandwidth calculation rule is：
+```
+constant * FrozenFunds * days
+```
+Assuming freeze 1TRX（1_000_000 DROP），3 days，bandwidth obtained = 1* 1_000_000 * 3 = 3_000_000. 
 
 Any contract needs to consume bandwidth, including transfer, transfer of assets, voting, freezing, etc. 
-The query does not consume bandwidth, and each contract needs to consume 100_000 bandwidth. 
+The query does not consume bandwidth, and each contract needs to consume **100_000 bandwidth**. 
 
-If the previous contract exceeds a certain time (10s), this operation does not consume bandwidth. 
+If the previous contract exceeds a certain time (**10s**), this operation does not consume bandwidth. 
 
 When the unfreezing operation occurs, the bandwidth is not cleared. 
 The next time the freeze is performed, the newly added bandwidth is accumulated.
@@ -202,20 +211,20 @@ How to withdraw balance
 ----------------------------------
 
 After each block is produced, the block award is sent to the account's allowance, 
-and an withdraw operation is allowed every 24 hours from allowance to balance. 
+and an withdraw operation is allowed every **24 hours** from allowance to balance. 
 The funds in allowance cannot be locked or traded.
  
 
 How to create witness
 ----------------------------------
-Applying to become a witness account needs to consume 100_000TRX.
+Applying to become a witness account needs to consume **100_000TRX**.
 This part of the funds will be burned directly.
 
 
 How to create account
 ----------------------------------
 It is not allowed to create accounts directly. You can only create accounts by transferring funds to non-existing accounts.
-Transfer to a non-existent account with a minimum transfer amount of 1TRX.
+Transfer to a non-existent account with a minimum transfer amount of **1TRX**.
 
 Command line operation flow example
 -----------------------------------      
