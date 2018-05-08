@@ -183,30 +183,36 @@ The final result of the above command was 10 votes for witness1 and 0 votes for 
 How to calculate bandwidth
 ----------------------------------
 
-带宽的计算规则是： 锁定资金 * 天数 * 常数 ，假设冻结1TRX（1_000_000 DROP），时间为3天，带宽=1_000_000*3*1 = 3_000_000.
+The bandwidth calculation rule is：Locked amount of funds * days * constant，
+Assuming Freeze 1TRX（1_000_000 DROP），3 days，bandwidth obtained = 1_000_000*3*1 = 3_000_000. 
 
-任何合约都需要消耗带宽，包括转账、转移资产、投票、冻结等，查询不消耗带宽，每个合约需要消耗100_000个带宽。
+Any contract needs to consume bandwidth, including transfer, transfer of assets, voting, freezing, etc. 
+The query does not consume bandwidth, and each contract needs to consume 100_000 bandwidth. 
 
-如果距离上次合约超过一定时间（10s），本次执行不消耗带宽。
+If the previous contract exceeds a certain time (10s), this operation does not consume bandwidth. 
 
-发生解冻操作时，带宽不会清空，下次冻结时，新增加的带宽进行累加。
+When the unfreezing operation occurs, the bandwidth is not cleared. 
+The next time the freeze is performed, the newly added bandwidth is accumulated.
 
 
 How to withdraw balance
 ----------------------------------
 
-每次出块完成后，出块奖励发到账户的allowance中，每24h允许一次提取操作。从allowance转移到balance中。allowance中资金不允许锁定、交易。
-
-
+After each block is produced, the block award is sent to the account's allowance, 
+and an withdraw operation is allowed every 24 hours from allowance to balance. 
+The funds in allowance cannot be locked or traded.
+ 
 
 How to create witness
 ----------------------------------
-申请成为witness账户，需要消耗100_000TRX,这部分资金直接烧掉。
+Applying to become a witness account needs to consume 100_000TRX.
+This part of the funds will be burned directly.
 
 
 How to create account
 ----------------------------------
-不允许直接创建账户，只能通过向不存在的账户转账来创建账户。向不存在的账户转账，转账金额最少1TRX。
+It is not allowed to create accounts directly. You can only create accounts by transferring funds to non-existing accounts.
+Transfer to a non-existent account with a minimum transfer amount of 1TRX.
 
 Command line operation flow example
 -----------------------------------      
