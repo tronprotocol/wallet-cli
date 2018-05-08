@@ -6,7 +6,7 @@
     "browserify": "^16.1.1",
     "require": "^2.4.20",
     "google-protobuf": "^3.5.0",
-    "protoc-plugin" : "^0.0.6"
+    "protoc-plugin": "^0.0.6"
   },
   "repository": {
     "type": "git",
