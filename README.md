@@ -139,12 +139,12 @@ The minimum value is 1000000 drop(1TRX).
 time：Freeze time, this value is currently only allowed for 3 days
 
 
-**For example：**
+For example：
 
 freezebalance 123455 10000000 3
 
-After the freeze operation,Frozen funds will be transferred from Account Balance to Frozen,
-You can view frozen funds from your account information。
+After the freeze operation,frozen funds will be transferred from Account Balance to Frozen,
+You can view frozen funds from your account information.
 After being unfrozen, it is transferred back to Balance by Frozen, and the frozen funds cannot be used for trading.
 
 
@@ -172,9 +172,12 @@ Voting requires share. Share can be obtained by freezing funds.
 **Note:** The Tron Network only records the status of your last vote, which means that each of your votes will cover all previous voting results.
 
 For example：
-freezebalance 123455 10_000_000 3 // Freeze 10TRX and acquire 10 units of shares
-votewitness 123455 witness1 4 witness2 6 //Cast 4 votes for witness1 and 6 votes for witness2 at the same time.
-votewitness 123455 witness1 10 // Voted 10 votes for witness1.
+
+freezebalance 123455 10000000 3   // Freeze 10TRX and acquire 10 units of shares
+
+votewitness 123455 witness1 4 witness2 6   // Cast 4 votes for witness1 and 6 votes for witness2 at the same time.
+
+votewitness 123455 witness1 10   // Voted 10 votes for witness1.
 
 The final result of the above command was 10 votes for witness1 and 0 votes for witness2.
 
@@ -183,8 +186,8 @@ The final result of the above command was 10 votes for witness1 and 0 votes for 
 How to calculate bandwidth
 ----------------------------------
 
-The bandwidth calculation rule is：Locked amount of funds * days * constant，
-Assuming Freeze 1TRX（1_000_000 DROP），3 days，bandwidth obtained = 1_000_000*3*1 = 3_000_000. 
+The bandwidth calculation rule is：Locked amount of funds * days * constant.
+Assuming Freeze 1TRX（1_000_000 DROP），3 days，bandwidth obtained = 1_000_000 * 3 * 1 = 3_000_000. 
 
 Any contract needs to consume bandwidth, including transfer, transfer of assets, voting, freezing, etc. 
 The query does not consume bandwidth, and each contract needs to consume 100_000 bandwidth. 
