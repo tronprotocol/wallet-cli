@@ -80,6 +80,15 @@ public class TransactionUtils {
         case DeployContract:
           owner = contract.getParameter().unpack(org.tron.protos.Contract.DeployContract.class).getOwnerAddress();
           break;
+        case FreezeBalanceContract:
+          owner = contract.getParameter().unpack(org.tron.protos.Contract.FreezeBalanceContract.class).getOwnerAddress();
+          break;
+        case UnfreezeBalanceContract:
+          owner = contract.getParameter().unpack(org.tron.protos.Contract.UnfreezeBalanceContract.class).getOwnerAddress();
+          break;
+        case WithdrawBalanceContract:
+          owner = contract.getParameter().unpack(org.tron.protos.Contract.WithdrawBalanceContract.class).getOwnerAddress();
+          break;
         default:
           return null;
       }
@@ -108,7 +117,6 @@ public class TransactionUtils {
    * 4. check balance
    */
   public static boolean validTransaction(Transaction signedTransaction) {
-    if (signedTransaction.getRawData().getType() == Transaction.TransactionType.ContractType) {
       assert (signedTransaction.getSignatureCount() ==
           signedTransaction.getRawData().getContractCount());
       List<Transaction.Contract> listContract = signedTransaction.getRawData().getContractList();
@@ -131,15 +139,12 @@ public class TransactionUtils {
         }
       }
       return true;
-    }
-    return false;
   }
 
   public static Transaction sign(Transaction transaction, ECKey myKey) {
     ByteString lockSript = ByteString.copyFrom(myKey.getAddress());
     Transaction.Builder transactionBuilderSigned = transaction.toBuilder();
 
-    if (transaction.getRawData().getType() == Transaction.TransactionType.ContractType) {
       byte[] hash = sha256(transaction.getRawData().toByteArray());
       List<Contract> listContract = transaction.getRawData().getContractList();
       for (int i = 0; i < listContract.size(); i++) {
@@ -147,7 +152,6 @@ public class TransactionUtils {
         ByteString bsSign = ByteString.copyFrom(signature.toByteArray());
         transactionBuilderSigned.addSignature(bsSign);//Each contract may be signed with a different private key in the future.
       }
-    }
 
     transaction = transactionBuilderSigned.build();
     return transaction;

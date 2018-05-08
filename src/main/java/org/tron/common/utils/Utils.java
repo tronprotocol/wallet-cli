@@ -416,9 +416,6 @@ public class Utils {
 
   public static String printTransactionRow(Transaction.raw raw) {
     String result = "";
-    result += "type: ";
-    result += raw.getType();
-    result += "\n";
 
     if (raw.getContractCount() > 0) {
       result += "contract: ";

@@ -414,3 +414,9 @@
 95.131.238.82|||"country":"Malta","city":"Malta","longitude":14.5833,"latitude":35.8333
 139.162.177.66|||"country":"Germany","city":"Frankfurt am Main","longitude":8.6833,"latitude":50.1167
 39.106.205.224|||"country":"China","city":"Hangzhou","longitude":120.1614,"latitude":30.2936
+119.61.19.36|||"country":"China","city":"Chaoyang","longitude":120.4586,"latitude":41.5703
+82.161.203.38|||"country":"Netherlands","city":"Rodenrijs","longitude":4.4647,"latitude":51.9945
+39.155.212.44|||"country":"China","city":"Beijing","longitude":116.3883,"latitude":39.9289
+86.29.156.21|||"country":"United Kingdom","city":"Greenock","longitude":-4.75,"latitude":55.9333
+35.234.96.169|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
+35.203.70.8|||"country":"United States","city":"Mountain View","longitude":-122.0574,"latitude":37.419200000000004
