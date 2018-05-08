@@ -176,6 +176,15 @@ How to withdraw balance
 
 
 
+How to create witness
+----------------------------------
+申请成为witness账户，需要消耗100_000TRX,这部分资金直接烧掉。
+
+
+How to create account
+----------------------------------
+不允许直接创建账户，只能通过向不存在的账户转账来创建账户。向不存在的账户转账，转账金额最少1TRX。
+
 Command line operation flow example
 -----------------------------------      
 
