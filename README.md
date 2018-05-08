@@ -124,26 +124,37 @@ With enough trx, you can issue assets, participate in asset, apply for witnesses
 How to freeze/unfreeze balance
 ----------------------------------
 
+After the funds are frozen, the corresponding number of shares and bandwidth will be obtained.
+ Shares can be used for voting and bandwidth can be used for trading.
+ The rules for the use and calculation of share and bandwidth are described later in this article.
 
-冻结资金后，将获得对应数量的股权及带宽，股权可以用来投票，带宽用于交易。股权及带宽的使用及计算规则在后文中介绍。
 
-冻结命令如下：
+**Freeze operation is as follows：**
 
 freezebalance password amount time
-amount:冻结资金，单位是drop。amount最小为1_000_000drop，即1TRX
-time：冻结时间，该值目前仅允许为3天
+
+amount:The amount of frozen funds，the unit is drop.
+The minimum value is 1000000 drop(1TRX).
+
+time：Freeze time, this value is currently only allowed for 3 days
 
 
-例子：
-freezebalance 123455 10_000_000 3
+**For example：**
 
-冻结操作后，冻结的资金将从账户Balance中转移到Frozen，在解冻后由Frozen转移回Balance，该冻结的资金无法用于交易。
+freezebalance 123455 10000000 3
 
-当临时需要更多的股权或带宽时，可以追加冻结资金，从而获取追加部分的股权与带宽。此时解冻时间推迟到最后一次冻结操作的3天后。
+After the freeze operation,Frozen funds will be transferred from Account Balance to Frozen,
+You can view frozen funds from your account information。
+After being unfrozen, it is transferred back to Balance by Frozen, and the frozen funds cannot be used for trading.
 
-在冻结时间过后，可以解冻资金。
 
-解冻命令如下：
+When more share or bandwidth is needed temporarily, additional funds may be frozen to obtain additional share and bandwidth.
+The unfrozen time is postponed until 3 days after the last freeze operation
+
+After the freezing time expires, funds can be unfroze.
+
+
+**Unfreeze operation is as follows：**
 
 unfreezebalance password 
 
@@ -153,18 +164,19 @@ unfreezebalance password
 How to vote
 ----------------------------------
 
-投票需要股权，股权可以通过冻结资金获得。
-- 股权的计算方法是：每冻结1TRX，就可以获得1单位股权。
-- 在解冻后，以前的投票会失效。可以通过重新冻结并投票来避免投票失效。
+Voting requires share. Share can be obtained by freezing funds.
 
-**注意:** 波场网络只记录你最后一次投票的状态，也就是说你的每一次投票都会覆盖以前所有的投票效果。
+- The share calculation method is: 1 unit of share can be obtained for every 1TRX frozen. 
+- After unfreezing, previous vote will expire. You can avoid the invalidation of the vote by re-freezing and voting.
 
-例子：
-freezebalance 123455 10_000_000 3 // 冻结了10TRX，获取了10单位股权
-votewitness 123455 witness1 4 witness2 6 // 同时给witness1投了4票，给witness2投了6票
-votewitness 123455 witness1 10 // 给witness1投了10票
+**Note:** The Tron Network only records the status of your last vote, which means that each of your votes will cover all previous voting results.
 
-以上命令的最终结果是给witness1投了10票，给witness2投了0票
+For example：
+freezebalance 123455 10_000_000 3 // Freeze 10TRX and acquire 10 units of shares
+votewitness 123455 witness1 4 witness2 6 //Cast 4 votes for witness1 and 6 votes for witness2 at the same time.
+votewitness 123455 witness1 10 // Voted 10 votes for witness1.
+
+The final result of the above command was 10 votes for witness1 and 0 votes for witness2.
 
 
 
