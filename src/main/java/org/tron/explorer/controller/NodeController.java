@@ -215,6 +215,9 @@ public class NodeController {
   }
 
   @GetMapping("/nodeList")
+  /**
+   * @deprecated This function will be remove.The Wallet-cli will not provide HTTP services in the future.
+   */
   public String getNodeList() {
     try {
       Optional<NodeList> result = WalletClient.listNodes();

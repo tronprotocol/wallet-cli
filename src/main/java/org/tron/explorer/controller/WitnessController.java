@@ -21,16 +21,25 @@ public class WitnessController {
   protected final Log log = LogFactory.getLog(getClass());
 
   @GetMapping("/queryWitness")
+  /**
+   * @deprecated This function will be remove.The Wallet-cli will not provide HTTP services in the future.
+   */
   public ModelAndView viewQueryWitness() {
     return new ModelAndView("witnessList");
   }
 
   @GetMapping("/createWitness")
+  /**
+   * @deprecated This function will be remove.The Wallet-cli will not provide HTTP services in the future.
+   */
   public ModelAndView viewCreateWitness() {
     return new ModelAndView("createWitness");
   }
 
   @GetMapping("/witnessList")
+  /**
+   * @deprecated This function will be remove.The Wallet-cli will not provide HTTP services in the future.
+   */
   public byte[] getWitnessList() {
     try {
       Optional<WitnessList> result = WalletClient.listWitnesses();
@@ -45,6 +54,9 @@ public class WitnessController {
   }
 
   @PostMapping("/createWitnessToView")
+  /**
+   * @deprecated This function will be remove.The Wallet-cli will not provide HTTP services in the future.
+   */
   public byte[] getTransactionToView(String address, String onwerUrl) {
     try {
       if (onwerUrl == null || onwerUrl.equals("")) {

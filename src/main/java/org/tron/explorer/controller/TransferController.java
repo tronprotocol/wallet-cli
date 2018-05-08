@@ -22,6 +22,9 @@ public class TransferController {
   protected final Log log = LogFactory.getLog(getClass());
 
   @GetMapping("/sendCoin")
+  /**
+   * @deprecated This function will be remove.The Wallet-cli will not provide HTTP services in the future.
+   */
   public ModelAndView sendCoin() {
     return new ModelAndView("sendCoin");
   }
@@ -32,6 +35,9 @@ public class TransferController {
   }
 
   @PostMapping("/sendCoinToView")
+  /**
+   * @deprecated This function will be remove.The Wallet-cli will not provide HTTP services in the future.
+   */
   public byte[] getTransactionToView(@ModelAttribute Transfer transfer) {
     System.out.println(transfer.getAddress());
     try {

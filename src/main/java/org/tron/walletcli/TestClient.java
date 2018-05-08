@@ -2,10 +2,10 @@ package org.tron.walletcli;
 
 import com.beust.jcommander.JCommander;
 import com.google.protobuf.ByteString;
+import com.googlecode.protobuf.format.JsonFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tron.api.GrpcAPI.*;
-import org.tron.common.utils.Base58;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Utils;
 import org.tron.protos.Contract.AssetIssueContract;
@@ -13,9 +13,10 @@ import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.BlockHeader;
 import org.tron.protos.Protocol.BlockHeader.raw;
-import org.tron.protos.Protocol.Witness;
+import org.tron.protos.Protocol.Transaction;
 import org.tron.walletserver.WalletClient;
 
+import java.sql.Timestamp;
 import java.util.*;
 import java.util.Base64.Decoder;
 import java.util.Base64.Encoder;
@@ -183,6 +184,27 @@ public class TestClient {
     }
   }
 
+  private void updateAccount(String[] parameters) {
+    if (parameters == null || parameters.length != 3) {
+      System.out.println("UpdateAccount need 3 parameter like following: ");
+      System.out.println("UpdateAccount Password Address AccountName ");
+      return;
+    }
+
+    String password = parameters[0];
+    String address = parameters[1];
+    String accountName = parameters[2];
+    byte[] addressBytes = WalletClient.decodeFromBase58Check(address);
+    byte[] accountNameBytes = ByteArray.fromString(accountName);
+
+    boolean ret = client.updateAccount(password, addressBytes, accountNameBytes);
+    if (ret) {
+      logger.info("Update Account success !!!!");
+    } else {
+      logger.info("Update Account failed !!!!");
+    }
+  }
+
   private void getAssetIssueByAccount(String[] parameters) {
     if (parameters == null || parameters.length != 1) {
       System.out.println("GetAssetIssueByAccount need 1 parameter like following: ");
@@ -198,11 +220,7 @@ public class TestClient {
     Optional<AssetIssueList> result = WalletClient.getAssetIssueByAccount(addressBytes);
     if (result.isPresent()) {
       AssetIssueList assetIssueList = result.get();
-      List<AssetIssueContract> list = assetIssueList.getAssetIssueList();
-      for (int i = 0; i < list.size(); i++) {
-        AssetIssueContract assetIssueContract = list.get(i);
-        logger.info(Utils.printAssetIssueList(assetIssueList));
-      }
+      logger.info(Utils.printAssetIssueList(assetIssueList));
     } else {
       logger.info("GetAssetIssueByAccount " + " failed !!");
     }
@@ -508,6 +526,57 @@ public class TestClient {
     }
   }
 
+  private void freezeBalance(String[] parameters) {
+    if (parameters == null || parameters.length != 3) {
+      System.out.println("Use freezeBalance command you need like: ");
+      System.out.println("freezeBalance Password frozen_balance frozen_duration ");
+      return;
+    }
+
+    String password = parameters[0];
+    long frozen_balance = Long.parseLong(parameters[1]);
+    long frozen_duration = Long.parseLong(parameters[2]);
+
+    boolean result = client.freezeBalance(password, frozen_balance, frozen_duration);
+    if (result) {
+      logger.info("freezeBalance " + " successful !!");
+    } else {
+      logger.info("freezeBalance " + " failed !!");
+    }
+  }
+
+  private void unfreezeBalance(String[] parameters) {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("Use freezeBalance command you need like: ");
+      System.out.println("freezeBalance Password ");
+      return;
+    }
+    String password = parameters[0];
+
+    boolean result = client.unfreezeBalance(password);
+    if (result) {
+      logger.info("unfreezeBalance " + " successful !!");
+    } else {
+      logger.info("unfreezeBalance " + " failed !!");
+    }
+  }
+
+  private void withdrawBalance(String[] parameters) {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("Use withdrawBalance command you need like: ");
+      System.out.println("withdrawBalance Password ");
+      return;
+    }
+    String password = parameters[0];
+
+    boolean result = client.withdrawBalance(password);
+    if (result) {
+      logger.info("withdrawBalance " + " successful !!");
+    } else {
+      logger.info("withdrawBalance " + " failed !!");
+    }
+  }
+
   private void getTotalTransaction() {
     try {
       NumberMessage totalTransition = client.getTotalTransaction();
@@ -515,6 +584,163 @@ public class TestClient {
 
     } catch (Exception e) {
       logger.info("GetTotalTransaction " + " failed !!");
+    }
+  }
+
+  private void getAssetIssueListByTimestamp(String[] parameters) {
+    long timeStamp = -1;
+    if (parameters == null || parameters.length == 0) {
+      System.out.println("no time input, use current time");
+      timeStamp = System.currentTimeMillis();
+    } else {
+      if (parameters.length != 2) {
+        System.out.println("You can GetAssetIssueListByTimestamp like:");
+        System.out.println("GetAssetIssueListByTimestamp yyyy-mm-dd hh:mm:ss");
+        return;
+      } else {
+        timeStamp = Timestamp.valueOf(parameters[0] + " " + parameters[1]).getTime();
+      }
+    }
+    Optional<AssetIssueList> result = WalletClient.getAssetIssueListByTimestamp(timeStamp);
+    if (result.isPresent()) {
+      AssetIssueList assetIssueList = result.get();
+      logger.info(Utils.printAssetIssueList(assetIssueList));
+    } else {
+      logger.info("GetAssetIssueListByTimestamp " + " failed !!");
+    }
+  }
+
+  private void getTransactionsByTimestamp(String[] parameters) {
+    String start = "";
+    String end = "";
+    if (parameters == null || parameters.length != 4) {
+      System.out.println(
+          "getTransactionsByTimestamp needs 2 parameters, start_time and end_time, time format is yyyy-mm-dd hh:mm:ss");
+      return;
+    } else {
+      start = parameters[0] + " " + parameters[1];
+      end = parameters[2] + " " + parameters[3];
+    }
+    long startTime = Timestamp.valueOf(start).getTime();
+    long endTime = Timestamp.valueOf(end).getTime();
+    Optional<TransactionList> result = WalletClient.getTransactionsByTimestamp(startTime, endTime);
+    if (result.isPresent()) {
+      TransactionList transactionList = result.get();
+      logger.info(Utils.printTransactionList(transactionList));
+    } else {
+      logger.info("getTransactionsByTimestamp " + " failed !!");
+    }
+  }
+
+  private void getTransactionById(String[] parameters) {
+    String txid = "";
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("getTransactionById needs 1 parameters, transaction id");
+      return;
+    } else {
+      txid = parameters[0];
+    }
+    Optional<Transaction> result = WalletClient.getTransactionById(txid);
+    if (result.isPresent()) {
+      Transaction transaction = result.get();
+      logger.info(Utils.printTransaction(transaction));
+    } else {
+      logger.info("getTransactionById " + " failed !!");
+    }
+  }
+
+  private void getTransactionsFromThis(String[] parameters) {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("GetTransactionsFromThis need 1 parameter like following: ");
+      System.out.println("GetTransactionsFromThis Address ");
+      return;
+    }
+    String address = parameters[0];
+    byte[] addressBytes = WalletClient.decodeFromBase58Check(address);
+    if (addressBytes == null) {
+      return;
+    }
+
+    Optional<TransactionList> result = WalletClient.getTransactionsFromThis(addressBytes);
+    if (result.isPresent()) {
+      TransactionList transactionList = result.get();
+      logger.info(Utils.printTransactionList(transactionList));
+    } else {
+      logger.info("GetTransactionsFromThis " + " failed !!");
+    }
+  }
+
+  private void getTransactionsToThis(String[] parameters) {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("getTransactionsToThis need 1 parameter like following: ");
+      System.out.println("getTransactionsToThis Address ");
+      return;
+    }
+    String address = parameters[0];
+    byte[] addressBytes = WalletClient.decodeFromBase58Check(address);
+    if (addressBytes == null) {
+      return;
+    }
+
+    Optional<TransactionList> result = WalletClient.getTransactionsToThis(addressBytes);
+    if (result.isPresent()) {
+      TransactionList transactionList = result.get();
+      logger.info(Utils.printTransactionList(transactionList));
+    } else {
+      logger.info("getTransactionsToThis " + " failed !!");
+    }
+  }
+
+  private void getBlockById(String[] parameters){
+    String blockID = "";
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("getBlockById needs 1 parameters, block id which is hex format");
+      return;
+    } else {
+      blockID = parameters[0];
+    }
+    Optional<Block> result = WalletClient.getBlockById(blockID);
+    if(result.isPresent()){
+      Block block = result.get();
+      logger.info(new JsonFormat().printToString(block));
+    }else{
+      logger.info("getBlockById " + " failed !!");
+    }
+  }
+
+  private void getBlockByLimitNext(String[] parameters){
+    long start = 0;
+    long end = 0;
+    if (parameters == null || parameters.length != 2) {
+      System.out.println("GetBlockByLimitNext needs 2 parameters, start block id and end block id");
+      return;
+    } else {
+      start = Long.parseLong(parameters[0]);
+      end = Long.parseLong(parameters[1]);
+    }
+    Optional<BlockList> result = WalletClient.getBlockByLimitNext(start, end);
+    if(result.isPresent()){
+      BlockList blockList = result.get();
+      logger.info(new JsonFormat().printToString(blockList));
+    }else{
+      logger.info("GetBlockByLimitNext " + " failed !!");
+    }
+  }
+
+  private void getBlockByLatestNum(String[] parameters){
+    long num = 0;
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("getBlockByLatestNum needs 1 parameters, block num");
+      return;
+    } else {
+      num = Long.parseLong(parameters[0]);
+    }
+    Optional<BlockList> result = WalletClient.getBlockByLatestNum(num);
+    if(result.isPresent()){
+      BlockList blockList = result.get();
+      logger.info(new JsonFormat().printToString(blockList));
+    }else{
+      logger.info("getBlockByLatestNum " + " failed !!");
     }
   }
 
@@ -545,7 +771,19 @@ public class TestClient {
     System.out.println("Listassetissue");
     System.out.println("listNodes");
     System.out.println("Getblock");
-    System.out.println("getTotalTransaction");
+    System.out.println("GetTotalTransaction");
+    System.out.println("GetAssetIssueListByTimestamp");
+    System.out.println("GetTotalTransaction");
+    System.out.println("GetTransactionsByTimestamp");
+    System.out.println("GetTransactionById");
+    System.out.println("getTransactionsFromThis");
+    System.out.println("getTransactionsToThis");
+    System.out.println("getBlockById");
+    System.out.println("getBlockByLimitNext");
+    System.out.println("getBlockByLatestNum");
+    System.out.println("freezebalance");
+    System.out.println("unfreezebalance");
+    System.out.println("withdrawbalance");
     System.out.println("Exit or Quit");
 
     System.out.println("Input any one of then, you will get more tips.");
@@ -614,6 +852,10 @@ public class TestClient {
             getAccount(parameters);
             break;
           }
+          case "updateaccount": {
+            updateAccount(parameters);
+            break;
+          }
           case "getassetissuebyaccount": {
             getAssetIssueByAccount(parameters);
             break;
@@ -650,6 +892,18 @@ public class TestClient {
             voteWitness(parameters);
             break;
           }
+          case "freezebalance": {
+            freezeBalance(parameters);
+            break;
+          }
+          case "unfreezebalance": {
+            unfreezeBalance(parameters);
+            break;
+          }
+          case "withdrawbalance": {
+            withdrawBalance(parameters);
+            break;
+          }
           case "listaccounts": {
             listAccounts();
             break;
@@ -670,12 +924,40 @@ public class TestClient {
             GetBlock(parameters);
             break;
           }
-          case "testTransaction": {
-            testTransaction(parameters);
-            break;
-          }
           case "gettotaltransaction": {
             getTotalTransaction();
+            break;
+          }
+          case "getassetissuelistbytimestamp": {
+            getAssetIssueListByTimestamp(parameters);
+            break;
+          }
+          case "gettransactionsfromthis": {
+            getTransactionsFromThis(parameters);
+            break;
+          }
+          case "gettransactionstothis": {
+            getTransactionsToThis(parameters);
+            break;
+          }
+          case "gettransactionsbytimestamp": {
+            getTransactionsByTimestamp(parameters);
+            break;
+          }
+          case "gettransactionbyid": {
+            getTransactionById(parameters);
+            break;
+          }
+          case "getblockbyid":{
+            getBlockById(parameters);
+            break;
+          }
+          case "getblockbylimitnext":{
+            getBlockByLimitNext(parameters);
+            break;
+          }
+          case "getblockbylatestnum":{
+            getBlockByLatestNum(parameters);
             break;
           }
           case "exit":
