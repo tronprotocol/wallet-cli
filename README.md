@@ -41,6 +41,8 @@ We can set the connected java-tron node IP in config.conf of wallet-cli.
 
 Java-tron provides grpc api list:
 ------------------------------------
+Please refer to the link for details.
+https://github.com/tronprotocol/Documentation
 
 rpc GetAccount (Account) returns (Account)           
 rpc CreateTransaction (TransferContract) returns (Transaction)        
