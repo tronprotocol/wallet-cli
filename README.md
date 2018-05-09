@@ -60,6 +60,9 @@ rpc GetAssetIssueByAccount (Account) returns (AssetIssueList)
 rpc GetAssetIssueByName (BytesMessage) returns (AssetIssueContract)       
 rpc GetNowBlock (EmptyMessage) returns (Block)         
 rpc GetBlockByNum (NumberMessage) returns (Block)       
+rpc FreezeBalance (FreezeBalanceContract) returns (Transaction)       
+rpc UnfreezeBalance (UnfreezeBalanceContract) returns (Transaction)       
+rpc WithdrawBalance (WithdrawBalanceContract) returns (Transaction)       
  
  
 Web wallet host
@@ -97,6 +100,9 @@ ParticipateAssetissue
 Assetissue  
 CreateWitness  
 VoteWitness  
+FreezeBalance
+UnfreezeBalance
+WithdrawBalance
 Listaccounts  
 Listwitnesses  
 Listassetissue    
@@ -115,6 +121,110 @@ you can gen one keypair and address by command line, then modify java-tron confi
 Now that you have a lot of trx, you can send it to any address.                             
 With enough trx, you can issue assets, participate in asset, apply for witnesses, and more.
 
+How to freeze/unfreeze balance
+----------------------------------
+
+After the funds are frozen, the corresponding number of shares and bandwidth will be obtained.
+ Shares can be used for voting and bandwidth can be used for trading.
+ The rules for the use and calculation of share and bandwidth are described later in this article.
+
+
+**Freeze operation is as follows：**
+
+```
+freezebalance password amount time
+```
+
+*amount:The amount of frozen funds，the unit is drop.
+The minimum value is **1000000 drop(1TRX)**.*
+
+*time：Freeze time, this value is currently only allowed for **3 days***
+
+
+For example：
+```
+freezebalance 123455 10000000 3
+```
+
+
+After the freeze operation,frozen funds will be transferred from Account Balance to Frozen,
+You can view frozen funds from your account information.
+After being unfrozen, it is transferred back to Balance by Frozen, and the frozen funds cannot be used for trading.
+
+
+When more share or bandwidth is needed temporarily, additional funds may be frozen to obtain additional share and bandwidth.
+The unfrozen time is postponed until 3 days after the last freeze operation
+
+After the freezing time expires, funds can be unfroze.
+
+
+**Unfreeze operation is as follows：**
+```
+unfreezebalance password 
+```
+
+
+
+How to vote
+----------------------------------
+
+Voting requires share. Share can be obtained by freezing funds.
+
+- The share calculation method is: **1** unit of share can be obtained for every **1TRX** frozen. 
+- After unfreezing, previous vote will expire. You can avoid the invalidation of the vote by re-freezing and voting.
+
+**Note:** The Tron Network only records the status of your last vote, which means that each of your votes will cover all previous voting results.
+
+For example：
+
+```
+freezebalance 123455 10000000 3   // Freeze 10TRX and acquire 10 units of shares
+
+votewitness 123455 witness1 4 witness2 6   // Cast 4 votes for witness1 and 6 votes for witness2 at the same time.
+
+votewitness 123455 witness1 10   // Voted 10 votes for witness1.
+```
+
+The final result of the above command was 10 votes for witness1 and 0 votes for witness2.
+
+
+
+How to calculate bandwidth
+----------------------------------
+
+The bandwidth calculation rule is：
+```
+constant * FrozenFunds * days
+```
+Assuming freeze 1TRX（1_000_000 DROP），3 days，bandwidth obtained = 1* 1_000_000 * 3 = 3_000_000. 
+
+Any contract needs to consume bandwidth, including transfer, transfer of assets, voting, freezing, etc. 
+The query does not consume bandwidth, and each contract needs to consume **100_000 bandwidth**. 
+
+If the previous contract exceeds a certain time (**10s**), this operation does not consume bandwidth. 
+
+When the unfreezing operation occurs, the bandwidth is not cleared. 
+The next time the freeze is performed, the newly added bandwidth is accumulated.
+
+
+How to withdraw balance
+----------------------------------
+
+After each block is produced, the block award is sent to the account's allowance, 
+and an withdraw operation is allowed every **24 hours** from allowance to balance. 
+The funds in allowance cannot be locked or traded.
+ 
+
+How to create witness
+----------------------------------
+Applying to become a witness account needs to consume **100_000TRX**.
+This part of the funds will be burned directly.
+
+
+How to create account
+----------------------------------
+It is not allowed to create accounts directly. You can only create accounts by transferring funds to non-existing accounts.
+Transfer to a non-existent account with a minimum transfer amount of **1TRX**.
 
 Command line operation flow example
 -----------------------------------      
