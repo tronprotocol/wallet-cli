@@ -570,7 +570,7 @@ public class Utils {
     result += "\n";
 
     result += "witness_address: ";
-    result += ByteArray.toHexString(raw.getWitnessAddress().toByteArray());
+    result += WalletClient.encode58Check(raw.getWitnessAddress().toByteArray());
     result += "\n";
 
     return result;
