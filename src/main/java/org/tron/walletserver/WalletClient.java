@@ -200,18 +200,23 @@ public class WalletClient {
     JCAUtil.getSecureRandom().nextBytes(salt1);
     byte[] aseKey = getEncKey(password, salt0);
     byte[] pwd = getPassWord(password, salt1);
-    String pwdAsc = ByteArray.toHexString(pwd);
     byte[] privKeyPlain = ecKey.getPrivKeyBytes();
     System.out.println("privKey:" + ByteArray.toHexString(privKeyPlain));
     //encrypted by password
     byte[] privKeyEnced = SymmEncoder.AES128EcbEnc(privKeyPlain, aseKey);
-    String privKeyStr = ByteArray.toHexString(privKeyEnced);
-    byte[] pubKeyBytes = ecKey.getPubKey();
-    String pubKeyStr = ByteArray.toHexString(pubKeyBytes);
-    String walletData = pwdAsc.concat(pubKeyStr).concat(privKeyStr)
-        .concat(ByteArray.toHexString(salt0))
-        .concat(ByteArray.toHexString(salt1));
-    FileUtil.saveData(FilePath, walletData, false);
+    byte[] pubKey = ecKey.getPubKey();
+    byte[] walletData = new byte[pwd.length + pubKey.length + privKeyEnced.length + salt0.length
+        + salt1.length];
+
+    System.arraycopy(pwd, 0, walletData, 0, pwd.length);
+    System.arraycopy(pubKey, 0, walletData, pwd.length, pubKey.length);
+    System.arraycopy(privKeyEnced, 0, walletData, pwd.length + pubKey.length, privKeyEnced.length);
+    System.arraycopy(salt0, 0, walletData, pwd.length + pubKey.length + privKeyEnced.length,
+        salt0.length);
+    System.arraycopy(salt1, 0, walletData,
+        pwd.length + pubKey.length + privKeyEnced.length + salt0.length, salt1.length);
+
+    FileUtil.saveData(FilePath, walletData);
   }
 
   public Account queryAccount() {
@@ -469,48 +474,58 @@ public class WalletClient {
   }
 
   private static byte[] loadPassword() {
-    char[] buf = new char[0x200];
-    int len = FileUtil.readData(FilePath, buf);
-    if (len != 290) {
+    byte[] buf = FileUtil.readData(FilePath);
+    if (ArrayUtils.isEmpty(buf)) {
       return null;
     }
-    return ByteArray.fromHexString(String.valueOf(buf, 0, 32));
+    if (buf.length != 145) {
+      return null;
+    }
+    return Arrays.copyOfRange(buf, 0, 16);  //16
   }
 
   public static byte[] loadPubKey() {
-    char[] buf = new char[0x200];
-    int len = FileUtil.readData(FilePath, buf);
-    if (len != 290) {
+    byte[] buf = FileUtil.readData(FilePath);
+    if (ArrayUtils.isEmpty(buf)) {
       return null;
     }
-    return ByteArray.fromHexString(String.valueOf(buf, 32, 130));
+    if (buf.length != 145) {
+      return null;
+    }
+    return Arrays.copyOfRange(buf, 16, 81);  //65
   }
 
   private static byte[] loadPriKey() {
-    char[] buf = new char[0x200];
-    int len = FileUtil.readData(FilePath, buf);
-    if (len != 290) {
+    byte[] buf = FileUtil.readData(FilePath);
+    if (ArrayUtils.isEmpty(buf)) {
       return null;
     }
-    return ByteArray.fromHexString(String.valueOf(buf, 162, 64));
+    if (buf.length != 145) {
+      return null;
+    }
+    return Arrays.copyOfRange(buf, 81, 113);  //32
   }
 
   private static byte[] loadSalt0() {
-    char[] buf = new char[0x200];
-    int len = FileUtil.readData(FilePath, buf);
-    if (len != 290) {
+    byte[] buf = FileUtil.readData(FilePath);
+    if (ArrayUtils.isEmpty(buf)) {
       return null;
     }
-    return ByteArray.fromHexString(String.valueOf(buf, 226, 32));
+    if (buf.length != 145) {
+      return null;
+    }
+    return Arrays.copyOfRange(buf, 113, 129);  //16
   }
 
   private static byte[] loadSalt1() {
-    char[] buf = new char[0x200];
-    int len = FileUtil.readData(FilePath, buf);
-    if (len != 290) {
+    byte[] buf = FileUtil.readData(FilePath);
+    if (ArrayUtils.isEmpty(buf)) {
       return null;
     }
-    return ByteArray.fromHexString(String.valueOf(buf, 258, 32));
+    if (buf.length != 145) {
+      return null;
+    }
+    return Arrays.copyOfRange(buf, 129, 145);  //16
   }
 
   /**

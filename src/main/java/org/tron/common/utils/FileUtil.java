@@ -19,8 +19,11 @@ package org.tron.common.utils;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -86,38 +89,60 @@ public class FileUtil {
     }
   }
 
-  public static void saveData(String filePath, String data, boolean append) {
+  public static void saveData(String filePath, byte[] data) {
+    FileOutputStream fos = null;
     try {
-      File priFile = new File(filePath);
-      priFile.createNewFile();
-      FileWriter fw = new FileWriter(priFile, append);
-      BufferedWriter bw = new BufferedWriter(fw);
-      bw.write(data);
-      bw.flush();
-      bw.close();
+      File file = new File(filePath);
+      file.createNewFile();
+      fos = new FileOutputStream(file);
+      fos.write(data);
     } catch (IOException e) {
       e.printStackTrace();
+    } finally {
+      if (fos != null) {
+        try {
+          fos.close();
+        } catch (IOException e) {
+          e.printStackTrace();
+        }
+      }
     }
   }
 
-  public static int readData(String filePath, char[] buf) {
-    int len;
+  public static byte[] readData(String filePath) {
+    FileInputStream fi = null;
     try {
       File file = new File(filePath);
-      FileReader fileReader = new FileReader(file);
-      if (null == fileReader) {
-        return 0;
+      long fileSize = file.length();
+      if (fileSize > Integer.MAX_VALUE) {
+        System.out.println("file too big...");
+        return null;
       }
-      BufferedReader bufRead = new BufferedReader(fileReader);
-      len = bufRead.read(buf, 0, buf.length);
-      bufRead.close();
-    } catch (FileNotFoundException ex) {
-      ex.printStackTrace();
-      return 0;
-    } catch (IOException ex) {
-      ex.printStackTrace();
-      return 0;
+      fi = new FileInputStream(file);
+      byte[] buffer = new byte[(int) fileSize];
+      int offset = 0;
+      int numRead;
+      while (offset < buffer.length
+          && (numRead = fi.read(buffer, offset, buffer.length - offset)) >= 0) {
+        offset += numRead;
+      }
+      if (offset != buffer.length) {
+        return null;
+      }
+      return buffer;
+    } catch (FileNotFoundException e) {
+      e.printStackTrace();
+    } catch (IOException e) {
+      e.printStackTrace();
+    } finally {
+      if (fi != null) {
+        try {
+          fi.close();
+        } catch (IOException e) {
+          e.printStackTrace();
+        }
+      }
     }
-    return len;
+    return null;
   }
 }
