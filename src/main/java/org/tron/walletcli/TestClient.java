@@ -486,21 +486,7 @@ public class TestClient {
       logger.info("No block for num : " + blockNum);
       return;
     }
-    int transactionCount = block.getTransactionsCount();
-    BlockHeader header = block.getBlockHeader();
-    raw data = header.getRawData();
-    ByteString witnessAddress = data.getWitnessAddress();
-    long witnessID = data.getWitnessId();
-    ByteString parentHash = data.getParentHash();
-    ByteString txTrieRoot = data.getTxTrieRoot();
-    long blockNum1 = data.getNumber();
-
-    logger.info("Block num is : " + blockNum1);
-    logger.info("witnessID is : " + witnessID);
-    logger.info("TransactionCount is : " + transactionCount);
-    logger.info("ParentHash is : " + ByteArray.toHexString(parentHash.toByteArray()));
-    logger.info("TxTrieRoot is : " + ByteArray.toHexString(txTrieRoot.toByteArray()));
-    logger.info("WitnessAddress is : " + WalletClient.encode58Check(witnessAddress.toByteArray()));
+    logger.info(Utils.printBlock(block));
   }
 
   private void voteWitness(String[] parameters) {
@@ -691,7 +677,7 @@ public class TestClient {
     }
   }
 
-  private void getBlockById(String[] parameters){
+  private void getBlockById(String[] parameters) {
     String blockID = "";
     if (parameters == null || parameters.length != 1) {
       System.out.println("getBlockById needs 1 parameters, block id which is hex format");
@@ -700,15 +686,15 @@ public class TestClient {
       blockID = parameters[0];
     }
     Optional<Block> result = WalletClient.getBlockById(blockID);
-    if(result.isPresent()){
+    if (result.isPresent()) {
       Block block = result.get();
-      logger.info(new JsonFormat().printToString(block));
-    }else{
+      logger.info(Utils.printBlock(block));
+    } else {
       logger.info("getBlockById " + " failed !!");
     }
   }
 
-  private void getBlockByLimitNext(String[] parameters){
+  private void getBlockByLimitNext(String[] parameters) {
     long start = 0;
     long end = 0;
     if (parameters == null || parameters.length != 2) {
@@ -719,15 +705,15 @@ public class TestClient {
       end = Long.parseLong(parameters[1]);
     }
     Optional<BlockList> result = WalletClient.getBlockByLimitNext(start, end);
-    if(result.isPresent()){
+    if (result.isPresent()) {
       BlockList blockList = result.get();
-      logger.info(new JsonFormat().printToString(blockList));
-    }else{
+      logger.info(Utils.printBlockList(blockList));
+    } else {
       logger.info("GetBlockByLimitNext " + " failed !!");
     }
   }
 
-  private void getBlockByLatestNum(String[] parameters){
+  private void getBlockByLatestNum(String[] parameters) {
     long num = 0;
     if (parameters == null || parameters.length != 1) {
       System.out.println("getBlockByLatestNum needs 1 parameters, block num");
@@ -736,10 +722,10 @@ public class TestClient {
       num = Long.parseLong(parameters[0]);
     }
     Optional<BlockList> result = WalletClient.getBlockByLatestNum(num);
-    if(result.isPresent()){
+    if (result.isPresent()) {
       BlockList blockList = result.get();
-      logger.info(new JsonFormat().printToString(blockList));
-    }else{
+      logger.info(Utils.printBlockList(blockList));
+    } else {
       logger.info("getBlockByLatestNum " + " failed !!");
     }
   }
@@ -784,6 +770,7 @@ public class TestClient {
     System.out.println("freezebalance");
     System.out.println("unfreezebalance");
     System.out.println("withdrawbalance");
+    System.out.println("UpdateAccount");
     System.out.println("Exit or Quit");
 
     System.out.println("Input any one of then, you will get more tips.");
@@ -948,15 +935,15 @@ public class TestClient {
             getTransactionById(parameters);
             break;
           }
-          case "getblockbyid":{
+          case "getblockbyid": {
             getBlockById(parameters);
             break;
           }
-          case "getblockbylimitnext":{
+          case "getblockbylimitnext": {
             getBlockByLimitNext(parameters);
             break;
           }
-          case "getblockbylatestnum":{
+          case "getblockbylatestnum": {
             getBlockByLatestNum(parameters);
             break;
           }
