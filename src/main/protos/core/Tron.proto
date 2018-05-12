@@ -22,15 +22,16 @@ message AccountId {
   bytes address = 2;
 }
 
+// vote message
+message Vote {
+  // the super rep address
+  bytes vote_address = 1;
+  // the vote num to this super rep.
+  int64 vote_count = 2;
+}
+
 // Account
 message Account {
-  // vote message
-  message Vote {
-    // the super rep address
-    bytes vote_address = 1;
-    // the vote num to this super rep.
-    int64 vote_count = 2;
-  }
   // frozen balance
   message Frozen {
     // the frozen trx balance
@@ -64,6 +65,8 @@ message Account {
   int64 latest_withdraw_time = 12;
   // not used so far
   bytes code = 13;
+  bool is_witness = 14;
+  bool is_committee = 15;
 }
 
 message acuthrity {
@@ -87,6 +90,13 @@ message Witness {
   int64 latestBlockNum = 7;
   int64 latestSlotNum = 8;
   bool isJobs = 9;
+}
+
+// Vote Change
+message Votes {
+  bytes address = 1;
+  repeated Vote old_votes = 2;
+  repeated Vote new_votes = 3;
 }
 
 // Transcation
@@ -242,9 +252,7 @@ message DynamicProperties {
 
 enum ReasonCode {
   REQUESTED = 0x00;
-  TCP_ERROR = 0x01;
   BAD_PROTOCOL = 0x02;
-  USELESS_PEER = 0x03;
   TOO_MANY_PEERS = 0x04;
   DUPLICATE_PEER = 0x05;
   INCOMPATIBLE_PROTOCOL = 0x06;
@@ -256,13 +264,15 @@ enum ReasonCode {
   USER_REASON = 0x10;
   RESET = 0x11;
   SYNC_FAIL = 0x12;
-  TIME_OUT = 0x13;
+  FETCH_FAIL = 0x13;
   BAD_TX = 0x14;
   BAD_BLOCK = 0x15;
   FORKED = 0x16;
   UNLINKABLE = 0x17;
   INCOMPATIBLE_VERSION = 0x18;
   INCOMPATIBLE_CHAIN = 0x19;
+  TIME_OUT = 0x20;
+  CONNECT_FAIL = 0x21;
   UNKNOWN = 0xFF;
 }
 
