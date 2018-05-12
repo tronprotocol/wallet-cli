@@ -42,7 +42,7 @@ import org.tron.protos.Contract.VoteWitnessContract;
 import org.tron.protos.Contract.WitnessCreateContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Account.Frozen;
-import org.tron.protos.Protocol.Account.Vote;
+import org.tron.protos.Protocol.Vote;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.BlockHeader;
 import org.tron.protos.Protocol.Transaction;
