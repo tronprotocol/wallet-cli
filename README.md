@@ -52,7 +52,7 @@ rpc CreateAccount (AccountCreateContract) returns (Transaction)
 rpc VoteWitnessAccount (VoteWitnessContract) returns (Transaction)      
 rpc CreateAssetIssue (AssetIssueContract) returns (Transaction)     
 rpc ListWitnesses (EmptyMessage) returns (WitnessList)     
-rpc UpdateWitness (WitnessUpdateContract) returns (Transaction)     
+rpc UpdateAccount (AccountUpdateContract) returns (Transaction)      
 rpc CreateWitness (WitnessCreateContract) returns (Transaction)    
 rpc TransferAsset (TransferAssetContract) returns (Transaction)      
 rpc ParticipateAssetIssue (ParticipateAssetIssueContract) returns (Transaction)       
@@ -110,7 +110,8 @@ Listwitnesses
 Listassetissue    
 listNodes               
 GetAssetIssueByName   
-Getblock   
+Getblock
+UpdateAccount  
 Exit or Quit  
 help  
 
