@@ -1,8 +1,6 @@
 package org.tron.walletcli;
 
 import com.beust.jcommander.JCommander;
-import com.google.protobuf.ByteString;
-import com.googlecode.protobuf.format.JsonFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tron.api.GrpcAPI.*;
@@ -11,8 +9,6 @@ import org.tron.common.utils.Utils;
 import org.tron.protos.Contract.AssetIssueContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
-import org.tron.protos.Protocol.BlockHeader;
-import org.tron.protos.Protocol.BlockHeader.raw;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.walletserver.WalletClient;
 
@@ -386,7 +382,7 @@ public class TestClient {
     String decayRatioStr = parameters[7];
     String description = parameters[8];
     String url = parameters[9];
-    HashMap<String, String> frozenSupply = new HashMap<String, String>();
+    HashMap<String, String> frozenSupply = new HashMap<>();
     for (int i = 10; i < parameters.length; i += 2) {
       String amount = parameters[i];
       String days = parameters[i + 1];
