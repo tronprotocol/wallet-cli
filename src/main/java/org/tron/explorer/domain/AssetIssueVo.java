@@ -16,6 +16,8 @@
 package org.tron.explorer.domain;
 
 
+import java.util.HashMap;
+
 public class AssetIssueVo {
 
 
@@ -30,10 +32,11 @@ public class AssetIssueVo {
   private int voteScore;
   private String description;
   private String url;
+  private HashMap<String,String> frozenSupply;
 
   public AssetIssueVo(String ownerAddress, String name, long totalSupply, int trxNum,
       int num, long startTime, long endTime, int decayRatio, int voteScore,
-      String description, String url) {
+      String description, String url, HashMap<String,String> frozenSupply) {
     this.ownerAddress = ownerAddress;
     this.name = name;
     this.totalSupply = totalSupply;
@@ -45,6 +48,7 @@ public class AssetIssueVo {
     this.voteScore = voteScore;
     this.description = description;
     this.url = url;
+    this.frozenSupply = frozenSupply;
   }
 
   public AssetIssueVo() {
@@ -138,6 +142,14 @@ public class AssetIssueVo {
     this.url = url;
   }
 
+  public HashMap<String, String> getFrozenSupply() {
+    return frozenSupply;
+  }
+
+  public void setFrozenSupply(HashMap<String,String> frozenSupply) {
+    this.frozenSupply = frozenSupply;
+  }
+
   @Override
   public String toString() {
     return "AssetIssueVo{" +
@@ -152,6 +164,7 @@ public class AssetIssueVo {
         ", voteScore=" + voteScore +
         ", description=" + description +
         ", url=" + url +
+        ", frozenSupply=" + frozenSupply.toString() +
         '}';
   }
 }
