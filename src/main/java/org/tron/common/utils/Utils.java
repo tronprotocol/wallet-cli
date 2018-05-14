@@ -115,7 +115,7 @@ public class Utils {
         result += frozen.getFrozenBalance();
         result += "\n";
         result += "  expire_time: ";
-        result += new  Date(frozen.getExpireTime());
+        result += new Date(frozen.getExpireTime());
         result += "\n";
         result += "}";
         result += "\n";
@@ -171,7 +171,7 @@ public class Utils {
         result += frozen.getFrozenBalance();
         result += "\n";
         result += "  expire_time: ";
-        result += frozen.getExpireTime();
+        result += new Date(frozen.getExpireTime());
         result += "\n";
         result += "}";
         result += "\n";
