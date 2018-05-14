@@ -367,8 +367,8 @@ public class TestClient {
     if (parameters == null || parameters.length <= 10 || (parameters.length & 1) == 1) {
       System.out.println("Use assetIssue command you need like: ");
       System.out.println(
-          "AssetIssue Password AssetName TotalSupply TrxNum AssetNum"
-              + "StartDate EndDate DecayRatio Description Url"
+          "AssetIssue Password AssetName TotalSupply TrxNum AssetNum "
+              + "StartDate EndDate DecayRatio Description Url "
               + "FrozenAmount0 FrozenDays0 ... FrozenAmountN FrozenDaysN");
       System.out
           .println("TrxNum and AssetNum represents the conversion ratio of the tron to the asset.");
