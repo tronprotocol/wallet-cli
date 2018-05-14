@@ -161,6 +161,22 @@ public class Utils {
         result += "\n";
       }
     }
+    if (account.getFrozenSupplyCount() > 0) {
+      for (Frozen frozen : account.getFrozenSupplyList()) {
+        result += "frozen_supply";
+        result += "\n";
+        result += "{";
+        result += "\n";
+        result += "  amount: ";
+        result += frozen.getFrozenBalance();
+        result += "\n";
+        result += "  expire_time: ";
+        result += frozen.getExpireTime();
+        result += "\n";
+        result += "}";
+        result += "\n";
+      }
+    }
     result += "latest_opration_time: ";
     result += new  Date(account.getLatestOprationTime());
     result += "\n";
