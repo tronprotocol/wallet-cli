@@ -796,6 +796,7 @@ public class TestClient {
     System.out.println("unfreezebalance");
     System.out.println("withdrawbalance");
     System.out.println("UpdateAccount");
+    System.out.println("unfreezeasset");
     System.out.println("Exit or Quit");
 
     System.out.println("Input any one of then, you will get more tips.");
