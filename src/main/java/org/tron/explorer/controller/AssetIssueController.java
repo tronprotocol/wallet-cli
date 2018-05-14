@@ -1,6 +1,7 @@
 package org.tron.explorer.controller;
 
 import com.google.protobuf.ByteString;
+import java.util.HashMap;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -9,6 +10,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.ModelAndView;
 import org.tron.api.GrpcAPI.AssetIssueList;
+import org.tron.common.crypto.Hash;
 import org.tron.common.utils.Base58;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.TransactionUtils;
@@ -80,6 +82,17 @@ public class AssetIssueController {
       builder.setVoteScore(assetIssueVo.getVoteScore());
       builder.setDescription(ByteString.copyFrom(assetIssueVo.getDescription().getBytes()));
       builder.setUrl(ByteString.copyFrom(assetIssueVo.getUrl().getBytes()));
+      HashMap<String,String> frozenSupply = assetIssueVo.getFrozenSupply();
+      for (String amountStr : frozenSupply.keySet()) {
+        String daysStr = frozenSupply.get(amountStr);
+        long amount = Long.parseLong(amountStr);
+        long days = Long.parseLong(daysStr);
+        Contract.AssetIssueContract.FrozenSupply.Builder frozenSupplyBuilder
+            = Contract.AssetIssueContract.FrozenSupply.newBuilder();
+        frozenSupplyBuilder.setFrozenAmount(amount);
+        frozenSupplyBuilder.setFrozenDays(days);
+        builder.addFrozenSupply(frozenSupplyBuilder.build());
+      }
 
       Contract.AssetIssueContract contract = builder.build();
       Transaction transaction = WalletClient.createAssetIssueTransaction(contract);
