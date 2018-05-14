@@ -311,10 +311,8 @@ public class WalletClient {
   public static boolean broadcastTransaction(byte[] transactionBytes)
       throws InvalidProtocolBufferException {
     Transaction transaction = Transaction.parseFrom(transactionBytes);
-    if (false == TransactionUtils.validTransaction(transaction)) {
-      return false;
-    }
-    return rpcCli.broadcastTransaction(transaction);
+    return TransactionUtils.validTransaction(transaction)
+        && rpcCli.broadcastTransaction(transaction);
   }
 
   public boolean createAssetIssue(Contract.AssetIssueContract contract) {
