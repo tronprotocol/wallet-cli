@@ -542,8 +542,8 @@ public class TestClient {
 
   private void unfreezeBalance(String[] parameters) {
     if (parameters == null || parameters.length != 1) {
-      System.out.println("Use freezeBalance command you need like: ");
-      System.out.println("freezeBalance Password ");
+      System.out.println("Use unfreezeBalance command you need like: ");
+      System.out.println("unfreezeBalance Password ");
       return;
     }
     String password = parameters[0];
@@ -558,8 +558,8 @@ public class TestClient {
 
   private void unfreezeAsset(String[] parameters) {
     if (parameters == null || parameters.length != 1) {
-      System.out.println("Use freezeAsset command you need like: ");
-      System.out.println("freezeAsset Password ");
+      System.out.println("Use unfreezeAsset command you need like: ");
+      System.out.println("unfreezeAsset Password ");
       return;
     }
     String password = parameters[0];
