@@ -115,7 +115,7 @@ public class Utils {
         result += frozen.getFrozenBalance();
         result += "\n";
         result += "  expire_time: ";
-        result += frozen.getExpireTime();
+        result += new  Date(frozen.getExpireTime());
         result += "\n";
         result += "}";
         result += "\n";
@@ -162,8 +162,28 @@ public class Utils {
       }
     }
     result += "latest_opration_time: ";
-    result += account.getLatestOprationTime();
+    result += new  Date(account.getLatestOprationTime());
     result += "\n";
+
+    result += "allowance: ";
+    result += account.getAllowance();
+    result += "\n";
+
+    result += "latest_withdraw_time: ";
+    result += new  Date(account.getLatestWithdrawTime());
+    result += "\n";
+
+//    result += "code: ";
+//    result += account.getCode();
+//    result += "\n";
+//
+//    result += "is_witness: ";
+//    result += account.getIsWitness();
+//    result += "\n";
+//
+//    result += "is_committee: ";
+//    result += account.getIsCommittee();
+//    result += "\n";
 
     return result;
   }
