@@ -364,7 +364,7 @@ public class TestClient {
   }
 
   private void assetIssue(String[] parameters) {
-    if (parameters == null || parameters.length <= 10 || (parameters.length & 1) == 1) {
+    if (parameters == null || parameters.length < 10 || (parameters.length & 1) == 1) {
       System.out.println("Use assetIssue command you need like: ");
       System.out.println(
           "AssetIssue Password AssetName TotalSupply TrxNum AssetNum "
