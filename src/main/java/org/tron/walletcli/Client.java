@@ -288,8 +288,8 @@ public class Client {
       builder.setDescription(ByteString.copyFrom(description.getBytes()));
       builder.setUrl(ByteString.copyFrom(url.getBytes()));
 
-      for (String amountStr : frozenSupply.keySet()) {
-        String daysStr = frozenSupply.get(amountStr);
+      for (String daysStr : frozenSupply.keySet()) {
+        String amountStr = frozenSupply.get(daysStr);
         long amount = Long.parseLong(amountStr);
         long days = Long.parseLong(daysStr);
         Contract.AssetIssueContract.FrozenSupply.Builder frozenSupplyBuilder

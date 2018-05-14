@@ -390,7 +390,7 @@ public class TestClient {
     for (int i = 10; i < parameters.length; i += 2) {
       String amount = parameters[i];
       String days = parameters[i + 1];
-      frozenSupply.put(amount, days);
+      frozenSupply.put(days, amount);
     }
 
     long totalSupply = new Long(totalSupplyStr);
