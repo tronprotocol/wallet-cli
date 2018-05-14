@@ -364,10 +364,12 @@ public class TestClient {
   }
 
   private void assetIssue(String[] parameters) {
-    if (parameters == null || parameters.length != 10) {
-      System.out.println("AssetIssue need 10 parameter like following: ");
+    if (parameters == null || parameters.length <= 10 || (parameters.length & 1) == 1) {
+      System.out.println("Use assetIssue command you need like: ");
       System.out.println(
-          "AssetIssue Password AssetName TotalSupply TrxNum AssetNum StartDate EndDate DecayRatio Description Url");
+          "AssetIssue Password AssetName TotalSupply TrxNum AssetNum"
+              + "StartDate EndDate DecayRatio Description Url"
+              + "FrozenAmount0 FrozenDays0 ... FrozenAmountN FrozenDaysN");
       System.out
           .println("TrxNum and AssetNum represents the conversion ratio of the tron to the asset.");
       System.out.println("The StartDate and EndDate format should look like 2018-3-1 2018-3-21 .");
@@ -384,6 +386,13 @@ public class TestClient {
     String decayRatioStr = parameters[7];
     String description = parameters[8];
     String url = parameters[9];
+    HashMap<String, String> frozenSupply = new HashMap<String, String>();
+    for (int i = 10; i < parameters.length; i += 2) {
+      String amount = parameters[i];
+      String days = parameters[i + 1];
+      frozenSupply.put(amount, days);
+    }
+
     long totalSupply = new Long(totalSupplyStr);
     int trxNum = new Integer(trxNumStr);
     int icoNum = new Integer(icoNumStr);
@@ -394,8 +403,8 @@ public class TestClient {
     int decayRatio = new Integer(decayRatioStr);
 
     boolean result = client
-        .assetIssue(password, name, totalSupply, trxNum, icoNum, startTime, endTime, decayRatio, 0,
-            description, url);
+        .assetIssue(password, name, totalSupply, trxNum, icoNum, startTime, endTime, decayRatio,
+            0, description, url, frozenSupply);
     if (result) {
       logger.info("AssetIssue " + name + " successful !!");
     } else {

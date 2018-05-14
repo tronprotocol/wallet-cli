@@ -240,7 +240,8 @@ public class Client {
   }
 
   public boolean assetIssue(String password, String name, long totalSupply, int trxNum, int icoNum,
-      long startTime, long endTime, int decayRatio, int voteScore, String description, String url) {
+      long startTime, long endTime, int decayRatio, int voteScore, String description, String url,
+      HashMap<String, String> frozenSupply) {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: assetIssue failed,  Please login first !!");
       return false;
@@ -286,6 +287,17 @@ public class Client {
       builder.setVoteScore(voteScore);
       builder.setDescription(ByteString.copyFrom(description.getBytes()));
       builder.setUrl(ByteString.copyFrom(url.getBytes()));
+
+      for (String amountStr : frozenSupply.keySet()) {
+        String daysStr = frozenSupply.get(amountStr);
+        long amount = Long.parseLong(amountStr);
+        long days = Long.parseLong(daysStr);
+        Contract.AssetIssueContract.FrozenSupply.Builder frozenSupplyBuilder
+            = Contract.AssetIssueContract.FrozenSupply.newBuilder();
+        frozenSupplyBuilder.setFrozenAmount(amount);
+        frozenSupplyBuilder.setFrozenDays(days);
+        builder.addFrozenSupply(frozenSupplyBuilder.build());
+      }
 
       return wallet.createAssetIssue(builder.build());
     } catch (Exception ex) {
