@@ -446,7 +446,7 @@ public class Client {
 
   public boolean unfreezeBalance(String password) {
     if (wallet == null || !wallet.isLoginState()) {
-      logger.warn("Warnging: unfreezeBalance failed, Please login first !!");
+      logger.warn("Warning: unfreezeBalance failed, Please login first !!");
       return false;
     }
 
@@ -460,6 +460,28 @@ public class Client {
 
     try {
       return wallet.unfreezeBalance();
+    } catch (Exception ex) {
+      ex.printStackTrace();
+      return false;
+    }
+  }
+
+  public boolean unfreezeAsset(String password) {
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warning: unfreezeAsset failed, Please login first !!");
+      return false;
+    }
+
+    if (wallet.getEcKey() == null || wallet.getEcKey().getPrivKey() == null) {
+      wallet = WalletClient.GetWalletByStorage(password);
+      if (wallet == null) {
+        logger.warn("Warning: unfreezeAsset failed, Load wallet failed !!");
+        return false;
+      }
+    }
+
+    try {
+      return wallet.unfreezeAsset();
     } catch (Exception ex) {
       ex.printStackTrace();
       return false;

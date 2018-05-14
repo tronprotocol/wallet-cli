@@ -19,6 +19,7 @@ import org.tron.core.config.Parameter.CommonConstant;
 import org.tron.protos.Contract;
 import org.tron.protos.Contract.AssetIssueContract;
 import org.tron.protos.Contract.FreezeBalanceContract;
+import org.tron.protos.Contract.UnfreezeAssetContract;
 import org.tron.protos.Contract.UnfreezeBalanceContract;
 import org.tron.protos.Contract.WithdrawBalanceContract;
 import org.tron.protos.Protocol.*;
@@ -342,7 +343,7 @@ public class WalletClient {
 
 
   public static Transaction createVoteWitnessTransaction(byte[] owner,
-      HashMap<String, String> witness) {
+       HashMap<String, String> witness) {
     Contract.VoteWitnessContract contract = createVoteWitnessContract(owner, witness);
     return rpcCli.voteWitnessAccount(contract);
   }
@@ -775,6 +776,32 @@ public class WalletClient {
 
     return builder.build();
   }
+
+  public boolean unfreezeAsset() {
+    Contract.UnfreezeAssetContract contract = createUnfreezeAssetContract();
+
+    Transaction transaction = rpcCli.createTransaction(contract);
+
+    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
+      return false;
+    }
+
+    transaction = signTransaction(transaction);
+    return rpcCli.broadcastTransaction(transaction);
+  }
+
+  private UnfreezeAssetContract createUnfreezeAssetContract() {
+
+    byte[] address = getAddress();
+    Contract.UnfreezeAssetContract.Builder builder = Contract.UnfreezeAssetContract
+        .newBuilder();
+    ByteString byteAddreess = ByteString.copyFrom(address);
+
+    builder.setOwnerAddress(byteAddreess);
+
+    return builder.build();
+  }
+
 
   public boolean withdrawBalance() {
     Contract.WithdrawBalanceContract contract = createWithdrawBalanceContract();

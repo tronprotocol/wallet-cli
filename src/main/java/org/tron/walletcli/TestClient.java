@@ -556,6 +556,22 @@ public class TestClient {
     }
   }
 
+  private void unfreezeAsset(String[] parameters) {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("Use freezeAsset command you need like: ");
+      System.out.println("freezeAsset Password ");
+      return;
+    }
+    String password = parameters[0];
+
+    boolean result = client.unfreezeAsset(password);
+    if (result) {
+      logger.info("unfreezeAsset " + " successful !!");
+    } else {
+      logger.info("unfreezeAsset " + " failed !!");
+    }
+  }
+
   private void withdrawBalance(String[] parameters) {
     if (parameters == null || parameters.length != 1) {
       System.out.println("Use withdrawBalance command you need like: ");
@@ -894,6 +910,10 @@ public class TestClient {
           }
           case "unfreezebalance": {
             unfreezeBalance(parameters);
+            break;
+          }
+          case "unfreezeasset": {
+            unfreezeAsset(parameters);
             break;
           }
           case "withdrawbalance": {

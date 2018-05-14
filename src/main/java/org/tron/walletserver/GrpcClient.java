@@ -12,6 +12,7 @@ import org.tron.common.utils.ByteArray;
 import org.tron.protos.Contract;
 import org.tron.protos.Contract.AssetIssueContract;
 import org.tron.protos.Contract.FreezeBalanceContract;
+import org.tron.protos.Contract.UnfreezeAssetContract;
 import org.tron.protos.Contract.UnfreezeBalanceContract;
 import org.tron.protos.Contract.WithdrawBalanceContract;
 import org.tron.protos.Protocol.Account;
@@ -87,6 +88,10 @@ public class GrpcClient {
 
   public Transaction createTransaction(UnfreezeBalanceContract contract) {
     return blockingStubFull.unfreezeBalance(contract);
+  }
+
+  public Transaction createTransaction(UnfreezeAssetContract contract) {
+    return blockingStubFull.unfreezeAsset(contract);
   }
 
   public Transaction createTransferAssetTransaction(Contract.TransferAssetContract contract) {
