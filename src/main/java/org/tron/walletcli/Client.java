@@ -240,7 +240,7 @@ public class Client {
   }
 
   public boolean assetIssue(String password, String name, long totalSupply, int trxNum, int icoNum,
-      long startTime, long endTime, int decayRatio, int voteScore, String description, String url,
+      long startTime, long endTime, int voteScore, String description, String url,
       HashMap<String, String> frozenSupply) {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: assetIssue failed,  Please login first !!");
@@ -283,7 +283,6 @@ public class Client {
       }
       builder.setStartTime(startTime);
       builder.setEndTime(endTime);
-      builder.setDecayRatio(decayRatio);
       builder.setVoteScore(voteScore);
       builder.setDescription(ByteString.copyFrom(description.getBytes()));
       builder.setUrl(ByteString.copyFrom(url.getBytes()));
