@@ -78,7 +78,6 @@ public class AssetIssueController {
       builder.setNum(assetIssueVo.getNum());
       builder.setStartTime(assetIssueVo.getStartTime());
       builder.setEndTime(assetIssueVo.getEndTime());
-      builder.setDecayRatio(assetIssueVo.getDecayRatio());
       builder.setVoteScore(assetIssueVo.getVoteScore());
       builder.setDescription(ByteString.copyFrom(assetIssueVo.getDescription().getBytes()));
       builder.setUrl(ByteString.copyFrom(assetIssueVo.getUrl().getBytes()));

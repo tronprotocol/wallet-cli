@@ -293,9 +293,6 @@ public class Utils {
     result += "end_time: ";
     result += new Date(assetIssue.getEndTime());
     result += "\n";
-    result += "decay_ratio: ";
-    result += assetIssue.getDecayRatio();
-    result += "\n";
     result += "vote_score: ";
     result += assetIssue.getVoteScore();
     result += "\n";
