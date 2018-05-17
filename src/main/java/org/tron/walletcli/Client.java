@@ -240,7 +240,8 @@ public class Client {
   }
 
   public boolean assetIssue(String password, String name, long totalSupply, int trxNum, int icoNum,
-      long startTime, long endTime, int decayRatio, int voteScore, String description, String url) {
+      long startTime, long endTime, int voteScore, String description, String url,
+      HashMap<String, String> frozenSupply) {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: assetIssue failed,  Please login first !!");
       return false;
@@ -282,10 +283,20 @@ public class Client {
       }
       builder.setStartTime(startTime);
       builder.setEndTime(endTime);
-      builder.setDecayRatio(decayRatio);
       builder.setVoteScore(voteScore);
       builder.setDescription(ByteString.copyFrom(description.getBytes()));
       builder.setUrl(ByteString.copyFrom(url.getBytes()));
+
+      for (String daysStr : frozenSupply.keySet()) {
+        String amountStr = frozenSupply.get(daysStr);
+        long amount = Long.parseLong(amountStr);
+        long days = Long.parseLong(daysStr);
+        Contract.AssetIssueContract.FrozenSupply.Builder frozenSupplyBuilder
+            = Contract.AssetIssueContract.FrozenSupply.newBuilder();
+        frozenSupplyBuilder.setFrozenAmount(amount);
+        frozenSupplyBuilder.setFrozenDays(days);
+        builder.addFrozenSupply(frozenSupplyBuilder.build());
+      }
 
       return wallet.createAssetIssue(builder.build());
     } catch (Exception ex) {
@@ -434,7 +445,7 @@ public class Client {
 
   public boolean unfreezeBalance(String password) {
     if (wallet == null || !wallet.isLoginState()) {
-      logger.warn("Warnging: unfreezeBalance failed, Please login first !!");
+      logger.warn("Warning: unfreezeBalance failed, Please login first !!");
       return false;
     }
 
@@ -448,6 +459,28 @@ public class Client {
 
     try {
       return wallet.unfreezeBalance();
+    } catch (Exception ex) {
+      ex.printStackTrace();
+      return false;
+    }
+  }
+
+  public boolean unfreezeAsset(String password) {
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warning: unfreezeAsset failed, Please login first !!");
+      return false;
+    }
+
+    if (wallet.getEcKey() == null || wallet.getEcKey().getPrivKey() == null) {
+      wallet = WalletClient.GetWalletByStorage(password);
+      if (wallet == null) {
+        logger.warn("Warning: unfreezeAsset failed, Load wallet failed !!");
+        return false;
+      }
+    }
+
+    try {
+      return wallet.unfreezeAsset();
     } catch (Exception ex) {
       ex.printStackTrace();
       return false;

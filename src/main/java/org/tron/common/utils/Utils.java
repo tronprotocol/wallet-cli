@@ -115,7 +115,7 @@ public class Utils {
         result += frozen.getFrozenBalance();
         result += "\n";
         result += "  expire_time: ";
-        result += new  Date(frozen.getExpireTime());
+        result += new Date(frozen.getExpireTime());
         result += "\n";
         result += "}";
         result += "\n";
@@ -156,6 +156,22 @@ public class Utils {
         result += "\n";
         result += "  balance: ";
         result += account.getAssetMap().get(name);
+        result += "\n";
+        result += "}";
+        result += "\n";
+      }
+    }
+    if (account.getFrozenSupplyCount() > 0) {
+      for (Frozen frozen : account.getFrozenSupplyList()) {
+        result += "frozen_supply";
+        result += "\n";
+        result += "{";
+        result += "\n";
+        result += "  amount: ";
+        result += frozen.getFrozenBalance();
+        result += "\n";
+        result += "  expire_time: ";
+        result += new Date(frozen.getExpireTime());
         result += "\n";
         result += "}";
         result += "\n";
@@ -276,9 +292,6 @@ public class Utils {
     result += "\n";
     result += "end_time: ";
     result += new Date(assetIssue.getEndTime());
-    result += "\n";
-    result += "decay_ratio: ";
-    result += assetIssue.getDecayRatio();
     result += "\n";
     result += "vote_score: ";
     result += assetIssue.getVoteScore();

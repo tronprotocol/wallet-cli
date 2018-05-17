@@ -1,8 +1,6 @@
 package org.tron.walletcli;
 
 import com.beust.jcommander.JCommander;
-import com.google.protobuf.ByteString;
-import com.googlecode.protobuf.format.JsonFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tron.api.GrpcAPI.*;
@@ -11,8 +9,6 @@ import org.tron.common.utils.Utils;
 import org.tron.protos.Contract.AssetIssueContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
-import org.tron.protos.Protocol.BlockHeader;
-import org.tron.protos.Protocol.BlockHeader.raw;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.walletserver.WalletClient;
 
@@ -364,10 +360,12 @@ public class TestClient {
   }
 
   private void assetIssue(String[] parameters) {
-    if (parameters == null || parameters.length != 10) {
-      System.out.println("AssetIssue need 10 parameter like following: ");
+    if (parameters == null || parameters.length < 9 || (parameters.length & 1) == 0) {
+      System.out.println("Use assetIssue command you need like: ");
       System.out.println(
-          "AssetIssue Password AssetName TotalSupply TrxNum AssetNum StartDate EndDate DecayRatio Description Url");
+          "AssetIssue Password AssetName TotalSupply TrxNum AssetNum "
+              + "StartDate EndDate Description Url "
+              + "FrozenAmount0 FrozenDays0 ... FrozenAmountN FrozenDaysN");
       System.out
           .println("TrxNum and AssetNum represents the conversion ratio of the tron to the asset.");
       System.out.println("The StartDate and EndDate format should look like 2018-3-1 2018-3-21 .");
@@ -381,9 +379,15 @@ public class TestClient {
     String icoNumStr = parameters[4];
     String startYyyyMmDd = parameters[5];
     String endYyyyMmDd = parameters[6];
-    String decayRatioStr = parameters[7];
-    String description = parameters[8];
-    String url = parameters[9];
+    String description = parameters[7];
+    String url = parameters[8];
+    HashMap<String, String> frozenSupply = new HashMap<>();
+    for (int i = 9; i < parameters.length; i += 2) {
+      String amount = parameters[i];
+      String days = parameters[i + 1];
+      frozenSupply.put(days, amount);
+    }
+
     long totalSupply = new Long(totalSupplyStr);
     int trxNum = new Integer(trxNumStr);
     int icoNum = new Integer(icoNumStr);
@@ -391,11 +395,10 @@ public class TestClient {
     Date endDate = Utils.strToDateLong(endYyyyMmDd);
     long startTime = startDate.getTime();
     long endTime = endDate.getTime();
-    int decayRatio = new Integer(decayRatioStr);
 
     boolean result = client
-        .assetIssue(password, name, totalSupply, trxNum, icoNum, startTime, endTime, decayRatio, 0,
-            description, url);
+        .assetIssue(password, name, totalSupply, trxNum, icoNum, startTime, endTime,
+            0, description, url, frozenSupply);
     if (result) {
       logger.info("AssetIssue " + name + " successful !!");
     } else {
@@ -533,8 +536,8 @@ public class TestClient {
 
   private void unfreezeBalance(String[] parameters) {
     if (parameters == null || parameters.length != 1) {
-      System.out.println("Use freezeBalance command you need like: ");
-      System.out.println("freezeBalance Password ");
+      System.out.println("Use unfreezeBalance command you need like: ");
+      System.out.println("unfreezeBalance Password ");
       return;
     }
     String password = parameters[0];
@@ -544,6 +547,22 @@ public class TestClient {
       logger.info("unfreezeBalance " + " successful !!");
     } else {
       logger.info("unfreezeBalance " + " failed !!");
+    }
+  }
+
+  private void unfreezeAsset(String[] parameters) {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("Use unfreezeAsset command you need like: ");
+      System.out.println("unfreezeAsset Password ");
+      return;
+    }
+    String password = parameters[0];
+
+    boolean result = client.unfreezeAsset(password);
+    if (result) {
+      logger.info("unfreezeAsset " + " successful !!");
+    } else {
+      logger.info("unfreezeAsset " + " failed !!");
     }
   }
 
@@ -771,6 +790,7 @@ public class TestClient {
     System.out.println("unfreezebalance");
     System.out.println("withdrawbalance");
     System.out.println("UpdateAccount");
+    System.out.println("unfreezeasset");
     System.out.println("Exit or Quit");
 
     System.out.println("Input any one of then, you will get more tips.");
@@ -885,6 +905,10 @@ public class TestClient {
           }
           case "unfreezebalance": {
             unfreezeBalance(parameters);
+            break;
+          }
+          case "unfreezeasset": {
+            unfreezeAsset(parameters);
             break;
           }
           case "withdrawbalance": {

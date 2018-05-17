@@ -86,6 +86,9 @@ public class TransactionUtils {
         case UnfreezeBalanceContract:
           owner = contract.getParameter().unpack(org.tron.protos.Contract.UnfreezeBalanceContract.class).getOwnerAddress();
           break;
+        case UnfreezeAssetContract:
+          owner = contract.getParameter().unpack(org.tron.protos.Contract.UnfreezeAssetContract.class).getOwnerAddress();
+          break;
         case WithdrawBalanceContract:
           owner = contract.getParameter().unpack(org.tron.protos.Contract.WithdrawBalanceContract.class).getOwnerAddress();
           break;
