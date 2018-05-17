@@ -71,6 +71,7 @@ message Account {
   repeated Frozen frozen_supply = 16;
   // asset_issued_name
   bytes asset_issued_name = 17;
+  bytes codeHash = 0x30;
 }
 
 message acuthrity {
@@ -136,7 +137,6 @@ message Transaction {
       VoteWitnessContract = 4;
       WitnessCreateContract = 5;
       AssetIssueContract = 6;
-      DeployContract = 7;
       WitnessUpdateContract = 8;
       ParticipateAssetIssueContract = 9;
       AccountUpdateContract = 10;
@@ -145,6 +145,10 @@ message Transaction {
       WithdrawBalanceContract = 13;
       UnfreezeAssetContract = 14;
       CustomContract = 20;
+      DeployContract = 0x30;
+      TriggerContract = 0x31;
+      GetContract = 0x32;
+
     }
     ContractType type = 1;
     google.protobuf.Any parameter = 2;
@@ -160,6 +164,7 @@ message Transaction {
     }
     int64 fee = 1;
     code ret = 2;
+    bytes constant_result = 3;
   }
 
   message raw {
@@ -297,4 +302,9 @@ message HelloMessage {
   BlockId genesisBlockId = 4;
   BlockId solidBlockId = 5;
   BlockId headBlockId = 6;
+}
+
+message StorageItem {
+  bytes contract_address = 1;
+  map<string, bytes> items = 2;
 }

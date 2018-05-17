@@ -290,4 +290,18 @@ public class GrpcClient {
     BlockList blockList = blockingStubFull.getBlockByLatestNum(numberMessage);
     return Optional.ofNullable(blockList);
   }
+
+  public Transaction deployContract(Contract.ContractDeployContract request) {
+    return blockingStubFull.deployContract(request);
+  }
+
+  public Transaction triggerContract(Contract.ContractTriggerContract request) {
+    return blockingStubFull.triggerContract(request);
+  }
+
+  public Contract.ContractDeployContract getContract(byte[] address) {
+    ByteString byteString = ByteString.copyFrom(address);
+    BytesMessage bytesMessage = BytesMessage.newBuilder().setValue(byteString).build();
+    return blockingStubFull.getContract(bytesMessage);
+  }
 }

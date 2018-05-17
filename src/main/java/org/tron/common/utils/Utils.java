@@ -33,7 +33,7 @@ import org.tron.api.GrpcAPI.TransactionList;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.protos.Contract.AccountCreateContract;
 import org.tron.protos.Contract.AssetIssueContract;
-import org.tron.protos.Contract.DeployContract;
+import org.tron.protos.Contract.ContractDeployContract;
 import org.tron.protos.Contract.ParticipateAssetIssueContract;
 import org.tron.protos.Contract.TransferAssetContract;
 import org.tron.protos.Contract.TransferContract;
@@ -446,7 +446,7 @@ public class Utils {
           result += "\n";
           break;
         case DeployContract:
-          DeployContract deployContract = contract.getParameter().unpack(DeployContract.class);
+          ContractDeployContract deployContract = contract.getParameter().unpack(ContractDeployContract.class);
           break;
         default:
           return "";

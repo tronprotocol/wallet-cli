@@ -510,4 +510,46 @@ public class Client {
     }
   }
 
+  public boolean deployContract(String password, String contractAddStr,
+                                String abiStr, String codeStr, String data, String value) {
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warning: createContract failed,  Please login first !!");
+      return false;
+    }
+    if (!WalletClient.passwordValid(password)) {
+      return false;
+    }
+
+    if (wallet.getEcKey() == null || wallet.getEcKey().getPrivKey() == null) {
+      wallet = WalletClient.GetWalletByStorage(password);
+      if (wallet == null) {
+        logger.warn("Warning: createContract failed, Load wallet failed !!");
+        return false;
+      }
+    }
+
+    return wallet.deployContract(contractAddStr, abiStr, codeStr, data, value);
+  }
+
+  public boolean callContract(String password, byte[] contractAddress,
+                              byte[] callValue, byte[] data) {
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warning: callContract failed,  Please login first !!");
+      return false;
+    }
+    if (!WalletClient.passwordValid(password)) {
+      return false;
+    }
+
+    if (wallet.getEcKey() == null || wallet.getEcKey().getPrivKey() == null) {
+      wallet = WalletClient.GetWalletByStorage(password);
+      if (wallet == null) {
+        logger.warn("Warning: callContract failed, Load wallet failed !!");
+        return false;
+      }
+    }
+
+    return wallet.triggerContract(contractAddress, callValue, data);
+  }
+
 }

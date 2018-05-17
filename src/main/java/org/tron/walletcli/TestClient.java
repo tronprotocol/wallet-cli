@@ -1,11 +1,14 @@
 package org.tron.walletcli;
 
 import com.beust.jcommander.JCommander;
+import org.bouncycastle.util.encoders.Hex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tron.api.GrpcAPI.*;
+import org.tron.common.crypto.Hash;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Utils;
+import org.tron.protos.Contract;
 import org.tron.protos.Contract.AssetIssueContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
@@ -749,6 +752,81 @@ public class TestClient {
     }
   }
 
+  private void deployContract(String[] parameters) {
+    if (parameters == null ||
+            parameters.length != 6) {
+      System.out.println("Create contract invalid arguments");
+      return;
+    }
+
+    String passwordStr = parameters[0];
+    String contractAddrStr = parameters[1];
+    String abiStr = parameters[2];
+    String codeStr = parameters[3];
+    String data = parameters[4];
+    String value = parameters[5];
+
+    boolean result = client.deployContract(passwordStr, contractAddrStr, abiStr, codeStr, data, value);
+    if (result) {
+      System.out.println("Deploy the contract successfully");
+    } else {
+      System.out.println("Deploy the contract failed");
+    }
+  }
+
+  private void triggerContract(String[] parameters) {
+    if (parameters == null ||
+            parameters.length < 3) {
+      System.out.println("Call contract invalid arguments");
+      return;
+    }
+
+    String passwordStr = parameters[0];
+    String contractAddrStr = parameters[1];
+    String selectorStr = parameters[2];
+    String dataStr = parameters[3];
+
+    byte[] contractAddress = WalletClient.decodeFromBase58Check(contractAddrStr);
+    byte[] data;
+    byte[] callValue = null;
+    byte[] selector = new byte[4];
+    System.arraycopy(Hash.sha3(selectorStr.getBytes()), 0, selector, 0, 4);
+    System.out.println(selectorStr + ":" + Hex.toHexString(selector));
+    StringBuffer stringBuffer = new StringBuffer();
+    dataStr = stringBuffer.append(Hex.toHexString(selector))
+            .append(dataStr)
+            .toString();
+    data = Hex.decode(dataStr);
+    boolean result = client.callContract(passwordStr, contractAddress,
+            callValue, data);
+    if (result) {
+      System.out.println("Call the contract successfully");
+    } else {
+      System.out.println("Call the contract failed");
+    }
+  }
+
+  private void getContract(String[] parameters) {
+    if (parameters == null ||
+            parameters.length != 1) {
+      System.out.println("GetContract: invalid arguments!");
+      return;
+    }
+
+    byte[] addressBytes = WalletClient.decodeFromBase58Check(parameters[0]);
+    if (addressBytes == null) {
+      System.out.println("GetContract: invalid address!");
+      return;
+    }
+
+    Contract.ContractDeployContract contractDeployContract = WalletClient.getContract(addressBytes);
+    if (contractDeployContract != null) {
+      System.out.println("contract :" + contractDeployContract.getAbi().toString());
+    } else {
+      System.out.println("query contract failed!");
+    }
+  }
+
   private void help() {
     System.out.println("You can enter the following command: ");
 
@@ -791,6 +869,9 @@ public class TestClient {
     System.out.println("withdrawbalance");
     System.out.println("UpdateAccount");
     System.out.println("unfreezeasset");
+    System.out.println("deploycontract(password, contractAddress, ABI, code, data, value)");
+    System.out.println("triggercontract(passwork, contractAddress, selector, data, value)");
+    System.out.println("getcontract(contractAddress)");
     System.out.println("Exit or Quit");
 
     System.out.println("Input any one of then, you will get more tips.");
@@ -969,6 +1050,19 @@ public class TestClient {
           }
           case "getblockbylatestnum": {
             getBlockByLatestNum(parameters);
+            break;
+          }
+          case "deploycontract": {
+            deployContract(parameters);
+            break;
+          }
+          case "triggercontract": {
+            triggerContract(parameters);
+            break;
+          }
+          case "getcontract": {
+            getContract(parameters);
+            //callContractGetTest();
             break;
           }
           case "exit":

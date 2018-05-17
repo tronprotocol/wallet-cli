@@ -1,5 +1,8 @@
 package org.tron.walletserver;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParser;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.typesafe.config.Config;
@@ -865,5 +868,186 @@ public class WalletClient {
 
   public static Optional<BlockList> getBlockByLatestNum(long num) {
     return rpcCli.getBlockByLatestNum(num);
+  }
+
+  public static Contract.ContractDeployContract.ABI.Entry.EntryType getEntryType(String type) {
+    switch (type) {
+      case "constructor": return Contract.ContractDeployContract.ABI.Entry.EntryType.Constructor;
+      case "function": return Contract.ContractDeployContract.ABI.Entry.EntryType.Function;
+      case "event": return Contract.ContractDeployContract.ABI.Entry.EntryType.Event;
+      case "fallback": return Contract.ContractDeployContract.ABI.Entry.EntryType.Fallback;
+      default: return Contract.ContractDeployContract.ABI.Entry.EntryType.UNRECOGNIZED;
+    }
+  }
+
+  public static Contract.ContractDeployContract.ABI.Entry.StateMutabilityType getStateMutability(String stateMutability) {
+    switch (stateMutability) {
+      case "pure": return Contract.ContractDeployContract.ABI.Entry.StateMutabilityType.Pure;
+      case "view": return Contract.ContractDeployContract.ABI.Entry.StateMutabilityType.View;
+      case "nonpayable": return Contract.ContractDeployContract.ABI.Entry.StateMutabilityType.Nonpayable;
+      case "payable": return Contract.ContractDeployContract.ABI.Entry.StateMutabilityType.Payable;
+      default: return Contract.ContractDeployContract.ABI.Entry.StateMutabilityType.UNRECOGNIZED;
+    }
+  }
+
+  public static Contract.ContractDeployContract.ABI jsonStr2ABI(String jsonStr) {
+    if (jsonStr == null) return null;
+
+    JsonParser jsonParser = new JsonParser();
+    JsonElement jsonElementRoot = jsonParser.parse(jsonStr);
+    JsonArray jsonRoot = jsonElementRoot.getAsJsonArray();
+    Contract.ContractDeployContract.ABI.Builder abiBuilder = Contract.ContractDeployContract.ABI.newBuilder();
+    for (int index = 0; index < jsonRoot.size(); index++) {
+      JsonElement abiItem = jsonRoot.get(index);
+      boolean anonymous = abiItem.getAsJsonObject().get("anonymous") != null?
+              abiItem.getAsJsonObject().get("anonymous").getAsBoolean() : false;
+      boolean constant = abiItem.getAsJsonObject().get("constant") != null?
+              abiItem.getAsJsonObject().get("constant").getAsBoolean() : false;
+      String name = abiItem.getAsJsonObject().get("name") != null ?
+              abiItem.getAsJsonObject().get("name").getAsString() : null;
+      JsonArray inputs = abiItem.getAsJsonObject().get("inputs") != null ?
+              abiItem.getAsJsonObject().get("inputs").getAsJsonArray() : null;
+      JsonArray outputs = abiItem.getAsJsonObject().get("outputs") != null ?
+              abiItem.getAsJsonObject().get("outputs").getAsJsonArray() : null;
+      String type = abiItem.getAsJsonObject().get("type") != null ?
+              abiItem.getAsJsonObject().get("type").getAsString() : null;
+      boolean payable = abiItem.getAsJsonObject().get("payable") != null ?
+              abiItem.getAsJsonObject().get("payable").getAsBoolean() : false;
+      String stateMutability = abiItem.getAsJsonObject().get("stateMutability") != null ?
+              abiItem.getAsJsonObject().get("stateMutability").getAsString() : null;
+      if (type == null || inputs == null) {
+        logger.error("No type or inputs!");
+        return null;
+      }
+
+      Contract.ContractDeployContract.ABI.Entry.Builder entryBuilder = Contract.ContractDeployContract.ABI.Entry.newBuilder();
+      entryBuilder.setAnonymous(anonymous);
+      entryBuilder.setConstant(constant);
+      if (name != null) {
+        entryBuilder.setName(ByteString.copyFrom(name.getBytes()));
+      }
+
+      /* { inputs : required } */
+      for (int j = 0; j < inputs.size(); j++) {
+        JsonElement inputItem = inputs.get(j);
+        if (inputItem.getAsJsonObject().get("name") == null ||
+                inputItem.getAsJsonObject().get("type") == null) {
+          logger.error("Input argument invalid due to no name or no type!");
+          return null;
+        }
+        String inputName = inputItem.getAsJsonObject().get("name").getAsString();
+        String inputType = inputItem.getAsJsonObject().get("type").getAsString();
+        Contract.ContractDeployContract.ABI.Entry.Param.Builder paramBuilder = Contract.ContractDeployContract.ABI.Entry.Param.newBuilder();
+        paramBuilder.setIndexed(false);
+        paramBuilder.setName(ByteString.copyFrom(inputName.getBytes()));
+        paramBuilder.setType(ByteString.copyFrom(inputType.getBytes()));
+        entryBuilder.addInputs(paramBuilder.build());
+      }
+
+      /* { outputs : optional } */
+      if (outputs != null) {
+        for (int k = 0; k < outputs.size(); k++) {
+          JsonElement outputItem = outputs.get(k);
+          if (outputItem.getAsJsonObject().get("name") == null ||
+                  outputItem.getAsJsonObject().get("type") == null) {
+            logger.error("Output argument invalid due to no name or no type!");
+            return null;
+          }
+          String outputName = outputItem.getAsJsonObject().get("name").getAsString();
+          String outputType = outputItem.getAsJsonObject().get("type").getAsString();
+          Contract.ContractDeployContract.ABI.Entry.Param.Builder paramBuilder = Contract.ContractDeployContract.ABI.Entry.Param.newBuilder();
+          paramBuilder.setIndexed(false);
+          paramBuilder.setName(ByteString.copyFrom(outputName.getBytes()));
+          paramBuilder.setType(ByteString.copyFrom(outputType.getBytes()));
+          entryBuilder.addOutputs(paramBuilder.build());
+        }
+      }
+
+      entryBuilder.setType(getEntryType(type));
+      entryBuilder.setPayable(payable);
+      if (stateMutability != null) {
+        entryBuilder.setStateMutability(getStateMutability(stateMutability));
+      }
+
+      abiBuilder.addEntrys(entryBuilder.build());
+    }
+
+    return abiBuilder.build();
+  }
+
+  public static Contract.ContractDeployContract createContractDeployContract(byte[] address, byte[] contractAddress,
+                                                                             String ABI, String code, String data, String value) {
+    Contract.ContractDeployContract.ABI abi = jsonStr2ABI(ABI);
+    if (abi == null) {
+      logger.error("abi is null");
+      return null;
+    }
+
+    byte[] codeBytes = Hex.decode(code);
+    Contract.ContractDeployContract.Builder builder = Contract.ContractDeployContract.newBuilder();
+    builder.setOwnerAddress(ByteString.copyFrom(address));
+    builder.setContractAddress(ByteString.copyFrom(contractAddress));
+    builder.setAbi(abi);
+    builder.setBytecode(ByteString.copyFrom(codeBytes));
+    builder.setData(ByteString.copyFrom(Hex.decode(data)));
+    builder.setCallValue(ByteString.copyFrom(Hex.decode(value)));
+    return builder.build();
+  }
+
+  public static Contract.ContractTriggerContract triggerCallContract(byte[] address, byte[] contractAddress,
+                                                                     byte[] callValue, byte[] data) {
+    Contract.ContractTriggerContract.Builder builder = Contract.ContractTriggerContract.newBuilder();
+    builder.setOwnerAddress(ByteString.copyFrom(address));
+    builder.setContractAddress(ByteString.copyFrom(contractAddress));
+    builder.setData(ByteString.copyFrom(data));
+    builder.setCallValue(ByteString.copyFrom(callValue));
+    return builder.build();
+  }
+
+  public boolean deployContract(String contractAddrStr, String ABI, String code, String data, String value) {
+    byte[] owner = getAddress();
+    byte[] contractAddress = WalletClient.decodeFromBase58Check(contractAddrStr);
+    Contract.ContractDeployContract contractDeployContract = createContractDeployContract(owner, contractAddress,
+            ABI, code, data, value);
+
+    Transaction transaction = rpcCli.deployContract(contractDeployContract);
+    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
+      logger.error("RPC create trx failed!");
+      return false;
+    }
+
+    logger.info("RPC create ok!");
+
+    transaction = signTransaction(transaction);
+    return rpcCli.broadcastTransaction(transaction);
+
+  }
+
+  public boolean triggerContract(byte[] contractAddress, byte[] callValue, byte[] data) {
+    byte[] owner = getAddress();
+    Contract.ContractTriggerContract triggerContract = triggerCallContract(owner, contractAddress,
+            callValue, data);
+    Transaction transaction = rpcCli.triggerContract(triggerContract);
+    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
+      logger.error("RPC create call trx failed!");
+      return false;
+    }
+
+    logger.info("RPC create ok!");
+
+    if (transaction.getRetCount() != 0 &&
+            transaction.getRet(0).getConstantResult() != null) {
+      byte[] result = transaction.getRet(0).getConstantResult().toByteArray();
+      logger.info("Result:" + Hex.toHexString(result));
+      return true;
+    }
+
+    logger.info("RPC call ok!");
+    transaction = signTransaction(transaction);
+    return rpcCli.broadcastTransaction(transaction);
+  }
+
+  public static Contract.ContractDeployContract getContract(byte[] address) {
+    return rpcCli.getContract(address);
   }
 }
