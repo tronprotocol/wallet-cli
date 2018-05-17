@@ -40,6 +40,7 @@ import org.tron.protos.Contract.TransferContract;
 import org.tron.protos.Contract.VoteAssetContract;
 import org.tron.protos.Contract.VoteWitnessContract;
 import org.tron.protos.Contract.WitnessCreateContract;
+import org.tron.protos.Contract.WitnessUpdateContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Account.Frozen;
 import org.tron.protos.Protocol.Vote;
@@ -418,6 +419,18 @@ public class Utils {
           result += "\n";
           result += "url: ";
           result += new String(witnessCreateContract.getUrl().toByteArray(),
+              Charset.forName("UTF-8"));
+          result += "\n";
+          break;
+        case WitnessUpdateContract:
+          WitnessUpdateContract witnessUpdateContract = contract.getParameter()
+              .unpack(WitnessUpdateContract.class);
+          result += "owner_address: ";
+          result += WalletClient
+              .encode58Check(witnessUpdateContract.getOwnerAddress().toByteArray());
+          result += "\n";
+          result += "url: ";
+          result += new String(witnessUpdateContract.getUpdateUrl().toByteArray(),
               Charset.forName("UTF-8"));
           result += "\n";
           break;

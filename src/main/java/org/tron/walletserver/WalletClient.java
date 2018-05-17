@@ -339,14 +339,28 @@ public class WalletClient {
     return rpcCli.broadcastTransaction(transaction);
   }
 
+  public boolean updateWitness(byte[] url) {
+    byte[] owner = getAddress();
+    Transaction transaction = updateWitnessTransaction(owner, url);
+    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
+      return false;
+    }
+    transaction = signTransaction(transaction);
+    return rpcCli.broadcastTransaction(transaction);
+  }
+
   public static Transaction createWitnessTransaction(byte[] owner, byte[] url) {
     Contract.WitnessCreateContract contract = createWitnessCreateContract(owner, url);
     return rpcCli.createWitness(contract);
   }
 
+  public static Transaction updateWitnessTransaction(byte[] owner, byte[] url) {
+    Contract.WitnessUpdateContract contract = createWitnessUpdateContract(owner, url);
+    return rpcCli.updateWitness(contract);
+  }
 
   public static Transaction createVoteWitnessTransaction(byte[] owner,
-       HashMap<String, String> witness) {
+      HashMap<String, String> witness) {
     Contract.VoteWitnessContract contract = createVoteWitnessContract(owner, witness);
     return rpcCli.voteWitnessAccount(contract);
   }
@@ -447,6 +461,15 @@ public class WalletClient {
     Contract.WitnessCreateContract.Builder builder = Contract.WitnessCreateContract.newBuilder();
     builder.setOwnerAddress(ByteString.copyFrom(owner));
     builder.setUrl(ByteString.copyFrom(url));
+
+    return builder.build();
+  }
+
+  public static Contract.WitnessUpdateContract createWitnessUpdateContract(byte[] owner,
+      byte[] url) {
+    Contract.WitnessUpdateContract.Builder builder = Contract.WitnessUpdateContract.newBuilder();
+    builder.setOwnerAddress(ByteString.copyFrom(owner));
+    builder.setUpdateUrl(ByteString.copyFrom(url));
 
     return builder.build();
   }

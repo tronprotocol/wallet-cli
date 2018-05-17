@@ -330,6 +330,31 @@ public class Client {
     }
   }
 
+  public boolean updateWitness(String password, String url) {
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warning: updateWitness failed,  Please login first !!");
+      return false;
+    }
+    if (!WalletClient.passwordValid(password)) {
+      return false;
+    }
+
+    if (wallet.getEcKey() == null || wallet.getEcKey().getPrivKey() == null) {
+      wallet = WalletClient.GetWalletByStorage(password);
+      if (wallet == null) {
+        logger.warn("Warning: updateWitness failed, Load wallet failed !!");
+        return false;
+      }
+    }
+
+    try {
+      return wallet.updateWitness(url.getBytes());
+    } catch (Exception ex) {
+      ex.printStackTrace();
+      return false;
+    }
+  }
+
   public Block GetBlock(long blockNum) {
     return WalletClient.GetBlock(blockNum);
   }
