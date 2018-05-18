@@ -160,37 +160,22 @@ public class GrpcClient {
   }
 
   public Optional<AccountList> listAccounts() {
-    if (blockingStubSolidity != null) {
-      AccountList accountList = blockingStubSolidity
-          .listAccounts(EmptyMessage.newBuilder().build());
-      return Optional.ofNullable(accountList);
-    } else {
-      AccountList accountList = blockingStubFull.listAccounts(EmptyMessage.newBuilder().build());
-      return Optional.ofNullable(accountList);
-    }
+    AccountList accountList = blockingStubSolidity
+        .listAccounts(EmptyMessage.newBuilder().build());
+    return Optional.ofNullable(accountList);
   }
 
   public Optional<WitnessList> listWitnesses() {
-    if (blockingStubSolidity != null) {
-      WitnessList witnessList = blockingStubSolidity
-          .listWitnesses(EmptyMessage.newBuilder().build());
-      return Optional.ofNullable(witnessList);
-    } else {
-      WitnessList witnessList = blockingStubFull.listWitnesses(EmptyMessage.newBuilder().build());
-      return Optional.ofNullable(witnessList);
-    }
+    WitnessList witnessList = blockingStubSolidity
+        .listWitnesses(EmptyMessage.newBuilder().build());
+    return Optional.ofNullable(witnessList);
   }
 
   public Optional<AssetIssueList> getAssetIssueList() {
-    if (blockingStubSolidity != null) {
-      AssetIssueList assetIssueList = blockingStubSolidity
-          .getAssetIssueList(EmptyMessage.newBuilder().build());
-      return Optional.ofNullable(assetIssueList);
-    } else {
-      AssetIssueList assetIssueList = blockingStubFull
-          .getAssetIssueList(EmptyMessage.newBuilder().build());
-      return Optional.ofNullable(assetIssueList);
-    }
+    AssetIssueList assetIssueList = blockingStubSolidity
+        .getAssetIssueList(EmptyMessage.newBuilder().build());
+    return Optional.ofNullable(assetIssueList);
+
   }
 
   public Optional<NodeList> listNodes() {
@@ -224,11 +209,7 @@ public class GrpcClient {
   }
 
   public NumberMessage getTotalTransaction() {
-    if (blockingStubSolidity != null) {
-      return blockingStubSolidity.totalTransaction(EmptyMessage.newBuilder().build());
-    } else {
-      return blockingStubFull.totalTransaction(EmptyMessage.newBuilder().build());
-    }
+    return blockingStubSolidity.totalTransaction(EmptyMessage.newBuilder().build());
   }
 
   public Optional<AssetIssueList> getAssetIssueListByTimestamp(long time) {
