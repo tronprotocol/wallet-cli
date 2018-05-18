@@ -350,12 +350,16 @@ public class Utils {
   public static String printContract(Transaction.Contract contract) {
     String result = "";
     try {
+      result += "type: ";
+      result += contract.getType();
+      result += "\n";
+
       switch (contract.getType()) {
         case AccountCreateContract:
           AccountCreateContract accountCreateContract = contract.getParameter()
               .unpack(AccountCreateContract.class);
           result += "type: ";
-          result += accountCreateContract.getTypeValue();
+          result += accountCreateContract.getType();
           result += "\n";
           if (accountCreateContract.getAccountName() != null
               && accountCreateContract.getAccountName().size() > 0) {
