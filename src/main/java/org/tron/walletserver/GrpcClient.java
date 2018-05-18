@@ -166,16 +166,26 @@ public class GrpcClient {
   }
 
   public Optional<WitnessList> listWitnesses() {
-    WitnessList witnessList = blockingStubSolidity
-        .listWitnesses(EmptyMessage.newBuilder().build());
-    return Optional.ofNullable(witnessList);
+    if (blockingStubSolidity != null) {
+      WitnessList witnessList = blockingStubSolidity
+          .listWitnesses(EmptyMessage.newBuilder().build());
+      return Optional.ofNullable(witnessList);
+    } else {
+      WitnessList witnessList = blockingStubFull.listWitnesses(EmptyMessage.newBuilder().build());
+      return Optional.ofNullable(witnessList);
+    }
   }
 
   public Optional<AssetIssueList> getAssetIssueList() {
-    AssetIssueList assetIssueList = blockingStubSolidity
-        .getAssetIssueList(EmptyMessage.newBuilder().build());
-    return Optional.ofNullable(assetIssueList);
-
+    if (blockingStubSolidity != null) {
+      AssetIssueList assetIssueList = blockingStubSolidity
+          .getAssetIssueList(EmptyMessage.newBuilder().build());
+      return Optional.ofNullable(assetIssueList);
+    } else {
+      AssetIssueList assetIssueList = blockingStubFull
+          .getAssetIssueList(EmptyMessage.newBuilder().build());
+      return Optional.ofNullable(assetIssueList);
+    }
   }
 
   public Optional<NodeList> listNodes() {
@@ -209,7 +219,11 @@ public class GrpcClient {
   }
 
   public NumberMessage getTotalTransaction() {
-    return blockingStubSolidity.totalTransaction(EmptyMessage.newBuilder().build());
+    if (blockingStubSolidity != null) {
+      return blockingStubSolidity.totalTransaction(EmptyMessage.newBuilder().build());
+    } else {
+      return blockingStubFull.totalTransaction(EmptyMessage.newBuilder().build());
+    }
   }
 
   public Optional<AssetIssueList> getAssetIssueListByTimestamp(long time) {
