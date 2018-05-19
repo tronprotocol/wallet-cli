@@ -359,15 +359,6 @@ public class Client {
     }
   }
 
-  public Optional<AccountList> listAccounts() {
-    try {
-      return WalletClient.listAccounts();
-    } catch (Exception ex) {
-      ex.printStackTrace();
-      return Optional.empty();
-    }
-  }
-
   public Optional<WitnessList> listWitnesses() {
     try {
       return WalletClient.listWitnesses();

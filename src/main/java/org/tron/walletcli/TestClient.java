@@ -424,16 +424,6 @@ public class TestClient {
     }
   }
 
-  private void listAccounts() {
-    Optional<AccountList> result = client.listAccounts();
-    if (result.isPresent()) {
-      AccountList accountList = result.get();
-      logger.info(Utils.printAccountList(accountList));
-    } else {
-      logger.info("List accounts " + " failed !!");
-    }
-  }
-
   private void listWitnesses() {
     Optional<WitnessList> result = client.listWitnesses();
     if (result.isPresent()) {
@@ -771,7 +761,6 @@ public class TestClient {
     System.out.println("Assetissue");
     System.out.println("CreateWitness");
     System.out.println("VoteWitness");
-    System.out.println("Listaccounts");
     System.out.println("Listwitnesses");
     System.out.println("Listassetissue");
     System.out.println("listNodes");
@@ -913,10 +902,6 @@ public class TestClient {
           }
           case "withdrawbalance": {
             withdrawBalance(parameters);
-            break;
-          }
-          case "listaccounts": {
-            listAccounts();
             break;
           }
           case "listwitnesses": {
