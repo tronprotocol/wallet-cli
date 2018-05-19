@@ -425,6 +425,7 @@ public class TestClient {
     }
   }
 
+
 //  private void listAccounts() {
 //    Optional<AccountList> result = client.listAccounts();
 //    if (result.isPresent()) {
@@ -434,6 +435,25 @@ public class TestClient {
 //      logger.info("List accounts " + " failed !!");
 //    }
 //  }
+
+  private void updateWitness(String[] parameters) {
+    if (parameters == null || parameters.length != 2) {
+      System.out.println("updateWitness need 2 parameter like following: ");
+      System.out.println("updateWitness Password Url");
+      return;
+    }
+
+    String password = parameters[0];
+    String url = parameters[1];
+
+    boolean result = client.updateWitness(password, url);
+    if (result) {
+      logger.info("updateWitness " + " successful !!");
+    } else {
+      logger.info("updateWitness " + " failed !!");
+    }
+  }
+
 
   private void listWitnesses() {
     Optional<WitnessList> result = client.listWitnesses();
@@ -783,6 +803,7 @@ public class TestClient {
     System.out.println("ParticipateAssetissue");
     System.out.println("Assetissue");
     System.out.println("CreateWitness");
+    System.out.println("UpdateWitness");
     System.out.println("VoteWitness");
     System.out.println("Listwitnesses");
     System.out.println("Listassetissue");
@@ -906,6 +927,10 @@ public class TestClient {
           }
           case "createwitness": {
             createWitness(parameters);
+            break;
+          }
+          case "updatewitness": {
+            updateWitness(parameters);
             break;
           }
           case "votewitness": {

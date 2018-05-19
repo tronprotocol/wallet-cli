@@ -119,6 +119,10 @@ public class GrpcClient {
     return blockingStubFull.createWitness(contract);
   }
 
+  public Transaction updateWitness(Contract.WitnessUpdateContract contract) {
+    return blockingStubFull.updateWitness(contract);
+  }
+
   public boolean broadcastTransaction(Transaction signaturedTransaction) {
     int i = 10;
     GrpcAPI.Return response = blockingStubFull.broadcastTransaction(signaturedTransaction);
