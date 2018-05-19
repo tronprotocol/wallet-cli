@@ -784,7 +784,6 @@ public class TestClient {
     System.out.println("Assetissue");
     System.out.println("CreateWitness");
     System.out.println("VoteWitness");
-    System.out.println("Listaccounts");
     System.out.println("Listwitnesses");
     System.out.println("Listassetissue");
     System.out.println("listNodes");
