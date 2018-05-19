@@ -159,11 +159,12 @@ public class GrpcClient {
     }
   }
 
-  public Optional<AccountList> listAccounts() {
-    AccountList accountList = blockingStubSolidity
-        .listAccounts(EmptyMessage.newBuilder().build());
-    return Optional.ofNullable(accountList);
-  }
+//  public Optional<AccountList> listAccounts() {
+//    AccountList accountList = blockingStubSolidity
+//        .listAccounts(EmptyMessage.newBuilder().build());
+//    return Optional.ofNullable(accountList);
+//
+//  }
 
   public Optional<WitnessList> listWitnesses() {
     if (blockingStubSolidity != null) {
@@ -224,6 +225,10 @@ public class GrpcClient {
     } else {
       return blockingStubFull.totalTransaction(EmptyMessage.newBuilder().build());
     }
+  }
+
+  public NumberMessage getNextMaintenanceTime() {
+    return blockingStubFull.getNextMaintenanceTime(EmptyMessage.newBuilder().build());
   }
 
   public Optional<AssetIssueList> getAssetIssueListByTimestamp(long time) {

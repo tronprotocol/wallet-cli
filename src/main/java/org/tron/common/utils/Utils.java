@@ -26,7 +26,6 @@ import java.text.ParsePosition;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
-import org.tron.api.GrpcAPI.AccountList;
 import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.BlockList;
 import org.tron.api.GrpcAPI.TransactionList;
@@ -211,22 +210,22 @@ public class Utils {
     return result;
   }
 
-  public static String printAccountList(AccountList accountList) {
-    String result = "\n";
-    int i = 0;
-    for (Account account : accountList.getAccountsList()) {
-      result += "account " + i + " :::";
-      result += "\n";
-      result += "[";
-      result += "\n";
-      result += printAccount(account);
-      result += "]";
-      result += "\n";
-      result += "\n";
-      i++;
-    }
-    return result;
-  }
+//  public static String printAccountList(AccountList accountList) {
+//    String result = "\n";
+//    int i = 0;
+//    for (Account account : accountList.getAccountsList()) {
+//      result += "account " + i + " :::";
+//      result += "\n";
+//      result += "[";
+//      result += "\n";
+//      result += printAccount(account);
+//      result += "]";
+//      result += "\n";
+//      result += "\n";
+//      i++;
+//    }
+//    return result;
+//  }
 
   public static String printWitness(Witness witness) {
     String result = "";

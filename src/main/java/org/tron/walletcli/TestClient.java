@@ -1,6 +1,7 @@
 package org.tron.walletcli;
 
 import com.beust.jcommander.JCommander;
+import java.text.SimpleDateFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tron.api.GrpcAPI.*;
@@ -424,6 +425,17 @@ public class TestClient {
     }
   }
 
+
+//  private void listAccounts() {
+//    Optional<AccountList> result = client.listAccounts();
+//    if (result.isPresent()) {
+//      AccountList accountList = result.get();
+//      logger.info(Utils.printAccountList(accountList));
+//    } else {
+//      logger.info("List accounts " + " failed !!");
+//    }
+//  }
+
   private void updateWitness(String[] parameters) {
     if (parameters == null || parameters.length != 2) {
       System.out.println("updateWitness need 2 parameter like following: ");
@@ -442,15 +454,6 @@ public class TestClient {
     }
   }
 
-  private void listAccounts() {
-    Optional<AccountList> result = client.listAccounts();
-    if (result.isPresent()) {
-      AccountList accountList = result.get();
-      logger.info(Utils.printAccountList(accountList));
-    } else {
-      logger.info("List accounts " + " failed !!");
-    }
-  }
 
   private void listWitnesses() {
     Optional<WitnessList> result = client.listWitnesses();
@@ -607,6 +610,18 @@ public class TestClient {
 
     } catch (Exception e) {
       logger.info("GetTotalTransaction " + " failed !!");
+    }
+  }
+
+  private void getNextMaintenanceTime() {
+    try {
+      NumberMessage nextMaintenanceTime = client.getNextMaintenanceTime();
+      SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+      String date = formatter.format(nextMaintenanceTime.getNum());
+      logger.info("Next maintenance time is : " + date);
+
+    } catch (Exception e) {
+      logger.info("GetNextMaintenanceTime " + " failed !!");
     }
   }
 
@@ -790,7 +805,6 @@ public class TestClient {
     System.out.println("CreateWitness");
     System.out.println("UpdateWitness");
     System.out.println("VoteWitness");
-    System.out.println("Listaccounts");
     System.out.println("Listwitnesses");
     System.out.println("Listassetissue");
     System.out.println("listNodes");
@@ -798,6 +812,7 @@ public class TestClient {
     System.out.println("GetTotalTransaction");
     System.out.println("GetAssetIssueListByTimestamp");
     System.out.println("GetTotalTransaction");
+    System.out.println("GetNextMaintenanceTime");
     System.out.println("GetTransactionsByTimestamp");
     System.out.println("GetTransactionById");
     System.out.println("getTransactionsFromThis");
@@ -938,10 +953,10 @@ public class TestClient {
             withdrawBalance(parameters);
             break;
           }
-          case "listaccounts": {
-            listAccounts();
-            break;
-          }
+//          case "listaccounts": {
+//            listAccounts();
+//            break;
+//          }
           case "listwitnesses": {
             listWitnesses();
             break;
@@ -960,6 +975,10 @@ public class TestClient {
           }
           case "gettotaltransaction": {
             getTotalTransaction();
+            break;
+          }
+          case "getnextmaintenancetime": {
+            getNextMaintenanceTime();
             break;
           }
           case "getassetissuelistbytimestamp": {
