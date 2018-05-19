@@ -791,6 +791,7 @@ public class TestClient {
     System.out.println("GetTotalTransaction");
     System.out.println("GetAssetIssueListByTimestamp");
     System.out.println("GetTotalTransaction");
+    System.out.println("GetNextMaintenanceTime");
     System.out.println("GetTransactionsByTimestamp");
     System.out.println("GetTransactionById");
     System.out.println("getTransactionsFromThis");
