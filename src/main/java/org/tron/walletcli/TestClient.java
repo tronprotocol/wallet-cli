@@ -1,6 +1,7 @@
 package org.tron.walletcli;
 
 import com.beust.jcommander.JCommander;
+import java.text.SimpleDateFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tron.api.GrpcAPI.*;
@@ -592,6 +593,18 @@ public class TestClient {
     }
   }
 
+  private void getNextMaintenanceTime() {
+    try {
+      NumberMessage nextMaintenanceTime = client.getNextMaintenanceTime();
+      SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+      String date = formatter.format(nextMaintenanceTime.getNum());
+      logger.info("Next maintenance time is : " + date);
+
+    } catch (Exception e) {
+      logger.info("GetNextMaintenanceTime " + " failed !!");
+    }
+  }
+
   private void getAssetIssueListByTimestamp(String[] parameters) {
     long timeStamp = -1;
     if (parameters == null || parameters.length == 0) {
@@ -937,6 +950,10 @@ public class TestClient {
           }
           case "gettotaltransaction": {
             getTotalTransaction();
+            break;
+          }
+          case "getnextmaintenancetime": {
+            getNextMaintenanceTime();
             break;
           }
           case "getassetissuelistbytimestamp": {

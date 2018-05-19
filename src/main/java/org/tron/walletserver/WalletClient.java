@@ -740,6 +740,10 @@ public class WalletClient {
     return rpcCli.getTotalTransaction();
   }
 
+  public static GrpcAPI.NumberMessage getNextMaintenanceTime() {
+    return rpcCli.getNextMaintenanceTime();
+  }
+
   public static Optional<TransactionList> getTransactionsFromThis(byte[] address) {
     return rpcCli.getTransactionsFromThis(address);
   }

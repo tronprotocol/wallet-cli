@@ -399,6 +399,10 @@ public class Client {
     return WalletClient.getTotalTransaction();
   }
 
+  public GrpcAPI.NumberMessage getNextMaintenanceTime() {
+    return WalletClient.getNextMaintenanceTime();
+  }
+
   public boolean updateAccount(String password, byte[] addressBytes, byte[] accountNameBytes) {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warnging: updateAccount failed, Please login first !!");
