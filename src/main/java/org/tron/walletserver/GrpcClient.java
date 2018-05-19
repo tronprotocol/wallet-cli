@@ -156,14 +156,10 @@ public class GrpcClient {
   }
 
   public Optional<AccountList> listAccounts() {
-    if (blockingStubSolidity != null) {
-      AccountList accountList = blockingStubSolidity
-          .listAccounts(EmptyMessage.newBuilder().build());
-      return Optional.ofNullable(accountList);
-    } else {
-      AccountList accountList = blockingStubFull.listAccounts(EmptyMessage.newBuilder().build());
-      return Optional.ofNullable(accountList);
-    }
+    AccountList accountList = blockingStubSolidity
+        .listAccounts(EmptyMessage.newBuilder().build());
+    return Optional.ofNullable(accountList);
+
   }
 
   public Optional<WitnessList> listWitnesses() {
@@ -225,6 +221,10 @@ public class GrpcClient {
     } else {
       return blockingStubFull.totalTransaction(EmptyMessage.newBuilder().build());
     }
+  }
+
+  public NumberMessage getNextMaintenanceTime() {
+    return blockingStubFull.getNextMaintenanceTime(EmptyMessage.newBuilder().build());
   }
 
   public Optional<AssetIssueList> getAssetIssueListByTimestamp(long time) {
