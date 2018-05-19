@@ -119,6 +119,10 @@ public class GrpcClient {
     return blockingStubFull.createWitness(contract);
   }
 
+  public Transaction updateWitness(Contract.WitnessUpdateContract contract) {
+    return blockingStubFull.updateWitness(contract);
+  }
+
   public boolean broadcastTransaction(Transaction signaturedTransaction) {
     int i = 10;
     GrpcAPI.Return response = blockingStubFull.broadcastTransaction(signaturedTransaction);
@@ -156,14 +160,9 @@ public class GrpcClient {
   }
 
   public Optional<AccountList> listAccounts() {
-    if (blockingStubSolidity != null) {
-      AccountList accountList = blockingStubSolidity
-          .listAccounts(EmptyMessage.newBuilder().build());
-      return Optional.ofNullable(accountList);
-    } else {
-      AccountList accountList = blockingStubFull.listAccounts(EmptyMessage.newBuilder().build());
-      return Optional.ofNullable(accountList);
-    }
+    AccountList accountList = blockingStubSolidity
+        .listAccounts(EmptyMessage.newBuilder().build());
+    return Optional.ofNullable(accountList);
   }
 
   public Optional<WitnessList> listWitnesses() {

@@ -32,14 +32,21 @@ import org.tron.api.GrpcAPI.BlockList;
 import org.tron.api.GrpcAPI.TransactionList;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.protos.Contract.AccountCreateContract;
+import org.tron.protos.Contract.AccountUpdateContract;
 import org.tron.protos.Contract.AssetIssueContract;
+import org.tron.protos.Contract.AssetIssueContract.FrozenSupply;
 import org.tron.protos.Contract.DeployContract;
+import org.tron.protos.Contract.FreezeBalanceContract;
 import org.tron.protos.Contract.ParticipateAssetIssueContract;
 import org.tron.protos.Contract.TransferAssetContract;
 import org.tron.protos.Contract.TransferContract;
+import org.tron.protos.Contract.UnfreezeAssetContract;
+import org.tron.protos.Contract.UnfreezeBalanceContract;
 import org.tron.protos.Contract.VoteAssetContract;
 import org.tron.protos.Contract.VoteWitnessContract;
+import org.tron.protos.Contract.WithdrawBalanceContract;
 import org.tron.protos.Contract.WitnessCreateContract;
+import org.tron.protos.Contract.WitnessUpdateContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Account.Frozen;
 import org.tron.protos.Protocol.Vote;
@@ -178,7 +185,7 @@ public class Utils {
       }
     }
     result += "latest_opration_time: ";
-    result += new  Date(account.getLatestOprationTime());
+    result += new Date(account.getLatestOprationTime());
     result += "\n";
 
     result += "allowance: ";
@@ -186,7 +193,7 @@ public class Utils {
     result += "\n";
 
     result += "latest_withdraw_time: ";
-    result += new  Date(account.getLatestWithdrawTime());
+    result += new Date(account.getLatestWithdrawTime());
     result += "\n";
 
 //    result += "code: ";
@@ -302,6 +309,24 @@ public class Utils {
     result += "url: ";
     result += new String(assetIssue.getUrl().toByteArray(), Charset.forName("UTF-8"));
     result += "\n";
+
+    if (assetIssue.getFrozenSupplyCount() > 0) {
+      for (FrozenSupply frozenSupply : assetIssue.getFrozenSupplyList()) {
+        result += "frozen_supply";
+        result += "\n";
+        result += "{";
+        result += "\n";
+        result += "  amount: ";
+        result += frozenSupply.getFrozenAmount();
+        result += "\n";
+        result += "  frozen_days: ";
+        result += frozenSupply.getFrozenDays();
+        result += "\n";
+        result += "}";
+        result += "\n";
+      }
+    }
+
     return result;
   }
 
@@ -325,12 +350,16 @@ public class Utils {
   public static String printContract(Transaction.Contract contract) {
     String result = "";
     try {
+      result += "type: ";
+      result += contract.getType();
+      result += "\n";
+
       switch (contract.getType()) {
         case AccountCreateContract:
           AccountCreateContract accountCreateContract = contract.getParameter()
               .unpack(AccountCreateContract.class);
           result += "type: ";
-          result += accountCreateContract.getTypeValue();
+          result += accountCreateContract.getType();
           result += "\n";
           if (accountCreateContract.getAccountName() != null
               && accountCreateContract.getAccountName().size() > 0) {
@@ -342,6 +371,21 @@ public class Utils {
           result += "owner_address: ";
           result += WalletClient
               .encode58Check(accountCreateContract.getOwnerAddress().toByteArray());
+          result += "\n";
+          break;
+        case AccountUpdateContract:
+          AccountUpdateContract accountUpdateContract = contract.getParameter()
+              .unpack(AccountUpdateContract.class);
+          if (accountUpdateContract.getAccountName() != null
+              && accountUpdateContract.getAccountName().size() > 0) {
+            result += "account_name: ";
+            result += new String(accountUpdateContract.getAccountName().toByteArray(),
+                Charset.forName("UTF-8"));
+            result += "\n";
+          }
+          result += "owner_address: ";
+          result += WalletClient
+              .encode58Check(accountUpdateContract.getOwnerAddress().toByteArray());
           result += "\n";
           break;
         case TransferContract:
@@ -421,6 +465,18 @@ public class Utils {
               Charset.forName("UTF-8"));
           result += "\n";
           break;
+        case WitnessUpdateContract:
+          WitnessUpdateContract witnessUpdateContract = contract.getParameter()
+              .unpack(WitnessUpdateContract.class);
+          result += "owner_address: ";
+          result += WalletClient
+              .encode58Check(witnessUpdateContract.getOwnerAddress().toByteArray());
+          result += "\n";
+          result += "url: ";
+          result += new String(witnessUpdateContract.getUpdateUrl().toByteArray(),
+              Charset.forName("UTF-8"));
+          result += "\n";
+          break;
         case AssetIssueContract:
           AssetIssueContract assetIssueContract = contract.getParameter()
               .unpack(AssetIssueContract.class);
@@ -445,8 +501,54 @@ public class Utils {
           result += participateAssetIssueContract.getAmount();
           result += "\n";
           break;
+        case FreezeBalanceContract:
+          FreezeBalanceContract freezeBalanceContract = contract.getParameter()
+              .unpack(FreezeBalanceContract.class);
+          result += "owner_address: ";
+          result += WalletClient
+              .encode58Check(freezeBalanceContract.getOwnerAddress().toByteArray());
+          result += "\n";
+          result += "frozen_balance: ";
+          result += freezeBalanceContract.getFrozenBalance();
+          result += "\n";
+          result += "frozen_duration: ";
+          result += freezeBalanceContract.getFrozenDuration();
+          result += "\n";
+          break;
+        case UnfreezeBalanceContract:
+          UnfreezeBalanceContract unfreezeBalanceContract = contract.getParameter()
+              .unpack(UnfreezeBalanceContract.class);
+          result += "owner_address: ";
+          result += WalletClient
+              .encode58Check(unfreezeBalanceContract.getOwnerAddress().toByteArray());
+          result += "\n";
+          break;
+        case UnfreezeAssetContract:
+          UnfreezeAssetContract unfreezeAssetContract = contract.getParameter()
+              .unpack(UnfreezeAssetContract.class);
+          result += "owner_address: ";
+          result += WalletClient
+              .encode58Check(unfreezeAssetContract.getOwnerAddress().toByteArray());
+          result += "\n";
+          break;
+        case WithdrawBalanceContract:
+          WithdrawBalanceContract withdrawBalanceContract = contract.getParameter()
+              .unpack(WithdrawBalanceContract.class);
+          result += "owner_address: ";
+          result += WalletClient
+              .encode58Check(withdrawBalanceContract.getOwnerAddress().toByteArray());
+          result += "\n";
+          break;
         case DeployContract:
           DeployContract deployContract = contract.getParameter().unpack(DeployContract.class);
+          result += "owner_address: ";
+          result += WalletClient
+              .encode58Check(deployContract.getOwnerAddress().toByteArray());
+          result += "\n";
+          result += "script: ";
+          result += new String(deployContract.getScript().toByteArray(),
+              Charset.forName("UTF-8"));
+          result += "\n";
           break;
         default:
           return "";
