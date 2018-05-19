@@ -25,7 +25,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import org.springframework.test.context.web.WebAppConfiguration;
-import org.tron.api.GrpcAPI.AccountList;
 import org.tron.common.utils.ByteArray;
 import org.tron.core.config.Parameter.CommonConstant;
 import org.tron.explorer.GrpcClientApplication;
@@ -65,29 +64,29 @@ public class AccountControllerTest {
     }
 
   }
-
-  @Test
-  public void testGetAcountList() {
-    final byte[] acountList = accountController.getAcountList();
-    try {
-      final AccountList accountListParseFrom = AccountList.parseFrom(acountList);
-      final List<Account> accountsList = accountListParseFrom.getAccountsList();
-
-      accountsList.forEach( account -> {
-        final String accountName = account.getAccountName().toStringUtf8();
-        final byte[] addressBytes = account.getAddress().toByteArray();
-        final String addressHex = ByteArray.toHexString(addressBytes);
-        final long balance = account.getBalance();
-
-        log.info("accountName  is : {}",accountName);
-        log.info("addressHex  is : {}",addressHex);
-        log.info("balance  is ：{} ",balance);
-        log.info("----------------------");
-      });
-
-    } catch (InvalidProtocolBufferException e) {
-      log.debug(e.getMessage(), e);
-    }
-  }
+//
+//  @Test
+//  public void testGetAcountList() {
+//    final byte[] acountList = accountController.getAcountList();
+//    try {
+//      final AccountList accountListParseFrom = AccountList.parseFrom(acountList);
+//      final List<Account> accountsList = accountListParseFrom.getAccountsList();
+//
+//      accountsList.forEach( account -> {
+//        final String accountName = account.getAccountName().toStringUtf8();
+//        final byte[] addressBytes = account.getAddress().toByteArray();
+//        final String addressHex = ByteArray.toHexString(addressBytes);
+//        final long balance = account.getBalance();
+//
+//        log.info("accountName  is : {}",accountName);
+//        log.info("addressHex  is : {}",addressHex);
+//        log.info("balance  is ：{} ",balance);
+//        log.info("----------------------");
+//      });
+//
+//    } catch (InvalidProtocolBufferException e) {
+//      log.debug(e.getMessage(), e);
+//    }
+//  }
 
 }
