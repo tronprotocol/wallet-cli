@@ -5,7 +5,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.spongycastle.util.encoders.Hex;
 import org.tron.api.GrpcAPI;
-import org.tron.api.GrpcAPI.AccountList;
 import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.NodeList;
 import org.tron.api.GrpcAPI.WitnessList;
@@ -359,14 +358,14 @@ public class Client {
     }
   }
 
-  public Optional<AccountList> listAccounts() {
-    try {
-      return WalletClient.listAccounts();
-    } catch (Exception ex) {
-      ex.printStackTrace();
-      return Optional.empty();
-    }
-  }
+//  public Optional<AccountList> listAccounts() {
+//    try {
+//      return WalletClient.listAccounts();
+//    } catch (Exception ex) {
+//      ex.printStackTrace();
+//      return Optional.empty();
+//    }
+//  }
 
   public Optional<WitnessList> listWitnesses() {
     try {

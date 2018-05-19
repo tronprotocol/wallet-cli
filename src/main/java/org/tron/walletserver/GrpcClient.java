@@ -155,12 +155,12 @@ public class GrpcClient {
     }
   }
 
-  public Optional<AccountList> listAccounts() {
-    AccountList accountList = blockingStubSolidity
-        .listAccounts(EmptyMessage.newBuilder().build());
-    return Optional.ofNullable(accountList);
-
-  }
+//  public Optional<AccountList> listAccounts() {
+//    AccountList accountList = blockingStubSolidity
+//        .listAccounts(EmptyMessage.newBuilder().build());
+//    return Optional.ofNullable(accountList);
+//
+//  }
 
   public Optional<WitnessList> listWitnesses() {
     if (blockingStubSolidity != null) {

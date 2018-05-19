@@ -7,7 +7,6 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.ModelAndView;
-import org.tron.api.GrpcAPI.AccountList;
 import org.tron.common.utils.Base58;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.TransactionUtils;
@@ -52,22 +51,22 @@ public class AccountController {
     }
   }
 
-  @GetMapping("/accountList")
-  /**
-   * @deprecated This function will be remove.The Wallet-cli will not provide HTTP services in the future.
-   */
-  public byte[] getAcountList() {
-    try {
-      Optional<AccountList> result = WalletClient.listAccounts();
-      if (result.isPresent()) {
-        AccountList accountList = result.get();
-        return accountList.toByteArray();
-      }
-    } catch (Exception e) {
-      e.printStackTrace();
-    }
-    return null;
-  }
+//  @GetMapping("/accountList")
+//  /**
+//   * @deprecated This function will be remove.The Wallet-cli will not provide HTTP services in the future.
+//   */
+//  public byte[] getAcountList() {
+//    try {
+//      Optional<AccountList> result = WalletClient.listAccounts();
+//      if (result.isPresent()) {
+//        AccountList accountList = result.get();
+//        return accountList.toByteArray();
+//      }
+//    } catch (Exception e) {
+//      e.printStackTrace();
+//    }
+//    return null;
+//  }
 
   @GetMapping("/updateAccount")
   /**

@@ -682,20 +682,20 @@ public class WalletClient {
     return true;
   }
 
-  public static Optional<AccountList> listAccounts() {
-    Optional<AccountList> result = rpcCli.listAccounts();
-    if (result.isPresent()) {
-      AccountList accountList = result.get();
-      List<Account> list = accountList.getAccountsList();
-      List<Account> newList = new ArrayList();
-      newList.addAll(list);
-      newList.sort(new AccountComparator());
-      AccountList.Builder builder = AccountList.newBuilder();
-      newList.forEach(account -> builder.addAccounts(account));
-      result = Optional.of(builder.build());
-    }
-    return result;
-  }
+//  public static Optional<AccountList> listAccounts() {
+//    Optional<AccountList> result = rpcCli.listAccounts();
+//    if (result.isPresent()) {
+//      AccountList accountList = result.get();
+//      List<Account> list = accountList.getAccountsList();
+//      List<Account> newList = new ArrayList();
+//      newList.addAll(list);
+//      newList.sort(new AccountComparator());
+//      AccountList.Builder builder = AccountList.newBuilder();
+//      newList.forEach(account -> builder.addAccounts(account));
+//      result = Optional.of(builder.build());
+//    }
+//    return result;
+//  }
 
   public static Optional<WitnessList> listWitnesses() {
     Optional<WitnessList> result = rpcCli.listWitnesses();
