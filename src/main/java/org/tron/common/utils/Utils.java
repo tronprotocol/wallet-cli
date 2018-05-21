@@ -479,7 +479,7 @@ public class Utils {
         case AssetIssueContract:
           AssetIssueContract assetIssueContract = contract.getParameter()
               .unpack(AssetIssueContract.class);
-          printAssetIssue(assetIssueContract);
+          result += printAssetIssue(assetIssueContract);
           break;
         case ParticipateAssetIssueContract:
           ParticipateAssetIssueContract participateAssetIssueContract = contract.getParameter()
