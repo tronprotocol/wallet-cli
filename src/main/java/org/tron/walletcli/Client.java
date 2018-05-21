@@ -427,7 +427,7 @@ public class Client {
     return WalletClient.getNextMaintenanceTime();
   }
 
-  public boolean updateAccount(String password, byte[] addressBytes, byte[] accountNameBytes) {
+  public boolean updateAccount(String password, byte[] accountNameBytes) {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warnging: updateAccount failed, Please login first !!");
       return false;
@@ -442,7 +442,7 @@ public class Client {
     }
 
     try {
-      return wallet.updateAccount(addressBytes, accountNameBytes);
+      return wallet.updateAccount(accountNameBytes);
     } catch (Exception ex) {
       ex.printStackTrace();
       return false;
