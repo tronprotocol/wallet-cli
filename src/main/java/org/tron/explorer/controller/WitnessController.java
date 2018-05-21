@@ -3,13 +3,9 @@ package org.tron.explorer.controller;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.ModelAndView;
 import org.tron.api.GrpcAPI.WitnessList;
-import org.tron.common.utils.ByteArray;
-import org.tron.common.utils.TransactionUtils;
-import org.tron.protos.Protocol.Transaction;
 import org.tron.walletserver.WalletClient;
 
 import java.util.Optional;
@@ -52,26 +48,26 @@ public class WitnessController {
     }
     return null;
   }
-
-  @PostMapping("/createWitnessToView")
-  /**
-   * @deprecated This function will be remove.The Wallet-cli will not provide HTTP services in the future.
-   */
-  public byte[] getTransactionToView(String address, String onwerUrl) {
-    try {
-      if (onwerUrl == null || onwerUrl.equals("")) {
-        return null;
-      }
-      byte[] owner = WalletClient.decodeFromBase58Check(address);
-      if (owner == null) {
-        return null;
-      }
-      Transaction transaction = WalletClient.createWitnessTransaction(owner, onwerUrl.getBytes());
-      transaction = TransactionUtils.setTimestamp(transaction);
-      return transaction.toByteArray();
-    } catch (Exception e) {
-      e.printStackTrace();
-      return null;
-    }
-  }
+//
+// // @PostMapping("/createWitnessToView")
+//  /**
+//   * @deprecated This function will be remove.The Wallet-cli will not provide HTTP services in the future.
+//   */
+//  public byte[] getTransactionToView(String address, String onwerUrl) {
+//    try {
+//      if (onwerUrl == null || onwerUrl.equals("")) {
+//        return null;
+//      }
+//      byte[] owner = WalletClient.decodeFromBase58Check(address);
+//      if (owner == null) {
+//        return null;
+//      }
+//      Transaction transaction = WalletClient.createWitnessTransaction(owner, onwerUrl.getBytes());
+//      transaction = TransactionUtils.setTimestamp(transaction);
+//      return transaction.toByteArray();
+//    } catch (Exception e) {
+//      e.printStackTrace();
+//      return null;
+//    }
+//  }
 }
