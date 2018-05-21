@@ -199,14 +199,17 @@ public class Utils {
 //    result += account.getCode();
 //    result += "\n";
 //
-//    result += "is_witness: ";
-//    result += account.getIsWitness();
-//    result += "\n";
+    result += "is_witness: ";
+    result += account.getIsWitness();
+    result += "\n";
 //
 //    result += "is_committee: ";
 //    result += account.getIsCommittee();
 //    result += "\n";
 
+    result += "asset_issued_name: ";
+    result += account.getAssetIssuedName().toStringUtf8();
+    result += "\n";
     return result;
   }
 
