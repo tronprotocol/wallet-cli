@@ -2,8 +2,6 @@ package org.tron.common.utils;
 
 import java.io.UnsupportedEncodingException;
 import java.math.BigInteger;
-import java.util.Arrays;
-import org.tron.common.crypto.Hash;
 
 public class Base58 {
 
@@ -112,9 +110,9 @@ public class Base58 {
     return new BigInteger(1, decode(input));
   }
 
-  //
-  // number -> number / 58, returns number % 58
-  //
+  /**
+   *  number -> number / 58, returns number % 58
+   */
   private static byte divmod58(byte[] number, int startAt) {
     int remainder = 0;
     for (int i = startAt; i < number.length; i++) {
@@ -129,9 +127,9 @@ public class Base58 {
     return (byte) remainder;
   }
 
-  //
-  // number -> number / 256, returns number % 256
-  //
+  /**
+   * number -> number / 256, returns number % 256
+   */
   private static byte divmod256(byte[] number58, int startAt) {
     int remainder = 0;
     for (int i = startAt; i < number58.length; i++) {
