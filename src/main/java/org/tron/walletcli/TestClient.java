@@ -817,7 +817,7 @@ public class TestClient {
     System.out.println("VoteWitness");
     System.out.println("Listwitnesses");
     System.out.println("Listassetissue");
-    System.out.println("listNodes");
+    System.out.println("ListNodes");
     System.out.println("Getblock");
     System.out.println("GetTotalTransaction");
     System.out.println("GetAssetIssueListByTimestamp");
