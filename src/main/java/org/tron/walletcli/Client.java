@@ -63,17 +63,14 @@ public class Client {
       return false;
     }
     if (!WalletClient.checkPassWord(oldPassword)) {
-      logger
-          .warn(
-              "Warning: ChangePassword failed, Wrong password !!");
+      logger.warn("Warning: ChangePassword failed, Wrong password !!");
       return false;
     }
 
     if (wallet.getEcKey() == null || wallet.getEcKey().getPrivKey() == null) {
       wallet = WalletClient.GetWalletByStorage(oldPassword);
       if (wallet == null) {
-        logger
-            .warn("Warning: ChangePassword failed, No wallet !!");
+        logger.warn("Warning: ChangePassword failed, No wallet !!");
         return false;
       }
     }
@@ -89,8 +86,7 @@ public class Client {
     if (wallet == null) {
       wallet = WalletClient.GetWalletByStorage(password);
       if (wallet == null) {
-        logger
-            .warn("Warning: Login failed, Please registerWallet or importWallet first !!");
+        logger.warn("Warning: Login failed, Please registerWallet or importWallet first !!");
         return false;
       }
     }
@@ -116,18 +112,14 @@ public class Client {
     }
 
     if (!WalletClient.checkPassWord(password)) {
-      logger
-          .warn(
-              "Warning: BackupWallet failed, Wrong password !!");
+      logger.warn("Warning: BackupWallet failed, Wrong password !!");
       return null;
     }
 
     if (wallet.getEcKey() == null || wallet.getEcKey().getPrivKey() == null) {
       wallet = WalletClient.GetWalletByStorage(password);
       if (wallet == null) {
-        logger
-            .warn(
-                "Warning: BackupWallet failed, no wallet can be backup !!");
+        logger.warn("Warning: BackupWallet failed, no wallet can be backup !!");
         return null;
       }
     }
@@ -516,7 +508,6 @@ public class Client {
   }
 
   public boolean withdrawBalance(String password) {
-
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warnging: withdrawBalance failed, Please login first !!");
       return false;

@@ -1,10 +1,15 @@
 package org.tron.walletcli;
 
 import com.beust.jcommander.JCommander;
-import java.text.SimpleDateFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.tron.api.GrpcAPI.*;
+import org.tron.api.GrpcAPI.AssetIssueList;
+import org.tron.api.GrpcAPI.BlockList;
+import org.tron.api.GrpcAPI.Node;
+import org.tron.api.GrpcAPI.NodeList;
+import org.tron.api.GrpcAPI.NumberMessage;
+import org.tron.api.GrpcAPI.TransactionList;
+import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Utils;
 import org.tron.protos.Contract.AssetIssueContract;
@@ -14,9 +19,16 @@ import org.tron.protos.Protocol.Transaction;
 import org.tron.walletserver.WalletClient;
 
 import java.sql.Timestamp;
-import java.util.*;
+import java.text.SimpleDateFormat;
+import java.util.Arrays;
+import java.util.Base64;
 import java.util.Base64.Decoder;
 import java.util.Base64.Encoder;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Optional;
+import java.util.Scanner;
 
 public class TestClient {
 
@@ -813,16 +825,16 @@ public class TestClient {
     System.out.println("GetNextMaintenanceTime");
     System.out.println("GetTransactionsByTimestamp");
     System.out.println("GetTransactionById");
-    System.out.println("getTransactionsFromThis");
-    System.out.println("getTransactionsToThis");
-    System.out.println("getBlockById");
-    System.out.println("getBlockByLimitNext");
-    System.out.println("getBlockByLatestNum");
-    System.out.println("freezebalance");
-    System.out.println("unfreezebalance");
-    System.out.println("withdrawbalance");
+    System.out.println("GetTransactionsFromThis");
+    System.out.println("GetTransactionsToThis");
+    System.out.println("GetBlockById");
+    System.out.println("GetBlockByLimitNext");
+    System.out.println("GetBlockByLatestNum");
+    System.out.println("Freezebalance");
+    System.out.println("Unfreezebalance");
+    System.out.println("Withdrawbalance");
     System.out.println("UpdateAccount");
-    System.out.println("unfreezeasset");
+    System.out.println("Unfreezeasset");
     System.out.println("Exit or Quit");
 
     System.out.println("Input any one of then, you will get more tips.");
@@ -1019,7 +1031,6 @@ public class TestClient {
           default: {
             System.out.println("Invalid cmd: " + cmd);
             help();
-
           }
         }
       } catch (Exception e) {
