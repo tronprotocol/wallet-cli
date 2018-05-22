@@ -199,14 +199,17 @@ public class Utils {
 //    result += account.getCode();
 //    result += "\n";
 //
-//    result += "is_witness: ";
-//    result += account.getIsWitness();
-//    result += "\n";
+    result += "is_witness: ";
+    result += account.getIsWitness();
+    result += "\n";
 //
 //    result += "is_committee: ";
 //    result += account.getIsCommittee();
 //    result += "\n";
 
+    result += "asset_issued_name: ";
+    result += account.getAssetIssuedName().toStringUtf8();
+    result += "\n";
     return result;
   }
 
@@ -479,7 +482,7 @@ public class Utils {
         case AssetIssueContract:
           AssetIssueContract assetIssueContract = contract.getParameter()
               .unpack(AssetIssueContract.class);
-          printAssetIssue(assetIssueContract);
+          result += printAssetIssue(assetIssueContract);
           break;
         case ParticipateAssetIssueContract:
           ParticipateAssetIssueContract participateAssetIssueContract = contract.getParameter()

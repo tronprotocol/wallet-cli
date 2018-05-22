@@ -182,19 +182,17 @@ public class TestClient {
   }
 
   private void updateAccount(String[] parameters) {
-    if (parameters == null || parameters.length != 3) {
-      System.out.println("UpdateAccount need 3 parameter like following: ");
-      System.out.println("UpdateAccount Password Address AccountName ");
+    if (parameters == null || parameters.length != 2) {
+      System.out.println("UpdateAccount need 2 parameter like following: ");
+      System.out.println("UpdateAccount Password AccountName ");
       return;
     }
 
     String password = parameters[0];
-    String address = parameters[1];
-    String accountName = parameters[2];
-    byte[] addressBytes = WalletClient.decodeFromBase58Check(address);
+    String accountName = parameters[1];
     byte[] accountNameBytes = ByteArray.fromString(accountName);
 
-    boolean ret = client.updateAccount(password, addressBytes, accountNameBytes);
+    boolean ret = client.updateAccount(password, accountNameBytes);
     if (ret) {
       logger.info("Update Account success !!!!");
     } else {

@@ -260,9 +260,9 @@ public class WalletClient {
     return rpcCli.broadcastTransaction(transaction);
   }
 
-  public boolean updateAccount(byte[] addressBytes, byte[] accountNameBytes) {
-    Contract.AccountUpdateContract contract = createAccountUpdateContract(accountNameBytes,
-        addressBytes);
+  public boolean updateAccount(byte[] accountNameBytes) {
+    byte[] owner = getAddress();
+    Contract.AccountUpdateContract contract = createAccountUpdateContract(accountNameBytes, owner);
     Transaction transaction = rpcCli.createTransaction(contract);
 
     if (transaction == null || transaction.getRawData().getContractCount() == 0) {
