@@ -15,15 +15,11 @@
 
 package org.tron.common.utils;
 
-import static org.tron.common.crypto.Hash.sha256;
-
 import com.google.protobuf.ByteString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.spongycastle.util.encoders.Base64;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.ECKey.ECDSASignature;
-import org.tron.protos.Protocol.TXInput;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.Transaction.Contract;
 
@@ -31,10 +27,11 @@ import java.security.SignatureException;
 import java.util.Arrays;
 import java.util.List;
 
+import static org.tron.common.crypto.Hash.sha256;
+
 public class TransactionUtils {
 
   private static final Logger logger = LoggerFactory.getLogger("Transaction");
-  private final static int RESERVE_BALANCE = 10;
 
   /**
    * Obtain a data bytes after removing the id and SHA-256(data)
@@ -146,9 +143,7 @@ public class TransactionUtils {
   }
 
   public static Transaction sign(Transaction transaction, ECKey myKey) {
-    ByteString lockSript = ByteString.copyFrom(myKey.getAddress());
     Transaction.Builder transactionBuilderSigned = transaction.toBuilder();
-
     byte[] hash = sha256(transaction.getRawData().toByteArray());
     List<Contract> listContract = transaction.getRawData().getContractList();
     for (int i = 0; i < listContract.size(); i++) {

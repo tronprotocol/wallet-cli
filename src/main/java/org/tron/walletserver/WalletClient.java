@@ -10,11 +10,19 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.spongycastle.util.encoders.Hex;
 import org.tron.api.GrpcAPI;
-import org.tron.api.GrpcAPI.*;
+import org.tron.api.GrpcAPI.AssetIssueList;
+import org.tron.api.GrpcAPI.BlockList;
+import org.tron.api.GrpcAPI.NodeList;
+import org.tron.api.GrpcAPI.TransactionList;
+import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.Hash;
 import org.tron.common.crypto.SymmEncoder;
-import org.tron.common.utils.*;
+import org.tron.common.utils.Base58;
+import org.tron.common.utils.ByteArray;
+import org.tron.common.utils.FileUtil;
+import org.tron.common.utils.TransactionUtils;
+import org.tron.common.utils.Utils;
 import org.tron.core.config.Configuration;
 import org.tron.core.config.Parameter.CommonConstant;
 import org.tron.protos.Contract;
@@ -23,11 +31,20 @@ import org.tron.protos.Contract.FreezeBalanceContract;
 import org.tron.protos.Contract.UnfreezeAssetContract;
 import org.tron.protos.Contract.UnfreezeBalanceContract;
 import org.tron.protos.Contract.WithdrawBalanceContract;
-import org.tron.protos.Protocol.*;
+import org.tron.protos.Protocol.Account;
+import org.tron.protos.Protocol.Block;
+import org.tron.protos.Protocol.Transaction;
+import org.tron.protos.Protocol.Witness;
+import sun.security.jca.JCAUtil;
 
 import java.math.BigInteger;
-import java.util.*;
-import sun.security.jca.JCAUtil;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 class AccountComparator implements Comparator {
 
@@ -66,11 +83,10 @@ public class WalletClient {
 //    }, 3 * 60 * 1000, 3 * 60 * 1000);
 //  }
 
-
   public static GrpcClient init() {
     Config config = Configuration.getByPath("config.conf");
     dbPath = config.getString("CityDb.DbPath");
-    txtPath = System.getProperty("user.dir") + '/' + config.getString("CityDb.TxtPath");
+    txtPath = System.getProperty("user.dir") + "/" + config.getString("CityDb.TxtPath");
 
     String fullNode = "";
     String solidityNode = "";
@@ -432,24 +448,23 @@ public class WalletClient {
     return transaction;
   }
 
-  public static Contract.AccountCreateContract createAccountCreateContract(AccountType accountType,
-      byte[] accountName, byte[] address) {
-    Contract.AccountCreateContract.Builder builder = Contract.AccountCreateContract.newBuilder();
-    ByteString bsaAdress = ByteString.copyFrom(address);
-    ByteString bsAccountName = ByteString.copyFrom(accountName);
-    builder.setType(accountType);
-    builder.setAccountName(bsAccountName);
-    builder.setOwnerAddress(bsaAdress);
-
-    return builder.build();
-  }
+//  public static Contract.AccountCreateContract createAccountCreateContract(AccountType accountType,
+//      byte[] accountName, byte[] address) {
+//    Contract.AccountCreateContract.Builder builder = Contract.AccountCreateContract.newBuilder();
+//    ByteString bsaAdress = ByteString.copyFrom(address);
+//    ByteString bsAccountName = ByteString.copyFrom(accountName);
+//    builder.setType(accountType);
+//    builder.setAccountName(bsAccountName);
+//    builder.setOwnerAddress(bsaAdress);
+//
+//    return builder.build();
+//  }
 
   public static Contract.AccountUpdateContract createAccountUpdateContract(byte[] accountName,
       byte[] address) {
     Contract.AccountUpdateContract.Builder builder = Contract.AccountUpdateContract.newBuilder();
     ByteString basAddreess = ByteString.copyFrom(address);
     ByteString bsAccountName = ByteString.copyFrom(accountName);
-
     builder.setAccountName(bsAccountName);
     builder.setOwnerAddress(basAddreess);
 
@@ -631,8 +646,7 @@ public class WalletClient {
       return false;
     }
     if (address.length != CommonConstant.ADDRESS_SIZE) {
-      logger.warn(
-          "Warning: Address length need " + CommonConstant.ADDRESS_SIZE + " but " + address.length
+      logger.warn("Warning: Address length need " + CommonConstant.ADDRESS_SIZE + " but " + address.length
               + " !!");
       return false;
     }
@@ -679,10 +693,8 @@ public class WalletClient {
       return null;
     }
     if (addressBase58.length() != CommonConstant.BASE58CHECK_ADDRESS_SIZE) {
-      logger.warn(
-          "Warning: Base58 address length need " + CommonConstant.BASE58CHECK_ADDRESS_SIZE + " but "
-              + addressBase58.length()
-              + " !!");
+      logger.warn("Warning: Base58 address length need " + CommonConstant.BASE58CHECK_ADDRESS_SIZE
+              + " but " + addressBase58.length() + " !!");
       return null;
     }
     byte[] address = decode58Check(addressBase58);
@@ -780,16 +792,11 @@ public class WalletClient {
   }
 
   public boolean freezeBalance(long frozen_balance, long frozen_duration) {
-
-    Contract.FreezeBalanceContract contract = createFreezeBalanceContract(frozen_balance,
-        frozen_duration);
-
+    Contract.FreezeBalanceContract contract = createFreezeBalanceContract(frozen_balance, frozen_duration);
     Transaction transaction = rpcCli.createTransaction(contract);
-
     if (transaction == null || transaction.getRawData().getContractCount() == 0) {
       return false;
     }
-
     transaction = signTransaction(transaction);
     return rpcCli.broadcastTransaction(transaction);
   }
@@ -798,9 +805,8 @@ public class WalletClient {
       long frozen_duration) {
     byte[] address = getAddress();
     Contract.FreezeBalanceContract.Builder builder = Contract.FreezeBalanceContract.newBuilder();
-    ByteString byteAddreess = ByteString.copyFrom(address);
-
-    builder.setOwnerAddress(byteAddreess).setFrozenBalance(frozen_balance)
+    ByteString byteAddress = ByteString.copyFrom(address);
+    builder.setOwnerAddress(byteAddress).setFrozenBalance(frozen_balance)
         .setFrozenDuration(frozen_duration);
 
     return builder.build();
@@ -808,24 +814,19 @@ public class WalletClient {
 
   public boolean unfreezeBalance() {
     Contract.UnfreezeBalanceContract contract = createUnfreezeBalanceContract();
-
     Transaction transaction = rpcCli.createTransaction(contract);
-
     if (transaction == null || transaction.getRawData().getContractCount() == 0) {
       return false;
     }
-
     transaction = signTransaction(transaction);
     return rpcCli.broadcastTransaction(transaction);
   }
 
   private UnfreezeBalanceContract createUnfreezeBalanceContract() {
-
     byte[] address = getAddress();
     Contract.UnfreezeBalanceContract.Builder builder = Contract.UnfreezeBalanceContract
         .newBuilder();
     ByteString byteAddreess = ByteString.copyFrom(address);
-
     builder.setOwnerAddress(byteAddreess);
 
     return builder.build();
@@ -833,50 +834,38 @@ public class WalletClient {
 
   public boolean unfreezeAsset() {
     Contract.UnfreezeAssetContract contract = createUnfreezeAssetContract();
-
     Transaction transaction = rpcCli.createTransaction(contract);
-
     if (transaction == null || transaction.getRawData().getContractCount() == 0) {
       return false;
     }
-
     transaction = signTransaction(transaction);
     return rpcCli.broadcastTransaction(transaction);
   }
 
   private UnfreezeAssetContract createUnfreezeAssetContract() {
-
     byte[] address = getAddress();
     Contract.UnfreezeAssetContract.Builder builder = Contract.UnfreezeAssetContract
         .newBuilder();
     ByteString byteAddreess = ByteString.copyFrom(address);
-
     builder.setOwnerAddress(byteAddreess);
-
     return builder.build();
   }
 
-
   public boolean withdrawBalance() {
     Contract.WithdrawBalanceContract contract = createWithdrawBalanceContract();
-
     Transaction transaction = rpcCli.createTransaction(contract);
-
     if (transaction == null || transaction.getRawData().getContractCount() == 0) {
       return false;
     }
-
     transaction = signTransaction(transaction);
     return rpcCli.broadcastTransaction(transaction);
   }
 
   private WithdrawBalanceContract createWithdrawBalanceContract() {
-
     byte[] address = getAddress();
     Contract.WithdrawBalanceContract.Builder builder = Contract.WithdrawBalanceContract
         .newBuilder();
     ByteString byteAddreess = ByteString.copyFrom(address);
-
     builder.setOwnerAddress(byteAddreess);
 
     return builder.build();

@@ -7,17 +7,21 @@ import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tron.api.GrpcAPI;
-import org.tron.api.GrpcAPI.*;
+import org.tron.api.GrpcAPI.AssetIssueList;
+import org.tron.api.GrpcAPI.BlockLimit;
+import org.tron.api.GrpcAPI.BlockList;
+import org.tron.api.GrpcAPI.BytesMessage;
+import org.tron.api.GrpcAPI.EmptyMessage;
+import org.tron.api.GrpcAPI.NodeList;
+import org.tron.api.GrpcAPI.NumberMessage;
 import org.tron.api.GrpcAPI.Return.response_code;
+import org.tron.api.GrpcAPI.TimeMessage;
+import org.tron.api.GrpcAPI.TransactionList;
+import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.api.WalletGrpc;
 import org.tron.api.WalletSolidityGrpc;
 import org.tron.common.utils.ByteArray;
 import org.tron.protos.Contract;
-import org.tron.protos.Contract.AssetIssueContract;
-import org.tron.protos.Contract.FreezeBalanceContract;
-import org.tron.protos.Contract.UnfreezeAssetContract;
-import org.tron.protos.Contract.UnfreezeBalanceContract;
-import org.tron.protos.Contract.WithdrawBalanceContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.Transaction;
@@ -82,19 +86,19 @@ public class GrpcClient {
     return blockingStubFull.createTransaction(contract);
   }
 
-  public Transaction createTransaction(FreezeBalanceContract contract) {
+  public Transaction createTransaction(Contract.FreezeBalanceContract contract) {
     return blockingStubFull.freezeBalance(contract);
   }
 
-  public Transaction createTransaction(WithdrawBalanceContract contract) {
+  public Transaction createTransaction(Contract.WithdrawBalanceContract contract) {
     return blockingStubFull.withdrawBalance(contract);
   }
 
-  public Transaction createTransaction(UnfreezeBalanceContract contract) {
+  public Transaction createTransaction(Contract.UnfreezeBalanceContract contract) {
     return blockingStubFull.unfreezeBalance(contract);
   }
 
-  public Transaction createTransaction(UnfreezeAssetContract contract) {
+  public Transaction createTransaction(Contract.UnfreezeAssetContract contract) {
     return blockingStubFull.unfreezeAsset(contract);
   }
 
@@ -190,8 +194,7 @@ public class GrpcClient {
   }
 
   public Optional<NodeList> listNodes() {
-    NodeList nodeList = blockingStubFull
-        .listNodes(EmptyMessage.newBuilder().build());
+    NodeList nodeList = blockingStubFull.listNodes(EmptyMessage.newBuilder().build());
     return Optional.ofNullable(nodeList);
   }
 
@@ -199,17 +202,15 @@ public class GrpcClient {
     ByteString addressBS = ByteString.copyFrom(address);
     Account request = Account.newBuilder().setAddress(addressBS).build();
     if (blockingStubSolidity != null) {
-      AssetIssueList assetIssueList = blockingStubSolidity
-          .getAssetIssueByAccount(request);
+      AssetIssueList assetIssueList = blockingStubSolidity.getAssetIssueByAccount(request);
       return Optional.ofNullable(assetIssueList);
     } else {
-      AssetIssueList assetIssueList = blockingStubFull
-          .getAssetIssueByAccount(request);
+      AssetIssueList assetIssueList = blockingStubFull.getAssetIssueByAccount(request);
       return Optional.ofNullable(assetIssueList);
     }
   }
 
-  public AssetIssueContract getAssetIssueByName(String assetName) {
+  public Contract.AssetIssueContract getAssetIssueByName(String assetName) {
     ByteString assetNameBs = ByteString.copyFrom(assetName.getBytes());
     BytesMessage request = BytesMessage.newBuilder().setValue(assetNameBs).build();
     if (blockingStubSolidity != null) {
