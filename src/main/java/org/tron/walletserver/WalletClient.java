@@ -851,7 +851,6 @@ public class WalletClient {
     return builder.build();
   }
 
-
   public boolean withdrawBalance() {
     Contract.WithdrawBalanceContract contract = createWithdrawBalanceContract();
     Transaction transaction = rpcCli.createTransaction(contract);
