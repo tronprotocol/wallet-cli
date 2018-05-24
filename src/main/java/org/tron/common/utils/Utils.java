@@ -130,6 +130,9 @@ public class Utils {
     result += "free_net_usage: ";
     result += account.getFreeNetUsage();
     result += "\n";
+    result += "net_usage: ";
+    result += account.getNetUsage();
+    result += "\n";
     if (account.getCreateTime() != 0) {
       result += "create_time: ";
       result += new Date(account.getCreateTime());
