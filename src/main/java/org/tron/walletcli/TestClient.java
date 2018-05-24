@@ -371,7 +371,7 @@ public class TestClient {
   private void participateAssetIssue(String[] parameters) {
     if (parameters == null || parameters.length != 4) {
       System.out.println("ParticipateAssetIssue need 4 parameter like following: ");
-      System.out.println("ParticipateAssetIssue Password ToAddress AssertName Amount");
+      System.out.println("ParticipateAssetIssue Password ToAddress AssetName Amount");
       return;
     }
     String password = parameters[0];
