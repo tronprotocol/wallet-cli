@@ -751,8 +751,12 @@ public class WalletClient {
     return rpcCli.getAssetIssueListByTimestamp(timestamp);
   }
 
-  public static Optional<TransactionList> getTransactionsByTimestamp(long start, long end) {
-    return rpcCli.getTransactionsByTimestamp(start, end);
+  public static Optional<TransactionList> getTransactionsByTimestamp(long start, long end, int offset, int limit) {
+    return rpcCli.getTransactionsByTimestamp(start, end, offset, limit);
+  }
+
+  public static GrpcAPI.NumberMessage getTransactionsByTimestampCount(long start, long end) {
+    return rpcCli.getTransactionsByTimestampCount(start,end);
   }
 
   public static Optional<AssetIssueList> getAssetIssueList() {
@@ -779,12 +783,20 @@ public class WalletClient {
     return rpcCli.getNextMaintenanceTime();
   }
 
-  public static Optional<TransactionList> getTransactionsFromThis(byte[] address) {
-    return rpcCli.getTransactionsFromThis(address);
+  public static Optional<TransactionList> getTransactionsFromThis(byte[] address, int offset, int limit) {
+    return rpcCli.getTransactionsFromThis(address, offset, limit);
   }
 
-  public static Optional<TransactionList> getTransactionsToThis(byte[] address) {
-    return rpcCli.getTransactionsToThis(address);
+  public static GrpcAPI.NumberMessage   getTransactionsFromThisCount(byte[] address) {
+    return rpcCli.getTransactionsFromThisCount(address);
+  }
+
+  public static Optional<TransactionList> getTransactionsToThis(byte[] address, int offset, int limit) {
+    return rpcCli.getTransactionsToThis(address, offset, limit);
+  }
+
+  public static GrpcAPI.NumberMessage getTransactionsToThisCount(byte[] address) {
+    return rpcCli.getTransactionsToThisCount(address);
   }
 
   public static Optional<Transaction> getTransactionById(String txID) {
