@@ -13,6 +13,7 @@ import org.tron.api.GrpcAPI;
 import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.BlockList;
 import org.tron.api.GrpcAPI.NodeList;
+import org.tron.api.GrpcAPI.NumberMessage;
 import org.tron.api.GrpcAPI.TransactionList;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.crypto.ECKey;
@@ -765,6 +766,10 @@ public class WalletClient {
 
   public static Optional<AssetIssueList> getAssetIssueByAccount(byte[] address) {
     return rpcCli.getAssetIssueByAccount(address);
+  }
+
+  public static NumberMessage getAccountNetLimit(byte[] address) {
+    return rpcCli.getAccountNetLimit(address);
   }
 
   public static AssetIssueContract getAssetIssueByName(String assetName) {

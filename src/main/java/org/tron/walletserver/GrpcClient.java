@@ -210,6 +210,12 @@ public class GrpcClient {
     }
   }
 
+  public NumberMessage getAccountNetLimit(byte[] address) {
+    ByteString addressBS = ByteString.copyFrom(address);
+    Account request = Account.newBuilder().setAddress(addressBS).build();
+    return blockingStubFull.getAccountNetLimit(request);
+  }
+
   public Contract.AssetIssueContract getAssetIssueByName(String assetName) {
     ByteString assetNameBs = ByteString.copyFrom(assetName.getBytes());
     BytesMessage request = BytesMessage.newBuilder().setValue(assetNameBs).build();

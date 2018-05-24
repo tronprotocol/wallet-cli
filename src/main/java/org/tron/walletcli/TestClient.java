@@ -233,6 +233,26 @@ public class TestClient {
     }
   }
 
+  private void getAccountNetLimit(String[] parameters) {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("GetAccountNetLimit need 1 parameter like following: ");
+      System.out.println("GetAccountNetLimit Address ");
+      return;
+    }
+    String address = parameters[0];
+    byte[] addressBytes = WalletClient.decodeFromBase58Check(address);
+    if (addressBytes == null) {
+      return;
+    }
+
+    NumberMessage result = WalletClient.getAccountNetLimit(addressBytes);
+    if (result.getNum() >= 0) {
+      logger.info("NetLimit is " + result.getNum());
+    } else {
+      logger.info("GetAccountNetLimit " + " failed !!");
+    }
+  }
+
   private void getAssetIssueByName(String[] parameters) {
     if (parameters == null || parameters.length != 1) {
       System.out.println("GetAssetIssueByName need 1 parameter like following: ");
@@ -809,6 +829,7 @@ public class TestClient {
     System.out.println("GetBalance");
     System.out.println("GetAccount");
     System.out.println("GetAssetIssueByAccount");
+    System.out.println("GetAccountNetLimit");
     System.out.println("GetAssetIssueByName");
     System.out.println("SendCoin");
     System.out.println("TransferAsset");
@@ -911,6 +932,10 @@ public class TestClient {
           }
           case "getassetissuebyaccount": {
             getAssetIssueByAccount(parameters);
+            break;
+          }
+          case "getaccountnetlimit": {
+            getAccountNetLimit(parameters);
             break;
           }
           case "getassetissuebyname": {
