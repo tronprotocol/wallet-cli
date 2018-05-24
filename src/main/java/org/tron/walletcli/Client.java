@@ -232,7 +232,7 @@ public class Client {
 
   public boolean assetIssue(String password, String name, long totalSupply, int trxNum, int icoNum,
       long startTime, long endTime, int voteScore, String description, String url,
-      HashMap<String, String> frozenSupply) {
+      long freeNetLimit, HashMap<String, String> frozenSupply) {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: assetIssue failed,  Please login first !!");
       return false;
@@ -272,11 +272,15 @@ public class Client {
       if (endTime <= startTime) {
         return false;
       }
+      if (freeNetLimit < 0) {
+        return false;
+      }
       builder.setStartTime(startTime);
       builder.setEndTime(endTime);
       builder.setVoteScore(voteScore);
       builder.setDescription(ByteString.copyFrom(description.getBytes()));
       builder.setUrl(ByteString.copyFrom(url.getBytes()));
+      builder.setFreeAssetNetLimit(freeNetLimit);
 
       for (String daysStr : frozenSupply.keySet()) {
         String amountStr = frozenSupply.get(daysStr);

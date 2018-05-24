@@ -371,11 +371,11 @@ public class TestClient {
   }
 
   private void assetIssue(String[] parameters) {
-    if (parameters == null || parameters.length < 9 || (parameters.length & 1) == 0) {
+    if (parameters == null || parameters.length < 10 || (parameters.length & 1) != 0) {
       System.out.println("Use assetIssue command you need like: ");
       System.out.println(
           "AssetIssue Password AssetName TotalSupply TrxNum AssetNum "
-              + "StartDate EndDate Description Url "
+              + "StartDate EndDate Description Url FreeNetLimitPerAccount"
               + "FrozenAmount0 FrozenDays0 ... FrozenAmountN FrozenDaysN");
       System.out
           .println("TrxNum and AssetNum represents the conversion ratio of the tron to the asset.");
@@ -392,8 +392,9 @@ public class TestClient {
     String endYyyyMmDd = parameters[6];
     String description = parameters[7];
     String url = parameters[8];
+    String freeNetLimitPerAccount = parameters[9];
     HashMap<String, String> frozenSupply = new HashMap<>();
-    for (int i = 9; i < parameters.length; i += 2) {
+    for (int i = 10; i < parameters.length; i += 2) {
       String amount = parameters[i];
       String days = parameters[i + 1];
       frozenSupply.put(days, amount);
@@ -406,10 +407,11 @@ public class TestClient {
     Date endDate = Utils.strToDateLong(endYyyyMmDd);
     long startTime = startDate.getTime();
     long endTime = endDate.getTime();
+    long freeAssetNetLimit = new Long(freeNetLimitPerAccount);
 
     boolean result = client
         .assetIssue(password, name, totalSupply, trxNum, icoNum, startTime, endTime,
-            0, description, url, frozenSupply);
+            0, description, url, freeAssetNetLimit, frozenSupply);
     if (result) {
       logger.info("AssetIssue " + name + " successful !!");
     } else {
