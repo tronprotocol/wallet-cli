@@ -7,6 +7,7 @@ import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tron.api.GrpcAPI;
+import org.tron.api.GrpcAPI.AccountPaginated;
 import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.BlockLimit;
 import org.tron.api.GrpcAPI.BlockList;
@@ -16,6 +17,7 @@ import org.tron.api.GrpcAPI.NodeList;
 import org.tron.api.GrpcAPI.NumberMessage;
 import org.tron.api.GrpcAPI.Return.response_code;
 import org.tron.api.GrpcAPI.TimeMessage;
+import org.tron.api.GrpcAPI.TimePaginatedMessage;
 import org.tron.api.GrpcAPI.TransactionList;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.api.WalletGrpc;
@@ -240,27 +242,58 @@ public class GrpcClient {
     return Optional.ofNullable(assetIssueList);
   }
 
-  public Optional<TransactionList> getTransactionsByTimestamp(long start, long end) {
+  public Optional<TransactionList> getTransactionsByTimestamp(long start, long end, int offset ,int limit) {
     TimeMessage.Builder timeMessage = TimeMessage.newBuilder();
     timeMessage.setBeginInMilliseconds(start);
     timeMessage.setEndInMilliseconds(end);
+    TimePaginatedMessage.Builder timePaginatedMessage = TimePaginatedMessage.newBuilder();
+    timePaginatedMessage.setTimeMessage(timeMessage);
+    timePaginatedMessage.setOffset(offset);
+    timePaginatedMessage.setLimit(limit);
     TransactionList transactionList = blockingStubSolidity
-        .getTransactionsByTimestamp(timeMessage.build());
+        .getTransactionsByTimestamp(timePaginatedMessage.build());
     return Optional.ofNullable(transactionList);
   }
 
-  public Optional<TransactionList> getTransactionsFromThis(byte[] address) {
+  public NumberMessage getTransactionsByTimestampCount(long start, long end) {
+    TimeMessage.Builder timeMessage = TimeMessage.newBuilder();
+    timeMessage.setBeginInMilliseconds(start);
+    timeMessage.setEndInMilliseconds(end);
+    return blockingStubSolidity.getTransactionsByTimestampCount(timeMessage.build());
+  }
+
+  public Optional<TransactionList> getTransactionsFromThis(byte[] address, int offset, int limit) {
     ByteString addressBS = ByteString.copyFrom(address);
-    Account request = Account.newBuilder().setAddress(addressBS).build();
-    TransactionList transactionList = blockingStubSolidity.getTransactionsFromThis(request);
+    Account account = Account.newBuilder().setAddress(addressBS).build();
+    AccountPaginated.Builder accountPaginated = AccountPaginated.newBuilder();
+    accountPaginated.setAccount(account);
+    accountPaginated.setOffset(offset);
+    accountPaginated.setLimit(limit);
+    TransactionList transactionList = blockingStubSolidity.getTransactionsFromThis(accountPaginated.build());
     return Optional.ofNullable(transactionList);
   }
 
-  public Optional<TransactionList> getTransactionsToThis(byte[] address) {
+  public NumberMessage getTransactionsFromThisCount(byte[] address) {
     ByteString addressBS = ByteString.copyFrom(address);
-    Account request = Account.newBuilder().setAddress(addressBS).build();
-    TransactionList transactionList = blockingStubSolidity.getTransactionsToThis(request);
+    Account account = Account.newBuilder().setAddress(addressBS).build();
+    return blockingStubSolidity.getTransactionsFromThisCount(account);
+  }
+
+  public Optional<TransactionList> getTransactionsToThis(byte[] address, int offset, int limit) {
+    ByteString addressBS = ByteString.copyFrom(address);
+    Account account = Account.newBuilder().setAddress(addressBS).build();
+    AccountPaginated.Builder accountPaginated = AccountPaginated.newBuilder();
+    accountPaginated.setAccount(account);
+    accountPaginated.setOffset(offset);
+    accountPaginated.setLimit(limit);
+    TransactionList transactionList = blockingStubSolidity.getTransactionsToThis(accountPaginated.build());
     return Optional.ofNullable(transactionList);
+  }
+
+  public NumberMessage getTransactionsToThisCount(byte[] address) {
+    ByteString addressBS = ByteString.copyFrom(address);
+    Account account = Account.newBuilder().setAddress(addressBS).build();
+    return blockingStubSolidity.getTransactionsToThisCount(account);
   }
 
   public Optional<Transaction> getTransactionById(String txID) {
