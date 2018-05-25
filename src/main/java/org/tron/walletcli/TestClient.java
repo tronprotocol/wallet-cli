@@ -222,9 +222,10 @@ public class TestClient {
     }
 
     String password = parameters[0];
-    String description = parameters[1];
-    String url = parameters[2];
-    String newLimitString= parameters[3];
+    String newLimitString = parameters[1];
+    String description = parameters.length > 2 ? parameters[2]:null;
+    String url = parameters.length == 4 ? parameters[3]:null;
+
     byte[] descriptionBytes = ByteArray.fromString(description);
     byte[] urlBytes = ByteArray.fromString(url);
     long newLimit = new Long(newLimitString);

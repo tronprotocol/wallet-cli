@@ -425,7 +425,7 @@ public class Client {
 
   public boolean updateAccount(String password, byte[] accountNameBytes) {
     if (wallet == null || !wallet.isLoginState()) {
-      logger.warn("Warnging: updateAccount failed, Please login first !!");
+      logger.warn("Warning: updateAccount failed, Please login first !!");
       return false;
     }
 
@@ -448,7 +448,7 @@ public class Client {
   public boolean updateAsset(String password,
       byte[] description, byte[] url, long newLimit) {
     if (wallet == null || !wallet.isLoginState()) {
-      logger.warn("Warnging: updateAsset failed, Please login first !!");
+      logger.warn("Warning: updateAsset failed, Please login first !!");
       return false;
     }
 
@@ -470,7 +470,7 @@ public class Client {
 
   public boolean freezeBalance(String password, long frozen_balance, long frozen_duration) {
     if (wallet == null || !wallet.isLoginState()) {
-      logger.warn("Warnging: freezeBalance failed, Please login first !!");
+      logger.warn("Warning: freezeBalance failed, Please login first !!");
       return false;
     }
 
@@ -536,7 +536,7 @@ public class Client {
 
   public boolean withdrawBalance(String password) {
     if (wallet == null || !wallet.isLoginState()) {
-      logger.warn("Warnging: withdrawBalance failed, Please login first !!");
+      logger.warn("Warning: withdrawBalance failed, Please login first !!");
       return false;
     }
 
