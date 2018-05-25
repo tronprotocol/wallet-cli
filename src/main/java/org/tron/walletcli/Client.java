@@ -445,22 +445,23 @@ public class Client {
     }
   }
 
-  public boolean updateFreeAssetNetLimit(String password, long newLimit) {
+  public boolean updateAsset(String password,
+      byte[] description, byte[] url, long newLimit) {
     if (wallet == null || !wallet.isLoginState()) {
-      logger.warn("Warnging: updateFreeAssetNetLimit failed, Please login first !!");
+      logger.warn("Warnging: updateAsset failed, Please login first !!");
       return false;
     }
 
     if (wallet.getEcKey() == null || wallet.getEcKey().getPrivKey() == null) {
       wallet = WalletClient.GetWalletByStorage(password);
       if (wallet == null) {
-        logger.warn("Warning: updateFreeAssetNetLimit failed, Load wallet failed !!");
+        logger.warn("Warning: updateAsset failed, Load wallet failed !!");
         return false;
       }
     }
 
     try {
-      return wallet.updateFreeAssetNetLimit(newLimit);
+      return wallet.updateAsset(description, url, newLimit);
     } catch (Exception ex) {
       ex.printStackTrace();
       return false;

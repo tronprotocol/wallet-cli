@@ -83,8 +83,8 @@ public class GrpcClient {
     return blockingStubFull.updateAccount(contract);
   }
 
-  public Transaction createTransaction(Contract.UpdateFreeAssetNetLimitContract contract) {
-    return blockingStubFull.updateFreeAssetNetLimit(contract);
+  public Transaction createTransaction(Contract.UpdateAssetContract contract) {
+    return blockingStubFull.updateAsset(contract);
   }
 
   public Transaction createTransaction(Contract.TransferContract contract) {

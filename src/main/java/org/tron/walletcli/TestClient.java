@@ -214,22 +214,26 @@ public class TestClient {
     }
   }
 
-  private void updateFreeAssetNetLimit(String[] parameters) {
-    if (parameters == null || parameters.length != 2) {
-      System.out.println("UpdateFreeAssetNetLimit need 2 parameter like following: ");
-      System.out.println("UpdateFreeAssetNetLimit Password newlimit ");
+  private void updateAsset(String[] parameters) {
+    if (parameters == null || parameters.length < 2 || parameters.length > 4) {
+      System.out.println("UpdateAsset need 2-4 parameter like following: ");
+      System.out.println("UpdateAsset Password newlimit (description) (url)");
       return;
     }
 
     String password = parameters[0];
-    String newLimitString= parameters[1];
+    String description = parameters[1];
+    String url = parameters[2];
+    String newLimitString= parameters[3];
+    byte[] descriptionBytes = ByteArray.fromString(description);
+    byte[] urlBytes = ByteArray.fromString(url);
     long newLimit = new Long(newLimitString);
 
-    boolean ret = client.updateFreeAssetNetLimit(password, newLimit);
+    boolean ret = client.updateAsset(password, descriptionBytes, urlBytes, newLimit);
     if (ret) {
-      logger.info("Update Free Asset Net Limit success !!!!");
+      logger.info("Update Asset success !!!!");
     } else {
-      logger.info("Update Free Asset Net Limit failed !!!!");
+      logger.info("Update Asset failed !!!!");
     }
   }
 
@@ -878,7 +882,7 @@ public class TestClient {
     System.out.println("UnfreezeBalance");
     System.out.println("WithdrawBalance");
     System.out.println("UpdateAccount");
-    System.out.println("UpdateFreeAssetNetLimit");
+    System.out.println("UpdateAsset");
     System.out.println("UnfreezeAsset");
     System.out.println("Exit or Quit");
 
@@ -952,8 +956,8 @@ public class TestClient {
             updateAccount(parameters);
             break;
           }
-          case "updatefreeassetnetlimit": {
-            updateFreeAssetNetLimit(parameters);
+          case "updateasset": {
+            updateAsset(parameters);
             break;
           }
           case "getassetissuebyaccount": {
