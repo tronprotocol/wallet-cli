@@ -290,6 +290,20 @@ public class WalletClient {
     return rpcCli.broadcastTransaction(transaction);
   }
 
+  public boolean updateFreeAssetNetLimit(long newLimit) {
+    byte[] owner = getAddress();
+    Contract.UpdateFreeAssetNetLimitContract contract
+        = createUpdateFreeAssetNetLimitContract(newLimit, owner);
+    Transaction transaction = rpcCli.createTransaction(contract);
+
+    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
+      return false;
+    }
+
+    transaction = signTransaction(transaction);
+    return rpcCli.broadcastTransaction(transaction);
+  }
+
   public boolean transferAsset(byte[] to, byte[] assertName, long amount) {
     byte[] owner = getAddress();
     Transaction transaction = createTransferAssetTransaction(to, assertName, owner, amount);
@@ -467,6 +481,18 @@ public class WalletClient {
     ByteString basAddreess = ByteString.copyFrom(address);
     ByteString bsAccountName = ByteString.copyFrom(accountName);
     builder.setAccountName(bsAccountName);
+    builder.setOwnerAddress(basAddreess);
+
+    return builder.build();
+  }
+
+  public static Contract.UpdateFreeAssetNetLimitContract createUpdateFreeAssetNetLimitContract(
+      long newLimit,
+      byte[] address) {
+    Contract.UpdateFreeAssetNetLimitContract.Builder builder =
+        Contract.UpdateFreeAssetNetLimitContract.newBuilder();
+    ByteString basAddreess = ByteString.copyFrom(address);
+    builder.setNewLimit(newLimit);
     builder.setOwnerAddress(basAddreess);
 
     return builder.build();

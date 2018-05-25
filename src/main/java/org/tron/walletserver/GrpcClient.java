@@ -82,6 +82,10 @@ public class GrpcClient {
     return blockingStubFull.updateAccount(contract);
   }
 
+  public Transaction createTransaction(Contract.UpdateFreeAssetNetLimitContract contract) {
+    return blockingStubFull.updateFreeAssetNetLimit(contract);
+  }
+
   public Transaction createTransaction(Contract.TransferContract contract) {
     return blockingStubFull.createTransaction(contract);
   }
@@ -213,7 +217,7 @@ public class GrpcClient {
   public NumberMessage getAccountNetLimit(byte[] address) {
     ByteString addressBS = ByteString.copyFrom(address);
     Account request = Account.newBuilder().setAddress(addressBS).build();
-    return blockingStubFull.getAccountNetLimit(request);
+    return blockingStubFull.getAccountNet(request);
   }
 
   public Contract.AssetIssueContract getAssetIssueByName(String assetName) {

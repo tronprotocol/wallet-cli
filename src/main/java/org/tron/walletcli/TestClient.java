@@ -1,6 +1,7 @@
 package org.tron.walletcli;
 
 import com.beust.jcommander.JCommander;
+import java.awt.SystemTray;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tron.api.GrpcAPI.AssetIssueList;
@@ -209,6 +210,25 @@ public class TestClient {
       logger.info("Update Account success !!!!");
     } else {
       logger.info("Update Account failed !!!!");
+    }
+  }
+
+  private void updateFreeAssetNetLimit(String[] parameters) {
+    if (parameters == null || parameters.length != 2) {
+      System.out.println("UpdateFreeAssetNetLimit need 2 parameter like following: ");
+      System.out.println("UpdateFreeAssetNetLimit Password newlimit ");
+      return;
+    }
+
+    String password = parameters[0];
+    String newLimitString= parameters[1];
+    long newLimit = new Long(newLimitString);
+
+    boolean ret = client.updateFreeAssetNetLimit(password, newLimit);
+    if (ret) {
+      logger.info("Update Free Asset Net Limit success !!!!");
+    } else {
+      logger.info("Update Free Asset Net Limit failed !!!!");
     }
   }
 
@@ -857,6 +877,7 @@ public class TestClient {
     System.out.println("UnfreezeBalance");
     System.out.println("WithdrawBalance");
     System.out.println("UpdateAccount");
+    System.out.println("UpdateFreeAssetNetLimit");
     System.out.println("UnfreezeAsset");
     System.out.println("Exit or Quit");
 
@@ -928,6 +949,10 @@ public class TestClient {
           }
           case "updateaccount": {
             updateAccount(parameters);
+            break;
+          }
+          case "updatefreeassetnetlimit": {
+            updateFreeAssetNetLimit(parameters);
             break;
           }
           case "getassetissuebyaccount": {

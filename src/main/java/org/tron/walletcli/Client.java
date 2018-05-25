@@ -445,6 +445,28 @@ public class Client {
     }
   }
 
+  public boolean updateFreeAssetNetLimit(String password, long newLimit) {
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warnging: updateFreeAssetNetLimit failed, Please login first !!");
+      return false;
+    }
+
+    if (wallet.getEcKey() == null || wallet.getEcKey().getPrivKey() == null) {
+      wallet = WalletClient.GetWalletByStorage(password);
+      if (wallet == null) {
+        logger.warn("Warning: updateFreeAssetNetLimit failed, Load wallet failed !!");
+        return false;
+      }
+    }
+
+    try {
+      return wallet.updateFreeAssetNetLimit(newLimit);
+    } catch (Exception ex) {
+      ex.printStackTrace();
+      return false;
+    }
+  }
+
   public boolean freezeBalance(String password, long frozen_balance, long frozen_duration) {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warnging: freezeBalance failed, Please login first !!");
