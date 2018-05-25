@@ -496,12 +496,8 @@ public class WalletClient {
     Contract.UpdateAssetContract.Builder builder =
         Contract.UpdateAssetContract.newBuilder();
     ByteString basAddreess = ByteString.copyFrom(address);
-    if (description != null) {
-      builder.setDescription(ByteString.copyFrom(description));
-    }
-    if (url != null) {
-      builder.setUrl(ByteString.copyFrom(url));
-    }
+    builder.setDescription(ByteString.copyFrom(description));
+    builder.setUrl(ByteString.copyFrom(url));
     builder.setNewLimit(newLimit);
     builder.setOwnerAddress(basAddreess);
 

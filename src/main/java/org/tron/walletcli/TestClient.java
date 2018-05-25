@@ -215,7 +215,7 @@ public class TestClient {
   }
 
   private void updateAsset(String[] parameters) {
-    if (parameters == null || parameters.length < 2 || parameters.length > 4) {
+    if (parameters == null || parameters.length != 4) {
       System.out.println("UpdateAsset need 2-4 parameter like following: ");
       System.out.println("UpdateAsset Password newlimit (description) (url)");
       return;
@@ -223,8 +223,8 @@ public class TestClient {
 
     String password = parameters[0];
     String newLimitString = parameters[1];
-    String description = parameters.length > 2 ? parameters[2]:null;
-    String url = parameters.length == 4 ? parameters[3]:null;
+    String description = parameters[2];
+    String url = parameters[3];
 
     byte[] descriptionBytes = ByteArray.fromString(description);
     byte[] urlBytes = ByteArray.fromString(url);
