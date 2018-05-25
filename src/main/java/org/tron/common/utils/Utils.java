@@ -795,7 +795,7 @@ public class Utils {
     result += accountNet.getNetUsed();
     result += "\n";
     result += "net_limit: ";
-    result += accountNet.getNetUsed();
+    result += accountNet.getNetLimit();
     result += "\n";
 
     if (accountNet.getAssetNetLimitCount() > 0) {
