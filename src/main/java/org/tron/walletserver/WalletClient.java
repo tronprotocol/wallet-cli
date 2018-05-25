@@ -10,6 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.spongycastle.util.encoders.Hex;
 import org.tron.api.GrpcAPI;
+import org.tron.api.GrpcAPI.AccountNetMessage;
 import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.BlockList;
 import org.tron.api.GrpcAPI.NodeList;
@@ -794,8 +795,8 @@ public class WalletClient {
     return rpcCli.getAssetIssueByAccount(address);
   }
 
-  public static NumberMessage getAccountNetLimit(byte[] address) {
-    return rpcCli.getAccountNetLimit(address);
+  public static AccountNetMessage getAccountNet(byte[] address) {
+    return rpcCli.getAccountNet(address);
   }
 
   public static AssetIssueContract getAssetIssueByName(String assetName) {

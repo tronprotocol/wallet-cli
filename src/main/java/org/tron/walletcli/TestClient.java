@@ -4,6 +4,7 @@ import com.beust.jcommander.JCommander;
 import java.awt.SystemTray;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.tron.api.GrpcAPI.AccountNetMessage;
 import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.BlockList;
 import org.tron.api.GrpcAPI.Node;
@@ -253,10 +254,10 @@ public class TestClient {
     }
   }
 
-  private void getAccountNetLimit(String[] parameters) {
+  private void getAccountNet(String[] parameters) {
     if (parameters == null || parameters.length != 1) {
-      System.out.println("GetAccountNetLimit need 1 parameter like following: ");
-      System.out.println("GetAccountNetLimit Address ");
+      System.out.println("GetAccountNet need 1 parameter like following: ");
+      System.out.println("GetAccountNet Address ");
       return;
     }
     String address = parameters[0];
@@ -265,11 +266,11 @@ public class TestClient {
       return;
     }
 
-    NumberMessage result = WalletClient.getAccountNetLimit(addressBytes);
-    if (result.getNum() >= 0) {
-      logger.info("NetLimit is " + result.getNum());
-    } else {
+    AccountNetMessage result = WalletClient.getAccountNet(addressBytes);
+    if (result == null) {
       logger.info("GetAccountNetLimit " + " failed !!");
+    } else {
+      logger.info("\n" + Utils.printAccountNet(result));
     }
   }
 
@@ -959,8 +960,8 @@ public class TestClient {
             getAssetIssueByAccount(parameters);
             break;
           }
-          case "getaccountnetlimit": {
-            getAccountNetLimit(parameters);
+          case "getaccountnet": {
+            getAccountNet(parameters);
             break;
           }
           case "getassetissuebyname": {
