@@ -291,10 +291,10 @@ public class WalletClient {
     return rpcCli.broadcastTransaction(transaction);
   }
 
-  public boolean updateAsset(byte[] description, byte[] url, long newLimit) {
+  public boolean updateAsset(byte[] description, byte[] url, long newLimit, long newPublicLimit) {
     byte[] owner = getAddress();
     Contract.UpdateAssetContract contract
-        = createUpdateAssetContract(owner, description, url, newLimit);
+        = createUpdateAssetContract(owner, description, url, newLimit, newPublicLimit);
     Transaction transaction = rpcCli.createTransaction(contract);
 
     if (transaction == null || transaction.getRawData().getContractCount() == 0) {
@@ -491,14 +491,16 @@ public class WalletClient {
       byte[] address,
       byte[] description,
       byte[] url,
-      long newLimit
-      ) {
+      long newLimit,
+      long newPublicLimit
+  ) {
     Contract.UpdateAssetContract.Builder builder =
         Contract.UpdateAssetContract.newBuilder();
     ByteString basAddreess = ByteString.copyFrom(address);
     builder.setDescription(ByteString.copyFrom(description));
     builder.setUrl(ByteString.copyFrom(url));
     builder.setNewLimit(newLimit);
+    builder.setNewPublicLimit(newPublicLimit);
     builder.setOwnerAddress(basAddreess);
 
     return builder.build();
@@ -679,7 +681,8 @@ public class WalletClient {
       return false;
     }
     if (address.length != CommonConstant.ADDRESS_SIZE) {
-      logger.warn("Warning: Address length need " + CommonConstant.ADDRESS_SIZE + " but " + address.length
+      logger.warn(
+          "Warning: Address length need " + CommonConstant.ADDRESS_SIZE + " but " + address.length
               + " !!");
       return false;
     }
@@ -727,7 +730,7 @@ public class WalletClient {
     }
     if (addressBase58.length() != CommonConstant.BASE58CHECK_ADDRESS_SIZE) {
       logger.warn("Warning: Base58 address length need " + CommonConstant.BASE58CHECK_ADDRESS_SIZE
-              + " but " + addressBase58.length() + " !!");
+          + " but " + addressBase58.length() + " !!");
       return null;
     }
     byte[] address = decode58Check(addressBase58);
@@ -829,7 +832,8 @@ public class WalletClient {
   }
 
   public boolean freezeBalance(long frozen_balance, long frozen_duration) {
-    Contract.FreezeBalanceContract contract = createFreezeBalanceContract(frozen_balance, frozen_duration);
+    Contract.FreezeBalanceContract contract = createFreezeBalanceContract(frozen_balance,
+        frozen_duration);
     Transaction transaction = rpcCli.createTransaction(contract);
     if (transaction == null || transaction.getRawData().getContractCount() == 0) {
       return false;

@@ -215,22 +215,25 @@ public class TestClient {
   }
 
   private void updateAsset(String[] parameters) {
-    if (parameters == null || parameters.length != 4) {
-      System.out.println("UpdateAsset need 2-4 parameter like following: ");
-      System.out.println("UpdateAsset Password newlimit (description) (url)");
+    if (parameters == null || parameters.length != 5) {
+      System.out.println("UpdateAsset need 2-5 parameter like following: ");
+      System.out.println("UpdateAsset Password newLimit newPublicLimit (description) (url)");
       return;
     }
 
     String password = parameters[0];
     String newLimitString = parameters[1];
-    String description = parameters[2];
-    String url = parameters[3];
+    String newPublicLimitString = parameters[2];
+    String description = parameters[3];
+    String url = parameters[4];
 
     byte[] descriptionBytes = ByteArray.fromString(description);
     byte[] urlBytes = ByteArray.fromString(url);
     long newLimit = new Long(newLimitString);
+    long newPublicLimit = new Long(newPublicLimitString);
 
-    boolean ret = client.updateAsset(password, descriptionBytes, urlBytes, newLimit);
+    boolean ret = client
+        .updateAsset(password, descriptionBytes, urlBytes, newLimit, newPublicLimit);
     if (ret) {
       logger.info("Update Asset success !!!!");
     } else {
@@ -482,7 +485,6 @@ public class TestClient {
       logger.info("CreateWitness " + " failed !!");
     }
   }
-
 
 //  private void listAccounts() {
 //    Optional<AccountList> result = client.listAccounts();

@@ -446,7 +446,7 @@ public class Client {
   }
 
   public boolean updateAsset(String password,
-      byte[] description, byte[] url, long newLimit) {
+      byte[] description, byte[] url, long newLimit, long newPublicLimit) {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: updateAsset failed, Please login first !!");
       return false;
@@ -461,7 +461,7 @@ public class Client {
     }
 
     try {
-      return wallet.updateAsset(description, url, newLimit);
+      return wallet.updateAsset(description, url, newLimit, newPublicLimit);
     } catch (Exception ex) {
       ex.printStackTrace();
       return false;
