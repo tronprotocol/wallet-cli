@@ -711,9 +711,9 @@ public class TestClient {
   private void getTransactionsByTimestamp(String[] parameters) {
     String start = "";
     String end = "";
-    if (parameters == null || parameters.length != 4) {
+    if (parameters == null || parameters.length != 6) {
       System.out.println(
-          "getTransactionsByTimestamp needs 2 parameters, start_time and end_time, time format is yyyy-mm-dd hh:mm:ss");
+          "getTransactionsByTimestamp needs 4 parameters, start_time and end_time, time format is yyyy-mm-dd hh:mm:ss, offset and limit");
       return;
     } else {
       start = parameters[0] + " " + parameters[1];
@@ -721,12 +721,37 @@ public class TestClient {
     }
     long startTime = Timestamp.valueOf(start).getTime();
     long endTime = Timestamp.valueOf(end).getTime();
-    Optional<TransactionList> result = WalletClient.getTransactionsByTimestamp(startTime, endTime);
+    int offset = Integer.parseInt(parameters[4]);
+    int limit = Integer.parseInt(parameters[5]);
+    Optional<TransactionList> result = WalletClient.getTransactionsByTimestamp(startTime, endTime, offset, limit);
     if (result.isPresent()) {
       TransactionList transactionList = result.get();
       logger.info(Utils.printTransactionList(transactionList));
     } else {
       logger.info("getTransactionsByTimestamp " + " failed !!");
+    }
+  }
+
+  private void getTransactionsByTimestampCount(String[] parameters) {
+    try {
+      String start = "";
+      String end = "";
+      if (parameters == null || parameters.length != 4) {
+        System.out.println(
+                "getTransactionsByTimestampCount needs 2 parameters, start_time and end_time, time format is yyyy-mm-dd hh:mm:ss");
+        return;
+      } else {
+        start = parameters[0] + " " + parameters[1];
+        end = parameters[2] + " " + parameters[3];
+      }
+      long startTime = Timestamp.valueOf(start).getTime();
+      long endTime = Timestamp.valueOf(end).getTime();
+
+      NumberMessage result = WalletClient.getTransactionsByTimestampCount(startTime, endTime);
+      logger.info("the number of Transactions from " + start + " to " + end + " is " + result);
+    }
+    catch (Exception e) {
+      logger.info("getTransactionsByTimestampCount " + " failed !!");
     }
   }
 
@@ -748,18 +773,20 @@ public class TestClient {
   }
 
   private void getTransactionsFromThis(String[] parameters) {
-    if (parameters == null || parameters.length != 1) {
-      System.out.println("GetTransactionsFromThis need 1 parameter like following: ");
-      System.out.println("GetTransactionsFromThis Address ");
+    if (parameters == null || parameters.length != 3) {
+      System.out.println("GetTransactionsFromThis need 3 parameter like following: ");
+      System.out.println("GetTransactionsFromThis Address offset limit");
       return;
     }
     String address = parameters[0];
+    int offset = Integer.parseInt(parameters[1]);
+    int limit = Integer.parseInt(parameters[2]);
     byte[] addressBytes = WalletClient.decodeFromBase58Check(address);
     if (addressBytes == null) {
       return;
     }
 
-    Optional<TransactionList> result = WalletClient.getTransactionsFromThis(addressBytes);
+    Optional<TransactionList> result = WalletClient.getTransactionsFromThis(addressBytes, offset, limit);
     if (result.isPresent()) {
       TransactionList transactionList = result.get();
       logger.info(Utils.printTransactionList(transactionList));
@@ -768,23 +795,67 @@ public class TestClient {
     }
   }
 
+  private void getTransactionsFromThisCount(String[] parameters) {
+    try{
+      if (parameters == null || parameters.length != 1) {
+        System.out.println("getTransactionsFromThisCount need 1 parameter like following: ");
+        System.out.println("getTransactionsFromThisCount Address");
+        return;
+      }
+      String address = parameters[0];
+      byte[] addressBytes = WalletClient.decodeFromBase58Check(address);
+      if (addressBytes == null) {
+        return;
+      }
+
+      NumberMessage result = WalletClient.getTransactionsFromThisCount(addressBytes);
+      logger.info("the number of Transactions from account " + address + " is " + result);
+    }
+    catch (Exception e){
+      logger.info("getTransactionsFromThisCount " + " failed !!");
+    }
+  }
+
   private void getTransactionsToThis(String[] parameters) {
-    if (parameters == null || parameters.length != 1) {
-      System.out.println("getTransactionsToThis need 1 parameter like following: ");
-      System.out.println("getTransactionsToThis Address ");
+    if (parameters == null || parameters.length != 3) {
+      System.out.println("getTransactionsToThis need 3 parameter like following: ");
+      System.out.println("getTransactionsToThis Address offset limit");
       return;
     }
     String address = parameters[0];
+    int offset = Integer.parseInt(parameters[1]);
+    int limit = Integer.parseInt(parameters[2]);
     byte[] addressBytes = WalletClient.decodeFromBase58Check(address);
     if (addressBytes == null) {
       return;
     }
 
-    Optional<TransactionList> result = WalletClient.getTransactionsToThis(addressBytes);
+    Optional<TransactionList> result = WalletClient.getTransactionsToThis(addressBytes, offset, limit);
     if (result.isPresent()) {
       TransactionList transactionList = result.get();
       logger.info(Utils.printTransactionList(transactionList));
     } else {
+      logger.info("getTransactionsToThis " + " failed !!");
+    }
+  }
+
+  private void getTransactionsToThisCount(String[] parameters) {
+    try{
+      if (parameters == null || parameters.length != 1) {
+        System.out.println("getTransactionsToThisCount need 1 parameter like following: ");
+        System.out.println("getTransactionsToThisCount Address");
+        return;
+      }
+      String address = parameters[0];
+      byte[] addressBytes = WalletClient.decodeFromBase58Check(address);
+      if (addressBytes == null) {
+        return;
+      }
+
+      NumberMessage result = WalletClient.getTransactionsToThisCount(addressBytes);
+      logger.info("the number of Transactions to account " + address + " is " + result);
+    }
+    catch (Exception e){
       logger.info("getTransactionsToThis " + " failed !!");
     }
   }
@@ -875,9 +946,12 @@ public class TestClient {
     System.out.println("GetTotalTransaction");
     System.out.println("GetNextMaintenanceTime");
     System.out.println("GetTransactionsByTimestamp");
+    System.out.println("GetTransactionsByTimestampCount");
     System.out.println("GetTransactionById");
     System.out.println("GetTransactionsFromThis");
+    System.out.println("GetTransactionsFromThisCount");
     System.out.println("GetTransactionsToThis");
+    System.out.println("GetTransactionsToThisCount");
     System.out.println("GetBlockById");
     System.out.println("GetBlockByLimitNext");
     System.out.println("GetBlockByLatestNum");
@@ -1055,12 +1129,24 @@ public class TestClient {
             getAssetIssueListByTimestamp(parameters);
             break;
           }
+          case "gettransactionsbytimestampcount": {
+            getTransactionsByTimestampCount(parameters);
+            break;
+          }
           case "gettransactionsfromthis": {
             getTransactionsFromThis(parameters);
             break;
           }
+          case "gettransactionsfromthiscount": {
+            getTransactionsFromThisCount(parameters);
+            break;
+          }
           case "gettransactionstothis": {
             getTransactionsToThis(parameters);
+            break;
+          }
+          case "gettransactionstothiscount": {
+            getTransactionsToThisCount(parameters);
             break;
           }
           case "gettransactionsbytimestamp": {
