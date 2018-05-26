@@ -26,6 +26,7 @@ import java.text.ParsePosition;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
+import org.tron.api.GrpcAPI.AccountNetMessage;
 import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.BlockList;
 import org.tron.api.GrpcAPI.TransactionList;
@@ -127,8 +128,11 @@ public class Utils {
         result += "\n";
       }
     }
-    result += "bandwidth: ";
-    result += account.getBandwidth();
+    result += "free_net_usage: ";
+    result += account.getFreeNetUsage();
+    result += "\n";
+    result += "net_usage: ";
+    result += account.getNetUsage();
     result += "\n";
     if (account.getCreateTime() != 0) {
       result += "create_time: ";
@@ -163,6 +167,12 @@ public class Utils {
         result += "  balance: ";
         result += account.getAssetMap().get(name);
         result += "\n";
+        result += "  latest_asset_operation_time: ";
+        result += account.getLatestAssetOperationTimeMap().get(name);
+        result += "\n";
+        result += "  free_asset_net_usage: ";
+        result += account.getFreeAssetNetUsageMap().get(name);
+        result += "\n";
         result += "}";
         result += "\n";
       }
@@ -185,6 +195,14 @@ public class Utils {
     }
     result += "latest_opration_time: ";
     result += new Date(account.getLatestOprationTime());
+    result += "\n";
+
+    result += "latest_consume_time: ";
+    result += account.getLatestConsumeTime();
+    result += "\n";
+
+    result += "latest_consume_free_time: ";
+    result += account.getLatestConsumeFreeTime();
     result += "\n";
 
     result += "allowance: ";
@@ -764,4 +782,42 @@ public class Utils {
     }
     return result;
   }
+
+  public static String printAccountNet(AccountNetMessage accountNet) {
+    String result = "";
+    result += "free_net_used: ";
+    result += accountNet.getFreeNetUsed();
+    result += "\n";
+    result += "free_net_limit: ";
+    result += accountNet.getFreeNetLimit();
+    result += "\n";
+    result += "net_used: ";
+    result += accountNet.getNetUsed();
+    result += "\n";
+    result += "net_limit: ";
+    result += accountNet.getNetLimit();
+    result += "\n";
+
+    if (accountNet.getAssetNetLimitCount() > 0) {
+      for (String name : accountNet.getAssetNetLimitMap().keySet()) {
+        result += "asset";
+        result += "\n";
+        result += "{";
+        result += "\n";
+        result += "  name: ";
+        result += name;
+        result += "\n";
+        result += "  free_asset_net_used: ";
+        result += accountNet.getAssetNetUsedMap().get(name);
+        result += "\n";
+        result += "  free_asset_net_limit: ";
+        result += accountNet.getAssetNetLimitMap().get(name);
+        result += "\n";
+        result += "}";
+        result += "\n";
+      }
+    }
+    return result;
+  }
 }
+

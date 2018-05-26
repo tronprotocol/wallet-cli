@@ -89,6 +89,10 @@ public class TransactionUtils {
         case WithdrawBalanceContract:
           owner = contract.getParameter().unpack(org.tron.protos.Contract.WithdrawBalanceContract.class).getOwnerAddress();
           break;
+        case UpdateAssetContract:
+          owner = contract.getParameter().unpack(org.tron.protos.Contract.UpdateAssetContract.class).getOwnerAddress();
+          break;
+
         default:
           return null;
       }

@@ -10,9 +10,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.spongycastle.util.encoders.Hex;
 import org.tron.api.GrpcAPI;
+import org.tron.api.GrpcAPI.AccountNetMessage;
 import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.BlockList;
 import org.tron.api.GrpcAPI.NodeList;
+import org.tron.api.GrpcAPI.NumberMessage;
 import org.tron.api.GrpcAPI.TransactionList;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.crypto.ECKey;
@@ -289,6 +291,20 @@ public class WalletClient {
     return rpcCli.broadcastTransaction(transaction);
   }
 
+  public boolean updateAsset(byte[] description, byte[] url, long newLimit, long newPublicLimit) {
+    byte[] owner = getAddress();
+    Contract.UpdateAssetContract contract
+        = createUpdateAssetContract(owner, description, url, newLimit, newPublicLimit);
+    Transaction transaction = rpcCli.createTransaction(contract);
+
+    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
+      return false;
+    }
+
+    transaction = signTransaction(transaction);
+    return rpcCli.broadcastTransaction(transaction);
+  }
+
   public boolean transferAsset(byte[] to, byte[] assertName, long amount) {
     byte[] owner = getAddress();
     Transaction transaction = createTransferAssetTransaction(to, assertName, owner, amount);
@@ -471,6 +487,25 @@ public class WalletClient {
     return builder.build();
   }
 
+  public static Contract.UpdateAssetContract createUpdateAssetContract(
+      byte[] address,
+      byte[] description,
+      byte[] url,
+      long newLimit,
+      long newPublicLimit
+  ) {
+    Contract.UpdateAssetContract.Builder builder =
+        Contract.UpdateAssetContract.newBuilder();
+    ByteString basAddreess = ByteString.copyFrom(address);
+    builder.setDescription(ByteString.copyFrom(description));
+    builder.setUrl(ByteString.copyFrom(url));
+    builder.setNewLimit(newLimit);
+    builder.setNewPublicLimit(newPublicLimit);
+    builder.setOwnerAddress(basAddreess);
+
+    return builder.build();
+  }
+
   public static Contract.WitnessCreateContract createWitnessCreateContract(byte[] owner,
       byte[] url) {
     Contract.WitnessCreateContract.Builder builder = Contract.WitnessCreateContract.newBuilder();
@@ -646,7 +681,8 @@ public class WalletClient {
       return false;
     }
     if (address.length != CommonConstant.ADDRESS_SIZE) {
-      logger.warn("Warning: Address length need " + CommonConstant.ADDRESS_SIZE + " but " + address.length
+      logger.warn(
+          "Warning: Address length need " + CommonConstant.ADDRESS_SIZE + " but " + address.length
               + " !!");
       return false;
     }
@@ -694,7 +730,7 @@ public class WalletClient {
     }
     if (addressBase58.length() != CommonConstant.BASE58CHECK_ADDRESS_SIZE) {
       logger.warn("Warning: Base58 address length need " + CommonConstant.BASE58CHECK_ADDRESS_SIZE
-              + " but " + addressBase58.length() + " !!");
+          + " but " + addressBase58.length() + " !!");
       return null;
     }
     byte[] address = decode58Check(addressBase58);
@@ -771,6 +807,10 @@ public class WalletClient {
     return rpcCli.getAssetIssueByAccount(address);
   }
 
+  public static AccountNetMessage getAccountNet(byte[] address) {
+    return rpcCli.getAccountNet(address);
+  }
+
   public static AssetIssueContract getAssetIssueByName(String assetName) {
     return rpcCli.getAssetIssueByName(assetName);
   }
@@ -804,7 +844,8 @@ public class WalletClient {
   }
 
   public boolean freezeBalance(long frozen_balance, long frozen_duration) {
-    Contract.FreezeBalanceContract contract = createFreezeBalanceContract(frozen_balance, frozen_duration);
+    Contract.FreezeBalanceContract contract = createFreezeBalanceContract(frozen_balance,
+        frozen_duration);
     Transaction transaction = rpcCli.createTransaction(contract);
     if (transaction == null || transaction.getRawData().getContractCount() == 0) {
       return false;
