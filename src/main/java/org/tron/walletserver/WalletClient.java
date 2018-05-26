@@ -10,6 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.spongycastle.util.encoders.Hex;
 import org.tron.api.GrpcAPI;
+import org.tron.api.GrpcAPI.AccountNetMessage;
 import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.BlockList;
 import org.tron.api.GrpcAPI.NodeList;
@@ -290,6 +291,20 @@ public class WalletClient {
     return rpcCli.broadcastTransaction(transaction);
   }
 
+  public boolean updateAsset(byte[] description, byte[] url, long newLimit) {
+    byte[] owner = getAddress();
+    Contract.UpdateAssetContract contract
+        = createUpdateAssetContract(owner, description, url, newLimit);
+    Transaction transaction = rpcCli.createTransaction(contract);
+
+    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
+      return false;
+    }
+
+    transaction = signTransaction(transaction);
+    return rpcCli.broadcastTransaction(transaction);
+  }
+
   public boolean transferAsset(byte[] to, byte[] assertName, long amount) {
     byte[] owner = getAddress();
     Transaction transaction = createTransferAssetTransaction(to, assertName, owner, amount);
@@ -467,6 +482,23 @@ public class WalletClient {
     ByteString basAddreess = ByteString.copyFrom(address);
     ByteString bsAccountName = ByteString.copyFrom(accountName);
     builder.setAccountName(bsAccountName);
+    builder.setOwnerAddress(basAddreess);
+
+    return builder.build();
+  }
+
+  public static Contract.UpdateAssetContract createUpdateAssetContract(
+      byte[] address,
+      byte[] description,
+      byte[] url,
+      long newLimit
+      ) {
+    Contract.UpdateAssetContract.Builder builder =
+        Contract.UpdateAssetContract.newBuilder();
+    ByteString basAddreess = ByteString.copyFrom(address);
+    builder.setDescription(ByteString.copyFrom(description));
+    builder.setUrl(ByteString.copyFrom(url));
+    builder.setNewLimit(newLimit);
     builder.setOwnerAddress(basAddreess);
 
     return builder.build();
@@ -768,8 +800,8 @@ public class WalletClient {
     return rpcCli.getAssetIssueByAccount(address);
   }
 
-  public static NumberMessage getAccountNetLimit(byte[] address) {
-    return rpcCli.getAccountNetLimit(address);
+  public static AccountNetMessage getAccountNet(byte[] address) {
+    return rpcCli.getAccountNet(address);
   }
 
   public static AssetIssueContract getAssetIssueByName(String assetName) {

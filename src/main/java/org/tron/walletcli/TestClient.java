@@ -1,8 +1,10 @@
 package org.tron.walletcli;
 
 import com.beust.jcommander.JCommander;
+import java.awt.SystemTray;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.tron.api.GrpcAPI.AccountNetMessage;
 import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.BlockList;
 import org.tron.api.GrpcAPI.Node;
@@ -212,6 +214,30 @@ public class TestClient {
     }
   }
 
+  private void updateAsset(String[] parameters) {
+    if (parameters == null || parameters.length != 4) {
+      System.out.println("UpdateAsset need 2-4 parameter like following: ");
+      System.out.println("UpdateAsset Password newlimit (description) (url)");
+      return;
+    }
+
+    String password = parameters[0];
+    String newLimitString = parameters[1];
+    String description = parameters[2];
+    String url = parameters[3];
+
+    byte[] descriptionBytes = ByteArray.fromString(description);
+    byte[] urlBytes = ByteArray.fromString(url);
+    long newLimit = new Long(newLimitString);
+
+    boolean ret = client.updateAsset(password, descriptionBytes, urlBytes, newLimit);
+    if (ret) {
+      logger.info("Update Asset success !!!!");
+    } else {
+      logger.info("Update Asset failed !!!!");
+    }
+  }
+
   private void getAssetIssueByAccount(String[] parameters) {
     if (parameters == null || parameters.length != 1) {
       System.out.println("GetAssetIssueByAccount need 1 parameter like following: ");
@@ -233,10 +259,10 @@ public class TestClient {
     }
   }
 
-  private void getAccountNetLimit(String[] parameters) {
+  private void getAccountNet(String[] parameters) {
     if (parameters == null || parameters.length != 1) {
-      System.out.println("GetAccountNetLimit need 1 parameter like following: ");
-      System.out.println("GetAccountNetLimit Address ");
+      System.out.println("GetAccountNet need 1 parameter like following: ");
+      System.out.println("GetAccountNet Address ");
       return;
     }
     String address = parameters[0];
@@ -245,11 +271,11 @@ public class TestClient {
       return;
     }
 
-    NumberMessage result = WalletClient.getAccountNetLimit(addressBytes);
-    if (result.getNum() >= 0) {
-      logger.info("NetLimit is " + result.getNum());
-    } else {
+    AccountNetMessage result = WalletClient.getAccountNet(addressBytes);
+    if (result == null) {
       logger.info("GetAccountNetLimit " + " failed !!");
+    } else {
+      logger.info("\n" + Utils.printAccountNet(result));
     }
   }
 
@@ -857,6 +883,7 @@ public class TestClient {
     System.out.println("UnfreezeBalance");
     System.out.println("WithdrawBalance");
     System.out.println("UpdateAccount");
+    System.out.println("UpdateAsset");
     System.out.println("UnfreezeAsset");
     System.out.println("Exit or Quit");
 
@@ -930,12 +957,16 @@ public class TestClient {
             updateAccount(parameters);
             break;
           }
+          case "updateasset": {
+            updateAsset(parameters);
+            break;
+          }
           case "getassetissuebyaccount": {
             getAssetIssueByAccount(parameters);
             break;
           }
-          case "getaccountnetlimit": {
-            getAccountNetLimit(parameters);
+          case "getaccountnet": {
+            getAccountNet(parameters);
             break;
           }
           case "getassetissuebyname": {

@@ -7,6 +7,7 @@ import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tron.api.GrpcAPI;
+import org.tron.api.GrpcAPI.AccountNetMessage;
 import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.BlockLimit;
 import org.tron.api.GrpcAPI.BlockList;
@@ -80,6 +81,10 @@ public class GrpcClient {
 
   public Transaction createTransaction(Contract.AccountUpdateContract contract) {
     return blockingStubFull.updateAccount(contract);
+  }
+
+  public Transaction createTransaction(Contract.UpdateAssetContract contract) {
+    return blockingStubFull.updateAsset(contract);
   }
 
   public Transaction createTransaction(Contract.TransferContract contract) {
@@ -210,10 +215,10 @@ public class GrpcClient {
     }
   }
 
-  public NumberMessage getAccountNetLimit(byte[] address) {
+  public AccountNetMessage getAccountNet(byte[] address) {
     ByteString addressBS = ByteString.copyFrom(address);
     Account request = Account.newBuilder().setAddress(addressBS).build();
-    return blockingStubFull.getAccountNetLimit(request);
+    return blockingStubFull.getAccountNet(request);
   }
 
   public Contract.AssetIssueContract getAssetIssueByName(String assetName) {
