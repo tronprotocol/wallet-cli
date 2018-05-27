@@ -168,7 +168,7 @@ public class Utils {
         result += account.getAssetMap().get(name);
         result += "\n";
         result += "  latest_asset_operation_time: ";
-        result += account.getLatestAssetOperationTimeMap().get(name);
+        result += new Date(account.getLatestAssetOperationTimeMap().get(name));
         result += "\n";
         result += "  free_asset_net_usage: ";
         result += account.getFreeAssetNetUsageMap().get(name);
