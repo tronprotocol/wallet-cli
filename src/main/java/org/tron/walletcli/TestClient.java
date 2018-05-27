@@ -276,7 +276,7 @@ public class TestClient {
 
     AccountNetMessage result = WalletClient.getAccountNet(addressBytes);
     if (result == null) {
-      logger.info("GetAccount " + " failed !!");
+      logger.info("GetAccountNet " + " failed !!");
     } else {
       logger.info("\n" + Utils.printAccountNet(result));
     }
