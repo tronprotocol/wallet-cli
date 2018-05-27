@@ -141,14 +141,16 @@ public class GrpcClient {
         && i > 0) {
       i--;
       response = blockingStubFull.broadcastTransaction(signaturedTransaction);
-      logger.info("Code = " + response.getCode());
-      logger.info("Message = " + response.getMessage().toStringUtf8());
-      logger.info("i = " + i);
+      logger.info("repeate times = " + (11-i));
       try {
         Thread.sleep(300);
       } catch (InterruptedException e) {
         e.printStackTrace();
       }
+    }
+    if (response.getResult() == false) {
+      logger.info("Code = " + response.getCode());
+      logger.info("Message = " + response.getMessage().toStringUtf8());
     }
     return response.getResult();
   }
@@ -253,7 +255,8 @@ public class GrpcClient {
     return Optional.ofNullable(assetIssueList);
   }
 
-  public Optional<TransactionList> getTransactionsByTimestamp(long start, long end, int offset ,int limit) {
+  public Optional<TransactionList> getTransactionsByTimestamp(long start, long end, int offset,
+      int limit) {
     TimeMessage.Builder timeMessage = TimeMessage.newBuilder();
     timeMessage.setBeginInMilliseconds(start);
     timeMessage.setEndInMilliseconds(end);
@@ -280,7 +283,8 @@ public class GrpcClient {
     accountPaginated.setAccount(account);
     accountPaginated.setOffset(offset);
     accountPaginated.setLimit(limit);
-    TransactionList transactionList = blockingStubSolidity.getTransactionsFromThis(accountPaginated.build());
+    TransactionList transactionList = blockingStubSolidity
+        .getTransactionsFromThis(accountPaginated.build());
     return Optional.ofNullable(transactionList);
   }
 
@@ -297,7 +301,8 @@ public class GrpcClient {
     accountPaginated.setAccount(account);
     accountPaginated.setOffset(offset);
     accountPaginated.setLimit(limit);
-    TransactionList transactionList = blockingStubSolidity.getTransactionsToThis(accountPaginated.build());
+    TransactionList transactionList = blockingStubSolidity
+        .getTransactionsToThis(accountPaginated.build());
     return Optional.ofNullable(transactionList);
   }
 
