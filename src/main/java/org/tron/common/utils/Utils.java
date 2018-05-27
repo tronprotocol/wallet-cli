@@ -168,7 +168,7 @@ public class Utils {
         result += account.getAssetMap().get(name);
         result += "\n";
         result += "  latest_asset_operation_time: ";
-        result += new Date(account.getLatestAssetOperationTimeMap().get(name));
+        result += account.getLatestAssetOperationTimeMap().get(name);
         result += "\n";
         result += "  free_asset_net_usage: ";
         result += account.getFreeAssetNetUsageMap().get(name);
@@ -198,11 +198,11 @@ public class Utils {
     result += "\n";
 
     result += "latest_consume_time: ";
-    result += new Date(account.getLatestConsumeTime());
+    result += account.getLatestConsumeTime();
     result += "\n";
 
     result += "latest_consume_free_time: ";
-    result += new Date(account.getLatestConsumeFreeTime());
+    result += account.getLatestConsumeFreeTime();
     result += "\n";
 
     result += "allowance: ";
