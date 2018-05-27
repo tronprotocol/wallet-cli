@@ -198,11 +198,11 @@ public class Utils {
     result += "\n";
 
     result += "latest_consume_time: ";
-    result += account.getLatestConsumeTime();
+    result += new Date(account.getLatestConsumeTime());
     result += "\n";
 
     result += "latest_consume_free_time: ";
-    result += account.getLatestConsumeFreeTime();
+    result += new Date(account.getLatestConsumeFreeTime());
     result += "\n";
 
     result += "allowance: ";
