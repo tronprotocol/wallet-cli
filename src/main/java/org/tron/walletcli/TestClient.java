@@ -262,7 +262,7 @@ public class TestClient {
     }
   }
 
-  private void getAccountNet(String[] parameters) {
+  private void  getAccountNet(String[] parameters) {
     if (parameters == null || parameters.length != 1) {
       System.out.println("GetAccountNet need 1 parameter like following: ");
       System.out.println("GetAccountNet Address ");
@@ -276,7 +276,7 @@ public class TestClient {
 
     AccountNetMessage result = WalletClient.getAccountNet(addressBytes);
     if (result == null) {
-      logger.info("GetAccountNetLimit " + " failed !!");
+      logger.info("GetAccountNet " + " failed !!");
     } else {
       logger.info("\n" + Utils.printAccountNet(result));
     }
@@ -930,7 +930,7 @@ public class TestClient {
     System.out.println("GetBalance");
     System.out.println("GetAccount");
     System.out.println("GetAssetIssueByAccount");
-    System.out.println("GetAccountNetLimit");
+    System.out.println("GetAccountNet");
     System.out.println("GetAssetIssueByName");
     System.out.println("SendCoin");
     System.out.println("TransferAsset");
