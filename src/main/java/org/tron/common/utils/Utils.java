@@ -329,6 +329,18 @@ public class Utils {
     result += "url: ";
     result += new String(assetIssue.getUrl().toByteArray(), Charset.forName("UTF-8"));
     result += "\n";
+    result += "free asset net limit: ";
+    result += assetIssue.getFreeAssetNetLimit();
+    result += "\n";
+    result += "public free asset net limit: ";
+    result += assetIssue.getPublicFreeAssetNetLimit();
+    result += "\n";
+    result += "public free asset net usage: ";
+    result += assetIssue.getPublicFreeAssetNetUsage();
+    result += "\n";
+    result += "public latest free net time: ";
+    result += assetIssue.getPublicLatestFreeNetTime();
+    result += "\n";
 
     if (assetIssue.getFrozenSupplyCount() > 0) {
       for (FrozenSupply frozenSupply : assetIssue.getFrozenSupplyList()) {
@@ -796,6 +808,12 @@ public class Utils {
     result += "\n";
     result += "net_limit: ";
     result += accountNet.getNetLimit();
+    result += "\n";
+    result += "total_net_limit: ";
+    result += accountNet.getTotalNetLimit();
+    result += "\n";
+    result += "total_net_weight: ";
+    result += accountNet.getTotalNetWeight();
     result += "\n";
 
     if (accountNet.getAssetNetLimitCount() > 0) {
