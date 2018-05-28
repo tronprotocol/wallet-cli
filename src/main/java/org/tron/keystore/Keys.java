@@ -52,16 +52,6 @@ public class Keys {
         return keyPairGenerator.generateKeyPair();
     }
 
-    public static ECKeyPair createEcKeyPair() throws InvalidAlgorithmParameterException,
-            NoSuchAlgorithmException, NoSuchProviderException {
-        KeyPair keyPair = createSecp256k1KeyPair();
-        return ECKeyPair.create(keyPair);
-    }
-
-    public static String getAddress(ECKeyPair ecKeyPair) {
-        return getAddress(ecKeyPair.getPublicKey());
-    }
-
     public static String getAddress(BigInteger publicKey) {
         return getAddress(
                 Numeric.toHexStringWithPrefixZeroPadded(publicKey, PUBLIC_KEY_LENGTH_IN_HEX));
@@ -110,23 +100,4 @@ public class Keys {
 //        return result.toString();
 //    }
 
-    public static byte[] serialize(ECKeyPair ecKeyPair) {
-        byte[] privateKey = Numeric.toBytesPadded(ecKeyPair.getPrivateKey(), PRIVATE_KEY_SIZE);
-        byte[] publicKey = Numeric.toBytesPadded(ecKeyPair.getPublicKey(), PUBLIC_KEY_SIZE);
-
-        byte[] result = Arrays.copyOf(privateKey, PRIVATE_KEY_SIZE + PUBLIC_KEY_SIZE);
-        System.arraycopy(publicKey, 0, result, PRIVATE_KEY_SIZE, PUBLIC_KEY_SIZE);
-        return result;
-    }
-
-    public static ECKeyPair deserialize(byte[] input) {
-        if (input.length != PRIVATE_KEY_SIZE + PUBLIC_KEY_SIZE) {
-            throw new RuntimeException("Invalid input key size");
-        }
-
-        BigInteger privateKey = Numeric.toBigInt(input, 0, PRIVATE_KEY_SIZE);
-        BigInteger publicKey = Numeric.toBigInt(input, PRIVATE_KEY_SIZE, PUBLIC_KEY_SIZE);
-
-        return new ECKeyPair(privateKey, publicKey);
-    }
 }
