@@ -322,8 +322,9 @@ public class Client {
       }
     }
 
+    byte[] addressBytes = WalletClient.decodeFromBase58Check(address);
     try {
-      return wallet.createAccount(address.getBytes());
+      return wallet.createAccount(addressBytes);
     } catch (Exception ex) {
       ex.printStackTrace();
       return false;
