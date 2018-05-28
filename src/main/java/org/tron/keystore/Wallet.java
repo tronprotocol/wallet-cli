@@ -21,6 +21,7 @@ import org.bouncycastle.crypto.generators.SCrypt;
 import org.bouncycastle.crypto.params.KeyParameter;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.Hash;
+import org.tron.common.utils.ByteArray;
 import org.tron.walletserver.WalletClient;
 
 /**
@@ -98,11 +99,11 @@ public class Wallet {
 
     WalletFile.Crypto crypto = new WalletFile.Crypto();
     crypto.setCipher(CIPHER);
-    crypto.setCiphertext(Numeric.toHexStringNoPrefix(cipherText));
+    crypto.setCiphertext(ByteArray.toHexString(cipherText));
     walletFile.setCrypto(crypto);
 
     WalletFile.CipherParams cipherParams = new WalletFile.CipherParams();
-    cipherParams.setIv(Numeric.toHexStringNoPrefix(iv));
+    cipherParams.setIv(ByteArray.toHexString(iv));
     crypto.setCipherparams(cipherParams);
 
     crypto.setKdf(SCRYPT);
@@ -111,10 +112,10 @@ public class Wallet {
     kdfParams.setN(n);
     kdfParams.setP(p);
     kdfParams.setR(R);
-    kdfParams.setSalt(Numeric.toHexStringNoPrefix(salt));
+    kdfParams.setSalt(ByteArray.toHexString(salt));
     crypto.setKdfparams(kdfParams);
 
-    crypto.setMac(Numeric.toHexStringNoPrefix(mac));
+    crypto.setMac(ByteArray.toHexString(mac));
     walletFile.setCrypto(crypto);
     walletFile.setId(UUID.randomUUID().toString());
     walletFile.setVersion(CURRENT_VERSION);
@@ -175,9 +176,9 @@ public class Wallet {
 
     WalletFile.Crypto crypto = walletFile.getCrypto();
 
-    byte[] mac = Numeric.hexStringToByteArray(crypto.getMac());
-    byte[] iv = Numeric.hexStringToByteArray(crypto.getCipherparams().getIv());
-    byte[] cipherText = Numeric.hexStringToByteArray(crypto.getCiphertext());
+    byte[] mac = ByteArray.fromHexString(crypto.getMac());
+    byte[] iv = ByteArray.fromHexString(crypto.getCipherparams().getIv());
+    byte[] cipherText = ByteArray.fromHexString(crypto.getCiphertext());
 
     byte[] derivedKey;
 
@@ -189,14 +190,14 @@ public class Wallet {
       int n = scryptKdfParams.getN();
       int p = scryptKdfParams.getP();
       int r = scryptKdfParams.getR();
-      byte[] salt = Numeric.hexStringToByteArray(scryptKdfParams.getSalt());
+      byte[] salt = ByteArray.fromHexString(scryptKdfParams.getSalt());
       derivedKey = generateDerivedScryptKey(password.getBytes(UTF_8), salt, n, r, p, dklen);
     } else if (kdfParams instanceof WalletFile.Aes128CtrKdfParams) {
       WalletFile.Aes128CtrKdfParams aes128CtrKdfParams =
           (WalletFile.Aes128CtrKdfParams) crypto.getKdfparams();
       int c = aes128CtrKdfParams.getC();
       String prf = aes128CtrKdfParams.getPrf();
-      byte[] salt = Numeric.hexStringToByteArray(aes128CtrKdfParams.getSalt());
+      byte[] salt = ByteArray.fromHexString(aes128CtrKdfParams.getSalt());
 
       derivedKey = generateAes128CtrDerivedKey(password.getBytes(UTF_8), salt, c, prf);
     } else {
