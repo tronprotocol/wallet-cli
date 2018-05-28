@@ -12,6 +12,8 @@ import java.security.SecureRandom;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import org.tron.common.crypto.ECKey;
+import org.tron.common.utils.Utils;
 
 /**
  * Utility functions for working with Wallet files.
@@ -45,12 +47,12 @@ public class WalletUtils {
             throws CipherException, IOException, InvalidAlgorithmParameterException,
             NoSuchAlgorithmException, NoSuchProviderException {
 
-        ECKeyPair ecKeyPair = Keys.createEcKeyPair();
+      ECKey ecKeyPair =  new ECKey(Utils.getRandom());
         return generateWalletFile(password, ecKeyPair, destinationDirectory, useFullScrypt);
     }
 
     public static String generateWalletFile(
-            String password, ECKeyPair ecKeyPair, File destinationDirectory, boolean useFullScrypt)
+            String password, ECKey ecKeyPair, File destinationDirectory, boolean useFullScrypt)
             throws CipherException, IOException {
 
         WalletFile walletFile;

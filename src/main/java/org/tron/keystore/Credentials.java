@@ -1,19 +1,24 @@
 package org.tron.keystore;
 
+import java.math.BigInteger;
+import org.tron.common.crypto.ECKey;
+import org.tron.common.utils.ByteArray;
+import org.tron.walletserver.WalletClient;
+
 /**
  * Credentials wrapper.
  */
 public class Credentials {
 
-    private final ECKeyPair ecKeyPair;
+    private final ECKey ecKeyPair;
     private final String address;
 
-    private Credentials(ECKeyPair ecKeyPair, String address) {
+    private Credentials(ECKey ecKeyPair, String address) {
         this.ecKeyPair = ecKeyPair;
         this.address = address;
     }
 
-    public ECKeyPair getEcKeyPair() {
+    public ECKey getEcKeyPair() {
         return ecKeyPair;
     }
 
@@ -21,17 +26,14 @@ public class Credentials {
         return address;
     }
 
-    public static Credentials create(ECKeyPair ecKeyPair) {
-        String address = Numeric.prependHexPrefix(Keys.getAddress(ecKeyPair));
+    public static Credentials create(ECKey ecKeyPair) {
+        String address = WalletClient.encode58Check(ecKeyPair.getAddress());
         return new Credentials(ecKeyPair, address);
     }
 
-    public static Credentials create(String privateKey, String publicKey) {
-        return create(new ECKeyPair(Numeric.toBigInt(privateKey), Numeric.toBigInt(publicKey)));
-    }
-
     public static Credentials create(String privateKey) {
-        return create(ECKeyPair.create(Numeric.toBigInt(privateKey)));
+        ECKey eCkey = ECKey.fromPrivate(ByteArray.fromHexString(privateKey));
+        return create(eCkey);
     }
 
     @Override
