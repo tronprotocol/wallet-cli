@@ -232,7 +232,7 @@ public class Client {
 
   public boolean assetIssue(String password, String name, long totalSupply, int trxNum, int icoNum,
       long startTime, long endTime, int voteScore, String description, String url,
-      HashMap<String, String> frozenSupply) {
+      long freeNetLimit,long publicFreeNetLimit, HashMap<String, String> frozenSupply) {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: assetIssue failed,  Please login first !!");
       return false;
@@ -272,11 +272,20 @@ public class Client {
       if (endTime <= startTime) {
         return false;
       }
+      if (freeNetLimit < 0) {
+        return false;
+      }
+      if (publicFreeNetLimit < 0) {
+        return false;
+      }
+
       builder.setStartTime(startTime);
       builder.setEndTime(endTime);
       builder.setVoteScore(voteScore);
       builder.setDescription(ByteString.copyFrom(description.getBytes()));
       builder.setUrl(ByteString.copyFrom(url.getBytes()));
+      builder.setFreeAssetNetLimit(freeNetLimit);
+      builder.setPublicFreeAssetNetLimit(publicFreeNetLimit);
 
       for (String daysStr : frozenSupply.keySet()) {
         String amountStr = frozenSupply.get(daysStr);
@@ -421,7 +430,7 @@ public class Client {
 
   public boolean updateAccount(String password, byte[] accountNameBytes) {
     if (wallet == null || !wallet.isLoginState()) {
-      logger.warn("Warnging: updateAccount failed, Please login first !!");
+      logger.warn("Warning: updateAccount failed, Please login first !!");
       return false;
     }
 
@@ -441,9 +450,32 @@ public class Client {
     }
   }
 
+  public boolean updateAsset(String password,
+      byte[] description, byte[] url, long newLimit, long newPublicLimit) {
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warning: updateAsset failed, Please login first !!");
+      return false;
+    }
+
+    if (wallet.getEcKey() == null || wallet.getEcKey().getPrivKey() == null) {
+      wallet = WalletClient.GetWalletByStorage(password);
+      if (wallet == null) {
+        logger.warn("Warning: updateAsset failed, Load wallet failed !!");
+        return false;
+      }
+    }
+
+    try {
+      return wallet.updateAsset(description, url, newLimit, newPublicLimit);
+    } catch (Exception ex) {
+      ex.printStackTrace();
+      return false;
+    }
+  }
+
   public boolean freezeBalance(String password, long frozen_balance, long frozen_duration) {
     if (wallet == null || !wallet.isLoginState()) {
-      logger.warn("Warnging: freezeBalance failed, Please login first !!");
+      logger.warn("Warning: freezeBalance failed, Please login first !!");
       return false;
     }
 
@@ -509,7 +541,7 @@ public class Client {
 
   public boolean withdrawBalance(String password) {
     if (wallet == null || !wallet.isLoginState()) {
-      logger.warn("Warnging: withdrawBalance failed, Please login first !!");
+      logger.warn("Warning: withdrawBalance failed, Please login first !!");
       return false;
     }
 

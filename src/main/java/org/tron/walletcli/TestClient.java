@@ -1,8 +1,10 @@
 package org.tron.walletcli;
 
 import com.beust.jcommander.JCommander;
+import java.awt.SystemTray;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.tron.api.GrpcAPI.AccountNetMessage;
 import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.BlockList;
 import org.tron.api.GrpcAPI.Node;
@@ -212,6 +214,33 @@ public class TestClient {
     }
   }
 
+  private void updateAsset(String[] parameters) {
+    if (parameters == null || parameters.length != 5) {
+      System.out.println("UpdateAsset need 2-5 parameter like following: ");
+      System.out.println("UpdateAsset Password newLimit newPublicLimit (description) (url)");
+      return;
+    }
+
+    String password = parameters[0];
+    String newLimitString = parameters[1];
+    String newPublicLimitString = parameters[2];
+    String description = parameters[3];
+    String url = parameters[4];
+
+    byte[] descriptionBytes = ByteArray.fromString(description);
+    byte[] urlBytes = ByteArray.fromString(url);
+    long newLimit = new Long(newLimitString);
+    long newPublicLimit = new Long(newPublicLimitString);
+
+    boolean ret = client
+        .updateAsset(password, descriptionBytes, urlBytes, newLimit, newPublicLimit);
+    if (ret) {
+      logger.info("Update Asset success !!!!");
+    } else {
+      logger.info("Update Asset failed !!!!");
+    }
+  }
+
   private void getAssetIssueByAccount(String[] parameters) {
     if (parameters == null || parameters.length != 1) {
       System.out.println("GetAssetIssueByAccount need 1 parameter like following: ");
@@ -230,6 +259,26 @@ public class TestClient {
       logger.info(Utils.printAssetIssueList(assetIssueList));
     } else {
       logger.info("GetAssetIssueByAccount " + " failed !!");
+    }
+  }
+
+  private void  getAccountNet(String[] parameters) {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("GetAccountNet need 1 parameter like following: ");
+      System.out.println("GetAccountNet Address ");
+      return;
+    }
+    String address = parameters[0];
+    byte[] addressBytes = WalletClient.decodeFromBase58Check(address);
+    if (addressBytes == null) {
+      return;
+    }
+
+    AccountNetMessage result = WalletClient.getAccountNet(addressBytes);
+    if (result == null) {
+      logger.info("GetAccountNet " + " failed !!");
+    } else {
+      logger.info("\n" + Utils.printAccountNet(result));
     }
   }
 
@@ -351,7 +400,7 @@ public class TestClient {
   private void participateAssetIssue(String[] parameters) {
     if (parameters == null || parameters.length != 4) {
       System.out.println("ParticipateAssetIssue need 4 parameter like following: ");
-      System.out.println("ParticipateAssetIssue Password ToAddress AssertName Amount");
+      System.out.println("ParticipateAssetIssue Password ToAddress AssetName Amount");
       return;
     }
     String password = parameters[0];
@@ -371,11 +420,11 @@ public class TestClient {
   }
 
   private void assetIssue(String[] parameters) {
-    if (parameters == null || parameters.length < 9 || (parameters.length & 1) == 0) {
+    if (parameters == null || parameters.length < 11 || (parameters.length & 1) == 0) {
       System.out.println("Use assetIssue command you need like: ");
       System.out.println(
           "AssetIssue Password AssetName TotalSupply TrxNum AssetNum "
-              + "StartDate EndDate Description Url "
+              + "StartDate EndDate Description Url FreeNetLimitPerAccount PublicFreeNetLimit"
               + "FrozenAmount0 FrozenDays0 ... FrozenAmountN FrozenDaysN");
       System.out
           .println("TrxNum and AssetNum represents the conversion ratio of the tron to the asset.");
@@ -392,8 +441,10 @@ public class TestClient {
     String endYyyyMmDd = parameters[6];
     String description = parameters[7];
     String url = parameters[8];
+    String freeNetLimitPerAccount = parameters[9];
+    String publicFreeNetLimitString = parameters[10];
     HashMap<String, String> frozenSupply = new HashMap<>();
-    for (int i = 9; i < parameters.length; i += 2) {
+    for (int i = 11; i < parameters.length; i += 2) {
       String amount = parameters[i];
       String days = parameters[i + 1];
       frozenSupply.put(days, amount);
@@ -406,10 +457,12 @@ public class TestClient {
     Date endDate = Utils.strToDateLong(endYyyyMmDd);
     long startTime = startDate.getTime();
     long endTime = endDate.getTime();
+    long freeAssetNetLimit = new Long(freeNetLimitPerAccount);
+    long publicFreeNetLimit = new Long(publicFreeNetLimitString);
 
     boolean result = client
         .assetIssue(password, name, totalSupply, trxNum, icoNum, startTime, endTime,
-            0, description, url, frozenSupply);
+            0, description, url, freeAssetNetLimit,publicFreeNetLimit, frozenSupply);
     if (result) {
       logger.info("AssetIssue " + name + " successful !!");
     } else {
@@ -434,7 +487,6 @@ public class TestClient {
       logger.info("CreateWitness " + " failed !!");
     }
   }
-
 
 //  private void listAccounts() {
 //    Optional<AccountList> result = client.listAccounts();
@@ -878,6 +930,7 @@ public class TestClient {
     System.out.println("GetBalance");
     System.out.println("GetAccount");
     System.out.println("GetAssetIssueByAccount");
+    System.out.println("GetAccountNet");
     System.out.println("GetAssetIssueByName");
     System.out.println("SendCoin");
     System.out.println("TransferAsset");
@@ -908,6 +961,7 @@ public class TestClient {
     System.out.println("UnfreezeBalance");
     System.out.println("WithdrawBalance");
     System.out.println("UpdateAccount");
+    System.out.println("UpdateAsset");
     System.out.println("UnfreezeAsset");
     System.out.println("Exit or Quit");
 
@@ -981,8 +1035,16 @@ public class TestClient {
             updateAccount(parameters);
             break;
           }
+          case "updateasset": {
+            updateAsset(parameters);
+            break;
+          }
           case "getassetissuebyaccount": {
             getAssetIssueByAccount(parameters);
+            break;
+          }
+          case "getaccountnet": {
+            getAccountNet(parameters);
             break;
           }
           case "getassetissuebyname": {

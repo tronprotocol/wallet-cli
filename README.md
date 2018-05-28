@@ -65,7 +65,8 @@ rpc GetBlockByNum (NumberMessage) returns (Block)
 rpc FreezeBalance (FreezeBalanceContract) returns (Transaction)       
 rpc UnfreezeBalance (UnfreezeBalanceContract) returns (Transaction)       
 rpc WithdrawBalance (WithdrawBalanceContract) returns (Transaction)       
- 
+rpc UpdateAsset (UpdateAssetContract) returns (Transaction)       
+rpc GetAccountNet (Account) returns (AccountNetMessage) 
  
 Web wallet host
 ----------------------------------
