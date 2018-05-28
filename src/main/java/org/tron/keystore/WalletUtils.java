@@ -21,8 +21,6 @@ import org.tron.common.utils.Utils;
 public class WalletUtils {
 
     private static final ObjectMapper objectMapper = new ObjectMapper();
-    private static final SecureRandom secureRandom = SecureRandomUtils.secureRandom();
-
     static {
         objectMapper.configure(JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES, true);
         objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
