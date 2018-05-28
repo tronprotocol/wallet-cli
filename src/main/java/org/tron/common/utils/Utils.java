@@ -393,10 +393,10 @@ public class Utils {
           result += "type: ";
           result += accountCreateContract.getType();
           result += "\n";
-          if (accountCreateContract.getAccountName() != null
-              && accountCreateContract.getAccountName().size() > 0) {
-            result += "account_name: ";
-            result += new String(accountCreateContract.getAccountName().toByteArray(),
+          if (accountCreateContract.getAccountAddress() != null
+              && accountCreateContract.getAccountAddress().size() > 0) {
+            result += "account_address: ";
+            result += new String(accountCreateContract.getAccountAddress().toByteArray(),
                 Charset.forName("UTF-8"));
             result += "\n";
           }

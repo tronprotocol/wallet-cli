@@ -361,6 +361,16 @@ public class WalletClient {
     return rpcCli.broadcastTransaction(transaction);
   }
 
+  public boolean createAccount(byte[] address) {
+    byte[] owner = getAddress();
+    Transaction transaction = createAccountTransaction(owner, address);
+    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
+      return false;
+    }
+    transaction = signTransaction(transaction);
+    return rpcCli.broadcastTransaction(transaction);
+  }
+
   public boolean createWitness(byte[] url) {
     byte[] owner = getAddress();
     Transaction transaction = createWitnessTransaction(owner, url);
@@ -379,6 +389,11 @@ public class WalletClient {
     }
     transaction = signTransaction(transaction);
     return rpcCli.broadcastTransaction(transaction);
+  }
+
+  public static Transaction createAccountTransaction(byte[] owner, byte[] address) {
+    Contract.AccountCreateContract contract = createAccountCreateContract(owner, address);
+    return rpcCli.createAccount(contract);
   }
 
   public static Transaction createWitnessTransaction(byte[] owner, byte[] url) {
@@ -502,6 +517,15 @@ public class WalletClient {
     builder.setNewLimit(newLimit);
     builder.setNewPublicLimit(newPublicLimit);
     builder.setOwnerAddress(basAddreess);
+
+    return builder.build();
+  }
+
+  public static Contract.AccountCreateContract createAccountCreateContract(byte[] owner,
+      byte[] address) {
+    Contract.AccountCreateContract.Builder builder = Contract.AccountCreateContract.newBuilder();
+    builder.setOwnerAddress(ByteString.copyFrom(owner));
+    builder.setAccountAddress(ByteString.copyFrom(address));
 
     return builder.build();
   }

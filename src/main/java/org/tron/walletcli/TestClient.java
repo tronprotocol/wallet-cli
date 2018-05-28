@@ -470,6 +470,24 @@ public class TestClient {
     }
   }
 
+  private void createAccount(String[] parameters) {
+    if (parameters == null || parameters.length != 2) {
+      System.out.println("CreateAccount need 2 parameter like following: ");
+      System.out.println("CreateAccount Password Address");
+      return;
+    }
+
+    String password = parameters[0];
+    String address = parameters[1];
+
+    boolean result = client.createAccount(password, address);
+    if (result) {
+      logger.info("CreateAccount " + " successful !!");
+    } else {
+      logger.info("CreateAccount " + " failed !!");
+    }
+  }
+
   private void createWitness(String[] parameters) {
     if (parameters == null || parameters.length != 2) {
       System.out.println("CreateWitness need 2 parameter like following: ");
@@ -936,6 +954,7 @@ public class TestClient {
     System.out.println("TransferAsset");
     System.out.println("ParticipateAssetIssue");
     System.out.println("AssetIssue");
+    System.out.println("CreateAccount");
     System.out.println("CreateWitness");
     System.out.println("UpdateWitness");
     System.out.println("VoteWitness");
@@ -1069,6 +1088,10 @@ public class TestClient {
           }
           case "assetissue": {
             assetIssue(parameters);
+            break;
+          }
+          case "createaccount": {
+            createAccount(parameters);
             break;
           }
           case "createwitness": {
