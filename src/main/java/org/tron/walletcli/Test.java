@@ -355,7 +355,7 @@ public class Test {
 
     File file = new File("out");
 
-    String fileName = WalletUtils.generateWalletFile(PASSWORD, eCkey, file, true);
+    String fileName = WalletUtils.generateWalletFile(PASSWORD, KEY_PAIR, file, true);
     Credentials credentials = WalletUtils.loadCredentials(PASSWORD, new File(file, fileName));
     String address = credentials.getAddress();
     ECKeyPair ecKeyPair = credentials.getEcKeyPair();
