@@ -27,6 +27,7 @@ import java.security.Security;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tron.common.crypto.jce.TronCastleProvider;
+import org.tron.common.utils.ByteArray;
 import org.tron.core.config.Parameter.CommonConstant;
 
 public class Hash {
@@ -74,6 +75,19 @@ public class Hash {
     }
 
   }
+
+  /**
+   * Keccak-256 hash function.
+   *
+   * @param hexInput hex encoded input data with optional 0x prefix
+   * @return hash value as hex encoded string
+   */
+  public static String sha3(String hexInput) {
+    byte[] bytes = ByteArray.fromHexString(hexInput);
+    byte[] result = sha3(bytes);
+    return ByteArray.toHexString(result);
+  }
+
 
   public static byte[] sha3(byte[] input1, byte[] input2) {
     MessageDigest digest;

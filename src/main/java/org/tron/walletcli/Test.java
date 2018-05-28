@@ -34,6 +34,11 @@ import org.tron.common.utils.Base58;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Utils;
 import org.tron.explorer.controller.NodeController;
+import org.tron.keystore.CipherException;
+import org.tron.keystore.Credentials;
+import org.tron.keystore.ECKeyPair;
+import org.tron.keystore.Numeric;
+import org.tron.keystore.WalletUtils;
 import org.tron.protos.Contract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.TXInput;
@@ -318,14 +323,50 @@ public class Test {
     }
   }
 
-public static void testSha3(){
+  public static void testSha3() {
     String testData = "tools.jb51.net";
     byte[] hash = Hash.sha3(testData.getBytes());
-    System.out.println("testData::" +testData);
-    System.out.println("hash::" +ByteArray.toHexString(hash));
-}
+    System.out.println("testData::" + testData);
+    System.out.println("hash::" + ByteArray.toHexString(hash));
+  }
+
+  public static void testGenerateWalletFile() throws CipherException, IOException {
+    String PRIVATE_KEY_STRING =
+        "a392604efc2fad9c0b3da43b5f698a2e3f270f170d859912be0d54742275c5f6";
+    String PUBLIC_KEY_STRING =
+        "0x506bc1dc099358e5137292f4efdd57e400f29ba5132aa5d12b18dac1c1f6aab"
+            + "a645c0b7b58158babbfa6c6cd5a48aa7340a8749176b120e8516216787a13dc76";
+
+    String PASSWORD = "Insecure Pa55w0rd";
+
+    BigInteger PRIVATE_KEY = Numeric.toBigInt(PRIVATE_KEY_STRING);
+    BigInteger PUBLIC_KEY = Numeric.toBigInt(PUBLIC_KEY_STRING);
+
+    ECKeyPair KEY_PAIR = new ECKeyPair(PRIVATE_KEY, PUBLIC_KEY);
+    ECKey eCkey = null;
+    String priKeyHex = "cba92a516ea09f620a16ff7ee95ce0df1d56550a8babe9964981a7144c8a784a";
+    try {
+      BigInteger priK = new BigInteger(priKeyHex, 16);
+      eCkey = ECKey.fromPrivate(priK);
+    } catch (Exception ex) {
+      ex.printStackTrace();
+      return;
+    }
+
+    File file = new File("out");
+
+    String fileName = WalletUtils.generateWalletFile(PASSWORD, eCkey, file, true);
+    Credentials credentials = WalletUtils.loadCredentials(PASSWORD, new File(file, fileName));
+    String address = credentials.getAddress();
+    ECKeyPair ecKeyPair = credentials.getEcKeyPair();
+    String prikey = ByteArray.toHexString(ecKeyPair.getPrivateKey().toByteArray());
+    System.out.println("address = " + address);
+    System.out.println("prikey = " + prikey);
+
+  }
+
   public static void main(String[] args) throws Exception {
 
-    testSha3();
+    testGenerateWalletFile();
   }
 }
