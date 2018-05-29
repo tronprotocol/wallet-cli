@@ -6,6 +6,7 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigObject;
 import java.io.File;
 import java.io.IOException;
+import java.util.Scanner;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -30,6 +31,7 @@ import org.tron.common.utils.Utils;
 import org.tron.core.config.Configuration;
 import org.tron.core.config.Parameter.CommonConstant;
 import org.tron.keystore.CipherException;
+import org.tron.keystore.Credentials;
 import org.tron.keystore.WalletUtils;
 import org.tron.protos.Contract;
 import org.tron.protos.Contract.AssetIssueContract;
@@ -156,14 +158,7 @@ public class WalletClient {
 
   //  Create Wallet with a pritKey
   public WalletClient(String priKey) {
-    ECKey temKey = null;
-    try {
-      BigInteger priK = new BigInteger(priKey, 16);
-      temKey = ECKey.fromPrivate(priK);
-    } catch (Exception ex) {
-      ex.printStackTrace();
-    }
-    this.ecKey = temKey;
+    this.ecKey = ECKey.fromPrivate(ByteArray.fromHexString(priKey));
   }
 
   public boolean login(String password) {
@@ -177,6 +172,7 @@ public class WalletClient {
 
   public void logout() {
     loginState = false;
+    this.ecKey = null;
   }
 
   /**
@@ -248,15 +244,65 @@ public class WalletClient {
       return null;
     }
     File file = new File(FilePath);
-    if (!file.exists()){
+    if (!file.exists()) {
       file.mkdir();
-    }else {
-      if (!file.isDirectory()){
+    } else {
+      if (!file.isDirectory()) {
         file.delete();
         file.mkdir();
       }
     }
     return WalletUtils.generateWalletFile(password, ecKey, file, true);
+  }
+
+  /**
+   * load a Wallet from keystore
+   */
+  public static WalletClient loadWalletFromKeystore(String password)
+      throws IOException, CipherException {
+    File file = new File(FilePath);
+    if (!file.exists() || !file.isDirectory()) {
+      return null;
+    }
+
+    File[] wallets = file.listFiles();
+    if (ArrayUtils.isEmpty(wallets)) {
+      return null;
+    }
+
+    File wallet;
+    if (wallets.length > 1) {
+      for (int i = 0; i < wallets.length; i++) {
+        System.out.println("The " + (i + 1) + "th keystore fime name is " + wallets[i].getName());
+      }
+      System.out.println("Please choose the number of wallet like 1 or 2 ...");
+      Scanner in = new Scanner(System.in);
+      while (true) {
+        String input = in.nextLine().trim();
+        String num = input.split("\\s+")[0];
+        int n;
+        try {
+          n = new Integer(num);
+        }catch (NumberFormatException e){
+          System.out.println("Invaild number of " + num);
+          System.out.println("Please choose again between 1 and " + wallets.length);
+          continue;
+        }
+        if (n < 1 || n > wallets.length) {
+          System.out.println("Please choose again between 1 and " + wallets.length);
+          continue;
+        }
+        wallet = wallets[n - 1];
+        break;
+      }
+    } else {
+      wallet = wallets[0];
+    }
+
+    Credentials credentials = WalletUtils.loadCredentials(password, wallet);
+    WalletClient walletClient = new WalletClient(credentials.getEcKeyPair());
+    walletClient.loginState = true;
+    return walletClient;
   }
 
   public Account queryAccount() {
@@ -808,12 +854,13 @@ public class WalletClient {
     return rpcCli.getAssetIssueListByTimestamp(timestamp);
   }
 
-  public static Optional<TransactionList> getTransactionsByTimestamp(long start, long end, int offset, int limit) {
+  public static Optional<TransactionList> getTransactionsByTimestamp(long start, long end,
+      int offset, int limit) {
     return rpcCli.getTransactionsByTimestamp(start, end, offset, limit);
   }
 
   public static GrpcAPI.NumberMessage getTransactionsByTimestampCount(long start, long end) {
-    return rpcCli.getTransactionsByTimestampCount(start,end);
+    return rpcCli.getTransactionsByTimestampCount(start, end);
   }
 
   public static Optional<AssetIssueList> getAssetIssueList() {
@@ -844,15 +891,17 @@ public class WalletClient {
     return rpcCli.getNextMaintenanceTime();
   }
 
-  public static Optional<TransactionList> getTransactionsFromThis(byte[] address, int offset, int limit) {
+  public static Optional<TransactionList> getTransactionsFromThis(byte[] address, int offset,
+      int limit) {
     return rpcCli.getTransactionsFromThis(address, offset, limit);
   }
 
-  public static GrpcAPI.NumberMessage   getTransactionsFromThisCount(byte[] address) {
+  public static GrpcAPI.NumberMessage getTransactionsFromThisCount(byte[] address) {
     return rpcCli.getTransactionsFromThisCount(address);
   }
 
-  public static Optional<TransactionList> getTransactionsToThis(byte[] address, int offset, int limit) {
+  public static Optional<TransactionList> getTransactionsToThis(byte[] address, int offset,
+      int limit) {
     return rpcCli.getTransactionsToThis(address, offset, limit);
   }
 

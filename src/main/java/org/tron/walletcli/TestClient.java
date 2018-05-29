@@ -107,7 +107,7 @@ public class TestClient {
     }
   }
 
-  private void login(String[] parameters) {
+  private void login(String[] parameters) throws IOException, CipherException {
     if (parameters == null || parameters.length != 1) {
       System.out.println("Login need 1 parameter like following: ");
       System.out.println("Login Password ");

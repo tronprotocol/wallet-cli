@@ -25,12 +25,14 @@ public class Client {
   private static final Logger logger = LoggerFactory.getLogger("Client");
   private WalletClient wallet;
 
-  public String  registerWallet(String password) throws CipherException, IOException {
+  public String registerWallet(String password) throws CipherException, IOException {
     if (!WalletClient.passwordValid(password)) {
       return null;
     }
     wallet = new WalletClient(true);
-    return  wallet.store2Keystore(password);
+    String keystoreName = wallet.store2Keystore(password);
+    wallet = null;
+    return keystoreName;
   }
 
   public boolean importWallet(String password, String priKey) {
@@ -78,23 +80,24 @@ public class Client {
     return importWallet(newPassword, priKey);
   }
 
-  public boolean login(String password) {
+  public boolean login(String password) throws IOException, CipherException {
     if (!WalletClient.passwordValid(password)) {
       return false;
     }
     if (wallet == null) {
-      wallet = WalletClient.GetWalletByStorage(password);
+      wallet = WalletClient.loadWalletFromKeystore(password);
       if (wallet == null) {
         logger.warn("Warning: Login failed, Please registerWallet or importWallet first !!");
         return false;
       }
     }
-    return wallet.login(password);
+    return true;
   }
 
   public void logout() {
     if (wallet != null) {
       wallet.logout();
+      wallet = null;
     }
     //Neddn't logout
   }
@@ -231,7 +234,7 @@ public class Client {
 
   public boolean assetIssue(String password, String name, long totalSupply, int trxNum, int icoNum,
       long startTime, long endTime, int voteScore, String description, String url,
-      long freeNetLimit,long publicFreeNetLimit, HashMap<String, String> frozenSupply) {
+      long freeNetLimit, long publicFreeNetLimit, HashMap<String, String> frozenSupply) {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: assetIssue failed,  Please login first !!");
       return false;
