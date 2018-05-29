@@ -85,27 +85,17 @@ public class Client {
 
   //password is current, will be enc by password2.
   public String backupWallet(String password) throws IOException, CipherException {
-    if (wallet == null || !wallet.isLoginState()) {
-      logger.warn("Warning: BackupWallet failed, Please login first !!");
-      return null;
-    }
     if (!WalletClient.passwordValid(password)) {
       logger.warn("Warning: BackupWallet failed, password is Invalid !!");
       return null;
     }
 
-    if (!WalletClient.checkPassWord(password)) {
-      logger.warn("Warning: BackupWallet failed, Wrong password !!");
+    wallet = WalletClient.loadWalletFromKeystore(password);
+    if (wallet == null) {
+      logger.warn("Warning: BackupWallet failed, no wallet can be backup !!");
       return null;
     }
 
-    if (wallet.getEcKey() == null || wallet.getEcKey().getPrivKey() == null) {
-      wallet = WalletClient.loadWalletFromKeystore(password);
-      if (wallet == null) {
-        logger.warn("Warning: BackupWallet failed, no wallet can be backup !!");
-        return null;
-      }
-    }
     ECKey ecKey = wallet.getEcKey();
     byte[] privKeyPlain = ecKey.getPrivKeyBytes();
     //Enced by encPassword

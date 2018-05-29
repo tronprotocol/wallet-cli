@@ -161,11 +161,6 @@ public class WalletClient {
     this.ecKey = ECKey.fromPrivate(ByteArray.fromHexString(priKey));
   }
 
-  public boolean login(String password) {
-    loginState = checkPassWord(password);
-    return loginState;
-  }
-
   public boolean isLoginState() {
     return loginState;
   }
@@ -601,24 +596,6 @@ public class WalletClient {
     }
 
     return builder.build();
-  }
-
-
-  public static byte[] getEncKey(String password, byte[] salt0) {
-    if (!passwordValid(password)) {
-      return null;
-    }
-    byte[] encKey;
-    byte[] msg = new byte[password.length() + salt0.length];
-    System.arraycopy(password.getBytes(), 0, msg, 0, password.length());
-    System.arraycopy(salt0, 0, msg, password.length(), salt0.length);
-    encKey = Hash.sha256(msg);
-    encKey = Arrays.copyOfRange(encKey, 0, 16);
-    return encKey;
-  }
-
-  public static boolean checkPassWord(String password) {
-    return true;
   }
 
   public static boolean passwordValid(String password) {
