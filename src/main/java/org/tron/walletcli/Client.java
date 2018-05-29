@@ -51,10 +51,6 @@ public class Client {
   public boolean changePassword(String oldPassword, String newPassword)
       throws IOException, CipherException {
     logout();
-    if (!WalletClient.passwordValid(oldPassword)) {
-      logger.warn("Warning: ChangePassword failed, OldPassword is invalid !!");
-      return false;
-    }
     if (!WalletClient.passwordValid(newPassword)) {
       logger.warn("Warning: ChangePassword failed, NewPassword is invalid !!");
       return false;
@@ -73,7 +69,9 @@ public class Client {
         return false;
       }
     }
-    System.out.println("Wallet is logined now, if you need change wallet please logout first!!");
+    else {
+      System.out.println("Wallet is logined now, if you need change wallet please logout first!!");
+    }
     return true;
   }
 
