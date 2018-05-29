@@ -255,6 +255,52 @@ public class WalletClient {
     return WalletUtils.generateWalletFile(password, ecKey, file, true);
   }
 
+  public static boolean changeKeystorePassword(String oldPassword, String newPassowrd)
+      throws IOException, CipherException {
+    File file = new File(FilePath);
+    if (!file.exists() || !file.isDirectory()) {
+      return false;
+    }
+
+    File[] wallets = file.listFiles();
+    if (ArrayUtils.isEmpty(wallets)) {
+      return false;
+    }
+
+    File wallet;
+    if (wallets.length > 1) {
+      for (int i = 0; i < wallets.length; i++) {
+        System.out.println("The " + (i + 1) + "th keystore fime name is " + wallets[i].getName());
+      }
+      System.out.println("Please choose the number of wallet like 1 or 2 ...");
+      Scanner in = new Scanner(System.in);
+      while (true) {
+        String input = in.nextLine().trim();
+        String num = input.split("\\s+")[0];
+        int n;
+        try {
+          n = new Integer(num);
+        }catch (NumberFormatException e){
+          System.out.println("Invaild number of " + num);
+          System.out.println("Please choose again between 1 and " + wallets.length);
+          continue;
+        }
+        if (n < 1 || n > wallets.length) {
+          System.out.println("Please choose again between 1 and " + wallets.length);
+          continue;
+        }
+        wallet = wallets[n - 1];
+        break;
+      }
+    } else {
+      wallet = wallets[0];
+    }
+
+    Credentials credentials = WalletUtils.loadCredentials(oldPassword, wallet);
+    WalletUtils.updateWalletFile(newPassowrd, credentials.getEcKeyPair(), wallet, true);
+    return true;
+  }
+
   /**
    * load a Wallet from keystore
    */

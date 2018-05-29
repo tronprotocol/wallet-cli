@@ -55,7 +55,7 @@ public class TestClient {
     logger.info("Register a wallet successful, keystore file name is " + fileName);
   }
 
-  private void importWallet(String[] parameters) {
+  private void importWallet(String[] parameters) throws CipherException, IOException {
     if (parameters == null || parameters.length != 2) {
       System.out.println("ImportWallet need 2 parameter like following: ");
       System.out.println("ImportWallet Password PriKey");
@@ -65,14 +65,15 @@ public class TestClient {
     String password = parameters[0];
     String priKey = parameters[1];
 
-    if (client.importWallet(password, priKey)) {
-      logger.info("Import a wallet and store it successful !!");
-    } else {
-      logger.info("Import a wallet failed !!");
+    String fileName = client.importWallet(password, priKey);
+    if (null == fileName) {
+      logger.info("Import wallet failed !!");
+      return;
     }
+    logger.info("ImportImport a wallet successful, keystore file name is " + fileName);
   }
 
-  private void importwalletByBase64(String[] parameters) {
+  private void importwalletByBase64(String[] parameters) throws CipherException, IOException {
     if (parameters == null || parameters.length != 2) {
       System.out.println("ImportwalletByBase64 need 2 parameter like following: ");
       System.out.println("ImportwalletByBase64 Password PriKey");
@@ -84,14 +85,15 @@ public class TestClient {
     Decoder decoder = Base64.getDecoder();
     String priKey = ByteArray.toHexString(decoder.decode(priKey64));
 
-    if (client.importWallet(password, priKey)) {
-      logger.info("Import a wallet and store it successful !!");
-    } else {
-      logger.info("Import a wallet failed !!");
+    String fileName = client.importWallet(password, priKey);
+    if (null == fileName) {
+      logger.info("Import wallet failed !!");
+      return;
     }
+    logger.info("ImportImport a wallet successful, keystore file name is " + fileName);
   }
 
-  private void changePassword(String[] parameters) {
+  private void changePassword(String[] parameters) throws IOException, CipherException {
     if (parameters == null || parameters.length != 2) {
       System.out.println("ChangePassword need 2 parameter like following: ");
       System.out.println("ChangePassword OldPassword NewPassword ");

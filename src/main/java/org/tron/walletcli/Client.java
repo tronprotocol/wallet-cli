@@ -31,30 +31,26 @@ public class Client {
     }
     wallet = new WalletClient(true);
     String keystoreName = wallet.store2Keystore(password);
-    wallet = null;
+    logout();
     return keystoreName;
   }
 
-  public boolean importWallet(String password, String priKey) {
+  public String importWallet(String password, String priKey) throws CipherException, IOException {
     if (!WalletClient.passwordValid(password)) {
-      return false;
+      return null;
     }
     if (!WalletClient.priKeyValid(priKey)) {
-      return false;
+      return null;
     }
     wallet = new WalletClient(priKey);
-    if (wallet.getEcKey() == null) {
-      return false;
-    }
-    wallet.store(password);
-    return true;
+    String keystoreName = wallet.store2Keystore(password);
+    logout();
+    return keystoreName;
   }
 
-  public boolean changePassword(String oldPassword, String newPassword) {
-    if (wallet == null || !wallet.isLoginState()) {
-      logger.warn("Warning: ChangePassword failed, Please login first !!");
-      return false;
-    }
+  public boolean changePassword(String oldPassword, String newPassword)
+      throws IOException, CipherException {
+    logout();
     if (!WalletClient.passwordValid(oldPassword)) {
       logger.warn("Warning: ChangePassword failed, OldPassword is invalid !!");
       return false;
@@ -63,34 +59,21 @@ public class Client {
       logger.warn("Warning: ChangePassword failed, NewPassword is invalid !!");
       return false;
     }
-    if (!WalletClient.checkPassWord(oldPassword)) {
-      logger.warn("Warning: ChangePassword failed, Wrong password !!");
-      return false;
-    }
-
-    if (wallet.getEcKey() == null || wallet.getEcKey().getPrivKey() == null) {
-      wallet = WalletClient.GetWalletByStorage(oldPassword);
-      if (wallet == null) {
-        logger.warn("Warning: ChangePassword failed, No wallet !!");
-        return false;
-      }
-    }
-    byte[] priKeyAsc = wallet.getEcKey().getPrivKeyBytes();
-    String priKey = Hex.toHexString(priKeyAsc, 0, priKeyAsc.length);
-    return importWallet(newPassword, priKey);
+    return WalletClient.changeKeystorePassword(oldPassword, newPassword);
   }
 
   public boolean login(String password) throws IOException, CipherException {
     if (!WalletClient.passwordValid(password)) {
       return false;
     }
-    if (wallet == null) {
+    if (wallet == null || !wallet.isLoginState()) {
       wallet = WalletClient.loadWalletFromKeystore(password);
       if (wallet == null) {
         logger.warn("Warning: Login failed, Please registerWallet or importWallet first !!");
         return false;
       }
     }
+    System.out.println("Wallet is logined now, if you need change wallet please logout first!!");
     return true;
   }
 
