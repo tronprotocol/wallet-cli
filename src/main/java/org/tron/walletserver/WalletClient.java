@@ -4,6 +4,8 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigObject;
+import java.io.File;
+import java.io.IOException;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -27,6 +29,8 @@ import org.tron.common.utils.TransactionUtils;
 import org.tron.common.utils.Utils;
 import org.tron.core.config.Configuration;
 import org.tron.core.config.Parameter.CommonConstant;
+import org.tron.keystore.CipherException;
+import org.tron.keystore.WalletUtils;
 import org.tron.protos.Contract;
 import org.tron.protos.Contract.AssetIssueContract;
 import org.tron.protos.Contract.FreezeBalanceContract;
@@ -236,6 +240,23 @@ public class WalletClient {
         pwd.length + pubKey.length + privKeyEnced.length + salt0.length, salt1.length);
 
     FileUtil.saveData(FilePath, walletData);
+  }
+
+  public String store2Keystore(String password) throws CipherException, IOException {
+    if (ecKey == null || ecKey.getPrivKey() == null) {
+      logger.warn("Warning: Store wallet failed, PrivKey is null !!");
+      return null;
+    }
+    File file = new File(FilePath);
+    if (!file.exists()){
+      file.mkdir();
+    }else {
+      if (!file.isDirectory()){
+        file.delete();
+        file.mkdir();
+      }
+    }
+    return WalletUtils.generateWalletFile(password, ecKey, file, true);
   }
 
   public Account queryAccount() {

@@ -1,6 +1,7 @@
 package org.tron.walletcli;
 
 import com.google.protobuf.ByteString;
+import java.io.IOException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.spongycastle.util.encoders.Hex;
@@ -10,6 +11,7 @@ import org.tron.api.GrpcAPI.NodeList;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.utils.ByteArray;
+import org.tron.keystore.CipherException;
 import org.tron.protos.Contract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
@@ -23,15 +25,12 @@ public class Client {
   private static final Logger logger = LoggerFactory.getLogger("Client");
   private WalletClient wallet;
 
-  public boolean registerWallet(String password) {
+  public String  registerWallet(String password) throws CipherException, IOException {
     if (!WalletClient.passwordValid(password)) {
-      return false;
+      return null;
     }
     wallet = new WalletClient(true);
-    // create account at network
-//    Boolean ret = wallet.createAccount(Protocol.AccountType.Normal, userName.getBytes());getBytes
-    wallet.store(password);
-    return true;
+    return  wallet.store2Keystore(password);
   }
 
   public boolean importWallet(String password, String priKey) {

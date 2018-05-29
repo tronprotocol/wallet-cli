@@ -2,6 +2,7 @@ package org.tron.walletcli;
 
 import com.beust.jcommander.JCommander;
 import java.awt.SystemTray;
+import java.io.IOException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tron.api.GrpcAPI.AccountNetMessage;
@@ -14,6 +15,7 @@ import org.tron.api.GrpcAPI.TransactionList;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Utils;
+import org.tron.keystore.CipherException;
 import org.tron.protos.Contract.AssetIssueContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
@@ -37,7 +39,7 @@ public class TestClient {
   private static final Logger logger = LoggerFactory.getLogger("TestClient");
   private Client client = new Client();
 
-  private void registerWallet(String[] parameters) {
+  private void registerWallet(String[] parameters) throws CipherException, IOException {
     if (parameters == null || parameters.length != 1) {
       System.out.println("RegisterWallet need 1 parameter like following: ");
       System.out.println("RegisterWallet Password");
@@ -45,11 +47,12 @@ public class TestClient {
     }
     String password = parameters[0];
 
-    if (client.registerWallet(password)) {
-      logger.info("Register a wallet and store it successful !!");
-    } else {
+    String fileName = client.registerWallet(password);
+    if (null == fileName) {
       logger.info("Register wallet failed !!");
+      return;
     }
+    logger.info("Register a wallet successful, keystore file name is " + fileName);
   }
 
   private void importWallet(String[] parameters) {
