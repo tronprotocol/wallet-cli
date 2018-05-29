@@ -269,7 +269,7 @@ public class WalletClient {
       for (int i = 0; i < wallets.length; i++) {
         System.out.println("The " + (i + 1) + "th keystore fime name is " + wallets[i].getName());
       }
-      System.out.println("Please choose the number of wallet like 1 or 2 ...");
+      System.out.println("Please choose again between 1 and " + wallets.length);
       Scanner in = new Scanner(System.in);
       while (true) {
         String input = in.nextLine().trim();
