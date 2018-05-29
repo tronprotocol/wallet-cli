@@ -176,23 +176,6 @@ public class WalletClient {
   }
 
   /**
-   * Get a Wallet from storage
-   */
-  public static WalletClient GetWalletByStorage(String password) {
-    byte[] priKeyEnced = loadPriKey();
-    if (ArrayUtils.isEmpty(priKeyEnced)) {
-      return null;
-    }
-    //dec priKey
-    byte[] salt0 = loadSalt0();
-    byte[] aesKey = getEncKey(password, salt0);
-    byte[] priKeyHexPlain = SymmEncoder.AES128EcbDec(priKeyEnced, aesKey);
-    String priKeyPlain = Hex.toHexString(priKeyHexPlain);
-
-    return new WalletClient(priKeyPlain);
-  }
-
-  /**
    * Creates a Wallet with an existing ECKey.
    */
 
@@ -206,36 +189,6 @@ public class WalletClient {
 
   public byte[] getAddress() {
     return ecKey.getAddress();
-  }
-
-  public void store(String password) {
-    if (ecKey == null || ecKey.getPrivKey() == null) {
-      logger.warn("Warning: Store wallet failed, PrivKey is null !!");
-      return;
-    }
-    byte[] salt0 = new byte[16];
-    byte[] salt1 = new byte[16];
-    JCAUtil.getSecureRandom().nextBytes(salt0);
-    JCAUtil.getSecureRandom().nextBytes(salt1);
-    byte[] aseKey = getEncKey(password, salt0);
-    byte[] pwd = getPassWord(password, salt1);
-    byte[] privKeyPlain = ecKey.getPrivKeyBytes();
-    System.out.println("privKey:" + ByteArray.toHexString(privKeyPlain));
-    //encrypted by password
-    byte[] privKeyEnced = SymmEncoder.AES128EcbEnc(privKeyPlain, aseKey);
-    byte[] pubKey = ecKey.getPubKey();
-    byte[] walletData = new byte[pwd.length + pubKey.length + privKeyEnced.length + salt0.length
-        + salt1.length];
-
-    System.arraycopy(pwd, 0, walletData, 0, pwd.length);
-    System.arraycopy(pubKey, 0, walletData, pwd.length, pubKey.length);
-    System.arraycopy(privKeyEnced, 0, walletData, pwd.length + pubKey.length, privKeyEnced.length);
-    System.arraycopy(salt0, 0, walletData, pwd.length + pubKey.length + privKeyEnced.length,
-        salt0.length);
-    System.arraycopy(salt1, 0, walletData,
-        pwd.length + pubKey.length + privKeyEnced.length + salt0.length, salt1.length);
-
-    FileUtil.saveData(FilePath, walletData);
   }
 
   public String store2Keystore(String password) throws CipherException, IOException {
@@ -352,14 +305,6 @@ public class WalletClient {
   }
 
   public Account queryAccount() {
-    if (this.ecKey == null) {
-      byte[] pubKey = loadPubKey();
-      if (ArrayUtils.isEmpty(pubKey)) {
-        logger.warn("Warning: QueryAccount failed, no wallet address !!");
-        return null;
-      }
-      this.ecKey = ECKey.fromPublicOnly(pubKey);
-    }
     return queryAccount(getAddress());
   }
 
@@ -658,98 +603,6 @@ public class WalletClient {
     return builder.build();
   }
 
-  private static byte[] loadPassword() {
-    byte[] buf = FileUtil.readData(FilePath);
-    if (ArrayUtils.isEmpty(buf)) {
-      return null;
-    }
-    if (buf.length != 145) {
-      return null;
-    }
-    return Arrays.copyOfRange(buf, 0, 16);  //16
-  }
-
-  public static byte[] loadPubKey() {
-    byte[] buf = FileUtil.readData(FilePath);
-    if (ArrayUtils.isEmpty(buf)) {
-      return null;
-    }
-    if (buf.length != 145) {
-      return null;
-    }
-    return Arrays.copyOfRange(buf, 16, 81);  //65
-  }
-
-  private static byte[] loadPriKey() {
-    byte[] buf = FileUtil.readData(FilePath);
-    if (ArrayUtils.isEmpty(buf)) {
-      return null;
-    }
-    if (buf.length != 145) {
-      return null;
-    }
-    return Arrays.copyOfRange(buf, 81, 113);  //32
-  }
-
-  private static byte[] loadSalt0() {
-    byte[] buf = FileUtil.readData(FilePath);
-    if (ArrayUtils.isEmpty(buf)) {
-      return null;
-    }
-    if (buf.length != 145) {
-      return null;
-    }
-    return Arrays.copyOfRange(buf, 113, 129);  //16
-  }
-
-  private static byte[] loadSalt1() {
-    byte[] buf = FileUtil.readData(FilePath);
-    if (ArrayUtils.isEmpty(buf)) {
-      return null;
-    }
-    if (buf.length != 145) {
-      return null;
-    }
-    return Arrays.copyOfRange(buf, 129, 145);  //16
-  }
-
-  /**
-   * Get a Wallet from storage
-   */
-  public static WalletClient GetWalletByStorageIgnorPrivKey() {
-    try {
-      byte[] pubKey = loadPubKey(); //04 PubKey
-      ECKey eccKey = ECKey.fromPublicOnly(pubKey);
-      return new WalletClient(eccKey);
-    } catch (Exception ex) {
-      ex.printStackTrace();
-      return null;
-    }
-  }
-
-  public static String getAddressByStorage() {
-    try {
-      byte[] pubKey = loadPubKey(); //04 PubKey
-      return ByteArray.toHexString(ECKey.computeAddress(pubKey));
-    } catch (Exception ex) {
-      ex.printStackTrace();
-      return null;
-    }
-  }
-
-  public static byte[] getPassWord(String password, byte[] salt1) {
-    if (!passwordValid(password)) {
-      return null;
-    }
-    byte[] pwd;
-    byte[] msg = new byte[password.length() + salt1.length];
-    System.arraycopy(password.getBytes(), 0, msg, 0, password.length());
-    System.arraycopy(salt1, 0, msg, password.length(), salt1.length);
-    pwd = Hash.sha256(msg);
-    pwd = Hash.sha256(pwd);
-    pwd = Arrays.copyOfRange(pwd, 0, 16);
-    return pwd;
-  }
 
   public static byte[] getEncKey(String password, byte[] salt0) {
     if (!passwordValid(password)) {
@@ -765,14 +618,7 @@ public class WalletClient {
   }
 
   public static boolean checkPassWord(String password) {
-    byte[] salt1 = loadSalt1();
-    if (ArrayUtils.isEmpty(salt1)) {
-      return false;
-    }
-    byte[] pwd = getPassWord(password, salt1);
-    byte[] pwdStored = loadPassword();
-
-    return Arrays.equals(pwd, pwdStored);
+    return true;
   }
 
   public static boolean passwordValid(String password) {

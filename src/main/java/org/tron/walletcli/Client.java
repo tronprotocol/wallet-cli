@@ -129,12 +129,7 @@ public class Client {
       return null;
     }
 
-    try {
-      return wallet.queryAccount();
-    } catch (Exception ex) {
-      ex.printStackTrace();
-      return null;
-    }
+    return wallet.queryAccount();
   }
 
   public boolean sendCoin(String password, String toAddress, long amount)
