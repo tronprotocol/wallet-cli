@@ -130,7 +130,7 @@ public class TestClient {
     logger.info("Logout successful !!!");
   }
 
-  private void backupWallet(String[] parameters) {
+  private void backupWallet(String[] parameters) throws IOException, CipherException {
     if (parameters == null || parameters.length != 1) {
       System.out.println("BackupWallet need 1 parameter like following: ");
       System.out.println("BackupWallet Password ");
@@ -145,7 +145,7 @@ public class TestClient {
     }
   }
 
-  private void backupWallet2Base64(String[] parameters) {
+  private void backupWallet2Base64(String[] parameters) throws IOException, CipherException {
     if (parameters == null || parameters.length != 1) {
       System.out.println("BackupWallet2Base64 need 1 parameter like following: ");
       System.out.println("BackupWallet2Base64 Password ");
@@ -200,7 +200,7 @@ public class TestClient {
     }
   }
 
-  private void updateAccount(String[] parameters) {
+  private void updateAccount(String[] parameters) throws IOException, CipherException {
     if (parameters == null || parameters.length != 2) {
       System.out.println("UpdateAccount need 2 parameter like following: ");
       System.out.println("UpdateAccount Password AccountName ");
@@ -219,7 +219,7 @@ public class TestClient {
     }
   }
 
-  private void updateAsset(String[] parameters) {
+  private void updateAsset(String[] parameters) throws IOException, CipherException {
     if (parameters == null || parameters.length != 5) {
       System.out.println("UpdateAsset need 2-5 parameter like following: ");
       System.out.println("UpdateAsset Password newLimit newPublicLimit (description) (url)");
@@ -303,7 +303,7 @@ public class TestClient {
     }
   }
 
-  private void sendCoin(String[] parameters) {
+  private void sendCoin(String[] parameters) throws IOException, CipherException {
     if (parameters == null || parameters.length != 3) {
       System.out.println("SendCoin need 3 parameter like following: ");
       System.out.println("SendCoin Password ToAddress Amount");
@@ -322,7 +322,7 @@ public class TestClient {
     }
   }
 
-  private void testTransaction(String[] parameters) {
+  private void testTransaction(String[] parameters) throws IOException, CipherException {
     if (parameters == null || (parameters.length != 4 && parameters.length != 5)) {
       System.out.println("testTransaction need 4 or 5 parameter like following: ");
       System.out.println("testTransaction Password ToAddress assertName times");
@@ -382,7 +382,7 @@ public class TestClient {
 
   }
 
-  private void transferAsset(String[] parameters) {
+  private void transferAsset(String[] parameters) throws IOException, CipherException {
     if (parameters == null || parameters.length != 4) {
       System.out.println("TransferAsset need 4 parameter like following: ");
       System.out.println("TransferAsset Password ToAddress AssertName Amount");
@@ -402,7 +402,7 @@ public class TestClient {
     }
   }
 
-  private void participateAssetIssue(String[] parameters) {
+  private void participateAssetIssue(String[] parameters) throws IOException, CipherException {
     if (parameters == null || parameters.length != 4) {
       System.out.println("ParticipateAssetIssue need 4 parameter like following: ");
       System.out.println("ParticipateAssetIssue Password ToAddress AssetName Amount");
@@ -424,7 +424,7 @@ public class TestClient {
     }
   }
 
-  private void assetIssue(String[] parameters) {
+  private void assetIssue(String[] parameters) throws IOException, CipherException {
     if (parameters == null || parameters.length < 11 || (parameters.length & 1) == 0) {
       System.out.println("Use assetIssue command you need like: ");
       System.out.println(
@@ -475,7 +475,7 @@ public class TestClient {
     }
   }
 
-  private void createWitness(String[] parameters) {
+  private void createWitness(String[] parameters) throws IOException, CipherException {
     if (parameters == null || parameters.length != 2) {
       System.out.println("CreateWitness need 2 parameter like following: ");
       System.out.println("CreateWitness Password Url");
@@ -503,7 +503,7 @@ public class TestClient {
 //    }
 //  }
 
-  private void updateWitness(String[] parameters) {
+  private void updateWitness(String[] parameters) throws IOException, CipherException {
     if (parameters == null || parameters.length != 2) {
       System.out.println("updateWitness need 2 parameter like following: ");
       System.out.println("updateWitness Password Url");
@@ -580,7 +580,7 @@ public class TestClient {
     logger.info(Utils.printBlock(block));
   }
 
-  private void voteWitness(String[] parameters) {
+  private void voteWitness(String[] parameters) throws IOException, CipherException {
     if (parameters == null || parameters.length < 3 || (parameters.length & 1) != 1) {
       System.out.println("Use VoteWitness command you need like: ");
       System.out.println("VoteWitness Password Address0 Count0 ... AddressN CountN");
@@ -603,7 +603,7 @@ public class TestClient {
     }
   }
 
-  private void freezeBalance(String[] parameters) {
+  private void freezeBalance(String[] parameters) throws IOException, CipherException {
     if (parameters == null || parameters.length != 3) {
       System.out.println("Use freezeBalance command you need like: ");
       System.out.println("freezeBalance Password frozen_balance frozen_duration ");
@@ -622,7 +622,7 @@ public class TestClient {
     }
   }
 
-  private void unfreezeBalance(String[] parameters) {
+  private void unfreezeBalance(String[] parameters) throws IOException, CipherException {
     if (parameters == null || parameters.length != 1) {
       System.out.println("Use unfreezeBalance command you need like: ");
       System.out.println("unfreezeBalance Password ");
@@ -638,7 +638,7 @@ public class TestClient {
     }
   }
 
-  private void unfreezeAsset(String[] parameters) {
+  private void unfreezeAsset(String[] parameters) throws IOException, CipherException {
     if (parameters == null || parameters.length != 1) {
       System.out.println("Use unfreezeAsset command you need like: ");
       System.out.println("unfreezeAsset Password ");
@@ -654,7 +654,7 @@ public class TestClient {
     }
   }
 
-  private void withdrawBalance(String[] parameters) {
+  private void withdrawBalance(String[] parameters) throws IOException, CipherException {
     if (parameters == null || parameters.length != 1) {
       System.out.println("Use withdrawBalance command you need like: ");
       System.out.println("withdrawBalance Password ");
