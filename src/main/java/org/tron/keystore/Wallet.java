@@ -4,6 +4,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.UUID;
 import javax.crypto.BadPaddingException;
@@ -20,7 +21,6 @@ import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.Hash;
 import org.tron.common.utils.ByteArray;
 import org.tron.walletserver.WalletClient;
-import sun.security.jca.JCAUtil;
 
 /**
  * <p>Ethereum wallet file management. For reference, refer to <a href="https://github.com/ethereum/wiki/wiki/Web3-Secret-Storage-Definition">
@@ -233,7 +233,7 @@ public class Wallet {
 
   static byte[] generateRandomBytes(int size) {
     byte[] bytes = new byte[size];
-    JCAUtil.getSecureRandom().nextBytes(bytes);
+    new SecureRandom().nextBytes(bytes);
     return bytes;
   }
 }

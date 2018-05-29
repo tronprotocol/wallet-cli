@@ -43,11 +43,7 @@ import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.Witness;
-import sun.security.jca.JCAUtil;
-
-import java.math.BigInteger;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
