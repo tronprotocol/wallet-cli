@@ -1,6 +1,5 @@
 package org.tron.keystore;
 
-import java.math.BigInteger;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.utils.ByteArray;
 import org.tron.walletserver.WalletClient;
