@@ -689,7 +689,7 @@ public class WalletClient {
   }
 
   public static boolean addressValid(byte[] address) {
-    if (address == null || address.length == 0) {
+    if (ArrayUtils.isEmpty(address)) {
       logger.warn("Warning: Address is empty !!");
       return false;
     }
