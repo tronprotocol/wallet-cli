@@ -233,6 +233,19 @@ public class Client {
     return wallet.createAssetIssue(password, builder.build());
   }
 
+  public boolean createAccount(String password, String address) throws CipherException, IOException {
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warning: createAccount failed,  Please login first !!");
+      return false;
+    }
+    if (!WalletClient.passwordValid(password)) {
+      return false;
+    }
+
+    byte[] addressBytes = WalletClient.decodeFromBase58Check(address);
+    return wallet.createAccount(password, addressBytes);
+  }
+
   public boolean createWitness(String password, String url) throws CipherException, IOException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: createWitness failed,  Please login first !!");
