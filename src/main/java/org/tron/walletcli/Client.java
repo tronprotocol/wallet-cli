@@ -305,6 +305,32 @@ public class Client {
     }
   }
 
+  public boolean createAccount(String password, String address) {
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warning: createAccount failed,  Please login first !!");
+      return false;
+    }
+    if (!WalletClient.passwordValid(password)) {
+      return false;
+    }
+
+    if (wallet.getEcKey() == null || wallet.getEcKey().getPrivKey() == null) {
+      wallet = WalletClient.GetWalletByStorage(password);
+      if (wallet == null) {
+        logger.warn("Warning: createAccount failed, Load wallet failed !!");
+        return false;
+      }
+    }
+
+    byte[] addressBytes = WalletClient.decodeFromBase58Check(address);
+    try {
+      return wallet.createAccount(addressBytes);
+    } catch (Exception ex) {
+      ex.printStackTrace();
+      return false;
+    }
+  }
+
   public boolean createWitness(String password, String url) {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: createWitness failed,  Please login first !!");
