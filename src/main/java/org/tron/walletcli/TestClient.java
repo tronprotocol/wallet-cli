@@ -3,6 +3,8 @@ package org.tron.walletcli;
 import com.beust.jcommander.JCommander;
 import java.awt.SystemTray;
 import java.io.IOException;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.coyote.http2.ByteUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tron.api.GrpcAPI.AccountNetMessage;
@@ -267,7 +269,7 @@ public class TestClient {
     }
   }
 
-  private void  getAccountNet(String[] parameters) {
+  private void getAccountNet(String[] parameters) {
     if (parameters == null || parameters.length != 1) {
       System.out.println("GetAccountNet need 1 parameter like following: ");
       System.out.println("GetAccountNet Address ");
@@ -467,7 +469,7 @@ public class TestClient {
 
     boolean result = client
         .assetIssue(password, name, totalSupply, trxNum, icoNum, startTime, endTime,
-            0, description, url, freeAssetNetLimit,publicFreeNetLimit, frozenSupply);
+            0, description, url, freeAssetNetLimit, publicFreeNetLimit, frozenSupply);
     if (result) {
       logger.info("AssetIssue " + name + " successful !!");
     } else {
@@ -661,25 +663,15 @@ public class TestClient {
   }
 
   private void getTotalTransaction() {
-    try {
-      NumberMessage totalTransition = client.getTotalTransaction();
-      logger.info("The num of total transactions is : " + totalTransition.getNum());
-
-    } catch (Exception e) {
-      logger.info("GetTotalTransaction " + " failed !!");
-    }
+    NumberMessage totalTransition = client.getTotalTransaction();
+    logger.info("The num of total transactions is : " + totalTransition.getNum());
   }
 
   private void getNextMaintenanceTime() {
-    try {
-      NumberMessage nextMaintenanceTime = client.getNextMaintenanceTime();
-      SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-      String date = formatter.format(nextMaintenanceTime.getNum());
-      logger.info("Next maintenance time is : " + date);
-
-    } catch (Exception e) {
-      logger.info("GetNextMaintenanceTime " + " failed !!");
-    }
+    NumberMessage nextMaintenanceTime = client.getNextMaintenanceTime();
+    SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+    String date = formatter.format(nextMaintenanceTime.getNum());
+    logger.info("Next maintenance time is : " + date);
   }
 
   private void getAssetIssueListByTimestamp(String[] parameters) {
@@ -720,7 +712,8 @@ public class TestClient {
     long endTime = Timestamp.valueOf(end).getTime();
     int offset = Integer.parseInt(parameters[4]);
     int limit = Integer.parseInt(parameters[5]);
-    Optional<TransactionList> result = WalletClient.getTransactionsByTimestamp(startTime, endTime, offset, limit);
+    Optional<TransactionList> result = WalletClient
+        .getTransactionsByTimestamp(startTime, endTime, offset, limit);
     if (result.isPresent()) {
       TransactionList transactionList = result.get();
       logger.info(Utils.printTransactionList(transactionList));
@@ -730,26 +723,21 @@ public class TestClient {
   }
 
   private void getTransactionsByTimestampCount(String[] parameters) {
-    try {
-      String start = "";
-      String end = "";
-      if (parameters == null || parameters.length != 4) {
-        System.out.println(
-                "getTransactionsByTimestampCount needs 2 parameters, start_time and end_time, time format is yyyy-mm-dd hh:mm:ss");
-        return;
-      } else {
-        start = parameters[0] + " " + parameters[1];
-        end = parameters[2] + " " + parameters[3];
-      }
-      long startTime = Timestamp.valueOf(start).getTime();
-      long endTime = Timestamp.valueOf(end).getTime();
+    String start = "";
+    String end = "";
+    if (parameters == null || parameters.length != 4) {
+      System.out.println(
+          "getTransactionsByTimestampCount needs 2 parameters, start_time and end_time, time format is yyyy-mm-dd hh:mm:ss");
+      return;
+    } else {
+      start = parameters[0] + " " + parameters[1];
+      end = parameters[2] + " " + parameters[3];
+    }
+    long startTime = Timestamp.valueOf(start).getTime();
+    long endTime = Timestamp.valueOf(end).getTime();
 
-      NumberMessage result = WalletClient.getTransactionsByTimestampCount(startTime, endTime);
-      logger.info("the number of Transactions from " + start + " to " + end + " is " + result);
-    }
-    catch (Exception e) {
-      logger.info("getTransactionsByTimestampCount " + " failed !!");
-    }
+    NumberMessage result = WalletClient.getTransactionsByTimestampCount(startTime, endTime);
+    logger.info("the number of Transactions from " + start + " to " + end + " is " + result);
   }
 
   private void getTransactionById(String[] parameters) {
@@ -783,7 +771,8 @@ public class TestClient {
       return;
     }
 
-    Optional<TransactionList> result = WalletClient.getTransactionsFromThis(addressBytes, offset, limit);
+    Optional<TransactionList> result = WalletClient
+        .getTransactionsFromThis(addressBytes, offset, limit);
     if (result.isPresent()) {
       TransactionList transactionList = result.get();
       logger.info(Utils.printTransactionList(transactionList));
@@ -793,24 +782,19 @@ public class TestClient {
   }
 
   private void getTransactionsFromThisCount(String[] parameters) {
-    try{
-      if (parameters == null || parameters.length != 1) {
-        System.out.println("getTransactionsFromThisCount need 1 parameter like following: ");
-        System.out.println("getTransactionsFromThisCount Address");
-        return;
-      }
-      String address = parameters[0];
-      byte[] addressBytes = WalletClient.decodeFromBase58Check(address);
-      if (addressBytes == null) {
-        return;
-      }
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("getTransactionsFromThisCount need 1 parameter like following: ");
+      System.out.println("getTransactionsFromThisCount Address");
+      return;
+    }
+    String address = parameters[0];
+    byte[] addressBytes = WalletClient.decodeFromBase58Check(address);
+    if (addressBytes == null) {
+      return;
+    }
 
-      NumberMessage result = WalletClient.getTransactionsFromThisCount(addressBytes);
-      logger.info("the number of Transactions from account " + address + " is " + result);
-    }
-    catch (Exception e){
-      logger.info("getTransactionsFromThisCount " + " failed !!");
-    }
+    NumberMessage result = WalletClient.getTransactionsFromThisCount(addressBytes);
+    logger.info("the number of Transactions from account " + address + " is " + result);
   }
 
   private void getTransactionsToThis(String[] parameters) {
@@ -827,7 +811,8 @@ public class TestClient {
       return;
     }
 
-    Optional<TransactionList> result = WalletClient.getTransactionsToThis(addressBytes, offset, limit);
+    Optional<TransactionList> result = WalletClient
+        .getTransactionsToThis(addressBytes, offset, limit);
     if (result.isPresent()) {
       TransactionList transactionList = result.get();
       logger.info(Utils.printTransactionList(transactionList));
@@ -837,24 +822,19 @@ public class TestClient {
   }
 
   private void getTransactionsToThisCount(String[] parameters) {
-    try{
-      if (parameters == null || parameters.length != 1) {
-        System.out.println("getTransactionsToThisCount need 1 parameter like following: ");
-        System.out.println("getTransactionsToThisCount Address");
-        return;
-      }
-      String address = parameters[0];
-      byte[] addressBytes = WalletClient.decodeFromBase58Check(address);
-      if (addressBytes == null) {
-        return;
-      }
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("getTransactionsToThisCount need 1 parameter like following: ");
+      System.out.println("getTransactionsToThisCount Address");
+      return;
+    }
+    String address = parameters[0];
+    byte[] addressBytes = WalletClient.decodeFromBase58Check(address);
+    if (addressBytes == null) {
+      return;
+    }
 
-      NumberMessage result = WalletClient.getTransactionsToThisCount(addressBytes);
-      logger.info("the number of Transactions to account " + address + " is " + result);
-    }
-    catch (Exception e){
-      logger.info("getTransactionsToThis " + " failed !!");
-    }
+    NumberMessage result = WalletClient.getTransactionsToThisCount(addressBytes);
+    logger.info("the number of Transactions to account " + address + " is " + result);
   }
 
   private void getBlockById(String[] parameters) {
@@ -965,12 +945,14 @@ public class TestClient {
 
   private void run() {
     Scanner in = new Scanner(System.in);
+    System.out.println("Please input your command.");
     while (true) {
+      String cmd = "";
       try {
         String cmdLine = in.nextLine().trim();
         String[] cmdArray = cmdLine.split("\\s+");
         // split on trim() string will always return at the minimum: [""]
-        String cmd = cmdArray[0];
+        cmd = cmdArray[0];
         if ("".equals(cmd)) {
           continue;
         }
@@ -1094,10 +1076,6 @@ public class TestClient {
             withdrawBalance(parameters);
             break;
           }
-//          case "listaccounts": {
-//            listAccounts();
-//            break;
-//          }
           case "listwitnesses": {
             listWitnesses();
             break;
@@ -1176,11 +1154,17 @@ public class TestClient {
             help();
           }
         }
+      } catch (CipherException e) {
+        System.out.println(cmd + "failed!");
+        System.out.println(e.getMessage());
+      } catch (IOException e) {
+        System.out.println(cmd + "failed!");
+        System.out.println(e.getMessage());
       } catch (Exception e) {
+        System.out.println(cmd + "failed!");
         logger.error(e.getMessage());
       }
     }
-
   }
 
   public static void main(String[] args) {
