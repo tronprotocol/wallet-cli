@@ -41,14 +41,68 @@ public class TestClient {
   private static final Logger logger = LoggerFactory.getLogger("TestClient");
   private Client client = new Client();
 
-  private void registerWallet(String[] parameters) throws CipherException, IOException {
-    if (parameters == null || parameters.length != 1) {
-      System.out.println("RegisterWallet need 1 parameter like following: ");
-      System.out.println("RegisterWallet Password");
-      return;
+  private String inputPassword() {
+    Scanner in = new Scanner(System.in);
+    while (true) {
+      String input = in.nextLine().trim();
+      String password = input.split("\\s+")[0];
+      if (WalletClient.passwordValid(password)) {
+        return password;
+      }
+      System.out.println("Invalid password, please input again.");
     }
-    String password = parameters[0];
+  }
 
+  private String inputPassword2Twice() {
+    String password0;
+    while (true) {
+      System.out.println("Please input password.");
+      password0 = inputPassword();
+      System.out.println("Please input password again.");
+      String password1 = inputPassword();
+      if (password0.equals(password1)) {
+        break;
+      }
+      System.out.println("The passwords do not match, please input again.");
+    }
+    return password0;
+  }
+
+  private String inputPrivateKey() {
+    Scanner in = new Scanner(System.in);
+    String privateKey;
+    System.out.println("Please input private key.");
+    while (true) {
+      String input = in.nextLine().trim();
+      privateKey = input.split("\\s+")[0];
+      if (WalletClient.priKeyValid(privateKey)) {
+        break;
+      }
+      System.out.println("Invalid private key, please input again.");
+    }
+    return privateKey;
+  }
+
+  private String inputPrivateKey64() {
+    Scanner in = new Scanner(System.in);
+    Decoder decoder = Base64.getDecoder();
+    String privateKey;
+    System.out.println("Please input private key by base64.");
+    while (true) {
+      String input = in.nextLine().trim();
+      String priKey64 = input.split("\\s+")[0];
+      privateKey = ByteArray.toHexString(decoder.decode(priKey64));
+
+      if (WalletClient.priKeyValid(privateKey)) {
+        break;
+      }
+      System.out.println("Invalid base64 private key, please input again.");
+    }
+    return privateKey;
+  }
+
+  private void registerWallet() throws CipherException, IOException {
+    String password = inputPassword2Twice();
     String fileName = client.registerWallet(password);
     if (null == fileName) {
       logger.info("Register wallet failed !!");
@@ -57,15 +111,9 @@ public class TestClient {
     logger.info("Register a wallet successful, keystore file name is " + fileName);
   }
 
-  private void importWallet(String[] parameters) throws CipherException, IOException {
-    if (parameters == null || parameters.length != 2) {
-      System.out.println("ImportWallet need 2 parameter like following: ");
-      System.out.println("ImportWallet Password PriKey");
-      System.out.println("PriKey need Hex string format.");
-      return;
-    }
-    String password = parameters[0];
-    String priKey = parameters[1];
+  private void importWallet() throws CipherException, IOException {
+    String password = inputPassword2Twice();
+    String priKey = inputPrivateKey();
 
     String fileName = client.importWallet(password, priKey);
     if (null == fileName) {
@@ -75,17 +123,9 @@ public class TestClient {
     logger.info("ImportImport a wallet successful, keystore file name is " + fileName);
   }
 
-  private void importwalletByBase64(String[] parameters) throws CipherException, IOException {
-    if (parameters == null || parameters.length != 2) {
-      System.out.println("ImportwalletByBase64 need 2 parameter like following: ");
-      System.out.println("ImportwalletByBase64 Password PriKey");
-      System.out.println("PriKey need base64 string format.");
-      return;
-    }
-    String password = parameters[0];
-    String priKey64 = parameters[1];
-    Decoder decoder = Base64.getDecoder();
-    String priKey = ByteArray.toHexString(decoder.decode(priKey64));
+  private void importwalletByBase64() throws CipherException, IOException {
+    String password = inputPassword2Twice();
+    String priKey = inputPrivateKey64();
 
     String fileName = client.importWallet(password, priKey);
     if (null == fileName) {
@@ -95,14 +135,11 @@ public class TestClient {
     logger.info("ImportImport a wallet successful, keystore file name is " + fileName);
   }
 
-  private void changePassword(String[] parameters) throws IOException, CipherException {
-    if (parameters == null || parameters.length != 2) {
-      System.out.println("ChangePassword need 2 parameter like following: ");
-      System.out.println("ChangePassword OldPassword NewPassword ");
-      return;
-    }
-    String oldPassword = parameters[0];
-    String newPassword = parameters[1];
+  private void changePassword() throws IOException, CipherException {
+    System.out.println("Please input old password.");
+    String oldPassword = inputPassword();
+    System.out.println("Please input new password.");
+    String newPassword = inputPassword2Twice();
 
     if (client.changePassword(oldPassword, newPassword)) {
       logger.info("ChangePassword successful !!");
@@ -366,7 +403,8 @@ public class TestClient {
         result = client.transferAsset(password, toAddress, assertName, amount);
         if (result) {
           logger
-              .info("transferAsset " + amount + assertName + " to " + toAddress + " successful !!");
+              .info(
+                  "transferAsset " + amount + assertName + " to " + toAddress + " successful !!");
           if (intervalInt > 0) {
             try {
               Thread.sleep(intervalInt);
@@ -434,8 +472,10 @@ public class TestClient {
               + "StartDate EndDate Description Url FreeNetLimitPerAccount PublicFreeNetLimit"
               + "FrozenAmount0 FrozenDays0 ... FrozenAmountN FrozenDaysN");
       System.out
-          .println("TrxNum and AssetNum represents the conversion ratio of the tron to the asset.");
-      System.out.println("The StartDate and EndDate format should look like 2018-3-1 2018-3-21 .");
+          .println(
+              "TrxNum and AssetNum represents the conversion ratio of the tron to the asset.");
+      System.out
+          .println("The StartDate and EndDate format should look like 2018-3-1 2018-3-21 .");
       return;
     }
 
@@ -512,7 +552,6 @@ public class TestClient {
       logger.info("updateWitness " + " failed !!");
     }
   }
-
 
   private void listWitnesses() {
     Optional<WitnessList> result = client.listWitnesses();
@@ -858,7 +897,8 @@ public class TestClient {
     long start = 0;
     long end = 0;
     if (parameters == null || parameters.length != 2) {
-      System.out.println("GetBlockByLimitNext needs 2 parameters, start block id and end block id");
+      System.out
+          .println("GetBlockByLimitNext needs 2 parameters, start block id and end block id");
       return;
     } else {
       start = Long.parseLong(parameters[0]);
@@ -965,19 +1005,19 @@ public class TestClient {
             break;
           }
           case "registerwallet": {
-            registerWallet(parameters);
+            registerWallet();
             break;
           }
           case "importwallet": {
-            importWallet(parameters);
+            importWallet();
             break;
           }
           case "importwalletbybase64": {
-            importwalletByBase64(parameters);
+            importwalletByBase64();
             break;
           }
           case "changepassword": {
-            changePassword(parameters);
+            changePassword();
             break;
           }
           case "login": {
@@ -1155,13 +1195,13 @@ public class TestClient {
           }
         }
       } catch (CipherException e) {
-        System.out.println(cmd + "failed!");
+        System.out.println(cmd + " failed!");
         System.out.println(e.getMessage());
       } catch (IOException e) {
-        System.out.println(cmd + "failed!");
+        System.out.println(cmd + " failed!");
         System.out.println(e.getMessage());
       } catch (Exception e) {
-        System.out.println(cmd + "failed!");
+        System.out.println(cmd + " failed!");
         logger.error(e.getMessage());
       }
     }
