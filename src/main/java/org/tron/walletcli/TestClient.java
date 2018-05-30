@@ -493,16 +493,6 @@ public class TestClient {
     }
   }
 
-//  private void listAccounts() {
-//    Optional<AccountList> result = client.listAccounts();
-//    if (result.isPresent()) {
-//      AccountList accountList = result.get();
-//      logger.info(Utils.printAccountList(accountList));
-//    } else {
-//      logger.info("List accounts " + " failed !!");
-//    }
-//  }
-
   private void updateWitness(String[] parameters) throws IOException, CipherException {
     if (parameters == null || parameters.length != 2) {
       System.out.println("updateWitness need 2 parameter like following: ");

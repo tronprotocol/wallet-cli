@@ -192,7 +192,6 @@ public class WalletClient {
   /**
    * Creates a Wallet with an existing ECKey.
    */
-
   public WalletClient(String password, final ECKey ecKey, String address) throws CipherException {
     this.walletFile = Wallet.createStandard(password, ecKey);
     this.address = decodeFromBase58Check(address);
@@ -228,16 +227,15 @@ public class WalletClient {
     return WalletUtils.generateWalletFile(walletFile, file);
   }
 
-  public static boolean changeKeystorePassword(String oldPassword, String newPassowrd)
-      throws IOException, CipherException {
+  public static File selcetWalletFile() {
     File file = new File(FilePath);
     if (!file.exists() || !file.isDirectory()) {
-      return false;
+      return null;
     }
 
     File[] wallets = file.listFiles();
     if (ArrayUtils.isEmpty(wallets)) {
-      return false;
+      return null;
     }
 
     File wallet;
@@ -245,7 +243,7 @@ public class WalletClient {
       for (int i = 0; i < wallets.length; i++) {
         System.out.println("The " + (i + 1) + "th keystore fime name is " + wallets[i].getName());
       }
-      System.out.println("Please choose the number of wallet like 1 or 2 ...");
+      System.out.println("Please choose between 1 and " + wallets.length);
       Scanner in = new Scanner(System.in);
       while (true) {
         String input = in.nextLine().trim();
@@ -269,51 +267,19 @@ public class WalletClient {
       wallet = wallets[0];
     }
 
+    return wallet;
+  }
+
+  public static boolean changeKeystorePassword(String oldPassword, String newPassowrd)
+      throws IOException, CipherException {
+    File wallet = selcetWalletFile();
     Credentials credentials = WalletUtils.loadCredentials(oldPassword, wallet);
     WalletUtils.updateWalletFile(newPassowrd, credentials.getEcKeyPair(), wallet, true);
     return true;
   }
 
   private static Credentials loadCredentials(String password) throws IOException, CipherException {
-    File file = new File(FilePath);
-    if (!file.exists() || !file.isDirectory()) {
-      return null;
-    }
-
-    File[] wallets = file.listFiles();
-    if (ArrayUtils.isEmpty(wallets)) {
-      return null;
-    }
-
-    File wallet;
-    if (wallets.length > 1) {
-      for (int i = 0; i < wallets.length; i++) {
-        System.out.println("The " + (i + 1) + "th keystore fime name is " + wallets[i].getName());
-      }
-      System.out.println("Please choose again between 1 and " + wallets.length);
-      Scanner in = new Scanner(System.in);
-      while (true) {
-        String input = in.nextLine().trim();
-        String num = input.split("\\s+")[0];
-        int n;
-        try {
-          n = new Integer(num);
-        } catch (NumberFormatException e) {
-          System.out.println("Invaild number of " + num);
-          System.out.println("Please choose again between 1 and " + wallets.length);
-          continue;
-        }
-        if (n < 1 || n > wallets.length) {
-          System.out.println("Please choose again between 1 and " + wallets.length);
-          continue;
-        }
-        wallet = wallets[n - 1];
-        break;
-      }
-    } else {
-      wallet = wallets[0];
-    }
-
+    File wallet = selcetWalletFile();
     return WalletUtils.loadCredentials(password, wallet);
   }
 
@@ -323,7 +289,8 @@ public class WalletClient {
   public static WalletClient loadWalletFromKeystore(String password)
       throws IOException, CipherException {
     Credentials credentials = loadCredentials(password);
-    WalletClient walletClient = new WalletClient(password, credentials.getEcKeyPair(), credentials.getAddress());
+    WalletClient walletClient = new WalletClient(password, credentials.getEcKeyPair(),
+        credentials.getAddress());
     return walletClient;
   }
 
