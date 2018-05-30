@@ -14,7 +14,6 @@ import org.tron.api.GrpcAPI.AccountNetMessage;
 import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.BlockList;
 import org.tron.api.GrpcAPI.NodeList;
-import org.tron.api.GrpcAPI.NumberMessage;
 import org.tron.api.GrpcAPI.TransactionList;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.crypto.ECKey;
@@ -68,6 +67,7 @@ public class WalletClient {
   private static final String FilePath = "Wallet";
   private ECKey ecKey = null;
   private boolean loginState = false;
+  private static byte addressPreFixByte = CommonConstant.ADD_PRE_FIX_BYTE_TESTNET;
 
   private static GrpcClient rpcCli = init();
   private static String dbPath;
@@ -97,6 +97,11 @@ public class WalletClient {
     }
     if (config.hasPath("fullnode.ip.list")) {
       fullNode = config.getStringList("fullnode.ip.list").get(0);
+    }
+    if (config.hasPath("net.type") && "mainnet".equalsIgnoreCase(config.getString("net.type"))) {
+      WalletClient.setAddressPreFixByte(CommonConstant.ADD_PRE_FIX_BYTE_MAINNET);
+    } else {
+      WalletClient.setAddressPreFixByte(CommonConstant.ADD_PRE_FIX_BYTE_TESTNET);
     }
     return new GrpcClient(fullNode, solidityNode);
   }
@@ -131,6 +136,14 @@ public class WalletClient {
     } else {
       return "";
     }
+  }
+
+  public static byte getAddressPreFixByte() {
+    return addressPreFixByte;
+  }
+
+  public static void setAddressPreFixByte(byte addressPreFixByte) {
+    WalletClient.addressPreFixByte = addressPreFixByte;
   }
 
   public static String getDbPath() {
@@ -687,8 +700,8 @@ public class WalletClient {
       return false;
     }
     byte preFixbyte = address[0];
-    if (preFixbyte != CommonConstant.ADD_PRE_FIX_BYTE) {
-      logger.warn("Warning: Address need prefix with " + CommonConstant.ADD_PRE_FIX_BYTE + " but "
+    if (preFixbyte != WalletClient.getAddressPreFixByte()) {
+      logger.warn("Warning: Address need prefix with " + WalletClient.getAddressPreFixByte() + " but "
           + preFixbyte + " !!");
       return false;
     }
@@ -726,11 +739,6 @@ public class WalletClient {
   public static byte[] decodeFromBase58Check(String addressBase58) {
     if (StringUtils.isEmpty(addressBase58)) {
       logger.warn("Warning: Address is empty !!");
-      return null;
-    }
-    if (addressBase58.length() != CommonConstant.BASE58CHECK_ADDRESS_SIZE) {
-      logger.warn("Warning: Base58 address length need " + CommonConstant.BASE58CHECK_ADDRESS_SIZE
-          + " but " + addressBase58.length() + " !!");
       return null;
     }
     byte[] address = decode58Check(addressBase58);
