@@ -129,6 +129,10 @@ public class GrpcClient {
     return blockingStubFull.voteWitnessAccount(contract);
   }
 
+  public Transaction createAccount(Contract.AccountCreateContract contract) {
+    return blockingStubFull.createAccount(contract);
+  }
+
   public Transaction createWitness(Contract.WitnessCreateContract contract) {
     return blockingStubFull.createWitness(contract);
   }
