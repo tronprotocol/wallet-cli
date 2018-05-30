@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.util.Scanner;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.bouncycastle.jcajce.provider.asymmetric.ec.KeyFactorySpi.EC;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.spongycastle.util.encoders.Hex;
@@ -31,6 +32,8 @@ import org.tron.core.config.Configuration;
 import org.tron.core.config.Parameter.CommonConstant;
 import org.tron.keystore.CipherException;
 import org.tron.keystore.Credentials;
+import org.tron.keystore.Wallet;
+import org.tron.keystore.WalletFile;
 import org.tron.keystore.WalletUtils;
 import org.tron.protos.Contract;
 import org.tron.protos.Contract.AssetIssueContract;
@@ -67,8 +70,9 @@ public class WalletClient {
 
   private static final Logger logger = LoggerFactory.getLogger("WalletClient");
   private static final String FilePath = "Wallet";
-  private ECKey ecKey = null;
+  private WalletFile walletFile = null;
   private boolean loginState = false;
+  private byte[] address = null;
   private static byte addressPreFixByte = CommonConstant.ADD_PRE_FIX_BYTE_TESTNET;
 
   private static GrpcClient rpcCli = init();
@@ -159,15 +163,17 @@ public class WalletClient {
   /**
    * Creates a new WalletClient with a random ECKey or no ECKey.
    */
-  public WalletClient(boolean genEcKey) {
-    if (genEcKey) {
-      this.ecKey = new ECKey(Utils.getRandom());
-    }
+  public WalletClient(String password) throws CipherException {
+    ECKey ecKey = new ECKey(Utils.getRandom());
+    this.walletFile = Wallet.createStandard(password, ecKey);
+    this.address = ecKey.getAddress();
   }
 
   //  Create Wallet with a pritKey
-  public WalletClient(String priKey) {
-    this.ecKey = ECKey.fromPrivate(ByteArray.fromHexString(priKey));
+  public WalletClient(String password, String priKey) throws CipherException {
+    ECKey ecKey = ECKey.fromPrivate(ByteArray.fromHexString(priKey));
+    this.walletFile = Wallet.createStandard(password, ecKey);
+    this.address = ecKey.getAddress();
   }
 
   public boolean isLoginState() {
@@ -176,28 +182,38 @@ public class WalletClient {
 
   public void logout() {
     loginState = false;
-    this.ecKey = null;
+    this.walletFile = null;
+  }
+
+  public void setLogin() {
+    loginState = true;
   }
 
   /**
    * Creates a Wallet with an existing ECKey.
    */
 
-  public WalletClient(final ECKey ecKey) {
-    this.ecKey = ecKey;
+  public WalletClient(String password, final ECKey ecKey, String address) throws CipherException {
+    this.walletFile = Wallet.createStandard(password, ecKey);
+    this.address = decodeFromBase58Check(address);
   }
 
-  public ECKey getEcKey() {
-    return ecKey;
+  public ECKey getEcKey(String password) throws CipherException, IOException {
+    if (walletFile == null) {
+      Credentials credentials = loadCredentials(password);
+      this.walletFile = Wallet.createStandard(password, credentials.getEcKeyPair());
+      this.address = decodeFromBase58Check(credentials.getAddress());
+    }
+    return Wallet.decrypt(password, walletFile);
   }
 
   public byte[] getAddress() {
-    return ecKey.getAddress();
+    return address;
   }
 
-  public String store2Keystore(String password) throws CipherException, IOException {
-    if (ecKey == null || ecKey.getPrivKey() == null) {
-      logger.warn("Warning: Store wallet failed, PrivKey is null !!");
+  public String store2Keystore() throws IOException {
+    if (walletFile == null) {
+      logger.warn("Warning: Store wallet failed, walletFile is null !!");
       return null;
     }
     File file = new File(FilePath);
@@ -209,7 +225,7 @@ public class WalletClient {
         file.mkdir();
       }
     }
-    return WalletUtils.generateWalletFile(password, ecKey, file, true);
+    return WalletUtils.generateWalletFile(walletFile, file);
   }
 
   public static boolean changeKeystorePassword(String oldPassword, String newPassowrd)
@@ -237,7 +253,7 @@ public class WalletClient {
         int n;
         try {
           n = new Integer(num);
-        }catch (NumberFormatException e){
+        } catch (NumberFormatException e) {
           System.out.println("Invaild number of " + num);
           System.out.println("Please choose again between 1 and " + wallets.length);
           continue;
@@ -258,11 +274,7 @@ public class WalletClient {
     return true;
   }
 
-  /**
-   * load a Wallet from keystore
-   */
-  public static WalletClient loadWalletFromKeystore(String password)
-      throws IOException, CipherException {
+  private static Credentials loadCredentials(String password) throws IOException, CipherException {
     File file = new File(FilePath);
     if (!file.exists() || !file.isDirectory()) {
       return null;
@@ -286,7 +298,7 @@ public class WalletClient {
         int n;
         try {
           n = new Integer(num);
-        }catch (NumberFormatException e){
+        } catch (NumberFormatException e) {
           System.out.println("Invaild number of " + num);
           System.out.println("Please choose again between 1 and " + wallets.length);
           continue;
@@ -302,9 +314,16 @@ public class WalletClient {
       wallet = wallets[0];
     }
 
-    Credentials credentials = WalletUtils.loadCredentials(password, wallet);
-    WalletClient walletClient = new WalletClient(credentials.getEcKeyPair());
-    walletClient.loginState = true;
+    return WalletUtils.loadCredentials(password, wallet);
+  }
+
+  /**
+   * load a Wallet from keystore
+   */
+  public static WalletClient loadWalletFromKeystore(String password)
+      throws IOException, CipherException {
+    Credentials credentials = loadCredentials(password);
+    WalletClient walletClient = new WalletClient(password, credentials.getEcKeyPair(), credentials.getAddress());
     return walletClient;
   }
 
@@ -316,23 +335,21 @@ public class WalletClient {
     return rpcCli.queryAccount(address);//call rpc
   }
 
-  private Transaction signTransaction(Transaction transaction) {
-    if (this.ecKey == null || this.ecKey.getPrivKey() == null) {
-      logger.warn("Warning: Can't sign,there is no private key !!");
-      return null;
-    }
+  private Transaction signTransaction(String password, Transaction transaction)
+      throws CipherException, IOException {
     transaction = TransactionUtils.setTimestamp(transaction);
-    return TransactionUtils.sign(transaction, this.ecKey);
+    return TransactionUtils.sign(transaction, this.getEcKey(password));
   }
 
-  public boolean sendCoin(byte[] to, long amount) {
+  public boolean sendCoin(String password, byte[] to, long amount)
+      throws CipherException, IOException {
     byte[] owner = getAddress();
     Contract.TransferContract contract = createTransferContract(to, owner, amount);
     Transaction transaction = rpcCli.createTransaction(contract);
     if (transaction == null || transaction.getRawData().getContractCount() == 0) {
       return false;
     }
-    transaction = signTransaction(transaction);
+    transaction = signTransaction(password, transaction);
     System.out.println("--------------------------------");
     System.out.println(
         "txid = " + ByteArray.toHexString(Hash.sha256(transaction.getRawData().toByteArray())));
@@ -340,7 +357,8 @@ public class WalletClient {
     return rpcCli.broadcastTransaction(transaction);
   }
 
-  public boolean updateAccount(byte[] accountNameBytes) {
+  public boolean updateAccount(String password, byte[] accountNameBytes)
+      throws CipherException, IOException {
     byte[] owner = getAddress();
     Contract.AccountUpdateContract contract = createAccountUpdateContract(accountNameBytes, owner);
     Transaction transaction = rpcCli.createTransaction(contract);
@@ -349,11 +367,13 @@ public class WalletClient {
       return false;
     }
 
-    transaction = signTransaction(transaction);
+    transaction = signTransaction(password, transaction);
     return rpcCli.broadcastTransaction(transaction);
   }
 
-  public boolean updateAsset(byte[] description, byte[] url, long newLimit, long newPublicLimit) {
+  public boolean updateAsset(String password, byte[] description, byte[] url, long newLimit,
+      long newPublicLimit)
+      throws CipherException, IOException {
     byte[] owner = getAddress();
     Contract.UpdateAssetContract contract
         = createUpdateAssetContract(owner, description, url, newLimit, newPublicLimit);
@@ -363,17 +383,19 @@ public class WalletClient {
       return false;
     }
 
-    transaction = signTransaction(transaction);
+    transaction = signTransaction(password, transaction);
     return rpcCli.broadcastTransaction(transaction);
   }
 
-  public boolean transferAsset(byte[] to, byte[] assertName, long amount) {
+  public boolean transferAsset(String password, byte[] to, byte[] assertName, long amount)
+      throws CipherException, IOException {
     byte[] owner = getAddress();
     Transaction transaction = createTransferAssetTransaction(to, assertName, owner, amount);
     if (transaction == null || transaction.getRawData().getContractCount() == 0) {
       return false;
     }
-    transaction = signTransaction(transaction);
+
+    transaction = signTransaction(password, transaction);
     return rpcCli.broadcastTransaction(transaction);
   }
 
@@ -384,13 +406,15 @@ public class WalletClient {
     return rpcCli.createTransferAssetTransaction(contract);
   }
 
-  public boolean participateAssetIssue(byte[] to, byte[] assertName, long amount) {
+  public boolean participateAssetIssue(String password, byte[] to, byte[] assertName, long amount)
+      throws CipherException, IOException {
     byte[] owner = getAddress();
     Transaction transaction = participateAssetIssueTransaction(to, assertName, owner, amount);
     if (transaction == null || transaction.getRawData().getContractCount() == 0) {
       return false;
     }
-    transaction = signTransaction(transaction);
+
+    transaction = signTransaction(password, transaction);
     return rpcCli.broadcastTransaction(transaction);
   }
 
@@ -414,32 +438,36 @@ public class WalletClient {
         && rpcCli.broadcastTransaction(transaction);
   }
 
-  public boolean createAssetIssue(Contract.AssetIssueContract contract) {
+  public boolean createAssetIssue(String password, Contract.AssetIssueContract contract)
+      throws CipherException, IOException {
     Transaction transaction = rpcCli.createAssetIssue(contract);
     if (transaction == null || transaction.getRawData().getContractCount() == 0) {
       return false;
     }
-    transaction = signTransaction(transaction);
+
+    transaction = signTransaction(password, transaction);
     return rpcCli.broadcastTransaction(transaction);
   }
 
-  public boolean createWitness(byte[] url) {
+  public boolean createWitness(String password, byte[] url) throws CipherException, IOException {
     byte[] owner = getAddress();
     Transaction transaction = createWitnessTransaction(owner, url);
     if (transaction == null || transaction.getRawData().getContractCount() == 0) {
       return false;
     }
-    transaction = signTransaction(transaction);
+
+    transaction = signTransaction(password, transaction);
     return rpcCli.broadcastTransaction(transaction);
   }
 
-  public boolean updateWitness(byte[] url) {
+  public boolean updateWitness(String password, byte[] url) throws CipherException, IOException {
     byte[] owner = getAddress();
     Transaction transaction = updateWitnessTransaction(owner, url);
     if (transaction == null || transaction.getRawData().getContractCount() == 0) {
       return false;
     }
-    transaction = signTransaction(transaction);
+
+    transaction = signTransaction(password, transaction);
     return rpcCli.broadcastTransaction(transaction);
   }
 
@@ -467,14 +495,16 @@ public class WalletClient {
     return rpcCli.getBlock(blockNum);
   }
 
-  public boolean voteWitness(HashMap<String, String> witness) {
+  public boolean voteWitness(String password, HashMap<String, String> witness)
+      throws CipherException, IOException {
     byte[] owner = getAddress();
     Contract.VoteWitnessContract contract = createVoteWitnessContract(owner, witness);
     Transaction transaction = rpcCli.voteWitnessAccount(contract);
     if (transaction == null || transaction.getRawData().getContractCount() == 0) {
       return false;
     }
-    transaction = signTransaction(transaction);
+
+    transaction = signTransaction(password, transaction);
     return rpcCli.broadcastTransaction(transaction);
   }
 
@@ -633,8 +663,9 @@ public class WalletClient {
     }
     byte preFixbyte = address[0];
     if (preFixbyte != WalletClient.getAddressPreFixByte()) {
-      logger.warn("Warning: Address need prefix with " + WalletClient.getAddressPreFixByte() + " but "
-          + preFixbyte + " !!");
+      logger
+          .warn("Warning: Address need prefix with " + WalletClient.getAddressPreFixByte() + " but "
+              + preFixbyte + " !!");
       return false;
     }
     //Other rule;
@@ -786,14 +817,16 @@ public class WalletClient {
     return rpcCli.getTransactionById(txID);
   }
 
-  public boolean freezeBalance(long frozen_balance, long frozen_duration) {
+  public boolean freezeBalance(String password, long frozen_balance, long frozen_duration)
+      throws CipherException, IOException {
     Contract.FreezeBalanceContract contract = createFreezeBalanceContract(frozen_balance,
         frozen_duration);
     Transaction transaction = rpcCli.createTransaction(contract);
     if (transaction == null || transaction.getRawData().getContractCount() == 0) {
       return false;
     }
-    transaction = signTransaction(transaction);
+
+    transaction = signTransaction(password, transaction);
     return rpcCli.broadcastTransaction(transaction);
   }
 
@@ -808,13 +841,14 @@ public class WalletClient {
     return builder.build();
   }
 
-  public boolean unfreezeBalance() {
+  public boolean unfreezeBalance(String password) throws CipherException, IOException {
     Contract.UnfreezeBalanceContract contract = createUnfreezeBalanceContract();
     Transaction transaction = rpcCli.createTransaction(contract);
     if (transaction == null || transaction.getRawData().getContractCount() == 0) {
       return false;
     }
-    transaction = signTransaction(transaction);
+
+    transaction = signTransaction(password, transaction);
     return rpcCli.broadcastTransaction(transaction);
   }
 
@@ -828,13 +862,14 @@ public class WalletClient {
     return builder.build();
   }
 
-  public boolean unfreezeAsset() {
+  public boolean unfreezeAsset(String password) throws CipherException, IOException {
     Contract.UnfreezeAssetContract contract = createUnfreezeAssetContract();
     Transaction transaction = rpcCli.createTransaction(contract);
     if (transaction == null || transaction.getRawData().getContractCount() == 0) {
       return false;
     }
-    transaction = signTransaction(transaction);
+
+    transaction = signTransaction(password, transaction);
     return rpcCli.broadcastTransaction(transaction);
   }
 
@@ -847,13 +882,14 @@ public class WalletClient {
     return builder.build();
   }
 
-  public boolean withdrawBalance() {
+  public boolean withdrawBalance(String password) throws CipherException, IOException {
     Contract.WithdrawBalanceContract contract = createWithdrawBalanceContract();
     Transaction transaction = rpcCli.createTransaction(contract);
     if (transaction == null || transaction.getRawData().getContractCount() == 0) {
       return false;
     }
-    transaction = signTransaction(transaction);
+
+    transaction = signTransaction(password, transaction);
     return rpcCli.broadcastTransaction(transaction);
   }
 

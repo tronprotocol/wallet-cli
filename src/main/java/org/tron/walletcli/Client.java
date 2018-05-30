@@ -29,8 +29,8 @@ public class Client {
     if (!WalletClient.passwordValid(password)) {
       return null;
     }
-    wallet = new WalletClient(true);
-    String keystoreName = wallet.store2Keystore(password);
+    wallet = new WalletClient(password);
+    String keystoreName = wallet.store2Keystore();
     logout();
     return keystoreName;
   }
@@ -42,8 +42,8 @@ public class Client {
     if (!WalletClient.priKeyValid(priKey)) {
       return null;
     }
-    wallet = new WalletClient(priKey);
-    String keystoreName = wallet.store2Keystore(password);
+    wallet = new WalletClient(password, priKey);
+    String keystoreName = wallet.store2Keystore();
     logout();
     return keystoreName;
   }
@@ -59,19 +59,16 @@ public class Client {
   }
 
   public boolean login(String password) throws IOException, CipherException {
+    logout();
     if (!WalletClient.passwordValid(password)) {
       return false;
     }
-    if (wallet == null || !wallet.isLoginState()) {
-      wallet = WalletClient.loadWalletFromKeystore(password);
-      if (wallet == null) {
-        logger.warn("Warning: Login failed, Please registerWallet or importWallet first !!");
-        return false;
-      }
+    wallet = WalletClient.loadWalletFromKeystore(password);
+    if (wallet == null) {
+      logger.warn("Warning: Login failed, Please registerWallet or importWallet first !!");
+      return false;
     }
-    else {
-      System.out.println("Wallet is logined now, if you need change wallet please logout first!!");
-    }
+    wallet.setLogin();
     return true;
   }
 
@@ -90,16 +87,16 @@ public class Client {
       return null;
     }
 
-    wallet = WalletClient.loadWalletFromKeystore(password);
-    if (wallet == null) {
-      logger.warn("Warning: BackupWallet failed, no wallet can be backup !!");
-      return null;
+    if (wallet == null || !wallet.isLoginState()) {
+      wallet = WalletClient.loadWalletFromKeystore(password);
+      if (wallet == null) {
+        logger.warn("Warning: BackupWallet failed, no wallet can be backup !!");
+        return null;
+      }
     }
 
-    ECKey ecKey = wallet.getEcKey();
-    byte[] privKeyPlain = ecKey.getPrivKeyBytes();
-    //Enced by encPassword
-    String priKey = ByteArray.toHexString(privKeyPlain);
+    ECKey ecKey = wallet.getEcKey(password);
+    String priKey = ByteArray.toHexString(ecKey.getPrivKeyBytes());
 
     return priKey;
   }
@@ -123,7 +120,7 @@ public class Client {
   }
 
   public boolean sendCoin(String password, String toAddress, long amount)
-      throws IOException, CipherException {
+      throws CipherException, IOException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: SendCoin failed,  Please login first !!");
       return false;
@@ -136,15 +133,7 @@ public class Client {
       return false;
     }
 
-    if (wallet.getEcKey() == null || wallet.getEcKey().getPrivKey() == null) {
-      wallet = WalletClient.loadWalletFromKeystore(password);
-      if (wallet == null) {
-        logger.warn("Warning: SendCoin failed, Load wallet failed !!");
-        return false;
-      }
-    }
-
-    return wallet.sendCoin(to, amount);
+    return wallet.sendCoin(password, to, amount);
   }
 
   public boolean transferAsset(String password, String toAddress, String assertName, long amount)
@@ -161,19 +150,11 @@ public class Client {
       return false;
     }
 
-    if (wallet.getEcKey() == null || wallet.getEcKey().getPrivKey() == null) {
-      wallet = WalletClient.loadWalletFromKeystore(password);
-      if (wallet == null) {
-        logger.warn("Warning: TransferAsset failed, Load wallet failed !!");
-        return false;
-      }
-    }
-
-    return wallet.transferAsset(to, assertName.getBytes(), amount);
+    return wallet.transferAsset(password, to, assertName.getBytes(), amount);
   }
 
   public boolean participateAssetIssue(String password, String toAddress, String assertName,
-      long amount) throws IOException, CipherException {
+      long amount) throws CipherException, IOException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: TransferAsset failed,  Please login first !!");
       return false;
@@ -186,21 +167,13 @@ public class Client {
       return false;
     }
 
-    if (wallet.getEcKey() == null || wallet.getEcKey().getPrivKey() == null) {
-      wallet = WalletClient.loadWalletFromKeystore(password);
-      if (wallet == null) {
-        logger.warn("Warning: TransferAsset failed, Load wallet failed !!");
-        return false;
-      }
-    }
-
-    return wallet.participateAssetIssue(to, assertName.getBytes(), amount);
+    return wallet.participateAssetIssue(password, to, assertName.getBytes(), amount);
   }
 
   public boolean assetIssue(String password, String name, long totalSupply, int trxNum, int icoNum,
       long startTime, long endTime, int voteScore, String description, String url,
       long freeNetLimit, long publicFreeNetLimit, HashMap<String, String> frozenSupply)
-      throws IOException, CipherException {
+      throws CipherException, IOException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: assetIssue failed,  Please login first !!");
       return false;
@@ -209,71 +182,58 @@ public class Client {
       return false;
     }
 
-    if (wallet.getEcKey() == null || wallet.getEcKey().getPrivKey() == null) {
-      wallet = WalletClient.loadWalletFromKeystore(password);
-      if (wallet == null) {
-        logger.warn("Warning: assetIssue failed, Load wallet failed !!");
-        return false;
-      }
-    }
-
-    try {
-      Contract.AssetIssueContract.Builder builder = Contract.AssetIssueContract.newBuilder();
-      builder.setOwnerAddress(ByteString.copyFrom(wallet.getAddress()));
-      builder.setName(ByteString.copyFrom(name.getBytes()));
-      if (totalSupply <= 0) {
-        return false;
-      }
-      builder.setTotalSupply(totalSupply);
-      if (trxNum <= 0) {
-        return false;
-      }
-      builder.setTrxNum(trxNum);
-      if (icoNum <= 0) {
-        return false;
-      }
-      builder.setNum(icoNum);
-      long now = System.currentTimeMillis();
-      if (startTime <= now) {
-        return false;
-      }
-      if (endTime <= startTime) {
-        return false;
-      }
-      if (freeNetLimit < 0) {
-        return false;
-      }
-      if (publicFreeNetLimit < 0) {
-        return false;
-      }
-
-      builder.setStartTime(startTime);
-      builder.setEndTime(endTime);
-      builder.setVoteScore(voteScore);
-      builder.setDescription(ByteString.copyFrom(description.getBytes()));
-      builder.setUrl(ByteString.copyFrom(url.getBytes()));
-      builder.setFreeAssetNetLimit(freeNetLimit);
-      builder.setPublicFreeAssetNetLimit(publicFreeNetLimit);
-
-      for (String daysStr : frozenSupply.keySet()) {
-        String amountStr = frozenSupply.get(daysStr);
-        long amount = Long.parseLong(amountStr);
-        long days = Long.parseLong(daysStr);
-        Contract.AssetIssueContract.FrozenSupply.Builder frozenSupplyBuilder
-            = Contract.AssetIssueContract.FrozenSupply.newBuilder();
-        frozenSupplyBuilder.setFrozenAmount(amount);
-        frozenSupplyBuilder.setFrozenDays(days);
-        builder.addFrozenSupply(frozenSupplyBuilder.build());
-      }
-
-      return wallet.createAssetIssue(builder.build());
-    } catch (Exception ex) {
-      ex.printStackTrace();
+    Contract.AssetIssueContract.Builder builder = Contract.AssetIssueContract.newBuilder();
+    builder.setOwnerAddress(ByteString.copyFrom(wallet.getAddress()));
+    builder.setName(ByteString.copyFrom(name.getBytes()));
+    if (totalSupply <= 0) {
       return false;
     }
+    builder.setTotalSupply(totalSupply);
+    if (trxNum <= 0) {
+      return false;
+    }
+    builder.setTrxNum(trxNum);
+    if (icoNum <= 0) {
+      return false;
+    }
+    builder.setNum(icoNum);
+    long now = System.currentTimeMillis();
+    if (startTime <= now) {
+      return false;
+    }
+    if (endTime <= startTime) {
+      return false;
+    }
+    if (freeNetLimit < 0) {
+      return false;
+    }
+    if (publicFreeNetLimit < 0) {
+      return false;
+    }
+
+    builder.setStartTime(startTime);
+    builder.setEndTime(endTime);
+    builder.setVoteScore(voteScore);
+    builder.setDescription(ByteString.copyFrom(description.getBytes()));
+    builder.setUrl(ByteString.copyFrom(url.getBytes()));
+    builder.setFreeAssetNetLimit(freeNetLimit);
+    builder.setPublicFreeAssetNetLimit(publicFreeNetLimit);
+
+    for (String daysStr : frozenSupply.keySet()) {
+      String amountStr = frozenSupply.get(daysStr);
+      long amount = Long.parseLong(amountStr);
+      long days = Long.parseLong(daysStr);
+      Contract.AssetIssueContract.FrozenSupply.Builder frozenSupplyBuilder
+          = Contract.AssetIssueContract.FrozenSupply.newBuilder();
+      frozenSupplyBuilder.setFrozenAmount(amount);
+      frozenSupplyBuilder.setFrozenDays(days);
+      builder.addFrozenSupply(frozenSupplyBuilder.build());
+    }
+
+    return wallet.createAssetIssue(password, builder.build());
   }
 
-  public boolean createWitness(String password, String url) throws IOException, CipherException {
+  public boolean createWitness(String password, String url) throws CipherException, IOException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: createWitness failed,  Please login first !!");
       return false;
@@ -282,23 +242,10 @@ public class Client {
       return false;
     }
 
-    if (wallet.getEcKey() == null || wallet.getEcKey().getPrivKey() == null) {
-      wallet = WalletClient.loadWalletFromKeystore(password);
-      if (wallet == null) {
-        logger.warn("Warning: createWitness failed, Load wallet failed !!");
-        return false;
-      }
-    }
-
-    try {
-      return wallet.createWitness(url.getBytes());
-    } catch (Exception ex) {
-      ex.printStackTrace();
-      return false;
-    }
+    return wallet.createWitness(password, url.getBytes());
   }
 
-  public boolean updateWitness(String password, String url) throws IOException, CipherException {
+  public boolean updateWitness(String password, String url) throws CipherException, IOException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: updateWitness failed,  Please login first !!");
       return false;
@@ -307,20 +254,7 @@ public class Client {
       return false;
     }
 
-    if (wallet.getEcKey() == null || wallet.getEcKey().getPrivKey() == null) {
-      wallet = WalletClient.loadWalletFromKeystore(password);
-      if (wallet == null) {
-        logger.warn("Warning: updateWitness failed, Load wallet failed !!");
-        return false;
-      }
-    }
-
-    try {
-      return wallet.updateWitness(url.getBytes());
-    } catch (Exception ex) {
-      ex.printStackTrace();
-      return false;
-    }
+    return wallet.updateWitness(password, url.getBytes());
   }
 
   public Block GetBlock(long blockNum) {
@@ -328,7 +262,7 @@ public class Client {
   }
 
   public boolean voteWitness(String password, HashMap<String, String> witness)
-      throws IOException, CipherException {
+      throws CipherException, IOException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: VoteWitness failed,  Please login first !!");
       return false;
@@ -337,30 +271,8 @@ public class Client {
       return false;
     }
 
-    if (wallet.getEcKey() == null || wallet.getEcKey().getPrivKey() == null) {
-      wallet = WalletClient.loadWalletFromKeystore(password);
-      if (wallet == null) {
-        logger.warn("Warning: VoteWitness failed, Load wallet failed !!");
-        return false;
-      }
-    }
-
-    try {
-      return wallet.voteWitness(witness);
-    } catch (Exception ex) {
-      ex.printStackTrace();
-      return false;
-    }
+    return wallet.voteWitness(password, witness);
   }
-
-//  public Optional<AccountList> listAccounts() {
-//    try {
-//      return WalletClient.listAccounts();
-//    } catch (Exception ex) {
-//      ex.printStackTrace();
-//      return Optional.empty();
-//    }
-//  }
 
   public Optional<WitnessList> listWitnesses() {
     try {
@@ -398,139 +310,61 @@ public class Client {
   }
 
   public boolean updateAccount(String password, byte[] accountNameBytes)
-      throws IOException, CipherException {
+      throws CipherException, IOException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: updateAccount failed, Please login first !!");
       return false;
     }
 
-    if (wallet.getEcKey() == null || wallet.getEcKey().getPrivKey() == null) {
-      wallet = WalletClient.loadWalletFromKeystore(password);
-      if (wallet == null) {
-        logger.warn("Warning: updateAccount failed, Load wallet failed !!");
-        return false;
-      }
-    }
-
-    try {
-      return wallet.updateAccount(accountNameBytes);
-    } catch (Exception ex) {
-      ex.printStackTrace();
-      return false;
-    }
+    return wallet.updateAccount(password, accountNameBytes);
   }
 
   public boolean updateAsset(String password,
       byte[] description, byte[] url, long newLimit, long newPublicLimit)
-      throws IOException, CipherException {
+      throws CipherException, IOException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: updateAsset failed, Please login first !!");
       return false;
     }
 
-    if (wallet.getEcKey() == null || wallet.getEcKey().getPrivKey() == null) {
-      wallet = WalletClient.loadWalletFromKeystore(password);
-      if (wallet == null) {
-        logger.warn("Warning: updateAsset failed, Load wallet failed !!");
-        return false;
-      }
-    }
-
-    try {
-      return wallet.updateAsset(description, url, newLimit, newPublicLimit);
-    } catch (Exception ex) {
-      ex.printStackTrace();
-      return false;
-    }
+    return wallet.updateAsset(password, description, url, newLimit, newPublicLimit);
   }
 
   public boolean freezeBalance(String password, long frozen_balance, long frozen_duration)
-      throws IOException, CipherException {
+      throws CipherException, IOException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: freezeBalance failed, Please login first !!");
       return false;
     }
 
-    if (wallet.getEcKey() == null || wallet.getEcKey().getPrivKey() == null) {
-      wallet = WalletClient.loadWalletFromKeystore(password);
-      if (wallet == null) {
-        logger.warn("Warning: freezeBalance failed, Load wallet failed !!");
-        return false;
-      }
-    }
-
-    try {
-      return wallet.freezeBalance(frozen_balance, frozen_duration);
-    } catch (Exception ex) {
-      ex.printStackTrace();
-      return false;
-    }
+    return wallet.freezeBalance(password, frozen_balance, frozen_duration);
   }
 
-  public boolean unfreezeBalance(String password) throws IOException, CipherException {
+  public boolean unfreezeBalance(String password) throws CipherException, IOException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: unfreezeBalance failed, Please login first !!");
       return false;
     }
 
-    if (wallet.getEcKey() == null || wallet.getEcKey().getPrivKey() == null) {
-      wallet = WalletClient.loadWalletFromKeystore(password);
-      if (wallet == null) {
-        logger.warn("Warning: unfreezeBalance failed, Load wallet failed !!");
-        return false;
-      }
-    }
-
-    try {
-      return wallet.unfreezeBalance();
-    } catch (Exception ex) {
-      ex.printStackTrace();
-      return false;
-    }
+    return wallet.unfreezeBalance(password);
   }
 
-  public boolean unfreezeAsset(String password) throws IOException, CipherException {
+  public boolean unfreezeAsset(String password) throws CipherException, IOException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: unfreezeAsset failed, Please login first !!");
       return false;
     }
 
-    if (wallet.getEcKey() == null || wallet.getEcKey().getPrivKey() == null) {
-      wallet = WalletClient.loadWalletFromKeystore(password);
-      if (wallet == null) {
-        logger.warn("Warning: unfreezeAsset failed, Load wallet failed !!");
-        return false;
-      }
-    }
-
-    try {
-      return wallet.unfreezeAsset();
-    } catch (Exception ex) {
-      ex.printStackTrace();
-      return false;
-    }
+    return wallet.unfreezeAsset(password);
   }
 
-  public boolean withdrawBalance(String password) throws IOException, CipherException {
+  public boolean withdrawBalance(String password) throws CipherException, IOException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: withdrawBalance failed, Please login first !!");
       return false;
     }
 
-    if (wallet.getEcKey() == null || wallet.getEcKey().getPrivKey() == null) {
-      wallet = WalletClient.loadWalletFromKeystore(password);
-      if (wallet == null) {
-        logger.warn("Warning: withdrawBalance failed, Load wallet failed !!");
-        return false;
-      }
-    }
-
-    try {
-      return wallet.withdrawBalance();
-    } catch (Exception ex) {
-      ex.printStackTrace();
-      return false;
-    }
+    return wallet.withdrawBalance(password);
   }
 
 }
