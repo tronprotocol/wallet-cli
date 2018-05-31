@@ -26,7 +26,7 @@
 //import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 //import org.springframework.test.context.web.WebAppConfiguration;
 //import org.tron.common.utils.ByteArray;
-//import org.tron.core.config.Parameter.CommonConstant;
+//import Parameter.CommonConstant;
 //import org.tron.explorer.GrpcClientApplication;
 //import org.tron.protos.Protocol.Account;
 //

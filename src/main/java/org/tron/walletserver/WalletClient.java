@@ -4,15 +4,14 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigObject;
+import java.io.Console;
 import java.io.File;
 import java.io.IOException;
 import java.util.Scanner;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.bouncycastle.jcajce.provider.asymmetric.ec.KeyFactorySpi.EC;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.spongycastle.util.encoders.Hex;
 import org.tron.api.GrpcAPI;
 import org.tron.api.GrpcAPI.AccountNetMessage;
 import org.tron.api.GrpcAPI.AssetIssueList;
@@ -22,14 +21,13 @@ import org.tron.api.GrpcAPI.TransactionList;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.Hash;
-import org.tron.common.crypto.SymmEncoder;
 import org.tron.common.utils.Base58;
 import org.tron.common.utils.ByteArray;
-import org.tron.common.utils.FileUtil;
 import org.tron.common.utils.TransactionUtils;
 import org.tron.common.utils.Utils;
 import org.tron.core.config.Configuration;
 import org.tron.core.config.Parameter.CommonConstant;
+import org.tron.core.exception.CancelException;
 import org.tron.keystore.CipherException;
 import org.tron.keystore.Credentials;
 import org.tron.keystore.Wallet;
@@ -302,30 +300,44 @@ public class WalletClient {
     return rpcCli.queryAccount(address);//call rpc
   }
 
-  private Transaction signTransaction(String password, Transaction transaction)
-      throws CipherException, IOException {
+  private Transaction signTransaction(Transaction transaction)
+      throws CipherException, IOException, CancelException {
     transaction = TransactionUtils.setTimestamp(transaction);
+    System.out.println("Your transaction details are as follows, please confirm.");
+    System.out.println(Utils.printTransaction(transaction));
+
+    Scanner in = new Scanner(System.in);
+    System.out.println("Please confirm that you want to continue enter y or Y, else any other.");
+
+    while (true) {
+      String input = in.nextLine().trim();
+      String str = input.split("\\s+")[0];
+      if ("y".equalsIgnoreCase(str)) {
+        break;
+      } else {
+        throw new CancelException("User cancelled");
+      }
+    }
+    String password = Utils.inputPassword();
+    System.out.println(
+        "txid = " + ByteArray.toHexString(Hash.sha256(transaction.getRawData().toByteArray())));
     return TransactionUtils.sign(transaction, this.getEcKey(password));
   }
 
-  public boolean sendCoin(String password, byte[] to, long amount)
-      throws CipherException, IOException {
+  public boolean sendCoin(byte[] to, long amount)
+      throws CipherException, IOException, CancelException {
     byte[] owner = getAddress();
     Contract.TransferContract contract = createTransferContract(to, owner, amount);
     Transaction transaction = rpcCli.createTransaction(contract);
     if (transaction == null || transaction.getRawData().getContractCount() == 0) {
       return false;
     }
-    transaction = signTransaction(password, transaction);
-    System.out.println("--------------------------------");
-    System.out.println(
-        "txid = " + ByteArray.toHexString(Hash.sha256(transaction.getRawData().toByteArray())));
-    System.out.println("--------------------------------");
+    transaction = signTransaction(transaction);
     return rpcCli.broadcastTransaction(transaction);
   }
 
-  public boolean updateAccount(String password, byte[] accountNameBytes)
-      throws CipherException, IOException {
+  public boolean updateAccount(byte[] accountNameBytes)
+      throws CipherException, IOException, CancelException {
     byte[] owner = getAddress();
     Contract.AccountUpdateContract contract = createAccountUpdateContract(accountNameBytes, owner);
     Transaction transaction = rpcCli.createTransaction(contract);
@@ -334,13 +346,13 @@ public class WalletClient {
       return false;
     }
 
-    transaction = signTransaction(password, transaction);
+    transaction = signTransaction(transaction);
     return rpcCli.broadcastTransaction(transaction);
   }
 
-  public boolean updateAsset(String password, byte[] description, byte[] url, long newLimit,
+  public boolean updateAsset(byte[] description, byte[] url, long newLimit,
       long newPublicLimit)
-      throws CipherException, IOException {
+      throws CipherException, IOException, CancelException {
     byte[] owner = getAddress();
     Contract.UpdateAssetContract contract
         = createUpdateAssetContract(owner, description, url, newLimit, newPublicLimit);
@@ -350,19 +362,19 @@ public class WalletClient {
       return false;
     }
 
-    transaction = signTransaction(password, transaction);
+    transaction = signTransaction(transaction);
     return rpcCli.broadcastTransaction(transaction);
   }
 
-  public boolean transferAsset(String password, byte[] to, byte[] assertName, long amount)
-      throws CipherException, IOException {
+  public boolean transferAsset(byte[] to, byte[] assertName, long amount)
+      throws CipherException, IOException, CancelException {
     byte[] owner = getAddress();
     Transaction transaction = createTransferAssetTransaction(to, assertName, owner, amount);
     if (transaction == null || transaction.getRawData().getContractCount() == 0) {
       return false;
     }
 
-    transaction = signTransaction(password, transaction);
+    transaction = signTransaction(transaction);
     return rpcCli.broadcastTransaction(transaction);
   }
 
@@ -373,15 +385,15 @@ public class WalletClient {
     return rpcCli.createTransferAssetTransaction(contract);
   }
 
-  public boolean participateAssetIssue(String password, byte[] to, byte[] assertName, long amount)
-      throws CipherException, IOException {
+  public boolean participateAssetIssue(byte[] to, byte[] assertName, long amount)
+      throws CipherException, IOException, CancelException {
     byte[] owner = getAddress();
     Transaction transaction = participateAssetIssueTransaction(to, assertName, owner, amount);
     if (transaction == null || transaction.getRawData().getContractCount() == 0) {
       return false;
     }
 
-    transaction = signTransaction(password, transaction);
+    transaction = signTransaction(transaction);
     return rpcCli.broadcastTransaction(transaction);
   }
 
@@ -405,48 +417,48 @@ public class WalletClient {
         && rpcCli.broadcastTransaction(transaction);
   }
 
-  public boolean createAssetIssue(String password, Contract.AssetIssueContract contract)
-      throws CipherException, IOException {
+  public boolean createAssetIssue(Contract.AssetIssueContract contract)
+      throws CipherException, IOException, CancelException {
     Transaction transaction = rpcCli.createAssetIssue(contract);
     if (transaction == null || transaction.getRawData().getContractCount() == 0) {
       return false;
     }
 
-    transaction = signTransaction(password, transaction);
+    transaction = signTransaction(transaction);
     return rpcCli.broadcastTransaction(transaction);
   }
 
-  public boolean createAccount(String password, byte[] address)
-      throws CipherException, IOException {
+  public boolean createAccount(byte[] address)
+      throws CipherException, IOException, CancelException {
     byte[] owner = getAddress();
     Transaction transaction = createAccountTransaction(owner, address);
     if (transaction == null || transaction.getRawData().getContractCount() == 0) {
       return false;
     }
 
-    transaction = signTransaction(password, transaction);
+    transaction = signTransaction(transaction);
     return rpcCli.broadcastTransaction(transaction);
   }
 
-  public boolean createWitness(String password, byte[] url) throws CipherException, IOException {
+  public boolean createWitness(byte[] url) throws CipherException, IOException, CancelException {
     byte[] owner = getAddress();
     Transaction transaction = createWitnessTransaction(owner, url);
     if (transaction == null || transaction.getRawData().getContractCount() == 0) {
       return false;
     }
 
-    transaction = signTransaction(password, transaction);
+    transaction = signTransaction(transaction);
     return rpcCli.broadcastTransaction(transaction);
   }
 
-  public boolean updateWitness(String password, byte[] url) throws CipherException, IOException {
+  public boolean updateWitness(byte[] url) throws CipherException, IOException, CancelException {
     byte[] owner = getAddress();
     Transaction transaction = updateWitnessTransaction(owner, url);
     if (transaction == null || transaction.getRawData().getContractCount() == 0) {
       return false;
     }
 
-    transaction = signTransaction(password, transaction);
+    transaction = signTransaction(transaction);
     return rpcCli.broadcastTransaction(transaction);
   }
 
@@ -479,8 +491,8 @@ public class WalletClient {
     return rpcCli.getBlock(blockNum);
   }
 
-  public boolean voteWitness(String password, HashMap<String, String> witness)
-      throws CipherException, IOException {
+  public boolean voteWitness(HashMap<String, String> witness)
+      throws CipherException, IOException, CancelException {
     byte[] owner = getAddress();
     Contract.VoteWitnessContract contract = createVoteWitnessContract(owner, witness);
     Transaction transaction = rpcCli.voteWitnessAccount(contract);
@@ -488,7 +500,7 @@ public class WalletClient {
       return false;
     }
 
-    transaction = signTransaction(password, transaction);
+    transaction = signTransaction(transaction);
     return rpcCli.broadcastTransaction(transaction);
   }
 
@@ -810,8 +822,8 @@ public class WalletClient {
     return rpcCli.getTransactionById(txID);
   }
 
-  public boolean freezeBalance(String password, long frozen_balance, long frozen_duration)
-      throws CipherException, IOException {
+  public boolean freezeBalance(long frozen_balance, long frozen_duration)
+      throws CipherException, IOException, CancelException {
     Contract.FreezeBalanceContract contract = createFreezeBalanceContract(frozen_balance,
         frozen_duration);
     Transaction transaction = rpcCli.createTransaction(contract);
@@ -819,7 +831,7 @@ public class WalletClient {
       return false;
     }
 
-    transaction = signTransaction(password, transaction);
+    transaction = signTransaction(transaction);
     return rpcCli.broadcastTransaction(transaction);
   }
 
@@ -834,14 +846,15 @@ public class WalletClient {
     return builder.build();
   }
 
-  public boolean unfreezeBalance(String password) throws CipherException, IOException {
+  public boolean unfreezeBalance()
+      throws CipherException, IOException, CancelException {
     Contract.UnfreezeBalanceContract contract = createUnfreezeBalanceContract();
     Transaction transaction = rpcCli.createTransaction(contract);
     if (transaction == null || transaction.getRawData().getContractCount() == 0) {
       return false;
     }
 
-    transaction = signTransaction(password, transaction);
+    transaction = signTransaction(transaction);
     return rpcCli.broadcastTransaction(transaction);
   }
 
@@ -855,14 +868,14 @@ public class WalletClient {
     return builder.build();
   }
 
-  public boolean unfreezeAsset(String password) throws CipherException, IOException {
+  public boolean unfreezeAsset() throws CipherException, IOException, CancelException {
     Contract.UnfreezeAssetContract contract = createUnfreezeAssetContract();
     Transaction transaction = rpcCli.createTransaction(contract);
     if (transaction == null || transaction.getRawData().getContractCount() == 0) {
       return false;
     }
 
-    transaction = signTransaction(password, transaction);
+    transaction = signTransaction(transaction);
     return rpcCli.broadcastTransaction(transaction);
   }
 
@@ -875,14 +888,14 @@ public class WalletClient {
     return builder.build();
   }
 
-  public boolean withdrawBalance(String password) throws CipherException, IOException {
+  public boolean withdrawBalance() throws CipherException, IOException, CancelException {
     Contract.WithdrawBalanceContract contract = createWithdrawBalanceContract();
     Transaction transaction = rpcCli.createTransaction(contract);
     if (transaction == null || transaction.getRawData().getContractCount() == 0) {
       return false;
     }
 
-    transaction = signTransaction(password, transaction);
+    transaction = signTransaction(transaction);
     return rpcCli.broadcastTransaction(transaction);
   }
 

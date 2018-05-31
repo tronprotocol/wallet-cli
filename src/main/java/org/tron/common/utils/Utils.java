@@ -19,6 +19,7 @@
 package org.tron.common.utils;
 
 import com.google.protobuf.ByteString;
+import java.io.Console;
 import java.security.SecureRandom;
 import java.nio.*;
 import java.nio.charset.Charset;
@@ -26,6 +27,7 @@ import java.text.ParsePosition;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
+import java.util.Scanner;
 import org.tron.api.GrpcAPI.AccountNetMessage;
 import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.BlockList;
@@ -836,6 +838,28 @@ public class Utils {
       }
     }
     return result;
+  }
+
+  public static String inputPassword() {
+    Scanner in = null;
+    String password;
+    Console cons = System.console();
+    if (cons == null) {
+      in = new Scanner(System.in);
+    }
+    while (true) {
+      if (cons != null) {
+        char[] pwd = cons.readPassword("password: ");
+        password = String.valueOf(pwd);
+      } else {
+        String input = in.nextLine().trim();
+        password = input.split("\\s+")[0];
+      }
+      if (WalletClient.passwordValid(password)) {
+        return password;
+      }
+      System.out.println("Invalid password, please input again.");
+    }
   }
 }
 
