@@ -1,10 +1,7 @@
 package org.tron.walletcli;
 
 import com.beust.jcommander.JCommander;
-import java.awt.SystemTray;
 import java.io.IOException;
-import org.apache.commons.lang3.StringUtils;
-import org.apache.coyote.http2.ByteUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tron.api.GrpcAPI.AccountNetMessage;
@@ -1005,7 +1002,7 @@ public class TestClient {
   private void run() {
     Scanner in = new Scanner(System.in);
     System.out.println("Please input your command.");
-    while (true) {
+    while (in.hasNextLine()) {
       String cmd = "";
       try {
         String cmdLine = in.nextLine().trim();
