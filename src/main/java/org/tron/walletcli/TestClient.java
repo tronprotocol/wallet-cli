@@ -14,6 +14,7 @@ import org.tron.api.GrpcAPI.TransactionList;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Utils;
+import org.tron.core.exception.CancelException;
 import org.tron.keystore.CipherException;
 import org.tron.protos.Contract.AssetIssueContract;
 import org.tron.protos.Protocol.Account;
@@ -38,25 +39,13 @@ public class TestClient {
   private static final Logger logger = LoggerFactory.getLogger("TestClient");
   private Client client = new Client();
 
-  private String inputPassword() {
-    Scanner in = new Scanner(System.in);
-    while (true) {
-      String input = in.nextLine().trim();
-      String password = input.split("\\s+")[0];
-      if (WalletClient.passwordValid(password)) {
-        return password;
-      }
-      System.out.println("Invalid password, please input again.");
-    }
-  }
-
   private String inputPassword2Twice() {
     String password0;
     while (true) {
       System.out.println("Please input password.");
-      password0 = inputPassword();
+      password0 = Utils.inputPassword();
       System.out.println("Please input password again.");
-      String password1 = inputPassword();
+      String password1 = Utils.inputPassword();
       if (password0.equals(password1)) {
         break;
       }
@@ -134,7 +123,7 @@ public class TestClient {
 
   private void changePassword() throws IOException, CipherException {
     System.out.println("Please input old password.");
-    String oldPassword = inputPassword();
+    String oldPassword = Utils.inputPassword();
     System.out.println("Please input new password.");
     String newPassword = inputPassword2Twice();
 
@@ -145,13 +134,8 @@ public class TestClient {
     }
   }
 
-  private void login(String[] parameters) throws IOException, CipherException {
-    if (parameters == null || parameters.length != 1) {
-      System.out.println("Login need 1 parameter like following: ");
-      System.out.println("Login Password ");
-      return;
-    }
-    String password = parameters[0];
+  private void login() throws IOException, CipherException {
+    String password = Utils.inputPassword();
 
     boolean result = client.login(password);
     if (result) {
@@ -166,13 +150,8 @@ public class TestClient {
     logger.info("Logout successful !!!");
   }
 
-  private void backupWallet(String[] parameters) throws IOException, CipherException {
-    if (parameters == null || parameters.length != 1) {
-      System.out.println("BackupWallet need 1 parameter like following: ");
-      System.out.println("BackupWallet Password ");
-      return;
-    }
-    String password = parameters[0];
+  private void backupWallet() throws IOException, CipherException {
+    String password = Utils.inputPassword();
 
     String priKey = client.backupWallet(password);
     if (priKey != null) {
@@ -181,13 +160,9 @@ public class TestClient {
     }
   }
 
-  private void backupWallet2Base64(String[] parameters) throws IOException, CipherException {
-    if (parameters == null || parameters.length != 1) {
-      System.out.println("BackupWallet2Base64 need 1 parameter like following: ");
-      System.out.println("BackupWallet2Base64 Password ");
-      return;
-    }
-    String password = parameters[0];
+  private void backupWallet2Base64() throws IOException, CipherException {
+    String password = Utils.inputPassword();
+
     String priKey = client.backupWallet(password);
     Encoder encoder = Base64.getEncoder();
     String priKey64 = encoder.encodeToString(ByteArray.fromHexString(priKey));
@@ -236,18 +211,18 @@ public class TestClient {
     }
   }
 
-  private void updateAccount(String[] parameters) throws IOException, CipherException {
-    if (parameters == null || parameters.length != 2) {
-      System.out.println("UpdateAccount need 2 parameter like following: ");
-      System.out.println("UpdateAccount Password AccountName ");
+  private void updateAccount(String[] parameters)
+      throws IOException, CipherException, CancelException {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("UpdateAccount need 1 parameter like following: ");
+      System.out.println("UpdateAccount AccountName ");
       return;
     }
 
-    String password = parameters[0];
-    String accountName = parameters[1];
+    String accountName = parameters[0];
     byte[] accountNameBytes = ByteArray.fromString(accountName);
 
-    boolean ret = client.updateAccount(password, accountNameBytes);
+    boolean ret = client.updateAccount(accountNameBytes);
     if (ret) {
       logger.info("Update Account success !!!!");
     } else {
@@ -255,26 +230,24 @@ public class TestClient {
     }
   }
 
-  private void updateAsset(String[] parameters) throws IOException, CipherException {
-    if (parameters == null || parameters.length != 5) {
-      System.out.println("UpdateAsset need 2-5 parameter like following: ");
-      System.out.println("UpdateAsset Password newLimit newPublicLimit (description) (url)");
+  private void updateAsset(String[] parameters) throws IOException, CipherException, CancelException {
+    if (parameters == null || parameters.length != 4) {
+      System.out.println("UpdateAsset need 4 parameter like following: ");
+      System.out.println("UpdateAsset newLimit newPublicLimit description url");
       return;
     }
 
-    String password = parameters[0];
-    String newLimitString = parameters[1];
-    String newPublicLimitString = parameters[2];
-    String description = parameters[3];
-    String url = parameters[4];
+    String newLimitString = parameters[0];
+    String newPublicLimitString = parameters[1];
+    String description = parameters[2];
+    String url = parameters[3];
 
     byte[] descriptionBytes = ByteArray.fromString(description);
     byte[] urlBytes = ByteArray.fromString(url);
     long newLimit = new Long(newLimitString);
     long newPublicLimit = new Long(newPublicLimitString);
 
-    boolean ret = client
-        .updateAsset(password, descriptionBytes, urlBytes, newLimit, newPublicLimit);
+    boolean ret = client.updateAsset(descriptionBytes, urlBytes, newLimit, newPublicLimit);
     if (ret) {
       logger.info("Update Asset success !!!!");
     } else {
@@ -339,18 +312,18 @@ public class TestClient {
     }
   }
 
-  private void sendCoin(String[] parameters) throws IOException, CipherException {
-    if (parameters == null || parameters.length != 3) {
-      System.out.println("SendCoin need 3 parameter like following: ");
-      System.out.println("SendCoin Password ToAddress Amount");
+  private void sendCoin(String[] parameters) throws IOException, CipherException, CancelException {
+    if (parameters == null || parameters.length != 2) {
+      System.out.println("SendCoin need 2 parameter like following: ");
+      System.out.println("SendCoin ToAddress Amount");
       return;
     }
-    String password = parameters[0];
-    String toAddress = parameters[1];
-    String amountStr = parameters[2];
+
+    String toAddress = parameters[0];
+    String amountStr = parameters[1];
     long amount = new Long(amountStr);
 
-    boolean result = client.sendCoin(password, toAddress, amount);
+    boolean result = client.sendCoin(toAddress, amount);
     if (result) {
       logger.info("Send " + amount + " drop to " + toAddress + " successful !!");
     } else {
@@ -358,18 +331,19 @@ public class TestClient {
     }
   }
 
-  private void testTransaction(String[] parameters) throws IOException, CipherException {
-    if (parameters == null || (parameters.length != 4 && parameters.length != 5)) {
-      System.out.println("testTransaction need 4 or 5 parameter like following: ");
-      System.out.println("testTransaction Password ToAddress assertName times");
-      System.out.println("testTransaction Password ToAddress assertName times interval");
+  private void testTransaction(String[] parameters)
+      throws IOException, CipherException, CancelException {
+    if (parameters == null || (parameters.length != 3 && parameters.length != 4)) {
+      System.out.println("testTransaction need 3 or 4 parameter like following: ");
+      System.out.println("testTransaction ToAddress assertName times");
+      System.out.println("testTransaction ToAddress assertName times interval");
       System.out.println("If needn't transferAsset, assertName input null");
       return;
     }
-    String password = parameters[0];
-    String toAddress = parameters[1];
-    String assertName = parameters[2];
-    String loopTime = parameters[3];
+
+    String toAddress = parameters[0];
+    String assertName = parameters[1];
+    String loopTime = parameters[2];
     int intervalInt = 0;//s
     if (parameters.length == 5) {
       String interval = parameters[4];
@@ -380,7 +354,7 @@ public class TestClient {
 
     for (int i = 1; i <= times; i++) {
       long amount = i;
-      boolean result = client.sendCoin(password, toAddress, amount);
+      boolean result = client.sendCoin(toAddress, amount);
       if (result) {
         logger.info("Send " + amount + " drop to " + toAddress + " successful !!");
         if (intervalInt > 0) {
@@ -397,7 +371,7 @@ public class TestClient {
       }
 
       if (!"null".equalsIgnoreCase(assertName)) {
-        result = client.transferAsset(password, toAddress, assertName, amount);
+        result = client.transferAsset(toAddress, assertName, amount);
         if (result) {
           logger
               .info(
@@ -419,19 +393,20 @@ public class TestClient {
 
   }
 
-  private void transferAsset(String[] parameters) throws IOException, CipherException {
-    if (parameters == null || parameters.length != 4) {
-      System.out.println("TransferAsset need 4 parameter like following: ");
-      System.out.println("TransferAsset Password ToAddress AssertName Amount");
+  private void transferAsset(String[] parameters)
+      throws IOException, CipherException, CancelException {
+    if (parameters == null || parameters.length != 3) {
+      System.out.println("TransferAsset need 3 parameter like following: ");
+      System.out.println("TransferAsset ToAddress AssertName Amount");
       return;
     }
-    String password = parameters[0];
-    String toAddress = parameters[1];
-    String assertName = parameters[2];
-    String amountStr = parameters[3];
+
+    String toAddress = parameters[0];
+    String assertName = parameters[1];
+    String amountStr = parameters[2];
     long amount = new Long(amountStr);
 
-    boolean result = client.transferAsset(password, toAddress, assertName, amount);
+    boolean result = client.transferAsset(toAddress, assertName, amount);
     if (result) {
       logger.info("TransferAsset " + amount + " to " + toAddress + " successful !!");
     } else {
@@ -439,19 +414,20 @@ public class TestClient {
     }
   }
 
-  private void participateAssetIssue(String[] parameters) throws IOException, CipherException {
-    if (parameters == null || parameters.length != 4) {
-      System.out.println("ParticipateAssetIssue need 4 parameter like following: ");
-      System.out.println("ParticipateAssetIssue Password ToAddress AssetName Amount");
+  private void participateAssetIssue(String[] parameters)
+      throws IOException, CipherException, CancelException {
+    if (parameters == null || parameters.length != 3) {
+      System.out.println("ParticipateAssetIssue need 3 parameter like following: ");
+      System.out.println("ParticipateAssetIssue ToAddress AssetName Amount");
       return;
     }
-    String password = parameters[0];
-    String toAddress = parameters[1];
-    String assertName = parameters[2];
-    String amountStr = parameters[3];
+
+    String toAddress = parameters[0];
+    String assertName = parameters[1];
+    String amountStr = parameters[2];
     long amount = new Integer(amountStr);
 
-    boolean result = client.participateAssetIssue(password, toAddress, assertName, amount);
+    boolean result = client.participateAssetIssue(toAddress, assertName, amount);
     if (result) {
       logger.info("ParticipateAssetIssue " + assertName + " " + amount + " from " + toAddress
           + " successful !!");
@@ -461,11 +437,11 @@ public class TestClient {
     }
   }
 
-  private void assetIssue(String[] parameters) throws IOException, CipherException {
-    if (parameters == null || parameters.length < 11 || (parameters.length & 1) == 0) {
+  private void assetIssue(String[] parameters) throws IOException, CipherException, CancelException {
+    if (parameters == null || parameters.length < 10 || (parameters.length & 1) == 1) {
       System.out.println("Use assetIssue command you need like: ");
       System.out.println(
-          "AssetIssue Password AssetName TotalSupply TrxNum AssetNum "
+          "AssetIssue AssetName TotalSupply TrxNum AssetNum "
               + "StartDate EndDate Description Url FreeNetLimitPerAccount PublicFreeNetLimit"
               + "FrozenAmount0 FrozenDays0 ... FrozenAmountN FrozenDaysN");
       System.out
@@ -476,19 +452,18 @@ public class TestClient {
       return;
     }
 
-    String password = parameters[0];
-    String name = parameters[1];
-    String totalSupplyStr = parameters[2];
-    String trxNumStr = parameters[3];
-    String icoNumStr = parameters[4];
-    String startYyyyMmDd = parameters[5];
-    String endYyyyMmDd = parameters[6];
-    String description = parameters[7];
-    String url = parameters[8];
-    String freeNetLimitPerAccount = parameters[9];
-    String publicFreeNetLimitString = parameters[10];
+    String name = parameters[0];
+    String totalSupplyStr = parameters[1];
+    String trxNumStr = parameters[2];
+    String icoNumStr = parameters[3];
+    String startYyyyMmDd = parameters[4];
+    String endYyyyMmDd = parameters[5];
+    String description = parameters[6];
+    String url = parameters[7];
+    String freeNetLimitPerAccount = parameters[8];
+    String publicFreeNetLimitString = parameters[9];
     HashMap<String, String> frozenSupply = new HashMap<>();
-    for (int i = 11; i < parameters.length; i += 2) {
+    for (int i = 10; i < parameters.length; i += 2) {
       String amount = parameters[i];
       String days = parameters[i + 1];
       frozenSupply.put(days, amount);
@@ -505,7 +480,7 @@ public class TestClient {
     long publicFreeNetLimit = new Long(publicFreeNetLimitString);
 
     boolean result = client
-        .assetIssue(password, name, totalSupply, trxNum, icoNum, startTime, endTime,
+        .assetIssue(name, totalSupply, trxNum, icoNum, startTime, endTime,
             0, description, url, freeAssetNetLimit, publicFreeNetLimit, frozenSupply);
     if (result) {
       logger.info("AssetIssue " + name + " successful !!");
@@ -514,17 +489,17 @@ public class TestClient {
     }
   }
 
-  private void createAccount(String[] parameters) throws CipherException, IOException {
-    if (parameters == null || parameters.length != 2) {
-      System.out.println("CreateAccount need 2 parameter like following: ");
-      System.out.println("CreateAccount Password Address");
+  private void createAccount(String[] parameters)
+      throws CipherException, IOException, CancelException {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("CreateAccount need 1 parameter like following: ");
+      System.out.println("CreateAccount Address");
       return;
     }
 
-    String password = parameters[0];
-    String address = parameters[1];
+    String address = parameters[0];
 
-    boolean result = client.createAccount(password, address);
+    boolean result = client.createAccount(address);
     if (result) {
       logger.info("CreateAccount " + " successful !!");
     } else {
@@ -532,17 +507,17 @@ public class TestClient {
     }
   }
 
-  private void createWitness(String[] parameters) throws IOException, CipherException {
-    if (parameters == null || parameters.length != 2) {
-      System.out.println("CreateWitness need 2 parameter like following: ");
-      System.out.println("CreateWitness Password Url");
+  private void createWitness(String[] parameters)
+      throws IOException, CipherException, CancelException {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("CreateWitness need 1 parameter like following: ");
+      System.out.println("CreateWitness Url");
       return;
     }
 
-    String password = parameters[0];
-    String url = parameters[1];
+    String url = parameters[0];
 
-    boolean result = client.createWitness(password, url);
+    boolean result = client.createWitness(url);
     if (result) {
       logger.info("CreateWitness " + " successful !!");
     } else {
@@ -550,17 +525,17 @@ public class TestClient {
     }
   }
 
-  private void updateWitness(String[] parameters) throws IOException, CipherException {
-    if (parameters == null || parameters.length != 2) {
-      System.out.println("updateWitness need 2 parameter like following: ");
-      System.out.println("updateWitness Password Url");
+  private void updateWitness(String[] parameters)
+      throws IOException, CipherException, CancelException {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("updateWitness need 1 parameter like following: ");
+      System.out.println("updateWitness Url");
       return;
     }
 
-    String password = parameters[0];
-    String url = parameters[1];
+    String url = parameters[0];
 
-    boolean result = client.updateWitness(password, url);
+    boolean result = client.updateWitness(url);
     if (result) {
       logger.info("updateWitness " + " successful !!");
     } else {
@@ -626,22 +601,21 @@ public class TestClient {
     logger.info(Utils.printBlock(block));
   }
 
-  private void voteWitness(String[] parameters) throws IOException, CipherException {
-    if (parameters == null || parameters.length < 3 || (parameters.length & 1) != 1) {
+  private void voteWitness(String[] parameters) throws IOException, CipherException, CancelException {
+    if (parameters == null || parameters.length < 2 || (parameters.length & 1) != 0) {
       System.out.println("Use VoteWitness command you need like: ");
-      System.out.println("VoteWitness Password Address0 Count0 ... AddressN CountN");
+      System.out.println("VoteWitness Address0 Count0 ... AddressN CountN");
       return;
     }
 
-    String password = parameters[0];
     HashMap<String, String> witness = new HashMap<String, String>();
-    for (int i = 1; i < parameters.length; i += 2) {
+    for (int i = 0; i < parameters.length; i += 2) {
       String address = parameters[i];
       String countStr = parameters[i + 1];
       witness.put(address, countStr);
     }
 
-    boolean result = client.voteWitness(password, witness);
+    boolean result = client.voteWitness(witness);
     if (result) {
       logger.info("VoteWitness " + " successful !!");
     } else {
@@ -649,18 +623,18 @@ public class TestClient {
     }
   }
 
-  private void freezeBalance(String[] parameters) throws IOException, CipherException {
-    if (parameters == null || parameters.length != 3) {
+  private void freezeBalance(String[] parameters)
+      throws IOException, CipherException, CancelException {
+    if (parameters == null || parameters.length != 2) {
       System.out.println("Use freezeBalance command you need like: ");
-      System.out.println("freezeBalance Password frozen_balance frozen_duration ");
+      System.out.println("freezeBalance frozen_balance frozen_duration ");
       return;
     }
 
-    String password = parameters[0];
-    long frozen_balance = Long.parseLong(parameters[1]);
-    long frozen_duration = Long.parseLong(parameters[2]);
+    long frozen_balance = Long.parseLong(parameters[0]);
+    long frozen_duration = Long.parseLong(parameters[1]);
 
-    boolean result = client.freezeBalance(password, frozen_balance, frozen_duration);
+    boolean result = client.freezeBalance(frozen_balance, frozen_duration);
     if (result) {
       logger.info("freezeBalance " + " successful !!");
     } else {
@@ -668,15 +642,9 @@ public class TestClient {
     }
   }
 
-  private void unfreezeBalance(String[] parameters) throws IOException, CipherException {
-    if (parameters == null || parameters.length != 1) {
-      System.out.println("Use unfreezeBalance command you need like: ");
-      System.out.println("unfreezeBalance Password ");
-      return;
-    }
-    String password = parameters[0];
-
-    boolean result = client.unfreezeBalance(password);
+  private void unfreezeBalance()
+      throws IOException, CipherException, CancelException {
+    boolean result = client.unfreezeBalance();
     if (result) {
       logger.info("unfreezeBalance " + " successful !!");
     } else {
@@ -684,15 +652,8 @@ public class TestClient {
     }
   }
 
-  private void unfreezeAsset(String[] parameters) throws IOException, CipherException {
-    if (parameters == null || parameters.length != 1) {
-      System.out.println("Use unfreezeAsset command you need like: ");
-      System.out.println("unfreezeAsset Password ");
-      return;
-    }
-    String password = parameters[0];
-
-    boolean result = client.unfreezeAsset(password);
+  private void unfreezeAsset() throws IOException, CipherException, CancelException {
+    boolean result = client.unfreezeAsset();
     if (result) {
       logger.info("unfreezeAsset " + " successful !!");
     } else {
@@ -700,15 +661,8 @@ public class TestClient {
     }
   }
 
-  private void withdrawBalance(String[] parameters) throws IOException, CipherException {
-    if (parameters == null || parameters.length != 1) {
-      System.out.println("Use withdrawBalance command you need like: ");
-      System.out.println("withdrawBalance Password ");
-      return;
-    }
-    String password = parameters[0];
-
-    boolean result = client.withdrawBalance(password);
+  private void withdrawBalance() throws IOException, CipherException, CancelException {
+    boolean result = client.withdrawBalance();
     if (result) {
       logger.info("withdrawBalance " + " successful !!");
     } else {
@@ -1037,7 +991,7 @@ public class TestClient {
             break;
           }
           case "login": {
-            login(parameters);
+            login();
             break;
           }
           case "logout": {
@@ -1045,11 +999,11 @@ public class TestClient {
             break;
           }
           case "backupwallet": {
-            backupWallet(parameters);
+            backupWallet();
             break;
           }
           case "backupwallet2base64": {
-            backupWallet2Base64(parameters);
+            backupWallet2Base64();
             break;
           }
           case "getaddress": {
@@ -1125,15 +1079,15 @@ public class TestClient {
             break;
           }
           case "unfreezebalance": {
-            unfreezeBalance(parameters);
+            unfreezeBalance();
             break;
           }
           case "unfreezeasset": {
-            unfreezeAsset(parameters);
+            unfreezeAsset();
             break;
           }
           case "withdrawbalance": {
-            withdrawBalance(parameters);
+            withdrawBalance();
             break;
           }
           case "listwitnesses": {
@@ -1220,7 +1174,10 @@ public class TestClient {
       } catch (IOException e) {
         System.out.println(cmd + " failed!");
         System.out.println(e.getMessage());
-      } catch (Exception e) {
+      } catch (CancelException e) {
+        System.out.println(cmd + " failed!");
+        System.out.println(e.getMessage());
+      }catch (Exception e) {
         System.out.println(cmd + " failed!");
         logger.error(e.getMessage());
       }

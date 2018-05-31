@@ -29,7 +29,6 @@ import org.slf4j.LoggerFactory;
 import org.tron.common.crypto.jce.TronCastleProvider;
 import org.tron.walletserver.WalletClient;
 import org.tron.common.utils.ByteArray;
-import org.tron.core.config.Parameter.CommonConstant;
 
 public class Hash {
 
