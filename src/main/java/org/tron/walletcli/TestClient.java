@@ -139,6 +139,7 @@ public class TestClient {
   }
 
   private void login() throws IOException, CipherException {
+    System.out.println("Please input your password.");
     String password = Utils.inputPassword();
 
     boolean result = client.login(password);

@@ -318,6 +318,7 @@ public class WalletClient {
         throw new CancelException("User cancelled");
       }
     }
+    System.out.println("Please input your password.");
     String password = Utils.inputPassword();
     System.out.println(
         "txid = " + ByteArray.toHexString(Hash.sha256(transaction.getRawData().toByteArray())));
