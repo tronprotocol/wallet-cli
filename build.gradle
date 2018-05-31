@@ -2,11 +2,8 @@ group 'Tron'
 version '1.0-SNAPSHOT'
 
 apply plugin: 'java'
-apply plugin: 'idea'
 apply plugin: 'com.google.protobuf'
-apply plugin: 'org.springframework.boot'
-apply plugin: "io.spring.dependency-management"
-apply plugin: "com.liferay.node"
+apply plugin: 'com.github.johnrengelman.shadow'
 apply plugin: 'application'
 
 sourceCompatibility = 1.8
@@ -61,6 +58,7 @@ buildscript {
     }
 
     dependencies {
+        classpath 'com.github.jengelman.gradle.plugins:shadow:2.0.2'
         classpath 'com.google.protobuf:protobuf-gradle-plugin:0.8.3'
         classpath "gradle.plugin.com.liferay:gradle-plugins-node:4.3.0"
         classpath "io.spring.gradle:dependency-management-plugin:0.6.1.RELEASE"
@@ -165,14 +163,15 @@ protobuf {
 }
 
 run {
-    if (project.hasProperty('cmd')) {
-        standardInput = System.in
-        mainClassName = 'org.tron.walletcli.TestClient'
-    }
+    standardInput = System.in
+    mainClassName = 'org.tron.walletcli.TestClient'
 }
 
-bootRun {
-    addResources = true
+
+shadowJar {
+    baseName = 'wallet-cli'
+    classifier = null
+    version = null
 }
 
 allprojects {
