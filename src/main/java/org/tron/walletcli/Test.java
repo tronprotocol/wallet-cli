@@ -34,10 +34,11 @@ import org.tron.common.utils.Base58;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Utils;
 import org.tron.explorer.controller.NodeController;
+import org.tron.keystore.CipherException;
+import org.tron.keystore.Credentials;
+import org.tron.keystore.WalletUtils;
 import org.tron.protos.Contract;
 import org.tron.protos.Protocol.Account;
-import org.tron.protos.Protocol.TXInput;
-import org.tron.protos.Protocol.TXOutput;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Contract.TransferContract;
 import com.google.protobuf.Any;
@@ -318,14 +319,30 @@ public class Test {
     }
   }
 
-public static void testSha3(){
+  public static void testSha3() {
     String testData = "tools.jb51.net";
     byte[] hash = Hash.sha3(testData.getBytes());
-    System.out.println("testData::" +testData);
-    System.out.println("hash::" +ByteArray.toHexString(hash));
-}
+    System.out.println("testData::" + testData);
+    System.out.println("hash::" + ByteArray.toHexString(hash));
+  }
+
+  public static void testGenerateWalletFile() throws CipherException, IOException {
+    String PASSWORD = "Insecure Pa55w0rd";
+    String priKeyHex = "cba92a516ea09f620a16ff7ee95ce0df1d56550a8babe9964981a7144c8a784a";
+    ECKey eCkey = ECKey.fromPrivate(ByteArray.fromHexString(priKeyHex));
+    File file = new File("out");
+    String fileName = WalletUtils.generateWalletFile(PASSWORD, eCkey, file, true);
+    Credentials credentials = WalletUtils.loadCredentials(PASSWORD, new File(file, fileName));
+    String address = credentials.getAddress();
+    ECKey ecKeyPair = credentials.getEcKeyPair();
+    String prikey = ByteArray.toHexString(ecKeyPair.getPrivKeyBytes());
+    System.out.println("address = " + address);
+    System.out.println("prikey = " + prikey);
+
+  }
+
   public static void main(String[] args) throws Exception {
 
-    testSha3();
+    testGenerateWalletFile();
   }
 }
