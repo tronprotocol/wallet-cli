@@ -17,7 +17,6 @@
 package org.tron.keystore;
 
 /**
- * 字符串工具类
  *
  * @author venshine
  */
