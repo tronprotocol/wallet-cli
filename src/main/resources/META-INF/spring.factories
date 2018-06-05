@@ -1,3 +1,0 @@
-# AutoConfiguration
-#org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
-#org.tron.explorer.configure.autoconfigure.GrpcClientAutoConfiguration
