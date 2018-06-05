@@ -34,6 +34,7 @@ import org.tron.common.utils.Base58;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Utils;
 import org.tron.explorer.controller.NodeController;
+import org.tron.keystore.CheckStrength;
 import org.tron.keystore.CipherException;
 import org.tron.keystore.Credentials;
 import org.tron.keystore.WalletUtils;
@@ -341,8 +342,38 @@ public class Test {
 
   }
 
+  public static void testPasswordStrength(){
+    List<String> passwordList = new ArrayList<String>();
+    passwordList.add("ZAQ!xsw2");
+    passwordList.add("3EDC4rfv");
+    passwordList.add("6yhn7UJM");
+    passwordList.add("1q2w3e4r");
+    passwordList.add("1q2w#E$R");
+    passwordList.add("qwertyuiop");
+    passwordList.add("qwertyui");
+    passwordList.add("abcdefghijkl");
+    passwordList.add("password");
+    passwordList.add("p@ssword");
+    passwordList.add("p@ssw0rd");
+    passwordList.add("1q2w#E$R1111111");
+    passwordList.add("1q2w#E$R1234567");
+    passwordList.add("abcdef");
+    passwordList.add("abcabc");
+    passwordList.add("ABCdef");
+    passwordList.add("Vipshop123");
+    passwordList.add("qwertyui");
+    passwordList.add("admin1111");
+    passwordList.add("admin1234");
+    passwordList.add("admin1235");
+    passwordList.add("1q2w3e$R%T^Y/:");
+
+    for (String password : passwordList) {
+      int level = CheckStrength.checkPasswordStrength(password);
+      System.out.println(password + " strength is " + level);
+    }
+  }
   public static void main(String[] args) throws Exception {
 
-    testGenerateWalletFile();
+    testPasswordStrength();
   }
 }

@@ -33,6 +33,7 @@ import org.tron.common.utils.Utils;
 import org.tron.core.config.Configuration;
 import org.tron.core.config.Parameter.CommonConstant;
 import org.tron.core.exception.CancelException;
+import org.tron.keystore.CheckStrength;
 import org.tron.keystore.CipherException;
 import org.tron.keystore.Credentials;
 import org.tron.keystore.Wallet;
@@ -318,7 +319,7 @@ public class WalletClient {
       }
     }
     System.out.println("Please input your password.");
-    String password = Utils.inputPassword();
+    String password = Utils.inputPassword(false);
     System.out.println(
         "txid = " + ByteArray.toHexString(Hash.sha256(transaction.getRawData().toByteArray())));
     return TransactionUtils.sign(transaction, this.getEcKey(password));
@@ -644,14 +645,18 @@ public class WalletClient {
 
   public static boolean passwordValid(String password) {
     if (StringUtils.isEmpty(password)) {
-      logger.warn("Warning: Password is empty !!");
-      return false;
+      throw new IllegalArgumentException("password is empty");
     }
     if (password.length() < 6) {
       logger.warn("Warning: Password is too short !!");
       return false;
     }
     //Other rule;
+    int level = CheckStrength.checkPasswordStrength(password);
+    if (level <= 4) {
+      System.out.println("Your password is too weak!");
+      return false;
+    }
     return true;
   }
 
