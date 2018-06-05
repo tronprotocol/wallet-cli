@@ -61,9 +61,6 @@ public class Client {
 
   public boolean login(String password) throws IOException, CipherException {
     logout();
-    if (!WalletClient.passwordValid(password)) {
-      return false;
-    }
     wallet = WalletClient.loadWalletFromKeystore(password);
     if (wallet == null) {
       logger.warn("Warning: Login failed, Please registerWallet or importWallet first !!");
@@ -83,11 +80,6 @@ public class Client {
 
   //password is current, will be enc by password2.
   public String backupWallet(String password) throws IOException, CipherException {
-    if (!WalletClient.passwordValid(password)) {
-      logger.warn("Warning: BackupWallet failed, password is Invalid !!");
-      return null;
-    }
-
     if (wallet == null || !wallet.isLoginState()) {
       wallet = WalletClient.loadWalletFromKeystore(password);
       if (wallet == null) {

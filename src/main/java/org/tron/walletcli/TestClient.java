@@ -43,9 +43,9 @@ public class TestClient {
     String password0;
     while (true) {
       System.out.println("Please input password.");
-      password0 = Utils.inputPassword();
+      password0 = Utils.inputPassword(true);
       System.out.println("Please input password again.");
-      String password1 = Utils.inputPassword();
+      String password1 = Utils.inputPassword(true);
       if (password0.equals(password1)) {
         break;
       }
@@ -123,7 +123,7 @@ public class TestClient {
 
   private void changePassword() throws IOException, CipherException {
     System.out.println("Please input old password.");
-    String oldPassword = Utils.inputPassword();
+    String oldPassword = Utils.inputPassword(false);
     System.out.println("Please input new password.");
     String newPassword = inputPassword2Twice();
 
@@ -136,7 +136,7 @@ public class TestClient {
 
   private void login() throws IOException, CipherException {
     System.out.println("Please input your password.");
-    String password = Utils.inputPassword();
+    String password = Utils.inputPassword(false);
 
     boolean result = client.login(password);
     if (result) {
@@ -152,7 +152,8 @@ public class TestClient {
   }
 
   private void backupWallet() throws IOException, CipherException {
-    String password = Utils.inputPassword();
+    System.out.println("Please input your password.");
+    String password = Utils.inputPassword(false);
 
     String priKey = client.backupWallet(password);
     if (priKey != null) {
@@ -162,7 +163,8 @@ public class TestClient {
   }
 
   private void backupWallet2Base64() throws IOException, CipherException {
-    String password = Utils.inputPassword();
+    System.out.println("Please input your password.");
+    String password = Utils.inputPassword(false);
 
     String priKey = client.backupWallet(password);
     Encoder encoder = Base64.getEncoder();
@@ -231,7 +233,8 @@ public class TestClient {
     }
   }
 
-  private void updateAsset(String[] parameters) throws IOException, CipherException, CancelException {
+  private void updateAsset(String[] parameters)
+      throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length != 4) {
       System.out.println("UpdateAsset need 4 parameter like following: ");
       System.out.println("UpdateAsset newLimit newPublicLimit description url");
@@ -438,7 +441,8 @@ public class TestClient {
     }
   }
 
-  private void assetIssue(String[] parameters) throws IOException, CipherException, CancelException {
+  private void assetIssue(String[] parameters)
+      throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length < 10 || (parameters.length & 1) == 1) {
       System.out.println("Use assetIssue command you need like: ");
       System.out.println(
@@ -602,7 +606,8 @@ public class TestClient {
     logger.info(Utils.printBlock(block));
   }
 
-  private void voteWitness(String[] parameters) throws IOException, CipherException, CancelException {
+  private void voteWitness(String[] parameters)
+      throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length < 2 || (parameters.length & 1) != 0) {
       System.out.println("Use VoteWitness command you need like: ");
       System.out.println("VoteWitness Address0 Count0 ... AddressN CountN");
@@ -1178,7 +1183,7 @@ public class TestClient {
       } catch (CancelException e) {
         System.out.println(cmd + " failed!");
         System.out.println(e.getMessage());
-      }catch (Exception e) {
+      } catch (Exception e) {
         System.out.println(cmd + " failed!");
         logger.error(e.getMessage());
       }

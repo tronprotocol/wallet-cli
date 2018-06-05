@@ -840,7 +840,7 @@ public class Utils {
     return result;
   }
 
-  public static String inputPassword() {
+  public static String inputPassword(boolean checkStrength) {
     Scanner in = null;
     String password;
     Console cons = System.console();
@@ -856,6 +856,9 @@ public class Utils {
         password = input.split("\\s+")[0];
       }
       if (WalletClient.passwordValid(password)) {
+        return password;
+      }
+      if (!checkStrength) {
         return password;
       }
       System.out.println("Invalid password, please input again.");
