@@ -4,9 +4,14 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigObject;
-import java.io.Console;
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Scanner;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -44,12 +49,6 @@ import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.Witness;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 
 class AccountComparator implements Comparator {
 
@@ -765,18 +764,18 @@ public class WalletClient {
     return result;
   }
 
-  public static Optional<AssetIssueList> getAssetIssueListByTimestamp(long timestamp) {
-    return rpcCli.getAssetIssueListByTimestamp(timestamp);
-  }
-
-  public static Optional<TransactionList> getTransactionsByTimestamp(long start, long end,
-      int offset, int limit) {
-    return rpcCli.getTransactionsByTimestamp(start, end, offset, limit);
-  }
-
-  public static GrpcAPI.NumberMessage getTransactionsByTimestampCount(long start, long end) {
-    return rpcCli.getTransactionsByTimestampCount(start, end);
-  }
+//  public static Optional<AssetIssueList> getAssetIssueListByTimestamp(long timestamp) {
+//    return rpcCli.getAssetIssueListByTimestamp(timestamp);
+//  }
+//
+//  public static Optional<TransactionList> getTransactionsByTimestamp(long start, long end,
+//      int offset, int limit) {
+//    return rpcCli.getTransactionsByTimestamp(start, end, offset, limit);
+//  }
+//
+//  public static GrpcAPI.NumberMessage getTransactionsByTimestampCount(long start, long end) {
+//    return rpcCli.getTransactionsByTimestampCount(start, end);
+//  }
 
   public static Optional<AssetIssueList> getAssetIssueList() {
     return rpcCli.getAssetIssueList();
@@ -811,18 +810,18 @@ public class WalletClient {
     return rpcCli.getTransactionsFromThis(address, offset, limit);
   }
 
-  public static GrpcAPI.NumberMessage getTransactionsFromThisCount(byte[] address) {
-    return rpcCli.getTransactionsFromThisCount(address);
-  }
+//  public static GrpcAPI.NumberMessage getTransactionsFromThisCount(byte[] address) {
+//    return rpcCli.getTransactionsFromThisCount(address);
+//  }
 
   public static Optional<TransactionList> getTransactionsToThis(byte[] address, int offset,
       int limit) {
     return rpcCli.getTransactionsToThis(address, offset, limit);
   }
 
-  public static GrpcAPI.NumberMessage getTransactionsToThisCount(byte[] address) {
-    return rpcCli.getTransactionsToThisCount(address);
-  }
+//  public static GrpcAPI.NumberMessage getTransactionsToThisCount(byte[] address) {
+//    return rpcCli.getTransactionsToThisCount(address);
+//  }
 
   public static Optional<Transaction> getTransactionById(String txID) {
     return rpcCli.getTransactionById(txID);
