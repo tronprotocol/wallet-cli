@@ -74,8 +74,6 @@ public class WalletClient {
   private static byte addressPreFixByte = CommonConstant.ADD_PRE_FIX_BYTE_TESTNET;
 
   private static GrpcClient rpcCli = init();
-  private static String dbPath;
-  private static String txtPath;
 
 //  static {
 //    new Timer().schedule(new TimerTask() {
@@ -91,8 +89,6 @@ public class WalletClient {
 
   public static GrpcClient init() {
     Config config = Configuration.getByPath("config.conf");
-    dbPath = config.getString("CityDb.DbPath");
-    txtPath = System.getProperty("user.dir") + "/" + config.getString("CityDb.TxtPath");
 
     String fullNode = "";
     String solidityNode = "";
@@ -148,14 +144,6 @@ public class WalletClient {
 
   public static void setAddressPreFixByte(byte addressPreFixByte) {
     WalletClient.addressPreFixByte = addressPreFixByte;
-  }
-
-  public static String getDbPath() {
-    return dbPath;
-  }
-
-  public static String getTxtPath() {
-    return txtPath;
   }
 
   /**
