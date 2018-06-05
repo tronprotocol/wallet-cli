@@ -278,6 +278,9 @@ public class WalletClient {
 
   private static Credentials loadCredentials(String password) throws IOException, CipherException {
     File wallet = selcetWalletFile();
+    if (wallet == null){
+      throw new IOException("No keystore file be found, please registerwallet or importwallet first!");
+    }
     return WalletUtils.loadCredentials(password, wallet);
   }
 
@@ -655,6 +658,12 @@ public class WalletClient {
     int level = CheckStrength.checkPasswordStrength(password);
     if (level <= 4) {
       System.out.println("Your password is too weak!");
+      System.out.println("The password should be at least 8 characters.");
+      System.out.println("The password should contains uppercase, lowercase, numeric and other.");
+      System.out.println("The password should not contain 4 or more duplicate Numbers or letters; For example: 1111.");
+      System.out.println("The password should not contain 4 or more consecutive Numbers or letters; For example: 1234.");
+      System.out.println("The password should not contain weak password combination; For example:");
+      System.out.println("ababab, abcabc, password, passw0rd, p@ssw0rd, admin1234, etc.");
       return false;
     }
     return true;
