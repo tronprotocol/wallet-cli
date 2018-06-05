@@ -146,12 +146,6 @@ protobuf {
                 java {
                     outputSubDir = "gen"
                 }
-
-                js {
-                    outputSubDir = "genjs/"
-                    option "import_style=commonjs"
-                    option "binary"
-                }
             }
         }
         all()*.plugins {
@@ -172,12 +166,4 @@ shadowJar {
     baseName = 'wallet-cli'
     classifier = null
     version = null
-}
-
-allprojects {
-    plugins.withId("com.liferay.node") {
-        node.global = true
-        node.nodeDir = "$projectDir/src/genjs"
-        node.nodeVersion = "8.10.0"
-    }
 }
