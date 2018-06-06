@@ -648,8 +648,8 @@ public class WalletClient {
       System.out.println("Your password is too weak!");
       System.out.println("The password should be at least 8 characters.");
       System.out.println("The password should contains uppercase, lowercase, numeric and other.");
-      System.out.println("The password should not contain 4 or more duplicate Numbers or letters; For example: 1111.");
-      System.out.println("The password should not contain 4 or more consecutive Numbers or letters; For example: 1234.");
+      System.out.println("The password should not contain more than 3 duplicate numbers or letters; For example: 1111.");
+      System.out.println("The password should not contain more than 3 consecutive Numbers or letters; For example: 1234.");
       System.out.println("The password should not contain weak password combination; For example:");
       System.out.println("ababab, abcabc, password, passw0rd, p@ssw0rd, admin1234, etc.");
       return false;
