@@ -74,8 +74,6 @@ public class WalletClient {
   private static byte addressPreFixByte = CommonConstant.ADD_PRE_FIX_BYTE_TESTNET;
 
   private static GrpcClient rpcCli = init();
-  private static String dbPath;
-  private static String txtPath;
 
 //  static {
 //    new Timer().schedule(new TimerTask() {
@@ -91,8 +89,6 @@ public class WalletClient {
 
   public static GrpcClient init() {
     Config config = Configuration.getByPath("config.conf");
-    dbPath = config.getString("CityDb.DbPath");
-    txtPath = System.getProperty("user.dir") + "/" + config.getString("CityDb.TxtPath");
 
     String fullNode = "";
     String solidityNode = "";
@@ -148,14 +144,6 @@ public class WalletClient {
 
   public static void setAddressPreFixByte(byte addressPreFixByte) {
     WalletClient.addressPreFixByte = addressPreFixByte;
-  }
-
-  public static String getDbPath() {
-    return dbPath;
-  }
-
-  public static String getTxtPath() {
-    return txtPath;
   }
 
   /**
@@ -278,6 +266,9 @@ public class WalletClient {
 
   private static Credentials loadCredentials(String password) throws IOException, CipherException {
     File wallet = selcetWalletFile();
+    if (wallet == null){
+      throw new IOException("No keystore file be found, please registerwallet or importwallet first!");
+    }
     return WalletUtils.loadCredentials(password, wallet);
   }
 
@@ -655,6 +646,12 @@ public class WalletClient {
     int level = CheckStrength.checkPasswordStrength(password);
     if (level <= 4) {
       System.out.println("Your password is too weak!");
+      System.out.println("The password should be at least 8 characters.");
+      System.out.println("The password should contains uppercase, lowercase, numeric and other.");
+      System.out.println("The password should not contain more than 3 duplicate numbers or letters; For example: 1111.");
+      System.out.println("The password should not contain more than 3 consecutive Numbers or letters; For example: 1234.");
+      System.out.println("The password should not contain weak password combination; For example:");
+      System.out.println("ababab, abcabc, password, passw0rd, p@ssw0rd, admin1234, etc.");
       return false;
     }
     return true;
