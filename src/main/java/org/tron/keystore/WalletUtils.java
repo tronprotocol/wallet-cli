@@ -8,12 +8,12 @@ import java.io.IOException;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
-import java.security.SecureRandom;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.utils.Utils;
+import org.tron.core.exception.CipherException;
 
 /**
  * Utility functions for working with Wallet files.

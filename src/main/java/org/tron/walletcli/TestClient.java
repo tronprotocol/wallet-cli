@@ -25,7 +25,7 @@ import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Utils;
 import org.tron.core.exception.CancelException;
-import org.tron.keystore.CipherException;
+import org.tron.core.exception.CipherException;
 import org.tron.protos.Contract.AssetIssueContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
