@@ -21,7 +21,7 @@ import org.tron.common.utils.Base58;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Utils;
 import org.tron.keystore.CheckStrength;
-import org.tron.keystore.CipherException;
+import org.tron.core.exception.CipherException;
 import org.tron.keystore.Credentials;
 import org.tron.keystore.WalletUtils;
 import org.tron.protos.Contract;

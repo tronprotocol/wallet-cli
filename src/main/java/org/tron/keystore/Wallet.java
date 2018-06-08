@@ -20,6 +20,7 @@ import org.bouncycastle.crypto.params.KeyParameter;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.Hash;
 import org.tron.common.utils.ByteArray;
+import org.tron.core.exception.CipherException;
 import org.tron.walletserver.WalletClient;
 
 /**
