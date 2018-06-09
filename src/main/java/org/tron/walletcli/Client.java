@@ -12,6 +12,7 @@ import org.tron.common.crypto.ECKey;
 import org.tron.common.utils.ByteArray;
 import org.tron.core.exception.CancelException;
 import org.tron.core.exception.CipherException;
+import org.tron.keystore.StringUtils;
 import org.tron.protos.Contract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
@@ -25,44 +26,66 @@ public class Client {
   private static final Logger logger = LoggerFactory.getLogger("Client");
   private WalletClient wallet;
 
-  public String registerWallet(String password) throws CipherException, IOException {
+  public String registerWallet(char[] password) throws CipherException, IOException {
     if (!WalletClient.passwordValid(password)) {
       return null;
     }
-    wallet = new WalletClient(password);
+
+    byte[] passwd = StringUtils.char2Byte(password);
+
+    wallet = new WalletClient(passwd);
+    StringUtils.clear(passwd);
+
     String keystoreName = wallet.store2Keystore();
     logout();
     return keystoreName;
   }
 
-  public String importWallet(String password, String priKey) throws CipherException, IOException {
+  public String importWallet(char[] password, String priKey) throws CipherException, IOException {
     if (!WalletClient.passwordValid(password)) {
       return null;
     }
     if (!WalletClient.priKeyValid(priKey)) {
       return null;
     }
-    wallet = new WalletClient(password, priKey);
+
+    byte[] passwd = StringUtils.char2Byte(password);
+
+    wallet = new WalletClient(passwd, priKey);
+    StringUtils.clear(passwd);
+
     String keystoreName = wallet.store2Keystore();
     logout();
     return keystoreName;
   }
 
-  public boolean changePassword(String oldPassword, String newPassword)
+  public boolean changePassword(char[] oldPassword, char[] newPassword)
       throws IOException, CipherException {
     logout();
     if (!WalletClient.passwordValid(newPassword)) {
       logger.warn("Warning: ChangePassword failed, NewPassword is invalid !!");
       return false;
     }
-    return WalletClient.changeKeystorePassword(oldPassword, newPassword);
+
+    byte[] oldPasswd = StringUtils.char2Byte(oldPassword);
+    byte[] newPasswd = StringUtils.char2Byte(newPassword);
+
+    boolean result = WalletClient.changeKeystorePassword(oldPasswd, newPasswd);
+    StringUtils.clear(oldPasswd);
+    StringUtils.clear(newPasswd);
+
+    return result;
   }
 
-  public boolean login(String password) throws IOException, CipherException {
+  public boolean login(char[] password) throws IOException, CipherException {
     logout();
-    wallet = WalletClient.loadWalletFromKeystore(password);
+    byte[] passwd = StringUtils.char2Byte(password);
+
+    wallet = WalletClient.loadWalletFromKeystore(passwd);
+    StringUtils.clear(passwd);
+
     if (wallet == null) {
-      logger.warn("Warning: Login failed, Please registerWallet or importWallet first !!");
+      System.out.println("Warning: Login failed, Please registerWallet or importWallet first !!");
       return false;
     }
     wallet.setLogin();
@@ -78,18 +101,23 @@ public class Client {
   }
 
   //password is current, will be enc by password2.
-  public String backupWallet(String password) throws IOException, CipherException {
+  public String backupWallet(char[] password) throws IOException, CipherException {
+    byte[] passwd = StringUtils.char2Byte(password);
+
     if (wallet == null || !wallet.isLoginState()) {
-      wallet = WalletClient.loadWalletFromKeystore(password);
+      wallet = WalletClient.loadWalletFromKeystore(passwd);
+
       if (wallet == null) {
-        logger.warn("Warning: BackupWallet failed, no wallet can be backup !!");
+        StringUtils.clear(passwd);
+        System.out.println("Warning: BackupWallet failed, no wallet can be backup !!");
         return null;
       }
     }
 
-    ECKey ecKey = wallet.getEcKey(password);
-    String priKey = ByteArray.toHexString(ecKey.getPrivKeyBytes());
+    ECKey ecKey = wallet.getEcKey(passwd);
+    StringUtils.clear(passwd);
 
+    String priKey = ByteArray.toHexString(ecKey.getPrivKeyBytes());
     return priKey;
   }
 
@@ -213,7 +241,8 @@ public class Client {
     return wallet.createAssetIssue(builder.build());
   }
 
-  public boolean createAccount(String address) throws CipherException, IOException, CancelException {
+  public boolean createAccount(String address)
+      throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: createAccount failed,  Please login first !!");
       return false;
