@@ -203,11 +203,18 @@ public class WalletClient {
     }
     File file = new File(FilePath);
     if (!file.exists()) {
-      file.mkdir();
+      if (!file.mkdir()) {
+        throw new IOException("Make directory faild!");
+      }
     } else {
       if (!file.isDirectory()) {
-        file.delete();
-        file.mkdir();
+        if (file.delete()) {
+          if (!file.mkdir()) {
+            throw new IOException("Make directory faild!");
+          }
+        } else {
+          throw new IOException("File is exists and can not delete!");
+        }
       }
     }
     return WalletUtils.generateWalletFile(walletFile, file);
@@ -259,6 +266,9 @@ public class WalletClient {
   public static boolean changeKeystorePassword(String oldPassword, String newPassowrd)
       throws IOException, CipherException {
     File wallet = selcetWalletFile();
+    if (wallet == null){
+      throw new IOException("No keystore file be found, please registerwallet or importwallet first!");
+    }
     Credentials credentials = WalletUtils.loadCredentials(oldPassword, wallet);
     WalletUtils.updateWalletFile(newPassowrd, credentials.getEcKeyPair(), wallet, true);
     return true;
