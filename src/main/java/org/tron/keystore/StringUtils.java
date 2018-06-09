@@ -23,21 +23,6 @@ import org.apache.commons.lang3.ArrayUtils;
  */
 public class StringUtils {
 
-  private final static int[] SIZE_TABLE = {9, 99, 999, 9999, 99999, 999999, 9999999, 99999999,
-      999999999,
-      Integer.MAX_VALUE};
-
-  /**
-   * calculate the size of an integer number
-   */
-  public static int sizeOfInt(int x) {
-    for (int i = 0; ; i++) {
-      if (x <= SIZE_TABLE[i]) {
-        return i + 1;
-      }
-    }
-  }
-
   /**
    * Judge whether each character of the string equals
    */
@@ -75,21 +60,22 @@ public class StringUtils {
 
     int alen = a.length;
     int blen = b.length;
-    int i = 0;
-    int j = 0;
 
-    while (blen > 0) {
-      if (alen < blen) {
+    for (int i = 0; i < alen; i++) {
+      if (alen-i < blen) {
         return false;
       }
-      if (a[i++] != b[j++]) {
-        j = 0;
-        blen = b.length;
+      int j;
+      for (j = 0; j < blen; j++) {
+        if (a[i + j] != b[j]) {
+          break;
+        }
       }
-      alen--;
-      blen--;
+      if (j == blen) {
+        return true;
+      }
     }
-    return true;
+    return false;
   }
 
   public static void clear(char[] a) {

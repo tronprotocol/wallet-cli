@@ -1,24 +1,27 @@
 package org.tron.keystore;
 
-import static org.junit.Assert.*;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
-import java.lang.reflect.Array;
 import org.junit.Assert;
 import org.junit.Test;
 
 public class StringUtilsTest {
 
-  @Test
-  public void sizeOfInt() {
-  }
 
   @Test
   public void isCharEqual() {
+    char[] a = "aaaaaa".toCharArray();
+    char[] b = "aaaaab".toCharArray();
+    Assert.assertTrue(StringUtils.isCharEqual(a));
+    Assert.assertFalse(StringUtils.isCharEqual(b));
   }
 
   @Test
   public void isNumeric() {
+    char[] a = "0123456".toCharArray();
+    char[] b = "123456a".toCharArray();
+    Assert.assertTrue(StringUtils.isNumeric(a));
+    Assert.assertFalse(StringUtils.isNumeric(b));
   }
 
   @Test
@@ -42,6 +45,14 @@ public class StringUtilsTest {
     Assert.assertFalse(StringUtils.isContains(c, b));
     Assert.assertFalse(StringUtils.isContains(a, c));
     Assert.assertFalse(StringUtils.isContains(c, a));
+
+    char[] e = "abcabcdef".toCharArray();
+    char[] f = "abcdef".toCharArray();
+    Assert.assertTrue(StringUtils.isContains(e, f));
+
+    char[] g = "abababcdef".toCharArray();
+    char[] h = "ababcdef".toCharArray();
+    Assert.assertTrue(StringUtils.isContains(g, h));
   }
 
   @Test
