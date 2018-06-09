@@ -34,6 +34,7 @@ import org.tron.api.GrpcAPI.BlockList;
 import org.tron.api.GrpcAPI.TransactionList;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.crypto.Hash;
+import org.tron.common.crypto.Sha256Hash;
 import org.tron.protos.Contract.AccountCreateContract;
 import org.tron.protos.Contract.AccountUpdateContract;
 import org.tron.protos.Contract.AssetIssueContract;
@@ -667,11 +668,11 @@ public class Utils {
     String result = "";
     result += "hash: ";
     result += "\n";
-    result += ByteArray.toHexString(Hash.sha256(transaction.toByteArray()));
+    result += ByteArray.toHexString(Sha256Hash.hash(transaction.toByteArray()));
     result += "\n";
     result += "txid: ";
     result += "\n";
-    result += ByteArray.toHexString(Hash.sha256(transaction.getRawData().toByteArray()));
+    result += ByteArray.toHexString(Sha256Hash.hash(transaction.getRawData().toByteArray()));
     result += "\n";
 
     if (transaction.getRawData() != null) {
