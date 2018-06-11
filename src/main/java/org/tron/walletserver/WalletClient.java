@@ -149,14 +149,14 @@ public class WalletClient {
   /**
    * Creates a new WalletClient with a random ECKey or no ECKey.
    */
-  public WalletClient(String password) throws CipherException {
+  public WalletClient(byte[] password) throws CipherException {
     ECKey ecKey = new ECKey(Utils.getRandom());
     this.walletFile = Wallet.createStandard(password, ecKey);
     this.address = ecKey.getAddress();
   }
 
   //  Create Wallet with a pritKey
-  public WalletClient(String password, String priKey) throws CipherException {
+  public WalletClient(byte[] password, String priKey) throws CipherException {
     ECKey ecKey = ECKey.fromPrivate(ByteArray.fromHexString(priKey));
     this.walletFile = Wallet.createStandard(password, ecKey);
     this.address = ecKey.getAddress();
@@ -178,12 +178,12 @@ public class WalletClient {
   /**
    * Creates a Wallet with an existing ECKey.
    */
-  public WalletClient(String password, final ECKey ecKey, String address) throws CipherException {
+  public WalletClient(byte[] password, final ECKey ecKey, String address) throws CipherException {
     this.walletFile = Wallet.createStandard(password, ecKey);
     this.address = decodeFromBase58Check(address);
   }
 
-  public ECKey getEcKey(String password) throws CipherException, IOException {
+  public ECKey getEcKey(byte[] password) throws CipherException, IOException {
     if (walletFile == null) {
       Credentials credentials = loadCredentials(password);
       this.walletFile = Wallet.createStandard(password, credentials.getEcKeyPair());
@@ -263,7 +263,7 @@ public class WalletClient {
     return wallet;
   }
 
-  public static boolean changeKeystorePassword(String oldPassword, String newPassowrd)
+  public static boolean changeKeystorePassword(byte[] oldPassword, byte[] newPassowrd)
       throws IOException, CipherException {
     File wallet = selcetWalletFile();
     if (wallet == null){
@@ -274,10 +274,11 @@ public class WalletClient {
     return true;
   }
 
-  private static Credentials loadCredentials(String password) throws IOException, CipherException {
+  private static Credentials loadCredentials(byte[] password) throws IOException, CipherException {
     File wallet = selcetWalletFile();
-    if (wallet == null){
-      throw new IOException("No keystore file be found, please registerwallet or importwallet first!");
+    if (wallet == null) {
+      throw new IOException(
+          "No keystore file be found, please registerwallet or importwallet first!");
     }
     return WalletUtils.loadCredentials(password, wallet);
   }
@@ -285,7 +286,7 @@ public class WalletClient {
   /**
    * load a Wallet from keystore
    */
-  public static WalletClient loadWalletFromKeystore(String password)
+  public static WalletClient loadWalletFromKeystore(byte[] password)
       throws IOException, CipherException {
     Credentials credentials = loadCredentials(password);
     WalletClient walletClient = new WalletClient(password, credentials.getEcKeyPair(),
@@ -320,10 +321,14 @@ public class WalletClient {
       }
     }
     System.out.println("Please input your password.");
-    String password = Utils.inputPassword(false);
+    char[] password = Utils.inputPassword(false);
+    byte[] passwd = org.tron.keystore.StringUtils.char2Byte(password);
+    org.tron.keystore.StringUtils.clear(password);
     System.out.println(
         "txid = " + ByteArray.toHexString(Sha256Hash.hash(transaction.getRawData().toByteArray())));
-    return TransactionUtils.sign(transaction, this.getEcKey(password));
+    transaction = TransactionUtils.sign(transaction, this.getEcKey(passwd));
+    org.tron.keystore.StringUtils.clear(passwd);
+    return transaction;
   }
 
   public boolean sendCoin(byte[] to, long amount)
@@ -644,11 +649,11 @@ public class WalletClient {
     return builder.build();
   }
 
-  public static boolean passwordValid(String password) {
-    if (StringUtils.isEmpty(password)) {
+  public static boolean passwordValid(char[] password) {
+    if (ArrayUtils.isEmpty(password)) {
       throw new IllegalArgumentException("password is empty");
     }
-    if (password.length() < 6) {
+    if (password.length < 6) {
       logger.warn("Warning: Password is too short !!");
       return false;
     }
@@ -658,8 +663,10 @@ public class WalletClient {
       System.out.println("Your password is too weak!");
       System.out.println("The password should be at least 8 characters.");
       System.out.println("The password should contains uppercase, lowercase, numeric and other.");
-      System.out.println("The password should not contain more than 3 duplicate numbers or letters; For example: 1111.");
-      System.out.println("The password should not contain more than 3 consecutive Numbers or letters; For example: 1234.");
+      System.out.println(
+          "The password should not contain more than 3 duplicate numbers or letters; For example: 1111.");
+      System.out.println(
+          "The password should not contain more than 3 consecutive Numbers or letters; For example: 1234.");
       System.out.println("The password should not contain weak password combination; For example:");
       System.out.println("ababab, abcabc, password, passw0rd, p@ssw0rd, admin1234, etc.");
       return false;

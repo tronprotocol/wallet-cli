@@ -27,14 +27,14 @@ public class WalletUtils {
     objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
   }
 
-  public static String generateFullNewWalletFile(String password, File destinationDirectory)
+  public static String generateFullNewWalletFile(byte[] password, File destinationDirectory)
       throws NoSuchAlgorithmException, NoSuchProviderException,
       InvalidAlgorithmParameterException, CipherException, IOException {
 
     return generateNewWalletFile(password, destinationDirectory, true);
   }
 
-  public static String generateLightNewWalletFile(String password, File destinationDirectory)
+  public static String generateLightNewWalletFile(byte[] password, File destinationDirectory)
       throws NoSuchAlgorithmException, NoSuchProviderException,
       InvalidAlgorithmParameterException, CipherException, IOException {
 
@@ -42,7 +42,7 @@ public class WalletUtils {
   }
 
   public static String generateNewWalletFile(
-      String password, File destinationDirectory, boolean useFullScrypt)
+      byte[] password, File destinationDirectory, boolean useFullScrypt)
       throws CipherException, IOException, InvalidAlgorithmParameterException,
       NoSuchAlgorithmException, NoSuchProviderException {
 
@@ -51,7 +51,7 @@ public class WalletUtils {
   }
 
   public static String generateWalletFile(
-      String password, ECKey ecKeyPair, File destinationDirectory, boolean useFullScrypt)
+      byte[] password, ECKey ecKeyPair, File destinationDirectory, boolean useFullScrypt)
       throws CipherException, IOException {
 
     WalletFile walletFile;
@@ -70,7 +70,7 @@ public class WalletUtils {
   }
 
   public static void updateWalletFile(
-      String password, ECKey ecKeyPair, File source, boolean useFullScrypt)
+      byte[] password, ECKey ecKeyPair, File source, boolean useFullScrypt)
       throws CipherException, IOException {
 
     WalletFile walletFile = objectMapper.readValue(source, WalletFile.class);
@@ -124,7 +124,7 @@ public class WalletUtils {
 //        return loadCredentials(password, new File(source));
 //    }
 //
-  public static Credentials loadCredentials(String password, File source)
+  public static Credentials loadCredentials(byte[] password, File source)
       throws IOException, CipherException {
     WalletFile walletFile = objectMapper.readValue(source, WalletFile.class);
     return Credentials.create(Wallet.decrypt(password, walletFile));

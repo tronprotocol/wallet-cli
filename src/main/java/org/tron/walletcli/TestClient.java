@@ -26,6 +26,7 @@ import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Utils;
 import org.tron.core.exception.CancelException;
 import org.tron.core.exception.CipherException;
+import org.tron.keystore.StringUtils;
 import org.tron.protos.Contract.AssetIssueContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
@@ -37,14 +38,16 @@ public class TestClient {
   private static final Logger logger = LoggerFactory.getLogger("TestClient");
   private Client client = new Client();
 
-  private String inputPassword2Twice() {
-    String password0;
+  private char[] inputPassword2Twice() throws IOException {
+    char[] password0;
     while (true) {
       System.out.println("Please input password.");
       password0 = Utils.inputPassword(true);
       System.out.println("Please input password again.");
-      String password1 = Utils.inputPassword(true);
-      if (password0.equals(password1)) {
+      char[] password1 = Utils.inputPassword(true);
+      boolean flag = Arrays.equals(password0, password1);
+      StringUtils.clear(password1);
+      if (flag) {
         break;
       }
       System.out.println("The passwords do not match, please input again.");
@@ -86,8 +89,10 @@ public class TestClient {
   }
 
   private void registerWallet() throws CipherException, IOException {
-    String password = inputPassword2Twice();
+    char[] password = inputPassword2Twice();
     String fileName = client.registerWallet(password);
+    StringUtils.clear(password);
+
     if (null == fileName) {
       logger.info("Register wallet failed !!");
       return;
@@ -96,80 +101,92 @@ public class TestClient {
   }
 
   private void importWallet() throws CipherException, IOException {
-    String password = inputPassword2Twice();
+    char[] password = inputPassword2Twice();
     String priKey = inputPrivateKey();
 
     String fileName = client.importWallet(password, priKey);
+    StringUtils.clear(password);
+
     if (null == fileName) {
-      logger.info("Import wallet failed !!");
+      System.out.println("Import wallet failed !!");
       return;
     }
-    logger.info("ImportImport a wallet successful, keystore file name is " + fileName);
+    System.out.println("ImportImport a wallet successful, keystore file name is " + fileName);
   }
 
   private void importwalletByBase64() throws CipherException, IOException {
-    String password = inputPassword2Twice();
+    char[] password = inputPassword2Twice();
     String priKey = inputPrivateKey64();
 
     String fileName = client.importWallet(password, priKey);
+    StringUtils.clear(password);
+
     if (null == fileName) {
-      logger.info("Import wallet failed !!");
+      System.out.println("Import wallet failed !!");
       return;
     }
-    logger.info("ImportImport a wallet successful, keystore file name is " + fileName);
+    System.out.println("ImportImport a wallet successful, keystore file name is " + fileName);
   }
 
   private void changePassword() throws IOException, CipherException {
     System.out.println("Please input old password.");
-    String oldPassword = Utils.inputPassword(false);
+    char[] oldPassword = Utils.inputPassword(false);
     System.out.println("Please input new password.");
-    String newPassword = inputPassword2Twice();
+    char[] newPassword = inputPassword2Twice();
 
     if (client.changePassword(oldPassword, newPassword)) {
-      logger.info("ChangePassword successful !!");
+      System.out.println("ChangePassword successful !!");
     } else {
-      logger.info("ChangePassword failed !!");
+      System.out.println("ChangePassword failed !!");
     }
+    StringUtils.clear(oldPassword);
+    StringUtils.clear(newPassword);
   }
 
   private void login() throws IOException, CipherException {
     System.out.println("Please input your password.");
-    String password = Utils.inputPassword(false);
+    char[] password = Utils.inputPassword(false);
 
     boolean result = client.login(password);
+    StringUtils.clear(password);
+
     if (result) {
-      logger.info("Login successful !!!");
+      System.out.println("Login successful !!!");
     } else {
-      logger.info("Login failed !!!");
+      System.out.println("Login failed !!!");
     }
   }
 
   private void logout() {
     client.logout();
-    logger.info("Logout successful !!!");
+    System.out.println("Logout successful !!!");
   }
 
   private void backupWallet() throws IOException, CipherException {
     System.out.println("Please input your password.");
-    String password = Utils.inputPassword(false);
+    char[] password = Utils.inputPassword(false);
 
     String priKey = client.backupWallet(password);
+    StringUtils.clear(password);
+
     if (priKey != null) {
-      logger.info("Backup a wallet successful !!");
-      logger.info("priKey = " + priKey);
+      System.out.println("Backup a wallet successful !!");
+      System.out.println("priKey = " + priKey);
     }
   }
 
   private void backupWallet2Base64() throws IOException, CipherException {
     System.out.println("Please input your password.");
-    String password = Utils.inputPassword(false);
+    char[] password = Utils.inputPassword(false);
 
     String priKey = client.backupWallet(password);
+    StringUtils.clear(password);
+
     Encoder encoder = Base64.getEncoder();
     String priKey64 = encoder.encodeToString(ByteArray.fromHexString(priKey));
     if (priKey != null) {
-      logger.info("Backup a wallet successful !!");
-      logger.info("priKey = " + priKey64);
+      System.out.println("Backup a wallet successful !!");
+      System.out.println("priKey = " + priKey64);
     }
   }
 
@@ -950,16 +967,16 @@ public class TestClient {
     System.out.println("ListNodes");
     System.out.println("GetBlock");
     System.out.println("GetTotalTransaction");
- //   System.out.println("GetAssetIssueListByTimestamp");
+    //   System.out.println("GetAssetIssueListByTimestamp");
     System.out.println("GetTotalTransaction");
     System.out.println("GetNextMaintenanceTime");
- //   System.out.println("GetTransactionsByTimestamp");
- //   System.out.println("GetTransactionsByTimestampCount");
+    //   System.out.println("GetTransactionsByTimestamp");
+    //   System.out.println("GetTransactionsByTimestampCount");
     System.out.println("GetTransactionById");
     System.out.println("GetTransactionsFromThis");
- //   System.out.println("GetTransactionsFromThisCount");
+    //   System.out.println("GetTransactionsFromThisCount");
     System.out.println("GetTransactionsToThis");
- //   System.out.println("GetTransactionsToThisCount");
+    //   System.out.println("GetTransactionsToThisCount");
     System.out.println("GetBlockById");
     System.out.println("GetBlockByLimitNext");
     System.out.println("GetBlockByLatestNum");

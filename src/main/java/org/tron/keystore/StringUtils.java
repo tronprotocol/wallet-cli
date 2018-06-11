@@ -16,70 +16,160 @@
 
 package org.tron.keystore;
 
+import org.apache.commons.lang3.ArrayUtils;
+
 /**
- *
  * @author venshine
  */
 public class StringUtils {
 
-    private final static int[] SIZE_TABLE = {9, 99, 999, 9999, 99999, 999999, 9999999, 99999999, 999999999,
-            Integer.MAX_VALUE};
+  /**
+   * Judge whether each character of the string equals
+   */
+  public static boolean isCharEqual(char[] str) {
+    char c0 = str[0];
+    for (char c : str) {
+      if (c != c0) {
+        return false;
+      }
+    }
+    return true;
+  }
 
-    /**
-     * calculate the size of an integer number
-     *
-     * @param x
-     * @return
-     */
-    public static int sizeOfInt(int x) {
-        for (int i = 0; ; i++)
-            if (x <= SIZE_TABLE[i]) {
-                return i + 1;
-            }
+  /**
+   * Determines if the string is a digit
+   */
+  public static boolean isNumeric(char[] str) {
+    for (char c : str) {
+      if (!Character.isDigit(c)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /**
+   * a Contains b , return true
+   *
+   * @return boolean
+   */
+  public static boolean isContains(char[] a, char[] b) {
+    if (ArrayUtils.isEmpty(a) || ArrayUtils.isEmpty(b)) {
+      return false;
     }
 
-    /**
-     * Judge whether each character of the string equals
-     *
-     * @param str
-     * @return
-     */
-    public static boolean isCharEqual(String str) {
-        return str.replace(str.charAt(0), ' ').trim().length() == 0;
-    }
+    int alen = a.length;
+    int blen = b.length;
 
-    /**
-     * Determines if the string is a digit
-     *
-     * @param str
-     * @return
-     */
-    public static boolean isNumeric(String str) {
-        for (int i = str.length(); --i >= 0; ) {
-            if (!Character.isDigit(str.charAt(i))) {
-                return false;
-            }
+    for (int i = 0; i < alen; i++) {
+      if (alen - i < blen) {
+        return false;
+      }
+      int j;
+      for (j = 0; j < blen; j++) {
+        if (a[i + j] != b[j]) {
+          break;
         }
+      }
+      if (j == blen) {
         return true;
+      }
+    }
+    return false;
+  }
+
+  public static void clear(char[] a) {
+    if (ArrayUtils.isEmpty(a)) {
+      return;
+    }
+    for (int i = 0; i < a.length; i++) {
+      a[i] = 0;
+    }
+  }
+
+  public static void clear(byte[] a) {
+    if (ArrayUtils.isEmpty(a)) {
+      return;
+    }
+    for (int i = 0; i < a.length; i++) {
+      a[i] = 0;
+    }
+  }
+
+  /**
+   * char to utf-8 bytes
+   */
+  public static byte[] char2Byte(char[] a) {
+    int len = 0;
+    for (char c : a) {
+      if (c > 0x7FF) {
+        len += 3;
+      } else if (c > 0x7F) {
+        len += 2;
+      } else {
+        len++;
+      }
     }
 
-    /**
-     * Judge whether the string is whitespace, empty ("") or null.
-     *
-     * @param str
-     * @return
-     */
-    public static boolean equalsNull(String str) {
-        int strLen;
-        if (str == null || (strLen = str.length()) == 0 || str.equalsIgnoreCase("null")) {
-            return true;
-        }
-        for (int i = 0; i < strLen; i++) {
-            if ((Character.isWhitespace(str.charAt(i)) == false)) {
-                return false;
-            }
-        }
-        return true;
+    byte[] result = new byte[len];
+    int i = 0;
+    for (char c : a) {
+      if (c > 0x7FF) {
+        result[i++] = (byte) (((c >> 12) & 0x0F) | 0xE0);
+        result[i++] = (byte) (((c >> 6) & 0x3F) | 0x80);
+        result[i++] = (byte) ((c & 0x3F) | 0x80);
+      } else if (c > 127) {
+        result[i++] = (byte) (((c >> 6) & 0x1F) | 0xC0);
+        result[i++] = (byte) ((c & 0x3F) | 0x80);
+      } else {
+        result[i++] = (byte) (c & 0x7F);
+      }
     }
+    return result;
+  }
+
+  /**
+   * utf-8 bytes to chars
+   */
+  public static char[] byte2Char(byte[] a) {
+    int len = 0;
+    for (int i = 0; i < a.length; ) {
+      byte b = a[i];
+      if ((b & 0x80) == 0) {
+        i++;  // 0xxxxxxx
+      } else if ((b & 0xE0) == 0xC0) {
+        i += 2; // 110xxxxx 10xxxxxx
+      } else if ((b & 0xF0) == 0xE0) {
+        i += 3; // 1110xxxx 10xxxxxx 10xxxxxx
+      } else {
+        i++;  // unsupport
+      }
+      len++;
+    }
+
+    char[] result = new char[len];
+    int j = 0;
+    for (int i = 0; i < a.length; ) {
+      byte b = a[i];
+      if ((b & 0x80) == 0) {
+        i++;
+        result[j++] = (char) b; // 0xxxxxxx
+        continue;
+      }
+      if ((b & 0xE0) == 0xC0 && a.length - i >= 2) {
+        result[j++] = (char) ((a[i + 1] & 0x3F) | (b & 0x1F) << 6);
+        i += 2;
+        continue;
+      }
+      if ((b & 0xF0) == 0xE0 && a.length - i >= 2) {
+        result[j++] = (char) ((a[i + 2] & 0x3F) | ((a[i + 1] & 0x3F) << 6) | ((b&0x0F)<<12));
+        i += 3;
+        continue;
+      }
+      i++;
+      result[j++] = (char) b; // other
+    }
+    return result;
+  }
 
 }

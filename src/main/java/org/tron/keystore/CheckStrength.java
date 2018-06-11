@@ -16,6 +16,9 @@
 
 package org.tron.keystore;
 
+import java.util.Arrays;
+import org.apache.commons.lang3.ArrayUtils;
+
 /**
  * @author venshine
  */
@@ -33,9 +36,10 @@ public class CheckStrength {
    * Simple password dictionary
    */
   private final static String[] DICTIONARY = {"password", "abc123", "iloveyou", "adobe123",
-      "123123", "sunshine",
-      "1314520", "a1b2c3", "123qwe", "aaa111", "qweasd", "admin", "passwd", "passw0rd", "p@ssw0rd",
-      "p@ssword"};
+      "123123", "sunshine", "1314520", "a1b2c3", "123qwe", "aaa111", "qweasd", "admin", "passwd",
+      "passw0rd", "p@ssw0rd", "p@ssword", "abcdefghijklmnopqrstuvwxyz", "qwertyuiop", "asdfghjkl",
+      "zxcvbnm", "01234567890", "09876543210"
+  };
 
   /**
    * Check character's type, includes num, capital letter, small letter and other character.
@@ -56,21 +60,21 @@ public class CheckStrength {
   /**
    * Count password's number by different type
    */
-  private static int[] countLetter(String passwd) {
+  private static int[] countLetter(char[] passwd) {
     int[] count = {0, 0, 0, 0, 0};
-    if (null != passwd && passwd.length() > 0) {
-      for (char c : passwd.toCharArray()) {
+    if (!ArrayUtils.isEmpty(passwd)) {
+      for (char c : passwd) {
         count[checkCharacterType(c)]++;
       }
     }
     return count;
   }
 
-  private static int sameCharacter(String passwd) {
+  private static int sameCharacter(char[] passwd) {
     int maxTimes = 0;
     int times = 1;
     char last = 0xff;
-    for (char c : passwd.toCharArray()) {
+    for (char c : passwd) {
       if (c == last) {
         times++;
       } else {
@@ -87,12 +91,12 @@ public class CheckStrength {
     return maxTimes;
   }
 
-  private static int adjacentCharacter(String passwd) {
+  private static int adjacentCharacter(char[] passwd) {
     int maxTimes = 0;
     int times = 1;
     char last = 0xff;
     int lasetType = -1;
-    for (char c : passwd.toCharArray()) {
+    for (char c : passwd) {
       if (checkCharacterType(c) == lasetType && c == (char) (last + 1)) {
         times++;
       } else {
@@ -115,11 +119,11 @@ public class CheckStrength {
    *
    * @return strength level
    */
-  public static int checkPasswordStrength(String passwd) {
-    if (StringUtils.equalsNull(passwd)) {
+  public static int checkPasswordStrength(char[] passwd) {
+    if (ArrayUtils.isEmpty(passwd)) {
       throw new IllegalArgumentException("password is empty");
     }
-    int len = passwd.length();
+    int len = passwd.length;
     int level = 0;
 
     int[] counts = countLetter(passwd);
@@ -194,41 +198,45 @@ public class CheckStrength {
       }
     }
 
-    // decrease points
-    if ("abcdefghijklmnopqrstuvwxyz".indexOf(passwd) > 0
-        || "ABCDEFGHIJKLMNOPQRSTUVWXYZ".indexOf(passwd) > 0) {
-      level--;
-    }
-    if ("qwertyuiop".indexOf(passwd) > 0 || "asdfghjkl".indexOf(passwd) > 0
-        || "zxcvbnm".indexOf(passwd) > 0) {
-      level--;
-    }
-    if (StringUtils.isNumeric(passwd) && ("01234567890".indexOf(passwd) > 0
-        || "09876543210".indexOf(passwd) > 0)) {
-      level--;
-    }
-
     if (counts[NUM] == len || counts[SMALL_LETTER] == len || counts[CAPITAL_LETTER] == len) {
       level--;
     }
 
-    if (len % 2 == 0) { // aaabbb
-      String part1 = passwd.substring(0, len / 2);
-      String part2 = passwd.substring(len / 2);
-      if (part1.equals(part2)) {
+    if (len % 2 == 0) {
+      char[] part1 = new char[len / 2];
+      char[] part2 = new char[len / 2];
+      System.arraycopy(passwd, 0, part1, 0, len / 2);
+      System.arraycopy(passwd, len / 2, part2, 0, len / 2);
+      // abyzabyz
+      if (Arrays.equals(part1, part2)) {
         level--;
       }
+      // aaabbb
       if (StringUtils.isCharEqual(part1) && StringUtils.isCharEqual(part2)) {
         level--;
       }
+      StringUtils.clear(part1);
+      StringUtils.clear(part2);
     }
-    if (len % 3 == 0) { // ababab
-      String part1 = passwd.substring(0, len / 3);
-      String part2 = passwd.substring(len / 3, len / 3 * 2);
-      String part3 = passwd.substring(len / 3 * 2);
-      if (part1.equals(part2) && part2.equals(part3)) {
+    if (len % 3 == 0) {
+      char[] part1 = new char[len / 3];
+      char[] part2 = new char[len / 3];
+      char[] part3 = new char[len / 3];
+      System.arraycopy(passwd, 0, part1, 0, len / 3);
+      System.arraycopy(passwd, len / 3, part2, 0, len / 3);
+      System.arraycopy(passwd, 2 * len / 3, part3, 0, len / 3);
+      // ababab
+      if (Arrays.equals(part1, part2) && Arrays.equals(part1, part3)) {
         level--;
       }
+      // aabbcc
+      if (StringUtils.isCharEqual(part1) && StringUtils.isCharEqual(part2) && StringUtils
+          .isCharEqual(part3)) {
+        level--;
+      }
+      StringUtils.clear(part1);
+      StringUtils.clear(part2);
+      StringUtils.clear(part3);
     }
 
     int times = sameCharacter(passwd);
@@ -241,22 +249,36 @@ public class CheckStrength {
       level -= (times - 3);
     }
 
-    if (StringUtils.isNumeric(passwd) && len >= 6) { // 19881010 or 881010
+    if (StringUtils.isNumeric(passwd) && (len == 6 || len == 8)) { // 19881010 or 881010
+      char[] part1 = new char[len - 4];
+      char[] part2 = new char[2];
+      char[] part3 = new char[2];
+      System.arraycopy(passwd, 0, part1, 0, len - 4);
+      System.arraycopy(passwd, len - 4, part2, 0, 2);
+      System.arraycopy(passwd, len - 2, part3, 0, 2);
+
       int year = 0;
-      if (len == 8 || len == 6) {
-        year = Integer.parseInt(passwd.substring(0, len - 4));
+      for (int i = 0; i < len - 4; i++) {
+        year *= 10;
+        year += (part1[i] - 0x30);
       }
-      int size = StringUtils.sizeOfInt(year);
-      int month = Integer.parseInt(passwd.substring(size, size + 2));
-      int day = Integer.parseInt(passwd.substring(size + 2, len));
+      int month = 10 * (part2[0] - 0x30) + (part2[1] - 0x30);
+      int day = 10 * (part3[0] - 0x30) + (part3[1] - 0x30);
+
       if (year >= 1950 && year < 2050 && month >= 1 && month <= 12 && day >= 1 && day <= 31) {
         level--;
       }
+
+      year = month = day = 0;
+      StringUtils.clear(part1);
+      StringUtils.clear(part2);
+      StringUtils.clear(part3);
     }
 
     if (null != DICTIONARY && DICTIONARY.length > 0) {// dictionary
       for (int i = 0; i < DICTIONARY.length; i++) {
-        if (passwd.equals(DICTIONARY[i]) || DICTIONARY[i].indexOf(passwd) >= 0 || passwd.indexOf(DICTIONARY[i]) >=0) {
+        if (StringUtils.isContains(DICTIONARY[i].toCharArray(), passwd) ||
+            StringUtils.isContains(passwd, DICTIONARY[i].toCharArray())) {
           level--;
           break;
         }
@@ -287,7 +309,7 @@ public class CheckStrength {
   /**
    * Get password strength level, includes easy, midium, strong, very strong, extremely strong
    */
-  public static LEVEL getPasswordLevel(String passwd) {
+  public static LEVEL getPasswordLevel(char[] passwd) {
     int level = checkPasswordStrength(passwd);
     switch (level) {
       case 0:

@@ -317,8 +317,8 @@ public class Test {
     String priKeyHex = "cba92a516ea09f620a16ff7ee95ce0df1d56550a8babe9964981a7144c8a784a";
     ECKey eCkey = ECKey.fromPrivate(ByteArray.fromHexString(priKeyHex));
     File file = new File("out");
-    String fileName = WalletUtils.generateWalletFile(PASSWORD, eCkey, file, true);
-    Credentials credentials = WalletUtils.loadCredentials(PASSWORD, new File(file, fileName));
+    String fileName = WalletUtils.generateWalletFile(PASSWORD.getBytes(), eCkey, file, true);
+    Credentials credentials = WalletUtils.loadCredentials(PASSWORD.getBytes(), new File(file, fileName));
     String address = credentials.getAddress();
     ECKey ecKeyPair = credentials.getEcKeyPair();
     String prikey = ByteArray.toHexString(ecKeyPair.getPrivKeyBytes());
@@ -353,7 +353,7 @@ public class Test {
     passwordList.add("1q2w3e$R%T^Y/:");
 
     for (String password : passwordList) {
-      int level = CheckStrength.checkPasswordStrength(password);
+      int level = CheckStrength.checkPasswordStrength(password.toCharArray());
       System.out.println(password + " strength is " + level);
     }
   }
