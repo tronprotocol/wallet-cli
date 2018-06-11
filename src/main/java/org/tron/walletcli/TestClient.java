@@ -38,7 +38,7 @@ public class TestClient {
   private static final Logger logger = LoggerFactory.getLogger("TestClient");
   private Client client = new Client();
 
-  private char[] inputPassword2Twice() {
+  private char[] inputPassword2Twice() throws IOException {
     char[] password0;
     while (true) {
       System.out.println("Please input password.");

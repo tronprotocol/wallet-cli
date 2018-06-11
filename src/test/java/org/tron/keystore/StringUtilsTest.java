@@ -88,4 +88,28 @@ public class StringUtilsTest {
     byte[] mix2 = StringUtils.char2Byte(mix.toCharArray());
     Assert.assertArrayEquals(mix1, mix2);
   }
+
+  @Test
+  public void byte2Char() {
+    String asc = "test";
+    byte[] asc1 = asc.getBytes(UTF_8);
+    byte[] asc2 = StringUtils.char2Byte(asc.toCharArray());
+    Assert.assertArrayEquals(asc1, asc2);
+    char[] ascChars = StringUtils.byte2Char(asc1);
+    Assert.assertArrayEquals(asc.toCharArray(), ascChars);
+
+    String china = "中国";
+    byte[] china1 = china.getBytes(UTF_8);
+    byte[] china2 = StringUtils.char2Byte(china.toCharArray());
+    Assert.assertArrayEquals(china1, china2);
+    char[] chinaChars = StringUtils.byte2Char(china1);
+    Assert.assertArrayEquals(china.toCharArray(), chinaChars);
+
+    String mix = "中1华。人】民、共、和、国";
+    byte[] mix1 = mix.getBytes(UTF_8);
+    byte[] mix2 = StringUtils.char2Byte(mix.toCharArray());
+    Assert.assertArrayEquals(mix1, mix2);
+    char[] mixChars = StringUtils.byte2Char(mix1);
+    Assert.assertArrayEquals(mix.toCharArray(), mixChars);
+  }
 }

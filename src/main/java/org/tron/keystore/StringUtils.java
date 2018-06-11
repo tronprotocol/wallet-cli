@@ -62,7 +62,7 @@ public class StringUtils {
     int blen = b.length;
 
     for (int i = 0; i < alen; i++) {
-      if (alen-i < blen) {
+      if (alen - i < blen) {
         return false;
       }
       int j;
@@ -127,4 +127,49 @@ public class StringUtils {
     }
     return result;
   }
+
+  /**
+   * utf-8 bytes to chars
+   */
+  public static char[] byte2Char(byte[] a) {
+    int len = 0;
+    for (int i = 0; i < a.length; ) {
+      byte b = a[i];
+      if ((b & 0x80) == 0) {
+        i++;  // 0xxxxxxx
+      } else if ((b & 0xE0) == 0xC0) {
+        i += 2; // 110xxxxx 10xxxxxx
+      } else if ((b & 0xF0) == 0xE0) {
+        i += 3; // 1110xxxx 10xxxxxx 10xxxxxx
+      } else {
+        i++;  // unsupport
+      }
+      len++;
+    }
+
+    char[] result = new char[len];
+    int j = 0;
+    for (int i = 0; i < a.length; ) {
+      byte b = a[i];
+      if ((b & 0x80) == 0) {
+        i++;
+        result[j++] = (char) b; // 0xxxxxxx
+        continue;
+      }
+      if ((b & 0xE0) == 0xC0 && a.length - i >= 2) {
+        result[j++] = (char) ((a[i + 1] & 0x3F) | (b & 0x1F) << 6);
+        i += 2;
+        continue;
+      }
+      if ((b & 0xF0) == 0xE0 && a.length - i >= 2) {
+        result[j++] = (char) ((a[i + 2] & 0x3F) | ((a[i + 1] & 0x3F) << 6) | ((b&0x0F)<<12));
+        i += 3;
+        continue;
+      }
+      i++;
+      result[j++] = (char) b; // other
+    }
+    return result;
+  }
+
 }
