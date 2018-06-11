@@ -302,6 +302,15 @@ public class Client {
     }
   }
 
+  public Optional<AssetIssueList> getAssetIssueList(long offset, long limit) {
+    try {
+      return WalletClient.getAssetIssueList(offset,limit);
+    } catch (Exception ex) {
+      ex.printStackTrace();
+      return Optional.empty();
+    }
+  }
+
   public Optional<NodeList> listNodes() {
     try {
       return WalletClient.listNodes();

@@ -583,6 +583,23 @@ public class TestClient {
     }
   }
 
+  private void getAssetIssueList(String[] parameters) {
+    if (parameters == null || parameters.length != 2) {
+      System.out.println("Use listassetissuepaginated command you need like: ");
+      System.out.println("listassetissuepaginated offset limit ");
+      return;
+    }
+    int offset = Integer.parseInt(parameters[0]);
+    int limit = Integer.parseInt(parameters[1]);
+    Optional<AssetIssueList> result = client.getAssetIssueList(offset,limit);
+    if (result.isPresent()) {
+      AssetIssueList assetIssueList = result.get();
+      logger.info(Utils.printAssetIssueList(assetIssueList));
+    } else {
+      logger.info("GetAssetIssueListPaginated " + " failed !!");
+    }
+  }
+
   private void listNodes() {
     Optional<NodeList> result = client.listNodes();
     if (result.isPresent()) {
@@ -1117,6 +1134,10 @@ public class TestClient {
           }
           case "listassetissue": {
             getAssetIssueList();
+            break;
+          }
+          case "listassetissuepaginated": {
+            getAssetIssueList(parameters);
             break;
           }
           case "listnodes": {

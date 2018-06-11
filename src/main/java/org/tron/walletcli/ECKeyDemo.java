@@ -51,7 +51,7 @@ public class ECKeyDemo {
   private static String private2Address(byte[] privateKey) throws CipherException {
     ECKey eCkey;
     if (StringUtils.isEmpty(privateKey)) {
-      eCkey = new ECKey(Utils.getRandom());  //Gen ney Keypair
+      eCkey = new ECKey(Utils.getRandom());  //Gen new Keypair
     } else {
       eCkey = ECKey.fromPrivate(privateKey);
     }
