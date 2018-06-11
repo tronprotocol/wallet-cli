@@ -312,8 +312,8 @@ public class WalletClient {
     }
     System.out.println("Please input your password.");
     char[] password = Utils.inputPassword(false);
-    org.tron.keystore.StringUtils.clear(password);
     byte[] passwd = org.tron.keystore.StringUtils.char2Byte(password);
+    org.tron.keystore.StringUtils.clear(password);
     System.out.println(
         "txid = " + ByteArray.toHexString(Sha256Hash.hash(transaction.getRawData().toByteArray())));
     transaction = TransactionUtils.sign(transaction, this.getEcKey(passwd));
