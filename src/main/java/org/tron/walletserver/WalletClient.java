@@ -788,6 +788,10 @@ public class WalletClient {
     return rpcCli.getAssetIssueList();
   }
 
+  public static Optional<AssetIssueList> getAssetIssueList(long offset, long limit) {
+    return rpcCli.getAssetIssueList(offset, limit);
+  }
+
   public static Optional<NodeList> listNodes() {
     return rpcCli.listNodes();
   }
