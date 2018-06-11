@@ -224,7 +224,7 @@ public class CheckStrength {
       char[] part3 = new char[len / 3];
       System.arraycopy(passwd, 0, part1, 0, len / 3);
       System.arraycopy(passwd, len / 3, part2, 0, len / 3);
-      System.arraycopy(passwd, 2 * len / 3, part2, 0, len / 3);
+      System.arraycopy(passwd, 2 * len / 3, part3, 0, len / 3);
       // ababab
       if (Arrays.equals(part1, part2) && Arrays.equals(part1, part3)) {
         level--;
