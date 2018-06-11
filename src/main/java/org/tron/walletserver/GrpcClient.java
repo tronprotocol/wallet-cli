@@ -18,6 +18,7 @@ import org.tron.api.GrpcAPI.BytesMessage;
 import org.tron.api.GrpcAPI.EmptyMessage;
 import org.tron.api.GrpcAPI.NodeList;
 import org.tron.api.GrpcAPI.NumberMessage;
+import org.tron.api.GrpcAPI.PaginatedMessage;
 import org.tron.api.GrpcAPI.Return.response_code;
 import org.tron.api.GrpcAPI.TransactionList;
 import org.tron.api.GrpcAPI.WitnessList;
@@ -202,6 +203,21 @@ public class GrpcClient {
     } else {
       AssetIssueList assetIssueList = blockingStubFull
           .getAssetIssueList(EmptyMessage.newBuilder().build());
+      return Optional.ofNullable(assetIssueList);
+    }
+  }
+
+  public Optional<AssetIssueList> getAssetIssueList(long offset, long limit) {
+    PaginatedMessage.Builder pageMessageBuilder = PaginatedMessage.newBuilder();
+    pageMessageBuilder.setOffset(offset);
+    pageMessageBuilder.setLimit(limit);
+    if (blockingStubSolidity != null) {
+      AssetIssueList assetIssueList = blockingStubSolidity.
+          getPaginatedAssetIssueList(pageMessageBuilder.build());
+      return Optional.ofNullable(assetIssueList);
+    } else {
+      AssetIssueList assetIssueList = blockingStubFull
+          .getPaginatedAssetIssueList(pageMessageBuilder.build());
       return Optional.ofNullable(assetIssueList);
     }
   }
