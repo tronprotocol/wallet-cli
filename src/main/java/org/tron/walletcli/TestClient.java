@@ -651,7 +651,7 @@ public class TestClient {
       }
       blockNum = Long.parseLong(parameters[0]);
     }
-    Block block = client.GetBlock(blockNum);
+    Block block = client.getBlock(blockNum);
     if (block == null) {
       logger.info("No block for num : " + blockNum);
       return;

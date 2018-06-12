@@ -503,7 +503,7 @@ public class WalletClient {
     return rpcCli.createAssetIssue(contract);
   }
 
-  public static Block GetBlock(long blockNum) {
+  public static Block getBlock(long blockNum) {
     return rpcCli.getBlock(blockNum);
   }
 
