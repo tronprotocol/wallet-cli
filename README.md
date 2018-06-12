@@ -9,6 +9,7 @@ git clone https://github.com/tronprotocol/wallet-cli.git
 
 Edit config.conf in src/main/resources
 ----------------------------------------
+```
 net {
  type = mainnet
  #type = testnet 
@@ -26,6 +27,7 @@ soliditynode = {
   ]
 }//note: solidity node is optional
 
+```
 Build and run wallet-cli by command line
 ----------------------------------------
 Create a new command line terminal window.
