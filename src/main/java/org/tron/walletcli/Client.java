@@ -41,7 +41,7 @@ public class Client {
     return keystoreName;
   }
 
-  public String importWallet(char[] password, String priKey) throws CipherException, IOException {
+  public String importWallet(char[] password, byte[] priKey) throws CipherException, IOException {
     if (!WalletClient.passwordValid(password)) {
       return null;
     }

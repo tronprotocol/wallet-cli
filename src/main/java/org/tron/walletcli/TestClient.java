@@ -56,37 +56,46 @@ public class TestClient {
     return password0;
   }
 
-  private String inputPrivateKey() {
-    Scanner in = new Scanner(System.in);
-    String privateKey;
+  private byte[] inputPrivateKey() throws IOException {
+    byte[] temp = new byte[128];
+    byte[] result = null;
     System.out.println("Please input private key.");
     while (true) {
-      String input = in.nextLine().trim();
-      privateKey = input.split("\\s+")[0];
-      if (WalletClient.priKeyValid(privateKey)) {
-        break;
+      int len = System.in.read(temp, 0, temp.length);
+      if (len >= 64) {
+        byte[] privateKey = Arrays.copyOfRange(temp, 0, 64);
+        result = StringUtils.hexs2Bytes(privateKey);
+        StringUtils.clear(privateKey);
+        if (WalletClient.priKeyValid(result)) {
+          break;
+        }
       }
+      StringUtils.clear(result);
       System.out.println("Invalid private key, please input again.");
     }
-    return privateKey;
+    StringUtils.clear(temp);
+    return result;
   }
 
-  private String inputPrivateKey64() {
-    Scanner in = new Scanner(System.in);
+  private byte[] inputPrivateKey64() throws IOException {
     Decoder decoder = Base64.getDecoder();
-    String privateKey;
+    byte[] temp = new byte[128];
+    byte[] result;
     System.out.println("Please input private key by base64.");
     while (true) {
-      String input = in.nextLine().trim();
-      String priKey64 = input.split("\\s+")[0];
-      privateKey = ByteArray.toHexString(decoder.decode(priKey64));
-
-      if (WalletClient.priKeyValid(privateKey)) {
-        break;
+      int len = System.in.read(temp, 0, temp.length);
+      if (len >= 44) {
+        byte[] priKey64 = Arrays.copyOfRange(temp, 0, 44);
+        result = decoder.decode(priKey64);
+        StringUtils.clear(priKey64);
+        if (WalletClient.priKeyValid(result)) {
+          break;
+        }
       }
       System.out.println("Invalid base64 private key, please input again.");
     }
-    return privateKey;
+    StringUtils.clear(temp);
+    return result;
   }
 
   private void registerWallet() throws CipherException, IOException {
@@ -103,10 +112,11 @@ public class TestClient {
 
   private void importWallet() throws CipherException, IOException {
     char[] password = inputPassword2Twice();
-    String priKey = inputPrivateKey();
+    byte[] priKey = inputPrivateKey();
 
     String fileName = client.importWallet(password, priKey);
     StringUtils.clear(password);
+    StringUtils.clear(priKey);
 
     if (null == fileName) {
       System.out.println("Import wallet failed !!");
@@ -117,10 +127,11 @@ public class TestClient {
 
   private void importwalletByBase64() throws CipherException, IOException {
     char[] password = inputPassword2Twice();
-    String priKey = inputPrivateKey64();
+    byte[] priKey = inputPrivateKey64();
 
     String fileName = client.importWallet(password, priKey);
     StringUtils.clear(password);
+    StringUtils.clear(priKey);
 
     if (null == fileName) {
       System.out.println("Import wallet failed !!");
@@ -193,7 +204,7 @@ public class TestClient {
       StringUtils.clear(priKey);
       System.out.println("Backup a wallet successful !!");
       for (int i = 0; i < priKey64.length; i++) {
-        System.out.print((char)priKey64[i]);
+        System.out.print((char) priKey64[i]);
       }
       System.out.println();
       StringUtils.clear(priKey64);
