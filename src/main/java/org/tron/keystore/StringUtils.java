@@ -17,6 +17,8 @@
 package org.tron.keystore;
 
 import org.apache.commons.lang3.ArrayUtils;
+import org.spongycastle.util.encoders.Hex;
+import org.tron.common.utils.ByteArray;
 
 /**
  * @author venshine
@@ -162,7 +164,7 @@ public class StringUtils {
         continue;
       }
       if ((b & 0xF0) == 0xE0 && a.length - i >= 2) {
-        result[j++] = (char) ((a[i + 2] & 0x3F) | ((a[i + 1] & 0x3F) << 6) | ((b&0x0F)<<12));
+        result[j++] = (char) ((a[i + 2] & 0x3F) | ((a[i + 1] & 0x3F) << 6) | ((b & 0x0F) << 12));
         i += 3;
         continue;
       }
@@ -172,4 +174,56 @@ public class StringUtils {
     return result;
   }
 
+  public static void printOneByte(byte b) {
+    int d = (b >> 4) & 0x0F;
+    if (d >= 10) {
+      System.out.print((char) (d - 10 + 'a'));
+    } else {
+      System.out.print(d);
+    }
+
+    d = b & 0x0F;
+    if (d >= 10) {
+      System.out.print((char) (d - 10 + 'a'));
+    } else {
+      System.out.print(d);
+    }
+
+    d = 0;
+  }
+
+  public static byte[] hexs2Bytes(byte[] a) {
+    if (ArrayUtils.isEmpty(a)) {
+      return null;
+    }
+    if ((a.length & 0x01) != 0) {
+      return null;
+    }
+    byte[] result = new byte[a.length / 2];
+    for (int i = 0; i < result.length; i++) {
+      byte h = a[i * 2];
+      byte l = a[i * 2 + 1];
+      if (h >= '0' && h <= '9') {
+        result[i] = (byte) ((h - '0') << 4);
+      } else if (h >= 'a' && h <= 'f') {
+        result[i] = (byte) ((h - 'a' + 10) << 4);
+      } else if (h >= 'A' && h <= 'F') {
+        result[i] = (byte) ((h - 'A' + 10) << 4);
+      } else {
+        return null;
+      }
+
+      if (l >= '0' && l <= '9') {
+        result[i] += (l - '0');
+      } else if (l >= 'a' && l <= 'f') {
+        result[i] += (l - 'a' + 10);
+      } else if (l >= 'A' && l <= 'F') {
+        result[i] += (l - 'A' + 10);
+      } else {
+        return null;
+      }
+      h = l = 0;
+    }
+    return result;
+  }
 }

@@ -168,7 +168,7 @@ public class Wallet {
     return Hash.sha3(result);
   }
 
-  public static ECKey decrypt(byte[] password, WalletFile walletFile)
+  public static byte[] decrypt2PrivateBytes(byte[] password, WalletFile walletFile)
       throws CipherException {
 
     validate(walletFile);
@@ -210,10 +210,19 @@ public class Wallet {
     }
 
     byte[] encryptKey = Arrays.copyOfRange(derivedKey, 0, 16);
+    StringUtils.clear(derivedKey);
     byte[] privateKey = performCipherOperation(Cipher.DECRYPT_MODE, iv, encryptKey, cipherText);
+    StringUtils.clear(encryptKey);
 
-    return ECKey.fromPrivate(privateKey);
+    return privateKey;
+  }
 
+  public static ECKey decrypt(byte[] password, WalletFile walletFile)
+      throws CipherException {
+    byte[] privateKey = decrypt2PrivateBytes(password, walletFile);
+    ECKey ecKey = ECKey.fromPrivate(privateKey);
+    StringUtils.clear(privateKey);
+    return ecKey;
   }
 
   static void validate(WalletFile walletFile) throws CipherException {

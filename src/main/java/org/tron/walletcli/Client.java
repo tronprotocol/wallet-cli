@@ -41,7 +41,7 @@ public class Client {
     return keystoreName;
   }
 
-  public String importWallet(char[] password, String priKey) throws CipherException, IOException {
+  public String importWallet(char[] password, byte[] priKey) throws CipherException, IOException {
     if (!WalletClient.passwordValid(password)) {
       return null;
     }
@@ -101,7 +101,7 @@ public class Client {
   }
 
   //password is current, will be enc by password2.
-  public String backupWallet(char[] password) throws IOException, CipherException {
+  public byte[] backupWallet(char[] password) throws IOException, CipherException {
     byte[] passwd = StringUtils.char2Byte(password);
 
     if (wallet == null || !wallet.isLoginState()) {
@@ -114,11 +114,10 @@ public class Client {
       }
     }
 
-    ECKey ecKey = wallet.getEcKey(passwd);
+    byte[] privateKey = wallet.getPrivateBytes(passwd);
     StringUtils.clear(passwd);
 
-    String priKey = ByteArray.toHexString(ecKey.getPrivKeyBytes());
-    return priKey;
+    return privateKey;
   }
 
   public String getAddress() {

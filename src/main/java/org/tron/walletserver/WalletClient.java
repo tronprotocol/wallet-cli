@@ -156,8 +156,8 @@ public class WalletClient {
   }
 
   //  Create Wallet with a pritKey
-  public WalletClient(byte[] password, String priKey) throws CipherException {
-    ECKey ecKey = ECKey.fromPrivate(ByteArray.fromHexString(priKey));
+  public WalletClient(byte[] password, byte[] priKey) throws CipherException {
+    ECKey ecKey = ECKey.fromPrivate(priKey);
     this.walletFile = Wallet.createStandard(password, ecKey);
     this.address = ecKey.getAddress();
   }
@@ -190,6 +190,15 @@ public class WalletClient {
       this.address = decodeFromBase58Check(credentials.getAddress());
     }
     return Wallet.decrypt(password, walletFile);
+  }
+
+  public byte[] getPrivateBytes(byte[] password) throws CipherException, IOException {
+    if (walletFile == null) {
+      Credentials credentials = loadCredentials(password);
+      this.walletFile = Wallet.createStandard(password, credentials.getEcKeyPair());
+      this.address = decodeFromBase58Check(credentials.getAddress());
+    }
+    return Wallet.decrypt2PrivateBytes(password, walletFile);
   }
 
   public byte[] getAddress() {
@@ -735,13 +744,13 @@ public class WalletClient {
     return address;
   }
 
-  public static boolean priKeyValid(String priKey) {
-    if (StringUtils.isEmpty(priKey)) {
+  public static boolean priKeyValid(byte[] priKey) {
+    if (ArrayUtils.isEmpty(priKey)) {
       logger.warn("Warning: PrivateKey is empty !!");
       return false;
     }
-    if (priKey.length() != 64) {
-      logger.warn("Warning: PrivateKey length need 64 but " + priKey.length() + " !!");
+    if (priKey.length != 32) {
+      logger.warn("Warning: PrivateKey length need 64 but " + priKey.length + " !!");
       return false;
     }
     //Other rule;
