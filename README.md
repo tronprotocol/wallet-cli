@@ -24,7 +24,7 @@ soliditynode = {
   ip.list = [
     "solidity ip : port"
   ]
-}//note: solidity node is optional, only fullnode is ok.
+}//note: solidity node is optional
 
 Build and run wallet-cli by command line
 ----------------------------------------
