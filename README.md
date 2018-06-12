@@ -30,17 +30,20 @@ Build and run wallet-cli by command line
 ----------------------------------------
 Create a new command line terminal window.
 
+```
 cd wallet-cli  
 ./gradlew build      
 ./gradlew run
+```
 
 Build and run web wallet
 ----------------------------------------
+```
 cd wallet-cli  
-./gradlew build      
-cd build
-cd libs          
+./gradlew build
+cd build/libs
 java -jar wallet-cli.jar
+```
 
 
 How wallet-cli connects to java-tron :
