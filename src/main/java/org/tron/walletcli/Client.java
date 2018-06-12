@@ -2,14 +2,14 @@ package org.tron.walletcli;
 
 import com.google.protobuf.ByteString;
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tron.api.GrpcAPI;
 import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.NodeList;
 import org.tron.api.GrpcAPI.WitnessList;
-import org.tron.common.crypto.ECKey;
-import org.tron.common.utils.ByteArray;
 import org.tron.core.exception.CancelException;
 import org.tron.core.exception.CipherException;
 import org.tron.keystore.StringUtils;
@@ -17,9 +17,6 @@ import org.tron.protos.Contract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
 import org.tron.walletserver.WalletClient;
-
-import java.util.HashMap;
-import java.util.Optional;
 
 public class Client {
 
@@ -269,8 +266,8 @@ public class Client {
     return wallet.updateWitness(url.getBytes());
   }
 
-  public Block GetBlock(long blockNum) {
-    return WalletClient.GetBlock(blockNum);
+  public Block getBlock(long blockNum) {
+    return WalletClient.getBlock(blockNum);
   }
 
   public boolean voteWitness(HashMap<String, String> witness)
