@@ -192,6 +192,15 @@ public class WalletClient {
     return Wallet.decrypt(password, walletFile);
   }
 
+  public byte[] getPrivateBytes(byte[] password) throws CipherException, IOException {
+    if (walletFile == null) {
+      Credentials credentials = loadCredentials(password);
+      this.walletFile = Wallet.createStandard(password, credentials.getEcKeyPair());
+      this.address = decodeFromBase58Check(credentials.getAddress());
+    }
+    return Wallet.decrypt2PrivateBytes(password, walletFile);
+  }
+
   public byte[] getAddress() {
     return address;
   }

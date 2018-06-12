@@ -12,6 +12,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 import java.util.Scanner;
+import org.apache.commons.lang3.ArrayUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tron.api.GrpcAPI.AccountNetMessage;
@@ -166,27 +167,36 @@ public class TestClient {
     System.out.println("Please input your password.");
     char[] password = Utils.inputPassword(false);
 
-    String priKey = client.backupWallet(password);
+    byte[] priKey = client.backupWallet(password);
     StringUtils.clear(password);
 
-    if (priKey != null) {
+    if (!ArrayUtils.isEmpty(priKey)) {
       System.out.println("Backup a wallet successful !!");
-      System.out.println("priKey = " + priKey);
+      for (int i = 0; i < priKey.length; i++) {
+        StringUtils.printOneByte(priKey[i]);
+      }
+      System.out.println();
     }
+    StringUtils.clear(priKey);
   }
 
   private void backupWallet2Base64() throws IOException, CipherException {
     System.out.println("Please input your password.");
     char[] password = Utils.inputPassword(false);
 
-    String priKey = client.backupWallet(password);
+    byte[] priKey = client.backupWallet(password);
     StringUtils.clear(password);
 
-    Encoder encoder = Base64.getEncoder();
-    String priKey64 = encoder.encodeToString(ByteArray.fromHexString(priKey));
-    if (priKey != null) {
+    if (!ArrayUtils.isEmpty(priKey)) {
+      Encoder encoder = Base64.getEncoder();
+      byte[] priKey64 = encoder.encode(priKey);
+      StringUtils.clear(priKey);
       System.out.println("Backup a wallet successful !!");
-      System.out.println("priKey = " + priKey64);
+      for (int i = 0; i < priKey64.length; i++) {
+        System.out.print((char)priKey64[i]);
+      }
+      System.out.println();
+      StringUtils.clear(priKey64);
     }
   }
 
@@ -591,7 +601,7 @@ public class TestClient {
     }
     int offset = Integer.parseInt(parameters[0]);
     int limit = Integer.parseInt(parameters[1]);
-    Optional<AssetIssueList> result = client.getAssetIssueList(offset,limit);
+    Optional<AssetIssueList> result = client.getAssetIssueList(offset, limit);
     if (result.isPresent()) {
       AssetIssueList assetIssueList = result.get();
       logger.info(Utils.printAssetIssueList(assetIssueList));

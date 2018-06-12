@@ -162,7 +162,7 @@ public class StringUtils {
         continue;
       }
       if ((b & 0xF0) == 0xE0 && a.length - i >= 2) {
-        result[j++] = (char) ((a[i + 2] & 0x3F) | ((a[i + 1] & 0x3F) << 6) | ((b&0x0F)<<12));
+        result[j++] = (char) ((a[i + 2] & 0x3F) | ((a[i + 1] & 0x3F) << 6) | ((b & 0x0F) << 12));
         i += 3;
         continue;
       }
@@ -172,4 +172,21 @@ public class StringUtils {
     return result;
   }
 
+  public static void printOneByte(byte b) {
+    int d = (b >> 4) & 0x0F;
+    if (d >= 10) {
+      System.out.print((char) (d - 10 + 'a'));
+    } else {
+      System.out.print(d);
+    }
+
+    d = b & 0x0F;
+    if (d >= 10) {
+      System.out.print((char) (d - 10 + 'a'));
+    } else {
+      System.out.print(d);
+    }
+
+    d = 0;
+  }
 }
