@@ -11,7 +11,7 @@ import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.walletserver.WalletClient;
 
-public class TransacitonSignDemo {
+public class TransactionSignDemo {
 
   public static Transaction setReference(Transaction transaction, Block newestBlock) {
     long blockHeight = newestBlock.getBlockHeader().getRawData().getNumber();
@@ -27,6 +27,12 @@ public class TransacitonSignDemo {
   public static Sha256Hash getBlockHash(Block block) {
     return Sha256Hash.of(block.getBlockHeader().getRawData().toByteArray());
   }
+
+  public static String getTransactionHash(Transaction transaction) {
+    String txid = ByteArray.toHexString(Sha256Hash.hash(transaction.getRawData().toByteArray()));
+    return txid;
+  }
+
 
   public static Transaction createTransaction(byte[] from, byte[] to, long amount) {
     Transaction.Builder transactionBuilder = Transaction.newBuilder();
