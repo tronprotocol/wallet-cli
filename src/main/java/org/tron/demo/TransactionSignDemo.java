@@ -28,6 +28,12 @@ public class TransactionSignDemo {
     return Sha256Hash.of(block.getBlockHeader().getRawData().toByteArray());
   }
 
+  public static String getTransactionHash(Transaction transaction) {
+    String txid = ByteArray.toHexString(Sha256Hash.hash(transaction.getRawData().toByteArray()));
+    return txid;
+  }
+
+
   public static Transaction createTransaction(byte[] from, byte[] to, long amount) {
     Transaction.Builder transactionBuilder = Transaction.newBuilder();
     Block newestBlock = WalletClient.getBlock(-1);
