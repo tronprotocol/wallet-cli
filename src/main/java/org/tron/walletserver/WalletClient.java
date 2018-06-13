@@ -175,10 +175,14 @@ public class WalletClient {
     loginState = true;
   }
 
+  public boolean checkPassword(byte[] passwd) throws CipherException {
+    return Wallet.validPassword(passwd, this.walletFile);
+  }
+
   /**
    * Creates a Wallet with an existing ECKey.
    */
-  public WalletClient(WalletFile walletFile) throws CipherException {
+  public WalletClient(WalletFile walletFile) {
     this.walletFile = walletFile;
     this.address = decodeFromBase58Check(walletFile.getAddress());
   }
