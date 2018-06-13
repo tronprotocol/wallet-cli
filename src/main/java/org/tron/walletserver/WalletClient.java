@@ -215,16 +215,16 @@ public class WalletClient {
     File file = new File(FilePath);
     if (!file.exists()) {
       if (!file.mkdir()) {
-        throw new IOException("Make directory faild!");
+        throw new IOException("Make directory failed!");
       }
     } else {
       if (!file.isDirectory()) {
         if (file.delete()) {
           if (!file.mkdir()) {
-            throw new IOException("Make directory faild!");
+            throw new IOException("Make directory failed!");
           }
         } else {
-          throw new IOException("File is exists and can not delete!");
+          throw new IOException("File exists and can not be deleted!");
         }
       }
     }
@@ -245,7 +245,7 @@ public class WalletClient {
     File wallet;
     if (wallets.length > 1) {
       for (int i = 0; i < wallets.length; i++) {
-        System.out.println("The " + (i + 1) + "th keystore fime name is " + wallets[i].getName());
+        System.out.println("The " + (i + 1) + "the keystore file name is " + wallets[i].getName());
       }
       System.out.println("Please choose between 1 and " + wallets.length);
       Scanner in = new Scanner(System.in);
@@ -279,7 +279,7 @@ public class WalletClient {
     File wallet = selcetWalletFile();
     if (wallet == null) {
       throw new IOException(
-          "No keystore file be found, please registerwallet or importwallet first!");
+          "No keystore file found, please use registerwallet or importwallet first!");
     }
     Credentials credentials = WalletUtils.loadCredentials(oldPassword, wallet);
     WalletUtils.updateWalletFile(newPassowrd, credentials.getEcKeyPair(), wallet, true);
@@ -291,7 +291,7 @@ public class WalletClient {
     File wallet = selcetWalletFile();
     if (wallet == null) {
       throw new IOException(
-          "No keystore file be found, please registerwallet or importwallet first!");
+          "No keystore file found, please use registerwallet or importwallet first!");
     }
     return WalletUtils.loadWalletFile(wallet);
   }
