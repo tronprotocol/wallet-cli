@@ -178,25 +178,23 @@ public class WalletClient {
   /**
    * Creates a Wallet with an existing ECKey.
    */
-  public WalletClient(byte[] password, final ECKey ecKey, String address) throws CipherException {
-    this.walletFile = Wallet.createStandard(password, ecKey);
-    this.address = decodeFromBase58Check(address);
+  public WalletClient(WalletFile walletFile) throws CipherException {
+    this.walletFile = walletFile;
+    this.address = decodeFromBase58Check(walletFile.getAddress());
   }
 
   public ECKey getEcKey(byte[] password) throws CipherException, IOException {
     if (walletFile == null) {
-      Credentials credentials = loadCredentials(password);
-      this.walletFile = Wallet.createStandard(password, credentials.getEcKeyPair());
-      this.address = decodeFromBase58Check(credentials.getAddress());
+      this.walletFile = loadWalletFile();
+      this.address = decodeFromBase58Check(this.walletFile.getAddress());
     }
     return Wallet.decrypt(password, walletFile);
   }
 
   public byte[] getPrivateBytes(byte[] password) throws CipherException, IOException {
     if (walletFile == null) {
-      Credentials credentials = loadCredentials(password);
-      this.walletFile = Wallet.createStandard(password, credentials.getEcKeyPair());
-      this.address = decodeFromBase58Check(credentials.getAddress());
+      this.walletFile = loadWalletFile();
+      this.address = decodeFromBase58Check(this.walletFile.getAddress());
     }
     return Wallet.decrypt2PrivateBytes(password, walletFile);
   }
@@ -275,31 +273,32 @@ public class WalletClient {
   public static boolean changeKeystorePassword(byte[] oldPassword, byte[] newPassowrd)
       throws IOException, CipherException {
     File wallet = selcetWalletFile();
-    if (wallet == null){
-      throw new IOException("No keystore file be found, please registerwallet or importwallet first!");
+    if (wallet == null) {
+      throw new IOException(
+          "No keystore file be found, please registerwallet or importwallet first!");
     }
     Credentials credentials = WalletUtils.loadCredentials(oldPassword, wallet);
     WalletUtils.updateWalletFile(newPassowrd, credentials.getEcKeyPair(), wallet, true);
     return true;
   }
 
-  private static Credentials loadCredentials(byte[] password) throws IOException, CipherException {
+
+  private static WalletFile loadWalletFile() throws IOException {
     File wallet = selcetWalletFile();
     if (wallet == null) {
       throw new IOException(
           "No keystore file be found, please registerwallet or importwallet first!");
     }
-    return WalletUtils.loadCredentials(password, wallet);
+    return WalletUtils.loadWalletFile(wallet);
   }
 
   /**
    * load a Wallet from keystore
    */
-  public static WalletClient loadWalletFromKeystore(byte[] password)
+  public static WalletClient loadWalletFromKeystore()
       throws IOException, CipherException {
-    Credentials credentials = loadCredentials(password);
-    WalletClient walletClient = new WalletClient(password, credentials.getEcKeyPair(),
-        credentials.getAddress());
+    WalletFile walletFile = loadWalletFile();
+    WalletClient walletClient = new WalletClient(walletFile);
     return walletClient;
   }
 

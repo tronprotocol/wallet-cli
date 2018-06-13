@@ -129,6 +129,10 @@ public class WalletUtils {
     WalletFile walletFile = objectMapper.readValue(source, WalletFile.class);
     return Credentials.create(Wallet.decrypt(password, walletFile));
   }
+
+  public static WalletFile loadWalletFile(File source) throws IOException {
+   return objectMapper.readValue(source, WalletFile.class);
+  }
 //
 //    public static Credentials loadBip39Credentials(String password, String mnemonic) {
 //        byte[] seed = MnemonicUtils.generateSeed(mnemonic, password);
