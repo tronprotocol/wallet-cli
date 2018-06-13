@@ -78,7 +78,7 @@ public class Client {
     logout();
     byte[] passwd = StringUtils.char2Byte(password);
 
-    wallet = WalletClient.loadWalletFromKeystore(passwd);
+    wallet = WalletClient.loadWalletFromKeystore();
     StringUtils.clear(passwd);
 
     if (wallet == null) {
@@ -102,7 +102,7 @@ public class Client {
     byte[] passwd = StringUtils.char2Byte(password);
 
     if (wallet == null || !wallet.isLoginState()) {
-      wallet = WalletClient.loadWalletFromKeystore(passwd);
+      wallet = WalletClient.loadWalletFromKeystore();
 
       if (wallet == null) {
         StringUtils.clear(passwd);
