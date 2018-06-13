@@ -217,6 +217,49 @@ public class Wallet {
     return privateKey;
   }
 
+  public static boolean validPassword (byte[] password, WalletFile walletFile)
+      throws CipherException {
+
+    validate(walletFile);
+
+    WalletFile.Crypto crypto = walletFile.getCrypto();
+
+    byte[] mac = ByteArray.fromHexString(crypto.getMac());
+    byte[] cipherText = ByteArray.fromHexString(crypto.getCiphertext());
+
+    byte[] derivedKey;
+
+    WalletFile.KdfParams kdfParams = crypto.getKdfparams();
+    if (kdfParams instanceof WalletFile.ScryptKdfParams) {
+      WalletFile.ScryptKdfParams scryptKdfParams =
+          (WalletFile.ScryptKdfParams) crypto.getKdfparams();
+      int dklen = scryptKdfParams.getDklen();
+      int n = scryptKdfParams.getN();
+      int p = scryptKdfParams.getP();
+      int r = scryptKdfParams.getR();
+      byte[] salt = ByteArray.fromHexString(scryptKdfParams.getSalt());
+      derivedKey = generateDerivedScryptKey(password, salt, n, r, p, dklen);
+    } else if (kdfParams instanceof WalletFile.Aes128CtrKdfParams) {
+      WalletFile.Aes128CtrKdfParams aes128CtrKdfParams =
+          (WalletFile.Aes128CtrKdfParams) crypto.getKdfparams();
+      int c = aes128CtrKdfParams.getC();
+      String prf = aes128CtrKdfParams.getPrf();
+      byte[] salt = ByteArray.fromHexString(aes128CtrKdfParams.getSalt());
+
+      derivedKey = generateAes128CtrDerivedKey(password, salt, c, prf);
+    } else {
+      throw new CipherException("Unable to deserialize params: " + crypto.getKdf());
+    }
+
+    byte[] derivedMac = generateMac(derivedKey, cipherText);
+    StringUtils.clear(derivedKey);
+    if (!Arrays.equals(derivedMac, mac)) {
+      throw new CipherException("Invalid password provided");
+    }
+
+    return true;
+  }
+
   public static ECKey decrypt(byte[] password, WalletFile walletFile)
       throws CipherException {
     byte[] privateKey = decrypt2PrivateBytes(password, walletFile);
