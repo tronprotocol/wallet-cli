@@ -864,7 +864,7 @@ public class Utils {
         int len = System.in.read(passwd0, 0, passwd0.length);
         int i;
         for (i = 0; i < len; i++) {
-          if (passwd0[i] <= 0x20 && passwd0[i] >= 0x00) {
+          if (passwd0[i] == 0x09 || passwd0[i] == 0x0A) {
             break;
           }
         }
