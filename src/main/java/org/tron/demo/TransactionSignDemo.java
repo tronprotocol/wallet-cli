@@ -11,7 +11,7 @@ import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.walletserver.WalletClient;
 
-public class TransacitonSignDemo {
+public class TransactionSignDemo {
 
   public static Transaction setReference(Transaction transaction, Block newestBlock) {
     long blockHeight = newestBlock.getBlockHeader().getRawData().getNumber();
