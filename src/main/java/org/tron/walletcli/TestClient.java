@@ -122,7 +122,7 @@ public class TestClient {
       System.out.println("Import wallet failed !!");
       return;
     }
-    System.out.println("ImportImport a wallet successful, keystore file name is " + fileName);
+    System.out.println("Import a wallet successful, keystore file name is " + fileName);
   }
 
   private void importwalletByBase64() throws CipherException, IOException {
@@ -137,7 +137,7 @@ public class TestClient {
       System.out.println("Import wallet failed !!");
       return;
     }
-    System.out.println("ImportImport a wallet successful, keystore file name is " + fileName);
+    System.out.println("Import a wallet successful, keystore file name is " + fileName);
   }
 
   private void changePassword() throws IOException, CipherException {
@@ -232,7 +232,7 @@ public class TestClient {
 
   private void getAccount(String[] parameters) {
     if (parameters == null || parameters.length != 1) {
-      System.out.println("GetAccount need 1 parameter like following: ");
+      System.out.println("GetAccount needs 1 parameter like the following: ");
       System.out.println("GetAccount Address ");
       return;
     }
@@ -253,7 +253,7 @@ public class TestClient {
   private void updateAccount(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length != 1) {
-      System.out.println("UpdateAccount need 1 parameter like following: ");
+      System.out.println("UpdateAccount needs 1 parameter like the following: ");
       System.out.println("UpdateAccount AccountName ");
       return;
     }
@@ -263,7 +263,7 @@ public class TestClient {
 
     boolean ret = client.updateAccount(accountNameBytes);
     if (ret) {
-      logger.info("Update Account success !!!!");
+      logger.info("Update Account successful !!!!");
     } else {
       logger.info("Update Account failed !!!!");
     }
@@ -272,7 +272,7 @@ public class TestClient {
   private void updateAsset(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length != 4) {
-      System.out.println("UpdateAsset need 4 parameter like following: ");
+      System.out.println("UpdateAsset needs 4 parameters like the following: ");
       System.out.println("UpdateAsset newLimit newPublicLimit description url");
       return;
     }
@@ -289,7 +289,7 @@ public class TestClient {
 
     boolean ret = client.updateAsset(descriptionBytes, urlBytes, newLimit, newPublicLimit);
     if (ret) {
-      logger.info("Update Asset success !!!!");
+      logger.info("Update Asset successful !!!!");
     } else {
       logger.info("Update Asset failed !!!!");
     }
@@ -297,7 +297,7 @@ public class TestClient {
 
   private void getAssetIssueByAccount(String[] parameters) {
     if (parameters == null || parameters.length != 1) {
-      System.out.println("GetAssetIssueByAccount need 1 parameter like following: ");
+      System.out.println("GetAssetIssueByAccount needs 1 parameter like following: ");
       System.out.println("GetAssetIssueByAccount Address ");
       return;
     }
@@ -318,7 +318,7 @@ public class TestClient {
 
   private void getAccountNet(String[] parameters) {
     if (parameters == null || parameters.length != 1) {
-      System.out.println("GetAccountNet need 1 parameter like following: ");
+      System.out.println("GetAccountNet needs 1 parameter like following: ");
       System.out.println("GetAccountNet Address ");
       return;
     }
@@ -338,7 +338,7 @@ public class TestClient {
 
   private void getAssetIssueByName(String[] parameters) {
     if (parameters == null || parameters.length != 1) {
-      System.out.println("GetAssetIssueByName need 1 parameter like following: ");
+      System.out.println("GetAssetIssueByName needs 1 parameter like following: ");
       System.out.println("GetAssetIssueByName AssetName ");
       return;
     }
@@ -354,7 +354,7 @@ public class TestClient {
 
   private void sendCoin(String[] parameters) throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length != 2) {
-      System.out.println("SendCoin need 2 parameter like following: ");
+      System.out.println("SendCoin needs 2 parameters like following: ");
       System.out.println("SendCoin ToAddress Amount");
       return;
     }
@@ -436,7 +436,7 @@ public class TestClient {
   private void transferAsset(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length != 3) {
-      System.out.println("TransferAsset need 3 parameter like following: ");
+      System.out.println("TransferAsset needs 3 parameters like following: ");
       System.out.println("TransferAsset ToAddress AssertName Amount");
       return;
     }
@@ -457,7 +457,7 @@ public class TestClient {
   private void participateAssetIssue(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length != 3) {
-      System.out.println("ParticipateAssetIssue need 3 parameter like following: ");
+      System.out.println("ParticipateAssetIssue needs 3 parameters like following: ");
       System.out.println("ParticipateAssetIssue ToAddress AssetName Amount");
       return;
     }
@@ -480,7 +480,7 @@ public class TestClient {
   private void assetIssue(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length < 10 || (parameters.length & 1) == 1) {
-      System.out.println("Use assetIssue command you need like: ");
+      System.out.println("Use the assetIssue command for features that you require with below syntax: ");
       System.out.println(
           "AssetIssue AssetName TotalSupply TrxNum AssetNum "
               + "StartDate EndDate Description Url FreeNetLimitPerAccount PublicFreeNetLimit"
@@ -533,7 +533,7 @@ public class TestClient {
   private void createAccount(String[] parameters)
       throws CipherException, IOException, CancelException {
     if (parameters == null || parameters.length != 1) {
-      System.out.println("CreateAccount need 1 parameter like following: ");
+      System.out.println("CreateAccount needs 1 parameter like following: ");
       System.out.println("CreateAccount Address");
       return;
     }
@@ -551,7 +551,7 @@ public class TestClient {
   private void createWitness(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length != 1) {
-      System.out.println("CreateWitness need 1 parameter like following: ");
+      System.out.println("CreateWitness needs 1 parameter like following: ");
       System.out.println("CreateWitness Url");
       return;
     }
@@ -569,7 +569,7 @@ public class TestClient {
   private void updateWitness(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length != 1) {
-      System.out.println("updateWitness need 1 parameter like following: ");
+      System.out.println("updateWitness needs 1 parameter like following: ");
       System.out.println("updateWitness Url");
       return;
     }
@@ -606,7 +606,7 @@ public class TestClient {
 
   private void getAssetIssueList(String[] parameters) {
     if (parameters == null || parameters.length != 2) {
-      System.out.println("Use listassetissuepaginated command you need like: ");
+      System.out.println("Use the listassetissuepaginated command for features that you require with below syntax: ");
       System.out.println("listassetissuepaginated offset limit ");
       return;
     }
@@ -643,10 +643,10 @@ public class TestClient {
       System.out.println("Get current block !!!!");
     } else {
       if (parameters.length != 1) {
-        System.out.println("Get block too many paramters !!!");
-        System.out.println("You can get current block like:");
+        System.out.println("Getblock has too many parameters !!!");
+        System.out.println("You can get current block using the following command:");
         System.out.println("Getblock");
-        System.out.println("Or get block by number like:");
+        System.out.println("Or get block by number with the following syntax:");
         System.out.println("Getblock BlockNum");
       }
       blockNum = Long.parseLong(parameters[0]);
@@ -662,7 +662,7 @@ public class TestClient {
   private void voteWitness(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length < 2 || (parameters.length & 1) != 0) {
-      System.out.println("Use VoteWitness command you need like: ");
+      System.out.println("Use VoteWitness command with below syntax: ");
       System.out.println("VoteWitness Address0 Count0 ... AddressN CountN");
       return;
     }
@@ -685,7 +685,7 @@ public class TestClient {
   private void freezeBalance(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length != 2) {
-      System.out.println("Use freezeBalance command you need like: ");
+      System.out.println("Use freezeBalance command with below syntax:: ");
       System.out.println("freezeBalance frozen_balance frozen_duration ");
       return;
     }
@@ -810,7 +810,7 @@ public class TestClient {
   private void getTransactionById(String[] parameters) {
     String txid = "";
     if (parameters == null || parameters.length != 1) {
-      System.out.println("getTransactionById needs 1 parameters, transaction id");
+      System.out.println("getTransactionById needs 1 parameter, transaction id");
       return;
     } else {
       txid = parameters[0];
@@ -826,7 +826,7 @@ public class TestClient {
 
   private void getTransactionsFromThis(String[] parameters) {
     if (parameters == null || parameters.length != 3) {
-      System.out.println("GetTransactionsFromThis need 3 parameter like following: ");
+      System.out.println("GetTransactionsFromThis needs 3 parameters, use the following syntax: ");
       System.out.println("GetTransactionsFromThis Address offset limit");
       return;
     }
@@ -866,7 +866,7 @@ public class TestClient {
 
   private void getTransactionsToThis(String[] parameters) {
     if (parameters == null || parameters.length != 3) {
-      System.out.println("getTransactionsToThis need 3 parameter like following: ");
+      System.out.println("getTransactionsToThis needs 3 parameters, use the following syntax: ");
       System.out.println("getTransactionsToThis Address offset limit");
       return;
     }
@@ -907,7 +907,7 @@ public class TestClient {
   private void getBlockById(String[] parameters) {
     String blockID = "";
     if (parameters == null || parameters.length != 1) {
-      System.out.println("getBlockById needs 1 parameters, block id which is hex format");
+      System.out.println("getBlockById needs 1 parameter, block id which is hex format");
       return;
     } else {
       blockID = parameters[0];
@@ -944,7 +944,7 @@ public class TestClient {
   private void getBlockByLatestNum(String[] parameters) {
     long num = 0;
     if (parameters == null || parameters.length != 1) {
-      System.out.println("getBlockByLatestNum needs 1 parameters, block num");
+      System.out.println("getBlockByLatestNum needs 1 parameter, block num");
       return;
     } else {
       num = Long.parseLong(parameters[0]);
@@ -959,7 +959,7 @@ public class TestClient {
   }
 
   private void help() {
-    System.out.println("You can enter the following command: ");
+    System.out.println("You can use the following commands in Wallet Cli: ");
 
     System.out.println("RegisterWallet");
     System.out.println("ImportWallet");
@@ -1009,7 +1009,7 @@ public class TestClient {
     System.out.println("UnfreezeAsset");
     System.out.println("Exit or Quit");
 
-    System.out.println("Input any one of then, you will get more tips.");
+    System.out.println("Input any one of the listed commands, to display how-to tips.");
   }
 
   private void run() {
