@@ -76,9 +76,10 @@ public class Client {
 
   public boolean login(char[] password) throws IOException, CipherException {
     logout();
-    byte[] passwd = StringUtils.char2Byte(password);
-
     wallet = WalletClient.loadWalletFromKeystore();
+
+    byte[] passwd = StringUtils.char2Byte(password);
+    wallet.checkPassword(passwd);
     StringUtils.clear(passwd);
 
     if (wallet == null) {
@@ -300,7 +301,7 @@ public class Client {
 
   public Optional<AssetIssueList> getAssetIssueList(long offset, long limit) {
     try {
-      return WalletClient.getAssetIssueList(offset,limit);
+      return WalletClient.getAssetIssueList(offset, limit);
     } catch (Exception ex) {
       ex.printStackTrace();
       return Optional.empty();
