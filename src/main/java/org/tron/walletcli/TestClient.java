@@ -970,7 +970,7 @@ public class TestClient {
   private void deployContract(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null ||
-            parameters.length != 6) {
+            parameters.length < 4) {
       System.out.println("Create contract invalid arguments");
       return;
     }
@@ -979,8 +979,12 @@ public class TestClient {
     String contractAddrStr = parameters[1];
     String abiStr = parameters[2];
     String codeStr = parameters[3];
-    String data = parameters[4];
-    String value = parameters[5];
+    String data = null;
+    String value = null;
+    if (parameters.length > 4)
+      data = parameters[4];
+    if (parameters.length > 5)
+      value = parameters[5];
 
     boolean result = client.deployContract(passwordStr, contractAddrStr, abiStr, codeStr, data, value);
     if (result) {
@@ -993,7 +997,7 @@ public class TestClient {
   private void triggerContract(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null ||
-            parameters.length < 3) {
+            parameters.length < 5) {
       System.out.println("Call contract invalid arguments");
       return;
     }
@@ -1002,10 +1006,14 @@ public class TestClient {
     String contractAddrStr = parameters[1];
     String selectorStr = parameters[2];
     String dataStr = parameters[3];
+    String valueStr = parameters[4];
+    if(dataStr.equalsIgnoreCase("#")){
+      dataStr="";
+    }
 
     byte[] contractAddress = WalletClient.decodeFromBase58Check(contractAddrStr);
     byte[] data;
-    byte[] callValue = null;
+    byte[] callValue = Hex.decode(valueStr);
     byte[] selector = new byte[4];
     System.arraycopy(Hash.sha3(selectorStr.getBytes()), 0, selector, 0, 4);
     System.out.println(selectorStr + ":" + Hex.toHexString(selector));
