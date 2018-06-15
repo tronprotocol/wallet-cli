@@ -1015,13 +1015,13 @@ public class TestClient {
 
   private void run() {
     Scanner in = new Scanner(System.in);
-    System.out.println("-------------------------------------------------------------");
+    System.out.println(" ");
     System.out.println("Welcome to Tron Wallet-Cli");
     System.out.println("Please type one of the following commands to proceed.");
     System.out.println("Login, RegisterWallet or ImportWallet");
     System.out.println(" ");
     System.out.println("You may also use the Help command at anytime to display a full list of commands.");
-    System.out.println("------------------------------------------------------------);
+    System.out.println(" ");
     while (in.hasNextLine()) {
       String cmd = "";
       try {
