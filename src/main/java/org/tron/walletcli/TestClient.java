@@ -182,7 +182,7 @@ public class TestClient {
     StringUtils.clear(password);
 
     if (!ArrayUtils.isEmpty(priKey)) {
-      System.out.println("Backup a wallet successful !!");
+      System.out.println("BackupWallet successful !!");
       for (int i = 0; i < priKey.length; i++) {
         StringUtils.printOneByte(priKey[i]);
       }
@@ -202,7 +202,7 @@ public class TestClient {
       Encoder encoder = Base64.getEncoder();
       byte[] priKey64 = encoder.encode(priKey);
       StringUtils.clear(priKey);
-      System.out.println("Backup a wallet successful !!");
+      System.out.println("BackupWallet successful !!");
       for (int i = 0; i < priKey64.length; i++) {
         System.out.print((char) priKey64[i]);
       }
@@ -222,7 +222,7 @@ public class TestClient {
   private void getBalance() {
     Account account = client.queryAccount();
     if (account == null) {
-      logger.info("Get Balance failed !!!!");
+      logger.info("GetBalance failed !!!!");
 
     } else {
       long balance = account.getBalance();
@@ -244,7 +244,7 @@ public class TestClient {
 
     Account account = WalletClient.queryAccount(addressBytes);
     if (account == null) {
-      logger.info("Get Account failed !!!!");
+      logger.info("GetAccount failed !!!!");
     } else {
       logger.info("\n" + Utils.printAccount(account));
     }
@@ -374,10 +374,10 @@ public class TestClient {
   private void testTransaction(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || (parameters.length != 3 && parameters.length != 4)) {
-      System.out.println("testTransaction need 3 or 4 parameter like following: ");
+      System.out.println("testTransaction needs 3 or 4 parameters using the following syntax: ");
       System.out.println("testTransaction ToAddress assertName times");
       System.out.println("testTransaction ToAddress assertName times interval");
-      System.out.println("If needn't transferAsset, assertName input null");
+      System.out.println("If needing transferAsset, assertName input null");
       return;
     }
 
@@ -436,7 +436,7 @@ public class TestClient {
   private void transferAsset(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length != 3) {
-      System.out.println("TransferAsset needs 3 parameters like following: ");
+      System.out.println("TransferAsset needs 3 parameters using the following syntax: ");
       System.out.println("TransferAsset ToAddress AssertName Amount");
       return;
     }
@@ -457,7 +457,7 @@ public class TestClient {
   private void participateAssetIssue(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length != 3) {
-      System.out.println("ParticipateAssetIssue needs 3 parameters like following: ");
+      System.out.println("ParticipateAssetIssue needs 3 parameters using the following syntax: ");
       System.out.println("ParticipateAssetIssue ToAddress AssetName Amount");
       return;
     }
@@ -533,7 +533,7 @@ public class TestClient {
   private void createAccount(String[] parameters)
       throws CipherException, IOException, CancelException {
     if (parameters == null || parameters.length != 1) {
-      System.out.println("CreateAccount needs 1 parameter like following: ");
+      System.out.println("CreateAccount needs 1 parameter using the following syntax: ");
       System.out.println("CreateAccount Address");
       return;
     }
@@ -551,7 +551,7 @@ public class TestClient {
   private void createWitness(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length != 1) {
-      System.out.println("CreateWitness needs 1 parameter like following: ");
+      System.out.println("CreateWitness needs 1 parameter using the following syntax: ");
       System.out.println("CreateWitness Url");
       return;
     }
@@ -569,7 +569,7 @@ public class TestClient {
   private void updateWitness(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length != 1) {
-      System.out.println("updateWitness needs 1 parameter like following: ");
+      System.out.println("updateWitness needs 1 parameter using the following syntax: ");
       System.out.println("updateWitness Url");
       return;
     }
@@ -606,7 +606,7 @@ public class TestClient {
 
   private void getAssetIssueList(String[] parameters) {
     if (parameters == null || parameters.length != 2) {
-      System.out.println("Use the listassetissuepaginated command for features that you require with below syntax: ");
+      System.out.println("The listassetissuepaginated command needs 2 parameters, use the following syntax:");
       System.out.println("listassetissuepaginated offset limit ");
       return;
     }
@@ -685,7 +685,7 @@ public class TestClient {
   private void freezeBalance(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length != 2) {
-      System.out.println("Use freezeBalance command with below syntax:: ");
+      System.out.println("Use freezeBalance command with below syntax: ");
       System.out.println("freezeBalance frozen_balance frozen_duration ");
       return;
     }
@@ -959,8 +959,9 @@ public class TestClient {
   }
 
   private void help() {
-    System.out.println("You can use the following commands in Wallet Cli: ");
-
+    System.out.println("Help: List of Tron Wallet-cli commands");
+    System.out.println("For more information on a specific command, type the command and it will display tips");
+    System.out.println("");
     System.out.println("RegisterWallet");
     System.out.println("ImportWallet");
     System.out.println("ImportWalletByBase64");
@@ -1014,7 +1015,13 @@ public class TestClient {
 
   private void run() {
     Scanner in = new Scanner(System.in);
-    System.out.println("Please input your command.");
+    System.out.println(" ");
+    System.out.println("Welcome to Tron Wallet-Cli");
+    System.out.println("Please type one of the following commands to proceed.");
+    System.out.println("Login, RegisterWallet or ImportWallet");
+    System.out.println(" ");
+    System.out.println("You may also use the Help command at anytime to display a full list of commands.");
+    System.out.println(" ");
     while (in.hasNextLine()) {
       String cmd = "";
       try {
