@@ -285,10 +285,10 @@ service Wallet {
   }
   rpc GetPaginatedAssetIssueList (PaginatedMessage) returns (AssetIssueList) {
     option (google.api.http) = {
-        post: "/walletsolidity/getpaginatedassetissuelist"
+        post: "/wallet/getpaginatedassetissuelist"
         body: "*"
         additional_bindings {
-          get: "/walletsolidity/getpaginatedassetissuelist"
+          get: "/wallet/getpaginatedassetissuelist"
         }
       };
   }
@@ -313,10 +313,10 @@ service Wallet {
   //Warning: do not invoke this interface provided by others.
   rpc GetTransactionSign (TransactionSign) returns (Transaction) {
     option (google.api.http) = {
-      post: "/wallet/getTransactionSign"
+      post: "/wallet/gettransactionsign"
       body: "*"
       additional_bindings {
-        get: "/wallet/getTransactionSign"
+        get: "/wallet/gettransactionsign"
       }
     };
   };
@@ -353,11 +353,11 @@ service WalletSolidity {
     };
   }
   rpc GetPaginatedAssetIssueList (PaginatedMessage) returns (AssetIssueList) {
-    option (google.api.http) = {
-        post: "/wallet/getassetissuelist"
+       option (google.api.http) = {
+        post: "/walletsolidity/getpaginatedassetissuelist"
         body: "*"
         additional_bindings {
-          get: "/wallet/getassetissuelist"
+          get: "/walletsolidity/getpaginatedassetissuelist"
         }
       };
   }
