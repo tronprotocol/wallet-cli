@@ -48,6 +48,7 @@ import org.tron.protos.Contract.WithdrawBalanceContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.Transaction;
+import org.tron.protos.Protocol.TransactionSign;
 import org.tron.protos.Protocol.Witness;
 
 class AccountComparator implements Comparator {
@@ -341,6 +342,13 @@ public class WalletClient {
     transaction = TransactionUtils.sign(transaction, this.getEcKey(passwd));
     org.tron.keystore.StringUtils.clear(passwd);
     return transaction;
+  }
+  //Warning: do not invoke this interface that the node provided by others.
+  public static Transaction signTransactionByApi(Transaction transaction, byte[] privateKey) {
+    TransactionSign.Builder builder = TransactionSign.newBuilder();
+    builder.setPrivateKey(ByteString.copyFrom(privateKey));
+    builder.setTransaction(transaction);
+    return rpcCli.signTransaction(builder.build());
   }
 
   public boolean sendCoin(byte[] to, long amount)

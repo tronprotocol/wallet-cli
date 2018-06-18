@@ -30,6 +30,7 @@ import org.tron.protos.Contract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.Transaction;
+import org.tron.protos.Protocol.TransactionSign;
 
 public class GrpcClient {
 
@@ -80,6 +81,10 @@ public class GrpcClient {
     } else {
       return blockingStubFull.getAccount(request);
     }
+  }
+  //Warning: do not invoke this interface that the node provided by others.
+  public Transaction signTransaction(TransactionSign transactionSign) {
+    return blockingStubFull.getTransactionSign(transactionSign);
   }
 
   public Transaction createTransaction(Contract.AccountUpdateContract contract) {
