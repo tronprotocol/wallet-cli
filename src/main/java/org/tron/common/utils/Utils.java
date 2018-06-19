@@ -663,7 +663,26 @@ public class Utils {
   }
 
   public static String printRet(List<Result> resultList) {
-    return "";
+    String results = "";
+    int i = 0;
+    for(Result result: resultList){
+      results += "result: ";
+      results += i;
+      results += " ::: ";
+      results += "\n";
+      results += "[";
+      results += "\n";
+      results += "code ::: ";
+      results += result.getRet();
+      results += "\n";
+      results += "fee ::: ";
+      results += result.getFee();
+      results += "\n";
+      results += "]";
+      results += "\n";
+      i++;
+    }
+    return results;
   }
 
   public static String printTransaction(Transaction transaction) {
