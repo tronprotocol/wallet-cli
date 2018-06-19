@@ -663,6 +663,18 @@ public class Utils {
   }
 
   public static String printRet(List<Result> resultList) {
+    String results = "";
+    int i = 0;
+    for(Result result: resultList){
+      results += "result: ";
+      results += i;
+      results += " ::: ";
+      results += "\n";
+      results += "[";
+      results += result.getFee();
+      results += "\n";
+      results += "]";
+    }
     return "";
   }
 
