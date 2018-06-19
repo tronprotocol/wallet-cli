@@ -671,11 +671,18 @@ public class Utils {
       results += " ::: ";
       results += "\n";
       results += "[";
+      results += "\n";
+      results += "code ::: ";
+      results += result.getRet();
+      results += "\n";
+      results += "fee ::: ";
       results += result.getFee();
       results += "\n";
       results += "]";
+      results += "\n";
+      i++;
     }
-    return "";
+    return results;
   }
 
   public static String printTransaction(Transaction transaction) {
