@@ -388,7 +388,7 @@ public class Utils {
   public static String printContract(Transaction.Contract contract) {
     String result = "";
     try {
-      result += "type: ";
+      result += "contract_type: ";
       result += contract.getType();
       result += "\n";
 
