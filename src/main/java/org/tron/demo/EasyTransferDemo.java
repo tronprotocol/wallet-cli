@@ -14,8 +14,19 @@ import org.tron.walletserver.WalletClient;
 
 public class EasyTransferDemo {
 
-  public static void main(String[] args) throws InvalidProtocolBufferException {
+  private static byte[] getAddressByPassphrase(String passPhrase) {
+    byte[] privateKey = Sha256Hash.hash(passPhrase.getBytes());
+    ECKey ecKey = ECKey.fromPrivate(privateKey);
+    byte[] address = ecKey.getAddress();
+    return address;
+  }
+
+  public static void main(String[] args) {
     String passPhrase = "test pass phrase";
     byte[] address = WalletClient.createAdresss(passPhrase.getBytes());
+    if (!Arrays.equals(address, getAddressByPassphrase(passPhrase))) {
+      System.out.println("The address is diffrnet !!");
+    }
+    System.out.println("address === " + WalletClient.encode58Check(address));
   }
 }
