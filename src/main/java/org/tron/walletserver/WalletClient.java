@@ -343,12 +343,16 @@ public class WalletClient {
     org.tron.keystore.StringUtils.clear(passwd);
     return transaction;
   }
-  //Warning: do not invoke this interface that the node provided by others.
+  //Warning: do not invoke this interface provided by others.
   public static Transaction signTransactionByApi(Transaction transaction, byte[] privateKey) {
     TransactionSign.Builder builder = TransactionSign.newBuilder();
     builder.setPrivateKey(ByteString.copyFrom(privateKey));
     builder.setTransaction(transaction);
     return rpcCli.signTransaction(builder.build());
+  }
+  //Warning: do not invoke this interface provided by others.
+  public static byte[] createAdresss(byte[] passPhrase) {
+    return rpcCli.createAdresss(passPhrase);
   }
 
   public boolean sendCoin(byte[] to, long amount)

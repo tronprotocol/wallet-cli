@@ -82,11 +82,18 @@ public class GrpcClient {
       return blockingStubFull.getAccount(request);
     }
   }
-  //Warning: do not invoke this interface that the node provided by others.
+  //Warning: do not invoke this interface provided by others.
   public Transaction signTransaction(TransactionSign transactionSign) {
     return blockingStubFull.getTransactionSign(transactionSign);
   }
+  //Warning: do not invoke this interface provided by others.
+  public byte[] createAdresss(byte[] passPhrase) {
+    BytesMessage.Builder builder = BytesMessage.newBuilder();
+    builder.setValue(ByteString.copyFrom(passPhrase));
 
+    BytesMessage result = blockingStubFull.createAdresss(builder.build());
+    return  result.getValue().toByteArray();
+  }
   public Transaction createTransaction(Contract.AccountUpdateContract contract) {
     return blockingStubFull.updateAccount(contract);
   }
