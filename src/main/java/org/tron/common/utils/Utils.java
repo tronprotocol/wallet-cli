@@ -19,18 +19,24 @@
 package org.tron.common.utils;
 
 import com.google.protobuf.ByteString;
+import java.io.Console;
+import java.io.IOException;
 import java.security.SecureRandom;
 import java.nio.*;
 import java.nio.charset.Charset;
 import java.text.ParsePosition;
 import java.text.SimpleDateFormat;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
+import java.util.Scanner;
 import org.tron.api.GrpcAPI.AccountNetMessage;
 import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.BlockList;
 import org.tron.api.GrpcAPI.TransactionList;
 import org.tron.api.GrpcAPI.WitnessList;
+import org.tron.common.crypto.Sha256Hash;
+import org.tron.keystore.StringUtils;
 import org.tron.protos.Contract.AccountCreateContract;
 import org.tron.protos.Contract.AccountUpdateContract;
 import org.tron.protos.Contract.AssetIssueContract;
@@ -329,6 +335,18 @@ public class Utils {
     result += "url: ";
     result += new String(assetIssue.getUrl().toByteArray(), Charset.forName("UTF-8"));
     result += "\n";
+    result += "free asset net limit: ";
+    result += assetIssue.getFreeAssetNetLimit();
+    result += "\n";
+    result += "public free asset net limit: ";
+    result += assetIssue.getPublicFreeAssetNetLimit();
+    result += "\n";
+    result += "public free asset net usage: ";
+    result += assetIssue.getPublicFreeAssetNetUsage();
+    result += "\n";
+    result += "public latest free net time: ";
+    result += assetIssue.getPublicLatestFreeNetTime();
+    result += "\n";
 
     if (assetIssue.getFrozenSupplyCount() > 0) {
       for (FrozenSupply frozenSupply : assetIssue.getFrozenSupplyList()) {
@@ -381,10 +399,10 @@ public class Utils {
           result += "type: ";
           result += accountCreateContract.getType();
           result += "\n";
-          if (accountCreateContract.getAccountName() != null
-              && accountCreateContract.getAccountName().size() > 0) {
-            result += "account_name: ";
-            result += new String(accountCreateContract.getAccountName().toByteArray(),
+          if (accountCreateContract.getAccountAddress() != null
+              && accountCreateContract.getAccountAddress().size() > 0) {
+            result += "account_address: ";
+            result += new String(accountCreateContract.getAccountAddress().toByteArray(),
                 Charset.forName("UTF-8"));
             result += "\n";
           }
@@ -645,11 +663,39 @@ public class Utils {
   }
 
   public static String printRet(List<Result> resultList) {
-    return "";
+    String results = "";
+    int i = 0;
+    for(Result result: resultList){
+      results += "result: ";
+      results += i;
+      results += " ::: ";
+      results += "\n";
+      results += "[";
+      results += "\n";
+      results += "code ::: ";
+      results += result.getRet();
+      results += "\n";
+      results += "fee ::: ";
+      results += result.getFee();
+      results += "\n";
+      results += "]";
+      results += "\n";
+      i++;
+    }
+    return results;
   }
 
   public static String printTransaction(Transaction transaction) {
     String result = "";
+    result += "hash: ";
+    result += "\n";
+    result += ByteArray.toHexString(Sha256Hash.hash(transaction.toByteArray()));
+    result += "\n";
+    result += "txid: ";
+    result += "\n";
+    result += ByteArray.toHexString(Sha256Hash.hash(transaction.getRawData().toByteArray()));
+    result += "\n";
+
     if (transaction.getRawData() != null) {
       result += "raw_data: ";
       result += "\n";
@@ -797,6 +843,12 @@ public class Utils {
     result += "net_limit: ";
     result += accountNet.getNetLimit();
     result += "\n";
+    result += "total_net_limit: ";
+    result += accountNet.getTotalNetLimit();
+    result += "\n";
+    result += "total_net_weight: ";
+    result += accountNet.getTotalNetWeight();
+    result += "\n";
 
     if (accountNet.getAssetNetLimitCount() > 0) {
       for (String name : accountNet.getAssetNetLimitMap().keySet()) {
@@ -818,6 +870,37 @@ public class Utils {
       }
     }
     return result;
+  }
+
+  public static char[] inputPassword(boolean checkStrength) throws IOException {
+    char[] password;
+    Console cons = System.console();
+    while (true) {
+      if (cons != null) {
+        password = cons.readPassword("password: ");
+      } else {
+        byte[] passwd0 = new byte[64];
+        int len = System.in.read(passwd0, 0, passwd0.length);
+        int i;
+        for (i = 0; i < len; i++) {
+          if (passwd0[i] == 0x09 || passwd0[i] == 0x0A) {
+            break;
+          }
+        }
+        byte[] passwd1 = Arrays.copyOfRange(passwd0, 0, i);
+        password = StringUtils.byte2Char(passwd1);
+        StringUtils.clear(passwd0);
+        StringUtils.clear(passwd1);
+      }
+      if (WalletClient.passwordValid(password)) {
+        return password;
+      }
+      if (!checkStrength) {
+        return password;
+      }
+      StringUtils.clear(password);
+      System.out.println("Invalid password, please input again.");
+    }
   }
 }
 

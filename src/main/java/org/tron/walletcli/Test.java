@@ -1,46 +1,33 @@
 package org.tron.walletcli;
 
+import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
-import com.maxmind.geoip2.DatabaseReader;
-import com.maxmind.geoip2.model.CityResponse;
-import com.maxmind.geoip2.record.City;
-import com.maxmind.geoip2.record.Country;
-import com.maxmind.geoip2.record.Location;
-import com.maxmind.geoip2.record.Postal;
-import com.maxmind.geoip2.record.Subdivision;
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.math.BigInteger;
-import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Base64.Decoder;
 import java.util.Base64.Encoder;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.ECKey.ECDSASignature;
 import org.tron.common.crypto.Hash;
+import org.tron.common.crypto.Sha256Hash;
 import org.tron.common.utils.Base58;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Utils;
-import org.tron.explorer.controller.NodeController;
+import org.tron.keystore.CheckStrength;
+import org.tron.core.exception.CipherException;
+import org.tron.keystore.Credentials;
+import org.tron.keystore.WalletUtils;
 import org.tron.protos.Contract;
-import org.tron.protos.Protocol.Account;
-import org.tron.protos.Protocol.TXInput;
-import org.tron.protos.Protocol.TXOutput;
-import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Contract.TransferContract;
-import com.google.protobuf.Any;
+import org.tron.protos.Protocol.Account;
+import org.tron.protos.Protocol.Transaction;
 import org.tron.walletserver.WalletClient;
 
 public class Test {
@@ -80,33 +67,33 @@ public class Test {
     return transaction;
   }
 
-  public static Transaction createTransactionAccount() {
-    Transaction.Builder transactionBuilder = Transaction.newBuilder();
-
-    for (int i = 0; i < 10; i++) {
-      Transaction.Contract.Builder contractBuilder = Transaction.Contract.newBuilder();
-      Contract.AccountCreateContract.Builder accountCreateContract = Contract.AccountCreateContract
-          .newBuilder();
-      accountCreateContract.setAccountName(ByteString.copyFrom("zawtest".getBytes()));
-
-      ByteString bsOwner = ByteString.copyFrom(ByteArray
-          .fromHexString("e1a17255ccf15d6b12dcc074ca1152477ccf9b84"));
-      accountCreateContract.setOwnerAddress(bsOwner);
-      try {
-        Any anyTo = Any.pack(accountCreateContract.build());
-        contractBuilder.setParameter(anyTo);
-      } catch (Exception e) {
-        return null;
-      }
-      contractBuilder.setType(Transaction.Contract.ContractType.AccountCreateContract);
-
-      transactionBuilder.getRawDataBuilder().addContract(contractBuilder);
-    }
-    transactionBuilder.getRawDataBuilder();
-
-    Transaction transaction = transactionBuilder.build();
-    return transaction;
-  }
+//  public static Transaction createTransactionAccount() {
+//    Transaction.Builder transactionBuilder = Transaction.newBuilder();
+//
+//    for (int i = 0; i < 10; i++) {
+//      Transaction.Contract.Builder contractBuilder = Transaction.Contract.newBuilder();
+//      Contract.AccountCreateContract.Builder accountCreateContract = Contract.AccountCreateContract
+//          .newBuilder();
+//      accountCreateContract.setAccountName(ByteString.copyFrom("zawtest".getBytes()));
+//
+//      ByteString bsOwner = ByteString.copyFrom(ByteArray
+//          .fromHexString("e1a17255ccf15d6b12dcc074ca1152477ccf9b84"));
+//      accountCreateContract.setOwnerAddress(bsOwner);
+//      try {
+//        Any anyTo = Any.pack(accountCreateContract.build());
+//        contractBuilder.setParameter(anyTo);
+//      } catch (Exception e) {
+//        return null;
+//      }
+//      contractBuilder.setType(Transaction.Contract.ContractType.AccountCreateContract);
+//
+//      transactionBuilder.getRawDataBuilder().addContract(contractBuilder);
+//    }
+//    transactionBuilder.getRawDataBuilder();
+//
+//    Transaction transaction = transactionBuilder.build();
+//    return transaction;
+//  }
 
   public static void test64() throws UnsupportedEncodingException {
     Encoder encoder = Base64.getEncoder();
@@ -140,7 +127,7 @@ public class Test {
     byte[] msg = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0, 1, 2, 3, 4, 5, 6, 7, 8,
         9, 10, 11, 12, 13, 14, 15};
 
-    byte[] sha256 = Hash.sha256(msg);
+    byte[] sha256 = Sha256Hash.hash(msg);
     ECDSASignature signature = eCkey.sign(sha256);
 
     System.out.println("hash:::" + ByteArray.toHexString(sha256));
@@ -149,31 +136,31 @@ public class Test {
     System.out.println("id:::" + signature.v);
   }
 
-  public static void testTransaction() {
-    Transaction transaction = createTransactionAccount();
-    String priKey = "8e812436a0e3323166e1f0e8ba79e19e217b2c4a53c970d4cca0cfb1078979df";
-
-    ECKey eCkey = null;
-    try {
-      BigInteger priK = new BigInteger(priKey, 16);
-      eCkey = ECKey.fromPrivate(priK);
-    } catch (Exception ex) {
-      ex.printStackTrace();
-    }
-    byte[] msg = transaction.getRawData().toByteArray();
-    byte[] sha256 = Hash.sha256(msg);
-    eCkey.sign(sha256);
-
-    ECDSASignature signature = eCkey.sign(sha256);
-
-    System.out.println("msg:::" + ByteArray.toHexString(msg));
-    System.out.println("priKey:::" + ByteArray.toHexString(eCkey.getPrivKeyBytes()));
-    System.out.println("pubKey::" + ByteArray.toHexString(eCkey.getPubKey()));
-    System.out.println("hash:::" + ByteArray.toHexString(sha256));
-    System.out.println("r:::" + ByteArray.toHexString(signature.r.toByteArray()));
-    System.out.println("s:::" + ByteArray.toHexString(signature.s.toByteArray()));
-    System.out.println("id:::" + signature.v);
-  }
+//  public static void testTransaction() {
+//    Transaction transaction = createTransactionAccount();
+//    String priKey = "8e812436a0e3323166e1f0e8ba79e19e217b2c4a53c970d4cca0cfb1078979df";
+//
+//    ECKey eCkey = null;
+//    try {
+//      BigInteger priK = new BigInteger(priKey, 16);
+//      eCkey = ECKey.fromPrivate(priK);
+//    } catch (Exception ex) {
+//      ex.printStackTrace();
+//    }
+//    byte[] msg = transaction.getRawData().toByteArray();
+//    byte[] sha256 = Hash.sha256(msg);
+//    eCkey.sign(sha256);
+//
+//    ECDSASignature signature = eCkey.sign(sha256);
+//
+//    System.out.println("msg:::" + ByteArray.toHexString(msg));
+//    System.out.println("priKey:::" + ByteArray.toHexString(eCkey.getPrivKeyBytes()));
+//    System.out.println("pubKey::" + ByteArray.toHexString(eCkey.getPubKey()));
+//    System.out.println("hash:::" + ByteArray.toHexString(sha256));
+//    System.out.println("r:::" + ByteArray.toHexString(signature.r.toByteArray()));
+//    System.out.println("s:::" + ByteArray.toHexString(signature.s.toByteArray()));
+//    System.out.println("id:::" + signature.v);
+//  }
 
   public static void testVerify() {
     String hashBytes = "630211D6CA9440639F4965AA24831EB84815AB6BEF11E8BE6962A8540D861339";
@@ -208,8 +195,8 @@ public class Test {
     byte[] hash = Hash.sha3(Arrays.copyOfRange(pubKey, 1, pubKey.length));
     byte[] hash_ = Hash.sha3(pubKey);
     byte[] address = eCkey.getAddress();
-    byte[] hash0 = Hash.sha256(address);
-    byte[] hash1 = Hash.sha256(hash0);
+    byte[] hash0 = Sha256Hash.hash(address);
+    byte[] hash1 = Sha256Hash.hash(hash0);
     byte[] checkSum = Arrays.copyOfRange(hash1, 0, 4);
     byte[] addchecksum = new byte[address.length + 4];
     System.arraycopy(address, 0, addchecksum, 0, address.length);
@@ -318,14 +305,60 @@ public class Test {
     }
   }
 
-public static void testSha3(){
+  public static void testSha3() {
     String testData = "tools.jb51.net";
     byte[] hash = Hash.sha3(testData.getBytes());
-    System.out.println("testData::" +testData);
-    System.out.println("hash::" +ByteArray.toHexString(hash));
-}
+    System.out.println("testData::" + testData);
+    System.out.println("hash::" + ByteArray.toHexString(hash));
+  }
+
+  public static void testGenerateWalletFile() throws CipherException, IOException {
+    String PASSWORD = "Insecure Pa55w0rd";
+    String priKeyHex = "cba92a516ea09f620a16ff7ee95ce0df1d56550a8babe9964981a7144c8a784a";
+    ECKey eCkey = ECKey.fromPrivate(ByteArray.fromHexString(priKeyHex));
+    File file = new File("out");
+    String fileName = WalletUtils.generateWalletFile(PASSWORD.getBytes(), eCkey, file, true);
+    Credentials credentials = WalletUtils.loadCredentials(PASSWORD.getBytes(), new File(file, fileName));
+    String address = credentials.getAddress();
+    ECKey ecKeyPair = credentials.getEcKeyPair();
+    String prikey = ByteArray.toHexString(ecKeyPair.getPrivKeyBytes());
+    System.out.println("address = " + address);
+    System.out.println("prikey = " + prikey);
+
+  }
+
+  public static void testPasswordStrength(){
+    List<String> passwordList = new ArrayList<String>();
+    passwordList.add("ZAQ!xsw2");
+    passwordList.add("3EDC4rfv");
+    passwordList.add("6yhn7UJM");
+    passwordList.add("1q2w3e4r");
+    passwordList.add("1q2w#E$R");
+    passwordList.add("qwertyuiop");
+    passwordList.add("qwertyui");
+    passwordList.add("abcdefghijkl");
+    passwordList.add("password");
+    passwordList.add("p@ssword");
+    passwordList.add("p@ssw0rd");
+    passwordList.add("1q2w#E$R1111111");
+    passwordList.add("1q2w#E$R1234567");
+    passwordList.add("abcdef");
+    passwordList.add("abcabc");
+    passwordList.add("ABCdef");
+    passwordList.add("Vipshop123");
+    passwordList.add("qwertyui");
+    passwordList.add("admin1111");
+    passwordList.add("admin1234");
+    passwordList.add("admin1235");
+    passwordList.add("1q2w3e$R%T^Y/:");
+
+    for (String password : passwordList) {
+      int level = CheckStrength.checkPasswordStrength(password.toCharArray());
+      System.out.println(password + " strength is " + level);
+    }
+  }
   public static void main(String[] args) throws Exception {
 
-    testSha3();
+    testPasswordStrength();
   }
 }

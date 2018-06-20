@@ -27,7 +27,8 @@ import java.security.Security;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tron.common.crypto.jce.TronCastleProvider;
-import org.tron.core.config.Parameter.CommonConstant;
+import org.tron.walletserver.WalletClient;
+import org.tron.common.utils.ByteArray;
 
 public class Hash {
 
@@ -37,28 +38,11 @@ public class Hash {
   private static final String HASH_256_ALGORITHM_NAME;
   private static final String HASH_512_ALGORITHM_NAME;
 
-  private static final MessageDigest sha256digest;
-
   static {
     Security.addProvider(TronCastleProvider.getInstance());
     CRYPTO_PROVIDER = Security.getProvider("SC");
     HASH_256_ALGORITHM_NAME = "TRON-KECCAK-256";
     HASH_512_ALGORITHM_NAME = "TRON-KECCAK-512";
-    try {
-      sha256digest = MessageDigest.getInstance("SHA-256");
-    } catch (NoSuchAlgorithmException e) {
-      LOG.error("Can't initialize HashUtils", e);
-      throw new RuntimeException(e); // Can't happen.
-    }
-
-  }
-
-  /**
-   * @param input - data for hashing
-   * @return - sha256 hash of the data
-   */
-  public static byte[] sha256(byte[] input) {
-    return sha256digest.digest(input);
   }
 
   public static byte[] sha3(byte[] input) {
@@ -74,6 +58,19 @@ public class Hash {
     }
 
   }
+
+  /**
+   * Keccak-256 hash function.
+   *
+   * @param hexInput hex encoded input data with optional 0x prefix
+   * @return hash value as hex encoded string
+   */
+  public static String sha3(String hexInput) {
+    byte[] bytes = ByteArray.fromHexString(hexInput);
+    byte[] result = sha3(bytes);
+    return ByteArray.toHexString(result);
+  }
+
 
   public static byte[] sha3(byte[] input1, byte[] input2) {
     MessageDigest digest;
@@ -132,7 +129,7 @@ public class Hash {
   public static byte[] sha3omit12(byte[] input) {
     byte[] hash = sha3(input);
     byte[] address = copyOfRange(hash, 11, hash.length);
-    address[0] = CommonConstant.ADD_PRE_FIX_BYTE;
+    address[0] = WalletClient.getAddressPreFixByte();
     return address;
   }
 }
