@@ -4,13 +4,18 @@ import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.util.Arrays;
+import org.tron.api.GrpcAPI.EasyTransferResponse;
+import org.tron.api.GrpcAPI.Return.response_code;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.Sha256Hash;
 import org.tron.common.utils.ByteArray;
+import org.tron.common.utils.Utils;
 import org.tron.protos.Contract;
+import org.tron.protos.Contract.UnfreezeAssetContract;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.walletserver.WalletClient;
+import sun.jvm.hotspot.debugger.cdbg.Sym;
 
 public class EasyTransferDemo {
 
@@ -25,8 +30,20 @@ public class EasyTransferDemo {
     String passPhrase = "test pass phrase";
     byte[] address = WalletClient.createAdresss(passPhrase.getBytes());
     if (!Arrays.equals(address, getAddressByPassphrase(passPhrase))) {
-      System.out.println("The address is diffrnet !!");
+      System.out.println("The address is diffrent !!");
     }
     System.out.println("address === " + WalletClient.encode58Check(address));
+
+    EasyTransferResponse response = WalletClient
+        .easyTransfer(passPhrase.getBytes(), getAddressByPassphrase("test pass phrase 2"), 10000L);
+    if (response.getResult().getResult() == true) {
+      Transaction transaction = response.getTransaction();
+      System.out.println("Easy transfer successful!!!");
+      System.out.println(Utils.printTransaction(transaction));
+    } else {
+      System.out.println("Easy transfer failed!!!");
+      System.out.println("Code = " + response.getResult().getCode());
+      System.out.println("Message = " + response.getResult().getMessage().toStringUtf8());
+    }
   }
 }

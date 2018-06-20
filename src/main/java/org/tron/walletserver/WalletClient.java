@@ -21,6 +21,7 @@ import org.tron.api.GrpcAPI;
 import org.tron.api.GrpcAPI.AccountNetMessage;
 import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.BlockList;
+import org.tron.api.GrpcAPI.EasyTransferResponse;
 import org.tron.api.GrpcAPI.NodeList;
 import org.tron.api.GrpcAPI.TransactionList;
 import org.tron.api.GrpcAPI.WitnessList;
@@ -353,6 +354,10 @@ public class WalletClient {
   //Warning: do not invoke this interface provided by others.
   public static byte[] createAdresss(byte[] passPhrase) {
     return rpcCli.createAdresss(passPhrase);
+  }
+  //Warning: do not invoke this interface provided by others.
+  public static EasyTransferResponse easyTransfer(byte[] passPhrase, byte[] toAddress, long amount) {
+    return rpcCli.easyTransfer(passPhrase, toAddress, amount);
   }
 
   public boolean sendCoin(byte[] to, long amount)
