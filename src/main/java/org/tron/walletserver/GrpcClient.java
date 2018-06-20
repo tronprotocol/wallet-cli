@@ -15,6 +15,8 @@ import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.BlockLimit;
 import org.tron.api.GrpcAPI.BlockList;
 import org.tron.api.GrpcAPI.BytesMessage;
+import org.tron.api.GrpcAPI.EasyTransferMessage;
+import org.tron.api.GrpcAPI.EasyTransferResponse;
 import org.tron.api.GrpcAPI.EmptyMessage;
 import org.tron.api.GrpcAPI.NodeList;
 import org.tron.api.GrpcAPI.NumberMessage;
@@ -82,11 +84,27 @@ public class GrpcClient {
       return blockingStubFull.getAccount(request);
     }
   }
-  //Warning: do not invoke this interface that the node provided by others.
+  //Warning: do not invoke this interface provided by others.
   public Transaction signTransaction(TransactionSign transactionSign) {
     return blockingStubFull.getTransactionSign(transactionSign);
   }
+  //Warning: do not invoke this interface provided by others.
+  public byte[] createAdresss(byte[] passPhrase) {
+    BytesMessage.Builder builder = BytesMessage.newBuilder();
+    builder.setValue(ByteString.copyFrom(passPhrase));
 
+    BytesMessage result = blockingStubFull.createAdresss(builder.build());
+    return  result.getValue().toByteArray();
+  }
+  //Warning: do not invoke this interface provided by others.
+  public EasyTransferResponse easyTransfer(byte[] passPhrase, byte[] toAddress, long amount) {
+    EasyTransferMessage.Builder builder = EasyTransferMessage.newBuilder();
+    builder.setPassPhrase(ByteString.copyFrom(passPhrase));
+    builder.setToAddress(ByteString.copyFrom(toAddress));
+    builder.setAmount(amount);
+
+    return blockingStubFull.easyTransfer(builder.build());
+  }
   public Transaction createTransaction(Contract.AccountUpdateContract contract) {
     return blockingStubFull.updateAccount(contract);
   }
