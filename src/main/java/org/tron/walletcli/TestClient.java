@@ -32,6 +32,7 @@ import org.tron.protos.Contract.AssetIssueContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.Transaction;
+import org.tron.protos.Protocol.TransactionInfo;
 import org.tron.walletserver.WalletClient;
 
 public class TestClient {
@@ -821,6 +822,23 @@ public class TestClient {
       logger.info(Utils.printTransaction(transaction));
     } else {
       logger.info("getTransactionById " + " failed !!");
+    }
+  }
+
+  private void getTransactionInfoById(String[] parameters) {
+    String txid = "";
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("getTransactionInfoById needs 1 parameter, transaction id");
+      return;
+    } else {
+      txid = parameters[0];
+    }
+    Optional<TransactionInfo> result = WalletClient.getTransactionInfoById(txid);
+    if (result.isPresent()) {
+      TransactionInfo transactionInfo = result.get();
+      logger.info(Utils.printTransactionInfo(transactionInfo));
+    } else {
+      logger.info("getTransactionInfoById " + " failed !!");
     }
   }
 
