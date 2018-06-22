@@ -49,6 +49,7 @@ import org.tron.protos.Contract.WithdrawBalanceContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.Transaction;
+import org.tron.protos.Protocol.TransactionInfo;
 import org.tron.protos.Protocol.TransactionSign;
 import org.tron.protos.Protocol.Witness;
 
@@ -872,6 +873,10 @@ public class WalletClient {
 
   public static Optional<Transaction> getTransactionById(String txID) {
     return rpcCli.getTransactionById(txID);
+  }
+
+  public static Optional<TransactionInfo> getTransactionInfoById(String txID) {
+    return rpcCli.getTransactionInfoById(txID);
   }
 
   public boolean freezeBalance(long frozen_balance, long frozen_duration)

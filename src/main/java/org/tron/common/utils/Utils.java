@@ -55,6 +55,7 @@ import org.tron.protos.Contract.WitnessCreateContract;
 import org.tron.protos.Contract.WitnessUpdateContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Account.Frozen;
+import org.tron.protos.Protocol.TransactionInfo;
 import org.tron.protos.Protocol.Vote;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.BlockHeader;
@@ -723,6 +724,27 @@ public class Utils {
       result += "}";
       result += "\n";
     }
+    return result;
+  }
+
+  public static String printTransactionInfo(TransactionInfo transactionInfo) {
+    String result = "";
+    result += "txid: ";
+    result += "\n";
+    result += ByteArray.toHexString(transactionInfo.getId().toByteArray());
+    result += "\n";
+    result += "fee: ";
+    result += "\n";
+    result += transactionInfo.getFee() ;
+    result += "\n";
+    result += "blockNumber: ";
+    result += "\n";
+    result += transactionInfo.getBlockNumber() ;
+    result += "\n";
+    result += "blockTimeStamp: ";
+    result += "\n";
+    result += transactionInfo.getBlockTimeStamp() ;
+    result += "\n";
     return result;
   }
 

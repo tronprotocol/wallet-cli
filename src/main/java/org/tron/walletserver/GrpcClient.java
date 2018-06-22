@@ -32,6 +32,7 @@ import org.tron.protos.Contract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.Transaction;
+import org.tron.protos.Protocol.TransactionInfo;
 import org.tron.protos.Protocol.TransactionSign;
 
 public class GrpcClient {
@@ -347,6 +348,13 @@ public class GrpcClient {
     BytesMessage request = BytesMessage.newBuilder().setValue(bsTxid).build();
     Transaction transaction = blockingStubFull.getTransactionById(request);
     return Optional.ofNullable(transaction);
+  }
+
+  public Optional<TransactionInfo> getTransactionInfoById(String txID) {
+    ByteString bsTxid = ByteString.copyFrom(ByteArray.fromHexString(txID));
+    BytesMessage request = BytesMessage.newBuilder().setValue(bsTxid).build();
+    TransactionInfo transactionInfo = blockingStubSolidity.getTransactionInfoById(request);
+    return Optional.ofNullable(transactionInfo);
   }
 
   public Optional<Block> getBlockById(String blockID) {
