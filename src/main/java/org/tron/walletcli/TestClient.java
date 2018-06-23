@@ -1013,6 +1013,7 @@ public class TestClient {
     //   System.out.println("GetTransactionsByTimestamp");
     //   System.out.println("GetTransactionsByTimestampCount");
     System.out.println("GetTransactionById");
+    System.out.println("getTransactionInfoById");
     System.out.println("GetTransactionsFromThis");
     //   System.out.println("GetTransactionsFromThisCount");
     System.out.println("GetTransactionsToThis");
@@ -1232,6 +1233,10 @@ public class TestClient {
 //          }
           case "gettransactionbyid": {
             getTransactionById(parameters);
+            break;
+          }
+          case "gettransactioninfobyid": {
+            getTransactionInfoById(parameters);
             break;
           }
           case "getblockbyid": {
