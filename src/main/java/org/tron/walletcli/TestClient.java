@@ -16,6 +16,8 @@ import org.apache.commons.lang3.ArrayUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tron.api.GrpcAPI.AccountNetMessage;
+import org.tron.api.GrpcAPI.Address;
+import org.tron.api.GrpcAPI.AddressPrKeyPairMessage;
 import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.BlockList;
 import org.tron.api.GrpcAPI.Node;
@@ -976,6 +978,17 @@ public class TestClient {
     }
   }
 
+  private void generateAddress() {
+    AddressPrKeyPairMessage result = client.generateAddress();
+    if (null!=result) {
+      System.out.println("Address: "+result.getAddress());
+      System.out.println("PrivateKey: "+result.getPrivateKey());
+      logger.info("GenerateAddress " + " successful !!");
+    } else {
+      logger.info("GenerateAddress " + " failed !!");
+    }
+  }
+
   private void help() {
     System.out.println("Help: List of Tron Wallet-cli commands");
     System.out.println("For more information on a specific command, type the command and it will display tips");
@@ -988,6 +1001,7 @@ public class TestClient {
     System.out.println("Logout");
     System.out.println("BackupWallet");
     System.out.println("BackupWallet2Base64");
+    System.out.println("GenerateAAddress");
     System.out.println("GetAddress");
     System.out.println("GetBalance");
     System.out.println("GetAccount");
@@ -1249,6 +1263,10 @@ public class TestClient {
           }
           case "getblockbylatestnum": {
             getBlockByLatestNum(parameters);
+            break;
+          }
+          case "generateaddress":{
+            generateAddress();
             break;
           }
           case "exit":

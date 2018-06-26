@@ -19,9 +19,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tron.api.GrpcAPI;
 import org.tron.api.GrpcAPI.AccountNetMessage;
+import org.tron.api.GrpcAPI.AddressPrKeyPairMessage;
 import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.BlockList;
 import org.tron.api.GrpcAPI.EasyTransferResponse;
+import org.tron.api.GrpcAPI.EmptyMessage;
 import org.tron.api.GrpcAPI.NodeList;
 import org.tron.api.GrpcAPI.TransactionList;
 import org.tron.api.GrpcAPI.WitnessList;
@@ -475,6 +477,11 @@ public class WalletClient {
 
     transaction = signTransaction(transaction);
     return rpcCli.broadcastTransaction(transaction);
+  }
+
+  public AddressPrKeyPairMessage generateAddress(){
+    EmptyMessage.Builder builder = EmptyMessage.newBuilder();
+    return rpcCli.generateAddress(builder.build());
   }
 
   public boolean createWitness(byte[] url) throws CipherException, IOException, CancelException {

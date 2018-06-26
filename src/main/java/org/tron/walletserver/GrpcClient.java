@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import org.tron.api.GrpcAPI;
 import org.tron.api.GrpcAPI.AccountNetMessage;
 import org.tron.api.GrpcAPI.AccountPaginated;
+import org.tron.api.GrpcAPI.AddressPrKeyPairMessage;
 import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.BlockLimit;
 import org.tron.api.GrpcAPI.BlockList;
@@ -153,6 +154,13 @@ public class GrpcClient {
 
   public Transaction createAccount(Contract.AccountCreateContract contract) {
     return blockingStubFull.createAccount(contract);
+  }
+  public AddressPrKeyPairMessage generateAddress(EmptyMessage emptyMessage){
+    if (blockingStubSolidity != null) {
+      return blockingStubSolidity.generateAddress(emptyMessage);
+    } else {
+      return blockingStubFull.generateAddress(emptyMessage);
+    }
   }
 
   public Transaction createWitness(Contract.WitnessCreateContract contract) {
