@@ -48,6 +48,7 @@ import org.tron.protos.Contract.TransferAssetContract;
 import org.tron.protos.Contract.TransferContract;
 import org.tron.protos.Contract.UnfreezeAssetContract;
 import org.tron.protos.Contract.UnfreezeBalanceContract;
+import org.tron.protos.Contract.UpdateAssetContract;
 import org.tron.protos.Contract.VoteAssetContract;
 import org.tron.protos.Contract.VoteWitnessContract;
 import org.tron.protos.Contract.WithdrawBalanceContract;
@@ -403,8 +404,8 @@ public class Utils {
           if (accountCreateContract.getAccountAddress() != null
               && accountCreateContract.getAccountAddress().size() > 0) {
             result += "account_address: ";
-            result += new String(accountCreateContract.getAccountAddress().toByteArray(),
-                Charset.forName("UTF-8"));
+            result += WalletClient
+                .encode58Check(accountCreateContract.getAccountAddress().toByteArray());
             result += "\n";
           }
           result += "owner_address: ";
@@ -520,6 +521,24 @@ public class Utils {
           AssetIssueContract assetIssueContract = contract.getParameter()
               .unpack(AssetIssueContract.class);
           result += printAssetIssue(assetIssueContract);
+          break;
+        case UpdateAssetContract:
+          UpdateAssetContract updateAssetContract = contract.getParameter().unpack(UpdateAssetContract.class);
+          result += "owner_address: ";
+          result += WalletClient.encode58Check(updateAssetContract.getOwnerAddress().toByteArray());
+          result += "\n";
+          result += "description: ";
+          result += new String(updateAssetContract.getDescription().toByteArray(), Charset.forName("UTF-8"));
+          result += "\n";
+          result += "url: ";
+          result += new String(updateAssetContract.getUrl().toByteArray(), Charset.forName("UTF-8"));
+          result += "\n";
+          result += "free asset net limit: ";
+          result += updateAssetContract.getNewLimit();
+          result += "\n";
+          result += "public free asset net limit: ";
+          result += updateAssetContract.getNewPublicLimit();
+          result += "\n";
           break;
         case ParticipateAssetIssueContract:
           ParticipateAssetIssueContract participateAssetIssueContract = contract.getParameter()
