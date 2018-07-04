@@ -16,6 +16,8 @@ import org.apache.commons.lang3.ArrayUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tron.api.GrpcAPI.AccountNetMessage;
+import org.tron.api.GrpcAPI.Address;
+import org.tron.api.GrpcAPI.AddressPrKeyPairMessage;
 import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.BlockList;
 import org.tron.api.GrpcAPI.Node;
@@ -32,6 +34,7 @@ import org.tron.protos.Contract.AssetIssueContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.Transaction;
+import org.tron.protos.Protocol.TransactionInfo;
 import org.tron.walletserver.WalletClient;
 
 public class TestClient {
@@ -824,6 +827,23 @@ public class TestClient {
     }
   }
 
+  private void getTransactionInfoById(String[] parameters) {
+    String txid = "";
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("getTransactionInfoById needs 1 parameter, transaction id");
+      return;
+    } else {
+      txid = parameters[0];
+    }
+    Optional<TransactionInfo> result = WalletClient.getTransactionInfoById(txid);
+    if (result.isPresent()) {
+      TransactionInfo transactionInfo = result.get();
+      logger.info(Utils.printTransactionInfo(transactionInfo));
+    } else {
+      logger.info("getTransactionInfoById " + " failed !!");
+    }
+  }
+
   private void getTransactionsFromThis(String[] parameters) {
     if (parameters == null || parameters.length != 3) {
       System.out.println("GetTransactionsFromThis needs 3 parameters, use the following syntax: ");
@@ -958,6 +978,17 @@ public class TestClient {
     }
   }
 
+  private void generateAddress() {
+    AddressPrKeyPairMessage result = client.generateAddress();
+    if (null!=result) {
+      System.out.println("Address: "+result.getAddress());
+      System.out.println("PrivateKey: "+result.getPrivateKey());
+      logger.info("GenerateAddress " + " successful !!");
+    } else {
+      logger.info("GenerateAddress " + " failed !!");
+    }
+  }
+
   private void help() {
     System.out.println("Help: List of Tron Wallet-cli commands");
     System.out.println("For more information on a specific command, type the command and it will display tips");
@@ -970,6 +1001,7 @@ public class TestClient {
     System.out.println("Logout");
     System.out.println("BackupWallet");
     System.out.println("BackupWallet2Base64");
+    System.out.println("GenerateAAddress");
     System.out.println("GetAddress");
     System.out.println("GetBalance");
     System.out.println("GetAccount");
@@ -990,11 +1022,11 @@ public class TestClient {
     System.out.println("GetBlock");
     System.out.println("GetTotalTransaction");
     //   System.out.println("GetAssetIssueListByTimestamp");
-    System.out.println("GetTotalTransaction");
     System.out.println("GetNextMaintenanceTime");
     //   System.out.println("GetTransactionsByTimestamp");
     //   System.out.println("GetTransactionsByTimestampCount");
     System.out.println("GetTransactionById");
+    System.out.println("getTransactionInfoById");
     System.out.println("GetTransactionsFromThis");
     //   System.out.println("GetTransactionsFromThisCount");
     System.out.println("GetTransactionsToThis");
@@ -1216,6 +1248,10 @@ public class TestClient {
             getTransactionById(parameters);
             break;
           }
+          case "gettransactioninfobyid": {
+            getTransactionInfoById(parameters);
+            break;
+          }
           case "getblockbyid": {
             getBlockById(parameters);
             break;
@@ -1226,6 +1262,10 @@ public class TestClient {
           }
           case "getblockbylatestnum": {
             getBlockByLatestNum(parameters);
+            break;
+          }
+          case "generateaddress":{
+            generateAddress();
             break;
           }
           case "exit":

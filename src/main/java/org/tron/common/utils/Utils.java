@@ -48,6 +48,7 @@ import org.tron.protos.Contract.TransferAssetContract;
 import org.tron.protos.Contract.TransferContract;
 import org.tron.protos.Contract.UnfreezeAssetContract;
 import org.tron.protos.Contract.UnfreezeBalanceContract;
+import org.tron.protos.Contract.UpdateAssetContract;
 import org.tron.protos.Contract.VoteAssetContract;
 import org.tron.protos.Contract.VoteWitnessContract;
 import org.tron.protos.Contract.WithdrawBalanceContract;
@@ -55,6 +56,7 @@ import org.tron.protos.Contract.WitnessCreateContract;
 import org.tron.protos.Contract.WitnessUpdateContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Account.Frozen;
+import org.tron.protos.Protocol.TransactionInfo;
 import org.tron.protos.Protocol.Vote;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.BlockHeader;
@@ -388,7 +390,7 @@ public class Utils {
   public static String printContract(Transaction.Contract contract) {
     String result = "";
     try {
-      result += "type: ";
+      result += "contract_type: ";
       result += contract.getType();
       result += "\n";
 
@@ -402,8 +404,8 @@ public class Utils {
           if (accountCreateContract.getAccountAddress() != null
               && accountCreateContract.getAccountAddress().size() > 0) {
             result += "account_address: ";
-            result += new String(accountCreateContract.getAccountAddress().toByteArray(),
-                Charset.forName("UTF-8"));
+            result += WalletClient
+                .encode58Check(accountCreateContract.getAccountAddress().toByteArray());
             result += "\n";
           }
           result += "owner_address: ";
@@ -519,6 +521,24 @@ public class Utils {
           AssetIssueContract assetIssueContract = contract.getParameter()
               .unpack(AssetIssueContract.class);
           result += printAssetIssue(assetIssueContract);
+          break;
+        case UpdateAssetContract:
+          UpdateAssetContract updateAssetContract = contract.getParameter().unpack(UpdateAssetContract.class);
+          result += "owner_address: ";
+          result += WalletClient.encode58Check(updateAssetContract.getOwnerAddress().toByteArray());
+          result += "\n";
+          result += "description: ";
+          result += new String(updateAssetContract.getDescription().toByteArray(), Charset.forName("UTF-8"));
+          result += "\n";
+          result += "url: ";
+          result += new String(updateAssetContract.getUrl().toByteArray(), Charset.forName("UTF-8"));
+          result += "\n";
+          result += "free asset net limit: ";
+          result += updateAssetContract.getNewLimit();
+          result += "\n";
+          result += "public free asset net limit: ";
+          result += updateAssetContract.getNewPublicLimit();
+          result += "\n";
           break;
         case ParticipateAssetIssueContract:
           ParticipateAssetIssueContract participateAssetIssueContract = contract.getParameter()
@@ -723,6 +743,27 @@ public class Utils {
       result += "}";
       result += "\n";
     }
+    return result;
+  }
+
+  public static String printTransactionInfo(TransactionInfo transactionInfo) {
+    String result = "";
+    result += "txid: ";
+    result += "\n";
+    result += ByteArray.toHexString(transactionInfo.getId().toByteArray());
+    result += "\n";
+    result += "fee: ";
+    result += "\n";
+    result += transactionInfo.getFee() ;
+    result += "\n";
+    result += "blockNumber: ";
+    result += "\n";
+    result += transactionInfo.getBlockNumber() ;
+    result += "\n";
+    result += "blockTimeStamp: ";
+    result += "\n";
+    result += transactionInfo.getBlockTimeStamp() ;
+    result += "\n";
     return result;
   }
 
