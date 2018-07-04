@@ -1022,7 +1022,6 @@ public class TestClient {
     System.out.println("GetBlock");
     System.out.println("GetTotalTransaction");
     //   System.out.println("GetAssetIssueListByTimestamp");
-    System.out.println("GetTotalTransaction");
     System.out.println("GetNextMaintenanceTime");
     //   System.out.println("GetTransactionsByTimestamp");
     //   System.out.println("GetTransactionsByTimestampCount");
