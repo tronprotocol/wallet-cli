@@ -362,6 +362,10 @@ public class WalletClient {
   public static EasyTransferResponse easyTransfer(byte[] passPhrase, byte[] toAddress, long amount) {
     return rpcCli.easyTransfer(passPhrase, toAddress, amount);
   }
+  //Warning: do not invoke this interface provided by others.
+  public static EasyTransferResponse easyTransferByPrivate(byte[] privateKey, byte[] toAddress, long amount) {
+    return rpcCli.easyTransferByPrivate(privateKey, toAddress, amount);
+  }
 
   public boolean sendCoin(byte[] to, long amount)
       throws CipherException, IOException, CancelException {
@@ -478,8 +482,8 @@ public class WalletClient {
     transaction = signTransaction(transaction);
     return rpcCli.broadcastTransaction(transaction);
   }
-
-  public AddressPrKeyPairMessage generateAddress(){
+  //Warning: do not invoke this interface provided by others.
+  public static AddressPrKeyPairMessage generateAddress(){
     EmptyMessage.Builder builder = EmptyMessage.newBuilder();
     return rpcCli.generateAddress(builder.build());
   }
