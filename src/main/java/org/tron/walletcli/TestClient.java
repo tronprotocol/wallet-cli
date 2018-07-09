@@ -723,6 +723,28 @@ public class TestClient {
     }
   }
 
+  private void createProposal(String[] parameters)
+      throws IOException, CipherException, CancelException {
+    if (parameters == null || parameters.length < 2 || (parameters.length & 1) != 0) {
+      System.out.println("Use createProposal command with below syntax: ");
+      System.out.println("createProposal id0 value0 ... idN valueN");
+      return;
+    }
+
+    HashMap<Long, Long> parametersMap = new HashMap<Long, Long>();
+    for (int i = 0; i < parameters.length; i += 2) {
+      long id = Long.valueOf(parameters[i]);
+      long value = Long.valueOf(parameters[i + 1]);
+      parametersMap.put(id, value);
+      boolean result = client.createProposal(parametersMap);
+      if (result) {
+        logger.info("createProposal " + " successful !!");
+      } else {
+        logger.info("createProposal " + " failed !!");
+      }
+    }
+  }
+
   private void withdrawBalance() throws IOException, CipherException, CancelException {
     boolean result = client.withdrawBalance();
     if (result) {
@@ -1019,6 +1041,7 @@ public class TestClient {
     System.out.println("ListWitnesses");
     System.out.println("ListAssetIssue");
     System.out.println("ListNodes");
+    System.out.println("ListProposals");
     System.out.println("GetBlock");
     System.out.println("GetTotalTransaction");
     //   System.out.println("GetAssetIssueListByTimestamp");
@@ -1031,6 +1054,7 @@ public class TestClient {
     //   System.out.println("GetTransactionsFromThisCount");
     System.out.println("GetTransactionsToThis");
     //   System.out.println("GetTransactionsToThisCount");
+    System.out.println("GetProposalById");
     System.out.println("GetBlockById");
     System.out.println("GetBlockByLimitNext");
     System.out.println("GetBlockByLatestNum");
@@ -1040,6 +1064,9 @@ public class TestClient {
     System.out.println("UpdateAccount");
     System.out.println("UpdateAsset");
     System.out.println("UnfreezeAsset");
+    System.out.println("CreateProposal");
+    System.out.println("ApproveProposal");
+    System.out.println("DeleteProposal");
     System.out.println("Exit or Quit");
 
     System.out.println("Input any one of the listed commands, to display how-to tips.");
@@ -1182,6 +1209,10 @@ public class TestClient {
           }
           case "unfreezeasset": {
             unfreezeAsset();
+            break;
+          }
+          case "createproposal": {
+            createProposal(parameters);
             break;
           }
           case "withdrawbalance": {

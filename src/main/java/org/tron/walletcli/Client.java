@@ -392,4 +392,13 @@ public class Client {
     return wallet.withdrawBalance();
   }
 
+  public boolean createProposal(HashMap<Long, Long> parametersMap)
+       throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warning: createProposal failed, Please login first !!");
+      return false;
+    }
+
+    return wallet.createProposal(parametersMap);
+  }
 }

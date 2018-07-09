@@ -988,4 +988,25 @@ public class WalletClient {
   public static Optional<BlockList> getBlockByLatestNum(long num) {
     return rpcCli.getBlockByLatestNum(num);
   }
+
+  public boolean createProposal(HashMap<Long, Long> parametersMap)
+      throws CipherException, IOException, CancelException {
+    byte[] owner = getAddress();
+    Contract.ProposalCreateContract contract = createProposalCreateContract(owner, parametersMap);
+    Transaction transaction = rpcCli.proposalCreate(contract);
+    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
+      return false;
+    }
+
+    transaction = signTransaction(transaction);
+    return rpcCli.broadcastTransaction(transaction);
+  }
+
+  public static Contract.ProposalCreateContract createProposalCreateContract(byte[] owner,
+      HashMap<Long, Long> parametersMap) {
+    Contract.ProposalCreateContract.Builder builder = Contract.ProposalCreateContract.newBuilder();
+    builder.setOwnerAddress(ByteString.copyFrom(owner));
+    builder.putAllParameters(parametersMap);
+    return builder.build();
+  }
 }
