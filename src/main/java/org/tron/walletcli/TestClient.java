@@ -731,17 +731,35 @@ public class TestClient {
       return;
     }
 
-    HashMap<Long, Long> parametersMap = new HashMap<Long, Long>();
+    HashMap<Long, Long> parametersMap = new HashMap<>();
     for (int i = 0; i < parameters.length; i += 2) {
       long id = Long.valueOf(parameters[i]);
       long value = Long.valueOf(parameters[i + 1]);
       parametersMap.put(id, value);
-      boolean result = client.createProposal(parametersMap);
-      if (result) {
-        logger.info("createProposal " + " successful !!");
-      } else {
-        logger.info("createProposal " + " failed !!");
-      }
+    }
+    boolean result = client.createProposal(parametersMap);
+    if (result) {
+      logger.info("createProposal " + " successful !!");
+    } else {
+      logger.info("createProposal " + " failed !!");
+    }
+  }
+
+  private void approveProposal(String[] parameters)
+      throws IOException, CipherException, CancelException {
+    if (parameters == null || parameters.length != 2) {
+      System.out.println("Use approveProposal command with below syntax: ");
+      System.out.println("approveProposal id is_or_not_add_approval");
+      return;
+    }
+
+    long id = Long.valueOf(parameters[0]);
+    boolean is_add_approval = Boolean.valueOf(parameters[1]);
+    boolean result = client.approveProposal(id, is_add_approval);
+    if (result) {
+      logger.info("createProposal " + " successful !!");
+    } else {
+      logger.info("createProposal " + " failed !!");
     }
   }
 
@@ -1213,6 +1231,10 @@ public class TestClient {
           }
           case "createproposal": {
             createProposal(parameters);
+            break;
+          }
+          case "approveproposal": {
+            approveProposal(parameters);
             break;
           }
           case "withdrawbalance": {

@@ -172,6 +172,10 @@ public class GrpcClient {
     return blockingStubFull.proposalCreate(contract);
   }
 
+  public Transaction proposalApprove(Contract.ProposalApproveContract contract) {
+    return blockingStubFull.proposalApprove(contract);
+  }
+
   public Transaction createAccount(Contract.AccountCreateContract contract) {
     return blockingStubFull.createAccount(contract);
   }
