@@ -33,6 +33,7 @@ import java.util.Scanner;
 import org.tron.api.GrpcAPI.AccountNetMessage;
 import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.BlockList;
+import org.tron.api.GrpcAPI.ProposalList;
 import org.tron.api.GrpcAPI.TransactionList;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.crypto.Sha256Hash;
@@ -56,6 +57,7 @@ import org.tron.protos.Contract.WitnessCreateContract;
 import org.tron.protos.Contract.WitnessUpdateContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Account.Frozen;
+import org.tron.protos.Protocol.Proposal;
 import org.tron.protos.Protocol.TransactionInfo;
 import org.tron.protos.Protocol.Vote;
 import org.tron.protos.Protocol.Block;
@@ -285,6 +287,43 @@ public class Utils {
     result += "isJobs: ";
     result += witness.getIsJobs();
     result += "\n";
+    return result;
+  }
+
+  public static String printProposal(Proposal proposal) {
+    String result = "";
+    result += "id: ";
+    result += proposal.getProposalId();
+    result += "\n";
+    result += "state: ";
+    result += proposal.getState();
+    result += "\n";
+    result += "createTime: ";
+    result += proposal.getCreateTime();
+    result += "\n";
+    result += "expirationTime: ";
+    result += proposal.getExpirationTime();
+    result += "\n";
+    result += "parametersMap: ";
+    result += proposal.getParametersMap();
+    result += "\n";
+    return result;
+  }
+
+  public static String printProposalsList(ProposalList proposalList) {
+    String result = "\n";
+    int i = 0;
+    for (Proposal proposal : proposalList.getProposalsList()) {
+      result += "proposal " + i + " :::";
+      result += "\n";
+      result += "[";
+      result += "\n";
+      result += printProposal(proposal);
+      result += "]";
+      result += "\n";
+      result += "\n";
+      i++;
+    }
     return result;
   }
 
