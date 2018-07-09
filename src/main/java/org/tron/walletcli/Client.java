@@ -411,4 +411,14 @@ public class Client {
 
     return wallet.approveProposal(id, is_add_approval);
   }
+
+  public boolean deleteProposal(long id)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warning: deleteProposal failed, Please login first !!");
+      return false;
+    }
+
+    return wallet.deleteProposal(id);
+  }
 }

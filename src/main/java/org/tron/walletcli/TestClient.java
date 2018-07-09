@@ -757,11 +757,29 @@ public class TestClient {
     boolean is_add_approval = Boolean.valueOf(parameters[1]);
     boolean result = client.approveProposal(id, is_add_approval);
     if (result) {
-      logger.info("createProposal " + " successful !!");
+      logger.info("approveProposal " + " successful !!");
     } else {
-      logger.info("createProposal " + " failed !!");
+      logger.info("approveProposal " + " failed !!");
     }
   }
+
+  private void deleteProposal(String[] parameters)
+      throws IOException, CipherException, CancelException {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("Use deleteProposal command with below syntax: ");
+      System.out.println("deleteProposal proposalId");
+      return;
+    }
+
+    long id = Long.valueOf(parameters[0]);
+    boolean result = client.deleteProposal(id);
+    if (result) {
+      logger.info("deleteProposal " + " successful !!");
+    } else {
+      logger.info("deleteProposal " + " failed !!");
+    }
+  }
+
 
   private void withdrawBalance() throws IOException, CipherException, CancelException {
     boolean result = client.withdrawBalance();
@@ -1235,6 +1253,10 @@ public class TestClient {
           }
           case "approveproposal": {
             approveProposal(parameters);
+            break;
+          }
+          case "deleteproposal": {
+            deleteProposal(parameters);
             break;
           }
           case "withdrawbalance": {

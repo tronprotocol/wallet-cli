@@ -1032,4 +1032,25 @@ public class WalletClient {
     return builder.build();
   }
 
+  public boolean deleteProposal(long id)
+      throws CipherException, IOException, CancelException {
+    byte[] owner = getAddress();
+    Contract.ProposalDeleteContract contract = createProposalDeleteContract(owner, id);
+    Transaction transaction = rpcCli.proposalDelete(contract);
+    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
+      return false;
+    }
+
+    transaction = signTransaction(transaction);
+    return rpcCli.broadcastTransaction(transaction);
+  }
+
+  public static Contract.ProposalDeleteContract createProposalDeleteContract(byte[] owner,
+      long id) {
+    Contract.ProposalDeleteContract.Builder builder = Contract.ProposalDeleteContract.newBuilder();
+    builder.setOwnerAddress(ByteString.copyFrom(owner));
+    builder.setProposalId(id);
+    return builder.build();
+  }
+
 }
