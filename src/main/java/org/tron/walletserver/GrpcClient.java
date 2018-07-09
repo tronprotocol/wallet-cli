@@ -100,7 +100,7 @@ public class GrpcClient {
     BytesMessage.Builder builder = BytesMessage.newBuilder();
     builder.setValue(ByteString.copyFrom(passPhrase));
 
-    BytesMessage result = blockingStubFull.createAdresss(builder.build());
+    BytesMessage result = blockingStubFull.createAddress(builder.build());
     return result.getValue().toByteArray();
   }
 
@@ -184,6 +184,14 @@ public class GrpcClient {
         .build();
     Proposal proposal = blockingStubFull.getProposalById(request);
     return Optional.ofNullable(proposal);
+  }
+
+  public Transaction proposalApprove(Contract.ProposalApproveContract contract) {
+    return blockingStubFull.proposalApprove(contract);
+  }
+
+  public Transaction proposalDelete(Contract.ProposalDeleteContract contract) {
+    return blockingStubFull.proposalDelete(contract);
   }
 
   public Transaction createAccount(Contract.AccountCreateContract contract) {

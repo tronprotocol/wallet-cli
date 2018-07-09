@@ -423,4 +423,24 @@ public class Client {
     }
   }
 
+
+  public boolean approveProposal(long id, boolean is_add_approval)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warning: approveProposal failed, Please login first !!");
+      return false;
+    }
+
+    return wallet.approveProposal(id, is_add_approval);
+  }
+
+  public boolean deleteProposal(long id)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warning: deleteProposal failed, Please login first !!");
+      return false;
+    }
+
+    return wallet.deleteProposal(id);
+  }
 }

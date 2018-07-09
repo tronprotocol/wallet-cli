@@ -1020,4 +1020,48 @@ public class WalletClient {
     builder.putAllParameters(parametersMap);
     return builder.build();
   }
+
+  public boolean approveProposal(long id, boolean is_add_approval)
+      throws CipherException, IOException, CancelException {
+    byte[] owner = getAddress();
+    Contract.ProposalApproveContract contract = createProposalApproveContract(owner, id, is_add_approval);
+    Transaction transaction = rpcCli.proposalApprove(contract);
+    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
+      return false;
+    }
+
+    transaction = signTransaction(transaction);
+    return rpcCli.broadcastTransaction(transaction);
+  }
+
+  public static Contract.ProposalApproveContract createProposalApproveContract(byte[] owner,
+      long id, boolean is_add_approval) {
+    Contract.ProposalApproveContract.Builder builder = Contract.ProposalApproveContract.newBuilder();
+    builder.setOwnerAddress(ByteString.copyFrom(owner));
+    builder.setProposalId(id);
+    builder.setIsAddApproval(is_add_approval);
+    return builder.build();
+  }
+
+  public boolean deleteProposal(long id)
+      throws CipherException, IOException, CancelException {
+    byte[] owner = getAddress();
+    Contract.ProposalDeleteContract contract = createProposalDeleteContract(owner, id);
+    Transaction transaction = rpcCli.proposalDelete(contract);
+    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
+      return false;
+    }
+
+    transaction = signTransaction(transaction);
+    return rpcCli.broadcastTransaction(transaction);
+  }
+
+  public static Contract.ProposalDeleteContract createProposalDeleteContract(byte[] owner,
+      long id) {
+    Contract.ProposalDeleteContract.Builder builder = Contract.ProposalDeleteContract.newBuilder();
+    builder.setOwnerAddress(ByteString.copyFrom(owner));
+    builder.setProposalId(id);
+    return builder.build();
+  }
+
 }
