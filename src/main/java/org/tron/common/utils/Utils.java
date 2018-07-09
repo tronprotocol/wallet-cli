@@ -40,10 +40,11 @@ import org.tron.keystore.StringUtils;
 import org.tron.protos.Contract.AccountCreateContract;
 import org.tron.protos.Contract.AccountUpdateContract;
 import org.tron.protos.Contract.AssetIssueContract;
+
 import org.tron.protos.Contract.AssetIssueContract.FrozenSupply;
-import org.tron.protos.Contract.DeployContract;
 import org.tron.protos.Contract.FreezeBalanceContract;
 import org.tron.protos.Contract.ParticipateAssetIssueContract;
+import org.tron.protos.Contract.SmartContract;
 import org.tron.protos.Contract.TransferAssetContract;
 import org.tron.protos.Contract.TransferContract;
 import org.tron.protos.Contract.UnfreezeAssetContract;
@@ -597,15 +598,26 @@ public class Utils {
               .encode58Check(withdrawBalanceContract.getOwnerAddress().toByteArray());
           result += "\n";
           break;
-        case DeployContract:
-          DeployContract deployContract = contract.getParameter().unpack(DeployContract.class);
+        case SmartContract:
+          SmartContract smartContract = contract.getParameter().unpack(SmartContract.class);
           result += "owner_address: ";
           result += WalletClient
-              .encode58Check(deployContract.getOwnerAddress().toByteArray());
+              .encode58Check(smartContract.getOwnerAddress().toByteArray());
           result += "\n";
-          result += "script: ";
-          result += new String(deployContract.getScript().toByteArray(),
-              Charset.forName("UTF-8"));
+          result += "ABI: ";
+          result += WalletClient.encode58Check(smartContract.getAbi().toByteArray());
+          result += "\n";
+          result += "byte_code: ";
+          result += WalletClient.encode58Check(smartContract.getBytecode().toByteArray());
+          result += "\n";
+          result += "call_value: ";
+          result += WalletClient.encode58Check(smartContract.getCallValue().toByteArray());
+          result += "\n";
+          result += "contract_address:";
+          result += WalletClient.encode58Check(smartContract.getContractAddress().toByteArray());
+          result += "\n";
+          result += "data:";
+          result += WalletClient.encode58Check(smartContract.getData().toByteArray());
           result += "\n";
           break;
         default:

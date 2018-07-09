@@ -402,4 +402,18 @@ public class GrpcClient {
     BlockList blockList = blockingStubFull.getBlockByLatestNum(numberMessage);
     return Optional.ofNullable(blockList);
   }
+
+  public Transaction deployContract(Contract.SmartContract request) {
+    return blockingStubFull.deployContract(request);
+  }
+
+  public Transaction triggerContract(Contract.TriggerSmartContract request) {
+    return blockingStubFull.triggerContract(request);
+  }
+
+  public Contract.SmartContract getContract(byte[] address) {
+    ByteString byteString = ByteString.copyFrom(address);
+    BytesMessage bytesMessage = BytesMessage.newBuilder().setValue(byteString).build();
+    return blockingStubFull.getContract(bytesMessage);
+  }
 }
