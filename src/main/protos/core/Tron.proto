@@ -30,6 +30,23 @@ message Vote {
   int64 vote_count = 2;
 }
 
+// Proposal
+message Proposal {
+  int64 proposal_id = 1;
+  bytes proposer_address = 2;
+  map<int64, int64> parameters = 3;
+  int64 expiration_time = 4;
+  int64 create_time = 5;
+  repeated bytes approvals = 6;
+  enum State {
+    DISAPPROVED = 0;
+    APPROVED = 1;
+    CANCELED = 2;
+    PENDING = 3;
+  }
+  State state = 7;
+}
+
 // Account
 message Account {
   // frozen balance
@@ -78,14 +95,12 @@ message Account {
   int64 latest_consume_free_time = 22;
 }
 
-//FIXME authority?
-message acuthrity {
+message authority {
   AccountId account = 1;
   bytes permission_name = 2;
 }
 
-//FIXME permission
-message permision {
+message permission {
   AccountId account = 1;
 }
 
@@ -152,6 +167,9 @@ message Transaction {
       WithdrawBalanceContract = 13;
       UnfreezeAssetContract = 14;
       UpdateAssetContract = 15;
+      ProposalCreateContract = 16;
+      ProposalApproveContract = 17;
+      ProposalDeleteContract = 18;
       CustomContract = 20;
     }
     ContractType type = 1;
@@ -175,7 +193,7 @@ message Transaction {
     int64 ref_block_num = 3;
     bytes ref_block_hash = 4;
     int64 expiration = 8;
-    repeated acuthrity auths = 9; //FIXME authority
+    repeated authority auths = 9;
     // data not used
     bytes data = 10;
     //only support size = 1,  repeated list here for extension
