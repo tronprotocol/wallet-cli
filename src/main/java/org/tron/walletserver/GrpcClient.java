@@ -11,10 +11,14 @@ import org.slf4j.LoggerFactory;
 import org.tron.api.GrpcAPI;
 import org.tron.api.GrpcAPI.AccountNetMessage;
 import org.tron.api.GrpcAPI.AccountPaginated;
+import org.tron.api.GrpcAPI.AddressPrKeyPairMessage;
 import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.BlockLimit;
 import org.tron.api.GrpcAPI.BlockList;
 import org.tron.api.GrpcAPI.BytesMessage;
+import org.tron.api.GrpcAPI.EasyTransferByPrivateMessage;
+import org.tron.api.GrpcAPI.EasyTransferMessage;
+import org.tron.api.GrpcAPI.EasyTransferResponse;
 import org.tron.api.GrpcAPI.EmptyMessage;
 import org.tron.api.GrpcAPI.NodeList;
 import org.tron.api.GrpcAPI.NumberMessage;
@@ -30,6 +34,8 @@ import org.tron.protos.Contract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.Transaction;
+import org.tron.protos.Protocol.TransactionInfo;
+import org.tron.protos.Protocol.TransactionSign;
 
 public class GrpcClient {
 
@@ -82,6 +88,41 @@ public class GrpcClient {
     }
   }
 
+  //Warning: do not invoke this interface provided by others.
+  public Transaction signTransaction(TransactionSign transactionSign) {
+    return blockingStubFull.getTransactionSign(transactionSign);
+  }
+
+  //Warning: do not invoke this interface provided by others.
+  public byte[] createAdresss(byte[] passPhrase) {
+    BytesMessage.Builder builder = BytesMessage.newBuilder();
+    builder.setValue(ByteString.copyFrom(passPhrase));
+
+    BytesMessage result = blockingStubFull.createAdresss(builder.build());
+    return result.getValue().toByteArray();
+  }
+
+  //Warning: do not invoke this interface provided by others.
+  public EasyTransferResponse easyTransfer(byte[] passPhrase, byte[] toAddress, long amount) {
+    EasyTransferMessage.Builder builder = EasyTransferMessage.newBuilder();
+    builder.setPassPhrase(ByteString.copyFrom(passPhrase));
+    builder.setToAddress(ByteString.copyFrom(toAddress));
+    builder.setAmount(amount);
+
+    return blockingStubFull.easyTransfer(builder.build());
+  }
+
+  //Warning: do not invoke this interface provided by others.
+  public EasyTransferResponse easyTransferByPrivate(byte[] privateKey, byte[] toAddress,
+      long amount) {
+    EasyTransferByPrivateMessage.Builder builder = EasyTransferByPrivateMessage.newBuilder();
+    builder.setPrivateKey(ByteString.copyFrom(privateKey));
+    builder.setToAddress(ByteString.copyFrom(toAddress));
+    builder.setAmount(amount);
+
+    return blockingStubFull.easyTransferByPrivate(builder.build());
+  }
+
   public Transaction createTransaction(Contract.AccountUpdateContract contract) {
     return blockingStubFull.updateAccount(contract);
   }
@@ -129,6 +170,14 @@ public class GrpcClient {
 
   public Transaction createAccount(Contract.AccountCreateContract contract) {
     return blockingStubFull.createAccount(contract);
+  }
+
+  public AddressPrKeyPairMessage generateAddress(EmptyMessage emptyMessage) {
+    if (blockingStubSolidity != null) {
+      return blockingStubSolidity.generateAddress(emptyMessage);
+    } else {
+      return blockingStubFull.generateAddress(emptyMessage);
+    }
   }
 
   public Transaction createWitness(Contract.WitnessCreateContract contract) {
@@ -324,6 +373,13 @@ public class GrpcClient {
     BytesMessage request = BytesMessage.newBuilder().setValue(bsTxid).build();
     Transaction transaction = blockingStubFull.getTransactionById(request);
     return Optional.ofNullable(transaction);
+  }
+
+  public Optional<TransactionInfo> getTransactionInfoById(String txID) {
+    ByteString bsTxid = ByteString.copyFrom(ByteArray.fromHexString(txID));
+    BytesMessage request = BytesMessage.newBuilder().setValue(bsTxid).build();
+    TransactionInfo transactionInfo = blockingStubSolidity.getTransactionInfoById(request);
+    return Optional.ofNullable(transactionInfo);
   }
 
   public Optional<Block> getBlockById(String blockID) {

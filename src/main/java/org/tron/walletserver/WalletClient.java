@@ -22,8 +22,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tron.api.GrpcAPI;
 import org.tron.api.GrpcAPI.AccountNetMessage;
+import org.tron.api.GrpcAPI.AddressPrKeyPairMessage;
 import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.BlockList;
+import org.tron.api.GrpcAPI.EasyTransferResponse;
+import org.tron.api.GrpcAPI.EmptyMessage;
 import org.tron.api.GrpcAPI.NodeList;
 import org.tron.api.GrpcAPI.TransactionList;
 import org.tron.api.GrpcAPI.WitnessList;
@@ -51,6 +54,8 @@ import org.tron.protos.Contract.WithdrawBalanceContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.Transaction;
+import org.tron.protos.Protocol.TransactionInfo;
+import org.tron.protos.Protocol.TransactionSign;
 import org.tron.protos.Protocol.Witness;
 import org.spongycastle.util.encoders.Hex;
 
@@ -346,6 +351,25 @@ public class WalletClient {
     org.tron.keystore.StringUtils.clear(passwd);
     return transaction;
   }
+  //Warning: do not invoke this interface provided by others.
+  public static Transaction signTransactionByApi(Transaction transaction, byte[] privateKey) {
+    TransactionSign.Builder builder = TransactionSign.newBuilder();
+    builder.setPrivateKey(ByteString.copyFrom(privateKey));
+    builder.setTransaction(transaction);
+    return rpcCli.signTransaction(builder.build());
+  }
+  //Warning: do not invoke this interface provided by others.
+  public static byte[] createAdresss(byte[] passPhrase) {
+    return rpcCli.createAdresss(passPhrase);
+  }
+  //Warning: do not invoke this interface provided by others.
+  public static EasyTransferResponse easyTransfer(byte[] passPhrase, byte[] toAddress, long amount) {
+    return rpcCli.easyTransfer(passPhrase, toAddress, amount);
+  }
+  //Warning: do not invoke this interface provided by others.
+  public static EasyTransferResponse easyTransferByPrivate(byte[] privateKey, byte[] toAddress, long amount) {
+    return rpcCli.easyTransferByPrivate(privateKey, toAddress, amount);
+  }
 
   public boolean sendCoin(byte[] to, long amount)
       throws CipherException, IOException, CancelException {
@@ -461,6 +485,11 @@ public class WalletClient {
 
     transaction = signTransaction(transaction);
     return rpcCli.broadcastTransaction(transaction);
+  }
+  //Warning: do not invoke this interface provided by others.
+  public static AddressPrKeyPairMessage generateAddress(){
+    EmptyMessage.Builder builder = EmptyMessage.newBuilder();
+    return rpcCli.generateAddress(builder.build());
   }
 
   public boolean createWitness(byte[] url) throws CipherException, IOException, CancelException {
@@ -859,6 +888,10 @@ public class WalletClient {
 
   public static Optional<Transaction> getTransactionById(String txID) {
     return rpcCli.getTransactionById(txID);
+  }
+
+  public static Optional<TransactionInfo> getTransactionInfoById(String txID) {
+    return rpcCli.getTransactionInfoById(txID);
   }
 
   public boolean freezeBalance(long frozen_balance, long frozen_duration)

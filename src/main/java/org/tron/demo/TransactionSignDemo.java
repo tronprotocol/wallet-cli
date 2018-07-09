@@ -3,12 +3,14 @@ package org.tron.demo;
 import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
+import java.util.Arrays;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.Sha256Hash;
 import org.tron.common.utils.ByteArray;
 import org.tron.protos.Contract;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.Transaction;
+import org.tron.protos.Protocol.TransactionSign;
 import org.tron.walletserver.WalletClient;
 
 public class TransactionSignDemo {
@@ -87,11 +89,11 @@ public class TransactionSignDemo {
   }
 
   public static void main(String[] args) throws InvalidProtocolBufferException {
-    String privateStr = "8F9BCBB98690E30F32A251D9598F82198D62FA9EC2617A2F494833BF260F38F9";
+    String privateStr = "D95611A9AF2A2A45359106222ED1AFED48853D9A44DEFF8DC7913F5CBA727366";
     byte[] privateBytes = ByteArray.fromHexString(privateStr);
     ECKey ecKey = ECKey.fromPrivate(privateBytes);
     byte[] from = ecKey.getAddress();
-    byte[] to = WalletClient.decodeFromBase58Check("TPwJS5eC5BPGyMGtYTHNhPTB89sUWjDSSu");
+    byte[] to = WalletClient.decodeFromBase58Check("TGehVcNhud84JDCGrNHKVz9jEAVKUpbuiv");
     long amount = 100_000_000L; //100 TRX, api only receive trx in drop, and 1 trx = 1000000 drop
     Transaction transaction = createTransaction(from, to, amount);
     byte[] transactionBytes = transaction.toByteArray();
@@ -111,7 +113,12 @@ public class TransactionSignDemo {
     //sign a transaction in byte format and return a Transaction in byte format
     byte[] transaction4 = signTransaction2Byte(transactionBytes, privateBytes);
     System.out.println("transaction4 ::::: " + ByteArray.toHexString(transaction4));
-
+    Transaction transactionSigned = WalletClient.signTransactionByApi(transaction, ecKey.getPrivKeyBytes());
+    byte[] transaction5 = transactionSigned.toByteArray();
+    System.out.println("transaction5 ::::: " + ByteArray.toHexString(transaction5));
+    if (!Arrays.equals(transaction4, transaction5)){
+      System.out.println("transaction4 is not equals to transaction5 !!!!!");
+    }
     boolean result = broadcast(transaction4);
 
     System.out.println(result);

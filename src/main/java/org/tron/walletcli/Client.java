@@ -7,6 +7,7 @@ import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tron.api.GrpcAPI;
+import org.tron.api.GrpcAPI.AddressPrKeyPairMessage;
 import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.NodeList;
 import org.tron.api.GrpcAPI.WitnessList;
@@ -248,6 +249,15 @@ public class Client {
     byte[] addressBytes = WalletClient.decodeFromBase58Check(address);
     return wallet.createAccount(addressBytes);
   }
+
+  public AddressPrKeyPairMessage generateAddress() {
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warning: createAccount failed,  Please login first !!");
+      return null;
+    }
+    return wallet.generateAddress();
+  }
+
 
   public boolean createWitness(String url) throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
