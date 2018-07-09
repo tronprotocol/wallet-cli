@@ -98,7 +98,7 @@ public class GrpcClient {
     BytesMessage.Builder builder = BytesMessage.newBuilder();
     builder.setValue(ByteString.copyFrom(passPhrase));
 
-    BytesMessage result = blockingStubFull.createAdresss(builder.build());
+    BytesMessage result = blockingStubFull.createAddress(builder.build());
     return result.getValue().toByteArray();
   }
 
