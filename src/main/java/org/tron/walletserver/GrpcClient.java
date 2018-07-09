@@ -23,6 +23,7 @@ import org.tron.api.GrpcAPI.EmptyMessage;
 import org.tron.api.GrpcAPI.NodeList;
 import org.tron.api.GrpcAPI.NumberMessage;
 import org.tron.api.GrpcAPI.PaginatedMessage;
+import org.tron.api.GrpcAPI.ProposalList;
 import org.tron.api.GrpcAPI.Return.response_code;
 import org.tron.api.GrpcAPI.TransactionList;
 import org.tron.api.GrpcAPI.WitnessList;
@@ -33,6 +34,7 @@ import org.tron.common.utils.ByteArray;
 import org.tron.protos.Contract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
+import org.tron.protos.Protocol.Proposal;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.TransactionInfo;
 import org.tron.protos.Protocol.TransactionSign;
@@ -170,6 +172,18 @@ public class GrpcClient {
 
   public Transaction proposalCreate(Contract.ProposalCreateContract contract) {
     return blockingStubFull.proposalCreate(contract);
+  }
+
+  public Optional<ProposalList> listProposals() {
+    ProposalList proposalList = blockingStubFull.listProposals(EmptyMessage.newBuilder().build());
+    return Optional.ofNullable(proposalList);
+  }
+
+  public Optional<Proposal> getProposal(String id) {
+    BytesMessage request = BytesMessage.newBuilder().setValue(ByteString.copyFrom(id.getBytes()))
+        .build();
+    Proposal proposal = blockingStubFull.getProposalById(request);
+    return Optional.ofNullable(proposal);
   }
 
   public Transaction proposalApprove(Contract.ProposalApproveContract contract) {

@@ -23,6 +23,7 @@ import org.tron.api.GrpcAPI.BlockList;
 import org.tron.api.GrpcAPI.Node;
 import org.tron.api.GrpcAPI.NodeList;
 import org.tron.api.GrpcAPI.NumberMessage;
+import org.tron.api.GrpcAPI.ProposalList;
 import org.tron.api.GrpcAPI.TransactionList;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.utils.ByteArray;
@@ -33,6 +34,7 @@ import org.tron.keystore.StringUtils;
 import org.tron.protos.Contract.AssetIssueContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
+import org.tron.protos.Protocol.Proposal;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.TransactionInfo;
 import org.tron.walletserver.WalletClient;
@@ -781,6 +783,36 @@ public class TestClient {
   }
 
 
+  private void listProposals() {
+    Optional<ProposalList> result = client.getProposalsList();
+    if (result.isPresent()) {
+      ProposalList proposalList = result.get();
+      logger.info(Utils.printProposalsList(proposalList));
+    } else {
+      logger.info("List witnesses " + " failed !!");
+    }
+  }
+
+  private void getProposal(String[] parameters) {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("getProposal needs 1 parameter like following: ");
+      System.out.println("getProposal id ");
+      return;
+    }
+    String id = parameters[0];
+
+    Optional<Proposal> result = WalletClient.getProposal(id);
+    if (result.isPresent()) {
+      Proposal proposal = result.get();
+      logger.info(Utils.printProposal(proposal));
+    } else {
+      logger.info("getProposal " + " failed !!");
+    }
+  }
+
+
+
+
   private void withdrawBalance() throws IOException, CipherException, CancelException {
     boolean result = client.withdrawBalance();
     if (result) {
@@ -1101,6 +1133,8 @@ public class TestClient {
     System.out.println("UpdateAsset");
     System.out.println("UnfreezeAsset");
     System.out.println("CreateProposal");
+    System.out.println("ListProposals");
+    System.out.println("GetProposal");
     System.out.println("ApproveProposal");
     System.out.println("DeleteProposal");
     System.out.println("Exit or Quit");
@@ -1249,6 +1283,14 @@ public class TestClient {
           }
           case "createproposal": {
             createProposal(parameters);
+            break;
+          }
+          case "listProposals": {
+            listProposals();
+            break;
+          }
+          case "getProposals": {
+            getProposal(parameters);
             break;
           }
           case "approveproposal": {
