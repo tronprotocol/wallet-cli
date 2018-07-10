@@ -100,7 +100,6 @@ message Witness {
   bool isJobs = 9;
 }
 
-
 // Vote Change
 message Votes {
   bytes address = 1;
@@ -192,10 +191,11 @@ message Transaction {
 }
 
 message TransactionInfo {
- bytes id = 1;
- int64 fee = 2;
- int64 blockNumber = 3;
- int64 blockTimeStamp = 4;
+  bytes id = 1;
+  int64 fee = 2;
+  int64 blockNumber = 3;
+  int64 blockTimeStamp = 4;
+  repeated bytes contractResult = 5;
 }
 
 message Transactions {
