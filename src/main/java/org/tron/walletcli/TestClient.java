@@ -1277,20 +1277,16 @@ public class TestClient {
             unfreezeBalance();
             break;
           }
+          case "withdrawbalance": {
+            withdrawBalance();
+            break;
+          }
           case "unfreezeasset": {
             unfreezeAsset();
             break;
           }
           case "createproposal": {
             createProposal(parameters);
-            break;
-          }
-          case "listProposals": {
-            listProposals();
-            break;
-          }
-          case "getProposals": {
-            getProposal(parameters);
             break;
           }
           case "approveproposal": {
@@ -1301,8 +1297,12 @@ public class TestClient {
             deleteProposal(parameters);
             break;
           }
-          case "withdrawbalance": {
-            withdrawBalance();
+          case "listProposals": {
+            listProposals();
+            break;
+          }
+          case "getProposal": {
+            getProposal(parameters);
             break;
           }
           case "listwitnesses": {
