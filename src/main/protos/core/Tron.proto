@@ -152,7 +152,6 @@ message Transaction {
     enum ContractType {
       AccountCreateContract = 0;
       TransferContract = 1;
-
       TransferAssetContract = 2;
       VoteAssetContract = 3;
       VoteWitnessContract = 4;
