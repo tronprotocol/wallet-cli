@@ -1372,7 +1372,7 @@ public class TestClient {
           }
           case "getcontract": {
             getContract(parameters);
-            //callContractGetTest();
+            break;
           }
           case "generateaddress":{
             generateAddress();
