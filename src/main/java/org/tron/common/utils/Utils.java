@@ -310,6 +310,9 @@ public class Utils {
     result += "parametersMap: ";
     result += proposal.getParametersMap();
     result += "\n";
+    result += "approvalsList: ";
+    result += proposal.getApprovalsList();
+    result += "\n";
     return result;
   }
 
