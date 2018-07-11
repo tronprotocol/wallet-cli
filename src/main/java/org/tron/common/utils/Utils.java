@@ -45,6 +45,9 @@ import org.tron.protos.Contract.AssetIssueContract.FrozenSupply;
 import org.tron.protos.Contract.DeployContract;
 import org.tron.protos.Contract.FreezeBalanceContract;
 import org.tron.protos.Contract.ParticipateAssetIssueContract;
+import org.tron.protos.Contract.ProposalApproveContract;
+import org.tron.protos.Contract.ProposalCreateContract;
+import org.tron.protos.Contract.ProposalDeleteContract;
 import org.tron.protos.Contract.TransferAssetContract;
 import org.tron.protos.Contract.TransferContract;
 import org.tron.protos.Contract.UnfreezeAssetContract;
@@ -645,6 +648,36 @@ public class Utils {
           result += "script: ";
           result += new String(deployContract.getScript().toByteArray(),
               Charset.forName("UTF-8"));
+          result += "\n";
+          break;
+        case ProposalCreateContract:
+          ProposalCreateContract proposalCreateContract = contract.getParameter().unpack(ProposalCreateContract.class);
+          result += "owner_address: ";
+          result += WalletClient
+              .encode58Check(proposalCreateContract.getOwnerAddress().toByteArray());
+          result += "\n";
+          result += "parametersMap: ";
+          result += proposalCreateContract.getParametersMap();
+          result += "\n";
+          break;
+        case ProposalApproveContract:
+          ProposalApproveContract proposalApproveContract = contract.getParameter().unpack(ProposalApproveContract.class);
+          result += "owner_address: ";
+          result += WalletClient
+              .encode58Check(proposalApproveContract.getOwnerAddress().toByteArray());
+          result += "\n";
+          result += "proposal id: ";
+          result += proposalApproveContract.getProposalId();
+          result += "\n";
+          result += "IsAddApproval: ";
+          result += proposalApproveContract.getIsAddApproval();
+          result += "\n";
+          break;
+        case ProposalDeleteContract:
+          ProposalDeleteContract proposalDeleteContract = contract.getParameter().unpack(ProposalDeleteContract.class);
+          result += "owner_address: ";
+          result += WalletClient
+              .encode58Check(proposalDeleteContract.getOwnerAddress().toByteArray());
           result += "\n";
           break;
         default:
