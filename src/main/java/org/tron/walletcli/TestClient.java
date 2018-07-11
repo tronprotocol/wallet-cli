@@ -1297,11 +1297,11 @@ public class TestClient {
             deleteProposal(parameters);
             break;
           }
-          case "listProposals": {
+          case "listproposals": {
             listProposals();
             break;
           }
-          case "getProposal": {
+          case "getproposal": {
             getProposal(parameters);
             break;
           }
