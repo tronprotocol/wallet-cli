@@ -180,7 +180,8 @@ public class GrpcClient {
   }
 
   public Optional<Proposal> getProposal(String id) {
-    BytesMessage request = BytesMessage.newBuilder().setValue(ByteString.copyFrom(id.getBytes()))
+    BytesMessage request = BytesMessage.newBuilder().setValue(ByteString.copyFrom(
+        ByteArray.fromLong(Long.parseLong(id))))
         .build();
     Proposal proposal = blockingStubFull.getProposalById(request);
     return Optional.ofNullable(proposal);
