@@ -310,9 +310,12 @@ public class Utils {
     result += "parametersMap: ";
     result += proposal.getParametersMap();
     result += "\n";
-    result += "approvalsList: ";
-    result += proposal.getApprovalsList();
-    result += "\n";
+    result += "approvalsList: [ \n";
+    for (ByteString address : proposal.getApprovalsList()) {
+      result += WalletClient.encode58Check(address.toByteArray());
+      result += "\n";
+    }
+    result += "]";
     return result;
   }
 
@@ -568,15 +571,18 @@ public class Utils {
           result += printAssetIssue(assetIssueContract);
           break;
         case UpdateAssetContract:
-          UpdateAssetContract updateAssetContract = contract.getParameter().unpack(UpdateAssetContract.class);
+          UpdateAssetContract updateAssetContract = contract.getParameter()
+              .unpack(UpdateAssetContract.class);
           result += "owner_address: ";
           result += WalletClient.encode58Check(updateAssetContract.getOwnerAddress().toByteArray());
           result += "\n";
           result += "description: ";
-          result += new String(updateAssetContract.getDescription().toByteArray(), Charset.forName("UTF-8"));
+          result += new String(updateAssetContract.getDescription().toByteArray(),
+              Charset.forName("UTF-8"));
           result += "\n";
           result += "url: ";
-          result += new String(updateAssetContract.getUrl().toByteArray(), Charset.forName("UTF-8"));
+          result += new String(updateAssetContract.getUrl().toByteArray(),
+              Charset.forName("UTF-8"));
           result += "\n";
           result += "free asset net limit: ";
           result += updateAssetContract.getNewLimit();
@@ -654,7 +660,8 @@ public class Utils {
           result += "\n";
           break;
         case ProposalCreateContract:
-          ProposalCreateContract proposalCreateContract = contract.getParameter().unpack(ProposalCreateContract.class);
+          ProposalCreateContract proposalCreateContract = contract.getParameter()
+              .unpack(ProposalCreateContract.class);
           result += "owner_address: ";
           result += WalletClient
               .encode58Check(proposalCreateContract.getOwnerAddress().toByteArray());
@@ -664,7 +671,8 @@ public class Utils {
           result += "\n";
           break;
         case ProposalApproveContract:
-          ProposalApproveContract proposalApproveContract = contract.getParameter().unpack(ProposalApproveContract.class);
+          ProposalApproveContract proposalApproveContract = contract.getParameter()
+              .unpack(ProposalApproveContract.class);
           result += "owner_address: ";
           result += WalletClient
               .encode58Check(proposalApproveContract.getOwnerAddress().toByteArray());
@@ -677,7 +685,8 @@ public class Utils {
           result += "\n";
           break;
         case ProposalDeleteContract:
-          ProposalDeleteContract proposalDeleteContract = contract.getParameter().unpack(ProposalDeleteContract.class);
+          ProposalDeleteContract proposalDeleteContract = contract.getParameter()
+              .unpack(ProposalDeleteContract.class);
           result += "owner_address: ";
           result += WalletClient
               .encode58Check(proposalDeleteContract.getOwnerAddress().toByteArray());
@@ -760,7 +769,7 @@ public class Utils {
   public static String printRet(List<Result> resultList) {
     String results = "";
     int i = 0;
-    for(Result result: resultList){
+    for (Result result : resultList) {
       results += "result: ";
       results += i;
       results += " ::: ";
@@ -829,15 +838,15 @@ public class Utils {
     result += "\n";
     result += "fee: ";
     result += "\n";
-    result += transactionInfo.getFee() ;
+    result += transactionInfo.getFee();
     result += "\n";
     result += "blockNumber: ";
     result += "\n";
-    result += transactionInfo.getBlockNumber() ;
+    result += transactionInfo.getBlockNumber();
     result += "\n";
     result += "blockTimeStamp: ";
     result += "\n";
-    result += transactionInfo.getBlockTimeStamp() ;
+    result += transactionInfo.getBlockTimeStamp();
     result += "\n";
     return result;
   }
