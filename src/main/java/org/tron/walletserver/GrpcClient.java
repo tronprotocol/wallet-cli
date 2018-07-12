@@ -378,7 +378,12 @@ public class GrpcClient {
   public Optional<TransactionInfo> getTransactionInfoById(String txID) {
     ByteString bsTxid = ByteString.copyFrom(ByteArray.fromHexString(txID));
     BytesMessage request = BytesMessage.newBuilder().setValue(bsTxid).build();
-    TransactionInfo transactionInfo = blockingStubSolidity.getTransactionInfoById(request);
+    TransactionInfo transactionInfo;
+    if (blockingStubSolidity != null) {
+      transactionInfo = blockingStubSolidity.getTransactionInfoById(request);
+    } else {
+      transactionInfo = blockingStubFull.getTransactionInfoById(request);
+    }
     return Optional.ofNullable(transactionInfo);
   }
 

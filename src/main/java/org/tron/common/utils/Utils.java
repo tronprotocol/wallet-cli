@@ -21,15 +21,15 @@ package org.tron.common.utils;
 import com.google.protobuf.ByteString;
 import java.io.Console;
 import java.io.IOException;
-import java.security.SecureRandom;
-import java.nio.*;
+import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
 import java.nio.charset.Charset;
+import java.security.SecureRandom;
 import java.text.ParsePosition;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
-import java.util.Scanner;
 import org.tron.api.GrpcAPI.AccountNetMessage;
 import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.BlockList;
@@ -40,7 +40,6 @@ import org.tron.keystore.StringUtils;
 import org.tron.protos.Contract.AccountCreateContract;
 import org.tron.protos.Contract.AccountUpdateContract;
 import org.tron.protos.Contract.AssetIssueContract;
-
 import org.tron.protos.Contract.AssetIssueContract.FrozenSupply;
 import org.tron.protos.Contract.FreezeBalanceContract;
 import org.tron.protos.Contract.ParticipateAssetIssueContract;
@@ -57,13 +56,13 @@ import org.tron.protos.Contract.WitnessCreateContract;
 import org.tron.protos.Contract.WitnessUpdateContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Account.Frozen;
-import org.tron.protos.Protocol.TransactionInfo;
-import org.tron.protos.Protocol.Vote;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.BlockHeader;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.Transaction.Contract;
 import org.tron.protos.Protocol.Transaction.Result;
+import org.tron.protos.Protocol.TransactionInfo;
+import org.tron.protos.Protocol.Vote;
 import org.tron.protos.Protocol.Witness;
 import org.tron.walletserver.WalletClient;
 
@@ -524,15 +523,18 @@ public class Utils {
           result += printAssetIssue(assetIssueContract);
           break;
         case UpdateAssetContract:
-          UpdateAssetContract updateAssetContract = contract.getParameter().unpack(UpdateAssetContract.class);
+          UpdateAssetContract updateAssetContract = contract.getParameter()
+              .unpack(UpdateAssetContract.class);
           result += "owner_address: ";
           result += WalletClient.encode58Check(updateAssetContract.getOwnerAddress().toByteArray());
           result += "\n";
           result += "description: ";
-          result += new String(updateAssetContract.getDescription().toByteArray(), Charset.forName("UTF-8"));
+          result += new String(updateAssetContract.getDescription().toByteArray(),
+              Charset.forName("UTF-8"));
           result += "\n";
           result += "url: ";
-          result += new String(updateAssetContract.getUrl().toByteArray(), Charset.forName("UTF-8"));
+          result += new String(updateAssetContract.getUrl().toByteArray(),
+              Charset.forName("UTF-8"));
           result += "\n";
           result += "free asset net limit: ";
           result += updateAssetContract.getNewLimit();
@@ -697,7 +699,7 @@ public class Utils {
   public static String printRet(List<Result> resultList) {
     String results = "";
     int i = 0;
-    for(Result result: resultList){
+    for (Result result : resultList) {
       results += "result: ";
       results += i;
       results += " ::: ";
@@ -766,15 +768,23 @@ public class Utils {
     result += "\n";
     result += "fee: ";
     result += "\n";
-    result += transactionInfo.getFee() ;
+    result += transactionInfo.getFee();
     result += "\n";
     result += "blockNumber: ";
     result += "\n";
-    result += transactionInfo.getBlockNumber() ;
+    result += transactionInfo.getBlockNumber();
     result += "\n";
     result += "blockTimeStamp: ";
     result += "\n";
-    result += transactionInfo.getBlockTimeStamp() ;
+    result += transactionInfo.getBlockTimeStamp();
+    result += "\n";
+    result += "contractResult: ";
+    result += "\n";
+    result += ByteArray.toHexString(transactionInfo.getContractResult(0).toByteArray());
+    result += "\n";
+    result += "contractAddress: ";
+    result += "\n";
+    result += ByteArray.toHexString(transactionInfo.getContractResult(0).toByteArray());
     result += "\n";
     return result;
   }
