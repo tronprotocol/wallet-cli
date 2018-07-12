@@ -1,14 +1,6 @@
 package org.tron.walletcli;
 
 import com.beust.jcommander.JCommander;
-import org.bouncycastle.util.encoders.Hex;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.tron.api.GrpcAPI.*;
-import org.tron.common.crypto.Hash;
-import org.tron.common.utils.ByteArray;
-import org.tron.common.utils.Utils;
-import org.tron.protos.Contract;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -23,11 +15,10 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Scanner;
 import org.apache.commons.lang3.ArrayUtils;
-import org.bouncycastle.util.Iterable;
+import org.bouncycastle.util.encoders.Hex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tron.api.GrpcAPI.AccountNetMessage;
-import org.tron.api.GrpcAPI.Address;
 import org.tron.api.GrpcAPI.AddressPrKeyPairMessage;
 import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.BlockList;
@@ -36,8 +27,8 @@ import org.tron.api.GrpcAPI.NodeList;
 import org.tron.api.GrpcAPI.NumberMessage;
 import org.tron.api.GrpcAPI.TransactionList;
 import org.tron.api.GrpcAPI.WitnessList;
+import org.tron.common.crypto.Hash;
 import org.tron.common.utils.ByteArray;
-import org.tron.common.utils.ByteUtil;
 import org.tron.common.utils.Utils;
 import org.tron.core.exception.CancelException;
 import org.tron.core.exception.CipherException;
@@ -996,7 +987,7 @@ public class TestClient {
   private void deployContract(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null ||
-            parameters.length < 4) {
+        parameters.length < 4) {
       System.out.println("Create contract invalid arguments");
       return;
     }
@@ -1007,12 +998,15 @@ public class TestClient {
     String codeStr = parameters[3];
     String data = null;
     String value = null;
-    if (parameters.length > 4)
+    if (parameters.length > 4) {
       data = parameters[4];
-    if (parameters.length > 5)
+    }
+    if (parameters.length > 5) {
       value = parameters[5];
+    }
 
-    boolean result = client.deployContract(passwordStr, contractAddrStr, abiStr, codeStr, data, value);
+    boolean result = client
+        .deployContract(passwordStr, contractAddrStr, abiStr, codeStr, data, value);
     if (result) {
       System.out.println("Deploy the contract successfully");
     } else {
@@ -1023,7 +1017,7 @@ public class TestClient {
   private void triggerContract(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null ||
-            parameters.length < 5) {
+        parameters.length < 5) {
       System.out.println("Call contract invalid arguments");
       return;
     }
@@ -1033,8 +1027,8 @@ public class TestClient {
     String selectorStr = parameters[2];
     String dataStr = parameters[3];
     String valueStr = parameters[4];
-    if(dataStr.equalsIgnoreCase("#")){
-      dataStr="";
+    if (dataStr.equalsIgnoreCase("#")) {
+      dataStr = "";
     }
 
     byte[] contractAddress = WalletClient.decodeFromBase58Check(contractAddrStr);
@@ -1045,11 +1039,11 @@ public class TestClient {
     System.out.println(selectorStr + ":" + Hex.toHexString(selector));
     StringBuffer stringBuffer = new StringBuffer();
     dataStr = stringBuffer.append(Hex.toHexString(selector))
-            .append(dataStr)
-            .toString();
+        .append(dataStr)
+        .toString();
     data = Hex.decode(dataStr);
     boolean result = client.callContract(passwordStr, contractAddress,
-            callValue, data);
+        callValue, data);
     if (result) {
       System.out.println("Call the contract successfully");
     } else {
@@ -1059,7 +1053,7 @@ public class TestClient {
 
   private void getContract(String[] parameters) {
     if (parameters == null ||
-            parameters.length != 1) {
+        parameters.length != 1) {
       System.out.println("GetContract: invalid arguments!");
       return;
     }
@@ -1151,7 +1145,7 @@ public class TestClient {
   }
 
   private String[] getCmd(String cmdLine) {
-    if (cmdLine.indexOf("\"") < 0) {
+    if (cmdLine.indexOf("\"") < 0 || cmdLine.startsWith("deploycontract")) {
       return cmdLine.split("\\s+");
     }
     String[] strArray = cmdLine.split("\"");
@@ -1177,8 +1171,8 @@ public class TestClient {
       }
     }
     Iterator ito = cmdList.iterator();
-    while (ito.hasNext()){
-      if (ito.next().equals("")){
+    while (ito.hasNext()) {
+      if (ito.next().equals("")) {
         ito.remove();
       }
     }
@@ -1418,7 +1412,7 @@ public class TestClient {
             getContract(parameters);
             break;
           }
-          case "generateaddress":{
+          case "generateaddress": {
             generateAddress();
             break;
           }
