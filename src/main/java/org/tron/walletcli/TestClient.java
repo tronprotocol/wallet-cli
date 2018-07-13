@@ -472,7 +472,7 @@ public class TestClient {
     String toAddress = parameters[0];
     String assertName = parameters[1];
     String amountStr = parameters[2];
-    long amount = new Integer(amountStr);
+    long amount = Long.parseLong(amountStr);
 
     boolean result = client.participateAssetIssue(toAddress, assertName, amount);
     if (result) {
