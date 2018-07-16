@@ -3,20 +3,22 @@ package org.tron.walletcli;
 import com.beust.jcommander.JCommander;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Base64.Decoder;
 import java.util.Base64.Encoder;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.Scanner;
 import org.apache.commons.lang3.ArrayUtils;
+import org.bouncycastle.util.encoders.Hex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tron.api.GrpcAPI.AccountNetMessage;
-import org.tron.api.GrpcAPI.Address;
 import org.tron.api.GrpcAPI.AddressPrKeyPairMessage;
 import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.BlockList;
@@ -25,12 +27,14 @@ import org.tron.api.GrpcAPI.NodeList;
 import org.tron.api.GrpcAPI.NumberMessage;
 import org.tron.api.GrpcAPI.TransactionList;
 import org.tron.api.GrpcAPI.WitnessList;
+import org.tron.common.crypto.Hash;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Utils;
 import org.tron.core.exception.CancelException;
 import org.tron.core.exception.CipherException;
 import org.tron.keystore.StringUtils;
 import org.tron.protos.Contract.AssetIssueContract;
+import org.tron.protos.Contract.SmartContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.Transaction;
@@ -468,7 +472,7 @@ public class TestClient {
     String toAddress = parameters[0];
     String assertName = parameters[1];
     String amountStr = parameters[2];
-    long amount = new Integer(amountStr);
+    long amount = Long.parseLong(amountStr);
 
     boolean result = client.participateAssetIssue(toAddress, assertName, amount);
     if (result) {
@@ -483,7 +487,8 @@ public class TestClient {
   private void assetIssue(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length < 10 || (parameters.length & 1) == 1) {
-      System.out.println("Use the assetIssue command for features that you require with below syntax: ");
+      System.out
+          .println("Use the assetIssue command for features that you require with below syntax: ");
       System.out.println(
           "AssetIssue AssetName TotalSupply TrxNum AssetNum "
               + "StartDate EndDate Description Url FreeNetLimitPerAccount PublicFreeNetLimit"
@@ -609,7 +614,8 @@ public class TestClient {
 
   private void getAssetIssueList(String[] parameters) {
     if (parameters == null || parameters.length != 2) {
-      System.out.println("The listassetissuepaginated command needs 2 parameters, use the following syntax:");
+      System.out.println(
+          "The listassetissuepaginated command needs 2 parameters, use the following syntax:");
       System.out.println("listassetissuepaginated offset limit ");
       return;
     }
@@ -978,11 +984,102 @@ public class TestClient {
     }
   }
 
+  private void deployContract(String[] parameters)
+      throws IOException, CipherException, CancelException {
+    if (parameters == null ||
+        parameters.length < 4) {
+      System.out.println("DeployContract needs at least 4 parameters like following: ");
+      System.out.println("DeployContract password contractAddress ABI code <data value>");
+      return;
+    }
+
+    String passwordStr = parameters[0];
+    String contractAddrStr = parameters[1];
+    String abiStr = parameters[2];
+    String codeStr = parameters[3];
+    String data = null;
+    String value = null;
+    if (parameters.length > 4) {
+      data = parameters[4];
+    }
+    if (parameters.length > 5) {
+      value = parameters[5];
+    }
+
+    boolean result = client
+        .deployContract(passwordStr, contractAddrStr, abiStr, codeStr, data, value);
+    if (result) {
+      System.out.println("Deploy the contract successfully");
+    } else {
+      System.out.println("Deploy the contract failed");
+    }
+  }
+
+  private void triggerContract(String[] parameters)
+      throws IOException, CipherException, CancelException {
+    if (parameters == null ||
+        parameters.length < 5) {
+      System.out.println("TriggerContract needs 5 parameters like following: ");
+      System.out.println("TriggerContract password contractAddress selector data value");
+      return;
+    }
+
+    String passwordStr = parameters[0];
+    String contractAddrStr = parameters[1];
+    String selectorStr = parameters[2];
+    String dataStr = parameters[3];
+    String valueStr = parameters[4];
+    if (dataStr.equalsIgnoreCase("#")) {
+      dataStr = "";
+    }
+
+    byte[] contractAddress = WalletClient.decodeFromBase58Check(contractAddrStr);
+    byte[] data;
+    byte[] callValue = Hex.decode(valueStr);
+    byte[] selector = new byte[4];
+    System.arraycopy(Hash.sha3(selectorStr.getBytes()), 0, selector, 0, 4);
+    System.out.println(selectorStr + ":" + Hex.toHexString(selector));
+    StringBuffer stringBuffer = new StringBuffer();
+    dataStr = stringBuffer.append(Hex.toHexString(selector))
+        .append(dataStr)
+        .toString();
+    data = Hex.decode(dataStr);
+    boolean result = client.callContract(passwordStr, contractAddress,
+        callValue, data);
+    if (result) {
+      System.out.println("Call the contract successfully");
+    } else {
+      System.out.println("Call the contract failed");
+    }
+  }
+
+  private void getContract(String[] parameters) {
+    if (parameters == null ||
+        parameters.length != 1) {
+      System.out.println("GetContract needs 1 parameter like following: ");
+      System.out.println("GetContract contractAddress");
+      return;
+    }
+
+    byte[] addressBytes = WalletClient.decodeFromBase58Check(parameters[0]);
+    if (addressBytes == null) {
+      System.out.println("GetContract: invalid address!");
+      return;
+    }
+
+    SmartContract contractDeployContract = WalletClient.getContract(addressBytes);
+    if (contractDeployContract != null) {
+      System.out.println("contract :" + contractDeployContract.getAbi().toString());
+    } else {
+      System.out.println("query contract failed!");
+    }
+  }
+
   private void generateAddress() {
     AddressPrKeyPairMessage result = client.generateAddress();
-    if (null!=result) {
-      System.out.println("Address: "+result.getAddress());
-      System.out.println("PrivateKey: "+result.getPrivateKey());
+    if (null != result) {
+      System.out.println("Address: " + result.getAddress());
+      System.out.println("PrivateKey: " + result.getPrivateKey());
       logger.info("GenerateAddress " + " successful !!");
     } else {
       logger.info("GenerateAddress " + " failed !!");
@@ -991,7 +1088,8 @@ public class TestClient {
 
   private void help() {
     System.out.println("Help: List of Tron Wallet-cli commands");
-    System.out.println("For more information on a specific command, type the command and it will display tips");
+    System.out.println(
+        "For more information on a specific command, type the command and it will display tips");
     System.out.println("");
     System.out.println("RegisterWallet");
     System.out.println("ImportWallet");
@@ -1038,11 +1136,51 @@ public class TestClient {
     System.out.println("UnfreezeBalance");
     System.out.println("WithdrawBalance");
     System.out.println("UpdateAccount");
+    System.out.println("unfreezeasset");
+    System.out.println("deploycontract");
+    System.out.println("triggercontract");
+    System.out.println("getcontract");
     System.out.println("UpdateAsset");
     System.out.println("UnfreezeAsset");
     System.out.println("Exit or Quit");
 
     System.out.println("Input any one of the listed commands, to display how-to tips.");
+  }
+
+  private String[] getCmd(String cmdLine) {
+    if (cmdLine.indexOf("\"") < 0 || cmdLine.startsWith("deploycontract")) {
+      return cmdLine.split("\\s+");
+    }
+    String[] strArray = cmdLine.split("\"");
+    int num = strArray.length;
+    int start = 0;
+    int end = 0;
+    if (cmdLine.charAt(0) == '\"') {
+      start = 1;
+    }
+    if (cmdLine.charAt(cmdLine.length() - 1) == '\"') {
+      end = 1;
+    }
+    if (((num + end) & 1) == 0) {
+      return new String[]{"ErrorInput"};
+    }
+
+    List<String> cmdList = new ArrayList();
+    for (int i = start; i < strArray.length; i++) {
+      if ((i & 1) == 0) {
+        cmdList.addAll(Arrays.asList(strArray[i].trim().split("\\s+")));
+      } else {
+        cmdList.add(strArray[i].trim());
+      }
+    }
+    Iterator ito = cmdList.iterator();
+    while (ito.hasNext()) {
+      if (ito.next().equals("")) {
+        ito.remove();
+      }
+    }
+    String[] result = new String[cmdList.size()];
+    return cmdList.toArray(result);
   }
 
   private void run() {
@@ -1052,13 +1190,14 @@ public class TestClient {
     System.out.println("Please type one of the following commands to proceed.");
     System.out.println("Login, RegisterWallet or ImportWallet");
     System.out.println(" ");
-    System.out.println("You may also use the Help command at anytime to display a full list of commands.");
+    System.out.println(
+        "You may also use the Help command at anytime to display a full list of commands.");
     System.out.println(" ");
     while (in.hasNextLine()) {
       String cmd = "";
       try {
         String cmdLine = in.nextLine().trim();
-        String[] cmdArray = cmdLine.split("\\s+");
+        String[] cmdArray = getCmd(cmdLine);
         // split on trim() string will always return at the minimum: [""]
         cmd = cmdArray[0];
         if ("".equals(cmd)) {
@@ -1264,7 +1403,19 @@ public class TestClient {
             getBlockByLatestNum(parameters);
             break;
           }
-          case "generateaddress":{
+          case "deploycontract": {
+            deployContract(parameters);
+            break;
+          }
+          case "triggercontract": {
+            triggerContract(parameters);
+            break;
+          }
+          case "getcontract": {
+            getContract(parameters);
+            break;
+          }
+          case "generateaddress": {
             generateAddress();
             break;
           }

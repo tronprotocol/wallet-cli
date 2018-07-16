@@ -378,7 +378,12 @@ public class GrpcClient {
   public Optional<TransactionInfo> getTransactionInfoById(String txID) {
     ByteString bsTxid = ByteString.copyFrom(ByteArray.fromHexString(txID));
     BytesMessage request = BytesMessage.newBuilder().setValue(bsTxid).build();
-    TransactionInfo transactionInfo = blockingStubSolidity.getTransactionInfoById(request);
+    TransactionInfo transactionInfo;
+    if (blockingStubSolidity != null) {
+      transactionInfo = blockingStubSolidity.getTransactionInfoById(request);
+    } else {
+      transactionInfo = blockingStubFull.getTransactionInfoById(request);
+    }
     return Optional.ofNullable(transactionInfo);
   }
 
@@ -401,5 +406,19 @@ public class GrpcClient {
     NumberMessage numberMessage = NumberMessage.newBuilder().setNum(num).build();
     BlockList blockList = blockingStubFull.getBlockByLatestNum(numberMessage);
     return Optional.ofNullable(blockList);
+  }
+
+  public Transaction deployContract(Contract.SmartContract request) {
+    return blockingStubFull.deployContract(request);
+  }
+
+  public Transaction triggerContract(Contract.TriggerSmartContract request) {
+    return blockingStubFull.triggerContract(request);
+  }
+
+  public Contract.SmartContract getContract(byte[] address) {
+    ByteString byteString = ByteString.copyFrom(address);
+    BytesMessage bytesMessage = BytesMessage.newBuilder().setValue(byteString).build();
+    return blockingStubFull.getContract(bytesMessage);
   }
 }

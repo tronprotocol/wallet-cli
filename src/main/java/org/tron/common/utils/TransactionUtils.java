@@ -73,8 +73,11 @@ public class TransactionUtils {
         case ParticipateAssetIssueContract:
           owner = contract.getParameter().unpack(org.tron.protos.Contract.ParticipateAssetIssueContract.class).getOwnerAddress();
           break;
-        case DeployContract:
-          owner = contract.getParameter().unpack(org.tron.protos.Contract.DeployContract.class).getOwnerAddress();
+        case SmartContract:
+          owner = contract.getParameter().unpack(org.tron.protos.Contract.SmartContract.class).getOwnerAddress();
+          break;
+        case TriggerSmartContract:
+          owner = contract.getParameter().unpack(org.tron.protos.Contract.TriggerSmartContract.class).getOwnerAddress();
           break;
         case FreezeBalanceContract:
           owner = contract.getParameter().unpack(org.tron.protos.Contract.FreezeBalanceContract.class).getOwnerAddress();
