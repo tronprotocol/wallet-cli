@@ -32,6 +32,7 @@ import org.tron.api.GrpcAPI.NodeList;
 import org.tron.api.GrpcAPI.TransactionList;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.crypto.ECKey;
+import org.tron.common.crypto.Hash;
 import org.tron.common.crypto.Sha256Hash;
 import org.tron.common.utils.Base58;
 import org.tron.common.utils.ByteArray;
@@ -1098,8 +1099,8 @@ public class WalletClient {
     return abiBuilder.build();
   }
 
-  public static Contract.SmartContract createSmartContract(byte[] address, byte[] contractAddress,
-      String ABI, String code, String data, String value) {
+  public static Contract.SmartContract createContractDeployContract(byte[] address,
+    String ABI, String code, String data, String value) {
     Contract.SmartContract.ABI abi = jsonStr2ABI(ABI);
     if (abi == null) {
       logger.error("abi is null");
@@ -1109,11 +1110,16 @@ public class WalletClient {
     byte[] codeBytes = Hex.decode(code);
     Contract.SmartContract.Builder builder = Contract.SmartContract.newBuilder();
     builder.setOwnerAddress(ByteString.copyFrom(address));
-    builder.setContractAddress(ByteString.copyFrom(contractAddress));
+
+    // String contractAddrStr = "TTjeJfz2ebKfGgEjGZdHcaSiTCQGW7mdSH";
+   // String contractAddrStr = "TXxr8dsgBgSiXC4mKV7JTAZJosyBzngptZ";
+   // builder.setContractAddress(ByteString.copyFrom(WalletClient.decodeFromBase58Check(contractAddrStr)));
+
     builder.setAbi(abi);
     builder.setBytecode(ByteString.copyFrom(codeBytes));
     if(data != null)
-      builder.setCallValue(ByteString.copyFrom(Hex.decode(data)));
+      // builder.setCallValue(ByteString.copyFrom(Hex.decode(data)));
+      builder.setData(ByteString.copyFrom(Hex.decode(data)));
     if (value != null)
       builder.setCallValue(ByteString.copyFrom(Hex.decode(value)));
     return builder.build();
@@ -1129,14 +1135,32 @@ public class WalletClient {
     return builder.build();
   }
 
-  public boolean deployContract(String contractAddrStr, String ABI, String code, String data, String value)
+  public byte[] generateContractAddress(Transaction trx) {
+
+    // get owner address
+    // this address should be as same as the onweraddress in trx, DONNOT modify it
+    byte[] ownerAddress = getAddress();
+
+    // get tx hash
+    byte[] txRawDataHash = Sha256Hash.of(trx.getRawData().toByteArray()).getBytes();
+
+    // combine
+    byte[] combined = new byte[txRawDataHash.length + ownerAddress.length];
+    System.arraycopy(txRawDataHash, 0, combined, 0, txRawDataHash.length);
+    System.arraycopy(ownerAddress, 0, combined, txRawDataHash.length, ownerAddress.length);
+
+    return Hash.sha3omit12(combined);
+
+  }
+
+
+  public boolean deployContract(String ABI, String code, String data, String value)
       throws IOException, CipherException, CancelException {
     byte[] owner = getAddress();
-    byte[] contractAddress = WalletClient.decodeFromBase58Check(contractAddrStr);
-    Contract.SmartContract smartContract = createSmartContract(owner, contractAddress,
+    Contract.SmartContract contractDeployContract = createContractDeployContract(owner,
             ABI, code, data, value);
 
-    Transaction transaction = rpcCli.deployContract(smartContract);
+    Transaction transaction = rpcCli.deployContract(contractDeployContract);
     if (transaction == null || transaction.getRawData().getContractCount() == 0) {
       logger.error("RPC create trx failed!");
       return false;
@@ -1145,6 +1169,8 @@ public class WalletClient {
     logger.info("RPC create ok!");
 
     transaction = signTransaction(transaction);
+    byte[] contractAddress = generateContractAddress(transaction);
+    logger.info("Your smart contract address will be: " + WalletClient.encode58Check(contractAddress));
     return rpcCli.broadcastTransaction(transaction);
 
   }
