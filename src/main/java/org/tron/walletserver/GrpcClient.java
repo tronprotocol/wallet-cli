@@ -34,6 +34,7 @@ import org.tron.common.utils.ByteArray;
 import org.tron.protos.Contract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
+import org.tron.protos.Protocol.ChainParameters;
 import org.tron.protos.Protocol.Proposal;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.TransactionInfo;
@@ -185,6 +186,11 @@ public class GrpcClient {
         .build();
     Proposal proposal = blockingStubFull.getProposalById(request);
     return Optional.ofNullable(proposal);
+  }
+
+  public Optional<ChainParameters> getChainParameters() {
+    ChainParameters chainParameters = blockingStubFull.getChainParameters();
+    return Optional.ofNullable(chainParameters);
   }
 
   public Transaction proposalApprove(Contract.ProposalApproveContract contract) {

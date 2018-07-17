@@ -18,6 +18,7 @@ import org.tron.keystore.StringUtils;
 import org.tron.protos.Contract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
+import org.tron.protos.Protocol.ChainParameters;
 import org.tron.protos.Protocol.Proposal;
 import org.tron.walletserver.WalletClient;
 
@@ -417,6 +418,15 @@ public class Client {
   public Optional<Proposal> getProposals(String id) {
     try {
       return WalletClient.getProposal(id);
+    } catch (Exception ex) {
+      ex.printStackTrace();
+      return Optional.empty();
+    }
+  }
+
+  public Optional<ChainParameters> getChainParameters() {
+    try {
+      return WalletClient.getChainParameters();
     } catch (Exception ex) {
       ex.printStackTrace();
       return Optional.empty();

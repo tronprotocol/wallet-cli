@@ -29,6 +29,7 @@ import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.Scanner;
 import org.tron.api.GrpcAPI.AccountNetMessage;
 import org.tron.api.GrpcAPI.AssetIssueList;
@@ -60,6 +61,7 @@ import org.tron.protos.Contract.WitnessCreateContract;
 import org.tron.protos.Contract.WitnessUpdateContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Account.Frozen;
+import org.tron.protos.Protocol.ChainParameters;
 import org.tron.protos.Protocol.Proposal;
 import org.tron.protos.Protocol.TransactionInfo;
 import org.tron.protos.Protocol.Vote;
@@ -332,6 +334,15 @@ public class Utils {
       result += "\n";
       result += "\n";
       i++;
+    }
+    return result;
+  }
+
+  public static String printChainParameters(ChainParameters chainParameters) {
+    String result = "\n";
+    for (Map.Entry entry : chainParameters.getParametersMap().entrySet()) {
+      result +=  entry.getKey() + " : " + entry.getValue();
+      result += "\n";
     }
     return result;
   }

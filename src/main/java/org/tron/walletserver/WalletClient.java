@@ -51,6 +51,7 @@ import org.tron.protos.Contract.UnfreezeBalanceContract;
 import org.tron.protos.Contract.WithdrawBalanceContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
+import org.tron.protos.Protocol.ChainParameters;
 import org.tron.protos.Protocol.Proposal;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.TransactionInfo;
@@ -1010,6 +1011,10 @@ public class WalletClient {
 
   public static Optional<Proposal> getProposal(String id) {
     return rpcCli.getProposal(id);
+  }
+
+  public static Optional<ChainParameters> getChainParameters() {
+    return rpcCli.getChainParameters();
   }
 
 

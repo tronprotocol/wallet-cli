@@ -34,6 +34,7 @@ import org.tron.keystore.StringUtils;
 import org.tron.protos.Contract.AssetIssueContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
+import org.tron.protos.Protocol.ChainParameters;
 import org.tron.protos.Protocol.Proposal;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.TransactionInfo;
@@ -1305,6 +1306,10 @@ public class TestClient {
             getProposal(parameters);
             break;
           }
+          case "getchainparameters": {
+            GetChainParameters();
+            break;
+          }
           case "listwitnesses": {
             listWitnesses();
             break;
@@ -1408,6 +1413,16 @@ public class TestClient {
         System.out.println(cmd + " failed!");
         logger.error(e.getMessage());
       }
+    }
+  }
+
+  private void GetChainParameters() {
+    Optional<ChainParameters> result = client.getChainParameters();
+    if (result.isPresent()) {
+      ChainParameters chainParameters = result.get();
+      logger.info(Utils.printChainParameters(chainParameters));
+    } else {
+      logger.info("List witnesses " + " failed !!");
     }
   }
 
