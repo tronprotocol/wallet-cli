@@ -1192,7 +1192,8 @@ public class WalletClient {
 
     transaction = signTransaction(transaction);
     byte[] contractAddress = generateContractAddress(transaction);
-    logger.info("Your smart contract address will be: " + WalletClient.encode58Check(contractAddress));
+    logger.info(
+        "Your smart contract address will be: " + WalletClient.encode58Check(contractAddress));
     return rpcCli.broadcastTransaction(transaction);
 
   }
