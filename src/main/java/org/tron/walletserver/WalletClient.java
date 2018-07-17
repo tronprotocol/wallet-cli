@@ -1143,7 +1143,7 @@ public class WalletClient {
       builder.setCallValue(ByteString.copyFrom(Hex.decode(value)));
     }
     return CreateSmartContract.newBuilder().setOwnerAddress(ByteString.copyFrom(address))
-        .setNewContrect(builder.build()).build();
+        .setNewContract(builder.build()).build();
   }
 
   public static Contract.TriggerSmartContract triggerCallContract(byte[] address,

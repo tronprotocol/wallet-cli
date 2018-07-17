@@ -37,7 +37,6 @@ import org.tron.api.GrpcAPI.TransactionList;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.crypto.Sha256Hash;
 import org.tron.keystore.StringUtils;
-import org.tron.keystore.Wallet;
 import org.tron.protos.Contract.AccountCreateContract;
 import org.tron.protos.Contract.AccountUpdateContract;
 import org.tron.protos.Contract.AssetIssueContract;
@@ -605,7 +604,7 @@ public class Utils {
         case CreateSmartContract:
           CreateSmartContract createSmartContract = contract.getParameter()
               .unpack(CreateSmartContract.class);
-          SmartContract newContract = createSmartContract.getNewContrect();
+          SmartContract newContract = createSmartContract.getNewContract();
           result += "owner_address: ";
           result += WalletClient
               .encode58Check(createSmartContract.getOwnerAddress().toByteArray());
