@@ -37,6 +37,7 @@ import org.tron.api.GrpcAPI.TransactionList;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.crypto.Sha256Hash;
 import org.tron.keystore.StringUtils;
+import org.tron.keystore.Wallet;
 import org.tron.protos.Contract.AccountCreateContract;
 import org.tron.protos.Contract.AccountUpdateContract;
 import org.tron.protos.Contract.AssetIssueContract;
@@ -784,7 +785,7 @@ public class Utils {
     result += "\n";
     result += "contractAddress: ";
     result += "\n";
-    result += ByteArray.toHexString(transactionInfo.getContractResult(0).toByteArray());
+    result += WalletClient.encode58Check(transactionInfo.getContractAddress().toByteArray());
     result += "\n";
     return result;
   }
