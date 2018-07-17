@@ -392,7 +392,7 @@ public class Client {
     return wallet.withdrawBalance();
   }
 
-  public boolean deployContract(String password, String contractAddStr,
+  public boolean deployContract(String password,
                                 String abiStr, String codeStr, String data, String value)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
@@ -412,7 +412,7 @@ public class Client {
 //      }
 //    }
 
-    return wallet.deployContract(contractAddStr, abiStr, codeStr, data, value);
+    return wallet.deployContract(abiStr, codeStr, data, value);
   }
 
   public boolean callContract(String password, byte[] contractAddress,

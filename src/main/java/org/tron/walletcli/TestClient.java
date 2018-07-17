@@ -34,9 +34,9 @@ import org.tron.core.exception.CancelException;
 import org.tron.core.exception.CipherException;
 import org.tron.keystore.StringUtils;
 import org.tron.protos.Contract.AssetIssueContract;
-import org.tron.protos.Contract.SmartContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
+import org.tron.protos.Protocol.SmartContract;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.TransactionInfo;
 import org.tron.walletserver.WalletClient;
@@ -987,32 +987,29 @@ public class TestClient {
   private void deployContract(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null ||
-        parameters.length < 4) {
-      System.out.println("DeployContract needs at least 4 parameters like following: ");
-      System.out.println("DeployContract password contractAddress ABI code <data value>");
+            parameters.length < 3) {
+      System.out.println("DeployContract needs at least 3 parameters like following: ");
+      System.out.println("DeployContract password ABI code <data value>");
       return;
     }
 
     String passwordStr = parameters[0];
-    String contractAddrStr = parameters[1];
-    String abiStr = parameters[2];
-    String codeStr = parameters[3];
+    String abiStr = parameters[1];
+    String codeStr = parameters[2];
     String data = null;
     String value = null;
-    if (parameters.length > 4) {
-      data = parameters[4];
-    }
-    if (parameters.length > 5) {
-      value = parameters[5];
-    }
+    if (parameters.length > 3)
+      data = parameters[3];
+    if (parameters.length > 4)
+      value = parameters[4];
 
-    boolean result = client
-        .deployContract(passwordStr, contractAddrStr, abiStr, codeStr, data, value);
+    boolean result = client.deployContract(passwordStr, abiStr, codeStr, data, value);
     if (result) {
       System.out.println("Deploy the contract successfully");
     } else {
       System.out.println("Deploy the contract failed");
     }
+
   }
 
   private void triggerContract(String[] parameters)
@@ -1137,9 +1134,9 @@ public class TestClient {
     System.out.println("WithdrawBalance");
     System.out.println("UpdateAccount");
     System.out.println("unfreezeasset");
-    System.out.println("deploycontract");
-    System.out.println("triggercontract");
-    System.out.println("getcontract");
+    System.out.println("deploycontract password ABI code data value");
+    System.out.println("triggercontract passwork contractAddress selector data value");
+    System.out.println("getcontract contractAddress");
     System.out.println("UpdateAsset");
     System.out.println("UnfreezeAsset");
     System.out.println("Exit or Quit");

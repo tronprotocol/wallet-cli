@@ -16,6 +16,9 @@
 package org.tron.common.utils;
 
 import com.google.protobuf.ByteString;
+import java.security.SignatureException;
+import java.util.Arrays;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tron.common.crypto.ECKey;
@@ -23,10 +26,6 @@ import org.tron.common.crypto.ECKey.ECDSASignature;
 import org.tron.common.crypto.Sha256Hash;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.Transaction.Contract;
-
-import java.security.SignatureException;
-import java.util.Arrays;
-import java.util.List;
 
 public class TransactionUtils {
 
@@ -50,49 +49,65 @@ public class TransactionUtils {
     try {
       switch (contract.getType()) {
         case AccountCreateContract:
-          owner = contract.getParameter().unpack(org.tron.protos.Contract.AccountCreateContract.class).getOwnerAddress();
+          owner = contract.getParameter()
+              .unpack(org.tron.protos.Contract.AccountCreateContract.class).getOwnerAddress();
           break;
         case TransferContract:
-          owner = contract.getParameter().unpack(org.tron.protos.Contract.TransferContract.class).getOwnerAddress();
+          owner = contract.getParameter().unpack(org.tron.protos.Contract.TransferContract.class)
+              .getOwnerAddress();
           break;
         case TransferAssetContract:
-          owner = contract.getParameter().unpack(org.tron.protos.Contract.TransferAssetContract.class).getOwnerAddress();
+          owner = contract.getParameter()
+              .unpack(org.tron.protos.Contract.TransferAssetContract.class).getOwnerAddress();
           break;
         case VoteAssetContract:
-          owner = contract.getParameter().unpack(org.tron.protos.Contract.VoteAssetContract.class).getOwnerAddress();
+          owner = contract.getParameter().unpack(org.tron.protos.Contract.VoteAssetContract.class)
+              .getOwnerAddress();
           break;
         case VoteWitnessContract:
-          owner = contract.getParameter().unpack(org.tron.protos.Contract.VoteWitnessContract.class).getOwnerAddress();
+          owner = contract.getParameter().unpack(org.tron.protos.Contract.VoteWitnessContract.class)
+              .getOwnerAddress();
           break;
         case WitnessCreateContract:
-          owner = contract.getParameter().unpack(org.tron.protos.Contract.WitnessCreateContract.class).getOwnerAddress();
+          owner = contract.getParameter()
+              .unpack(org.tron.protos.Contract.WitnessCreateContract.class).getOwnerAddress();
           break;
         case AssetIssueContract:
-          owner = contract.getParameter().unpack(org.tron.protos.Contract.AssetIssueContract.class).getOwnerAddress();
+          owner = contract.getParameter().unpack(org.tron.protos.Contract.AssetIssueContract.class)
+              .getOwnerAddress();
           break;
         case ParticipateAssetIssueContract:
-          owner = contract.getParameter().unpack(org.tron.protos.Contract.ParticipateAssetIssueContract.class).getOwnerAddress();
+          owner = contract.getParameter()
+              .unpack(org.tron.protos.Contract.ParticipateAssetIssueContract.class)
+              .getOwnerAddress();
           break;
-        case SmartContract:
-          owner = contract.getParameter().unpack(org.tron.protos.Contract.SmartContract.class).getOwnerAddress();
+        case CreateSmartContract:
+          owner = contract.getParameter().unpack(org.tron.protos.Contract.CreateSmartContract.class)
+              .getOwnerAddress();
           break;
         case TriggerSmartContract:
-          owner = contract.getParameter().unpack(org.tron.protos.Contract.TriggerSmartContract.class).getOwnerAddress();
+          owner = contract.getParameter()
+              .unpack(org.tron.protos.Contract.TriggerSmartContract.class).getOwnerAddress();
           break;
         case FreezeBalanceContract:
-          owner = contract.getParameter().unpack(org.tron.protos.Contract.FreezeBalanceContract.class).getOwnerAddress();
+          owner = contract.getParameter()
+              .unpack(org.tron.protos.Contract.FreezeBalanceContract.class).getOwnerAddress();
           break;
         case UnfreezeBalanceContract:
-          owner = contract.getParameter().unpack(org.tron.protos.Contract.UnfreezeBalanceContract.class).getOwnerAddress();
+          owner = contract.getParameter()
+              .unpack(org.tron.protos.Contract.UnfreezeBalanceContract.class).getOwnerAddress();
           break;
         case UnfreezeAssetContract:
-          owner = contract.getParameter().unpack(org.tron.protos.Contract.UnfreezeAssetContract.class).getOwnerAddress();
+          owner = contract.getParameter()
+              .unpack(org.tron.protos.Contract.UnfreezeAssetContract.class).getOwnerAddress();
           break;
         case WithdrawBalanceContract:
-          owner = contract.getParameter().unpack(org.tron.protos.Contract.WithdrawBalanceContract.class).getOwnerAddress();
+          owner = contract.getParameter()
+              .unpack(org.tron.protos.Contract.WithdrawBalanceContract.class).getOwnerAddress();
           break;
         case UpdateAssetContract:
-          owner = contract.getParameter().unpack(org.tron.protos.Contract.UpdateAssetContract.class).getOwnerAddress();
+          owner = contract.getParameter().unpack(org.tron.protos.Contract.UpdateAssetContract.class)
+              .getOwnerAddress();
           break;
 
         default:
