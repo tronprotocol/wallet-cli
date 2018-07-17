@@ -33,6 +33,7 @@ import org.tron.common.utils.ByteArray;
 import org.tron.protos.Contract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
+import org.tron.protos.Protocol.SmartContract;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.TransactionInfo;
 import org.tron.protos.Protocol.TransactionSign;
@@ -408,7 +409,7 @@ public class GrpcClient {
     return Optional.ofNullable(blockList);
   }
 
-  public Transaction deployContract(Contract.SmartContract request) {
+  public Transaction deployContract(Contract.CreateSmartContract request) {
     return blockingStubFull.deployContract(request);
   }
 
@@ -416,7 +417,7 @@ public class GrpcClient {
     return blockingStubFull.triggerContract(request);
   }
 
-  public Contract.SmartContract getContract(byte[] address) {
+  public SmartContract getContract(byte[] address) {
     ByteString byteString = ByteString.copyFrom(address);
     BytesMessage bytesMessage = BytesMessage.newBuilder().setValue(byteString).build();
     return blockingStubFull.getContract(bytesMessage);
