@@ -110,7 +110,7 @@ public class Utils {
     result += "address: ";
     result += WalletClient.encode58Check(account.getAddress().toByteArray());
     result += "\n";
-    if (account.getAccountName() != null && account.getAccountName().size() != 0) {
+    if (account.getAccountName() != null && !account.getAccountName().isEmpty()) {
       result += "account_name: ";
       result += new String(account.getAccountName().toByteArray(), Charset.forName("UTF-8"));
       result += "\n";
@@ -403,7 +403,7 @@ public class Utils {
           result += accountCreateContract.getType();
           result += "\n";
           if (accountCreateContract.getAccountAddress() != null
-              && accountCreateContract.getAccountAddress().size() > 0) {
+              && !accountCreateContract.getAccountAddress().isEmpty()) {
             result += "account_address: ";
             result += WalletClient
                 .encode58Check(accountCreateContract.getAccountAddress().toByteArray());
@@ -418,7 +418,7 @@ public class Utils {
           AccountUpdateContract accountUpdateContract = contract.getParameter()
               .unpack(AccountUpdateContract.class);
           if (accountUpdateContract.getAccountName() != null
-              && accountUpdateContract.getAccountName().size() > 0) {
+              && !accountUpdateContract.getAccountName().isEmpty()) {
             result += "account_name: ";
             result += new String(accountUpdateContract.getAccountName().toByteArray(),
                 Charset.forName("UTF-8"));
