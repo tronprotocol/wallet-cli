@@ -189,7 +189,7 @@ public class GrpcClient {
   }
 
   public Optional<ChainParameters> getChainParameters() {
-    ChainParameters chainParameters = blockingStubFull.getChainParameters();
+    ChainParameters chainParameters = blockingStubFull.getChainParameters(EmptyMessage.newBuilder().build());
     return Optional.ofNullable(chainParameters);
   }
 

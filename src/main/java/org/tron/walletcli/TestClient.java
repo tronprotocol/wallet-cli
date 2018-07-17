@@ -16,7 +16,6 @@ import org.apache.commons.lang3.ArrayUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tron.api.GrpcAPI.AccountNetMessage;
-import org.tron.api.GrpcAPI.Address;
 import org.tron.api.GrpcAPI.AddressPrKeyPairMessage;
 import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.BlockList;
@@ -1307,7 +1306,7 @@ public class TestClient {
             break;
           }
           case "getchainparameters": {
-            GetChainParameters();
+            getChainParameters();
             break;
           }
           case "listwitnesses": {
@@ -1416,7 +1415,7 @@ public class TestClient {
     }
   }
 
-  private void GetChainParameters() {
+  private void getChainParameters() {
     Optional<ChainParameters> result = client.getChainParameters();
     if (result.isPresent()) {
       ChainParameters chainParameters = result.get();

@@ -340,6 +340,7 @@ public class Utils {
 
   public static String printChainParameters(ChainParameters chainParameters) {
     String result = "\n";
+    result += "ChainParameters : \n";
     for (Map.Entry entry : chainParameters.getParametersMap().entrySet()) {
       result +=  entry.getKey() + " : " + entry.getValue();
       result += "\n";
