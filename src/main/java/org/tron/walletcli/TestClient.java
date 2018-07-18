@@ -989,21 +989,23 @@ public class TestClient {
     if (parameters == null ||
             parameters.length < 3) {
       System.out.println("DeployContract needs at least 3 parameters like following: ");
-      System.out.println("DeployContract password ABI code <data value>");
+      System.out.println("DeployContract password ABI byteCode <value>");
+      System.out.println("Note: Please append the param for constructor tightly with byteCode without any space");
       return;
     }
 
     String passwordStr = parameters[0];
     String abiStr = parameters[1];
     String codeStr = parameters[2];
-    String data = null;
     String value = null;
     if (parameters.length > 3)
-      data = parameters[3];
-    if (parameters.length > 4)
-      value = parameters[4];
+      value = parameters[3];
 
-    boolean result = client.deployContract(passwordStr, abiStr, codeStr, data, value);
+    // TODO: consider to remove "data"
+    /* Consider to move below null value, since we append the constructor param just after bytecode without any space.
+     * Or we can re-design it to give other developers better user experience. Set this value in protobuf as null for now.
+     */
+    boolean result = client.deployContract(passwordStr, abiStr, codeStr, null, value);
     if (result) {
       System.out.println("Deploy the contract successfully");
     } else {
