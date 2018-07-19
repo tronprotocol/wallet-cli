@@ -379,6 +379,9 @@ public class Utils {
     result += "name: ";
     result += new String(assetIssue.getName().toByteArray(), Charset.forName("UTF-8"));
     result += "\n";
+    result += "order: ";
+    result += assetIssue.getOrder();
+    result += "\n";
     result += "total_supply: ";
     result += assetIssue.getTotalSupply();
     result += "\n";
