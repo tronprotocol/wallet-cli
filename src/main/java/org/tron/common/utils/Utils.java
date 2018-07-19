@@ -30,10 +30,13 @@ import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
+import java.util.Scanner;
 import org.bouncycastle.util.encoders.Hex;
 import org.tron.api.GrpcAPI.AccountNetMessage;
 import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.BlockList;
+import org.tron.api.GrpcAPI.ProposalList;
 import org.tron.api.GrpcAPI.TransactionList;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.crypto.Sha256Hash;
@@ -46,6 +49,9 @@ import org.tron.protos.Contract.AssetIssueContract.FrozenSupply;
 import org.tron.protos.Contract.CreateSmartContract;
 import org.tron.protos.Contract.FreezeBalanceContract;
 import org.tron.protos.Contract.ParticipateAssetIssueContract;
+import org.tron.protos.Contract.ProposalApproveContract;
+import org.tron.protos.Contract.ProposalCreateContract;
+import org.tron.protos.Contract.ProposalDeleteContract;
 import org.tron.protos.Contract.TransferAssetContract;
 import org.tron.protos.Contract.TransferContract;
 import org.tron.protos.Contract.UnfreezeAssetContract;
@@ -58,6 +64,10 @@ import org.tron.protos.Contract.WitnessCreateContract;
 import org.tron.protos.Contract.WitnessUpdateContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Account.Frozen;
+import org.tron.protos.Protocol.ChainParameters;
+import org.tron.protos.Protocol.Proposal;
+import org.tron.protos.Protocol.TransactionInfo;
+import org.tron.protos.Protocol.Vote;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.BlockHeader;
 import org.tron.protos.Protocol.SmartContract;
@@ -288,6 +298,59 @@ public class Utils {
     result += "isJobs: ";
     result += witness.getIsJobs();
     result += "\n";
+    return result;
+  }
+
+  public static String printProposal(Proposal proposal) {
+    String result = "";
+    result += "id: ";
+    result += proposal.getProposalId();
+    result += "\n";
+    result += "state: ";
+    result += proposal.getState();
+    result += "\n";
+    result += "createTime: ";
+    result += proposal.getCreateTime();
+    result += "\n";
+    result += "expirationTime: ";
+    result += proposal.getExpirationTime();
+    result += "\n";
+    result += "parametersMap: ";
+    result += proposal.getParametersMap();
+    result += "\n";
+    result += "approvalsList: [ \n";
+    for (ByteString address : proposal.getApprovalsList()) {
+      result += WalletClient.encode58Check(address.toByteArray());
+      result += "\n";
+    }
+    result += "]";
+    return result;
+  }
+
+  public static String printProposalsList(ProposalList proposalList) {
+    String result = "\n";
+    int i = 0;
+    for (Proposal proposal : proposalList.getProposalsList()) {
+      result += "proposal " + i + " :::";
+      result += "\n";
+      result += "[";
+      result += "\n";
+      result += printProposal(proposal);
+      result += "]";
+      result += "\n";
+      result += "\n";
+      i++;
+    }
+    return result;
+  }
+
+  public static String printChainParameters(ChainParameters chainParameters) {
+    String result = "\n";
+    result += "ChainParameters : \n";
+    for (Map.Entry entry : chainParameters.getParametersMap().entrySet()) {
+      result +=  entry.getKey() + " : " + entry.getValue();
+      result += "\n";
+    }
     return result;
   }
 
@@ -627,6 +690,38 @@ public class Utils {
           result += Hex.toHexString(newContract.getData().toByteArray());
           result += "\n";
           break;
+        case ProposalCreateContract:
+          ProposalCreateContract proposalCreateContract = contract.getParameter()
+              .unpack(ProposalCreateContract.class);
+          result += "owner_address: ";
+          result += WalletClient
+              .encode58Check(proposalCreateContract.getOwnerAddress().toByteArray());
+          result += "\n";
+          result += "parametersMap: ";
+          result += proposalCreateContract.getParametersMap();
+          result += "\n";
+          break;
+        case ProposalApproveContract:
+          ProposalApproveContract proposalApproveContract = contract.getParameter()
+              .unpack(ProposalApproveContract.class);
+          result += "owner_address: ";
+          result += WalletClient
+              .encode58Check(proposalApproveContract.getOwnerAddress().toByteArray());
+          result += "\n";
+          result += "proposal id: ";
+          result += proposalApproveContract.getProposalId();
+          result += "\n";
+          result += "IsAddApproval: ";
+          result += proposalApproveContract.getIsAddApproval();
+          result += "\n";
+          break;
+        case ProposalDeleteContract:
+          ProposalDeleteContract proposalDeleteContract = contract.getParameter()
+              .unpack(ProposalDeleteContract.class);
+          result += "owner_address: ";
+          result += WalletClient
+              .encode58Check(proposalDeleteContract.getOwnerAddress().toByteArray());
+          break;
         default:
           return "";
       }
@@ -781,6 +876,7 @@ public class Utils {
     result += "\n";
     result += "blockTimeStamp: ";
     result += "\n";
+    result += transactionInfo.getBlockTimeStamp();
     result += transactionInfo.getBlockTimeStamp();
     result += "\n";
     result += "contractResult: ";

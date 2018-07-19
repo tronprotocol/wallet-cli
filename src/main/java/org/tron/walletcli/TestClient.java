@@ -25,6 +25,7 @@ import org.tron.api.GrpcAPI.BlockList;
 import org.tron.api.GrpcAPI.Node;
 import org.tron.api.GrpcAPI.NodeList;
 import org.tron.api.GrpcAPI.NumberMessage;
+import org.tron.api.GrpcAPI.ProposalList;
 import org.tron.api.GrpcAPI.TransactionList;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.crypto.Hash;
@@ -36,6 +37,8 @@ import org.tron.keystore.StringUtils;
 import org.tron.protos.Contract.AssetIssueContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
+import org.tron.protos.Protocol.ChainParameters;
+import org.tron.protos.Protocol.Proposal;
 import org.tron.protos.Protocol.SmartContract;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.TransactionInfo;
@@ -729,6 +732,94 @@ public class TestClient {
     }
   }
 
+  private void createProposal(String[] parameters)
+      throws IOException, CipherException, CancelException {
+    if (parameters == null || parameters.length < 2 || (parameters.length & 1) != 0) {
+      System.out.println("Use createProposal command with below syntax: ");
+      System.out.println("createProposal id0 value0 ... idN valueN");
+      return;
+    }
+
+    HashMap<Long, Long> parametersMap = new HashMap<>();
+    for (int i = 0; i < parameters.length; i += 2) {
+      long id = Long.valueOf(parameters[i]);
+      long value = Long.valueOf(parameters[i + 1]);
+      parametersMap.put(id, value);
+    }
+    boolean result = client.createProposal(parametersMap);
+    if (result) {
+      logger.info("createProposal " + " successful !!");
+    } else {
+      logger.info("createProposal " + " failed !!");
+    }
+  }
+
+  private void approveProposal(String[] parameters)
+      throws IOException, CipherException, CancelException {
+    if (parameters == null || parameters.length != 2) {
+      System.out.println("Use approveProposal command with below syntax: ");
+      System.out.println("approveProposal id is_or_not_add_approval");
+      return;
+    }
+
+    long id = Long.valueOf(parameters[0]);
+    boolean is_add_approval = Boolean.valueOf(parameters[1]);
+    boolean result = client.approveProposal(id, is_add_approval);
+    if (result) {
+      logger.info("approveProposal " + " successful !!");
+    } else {
+      logger.info("approveProposal " + " failed !!");
+    }
+  }
+
+  private void deleteProposal(String[] parameters)
+      throws IOException, CipherException, CancelException {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("Use deleteProposal command with below syntax: ");
+      System.out.println("deleteProposal proposalId");
+      return;
+    }
+
+    long id = Long.valueOf(parameters[0]);
+    boolean result = client.deleteProposal(id);
+    if (result) {
+      logger.info("deleteProposal " + " successful !!");
+    } else {
+      logger.info("deleteProposal " + " failed !!");
+    }
+  }
+
+
+  private void listProposals() {
+    Optional<ProposalList> result = client.getProposalsList();
+    if (result.isPresent()) {
+      ProposalList proposalList = result.get();
+      logger.info(Utils.printProposalsList(proposalList));
+    } else {
+      logger.info("List witnesses " + " failed !!");
+    }
+  }
+
+  private void getProposal(String[] parameters) {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("getProposal needs 1 parameter like following: ");
+      System.out.println("getProposal id ");
+      return;
+    }
+    String id = parameters[0];
+
+    Optional<Proposal> result = WalletClient.getProposal(id);
+    if (result.isPresent()) {
+      Proposal proposal = result.get();
+      logger.info(Utils.printProposal(proposal));
+    } else {
+      logger.info("getProposal " + " failed !!");
+    }
+  }
+
+
+
+
   private void withdrawBalance() throws IOException, CipherException, CancelException {
     boolean result = client.withdrawBalance();
     if (result) {
@@ -1116,6 +1207,7 @@ public class TestClient {
     System.out.println("ListWitnesses");
     System.out.println("ListAssetIssue");
     System.out.println("ListNodes");
+    System.out.println("ListProposals");
     System.out.println("GetBlock");
     System.out.println("GetTotalTransaction");
     //   System.out.println("GetAssetIssueListByTimestamp");
@@ -1128,6 +1220,7 @@ public class TestClient {
     //   System.out.println("GetTransactionsFromThisCount");
     System.out.println("GetTransactionsToThis");
     //   System.out.println("GetTransactionsToThisCount");
+    System.out.println("GetProposalById");
     System.out.println("GetBlockById");
     System.out.println("GetBlockByLimitNext");
     System.out.println("GetBlockByLatestNum");
@@ -1141,6 +1234,11 @@ public class TestClient {
     System.out.println("getcontract contractAddress");
     System.out.println("UpdateAsset");
     System.out.println("UnfreezeAsset");
+    System.out.println("CreateProposal");
+    System.out.println("ListProposals");
+    System.out.println("GetProposal");
+    System.out.println("ApproveProposal");
+    System.out.println("DeleteProposal");
     System.out.println("Exit or Quit");
 
     System.out.println("Input any one of the listed commands, to display how-to tips.");
@@ -1318,12 +1416,36 @@ public class TestClient {
             unfreezeBalance();
             break;
           }
+          case "withdrawbalance": {
+            withdrawBalance();
+            break;
+          }
           case "unfreezeasset": {
             unfreezeAsset();
             break;
           }
-          case "withdrawbalance": {
-            withdrawBalance();
+          case "createproposal": {
+            createProposal(parameters);
+            break;
+          }
+          case "approveproposal": {
+            approveProposal(parameters);
+            break;
+          }
+          case "deleteproposal": {
+            deleteProposal(parameters);
+            break;
+          }
+          case "listproposals": {
+            listProposals();
+            break;
+          }
+          case "getproposal": {
+            getProposal(parameters);
+            break;
+          }
+          case "getchainparameters": {
+            getChainParameters();
             break;
           }
           case "listwitnesses": {
@@ -1441,6 +1563,16 @@ public class TestClient {
         System.out.println(cmd + " failed!");
         logger.error(e.getMessage());
       }
+    }
+  }
+
+  private void getChainParameters() {
+    Optional<ChainParameters> result = client.getChainParameters();
+    if (result.isPresent()) {
+      ChainParameters chainParameters = result.get();
+      logger.info(Utils.printChainParameters(chainParameters));
+    } else {
+      logger.info("List witnesses " + " failed !!");
     }
   }
 

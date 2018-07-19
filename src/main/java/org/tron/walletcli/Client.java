@@ -10,6 +10,7 @@ import org.tron.api.GrpcAPI;
 import org.tron.api.GrpcAPI.AddressPrKeyPairMessage;
 import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.NodeList;
+import org.tron.api.GrpcAPI.ProposalList;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.core.exception.CancelException;
 import org.tron.core.exception.CipherException;
@@ -17,6 +18,8 @@ import org.tron.keystore.StringUtils;
 import org.tron.protos.Contract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
+import org.tron.protos.Protocol.ChainParameters;
+import org.tron.protos.Protocol.Proposal;
 import org.tron.walletserver.WalletClient;
 
 public class Client {
@@ -392,6 +395,64 @@ public class Client {
     return wallet.withdrawBalance();
   }
 
+  public boolean createProposal(HashMap<Long, Long> parametersMap)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warning: createProposal failed, Please login first !!");
+      return false;
+    }
+
+    return wallet.createProposal(parametersMap);
+  }
+
+
+  public Optional<ProposalList> getProposalsList() {
+    try {
+      return WalletClient.listProposals();
+    } catch (Exception ex) {
+      ex.printStackTrace();
+      return Optional.empty();
+    }
+  }
+
+  public Optional<Proposal> getProposals(String id) {
+    try {
+      return WalletClient.getProposal(id);
+    } catch (Exception ex) {
+      ex.printStackTrace();
+      return Optional.empty();
+    }
+  }
+
+  public Optional<ChainParameters> getChainParameters() {
+    try {
+      return WalletClient.getChainParameters();
+    } catch (Exception ex) {
+      ex.printStackTrace();
+      return Optional.empty();
+    }
+  }
+
+
+  public boolean approveProposal(long id, boolean is_add_approval)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warning: approveProposal failed, Please login first !!");
+      return false;
+    }
+
+    return wallet.approveProposal(id, is_add_approval);
+  }
+
+  public boolean deleteProposal(long id)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warning: deleteProposal failed, Please login first !!");
+      return false;
+    }
+
+    return wallet.deleteProposal(id);
+  }
   public boolean deployContract(String password,
                                 String abiStr, String codeStr, String data, String value)
       throws CipherException, IOException, CancelException {

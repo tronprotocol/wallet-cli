@@ -29,6 +29,7 @@ import org.tron.api.GrpcAPI.BlockList;
 import org.tron.api.GrpcAPI.EasyTransferResponse;
 import org.tron.api.GrpcAPI.EmptyMessage;
 import org.tron.api.GrpcAPI.NodeList;
+import org.tron.api.GrpcAPI.ProposalList;
 import org.tron.api.GrpcAPI.TransactionList;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.crypto.ECKey;
@@ -56,6 +57,8 @@ import org.tron.protos.Contract.UnfreezeBalanceContract;
 import org.tron.protos.Contract.WithdrawBalanceContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
+import org.tron.protos.Protocol.ChainParameters;
+import org.tron.protos.Protocol.Proposal;
 import org.tron.protos.Protocol.SmartContract;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.TransactionInfo;
@@ -1002,6 +1005,84 @@ public class WalletClient {
   public static Optional<BlockList> getBlockByLatestNum(long num) {
     return rpcCli.getBlockByLatestNum(num);
   }
+
+  public boolean createProposal(HashMap<Long, Long> parametersMap)
+      throws CipherException, IOException, CancelException {
+    byte[] owner = getAddress();
+    Contract.ProposalCreateContract contract = createProposalCreateContract(owner, parametersMap);
+    Transaction transaction = rpcCli.proposalCreate(contract);
+    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
+      return false;
+    }
+
+    transaction = signTransaction(transaction);
+    return rpcCli.broadcastTransaction(transaction);
+  }
+
+  public static Optional<ProposalList> listProposals() {
+    return rpcCli.listProposals();
+  }
+
+  public static Optional<Proposal> getProposal(String id) {
+    return rpcCli.getProposal(id);
+  }
+
+  public static Optional<ChainParameters> getChainParameters() {
+    return rpcCli.getChainParameters();
+  }
+
+
+  public static Contract.ProposalCreateContract createProposalCreateContract(byte[] owner,
+      HashMap<Long, Long> parametersMap) {
+    Contract.ProposalCreateContract.Builder builder = Contract.ProposalCreateContract.newBuilder();
+    builder.setOwnerAddress(ByteString.copyFrom(owner));
+    builder.putAllParameters(parametersMap);
+    return builder.build();
+  }
+
+  public boolean approveProposal(long id, boolean is_add_approval)
+      throws CipherException, IOException, CancelException {
+    byte[] owner = getAddress();
+    Contract.ProposalApproveContract contract = createProposalApproveContract(owner, id, is_add_approval);
+    Transaction transaction = rpcCli.proposalApprove(contract);
+    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
+      return false;
+    }
+
+    transaction = signTransaction(transaction);
+    return rpcCli.broadcastTransaction(transaction);
+  }
+
+  public static Contract.ProposalApproveContract createProposalApproveContract(byte[] owner,
+      long id, boolean is_add_approval) {
+    Contract.ProposalApproveContract.Builder builder = Contract.ProposalApproveContract.newBuilder();
+    builder.setOwnerAddress(ByteString.copyFrom(owner));
+    builder.setProposalId(id);
+    builder.setIsAddApproval(is_add_approval);
+    return builder.build();
+  }
+
+  public boolean deleteProposal(long id)
+      throws CipherException, IOException, CancelException {
+    byte[] owner = getAddress();
+    Contract.ProposalDeleteContract contract = createProposalDeleteContract(owner, id);
+    Transaction transaction = rpcCli.proposalDelete(contract);
+    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
+      return false;
+    }
+
+    transaction = signTransaction(transaction);
+    return rpcCli.broadcastTransaction(transaction);
+  }
+
+  public static Contract.ProposalDeleteContract createProposalDeleteContract(byte[] owner,
+      long id) {
+    Contract.ProposalDeleteContract.Builder builder = Contract.ProposalDeleteContract.newBuilder();
+    builder.setOwnerAddress(ByteString.copyFrom(owner));
+    builder.setProposalId(id);
+    return builder.build();
+  }
+
 
   public static SmartContract.ABI.Entry.EntryType getEntryType(String type) {
     switch (type) {
