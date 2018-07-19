@@ -674,9 +674,20 @@ public class Utils {
           result += WalletClient
               .encode58Check(createSmartContract.getOwnerAddress().toByteArray());
           result += "\n";
-          result += "script: ";
-          result += new String(deployContract.getScript().toByteArray(),
-              Charset.forName("UTF-8"));
+          result += "ABI: ";
+          result += newContract.getAbi().toString();
+          result += "\n";
+          result += "byte_code: ";
+          result += Hex.toHexString(newContract.getBytecode().toByteArray());
+          result += "\n";
+          result += "call_value: ";
+          result += Hex.toHexString(newContract.getCallValue().toByteArray());
+          result += "\n";
+          result += "contract_address:";
+          result += WalletClient.encode58Check(newContract.getContractAddress().toByteArray());
+          result += "\n";
+          result += "data:";
+          result += Hex.toHexString(newContract.getData().toByteArray());
           result += "\n";
           break;
         case ProposalCreateContract:
@@ -710,21 +721,6 @@ public class Utils {
           result += "owner_address: ";
           result += WalletClient
               .encode58Check(proposalDeleteContract.getOwnerAddress().toByteArray());
-          result += "ABI: ";
-          result += newContract.getAbi().toString();
-          result += "\n";
-          result += "byte_code: ";
-          result += Hex.toHexString(newContract.getBytecode().toByteArray());
-          result += "\n";
-          result += "call_value: ";
-          result += Hex.toHexString(newContract.getCallValue().toByteArray());
-          result += "\n";
-          result += "contract_address:";
-          result += WalletClient.encode58Check(newContract.getContractAddress().toByteArray());
-          result += "\n";
-          result += "data:";
-          result += Hex.toHexString(newContract.getData().toByteArray());
-          result += "\n";
           break;
         default:
           return "";
