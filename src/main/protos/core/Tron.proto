@@ -48,10 +48,14 @@ message Proposal {
 }
 
 message ChainParameters{
-  map<string, int64> parameters = 1;
+  repeated ChainParameter = 1;
+  message ChainParameter {
+    string key = 1;
+    int64 value = 2;
+  }
 }
 
-// Account
+
 /* Account */
 message Account {
   /* frozen balance */
@@ -95,6 +99,7 @@ message Account {
   map<string, int64> free_asset_net_usage = 20;
   int64 latest_consume_time = 21;
   int64 latest_consume_free_time = 22;
+  bytes account_id = 23;
   bytes codeHash = 30;
 }
 
