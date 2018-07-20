@@ -371,6 +371,7 @@ public class Utils {
     return result;
   }
 
+
   public static String printAssetIssue(AssetIssueContract assetIssue) {
     String result = "";
     result += "owner_address: ";
