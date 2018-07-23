@@ -29,6 +29,7 @@ import org.tron.api.GrpcAPI.ProposalList;
 import org.tron.api.GrpcAPI.TransactionList;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.crypto.Hash;
+import org.tron.common.utils.AbiUtil;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Utils;
 import org.tron.core.exception.CancelException;
@@ -1123,18 +1124,21 @@ public class TestClient {
     if (argsStr.equalsIgnoreCase("#")) {
       argsStr = "";
     }
-
+    byte[] input =  Hex.decode(AbiUtil.parseMethod(methodStr, argsStr));
     byte[] contractAddress = WalletClient.decodeFromBase58Check(contractAddrStr);
     byte[] callValue = Hex.decode(valueStr);
-    byte[] selector = new byte[4];
 
-    System.arraycopy(Hash.sha3(methodStr.getBytes()), 0, selector, 0, 4);
-    System.out.println(methodStr + ":" + Hex.toHexString(selector));
 
-    StringBuilder sb = new StringBuilder();
-    sb.append(Hex.toHexString(selector)).append(argsStr);
+//    byte[] selector = new byte[4];
 
-    byte[] input = Hex.decode(sb.toString());
+//    System.arraycopy(Hash.sha3(methodStr.getBytes()), 0, selector, 0, 4);
+//    System.out.println(methodStr + ":" + Hex.toHexString(selector));
+//
+//    StringBuilder sb = new StringBuilder();
+//    sb.append(Hex.toHexString(selector)).append(argsStr);
+//
+////    byte[] input = Hex.decode(sb.toString());
+
     boolean result = client.callContract(passwordStr, contractAddress,
         callValue, input);
     if (result) {
