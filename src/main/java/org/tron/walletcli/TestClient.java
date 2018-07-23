@@ -279,6 +279,27 @@ public class TestClient {
     }
   }
 
+  private void setAccountId(String[] parameters)
+      throws IOException, CipherException, CancelException {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("SetAccountId needs 1 parameter like the following: ");
+      System.out.println("SetAccountId AccountId ");
+      return;
+    }
+
+    String accountId = parameters[0];
+    byte[] accountIdBytes = ByteArray.fromString(accountId);
+
+    boolean ret = client.setAccountId(accountIdBytes);
+    if (ret) {
+      logger.info("Set AccountId successful !!!!");
+    } else {
+      logger.info("Set AccountId failed !!!!");
+    }
+  }
+
+
+
   private void updateAsset(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length != 4) {
@@ -1228,6 +1249,7 @@ public class TestClient {
     System.out.println("UnfreezeBalance");
     System.out.println("WithdrawBalance");
     System.out.println("UpdateAccount");
+    System.out.println("SetAccountId");
     System.out.println("unfreezeasset");
     System.out.println("deploycontract password ABI code data value");
     System.out.println("triggercontract passwork contractAddress selector data value");
@@ -1354,6 +1376,10 @@ public class TestClient {
           }
           case "updateaccount": {
             updateAccount(parameters);
+            break;
+          }
+          case "setaccountid": {
+            setAccountId(parameters);
             break;
           }
           case "updateasset": {

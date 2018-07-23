@@ -131,6 +131,10 @@ public class GrpcClient {
     return blockingStubFull.updateAccount(contract);
   }
 
+  public Transaction createTransaction(Contract.SetAccountIdContract contract) {
+    return blockingStubFull.setAccountId(contract);
+  }
+
   public Transaction createTransaction(Contract.UpdateAssetContract contract) {
     return blockingStubFull.updateAsset(contract);
   }
