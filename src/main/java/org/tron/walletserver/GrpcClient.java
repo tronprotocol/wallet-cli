@@ -92,6 +92,16 @@ public class GrpcClient {
     }
   }
 
+  public Account queryAccountById(String accountId) {
+    ByteString bsAccountId = ByteString.copyFromUtf8(accountId);
+    Account request = Account.newBuilder().setAccountId(bsAccountId).build();
+    if (blockingStubSolidity != null) {
+      return blockingStubSolidity.getAccountById(request);
+    } else {
+      return blockingStubFull.getAccountById(request);
+    }
+  }
+
   //Warning: do not invoke this interface provided by others.
   public Transaction signTransaction(TransactionSign transactionSign) {
     return blockingStubFull.getTransactionSign(transactionSign);

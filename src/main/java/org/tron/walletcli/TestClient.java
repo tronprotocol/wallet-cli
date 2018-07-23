@@ -260,6 +260,24 @@ public class TestClient {
     }
   }
 
+  private void getAccountById(String[] parameters) {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("GetAccountById needs 1 parameter like the following: ");
+      System.out.println("GetAccountById accountId ");
+      return;
+    }
+    String accountId = parameters[0];
+
+    Account account = WalletClient.queryAccountById(accountId);
+    if (account == null) {
+      logger.info("GetAccountById failed !!!!");
+    } else {
+      logger.info("\n" + Utils.printAccount(account));
+    }
+  }
+
+
+
   private void updateAccount(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length != 1) {
@@ -1372,6 +1390,10 @@ public class TestClient {
           }
           case "getaccount": {
             getAccount(parameters);
+            break;
+          }
+          case "getaccountbyid": {
+            getAccountById(parameters);
             break;
           }
           case "updateaccount": {

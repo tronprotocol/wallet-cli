@@ -328,6 +328,9 @@ public class WalletClient {
   public static Account queryAccount(byte[] address) {
     return rpcCli.queryAccount(address);//call rpc
   }
+  public static Account queryAccountById(String accountId) {
+    return rpcCli.queryAccountById(accountId);
+  }
 
   private Transaction signTransaction(Transaction transaction)
       throws CipherException, IOException, CancelException {
