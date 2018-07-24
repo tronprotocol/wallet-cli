@@ -1262,7 +1262,7 @@ public class TestClient {
       return new String[]{"ErrorInput"};
     }
 
-    List<String> cmdList = new ArrayList();
+    List<String> cmdList = new ArrayList<>();
     for (int i = start; i < strArray.length; i++) {
       if ((i & 1) == 0) {
         cmdList.addAll(Arrays.asList(strArray[i].trim().split("\\s+")));
