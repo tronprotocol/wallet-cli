@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
 import org.bouncycastle.util.encoders.Hex;
+import org.ethereum.vm.DataWord;
 import org.tron.common.crypto.Hash;
 import org.tron.walletserver.WalletClient;
 
@@ -96,6 +97,7 @@ public class AbiUtil {
 
     @Override
     byte[] encode(String value) {
+
       return new DataWord(Long.valueOf(value)).getData();
     }
 
@@ -249,15 +251,15 @@ public class AbiUtil {
 //      String value = values.get(idx);
 
       if (coder.dynamic) {
-        System.arraycopy(new DataWord(dynamicOffset).getData(), 0,data, offset, DataWord.WordBytesLen);
-        offset += DataWord.WordBytesLen;
+        System.arraycopy(new DataWord(dynamicOffset).getData(), 0,data, offset, 32);
+        offset += 32;
 
         System.arraycopy(encodedList.get(idx), 0,data, dynamicOffset, encodedList.get(idx).length );
         dynamicOffset += encodedList.get(idx).length;
 
       } else {
-        System.arraycopy(encodedList.get(idx), 0,data, offset, DataWord.WordBytesLen);
-        offset += DataWord.WordBytesLen;
+        System.arraycopy(encodedList.get(idx), 0,data, offset, 32);
+        offset += 32;
       }
     }
 
