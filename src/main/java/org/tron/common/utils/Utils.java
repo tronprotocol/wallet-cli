@@ -673,7 +673,7 @@ public class Utils {
         case CreateSmartContract:
           CreateSmartContract createSmartContract = contract.getParameter()
               .unpack(CreateSmartContract.class);
-          SmartContract newContract = createSmartContract.getNewContrect();
+          SmartContract newContract = createSmartContract.getNewContract();
           result += "owner_address: ";
           result += WalletClient
               .encode58Check(createSmartContract.getOwnerAddress().toByteArray());

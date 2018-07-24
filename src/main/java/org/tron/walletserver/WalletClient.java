@@ -72,10 +72,10 @@ class AccountComparator implements Comparator {
   }
 }
 
-class WitnessComparator implements Comparator {
+class WitnessComparator implements Comparator<Witness> {
 
-  public int compare(Object o1, Object o2) {
-    return Long.compare(((Witness) o2).getVoteCount(), ((Witness) o1).getVoteCount());
+  public int compare(Witness o1, Witness o2) {
+    return Long.compare(o2.getVoteCount(), o1.getVoteCount());
   }
 }
 
@@ -826,7 +826,7 @@ public class WalletClient {
     if (result.isPresent()) {
       WitnessList witnessList = result.get();
       List<Witness> list = witnessList.getWitnessesList();
-      List<Witness> newList = new ArrayList();
+      List<Witness> newList = new ArrayList<>();
       newList.addAll(list);
       newList.sort(new WitnessComparator());
       WitnessList.Builder builder = WitnessList.newBuilder();
@@ -1224,7 +1224,7 @@ public class WalletClient {
       builder.setCallValue(ByteString.copyFrom(Hex.decode(value)));
     }
     return CreateSmartContract.newBuilder().setOwnerAddress(ByteString.copyFrom(address))
-        .setNewContrect(builder.build()).build();
+        .setNewContract(builder.build()).build();
   }
 
   public static Contract.TriggerSmartContract triggerCallContract(byte[] address,
