@@ -1142,8 +1142,12 @@ public class WalletClient {
           abiItem.getAsJsonObject().get("payable").getAsBoolean() : false;
       String stateMutability = abiItem.getAsJsonObject().get("stateMutability") != null ?
           abiItem.getAsJsonObject().get("stateMutability").getAsString() : null;
-      if (type == null || inputs == null) {
-        logger.error("No type or inputs!");
+      if (type == null) {
+        logger.error("No type!");
+        return null;
+      }
+      if (! type.equalsIgnoreCase("fallback") && null == inputs){
+        logger.error("No inputs!");
         return null;
       }
 
