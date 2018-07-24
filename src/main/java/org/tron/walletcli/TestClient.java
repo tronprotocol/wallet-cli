@@ -268,6 +268,7 @@ public class TestClient {
     }
     String accountId = parameters[0];
 
+
     Account account = WalletClient.queryAccountById(accountId);
     if (account == null) {
       logger.info("GetAccountById failed !!!!");

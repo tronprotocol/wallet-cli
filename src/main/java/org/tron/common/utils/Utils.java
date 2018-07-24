@@ -123,6 +123,11 @@ public class Utils {
     result += "address: ";
     result += WalletClient.encode58Check(account.getAddress().toByteArray());
     result += "\n";
+    if (account.getAccountId() != null && !account.getAccountId().isEmpty()) {
+      result += "account_id: ";
+      result += new String(account.getAccountId().toByteArray(), Charset.forName("UTF-8"));
+      result += "\n";
+    }
     if (account.getAccountName() != null && !account.getAccountName().isEmpty()) {
       result += "account_name: ";
       result += new String(account.getAccountName().toByteArray(), Charset.forName("UTF-8"));
