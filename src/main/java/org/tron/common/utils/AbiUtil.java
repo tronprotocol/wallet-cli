@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Pattern;
 import org.bouncycastle.util.encoders.Hex;
-import org.ethereum.vm.DataWord;
 import org.tron.common.crypto.Hash;
 import org.tron.walletserver.WalletClient;
 
