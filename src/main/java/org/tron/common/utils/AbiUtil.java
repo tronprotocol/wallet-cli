@@ -266,13 +266,13 @@ public class AbiUtil {
 
 
   public static String parseMethod(String methodSign, String params) {
-    byte[] methodBytes = new byte[4];
-    System.arraycopy(Hash.sha3(methodSign.getBytes()), 0, methodBytes,0, 4);
+    byte[] selector = new byte[4];
+    System.arraycopy(Hash.sha3(methodSign.getBytes()), 0, selector,0, 4);
+    System.out.println(methodSign + ":" + Hex.toHexString(selector));
 
     String[] values = params.split(",");
-
-    if (values.length != 0) {
-      return Hex.toHexString(methodBytes);
+    if (values.length == 0) {
+      return Hex.toHexString(selector);
     }
     List<Coder> coders = new ArrayList<>();
     for (String s: getTypes(methodSign)) {
@@ -282,7 +282,7 @@ public class AbiUtil {
 
     byte[] encodedParms = pack(coders,values);
 
-    return Hex.toHexString(methodBytes) + Hex.toHexString(encodedParms);
+    return Hex.toHexString(selector) + Hex.toHexString(encodedParms);
   }
 
   public  static void main(String[] args) {

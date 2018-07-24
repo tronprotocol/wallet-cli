@@ -1128,17 +1128,6 @@ public class TestClient {
     byte[] contractAddress = WalletClient.decodeFromBase58Check(contractAddrStr);
     byte[] callValue = Hex.decode(valueStr);
 
-
-//    byte[] selector = new byte[4];
-
-//    System.arraycopy(Hash.sha3(methodStr.getBytes()), 0, selector, 0, 4);
-//    System.out.println(methodStr + ":" + Hex.toHexString(selector));
-//
-//    StringBuilder sb = new StringBuilder();
-//    sb.append(Hex.toHexString(selector)).append(argsStr);
-//
-////    byte[] input = Hex.decode(sb.toString());
-
     boolean result = client.callContract(passwordStr, contractAddress,
         callValue, input);
     if (result) {
