@@ -270,11 +270,10 @@ public class AbiUtil {
     byte[] selector = new byte[4];
     System.arraycopy(Hash.sha3(methodSign.getBytes()), 0, selector,0, 4);
     System.out.println(methodSign + ":" + Hex.toHexString(selector));
-
-    String[] values = params.split(",");
-    if (values.length == 0) {
+    if (params.length() == 0) {
       return Hex.toHexString(selector);
     }
+    String[] values = params.split(",");
     List<Coder> coders = new ArrayList<>();
     for (String s: getTypes(methodSign)) {
       Coder c = getParamCoder(s);
