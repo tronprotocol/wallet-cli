@@ -29,6 +29,7 @@ import org.tron.api.GrpcAPI.ProposalList;
 import org.tron.api.GrpcAPI.TransactionList;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.crypto.Hash;
+import org.tron.common.utils.AbiUtil;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Utils;
 import org.tron.core.exception.CancelException;
@@ -1150,32 +1151,25 @@ public class TestClient {
     if (parameters == null ||
         parameters.length < 5) {
       System.out.println("TriggerContract needs 5 parameters like following: ");
-      System.out.println("TriggerContract password contractAddress selector data value");
+      System.out.println("TriggerContract password contractAddress method args value");
+//      System.out.println("example:\nTriggerContract password contractAddress method args value");
       return;
     }
 
     String passwordStr = parameters[0];
     String contractAddrStr = parameters[1];
-    String selectorStr = parameters[2];
-    String dataStr = parameters[3];
+    String methodStr = parameters[2];
+    String argsStr = parameters[3];
     String valueStr = parameters[4];
-    if (dataStr.equalsIgnoreCase("#")) {
-      dataStr = "";
+    if (argsStr.equalsIgnoreCase("#")) {
+      argsStr = "";
     }
-
+    byte[] input =  Hex.decode(AbiUtil.parseMethod(methodStr, argsStr));
     byte[] contractAddress = WalletClient.decodeFromBase58Check(contractAddrStr);
-    byte[] data;
     byte[] callValue = Hex.decode(valueStr);
-    byte[] selector = new byte[4];
-    System.arraycopy(Hash.sha3(selectorStr.getBytes()), 0, selector, 0, 4);
-    System.out.println(selectorStr + ":" + Hex.toHexString(selector));
-    StringBuffer stringBuffer = new StringBuffer();
-    dataStr = stringBuffer.append(Hex.toHexString(selector))
-        .append(dataStr)
-        .toString();
-    data = Hex.decode(dataStr);
+
     boolean result = client.callContract(passwordStr, contractAddress,
-        callValue, data);
+        callValue, input);
     if (result) {
       System.out.println("Call the contract successfully");
     } else {
@@ -1303,7 +1297,7 @@ public class TestClient {
       return new String[]{"ErrorInput"};
     }
 
-    List<String> cmdList = new ArrayList();
+    List<String> cmdList = new ArrayList<>();
     for (int i = start; i < strArray.length; i++) {
       if ((i & 1) == 0) {
         cmdList.addAll(Arrays.asList(strArray[i].trim().split("\\s+")));

@@ -258,7 +258,7 @@ public class Client {
       logger.warn("Warning: createAccount failed,  Please login first !!");
       return null;
     }
-    return wallet.generateAddress();
+    return WalletClient.generateAddress();
   }
 
 
