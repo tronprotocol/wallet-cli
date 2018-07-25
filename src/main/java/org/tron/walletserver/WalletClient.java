@@ -1190,22 +1190,24 @@ public class WalletClient {
         entryBuilder.setName(ByteString.copyFrom(name.getBytes()));
       }
 
-      /* { inputs : required } */
-      for (int j = 0; j < inputs.size(); j++) {
-        JsonElement inputItem = inputs.get(j);
-        if (inputItem.getAsJsonObject().get("name") == null ||
-            inputItem.getAsJsonObject().get("type") == null) {
-          logger.error("Input argument invalid due to no name or no type!");
-          return null;
+      /* { inputs : optional } since fallback function not requires inputs*/
+      if(null != inputs){
+        for (int j = 0; j < inputs.size(); j++) {
+          JsonElement inputItem = inputs.get(j);
+          if (inputItem.getAsJsonObject().get("name") == null ||
+              inputItem.getAsJsonObject().get("type") == null) {
+            logger.error("Input argument invalid due to no name or no type!");
+            return null;
+          }
+          String inputName = inputItem.getAsJsonObject().get("name").getAsString();
+          String inputType = inputItem.getAsJsonObject().get("type").getAsString();
+          SmartContract.ABI.Entry.Param.Builder paramBuilder = SmartContract.ABI.Entry.Param
+              .newBuilder();
+          paramBuilder.setIndexed(false);
+          paramBuilder.setName(ByteString.copyFrom(inputName.getBytes()));
+          paramBuilder.setType(ByteString.copyFrom(inputType.getBytes()));
+          entryBuilder.addInputs(paramBuilder.build());
         }
-        String inputName = inputItem.getAsJsonObject().get("name").getAsString();
-        String inputType = inputItem.getAsJsonObject().get("type").getAsString();
-        SmartContract.ABI.Entry.Param.Builder paramBuilder = SmartContract.ABI.Entry.Param
-            .newBuilder();
-        paramBuilder.setIndexed(false);
-        paramBuilder.setName(ByteString.copyFrom(inputName.getBytes()));
-        paramBuilder.setType(ByteString.copyFrom(inputType.getBytes()));
-        entryBuilder.addInputs(paramBuilder.build());
       }
 
       /* { outputs : optional } */
