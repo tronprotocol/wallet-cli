@@ -1109,9 +1109,9 @@ public class TestClient {
   private void triggerContract(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null ||
-        parameters.length < 5) {
-      System.out.println("TriggerContract needs 5 parameters like following: ");
-      System.out.println("TriggerContract password contractAddress method args value");
+        parameters.length < 6) {
+      System.out.println("TriggerContract needs 6 parameters like following: ");
+      System.out.println("TriggerContract password contractAddress method args isHex value");
 //      System.out.println("example:\nTriggerContract password contractAddress method args value");
       return;
     }
@@ -1120,11 +1120,12 @@ public class TestClient {
     String contractAddrStr = parameters[1];
     String methodStr = parameters[2];
     String argsStr = parameters[3];
-    String valueStr = parameters[4];
+    boolean isHex = Boolean.valueOf(parameters[4]);
+    String valueStr = parameters[5];
     if (argsStr.equalsIgnoreCase("#")) {
       argsStr = "";
     }
-    byte[] input =  Hex.decode(AbiUtil.parseMethod(methodStr, argsStr));
+    byte[] input =  Hex.decode(AbiUtil.parseMethod(methodStr, argsStr, isHex));
     byte[] contractAddress = WalletClient.decodeFromBase58Check(contractAddrStr);
     byte[] callValue = Hex.decode(valueStr);
 

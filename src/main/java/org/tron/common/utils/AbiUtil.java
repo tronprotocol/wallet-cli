@@ -266,12 +266,16 @@ public class AbiUtil {
   }
 
 
-  public static String parseMethod(String methodSign, String params) {
+  public static String parseMethod(String methodSign, String params, boolean isHex) {
     byte[] selector = new byte[4];
     System.arraycopy(Hash.sha3(methodSign.getBytes()), 0, selector,0, 4);
     System.out.println(methodSign + ":" + Hex.toHexString(selector));
     if (params.length() == 0) {
       return Hex.toHexString(selector);
+    }
+    if (isHex){
+      String result =Hex.toHexString(selector) + params;
+      return result;
     }
     String[] values = params.split(",");
     List<Coder> coders = new ArrayList<>();
@@ -290,7 +294,7 @@ public class AbiUtil {
     String method = "test(string,int2,string)";
     String params = "asdf,3123,adf";
 
-    System.out.println(parseMethod(method, params));
+//    System.out.println(parseMethod(method, params));
 //    parseMethod(method, params);
 
 //    String[] vs = params.split(",");
