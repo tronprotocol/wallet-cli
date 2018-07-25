@@ -25,6 +25,7 @@ import org.tron.api.GrpcAPI.NumberMessage;
 import org.tron.api.GrpcAPI.PaginatedMessage;
 import org.tron.api.GrpcAPI.ProposalList;
 import org.tron.api.GrpcAPI.Return.response_code;
+import org.tron.api.GrpcAPI.TransactionExtention;
 import org.tron.api.GrpcAPI.TransactionList;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.api.WalletExtensionGrpc;
@@ -172,7 +173,7 @@ public class GrpcClient {
     return blockingStubFull.voteWitnessAccount(contract);
   }
 
-  public Transaction proposalCreate(Contract.ProposalCreateContract contract) {
+  public TransactionExtention proposalCreate(Contract.ProposalCreateContract contract) {
     return blockingStubFull.proposalCreate(contract);
   }
 
@@ -194,11 +195,11 @@ public class GrpcClient {
     return Optional.ofNullable(chainParameters);
   }
 
-  public Transaction proposalApprove(Contract.ProposalApproveContract contract) {
+  public TransactionExtention proposalApprove(Contract.ProposalApproveContract contract) {
     return blockingStubFull.proposalApprove(contract);
   }
 
-  public Transaction proposalDelete(Contract.ProposalDeleteContract contract) {
+  public TransactionExtention proposalDelete(Contract.ProposalDeleteContract contract) {
     return blockingStubFull.proposalDelete(contract);
   }
 
@@ -442,11 +443,11 @@ public class GrpcClient {
     return Optional.ofNullable(blockList);
   }
 
-  public Transaction deployContract(Contract.CreateSmartContract request) {
+  public TransactionExtention deployContract(Contract.CreateSmartContract request) {
     return blockingStubFull.deployContract(request);
   }
 
-  public Transaction triggerContract(Contract.TriggerSmartContract request) {
+  public TransactionExtention triggerContract(Contract.TriggerSmartContract request) {
     return blockingStubFull.triggerContract(request);
   }
 
