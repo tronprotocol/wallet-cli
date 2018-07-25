@@ -99,6 +99,11 @@ public class GrpcClient {
   }
 
   //Warning: do not invoke this interface provided by others.
+  public TransactionExtention signTransaction2(TransactionSign transactionSign) {
+    return blockingStubFull.getTransactionSign2(transactionSign);
+  }
+
+  //Warning: do not invoke this interface provided by others.
   public byte[] createAdresss(byte[] passPhrase) {
     BytesMessage.Builder builder = BytesMessage.newBuilder();
     builder.setValue(ByteString.copyFrom(passPhrase));

@@ -167,6 +167,7 @@ public class WalletClient {
     WalletClient.addressPreFixByte = addressPreFixByte;
   }
 
+  public static int getRpcVersion() { return rpcVersion;}
   /**
    * Creates a new WalletClient with a random ECKey or no ECKey.
    */
@@ -403,6 +404,14 @@ public class WalletClient {
     builder.setPrivateKey(ByteString.copyFrom(privateKey));
     builder.setTransaction(transaction);
     return rpcCli.signTransaction(builder.build());
+  }
+
+  //Warning: do not invoke this interface provided by others.
+  public static TransactionExtention signTransactionByApi2(Transaction transaction, byte[] privateKey) {
+    TransactionSign.Builder builder = TransactionSign.newBuilder();
+    builder.setPrivateKey(ByteString.copyFrom(privateKey));
+    builder.setTransaction(transaction);
+    return rpcCli.signTransaction2(builder.build());
   }
 
   //Warning: do not invoke this interface provided by others.
