@@ -819,8 +819,6 @@ public class TestClient {
   }
 
 
-
-
   private void withdrawBalance() throws IOException, CipherException, CancelException {
     boolean result = client.withdrawBalance();
     if (result) {
@@ -1079,25 +1077,26 @@ public class TestClient {
   private void deployContract(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null ||
-            parameters.length < 3) {
-      System.out.println("DeployContract needs at least 3 parameters like following: ");
-      System.out.println("DeployContract password ABI byteCode <value>");
-      System.out.println("Note: Please append the param for constructor tightly with byteCode without any space");
+        parameters.length < 2) {
+      System.out.println("DeployContract needs at least 2 parameters like following: ");
+      System.out.println("DeployContract ABI byteCode <value>");
+      System.out.println(
+          "Note: Please append the param for constructor tightly with byteCode without any space");
       return;
     }
 
-    String passwordStr = parameters[0];
-    String abiStr = parameters[1];
-    String codeStr = parameters[2];
+    String abiStr = parameters[0];
+    String codeStr = parameters[1];
     String value = null;
-    if (parameters.length > 3)
-      value = parameters[3];
+    if (parameters.length > 2) {
+      value = parameters[2];
+    }
 
     // TODO: consider to remove "data"
     /* Consider to move below null value, since we append the constructor param just after bytecode without any space.
      * Or we can re-design it to give other developers better user experience. Set this value in protobuf as null for now.
      */
-    boolean result = client.deployContract(passwordStr, abiStr, codeStr, null, value);
+    boolean result = client.deployContract(abiStr, codeStr, null, value);
     if (result) {
       System.out.println("Deploy the contract successfully");
     } else {
@@ -1109,27 +1108,25 @@ public class TestClient {
   private void triggerContract(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null ||
-        parameters.length < 5) {
-      System.out.println("TriggerContract needs 5 parameters like following: ");
-      System.out.println("TriggerContract password contractAddress method args value");
+        parameters.length < 4) {
+      System.out.println("TriggerContract needs 4 parameters like following: ");
+      System.out.println("TriggerContract contractAddress method args value");
 //      System.out.println("example:\nTriggerContract password contractAddress method args value");
       return;
     }
 
-    String passwordStr = parameters[0];
-    String contractAddrStr = parameters[1];
-    String methodStr = parameters[2];
-    String argsStr = parameters[3];
-    String valueStr = parameters[4];
+    String contractAddrStr = parameters[0];
+    String methodStr = parameters[1];
+    String argsStr = parameters[2];
+    String valueStr = parameters[3];
     if (argsStr.equalsIgnoreCase("#")) {
       argsStr = "";
     }
-    byte[] input =  Hex.decode(AbiUtil.parseMethod(methodStr, argsStr));
+    byte[] input = Hex.decode(AbiUtil.parseMethod(methodStr, argsStr));
     byte[] contractAddress = WalletClient.decodeFromBase58Check(contractAddrStr);
     byte[] callValue = Hex.decode(valueStr);
 
-    boolean result = client.callContract(passwordStr, contractAddress,
-        callValue, input);
+    boolean result = client.callContract(contractAddress, callValue, input);
     if (result) {
       System.out.println("Call the contract successfully");
     } else {

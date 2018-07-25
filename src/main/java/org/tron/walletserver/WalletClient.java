@@ -1277,16 +1277,14 @@ public class WalletClient {
     TransactionExtention transactionExtention = rpcCli.deployContract(contractDeployContract);
     if (transactionExtention == null || !transactionExtention.getResult().getResult()) {
       System.out.println("RPC create trx failed!");
-      if (transactionExtention != null) {
+      if ( transactionExtention != null){
         System.out.println("Code = " + transactionExtention.getResult().getCode());
-        System.out
-            .println("Message = " + transactionExtention.getResult().getMessage().toStringUtf8());
+        System.out.println("Message = " + transactionExtention.getResult().getMessage().toStringUtf8());
       }
       return false;
     }
     byte[] contractAddress = generateContractAddress(transactionExtention.getTransaction());
-    System.out.println(
-        "Your smart contract address will be: " + WalletClient.encode58Check(contractAddress));
+    System.out.println("Your smart contract address will be: " + WalletClient.encode58Check(contractAddress));
     return processTransactionExtention(transactionExtention);
 
   }
@@ -1299,11 +1297,8 @@ public class WalletClient {
     TransactionExtention transactionExtention = rpcCli.triggerContract(triggerContract);
     if (transactionExtention == null || !transactionExtention.getResult().getResult()) {
       System.out.println("RPC create call trx failed!");
-      if (transactionExtention != null) {
-        System.out.println("Code = " + transactionExtention.getResult().getCode());
-        System.out
-            .println("Message = " + transactionExtention.getResult().getMessage().toStringUtf8());
-      }
+      System.out.println("Code = " + transactionExtention.getResult().getCode());
+      System.out.println("Message = " + transactionExtention.getResult().getMessage().toStringUtf8());
       return false;
     }
 
