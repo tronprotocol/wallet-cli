@@ -328,6 +328,9 @@ public class WalletClient {
   public static Account queryAccount(byte[] address) {
     return rpcCli.queryAccount(address);//call rpc
   }
+  public static Account queryAccountById(String accountId) {
+    return rpcCli.queryAccountById(accountId);
+  }
 
   private Transaction signTransaction(Transaction transaction)
       throws CipherException, IOException, CancelException {
@@ -408,6 +411,22 @@ public class WalletClient {
     transaction = signTransaction(transaction);
     return rpcCli.broadcastTransaction(transaction);
   }
+
+  public boolean setAccountId(byte[] accountIdBytes)
+      throws CipherException, IOException, CancelException {
+    byte[] owner = getAddress();
+    Contract.SetAccountIdContract contract = createSetAccountIdContract(accountIdBytes, owner);
+    Transaction transaction = rpcCli.createTransaction(contract);
+
+    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
+      return false;
+    }
+
+    transaction = signTransaction(transaction);
+    return rpcCli.broadcastTransaction(transaction);
+  }
+
+
 
   public boolean updateAsset(byte[] description, byte[] url, long newLimit,
       long newPublicLimit)
@@ -639,6 +658,19 @@ public class WalletClient {
 
     return builder.build();
   }
+
+  public static Contract.SetAccountIdContract createSetAccountIdContract(byte[] accountId,
+      byte[] address) {
+    Contract.SetAccountIdContract.Builder builder = Contract.SetAccountIdContract.newBuilder();
+    ByteString bsAddress = ByteString.copyFrom(address);
+    ByteString bsAccountId = ByteString.copyFrom(accountId);
+    builder.setAccountId(bsAccountId);
+    builder.setOwnerAddress(bsAddress);
+
+    return builder.build();
+  }
+
+
 
   public static Contract.UpdateAssetContract createUpdateAssetContract(
       byte[] address,
