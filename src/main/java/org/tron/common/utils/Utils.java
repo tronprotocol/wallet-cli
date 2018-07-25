@@ -839,7 +839,7 @@ public class Utils {
       result += "\n";
       result += "{";
       result += "\n";
-//      result += printTransactionRow(transaction.getRawData());
+      result += printTransactionRow(transaction.getRawData());
       result += "}";
       result += "\n";
     }

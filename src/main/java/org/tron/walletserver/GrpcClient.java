@@ -132,32 +132,64 @@ public class GrpcClient {
     return blockingStubFull.updateAccount(contract);
   }
 
+  public TransactionExtention createTransaction2(Contract.AccountUpdateContract contract) {
+    return blockingStubFull.updateAccount2(contract);
+  }
+
   public Transaction createTransaction(Contract.UpdateAssetContract contract) {
     return blockingStubFull.updateAsset(contract);
+  }
+
+  public TransactionExtention createTransaction2(Contract.UpdateAssetContract contract) {
+    return blockingStubFull.updateAsset2(contract);
   }
 
   public Transaction createTransaction(Contract.TransferContract contract) {
     return blockingStubFull.createTransaction(contract);
   }
 
+  public TransactionExtention createTransaction2(Contract.TransferContract contract) {
+    return blockingStubFull.createTransaction2(contract);
+  }
+
   public Transaction createTransaction(Contract.FreezeBalanceContract contract) {
     return blockingStubFull.freezeBalance(contract);
+  }
+
+  public TransactionExtention createTransaction2(Contract.FreezeBalanceContract contract) {
+    return blockingStubFull.freezeBalance2(contract);
   }
 
   public Transaction createTransaction(Contract.WithdrawBalanceContract contract) {
     return blockingStubFull.withdrawBalance(contract);
   }
 
+  public TransactionExtention createTransaction2(Contract.WithdrawBalanceContract contract) {
+    return blockingStubFull.withdrawBalance2(contract);
+  }
+
   public Transaction createTransaction(Contract.UnfreezeBalanceContract contract) {
     return blockingStubFull.unfreezeBalance(contract);
+  }
+
+  public TransactionExtention createTransaction2(Contract.UnfreezeBalanceContract contract) {
+    return blockingStubFull.unfreezeBalance2(contract);
   }
 
   public Transaction createTransaction(Contract.UnfreezeAssetContract contract) {
     return blockingStubFull.unfreezeAsset(contract);
   }
 
+  public TransactionExtention createTransaction2(Contract.UnfreezeAssetContract contract) {
+    return blockingStubFull.unfreezeAsset2(contract);
+  }
+
   public Transaction createTransferAssetTransaction(Contract.TransferAssetContract contract) {
     return blockingStubFull.transferAsset(contract);
+  }
+
+  public TransactionExtention createTransferAssetTransaction2(Contract.TransferAssetContract contract) {
+    return blockingStubFull.transferAsset2(contract);
   }
 
   public Transaction createParticipateAssetIssueTransaction(
@@ -165,12 +197,25 @@ public class GrpcClient {
     return blockingStubFull.participateAssetIssue(contract);
   }
 
+  public TransactionExtention createParticipateAssetIssueTransaction2(
+      Contract.ParticipateAssetIssueContract contract) {
+    return blockingStubFull.participateAssetIssue2(contract);
+  }
+
   public Transaction createAssetIssue(Contract.AssetIssueContract contract) {
     return blockingStubFull.createAssetIssue(contract);
   }
 
+  public TransactionExtention createAssetIssue2(Contract.AssetIssueContract contract) {
+    return blockingStubFull.createAssetIssue2(contract);
+  }
+
   public Transaction voteWitnessAccount(Contract.VoteWitnessContract contract) {
     return blockingStubFull.voteWitnessAccount(contract);
+  }
+
+  public TransactionExtention voteWitnessAccount2(Contract.VoteWitnessContract contract) {
+    return blockingStubFull.voteWitnessAccount2(contract);
   }
 
   public TransactionExtention proposalCreate(Contract.ProposalCreateContract contract) {
@@ -207,6 +252,10 @@ public class GrpcClient {
     return blockingStubFull.createAccount(contract);
   }
 
+  public TransactionExtention createAccount2(Contract.AccountCreateContract contract) {
+    return blockingStubFull.createAccount2(contract);
+  }
+
   public AddressPrKeyPairMessage generateAddress(EmptyMessage emptyMessage) {
     if (blockingStubSolidity != null) {
       return blockingStubSolidity.generateAddress(emptyMessage);
@@ -219,8 +268,16 @@ public class GrpcClient {
     return blockingStubFull.createWitness(contract);
   }
 
+  public TransactionExtention createWitness2(Contract.WitnessCreateContract contract) {
+    return blockingStubFull.createWitness2(contract);
+  }
+
   public Transaction updateWitness(Contract.WitnessUpdateContract contract) {
     return blockingStubFull.updateWitness(contract);
+  }
+
+  public TransactionExtention updateWitness2(Contract.WitnessUpdateContract contract) {
+    return blockingStubFull.updateWitness2(contract);
   }
 
   public boolean broadcastTransaction(Transaction signaturedTransaction) {
