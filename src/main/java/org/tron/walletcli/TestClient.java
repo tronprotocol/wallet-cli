@@ -651,7 +651,7 @@ public class TestClient {
     }
   }
 
-  private void GetBlock(String[] parameters) {
+  private void getBlock(String[] parameters) {
     long blockNum = -1;
 
     if (parameters == null || parameters.length == 0) {
@@ -682,6 +682,19 @@ public class TestClient {
       }
       System.out.println(Utils.printBlock(block));
     }
+  }
+
+  private void getTransactionCountByBlockNum(String[] parameters) {
+    if (parameters.length != 1) {
+      System.out.println("Getblock has too many parameters !!!");
+      System.out.println("You can get current block using the following command:");
+      System.out.println("Getblock");
+      System.out.println("Or get block by number with the following syntax:");
+      System.out.println("Getblock BlockNum");
+    }
+    long blockNum = Long.parseLong(parameters[0]);
+    long count = client.getTransactionCountByBlockNum(blockNum);
+    System.out.println("The block contain " + count + " transactions");
   }
 
   private void voteWitness(String[] parameters)
@@ -971,7 +984,7 @@ public class TestClient {
           .getTransactionsFromThis2(addressBytes, offset, limit);
       if (result.isPresent()) {
         TransactionListExtention transactionList = result.get();
-        if (transactionList.getTransactionCount() == 0){
+        if (transactionList.getTransactionCount() == 0) {
           System.out.println("No transaction from " + address);
           return;
         }
@@ -984,7 +997,7 @@ public class TestClient {
           .getTransactionsFromThis(addressBytes, offset, limit);
       if (result.isPresent()) {
         TransactionList transactionList = result.get();
-        if (transactionList.getTransactionCount() == 0){
+        if (transactionList.getTransactionCount() == 0) {
           System.out.println("No transaction from " + address);
           return;
         }
@@ -1014,7 +1027,7 @@ public class TestClient {
           .getTransactionsToThis2(addressBytes, offset, limit);
       if (result.isPresent()) {
         TransactionListExtention transactionList = result.get();
-        if (transactionList.getTransactionCount() == 0){
+        if (transactionList.getTransactionCount() == 0) {
           System.out.println("No transaction to " + address);
           return;
         }
@@ -1027,7 +1040,7 @@ public class TestClient {
           .getTransactionsToThis(addressBytes, offset, limit);
       if (result.isPresent()) {
         TransactionList transactionList = result.get();
-        if (transactionList.getTransactionCount() == 0){
+        if (transactionList.getTransactionCount() == 0) {
           System.out.println("No transaction to " + address);
           return;
         }
@@ -1234,6 +1247,7 @@ public class TestClient {
     System.out.println("ListNodes");
     System.out.println("ListProposals");
     System.out.println("GetBlock");
+    System.out.println("GetTransactionCountByBlockNum");
     System.out.println("GetTotalTransaction");
     //   System.out.println("GetAssetIssueListByTimestamp");
     System.out.println("GetNextMaintenanceTime");
@@ -1490,7 +1504,11 @@ public class TestClient {
             break;
           }
           case "getblock": {
-            GetBlock(parameters);
+            getBlock(parameters);
+            break;
+          }
+          case "gettransactioncountbyblocknum": {
+            getTransactionCountByBlockNum(parameters);
             break;
           }
           case "gettotaltransaction": {

@@ -285,6 +285,10 @@ public class Client {
     return WalletClient.getBlock(blockNum);
   }
 
+  public long getTransactionCountByBlockNum(long blockNum) {
+    return WalletClient.getTransactionCountByBlockNum(blockNum);
+  }
+
   public BlockExtention getBlock2(long blockNum) {
     return WalletClient.getBlock2(blockNum);
   }

@@ -572,6 +572,10 @@ public class WalletClient {
     return rpcCli.getBlock2(blockNum);
   }
 
+  public static long getTransactionCountByBlockNum(long blockNum) {
+    return rpcCli.getTransactionCountByBlockNum(blockNum);
+  }
+
   public boolean voteWitness(HashMap<String, String> witness)
       throws CipherException, IOException, CancelException {
     byte[] owner = getAddress();

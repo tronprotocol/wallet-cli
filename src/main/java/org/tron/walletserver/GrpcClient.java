@@ -327,6 +327,16 @@ public class GrpcClient {
     }
   }
 
+  public long getTransactionCountByBlockNum(long blockNum) {
+    NumberMessage.Builder builder = NumberMessage.newBuilder();
+    builder.setNum(blockNum);
+    if (blockingStubSolidity != null) {
+      return blockingStubSolidity.getTransactionCountByBlockNum(builder.build()).getNum();
+    } else {
+      return blockingStubFull.getTransactionCountByBlockNum(builder.build()).getNum();
+    }
+  }
+
   public BlockExtention getBlock2(long blockNum) {
     if (blockNum < 0) {
       if (blockingStubSolidity != null) {
