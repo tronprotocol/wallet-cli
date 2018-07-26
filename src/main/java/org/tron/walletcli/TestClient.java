@@ -756,9 +756,9 @@ public class TestClient {
 
   private void freezeBalance(String[] parameters)
       throws IOException, CipherException, CancelException {
-    if (parameters == null || parameters.length < 2) {
+    if (parameters == null || !(parameters.length == 2 || parameters.length == 3)) {
       System.out.println("Use freezeBalance command with below syntax: ");
-      System.out.println("freezeBalance frozen_balance frozen_duration [ResourceCode]");
+      System.out.println("freezeBalance frozen_balance frozen_duration [ResourceCode:0 BANDWIDTH,1 CPU]");
       return;
     }
 
@@ -778,6 +778,12 @@ public class TestClient {
 
   private void unfreezeBalance(String[] parameters)
       throws IOException, CipherException, CancelException {
+    if (parameters.length > 1) {
+      System.out.println("Use unfreezeBalance command with below syntax: ");
+      System.out.println("unfreezeBalance  [ResourceCode:0 BANDWIDTH,1 CPU]");
+      return;
+    }
+
     int resourceCode = 0;
     if (parameters != null && parameters.length == 1) {
       resourceCode = Integer.parseInt(parameters[0]);
