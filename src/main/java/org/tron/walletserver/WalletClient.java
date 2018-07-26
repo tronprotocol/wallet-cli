@@ -23,6 +23,7 @@ import org.slf4j.LoggerFactory;
 import org.spongycastle.util.encoders.Hex;
 import org.tron.api.GrpcAPI;
 import org.tron.api.GrpcAPI.AccountNetMessage;
+import org.tron.api.GrpcAPI.AccountResourceMessage;
 import org.tron.api.GrpcAPI.AddressPrKeyPairMessage;
 import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.BlockList;
@@ -901,6 +902,10 @@ public class WalletClient {
     return rpcCli.getAccountNet(address);
   }
 
+  public static AccountResourceMessage getAccountResource(byte[] address) {
+    return rpcCli.getAccountResource(address);
+  }
+
   public static AssetIssueContract getAssetIssueByName(String assetName) {
     return rpcCli.getAssetIssueByName(assetName);
   }
@@ -939,10 +944,10 @@ public class WalletClient {
     return rpcCli.getTransactionInfoById(txID);
   }
 
-  public boolean freezeBalance(long frozen_balance, long frozen_duration)
+  public boolean freezeBalance(long frozen_balance, long frozen_duration,int resourceCode)
       throws CipherException, IOException, CancelException {
     Contract.FreezeBalanceContract contract = createFreezeBalanceContract(frozen_balance,
-        frozen_duration);
+        frozen_duration,resourceCode);
     Transaction transaction = rpcCli.createTransaction(contract);
     if (transaction == null || transaction.getRawData().getContractCount() == 0) {
       return false;
@@ -953,19 +958,19 @@ public class WalletClient {
   }
 
   private FreezeBalanceContract createFreezeBalanceContract(long frozen_balance,
-      long frozen_duration) {
+      long frozen_duration,int resourceCode) {
     byte[] address = getAddress();
     Contract.FreezeBalanceContract.Builder builder = Contract.FreezeBalanceContract.newBuilder();
     ByteString byteAddress = ByteString.copyFrom(address);
     builder.setOwnerAddress(byteAddress).setFrozenBalance(frozen_balance)
-        .setFrozenDuration(frozen_duration);
+        .setFrozenDuration(frozen_duration).setResourceValue(resourceCode);
 
     return builder.build();
   }
 
-  public boolean unfreezeBalance()
+  public boolean unfreezeBalance(int resourceCode)
       throws CipherException, IOException, CancelException {
-    Contract.UnfreezeBalanceContract contract = createUnfreezeBalanceContract();
+    Contract.UnfreezeBalanceContract contract = createUnfreezeBalanceContract(resourceCode);
     Transaction transaction = rpcCli.createTransaction(contract);
     if (transaction == null || transaction.getRawData().getContractCount() == 0) {
       return false;
@@ -975,12 +980,12 @@ public class WalletClient {
     return rpcCli.broadcastTransaction(transaction);
   }
 
-  private UnfreezeBalanceContract createUnfreezeBalanceContract() {
+  private UnfreezeBalanceContract createUnfreezeBalanceContract(int resourceCode) {
     byte[] address = getAddress();
     Contract.UnfreezeBalanceContract.Builder builder = Contract.UnfreezeBalanceContract
         .newBuilder();
     ByteString byteAddreess = ByteString.copyFrom(address);
-    builder.setOwnerAddress(byteAddreess);
+    builder.setOwnerAddress(byteAddreess).setResourceValue(resourceCode);
 
     return builder.build();
   }

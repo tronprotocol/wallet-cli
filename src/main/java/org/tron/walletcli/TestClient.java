@@ -19,6 +19,7 @@ import org.bouncycastle.util.encoders.Hex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tron.api.GrpcAPI.AccountNetMessage;
+import org.tron.api.GrpcAPI.AccountResourceMessage;
 import org.tron.api.GrpcAPI.AddressPrKeyPairMessage;
 import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.BlockList;
@@ -37,6 +38,7 @@ import org.tron.core.exception.CipherException;
 import org.tron.keystore.StringUtils;
 import org.tron.protos.Contract.AssetIssueContract;
 import org.tron.protos.Protocol.Account;
+import org.tron.protos.Protocol.Account.AccountResource;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.ChainParameters;
 import org.tron.protos.Protocol.Proposal;
@@ -269,7 +271,6 @@ public class TestClient {
     }
     String accountId = parameters[0];
 
-
     Account account = WalletClient.queryAccountById(accountId);
     if (account == null) {
       logger.info("GetAccountById failed !!!!");
@@ -277,7 +278,6 @@ public class TestClient {
       logger.info("\n" + Utils.printAccount(account));
     }
   }
-
 
 
   private void updateAccount(String[] parameters)
@@ -317,7 +317,6 @@ public class TestClient {
       logger.info("Set AccountId failed !!!!");
     }
   }
-
 
 
   private void updateAsset(String[] parameters)
@@ -384,6 +383,26 @@ public class TestClient {
       logger.info("GetAccountNet " + " failed !!");
     } else {
       logger.info("\n" + Utils.printAccountNet(result));
+    }
+  }
+
+  private void getAccountResource(String[] parameters) {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("getAccountResource needs 1 parameter like following: ");
+      System.out.println("getAccountResource Address ");
+      return;
+    }
+    String address = parameters[0];
+    byte[] addressBytes = WalletClient.decodeFromBase58Check(address);
+    if (addressBytes == null) {
+      return;
+    }
+
+    AccountResourceMessage result = WalletClient.getAccountResource(addressBytes);
+    if (result == null) {
+      logger.info("getAccountResource " + " failed !!");
+    } else {
+      logger.info("\n" + Utils.printAccountResourceMessage(result));
     }
   }
 
@@ -737,16 +756,19 @@ public class TestClient {
 
   private void freezeBalance(String[] parameters)
       throws IOException, CipherException, CancelException {
-    if (parameters == null || parameters.length != 2) {
+    if (parameters == null || parameters.length < 2) {
       System.out.println("Use freezeBalance command with below syntax: ");
-      System.out.println("freezeBalance frozen_balance frozen_duration ");
+      System.out.println("freezeBalance frozen_balance frozen_duration [ResourceCode]");
       return;
     }
 
     long frozen_balance = Long.parseLong(parameters[0]);
     long frozen_duration = Long.parseLong(parameters[1]);
-
-    boolean result = client.freezeBalance(frozen_balance, frozen_duration);
+    int resourceCode = 0;
+    if (parameters.length == 3) {
+      resourceCode = Integer.parseInt(parameters[2]);
+    }
+    boolean result = client.freezeBalance(frozen_balance, frozen_duration, resourceCode);
     if (result) {
       logger.info("freezeBalance " + " successful !!");
     } else {
@@ -754,9 +776,14 @@ public class TestClient {
     }
   }
 
-  private void unfreezeBalance()
+  private void unfreezeBalance(String[] parameters)
       throws IOException, CipherException, CancelException {
-    boolean result = client.unfreezeBalance();
+    int resourceCode = 0;
+    if (parameters != null && parameters.length == 1) {
+      resourceCode = Integer.parseInt(parameters[0]);
+    }
+
+    boolean result = client.unfreezeBalance(resourceCode);
     if (result) {
       logger.info("unfreezeBalance " + " successful !!");
     } else {
@@ -857,8 +884,6 @@ public class TestClient {
       logger.info("getProposal " + " failed !!");
     }
   }
-
-
 
 
   private void withdrawBalance() throws IOException, CipherException, CancelException {
@@ -1119,10 +1144,11 @@ public class TestClient {
   private void deployContract(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null ||
-            parameters.length < 3) {
+        parameters.length < 3) {
       System.out.println("DeployContract needs at least 3 parameters like following: ");
       System.out.println("DeployContract password ABI byteCode <value>");
-      System.out.println("Note: Please append the param for constructor tightly with byteCode without any space");
+      System.out.println(
+          "Note: Please append the param for constructor tightly with byteCode without any space");
       return;
     }
 
@@ -1130,8 +1156,9 @@ public class TestClient {
     String abiStr = parameters[1];
     String codeStr = parameters[2];
     String value = null;
-    if (parameters.length > 3)
+    if (parameters.length > 3) {
       value = parameters[3];
+    }
 
     // TODO: consider to remove "data"
     /* Consider to move below null value, since we append the constructor param just after bytecode without any space.
@@ -1164,7 +1191,7 @@ public class TestClient {
     if (argsStr.equalsIgnoreCase("#")) {
       argsStr = "";
     }
-    byte[] input =  Hex.decode(AbiUtil.parseMethod(methodStr, argsStr));
+    byte[] input = Hex.decode(AbiUtil.parseMethod(methodStr, argsStr));
     byte[] contractAddress = WalletClient.decodeFromBase58Check(contractAddrStr);
     byte[] callValue = Hex.decode(valueStr);
 
@@ -1411,6 +1438,10 @@ public class TestClient {
             getAccountNet(parameters);
             break;
           }
+          case "getaccountresource": {
+            getAccountResource(parameters);
+            break;
+          }
           case "getassetissuebyname": {
             getAssetIssueByName(parameters);
             break;
@@ -1456,7 +1487,7 @@ public class TestClient {
             break;
           }
           case "unfreezebalance": {
-            unfreezeBalance();
+            unfreezeBalance(parameters);
             break;
           }
           case "withdrawbalance": {

@@ -359,7 +359,6 @@ public class Client {
   }
 
 
-
   public boolean updateAsset(byte[] description, byte[] url, long newLimit,
       long newPublicLimit) throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
@@ -370,23 +369,24 @@ public class Client {
     return wallet.updateAsset(description, url, newLimit, newPublicLimit);
   }
 
-  public boolean freezeBalance(long frozen_balance, long frozen_duration)
+  public boolean freezeBalance(long frozen_balance, long frozen_duration, int resourceCode)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: freezeBalance failed, Please login first !!");
       return false;
     }
 
-    return wallet.freezeBalance(frozen_balance, frozen_duration);
+    return wallet.freezeBalance(frozen_balance, frozen_duration, resourceCode);
   }
 
-  public boolean unfreezeBalance() throws CipherException, IOException, CancelException {
+
+  public boolean unfreezeBalance(int resourceCode) throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: unfreezeBalance failed, Please login first !!");
       return false;
     }
 
-    return wallet.unfreezeBalance();
+    return wallet.unfreezeBalance(resourceCode);
   }
 
   public boolean unfreezeAsset() throws CipherException, IOException, CancelException {
@@ -465,8 +465,9 @@ public class Client {
 
     return wallet.deleteProposal(id);
   }
+
   public boolean deployContract(String password,
-                                String abiStr, String codeStr, String data, String value)
+      String abiStr, String codeStr, String data, String value)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: createContract failed,  Please login first !!");
@@ -489,7 +490,7 @@ public class Client {
   }
 
   public boolean callContract(String password, byte[] contractAddress,
-                              byte[] callValue, byte[] data)
+      byte[] callValue, byte[] data)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: callContract failed,  Please login first !!");

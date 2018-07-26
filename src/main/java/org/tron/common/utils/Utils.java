@@ -34,6 +34,7 @@ import java.util.Map;
 import java.util.Scanner;
 import org.bouncycastle.util.encoders.Hex;
 import org.tron.api.GrpcAPI.AccountNetMessage;
+import org.tron.api.GrpcAPI.AccountResourceMessage;
 import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.BlockList;
 import org.tron.api.GrpcAPI.ProposalList;
@@ -63,6 +64,7 @@ import org.tron.protos.Contract.WithdrawBalanceContract;
 import org.tron.protos.Contract.WitnessCreateContract;
 import org.tron.protos.Contract.WitnessUpdateContract;
 import org.tron.protos.Protocol.Account;
+import org.tron.protos.Protocol.Account.AccountResource;
 import org.tron.protos.Protocol.Account.Frozen;
 import org.tron.protos.Protocol.ChainParameters;
 import org.tron.protos.Protocol.ChainParameters.ChainParameter;
@@ -254,6 +256,40 @@ public class Utils {
 
     result += "asset_issued_name: ";
     result += account.getAssetIssuedName().toStringUtf8();
+    result += "\n";
+    result += "accountResource: {\n";
+    result += printAccountResource(account.getAccountResource());
+    result += "}\n";
+    return result;
+  }
+
+  public static String printAccountResource(AccountResource accountResource) {
+    String result = "";
+    result += "cpu_usage: ";
+    result += accountResource.getCpuUsage();
+    result += "\n";
+    result += "frozen_balance_for_cpu: ";
+    result += "{";
+    result += "\n";
+    result += "  amount: ";
+    result += accountResource.getFrozenBalanceForCpu().getFrozenBalance();
+    result += "\n";
+    result += "  expire_time: ";
+    result += new Date(accountResource.getFrozenBalanceForCpu().getExpireTime());
+    result += "\n";
+    result += "}";
+    result += "\n";
+    result += "latest_consume_time_for_cpu: ";
+    result += accountResource.getLatestConsumeTimeForCpu();
+    result += "\n";
+    result += "storage_limit: ";
+    result += accountResource.getStorageLimit();
+    result += "\n";
+    result += "storage_usage: ";
+    result += accountResource.getStorageUsage();
+    result += "\n";
+    result += "latest_exchange_storage_time: ";
+    result += accountResource.getLatestExchangeStorageTime();
     result += "\n";
     return result;
   }
@@ -1045,6 +1081,76 @@ public class Utils {
     }
     return result;
   }
+
+
+  public static String printAccountResourceMessage(AccountResourceMessage accountResourceMessage) {
+    String result = "";
+    result += "free_net_used: ";
+    result += accountResourceMessage.getFreeNetUsed();
+    result += "\n";
+    result += "free_net_limit: ";
+    result += accountResourceMessage.getFreeNetLimit();
+    result += "\n";
+    result += "net_used: ";
+    result += accountResourceMessage.getNetUsed();
+    result += "\n";
+    result += "net_limit: ";
+    result += accountResourceMessage.getNetLimit();
+    result += "\n";
+    result += "total_net_limit: ";
+    result += accountResourceMessage.getTotalNetLimit();
+    result += "\n";
+    result += "total_net_weight: ";
+    result += accountResourceMessage.getTotalNetWeight();
+    result += "\n";
+
+    result += "\n";
+    result += "CpuUsed: ";
+    result += accountResourceMessage.getCpuUsed();
+    result += "\n";
+    result += "CpuLimit: ";
+    result += accountResourceMessage.getCpuLimit();
+    result += "\n";
+    result += "TotalCpuLimit: ";
+    result += accountResourceMessage.getTotalCpuLimit();
+    result += "\n";
+    result += "TotalCpuWeight: ";
+    result += accountResourceMessage.getTotalCpuWeight();
+    result += "\n";
+    result += "storageUsed: ";
+    result += accountResourceMessage.getStorageUsed();
+    result += "\n";
+    result += "storageLimit: ";
+    result += accountResourceMessage.getStorageLimit();
+    result += "\n";
+    result += "\n";
+
+    if (accountResourceMessage.getAssetNetLimitCount() > 0) {
+      for (String name : accountResourceMessage.getAssetNetLimitMap().keySet()) {
+        result += "asset";
+        result += "\n";
+        result += "{";
+        result += "\n";
+        result += "  name: ";
+        result += name;
+        result += "\n";
+        result += "  free_asset_net_used: ";
+        result += accountResourceMessage.getAssetNetUsedMap().get(name);
+        result += "\n";
+        result += "  free_asset_net_limit: ";
+        result += accountResourceMessage.getAssetNetLimitMap().get(name);
+        result += "\n";
+        result += "}";
+        result += "\n";
+      }
+    }
+
+
+
+    return result;
+  }
+
+
 
   public static char[] inputPassword(boolean checkStrength) throws IOException {
     char[] password;
