@@ -338,6 +338,9 @@ public class WalletClient {
   public static Account queryAccount(byte[] address) {
     return rpcCli.queryAccount(address);//call rpc
   }
+  public static Account queryAccountById(String accountId) {
+    return rpcCli.queryAccountById(accountId);
+  }
 
   private Transaction signTransaction(Transaction transaction)
       throws CipherException, IOException, CancelException {
@@ -459,6 +462,22 @@ public class WalletClient {
       return processTransaction(transaction);
     }
   }
+
+  public boolean setAccountId(byte[] accountIdBytes)
+      throws CipherException, IOException, CancelException {
+    byte[] owner = getAddress();
+    Contract.SetAccountIdContract contract = createSetAccountIdContract(accountIdBytes, owner);
+    Transaction transaction = rpcCli.createTransaction(contract);
+
+    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
+      return false;
+    }
+
+    transaction = signTransaction(transaction);
+    return rpcCli.broadcastTransaction(transaction);
+  }
+
+
 
   public boolean updateAsset(byte[] description, byte[] url, long newLimit,
       long newPublicLimit)
@@ -643,6 +662,19 @@ public class WalletClient {
 
     return builder.build();
   }
+
+  public static Contract.SetAccountIdContract createSetAccountIdContract(byte[] accountId,
+      byte[] address) {
+    Contract.SetAccountIdContract.Builder builder = Contract.SetAccountIdContract.newBuilder();
+    ByteString bsAddress = ByteString.copyFrom(address);
+    ByteString bsAccountId = ByteString.copyFrom(accountId);
+    builder.setAccountId(bsAccountId);
+    builder.setOwnerAddress(bsAddress);
+
+    return builder.build();
+  }
+
+
 
   public static Contract.UpdateAssetContract createUpdateAssetContract(
       byte[] address,
@@ -1149,8 +1181,12 @@ public class WalletClient {
           abiItem.getAsJsonObject().get("payable").getAsBoolean() : false;
       String stateMutability = abiItem.getAsJsonObject().get("stateMutability") != null ?
           abiItem.getAsJsonObject().get("stateMutability").getAsString() : null;
-      if (type == null || inputs == null) {
-        logger.error("No type or inputs!");
+      if (type == null) {
+        logger.error("No type!");
+        return null;
+      }
+      if (! type.equalsIgnoreCase("fallback") && null == inputs){
+        logger.error("No inputs!");
         return null;
       }
 
@@ -1161,22 +1197,24 @@ public class WalletClient {
         entryBuilder.setName(ByteString.copyFrom(name.getBytes()));
       }
 
-      /* { inputs : required } */
-      for (int j = 0; j < inputs.size(); j++) {
-        JsonElement inputItem = inputs.get(j);
-        if (inputItem.getAsJsonObject().get("name") == null ||
-            inputItem.getAsJsonObject().get("type") == null) {
-          logger.error("Input argument invalid due to no name or no type!");
-          return null;
+      /* { inputs : optional } since fallback function not requires inputs*/
+      if(null != inputs){
+        for (int j = 0; j < inputs.size(); j++) {
+          JsonElement inputItem = inputs.get(j);
+          if (inputItem.getAsJsonObject().get("name") == null ||
+              inputItem.getAsJsonObject().get("type") == null) {
+            logger.error("Input argument invalid due to no name or no type!");
+            return null;
+          }
+          String inputName = inputItem.getAsJsonObject().get("name").getAsString();
+          String inputType = inputItem.getAsJsonObject().get("type").getAsString();
+          SmartContract.ABI.Entry.Param.Builder paramBuilder = SmartContract.ABI.Entry.Param
+              .newBuilder();
+          paramBuilder.setIndexed(false);
+          paramBuilder.setName(ByteString.copyFrom(inputName.getBytes()));
+          paramBuilder.setType(ByteString.copyFrom(inputType.getBytes()));
+          entryBuilder.addInputs(paramBuilder.build());
         }
-        String inputName = inputItem.getAsJsonObject().get("name").getAsString();
-        String inputType = inputItem.getAsJsonObject().get("type").getAsString();
-        SmartContract.ABI.Entry.Param.Builder paramBuilder = SmartContract.ABI.Entry.Param
-            .newBuilder();
-        paramBuilder.setIndexed(false);
-        paramBuilder.setName(ByteString.copyFrom(inputName.getBytes()));
-        paramBuilder.setType(ByteString.copyFrom(inputType.getBytes()));
-        entryBuilder.addInputs(paramBuilder.build());
       }
 
       /* { outputs : optional } */

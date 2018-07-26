@@ -69,6 +69,7 @@ import org.tron.protos.Contract.WitnessUpdateContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Account.Frozen;
 import org.tron.protos.Protocol.ChainParameters;
+import org.tron.protos.Protocol.ChainParameters.ChainParameter;
 import org.tron.protos.Protocol.Proposal;
 import org.tron.protos.Protocol.TransactionInfo;
 import org.tron.protos.Protocol.Vote;
@@ -126,6 +127,11 @@ public class Utils {
     result += "address: ";
     result += WalletClient.encode58Check(account.getAddress().toByteArray());
     result += "\n";
+    if (account.getAccountId() != null && !account.getAccountId().isEmpty()) {
+      result += "account_id: ";
+      result += new String(account.getAccountId().toByteArray(), Charset.forName("UTF-8"));
+      result += "\n";
+    }
     if (account.getAccountName() != null && !account.getAccountName().isEmpty()) {
       result += "account_name: ";
       result += new String(account.getAccountName().toByteArray(), Charset.forName("UTF-8"));
@@ -351,10 +357,10 @@ public class Utils {
   public static String printChainParameters(ChainParameters chainParameters) {
     String result = "\n";
     result += "ChainParameters : \n";
-//    for (Map.Entry entry : chainParameters.getParametersMap().entrySet()) {
-//      result +=  entry.getKey() + " : " + entry.getValue();
-//      result += "\n";
-//    }
+    for (ChainParameter para : chainParameters.getChainParameterList()) {
+      result += para.getKey() + " : " + para.getValue();
+      result += "\n";
+    }
     return result;
   }
 

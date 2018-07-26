@@ -264,6 +264,25 @@ public class TestClient {
     }
   }
 
+  private void getAccountById(String[] parameters) {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("GetAccountById needs 1 parameter like the following: ");
+      System.out.println("GetAccountById accountId ");
+      return;
+    }
+    String accountId = parameters[0];
+
+
+    Account account = WalletClient.queryAccountById(accountId);
+    if (account == null) {
+      logger.info("GetAccountById failed !!!!");
+    } else {
+      logger.info("\n" + Utils.printAccount(account));
+    }
+  }
+
+
+
   private void updateAccount(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length != 1) {
@@ -282,6 +301,27 @@ public class TestClient {
       logger.info("Update Account failed !!!!");
     }
   }
+
+  private void setAccountId(String[] parameters)
+      throws IOException, CipherException, CancelException {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("SetAccountId needs 1 parameter like the following: ");
+      System.out.println("SetAccountId AccountId ");
+      return;
+    }
+
+    String accountId = parameters[0];
+    byte[] accountIdBytes = ByteArray.fromString(accountId);
+
+    boolean ret = client.setAccountId(accountIdBytes);
+    if (ret) {
+      logger.info("Set AccountId successful !!!!");
+    } else {
+      logger.info("Set AccountId failed !!!!");
+    }
+  }
+
+
 
   private void updateAsset(String[] parameters)
       throws IOException, CipherException, CancelException {
@@ -1185,25 +1225,28 @@ public class TestClient {
   private void triggerContract(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null ||
-        parameters.length < 4) {
-      System.out.println("TriggerContract needs 4 parameters like following: ");
-      System.out.println("TriggerContract contractAddress method args value");
+        parameters.length < 6) {
+      System.out.println("TriggerContract needs 6 parameters like following: ");
+      System.out.println("TriggerContract password contractAddress method args isHex value");
 //      System.out.println("example:\nTriggerContract password contractAddress method args value");
       return;
     }
 
-    String contractAddrStr = parameters[0];
-    String methodStr = parameters[1];
-    String argsStr = parameters[2];
-    String valueStr = parameters[3];
+    String passwordStr = parameters[0];
+    String contractAddrStr = parameters[1];
+    String methodStr = parameters[2];
+    String argsStr = parameters[3];
+    boolean isHex = Boolean.valueOf(parameters[4]);
+    String valueStr = parameters[5];
     if (argsStr.equalsIgnoreCase("#")) {
       argsStr = "";
     }
-    byte[] input = Hex.decode(AbiUtil.parseMethod(methodStr, argsStr));
+    byte[] input =  Hex.decode(AbiUtil.parseMethod(methodStr, argsStr, isHex));
     byte[] contractAddress = WalletClient.decodeFromBase58Check(contractAddrStr);
     byte[] callValue = Hex.decode(valueStr);
 
-    boolean result = client.callContract(contractAddress, callValue, input);
+    boolean result = client.callContract(passwordStr, contractAddress,
+        callValue, input);
     if (result) {
       System.out.println("Call the contract successfully");
     } else {
@@ -1297,6 +1340,7 @@ public class TestClient {
     System.out.println("UnfreezeBalance");
     System.out.println("WithdrawBalance");
     System.out.println("UpdateAccount");
+    System.out.println("SetAccountId");
     System.out.println("unfreezeasset");
     System.out.println("deploycontract password ABI code data value");
     System.out.println("triggercontract passwork contractAddress selector data value");
@@ -1421,8 +1465,16 @@ public class TestClient {
             getAccount(parameters);
             break;
           }
+          case "getaccountbyid": {
+            getAccountById(parameters);
+            break;
+          }
           case "updateaccount": {
             updateAccount(parameters);
+            break;
+          }
+          case "setaccountid": {
+            setAccountId(parameters);
             break;
           }
           case "updateasset": {

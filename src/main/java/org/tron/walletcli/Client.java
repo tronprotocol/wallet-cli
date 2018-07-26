@@ -357,6 +357,18 @@ public class Client {
     return wallet.updateAccount(accountNameBytes);
   }
 
+  public boolean setAccountId(byte[] accountIdBytes)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warning: setAccount failed, Please login first !!");
+      return false;
+    }
+
+    return wallet.setAccountId(accountIdBytes);
+  }
+
+
+
   public boolean updateAsset(byte[] description, byte[] url, long newLimit,
       long newPublicLimit) throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
