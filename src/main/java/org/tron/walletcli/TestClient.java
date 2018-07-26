@@ -727,11 +727,9 @@ public class TestClient {
 
   private void getTransactionCountByBlockNum(String[] parameters) {
     if (parameters.length != 1) {
-      System.out.println("Getblock has too many parameters !!!");
-      System.out.println("You can get current block using the following command:");
-      System.out.println("Getblock");
-      System.out.println("Or get block by number with the following syntax:");
-      System.out.println("Getblock BlockNum");
+      System.out.println("Too many parameters !!!");
+      System.out.println("You need input number with the following syntax:");
+      System.out.println("GetTransactionCountByBlockNum number");
     }
     long blockNum = Long.parseLong(parameters[0]);
     long count = client.getTransactionCountByBlockNum(blockNum);
