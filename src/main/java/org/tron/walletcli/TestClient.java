@@ -23,6 +23,7 @@ import org.tron.api.GrpcAPI.AddressPrKeyPairMessage;
 import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.BlockExtention;
 import org.tron.api.GrpcAPI.BlockList;
+import org.tron.api.GrpcAPI.BlockListExtention;
 import org.tron.api.GrpcAPI.Node;
 import org.tron.api.GrpcAPI.NodeList;
 import org.tron.api.GrpcAPI.NumberMessage;
@@ -1095,12 +1096,23 @@ public class TestClient {
       start = Long.parseLong(parameters[0]);
       end = Long.parseLong(parameters[1]);
     }
-    Optional<BlockList> result = WalletClient.getBlockByLimitNext(start, end);
-    if (result.isPresent()) {
-      BlockList blockList = result.get();
-      logger.info(Utils.printBlockList(blockList));
+
+    if (WalletClient.getRpcVersion() == 2) {
+      Optional<BlockListExtention> result = WalletClient.getBlockByLimitNext2(start, end);
+      if (result.isPresent()) {
+        BlockListExtention blockList = result.get();
+        System.out.println(Utils.printBlockList(blockList));
+      } else {
+        System.out.println("GetBlockByLimitNext " + " failed !!");
+      }
     } else {
-      logger.info("GetBlockByLimitNext " + " failed !!");
+      Optional<BlockList> result = WalletClient.getBlockByLimitNext(start, end);
+      if (result.isPresent()) {
+        BlockList blockList = result.get();
+        System.out.println(Utils.printBlockList(blockList));
+      } else {
+        System.out.println("GetBlockByLimitNext " + " failed !!");
+      }
     }
   }
 
@@ -1112,12 +1124,30 @@ public class TestClient {
     } else {
       num = Long.parseLong(parameters[0]);
     }
-    Optional<BlockList> result = WalletClient.getBlockByLatestNum(num);
-    if (result.isPresent()) {
-      BlockList blockList = result.get();
-      logger.info(Utils.printBlockList(blockList));
+    if (WalletClient.getRpcVersion() == 2) {
+      Optional<BlockListExtention> result = WalletClient.getBlockByLatestNum2(num);
+      if (result.isPresent()) {
+        BlockListExtention blockList = result.get();
+        if (blockList.getBlockCount() == 0){
+          System.out.println("No block");
+          return;
+        }
+        System.out.println(Utils.printBlockList(blockList));
+      } else {
+        System.out.println("GetBlockByLimitNext " + " failed !!");
+      }
     } else {
-      logger.info("getBlockByLatestNum " + " failed !!");
+      Optional<BlockList> result = WalletClient.getBlockByLatestNum(num);
+      if (result.isPresent()) {
+        BlockList blockList = result.get();
+        if (blockList.getBlockCount() == 0){
+          System.out.println("No block");
+          return;
+        }
+        System.out.println(Utils.printBlockList(blockList));
+      } else {
+        System.out.println("GetBlockByLimitNext " + " failed !!");
+      }
     }
   }
 

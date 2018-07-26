@@ -16,6 +16,7 @@ import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.BlockExtention;
 import org.tron.api.GrpcAPI.BlockLimit;
 import org.tron.api.GrpcAPI.BlockList;
+import org.tron.api.GrpcAPI.BlockListExtention;
 import org.tron.api.GrpcAPI.BytesMessage;
 import org.tron.api.GrpcAPI.EasyTransferByPrivateMessage;
 import org.tron.api.GrpcAPI.EasyTransferMessage;
@@ -555,9 +556,23 @@ public class GrpcClient {
     return Optional.ofNullable(blockList);
   }
 
+  public Optional<BlockListExtention> getBlockByLimitNext2(long start, long end) {
+    BlockLimit.Builder builder = BlockLimit.newBuilder();
+    builder.setStartNum(start);
+    builder.setEndNum(end);
+    BlockListExtention blockList = blockingStubFull.getBlockByLimitNext2(builder.build());
+    return Optional.ofNullable(blockList);
+  }
+
   public Optional<BlockList> getBlockByLatestNum(long num) {
     NumberMessage numberMessage = NumberMessage.newBuilder().setNum(num).build();
     BlockList blockList = blockingStubFull.getBlockByLatestNum(numberMessage);
+    return Optional.ofNullable(blockList);
+  }
+
+  public Optional<BlockListExtention> getBlockByLatestNum2(long num) {
+    NumberMessage numberMessage = NumberMessage.newBuilder().setNum(num).build();
+    BlockListExtention blockList = blockingStubFull.getBlockByLatestNum2(numberMessage);
     return Optional.ofNullable(blockList);
   }
 

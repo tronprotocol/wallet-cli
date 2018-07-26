@@ -37,6 +37,7 @@ import org.tron.api.GrpcAPI.AccountNetMessage;
 import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.BlockExtention;
 import org.tron.api.GrpcAPI.BlockList;
+import org.tron.api.GrpcAPI.BlockListExtention;
 import org.tron.api.GrpcAPI.ProposalList;
 import org.tron.api.GrpcAPI.TransactionExtention;
 import org.tron.api.GrpcAPI.TransactionList;
@@ -1078,6 +1079,23 @@ public class Utils {
       result += "[";
       result += "\n";
       result += printBlock(block);
+      result += "]";
+      result += "\n";
+      result += "\n";
+      i++;
+    }
+    return result;
+  }
+
+  public static String printBlockList(BlockListExtention blockList) {
+    String result = "\n";
+    int i = 0;
+    for (BlockExtention block : blockList.getBlockList()) {
+      result += "block " + i + " :::";
+      result += "\n";
+      result += "[";
+      result += "\n";
+      result += printBlockExtention(block);
       result += "]";
       result += "\n";
       result += "\n";

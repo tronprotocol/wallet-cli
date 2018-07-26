@@ -27,6 +27,7 @@ import org.tron.api.GrpcAPI.AddressPrKeyPairMessage;
 import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.BlockExtention;
 import org.tron.api.GrpcAPI.BlockList;
+import org.tron.api.GrpcAPI.BlockListExtention;
 import org.tron.api.GrpcAPI.EasyTransferResponse;
 import org.tron.api.GrpcAPI.EmptyMessage;
 import org.tron.api.GrpcAPI.NodeList;
@@ -1013,8 +1014,16 @@ public class WalletClient {
     return rpcCli.getBlockByLimitNext(start, end);
   }
 
+  public static Optional<BlockListExtention> getBlockByLimitNext2(long start, long end) {
+    return rpcCli.getBlockByLimitNext2(start, end);
+  }
+
   public static Optional<BlockList> getBlockByLatestNum(long num) {
     return rpcCli.getBlockByLatestNum(num);
+  }
+
+  public static Optional<BlockListExtention> getBlockByLatestNum2(long num) {
+    return rpcCli.getBlockByLatestNum2(num);
   }
 
   public boolean createProposal(HashMap<Long, Long> parametersMap)
