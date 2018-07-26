@@ -21,12 +21,14 @@ import org.slf4j.LoggerFactory;
 import org.tron.api.GrpcAPI.AccountNetMessage;
 import org.tron.api.GrpcAPI.AddressPrKeyPairMessage;
 import org.tron.api.GrpcAPI.AssetIssueList;
+import org.tron.api.GrpcAPI.BlockExtention;
 import org.tron.api.GrpcAPI.BlockList;
 import org.tron.api.GrpcAPI.Node;
 import org.tron.api.GrpcAPI.NodeList;
 import org.tron.api.GrpcAPI.NumberMessage;
 import org.tron.api.GrpcAPI.ProposalList;
 import org.tron.api.GrpcAPI.TransactionList;
+import org.tron.api.GrpcAPI.TransactionListExtention;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.crypto.Hash;
 import org.tron.common.utils.AbiUtil;
@@ -664,12 +666,22 @@ public class TestClient {
       }
       blockNum = Long.parseLong(parameters[0]);
     }
-    Block block = client.getBlock(blockNum);
-    if (block == null) {
-      logger.info("No block for num : " + blockNum);
-      return;
+
+    if (WalletClient.getRpcVersion() == 2) {
+      BlockExtention blockExtention = client.getBlock2(blockNum);
+      if (blockExtention == null) {
+        System.out.println("No block for num : " + blockNum);
+        return;
+      }
+      System.out.println(Utils.printBlockExtention(blockExtention));
+    } else {
+      Block block = client.getBlock(blockNum);
+      if (block == null) {
+        System.out.println("No block for num : " + blockNum);
+        return;
+      }
+      System.out.println(Utils.printBlock(block));
     }
-    logger.info(Utils.printBlock(block));
   }
 
   private void voteWitness(String[] parameters)
@@ -954,31 +966,34 @@ public class TestClient {
       return;
     }
 
-    Optional<TransactionList> result = WalletClient
-        .getTransactionsFromThis(addressBytes, offset, limit);
-    if (result.isPresent()) {
-      TransactionList transactionList = result.get();
-      logger.info(Utils.printTransactionList(transactionList));
+    if (WalletClient.getRpcVersion() == 2) {
+      Optional<TransactionListExtention> result = WalletClient
+          .getTransactionsFromThis2(addressBytes, offset, limit);
+      if (result.isPresent()) {
+        TransactionListExtention transactionList = result.get();
+        if (transactionList.getTransactionCount() == 0){
+          System.out.println("No transaction from " + address);
+          return;
+        }
+        System.out.println(Utils.printTransactionList(transactionList));
+      } else {
+        System.out.println("GetTransactionsFromThis " + " failed !!");
+      }
     } else {
-      logger.info("GetTransactionsFromThis " + " failed !!");
+      Optional<TransactionList> result = WalletClient
+          .getTransactionsFromThis(addressBytes, offset, limit);
+      if (result.isPresent()) {
+        TransactionList transactionList = result.get();
+        if (transactionList.getTransactionCount() == 0){
+          System.out.println("No transaction from " + address);
+          return;
+        }
+        System.out.println(Utils.printTransactionList(transactionList));
+      } else {
+        System.out.println("GetTransactionsFromThis " + " failed !!");
+      }
     }
   }
-
-//  private void getTransactionsFromThisCount(String[] parameters) {
-//    if (parameters == null || parameters.length != 1) {
-//      System.out.println("getTransactionsFromThisCount need 1 parameter like following: ");
-//      System.out.println("getTransactionsFromThisCount Address");
-//      return;
-//    }
-//    String address = parameters[0];
-//    byte[] addressBytes = WalletClient.decodeFromBase58Check(address);
-//    if (addressBytes == null) {
-//      return;
-//    }
-//
-//    NumberMessage result = WalletClient.getTransactionsFromThisCount(addressBytes);
-//    logger.info("the number of Transactions from account " + address + " is " + result);
-//  }
 
   private void getTransactionsToThis(String[] parameters) {
     if (parameters == null || parameters.length != 3) {
@@ -994,13 +1009,32 @@ public class TestClient {
       return;
     }
 
-    Optional<TransactionList> result = WalletClient
-        .getTransactionsToThis(addressBytes, offset, limit);
-    if (result.isPresent()) {
-      TransactionList transactionList = result.get();
-      logger.info(Utils.printTransactionList(transactionList));
+    if (WalletClient.getRpcVersion() == 2) {
+      Optional<TransactionListExtention> result = WalletClient
+          .getTransactionsToThis2(addressBytes, offset, limit);
+      if (result.isPresent()) {
+        TransactionListExtention transactionList = result.get();
+        if (transactionList.getTransactionCount() == 0){
+          System.out.println("No transaction to " + address);
+          return;
+        }
+        System.out.println(Utils.printTransactionList(transactionList));
+      } else {
+        System.out.println("getTransactionsToThis " + " failed !!");
+      }
     } else {
-      logger.info("getTransactionsToThis " + " failed !!");
+      Optional<TransactionList> result = WalletClient
+          .getTransactionsToThis(addressBytes, offset, limit);
+      if (result.isPresent()) {
+        TransactionList transactionList = result.get();
+        if (transactionList.getTransactionCount() == 0){
+          System.out.println("No transaction to " + address);
+          return;
+        }
+        System.out.println(Utils.printTransactionList(transactionList));
+      } else {
+        System.out.println("getTransactionsToThis " + " failed !!");
+      }
     }
   }
 

@@ -13,6 +13,7 @@ import org.tron.api.GrpcAPI.AccountNetMessage;
 import org.tron.api.GrpcAPI.AccountPaginated;
 import org.tron.api.GrpcAPI.AddressPrKeyPairMessage;
 import org.tron.api.GrpcAPI.AssetIssueList;
+import org.tron.api.GrpcAPI.BlockExtention;
 import org.tron.api.GrpcAPI.BlockLimit;
 import org.tron.api.GrpcAPI.BlockList;
 import org.tron.api.GrpcAPI.BytesMessage;
@@ -27,6 +28,7 @@ import org.tron.api.GrpcAPI.ProposalList;
 import org.tron.api.GrpcAPI.Return.response_code;
 import org.tron.api.GrpcAPI.TransactionExtention;
 import org.tron.api.GrpcAPI.TransactionList;
+import org.tron.api.GrpcAPI.TransactionListExtention;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.api.WalletExtensionGrpc;
 import org.tron.api.WalletGrpc;
@@ -193,7 +195,8 @@ public class GrpcClient {
     return blockingStubFull.transferAsset(contract);
   }
 
-  public TransactionExtention createTransferAssetTransaction2(Contract.TransferAssetContract contract) {
+  public TransactionExtention createTransferAssetTransaction2(
+      Contract.TransferAssetContract contract) {
     return blockingStubFull.transferAsset2(contract);
   }
 
@@ -241,7 +244,8 @@ public class GrpcClient {
   }
 
   public Optional<ChainParameters> getChainParameters() {
-    ChainParameters chainParameters = blockingStubFull.getChainParameters(EmptyMessage.newBuilder().build());
+    ChainParameters chainParameters = blockingStubFull
+        .getChainParameters(EmptyMessage.newBuilder().build());
     return Optional.ofNullable(chainParameters);
   }
 
@@ -320,6 +324,23 @@ public class GrpcClient {
       return blockingStubSolidity.getBlockByNum(builder.build());
     } else {
       return blockingStubFull.getBlockByNum(builder.build());
+    }
+  }
+
+  public BlockExtention getBlock2(long blockNum) {
+    if (blockNum < 0) {
+      if (blockingStubSolidity != null) {
+        return blockingStubSolidity.getNowBlock2(EmptyMessage.newBuilder().build());
+      } else {
+        return blockingStubFull.getNowBlock2(EmptyMessage.newBuilder().build());
+      }
+    }
+    NumberMessage.Builder builder = NumberMessage.newBuilder();
+    builder.setNum(blockNum);
+    if (blockingStubSolidity != null) {
+      return blockingStubSolidity.getBlockByNum2(builder.build());
+    } else {
+      return blockingStubFull.getBlockByNum2(builder.build());
     }
   }
 
@@ -441,6 +462,19 @@ public class GrpcClient {
     return Optional.ofNullable(transactionList);
   }
 
+  public Optional<TransactionListExtention> getTransactionsFromThis2(byte[] address, int offset,
+      int limit) {
+    ByteString addressBS = ByteString.copyFrom(address);
+    Account account = Account.newBuilder().setAddress(addressBS).build();
+    AccountPaginated.Builder accountPaginated = AccountPaginated.newBuilder();
+    accountPaginated.setAccount(account);
+    accountPaginated.setOffset(offset);
+    accountPaginated.setLimit(limit);
+    TransactionListExtention transactionList = blockingStubExtension
+        .getTransactionsFromThis2(accountPaginated.build());
+    return Optional.ofNullable(transactionList);
+  }
+
 //  public NumberMessage getTransactionsFromThisCount(byte[] address) {
 //    ByteString addressBS = ByteString.copyFrom(address);
 //    Account account = Account.newBuilder().setAddress(addressBS).build();
@@ -459,6 +493,18 @@ public class GrpcClient {
     return Optional.ofNullable(transactionList);
   }
 
+  public Optional<TransactionListExtention> getTransactionsToThis2(byte[] address, int offset,
+      int limit) {
+    ByteString addressBS = ByteString.copyFrom(address);
+    Account account = Account.newBuilder().setAddress(addressBS).build();
+    AccountPaginated.Builder accountPaginated = AccountPaginated.newBuilder();
+    accountPaginated.setAccount(account);
+    accountPaginated.setOffset(offset);
+    accountPaginated.setLimit(limit);
+    TransactionListExtention transactionList = blockingStubExtension
+        .getTransactionsToThis2(accountPaginated.build());
+    return Optional.ofNullable(transactionList);
+  }
 //  public NumberMessage getTransactionsToThisCount(byte[] address) {
 //    ByteString addressBS = ByteString.copyFrom(address);
 //    Account account = Account.newBuilder().setAddress(addressBS).build();

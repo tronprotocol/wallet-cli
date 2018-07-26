@@ -25,6 +25,7 @@ import org.tron.api.GrpcAPI;
 import org.tron.api.GrpcAPI.AccountNetMessage;
 import org.tron.api.GrpcAPI.AddressPrKeyPairMessage;
 import org.tron.api.GrpcAPI.AssetIssueList;
+import org.tron.api.GrpcAPI.BlockExtention;
 import org.tron.api.GrpcAPI.BlockList;
 import org.tron.api.GrpcAPI.EasyTransferResponse;
 import org.tron.api.GrpcAPI.EmptyMessage;
@@ -33,6 +34,7 @@ import org.tron.api.GrpcAPI.ProposalList;
 import org.tron.api.GrpcAPI.Return;
 import org.tron.api.GrpcAPI.TransactionExtention;
 import org.tron.api.GrpcAPI.TransactionList;
+import org.tron.api.GrpcAPI.TransactionListExtention;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.Hash;
@@ -566,6 +568,10 @@ public class WalletClient {
     return rpcCli.getBlock(blockNum);
   }
 
+  public static BlockExtention getBlock2(long blockNum) {
+    return rpcCli.getBlock2(blockNum);
+  }
+
   public boolean voteWitness(HashMap<String, String> witness)
       throws CipherException, IOException, CancelException {
     byte[] owner = getAddress();
@@ -879,6 +885,10 @@ public class WalletClient {
     return rpcCli.getTransactionsFromThis(address, offset, limit);
   }
 
+  public static Optional<TransactionListExtention> getTransactionsFromThis2(byte[] address, int offset,
+      int limit) {
+    return rpcCli.getTransactionsFromThis2(address, offset, limit);
+  }
 //  public static GrpcAPI.NumberMessage getTransactionsFromThisCount(byte[] address) {
 //    return rpcCli.getTransactionsFromThisCount(address);
 //  }
@@ -888,6 +898,10 @@ public class WalletClient {
     return rpcCli.getTransactionsToThis(address, offset, limit);
   }
 
+  public static Optional<TransactionListExtention> getTransactionsToThis2(byte[] address, int offset,
+      int limit) {
+    return rpcCli.getTransactionsToThis2(address, offset, limit);
+  }
 //  public static GrpcAPI.NumberMessage getTransactionsToThisCount(byte[] address) {
 //    return rpcCli.getTransactionsToThisCount(address);
 //  }

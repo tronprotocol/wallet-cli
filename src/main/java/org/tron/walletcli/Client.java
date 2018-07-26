@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 import org.tron.api.GrpcAPI;
 import org.tron.api.GrpcAPI.AddressPrKeyPairMessage;
 import org.tron.api.GrpcAPI.AssetIssueList;
+import org.tron.api.GrpcAPI.BlockExtention;
 import org.tron.api.GrpcAPI.NodeList;
 import org.tron.api.GrpcAPI.ProposalList;
 import org.tron.api.GrpcAPI.WitnessList;
@@ -282,6 +283,10 @@ public class Client {
 
   public Block getBlock(long blockNum) {
     return WalletClient.getBlock(blockNum);
+  }
+
+  public BlockExtention getBlock2(long blockNum) {
+    return WalletClient.getBlock2(blockNum);
   }
 
   public boolean voteWitness(HashMap<String, String> witness)
