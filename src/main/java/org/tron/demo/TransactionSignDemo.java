@@ -4,6 +4,8 @@ import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.util.Arrays;
+import org.tron.api.GrpcAPI.Return;
+import org.tron.api.GrpcAPI.TransactionExtention;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.Sha256Hash;
 import org.tron.common.utils.ByteArray;
@@ -113,7 +115,25 @@ public class TransactionSignDemo {
     //sign a transaction in byte format and return a Transaction in byte format
     byte[] transaction4 = signTransaction2Byte(transactionBytes, privateBytes);
     System.out.println("transaction4 ::::: " + ByteArray.toHexString(transaction4));
-    Transaction transactionSigned = WalletClient.signTransactionByApi(transaction, ecKey.getPrivKeyBytes());
+    Transaction transactionSigned;
+    if (WalletClient.getRpcVersion() == 2) {
+      TransactionExtention transactionExtention = WalletClient.signTransactionByApi2(transaction, ecKey.getPrivKeyBytes());
+      if (transactionExtention == null) {
+        System.out.println("transactionExtention is null");
+        return;
+      }
+      Return ret = transactionExtention.getResult();
+      if (!ret.getResult()) {
+        System.out.println("Code = " + ret.getCode());
+        System.out.println("Message = " + ret.getMessage().toStringUtf8());
+        return;
+      }
+      System.out.println(
+          "Receive txid = " + ByteArray.toHexString(transactionExtention.getTxid().toByteArray()));
+      transactionSigned = transactionExtention.getTransaction();
+    } else {
+      transactionSigned = WalletClient.signTransactionByApi(transaction, ecKey.getPrivKeyBytes());
+    }
     byte[] transaction5 = transactionSigned.toByteArray();
     System.out.println("transaction5 ::::: " + ByteArray.toHexString(transaction5));
     if (!Arrays.equals(transaction4, transaction5)){

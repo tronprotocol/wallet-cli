@@ -25,12 +25,17 @@ import org.tron.api.GrpcAPI;
 import org.tron.api.GrpcAPI.AccountNetMessage;
 import org.tron.api.GrpcAPI.AddressPrKeyPairMessage;
 import org.tron.api.GrpcAPI.AssetIssueList;
+import org.tron.api.GrpcAPI.BlockExtention;
 import org.tron.api.GrpcAPI.BlockList;
+import org.tron.api.GrpcAPI.BlockListExtention;
 import org.tron.api.GrpcAPI.EasyTransferResponse;
 import org.tron.api.GrpcAPI.EmptyMessage;
 import org.tron.api.GrpcAPI.NodeList;
 import org.tron.api.GrpcAPI.ProposalList;
+import org.tron.api.GrpcAPI.Return;
+import org.tron.api.GrpcAPI.TransactionExtention;
 import org.tron.api.GrpcAPI.TransactionList;
+import org.tron.api.GrpcAPI.TransactionListExtention;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.Hash;
@@ -87,6 +92,7 @@ public class WalletClient {
   private boolean loginState = false;
   private byte[] address = null;
   private static byte addressPreFixByte = CommonConstant.ADD_PRE_FIX_BYTE_TESTNET;
+  private static int rpcVersion = 0;
 
   private static GrpcClient rpcCli = init();
 
@@ -117,6 +123,9 @@ public class WalletClient {
       WalletClient.setAddressPreFixByte(CommonConstant.ADD_PRE_FIX_BYTE_MAINNET);
     } else {
       WalletClient.setAddressPreFixByte(CommonConstant.ADD_PRE_FIX_BYTE_TESTNET);
+    }
+    if (config.hasPath("RPC_version")) {
+      rpcVersion = config.getInt("RPC_version");
     }
     return new GrpcClient(fullNode, solidityNode);
   }
@@ -161,6 +170,7 @@ public class WalletClient {
     WalletClient.addressPreFixByte = addressPreFixByte;
   }
 
+  public static int getRpcVersion() { return rpcVersion;}
   /**
    * Creates a new WalletClient with a random ECKey or no ECKey.
    */
@@ -315,7 +325,7 @@ public class WalletClient {
    * load a Wallet from keystore
    */
   public static WalletClient loadWalletFromKeystore()
-      throws IOException, CipherException {
+      throws IOException {
     WalletFile walletFile = loadWalletFile();
     WalletClient walletClient = new WalletClient(walletFile);
     return walletClient;
@@ -334,7 +344,9 @@ public class WalletClient {
 
   private Transaction signTransaction(Transaction transaction)
       throws CipherException, IOException, CancelException {
-    transaction = TransactionUtils.setTimestamp(transaction);
+    if (transaction.getRawData().getTimestamp() == 0) {
+      transaction = TransactionUtils.setTimestamp(transaction);
+    }
     System.out.println("Your transaction details are as follows, please confirm.");
     System.out.println(Utils.printTransaction(transaction));
 
@@ -361,12 +373,51 @@ public class WalletClient {
     return transaction;
   }
 
+  private boolean processTransactionExtention(TransactionExtention transactionExtention)
+      throws IOException, CipherException, CancelException {
+    if (transactionExtention == null) {
+      return false;
+    }
+    Return ret = transactionExtention.getResult();
+    if (!ret.getResult()) {
+      System.out.println("Code = " + ret.getCode());
+      System.out.println("Message = " + ret.getMessage().toStringUtf8());
+      return false;
+    }
+    Transaction transaction = transactionExtention.getTransaction();
+    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
+      System.out.println("Transaction is empty");
+      return false;
+    }
+    System.out.println(
+        "Receive txid = " + ByteArray.toHexString(transactionExtention.getTxid().toByteArray()));
+    transaction = signTransaction(transaction);
+    return rpcCli.broadcastTransaction(transaction);
+  }
+
+  private boolean processTransaction(Transaction transaction)
+      throws IOException, CipherException, CancelException {
+    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
+      return false;
+    }
+    transaction = signTransaction(transaction);
+    return rpcCli.broadcastTransaction(transaction);
+  }
+
   //Warning: do not invoke this interface provided by others.
   public static Transaction signTransactionByApi(Transaction transaction, byte[] privateKey) {
     TransactionSign.Builder builder = TransactionSign.newBuilder();
     builder.setPrivateKey(ByteString.copyFrom(privateKey));
     builder.setTransaction(transaction);
     return rpcCli.signTransaction(builder.build());
+  }
+
+  //Warning: do not invoke this interface provided by others.
+  public static TransactionExtention signTransactionByApi2(Transaction transaction, byte[] privateKey) {
+    TransactionSign.Builder builder = TransactionSign.newBuilder();
+    builder.setPrivateKey(ByteString.copyFrom(privateKey));
+    builder.setTransaction(transaction);
+    return rpcCli.signTransaction2(builder.build());
   }
 
   //Warning: do not invoke this interface provided by others.
@@ -390,26 +441,26 @@ public class WalletClient {
       throws CipherException, IOException, CancelException {
     byte[] owner = getAddress();
     Contract.TransferContract contract = createTransferContract(to, owner, amount);
-    Transaction transaction = rpcCli.createTransaction(contract);
-    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
-      return false;
+    if (rpcVersion == 2) {
+      TransactionExtention transactionExtention = rpcCli.createTransaction2(contract);
+      return processTransactionExtention(transactionExtention);
+    } else {
+      Transaction transaction = rpcCli.createTransaction(contract);
+      return processTransaction(transaction);
     }
-    transaction = signTransaction(transaction);
-    return rpcCli.broadcastTransaction(transaction);
   }
 
   public boolean updateAccount(byte[] accountNameBytes)
       throws CipherException, IOException, CancelException {
     byte[] owner = getAddress();
     Contract.AccountUpdateContract contract = createAccountUpdateContract(accountNameBytes, owner);
-    Transaction transaction = rpcCli.createTransaction(contract);
-
-    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
-      return false;
+    if (rpcVersion == 2) {
+      TransactionExtention transactionExtention = rpcCli.createTransaction2(contract);
+      return processTransactionExtention(transactionExtention);
+    } else {
+      Transaction transaction = rpcCli.createTransaction(contract);
+      return processTransaction(transaction);
     }
-
-    transaction = signTransaction(transaction);
-    return rpcCli.broadcastTransaction(transaction);
   }
 
   public boolean setAccountId(byte[] accountIdBytes)
@@ -434,58 +485,42 @@ public class WalletClient {
     byte[] owner = getAddress();
     Contract.UpdateAssetContract contract
         = createUpdateAssetContract(owner, description, url, newLimit, newPublicLimit);
-    Transaction transaction = rpcCli.createTransaction(contract);
-
-    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
-      return false;
+    if (rpcVersion == 2) {
+      TransactionExtention transactionExtention = rpcCli.createTransaction2(contract);
+      return processTransactionExtention(transactionExtention);
+    } else {
+      Transaction transaction = rpcCli.createTransaction(contract);
+      return processTransaction(transaction);
     }
-
-    transaction = signTransaction(transaction);
-    return rpcCli.broadcastTransaction(transaction);
   }
 
   public boolean transferAsset(byte[] to, byte[] assertName, long amount)
       throws CipherException, IOException, CancelException {
     byte[] owner = getAddress();
-    Transaction transaction = createTransferAssetTransaction(to, assertName, owner, amount);
-    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
-      return false;
-    }
-
-    transaction = signTransaction(transaction);
-    return rpcCli.broadcastTransaction(transaction);
-  }
-
-  public static Transaction createTransferAssetTransaction(byte[] to, byte[] assertName,
-      byte[] owner, long amount) {
     Contract.TransferAssetContract contract = createTransferAssetContract(to, assertName, owner,
         amount);
-    return rpcCli.createTransferAssetTransaction(contract);
+    if (rpcVersion == 2) {
+      TransactionExtention transactionExtention = rpcCli.createTransferAssetTransaction2(contract);
+      return processTransactionExtention(transactionExtention);
+    } else {
+      Transaction transaction = rpcCli.createTransferAssetTransaction(contract);
+      return processTransaction(transaction);
+    }
   }
 
   public boolean participateAssetIssue(byte[] to, byte[] assertName, long amount)
       throws CipherException, IOException, CancelException {
     byte[] owner = getAddress();
-    Transaction transaction = participateAssetIssueTransaction(to, assertName, owner, amount);
-    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
-      return false;
-    }
-
-    transaction = signTransaction(transaction);
-    return rpcCli.broadcastTransaction(transaction);
-  }
-
-  public static Transaction participateAssetIssueTransaction(byte[] to, byte[] assertName,
-      byte[] owner, long amount) {
     Contract.ParticipateAssetIssueContract contract = participateAssetIssueContract(to, assertName,
         owner, amount);
-    return rpcCli.createParticipateAssetIssueTransaction(contract);
-  }
-
-  public static Transaction updateAccountTransaction(byte[] addressBytes, byte[] accountNameBytes) {
-    Contract.AccountUpdateContract contract = createAccountUpdateContract(accountNameBytes,
-        addressBytes);
-    return rpcCli.createTransaction(contract);
+    if (rpcVersion == 2) {
+      TransactionExtention transactionExtention = rpcCli
+          .createParticipateAssetIssueTransaction2(contract);
+      return processTransactionExtention(transactionExtention);
+    } else {
+      Transaction transaction = rpcCli.createParticipateAssetIssueTransaction(contract);
+      return processTransaction(transaction);
+    }
   }
 
   public static boolean broadcastTransaction(byte[] transactionBytes)
@@ -497,25 +532,26 @@ public class WalletClient {
 
   public boolean createAssetIssue(Contract.AssetIssueContract contract)
       throws CipherException, IOException, CancelException {
-    Transaction transaction = rpcCli.createAssetIssue(contract);
-    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
-      return false;
+    if (rpcVersion == 2) {
+      TransactionExtention transactionExtention = rpcCli.createAssetIssue2(contract);
+      return processTransactionExtention(transactionExtention);
+    } else {
+      Transaction transaction = rpcCli.createAssetIssue(contract);
+      return processTransaction(transaction);
     }
-
-    transaction = signTransaction(transaction);
-    return rpcCli.broadcastTransaction(transaction);
   }
 
   public boolean createAccount(byte[] address)
       throws CipherException, IOException, CancelException {
     byte[] owner = getAddress();
-    Transaction transaction = createAccountTransaction(owner, address);
-    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
-      return false;
+    Contract.AccountCreateContract contract = createAccountCreateContract(owner, address);
+    if (rpcVersion == 2) {
+      TransactionExtention transactionExtention = rpcCli.createAccount2(contract);
+      return processTransactionExtention(transactionExtention);
+    } else {
+      Transaction transaction = rpcCli.createAccount(contract);
+      return processTransaction(transaction);
     }
-
-    transaction = signTransaction(transaction);
-    return rpcCli.broadcastTransaction(transaction);
   }
 
   //Warning: do not invoke this interface provided by others.
@@ -526,66 +562,51 @@ public class WalletClient {
 
   public boolean createWitness(byte[] url) throws CipherException, IOException, CancelException {
     byte[] owner = getAddress();
-    Transaction transaction = createWitnessTransaction(owner, url);
-    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
-      return false;
+    Contract.WitnessCreateContract contract = createWitnessCreateContract(owner, url);
+    if (rpcVersion == 2) {
+      TransactionExtention transactionExtention = rpcCli.createWitness2(contract);
+      return processTransactionExtention(transactionExtention);
+    } else {
+      Transaction transaction = rpcCli.createWitness(contract);
+      return processTransaction(transaction);
     }
-
-    transaction = signTransaction(transaction);
-    return rpcCli.broadcastTransaction(transaction);
   }
 
   public boolean updateWitness(byte[] url) throws CipherException, IOException, CancelException {
     byte[] owner = getAddress();
-    Transaction transaction = updateWitnessTransaction(owner, url);
-    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
-      return false;
-    }
-
-    transaction = signTransaction(transaction);
-    return rpcCli.broadcastTransaction(transaction);
-  }
-
-  public static Transaction createAccountTransaction(byte[] owner, byte[] address) {
-    Contract.AccountCreateContract contract = createAccountCreateContract(owner, address);
-    return rpcCli.createAccount(contract);
-  }
-
-  public static Transaction createWitnessTransaction(byte[] owner, byte[] url) {
-    Contract.WitnessCreateContract contract = createWitnessCreateContract(owner, url);
-    return rpcCli.createWitness(contract);
-  }
-
-  public static Transaction updateWitnessTransaction(byte[] owner, byte[] url) {
     Contract.WitnessUpdateContract contract = createWitnessUpdateContract(owner, url);
-    return rpcCli.updateWitness(contract);
-  }
-
-  public static Transaction createVoteWitnessTransaction(byte[] owner,
-      HashMap<String, String> witness) {
-    Contract.VoteWitnessContract contract = createVoteWitnessContract(owner, witness);
-    return rpcCli.voteWitnessAccount(contract);
-  }
-
-  public static Transaction createAssetIssueTransaction(Contract.AssetIssueContract contract) {
-    return rpcCli.createAssetIssue(contract);
+    if (rpcVersion == 2) {
+      TransactionExtention transactionExtention = rpcCli.updateWitness2(contract);
+      return processTransactionExtention(transactionExtention);
+    } else {
+      Transaction transaction = rpcCli.updateWitness(contract);
+      return processTransaction(transaction);
+    }
   }
 
   public static Block getBlock(long blockNum) {
     return rpcCli.getBlock(blockNum);
   }
 
+  public static BlockExtention getBlock2(long blockNum) {
+    return rpcCli.getBlock2(blockNum);
+  }
+
+  public static long getTransactionCountByBlockNum(long blockNum) {
+    return rpcCli.getTransactionCountByBlockNum(blockNum);
+  }
+
   public boolean voteWitness(HashMap<String, String> witness)
       throws CipherException, IOException, CancelException {
     byte[] owner = getAddress();
     Contract.VoteWitnessContract contract = createVoteWitnessContract(owner, witness);
-    Transaction transaction = rpcCli.voteWitnessAccount(contract);
-    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
-      return false;
+    if (rpcVersion == 2) {
+      TransactionExtention transactionExtention = rpcCli.voteWitnessAccount2(contract);
+      return processTransactionExtention(transactionExtention);
+    } else {
+      Transaction transaction = rpcCli.voteWitnessAccount(contract);
+      return processTransaction(transaction);
     }
-
-    transaction = signTransaction(transaction);
-    return rpcCli.broadcastTransaction(transaction);
   }
 
   public static Contract.TransferContract createTransferContract(byte[] to, byte[] owner,
@@ -630,23 +651,6 @@ public class WalletClient {
 
     return builder.build();
   }
-
-  public static Transaction createTransaction4Transfer(Contract.TransferContract contract) {
-    Transaction transaction = rpcCli.createTransaction(contract);
-    return transaction;
-  }
-
-//  public static Contract.AccountCreateContract createAccountCreateContract(AccountType accountType,
-//      byte[] accountName, byte[] address) {
-//    Contract.AccountCreateContract.Builder builder = Contract.AccountCreateContract.newBuilder();
-//    ByteString bsaAdress = ByteString.copyFrom(address);
-//    ByteString bsAccountName = ByteString.copyFrom(accountName);
-//    builder.setType(accountType);
-//    builder.setAccountName(bsAccountName);
-//    builder.setOwnerAddress(bsaAdress);
-//
-//    return builder.build();
-//  }
 
   public static Contract.AccountUpdateContract createAccountUpdateContract(byte[] accountName,
       byte[] address) {
@@ -918,6 +922,10 @@ public class WalletClient {
     return rpcCli.getTransactionsFromThis(address, offset, limit);
   }
 
+  public static Optional<TransactionListExtention> getTransactionsFromThis2(byte[] address, int offset,
+      int limit) {
+    return rpcCli.getTransactionsFromThis2(address, offset, limit);
+  }
 //  public static GrpcAPI.NumberMessage getTransactionsFromThisCount(byte[] address) {
 //    return rpcCli.getTransactionsFromThisCount(address);
 //  }
@@ -927,6 +935,10 @@ public class WalletClient {
     return rpcCli.getTransactionsToThis(address, offset, limit);
   }
 
+  public static Optional<TransactionListExtention> getTransactionsToThis2(byte[] address, int offset,
+      int limit) {
+    return rpcCli.getTransactionsToThis2(address, offset, limit);
+  }
 //  public static GrpcAPI.NumberMessage getTransactionsToThisCount(byte[] address) {
 //    return rpcCli.getTransactionsToThisCount(address);
 //  }
@@ -943,13 +955,13 @@ public class WalletClient {
       throws CipherException, IOException, CancelException {
     Contract.FreezeBalanceContract contract = createFreezeBalanceContract(frozen_balance,
         frozen_duration);
-    Transaction transaction = rpcCli.createTransaction(contract);
-    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
-      return false;
+    if (rpcVersion == 2) {
+      TransactionExtention transactionExtention = rpcCli.createTransaction2(contract);
+      return processTransactionExtention(transactionExtention);
+    } else {
+      Transaction transaction = rpcCli.createTransaction(contract);
+      return processTransaction(transaction);
     }
-
-    transaction = signTransaction(transaction);
-    return rpcCli.broadcastTransaction(transaction);
   }
 
   private FreezeBalanceContract createFreezeBalanceContract(long frozen_balance,
@@ -966,13 +978,13 @@ public class WalletClient {
   public boolean unfreezeBalance()
       throws CipherException, IOException, CancelException {
     Contract.UnfreezeBalanceContract contract = createUnfreezeBalanceContract();
-    Transaction transaction = rpcCli.createTransaction(contract);
-    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
-      return false;
+    if (rpcVersion == 2) {
+      TransactionExtention transactionExtention = rpcCli.createTransaction2(contract);
+      return processTransactionExtention(transactionExtention);
+    } else {
+      Transaction transaction = rpcCli.createTransaction(contract);
+      return processTransaction(transaction);
     }
-
-    transaction = signTransaction(transaction);
-    return rpcCli.broadcastTransaction(transaction);
   }
 
   private UnfreezeBalanceContract createUnfreezeBalanceContract() {
@@ -987,13 +999,13 @@ public class WalletClient {
 
   public boolean unfreezeAsset() throws CipherException, IOException, CancelException {
     Contract.UnfreezeAssetContract contract = createUnfreezeAssetContract();
-    Transaction transaction = rpcCli.createTransaction(contract);
-    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
-      return false;
+    if (rpcVersion == 2) {
+      TransactionExtention transactionExtention = rpcCli.createTransaction2(contract);
+      return processTransactionExtention(transactionExtention);
+    } else {
+      Transaction transaction = rpcCli.createTransaction(contract);
+      return processTransaction(transaction);
     }
-
-    transaction = signTransaction(transaction);
-    return rpcCli.broadcastTransaction(transaction);
   }
 
   private UnfreezeAssetContract createUnfreezeAssetContract() {
@@ -1007,13 +1019,13 @@ public class WalletClient {
 
   public boolean withdrawBalance() throws CipherException, IOException, CancelException {
     Contract.WithdrawBalanceContract contract = createWithdrawBalanceContract();
-    Transaction transaction = rpcCli.createTransaction(contract);
-    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
-      return false;
+    if (rpcVersion == 2) {
+      TransactionExtention transactionExtention = rpcCli.createTransaction2(contract);
+      return processTransactionExtention(transactionExtention);
+    } else {
+      Transaction transaction = rpcCli.createTransaction(contract);
+      return processTransaction(transaction);
     }
-
-    transaction = signTransaction(transaction);
-    return rpcCli.broadcastTransaction(transaction);
   }
 
   private WithdrawBalanceContract createWithdrawBalanceContract() {
@@ -1034,21 +1046,24 @@ public class WalletClient {
     return rpcCli.getBlockByLimitNext(start, end);
   }
 
+  public static Optional<BlockListExtention> getBlockByLimitNext2(long start, long end) {
+    return rpcCli.getBlockByLimitNext2(start, end);
+  }
+
   public static Optional<BlockList> getBlockByLatestNum(long num) {
     return rpcCli.getBlockByLatestNum(num);
+  }
+
+  public static Optional<BlockListExtention> getBlockByLatestNum2(long num) {
+    return rpcCli.getBlockByLatestNum2(num);
   }
 
   public boolean createProposal(HashMap<Long, Long> parametersMap)
       throws CipherException, IOException, CancelException {
     byte[] owner = getAddress();
     Contract.ProposalCreateContract contract = createProposalCreateContract(owner, parametersMap);
-    Transaction transaction = rpcCli.proposalCreate(contract);
-    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
-      return false;
-    }
-
-    transaction = signTransaction(transaction);
-    return rpcCli.broadcastTransaction(transaction);
+    TransactionExtention transactionExtention = rpcCli.proposalCreate(contract);
+    return processTransactionExtention(transactionExtention);
   }
 
   public static Optional<ProposalList> listProposals() {
@@ -1075,19 +1090,16 @@ public class WalletClient {
   public boolean approveProposal(long id, boolean is_add_approval)
       throws CipherException, IOException, CancelException {
     byte[] owner = getAddress();
-    Contract.ProposalApproveContract contract = createProposalApproveContract(owner, id, is_add_approval);
-    Transaction transaction = rpcCli.proposalApprove(contract);
-    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
-      return false;
-    }
-
-    transaction = signTransaction(transaction);
-    return rpcCli.broadcastTransaction(transaction);
+    Contract.ProposalApproveContract contract = createProposalApproveContract(owner, id,
+        is_add_approval);
+    TransactionExtention transactionExtention = rpcCli.proposalApprove(contract);
+    return processTransactionExtention(transactionExtention);
   }
 
   public static Contract.ProposalApproveContract createProposalApproveContract(byte[] owner,
       long id, boolean is_add_approval) {
-    Contract.ProposalApproveContract.Builder builder = Contract.ProposalApproveContract.newBuilder();
+    Contract.ProposalApproveContract.Builder builder = Contract.ProposalApproveContract
+        .newBuilder();
     builder.setOwnerAddress(ByteString.copyFrom(owner));
     builder.setProposalId(id);
     builder.setIsAddApproval(is_add_approval);
@@ -1098,13 +1110,8 @@ public class WalletClient {
       throws CipherException, IOException, CancelException {
     byte[] owner = getAddress();
     Contract.ProposalDeleteContract contract = createProposalDeleteContract(owner, id);
-    Transaction transaction = rpcCli.proposalDelete(contract);
-    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
-      return false;
-    }
-
-    transaction = signTransaction(transaction);
-    return rpcCli.broadcastTransaction(transaction);
+    TransactionExtention transactionExtention = rpcCli.proposalDelete(contract);
+    return processTransactionExtention(transactionExtention);
   }
 
   public static Contract.ProposalDeleteContract createProposalDeleteContract(byte[] owner,
@@ -1301,19 +1308,20 @@ public class WalletClient {
     CreateSmartContract contractDeployContract = createContractDeployContract(owner,
         ABI, code, data, value);
 
-    Transaction transaction = rpcCli.deployContract(contractDeployContract);
-    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
-      logger.error("RPC create trx failed!");
+    TransactionExtention transactionExtention = rpcCli.deployContract(contractDeployContract);
+    if (transactionExtention == null || !transactionExtention.getResult().getResult()) {
+      System.out.println("RPC create trx failed!");
+      if (transactionExtention != null) {
+        System.out.println("Code = " + transactionExtention.getResult().getCode());
+        System.out
+            .println("Message = " + transactionExtention.getResult().getMessage().toStringUtf8());
+      }
       return false;
     }
-
-    logger.info("RPC create ok!");
-
-    transaction = signTransaction(transaction);
-    byte[] contractAddress = generateContractAddress(transaction);
-    logger.info(
+    byte[] contractAddress = generateContractAddress(transactionExtention.getTransaction());
+    System.out.println(
         "Your smart contract address will be: " + WalletClient.encode58Check(contractAddress));
-    return rpcCli.broadcastTransaction(transaction);
+    return processTransactionExtention(transactionExtention);
 
   }
 
@@ -1322,24 +1330,24 @@ public class WalletClient {
     byte[] owner = getAddress();
     Contract.TriggerSmartContract triggerContract = triggerCallContract(owner, contractAddress,
         callValue, data);
-    Transaction transaction = rpcCli.triggerContract(triggerContract);
-    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
-      logger.error("RPC create call trx failed!");
+    TransactionExtention transactionExtention = rpcCli.triggerContract(triggerContract);
+    if (transactionExtention == null || !transactionExtention.getResult().getResult()) {
+      System.out.println("RPC create call trx failed!");
+      System.out.println("Code = " + transactionExtention.getResult().getCode());
+      System.out
+          .println("Message = " + transactionExtention.getResult().getMessage().toStringUtf8());
       return false;
     }
 
-    logger.info("RPC create ok!");
-
+    Transaction transaction = transactionExtention.getTransaction();
     if (transaction.getRetCount() != 0 &&
         transaction.getRet(0).getConstantResult() != null) {
       byte[] result = transaction.getRet(0).getConstantResult().toByteArray();
-      logger.info("Result:" + Hex.toHexString(result));
+      System.out.println("Result:" + Hex.toHexString(result));
       return true;
     }
 
-    logger.info("RPC call ok!");
-    transaction = signTransaction(transaction);
-    return rpcCli.broadcastTransaction(transaction);
+    return processTransactionExtention(transactionExtention);
   }
 
   public static SmartContract getContract(byte[] address) {

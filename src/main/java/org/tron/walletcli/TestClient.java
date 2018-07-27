@@ -21,12 +21,15 @@ import org.slf4j.LoggerFactory;
 import org.tron.api.GrpcAPI.AccountNetMessage;
 import org.tron.api.GrpcAPI.AddressPrKeyPairMessage;
 import org.tron.api.GrpcAPI.AssetIssueList;
+import org.tron.api.GrpcAPI.BlockExtention;
 import org.tron.api.GrpcAPI.BlockList;
+import org.tron.api.GrpcAPI.BlockListExtention;
 import org.tron.api.GrpcAPI.Node;
 import org.tron.api.GrpcAPI.NodeList;
 import org.tron.api.GrpcAPI.NumberMessage;
 import org.tron.api.GrpcAPI.ProposalList;
 import org.tron.api.GrpcAPI.TransactionList;
+import org.tron.api.GrpcAPI.TransactionListExtention;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.crypto.Hash;
 import org.tron.common.utils.AbiUtil;
@@ -689,7 +692,7 @@ public class TestClient {
     }
   }
 
-  private void GetBlock(String[] parameters) {
+  private void getBlock(String[] parameters) {
     long blockNum = -1;
 
     if (parameters == null || parameters.length == 0) {
@@ -704,12 +707,33 @@ public class TestClient {
       }
       blockNum = Long.parseLong(parameters[0]);
     }
-    Block block = client.getBlock(blockNum);
-    if (block == null) {
-      logger.info("No block for num : " + blockNum);
-      return;
+
+    if (WalletClient.getRpcVersion() == 2) {
+      BlockExtention blockExtention = client.getBlock2(blockNum);
+      if (blockExtention == null) {
+        System.out.println("No block for num : " + blockNum);
+        return;
+      }
+      System.out.println(Utils.printBlockExtention(blockExtention));
+    } else {
+      Block block = client.getBlock(blockNum);
+      if (block == null) {
+        System.out.println("No block for num : " + blockNum);
+        return;
+      }
+      System.out.println(Utils.printBlock(block));
     }
-    logger.info(Utils.printBlock(block));
+  }
+
+  private void getTransactionCountByBlockNum(String[] parameters) {
+    if (parameters.length != 1) {
+      System.out.println("Too many parameters !!!");
+      System.out.println("You need input number with the following syntax:");
+      System.out.println("GetTransactionCountByBlockNum number");
+    }
+    long blockNum = Long.parseLong(parameters[0]);
+    long count = client.getTransactionCountByBlockNum(blockNum);
+    System.out.println("The block contain " + count + " transactions");
   }
 
   private void voteWitness(String[] parameters)
@@ -859,8 +883,6 @@ public class TestClient {
   }
 
 
-
-
   private void withdrawBalance() throws IOException, CipherException, CancelException {
     boolean result = client.withdrawBalance();
     if (result) {
@@ -996,31 +1018,34 @@ public class TestClient {
       return;
     }
 
-    Optional<TransactionList> result = WalletClient
-        .getTransactionsFromThis(addressBytes, offset, limit);
-    if (result.isPresent()) {
-      TransactionList transactionList = result.get();
-      logger.info(Utils.printTransactionList(transactionList));
+    if (WalletClient.getRpcVersion() == 2) {
+      Optional<TransactionListExtention> result = WalletClient
+          .getTransactionsFromThis2(addressBytes, offset, limit);
+      if (result.isPresent()) {
+        TransactionListExtention transactionList = result.get();
+        if (transactionList.getTransactionCount() == 0) {
+          System.out.println("No transaction from " + address);
+          return;
+        }
+        System.out.println(Utils.printTransactionList(transactionList));
+      } else {
+        System.out.println("GetTransactionsFromThis " + " failed !!");
+      }
     } else {
-      logger.info("GetTransactionsFromThis " + " failed !!");
+      Optional<TransactionList> result = WalletClient
+          .getTransactionsFromThis(addressBytes, offset, limit);
+      if (result.isPresent()) {
+        TransactionList transactionList = result.get();
+        if (transactionList.getTransactionCount() == 0) {
+          System.out.println("No transaction from " + address);
+          return;
+        }
+        System.out.println(Utils.printTransactionList(transactionList));
+      } else {
+        System.out.println("GetTransactionsFromThis " + " failed !!");
+      }
     }
   }
-
-//  private void getTransactionsFromThisCount(String[] parameters) {
-//    if (parameters == null || parameters.length != 1) {
-//      System.out.println("getTransactionsFromThisCount need 1 parameter like following: ");
-//      System.out.println("getTransactionsFromThisCount Address");
-//      return;
-//    }
-//    String address = parameters[0];
-//    byte[] addressBytes = WalletClient.decodeFromBase58Check(address);
-//    if (addressBytes == null) {
-//      return;
-//    }
-//
-//    NumberMessage result = WalletClient.getTransactionsFromThisCount(addressBytes);
-//    logger.info("the number of Transactions from account " + address + " is " + result);
-//  }
 
   private void getTransactionsToThis(String[] parameters) {
     if (parameters == null || parameters.length != 3) {
@@ -1036,13 +1061,32 @@ public class TestClient {
       return;
     }
 
-    Optional<TransactionList> result = WalletClient
-        .getTransactionsToThis(addressBytes, offset, limit);
-    if (result.isPresent()) {
-      TransactionList transactionList = result.get();
-      logger.info(Utils.printTransactionList(transactionList));
+    if (WalletClient.getRpcVersion() == 2) {
+      Optional<TransactionListExtention> result = WalletClient
+          .getTransactionsToThis2(addressBytes, offset, limit);
+      if (result.isPresent()) {
+        TransactionListExtention transactionList = result.get();
+        if (transactionList.getTransactionCount() == 0) {
+          System.out.println("No transaction to " + address);
+          return;
+        }
+        System.out.println(Utils.printTransactionList(transactionList));
+      } else {
+        System.out.println("getTransactionsToThis " + " failed !!");
+      }
     } else {
-      logger.info("getTransactionsToThis " + " failed !!");
+      Optional<TransactionList> result = WalletClient
+          .getTransactionsToThis(addressBytes, offset, limit);
+      if (result.isPresent()) {
+        TransactionList transactionList = result.get();
+        if (transactionList.getTransactionCount() == 0) {
+          System.out.println("No transaction to " + address);
+          return;
+        }
+        System.out.println(Utils.printTransactionList(transactionList));
+      } else {
+        System.out.println("getTransactionsToThis " + " failed !!");
+      }
     }
   }
 
@@ -1090,12 +1134,23 @@ public class TestClient {
       start = Long.parseLong(parameters[0]);
       end = Long.parseLong(parameters[1]);
     }
-    Optional<BlockList> result = WalletClient.getBlockByLimitNext(start, end);
-    if (result.isPresent()) {
-      BlockList blockList = result.get();
-      logger.info(Utils.printBlockList(blockList));
+
+    if (WalletClient.getRpcVersion() == 2) {
+      Optional<BlockListExtention> result = WalletClient.getBlockByLimitNext2(start, end);
+      if (result.isPresent()) {
+        BlockListExtention blockList = result.get();
+        System.out.println(Utils.printBlockList(blockList));
+      } else {
+        System.out.println("GetBlockByLimitNext " + " failed !!");
+      }
     } else {
-      logger.info("GetBlockByLimitNext " + " failed !!");
+      Optional<BlockList> result = WalletClient.getBlockByLimitNext(start, end);
+      if (result.isPresent()) {
+        BlockList blockList = result.get();
+        System.out.println(Utils.printBlockList(blockList));
+      } else {
+        System.out.println("GetBlockByLimitNext " + " failed !!");
+      }
     }
   }
 
@@ -1107,37 +1162,56 @@ public class TestClient {
     } else {
       num = Long.parseLong(parameters[0]);
     }
-    Optional<BlockList> result = WalletClient.getBlockByLatestNum(num);
-    if (result.isPresent()) {
-      BlockList blockList = result.get();
-      logger.info(Utils.printBlockList(blockList));
+    if (WalletClient.getRpcVersion() == 2) {
+      Optional<BlockListExtention> result = WalletClient.getBlockByLatestNum2(num);
+      if (result.isPresent()) {
+        BlockListExtention blockList = result.get();
+        if (blockList.getBlockCount() == 0){
+          System.out.println("No block");
+          return;
+        }
+        System.out.println(Utils.printBlockList(blockList));
+      } else {
+        System.out.println("GetBlockByLimitNext " + " failed !!");
+      }
     } else {
-      logger.info("getBlockByLatestNum " + " failed !!");
+      Optional<BlockList> result = WalletClient.getBlockByLatestNum(num);
+      if (result.isPresent()) {
+        BlockList blockList = result.get();
+        if (blockList.getBlockCount() == 0){
+          System.out.println("No block");
+          return;
+        }
+        System.out.println(Utils.printBlockList(blockList));
+      } else {
+        System.out.println("GetBlockByLimitNext " + " failed !!");
+      }
     }
   }
 
   private void deployContract(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null ||
-            parameters.length < 3) {
-      System.out.println("DeployContract needs at least 3 parameters like following: ");
-      System.out.println("DeployContract password ABI byteCode <value>");
-      System.out.println("Note: Please append the param for constructor tightly with byteCode without any space");
+        parameters.length < 2) {
+      System.out.println("DeployContract needs at least 2 parameters like following: ");
+      System.out.println("DeployContract ABI byteCode <value>");
+      System.out.println(
+          "Note: Please append the param for constructor tightly with byteCode without any space");
       return;
     }
 
-    String passwordStr = parameters[0];
-    String abiStr = parameters[1];
-    String codeStr = parameters[2];
+    String abiStr = parameters[0];
+    String codeStr = parameters[1];
     String value = null;
-    if (parameters.length > 3)
-      value = parameters[3];
+    if (parameters.length > 2) {
+      value = parameters[2];
+    }
 
     // TODO: consider to remove "data"
     /* Consider to move below null value, since we append the constructor param just after bytecode without any space.
      * Or we can re-design it to give other developers better user experience. Set this value in protobuf as null for now.
      */
-    boolean result = client.deployContract(passwordStr, abiStr, codeStr, null, value);
+    boolean result = client.deployContract(abiStr, codeStr, null, value);
     if (result) {
       System.out.println("Deploy the contract successfully");
     } else {
@@ -1149,19 +1223,18 @@ public class TestClient {
   private void triggerContract(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null ||
-        parameters.length < 6) {
-      System.out.println("TriggerContract needs 6 parameters like following: ");
-      System.out.println("TriggerContract password contractAddress method args isHex value");
+        parameters.length < 5) {
+      System.out.println("TriggerContract needs 5 parameters like following: ");
+      System.out.println("TriggerContract contractAddress method args isHex value");
 //      System.out.println("example:\nTriggerContract password contractAddress method args value");
       return;
     }
 
-    String passwordStr = parameters[0];
-    String contractAddrStr = parameters[1];
-    String methodStr = parameters[2];
-    String argsStr = parameters[3];
-    boolean isHex = Boolean.valueOf(parameters[4]);
-    String valueStr = parameters[5];
+    String contractAddrStr = parameters[0];
+    String methodStr = parameters[1];
+    String argsStr = parameters[2];
+    boolean isHex = Boolean.valueOf(parameters[3]);
+    String valueStr = parameters[4];
     if (argsStr.equalsIgnoreCase("#")) {
       argsStr = "";
     }
@@ -1169,8 +1242,7 @@ public class TestClient {
     byte[] contractAddress = WalletClient.decodeFromBase58Check(contractAddrStr);
     byte[] callValue = Hex.decode(valueStr);
 
-    boolean result = client.callContract(passwordStr, contractAddress,
-        callValue, input);
+    boolean result = client.callContract(contractAddress, callValue, input);
     if (result) {
       System.out.println("Call the contract successfully");
     } else {
@@ -1244,6 +1316,7 @@ public class TestClient {
     System.out.println("ListNodes");
     System.out.println("ListProposals");
     System.out.println("GetBlock");
+    System.out.println("GetTransactionCountByBlockNum");
     System.out.println("GetTotalTransaction");
     //   System.out.println("GetAssetIssueListByTimestamp");
     System.out.println("GetNextMaintenanceTime");
@@ -1509,7 +1582,11 @@ public class TestClient {
             break;
           }
           case "getblock": {
-            GetBlock(parameters);
+            getBlock(parameters);
+            break;
+          }
+          case "gettransactioncountbyblocknum": {
+            getTransactionCountByBlockNum(parameters);
             break;
           }
           case "gettotaltransaction": {
