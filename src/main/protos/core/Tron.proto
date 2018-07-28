@@ -119,6 +119,7 @@ message Account {
   }
   AccountResource account_resource = 30;
 
+  bytes codeHash = 30;
 }
 
 message authority {

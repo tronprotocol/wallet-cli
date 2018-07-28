@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory;
 import org.tron.api.GrpcAPI;
 import org.tron.api.GrpcAPI.AddressPrKeyPairMessage;
 import org.tron.api.GrpcAPI.AssetIssueList;
+import org.tron.api.GrpcAPI.BlockExtention;
 import org.tron.api.GrpcAPI.NodeList;
 import org.tron.api.GrpcAPI.ProposalList;
 import org.tron.api.GrpcAPI.WitnessList;
@@ -284,6 +285,14 @@ public class Client {
     return WalletClient.getBlock(blockNum);
   }
 
+  public long getTransactionCountByBlockNum(long blockNum) {
+    return WalletClient.getTransactionCountByBlockNum(blockNum);
+  }
+
+  public BlockExtention getBlock2(long blockNum) {
+    return WalletClient.getBlock2(blockNum);
+  }
+
   public boolean voteWitness(HashMap<String, String> witness)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
@@ -488,48 +497,23 @@ public class Client {
 
     return wallet.deleteProposal(id);
   }
-
-  public boolean deployContract(String password,
-      String abiStr, String codeStr, String data, String value)
+  public boolean deployContract(String abiStr, String codeStr, String data, String value)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: createContract failed,  Please login first !!");
       return false;
     }
-    if (!WalletClient.passwordValid(password.toCharArray())) {
-      return false;
-    }
-
-    byte[] passwd = org.tron.keystore.StringUtils.char2Byte(password.toCharArray());
-//    if (wallet.getEcKey(passwd) == null || wallet.getEcKey(passwd).getPrivKey() == null) {
-//      wallet = WalletClient.GetWalletByStorage(password);
-//      if (wallet == null) {
-//        logger.warn("Warning: createContract failed, Load wallet failed !!");
-//        return false;
-//      }
-//    }
 
     return wallet.deployContract(abiStr, codeStr, data, value);
   }
 
-  public boolean callContract(String password, byte[] contractAddress,
-      byte[] callValue, byte[] data)
+  public boolean callContract(byte[] contractAddress,
+                              byte[] callValue, byte[] data)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: callContract failed,  Please login first !!");
       return false;
     }
-    if (!WalletClient.passwordValid(password.toCharArray())) {
-      return false;
-    }
-    byte[] passwd = org.tron.keystore.StringUtils.char2Byte(password.toCharArray());
-//    if (wallet.getEcKey(passwd) == null || wallet.getEcKey(passwd).getPrivKey() == null) {
-//      wallet = WalletClient.GetWalletByStorage(password);
-//      if (wallet == null) {
-//        logger.warn("Warning: callContract failed, Load wallet failed !!");
-//        return false;
-//      }
-//    }
 
     return wallet.triggerContract(contractAddress, callValue, data);
   }
