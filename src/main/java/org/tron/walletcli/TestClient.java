@@ -1261,25 +1261,29 @@ public class TestClient {
       throws IOException, CipherException, CancelException {
     if (parameters == null ||
         parameters.length < 2) {
-      System.out.println("DeployContract needs at least 2 parameters like following: ");
-      System.out.println("DeployContract ABI byteCode <value>");
+      System.out.println("DeployContract needs at least 6 parameters like following: ");
+      System.out.println("DeployContract contractName ABI byteCode max_cpu_usage max_net_usage max_storage <value>");
       System.out.println(
           "Note: Please append the param for constructor tightly with byteCode without any space");
       return;
     }
 
-    String abiStr = parameters[0];
-    String codeStr = parameters[1];
+    String contractName = parameters[0];
+    String abiStr = parameters[1];
+    String codeStr = parameters[2];
+    long max_cpu_usage = Long.valueOf(parameters[3]);
+    long max_net_usage = Long.valueOf(parameters[4]);
+    long max_storage   = Long.valueOf(parameters[5]);
     String value = null;
-    if (parameters.length > 2) {
-      value = parameters[2];
+    if (parameters.length > 6) {
+      value = parameters[6];
     }
 
     // TODO: consider to remove "data"
     /* Consider to move below null value, since we append the constructor param just after bytecode without any space.
      * Or we can re-design it to give other developers better user experience. Set this value in protobuf as null for now.
      */
-    boolean result = client.deployContract(abiStr, codeStr, null, value);
+    boolean result = client.deployContract(contractName, abiStr, codeStr, null, max_cpu_usage, max_net_usage, max_storage, value);
     if (result) {
       System.out.println("Deploy the contract successfully");
     } else {
@@ -1292,8 +1296,8 @@ public class TestClient {
       throws IOException, CipherException, CancelException {
     if (parameters == null ||
         parameters.length < 5) {
-      System.out.println("TriggerContract needs 5 parameters like following: ");
-      System.out.println("TriggerContract contractAddress method args isHex value");
+      System.out.println("TriggerContract needs 8 parameters like following: ");
+      System.out.println("TriggerContract contractAddress method args isHex max_cpu_usage max_net_usage max_storage value");
 //      System.out.println("example:\nTriggerContract password contractAddress method args value");
       return;
     }
@@ -1302,7 +1306,10 @@ public class TestClient {
     String methodStr = parameters[1];
     String argsStr = parameters[2];
     boolean isHex = Boolean.valueOf(parameters[3]);
-    String valueStr = parameters[4];
+    long max_cpu_usage = Long.valueOf(parameters[4]);
+    long max_net_usage = Long.valueOf(parameters[5]);
+    long max_storage   = Long.valueOf(parameters[6]);
+    String valueStr = parameters[7];
     if (argsStr.equalsIgnoreCase("#")) {
       argsStr = "";
     }
@@ -1310,7 +1317,7 @@ public class TestClient {
     byte[] contractAddress = WalletClient.decodeFromBase58Check(contractAddrStr);
     byte[] callValue = Hex.decode(valueStr);
 
-    boolean result = client.callContract(contractAddress, callValue, input);
+    boolean result = client.callContract(contractAddress, callValue, input, max_cpu_usage, max_net_usage, max_storage);
     if (result) {
       System.out.println("Call the contract successfully");
     } else {

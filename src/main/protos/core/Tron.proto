@@ -55,7 +55,6 @@ message ChainParameters{
   }
 }
 
-
 /* Account */
 message Account {
   /* frozen balance */
@@ -172,6 +171,14 @@ message TXOutputs {
   repeated TXOutput outputs = 1;
 }
 
+message ResourceReceipt {
+  int64 cpu_usage = 1;
+  int64 cpu_fee = 2;
+  int64 net_usage = 3;
+  int64 net_fee = 4;
+  int64 storage_delta = 5;
+  int64 storage_fee = 6;
+}
 
 message Transaction {
   message Contract {
@@ -218,6 +225,7 @@ message Transaction {
     int64 fee = 1;
     code ret = 2;
     bytes constant_result = 3;
+    ResourceReceipt receipt = 4;
   }
 
   message raw {
@@ -233,6 +241,9 @@ message Transaction {
     // scripts not used
     bytes scripts = 12;
     int64 timestamp = 14;
+    int64 max_cpu_usage = 15;
+    int64 max_net_usage = 16;
+    int64 max_storage = 17;
   }
 
   raw raw_data = 1;
@@ -248,6 +259,8 @@ message TransactionInfo {
   int64 blockTimeStamp = 4;
   repeated bytes contractResult = 5;
   bytes contract_address = 6;
+  Transaction.Result result = 7;
+  repeated bytes log = 8;
 }
 
 message Transactions {
@@ -425,5 +438,6 @@ message SmartContract {
   ABI abi = 3;
   bytes bytecode = 4;
   bytes call_value = 5;
-  bytes data = 6;
+  bytes name = 6;
+  bytes data = 7;
 }

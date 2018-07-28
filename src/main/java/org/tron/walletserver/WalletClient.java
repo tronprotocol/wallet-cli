@@ -1296,8 +1296,8 @@ public class WalletClient {
     return abiBuilder.build();
   }
 
-  public static CreateSmartContract createContractDeployContract(byte[] address,
-      String ABI, String code, String data, String value) {
+  public static CreateSmartContract createContractDeployContract(String contractName, byte[] address,
+      String ABI, String code, String data,long max_cpu_usage, long max_net_usage, long max_storage, String value) {
     SmartContract.ABI abi = jsonStr2ABI(ABI);
     if (abi == null) {
       logger.error("abi is null");
@@ -1306,6 +1306,7 @@ public class WalletClient {
 
     byte[] codeBytes = Hex.decode(code);
     SmartContract.Builder builder = SmartContract.newBuilder();
+    builder.setName(ByteString.copyFrom(contractName.getBytes()));
     builder.setOriginAddress(ByteString.copyFrom(address));
     builder.setAbi(abi);
     builder.setBytecode(ByteString.copyFrom(codeBytes));
@@ -1315,18 +1316,23 @@ public class WalletClient {
     if (value != null) {
       builder.setCallValue(ByteString.copyFrom(Hex.decode(value)));
     }
-    return CreateSmartContract.newBuilder().setOwnerAddress(ByteString.copyFrom(address))
-        .setNewContract(builder.build()).build();
+    CreateSmartContract.Builder builderCreate = CreateSmartContract.newBuilder();
+    builderCreate.setOwnerAddress(ByteString.copyFrom(address))
+        .setNewContract(builder.build()).setMaxCpuUsage(max_cpu_usage).setMaxNetUsage(max_net_usage)
+        .setMaxStorage(max_storage);
+    return builderCreate.build();
   }
 
   public static Contract.TriggerSmartContract triggerCallContract(byte[] address,
       byte[] contractAddress,
-      byte[] callValue, byte[] data) {
+      byte[] callValue, byte[] data,
+      long max_cpu_usage, long max_net_usage, long max_storage) {
     Contract.TriggerSmartContract.Builder builder = Contract.TriggerSmartContract.newBuilder();
     builder.setOwnerAddress(ByteString.copyFrom(address));
     builder.setContractAddress(ByteString.copyFrom(contractAddress));
     builder.setData(ByteString.copyFrom(data));
     builder.setCallValue(ByteString.copyFrom(callValue));
+    builder.setMaxCpuUsage(max_cpu_usage).setMaxStorage(max_storage).setMaxNetUsage(max_net_usage);
     return builder.build();
   }
 
@@ -1349,11 +1355,11 @@ public class WalletClient {
   }
 
 
-  public boolean deployContract(String ABI, String code, String data, String value)
+  public boolean deployContract(String contractName, String ABI, String code, String data, long max_cpu_usage, long max_net_usage, long max_storage, String value)
       throws IOException, CipherException, CancelException {
     byte[] owner = getAddress();
-    CreateSmartContract contractDeployContract = createContractDeployContract(owner,
-        ABI, code, data, value);
+    CreateSmartContract contractDeployContract = createContractDeployContract(contractName, owner,
+        ABI, code, data, max_cpu_usage,max_net_usage,max_storage, value);
 
     TransactionExtention transactionExtention = rpcCli.deployContract(contractDeployContract);
     if (transactionExtention == null || !transactionExtention.getResult().getResult()) {
@@ -1372,11 +1378,11 @@ public class WalletClient {
 
   }
 
-  public boolean triggerContract(byte[] contractAddress, byte[] callValue, byte[] data)
+  public boolean triggerContract(byte[] contractAddress, byte[] callValue, byte[] data, long max_cpu_usage, long max_net_usage, long max_storage)
       throws IOException, CipherException, CancelException {
     byte[] owner = getAddress();
     Contract.TriggerSmartContract triggerContract = triggerCallContract(owner, contractAddress,
-        callValue, data);
+        callValue, data, max_cpu_usage, max_net_usage, max_storage);
     TransactionExtention transactionExtention = rpcCli.triggerContract(triggerContract);
     if (transactionExtention == null || !transactionExtention.getResult().getResult()) {
       System.out.println("RPC create call trx failed!");
