@@ -1409,6 +1409,8 @@ public class TestClient {
     System.out.println("getcontract contractAddress");
     System.out.println("UpdateAsset");
     System.out.println("UnfreezeAsset");
+    System.out.println("buyStorage");
+    System.out.println("sellStorage");
     System.out.println("CreateProposal");
     System.out.println("ListProposals");
     System.out.println("GetProposal");
