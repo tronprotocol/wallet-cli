@@ -113,14 +113,24 @@ message ParticipateAssetIssueContract {
   int64 amount = 4; // the amount of drops
 }
 
+
+enum ResourceCode {
+  BANDWIDTH = 0x00;
+  CPU = 0x01;
+}
+
 message FreezeBalanceContract {
   bytes owner_address = 1;
   int64 frozen_balance = 2;
   int64 frozen_duration = 3;
+
+  ResourceCode resource = 10;
 }
 
 message UnfreezeBalanceContract {
   bytes owner_address = 1;
+
+  ResourceCode resource = 10;
 }
 
 message UnfreezeAssetContract {
@@ -160,6 +170,9 @@ message CreateSmartContract {
   SmartContract new_contract = 2;
   bytes cpu_limit_in_trx = 3;
   bytes storage_limit_in_trx = 4;
+  int64 max_cpu_usage = 5;
+  int64 max_net_usage = 6;
+  int64 max_storage = 7;
 }
 
 message TriggerSmartContract {
@@ -169,4 +182,17 @@ message TriggerSmartContract {
   bytes data = 4;
   bytes cpu_limit_in_trx = 5;
   bytes storage_limit_in_trx = 6;
+  int64 max_cpu_usage = 7;
+  int64 max_net_usage = 8;
+  int64 max_storage = 9;
+}
+
+message BuyStorageContract {
+  bytes owner_address = 1;
+  int64 quant = 2; // trx quantity for buy storage (sun)
+}
+
+message SellStorageContract {
+  bytes owner_address = 1;
+  int64 storage_bytes = 2;
 }
