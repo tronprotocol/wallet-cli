@@ -781,7 +781,7 @@ public class Utils {
           result += WalletClient
               .encode58Check(buyStorageContract.getOwnerAddress().toByteArray());
           result += "\n";
-          result += "quant";
+          result += "quant:";
           result += buyStorageContract.getQuant();
           result += "\n";
           break;
@@ -792,7 +792,7 @@ public class Utils {
           result += WalletClient
               .encode58Check(sellStorageContract.getOwnerAddress().toByteArray());
           result += "\n";
-          result += "storageBytes: ";
+          result += "storageBytes:";
           result += sellStorageContract.getStorageBytes();
           result += "\n";
           break;
