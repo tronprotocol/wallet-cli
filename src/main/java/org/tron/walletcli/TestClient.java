@@ -800,7 +800,7 @@ public class TestClient {
 
   private void buyStorage(String[] parameters)
       throws IOException, CipherException, CancelException {
-    if (parameters == null || !(parameters.length == 2 || parameters.length == 3)) {
+    if (parameters == null || parameters.length != 1) {
       System.out.println("Use buyStorage command with below syntax: ");
       System.out.println("buyStorage quantity ");
       return;
@@ -817,7 +817,7 @@ public class TestClient {
 
   private void sellStorage(String[] parameters)
       throws IOException, CipherException, CancelException {
-    if (parameters == null || !(parameters.length == 2 || parameters.length == 3)) {
+    if (parameters == null || parameters.length != 1) {
       System.out.println("Use sellStorage command with below syntax: ");
       System.out.println("sellStorage quantity ");
       return;
