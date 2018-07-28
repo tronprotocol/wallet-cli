@@ -989,6 +989,8 @@ public class WalletClient {
     if (transaction == null || transaction.getRawData().getContractCount() == 0) {
       return false;
     }
+    transaction = signTransaction(transaction);
+    return rpcCli.broadcastTransaction(transaction);
   }
 
   private FreezeBalanceContract createFreezeBalanceContract(long frozen_balance,
