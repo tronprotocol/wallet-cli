@@ -19,6 +19,7 @@ import org.bouncycastle.util.encoders.Hex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tron.api.GrpcAPI.AccountNetMessage;
+import org.tron.api.GrpcAPI.AccountResourceMessage;
 import org.tron.api.GrpcAPI.AddressPrKeyPairMessage;
 import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.BlockExtention;
@@ -31,7 +32,6 @@ import org.tron.api.GrpcAPI.ProposalList;
 import org.tron.api.GrpcAPI.TransactionList;
 import org.tron.api.GrpcAPI.TransactionListExtention;
 import org.tron.api.GrpcAPI.WitnessList;
-import org.tron.common.crypto.Hash;
 import org.tron.common.utils.AbiUtil;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Utils;
@@ -272,7 +272,6 @@ public class TestClient {
     }
     String accountId = parameters[0];
 
-
     Account account = WalletClient.queryAccountById(accountId);
     if (account == null) {
       logger.info("GetAccountById failed !!!!");
@@ -280,7 +279,6 @@ public class TestClient {
       logger.info("\n" + Utils.printAccount(account));
     }
   }
-
 
 
   private void updateAccount(String[] parameters)
@@ -320,7 +318,6 @@ public class TestClient {
       logger.info("Set AccountId failed !!!!");
     }
   }
-
 
 
   private void updateAsset(String[] parameters)
@@ -387,6 +384,26 @@ public class TestClient {
       logger.info("GetAccountNet " + " failed !!");
     } else {
       logger.info("\n" + Utils.printAccountNet(result));
+    }
+  }
+
+  private void getAccountResource(String[] parameters) {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("getAccountResource needs 1 parameter like following: ");
+      System.out.println("getAccountResource Address ");
+      return;
+    }
+    String address = parameters[0];
+    byte[] addressBytes = WalletClient.decodeFromBase58Check(address);
+    if (addressBytes == null) {
+      return;
+    }
+
+    AccountResourceMessage result = WalletClient.getAccountResource(addressBytes);
+    if (result == null) {
+      logger.info("getAccountResource " + " failed !!");
+    } else {
+      logger.info("\n" + Utils.printAccountResourceMessage(result));
     }
   }
 
@@ -761,16 +778,19 @@ public class TestClient {
 
   private void freezeBalance(String[] parameters)
       throws IOException, CipherException, CancelException {
-    if (parameters == null || parameters.length != 2) {
+    if (parameters == null || !(parameters.length == 2 || parameters.length == 3)) {
       System.out.println("Use freezeBalance command with below syntax: ");
-      System.out.println("freezeBalance frozen_balance frozen_duration ");
+      System.out.println("freezeBalance frozen_balance frozen_duration [ResourceCode:0 BANDWIDTH,1 CPU]");
       return;
     }
 
     long frozen_balance = Long.parseLong(parameters[0]);
     long frozen_duration = Long.parseLong(parameters[1]);
-
-    boolean result = client.freezeBalance(frozen_balance, frozen_duration);
+    int resourceCode = 0;
+    if (parameters.length == 3) {
+      resourceCode = Integer.parseInt(parameters[2]);
+    }
+    boolean result = client.freezeBalance(frozen_balance, frozen_duration, resourceCode);
     if (result) {
       logger.info("freezeBalance " + " successful !!");
     } else {
@@ -778,9 +798,57 @@ public class TestClient {
     }
   }
 
-  private void unfreezeBalance()
+  private void buyStorage(String[] parameters)
       throws IOException, CipherException, CancelException {
-    boolean result = client.unfreezeBalance();
+    if (parameters == null || !(parameters.length == 2 || parameters.length == 3)) {
+      System.out.println("Use buyStorage command with below syntax: ");
+      System.out.println("buyStorage quantity ");
+      return;
+    }
+
+    long quantity = Long.parseLong(parameters[0]);
+    boolean result = client.buyStorage(quantity);
+    if (result) {
+      logger.info("buyStorage " + " successful !!");
+    } else {
+      logger.info("buyStorage " + " failed !!");
+    }
+  }
+
+  private void sellStorage(String[] parameters)
+      throws IOException, CipherException, CancelException {
+    if (parameters == null || !(parameters.length == 2 || parameters.length == 3)) {
+      System.out.println("Use sellStorage command with below syntax: ");
+      System.out.println("sellStorage quantity ");
+      return;
+    }
+
+    long storageBytes = Long.parseLong(parameters[0]);
+    boolean result = client.sellStorage(storageBytes);
+    if (result) {
+      logger.info("sellStorage " + " successful !!");
+    } else {
+      logger.info("sellStorage " + " failed !!");
+    }
+  }
+
+
+
+
+  private void unfreezeBalance(String[] parameters)
+      throws IOException, CipherException, CancelException {
+    if (parameters.length > 1) {
+      System.out.println("Use unfreezeBalance command with below syntax: ");
+      System.out.println("unfreezeBalance  [ResourceCode:0 BANDWIDTH,1 CPU]");
+      return;
+    }
+
+    int resourceCode = 0;
+    if (parameters != null && parameters.length == 1) {
+      resourceCode = Integer.parseInt(parameters[0]);
+    }
+
+    boolean result = client.unfreezeBalance(resourceCode);
     if (result) {
       logger.info("unfreezeBalance " + " successful !!");
     } else {
@@ -1510,6 +1578,10 @@ public class TestClient {
             getAccountNet(parameters);
             break;
           }
+          case "getaccountresource": {
+            getAccountResource(parameters);
+            break;
+          }
           case "getassetissuebyname": {
             getAssetIssueByName(parameters);
             break;
@@ -1555,7 +1627,15 @@ public class TestClient {
             break;
           }
           case "unfreezebalance": {
-            unfreezeBalance();
+            unfreezeBalance(parameters);
+            break;
+          }
+          case "buystorage": {
+            buyStorage(parameters);
+            break;
+          }
+          case "sellstorage": {
+            sellStorage(parameters);
             break;
           }
           case "withdrawbalance": {
