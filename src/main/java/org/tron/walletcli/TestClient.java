@@ -832,6 +832,7 @@ public class TestClient {
     }
   }
 
+
   private void unfreezeBalance(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters.length > 1) {
