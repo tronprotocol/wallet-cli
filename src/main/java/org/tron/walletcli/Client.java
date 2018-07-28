@@ -368,7 +368,6 @@ public class Client {
   }
 
 
-
   public boolean updateAsset(byte[] description, byte[] url, long newLimit,
       long newPublicLimit) throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
@@ -379,23 +378,47 @@ public class Client {
     return wallet.updateAsset(description, url, newLimit, newPublicLimit);
   }
 
-  public boolean freezeBalance(long frozen_balance, long frozen_duration)
+  public boolean freezeBalance(long frozen_balance, long frozen_duration, int resourceCode)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: freezeBalance failed, Please login first !!");
       return false;
     }
 
-    return wallet.freezeBalance(frozen_balance, frozen_duration);
+    return wallet.freezeBalance(frozen_balance, frozen_duration, resourceCode);
   }
 
-  public boolean unfreezeBalance() throws CipherException, IOException, CancelException {
+  public boolean buyStorage(long quantity)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warning: buyStorage failed, Please login first !!");
+      return false;
+    }
+
+    return wallet.buyStorage(quantity);
+  }
+
+  public boolean sellStorage(long storageBytes)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warning: sellStorage failed, Please login first !!");
+      return false;
+    }
+
+    return wallet.sellStorage(storageBytes);
+  }
+
+
+
+
+
+  public boolean unfreezeBalance(int resourceCode) throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: unfreezeBalance failed, Please login first !!");
       return false;
     }
 
-    return wallet.unfreezeBalance();
+    return wallet.unfreezeBalance(resourceCode);
   }
 
   public boolean unfreezeAsset() throws CipherException, IOException, CancelException {
