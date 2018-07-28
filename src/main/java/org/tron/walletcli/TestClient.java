@@ -1368,6 +1368,7 @@ public class TestClient {
     System.out.println("GetAccount");
     System.out.println("GetAssetIssueByAccount");
     System.out.println("GetAccountNet");
+    System.out.println("GetAccountResource");
     System.out.println("GetAssetIssueByName");
     System.out.println("SendCoin");
     System.out.println("TransferAsset");
