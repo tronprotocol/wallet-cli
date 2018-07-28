@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import org.tron.api.GrpcAPI;
 import org.tron.api.GrpcAPI.AccountNetMessage;
 import org.tron.api.GrpcAPI.AccountPaginated;
+import org.tron.api.GrpcAPI.AccountResourceMessage;
 import org.tron.api.GrpcAPI.AddressPrKeyPairMessage;
 import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.BlockExtention;
@@ -176,6 +177,14 @@ public class GrpcClient {
 
   public Transaction createTransaction(Contract.FreezeBalanceContract contract) {
     return blockingStubFull.freezeBalance(contract);
+  }
+
+  public Transaction createTransaction(Contract.BuyStorageContract contract) {
+    return blockingStubFull.buyStorage(contract);
+  }
+
+  public Transaction createTransaction(Contract.SellStorageContract contract) {
+    return blockingStubFull.sellStorage(contract);
   }
 
   public TransactionExtention createTransaction2(Contract.FreezeBalanceContract contract) {
@@ -431,6 +440,12 @@ public class GrpcClient {
     Account request = Account.newBuilder().setAddress(addressBS).build();
     return blockingStubFull.getAccountNet(request);
   }
+  public AccountResourceMessage getAccountResource(byte[] address) {
+    ByteString addressBS = ByteString.copyFrom(address);
+    Account request = Account.newBuilder().setAddress(addressBS).build();
+    return blockingStubFull.getAccountResource(request);
+  }
+
 
   public Contract.AssetIssueContract getAssetIssueByName(String assetName) {
     ByteString assetNameBs = ByteString.copyFrom(assetName.getBytes());
