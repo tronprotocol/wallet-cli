@@ -158,6 +158,14 @@ public class GrpcClient {
     return blockingStubFull.freezeBalance(contract);
   }
 
+  public Transaction createTransaction(Contract.BuyStorageContract contract) {
+    return blockingStubFull.buyStorage(contract);
+  }
+
+  public Transaction createTransaction(Contract.SellStorageContract contract) {
+    return blockingStubFull.sellStorage(contract);
+  }
+
   public Transaction createTransaction(Contract.WithdrawBalanceContract contract) {
     return blockingStubFull.withdrawBalance(contract);
   }

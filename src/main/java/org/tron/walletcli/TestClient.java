@@ -29,7 +29,6 @@ import org.tron.api.GrpcAPI.NumberMessage;
 import org.tron.api.GrpcAPI.ProposalList;
 import org.tron.api.GrpcAPI.TransactionList;
 import org.tron.api.GrpcAPI.WitnessList;
-import org.tron.common.crypto.Hash;
 import org.tron.common.utils.AbiUtil;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Utils;
@@ -38,7 +37,6 @@ import org.tron.core.exception.CipherException;
 import org.tron.keystore.StringUtils;
 import org.tron.protos.Contract.AssetIssueContract;
 import org.tron.protos.Protocol.Account;
-import org.tron.protos.Protocol.Account.AccountResource;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.ChainParameters;
 import org.tron.protos.Protocol.Proposal;
@@ -776,6 +774,43 @@ public class TestClient {
     }
   }
 
+  private void buyStorage(String[] parameters)
+      throws IOException, CipherException, CancelException {
+    if (parameters == null || !(parameters.length == 2 || parameters.length == 3)) {
+      System.out.println("Use buyStorage command with below syntax: ");
+      System.out.println("buyStorage quantity ");
+      return;
+    }
+
+    long quantity = Long.parseLong(parameters[0]);
+    boolean result = client.buyStorage(quantity);
+    if (result) {
+      logger.info("buyStorage " + " successful !!");
+    } else {
+      logger.info("buyStorage " + " failed !!");
+    }
+  }
+
+  private void sellStorage(String[] parameters)
+      throws IOException, CipherException, CancelException {
+    if (parameters == null || !(parameters.length == 2 || parameters.length == 3)) {
+      System.out.println("Use sellStorage command with below syntax: ");
+      System.out.println("sellStorage quantity ");
+      return;
+    }
+
+    long storageBytes = Long.parseLong(parameters[0]);
+    boolean result = client.sellStorage(storageBytes);
+    if (result) {
+      logger.info("sellStorage " + " successful !!");
+    } else {
+      logger.info("sellStorage " + " failed !!");
+    }
+  }
+
+
+
+
   private void unfreezeBalance(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters.length > 1) {
@@ -1494,6 +1529,14 @@ public class TestClient {
           }
           case "unfreezebalance": {
             unfreezeBalance(parameters);
+            break;
+          }
+          case "buystorage": {
+            buyStorage(parameters);
+            break;
+          }
+          case "sellstorage": {
+            sellStorage(parameters);
             break;
           }
           case "withdrawbalance": {

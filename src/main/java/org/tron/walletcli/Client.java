@@ -379,6 +379,29 @@ public class Client {
     return wallet.freezeBalance(frozen_balance, frozen_duration, resourceCode);
   }
 
+  public boolean buyStorage(long quantity)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warning: buyStorage failed, Please login first !!");
+      return false;
+    }
+
+    return wallet.buyStorage(quantity);
+  }
+
+  public boolean sellStorage(long storageBytes)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warning: sellStorage failed, Please login first !!");
+      return false;
+    }
+
+    return wallet.sellStorage(storageBytes);
+  }
+
+
+
+
 
   public boolean unfreezeBalance(int resourceCode) throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {

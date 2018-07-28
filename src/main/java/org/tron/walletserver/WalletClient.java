@@ -51,8 +51,10 @@ import org.tron.keystore.WalletFile;
 import org.tron.keystore.WalletUtils;
 import org.tron.protos.Contract;
 import org.tron.protos.Contract.AssetIssueContract;
+import org.tron.protos.Contract.BuyStorageContract;
 import org.tron.protos.Contract.CreateSmartContract;
 import org.tron.protos.Contract.FreezeBalanceContract;
+import org.tron.protos.Contract.SellStorageContract;
 import org.tron.protos.Contract.UnfreezeAssetContract;
 import org.tron.protos.Contract.UnfreezeBalanceContract;
 import org.tron.protos.Contract.WithdrawBalanceContract;
@@ -956,6 +958,29 @@ public class WalletClient {
     transaction = signTransaction(transaction);
     return rpcCli.broadcastTransaction(transaction);
   }
+  public boolean buyStorage(long quantity)
+      throws CipherException, IOException, CancelException {
+    Contract.BuyStorageContract contract = createBuyStorageContract(quantity);
+    Transaction transaction = rpcCli.createTransaction(contract);
+    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
+      return false;
+    }
+
+    transaction = signTransaction(transaction);
+    return rpcCli.broadcastTransaction(transaction);
+  }
+
+  public boolean sellStorage(long storageBytes)
+      throws CipherException, IOException, CancelException {
+    Contract.SellStorageContract contract = createSellStorageContract(storageBytes);
+    Transaction transaction = rpcCli.createTransaction(contract);
+    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
+      return false;
+    }
+
+    transaction = signTransaction(transaction);
+    return rpcCli.broadcastTransaction(transaction);
+  }
 
   private FreezeBalanceContract createFreezeBalanceContract(long frozen_balance,
       long frozen_duration,int resourceCode) {
@@ -964,6 +989,24 @@ public class WalletClient {
     ByteString byteAddress = ByteString.copyFrom(address);
     builder.setOwnerAddress(byteAddress).setFrozenBalance(frozen_balance)
         .setFrozenDuration(frozen_duration).setResourceValue(resourceCode);
+
+    return builder.build();
+  }
+
+  private BuyStorageContract createBuyStorageContract(long quantity) {
+    byte[] address = getAddress();
+    Contract. BuyStorageContract.Builder builder = Contract.BuyStorageContract.newBuilder();
+    ByteString byteAddress = ByteString.copyFrom(address);
+    builder.setOwnerAddress(byteAddress).setQuant(quantity);
+
+    return builder.build();
+  }
+
+  private SellStorageContract createSellStorageContract(long storageBytes) {
+    byte[] address = getAddress();
+    Contract.SellStorageContract.Builder builder = Contract.SellStorageContract.newBuilder();
+    ByteString byteAddress = ByteString.copyFrom(address);
+    builder.setOwnerAddress(byteAddress).setStorageBytes(storageBytes);
 
     return builder.build();
   }
