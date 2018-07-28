@@ -1192,7 +1192,7 @@ public class TestClient {
   private void deployContract(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null ||
-        parameters.length < 2) {
+        parameters.length < 6) {
       System.out.println("DeployContract needs at least 6 parameters like following: ");
       System.out.println("DeployContract contractName ABI byteCode max_cpu_usage max_net_usage max_storage <value>");
       System.out.println(
@@ -1203,9 +1203,18 @@ public class TestClient {
     String contractName = parameters[0];
     String abiStr = parameters[1];
     String codeStr = parameters[2];
-    long max_cpu_usage = Long.valueOf(parameters[3]);
-    long max_net_usage = Long.valueOf(parameters[4]);
-    long max_storage   = Long.valueOf(parameters[5]);
+    Long max_cpu_usage =null;
+    if(!parameters[3].equalsIgnoreCase("null")){
+      max_cpu_usage = Long.valueOf(parameters[3]);
+    }
+    Long max_net_usage = null;
+    if(!parameters[4].equalsIgnoreCase("null")){
+      max_net_usage = Long.valueOf(parameters[4]);
+    }
+    Long max_storage   = null;
+    if(!parameters[5].equalsIgnoreCase("null")){
+      max_storage = Long.valueOf(parameters[5]);
+    }
     String value = null;
     if (parameters.length > 6) {
       value = parameters[6];
@@ -1238,9 +1247,18 @@ public class TestClient {
     String methodStr = parameters[1];
     String argsStr = parameters[2];
     boolean isHex = Boolean.valueOf(parameters[3]);
-    long max_cpu_usage = Long.valueOf(parameters[4]);
-    long max_net_usage = Long.valueOf(parameters[5]);
-    long max_storage   = Long.valueOf(parameters[6]);
+    Long max_cpu_usage =null;
+    if(!parameters[4].equalsIgnoreCase("null")){
+      max_cpu_usage = Long.valueOf(parameters[4]);
+    }
+    Long max_net_usage = null;
+    if(!parameters[5].equalsIgnoreCase("null")){
+      max_net_usage = Long.valueOf(parameters[5]);
+    }
+    Long max_storage   = null;
+    if(!parameters[6].equalsIgnoreCase("null")){
+      max_storage = Long.valueOf(parameters[6]);
+    }
     String valueStr = parameters[7];
     if (argsStr.equalsIgnoreCase("#")) {
       argsStr = "";

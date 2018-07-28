@@ -66,6 +66,7 @@ import org.tron.protos.Protocol.ChainParameters;
 import org.tron.protos.Protocol.Proposal;
 import org.tron.protos.Protocol.SmartContract;
 import org.tron.protos.Protocol.Transaction;
+import org.tron.protos.Protocol.Transaction.Result;
 import org.tron.protos.Protocol.TransactionInfo;
 import org.tron.protos.Protocol.TransactionSign;
 import org.tron.protos.Protocol.Witness;
@@ -1250,7 +1251,7 @@ public class WalletClient {
   }
 
   public static CreateSmartContract createContractDeployContract(String contractName, byte[] address,
-      String ABI, String code, String data,long max_cpu_usage, long max_net_usage, long max_storage, String value) {
+      String ABI, String code, String data, String value) {
     SmartContract.ABI abi = jsonStr2ABI(ABI);
     if (abi == null) {
       logger.error("abi is null");
@@ -1270,22 +1271,18 @@ public class WalletClient {
       builder.setCallValue(ByteString.copyFrom(Hex.decode(value)));
     }
     CreateSmartContract.Builder builderCreate = CreateSmartContract.newBuilder();
-    builderCreate.setOwnerAddress(ByteString.copyFrom(address))
-        .setNewContract(builder.build()).setMaxCpuUsage(max_cpu_usage).setMaxNetUsage(max_net_usage)
-        .setMaxStorage(max_storage);
+    builderCreate.setOwnerAddress(ByteString.copyFrom(address));
     return builderCreate.build();
   }
 
   public static Contract.TriggerSmartContract triggerCallContract(byte[] address,
       byte[] contractAddress,
-      byte[] callValue, byte[] data,
-      long max_cpu_usage, long max_net_usage, long max_storage) {
+      byte[] callValue, byte[] data) {
     Contract.TriggerSmartContract.Builder builder = Contract.TriggerSmartContract.newBuilder();
     builder.setOwnerAddress(ByteString.copyFrom(address));
     builder.setContractAddress(ByteString.copyFrom(contractAddress));
     builder.setData(ByteString.copyFrom(data));
     builder.setCallValue(ByteString.copyFrom(callValue));
-    builder.setMaxCpuUsage(max_cpu_usage).setMaxStorage(max_storage).setMaxNetUsage(max_net_usage);
     return builder.build();
   }
 
@@ -1308,11 +1305,11 @@ public class WalletClient {
   }
 
 
-  public boolean deployContract(String contractName, String ABI, String code, String data, long max_cpu_usage, long max_net_usage, long max_storage, String value)
+  public boolean deployContract(String contractName, String ABI, String code, String data, Long max_cpu_usage, Long max_net_usage, Long max_storage, String value)
       throws IOException, CipherException, CancelException {
     byte[] owner = getAddress();
     CreateSmartContract contractDeployContract = createContractDeployContract(contractName, owner,
-        ABI, code, data, max_cpu_usage,max_net_usage,max_storage, value);
+        ABI, code, data, value);
 
     TransactionExtention transactionExtention = rpcCli.deployContract(contractDeployContract);
     if (transactionExtention == null || !transactionExtention.getResult().getResult()) {
@@ -1324,6 +1321,33 @@ public class WalletClient {
       }
       return false;
     }
+    if ( max_cpu_usage != null || max_net_usage != null || max_storage != null){
+      TransactionExtention.Builder texBuilder = TransactionExtention.newBuilder();
+      Transaction.Builder transBuilder = Transaction.newBuilder();
+      Transaction.raw.Builder rawBuilder = transactionExtention.getTransaction().getRawData().toBuilder();
+      if (max_cpu_usage!=null){
+        rawBuilder.setMaxCpuUsage(max_cpu_usage.longValue());
+      }
+      if (max_net_usage!=null){
+        rawBuilder.setMaxNetUsage(max_net_usage.longValue());
+      }
+      if (max_storage!= null){
+        rawBuilder.setMaxStorage(max_storage.longValue());
+      }
+      transBuilder.setRawData(rawBuilder);
+      for(int i = 0; i< transactionExtention.getTransaction().getSignatureCount();i++){
+        ByteString s = transactionExtention.getTransaction().getSignature(i);
+        transBuilder.setSignature(i,s);
+      }
+      for(int i = 0; i<transactionExtention.getTransaction().getRetCount();i++){
+        Result r = transactionExtention.getTransaction().getRet(i);
+        transBuilder.setRet(i,r);
+      }
+      texBuilder.setTransaction(transBuilder);
+      texBuilder.setResult(transactionExtention.getResult());
+      texBuilder.setTxid(transactionExtention.getTxid());
+      transactionExtention = texBuilder.build();
+    }
     byte[] contractAddress = generateContractAddress(transactionExtention.getTransaction());
     System.out.println(
         "Your smart contract address will be: " + WalletClient.encode58Check(contractAddress));
@@ -1331,11 +1355,11 @@ public class WalletClient {
 
   }
 
-  public boolean triggerContract(byte[] contractAddress, byte[] callValue, byte[] data, long max_cpu_usage, long max_net_usage, long max_storage)
+  public boolean triggerContract(byte[] contractAddress, byte[] callValue, byte[] data, Long max_cpu_usage, Long max_net_usage, Long max_storage)
       throws IOException, CipherException, CancelException {
     byte[] owner = getAddress();
     Contract.TriggerSmartContract triggerContract = triggerCallContract(owner, contractAddress,
-        callValue, data, max_cpu_usage, max_net_usage, max_storage);
+        callValue, data);
     TransactionExtention transactionExtention = rpcCli.triggerContract(triggerContract);
     if (transactionExtention == null || !transactionExtention.getResult().getResult()) {
       System.out.println("RPC create call trx failed!");
@@ -1351,6 +1375,34 @@ public class WalletClient {
       byte[] result = transaction.getRet(0).getConstantResult().toByteArray();
       System.out.println("Result:" + Hex.toHexString(result));
       return true;
+    }
+
+    if ( max_cpu_usage != null || max_net_usage != null || max_storage != null){
+      TransactionExtention.Builder texBuilder = TransactionExtention.newBuilder();
+      Transaction.Builder transBuilder = Transaction.newBuilder();
+      Transaction.raw.Builder rawBuilder = transactionExtention.getTransaction().getRawData().toBuilder();
+      if (max_cpu_usage!=null){
+        rawBuilder.setMaxCpuUsage(max_cpu_usage.longValue());
+      }
+      if (max_net_usage!=null){
+        rawBuilder.setMaxNetUsage(max_net_usage.longValue());
+      }
+      if (max_storage!= null){
+        rawBuilder.setMaxStorage(max_storage.longValue());
+      }
+      transBuilder.setRawData(rawBuilder);
+      for(int i = 0; i< transactionExtention.getTransaction().getSignatureCount();i++){
+        ByteString s = transactionExtention.getTransaction().getSignature(i);
+        transBuilder.setSignature(i,s);
+      }
+      for(int i = 0; i<transactionExtention.getTransaction().getRetCount();i++){
+        Result r = transactionExtention.getTransaction().getRet(i);
+        transBuilder.setRet(i,r);
+      }
+      texBuilder.setTransaction(transBuilder);
+      texBuilder.setResult(transactionExtention.getResult());
+      texBuilder.setTxid(transactionExtention.getTxid());
+      transactionExtention = texBuilder.build();
     }
 
     return processTransactionExtention(transactionExtention);
