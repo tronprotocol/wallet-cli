@@ -973,24 +973,16 @@ public class WalletClient {
   public boolean buyStorage(long quantity)
       throws CipherException, IOException, CancelException {
     Contract.BuyStorageContract contract = createBuyStorageContract(quantity);
-    Transaction transaction = rpcCli.createTransaction(contract);
-    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
-      return false;
-    }
-
-    transaction = signTransaction(transaction);
-    return rpcCli.broadcastTransaction(transaction);
+    TransactionExtention transactionExtention = rpcCli.createTransaction(contract);
+    return processTransactionExtention(transactionExtention);
   }
 
   public boolean sellStorage(long storageBytes)
       throws CipherException, IOException, CancelException {
     Contract.SellStorageContract contract = createSellStorageContract(storageBytes);
-    Transaction transaction = rpcCli.createTransaction(contract);
-    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
-      return false;
-    }
-    transaction = signTransaction(transaction);
-    return rpcCli.broadcastTransaction(transaction);
+    TransactionExtention transactionExtention = rpcCli.createTransaction(contract);
+    return processTransactionExtention(transactionExtention);
+
   }
 
   private FreezeBalanceContract createFreezeBalanceContract(long frozen_balance,
