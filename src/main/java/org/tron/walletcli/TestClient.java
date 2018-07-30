@@ -800,7 +800,7 @@ public class TestClient {
 
   private void buyStorage(String[] parameters)
       throws IOException, CipherException, CancelException {
-    if (parameters == null || !(parameters.length == 2 || parameters.length == 3)) {
+    if (parameters == null || parameters.length != 1) {
       System.out.println("Use buyStorage command with below syntax: ");
       System.out.println("buyStorage quantity ");
       return;
@@ -817,7 +817,7 @@ public class TestClient {
 
   private void sellStorage(String[] parameters)
       throws IOException, CipherException, CancelException {
-    if (parameters == null || !(parameters.length == 2 || parameters.length == 3)) {
+    if (parameters == null || parameters.length != 1) {
       System.out.println("Use sellStorage command with below syntax: ");
       System.out.println("sellStorage quantity ");
       return;
@@ -831,8 +831,6 @@ public class TestClient {
       logger.info("sellStorage " + " failed !!");
     }
   }
-
-
 
 
   private void unfreezeBalance(String[] parameters)
@@ -1395,6 +1393,7 @@ public class TestClient {
     System.out.println("GetAccount");
     System.out.println("GetAssetIssueByAccount");
     System.out.println("GetAccountNet");
+    System.out.println("GetAccountResource");
     System.out.println("GetAssetIssueByName");
     System.out.println("SendCoin");
     System.out.println("TransferAsset");
@@ -1436,6 +1435,8 @@ public class TestClient {
     System.out.println("getcontract contractAddress");
     System.out.println("UpdateAsset");
     System.out.println("UnfreezeAsset");
+    System.out.println("buyStorage");
+    System.out.println("sellStorage");
     System.out.println("CreateProposal");
     System.out.println("ListProposals");
     System.out.println("GetProposal");
