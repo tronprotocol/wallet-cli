@@ -250,9 +250,12 @@ service Wallet {
   rpc BuyStorage (BuyStorageContract) returns (TransactionExtention) {
   }
 
+<<<<<<< HEAD
   rpc BuyStorageBytes (BuyStorageBytesContract) returns (TransactionExtention) {
   }
 
+=======
+>>>>>>> e2b00a293d008914ff4a9a89d0d328e0a7145173
   rpc SellStorage (SellStorageContract) returns (TransactionExtention) {
   }
 
