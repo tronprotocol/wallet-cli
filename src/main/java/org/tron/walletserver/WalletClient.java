@@ -1410,8 +1410,8 @@ public class WalletClient {
 
     Transaction transaction = transactionExtention.getTransaction();
     if (transaction.getRetCount() != 0 &&
-        transaction.getRet(0).getConstantResult() != null) {
-      byte[] result = transaction.getRet(0).getConstantResult().toByteArray();
+        transactionExtention.getConstantResult(0) != null) {
+      byte[] result = transactionExtention.getConstantResult(0).toByteArray();
       System.out.println("Result:" + Hex.toHexString(result));
       return true;
     }
