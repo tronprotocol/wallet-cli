@@ -1269,28 +1269,28 @@ public class TestClient {
     String contractName = parameters[0];
     String abiStr = parameters[1];
     String codeStr = parameters[2];
-    Long max_cpu_usage =null;
+    Long maxCpuLimit =null;
     if(!parameters[3].equalsIgnoreCase("null")){
-      max_cpu_usage = Long.valueOf(parameters[3]);
+      maxCpuLimit = Long.valueOf(parameters[3]);
     }
-    Long max_net_usage = null;
+    Long maxStorageLimit = null;
     if(!parameters[4].equalsIgnoreCase("null")){
-      max_net_usage = Long.valueOf(parameters[4]);
+      maxStorageLimit = Long.valueOf(parameters[4]);
     }
-    Long max_storage   = null;
+    Long maxFeeLimit   = null;
     if(!parameters[5].equalsIgnoreCase("null")){
-      max_storage = Long.valueOf(parameters[5]);
+      maxFeeLimit = Long.valueOf(parameters[5]);
     }
-    String value = null;
+    long value = 0;
     if (parameters.length > 6) {
-      value = parameters[6];
+      value = Long.valueOf(parameters[6]);
     }
 
     // TODO: consider to remove "data"
     /* Consider to move below null value, since we append the constructor param just after bytecode without any space.
      * Or we can re-design it to give other developers better user experience. Set this value in protobuf as null for now.
      */
-    boolean result = client.deployContract(contractName, abiStr, codeStr, null, max_cpu_usage, max_net_usage, max_storage, value);
+    boolean result = client.deployContract(contractName, abiStr, codeStr, null, maxCpuLimit, maxStorageLimit, maxFeeLimit, value);
     if (result) {
       System.out.println("Deploy the contract successfully");
     } else {
@@ -1302,7 +1302,7 @@ public class TestClient {
   private void triggerContract(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null ||
-        parameters.length < 5) {
+        parameters.length < 6) {
       System.out.println("TriggerContract needs 8 parameters like following: ");
       System.out.println("TriggerContract contractAddress method args isHex max_cpu_usage max_net_usage max_storage value");
 //      System.out.println("example:\nTriggerContract password contractAddress method args value");
@@ -1313,27 +1313,28 @@ public class TestClient {
     String methodStr = parameters[1];
     String argsStr = parameters[2];
     boolean isHex = Boolean.valueOf(parameters[3]);
-    Long max_cpu_usage =null;
+    Long maxCPULimit =null;
     if(!parameters[4].equalsIgnoreCase("null")){
-      max_cpu_usage = Long.valueOf(parameters[4]);
+      maxCPULimit = Long.valueOf(parameters[4]);
     }
-    Long max_net_usage = null;
+    Long maxStorageLimit = null;
     if(!parameters[5].equalsIgnoreCase("null")){
-      max_net_usage = Long.valueOf(parameters[5]);
+      maxStorageLimit = Long.valueOf(parameters[5]);
     }
-    Long max_storage   = null;
+    Long maxFeeLimit   = null;
     if(!parameters[6].equalsIgnoreCase("null")){
-      max_storage = Long.valueOf(parameters[6]);
+      maxFeeLimit = Long.valueOf(parameters[6]);
     }
     String valueStr = parameters[7];
+
     if (argsStr.equalsIgnoreCase("#")) {
       argsStr = "";
     }
     byte[] input =  Hex.decode(AbiUtil.parseMethod(methodStr, argsStr, isHex));
     byte[] contractAddress = WalletClient.decodeFromBase58Check(contractAddrStr);
-    byte[] callValue = Hex.decode(valueStr);
+    long callValue = Long.valueOf(valueStr);
 
-    boolean result = client.callContract(contractAddress, callValue, input, max_cpu_usage, max_net_usage, max_storage);
+    boolean result = client.callContract(contractAddress, callValue, input, maxCPULimit, maxStorageLimit, maxFeeLimit);
     if (result) {
       System.out.println("Call the contract successfully");
     } else {
@@ -1786,10 +1787,12 @@ public class TestClient {
       } catch (CancelException e) {
         System.out.println(cmd + " failed!");
         System.out.println(e.getMessage());
-      } catch (Exception e) {
-        System.out.println(cmd + " failed!");
-        logger.error(e.getMessage());
       }
+
+//      catch (Exception e) {
+//        System.out.println(cmd + " failed!");
+//        logger.error(e.getMessage());
+//      }
     }
   }
 
