@@ -1344,7 +1344,7 @@ public class WalletClient {
   }
 
 
-  public boolean deployContract(String contractName, String ABI, String code, String data, Long max_cpu_usage, Long max_net_usage, Long max_storage, long value)
+  public boolean deployContract(String contractName, String ABI, String code, String data, Long maxCpuUsageLimit, Long maxNetUsageLimit, Long maxStorageLimit, long value)
       throws IOException, CipherException, CancelException {
     byte[] owner = getAddress();
     CreateSmartContract contractDeployContract = createContractDeployContract(contractName, owner,
@@ -1360,19 +1360,19 @@ public class WalletClient {
       }
       return false;
     }
-    if ( max_cpu_usage != null || max_net_usage != null || max_storage != null){
+    if ( maxCpuUsageLimit != null || maxNetUsageLimit != null || maxStorageLimit != null){
       TransactionExtention.Builder texBuilder = TransactionExtention.newBuilder();
       Transaction.Builder transBuilder = Transaction.newBuilder();
       Transaction.raw.Builder rawBuilder = transactionExtention.getTransaction().getRawData().toBuilder();
-      if (max_cpu_usage!=null){
-        rawBuilder.setMaxCpuUsage(max_cpu_usage.longValue());
+      if (maxCpuUsageLimit!=null){
+        rawBuilder.setMaxCpuUsage(maxCpuUsageLimit);
       }
-      if (max_net_usage!=null){
-        rawBuilder.setMaxNetUsage(max_net_usage.longValue());
+      if (maxNetUsageLimit!=null){
+        rawBuilder.setMaxNetUsage(maxNetUsageLimit);
       }
-      if (max_storage!= null){
+      if (maxStorageLimit!= null){
 //        rawBuilder.setMaxStorage(max_storage.longValue());
-        rawBuilder.setMaxStorageUsage(max_storage.longValue());
+        rawBuilder.setMaxStorageUsage(maxStorageLimit);
       }
       transBuilder.setRawData(rawBuilder);
       for(int i = 0; i< transactionExtention.getTransaction().getSignatureCount();i++){
@@ -1395,7 +1395,7 @@ public class WalletClient {
 
   }
 
-  public boolean triggerContract(byte[] contractAddress, long callValue, byte[] data, Long max_cpu_usage, Long max_net_usage, Long max_storage_usage)
+  public boolean triggerContract(byte[] contractAddress, long callValue, byte[] data, Long maxCPULimit, Long maxNetUsage, Long maxStorageUsage)
       throws IOException, CipherException, CancelException {
     byte[] owner = getAddress();
     Contract.TriggerSmartContract triggerContract = triggerCallContract(owner, contractAddress,
@@ -1417,18 +1417,18 @@ public class WalletClient {
       return true;
     }
 
-    if ( max_cpu_usage != null || max_net_usage != null || max_storage_usage != null){
+    if ( maxCPULimit != null || maxNetUsage != null || maxStorageUsage != null){
       TransactionExtention.Builder texBuilder = TransactionExtention.newBuilder();
       Transaction.Builder transBuilder = Transaction.newBuilder();
       Transaction.raw.Builder rawBuilder = transactionExtention.getTransaction().getRawData().toBuilder();
-      if (max_cpu_usage!=null){
-        rawBuilder.setMaxCpuUsage(max_cpu_usage);
+      if (maxCPULimit!=null){
+        rawBuilder.setMaxCpuUsage(maxCPULimit);
       }
-      if (max_net_usage!=null){
-        rawBuilder.setMaxNetUsage(max_net_usage);
+      if (maxNetUsage!=null){
+        rawBuilder.setMaxNetUsage(maxNetUsage);
       }
-      if (max_storage_usage!= null){
-        rawBuilder.setMaxStorageUsage(max_storage_usage);
+      if (maxStorageUsage!= null){
+        rawBuilder.setMaxStorageUsage(maxStorageUsage);
       }
       transBuilder.setRawData(rawBuilder);
       for(int i = 0; i< transactionExtention.getTransaction().getSignatureCount();i++){
