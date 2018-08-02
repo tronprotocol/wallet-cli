@@ -1,11 +1,15 @@
 package org.tron.common.utils;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.bouncycastle.util.encoders.Hex;
+import org.springframework.util.Assert;
 import org.tron.common.crypto.Hash;
 import org.tron.walletserver.WalletClient;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class AbiUtil {
 
@@ -58,7 +62,7 @@ public class AbiUtil {
       case "address":
         return new CoderAddress();
       case "string":
-        return new StringAddress();
+        return new CoderString();
       case "bool":
         return new CoderBool();
       case "bytes":
@@ -68,22 +72,78 @@ public class AbiUtil {
     boolean match = false;
 
     if (type.matches("^bytes([0-9]*)$"))
-      return new CoderFixBytes();
+      return new CoderFixedBytes();
 
     if (type.matches("^(u?int)([0-9]*)$"))
       return new CoderNumber();
 
-    if (type.matches("^(.*)\\[([0-9]*)\\]$"))
-      return new CoderArray();
+
+    Pattern r = Pattern.compile("^(.*)\\[([0-9]*)]$");
+    Matcher m = r.matcher(type);
+    if (m.find()) {
+      String arrayType = m.group(1);
+      int length = -1;
+      if (!m.group(2).equals("")) {
+        length = Integer.valueOf(m.group(2));
+      }
+      return new CoderArray(arrayType, length);
+    }
+//    if (type.matches("^(.*)\\[([0-9]*)\\]$"))
+//      return new CoderArray();
 
     return null;
   }
 
   static class CoderArray extends Coder {
+    private String elementType;
+    private int length;
+    public CoderArray(String arrayType, int length) {
+      this.elementType = arrayType;
+      this.length = length;
+      if (length == -1) {
+        this.dynamic = true;
+      }
+      this.dynamic = true;
+    }
 
     @Override
-    byte[] encode(String value) {
-      return new byte[0];
+    byte[] encode(String arrayValues) {
+
+      Coder coder = getParamCoder(elementType);
+
+
+      List<Object> strings = null;
+      try {
+        ObjectMapper mapper = new ObjectMapper();
+        strings = mapper.readValue(arrayValues, List.class);
+      } catch (IOException e) {
+        e.printStackTrace();
+      }
+
+      List<Coder> coders = new ArrayList<>();
+
+      if (this.length == -1) {
+        for (int i = 0; i < strings.size(); i++) {
+          coders.add(coder);
+        }
+      } else {
+        for (int i = 0; i < this.length; i++) {
+          coders.add(coder);
+        }
+      }
+
+//      String[] values = arrayValues.split(",");
+
+      if (this.length == -1) {
+        System.out.println("array encoded");
+        System.out.println(Hex.toHexString(concat(new DataWord(strings.size()).getData(), pack(coders, strings))));
+        System.out.println("fdsfsdf");
+        return concat(new DataWord(strings.size()).getData(), pack(coders, strings));
+      } else {
+        System.out.println(Hex.toHexString(pack(coders, strings)));
+
+        return pack(coders, strings);
+      }
     }
 
     @Override
@@ -96,7 +156,6 @@ public class AbiUtil {
 
     @Override
     byte[] encode(String value) {
-
       return new DataWord(Long.valueOf(value)).getData();
     }
 
@@ -108,11 +167,15 @@ public class AbiUtil {
 
 //  static class
 
-  static class CoderFixBytes extends  Coder {
+  static class CoderFixedBytes extends  Coder {
 
     @Override
     byte[] encode(String value) {
-      return new byte[0];
+      if (value.startsWith("0x")) {
+        return new DataWord(value.substring(2)).getData();
+      } else {
+        return new DataWord(value).getData();
+      }
     }
 
     @Override
@@ -172,8 +235,8 @@ public class AbiUtil {
 
 //  static class
 
-  static class StringAddress extends  Coder {
-    StringAddress() {
+  static class CoderString extends  Coder {
+    CoderString() {
       dynamic = true;
     }
 
@@ -217,8 +280,8 @@ public class AbiUtil {
 
     return retBytes;
   }
+  public static byte[] pack(List<Coder> codes, List<Object> values) {
 
-  public static byte[] pack(List<Coder> codes, String[] values) {
     int staticSize = 0;
     int dynamicSize = 0;
 
@@ -226,7 +289,7 @@ public class AbiUtil {
 
     for (int idx = 0;idx < codes.size();  idx++) {
       Coder coder = codes.get(idx);
-      String value = values[idx];
+      String value = values.get(idx).toString();
 
       byte[] encoded = coder.encode(value);
 
@@ -265,6 +328,9 @@ public class AbiUtil {
     return data;
   }
 
+  public static String parseMethod(String methodSign, String params) {
+    return parseMethod(methodSign, params, false);
+  }
 
   public static String parseMethod(String methodSign, String params, boolean isHex) {
     byte[] selector = new byte[4];
@@ -273,18 +339,27 @@ public class AbiUtil {
     if (params.length() == 0) {
       return Hex.toHexString(selector);
     }
-    if (isHex){
-      String result =Hex.toHexString(selector) + params;
-      return result;
+    if (isHex) {
+      return Hex.toHexString(selector) + params;
     }
     String[] values = params.split(",");
+    ObjectMapper mapper = new ObjectMapper();
+
+    params = "[" + params + "]";
+    List<Object> strings = null;
+    try {
+      strings = mapper.readValue(params, List.class);
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
+
     List<Coder> coders = new ArrayList<>();
     for (String s: getTypes(methodSign)) {
       Coder c = getParamCoder(s);
       coders.add(c);
     }
 
-    byte[] encodedParms = pack(coders,values);
+    byte[] encodedParms = pack(coders, strings);
 
     return Hex.toHexString(selector) + Hex.toHexString(encodedParms);
   }
@@ -293,6 +368,38 @@ public class AbiUtil {
 //    String method = "test(address,string,int)";
     String method = "test(string,int2,string)";
     String params = "asdf,3123,adf";
+
+    String arrayMethod1 = "test(uint,uint256[3])";
+    String arrayMethod2 = "test(uint,uint256[])";
+    String arrayMethod3 = "test(uint,address[])";
+
+//    String listString = "[\"A\",\"B\",\"C   \"，1]";
+    String method1 = "test(uint256,string,string,uint256[])";
+    String expected1  = "db103cf30000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000c0000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000014200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000143000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000003000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000003";
+    String method2 = "test(uint256,string,string,uint256[3])";
+    String expected2 = "";
+    String listString = "5 ,\"B\",\"C\", [1, 2, 3]";
+
+    String listString1 = "[1, 2, 3]";
+    String method3 = "test(uint256[])";
+    String method4 = "test(uint256[3])";
+
+
+    System.out.println("");
+
+//    System.out.println(parseMethod(method3, listString1));
+
+    System.out.println(parseMethod(method4, listString1));
+//    Assert.isTrue(parseMethod(method1, listString).equals(expected1));
+//
+//    Assert.isTrue(parseMethod(method2, listString).equals(expected2));
+
+
+//    List<String> strList =
+//    String jsonString="[{'id':'1'},{'id':'2'}]";
+//    List<Bean> beanList = mapper.readValue(jsonString, new TypeReference<List<Bean>>() {});
+
+
 
 //    System.out.println(parseMethod(method, params));
 //    parseMethod(method, params);
@@ -319,6 +426,20 @@ public class AbiUtil {
 
 //    System.out.println(Hex.encode(pack(coders, values1)));
 
+  }
+
+  public static byte[] concat(byte[] ... bytesArray) {
+    int length = 0;
+    for (byte[] bytes: bytesArray) {
+      length += bytes.length;
+    }
+    byte[] ret = new byte[length];
+    int index = 0;
+    for(byte[] bytes: bytesArray) {
+      System.arraycopy(bytes, 0, ret, index, bytes.length);
+      index += bytes.length;
+    }
+    return ret;
   }
 
 
