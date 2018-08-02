@@ -733,7 +733,7 @@ public class Utils {
           result += Hex.toHexString(newContract.getBytecode().toByteArray());
           result += "\n";
           result += "call_value: ";
-          result += Hex.toHexString(newContract.getCallValue().toByteArray());
+          result += newContract.getCallValue();
           result += "\n";
           result += "contract_address:";
           result += WalletClient.encode58Check(newContract.getContractAddress().toByteArray());

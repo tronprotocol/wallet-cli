@@ -1234,7 +1234,7 @@ public class WalletClient {
       entryBuilder.setAnonymous(anonymous);
       entryBuilder.setConstant(constant);
       if (name != null) {
-        entryBuilder.setName(ByteString.copyFrom(name.getBytes()));
+        entryBuilder.setName(name);
       }
 
       /* { inputs : optional } since fallback function not requires inputs*/
@@ -1251,8 +1251,8 @@ public class WalletClient {
           SmartContract.ABI.Entry.Param.Builder paramBuilder = SmartContract.ABI.Entry.Param
               .newBuilder();
           paramBuilder.setIndexed(false);
-          paramBuilder.setName(ByteString.copyFrom(inputName.getBytes()));
-          paramBuilder.setType(ByteString.copyFrom(inputType.getBytes()));
+          paramBuilder.setName(inputName);
+          paramBuilder.setType(inputType);
           entryBuilder.addInputs(paramBuilder.build());
         }
       }
@@ -1271,8 +1271,8 @@ public class WalletClient {
           SmartContract.ABI.Entry.Param.Builder paramBuilder = SmartContract.ABI.Entry.Param
               .newBuilder();
           paramBuilder.setIndexed(false);
-          paramBuilder.setName(ByteString.copyFrom(outputName.getBytes()));
-          paramBuilder.setType(ByteString.copyFrom(outputType.getBytes()));
+          paramBuilder.setName(outputName);
+          paramBuilder.setType(outputType);
           entryBuilder.addOutputs(paramBuilder.build());
         }
       }
@@ -1290,7 +1290,7 @@ public class WalletClient {
   }
 
   public static CreateSmartContract createContractDeployContract(String contractName, byte[] address,
-      String ABI, String code, String data, String value) {
+      String ABI, String code, String data, long value) {
     SmartContract.ABI abi = jsonStr2ABI(ABI);
     if (abi == null) {
       logger.error("abi is null");
@@ -1299,15 +1299,16 @@ public class WalletClient {
 
     byte[] codeBytes = Hex.decode(code);
     SmartContract.Builder builder = SmartContract.newBuilder();
-    builder.setName(ByteString.copyFrom(contractName.getBytes()));
+    builder.setName(contractName);
     builder.setOriginAddress(ByteString.copyFrom(address));
     builder.setAbi(abi);
     builder.setBytecode(ByteString.copyFrom(codeBytes));
     if (data != null) {
       builder.setData(ByteString.copyFrom(Hex.decode(data)));
     }
-    if (value != null) {
-      builder.setCallValue(ByteString.copyFrom(Hex.decode(value)));
+    if (value != 0) {
+
+      builder.setCallValue(value);
     }
     return CreateSmartContract.newBuilder().setOwnerAddress(ByteString.copyFrom(address)).
         setNewContract(builder.build()).build();
@@ -1315,12 +1316,12 @@ public class WalletClient {
 
   public static Contract.TriggerSmartContract triggerCallContract(byte[] address,
       byte[] contractAddress,
-      byte[] callValue, byte[] data) {
+      long callValue, byte[] data) {
     Contract.TriggerSmartContract.Builder builder = Contract.TriggerSmartContract.newBuilder();
     builder.setOwnerAddress(ByteString.copyFrom(address));
     builder.setContractAddress(ByteString.copyFrom(contractAddress));
     builder.setData(ByteString.copyFrom(data));
-    builder.setCallValue(ByteString.copyFrom(callValue));
+    builder.setCallValue(callValue);
     return builder.build();
   }
 
@@ -1343,7 +1344,7 @@ public class WalletClient {
   }
 
 
-  public boolean deployContract(String contractName, String ABI, String code, String data, Long max_cpu_usage, Long max_net_usage, Long max_storage, String value)
+  public boolean deployContract(String contractName, String ABI, String code, String data, Long max_cpu_usage, Long max_net_usage, Long max_storage, long value)
       throws IOException, CipherException, CancelException {
     byte[] owner = getAddress();
     CreateSmartContract contractDeployContract = createContractDeployContract(contractName, owner,
@@ -1370,7 +1371,8 @@ public class WalletClient {
         rawBuilder.setMaxNetUsage(max_net_usage.longValue());
       }
       if (max_storage!= null){
-        rawBuilder.setMaxStorage(max_storage.longValue());
+//        rawBuilder.setMaxStorage(max_storage.longValue());
+        rawBuilder.setMaxStorageUsage(max_storage.longValue());
       }
       transBuilder.setRawData(rawBuilder);
       for(int i = 0; i< transactionExtention.getTransaction().getSignatureCount();i++){
@@ -1393,7 +1395,7 @@ public class WalletClient {
 
   }
 
-  public boolean triggerContract(byte[] contractAddress, byte[] callValue, byte[] data, Long max_cpu_usage, Long max_net_usage, Long max_storage)
+  public boolean triggerContract(byte[] contractAddress, long callValue, byte[] data, Long max_cpu_usage, Long max_net_usage, Long max_storage_usage)
       throws IOException, CipherException, CancelException {
     byte[] owner = getAddress();
     Contract.TriggerSmartContract triggerContract = triggerCallContract(owner, contractAddress,
@@ -1415,18 +1417,18 @@ public class WalletClient {
       return true;
     }
 
-    if ( max_cpu_usage != null || max_net_usage != null || max_storage != null){
+    if ( max_cpu_usage != null || max_net_usage != null || max_storage_usage != null){
       TransactionExtention.Builder texBuilder = TransactionExtention.newBuilder();
       Transaction.Builder transBuilder = Transaction.newBuilder();
       Transaction.raw.Builder rawBuilder = transactionExtention.getTransaction().getRawData().toBuilder();
       if (max_cpu_usage!=null){
-        rawBuilder.setMaxCpuUsage(max_cpu_usage.longValue());
+        rawBuilder.setMaxCpuUsage(max_cpu_usage);
       }
       if (max_net_usage!=null){
-        rawBuilder.setMaxNetUsage(max_net_usage.longValue());
+        rawBuilder.setMaxNetUsage(max_net_usage);
       }
-      if (max_storage!= null){
-        rawBuilder.setMaxStorage(max_storage.longValue());
+      if (max_storage_usage!= null){
+        rawBuilder.setMaxStorageUsage(max_storage_usage);
       }
       transBuilder.setRawData(rawBuilder);
       for(int i = 0; i< transactionExtention.getTransaction().getSignatureCount();i++){

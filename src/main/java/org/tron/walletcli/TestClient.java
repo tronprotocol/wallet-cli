@@ -1257,14 +1257,14 @@ public class TestClient {
 
   private void deployContract(String[] parameters)
       throws IOException, CipherException, CancelException {
-    if (parameters == null ||
-        parameters.length < 6) {
-      System.out.println("DeployContract needs at least 6 parameters like following: ");
-      System.out.println("DeployContract contractName ABI byteCode max_cpu_usage max_net_usage max_storage <value>");
-      System.out.println(
-          "Note: Please append the param for constructor tightly with byteCode without any space");
-      return;
-    }
+//    if (parameters == null ||
+//        parameters.length < 6) {
+//      System.out.println("DeployContract needs at least 6 parameters like following: ");
+//      System.out.println("DeployContract contractName ABI byteCode max_cpu_usage max_net_usage max_storage <value>");
+//      System.out.println(
+//          "Note: Please append the param for constructor tightly with byteCode without any space");
+//      return;
+//    }
 
     String contractName = parameters[0];
     String abiStr = parameters[1];
@@ -1281,9 +1281,9 @@ public class TestClient {
     if(!parameters[5].equalsIgnoreCase("null")){
       max_storage = Long.valueOf(parameters[5]);
     }
-    String value = null;
+    long value = 0;
     if (parameters.length > 6) {
-      value = parameters[6];
+      value = Long.valueOf(parameters[6]);
     }
 
     // TODO: consider to remove "data"
@@ -1302,7 +1302,7 @@ public class TestClient {
   private void triggerContract(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null ||
-        parameters.length < 5) {
+        parameters.length < 6) {
       System.out.println("TriggerContract needs 8 parameters like following: ");
       System.out.println("TriggerContract contractAddress method args isHex max_cpu_usage max_net_usage max_storage value");
 //      System.out.println("example:\nTriggerContract password contractAddress method args value");
@@ -1321,9 +1321,9 @@ public class TestClient {
     if(!parameters[5].equalsIgnoreCase("null")){
       max_net_usage = Long.valueOf(parameters[5]);
     }
-    Long max_storage   = null;
+    Long max_storage_usage   = null;
     if(!parameters[6].equalsIgnoreCase("null")){
-      max_storage = Long.valueOf(parameters[6]);
+      max_storage_usage = Long.valueOf(parameters[6]);
     }
     String valueStr = parameters[7];
     if (argsStr.equalsIgnoreCase("#")) {
@@ -1331,9 +1331,9 @@ public class TestClient {
     }
     byte[] input =  Hex.decode(AbiUtil.parseMethod(methodStr, argsStr, isHex));
     byte[] contractAddress = WalletClient.decodeFromBase58Check(contractAddrStr);
-    byte[] callValue = Hex.decode(valueStr);
+    long callValue = Long.valueOf(valueStr);
 
-    boolean result = client.callContract(contractAddress, callValue, input, max_cpu_usage, max_net_usage, max_storage);
+    boolean result = client.callContract(contractAddress, callValue, input, max_cpu_usage, max_net_usage, max_storage_usage);
     if (result) {
       System.out.println("Call the contract successfully");
     } else {
@@ -1786,10 +1786,12 @@ public class TestClient {
       } catch (CancelException e) {
         System.out.println(cmd + " failed!");
         System.out.println(e.getMessage());
-      } catch (Exception e) {
-        System.out.println(cmd + " failed!");
-        logger.error(e.getMessage());
       }
+
+//      catch (Exception e) {
+//        System.out.println(cmd + " failed!");
+//        logger.error(e.getMessage());
+//      }
     }
   }
 

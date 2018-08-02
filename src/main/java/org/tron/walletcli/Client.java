@@ -497,7 +497,7 @@ public class Client {
 
     return wallet.deleteProposal(id);
   }
-  public boolean deployContract(String name, String abiStr, String codeStr, String data, Long max_cpu_usage, Long max_net_usage, Long max_storage, String value)
+  public boolean deployContract(String name, String abiStr, String codeStr, String data, Long max_cpu_usage, Long max_net_usage, Long max_storage, long value)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: createContract failed,  Please login first !!");
@@ -508,15 +508,15 @@ public class Client {
   }
 
   public boolean callContract(byte[] contractAddress,
-                              byte[] callValue, byte[] data,
-      Long max_cpu_usage, Long max_net_usage, Long max_storage)
+                              long callValue, byte[] data,
+      Long max_cpu_usage, Long max_net_usage, Long maxStorageUsage)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: callContract failed,  Please login first !!");
       return false;
     }
 
-    return wallet.triggerContract(contractAddress, callValue, data, max_cpu_usage, max_net_usage, max_storage);
+    return wallet.triggerContract(contractAddress, callValue, data, max_cpu_usage, max_net_usage, maxStorageUsage);
   }
 
 }
