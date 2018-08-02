@@ -1313,17 +1313,17 @@ public class TestClient {
     String methodStr = parameters[1];
     String argsStr = parameters[2];
     boolean isHex = Boolean.valueOf(parameters[3]);
-    Long max_cpu_usage =null;
+    Long maxCPULimit =null;
     if(!parameters[4].equalsIgnoreCase("null")){
-      max_cpu_usage = Long.valueOf(parameters[4]);
+      maxCPULimit = Long.valueOf(parameters[4]);
     }
-    Long max_net_usage = null;
+    Long maxStorageLimit = null;
     if(!parameters[5].equalsIgnoreCase("null")){
-      max_net_usage = Long.valueOf(parameters[5]);
+      maxStorageLimit = Long.valueOf(parameters[5]);
     }
-    Long max_storage_usage   = null;
+    Long maxFeeLimit   = null;
     if(!parameters[6].equalsIgnoreCase("null")){
-      max_storage_usage = Long.valueOf(parameters[6]);
+      maxFeeLimit = Long.valueOf(parameters[6]);
     }
     String valueStr = parameters[7];
     if (argsStr.equalsIgnoreCase("#")) {
@@ -1333,7 +1333,7 @@ public class TestClient {
     byte[] contractAddress = WalletClient.decodeFromBase58Check(contractAddrStr);
     long callValue = Long.valueOf(valueStr);
 
-    boolean result = client.callContract(contractAddress, callValue, input, max_cpu_usage, max_net_usage, max_storage_usage);
+    boolean result = client.callContract(contractAddress, callValue, input, maxCPULimit, maxStorageLimit, maxFeeLimit);
     if (result) {
       System.out.println("Call the contract successfully");
     } else {

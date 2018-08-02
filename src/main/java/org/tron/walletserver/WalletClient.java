@@ -1395,7 +1395,7 @@ public class WalletClient {
 
   }
 
-  public boolean triggerContract(byte[] contractAddress, long callValue, byte[] data, Long maxCPULimit, Long maxNetUsage, Long maxStorageUsage)
+  public boolean triggerContract(byte[] contractAddress, long callValue, byte[] data, Long maxCPULimit,Long maxStorageUsage, Long maxFeeLimit)
       throws IOException, CipherException, CancelException {
     byte[] owner = getAddress();
     Contract.TriggerSmartContract triggerContract = triggerCallContract(owner, contractAddress,
@@ -1417,15 +1417,15 @@ public class WalletClient {
       return true;
     }
 
-    if ( maxCPULimit != null || maxNetUsage != null || maxStorageUsage != null){
+    if ( maxCPULimit != null || maxFeeLimit != null || maxStorageUsage != null){
       TransactionExtention.Builder texBuilder = TransactionExtention.newBuilder();
       Transaction.Builder transBuilder = Transaction.newBuilder();
       Transaction.raw.Builder rawBuilder = transactionExtention.getTransaction().getRawData().toBuilder();
       if (maxCPULimit!=null){
         rawBuilder.setMaxCpuUsage(maxCPULimit);
       }
-      if (maxNetUsage!=null){
-        rawBuilder.setMaxNetUsage(maxNetUsage);
+      if (maxFeeLimit !=null){
+        rawBuilder.setFeeLimit(maxFeeLimit);
       }
       if (maxStorageUsage!= null){
         rawBuilder.setMaxStorageUsage(maxStorageUsage);

@@ -509,14 +509,14 @@ public class Client {
 
   public boolean callContract(byte[] contractAddress,
                               long callValue, byte[] data,
-      Long maxCpuLimit, Long maxNetLimit, Long maxStorageLimit)
+      Long maxCpuLimit, Long maxStorageLimit, Long maxFeeLimit)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: callContract failed,  Please login first !!");
       return false;
     }
 
-    return wallet.triggerContract(contractAddress, callValue, data, maxCpuLimit, maxNetLimit, maxStorageLimit);
+    return wallet.triggerContract(contractAddress, callValue, data, maxCpuLimit, maxStorageLimit,maxFeeLimit);
   }
 
 }
