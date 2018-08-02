@@ -1257,29 +1257,29 @@ public class TestClient {
 
   private void deployContract(String[] parameters)
       throws IOException, CipherException, CancelException {
-//    if (parameters == null ||
-//        parameters.length < 6) {
-//      System.out.println("DeployContract needs at least 6 parameters like following: ");
-//      System.out.println("DeployContract contractName ABI byteCode max_cpu_usage max_net_usage max_storage <value>");
-//      System.out.println(
-//          "Note: Please append the param for constructor tightly with byteCode without any space");
-//      return;
-//    }
+    if (parameters == null ||
+        parameters.length < 6) {
+      System.out.println("DeployContract needs at least 6 parameters like following: ");
+      System.out.println("DeployContract contractName ABI byteCode max_cpu_usage max_net_usage max_storage <value>");
+      System.out.println(
+          "Note: Please append the param for constructor tightly with byteCode without any space");
+      return;
+    }
 
     String contractName = parameters[0];
     String abiStr = parameters[1];
     String codeStr = parameters[2];
-    Long max_cpu_usage =null;
+    Long maxCpuLimit =null;
     if(!parameters[3].equalsIgnoreCase("null")){
-      max_cpu_usage = Long.valueOf(parameters[3]);
+      maxCpuLimit = Long.valueOf(parameters[3]);
     }
-    Long max_net_usage = null;
+    Long maxStorageLimit = null;
     if(!parameters[4].equalsIgnoreCase("null")){
-      max_net_usage = Long.valueOf(parameters[4]);
+      maxStorageLimit = Long.valueOf(parameters[4]);
     }
-    Long max_storage   = null;
+    Long maxFeeLimit   = null;
     if(!parameters[5].equalsIgnoreCase("null")){
-      max_storage = Long.valueOf(parameters[5]);
+      maxFeeLimit = Long.valueOf(parameters[5]);
     }
     long value = 0;
     if (parameters.length > 6) {
@@ -1290,7 +1290,7 @@ public class TestClient {
     /* Consider to move below null value, since we append the constructor param just after bytecode without any space.
      * Or we can re-design it to give other developers better user experience. Set this value in protobuf as null for now.
      */
-    boolean result = client.deployContract(contractName, abiStr, codeStr, null, max_cpu_usage, max_net_usage, max_storage, value);
+    boolean result = client.deployContract(contractName, abiStr, codeStr, null, maxCpuLimit, maxStorageLimit, maxFeeLimit, value);
     if (result) {
       System.out.println("Deploy the contract successfully");
     } else {
