@@ -1326,6 +1326,7 @@ public class TestClient {
       maxFeeLimit = Long.valueOf(parameters[6]);
     }
     String valueStr = parameters[7];
+
     if (argsStr.equalsIgnoreCase("#")) {
       argsStr = "";
     }
