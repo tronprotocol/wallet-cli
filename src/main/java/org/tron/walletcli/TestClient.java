@@ -1776,7 +1776,7 @@ public class TestClient {
             getBlockByLatestNum(parameters);
             break;
           }
-          case "modifyContractPercent": {
+          case "modifycontractpercent": {
             modifyContractPercent(parameters);
             break;
           }
