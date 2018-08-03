@@ -1787,12 +1787,11 @@ public class TestClient {
       } catch (CancelException e) {
         System.out.println(cmd + " failed!");
         System.out.println(e.getMessage());
+      } catch (Exception e) {
+        System.out.println(cmd + " failed!");
+        logger.error(e.getMessage());
+        logger.error(e.fillInStackTrace());
       }
-
-//      catch (Exception e) {
-//        System.out.println(cmd + " failed!");
-//        logger.error(e.getMessage());
-//      }
     }
   }
 
