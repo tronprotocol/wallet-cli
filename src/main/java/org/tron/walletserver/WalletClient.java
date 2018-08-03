@@ -57,6 +57,7 @@ import org.tron.keystore.WalletUtils;
 import org.tron.protos.Contract;
 import org.tron.protos.Contract.AssetIssueContract;
 import org.tron.protos.Contract.BuyStorageContract;
+import org.tron.protos.Contract.ConsumeUserResourcePercentContract;
 import org.tron.protos.Contract.CreateSmartContract;
 import org.tron.protos.Contract.FreezeBalanceContract;
 import org.tron.protos.Contract.SellStorageContract;
@@ -1289,6 +1290,16 @@ public class WalletClient {
     return abiBuilder.build();
   }
 
+  public static Contract.ConsumeUserResourcePercentContract createModifyContractPercentContract(byte[] owner,
+      byte[] contractAddress, long consumeUserResourcePercent) {
+
+    Contract.ConsumeUserResourcePercentContract.Builder builder = Contract.ConsumeUserResourcePercentContract.newBuilder();
+    builder.setOwnerAddress(ByteString.copyFrom(owner));
+    builder.setContractAddress(ByteString.copyFrom(contractAddress));
+    builder.setConsumeUserResourcePercent(consumeUserResourcePercent);
+    return builder.build();
+  }
+
   public static CreateSmartContract createContractDeployContract(String contractName, byte[] address,
       String ABI, String code, String data, long value) {
     SmartContract.ABI abi = jsonStr2ABI(ABI);
@@ -1343,6 +1354,25 @@ public class WalletClient {
 
   }
 
+  public boolean modifyContractPercent(byte[] contractAddress, long consumeUserResourcePercent)
+      throws IOException, CipherException, CancelException {
+    byte[] owner = getAddress();
+    ConsumeUserResourcePercentContract consumeUserResourcePercentContract = createModifyContractPercentContract(owner, contractAddress, consumeUserResourcePercent);
+
+    TransactionExtention transactionExtention = rpcCli.updateConsumeUserResourcePercent(consumeUserResourcePercentContract);
+    if (transactionExtention == null || !transactionExtention.getResult().getResult()) {
+      System.out.println("RPC create trx failed!");
+      if (transactionExtention != null) {
+        System.out.println("Code = " + transactionExtention.getResult().getCode());
+        System.out
+            .println("Message = " + transactionExtention.getResult().getMessage().toStringUtf8());
+      }
+      return false;
+    }
+
+    return processTransactionExtention(transactionExtention);
+
+  }
 
   public boolean deployContract(String contractName, String ABI, String code, String data, Long maxCpuLimit, Long maxStorageLimit, Long maxFeeLimit, long value)
       throws IOException, CipherException, CancelException {

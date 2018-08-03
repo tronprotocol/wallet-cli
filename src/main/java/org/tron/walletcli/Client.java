@@ -497,6 +497,17 @@ public class Client {
 
     return wallet.deleteProposal(id);
   }
+
+  public boolean modifyContractPercent(byte[] contractAddress, long consumeUserResourcePercent)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warning: modifyContractPercent failed,  Please login first !!");
+      return false;
+    }
+    return wallet.modifyContractPercent(contractAddress, consumeUserResourcePercent);
+
+  }
+
   public boolean deployContract(String name, String abiStr, String codeStr, String data, Long maxCpuLimit, Long maxStorageLimit, Long maxFeeLimit, long value)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {

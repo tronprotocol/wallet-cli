@@ -1255,6 +1255,26 @@ public class TestClient {
     }
   }
 
+  private void modifyContractPercent(String[] parameters)
+      throws IOException, CipherException, CancelException {
+    if (parameters == null ||
+        parameters.length < 2) {
+      System.out.println("modifyContractPercent needs 2 parameters like following: ");
+      System.out.println("DeployContract contract_address consume_user_resource_percent");
+      return;
+    }
+
+    byte[] contractAddress = WalletClient.decodeFromBase58Check(parameters[0]);
+    long consumeUserResourcePercent = Long.valueOf(parameters[1]).longValue();
+
+    boolean result = client.modifyContractPercent(contractAddress, consumeUserResourcePercent);
+    if (result) {
+      System.out.println("modify contract percent successfully");
+    } else {
+      System.out.println("modify contract percent failed");
+    }
+  }
+
   private void deployContract(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null ||
@@ -1750,6 +1770,10 @@ public class TestClient {
           }
           case "getblockbylatestnum": {
             getBlockByLatestNum(parameters);
+            break;
+          }
+          case "modifycontractpercent": {
+            modifyContractPercent(parameters);
             break;
           }
           case "deploycontract": {
