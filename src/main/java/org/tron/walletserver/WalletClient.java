@@ -979,6 +979,13 @@ public class WalletClient {
     return processTransactionExtention(transactionExtention);
   }
 
+  public boolean buyStorageBytes(long bytes)
+      throws CipherException, IOException, CancelException {
+    Contract.BuyStorageBytesContract contract = createBuyStorageBytesContract(bytes);
+    TransactionExtention transactionExtention = rpcCli.createTransaction(contract);
+    return processTransactionExtention(transactionExtention);
+  }
+
   public boolean sellStorage(long storageBytes)
       throws CipherException, IOException, CancelException {
     Contract.SellStorageContract contract = createSellStorageContract(storageBytes);
@@ -1003,6 +1010,15 @@ public class WalletClient {
     Contract. BuyStorageContract.Builder builder = Contract.BuyStorageContract.newBuilder();
     ByteString byteAddress = ByteString.copyFrom(address);
     builder.setOwnerAddress(byteAddress).setQuant(quantity);
+
+    return builder.build();
+  }
+
+  private BuyStorageContract createBuyStorageBytesContract(long bytes) {
+    byte[] address = getAddress();
+    Contract.BuyStorageBytesContract.Builder builder = Contract.BuyStorageBytesContract.newBuilder();
+    ByteString byteAddress = ByteString.copyFrom(address);
+    builder.setOwnerAddress(byteAddress).setBytes(bytes);
 
     return builder.build();
   }
