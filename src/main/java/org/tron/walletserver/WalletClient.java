@@ -1301,7 +1301,7 @@ public class WalletClient {
   }
 
   public static CreateSmartContract createContractDeployContract(String contractName, byte[] address,
-      String ABI, String code, String data, long value) {
+      String ABI, String code, String data, long value, long consumeUserResourcePercent) {
     SmartContract.ABI abi = jsonStr2ABI(ABI);
     if (abi == null) {
       logger.error("abi is null");
@@ -1314,6 +1314,7 @@ public class WalletClient {
     builder.setOriginAddress(ByteString.copyFrom(address));
     builder.setAbi(abi);
     builder.setBytecode(ByteString.copyFrom(codeBytes));
+    builder.setConsumeUserResourcePercent(consumeUserResourcePercent);
     if (data != null) {
       builder.setData(ByteString.copyFrom(Hex.decode(data)));
     }
@@ -1374,11 +1375,11 @@ public class WalletClient {
 
   }
 
-  public boolean deployContract(String contractName, String ABI, String code, String data, Long maxCpuLimit, Long maxStorageLimit, Long maxFeeLimit, long value)
+  public boolean deployContract(String contractName, String ABI, String code, String data, Long maxCpuLimit, Long maxStorageLimit, Long maxFeeLimit, long value, long consumeUserResourcePercent)
       throws IOException, CipherException, CancelException {
     byte[] owner = getAddress();
     CreateSmartContract contractDeployContract = createContractDeployContract(contractName, owner,
-        ABI, code, data, value);
+        ABI, code, data, value, consumeUserResourcePercent);
 
     TransactionExtention transactionExtention = rpcCli.deployContract(contractDeployContract);
     if (transactionExtention == null || !transactionExtention.getResult().getResult()) {

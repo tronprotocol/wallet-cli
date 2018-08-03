@@ -1281,9 +1281,9 @@ public class TestClient {
   private void deployContract(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null ||
-        parameters.length < 6) {
-      System.out.println("DeployContract needs at least 6 parameters like following: ");
-      System.out.println("DeployContract contractName ABI byteCode max_cpu_usage max_net_usage max_storage <value>");
+        parameters.length < 7) {
+      System.out.println("DeployContract needs at least 7 parameters like following: ");
+      System.out.println("DeployContract contractName ABI byteCode max_cpu_usage max_net_usage max_storage consume_user_resource_percent <value>");
       System.out.println(
           "Note: Please append the param for constructor tightly with byteCode without any space");
       return;
@@ -1304,16 +1304,22 @@ public class TestClient {
     if(!parameters[5].equalsIgnoreCase("null")){
       maxFeeLimit = Long.valueOf(parameters[5]);
     }
+
+    long consumeUserResourcePercent = Long.valueOf(parameters[6]).longValue();
+    if (consumeUserResourcePercent > 100 || consumeUserResourcePercent < 0) {
+      System.out.println("consume_user_resource_percent should be >= 0 and <= 100");
+      return;
+    }
     long value = 0;
-    if (parameters.length > 6) {
-      value = Long.valueOf(parameters[6]);
+    if (parameters.length > 7) {
+      value = Long.valueOf(parameters[7]);
     }
 
     // TODO: consider to remove "data"
     /* Consider to move below null value, since we append the constructor param just after bytecode without any space.
      * Or we can re-design it to give other developers better user experience. Set this value in protobuf as null for now.
      */
-    boolean result = client.deployContract(contractName, abiStr, codeStr, null, maxCpuLimit, maxStorageLimit, maxFeeLimit, value);
+    boolean result = client.deployContract(contractName, abiStr, codeStr, null, maxCpuLimit, maxStorageLimit, maxFeeLimit, value, consumeUserResourcePercent);
     if (result) {
       System.out.println("Deploy the contract successfully");
     } else {

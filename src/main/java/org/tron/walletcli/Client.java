@@ -508,14 +508,14 @@ public class Client {
 
   }
 
-  public boolean deployContract(String name, String abiStr, String codeStr, String data, Long maxCpuLimit, Long maxStorageLimit, Long maxFeeLimit, long value)
+  public boolean deployContract(String name, String abiStr, String codeStr, String data, Long maxCpuLimit, Long maxStorageLimit, Long maxFeeLimit, long value, long consumeUserResourcePercent)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: createContract failed,  Please login first !!");
       return false;
     }
 
-    return wallet.deployContract(name, abiStr, codeStr, data, maxCpuLimit, maxStorageLimit, maxFeeLimit, value);
+    return wallet.deployContract(name, abiStr, codeStr, data, maxCpuLimit, maxStorageLimit, maxFeeLimit, value, consumeUserResourcePercent);
   }
 
   public boolean callContract(byte[] contractAddress,
