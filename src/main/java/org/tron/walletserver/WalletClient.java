@@ -56,6 +56,7 @@ import org.tron.keystore.WalletFile;
 import org.tron.keystore.WalletUtils;
 import org.tron.protos.Contract;
 import org.tron.protos.Contract.AssetIssueContract;
+import org.tron.protos.Contract.BuyStorageBytesContract;
 import org.tron.protos.Contract.BuyStorageContract;
 import org.tron.protos.Contract.ConsumeUserResourcePercentContract;
 import org.tron.protos.Contract.CreateSmartContract;
@@ -1014,7 +1015,7 @@ public class WalletClient {
     return builder.build();
   }
 
-  private BuyStorageContract createBuyStorageBytesContract(long bytes) {
+  private BuyStorageBytesContract createBuyStorageBytesContract(long bytes) {
     byte[] address = getAddress();
     Contract.BuyStorageBytesContract.Builder builder = Contract.BuyStorageBytesContract.newBuilder();
     ByteString byteAddress = ByteString.copyFrom(address);
