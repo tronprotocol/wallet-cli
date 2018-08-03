@@ -61,6 +61,7 @@ import org.tron.protos.Contract.ProposalDeleteContract;
 import org.tron.protos.Contract.SellStorageContract;
 import org.tron.protos.Contract.TransferAssetContract;
 import org.tron.protos.Contract.TransferContract;
+import org.tron.protos.Contract.TriggerSmartContract;
 import org.tron.protos.Contract.UnfreezeAssetContract;
 import org.tron.protos.Contract.UnfreezeBalanceContract;
 import org.tron.protos.Contract.UpdateAssetContract;
@@ -742,6 +743,23 @@ public class Utils {
           result += Hex.toHexString(newContract.getData().toByteArray());
           result += "\n";
           break;
+        case TriggerSmartContract:
+          TriggerSmartContract triggerSmartContract = contract.getParameter().unpack(TriggerSmartContract.class);
+          result += "owner_address: ";
+          result += WalletClient
+              .encode58Check(triggerSmartContract.getOwnerAddress().toByteArray());
+          result += "\n";
+          result += "contract_address: ";
+          result += WalletClient
+              .encode58Check(triggerSmartContract.getContractAddress().toByteArray());
+          result += "\n";
+          result += "call_value:";
+          result += triggerSmartContract.getCallValue();
+          result += "\n";
+          result += "data:";
+          result += Hex.toHexString(triggerSmartContract.getData().toByteArray());
+          result += "\n";
+          break;
         case ProposalCreateContract:
           ProposalCreateContract proposalCreateContract = contract.getParameter()
               .unpack(ProposalCreateContract.class);
@@ -832,10 +850,6 @@ public class Utils {
       result += "\n";
     }
 
-    result += "ref_block_num: ";
-    result += raw.getRefBlockNum();
-    result += "\n";
-
     if (raw.getRefBlockHash() != null) {
       result += "ref_block_hash: ";
       result += ByteArray.toHexString(raw.getRefBlockHash().toByteArray());
@@ -855,6 +869,23 @@ public class Utils {
     result += "timestamp: ";
     result += new Date(raw.getTimestamp());
     result += "\n";
+
+    result += "max_cpu_usage: ";
+    result += raw.getMaxCpuUsage();
+    result += "\n";
+
+    result += "max_net_usage: ";
+    result += raw.getMaxNetUsage();
+    result += "\n";
+
+    result += "max_storage_usage: ";
+    result += raw.getMaxStorageUsage();
+    result += "\n";
+
+    result += "fee_limit: ";
+    result += raw.getFeeLimit();
+    result += "\n";
+
     return result;
   }
 
