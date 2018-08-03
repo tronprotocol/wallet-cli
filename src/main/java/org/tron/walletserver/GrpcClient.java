@@ -605,8 +605,8 @@ public class GrpcClient {
     return Optional.ofNullable(blockList);
   }
 
-  public TransactionExtention updateConsumeUserResourcePercent(Contract.ConsumeUserResourcePercentContract request) {
-    return blockingStubFull.updateConsumeUserResourcePercent(request);
+  public TransactionExtention modifyContractPercent(Contract.ConsumeUserResourcePercentContract request) {
+    return blockingStubFull.modifyContractPercent(request);
   }
 
   public TransactionExtention deployContract(Contract.CreateSmartContract request) {

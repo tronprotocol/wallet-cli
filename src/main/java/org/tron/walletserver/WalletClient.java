@@ -1359,7 +1359,7 @@ public class WalletClient {
     byte[] owner = getAddress();
     ConsumeUserResourcePercentContract consumeUserResourcePercentContract = createModifyContractPercentContract(owner, contractAddress, consumeUserResourcePercent);
 
-    TransactionExtention transactionExtention = rpcCli.updateConsumeUserResourcePercent(consumeUserResourcePercentContract);
+    TransactionExtention transactionExtention = rpcCli.modifyContractPercent(consumeUserResourcePercentContract);
     if (transactionExtention == null || !transactionExtention.getResult().getResult()) {
       System.out.println("RPC create trx failed!");
       if (transactionExtention != null) {

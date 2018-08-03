@@ -1260,13 +1260,16 @@ public class TestClient {
     if (parameters == null ||
         parameters.length < 2) {
       System.out.println("modifyContractPercent needs 2 parameters like following: ");
-      System.out.println("DeployContract contract_address consume_user_resource_percent");
+      System.out.println("modifyContractPercent contract_address consume_user_resource_percent");
       return;
     }
 
     byte[] contractAddress = WalletClient.decodeFromBase58Check(parameters[0]);
     long consumeUserResourcePercent = Long.valueOf(parameters[1]).longValue();
-
+    if (consumeUserResourcePercent > 100 || consumeUserResourcePercent < 0) {
+      System.out.println("consume_user_resource_percent must >= 0 and <= 100");
+      return;
+    }
     boolean result = client.modifyContractPercent(contractAddress, consumeUserResourcePercent);
     if (result) {
       System.out.println("modify contract percent successfully");
@@ -1452,6 +1455,7 @@ public class TestClient {
     System.out.println("SetAccountId");
     System.out.println("unfreezeasset");
     System.out.println("deploycontract password ABI code data value");
+    System.out.println("modifyContractPercent contract_address consume_user_resource_percent");
     System.out.println("triggercontract passwork contractAddress selector data value");
     System.out.println("getcontract contractAddress");
     System.out.println("UpdateAsset");
@@ -1772,7 +1776,7 @@ public class TestClient {
             getBlockByLatestNum(parameters);
             break;
           }
-          case "modifycontractpercent": {
+          case "modifyContractPercent": {
             modifyContractPercent(parameters);
             break;
           }
