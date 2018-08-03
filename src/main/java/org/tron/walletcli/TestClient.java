@@ -780,7 +780,8 @@ public class TestClient {
       throws IOException, CipherException, CancelException {
     if (parameters == null || !(parameters.length == 2 || parameters.length == 3)) {
       System.out.println("Use freezeBalance command with below syntax: ");
-      System.out.println("freezeBalance frozen_balance frozen_duration [ResourceCode:0 BANDWIDTH,1 CPU]");
+      System.out
+          .println("freezeBalance frozen_balance frozen_duration [ResourceCode:0 BANDWIDTH,1 CPU]");
       return;
     }
 
@@ -1232,7 +1233,7 @@ public class TestClient {
       Optional<BlockListExtention> result = WalletClient.getBlockByLatestNum2(num);
       if (result.isPresent()) {
         BlockListExtention blockList = result.get();
-        if (blockList.getBlockCount() == 0){
+        if (blockList.getBlockCount() == 0) {
           System.out.println("No block");
           return;
         }
@@ -1244,7 +1245,7 @@ public class TestClient {
       Optional<BlockList> result = WalletClient.getBlockByLatestNum(num);
       if (result.isPresent()) {
         BlockList blockList = result.get();
-        if (blockList.getBlockCount() == 0){
+        if (blockList.getBlockCount() == 0) {
           System.out.println("No block");
           return;
         }
@@ -1260,7 +1261,8 @@ public class TestClient {
     if (parameters == null ||
         parameters.length < 6) {
       System.out.println("DeployContract needs at least 6 parameters like following: ");
-      System.out.println("DeployContract contractName ABI byteCode max_cpu_usage max_net_usage max_storage <value>");
+      System.out.println(
+          "DeployContract contractName ABI byteCode max_cpu_usage max_net_usage max_storage <value>");
       System.out.println(
           "Note: Please append the param for constructor tightly with byteCode without any space");
       return;
@@ -1269,16 +1271,16 @@ public class TestClient {
     String contractName = parameters[0];
     String abiStr = parameters[1];
     String codeStr = parameters[2];
-    Long maxCpuLimit =null;
-    if(!parameters[3].equalsIgnoreCase("null")){
+    Long maxCpuLimit = null;
+    if (!parameters[3].equalsIgnoreCase("null")) {
       maxCpuLimit = Long.valueOf(parameters[3]);
     }
     Long maxStorageLimit = null;
-    if(!parameters[4].equalsIgnoreCase("null")){
+    if (!parameters[4].equalsIgnoreCase("null")) {
       maxStorageLimit = Long.valueOf(parameters[4]);
     }
-    Long maxFeeLimit   = null;
-    if(!parameters[5].equalsIgnoreCase("null")){
+    Long maxFeeLimit = null;
+    if (!parameters[5].equalsIgnoreCase("null")) {
       maxFeeLimit = Long.valueOf(parameters[5]);
     }
     long value = 0;
@@ -1290,7 +1292,9 @@ public class TestClient {
     /* Consider to move below null value, since we append the constructor param just after bytecode without any space.
      * Or we can re-design it to give other developers better user experience. Set this value in protobuf as null for now.
      */
-    boolean result = client.deployContract(contractName, abiStr, codeStr, null, maxCpuLimit, maxStorageLimit, maxFeeLimit, value);
+    boolean result = client
+        .deployContract(contractName, abiStr, codeStr, null, maxCpuLimit, maxStorageLimit,
+            maxFeeLimit, value);
     if (result) {
       System.out.println("Deploy the contract successfully");
     } else {
@@ -1304,7 +1308,8 @@ public class TestClient {
     if (parameters == null ||
         parameters.length < 6) {
       System.out.println("TriggerContract needs 8 parameters like following: ");
-      System.out.println("TriggerContract contractAddress method args isHex max_cpu_usage max_net_usage max_storage value");
+      System.out.println(
+          "TriggerContract contractAddress method args isHex max_cpu_usage max_storage max_fee_usage value");
 //      System.out.println("example:\nTriggerContract password contractAddress method args value");
       return;
     }
@@ -1313,16 +1318,16 @@ public class TestClient {
     String methodStr = parameters[1];
     String argsStr = parameters[2];
     boolean isHex = Boolean.valueOf(parameters[3]);
-    Long maxCPULimit =null;
-    if(!parameters[4].equalsIgnoreCase("null")){
+    Long maxCPULimit = null;
+    if (!parameters[4].equalsIgnoreCase("null")) {
       maxCPULimit = Long.valueOf(parameters[4]);
     }
     Long maxStorageLimit = null;
-    if(!parameters[5].equalsIgnoreCase("null")){
+    if (!parameters[5].equalsIgnoreCase("null")) {
       maxStorageLimit = Long.valueOf(parameters[5]);
     }
-    Long maxFeeLimit   = null;
-    if(!parameters[6].equalsIgnoreCase("null")){
+    Long maxFeeLimit = null;
+    if (!parameters[6].equalsIgnoreCase("null")) {
       maxFeeLimit = Long.valueOf(parameters[6]);
     }
     String valueStr = parameters[7];
@@ -1330,11 +1335,12 @@ public class TestClient {
     if (argsStr.equalsIgnoreCase("#")) {
       argsStr = "";
     }
-    byte[] input =  Hex.decode(AbiUtil.parseMethod(methodStr, argsStr, isHex));
+    byte[] input = Hex.decode(AbiUtil.parseMethod(methodStr, argsStr, isHex));
     byte[] contractAddress = WalletClient.decodeFromBase58Check(contractAddrStr);
     long callValue = Long.valueOf(valueStr);
 
-    boolean result = client.callContract(contractAddress, callValue, input, maxCPULimit, maxStorageLimit, maxFeeLimit);
+    boolean result = client
+        .callContract(contractAddress, callValue, input, maxCPULimit, maxStorageLimit, maxFeeLimit);
     if (result) {
       System.out.println("Call the contract successfully");
     } else {
