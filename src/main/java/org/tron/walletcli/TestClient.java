@@ -1796,6 +1796,7 @@ public class TestClient {
       } catch (Exception e) {
         System.out.println(cmd + " failed!");
         logger.error(e.getMessage());
+        e.printStackTrace();
       }
     }
   }
