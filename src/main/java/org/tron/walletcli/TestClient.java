@@ -1790,7 +1790,7 @@ public class TestClient {
       } catch (Exception e) {
         System.out.println(cmd + " failed!");
         logger.error(e.getMessage());
-        logger.error(e.fillInStackTrace());
+        e.printStackTrace();
       }
     }
   }
