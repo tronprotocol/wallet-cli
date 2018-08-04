@@ -508,24 +508,28 @@ public class Client {
     return wallet.deleteProposal(id);
   }
 
-  public boolean modifyContractPercent(byte[] contractAddress, long consumeUserResourcePercent)
+  public boolean updateSetting(byte[] contractAddress, long consumeUserResourcePercent)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
-      logger.warn("Warning: modifyContractPercent failed,  Please login first !!");
+      logger.warn("Warning: updateSetting failed,  Please login first !!");
       return false;
     }
-    return wallet.modifyContractPercent(contractAddress, consumeUserResourcePercent);
+    return wallet.updateSetting(contractAddress, consumeUserResourcePercent);
 
   }
 
-  public boolean deployContract(String name, String abiStr, String codeStr, String data, Long maxCpuLimit, Long maxStorageLimit, Long maxFeeLimit, long value, long consumeUserResourcePercent)
+  public boolean deployContract(String name, String abiStr, String codeStr, String data,
+      Long maxCpuLimit, Long maxStorageLimit, Long maxFeeLimit, long value,
+      long consumeUserResourcePercent, byte[] libraryAddress)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: createContract failed,  Please login first !!");
       return false;
     }
 
-    return wallet.deployContract(name, abiStr, codeStr, data, maxCpuLimit, maxStorageLimit, maxFeeLimit, value, consumeUserResourcePercent);
+    return wallet
+        .deployContract(name, abiStr, codeStr, data, maxCpuLimit, maxStorageLimit, maxFeeLimit,
+            value, consumeUserResourcePercent, libraryAddress);
   }
 
   public boolean callContract(byte[] contractAddress,

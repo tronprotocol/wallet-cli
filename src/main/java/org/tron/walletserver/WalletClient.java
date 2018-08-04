@@ -9,6 +9,7 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigObject;
 import java.io.File;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -16,6 +17,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Scanner;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -58,12 +61,12 @@ import org.tron.protos.Contract;
 import org.tron.protos.Contract.AssetIssueContract;
 import org.tron.protos.Contract.BuyStorageBytesContract;
 import org.tron.protos.Contract.BuyStorageContract;
-import org.tron.protos.Contract.ConsumeUserResourcePercentContract;
 import org.tron.protos.Contract.CreateSmartContract;
 import org.tron.protos.Contract.FreezeBalanceContract;
 import org.tron.protos.Contract.SellStorageContract;
 import org.tron.protos.Contract.UnfreezeAssetContract;
 import org.tron.protos.Contract.UnfreezeBalanceContract;
+import org.tron.protos.Contract.UpdateSettingContract;
 import org.tron.protos.Contract.WithdrawBalanceContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
@@ -1314,33 +1317,29 @@ public class WalletClient {
     return abiBuilder.build();
   }
 
-  public static Contract.ConsumeUserResourcePercentContract createModifyContractPercentContract(
-      byte[] owner,
+  public static Contract.UpdateSettingContract createUpdateSettingContract(byte[] owner,
       byte[] contractAddress, long consumeUserResourcePercent) {
 
-    Contract.ConsumeUserResourcePercentContract.Builder builder = Contract.ConsumeUserResourcePercentContract
-        .newBuilder();
+    Contract.UpdateSettingContract.Builder builder = Contract.UpdateSettingContract.newBuilder();
     builder.setOwnerAddress(ByteString.copyFrom(owner));
     builder.setContractAddress(ByteString.copyFrom(contractAddress));
     builder.setConsumeUserResourcePercent(consumeUserResourcePercent);
     return builder.build();
   }
 
-  public static CreateSmartContract createContractDeployContract(String contractName,
-      byte[] address,
-      String ABI, String code, String data, long value, long consumeUserResourcePercent) {
+  public static CreateSmartContract createContractDeployContract(String contractName, byte[] address,
+      String ABI, String code, String data, long value, long consumeUserResourcePercent,
+      byte[] libraryAddress) {
     SmartContract.ABI abi = jsonStr2ABI(ABI);
     if (abi == null) {
       logger.error("abi is null");
       return null;
     }
 
-    byte[] codeBytes = Hex.decode(code);
     SmartContract.Builder builder = SmartContract.newBuilder();
     builder.setName(contractName);
     builder.setOriginAddress(ByteString.copyFrom(address));
     builder.setAbi(abi);
-    builder.setBytecode(ByteString.copyFrom(codeBytes));
     builder.setConsumeUserResourcePercent(consumeUserResourcePercent);
     if (data != null) {
       builder.setData(ByteString.copyFrom(Hex.decode(data)));
@@ -1349,8 +1348,29 @@ public class WalletClient {
 
       builder.setCallValue(value);
     }
+    byte[] byteCode;
+    if (null != libraryAddress) {
+      byteCode = replaceLibraryAddress(code, libraryAddress);
+    } else {
+      byteCode = Hex.decode(code);
+    }
+    builder.setBytecode(ByteString.copyFrom(byteCode));
     return CreateSmartContract.newBuilder().setOwnerAddress(ByteString.copyFrom(address)).
         setNewContract(builder.build()).build();
+  }
+
+  private static byte[] replaceLibraryAddress(String code, byte[] libraryAddress) {
+
+    String libraryAddressHex;
+    try {
+      libraryAddressHex = (new String(Hex.encode(libraryAddress), "US-ASCII")).substring(2);
+    } catch (UnsupportedEncodingException e) {
+      throw new RuntimeException(e);  // now ignore
+    }
+
+    Matcher m = Pattern.compile("__.{36}__").matcher(code);
+    code = m.replaceAll(libraryAddressHex);
+    return Hex.decode(code);
   }
 
   public static Contract.TriggerSmartContract triggerCallContract(byte[] address,
@@ -1382,14 +1402,13 @@ public class WalletClient {
 
   }
 
-  public boolean modifyContractPercent(byte[] contractAddress, long consumeUserResourcePercent)
+  public boolean updateSetting(byte[] contractAddress, long consumeUserResourcePercent)
       throws IOException, CipherException, CancelException {
     byte[] owner = getAddress();
-    ConsumeUserResourcePercentContract consumeUserResourcePercentContract = createModifyContractPercentContract(
-        owner, contractAddress, consumeUserResourcePercent);
+    UpdateSettingContract updateSettingContract = createUpdateSettingContract(owner,
+        contractAddress, consumeUserResourcePercent);
 
-    TransactionExtention transactionExtention = rpcCli
-        .modifyContractPercent(consumeUserResourcePercentContract);
+    TransactionExtention transactionExtention = rpcCli.updateSetting(updateSettingContract);
     if (transactionExtention == null || !transactionExtention.getResult().getResult()) {
       System.out.println("RPC create trx failed!");
       if (transactionExtention != null) {
@@ -1406,11 +1425,11 @@ public class WalletClient {
 
   public boolean deployContract(String contractName, String ABI, String code, String data,
       Long maxCpuLimit, Long maxStorageLimit, Long maxFeeLimit, long value,
-      long consumeUserResourcePercent)
+      long consumeUserResourcePercent, byte[] libraryAddress)
       throws IOException, CipherException, CancelException {
     byte[] owner = getAddress();
     CreateSmartContract contractDeployContract = createContractDeployContract(contractName, owner,
-        ABI, code, data, value, consumeUserResourcePercent);
+        ABI, code, data, value, consumeUserResourcePercent, libraryAddress);
 
     TransactionExtention transactionExtention = rpcCli.deployContract(contractDeployContract);
     if (transactionExtention == null || !transactionExtention.getResult().getResult()) {
