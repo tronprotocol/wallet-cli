@@ -867,18 +867,6 @@ public class Utils {
     result += new Date(raw.getTimestamp());
     result += "\n";
 
-    result += "max_cpu_usage: ";
-    result += raw.getMaxCpuUsage();
-    result += "\n";
-
-    result += "max_net_usage: ";
-    result += raw.getMaxNetUsage();
-    result += "\n";
-
-    result += "max_storage_usage: ";
-    result += raw.getMaxStorageUsage();
-    result += "\n";
-
     result += "fee_limit: ";
     result += raw.getFeeLimit();
     result += "\n";

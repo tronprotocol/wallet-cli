@@ -176,7 +176,10 @@ public class WalletClient {
     WalletClient.addressPreFixByte = addressPreFixByte;
   }
 
-  public static int getRpcVersion() { return rpcVersion;}
+  public static int getRpcVersion() {
+    return rpcVersion;
+  }
+
   /**
    * Creates a new WalletClient with a random ECKey or no ECKey.
    */
@@ -344,6 +347,7 @@ public class WalletClient {
   public static Account queryAccount(byte[] address) {
     return rpcCli.queryAccount(address);//call rpc
   }
+
   public static Account queryAccountById(String accountId) {
     return rpcCli.queryAccountById(accountId);
   }
@@ -419,7 +423,8 @@ public class WalletClient {
   }
 
   //Warning: do not invoke this interface provided by others.
-  public static TransactionExtention signTransactionByApi2(Transaction transaction, byte[] privateKey) {
+  public static TransactionExtention signTransactionByApi2(Transaction transaction,
+      byte[] privateKey) {
     TransactionSign.Builder builder = TransactionSign.newBuilder();
     builder.setPrivateKey(ByteString.copyFrom(privateKey));
     builder.setTransaction(transaction);
@@ -482,7 +487,6 @@ public class WalletClient {
     transaction = signTransaction(transaction);
     return rpcCli.broadcastTransaction(transaction);
   }
-
 
 
   public boolean updateAsset(byte[] description, byte[] url, long newLimit,
@@ -679,7 +683,6 @@ public class WalletClient {
 
     return builder.build();
   }
-
 
 
   public static Contract.UpdateAssetContract createUpdateAssetContract(
@@ -932,7 +935,8 @@ public class WalletClient {
     return rpcCli.getTransactionsFromThis(address, offset, limit);
   }
 
-  public static Optional<TransactionListExtention> getTransactionsFromThis2(byte[] address, int offset,
+  public static Optional<TransactionListExtention> getTransactionsFromThis2(byte[] address,
+      int offset,
       int limit) {
     return rpcCli.getTransactionsFromThis2(address, offset, limit);
   }
@@ -945,7 +949,8 @@ public class WalletClient {
     return rpcCli.getTransactionsToThis(address, offset, limit);
   }
 
-  public static Optional<TransactionListExtention> getTransactionsToThis2(byte[] address, int offset,
+  public static Optional<TransactionListExtention> getTransactionsToThis2(byte[] address,
+      int offset,
       int limit) {
     return rpcCli.getTransactionsToThis2(address, offset, limit);
   }
@@ -961,10 +966,10 @@ public class WalletClient {
     return rpcCli.getTransactionInfoById(txID);
   }
 
-  public boolean freezeBalance(long frozen_balance, long frozen_duration,int resourceCode)
+  public boolean freezeBalance(long frozen_balance, long frozen_duration, int resourceCode)
       throws CipherException, IOException, CancelException {
     Contract.FreezeBalanceContract contract = createFreezeBalanceContract(frozen_balance,
-        frozen_duration,resourceCode);
+        frozen_duration, resourceCode);
     if (rpcVersion == 2) {
       TransactionExtention transactionExtention = rpcCli.createTransaction2(contract);
       return processTransactionExtention(transactionExtention);
@@ -973,6 +978,7 @@ public class WalletClient {
       return processTransaction(transaction);
     }
   }
+
   public boolean buyStorage(long quantity)
       throws CipherException, IOException, CancelException {
     Contract.BuyStorageContract contract = createBuyStorageContract(quantity);
@@ -996,7 +1002,7 @@ public class WalletClient {
   }
 
   private FreezeBalanceContract createFreezeBalanceContract(long frozen_balance,
-      long frozen_duration,int resourceCode) {
+      long frozen_duration, int resourceCode) {
     byte[] address = getAddress();
     Contract.FreezeBalanceContract.Builder builder = Contract.FreezeBalanceContract.newBuilder();
     ByteString byteAddress = ByteString.copyFrom(address);
@@ -1008,7 +1014,7 @@ public class WalletClient {
 
   private BuyStorageContract createBuyStorageContract(long quantity) {
     byte[] address = getAddress();
-    Contract. BuyStorageContract.Builder builder = Contract.BuyStorageContract.newBuilder();
+    Contract.BuyStorageContract.Builder builder = Contract.BuyStorageContract.newBuilder();
     ByteString byteAddress = ByteString.copyFrom(address);
     builder.setOwnerAddress(byteAddress).setQuant(quantity);
 
@@ -1017,7 +1023,8 @@ public class WalletClient {
 
   private BuyStorageBytesContract createBuyStorageBytesContract(long bytes) {
     byte[] address = getAddress();
-    Contract.BuyStorageBytesContract.Builder builder = Contract.BuyStorageBytesContract.newBuilder();
+    Contract.BuyStorageBytesContract.Builder builder = Contract.BuyStorageBytesContract
+        .newBuilder();
     ByteString byteAddress = ByteString.copyFrom(address);
     builder.setOwnerAddress(byteAddress).setBytes(bytes);
 
@@ -1243,7 +1250,7 @@ public class WalletClient {
         logger.error("No type!");
         return null;
       }
-      if (! type.equalsIgnoreCase("fallback") && null == inputs){
+      if (!type.equalsIgnoreCase("fallback") && null == inputs) {
         logger.error("No inputs!");
         return null;
       }
@@ -1256,7 +1263,7 @@ public class WalletClient {
       }
 
       /* { inputs : optional } since fallback function not requires inputs*/
-      if(null != inputs){
+      if (null != inputs) {
         for (int j = 0; j < inputs.size(); j++) {
           JsonElement inputItem = inputs.get(j);
           if (inputItem.getAsJsonObject().get("name") == null ||
@@ -1307,17 +1314,20 @@ public class WalletClient {
     return abiBuilder.build();
   }
 
-  public static Contract.ConsumeUserResourcePercentContract createModifyContractPercentContract(byte[] owner,
+  public static Contract.ConsumeUserResourcePercentContract createModifyContractPercentContract(
+      byte[] owner,
       byte[] contractAddress, long consumeUserResourcePercent) {
 
-    Contract.ConsumeUserResourcePercentContract.Builder builder = Contract.ConsumeUserResourcePercentContract.newBuilder();
+    Contract.ConsumeUserResourcePercentContract.Builder builder = Contract.ConsumeUserResourcePercentContract
+        .newBuilder();
     builder.setOwnerAddress(ByteString.copyFrom(owner));
     builder.setContractAddress(ByteString.copyFrom(contractAddress));
     builder.setConsumeUserResourcePercent(consumeUserResourcePercent);
     return builder.build();
   }
 
-  public static CreateSmartContract createContractDeployContract(String contractName, byte[] address,
+  public static CreateSmartContract createContractDeployContract(String contractName,
+      byte[] address,
       String ABI, String code, String data, long value, long consumeUserResourcePercent) {
     SmartContract.ABI abi = jsonStr2ABI(ABI);
     if (abi == null) {
@@ -1375,9 +1385,11 @@ public class WalletClient {
   public boolean modifyContractPercent(byte[] contractAddress, long consumeUserResourcePercent)
       throws IOException, CipherException, CancelException {
     byte[] owner = getAddress();
-    ConsumeUserResourcePercentContract consumeUserResourcePercentContract = createModifyContractPercentContract(owner, contractAddress, consumeUserResourcePercent);
+    ConsumeUserResourcePercentContract consumeUserResourcePercentContract = createModifyContractPercentContract(
+        owner, contractAddress, consumeUserResourcePercent);
 
-    TransactionExtention transactionExtention = rpcCli.modifyContractPercent(consumeUserResourcePercentContract);
+    TransactionExtention transactionExtention = rpcCli
+        .modifyContractPercent(consumeUserResourcePercentContract);
     if (transactionExtention == null || !transactionExtention.getResult().getResult()) {
       System.out.println("RPC create trx failed!");
       if (transactionExtention != null) {
@@ -1392,7 +1404,9 @@ public class WalletClient {
 
   }
 
-  public boolean deployContract(String contractName, String ABI, String code, String data, Long maxCpuLimit, Long maxStorageLimit, Long maxFeeLimit, long value, long consumeUserResourcePercent)
+  public boolean deployContract(String contractName, String ABI, String code, String data,
+      Long maxCpuLimit, Long maxStorageLimit, Long maxFeeLimit, long value,
+      long consumeUserResourcePercent)
       throws IOException, CipherException, CancelException {
     byte[] owner = getAddress();
     CreateSmartContract contractDeployContract = createContractDeployContract(contractName, owner,
@@ -1408,27 +1422,22 @@ public class WalletClient {
       }
       return false;
     }
-    if ( maxCpuLimit != null || maxStorageLimit != null || maxFeeLimit != null){
+    if (maxCpuLimit != null || maxStorageLimit != null || maxFeeLimit != null) {
       TransactionExtention.Builder texBuilder = TransactionExtention.newBuilder();
       Transaction.Builder transBuilder = Transaction.newBuilder();
-      Transaction.raw.Builder rawBuilder = transactionExtention.getTransaction().getRawData().toBuilder();
-      if (maxCpuLimit!=null){
-        rawBuilder.setMaxCpuUsage(maxCpuLimit);
-      }
-      if (maxStorageLimit!=null){
-        rawBuilder.setMaxStorageUsage(maxStorageLimit);
-      }
-      if (maxFeeLimit!= null){
+      Transaction.raw.Builder rawBuilder = transactionExtention.getTransaction().getRawData()
+          .toBuilder();
+      if (maxFeeLimit != null) {
         rawBuilder.setFeeLimit(maxFeeLimit);
       }
       transBuilder.setRawData(rawBuilder);
-      for(int i = 0; i< transactionExtention.getTransaction().getSignatureCount();i++){
+      for (int i = 0; i < transactionExtention.getTransaction().getSignatureCount(); i++) {
         ByteString s = transactionExtention.getTransaction().getSignature(i);
-        transBuilder.setSignature(i,s);
+        transBuilder.setSignature(i, s);
       }
-      for(int i = 0; i<transactionExtention.getTransaction().getRetCount();i++){
+      for (int i = 0; i < transactionExtention.getTransaction().getRetCount(); i++) {
         Result r = transactionExtention.getTransaction().getRet(i);
-        transBuilder.setRet(i,r);
+        transBuilder.setRet(i, r);
       }
       texBuilder.setTransaction(transBuilder);
       texBuilder.setResult(transactionExtention.getResult());
@@ -1442,7 +1451,8 @@ public class WalletClient {
 
   }
 
-  public boolean triggerContract(byte[] contractAddress, long callValue, byte[] data, Long maxCPULimit,Long maxStorageUsage, Long maxFeeLimit)
+  public boolean triggerContract(byte[] contractAddress, long callValue, byte[] data,
+      Long maxCPULimit, Long maxStorageUsage, Long maxFeeLimit)
       throws IOException, CipherException, CancelException {
     byte[] owner = getAddress();
     Contract.TriggerSmartContract triggerContract = triggerCallContract(owner, contractAddress,
@@ -1464,27 +1474,23 @@ public class WalletClient {
       return true;
     }
 
-    if ( maxCPULimit != null || maxFeeLimit != null || maxStorageUsage != null){
+    if (maxCPULimit != null || maxFeeLimit != null || maxStorageUsage != null) {
       TransactionExtention.Builder texBuilder = TransactionExtention.newBuilder();
       Transaction.Builder transBuilder = Transaction.newBuilder();
-      Transaction.raw.Builder rawBuilder = transactionExtention.getTransaction().getRawData().toBuilder();
-      if (maxCPULimit!=null){
-        rawBuilder.setMaxCpuUsage(maxCPULimit);
-      }
-      if (maxFeeLimit !=null){
+      Transaction.raw.Builder rawBuilder = transactionExtention.getTransaction().getRawData()
+          .toBuilder();
+
+      if (maxFeeLimit != null) {
         rawBuilder.setFeeLimit(maxFeeLimit);
       }
-      if (maxStorageUsage!= null){
-        rawBuilder.setMaxStorageUsage(maxStorageUsage);
-      }
       transBuilder.setRawData(rawBuilder);
-      for(int i = 0; i< transactionExtention.getTransaction().getSignatureCount();i++){
+      for (int i = 0; i < transactionExtention.getTransaction().getSignatureCount(); i++) {
         ByteString s = transactionExtention.getTransaction().getSignature(i);
-        transBuilder.setSignature(i,s);
+        transBuilder.setSignature(i, s);
       }
-      for(int i = 0; i<transactionExtention.getTransaction().getRetCount();i++){
+      for (int i = 0; i < transactionExtention.getTransaction().getRetCount(); i++) {
         Result r = transactionExtention.getTransaction().getRet(i);
-        transBuilder.setRet(i,r);
+        transBuilder.setRet(i, r);
       }
       texBuilder.setTransaction(transBuilder);
       texBuilder.setResult(transactionExtention.getResult());
