@@ -30,8 +30,6 @@ import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
-import java.util.Map;
-import java.util.Scanner;
 import org.bouncycastle.util.encoders.Hex;
 import org.tron.api.GrpcAPI.AccountNetMessage;
 import org.tron.api.GrpcAPI.AccountResourceMessage;
@@ -46,7 +44,6 @@ import org.tron.api.GrpcAPI.TransactionListExtention;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.crypto.Sha256Hash;
 import org.tron.keystore.StringUtils;
-import org.tron.keystore.Wallet;
 import org.tron.protos.Contract.AccountCreateContract;
 import org.tron.protos.Contract.AccountUpdateContract;
 import org.tron.protos.Contract.AssetIssueContract;
@@ -73,18 +70,17 @@ import org.tron.protos.Contract.WitnessUpdateContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Account.AccountResource;
 import org.tron.protos.Protocol.Account.Frozen;
+import org.tron.protos.Protocol.Block;
+import org.tron.protos.Protocol.BlockHeader;
 import org.tron.protos.Protocol.ChainParameters;
 import org.tron.protos.Protocol.ChainParameters.ChainParameter;
 import org.tron.protos.Protocol.Proposal;
-import org.tron.protos.Protocol.TransactionInfo;
-import org.tron.protos.Protocol.Vote;
-import org.tron.protos.Protocol.Block;
-import org.tron.protos.Protocol.BlockHeader;
 import org.tron.protos.Protocol.SmartContract;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.Transaction.Contract;
 import org.tron.protos.Protocol.Transaction.Result;
 import org.tron.protos.Protocol.TransactionInfo;
+import org.tron.protos.Protocol.TransactionInfo.Log;
 import org.tron.protos.Protocol.Vote;
 import org.tron.protos.Protocol.Witness;
 import org.tron.walletserver.WalletClient;
@@ -744,7 +740,8 @@ public class Utils {
           result += "\n";
           break;
         case TriggerSmartContract:
-          TriggerSmartContract triggerSmartContract = contract.getParameter().unpack(TriggerSmartContract.class);
+          TriggerSmartContract triggerSmartContract = contract.getParameter()
+              .unpack(TriggerSmartContract.class);
           result += "owner_address: ";
           result += WalletClient
               .encode58Check(triggerSmartContract.getOwnerAddress().toByteArray());
@@ -870,18 +867,6 @@ public class Utils {
     result += new Date(raw.getTimestamp());
     result += "\n";
 
-    result += "max_cpu_usage: ";
-    result += raw.getMaxCpuUsage();
-    result += "\n";
-
-    result += "max_net_usage: ";
-    result += raw.getMaxNetUsage();
-    result += "\n";
-
-    result += "max_storage_usage: ";
-    result += raw.getMaxStorageUsage();
-    result += "\n";
-
     result += "fee_limit: ";
     result += raw.getFeeLimit();
     result += "\n";
@@ -972,7 +957,7 @@ public class Utils {
     result += ByteArray.toHexString(transactionExtention.getTxid().toByteArray());
     result += "\n";
 
-    Transaction transaction  = transactionExtention.getTransaction();
+    Transaction transaction = transactionExtention.getTransaction();
     if (transaction.getRawData() != null) {
       result += "raw_data: ";
       result += "\n";
@@ -1030,7 +1015,34 @@ public class Utils {
     result += "\n";
     result += WalletClient.encode58Check(transactionInfo.getContractAddress().toByteArray());
     result += "\n";
+    result += "contractAddress: ";
+    result += "\n";
+    result += printLogList(transactionInfo.getLogList());
+    result += "\n";
     return result;
+  }
+
+  public static String printLogList(List<Log> logList) {
+    StringBuilder result = new StringBuilder("");
+    logList.forEach(log -> {
+          result.append("address:\n");
+          result.append(ByteArray.toHexString(log.getAddress().toByteArray()));
+          result.append("\n");
+          result.append("data:\n");
+          result.append(ByteArray.toHexString(log.getData().toByteArray()));
+          result.append("\n");
+          result.append("TopicsList\n");
+          StringBuilder topics = new StringBuilder("");
+
+          log.getTopicsList().forEach(bytes -> {
+            topics.append(ByteArray.toHexString(bytes.toByteArray()));
+            topics.append("\n");
+          });
+          result.append(topics);
+        }
+    );
+
+    return result.toString();
   }
 
   public static String printTransactionList(TransactionList transactionList) {
@@ -1307,11 +1319,8 @@ public class Utils {
       }
     }
 
-
-
     return result;
   }
-
 
 
   public static char[] inputPassword(boolean checkStrength) throws IOException {

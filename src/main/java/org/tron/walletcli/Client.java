@@ -398,6 +398,16 @@ public class Client {
     return wallet.buyStorage(quantity);
   }
 
+  public boolean buyStorageBytes(long bytes)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warning: buyStorageBytes failed, Please login first !!");
+      return false;
+    }
+
+    return wallet.buyStorageBytes(bytes);
+  }
+
   public boolean sellStorage(long storageBytes)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {

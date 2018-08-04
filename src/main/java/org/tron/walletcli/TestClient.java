@@ -815,6 +815,23 @@ public class TestClient {
     }
   }
 
+  private void buyStorageBytes(String[] parameters)
+      throws IOException, CipherException, CancelException {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("Use buyStorageBytes command with below syntax: ");
+      System.out.println("buyStorageBytes bytes ");
+      return;
+    }
+
+    long bytes = Long.parseLong(parameters[0]);
+    boolean result = client.buyStorageBytes(bytes);
+    if (result) {
+      logger.info("buyStorageBytes " + " successful !!");
+    } else {
+      logger.info("buyStorageBytes " + " failed !!");
+    }
+  }
+
   private void sellStorage(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length != 1) {
@@ -1476,6 +1493,7 @@ public class TestClient {
     System.out.println("UpdateAsset");
     System.out.println("UnfreezeAsset");
     System.out.println("buyStorage");
+    System.out.println("buyStorageBytes");
     System.out.println("sellStorage");
     System.out.println("CreateProposal");
     System.out.println("ListProposals");
@@ -1673,6 +1691,10 @@ public class TestClient {
           }
           case "buystorage": {
             buyStorage(parameters);
+            break;
+          }
+          case "buystoragebytes": {
+            buyStorageBytes(parameters);
             break;
           }
           case "sellstorage": {
