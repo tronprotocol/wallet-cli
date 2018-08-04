@@ -183,6 +183,10 @@ public class GrpcClient {
     return blockingStubFull.buyStorage(contract);
   }
 
+  public TransactionExtention createTransaction(Contract.BuyStorageBytesContract contract) {
+    return blockingStubFull.buyStorageBytes(contract);
+  }
+
   public TransactionExtention createTransaction(Contract.SellStorageContract contract) {
     return blockingStubFull.sellStorage(contract);
   }
