@@ -9,7 +9,9 @@ import org.slf4j.LoggerFactory;
 import org.tron.api.GrpcAPI;
 import org.tron.api.GrpcAPI.AddressPrKeyPairMessage;
 import org.tron.api.GrpcAPI.AssetIssueList;
+import org.tron.api.GrpcAPI.BlockExtention;
 import org.tron.api.GrpcAPI.NodeList;
+import org.tron.api.GrpcAPI.ProposalList;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.core.exception.CancelException;
 import org.tron.core.exception.CipherException;
@@ -17,6 +19,8 @@ import org.tron.keystore.StringUtils;
 import org.tron.protos.Contract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
+import org.tron.protos.Protocol.ChainParameters;
+import org.tron.protos.Protocol.Proposal;
 import org.tron.walletserver.WalletClient;
 
 public class Client {
@@ -255,7 +259,7 @@ public class Client {
       logger.warn("Warning: createAccount failed,  Please login first !!");
       return null;
     }
-    return wallet.generateAddress();
+    return WalletClient.generateAddress();
   }
 
 
@@ -279,6 +283,14 @@ public class Client {
 
   public Block getBlock(long blockNum) {
     return WalletClient.getBlock(blockNum);
+  }
+
+  public long getTransactionCountByBlockNum(long blockNum) {
+    return WalletClient.getTransactionCountByBlockNum(blockNum);
+  }
+
+  public BlockExtention getBlock2(long blockNum) {
+    return WalletClient.getBlock2(blockNum);
   }
 
   public boolean voteWitness(HashMap<String, String> witness)
@@ -345,6 +357,17 @@ public class Client {
     return wallet.updateAccount(accountNameBytes);
   }
 
+  public boolean setAccountId(byte[] accountIdBytes)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warning: setAccount failed, Please login first !!");
+      return false;
+    }
+
+    return wallet.setAccountId(accountIdBytes);
+  }
+
+
   public boolean updateAsset(byte[] description, byte[] url, long newLimit,
       long newPublicLimit) throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
@@ -355,23 +378,57 @@ public class Client {
     return wallet.updateAsset(description, url, newLimit, newPublicLimit);
   }
 
-  public boolean freezeBalance(long frozen_balance, long frozen_duration)
+  public boolean freezeBalance(long frozen_balance, long frozen_duration, int resourceCode)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: freezeBalance failed, Please login first !!");
       return false;
     }
 
-    return wallet.freezeBalance(frozen_balance, frozen_duration);
+    return wallet.freezeBalance(frozen_balance, frozen_duration, resourceCode);
   }
 
-  public boolean unfreezeBalance() throws CipherException, IOException, CancelException {
+  public boolean buyStorage(long quantity)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warning: buyStorage failed, Please login first !!");
+      return false;
+    }
+
+    return wallet.buyStorage(quantity);
+  }
+
+  public boolean buyStorageBytes(long bytes)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warning: buyStorageBytes failed, Please login first !!");
+      return false;
+    }
+
+    return wallet.buyStorageBytes(bytes);
+  }
+
+  public boolean sellStorage(long storageBytes)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warning: sellStorage failed, Please login first !!");
+      return false;
+    }
+
+    return wallet.sellStorage(storageBytes);
+  }
+
+
+
+
+
+  public boolean unfreezeBalance(int resourceCode) throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: unfreezeBalance failed, Please login first !!");
       return false;
     }
 
-    return wallet.unfreezeBalance();
+    return wallet.unfreezeBalance(resourceCode);
   }
 
   public boolean unfreezeAsset() throws CipherException, IOException, CancelException {
@@ -392,49 +449,99 @@ public class Client {
     return wallet.withdrawBalance();
   }
 
-  public boolean deployContract(String password,
-                                String abiStr, String codeStr, String data, String value)
+  public boolean createProposal(HashMap<Long, Long> parametersMap)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warning: createProposal failed, Please login first !!");
+      return false;
+    }
+
+    return wallet.createProposal(parametersMap);
+  }
+
+
+  public Optional<ProposalList> getProposalsList() {
+    try {
+      return WalletClient.listProposals();
+    } catch (Exception ex) {
+      ex.printStackTrace();
+      return Optional.empty();
+    }
+  }
+
+  public Optional<Proposal> getProposals(String id) {
+    try {
+      return WalletClient.getProposal(id);
+    } catch (Exception ex) {
+      ex.printStackTrace();
+      return Optional.empty();
+    }
+  }
+
+  public Optional<ChainParameters> getChainParameters() {
+    try {
+      return WalletClient.getChainParameters();
+    } catch (Exception ex) {
+      ex.printStackTrace();
+      return Optional.empty();
+    }
+  }
+
+
+  public boolean approveProposal(long id, boolean is_add_approval)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warning: approveProposal failed, Please login first !!");
+      return false;
+    }
+
+    return wallet.approveProposal(id, is_add_approval);
+  }
+
+  public boolean deleteProposal(long id)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warning: deleteProposal failed, Please login first !!");
+      return false;
+    }
+
+    return wallet.deleteProposal(id);
+  }
+
+  public boolean updateSetting(byte[] contractAddress, long consumeUserResourcePercent)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warning: updateSetting failed,  Please login first !!");
+      return false;
+    }
+    return wallet.updateSetting(contractAddress, consumeUserResourcePercent);
+
+  }
+
+  public boolean deployContract(String name, String abiStr, String codeStr, String data,
+      Long maxCpuLimit, Long maxStorageLimit, Long maxFeeLimit, long value,
+      long consumeUserResourcePercent, byte[] libraryAddress)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: createContract failed,  Please login first !!");
       return false;
     }
-    if (!WalletClient.passwordValid(password.toCharArray())) {
-      return false;
-    }
 
-    byte[] passwd = org.tron.keystore.StringUtils.char2Byte(password.toCharArray());
-//    if (wallet.getEcKey(passwd) == null || wallet.getEcKey(passwd).getPrivKey() == null) {
-//      wallet = WalletClient.GetWalletByStorage(password);
-//      if (wallet == null) {
-//        logger.warn("Warning: createContract failed, Load wallet failed !!");
-//        return false;
-//      }
-//    }
-
-    return wallet.deployContract(abiStr, codeStr, data, value);
+    return wallet
+        .deployContract(name, abiStr, codeStr, data, maxCpuLimit, maxStorageLimit, maxFeeLimit,
+            value, consumeUserResourcePercent, libraryAddress);
   }
 
-  public boolean callContract(String password, byte[] contractAddress,
-                              byte[] callValue, byte[] data)
+  public boolean callContract(byte[] contractAddress,
+                              long callValue, byte[] data,
+      Long maxCpuLimit, Long maxStorageLimit, Long maxFeeLimit)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: callContract failed,  Please login first !!");
       return false;
     }
-    if (!WalletClient.passwordValid(password.toCharArray())) {
-      return false;
-    }
-    byte[] passwd = org.tron.keystore.StringUtils.char2Byte(password.toCharArray());
-//    if (wallet.getEcKey(passwd) == null || wallet.getEcKey(passwd).getPrivKey() == null) {
-//      wallet = WalletClient.GetWalletByStorage(password);
-//      if (wallet == null) {
-//        logger.warn("Warning: callContract failed, Load wallet failed !!");
-//        return false;
-//      }
-//    }
 
-    return wallet.triggerContract(contractAddress, callValue, data);
+    return wallet.triggerContract(contractAddress, callValue, data, maxCpuLimit, maxStorageLimit,maxFeeLimit);
   }
 
 }

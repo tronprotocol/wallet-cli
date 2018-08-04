@@ -30,23 +30,35 @@ import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
+import org.bouncycastle.util.encoders.Hex;
 import org.tron.api.GrpcAPI.AccountNetMessage;
+import org.tron.api.GrpcAPI.AccountResourceMessage;
 import org.tron.api.GrpcAPI.AssetIssueList;
+import org.tron.api.GrpcAPI.BlockExtention;
 import org.tron.api.GrpcAPI.BlockList;
+import org.tron.api.GrpcAPI.BlockListExtention;
+import org.tron.api.GrpcAPI.ProposalList;
+import org.tron.api.GrpcAPI.TransactionExtention;
 import org.tron.api.GrpcAPI.TransactionList;
+import org.tron.api.GrpcAPI.TransactionListExtention;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.crypto.Sha256Hash;
 import org.tron.keystore.StringUtils;
-import org.tron.keystore.Wallet;
 import org.tron.protos.Contract.AccountCreateContract;
 import org.tron.protos.Contract.AccountUpdateContract;
 import org.tron.protos.Contract.AssetIssueContract;
 import org.tron.protos.Contract.AssetIssueContract.FrozenSupply;
+import org.tron.protos.Contract.BuyStorageContract;
 import org.tron.protos.Contract.CreateSmartContract;
 import org.tron.protos.Contract.FreezeBalanceContract;
 import org.tron.protos.Contract.ParticipateAssetIssueContract;
+import org.tron.protos.Contract.ProposalApproveContract;
+import org.tron.protos.Contract.ProposalCreateContract;
+import org.tron.protos.Contract.ProposalDeleteContract;
+import org.tron.protos.Contract.SellStorageContract;
 import org.tron.protos.Contract.TransferAssetContract;
 import org.tron.protos.Contract.TransferContract;
+import org.tron.protos.Contract.TriggerSmartContract;
 import org.tron.protos.Contract.UnfreezeAssetContract;
 import org.tron.protos.Contract.UnfreezeBalanceContract;
 import org.tron.protos.Contract.UpdateAssetContract;
@@ -56,14 +68,19 @@ import org.tron.protos.Contract.WithdrawBalanceContract;
 import org.tron.protos.Contract.WitnessCreateContract;
 import org.tron.protos.Contract.WitnessUpdateContract;
 import org.tron.protos.Protocol.Account;
+import org.tron.protos.Protocol.Account.AccountResource;
 import org.tron.protos.Protocol.Account.Frozen;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.BlockHeader;
+import org.tron.protos.Protocol.ChainParameters;
+import org.tron.protos.Protocol.ChainParameters.ChainParameter;
+import org.tron.protos.Protocol.Proposal;
 import org.tron.protos.Protocol.SmartContract;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.Transaction.Contract;
 import org.tron.protos.Protocol.Transaction.Result;
 import org.tron.protos.Protocol.TransactionInfo;
+import org.tron.protos.Protocol.TransactionInfo.Log;
 import org.tron.protos.Protocol.Vote;
 import org.tron.protos.Protocol.Witness;
 import org.tron.walletserver.WalletClient;
@@ -111,6 +128,11 @@ public class Utils {
     result += "address: ";
     result += WalletClient.encode58Check(account.getAddress().toByteArray());
     result += "\n";
+    if (account.getAccountId() != null && !account.getAccountId().isEmpty()) {
+      result += "account_id: ";
+      result += new String(account.getAccountId().toByteArray(), Charset.forName("UTF-8"));
+      result += "\n";
+    }
     if (account.getAccountName() != null && !account.getAccountName().isEmpty()) {
       result += "account_name: ";
       result += new String(account.getAccountName().toByteArray(), Charset.forName("UTF-8"));
@@ -238,6 +260,40 @@ public class Utils {
     result += "asset_issued_name: ";
     result += account.getAssetIssuedName().toStringUtf8();
     result += "\n";
+    result += "accountResource: {\n";
+    result += printAccountResource(account.getAccountResource());
+    result += "}\n";
+    return result;
+  }
+
+  public static String printAccountResource(AccountResource accountResource) {
+    String result = "";
+    result += "cpu_usage: ";
+    result += accountResource.getCpuUsage();
+    result += "\n";
+    result += "frozen_balance_for_cpu: ";
+    result += "{";
+    result += "\n";
+    result += "  amount: ";
+    result += accountResource.getFrozenBalanceForCpu().getFrozenBalance();
+    result += "\n";
+    result += "  expire_time: ";
+    result += new Date(accountResource.getFrozenBalanceForCpu().getExpireTime());
+    result += "\n";
+    result += "}";
+    result += "\n";
+    result += "latest_consume_time_for_cpu: ";
+    result += accountResource.getLatestConsumeTimeForCpu();
+    result += "\n";
+    result += "storage_limit: ";
+    result += accountResource.getStorageLimit();
+    result += "\n";
+    result += "storage_usage: ";
+    result += accountResource.getStorageUsage();
+    result += "\n";
+    result += "latest_exchange_storage_time: ";
+    result += accountResource.getLatestExchangeStorageTime();
+    result += "\n";
     return result;
   }
 
@@ -290,6 +346,59 @@ public class Utils {
     return result;
   }
 
+  public static String printProposal(Proposal proposal) {
+    String result = "";
+    result += "id: ";
+    result += proposal.getProposalId();
+    result += "\n";
+    result += "state: ";
+    result += proposal.getState();
+    result += "\n";
+    result += "createTime: ";
+    result += proposal.getCreateTime();
+    result += "\n";
+    result += "expirationTime: ";
+    result += proposal.getExpirationTime();
+    result += "\n";
+    result += "parametersMap: ";
+    result += proposal.getParametersMap();
+    result += "\n";
+    result += "approvalsList: [ \n";
+    for (ByteString address : proposal.getApprovalsList()) {
+      result += WalletClient.encode58Check(address.toByteArray());
+      result += "\n";
+    }
+    result += "]";
+    return result;
+  }
+
+  public static String printProposalsList(ProposalList proposalList) {
+    String result = "\n";
+    int i = 0;
+    for (Proposal proposal : proposalList.getProposalsList()) {
+      result += "proposal " + i + " :::";
+      result += "\n";
+      result += "[";
+      result += "\n";
+      result += printProposal(proposal);
+      result += "]";
+      result += "\n";
+      result += "\n";
+      i++;
+    }
+    return result;
+  }
+
+  public static String printChainParameters(ChainParameters chainParameters) {
+    String result = "\n";
+    result += "ChainParameters : \n";
+    for (ChainParameter para : chainParameters.getChainParameterList()) {
+      result += para.getKey() + " : " + para.getValue();
+      result += "\n";
+    }
+    return result;
+  }
+
   public static String printWitnessList(WitnessList witnessList) {
     String result = "\n";
     int i = 0;
@@ -307,6 +416,7 @@ public class Utils {
     return result;
   }
 
+
   public static String printAssetIssue(AssetIssueContract assetIssue) {
     String result = "";
     result += "owner_address: ";
@@ -314,6 +424,9 @@ public class Utils {
     result += "\n";
     result += "name: ";
     result += new String(assetIssue.getName().toByteArray(), Charset.forName("UTF-8"));
+    result += "\n";
+    result += "order: ";
+    result += assetIssue.getOrder();
     result += "\n";
     result += "total_supply: ";
     result += assetIssue.getTotalSupply();
@@ -605,25 +718,97 @@ public class Utils {
         case CreateSmartContract:
           CreateSmartContract createSmartContract = contract.getParameter()
               .unpack(CreateSmartContract.class);
-          SmartContract newContract = createSmartContract.getNewContrect();
+          SmartContract newContract = createSmartContract.getNewContract();
           result += "owner_address: ";
           result += WalletClient
               .encode58Check(createSmartContract.getOwnerAddress().toByteArray());
           result += "\n";
           result += "ABI: ";
-          result += WalletClient.encode58Check(newContract.getAbi().toByteArray());
+          result += newContract.getAbi().toString();
           result += "\n";
           result += "byte_code: ";
-          result += WalletClient.encode58Check(newContract.getBytecode().toByteArray());
+          result += Hex.toHexString(newContract.getBytecode().toByteArray());
           result += "\n";
           result += "call_value: ";
-          result += WalletClient.encode58Check(newContract.getCallValue().toByteArray());
+          result += newContract.getCallValue();
           result += "\n";
           result += "contract_address:";
           result += WalletClient.encode58Check(newContract.getContractAddress().toByteArray());
           result += "\n";
           result += "data:";
-          result += WalletClient.encode58Check(newContract.getData().toByteArray());
+          result += Hex.toHexString(newContract.getData().toByteArray());
+          result += "\n";
+          break;
+        case TriggerSmartContract:
+          TriggerSmartContract triggerSmartContract = contract.getParameter()
+              .unpack(TriggerSmartContract.class);
+          result += "owner_address: ";
+          result += WalletClient
+              .encode58Check(triggerSmartContract.getOwnerAddress().toByteArray());
+          result += "\n";
+          result += "contract_address: ";
+          result += WalletClient
+              .encode58Check(triggerSmartContract.getContractAddress().toByteArray());
+          result += "\n";
+          result += "call_value:";
+          result += triggerSmartContract.getCallValue();
+          result += "\n";
+          result += "data:";
+          result += Hex.toHexString(triggerSmartContract.getData().toByteArray());
+          result += "\n";
+          break;
+        case ProposalCreateContract:
+          ProposalCreateContract proposalCreateContract = contract.getParameter()
+              .unpack(ProposalCreateContract.class);
+          result += "owner_address: ";
+          result += WalletClient
+              .encode58Check(proposalCreateContract.getOwnerAddress().toByteArray());
+          result += "\n";
+          result += "parametersMap: ";
+          result += proposalCreateContract.getParametersMap();
+          result += "\n";
+          break;
+        case ProposalApproveContract:
+          ProposalApproveContract proposalApproveContract = contract.getParameter()
+              .unpack(ProposalApproveContract.class);
+          result += "owner_address: ";
+          result += WalletClient
+              .encode58Check(proposalApproveContract.getOwnerAddress().toByteArray());
+          result += "\n";
+          result += "proposal id: ";
+          result += proposalApproveContract.getProposalId();
+          result += "\n";
+          result += "IsAddApproval: ";
+          result += proposalApproveContract.getIsAddApproval();
+          result += "\n";
+          break;
+        case ProposalDeleteContract:
+          ProposalDeleteContract proposalDeleteContract = contract.getParameter()
+              .unpack(ProposalDeleteContract.class);
+          result += "owner_address: ";
+          result += WalletClient
+              .encode58Check(proposalDeleteContract.getOwnerAddress().toByteArray());
+          break;
+        case BuyStorageContract:
+          BuyStorageContract buyStorageContract = contract.getParameter()
+              .unpack(BuyStorageContract.class);
+          result += "owner_address: ";
+          result += WalletClient
+              .encode58Check(buyStorageContract.getOwnerAddress().toByteArray());
+          result += "\n";
+          result += "quant:";
+          result += buyStorageContract.getQuant();
+          result += "\n";
+          break;
+        case SellStorageContract:
+          SellStorageContract sellStorageContract = contract.getParameter()
+              .unpack(SellStorageContract.class);
+          result += "owner_address: ";
+          result += WalletClient
+              .encode58Check(sellStorageContract.getOwnerAddress().toByteArray());
+          result += "\n";
+          result += "storageBytes:";
+          result += sellStorageContract.getStorageBytes();
           result += "\n";
           break;
         default:
@@ -662,10 +847,6 @@ public class Utils {
       result += "\n";
     }
 
-    result += "ref_block_num: ";
-    result += raw.getRefBlockNum();
-    result += "\n";
-
     if (raw.getRefBlockHash() != null) {
       result += "ref_block_hash: ";
       result += ByteArray.toHexString(raw.getRefBlockHash().toByteArray());
@@ -685,6 +866,11 @@ public class Utils {
     result += "timestamp: ";
     result += new Date(raw.getTimestamp());
     result += "\n";
+
+    result += "fee_limit: ";
+    result += raw.getFeeLimit();
+    result += "\n";
+
     return result;
   }
 
@@ -764,6 +950,44 @@ public class Utils {
     return result;
   }
 
+  public static String printTransaction(TransactionExtention transactionExtention) {
+    String result = "";
+    result += "txid: ";
+    result += "\n";
+    result += ByteArray.toHexString(transactionExtention.getTxid().toByteArray());
+    result += "\n";
+
+    Transaction transaction = transactionExtention.getTransaction();
+    if (transaction.getRawData() != null) {
+      result += "raw_data: ";
+      result += "\n";
+      result += "{";
+      result += "\n";
+      result += printTransactionRow(transaction.getRawData());
+      result += "}";
+      result += "\n";
+    }
+    if (transaction.getSignatureCount() > 0) {
+      result += "signature: ";
+      result += "\n";
+      result += "{";
+      result += "\n";
+      result += printSignature(transaction.getSignatureList());
+      result += "}";
+      result += "\n";
+    }
+    if (transaction.getRetCount() != 0) {
+      result += "ret: ";
+      result += "\n";
+      result += "{";
+      result += "\n";
+      result += printRet(transaction.getRetList());
+      result += "}";
+      result += "\n";
+    }
+    return result;
+  }
+
   public static String printTransactionInfo(TransactionInfo transactionInfo) {
     String result = "";
     result += "txid: ";
@@ -781,6 +1005,7 @@ public class Utils {
     result += "blockTimeStamp: ";
     result += "\n";
     result += transactionInfo.getBlockTimeStamp();
+    result += transactionInfo.getBlockTimeStamp();
     result += "\n";
     result += "contractResult: ";
     result += "\n";
@@ -790,17 +1015,65 @@ public class Utils {
     result += "\n";
     result += WalletClient.encode58Check(transactionInfo.getContractAddress().toByteArray());
     result += "\n";
+    result += "contractAddress: ";
+    result += "\n";
+    result += printLogList(transactionInfo.getLogList());
+    result += "\n";
     return result;
+  }
+
+  public static String printLogList(List<Log> logList) {
+    StringBuilder result = new StringBuilder("");
+    logList.forEach(log -> {
+          result.append("address:\n");
+          result.append(ByteArray.toHexString(log.getAddress().toByteArray()));
+          result.append("\n");
+          result.append("data:\n");
+          result.append(ByteArray.toHexString(log.getData().toByteArray()));
+          result.append("\n");
+          result.append("TopicsList\n");
+          StringBuilder topics = new StringBuilder("");
+
+          log.getTopicsList().forEach(bytes -> {
+            topics.append(ByteArray.toHexString(bytes.toByteArray()));
+            topics.append("\n");
+          });
+          result.append(topics);
+        }
+    );
+
+    return result.toString();
   }
 
   public static String printTransactionList(TransactionList transactionList) {
     return printTransactions(transactionList.getTransactionList());
   }
 
+  public static String printTransactionList(TransactionListExtention transactionList) {
+    return printTransactionsExt(transactionList.getTransactionList());
+  }
+
   public static String printTransactions(List<Transaction> transactionList) {
     String result = "\n";
     int i = 0;
     for (Transaction transaction : transactionList) {
+      result += "transaction " + i + " :::";
+      result += "\n";
+      result += "[";
+      result += "\n";
+      result += printTransaction(transaction);
+      result += "]";
+      result += "\n";
+      result += "\n";
+      i++;
+    }
+    return result;
+  }
+
+  public static String printTransactionsExt(List<TransactionExtention> transactionList) {
+    String result = "\n";
+    int i = 0;
+    for (TransactionExtention transaction : transactionList) {
       result += "transaction " + i + " :::";
       result += "\n";
       result += "[";
@@ -879,6 +1152,33 @@ public class Utils {
     return result;
   }
 
+  public static String printBlockExtention(BlockExtention blockExtention) {
+    String result = "\n";
+    if (blockExtention.getBlockid() != null) {
+      result += "block_id: ";
+      result += "\n";
+      result += "{";
+      result += "\n";
+      result += ByteArray.toHexString(blockExtention.getBlockid().toByteArray());
+      result += "\n";
+      result += "}";
+      result += "\n";
+    }
+    if (blockExtention.getBlockHeader() != null) {
+      result += "block_header: ";
+      result += "\n";
+      result += "{";
+      result += "\n";
+      result += printBlockHeader(blockExtention.getBlockHeader());
+      result += "}";
+      result += "\n";
+    }
+    if (blockExtention.getTransactionsCount() > 0) {
+      result += printTransactionsExt(blockExtention.getTransactionsList());
+    }
+    return result;
+  }
+
   public static String printBlockList(BlockList blockList) {
     String result = "\n";
     int i = 0;
@@ -888,6 +1188,23 @@ public class Utils {
       result += "[";
       result += "\n";
       result += printBlock(block);
+      result += "]";
+      result += "\n";
+      result += "\n";
+      i++;
+    }
+    return result;
+  }
+
+  public static String printBlockList(BlockListExtention blockList) {
+    String result = "\n";
+    int i = 0;
+    for (BlockExtention block : blockList.getBlockList()) {
+      result += "block " + i + " :::";
+      result += "\n";
+      result += "[";
+      result += "\n";
+      result += printBlockExtention(block);
       result += "]";
       result += "\n";
       result += "\n";
@@ -938,6 +1255,73 @@ public class Utils {
     }
     return result;
   }
+
+
+  public static String printAccountResourceMessage(AccountResourceMessage accountResourceMessage) {
+    String result = "";
+    result += "free_net_used: ";
+    result += accountResourceMessage.getFreeNetUsed();
+    result += "\n";
+    result += "free_net_limit: ";
+    result += accountResourceMessage.getFreeNetLimit();
+    result += "\n";
+    result += "net_used: ";
+    result += accountResourceMessage.getNetUsed();
+    result += "\n";
+    result += "net_limit: ";
+    result += accountResourceMessage.getNetLimit();
+    result += "\n";
+    result += "total_net_limit: ";
+    result += accountResourceMessage.getTotalNetLimit();
+    result += "\n";
+    result += "total_net_weight: ";
+    result += accountResourceMessage.getTotalNetWeight();
+    result += "\n";
+
+    result += "\n";
+    result += "CpuUsed: ";
+    result += accountResourceMessage.getCpuUsed();
+    result += "\n";
+    result += "CpuLimit: ";
+    result += accountResourceMessage.getCpuLimit();
+    result += "\n";
+    result += "TotalCpuLimit: ";
+    result += accountResourceMessage.getTotalCpuLimit();
+    result += "\n";
+    result += "TotalCpuWeight: ";
+    result += accountResourceMessage.getTotalCpuWeight();
+    result += "\n";
+    result += "storageUsed: ";
+    result += accountResourceMessage.getStorageUsed();
+    result += "\n";
+    result += "storageLimit: ";
+    result += accountResourceMessage.getStorageLimit();
+    result += "\n";
+    result += "\n";
+
+    if (accountResourceMessage.getAssetNetLimitCount() > 0) {
+      for (String name : accountResourceMessage.getAssetNetLimitMap().keySet()) {
+        result += "asset";
+        result += "\n";
+        result += "{";
+        result += "\n";
+        result += "  name: ";
+        result += name;
+        result += "\n";
+        result += "  free_asset_net_used: ";
+        result += accountResourceMessage.getAssetNetUsedMap().get(name);
+        result += "\n";
+        result += "  free_asset_net_limit: ";
+        result += accountResourceMessage.getAssetNetLimitMap().get(name);
+        result += "\n";
+        result += "}";
+        result += "\n";
+      }
+    }
+
+    return result;
+  }
+
 
   public static char[] inputPassword(boolean checkStrength) throws IOException {
     char[] password;

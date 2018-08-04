@@ -11,10 +11,13 @@ import org.slf4j.LoggerFactory;
 import org.tron.api.GrpcAPI;
 import org.tron.api.GrpcAPI.AccountNetMessage;
 import org.tron.api.GrpcAPI.AccountPaginated;
+import org.tron.api.GrpcAPI.AccountResourceMessage;
 import org.tron.api.GrpcAPI.AddressPrKeyPairMessage;
 import org.tron.api.GrpcAPI.AssetIssueList;
+import org.tron.api.GrpcAPI.BlockExtention;
 import org.tron.api.GrpcAPI.BlockLimit;
 import org.tron.api.GrpcAPI.BlockList;
+import org.tron.api.GrpcAPI.BlockListExtention;
 import org.tron.api.GrpcAPI.BytesMessage;
 import org.tron.api.GrpcAPI.EasyTransferByPrivateMessage;
 import org.tron.api.GrpcAPI.EasyTransferMessage;
@@ -23,8 +26,11 @@ import org.tron.api.GrpcAPI.EmptyMessage;
 import org.tron.api.GrpcAPI.NodeList;
 import org.tron.api.GrpcAPI.NumberMessage;
 import org.tron.api.GrpcAPI.PaginatedMessage;
+import org.tron.api.GrpcAPI.ProposalList;
 import org.tron.api.GrpcAPI.Return.response_code;
+import org.tron.api.GrpcAPI.TransactionExtention;
 import org.tron.api.GrpcAPI.TransactionList;
+import org.tron.api.GrpcAPI.TransactionListExtention;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.api.WalletExtensionGrpc;
 import org.tron.api.WalletGrpc;
@@ -33,6 +39,8 @@ import org.tron.common.utils.ByteArray;
 import org.tron.protos.Contract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
+import org.tron.protos.Protocol.ChainParameters;
+import org.tron.protos.Protocol.Proposal;
 import org.tron.protos.Protocol.SmartContract;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.TransactionInfo;
@@ -89,9 +97,24 @@ public class GrpcClient {
     }
   }
 
+  public Account queryAccountById(String accountId) {
+    ByteString bsAccountId = ByteString.copyFromUtf8(accountId);
+    Account request = Account.newBuilder().setAccountId(bsAccountId).build();
+    if (blockingStubSolidity != null) {
+      return blockingStubSolidity.getAccountById(request);
+    } else {
+      return blockingStubFull.getAccountById(request);
+    }
+  }
+
   //Warning: do not invoke this interface provided by others.
   public Transaction signTransaction(TransactionSign transactionSign) {
     return blockingStubFull.getTransactionSign(transactionSign);
+  }
+
+  //Warning: do not invoke this interface provided by others.
+  public TransactionExtention signTransaction2(TransactionSign transactionSign) {
+    return blockingStubFull.getTransactionSign2(transactionSign);
   }
 
   //Warning: do not invoke this interface provided by others.
@@ -99,7 +122,7 @@ public class GrpcClient {
     BytesMessage.Builder builder = BytesMessage.newBuilder();
     builder.setValue(ByteString.copyFrom(passPhrase));
 
-    BytesMessage result = blockingStubFull.createAdresss(builder.build());
+    BytesMessage result = blockingStubFull.createAddress(builder.build());
     return result.getValue().toByteArray();
   }
 
@@ -128,32 +151,81 @@ public class GrpcClient {
     return blockingStubFull.updateAccount(contract);
   }
 
+  public TransactionExtention createTransaction2(Contract.AccountUpdateContract contract) {
+    return blockingStubFull.updateAccount2(contract);
+  }
+
+  public Transaction createTransaction(Contract.SetAccountIdContract contract) {
+    return blockingStubFull.setAccountId(contract);
+  }
+
   public Transaction createTransaction(Contract.UpdateAssetContract contract) {
     return blockingStubFull.updateAsset(contract);
+  }
+
+  public TransactionExtention createTransaction2(Contract.UpdateAssetContract contract) {
+    return blockingStubFull.updateAsset2(contract);
   }
 
   public Transaction createTransaction(Contract.TransferContract contract) {
     return blockingStubFull.createTransaction(contract);
   }
 
+  public TransactionExtention createTransaction2(Contract.TransferContract contract) {
+    return blockingStubFull.createTransaction2(contract);
+  }
+
   public Transaction createTransaction(Contract.FreezeBalanceContract contract) {
     return blockingStubFull.freezeBalance(contract);
+  }
+
+  public TransactionExtention createTransaction(Contract.BuyStorageContract contract) {
+    return blockingStubFull.buyStorage(contract);
+  }
+
+  public TransactionExtention createTransaction(Contract.BuyStorageBytesContract contract) {
+    return blockingStubFull.buyStorageBytes(contract);
+  }
+
+  public TransactionExtention createTransaction(Contract.SellStorageContract contract) {
+    return blockingStubFull.sellStorage(contract);
+  }
+
+  public TransactionExtention createTransaction2(Contract.FreezeBalanceContract contract) {
+    return blockingStubFull.freezeBalance2(contract);
   }
 
   public Transaction createTransaction(Contract.WithdrawBalanceContract contract) {
     return blockingStubFull.withdrawBalance(contract);
   }
 
+  public TransactionExtention createTransaction2(Contract.WithdrawBalanceContract contract) {
+    return blockingStubFull.withdrawBalance2(contract);
+  }
+
   public Transaction createTransaction(Contract.UnfreezeBalanceContract contract) {
     return blockingStubFull.unfreezeBalance(contract);
+  }
+
+  public TransactionExtention createTransaction2(Contract.UnfreezeBalanceContract contract) {
+    return blockingStubFull.unfreezeBalance2(contract);
   }
 
   public Transaction createTransaction(Contract.UnfreezeAssetContract contract) {
     return blockingStubFull.unfreezeAsset(contract);
   }
 
+  public TransactionExtention createTransaction2(Contract.UnfreezeAssetContract contract) {
+    return blockingStubFull.unfreezeAsset2(contract);
+  }
+
   public Transaction createTransferAssetTransaction(Contract.TransferAssetContract contract) {
     return blockingStubFull.transferAsset(contract);
+  }
+
+  public TransactionExtention createTransferAssetTransaction2(
+      Contract.TransferAssetContract contract) {
+    return blockingStubFull.transferAsset2(contract);
   }
 
   public Transaction createParticipateAssetIssueTransaction(
@@ -161,16 +233,64 @@ public class GrpcClient {
     return blockingStubFull.participateAssetIssue(contract);
   }
 
+  public TransactionExtention createParticipateAssetIssueTransaction2(
+      Contract.ParticipateAssetIssueContract contract) {
+    return blockingStubFull.participateAssetIssue2(contract);
+  }
+
   public Transaction createAssetIssue(Contract.AssetIssueContract contract) {
     return blockingStubFull.createAssetIssue(contract);
+  }
+
+  public TransactionExtention createAssetIssue2(Contract.AssetIssueContract contract) {
+    return blockingStubFull.createAssetIssue2(contract);
   }
 
   public Transaction voteWitnessAccount(Contract.VoteWitnessContract contract) {
     return blockingStubFull.voteWitnessAccount(contract);
   }
 
+  public TransactionExtention voteWitnessAccount2(Contract.VoteWitnessContract contract) {
+    return blockingStubFull.voteWitnessAccount2(contract);
+  }
+
+  public TransactionExtention proposalCreate(Contract.ProposalCreateContract contract) {
+    return blockingStubFull.proposalCreate(contract);
+  }
+
+  public Optional<ProposalList> listProposals() {
+    ProposalList proposalList = blockingStubFull.listProposals(EmptyMessage.newBuilder().build());
+    return Optional.ofNullable(proposalList);
+  }
+
+  public Optional<Proposal> getProposal(String id) {
+    BytesMessage request = BytesMessage.newBuilder().setValue(ByteString.copyFrom(
+        ByteArray.fromLong(Long.parseLong(id))))
+        .build();
+    Proposal proposal = blockingStubFull.getProposalById(request);
+    return Optional.ofNullable(proposal);
+  }
+
+  public Optional<ChainParameters> getChainParameters() {
+    ChainParameters chainParameters = blockingStubFull
+        .getChainParameters(EmptyMessage.newBuilder().build());
+    return Optional.ofNullable(chainParameters);
+  }
+
+  public TransactionExtention proposalApprove(Contract.ProposalApproveContract contract) {
+    return blockingStubFull.proposalApprove(contract);
+  }
+
+  public TransactionExtention proposalDelete(Contract.ProposalDeleteContract contract) {
+    return blockingStubFull.proposalDelete(contract);
+  }
+
   public Transaction createAccount(Contract.AccountCreateContract contract) {
     return blockingStubFull.createAccount(contract);
+  }
+
+  public TransactionExtention createAccount2(Contract.AccountCreateContract contract) {
+    return blockingStubFull.createAccount2(contract);
   }
 
   public AddressPrKeyPairMessage generateAddress(EmptyMessage emptyMessage) {
@@ -185,8 +305,16 @@ public class GrpcClient {
     return blockingStubFull.createWitness(contract);
   }
 
+  public TransactionExtention createWitness2(Contract.WitnessCreateContract contract) {
+    return blockingStubFull.createWitness2(contract);
+  }
+
   public Transaction updateWitness(Contract.WitnessUpdateContract contract) {
     return blockingStubFull.updateWitness(contract);
+  }
+
+  public TransactionExtention updateWitness2(Contract.WitnessUpdateContract contract) {
+    return blockingStubFull.updateWitness2(contract);
   }
 
   public boolean broadcastTransaction(Transaction signaturedTransaction) {
@@ -224,6 +352,33 @@ public class GrpcClient {
       return blockingStubSolidity.getBlockByNum(builder.build());
     } else {
       return blockingStubFull.getBlockByNum(builder.build());
+    }
+  }
+
+  public long getTransactionCountByBlockNum(long blockNum) {
+    NumberMessage.Builder builder = NumberMessage.newBuilder();
+    builder.setNum(blockNum);
+    if (blockingStubSolidity != null) {
+      return blockingStubSolidity.getTransactionCountByBlockNum(builder.build()).getNum();
+    } else {
+      return blockingStubFull.getTransactionCountByBlockNum(builder.build()).getNum();
+    }
+  }
+
+  public BlockExtention getBlock2(long blockNum) {
+    if (blockNum < 0) {
+      if (blockingStubSolidity != null) {
+        return blockingStubSolidity.getNowBlock2(EmptyMessage.newBuilder().build());
+      } else {
+        return blockingStubFull.getNowBlock2(EmptyMessage.newBuilder().build());
+      }
+    }
+    NumberMessage.Builder builder = NumberMessage.newBuilder();
+    builder.setNum(blockNum);
+    if (blockingStubSolidity != null) {
+      return blockingStubSolidity.getBlockByNum2(builder.build());
+    } else {
+      return blockingStubFull.getBlockByNum2(builder.build());
     }
   }
 
@@ -289,6 +444,12 @@ public class GrpcClient {
     Account request = Account.newBuilder().setAddress(addressBS).build();
     return blockingStubFull.getAccountNet(request);
   }
+  public AccountResourceMessage getAccountResource(byte[] address) {
+    ByteString addressBS = ByteString.copyFrom(address);
+    Account request = Account.newBuilder().setAddress(addressBS).build();
+    return blockingStubFull.getAccountResource(request);
+  }
+
 
   public Contract.AssetIssueContract getAssetIssueByName(String assetName) {
     ByteString assetNameBs = ByteString.copyFrom(assetName.getBytes());
@@ -345,6 +506,19 @@ public class GrpcClient {
     return Optional.ofNullable(transactionList);
   }
 
+  public Optional<TransactionListExtention> getTransactionsFromThis2(byte[] address, int offset,
+      int limit) {
+    ByteString addressBS = ByteString.copyFrom(address);
+    Account account = Account.newBuilder().setAddress(addressBS).build();
+    AccountPaginated.Builder accountPaginated = AccountPaginated.newBuilder();
+    accountPaginated.setAccount(account);
+    accountPaginated.setOffset(offset);
+    accountPaginated.setLimit(limit);
+    TransactionListExtention transactionList = blockingStubExtension
+        .getTransactionsFromThis2(accountPaginated.build());
+    return Optional.ofNullable(transactionList);
+  }
+
 //  public NumberMessage getTransactionsFromThisCount(byte[] address) {
 //    ByteString addressBS = ByteString.copyFrom(address);
 //    Account account = Account.newBuilder().setAddress(addressBS).build();
@@ -363,6 +537,18 @@ public class GrpcClient {
     return Optional.ofNullable(transactionList);
   }
 
+  public Optional<TransactionListExtention> getTransactionsToThis2(byte[] address, int offset,
+      int limit) {
+    ByteString addressBS = ByteString.copyFrom(address);
+    Account account = Account.newBuilder().setAddress(addressBS).build();
+    AccountPaginated.Builder accountPaginated = AccountPaginated.newBuilder();
+    accountPaginated.setAccount(account);
+    accountPaginated.setOffset(offset);
+    accountPaginated.setLimit(limit);
+    TransactionListExtention transactionList = blockingStubExtension
+        .getTransactionsToThis2(accountPaginated.build());
+    return Optional.ofNullable(transactionList);
+  }
 //  public NumberMessage getTransactionsToThisCount(byte[] address) {
 //    ByteString addressBS = ByteString.copyFrom(address);
 //    Account account = Account.newBuilder().setAddress(addressBS).build();
@@ -403,17 +589,35 @@ public class GrpcClient {
     return Optional.ofNullable(blockList);
   }
 
+  public Optional<BlockListExtention> getBlockByLimitNext2(long start, long end) {
+    BlockLimit.Builder builder = BlockLimit.newBuilder();
+    builder.setStartNum(start);
+    builder.setEndNum(end);
+    BlockListExtention blockList = blockingStubFull.getBlockByLimitNext2(builder.build());
+    return Optional.ofNullable(blockList);
+  }
+
   public Optional<BlockList> getBlockByLatestNum(long num) {
     NumberMessage numberMessage = NumberMessage.newBuilder().setNum(num).build();
     BlockList blockList = blockingStubFull.getBlockByLatestNum(numberMessage);
     return Optional.ofNullable(blockList);
   }
 
-  public Transaction deployContract(Contract.CreateSmartContract request) {
+  public Optional<BlockListExtention> getBlockByLatestNum2(long num) {
+    NumberMessage numberMessage = NumberMessage.newBuilder().setNum(num).build();
+    BlockListExtention blockList = blockingStubFull.getBlockByLatestNum2(numberMessage);
+    return Optional.ofNullable(blockList);
+  }
+
+  public TransactionExtention updateSetting(Contract.UpdateSettingContract request) {
+    return blockingStubFull.updateSetting(request);
+  }
+
+  public TransactionExtention deployContract(Contract.CreateSmartContract request) {
     return blockingStubFull.deployContract(request);
   }
 
-  public Transaction triggerContract(Contract.TriggerSmartContract request) {
+  public TransactionExtention triggerContract(Contract.TriggerSmartContract request) {
     return blockingStubFull.triggerContract(request);
   }
 
