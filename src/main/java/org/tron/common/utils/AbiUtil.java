@@ -156,7 +156,12 @@ public class AbiUtil {
 
     @Override
     byte[] encode(String value) {
-      return new DataWord(Long.valueOf(value)).getData();
+      long n = Long.valueOf(value);
+      DataWord word = new DataWord(Math.abs(n));
+      if (n < 0) {
+        word.negate();
+      }
+      return word.getData();
     }
 
     @Override
@@ -233,8 +238,6 @@ public class AbiUtil {
     }
   }
 
-//  static class
-
   static class CoderString extends  Coder {
     CoderString() {
       dynamic = true;
@@ -254,15 +257,12 @@ public class AbiUtil {
   public static byte[] encodeDynamicBytes(String value) {
     byte[] data = value.getBytes();
     List<DataWord> ret = new ArrayList<>();
-
     ret.add(new DataWord(data.length));
 
     int readInx = 0;
     int len = value.getBytes().length;
     while (readInx < value.getBytes().length) {
       byte[] wordData = new byte[32];
-
-//      int left = len - readInx;
       int readLen = len - readInx >= 32 ? 32 : (len - readInx);
       System.arraycopy(data, readInx, wordData, 0, readLen);
       DataWord word = new DataWord(wordData);
@@ -299,7 +299,7 @@ public class AbiUtil {
         staticSize += 32;
         dynamicSize += encoded.length;
       } else {
-        staticSize += 32;
+        staticSize += encoded.length;
       }
     }
 
@@ -310,7 +310,6 @@ public class AbiUtil {
 
     for (int idx = 0; idx < codes.size(); idx++) {
       Coder coder = codes.get(idx);
-//      String value = values.get(idx);
 
       if (coder.dynamic) {
         System.arraycopy(new DataWord(dynamicOffset).getData(), 0,data, offset, 32);
@@ -318,10 +317,9 @@ public class AbiUtil {
 
         System.arraycopy(encodedList.get(idx), 0,data, dynamicOffset, encodedList.get(idx).length );
         dynamicOffset += encodedList.get(idx).length;
-
       } else {
-        System.arraycopy(encodedList.get(idx), 0,data, offset, 32);
-        offset += 32;
+        System.arraycopy(encodedList.get(idx), 0,data, offset, encodedList.get(idx).length);
+        offset += encodedList.get(idx).length;
       }
     }
 
@@ -342,9 +340,7 @@ public class AbiUtil {
     if (isHex) {
       return Hex.toHexString(selector) + params;
     }
-    String[] values = params.split(",");
     ObjectMapper mapper = new ObjectMapper();
-
     params = "[" + params + "]";
     List<Object> strings = null;
     try {
@@ -373,59 +369,13 @@ public class AbiUtil {
     String arrayMethod2 = "test(uint,uint256[])";
     String arrayMethod3 = "test(uint,address[])";
 
-//    String listString = "[\"A\",\"B\",\"C   \"，1]";
     String method1 = "test(uint256,string,string,uint256[])";
     String expected1  = "db103cf30000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000c0000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000014200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000143000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000003000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000003";
     String method2 = "test(uint256,string,string,uint256[3])";
-    String expected2 = "";
-    String listString = "5 ,\"B\",\"C\", [1, 2, 3]";
-
-    String listString1 = "[1, 2, 3]";
-    String method3 = "test(uint256[])";
-    String method4 = "test(uint256[3])";
-
-
-    System.out.println("");
-
-//    System.out.println(parseMethod(method3, listString1));
-
-    System.out.println(parseMethod(method4, listString1));
-//    Assert.isTrue(parseMethod(method1, listString).equals(expected1));
-//
-//    Assert.isTrue(parseMethod(method2, listString).equals(expected2));
-
-
-//    List<String> strList =
-//    String jsonString="[{'id':'1'},{'id':'2'}]";
-//    List<Bean> beanList = mapper.readValue(jsonString, new TypeReference<List<Bean>>() {});
-
-
-
-//    System.out.println(parseMethod(method, params));
-//    parseMethod(method, params);
-
-//    String[] vs = params.split(",");
-//    List<String> values1 = new ArrayList<>();
-//    for (String v: vs) {
-//      values1.add(v);
-//    }
-//
-//    List<Coder> coders = new ArrayList<>();
-//
-//    for (String s: getTypes(method)) {
-//      Coder c = getParamCoder(s);
-//      coders.add(c);
-//    }
-//
-//    byte[] dd = pack(coders,values1);
-//
-//    System.out.println(Hex.toHexString(dd));
-
-
-
-
-//    System.out.println(Hex.encode(pack(coders, values1)));
-
+    String expected2 = "000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000003";
+    String listString = "1 ,\"B\",\"C\", [1, 2, 3]";
+    System.out.println(parseMethod(method1, listString));
+    System.out.println(parseMethod(method2, listString));
   }
 
   public static byte[] concat(byte[] ... bytesArray) {
