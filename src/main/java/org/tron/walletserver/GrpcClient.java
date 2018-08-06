@@ -183,6 +183,10 @@ public class GrpcClient {
     return blockingStubFull.buyStorage(contract);
   }
 
+  public TransactionExtention createTransaction(Contract.BuyStorageBytesContract contract) {
+    return blockingStubFull.buyStorageBytes(contract);
+  }
+
   public TransactionExtention createTransaction(Contract.SellStorageContract contract) {
     return blockingStubFull.sellStorage(contract);
   }
@@ -605,8 +609,8 @@ public class GrpcClient {
     return Optional.ofNullable(blockList);
   }
 
-  public TransactionExtention modifyContractPercent(Contract.ConsumeUserResourcePercentContract request) {
-    return blockingStubFull.modifyContractPercent(request);
+  public TransactionExtention updateSetting(Contract.UpdateSettingContract request) {
+    return blockingStubFull.updateSetting(request);
   }
 
   public TransactionExtention deployContract(Contract.CreateSmartContract request) {

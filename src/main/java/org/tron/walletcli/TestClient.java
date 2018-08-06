@@ -815,6 +815,23 @@ public class TestClient {
     }
   }
 
+  private void buyStorageBytes(String[] parameters)
+      throws IOException, CipherException, CancelException {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("Use buyStorageBytes command with below syntax: ");
+      System.out.println("buyStorageBytes bytes ");
+      return;
+    }
+
+    long bytes = Long.parseLong(parameters[0]);
+    boolean result = client.buyStorageBytes(bytes);
+    if (result) {
+      logger.info("buyStorageBytes " + " successful !!");
+    } else {
+      logger.info("buyStorageBytes " + " failed !!");
+    }
+  }
+
   private void sellStorage(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length != 1) {
@@ -1255,12 +1272,12 @@ public class TestClient {
     }
   }
 
-  private void modifyContractPercent(String[] parameters)
+  private void updateSetting(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null ||
         parameters.length < 2) {
-      System.out.println("modifyContractPercent needs 2 parameters like following: ");
-      System.out.println("modifyContractPercent contract_address consume_user_resource_percent");
+      System.out.println("updateSetting needs 2 parameters like following: ");
+      System.out.println("updateSetting contract_address consume_user_resource_percent");
       return;
     }
 
@@ -1270,11 +1287,11 @@ public class TestClient {
       System.out.println("consume_user_resource_percent must >= 0 and <= 100");
       return;
     }
-    boolean result = client.modifyContractPercent(contractAddress, consumeUserResourcePercent);
+    boolean result = client.updateSetting(contractAddress, consumeUserResourcePercent);
     if (result) {
-      System.out.println("modify contract percent successfully");
+      System.out.println("update setting successfully");
     } else {
-      System.out.println("modify contract percent failed");
+      System.out.println("update setting failed");
     }
   }
 
@@ -1283,7 +1300,8 @@ public class TestClient {
     if (parameters == null ||
         parameters.length < 7) {
       System.out.println("DeployContract needs at least 7 parameters like following: ");
-      System.out.println("DeployContract contractName ABI byteCode max_cpu_usage max_net_usage max_storage consume_user_resource_percent <value>");
+      System.out.println(
+          "DeployContract contractName ABI byteCode max_cpu_usage max_net_usage max_storage consume_user_resource_percent <value> <library_address>");
       System.out.println(
           "Note: Please append the param for constructor tightly with byteCode without any space");
       return;
@@ -1311,15 +1329,21 @@ public class TestClient {
       return;
     }
     long value = 0;
-    if (parameters.length > 6) {
-      value = Long.valueOf(parameters[6]);
+    if (parameters.length > 7) {
+      value = Long.valueOf(parameters[7]);
     }
 
+    byte[] libraryAddress = null;
+    if (parameters.length > 8) {
+      libraryAddress = WalletClient.decodeFromBase58Check(parameters[8]);
+    }
     // TODO: consider to remove "data"
     /* Consider to move below null value, since we append the constructor param just after bytecode without any space.
      * Or we can re-design it to give other developers better user experience. Set this value in protobuf as null for now.
      */
-    boolean result = client.deployContract(contractName, abiStr, codeStr, null, maxCpuLimit, maxStorageLimit, maxFeeLimit, value, consumeUserResourcePercent);
+    boolean result = client
+        .deployContract(contractName, abiStr, codeStr, null, maxCpuLimit, maxStorageLimit,
+            maxFeeLimit, value, consumeUserResourcePercent, libraryAddress);
     if (result) {
       System.out.println("Deploy the contract successfully");
     } else {
@@ -1463,12 +1487,13 @@ public class TestClient {
     System.out.println("SetAccountId");
     System.out.println("unfreezeasset");
     System.out.println("deploycontract password ABI code data value");
-    System.out.println("modifyContractPercent contract_address consume_user_resource_percent");
+    System.out.println("updateSetting contract_address consume_user_resource_percent");
     System.out.println("triggercontract passwork contractAddress selector data value");
     System.out.println("getcontract contractAddress");
     System.out.println("UpdateAsset");
     System.out.println("UnfreezeAsset");
     System.out.println("buyStorage");
+    System.out.println("buyStorageBytes");
     System.out.println("sellStorage");
     System.out.println("CreateProposal");
     System.out.println("ListProposals");
@@ -1668,6 +1693,10 @@ public class TestClient {
             buyStorage(parameters);
             break;
           }
+          case "buystoragebytes": {
+            buyStorageBytes(parameters);
+            break;
+          }
           case "sellstorage": {
             sellStorage(parameters);
             break;
@@ -1784,8 +1813,8 @@ public class TestClient {
             getBlockByLatestNum(parameters);
             break;
           }
-          case "modifycontractpercent": {
-            modifyContractPercent(parameters);
+          case "updatesetting": {
+            updateSetting(parameters);
             break;
           }
           case "deploycontract": {
