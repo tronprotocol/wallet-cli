@@ -1506,7 +1506,8 @@ public class TestClient {
   }
 
   private String[] getCmd(String cmdLine) {
-    if (cmdLine.indexOf("\"") < 0 || cmdLine.toLowerCase().startsWith("deploycontract")) {
+    if (cmdLine.indexOf("\"") < 0 || cmdLine.toLowerCase().startsWith("deploycontract")
+        || cmdLine.toLowerCase().startsWith("triggercontract")) {
       return cmdLine.split("\\s+");
     }
     String[] strArray = cmdLine.split("\"");

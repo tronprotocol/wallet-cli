@@ -376,6 +376,13 @@ public class AbiUtil {
     String listString = "1 ,\"B\",\"C\", [1, 2, 3]";
     System.out.println(parseMethod(method1, listString));
     System.out.println(parseMethod(method2, listString));
+
+
+//    String method3 = "voteForSingleWitness(address,uint256)";
+    String method3 = "voteForSingleWitness(address)";
+    String params3 = "\"TNNqZuYhMfQvooC4kJwTsMJEQVU3vWGa5u\"";
+
+    System.out.println(parseMethod(method3, params3));
   }
 
   public static byte[] concat(byte[] ... bytesArray) {
