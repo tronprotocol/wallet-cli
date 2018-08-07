@@ -75,6 +75,7 @@ import org.tron.protos.Protocol.BlockHeader;
 import org.tron.protos.Protocol.ChainParameters;
 import org.tron.protos.Protocol.ChainParameters.ChainParameter;
 import org.tron.protos.Protocol.Proposal;
+import org.tron.protos.Protocol.ResourceReceipt;
 import org.tron.protos.Protocol.SmartContract;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.Transaction.Contract;
@@ -1015,9 +1016,42 @@ public class Utils {
     result += "\n";
     result += WalletClient.encode58Check(transactionInfo.getContractAddress().toByteArray());
     result += "\n";
-    result += "contractAddress: ";
+    result += "logList: ";
     result += "\n";
     result += printLogList(transactionInfo.getLogList());
+    result += "\n";
+    result += "receipt: ";
+    result += "\n";
+    result += printReceipt(transactionInfo.getReceipt());
+    result += "\n";
+    return result;
+  }
+
+  private static String printReceipt(ResourceReceipt receipt) {
+    String result = "";
+    result += "CpuFee: ";
+    result += "\n";
+    result += receipt.getCpuFee();
+    result += "\n";
+    result += "CpuUsage: ";
+    result += "\n";
+    result += receipt.getCpuUsage();
+    result += "\n";
+    result += "NetFee: ";
+    result += "\n";
+    result += receipt.getNetFee();
+    result += "\n";
+    result += "NetUsage: ";
+    result += "\n";
+    result += receipt.getNetUsage();
+    result += "\n";
+    result += "StorageFee: ";
+    result += "\n";
+    result += receipt.getStorageFee();
+    result += "\n";
+    result += "StorageDelta: ";
+    result += "\n";
+    result += receipt.getStorageDelta();
     result += "\n";
     return result;
   }
