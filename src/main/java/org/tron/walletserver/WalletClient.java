@@ -1366,20 +1366,22 @@ public class WalletClient {
 
     for (int i = 0; i < libraryAddressList.length; i++) {
       String cur = libraryAddressList[i];
-      String[] pair = cur.split(":");
-      if (pair.length != 2) {
-        continue;
-      }
 
+      int lastPosition = cur.lastIndexOf(":");
+      if (-1 == lastPosition) {
+        throw new RuntimeException("libraryAddress delimit by ':'");
+      }
+      String libraryName = cur.substring(0, lastPosition);
+      String addr = cur.substring(lastPosition + 1);
       String libraryAddressHex;
       try {
-        libraryAddressHex = (new String(Hex.encode(WalletClient.decodeFromBase58Check(pair[1])),
+        libraryAddressHex = (new String(Hex.encode(WalletClient.decodeFromBase58Check(addr)),
             "US-ASCII")).substring(2);
       } catch (UnsupportedEncodingException e) {
         throw new RuntimeException(e);  // now ignore
       }
-      String repeated = new String(new char[40 - pair[0].length() - 2]).replace("\0", "_");
-      String beReplaced = "__" + pair[0] + repeated;
+      String repeated = new String(new char[40 - libraryName.length() - 2]).replace("\0", "_");
+      String beReplaced = "__" + libraryName + repeated;
       Matcher m = Pattern.compile(beReplaced).matcher(code);
       code = m.replaceAll(libraryAddressHex);
     }
