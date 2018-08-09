@@ -1327,8 +1327,9 @@ public class WalletClient {
     return builder.build();
   }
 
-  public static CreateSmartContract createContractDeployContract(String contractName, byte[] address,
-      String ABI, String code, String data, long value, long consumeUserResourcePercent,
+  public static CreateSmartContract createContractDeployContract(String contractName,
+      byte[] address,
+      String ABI, String code, long value, long consumeUserResourcePercent,
       String libraryAddressPair) {
     SmartContract.ABI abi = jsonStr2ABI(ABI);
     if (abi == null) {
@@ -1341,9 +1342,7 @@ public class WalletClient {
     builder.setOriginAddress(ByteString.copyFrom(address));
     builder.setAbi(abi);
     builder.setConsumeUserResourcePercent(consumeUserResourcePercent);
-    if (data != null) {
-      builder.setData(ByteString.copyFrom(Hex.decode(data)));
-    }
+
     if (value != 0) {
 
       builder.setCallValue(value);
@@ -1439,12 +1438,12 @@ public class WalletClient {
 
   }
 
-  public boolean deployContract(String contractName, String ABI, String code, String data,
+  public boolean deployContract(String contractName, String ABI, String code,
       long feeLimit, long value, long consumeUserResourcePercent, String libraryAddressPair)
       throws IOException, CipherException, CancelException {
     byte[] owner = getAddress();
     CreateSmartContract contractDeployContract = createContractDeployContract(contractName, owner,
-        ABI, code, data, value, consumeUserResourcePercent, libraryAddressPair);
+        ABI, code, value, consumeUserResourcePercent, libraryAddressPair);
 
     TransactionExtention transactionExtention = rpcCli.deployContract(contractDeployContract);
     if (transactionExtention == null || !transactionExtention.getResult().getResult()) {
@@ -1499,8 +1498,12 @@ public class WalletClient {
 
     Transaction transaction = transactionExtention.getTransaction();
     if (transaction.getRetCount() != 0 &&
-        transactionExtention.getConstantResult(0) != null) {
+        transactionExtention.getConstantResult(0) != null &&
+        transactionExtention.getResult() != null) {
       byte[] result = transactionExtention.getConstantResult(0).toByteArray();
+      System.out.println("message:" + transaction.getRet(0).getRet());
+      System.out.println(":" + ByteArray
+          .toStr(transactionExtention.getResult().getMessage().toByteArray()));
       System.out.println("Result:" + Hex.toHexString(result));
       return true;
     }

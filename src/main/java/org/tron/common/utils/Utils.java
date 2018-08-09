@@ -736,9 +736,6 @@ public class Utils {
           result += "contract_address:";
           result += WalletClient.encode58Check(newContract.getContractAddress().toByteArray());
           result += "\n";
-          result += "data:";
-          result += Hex.toHexString(newContract.getData().toByteArray());
-          result += "\n";
           break;
         case TriggerSmartContract:
           TriggerSmartContract triggerSmartContract = contract.getParameter()
@@ -1006,7 +1003,14 @@ public class Utils {
     result += "blockTimeStamp: ";
     result += "\n";
     result += transactionInfo.getBlockTimeStamp();
-    result += transactionInfo.getBlockTimeStamp();
+    result += "\n";
+    result += "result: ";
+    result += "\n";
+    result += transactionInfo.getResult();
+    result += "\n";
+    result += "resMessage: ";
+    result += "\n";
+    result += ByteArray.toStr(transactionInfo.getResMessage().toByteArray());
     result += "\n";
     result += "contractResult: ";
     result += "\n";

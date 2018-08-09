@@ -780,7 +780,8 @@ public class TestClient {
       throws IOException, CipherException, CancelException {
     if (parameters == null || !(parameters.length == 2 || parameters.length == 3)) {
       System.out.println("Use freezeBalance command with below syntax: ");
-      System.out.println("freezeBalance frozen_balance frozen_duration [ResourceCode:0 BANDWIDTH,1 CPU]");
+      System.out
+          .println("freezeBalance frozen_balance frozen_duration [ResourceCode:0 BANDWIDTH,1 CPU]");
       return;
     }
 
@@ -1329,7 +1330,7 @@ public class TestClient {
     /* Consider to move below null value, since we append the constructor param just after bytecode without any space.
      * Or we can re-design it to give other developers better user experience. Set this value in protobuf as null for now.
      */
-    boolean result = client.deployContract(contractName, abiStr, codeStr, null, feeLimit, value,
+    boolean result = client.deployContract(contractName, abiStr, codeStr, feeLimit, value,
         consumeUserResourcePercent, libraryAddressPair);
     if (result) {
       System.out.println("Deploy the contract successfully");
@@ -1830,7 +1831,6 @@ public class TestClient {
       } catch (Exception e) {
         System.out.println(cmd + " failed!");
         logger.error(e.getMessage());
-        e.printStackTrace();
       }
     }
   }

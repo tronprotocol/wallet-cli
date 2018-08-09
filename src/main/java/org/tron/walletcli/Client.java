@@ -419,10 +419,8 @@ public class Client {
   }
 
 
-
-
-
-  public boolean unfreezeBalance(int resourceCode) throws CipherException, IOException, CancelException {
+  public boolean unfreezeBalance(int resourceCode)
+      throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: unfreezeBalance failed, Please login first !!");
       return false;
@@ -518,7 +516,7 @@ public class Client {
 
   }
 
-  public boolean deployContract(String name, String abiStr, String codeStr, String data,
+  public boolean deployContract(String name, String abiStr, String codeStr,
       long feeLimit, long value, long consumeUserResourcePercent, String libraryAddressPair)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
@@ -526,7 +524,7 @@ public class Client {
       return false;
     }
     return wallet
-        .deployContract(name, abiStr, codeStr, data, feeLimit, value, consumeUserResourcePercent,
+        .deployContract(name, abiStr, codeStr, feeLimit, value, consumeUserResourcePercent,
             libraryAddressPair);
   }
 
