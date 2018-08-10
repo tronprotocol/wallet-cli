@@ -14,6 +14,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.Scanner;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.apache.commons.lang3.ArrayUtils;
 import org.bouncycastle.util.encoders.Hex;
 import org.slf4j.Logger;
@@ -1296,8 +1298,36 @@ public class TestClient {
     }
   }
 
-  private void deployContract(String[] parameters)
+  private String[] getParas(String[] para) {
+    String paras = String.join(" ", para);
+    Pattern pattern = Pattern.compile(" (\\[.*?\\]) ");
+    Matcher matcher = pattern.matcher(paras);
+
+    if (matcher.find()) {
+      String ABI = matcher.group(1);
+      List<String> tempList = new ArrayList<String>();
+
+      paras = paras.replaceAll("(\\[.*?\\]) ", "");
+
+      String[] parts = paras.split(" ");
+      for (int i = 0; i < parts.length; i++) {
+        if (1 == i) {
+          tempList.add(ABI);
+        }
+        tempList.add(parts[i]);
+      }
+      return tempList.toArray(new String[0]);
+
+    } else {
+      return null;
+    }
+
+  }
+
+  private void deployContract(String[] parameter)
       throws IOException, CipherException, CancelException {
+
+    String[] parameters = getParas(parameter);
     if (parameters == null ||
         parameters.length < 5) {
       System.out.println("DeployContract needs at least 5 parameters like following: ");
