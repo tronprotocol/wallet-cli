@@ -1363,9 +1363,10 @@ public class TestClient {
     boolean result = client.deployContract(contractName, abiStr, codeStr, feeLimit, value,
         consumeUserResourcePercent, libraryAddressPair);
     if (result) {
-      System.out.println("Deploy the contract successfully");
+      System.out.println("Broadcast the createSmartContract successfully.\n"
+          + "Please check the given transaction id to confirm deploy status on blockchain using getTransactionInfoById command.");
     } else {
-      System.out.println("Deploy the contract failed");
+      System.out.println("Broadcast the createSmartContract failed");
     }
 
   }
@@ -1395,9 +1396,10 @@ public class TestClient {
 
     boolean result = client.callContract(contractAddress, callValue, input, feeLimit);
     if (result) {
-      System.out.println("Call the contract successfully");
+      System.out.println("Broadcast the triggerContract successfully.\n"
+          + "Please check the given transaction id to get the result on blockchain using getTransactionInfoById command");
     } else {
-      System.out.println("Call the contract failed");
+      System.out.println("Broadcast the triggerContract failed");
     }
   }
 
