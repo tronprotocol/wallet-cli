@@ -14,6 +14,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.Scanner;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.apache.commons.lang3.ArrayUtils;
 import org.bouncycastle.util.encoders.Hex;
 import org.slf4j.Logger;
@@ -780,7 +782,8 @@ public class TestClient {
       throws IOException, CipherException, CancelException {
     if (parameters == null || !(parameters.length == 2 || parameters.length == 3)) {
       System.out.println("Use freezeBalance command with below syntax: ");
-      System.out.println("freezeBalance frozen_balance frozen_duration [ResourceCode:0 BANDWIDTH,1 CPU]");
+      System.out
+          .println("freezeBalance frozen_balance frozen_duration [ResourceCode:0 BANDWIDTH,1 CPU]");
       return;
     }
 
@@ -1295,13 +1298,41 @@ public class TestClient {
     }
   }
 
-  private void deployContract(String[] parameters)
+  private String[] getParas(String[] para) {
+    String paras = String.join(" ", para);
+    Pattern pattern = Pattern.compile(" (\\[.*?\\]) ");
+    Matcher matcher = pattern.matcher(paras);
+
+    if (matcher.find()) {
+      String ABI = matcher.group(1);
+      List<String> tempList = new ArrayList<String>();
+
+      paras = paras.replaceAll("(\\[.*?\\]) ", "");
+
+      String[] parts = paras.split(" ");
+      for (int i = 0; i < parts.length; i++) {
+        if (1 == i) {
+          tempList.add(ABI);
+        }
+        tempList.add(parts[i]);
+      }
+      return tempList.toArray(new String[0]);
+
+    } else {
+      return null;
+    }
+
+  }
+
+  private void deployContract(String[] parameter)
       throws IOException, CipherException, CancelException {
+
+    String[] parameters = getParas(parameter);
     if (parameters == null ||
-        parameters.length < 7) {
-      System.out.println("DeployContract needs at least 7 parameters like following: ");
+        parameters.length < 5) {
+      System.out.println("DeployContract needs at least 5 parameters like following: ");
       System.out.println(
-          "DeployContract contractName ABI byteCode max_cpu_usage max_net_usage max_storage consume_user_resource_percent <value> <library_address>");
+          "DeployContract contractName ABI byteCode fee_limit consume_user_resource_percent <value> <library:address,library:address,...>");
       System.out.println(
           "Note: Please append the param for constructor tightly with byteCode without any space");
       return;
@@ -1310,44 +1341,32 @@ public class TestClient {
     String contractName = parameters[0];
     String abiStr = parameters[1];
     String codeStr = parameters[2];
-    Long maxCpuLimit = null;
-    if (!parameters[3].equalsIgnoreCase("null")) {
-      maxCpuLimit = Long.valueOf(parameters[3]);
-    }
-    Long maxStorageLimit = null;
-    if (!parameters[4].equalsIgnoreCase("null")) {
-      maxStorageLimit = Long.valueOf(parameters[4]);
-    }
-    Long maxFeeLimit = null;
-    if (!parameters[5].equalsIgnoreCase("null")) {
-      maxFeeLimit = Long.valueOf(parameters[5]);
-    }
-
-    long consumeUserResourcePercent = Long.valueOf(parameters[6]).longValue();
+    long feeLimit = Long.valueOf(parameters[3]).longValue();
+    long consumeUserResourcePercent = Long.valueOf(parameters[4]).longValue();
     if (consumeUserResourcePercent > 100 || consumeUserResourcePercent < 0) {
       System.out.println("consume_user_resource_percent should be >= 0 and <= 100");
       return;
     }
     long value = 0;
-    if (parameters.length > 7) {
-      value = Long.valueOf(parameters[7]);
+    if (parameters.length > 5) {
+      value = Long.valueOf(parameters[5]).longValue();
     }
 
-    byte[] libraryAddress = null;
-    if (parameters.length > 8) {
-      libraryAddress = WalletClient.decodeFromBase58Check(parameters[8]);
+    String libraryAddressPair = null;
+    if (parameters.length > 6) {
+      libraryAddressPair = parameters[6];
     }
     // TODO: consider to remove "data"
     /* Consider to move below null value, since we append the constructor param just after bytecode without any space.
      * Or we can re-design it to give other developers better user experience. Set this value in protobuf as null for now.
      */
-    boolean result = client
-        .deployContract(contractName, abiStr, codeStr, null, maxCpuLimit, maxStorageLimit,
-            maxFeeLimit, value, consumeUserResourcePercent, libraryAddress);
+    boolean result = client.deployContract(contractName, abiStr, codeStr, feeLimit, value,
+        consumeUserResourcePercent, libraryAddressPair);
     if (result) {
-      System.out.println("Deploy the contract successfully");
+      System.out.println("Broadcast the createSmartContract successfully.\n"
+          + "Please check the given transaction id to confirm deploy status on blockchain using getTransactionInfoById command.");
     } else {
-      System.out.println("Deploy the contract failed");
+      System.out.println("Broadcast the createSmartContract failed");
     }
 
   }
@@ -1356,10 +1375,10 @@ public class TestClient {
       throws IOException, CipherException, CancelException {
     if (parameters == null ||
         parameters.length < 6) {
-      System.out.println("TriggerContract needs 8 parameters like following: ");
+      System.out.println("TriggerContract needs 6 parameters like following: ");
       System.out.println(
-          "TriggerContract contractAddress method args isHex max_cpu_usage max_storage max_fee_usage value");
-//      System.out.println("example:\nTriggerContract password contractAddress method args value");
+          "TriggerContract contractAddress method args isHex fee_limit value");
+      // System.out.println("example:\nTriggerContract password contractAddress method args value");
       return;
     }
 
@@ -1367,33 +1386,20 @@ public class TestClient {
     String methodStr = parameters[1];
     String argsStr = parameters[2];
     boolean isHex = Boolean.valueOf(parameters[3]);
-    Long maxCPULimit = null;
-    if (!parameters[4].equalsIgnoreCase("null")) {
-      maxCPULimit = Long.valueOf(parameters[4]);
-    }
-    Long maxStorageLimit = null;
-    if (!parameters[5].equalsIgnoreCase("null")) {
-      maxStorageLimit = Long.valueOf(parameters[5]);
-    }
-    Long maxFeeLimit = null;
-    if (!parameters[6].equalsIgnoreCase("null")) {
-      maxFeeLimit = Long.valueOf(parameters[6]);
-    }
-    String valueStr = parameters[7];
-
+    long feeLimit = Long.valueOf(parameters[4]);
+    long callValue = Long.valueOf(parameters[5]);
     if (argsStr.equalsIgnoreCase("#")) {
       argsStr = "";
     }
     byte[] input = Hex.decode(AbiUtil.parseMethod(methodStr, argsStr, isHex));
     byte[] contractAddress = WalletClient.decodeFromBase58Check(contractAddrStr);
-    long callValue = Long.valueOf(valueStr);
 
-    boolean result = client
-        .callContract(contractAddress, callValue, input, maxCPULimit, maxStorageLimit, maxFeeLimit);
+    boolean result = client.callContract(contractAddress, callValue, input, feeLimit);
     if (result) {
-      System.out.println("Call the contract successfully");
+      System.out.println("Broadcast the triggerContract successfully.\n"
+          + "Please check the given transaction id to get the result on blockchain using getTransactionInfoById command");
     } else {
-      System.out.println("Call the contract failed");
+      System.out.println("Broadcast the triggerContract failed");
     }
   }
 
@@ -1486,10 +1492,11 @@ public class TestClient {
     System.out.println("UpdateAccount");
     System.out.println("SetAccountId");
     System.out.println("unfreezeasset");
-    System.out.println("deploycontract password ABI code data value");
+    System.out.println(
+        "deployContract contractName ABI byteCode fee_limit consume_user_resource_percent <value> <library:address,library:address,...>");
     System.out.println("updateSetting contract_address consume_user_resource_percent");
-    System.out.println("triggercontract passwork contractAddress selector data value");
-    System.out.println("getcontract contractAddress");
+    System.out.println("triggerContract contractAddress method args isHex fee_limit value");
+    System.out.println("getContract contractAddress");
     System.out.println("UpdateAsset");
     System.out.println("UnfreezeAsset");
     System.out.println("buyStorage");
@@ -1506,7 +1513,8 @@ public class TestClient {
   }
 
   private String[] getCmd(String cmdLine) {
-    if (cmdLine.indexOf("\"") < 0 || cmdLine.toLowerCase().startsWith("deploycontract")) {
+    if (cmdLine.indexOf("\"") < 0 || cmdLine.toLowerCase().startsWith("deploycontract")
+        || cmdLine.toLowerCase().startsWith("triggercontract")) {
       return cmdLine.split("\\s+");
     }
     String[] strArray = cmdLine.split("\"");
@@ -1855,7 +1863,6 @@ public class TestClient {
       } catch (Exception e) {
         System.out.println(cmd + " failed!");
         logger.error(e.getMessage());
-        e.printStackTrace();
       }
     }
   }

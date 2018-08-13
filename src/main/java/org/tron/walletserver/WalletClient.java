@@ -1327,9 +1327,10 @@ public class WalletClient {
     return builder.build();
   }
 
-  public static CreateSmartContract createContractDeployContract(String contractName, byte[] address,
-      String ABI, String code, String data, long value, long consumeUserResourcePercent,
-      byte[] libraryAddress) {
+  public static CreateSmartContract createContractDeployContract(String contractName,
+      byte[] address,
+      String ABI, String code, long value, long consumeUserResourcePercent,
+      String libraryAddressPair) {
     SmartContract.ABI abi = jsonStr2ABI(ABI);
     if (abi == null) {
       logger.error("abi is null");
@@ -1341,35 +1342,49 @@ public class WalletClient {
     builder.setOriginAddress(ByteString.copyFrom(address));
     builder.setAbi(abi);
     builder.setConsumeUserResourcePercent(consumeUserResourcePercent);
-    if (data != null) {
-      builder.setData(ByteString.copyFrom(Hex.decode(data)));
-    }
+
     if (value != 0) {
 
       builder.setCallValue(value);
     }
     byte[] byteCode;
-    if (null != libraryAddress) {
-      byteCode = replaceLibraryAddress(code, libraryAddress);
+    if (null != libraryAddressPair) {
+      byteCode = replaceLibraryAddress(code, libraryAddressPair);
     } else {
       byteCode = Hex.decode(code);
     }
+
     builder.setBytecode(ByteString.copyFrom(byteCode));
     return CreateSmartContract.newBuilder().setOwnerAddress(ByteString.copyFrom(address)).
         setNewContract(builder.build()).build();
   }
 
-  private static byte[] replaceLibraryAddress(String code, byte[] libraryAddress) {
+  private static byte[] replaceLibraryAddress(String code, String libraryAddressPair) {
 
-    String libraryAddressHex;
-    try {
-      libraryAddressHex = (new String(Hex.encode(libraryAddress), "US-ASCII")).substring(2);
-    } catch (UnsupportedEncodingException e) {
-      throw new RuntimeException(e);  // now ignore
+    String[] libraryAddressList = libraryAddressPair.split("[,]");
+
+    for (int i = 0; i < libraryAddressList.length; i++) {
+      String cur = libraryAddressList[i];
+
+      int lastPosition = cur.lastIndexOf(":");
+      if (-1 == lastPosition) {
+        throw new RuntimeException("libraryAddress delimit by ':'");
+      }
+      String libraryName = cur.substring(0, lastPosition);
+      String addr = cur.substring(lastPosition + 1);
+      String libraryAddressHex;
+      try {
+        libraryAddressHex = (new String(Hex.encode(WalletClient.decodeFromBase58Check(addr)),
+            "US-ASCII")).substring(2);
+      } catch (UnsupportedEncodingException e) {
+        throw new RuntimeException(e);  // now ignore
+      }
+      String repeated = new String(new char[40 - libraryName.length() - 2]).replace("\0", "_");
+      String beReplaced = "__" + libraryName + repeated;
+      Matcher m = Pattern.compile(beReplaced).matcher(code);
+      code = m.replaceAll(libraryAddressHex);
     }
 
-    Matcher m = Pattern.compile("__.{36}__").matcher(code);
-    code = m.replaceAll(libraryAddressHex);
     return Hex.decode(code);
   }
 
@@ -1423,13 +1438,12 @@ public class WalletClient {
 
   }
 
-  public boolean deployContract(String contractName, String ABI, String code, String data,
-      Long maxCpuLimit, Long maxStorageLimit, Long maxFeeLimit, long value,
-      long consumeUserResourcePercent, byte[] libraryAddress)
+  public boolean deployContract(String contractName, String ABI, String code,
+      long feeLimit, long value, long consumeUserResourcePercent, String libraryAddressPair)
       throws IOException, CipherException, CancelException {
     byte[] owner = getAddress();
     CreateSmartContract contractDeployContract = createContractDeployContract(contractName, owner,
-        ABI, code, data, value, consumeUserResourcePercent, libraryAddress);
+        ABI, code, value, consumeUserResourcePercent, libraryAddressPair);
 
     TransactionExtention transactionExtention = rpcCli.deployContract(contractDeployContract);
     if (transactionExtention == null || !transactionExtention.getResult().getResult()) {
@@ -1441,28 +1455,26 @@ public class WalletClient {
       }
       return false;
     }
-    if (maxCpuLimit != null || maxStorageLimit != null || maxFeeLimit != null) {
-      TransactionExtention.Builder texBuilder = TransactionExtention.newBuilder();
-      Transaction.Builder transBuilder = Transaction.newBuilder();
-      Transaction.raw.Builder rawBuilder = transactionExtention.getTransaction().getRawData()
-          .toBuilder();
-      if (maxFeeLimit != null) {
-        rawBuilder.setFeeLimit(maxFeeLimit);
-      }
-      transBuilder.setRawData(rawBuilder);
-      for (int i = 0; i < transactionExtention.getTransaction().getSignatureCount(); i++) {
-        ByteString s = transactionExtention.getTransaction().getSignature(i);
-        transBuilder.setSignature(i, s);
-      }
-      for (int i = 0; i < transactionExtention.getTransaction().getRetCount(); i++) {
-        Result r = transactionExtention.getTransaction().getRet(i);
-        transBuilder.setRet(i, r);
-      }
-      texBuilder.setTransaction(transBuilder);
-      texBuilder.setResult(transactionExtention.getResult());
-      texBuilder.setTxid(transactionExtention.getTxid());
-      transactionExtention = texBuilder.build();
+
+    TransactionExtention.Builder texBuilder = TransactionExtention.newBuilder();
+    Transaction.Builder transBuilder = Transaction.newBuilder();
+    Transaction.raw.Builder rawBuilder = transactionExtention.getTransaction().getRawData()
+        .toBuilder();
+    rawBuilder.setFeeLimit(feeLimit);
+    transBuilder.setRawData(rawBuilder);
+    for (int i = 0; i < transactionExtention.getTransaction().getSignatureCount(); i++) {
+      ByteString s = transactionExtention.getTransaction().getSignature(i);
+      transBuilder.setSignature(i, s);
     }
+    for (int i = 0; i < transactionExtention.getTransaction().getRetCount(); i++) {
+      Result r = transactionExtention.getTransaction().getRet(i);
+      transBuilder.setRet(i, r);
+    }
+    texBuilder.setTransaction(transBuilder);
+    texBuilder.setResult(transactionExtention.getResult());
+    texBuilder.setTxid(transactionExtention.getTxid());
+    transactionExtention = texBuilder.build();
+
     byte[] contractAddress = generateContractAddress(transactionExtention.getTransaction());
     System.out.println(
         "Your smart contract address will be: " + WalletClient.encode58Check(contractAddress));
@@ -1470,8 +1482,7 @@ public class WalletClient {
 
   }
 
-  public boolean triggerContract(byte[] contractAddress, long callValue, byte[] data,
-      Long maxCPULimit, Long maxStorageUsage, Long maxFeeLimit)
+  public boolean triggerContract(byte[] contractAddress, long callValue, byte[] data, long feeLimit)
       throws IOException, CipherException, CancelException {
     byte[] owner = getAddress();
     Contract.TriggerSmartContract triggerContract = triggerCallContract(owner, contractAddress,
@@ -1487,35 +1498,34 @@ public class WalletClient {
 
     Transaction transaction = transactionExtention.getTransaction();
     if (transaction.getRetCount() != 0 &&
-        transactionExtention.getConstantResult(0) != null) {
+        transactionExtention.getConstantResult(0) != null &&
+        transactionExtention.getResult() != null) {
       byte[] result = transactionExtention.getConstantResult(0).toByteArray();
+      System.out.println("message:" + transaction.getRet(0).getRet());
+      System.out.println(":" + ByteArray
+          .toStr(transactionExtention.getResult().getMessage().toByteArray()));
       System.out.println("Result:" + Hex.toHexString(result));
       return true;
     }
 
-    if (maxCPULimit != null || maxFeeLimit != null || maxStorageUsage != null) {
-      TransactionExtention.Builder texBuilder = TransactionExtention.newBuilder();
-      Transaction.Builder transBuilder = Transaction.newBuilder();
-      Transaction.raw.Builder rawBuilder = transactionExtention.getTransaction().getRawData()
-          .toBuilder();
-
-      if (maxFeeLimit != null) {
-        rawBuilder.setFeeLimit(maxFeeLimit);
-      }
-      transBuilder.setRawData(rawBuilder);
-      for (int i = 0; i < transactionExtention.getTransaction().getSignatureCount(); i++) {
-        ByteString s = transactionExtention.getTransaction().getSignature(i);
-        transBuilder.setSignature(i, s);
-      }
-      for (int i = 0; i < transactionExtention.getTransaction().getRetCount(); i++) {
-        Result r = transactionExtention.getTransaction().getRet(i);
-        transBuilder.setRet(i, r);
-      }
-      texBuilder.setTransaction(transBuilder);
-      texBuilder.setResult(transactionExtention.getResult());
-      texBuilder.setTxid(transactionExtention.getTxid());
-      transactionExtention = texBuilder.build();
+    TransactionExtention.Builder texBuilder = TransactionExtention.newBuilder();
+    Transaction.Builder transBuilder = Transaction.newBuilder();
+    Transaction.raw.Builder rawBuilder = transactionExtention.getTransaction().getRawData()
+        .toBuilder();
+    rawBuilder.setFeeLimit(feeLimit);
+    transBuilder.setRawData(rawBuilder);
+    for (int i = 0; i < transactionExtention.getTransaction().getSignatureCount(); i++) {
+      ByteString s = transactionExtention.getTransaction().getSignature(i);
+      transBuilder.setSignature(i, s);
     }
+    for (int i = 0; i < transactionExtention.getTransaction().getRetCount(); i++) {
+      Result r = transactionExtention.getTransaction().getRet(i);
+      transBuilder.setRet(i, r);
+    }
+    texBuilder.setTransaction(transBuilder);
+    texBuilder.setResult(transactionExtention.getResult());
+    texBuilder.setTxid(transactionExtention.getTxid());
+    transactionExtention = texBuilder.build();
 
     return processTransactionExtention(transactionExtention);
   }

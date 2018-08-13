@@ -419,10 +419,8 @@ public class Client {
   }
 
 
-
-
-
-  public boolean unfreezeBalance(int resourceCode) throws CipherException, IOException, CancelException {
+  public boolean unfreezeBalance(int resourceCode)
+      throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: unfreezeBalance failed, Please login first !!");
       return false;
@@ -518,30 +516,26 @@ public class Client {
 
   }
 
-  public boolean deployContract(String name, String abiStr, String codeStr, String data,
-      Long maxCpuLimit, Long maxStorageLimit, Long maxFeeLimit, long value,
-      long consumeUserResourcePercent, byte[] libraryAddress)
+  public boolean deployContract(String name, String abiStr, String codeStr,
+      long feeLimit, long value, long consumeUserResourcePercent, String libraryAddressPair)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: createContract failed,  Please login first !!");
       return false;
     }
-
     return wallet
-        .deployContract(name, abiStr, codeStr, data, maxCpuLimit, maxStorageLimit, maxFeeLimit,
-            value, consumeUserResourcePercent, libraryAddress);
+        .deployContract(name, abiStr, codeStr, feeLimit, value, consumeUserResourcePercent,
+            libraryAddressPair);
   }
 
-  public boolean callContract(byte[] contractAddress,
-                              long callValue, byte[] data,
-      Long maxCpuLimit, Long maxStorageLimit, Long maxFeeLimit)
+  public boolean callContract(byte[] contractAddress, long callValue, byte[] data, long feeLimit)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: callContract failed,  Please login first !!");
       return false;
     }
 
-    return wallet.triggerContract(contractAddress, callValue, data, maxCpuLimit, maxStorageLimit,maxFeeLimit);
+    return wallet.triggerContract(contractAddress, callValue, data, feeLimit);
   }
 
 }
