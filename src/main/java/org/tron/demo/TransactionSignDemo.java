@@ -12,7 +12,6 @@ import org.tron.common.utils.ByteArray;
 import org.tron.protos.Contract;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.Transaction;
-import org.tron.protos.Protocol.TransactionSign;
 import org.tron.walletserver.WalletClient;
 
 public class TransactionSignDemo {
@@ -88,6 +87,18 @@ public class TransactionSignDemo {
 
   private static boolean broadcast(byte[] transactionBytes) throws InvalidProtocolBufferException {
     return WalletClient.broadcastTransaction(transactionBytes);
+  }
+
+  private static void base58checkToHexString() {
+    String base58check = "TGehVcNhud84JDCGrNHKVz9jEAVKUpbuiv";
+    String hexString = ByteArray.toHexString(WalletClient.decodeFromBase58Check(base58check));
+    System.out.println(hexString);
+  }
+
+  private static void hexStringTobase58check() {
+    String hexString = "414948c2e8a756d9437037dcd8c7e0c73d560ca38d";
+    String base58check = WalletClient.encode58Check(ByteArray.fromHexString(hexString));
+    System.out.println(base58check);
   }
 
   public static void main(String[] args) throws InvalidProtocolBufferException {
