@@ -176,11 +176,19 @@ public class AbiUtil {
 
     @Override
     byte[] encode(String value) {
+
       if (value.startsWith("0x")) {
-        return new DataWord(value.substring(2)).getData();
-      } else {
-        return new DataWord(value).getData();
+        value = value.substring(2);
       }
+
+      if (value.length() % 2 != 0) {
+        value = "0" + value;
+      }
+
+      byte[] result = new byte[32];
+      byte[] bytes = Hex.decode(value);
+      System.arraycopy(bytes, 0, result, 0, bytes.length);
+      return result;
     }
 
     @Override
@@ -368,6 +376,7 @@ public class AbiUtil {
     String arrayMethod1 = "test(uint,uint256[3])";
     String arrayMethod2 = "test(uint,uint256[])";
     String arrayMethod3 = "test(uint,address[])";
+    String byteMethod1 = "test(bytes32,bytes11)";
 
     String method1 = "test(uint256,string,string,uint256[])";
     String expected1  = "db103cf30000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000c0000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000014200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000143000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000003000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000003";
@@ -377,12 +386,17 @@ public class AbiUtil {
     System.out.println(parseMethod(method1, listString));
     System.out.println(parseMethod(method2, listString));
 
+    String bytesValue1 = "\"0112313\",112313";
+    String bytesValue2 = "123123123";
+
+    System.out.println(parseMethod(byteMethod1, bytesValue1));
+//    System.out.println(parseMethod(byteMethod1, bytesValue2));
 
 //    String method3 = "voteForSingleWitness(address,uint256)";
-    String method3 = "voteForSingleWitness(address)";
-    String params3 = "\"TNNqZuYhMfQvooC4kJwTsMJEQVU3vWGa5u\"";
-
-    System.out.println(parseMethod(method3, params3));
+//    String method3 = "voteForSingleWitness(address)";
+//    String params3 = "\"TNNqZuYhMfQvooC4kJwTsMJEQVU3vWGa5u\"";
+//
+//    System.out.println(parseMethod(method3, params3));
   }
 
   public static byte[] concat(byte[] ... bytesArray) {
