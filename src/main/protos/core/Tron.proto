@@ -182,6 +182,8 @@ message ResourceReceipt {
   int64 net_fee = 4;
   int64 storage_delta = 5;
   int64 storage_fee = 6;
+  int64 origin_cpu_usage = 7;
+  int64 origin_storage_delta = 8;
 }
 
 message Transaction {
@@ -229,6 +231,9 @@ message Transaction {
     }
     int64 fee = 1;
     code ret = 2;
+
+    int64 withdraw_amount = 15;
+    int64 unfreeze_amount = 16;
   }
 
   message raw {
@@ -273,6 +278,9 @@ message TransactionInfo {
   repeated Log log = 8;
   code result = 9;
   bytes resMessage = 10;
+
+  int64 withdraw_amount = 15;
+  int64 unfreeze_amount = 16;
 }
 
 message Transactions {
@@ -406,6 +414,11 @@ message HelloMessage {
 message StorageItem {
   bytes contract_address = 1;
   map<string, bytes> items = 2;
+}
+
+message StorageRow {
+  bytes key = 1; // composition of contract_address and storage_key
+  bytes value = 2;
 }
 
 
