@@ -1420,6 +1420,8 @@ public class TestClient {
     SmartContract contractDeployContract = WalletClient.getContract(addressBytes);
     if (contractDeployContract != null) {
       System.out.println("contract :" + contractDeployContract.getAbi().toString());
+      System.out.println("contract ConsumeUserResourcePercent:" + contractDeployContract
+          .getConsumeUserResourcePercent());
     } else {
       System.out.println("query contract failed!");
     }
