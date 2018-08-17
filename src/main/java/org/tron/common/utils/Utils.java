@@ -82,6 +82,7 @@ import org.tron.protos.Protocol.Transaction.Contract;
 import org.tron.protos.Protocol.Transaction.Result;
 import org.tron.protos.Protocol.TransactionInfo;
 import org.tron.protos.Protocol.TransactionInfo.Log;
+import org.tron.protos.Protocol.TransactionInfo.code;
 import org.tron.protos.Protocol.Vote;
 import org.tron.protos.Protocol.Witness;
 import org.tron.walletserver.WalletClient;
@@ -1006,7 +1007,11 @@ public class Utils {
     result += "\n";
     result += "result: ";
     result += "\n";
-    result += transactionInfo.getResult();
+    if (transactionInfo.getResult().equals(code.SUCESS)) {
+      result += "SUCCESS";
+    } else {
+      result += "FAILED";
+    }
     result += "\n";
     result += "resMessage: ";
     result += "\n";
