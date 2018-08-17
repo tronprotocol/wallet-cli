@@ -1,4 +1,4 @@
-package org.tron.walletcli;
+package org.tron.test;
 
 import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
@@ -28,7 +28,7 @@ import org.tron.protos.Contract;
 import org.tron.protos.Contract.TransferContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Transaction;
-import org.tron.walletserver.WalletClient;
+import org.tron.walletserver.WalletApi;
 
 public class Test {
 
@@ -202,7 +202,7 @@ public class Test {
     System.arraycopy(address, 0, addchecksum, 0, address.length);
     System.arraycopy(checkSum, 0, addchecksum, address.length, 4);
     String base58 = Base58.encode(addchecksum);
-    String base58Address = WalletClient.encode58Check(address);
+    String base58Address = WalletApi.encode58Check(address);
 
     String pubKeyString = ByteArray.toHexString(pubKey);
     System.out.println("priKeyHex:::" + priKeyHex);
@@ -293,10 +293,10 @@ public class Test {
 
     for (String hexString : hexAddresList) {
       byte[] address = ByteArray.fromHexString(hexString);
-      String base58 = WalletClient.encode58Check(address);
+      String base58 = WalletApi.encode58Check(address);
       System.out.println("hexAddress = " + hexString);
       System.out.println("base58Check = " + base58);
-      byte[] decode58 = WalletClient.decodeFromBase58Check(base58);
+      byte[] decode58 = WalletApi.decodeFromBase58Check(base58);
       System.out.println("decode58 = " + ByteArray.toHexString(decode58));
       if (!Arrays.equals(decode58, address)) {
         System.out.println("Error, address is not equals to  decode58 !!!!");

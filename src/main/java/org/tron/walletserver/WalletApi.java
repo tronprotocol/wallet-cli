@@ -79,23 +79,10 @@ import org.tron.protos.Protocol.TransactionInfo;
 import org.tron.protos.Protocol.TransactionSign;
 import org.tron.protos.Protocol.Witness;
 
-class AccountComparator implements Comparator {
 
-  public int compare(Object o1, Object o2) {
-    return Long.compare(((Account) o2).getBalance(), ((Account) o1).getBalance());
-  }
-}
+public class WalletApi {
 
-class WitnessComparator implements Comparator<Witness> {
-
-  public int compare(Witness o1, Witness o2) {
-    return Long.compare(o2.getVoteCount(), o1.getVoteCount());
-  }
-}
-
-public class WalletClient {
-
-  private static final Logger logger = LoggerFactory.getLogger("WalletClient");
+  private static final Logger logger = LoggerFactory.getLogger("WalletApi");
   private static final String FilePath = "Wallet";
   private WalletFile walletFile = null;
   private boolean loginState = false;
@@ -129,9 +116,9 @@ public class WalletClient {
       fullNode = config.getStringList("fullnode.ip.list").get(0);
     }
     if (config.hasPath("net.type") && "mainnet".equalsIgnoreCase(config.getString("net.type"))) {
-      WalletClient.setAddressPreFixByte(CommonConstant.ADD_PRE_FIX_BYTE_MAINNET);
+      WalletApi.setAddressPreFixByte(CommonConstant.ADD_PRE_FIX_BYTE_MAINNET);
     } else {
-      WalletClient.setAddressPreFixByte(CommonConstant.ADD_PRE_FIX_BYTE_TESTNET);
+      WalletApi.setAddressPreFixByte(CommonConstant.ADD_PRE_FIX_BYTE_TESTNET);
     }
     if (config.hasPath("RPC_version")) {
       rpcVersion = config.getInt("RPC_version");
@@ -176,7 +163,7 @@ public class WalletClient {
   }
 
   public static void setAddressPreFixByte(byte addressPreFixByte) {
-    WalletClient.addressPreFixByte = addressPreFixByte;
+    WalletApi.addressPreFixByte = addressPreFixByte;
   }
 
   public static int getRpcVersion() {
@@ -184,16 +171,16 @@ public class WalletClient {
   }
 
   /**
-   * Creates a new WalletClient with a random ECKey or no ECKey.
+   * Creates a new WalletApi with a random ECKey or no ECKey.
    */
-  public WalletClient(byte[] password) throws CipherException {
+  public WalletApi(byte[] password) throws CipherException {
     ECKey ecKey = new ECKey(Utils.getRandom());
     this.walletFile = Wallet.createStandard(password, ecKey);
     this.address = ecKey.getAddress();
   }
 
   //  Create Wallet with a pritKey
-  public WalletClient(byte[] password, byte[] priKey) throws CipherException {
+  public WalletApi(byte[] password, byte[] priKey) throws CipherException {
     ECKey ecKey = ECKey.fromPrivate(priKey);
     this.walletFile = Wallet.createStandard(password, ecKey);
     this.address = ecKey.getAddress();
@@ -219,7 +206,7 @@ public class WalletClient {
   /**
    * Creates a Wallet with an existing ECKey.
    */
-  public WalletClient(WalletFile walletFile) {
+  public WalletApi(WalletFile walletFile) {
     this.walletFile = walletFile;
     this.address = decodeFromBase58Check(walletFile.getAddress());
   }
@@ -336,11 +323,11 @@ public class WalletClient {
   /**
    * load a Wallet from keystore
    */
-  public static WalletClient loadWalletFromKeystore()
+  public static WalletApi loadWalletFromKeystore()
       throws IOException {
     WalletFile walletFile = loadWalletFile();
-    WalletClient walletClient = new WalletClient(walletFile);
-    return walletClient;
+    WalletApi walletApi = new WalletApi(walletFile);
+    return walletApi;
   }
 
   public Account queryAccount() {
@@ -743,7 +730,7 @@ public class WalletClient {
       long count = Long.parseLong(value);
       Contract.VoteWitnessContract.Vote.Builder voteBuilder = Contract.VoteWitnessContract.Vote
           .newBuilder();
-      byte[] address = WalletClient.decodeFromBase58Check(addressBase58);
+      byte[] address = WalletApi.decodeFromBase58Check(addressBase58);
       if (address == null) {
         continue;
       }
@@ -792,9 +779,9 @@ public class WalletClient {
       return false;
     }
     byte preFixbyte = address[0];
-    if (preFixbyte != WalletClient.getAddressPreFixByte()) {
+    if (preFixbyte != WalletApi.getAddressPreFixByte()) {
       logger
-          .warn("Warning: Address need prefix with " + WalletClient.getAddressPreFixByte() + " but "
+          .warn("Warning: Address need prefix with " + WalletApi.getAddressPreFixByte() + " but "
               + preFixbyte + " !!");
       return false;
     }
@@ -876,7 +863,12 @@ public class WalletClient {
       List<Witness> list = witnessList.getWitnessesList();
       List<Witness> newList = new ArrayList<>();
       newList.addAll(list);
-      newList.sort(new WitnessComparator());
+      newList.sort(new Comparator<Witness>() {
+        @Override
+        public int compare(Witness o1, Witness o2) {
+          return Long.compare(o2.getVoteCount(), o1.getVoteCount());
+        }
+      });
       WitnessList.Builder builder = WitnessList.newBuilder();
       newList.forEach(witness -> builder.addWitnesses(witness));
       result = Optional.of(builder.build());
@@ -1374,7 +1366,7 @@ public class WalletClient {
       String addr = cur.substring(lastPosition + 1);
       String libraryAddressHex;
       try {
-        libraryAddressHex = (new String(Hex.encode(WalletClient.decodeFromBase58Check(addr)),
+        libraryAddressHex = (new String(Hex.encode(WalletApi.decodeFromBase58Check(addr)),
             "US-ASCII")).substring(2);
       } catch (UnsupportedEncodingException e) {
         throw new RuntimeException(e);  // now ignore
@@ -1477,7 +1469,7 @@ public class WalletClient {
 
     byte[] contractAddress = generateContractAddress(transactionExtention.getTransaction());
     System.out.println(
-        "Your smart contract address will be: " + WalletClient.encode58Check(contractAddress));
+        "Your smart contract address will be: " + WalletApi.encode58Check(contractAddress));
     return processTransactionExtention(transactionExtention);
 
   }
