@@ -1062,6 +1062,14 @@ public class Utils {
     result += "\n";
     result += receipt.getStorageDelta();
     result += "\n";
+    result += "OriginCpuUsage: ";
+    result += "\n";
+    result += receipt.getOriginCpuUsage();
+    result += "\n";
+    result += "OriginStorageDelta: ";
+    result += "\n";
+    result += receipt.getOriginStorageDelta();
+    result += "\n";
     return result;
   }
 
