@@ -270,22 +270,22 @@ public class Utils {
 
   public static String printAccountResource(AccountResource accountResource) {
     String result = "";
-    result += "cpu_usage: ";
-    result += accountResource.getCpuUsage();
+    result += "energy_usage: ";
+    result += accountResource.getEnergyUsage();
     result += "\n";
-    result += "frozen_balance_for_cpu: ";
+    result += "frozen_balance_for_energy: ";
     result += "{";
     result += "\n";
     result += "  amount: ";
-    result += accountResource.getFrozenBalanceForCpu().getFrozenBalance();
+    result += accountResource.getFrozenBalanceForEnergy().getFrozenBalance();
     result += "\n";
     result += "  expire_time: ";
-    result += new Date(accountResource.getFrozenBalanceForCpu().getExpireTime());
+    result += new Date(accountResource.getFrozenBalanceForEnergy().getExpireTime());
     result += "\n";
     result += "}";
     result += "\n";
-    result += "latest_consume_time_for_cpu: ";
-    result += accountResource.getLatestConsumeTimeForCpu();
+    result += "latest_consume_time_for_energy: ";
+    result += accountResource.getLatestConsumeTimeForEnergy();
     result += "\n";
     result += "storage_limit: ";
     result += accountResource.getStorageLimit();
@@ -1038,37 +1038,29 @@ public class Utils {
 
   private static String printReceipt(ResourceReceipt receipt) {
     String result = "";
-    result += "CpuFee: ";
+    result += "EnergyUsage: ";
     result += "\n";
-    result += receipt.getCpuFee();
+    result += receipt.getEnergyUsage();
     result += "\n";
-    result += "CpuUsage: ";
+    result += "EnergyFee: ";
     result += "\n";
-    result += receipt.getCpuUsage();
+    result += receipt.getEnergyFee();
     result += "\n";
-    result += "NetFee: ";
+    result += "OriginEnergyUsage: ";
     result += "\n";
-    result += receipt.getNetFee();
+    result += receipt.getOriginEnergyUsage();
+    result += "\n";
+    result += "EnergyTotal: ";
+    result += "\n";
+    result += receipt.getEnergyTotal();
     result += "\n";
     result += "NetUsage: ";
     result += "\n";
     result += receipt.getNetUsage();
     result += "\n";
-    result += "StorageFee: ";
+    result += "NetFee: ";
     result += "\n";
-    result += receipt.getStorageFee();
-    result += "\n";
-    result += "StorageDelta: ";
-    result += "\n";
-    result += receipt.getStorageDelta();
-    result += "\n";
-    result += "OriginCpuUsage: ";
-    result += "\n";
-    result += receipt.getOriginCpuUsage();
-    result += "\n";
-    result += "OriginStorageDelta: ";
-    result += "\n";
-    result += receipt.getOriginStorageDelta();
+    result += receipt.getNetFee();
     result += "\n";
     return result;
   }
@@ -1330,24 +1322,17 @@ public class Utils {
     result += "\n";
 
     result += "\n";
-    result += "CpuUsed: ";
-    result += accountResourceMessage.getCpuUsed();
+    result += "EnergyUsed: ";
+    result += accountResourceMessage.getEnergyUsed();
     result += "\n";
-    result += "CpuLimit: ";
-    result += accountResourceMessage.getCpuLimit();
+    result += "EnergyLimit: ";
+    result += accountResourceMessage.getEnergyLimit();
     result += "\n";
-    result += "TotalCpuLimit: ";
-    result += accountResourceMessage.getTotalCpuLimit();
+    result += "TotalEnergyLimit: ";
+    result += accountResourceMessage.getTotalEnergyLimit();
     result += "\n";
-    result += "TotalCpuWeight: ";
-    result += accountResourceMessage.getTotalCpuWeight();
-    result += "\n";
-    result += "storageUsed: ";
-    result += accountResourceMessage.getStorageUsed();
-    result += "\n";
-    result += "storageLimit: ";
-    result += accountResourceMessage.getStorageLimit();
-    result += "\n";
+    result += "TotalEnergyWeight: ";
+    result += accountResourceMessage.getTotalEnergyWeight();
     result += "\n";
 
     if (accountResourceMessage.getAssetNetLimitCount() > 0) {
