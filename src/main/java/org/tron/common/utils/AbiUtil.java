@@ -5,7 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import org.bouncycastle.util.encoders.Hex;
+import org.spongycastle.util.encoders.Hex;
 import org.tron.common.crypto.Hash;
 import org.tron.walletserver.WalletApi;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -15,10 +15,7 @@ public class AbiUtil {
   static Pattern paramTypeBytes = Pattern.compile("^bytes([0-9]*)$");
   static Pattern paramTypeNumber = Pattern.compile("^(u?int)([0-9]*)$");
   static Pattern paramTypeArray = Pattern.compile("^(.*)\\[([0-9]*)\\]$");
-
-//  var paramTypeBytes = new RegExp(/^bytes([0-9]*)$/);
-//  var paramTypeNumber = new RegExp(/^(u?int)([0-9]*)$/);
-//  var paramTypeArray = new RegExp(/^(.*)\[([0-9]*)\]$/);
+//
   static abstract class Coder {
     boolean dynamic = false;
     String name;
@@ -30,25 +27,13 @@ public class AbiUtil {
 
   }
 
-  class Paramater {
-    String type;
-  }
-
-
-//  public static  String coderNumber(String coerceFunc, int size, String signed, String localName) {
-//
-//
-//  }
-
-//  public static List<Coder>
-
   public static String[] getTypes(String methodSign) {
     int start = methodSign.indexOf('(') + 1;
     int end = methodSign.indexOf(')');
 
-    String typeSring = methodSign.subSequence(start,end).toString();
+    String typeString = methodSign.subSequence(start,end).toString();
 
-    return typeSring.split(",");
+    return typeString.split(",");
   }
 
   public static String geMethodId(String methodSign) {
@@ -68,17 +53,13 @@ public class AbiUtil {
         return new CoderDynamicBytes();
     }
 
-    boolean match = false;
-
-    if (type.matches("^bytes([0-9]*)$"))
+    if (paramTypeNumber.matcher(type).find())
       return new CoderFixedBytes();
 
-    if (type.matches("^(u?int)([0-9]*)$"))
+    if (paramTypeBytes.matcher(type).find())
       return new CoderNumber();
 
-
-    Pattern r = Pattern.compile("^(.*)\\[([0-9]*)]$");
-    Matcher m = r.matcher(type);
+    Matcher m = paramTypeArray.matcher(type);
     if (m.find()) {
       String arrayType = m.group(1);
       int length = -1;
@@ -87,16 +68,13 @@ public class AbiUtil {
       }
       return new CoderArray(arrayType, length);
     }
-//    if (type.matches("^(.*)\\[([0-9]*)\\]$"))
-//      return new CoderArray();
-
     return null;
   }
 
   static class CoderArray extends Coder {
     private String elementType;
     private int length;
-    public CoderArray(String arrayType, int length) {
+    CoderArray(String arrayType, int length) {
       this.elementType = arrayType;
       this.length = length;
       if (length == -1) {
@@ -110,13 +88,13 @@ public class AbiUtil {
 
       Coder coder = getParamCoder(elementType);
 
-
       List<Object> strings = null;
       try {
         ObjectMapper mapper = new ObjectMapper();
         strings = mapper.readValue(arrayValues, List.class);
       } catch (IOException e) {
         e.printStackTrace();
+        return null;
       }
 
       List<Coder> coders = new ArrayList<>();
@@ -131,16 +109,9 @@ public class AbiUtil {
         }
       }
 
-//      String[] values = arrayValues.split(",");
-
       if (this.length == -1) {
-        System.out.println("array encoded");
-        System.out.println(Hex.toHexString(concat(new DataWord(strings.size()).getData(), pack(coders, strings))));
-        System.out.println("fdsfsdf");
         return concat(new DataWord(strings.size()).getData(), pack(coders, strings));
       } else {
-        System.out.println(Hex.toHexString(pack(coders, strings)));
-
         return pack(coders, strings);
       }
     }
@@ -168,8 +139,6 @@ public class AbiUtil {
       return new byte[0];
     }
   }
-
-//  static class
 
   static class CoderFixedBytes extends  Coder {
 
