@@ -337,21 +337,27 @@ public class AbiUtil {
     return parseMethod(methodSign, params, false);
   }
 
-  public static String parseMethod(String methodSign, String params, boolean isHex) {
+  public static String parseMethod(String methodSign, String input, boolean isHex) {
     byte[] selector = new byte[4];
     System.arraycopy(Hash.sha3(methodSign.getBytes()), 0, selector,0, 4);
     System.out.println(methodSign + ":" + Hex.toHexString(selector));
-    if (params.length() == 0) {
+    if (input.length() == 0) {
       return Hex.toHexString(selector);
     }
     if (isHex) {
-      return Hex.toHexString(selector) + params;
+      return Hex.toHexString(selector) + input;
     }
+    byte[] encodedParms = encodeInput(methodSign, input);
+
+    return Hex.toHexString(selector) + Hex.toHexString(encodedParms);
+  }
+
+  public static byte[] encodeInput(String methodSign, String input) {
     ObjectMapper mapper = new ObjectMapper();
-    params = "[" + params + "]";
-    List<Object> strings = null;
+    input = "[" + input + "]";
+    List<Object> items = null;
     try {
-      strings = mapper.readValue(params, List.class);
+      items = mapper.readValue(input, List.class);
     } catch (IOException e) {
       e.printStackTrace();
     }
@@ -362,9 +368,7 @@ public class AbiUtil {
       coders.add(c);
     }
 
-    byte[] encodedParms = pack(coders, strings);
-
-    return Hex.toHexString(selector) + Hex.toHexString(encodedParms);
+    return pack(coders, items);
   }
 
   public  static void main(String[] args) {
