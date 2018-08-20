@@ -7,7 +7,7 @@ import org.tron.common.crypto.Sha256Hash;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Utils;
 import org.tron.protos.Protocol.Transaction;
-import org.tron.walletserver.WalletClient;
+import org.tron.walletserver.WalletApi;
 
 public class EasyTransferDemo {
 
@@ -20,13 +20,13 @@ public class EasyTransferDemo {
 
   public static void main(String[] args) {
     String passPhrase = "test pass phrase";
-    byte[] address = WalletClient.createAdresss(passPhrase.getBytes());
+    byte[] address = WalletApi.createAdresss(passPhrase.getBytes());
     if (!Arrays.equals(address, getAddressByPassphrase(passPhrase))) {
       System.out.println("The address is diffrent !!");
     }
-    System.out.println("address === " + WalletClient.encode58Check(address));
+    System.out.println("address === " + WalletApi.encode58Check(address));
 
-    EasyTransferResponse response = WalletClient
+    EasyTransferResponse response = WalletApi
         .easyTransfer(passPhrase.getBytes(), getAddressByPassphrase("test pass phrase 2"), 10000L);
     if (response.getResult().getResult() == true) {
       Transaction transaction = response.getTransaction();

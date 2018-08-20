@@ -6,9 +6,8 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.bouncycastle.util.encoders.Hex;
-import org.springframework.util.Assert;
 import org.tron.common.crypto.Hash;
-import org.tron.walletserver.WalletClient;
+import org.tron.walletserver.WalletApi;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class AbiUtil {
@@ -236,7 +235,7 @@ public class AbiUtil {
 
     @Override
     byte[] encode(String value) {
-      byte[] address = WalletClient.decodeFromBase58Check(value);
+      byte[] address = WalletApi.decodeFromBase58Check(value);
       return new DataWord(address).getData();
     }
 

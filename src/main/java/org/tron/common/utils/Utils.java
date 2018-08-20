@@ -85,7 +85,7 @@ import org.tron.protos.Protocol.TransactionInfo.Log;
 import org.tron.protos.Protocol.TransactionInfo.code;
 import org.tron.protos.Protocol.Vote;
 import org.tron.protos.Protocol.Witness;
-import org.tron.walletserver.WalletClient;
+import org.tron.walletserver.WalletApi;
 
 public class Utils {
 
@@ -128,7 +128,7 @@ public class Utils {
   public static String printAccount(Account account) {
     String result = "";
     result += "address: ";
-    result += WalletClient.encode58Check(account.getAddress().toByteArray());
+    result += WalletApi.encode58Check(account.getAddress().toByteArray());
     result += "\n";
     if (account.getAccountId() != null && !account.getAccountId().isEmpty()) {
       result += "account_id: ";
@@ -180,7 +180,7 @@ public class Utils {
         result += "{";
         result += "\n";
         result += "  vote_address: ";
-        result += WalletClient.encode58Check(vote.getVoteAddress().toByteArray());
+        result += WalletApi.encode58Check(vote.getVoteAddress().toByteArray());
         result += "\n";
         result += "  vote_count: ";
         result += vote.getVoteCount();
@@ -319,7 +319,7 @@ public class Utils {
   public static String printWitness(Witness witness) {
     String result = "";
     result += "address: ";
-    result += WalletClient.encode58Check(witness.getAddress().toByteArray());
+    result += WalletApi.encode58Check(witness.getAddress().toByteArray());
     result += "\n";
     result += "voteCount: ";
     result += witness.getVoteCount();
@@ -367,7 +367,7 @@ public class Utils {
     result += "\n";
     result += "approvalsList: [ \n";
     for (ByteString address : proposal.getApprovalsList()) {
-      result += WalletClient.encode58Check(address.toByteArray());
+      result += WalletApi.encode58Check(address.toByteArray());
       result += "\n";
     }
     result += "]";
@@ -422,7 +422,7 @@ public class Utils {
   public static String printAssetIssue(AssetIssueContract assetIssue) {
     String result = "";
     result += "owner_address: ";
-    result += WalletClient.encode58Check(assetIssue.getOwnerAddress().toByteArray());
+    result += WalletApi.encode58Check(assetIssue.getOwnerAddress().toByteArray());
     result += "\n";
     result += "name: ";
     result += new String(assetIssue.getName().toByteArray(), Charset.forName("UTF-8"));
@@ -521,12 +521,12 @@ public class Utils {
           if (accountCreateContract.getAccountAddress() != null
               && !accountCreateContract.getAccountAddress().isEmpty()) {
             result += "account_address: ";
-            result += WalletClient
+            result += WalletApi
                 .encode58Check(accountCreateContract.getAccountAddress().toByteArray());
             result += "\n";
           }
           result += "owner_address: ";
-          result += WalletClient
+          result += WalletApi
               .encode58Check(accountCreateContract.getOwnerAddress().toByteArray());
           result += "\n";
           break;
@@ -541,7 +541,7 @@ public class Utils {
             result += "\n";
           }
           result += "owner_address: ";
-          result += WalletClient
+          result += WalletApi
               .encode58Check(accountUpdateContract.getOwnerAddress().toByteArray());
           result += "\n";
           break;
@@ -549,11 +549,11 @@ public class Utils {
           TransferContract transferContract = contract.getParameter()
               .unpack(TransferContract.class);
           result += "owner_address: ";
-          result += WalletClient
+          result += WalletApi
               .encode58Check(transferContract.getOwnerAddress().toByteArray());
           result += "\n";
           result += "to_address: ";
-          result += WalletClient
+          result += WalletApi
               .encode58Check(transferContract.getToAddress().toByteArray());
           result += "\n";
           result += "amount: ";
@@ -568,11 +568,11 @@ public class Utils {
               Charset.forName("UTF-8"));
           result += "\n";
           result += "owner_address: ";
-          result += WalletClient
+          result += WalletApi
               .encode58Check(transferAssetContract.getOwnerAddress().toByteArray());
           result += "\n";
           result += "to_address: ";
-          result += WalletClient
+          result += WalletApi
               .encode58Check(transferAssetContract.getToAddress().toByteArray());
           result += "\n";
           result += "amount: ";
@@ -587,7 +587,7 @@ public class Utils {
           VoteWitnessContract voteWitnessContract = contract.getParameter()
               .unpack(VoteWitnessContract.class);
           result += "owner_address: ";
-          result += WalletClient
+          result += WalletApi
               .encode58Check(voteWitnessContract.getOwnerAddress().toByteArray());
           result += "\n";
           result += "votes: ";
@@ -598,7 +598,7 @@ public class Utils {
             result += "[";
             result += "\n";
             result += "vote_address: ";
-            result += WalletClient
+            result += WalletApi
                 .encode58Check(vote.getVoteAddress().toByteArray());
             result += "\n";
             result += "vote_count: ";
@@ -614,7 +614,7 @@ public class Utils {
           WitnessCreateContract witnessCreateContract = contract.getParameter()
               .unpack(WitnessCreateContract.class);
           result += "owner_address: ";
-          result += WalletClient
+          result += WalletApi
               .encode58Check(witnessCreateContract.getOwnerAddress().toByteArray());
           result += "\n";
           result += "url: ";
@@ -626,7 +626,7 @@ public class Utils {
           WitnessUpdateContract witnessUpdateContract = contract.getParameter()
               .unpack(WitnessUpdateContract.class);
           result += "owner_address: ";
-          result += WalletClient
+          result += WalletApi
               .encode58Check(witnessUpdateContract.getOwnerAddress().toByteArray());
           result += "\n";
           result += "url: ";
@@ -643,7 +643,7 @@ public class Utils {
           UpdateAssetContract updateAssetContract = contract.getParameter()
               .unpack(UpdateAssetContract.class);
           result += "owner_address: ";
-          result += WalletClient.encode58Check(updateAssetContract.getOwnerAddress().toByteArray());
+          result += WalletApi.encode58Check(updateAssetContract.getOwnerAddress().toByteArray());
           result += "\n";
           result += "description: ";
           result += new String(updateAssetContract.getDescription().toByteArray(),
@@ -668,11 +668,11 @@ public class Utils {
               Charset.forName("UTF-8"));
           result += "\n";
           result += "owner_address: ";
-          result += WalletClient
+          result += WalletApi
               .encode58Check(participateAssetIssueContract.getOwnerAddress().toByteArray());
           result += "\n";
           result += "to_address: ";
-          result += WalletClient
+          result += WalletApi
               .encode58Check(participateAssetIssueContract.getToAddress().toByteArray());
           result += "\n";
           result += "amount: ";
@@ -683,7 +683,7 @@ public class Utils {
           FreezeBalanceContract freezeBalanceContract = contract.getParameter()
               .unpack(FreezeBalanceContract.class);
           result += "owner_address: ";
-          result += WalletClient
+          result += WalletApi
               .encode58Check(freezeBalanceContract.getOwnerAddress().toByteArray());
           result += "\n";
           result += "frozen_balance: ";
@@ -697,7 +697,7 @@ public class Utils {
           UnfreezeBalanceContract unfreezeBalanceContract = contract.getParameter()
               .unpack(UnfreezeBalanceContract.class);
           result += "owner_address: ";
-          result += WalletClient
+          result += WalletApi
               .encode58Check(unfreezeBalanceContract.getOwnerAddress().toByteArray());
           result += "\n";
           break;
@@ -705,7 +705,7 @@ public class Utils {
           UnfreezeAssetContract unfreezeAssetContract = contract.getParameter()
               .unpack(UnfreezeAssetContract.class);
           result += "owner_address: ";
-          result += WalletClient
+          result += WalletApi
               .encode58Check(unfreezeAssetContract.getOwnerAddress().toByteArray());
           result += "\n";
           break;
@@ -713,7 +713,7 @@ public class Utils {
           WithdrawBalanceContract withdrawBalanceContract = contract.getParameter()
               .unpack(WithdrawBalanceContract.class);
           result += "owner_address: ";
-          result += WalletClient
+          result += WalletApi
               .encode58Check(withdrawBalanceContract.getOwnerAddress().toByteArray());
           result += "\n";
           break;
@@ -722,7 +722,7 @@ public class Utils {
               .unpack(CreateSmartContract.class);
           SmartContract newContract = createSmartContract.getNewContract();
           result += "owner_address: ";
-          result += WalletClient
+          result += WalletApi
               .encode58Check(createSmartContract.getOwnerAddress().toByteArray());
           result += "\n";
           result += "ABI: ";
@@ -735,18 +735,18 @@ public class Utils {
           result += newContract.getCallValue();
           result += "\n";
           result += "contract_address:";
-          result += WalletClient.encode58Check(newContract.getContractAddress().toByteArray());
+          result += WalletApi.encode58Check(newContract.getContractAddress().toByteArray());
           result += "\n";
           break;
         case TriggerSmartContract:
           TriggerSmartContract triggerSmartContract = contract.getParameter()
               .unpack(TriggerSmartContract.class);
           result += "owner_address: ";
-          result += WalletClient
+          result += WalletApi
               .encode58Check(triggerSmartContract.getOwnerAddress().toByteArray());
           result += "\n";
           result += "contract_address: ";
-          result += WalletClient
+          result += WalletApi
               .encode58Check(triggerSmartContract.getContractAddress().toByteArray());
           result += "\n";
           result += "call_value:";
@@ -760,7 +760,7 @@ public class Utils {
           ProposalCreateContract proposalCreateContract = contract.getParameter()
               .unpack(ProposalCreateContract.class);
           result += "owner_address: ";
-          result += WalletClient
+          result += WalletApi
               .encode58Check(proposalCreateContract.getOwnerAddress().toByteArray());
           result += "\n";
           result += "parametersMap: ";
@@ -771,7 +771,7 @@ public class Utils {
           ProposalApproveContract proposalApproveContract = contract.getParameter()
               .unpack(ProposalApproveContract.class);
           result += "owner_address: ";
-          result += WalletClient
+          result += WalletApi
               .encode58Check(proposalApproveContract.getOwnerAddress().toByteArray());
           result += "\n";
           result += "proposal id: ";
@@ -785,14 +785,14 @@ public class Utils {
           ProposalDeleteContract proposalDeleteContract = contract.getParameter()
               .unpack(ProposalDeleteContract.class);
           result += "owner_address: ";
-          result += WalletClient
+          result += WalletApi
               .encode58Check(proposalDeleteContract.getOwnerAddress().toByteArray());
           break;
         case BuyStorageContract:
           BuyStorageContract buyStorageContract = contract.getParameter()
               .unpack(BuyStorageContract.class);
           result += "owner_address: ";
-          result += WalletClient
+          result += WalletApi
               .encode58Check(buyStorageContract.getOwnerAddress().toByteArray());
           result += "\n";
           result += "quant:";
@@ -803,7 +803,7 @@ public class Utils {
           SellStorageContract sellStorageContract = contract.getParameter()
               .unpack(SellStorageContract.class);
           result += "owner_address: ";
-          result += WalletClient
+          result += WalletApi
               .encode58Check(sellStorageContract.getOwnerAddress().toByteArray());
           result += "\n";
           result += "storageBytes:";
@@ -1023,7 +1023,7 @@ public class Utils {
     result += "\n";
     result += "contractAddress: ";
     result += "\n";
-    result += WalletClient.encode58Check(transactionInfo.getContractAddress().toByteArray());
+    result += WalletApi.encode58Check(transactionInfo.getContractAddress().toByteArray());
     result += "\n";
     result += "logList: ";
     result += "\n";
@@ -1162,7 +1162,7 @@ public class Utils {
     result += "\n";
 
     result += "witness_address: ";
-    result += WalletClient.encode58Check(raw.getWitnessAddress().toByteArray());
+    result += WalletApi.encode58Check(raw.getWitnessAddress().toByteArray());
     result += "\n";
 
     return result;
@@ -1394,7 +1394,7 @@ public class Utils {
         StringUtils.clear(passwd0);
         StringUtils.clear(passwd1);
       }
-      if (WalletClient.passwordValid(password)) {
+      if (WalletApi.passwordValid(password)) {
         return password;
       }
       if (!checkStrength) {

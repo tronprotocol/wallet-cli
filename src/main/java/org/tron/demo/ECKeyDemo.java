@@ -13,7 +13,7 @@ import org.tron.common.utils.Base58;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Utils;
 import org.tron.core.exception.CipherException;
-import org.tron.walletserver.WalletClient;
+import org.tron.walletserver.WalletApi;
 
 public class ECKeyDemo {
 
@@ -27,7 +27,7 @@ public class ECKeyDemo {
     byte[] hash = Hash.sha3(copyOfRange(publicKey, 1, publicKey.length));
     System.out.println("sha3 = " + ByteArray.toHexString(hash));
     byte[] address = copyOfRange(hash, 11, hash.length);
-    address[0] = WalletClient.getAddressPreFixByte();
+    address[0] = WalletApi.getAddressPreFixByte();
     return address;
   }
 
@@ -71,7 +71,7 @@ public class ECKeyDemo {
     }
     System.out.println("Address: " + ByteArray.toHexString(address0));
 
-    String base58checkAddress0 = WalletClient.encode58Check(address0);
+    String base58checkAddress0 = WalletApi.encode58Check(address0);
     String base58checkAddress1 = address2Encode58CheckDemo(address0);
     if (!base58checkAddress0.equals(base58checkAddress1)){
       throw new CipherException("base58checkAddress error");

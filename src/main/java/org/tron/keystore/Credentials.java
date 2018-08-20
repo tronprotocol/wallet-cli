@@ -2,7 +2,7 @@ package org.tron.keystore;
 
 import org.tron.common.crypto.ECKey;
 import org.tron.common.utils.ByteArray;
-import org.tron.walletserver.WalletClient;
+import org.tron.walletserver.WalletApi;
 
 /**
  * Credentials wrapper.
@@ -26,7 +26,7 @@ public class Credentials {
     }
 
     public static Credentials create(ECKey ecKeyPair) {
-        String address = WalletClient.encode58Check(ecKeyPair.getAddress());
+        String address = WalletApi.encode58Check(ecKeyPair.getAddress());
         return new Credentials(ecKeyPair, address);
     }
 
