@@ -5,7 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import org.bouncycastle.util.encoders.Hex;
+import org.spongycastle.util.encoders.Hex;
 import org.tron.common.crypto.Hash;
 import org.tron.walletserver.WalletApi;
 import com.fasterxml.jackson.databind.ObjectMapper;
