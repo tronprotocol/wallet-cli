@@ -1329,32 +1329,44 @@ public class TestClient {
 
     String[] parameters = getParas(parameter);
     if (parameters == null ||
-        parameters.length < 5) {
+        parameters.length < 8) {
       System.out.println("DeployContract needs at least 5 parameters like following: ");
       System.out.println(
-          "DeployContract contractName ABI byteCode fee_limit consume_user_resource_percent <value> <library:address,library:address,...>");
+          "DeployContract contractName ABI byteCode constructor params isHex fee_limit consume_user_resource_percent <value> <library:address,library:address,...>");
       System.out.println(
           "Note: Please append the param for constructor tightly with byteCode without any space");
       return;
     }
-
-    String contractName = parameters[0];
-    String abiStr = parameters[1];
-    String codeStr = parameters[2];
-    long feeLimit = Long.valueOf(parameters[3]).longValue();
-    long consumeUserResourcePercent = Long.valueOf(parameters[4]).longValue();
+    int idx = 0;
+    String contractName = parameters[idx++];
+    String abiStr = parameters[idx++];
+    String codeStr = parameters[idx++];
+    String constructorStr = parameters[idx++];
+    String argsStr = parameters[idx++];
+    boolean isHex = Boolean.valueOf(parameters[idx++]);
+    long feeLimit = Long.valueOf(parameters[idx++]);
+    long consumeUserResourcePercent = Long.valueOf(parameters[idx++]);
     if (consumeUserResourcePercent > 100 || consumeUserResourcePercent < 0) {
       System.out.println("consume_user_resource_percent should be >= 0 and <= 100");
       return;
     }
+
+    if (!constructorStr.equals("#")) {
+      if (isHex) {
+        codeStr += argsStr;
+      } else {
+        codeStr += Hex.toHexString(AbiUtil.encodeInput(constructorStr, argsStr));
+      }
+    }
+
     long value = 0;
-    if (parameters.length > 5) {
-      value = Long.valueOf(parameters[5]).longValue();
+    if (parameters.length > idx) {
+      value = Long.valueOf(parameters[idx++]);
     }
 
     String libraryAddressPair = null;
-    if (parameters.length > 6) {
-      libraryAddressPair = parameters[6];
+    if (parameters.length > idx) {
+      libraryAddressPair = parameters[idx];
     }
     // TODO: consider to remove "data"
     /* Consider to move below null value, since we append the constructor param just after bytecode without any space.
