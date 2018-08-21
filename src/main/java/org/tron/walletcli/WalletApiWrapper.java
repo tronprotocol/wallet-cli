@@ -518,6 +518,16 @@ public class WalletApiWrapper {
         secondTokenId, secondTokenBalance);
   }
 
+  public boolean exchangeInject(long exchangeId, byte[] tokenId, long quant)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warning: exchangeInject failed, Please login first !!");
+      return false;
+    }
+
+    return wallet.exchangeInject(exchangeId, tokenId, quant);
+  }
+
   public boolean updateSetting(byte[] contractAddress, long consumeUserResourcePercent)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {

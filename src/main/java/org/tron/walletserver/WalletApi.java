@@ -1205,6 +1205,26 @@ public class WalletApi {
     return builder.build();
   }
 
+  public boolean exchangeInject(long exchangeId, byte[] tokenId, long quant)
+      throws CipherException, IOException, CancelException {
+    byte[] owner = getAddress();
+    Contract.ExchangeInjectContract contract = createExchangeInjectContract(owner, exchangeId,
+        tokenId, quant);
+    TransactionExtention transactionExtention = rpcCli.exchangeInject(contract);
+    return processTransactionExtention(transactionExtention);
+  }
+
+  public static Contract.ExchangeInjectContract createExchangeInjectContract(byte[] owner,
+      long exchangeId, byte[] tokenId, long quant) {
+    Contract.ExchangeInjectContract.Builder builder = Contract.ExchangeInjectContract.newBuilder();
+    builder
+        .setOwnerAddress(ByteString.copyFrom(owner))
+        .setExchangeId(exchangeId)
+        .setTokenId(ByteString.copyFrom(tokenId))
+        .setQuant(quant);
+    return builder.build();
+  }
+
 
   public static SmartContract.ABI.Entry.EntryType getEntryType(String type) {
     switch (type) {

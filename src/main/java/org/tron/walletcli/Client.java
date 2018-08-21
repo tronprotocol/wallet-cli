@@ -905,28 +905,6 @@ public class Client {
     }
   }
 
-  private void exchangeCreate(String[] parameters)
-      throws IOException, CipherException, CancelException {
-    if (parameters == null || parameters.length != 4) {
-      System.out.println("Use exchangeCreate command with below syntax: ");
-      System.out.println("exchangeCreate first_token_id first_token_balance "
-          + "second_token_id second_token_balance");
-      return;
-    }
-
-    byte[] firstTokenId = parameters[0].getBytes();
-    long firstTokenBalance = Long.valueOf(parameters[1]);
-    byte[] secondTokenId = parameters[2].getBytes();
-    long secondTokenBalance = Long.valueOf(parameters[3]);
-    boolean result = walletApiWrapper.exchangeCreate(firstTokenId, firstTokenBalance,
-        secondTokenId, secondTokenBalance);
-    if (result) {
-      logger.info("exchange create " + " successful !!");
-    } else {
-      logger.info("exchange create " + " failed !!");
-    }
-  }
-
   private void approveProposal(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length != 2) {
@@ -987,6 +965,47 @@ public class Client {
       logger.info(Utils.printProposal(proposal));
     } else {
       logger.info("getProposal " + " failed !!");
+    }
+  }
+
+  private void exchangeCreate(String[] parameters)
+      throws IOException, CipherException, CancelException {
+    if (parameters == null || parameters.length != 4) {
+      System.out.println("Use exchangeCreate command with below syntax: ");
+      System.out.println("exchangeCreate first_token_id first_token_balance "
+          + "second_token_id second_token_balance");
+      return;
+    }
+
+    byte[] firstTokenId = parameters[0].getBytes();
+    long firstTokenBalance = Long.valueOf(parameters[1]);
+    byte[] secondTokenId = parameters[2].getBytes();
+    long secondTokenBalance = Long.valueOf(parameters[3]);
+    boolean result = walletApiWrapper.exchangeCreate(firstTokenId, firstTokenBalance,
+        secondTokenId, secondTokenBalance);
+    if (result) {
+      logger.info("exchange create " + " successful !!");
+    } else {
+      logger.info("exchange create " + " failed !!");
+    }
+  }
+
+  private void exchangeInject(String[] parameters)
+      throws IOException, CipherException, CancelException {
+    if (parameters == null || parameters.length != 3) {
+      System.out.println("Use exchangeInject command with below syntax: ");
+      System.out.println("exchangeInject exchange_id token_id quant");
+      return;
+    }
+
+    long exchangeId = Long.valueOf(parameters[0]);
+    byte[] tokenId = parameters[1].getBytes();
+    long quant = Long.valueOf(parameters[2]);
+    boolean result = walletApiWrapper.exchangeInject(exchangeId, tokenId, quant);
+    if (result) {
+      logger.info("exchange inject " + " successful !!");
+    } else {
+      logger.info("exchange inject " + " failed !!");
     }
   }
 
@@ -1776,6 +1795,18 @@ public class Client {
             break;
           }
           case "exchangecreate": {
+            exchangeCreate(parameters);
+            break;
+          }
+          case "exchangeinject": {
+            exchangeInject(parameters);
+            break;
+          }
+          case "exchangewithdraw": {
+            exchangeWithdraw(parameters);
+            break;
+          }
+          case "exchangetransaction": {
             exchangeCreate(parameters);
             break;
           }

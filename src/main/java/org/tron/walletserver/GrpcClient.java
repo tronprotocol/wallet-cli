@@ -289,6 +289,18 @@ public class GrpcClient {
     return blockingStubFull.exchangeCreate(contract);
   }
 
+  public TransactionExtention exchangeInject(Contract.ExchangeInjectContract contract) {
+    return blockingStubFull.exchangeInject(contract);
+  }
+
+  public TransactionExtention exchangeWithdraw(Contract.ExchangeWithdrawContract contract) {
+    return blockingStubFull.exchangeWithdraw(contract);
+  }
+
+  public TransactionExtention exchangeTransaction(Contract.ExchangeTransactionContract contract) {
+    return blockingStubFull.exchangeTransaction(contract);
+  }
+
   public Transaction createAccount(Contract.AccountCreateContract contract) {
     return blockingStubFull.createAccount(contract);
   }
