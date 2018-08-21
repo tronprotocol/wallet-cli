@@ -1225,6 +1225,46 @@ public class WalletApi {
     return builder.build();
   }
 
+  public boolean exchangeWithdraw(long exchangeId, byte[] tokenId, long quant)
+      throws CipherException, IOException, CancelException {
+    byte[] owner = getAddress();
+    Contract.ExchangeWithdrawContract contract = createExchangeWithdrawContract(owner, exchangeId,
+        tokenId, quant);
+    TransactionExtention transactionExtention = rpcCli.exchangeWithdraw(contract);
+    return processTransactionExtention(transactionExtention);
+  }
+
+  public static Contract.ExchangeWithdrawContract createExchangeWithdrawContract(byte[] owner,
+      long exchangeId, byte[] tokenId, long quant) {
+    Contract.ExchangeWithdrawContract.Builder builder = Contract.ExchangeWithdrawContract.newBuilder();
+    builder
+        .setOwnerAddress(ByteString.copyFrom(owner))
+        .setExchangeId(exchangeId)
+        .setTokenId(ByteString.copyFrom(tokenId))
+        .setQuant(quant);
+    return builder.build();
+  }
+
+  public boolean exchangeTransaction(long exchangeId, byte[] tokenId, long quant)
+      throws CipherException, IOException, CancelException {
+    byte[] owner = getAddress();
+    Contract.ExchangeTransactionContract contract = createExchangeTransactionContract(owner, exchangeId,
+        tokenId, quant);
+    TransactionExtention transactionExtention = rpcCli.exchangeTransaction(contract);
+    return processTransactionExtention(transactionExtention);
+  }
+
+  public static Contract.ExchangeTransactionContract createExchangeTransactionContract(byte[] owner,
+      long exchangeId, byte[] tokenId, long quant) {
+    Contract.ExchangeTransactionContract.Builder builder = Contract.ExchangeTransactionContract.newBuilder();
+    builder
+        .setOwnerAddress(ByteString.copyFrom(owner))
+        .setExchangeId(exchangeId)
+        .setTokenId(ByteString.copyFrom(tokenId))
+        .setQuant(quant);
+    return builder.build();
+  }
+
 
   public static SmartContract.ABI.Entry.EntryType getEntryType(String type) {
     switch (type) {

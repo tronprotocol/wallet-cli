@@ -1009,6 +1009,43 @@ public class Client {
     }
   }
 
+  private void exchangeWithdraw(String[] parameters)
+      throws IOException, CipherException, CancelException {
+    if (parameters == null || parameters.length != 3) {
+      System.out.println("Use exchangeWithdraw command with below syntax: ");
+      System.out.println("exchangeWithdraw exchange_id token_id quant");
+      return;
+    }
+
+    long exchangeId = Long.valueOf(parameters[0]);
+    byte[] tokenId = parameters[1].getBytes();
+    long quant = Long.valueOf(parameters[2]);
+    boolean result = walletApiWrapper.exchangeWithdraw(exchangeId, tokenId, quant);
+    if (result) {
+      logger.info("exchange withdraw " + " successful !!");
+    } else {
+      logger.info("exchange withdraw " + " failed !!");
+    }
+  }
+
+  private void exchangeTransaction(String[] parameters)
+      throws IOException, CipherException, CancelException {
+    if (parameters == null || parameters.length != 3) {
+      System.out.println("Use exchangeTransaction command with below syntax: ");
+      System.out.println("exchangeTransaction exchange_id token_id quant");
+      return;
+    }
+
+    long exchangeId = Long.valueOf(parameters[0]);
+    byte[] tokenId = parameters[1].getBytes();
+    long quant = Long.valueOf(parameters[2]);
+    boolean result = walletApiWrapper.exchangeTransaction(exchangeId, tokenId, quant);
+    if (result) {
+      logger.info("exchange Transaction " + " successful !!");
+    } else {
+      logger.info("exchange Transaction " + " failed !!");
+    }
+  }
 
   private void withdrawBalance() throws IOException, CipherException, CancelException {
     boolean result = walletApiWrapper.withdrawBalance();
@@ -1807,7 +1844,7 @@ public class Client {
             break;
           }
           case "exchangetransaction": {
-            exchangeCreate(parameters);
+            exchangeTransaction(parameters);
             break;
           }
           case "getchainparameters": {

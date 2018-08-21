@@ -528,6 +528,26 @@ public class WalletApiWrapper {
     return wallet.exchangeInject(exchangeId, tokenId, quant);
   }
 
+  public boolean exchangeWithdraw(long exchangeId, byte[] tokenId, long quant)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warning: exchangeWithdraw failed, Please login first !!");
+      return false;
+    }
+
+    return wallet.exchangeWithdraw(exchangeId, tokenId, quant);
+  }
+
+  public boolean exchangeTransaction(long exchangeId, byte[] tokenId, long quant)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warning: exchangeTransaction failed, Please login first !!");
+      return false;
+    }
+
+    return wallet.exchangeTransaction(exchangeId, tokenId, quant);
+  }
+
   public boolean updateSetting(byte[] contractAddress, long consumeUserResourcePercent)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
