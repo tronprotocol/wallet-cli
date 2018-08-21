@@ -34,6 +34,7 @@ import org.tron.api.GrpcAPI.BlockList;
 import org.tron.api.GrpcAPI.BlockListExtention;
 import org.tron.api.GrpcAPI.EasyTransferResponse;
 import org.tron.api.GrpcAPI.EmptyMessage;
+import org.tron.api.GrpcAPI.ExchangeList;
 import org.tron.api.GrpcAPI.NodeList;
 import org.tron.api.GrpcAPI.ProposalList;
 import org.tron.api.GrpcAPI.Return;
@@ -71,6 +72,7 @@ import org.tron.protos.Contract.WithdrawBalanceContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.ChainParameters;
+import org.tron.protos.Protocol.Exchange;
 import org.tron.protos.Protocol.Proposal;
 import org.tron.protos.Protocol.SmartContract;
 import org.tron.protos.Protocol.Transaction;
@@ -1132,6 +1134,14 @@ public class WalletApi {
 
   public static Optional<Proposal> getProposal(String id) {
     return rpcCli.getProposal(id);
+  }
+
+  public static Optional<ExchangeList> listExchanges() {
+    return rpcCli.listExchanges();
+  }
+
+  public static Optional<Exchange> getExchange(String id) {
+    return rpcCli.getExchange(id);
   }
 
   public static Optional<ChainParameters> getChainParameters() {

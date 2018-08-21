@@ -27,6 +27,7 @@ import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.BlockExtention;
 import org.tron.api.GrpcAPI.BlockList;
 import org.tron.api.GrpcAPI.BlockListExtention;
+import org.tron.api.GrpcAPI.ExchangeList;
 import org.tron.api.GrpcAPI.Node;
 import org.tron.api.GrpcAPI.NodeList;
 import org.tron.api.GrpcAPI.NumberMessage;
@@ -44,6 +45,7 @@ import org.tron.protos.Contract.AssetIssueContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.ChainParameters;
+import org.tron.protos.Protocol.Exchange;
 import org.tron.protos.Protocol.Proposal;
 import org.tron.protos.Protocol.SmartContract;
 import org.tron.protos.Protocol.Transaction;
@@ -1047,6 +1049,33 @@ public class Client {
     }
   }
 
+  private void listExchanges() {
+    Optional<ExchangeList> result = walletApiWrapper.getExchangeList();
+    if (result.isPresent()) {
+      ExchangeList exchangeList = result.get();
+      logger.info(Utils.printExchangeList(exchangeList));
+    } else {
+      logger.info("List exchanges " + " failed !!");
+    }
+  }
+
+  private void getExchange(String[] parameters) {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("getExchange needs 1 parameter like following: ");
+      System.out.println("getExchange id ");
+      return;
+    }
+    String id = parameters[0];
+
+    Optional<Exchange> result = walletApiWrapper.getExchange(id);
+    if (result.isPresent()) {
+      Exchange exchange = result.get();
+      logger.info(Utils.printExchange(exchange));
+    } else {
+      logger.info("getExchange " + " failed !!");
+    }
+  }
+
   private void withdrawBalance() throws IOException, CipherException, CancelException {
     boolean result = walletApiWrapper.withdrawBalance();
     if (result) {
@@ -1845,6 +1874,14 @@ public class Client {
           }
           case "exchangetransaction": {
             exchangeTransaction(parameters);
+            break;
+          }
+          case "listexchanges": {
+            listExchanges();
+            break;
+          }
+          case "getexchange": {
+            getExchange(parameters);
             break;
           }
           case "getchainparameters": {

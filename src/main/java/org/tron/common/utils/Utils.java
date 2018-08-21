@@ -37,6 +37,7 @@ import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.BlockExtention;
 import org.tron.api.GrpcAPI.BlockList;
 import org.tron.api.GrpcAPI.BlockListExtention;
+import org.tron.api.GrpcAPI.ExchangeList;
 import org.tron.api.GrpcAPI.ProposalList;
 import org.tron.api.GrpcAPI.TransactionExtention;
 import org.tron.api.GrpcAPI.TransactionList;
@@ -74,6 +75,7 @@ import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.BlockHeader;
 import org.tron.protos.Protocol.ChainParameters;
 import org.tron.protos.Protocol.ChainParameters.ChainParameter;
+import org.tron.protos.Protocol.Exchange;
 import org.tron.protos.Protocol.Proposal;
 import org.tron.protos.Protocol.ResourceReceipt;
 import org.tron.protos.Protocol.SmartContract;
@@ -383,6 +385,49 @@ public class Utils {
       result += "[";
       result += "\n";
       result += printProposal(proposal);
+      result += "]";
+      result += "\n";
+      result += "\n";
+      i++;
+    }
+    return result;
+  }
+
+  public static String printExchange(Exchange exchange) {
+    String result = "";
+    result += "id: ";
+    result += exchange.getExchangeId();
+    result += "\n";
+    result += "creator: ";
+    result += WalletApi.encode58Check(exchange.getCreatorAddress().toByteArray());
+    result += "\n";
+    result += "createTime: ";
+    result += exchange.getCreateTime();
+    result += "\n";
+    result += "firstTokenId: ";
+    result += exchange.getFirstTokenId().toStringUtf8();
+    result += "\n";
+    result += "firstTokenBalance: ";
+    result += exchange.getFirstTokenBalance();
+    result += "\n";
+    result += "secondTokenId: ";
+    result += exchange.getSecondTokenId().toStringUtf8();
+    result += "\n";
+    result += "secondTokenBalance: ";
+    result += exchange.getSecondTokenBalance();
+    result += "\n";
+    return result;
+  }
+
+  public static String printExchangeList(ExchangeList exchangeList) {
+    String result = "\n";
+    int i = 0;
+    for (Exchange exchange : exchangeList.getExchangesList()) {
+      result += "exchange " + i + " :::";
+      result += "\n";
+      result += "[";
+      result += "\n";
+      result += printExchange(exchange);
       result += "]";
       result += "\n";
       result += "\n";

@@ -23,6 +23,7 @@ import org.tron.api.GrpcAPI.EasyTransferByPrivateMessage;
 import org.tron.api.GrpcAPI.EasyTransferMessage;
 import org.tron.api.GrpcAPI.EasyTransferResponse;
 import org.tron.api.GrpcAPI.EmptyMessage;
+import org.tron.api.GrpcAPI.ExchangeList;
 import org.tron.api.GrpcAPI.NodeList;
 import org.tron.api.GrpcAPI.NumberMessage;
 import org.tron.api.GrpcAPI.PaginatedMessage;
@@ -40,6 +41,7 @@ import org.tron.protos.Contract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.ChainParameters;
+import org.tron.protos.Protocol.Exchange;
 import org.tron.protos.Protocol.Proposal;
 import org.tron.protos.Protocol.SmartContract;
 import org.tron.protos.Protocol.Transaction;
@@ -269,6 +271,19 @@ public class GrpcClient {
         .build();
     Proposal proposal = blockingStubFull.getProposalById(request);
     return Optional.ofNullable(proposal);
+  }
+
+  public Optional<ExchangeList> listExchanges() {
+    ExchangeList exchangeList = blockingStubFull.listExchanges(EmptyMessage.newBuilder().build());
+    return Optional.ofNullable(exchangeList);
+  }
+
+  public Optional<Exchange> getExchange(String id) {
+    BytesMessage request = BytesMessage.newBuilder().setValue(ByteString.copyFrom(
+        ByteArray.fromLong(Long.parseLong(id))))
+        .build();
+    Exchange exchange = blockingStubFull.getExchangeById(request);
+    return Optional.ofNullable(exchange);
   }
 
   public Optional<ChainParameters> getChainParameters() {

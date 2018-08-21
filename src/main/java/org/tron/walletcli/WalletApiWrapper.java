@@ -10,6 +10,7 @@ import org.tron.api.GrpcAPI;
 import org.tron.api.GrpcAPI.AddressPrKeyPairMessage;
 import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.BlockExtention;
+import org.tron.api.GrpcAPI.ExchangeList;
 import org.tron.api.GrpcAPI.NodeList;
 import org.tron.api.GrpcAPI.ProposalList;
 import org.tron.api.GrpcAPI.WitnessList;
@@ -20,6 +21,7 @@ import org.tron.protos.Contract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.ChainParameters;
+import org.tron.protos.Protocol.Exchange;
 import org.tron.protos.Protocol.Proposal;
 import org.tron.walletserver.WalletApi;
 
@@ -470,6 +472,24 @@ public class WalletApiWrapper {
   public Optional<Proposal> getProposals(String id) {
     try {
       return WalletApi.getProposal(id);
+    } catch (Exception ex) {
+      ex.printStackTrace();
+      return Optional.empty();
+    }
+  }
+
+  public Optional<ExchangeList> getExchangeList() {
+    try {
+      return WalletApi.listExchanges();
+    } catch (Exception ex) {
+      ex.printStackTrace();
+      return Optional.empty();
+    }
+  }
+
+  public Optional<Exchange> getExchange(String id) {
+    try {
+      return WalletApi.getExchange(id);
     } catch (Exception ex) {
       ex.printStackTrace();
       return Optional.empty();
