@@ -905,6 +905,29 @@ public class Client {
     }
   }
 
+  private void exchangeCreate(String[] parameters)
+      throws IOException, CipherException, CancelException {
+    if (parameters == null || parameters.length != 4) {
+      System.out.println("Use exchangeCreate command with below syntax: ");
+      System.out.println("exchangeCreate first_token_id first_token_balance "
+          + "second_token_id second_token_balance");
+      return;
+    }
+
+    HashMap<Long, Long> parametersMap = new HashMap<>();
+    for (int i = 0; i < parameters.length; i += 2) {
+      long id = Long.valueOf(parameters[i]);
+      long value = Long.valueOf(parameters[i + 1]);
+      parametersMap.put(id, value);
+    }
+    boolean result = walletApiWrapper.createProposal(parametersMap);
+    if (result) {
+      logger.info("createProposal " + " successful !!");
+    } else {
+      logger.info("createProposal " + " failed !!");
+    }
+  }
+
   private void approveProposal(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length != 2) {
@@ -1509,14 +1532,20 @@ public class Client {
     System.out.println("getContract contractAddress");
     System.out.println("UpdateAsset");
     System.out.println("UnfreezeAsset");
-    System.out.println("buyStorage");
-    System.out.println("buyStorageBytes");
-    System.out.println("sellStorage");
+//    System.out.println("buyStorage");
+//    System.out.println("buyStorageBytes");
+//    System.out.println("sellStorage");
     System.out.println("CreateProposal");
     System.out.println("ListProposals");
     System.out.println("GetProposal");
     System.out.println("ApproveProposal");
     System.out.println("DeleteProposal");
+    System.out.println("ExchangeCreate");
+    System.out.println("ExchangeInject");
+    System.out.println("ExchangeWithdraw");
+    System.out.println("ExchangeTransaction");
+    System.out.println("ListExchanges");
+    System.out.println("GetExchange");
     System.out.println("Exit or Quit");
 
     System.out.println("Input any one of the listed commands, to display how-to tips.");
@@ -1745,6 +1774,10 @@ public class Client {
           }
           case "getproposal": {
             getProposal(parameters);
+            break;
+          }
+          case "exchangecreate": {
+            createProposal(parameters);
             break;
           }
           case "getchainparameters": {
