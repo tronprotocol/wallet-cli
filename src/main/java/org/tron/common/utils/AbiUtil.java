@@ -53,10 +53,10 @@ public class AbiUtil {
         return new CoderDynamicBytes();
     }
 
-    if (paramTypeNumber.matcher(type).find())
+    if (paramTypeBytes.matcher(type).find())
       return new CoderFixedBytes();
 
-    if (paramTypeBytes.matcher(type).find())
+    if (paramTypeNumber.matcher(type).find())
       return new CoderNumber();
 
     Matcher m = paramTypeArray.matcher(type);
