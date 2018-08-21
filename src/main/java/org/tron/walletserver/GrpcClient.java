@@ -285,6 +285,10 @@ public class GrpcClient {
     return blockingStubFull.proposalDelete(contract);
   }
 
+  public TransactionExtention exchangeCreate(Contract.ExchangeCreateContract contract) {
+    return blockingStubFull.exchangeCreate(contract);
+  }
+
   public Transaction createAccount(Contract.AccountCreateContract contract) {
     return blockingStubFull.createAccount(contract);
   }

@@ -788,28 +788,28 @@ public class Utils {
           result += WalletApi
               .encode58Check(proposalDeleteContract.getOwnerAddress().toByteArray());
           break;
-        case BuyStorageContract:
-          BuyStorageContract buyStorageContract = contract.getParameter()
-              .unpack(BuyStorageContract.class);
-          result += "owner_address: ";
-          result += WalletApi
-              .encode58Check(buyStorageContract.getOwnerAddress().toByteArray());
-          result += "\n";
-          result += "quant:";
-          result += buyStorageContract.getQuant();
-          result += "\n";
-          break;
-        case SellStorageContract:
-          SellStorageContract sellStorageContract = contract.getParameter()
-              .unpack(SellStorageContract.class);
-          result += "owner_address: ";
-          result += WalletApi
-              .encode58Check(sellStorageContract.getOwnerAddress().toByteArray());
-          result += "\n";
-          result += "storageBytes:";
-          result += sellStorageContract.getStorageBytes();
-          result += "\n";
-          break;
+//        case BuyStorageContract:
+//          BuyStorageContract buyStorageContract = contract.getParameter()
+//              .unpack(BuyStorageContract.class);
+//          result += "owner_address: ";
+//          result += WalletApi
+//              .encode58Check(buyStorageContract.getOwnerAddress().toByteArray());
+//          result += "\n";
+//          result += "quant:";
+//          result += buyStorageContract.getQuant();
+//          result += "\n";
+//          break;
+//        case SellStorageContract:
+//          SellStorageContract sellStorageContract = contract.getParameter()
+//              .unpack(SellStorageContract.class);
+//          result += "owner_address: ";
+//          result += WalletApi
+//              .encode58Check(sellStorageContract.getOwnerAddress().toByteArray());
+//          result += "\n";
+//          result += "storageBytes:";
+//          result += sellStorageContract.getStorageBytes();
+//          result += "\n";
+//          break;
         default:
           return "";
       }

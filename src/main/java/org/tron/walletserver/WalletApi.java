@@ -1182,6 +1182,29 @@ public class WalletApi {
     return builder.build();
   }
 
+  public boolean exchangeCreate(byte[] firstTokenId, long firstTokenBalance,
+      byte[] secondTokenId, long secondTokenBalance)
+      throws CipherException, IOException, CancelException {
+    byte[] owner = getAddress();
+    Contract.ExchangeCreateContract contract = createExchangeCreateContract(owner, firstTokenId,
+        firstTokenBalance, secondTokenId, secondTokenBalance);
+    TransactionExtention transactionExtention = rpcCli.exchangeCreate(contract);
+    return processTransactionExtention(transactionExtention);
+  }
+
+  public static Contract.ExchangeCreateContract createExchangeCreateContract(byte[] owner,
+      byte[] firstTokenId, long firstTokenBalance,
+      byte[] secondTokenId, long secondTokenBalance) {
+    Contract.ExchangeCreateContract.Builder builder = Contract.ExchangeCreateContract.newBuilder();
+    builder
+        .setOwnerAddress(ByteString.copyFrom(owner))
+        .setFirstTokenId(ByteString.copyFrom(firstTokenId))
+        .setFirstTokenBalance(firstTokenBalance)
+        .setSecondTokenId(ByteString.copyFrom(secondTokenId))
+        .setFirstTokenBalance(secondTokenBalance);
+    return builder.build();
+  }
+
 
   public static SmartContract.ABI.Entry.EntryType getEntryType(String type) {
     switch (type) {

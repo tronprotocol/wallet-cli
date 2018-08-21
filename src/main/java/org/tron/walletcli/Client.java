@@ -914,17 +914,16 @@ public class Client {
       return;
     }
 
-    HashMap<Long, Long> parametersMap = new HashMap<>();
-    for (int i = 0; i < parameters.length; i += 2) {
-      long id = Long.valueOf(parameters[i]);
-      long value = Long.valueOf(parameters[i + 1]);
-      parametersMap.put(id, value);
-    }
-    boolean result = walletApiWrapper.createProposal(parametersMap);
+    byte[] firstTokenId = parameters[0].getBytes();
+    long firstTokenBalance = Long.valueOf(parameters[1]);
+    byte[] secondTokenId = parameters[2].getBytes();
+    long secondTokenBalance = Long.valueOf(parameters[3]);
+    boolean result = walletApiWrapper.exchangeCreate(firstTokenId, firstTokenBalance,
+        secondTokenId, secondTokenBalance);
     if (result) {
-      logger.info("createProposal " + " successful !!");
+      logger.info("exchange create " + " successful !!");
     } else {
-      logger.info("createProposal " + " failed !!");
+      logger.info("exchange create " + " failed !!");
     }
   }
 
@@ -1777,7 +1776,7 @@ public class Client {
             break;
           }
           case "exchangecreate": {
-            createProposal(parameters);
+            exchangeCreate(parameters);
             break;
           }
           case "getchainparameters": {

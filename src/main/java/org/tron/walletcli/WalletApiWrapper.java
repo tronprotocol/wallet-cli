@@ -506,6 +506,18 @@ public class WalletApiWrapper {
     return wallet.deleteProposal(id);
   }
 
+  public boolean exchangeCreate(byte[] firstTokenId, long firstTokenBalance,
+      byte[] secondTokenId, long secondTokenBalance)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warning: exchangeCreate failed, Please login first !!");
+      return false;
+    }
+
+    return wallet.exchangeCreate(firstTokenId, firstTokenBalance,
+        secondTokenId, secondTokenBalance);
+  }
+
   public boolean updateSetting(byte[] contractAddress, long consumeUserResourcePercent)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
