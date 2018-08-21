@@ -115,7 +115,7 @@ protobuf {
 
 run {
     standardInput = System.in
-    mainClassName = 'org.tron.walletcli.TestClient'
+    mainClassName = 'org.tron.walletcli.Client'
 }
 
 
