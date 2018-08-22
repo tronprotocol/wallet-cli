@@ -48,14 +48,12 @@ import org.tron.protos.Contract.AccountCreateContract;
 import org.tron.protos.Contract.AccountUpdateContract;
 import org.tron.protos.Contract.AssetIssueContract;
 import org.tron.protos.Contract.AssetIssueContract.FrozenSupply;
-import org.tron.protos.Contract.BuyStorageContract;
 import org.tron.protos.Contract.CreateSmartContract;
 import org.tron.protos.Contract.FreezeBalanceContract;
 import org.tron.protos.Contract.ParticipateAssetIssueContract;
 import org.tron.protos.Contract.ProposalApproveContract;
 import org.tron.protos.Contract.ProposalCreateContract;
 import org.tron.protos.Contract.ProposalDeleteContract;
-import org.tron.protos.Contract.SellStorageContract;
 import org.tron.protos.Contract.TransferAssetContract;
 import org.tron.protos.Contract.TransferContract;
 import org.tron.protos.Contract.TriggerSmartContract;
@@ -788,28 +786,28 @@ public class Utils {
           result += WalletApi
               .encode58Check(proposalDeleteContract.getOwnerAddress().toByteArray());
           break;
-        case BuyStorageContract:
-          BuyStorageContract buyStorageContract = contract.getParameter()
-              .unpack(BuyStorageContract.class);
-          result += "owner_address: ";
-          result += WalletApi
-              .encode58Check(buyStorageContract.getOwnerAddress().toByteArray());
-          result += "\n";
-          result += "quant:";
-          result += buyStorageContract.getQuant();
-          result += "\n";
-          break;
-        case SellStorageContract:
-          SellStorageContract sellStorageContract = contract.getParameter()
-              .unpack(SellStorageContract.class);
-          result += "owner_address: ";
-          result += WalletApi
-              .encode58Check(sellStorageContract.getOwnerAddress().toByteArray());
-          result += "\n";
-          result += "storageBytes:";
-          result += sellStorageContract.getStorageBytes();
-          result += "\n";
-          break;
+        // case BuyStorageContract:
+        //   BuyStorageContract buyStorageContract = contract.getParameter()
+        //       .unpack(BuyStorageContract.class);
+        //   result += "owner_address: ";
+        //   result += WalletApi
+        //       .encode58Check(buyStorageContract.getOwnerAddress().toByteArray());
+        //   result += "\n";
+        //   result += "quant:";
+        //   result += buyStorageContract.getQuant();
+        //   result += "\n";
+        //   break;
+        // case SellStorageContract:
+        //   SellStorageContract sellStorageContract = contract.getParameter()
+        //       .unpack(SellStorageContract.class);
+        //   result += "owner_address: ";
+        //   result += WalletApi
+        //       .encode58Check(sellStorageContract.getOwnerAddress().toByteArray());
+        //   result += "\n";
+        //   result += "storageBytes:";
+        //   result += sellStorageContract.getStorageBytes();
+        //   result += "\n";
+        //   break;
         default:
           return "";
       }
@@ -1052,7 +1050,7 @@ public class Utils {
     result += "\n";
     result += "EnergyTotal: ";
     result += "\n";
-    result += receipt.getEnergyTotal();
+    result += receipt.getEnergyUsageTotal();
     result += "\n";
     result += "NetUsage: ";
     result += "\n";
