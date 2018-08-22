@@ -1040,7 +1040,7 @@ public class Utils {
     result += "\n";
     result += receipt.getEnergyUsage();
     result += "\n";
-    result += "EnergyFee: ";
+    result += "EnergyFee(SUN): ";
     result += "\n";
     result += receipt.getEnergyFee();
     result += "\n";
@@ -1048,7 +1048,7 @@ public class Utils {
     result += "\n";
     result += receipt.getOriginEnergyUsage();
     result += "\n";
-    result += "EnergyTotal: ";
+    result += "EnergyUsageTota: ";
     result += "\n";
     result += receipt.getEnergyUsageTotal();
     result += "\n";
