@@ -1048,7 +1048,7 @@ public class Utils {
     result += "\n";
     result += receipt.getOriginEnergyUsage();
     result += "\n";
-    result += "EnergyUsageTota: ";
+    result += "EnergyUsageTotal: ";
     result += "\n";
     result += receipt.getEnergyUsageTotal();
     result += "\n";
