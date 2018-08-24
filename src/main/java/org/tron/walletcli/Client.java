@@ -40,6 +40,7 @@ import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Utils;
 import org.tron.core.exception.CancelException;
 import org.tron.core.exception.CipherException;
+import org.tron.core.exception.EncodingException;
 import org.tron.keystore.StringUtils;
 import org.tron.protos.Contract.AssetIssueContract;
 import org.tron.protos.Protocol.Account;
@@ -1432,7 +1433,7 @@ public class Client {
   }
 
   private void deployContract(String[] parameter)
-      throws IOException, CipherException, CancelException {
+      throws IOException, CipherException, CancelException, EncodingException {
 
     String[] parameters = getParas(parameter);
     if (parameters == null ||
@@ -1487,7 +1488,7 @@ public class Client {
   }
 
   private void triggerContract(String[] parameters)
-      throws IOException, CipherException, CancelException {
+      throws IOException, CipherException, CancelException, EncodingException {
     if (parameters == null ||
         parameters.length < 6) {
       System.out.println("TriggerContract needs 6 parameters like following: ");
