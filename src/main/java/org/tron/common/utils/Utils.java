@@ -50,6 +50,10 @@ import org.tron.protos.Contract.AccountUpdateContract;
 import org.tron.protos.Contract.AssetIssueContract;
 import org.tron.protos.Contract.AssetIssueContract.FrozenSupply;
 import org.tron.protos.Contract.CreateSmartContract;
+import org.tron.protos.Contract.ExchangeCreateContract;
+import org.tron.protos.Contract.ExchangeInjectContract;
+import org.tron.protos.Contract.ExchangeTransactionContract;
+import org.tron.protos.Contract.ExchangeWithdrawContract;
 import org.tron.protos.Contract.FreezeBalanceContract;
 import org.tron.protos.Contract.ParticipateAssetIssueContract;
 import org.tron.protos.Contract.ProposalApproveContract;
@@ -830,6 +834,68 @@ public class Utils {
           result += "owner_address: ";
           result += WalletApi
               .encode58Check(proposalDeleteContract.getOwnerAddress().toByteArray());
+          break;
+        case ExchangeCreateContract:
+          ExchangeCreateContract exchangeCreateContract = contract.getParameter()
+              .unpack(ExchangeCreateContract.class);
+          result += "owner_address: ";
+          result += WalletApi
+              .encode58Check(exchangeCreateContract.getOwnerAddress().toByteArray());
+          result += "\n";
+          result += "firstTokenId: ";
+          result += exchangeCreateContract.getFirstTokenId().toStringUtf8();
+          result += "\n";
+          result += "firstTokenBalance: ";
+          result += exchangeCreateContract.getFirstTokenBalance();
+          result += "\n";
+          result += "secondTokenId: ";
+          result += exchangeCreateContract.getSecondTokenId().toStringUtf8();
+          result += "\n";
+          result += "secondTokenBalance: ";
+          result += exchangeCreateContract.getSecondTokenBalance();
+          result += "\n";
+          break;
+        case ExchangeInjectContract:
+          ExchangeInjectContract exchangeInjectContract = contract.getParameter()
+              .unpack(ExchangeInjectContract.class);
+          result += "owner_address: ";
+          result += WalletApi
+              .encode58Check(exchangeInjectContract.getOwnerAddress().toByteArray());
+          result += "\n";
+          result += "TokenId: ";
+          result += exchangeInjectContract.getTokenId().toStringUtf8();
+          result += "\n";
+          result += "quant: ";
+          result += exchangeInjectContract.getQuant();
+          result += "\n";
+          break;
+        case ExchangeWithdrawContract:
+          ExchangeWithdrawContract exchangeWithdrawContract = contract.getParameter()
+              .unpack(ExchangeWithdrawContract.class);
+          result += "owner_address: ";
+          result += WalletApi
+              .encode58Check(exchangeWithdrawContract.getOwnerAddress().toByteArray());
+          result += "\n";
+          result += "TokenId: ";
+          result += exchangeWithdrawContract.getTokenId().toStringUtf8();
+          result += "\n";
+          result += "quant: ";
+          result += exchangeWithdrawContract.getQuant();
+          result += "\n";
+          break;
+        case ExchangeTransactionContract:
+          ExchangeTransactionContract exchangeTransactionContract = contract.getParameter()
+              .unpack(ExchangeTransactionContract.class);
+          result += "owner_address: ";
+          result += WalletApi
+              .encode58Check(exchangeTransactionContract.getOwnerAddress().toByteArray());
+          result += "\n";
+          result += "TokenId: ";
+          result += exchangeTransactionContract.getTokenId().toStringUtf8();
+          result += "\n";
+          result += "quant: ";
+          result += exchangeTransactionContract.getQuant();
+          result += "\n";
           break;
         // case BuyStorageContract:
         //   BuyStorageContract buyStorageContract = contract.getParameter()
