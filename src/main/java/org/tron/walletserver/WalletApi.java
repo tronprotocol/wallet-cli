@@ -1211,7 +1211,7 @@ public class WalletApi {
         .setFirstTokenId(ByteString.copyFrom(firstTokenId))
         .setFirstTokenBalance(firstTokenBalance)
         .setSecondTokenId(ByteString.copyFrom(secondTokenId))
-        .setFirstTokenBalance(secondTokenBalance);
+        .setSecondTokenBalance(secondTokenBalance);
     return builder.build();
   }
 

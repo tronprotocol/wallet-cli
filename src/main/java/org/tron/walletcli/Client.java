@@ -981,9 +981,9 @@ public class Client {
     }
 
     byte[] firstTokenId = parameters[0].getBytes();
-    long firstTokenBalance = Long.valueOf(parameters[1]);
+    long firstTokenBalance = Long.parseLong(parameters[1]);
     byte[] secondTokenId = parameters[2].getBytes();
-    long secondTokenBalance = Long.valueOf(parameters[3]);
+    long secondTokenBalance = Long.parseLong(parameters[3]);
     boolean result = walletApiWrapper.exchangeCreate(firstTokenId, firstTokenBalance,
         secondTokenId, secondTokenBalance);
     if (result) {
