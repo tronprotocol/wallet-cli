@@ -1331,7 +1331,7 @@ public class Client {
     String[] parameters = getParas(parameter);
     if (parameters == null ||
         parameters.length < 8) {
-      System.out.println("DeployContract needs at least 5 parameters like following: ");
+      System.out.println("DeployContract needs at least 8 parameters like following: ");
       System.out.println(
           "DeployContract contractName ABI byteCode constructor params isHex fee_limit consume_user_resource_percent <value> <library:address,library:address,...>");
       System.out.println(
@@ -1504,7 +1504,7 @@ public class Client {
     System.out.println("SetAccountId");
     System.out.println("unfreezeasset");
     System.out.println(
-        "deployContract contractName ABI byteCode fee_limit consume_user_resource_percent <value> <library:address,library:address,...>");
+        "DeployContract contractName ABI byteCode constructor params isHex fee_limit consume_user_resource_percent <value> <library:address,library:address,...>");
     System.out.println("updateSetting contract_address consume_user_resource_percent");
     System.out.println("triggerContract contractAddress method args isHex fee_limit value");
     System.out.println("getContract contractAddress");
@@ -1874,6 +1874,7 @@ public class Client {
       } catch (Exception e) {
         System.out.println(cmd + " failed!");
         logger.error(e.getMessage());
+        e.printStackTrace();
       }
     }
   }
