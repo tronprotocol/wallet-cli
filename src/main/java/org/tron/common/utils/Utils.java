@@ -18,6 +18,7 @@
 
 package org.tron.common.utils;
 
+import com.google.common.primitives.Longs;
 import com.google.protobuf.ByteString;
 import java.io.Console;
 import java.io.IOException;
@@ -1158,9 +1159,19 @@ public class Utils {
     return result;
   }
 
+  private static byte[] generateBlockId(BlockHeader blockHeader) {
+    byte[] hash = Sha256Hash.hash(blockHeader.getRawData().toByteArray());
+    long blockNum = blockHeader.getRawData().getNumber();
+    byte[] numBytes = Longs.toByteArray(blockNum);
+    System.arraycopy(numBytes, 0, hash, 0, 8);
+    return hash;
+  }
 
   public static String printBlockHeader(BlockHeader blockHeader) {
     String result = "";
+    result += "block_id: ";
+    result += ByteArray.toHexString(generateBlockId(blockHeader));
+    result += "\n";
     result += "raw_data: ";
     result += "\n";
     result += "{";
