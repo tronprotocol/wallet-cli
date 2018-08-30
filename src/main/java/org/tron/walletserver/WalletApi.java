@@ -40,6 +40,7 @@ import org.tron.api.GrpcAPI.Return;
 import org.tron.api.GrpcAPI.TransactionExtention;
 import org.tron.api.GrpcAPI.TransactionList;
 import org.tron.api.GrpcAPI.TransactionListExtention;
+import org.tron.api.GrpcAPI.TransactionSignWeight;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.Hash;
@@ -419,6 +420,19 @@ public class WalletApi {
     builder.setPrivateKey(ByteString.copyFrom(privateKey));
     builder.setTransaction(transaction);
     return rpcCli.signTransaction2(builder.build());
+  }
+
+  //Warning: do not invoke this interface provided by others.
+  public static TransactionExtention addSignByApi(Transaction transaction,
+      byte[] privateKey) {
+    TransactionSign.Builder builder = TransactionSign.newBuilder();
+    builder.setPrivateKey(ByteString.copyFrom(privateKey));
+    builder.setTransaction(transaction);
+    return rpcCli.addSign(builder.build());
+  }
+
+  public static TransactionSignWeight getTransactionSignWeight(Transaction transaction) {
+    return rpcCli.getTransactionSignWeight(transaction);
   }
 
   //Warning: do not invoke this interface provided by others.

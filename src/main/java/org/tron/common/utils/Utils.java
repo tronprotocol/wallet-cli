@@ -42,6 +42,7 @@ import org.tron.api.GrpcAPI.ProposalList;
 import org.tron.api.GrpcAPI.TransactionExtention;
 import org.tron.api.GrpcAPI.TransactionList;
 import org.tron.api.GrpcAPI.TransactionListExtention;
+import org.tron.api.GrpcAPI.TransactionSignWeight;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.crypto.Sha256Hash;
 import org.tron.keystore.StringUtils;
@@ -73,6 +74,8 @@ import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.BlockHeader;
 import org.tron.protos.Protocol.ChainParameters;
 import org.tron.protos.Protocol.ChainParameters.ChainParameter;
+import org.tron.protos.Protocol.Key;
+import org.tron.protos.Protocol.Permission;
 import org.tron.protos.Protocol.Proposal;
 import org.tron.protos.Protocol.ResourceReceipt;
 import org.tron.protos.Protocol.SmartContract;
@@ -950,8 +953,16 @@ public class Utils {
 
   public static String printTransaction(TransactionExtention transactionExtention) {
     String result = "";
+    if (!transactionExtention.getResult().getResult()) {
+      result += "code: ";
+      result += transactionExtention.getResult().getCode();
+      result += "\n";
+      result += "message: ";
+      result += new String(transactionExtention.getResult().getMessage().toByteArray(), Charset.forName("UTF-8"));
+      result += "\n";
+      return result;
+    }
     result += "txid: ";
-    result += "\n";
     result += ByteArray.toHexString(transactionExtention.getTxid().toByteArray());
     result += "\n";
 
@@ -1367,6 +1378,72 @@ public class Utils {
     return result;
   }
 
+  public static String printKey(Key key) {
+    StringBuffer result = new StringBuffer();
+    result.append("address: ");
+    result.append(WalletApi.encode58Check(key.getAddress().toByteArray()));
+    result.append("\n");
+    result.append("weight: ");
+    result.append(key.getWeight());
+    result.append("\n");
+    return result.toString();
+  }
+
+  public static String printPermission(Permission permission) {
+    StringBuffer result = new StringBuffer();
+    result.append("name: ");
+    result.append(permission.getName());
+    result.append("\n");
+    result.append("threshold: ");
+    result.append(permission.getThreshold());
+    result.append("\n");
+    if (permission.getKeysCount() > 0) {
+      result.append("keys:");
+      result.append("\n");
+      result.append("[");
+      result.append("\n");
+      for (Key key : permission.getKeysList()) {
+        result.append(printKey(key));
+      }
+      result.append("]");
+      result.append("\n");
+    }
+    return result.toString();
+  }
+
+  public static String printTransactionSignWeight(TransactionSignWeight transactionSignWeight) {
+    StringBuffer result = new StringBuffer();
+    result.append("permission:");
+    result.append("\n");
+    result.append("{");
+    result.append("\n");
+    result.append(printPermission(transactionSignWeight.getPermission()));
+    result.append("}");
+    result.append("\n");
+    result.append("current_weight: ");
+    result.append(transactionSignWeight.getCurrentWeight());
+    result.append("\n");
+    if (transactionSignWeight.getApprovedListCount() > 0) {
+      result.append("approved_list:");
+      result.append("\n");
+      result.append("[");
+      result.append("\n");
+      for (ByteString approved : transactionSignWeight.getApprovedListList()) {
+        result.append(WalletApi.encode58Check(approved.toByteArray()));
+        result.append("\n");
+      }
+      result.append("]");
+      result.append("\n");
+    }
+    result.append("transaction:");
+    result.append("\n");
+    result.append("{");
+    result.append("\n");
+    result.append(printTransaction(transactionSignWeight.getTransaction()));
+    result.append("}");
+    result.append("\n");
+    return result.toString();
+  }
 
   public static char[] inputPassword(boolean checkStrength) throws IOException {
     char[] password;

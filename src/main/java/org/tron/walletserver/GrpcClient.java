@@ -31,6 +31,7 @@ import org.tron.api.GrpcAPI.Return.response_code;
 import org.tron.api.GrpcAPI.TransactionExtention;
 import org.tron.api.GrpcAPI.TransactionList;
 import org.tron.api.GrpcAPI.TransactionListExtention;
+import org.tron.api.GrpcAPI.TransactionSignWeight;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.api.WalletExtensionGrpc;
 import org.tron.api.WalletGrpc;
@@ -115,6 +116,15 @@ public class GrpcClient {
   //Warning: do not invoke this interface provided by others.
   public TransactionExtention signTransaction2(TransactionSign transactionSign) {
     return blockingStubFull.getTransactionSign2(transactionSign);
+  }
+
+  //Warning: do not invoke this interface provided by others.
+  public TransactionExtention addSign(TransactionSign transactionSign) {
+    return blockingStubFull.addSign(transactionSign);
+  }
+
+  public TransactionSignWeight getTransactionSignWeight(Transaction transaction){
+    return  blockingStubFull.getTransactionSignWeight(transaction);
   }
 
   //Warning: do not invoke this interface provided by others.
