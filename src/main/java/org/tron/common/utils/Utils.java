@@ -18,6 +18,7 @@
 
 package org.tron.common.utils;
 
+import com.beust.jcommander.Strings;
 import com.google.common.primitives.Longs;
 import com.google.protobuf.ByteString;
 import java.io.Console;
@@ -1411,6 +1412,19 @@ public class Utils {
     return result.toString();
   }
 
+  public static String printResult(TransactionSignWeight.Result resul){
+    StringBuffer result = new StringBuffer();
+    result.append("code: ");
+    result.append(resul.getCode());
+    result.append("\n");
+    if (!Strings.isStringEmpty(resul.getMessage())){
+      result.append("message: ");
+      result.append(resul.getMessage());
+      result.append("\n");
+    }
+    return result.toString();
+  }
+
   public static String printTransactionSignWeight(TransactionSignWeight transactionSignWeight) {
     StringBuffer result = new StringBuffer();
     result.append("permission:");
@@ -1422,6 +1436,13 @@ public class Utils {
     result.append("\n");
     result.append("current_weight: ");
     result.append(transactionSignWeight.getCurrentWeight());
+    result.append("\n");
+    result.append("result:");
+    result.append("\n");
+    result.append("{");
+    result.append("\n");
+    result.append(printResult(transactionSignWeight.getResult()));
+    result.append("}");
     result.append("\n");
     if (transactionSignWeight.getApprovedListCount() > 0) {
       result.append("approved_list:");
