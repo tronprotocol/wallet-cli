@@ -1447,6 +1447,10 @@ public class Client {
     }
   }
 
+  private void updateAccountPermission(String permissionJson) throws CipherException, IOException, CancelException {
+    walletApiWrapper.accountPermissionUpdate(permissionJson);
+  }
+
   private void help() {
     System.out.println("Help: List of Tron Wallet-cli commands");
     System.out.println(
@@ -1518,6 +1522,7 @@ public class Client {
     System.out.println("GetProposal");
     System.out.println("ApproveProposal");
     System.out.println("DeleteProposal");
+    System.out.println("UpdateAccountPermission");
     System.out.println("Exit or Quit");
 
     System.out.println("Input any one of the listed commands, to display how-to tips.");
@@ -1850,6 +1855,10 @@ public class Client {
           }
           case "generateaddress": {
             generateAddress();
+            break;
+          }
+          case "updateaccountpermission": {
+            updateAccountPermission("");
             break;
           }
           case "exit":

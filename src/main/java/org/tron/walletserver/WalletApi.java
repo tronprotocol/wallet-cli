@@ -1,6 +1,7 @@
 package org.tron.walletserver;
 
 import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -74,6 +75,8 @@ import org.tron.protos.Contract.WithdrawBalanceContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.ChainParameters;
+import org.tron.protos.Protocol.Key;
+import org.tron.protos.Protocol.Permission;
 import org.tron.protos.Protocol.Proposal;
 import org.tron.protos.Protocol.SmartContract;
 import org.tron.protos.Protocol.Transaction;
@@ -1556,11 +1559,35 @@ public class WalletApi {
       byte[] owner, String permissionJson) {
     Contract.AccountPermissionUpdateContract.Builder builder =
         Contract.AccountPermissionUpdateContract.newBuilder();
-    builder.setOwnerAddress(ByteString.copyFrom(owner));
-    JSONObject permission = JSON.parseObject(permissionJson);
-    String name = permission.getString("name");
 
+    JSONArray permissions = JSON.parseArray(permissionJson);
+    List<Permission> permissionList = new ArrayList<>();
+    for(int j=0; j<permissions.size(); j++) {
+      Permission.Builder permissionBuider = Permission.newBuilder();
+      JSONObject permission = permissions.getJSONObject(j);
+      String name = permission.getString("name");
+      String parent = permission.getString("parent");
+      int threshold = Integer.parseInt(permission.getString("threshold"));
+      JSONArray keys = permission.getJSONArray("keys");
+      List<Key> keyList = new ArrayList<>();
+      for (int i = 0; i < keys.size(); i++) {
+        Key.Builder keyBuilder = Key.newBuilder();
+        JSONObject key = keys.getJSONObject(i);
+        String address = key.getString("address");
+        int weight = key.getInteger("weight");
+        keyBuilder.setAddress(ByteString.copyFrom(address.getBytes()));
+        keyBuilder.setWeight(weight);
+        keyList.add(keyBuilder.build());
+      }
+      permissionBuider.setName(name);
+      permissionBuider.setParent(parent);
+      permissionBuider.setThreshold(threshold);
+      permissionBuider.addAllKeys(keyList);
+      permissionList.add(permissionBuider.build());
+    }
+
+    builder.setOwnerAddress(ByteString.copyFrom(owner));
+    builder.addAllPermissions(permissionList);
     return builder.build();
   }
-
 }

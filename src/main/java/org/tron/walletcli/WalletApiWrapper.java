@@ -538,4 +538,13 @@ public class WalletApiWrapper {
     return wallet.triggerContract(contractAddress, callValue, data, feeLimit);
   }
 
+  public boolean accountPermissionUpdate(String permission)
+      throws IOException, CipherException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warning: accountPermissionUpdate failed,  Please login first !!");
+      return false;
+    }
+    return wallet.accountPermissionUpdate(permission);
+  }
+
 }
