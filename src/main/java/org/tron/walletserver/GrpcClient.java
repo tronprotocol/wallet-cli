@@ -636,4 +636,8 @@ public class GrpcClient {
     BytesMessage bytesMessage = BytesMessage.newBuilder().setValue(byteString).build();
     return blockingStubFull.getContract(bytesMessage);
   }
+
+  public TransactionExtention accountPermissionUpdate(Contract.AccountPermissionUpdateContract request) {
+    return blockingStubFull.accountPermissionUpdate(request);
+  }
 }

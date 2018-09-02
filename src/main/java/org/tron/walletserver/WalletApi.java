@@ -1,5 +1,7 @@
 package org.tron.walletserver;
 
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
@@ -1541,26 +1543,24 @@ public class WalletApi {
   }
 
 
-//  public boolean accountPermissionUpdate(String permissionJson)
-//      throws CipherException, IOException, CancelException {
-//    byte[] owner = getAddress();
-//    Contract.AccountPermissionUpdateContract contract = createAccountPermissionContract(owner,
-//        permissionJson);
-//    TransactionExtention transactionExtention = rpcCli.
-//    return processTransactionExtention(transactionExtention);
-//  }
-//
-//  public static Contract.AccountPermissionUpdateContract createAccountPermissionContract(
-//      byte[] owner, String permissionJson) {
-//    Contract.AccountPermissionUpdateContract.Builder builder =
-//        Contract.AccountPermissionUpdateContract.newBuilder();
-//    builder.setOwnerAddress(ByteString.copyFrom(owner));
-//
-//    JSONObject permission = JSON.parseObject(permissionJson);
-//
-//
-//
-//    return builder.build();
-//  }
+  public boolean accountPermissionUpdate(String permissionJson)
+      throws CipherException, IOException, CancelException {
+    byte[] owner = getAddress();
+    Contract.AccountPermissionUpdateContract contract = createAccountPermissionContract(owner,
+        permissionJson);
+    TransactionExtention transactionExtention = rpcCli.accountPermissionUpdate(contract);
+    return processTransactionExtention(transactionExtention);
+  }
+
+  public Contract.AccountPermissionUpdateContract createAccountPermissionContract(
+      byte[] owner, String permissionJson) {
+    Contract.AccountPermissionUpdateContract.Builder builder =
+        Contract.AccountPermissionUpdateContract.newBuilder();
+    builder.setOwnerAddress(ByteString.copyFrom(owner));
+    JSONObject permission = JSON.parseObject(permissionJson);
+    String name = permission.getString("name");
+
+    return builder.build();
+  }
 
 }
