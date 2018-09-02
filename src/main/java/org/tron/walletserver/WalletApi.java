@@ -1539,4 +1539,28 @@ public class WalletApi {
   public static SmartContract getContract(byte[] address) {
     return rpcCli.getContract(address);
   }
+
+
+//  public boolean accountPermissionUpdate(String permissionJson)
+//      throws CipherException, IOException, CancelException {
+//    byte[] owner = getAddress();
+//    Contract.AccountPermissionUpdateContract contract = createAccountPermissionContract(owner,
+//        permissionJson);
+//    TransactionExtention transactionExtention = rpcCli.
+//    return processTransactionExtention(transactionExtention);
+//  }
+//
+//  public static Contract.AccountPermissionUpdateContract createAccountPermissionContract(
+//      byte[] owner, String permissionJson) {
+//    Contract.AccountPermissionUpdateContract.Builder builder =
+//        Contract.AccountPermissionUpdateContract.newBuilder();
+//    builder.setOwnerAddress(ByteString.copyFrom(owner));
+//
+//    JSONObject permission = JSON.parseObject(permissionJson);
+//
+//
+//
+//    return builder.build();
+//  }
+
 }
