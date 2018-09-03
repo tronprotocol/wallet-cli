@@ -230,6 +230,22 @@ public class Utils {
         result += "\n";
       }
     }
+    if (account.getPermissionsCount() > 0) {
+      for (Permission permission : account.getPermissionsList()) {
+        result += "Permission: {";
+        result += "\n";
+        result += "name: " + permission.getName() + "\n";
+        result += "threshold: " + permission.getThreshold() + "\n";
+        result += "parent: " + permission.getParent() + "\n";
+        result += "name: " + permission.getName() + "\n";
+        result += "keys: {" + "\n";
+        for (Key key : permission.getKeysList()) {
+          result += "address:" + WalletApi.encode58Check(key.getAddress().toByteArray()) + ", weight:" + key.getWeight() + "\n";
+        }
+        result += "}" + "\n";
+        result += "}" + "\n";
+      }
+    }
     result += "latest_opration_time: ";
     result += new Date(account.getLatestOprationTime());
     result += "\n";

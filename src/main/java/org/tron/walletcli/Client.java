@@ -1447,8 +1447,8 @@ public class Client {
     }
   }
 
-  private void updateAccountPermission(String permissionJson) throws CipherException, IOException, CancelException {
-    walletApiWrapper.accountPermissionUpdate(permissionJson);
+  private void updateAccountPermission(String[] parameters) throws CipherException, IOException, CancelException {
+    walletApiWrapper.accountPermissionUpdate(parameters[0]);
   }
 
   private void help() {
@@ -1530,7 +1530,8 @@ public class Client {
 
   private String[] getCmd(String cmdLine) {
     if (cmdLine.indexOf("\"") < 0 || cmdLine.toLowerCase().startsWith("deploycontract")
-        || cmdLine.toLowerCase().startsWith("triggercontract")) {
+        || cmdLine.toLowerCase().startsWith("triggercontract")
+        || cmdLine.toLowerCase().startsWith("updateaccountpermission")) {
       return cmdLine.split("\\s+");
     }
     String[] strArray = cmdLine.split("\"");
@@ -1858,7 +1859,7 @@ public class Client {
             break;
           }
           case "updateaccountpermission": {
-            updateAccountPermission("");
+            updateAccountPermission(parameters);
             break;
           }
           case "exit":

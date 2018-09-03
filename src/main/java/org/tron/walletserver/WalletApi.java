@@ -1575,7 +1575,7 @@ public class WalletApi {
         JSONObject key = keys.getJSONObject(i);
         String address = key.getString("address");
         int weight = key.getInteger("weight");
-        keyBuilder.setAddress(ByteString.copyFrom(address.getBytes()));
+        keyBuilder.setAddress(ByteString.copyFrom(WalletApi.decode58Check(address)));
         keyBuilder.setWeight(weight);
         keyList.add(keyBuilder.build());
       }
