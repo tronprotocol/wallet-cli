@@ -44,6 +44,7 @@ import org.tron.api.GrpcAPI.TransactionExtention;
 import org.tron.api.GrpcAPI.TransactionList;
 import org.tron.api.GrpcAPI.TransactionListExtention;
 import org.tron.api.GrpcAPI.TransactionSignWeight;
+import org.tron.api.GrpcAPI.TransactionSignWeight.Result.response_code;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.Hash;
@@ -273,7 +274,7 @@ public class WalletApi {
     File wallet;
     if (wallets.length > 1) {
       for (int i = 0; i < wallets.length; i++) {
-        System.out.println("The " + (i + 1) + "the keystore file name is " + wallets[i].getName());
+        System.out.println("The " + (i + 1) + "th keystore file name is " + wallets[i].getName());
       }
       System.out.println("Please choose between 1 and " + wallets.length);
       Scanner in = new Scanner(System.in);
@@ -402,10 +403,19 @@ public class WalletApi {
       transaction = TransactionUtils.sign(transaction, this.getEcKey(walletFile, passwd));
       org.tron.keystore.StringUtils.clear(passwd);
 
-      System.out.println("Please confirm if continue add signature enter y or Y, else any other");
-      if (!confirm()) {
+      TransactionSignWeight weight = getTransactionSignWeight(transaction);
+      if (weight.getResult().getCode() == response_code.ENOUGH_PERMISSION) {
         break;
       }
+      if (weight.getResult().getCode() == response_code.NOT_ENOUGH_PERMISSION) {
+        System.out.println(Utils.printTransactionSignWeight(weight));
+        System.out.println("Please confirm if continue add signature enter y or Y, else any other");
+        if (!confirm()) {
+          throw new CancelException("User cancelled");
+        }
+        continue;
+      }
+      throw new CancelException(weight.getResult().getMessage());
     }
     return transaction;
   }
