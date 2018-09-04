@@ -162,23 +162,18 @@ public class Client {
     char[] oldPassword = Utils.inputPassword(false);
     System.out.println("Please input new password.");
     char[] newPassword = inputPassword2Twice();
-
+    StringUtils.clear(oldPassword);
+    StringUtils.clear(newPassword);
     if (walletApiWrapper.changePassword(oldPassword, newPassword)) {
       System.out.println("ChangePassword successful !!");
     } else {
       System.out.println("ChangePassword failed !!");
     }
-    StringUtils.clear(oldPassword);
-    StringUtils.clear(newPassword);
+
   }
 
   private void login() throws IOException, CipherException {
-    System.out.println("Please input your password.");
-    char[] password = Utils.inputPassword(false);
-
-    boolean result = walletApiWrapper.login(password);
-    StringUtils.clear(password);
-
+    boolean result = walletApiWrapper.login();
     if (result) {
       System.out.println("Login successful !!!");
     } else {
@@ -192,11 +187,7 @@ public class Client {
   }
 
   private void backupWallet() throws IOException, CipherException {
-    System.out.println("Please input your password.");
-    char[] password = Utils.inputPassword(false);
-
-    byte[] priKey = walletApiWrapper.backupWallet(password);
-    StringUtils.clear(password);
+    byte[] priKey = walletApiWrapper.backupWallet();
 
     if (!ArrayUtils.isEmpty(priKey)) {
       System.out.println("BackupWallet successful !!");
@@ -209,11 +200,7 @@ public class Client {
   }
 
   private void backupWallet2Base64() throws IOException, CipherException {
-    System.out.println("Please input your password.");
-    char[] password = Utils.inputPassword(false);
-
-    byte[] priKey = walletApiWrapper.backupWallet(password);
-    StringUtils.clear(password);
+    byte[] priKey = walletApiWrapper.backupWallet();
 
     if (!ArrayUtils.isEmpty(priKey)) {
       Encoder encoder = Base64.getEncoder();

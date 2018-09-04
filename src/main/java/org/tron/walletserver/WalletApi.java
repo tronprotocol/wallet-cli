@@ -90,9 +90,9 @@ public class WalletApi {
 
   private static final Logger logger = LoggerFactory.getLogger("WalletApi");
   private static final String FilePath = "Wallet";
-  private WalletFile walletFile = null;
+  private List<WalletFile> walletFile = new ArrayList<>();
   private boolean loginState = false;
-  private byte[] address = null;
+  private byte[] address;
   private static byte addressPreFixByte = CommonConstant.ADD_PRE_FIX_BYTE_TESTNET;
   private static int rpcVersion = 0;
 
@@ -179,17 +179,17 @@ public class WalletApi {
   /**
    * Creates a new WalletApi with a random ECKey or no ECKey.
    */
-  public WalletApi(byte[] password) throws CipherException {
+  public static WalletFile CreateWalletFile(byte[] password) throws CipherException {
     ECKey ecKey = new ECKey(Utils.getRandom());
-    this.walletFile = Wallet.createStandard(password, ecKey);
-    this.address = ecKey.getAddress();
+    WalletFile walletFile = Wallet.createStandard(password, ecKey);
+    return walletFile;
   }
 
   //  Create Wallet with a pritKey
-  public WalletApi(byte[] password, byte[] priKey) throws CipherException {
+  public static WalletFile CreateWalletFile(byte[] password, byte[] priKey) throws CipherException {
     ECKey ecKey = ECKey.fromPrivate(priKey);
-    this.walletFile = Wallet.createStandard(password, ecKey);
-    this.address = ecKey.getAddress();
+    WalletFile walletFile = Wallet.createStandard(password, ecKey);
+    return walletFile;
   }
 
   public boolean isLoginState() {
@@ -198,6 +198,7 @@ public class WalletApi {
 
   public void logout() {
     loginState = false;
+    walletFile.clear();
     this.walletFile = null;
   }
 
@@ -206,30 +207,27 @@ public class WalletApi {
   }
 
   public boolean checkPassword(byte[] passwd) throws CipherException {
-    return Wallet.validPassword(passwd, this.walletFile);
+    return Wallet.validPassword(passwd, this.walletFile.get(0));
   }
 
   /**
    * Creates a Wallet with an existing ECKey.
    */
   public WalletApi(WalletFile walletFile) {
-    this.walletFile = walletFile;
+    if (this.walletFile.isEmpty()) {
+      this.walletFile.add(walletFile);
+    } else {
+      this.walletFile.set(0, walletFile);
+    }
     this.address = decodeFromBase58Check(walletFile.getAddress());
   }
 
-  public ECKey getEcKey(byte[] password) throws CipherException, IOException {
-    if (walletFile == null) {
-      this.walletFile = loadWalletFile();
-      this.address = decodeFromBase58Check(this.walletFile.getAddress());
-    }
+  public ECKey getEcKey(WalletFile walletFile, byte[] password) throws CipherException {
     return Wallet.decrypt(password, walletFile);
   }
 
   public byte[] getPrivateBytes(byte[] password) throws CipherException, IOException {
-    if (walletFile == null) {
-      this.walletFile = loadWalletFile();
-      this.address = decodeFromBase58Check(this.walletFile.getAddress());
-    }
+    WalletFile walletFile = loadWalletFile();
     return Wallet.decrypt2PrivateBytes(password, walletFile);
   }
 
@@ -237,7 +235,7 @@ public class WalletApi {
     return address;
   }
 
-  public String store2Keystore() throws IOException {
+  public static String store2Keystore(WalletFile walletFile) throws IOException {
     if (walletFile == null) {
       logger.warn("Warning: Store wallet failed, walletFile is null !!");
       return null;
@@ -304,6 +302,25 @@ public class WalletApi {
     return wallet;
   }
 
+  public WalletFile selcetWalletFileE() throws IOException {
+    File file = selcetWalletFile();
+    if (file == null) {
+      throw new IOException(
+          "No keystore file found, please use registerwallet or importwallet first!");
+    }
+    String name = file.getName();
+    for (WalletFile wallet : this.walletFile) {
+      String address = wallet.getAddress();
+      if (name.contains(address)) {
+        return wallet;
+      }
+    }
+
+    WalletFile wallet = WalletUtils.loadWalletFile(file);
+    this.walletFile.add(wallet);
+    return wallet;
+  }
+
   public static boolean changeKeystorePassword(byte[] oldPassword, byte[] newPassowrd)
       throws IOException, CipherException {
     File wallet = selcetWalletFile();
@@ -348,6 +365,19 @@ public class WalletApi {
     return rpcCli.queryAccountById(accountId);
   }
 
+  private boolean confirm() {
+    Scanner in = new Scanner(System.in);
+    while (true) {
+      String input = in.nextLine().trim();
+      String str = input.split("\\s+")[0];
+      if ("y".equalsIgnoreCase(str)) {
+        return true;
+      } else {
+        return false;
+      }
+    }
+  }
+
   private Transaction signTransaction(Transaction transaction)
       throws CipherException, IOException, CancelException {
     if (transaction.getRawData().getTimestamp() == 0) {
@@ -356,26 +386,27 @@ public class WalletApi {
     System.out.println("Your transaction details are as follows, please confirm.");
     System.out.println(Utils.printTransaction(transaction));
 
-    Scanner in = new Scanner(System.in);
     System.out.println("Please confirm that you want to continue enter y or Y, else any other.");
+    if (!confirm()) {
+      throw new CancelException("User cancelled");
+    }
 
     while (true) {
-      String input = in.nextLine().trim();
-      String str = input.split("\\s+")[0];
-      if ("y".equalsIgnoreCase(str)) {
+      System.out.println("Please choose your key for sign.");
+      WalletFile walletFile = selcetWalletFileE();
+      System.out.println("Please input your password.");
+      char[] password = Utils.inputPassword(false);
+      byte[] passwd = org.tron.keystore.StringUtils.char2Byte(password);
+      org.tron.keystore.StringUtils.clear(password);
+
+      transaction = TransactionUtils.sign(transaction, this.getEcKey(walletFile, passwd));
+      org.tron.keystore.StringUtils.clear(passwd);
+
+      System.out.println("Please confirm if continue add signature enter y or Y, else any other");
+      if (!confirm()) {
         break;
-      } else {
-        throw new CancelException("User cancelled");
       }
     }
-    System.out.println("Please input your password.");
-    char[] password = Utils.inputPassword(false);
-    byte[] passwd = org.tron.keystore.StringUtils.char2Byte(password);
-    org.tron.keystore.StringUtils.clear(password);
-    System.out.println(
-        "txid = " + ByteArray.toHexString(Sha256Hash.hash(transaction.getRawData().toByteArray())));
-    transaction = TransactionUtils.sign(transaction, this.getEcKey(passwd));
-    org.tron.keystore.StringUtils.clear(passwd);
     return transaction;
   }
 
@@ -545,8 +576,7 @@ public class WalletApi {
   public static boolean broadcastTransaction(byte[] transactionBytes)
       throws InvalidProtocolBufferException {
     Transaction transaction = Transaction.parseFrom(transactionBytes);
-    return TransactionUtils.validTransaction(transaction)
-        && rpcCli.broadcastTransaction(transaction);
+    return rpcCli.broadcastTransaction(transaction);
   }
 
   public boolean createAssetIssue(Contract.AssetIssueContract contract)
@@ -1562,7 +1592,7 @@ public class WalletApi {
 
     JSONArray permissions = JSON.parseArray(permissionJson);
     List<Permission> permissionList = new ArrayList<>();
-    for(int j=0; j<permissions.size(); j++) {
+    for (int j = 0; j < permissions.size(); j++) {
       Permission.Builder permissionBuider = Permission.newBuilder();
       JSONObject permission = permissions.getJSONObject(j);
       String name = permission.getString("name");
