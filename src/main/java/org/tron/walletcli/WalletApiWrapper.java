@@ -552,4 +552,30 @@ public class WalletApiWrapper {
     return wallet.accountPermissionUpdate(permission);
   }
 
+  public boolean permissionAddKey(String permission, String address, int weight)
+      throws IOException, CipherException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warning: permissionAddKey failed,  Please login first !!");
+      return false;
+    }
+    return wallet.permissionAddKey(permission, address, weight);
+  }
+
+  public boolean permissionUpdateKey(String permission, String address, int weight)
+      throws IOException, CipherException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warning: permissionUpdateKey failed,  Please login first !!");
+      return false;
+    }
+    return wallet.permissionUpdateKey(permission, address, weight);
+  }
+
+  public boolean permissionDeleteKey(String permission, String address)
+      throws IOException, CipherException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warning: permissionDeleteKey failed,  Please login first !!");
+      return false;
+    }
+    return wallet.permissionDeleteKey(permission, address);
+  }
 }

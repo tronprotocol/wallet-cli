@@ -232,7 +232,7 @@ public class Utils {
     }
     if (account.getPermissionsCount() > 0) {
       for (Permission permission : account.getPermissionsList()) {
-        result += "Permission: {";
+        result += "permissions: {";
         result += "\n";
         result += "name: " + permission.getName() + "\n";
         result += "threshold: " + permission.getThreshold() + "\n";

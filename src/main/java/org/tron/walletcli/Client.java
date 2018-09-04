@@ -1435,7 +1435,74 @@ public class Client {
   }
 
   private void updateAccountPermission(String[] parameters) throws CipherException, IOException, CancelException {
-    walletApiWrapper.accountPermissionUpdate(parameters[0]);
+    boolean ret = walletApiWrapper.accountPermissionUpdate(parameters[0]);
+    if (ret) {
+      logger.info("updateAccountPermission successful !!!!");
+    } else {
+      logger.info("updateAccountPermission failed !!!!");
+    }
+  }
+
+  private void permissionAddKey(String[] parameters)
+      throws CipherException, IOException, CancelException {
+    if (parameters == null || parameters.length != 3) {
+      System.out.println("permissionAddKey needs 3 parameters, like permissionAddKey permissionName address weight");
+      return;
+    }
+    String permission = parameters[0];
+    String address = parameters[1];
+    int weight = 0;
+    try {
+      weight = Integer.parseInt(parameters[2]);
+    } catch (NumberFormatException e) {
+      System.out.println("weight should be a integer");
+      return;
+    }
+    boolean ret = walletApiWrapper.permissionAddKey(permission, address, weight);
+    if (ret) {
+      logger.info("permissionAddKey successful !!!!");
+    } else {
+      logger.info("permissionAddKey failed !!!!");
+    }
+  }
+
+  private void permissionUpdateKey(String[] parameters)
+      throws CipherException, IOException, CancelException {
+    if (parameters == null || parameters.length != 3) {
+      System.out.println("permissionUpdateKey needs 3 parameters, like permissionUpdateKey permissionName address weight");
+      return;
+    }
+    String permission = parameters[0];
+    String address = parameters[1];
+    int weight = 0;
+    try {
+      weight = Integer.parseInt(parameters[2]);
+    } catch (NumberFormatException e) {
+      System.out.println("weight should be a integer");
+      return;
+    }
+    boolean ret = walletApiWrapper.permissionUpdateKey(permission, address, weight);
+    if (ret) {
+      logger.info("permissionUpdateKey successful !!!!");
+    } else {
+      logger.info("permissionUpdateKey failed !!!!");
+    }
+  }
+
+  private void permissionDeleteKey(String[] parameters)
+      throws CipherException, IOException, CancelException {
+    if (parameters == null || parameters.length != 2) {
+      System.out.println("permissionDeleteKey needs 2 parameters, like permissionDeleteKey permissionName address");
+      return;
+    }
+    String permission = parameters[0];
+    String address = parameters[1];
+    boolean ret = walletApiWrapper.permissionDeleteKey(permission, address);
+    if (ret) {
+      logger.info("permissionDeleteKey successful !!!!");
+    } else {
+      logger.info("permissionDeleteKey failed !!!!");
+    }
   }
 
   private void help() {
@@ -1510,6 +1577,9 @@ public class Client {
     System.out.println("ApproveProposal");
     System.out.println("DeleteProposal");
     System.out.println("UpdateAccountPermission");
+    System.out.println("permissionAddKey");
+    System.out.println("permissionUpdateKey");
+    System.out.println("permissionDeleteKey");
     System.out.println("Exit or Quit");
 
     System.out.println("Input any one of the listed commands, to display how-to tips.");
@@ -1847,6 +1917,18 @@ public class Client {
           }
           case "updateaccountpermission": {
             updateAccountPermission(parameters);
+            break;
+          }
+          case "permissionaddkey": {
+            permissionAddKey(parameters);
+            break;
+          }
+          case "permissionupdatekey": {
+            permissionUpdateKey(parameters);
+            break;
+          }
+          case "permissiondeletekey": {
+            permissionDeleteKey(parameters);
             break;
           }
           case "exit":

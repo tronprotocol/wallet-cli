@@ -640,4 +640,16 @@ public class GrpcClient {
   public TransactionExtention accountPermissionUpdate(Contract.AccountPermissionUpdateContract request) {
     return blockingStubFull.accountPermissionUpdate(request);
   }
+
+  public TransactionExtention permissionAddKey(Contract.PermissionAddKeyContract request) {
+    return blockingStubFull.permissionAddKey(request);
+  }
+
+  public TransactionExtention permissionUpdateKey(Contract.PermissionUpdateKeyContract request) {
+    return blockingStubFull.permissionUpdateKey(request);
+  }
+
+  public TransactionExtention permissionDeleteKey(Contract.PermissionDeleteKeyContract request) {
+    return blockingStubFull.permissionDeleteKey(request);
+  }
 }
