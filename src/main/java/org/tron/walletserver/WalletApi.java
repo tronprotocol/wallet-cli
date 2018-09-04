@@ -1563,7 +1563,7 @@ public class WalletApi {
     JSONArray permissions = JSON.parseArray(permissionJson);
     List<Permission> permissionList = new ArrayList<>();
     for(int j=0; j<permissions.size(); j++) {
-      Permission.Builder permissionBuider = Permission.newBuilder();
+      Permission.Builder permissionBuilder = Permission.newBuilder();
       JSONObject permission = permissions.getJSONObject(j);
       String name = permission.getString("name");
       String parent = permission.getString("parent");
@@ -1579,15 +1579,78 @@ public class WalletApi {
         keyBuilder.setWeight(weight);
         keyList.add(keyBuilder.build());
       }
-      permissionBuider.setName(name);
-      permissionBuider.setParent(parent);
-      permissionBuider.setThreshold(threshold);
-      permissionBuider.addAllKeys(keyList);
-      permissionList.add(permissionBuider.build());
+      permissionBuilder.setName(name);
+      permissionBuilder.setParent(parent);
+      permissionBuilder.setThreshold(threshold);
+      permissionBuilder.addAllKeys(keyList);
+      permissionList.add(permissionBuilder.build());
     }
 
     builder.setOwnerAddress(ByteString.copyFrom(owner));
     builder.addAllPermissions(permissionList);
     return builder.build();
+  }
+
+  public boolean permissionAddKey(String permission, String address, int weight)
+      throws CipherException, IOException, CancelException {
+    byte[] owner = getAddress();
+    Contract.PermissionAddKeyContract permissionAddKeyContract =
+        createPermissionAddKeyContract(owner, permission, address, weight);
+    TransactionExtention transactionExtention = rpcCli.permissionAddKey(permissionAddKeyContract);
+    return processTransactionExtention(transactionExtention);
+  }
+
+  public Contract.PermissionAddKeyContract createPermissionAddKeyContract(byte[] owner,
+      String permission, String address, int weight) {
+    Contract.PermissionAddKeyContract.Builder contractBuilder =
+        Contract.PermissionAddKeyContract.newBuilder();
+    contractBuilder.setOwnerAddress(ByteString.copyFrom(owner));
+    contractBuilder.setPermissionName(permission);
+    Key.Builder keyBuilder = Key.newBuilder();
+    keyBuilder.setAddress(ByteString.copyFrom(WalletApi.decode58Check(address)));
+    keyBuilder.setWeight(weight);
+    contractBuilder.setKey(keyBuilder.build());
+    return contractBuilder.build();
+  }
+
+  public boolean permissionUpdateKey(String permission, String address, int weight)
+      throws CipherException, IOException, CancelException {
+    byte[] owner = getAddress();
+    Contract.PermissionUpdateKeyContract permissionUpdateKeyContract =
+        createPermissionUpdateKeyContract(owner, permission, address, weight);
+    TransactionExtention transactionExtention = rpcCli.permissionUpdateKey(permissionUpdateKeyContract);
+    return processTransactionExtention(transactionExtention);
+  }
+
+  public Contract.PermissionUpdateKeyContract createPermissionUpdateKeyContract(byte[] owner,
+      String permission, String address, int weight) {
+    Contract.PermissionUpdateKeyContract.Builder contractBuilder =
+        Contract.PermissionUpdateKeyContract.newBuilder();
+    contractBuilder.setOwnerAddress(ByteString.copyFrom(owner));
+    contractBuilder.setPermissionName(permission);
+    Key.Builder keyBuilder = Key.newBuilder();
+    keyBuilder.setAddress(ByteString.copyFrom(WalletApi.decode58Check(address)));
+    keyBuilder.setWeight(weight);
+    contractBuilder.setKey(keyBuilder.build());
+    return contractBuilder.build();
+  }
+
+  public boolean permissionDeleteKey(String permission, String address)
+      throws CipherException, IOException, CancelException {
+    byte[] owner = getAddress();
+    Contract.PermissionDeleteKeyContract permissionDeleteKeyContract =
+        createPermissionDeleteKeyContract(owner, permission, address);
+    TransactionExtention transactionExtention = rpcCli.permissionDeleteKey(permissionDeleteKeyContract);
+    return processTransactionExtention(transactionExtention);
+  }
+
+  public Contract.PermissionDeleteKeyContract createPermissionDeleteKeyContract(byte[] owner,
+      String permission, String address) {
+    Contract.PermissionDeleteKeyContract.Builder contractBuilder =
+        Contract.PermissionDeleteKeyContract.newBuilder();
+    contractBuilder.setOwnerAddress(ByteString.copyFrom(owner));
+    contractBuilder.setPermissionName(permission);
+    contractBuilder.setKeyAddress(ByteString.copyFrom(WalletApi.decode58Check(address)));
+    return contractBuilder.build();
   }
 }

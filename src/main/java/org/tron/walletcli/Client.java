@@ -1451,6 +1451,48 @@ public class Client {
     walletApiWrapper.accountPermissionUpdate(parameters[0]);
   }
 
+  private void permissionAddKey(String[] parameters)
+      throws CipherException, IOException, CancelException {
+    if (parameters == null || parameters.length != 3) {
+      System.out.println("permissionAddKey needs 3 parameters, like permissionAddKey permissionName address weight");
+    }
+    String permission = parameters[0];
+    String address = parameters[1];
+    int weight = 0;
+    try {
+      weight = Integer.parseInt(parameters[2]);
+    } catch (NumberFormatException e) {
+      System.out.println("weight should be a integer");
+    }
+    walletApiWrapper.permissionAddKey(permission, address, weight);
+  }
+
+  private void permissionUpdateKey(String[] parameters)
+      throws CipherException, IOException, CancelException {
+    if (parameters == null || parameters.length != 3) {
+      System.out.println("permissionUpdateKey needs 3 parameters, like permissionUpdateKey permissionName address weight");
+    }
+    String permission = parameters[0];
+    String address = parameters[1];
+    int weight = 0;
+    try {
+      weight = Integer.parseInt(parameters[2]);
+    } catch (NumberFormatException e) {
+      System.out.println("weight should be a integer");
+    }
+    walletApiWrapper.permissionUpdateKey(permission, address, weight);
+  }
+
+  private void permissionDeleteKey(String[] parameters)
+      throws CipherException, IOException, CancelException {
+    if (parameters == null || parameters.length != 3) {
+      System.out.println("permissionDeleteKey needs 2 parameters, like permissionDeleteKey permissionName address");
+    }
+    String permission = parameters[0];
+    String address = parameters[1];
+    walletApiWrapper.permissionDeleteKey(permission, address);
+  }
+
   private void help() {
     System.out.println("Help: List of Tron Wallet-cli commands");
     System.out.println(
@@ -1523,6 +1565,9 @@ public class Client {
     System.out.println("ApproveProposal");
     System.out.println("DeleteProposal");
     System.out.println("UpdateAccountPermission");
+    System.out.println("permissionAddKey");
+    System.out.println("permissionUpdateKey");
+    System.out.println("permissionDeleteKey");
     System.out.println("Exit or Quit");
 
     System.out.println("Input any one of the listed commands, to display how-to tips.");
@@ -1860,6 +1905,18 @@ public class Client {
           }
           case "updateaccountpermission": {
             updateAccountPermission(parameters);
+            break;
+          }
+          case "permissionaddkey": {
+            permissionAddKey(parameters);
+            break;
+          }
+          case "permissionupdatekey": {
+            permissionUpdateKey(parameters);
+            break;
+          }
+          case "permissiondeletekey": {
+            permissionDeleteKey(parameters);
             break;
           }
           case "exit":
