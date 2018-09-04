@@ -322,7 +322,6 @@ public class Client {
     }
   }
 
-
   private void updateAsset(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length != 4) {

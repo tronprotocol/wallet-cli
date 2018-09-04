@@ -48,12 +48,16 @@ import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.crypto.Sha256Hash;
 import org.tron.keystore.StringUtils;
 import org.tron.protos.Contract.AccountCreateContract;
+import org.tron.protos.Contract.AccountPermissionUpdateContract;
 import org.tron.protos.Contract.AccountUpdateContract;
 import org.tron.protos.Contract.AssetIssueContract;
 import org.tron.protos.Contract.AssetIssueContract.FrozenSupply;
 import org.tron.protos.Contract.CreateSmartContract;
 import org.tron.protos.Contract.FreezeBalanceContract;
 import org.tron.protos.Contract.ParticipateAssetIssueContract;
+import org.tron.protos.Contract.PermissionAddKeyContract;
+import org.tron.protos.Contract.PermissionDeleteKeyContract;
+import org.tron.protos.Contract.PermissionUpdateKeyContract;
 import org.tron.protos.Contract.ProposalApproveContract;
 import org.tron.protos.Contract.ProposalCreateContract;
 import org.tron.protos.Contract.ProposalDeleteContract;
@@ -237,7 +241,6 @@ public class Utils {
         result += "name: " + permission.getName() + "\n";
         result += "threshold: " + permission.getThreshold() + "\n";
         result += "parent: " + permission.getParent() + "\n";
-        result += "name: " + permission.getName() + "\n";
         result += "keys: {" + "\n";
         for (Key key : permission.getKeysList()) {
           result += "address:" + WalletApi.encode58Check(key.getAddress().toByteArray()) + ", weight:" + key.getWeight() + "\n";
@@ -807,6 +810,72 @@ public class Utils {
           result += WalletApi
               .encode58Check(proposalDeleteContract.getOwnerAddress().toByteArray());
           break;
+        case AccountPermissionUpdateContract:
+          AccountPermissionUpdateContract accountPermissionUpdateContract =
+              contract.getParameter().unpack(AccountPermissionUpdateContract.class);
+          result += "owner_address: ";
+          result += WalletApi
+              .encode58Check(accountPermissionUpdateContract.getOwnerAddress().toByteArray());
+          result += "\n";
+          for (Permission permission : accountPermissionUpdateContract.getPermissionsList()) {
+            result += "{";
+            result += "\n";
+            result += "name: " + permission.getName();
+            result += "\n";
+            result += "parent: " + permission.getParent();
+            result += "\n";
+            result += "threshold: " + permission.getThreshold();
+            result += "\n";
+            result += "keys:";
+            for (Key key : permission.getKeysList()) {
+              result += "{address:" + WalletApi.encode58Check(key.getAddress().toByteArray()) + ", weight:" + key.getWeight() + "}";
+            }
+            result += "\n";
+            result += "}";
+            result += "\n";
+          }
+          break;
+        case PermissionAddKeyContract:
+          PermissionAddKeyContract permissionAddKeyContract =
+              contract.getParameter().unpack(PermissionAddKeyContract.class);
+          result += "owner_address: ";
+          result += WalletApi
+              .encode58Check(permissionAddKeyContract.getOwnerAddress().toByteArray());
+          result += "\n";
+          result += "permission: " + permissionAddKeyContract.getPermissionName();
+          result += "\n";
+          result += "key: " + WalletApi.encode58Check(permissionAddKeyContract.getKey().getAddress().toByteArray());
+          result += "\n";
+          result += "weight: " + permissionAddKeyContract.getKey().getWeight();
+          result += "\n";
+          break;
+        case PermissionUpdateKeyContract:
+          PermissionUpdateKeyContract permissionUpdateKeyContract =
+              contract.getParameter().unpack(PermissionUpdateKeyContract.class);
+          result += "owner_address: ";
+          result += WalletApi
+              .encode58Check(permissionUpdateKeyContract.getOwnerAddress().toByteArray());
+          result += "\n";
+          result += "permission: " + permissionUpdateKeyContract.getPermissionName();
+          result += "\n";
+          result += "key: " + WalletApi.encode58Check(permissionUpdateKeyContract.getKey().getAddress().toByteArray());
+          result += "\n";
+          result += "weight: " + permissionUpdateKeyContract.getKey().getWeight();
+          result += "\n";
+          break;
+        case PermissionDeleteKeyContract:
+          PermissionDeleteKeyContract permissionDeleteKeyContract =
+              contract.getParameter().unpack(PermissionDeleteKeyContract.class);
+          result += "owner_address: ";
+          result += WalletApi
+              .encode58Check(permissionDeleteKeyContract.getOwnerAddress().toByteArray());
+          result += "\n";
+          result += "permission: " + permissionDeleteKeyContract.getPermissionName();
+          result += "\n";
+          result += "key: " + WalletApi.encode58Check(permissionDeleteKeyContract.getKeyAddress().toByteArray());
+          result += "\n";
+          break;
+
         // case BuyStorageContract:
         //   BuyStorageContract buyStorageContract = contract.getParameter()
         //       .unpack(BuyStorageContract.class);
