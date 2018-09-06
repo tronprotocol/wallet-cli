@@ -10,6 +10,7 @@ import org.tron.api.GrpcAPI;
 import org.tron.api.GrpcAPI.AddressPrKeyPairMessage;
 import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.BlockExtention;
+import org.tron.api.GrpcAPI.ExchangeList;
 import org.tron.api.GrpcAPI.NodeList;
 import org.tron.api.GrpcAPI.ProposalList;
 import org.tron.api.GrpcAPI.WitnessList;
@@ -20,6 +21,7 @@ import org.tron.protos.Contract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.ChainParameters;
+import org.tron.protos.Protocol.Exchange;
 import org.tron.protos.Protocol.Proposal;
 import org.tron.walletserver.WalletApi;
 
@@ -476,6 +478,24 @@ public class WalletApiWrapper {
     }
   }
 
+  public Optional<ExchangeList> getExchangeList() {
+    try {
+      return WalletApi.listExchanges();
+    } catch (Exception ex) {
+      ex.printStackTrace();
+      return Optional.empty();
+    }
+  }
+
+  public Optional<Exchange> getExchange(String id) {
+    try {
+      return WalletApi.getExchange(id);
+    } catch (Exception ex) {
+      ex.printStackTrace();
+      return Optional.empty();
+    }
+  }
+
   public Optional<ChainParameters> getChainParameters() {
     try {
       return WalletApi.getChainParameters();
@@ -504,6 +524,48 @@ public class WalletApiWrapper {
     }
 
     return wallet.deleteProposal(id);
+  }
+
+  public boolean exchangeCreate(byte[] firstTokenId, long firstTokenBalance,
+      byte[] secondTokenId, long secondTokenBalance)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warning: exchangeCreate failed, Please login first !!");
+      return false;
+    }
+
+    return wallet.exchangeCreate(firstTokenId, firstTokenBalance,
+        secondTokenId, secondTokenBalance);
+  }
+
+  public boolean exchangeInject(long exchangeId, byte[] tokenId, long quant)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warning: exchangeInject failed, Please login first !!");
+      return false;
+    }
+
+    return wallet.exchangeInject(exchangeId, tokenId, quant);
+  }
+
+  public boolean exchangeWithdraw(long exchangeId, byte[] tokenId, long quant)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warning: exchangeWithdraw failed, Please login first !!");
+      return false;
+    }
+
+    return wallet.exchangeWithdraw(exchangeId, tokenId, quant);
+  }
+
+  public boolean exchangeTransaction(long exchangeId, byte[] tokenId, long quant, long expected)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warning: exchangeTransaction failed, Please login first !!");
+      return false;
+    }
+
+    return wallet.exchangeTransaction(exchangeId, tokenId, quant, expected);
   }
 
   public boolean updateSetting(byte[] contractAddress, long consumeUserResourcePercent)
