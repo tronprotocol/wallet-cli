@@ -1255,23 +1255,25 @@ public class WalletApi {
     return builder.build();
   }
 
-  public boolean exchangeTransaction(long exchangeId, byte[] tokenId, long quant)
+  public boolean exchangeTransaction(long exchangeId, byte[] tokenId, long quant, long expected)
       throws CipherException, IOException, CancelException {
     byte[] owner = getAddress();
-    Contract.ExchangeTransactionContract contract = createExchangeTransactionContract(owner, exchangeId,
-        tokenId, quant);
+    Contract.ExchangeTransactionContract contract = createExchangeTransactionContract(owner,
+        exchangeId, tokenId, quant, expected);
     TransactionExtention transactionExtention = rpcCli.exchangeTransaction(contract);
     return processTransactionExtention(transactionExtention);
   }
 
   public static Contract.ExchangeTransactionContract createExchangeTransactionContract(byte[] owner,
-      long exchangeId, byte[] tokenId, long quant) {
-    Contract.ExchangeTransactionContract.Builder builder = Contract.ExchangeTransactionContract.newBuilder();
+      long exchangeId, byte[] tokenId, long quant, long expected) {
+    Contract.ExchangeTransactionContract.Builder builder = Contract.ExchangeTransactionContract
+        .newBuilder();
     builder
         .setOwnerAddress(ByteString.copyFrom(owner))
         .setExchangeId(exchangeId)
         .setTokenId(ByteString.copyFrom(tokenId))
-        .setQuant(quant);
+        .setQuant(quant)
+        .setExpected(expected);
     return builder.build();
   }
 

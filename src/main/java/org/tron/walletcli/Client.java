@@ -1033,16 +1033,17 @@ public class Client {
 
   private void exchangeTransaction(String[] parameters)
       throws IOException, CipherException, CancelException {
-    if (parameters == null || parameters.length != 3) {
+    if (parameters == null || parameters.length != 4) {
       System.out.println("Use exchangeTransaction command with below syntax: ");
-      System.out.println("exchangeTransaction exchange_id token_id quant");
+      System.out.println("exchangeTransaction exchange_id token_id quant expected");
       return;
     }
 
     long exchangeId = Long.valueOf(parameters[0]);
     byte[] tokenId = parameters[1].getBytes();
     long quant = Long.valueOf(parameters[2]);
-    boolean result = walletApiWrapper.exchangeTransaction(exchangeId, tokenId, quant);
+    long expected = Long.valueOf(parameters[3]);
+    boolean result = walletApiWrapper.exchangeTransaction(exchangeId, tokenId, quant, expected);
     if (result) {
       logger.info("exchange Transaction " + " successful !!");
     } else {

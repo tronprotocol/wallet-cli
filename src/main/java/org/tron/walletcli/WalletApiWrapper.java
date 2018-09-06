@@ -558,14 +558,14 @@ public class WalletApiWrapper {
     return wallet.exchangeWithdraw(exchangeId, tokenId, quant);
   }
 
-  public boolean exchangeTransaction(long exchangeId, byte[] tokenId, long quant)
+  public boolean exchangeTransaction(long exchangeId, byte[] tokenId, long quant, long expected)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: exchangeTransaction failed, Please login first !!");
       return false;
     }
 
-    return wallet.exchangeTransaction(exchangeId, tokenId, quant);
+    return wallet.exchangeTransaction(exchangeId, tokenId, quant, expected);
   }
 
   public boolean updateSetting(byte[] contractAddress, long consumeUserResourcePercent)
