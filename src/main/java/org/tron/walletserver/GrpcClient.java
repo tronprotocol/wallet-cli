@@ -23,6 +23,7 @@ import org.tron.api.GrpcAPI.EasyTransferByPrivateMessage;
 import org.tron.api.GrpcAPI.EasyTransferMessage;
 import org.tron.api.GrpcAPI.EasyTransferResponse;
 import org.tron.api.GrpcAPI.EmptyMessage;
+import org.tron.api.GrpcAPI.ExchangeList;
 import org.tron.api.GrpcAPI.NodeList;
 import org.tron.api.GrpcAPI.NumberMessage;
 import org.tron.api.GrpcAPI.PaginatedMessage;
@@ -40,6 +41,7 @@ import org.tron.protos.Contract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.ChainParameters;
+import org.tron.protos.Protocol.Exchange;
 import org.tron.protos.Protocol.Proposal;
 import org.tron.protos.Protocol.SmartContract;
 import org.tron.protos.Protocol.Transaction;
@@ -271,6 +273,19 @@ public class GrpcClient {
     return Optional.ofNullable(proposal);
   }
 
+  public Optional<ExchangeList> listExchanges() {
+    ExchangeList exchangeList = blockingStubFull.listExchanges(EmptyMessage.newBuilder().build());
+    return Optional.ofNullable(exchangeList);
+  }
+
+  public Optional<Exchange> getExchange(String id) {
+    BytesMessage request = BytesMessage.newBuilder().setValue(ByteString.copyFrom(
+        ByteArray.fromLong(Long.parseLong(id))))
+        .build();
+    Exchange exchange = blockingStubFull.getExchangeById(request);
+    return Optional.ofNullable(exchange);
+  }
+
   public Optional<ChainParameters> getChainParameters() {
     ChainParameters chainParameters = blockingStubFull
         .getChainParameters(EmptyMessage.newBuilder().build());
@@ -283,6 +298,22 @@ public class GrpcClient {
 
   public TransactionExtention proposalDelete(Contract.ProposalDeleteContract contract) {
     return blockingStubFull.proposalDelete(contract);
+  }
+
+  public TransactionExtention exchangeCreate(Contract.ExchangeCreateContract contract) {
+    return blockingStubFull.exchangeCreate(contract);
+  }
+
+  public TransactionExtention exchangeInject(Contract.ExchangeInjectContract contract) {
+    return blockingStubFull.exchangeInject(contract);
+  }
+
+  public TransactionExtention exchangeWithdraw(Contract.ExchangeWithdrawContract contract) {
+    return blockingStubFull.exchangeWithdraw(contract);
+  }
+
+  public TransactionExtention exchangeTransaction(Contract.ExchangeTransactionContract contract) {
+    return blockingStubFull.exchangeTransaction(contract);
   }
 
   public Transaction createAccount(Contract.AccountCreateContract contract) {

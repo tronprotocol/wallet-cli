@@ -27,6 +27,7 @@ import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.BlockExtention;
 import org.tron.api.GrpcAPI.BlockList;
 import org.tron.api.GrpcAPI.BlockListExtention;
+import org.tron.api.GrpcAPI.ExchangeList;
 import org.tron.api.GrpcAPI.Node;
 import org.tron.api.GrpcAPI.NodeList;
 import org.tron.api.GrpcAPI.NumberMessage;
@@ -45,6 +46,7 @@ import org.tron.protos.Contract.AssetIssueContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.ChainParameters;
+import org.tron.protos.Protocol.Exchange;
 import org.tron.protos.Protocol.Proposal;
 import org.tron.protos.Protocol.SmartContract;
 import org.tron.protos.Protocol.Transaction;
@@ -969,6 +971,112 @@ public class Client {
     }
   }
 
+  private void exchangeCreate(String[] parameters)
+      throws IOException, CipherException, CancelException {
+    if (parameters == null || parameters.length != 4) {
+      System.out.println("Use exchangeCreate command with below syntax: ");
+      System.out.println("exchangeCreate first_token_id first_token_balance "
+          + "second_token_id second_token_balance");
+      return;
+    }
+
+    byte[] firstTokenId = parameters[0].getBytes();
+    long firstTokenBalance = Long.parseLong(parameters[1]);
+    byte[] secondTokenId = parameters[2].getBytes();
+    long secondTokenBalance = Long.parseLong(parameters[3]);
+    boolean result = walletApiWrapper.exchangeCreate(firstTokenId, firstTokenBalance,
+        secondTokenId, secondTokenBalance);
+    if (result) {
+      logger.info("exchange create " + " successful !!");
+    } else {
+      logger.info("exchange create " + " failed !!");
+    }
+  }
+
+  private void exchangeInject(String[] parameters)
+      throws IOException, CipherException, CancelException {
+    if (parameters == null || parameters.length != 3) {
+      System.out.println("Use exchangeInject command with below syntax: ");
+      System.out.println("exchangeInject exchange_id token_id quant");
+      return;
+    }
+
+    long exchangeId = Long.valueOf(parameters[0]);
+    byte[] tokenId = parameters[1].getBytes();
+    long quant = Long.valueOf(parameters[2]);
+    boolean result = walletApiWrapper.exchangeInject(exchangeId, tokenId, quant);
+    if (result) {
+      logger.info("exchange inject " + " successful !!");
+    } else {
+      logger.info("exchange inject " + " failed !!");
+    }
+  }
+
+  private void exchangeWithdraw(String[] parameters)
+      throws IOException, CipherException, CancelException {
+    if (parameters == null || parameters.length != 3) {
+      System.out.println("Use exchangeWithdraw command with below syntax: ");
+      System.out.println("exchangeWithdraw exchange_id token_id quant");
+      return;
+    }
+
+    long exchangeId = Long.valueOf(parameters[0]);
+    byte[] tokenId = parameters[1].getBytes();
+    long quant = Long.valueOf(parameters[2]);
+    boolean result = walletApiWrapper.exchangeWithdraw(exchangeId, tokenId, quant);
+    if (result) {
+      logger.info("exchange withdraw " + " successful !!");
+    } else {
+      logger.info("exchange withdraw " + " failed !!");
+    }
+  }
+
+  private void exchangeTransaction(String[] parameters)
+      throws IOException, CipherException, CancelException {
+    if (parameters == null || parameters.length != 4) {
+      System.out.println("Use exchangeTransaction command with below syntax: ");
+      System.out.println("exchangeTransaction exchange_id token_id quant expected");
+      return;
+    }
+
+    long exchangeId = Long.valueOf(parameters[0]);
+    byte[] tokenId = parameters[1].getBytes();
+    long quant = Long.valueOf(parameters[2]);
+    long expected = Long.valueOf(parameters[3]);
+    boolean result = walletApiWrapper.exchangeTransaction(exchangeId, tokenId, quant, expected);
+    if (result) {
+      logger.info("exchange Transaction " + " successful !!");
+    } else {
+      logger.info("exchange Transaction " + " failed !!");
+    }
+  }
+
+  private void listExchanges() {
+    Optional<ExchangeList> result = walletApiWrapper.getExchangeList();
+    if (result.isPresent()) {
+      ExchangeList exchangeList = result.get();
+      logger.info(Utils.printExchangeList(exchangeList));
+    } else {
+      logger.info("List exchanges " + " failed !!");
+    }
+  }
+
+  private void getExchange(String[] parameters) {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("getExchange needs 1 parameter like following: ");
+      System.out.println("getExchange id ");
+      return;
+    }
+    String id = parameters[0];
+
+    Optional<Exchange> result = walletApiWrapper.getExchange(id);
+    if (result.isPresent()) {
+      Exchange exchange = result.get();
+      logger.info(Utils.printExchange(exchange));
+    } else {
+      logger.info("getExchange " + " failed !!");
+    }
+  }
 
   private void withdrawBalance() throws IOException, CipherException, CancelException {
     boolean result = walletApiWrapper.withdrawBalance();
@@ -1510,14 +1618,20 @@ public class Client {
     System.out.println("getContract contractAddress");
     System.out.println("UpdateAsset");
     System.out.println("UnfreezeAsset");
-    System.out.println("buyStorage");
-    System.out.println("buyStorageBytes");
-    System.out.println("sellStorage");
+//    System.out.println("buyStorage");
+//    System.out.println("buyStorageBytes");
+//    System.out.println("sellStorage");
     System.out.println("CreateProposal");
     System.out.println("ListProposals");
     System.out.println("GetProposal");
     System.out.println("ApproveProposal");
     System.out.println("DeleteProposal");
+    System.out.println("ExchangeCreate");
+    System.out.println("ExchangeInject");
+    System.out.println("ExchangeWithdraw");
+    System.out.println("ExchangeTransaction");
+    System.out.println("ListExchanges");
+    System.out.println("GetExchange");
     System.out.println("Exit or Quit");
 
     System.out.println("Input any one of the listed commands, to display how-to tips.");
@@ -1746,6 +1860,30 @@ public class Client {
           }
           case "getproposal": {
             getProposal(parameters);
+            break;
+          }
+          case "exchangecreate": {
+            exchangeCreate(parameters);
+            break;
+          }
+          case "exchangeinject": {
+            exchangeInject(parameters);
+            break;
+          }
+          case "exchangewithdraw": {
+            exchangeWithdraw(parameters);
+            break;
+          }
+          case "exchangetransaction": {
+            exchangeTransaction(parameters);
+            break;
+          }
+          case "listexchanges": {
+            listExchanges();
+            break;
+          }
+          case "getexchange": {
+            getExchange(parameters);
             break;
           }
           case "getchainparameters": {

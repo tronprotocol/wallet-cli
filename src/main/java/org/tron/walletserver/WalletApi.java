@@ -34,6 +34,7 @@ import org.tron.api.GrpcAPI.BlockList;
 import org.tron.api.GrpcAPI.BlockListExtention;
 import org.tron.api.GrpcAPI.EasyTransferResponse;
 import org.tron.api.GrpcAPI.EmptyMessage;
+import org.tron.api.GrpcAPI.ExchangeList;
 import org.tron.api.GrpcAPI.NodeList;
 import org.tron.api.GrpcAPI.ProposalList;
 import org.tron.api.GrpcAPI.Return;
@@ -71,6 +72,7 @@ import org.tron.protos.Contract.WithdrawBalanceContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.ChainParameters;
+import org.tron.protos.Protocol.Exchange;
 import org.tron.protos.Protocol.Proposal;
 import org.tron.protos.Protocol.SmartContract;
 import org.tron.protos.Protocol.Transaction;
@@ -1134,6 +1136,14 @@ public class WalletApi {
     return rpcCli.getProposal(id);
   }
 
+  public static Optional<ExchangeList> listExchanges() {
+    return rpcCli.listExchanges();
+  }
+
+  public static Optional<Exchange> getExchange(String id) {
+    return rpcCli.getExchange(id);
+  }
+
   public static Optional<ChainParameters> getChainParameters() {
     return rpcCli.getChainParameters();
   }
@@ -1179,6 +1189,91 @@ public class WalletApi {
     Contract.ProposalDeleteContract.Builder builder = Contract.ProposalDeleteContract.newBuilder();
     builder.setOwnerAddress(ByteString.copyFrom(owner));
     builder.setProposalId(id);
+    return builder.build();
+  }
+
+  public boolean exchangeCreate(byte[] firstTokenId, long firstTokenBalance,
+      byte[] secondTokenId, long secondTokenBalance)
+      throws CipherException, IOException, CancelException {
+    byte[] owner = getAddress();
+    Contract.ExchangeCreateContract contract = createExchangeCreateContract(owner, firstTokenId,
+        firstTokenBalance, secondTokenId, secondTokenBalance);
+    TransactionExtention transactionExtention = rpcCli.exchangeCreate(contract);
+    return processTransactionExtention(transactionExtention);
+  }
+
+  public static Contract.ExchangeCreateContract createExchangeCreateContract(byte[] owner,
+      byte[] firstTokenId, long firstTokenBalance,
+      byte[] secondTokenId, long secondTokenBalance) {
+    Contract.ExchangeCreateContract.Builder builder = Contract.ExchangeCreateContract.newBuilder();
+    builder
+        .setOwnerAddress(ByteString.copyFrom(owner))
+        .setFirstTokenId(ByteString.copyFrom(firstTokenId))
+        .setFirstTokenBalance(firstTokenBalance)
+        .setSecondTokenId(ByteString.copyFrom(secondTokenId))
+        .setSecondTokenBalance(secondTokenBalance);
+    return builder.build();
+  }
+
+  public boolean exchangeInject(long exchangeId, byte[] tokenId, long quant)
+      throws CipherException, IOException, CancelException {
+    byte[] owner = getAddress();
+    Contract.ExchangeInjectContract contract = createExchangeInjectContract(owner, exchangeId,
+        tokenId, quant);
+    TransactionExtention transactionExtention = rpcCli.exchangeInject(contract);
+    return processTransactionExtention(transactionExtention);
+  }
+
+  public static Contract.ExchangeInjectContract createExchangeInjectContract(byte[] owner,
+      long exchangeId, byte[] tokenId, long quant) {
+    Contract.ExchangeInjectContract.Builder builder = Contract.ExchangeInjectContract.newBuilder();
+    builder
+        .setOwnerAddress(ByteString.copyFrom(owner))
+        .setExchangeId(exchangeId)
+        .setTokenId(ByteString.copyFrom(tokenId))
+        .setQuant(quant);
+    return builder.build();
+  }
+
+  public boolean exchangeWithdraw(long exchangeId, byte[] tokenId, long quant)
+      throws CipherException, IOException, CancelException {
+    byte[] owner = getAddress();
+    Contract.ExchangeWithdrawContract contract = createExchangeWithdrawContract(owner, exchangeId,
+        tokenId, quant);
+    TransactionExtention transactionExtention = rpcCli.exchangeWithdraw(contract);
+    return processTransactionExtention(transactionExtention);
+  }
+
+  public static Contract.ExchangeWithdrawContract createExchangeWithdrawContract(byte[] owner,
+      long exchangeId, byte[] tokenId, long quant) {
+    Contract.ExchangeWithdrawContract.Builder builder = Contract.ExchangeWithdrawContract.newBuilder();
+    builder
+        .setOwnerAddress(ByteString.copyFrom(owner))
+        .setExchangeId(exchangeId)
+        .setTokenId(ByteString.copyFrom(tokenId))
+        .setQuant(quant);
+    return builder.build();
+  }
+
+  public boolean exchangeTransaction(long exchangeId, byte[] tokenId, long quant, long expected)
+      throws CipherException, IOException, CancelException {
+    byte[] owner = getAddress();
+    Contract.ExchangeTransactionContract contract = createExchangeTransactionContract(owner,
+        exchangeId, tokenId, quant, expected);
+    TransactionExtention transactionExtention = rpcCli.exchangeTransaction(contract);
+    return processTransactionExtention(transactionExtention);
+  }
+
+  public static Contract.ExchangeTransactionContract createExchangeTransactionContract(byte[] owner,
+      long exchangeId, byte[] tokenId, long quant, long expected) {
+    Contract.ExchangeTransactionContract.Builder builder = Contract.ExchangeTransactionContract
+        .newBuilder();
+    builder
+        .setOwnerAddress(ByteString.copyFrom(owner))
+        .setExchangeId(exchangeId)
+        .setTokenId(ByteString.copyFrom(tokenId))
+        .setQuant(quant)
+        .setExpected(expected);
     return builder.build();
   }
 
