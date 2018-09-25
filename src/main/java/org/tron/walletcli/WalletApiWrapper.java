@@ -431,6 +431,8 @@ public class WalletApiWrapper {
     return wallet.unfreezeBalance(resourceCode);
   }
 
+
+
   public boolean unfreezeAsset() throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: unfreezeAsset failed, Please login first !!");

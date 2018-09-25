@@ -27,6 +27,7 @@ import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.BlockExtention;
 import org.tron.api.GrpcAPI.BlockList;
 import org.tron.api.GrpcAPI.BlockListExtention;
+import org.tron.api.GrpcAPI.DelegatedResourceList;
 import org.tron.api.GrpcAPI.ExchangeList;
 import org.tron.api.GrpcAPI.Node;
 import org.tron.api.GrpcAPI.NodeList;
@@ -891,6 +892,7 @@ public class Client {
 
 
 
+
   private void unfreezeAsset() throws IOException, CipherException, CancelException {
     boolean result = walletApiWrapper.unfreezeAsset();
     if (result) {
@@ -984,6 +986,27 @@ public class Client {
       logger.info("getProposal " + " failed !!");
     }
   }
+
+
+  private void getDelegatedResource(String[] parameters)
+      throws IOException, CipherException, CancelException {
+    if (parameters == null ||parameters.length != 2) {
+      System.out.println("Use getDelegatedResource command with below syntax: ");
+      System.out.println("getDelegatedResource fromAddress isFrom");
+      return;
+    }
+
+    String fromAddress = parameters[0];
+    boolean isFrom = Boolean.valueOf(parameters[1]);
+    Optional<DelegatedResourceList> result = WalletApi.getDelegatedResource(fromAddress, isFrom);
+    if (result.isPresent()) {
+      DelegatedResourceList delegatedResourceList = result.get();
+      logger.info(Utils.printDelegatedResourceList(delegatedResourceList));
+    } else {
+      logger.info("getProposal " + " failed !!");
+    }
+  }
+
 
   private void exchangeCreate(String[] parameters)
       throws IOException, CipherException, CancelException {
@@ -1837,10 +1860,6 @@ public class Client {
             unfreezeBalance(parameters);
             break;
           }
-          case "getdelegatedresource": {
-            getDelegatedResource(parameters);
-            break;
-          }
           case "buystorage": {
             buyStorage(parameters);
             break;
@@ -1879,6 +1898,10 @@ public class Client {
           }
           case "getproposal": {
             getProposal(parameters);
+            break;
+          }
+          case "getdelegatedresource": {
+            getDelegatedResourceByFrom(parameters);
             break;
           }
           case "exchangecreate": {

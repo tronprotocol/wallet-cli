@@ -19,6 +19,8 @@ import org.tron.api.GrpcAPI.BlockLimit;
 import org.tron.api.GrpcAPI.BlockList;
 import org.tron.api.GrpcAPI.BlockListExtention;
 import org.tron.api.GrpcAPI.BytesMessage;
+import org.tron.api.GrpcAPI.DelegatedResourceList;
+import org.tron.api.GrpcAPI.DelegatedResourceMessage;
 import org.tron.api.GrpcAPI.EasyTransferByPrivateMessage;
 import org.tron.api.GrpcAPI.EasyTransferMessage;
 import org.tron.api.GrpcAPI.EasyTransferResponse;
@@ -272,6 +274,18 @@ public class GrpcClient {
     Proposal proposal = blockingStubFull.getProposalById(request);
     return Optional.ofNullable(proposal);
   }
+
+  public Optional<DelegatedResourceList> getDelegatedResource(String address,boolean isFrom) {
+
+    ByteString addressBS = ByteString.copyFromUtf8(address);
+
+    DelegatedResourceMessage request = DelegatedResourceMessage.newBuilder().setAddress(addressBS).setIsFrom(isFrom)
+        .build();
+    DelegatedResourceList delegatedResource= blockingStubFull
+        .getDelegatedResource(request);
+    return Optional.ofNullable(delegatedResource);
+  }
+
 
   public Optional<ExchangeList> listExchanges() {
     ExchangeList exchangeList = blockingStubFull.listExchanges(EmptyMessage.newBuilder().build());

@@ -33,6 +33,7 @@ import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.BlockExtention;
 import org.tron.api.GrpcAPI.BlockList;
 import org.tron.api.GrpcAPI.BlockListExtention;
+import org.tron.api.GrpcAPI.DelegatedResourceList;
 import org.tron.api.GrpcAPI.EasyTransferResponse;
 import org.tron.api.GrpcAPI.EmptyMessage;
 import org.tron.api.GrpcAPI.ExchangeList;
@@ -1055,6 +1056,9 @@ public class WalletApi {
     }
   }
 
+
+
+
   private UnfreezeBalanceContract createUnfreezeBalanceContract(int resourceCode) {
     byte[] address = getAddress();
     Contract.UnfreezeBalanceContract.Builder builder = Contract.UnfreezeBalanceContract
@@ -1140,6 +1144,10 @@ public class WalletApi {
 
   public static Optional<Proposal> getProposal(String id) {
     return rpcCli.getProposal(id);
+  }
+
+  public static Optional<DelegatedResourceList> getDelegatedResource(String address,boolean isFrom) {
+    return rpcCli.getDelegatedResource(address, isFrom);
   }
 
   public static Optional<ExchangeList> listExchanges() {

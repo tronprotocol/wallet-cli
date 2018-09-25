@@ -37,6 +37,7 @@ import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.BlockExtention;
 import org.tron.api.GrpcAPI.BlockList;
 import org.tron.api.GrpcAPI.BlockListExtention;
+import org.tron.api.GrpcAPI.DelegatedResourceList;
 import org.tron.api.GrpcAPI.ExchangeList;
 import org.tron.api.GrpcAPI.ProposalList;
 import org.tron.api.GrpcAPI.TransactionExtention;
@@ -77,6 +78,7 @@ import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.BlockHeader;
 import org.tron.protos.Protocol.ChainParameters;
 import org.tron.protos.Protocol.ChainParameters.ChainParameter;
+import org.tron.protos.Protocol.DelegatedResource;
 import org.tron.protos.Protocol.Exchange;
 import org.tron.protos.Protocol.Proposal;
 import org.tron.protos.Protocol.ResourceReceipt;
@@ -392,6 +394,38 @@ public class Utils {
       result += "\n";
       i++;
     }
+    return result;
+  }
+
+
+  public static String printDelegatedResourceList(DelegatedResourceList delegatedResourceList) {
+    String result = "";
+    result += "approvalsList: [ \n";
+    for (DelegatedResource delegatedResource : delegatedResourceList.getDelegatedResourceList()) {
+      printDelegatedResource(delegatedResource);
+      result += "\n";
+    }
+    result += "]";
+    return result;
+  }
+
+  public static String printDelegatedResource(DelegatedResource delegatedResource) {
+    String result = "";
+    result += "from: ";
+    result += WalletApi.encode58Check(delegatedResource.getFrom().toByteArray());
+    result += "\n";
+    result += "to: ";
+    result += WalletApi.encode58Check(delegatedResource.getTo().toByteArray());
+    result += "\n";
+    result += "frozenBalanceForBandwidth: ";
+    result += delegatedResource.getFrozenBalanceForBandwidth();
+    result += "\n";
+    result += "frozenBalanceForEnergy: ";
+    result += delegatedResource.getFrozenBalanceForEnergy();
+    result += "\n";
+    result += "expireTime: ";
+    result += delegatedResource.getExpireTime();
+    result += "\n";
     return result;
   }
 
