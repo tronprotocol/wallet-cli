@@ -1901,7 +1901,7 @@ public class Client {
             break;
           }
           case "getdelegatedresource": {
-            getDelegatedResourceByFrom(parameters);
+            getDelegatedResource(parameters);
             break;
           }
           case "exchangecreate": {
