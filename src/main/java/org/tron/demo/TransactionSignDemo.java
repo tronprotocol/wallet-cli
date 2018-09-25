@@ -12,8 +12,7 @@ import org.tron.common.utils.ByteArray;
 import org.tron.protos.Contract;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.Transaction;
-import org.tron.protos.Protocol.TransactionSign;
-import org.tron.walletserver.WalletClient;
+import org.tron.walletserver.WalletApi;
 
 public class TransactionSignDemo {
 
@@ -40,7 +39,7 @@ public class TransactionSignDemo {
 
   public static Transaction createTransaction(byte[] from, byte[] to, long amount) {
     Transaction.Builder transactionBuilder = Transaction.newBuilder();
-    Block newestBlock = WalletClient.getBlock(-1);
+    Block newestBlock = WalletApi.getBlock(-1);
 
     Transaction.Contract.Builder contractBuilder = Transaction.Contract.newBuilder();
     Contract.TransferContract.Builder transferContractBuilder = Contract.TransferContract
@@ -87,7 +86,19 @@ public class TransactionSignDemo {
   }
 
   private static boolean broadcast(byte[] transactionBytes) throws InvalidProtocolBufferException {
-    return WalletClient.broadcastTransaction(transactionBytes);
+    return WalletApi.broadcastTransaction(transactionBytes);
+  }
+
+  private static void base58checkToHexString() {
+    String base58check = "TGehVcNhud84JDCGrNHKVz9jEAVKUpbuiv";
+    String hexString = ByteArray.toHexString(WalletApi.decodeFromBase58Check(base58check));
+    System.out.println(hexString);
+  }
+
+  private static void hexStringTobase58check() {
+    String hexString = "414948c2e8a756d9437037dcd8c7e0c73d560ca38d";
+    String base58check = WalletApi.encode58Check(ByteArray.fromHexString(hexString));
+    System.out.println(base58check);
   }
 
   public static void main(String[] args) throws InvalidProtocolBufferException {
@@ -95,7 +106,7 @@ public class TransactionSignDemo {
     byte[] privateBytes = ByteArray.fromHexString(privateStr);
     ECKey ecKey = ECKey.fromPrivate(privateBytes);
     byte[] from = ecKey.getAddress();
-    byte[] to = WalletClient.decodeFromBase58Check("TGehVcNhud84JDCGrNHKVz9jEAVKUpbuiv");
+    byte[] to = WalletApi.decodeFromBase58Check("TGehVcNhud84JDCGrNHKVz9jEAVKUpbuiv");
     long amount = 100_000_000L; //100 TRX, api only receive trx in drop, and 1 trx = 1000000 drop
     Transaction transaction = createTransaction(from, to, amount);
     byte[] transactionBytes = transaction.toByteArray();
@@ -116,8 +127,8 @@ public class TransactionSignDemo {
     byte[] transaction4 = signTransaction2Byte(transactionBytes, privateBytes);
     System.out.println("transaction4 ::::: " + ByteArray.toHexString(transaction4));
     Transaction transactionSigned;
-    if (WalletClient.getRpcVersion() == 2) {
-      TransactionExtention transactionExtention = WalletClient.signTransactionByApi2(transaction, ecKey.getPrivKeyBytes());
+    if (WalletApi.getRpcVersion() == 2) {
+      TransactionExtention transactionExtention = WalletApi.signTransactionByApi2(transaction, ecKey.getPrivKeyBytes());
       if (transactionExtention == null) {
         System.out.println("transactionExtention is null");
         return;
@@ -132,7 +143,7 @@ public class TransactionSignDemo {
           "Receive txid = " + ByteArray.toHexString(transactionExtention.getTxid().toByteArray()));
       transactionSigned = transactionExtention.getTransaction();
     } else {
-      transactionSigned = WalletClient.signTransactionByApi(transaction, ecKey.getPrivKeyBytes());
+      transactionSigned = WalletApi.signTransactionByApi(transaction, ecKey.getPrivKeyBytes());
     }
     byte[] transaction5 = transactionSigned.toByteArray();
     System.out.println("transaction5 ::::: " + ByteArray.toHexString(transaction5));
