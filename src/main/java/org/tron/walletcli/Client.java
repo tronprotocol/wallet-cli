@@ -889,6 +889,8 @@ public class Client {
     }
   }
 
+
+
   private void unfreezeAsset() throws IOException, CipherException, CancelException {
     boolean result = walletApiWrapper.unfreezeAsset();
     if (result) {
@@ -1619,6 +1621,7 @@ public class Client {
     System.out.println("GetBlockByLatestNum");
     System.out.println("FreezeBalance");
     System.out.println("UnfreezeBalance");
+    System.out.println("GetDelegatedResource");
     System.out.println("WithdrawBalance");
     System.out.println("UpdateAccount");
     System.out.println("SetAccountId");
@@ -1832,6 +1835,10 @@ public class Client {
           }
           case "unfreezebalance": {
             unfreezeBalance(parameters);
+            break;
+          }
+          case "getdelegatedresource": {
+            getDelegatedResource(parameters);
             break;
           }
           case "buystorage": {
