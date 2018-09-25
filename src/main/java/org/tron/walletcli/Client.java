@@ -343,7 +343,8 @@ public class Client {
     long newLimit = new Long(newLimitString);
     long newPublicLimit = new Long(newPublicLimitString);
 
-    boolean ret = walletApiWrapper.updateAsset(descriptionBytes, urlBytes, newLimit, newPublicLimit);
+    boolean ret = walletApiWrapper
+        .updateAsset(descriptionBytes, urlBytes, newLimit, newPublicLimit);
     if (ret) {
       logger.info("Update Asset successful !!!!");
     } else {
@@ -783,20 +784,31 @@ public class Client {
 
   private void freezeBalance(String[] parameters)
       throws IOException, CipherException, CancelException {
-    if (parameters == null || !(parameters.length == 2 || parameters.length == 3)) {
+    if (parameters == null || !(parameters.length == 2 || parameters.length == 3
+        || parameters.length == 4)) {
       System.out.println("Use freezeBalance command with below syntax: ");
       System.out
-          .println("freezeBalance frozen_balance frozen_duration [ResourceCode:0 BANDWIDTH,1 ENERGY]");
+          .println(
+              "freezeBalance frozen_balance frozen_duration [ResourceCode:0 BANDWIDTH,1 ENERGY] [receiverAddress]");
       return;
     }
 
     long frozen_balance = Long.parseLong(parameters[0]);
     long frozen_duration = Long.parseLong(parameters[1]);
     int resourceCode = 0;
+    String receiverAddress;
     if (parameters.length == 3) {
-      resourceCode = Integer.parseInt(parameters[2]);
+      try {
+        resourceCode = Integer.parseInt(parameters[2]);
+      } catch (NumberFormatException e) {
+        receiverAddress = parameters[2];
+      }
     }
-    boolean result = walletApiWrapper.freezeBalance(frozen_balance, frozen_duration, resourceCode);
+    if (parameters.length == 4) {
+      resourceCode = Integer.parseInt(parameters[2]);
+      receiverAddress = parameters[3];
+    }
+    boolean result = walletApiWrapper.freezeBalance(frozen_balance, frozen_duration, resourceCode,receiverAddress);
     if (result) {
       logger.info("freezeBalance " + " successful !!");
     } else {

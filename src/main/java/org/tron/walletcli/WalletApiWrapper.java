@@ -380,14 +380,14 @@ public class WalletApiWrapper {
     return wallet.updateAsset(description, url, newLimit, newPublicLimit);
   }
 
-  public boolean freezeBalance(long frozen_balance, long frozen_duration, int resourceCode)
+  public boolean freezeBalance(long frozen_balance, long frozen_duration, int resourceCode,String receiverAddress)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: freezeBalance failed, Please login first !!");
       return false;
     }
 
-    return wallet.freezeBalance(frozen_balance, frozen_duration, resourceCode);
+    return wallet.freezeBalance(frozen_balance, frozen_duration, resourceCode , receiverAddress);
   }
 
   public boolean buyStorage(long quantity)
