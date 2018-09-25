@@ -963,10 +963,10 @@ public class WalletApi {
     return rpcCli.getTransactionInfoById(txID);
   }
 
-  public boolean freezeBalance(long frozen_balance, long frozen_duration, int resourceCode)
+  public boolean freezeBalance(long frozen_balance, long frozen_duration, int resourceCode,String receiverAddress)
       throws CipherException, IOException, CancelException {
     Contract.FreezeBalanceContract contract = createFreezeBalanceContract(frozen_balance,
-        frozen_duration, resourceCode);
+        frozen_duration, resourceCode, receiverAddress);
     if (rpcVersion == 2) {
       TransactionExtention transactionExtention = rpcCli.createTransaction2(contract);
       return processTransactionExtention(transactionExtention);
@@ -999,7 +999,7 @@ public class WalletApi {
   }
 
   private FreezeBalanceContract createFreezeBalanceContract(long frozen_balance,
-      long frozen_duration, int resourceCode) {
+      long frozen_duration, int resourceCode,String receiverAddress) {
     byte[] address = getAddress();
     Contract.FreezeBalanceContract.Builder builder = Contract.FreezeBalanceContract.newBuilder();
     ByteString byteAddress = ByteString.copyFrom(address);
