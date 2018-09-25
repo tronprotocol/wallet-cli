@@ -992,13 +992,12 @@ public class Client {
       throws IOException, CipherException, CancelException {
     if (parameters == null ||parameters.length != 2) {
       System.out.println("Use getDelegatedResource command with below syntax: ");
-      System.out.println("getDelegatedResource fromAddress isFrom");
+      System.out.println("getDelegatedResource fromAddress toAddress");
       return;
     }
-
     String fromAddress = parameters[0];
-    boolean isFrom = Boolean.valueOf(parameters[1]);
-    Optional<DelegatedResourceList> result = WalletApi.getDelegatedResource(fromAddress, isFrom);
+    String toAddress = parameters[1];
+    Optional<DelegatedResourceList> result = WalletApi.getDelegatedResource(fromAddress, toAddress);
     if (result.isPresent()) {
       DelegatedResourceList delegatedResourceList = result.get();
       logger.info(Utils.printDelegatedResourceList(delegatedResourceList));

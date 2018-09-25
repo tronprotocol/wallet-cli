@@ -275,11 +275,12 @@ public class GrpcClient {
     return Optional.ofNullable(proposal);
   }
 
-  public Optional<DelegatedResourceList> getDelegatedResource(String address,boolean isFrom) {
+  public Optional<DelegatedResourceList> getDelegatedResource(String fromAddress,String toAddress) {
 
-    ByteString addressBS = ByteString.copyFromUtf8(address);
+    ByteString fromAddressBS = ByteString.copyFromUtf8(fromAddress);
+    ByteString toAddressBS = ByteString.copyFromUtf8(toAddress);
 
-    DelegatedResourceMessage request = DelegatedResourceMessage.newBuilder().setAddress(addressBS).setIsFrom(isFrom)
+    DelegatedResourceMessage request = DelegatedResourceMessage.newBuilder().setFromAddress(fromAddressBS).setToAddress(toAddressBS)
         .build();
     DelegatedResourceList delegatedResource= blockingStubFull
         .getDelegatedResource(request);

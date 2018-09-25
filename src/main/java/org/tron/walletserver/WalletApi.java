@@ -1146,8 +1146,8 @@ public class WalletApi {
     return rpcCli.getProposal(id);
   }
 
-  public static Optional<DelegatedResourceList> getDelegatedResource(String address,boolean isFrom) {
-    return rpcCli.getDelegatedResource(address, isFrom);
+  public static Optional<DelegatedResourceList> getDelegatedResource(String fromAddress,String toAddress) {
+    return rpcCli.getDelegatedResource(fromAddress, toAddress);
   }
 
   public static Optional<ExchangeList> listExchanges() {
