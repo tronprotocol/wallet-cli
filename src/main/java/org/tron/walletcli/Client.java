@@ -796,7 +796,7 @@ public class Client {
     long frozen_balance = Long.parseLong(parameters[0]);
     long frozen_duration = Long.parseLong(parameters[1]);
     int resourceCode = 0;
-    String receiverAddress;
+    String receiverAddress = null;
     if (parameters.length == 3) {
       try {
         resourceCode = Integer.parseInt(parameters[2]);
