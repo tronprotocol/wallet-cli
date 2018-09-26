@@ -699,11 +699,11 @@ public class Client {
     }
   }
 
-  private void getProposalListPaginated(String[] parameters) {
+  private void getProposalsListPaginated(String[] parameters) {
     if (parameters == null || parameters.length != 2) {
       System.out.println(
-          "The listproposalpaginated command needs 2 parameters, use the following syntax:");
-      System.out.println("listproposalpaginated offset limit ");
+          "The listproposalspaginated command needs 2 parameters, use the following syntax:");
+      System.out.println("listproposalspaginated offset limit ");
       return;
     }
     int offset = Integer.parseInt(parameters[0]);
@@ -713,15 +713,15 @@ public class Client {
       ProposalList proposalList = result.get();
       logger.info(Utils.printProposalsList(proposalList));
     } else {
-      logger.info("listproposalpaginated " + " failed !!");
+      logger.info("listproposalspaginated " + " failed !!");
     }
   }
 
-  private void getExchangeListPaginated(String[] parameters) {
+  private void getExchangesListPaginated(String[] parameters) {
     if (parameters == null || parameters.length != 2) {
       System.out.println(
-          "The listexchangepaginated command needs 2 parameters, use the following syntax:");
-      System.out.println("listexchangepaginated offset limit ");
+          "The listexchangespaginated command needs 2 parameters, use the following syntax:");
+      System.out.println("listexchangespaginated offset limit ");
       return;
     }
     int offset = Integer.parseInt(parameters[0]);
@@ -731,7 +731,7 @@ public class Client {
       ExchangeList exchangeList = result.get();
       logger.info(Utils.printExchangeList(exchangeList));
     } else {
-      logger.info("listexchangepaginated " + " failed !!");
+      logger.info("listexchangespaginated " + " failed !!");
     }
   }
 
@@ -1661,6 +1661,7 @@ public class Client {
 //    System.out.println("sellStorage");
     System.out.println("CreateProposal");
     System.out.println("ListProposals");
+    System.out.println("listproposalpaginated");
     System.out.println("GetProposal");
     System.out.println("ApproveProposal");
     System.out.println("DeleteProposal");
@@ -1669,6 +1670,7 @@ public class Client {
     System.out.println("ExchangeWithdraw");
     System.out.println("ExchangeTransaction");
     System.out.println("ListExchanges");
+    System.out.println("ListExchangespaginated");
     System.out.println("GetExchange");
     System.out.println("Exit or Quit");
 
@@ -1896,6 +1898,10 @@ public class Client {
             listProposals();
             break;
           }
+          case "listproposalspaginated": {
+            getProposalsListPaginated(parameters);
+            break;
+          }
           case "getproposal": {
             getProposal(parameters);
             break;
@@ -1920,6 +1926,10 @@ public class Client {
             listExchanges();
             break;
           }
+          case "listexchangespaginated": {
+            getExchangesListPaginated(parameters);
+            break;
+          }
           case "getexchange": {
             getExchange(parameters);
             break;
@@ -1938,14 +1948,6 @@ public class Client {
           }
           case "listassetissuepaginated": {
             getAssetIssueList(parameters);
-            break;
-          }
-          case "listproposalpaginated": {
-            getProposalListPaginated(parameters);
-            break;
-          }
-          case "listexchangepaginated": {
-            getExchangeListPaginated(parameters);
             break;
           }
           case "listnodes": {
