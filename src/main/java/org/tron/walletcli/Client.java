@@ -699,6 +699,44 @@ public class Client {
     }
   }
 
+  private void getProposalListPaginated(String[] parameters) {
+    if (parameters == null || parameters.length != 2) {
+      System.out.println(
+          "The listproposalpaginated command needs 2 parameters, use the following syntax:");
+      System.out.println("listproposalpaginated offset limit ");
+      return;
+    }
+    int offset = Integer.parseInt(parameters[0]);
+    int limit = Integer.parseInt(parameters[1]);
+    Optional<ProposalList> result = walletApiWrapper.getProposalListPaginated(offset, limit);
+    if (result.isPresent()) {
+      ProposalList proposalList = result.get();
+      logger.info(Utils.printProposalsList(proposalList));
+    } else {
+      logger.info("listproposalpaginated " + " failed !!");
+    }
+  }
+
+  private void getExchangeListPaginated(String[] parameters) {
+    if (parameters == null || parameters.length != 2) {
+      System.out.println(
+          "The listexchangepaginated command needs 2 parameters, use the following syntax:");
+      System.out.println("listexchangepaginated offset limit ");
+      return;
+    }
+    int offset = Integer.parseInt(parameters[0]);
+    int limit = Integer.parseInt(parameters[1]);
+    Optional<ExchangeList> result = walletApiWrapper.getExchangeListPaginated(offset, limit);
+    if (result.isPresent()) {
+      ExchangeList exchangeList = result.get();
+      logger.info(Utils.printExchangeList(exchangeList));
+    } else {
+      logger.info("listexchangepaginated " + " failed !!");
+    }
+  }
+
+
+
   private void listNodes() {
     Optional<NodeList> result = walletApiWrapper.listNodes();
     if (result.isPresent()) {
@@ -1900,6 +1938,14 @@ public class Client {
           }
           case "listassetissuepaginated": {
             getAssetIssueList(parameters);
+            break;
+          }
+          case "listproposalpaginated": {
+            getProposalListPaginated(parameters);
+            break;
+          }
+          case "listexchangepaginated": {
+            getExchangeListPaginated(parameters);
             break;
           }
           case "listnodes": {
