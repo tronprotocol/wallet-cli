@@ -899,6 +899,17 @@ public class WalletApi {
     return rpcCli.getAssetIssueList(offset, limit);
   }
 
+  public static Optional<ProposalList> getProposalListPaginated(long offset, long limit) {
+    return rpcCli.getProposalListPaginated(offset, limit);
+  }
+
+  public static Optional<ExchangeList> getExchangeListPaginated(long offset, long limit) {
+    return rpcCli.getExchangeListPaginated(offset, limit);
+  }
+
+
+
+
   public static Optional<NodeList> listNodes() {
     return rpcCli.listNodes();
   }

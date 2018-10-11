@@ -1266,6 +1266,10 @@ public class Utils {
     result += WalletApi.encode58Check(raw.getWitnessAddress().toByteArray());
     result += "\n";
 
+    result += "version: ";
+    result += raw.getVersion();
+    result += "\n";
+
     return result;
   }
 

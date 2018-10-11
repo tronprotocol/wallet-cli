@@ -458,6 +458,26 @@ public class GrpcClient {
     }
   }
 
+  public Optional<ProposalList> getProposalListPaginated(long offset, long limit) {
+    PaginatedMessage.Builder pageMessageBuilder = PaginatedMessage.newBuilder();
+    pageMessageBuilder.setOffset(offset);
+    pageMessageBuilder.setLimit(limit);
+    ProposalList proposalList = blockingStubFull
+        .getPaginatedProposalList(pageMessageBuilder.build());
+    return Optional.ofNullable(proposalList);
+
+  }
+
+  public Optional<ExchangeList> getExchangeListPaginated(long offset, long limit) {
+    PaginatedMessage.Builder pageMessageBuilder = PaginatedMessage.newBuilder();
+    pageMessageBuilder.setOffset(offset);
+    pageMessageBuilder.setLimit(limit);
+    ExchangeList exchangeList = blockingStubFull
+        .getPaginatedExchangeList(pageMessageBuilder.build());
+    return Optional.ofNullable(exchangeList);
+
+  }
+
   public Optional<NodeList> listNodes() {
     NodeList nodeList = blockingStubFull.listNodes(EmptyMessage.newBuilder().build());
     return Optional.ofNullable(nodeList);
@@ -475,6 +495,7 @@ public class GrpcClient {
     Account request = Account.newBuilder().setAddress(addressBS).build();
     return blockingStubFull.getAccountNet(request);
   }
+
   public AccountResourceMessage getAccountResource(byte[] address) {
     ByteString addressBS = ByteString.copyFrom(address);
     Account request = Account.newBuilder().setAddress(addressBS).build();
