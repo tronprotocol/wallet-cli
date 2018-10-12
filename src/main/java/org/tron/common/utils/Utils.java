@@ -78,6 +78,7 @@ import org.tron.protos.Protocol.BlockHeader;
 import org.tron.protos.Protocol.ChainParameters;
 import org.tron.protos.Protocol.ChainParameters.ChainParameter;
 import org.tron.protos.Protocol.Exchange;
+import org.tron.protos.Protocol.InternalTransaction;
 import org.tron.protos.Protocol.Proposal;
 import org.tron.protos.Protocol.ResourceReceipt;
 import org.tron.protos.Protocol.SmartContract;
@@ -1142,7 +1143,49 @@ public class Utils {
     result += "\n";
     result += printReceipt(transactionInfo.getReceipt());
     result += "\n";
+    result += "InternalTransactionList: ";
+    result += "\n";
+    result += printInternalTransactionList(transactionInfo.getInternalTransactionsList());
+    result += "\n";
     return result;
+  }
+
+  public static String printInternalTransactionList(List<InternalTransaction> internalTransactions){
+    StringBuilder result = new StringBuilder("");
+    internalTransactions.forEach(internalTransaction -> {
+          result.append("[\n");
+          result.append("  hash:\n");
+          result.append("  " + ByteArray.toHexString(internalTransaction.getHash().toByteArray()));
+          result.append("  \n");
+          result.append("  caller_address:\n");
+          result.append("  " +ByteArray.toHexString(internalTransaction.getCallerAddress().toByteArray()));
+          result.append("  \n");
+          result.append("  transferTo_address:\n");
+          result.append("  " +ByteArray.toHexString(internalTransaction.getTransferToAddress().toByteArray()));
+          result.append("  \n");
+          result.append("  callValueInfo:\n");
+          StringBuilder callValueInfo = new StringBuilder("");
+
+          internalTransaction.getCallValueInfoList().forEach(token -> {
+            callValueInfo.append("  TokenName(Default trx):\n");
+            if (null == token.getTokenName()|| token.getTokenName().size() == 0){
+              callValueInfo.append("  TRX(SUN)");
+            }
+            else {
+              callValueInfo.append("  " +ByteArray.toHexString(token.getTokenName().toByteArray()));
+            }
+            callValueInfo.append("  \n");
+            callValueInfo.append("  callValue:\n");
+            callValueInfo.append("  " +token.getCallValue());
+            callValueInfo.append("  \n");
+          });
+          result.append(callValueInfo);
+          result.append("]\n");
+        }
+    );
+
+    return result.toString();
+
   }
 
   private static String printReceipt(ResourceReceipt receipt) {
