@@ -97,7 +97,7 @@ UpdateAccount 
 Exit or Quit  
 help  
 
-Input any one of then, you will get more tips.
+Input any one of them, you will get more tips.
 
 
 How to freeze/unfreeze balance
