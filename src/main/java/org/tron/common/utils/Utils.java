@@ -1172,7 +1172,7 @@ public class Utils {
               callValueInfo.append("  TRX(SUN)");
             }
             else {
-              callValueInfo.append("  " +ByteArray.toHexString(token.getTokenName().toByteArray()));
+              callValueInfo.append("  " + new String(token.getTokenName().toByteArray()));
             }
             callValueInfo.append("  \n");
             callValueInfo.append("  callValue:\n");
@@ -1180,6 +1180,12 @@ public class Utils {
             callValueInfo.append("  \n");
           });
           result.append(callValueInfo);
+          result.append("  note:\n");
+          result.append("  " + new String(internalTransaction.getNote().toByteArray()));
+          result.append("  \n");
+          result.append("  rejected:\n");
+          result.append("  " + internalTransaction.getRejected());
+          result.append("  \n");
           result.append("]\n");
         }
     );
