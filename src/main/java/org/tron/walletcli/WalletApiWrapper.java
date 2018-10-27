@@ -332,6 +332,27 @@ public class WalletApiWrapper {
     }
   }
 
+  public Optional<ProposalList> getProposalListPaginated(long offset, long limit) {
+    try {
+      return WalletApi.getProposalListPaginated(offset, limit);
+    } catch (Exception ex) {
+      ex.printStackTrace();
+      return Optional.empty();
+    }
+  }
+
+
+  public Optional<ExchangeList> getExchangeListPaginated(long offset, long limit) {
+    try {
+      return WalletApi.getExchangeListPaginated(offset, limit);
+    } catch (Exception ex) {
+      ex.printStackTrace();
+      return Optional.empty();
+    }
+  }
+
+
+
   public Optional<NodeList> listNodes() {
     try {
       return WalletApi.listNodes();
