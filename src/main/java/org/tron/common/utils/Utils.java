@@ -79,6 +79,7 @@ import org.tron.protos.Protocol.BlockHeader;
 import org.tron.protos.Protocol.ChainParameters;
 import org.tron.protos.Protocol.ChainParameters.ChainParameter;
 import org.tron.protos.Protocol.DelegatedResource;
+import org.tron.protos.Protocol.DelegatedResourceAccountIndex;
 import org.tron.protos.Protocol.Exchange;
 import org.tron.protos.Protocol.InternalTransaction;
 import org.tron.protos.Protocol.Proposal;
@@ -409,6 +410,30 @@ public class Utils {
     result += "]";
     return result;
   }
+
+  public static String printDelegatedResourceAccountIndex(
+      DelegatedResourceAccountIndex delegatedResourceAccountIndex) {
+
+    String result = "";
+    result += "address: ";
+    result += WalletApi.encode58Check(delegatedResourceAccountIndex.getAccount().toByteArray());
+
+    result += "from: [ \n";
+    for (ByteString fromAddress : delegatedResourceAccountIndex.getFromAccountsList()) {
+      result += WalletApi.encode58Check(fromAddress.toByteArray());
+      result += "\n";
+    }
+    result += "]";
+
+    result += "to: [ \n";
+    for (ByteString toAddress : delegatedResourceAccountIndex.getToAccountsList()) {
+      result += WalletApi.encode58Check(toAddress.toByteArray());
+      result += "\n";
+    }
+    result += "]";
+    return result;
+  }
+
 
   public static String printDelegatedResource(DelegatedResource delegatedResource) {
     String result = "";

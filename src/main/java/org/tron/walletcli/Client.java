@@ -47,6 +47,7 @@ import org.tron.protos.Contract.AssetIssueContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.ChainParameters;
+import org.tron.protos.Protocol.DelegatedResourceAccountIndex;
 import org.tron.protos.Protocol.Exchange;
 import org.tron.protos.Protocol.Proposal;
 import org.tron.protos.Protocol.SmartContract;
@@ -1046,6 +1047,26 @@ public class Client {
     }
   }
 
+  private void getDelegatedResourceAccountIndex(String[] parameters)
+      throws IOException, CipherException, CancelException {
+    if (parameters == null ||parameters.length != 1) {
+      System.out.println("Use getDelegatedResourceAccountIndex command with below syntax: ");
+      System.out.println("getDelegatedResourceAccountIndex address ");
+      return;
+    }
+    String address = parameters[0];
+    Optional<DelegatedResourceAccountIndex> result = WalletApi.getDelegatedResourceAccountIndex(address);
+    if (result.isPresent()) {
+      DelegatedResourceAccountIndex delegatedResourceAccountIndex = result.get();
+      logger.info(Utils.printDelegatedResourceAccountIndex(delegatedResourceAccountIndex));
+    } else {
+      logger.info("getDelegatedResourceAccountIndex " + " failed !!");
+    }
+  }
+
+
+
+
 
   private void exchangeCreate(String[] parameters)
       throws IOException, CipherException, CancelException {
@@ -1684,6 +1705,7 @@ public class Client {
     System.out.println("FreezeBalance");
     System.out.println("UnfreezeBalance");
     System.out.println("GetDelegatedResource");
+    System.out.println("GetDelegatedResourceAccountIndex");
     System.out.println("WithdrawBalance");
     System.out.println("UpdateAccount");
     System.out.println("SetAccountId");
@@ -1947,6 +1969,10 @@ public class Client {
           }
           case "getdelegatedresource": {
             getDelegatedResource(parameters);
+            break;
+          }
+          case "getdelegatedresourceaccountindex": {
+            getDelegatedResourceAccountIndex(parameters);
             break;
           }
           case "exchangecreate": {

@@ -44,6 +44,7 @@ import org.tron.protos.Contract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.ChainParameters;
+import org.tron.protos.Protocol.DelegatedResourceAccountIndex;
 import org.tron.protos.Protocol.Exchange;
 import org.tron.protos.Protocol.Proposal;
 import org.tron.protos.Protocol.SmartContract;
@@ -291,6 +292,18 @@ public class GrpcClient {
     DelegatedResourceList delegatedResource= blockingStubFull
         .getDelegatedResource(request);
     return Optional.ofNullable(delegatedResource);
+  }
+
+  public Optional<DelegatedResourceAccountIndex> getDelegatedResourceAccountIndex(String address) {
+
+    ByteString addressBS = ByteString.copyFrom(
+        Objects.requireNonNull(WalletApi.decodeFromBase58Check(address)));
+
+    BytesMessage bytesMessage = BytesMessage.newBuilder().setValue(addressBS).build();
+
+    DelegatedResourceAccountIndex accountIndex= blockingStubFull
+        .getDelegatedResourceAccountIndex(bytesMessage);
+    return Optional.ofNullable(accountIndex);
   }
 
 
