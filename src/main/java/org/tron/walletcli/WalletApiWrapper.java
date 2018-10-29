@@ -401,7 +401,8 @@ public class WalletApiWrapper {
     return wallet.updateAsset(description, url, newLimit, newPublicLimit);
   }
 
-  public boolean freezeBalance(long frozen_balance, long frozen_duration, int resourceCode,String receiverAddress)
+  public boolean freezeBalance(long frozen_balance, long frozen_duration, int resourceCode,
+      String receiverAddress)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: freezeBalance failed, Please login first !!");

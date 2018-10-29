@@ -400,8 +400,8 @@ public class Utils {
 
 
   public static String printDelegatedResourceList(DelegatedResourceList delegatedResourceList) {
-    String result = "";
-    result += "approvalsList: [ \n";
+    String result = "" + delegatedResourceList.getDelegatedResourceCount() + "\n";
+    result += "DelegatedResourceList: [ \n";
     for (DelegatedResource delegatedResource : delegatedResourceList.getDelegatedResourceList()) {
       printDelegatedResource(delegatedResource);
       result += "\n";

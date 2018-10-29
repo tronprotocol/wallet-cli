@@ -976,7 +976,8 @@ public class WalletApi {
     return rpcCli.getTransactionInfoById(txID);
   }
 
-  public boolean freezeBalance(long frozen_balance, long frozen_duration, int resourceCode,String receiverAddress)
+  public boolean freezeBalance(long frozen_balance, long frozen_duration, int resourceCode,
+      String receiverAddress)
       throws CipherException, IOException, CancelException {
     Contract.FreezeBalanceContract contract = createFreezeBalanceContract(frozen_balance,
         frozen_duration, resourceCode, receiverAddress);
@@ -1157,7 +1158,8 @@ public class WalletApi {
     return rpcCli.getProposal(id);
   }
 
-  public static Optional<DelegatedResourceList> getDelegatedResource(String fromAddress,String toAddress) {
+  public static Optional<DelegatedResourceList> getDelegatedResource(String fromAddress,
+      String toAddress) {
     return rpcCli.getDelegatedResource(fromAddress, toAddress);
   }
 

@@ -144,12 +144,13 @@ message Account {
 }
 
 
-message  DelegatedResource{
+message DelegatedResource {
   bytes from = 1;
   bytes to = 2;
   int64 frozen_balance_for_bandwidth = 3;
   int64 frozen_balance_for_energy = 4;
-  int64 expire_time = 5;
+  int64 expire_time_for_bandwidth = 5;
+  int64 expire_time_for_energy = 6;
 }
 
 message authority {
@@ -519,4 +520,6 @@ message InternalTransaction {
     bytes tokenName = 2;
   }
   repeated CallValueInfo callValueInfo = 4;
+  bytes note = 5;
+  bool rejected = 6;
 }

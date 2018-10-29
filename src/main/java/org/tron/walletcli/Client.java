@@ -828,7 +828,8 @@ public class Client {
       System.out.println("Use freezeBalance command with below syntax: ");
       System.out
           .println(
-              "freezeBalance frozen_balance frozen_duration [ResourceCode:0 BANDWIDTH,1 ENERGY] [receiverAddress]");
+              "freezeBalance frozen_balance frozen_duration [ResourceCode:0 BANDWIDTH,1 ENERGY] "
+                  + "[receiverAddress]");
       return;
     }
 
@@ -847,7 +848,8 @@ public class Client {
       resourceCode = Integer.parseInt(parameters[2]);
       receiverAddress = parameters[3];
     }
-    boolean result = walletApiWrapper.freezeBalance(frozen_balance, frozen_duration, resourceCode,receiverAddress);
+    boolean result = walletApiWrapper.freezeBalance(frozen_balance, frozen_duration, resourceCode,
+        receiverAddress);
     if (result) {
       logger.info("freezeBalance " + " successful !!");
     } else {
@@ -1040,7 +1042,7 @@ public class Client {
       DelegatedResourceList delegatedResourceList = result.get();
       logger.info(Utils.printDelegatedResourceList(delegatedResourceList));
     } else {
-      logger.info("getProposal " + " failed !!");
+      logger.info("getDelegatedResource " + " failed !!");
     }
   }
 

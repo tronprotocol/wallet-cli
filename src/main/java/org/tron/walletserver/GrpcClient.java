@@ -3,6 +3,7 @@ package org.tron.walletserver;
 import com.google.protobuf.ByteString;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import org.apache.commons.lang.StringUtils;
@@ -275,12 +276,17 @@ public class GrpcClient {
     return Optional.ofNullable(proposal);
   }
 
-  public Optional<DelegatedResourceList> getDelegatedResource(String fromAddress,String toAddress) {
+  public Optional<DelegatedResourceList> getDelegatedResource(String fromAddress,
+      String toAddress) {
 
-    ByteString fromAddressBS = ByteString.copyFromUtf8(fromAddress);
-    ByteString toAddressBS = ByteString.copyFromUtf8(toAddress);
+    ByteString fromAddressBS = ByteString.copyFrom(
+        Objects.requireNonNull(WalletApi.decodeFromBase58Check(fromAddress)));
+    ByteString toAddressBS = ByteString.copyFrom(
+        Objects.requireNonNull(WalletApi.decodeFromBase58Check(toAddress)));
 
-    DelegatedResourceMessage request = DelegatedResourceMessage.newBuilder().setFromAddress(fromAddressBS).setToAddress(toAddressBS)
+    DelegatedResourceMessage request = DelegatedResourceMessage.newBuilder()
+        .setFromAddress(fromAddressBS)
+        .setToAddress(toAddressBS)
         .build();
     DelegatedResourceList delegatedResource= blockingStubFull
         .getDelegatedResource(request);
