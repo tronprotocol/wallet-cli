@@ -403,7 +403,7 @@ public class Utils {
     String result = "" + delegatedResourceList.getDelegatedResourceCount() + "\n";
     result += "DelegatedResourceList: [ \n";
     for (DelegatedResource delegatedResource : delegatedResourceList.getDelegatedResourceList()) {
-      printDelegatedResource(delegatedResource);
+      result += printDelegatedResource(delegatedResource);
       result += "\n";
     }
     result += "]";
@@ -421,11 +421,14 @@ public class Utils {
     result += "frozenBalanceForBandwidth: ";
     result += delegatedResource.getFrozenBalanceForBandwidth();
     result += "\n";
+    result += "expireTimeForBandwidth: ";
+    result += delegatedResource.getExpireTimeForBandwidth();
+    result += "\n";
     result += "frozenBalanceForEnergy: ";
     result += delegatedResource.getFrozenBalanceForEnergy();
     result += "\n";
-    result += "expireTime: ";
-    result += delegatedResource.getExpireTime();
+    result += "expireTimeForEnergy: ";
+    result += delegatedResource.getExpireTimeForEnergy();
     result += "\n";
     return result;
   }
