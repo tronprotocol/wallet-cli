@@ -352,7 +352,6 @@ public class WalletApiWrapper {
   }
 
 
-
   public Optional<NodeList> listNodes() {
     try {
       return WalletApi.listNodes();
@@ -599,8 +598,19 @@ public class WalletApiWrapper {
 
   }
 
+  public boolean updateSettingForEnergyLimit(byte[] contractAddress, long energyLimit)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warning: updateSetting failed,  Please login first !!");
+      return false;
+    }
+    return wallet.updateSettingForEnergyLimit(contractAddress, energyLimit);
+
+  }
+
   public boolean deployContract(String name, String abiStr, String codeStr,
-      long feeLimit, long value, long consumeUserResourcePercent, String libraryAddressPair)
+      long feeLimit, long value, long consumeUserResourcePercent, long energyLimit,
+      String libraryAddressPair)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: createContract failed,  Please login first !!");
@@ -608,13 +618,14 @@ public class WalletApiWrapper {
     }
     return wallet
         .deployContract(name, abiStr, codeStr, feeLimit, value, consumeUserResourcePercent,
-            libraryAddressPair);
+            energyLimit, libraryAddressPair);
   }
 
   public boolean callContract(byte[] contractAddress, long callValue, byte[] data, long feeLimit)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
-      logger.warn("Warning: callContract failed,  Please login first !!");
+      logger.warn(
+          "[{\"constant\":false,\"inputs\":[],\"name\":\"getNum\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"number\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"n\",\"type\":\"uint256\"}],\"name\":\"setNum\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]");
       return false;
     }
 

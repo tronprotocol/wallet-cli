@@ -343,7 +343,8 @@ public class Client {
     long newLimit = new Long(newLimitString);
     long newPublicLimit = new Long(newPublicLimitString);
 
-    boolean ret = walletApiWrapper.updateAsset(descriptionBytes, urlBytes, newLimit, newPublicLimit);
+    boolean ret = walletApiWrapper
+        .updateAsset(descriptionBytes, urlBytes, newLimit, newPublicLimit);
     if (ret) {
       logger.info("Update Asset successful !!!!");
     } else {
@@ -736,7 +737,6 @@ public class Client {
   }
 
 
-
   private void listNodes() {
     Optional<NodeList> result = walletApiWrapper.listNodes();
     if (result.isPresent()) {
@@ -824,7 +824,8 @@ public class Client {
     if (parameters == null || !(parameters.length == 2 || parameters.length == 3)) {
       System.out.println("Use freezeBalance command with below syntax: ");
       System.out
-          .println("freezeBalance frozen_balance frozen_duration [ResourceCode:0 BANDWIDTH,1 ENERGY]");
+          .println(
+              "freezeBalance frozen_balance frozen_duration [ResourceCode:0 BANDWIDTH,1 ENERGY]");
       return;
     }
 
@@ -1445,6 +1446,29 @@ public class Client {
     }
   }
 
+  private void updateSettingForEnergyLimit(String[] parameters)
+      throws IOException, CipherException, CancelException {
+    if (parameters == null ||
+        parameters.length < 2) {
+      System.out.println("updateSettingForEnergyLimit needs 2 parameters like following: ");
+      System.out.println("updateSettingForEnergyLimit contract_address energy_limit");
+      return;
+    }
+
+    byte[] contractAddress = WalletApi.decodeFromBase58Check(parameters[0]);
+    long energyLimit = Long.valueOf(parameters[1]).longValue();
+    if (energyLimit < 0) {
+      System.out.println("energy_limit need > 0 ");
+      return;
+    }
+    boolean result = walletApiWrapper.updateSettingForEnergyLimit(contractAddress, energyLimit);
+    if (result) {
+      System.out.println("update setting for energy_limit successfully");
+    } else {
+      System.out.println("update setting for energy_limit failed");
+    }
+  }
+
   private String[] getParas(String[] para) {
     String paras = String.join(" ", para);
     Pattern pattern = Pattern.compile(" (\\[.*?\\]) ");
@@ -1476,8 +1500,8 @@ public class Client {
 
     String[] parameters = getParas(parameter);
     if (parameters == null ||
-        parameters.length < 8) {
-      System.out.println("DeployContract needs at least 8 parameters like following: ");
+        parameters.length < 9) {
+      System.out.println("DeployContract needs at least 9 parameters like following: ");
       System.out.println(
           "DeployContract contractName ABI byteCode constructor params isHex fee_limit consume_user_resource_percent <value> <library:address,library:address,...>");
       System.out.println(
@@ -1493,8 +1517,13 @@ public class Client {
     boolean isHex = Boolean.valueOf(parameters[idx++]);
     long feeLimit = Long.valueOf(parameters[idx++]);
     long consumeUserResourcePercent = Long.valueOf(parameters[idx++]);
+    long energyLimit = Long.valueOf(parameters[idx++]);
     if (consumeUserResourcePercent > 100 || consumeUserResourcePercent < 0) {
       System.out.println("consume_user_resource_percent should be >= 0 and <= 100");
+      return;
+    }
+    if (energyLimit < 0) {
+      System.out.println("energy_limit should be > 0");
       return;
     }
     if (!constructorStr.equals("#")) {
@@ -1517,7 +1546,7 @@ public class Client {
      * Or we can re-design it to give other developers better user experience. Set this value in protobuf as null for now.
      */
     boolean result = walletApiWrapper.deployContract(contractName, abiStr, codeStr, feeLimit, value,
-        consumeUserResourcePercent, libraryAddressPair);
+        consumeUserResourcePercent, energyLimit, libraryAddressPair);
     if (result) {
       System.out.println("Broadcast the createSmartContract successfully.\n"
           + "Please check the given transaction id to confirm deploy status on blockchain using getTransactionInfoById command.");
@@ -1575,8 +1604,12 @@ public class Client {
     SmartContract contractDeployContract = WalletApi.getContract(addressBytes);
     if (contractDeployContract != null) {
       System.out.println("contract :" + contractDeployContract.getAbi().toString());
+      System.out.println("contract owner:" + WalletApi.encode58Check(contractDeployContract
+          .getOriginAddress().toByteArray()));
       System.out.println("contract ConsumeUserResourcePercent:" + contractDeployContract
           .getConsumeUserResourcePercent());
+      System.out.println("contract energy limit:" + contractDeployContract
+          .getEnergyLimit());
     } else {
       System.out.println("query contract failed!");
     }
@@ -1650,8 +1683,9 @@ public class Client {
     System.out.println("SetAccountId");
     System.out.println("unfreezeasset");
     System.out.println(
-        "DeployContract contractName ABI byteCode constructor params isHex fee_limit consume_user_resource_percent <value> <library:address,library:address,...>");
+        "DeployContract contractName ABI byteCode constructor params isHex fee_limit consume_user_resource_percent energy_limit <value> <library:address,library:address,...>");
     System.out.println("updateSetting contract_address consume_user_resource_percent");
+    System.out.println("updateSettingForEnergyLimit contract_address energy_limit");
     System.out.println("triggerContract contractAddress method args isHex fee_limit value");
     System.out.println("getContract contractAddress");
     System.out.println("UpdateAsset");
@@ -2020,6 +2054,10 @@ public class Client {
           }
           case "updatesetting": {
             updateSetting(parameters);
+            break;
+          }
+          case "updatesettingforenergylimit": {
+            updateSettingForEnergyLimit(parameters);
             break;
           }
           case "deploycontract": {
