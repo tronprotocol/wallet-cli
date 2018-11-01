@@ -1516,9 +1516,6 @@ public class Utils {
 
 
   public static char[] inputPassword(boolean checkStrength) throws IOException {
-    if (true) {
-      return "!$@#QRWE".toCharArray();
-    }
     char[] password;
     Console cons = System.console();
     while (true) {

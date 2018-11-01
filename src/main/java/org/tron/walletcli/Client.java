@@ -1499,8 +1499,7 @@ public class Client {
       throws IOException, CipherException, CancelException, EncodingException {
 
     String[] parameters = getParas(parameter);
-    if (parameters == null ||
-        parameters.length < 9) {
+    if (parameters == null || parameters.length < 9) {
       System.out.println("DeployContract needs at least 9 parameters like following: ");
       System.out.println(
           "DeployContract contractName ABI byteCode constructor params isHex fee_limit consume_user_resource_percent <value> <library:address,library:address,...>");
@@ -1514,16 +1513,16 @@ public class Client {
     String codeStr = parameters[idx++];
     String constructorStr = parameters[idx++];
     String argsStr = parameters[idx++];
-    boolean isHex = Boolean.valueOf(parameters[idx++]);
-    long feeLimit = Long.valueOf(parameters[idx++]);
-    long consumeUserResourcePercent = Long.valueOf(parameters[idx++]);
-    long energyLimit = Long.valueOf(parameters[idx++]);
+    boolean isHex = Boolean.parseBoolean(parameters[idx++]);
+    long feeLimit = Long.parseLong(parameters[idx++]);
+    long consumeUserResourcePercent = Long.parseLong(parameters[idx++]);
+    long energyLimit = Long.parseLong(parameters[idx++]);
     if (consumeUserResourcePercent > 100 || consumeUserResourcePercent < 0) {
       System.out.println("consume_user_resource_percent should be >= 0 and <= 100");
       return;
     }
-    if (energyLimit < 0) {
-      System.out.println("energy_limit should be > 0");
+    if (energyLimit <= 0) {
+      System.out.println("energy_limit must > 0");
       return;
     }
     if (!constructorStr.equals("#")) {
@@ -1557,8 +1556,7 @@ public class Client {
 
   private void triggerContract(String[] parameters)
       throws IOException, CipherException, CancelException, EncodingException {
-    if (parameters == null ||
-        parameters.length < 6) {
+    if (parameters == null || parameters.length < 6) {
       System.out.println("TriggerContract needs 6 parameters like following: ");
       System.out.println(
           "TriggerContract contractAddress method args isHex fee_limit value");
