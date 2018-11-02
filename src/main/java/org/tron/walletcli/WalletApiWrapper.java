@@ -598,18 +598,18 @@ public class WalletApiWrapper {
 
   }
 
-  public boolean updateSettingForEnergyLimit(byte[] contractAddress, long energyLimit)
+  public boolean updateEnergyLimit(byte[] contractAddress, long energyLimit)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: updateSetting failed,  Please login first !!");
       return false;
     }
-    return wallet.updateSettingForEnergyLimit(contractAddress, energyLimit);
+    return wallet.updateEnergyLimit(contractAddress, energyLimit);
 
   }
 
   public boolean deployContract(String name, String abiStr, String codeStr,
-      long feeLimit, long value, long consumeUserResourcePercent, long energyLimit,
+      long feeLimit, long value, long consumeUserResourcePercent, long originEnergyLimit,
       String libraryAddressPair)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
@@ -618,7 +618,7 @@ public class WalletApiWrapper {
     }
     return wallet
         .deployContract(name, abiStr, codeStr, feeLimit, value, consumeUserResourcePercent,
-            energyLimit, libraryAddressPair);
+            originEnergyLimit, libraryAddressPair);
   }
 
   public boolean callContract(byte[] contractAddress, long callValue, byte[] data, long feeLimit)

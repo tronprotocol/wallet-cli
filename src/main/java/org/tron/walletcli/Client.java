@@ -1446,12 +1446,12 @@ public class Client {
     }
   }
 
-  private void updateSettingForEnergyLimit(String[] parameters)
+  private void updateEnergyLimit(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null ||
         parameters.length < 2) {
-      System.out.println("updateSettingForEnergyLimit needs 2 parameters like following: ");
-      System.out.println("updateSettingForEnergyLimit contract_address energy_limit");
+      System.out.println("updateEnergyLimit needs 2 parameters like following: ");
+      System.out.println("updateEnergyLimit contract_address energy_limit");
       return;
     }
 
@@ -1461,7 +1461,7 @@ public class Client {
       System.out.println("energy_limit need > 0 ");
       return;
     }
-    boolean result = walletApiWrapper.updateSettingForEnergyLimit(contractAddress, energyLimit);
+    boolean result = walletApiWrapper.updateEnergyLimit(contractAddress, energyLimit);
     if (result) {
       System.out.println("update setting for energy_limit successfully");
     } else {
@@ -1502,7 +1502,7 @@ public class Client {
     if (parameters == null || parameters.length < 9) {
       System.out.println("DeployContract needs at least 9 parameters like following: ");
       System.out.println(
-          "DeployContract contractName ABI byteCode constructor params isHex fee_limit consume_user_resource_percent <value> <library:address,library:address,...>");
+          "DeployContract contractName ABI byteCode constructor params isHex fee_limit consume_user_resource_percent origin_energy_limit <value> <library:address,library:address,...>");
       System.out.println(
           "Note: Please append the param for constructor tightly with byteCode without any space");
       return;
@@ -1516,13 +1516,13 @@ public class Client {
     boolean isHex = Boolean.parseBoolean(parameters[idx++]);
     long feeLimit = Long.parseLong(parameters[idx++]);
     long consumeUserResourcePercent = Long.parseLong(parameters[idx++]);
-    long energyLimit = Long.parseLong(parameters[idx++]);
+    long originEnergyLimit = Long.parseLong(parameters[idx++]);
     if (consumeUserResourcePercent > 100 || consumeUserResourcePercent < 0) {
       System.out.println("consume_user_resource_percent should be >= 0 and <= 100");
       return;
     }
-    if (energyLimit <= 0) {
-      System.out.println("energy_limit must > 0");
+    if (originEnergyLimit <= 0) {
+      System.out.println("origin_energy_limit must > 0");
       return;
     }
     if (!constructorStr.equals("#")) {
@@ -1545,7 +1545,7 @@ public class Client {
      * Or we can re-design it to give other developers better user experience. Set this value in protobuf as null for now.
      */
     boolean result = walletApiWrapper.deployContract(contractName, abiStr, codeStr, feeLimit, value,
-        consumeUserResourcePercent, energyLimit, libraryAddressPair);
+        consumeUserResourcePercent, originEnergyLimit, libraryAddressPair);
     if (result) {
       System.out.println("Broadcast the createSmartContract successfully.\n"
           + "Please check the given transaction id to confirm deploy status on blockchain using getTransactionInfoById command.");
@@ -1607,7 +1607,7 @@ public class Client {
       System.out.println("contract ConsumeUserResourcePercent:" + contractDeployContract
           .getConsumeUserResourcePercent());
       System.out.println("contract energy limit:" + contractDeployContract
-          .getEnergyLimit());
+          .getOriginEnergyLimit());
     } else {
       System.out.println("query contract failed!");
     }
@@ -1679,13 +1679,13 @@ public class Client {
     System.out.println("WithdrawBalance");
     System.out.println("UpdateAccount");
     System.out.println("SetAccountId");
-    System.out.println("unfreezeasset");
+    System.out.println("Unfreezeasset");
     System.out.println(
-        "DeployContract contractName ABI byteCode constructor params isHex fee_limit consume_user_resource_percent energy_limit <value> <library:address,library:address,...>");
-    System.out.println("updateSetting contract_address consume_user_resource_percent");
-    System.out.println("updateSettingForEnergyLimit contract_address energy_limit");
-    System.out.println("triggerContract contractAddress method args isHex fee_limit value");
-    System.out.println("getContract contractAddress");
+        "DeployContract contractName ABI byteCode constructor params isHex fee_limit consume_user_resource_percent origin_energy_limit <value> <library:address,library:address,...>");
+    System.out.println("UpdateSetting contract_address consume_user_resource_percent");
+    System.out.println("UpdateEnergyLimit contract_address energy_limit");
+    System.out.println("TriggerContract contractAddress method args isHex fee_limit value");
+    System.out.println("GetContract contractAddress");
     System.out.println("UpdateAsset");
     System.out.println("UnfreezeAsset");
 //    System.out.println("buyStorage");
@@ -2054,8 +2054,8 @@ public class Client {
             updateSetting(parameters);
             break;
           }
-          case "updatesettingforenergylimit": {
-            updateSettingForEnergyLimit(parameters);
+          case "updateenergylimit": {
+            updateEnergyLimit(parameters);
             break;
           }
           case "deploycontract": {

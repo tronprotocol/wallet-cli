@@ -67,8 +67,8 @@ import org.tron.protos.Contract.FreezeBalanceContract;
 import org.tron.protos.Contract.SellStorageContract;
 import org.tron.protos.Contract.UnfreezeAssetContract;
 import org.tron.protos.Contract.UnfreezeBalanceContract;
+import org.tron.protos.Contract.UpdateEnergyLimitContract;
 import org.tron.protos.Contract.UpdateSettingContract;
-import org.tron.protos.Contract.UpdateSettingForEnergyLimitContract;
 import org.tron.protos.Contract.WithdrawBalanceContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
@@ -1425,11 +1425,11 @@ public class WalletApi {
     return builder.build();
   }
 
-  public static Contract.UpdateSettingForEnergyLimitContract createUpdateSettingForEnergyLimitContract(
+  public static Contract.UpdateEnergyLimitContract createUpdateEnergyLimitContract(
       byte[] owner,
       byte[] contractAddress, long energyLimit) {
 
-    Contract.UpdateSettingForEnergyLimitContract.Builder builder = Contract.UpdateSettingForEnergyLimitContract
+    Contract.UpdateEnergyLimitContract.Builder builder = Contract.UpdateEnergyLimitContract
         .newBuilder();
     builder.setOwnerAddress(ByteString.copyFrom(owner));
     builder.setContractAddress(ByteString.copyFrom(contractAddress));
@@ -1440,7 +1440,7 @@ public class WalletApi {
   public static CreateSmartContract createContractDeployContract(String contractName,
       byte[] address,
       String ABI, String code, long value, long consumeUserResourcePercent,
-      long energyLimit, String libraryAddressPair) {
+      long originEnergyLimit, String libraryAddressPair) {
     SmartContract.ABI abi = jsonStr2ABI(ABI);
     if (abi == null) {
       logger.error("abi is null");
@@ -1452,7 +1452,7 @@ public class WalletApi {
     builder.setOriginAddress(ByteString.copyFrom(address));
     builder.setAbi(abi);
     builder.setConsumeUserResourcePercent(consumeUserResourcePercent)
-        .setEnergyLimit(energyLimit);
+        .setOriginEnergyLimit(originEnergyLimit);
 
     if (value != 0) {
 
@@ -1549,15 +1549,15 @@ public class WalletApi {
 
   }
 
-  public boolean updateSettingForEnergyLimit(byte[] contractAddress, long energyLimit)
+  public boolean updateEnergyLimit(byte[] contractAddress, long energyLimit)
       throws IOException, CipherException, CancelException {
     byte[] owner = getAddress();
-    UpdateSettingForEnergyLimitContract updateSettingForEnergyLimitContract = createUpdateSettingForEnergyLimitContract(
+    UpdateEnergyLimitContract updateEnergyLimitContract = createUpdateEnergyLimitContract(
         owner,
         contractAddress, energyLimit);
 
     TransactionExtention transactionExtention = rpcCli
-        .updateSettingForEnergyLimit(updateSettingForEnergyLimitContract);
+        .updateEnergyLimit(updateEnergyLimitContract);
     if (transactionExtention == null || !transactionExtention.getResult().getResult()) {
       System.out.println("RPC create trx failed!");
       if (transactionExtention != null) {
@@ -1573,12 +1573,12 @@ public class WalletApi {
   }
 
   public boolean deployContract(String contractName, String ABI, String code,
-      long feeLimit, long value, long consumeUserResourcePercent, long energyLimit,
+      long feeLimit, long value, long consumeUserResourcePercent, long originEnergyLimit,
       String libraryAddressPair)
       throws IOException, CipherException, CancelException {
     byte[] owner = getAddress();
     CreateSmartContract contractDeployContract = createContractDeployContract(contractName, owner,
-        ABI, code, value, consumeUserResourcePercent, energyLimit, libraryAddressPair);
+        ABI, code, value, consumeUserResourcePercent, originEnergyLimit, libraryAddressPair);
 
     TransactionExtention transactionExtention = rpcCli.deployContract(contractDeployContract);
     if (transactionExtention == null || !transactionExtention.getResult().getResult()) {
