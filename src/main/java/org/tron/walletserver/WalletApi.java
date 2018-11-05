@@ -1427,13 +1427,13 @@ public class WalletApi {
 
   public static Contract.UpdateEnergyLimitContract createUpdateEnergyLimitContract(
       byte[] owner,
-      byte[] contractAddress, long energyLimit) {
+      byte[] contractAddress, long originEnergyLimit) {
 
     Contract.UpdateEnergyLimitContract.Builder builder = Contract.UpdateEnergyLimitContract
         .newBuilder();
     builder.setOwnerAddress(ByteString.copyFrom(owner));
     builder.setContractAddress(ByteString.copyFrom(contractAddress));
-    builder.setEnergyLimit(energyLimit);
+    builder.setOriginEnergyLimit(originEnergyLimit);
     return builder.build();
   }
 
@@ -1549,12 +1549,12 @@ public class WalletApi {
 
   }
 
-  public boolean updateEnergyLimit(byte[] contractAddress, long energyLimit)
+  public boolean updateEnergyLimit(byte[] contractAddress, long originEnergyLimit)
       throws IOException, CipherException, CancelException {
     byte[] owner = getAddress();
     UpdateEnergyLimitContract updateEnergyLimitContract = createUpdateEnergyLimitContract(
         owner,
-        contractAddress, energyLimit);
+        contractAddress, originEnergyLimit);
 
     TransactionExtention transactionExtention = rpcCli
         .updateEnergyLimit(updateEnergyLimitContract);

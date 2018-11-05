@@ -598,13 +598,13 @@ public class WalletApiWrapper {
 
   }
 
-  public boolean updateEnergyLimit(byte[] contractAddress, long energyLimit)
+  public boolean updateEnergyLimit(byte[] contractAddress, long originEnergyLimit)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: updateSetting failed,  Please login first !!");
       return false;
     }
-    return wallet.updateEnergyLimit(contractAddress, energyLimit);
+    return wallet.updateEnergyLimit(contractAddress, originEnergyLimit);
 
   }
 

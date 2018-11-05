@@ -1456,16 +1456,16 @@ public class Client {
     }
 
     byte[] contractAddress = WalletApi.decodeFromBase58Check(parameters[0]);
-    long energyLimit = Long.valueOf(parameters[1]).longValue();
-    if (energyLimit < 0) {
-      System.out.println("energy_limit need > 0 ");
+    long originEnergyLimit = Long.valueOf(parameters[1]).longValue();
+    if (originEnergyLimit < 0) {
+      System.out.println("origin_energy_limit need > 0 ");
       return;
     }
-    boolean result = walletApiWrapper.updateEnergyLimit(contractAddress, energyLimit);
+    boolean result = walletApiWrapper.updateEnergyLimit(contractAddress, originEnergyLimit);
     if (result) {
-      System.out.println("update setting for energy_limit successfully");
+      System.out.println("update setting for origin_energy_limit successfully");
     } else {
-      System.out.println("update setting for energy_limit failed");
+      System.out.println("update setting for origin_energy_limit failed");
     }
   }
 
