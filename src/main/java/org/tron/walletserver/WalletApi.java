@@ -1489,7 +1489,7 @@ public class WalletApi {
      CreateSmartContract.Builder createSmartContractBuilder = CreateSmartContract.newBuilder();
     createSmartContractBuilder.setOwnerAddress(ByteString.copyFrom(address)).
         setNewContract(builder.build());
-     if (tokenId != null){
+     if (tokenId != null && tokenId != ""){
        createSmartContractBuilder.setCallTokenValue(tokenValue).setTokenId(tokenId);
     }
     return createSmartContractBuilder.build();

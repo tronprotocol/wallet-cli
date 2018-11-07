@@ -1595,7 +1595,9 @@ public class Client {
     value = Long.valueOf(parameters[idx++]);
     long tokenValue = Long.valueOf(parameters[idx++]);
     String tokenId = parameters[idx++];
-
+    if (tokenId == "#"){
+      tokenId = "";
+    }
     String libraryAddressPair = null;
     if (parameters.length > idx) {
       libraryAddressPair = parameters[idx];
