@@ -1427,7 +1427,7 @@ public class WalletApi {
 
   public static CreateSmartContract createContractDeployContract(String contractName,
       byte[] address,
-      String ABI, String code, long value, long consumeUserResourcePercent,
+      String ABI, String code, long value, long consumeUserResourcePercent, long tokenValue, String tokenId,
       String libraryAddressPair) {
     SmartContract.ABI abi = jsonStr2ABI(ABI);
     if (abi == null) {
@@ -1453,8 +1453,13 @@ public class WalletApi {
     }
 
     builder.setBytecode(ByteString.copyFrom(byteCode));
-    return CreateSmartContract.newBuilder().setOwnerAddress(ByteString.copyFrom(address)).
-        setNewContract(builder.build()).build();
+     CreateSmartContract.Builder createSmartContractBuilder = CreateSmartContract.newBuilder();
+    createSmartContractBuilder.setOwnerAddress(ByteString.copyFrom(address)).
+        setNewContract(builder.build());
+     if (tokenId != null){
+       createSmartContractBuilder.setCallTokenValue(tokenValue).setTokenId(tokenId);
+    }
+    return createSmartContractBuilder.build();
   }
 
   private static byte[] replaceLibraryAddress(String code, String libraryAddressPair) {
@@ -1488,12 +1493,16 @@ public class WalletApi {
 
   public static Contract.TriggerSmartContract triggerCallContract(byte[] address,
       byte[] contractAddress,
-      long callValue, byte[] data) {
+      long callValue, byte[] data, long tokenValue, String tokenId) {
     Contract.TriggerSmartContract.Builder builder = Contract.TriggerSmartContract.newBuilder();
     builder.setOwnerAddress(ByteString.copyFrom(address));
     builder.setContractAddress(ByteString.copyFrom(contractAddress));
     builder.setData(ByteString.copyFrom(data));
     builder.setCallValue(callValue);
+    if (tokenId != null) {
+      builder.setCallTokenValue(tokenValue);
+      builder.setTokenId(tokenId);
+    }
     return builder.build();
   }
 
@@ -1537,11 +1546,11 @@ public class WalletApi {
   }
 
   public boolean deployContract(String contractName, String ABI, String code,
-      long feeLimit, long value, long consumeUserResourcePercent, String libraryAddressPair)
+      long feeLimit, long value, long consumeUserResourcePercent, long tokenValue, String tokenId, String libraryAddressPair)
       throws IOException, CipherException, CancelException {
     byte[] owner = getAddress();
     CreateSmartContract contractDeployContract = createContractDeployContract(contractName, owner,
-        ABI, code, value, consumeUserResourcePercent, libraryAddressPair);
+        ABI, code, value, consumeUserResourcePercent, tokenValue, tokenId, libraryAddressPair);
 
     TransactionExtention transactionExtention = rpcCli.deployContract(contractDeployContract);
     if (transactionExtention == null || !transactionExtention.getResult().getResult()) {
@@ -1580,11 +1589,11 @@ public class WalletApi {
 
   }
 
-  public boolean triggerContract(byte[] contractAddress, long callValue, byte[] data, long feeLimit)
+  public boolean triggerContract(byte[] contractAddress, long callValue, byte[] data, long feeLimit, long tokenValue, String tokenId)
       throws IOException, CipherException, CancelException {
     byte[] owner = getAddress();
     Contract.TriggerSmartContract triggerContract = triggerCallContract(owner, contractAddress,
-        callValue, data);
+        callValue, data, tokenValue, tokenId);
     TransactionExtention transactionExtention = rpcCli.triggerContract(triggerContract);
     if (transactionExtention == null || !transactionExtention.getResult().getResult()) {
       System.out.println("RPC create call trx failed!");

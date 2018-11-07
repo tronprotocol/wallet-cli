@@ -1476,10 +1476,10 @@ public class Client {
 
     String[] parameters = getParas(parameter);
     if (parameters == null ||
-        parameters.length < 8) {
+        parameters.length < 10) {
       System.out.println("DeployContract needs at least 8 parameters like following: ");
       System.out.println(
-          "DeployContract contractName ABI byteCode constructor params isHex fee_limit consume_user_resource_percent <value> <library:address,library:address,...>");
+          "DeployContract contractName ABI byteCode constructor params isHex fee_limit consume_user_resource_percent value token_value token_id(e.g: TRXTOKEN, use \"\" if don't provided) <library:address,library:address,...>");
       System.out.println(
           "Note: Please append the param for constructor tightly with byteCode without any space");
       return;
@@ -1505,9 +1505,10 @@ public class Client {
       }
     }
     long value = 0;
-    if (parameters.length > idx) {
-      value = Long.valueOf(parameters[idx++]);
-    }
+    value = Long.valueOf(parameters[idx++]);
+    long tokenValue = Long.valueOf(parameters[idx++]);
+    String tokenId = parameters[idx++];
+
     String libraryAddressPair = null;
     if (parameters.length > idx) {
       libraryAddressPair = parameters[idx];
@@ -1517,7 +1518,7 @@ public class Client {
      * Or we can re-design it to give other developers better user experience. Set this value in protobuf as null for now.
      */
     boolean result = walletApiWrapper.deployContract(contractName, abiStr, codeStr, feeLimit, value,
-        consumeUserResourcePercent, libraryAddressPair);
+        consumeUserResourcePercent, tokenValue, tokenId, libraryAddressPair);
     if (result) {
       System.out.println("Broadcast the createSmartContract successfully.\n"
           + "Please check the given transaction id to confirm deploy status on blockchain using getTransactionInfoById command.");
@@ -1529,10 +1530,10 @@ public class Client {
   private void triggerContract(String[] parameters)
       throws IOException, CipherException, CancelException, EncodingException {
     if (parameters == null ||
-        parameters.length < 6) {
+        parameters.length < 8) {
       System.out.println("TriggerContract needs 6 parameters like following: ");
       System.out.println(
-          "TriggerContract contractAddress method args isHex fee_limit value");
+          "TriggerContract contractAddress method args isHex fee_limit value token_value token_id(e.g: TRXTOKEN, use # if don't provided)");
       // System.out.println("example:\nTriggerContract password contractAddress method args value");
       return;
     }
@@ -1543,13 +1544,18 @@ public class Client {
     boolean isHex = Boolean.valueOf(parameters[3]);
     long feeLimit = Long.valueOf(parameters[4]);
     long callValue = Long.valueOf(parameters[5]);
+    long tokenCallValue = Long.valueOf(parameters[6]);
+    String tokenId = parameters[7];
     if (argsStr.equalsIgnoreCase("#")) {
       argsStr = "";
+    }
+    if (tokenId.equalsIgnoreCase("#")) {
+      tokenId = "";
     }
     byte[] input = Hex.decode(AbiUtil.parseMethod(methodStr, argsStr, isHex));
     byte[] contractAddress = WalletApi.decodeFromBase58Check(contractAddrStr);
 
-    boolean result = walletApiWrapper.callContract(contractAddress, callValue, input, feeLimit);
+    boolean result = walletApiWrapper.callContract(contractAddress, callValue, input, feeLimit, tokenCallValue, tokenId);
     if (result) {
       System.out.println("Broadcast the triggerContract successfully.\n"
           + "Please check the given transaction id to get the result on blockchain using getTransactionInfoById command");
@@ -2077,7 +2083,6 @@ public class Client {
 
   public static void main(String[] args) {
     Client cli = new Client();
-
     JCommander.newBuilder()
         .addObject(cli)
         .build()

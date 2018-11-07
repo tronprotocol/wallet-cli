@@ -600,25 +600,25 @@ public class WalletApiWrapper {
   }
 
   public boolean deployContract(String name, String abiStr, String codeStr,
-      long feeLimit, long value, long consumeUserResourcePercent, String libraryAddressPair)
+      long feeLimit, long value, long consumeUserResourcePercent, long tokenValue, String tokenId,String libraryAddressPair)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: createContract failed,  Please login first !!");
       return false;
     }
     return wallet
-        .deployContract(name, abiStr, codeStr, feeLimit, value, consumeUserResourcePercent,
+        .deployContract(name, abiStr, codeStr, feeLimit, value, consumeUserResourcePercent, tokenValue, tokenId,
             libraryAddressPair);
   }
 
-  public boolean callContract(byte[] contractAddress, long callValue, byte[] data, long feeLimit)
+  public boolean callContract(byte[] contractAddress, long callValue, byte[] data, long feeLimit, long tokenValue, String tokenId)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: callContract failed,  Please login first !!");
       return false;
     }
 
-    return wallet.triggerContract(contractAddress, callValue, data, feeLimit);
+    return wallet.triggerContract(contractAddress, callValue, data, feeLimit, tokenValue, tokenId);
   }
 
 }
