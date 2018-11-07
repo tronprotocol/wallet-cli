@@ -1230,11 +1230,11 @@ public class Utils {
 
           internalTransaction.getCallValueInfoList().forEach(token -> {
             callValueInfo.append("  TokenName(Default trx):\n");
-            if (null == token.getTokenName()|| token.getTokenName().size() == 0){
+            if (null == token.getTokenId()|| token.getTokenId().length() == 0){
               callValueInfo.append("  TRX(SUN)");
             }
             else {
-              callValueInfo.append("  " +ByteArray.toHexString(token.getTokenName().toByteArray()));
+              callValueInfo.append("  " + token.getTokenId());
             }
             callValueInfo.append("  \n");
             callValueInfo.append("  callValue:\n");

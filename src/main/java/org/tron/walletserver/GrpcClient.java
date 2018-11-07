@@ -699,6 +699,11 @@ public class GrpcClient {
     return blockingStubFull.updateSetting(request);
   }
 
+  public TransactionExtention updateEnergyLimit(
+      Contract.UpdateEnergyLimitContract request) {
+    return blockingStubFull.updateEnergyLimit(request);
+  }
+
   public TransactionExtention deployContract(Contract.CreateSmartContract request) {
     return blockingStubFull.deployContract(request);
   }
