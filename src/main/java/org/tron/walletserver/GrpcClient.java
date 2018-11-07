@@ -3,6 +3,7 @@ package org.tron.walletserver;
 import com.google.protobuf.ByteString;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import org.apache.commons.lang.StringUtils;
@@ -19,6 +20,8 @@ import org.tron.api.GrpcAPI.BlockLimit;
 import org.tron.api.GrpcAPI.BlockList;
 import org.tron.api.GrpcAPI.BlockListExtention;
 import org.tron.api.GrpcAPI.BytesMessage;
+import org.tron.api.GrpcAPI.DelegatedResourceList;
+import org.tron.api.GrpcAPI.DelegatedResourceMessage;
 import org.tron.api.GrpcAPI.EasyTransferByPrivateMessage;
 import org.tron.api.GrpcAPI.EasyTransferMessage;
 import org.tron.api.GrpcAPI.EasyTransferResponse;
@@ -41,6 +44,7 @@ import org.tron.protos.Contract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.ChainParameters;
+import org.tron.protos.Protocol.DelegatedResourceAccountIndex;
 import org.tron.protos.Protocol.Exchange;
 import org.tron.protos.Protocol.Proposal;
 import org.tron.protos.Protocol.SmartContract;
@@ -272,6 +276,36 @@ public class GrpcClient {
     Proposal proposal = blockingStubFull.getProposalById(request);
     return Optional.ofNullable(proposal);
   }
+
+  public Optional<DelegatedResourceList> getDelegatedResource(String fromAddress,
+      String toAddress) {
+
+    ByteString fromAddressBS = ByteString.copyFrom(
+        Objects.requireNonNull(WalletApi.decodeFromBase58Check(fromAddress)));
+    ByteString toAddressBS = ByteString.copyFrom(
+        Objects.requireNonNull(WalletApi.decodeFromBase58Check(toAddress)));
+
+    DelegatedResourceMessage request = DelegatedResourceMessage.newBuilder()
+        .setFromAddress(fromAddressBS)
+        .setToAddress(toAddressBS)
+        .build();
+    DelegatedResourceList delegatedResource= blockingStubFull
+        .getDelegatedResource(request);
+    return Optional.ofNullable(delegatedResource);
+  }
+
+  public Optional<DelegatedResourceAccountIndex> getDelegatedResourceAccountIndex(String address) {
+
+    ByteString addressBS = ByteString.copyFrom(
+        Objects.requireNonNull(WalletApi.decodeFromBase58Check(address)));
+
+    BytesMessage bytesMessage = BytesMessage.newBuilder().setValue(addressBS).build();
+
+    DelegatedResourceAccountIndex accountIndex= blockingStubFull
+        .getDelegatedResourceAccountIndex(bytesMessage);
+    return Optional.ofNullable(accountIndex);
+  }
+
 
   public Optional<ExchangeList> listExchanges() {
     ExchangeList exchangeList = blockingStubFull.listExchanges(EmptyMessage.newBuilder().build());

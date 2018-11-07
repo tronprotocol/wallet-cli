@@ -37,6 +37,7 @@ import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.BlockExtention;
 import org.tron.api.GrpcAPI.BlockList;
 import org.tron.api.GrpcAPI.BlockListExtention;
+import org.tron.api.GrpcAPI.DelegatedResourceList;
 import org.tron.api.GrpcAPI.ExchangeList;
 import org.tron.api.GrpcAPI.ProposalList;
 import org.tron.api.GrpcAPI.TransactionExtention;
@@ -77,6 +78,8 @@ import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.BlockHeader;
 import org.tron.protos.Protocol.ChainParameters;
 import org.tron.protos.Protocol.ChainParameters.ChainParameter;
+import org.tron.protos.Protocol.DelegatedResource;
+import org.tron.protos.Protocol.DelegatedResourceAccountIndex;
 import org.tron.protos.Protocol.Exchange;
 import org.tron.protos.Protocol.InternalTransaction;
 import org.tron.protos.Protocol.Proposal;
@@ -393,6 +396,65 @@ public class Utils {
       result += "\n";
       i++;
     }
+    return result;
+  }
+
+
+  public static String printDelegatedResourceList(DelegatedResourceList delegatedResourceList) {
+    String result = "" + delegatedResourceList.getDelegatedResourceCount() + "\n";
+    result += "DelegatedResourceList: [ \n";
+    for (DelegatedResource delegatedResource : delegatedResourceList.getDelegatedResourceList()) {
+      result += printDelegatedResource(delegatedResource);
+      result += "\n";
+    }
+    result += "]";
+    return result;
+  }
+
+  public static String printDelegatedResourceAccountIndex(
+      DelegatedResourceAccountIndex delegatedResourceAccountIndex) {
+
+    String result = "";
+    result += "address: ";
+    result += WalletApi.encode58Check(delegatedResourceAccountIndex.getAccount().toByteArray());
+
+    result += "from: [ \n";
+    for (ByteString fromAddress : delegatedResourceAccountIndex.getFromAccountsList()) {
+      result += WalletApi.encode58Check(fromAddress.toByteArray());
+      result += "\n";
+    }
+    result += "]";
+
+    result += "to: [ \n";
+    for (ByteString toAddress : delegatedResourceAccountIndex.getToAccountsList()) {
+      result += WalletApi.encode58Check(toAddress.toByteArray());
+      result += "\n";
+    }
+    result += "]";
+    return result;
+  }
+
+
+  public static String printDelegatedResource(DelegatedResource delegatedResource) {
+    String result = "";
+    result += "from: ";
+    result += WalletApi.encode58Check(delegatedResource.getFrom().toByteArray());
+    result += "\n";
+    result += "to: ";
+    result += WalletApi.encode58Check(delegatedResource.getTo().toByteArray());
+    result += "\n";
+    result += "frozenBalanceForBandwidth: ";
+    result += delegatedResource.getFrozenBalanceForBandwidth();
+    result += "\n";
+    result += "expireTimeForBandwidth: ";
+    result += delegatedResource.getExpireTimeForBandwidth();
+    result += "\n";
+    result += "frozenBalanceForEnergy: ";
+    result += delegatedResource.getFrozenBalanceForEnergy();
+    result += "\n";
+    result += "expireTimeForEnergy: ";
+    result += delegatedResource.getExpireTimeForEnergy();
+    result += "\n";
     return result;
   }
 
@@ -1172,7 +1234,7 @@ public class Utils {
               callValueInfo.append("  TRX(SUN)");
             }
             else {
-              callValueInfo.append("  " + new String(token.getTokenName().toByteArray()));
+              callValueInfo.append("  " +ByteArray.toHexString(token.getTokenName().toByteArray()));
             }
             callValueInfo.append("  \n");
             callValueInfo.append("  callValue:\n");
@@ -1180,12 +1242,6 @@ public class Utils {
             callValueInfo.append("  \n");
           });
           result.append(callValueInfo);
-          result.append("  note:\n");
-          result.append("  " + new String(internalTransaction.getNote().toByteArray()));
-          result.append("  \n");
-          result.append("  rejected:\n");
-          result.append("  " + internalTransaction.getRejected());
-          result.append("  \n");
           result.append("]\n");
         }
     );
@@ -1552,4 +1608,3 @@ public class Utils {
     }
   }
 }
-

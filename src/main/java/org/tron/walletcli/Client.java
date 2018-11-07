@@ -27,6 +27,7 @@ import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.BlockExtention;
 import org.tron.api.GrpcAPI.BlockList;
 import org.tron.api.GrpcAPI.BlockListExtention;
+import org.tron.api.GrpcAPI.DelegatedResourceList;
 import org.tron.api.GrpcAPI.ExchangeList;
 import org.tron.api.GrpcAPI.Node;
 import org.tron.api.GrpcAPI.NodeList;
@@ -46,6 +47,7 @@ import org.tron.protos.Contract.AssetIssueContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.ChainParameters;
+import org.tron.protos.Protocol.DelegatedResourceAccountIndex;
 import org.tron.protos.Protocol.Exchange;
 import org.tron.protos.Protocol.Proposal;
 import org.tron.protos.Protocol.SmartContract;
@@ -343,7 +345,8 @@ public class Client {
     long newLimit = new Long(newLimitString);
     long newPublicLimit = new Long(newPublicLimitString);
 
-    boolean ret = walletApiWrapper.updateAsset(descriptionBytes, urlBytes, newLimit, newPublicLimit);
+    boolean ret = walletApiWrapper
+        .updateAsset(descriptionBytes, urlBytes, newLimit, newPublicLimit);
     if (ret) {
       logger.info("Update Asset successful !!!!");
     } else {
@@ -821,20 +824,33 @@ public class Client {
 
   private void freezeBalance(String[] parameters)
       throws IOException, CipherException, CancelException {
-    if (parameters == null || !(parameters.length == 2 || parameters.length == 3)) {
+    if (parameters == null || !(parameters.length == 2 || parameters.length == 3
+        || parameters.length == 4)) {
       System.out.println("Use freezeBalance command with below syntax: ");
       System.out
-          .println("freezeBalance frozen_balance frozen_duration [ResourceCode:0 BANDWIDTH,1 ENERGY]");
+          .println(
+              "freezeBalance frozen_balance frozen_duration [ResourceCode:0 BANDWIDTH,1 ENERGY] "
+                  + "[receiverAddress]");
       return;
     }
 
     long frozen_balance = Long.parseLong(parameters[0]);
     long frozen_duration = Long.parseLong(parameters[1]);
     int resourceCode = 0;
+    String receiverAddress = null;
     if (parameters.length == 3) {
-      resourceCode = Integer.parseInt(parameters[2]);
+      try {
+        resourceCode = Integer.parseInt(parameters[2]);
+      } catch (NumberFormatException e) {
+        receiverAddress = parameters[2];
+      }
     }
-    boolean result = walletApiWrapper.freezeBalance(frozen_balance, frozen_duration, resourceCode);
+    if (parameters.length == 4) {
+      resourceCode = Integer.parseInt(parameters[2]);
+      receiverAddress = parameters[3];
+    }
+    boolean result = walletApiWrapper.freezeBalance(frozen_balance, frozen_duration, resourceCode,
+        receiverAddress);
     if (result) {
       logger.info("freezeBalance " + " successful !!");
     } else {
@@ -914,6 +930,9 @@ public class Client {
       logger.info("unfreezeBalance " + " failed !!");
     }
   }
+
+
+
 
   private void unfreezeAsset() throws IOException, CipherException, CancelException {
     boolean result = walletApiWrapper.unfreezeAsset();
@@ -1008,6 +1027,46 @@ public class Client {
       logger.info("getProposal " + " failed !!");
     }
   }
+
+
+  private void getDelegatedResource(String[] parameters)
+      throws IOException, CipherException, CancelException {
+    if (parameters == null ||parameters.length != 2) {
+      System.out.println("Use getDelegatedResource command with below syntax: ");
+      System.out.println("getDelegatedResource fromAddress toAddress");
+      return;
+    }
+    String fromAddress = parameters[0];
+    String toAddress = parameters[1];
+    Optional<DelegatedResourceList> result = WalletApi.getDelegatedResource(fromAddress, toAddress);
+    if (result.isPresent()) {
+      DelegatedResourceList delegatedResourceList = result.get();
+      logger.info(Utils.printDelegatedResourceList(delegatedResourceList));
+    } else {
+      logger.info("getDelegatedResource " + " failed !!");
+    }
+  }
+
+  private void getDelegatedResourceAccountIndex(String[] parameters)
+      throws IOException, CipherException, CancelException {
+    if (parameters == null ||parameters.length != 1) {
+      System.out.println("Use getDelegatedResourceAccountIndex command with below syntax: ");
+      System.out.println("getDelegatedResourceAccountIndex address ");
+      return;
+    }
+    String address = parameters[0];
+    Optional<DelegatedResourceAccountIndex> result = WalletApi.getDelegatedResourceAccountIndex(address);
+    if (result.isPresent()) {
+      DelegatedResourceAccountIndex delegatedResourceAccountIndex = result.get();
+      logger.info(Utils.printDelegatedResourceAccountIndex(delegatedResourceAccountIndex));
+    } else {
+      logger.info("getDelegatedResourceAccountIndex " + " failed !!");
+    }
+  }
+
+
+
+
 
   private void exchangeCreate(String[] parameters)
       throws IOException, CipherException, CancelException {
@@ -1651,6 +1710,8 @@ public class Client {
     System.out.println("GetBlockByLatestNum");
     System.out.println("FreezeBalance");
     System.out.println("UnfreezeBalance");
+    System.out.println("GetDelegatedResource");
+    System.out.println("GetDelegatedResourceAccountIndex");
     System.out.println("WithdrawBalance");
     System.out.println("UpdateAccount");
     System.out.println("SetAccountId");
@@ -1910,6 +1971,14 @@ public class Client {
           }
           case "getproposal": {
             getProposal(parameters);
+            break;
+          }
+          case "getdelegatedresource": {
+            getDelegatedResource(parameters);
+            break;
+          }
+          case "getdelegatedresourceaccountindex": {
+            getDelegatedResourceAccountIndex(parameters);
             break;
           }
           case "exchangecreate": {

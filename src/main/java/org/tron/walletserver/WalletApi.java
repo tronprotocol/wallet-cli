@@ -15,6 +15,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Scanner;
 import java.util.regex.Matcher;
@@ -32,6 +33,7 @@ import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.BlockExtention;
 import org.tron.api.GrpcAPI.BlockList;
 import org.tron.api.GrpcAPI.BlockListExtention;
+import org.tron.api.GrpcAPI.DelegatedResourceList;
 import org.tron.api.GrpcAPI.EasyTransferResponse;
 import org.tron.api.GrpcAPI.EmptyMessage;
 import org.tron.api.GrpcAPI.ExchangeList;
@@ -72,6 +74,7 @@ import org.tron.protos.Contract.WithdrawBalanceContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.ChainParameters;
+import org.tron.protos.Protocol.DelegatedResourceAccountIndex;
 import org.tron.protos.Protocol.Exchange;
 import org.tron.protos.Protocol.Proposal;
 import org.tron.protos.Protocol.SmartContract;
@@ -974,10 +977,11 @@ public class WalletApi {
     return rpcCli.getTransactionInfoById(txID);
   }
 
-  public boolean freezeBalance(long frozen_balance, long frozen_duration, int resourceCode)
+  public boolean freezeBalance(long frozen_balance, long frozen_duration, int resourceCode,
+      String receiverAddress)
       throws CipherException, IOException, CancelException {
     Contract.FreezeBalanceContract contract = createFreezeBalanceContract(frozen_balance,
-        frozen_duration, resourceCode);
+        frozen_duration, resourceCode, receiverAddress);
     if (rpcVersion == 2) {
       TransactionExtention transactionExtention = rpcCli.createTransaction2(contract);
       return processTransactionExtention(transactionExtention);
@@ -1010,13 +1014,18 @@ public class WalletApi {
   }
 
   private FreezeBalanceContract createFreezeBalanceContract(long frozen_balance,
-      long frozen_duration, int resourceCode) {
+      long frozen_duration, int resourceCode,String receiverAddress) {
     byte[] address = getAddress();
     Contract.FreezeBalanceContract.Builder builder = Contract.FreezeBalanceContract.newBuilder();
     ByteString byteAddress = ByteString.copyFrom(address);
     builder.setOwnerAddress(byteAddress).setFrozenBalance(frozen_balance)
         .setFrozenDuration(frozen_duration).setResourceValue(resourceCode);
 
+    if(receiverAddress != null && !receiverAddress.equals("")){
+      ByteString receiverAddressBytes = ByteString.copyFrom(
+          Objects.requireNonNull(WalletApi.decodeFromBase58Check(receiverAddress)));
+      builder.setReceiverAddress(receiverAddressBytes);
+    }
     return builder.build();
   }
 
@@ -1059,6 +1068,9 @@ public class WalletApi {
       return processTransaction(transaction);
     }
   }
+
+
+
 
   private UnfreezeBalanceContract createUnfreezeBalanceContract(int resourceCode) {
     byte[] address = getAddress();
@@ -1147,6 +1159,14 @@ public class WalletApi {
     return rpcCli.getProposal(id);
   }
 
+  public static Optional<DelegatedResourceList> getDelegatedResource(String fromAddress,
+      String toAddress) {
+    return rpcCli.getDelegatedResource(fromAddress, toAddress);
+  }
+
+  public static Optional<DelegatedResourceAccountIndex> getDelegatedResourceAccountIndex(String address) {
+    return rpcCli.getDelegatedResourceAccountIndex(address );
+  }
   public static Optional<ExchangeList> listExchanges() {
     return rpcCli.listExchanges();
   }
