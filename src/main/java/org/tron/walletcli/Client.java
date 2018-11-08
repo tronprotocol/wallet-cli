@@ -1504,6 +1504,29 @@ public class Client {
     }
   }
 
+  private void updateEnergyLimit(String[] parameters)
+      throws IOException, CipherException, CancelException {
+    if (parameters == null ||
+        parameters.length < 2) {
+      System.out.println("updateEnergyLimit needs 2 parameters like following: ");
+      System.out.println("updateEnergyLimit contract_address energy_limit");
+      return;
+    }
+
+    byte[] contractAddress = WalletApi.decodeFromBase58Check(parameters[0]);
+    long originEnergyLimit = Long.valueOf(parameters[1]).longValue();
+    if (originEnergyLimit < 0) {
+      System.out.println("origin_energy_limit need > 0 ");
+      return;
+    }
+    boolean result = walletApiWrapper.updateEnergyLimit(contractAddress, originEnergyLimit);
+    if (result) {
+      System.out.println("update setting for origin_energy_limit successfully");
+    } else {
+      System.out.println("update setting for origin_energy_limit failed");
+    }
+  }
+
   private String[] getParas(String[] para) {
     String paras = String.join(" ", para);
     Pattern pattern = Pattern.compile(" (\\[.*?\\]) ");
@@ -1535,10 +1558,10 @@ public class Client {
 
     String[] parameters = getParas(parameter);
     if (parameters == null ||
-        parameters.length < 8) {
+        parameters.length < 11) {
       System.out.println("DeployContract needs at least 8 parameters like following: ");
       System.out.println(
-          "DeployContract contractName ABI byteCode constructor params isHex fee_limit consume_user_resource_percent <value> <library:address,library:address,...>");
+          "DeployContract contractName ABI byteCode constructor params isHex fee_limit consume_user_resource_percent origin_energy_limit value token_value token_id(e.g: TRXTOKEN, use # if don't provided) <library:address,library:address,...>");
       System.out.println(
           "Note: Please append the param for constructor tightly with byteCode without any space");
       return;
@@ -1549,11 +1572,16 @@ public class Client {
     String codeStr = parameters[idx++];
     String constructorStr = parameters[idx++];
     String argsStr = parameters[idx++];
-    boolean isHex = Boolean.valueOf(parameters[idx++]);
-    long feeLimit = Long.valueOf(parameters[idx++]);
-    long consumeUserResourcePercent = Long.valueOf(parameters[idx++]);
+    boolean isHex = Boolean.parseBoolean(parameters[idx++]);
+    long feeLimit = Long.parseLong(parameters[idx++]);
+    long consumeUserResourcePercent = Long.parseLong(parameters[idx++]);
+    long originEnergyLimit = Long.parseLong(parameters[idx++]);
     if (consumeUserResourcePercent > 100 || consumeUserResourcePercent < 0) {
       System.out.println("consume_user_resource_percent should be >= 0 and <= 100");
+      return;
+    }
+    if (originEnergyLimit <= 0) {
+      System.out.println("origin_energy_limit must > 0");
       return;
     }
     if (!constructorStr.equals("#")) {
@@ -1564,8 +1592,11 @@ public class Client {
       }
     }
     long value = 0;
-    if (parameters.length > idx) {
-      value = Long.valueOf(parameters[idx++]);
+    value = Long.valueOf(parameters[idx++]);
+    long tokenValue = Long.valueOf(parameters[idx++]);
+    String tokenId = parameters[idx++];
+    if (tokenId == "#"){
+      tokenId = "";
     }
     String libraryAddressPair = null;
     if (parameters.length > idx) {
@@ -1576,7 +1607,7 @@ public class Client {
      * Or we can re-design it to give other developers better user experience. Set this value in protobuf as null for now.
      */
     boolean result = walletApiWrapper.deployContract(contractName, abiStr, codeStr, feeLimit, value,
-        consumeUserResourcePercent, libraryAddressPair);
+        consumeUserResourcePercent, originEnergyLimit, tokenValue, tokenId, libraryAddressPair);
     if (result) {
       System.out.println("Broadcast the createSmartContract successfully.\n"
           + "Please check the given transaction id to confirm deploy status on blockchain using getTransactionInfoById command.");
@@ -1588,10 +1619,10 @@ public class Client {
   private void triggerContract(String[] parameters)
       throws IOException, CipherException, CancelException, EncodingException {
     if (parameters == null ||
-        parameters.length < 6) {
+        parameters.length < 8) {
       System.out.println("TriggerContract needs 6 parameters like following: ");
       System.out.println(
-          "TriggerContract contractAddress method args isHex fee_limit value");
+          "TriggerContract contractAddress method args isHex fee_limit value token_value token_id(e.g: TRXTOKEN, use # if don't provided)");
       // System.out.println("example:\nTriggerContract password contractAddress method args value");
       return;
     }
@@ -1602,13 +1633,18 @@ public class Client {
     boolean isHex = Boolean.valueOf(parameters[3]);
     long feeLimit = Long.valueOf(parameters[4]);
     long callValue = Long.valueOf(parameters[5]);
+    long tokenCallValue = Long.valueOf(parameters[6]);
+    String tokenId = parameters[7];
     if (argsStr.equalsIgnoreCase("#")) {
       argsStr = "";
+    }
+    if (tokenId.equalsIgnoreCase("#")) {
+      tokenId = "";
     }
     byte[] input = Hex.decode(AbiUtil.parseMethod(methodStr, argsStr, isHex));
     byte[] contractAddress = WalletApi.decodeFromBase58Check(contractAddrStr);
 
-    boolean result = walletApiWrapper.callContract(contractAddress, callValue, input, feeLimit);
+    boolean result = walletApiWrapper.callContract(contractAddress, callValue, input, feeLimit, tokenCallValue, tokenId);
     if (result) {
       System.out.println("Broadcast the triggerContract successfully.\n"
           + "Please check the given transaction id to get the result on blockchain using getTransactionInfoById command");
@@ -1634,8 +1670,12 @@ public class Client {
     SmartContract contractDeployContract = WalletApi.getContract(addressBytes);
     if (contractDeployContract != null) {
       System.out.println("contract :" + contractDeployContract.getAbi().toString());
+      System.out.println("contract owner:" + WalletApi.encode58Check(contractDeployContract
+          .getOriginAddress().toByteArray()));
       System.out.println("contract ConsumeUserResourcePercent:" + contractDeployContract
           .getConsumeUserResourcePercent());
+      System.out.println("contract energy limit:" + contractDeployContract
+          .getOriginEnergyLimit());
     } else {
       System.out.println("query contract failed!");
     }
@@ -1709,12 +1749,13 @@ public class Client {
     System.out.println("WithdrawBalance");
     System.out.println("UpdateAccount");
     System.out.println("SetAccountId");
-    System.out.println("unfreezeasset");
+    System.out.println("Unfreezeasset");
     System.out.println(
-        "DeployContract contractName ABI byteCode constructor params isHex fee_limit consume_user_resource_percent <value> <library:address,library:address,...>");
-    System.out.println("updateSetting contract_address consume_user_resource_percent");
-    System.out.println("triggerContract contractAddress method args isHex fee_limit value");
-    System.out.println("getContract contractAddress");
+        "DeployContract contractName ABI byteCode constructor params isHex fee_limit consume_user_resource_percent origin_energy_limit value token_value token_id <library:address,library:address,...>");
+    System.out.println("UpdateSetting contract_address consume_user_resource_percent");
+    System.out.println("UpdateEnergyLimit contract_address energy_limit");
+    System.out.println("TriggerContract contractAddress method args isHex fee_limit value");
+    System.out.println("GetContract contractAddress");
     System.out.println("UpdateAsset");
     System.out.println("UnfreezeAsset");
 //    System.out.println("buyStorage");
@@ -2091,6 +2132,10 @@ public class Client {
             updateSetting(parameters);
             break;
           }
+          case "updateenergylimit": {
+            updateEnergyLimit(parameters);
+            break;
+          }
           case "deploycontract": {
             deployContract(parameters);
             break;
@@ -2146,7 +2191,6 @@ public class Client {
 
   public static void main(String[] args) {
     Client cli = new Client();
-
     JCommander.newBuilder()
         .addObject(cli)
         .build()
