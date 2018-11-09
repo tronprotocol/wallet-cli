@@ -1229,19 +1229,28 @@ public class Utils {
           StringBuilder callValueInfo = new StringBuilder("");
 
           internalTransaction.getCallValueInfoList().forEach(token -> {
-            callValueInfo.append("  TokenName(Default trx):\n");
+            callValueInfo.append("  [\n");
+            callValueInfo.append("    TokenName(Default trx):\n");
             if (null == token.getTokenId()|| token.getTokenId().length() == 0){
-              callValueInfo.append("  TRX(SUN)");
+              callValueInfo.append("    TRX(SUN)");
             }
             else {
-              callValueInfo.append("  " + token.getTokenId());
+              callValueInfo.append("    " + token.getTokenId());
             }
+            callValueInfo.append("    \n");
+            callValueInfo.append("    callValue:\n");
+            callValueInfo.append("    " +token.getCallValue());
             callValueInfo.append("  \n");
-            callValueInfo.append("  callValue:\n");
-            callValueInfo.append("  " +token.getCallValue());
-            callValueInfo.append("  \n");
+            callValueInfo.append("  ]\n");
+            callValueInfo.append("    \n");
           });
           result.append(callValueInfo);
+          result.append("  note:\n");
+          result.append("  " + new String(internalTransaction.getNote().toByteArray()));
+          result.append("  \n");
+          result.append("  rejected:\n");
+          result.append("  " + internalTransaction.getRejected());
+          result.append("  \n");
           result.append("]\n");
         }
     );
