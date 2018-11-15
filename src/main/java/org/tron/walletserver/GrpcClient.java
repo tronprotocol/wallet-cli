@@ -540,7 +540,7 @@ public class GrpcClient {
   public Contract.AssetIssueContract getAssetIssueByName(String assetName) {
     ByteString assetNameBs = ByteString.copyFrom(assetName.getBytes());
     BytesMessage request = BytesMessage.newBuilder().setValue(assetNameBs).build();
-    return blockingStubFull.getAssetIssueByName(request);
+    return blockingStubFull.getAssetIssueByName(request).getAssetIssue(0);
   }
 
   public NumberMessage getTotalTransaction() {
