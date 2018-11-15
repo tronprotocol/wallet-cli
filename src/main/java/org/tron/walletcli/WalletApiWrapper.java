@@ -442,14 +442,14 @@ public class WalletApiWrapper {
   }
 
 
-  public boolean unfreezeBalance(int resourceCode)
+  public boolean unfreezeBalance(int resourceCode,String receiverAddress)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: unfreezeBalance failed, Please login first !!");
       return false;
     }
 
-    return wallet.unfreezeBalance(resourceCode);
+    return wallet.unfreezeBalance(resourceCode,receiverAddress);
   }
 
 
