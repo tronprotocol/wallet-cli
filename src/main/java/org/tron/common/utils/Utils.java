@@ -272,6 +272,14 @@ public class Utils {
     result += "\n";
     result += "accountResource: {\n";
     result += printAccountResource(account.getAccountResource());
+    result += "acquiredDelegatedFrozenBalanceForBandwidth: ";
+    result += account.getAcquiredDelegatedFrozenBalanceForBandwidth();
+    result += "delegatedFrozenBalanceForBandwidth: ";
+    result += account.getDelegatedFrozenBalanceForBandwidth();
+    result += "acquiredDelegatedFrozenBalanceForEnergy: ";
+    result += account.getAccountResource().getAcquiredDelegatedFrozenBalanceForEnergy();
+    result += "delegatedFrozenBalanceForEnergy: ";
+    result += account.getAccountResource().getDelegatedFrozenBalanceForEnergy();
     result += "}\n";
     return result;
   }

@@ -1056,9 +1056,9 @@ public class WalletApi {
     return builder.build();
   }
 
-  public boolean unfreezeBalance(int resourceCode)
+  public boolean unfreezeBalance(int resourceCode,String receiverAddress)
       throws CipherException, IOException, CancelException {
-    Contract.UnfreezeBalanceContract contract = createUnfreezeBalanceContract(resourceCode);
+    Contract.UnfreezeBalanceContract contract = createUnfreezeBalanceContract(resourceCode,receiverAddress);
     if (rpcVersion == 2) {
       TransactionExtention transactionExtention = rpcCli.createTransaction2(contract);
       return processTransactionExtention(transactionExtention);
@@ -1071,12 +1071,18 @@ public class WalletApi {
 
 
 
-  private UnfreezeBalanceContract createUnfreezeBalanceContract(int resourceCode) {
+  private UnfreezeBalanceContract createUnfreezeBalanceContract(int resourceCode,String receiverAddress) {
     byte[] address = getAddress();
     Contract.UnfreezeBalanceContract.Builder builder = Contract.UnfreezeBalanceContract
         .newBuilder();
     ByteString byteAddreess = ByteString.copyFrom(address);
     builder.setOwnerAddress(byteAddreess).setResourceValue(resourceCode);
+
+    if(receiverAddress != null && !receiverAddress.equals("")){
+      ByteString receiverAddressBytes = ByteString.copyFrom(
+          Objects.requireNonNull(WalletApi.decodeFromBase58Check(receiverAddress)));
+      builder.setReceiverAddress(receiverAddressBytes);
+    }
 
     return builder.build();
   }
