@@ -428,7 +428,40 @@ public class Client {
     if (assetIssueContract != null) {
       logger.info("\n" + Utils.printAssetIssue(assetIssueContract));
     } else {
-      logger.info("GetAssetIssueByName " + " failed !!");
+      logger.info("getAssetIssueByName " + " failed !!");
+    }
+  }
+
+  private void getAssetIssueListByName(String[] parameters) {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("getAssetIssueListByName needs 1 parameter like following: ");
+      System.out.println("getAssetIssueListByName AssetName ");
+      return;
+    }
+    String assetName = parameters[0];
+
+    Optional<AssetIssueList> result = WalletApi.getAssetIssueListByName(assetName);
+    if (result.isPresent()) {
+      AssetIssueList assetIssueList = result.get();
+      logger.info(Utils.printAssetIssueList(assetIssueList));
+    } else {
+      logger.info("getAssetIssueListByName " + " failed !!");
+    }
+  }
+
+  private void getAssetIssueById(String[] parameters) {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("getAssetIssueById needs 1 parameter like following: ");
+      System.out.println("getAssetIssueById AssetId ");
+      return;
+    }
+    String assetId = parameters[0];
+
+    AssetIssueContract assetIssueContract = WalletApi.getAssetIssueById(assetId);
+    if (assetIssueContract != null) {
+      logger.info("\n" + Utils.printAssetIssue(assetIssueContract));
+    } else {
+      logger.info("getAssetIssueById " + " failed !!");
     }
   }
 
@@ -934,7 +967,7 @@ public class Client {
       receiverAddress = parameters[1];
     }
 
-    boolean result = walletApiWrapper.unfreezeBalance(resourceCode,receiverAddress);
+    boolean result = walletApiWrapper.unfreezeBalance(resourceCode, receiverAddress);
     if (result) {
       logger.info("unfreezeBalance " + " successful !!");
     } else {
@@ -1721,6 +1754,8 @@ public class Client {
     System.out.println("GetAccountNet");
     System.out.println("GetAccountResource");
     System.out.println("GetAssetIssueByName");
+    System.out.println("GetAssetIssueListByName");
+    System.out.println("GetAssetIssueById");
     System.out.println("SendCoin");
     System.out.println("TransferAsset");
     System.out.println("ParticipateAssetIssue");
@@ -1926,6 +1961,14 @@ public class Client {
           }
           case "getassetissuebyname": {
             getAssetIssueByName(parameters);
+            break;
+          }
+          case "getassetissuelistbyname": {
+            getAssetIssueListByName(parameters);
+            break;
+          }
+          case "getassetissuebyid": {
+            getAssetIssueById(parameters);
             break;
           }
           case "sendcoin": {

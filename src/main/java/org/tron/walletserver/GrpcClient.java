@@ -544,6 +544,19 @@ public class GrpcClient {
     return blockingStubFull.getAssetIssueById(request);
   }
 
+  public Optional<AssetIssueList> getAssetIssueListByName(String assetName) {
+    ByteString assetNameBs = ByteString.copyFrom(assetName.getBytes());
+    BytesMessage request = BytesMessage.newBuilder().setValue(assetNameBs).build();
+    AssetIssueList assetIssueList = blockingStubFull.getAssetIssueListByName(request);
+    return Optional.ofNullable(assetIssueList);
+  }
+
+  public Contract.AssetIssueContract getAssetIssueById(String assetId) {
+    ByteString assetIdBs = ByteString.copyFrom(assetId.getBytes());
+    BytesMessage request = BytesMessage.newBuilder().setValue(assetIdBs).build();
+    return blockingStubFull.getAssetIssueById(request);
+  }
+
   public NumberMessage getTotalTransaction() {
     return blockingStubFull.totalTransaction(EmptyMessage.newBuilder().build());
   }

@@ -32,7 +32,6 @@ service Wallet {
     };
   };
 
-
   //Please use CreateTransaction2 instead of this function.
   rpc CreateTransaction (TransferContract) returns (Transaction) {
     option (google.api.http) = {
@@ -317,8 +316,13 @@ service Wallet {
       }
     };
   }
+
+  rpc GetAssetIssueListByName (BytesMessage) returns (AssetIssueList) {
+  }
+
   rpc GetAssetIssueById (BytesMessage) returns (AssetIssueContract) {
   }
+
   //Please use GetNowBlock2 instead of this function.
   rpc GetNowBlock (EmptyMessage) returns (Block) {
     option (google.api.http) = {
@@ -812,7 +816,6 @@ message DelegatedResourceMessage {
 message DelegatedResourceList {
   repeated DelegatedResource delegatedResource = 1;
 }
-
 
 // Gossip node list
 message NodeList {
