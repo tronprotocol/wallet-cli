@@ -312,6 +312,13 @@ service Wallet {
       }
     };
   }
+
+  rpc GetAssetIssueListByName (BytesMessage) returns (AssetIssueList) {
+  }
+
+  rpc GetAssetIssueById (BytesMessage) returns (AssetIssueContract) {
+  }
+
   //Please use GetNowBlock2 instead of this function.
   rpc GetNowBlock (EmptyMessage) returns (Block) {
     option (google.api.http) = {
@@ -860,7 +867,7 @@ message EasyTransferByPrivateMessage {
 message EasyTransferResponse {
   Transaction transaction = 1;
   Return result = 2;
-  bytes txid = 3;   //transaction id =  sha256(transaction.rowdata)
+  bytes txid = 3; //transaction id =  sha256(transaction.rowdata)
 }
 
 message AddressPrKeyPairMessage {
@@ -870,7 +877,7 @@ message AddressPrKeyPairMessage {
 
 message TransactionExtention {
   Transaction transaction = 1;
-  bytes txid = 2;   //transaction id =  sha256(transaction.rowdata)
+  bytes txid = 2; //transaction id =  sha256(transaction.rowdata)
   repeated bytes constant_result = 3;
   Return result = 4;
 }

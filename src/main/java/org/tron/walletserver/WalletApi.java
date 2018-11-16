@@ -919,6 +919,14 @@ public class WalletApi {
     return rpcCli.getAssetIssueByName(assetName);
   }
 
+  public static Optional<AssetIssueList> getAssetIssueListByName(String assetName) {
+    return rpcCli.getAssetIssueListByName(assetName);
+  }
+
+  public static AssetIssueContract getAssetIssueById(String assetId) {
+    return rpcCli.getAssetIssueById(assetId);
+  }
+
   public static GrpcAPI.NumberMessage getTotalTransaction() {
     return rpcCli.getTotalTransaction();
   }
@@ -1246,7 +1254,8 @@ public class WalletApi {
 
   public static Contract.ExchangeWithdrawContract createExchangeWithdrawContract(byte[] owner,
       long exchangeId, byte[] tokenId, long quant) {
-    Contract.ExchangeWithdrawContract.Builder builder = Contract.ExchangeWithdrawContract.newBuilder();
+    Contract.ExchangeWithdrawContract.Builder builder = Contract.ExchangeWithdrawContract
+        .newBuilder();
     builder
         .setOwnerAddress(ByteString.copyFrom(owner))
         .setExchangeId(exchangeId)

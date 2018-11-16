@@ -475,6 +475,7 @@ public class GrpcClient {
     Account request = Account.newBuilder().setAddress(addressBS).build();
     return blockingStubFull.getAccountNet(request);
   }
+
   public AccountResourceMessage getAccountResource(byte[] address) {
     ByteString addressBS = ByteString.copyFrom(address);
     Account request = Account.newBuilder().setAddress(addressBS).build();
@@ -486,6 +487,19 @@ public class GrpcClient {
     ByteString assetNameBs = ByteString.copyFrom(assetName.getBytes());
     BytesMessage request = BytesMessage.newBuilder().setValue(assetNameBs).build();
     return blockingStubFull.getAssetIssueByName(request);
+  }
+
+  public Optional<AssetIssueList> getAssetIssueListByName(String assetName) {
+    ByteString assetNameBs = ByteString.copyFrom(assetName.getBytes());
+    BytesMessage request = BytesMessage.newBuilder().setValue(assetNameBs).build();
+    AssetIssueList assetIssueList = blockingStubFull.getAssetIssueListByName(request);
+    return Optional.ofNullable(assetIssueList);
+  }
+
+  public Contract.AssetIssueContract getAssetIssueById(String assetId) {
+    ByteString assetIdBs = ByteString.copyFrom(assetId.getBytes());
+    BytesMessage request = BytesMessage.newBuilder().setValue(assetIdBs).build();
+    return blockingStubFull.getAssetIssueById(request);
   }
 
   public NumberMessage getTotalTransaction() {

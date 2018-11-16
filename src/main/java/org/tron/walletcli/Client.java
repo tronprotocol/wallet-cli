@@ -343,7 +343,8 @@ public class Client {
     long newLimit = new Long(newLimitString);
     long newPublicLimit = new Long(newPublicLimitString);
 
-    boolean ret = walletApiWrapper.updateAsset(descriptionBytes, urlBytes, newLimit, newPublicLimit);
+    boolean ret = walletApiWrapper
+        .updateAsset(descriptionBytes, urlBytes, newLimit, newPublicLimit);
     if (ret) {
       logger.info("Update Asset successful !!!!");
     } else {
@@ -424,7 +425,40 @@ public class Client {
     if (assetIssueContract != null) {
       logger.info("\n" + Utils.printAssetIssue(assetIssueContract));
     } else {
-      logger.info("GetAssetIssueByName " + " failed !!");
+      logger.info("getAssetIssueByName " + " failed !!");
+    }
+  }
+
+  private void getAssetIssueListByName(String[] parameters) {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("getAssetIssueListByName needs 1 parameter like following: ");
+      System.out.println("getAssetIssueListByName AssetName ");
+      return;
+    }
+    String assetName = parameters[0];
+
+    Optional<AssetIssueList> result = WalletApi.getAssetIssueListByName(assetName);
+    if (result.isPresent()) {
+      AssetIssueList assetIssueList = result.get();
+      logger.info(Utils.printAssetIssueList(assetIssueList));
+    } else {
+      logger.info("getAssetIssueListByName " + " failed !!");
+    }
+  }
+
+  private void getAssetIssueById(String[] parameters) {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("getAssetIssueById needs 1 parameter like following: ");
+      System.out.println("getAssetIssueById AssetId ");
+      return;
+    }
+    String assetId = parameters[0];
+
+    AssetIssueContract assetIssueContract = WalletApi.getAssetIssueById(assetId);
+    if (assetIssueContract != null) {
+      logger.info("\n" + Utils.printAssetIssue(assetIssueContract));
+    } else {
+      logger.info("getAssetIssueById " + " failed !!");
     }
   }
 
@@ -786,7 +820,8 @@ public class Client {
     if (parameters == null || !(parameters.length == 2 || parameters.length == 3)) {
       System.out.println("Use freezeBalance command with below syntax: ");
       System.out
-          .println("freezeBalance frozen_balance frozen_duration [ResourceCode:0 BANDWIDTH,1 ENERGY]");
+          .println(
+              "freezeBalance frozen_balance frozen_duration [ResourceCode:0 BANDWIDTH,1 ENERGY]");
       return;
     }
 
@@ -1576,6 +1611,8 @@ public class Client {
     System.out.println("GetAccountNet");
     System.out.println("GetAccountResource");
     System.out.println("GetAssetIssueByName");
+    System.out.println("GetAssetIssueListByName");
+    System.out.println("GetAssetIssueById");
     System.out.println("SendCoin");
     System.out.println("TransferAsset");
     System.out.println("ParticipateAssetIssue");
@@ -1776,6 +1813,14 @@ public class Client {
           }
           case "getassetissuebyname": {
             getAssetIssueByName(parameters);
+            break;
+          }
+          case "getassetissuelistbyname": {
+            getAssetIssueListByName(parameters);
+            break;
+          }
+          case "getassetissuebyid": {
+            getAssetIssueById(parameters);
             break;
           }
           case "sendcoin": {
