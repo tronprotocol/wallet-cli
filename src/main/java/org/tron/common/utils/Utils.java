@@ -1251,6 +1251,16 @@ public class Utils {
       result += transactionInfo.getExchangeReceivedAmount();
       result += "\n";
     }
+    if(transactionInfo.getExchangeInjectAnotherAmount()!=0){
+      result += "ExchangeInjectAnotherAmount: ";
+      result += transactionInfo.getExchangeInjectAnotherAmount();
+      result += "\n";
+    }
+    if(transactionInfo.getExchangeWithdrawAnotherAmount()!=0){
+      result += "ExchangeWithdrawAnotherAmount: ";
+      result += transactionInfo.getExchangeWithdrawAnotherAmount();
+      result += "\n";
+    }
     result += "InternalTransactionList: ";
     result += "\n";
     result += printInternalTransactionList(transactionInfo.getInternalTransactionsList());
