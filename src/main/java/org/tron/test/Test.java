@@ -336,6 +336,8 @@ public class Test {
     passwordList.add("1q2w#E$R");
     passwordList.add("qwertyuiop");
     passwordList.add("qwertyui");
+    passwordList.add("qwertz");
+    passwordList.add("qwertzuiop");
     passwordList.add("abcdefghijkl");
     passwordList.add("password");
     passwordList.add("p@ssword");

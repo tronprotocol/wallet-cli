@@ -37,6 +37,7 @@ import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.BlockExtention;
 import org.tron.api.GrpcAPI.BlockList;
 import org.tron.api.GrpcAPI.BlockListExtention;
+import org.tron.api.GrpcAPI.DelegatedResourceList;
 import org.tron.api.GrpcAPI.ExchangeList;
 import org.tron.api.GrpcAPI.ProposalList;
 import org.tron.api.GrpcAPI.TransactionExtention;
@@ -77,7 +78,10 @@ import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.BlockHeader;
 import org.tron.protos.Protocol.ChainParameters;
 import org.tron.protos.Protocol.ChainParameters.ChainParameter;
+import org.tron.protos.Protocol.DelegatedResource;
+import org.tron.protos.Protocol.DelegatedResourceAccountIndex;
 import org.tron.protos.Protocol.Exchange;
+import org.tron.protos.Protocol.InternalTransaction;
 import org.tron.protos.Protocol.Proposal;
 import org.tron.protos.Protocol.ResourceReceipt;
 import org.tron.protos.Protocol.SmartContract;
@@ -215,6 +219,25 @@ public class Utils {
         result += "\n";
       }
     }
+    result += "asset issued id:";
+    result += account.getAssetIssuedID().toStringUtf8();
+    result += "\n";
+    if (account.getAssetV2Count() > 0) {
+      for (String id : account.getAssetV2Map().keySet()) {
+        result += "assetV2";
+        result += "\n";
+        result += "{";
+        result += "\n";
+        result += "  id: ";
+        result += id;
+        result += "\n";
+        result += "  balance: ";
+        result += account.getAssetV2Map().get(id);
+        result += "\n";
+        result += "}";
+        result += "\n";
+      }
+    }
     if (account.getFrozenSupplyCount() > 0) {
       for (Frozen frozen : account.getFrozenSupplyList()) {
         result += "frozen_supply";
@@ -268,6 +291,14 @@ public class Utils {
     result += "\n";
     result += "accountResource: {\n";
     result += printAccountResource(account.getAccountResource());
+    result += "acquiredDelegatedFrozenBalanceForBandwidth: ";
+    result += account.getAcquiredDelegatedFrozenBalanceForBandwidth();
+    result += "delegatedFrozenBalanceForBandwidth: ";
+    result += account.getDelegatedFrozenBalanceForBandwidth();
+    result += "acquiredDelegatedFrozenBalanceForEnergy: ";
+    result += account.getAccountResource().getAcquiredDelegatedFrozenBalanceForEnergy();
+    result += "delegatedFrozenBalanceForEnergy: ";
+    result += account.getAccountResource().getDelegatedFrozenBalanceForEnergy();
     result += "}\n";
     return result;
   }
@@ -392,6 +423,65 @@ public class Utils {
       result += "\n";
       i++;
     }
+    return result;
+  }
+
+
+  public static String printDelegatedResourceList(DelegatedResourceList delegatedResourceList) {
+    String result = "" + delegatedResourceList.getDelegatedResourceCount() + "\n";
+    result += "DelegatedResourceList: [ \n";
+    for (DelegatedResource delegatedResource : delegatedResourceList.getDelegatedResourceList()) {
+      result += printDelegatedResource(delegatedResource);
+      result += "\n";
+    }
+    result += "]";
+    return result;
+  }
+
+  public static String printDelegatedResourceAccountIndex(
+      DelegatedResourceAccountIndex delegatedResourceAccountIndex) {
+
+    String result = "";
+    result += "address: ";
+    result += WalletApi.encode58Check(delegatedResourceAccountIndex.getAccount().toByteArray());
+
+    result += "from: [ \n";
+    for (ByteString fromAddress : delegatedResourceAccountIndex.getFromAccountsList()) {
+      result += WalletApi.encode58Check(fromAddress.toByteArray());
+      result += "\n";
+    }
+    result += "]";
+
+    result += "to: [ \n";
+    for (ByteString toAddress : delegatedResourceAccountIndex.getToAccountsList()) {
+      result += WalletApi.encode58Check(toAddress.toByteArray());
+      result += "\n";
+    }
+    result += "]";
+    return result;
+  }
+
+
+  public static String printDelegatedResource(DelegatedResource delegatedResource) {
+    String result = "";
+    result += "from: ";
+    result += WalletApi.encode58Check(delegatedResource.getFrom().toByteArray());
+    result += "\n";
+    result += "to: ";
+    result += WalletApi.encode58Check(delegatedResource.getTo().toByteArray());
+    result += "\n";
+    result += "frozenBalanceForBandwidth: ";
+    result += delegatedResource.getFrozenBalanceForBandwidth();
+    result += "\n";
+    result += "expireTimeForBandwidth: ";
+    result += delegatedResource.getExpireTimeForBandwidth();
+    result += "\n";
+    result += "frozenBalanceForEnergy: ";
+    result += delegatedResource.getFrozenBalanceForEnergy();
+    result += "\n";
+    result += "expireTimeForEnergy: ";
+    result += delegatedResource.getExpireTimeForEnergy();
+    result += "\n";
     return result;
   }
 
@@ -1142,7 +1232,58 @@ public class Utils {
     result += "\n";
     result += printReceipt(transactionInfo.getReceipt());
     result += "\n";
+    result += "InternalTransactionList: ";
+    result += "\n";
+    result += printInternalTransactionList(transactionInfo.getInternalTransactionsList());
+    result += "\n";
     return result;
+  }
+
+  public static String printInternalTransactionList(List<InternalTransaction> internalTransactions){
+    StringBuilder result = new StringBuilder("");
+    internalTransactions.forEach(internalTransaction -> {
+          result.append("[\n");
+          result.append("  hash:\n");
+          result.append("  " + ByteArray.toHexString(internalTransaction.getHash().toByteArray()));
+          result.append("  \n");
+          result.append("  caller_address:\n");
+          result.append("  " +ByteArray.toHexString(internalTransaction.getCallerAddress().toByteArray()));
+          result.append("  \n");
+          result.append("  transferTo_address:\n");
+          result.append("  " +ByteArray.toHexString(internalTransaction.getTransferToAddress().toByteArray()));
+          result.append("  \n");
+          result.append("  callValueInfo:\n");
+          StringBuilder callValueInfo = new StringBuilder("");
+
+          internalTransaction.getCallValueInfoList().forEach(token -> {
+            callValueInfo.append("  [\n");
+            callValueInfo.append("    TokenName(Default trx):\n");
+            if (null == token.getTokenId()|| token.getTokenId().length() == 0){
+              callValueInfo.append("    TRX(SUN)");
+            }
+            else {
+              callValueInfo.append("    " + token.getTokenId());
+            }
+            callValueInfo.append("    \n");
+            callValueInfo.append("    callValue:\n");
+            callValueInfo.append("    " +token.getCallValue());
+            callValueInfo.append("  \n");
+            callValueInfo.append("  ]\n");
+            callValueInfo.append("    \n");
+          });
+          result.append(callValueInfo);
+          result.append("  note:\n");
+          result.append("  " + new String(internalTransaction.getNote().toByteArray()));
+          result.append("  \n");
+          result.append("  rejected:\n");
+          result.append("  " + internalTransaction.getRejected());
+          result.append("  \n");
+          result.append("]\n");
+        }
+    );
+
+    return result.toString();
+
   }
 
   private static String printReceipt(ResourceReceipt receipt) {
@@ -1503,4 +1644,3 @@ public class Utils {
     }
   }
 }
-
