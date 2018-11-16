@@ -291,12 +291,16 @@ public class Utils {
     result += "\n";
     result += "accountResource: {\n";
     result += printAccountResource(account.getAccountResource());
+    result += "\n";
     result += "acquiredDelegatedFrozenBalanceForBandwidth: ";
     result += account.getAcquiredDelegatedFrozenBalanceForBandwidth();
+    result += "\n";
     result += "delegatedFrozenBalanceForBandwidth: ";
     result += account.getDelegatedFrozenBalanceForBandwidth();
+    result += "\n";
     result += "acquiredDelegatedFrozenBalanceForEnergy: ";
     result += account.getAccountResource().getAcquiredDelegatedFrozenBalanceForEnergy();
+    result += "\n";
     result += "delegatedFrozenBalanceForEnergy: ";
     result += account.getAccountResource().getDelegatedFrozenBalanceForEnergy();
     result += "}\n";
@@ -1232,6 +1236,31 @@ public class Utils {
     result += "\n";
     result += printReceipt(transactionInfo.getReceipt());
     result += "\n";
+    if(transactionInfo.getUnfreezeAmount()!=0){
+      result += "UnfreezeAmount: ";
+      result += transactionInfo.getUnfreezeAmount();
+      result += "\n";
+    }
+    if(transactionInfo.getWithdrawAmount()!=0){
+      result += "WithdrawAmount: ";
+      result += transactionInfo.getWithdrawAmount();
+      result += "\n";
+    }
+    if(transactionInfo.getExchangeReceivedAmount()!=0){
+      result += "ExchangeReceivedAmount: ";
+      result += transactionInfo.getExchangeReceivedAmount();
+      result += "\n";
+    }
+    if(transactionInfo.getExchangeInjectAnotherAmount()!=0){
+      result += "ExchangeInjectAnotherAmount: ";
+      result += transactionInfo.getExchangeInjectAnotherAmount();
+      result += "\n";
+    }
+    if(transactionInfo.getExchangeWithdrawAnotherAmount()!=0){
+      result += "ExchangeWithdrawAnotherAmount: ";
+      result += transactionInfo.getExchangeWithdrawAnotherAmount();
+      result += "\n";
+    }
     result += "InternalTransactionList: ";
     result += "\n";
     result += printInternalTransactionList(transactionInfo.getInternalTransactionsList());
