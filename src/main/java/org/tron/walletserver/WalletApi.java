@@ -932,6 +932,14 @@ public class WalletApi {
     return rpcCli.getAssetIssueByName(assetName);
   }
 
+  public static Optional<AssetIssueList> getAssetIssueListByName(String assetName) {
+    return rpcCli.getAssetIssueListByName(assetName);
+  }
+
+  public static AssetIssueContract getAssetIssueById(String assetId) {
+    return rpcCli.getAssetIssueById(assetId);
+  }
+
   public static GrpcAPI.NumberMessage getTotalTransaction() {
     return rpcCli.getTotalTransaction();
   }
