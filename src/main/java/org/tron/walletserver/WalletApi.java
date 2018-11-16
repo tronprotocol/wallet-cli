@@ -1495,8 +1495,8 @@ public class WalletApi {
      CreateSmartContract.Builder createSmartContractBuilder = CreateSmartContract.newBuilder();
     createSmartContractBuilder.setOwnerAddress(ByteString.copyFrom(address)).
         setNewContract(builder.build());
-     if (tokenId != null && tokenId != ""){
-       createSmartContractBuilder.setCallTokenValue(tokenValue).setTokenId(tokenId);
+     if (tokenId != null && !tokenId.equalsIgnoreCase("") && !tokenId.equalsIgnoreCase("#")){
+       createSmartContractBuilder.setCallTokenValue(tokenValue).setTokenId(Long.parseLong(tokenId));
     }
     return createSmartContractBuilder.build();
   }
@@ -1538,9 +1538,9 @@ public class WalletApi {
     builder.setContractAddress(ByteString.copyFrom(contractAddress));
     builder.setData(ByteString.copyFrom(data));
     builder.setCallValue(callValue);
-    if (tokenId != null) {
+    if (tokenId != null && tokenId != "") {
       builder.setCallTokenValue(tokenValue);
-      builder.setTokenId(tokenId);
+      builder.setTokenId(Long.parseLong(tokenId));
     }
     return builder.build();
   }
