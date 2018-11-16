@@ -537,10 +537,11 @@ public class GrpcClient {
   }
 
 
+  // equal to getAssetIssueById
   public Contract.AssetIssueContract getAssetIssueByName(String assetName) {
     ByteString assetNameBs = ByteString.copyFrom(assetName.getBytes());
     BytesMessage request = BytesMessage.newBuilder().setValue(assetNameBs).build();
-    return blockingStubFull.getAssetIssueByName(request);
+    return blockingStubFull.getAssetIssueById(request);
   }
 
   public NumberMessage getTotalTransaction() {

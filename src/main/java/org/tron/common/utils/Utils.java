@@ -219,6 +219,25 @@ public class Utils {
         result += "\n";
       }
     }
+    result += "asset issued id:";
+    result += account.getAssetIssuedID().toStringUtf8();
+    result += "\n";
+    if (account.getAssetV2Count() > 0) {
+      for (String id : account.getAssetV2Map().keySet()) {
+        result += "assetV2";
+        result += "\n";
+        result += "{";
+        result += "\n";
+        result += "  id: ";
+        result += id;
+        result += "\n";
+        result += "  balance: ";
+        result += account.getAssetV2Map().get(id);
+        result += "\n";
+        result += "}";
+        result += "\n";
+      }
+    }
     if (account.getFrozenSupplyCount() > 0) {
       for (Frozen frozen : account.getFrozenSupplyList()) {
         result += "frozen_supply";
