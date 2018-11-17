@@ -570,6 +570,7 @@ public class Utils {
     String result = "";
     result += "id: ";
     result += assetIssue.getId();
+    result += "\n";
     result += "owner_address: ";
     result += WalletApi.encode58Check(assetIssue.getOwnerAddress().toByteArray());
     result += "\n";
