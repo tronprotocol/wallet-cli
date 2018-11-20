@@ -1279,6 +1279,11 @@ public class Utils {
       result += transactionInfo.getExchangeWithdrawAnotherAmount();
       result += "\n";
     }
+    if (transactionInfo.getExchangeId() != 0) {
+      result += "ExchangeId: ";
+      result += transactionInfo.getExchangeId();
+      result += "\n";
+    }
     result += "InternalTransactionList: ";
     result += "\n";
     result += printInternalTransactionList(transactionInfo.getInternalTransactionsList());
