@@ -127,10 +127,19 @@ public class Utils {
    * yyyy-MM-dd
    */
   public static Date strToDateLong(String strDate) {
-    SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
-    ParsePosition pos = new ParsePosition(0);
-    Date strtodate = formatter.parse(strDate, pos);
-    return strtodate;
+    if (strDate.length() == 10) {
+      SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
+      ParsePosition pos = new ParsePosition(0);
+      Date strtodate = formatter.parse(strDate, pos);
+      return strtodate;
+    } else if (strDate.length() == 19) {
+      strDate = strDate.replace("_", " ");
+      SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+      ParsePosition pos = new ParsePosition(0);
+      Date strtodate = formatter.parse(strDate, pos);
+      return strtodate;
+    }
+    return null;
   }
 
   public static String printAccount(Account account) {
@@ -588,6 +597,9 @@ public class Utils {
     result += "\n";
     result += "num: ";
     result += assetIssue.getNum();
+    result += "\n";
+    result += "precision ";
+    result += assetIssue.getPrecision();
     result += "\n";
     result += "start_time: ";
     result += new Date(assetIssue.getStartTime());
