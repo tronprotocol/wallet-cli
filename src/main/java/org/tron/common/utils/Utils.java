@@ -589,6 +589,9 @@ public class Utils {
     result += "num: ";
     result += assetIssue.getNum();
     result += "\n";
+    result += "precision ";
+    result += assetIssue.getPrecision();
+    result += "\n";
     result += "start_time: ";
     result += new Date(assetIssue.getStartTime());
     result += "\n";
