@@ -592,11 +592,11 @@ public class Client {
 
   private void assetIssue(String[] parameters)
       throws IOException, CipherException, CancelException {
-    if (parameters == null || parameters.length < 10 || (parameters.length & 1) == 1) {
+    if (parameters == null || parameters.length < 11 || (parameters.length & 1) == 0) {
       System.out
           .println("Use the assetIssue command for features that you require with below syntax: ");
       System.out.println(
-          "AssetIssue AssetName TotalSupply TrxNum AssetNum "
+          "AssetIssue AssetName TotalSupply TrxNum AssetNum Precision "
               + "StartDate EndDate Description Url FreeNetLimitPerAccount PublicFreeNetLimit"
               + "FrozenAmount0 FrozenDays0 ... FrozenAmountN FrozenDaysN");
       System.out
@@ -611,14 +611,15 @@ public class Client {
     String totalSupplyStr = parameters[1];
     String trxNumStr = parameters[2];
     String icoNumStr = parameters[3];
-    String startYyyyMmDd = parameters[4];
-    String endYyyyMmDd = parameters[5];
-    String description = parameters[6];
-    String url = parameters[7];
-    String freeNetLimitPerAccount = parameters[8];
-    String publicFreeNetLimitString = parameters[9];
+    String precisionStr = parameters[4];
+    String startYyyyMmDd = parameters[5];
+    String endYyyyMmDd = parameters[6];
+    String description = parameters[7];
+    String url = parameters[8];
+    String freeNetLimitPerAccount = parameters[9];
+    String publicFreeNetLimitString = parameters[10];
     HashMap<String, String> frozenSupply = new HashMap<>();
-    for (int i = 10; i < parameters.length; i += 2) {
+    for (int i = 11; i < parameters.length; i += 2) {
       String amount = parameters[i];
       String days = parameters[i + 1];
       frozenSupply.put(days, amount);
@@ -627,6 +628,7 @@ public class Client {
     long totalSupply = new Long(totalSupplyStr);
     int trxNum = new Integer(trxNumStr);
     int icoNum = new Integer(icoNumStr);
+    int precision = new Integer(precisionStr);
     Date startDate = Utils.strToDateLong(startYyyyMmDd);
     Date endDate = Utils.strToDateLong(endYyyyMmDd);
     long startTime = startDate.getTime();
@@ -635,7 +637,7 @@ public class Client {
     long publicFreeNetLimit = new Long(publicFreeNetLimitString);
 
     boolean result = walletApiWrapper
-        .assetIssue(name, totalSupply, trxNum, icoNum, startTime, endTime,
+        .assetIssue(name, totalSupply, trxNum, icoNum, precision, startTime, endTime,
             0, description, url, freeAssetNetLimit, publicFreeNetLimit, frozenSupply);
     if (result) {
       logger.info("AssetIssue " + name + " successful !!");
