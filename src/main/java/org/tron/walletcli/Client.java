@@ -1787,7 +1787,7 @@ public class Client {
     System.out.println("ImportWalletByBase64");
     System.out.println("ListAssetIssue");
     System.out.println("ListExchanges");
-    System.out.println("ListExchangespaginated");
+    System.out.println("ListExchangesPaginated");
     System.out.println("ListNodes");
     System.out.println("ListProposalPaginated");
     System.out.println("ListProposals");
@@ -1803,7 +1803,7 @@ public class Client {
     System.out.println("TriggerContract contractAddress method args isHex fee_limit value");
     System.out.println("UnfreezeAsset");
     System.out.println("UnfreezeBalance");
-    System.out.println("Unfreezeasset");
+    System.out.println("UnfreezeAsset");
     System.out.println("UpdateAccount");
     System.out.println("UpdateAsset");
     System.out.println("UpdateEnergyLimit contract_address energy_limit");
