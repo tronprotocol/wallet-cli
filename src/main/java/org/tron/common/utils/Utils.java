@@ -646,6 +646,11 @@ public class Utils {
       }
     }
 
+    if (assetIssue.getId().equals("")) {
+      result += "\n";
+      result += "Note: In 3.2, you can use getAssetIssueById or getAssetIssueListByName, because 3.2 allows same token name.";
+      result += "\n";
+    }
     return result;
   }
 

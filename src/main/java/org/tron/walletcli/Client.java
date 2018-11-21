@@ -415,7 +415,9 @@ public class Client {
     }
   }
 
-  // use id instead of name in 3.2 version.
+  // In 3.2 version, this function will return null if there are two or more asset with the same token name,
+  // so please use getAssetIssueById or getAssetIssueListByName.
+  // This function just remains for compatibility.
   private void getAssetIssueByName(String[] parameters) {
     if (parameters == null || parameters.length != 1) {
       System.out.println("GetAssetIssueByName needs 1 parameter like following: ");
