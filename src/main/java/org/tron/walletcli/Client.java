@@ -599,7 +599,7 @@ public class Client {
           .println("Use the assetIssue command for features that you require with below syntax: ");
       System.out.println(
           "AssetIssue AssetName TotalSupply TrxNum AssetNum Precision "
-              + "StartDate EndDate Description Url FreeNetLimitPerAccount PublicFreeNetLimit"
+              + "StartDate EndDate Description Url FreeNetLimitPerAccount PublicFreeNetLimit "
               + "FrozenAmount0 FrozenDays0 ... FrozenAmountN FrozenDaysN");
       System.out
           .println(
@@ -1791,9 +1791,8 @@ public class Client {
     System.out.println("ListExchanges");
     System.out.println("ListExchangesPaginated");
     System.out.println("ListNodes");
-    System.out.println("ListProposalPaginated");
     System.out.println("ListProposals");
-    System.out.println("ListProposals");
+    System.out.println("ListProposalsPaginated");
     System.out.println("ListWitnesses");
     System.out.println("Login");
     System.out.println("Logout");
