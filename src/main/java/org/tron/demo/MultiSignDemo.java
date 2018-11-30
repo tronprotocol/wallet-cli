@@ -27,18 +27,18 @@ public class MultiSignDemo {
    // System.out.println(Utils.printTransaction(transactionExtention));
     TransactionSignWeight transactionSignWeight = WalletApi
         .getTransactionSignWeight(transactionExtention.getTransaction());
-    System.out.println(Utils.printTransactionSignWeight(transactionSignWeight));
+  //  System.out.println(Utils.printTransactionSignWeight(transactionSignWeight));
 
     transactionExtention = WalletApi
         .addSignByApi(transactionExtention.getTransaction(), ByteArray.fromHexString(private1));
     System.out.println(Utils.printTransaction(transactionExtention));
     transactionSignWeight = WalletApi
         .getTransactionSignWeight(transactionExtention.getTransaction());
-    System.out.println(Utils.printTransactionSignWeight(transactionSignWeight));
+//    System.out.println(Utils.printTransactionSignWeight(transactionSignWeight));
 
     transactionExtention = WalletApi
         .addSignByApi(transactionExtention.getTransaction(), ByteArray.fromHexString(private2));
-    System.out.println(Utils.printTransactionSignWeight(transactionSignWeight));
+//    System.out.println(Utils.printTransactionSignWeight(transactionSignWeight));
  //   System.out.println(Utils.printTransaction(transactionExtention));
   }
 }
