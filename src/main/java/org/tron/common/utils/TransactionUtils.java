@@ -166,20 +166,10 @@ public class TransactionUtils {
   public static Transaction sign(Transaction transaction, ECKey myKey) {
     Transaction.Builder transactionBuilderSigned = transaction.toBuilder();
     byte[] hash = Sha256Hash.hash(transaction.getRawData().toByteArray());
-    List<Contract> listContract = transaction.getRawData().getContractList();
 
-    for (int i = 0; i < listContract.size(); i++) {
-      ECDSASignature signature = myKey.sign(hash);
-      ByteString bsSign = ByteString.copyFrom(signature.toByteArray());
-      if (transaction.getSignatureCount() > i){
-        ByteString bsSig = transaction.getSignature(i);
-        bsSign = bsSig.concat(bsSign);
-        transactionBuilderSigned.setSignature(i, bsSign);
-      }else {
-        transactionBuilderSigned.addSignature(bsSign);//Each contract may be signed with a different private key in the future.
-      }
-    }
-
+    ECDSASignature signature = myKey.sign(hash);
+    ByteString bsSign = ByteString.copyFrom(signature.toByteArray());
+    transactionBuilderSigned.addSignature(bsSign);
     transaction = transactionBuilderSigned.build();
     return transaction;
   }
