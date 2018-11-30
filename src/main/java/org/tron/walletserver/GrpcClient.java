@@ -3,6 +3,7 @@ package org.tron.walletserver;
 import com.google.protobuf.ByteString;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import org.apache.commons.lang.StringUtils;
@@ -19,10 +20,13 @@ import org.tron.api.GrpcAPI.BlockLimit;
 import org.tron.api.GrpcAPI.BlockList;
 import org.tron.api.GrpcAPI.BlockListExtention;
 import org.tron.api.GrpcAPI.BytesMessage;
+import org.tron.api.GrpcAPI.DelegatedResourceList;
+import org.tron.api.GrpcAPI.DelegatedResourceMessage;
 import org.tron.api.GrpcAPI.EasyTransferByPrivateMessage;
 import org.tron.api.GrpcAPI.EasyTransferMessage;
 import org.tron.api.GrpcAPI.EasyTransferResponse;
 import org.tron.api.GrpcAPI.EmptyMessage;
+import org.tron.api.GrpcAPI.ExchangeList;
 import org.tron.api.GrpcAPI.NodeList;
 import org.tron.api.GrpcAPI.NumberMessage;
 import org.tron.api.GrpcAPI.PaginatedMessage;
@@ -41,6 +45,8 @@ import org.tron.protos.Contract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.ChainParameters;
+import org.tron.protos.Protocol.DelegatedResourceAccountIndex;
+import org.tron.protos.Protocol.Exchange;
 import org.tron.protos.Protocol.Proposal;
 import org.tron.protos.Protocol.SmartContract;
 import org.tron.protos.Protocol.Transaction;
@@ -281,6 +287,62 @@ public class GrpcClient {
     return Optional.ofNullable(proposal);
   }
 
+  public Optional<DelegatedResourceList> getDelegatedResource(String fromAddress,
+      String toAddress) {
+
+    ByteString fromAddressBS = ByteString.copyFrom(
+        Objects.requireNonNull(WalletApi.decodeFromBase58Check(fromAddress)));
+    ByteString toAddressBS = ByteString.copyFrom(
+        Objects.requireNonNull(WalletApi.decodeFromBase58Check(toAddress)));
+
+    DelegatedResourceMessage request = DelegatedResourceMessage.newBuilder()
+        .setFromAddress(fromAddressBS)
+        .setToAddress(toAddressBS)
+        .build();
+    DelegatedResourceList delegatedResource = blockingStubFull
+        .getDelegatedResource(request);
+    return Optional.ofNullable(delegatedResource);
+  }
+
+  public Optional<DelegatedResourceAccountIndex> getDelegatedResourceAccountIndex(String address) {
+
+    ByteString addressBS = ByteString.copyFrom(
+        Objects.requireNonNull(WalletApi.decodeFromBase58Check(address)));
+
+    BytesMessage bytesMessage = BytesMessage.newBuilder().setValue(addressBS).build();
+
+    DelegatedResourceAccountIndex accountIndex = blockingStubFull
+        .getDelegatedResourceAccountIndex(bytesMessage);
+    return Optional.ofNullable(accountIndex);
+  }
+
+
+  public Optional<ExchangeList> listExchanges() {
+    ExchangeList exchangeList;
+    if (blockingStubSolidity != null) {
+      exchangeList = blockingStubSolidity.listExchanges(EmptyMessage.newBuilder().build());
+    } else {
+      exchangeList = blockingStubFull.listExchanges(EmptyMessage.newBuilder().build());
+    }
+
+    return Optional.ofNullable(exchangeList);
+  }
+
+  public Optional<Exchange> getExchange(String id) {
+    BytesMessage request = BytesMessage.newBuilder().setValue(ByteString.copyFrom(
+        ByteArray.fromLong(Long.parseLong(id))))
+        .build();
+
+    Exchange exchange;
+    if (blockingStubSolidity != null) {
+      exchange = blockingStubSolidity.getExchangeById(request);
+    } else {
+      exchange = blockingStubFull.getExchangeById(request);
+    }
+
+    return Optional.ofNullable(exchange);
+  }
+
   public Optional<ChainParameters> getChainParameters() {
     ChainParameters chainParameters = blockingStubFull
         .getChainParameters(EmptyMessage.newBuilder().build());
@@ -293,6 +355,22 @@ public class GrpcClient {
 
   public TransactionExtention proposalDelete(Contract.ProposalDeleteContract contract) {
     return blockingStubFull.proposalDelete(contract);
+  }
+
+  public TransactionExtention exchangeCreate(Contract.ExchangeCreateContract contract) {
+    return blockingStubFull.exchangeCreate(contract);
+  }
+
+  public TransactionExtention exchangeInject(Contract.ExchangeInjectContract contract) {
+    return blockingStubFull.exchangeInject(contract);
+  }
+
+  public TransactionExtention exchangeWithdraw(Contract.ExchangeWithdrawContract contract) {
+    return blockingStubFull.exchangeWithdraw(contract);
+  }
+
+  public TransactionExtention exchangeTransaction(Contract.ExchangeTransactionContract contract) {
+    return blockingStubFull.exchangeTransaction(contract);
   }
 
   public Transaction createAccount(Contract.AccountCreateContract contract) {
@@ -437,6 +515,26 @@ public class GrpcClient {
     }
   }
 
+  public Optional<ProposalList> getProposalListPaginated(long offset, long limit) {
+    PaginatedMessage.Builder pageMessageBuilder = PaginatedMessage.newBuilder();
+    pageMessageBuilder.setOffset(offset);
+    pageMessageBuilder.setLimit(limit);
+    ProposalList proposalList = blockingStubFull
+        .getPaginatedProposalList(pageMessageBuilder.build());
+    return Optional.ofNullable(proposalList);
+
+  }
+
+  public Optional<ExchangeList> getExchangeListPaginated(long offset, long limit) {
+    PaginatedMessage.Builder pageMessageBuilder = PaginatedMessage.newBuilder();
+    pageMessageBuilder.setOffset(offset);
+    pageMessageBuilder.setLimit(limit);
+    ExchangeList exchangeList = blockingStubFull
+        .getPaginatedExchangeList(pageMessageBuilder.build());
+    return Optional.ofNullable(exchangeList);
+
+  }
+
   public Optional<NodeList> listNodes() {
     NodeList nodeList = blockingStubFull.listNodes(EmptyMessage.newBuilder().build());
     return Optional.ofNullable(nodeList);
@@ -454,17 +552,43 @@ public class GrpcClient {
     Account request = Account.newBuilder().setAddress(addressBS).build();
     return blockingStubFull.getAccountNet(request);
   }
+
   public AccountResourceMessage getAccountResource(byte[] address) {
     ByteString addressBS = ByteString.copyFrom(address);
     Account request = Account.newBuilder().setAddress(addressBS).build();
     return blockingStubFull.getAccountResource(request);
   }
 
-
   public Contract.AssetIssueContract getAssetIssueByName(String assetName) {
     ByteString assetNameBs = ByteString.copyFrom(assetName.getBytes());
     BytesMessage request = BytesMessage.newBuilder().setValue(assetNameBs).build();
-    return blockingStubFull.getAssetIssueByName(request);
+    if (blockingStubSolidity != null) {
+      return blockingStubSolidity.getAssetIssueByName(request);
+    } else {
+      return blockingStubFull.getAssetIssueByName(request);
+    }
+  }
+
+  public Optional<AssetIssueList> getAssetIssueListByName(String assetName) {
+    ByteString assetNameBs = ByteString.copyFrom(assetName.getBytes());
+    BytesMessage request = BytesMessage.newBuilder().setValue(assetNameBs).build();
+    if (blockingStubSolidity != null) {
+      AssetIssueList assetIssueList = blockingStubSolidity.getAssetIssueListByName(request);
+      return Optional.ofNullable(assetIssueList);
+    } else {
+      AssetIssueList assetIssueList = blockingStubFull.getAssetIssueListByName(request);
+      return Optional.ofNullable(assetIssueList);
+    }
+  }
+
+  public Contract.AssetIssueContract getAssetIssueById(String assetId) {
+    ByteString assetIdBs = ByteString.copyFrom(assetId.getBytes());
+    BytesMessage request = BytesMessage.newBuilder().setValue(assetIdBs).build();
+    if (blockingStubSolidity != null) {
+      return blockingStubSolidity.getAssetIssueById(request);
+    } else {
+      return blockingStubFull.getAssetIssueById(request);
+    }
   }
 
   public NumberMessage getTotalTransaction() {
@@ -621,6 +745,11 @@ public class GrpcClient {
 
   public TransactionExtention updateSetting(Contract.UpdateSettingContract request) {
     return blockingStubFull.updateSetting(request);
+  }
+
+  public TransactionExtention updateEnergyLimit(
+      Contract.UpdateEnergyLimitContract request) {
+    return blockingStubFull.updateEnergyLimit(request);
   }
 
   public TransactionExtention deployContract(Contract.CreateSmartContract request) {

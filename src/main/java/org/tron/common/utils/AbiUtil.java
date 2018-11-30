@@ -53,6 +53,8 @@ public class AbiUtil {
         return new CoderBool();
       case "bytes":
         return new CoderDynamicBytes();
+      case "trcToken":
+        return new CoderNumber();
     }
 
     if (paramTypeBytes.matcher(type).find())
@@ -159,6 +161,20 @@ public class AbiUtil {
       byte[] bytes = Hex.decode(value);
       System.arraycopy(bytes, 0, result, 0, bytes.length);
       return result;
+    }
+
+    @Override
+    byte[] decode() {
+      return new byte[0];
+    }
+  }
+
+  static class CoderToken extends Coder {
+
+    @Override
+    byte[] encode(String value) {
+      String hex = Hex.toHexString(new DataWord(value.getBytes()).getData());
+      return new CoderFixedBytes().encode(hex);
     }
 
     @Override
@@ -346,7 +362,7 @@ public class AbiUtil {
     return pack(coders, items);
   }
 
-  public  static void main(String[] args) {
+  public  static void main(String[] args) throws EncodingException {
 //    String method = "test(address,string,int)";
     String method = "test(string,int2,string)";
     String params = "asdf,3123,adf";
@@ -355,6 +371,11 @@ public class AbiUtil {
     String arrayMethod2 = "test(uint,uint256[])";
     String arrayMethod3 = "test(uint,address[])";
     String byteMethod1 = "test(bytes32,bytes11)";
+    String tokenMethod = "test(trcToken,uint256)";
+    String tokenParams = "\"nmb\",111";
+
+    System.out.println("token:" + parseMethod(tokenMethod, tokenParams));
+
 
     String method1 = "test(uint256,string,string,uint256[])";
     String expected1  = "db103cf30000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000c0000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000014200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000143000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000003000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000003";
