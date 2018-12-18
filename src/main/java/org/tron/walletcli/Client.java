@@ -1,6 +1,7 @@
 package org.tron.walletcli;
 
 import com.beust.jcommander.JCommander;
+import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -35,6 +36,7 @@ import org.tron.api.GrpcAPI.NumberMessage;
 import org.tron.api.GrpcAPI.ProposalList;
 import org.tron.api.GrpcAPI.TransactionList;
 import org.tron.api.GrpcAPI.TransactionListExtention;
+import org.tron.api.GrpcAPI.TransactionSignWeight;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.utils.AbiUtil;
 import org.tron.common.utils.ByteArray;
@@ -1803,6 +1805,24 @@ public class Client {
     }
   }
 
+  private void getTransactionSignWeight(String[] parameters) throws InvalidProtocolBufferException {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println(
+          "getTransactionSignWeight needs 1 parameter, like getTransactionSignWeight transaction");
+      return;
+    }
+
+    String transactionStr = parameters[0];
+    Transaction transaction = Transaction.parseFrom(ByteArray.fromHexString(transactionStr));
+
+    TransactionSignWeight transactionSignWeight = WalletApi.getTransactionSignWeight(transaction);
+    if (transactionSignWeight != null) {
+      logger.info(Utils.printTransactionSignWeight(transactionSignWeight));
+    } else {
+      logger.info("getTransactionSignWeight " + " failed !!");
+    }
+  }
+
   private void help() {
     System.out.println("Help: List of Tron Wallet-cli commands");
     System.out.println(
@@ -1850,6 +1870,7 @@ public class Client {
     System.out.println("GetTransactionInfoById");
     System.out.println("GetTransactionsFromThis");
     System.out.println("GetTransactionsToThis");
+    System.out.println("GetTransactionSignWeight");
     System.out.println("ImportWallet");
     System.out.println("ImportWalletByBase64");
     System.out.println("ListAssetIssue");
@@ -2290,6 +2311,10 @@ public class Client {
           }
           case "permissiondeletekey": {
             permissionDeleteKey(parameters);
+            break;
+          }
+          case "gettransactionsignweight": {
+            getTransactionSignWeight(parameters);
             break;
           }
           case "exit":

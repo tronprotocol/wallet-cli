@@ -391,6 +391,8 @@ public class WalletApi {
       transaction = TransactionUtils.setTimestamp(transaction);
     }
     System.out.println("Your transaction details are as follows, please confirm.");
+    System.out
+        .println("transaction hex string is " + ByteArray.toHexString(transaction.toByteArray()));
     System.out.println(Utils.printTransaction(transaction));
 
     System.out.println("Please confirm that you want to continue enter y or Y, else any other.");
@@ -407,6 +409,9 @@ public class WalletApi {
       org.tron.keystore.StringUtils.clear(password);
 
       transaction = TransactionUtils.sign(transaction, this.getEcKey(walletFile, passwd));
+      System.out
+          .println("current transaction hex string is " + ByteArray
+              .toHexString(transaction.toByteArray()));
       org.tron.keystore.StringUtils.clear(passwd);
 
       TransactionSignWeight weight = getTransactionSignWeight(transaction);
@@ -414,6 +419,7 @@ public class WalletApi {
         break;
       }
       if (weight.getResult().getCode() == response_code.NOT_ENOUGH_PERMISSION) {
+        System.out.println("Current signWeight is:");
         System.out.println(Utils.printTransactionSignWeight(weight));
         System.out.println("Please confirm if continue add signature enter y or Y, else any other");
         if (!confirm()) {
@@ -444,6 +450,8 @@ public class WalletApi {
     }
     System.out.println(
         "Receive txid = " + ByteArray.toHexString(transactionExtention.getTxid().toByteArray()));
+    System.out.println("transaction hex string is " + Utils.printTransaction(transaction));
+    System.out.println(Utils.printTransaction(transactionExtention));
     transaction = signTransaction(transaction);
     return rpcCli.broadcastTransaction(transaction);
   }
