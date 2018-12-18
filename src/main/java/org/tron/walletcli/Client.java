@@ -1819,8 +1819,58 @@ public class Client {
     if (transactionSignWeight != null) {
       logger.info(Utils.printTransactionSignWeight(transactionSignWeight));
     } else {
-      logger.info("getTransactionSignWeight " + " failed !!");
+      logger.info("GetTransactionSignWeight failed !!");
     }
+  }
+
+  private void addTransactionSign(String[] parameters)
+      throws InvalidProtocolBufferException, CipherException, IOException, CancelException {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println(
+          "addTransactionSign needs 1 parameter, like addTransactionSign transaction");
+      return;
+    }
+
+    String transactionStr = parameters[0];
+    Transaction transaction = Transaction.parseFrom(ByteArray.fromHexString(transactionStr));
+    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
+      System.out.println("invalid transaction");
+      return;
+    }
+
+    transaction = walletApiWrapper.addTransactionSign(transaction);
+    if (transaction != null) {
+      System.out
+          .println("Transaction hex string is " + ByteArray
+              .toHexString(transaction.toByteArray()));
+      System.out.println(Utils.printTransaction(transaction));
+    } else {
+      logger.info("AddTransactionSign failed !!");
+    }
+
+  }
+
+  private void broadcastTransaction(String[] parameters) throws InvalidProtocolBufferException {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println(
+          "broadcastTransaction needs 1 parameter, like broadcastTransaction transaction");
+      return;
+    }
+
+    String transactionStr = parameters[0];
+    Transaction transaction = Transaction.parseFrom(ByteArray.fromHexString(transactionStr));
+    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
+      System.out.println("invalid transaction");
+      return;
+    }
+
+    boolean ret = WalletApi.broadcastTransaction(transaction);
+    if (ret) {
+      logger.info("BroadcastTransaction successful !!!!");
+    } else {
+      logger.info("BroadcastTransaction failed !!!!");
+    }
+
   }
 
   private void help() {
@@ -1828,10 +1878,12 @@ public class Client {
     System.out.println(
         "For more information on a specific command, type the command and it will display tips");
     System.out.println("");
+    System.out.println("AddTransactionSign");
     System.out.println("ApproveProposal");
     System.out.println("AssetIssue");
     System.out.println("BackupWallet");
     System.out.println("BackupWallet2Base64");
+    System.out.println("BroadcastTransaction");
     System.out.println("ChangePassword");
     System.out.println("CreateAccount");
     System.out.println("CreateProposal");
@@ -2315,6 +2367,14 @@ public class Client {
           }
           case "gettransactionsignweight": {
             getTransactionSignWeight(parameters);
+            break;
+          }
+          case "addtransactionsign": {
+            addTransactionSign(parameters);
+            break;
+          }
+          case "broadcasttransaction": {
+            broadcastTransaction(parameters);
             break;
           }
           case "exit":

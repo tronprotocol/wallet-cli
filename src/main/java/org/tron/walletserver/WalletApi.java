@@ -603,6 +603,10 @@ public class WalletApi {
     return rpcCli.broadcastTransaction(transaction);
   }
 
+  public static boolean broadcastTransaction(Transaction transaction) {
+    return rpcCli.broadcastTransaction(transaction);
+  }
+
   public boolean createAssetIssue(Contract.AssetIssueContract contract)
       throws CipherException, IOException, CancelException {
     if (rpcVersion == 2) {
@@ -1896,4 +1900,23 @@ public class WalletApi {
     contractBuilder.setKeyAddress(ByteString.copyFrom(WalletApi.decode58Check(address)));
     return contractBuilder.build();
   }
+
+  public Transaction addTransactionSign(Transaction transaction)
+      throws CipherException, IOException {
+    if (transaction.getRawData().getTimestamp() == 0) {
+      transaction = TransactionUtils.setTimestamp(transaction);
+    }
+
+    System.out.println("Please choose your key for sign.");
+    WalletFile walletFile = selcetWalletFileE();
+    System.out.println("Please input your password.");
+    char[] password = Utils.inputPassword(false);
+    byte[] passwd = org.tron.keystore.StringUtils.char2Byte(password);
+    org.tron.keystore.StringUtils.clear(password);
+
+    transaction = TransactionUtils.sign(transaction, this.getEcKey(walletFile, passwd));
+    org.tron.keystore.StringUtils.clear(passwd);
+    return transaction;
+  }
+
 }
