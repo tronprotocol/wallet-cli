@@ -50,7 +50,8 @@ public class GetAllTransaction {
     return hexString;
   }
 
-  public static void fetchTransaction(GrpcClient client, String filename, int startBlockNum, int endBlockNum) {
+  public static void fetchTransaction(GrpcClient client, String filename, int startBlockNum,
+      int endBlockNum) {
     int step = 100;
     Optional<ExchangeList> eList = client.listExchanges();
     System.out.println(String.format("提取从%s块～～%s块的交易!", startBlockNum, endBlockNum));
@@ -141,10 +142,10 @@ public class GetAllTransaction {
 
   }
 
-  public static void sendTransaction(GrpcClient client, String filename) {
+  public static void sendTransaction(List<GrpcClient> clients, String filename) {
 
     List<Transaction> transactionList = new ArrayList<>();
-    ThreadPoolExecutor executor = new ThreadPoolExecutor(10, 20, 200, TimeUnit.MILLISECONDS,
+    ThreadPoolExecutor executor = new ThreadPoolExecutor(100, 200, 200, TimeUnit.MILLISECONDS,
         new LinkedBlockingQueue<Runnable>());
 
     try {
@@ -164,14 +165,14 @@ public class GetAllTransaction {
 
     // 线程池发送
     for (int i = 0; i < transactionList.size(); i++) {
-      executor.execute(new MyTask(transactionList.get(i), client));
+      executor.execute(new MyTask(transactionList.get(i), clients.get(i % clients.size())));
     }
 
     boolean flag = true;
-    while(flag) {
-      try{
+    while (flag) {
+      try {
         Thread.sleep(10000);
-      }catch (InterruptedException e){
+      } catch (InterruptedException e) {
         flag = false;
       }
       System.out.println(executor.getCompletedTaskCount());
@@ -180,16 +181,82 @@ public class GetAllTransaction {
 
   public static void main(String[] args) {
 
-    GrpcClient client = WalletApi.init();
+    List<GrpcClient> clients = new ArrayList<>();
+    GrpcClient client1 = WalletApi.init();
+    clients.add(client1);
+    GrpcClient client2 = WalletApi.init();
+    GrpcClient client3 = WalletApi.init();
+    GrpcClient client4 = WalletApi.init();
+    GrpcClient client5 = WalletApi.init();
+    GrpcClient client6 = WalletApi.init();
+    GrpcClient client7 = WalletApi.init();
+    GrpcClient client8 = WalletApi.init();
+    clients.add(client2);
+    clients.add(client3);
+    clients.add(client4);
+    clients.add(client5);
+    clients.add(client6);
+    clients.add(client7);
+    clients.add(client8);
+
+    /*GrpcClient client2 = new GrpcClient("47.52.254.128:50051", "");
+    clients.add(client2);
+    GrpcClient client3 = new GrpcClient("47.52.254.128:50051", "");
+    clients.add(client3);
+    GrpcClient client4 = new GrpcClient("47.52.254.128:50051", "");
+    clients.add(client4);
+
+
+    GrpcClient client5 = new GrpcClient("47.90.210.159:50051", "");
+    clients.add(client5);
+    GrpcClient client6 = new GrpcClient("47.90.210.159:50051", "");
+    clients.add(client6);
+    GrpcClient client7 = new GrpcClient("47.90.210.159:50051", "");
+    clients.add(client7);
+    GrpcClient client8 = new GrpcClient("47.90.210.159:50051", "");
+    clients.add(client8);
+
+    GrpcClient client9 = new GrpcClient("47.90.248.142:50051", "");
+    clients.add(client9);
+    GrpcClient client10 = new GrpcClient("47.90.248.142:50051", "");
+    clients.add(client10);
+    GrpcClient client11 = new GrpcClient("47.90.248.142:50051", "");
+    clients.add(client11);
+    GrpcClient client12 = new GrpcClient("47.90.248.142:50051", "");
+    clients.add(client12);*/
+
     //获取线上的历史真实交易
     //fetchTransaction(client, "MyTrxV3.2.2.txt",4828777, 4848777);
     //fetchTransaction(client, "MyTrxV3.1.3.txt",4014118, 4034118);
 
+    // GrpcClient client2 = new GrpcClient("47.90.210.159:50051", "");
+    // GrpcClient client3 = new GrpcClient("47.90.248.142:50051", "");
+    //
+    // GrpcClient client4 = new GrpcClient("47.52.254.128:50051", "");
+    // GrpcClient client5 = new GrpcClient("47.90.248.142:50051", "");
+    // GrpcClient client6 = new GrpcClient("47.90.210.159:50051", "");
+    //
+    // GrpcClient client7 = new GrpcClient("47.52.254.128:50051", "");
+    // GrpcClient client8 = new GrpcClient("47.90.210.159:50051", "");
+    // GrpcClient client9 = new GrpcClient("47.90.248.142:50051", "");
+    //
+    // GrpcClient client10 = new GrpcClient("47.52.254.128:50051", "");
+    // GrpcClient client11 = new GrpcClient("47.90.248.142:50051", "");
+    // GrpcClient client12 = new GrpcClient("47.90.210.159:50051", "");
+    //
+    // clients.add(client4);
+    // clients.add(client5);
+    // clients.add(client6);
+    // clients.add(client7);
+    // clients.add(client8);
+    // clients.add(client9);
+    // clients.add(client10);
+    // clients.add(client11);
+    // clients.add(client12);
 
-    //GrpcClient sendClient = new GrpcClient("47.52.253.32:50051","");
+
+    sendTransaction(clients, "MyTrxV3.2.2_bak.txt");
     //将历史交易重放到测试环境下，测试节点取消交易验证和Tapos验证
-    sendTransaction(client, "MyTrxV3.2.2.txt");
-    //sendTransaction(client, "MyTrxV3.1.3.txt");
 
   }
 }

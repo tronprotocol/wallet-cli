@@ -17,8 +17,6 @@ public class MyTask implements Runnable {
 
   @Override
   public void run() {
-    if(client.broadcastTransaction(trans)){
-      System.out.println(false);
-    };
+    client.broadcastTransaction(trans);
   }
 }
