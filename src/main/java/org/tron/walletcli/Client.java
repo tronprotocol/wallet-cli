@@ -1729,7 +1729,7 @@ public class Client {
       throws CipherException, IOException, CancelException {
     if (parameters == null || parameters.length != 1) {
       System.out.println(
-          "UpdateAccountPermission needs 1 parameters, like UpdateAccountPermission permissions");
+          "UpdateAccountPermission needs 1 parameters, like UpdateAccountPermission permissions which is json format");
       return;
     }
     boolean ret = walletApiWrapper.accountPermissionUpdate(parameters[0]);
@@ -1808,7 +1808,7 @@ public class Client {
   private void getTransactionSignWeight(String[] parameters) throws InvalidProtocolBufferException {
     if (parameters == null || parameters.length != 1) {
       System.out.println(
-          "getTransactionSignWeight needs 1 parameter, like getTransactionSignWeight transaction");
+          "getTransactionSignWeight needs 1 parameter, like getTransactionSignWeight transaction which is hex string");
       return;
     }
 
@@ -1827,7 +1827,7 @@ public class Client {
       throws InvalidProtocolBufferException, CipherException, IOException, CancelException {
     if (parameters == null || parameters.length != 1) {
       System.out.println(
-          "addTransactionSign needs 1 parameter, like addTransactionSign transaction");
+          "addTransactionSign needs 1 parameter, like addTransactionSign transaction which is hex string");
       return;
     }
 
@@ -1853,7 +1853,7 @@ public class Client {
   private void broadcastTransaction(String[] parameters) throws InvalidProtocolBufferException {
     if (parameters == null || parameters.length != 1) {
       System.out.println(
-          "broadcastTransaction needs 1 parameter, like broadcastTransaction transaction");
+          "broadcastTransaction needs 1 parameter, like broadcastTransaction transaction which is hex string");
       return;
     }
 
