@@ -183,4 +183,17 @@ public class TransactionUtils {
     builder.setRawData(rowBuilder.build());
     return builder.build();
   }
+
+  public static Transaction setExpirationTime(Transaction transaction) {
+    if (transaction.getSignatureCount() == 0) {
+      long expirationTime = System.currentTimeMillis() + 6 * 60 * 60 * 1000;
+      Transaction.Builder builder = transaction.toBuilder();
+      org.tron.protos.Protocol.Transaction.raw.Builder rowBuilder = transaction.getRawData()
+          .toBuilder();
+      rowBuilder.setExpiration(expirationTime);
+      builder.setRawData(rowBuilder.build());
+      return builder.build();
+    }
+    return  transaction;
+  }
 }

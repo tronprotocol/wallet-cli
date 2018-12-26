@@ -391,6 +391,7 @@ public class WalletApi {
     if (transaction.getRawData().getTimestamp() == 0) {
       transaction = TransactionUtils.setTimestamp(transaction);
     }
+    transaction = TransactionUtils.setExpirationTime(transaction);
     System.out.println("Your transaction details are as follows, please confirm.");
     System.out.println(Utils.printTransaction(transaction));
 
