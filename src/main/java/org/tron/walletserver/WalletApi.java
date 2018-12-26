@@ -468,6 +468,7 @@ public class WalletApi {
 
   //Warning: do not invoke this interface provided by others.
   public static Transaction signTransactionByApi(Transaction transaction, byte[] privateKey) {
+    transaction = TransactionUtils.setExpirationTime(transaction);
     TransactionSign.Builder builder = TransactionSign.newBuilder();
     builder.setPrivateKey(ByteString.copyFrom(privateKey));
     builder.setTransaction(transaction);
@@ -477,6 +478,7 @@ public class WalletApi {
   //Warning: do not invoke this interface provided by others.
   public static TransactionExtention signTransactionByApi2(Transaction transaction,
       byte[] privateKey) {
+    transaction = TransactionUtils.setExpirationTime(transaction);
     TransactionSign.Builder builder = TransactionSign.newBuilder();
     builder.setPrivateKey(ByteString.copyFrom(privateKey));
     builder.setTransaction(transaction);
@@ -486,6 +488,7 @@ public class WalletApi {
   //Warning: do not invoke this interface provided by others.
   public static TransactionExtention addSignByApi(Transaction transaction,
       byte[] privateKey) {
+    transaction = TransactionUtils.setExpirationTime(transaction);
     TransactionSign.Builder builder = TransactionSign.newBuilder();
     builder.setPrivateKey(ByteString.copyFrom(privateKey));
     builder.setTransaction(transaction);
@@ -1907,7 +1910,7 @@ public class WalletApi {
     if (transaction.getRawData().getTimestamp() == 0) {
       transaction = TransactionUtils.setTimestamp(transaction);
     }
-
+    transaction = TransactionUtils.setExpirationTime(transaction);
     System.out.println("Please choose your key for sign.");
     WalletFile walletFile = selcetWalletFileE();
     System.out.println("Please input your password.");
