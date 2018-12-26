@@ -1,6 +1,7 @@
 package org.tron.walletcli;
 
 import com.beust.jcommander.JCommander;
+import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -35,6 +36,7 @@ import org.tron.api.GrpcAPI.NumberMessage;
 import org.tron.api.GrpcAPI.ProposalList;
 import org.tron.api.GrpcAPI.TransactionList;
 import org.tron.api.GrpcAPI.TransactionListExtention;
+import org.tron.api.GrpcAPI.TransactionSignWeight;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.utils.AbiUtil;
 import org.tron.common.utils.ByteArray;
@@ -1723,7 +1725,13 @@ public class Client {
     }
   }
 
-  private void updateAccountPermission(String[] parameters) throws CipherException, IOException, CancelException {
+  private void updateAccountPermission(String[] parameters)
+      throws CipherException, IOException, CancelException {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println(
+          "UpdateAccountPermission needs 1 parameters, like UpdateAccountPermission permissions which is json format");
+      return;
+    }
     boolean ret = walletApiWrapper.accountPermissionUpdate(parameters[0]);
     if (ret) {
       logger.info("updateAccountPermission successful !!!!");
@@ -1735,7 +1743,8 @@ public class Client {
   private void permissionAddKey(String[] parameters)
       throws CipherException, IOException, CancelException {
     if (parameters == null || parameters.length != 3) {
-      System.out.println("permissionAddKey needs 3 parameters, like permissionAddKey permissionName address weight");
+      System.out.println(
+          "PermissionAddKey needs 3 parameters, like PermissionAddKey permissionName address weight");
       return;
     }
     String permission = parameters[0];
@@ -1749,16 +1758,17 @@ public class Client {
     }
     boolean ret = walletApiWrapper.permissionAddKey(permission, address, weight);
     if (ret) {
-      logger.info("permissionAddKey successful !!!!");
+      logger.info("PermissionAddKey successful !!!!");
     } else {
-      logger.info("permissionAddKey failed !!!!");
+      logger.info("PermissionAddKey failed !!!!");
     }
   }
 
   private void permissionUpdateKey(String[] parameters)
       throws CipherException, IOException, CancelException {
     if (parameters == null || parameters.length != 3) {
-      System.out.println("permissionUpdateKey needs 3 parameters, like permissionUpdateKey permissionName address weight");
+      System.out.println(
+          "PermissionUpdateKey needs 3 parameters, like PermissionUpdateKey permissionName address weight");
       return;
     }
     String permission = parameters[0];
@@ -1772,26 +1782,95 @@ public class Client {
     }
     boolean ret = walletApiWrapper.permissionUpdateKey(permission, address, weight);
     if (ret) {
-      logger.info("permissionUpdateKey successful !!!!");
+      logger.info("PermissionUpdateKey successful !!!!");
     } else {
-      logger.info("permissionUpdateKey failed !!!!");
+      logger.info("PermissionUpdateKey failed !!!!");
     }
   }
 
   private void permissionDeleteKey(String[] parameters)
       throws CipherException, IOException, CancelException {
     if (parameters == null || parameters.length != 2) {
-      System.out.println("permissionDeleteKey needs 2 parameters, like permissionDeleteKey permissionName address");
+      System.out.println(
+          "PermissionDeleteKey needs 2 parameters, like PermissionDeleteKey permissionName address");
       return;
     }
     String permission = parameters[0];
     String address = parameters[1];
     boolean ret = walletApiWrapper.permissionDeleteKey(permission, address);
     if (ret) {
-      logger.info("permissionDeleteKey successful !!!!");
+      logger.info("PermissionDeleteKey successful !!!!");
     } else {
-      logger.info("permissionDeleteKey failed !!!!");
+      logger.info("PermissionDeleteKey failed !!!!");
     }
+  }
+
+  private void getTransactionSignWeight(String[] parameters) throws InvalidProtocolBufferException {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println(
+          "getTransactionSignWeight needs 1 parameter, like getTransactionSignWeight transaction which is hex string");
+      return;
+    }
+
+    String transactionStr = parameters[0];
+    Transaction transaction = Transaction.parseFrom(ByteArray.fromHexString(transactionStr));
+
+    TransactionSignWeight transactionSignWeight = WalletApi.getTransactionSignWeight(transaction);
+    if (transactionSignWeight != null) {
+      logger.info(Utils.printTransactionSignWeight(transactionSignWeight));
+    } else {
+      logger.info("GetTransactionSignWeight failed !!");
+    }
+  }
+
+  private void addTransactionSign(String[] parameters)
+      throws InvalidProtocolBufferException, CipherException, IOException, CancelException {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println(
+          "addTransactionSign needs 1 parameter, like addTransactionSign transaction which is hex string");
+      return;
+    }
+
+    String transactionStr = parameters[0];
+    Transaction transaction = Transaction.parseFrom(ByteArray.fromHexString(transactionStr));
+    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
+      System.out.println("invalid transaction");
+      return;
+    }
+
+    transaction = walletApiWrapper.addTransactionSign(transaction);
+    if (transaction != null) {
+      System.out
+          .println("Transaction hex string is " + ByteArray
+              .toHexString(transaction.toByteArray()));
+      System.out.println(Utils.printTransaction(transaction));
+    } else {
+      logger.info("AddTransactionSign failed !!");
+    }
+
+  }
+
+  private void broadcastTransaction(String[] parameters) throws InvalidProtocolBufferException {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println(
+          "broadcastTransaction needs 1 parameter, like broadcastTransaction transaction which is hex string");
+      return;
+    }
+
+    String transactionStr = parameters[0];
+    Transaction transaction = Transaction.parseFrom(ByteArray.fromHexString(transactionStr));
+    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
+      System.out.println("invalid transaction");
+      return;
+    }
+
+    boolean ret = WalletApi.broadcastTransaction(transaction);
+    if (ret) {
+      logger.info("BroadcastTransaction successful !!!!");
+    } else {
+      logger.info("BroadcastTransaction failed !!!!");
+    }
+
   }
 
   private void help() {
@@ -1799,10 +1878,12 @@ public class Client {
     System.out.println(
         "For more information on a specific command, type the command and it will display tips");
     System.out.println("");
+    System.out.println("AddTransactionSign");
     System.out.println("ApproveProposal");
     System.out.println("AssetIssue");
     System.out.println("BackupWallet");
     System.out.println("BackupWallet2Base64");
+    System.out.println("BroadcastTransaction");
     System.out.println("ChangePassword");
     System.out.println("CreateAccount");
     System.out.println("CreateProposal");
@@ -1841,6 +1922,7 @@ public class Client {
     System.out.println("GetTransactionInfoById");
     System.out.println("GetTransactionsFromThis");
     System.out.println("GetTransactionsToThis");
+    System.out.println("GetTransactionSignWeight");
     System.out.println("ImportWallet");
     System.out.println("ImportWalletByBase64");
     System.out.println("ListAssetIssue");
@@ -1853,9 +1935,9 @@ public class Client {
     System.out.println("Login");
     System.out.println("Logout");
     System.out.println("ParticipateAssetIssue");
-    System.out.println("permissionAddKey");
-    System.out.println("permissionUpdateKey");
-    System.out.println("permissionDeleteKey");
+    System.out.println("PermissionAddKey");
+    System.out.println("PermissionUpdateKey");
+    System.out.println("PermissionDeleteKey");
     System.out.println("RegisterWallet");
     System.out.println("SendCoin");
     System.out.println("SetAccountId");
@@ -1879,10 +1961,6 @@ public class Client {
 //   System.out.println("GetTransactionsByTimestampCount");
 //   System.out.println("GetTransactionsFromThisCount");
 //   System.out.println("GetTransactionsToThisCount");
-
-
-
-
 
     System.out.println("Exit or Quit");
 
@@ -2285,6 +2363,18 @@ public class Client {
           }
           case "permissiondeletekey": {
             permissionDeleteKey(parameters);
+            break;
+          }
+          case "gettransactionsignweight": {
+            getTransactionSignWeight(parameters);
+            break;
+          }
+          case "addtransactionsign": {
+            addTransactionSign(parameters);
+            break;
+          }
+          case "broadcasttransaction": {
+            broadcastTransaction(parameters);
             break;
           }
           case "exit":

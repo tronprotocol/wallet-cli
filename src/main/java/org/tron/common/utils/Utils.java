@@ -49,6 +49,7 @@ import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.crypto.Sha256Hash;
 import org.tron.keystore.StringUtils;
 import org.tron.protos.Contract.AccountCreateContract;
+import org.tron.protos.Contract.AccountPermissionUpdateContract;
 import org.tron.protos.Contract.AccountUpdateContract;
 import org.tron.protos.Contract.AssetIssueContract;
 import org.tron.protos.Contract.AssetIssueContract.FrozenSupply;
@@ -59,6 +60,9 @@ import org.tron.protos.Contract.ExchangeTransactionContract;
 import org.tron.protos.Contract.ExchangeWithdrawContract;
 import org.tron.protos.Contract.FreezeBalanceContract;
 import org.tron.protos.Contract.ParticipateAssetIssueContract;
+import org.tron.protos.Contract.PermissionAddKeyContract;
+import org.tron.protos.Contract.PermissionDeleteKeyContract;
+import org.tron.protos.Contract.PermissionUpdateKeyContract;
 import org.tron.protos.Contract.ProposalApproveContract;
 import org.tron.protos.Contract.ProposalCreateContract;
 import org.tron.protos.Contract.ProposalDeleteContract;
@@ -323,6 +327,13 @@ public class Utils {
     result += "delegatedFrozenBalanceForEnergy: ";
     result += account.getAccountResource().getDelegatedFrozenBalanceForEnergy();
     result += "}\n";
+
+    if (account.getPermissionsCount() > 0) {
+      result += "Permissions: ";
+      result += printPermissionList(account.getPermissionsList());
+      result += "\n";
+    }
+
     return result;
   }
 
@@ -1021,6 +1032,60 @@ public class Utils {
           result += exchangeTransactionContract.getQuant();
           result += "\n";
           break;
+        case PermissionAddKeyContract:
+          PermissionAddKeyContract permissionAddKeyContract = contract.getParameter()
+              .unpack(PermissionAddKeyContract.class);
+          result += "owner_address: ";
+          result += WalletApi
+              .encode58Check(permissionAddKeyContract.getOwnerAddress().toByteArray());
+          result += "\n";
+          result += "Key: ";
+          result += printKey(permissionAddKeyContract.getKey());
+          result += "\n";
+          result += "permission_name: ";
+          result += permissionAddKeyContract.getPermissionName();
+          result += "\n";
+          break;
+        case PermissionDeleteKeyContract:
+          PermissionDeleteKeyContract permissionDeleteKeyContract = contract.getParameter()
+              .unpack(PermissionDeleteKeyContract.class);
+          result += "owner_address: ";
+          result += WalletApi
+              .encode58Check(permissionDeleteKeyContract.getOwnerAddress().toByteArray());
+          result += "\n";
+          result += "key_address: ";
+          result += WalletApi
+              .encode58Check(permissionDeleteKeyContract.getKeyAddress().toByteArray());
+          result += "\n";
+          result += "permission_name: ";
+          result += permissionDeleteKeyContract.getPermissionName();
+          result += "\n";
+          break;
+        case PermissionUpdateKeyContract:
+          PermissionUpdateKeyContract permissionUpdateKeyContract = contract.getParameter()
+              .unpack(PermissionUpdateKeyContract.class);
+          result += "owner_address: ";
+          result += WalletApi
+              .encode58Check(permissionUpdateKeyContract.getOwnerAddress().toByteArray());
+          result += "\n";
+          result += "Key: ";
+          result += printKey(permissionUpdateKeyContract.getKey());
+          result += "\n";
+          result += "permission_name: ";
+          result += permissionUpdateKeyContract.getPermissionName();
+          result += "\n";
+          break;
+        case AccountPermissionUpdateContract:
+          AccountPermissionUpdateContract accountPermissionUpdateContract = contract.getParameter()
+              .unpack(AccountPermissionUpdateContract.class);
+          result += "owner_address: ";
+          result += WalletApi
+              .encode58Check(accountPermissionUpdateContract.getOwnerAddress().toByteArray());
+          result += "\n";
+          result += "Permissions: ";
+          result += printPermissionList(accountPermissionUpdateContract.getPermissionsList());
+          result += "\n";
+          break;
         // case BuyStorageContract:
         //   BuyStorageContract buyStorageContract = contract.getParameter()
         //       .unpack(BuyStorageContract.class);
@@ -1689,6 +1754,26 @@ public class Utils {
     return result.toString();
   }
 
+  public static String printPermissionList(List<Permission> permissionList) {
+    String result = "\n";
+    result += "[";
+    result += "\n";
+    int i = 0;
+    for (Permission permission : permissionList) {
+      result += "permission " + i + " :::";
+      result += "\n";
+      result += "{";
+      result += "\n";
+      result += printPermission(permission);
+      result += "\n";
+      result += "}";
+      result += "\n";
+      i++;
+    }
+    result += "]";
+    return result;
+  }
+
   public static String printPermission(Permission permission) {
     StringBuffer result = new StringBuffer();
     result.append("name: ");
@@ -1711,12 +1796,12 @@ public class Utils {
     return result.toString();
   }
 
-  public static String printResult(TransactionSignWeight.Result resul){
+  public static String printResult(TransactionSignWeight.Result resul) {
     StringBuffer result = new StringBuffer();
     result.append("code: ");
     result.append(resul.getCode());
     result.append("\n");
-    if (!Strings.isStringEmpty(resul.getMessage())){
+    if (!Strings.isStringEmpty(resul.getMessage())) {
       result.append("message: ");
       result.append(resul.getMessage());
       result.append("\n");

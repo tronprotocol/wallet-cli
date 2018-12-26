@@ -129,8 +129,8 @@ public class GrpcClient {
     return blockingStubFull.addSign(transactionSign);
   }
 
-  public TransactionSignWeight getTransactionSignWeight(Transaction transaction){
-    return  blockingStubFull.getTransactionSignWeight(transaction);
+  public TransactionSignWeight getTransactionSignWeight(Transaction transaction) {
+    return blockingStubFull.getTransactionSignWeight(transaction);
   }
 
   //Warning: do not invoke this interface provided by others.
@@ -412,7 +412,7 @@ public class GrpcClient {
         && i > 0) {
       i--;
       response = blockingStubFull.broadcastTransaction(signaturedTransaction);
-      logger.info("repeate times = " + (11 - i));
+      logger.info("repeat times = " + (11 - i));
       try {
         Thread.sleep(300);
       } catch (InterruptedException e) {
@@ -766,7 +766,8 @@ public class GrpcClient {
     return blockingStubFull.getContract(bytesMessage);
   }
 
-  public TransactionExtention accountPermissionUpdate(Contract.AccountPermissionUpdateContract request) {
+  public TransactionExtention accountPermissionUpdate(
+      Contract.AccountPermissionUpdateContract request) {
     return blockingStubFull.accountPermissionUpdate(request);
   }
 

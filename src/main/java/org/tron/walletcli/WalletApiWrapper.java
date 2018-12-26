@@ -26,6 +26,7 @@ import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.ChainParameters;
 import org.tron.protos.Protocol.Exchange;
 import org.tron.protos.Protocol.Proposal;
+import org.tron.protos.Protocol.Transaction;
 import org.tron.walletserver.WalletApi;
 
 public class WalletApiWrapper {
@@ -703,4 +704,14 @@ public class WalletApiWrapper {
     }
     return wallet.permissionDeleteKey(permission, address);
   }
+
+  public Transaction addTransactionSign(Transaction transaction)
+      throws IOException, CipherException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warning: addTransactionSign failed,  Please login first !!");
+      return null;
+    }
+    return wallet.addTransactionSign(transaction);
+  }
+
 }
