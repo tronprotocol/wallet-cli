@@ -327,6 +327,13 @@ public class Utils {
     result += "delegatedFrozenBalanceForEnergy: ";
     result += account.getAccountResource().getDelegatedFrozenBalanceForEnergy();
     result += "}\n";
+
+    if (account.getPermissionsCount() > 0) {
+      result += "Permissions: ";
+      result += printPermissionList(account.getPermissionsList());
+      result += "\n";
+    }
+
     return result;
   }
 
@@ -1075,7 +1082,7 @@ public class Utils {
           result += WalletApi
               .encode58Check(accountPermissionUpdateContract.getOwnerAddress().toByteArray());
           result += "\n";
-          result += "Permission: ";
+          result += "Permissions: ";
           result += printPermissionList(accountPermissionUpdateContract.getPermissionsList());
           result += "\n";
           break;
