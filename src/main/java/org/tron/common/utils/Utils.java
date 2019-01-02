@@ -1113,6 +1113,9 @@ public class Utils {
       results += "fee ::: ";
       results += result.getFee();
       results += "\n";
+      results += "ContractRet ::: ";
+      results += result.getContractRet().name();
+      results += "\n";
       results += "]";
       results += "\n";
       i++;
