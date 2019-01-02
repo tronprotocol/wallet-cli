@@ -1723,11 +1723,9 @@ public class WalletApi {
     Return ret = rpcCli.setEventFilter(request.build());
 
     if (ret.getResult()){
-      System.out.println("setEventFilter successfully");
       return true;
     }
     else {
-      System.out.println("setEventFilter failed");
       return false;
     }
   }
@@ -1753,11 +1751,9 @@ public class WalletApi {
 
     Return ret = rpcCli.setPluginConfig(request.build());
     if (ret.getResult()){
-      System.out.println("setEventPluginConfig successfully");
       return true;
     }
     else {
-      System.out.println("setEventPluginConfig failed");
       return false;
     }
   }

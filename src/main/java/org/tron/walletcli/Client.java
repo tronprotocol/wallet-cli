@@ -2263,10 +2263,16 @@ public class Client {
 
     String fromBlock = parameters[0];
     String toBlock = parameters[1];
+
     List<String> addressList = Arrays.asList(parameters[2].split("\\|"));
     List<String> topicList = Arrays.asList(parameters[3].split("\\|"));
 
-    WalletApi.setEventFilter(fromBlock, toBlock, addressList, topicList);
+    if (WalletApi.setEventFilter(fromBlock, toBlock, addressList, topicList)){
+      System.out.println("setEventFilter successfully");
+    }
+    else {
+      System.out.println("setEventFilter failed");
+    }
   }
 
   private void setEventPluginConfig(String[] parameters){
@@ -2282,7 +2288,12 @@ public class Client {
       pluginInfoList.add(parameters[index]);
     }
 
-    WalletApi.setEventPluginConfig(pluginInfoList);
+    if (WalletApi.setEventPluginConfig(pluginInfoList)){
+      System.out.println("setEventPluginConfig successfully");
+    }
+    else {
+      System.out.println("setEventPluginConfig failed");
+    }
   }
 
   public static void main(String[] args) {
