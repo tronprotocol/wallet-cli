@@ -2264,8 +2264,30 @@ public class Client {
     String fromBlock = parameters[0];
     String toBlock = parameters[1];
 
+    if (!fromBlock.isEmpty() && fromBlock.equalsIgnoreCase("*")){
+      fromBlock = "";
+    }
+
+    if (!toBlock.isEmpty() && toBlock.equalsIgnoreCase("*")){
+      toBlock = "";
+    }
+
     List<String> addressList = Arrays.asList(parameters[2].split("\\|"));
     List<String> topicList = Arrays.asList(parameters[3].split("\\|"));
+
+    for (int index = 0; index < addressList.size(); ++index){
+      String address = addressList.get(index);
+      if (!address.isEmpty() && address.equals("*")){
+        addressList.set(index, "");
+      }
+    }
+
+    for (int index = 0; index < topicList.size(); ++index){
+      String topic = topicList.get(index);
+      if (!topic.isEmpty() && topic.equals("*")){
+        topicList.set(index, "");
+      }
+    }
 
     if (WalletApi.setEventFilter(fromBlock, toBlock, addressList, topicList)){
       System.out.println("setEventFilter successfully");
