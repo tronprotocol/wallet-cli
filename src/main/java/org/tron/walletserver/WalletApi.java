@@ -1710,4 +1710,55 @@ public class WalletApi {
   public static SmartContract getContract(byte[] address) {
     return rpcCli.getContract(address);
   }
+
+  public static boolean setEventFilter(String fromBlock, String toBlock, List<String> addressList, List<String> topicList){
+
+    GrpcAPI.EventFilter.Builder request = GrpcAPI.EventFilter.newBuilder();
+
+    request.setFromBlock(fromBlock);
+    request.setToBlock(toBlock);
+    request.addAllContractAddress(addressList);
+    request.addAllContractTopic(topicList);
+
+    Return ret = rpcCli.setEventFilter(request.build());
+
+    if (ret.getResult()){
+      System.out.println("setEventFilter successfully");
+      return true;
+    }
+    else {
+      System.out.println("setEventFilter failed");
+      return false;
+    }
+  }
+
+  public static boolean setEventPluginConfig(List<String> pluginInfoList){
+
+    GrpcAPI.EventPluginInfo.Builder request = GrpcAPI.EventPluginInfo.newBuilder();
+
+    for (String item: pluginInfoList){
+      String[] pluginInfoArray = item.split("\\|");
+      if (pluginInfoArray.length != 2){
+        System.out.println("setEventPluginConfig invalid command format");
+        return false;
+      }
+
+      GrpcAPI.TriggerInfo.Builder triggerInfo = GrpcAPI.TriggerInfo.newBuilder();
+      triggerInfo.setTriggerName(pluginInfoArray[0]);
+
+      boolean enable = Boolean.valueOf(pluginInfoArray[1]);
+      triggerInfo.setEnable(enable);
+      request.addTriggerInfo(triggerInfo);
+    }
+
+    Return ret = rpcCli.setPluginConfig(request.build());
+    if (ret.getResult()){
+      System.out.println("setEventPluginConfig successfully");
+      return true;
+    }
+    else {
+      System.out.println("setEventPluginConfig failed");
+      return false;
+    }
+  }
 }

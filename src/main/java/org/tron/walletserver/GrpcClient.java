@@ -755,4 +755,12 @@ public class GrpcClient {
     BytesMessage bytesMessage = BytesMessage.newBuilder().setValue(byteString).build();
     return blockingStubFull.getContract(bytesMessage);
   }
+
+  public GrpcAPI.Return setEventFilter(GrpcAPI.EventFilter request){
+    return blockingStubFull.setEventFilter(request);
+  }
+
+  public GrpcAPI.Return setPluginConfig(GrpcAPI.EventPluginInfo request){
+    return blockingStubFull.setEventPluginConfig(request);
+  }
 }
