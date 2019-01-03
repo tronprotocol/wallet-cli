@@ -20,7 +20,6 @@ import org.apache.commons.lang3.ArrayUtils;
 import org.bouncycastle.util.encoders.Hex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.tron.api.GrpcAPI;
 import org.tron.api.GrpcAPI.AccountNetMessage;
 import org.tron.api.GrpcAPI.AccountResourceMessage;
 import org.tron.api.GrpcAPI.AddressPrKeyPairMessage;
@@ -2257,7 +2256,7 @@ public class Client {
 
   private void setEventFilter(String[] parameters){
     if (parameters == null || parameters.length != 4) {
-      System.out.println("setEventFilter needs 4 parameter, seteventfilter fromBlock toBlock address1|address2, topic1|topic2");
+      logger.error("setEventFilter needs 4 parameter, seteventfilter fromBlock toBlock address1|address2, topic1|topic2");
       return;
     }
 
@@ -2290,17 +2289,17 @@ public class Client {
     }
 
     if (WalletApi.setEventFilter(fromBlock, toBlock, addressList, topicList)){
-      System.out.println("setEventFilter successfully");
+      logger.info("setEventFilter successfully");
     }
     else {
-      System.out.println("setEventFilter failed");
+      logger.error("setEventFilter failed");
     }
   }
 
   private void setEventPluginConfig(String[] parameters){
 
     if (parameters == null) {
-      System.out.println("setEventPluginConfig needs more than 1 parameter, setEventPluginConfig block|false transaction|false contractevent|true contractlog|true");
+      logger.error("setEventPluginConfig needs more than 1 parameter, setEventPluginConfig block|false transaction|false contractevent|true contractlog|true");
       return;
     }
 
@@ -2311,10 +2310,10 @@ public class Client {
     }
 
     if (WalletApi.setEventPluginConfig(pluginInfoList)){
-      System.out.println("setEventPluginConfig successfully");
+      logger.info("setEventPluginConfig successfully");
     }
     else {
-      System.out.println("setEventPluginConfig failed");
+      logger.error("setEventPluginConfig failed");
     }
   }
 
