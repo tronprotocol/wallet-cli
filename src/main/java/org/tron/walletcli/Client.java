@@ -1811,6 +1811,8 @@ public class Client {
     System.out.println("UpdateWitness");
     System.out.println("VoteWitness");
     System.out.println("WithdrawBalance");
+    System.out.println("SetEventFilter");
+    System.out.println("SetEventPluginConfig");
 //    System.out.println("buyStorage");
 //    System.out.println("buyStorageBytes");
 //    System.out.println("sellStorage");
@@ -2205,6 +2207,16 @@ public class Client {
             generateAddress();
             break;
           }
+          case "seteventfilter" :{
+            setEventFilter(parameters);
+            break;
+          }
+
+          case "seteventpluginconfig" :{
+            setEventPluginConfig(parameters);
+            break;
+          }
+
           case "exit":
           case "quit": {
             System.out.println("Exit !!!");
@@ -2239,6 +2251,69 @@ public class Client {
       logger.info(Utils.printChainParameters(chainParameters));
     } else {
       logger.info("List witnesses " + " failed !!");
+    }
+  }
+
+  private void setEventFilter(String[] parameters){
+    if (parameters == null || parameters.length != 4) {
+      logger.error("setEventFilter needs 4 parameter, seteventfilter fromBlock toBlock address1|address2, topic1|topic2");
+      return;
+    }
+
+    String fromBlock = parameters[0];
+    String toBlock = parameters[1];
+
+    if (!fromBlock.isEmpty() && fromBlock.equalsIgnoreCase("*")){
+      fromBlock = "";
+    }
+
+    if (!toBlock.isEmpty() && toBlock.equalsIgnoreCase("*")){
+      toBlock = "";
+    }
+
+    List<String> addressList = Arrays.asList(parameters[2].split("\\|"));
+    List<String> topicList = Arrays.asList(parameters[3].split("\\|"));
+
+    for (int index = 0; index < addressList.size(); ++index){
+      String address = addressList.get(index);
+      if (!address.isEmpty() && address.equals("*")){
+        addressList.set(index, "");
+      }
+    }
+
+    for (int index = 0; index < topicList.size(); ++index){
+      String topic = topicList.get(index);
+      if (!topic.isEmpty() && topic.equals("*")){
+        topicList.set(index, "");
+      }
+    }
+
+    if (WalletApi.setEventFilter(fromBlock, toBlock, addressList, topicList)){
+      logger.info("setEventFilter successfully");
+    }
+    else {
+      logger.error("setEventFilter failed");
+    }
+  }
+
+  private void setEventPluginConfig(String[] parameters){
+
+    if (parameters == null) {
+      logger.error("setEventPluginConfig needs more than 1 parameter, setEventPluginConfig block|false transaction|false contractevent|true contractlog|true");
+      return;
+    }
+
+    List<String> pluginInfoList = new ArrayList<>();
+
+    for (int index = 0; index < parameters.length; ++index){
+      pluginInfoList.add(parameters[index]);
+    }
+
+    if (WalletApi.setEventPluginConfig(pluginInfoList)){
+      logger.info("setEventPluginConfig successfully");
+    }
+    else {
+      logger.error("setEventPluginConfig failed");
     }
   }
 

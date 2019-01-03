@@ -1727,6 +1727,53 @@ public class WalletApi {
     return rpcCli.getContract(address);
   }
 
+  public static boolean setEventFilter(String fromBlock, String toBlock, List<String> addressList, List<String> topicList){
+
+    GrpcAPI.EventFilter.Builder request = GrpcAPI.EventFilter.newBuilder();
+
+    request.setFromBlock(fromBlock);
+    request.setToBlock(toBlock);
+    request.addAllContractAddress(addressList);
+    request.addAllContractTopic(topicList);
+
+    Return ret = rpcCli.setEventFilter(request.build());
+
+    if (ret.getResult()){
+      return true;
+    }
+    else {
+      return false;
+    }
+  }
+
+  public static boolean setEventPluginConfig(List<String> pluginInfoList){
+
+    GrpcAPI.EventPluginInfo.Builder request = GrpcAPI.EventPluginInfo.newBuilder();
+
+    for (String item: pluginInfoList){
+      String[] pluginInfoArray = item.split("\\|");
+      if (pluginInfoArray.length != 2){
+        System.out.println("setEventPluginConfig invalid command format");
+        return false;
+      }
+
+      GrpcAPI.TriggerInfo.Builder triggerInfo = GrpcAPI.TriggerInfo.newBuilder();
+      triggerInfo.setTriggerName(pluginInfoArray[0]);
+
+      boolean enable = Boolean.valueOf(pluginInfoArray[1]);
+      triggerInfo.setEnable(enable);
+      request.addTriggerInfo(triggerInfo);
+    }
+
+    Return ret = rpcCli.setPluginConfig(request.build());
+    if (ret.getResult()){
+      return true;
+    }
+    else {
+      return false;
+    }
+  }
+
   public static void main(String[] args) {
     System.out
         .println(ByteArray.toHexString(Hash.sha3(ByteArray.fromString("playerRollDice(uint256)"))));
