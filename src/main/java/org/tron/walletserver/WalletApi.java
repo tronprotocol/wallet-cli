@@ -43,6 +43,7 @@ import org.tron.api.GrpcAPI.ExchangeList;
 import org.tron.api.GrpcAPI.NodeList;
 import org.tron.api.GrpcAPI.ProposalList;
 import org.tron.api.GrpcAPI.Return;
+import org.tron.api.GrpcAPI.TransactionApprovedList;
 import org.tron.api.GrpcAPI.TransactionExtention;
 import org.tron.api.GrpcAPI.TransactionList;
 import org.tron.api.GrpcAPI.TransactionListExtention;
@@ -497,6 +498,10 @@ public class WalletApi {
 
   public static TransactionSignWeight getTransactionSignWeight(Transaction transaction) {
     return rpcCli.getTransactionSignWeight(transaction);
+  }
+
+  public static TransactionApprovedList getTransactionApprovedList(Transaction transaction) {
+    return rpcCli.getTransactionApprovedList(transaction);
   }
 
   //Warning: do not invoke this interface provided by others.

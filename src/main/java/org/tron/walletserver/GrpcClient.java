@@ -32,6 +32,7 @@ import org.tron.api.GrpcAPI.NumberMessage;
 import org.tron.api.GrpcAPI.PaginatedMessage;
 import org.tron.api.GrpcAPI.ProposalList;
 import org.tron.api.GrpcAPI.Return.response_code;
+import org.tron.api.GrpcAPI.TransactionApprovedList;
 import org.tron.api.GrpcAPI.TransactionExtention;
 import org.tron.api.GrpcAPI.TransactionList;
 import org.tron.api.GrpcAPI.TransactionListExtention;
@@ -131,6 +132,10 @@ public class GrpcClient {
 
   public TransactionSignWeight getTransactionSignWeight(Transaction transaction) {
     return blockingStubFull.getTransactionSignWeight(transaction);
+  }
+
+  public TransactionApprovedList getTransactionApprovedList(Transaction transaction) {
+    return blockingStubFull.getTransactionApprovedList(transaction);
   }
 
   //Warning: do not invoke this interface provided by others.
@@ -414,7 +419,7 @@ public class GrpcClient {
       response = blockingStubFull.broadcastTransaction(signaturedTransaction);
       logger.info("repeat times = " + (11 - i));
       try {
-        Thread.sleep(300);
+        Thread.sleep(1000);
       } catch (InterruptedException e) {
         e.printStackTrace();
       }

@@ -41,6 +41,7 @@ import org.tron.api.GrpcAPI.BlockListExtention;
 import org.tron.api.GrpcAPI.DelegatedResourceList;
 import org.tron.api.GrpcAPI.ExchangeList;
 import org.tron.api.GrpcAPI.ProposalList;
+import org.tron.api.GrpcAPI.TransactionApprovedList;
 import org.tron.api.GrpcAPI.TransactionExtention;
 import org.tron.api.GrpcAPI.TransactionList;
 import org.tron.api.GrpcAPI.TransactionListExtention;
@@ -1809,6 +1810,19 @@ public class Utils {
     return result.toString();
   }
 
+  public static String printResult(TransactionApprovedList.Result resul) {
+    StringBuffer result = new StringBuffer();
+    result.append("code: ");
+    result.append(resul.getCode());
+    result.append("\n");
+    if (!Strings.isStringEmpty(resul.getMessage())) {
+      result.append("message: ");
+      result.append(resul.getMessage());
+      result.append("\n");
+    }
+    return result.toString();
+  }
+
   public static String printTransactionSignWeight(TransactionSignWeight transactionSignWeight) {
     StringBuffer result = new StringBuffer();
     result.append("permission:");
@@ -1850,6 +1864,36 @@ public class Utils {
     return result.toString();
   }
 
+  public static String printTransactionApprovedList(TransactionApprovedList transactionApprovedList) {
+    StringBuffer result = new StringBuffer();
+    result.append("result:");
+    result.append("\n");
+    result.append("{");
+    result.append("\n");
+    result.append(printResult(transactionApprovedList.getResult()));
+    result.append("}");
+    result.append("\n");
+    if (transactionApprovedList.getApprovedListCount() > 0) {
+      result.append("approved_list:");
+      result.append("\n");
+      result.append("[");
+      result.append("\n");
+      for (ByteString approved : transactionApprovedList.getApprovedListList()) {
+        result.append(WalletApi.encode58Check(approved.toByteArray()));
+        result.append("\n");
+      }
+      result.append("]");
+      result.append("\n");
+    }
+    result.append("transaction:");
+    result.append("\n");
+    result.append("{");
+    result.append("\n");
+    result.append(printTransaction(transactionApprovedList.getTransaction()));
+    result.append("}");
+    result.append("\n");
+    return result.toString();
+  }
 
   public static char[] inputPassword(boolean checkStrength) throws IOException {
     char[] password;

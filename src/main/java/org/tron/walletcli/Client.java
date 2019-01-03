@@ -34,6 +34,7 @@ import org.tron.api.GrpcAPI.Node;
 import org.tron.api.GrpcAPI.NodeList;
 import org.tron.api.GrpcAPI.NumberMessage;
 import org.tron.api.GrpcAPI.ProposalList;
+import org.tron.api.GrpcAPI.TransactionApprovedList;
 import org.tron.api.GrpcAPI.TransactionList;
 import org.tron.api.GrpcAPI.TransactionListExtention;
 import org.tron.api.GrpcAPI.TransactionSignWeight;
@@ -1823,6 +1824,24 @@ public class Client {
     }
   }
 
+  private void getTransactionApprovedList(String[] parameters) throws InvalidProtocolBufferException {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println(
+          "getTransactionApprovedList needs 1 parameter, like getTransactionApprovedList transaction which is hex string");
+      return;
+    }
+
+    String transactionStr = parameters[0];
+    Transaction transaction = Transaction.parseFrom(ByteArray.fromHexString(transactionStr));
+
+    TransactionApprovedList transactionApprovedList = WalletApi.getTransactionApprovedList(transaction);
+    if (transactionApprovedList != null) {
+      logger.info(Utils.printTransactionApprovedList(transactionApprovedList));
+    } else {
+      logger.info("GetTransactionApprovedList failed !!");
+    }
+  }
+
   private void addTransactionSign(String[] parameters)
       throws InvalidProtocolBufferException, CipherException, IOException, CancelException {
     if (parameters == null || parameters.length != 1) {
@@ -1917,6 +1936,7 @@ public class Client {
     System.out.println("GetNextMaintenanceTime");
     System.out.println("GetProposal");
     System.out.println("GetTotalTransaction");
+    System.out.println("GetTransactionApprovedList");
     System.out.println("GetTransactionById");
     System.out.println("GetTransactionCountByBlockNum");
     System.out.println("GetTransactionInfoById");
@@ -2367,6 +2387,10 @@ public class Client {
           }
           case "gettransactionsignweight": {
             getTransactionSignWeight(parameters);
+            break;
+          }
+          case "gettransactionapprovedlist": {
+            getTransactionApprovedList(parameters);
             break;
           }
           case "addtransactionsign": {
