@@ -1750,9 +1750,9 @@ public class Client {
     }
     String permission = parameters[0];
     String address = parameters[1];
-    int weight = 0;
+    long weight;
     try {
-      weight = Integer.parseInt(parameters[2]);
+      weight = Long.parseLong(parameters[2]);
     } catch (NumberFormatException e) {
       System.out.println("weight should be a integer");
       return;
@@ -1774,9 +1774,9 @@ public class Client {
     }
     String permission = parameters[0];
     String address = parameters[1];
-    int weight = 0;
+    long weight;
     try {
-      weight = Integer.parseInt(parameters[2]);
+      weight = Long.parseLong(parameters[2]);
     } catch (NumberFormatException e) {
       System.out.println("weight should be a integer");
       return;

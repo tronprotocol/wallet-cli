@@ -1819,14 +1819,14 @@ public class WalletApi {
       JSONObject permission = permissions.getJSONObject(j);
       String name = permission.getString("name");
       String parent = permission.getString("parent");
-      int threshold = Integer.parseInt(permission.getString("threshold"));
+      long threshold = permission.getLong("threshold");
       JSONArray keys = permission.getJSONArray("keys");
       List<Key> keyList = new ArrayList<>();
       for (int i = 0; i < keys.size(); i++) {
         Key.Builder keyBuilder = Key.newBuilder();
         JSONObject key = keys.getJSONObject(i);
         String address = key.getString("address");
-        int weight = key.getInteger("weight");
+        long weight = key.getLong("weight");
         keyBuilder.setAddress(ByteString.copyFrom(WalletApi.decode58Check(address)));
         keyBuilder.setWeight(weight);
         keyList.add(keyBuilder.build());
@@ -1845,7 +1845,7 @@ public class WalletApi {
     return builder.build();
   }
 
-  public boolean permissionAddKey(String permission, String address, int weight)
+  public boolean permissionAddKey(String permission, String address, long weight)
       throws CipherException, IOException, CancelException {
     byte[] owner = getAddress();
     Contract.PermissionAddKeyContract permissionAddKeyContract =
@@ -1855,7 +1855,7 @@ public class WalletApi {
   }
 
   public Contract.PermissionAddKeyContract createPermissionAddKeyContract(byte[] owner,
-      String permission, String address, int weight) {
+      String permission, String address, long weight) {
     Contract.PermissionAddKeyContract.Builder contractBuilder =
         Contract.PermissionAddKeyContract.newBuilder();
     contractBuilder.setOwnerAddress(ByteString.copyFrom(owner));
@@ -1867,7 +1867,7 @@ public class WalletApi {
     return contractBuilder.build();
   }
 
-  public boolean permissionUpdateKey(String permission, String address, int weight)
+  public boolean permissionUpdateKey(String permission, String address, long weight)
       throws CipherException, IOException, CancelException {
     byte[] owner = getAddress();
     Contract.PermissionUpdateKeyContract permissionUpdateKeyContract =
@@ -1878,7 +1878,7 @@ public class WalletApi {
   }
 
   public Contract.PermissionUpdateKeyContract createPermissionUpdateKeyContract(byte[] owner,
-      String permission, String address, int weight) {
+      String permission, String address, long weight) {
     Contract.PermissionUpdateKeyContract.Builder contractBuilder =
         Contract.PermissionUpdateKeyContract.newBuilder();
     contractBuilder.setOwnerAddress(ByteString.copyFrom(owner));

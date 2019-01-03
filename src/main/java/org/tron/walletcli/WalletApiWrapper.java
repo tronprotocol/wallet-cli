@@ -678,7 +678,7 @@ public class WalletApiWrapper {
     return wallet.accountPermissionUpdate(permission);
   }
 
-  public boolean permissionAddKey(String permission, String address, int weight)
+  public boolean permissionAddKey(String permission, String address, long weight)
       throws IOException, CipherException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: permissionAddKey failed,  Please login first !!");
@@ -687,7 +687,7 @@ public class WalletApiWrapper {
     return wallet.permissionAddKey(permission, address, weight);
   }
 
-  public boolean permissionUpdateKey(String permission, String address, int weight)
+  public boolean permissionUpdateKey(String permission, String address, long weight)
       throws IOException, CipherException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: permissionUpdateKey failed,  Please login first !!");
