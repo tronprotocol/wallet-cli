@@ -597,27 +597,6 @@ service Wallet {
 
   rpc GetNodeInfo (EmptyMessage) returns (NodeInfo) {
   };
-
-  rpc SetEventFilter (EventFilter) returns (Return) {
-          option (google.api.http) = {
-            post: "/wallet/seteventfilter"
-            body: "*"
-            additional_bindings {
-              get: "/wallet/seteventfilter"
-            }
-          };
-        }
-
-        rpc SetEventPluginConfig (EventPluginInfo) returns (Return) {
-              option (google.api.http) = {
-                post: "/wallet/setpluginconfig"
-                body: "*"
-                additional_bindings {
-                  get: "/wallet/setpluginconfig"
-                }
-              };
-        }
-
 };
 
 
@@ -975,20 +954,4 @@ message BlockListExtention {
 
 message TransactionListExtention {
   repeated TransactionExtention transaction = 1;
-}
-
-message EventFilter {
-    string fromBlock = 1;
-    string toBlock = 2;
-    repeated string contractAddress = 3;
-    repeated string contractTopic = 4;
-}
-
-message TriggerInfo{
-    string triggerName = 1;
-    bool enable = 2;
-    string topic = 3;
-}
-message EventPluginInfo{
-    repeated TriggerInfo triggerInfo = 1;
 }
