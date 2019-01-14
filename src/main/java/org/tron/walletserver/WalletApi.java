@@ -1809,36 +1809,40 @@ public class WalletApi {
 
   private Permission json2Permission(JSONObject json) {
     Permission.Builder permissionBuilder = Permission.newBuilder();
-    int type = json.getInteger("type");
-    permissionBuilder.setTypeValue(type);
-    int id = json.getInteger("id");
-    permissionBuilder.setId(id);
-    String permission_name = json.getString("permission_name");
-    permissionBuilder.setPermissionName(permission_name);
-    long threshold = json.getLong("threshold");
-    permissionBuilder.setThreshold(threshold);
-    int parent_id = json.getInteger("parent_id");
-    permissionBuilder.setParentId(parent_id);
-
-    byte[] operations = json.getBytes("operations");
-    if (operations != null) {
+    if (json.containsKey("type")) {
+      int type = json.getInteger("type");
+      permissionBuilder.setTypeValue(type);
+    }
+    if (json.containsKey("permission_name")) {
+      String permission_name = json.getString("permission_name");
+      permissionBuilder.setPermissionName(permission_name);
+    }
+    if (json.containsKey("threshold")) {
+      long threshold = json.getLong("threshold");
+      permissionBuilder.setThreshold(threshold);
+    }
+    if (json.containsKey("parent_id")) {
+      int parent_id = json.getInteger("parent_id");
+      permissionBuilder.setParentId(parent_id);
+    }
+    if (json.containsKey("operations")) {
+      byte[] operations = ByteArray.fromHexString(json.getString("operations"));
       permissionBuilder.setOperations(ByteString.copyFrom(operations));
     }
-
-    JSONArray keys = json.getJSONArray("keys");
-    List<Key> keyList = new ArrayList<>();
-    for (int i = 0; i < keys.size(); i++) {
-      Key.Builder keyBuilder = Key.newBuilder();
-      JSONObject key = keys.getJSONObject(i);
-      String address = key.getString("address");
-      long weight = key.getLong("weight");
-      keyBuilder.setAddress(ByteString.copyFrom(WalletApi.decode58Check(address)));
-      keyBuilder.setWeight(weight);
-      keyList.add(keyBuilder.build());
+    if (json.containsKey("keys")) {
+      JSONArray keys = json.getJSONArray("keys");
+      List<Key> keyList = new ArrayList<>();
+      for (int i = 0; i < keys.size(); i++) {
+        Key.Builder keyBuilder = Key.newBuilder();
+        JSONObject key = keys.getJSONObject(i);
+        String address = key.getString("address");
+        long weight = key.getLong("weight");
+        keyBuilder.setAddress(ByteString.copyFrom(WalletApi.decode58Check(address)));
+        keyBuilder.setWeight(weight);
+        keyList.add(keyBuilder.build());
+      }
+      permissionBuilder.addAllKeys(keyList);
     }
-
-    permissionBuilder.setThreshold(threshold);
-    permissionBuilder.addAllKeys(keyList);
     return permissionBuilder.build();
   }
 

@@ -1096,14 +1096,24 @@ public class Utils {
               .encode58Check(accountPermissionUpdateContract.getOwnerAddress().toByteArray());
           result += "\n";
           if (accountPermissionUpdateContract.hasOwner()) {
-            result += "owner_permissions: ";
+            result += "owner_permission: ";
+            result += "\n";
+            result += "{";
+            result += "\n";
             result += printPermission(accountPermissionUpdateContract.getOwner());
+            result += "\n";
+            result += "}";
             result += "\n";
           }
 
           if (accountPermissionUpdateContract.hasWitness()) {
-            result += "witness_permissions: ";
+            result += "witness_permission: ";
+            result += "\n";
+            result += "{";
+            result += "\n";
             result += printPermission(accountPermissionUpdateContract.getWitness());
+            result += "\n";
+            result += "}";
             result += "\n";
           }
 
@@ -1803,6 +1813,9 @@ public class Utils {
 
   public static String printPermission(Permission permission) {
     StringBuffer result = new StringBuffer();
+    result.append("permission_type: ");
+    result.append(permission.getType());
+    result.append("\n");
     result.append("permission_id: ");
     result.append(permission.getId());
     result.append("\n");
@@ -1811,6 +1824,12 @@ public class Utils {
     result.append("\n");
     result.append("threshold: ");
     result.append(permission.getThreshold());
+    result.append("\n");
+    result.append("parent_id: ");
+    result.append(permission.getParentId());
+    result.append("\n");
+    result.append("operations: ");
+    result.append(ByteArray.toHexString(permission.getOperations().toByteArray()));
     result.append("\n");
     if (permission.getKeysCount() > 0) {
       result.append("keys:");
