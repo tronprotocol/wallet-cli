@@ -1749,6 +1749,7 @@ public class Client {
       return;
     }
     String permission = parameters[0];
+    int permission_id = Integer.parseInt(permission);
     String address = parameters[1];
     long weight;
     try {
@@ -1757,7 +1758,7 @@ public class Client {
       System.out.println("weight should be a integer");
       return;
     }
-    boolean ret = walletApiWrapper.permissionAddKey(permission, address, weight);
+    boolean ret = walletApiWrapper.permissionAddKey(permission_id, address, weight);
     if (ret) {
       logger.info("PermissionAddKey successful !!!!");
     } else {
@@ -1773,6 +1774,7 @@ public class Client {
       return;
     }
     String permission = parameters[0];
+    int permission_id = Integer.parseInt(permission);
     String address = parameters[1];
     long weight;
     try {
@@ -1781,7 +1783,7 @@ public class Client {
       System.out.println("weight should be a integer");
       return;
     }
-    boolean ret = walletApiWrapper.permissionUpdateKey(permission, address, weight);
+    boolean ret = walletApiWrapper.permissionUpdateKey(permission_id, address, weight);
     if (ret) {
       logger.info("PermissionUpdateKey successful !!!!");
     } else {
@@ -1797,8 +1799,9 @@ public class Client {
       return;
     }
     String permission = parameters[0];
+    int permission_id = Integer.parseInt(permission);
     String address = parameters[1];
-    boolean ret = walletApiWrapper.permissionDeleteKey(permission, address);
+    boolean ret = walletApiWrapper.permissionDeleteKey(permission_id, address);
     if (ret) {
       logger.info("PermissionDeleteKey successful !!!!");
     } else {

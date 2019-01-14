@@ -1807,59 +1807,86 @@ public class WalletApi {
     return processTransactionExtention(transactionExtention);
   }
 
+  private Permission json2Permission(JSONObject json) {
+    Permission.Builder permissionBuilder = Permission.newBuilder();
+    int type = json.getInteger("type");
+    permissionBuilder.setTypeValue(type);
+    int id = json.getInteger("id");
+    permissionBuilder.setId(id);
+    String permission_name = json.getString("permission_name");
+    permissionBuilder.setPermissionName(permission_name);
+    long threshold = json.getLong("threshold");
+    permissionBuilder.setThreshold(threshold);
+    int parent_id = json.getInteger("parent_id");
+    permissionBuilder.setParentId(parent_id);
+
+    byte[] operations = json.getBytes("operations");
+    if (operations != null) {
+      permissionBuilder.setOperations(ByteString.copyFrom(operations));
+    }
+
+    JSONArray keys = json.getJSONArray("keys");
+    List<Key> keyList = new ArrayList<>();
+    for (int i = 0; i < keys.size(); i++) {
+      Key.Builder keyBuilder = Key.newBuilder();
+      JSONObject key = keys.getJSONObject(i);
+      String address = key.getString("address");
+      long weight = key.getLong("weight");
+      keyBuilder.setAddress(ByteString.copyFrom(WalletApi.decode58Check(address)));
+      keyBuilder.setWeight(weight);
+      keyList.add(keyBuilder.build());
+    }
+
+    permissionBuilder.setThreshold(threshold);
+    permissionBuilder.addAllKeys(keyList);
+    return permissionBuilder.build();
+  }
+
   public Contract.AccountPermissionUpdateContract createAccountPermissionContract(
       byte[] owner, String permissionJson) {
     Contract.AccountPermissionUpdateContract.Builder builder =
         Contract.AccountPermissionUpdateContract.newBuilder();
 
-    JSONArray permissions = JSON.parseArray(permissionJson);
-    List<Permission> permissionList = new ArrayList<>();
-    for (int j = 0; j < permissions.size(); j++) {
-      Permission.Builder permissionBuilder = Permission.newBuilder();
-      JSONObject permission = permissions.getJSONObject(j);
-      String name = permission.getString("name");
-      String parent = permission.getString("parent");
-      long threshold = permission.getLong("threshold");
-      JSONArray keys = permission.getJSONArray("keys");
-      List<Key> keyList = new ArrayList<>();
-      for (int i = 0; i < keys.size(); i++) {
-        Key.Builder keyBuilder = Key.newBuilder();
-        JSONObject key = keys.getJSONObject(i);
-        String address = key.getString("address");
-        long weight = key.getLong("weight");
-        keyBuilder.setAddress(ByteString.copyFrom(WalletApi.decode58Check(address)));
-        keyBuilder.setWeight(weight);
-        keyList.add(keyBuilder.build());
-      }
-      permissionBuilder.setName(name);
-      if (!(name.equals("owner") && parent == null)) {
-        permissionBuilder.setParent(parent);
-      }
-      permissionBuilder.setThreshold(threshold);
-      permissionBuilder.addAllKeys(keyList);
-      permissionList.add(permissionBuilder.build());
-    }
+    JSONObject permissions = JSONObject.parseObject(permissionJson);
+    JSONObject owner_permission = permissions.getJSONObject("owner_permission");
+    JSONObject witness_permission = permissions.getJSONObject("witness_permission");
+    JSONArray active_permissions = permissions.getJSONArray("active_permissions");
 
+    if (owner_permission != null) {
+      Permission ownerPermission = json2Permission(owner_permission);
+      builder.setOwner(ownerPermission);
+    }
+    if (witness_permission != null) {
+      Permission witnessPermission = json2Permission(witness_permission);
+      builder.setWitness(witnessPermission);
+    }
+    if (active_permissions != null) {
+      List<Permission> activePermissionList = new ArrayList<>();
+      for (int j = 0; j < active_permissions.size(); j++) {
+        JSONObject permission = active_permissions.getJSONObject(j);
+        activePermissionList.add(json2Permission(permission));
+      }
+      builder.addAllActives(activePermissionList);
+    }
     builder.setOwnerAddress(ByteString.copyFrom(owner));
-    builder.addAllPermissions(permissionList);
     return builder.build();
   }
 
-  public boolean permissionAddKey(String permission, String address, long weight)
+  public boolean permissionAddKey(int permission_id, String address, long weight)
       throws CipherException, IOException, CancelException {
     byte[] owner = getAddress();
     Contract.PermissionAddKeyContract permissionAddKeyContract =
-        createPermissionAddKeyContract(owner, permission, address, weight);
+        createPermissionAddKeyContract(owner, permission_id, address, weight);
     TransactionExtention transactionExtention = rpcCli.permissionAddKey(permissionAddKeyContract);
     return processTransactionExtention(transactionExtention);
   }
 
   public Contract.PermissionAddKeyContract createPermissionAddKeyContract(byte[] owner,
-      String permission, String address, long weight) {
+      int permission_id, String address, long weight) {
     Contract.PermissionAddKeyContract.Builder contractBuilder =
         Contract.PermissionAddKeyContract.newBuilder();
     contractBuilder.setOwnerAddress(ByteString.copyFrom(owner));
-    contractBuilder.setPermissionName(permission);
+    contractBuilder.setPermissionId(permission_id);
     Key.Builder keyBuilder = Key.newBuilder();
     keyBuilder.setAddress(ByteString.copyFrom(WalletApi.decode58Check(address)));
     keyBuilder.setWeight(weight);
@@ -1867,22 +1894,22 @@ public class WalletApi {
     return contractBuilder.build();
   }
 
-  public boolean permissionUpdateKey(String permission, String address, long weight)
+  public boolean permissionUpdateKey(int permission_id, String address, long weight)
       throws CipherException, IOException, CancelException {
     byte[] owner = getAddress();
     Contract.PermissionUpdateKeyContract permissionUpdateKeyContract =
-        createPermissionUpdateKeyContract(owner, permission, address, weight);
+        createPermissionUpdateKeyContract(owner, permission_id, address, weight);
     TransactionExtention transactionExtention = rpcCli
         .permissionUpdateKey(permissionUpdateKeyContract);
     return processTransactionExtention(transactionExtention);
   }
 
   public Contract.PermissionUpdateKeyContract createPermissionUpdateKeyContract(byte[] owner,
-      String permission, String address, long weight) {
+      int permission_id, String address, long weight) {
     Contract.PermissionUpdateKeyContract.Builder contractBuilder =
         Contract.PermissionUpdateKeyContract.newBuilder();
     contractBuilder.setOwnerAddress(ByteString.copyFrom(owner));
-    contractBuilder.setPermissionName(permission);
+    contractBuilder.setPermissionId(permission_id);
     Key.Builder keyBuilder = Key.newBuilder();
     keyBuilder.setAddress(ByteString.copyFrom(WalletApi.decode58Check(address)));
     keyBuilder.setWeight(weight);
@@ -1890,22 +1917,22 @@ public class WalletApi {
     return contractBuilder.build();
   }
 
-  public boolean permissionDeleteKey(String permission, String address)
+  public boolean permissionDeleteKey(int permission_id, String address)
       throws CipherException, IOException, CancelException {
     byte[] owner = getAddress();
     Contract.PermissionDeleteKeyContract permissionDeleteKeyContract =
-        createPermissionDeleteKeyContract(owner, permission, address);
+        createPermissionDeleteKeyContract(owner, permission_id, address);
     TransactionExtention transactionExtention = rpcCli
         .permissionDeleteKey(permissionDeleteKeyContract);
     return processTransactionExtention(transactionExtention);
   }
 
   public Contract.PermissionDeleteKeyContract createPermissionDeleteKeyContract(byte[] owner,
-      String permission, String address) {
+      int permission_id, String address) {
     Contract.PermissionDeleteKeyContract.Builder contractBuilder =
         Contract.PermissionDeleteKeyContract.newBuilder();
     contractBuilder.setOwnerAddress(ByteString.copyFrom(owner));
-    contractBuilder.setPermissionName(permission);
+    contractBuilder.setPermissionId(permission_id);
     contractBuilder.setKeyAddress(ByteString.copyFrom(WalletApi.decode58Check(address)));
     return contractBuilder.build();
   }

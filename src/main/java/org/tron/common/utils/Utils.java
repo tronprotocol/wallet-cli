@@ -329,9 +329,21 @@ public class Utils {
     result += account.getAccountResource().getDelegatedFrozenBalanceForEnergy();
     result += "}\n";
 
-    if (account.getPermissionsCount() > 0) {
-      result += "Permissions: ";
-      result += printPermissionList(account.getPermissionsList());
+    if (account.hasOwnerPermission()) {
+      result += "owner_permissions: ";
+      result += printPermission(account.getOwnerPermission());
+      result += "\n";
+    }
+
+    if (account.hasWitnessPermission()) {
+      result += "witness_permissions: ";
+      result += printPermission(account.getWitnessPermission());
+      result += "\n";
+    }
+
+    if (account.getActivePermissionCount() > 0) {
+      result += "active_permissions: ";
+      result += printPermissionList(account.getActivePermissionList());
       result += "\n";
     }
 
@@ -1043,8 +1055,8 @@ public class Utils {
           result += "Key: ";
           result += printKey(permissionAddKeyContract.getKey());
           result += "\n";
-          result += "permission_name: ";
-          result += permissionAddKeyContract.getPermissionName();
+          result += "permission_id: ";
+          result += permissionAddKeyContract.getPermissionId();
           result += "\n";
           break;
         case PermissionDeleteKeyContract:
@@ -1058,8 +1070,8 @@ public class Utils {
           result += WalletApi
               .encode58Check(permissionDeleteKeyContract.getKeyAddress().toByteArray());
           result += "\n";
-          result += "permission_name: ";
-          result += permissionDeleteKeyContract.getPermissionName();
+          result += "permission_id: ";
+          result += permissionDeleteKeyContract.getPermissionId();
           result += "\n";
           break;
         case PermissionUpdateKeyContract:
@@ -1072,8 +1084,8 @@ public class Utils {
           result += "Key: ";
           result += printKey(permissionUpdateKeyContract.getKey());
           result += "\n";
-          result += "permission_name: ";
-          result += permissionUpdateKeyContract.getPermissionName();
+          result += "permission_id: ";
+          result += permissionUpdateKeyContract.getPermissionId();
           result += "\n";
           break;
         case AccountPermissionUpdateContract:
@@ -1083,9 +1095,23 @@ public class Utils {
           result += WalletApi
               .encode58Check(accountPermissionUpdateContract.getOwnerAddress().toByteArray());
           result += "\n";
-          result += "Permissions: ";
-          result += printPermissionList(accountPermissionUpdateContract.getPermissionsList());
-          result += "\n";
+          if (accountPermissionUpdateContract.hasOwner()) {
+            result += "owner_permissions: ";
+            result += printPermission(accountPermissionUpdateContract.getOwner());
+            result += "\n";
+          }
+
+          if (accountPermissionUpdateContract.hasWitness()) {
+            result += "witness_permissions: ";
+            result += printPermission(accountPermissionUpdateContract.getWitness());
+            result += "\n";
+          }
+
+          if (accountPermissionUpdateContract.getActivesCount() > 0) {
+            result += "active_permissions: ";
+            result += printPermissionList(accountPermissionUpdateContract.getActivesList());
+            result += "\n";
+          }
           break;
         // case BuyStorageContract:
         //   BuyStorageContract buyStorageContract = contract.getParameter()
@@ -1777,8 +1803,11 @@ public class Utils {
 
   public static String printPermission(Permission permission) {
     StringBuffer result = new StringBuffer();
-    result.append("name: ");
-    result.append(permission.getName());
+    result.append("permission_id: ");
+    result.append(permission.getId());
+    result.append("\n");
+    result.append("permission_name: ");
+    result.append(permission.getPermissionName());
     result.append("\n");
     result.append("threshold: ");
     result.append(permission.getThreshold());
@@ -1864,7 +1893,8 @@ public class Utils {
     return result.toString();
   }
 
-  public static String printTransactionApprovedList(TransactionApprovedList transactionApprovedList) {
+  public static String printTransactionApprovedList(
+      TransactionApprovedList transactionApprovedList) {
     StringBuffer result = new StringBuffer();
     result.append("result:");
     result.append("\n");

@@ -678,31 +678,31 @@ public class WalletApiWrapper {
     return wallet.accountPermissionUpdate(permission);
   }
 
-  public boolean permissionAddKey(String permission, String address, long weight)
+  public boolean permissionAddKey(int permission_id, String address, long weight)
       throws IOException, CipherException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: permissionAddKey failed,  Please login first !!");
       return false;
     }
-    return wallet.permissionAddKey(permission, address, weight);
+    return wallet.permissionAddKey(permission_id, address, weight);
   }
 
-  public boolean permissionUpdateKey(String permission, String address, long weight)
+  public boolean permissionUpdateKey(int permission_id, String address, long weight)
       throws IOException, CipherException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: permissionUpdateKey failed,  Please login first !!");
       return false;
     }
-    return wallet.permissionUpdateKey(permission, address, weight);
+    return wallet.permissionUpdateKey(permission_id, address, weight);
   }
 
-  public boolean permissionDeleteKey(String permission, String address)
+  public boolean permissionDeleteKey(int permission_id, String address)
       throws IOException, CipherException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: permissionDeleteKey failed,  Please login first !!");
       return false;
     }
-    return wallet.permissionDeleteKey(permission, address);
+    return wallet.permissionDeleteKey(permission_id, address);
   }
 
   public Transaction addTransactionSign(Transaction transaction)
