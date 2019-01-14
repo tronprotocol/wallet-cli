@@ -330,21 +330,30 @@ public class Utils {
     result += "}\n";
 
     if (account.hasOwnerPermission()) {
-      result += "owner_permissions: ";
+      result += "owner_permission: ";
+      result += "\n";
+      result += "{";
+      result += "\n";
       result += printPermission(account.getOwnerPermission());
+      result += "\n";
+      result += "}";
       result += "\n";
     }
 
     if (account.hasWitnessPermission()) {
-      result += "witness_permissions: ";
+      result += "witness_permission: ";
+      result += "\n";
+      result += "{";
+      result += "\n";
       result += printPermission(account.getWitnessPermission());
+      result += "\n";
+      result += "}";
       result += "\n";
     }
 
     if (account.getActivePermissionCount() > 0) {
       result += "active_permissions: ";
       result += printPermissionList(account.getActivePermissionList());
-      result += "\n";
     }
 
     return result;
