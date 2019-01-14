@@ -1,6 +1,5 @@
 package org.tron.walletserver;
 
-import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.google.gson.JsonArray;
@@ -87,6 +86,7 @@ import org.tron.protos.Protocol.Key;
 import org.tron.protos.Protocol.Permission;
 import org.tron.protos.Protocol.Proposal;
 import org.tron.protos.Protocol.SmartContract;
+import org.tron.protos.Protocol.TXInput.raw;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.Transaction.Result;
 import org.tron.protos.Protocol.TransactionInfo;
@@ -386,6 +386,22 @@ public class WalletApi {
     }
   }
 
+  private int inputPermissionId() {
+    Scanner in = new Scanner(System.in);
+    while (true) {
+      String input = in.nextLine().trim();
+      String str = input.split("\\s+")[0];
+      if ("y".equalsIgnoreCase(str)) {
+        return 0;
+      }
+      try {
+        return Integer.parseInt(str);
+      } catch (Exception e) {
+        return -1;
+      }
+    }
+  }
+
   private Transaction signTransaction(Transaction transaction)
       throws CipherException, IOException, CancelException {
     if (transaction.getRawData().getTimestamp() == 0) {
@@ -397,11 +413,20 @@ public class WalletApi {
         .println("transaction hex string is " + ByteArray.toHexString(transaction.toByteArray()));
     System.out.println(Utils.printTransaction(transaction));
 
-    System.out.println("Please confirm that you want to continue enter y or Y, else any other.");
-    if (!confirm()) {
+    System.out.println(
+        "Please confirm and input your permission id, if input y or Y means default 0, other non-numeric characters will cancell transaction.");
+    int permission_id = inputPermissionId();
+    if (permission_id < 0) {
       throw new CancelException("User cancelled");
     }
-
+    if (permission_id != 0) {
+      Transaction.raw.Builder raw = transaction.getRawData().toBuilder();
+      Transaction.Contract.Builder contract = raw.getContract(0).toBuilder()
+          .setPermissionId(permission_id);
+      raw.clearContract();
+      raw.addContract(contract);
+      transaction = transaction.toBuilder().setRawData(raw).build();
+    }
     while (true) {
       System.out.println("Please choose your key for sign.");
       WalletFile walletFile = selcetWalletFileE();
