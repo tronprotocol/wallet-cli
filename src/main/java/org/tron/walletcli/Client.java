@@ -1745,7 +1745,7 @@ public class Client {
       throws CipherException, IOException, CancelException {
     if (parameters == null || parameters.length != 3) {
       System.out.println(
-          "PermissionAddKey needs 3 parameters, like PermissionAddKey permissionName address weight");
+          "PermissionAddKey needs 3 parameters, like PermissionAddKey permissionId address weight");
       return;
     }
     String permission = parameters[0];
@@ -1770,7 +1770,7 @@ public class Client {
       throws CipherException, IOException, CancelException {
     if (parameters == null || parameters.length != 3) {
       System.out.println(
-          "PermissionUpdateKey needs 3 parameters, like PermissionUpdateKey permissionName address weight");
+          "PermissionUpdateKey needs 3 parameters, like PermissionUpdateKey permissionId address weight");
       return;
     }
     String permission = parameters[0];
@@ -1795,7 +1795,7 @@ public class Client {
       throws CipherException, IOException, CancelException {
     if (parameters == null || parameters.length != 2) {
       System.out.println(
-          "PermissionDeleteKey needs 2 parameters, like PermissionDeleteKey permissionName address");
+          "PermissionDeleteKey needs 2 parameters, like PermissionDeleteKey permissionId address");
       return;
     }
     String permission = parameters[0];
