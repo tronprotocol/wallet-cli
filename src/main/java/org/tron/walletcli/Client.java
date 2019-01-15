@@ -1827,7 +1827,8 @@ public class Client {
     }
   }
 
-  private void getTransactionApprovedList(String[] parameters) throws InvalidProtocolBufferException {
+  private void getTransactionApprovedList(String[] parameters)
+      throws InvalidProtocolBufferException {
     if (parameters == null || parameters.length != 1) {
       System.out.println(
           "getTransactionApprovedList needs 1 parameter, like getTransactionApprovedList transaction which is hex string");
@@ -1837,7 +1838,8 @@ public class Client {
     String transactionStr = parameters[0];
     Transaction transaction = Transaction.parseFrom(ByteArray.fromHexString(transactionStr));
 
-    TransactionApprovedList transactionApprovedList = WalletApi.getTransactionApprovedList(transaction);
+    TransactionApprovedList transactionApprovedList = WalletApi
+        .getTransactionApprovedList(transaction);
     if (transactionApprovedList != null) {
       logger.info(Utils.printTransactionApprovedList(transactionApprovedList));
     } else {
@@ -1846,7 +1848,7 @@ public class Client {
   }
 
   private void addTransactionSign(String[] parameters)
-      throws InvalidProtocolBufferException, CipherException, IOException, CancelException {
+      throws CipherException, IOException, CancelException {
     if (parameters == null || parameters.length != 1) {
       System.out.println(
           "addTransactionSign needs 1 parameter, like addTransactionSign transaction which is hex string");

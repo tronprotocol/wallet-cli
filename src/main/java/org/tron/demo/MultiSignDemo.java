@@ -6,13 +6,14 @@ import org.tron.api.GrpcAPI.TransactionExtention;
 import org.tron.api.GrpcAPI.TransactionSignWeight;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Utils;
+import org.tron.core.exception.CancelException;
 import org.tron.protos.Contract;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.walletserver.WalletApi;
 
 public class MultiSignDemo {
 
-  public static void main(String[] args) {
+  public static void main(String[] args) throws CancelException {
     String to = "TL5mpGbtr5L2Gi7CtotBQzjN8pK7SmbyFz";
     String owner = "TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW";
     String private0 = "D95611A9AF2A2A45359106222ED1AFED48853D9A44DEFF8DC7913F5CBA727366";
