@@ -1823,9 +1823,8 @@ public class WalletApi {
   }
 
 
-  public boolean accountPermissionUpdate(String permissionJson)
+  public boolean accountPermissionUpdate(byte[] owner,String permissionJson)
       throws CipherException, IOException, CancelException {
-    byte[] owner = getAddress();
     Contract.AccountPermissionUpdateContract contract = createAccountPermissionContract(owner,
         permissionJson);
     TransactionExtention transactionExtention = rpcCli.accountPermissionUpdate(contract);

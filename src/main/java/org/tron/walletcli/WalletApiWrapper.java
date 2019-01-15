@@ -669,13 +669,13 @@ public class WalletApiWrapper {
     return wallet.triggerContract(contractAddress, callValue, data, feeLimit, tokenValue, tokenId);
   }
 
-  public boolean accountPermissionUpdate(String permission)
+  public boolean accountPermissionUpdate(byte[] ownerAddress,String permission)
       throws IOException, CipherException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: accountPermissionUpdate failed,  Please login first !!");
       return false;
     }
-    return wallet.accountPermissionUpdate(permission);
+    return wallet.accountPermissionUpdate(ownerAddress,permission);
   }
 
   public boolean permissionAddKey(int permission_id, String address, long weight)

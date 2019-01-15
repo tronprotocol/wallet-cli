@@ -1728,12 +1728,19 @@ public class Client {
 
   private void updateAccountPermission(String[] parameters)
       throws CipherException, IOException, CancelException {
-    if (parameters == null || parameters.length != 1) {
+    if (parameters == null || parameters.length != 2) {
       System.out.println(
-          "UpdateAccountPermission needs 1 parameters, like UpdateAccountPermission permissions which is json format");
+          "UpdateAccountPermission needs 2 parameters, like UpdateAccountPermission ownerAddress permissions, permissions is json format");
       return;
     }
-    boolean ret = walletApiWrapper.accountPermissionUpdate(parameters[0]);
+
+    byte[] ownerAddress = WalletApi.decodeFromBase58Check(parameters[0]);
+    if (ownerAddress == null) {
+      System.out.println("GetContract: invalid address!");
+      return;
+    }
+
+    boolean ret = walletApiWrapper.accountPermissionUpdate(ownerAddress,parameters[1]);
     if (ret) {
       logger.info("updateAccountPermission successful !!!!");
     } else {
