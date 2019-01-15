@@ -19,11 +19,13 @@ import com.google.protobuf.ByteString;
 import java.security.SignatureException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Scanner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.ECKey.ECDSASignature;
 import org.tron.common.crypto.Sha256Hash;
+import org.tron.core.exception.CancelException;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.Transaction.Contract;
 
@@ -194,6 +196,42 @@ public class TransactionUtils {
       builder.setRawData(rowBuilder.build());
       return builder.build();
     }
-    return  transaction;
+    return transaction;
+  }
+
+  public static Transaction setPermissionId(Transaction transaction) throws CancelException {
+    if (transaction.getSignatureCount() != 0
+        || transaction.getRawData().getContract(0).getPermissionId() != 0) {
+      return transaction;
+    }
+    int permission_id = inputPermissionId();
+    if (permission_id < 0) {
+      throw new CancelException("User cancelled");
+    }
+    if (permission_id != 0) {
+      Transaction.raw.Builder raw = transaction.getRawData().toBuilder();
+      Transaction.Contract.Builder contract = raw.getContract(0).toBuilder()
+          .setPermissionId(permission_id);
+      raw.clearContract();
+      raw.addContract(contract);
+      transaction = transaction.toBuilder().setRawData(raw).build();
+    }
+    return transaction;
+  }
+
+  private static int inputPermissionId() {
+    Scanner in = new Scanner(System.in);
+    while (true) {
+      String input = in.nextLine().trim();
+      String str = input.split("\\s+")[0];
+      if ("y".equalsIgnoreCase(str)) {
+        return 0;
+      }
+      try {
+        return Integer.parseInt(str);
+      } catch (Exception e) {
+        return -1;
+      }
+    }
   }
 }

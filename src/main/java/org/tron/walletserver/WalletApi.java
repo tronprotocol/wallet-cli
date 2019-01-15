@@ -386,22 +386,6 @@ public class WalletApi {
     }
   }
 
-  private int inputPermissionId() {
-    Scanner in = new Scanner(System.in);
-    while (true) {
-      String input = in.nextLine().trim();
-      String str = input.split("\\s+")[0];
-      if ("y".equalsIgnoreCase(str)) {
-        return 0;
-      }
-      try {
-        return Integer.parseInt(str);
-      } catch (Exception e) {
-        return -1;
-      }
-    }
-  }
-
   private Transaction signTransaction(Transaction transaction)
       throws CipherException, IOException, CancelException {
     if (transaction.getRawData().getTimestamp() == 0) {
@@ -415,18 +399,7 @@ public class WalletApi {
 
     System.out.println(
         "Please confirm and input your permission id, if input y or Y means default 0, other non-numeric characters will cancell transaction.");
-    int permission_id = inputPermissionId();
-    if (permission_id < 0) {
-      throw new CancelException("User cancelled");
-    }
-    if (permission_id != 0) {
-      Transaction.raw.Builder raw = transaction.getRawData().toBuilder();
-      Transaction.Contract.Builder contract = raw.getContract(0).toBuilder()
-          .setPermissionId(permission_id);
-      raw.clearContract();
-      raw.addContract(contract);
-      transaction = transaction.toBuilder().setRawData(raw).build();
-    }
+    transaction = TransactionUtils.setPermissionId(transaction);
     while (true) {
       System.out.println("Please choose your key for sign.");
       WalletFile walletFile = selcetWalletFileE();
@@ -493,8 +466,11 @@ public class WalletApi {
   }
 
   //Warning: do not invoke this interface provided by others.
-  public static Transaction signTransactionByApi(Transaction transaction, byte[] privateKey) {
+  public static Transaction signTransactionByApi(Transaction transaction, byte[] privateKey)
+      throws CancelException {
     transaction = TransactionUtils.setExpirationTime(transaction);
+    System.out.println("Please input permission id.");
+    transaction = TransactionUtils.setPermissionId(transaction);
     TransactionSign.Builder builder = TransactionSign.newBuilder();
     builder.setPrivateKey(ByteString.copyFrom(privateKey));
     builder.setTransaction(transaction);
@@ -503,8 +479,10 @@ public class WalletApi {
 
   //Warning: do not invoke this interface provided by others.
   public static TransactionExtention signTransactionByApi2(Transaction transaction,
-      byte[] privateKey) {
+      byte[] privateKey) throws CancelException {
     transaction = TransactionUtils.setExpirationTime(transaction);
+    System.out.println("Please input permission id.");
+    transaction = TransactionUtils.setPermissionId(transaction);
     TransactionSign.Builder builder = TransactionSign.newBuilder();
     builder.setPrivateKey(ByteString.copyFrom(privateKey));
     builder.setTransaction(transaction);
@@ -513,8 +491,10 @@ public class WalletApi {
 
   //Warning: do not invoke this interface provided by others.
   public static TransactionExtention addSignByApi(Transaction transaction,
-      byte[] privateKey) {
+      byte[] privateKey) throws CancelException {
     transaction = TransactionUtils.setExpirationTime(transaction);
+    System.out.println("Please input permission id.");
+    transaction = TransactionUtils.setPermissionId(transaction);
     TransactionSign.Builder builder = TransactionSign.newBuilder();
     builder.setPrivateKey(ByteString.copyFrom(privateKey));
     builder.setTransaction(transaction);
@@ -1966,11 +1946,14 @@ public class WalletApi {
   }
 
   public Transaction addTransactionSign(Transaction transaction)
-      throws CipherException, IOException {
+      throws CipherException, IOException, CancelException {
     if (transaction.getRawData().getTimestamp() == 0) {
       transaction = TransactionUtils.setTimestamp(transaction);
     }
     transaction = TransactionUtils.setExpirationTime(transaction);
+    System.out.println("Please input permission id.");
+    transaction = TransactionUtils.setPermissionId(transaction);
+
     System.out.println("Please choose your key for sign.");
     WalletFile walletFile = selcetWalletFileE();
     System.out.println("Please input your password.");
