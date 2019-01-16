@@ -111,7 +111,7 @@ After the funds are frozen, the corresponding number of shares and bandwidth wil
 **Freeze operation is as follows：**
 
 ```
-freezebalance password amount time
+freezeBalance amount time energy/bandwidth address
 ```
 
 *amount:The amount of frozen funds，the unit is drop.
@@ -122,7 +122,7 @@ The minimum value is **1000000 drop(1TRX)**.*
 
 For example：
 ```
-freezebalance 123455 10000000 3
+freezeBalance 100000000 3 1 address
 ```
 
 
@@ -157,7 +157,7 @@ Voting requires share. Share can be obtained by freezing funds.
 For example：
 
 ```
-freezebalance 123455 10000000 3   // Freeze 10TRX and acquire 10 units of shares
+freezeBalance 100000000 3 1 address  // Freeze 10TRX and acquire 10 units of shares
 
 votewitness 123455 witness1 4 witness2 6   // Cast 4 votes for witness1 and 6 votes for witness2 at the same time.
 
