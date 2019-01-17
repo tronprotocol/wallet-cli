@@ -1748,73 +1748,6 @@ public class Client {
     }
   }
 
-  private void permissionAddKey(String[] parameters)
-      throws CipherException, IOException, CancelException {
-    if (parameters == null || parameters.length != 3) {
-      System.out.println(
-          "PermissionAddKey needs 3 parameters, like PermissionAddKey permissionId address weight");
-      return;
-    }
-    String permission = parameters[0];
-    int permission_id = Integer.parseInt(permission);
-    String address = parameters[1];
-    long weight;
-    try {
-      weight = Long.parseLong(parameters[2]);
-    } catch (NumberFormatException e) {
-      System.out.println("weight should be a integer");
-      return;
-    }
-    boolean ret = walletApiWrapper.permissionAddKey(permission_id, address, weight);
-    if (ret) {
-      logger.info("PermissionAddKey successful !!!!");
-    } else {
-      logger.info("PermissionAddKey failed !!!!");
-    }
-  }
-
-  private void permissionUpdateKey(String[] parameters)
-      throws CipherException, IOException, CancelException {
-    if (parameters == null || parameters.length != 3) {
-      System.out.println(
-          "PermissionUpdateKey needs 3 parameters, like PermissionUpdateKey permissionId address weight");
-      return;
-    }
-    String permission = parameters[0];
-    int permission_id = Integer.parseInt(permission);
-    String address = parameters[1];
-    long weight;
-    try {
-      weight = Long.parseLong(parameters[2]);
-    } catch (NumberFormatException e) {
-      System.out.println("weight should be a integer");
-      return;
-    }
-    boolean ret = walletApiWrapper.permissionUpdateKey(permission_id, address, weight);
-    if (ret) {
-      logger.info("PermissionUpdateKey successful !!!!");
-    } else {
-      logger.info("PermissionUpdateKey failed !!!!");
-    }
-  }
-
-  private void permissionDeleteKey(String[] parameters)
-      throws CipherException, IOException, CancelException {
-    if (parameters == null || parameters.length != 2) {
-      System.out.println(
-          "PermissionDeleteKey needs 2 parameters, like PermissionDeleteKey permissionId address");
-      return;
-    }
-    String permission = parameters[0];
-    int permission_id = Integer.parseInt(permission);
-    String address = parameters[1];
-    boolean ret = walletApiWrapper.permissionDeleteKey(permission_id, address);
-    if (ret) {
-      logger.info("PermissionDeleteKey successful !!!!");
-    } else {
-      logger.info("PermissionDeleteKey failed !!!!");
-    }
-  }
 
   private void getTransactionSignWeight(String[] parameters) throws InvalidProtocolBufferException {
     if (parameters == null || parameters.length != 1) {
@@ -1967,9 +1900,6 @@ public class Client {
     System.out.println("Login");
     System.out.println("Logout");
     System.out.println("ParticipateAssetIssue");
-    System.out.println("PermissionAddKey");
-    System.out.println("PermissionUpdateKey");
-    System.out.println("PermissionDeleteKey");
     System.out.println("RegisterWallet");
     System.out.println("SendCoin");
     System.out.println("SetAccountId");
@@ -2383,18 +2313,6 @@ public class Client {
           }
           case "updateaccountpermission": {
             updateAccountPermission(parameters);
-            break;
-          }
-          case "permissionaddkey": {
-            permissionAddKey(parameters);
-            break;
-          }
-          case "permissionupdatekey": {
-            permissionUpdateKey(parameters);
-            break;
-          }
-          case "permissiondeletekey": {
-            permissionDeleteKey(parameters);
             break;
           }
           case "gettransactionsignweight": {

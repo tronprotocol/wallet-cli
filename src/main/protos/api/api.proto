@@ -599,17 +599,6 @@ service Wallet {
 
   }
 
-  rpc PermissionAddKey (PermissionAddKeyContract) returns (TransactionExtention) {
-
-  }
-
-  rpc PermissionUpdateKey (PermissionUpdateKeyContract) returns (TransactionExtention) {
-
-  }
-
-  rpc PermissionDeleteKey (PermissionDeleteKeyContract) returns (TransactionExtention) {
-
-  }
 
   rpc AddSign (TransactionSign) returns (TransactionExtention) {
 

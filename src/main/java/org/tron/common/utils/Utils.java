@@ -61,9 +61,6 @@ import org.tron.protos.Contract.ExchangeTransactionContract;
 import org.tron.protos.Contract.ExchangeWithdrawContract;
 import org.tron.protos.Contract.FreezeBalanceContract;
 import org.tron.protos.Contract.ParticipateAssetIssueContract;
-import org.tron.protos.Contract.PermissionAddKeyContract;
-import org.tron.protos.Contract.PermissionDeleteKeyContract;
-import org.tron.protos.Contract.PermissionUpdateKeyContract;
 import org.tron.protos.Contract.ProposalApproveContract;
 import org.tron.protos.Contract.ProposalCreateContract;
 import org.tron.protos.Contract.ProposalDeleteContract;
@@ -1052,49 +1049,6 @@ public class Utils {
           result += "\n";
           result += "quant: ";
           result += exchangeTransactionContract.getQuant();
-          result += "\n";
-          break;
-        case PermissionAddKeyContract:
-          PermissionAddKeyContract permissionAddKeyContract = contract.getParameter()
-              .unpack(PermissionAddKeyContract.class);
-          result += "owner_address: ";
-          result += WalletApi
-              .encode58Check(permissionAddKeyContract.getOwnerAddress().toByteArray());
-          result += "\n";
-          result += "Key: ";
-          result += printKey(permissionAddKeyContract.getKey());
-          result += "\n";
-          result += "permission_id: ";
-          result += permissionAddKeyContract.getPermissionId();
-          result += "\n";
-          break;
-        case PermissionDeleteKeyContract:
-          PermissionDeleteKeyContract permissionDeleteKeyContract = contract.getParameter()
-              .unpack(PermissionDeleteKeyContract.class);
-          result += "owner_address: ";
-          result += WalletApi
-              .encode58Check(permissionDeleteKeyContract.getOwnerAddress().toByteArray());
-          result += "\n";
-          result += "key_address: ";
-          result += WalletApi
-              .encode58Check(permissionDeleteKeyContract.getKeyAddress().toByteArray());
-          result += "\n";
-          result += "permission_id: ";
-          result += permissionDeleteKeyContract.getPermissionId();
-          result += "\n";
-          break;
-        case PermissionUpdateKeyContract:
-          PermissionUpdateKeyContract permissionUpdateKeyContract = contract.getParameter()
-              .unpack(PermissionUpdateKeyContract.class);
-          result += "owner_address: ";
-          result += WalletApi
-              .encode58Check(permissionUpdateKeyContract.getOwnerAddress().toByteArray());
-          result += "\n";
-          result += "Key: ";
-          result += printKey(permissionUpdateKeyContract.getKey());
-          result += "\n";
-          result += "permission_id: ";
-          result += permissionUpdateKeyContract.getPermissionId();
           result += "\n";
           break;
         case AccountPermissionUpdateContract:
