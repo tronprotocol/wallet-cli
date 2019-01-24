@@ -22,6 +22,8 @@ import org.tron.api.GrpcAPI.BlockListExtention;
 import org.tron.api.GrpcAPI.BytesMessage;
 import org.tron.api.GrpcAPI.DelegatedResourceList;
 import org.tron.api.GrpcAPI.DelegatedResourceMessage;
+import org.tron.api.GrpcAPI.EasyTransferAssertByPrivateMessage;
+import org.tron.api.GrpcAPI.EasyTransferAssertMessage;
 import org.tron.api.GrpcAPI.EasyTransferByPrivateMessage;
 import org.tron.api.GrpcAPI.EasyTransferMessage;
 import org.tron.api.GrpcAPI.EasyTransferResponse;
@@ -151,6 +153,31 @@ public class GrpcClient {
     builder.setAmount(amount);
 
     return blockingStubFull.easyTransferByPrivate(builder.build());
+  }
+
+  //Warning: do not invoke this interface provided by others.
+  public EasyTransferResponse easyTransferAssert(byte[] passPhrase, byte[] toAddress,
+      String assertId, long amount) {
+    EasyTransferAssertMessage.Builder builder = EasyTransferAssertMessage.newBuilder();
+    builder.setPassPhrase(ByteString.copyFrom(passPhrase));
+    builder.setToAddress(ByteString.copyFrom(toAddress));
+    builder.setAssertId(assertId);
+    builder.setAmount(amount);
+
+    return blockingStubFull.easyTransferAssert(builder.build());
+  }
+
+  //Warning: do not invoke this interface provided by others.
+  public EasyTransferResponse easyTransferAssertByPrivate(byte[] privateKey, byte[] toAddress,
+      String assertId, long amount) {
+    EasyTransferAssertByPrivateMessage.Builder builder = EasyTransferAssertByPrivateMessage
+        .newBuilder();
+    builder.setPrivateKey(ByteString.copyFrom(privateKey));
+    builder.setToAddress(ByteString.copyFrom(toAddress));
+    builder.setAssertId(assertId);
+    builder.setAmount(amount);
+
+    return blockingStubFull.easyTransferAssertByPrivate(builder.build());
   }
 
   public Transaction createTransaction(Contract.AccountUpdateContract contract) {

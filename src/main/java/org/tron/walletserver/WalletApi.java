@@ -444,6 +444,18 @@ public class WalletApi {
     return rpcCli.easyTransferByPrivate(privateKey, toAddress, amount);
   }
 
+  //Warning: do not invoke this interface provided by others.
+  public static EasyTransferResponse easyTransferAssert(byte[] passPhrase, byte[] toAddress,
+      String assertId, long amount) {
+    return rpcCli.easyTransferAssert(passPhrase, toAddress, assertId, amount);
+  }
+
+  //Warning: do not invoke this interface provided by others.
+  public static EasyTransferResponse easyTransferAssertByPrivate(byte[] privateKey,
+      byte[] toAddress, String assertId, long amount) {
+    return rpcCli.easyTransferAssertByPrivate(privateKey, toAddress, assertId, amount);
+  }
+
   public boolean sendCoin(byte[] to, long amount)
       throws CipherException, IOException, CancelException {
     byte[] owner = getAddress();
