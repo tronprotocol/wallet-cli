@@ -9,7 +9,7 @@ import org.tron.common.utils.Utils;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.walletserver.WalletApi;
 
-public class EasyTransferAssertDemo {
+public class EasyTransferAssetDemo {
 
   private static byte[] getAddressByPassphrase(String passPhrase) {
     byte[] privateKey = Sha256Hash.hash(passPhrase.getBytes());
@@ -28,7 +28,7 @@ public class EasyTransferAssertDemo {
     System.out.println("address === " + WalletApi.encode58Check(address));
 
     EasyTransferResponse response = WalletApi
-        .easyTransferAssert(passPhrase.getBytes(), getAddressByPassphrase("test pass phrase 2"),
+        .easyTransferAsset(passPhrase.getBytes(), getAddressByPassphrase("test pass phrase 2"),
             tokenId, 10000L);
     if (response.getResult().getResult() == true) {
       Transaction transaction = response.getTransaction();

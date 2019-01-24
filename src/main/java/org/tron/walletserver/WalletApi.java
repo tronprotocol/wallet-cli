@@ -445,15 +445,15 @@ public class WalletApi {
   }
 
   //Warning: do not invoke this interface provided by others.
-  public static EasyTransferResponse easyTransferAssert(byte[] passPhrase, byte[] toAddress,
-      String assertId, long amount) {
-    return rpcCli.easyTransferAssert(passPhrase, toAddress, assertId, amount);
+  public static EasyTransferResponse easyTransferAsset(byte[] passPhrase, byte[] toAddress,
+      String assetId, long amount) {
+    return rpcCli.easyTransferAsset(passPhrase, toAddress, assetId, amount);
   }
 
   //Warning: do not invoke this interface provided by others.
-  public static EasyTransferResponse easyTransferAssertByPrivate(byte[] privateKey,
-      byte[] toAddress, String assertId, long amount) {
-    return rpcCli.easyTransferAssertByPrivate(privateKey, toAddress, assertId, amount);
+  public static EasyTransferResponse easyTransferAssetByPrivate(byte[] privateKey,
+      byte[] toAddress, String assetId, long amount) {
+    return rpcCli.easyTransferAssetByPrivate(privateKey, toAddress, assetId, amount);
   }
 
   public boolean sendCoin(byte[] to, long amount)
