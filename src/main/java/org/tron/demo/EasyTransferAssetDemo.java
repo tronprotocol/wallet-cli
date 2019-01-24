@@ -21,7 +21,7 @@ public class EasyTransferAssetDemo {
   public static void main(String[] args) {
     String passPhrase = "test pass phrase";
     byte[] address = WalletApi.createAdresss(passPhrase.getBytes());
-    String tokenId = "1000000";
+    String tokenId = "1000001";
     if (!Arrays.equals(address, getAddressByPassphrase(passPhrase))) {
       System.out.println("The address is diffrent !!");
     }
