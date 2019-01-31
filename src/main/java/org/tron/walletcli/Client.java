@@ -468,9 +468,9 @@ public class Client {
   }
 
   private void sendCoin(String[] parameters) throws IOException, CipherException, CancelException {
-    if (parameters == null || parameters.length != 2) {
-      System.out.println("SendCoin needs 2 parameters like following: ");
-      System.out.println("SendCoin ToAddress Amount");
+    if (parameters == null || parameters.length < 2 || parameters.length > 3) {
+      System.out.println("SendCoin needs parameters like following: ");
+      System.out.println("SendCoin ToAddress Amount delaySeconds");
       return;
     }
 
@@ -478,9 +478,16 @@ public class Client {
     String amountStr = parameters[1];
     long amount = new Long(amountStr);
 
-    boolean result = walletApiWrapper.sendCoin(toAddress, amount);
+    long delaySeconds = 0;
+    if (parameters.length == 3){
+      delaySeconds = Long.valueOf(parameters[2]);
+    }
+
+    long senderId = System.currentTimeMillis();
+
+    boolean result = walletApiWrapper.sendCoin(toAddress, amount, delaySeconds, senderId);
     if (result) {
-      logger.info("Send " + amount + " drop to " + toAddress + " successful !!");
+      logger.info("Send " + amount + " drop to " + toAddress + " successful !! Sender ID is {}", senderId);
     } else {
       logger.info("Send " + amount + " drop to " + toAddress + " failed !!");
     }
@@ -509,7 +516,7 @@ public class Client {
 
     for (int i = 1; i <= times; i++) {
       long amount = i;
-      boolean result = walletApiWrapper.sendCoin(toAddress, amount);
+      boolean result = walletApiWrapper.sendCoin(toAddress, amount, 0, 0);
       if (result) {
         logger.info("Send " + amount + " drop to " + toAddress + " successful !!");
         if (intervalInt > 0) {

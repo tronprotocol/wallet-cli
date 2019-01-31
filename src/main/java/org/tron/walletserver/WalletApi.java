@@ -456,15 +456,22 @@ public class WalletApi {
     return rpcCli.easyTransferAssetByPrivate(privateKey, toAddress, assetId, amount);
   }
 
-  public boolean sendCoin(byte[] to, long amount)
+  public boolean sendCoin(byte[] to, long amount, long delaySeconds, long senderId)
       throws CipherException, IOException, CancelException {
     byte[] owner = getAddress();
     Contract.TransferContract contract = createTransferContract(to, owner, amount);
     if (rpcVersion == 2) {
       TransactionExtention transactionExtention = rpcCli.createTransaction2(contract);
+
+      if (delaySeconds > 0){
+        transactionExtention = TransactionUtils.setDelaySecondsToExtension(transactionExtention, delaySeconds, senderId);
+      }
       return processTransactionExtention(transactionExtention);
     } else {
       Transaction transaction = rpcCli.createTransaction(contract);
+      if (delaySeconds > 0){
+        transaction = TransactionUtils.setDelaySeconds(transaction, delaySeconds, senderId);
+      }
       return processTransaction(transaction);
     }
   }

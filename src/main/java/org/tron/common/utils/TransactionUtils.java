@@ -21,6 +21,7 @@ import java.util.Arrays;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.tron.api.GrpcAPI;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.ECKey.ECDSASignature;
 import org.tron.common.crypto.Sha256Hash;
@@ -185,6 +186,23 @@ public class TransactionUtils {
         .toBuilder();
     rowBuilder.setTimestamp(currentTime);
     builder.setRawData(rowBuilder.build());
+    return builder.build();
+  }
+
+  public static Transaction setDelaySeconds(Transaction transaction, long delaySeconds, long senderId){
+    Transaction.Builder builder = transaction.toBuilder();
+    builder.setDelaySeconds(delaySeconds);
+    builder.setSenderId(senderId);
+
+    return builder.build();
+  }
+
+  public static GrpcAPI.TransactionExtention setDelaySecondsToExtension(GrpcAPI.TransactionExtention transactionExtention, long delaySeconds, long senderId){
+    GrpcAPI.TransactionExtention.Builder builder = transactionExtention.toBuilder();
+
+    Transaction transaction = setDelaySeconds(transactionExtention.getTransaction(), delaySeconds, senderId);
+    builder.setTransaction(transaction);
+
     return builder.build();
   }
 }
