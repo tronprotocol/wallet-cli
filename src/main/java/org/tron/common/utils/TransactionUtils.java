@@ -189,18 +189,16 @@ public class TransactionUtils {
     return builder.build();
   }
 
-  public static Transaction setDelaySeconds(Transaction transaction, long delaySeconds, long senderId){
+  public static Transaction setDelaySeconds(Transaction transaction, long delaySeconds){
     Transaction.Builder builder = transaction.toBuilder();
     builder.setDelaySeconds(delaySeconds);
-    builder.setSenderId(senderId);
-
     return builder.build();
   }
 
-  public static GrpcAPI.TransactionExtention setDelaySecondsToExtension(GrpcAPI.TransactionExtention transactionExtention, long delaySeconds, long senderId){
+  public static GrpcAPI.TransactionExtention setDelaySecondsToExtension(GrpcAPI.TransactionExtention transactionExtention, long delaySeconds){
     GrpcAPI.TransactionExtention.Builder builder = transactionExtention.toBuilder();
 
-    Transaction transaction = setDelaySeconds(transactionExtention.getTransaction(), delaySeconds, senderId);
+    Transaction transaction = setDelaySeconds(transactionExtention.getTransaction(), delaySeconds);
     builder.setTransaction(transaction);
 
     return builder.build();

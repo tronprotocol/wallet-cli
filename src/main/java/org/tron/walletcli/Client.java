@@ -483,11 +483,9 @@ public class Client {
       delaySeconds = Long.valueOf(parameters[2]);
     }
 
-    long senderId = System.currentTimeMillis();
-
-    boolean result = walletApiWrapper.sendCoin(toAddress, amount, delaySeconds, senderId);
+    boolean result = walletApiWrapper.sendCoin(toAddress, amount, delaySeconds);
     if (result) {
-      logger.info("Send " + amount + " drop to " + toAddress + " successful !! Sender ID is {}", senderId);
+      logger.info("Send " + amount + " drop to " + toAddress + " successful !!");
     } else {
       logger.info("Send " + amount + " drop to " + toAddress + " failed !!");
     }
@@ -516,7 +514,7 @@ public class Client {
 
     for (int i = 1; i <= times; i++) {
       long amount = i;
-      boolean result = walletApiWrapper.sendCoin(toAddress, amount, 0, 0);
+      boolean result = walletApiWrapper.sendCoin(toAddress, amount, 0);
       if (result) {
         logger.info("Send " + amount + " drop to " + toAddress + " successful !!");
         if (intervalInt > 0) {

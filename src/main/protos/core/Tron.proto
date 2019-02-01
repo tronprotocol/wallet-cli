@@ -317,7 +317,6 @@ message Transaction {
   repeated Result ret = 5;
 
   int64 delaySeconds = 6;
-  int64 senderId = 7;
 }
 
 message TransactionInfo {

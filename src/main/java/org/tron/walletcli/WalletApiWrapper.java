@@ -144,7 +144,7 @@ public class WalletApiWrapper {
     return wallet.queryAccount();
   }
 
-  public boolean sendCoin(String toAddress, long amount, long delaySeconds, long senderId)
+  public boolean sendCoin(String toAddress, long amount, long delaySeconds)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: SendCoin failed,  Please login first !!");
@@ -155,7 +155,7 @@ public class WalletApiWrapper {
       return false;
     }
 
-    return wallet.sendCoin(to, amount, delaySeconds, senderId);
+    return wallet.sendCoin(to, amount, delaySeconds);
   }
 
   public boolean transferAsset(String toAddress, String assertName, long amount)
