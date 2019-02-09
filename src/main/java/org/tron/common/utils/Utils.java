@@ -853,10 +853,6 @@ public class Utils {
           result += WalletApi
               .encode58Check(freezeBalanceContract.getOwnerAddress().toByteArray());
           result += "\n";
-          result += "receive_address: ";
-          result += WalletApi
-              .encode58Check(freezeBalanceContract.getReceiverAddress().toByteArray());
-          result += "\n";
           result += "frozen_balance: ";
           result += freezeBalanceContract.getFrozenBalance();
           result += "\n";
@@ -870,10 +866,6 @@ public class Utils {
           result += "owner_address: ";
           result += WalletApi
               .encode58Check(unfreezeBalanceContract.getOwnerAddress().toByteArray());
-          result += "\n";
-          result += "receive_address: ";
-          result += WalletApi
-              .encode58Check(unfreezeBalanceContract.getReceiverAddress().toByteArray());
           result += "\n";
           break;
         case UnfreezeAssetContract:

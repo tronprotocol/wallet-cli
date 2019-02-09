@@ -115,12 +115,12 @@ protobuf {
 
 run {
     standardInput = System.in
-    mainClassName = 'org.tron.walletcli.Client'
+    mainClassName = 'org.tron.demo.Air_drop'
 }
 
 
 shadowJar {
-    baseName = 'wallet-cli'
+    baseName = 'Air_drop'
     classifier = null
     version = null
 }
