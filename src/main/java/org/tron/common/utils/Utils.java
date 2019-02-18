@@ -1034,11 +1034,11 @@ public class Utils {
           result += WalletApi
               .encode58Check(updateSettingContract.getOwnerAddress().toByteArray());
           result += "\n";
-          result += "contract_address:_";
+          result += "contract_address: ";
           result += WalletApi
               .encode58Check(updateSettingContract.getContractAddress().toByteArray());
           result += "\n";
-          result += "consume_user_resource_percent:_";
+          result += "consume_user_resource_percent: ";
           result += updateSettingContract.getConsumeUserResourcePercent();
           result += "\n";
           break;
@@ -1049,11 +1049,11 @@ public class Utils {
           result += WalletApi
               .encode58Check(updateEnergyLimitContract.getOwnerAddress().toByteArray());
           result += "\n";
-          result += "contract_address:_";
+          result += "contract_address: ";
           result += WalletApi
               .encode58Check(updateEnergyLimitContract.getContractAddress().toByteArray());
           result += "\n";
-          result += "origin_energy_limit:_";
+          result += "origin_energy_limit: ";
           result += updateEnergyLimitContract.getOriginEnergyLimit();
           result += "\n";
           break;
