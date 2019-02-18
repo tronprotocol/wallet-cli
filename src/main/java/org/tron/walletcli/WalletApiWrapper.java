@@ -144,6 +144,14 @@ public class WalletApiWrapper {
     return wallet.queryAccount();
   }
 
+  public boolean cancelDefferedTransaction(String trxId) throws CipherException, IOException, CancelException{
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warning: CancelDefferedTransaction failed,  Please login first !!");
+      return false;
+    }
+    return wallet.cancelDefferedTransaction(trxId);
+  }
+
   public boolean sendCoin(String toAddress, long amount, long delaySeconds)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {

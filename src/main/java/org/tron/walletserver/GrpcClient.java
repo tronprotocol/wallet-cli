@@ -188,6 +188,10 @@ public class GrpcClient {
     return blockingStubFull.updateAccount2(contract);
   }
 
+  public TransactionExtention createCancelDefferedTransactionContract2(Contract.CancelDefferedTransactionContract contract) {
+    return blockingStubFull.createCancelDefferedTransactionContract(contract);
+  }
+
   public Transaction createTransaction(Contract.SetAccountIdContract contract) {
     return blockingStubFull.setAccountId(contract);
   }

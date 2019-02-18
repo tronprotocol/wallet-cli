@@ -467,6 +467,24 @@ public class Client {
     }
   }
 
+  private void cancelDefferedTransaction(String[] parameters)
+      throws IOException, CipherException, CancelException {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("CancelDefferedTransaction needs parameters like following: ");
+      System.out.println("CancelDefferedTransaction transactionId");
+      return;
+    }
+
+    String trxId = parameters[0];
+    boolean result = walletApiWrapper.cancelDefferedTransaction(trxId);
+    if (result) {
+      logger.info("CancelDefferedTransaction is successful");
+    } else {
+      logger.info("CancelDefferedTransaction is failed !!");
+    }
+
+  }
+
   private void sendCoin(String[] parameters) throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length < 2 || parameters.length > 3) {
       System.out.println("SendCoin needs parameters like following: ");
@@ -1803,6 +1821,7 @@ public class Client {
     System.out.println("ParticipateAssetIssue");
     System.out.println("RegisterWallet");
     System.out.println("SendCoin");
+    System.out.println("CancelDefferedTransaction");
     System.out.println("SetAccountId");
     System.out.println("TransferAsset");
     System.out.println("TriggerContract contractAddress method args isHex fee_limit value");
@@ -1980,6 +1999,10 @@ public class Client {
           }
           case "sendcoin": {
             sendCoin(parameters);
+            break;
+          }
+          case "canceldefferedtransaction": {
+            cancelDefferedTransaction(parameters);
             break;
           }
           case "testtransaction": {

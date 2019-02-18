@@ -456,6 +456,15 @@ public class WalletApi {
     return rpcCli.easyTransferAssetByPrivate(privateKey, toAddress, assetId, amount);
   }
 
+  public boolean cancelDefferedTransaction(String trxId)
+      throws CipherException, IOException, CancelException {
+    Contract.CancelDefferedTransactionContract contract = createCancelDefferedTransactionContract(trxId);
+
+    TransactionExtention transactionExtention = rpcCli.createCancelDefferedTransactionContract2(contract);
+
+    return processTransactionExtention(transactionExtention);
+  }
+
   public boolean sendCoin(byte[] to, long amount, long delaySeconds)
       throws CipherException, IOException, CancelException {
     byte[] owner = getAddress();
@@ -633,6 +642,13 @@ public class WalletApi {
       return processTransaction(transaction);
     }
   }
+
+  public static Contract.CancelDefferedTransactionContract createCancelDefferedTransactionContract(String trxId) {
+    Contract.CancelDefferedTransactionContract.Builder builder = Contract.CancelDefferedTransactionContract.newBuilder();
+    builder.setTransactionId(ByteString.copyFrom(trxId.getBytes()));
+    return builder.build();
+  }
+
 
   public static Contract.TransferContract createTransferContract(byte[] to, byte[] owner,
       long amount) {
