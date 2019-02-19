@@ -458,8 +458,8 @@ public class WalletApi {
 
   public boolean cancelDefferedTransaction(String trxId)
       throws CipherException, IOException, CancelException {
-    Contract.CancelDefferedTransactionContract contract = createCancelDefferedTransactionContract(trxId);
-
+    byte[] owner = getAddress();
+    Contract.CancelDefferedTransactionContract contract = createCancelDefferedTransactionContract(trxId, owner);
     TransactionExtention transactionExtention = rpcCli.createCancelDefferedTransactionContract2(contract);
 
     return processTransactionExtention(transactionExtention);
@@ -643,9 +643,10 @@ public class WalletApi {
     }
   }
 
-  public static Contract.CancelDefferedTransactionContract createCancelDefferedTransactionContract(String trxId) {
+  public static Contract.CancelDefferedTransactionContract createCancelDefferedTransactionContract(String trxId, byte[] owner) {
     Contract.CancelDefferedTransactionContract.Builder builder = Contract.CancelDefferedTransactionContract.newBuilder();
-    builder.setTransactionId(ByteString.copyFrom(trxId.getBytes()));
+    builder.setTransactionId(ByteString.copyFrom(ByteArray.fromHexString(trxId)));
+    builder.setOwnerAddress(ByteString.copyFrom(owner));
     return builder.build();
   }
 
