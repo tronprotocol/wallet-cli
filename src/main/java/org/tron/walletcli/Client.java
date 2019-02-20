@@ -12,6 +12,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Scanner;
 import java.util.regex.Matcher;
@@ -465,6 +466,18 @@ public class Client {
     } else {
       logger.info("getAssetIssueById " + " failed !!");
     }
+  }
+
+  public void getDefferedTransactionbyid(String[] parameters)
+      throws IOException, CipherException, CancelException {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("GetDefferedTransactionbyid needs parameters like following: ");
+      System.out.println("GetDefferedTransactionbyid transactionId");
+      return;
+    }
+
+    String trxId = parameters[0];
+    walletApiWrapper.getDefferedTransaction(trxId);
   }
 
   private void cancelDefferedTransaction(String[] parameters)
@@ -1798,6 +1811,7 @@ public class Client {
     System.out.println("GetContract contractAddress");
     System.out.println("GetDelegatedResource");
     System.out.println("GetDelegatedResourceAccountIndex");
+    System.out.println("GetDefferedTransactionById");
     System.out.println("GetExchange");
     System.out.println("GetNextMaintenanceTime");
     System.out.println("GetProposal");
@@ -2005,6 +2019,7 @@ public class Client {
             cancelDefferedTransaction(parameters);
             break;
           }
+
           case "testtransaction": {
             testTransaction(parameters);
             break;
@@ -2096,6 +2111,9 @@ public class Client {
           case "getdelegatedresourceaccountindex": {
             getDelegatedResourceAccountIndex(parameters);
             break;
+          }
+          case "getdefferedtransactionbyid": {
+            getDefferedTransactionbyid(parameters);
           }
           case "exchangecreate": {
             exchangeCreate(parameters);

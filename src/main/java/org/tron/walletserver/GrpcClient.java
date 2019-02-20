@@ -710,6 +710,16 @@ public class GrpcClient {
 //    return blockingStubExtension.getTransactionsToThisCount(account);
 //  }
 
+  public Optional<Transaction> getDefferedTransactionById(String txID) {
+    ByteString bsTxid = ByteString.copyFrom(ByteArray.fromHexString(txID));
+    BytesMessage request = BytesMessage.newBuilder().setValue(bsTxid).build();
+    Transaction transaction = blockingStubFull.getDeferredTransactionById(request);
+    if (Objects.isNull(transaction)) {
+      transaction = blockingStubFull.getDeferredTransactionById(request);
+    }
+    return Optional.ofNullable(transaction);
+  }
+
   public Optional<Transaction> getTransactionById(String txID) {
     ByteString bsTxid = ByteString.copyFrom(ByteArray.fromHexString(txID));
     BytesMessage request = BytesMessage.newBuilder().setValue(bsTxid).build();

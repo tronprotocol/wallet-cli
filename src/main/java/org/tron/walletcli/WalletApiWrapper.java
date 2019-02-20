@@ -14,6 +14,7 @@ import org.tron.api.GrpcAPI.ExchangeList;
 import org.tron.api.GrpcAPI.NodeList;
 import org.tron.api.GrpcAPI.ProposalList;
 import org.tron.api.GrpcAPI.WitnessList;
+import org.tron.common.utils.Utils;
 import org.tron.core.exception.CancelException;
 import org.tron.core.exception.CipherException;
 import org.tron.keystore.StringUtils;
@@ -24,6 +25,7 @@ import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.ChainParameters;
 import org.tron.protos.Protocol.Exchange;
 import org.tron.protos.Protocol.Proposal;
+import org.tron.protos.Protocol.Transaction;
 import org.tron.walletserver.WalletApi;
 
 public class WalletApiWrapper {
@@ -142,6 +144,20 @@ public class WalletApiWrapper {
     }
 
     return wallet.queryAccount();
+  }
+
+  public void getDefferedTransaction(String trxId) throws CipherException, IOException, CancelException{
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warning: GetDefferedTransaction failed,  Please login first !!");
+      return;
+    }
+    Optional<Transaction> result = wallet.getDefferedTransaction(trxId);
+    if (result.isPresent()) {
+      Transaction transaction = result.get();
+      logger.info(Utils.printTransaction(transaction));
+    } else {
+      logger.info("getTransactionById " + " failed !!");
+    }
   }
 
   public boolean cancelDefferedTransaction(String trxId) throws CipherException, IOException, CancelException{
