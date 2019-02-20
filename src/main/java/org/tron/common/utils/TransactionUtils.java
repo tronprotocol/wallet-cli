@@ -190,9 +190,9 @@ public class TransactionUtils {
   }
 
   public static Transaction setDelaySeconds(Transaction transaction, long delaySeconds){
-    Transaction.Builder builder = transaction.toBuilder();
-    builder.setDelaySeconds(delaySeconds);
-    return builder.build();
+    Transaction.raw rawData =  transaction.getRawData().toBuilder()
+        .setDelaySeconds(delaySeconds).build();
+    return transaction.toBuilder().setRawData(rawData).build();
   }
 
   public static GrpcAPI.TransactionExtention setDelaySecondsToExtension(GrpcAPI.TransactionExtention transactionExtention, long delaySeconds){
