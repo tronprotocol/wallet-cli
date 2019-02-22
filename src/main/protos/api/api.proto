@@ -82,7 +82,7 @@ service Wallet {
   rpc UpdateAccount2 (AccountUpdateContract) returns (TransactionExtention) {
   };
 
-  rpc CreateCancelDefferedTransactionContract (CancelDefferedTransactionContract) returns (TransactionExtention) {
+  rpc CreateCancelDeferredTransactionContract (CancelDeferredTransactionContract) returns (TransactionExtention) {
   };
 
   rpc GetDeferredTransactionById (BytesMessage) returns (Transaction) {

@@ -146,12 +146,12 @@ public class WalletApiWrapper {
     return wallet.queryAccount();
   }
 
-  public void getDefferedTransaction(String trxId) throws CipherException, IOException, CancelException{
+  public void getDeferredTransaction(String trxId) throws CipherException, IOException, CancelException{
     if (wallet == null || !wallet.isLoginState()) {
-      logger.warn("Warning: GetDefferedTransaction failed,  Please login first !!");
+      logger.warn("Warning: GetDeferredTransaction failed,  Please login first !!");
       return;
     }
-    Optional<Transaction> result = wallet.getDefferedTransaction(trxId);
+    Optional<Transaction> result = wallet.getDeferredTransaction(trxId);
     if (result.isPresent()) {
       Transaction transaction = result.get();
       logger.info(Utils.printTransaction(transaction));
@@ -160,12 +160,12 @@ public class WalletApiWrapper {
     }
   }
 
-  public boolean cancelDefferedTransaction(String trxId) throws CipherException, IOException, CancelException{
+  public boolean cancelDeferredTransaction(String trxId) throws CipherException, IOException, CancelException{
     if (wallet == null || !wallet.isLoginState()) {
-      logger.warn("Warning: CancelDefferedTransaction failed,  Please login first !!");
+      logger.warn("Warning: CancelDeferredTransaction failed,  Please login first !!");
       return false;
     }
-    return wallet.cancelDefferedTransaction(trxId);
+    return wallet.cancelDeferredTransaction(trxId);
   }
 
   public boolean sendCoin(String toAddress, long amount, long delaySeconds)
@@ -182,7 +182,7 @@ public class WalletApiWrapper {
     return wallet.sendCoin(to, amount, delaySeconds);
   }
 
-  public boolean transferAsset(String toAddress, String assertName, long amount)
+  public boolean transferAsset(String toAddress, String assertName, long amount, long delaySeconds)
       throws IOException, CipherException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: TransferAsset failed,  Please login first !!");
@@ -193,11 +193,11 @@ public class WalletApiWrapper {
       return false;
     }
 
-    return wallet.transferAsset(to, assertName.getBytes(), amount);
+    return wallet.transferAsset(to, assertName.getBytes(), amount, delaySeconds);
   }
 
   public boolean participateAssetIssue(String toAddress, String assertName,
-      long amount) throws CipherException, IOException, CancelException {
+      long amount, long delaySeconds) throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: TransferAsset failed,  Please login first !!");
       return false;
@@ -207,12 +207,12 @@ public class WalletApiWrapper {
       return false;
     }
 
-    return wallet.participateAssetIssue(to, assertName.getBytes(), amount);
+    return wallet.participateAssetIssue(to, assertName.getBytes(), amount, delaySeconds);
   }
 
   public boolean assetIssue(String name, long totalSupply, int trxNum, int icoNum, int precision,
       long startTime, long endTime, int voteScore, String description, String url,
-      long freeNetLimit, long publicFreeNetLimit, HashMap<String, String> frozenSupply)
+      long freeNetLimit, long publicFreeNetLimit, HashMap<String, String> frozenSupply, long delaySeconds)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: assetIssue failed,  Please login first !!");
@@ -277,10 +277,10 @@ public class WalletApiWrapper {
       builder.addFrozenSupply(frozenSupplyBuilder.build());
     }
 
-    return wallet.createAssetIssue(builder.build());
+    return wallet.createAssetIssue(builder.build(), delaySeconds);
   }
 
-  public boolean createAccount(String address)
+  public boolean createAccount(String address, long delaySeconds)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: createAccount failed,  Please login first !!");
@@ -288,7 +288,7 @@ public class WalletApiWrapper {
     }
 
     byte[] addressBytes = WalletApi.decodeFromBase58Check(address);
-    return wallet.createAccount(addressBytes);
+    return wallet.createAccount(addressBytes, delaySeconds);
   }
 
   public AddressPrKeyPairMessage generateAddress() {
@@ -300,22 +300,22 @@ public class WalletApiWrapper {
   }
 
 
-  public boolean createWitness(String url) throws CipherException, IOException, CancelException {
+  public boolean createWitness(String url, long delaySeconds) throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: createWitness failed,  Please login first !!");
       return false;
     }
 
-    return wallet.createWitness(url.getBytes());
+    return wallet.createWitness(url.getBytes(), delaySeconds);
   }
 
-  public boolean updateWitness(String url) throws CipherException, IOException, CancelException {
+  public boolean updateWitness(String url, long delaySeconds) throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: updateWitness failed,  Please login first !!");
       return false;
     }
 
-    return wallet.updateWitness(url.getBytes());
+    return wallet.updateWitness(url.getBytes(), delaySeconds);
   }
 
   public Block getBlock(long blockNum) {
@@ -330,14 +330,14 @@ public class WalletApiWrapper {
     return WalletApi.getBlock2(blockNum);
   }
 
-  public boolean voteWitness(HashMap<String, String> witness)
+  public boolean voteWitness(HashMap<String, String> witness, long delaySeconds)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: VoteWitness failed,  Please login first !!");
       return false;
     }
 
-    return wallet.voteWitness(witness);
+    return wallet.voteWitness(witness, delaySeconds);
   }
 
   public Optional<WitnessList> listWitnesses() {
@@ -421,46 +421,46 @@ public class WalletApiWrapper {
     return WalletApi.getNextMaintenanceTime();
   }
 
-  public boolean updateAccount(byte[] accountNameBytes)
+  public boolean updateAccount(byte[] accountNameBytes, long delaySeconds)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: updateAccount failed, Please login first !!");
       return false;
     }
 
-    return wallet.updateAccount(accountNameBytes);
+    return wallet.updateAccount(accountNameBytes, delaySeconds);
   }
 
-  public boolean setAccountId(byte[] accountIdBytes)
+  public boolean setAccountId(byte[] accountIdBytes, long delaySeconds)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: setAccount failed, Please login first !!");
       return false;
     }
 
-    return wallet.setAccountId(accountIdBytes);
+    return wallet.setAccountId(accountIdBytes, delaySeconds);
   }
 
 
   public boolean updateAsset(byte[] description, byte[] url, long newLimit,
-      long newPublicLimit) throws CipherException, IOException, CancelException {
+      long newPublicLimit, long delaySeconds) throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: updateAsset failed, Please login first !!");
       return false;
     }
 
-    return wallet.updateAsset(description, url, newLimit, newPublicLimit);
+    return wallet.updateAsset(description, url, newLimit, newPublicLimit, delaySeconds);
   }
 
   public boolean freezeBalance(long frozen_balance, long frozen_duration, int resourceCode,
-      String receiverAddress)
+      String receiverAddress, long delaySeconds)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: freezeBalance failed, Please login first !!");
       return false;
     }
 
-    return wallet.freezeBalance(frozen_balance, frozen_duration, resourceCode, receiverAddress);
+    return wallet.freezeBalance(frozen_balance, frozen_duration, resourceCode, receiverAddress, delaySeconds);
   }
 
   public boolean buyStorage(long quantity)
@@ -494,43 +494,43 @@ public class WalletApiWrapper {
   }
 
 
-  public boolean unfreezeBalance(int resourceCode, String receiverAddress)
+  public boolean unfreezeBalance(int resourceCode, String receiverAddress, long delaySeconds)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: unfreezeBalance failed, Please login first !!");
       return false;
     }
 
-    return wallet.unfreezeBalance(resourceCode, receiverAddress);
+    return wallet.unfreezeBalance(resourceCode, receiverAddress, delaySeconds);
   }
 
 
-  public boolean unfreezeAsset() throws CipherException, IOException, CancelException {
+  public boolean unfreezeAsset(long delaySeconds) throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: unfreezeAsset failed, Please login first !!");
       return false;
     }
 
-    return wallet.unfreezeAsset();
+    return wallet.unfreezeAsset(delaySeconds);
   }
 
-  public boolean withdrawBalance() throws CipherException, IOException, CancelException {
+  public boolean withdrawBalance(long delaySeconds) throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: withdrawBalance failed, Please login first !!");
       return false;
     }
 
-    return wallet.withdrawBalance();
+    return wallet.withdrawBalance(delaySeconds);
   }
 
-  public boolean createProposal(HashMap<Long, Long> parametersMap)
+  public boolean createProposal(HashMap<Long, Long> parametersMap, long delaySeconds)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: createProposal failed, Please login first !!");
       return false;
     }
 
-    return wallet.createProposal(parametersMap);
+    return wallet.createProposal(parametersMap, delaySeconds);
   }
 
 
@@ -590,18 +590,18 @@ public class WalletApiWrapper {
     return wallet.approveProposal(id, is_add_approval);
   }
 
-  public boolean deleteProposal(long id)
+  public boolean deleteProposal(long id, long delaySeconds)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: deleteProposal failed, Please login first !!");
       return false;
     }
 
-    return wallet.deleteProposal(id);
+    return wallet.deleteProposal(id, delaySeconds);
   }
 
   public boolean exchangeCreate(byte[] firstTokenId, long firstTokenBalance,
-      byte[] secondTokenId, long secondTokenBalance)
+      byte[] secondTokenId, long secondTokenBalance, long delaySeconds)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: exchangeCreate failed, Please login first !!");
@@ -609,7 +609,7 @@ public class WalletApiWrapper {
     }
 
     return wallet.exchangeCreate(firstTokenId, firstTokenBalance,
-        secondTokenId, secondTokenBalance);
+        secondTokenId, secondTokenBalance, delaySeconds);
   }
 
   public boolean exchangeInject(long exchangeId, byte[] tokenId, long quant)
@@ -622,49 +622,49 @@ public class WalletApiWrapper {
     return wallet.exchangeInject(exchangeId, tokenId, quant);
   }
 
-  public boolean exchangeWithdraw(long exchangeId, byte[] tokenId, long quant)
+  public boolean exchangeWithdraw(long exchangeId, byte[] tokenId, long quant, long delaySeconds)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: exchangeWithdraw failed, Please login first !!");
       return false;
     }
 
-    return wallet.exchangeWithdraw(exchangeId, tokenId, quant);
+    return wallet.exchangeWithdraw(exchangeId, tokenId, quant, delaySeconds);
   }
 
-  public boolean exchangeTransaction(long exchangeId, byte[] tokenId, long quant, long expected)
+  public boolean exchangeTransaction(long exchangeId, byte[] tokenId, long quant, long expected, long delaySeconds)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: exchangeTransaction failed, Please login first !!");
       return false;
     }
 
-    return wallet.exchangeTransaction(exchangeId, tokenId, quant, expected);
+    return wallet.exchangeTransaction(exchangeId, tokenId, quant, expected, delaySeconds);
   }
 
-  public boolean updateSetting(byte[] contractAddress, long consumeUserResourcePercent)
+  public boolean updateSetting(byte[] contractAddress, long consumeUserResourcePercent, long delaySeconds)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: updateSetting failed,  Please login first !!");
       return false;
     }
-    return wallet.updateSetting(contractAddress, consumeUserResourcePercent);
+    return wallet.updateSetting(contractAddress, consumeUserResourcePercent, delaySeconds);
 
   }
 
-  public boolean updateEnergyLimit(byte[] contractAddress, long originEnergyLimit)
+  public boolean updateEnergyLimit(byte[] contractAddress, long originEnergyLimit, long delaySeconds)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: updateSetting failed,  Please login first !!");
       return false;
     }
-    return wallet.updateEnergyLimit(contractAddress, originEnergyLimit);
+    return wallet.updateEnergyLimit(contractAddress, originEnergyLimit, delaySeconds);
 
   }
 
   public boolean deployContract(String name, String abiStr, String codeStr,
       long feeLimit, long value, long consumeUserResourcePercent, long originEnergyLimit,
-      long tokenValue, String tokenId, String libraryAddressPair)
+      long tokenValue, String tokenId, String libraryAddressPair, long delaySeconds)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: createContract failed,  Please login first !!");
@@ -673,18 +673,18 @@ public class WalletApiWrapper {
     return wallet
         .deployContract(name, abiStr, codeStr, feeLimit, value, consumeUserResourcePercent,
             originEnergyLimit, tokenValue, tokenId,
-            libraryAddressPair);
+            libraryAddressPair, delaySeconds);
   }
 
   public boolean callContract(byte[] contractAddress, long callValue, byte[] data, long feeLimit,
-      long tokenValue, String tokenId)
+      long tokenValue, String tokenId, long delaySeconds)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: callContract failed,  Please login first !!");
       return false;
     }
 
-    return wallet.triggerContract(contractAddress, callValue, data, feeLimit, tokenValue, tokenId);
+    return wallet.triggerContract(contractAddress, callValue, data, feeLimit, tokenValue, tokenId, delaySeconds);
   }
 
 }

@@ -196,6 +196,9 @@ public class TransactionUtils {
   }
 
   public static GrpcAPI.TransactionExtention setDelaySecondsToExtension(GrpcAPI.TransactionExtention transactionExtention, long delaySeconds){
+    if (delaySeconds == 0) {
+      return transactionExtention;
+    }
     GrpcAPI.TransactionExtention.Builder builder = transactionExtention.toBuilder();
 
     Transaction transaction = setDelaySeconds(transactionExtention.getTransaction(), delaySeconds);

@@ -188,8 +188,8 @@ public class GrpcClient {
     return blockingStubFull.updateAccount2(contract);
   }
 
-  public TransactionExtention createCancelDefferedTransactionContract2(Contract.CancelDefferedTransactionContract contract) {
-    return blockingStubFull.createCancelDefferedTransactionContract(contract);
+  public TransactionExtention createCancelDeferredTransactionContract2(Contract.CancelDeferredTransactionContract contract) {
+    return blockingStubFull.createCancelDeferredTransactionContract(contract);
   }
 
   public Transaction createTransaction(Contract.SetAccountIdContract contract) {
@@ -710,7 +710,7 @@ public class GrpcClient {
 //    return blockingStubExtension.getTransactionsToThisCount(account);
 //  }
 
-  public Optional<Transaction> getDefferedTransactionById(String txID) {
+  public Optional<Transaction> getDeferredTransactionById(String txID) {
     ByteString bsTxid = ByteString.copyFrom(ByteArray.fromHexString(txID));
     BytesMessage request = BytesMessage.newBuilder().setValue(bsTxid).build();
     Transaction transaction = blockingStubFull.getDeferredTransactionById(request);

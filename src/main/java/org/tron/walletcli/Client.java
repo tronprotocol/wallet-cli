@@ -12,7 +12,6 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Scanner;
 import java.util.regex.Matcher;
@@ -291,16 +290,19 @@ public class Client {
 
   private void updateAccount(String[] parameters)
       throws IOException, CipherException, CancelException {
-    if (parameters == null || parameters.length != 1) {
-      System.out.println("UpdateAccount needs 1 parameter like the following: ");
-      System.out.println("UpdateAccount AccountName ");
+    if (parameters == null || (parameters.length != 1 && parameters.length != 2)) {
+      System.out.println("UpdateAccount needs 1 or 2 parameter like the following: ");
+      System.out.println("UpdateAccount AccountName [delaySeconds]");
       return;
     }
 
     String accountName = parameters[0];
     byte[] accountNameBytes = ByteArray.fromString(accountName);
-
-    boolean ret = walletApiWrapper.updateAccount(accountNameBytes);
+    long delaySeconds = 0;
+    if (parameters.length == 2) {
+      delaySeconds = new Long(parameters[1]);
+    }
+    boolean ret = walletApiWrapper.updateAccount(accountNameBytes, delaySeconds);
     if (ret) {
       logger.info("Update Account successful !!!!");
     } else {
@@ -310,16 +312,21 @@ public class Client {
 
   private void setAccountId(String[] parameters)
       throws IOException, CipherException, CancelException {
-    if (parameters == null || parameters.length != 1) {
-      System.out.println("SetAccountId needs 1 parameter like the following: ");
-      System.out.println("SetAccountId AccountId ");
+    if (parameters == null || (parameters.length != 1 && parameters.length != 2)) {
+      System.out.println("SetAccountId needs 1 or 2 parameter like the following: ");
+      System.out.println("SetAccountId AccountId [delaySeconds] ");
       return;
     }
 
     String accountId = parameters[0];
     byte[] accountIdBytes = ByteArray.fromString(accountId);
+    long delaySeconds = 0;
+    if (parameters.length == 2) {
+      String delaySecondsStr = parameters[1];
+      delaySeconds = new Long(delaySecondsStr);
+    }
 
-    boolean ret = walletApiWrapper.setAccountId(accountIdBytes);
+    boolean ret = walletApiWrapper.setAccountId(accountIdBytes, delaySeconds);
     if (ret) {
       logger.info("Set AccountId successful !!!!");
     } else {
@@ -330,9 +337,9 @@ public class Client {
 
   private void updateAsset(String[] parameters)
       throws IOException, CipherException, CancelException {
-    if (parameters == null || parameters.length != 4) {
-      System.out.println("UpdateAsset needs 4 parameters like the following: ");
-      System.out.println("UpdateAsset newLimit newPublicLimit description url");
+    if (parameters == null || (parameters.length != 4 && parameters.length != 5)) {
+      System.out.println("UpdateAsset needs 4 parameters or 5 parameters like the following: ");
+      System.out.println("UpdateAsset newLimit newPublicLimit description url [delaySeconds]");
       return;
     }
 
@@ -340,6 +347,10 @@ public class Client {
     String newPublicLimitString = parameters[1];
     String description = parameters[2];
     String url = parameters[3];
+    long delaySeconds = 0;
+    if (parameters.length == 5) {
+      delaySeconds = new Long(parameters[4]);
+    }
 
     byte[] descriptionBytes = ByteArray.fromString(description);
     byte[] urlBytes = ByteArray.fromString(url);
@@ -347,7 +358,7 @@ public class Client {
     long newPublicLimit = new Long(newPublicLimitString);
 
     boolean ret = walletApiWrapper
-        .updateAsset(descriptionBytes, urlBytes, newLimit, newPublicLimit);
+        .updateAsset(descriptionBytes, urlBytes, newLimit, newPublicLimit, delaySeconds);
     if (ret) {
       logger.info("Update Asset successful !!!!");
     } else {
@@ -468,32 +479,32 @@ public class Client {
     }
   }
 
-  public void getDefferedTransactionbyid(String[] parameters)
+  public void getDeferredTransactionbyid(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length != 1) {
-      System.out.println("GetDefferedTransactionbyid needs parameters like following: ");
-      System.out.println("GetDefferedTransactionbyid transactionId");
+      System.out.println("GetDeferredTransactionbyid needs parameters like following: ");
+      System.out.println("GetDeferredTransactionbyid transactionId");
       return;
     }
 
     String trxId = parameters[0];
-    walletApiWrapper.getDefferedTransaction(trxId);
+    walletApiWrapper.getDeferredTransaction(trxId);
   }
 
-  private void cancelDefferedTransaction(String[] parameters)
+  private void cancelDeferredTransaction(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length != 1) {
-      System.out.println("CancelDefferedTransaction needs parameters like following: ");
-      System.out.println("CancelDefferedTransaction transactionId");
+      System.out.println("CancelDeferredTransaction needs parameters like following: ");
+      System.out.println("CancelDeferredTransaction transactionId");
       return;
     }
 
     String trxId = parameters[0];
-    boolean result = walletApiWrapper.cancelDefferedTransaction(trxId);
+    boolean result = walletApiWrapper.cancelDeferredTransaction(trxId);
     if (result) {
-      logger.info("CancelDefferedTransaction is successful");
+      logger.info("CancelDeferredTransaction is successful");
     } else {
-      logger.info("CancelDefferedTransaction is failed !!");
+      logger.info("CancelDeferredTransaction is failed !!");
     }
 
   }
@@ -501,7 +512,7 @@ public class Client {
   private void sendCoin(String[] parameters) throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length < 2 || parameters.length > 3) {
       System.out.println("SendCoin needs parameters like following: ");
-      System.out.println("SendCoin ToAddress Amount delaySeconds");
+      System.out.println("SendCoin ToAddress Amount [delaySeconds]");
       return;
     }
 
@@ -524,10 +535,10 @@ public class Client {
 
   private void testTransaction(String[] parameters)
       throws IOException, CipherException, CancelException {
-    if (parameters == null || (parameters.length != 3 && parameters.length != 4)) {
+    if (parameters == null || (parameters.length != 3 && parameters.length != 4 && parameters.length != 5)) {
       System.out.println("testTransaction needs 3 or 4 parameters using the following syntax: ");
-      System.out.println("testTransaction ToAddress assertName times");
-      System.out.println("testTransaction ToAddress assertName times interval");
+      System.out.println("testTransaction ToAddress assertName times [delaySeconds]");
+      System.out.println("testTransaction ToAddress assertName times interval [delaySeconds]");
       System.out.println("If needing transferAsset, assertName input null");
       return;
     }
@@ -536,16 +547,20 @@ public class Client {
     String assertName = parameters[1];
     String loopTime = parameters[2];
     int intervalInt = 0;//s
-    if (parameters.length == 5) {
-      String interval = parameters[4];
+    if (parameters.length == 4) {
+      String interval = parameters[3];
       intervalInt = Integer.parseInt(interval);//s
+    }
+    long delaySeconds = 0;
+    if (parameters.length == 5) {
+      delaySeconds = new Long(parameters[4]);
     }
     intervalInt *= 500; //ms
     long times = new Long(loopTime);
 
     for (int i = 1; i <= times; i++) {
       long amount = i;
-      boolean result = walletApiWrapper.sendCoin(toAddress, amount, 0);
+      boolean result = walletApiWrapper.sendCoin(toAddress, amount, delaySeconds);
       if (result) {
         logger.info("Send " + amount + " drop to " + toAddress + " successful !!");
         if (intervalInt > 0) {
@@ -562,7 +577,7 @@ public class Client {
       }
 
       if (!"null".equalsIgnoreCase(assertName)) {
-        result = walletApiWrapper.transferAsset(toAddress, assertName, amount);
+        result = walletApiWrapper.transferAsset(toAddress, assertName, amount, 0);
         if (result) {
           logger
               .info(
@@ -586,18 +601,22 @@ public class Client {
 
   private void transferAsset(String[] parameters)
       throws IOException, CipherException, CancelException {
-    if (parameters == null || parameters.length != 3) {
+    if (parameters == null || (parameters.length != 3 && parameters.length != 4)) {
       System.out.println("TransferAsset needs 3 parameters using the following syntax: ");
-      System.out.println("TransferAsset ToAddress AssertName Amount");
+      System.out.println("TransferAsset ToAddress AssertName Amount [delaySeconds]");
       return;
     }
 
     String toAddress = parameters[0];
     String assertName = parameters[1];
     String amountStr = parameters[2];
+    long delaySeconds = 0;
+    if (parameters.length == 4) {
+      delaySeconds = new Long(parameters.length - 1);
+    }
     long amount = new Long(amountStr);
 
-    boolean result = walletApiWrapper.transferAsset(toAddress, assertName, amount);
+    boolean result = walletApiWrapper.transferAsset(toAddress, assertName, amount, delaySeconds);
     if (result) {
       logger.info("TransferAsset " + amount + " to " + toAddress + " successful !!");
     } else {
@@ -607,7 +626,7 @@ public class Client {
 
   private void participateAssetIssue(String[] parameters)
       throws IOException, CipherException, CancelException {
-    if (parameters == null || parameters.length != 3) {
+    if (parameters == null || (parameters.length != 3 && parameters.length != 4)) {
       System.out.println("ParticipateAssetIssue needs 3 parameters using the following syntax: ");
       System.out.println("ParticipateAssetIssue ToAddress AssetName Amount");
       return;
@@ -616,9 +635,13 @@ public class Client {
     String toAddress = parameters[0];
     String assertName = parameters[1];
     String amountStr = parameters[2];
+    long delaySeconds = 0;
+    if (parameters.length == 4) {
+      delaySeconds = new Long(parameters[3]);
+    }
     long amount = Long.parseLong(amountStr);
 
-    boolean result = walletApiWrapper.participateAssetIssue(toAddress, assertName, amount);
+    boolean result = walletApiWrapper.participateAssetIssue(toAddress, assertName, amount, delaySeconds);
     if (result) {
       logger.info("ParticipateAssetIssue " + assertName + " " + amount + " from " + toAddress
           + " successful !!");
@@ -630,13 +653,13 @@ public class Client {
 
   private void assetIssue(String[] parameters)
       throws IOException, CipherException, CancelException {
-    if (parameters == null || parameters.length < 11 || (parameters.length & 1) == 0) {
+    if (parameters == null || parameters.length < 12) {
       System.out
           .println("Use the assetIssue command for features that you require with below syntax: ");
       System.out.println(
           "AssetIssue AssetName TotalSupply TrxNum AssetNum Precision "
               + "StartDate EndDate Description Url FreeNetLimitPerAccount PublicFreeNetLimit "
-              + "FrozenAmount0 FrozenDays0 ... FrozenAmountN FrozenDaysN");
+              + "FrozenAmount0 FrozenDays0 ... FrozenAmountN FrozenDaysN [delaySeconds]");
       System.out
           .println(
               "TrxNum and AssetNum represents the conversion ratio of the tron to the asset.");
@@ -656,11 +679,17 @@ public class Client {
     String url = parameters[8];
     String freeNetLimitPerAccount = parameters[9];
     String publicFreeNetLimitString = parameters[10];
+    int i = 11;
     HashMap<String, String> frozenSupply = new HashMap<>();
-    for (int i = 11; i < parameters.length; i += 2) {
+    for (; i < parameters.length; i += 2) {
       String amount = parameters[i];
       String days = parameters[i + 1];
       frozenSupply.put(days, amount);
+    }
+
+    long delaySeconds = 0;
+    if (i != parameters.length - 1) {
+      delaySeconds = new Long(parameters[parameters.length - 1]);
     }
 
     long totalSupply = new Long(totalSupplyStr);
@@ -676,7 +705,7 @@ public class Client {
 
     boolean result = walletApiWrapper
         .assetIssue(name, totalSupply, trxNum, icoNum, precision, startTime, endTime,
-            0, description, url, freeAssetNetLimit, publicFreeNetLimit, frozenSupply);
+            0, description, url, freeAssetNetLimit, publicFreeNetLimit, frozenSupply, delaySeconds);
     if (result) {
       logger.info("AssetIssue " + name + " successful !!");
     } else {
@@ -686,15 +715,18 @@ public class Client {
 
   private void createAccount(String[] parameters)
       throws CipherException, IOException, CancelException {
-    if (parameters == null || parameters.length != 1) {
-      System.out.println("CreateAccount needs 1 parameter using the following syntax: ");
-      System.out.println("CreateAccount Address");
+    if (parameters == null || (parameters.length != 1 && parameters.length != 2)) {
+      System.out.println("CreateAccount needs 1 or 2 parameters using the following syntax:");
+      System.out.println("CreateAccount Address [delaySeconds]");
       return;
     }
 
     String address = parameters[0];
-
-    boolean result = walletApiWrapper.createAccount(address);
+    long delaySeconds = 0;
+    if (parameters.length == 2) {
+      delaySeconds = new Long(parameters[1]);
+    }
+    boolean result = walletApiWrapper.createAccount(address, delaySeconds);
     if (result) {
       logger.info("CreateAccount " + " successful !!");
     } else {
@@ -704,15 +736,19 @@ public class Client {
 
   private void createWitness(String[] parameters)
       throws IOException, CipherException, CancelException {
-    if (parameters == null || parameters.length != 1) {
+    if (parameters == null || (parameters.length != 1 && parameters.length != 2)) {
       System.out.println("CreateWitness needs 1 parameter using the following syntax: ");
-      System.out.println("CreateWitness Url");
+      System.out.println("CreateWitness Url [delaySeconds]");
       return;
     }
 
     String url = parameters[0];
+    long delaySeconds = 0;
+    if (parameters.length == 2) {
+      delaySeconds = new Long(parameters[1]);
+    }
 
-    boolean result = walletApiWrapper.createWitness(url);
+    boolean result = walletApiWrapper.createWitness(url, delaySeconds);
     if (result) {
       logger.info("CreateWitness " + " successful !!");
     } else {
@@ -722,15 +758,19 @@ public class Client {
 
   private void updateWitness(String[] parameters)
       throws IOException, CipherException, CancelException {
-    if (parameters == null || parameters.length != 1) {
+    if (parameters == null || (parameters.length != 1 && parameters.length != 2)) {
       System.out.println("updateWitness needs 1 parameter using the following syntax: ");
-      System.out.println("updateWitness Url");
+      System.out.println("updateWitness Url [delaySeconds]");
       return;
     }
 
     String url = parameters[0];
 
-    boolean result = walletApiWrapper.updateWitness(url);
+    long delaySeconds = 0;
+    if (parameters.length == 2){
+      delaySeconds = new Long(parameters[1]);
+    }
+    boolean result = walletApiWrapper.updateWitness(url, delaySeconds);
     if (result) {
       logger.info("updateWitness " + " successful !!");
     } else {
@@ -874,20 +914,25 @@ public class Client {
 
   private void voteWitness(String[] parameters)
       throws IOException, CipherException, CancelException {
-    if (parameters == null || parameters.length < 2 || (parameters.length & 1) != 0) {
+    if (parameters == null || parameters.length < 2) {
       System.out.println("Use VoteWitness command with below syntax: ");
-      System.out.println("VoteWitness Address0 Count0 ... AddressN CountN");
+      System.out.println("VoteWitness Address0 Count0 ... AddressN CountN [delaySeconds]");
       return;
     }
 
     HashMap<String, String> witness = new HashMap<String, String>();
-    for (int i = 0; i < parameters.length; i += 2) {
+    int i = 0;
+    for (; i < parameters.length; i += 2) {
       String address = parameters[i];
       String countStr = parameters[i + 1];
       witness.put(address, countStr);
     }
+    long delaySeconds = 0;
+    if (i != parameters.length - 1) {
+      delaySeconds = new Long(parameters[parameters.length - 1]);
+    }
 
-    boolean result = walletApiWrapper.voteWitness(witness);
+    boolean result = walletApiWrapper.voteWitness(witness, delaySeconds);
     if (result) {
       logger.info("VoteWitness " + " successful !!");
     } else {
@@ -898,12 +943,12 @@ public class Client {
   private void freezeBalance(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || !(parameters.length == 2 || parameters.length == 3
-        || parameters.length == 4)) {
+        || parameters.length == 4 || parameters.length == 5)) {
       System.out.println("Use freezeBalance command with below syntax: ");
       System.out
           .println(
               "freezeBalance frozen_balance frozen_duration [ResourceCode:0 BANDWIDTH,1 ENERGY] "
-                  + "[receiverAddress]");
+                  + "[receiverAddress] [delaySeconds]");
       return;
     }
 
@@ -922,8 +967,13 @@ public class Client {
       resourceCode = Integer.parseInt(parameters[2]);
       receiverAddress = parameters[3];
     }
+
+    long delaySeconds = 0;
+    if (parameters.length == 5) {
+      delaySeconds = new Long(parameters[parameters.length - 1]);
+    }
     boolean result = walletApiWrapper.freezeBalance(frozen_balance, frozen_duration, resourceCode,
-        receiverAddress);
+        receiverAddress, delaySeconds);
     if (result) {
       logger.info("freezeBalance " + " successful !!");
     } else {
@@ -985,9 +1035,9 @@ public class Client {
 
   private void unfreezeBalance(String[] parameters)
       throws IOException, CipherException, CancelException {
-    if (parameters.length > 2) {
+    if (parameters.length > 3) {
       System.out.println("Use unfreezeBalance command with below syntax: ");
-      System.out.println("unfreezeBalance  [ResourceCode:0 BANDWIDTH,1 CPU]" + "[receiverAddress]");
+      System.out.println("unfreezeBalance  [ResourceCode:0 BANDWIDTH,1 CPU]" + "[receiverAddress] [delaySeconds]");
       return;
     }
 
@@ -1007,7 +1057,12 @@ public class Client {
       receiverAddress = parameters[1];
     }
 
-    boolean result = walletApiWrapper.unfreezeBalance(resourceCode, receiverAddress);
+    long delaySeconds = 0;
+    if(parameters.length == 3) {
+      delaySeconds = new Long(parameters[2]);
+    }
+
+    boolean result = walletApiWrapper.unfreezeBalance(resourceCode, receiverAddress, delaySeconds);
     if (result) {
       logger.info("unfreezeBalance " + " successful !!");
     } else {
@@ -1016,8 +1071,18 @@ public class Client {
   }
 
 
-  private void unfreezeAsset() throws IOException, CipherException, CancelException {
-    boolean result = walletApiWrapper.unfreezeAsset();
+  private void unfreezeAsset(String[] parameters) throws IOException, CipherException, CancelException {
+    if (parameters != null || parameters.length != 1) {
+      System.out.println("Use unfreezeAsset command with below syntax: ");
+      System.out.println("unfreezeAsset [delaySeconds]");
+      return;
+
+    }
+    long delaySeconds = 0;
+    if (parameters.length == 1) {
+      delaySeconds = new Long(parameters[0]);
+    }
+    boolean result = walletApiWrapper.unfreezeAsset(delaySeconds);
     if (result) {
       logger.info("unfreezeAsset " + " successful !!");
     } else {
@@ -1027,19 +1092,26 @@ public class Client {
 
   private void createProposal(String[] parameters)
       throws IOException, CipherException, CancelException {
-    if (parameters == null || parameters.length < 2 || (parameters.length & 1) != 0) {
+    if (parameters == null || parameters.length < 2) {
       System.out.println("Use createProposal command with below syntax: ");
-      System.out.println("createProposal id0 value0 ... idN valueN");
+      System.out.println("createProposal id0 value0 ... idN valueN [delaySeconds]");
       return;
+
     }
 
     HashMap<Long, Long> parametersMap = new HashMap<>();
-    for (int i = 0; i < parameters.length; i += 2) {
+    int i = 0;
+    for (; i < parameters.length; i += 2) {
       long id = Long.valueOf(parameters[i]);
       long value = Long.valueOf(parameters[i + 1]);
       parametersMap.put(id, value);
     }
-    boolean result = walletApiWrapper.createProposal(parametersMap);
+
+    long delaySeconds = 0;
+    if (i != parameters.length - 1) {
+      delaySeconds = new Long(parameters[parameters.length - 1]);
+    }
+    boolean result = walletApiWrapper.createProposal(parametersMap, delaySeconds);
     if (result) {
       logger.info("createProposal " + " successful !!");
     } else {
@@ -1049,14 +1121,18 @@ public class Client {
 
   private void approveProposal(String[] parameters)
       throws IOException, CipherException, CancelException {
-    if (parameters == null || parameters.length != 2) {
+    if (parameters == null || (parameters.length != 2 && parameters.length != 3)) {
       System.out.println("Use approveProposal command with below syntax: ");
-      System.out.println("approveProposal id is_or_not_add_approval");
+      System.out.println("approveProposal id is_or_not_add_approval [delaySeconds]");
       return;
     }
 
     long id = Long.valueOf(parameters[0]);
     boolean is_add_approval = Boolean.valueOf(parameters[1]);
+    long delaySeconds = 0;
+    if (parameters.length == 3) {
+      delaySeconds = new Long(parameters[parameters.length - 1]);
+    }
     boolean result = walletApiWrapper.approveProposal(id, is_add_approval);
     if (result) {
       logger.info("approveProposal " + " successful !!");
@@ -1067,14 +1143,18 @@ public class Client {
 
   private void deleteProposal(String[] parameters)
       throws IOException, CipherException, CancelException {
-    if (parameters == null || parameters.length != 1) {
+    if (parameters == null || (parameters.length != 1 && parameters.length != 2)) {
       System.out.println("Use deleteProposal command with below syntax: ");
-      System.out.println("deleteProposal proposalId");
+      System.out.println("deleteProposal proposalId [delaySeconds]");
       return;
     }
 
     long id = Long.valueOf(parameters[0]);
-    boolean result = walletApiWrapper.deleteProposal(id);
+    long delaySeconds = 0;
+    if (parameters.length == 2) {
+      delaySeconds = new Long(parameters[1]);
+    }
+    boolean result = walletApiWrapper.deleteProposal(id, delaySeconds);
     if (result) {
       logger.info("deleteProposal " + " successful !!");
     } else {
@@ -1150,10 +1230,10 @@ public class Client {
 
   private void exchangeCreate(String[] parameters)
       throws IOException, CipherException, CancelException {
-    if (parameters == null || parameters.length != 4) {
+    if (parameters == null || (parameters.length != 4 && parameters.length != 5)) {
       System.out.println("Use exchangeCreate command with below syntax: ");
       System.out.println("exchangeCreate first_token_id first_token_balance "
-          + "second_token_id second_token_balance");
+          + "second_token_id second_token_balance [delaySeconds]");
       return;
     }
 
@@ -1161,8 +1241,12 @@ public class Client {
     long firstTokenBalance = Long.parseLong(parameters[1]);
     byte[] secondTokenId = parameters[2].getBytes();
     long secondTokenBalance = Long.parseLong(parameters[3]);
+    long delaySeconds = 0;
+    if (parameters.length == 5) {
+      delaySeconds = new Long(parameters[4]);
+    }
     boolean result = walletApiWrapper.exchangeCreate(firstTokenId, firstTokenBalance,
-        secondTokenId, secondTokenBalance);
+        secondTokenId, secondTokenBalance, delaySeconds);
     if (result) {
       logger.info("exchange create " + " successful !!");
     } else {
@@ -1172,15 +1256,19 @@ public class Client {
 
   private void exchangeInject(String[] parameters)
       throws IOException, CipherException, CancelException {
-    if (parameters == null || parameters.length != 3) {
+    if (parameters == null || (parameters.length != 3 && parameters.length != 4)) {
       System.out.println("Use exchangeInject command with below syntax: ");
-      System.out.println("exchangeInject exchange_id token_id quant");
+      System.out.println("exchangeInject exchange_id token_id quant [delaySeconds]");
       return;
     }
 
     long exchangeId = Long.valueOf(parameters[0]);
     byte[] tokenId = parameters[1].getBytes();
     long quant = Long.valueOf(parameters[2]);
+    long delaySeconds = 0;
+    if (parameters.length == 4) {
+      delaySeconds = new Long(parameters[3]);
+    }
     boolean result = walletApiWrapper.exchangeInject(exchangeId, tokenId, quant);
     if (result) {
       logger.info("exchange inject " + " successful !!");
@@ -1191,7 +1279,7 @@ public class Client {
 
   private void exchangeWithdraw(String[] parameters)
       throws IOException, CipherException, CancelException {
-    if (parameters == null || parameters.length != 3) {
+    if (parameters == null || (parameters.length != 3 && parameters.length != 4)) {
       System.out.println("Use exchangeWithdraw command with below syntax: ");
       System.out.println("exchangeWithdraw exchange_id token_id quant");
       return;
@@ -1200,7 +1288,12 @@ public class Client {
     long exchangeId = Long.valueOf(parameters[0]);
     byte[] tokenId = parameters[1].getBytes();
     long quant = Long.valueOf(parameters[2]);
-    boolean result = walletApiWrapper.exchangeWithdraw(exchangeId, tokenId, quant);
+    long delaySeconds = 0;
+    if (parameters.length == 4) {
+      delaySeconds = new Long(parameters[3]);
+    }
+
+    boolean result = walletApiWrapper.exchangeWithdraw(exchangeId, tokenId, quant, delaySeconds);
     if (result) {
       logger.info("exchange withdraw " + " successful !!");
     } else {
@@ -1210,7 +1303,7 @@ public class Client {
 
   private void exchangeTransaction(String[] parameters)
       throws IOException, CipherException, CancelException {
-    if (parameters == null || parameters.length != 4) {
+    if (parameters == null || (parameters.length != 4 && parameters.length != 5)) {
       System.out.println("Use exchangeTransaction command with below syntax: ");
       System.out.println("exchangeTransaction exchange_id token_id quant expected");
       return;
@@ -1220,7 +1313,11 @@ public class Client {
     byte[] tokenId = parameters[1].getBytes();
     long quant = Long.valueOf(parameters[2]);
     long expected = Long.valueOf(parameters[3]);
-    boolean result = walletApiWrapper.exchangeTransaction(exchangeId, tokenId, quant, expected);
+    long delaySeconds = 0;
+    if (parameters.length == 5) {
+      delaySeconds = new Long(parameters[4]);
+    }
+    boolean result = walletApiWrapper.exchangeTransaction(exchangeId, tokenId, quant, expected, delaySeconds);
     if (result) {
       logger.info("exchange Transaction " + " successful !!");
     } else {
@@ -1255,8 +1352,19 @@ public class Client {
     }
   }
 
-  private void withdrawBalance() throws IOException, CipherException, CancelException {
-    boolean result = walletApiWrapper.withdrawBalance();
+  private void withdrawBalance(String[] parameters) throws IOException, CipherException, CancelException {
+    if (parameters != null && parameters.length > 1){
+      System.out.println("withdrawBalance needs 0 or 1 parameter like following: ");
+      System.out.println("withdrawBalance [delaySeconds]");
+      return;
+    }
+
+    long delaySeconds = 0;
+    if (parameters != null && parameters.length == 1) {
+      delaySeconds = new Long(parameters[0]);
+    }
+
+    boolean result = walletApiWrapper.withdrawBalance(delaySeconds);
     if (result) {
       logger.info("withdrawBalance " + " successful !!");
     } else {
@@ -1564,9 +1672,9 @@ public class Client {
   private void updateSetting(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null ||
-        parameters.length < 2) {
-      System.out.println("updateSetting needs 2 parameters like following: ");
-      System.out.println("updateSetting contract_address consume_user_resource_percent");
+        parameters.length < 3) {
+      System.out.println("updateSetting needs 2 or 3 parameters like following: ");
+      System.out.println("updateSetting contract_address consume_user_resource_percent [delaySeconds]");
       return;
     }
 
@@ -1576,7 +1684,13 @@ public class Client {
       System.out.println("consume_user_resource_percent must >= 0 and <= 100");
       return;
     }
-    boolean result = walletApiWrapper.updateSetting(contractAddress, consumeUserResourcePercent);
+
+    long delaySeconds = 0;
+    if (parameters.length == 3) {
+      delaySeconds = new Long(parameters[2]);
+    }
+
+    boolean result = walletApiWrapper.updateSetting(contractAddress, consumeUserResourcePercent, delaySeconds);
     if (result) {
       System.out.println("update setting successfully");
     } else {
@@ -1586,10 +1700,9 @@ public class Client {
 
   private void updateEnergyLimit(String[] parameters)
       throws IOException, CipherException, CancelException {
-    if (parameters == null ||
-        parameters.length < 2) {
-      System.out.println("updateEnergyLimit needs 2 parameters like following: ");
-      System.out.println("updateEnergyLimit contract_address energy_limit");
+    if (parameters == null || parameters.length < 3) {
+      System.out.println("updateEnergyLimit needs 2 or 3 parameters like following: ");
+      System.out.println("updateEnergyLimit contract_address energy_limit [delaySeconds]");
       return;
     }
 
@@ -1599,7 +1712,12 @@ public class Client {
       System.out.println("origin_energy_limit need > 0 ");
       return;
     }
-    boolean result = walletApiWrapper.updateEnergyLimit(contractAddress, originEnergyLimit);
+
+    long delaySeconds = 0;
+    if (parameters.length == 3) {
+      delaySeconds = new Long(parameters[parameters.length - 1]);
+    }
+    boolean result = walletApiWrapper.updateEnergyLimit(contractAddress, originEnergyLimit, delaySeconds);
     if (result) {
       System.out.println("update setting for origin_energy_limit successfully");
     } else {
@@ -1629,6 +1747,70 @@ public class Client {
 
     } else {
       return null;
+    }
+
+  }
+
+  private void deployDeferredContract(String[] parameter)
+      throws IOException, CipherException, CancelException, EncodingException {
+    String[] parameters = getParas(parameter);
+    if (parameters == null ||
+        parameters.length < 12) {
+      System.out.println("DeployContract needs at least 8 parameters like following: ");
+      System.out.println(
+          "DeployContract contractName ABI byteCode constructor params isHex fee_limit consume_user_resource_percent origin_energy_limit value token_value token_id deploySeconds(e.g: TRXTOKEN, use # if don't provided) <library:address,library:address,...>");
+      System.out.println(
+          "Note: Please append the param for constructor tightly with byteCode without any space");
+      return;
+    }
+    int idx = 0;
+    String contractName = parameters[idx++];
+    String abiStr = parameters[idx++];
+    String codeStr = parameters[idx++];
+    String constructorStr = parameters[idx++];
+    String argsStr = parameters[idx++];
+    boolean isHex = Boolean.parseBoolean(parameters[idx++]);
+    long feeLimit = Long.parseLong(parameters[idx++]);
+    long consumeUserResourcePercent = Long.parseLong(parameters[idx++]);
+    long originEnergyLimit = Long.parseLong(parameters[idx++]);
+    if (consumeUserResourcePercent > 100 || consumeUserResourcePercent < 0) {
+      System.out.println("consume_user_resource_percent should be >= 0 and <= 100");
+      return;
+    }
+    if (originEnergyLimit <= 0) {
+      System.out.println("origin_energy_limit must > 0");
+      return;
+    }
+    if (!constructorStr.equals("#")) {
+      if (isHex) {
+        codeStr += argsStr;
+      } else {
+        codeStr += Hex.toHexString(AbiUtil.encodeInput(constructorStr, argsStr));
+      }
+    }
+    long value = 0;
+    value = Long.valueOf(parameters[idx++]);
+    long tokenValue = Long.valueOf(parameters[idx++]);
+    String tokenId = parameters[idx++];
+    if (tokenId == "#") {
+      tokenId = "";
+    }
+    String libraryAddressPair = null;
+    long delaySeconds = new Long(parameters[idx++]);
+    if (parameters.length > idx) {
+      libraryAddressPair = parameters[idx];
+    }
+    // TODO: consider to remove "data"
+    /* Consider to move below null value, since we append the constructor param just after bytecode without any space.
+     * Or we can re-design it to give other developers better user experience. Set this value in protobuf as null for now.
+     */
+    boolean result = walletApiWrapper.deployContract(contractName, abiStr, codeStr, feeLimit, value,
+        consumeUserResourcePercent, originEnergyLimit, tokenValue, tokenId, libraryAddressPair, delaySeconds);
+    if (result) {
+      System.out.println("Broadcast the createSmartContract successfully.\n"
+          + "Please check the given transaction id to confirm deploy status on blockchain using getTransactionInfoById command.");
+    } else {
+      System.out.println("Broadcast the createSmartContract failed");
     }
 
   }
@@ -1687,7 +1869,7 @@ public class Client {
      * Or we can re-design it to give other developers better user experience. Set this value in protobuf as null for now.
      */
     boolean result = walletApiWrapper.deployContract(contractName, abiStr, codeStr, feeLimit, value,
-        consumeUserResourcePercent, originEnergyLimit, tokenValue, tokenId, libraryAddressPair);
+        consumeUserResourcePercent, originEnergyLimit, tokenValue, tokenId, libraryAddressPair, 0);
     if (result) {
       System.out.println("Broadcast the createSmartContract successfully.\n"
           + "Please check the given transaction id to confirm deploy status on blockchain using getTransactionInfoById command.");
@@ -1699,10 +1881,10 @@ public class Client {
   private void triggerContract(String[] parameters)
       throws IOException, CipherException, CancelException, EncodingException {
     if (parameters == null ||
-        parameters.length < 8) {
+        parameters.length < 9) {
       System.out.println("TriggerContract needs 6 parameters like following: ");
       System.out.println(
-          "TriggerContract contractAddress method args isHex fee_limit value token_value token_id(e.g: TRXTOKEN, use # if don't provided)");
+          "TriggerContract contractAddress method args isHex fee_limit value token_value token_id 【delaySeconds】(e.g: TRXTOKEN, use # if don't provided)");
       // System.out.println("example:\nTriggerContract password contractAddress method args value");
       return;
     }
@@ -1715,6 +1897,10 @@ public class Client {
     long callValue = Long.valueOf(parameters[5]);
     long tokenCallValue = Long.valueOf(parameters[6]);
     String tokenId = parameters[7];
+    long delaySeconds = 0;
+    if (parameters.length == 9) {
+      delaySeconds = new Long(parameters[8]);
+    }
     if (argsStr.equalsIgnoreCase("#")) {
       argsStr = "";
     }
@@ -1725,7 +1911,7 @@ public class Client {
     byte[] contractAddress = WalletApi.decodeFromBase58Check(contractAddrStr);
 
     boolean result = walletApiWrapper
-        .callContract(contractAddress, callValue, input, feeLimit, tokenCallValue, tokenId);
+        .callContract(contractAddress, callValue, input, feeLimit, tokenCallValue, tokenId, delaySeconds);
     if (result) {
       System.out.println("Broadcast the triggerContract successfully.\n"
           + "Please check the given transaction id to get the result on blockchain using getTransactionInfoById command");
@@ -1811,7 +1997,7 @@ public class Client {
     System.out.println("GetContract contractAddress");
     System.out.println("GetDelegatedResource");
     System.out.println("GetDelegatedResourceAccountIndex");
-    System.out.println("GetDefferedTransactionById");
+    System.out.println("GetDeferredTransactionById");
     System.out.println("GetExchange");
     System.out.println("GetNextMaintenanceTime");
     System.out.println("GetProposal");
@@ -1835,13 +2021,12 @@ public class Client {
     System.out.println("ParticipateAssetIssue");
     System.out.println("RegisterWallet");
     System.out.println("SendCoin");
-    System.out.println("CancelDefferedTransaction");
+    System.out.println("CancelDeferredTransaction");
     System.out.println("SetAccountId");
     System.out.println("TransferAsset");
     System.out.println("TriggerContract contractAddress method args isHex fee_limit value");
     System.out.println("UnfreezeAsset");
     System.out.println("UnfreezeBalance");
-    System.out.println("UnfreezeAsset");
     System.out.println("UpdateAccount");
     System.out.println("UpdateAsset");
     System.out.println("UpdateEnergyLimit contract_address energy_limit");
@@ -2015,8 +2200,8 @@ public class Client {
             sendCoin(parameters);
             break;
           }
-          case "canceldefferedtransaction": {
-            cancelDefferedTransaction(parameters);
+          case "canceldeferredtransaction": {
+            cancelDeferredTransaction(parameters);
             break;
           }
 
@@ -2073,11 +2258,11 @@ public class Client {
             break;
           }
           case "withdrawbalance": {
-            withdrawBalance();
+            withdrawBalance(parameters);
             break;
           }
           case "unfreezeasset": {
-            unfreezeAsset();
+            unfreezeAsset(parameters);
             break;
           }
           case "createproposal": {
@@ -2112,8 +2297,8 @@ public class Client {
             getDelegatedResourceAccountIndex(parameters);
             break;
           }
-          case "getdefferedtransactionbyid": {
-            getDefferedTransactionbyid(parameters);
+          case "getdeferredtransactionbyid": {
+            getDeferredTransactionbyid(parameters);
           }
           case "exchangecreate": {
             exchangeCreate(parameters);
@@ -2237,6 +2422,10 @@ public class Client {
           }
           case "deploycontract": {
             deployContract(parameters);
+            break;
+          }
+          case "deployDeferredcontract": {
+            deployDeferredContract(parameters);
             break;
           }
           case "triggercontract": {
