@@ -571,15 +571,13 @@ public class WalletApi {
         && rpcCli.broadcastTransaction(transaction);
   }
 
-  public boolean createAssetIssue(Contract.AssetIssueContract contract, long delaySeconds)
-      throws CipherException, IOException, CancelException {
+  public boolean createAssetIssue(Contract.AssetIssueContract contract)
+          throws CipherException, IOException, CancelException {
     if (rpcVersion == 2) {
       TransactionExtention transactionExtention = rpcCli.createAssetIssue2(contract);
-      transactionExtention = TransactionUtils.setDelaySecondsToExtension(transactionExtention, delaySeconds);
       return processTransactionExtention(transactionExtention);
     } else {
       Transaction transaction = rpcCli.createAssetIssue(contract);
-      transaction = TransactionUtils.setDelaySeconds(transaction, delaySeconds);
       return processTransaction(transaction);
     }
   }

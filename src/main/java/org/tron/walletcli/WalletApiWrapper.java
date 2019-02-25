@@ -156,7 +156,7 @@ public class WalletApiWrapper {
       Transaction transaction = result.get();
       logger.info(Utils.printTransaction(transaction));
     } else {
-      logger.info("getTransactionById " + " failed !!");
+      logger.info("getDeferredTransaction " + " failed !!");
     }
   }
 
@@ -212,7 +212,7 @@ public class WalletApiWrapper {
 
   public boolean assetIssue(String name, long totalSupply, int trxNum, int icoNum, int precision,
       long startTime, long endTime, int voteScore, String description, String url,
-      long freeNetLimit, long publicFreeNetLimit, HashMap<String, String> frozenSupply, long delaySeconds)
+      long freeNetLimit, long publicFreeNetLimit, HashMap<String, String> frozenSupply)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: assetIssue failed,  Please login first !!");
@@ -277,7 +277,7 @@ public class WalletApiWrapper {
       builder.addFrozenSupply(frozenSupplyBuilder.build());
     }
 
-    return wallet.createAssetIssue(builder.build(), delaySeconds);
+    return wallet.createAssetIssue(builder.build());
   }
 
   public boolean createAccount(String address, long delaySeconds)

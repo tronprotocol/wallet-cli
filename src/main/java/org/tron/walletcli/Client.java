@@ -502,9 +502,9 @@ public class Client {
     String trxId = parameters[0];
     boolean result = walletApiWrapper.cancelDeferredTransaction(trxId);
     if (result) {
-      logger.info("CancelDeferredTransaction is successful");
+      logger.info("CancelDeferredTransaction successfully");
     } else {
-      logger.info("CancelDeferredTransaction is failed !!");
+      logger.info("CancelDeferredTransaction failed!!");
     }
 
   }
@@ -652,19 +652,19 @@ public class Client {
   }
 
   private void assetIssue(String[] parameters)
-      throws IOException, CipherException, CancelException {
-    if (parameters == null || parameters.length < 12) {
+          throws IOException, CipherException, CancelException {
+    if (parameters == null || parameters.length < 11 || (parameters.length & 1) == 0) {
       System.out
-          .println("Use the assetIssue command for features that you require with below syntax: ");
+              .println("Use the assetIssue command for features that you require with below syntax: ");
       System.out.println(
-          "AssetIssue AssetName TotalSupply TrxNum AssetNum Precision "
-              + "StartDate EndDate Description Url FreeNetLimitPerAccount PublicFreeNetLimit "
-              + "FrozenAmount0 FrozenDays0 ... FrozenAmountN FrozenDaysN [delaySeconds]");
+              "AssetIssue AssetName TotalSupply TrxNum AssetNum Precision "
+                      + "StartDate EndDate Description Url FreeNetLimitPerAccount PublicFreeNetLimit "
+                      + "FrozenAmount0 FrozenDays0 ... FrozenAmountN FrozenDaysN");
       System.out
-          .println(
-              "TrxNum and AssetNum represents the conversion ratio of the tron to the asset.");
+              .println(
+                      "TrxNum and AssetNum represents the conversion ratio of the tron to the asset.");
       System.out
-          .println("The StartDate and EndDate format should look like 2018-3-1 2018-3-21 .");
+              .println("The StartDate and EndDate format should look like 2018-3-1 2018-3-21 .");
       return;
     }
 
@@ -679,17 +679,11 @@ public class Client {
     String url = parameters[8];
     String freeNetLimitPerAccount = parameters[9];
     String publicFreeNetLimitString = parameters[10];
-    int i = 11;
     HashMap<String, String> frozenSupply = new HashMap<>();
-    for (; i < parameters.length; i += 2) {
+    for (int i = 11; i < parameters.length; i += 2) {
       String amount = parameters[i];
       String days = parameters[i + 1];
       frozenSupply.put(days, amount);
-    }
-
-    long delaySeconds = 0;
-    if (i != parameters.length - 1) {
-      delaySeconds = new Long(parameters[parameters.length - 1]);
     }
 
     long totalSupply = new Long(totalSupplyStr);
@@ -704,8 +698,8 @@ public class Client {
     long publicFreeNetLimit = new Long(publicFreeNetLimitString);
 
     boolean result = walletApiWrapper
-        .assetIssue(name, totalSupply, trxNum, icoNum, precision, startTime, endTime,
-            0, description, url, freeAssetNetLimit, publicFreeNetLimit, frozenSupply, delaySeconds);
+            .assetIssue(name, totalSupply, trxNum, icoNum, precision, startTime, endTime,
+                    0, description, url, freeAssetNetLimit, publicFreeNetLimit, frozenSupply);
     if (result) {
       logger.info("AssetIssue " + name + " successful !!");
     } else {
@@ -2299,6 +2293,7 @@ public class Client {
           }
           case "getdeferredtransactionbyid": {
             getDeferredTransactionbyid(parameters);
+            break;
           }
           case "exchangecreate": {
             exchangeCreate(parameters);
