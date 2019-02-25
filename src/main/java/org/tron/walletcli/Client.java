@@ -729,20 +729,16 @@ public class Client {
   }
 
   private void createWitness(String[] parameters)
-      throws IOException, CipherException, CancelException {
-    if (parameters == null || (parameters.length != 1 && parameters.length != 2)) {
+          throws IOException, CipherException, CancelException {
+    if (parameters == null || parameters.length != 1) {
       System.out.println("CreateWitness needs 1 parameter using the following syntax: ");
-      System.out.println("CreateWitness Url [delaySeconds]");
+      System.out.println("CreateWitness Url");
       return;
     }
 
     String url = parameters[0];
-    long delaySeconds = 0;
-    if (parameters.length == 2) {
-      delaySeconds = new Long(parameters[1]);
-    }
 
-    boolean result = walletApiWrapper.createWitness(url, delaySeconds);
+    boolean result = walletApiWrapper.createWitness(url);
     if (result) {
       logger.info("CreateWitness " + " successful !!");
     } else {
@@ -751,20 +747,16 @@ public class Client {
   }
 
   private void updateWitness(String[] parameters)
-      throws IOException, CipherException, CancelException {
-    if (parameters == null || (parameters.length != 1 && parameters.length != 2)) {
+          throws IOException, CipherException, CancelException {
+    if (parameters == null || parameters.length != 1) {
       System.out.println("updateWitness needs 1 parameter using the following syntax: ");
-      System.out.println("updateWitness Url [delaySeconds]");
+      System.out.println("updateWitness Url");
       return;
     }
 
     String url = parameters[0];
 
-    long delaySeconds = 0;
-    if (parameters.length == 2){
-      delaySeconds = new Long(parameters[1]);
-    }
-    boolean result = walletApiWrapper.updateWitness(url, delaySeconds);
+    boolean result = walletApiWrapper.updateWitness(url);
     if (result) {
       logger.info("updateWitness " + " successful !!");
     } else {
@@ -907,26 +899,21 @@ public class Client {
   }
 
   private void voteWitness(String[] parameters)
-      throws IOException, CipherException, CancelException {
-    if (parameters == null || parameters.length < 2) {
+          throws IOException, CipherException, CancelException {
+    if (parameters == null || parameters.length < 2 || (parameters.length & 1) != 0) {
       System.out.println("Use VoteWitness command with below syntax: ");
-      System.out.println("VoteWitness Address0 Count0 ... AddressN CountN [delaySeconds]");
+      System.out.println("VoteWitness Address0 Count0 ... AddressN CountN");
       return;
     }
 
     HashMap<String, String> witness = new HashMap<String, String>();
-    int i = 0;
-    for (; i < parameters.length; i += 2) {
+    for (int i = 0; i < parameters.length; i += 2) {
       String address = parameters[i];
       String countStr = parameters[i + 1];
       witness.put(address, countStr);
     }
-    long delaySeconds = 0;
-    if (i != parameters.length - 1) {
-      delaySeconds = new Long(parameters[parameters.length - 1]);
-    }
 
-    boolean result = walletApiWrapper.voteWitness(witness, delaySeconds);
+    boolean result = walletApiWrapper.voteWitness(witness);
     if (result) {
       logger.info("VoteWitness " + " successful !!");
     } else {

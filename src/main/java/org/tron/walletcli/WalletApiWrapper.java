@@ -300,22 +300,22 @@ public class WalletApiWrapper {
   }
 
 
-  public boolean createWitness(String url, long delaySeconds) throws CipherException, IOException, CancelException {
+  public boolean createWitness(String url) throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: createWitness failed,  Please login first !!");
       return false;
     }
 
-    return wallet.createWitness(url.getBytes(), delaySeconds);
+    return wallet.createWitness(url.getBytes());
   }
 
-  public boolean updateWitness(String url, long delaySeconds) throws CipherException, IOException, CancelException {
+  public boolean updateWitness(String url) throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: updateWitness failed,  Please login first !!");
       return false;
     }
 
-    return wallet.updateWitness(url.getBytes(), delaySeconds);
+    return wallet.updateWitness(url.getBytes());
   }
 
   public Block getBlock(long blockNum) {
@@ -330,14 +330,14 @@ public class WalletApiWrapper {
     return WalletApi.getBlock2(blockNum);
   }
 
-  public boolean voteWitness(HashMap<String, String> witness, long delaySeconds)
+  public boolean voteWitness(HashMap<String, String> witness)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: VoteWitness failed,  Please login first !!");
       return false;
     }
 
-    return wallet.voteWitness(witness, delaySeconds);
+    return wallet.voteWitness(witness);
   }
 
   public Optional<WitnessList> listWitnesses() {
