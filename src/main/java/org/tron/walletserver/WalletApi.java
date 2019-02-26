@@ -75,6 +75,7 @@ import org.tron.protos.Contract.WithdrawBalanceContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.ChainParameters;
+import org.tron.protos.Protocol.DeferredTransaction;
 import org.tron.protos.Protocol.DelegatedResourceAccountIndex;
 import org.tron.protos.Protocol.Exchange;
 import org.tron.protos.Protocol.Proposal;
@@ -456,7 +457,7 @@ public class WalletApi {
     return rpcCli.easyTransferAssetByPrivate(privateKey, toAddress, assetId, amount);
   }
 
-  public  Optional<Transaction> getDeferredTransaction(String trxId) {
+  public  Optional<DeferredTransaction> getDeferredTransaction(String trxId) {
     return rpcCli.getDeferredTransactionById(trxId);
   }
 

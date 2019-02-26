@@ -23,6 +23,7 @@ import org.tron.protos.Contract.AssetIssueContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.ChainParameters;
+import org.tron.protos.Protocol.DeferredTransaction;
 import org.tron.protos.Protocol.Exchange;
 import org.tron.protos.Protocol.Proposal;
 import org.tron.protos.Protocol.Transaction;
@@ -147,14 +148,10 @@ public class WalletApiWrapper {
   }
 
   public void getDeferredTransaction(String trxId) throws CipherException, IOException, CancelException{
-    if (wallet == null || !wallet.isLoginState()) {
-      logger.warn("Warning: GetDeferredTransaction failed,  Please login first !!");
-      return;
-    }
-    Optional<Transaction> result = wallet.getDeferredTransaction(trxId);
+    Optional<DeferredTransaction> result = wallet.getDeferredTransaction(trxId);
     if (result.isPresent()) {
-      Transaction transaction = result.get();
-      logger.info(Utils.printTransaction(transaction));
+      DeferredTransaction deferredTransaction = result.get();
+      logger.info(Utils.printDeferredTransaction(deferredTransaction));
     } else {
       logger.info("getDeferredTransaction " + " failed !!");
     }

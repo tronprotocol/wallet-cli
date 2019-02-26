@@ -46,6 +46,7 @@ import org.tron.protos.Contract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.ChainParameters;
+import org.tron.protos.Protocol.DeferredTransaction;
 import org.tron.protos.Protocol.DelegatedResourceAccountIndex;
 import org.tron.protos.Protocol.Exchange;
 import org.tron.protos.Protocol.Proposal;
@@ -710,10 +711,10 @@ public class GrpcClient {
 //    return blockingStubExtension.getTransactionsToThisCount(account);
 //  }
 
-  public Optional<Transaction> getDeferredTransactionById(String txID) {
+  public Optional<DeferredTransaction> getDeferredTransactionById(String txID) {
     ByteString bsTxid = ByteString.copyFrom(ByteArray.fromHexString(txID));
     BytesMessage request = BytesMessage.newBuilder().setValue(bsTxid).build();
-    Transaction transaction = blockingStubFull.getDeferredTransactionById(request);
+    DeferredTransaction transaction = blockingStubFull.getDeferredTransactionById(request);
     if (Objects.isNull(transaction)) {
       transaction = blockingStubFull.getDeferredTransactionById(request);
     }

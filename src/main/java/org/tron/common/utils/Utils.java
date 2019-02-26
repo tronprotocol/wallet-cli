@@ -80,6 +80,7 @@ import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.BlockHeader;
 import org.tron.protos.Protocol.ChainParameters;
 import org.tron.protos.Protocol.ChainParameters.ChainParameter;
+import org.tron.protos.Protocol.DeferredTransaction;
 import org.tron.protos.Protocol.DelegatedResource;
 import org.tron.protos.Protocol.DelegatedResourceAccountIndex;
 import org.tron.protos.Protocol.Exchange;
@@ -1178,6 +1179,77 @@ public class Utils {
       i++;
     }
     return results;
+  }
+
+  public static String printDeferredTransaction(DeferredTransaction deferredTransaction) {
+    String result = "";
+    result += "hash: ";
+    result += "\n";
+    result += ByteArray.toHexString(Sha256Hash.hash(deferredTransaction.toByteArray()));
+    result += "\n";
+    result += "txid: ";
+    result += "\n";
+    result += ByteArray.toHexString(Sha256Hash.hash(deferredTransaction.getTransaction().getRawData().toByteArray()));
+    result += "\n";
+
+    result += "getReceiverAddress: ";
+    result += "\n";
+    result += deferredTransaction.getReceiverAddress();
+    result += "\n";
+
+    result += "getSenderAddress: ";
+    result += "\n";
+    result += deferredTransaction.getSenderAddress();
+    result += "\n";
+
+    result += "DelayUntil: ";
+    result += "\n";
+    result += deferredTransaction.getDelayUntil();
+    result += "\n";
+
+    result += "Expiration: ";
+    result += "\n";
+    result += deferredTransaction.getExpiration();
+    result += "\n";
+
+    result += "PublishTime: ";
+    result += "\n";
+    result += deferredTransaction.getPublishTime();
+    result += "\n";
+
+    result += "PublishTime: ";
+    result += "\n";
+    result += deferredTransaction.getPublishTime();
+    result += "\n";
+
+    if (deferredTransaction.getTransaction().getRawData() != null) {
+      result += "raw_data: ";
+      result += "\n";
+      result += "{";
+      result += "\n";
+      result += printTransactionRow(deferredTransaction.getTransaction().getRawData());
+      result += "}";
+      result += "\n";
+    }
+    if (deferredTransaction.getTransaction().getSignatureCount() > 0) {
+      result += "signature: ";
+      result += "\n";
+      result += "{";
+      result += "\n";
+      result += printSignature(deferredTransaction.getTransaction().getSignatureList());
+      result += "}";
+      result += "\n";
+    }
+    if (deferredTransaction.getTransaction().getRetCount() != 0) {
+      result += "ret: ";
+      result += "\n";
+      result += "{";
+      result += "\n";
+      result += printRet(deferredTransaction.getTransaction().getRetList());
+      result += "}";
+      result += "\n";
+    }
+    return result;
   }
 
   public static String printTransaction(Transaction transaction) {
