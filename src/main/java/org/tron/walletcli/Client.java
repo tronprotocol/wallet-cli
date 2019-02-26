@@ -1909,7 +1909,7 @@ public class Client {
     System.out.println(
         "DeployContract contractName ABI byteCode constructor params isHex fee_limit consume_user_resource_percent origin_energy_limit value token_value token_id <library:address,library:address,...>");
     System.out.println(
-        "DeployContract delaySeconds contractName ABI byteCode constructor params isHex fee_limit consume_user_resource_percent origin_energy_limit value token_value token_id <library:address,library:address,...>");
+        "DeployDeferredContract delaySeconds contractName ABI byteCode constructor params isHex fee_limit consume_user_resource_percent origin_energy_limit value token_value token_id <library:address,library:address,...>");
     System.out.println("ExchangeCreate");
     System.out.println("ExchangeInject");
     System.out.println("ExchangeTransaction");
