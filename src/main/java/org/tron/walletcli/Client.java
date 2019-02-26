@@ -1732,7 +1732,7 @@ public class Client {
 
   }
 
-  private void deployDeferredContract(String[] parameter)
+  private void deployContract(String[] parameter, boolean isDeferredContract)
       throws IOException, CipherException, CancelException, EncodingException {
     String[] parameters = getParas(parameter);
     if (parameters == null ||
@@ -1777,7 +1777,11 @@ public class Client {
       tokenId = "";
     }
     String libraryAddressPair = null;
-    long delaySeconds = new Long(parameters[idx++]);
+    long delaySeconds = 0;
+    if (isDeferredContract) {
+      delaySeconds = new Long(parameters[idx++]);
+    }
+
     if (parameters.length > idx) {
       libraryAddressPair = parameters[idx];
     }
@@ -1793,70 +1797,18 @@ public class Client {
     } else {
       System.out.println("Broadcast the createSmartContract failed");
     }
-
   }
 
-  private void deployContract(String[] parameter)
+  private void deployDeferredContract(String[] parameter)
       throws IOException, CipherException, CancelException, EncodingException {
+    boolean isDeferredContract = true;
+    deployContract(parameter, isDeferredContract);
+  }
 
-    String[] parameters = getParas(parameter);
-    if (parameters == null ||
-        parameters.length < 11) {
-      System.out.println("DeployContract needs at least 8 parameters like following: ");
-      System.out.println(
-          "DeployContract contractName ABI byteCode constructor params isHex fee_limit consume_user_resource_percent origin_energy_limit value token_value token_id(e.g: TRXTOKEN, use # if don't provided) <library:address,library:address,...>");
-      System.out.println(
-          "Note: Please append the param for constructor tightly with byteCode without any space");
-      return;
-    }
-    int idx = 0;
-    String contractName = parameters[idx++];
-    String abiStr = parameters[idx++];
-    String codeStr = parameters[idx++];
-    String constructorStr = parameters[idx++];
-    String argsStr = parameters[idx++];
-    boolean isHex = Boolean.parseBoolean(parameters[idx++]);
-    long feeLimit = Long.parseLong(parameters[idx++]);
-    long consumeUserResourcePercent = Long.parseLong(parameters[idx++]);
-    long originEnergyLimit = Long.parseLong(parameters[idx++]);
-    if (consumeUserResourcePercent > 100 || consumeUserResourcePercent < 0) {
-      System.out.println("consume_user_resource_percent should be >= 0 and <= 100");
-      return;
-    }
-    if (originEnergyLimit <= 0) {
-      System.out.println("origin_energy_limit must > 0");
-      return;
-    }
-    if (!constructorStr.equals("#")) {
-      if (isHex) {
-        codeStr += argsStr;
-      } else {
-        codeStr += Hex.toHexString(AbiUtil.encodeInput(constructorStr, argsStr));
-      }
-    }
-    long value = 0;
-    value = Long.valueOf(parameters[idx++]);
-    long tokenValue = Long.valueOf(parameters[idx++]);
-    String tokenId = parameters[idx++];
-    if (tokenId == "#") {
-      tokenId = "";
-    }
-    String libraryAddressPair = null;
-    if (parameters.length > idx) {
-      libraryAddressPair = parameters[idx];
-    }
-    // TODO: consider to remove "data"
-    /* Consider to move below null value, since we append the constructor param just after bytecode without any space.
-     * Or we can re-design it to give other developers better user experience. Set this value in protobuf as null for now.
-     */
-    boolean result = walletApiWrapper.deployContract(contractName, abiStr, codeStr, feeLimit, value,
-        consumeUserResourcePercent, originEnergyLimit, tokenValue, tokenId, libraryAddressPair, 0);
-    if (result) {
-      System.out.println("Broadcast the createSmartContract successfully.\n"
-          + "Please check the given transaction id to confirm deploy status on blockchain using getTransactionInfoById command.");
-    } else {
-      System.out.println("Broadcast the createSmartContract failed");
-    }
+  private void deployImmididateContract(String[] parameter)
+      throws IOException, CipherException, CancelException, EncodingException {
+    boolean isDeferredContract = false;
+    deployContract(parameter, isDeferredContract);
   }
 
   private void triggerContract(String[] parameters)
@@ -1956,6 +1908,8 @@ public class Client {
     System.out.println("DeleteProposal");
     System.out.println(
         "DeployContract contractName ABI byteCode constructor params isHex fee_limit consume_user_resource_percent origin_energy_limit value token_value token_id <library:address,library:address,...>");
+    System.out.println(
+        "DeployContract delaySeconds contractName ABI byteCode constructor params isHex fee_limit consume_user_resource_percent origin_energy_limit value token_value token_id <library:address,library:address,...>");
     System.out.println("ExchangeCreate");
     System.out.println("ExchangeInject");
     System.out.println("ExchangeTransaction");
@@ -2403,7 +2357,7 @@ public class Client {
             break;
           }
           case "deploycontract": {
-            deployContract(parameters);
+            deployImmididateContract(parameters);
             break;
           }
           case "deployDeferredcontract": {
