@@ -286,10 +286,21 @@ public class AbiUtil {
 
     for (int idx = 0;idx < codes.size();  idx++) {
       Coder coder = codes.get(idx);
-      String value = values.get(idx).toString();
-
+      Object parameter = values.get(idx);
+      String value;
+      if (parameter instanceof List) {
+        StringBuilder sb = new StringBuilder();
+        for (Object item: (List) parameter) {
+          if (sb.length() != 0) {
+            sb.append(",");
+          }
+          sb.append("\"").append(item).append("\"");
+        }
+        value = "[" + sb.toString() + "]";
+      } else {
+        value = parameter.toString();
+      }
       byte[] encoded = coder.encode(value);
-
       encodedList.add(encoded);
 
       if (coder.dynamic) {
