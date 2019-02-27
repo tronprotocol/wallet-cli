@@ -1194,12 +1194,12 @@ public class Utils {
 
     result += "getReceiverAddress: ";
     result += "\n";
-    result += deferredTransaction.getReceiverAddress();
+    result += WalletApi.encode58Check(deferredTransaction.getReceiverAddress().toByteArray());
     result += "\n";
 
     result += "getSenderAddress: ";
     result += "\n";
-    result += deferredTransaction.getSenderAddress();
+    result += WalletApi.encode58Check(deferredTransaction.getSenderAddress().toByteArray());
     result += "\n";
 
     result += "DelayUntil: ";

@@ -479,8 +479,7 @@ public class Client {
     }
   }
 
-  public void getDeferredTransactionbyid(String[] parameters)
-      throws IOException, CipherException, CancelException {
+  public void getDeferredTransactionbyid(String[] parameters) {
     if (parameters == null || parameters.length != 1) {
       System.out.println("GetDeferredTransactionbyid needs parameters like following: ");
       System.out.println("GetDeferredTransactionbyid transactionId");

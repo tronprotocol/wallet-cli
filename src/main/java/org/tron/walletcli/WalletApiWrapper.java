@@ -147,7 +147,7 @@ public class WalletApiWrapper {
     return wallet.queryAccount();
   }
 
-  public void getDeferredTransaction(String trxId) throws CipherException, IOException, CancelException{
+  public void getDeferredTransaction(String trxId){
     Optional<DeferredTransaction> result = wallet.getDeferredTransaction(trxId);
     if (result.isPresent()) {
       DeferredTransaction deferredTransaction = result.get();
