@@ -490,20 +490,20 @@ public class Client {
     walletApiWrapper.getDeferredTransaction(trxId);
   }
 
-  private void cancelDeferredTransaction(String[] parameters)
+  private void cancelDeferredTransactionById(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length != 1) {
-      System.out.println("CancelDeferredTransaction needs parameters like following: ");
-      System.out.println("CancelDeferredTransaction transactionId");
+      System.out.println("cancelDeferredTransactionById needs parameters like following: ");
+      System.out.println("cancelDeferredTransactionById transactionId");
       return;
     }
 
     String trxId = parameters[0];
     boolean result = walletApiWrapper.cancelDeferredTransaction(trxId);
     if (result) {
-      logger.info("CancelDeferredTransaction successfully");
+      logger.info("cancelDeferredTransactionById successfully");
     } else {
-      logger.info("CancelDeferredTransaction failed!!");
+      logger.info("cancelDeferredTransactionById failed!!");
     }
 
   }
@@ -1900,6 +1900,7 @@ public class Client {
     System.out.println("AssetIssue");
     System.out.println("BackupWallet");
     System.out.println("BackupWallet2Base64");
+    System.out.println("CancelDeferredTransactionById");
     System.out.println("ChangePassword");
     System.out.println("CreateAccount");
     System.out.println("CreateProposal");
@@ -1955,7 +1956,6 @@ public class Client {
     System.out.println("ParticipateAssetIssue");
     System.out.println("RegisterWallet");
     System.out.println("SendCoin");
-    System.out.println("CancelDeferredTransaction");
     System.out.println("SetAccountId");
     System.out.println("TransferAsset");
     System.out.println("TriggerContract contractAddress method args isHex fee_limit value");
@@ -2134,8 +2134,8 @@ public class Client {
             sendCoin(parameters);
             break;
           }
-          case "canceldeferredtransaction": {
-            cancelDeferredTransaction(parameters);
+          case "canceldeferredtransactionbyid": {
+            cancelDeferredTransactionById(parameters);
             break;
           }
 
