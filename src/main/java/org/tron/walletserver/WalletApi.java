@@ -526,6 +526,18 @@ public class WalletApi {
     return rpcCli.easyTransferByPrivate(privateKey, toAddress, amount);
   }
 
+  //Warning: do not invoke this interface provided by others.
+  public static EasyTransferResponse easyTransferAsset(byte[] passPhrase, byte[] toAddress,
+      String assetId, long amount) {
+    return rpcCli.easyTransferAsset(passPhrase, toAddress, assetId, amount);
+  }
+
+  //Warning: do not invoke this interface provided by others.
+  public static EasyTransferResponse easyTransferAssetByPrivate(byte[] privateKey,
+      byte[] toAddress, String assetId, long amount) {
+    return rpcCli.easyTransferAssetByPrivate(privateKey, toAddress, assetId, amount);
+  }
+
   public boolean sendCoin(byte[] to, long amount)
       throws CipherException, IOException, CancelException {
     byte[] owner = getAddress();
@@ -1495,9 +1507,14 @@ public class WalletApi {
           }
           String inputName = inputItem.getAsJsonObject().get("name").getAsString();
           String inputType = inputItem.getAsJsonObject().get("type").getAsString();
+          Boolean inputIndexed = false;
+          if (inputItem.getAsJsonObject().get("indexed") != null) {
+            inputIndexed = Boolean
+                .valueOf(inputItem.getAsJsonObject().get("indexed").getAsString());
+          }
           SmartContract.ABI.Entry.Param.Builder paramBuilder = SmartContract.ABI.Entry.Param
               .newBuilder();
-          paramBuilder.setIndexed(false);
+          paramBuilder.setIndexed(inputIndexed);
           paramBuilder.setName(inputName);
           paramBuilder.setType(inputType);
           entryBuilder.addInputs(paramBuilder.build());
@@ -1515,9 +1532,14 @@ public class WalletApi {
           }
           String outputName = outputItem.getAsJsonObject().get("name").getAsString();
           String outputType = outputItem.getAsJsonObject().get("type").getAsString();
+          Boolean outputIndexed = false;
+          if (outputItem.getAsJsonObject().get("indexed") != null) {
+            outputIndexed = Boolean
+                .valueOf(outputItem.getAsJsonObject().get("indexed").getAsString());
+          }
           SmartContract.ABI.Entry.Param.Builder paramBuilder = SmartContract.ABI.Entry.Param
               .newBuilder();
-          paramBuilder.setIndexed(false);
+          paramBuilder.setIndexed(outputIndexed);
           paramBuilder.setName(outputName);
           paramBuilder.setType(outputType);
           entryBuilder.addOutputs(paramBuilder.build());

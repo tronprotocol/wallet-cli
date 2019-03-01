@@ -70,6 +70,8 @@ import org.tron.protos.Contract.TriggerSmartContract;
 import org.tron.protos.Contract.UnfreezeAssetContract;
 import org.tron.protos.Contract.UnfreezeBalanceContract;
 import org.tron.protos.Contract.UpdateAssetContract;
+import org.tron.protos.Contract.UpdateEnergyLimitContract;
+import org.tron.protos.Contract.UpdateSettingContract;
 import org.tron.protos.Contract.VoteAssetContract;
 import org.tron.protos.Contract.VoteWitnessContract;
 import org.tron.protos.Contract.WithdrawBalanceContract;
@@ -887,6 +889,10 @@ public class Utils {
           result += WalletApi
               .encode58Check(freezeBalanceContract.getOwnerAddress().toByteArray());
           result += "\n";
+          result += "receive_address: ";
+          result += WalletApi
+              .encode58Check(freezeBalanceContract.getReceiverAddress().toByteArray());
+          result += "\n";
           result += "frozen_balance: ";
           result += freezeBalanceContract.getFrozenBalance();
           result += "\n";
@@ -900,6 +906,10 @@ public class Utils {
           result += "owner_address: ";
           result += WalletApi
               .encode58Check(unfreezeBalanceContract.getOwnerAddress().toByteArray());
+          result += "\n";
+          result += "receive_address: ";
+          result += WalletApi
+              .encode58Check(unfreezeBalanceContract.getReceiverAddress().toByteArray());
           result += "\n";
           break;
         case UnfreezeAssetContract:
@@ -1086,6 +1096,36 @@ public class Utils {
             result += "\n";
           }
           break;
+        case UpdateSettingContract:
+          UpdateSettingContract updateSettingContract = contract.getParameter()
+              .unpack(UpdateSettingContract.class);
+          result += "owner_address: ";
+          result += WalletApi
+              .encode58Check(updateSettingContract.getOwnerAddress().toByteArray());
+          result += "\n";
+          result += "contract_address: ";
+          result += WalletApi
+              .encode58Check(updateSettingContract.getContractAddress().toByteArray());
+          result += "\n";
+          result += "consume_user_resource_percent: ";
+          result += updateSettingContract.getConsumeUserResourcePercent();
+          result += "\n";
+          break;
+        case UpdateEnergyLimitContract:
+          UpdateEnergyLimitContract updateEnergyLimitContract = contract.getParameter()
+              .unpack(UpdateEnergyLimitContract.class);
+          result += "owner_address: ";
+          result += WalletApi
+              .encode58Check(updateEnergyLimitContract.getOwnerAddress().toByteArray());
+          result += "\n";
+          result += "contract_address: ";
+          result += WalletApi
+              .encode58Check(updateEnergyLimitContract.getContractAddress().toByteArray());
+          result += "\n";
+          result += "origin_energy_limit: ";
+          result += updateEnergyLimitContract.getOriginEnergyLimit();
+          result += "\n";
+          break;
         // case BuyStorageContract:
         //   BuyStorageContract buyStorageContract = contract.getParameter()
         //       .unpack(BuyStorageContract.class);
@@ -1198,6 +1238,9 @@ public class Utils {
       results += "\n";
       results += "fee ::: ";
       results += result.getFee();
+      results += "\n";
+      results += "ContractRet ::: ";
+      results += result.getContractRet().name();
       results += "\n";
       results += "]";
       results += "\n";
