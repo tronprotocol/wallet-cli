@@ -25,12 +25,22 @@ import org.tron.api.GrpcAPI;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.ECKey.ECDSASignature;
 import org.tron.common.crypto.Sha256Hash;
+import org.tron.protos.Protocol.DeferredStage;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.Transaction.Contract;
 
 public class TransactionUtils {
 
   private static final Logger logger = LoggerFactory.getLogger("Transaction");
+
+  /**
+   * normal transaction is 0 representing normal transaction
+   * unexecuted deferred transaction is 1 representing unexecuted deferred transaction
+   * executing deferred transaction is 2 representing executing deferred transaction
+   */
+  private static final int NORMALTRANSACTION = 0;
+  private static final int UNEXECUTEDDEFERREDTRANSACTION = 1;
+  private static final int EXECUTINGDEFERREDTRANSACTION = 2;
 
   /**
    * Obtain a data bytes after removing the id and SHA-256(data)
@@ -190,8 +200,10 @@ public class TransactionUtils {
   }
 
   public static Transaction setDelaySeconds(Transaction transaction, long delaySeconds){
-    Transaction.raw rawData =  transaction.getRawData().toBuilder()
-        .setDelaySeconds(delaySeconds).build();
+    DeferredStage deferredStage = transaction.getRawData().toBuilder().
+        getDeferredStage().toBuilder().setDelaySeconds(delaySeconds)
+        .setStage(UNEXECUTEDDEFERREDTRANSACTION).build();
+    Transaction.raw rawData = transaction.toBuilder().getRawData().toBuilder().setDeferredStage(deferredStage).build();
     return transaction.toBuilder().setRawData(rawData).build();
   }
 
