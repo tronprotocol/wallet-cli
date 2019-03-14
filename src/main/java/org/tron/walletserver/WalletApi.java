@@ -1026,6 +1026,10 @@ public class WalletApi {
     return rpcCli.getTransactionById(txID);
   }
 
+  public static Optional<TransactionInfo> getDeferredTransactionInfoById(String txID) {
+    return rpcCli.getDeferredTransactionInfoById(txID);
+  }
+
   public static Optional<TransactionInfo> getTransactionInfoById(String txID) {
     return rpcCli.getTransactionInfoById(txID);
   }

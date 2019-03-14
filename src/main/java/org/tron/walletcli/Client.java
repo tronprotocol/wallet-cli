@@ -479,7 +479,7 @@ public class Client {
     }
   }
 
-  public void getDeferredTransactionbyid(String[] parameters) {
+  public void getDeferredTransactionbyId(String[] parameters) {
     if (parameters == null || parameters.length != 1) {
       System.out.println("GetDeferredTransactionbyid needs parameters like following: ");
       System.out.println("GetDeferredTransactionbyid transactionId");
@@ -1464,6 +1464,23 @@ public class Client {
     }
   }
 
+  private void getDeferredTransactionInfoById(String[] parameters) {
+    String txid = "";
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("getDeferredTransactionInfoById needs 1 parameter, transaction id");
+      return;
+    } else {
+      txid = parameters[0];
+    }
+    Optional<TransactionInfo> result = WalletApi.getDeferredTransactionInfoById(txid);
+    if (result.isPresent()) {
+      TransactionInfo transactionInfo = result.get();
+      logger.info(Utils.printTransactionInfo(transactionInfo));
+    } else {
+      logger.info("getDeferredTransactionInfoById " + " failed !!");
+    }
+  }
+
   private void getTransactionsFromThis(String[] parameters) {
     if (parameters == null || parameters.length != 3) {
       System.out.println("GetTransactionsFromThis needs 3 parameters, use the following syntax: ");
@@ -1933,6 +1950,7 @@ public class Client {
     System.out.println("GetDelegatedResource");
     System.out.println("GetDelegatedResourceAccountIndex");
     System.out.println("GetDeferredTransactionById");
+    System.out.println("GetDeferredTransactionInfoById");
     System.out.println("GetExchange");
     System.out.println("GetNextMaintenanceTime");
     System.out.println("GetProposal");
@@ -2232,8 +2250,11 @@ public class Client {
             break;
           }
           case "getdeferredtransactionbyid": {
-            getDeferredTransactionbyid(parameters);
+            getDeferredTransactionbyId(parameters);
             break;
+          }
+          case "getdeferredtransactioninfobyid":{
+            getDeferredTransactionInfoById(parameters);
           }
           case "exchangecreate": {
             exchangeCreate(parameters);

@@ -728,6 +728,18 @@ public class GrpcClient {
     return Optional.ofNullable(transaction);
   }
 
+  public Optional<TransactionInfo> getDeferredTransactionInfoById(String txID) {
+    ByteString bsTxid = ByteString.copyFrom(ByteArray.fromHexString(txID));
+    BytesMessage request = BytesMessage.newBuilder().setValue(bsTxid).build();
+    TransactionInfo transactionInfo;
+    if (blockingStubSolidity != null) {
+      transactionInfo = blockingStubSolidity.getDeferredTransactionInfoById(request);
+    } else {
+      transactionInfo = blockingStubFull.getDeferredTransactionInfoById(request);
+    }
+    return Optional.ofNullable(transactionInfo);
+  }
+
   public Optional<TransactionInfo> getTransactionInfoById(String txID) {
     ByteString bsTxid = ByteString.copyFrom(ByteArray.fromHexString(txID));
     BytesMessage request = BytesMessage.newBuilder().setValue(bsTxid).build();

@@ -30,6 +30,7 @@ import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
+import java.util.Objects;
 import org.bouncycastle.util.encoders.Hex;
 import org.tron.api.GrpcAPI.AccountNetMessage;
 import org.tron.api.GrpcAPI.AccountResourceMessage;
@@ -1217,10 +1218,16 @@ public class Utils {
     result += deferredTransaction.getPublishTime();
     result += "\n";
 
-    result += "PublishTime: ";
-    result += "\n";
-    result += deferredTransaction.getPublishTime();
-    result += "\n";
+    if (Objects.nonNull(deferredTransaction.getTransaction())
+        && Objects.nonNull(deferredTransaction.getTransaction().getRawData())
+        && Objects.nonNull(deferredTransaction.getTransaction().getRawData().getDeferredStage())
+    ) {
+      result += "DeferredStage: ";
+      result += "\n";
+      result += deferredTransaction.getTransaction().getRawData().getDeferredStage().getStage();
+      result += "\n";
+
+    }
 
     if (deferredTransaction.getTransaction().getRawData() != null) {
       result += "raw_data: ";
