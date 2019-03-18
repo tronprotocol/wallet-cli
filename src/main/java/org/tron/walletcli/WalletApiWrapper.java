@@ -194,7 +194,7 @@ public class WalletApiWrapper {
   }
 
   public boolean participateAssetIssue(String toAddress, String assertName,
-      long amount, long delaySeconds) throws CipherException, IOException, CancelException {
+      long amount) throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: TransferAsset failed,  Please login first !!");
       return false;
@@ -204,7 +204,7 @@ public class WalletApiWrapper {
       return false;
     }
 
-    return wallet.participateAssetIssue(to, assertName.getBytes(), amount, delaySeconds);
+    return wallet.participateAssetIssue(to, assertName.getBytes(), amount);
   }
 
   public boolean assetIssue(String name, long totalSupply, int trxNum, int icoNum, int precision,

@@ -548,7 +548,7 @@ public class WalletApi {
     }
   }
 
-  public boolean participateAssetIssue(byte[] to, byte[] assertName, long amount, long delaySeconds)
+  public boolean participateAssetIssue(byte[] to, byte[] assertName, long amount)
       throws CipherException, IOException, CancelException {
     byte[] owner = getAddress();
     Contract.ParticipateAssetIssueContract contract = participateAssetIssueContract(to, assertName,
@@ -556,11 +556,9 @@ public class WalletApi {
     if (rpcVersion == 2) {
       TransactionExtention transactionExtention = rpcCli
           .createParticipateAssetIssueTransaction2(contract);
-      transactionExtention = TransactionUtils.setDelaySecondsToExtension(transactionExtention, delaySeconds);
       return processTransactionExtention(transactionExtention);
     } else {
       Transaction transaction = rpcCli.createParticipateAssetIssueTransaction(contract);
-      transaction = TransactionUtils.setDelaySeconds(transaction, delaySeconds);
       return processTransaction(transaction);
     }
   }

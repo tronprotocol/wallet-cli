@@ -625,7 +625,7 @@ public class Client {
 
   private void participateAssetIssue(String[] parameters)
       throws IOException, CipherException, CancelException {
-    if (parameters == null || (parameters.length != 3 && parameters.length != 4)) {
+    if (parameters == null || (parameters.length != 3)) {
       System.out.println("ParticipateAssetIssue needs 3 parameters using the following syntax: ");
       System.out.println("ParticipateAssetIssue ToAddress AssetName Amount");
       return;
@@ -634,13 +634,9 @@ public class Client {
     String toAddress = parameters[0];
     String assertName = parameters[1];
     String amountStr = parameters[2];
-    long delaySeconds = 0;
-    if (parameters.length == 4) {
-      delaySeconds = new Long(parameters[3]);
-    }
     long amount = Long.parseLong(amountStr);
 
-    boolean result = walletApiWrapper.participateAssetIssue(toAddress, assertName, amount, delaySeconds);
+    boolean result = walletApiWrapper.participateAssetIssue(toAddress, assertName, amount);
     if (result) {
       logger.info("ParticipateAssetIssue " + assertName + " " + amount + " from " + toAddress
           + " successful !!");
@@ -1236,19 +1232,15 @@ public class Client {
 
   private void exchangeInject(String[] parameters)
       throws IOException, CipherException, CancelException {
-    if (parameters == null || (parameters.length != 3 && parameters.length != 4)) {
+    if (parameters == null || parameters.length != 3 ) {
       System.out.println("Use exchangeInject command with below syntax: ");
-      System.out.println("exchangeInject exchange_id token_id quant [delaySeconds]");
+      System.out.println("exchangeInject exchange_id token_id quant");
       return;
     }
 
     long exchangeId = Long.valueOf(parameters[0]);
     byte[] tokenId = parameters[1].getBytes();
     long quant = Long.valueOf(parameters[2]);
-    long delaySeconds = 0;
-    if (parameters.length == 4) {
-      delaySeconds = new Long(parameters[3]);
-    }
     boolean result = walletApiWrapper.exchangeInject(exchangeId, tokenId, quant);
     if (result) {
       logger.info("exchange inject " + " successful !!");
