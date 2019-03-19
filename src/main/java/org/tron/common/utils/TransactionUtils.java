@@ -38,9 +38,9 @@ public class TransactionUtils {
    * unexecuted deferred transaction is 1 representing unexecuted deferred transaction
    * executing deferred transaction is 2 representing executing deferred transaction
    */
-  private static final int NORMALTRANSACTION = 0;
-  private static final int UNEXECUTEDDEFERREDTRANSACTION = 1;
-  private static final int EXECUTINGDEFERREDTRANSACTION = 2;
+  public static final int NORMALTRANSACTION = 0;
+  public static final int UNEXECUTEDDEFERREDTRANSACTION = 1;
+  public static final int EXECUTINGDEFERREDTRANSACTION = 2;
 
   /**
    * Obtain a data bytes after removing the id and SHA-256(data)

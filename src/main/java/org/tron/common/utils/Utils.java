@@ -1182,6 +1182,20 @@ public class Utils {
     return results;
   }
 
+  public static String getDeferredTransactionStage(int stage) {
+    switch (stage) {
+      case TransactionUtils.NORMALTRANSACTION:
+        return "normal transaction";
+      case TransactionUtils.UNEXECUTEDDEFERREDTRANSACTION:
+        return "unexecuted deferred transaction";
+      case TransactionUtils.EXECUTINGDEFERREDTRANSACTION:
+        return "executing deferred transaction";
+      default:
+        break;
+    }
+    return "";
+  }
+
   public static String printDeferredTransaction(DeferredTransaction deferredTransaction) {
     String result = "";
     result += "hash: ";
@@ -1222,11 +1236,10 @@ public class Utils {
         && Objects.nonNull(deferredTransaction.getTransaction().getRawData())
         && Objects.nonNull(deferredTransaction.getTransaction().getRawData().getDeferredStage())
     ) {
-      result += "DeferredStage: ";
+      result += "DelaySeconds: ";
       result += "\n";
-      result += deferredTransaction.getTransaction().getRawData().getDeferredStage().getStage();
+      result += deferredTransaction.getTransaction().getRawData().getDeferredStage().getDelaySeconds();
       result += "\n";
-
     }
 
     if (deferredTransaction.getTransaction().getRawData() != null) {
