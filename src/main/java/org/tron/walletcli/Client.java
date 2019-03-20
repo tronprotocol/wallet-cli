@@ -2247,6 +2247,7 @@ public class Client {
           }
           case "getdeferredtransactioninfobyid":{
             getDeferredTransactionInfoById(parameters);
+            break;
           }
           case "exchangecreate": {
             exchangeCreate(parameters);
