@@ -1084,7 +1084,7 @@ public class Client {
     }
 
     long delaySeconds = 0;
-    if (i != parameters.length - 1) {
+    if (i == parameters.length - 1) {
       delaySeconds = new Long(parameters[parameters.length - 1]);
     }
     boolean result = walletApiWrapper.createProposal(parametersMap, delaySeconds);
@@ -1105,10 +1105,6 @@ public class Client {
 
     long id = Long.valueOf(parameters[0]);
     boolean is_add_approval = Boolean.valueOf(parameters[1]);
-    long delaySeconds = 0;
-    if (parameters.length == 3) {
-      delaySeconds = new Long(parameters[parameters.length - 1]);
-    }
     boolean result = walletApiWrapper.approveProposal(id, is_add_approval);
     if (result) {
       logger.info("approveProposal " + " successful !!");
