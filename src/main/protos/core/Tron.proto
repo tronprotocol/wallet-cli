@@ -265,7 +265,6 @@ message Transaction {
     google.protobuf.Any parameter = 2;
     bytes provider = 3;
     bytes ContractName = 4;
-    int32 Permission_id = 5;
   }
 
   message Result {
