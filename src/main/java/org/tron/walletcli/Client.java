@@ -1630,7 +1630,7 @@ public class Client {
   private void updateSetting(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null ||
-        parameters.length < 3) {
+        parameters.length < 2) {
       System.out.println("updateSetting needs 2 or 3 parameters like following: ");
       System.out.println("updateSetting contract_address consume_user_resource_percent [delaySeconds]");
       return;
@@ -1658,7 +1658,7 @@ public class Client {
 
   private void updateEnergyLimit(String[] parameters)
       throws IOException, CipherException, CancelException {
-    if (parameters == null || parameters.length < 3) {
+    if (parameters == null || parameters.length < 2) {
       System.out.println("updateEnergyLimit needs 2 or 3 parameters like following: ");
       System.out.println("updateEnergyLimit contract_address energy_limit [delaySeconds]");
       return;
