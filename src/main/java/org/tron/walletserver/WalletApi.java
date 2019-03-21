@@ -96,7 +96,7 @@ public class WalletApi {
   private static byte addressPreFixByte = CommonConstant.ADD_PRE_FIX_BYTE_TESTNET;
   private static int rpcVersion = 0;
 
-  private static GrpcClient rpcCli = init();
+  private static GrpcClient rpcCli = init(3);
 
 //  static {
 //    new Timer().schedule(new TimerTask() {
@@ -110,16 +110,16 @@ public class WalletApi {
 //    }, 3 * 60 * 1000, 3 * 60 * 1000);
 //  }
 
-  public static GrpcClient init() {
+  public static GrpcClient init(Integer i) {
     Config config = Configuration.getByPath("config.conf");
 
     String fullNode = "";
     String solidityNode = "";
     if (config.hasPath("soliditynode.ip.list")) {
-      solidityNode = config.getStringList("soliditynode.ip.list").get(0);
+      solidityNode = config.getStringList("soliditynode.ip.list").get(i);
     }
     if (config.hasPath("fullnode.ip.list")) {
-      fullNode = config.getStringList("fullnode.ip.list").get(0);
+      fullNode = config.getStringList("fullnode.ip.list").get(i);
     }
     if (config.hasPath("net.type") && "mainnet".equalsIgnoreCase(config.getString("net.type"))) {
       WalletApi.setAddressPreFixByte(CommonConstant.ADD_PRE_FIX_BYTE_MAINNET);

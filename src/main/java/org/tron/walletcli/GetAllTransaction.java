@@ -145,7 +145,7 @@ public class GetAllTransaction {
   public static void sendTransaction(List<GrpcClient> clients, String filename) {
 
     List<Transaction> transactionList = new ArrayList<>();
-    ThreadPoolExecutor executor = new ThreadPoolExecutor(100, 200, 200, TimeUnit.MILLISECONDS,
+    ThreadPoolExecutor executor = new ThreadPoolExecutor(17, 17, 200, TimeUnit.MILLISECONDS,
         new LinkedBlockingQueue<Runnable>());
 
     try {
@@ -163,18 +163,26 @@ public class GetAllTransaction {
       ioe.printStackTrace();
     }
 
+    System.out.println("Start send time is " + System.currentTimeMillis());
     // 线程池发送
     for (int i = 0; i < transactionList.size(); i++) {
       executor.execute(new MyTask(transactionList.get(i), clients.get(i % clients.size())));
     }
+    System.out.println("End send time is " + System.currentTimeMillis());
 
     boolean flag = true;
-    while (flag) {
+    Integer i = 0;
+    Long progressTaskNum = -1L;
+    while (i++ < 3600) {
       try {
         Thread.sleep(10000);
       } catch (InterruptedException e) {
         flag = false;
       }
+      if (progressTaskNum == executor.getCompletedTaskCount()) {
+        System.exit(1);
+      }
+      progressTaskNum = executor.getCompletedTaskCount();
       System.out.println(executor.getCompletedTaskCount());
     }
   }
@@ -182,22 +190,28 @@ public class GetAllTransaction {
   public static void main(String[] args) {
 
     List<GrpcClient> clients = new ArrayList<>();
-    GrpcClient client1 = WalletApi.init();
+    GrpcClient client1 = WalletApi.init(0);
+    GrpcClient client2 = WalletApi.init(0);
+    GrpcClient client3 = WalletApi.init(1);
+    GrpcClient client4 = WalletApi.init(1);
+    GrpcClient client5 = WalletApi.init(2);
+    GrpcClient client6 = WalletApi.init(3);
+    GrpcClient client7 = WalletApi.init(4);
+    //GrpcClient client8 = WalletApi.init(3);
+    //GrpcClient client9 = WalletApi.init(4);
+    //GrpcClient client10 = WalletApi.init(5);
+    //GrpcClient client11 = WalletApi.init(6);
     clients.add(client1);
-    GrpcClient client2 = WalletApi.init();
-    GrpcClient client3 = WalletApi.init();
-    GrpcClient client4 = WalletApi.init();
-    GrpcClient client5 = WalletApi.init();
-    GrpcClient client6 = WalletApi.init();
-    GrpcClient client7 = WalletApi.init();
-    GrpcClient client8 = WalletApi.init();
     clients.add(client2);
     clients.add(client3);
     clients.add(client4);
     clients.add(client5);
     clients.add(client6);
     clients.add(client7);
-    clients.add(client8);
+    //clients.add(client8);
+    //clients.add(client9);
+    //clients.add(client10);
+    //clients.add(client11);
 
     /*GrpcClient client2 = new GrpcClient("47.52.254.128:50051", "");
     clients.add(client2);
@@ -226,8 +240,8 @@ public class GetAllTransaction {
     clients.add(client12);*/
 
     //获取线上的历史真实交易
-    //fetchTransaction(client, "MyTrxV3.2.2.txt",4828777, 4848777);
-    //fetchTransaction(client, "MyTrxV3.1.3.txt",4014118, 4034118);
+    //fetchTransaction(client1, "block-200000-202000.txt",5260000, 5270000);
+    //fetchTransaction(client2, "MyTrxV3.1.3.txt",4014118, 4034118);
 
     // GrpcClient client2 = new GrpcClient("47.90.210.159:50051", "");
     // GrpcClient client3 = new GrpcClient("47.90.248.142:50051", "");
@@ -255,8 +269,10 @@ public class GetAllTransaction {
     // clients.add(client12);
 
 
-    sendTransaction(clients, "MyTrxV3.2.2_bak.txt");
+    sendTransaction(clients, "/data/workspace/replay_workspace/getTransactions.txt");
     //将历史交易重放到测试环境下，测试节点取消交易验证和Tapos验证
+
+
 
   }
 }
