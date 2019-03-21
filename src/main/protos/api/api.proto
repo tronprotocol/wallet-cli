@@ -85,9 +85,6 @@ service Wallet {
   rpc CreateCancelDeferredTransactionContract (CancelDeferredTransactionContract) returns (TransactionExtention) {
   };
 
-  rpc GetDeferredTransactionById (BytesMessage) returns (DeferredTransaction) {
-  }
-
   //Please use VoteWitnessAccount2 instead of this function.
   rpc VoteWitnessAccount (VoteWitnessContract) returns (Transaction) {
     option (google.api.http) = {
@@ -401,6 +398,16 @@ service Wallet {
       body: "*"
       additional_bindings {
         get: "/wallet/gettransactionbyid"
+      }
+    };
+  }
+
+  rpc GetDeferredTransactionById (BytesMessage) returns (DeferredTransaction) {
+    option (google.api.http) = {
+      post: "/wallet/getdeferredtransactionbyid"
+      body: "*"
+      additional_bindings {
+        get: "/wallet/getdeferredtransactionbyid"
       }
     };
   }
@@ -748,6 +755,16 @@ service WalletSolidity {
     };
   }
 
+  rpc GetDeferredTransactionById (BytesMessage) returns (DeferredTransaction) {
+    option (google.api.http) = {
+      post: "/walletsolidity/getdeferredtransactionbyid"
+      body: "*"
+      additional_bindings {
+        get: "/walletsolidity/getdeferredtransactionbyid"
+      }
+    };
+  }
+
   rpc GetTransactionInfoById (BytesMessage) returns (TransactionInfo) {
     option (google.api.http) = {
       post: "/walletsolidity/gettransactioninfobyid"
@@ -838,6 +855,7 @@ message Return {
     TOO_BIG_TRANSACTION_ERROR = 7;
     TRANSACTION_EXPIRATION_ERROR = 8;
     SERVER_BUSY = 9;
+    DEFERRED_SECONDS_ILLEGAL_ERROR = 12;
     OTHER_ERROR = 20;
   }
 
