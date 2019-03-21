@@ -904,12 +904,12 @@ public class Client {
   private void freezeBalance(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || !(parameters.length == 2 || parameters.length == 3
-        || parameters.length == 4 || parameters.length == 5)) {
+        || parameters.length == 4)) {
       System.out.println("Use freezeBalance command with below syntax: ");
       System.out
           .println(
               "freezeBalance frozen_balance frozen_duration [ResourceCode:0 BANDWIDTH,1 ENERGY] "
-                  + "[receiverAddress] [delaySeconds]");
+                  + "[receiverAddress]");
       return;
     }
 
@@ -928,13 +928,8 @@ public class Client {
       resourceCode = Integer.parseInt(parameters[2]);
       receiverAddress = parameters[3];
     }
-
-    long delaySeconds = 0;
-    if (parameters.length == 5) {
-      delaySeconds = new Long(parameters[parameters.length - 1]);
-    }
     boolean result = walletApiWrapper.freezeBalance(frozen_balance, frozen_duration, resourceCode,
-        receiverAddress, delaySeconds);
+        receiverAddress);
     if (result) {
       logger.info("freezeBalance " + " successful !!");
     } else {
