@@ -148,9 +148,9 @@ public class GetAllTransaction {
   public static void sendTransaction(List<GrpcClient> clients, String filename) {
 
     List<Transaction> transactionList = new ArrayList<>();
-    //ThreadPoolExecutor executor = new ThreadPoolExecutor(17, 17, 200, TimeUnit.MILLISECONDS,
-    //    new LinkedBlockingQueue<Runnable>());
-    ThreadPoolExecutor executor = (ThreadPoolExecutor) Executors.newCachedThreadPool();
+    ThreadPoolExecutor executor = new ThreadPoolExecutor(17, 17, 200, TimeUnit.MILLISECONDS,
+        new LinkedBlockingQueue<Runnable>());
+    //ThreadPoolExecutor executor = (ThreadPoolExecutor) Executors.newCachedThreadPool();
 
 
     try {
