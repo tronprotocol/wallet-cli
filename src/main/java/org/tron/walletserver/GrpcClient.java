@@ -398,7 +398,7 @@ public class GrpcClient {
   public boolean broadcastTransaction(Transaction signaturedTransaction) {
     int i = 10;
     GrpcAPI.Return response = blockingStubFull.broadcastTransaction(signaturedTransaction);
-    while (response.getResult() == false && response.getCode() == response_code.SERVER_BUSY
+/*    while (response.getResult() == false && response.getCode() == response_code.SERVER_BUSY
         && i > 0) {
       i--;
       response = blockingStubFull.broadcastTransaction(signaturedTransaction);
@@ -408,7 +408,7 @@ public class GrpcClient {
       } catch (InterruptedException e) {
         e.printStackTrace();
       }
-    }
+    }*/
     if (response.getResult() == false) {
       //logger.info("Code = " + response.getCode());
       //logger.info("Message = " + response.getMessage().toStringUtf8());
