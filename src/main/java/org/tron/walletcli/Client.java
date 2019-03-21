@@ -1028,7 +1028,7 @@ public class Client {
 
 
   private void unfreezeAsset(String[] parameters) throws IOException, CipherException, CancelException {
-    if (parameters != null || parameters.length != 1) {
+    if (parameters != null && parameters.length > 1) {
       System.out.println("Use unfreezeAsset command with below syntax: ");
       System.out.println("unfreezeAsset [delaySeconds]");
       return;
