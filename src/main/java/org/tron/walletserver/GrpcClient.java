@@ -34,9 +34,11 @@ import org.tron.api.GrpcAPI.NumberMessage;
 import org.tron.api.GrpcAPI.PaginatedMessage;
 import org.tron.api.GrpcAPI.ProposalList;
 import org.tron.api.GrpcAPI.Return.response_code;
+import org.tron.api.GrpcAPI.TransactionApprovedList;
 import org.tron.api.GrpcAPI.TransactionExtention;
 import org.tron.api.GrpcAPI.TransactionList;
 import org.tron.api.GrpcAPI.TransactionListExtention;
+import org.tron.api.GrpcAPI.TransactionSignWeight;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.api.WalletExtensionGrpc;
 import org.tron.api.WalletGrpc;
@@ -123,6 +125,19 @@ public class GrpcClient {
   //Warning: do not invoke this interface provided by others.
   public TransactionExtention signTransaction2(TransactionSign transactionSign) {
     return blockingStubFull.getTransactionSign2(transactionSign);
+  }
+
+  //Warning: do not invoke this interface provided by others.
+  public TransactionExtention addSign(TransactionSign transactionSign) {
+    return blockingStubFull.addSign(transactionSign);
+  }
+
+  public TransactionSignWeight getTransactionSignWeight(Transaction transaction) {
+    return blockingStubFull.getTransactionSignWeight(transaction);
+  }
+
+  public TransactionApprovedList getTransactionApprovedList(Transaction transaction) {
+    return blockingStubFull.getTransactionApprovedList(transaction);
   }
 
   //Warning: do not invoke this interface provided by others.
@@ -429,9 +444,9 @@ public class GrpcClient {
         && i > 0) {
       i--;
       response = blockingStubFull.broadcastTransaction(signaturedTransaction);
-      logger.info("repeate times = " + (11 - i));
+      logger.info("repeat times = " + (11 - i));
       try {
-        Thread.sleep(300);
+        Thread.sleep(1000);
       } catch (InterruptedException e) {
         e.printStackTrace();
       }
@@ -782,4 +797,10 @@ public class GrpcClient {
     BytesMessage bytesMessage = BytesMessage.newBuilder().setValue(byteString).build();
     return blockingStubFull.getContract(bytesMessage);
   }
+
+  public TransactionExtention accountPermissionUpdate(
+      Contract.AccountPermissionUpdateContract request) {
+    return blockingStubFull.accountPermissionUpdate(request);
+  }
+
 }

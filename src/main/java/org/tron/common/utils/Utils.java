@@ -18,6 +18,7 @@
 
 package org.tron.common.utils;
 
+import com.beust.jcommander.Strings;
 import com.google.protobuf.ByteString;
 import java.io.Console;
 import java.io.IOException;
@@ -40,13 +41,16 @@ import org.tron.api.GrpcAPI.BlockListExtention;
 import org.tron.api.GrpcAPI.DelegatedResourceList;
 import org.tron.api.GrpcAPI.ExchangeList;
 import org.tron.api.GrpcAPI.ProposalList;
+import org.tron.api.GrpcAPI.TransactionApprovedList;
 import org.tron.api.GrpcAPI.TransactionExtention;
 import org.tron.api.GrpcAPI.TransactionList;
 import org.tron.api.GrpcAPI.TransactionListExtention;
+import org.tron.api.GrpcAPI.TransactionSignWeight;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.crypto.Sha256Hash;
 import org.tron.keystore.StringUtils;
 import org.tron.protos.Contract.AccountCreateContract;
+import org.tron.protos.Contract.AccountPermissionUpdateContract;
 import org.tron.protos.Contract.AccountUpdateContract;
 import org.tron.protos.Contract.AssetIssueContract;
 import org.tron.protos.Contract.AssetIssueContract.FrozenSupply;
@@ -84,6 +88,8 @@ import org.tron.protos.Protocol.DelegatedResource;
 import org.tron.protos.Protocol.DelegatedResourceAccountIndex;
 import org.tron.protos.Protocol.Exchange;
 import org.tron.protos.Protocol.InternalTransaction;
+import org.tron.protos.Protocol.Key;
+import org.tron.protos.Protocol.Permission;
 import org.tron.protos.Protocol.Proposal;
 import org.tron.protos.Protocol.ResourceReceipt;
 import org.tron.protos.Protocol.SmartContract;
@@ -321,6 +327,34 @@ public class Utils {
     result += "delegatedFrozenBalanceForEnergy: ";
     result += account.getAccountResource().getDelegatedFrozenBalanceForEnergy();
     result += "}\n";
+
+    if (account.hasOwnerPermission()) {
+      result += "owner_permission: ";
+      result += "\n";
+      result += "{";
+      result += "\n";
+      result += printPermission(account.getOwnerPermission());
+      result += "\n";
+      result += "}";
+      result += "\n";
+    }
+
+    if (account.hasWitnessPermission()) {
+      result += "witness_permission: ";
+      result += "\n";
+      result += "{";
+      result += "\n";
+      result += printPermission(account.getWitnessPermission());
+      result += "\n";
+      result += "}";
+      result += "\n";
+    }
+
+    if (account.getActivePermissionCount() > 0) {
+      result += "active_permissions: ";
+      result += printPermissionList(account.getActivePermissionList());
+    }
+
     return result;
   }
 
@@ -1027,6 +1061,41 @@ public class Utils {
           result += exchangeTransactionContract.getQuant();
           result += "\n";
           break;
+        case AccountPermissionUpdateContract:
+          AccountPermissionUpdateContract accountPermissionUpdateContract = contract.getParameter()
+              .unpack(AccountPermissionUpdateContract.class);
+          result += "owner_address: ";
+          result += WalletApi
+              .encode58Check(accountPermissionUpdateContract.getOwnerAddress().toByteArray());
+          result += "\n";
+          if (accountPermissionUpdateContract.hasOwner()) {
+            result += "owner_permission: ";
+            result += "\n";
+            result += "{";
+            result += "\n";
+            result += printPermission(accountPermissionUpdateContract.getOwner());
+            result += "\n";
+            result += "}";
+            result += "\n";
+          }
+
+          if (accountPermissionUpdateContract.hasWitness()) {
+            result += "witness_permission: ";
+            result += "\n";
+            result += "{";
+            result += "\n";
+            result += printPermission(accountPermissionUpdateContract.getWitness());
+            result += "\n";
+            result += "}";
+            result += "\n";
+          }
+
+          if (accountPermissionUpdateContract.getActivesCount() > 0) {
+            result += "active_permissions: ";
+            result += printPermissionList(accountPermissionUpdateContract.getActivesList());
+            result += "\n";
+          }
+          break;
         case UpdateSettingContract:
           UpdateSettingContract updateSettingContract = contract.getParameter()
               .unpack(UpdateSettingContract.class);
@@ -1717,6 +1786,169 @@ public class Utils {
     return result;
   }
 
+  public static String printKey(Key key) {
+    StringBuffer result = new StringBuffer();
+    result.append("address: ");
+    result.append(WalletApi.encode58Check(key.getAddress().toByteArray()));
+    result.append("\n");
+    result.append("weight: ");
+    result.append(key.getWeight());
+    result.append("\n");
+    return result.toString();
+  }
+
+  public static String printPermissionList(List<Permission> permissionList) {
+    String result = "\n";
+    result += "[";
+    result += "\n";
+    int i = 0;
+    for (Permission permission : permissionList) {
+      result += "permission " + i + " :::";
+      result += "\n";
+      result += "{";
+      result += "\n";
+      result += printPermission(permission);
+      result += "\n";
+      result += "}";
+      result += "\n";
+      i++;
+    }
+    result += "]";
+    return result;
+  }
+
+  public static String printPermission(Permission permission) {
+    StringBuffer result = new StringBuffer();
+    result.append("permission_type: ");
+    result.append(permission.getType());
+    result.append("\n");
+    result.append("permission_id: ");
+    result.append(permission.getId());
+    result.append("\n");
+    result.append("permission_name: ");
+    result.append(permission.getPermissionName());
+    result.append("\n");
+    result.append("threshold: ");
+    result.append(permission.getThreshold());
+    result.append("\n");
+    result.append("parent_id: ");
+    result.append(permission.getParentId());
+    result.append("\n");
+    result.append("operations: ");
+    result.append(ByteArray.toHexString(permission.getOperations().toByteArray()));
+    result.append("\n");
+    if (permission.getKeysCount() > 0) {
+      result.append("keys:");
+      result.append("\n");
+      result.append("[");
+      result.append("\n");
+      for (Key key : permission.getKeysList()) {
+        result.append(printKey(key));
+      }
+      result.append("]");
+      result.append("\n");
+    }
+    return result.toString();
+  }
+
+  public static String printResult(TransactionSignWeight.Result resul) {
+    StringBuffer result = new StringBuffer();
+    result.append("code: ");
+    result.append(resul.getCode());
+    result.append("\n");
+    if (!Strings.isStringEmpty(resul.getMessage())) {
+      result.append("message: ");
+      result.append(resul.getMessage());
+      result.append("\n");
+    }
+    return result.toString();
+  }
+
+  public static String printResult(TransactionApprovedList.Result resul) {
+    StringBuffer result = new StringBuffer();
+    result.append("code: ");
+    result.append(resul.getCode());
+    result.append("\n");
+    if (!Strings.isStringEmpty(resul.getMessage())) {
+      result.append("message: ");
+      result.append(resul.getMessage());
+      result.append("\n");
+    }
+    return result.toString();
+  }
+
+  public static String printTransactionSignWeight(TransactionSignWeight transactionSignWeight) {
+    StringBuffer result = new StringBuffer();
+    result.append("permission:");
+    result.append("\n");
+    result.append("{");
+    result.append("\n");
+    result.append(printPermission(transactionSignWeight.getPermission()));
+    result.append("}");
+    result.append("\n");
+    result.append("current_weight: ");
+    result.append(transactionSignWeight.getCurrentWeight());
+    result.append("\n");
+    result.append("result:");
+    result.append("\n");
+    result.append("{");
+    result.append("\n");
+    result.append(printResult(transactionSignWeight.getResult()));
+    result.append("}");
+    result.append("\n");
+    if (transactionSignWeight.getApprovedListCount() > 0) {
+      result.append("approved_list:");
+      result.append("\n");
+      result.append("[");
+      result.append("\n");
+      for (ByteString approved : transactionSignWeight.getApprovedListList()) {
+        result.append(WalletApi.encode58Check(approved.toByteArray()));
+        result.append("\n");
+      }
+      result.append("]");
+      result.append("\n");
+    }
+    result.append("transaction:");
+    result.append("\n");
+    result.append("{");
+    result.append("\n");
+    result.append(printTransaction(transactionSignWeight.getTransaction()));
+    result.append("}");
+    result.append("\n");
+    return result.toString();
+  }
+
+  public static String printTransactionApprovedList(
+      TransactionApprovedList transactionApprovedList) {
+    StringBuffer result = new StringBuffer();
+    result.append("result:");
+    result.append("\n");
+    result.append("{");
+    result.append("\n");
+    result.append(printResult(transactionApprovedList.getResult()));
+    result.append("}");
+    result.append("\n");
+    if (transactionApprovedList.getApprovedListCount() > 0) {
+      result.append("approved_list:");
+      result.append("\n");
+      result.append("[");
+      result.append("\n");
+      for (ByteString approved : transactionApprovedList.getApprovedListList()) {
+        result.append(WalletApi.encode58Check(approved.toByteArray()));
+        result.append("\n");
+      }
+      result.append("]");
+      result.append("\n");
+    }
+    result.append("transaction:");
+    result.append("\n");
+    result.append("{");
+    result.append("\n");
+    result.append(printTransaction(transactionApprovedList.getTransaction()));
+    result.append("}");
+    result.append("\n");
+    return result.toString();
+  }
 
   public static char[] inputPassword(boolean checkStrength) throws IOException {
     char[] password;
@@ -1749,3 +1981,4 @@ public class Utils {
     }
   }
 }
+

@@ -1,6 +1,7 @@
 package org.tron.walletcli;
 
 import com.beust.jcommander.JCommander;
+import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -33,8 +34,10 @@ import org.tron.api.GrpcAPI.Node;
 import org.tron.api.GrpcAPI.NodeList;
 import org.tron.api.GrpcAPI.NumberMessage;
 import org.tron.api.GrpcAPI.ProposalList;
+import org.tron.api.GrpcAPI.TransactionApprovedList;
 import org.tron.api.GrpcAPI.TransactionList;
 import org.tron.api.GrpcAPI.TransactionListExtention;
+import org.tron.api.GrpcAPI.TransactionSignWeight;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.utils.AbiUtil;
 import org.tron.common.utils.ByteArray;
@@ -166,23 +169,18 @@ public class Client {
     char[] oldPassword = Utils.inputPassword(false);
     System.out.println("Please input new password.");
     char[] newPassword = inputPassword2Twice();
-
+    StringUtils.clear(oldPassword);
+    StringUtils.clear(newPassword);
     if (walletApiWrapper.changePassword(oldPassword, newPassword)) {
       System.out.println("ChangePassword successful !!");
     } else {
       System.out.println("ChangePassword failed !!");
     }
-    StringUtils.clear(oldPassword);
-    StringUtils.clear(newPassword);
+
   }
 
   private void login() throws IOException, CipherException {
-    System.out.println("Please input your password.");
-    char[] password = Utils.inputPassword(false);
-
-    boolean result = walletApiWrapper.login(password);
-    StringUtils.clear(password);
-
+    boolean result = walletApiWrapper.login();
     if (result) {
       System.out.println("Login successful !!!");
     } else {
@@ -196,11 +194,7 @@ public class Client {
   }
 
   private void backupWallet() throws IOException, CipherException {
-    System.out.println("Please input your password.");
-    char[] password = Utils.inputPassword(false);
-
-    byte[] priKey = walletApiWrapper.backupWallet(password);
-    StringUtils.clear(password);
+    byte[] priKey = walletApiWrapper.backupWallet();
 
     if (!ArrayUtils.isEmpty(priKey)) {
       System.out.println("BackupWallet successful !!");
@@ -213,11 +207,7 @@ public class Client {
   }
 
   private void backupWallet2Base64() throws IOException, CipherException {
-    System.out.println("Please input your password.");
-    char[] password = Utils.inputPassword(false);
-
-    byte[] priKey = walletApiWrapper.backupWallet(password);
-    StringUtils.clear(password);
+    byte[] priKey = walletApiWrapper.backupWallet();
 
     if (!ArrayUtils.isEmpty(priKey)) {
       Encoder encoder = Base64.getEncoder();
@@ -325,7 +315,6 @@ public class Client {
       logger.info("Set AccountId failed !!!!");
     }
   }
-
 
   private void updateAsset(String[] parameters)
       throws IOException, CipherException, CancelException {
@@ -1737,15 +1726,128 @@ public class Client {
     }
   }
 
+  private void updateAccountPermission(String[] parameters)
+      throws CipherException, IOException, CancelException {
+    if (parameters == null || parameters.length != 2) {
+      System.out.println(
+          "UpdateAccountPermission needs 2 parameters, like UpdateAccountPermission ownerAddress permissions, permissions is json format");
+      return;
+    }
+
+    byte[] ownerAddress = WalletApi.decodeFromBase58Check(parameters[0]);
+    if (ownerAddress == null) {
+      System.out.println("GetContract: invalid address!");
+      return;
+    }
+
+    boolean ret = walletApiWrapper.accountPermissionUpdate(ownerAddress,parameters[1]);
+    if (ret) {
+      logger.info("updateAccountPermission successful !!!!");
+    } else {
+      logger.info("updateAccountPermission failed !!!!");
+    }
+  }
+
+
+  private void getTransactionSignWeight(String[] parameters) throws InvalidProtocolBufferException {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println(
+          "getTransactionSignWeight needs 1 parameter, like getTransactionSignWeight transaction which is hex string");
+      return;
+    }
+
+    String transactionStr = parameters[0];
+    Transaction transaction = Transaction.parseFrom(ByteArray.fromHexString(transactionStr));
+
+    TransactionSignWeight transactionSignWeight = WalletApi.getTransactionSignWeight(transaction);
+    if (transactionSignWeight != null) {
+      logger.info(Utils.printTransactionSignWeight(transactionSignWeight));
+    } else {
+      logger.info("GetTransactionSignWeight failed !!");
+    }
+  }
+
+  private void getTransactionApprovedList(String[] parameters)
+      throws InvalidProtocolBufferException {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println(
+          "getTransactionApprovedList needs 1 parameter, like getTransactionApprovedList transaction which is hex string");
+      return;
+    }
+
+    String transactionStr = parameters[0];
+    Transaction transaction = Transaction.parseFrom(ByteArray.fromHexString(transactionStr));
+
+    TransactionApprovedList transactionApprovedList = WalletApi
+        .getTransactionApprovedList(transaction);
+    if (transactionApprovedList != null) {
+      logger.info(Utils.printTransactionApprovedList(transactionApprovedList));
+    } else {
+      logger.info("GetTransactionApprovedList failed !!");
+    }
+  }
+
+  private void addTransactionSign(String[] parameters)
+      throws CipherException, IOException, CancelException {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println(
+          "addTransactionSign needs 1 parameter, like addTransactionSign transaction which is hex string");
+      return;
+    }
+
+    String transactionStr = parameters[0];
+    Transaction transaction = Transaction.parseFrom(ByteArray.fromHexString(transactionStr));
+    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
+      System.out.println("invalid transaction");
+      return;
+    }
+
+    transaction = walletApiWrapper.addTransactionSign(transaction);
+    if (transaction != null) {
+      System.out
+          .println("Transaction hex string is " + ByteArray
+              .toHexString(transaction.toByteArray()));
+      System.out.println(Utils.printTransaction(transaction));
+    } else {
+      logger.info("AddTransactionSign failed !!");
+    }
+
+  }
+
+  private void broadcastTransaction(String[] parameters) throws InvalidProtocolBufferException {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println(
+          "broadcastTransaction needs 1 parameter, like broadcastTransaction transaction which is hex string");
+      return;
+    }
+
+    String transactionStr = parameters[0];
+    Transaction transaction = Transaction.parseFrom(ByteArray.fromHexString(transactionStr));
+    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
+      System.out.println("invalid transaction");
+      return;
+    }
+
+    boolean ret = WalletApi.broadcastTransaction(transaction);
+    if (ret) {
+      logger.info("BroadcastTransaction successful !!!!");
+    } else {
+      logger.info("BroadcastTransaction failed !!!!");
+    }
+
+  }
+
   private void help() {
     System.out.println("Help: List of Tron Wallet-cli commands");
     System.out.println(
         "For more information on a specific command, type the command and it will display tips");
     System.out.println("");
+    System.out.println("AddTransactionSign");
     System.out.println("ApproveProposal");
     System.out.println("AssetIssue");
     System.out.println("BackupWallet");
     System.out.println("BackupWallet2Base64");
+    System.out.println("BroadcastTransaction");
     System.out.println("ChangePassword");
     System.out.println("CreateAccount");
     System.out.println("CreateProposal");
@@ -1779,11 +1881,13 @@ public class Client {
     System.out.println("GetNextMaintenanceTime");
     System.out.println("GetProposal");
     System.out.println("GetTotalTransaction");
+    System.out.println("GetTransactionApprovedList");
     System.out.println("GetTransactionById");
     System.out.println("GetTransactionCountByBlockNum");
     System.out.println("GetTransactionInfoById");
     System.out.println("GetTransactionsFromThis");
     System.out.println("GetTransactionsToThis");
+    System.out.println("GetTransactionSignWeight");
     System.out.println("ImportWallet");
     System.out.println("ImportWalletByBase64");
     System.out.println("ListAssetIssue");
@@ -1803,12 +1907,12 @@ public class Client {
     System.out.println("TriggerContract contractAddress method args isHex fee_limit value");
     System.out.println("UnfreezeAsset");
     System.out.println("UnfreezeBalance");
-    System.out.println("UnfreezeAsset");
     System.out.println("UpdateAccount");
     System.out.println("UpdateAsset");
     System.out.println("UpdateEnergyLimit contract_address energy_limit");
     System.out.println("UpdateSetting contract_address consume_user_resource_percent");
     System.out.println("UpdateWitness");
+    System.out.println("UpdateAccountPermission");
     System.out.println("VoteWitness");
     System.out.println("WithdrawBalance");
 //    System.out.println("buyStorage");
@@ -1819,6 +1923,7 @@ public class Client {
 //   System.out.println("GetTransactionsByTimestampCount");
 //   System.out.println("GetTransactionsFromThisCount");
 //   System.out.println("GetTransactionsToThisCount");
+
     System.out.println("Exit or Quit");
 
     System.out.println("Input any one of the listed commands, to display how-to tips.");
@@ -1826,7 +1931,8 @@ public class Client {
 
   private String[] getCmd(String cmdLine) {
     if (cmdLine.indexOf("\"") < 0 || cmdLine.toLowerCase().startsWith("deploycontract")
-        || cmdLine.toLowerCase().startsWith("triggercontract")) {
+        || cmdLine.toLowerCase().startsWith("triggercontract")
+        || cmdLine.toLowerCase().startsWith("updateaccountpermission")) {
       return cmdLine.split("\\s+");
     }
     String[] strArray = cmdLine.split("\"");
@@ -2203,6 +2309,26 @@ public class Client {
           }
           case "generateaddress": {
             generateAddress();
+            break;
+          }
+          case "updateaccountpermission": {
+            updateAccountPermission(parameters);
+            break;
+          }
+          case "gettransactionsignweight": {
+            getTransactionSignWeight(parameters);
+            break;
+          }
+          case "gettransactionapprovedlist": {
+            getTransactionApprovedList(parameters);
+            break;
+          }
+          case "addtransactionsign": {
+            addTransactionSign(parameters);
+            break;
+          }
+          case "broadcasttransaction": {
+            broadcastTransaction(parameters);
             break;
           }
           case "exit":
