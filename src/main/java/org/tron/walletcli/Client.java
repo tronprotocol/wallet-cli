@@ -1277,19 +1277,8 @@ public class Client {
     }
   }
 
-  private void withdrawBalance(String[] parameters) throws IOException, CipherException, CancelException {
-    if (parameters != null && parameters.length > 1){
-      System.out.println("withdrawBalance needs 0 or 1 parameter like following: ");
-      System.out.println("withdrawBalance [delaySeconds]");
-      return;
-    }
-
-    long delaySeconds = 0;
-    if (parameters != null && parameters.length == 1) {
-      delaySeconds = new Long(parameters[0]);
-    }
-
-    boolean result = walletApiWrapper.withdrawBalance(delaySeconds);
+  private void withdrawBalance() throws IOException, CipherException, CancelException {
+    boolean result = walletApiWrapper.withdrawBalance();
     if (result) {
       logger.info("withdrawBalance " + " successful !!");
     } else {
@@ -2251,7 +2240,7 @@ public class Client {
             break;
           }
           case "withdrawbalance": {
-            withdrawBalance(parameters);
+            withdrawBalance();
             break;
           }
           case "unfreezeasset": {

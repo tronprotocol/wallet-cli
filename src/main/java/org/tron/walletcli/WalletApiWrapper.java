@@ -515,13 +515,13 @@ public class WalletApiWrapper {
     return wallet.unfreezeAsset(delaySeconds);
   }
 
-  public boolean withdrawBalance(long delaySeconds) throws CipherException, IOException, CancelException {
+  public boolean withdrawBalance() throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: withdrawBalance failed, Please login first !!");
       return false;
     }
 
-    return wallet.withdrawBalance(delaySeconds);
+    return wallet.withdrawBalance();
   }
 
   public boolean createProposal(HashMap<Long, Long> parametersMap)

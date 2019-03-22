@@ -1252,15 +1252,13 @@ public class WalletApi {
     return builder.build();
   }
 
-  public boolean withdrawBalance(long delaySeconds) throws CipherException, IOException, CancelException {
+  public boolean withdrawBalance() throws CipherException, IOException, CancelException {
     Contract.WithdrawBalanceContract contract = createWithdrawBalanceContract();
     if (rpcVersion == 2) {
       TransactionExtention transactionExtention = rpcCli.createTransaction2(contract);
-      transactionExtention = TransactionUtils.setDelaySecondsToExtension(transactionExtention, delaySeconds);
       return processTransactionExtention(transactionExtention);
     } else {
       Transaction transaction = rpcCli.createTransaction(contract);
-      transaction = TransactionUtils.setDelaySeconds(transaction, delaySeconds);
       return processTransaction(transaction);
     }
   }
