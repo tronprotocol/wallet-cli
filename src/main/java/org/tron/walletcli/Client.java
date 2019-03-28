@@ -497,6 +497,24 @@ public class Client {
 
   }
 
+  private void updateDeferredTransactionById(String[] parameters)
+      throws IOException, CipherException, CancelException {
+    if (parameters == null || parameters.length != 2) {
+      System.out.println("updateDeferredTransactionById needs parameters like following: ");
+      System.out.println("updateDeferredTransactionById transactionId delaySeconds");
+      return;
+    }
+    String trxId = parameters[0];
+    long delaySeconds = Long.valueOf(parameters[1]);
+    boolean result = walletApiWrapper.updateDeferredTransaction(trxId, delaySeconds);
+    if (result) {
+      logger.info("updateDeferredTransactionById successfully");
+    } else {
+      logger.info("updateDeferredTransactionById failed!!");
+    }
+
+  }
+
   private void sendCoin(String[] parameters) throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length < 2 || parameters.length > 3) {
       System.out.println("SendCoin needs parameters like following: ");
@@ -1944,6 +1962,7 @@ public class Client {
     System.out.println("BackupWallet");
     System.out.println("BackupWallet2Base64");
     System.out.println("CancelDeferredTransactionById");
+    System.out.println("UpdateDeferredTransactionById");
     System.out.println("BroadcastTransaction");
     System.out.println("ChangePassword");
     System.out.println("CreateAccount");
@@ -2184,6 +2203,11 @@ public class Client {
           }
           case "canceldeferredtransactionbyid": {
             cancelDeferredTransactionById(parameters);
+            break;
+          }
+
+          case "updatedeferredtransactionbyid": {
+            updateDeferredTransactionById(parameters);
             break;
           }
 
