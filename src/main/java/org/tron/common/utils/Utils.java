@@ -1286,20 +1286,26 @@ public class Utils {
     result += WalletApi.encode58Check(deferredTransaction.getSenderAddress().toByteArray());
     result += "\n";
 
-    result += "DelayUntil: ";
-    result += "\n";
-    result += deferredTransaction.getDelayUntil();
-    result += "\n";
+    if (deferredTransaction.getDelayUntil() > 0) {
+      result += "DelayUntil: ";
+      result += "\n";
+      result += deferredTransaction.getDelayUntil();
+      result += "\n";
+    }
 
-    result += "Expiration: ";
-    result += "\n";
-    result += deferredTransaction.getExpiration();
-    result += "\n";
+    if (deferredTransaction.getExpiration() > 0) {
+      result += "Expiration: ";
+      result += "\n";
+      result += deferredTransaction.getExpiration();
+      result += "\n";
+    }
 
-    result += "PublishTime: ";
-    result += "\n";
-    result += deferredTransaction.getPublishTime();
-    result += "\n";
+    if (deferredTransaction.getPublishTime() > 0) {
+      result += "PublishTime: ";
+      result += "\n";
+      result += deferredTransaction.getPublishTime();
+      result += "\n";
+    }
 
     if (Objects.nonNull(deferredTransaction.getTransaction())
         && Objects.nonNull(deferredTransaction.getTransaction().getRawData())

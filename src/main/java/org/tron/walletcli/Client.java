@@ -1961,9 +1961,8 @@ public class Client {
     System.out.println("AssetIssue");
     System.out.println("BackupWallet");
     System.out.println("BackupWallet2Base64");
-    System.out.println("CancelDeferredTransactionById");
-    System.out.println("UpdateDeferredTransactionById");
     System.out.println("BroadcastTransaction");
+    System.out.println("CancelDeferredTransactionById");
     System.out.println("ChangePassword");
     System.out.println("CreateAccount");
     System.out.println("CreateProposal");
@@ -2027,6 +2026,7 @@ public class Client {
     System.out.println("UnfreezeBalance");
     System.out.println("UpdateAccount");
     System.out.println("UpdateAsset");
+    System.out.println("UpdateDeferredTransactionById");
     System.out.println("UpdateEnergyLimit contract_address energy_limit");
     System.out.println("UpdateSetting contract_address consume_user_resource_percent");
     System.out.println("UpdateWitness");
