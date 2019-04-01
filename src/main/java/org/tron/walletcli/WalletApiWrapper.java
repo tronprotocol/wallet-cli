@@ -659,14 +659,15 @@ public class WalletApiWrapper {
   }
 
   public boolean callContract(byte[] contractAddress, long callValue, byte[] data, long feeLimit,
-      long tokenValue, String tokenId)
+      long tokenValue, String tokenId, boolean isConstant)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: callContract failed,  Please login first !!");
       return false;
     }
 
-    return wallet.triggerContract(contractAddress, callValue, data, feeLimit, tokenValue, tokenId);
+    return wallet.triggerContract(contractAddress, callValue, data, feeLimit, tokenValue, tokenId,
+        isConstant);
   }
 
   public boolean accountPermissionUpdate(byte[] ownerAddress,String permission)

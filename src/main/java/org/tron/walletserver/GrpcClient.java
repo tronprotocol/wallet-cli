@@ -792,6 +792,10 @@ public class GrpcClient {
     return blockingStubFull.triggerContract(request);
   }
 
+  public TransactionExtention triggerConstantContract(Contract.TriggerSmartContract request) {
+    return blockingStubFull.triggerConstantContract(request);
+  }
+
   public SmartContract getContract(byte[] address) {
     ByteString byteString = ByteString.copyFrom(address);
     BytesMessage bytesMessage = BytesMessage.newBuilder().setValue(byteString).build();

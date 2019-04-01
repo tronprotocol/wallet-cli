@@ -1772,12 +1772,18 @@ public class WalletApi {
   }
 
   public boolean triggerContract(byte[] contractAddress, long callValue, byte[] data, long feeLimit,
-      long tokenValue, String tokenId)
+      long tokenValue, String tokenId, boolean isConstant)
       throws IOException, CipherException, CancelException {
     byte[] owner = getAddress();
     Contract.TriggerSmartContract triggerContract = triggerCallContract(owner, contractAddress,
         callValue, data, tokenValue, tokenId);
-    TransactionExtention transactionExtention = rpcCli.triggerContract(triggerContract);
+    TransactionExtention transactionExtention;
+    if (isConstant) {
+      transactionExtention = rpcCli.triggerConstantContract(triggerContract);
+    } else {
+      transactionExtention = rpcCli.triggerContract(triggerContract);
+    }
+
     if (transactionExtention == null || !transactionExtention.getResult().getResult()) {
       System.out.println("RPC create call trx failed!");
       System.out.println("Code = " + transactionExtention.getResult().getCode());

@@ -1649,13 +1649,15 @@ public class Client {
     }
   }
 
-  private void triggerContract(String[] parameters)
+  private void triggerContract(String[] parameters, boolean isConstant)
       throws IOException, CipherException, CancelException, EncodingException {
+    String cmdMethodStr = isConstant ? "TriggerConstantContract" : "TriggerContract";
     if (parameters == null ||
         parameters.length < 8) {
-      System.out.println("TriggerContract needs 6 parameters like following: ");
+      System.out.println(cmdMethodStr + " needs 6 parameters like following: ");
       System.out.println(
-          "TriggerContract contractAddress method args isHex fee_limit value token_value token_id(e.g: TRXTOKEN, use # if don't provided)");
+          cmdMethodStr
+              + " contractAddress method args isHex fee_limit value token_value token_id(e.g: TRXTOKEN, use # if don't provided)");
       // System.out.println("example:\nTriggerContract password contractAddress method args value");
       return;
     }
@@ -1678,12 +1680,13 @@ public class Client {
     byte[] contractAddress = WalletApi.decodeFromBase58Check(contractAddrStr);
 
     boolean result = walletApiWrapper
-        .callContract(contractAddress, callValue, input, feeLimit, tokenCallValue, tokenId);
+        .callContract(contractAddress, callValue, input, feeLimit, tokenCallValue, tokenId,
+            isConstant);
     if (result) {
-      System.out.println("Broadcast the triggerContract successfully.\n"
+      System.out.println("Broadcast the " + cmdMethodStr + " successfully.\n"
           + "Please check the given transaction id to get the result on blockchain using getTransactionInfoById command");
     } else {
-      System.out.println("Broadcast the triggerContract failed");
+      System.out.println("Broadcast the " + cmdMethodStr + " failed");
     }
   }
 
@@ -1740,7 +1743,7 @@ public class Client {
       return;
     }
 
-    boolean ret = walletApiWrapper.accountPermissionUpdate(ownerAddress,parameters[1]);
+    boolean ret = walletApiWrapper.accountPermissionUpdate(ownerAddress, parameters[1]);
     if (ret) {
       logger.info("updateAccountPermission successful !!!!");
     } else {
@@ -1905,6 +1908,7 @@ public class Client {
     System.out.println("SetAccountId");
     System.out.println("TransferAsset");
     System.out.println("TriggerContract contractAddress method args isHex fee_limit value");
+    System.out.println("TriggerConstantContract contractAddress method args isHex fee_limit value");
     System.out.println("UnfreezeAsset");
     System.out.println("UnfreezeBalance");
     System.out.println("UpdateAccount");
@@ -1932,6 +1936,7 @@ public class Client {
   private String[] getCmd(String cmdLine) {
     if (cmdLine.indexOf("\"") < 0 || cmdLine.toLowerCase().startsWith("deploycontract")
         || cmdLine.toLowerCase().startsWith("triggercontract")
+        || cmdLine.toLowerCase().startsWith("TriggerConstantContract")
         || cmdLine.toLowerCase().startsWith("updateaccountpermission")) {
       return cmdLine.split("\\s+");
     }
@@ -2300,7 +2305,11 @@ public class Client {
             break;
           }
           case "triggercontract": {
-            triggerContract(parameters);
+            triggerContract(parameters, false);
+            break;
+          }
+          case "triggerconstantcontract": {
+            triggerContract(parameters, true);
             break;
           }
           case "getcontract": {
