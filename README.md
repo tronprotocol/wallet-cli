@@ -229,3 +229,126 @@ asset {
 (cost trx 1000 trx for assetIssue)                                                                    
 (You can query the trx balance and other asset balances for any account )                                                
 TransferAsset 123456 649DDB4AB82D558AD6809C7AB2BA43D1D1054B3F testAssetIssue00001 10000                                                     
+
+
+如何使用wallet-cli使用多重签名的功能？   
+-------------------------------
+多重签名的功能可以把账户的权限赋给其他账户，更好的实现对账户的管理，分三类权限：   
+owner 	账户的所有者权限    
+active	账户的其他的功能权限，可具体控制某一项功能的授权；如果是witness，则不包含产块权限。    
+witness	如果是witness，将产块权限赋给其他某一个用户。   
+
+
+给其他用户授权   
+Updateaccountpermission TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ {"owner_permission":{"type":0,"permission_name":"owner","threshold":1,"keys":[{"address":"TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ","weight":1}]},"witness_permission":{"type":1,"permission_name":"owner","threshold":1,"keys":[{"address":"TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ","weight":1}]},"active_permissions":[{"type":2,"permission_name":"active12323","threshold":2,"operations":"7fff1fc0033e0000000000000000000000000000000000000000000000000000","keys":[{"address":"TNhXo1GbRNCuorvYu5JFWN3m2NYr9QQpVR","weight":1},{"address":"TKwhcDup8L2PH5r6hxp5CQvQzZqJLmKvZP","weight":1}]}]}
+账户TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ将owner权限给自己，active权限给TNhXo1GbRNCuorvYu5JFWN3m2NYr9QQpVR
+和TKwhcDup8L2PH5r6hxp5CQvQzZqJLmKvZP，其中active的权限需要两个账户同时签名才能生效。   
+如果账户不是witness，则不设置witness_permission,否则会报错。    
+
+签名交易    
+SendCoin TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW 10000000000000000    
+将会提示Please confirm and input your permission id, if input y or Y means default 0, other non-numeric characters will cancell transaction.
+这需要用到active中的转账权限，输入：2   
+然后选择其中一个账户，并输入账户本地密码，比如 TNhXo1GbRNCuorvYu5JFWN3m2NYr9QQpVR，则会用 TNhXo1GbRNCuorvYu5JFWN3m2NYr9QQpVR 的私钥去签名交易。
+然后选择另一个账户，输入账户的本地密码，测试中是 TKwhcDup8L2PH5r6hxp5CQvQzZqJLmKvZP, 则会用 TKwhcDup8L2PH5r6hxp5CQvQzZqJLmKvZP 的私钥去签名交易。
+每一个账户的weight为1，权限的阈值时2，满足条件，将会提示“Send 10000000000000000 drop to TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW successful !!”。
+这是多账户在同一个cli时使用多重签名的功能。
+如果在多cli签名，根据获取的transaction hex string，使用命令addTransactionSign，签名完需要手动广播最终的交易。   
+
+根据交易获取签名权重信息   
+getTransactionSignWeight 0a8c010a020318220860e195d3609c86614096eadec79d2d5a6e080112680a2d747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e5472616e73666572436f6e747261637412370a1541a7d8a35b260395c14aa456297662092ba3b76fc01215415a523b449890854c8fc460ab602df9f31fe4293f18808084fea6dee11128027094bcb8bd9d2d1241c18ca91f1533ecdd83041eb0005683c4a39a2310ec60456b1f0075b4517443cf4f601a69788f001d4bc03872e892a5e25c618e38e7b81b8b1e69d07823625c2b0112413d61eb0f8868990cfa138b19878e607af957c37b51961d8be16168d7796675384e24043d121d01569895fcc7deb37648c59f538a8909115e64da167ff659c26101
+显示如下：   
+14:56:30.574 INFO  [main] [Client](Client.java:1764) permission:   
+{
+permission_type: Active
+permission_id: 2
+permission_name: active12323
+threshold: 2
+parent_id: 0
+operations: 7fff1fc0033e0000000000000000000000000000000000000000000000000000
+keys:
+[
+address: TNhXo1GbRNCuorvYu5JFWN3m2NYr9QQpVR
+weight: 1
+address: TKwhcDup8L2PH5r6hxp5CQvQzZqJLmKvZP
+weight: 1
+]
+}
+current_weight: 2
+result:
+{
+code: ENOUGH_PERMISSION
+}
+approved_list:
+[
+TKwhcDup8L2PH5r6hxp5CQvQzZqJLmKvZP
+TNhXo1GbRNCuorvYu5JFWN3m2NYr9QQpVR
+]
+transaction:
+{
+txid: 
+7da63b6a1f008d03ef86fa871b24a56a501a8bbf15effd7aca635de6c738df4b
+raw_data: 
+{
+ref_block_bytes: 0318
+ref_block_hash: 60e195d3609c8661
+contract: 
+{
+contract 0 :::
+[
+contract_type: TransferContract
+owner_address: TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ
+to_address: TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW
+amount: 10000000000000000
+]
+
+}
+timestamp: Mon Apr 01 14:55:06 CST 2019
+fee_limit: 0
+}
+signature: 
+{
+signature 0 :c18ca91f1533ecdd83041eb0005683c4a39a2310ec60456b1f0075b4517443cf4f601a69788f001d4bc03872e892a5e25c618e38e7b81b8b1e69d07823625c2b01
+signature 1 :3d61eb0f8868990cfa138b19878e607af957c37b51961d8be16168d7796675384e24043d121d01569895fcc7deb37648c59f538a8909115e64da167ff659c26101
+}
+}
+
+根据交易获取签名信息    
+getTransactionApprovedList 0a8c010a020318220860e195d3609c86614096eadec79d2d5a6e080112680a2d747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e5472616e73666572436f6e747261637412370a1541a7d8a35b260395c14aa456297662092ba3b76fc01215415a523b449890854c8fc460ab602df9f31fe4293f18808084fea6dee11128027094bcb8bd9d2d1241c18ca91f1533ecdd83041eb0005683c4a39a2310ec60456b1f0075b4517443cf4f601a69788f001d4bc03872e892a5e25c618e38e7b81b8b1e69d07823625c2b0112413d61eb0f8868990cfa138b19878e607af957c37b51961d8be16168d7796675384e24043d121d01569895fcc7deb37648c59f538a8909115e64da167ff659c26101
+14:57:37.807 INFO  [main] [Client](Client.java:1784) result:
+{
+code: SUCCESS
+}
+approved_list:
+[
+TKwhcDup8L2PH5r6hxp5CQvQzZqJLmKvZP
+TNhXo1GbRNCuorvYu5JFWN3m2NYr9QQpVR
+]
+transaction:
+{
+txid: 
+7da63b6a1f008d03ef86fa871b24a56a501a8bbf15effd7aca635de6c738df4b
+raw_data: 
+{
+ref_block_bytes: 0318
+ref_block_hash: 60e195d3609c8661
+contract: 
+{
+contract 0 :::
+[
+contract_type: TransferContract
+owner_address: TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ
+to_address: TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW
+amount: 10000000000000000
+]
+
+}
+timestamp: Mon Apr 01 14:55:06 CST 2019
+fee_limit: 0
+}
+signature: 
+{
+signature 0 :c18ca91f1533ecdd83041eb0005683c4a39a2310ec60456b1f0075b4517443cf4f601a69788f001d4bc03872e892a5e25c618e38e7b81b8b1e69d07823625c2b01
+signature 1 :3d61eb0f8868990cfa138b19878e607af957c37b51961d8be16168d7796675384e24043d121d01569895fcc7deb37648c59f538a8909115e64da167ff659c26101
+}
+}
