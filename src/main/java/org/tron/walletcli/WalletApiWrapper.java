@@ -644,6 +644,15 @@ public class WalletApiWrapper {
 
   }
 
+  public boolean clearContractABI(byte[] contractAddress)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warning: updateSetting failed,  Please login first !!");
+      return false;
+    }
+    return wallet.clearContractABI(contractAddress);
+  }
+
   public boolean deployContract(String name, String abiStr, String codeStr,
       long feeLimit, long value, long consumeUserResourcePercent, long originEnergyLimit,
       long tokenValue, String tokenId, String libraryAddressPair)
@@ -670,13 +679,13 @@ public class WalletApiWrapper {
         isConstant);
   }
 
-  public boolean accountPermissionUpdate(byte[] ownerAddress,String permission)
+  public boolean accountPermissionUpdate(byte[] ownerAddress, String permission)
       throws IOException, CipherException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: accountPermissionUpdate failed,  Please login first !!");
       return false;
     }
-    return wallet.accountPermissionUpdate(ownerAddress,permission);
+    return wallet.accountPermissionUpdate(ownerAddress, permission);
   }
 
 

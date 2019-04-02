@@ -1560,6 +1560,28 @@ public class Client {
     }
   }
 
+  private void clearContractABI(String[] parameters)
+      throws IOException, CipherException, CancelException {
+    if (parameters == null ||
+        parameters.length != 1) {
+      System.out.println("clearContractABI needs 1 parameters like following: ");
+      System.out.println("clearContractABI contract_address");
+      return;
+    }
+
+    byte[] contractAddress = WalletApi.decodeFromBase58Check(parameters[0]);
+    if (contractAddress == null) {
+      return;
+    }
+
+    boolean result = walletApiWrapper.clearContractABI(contractAddress);
+    if (result) {
+      System.out.println("clearContractABI successfully");
+    } else {
+      System.out.println("clearContractABI failed");
+    }
+  }
+
   private String[] getParas(String[] para) {
     String paras = String.join(" ", para);
     Pattern pattern = Pattern.compile(" (\\[.*?\\]) ");
@@ -1852,6 +1874,7 @@ public class Client {
     System.out.println("BackupWallet2Base64");
     System.out.println("BroadcastTransaction");
     System.out.println("ChangePassword");
+    System.out.println("ClearContractABI");
     System.out.println("CreateAccount");
     System.out.println("CreateProposal");
     System.out.println("CreateWitness");
@@ -2014,6 +2037,10 @@ public class Client {
           }
           case "changepassword": {
             changePassword();
+            break;
+          }
+          case "clearcontractabi": {
+            clearContractABI(parameters);
             break;
           }
           case "login": {

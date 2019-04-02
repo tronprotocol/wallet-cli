@@ -410,6 +410,9 @@ service Wallet {
   rpc TriggerConstantContract (TriggerSmartContract) returns (TransactionExtention) {
   }
 
+  rpc ClearContractABI (ClearABIContract) returns (TransactionExtention) {
+  }
+
   rpc ListWitnesses (EmptyMessage) returns (WitnessList) {
     option (google.api.http) = {
       post: "/wallet/listwitnesses"
@@ -617,7 +620,7 @@ service Wallet {
 
   }
 
-  rpc GetTransactionApprovedList(Transaction) returns (TransactionApprovedList) {
+  rpc GetTransactionApprovedList (Transaction) returns (TransactionApprovedList) {
 
   }
 
@@ -1003,7 +1006,7 @@ message TransactionSignWeight {
       NOT_ENOUGH_PERMISSION = 1; // error in
       SIGNATURE_FORMAT_ERROR = 2;
       COMPUTE_ADDRESS_ERROR = 3;
-      PERMISSION_ERROR = 4;      //The key is not in permission
+      PERMISSION_ERROR = 4; //The key is not in permission
       OTHER_ERROR = 20;
     }
     response_code code = 1;
