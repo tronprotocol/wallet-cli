@@ -782,58 +782,59 @@ by default; when the receiverAddress is set, the delegate resources are unfreeze
 unfreezeBalance  [ResourceCode:0 BANDWIDTH,1 CPU] [receiverAddress]     
      
 c get resource delegation information    
-getDelegatedResource fromAddress toAddress 	get the information from the fromAddress  to the 
-toAddress resource delegate    
-getDelegatedResourceAccountIndex address	get the information that address is delegated to 
-other account resources    
+getDelegatedResource fromAddress toAddress 	   
+get the information from the fromAddress to the  toAddress resource delegate    
+getDelegatedResourceAccountIndex address	   
+get the information that address is delegated to other account resources    
 
 
 Wallet related commands
 -----------------------   
-RegisterWallet 			Register your wallet, you need to set the wallet password and generate 
+RegisterWallet: 			Register your wallet, you need to set the wallet password and generate 
 the address and private key.    
-BackupWallet  			Back up your wallet, you need to enter your wallet password and export 
+BackupWallet:  			Back up your wallet, you need to enter your wallet password and export 
 the private key.hex string format,such 
 as:721d63b074f18d41c147e04c952ec93467777a30b6f16745bc47a8eae5076545    
-BackupWallet2Base64 	Back up your wallet, you need to enter your wallet password and export 
+BackupWallet2Base64: 	Back up your wallet, you need to enter your wallet password and export 
 the private key.base64 format,such as:ch1jsHTxjUHBR+BMlS7JNGd3ejC28WdFvEeo6uUHZUU=    
-ChangePassword			Modify the password of an account    
-ImportWallet			Import wallet, you need to set a password，hex String format    
-ImportWalletByBase64	Import wallet, you need to set a password，base64 fromat    
+ChangePassword:			Modify the password of an account    
+ImportWallet:			Import wallet, you need to set a password，hex String format    
+ImportWalletByBase64:	Import wallet, you need to set a password，base64 fromat    
 
   
 Account related commands
 ------------------------   
-GenerateAddress			Generate an address and print out the public and private keys     
-GetAccount				Get account information based on address    
-GetAccountNet			The usage of bandwidth    
-GetAccountResource		The usage of bandwidth and energy    
-GetAddress				Get the address of the current login account    
-GetBalance				Get the balance of the current login account    
+GenerateAddress:		Generate an address and print out the public and private keys     
+GetAccount:				Get account information based on address    
+GetAccountNet:			The usage of bandwidth    
+GetAccountResource:		The usage of bandwidth and energy    
+GetAddress:				Get the address of the current login account    
+GetBalance:				Get the balance of the current login account    
     
 	
 How to get transaction information    
 ----------------------------------    
-GetTransactionById					Get transaction information based on transaction id    
-GetTransactionCountByBlockNum		Get the number of transactions in the block based on the 
+GetTransactionById:					Get transaction information based on transaction id    
+GetTransactionCountByBlockNum:		Get the number of transactions in the block based on the 
 block height    
-GetTransactionInfoById				Get transaction-info based on transaction id,generally used 
+GetTransactionInfoById:				Get transaction-info based on transaction id,generally used 
 to check the result of a smart contract trigger     
-
 
 How to get block information
 ----------------------------    
-GetBlock							Get the block according to the block number; if you do not 
+GetBlock:							Get the block according to the block number; if you do not 
 pass the parameter, get the latest block    
-GetBlockById 						Get block based on blockID    
-GetBlockByLatestNum n				Get the latest n blocks, where 0< n < 100    
-GetBlockByLimitNext	startBlockId endBlockId		Get the block in the range [startBlockId, 
-endBlockId)     
+GetBlockById: 						Get block based on blockID    
+GetBlockByLatestNum n				
+Get the latest n blocks, where 0< n < 100    
+GetBlockByLimitNext	startBlockId endBlockId     
+Get the block in the range [startBlockId, endBlockId)     
 
 some others
 -----------    
-GetNextMaintenanceTime	Get the start time of the next maintain period    
-ListNodes				Get other peer information    
-ListWitnesses			Get all miner node information    
-BroadcastTransaction	Broadcast the transaction, where the transaction is in hex string format.    
+GetNextMaintenanceTime:	Get the start time of the next maintain period    
+ListNodes:				Get other peer information    
+ListWitnesses:			Get all miner node information    
+BroadcastTransaction:	Broadcast the transaction, where the transaction is in hex string format.
+    
   
