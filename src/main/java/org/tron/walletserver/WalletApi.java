@@ -1554,8 +1554,11 @@ public class WalletApi {
       } catch (UnsupportedEncodingException e) {
         throw new RuntimeException(e);  // now ignore
       }
-      String repeated = new String(new char[40 - libraryName.length() - 2]).replace("\0", "_");
-      String beReplaced = "__" + libraryName + repeated;
+//      String repeated = new String(new char[40 - libraryName.length() - 2]).replace("\0", "_");
+//      String beReplaced = "__" + libraryName + repeated;
+//      Matcher m = Pattern.compile(beReplaced).matcher(code);
+      String libraryNameKeccak256 = ByteArray.toHexString(Hash.sha3(ByteArray.fromString(libraryName))).substring(0,34);
+      String beReplaced = "__\\$" + libraryNameKeccak256 + "\\$__";
       Matcher m = Pattern.compile(beReplaced).matcher(code);
       code = m.replaceAll(libraryAddressHex);
     }
