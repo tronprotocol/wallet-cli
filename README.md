@@ -228,8 +228,253 @@ asset {
 })                                                                                                       
 (cost trx 1000 trx for assetIssue)                                                                    
 (You can query the trx balance and other asset balances for any account )                                                
-TransferAsset 123456 649DDB4AB82D558AD6809C7AB2BA43D1D1054B3F testAssetIssue00001 10000                                                     
+TransferAsset 123456 649DDB4AB82D558AD6809C7AB2BA43D1D1054B3F testAssetIssue00001 10000    
 
+How to issue TRC10 tokens
+-------------------------
+Each account can only issue one TRC10 token.     
+a. Issue TRC10 tokens        
+AssetIssue AssetName TotalSupply TrxNum AssetNum Precision StartDate EndDate Description Url 
+FreeNetLimitPerAccount PublicFreeNetLimit FrozenAmount0 FrozenDays0 ... FrozenAmountN FrozenDaysN   
+AssetName: 				The name of the issued TRC10 token      
+TotalSupply:			Total issuing amount = account balance of the issuer at the time of 
+issuance + all the frozen amount, before asset transfer and the issuance.     
+TrxNum,AssetNum:		these two parameters determine the exchange rate between the issued token
+ and the minimum unit of TRX (sun) when the token is issued.    
+FreeNetLimitPerAccount:	The maximum amount of bandwidth an account is allowed to use. Token 
+issuers can freeze TRX to obtain bandwidth (TransferAssetContract only)   
+PublicFreeNetLimit:		The maximum amount of bandwidth issuing accounts are allowed user. Token 
+issuers can freeze REX to obtain bandwidth (TransferAssetContract only).   
+StartDate,EndDate:		The start and end date of token issuance. Within this period time, other 
+users can participate in token issuance.     
+FrozenAmount0 FrozenDays0:	Amount and time of token freeze. FrozenAmount0 must be bigger than 0,
+ FrozenDays0 must be bigger than 1 and smaller than 3653.     
+Example:   
+AssetIssue TestTRX 100000 1 1 2 "2019-04-04 11:48:00" "2019-04-05" "just for test" www.test.com 
+100 100000 10000 10 10000 1     
+View published information:    
+GetAssetIssueByAccount TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ     
+11:50:02.688 INFO  [main] [Client](Client.java: 361)     
+assetIssue 0 :::   
+[   
+Id: 1000001   
+Owner_address: TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ   
+Name: TestTRX   
+Order: 0   
+Total_supply: 100000   
+Trx_num: 1   
+Num: 1   
+Precision 2   
+Start_time: Thu Apr 04 11:48:00 CST 2019   
+End_time: Fri Apr 05 00:00:00 CST 2019   
+Vote_score: 0   
+Description: just for test   
+Url: www.test.com   
+Free asset net limit: 100   
+Public free asset net limit: 100000   
+Public free asset net usage: 0   
+Public latest free net time: 0   
+Frozen_supply   
+{   
+  Amount: 10000   
+  Frozen_days: 1    
+}   
+Frozen_supply    
+{   
+  Amount: 10000    
+  Frozen_days: 10    
+}   
+]   
+ 
+b. Update parameters of TRC10 token    
+UpdateAsset FreeNetLimitPerAccount PublicFreeNetLimit Description Url   
+Specific meaning of the parameters is the same with that of AssetIssue   
+Example:   
+UpdateAsset 1000 1000000 "change description" www.changetest.com    
+View the modified information:   
+GetAssetIssueByAccount TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ   
+11:52:16.677 INFO  [main] [Client](Client.java: 361)    
+assetIssue 0 :::  
+[  
+Id: 1000001   
+Owner_address: TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ   
+Name: TestTRX   
+Order: 0   
+Total_supply: 100000   
+Trx_num: 1   
+Num: 1   
+Precision 2   
+Start_time: Thu Apr 04 11:48:00 CST 2019   
+End_time: Fri Apr 05 00:00:00 CST 2019    
+Vote_score: 0   
+description: change description    
+url: www.changetest.com   
+Free asset net limit: 1000   
+public free asset net limit: 1000000   
+Public free asset net usage: 0   
+public latest free net time: 0   
+Frozen_supply  
+{   
+  Amount: 10000   
+  Frozen_days: 1   
+}   
+Frozen_supply    
+{   
+  Amount: 10000    
+  Frozen_days: 10    
+}   
+]   
+  
+c. TRC10 transfer    
+TransferAsset ToAddress AssertName Amount    
+ToAddress:				Address of the target account     
+AssertName:				TRC10 id, 1000001 in the example    
+Amount:                 The number of TRC10 token to transfer       
+Example:  
+TransferAsset TN3zfjYUmMFK3ZsHSsrdJoNRtGkQmZLBLz 1000001 1000    
+View target account information after the transfer:    
+getaccount TN3zfjYUmMFK3ZsHSsrdJoNRtGkQmZLBLz  
+11:54:33.118 INFO  [main] [Client](Client.java:260)      
+address: TN3zfjYUmMFK3ZsHSsrdJoNRtGkQmZLBLz     
+...   
+assetV2   
+{   
+  id: 1000001    
+  balance: 1000    
+  latest_asset_operation_timeV2: null    
+  free_asset_net_usageV2: 0    
+}    
+...    
+}    
+    
+d. Participating in the issue of TRC10   
+ParticipateAssetIssue ToAddress AssetName Amount    
+ToAddress:				Account address of Token 10 issuers     
+AssertName:				TRC10 ID,1000001 in the example    
+Amount:                 The number of TRC10 token to transfers	    		
+It must happen during the release of Token 10, otherwise an error may occur    
+Example:    
+ParticipateAssetIssue TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ 1000001 1000    
+View remaining balance:    
+getaccount TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW    
+11:59:57.558 INFO  [main] [Client](Client.java:260)     
+address: TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW    
+...    
+assetV2    
+{    
+  id: 1000001    
+  balance: 1000    
+  latest_asset_operation_timeV2: null    
+  free_asset_net_usageV2: 0    
+}    
+...    
+}    
+    
+e. unfreeze TRC10 token    
+It must be unfrozen after the freezing period, unfreeze Token10, which has stopped being frozen.    
+UnfreezeAsset    
+    
+f. Obtain information about Token 10    
+ListAssetIssue			Obtain all of the published Token 10 information     
+GetAssetIssueByAccount	Obtain Token10 information according to the issuing address    
+GetAssetIssueById		Obtain Token10 Information based on ID    
+GetAssetIssueByName		Obtain Token10 Information based on names 	    
+GetAssetIssueListByName	Get list information on Token10 based on names     
+
+    
+How to initiate a proposal
+--------------------------
+Any proposal-related operations, except for viewing operations, must be performed by committee 
+members.     
+a. Initiate a proposal    
+createProposal id0 value0 ... idN valueN    
+id0:					the serial number of the parameter. Every parameter of TRON network has a
+ serial number. Go to "http://tronscan.org/#/sr/committee" to see the specifics  
+Value0:                 the modified value
+In the example, modification No.4 (modifying token issuance fee) costs 1000TRX as follows:      
+createProposal 4 1000    
+View initiated proposal:     
+listproposals    
+12:20:50.288 INFO  [main] [Client](Client.java:1043)    
+proposal 0 :::    
+[    
+id: 1    
+state: PENDING    
+createTime: 1554351564000    
+expirationTime: 1554616800000    
+parametersMap: {4=1000}    
+approvalsList: [     
+]]    
+The corresponding id is 1    
+     
+b. Approve/cancel the proposal    
+approveProposal id is_or_not_add_approval    
+id:                         ID of the initiated proposal, 1 in the example    
+is_or_not_add_approval:	    true for approve; false against    
+Example:    
+ApproveProposal 1 true              in favor of the offer    
+ApproveProposal 1 false             Cancel the approved proposal    
+    
+c Cancel the created proposal    
+DeleteProposal proposal ID    
+proposalId ID of the initiated proposal, 1 in the example    
+The proposal must be canceled by the supernode that initiated the proposal    
+Example：    
+DeleteProposal 1    
+    
+d Obtain proposal information    
+ListProposals Obtain initiated proposals    
+ListProposalsPaginated Use the paging mode to obtain the initiated proposal    
+GetProposal Obtain proposal information based on the proposal ID    
+    
+
+How to trade on the exchange
+----------------------------
+The trading and price fluctuations of trading pairs are in accordance with the Bancor Agreement, 
+which can be found in TRON's related documents.    
+a Create a trading pair    
+exchangeCreate first_token_id first_token_balance second_token_id second_token_balance    
+First_token_id, first_token_balance:    ID and amount of the first token    
+second_token_id, second_token_balance:  ID and amount of the second token    
+The ID is the ID of the issued TRC10 token. If it is TRX, the ID is "_", the amount must be greater 
+than 0, and less than 1,000,000,000,000,000.    
+Example:    
+exchangeCreate 1000001 10000 _ 10000    
+Create trading pairs with the IDs of 1000001 and TRX, the amount is 10000 for both.    
+    
+b Capital injection    
+exchangeInject exchange_id token_id quant    
+exchange_id:    The ID of the transaction pair to be funded    
+token_id,quant: TokenId and quantity of capital injection	   
+When conducting capital injection, depending on the amount of capital injection, the proportion 
+of each token in the transaction pair is deducted from the account and added to the transaction 
+pair. Depending on the difference in the balance of the transaction, the same amount of money for
+ the same token is different.    
+    
+c Transactions   
+exchangeTransaction exchange_id token_id quant expected    
+exchange_id:        ID of the transaction pair    
+token_id, quant:    The ID and quantity of tokens being exchanged, equivalent to selling    
+expected:           Expected quantity of another token     
+The expected must be less than exchanged, otherwise, an error will be reported.    
+Example：    
+ExchangeTransaction 1 1000001 100 80    
+It is expected to acquire the 80 TRX by exchanging 1000001 from the transaction pair ID of 1, and
+ the amount is 100 (equivalent to selling token10, the ID is 1000001, the amount is 100).    
+    
+d Divestment    
+exchangeWithdraw exchange_id token_id quant    
+Exchange_id:    The ID of the transaction pair to be divested    
+Token_id,quant: TokenId and quantity of divestment	    
+When conducting divestment, depending on the amount of divestment, the proportion of each token 
+in the transaction pair is deducted from the account and added to the transaction pair. Depending
+ on the difference in the balance of the transaction, the same amount of money for the same token
+  is different.    
+
+e Obtain information on trading pairs    
+ListExchanges               lists trading pairs    
+ListexchangesPaginated      List trading pairs by page         
+                                            
 
 How to use the multi-signature feature of wallet-cli?   
 -------------------------------
