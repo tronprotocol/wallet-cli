@@ -1752,6 +1752,5 @@ public class WalletApi {
   public static void main(String[] args) {
     System.out
         .println(ByteArray.toHexString(Hash.sha3(ByteArray.fromString("playerRollDice(uint256)"))));
-
   }
 }
