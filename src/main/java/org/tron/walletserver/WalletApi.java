@@ -1554,11 +1554,25 @@ public class WalletApi {
       } catch (UnsupportedEncodingException e) {
         throw new RuntimeException(e);  // now ignore
       }
-      String libraryNameKeccak256 = ByteArray.toHexString(Hash.sha3(ByteArray.fromString(libraryName))).substring(0,34);
-      String beReplaced = "__\\$" + libraryNameKeccak256 + "\\$__";
+
+      String beReplaced;
+      if(code.contains("$")) {
+        //0.5.4 version
+        String libraryNameKeccak256 = ByteArray.toHexString(Hash.sha3(ByteArray.fromString(libraryName))).substring(0,34);
+        beReplaced = "__\\$" + libraryNameKeccak256 + "\\$__";
+      } else {
+        //old version
+        String repeated = new String(new char[40 - libraryName.length() - 2]).replace("\0", "_");
+        beReplaced = "__" + libraryName + repeated;
+      }
+
+      System.out.println("libraryAddressHex: " + libraryAddressHex);
+      System.out.println("code: " + code);
       Matcher m = Pattern.compile(beReplaced).matcher(code);
       code = m.replaceAll(libraryAddressHex);
     }
+
+    System.out.println("code: " + code);
 
     return Hex.decode(code);
   }
@@ -1742,5 +1756,9 @@ public class WalletApi {
   public static void main(String[] args) {
     System.out
         .println(ByteArray.toHexString(Hash.sha3(ByteArray.fromString("playerRollDice(uint256)"))));
+
+    byte[] ret = replaceLibraryAddress("608060405234801561001057600080fd5b50610164806100206000396000f3fe608060405234801561001057600080fd5b5060043610610048576000357c010000000000000000000000000000000000000000000000000000000090048063f207564e1461004d575b600080fd5b6100796004803603602081101561006357600080fd5b810190808035906020019092919050505061007b565b005b73__$a3a69d5f950038ddb74b75d46829f4a851$__63831cb7396000836040518363ffffffff167c0100000000000000000000000000000000000000000000000000000000028152600401808381526020018281526020019250505060206040518083038186803b1580156100ef57600080fd5b505af4158015610103573d6000803e3d6000fd5b505050506040513d602081101561011957600080fd5b8101908080519060200190929190505050151561013557600080fd5b5056fea165627a7a72305820a3ef04f6921e0ad0405fb63fc934c334e7d3d313dc95522af129a0ef568ff7c80029",
+            "browser/ballot.sol:Set:TXRixbUfr2ET4pvhJAZnHryzsCZJJmRFVi");
+
   }
 }
