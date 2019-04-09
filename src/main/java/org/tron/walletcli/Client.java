@@ -1854,7 +1854,14 @@ public class Client {
     }
 
     byte[] code = Hex.decode(parameters[1]);
-    byte[] salt = Longs.toByteArray(Long.parseLong(parameters[2]));
+    byte[] temp = Longs.toByteArray(Long.parseLong(parameters[2]));
+    if(temp.length != 8) {
+      System.out.println("invalid salt!");
+      return;
+    }
+    byte[] salt = new byte[32];
+    System.arraycopy(temp, 0, salt, 24, 8);
+
 
     byte[] mergedData = ByteUtil.merge(address, salt, Hash.sha3(code));
     String Address = WalletApi.encode58Check(Hash.sha3omit12(mergedData));
