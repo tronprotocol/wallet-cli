@@ -1605,7 +1605,7 @@ public class Client {
         parameters.length < 11) {
       System.out.println("DeployContract needs at least 8 parameters like following: ");
       System.out.println(
-          "DeployContract contractName ABI byteCode constructor params isHex fee_limit consume_user_resource_percent origin_energy_limit value token_value token_id(e.g: TRXTOKEN, use # if don't provided) <library:address,library:address,...> <lib_compiler_version>");
+          "DeployContract contractName ABI byteCode constructor params isHex fee_limit consume_user_resource_percent origin_energy_limit value token_value token_id(e.g: TRXTOKEN, use # if don't provided) <library:address,library:address,...> <lib_compiler_version(e.g:v5)>");
       System.out.println(
           "Note: Please append the param for constructor tightly with byteCode without any space");
       return;
@@ -1758,7 +1758,7 @@ public class Client {
     System.out.println("CreateWitness");
     System.out.println("DeleteProposal");
     System.out.println(
-        "DeployContract contractName ABI byteCode constructor params isHex fee_limit consume_user_resource_percent origin_energy_limit value token_value token_id <library:address,library:address,...> <lib_compiler_version version>");
+        "DeployContract contractName ABI byteCode constructor params isHex fee_limit consume_user_resource_percent origin_energy_limit value token_value token_id <library:address,library:address,...> <lib_compiler_version(e.g:v5)>");
     System.out.println("ExchangeCreate");
     System.out.println("ExchangeInject");
     System.out.println("ExchangeTransaction");
