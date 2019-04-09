@@ -1499,7 +1499,7 @@ public class WalletApi {
       byte[] address,
       String ABI, String code, long value, long consumeUserResourcePercent, long originEnergyLimit,
       long tokenValue, String tokenId,
-      String libraryAddressPair) {
+      String libraryAddressPair, String compilerVersion) {
     SmartContract.ABI abi = jsonStr2ABI(ABI);
     if (abi == null) {
       logger.error("abi is null");
@@ -1519,7 +1519,7 @@ public class WalletApi {
     }
     byte[] byteCode;
     if (null != libraryAddressPair) {
-      byteCode = replaceLibraryAddress(code, libraryAddressPair);
+      byteCode = replaceLibraryAddress(code, libraryAddressPair, compilerVersion);
     } else {
       byteCode = Hex.decode(code);
     }
@@ -1534,7 +1534,7 @@ public class WalletApi {
     return createSmartContractBuilder.build();
   }
 
-  private static byte[] replaceLibraryAddress(String code, String libraryAddressPair) {
+  private static byte[] replaceLibraryAddress(String code, String libraryAddressPair, String compilerVersion) {
 
     String[] libraryAddressList = libraryAddressPair.split("[,]");
 
@@ -1556,14 +1556,16 @@ public class WalletApi {
       }
 
       String beReplaced;
-      if(!code.contains(":")) {
+      if(compilerVersion == null) {
+        //old version
+        String repeated = new String(new char[40 - libraryName.length() - 2]).replace("\0", "_");
+        beReplaced = "__" + libraryName + repeated;
+      } else if(compilerVersion.equalsIgnoreCase("v5")) {
         //0.5.4 version
         String libraryNameKeccak256 = ByteArray.toHexString(Hash.sha3(ByteArray.fromString(libraryName))).substring(0,34);
         beReplaced = "__\\$" + libraryNameKeccak256 + "\\$__";
       } else {
-        //old version
-        String repeated = new String(new char[40 - libraryName.length() - 2]).replace("\0", "_");
-        beReplaced = "__" + libraryName + repeated;
+        throw new RuntimeException("unknown compiler version.");
       }
 
       Matcher m = Pattern.compile(beReplaced).matcher(code);
@@ -1652,12 +1654,12 @@ public class WalletApi {
 
   public boolean deployContract(String contractName, String ABI, String code,
       long feeLimit, long value, long consumeUserResourcePercent, long originEnergyLimit,
-      long tokenValue, String tokenId, String libraryAddressPair)
+      long tokenValue, String tokenId, String libraryAddressPair, String compilerVersion)
       throws IOException, CipherException, CancelException {
     byte[] owner = getAddress();
     CreateSmartContract contractDeployContract = createContractDeployContract(contractName, owner,
         ABI, code, value, consumeUserResourcePercent, originEnergyLimit, tokenValue, tokenId,
-        libraryAddressPair);
+        libraryAddressPair, compilerVersion);
 
     TransactionExtention transactionExtention = rpcCli.deployContract(contractDeployContract);
     if (transactionExtention == null || !transactionExtention.getResult().getResult()) {
