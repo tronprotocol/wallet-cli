@@ -1,6 +1,7 @@
 package org.tron.walletcli;
 
 import com.beust.jcommander.JCommander;
+import com.google.common.primitives.Longs;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
@@ -39,8 +40,10 @@ import org.tron.api.GrpcAPI.TransactionList;
 import org.tron.api.GrpcAPI.TransactionListExtention;
 import org.tron.api.GrpcAPI.TransactionSignWeight;
 import org.tron.api.GrpcAPI.WitnessList;
+import org.tron.common.crypto.Hash;
 import org.tron.common.utils.AbiUtil;
 import org.tron.common.utils.ByteArray;
+import org.tron.common.utils.ByteUtil;
 import org.tron.common.utils.Utils;
 import org.tron.core.exception.CancelException;
 import org.tron.core.exception.CipherException;
@@ -1837,6 +1840,30 @@ public class Client {
 
   }
 
+  private void create2(String[] parameters) {
+    if (parameters == null ||  parameters.length != 3) {
+      System.out.println("create2 needs 3 parameter: ");
+      System.out.println("create2 address code salt");
+      return;
+    }
+
+    byte[] address = WalletApi.decodeFromBase58Check(parameters[0]);
+    if (!WalletApi.addressValid(address) ) {
+      System.out.println("length of address must be 21 bytes.");
+      return;
+    }
+
+    byte[] code = Hex.decode(parameters[1]);
+    byte[] salt = Longs.toByteArray(Long.parseLong(parameters[2]));
+
+    byte[] mergedData = ByteUtil.merge(address, salt, Hash.sha3(code));
+    String Address = WalletApi.encode58Check(Hash.sha3omit12(mergedData));
+
+    System.out.println("create2 Address: " + Address);
+
+    return;
+  }
+
   private void help() {
     System.out.println("Help: List of Tron Wallet-cli commands");
     System.out.println(
@@ -1915,6 +1942,7 @@ public class Client {
     System.out.println("UpdateAccountPermission");
     System.out.println("VoteWitness");
     System.out.println("WithdrawBalance");
+    System.out.println("Create2");
 //    System.out.println("buyStorage");
 //    System.out.println("buyStorageBytes");
 //    System.out.println("sellStorage");
@@ -2329,6 +2357,10 @@ public class Client {
           }
           case "broadcasttransaction": {
             broadcastTransaction(parameters);
+            break;
+          }
+          case "create2": {
+            create2(parameters);
             break;
           }
           case "exit":
