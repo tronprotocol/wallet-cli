@@ -1556,7 +1556,7 @@ public class WalletApi {
       }
 
       String beReplaced;
-      if(code.contains("$")) {
+      if(!code.contains(":")) {
         //0.5.4 version
         String libraryNameKeccak256 = ByteArray.toHexString(Hash.sha3(ByteArray.fromString(libraryName))).substring(0,34);
         beReplaced = "__\\$" + libraryNameKeccak256 + "\\$__";
