@@ -50,6 +50,7 @@ import org.tron.protos.Contract.AssetIssueContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.ChainParameters;
+import org.tron.protos.Protocol.DeferredTransaction;
 import org.tron.protos.Protocol.DelegatedResourceAccountIndex;
 import org.tron.protos.Protocol.Exchange;
 import org.tron.protos.Protocol.Proposal;
@@ -476,7 +477,14 @@ public class Client {
     }
 
     String trxId = parameters[0];
-    walletApiWrapper.getDeferredTransaction(trxId);
+    Optional<DeferredTransaction> result = WalletApi.getDeferredTransactionById(trxId);
+    if (result.isPresent()) {
+      DeferredTransaction deferredTransaction = result.get();
+      logger.info(Utils.printDeferredTransaction(deferredTransaction));
+    } else {
+      logger.info("getDeferredTransaction " + " failed !!");
+    }
+
   }
 
   private void cancelDeferredTransactionById(String[] parameters)
