@@ -55,6 +55,7 @@ import org.tron.protos.Contract.AccountPermissionUpdateContract;
 import org.tron.protos.Contract.AccountUpdateContract;
 import org.tron.protos.Contract.AssetIssueContract;
 import org.tron.protos.Contract.AssetIssueContract.FrozenSupply;
+import org.tron.protos.Contract.CancelDeferredTransactionContract;
 import org.tron.protos.Contract.CreateSmartContract;
 import org.tron.protos.Contract.ExchangeCreateContract;
 import org.tron.protos.Contract.ExchangeInjectContract;
@@ -1126,6 +1127,17 @@ public class Utils {
           result += "\n";
           result += "origin_energy_limit: ";
           result += updateEnergyLimitContract.getOriginEnergyLimit();
+          result += "\n";
+          break;
+        case CancelDeferedTransactionContract:
+          CancelDeferredTransactionContract cancelDeferredTransactionContract = contract.getParameter()
+              .unpack(CancelDeferredTransactionContract.class);
+          result += "owner_address: ";
+          result += WalletApi
+              .encode58Check(cancelDeferredTransactionContract.getOwnerAddress().toByteArray());
+          result += "\n";
+          result += "cancel: ";
+          result += ByteArray.toHexString(cancelDeferredTransactionContract.getTransactionId().toByteArray());
           result += "\n";
           break;
         // case BuyStorageContract:
