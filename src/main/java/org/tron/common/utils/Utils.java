@@ -1136,7 +1136,7 @@ public class Utils {
           result += WalletApi
               .encode58Check(cancelDeferredTransactionContract.getOwnerAddress().toByteArray());
           result += "\n";
-          result += "cancel: ";
+          result += "cancel transaction id: ";
           result += ByteArray.toHexString(cancelDeferredTransactionContract.getTransactionId().toByteArray());
           result += "\n";
           break;
