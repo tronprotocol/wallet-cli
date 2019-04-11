@@ -169,15 +169,6 @@ public class WalletApiWrapper {
     return wallet.cancelDeferredTransaction(trxId);
   }
 
-  public boolean updateDeferredTransaction(String trxId, long delaySecond)
-      throws IOException, CipherException, CancelException {
-    if (wallet == null || !wallet.isLoginState()) {
-      logger.warn("Warning: UpdateDeferredTransaction failed,  Please login first !!");
-      return false;
-    }
-    return wallet.updateDeferredTransaction(trxId, delaySecond);
-  }
-
   public boolean sendCoin(String toAddress, long amount, long delaySeconds)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {

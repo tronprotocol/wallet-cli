@@ -505,24 +505,6 @@ public class Client {
 
   }
 
-  private void updateDeferredTransactionById(String[] parameters)
-      throws IOException, CipherException, CancelException {
-    if (parameters == null || parameters.length != 2) {
-      System.out.println("updateDeferredTransactionById needs parameters like following: ");
-      System.out.println("updateDeferredTransactionById transactionId delaySeconds");
-      return;
-    }
-    String trxId = parameters[0];
-    long delaySeconds = Long.valueOf(parameters[1]);
-    boolean result = walletApiWrapper.updateDeferredTransaction(trxId, delaySeconds);
-    if (result) {
-      logger.info("updateDeferredTransactionById successfully");
-    } else {
-      logger.info("updateDeferredTransactionById failed!!");
-    }
-
-  }
-
   private void sendCoin(String[] parameters) throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length < 2 || parameters.length > 3) {
       System.out.println("SendCoin needs parameters like following: ");
@@ -1019,7 +1001,7 @@ public class Client {
       throws IOException, CipherException, CancelException {
     if (parameters.length > 2) {
       System.out.println("Use unfreezeBalance command with below syntax: ");
-      System.out.println("unfreezeBalance  [ResourceCode:0 BANDWIDTH,1 CPU]" + "[receiverAddress]g");
+      System.out.println("unfreezeBalance  [ResourceCode:0 BANDWIDTH,1 CPU]" + "[receiverAddress]");
       return;
     }
 
@@ -2029,7 +2011,6 @@ public class Client {
     System.out.println("UnfreezeBalance");
     System.out.println("UpdateAccount");
     System.out.println("UpdateAsset");
-    System.out.println("UpdateDeferredTransactionById");
     System.out.println("UpdateEnergyLimit contract_address energy_limit");
     System.out.println("UpdateSetting contract_address consume_user_resource_percent");
     System.out.println("UpdateWitness");
@@ -2206,11 +2187,6 @@ public class Client {
           }
           case "canceldeferredtransactionbyid": {
             cancelDeferredTransactionById(parameters);
-            break;
-          }
-
-          case "updatedeferredtransactionbyid": {
-            updateDeferredTransactionById(parameters);
             break;
           }
 

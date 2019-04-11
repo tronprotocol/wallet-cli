@@ -551,14 +551,6 @@ public class WalletApi {
     return processTransactionExtention(transactionExtention);
   }
 
-  public boolean updateDeferredTransaction(String trxId, long delaySecond)
-      throws CipherException, IOException, CancelException {
-    byte[] owner = getAddress();
-    Contract.UpdateDeferredTransactionContract contract = updateDeferredTransactionContract(trxId, owner, delaySecond);
-    TransactionExtention transactionExtention = rpcCli.createTransaction2(contract);
-    return processTransactionExtention(transactionExtention);
-  }
-
   public boolean sendCoin(byte[] to, long amount, long delaySeconds)
       throws CipherException, IOException, CancelException {
     byte[] owner = getAddress();
@@ -749,15 +741,6 @@ public class WalletApi {
     builder.setOwnerAddress(ByteString.copyFrom(owner));
     return builder.build();
   }
-
-  public static Contract.UpdateDeferredTransactionContract updateDeferredTransactionContract(String trxId, byte[] owner, long delaySecond) {
-    Contract.UpdateDeferredTransactionContract.Builder builder = Contract.UpdateDeferredTransactionContract.newBuilder();
-    builder.setDelaySeconds(delaySecond);
-    builder.setOwnerAddress(ByteString.copyFrom(owner));
-    builder.setTransactionId(ByteString.copyFrom(ByteArray.fromHexString(trxId)));
-    return builder.build();
-  }
-
 
   public static Contract.TransferContract createTransferContract(byte[] to, byte[] owner,
       long amount) {
