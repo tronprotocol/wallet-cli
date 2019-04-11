@@ -197,6 +197,9 @@ public class TransactionUtils {
   }
 
   public static Transaction setDelaySeconds(Transaction transaction, long delaySeconds){
+    if (delaySeconds == 0) {
+      return transaction;
+    }
     DeferredStage deferredStage = transaction.getRawData().toBuilder().
         getDeferredStage().toBuilder().setDelaySeconds(delaySeconds)
         .setStage(UNEXECUTEDDEFERREDTRANSACTION).build();

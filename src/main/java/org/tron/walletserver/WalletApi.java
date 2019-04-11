@@ -548,7 +548,6 @@ public class WalletApi {
     byte[] owner = getAddress();
     Contract.CancelDeferredTransactionContract contract = createCancelDeferredTransactionContract(trxId, owner);
     TransactionExtention transactionExtention = rpcCli.createTransaction2(contract);
-
     return processTransactionExtention(transactionExtention);
   }
 
