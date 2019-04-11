@@ -1017,9 +1017,9 @@ public class Client {
 
   private void unfreezeBalance(String[] parameters)
       throws IOException, CipherException, CancelException {
-    if (parameters.length > 3) {
+    if (parameters.length > 2) {
       System.out.println("Use unfreezeBalance command with below syntax: ");
-      System.out.println("unfreezeBalance  [ResourceCode:0 BANDWIDTH,1 CPU]" + "[receiverAddress] [delaySeconds]");
+      System.out.println("unfreezeBalance  [ResourceCode:0 BANDWIDTH,1 CPU]" + "[receiverAddress]g");
       return;
     }
 
@@ -1039,12 +1039,7 @@ public class Client {
       receiverAddress = parameters[1];
     }
 
-    long delaySeconds = 0;
-    if(parameters.length == 3) {
-      delaySeconds = new Long(parameters[2]);
-    }
-
-    boolean result = walletApiWrapper.unfreezeBalance(resourceCode, receiverAddress, delaySeconds);
+    boolean result = walletApiWrapper.unfreezeBalance(resourceCode, receiverAddress);
     if (result) {
       logger.info("unfreezeBalance " + " successful !!");
     } else {

@@ -1216,17 +1216,15 @@ public class WalletApi {
     return builder.build();
   }
 
-  public boolean unfreezeBalance(int resourceCode, String receiverAddress, long delaySeconds)
+  public boolean unfreezeBalance(int resourceCode, String receiverAddress)
       throws CipherException, IOException, CancelException {
     Contract.UnfreezeBalanceContract contract = createUnfreezeBalanceContract(resourceCode,
         receiverAddress);
     if (rpcVersion == 2) {
       TransactionExtention transactionExtention = rpcCli.createTransaction2(contract);
-      transactionExtention = TransactionUtils.setDelaySecondsToExtension(transactionExtention, delaySeconds);
       return processTransactionExtention(transactionExtention);
     } else {
       Transaction transaction = rpcCli.createTransaction(contract);
-      transaction = TransactionUtils.setDelaySeconds(transaction, delaySeconds);
       return processTransaction(transaction);
     }
   }
