@@ -64,6 +64,7 @@ import org.tron.protos.Contract.ParticipateAssetIssueContract;
 import org.tron.protos.Contract.ProposalApproveContract;
 import org.tron.protos.Contract.ProposalCreateContract;
 import org.tron.protos.Contract.ProposalDeleteContract;
+import org.tron.protos.Contract.SetAccountIdContract;
 import org.tron.protos.Contract.TransferAssetContract;
 import org.tron.protos.Contract.TransferContract;
 import org.tron.protos.Contract.TriggerSmartContract;
@@ -926,6 +927,18 @@ public class Utils {
           result += "owner_address: ";
           result += WalletApi
               .encode58Check(withdrawBalanceContract.getOwnerAddress().toByteArray());
+          result += "\n";
+          break;
+        case SetAccountIdContract:
+          SetAccountIdContract setAccountIdContract = contract.getParameter()
+              .unpack(SetAccountIdContract.class);
+          result += "owner_address: ";
+          result += WalletApi
+              .encode58Check(setAccountIdContract.getOwnerAddress().toByteArray());
+          result += "\n";
+          result += "account_id: ";
+          result += new String(setAccountIdContract.getAccountId().toByteArray(),
+              Charset.forName("UTF-8"));;
           result += "\n";
           break;
         case CreateSmartContract:
