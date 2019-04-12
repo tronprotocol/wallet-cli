@@ -1,30 +1,28 @@
 package org.tron.common.utils;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import org.spongycastle.util.encoders.EncoderException;
+import org.apache.commons.lang3.StringUtils;
 import org.spongycastle.util.encoders.Hex;
 import org.tron.common.crypto.Hash;
-import org.tron.core.exception.EncodingException;
+import org.tron.common.utils.ByteUtil;
+import org.tron.common.utils.DataWord;
 import org.tron.walletserver.WalletApi;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class AbiUtil {
 
-  static Pattern paramTypeBytes = Pattern.compile("^bytes([0-9]*)$");
-  static Pattern paramTypeNumber = Pattern.compile("^(u?int)([0-9]*)$");
-  static Pattern paramTypeArray = Pattern.compile("^(.*)\\[([0-9]*)\\]$");
-//
+  private static Pattern paramTypeBytes = Pattern.compile("^bytes([0-9]*)$");
+  private static Pattern paramTypeNumber = Pattern.compile("^(u?int)([0-9]*)$");
+  private static Pattern paramTypeArray = Pattern.compile("^(.*)\\[([0-9]*)]$");
+
   static abstract class Coder {
     boolean dynamic = false;
-    String name;
-    String type;
-
-//    DataWord[] encode
-    abstract byte[] encode(String value) throws EncodingException;
+    //    DataWord[] encode
+    abstract byte[] encode(String value);
     abstract byte[] decode();
 
   }
@@ -38,11 +36,7 @@ public class AbiUtil {
     return typeString.split(",");
   }
 
-  public static String geMethodId(String methodSign) {
-    return null;
-  }
-
-  public static Coder getParamCoder(String type) {
+  private static Coder getParamCoder(String type) {
 
     switch (type) {
       case "address":
@@ -54,14 +48,16 @@ public class AbiUtil {
       case "bytes":
         return new CoderDynamicBytes();
       case "trcToken":
-        return new CoderToken();
+        return new CoderNumber();
     }
 
-    if (paramTypeBytes.matcher(type).find())
+    if (paramTypeBytes.matcher(type).find()) {
       return new CoderFixedBytes();
+    }
 
-    if (paramTypeNumber.matcher(type).find())
+    if (paramTypeNumber.matcher(type).find()) {
       return new CoderNumber();
+    }
 
     Matcher m = paramTypeArray.matcher(type);
     if (m.find()) {
@@ -88,11 +84,11 @@ public class AbiUtil {
     }
 
     @Override
-    byte[] encode(String arrayValues) throws EncodingException {
+    byte[] encode(String arrayValues) {
 
       Coder coder = getParamCoder(elementType);
 
-      List<Object> strings = null;
+      List strings;
       try {
         ObjectMapper mapper = new ObjectMapper();
         strings = mapper.readValue(arrayValues, List.class);
@@ -114,7 +110,7 @@ public class AbiUtil {
       }
 
       if (this.length == -1) {
-        return concat(new DataWord(strings.size()).getData(), pack(coders, strings));
+        return ByteUtil.merge(new DataWord(strings.size()).getData(), pack(coders, strings));
       } else {
         return pack(coders, strings);
       }
@@ -169,20 +165,6 @@ public class AbiUtil {
     }
   }
 
-  static class CoderToken extends Coder {
-
-    @Override
-    byte[] encode(String value) {
-      String hex = Hex.toHexString(new DataWord(value.getBytes()).getData());
-      return new CoderFixedBytes().encode(hex);
-    }
-
-    @Override
-    byte[] decode() {
-      return new byte[0];
-    }
-  }
-
   static class CoderDynamicBytes extends  Coder {
 
     CoderDynamicBytes() {
@@ -191,7 +173,7 @@ public class AbiUtil {
 
     @Override
     byte[] encode(String value) {
-      return encodeDynamicBytes(value);
+      return encodeDynamicBytes(value, true);
     }
 
     @Override
@@ -221,10 +203,10 @@ public class AbiUtil {
   static class CoderAddress extends Coder {
 
     @Override
-    byte[] encode(String value) throws EncodingException {
+    byte[] encode(String value) {
       byte[] address = WalletApi.decodeFromBase58Check(value);
       if (address == null) {
-        throw new EncodingException("invalid address input");
+        return null;
       }
       return new DataWord(address).getData();
     }
@@ -251,14 +233,26 @@ public class AbiUtil {
     }
   }
 
-  public static byte[] encodeDynamicBytes(String value) {
-    byte[] data = value.getBytes();
+  private static byte[] encodeDynamicBytes(String value, boolean hex) {
+    byte[] data;
+    if (hex) {
+      if (value.startsWith("0x")) {
+        value = value.substring(2);
+      }
+      data = Hex.decode(value);
+    } else {
+      data = value.getBytes();
+    }
+    return encodeDynamicBytes(data);
+  }
+
+  private static byte[] encodeDynamicBytes(byte[] data) {
     List<DataWord> ret = new ArrayList<>();
     ret.add(new DataWord(data.length));
 
     int readInx = 0;
-    int len = value.getBytes().length;
-    while (readInx < value.getBytes().length) {
+    int len = data.length;
+    while (readInx < data.length) {
       byte[] wordData = new byte[32];
       int readLen = len - readInx >= 32 ? 32 : (len - readInx);
       System.arraycopy(data, readInx, wordData, 0, readLen);
@@ -277,7 +271,14 @@ public class AbiUtil {
 
     return retBytes;
   }
-  public static byte[] pack(List<Coder> codes, List<Object> values) throws EncodingException {
+
+  private static byte[] encodeDynamicBytes(String value) {
+    byte[] data = value.getBytes();
+    List<DataWord> ret = new ArrayList<>();
+    ret.add(new DataWord(data.length));
+    return encodeDynamicBytes(data);
+  }
+  public static byte[] pack(List<Coder> codes, List<Object> values) {
 
     int staticSize = 0;
     int dynamicSize = 0;
@@ -334,12 +335,11 @@ public class AbiUtil {
     return data;
   }
 
-  public static String parseMethod(String methodSign, String params) throws EncodingException {
+  public static String parseMethod(String methodSign, String params) {
     return parseMethod(methodSign, params, false);
   }
 
-  public static String parseMethod(String methodSign, String input, boolean isHex)
-      throws EncodingException {
+  public static String parseMethod(String methodSign, String input, boolean isHex) {
     byte[] selector = new byte[4];
     System.arraycopy(Hash.sha3(methodSign.getBytes()), 0, selector,0, 4);
     System.out.println(methodSign + ":" + Hex.toHexString(selector));
@@ -354,14 +354,15 @@ public class AbiUtil {
     return Hex.toHexString(selector) + Hex.toHexString(encodedParms);
   }
 
-  public static byte[] encodeInput(String methodSign, String input) throws EncodingException {
+  public static byte[] encodeInput(String methodSign, String input) {
     ObjectMapper mapper = new ObjectMapper();
     input = "[" + input + "]";
-    List<Object> items = null;
+    List items;
     try {
       items = mapper.readValue(input, List.class);
     } catch (IOException e) {
       e.printStackTrace();
+      return null;
     }
 
     List<Coder> coders = new ArrayList<>();
@@ -373,8 +374,27 @@ public class AbiUtil {
     return pack(coders, items);
   }
 
-  public  static void main(String[] args) throws EncodingException {
-//    String method = "test(address,string,int)";
+  public static String parseMethod(String methodSign, List<Object> parameters) {
+    String[] inputArr = new String[parameters.size()];
+    int i = 0;
+    for (Object parameter: parameters) {
+      if (parameter instanceof  List) {
+        StringBuilder sb = new StringBuilder();
+        for (Object item: (List) parameter) {
+          if (sb.length() != 0) {
+            sb.append(",");
+          }
+          sb.append("\"").append(item).append("\"");
+        }
+        inputArr[i++] = "[" + sb.toString() + "]";
+      } else {
+        inputArr[i++] = (parameter instanceof String) ? ("\"" + parameter + "\"") : ("" + parameter);
+      }
+    }
+    return parseMethod(methodSign, StringUtils.join(inputArr, ','));
+  }
+
+  public  static void main(String[] args) {
     String method = "test(string,int2,string)";
     String params = "asdf,3123,adf";
 
@@ -393,41 +413,14 @@ public class AbiUtil {
     String method2 = "test(uint256,string,string,uint256[3])";
     String expected2 = "000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000003";
     String listString = "1 ,\"B\",\"C\", [1, 2, 3]";
-    try {
-      System.out.println(parseMethod(method1, listString));
-      System.out.println(parseMethod(method2, listString));
+    System.out.println(parseMethod(method1, listString));
+    System.out.println(parseMethod(method2, listString));
 
-      String bytesValue1 = "\"0112313\",112313";
-      String bytesValue2 = "123123123";
+    String bytesValue1 = "\"0112313\",112313";
 
-      System.out.println(parseMethod(byteMethod1, bytesValue1));
-    } catch (EncodingException e) {
-      e.printStackTrace();
-    }
-
-
-//    System.out.println(parseMethod(byteMethod1, bytesValue2));
-
-//    String method3 = "voteForSingleWitness(address,uint256)";
-//    String method3 = "voteForSingleWitness(address)";
-//    String params3 = "\"TNNqZuYhMfQvooC4kJwTsMJEQVU3vWGa5u\"";
-//
-//    System.out.println(parseMethod(method3, params3));
+    System.out.println(parseMethod(byteMethod1, bytesValue1));
   }
 
-  public static byte[] concat(byte[] ... bytesArray) {
-    int length = 0;
-    for (byte[] bytes: bytesArray) {
-      length += bytes.length;
-    }
-    byte[] ret = new byte[length];
-    int index = 0;
-    for(byte[] bytes: bytesArray) {
-      System.arraycopy(bytes, 0, ret, index, bytes.length);
-      index += bytes.length;
-    }
-    return ret;
-  }
 
 
 
