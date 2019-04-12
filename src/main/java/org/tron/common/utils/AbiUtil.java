@@ -1,4 +1,4 @@
-package stest.tron.wallet.common.client.utils;
+package org.tron.common.utils;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
