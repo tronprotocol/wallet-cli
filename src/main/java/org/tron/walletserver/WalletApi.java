@@ -554,7 +554,7 @@ public class WalletApi {
   public boolean sendCoin(byte[] to, long amount, long delaySeconds)
       throws CipherException, IOException, CancelException {
     byte[] owner = getAddress();
-    Contract.TransferContract contract = createTransferContract(to, owner, amount);
+    Contract.TransferContract contract = createTransferContract(to, owner, amount, delaySeconds);
     if (rpcVersion == 2) {
       TransactionExtention transactionExtention = rpcCli.createTransaction2(contract);
       transactionExtention = TransactionUtils.setDelaySecondsToExtension(transactionExtention, delaySeconds);
@@ -569,7 +569,7 @@ public class WalletApi {
   public boolean updateAccount(byte[] accountNameBytes, long delaySeconds)
       throws CipherException, IOException, CancelException {
     byte[] owner = getAddress();
-    Contract.AccountUpdateContract contract = createAccountUpdateContract(accountNameBytes, owner);
+    Contract.AccountUpdateContract contract = createAccountUpdateContract(accountNameBytes, owner, delaySeconds);
     if (rpcVersion == 2) {
       TransactionExtention transactionExtention = rpcCli.createTransaction2(contract);
       transactionExtention = TransactionUtils.setDelaySecondsToExtension(transactionExtention, delaySeconds);
@@ -584,7 +584,7 @@ public class WalletApi {
   public boolean setAccountId(byte[] accountIdBytes, long delaySeconds)
       throws CipherException, IOException, CancelException {
     byte[] owner = getAddress();
-    Contract.SetAccountIdContract contract = createSetAccountIdContract(accountIdBytes, owner);
+    Contract.SetAccountIdContract contract = createSetAccountIdContract(accountIdBytes, owner, delaySeconds);
     Transaction transaction = rpcCli.createTransaction(contract);
     transaction = TransactionUtils.setDelaySeconds(transaction, delaySeconds);
     if (transaction == null || transaction.getRawData().getContractCount() == 0) {
@@ -601,7 +601,7 @@ public class WalletApi {
       throws CipherException, IOException, CancelException {
     byte[] owner = getAddress();
     Contract.UpdateAssetContract contract
-        = createUpdateAssetContract(owner, description, url, newLimit, newPublicLimit);
+        = createUpdateAssetContract(owner, description, url, newLimit, newPublicLimit, delaySeconds);
     if (rpcVersion == 2) {
       TransactionExtention transactionExtention = rpcCli.createTransaction2(contract);
       transactionExtention = TransactionUtils.setDelaySecondsToExtension(transactionExtention, delaySeconds);
@@ -617,7 +617,7 @@ public class WalletApi {
       throws CipherException, IOException, CancelException {
     byte[] owner = getAddress();
     Contract.TransferAssetContract contract = createTransferAssetContract(to, assertName, owner,
-        amount);
+        amount, delaySeconds);
     if (rpcVersion == 2) {
       TransactionExtention transactionExtention = rpcCli.createTransferAssetTransaction2(contract);
       transactionExtention = TransactionUtils.setDelaySecondsToExtension(transactionExtention, delaySeconds);
@@ -668,7 +668,7 @@ public class WalletApi {
   public boolean createAccount(byte[] address, long delaySeconds)
       throws CipherException, IOException, CancelException {
     byte[] owner = getAddress();
-    Contract.AccountCreateContract contract = createAccountCreateContract(owner, address);
+    Contract.AccountCreateContract contract = createAccountCreateContract(owner, address, delaySeconds);
     if (rpcVersion == 2) {
       TransactionExtention transactionExtention = rpcCli.createAccount2(contract);
       transactionExtention = TransactionUtils.setDelaySecondsToExtension(transactionExtention, delaySeconds);
@@ -703,6 +703,7 @@ public class WalletApi {
     Contract.WitnessUpdateContract contract = createWitnessUpdateContract(owner, url);
     if (rpcVersion == 2) {
       TransactionExtention transactionExtention = rpcCli.updateWitness2(contract);
+      transactionExtention = TransactionUtils.setDelaySecondsToExtension(transactionExtention, 3);
       return processTransactionExtention(transactionExtention);
     } else {
       Transaction transaction = rpcCli.updateWitness(contract);
@@ -743,20 +744,21 @@ public class WalletApi {
   }
 
   public static Contract.TransferContract createTransferContract(byte[] to, byte[] owner,
-      long amount) {
+      long amount, long delaySecond) {
     Contract.TransferContract.Builder builder = Contract.TransferContract.newBuilder();
     ByteString bsTo = ByteString.copyFrom(to);
     ByteString bsOwner = ByteString.copyFrom(owner);
     builder.setToAddress(bsTo);
     builder.setOwnerAddress(bsOwner);
     builder.setAmount(amount);
-
+    if (delaySecond > 0) {
+      builder.setDelaySeconds(delaySecond);
+    }
     return builder.build();
   }
 
   public static Contract.TransferAssetContract createTransferAssetContract(byte[] to,
-      byte[] assertName, byte[] owner,
-      long amount) {
+      byte[] assertName, byte[] owner, long amount, long delaySecond) {
     Contract.TransferAssetContract.Builder builder = Contract.TransferAssetContract.newBuilder();
     ByteString bsTo = ByteString.copyFrom(to);
     ByteString bsName = ByteString.copyFrom(assertName);
@@ -765,6 +767,9 @@ public class WalletApi {
     builder.setAssetName(bsName);
     builder.setOwnerAddress(bsOwner);
     builder.setAmount(amount);
+    if (delaySecond > 0) {
+      builder.setDelaySeconds(delaySecond);
+    }
 
     return builder.build();
   }
@@ -786,23 +791,29 @@ public class WalletApi {
   }
 
   public static Contract.AccountUpdateContract createAccountUpdateContract(byte[] accountName,
-      byte[] address) {
+      byte[] address, long delaySecond) {
     Contract.AccountUpdateContract.Builder builder = Contract.AccountUpdateContract.newBuilder();
     ByteString basAddreess = ByteString.copyFrom(address);
     ByteString bsAccountName = ByteString.copyFrom(accountName);
     builder.setAccountName(bsAccountName);
     builder.setOwnerAddress(basAddreess);
+    if (delaySecond > 0) {
+      builder.setDelaySeconds(delaySecond);
+    }
 
     return builder.build();
   }
 
   public static Contract.SetAccountIdContract createSetAccountIdContract(byte[] accountId,
-      byte[] address) {
+      byte[] address, long delaySecond) {
     Contract.SetAccountIdContract.Builder builder = Contract.SetAccountIdContract.newBuilder();
     ByteString bsAddress = ByteString.copyFrom(address);
     ByteString bsAccountId = ByteString.copyFrom(accountId);
     builder.setAccountId(bsAccountId);
     builder.setOwnerAddress(bsAddress);
+    if (delaySecond > 0) {
+      builder.setDelaySeconds(delaySecond);
+    }
 
     return builder.build();
   }
@@ -813,7 +824,8 @@ public class WalletApi {
       byte[] description,
       byte[] url,
       long newLimit,
-      long newPublicLimit
+      long newPublicLimit,
+      long delaySecond
   ) {
     Contract.UpdateAssetContract.Builder builder =
         Contract.UpdateAssetContract.newBuilder();
@@ -824,14 +836,21 @@ public class WalletApi {
     builder.setNewPublicLimit(newPublicLimit);
     builder.setOwnerAddress(basAddreess);
 
+    if (delaySecond > 0) {
+      builder.setDelaySeconds(delaySecond);
+    }
+
     return builder.build();
   }
 
   public static Contract.AccountCreateContract createAccountCreateContract(byte[] owner,
-      byte[] address) {
+      byte[] address, long delaySecond) {
     Contract.AccountCreateContract.Builder builder = Contract.AccountCreateContract.newBuilder();
     builder.setOwnerAddress(ByteString.copyFrom(owner));
     builder.setAccountAddress(ByteString.copyFrom(address));
+    if (delaySecond > 0) {
+      builder.setDelaySeconds(delaySecond);
+    }
 
     return builder.build();
   }
@@ -1126,6 +1145,7 @@ public class WalletApi {
         frozen_duration, resourceCode, receiverAddress);
     if (rpcVersion == 2) {
       TransactionExtention transactionExtention = rpcCli.createTransaction2(contract);
+      transactionExtention = TransactionUtils.setDelaySecondsToExtension(transactionExtention, 3);
       return processTransactionExtention(transactionExtention);
     } else {
       Transaction transaction = rpcCli.createTransaction(contract);
@@ -1231,7 +1251,7 @@ public class WalletApi {
   }
 
   public boolean unfreezeAsset(long delaySeconds) throws CipherException, IOException, CancelException {
-    Contract.UnfreezeAssetContract contract = createUnfreezeAssetContract();
+    Contract.UnfreezeAssetContract contract = createUnfreezeAssetContract(delaySeconds);
     if (rpcVersion == 2) {
       TransactionExtention transactionExtention = rpcCli.createTransaction2(contract);
       transactionExtention = TransactionUtils.setDelaySecondsToExtension(transactionExtention, delaySeconds);
@@ -1243,12 +1263,16 @@ public class WalletApi {
     }
   }
 
-  private UnfreezeAssetContract createUnfreezeAssetContract() {
+  private UnfreezeAssetContract createUnfreezeAssetContract(long delaySecond) {
     byte[] address = getAddress();
     Contract.UnfreezeAssetContract.Builder builder = Contract.UnfreezeAssetContract
         .newBuilder();
     ByteString byteAddreess = ByteString.copyFrom(address);
     builder.setOwnerAddress(byteAddreess);
+
+    if (delaySecond > 0) {
+      builder.setDelaySeconds(delaySecond);
+    }
     return builder.build();
   }
 
@@ -1599,24 +1623,31 @@ public class WalletApi {
   }
 
   public static Contract.UpdateSettingContract createUpdateSettingContract(byte[] owner,
-      byte[] contractAddress, long consumeUserResourcePercent) {
+      byte[] contractAddress, long consumeUserResourcePercent, long delaySecond) {
 
     Contract.UpdateSettingContract.Builder builder = Contract.UpdateSettingContract.newBuilder();
     builder.setOwnerAddress(ByteString.copyFrom(owner));
     builder.setContractAddress(ByteString.copyFrom(contractAddress));
     builder.setConsumeUserResourcePercent(consumeUserResourcePercent);
+    if (delaySecond > 0) {
+      builder.setDelaySeconds(delaySecond);
+    }
     return builder.build();
   }
 
   public static Contract.UpdateEnergyLimitContract createUpdateEnergyLimitContract(
       byte[] owner,
-      byte[] contractAddress, long originEnergyLimit) {
+      byte[] contractAddress, long originEnergyLimit, long delaySecond) {
 
     Contract.UpdateEnergyLimitContract.Builder builder = Contract.UpdateEnergyLimitContract
         .newBuilder();
     builder.setOwnerAddress(ByteString.copyFrom(owner));
     builder.setContractAddress(ByteString.copyFrom(contractAddress));
     builder.setOriginEnergyLimit(originEnergyLimit);
+
+    if (delaySecond > 0) {
+      builder.setDelaySeconds(delaySecond);
+    }
     return builder.build();
   }
 
@@ -1725,7 +1756,7 @@ public class WalletApi {
       throws IOException, CipherException, CancelException {
     byte[] owner = getAddress();
     UpdateSettingContract updateSettingContract = createUpdateSettingContract(owner,
-        contractAddress, consumeUserResourcePercent);
+        contractAddress, consumeUserResourcePercent, delaySeconds);
 
     TransactionExtention transactionExtention = rpcCli.updateSetting(updateSettingContract);
     if (transactionExtention == null || !transactionExtention.getResult().getResult()) {
@@ -1748,7 +1779,7 @@ public class WalletApi {
     byte[] owner = getAddress();
     UpdateEnergyLimitContract updateEnergyLimitContract = createUpdateEnergyLimitContract(
         owner,
-        contractAddress, originEnergyLimit);
+        contractAddress, originEnergyLimit, delaySeconds);
 
     TransactionExtention transactionExtention = rpcCli
         .updateEnergyLimit(updateEnergyLimitContract);
