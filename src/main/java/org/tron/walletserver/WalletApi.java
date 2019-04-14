@@ -703,7 +703,6 @@ public class WalletApi {
     Contract.WitnessUpdateContract contract = createWitnessUpdateContract(owner, url);
     if (rpcVersion == 2) {
       TransactionExtention transactionExtention = rpcCli.updateWitness2(contract);
-      transactionExtention = TransactionUtils.setDelaySecondsToExtension(transactionExtention, 3);
       return processTransactionExtention(transactionExtention);
     } else {
       Transaction transaction = rpcCli.updateWitness(contract);
