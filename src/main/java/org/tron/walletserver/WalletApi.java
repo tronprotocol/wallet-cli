@@ -1843,7 +1843,7 @@ public class WalletApi {
   }
 
   public boolean triggerContract(byte[] contractAddress, long callValue, byte[] data, long feeLimit,
-      long tokenValue, String tokenId)
+      long tokenValue, String tokenId, long delaySecond)
       throws IOException, CipherException, CancelException {
     byte[] owner = getAddress();
     Contract.TriggerSmartContract triggerContract = triggerCallContract(owner, contractAddress,
@@ -1887,6 +1887,7 @@ public class WalletApi {
     texBuilder.setResult(transactionExtention.getResult());
     texBuilder.setTxid(transactionExtention.getTxid());
     transactionExtention = texBuilder.build();
+    transactionExtention = TransactionUtils.setDelaySecondsToExtension(transactionExtention, delaySecond);
 
     return processTransactionExtention(transactionExtention);
   }
