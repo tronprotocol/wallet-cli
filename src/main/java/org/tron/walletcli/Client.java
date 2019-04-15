@@ -1748,46 +1748,6 @@ public class Client {
     }
   }
 
-  private void triggerDeferredContract(String[] parameters)
-      throws EncodingException, IOException, CipherException, CancelException {
-    if (parameters == null ||
-        parameters.length < 8) {
-      System.out.println("TriggerContract needs 7 parameters like following: ");
-      System.out.println(
-          "TriggerContract contractAddress method args isHex fee_limit value token_value token_id(e.g: TRXTOKEN, use # if don't provided)");
-      // System.out.println("example:\nTriggerContract password contractAddress method args value");
-      return;
-    }
-
-    long delaySecond = Long.valueOf(parameters[0]);
-    String contractAddrStr = parameters[1];
-    String methodStr = parameters[2];
-    String argsStr = parameters[3];
-    boolean isHex = Boolean.valueOf(parameters[4]);
-    long feeLimit = Long.valueOf(parameters[5]);
-    long callValue = Long.valueOf(parameters[6]);
-    long tokenCallValue = Long.valueOf(parameters[7]);
-    String tokenId = parameters[8];
-    if (argsStr.equalsIgnoreCase("#")) {
-      argsStr = "";
-    }
-    if (tokenId.equalsIgnoreCase("#")) {
-      tokenId = "";
-    }
-    byte[] input = Hex.decode(AbiUtil.parseMethod(methodStr, argsStr, isHex));
-    byte[] contractAddress = WalletApi.decodeFromBase58Check(contractAddrStr);
-
-    boolean result = walletApiWrapper
-        .callContract(contractAddress, callValue, input, feeLimit, tokenCallValue, tokenId, delaySecond);
-    if (result) {
-      System.out.println("Broadcast the triggerContract successfully.\n"
-          + "Please check the given transaction id to get the result on blockchain using getTransactionInfoById command");
-    } else {
-      System.out.println("Broadcast the triggerContract failed");
-    }
-
-  }
-
   private void triggerContract(String[] parameters)
       throws IOException, CipherException, CancelException, EncodingException {
     if (parameters == null ||
@@ -1807,6 +1767,11 @@ public class Client {
     long callValue = Long.valueOf(parameters[5]);
     long tokenCallValue = Long.valueOf(parameters[6]);
     String tokenId = parameters[7];
+
+    long delaySecond = 0;
+    if (parameters.length == 9) {
+      delaySecond = Long.valueOf(parameters[8]);
+    }
     if (argsStr.equalsIgnoreCase("#")) {
       argsStr = "";
     }
@@ -1817,7 +1782,7 @@ public class Client {
     byte[] contractAddress = WalletApi.decodeFromBase58Check(contractAddrStr);
 
     boolean result = walletApiWrapper
-        .callContract(contractAddress, callValue, input, feeLimit, tokenCallValue, tokenId, 0);
+        .callContract(contractAddress, callValue, input, feeLimit, tokenCallValue, tokenId, delaySecond);
     if (result) {
       System.out.println("Broadcast the triggerContract successfully.\n"
           + "Please check the given transaction id to get the result on blockchain using getTransactionInfoById command");
@@ -2456,10 +2421,6 @@ public class Client {
           }
           case "triggercontract": {
             triggerContract(parameters);
-            break;
-          }
-          case "triggerdeferredcontract" : {
-            triggerDeferredContract(parameters);
             break;
           }
           case "getcontract": {
