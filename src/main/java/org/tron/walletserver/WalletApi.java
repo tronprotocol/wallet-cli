@@ -1798,7 +1798,7 @@ public class WalletApi {
 
   public boolean deployContract(String contractName, String ABI, String code,
       long feeLimit, long value, long consumeUserResourcePercent, long originEnergyLimit,
-      long tokenValue, String tokenId, String libraryAddressPair)
+      long tokenValue, String tokenId, String libraryAddressPair, long delaySecond)
       throws IOException, CipherException, CancelException {
     byte[] owner = getAddress();
     CreateSmartContract contractDeployContract = createContractDeployContract(contractName, owner,
@@ -1834,6 +1834,7 @@ public class WalletApi {
     texBuilder.setResult(transactionExtention.getResult());
     texBuilder.setTxid(transactionExtention.getTxid());
     transactionExtention = texBuilder.build();
+    transactionExtention = TransactionUtils.setDelaySecondsToExtension(transactionExtention, delaySecond);
 
     byte[] contractAddress = generateContractAddress(transactionExtention.getTransaction());
     System.out.println(
