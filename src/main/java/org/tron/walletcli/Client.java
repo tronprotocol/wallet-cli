@@ -1988,7 +1988,7 @@ public class Client {
     System.out.println("SetAccountId");
     System.out.println("TransferAsset");
     System.out.println("TriggerContract contractAddress method args isHex fee_limit value");
-    System.out.println("TriggerConstantContract contractAddress method args isHex fee_limit value");
+    System.out.println("TriggerConstantContract contractAddress method args isHex");
     System.out.println("UnfreezeAsset");
     System.out.println("UnfreezeBalance");
     System.out.println("UpdateAccount");
