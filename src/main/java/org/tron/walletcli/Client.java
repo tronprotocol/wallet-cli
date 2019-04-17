@@ -1563,6 +1563,28 @@ public class Client {
     }
   }
 
+  private void clearContractABI(String[] parameters)
+      throws IOException, CipherException, CancelException {
+    if (parameters == null ||
+        parameters.length != 1) {
+      System.out.println("clearContractABI needs 1 parameters like following: ");
+      System.out.println("clearContractABI contract_address");
+      return;
+    }
+
+    byte[] contractAddress = WalletApi.decodeFromBase58Check(parameters[0]);
+    if (contractAddress == null) {
+      return;
+    }
+
+    boolean result = walletApiWrapper.clearContractABI(contractAddress);
+    if (result) {
+      System.out.println("clearContractABI successfully");
+    } else {
+      System.out.println("clearContractABI failed");
+    }
+  }
+
   private String[] getParas(String[] para) {
     String paras = String.join(" ", para);
     Pattern pattern = Pattern.compile(" (\\[.*?\\]) ");
@@ -1649,7 +1671,8 @@ public class Client {
      * Or we can re-design it to give other developers better user experience. Set this value in protobuf as null for now.
      */
     boolean result = walletApiWrapper.deployContract(contractName, abiStr, codeStr, feeLimit, value,
-        consumeUserResourcePercent, originEnergyLimit, tokenValue, tokenId, libraryAddressPair, compilerVersion);
+        consumeUserResourcePercent, originEnergyLimit, tokenValue, tokenId, libraryAddressPair,
+        compilerVersion);
     if (result) {
       System.out.println("Broadcast the createSmartContract successfully.\n"
           + "Please check the given transaction id to confirm deploy status on blockchain using getTransactionInfoById command.");
@@ -1658,25 +1681,44 @@ public class Client {
     }
   }
 
-  private void triggerContract(String[] parameters)
+  private void triggerContract(String[] parameters, boolean isConstant)
       throws IOException, CipherException, CancelException, EncodingException {
-    if (parameters == null ||
-        parameters.length < 8) {
-      System.out.println("TriggerContract needs 6 parameters like following: ");
-      System.out.println(
-          "TriggerContract contractAddress method args isHex fee_limit value token_value token_id(e.g: TRXTOKEN, use # if don't provided)");
-      // System.out.println("example:\nTriggerContract password contractAddress method args value");
-      return;
+    String cmdMethodStr = isConstant ? "TriggerConstantContract" : "TriggerContract";
+
+    if (isConstant) {
+      if (parameters == null || parameters.length < 4) {
+        System.out.println(cmdMethodStr + " needs 4 parameters like following: ");
+        System.out.println(
+            cmdMethodStr
+                + " contractAddress method args isHex");
+        return;
+      }
+    } else {
+      if (parameters == null || parameters.length < 8) {
+        System.out.println(cmdMethodStr + " needs 8 parameters like following: ");
+        System.out.println(
+            cmdMethodStr
+                + " contractAddress method args isHex fee_limit value token_value token_id(e.g: TRXTOKEN, use # if don't provided)");
+        // System.out.println("example:\nTriggerContract password contractAddress method args value");
+        return;
+      }
     }
 
     String contractAddrStr = parameters[0];
     String methodStr = parameters[1];
     String argsStr = parameters[2];
     boolean isHex = Boolean.valueOf(parameters[3]);
-    long feeLimit = Long.valueOf(parameters[4]);
-    long callValue = Long.valueOf(parameters[5]);
-    long tokenCallValue = Long.valueOf(parameters[6]);
-    String tokenId = parameters[7];
+    long feeLimit = 0;
+    long callValue = 0;
+    long tokenCallValue = 0;
+    String tokenId = "";
+
+    if (!isConstant) {
+      feeLimit = Long.valueOf(parameters[4]);
+      callValue = Long.valueOf(parameters[5]);
+      tokenCallValue = Long.valueOf(parameters[6]);
+      tokenId = parameters[7];
+    }
     if (argsStr.equalsIgnoreCase("#")) {
       argsStr = "";
     }
@@ -1687,12 +1729,13 @@ public class Client {
     byte[] contractAddress = WalletApi.decodeFromBase58Check(contractAddrStr);
 
     boolean result = walletApiWrapper
-        .callContract(contractAddress, callValue, input, feeLimit, tokenCallValue, tokenId);
+        .callContract(contractAddress, callValue, input, feeLimit, tokenCallValue, tokenId,
+            isConstant);
     if (result) {
-      System.out.println("Broadcast the triggerContract successfully.\n"
+      System.out.println("Broadcast the " + cmdMethodStr + " successfully.\n"
           + "Please check the given transaction id to get the result on blockchain using getTransactionInfoById command");
     } else {
-      System.out.println("Broadcast the triggerContract failed");
+      System.out.println("Broadcast the " + cmdMethodStr + " failed");
     }
   }
 
@@ -1749,7 +1792,7 @@ public class Client {
       return;
     }
 
-    boolean ret = walletApiWrapper.accountPermissionUpdate(ownerAddress,parameters[1]);
+    boolean ret = walletApiWrapper.accountPermissionUpdate(ownerAddress, parameters[1]);
     if (ret) {
       logger.info("updateAccountPermission successful !!!!");
     } else {
@@ -1847,27 +1890,26 @@ public class Client {
   }
 
   private void create2(String[] parameters) {
-    if (parameters == null ||  parameters.length != 3) {
+    if (parameters == null || parameters.length != 3) {
       System.out.println("create2 needs 3 parameter: ");
       System.out.println("create2 address code salt");
       return;
     }
 
     byte[] address = WalletApi.decodeFromBase58Check(parameters[0]);
-    if (!WalletApi.addressValid(address) ) {
+    if (!WalletApi.addressValid(address)) {
       System.out.println("length of address must be 21 bytes.");
       return;
     }
 
     byte[] code = Hex.decode(parameters[1]);
     byte[] temp = Longs.toByteArray(Long.parseLong(parameters[2]));
-    if(temp.length != 8) {
+    if (temp.length != 8) {
       System.out.println("invalid salt!");
       return;
     }
     byte[] salt = new byte[32];
     System.arraycopy(temp, 0, salt, 24, 8);
-
 
     byte[] mergedData = ByteUtil.merge(address, salt, Hash.sha3(code));
     String Address = WalletApi.encode58Check(Hash.sha3omit12(mergedData));
@@ -1889,6 +1931,7 @@ public class Client {
     System.out.println("BackupWallet2Base64");
     System.out.println("BroadcastTransaction");
     System.out.println("ChangePassword");
+    System.out.println("ClearContractABI");
     System.out.println("CreateAccount");
     System.out.println("CreateProposal");
     System.out.println("CreateWitness");
@@ -1945,6 +1988,7 @@ public class Client {
     System.out.println("SetAccountId");
     System.out.println("TransferAsset");
     System.out.println("TriggerContract contractAddress method args isHex fee_limit value");
+    System.out.println("TriggerConstantContract contractAddress method args isHex");
     System.out.println("UnfreezeAsset");
     System.out.println("UnfreezeBalance");
     System.out.println("UpdateAccount");
@@ -1973,6 +2017,7 @@ public class Client {
   private String[] getCmd(String cmdLine) {
     if (cmdLine.indexOf("\"") < 0 || cmdLine.toLowerCase().startsWith("deploycontract")
         || cmdLine.toLowerCase().startsWith("triggercontract")
+        || cmdLine.toLowerCase().startsWith("triggerconstantcontract")
         || cmdLine.toLowerCase().startsWith("updateaccountpermission")) {
       return cmdLine.split("\\s+");
     }
@@ -2050,6 +2095,10 @@ public class Client {
           }
           case "changepassword": {
             changePassword();
+            break;
+          }
+          case "clearcontractabi": {
+            clearContractABI(parameters);
             break;
           }
           case "login": {
@@ -2341,7 +2390,11 @@ public class Client {
             break;
           }
           case "triggercontract": {
-            triggerContract(parameters);
+            triggerContract(parameters, false);
+            break;
+          }
+          case "triggerconstantcontract": {
+            triggerContract(parameters, true);
             break;
           }
           case "getcontract": {
