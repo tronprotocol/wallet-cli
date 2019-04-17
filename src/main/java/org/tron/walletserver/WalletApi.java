@@ -1,10 +1,13 @@
 package org.tron.walletserver;
 
+import static org.tron.protos.Protocol.Transaction.Contract.ContractType.DeferredTransactionContract;
+
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
+import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.typesafe.config.Config;
@@ -72,6 +75,7 @@ import org.tron.protos.Contract.BuyStorageContract;
 import org.tron.protos.Contract.CreateSmartContract;
 import org.tron.protos.Contract.FreezeBalanceContract;
 import org.tron.protos.Contract.SellStorageContract;
+import org.tron.protos.Contract.TransferContract;
 import org.tron.protos.Contract.UnfreezeAssetContract;
 import org.tron.protos.Contract.UnfreezeBalanceContract;
 import org.tron.protos.Contract.UpdateEnergyLimitContract;
@@ -87,8 +91,9 @@ import org.tron.protos.Protocol.Key;
 import org.tron.protos.Protocol.Permission;
 import org.tron.protos.Protocol.Proposal;
 import org.tron.protos.Protocol.SmartContract;
-import org.tron.protos.Protocol.TXInput.raw;
+
 import org.tron.protos.Protocol.Transaction;
+import org.tron.protos.Protocol.Transaction.Contract.ContractType;
 import org.tron.protos.Protocol.Transaction.Result;
 import org.tron.protos.Protocol.TransactionInfo;
 import org.tron.protos.Protocol.TransactionSign;
@@ -554,9 +559,16 @@ public class WalletApi {
   public boolean sendCoin(byte[] to, long amount, long delaySeconds)
       throws CipherException, IOException, CancelException {
     byte[] owner = getAddress();
-    Contract.TransferContract contract = createTransferContract(to, owner, amount, delaySeconds);
+    Contract.TransferContract contract = createTransferContract(to, owner, amount);
     if (rpcVersion == 2) {
-      TransactionExtention transactionExtention = rpcCli.createTransaction2(contract);
+      TransactionExtention transactionExtention;
+      if (delaySeconds > 0) {
+        Contract.DeferredTransactionContract contract1 =
+            createDeferredTransactionContract(Any.pack(contract), delaySeconds, DeferredTransactionContract);
+        transactionExtention = rpcCli.createDeferredTransaction2(contract1);
+      } else {
+         transactionExtention = rpcCli.createTransaction2(contract);
+      }
       transactionExtention = TransactionUtils.setDelaySecondsToExtension(transactionExtention, delaySeconds);
       return processTransactionExtention(transactionExtention);
     } else {
@@ -742,17 +754,22 @@ public class WalletApi {
     return builder.build();
   }
 
+  public static Contract.DeferredTransactionContract createDeferredTransactionContract(com.google.protobuf.Any contract, long delaySecond, ContractType contractType) {
+    Contract.DeferredTransactionContract.Builder builder = Contract.DeferredTransactionContract.newBuilder();
+    builder.setParameter(contract);
+    builder.setDelaySecond(delaySecond);
+    builder.setType(contractType.getNumber());
+    return builder.build();
+  }
+
   public static Contract.TransferContract createTransferContract(byte[] to, byte[] owner,
-      long amount, long delaySecond) {
+      long amount) {
     Contract.TransferContract.Builder builder = Contract.TransferContract.newBuilder();
     ByteString bsTo = ByteString.copyFrom(to);
     ByteString bsOwner = ByteString.copyFrom(owner);
     builder.setToAddress(bsTo);
     builder.setOwnerAddress(bsOwner);
     builder.setAmount(amount);
-    if (delaySecond > 0) {
-      builder.setDelaySeconds(delaySecond);
-    }
     return builder.build();
   }
 
@@ -766,10 +783,6 @@ public class WalletApi {
     builder.setAssetName(bsName);
     builder.setOwnerAddress(bsOwner);
     builder.setAmount(amount);
-    if (delaySecond > 0) {
-      builder.setDelaySeconds(delaySecond);
-    }
-
     return builder.build();
   }
 
@@ -796,10 +809,6 @@ public class WalletApi {
     ByteString bsAccountName = ByteString.copyFrom(accountName);
     builder.setAccountName(bsAccountName);
     builder.setOwnerAddress(basAddreess);
-    if (delaySecond > 0) {
-      builder.setDelaySeconds(delaySecond);
-    }
-
     return builder.build();
   }
 
@@ -810,10 +819,6 @@ public class WalletApi {
     ByteString bsAccountId = ByteString.copyFrom(accountId);
     builder.setAccountId(bsAccountId);
     builder.setOwnerAddress(bsAddress);
-    if (delaySecond > 0) {
-      builder.setDelaySeconds(delaySecond);
-    }
-
     return builder.build();
   }
 
@@ -834,11 +839,6 @@ public class WalletApi {
     builder.setNewLimit(newLimit);
     builder.setNewPublicLimit(newPublicLimit);
     builder.setOwnerAddress(basAddreess);
-
-    if (delaySecond > 0) {
-      builder.setDelaySeconds(delaySecond);
-    }
-
     return builder.build();
   }
 
@@ -847,10 +847,6 @@ public class WalletApi {
     Contract.AccountCreateContract.Builder builder = Contract.AccountCreateContract.newBuilder();
     builder.setOwnerAddress(ByteString.copyFrom(owner));
     builder.setAccountAddress(ByteString.copyFrom(address));
-    if (delaySecond > 0) {
-      builder.setDelaySeconds(delaySecond);
-    }
-
     return builder.build();
   }
 
@@ -1268,10 +1264,6 @@ public class WalletApi {
         .newBuilder();
     ByteString byteAddreess = ByteString.copyFrom(address);
     builder.setOwnerAddress(byteAddreess);
-
-    if (delaySecond > 0) {
-      builder.setDelaySeconds(delaySecond);
-    }
     return builder.build();
   }
 
@@ -1628,9 +1620,6 @@ public class WalletApi {
     builder.setOwnerAddress(ByteString.copyFrom(owner));
     builder.setContractAddress(ByteString.copyFrom(contractAddress));
     builder.setConsumeUserResourcePercent(consumeUserResourcePercent);
-    if (delaySecond > 0) {
-      builder.setDelaySeconds(delaySecond);
-    }
     return builder.build();
   }
 
@@ -1644,9 +1633,6 @@ public class WalletApi {
     builder.setContractAddress(ByteString.copyFrom(contractAddress));
     builder.setOriginEnergyLimit(originEnergyLimit);
 
-    if (delaySecond > 0) {
-      builder.setDelaySeconds(delaySecond);
-    }
     return builder.build();
   }
 
