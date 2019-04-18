@@ -1,10 +1,10 @@
 syntax = "proto3";
 package protocol;
 
+import "google/protobuf/any.proto";
 import "core/Tron.proto";
 import "core/Contract.proto";
 import "google/api/annotations.proto";
-
 
 option java_package = "org.tron.api"; //Specify the name of the package that generated the Java file
 option java_outer_classname = "GrpcAPI"; //Specify the class name of the generated Java file
@@ -43,7 +43,18 @@ service Wallet {
     };
   };
 
-  rpc CreateDeferredTransaction2(DeferredTransactionContract) returns (TransactionExtention) {
+  //Please use CreateDeferredTransaction2 instead of this function.
+  rpc CreateDeferredTransaction (DeferredTransactionMessage) returns (Transaction) {
+    option (google.api.http) = {
+      post: "/wallet/createdeferredtransaction"
+      body: "*"
+      additional_bindings {
+        get: "/wallet/createdeferredtransaction"
+      }
+    };
+  };
+
+  rpc CreateDeferredTransaction2(DeferredTransactionMessage) returns (TransactionExtention) {
   }
 
   //Use this function instead of CreateTransaction.
@@ -1041,6 +1052,12 @@ message BlockListExtention {
 
 message TransactionListExtention {
   repeated TransactionExtention transaction = 1;
+}
+
+message DeferredTransactionMessage {
+  int64 delaySecond = 1;
+  google.protobuf.Any parameter = 2;
+  int32 type = 3;
 }
 
 message TransactionSignWeight {

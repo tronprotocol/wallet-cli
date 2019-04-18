@@ -1,5 +1,6 @@
 package org.tron.walletserver;
 
+import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
@@ -14,12 +15,15 @@ import org.tron.api.GrpcAPI.AccountNetMessage;
 import org.tron.api.GrpcAPI.AccountPaginated;
 import org.tron.api.GrpcAPI.AccountResourceMessage;
 import org.tron.api.GrpcAPI.AddressPrKeyPairMessage;
+import org.tron.protos.Contract.TransferContract;
+
 import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.BlockExtention;
 import org.tron.api.GrpcAPI.BlockLimit;
 import org.tron.api.GrpcAPI.BlockList;
 import org.tron.api.GrpcAPI.BlockListExtention;
 import org.tron.api.GrpcAPI.BytesMessage;
+import org.tron.api.GrpcAPI.DeferredTransactionMessage;
 import org.tron.api.GrpcAPI.DelegatedResourceList;
 import org.tron.api.GrpcAPI.DelegatedResourceMessage;
 import org.tron.api.GrpcAPI.EasyTransferAssetByPrivateMessage;
@@ -45,6 +49,7 @@ import org.tron.api.WalletGrpc;
 import org.tron.api.WalletSolidityGrpc;
 import org.tron.common.utils.ByteArray;
 import org.tron.protos.Contract;
+import org.tron.protos.Contract.TransferContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.ChainParameters;
@@ -54,6 +59,7 @@ import org.tron.protos.Protocol.Exchange;
 import org.tron.protos.Protocol.Proposal;
 import org.tron.protos.Protocol.SmartContract;
 import org.tron.protos.Protocol.Transaction;
+import org.tron.protos.Protocol.Transaction.Contract.ContractType;
 import org.tron.protos.Protocol.TransactionInfo;
 import org.tron.protos.Protocol.TransactionSign;
 
@@ -204,8 +210,92 @@ public class GrpcClient {
     return blockingStubFull.updateAccount2(contract);
   }
 
-  public TransactionExtention createDeferredTransaction2(Contract.DeferredTransactionContract contract) {
-    return blockingStubFull.createDeferredTransaction2(contract);
+  public Transaction createDeferredTransaction(Contract.SetAccountIdContract contract, long delaySecond) {
+    DeferredTransactionMessage.Builder builder = DeferredTransactionMessage.newBuilder();
+    builder.setDelaySecond(delaySecond);
+    builder.setParameter(Any.pack(contract));
+    builder.setType(ContractType.SetAccountIdContract.getNumber());
+    return blockingStubFull.createDeferredTransaction(builder.build());
+  }
+
+  public TransactionExtention createDeferredTransaction2(Contract.CreateSmartContract contract, long delaySecond) {
+    DeferredTransactionMessage.Builder builder = DeferredTransactionMessage.newBuilder();
+    builder.setDelaySecond(delaySecond);
+    builder.setParameter(Any.pack(contract));
+    builder.setType(ContractType.CreateSmartContract.getNumber());
+    return blockingStubFull.createDeferredTransaction2(builder.build());
+  }
+
+  public TransactionExtention createDeferredTransaction2(Contract.UpdateSettingContract contract, long delaySecond) {
+    DeferredTransactionMessage.Builder builder = DeferredTransactionMessage.newBuilder();
+    builder.setDelaySecond(delaySecond);
+    builder.setParameter(Any.pack(contract));
+    builder.setType(ContractType.UpdateSettingContract.getNumber());
+    return blockingStubFull.createDeferredTransaction2(builder.build());
+  }
+
+  public TransactionExtention createDeferredTransaction2(Contract.TriggerSmartContract contract, long delaySecond) {
+    DeferredTransactionMessage.Builder builder = DeferredTransactionMessage.newBuilder();
+    builder.setDelaySecond(delaySecond);
+    builder.setParameter(Any.pack(contract));
+    builder.setType(ContractType.TriggerSmartContract.getNumber());
+    return blockingStubFull.createDeferredTransaction2(builder.build());
+  }
+
+  public TransactionExtention createDeferredTransaction2(Contract.UpdateEnergyLimitContract contract, long delaySecond) {
+    DeferredTransactionMessage.Builder builder = DeferredTransactionMessage.newBuilder();
+    builder.setDelaySecond(delaySecond);
+    builder.setParameter(Any.pack(contract));
+    builder.setType(ContractType.UpdateEnergyLimitContract.getNumber());
+    return blockingStubFull.createDeferredTransaction2(builder.build());
+  }
+
+  public TransactionExtention createDeferredTransaction2(Contract.UnfreezeAssetContract contract, long delaySecond) {
+    DeferredTransactionMessage.Builder builder = DeferredTransactionMessage.newBuilder();
+    builder.setDelaySecond(delaySecond);
+    builder.setParameter(Any.pack(contract));
+    builder.setType(ContractType.UnfreezeAssetContract.getNumber());
+    return blockingStubFull.createDeferredTransaction2(builder.build());
+  }
+
+  public TransactionExtention createDeferredTransaction2(Contract.UpdateAssetContract contract, long delaySecond) {
+    DeferredTransactionMessage.Builder builder = DeferredTransactionMessage.newBuilder();
+    builder.setDelaySecond(delaySecond);
+    builder.setParameter(Any.pack(contract));
+    builder.setType(ContractType.UpdateAssetContract.getNumber());
+    return blockingStubFull.createDeferredTransaction2(builder.build());
+  }
+
+  public TransactionExtention createDeferredTransaction2(Contract.TransferContract contract, long delaySecond) {
+    DeferredTransactionMessage.Builder builder = DeferredTransactionMessage.newBuilder();
+    builder.setDelaySecond(delaySecond);
+    builder.setParameter(Any.pack(contract));
+    builder.setType(ContractType.TransferContract.getNumber());
+    return blockingStubFull.createDeferredTransaction2(builder.build());
+  }
+
+  public TransactionExtention createDeferredTransaction2(Contract.AccountCreateContract contract, long delaySecond) {
+    DeferredTransactionMessage.Builder builder = DeferredTransactionMessage.newBuilder();
+    builder.setDelaySecond(delaySecond);
+    builder.setParameter(Any.pack(contract));
+    builder.setType(ContractType.AccountCreateContract.getNumber());
+    return blockingStubFull.createDeferredTransaction2(builder.build());
+  }
+
+  public TransactionExtention createDeferredTransaction2(Contract.TransferAssetContract contract, long delaySecond) {
+    DeferredTransactionMessage.Builder builder = DeferredTransactionMessage.newBuilder();
+    builder.setDelaySecond(delaySecond);
+    builder.setParameter(Any.pack(contract));
+    builder.setType(ContractType.TransferAssetContract.getNumber());
+    return blockingStubFull.createDeferredTransaction2(builder.build());
+  }
+
+  public TransactionExtention createDeferredTransaction2(Contract.AccountUpdateContract contract, long delaySecond) {
+    DeferredTransactionMessage.Builder builder = DeferredTransactionMessage.newBuilder();
+    builder.setDelaySecond(delaySecond);
+    builder.setParameter(Any.pack(contract));
+    builder.setType(ContractType.AccountUpdateContract.getNumber());
+    return blockingStubFull.createDeferredTransaction2(builder.build());
   }
 
   public TransactionExtention createTransaction2(Contract.CancelDeferredTransactionContract contract) {
