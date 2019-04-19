@@ -210,11 +210,59 @@ public class GrpcClient {
     return blockingStubFull.updateAccount2(contract);
   }
 
+  public Transaction createDeferredTransaction(Contract.UpdateAssetContract contract, long delaySecond) {
+    DeferredTransactionMessage.Builder builder = DeferredTransactionMessage.newBuilder();
+    builder.setDelaySecond(delaySecond);
+    builder.setParameter(Any.pack(contract));
+    builder.setType(ContractType.UpdateAssetContract.getNumber());
+    return blockingStubFull.createDeferredTransaction(builder.build());
+  }
+
+  public Transaction createDeferredTransaction(Contract.TransferContract contract, long delaySecond) {
+    DeferredTransactionMessage.Builder builder = DeferredTransactionMessage.newBuilder();
+    builder.setDelaySecond(delaySecond);
+    builder.setParameter(Any.pack(contract));
+    builder.setType(ContractType.TransferContract.getNumber());
+    return blockingStubFull.createDeferredTransaction(builder.build());
+  }
+
+  public Transaction createDeferredTransaction(Contract.AccountUpdateContract contract, long delaySecond) {
+    DeferredTransactionMessage.Builder builder = DeferredTransactionMessage.newBuilder();
+    builder.setDelaySecond(delaySecond);
+    builder.setParameter(Any.pack(contract));
+    builder.setType(ContractType.AccountUpdateContract.getNumber());
+    return blockingStubFull.createDeferredTransaction(builder.build());
+  }
+
+  public Transaction createDeferredTransaction(Contract.TransferAssetContract contract, long delaySecond) {
+    DeferredTransactionMessage.Builder builder = DeferredTransactionMessage.newBuilder();
+    builder.setDelaySecond(delaySecond);
+    builder.setParameter(Any.pack(contract));
+    builder.setType(ContractType.TransferAssetContract.getNumber());
+    return blockingStubFull.createDeferredTransaction(builder.build());
+  }
+
+  public Transaction createDeferredTransaction(Contract.AccountCreateContract contract, long delaySecond) {
+    DeferredTransactionMessage.Builder builder = DeferredTransactionMessage.newBuilder();
+    builder.setDelaySecond(delaySecond);
+    builder.setParameter(Any.pack(contract));
+    builder.setType(ContractType.AccountCreateContract.getNumber());
+    return blockingStubFull.createDeferredTransaction(builder.build());
+  }
+
   public Transaction createDeferredTransaction(Contract.SetAccountIdContract contract, long delaySecond) {
     DeferredTransactionMessage.Builder builder = DeferredTransactionMessage.newBuilder();
     builder.setDelaySecond(delaySecond);
     builder.setParameter(Any.pack(contract));
     builder.setType(ContractType.SetAccountIdContract.getNumber());
+    return blockingStubFull.createDeferredTransaction(builder.build());
+  }
+
+  public Transaction createDeferredTransaction(Contract.UnfreezeAssetContract contract, long delaySecond) {
+    DeferredTransactionMessage.Builder builder = DeferredTransactionMessage.newBuilder();
+    builder.setDelaySecond(delaySecond);
+    builder.setParameter(Any.pack(contract));
+    builder.setType(ContractType.UnfreezeAssetContract.getNumber());
     return blockingStubFull.createDeferredTransaction(builder.build());
   }
 
