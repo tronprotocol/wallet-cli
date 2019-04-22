@@ -1731,11 +1731,13 @@ public class Client {
     boolean result = walletApiWrapper
         .callContract(contractAddress, callValue, input, feeLimit, tokenCallValue, tokenId,
             isConstant);
-    if (result) {
-      System.out.println("Broadcast the " + cmdMethodStr + " successfully.\n"
-          + "Please check the given transaction id to get the result on blockchain using getTransactionInfoById command");
-    } else {
-      System.out.println("Broadcast the " + cmdMethodStr + " failed");
+    if (!isConstant) {
+      if (result) {
+        System.out.println("Broadcast the " + cmdMethodStr + " successfully.\n"
+            + "Please check the given transaction id to get the result on blockchain using getTransactionInfoById command");
+      } else {
+        System.out.println("Broadcast the " + cmdMethodStr + " failed");
+      }
     }
   }
 
