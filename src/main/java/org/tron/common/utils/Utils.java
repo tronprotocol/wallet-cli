@@ -54,6 +54,7 @@ import org.tron.protos.Contract.AccountPermissionUpdateContract;
 import org.tron.protos.Contract.AccountUpdateContract;
 import org.tron.protos.Contract.AssetIssueContract;
 import org.tron.protos.Contract.AssetIssueContract.FrozenSupply;
+import org.tron.protos.Contract.ClearABIContract;
 import org.tron.protos.Contract.CreateSmartContract;
 import org.tron.protos.Contract.ExchangeCreateContract;
 import org.tron.protos.Contract.ExchangeInjectContract;
@@ -938,7 +939,7 @@ public class Utils {
           result += "\n";
           result += "account_id: ";
           result += new String(setAccountIdContract.getAccountId().toByteArray(),
-              Charset.forName("UTF-8"));;
+              Charset.forName("UTF-8"));
           result += "\n";
           break;
         case CreateSmartContract:
@@ -1137,6 +1138,18 @@ public class Utils {
           result += "\n";
           result += "origin_energy_limit: ";
           result += updateEnergyLimitContract.getOriginEnergyLimit();
+          result += "\n";
+          break;
+        case ClearABIContract:
+          ClearABIContract clearABIContract = contract.getParameter()
+              .unpack(ClearABIContract.class);
+          result += "owner_address: ";
+          result += WalletApi
+              .encode58Check(clearABIContract.getOwnerAddress().toByteArray());
+          result += "\n";
+          result += "contract_address: ";
+          result += WalletApi
+              .encode58Check(clearABIContract.getContractAddress().toByteArray());
           result += "\n";
           break;
         // case BuyStorageContract:

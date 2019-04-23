@@ -1629,7 +1629,8 @@ public class WalletApi {
     return createSmartContractBuilder.build();
   }
 
-  private static byte[] replaceLibraryAddress(String code, String libraryAddressPair, String compilerVersion) {
+  private static byte[] replaceLibraryAddress(String code, String libraryAddressPair,
+      String compilerVersion) {
 
     String[] libraryAddressList = libraryAddressPair.split("[,]");
 
@@ -1651,13 +1652,14 @@ public class WalletApi {
       }
 
       String beReplaced;
-      if(compilerVersion == null) {
+      if (compilerVersion == null) {
         //old version
         String repeated = new String(new char[40 - libraryName.length() - 2]).replace("\0", "_");
         beReplaced = "__" + libraryName + repeated;
-      } else if(compilerVersion.equalsIgnoreCase("v5")) {
+      } else if (compilerVersion.equalsIgnoreCase("v5")) {
         //0.5.4 version
-        String libraryNameKeccak256 = ByteArray.toHexString(Hash.sha3(ByteArray.fromString(libraryName))).substring(0,34);
+        String libraryNameKeccak256 = ByteArray
+            .toHexString(Hash.sha3(ByteArray.fromString(libraryName))).substring(0, 34);
         beReplaced = "__\\$" + libraryNameKeccak256 + "\\$__";
       } else {
         throw new RuntimeException("unknown compiler version.");
@@ -1833,6 +1835,7 @@ public class WalletApi {
     }
 
     Transaction transaction = transactionExtention.getTransaction();
+    // for constant
     if (transaction.getRetCount() != 0 &&
         transactionExtention.getConstantResult(0) != null &&
         transactionExtention.getResult() != null) {
