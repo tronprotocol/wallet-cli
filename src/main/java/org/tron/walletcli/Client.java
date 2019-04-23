@@ -1698,6 +1698,7 @@ public class Client {
           "Note: Please append the param for constructor tightly with byteCode without any space");
       return;
     }
+
     deployContract(parameters, true);
   }
 
@@ -1714,16 +1715,13 @@ public class Client {
           "Note: Please append the param for constructor tightly with byteCode without any space");
       return;
     }
-    deployContract(parameters, false);
+    deployContract(parameters, 0);
   }
 
-  private void deployContract(String[] parameters, boolean isDeferredTransaction)
+  private void deployContract(String[] parameters, long delaySeconds)
       throws IOException, CipherException, CancelException, EncodingException {
-    long delaySecond = 0;
+    long delaySecond = delaySeconds;
     int index = 0;
-    if (isDeferredTransaction) {
-      delaySecond = Long.valueOf(parameters[index++]);
-    }
     String contractName = parameters[index++];
     String abiStr = parameters[index++];
     String codeStr = parameters[index++];
@@ -2444,7 +2442,7 @@ public class Client {
             deployContract(parameters);
             break;
           }
-          case "deployDeferredContract": {
+          case "deploydeferredcontract": {
             deployDeferredContract(parameters);
             break;
           }
