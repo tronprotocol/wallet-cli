@@ -1687,19 +1687,26 @@ public class Client {
 
   private void deployDeferredContract(String[] parameter)
       throws IOException, CipherException, CancelException, EncodingException {
+    if (parameter == null || parameter.length < 1) {
+      System.out.println("DeployDeferredContract format is wrong");
+      return;
+    }
 
-    String[] parameters = getParas(parameter);
+    long delaySeconds = new Long(parameter[0]);
+    String[] newParameters = Arrays.copyOfRange(parameter, 1, parameter.length);
+    String[] parameters = getParas(newParameters);
     if (parameters == null ||
         parameters.length < 11) {
-      System.out.println("DeployContract needs at least 8 parameters like following: ");
+      System.out.println("DeployDeferredContract needs at least 9 parameters like following: ");
       System.out.println(
-          "DeployContract contractName ABI byteCode constructor params isHex fee_limit consume_user_resource_percent origin_energy_limit value token_value token_id(e.g: TRXTOKEN, use # if don't provided) <library:address,library:address,...>");
+          "DeployDeferredContract delaySecond contractName ABI byteCode constructor params isHex fee_limit consume_user_resource_percent origin_energy_limit value token_value token_id(e.g: TRXTOKEN, use # if don't provided) <library:address,library:address,...>");
       System.out.println(
           "Note: Please append the param for constructor tightly with byteCode without any space");
       return;
     }
 
-    deployContract(parameters, true);
+
+    deployContract(parameters, delaySeconds);
   }
 
   private void deployContract(String[] parameter)
@@ -1777,7 +1784,7 @@ public class Client {
         parameters.length < 8) {
       System.out.println("TriggerContract needs 6 parameters like following: ");
       System.out.println(
-          "TriggerContract contractAddress method args isHex fee_limit value token_value token_id(e.g: TRXTOKEN, use # if don't provided)");
+          "TriggerContract contractAddress method args isHex fee_limit value token_value token_id(e.g: TRXTOKEN, use # if don't provided) [delaySecond]");
       // System.out.println("example:\nTriggerContract password contractAddress method args value");
       return;
     }
