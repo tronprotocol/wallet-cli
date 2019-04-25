@@ -1710,30 +1710,6 @@ public class Client {
 
   }
 
-  private void deployDeferredContract(String[] parameter)
-      throws IOException, CipherException, CancelException, EncodingException {
-    if (parameter == null || parameter.length < 1) {
-      System.out.println("DeployDeferredContract format is wrong");
-      return;
-    }
-
-    long delaySeconds = new Long(parameter[0]);
-    String[] newParameters = Arrays.copyOfRange(parameter, 1, parameter.length);
-    String[] parameters = getParas(newParameters);
-    if (parameters == null ||
-        parameters.length < 11) {
-      System.out.println("DeployDeferredContract needs at least 9 parameters like following: ");
-      System.out.println(
-          "DeployDeferredContract delaySecond contractName ABI byteCode constructor params isHex fee_limit consume_user_resource_percent origin_energy_limit value token_value token_id(e.g: TRXTOKEN, use # if don't provided) <library:address,library:address,...>");
-      System.out.println(
-          "Note: Please append the param for constructor tightly with byteCode without any space");
-      return;
-    }
-
-
-    deployContract(parameters, delaySeconds);
-  }
-
   private void deployContract(String[] parameter)
       throws IOException, CipherException, CancelException, EncodingException {
 
@@ -1742,23 +1718,8 @@ public class Client {
         parameters.length < 11) {
       System.out.println("DeployContract needs at least 8 parameters like following: ");
       System.out.println(
-          "DeployContract contractName ABI byteCode constructor params isHex fee_limit consume_user_resource_percent origin_energy_limit value token_value token_id(e.g: TRXTOKEN, use # if don't provided) <library:address,library:address,...> <lib_compiler_version(e.g:v5)>");
-      System.out.println(
-          "Note: Please append the param for constructor tightly with byteCode without any space");
-      return;
-    }
-    deployContract(parameters, 0);
-  }
-
-  private void deployContract(String[] parameter)
-      throws IOException, CipherException, CancelException, EncodingException {
-
-    String[] parameters = getParas(parameter);
-    if (parameters == null ||
-        parameters.length < 11) {
-      System.out.println("DeployContract needs at least 8 parameters like following: ");
-      System.out.println(
-          "DeployContract contractName ABI byteCode constructor params isHex fee_limit consume_user_resource_percent origin_energy_limit value token_value token_id(e.g: TRXTOKEN, use # if don't provided) <library:address,library:address,...> <lib_compiler_version(e.g:v5)>");
+          "DeployContract contractName ABI byteCode constructor params isHex fee_limit consume_user_resource_percent origin_energy_limit value token_value token_id(e.g: TRXTOKEN, use # if don't provided) "
+              + "<library:address,library:address,...>(use # if don't provided) <lib_compiler_version(e.g:v5, use # if don't provided)>");
       System.out.println(
           "Note: Please append the param for constructor tightly with byteCode without any space");
       return;
@@ -1796,13 +1757,18 @@ public class Client {
       tokenId = "";
     }
     String libraryAddressPair = null;
-    if (parameters.length > idx) {
+    if ("#" != parameters[idx]) {
       libraryAddressPair = parameters[idx++];
     }
 
     String compilerVersion = null;
+    if ("#" != parameters[idx]) {
+      compilerVersion = parameters[idx++];
+    }
+
+    long delaySecond = 0;
     if (parameters.length > idx) {
-      compilerVersion = parameters[idx];
+      delaySecond = Long.valueOf(idx);
     }
 
     // TODO: consider to remove "data"
@@ -1811,7 +1777,7 @@ public class Client {
      */
     boolean result = walletApiWrapper.deployContract(contractName, abiStr, codeStr, feeLimit, value,
         consumeUserResourcePercent, originEnergyLimit, tokenValue, tokenId, libraryAddressPair,
-        compilerVersion);
+        compilerVersion, delaySecond);
     if (result) {
       System.out.println("Broadcast the createSmartContract successfully.\n"
           + "Please check the given transaction id to confirm deploy status on blockchain using getTransactionInfoById command.");
@@ -2552,10 +2518,6 @@ public class Client {
           }
           case "deploycontract": {
             deployContract(parameters);
-            break;
-          }
-          case "deploydeferredcontract": {
-            deployDeferredContract(parameters);
             break;
           }
           case "triggercontract": {

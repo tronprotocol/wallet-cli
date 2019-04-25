@@ -1888,14 +1888,14 @@ public class WalletApi {
 
   public boolean deployContract(String contractName, String ABI, String code,
       long feeLimit, long value, long consumeUserResourcePercent, long originEnergyLimit,
-      long tokenValue, String tokenId, String libraryAddressPair, String compilerVersion)
+      long tokenValue, String tokenId, String libraryAddressPair, String compilerVersion, long delaySecond)
       throws IOException, CipherException, CancelException {
     byte[] owner = getAddress();
     CreateSmartContract contractDeployContract = createContractDeployContract(contractName, owner,
         ABI, code, value, consumeUserResourcePercent, originEnergyLimit, tokenValue, tokenId,
         libraryAddressPair, compilerVersion);
 
-    TransactionExtention transactionExtention = rpcCli.deployContract(contractDeployContract);
+    TransactionExtention transactionExtention = rpcCli.createDeferredTransaction2(contractDeployContract, delaySecond);
     if (transactionExtention == null || !transactionExtention.getResult().getResult()) {
       System.out.println("RPC create trx failed!");
       if (transactionExtention != null) {
