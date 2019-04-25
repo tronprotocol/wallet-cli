@@ -1757,18 +1757,20 @@ public class Client {
       tokenId = "";
     }
     String libraryAddressPair = null;
-    if ("#" != parameters[idx]) {
-      libraryAddressPair = parameters[idx++];
+    String tmp = parameters[idx++];
+    if ("#".equals(tmp) == false) {
+      libraryAddressPair = tmp;
     }
 
     String compilerVersion = null;
-    if ("#" != parameters[idx]) {
-      compilerVersion = parameters[idx++];
+    tmp = parameters[idx++];
+    if ("#".equals(tmp) == false) {
+      compilerVersion = tmp;
     }
 
     long delaySecond = 0;
     if (parameters.length > idx) {
-      delaySecond = Long.valueOf(idx);
+      delaySecond = Long.valueOf(parameters[idx]);
     }
 
     // TODO: consider to remove "data"
