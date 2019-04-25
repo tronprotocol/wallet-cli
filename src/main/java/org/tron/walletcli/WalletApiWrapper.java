@@ -663,9 +663,18 @@ public class WalletApiWrapper {
 
   }
 
+  public boolean clearContractABI(byte[] contractAddress)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warning: updateSetting failed,  Please login first !!");
+      return false;
+    }
+    return wallet.clearContractABI(contractAddress);
+  }
+
   public boolean deployContract(String name, String abiStr, String codeStr,
       long feeLimit, long value, long consumeUserResourcePercent, long originEnergyLimit,
-      long tokenValue, String tokenId, String libraryAddressPair, long delaySecond)
+      long tokenValue, String tokenId, String libraryAddressPair, String compilerVersion)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: createContract failed,  Please login first !!");
@@ -674,27 +683,28 @@ public class WalletApiWrapper {
     return wallet
         .deployContract(name, abiStr, codeStr, feeLimit, value, consumeUserResourcePercent,
             originEnergyLimit, tokenValue, tokenId,
-            libraryAddressPair, delaySecond);
+            libraryAddressPair, compilerVersion);
   }
 
   public boolean callContract(byte[] contractAddress, long callValue, byte[] data, long feeLimit,
-      long tokenValue, String tokenId, long delaySecond)
+      long tokenValue, String tokenId, boolean isConstant, long delaySecond)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: callContract failed,  Please login first !!");
       return false;
     }
 
-    return wallet.triggerContract(contractAddress, callValue, data, feeLimit, tokenValue, tokenId, delaySecond);
+    return wallet.triggerContract(contractAddress, callValue, data, feeLimit, tokenValue, tokenId,
+        isConstant, delaySecond);
   }
 
-  public boolean accountPermissionUpdate(byte[] ownerAddress,String permission)
+  public boolean accountPermissionUpdate(byte[] ownerAddress, String permission)
       throws IOException, CipherException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: accountPermissionUpdate failed,  Please login first !!");
       return false;
     }
-    return wallet.accountPermissionUpdate(ownerAddress,permission);
+    return wallet.accountPermissionUpdate(ownerAddress, permission);
   }
 
 

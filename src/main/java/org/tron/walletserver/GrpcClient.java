@@ -282,14 +282,6 @@ public class GrpcClient {
     return blockingStubFull.createDeferredTransaction2(builder.build());
   }
 
-  public TransactionExtention createDeferredTransaction2(Contract.TriggerSmartContract contract, long delaySecond) {
-    DeferredTransactionMessage.Builder builder = DeferredTransactionMessage.newBuilder();
-    builder.setDelaySecond(delaySecond);
-    builder.setParameter(Any.pack(contract));
-    builder.setType(ContractType.TriggerSmartContract.getNumber());
-    return blockingStubFull.createDeferredTransaction2(builder.build());
-  }
-
   public TransactionExtention createDeferredTransaction2(Contract.UpdateEnergyLimitContract contract, long delaySecond) {
     DeferredTransactionMessage.Builder builder = DeferredTransactionMessage.newBuilder();
     builder.setDelaySecond(delaySecond);
@@ -953,12 +945,29 @@ public class GrpcClient {
     return blockingStubFull.updateEnergyLimit(request);
   }
 
+  public TransactionExtention clearContractABI(
+      Contract.ClearABIContract request) {
+    return blockingStubFull.clearContractABI(request);
+  }
+
   public TransactionExtention deployContract(Contract.CreateSmartContract request) {
     return blockingStubFull.deployContract(request);
   }
 
   public TransactionExtention triggerContract(Contract.TriggerSmartContract request) {
     return blockingStubFull.triggerContract(request);
+  }
+
+  public TransactionExtention triggerDeferredConstantContract(Contract.TriggerSmartContract contract, long delaySecond) {
+    DeferredTransactionMessage.Builder builder = DeferredTransactionMessage.newBuilder();
+    builder.setDelaySecond(delaySecond);
+    builder.setParameter(Any.pack(contract));
+    builder.setType(ContractType.TriggerSmartContract.getNumber());
+    return blockingStubFull.triggerDeferredContract(builder.build());
+  }
+
+  public TransactionExtention triggerConstantContract(Contract.TriggerSmartContract request) {
+    return blockingStubFull.triggerConstantContract(request);
   }
 
   public SmartContract getContract(byte[] address) {

@@ -56,6 +56,7 @@ import org.tron.protos.Contract.AccountUpdateContract;
 import org.tron.protos.Contract.AssetIssueContract;
 import org.tron.protos.Contract.AssetIssueContract.FrozenSupply;
 import org.tron.protos.Contract.CancelDeferredTransactionContract;
+import org.tron.protos.Contract.ClearABIContract;
 import org.tron.protos.Contract.CreateSmartContract;
 import org.tron.protos.Contract.ExchangeCreateContract;
 import org.tron.protos.Contract.ExchangeInjectContract;
@@ -66,6 +67,7 @@ import org.tron.protos.Contract.ParticipateAssetIssueContract;
 import org.tron.protos.Contract.ProposalApproveContract;
 import org.tron.protos.Contract.ProposalCreateContract;
 import org.tron.protos.Contract.ProposalDeleteContract;
+import org.tron.protos.Contract.SetAccountIdContract;
 import org.tron.protos.Contract.TransferAssetContract;
 import org.tron.protos.Contract.TransferContract;
 import org.tron.protos.Contract.TriggerSmartContract;
@@ -931,6 +933,18 @@ public class Utils {
               .encode58Check(withdrawBalanceContract.getOwnerAddress().toByteArray());
           result += "\n";
           break;
+        case SetAccountIdContract:
+          SetAccountIdContract setAccountIdContract = contract.getParameter()
+              .unpack(SetAccountIdContract.class);
+          result += "owner_address: ";
+          result += WalletApi
+              .encode58Check(setAccountIdContract.getOwnerAddress().toByteArray());
+          result += "\n";
+          result += "account_id: ";
+          result += new String(setAccountIdContract.getAccountId().toByteArray(),
+              Charset.forName("UTF-8"));
+          result += "\n";
+          break;
         case CreateSmartContract:
           CreateSmartContract createSmartContract = contract.getParameter()
               .unpack(CreateSmartContract.class);
@@ -1138,6 +1152,17 @@ public class Utils {
           result += "\n";
           result += "cancel transaction id: ";
           result += ByteArray.toHexString(cancelDeferredTransactionContract.getTransactionId().toByteArray());
+          result += "\n";
+        case ClearABIContract:
+          ClearABIContract clearABIContract = contract.getParameter()
+              .unpack(ClearABIContract.class);
+          result += "owner_address: ";
+          result += WalletApi
+              .encode58Check(clearABIContract.getOwnerAddress().toByteArray());
+          result += "\n";
+          result += "contract_address: ";
+          result += WalletApi
+              .encode58Check(clearABIContract.getContractAddress().toByteArray());
           result += "\n";
           break;
         // case BuyStorageContract:
