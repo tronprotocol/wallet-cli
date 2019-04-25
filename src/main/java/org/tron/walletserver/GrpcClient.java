@@ -15,6 +15,7 @@ import org.tron.api.GrpcAPI.AccountNetMessage;
 import org.tron.api.GrpcAPI.AccountPaginated;
 import org.tron.api.GrpcAPI.AccountResourceMessage;
 import org.tron.api.GrpcAPI.AddressPrKeyPairMessage;
+import org.tron.api.GrpcAPI.DeferredTriggerContractMessage;
 import org.tron.protos.Contract.TransferContract;
 
 import org.tron.api.GrpcAPI.AssetIssueList;
@@ -958,11 +959,10 @@ public class GrpcClient {
     return blockingStubFull.triggerContract(request);
   }
 
-  public TransactionExtention triggerDeferredConstantContract(Contract.TriggerSmartContract contract, long delaySecond) {
-    DeferredTransactionMessage.Builder builder = DeferredTransactionMessage.newBuilder();
+  public TransactionExtention triggerDeferredContract(Contract.TriggerSmartContract contract, long delaySecond) {
+    DeferredTriggerContractMessage.Builder builder = DeferredTriggerContractMessage.newBuilder();
     builder.setDelaySecond(delaySecond);
-    builder.setParameter(Any.pack(contract));
-    builder.setType(ContractType.TriggerSmartContract.getNumber());
+    builder.setSmartContract(contract);
     return blockingStubFull.triggerDeferredContract(builder.build());
   }
 

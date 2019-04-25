@@ -436,7 +436,7 @@ service Wallet {
   rpc TriggerContract (TriggerSmartContract) returns (TransactionExtention) {
   }
 
-  rpc TriggerDeferredContract(DeferredTransactionMessage) returns (TransactionExtention) {
+  rpc TriggerDeferredContract(DeferredTriggerContractMessage) returns (TransactionExtention) {
   }
 
   rpc TriggerConstantContract (TriggerSmartContract) returns (TransactionExtention) {
@@ -1057,6 +1057,11 @@ message BlockExtention {
 
 message BlockListExtention {
   repeated BlockExtention block = 1;
+}
+
+message DeferredTriggerContractMessage {
+  int64 delaySecond = 1;
+  TriggerSmartContract smartContract = 2;
 }
 
 message TransactionListExtention {

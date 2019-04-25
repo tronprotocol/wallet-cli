@@ -1894,8 +1894,14 @@ public class WalletApi {
     CreateSmartContract contractDeployContract = createContractDeployContract(contractName, owner,
         ABI, code, value, consumeUserResourcePercent, originEnergyLimit, tokenValue, tokenId,
         libraryAddressPair, compilerVersion);
+    TransactionExtention transactionExtention;
+    if (delaySecond > 0) {
+      transactionExtention = rpcCli.createDeferredTransaction2(contractDeployContract, delaySecond);
+    } else {
+      transactionExtention = rpcCli.deployContract(contractDeployContract);
+    }
 
-    TransactionExtention transactionExtention = rpcCli.createDeferredTransaction2(contractDeployContract, delaySecond);
+    transactionExtention = TransactionUtils.setDelaySecondsToExtension(transactionExtention, delaySecond);
     if (transactionExtention == null || !transactionExtention.getResult().getResult()) {
       System.out.println("RPC create trx failed!");
       if (transactionExtention != null) {
@@ -1943,7 +1949,7 @@ public class WalletApi {
         transactionExtention = rpcCli.triggerConstantContract(triggerContract);
     } else {
       if (delaySecond > 0) {
-        transactionExtention = rpcCli.triggerDeferredConstantContract(triggerContract, delaySecond);
+        transactionExtention = rpcCli.triggerDeferredContract(triggerContract, delaySecond);
       } else {
         transactionExtention = rpcCli.triggerContract(triggerContract);
       }

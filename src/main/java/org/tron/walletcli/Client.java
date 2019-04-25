@@ -1715,11 +1715,10 @@ public class Client {
 
     String[] parameters = getParas(parameter);
     if (parameters == null ||
-        parameters.length < 11) {
-      System.out.println("DeployContract needs at least 8 parameters like following: ");
+        parameters.length < 12) {
+      System.out.println("DeployContract needs at least 9 parameters like following: ");
       System.out.println(
-          "DeployContract contractName ABI byteCode constructor params isHex fee_limit consume_user_resource_percent origin_energy_limit value token_value token_id(e.g: TRXTOKEN, use # if don't provided) "
-              + "<library:address,library:address,...>(use # if don't provided) <lib_compiler_version(e.g:v5, use # if don't provided)>");
+          "DeployContract contractName ABI byteCode constructor params isHex fee_limit consume_user_resource_percent origin_energy_limit value token_value token_id(e.g: TRXTOKEN, use # if don't provided) delaySeconds(use # if don't provided) <library:address,library:address,...> <lib_compiler_version(e.g:v5)>");
       System.out.println(
           "Note: Please append the param for constructor tightly with byteCode without any space");
       return;
@@ -1756,21 +1755,20 @@ public class Client {
     if (tokenId == "#") {
       tokenId = "";
     }
-    String libraryAddressPair = null;
     String tmp = parameters[idx++];
-    if ("#".equals(tmp) == false) {
-      libraryAddressPair = tmp;
+    long delaySecond = 0;
+    if (tmp.equals("#") == false) {
+      delaySecond = Long.valueOf(tmp);
+    }
+
+    String libraryAddressPair = null;
+    if (parameters.length > idx) {
+      libraryAddressPair = parameters[idx++];
     }
 
     String compilerVersion = null;
-    tmp = parameters[idx++];
-    if ("#".equals(tmp) == false) {
-      compilerVersion = tmp;
-    }
-
-    long delaySecond = 0;
     if (parameters.length > idx) {
-      delaySecond = Long.valueOf(parameters[idx]);
+      compilerVersion = parameters[idx];
     }
 
     // TODO: consider to remove "data"
@@ -1795,7 +1793,7 @@ public class Client {
     if (isConstant) {
       if (parameters == null || parameters.length < 4) {
         System.out.println(cmdMethodStr + " needs at least 4 parameters like following: ");
-        System.out.println(cmdMethodStr + " contractAddress method args isHex [delaySeconds]");
+        System.out.println(cmdMethodStr + " contractAddress method args isHex");
         return;
       }
     } else {
@@ -1836,10 +1834,6 @@ public class Client {
     if (!isConstant) {
       if (parameters.length > 8){
         delaySecond = Long.valueOf(parameters[8]);
-      }
-    } else {
-      if (parameters.length > 4) {
-        delaySecond = Long.valueOf(parameters[4]);
       }
     }
 
