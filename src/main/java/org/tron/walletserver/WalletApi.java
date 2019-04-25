@@ -1940,17 +1940,16 @@ public class WalletApi {
         callValue, data, tokenValue, tokenId);
     TransactionExtention transactionExtention;
     if (isConstant) {
+        transactionExtention = rpcCli.triggerConstantContract(triggerContract);
+    } else {
       if (delaySecond > 0) {
         transactionExtention = rpcCli.triggerDeferredConstantContract(triggerContract, delaySecond);
       } else {
-        transactionExtention = rpcCli.triggerConstantContract(triggerContract);
+        transactionExtention = rpcCli.triggerContract(triggerContract);
       }
-    } else {
-      transactionExtention = rpcCli.triggerContract(triggerContract);
     }
 
     transactionExtention = TransactionUtils.setDelaySecondsToExtension(transactionExtention, delaySecond);
-
     if (transactionExtention == null || !transactionExtention.getResult().getResult()) {
       System.out.println("RPC create call trx failed!");
       System.out.println("Code = " + transactionExtention.getResult().getCode());

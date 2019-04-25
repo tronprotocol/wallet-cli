@@ -1792,13 +1792,13 @@ public class Client {
 
     if (isConstant) {
       if (parameters == null || parameters.length < 4) {
-        System.out.println(cmdMethodStr + " needs 4 parameters like following: ");
-        System.out.println(cmdMethodStr + " contractAddress method args isHex");
+        System.out.println(cmdMethodStr + " needs at least 4 parameters like following: ");
+        System.out.println(cmdMethodStr + " contractAddress method args isHex [delaySeconds]");
         return;
       }
     } else {
       if (parameters == null || parameters.length < 8) {
-        System.out.println(cmdMethodStr + " needs 9 parameters like following: ");
+        System.out.println(cmdMethodStr + " needs at least 8 parameters like following: ");
         System.out.println(
             cmdMethodStr
                 + " contractAddress method args isHex fee_limit value token_value token_id [delaySeconds](e.g: TRXTOKEN, use # if don't provided)");
