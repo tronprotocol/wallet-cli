@@ -1153,6 +1153,7 @@ public class Utils {
           result += "cancel transaction id: ";
           result += ByteArray.toHexString(cancelDeferredTransactionContract.getTransactionId().toByteArray());
           result += "\n";
+          break;
         case ClearABIContract:
           ClearABIContract clearABIContract = contract.getParameter()
               .unpack(ClearABIContract.class);
