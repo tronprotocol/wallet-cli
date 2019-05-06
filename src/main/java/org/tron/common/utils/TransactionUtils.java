@@ -197,7 +197,7 @@ public class TransactionUtils {
   }
 
   public static Transaction setDelaySeconds(Transaction transaction, long delaySeconds){
-    if (delaySeconds == 0 || transaction == null) {
+    if (delaySeconds <= 0 || transaction == null) {
       return transaction;
     }
     DeferredStage deferredStage = transaction.getRawData().toBuilder().
@@ -208,7 +208,7 @@ public class TransactionUtils {
   }
 
   public static GrpcAPI.TransactionExtention setDelaySecondsToExtension(GrpcAPI.TransactionExtention transactionExtention, long delaySeconds) {
-    if (delaySeconds == 0 || transactionExtention == null) {
+    if (delaySeconds <= 0 || transactionExtention == null) {
       return transactionExtention;
     }
     GrpcAPI.TransactionExtention.Builder builder = transactionExtention.toBuilder();

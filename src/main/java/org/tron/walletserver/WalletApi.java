@@ -1303,12 +1303,13 @@ public class WalletApi {
       transactionExtention = TransactionUtils.setDelaySecondsToExtension(transactionExtention, delaySeconds);
       return processTransactionExtention(transactionExtention);
     } else {
-      Transaction transaction = rpcCli.createTransaction(contract);
+      Transaction transaction;
       if (delaySeconds > 0) {
         transaction = rpcCli.createDeferredTransaction(contract, delaySeconds);
       } else {
-        transaction = TransactionUtils.setDelaySeconds(transaction, delaySeconds);
+        transaction = rpcCli.createTransaction(contract);
       }
+      transaction = TransactionUtils.setDelaySeconds(transaction, delaySeconds);
       return processTransaction(transaction);
     }
   }
@@ -1837,10 +1838,7 @@ public class WalletApi {
       }
       return false;
     }
-
-    transactionExtention = TransactionUtils.setDelaySecondsToExtension(transactionExtention, delaySeconds);
     return processTransactionExtention(transactionExtention);
-
   }
 
   public boolean updateEnergyLimit(byte[] contractAddress, long originEnergyLimit, long delaySeconds)
@@ -1946,16 +1944,16 @@ public class WalletApi {
         callValue, data, tokenValue, tokenId);
     TransactionExtention transactionExtention;
     if (isConstant) {
-        transactionExtention = rpcCli.triggerConstantContract(triggerContract);
+      transactionExtention = rpcCli.triggerConstantContract(triggerContract);
     } else {
       if (delaySecond > 0) {
         transactionExtention = rpcCli.triggerDeferredContract(triggerContract, delaySecond);
       } else {
         transactionExtention = rpcCli.triggerContract(triggerContract);
       }
+      transactionExtention = TransactionUtils.setDelaySecondsToExtension(transactionExtention, delaySecond);
     }
 
-    transactionExtention = TransactionUtils.setDelaySecondsToExtension(transactionExtention, delaySecond);
     if (transactionExtention == null || !transactionExtention.getResult().getResult()) {
       System.out.println("RPC create call trx failed!");
       System.out.println("Code = " + transactionExtention.getResult().getCode());
