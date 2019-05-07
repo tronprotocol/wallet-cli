@@ -1755,6 +1755,12 @@ public class Client {
     if (tokenId == "#") {
       tokenId = "";
     }
+
+    if (idx == parameters.length) {
+      System.out.println("delaySecond should be set(use # if don't provided)");
+      return;
+    }
+
     String tmp = parameters[idx++];
     long delaySecond = 0;
     if (tmp.equals("#") == false) {
