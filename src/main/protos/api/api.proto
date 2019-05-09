@@ -92,6 +92,9 @@ service Wallet {
     };
   };
 
+  rpc CreateCancelDeferredTransactionContract (CancelDeferredTransactionContract) returns (TransactionExtention) {
+  };
+
   //modify the consume_user_resource_percent
   rpc UpdateSetting (UpdateSettingContract) returns (TransactionExtention) {
   };
@@ -395,6 +398,16 @@ service Wallet {
     };
   }
 
+  rpc GetDeferredTransactionById (BytesMessage) returns (DeferredTransaction) {
+    option (google.api.http) = {
+      post: "/wallet/getdeferredtransactionbyid"
+      body: "*"
+      additional_bindings {
+        get: "/wallet/getdeferredtransactionbyid"
+      }
+    };
+  }
+
   rpc DeployContract (CreateSmartContract) returns (TransactionExtention) {
   }
 
@@ -605,13 +618,6 @@ service Wallet {
   }
 
   rpc AccountPermissionUpdate (AccountPermissionUpdateContract) returns (TransactionExtention) {
-    option (google.api.http) = {
-      post: "/wallet/accountpermissionupdate"
-      body: "*"
-      additional_bindings {
-        get: "/wallet/accountpermissionupdate"
-      }
-    };
   }
 
 
@@ -741,6 +747,19 @@ service WalletSolidity {
     };
   }
 
+<<<<<<< HEAD
+=======
+  rpc GetDeferredTransactionById (BytesMessage) returns (DeferredTransaction) {
+    option (google.api.http) = {
+      post: "/walletsolidity/getdeferredtransactionbyid"
+      body: "*"
+      additional_bindings {
+        get: "/walletsolidity/getdeferredtransactionbyid"
+      }
+    };
+  }
+
+>>>>>>> 7685d5bea0112b7a42a20cc4aead7159a884c308
   rpc GetTransactionInfoById (BytesMessage) returns (TransactionInfo) {
     option (google.api.http) = {
       post: "/walletsolidity/gettransactioninfobyid"
@@ -751,6 +770,19 @@ service WalletSolidity {
     };
   }
 
+<<<<<<< HEAD
+=======
+  rpc GetDeferredTransactionInfoById (BytesMessage) returns (TransactionInfo) {
+    option (google.api.http) = {
+      post: "/walletsolidity/getdeferredtransactioninfobyid"
+      body: "*"
+      additional_bindings {
+        get: "/walletsolidity/getdeferredtransactioninfobyid"
+      }
+    };
+  }
+
+>>>>>>> 7685d5bea0112b7a42a20cc4aead7159a884c308
   //Warning: do not invoke this interface provided by others.
   rpc GenerateAddress (EmptyMessage) returns (AddressPrKeyPairMessage) {
     option (google.api.http) = {
@@ -823,6 +855,10 @@ message Return {
     SERVER_BUSY = 9;
     NO_CONNECTION = 10;
     NOT_ENOUGH_EFFECTIVE_CONNECTION = 11;
+<<<<<<< HEAD
+=======
+    DEFERRED_SECONDS_ILLEGAL_ERROR = 12;
+>>>>>>> 7685d5bea0112b7a42a20cc4aead7159a884c308
     OTHER_ERROR = 20;
   }
 
