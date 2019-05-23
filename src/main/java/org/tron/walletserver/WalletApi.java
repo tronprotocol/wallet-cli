@@ -35,19 +35,29 @@ import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.BlockExtention;
 import org.tron.api.GrpcAPI.BlockList;
 import org.tron.api.GrpcAPI.BlockListExtention;
+import org.tron.api.GrpcAPI.BytesMessage;
+import org.tron.api.GrpcAPI.DecryptNotes;
 import org.tron.api.GrpcAPI.DelegatedResourceList;
+import org.tron.api.GrpcAPI.DiversifierMessage;
 import org.tron.api.GrpcAPI.EasyTransferResponse;
 import org.tron.api.GrpcAPI.EmptyMessage;
 import org.tron.api.GrpcAPI.ExchangeList;
+import org.tron.api.GrpcAPI.ExpandedSpendingKeyMessage;
+import org.tron.api.GrpcAPI.IncomingViewingKeyDiversifierMessage;
+import org.tron.api.GrpcAPI.IncomingViewingKeyMessage;
+import org.tron.api.GrpcAPI.IvkDecryptParameters;
 import org.tron.api.GrpcAPI.NodeList;
+import org.tron.api.GrpcAPI.OvkDecryptParameters;
 import org.tron.api.GrpcAPI.ProposalList;
 import org.tron.api.GrpcAPI.Return;
+import org.tron.api.GrpcAPI.SaplingPaymentAddressMessage;
 import org.tron.api.GrpcAPI.TransactionApprovedList;
 import org.tron.api.GrpcAPI.TransactionExtention;
 import org.tron.api.GrpcAPI.TransactionList;
 import org.tron.api.GrpcAPI.TransactionListExtention;
 import org.tron.api.GrpcAPI.TransactionSignWeight;
 import org.tron.api.GrpcAPI.TransactionSignWeight.Result.response_code;
+import org.tron.api.GrpcAPI.ViewingKeyMessage;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.Hash;
@@ -372,6 +382,45 @@ public class WalletApi {
   public static Account queryAccountById(String accountId) {
     return rpcCli.queryAccountById(accountId);
   }
+
+  //added 2019-05-08
+  public static DecryptNotes scanNoteByIvk(IvkDecryptParameters ivkDecryptParameters){
+    return rpcCli.scanNoteByIvk(ivkDecryptParameters);
+  }
+
+  public static DecryptNotes scanNoteByOvk(OvkDecryptParameters ovkDecryptParameters){
+    return rpcCli.scanNoteByOvk(ovkDecryptParameters);
+  }
+
+  public static BytesMessage getSpendingKey() {
+    return rpcCli.getSpendingKey();
+  }
+
+  public static ExpandedSpendingKeyMessage getExpandedSpendingKey(BytesMessage spendingKey) {
+    return rpcCli.getExpandedSpendingKey(spendingKey);
+  }
+
+  public static BytesMessage getAkFromAsk(BytesMessage ask) {
+    return rpcCli.getAkFromAsk(ask);
+  }
+
+  public static BytesMessage getNkFromNsk(BytesMessage nsk) {
+    return rpcCli.getNkFromNsk(nsk);
+  }
+
+  public static IncomingViewingKeyMessage getIncomingViewingKey(ViewingKeyMessage viewingKeyMessage) {
+    return rpcCli.getIncomingViewingKey(viewingKeyMessage);
+  }
+
+  public static DiversifierMessage getDiversifier() {
+    return rpcCli.getDiversifier();
+  }
+
+  public static SaplingPaymentAddressMessage getSaplingPaymentAddress(
+          IncomingViewingKeyDiversifierMessage ivk) {
+    return rpcCli.getSaplingPaymentAddress(ivk);
+  }
+  //ending of added 2019-05-08
 
   private boolean confirm() {
     Scanner in = new Scanner(System.in);

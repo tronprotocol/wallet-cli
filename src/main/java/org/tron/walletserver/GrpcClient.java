@@ -20,8 +20,10 @@ import org.tron.api.GrpcAPI.BlockLimit;
 import org.tron.api.GrpcAPI.BlockList;
 import org.tron.api.GrpcAPI.BlockListExtention;
 import org.tron.api.GrpcAPI.BytesMessage;
+import org.tron.api.GrpcAPI.DecryptNotes;
 import org.tron.api.GrpcAPI.DelegatedResourceList;
 import org.tron.api.GrpcAPI.DelegatedResourceMessage;
+import org.tron.api.GrpcAPI.DiversifierMessage;
 import org.tron.api.GrpcAPI.EasyTransferAssetByPrivateMessage;
 import org.tron.api.GrpcAPI.EasyTransferAssetMessage;
 import org.tron.api.GrpcAPI.EasyTransferByPrivateMessage;
@@ -29,16 +31,23 @@ import org.tron.api.GrpcAPI.EasyTransferMessage;
 import org.tron.api.GrpcAPI.EasyTransferResponse;
 import org.tron.api.GrpcAPI.EmptyMessage;
 import org.tron.api.GrpcAPI.ExchangeList;
+import org.tron.api.GrpcAPI.ExpandedSpendingKeyMessage;
+import org.tron.api.GrpcAPI.IncomingViewingKeyDiversifierMessage;
+import org.tron.api.GrpcAPI.IncomingViewingKeyMessage;
+import org.tron.api.GrpcAPI.IvkDecryptParameters;
 import org.tron.api.GrpcAPI.NodeList;
 import org.tron.api.GrpcAPI.NumberMessage;
+import org.tron.api.GrpcAPI.OvkDecryptParameters;
 import org.tron.api.GrpcAPI.PaginatedMessage;
 import org.tron.api.GrpcAPI.ProposalList;
 import org.tron.api.GrpcAPI.Return.response_code;
+import org.tron.api.GrpcAPI.SaplingPaymentAddressMessage;
 import org.tron.api.GrpcAPI.TransactionApprovedList;
 import org.tron.api.GrpcAPI.TransactionExtention;
 import org.tron.api.GrpcAPI.TransactionList;
 import org.tron.api.GrpcAPI.TransactionListExtention;
 import org.tron.api.GrpcAPI.TransactionSignWeight;
+import org.tron.api.GrpcAPI.ViewingKeyMessage;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.api.WalletExtensionGrpc;
 import org.tron.api.WalletGrpc;
@@ -116,6 +125,44 @@ public class GrpcClient {
       return blockingStubFull.getAccountById(request);
     }
   }
+
+  //added 2019-05-08
+  public DecryptNotes scanNoteByIvk(IvkDecryptParameters ivkDecryptParameters){
+    return blockingStubFull.scanNoteByIvk(ivkDecryptParameters);
+  }
+
+  public DecryptNotes scanNoteByOvk(OvkDecryptParameters ovkDecryptParameters){
+    return blockingStubFull.scanNoteByOvk(ovkDecryptParameters);
+  }
+
+  public BytesMessage getSpendingKey() {
+    return blockingStubFull.getSpendingKey(EmptyMessage.newBuilder().build());
+  }
+
+  public ExpandedSpendingKeyMessage getExpandedSpendingKey(BytesMessage spendingKey) {
+    return blockingStubFull.getExpandedSpendingKey(spendingKey);
+  }
+
+  public BytesMessage getAkFromAsk(BytesMessage ask) {
+    return blockingStubFull.getAkFromAsk(ask);
+  }
+
+  public BytesMessage getNkFromNsk(BytesMessage nsk) {
+    return blockingStubFull.getNkFromNsk(nsk);
+  }
+
+  public IncomingViewingKeyMessage getIncomingViewingKey(ViewingKeyMessage viewingKeyMessage) {
+    return blockingStubFull.getIncomingViewingKey(viewingKeyMessage);
+  }
+
+  public DiversifierMessage getDiversifier() {
+    return blockingStubFull.getDiversifier(EmptyMessage.newBuilder().build());
+  }
+
+  public SaplingPaymentAddressMessage getSaplingPaymentAddress(IncomingViewingKeyDiversifierMessage ivk) {
+    return blockingStubFull.getSaplingPaymentAddress(ivk);
+  }
+  //ending of add, 2019-05-08
 
   //Warning: do not invoke this interface provided by others.
   public Transaction signTransaction(TransactionSign transactionSign) {

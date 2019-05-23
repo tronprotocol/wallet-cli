@@ -2,6 +2,7 @@ package org.tron.walletcli;
 
 import com.beust.jcommander.JCommander;
 import com.google.common.primitives.Longs;
+import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
@@ -22,6 +23,7 @@ import org.apache.commons.lang3.ArrayUtils;
 import org.bouncycastle.util.encoders.Hex;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.tron.api.GrpcAPI;
 import org.tron.api.GrpcAPI.AccountNetMessage;
 import org.tron.api.GrpcAPI.AccountResourceMessage;
 import org.tron.api.GrpcAPI.AddressPrKeyPairMessage;
@@ -29,16 +31,28 @@ import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.BlockExtention;
 import org.tron.api.GrpcAPI.BlockList;
 import org.tron.api.GrpcAPI.BlockListExtention;
+import org.tron.api.GrpcAPI.BytesMessage;
+import org.tron.api.GrpcAPI.DecryptNotes;
+import org.tron.api.GrpcAPI.DecryptNotes.NoteTx;
 import org.tron.api.GrpcAPI.DelegatedResourceList;
+import org.tron.api.GrpcAPI.DiversifierMessage;
 import org.tron.api.GrpcAPI.ExchangeList;
+import org.tron.api.GrpcAPI.ExpandedSpendingKeyMessage;
+import org.tron.api.GrpcAPI.IncomingViewingKeyDiversifierMessage;
+import org.tron.api.GrpcAPI.IncomingViewingKeyMessage;
+import org.tron.api.GrpcAPI.IvkDecryptParameters;
 import org.tron.api.GrpcAPI.Node;
 import org.tron.api.GrpcAPI.NodeList;
+import org.tron.api.GrpcAPI.Note;
 import org.tron.api.GrpcAPI.NumberMessage;
+import org.tron.api.GrpcAPI.OvkDecryptParameters;
 import org.tron.api.GrpcAPI.ProposalList;
+import org.tron.api.GrpcAPI.SaplingPaymentAddressMessage;
 import org.tron.api.GrpcAPI.TransactionApprovedList;
 import org.tron.api.GrpcAPI.TransactionList;
 import org.tron.api.GrpcAPI.TransactionListExtention;
 import org.tron.api.GrpcAPI.TransactionSignWeight;
+import org.tron.api.GrpcAPI.ViewingKeyMessage;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.crypto.Hash;
 import org.tron.common.utils.AbiUtil;
@@ -280,6 +294,218 @@ public class Client {
     }
   }
 
+  //added 2019-05-08
+  private void scanNoteByIvk(String[] parameters) {
+    if (parameters == null || parameters.length != 3) {
+      System.out.println("scanNoteByIvk needs 3 parameter like the following: ");
+      System.out.println("scanNoteByIvk startNum endNum ivk");
+      return;
+    }
+    long startNum,endNum;
+    try {
+      startNum = Long.parseLong(parameters[0]);
+      endNum = Long.parseLong(parameters[1]);
+    }catch (NumberFormatException e){
+      System.out.println("invalid parameter: startNum, endNum.");
+      return;
+    }
+    String ivk = parameters[2];
+
+    GrpcAPI.IvkDecryptParameters ivkDecryptParameters = IvkDecryptParameters.newBuilder()
+            .setStartBlockIndex(startNum)
+            .setEndBlockIndex(endNum)
+            .setIvk(ByteString.copyFrom(ByteArray.fromHexString(ivk)))
+            .build();
+
+    DecryptNotes decryptNotes = WalletApi.scanNoteByIvk(ivkDecryptParameters);
+
+    if(decryptNotes == null){
+      logger.info("scanNoteByIvk failed !!!");
+    }else{
+      for(int i=0; i<decryptNotes.getNoteTxsList().size();i++) {
+        NoteTx noteTx = decryptNotes.getNoteTxs(i);
+        Note note = noteTx.getNote();
+        logger.info("\ntxid:{}\nindex:{}\nd:{}\npk_d:{}\nrcm:{}\nvalue:{}",
+                ByteArray.toHexString(noteTx.getTxid().toByteArray()),
+                noteTx.getIndex(),
+                ByteArray.toHexString(note.getD().toByteArray()),
+                ByteArray.toHexString(note.getPkD().toByteArray()),
+                ByteArray.toHexString(note.getRcm().toByteArray()),
+                note.getValue());
+      }
+      logger.info("complete.");
+    }
+  }
+
+  private void ScanNoteByOvk(String[] parameters) {
+    if (parameters == null || parameters.length != 3) {
+      System.out.println("ScanNoteByOvk needs 3 parameter like the following: ");
+      System.out.println("ScanNoteByOvk startNum endNum ovk");
+      return;
+    }
+    long startNum,endNum;
+    try {
+      startNum = Long.parseLong(parameters[0]);
+      endNum = Long.parseLong(parameters[1]);
+    }catch (NumberFormatException e){
+      System.out.println("invalid parameter: startNum, endNum.");
+      return;
+    }
+    String ovk = parameters[2];
+
+    GrpcAPI.OvkDecryptParameters ovkDecryptParameters = OvkDecryptParameters.newBuilder()
+            .setStartBlockIndex(startNum)
+            .setEndBlockIndex(endNum)
+            .setOvk(ByteString.copyFrom(ByteArray.fromHexString(ovk)))
+            .build();
+
+    DecryptNotes decryptNotes = WalletApi.scanNoteByOvk(ovkDecryptParameters);
+
+    if(decryptNotes == null){
+      logger.info("ScanNoteByOvk failed !!!");
+    }else{
+      for(int i=0; i<decryptNotes.getNoteTxsList().size();i++) {
+        NoteTx noteTx = decryptNotes.getNoteTxs(i);
+        Note note = noteTx.getNote();
+        logger.info("\ntxid:{}\nindex:{}\nd:{}\npk_d:{}\nrcm:{}\nvalue:{}",
+                ByteArray.toHexString(noteTx.getTxid().toByteArray()),
+                noteTx.getIndex(),
+                ByteArray.toHexString(note.getD().toByteArray()),
+                ByteArray.toHexString(note.getPkD().toByteArray()),
+                ByteArray.toHexString(note.getRcm().toByteArray()),
+                note.getValue());
+      }
+      logger.info("complete.");
+    }
+  }
+
+  private void getSpendingKey(String[] parameters) {
+    BytesMessage sk = WalletApi.getSpendingKey();
+    if(sk == null){
+      logger.info("getSpendingKey failed !!!");
+    }else{
+      logger.info(ByteArray.toHexString(sk.toByteArray()));
+    }
+  }
+
+  private void getExpandedSpendingKey(String[] parameters) {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("getExpandedSpendingKey needs 1 parameter like the following: ");
+      System.out.println("getExpandedSpendingKey sk ");
+      return;
+    }
+    String spendingKey = parameters[0];
+
+    BytesMessage sk = BytesMessage.newBuilder()
+            .setValue(ByteString.copyFrom(ByteArray.fromHexString(spendingKey))).build();
+    ExpandedSpendingKeyMessage esk = WalletApi.getExpandedSpendingKey(sk);
+    if(esk == null){
+      logger.info("getExpandedSpendingKey failed !!!");
+    }else{
+      logger.info("esk:{}", ByteArray.toHexString(esk.toByteArray()));
+      logger.info("ask:{}", ByteArray.toHexString(esk.getAsk().toByteArray()));
+      logger.info("nsk:{}", ByteArray.toHexString(esk.getNsk().toByteArray()));
+      logger.info("ovk:{}", ByteArray.toHexString(esk.getOvk().toByteArray()));
+    }
+  }
+
+  private void getAkFromAsk(String[] parameters) {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("getAkFromAsk needs 1 parameter like the following: ");
+      System.out.println("getAkFromAsk ask ");
+      return;
+    }
+    String ask = parameters[0];
+
+    BytesMessage ask1 = BytesMessage.newBuilder()
+            .setValue(ByteString.copyFrom(ByteArray.fromHexString(ask))).build();
+    BytesMessage ak = WalletApi.getAkFromAsk(ask1);
+    if(ak == null){
+      logger.info("getAkFromAsk failed !!!");
+    }else{
+      logger.info("ak:{}", ByteArray.toHexString(ak.toByteArray()));
+    }
+  }
+
+  private void getNkFromNsk(String[] parameters) {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("getNkFromNsk needs 1 parameter like the following: ");
+      System.out.println("getNkFromNsk nsk ");
+      return;
+    }
+    String nsk = parameters[0];
+
+    BytesMessage nsk1 = BytesMessage.newBuilder()
+            .setValue(ByteString.copyFrom(ByteArray.fromHexString(nsk))).build();
+    BytesMessage nk = WalletApi.getNkFromNsk(nsk1);
+    if(nk == null){
+      logger.info("getNkFromNsk failed !!!");
+    }else{
+      logger.info("nk:{}", ByteArray.toHexString(nk.toByteArray()));
+    }
+  }
+
+  private void getIncomingViewingKey(String[] parameters) {
+    if (parameters == null || parameters.length != 2 || parameters[0].length() != 64 || parameters[1].length() != 64) {
+      System.out.println("getIncomingViewingKey needs 2 parameter like the following: ");
+      System.out.println("getIncomingViewingKey ak[64] nk[64] ");
+      return;
+    }
+    String ak = parameters[0];
+    String nk = parameters[1];
+    ViewingKeyMessage vk = ViewingKeyMessage.newBuilder()
+            .setAk(ByteString.copyFrom(ByteArray.fromHexString(ak)))
+            .setNk(ByteString.copyFrom(ByteArray.fromHexString(nk)))
+            .build();
+
+    GrpcAPI.IncomingViewingKeyMessage ivk = WalletApi.getIncomingViewingKey(vk);
+    if(ivk == null){
+      logger.info("getIncomingViewingKey failed !!!");
+    }else{
+      logger.info("ivk:" + ByteArray.toHexString(ivk.toByteArray()));
+    }
+  }
+
+  private void getDiversifier(String[] parameters) {
+    GrpcAPI.DiversifierMessage diversifierMessage = WalletApi.getDiversifier();
+    if(diversifierMessage == null){
+      logger.info("getDiversifier failed !!!");
+    }else{
+      logger.info(ByteArray.toHexString(diversifierMessage.getD().toByteArray()));
+    }
+  }
+
+  private void getSaplingPaymentAddress(String[] parameters) {
+    if (parameters == null || parameters.length != 2 || parameters[1].length() != 22) {
+      System.out.println("getSaplingPaymentAddress needs 2 parameter like the following: ");
+      System.out.println("getSaplingPaymentAddress ivk[64] d[22] ");
+      return;
+    }
+    String ivk = parameters[0];
+    String d = parameters[1];
+
+    IncomingViewingKeyMessage ivk1 = IncomingViewingKeyMessage.newBuilder()
+            .setIvk(ByteString.copyFrom(ByteArray.fromHexString(ivk)))
+            .build();
+
+    DiversifierMessage d1 = DiversifierMessage.newBuilder()
+            .setD(ByteString.copyFrom(ByteArray.fromHexString(d)))
+            .build();
+
+    IncomingViewingKeyDiversifierMessage ivk_d = IncomingViewingKeyDiversifierMessage.newBuilder()
+            .setIvk(ivk1)
+            .setD(d1)
+            .build();
+
+    GrpcAPI.SaplingPaymentAddressMessage paymentAddress = WalletApi.getSaplingPaymentAddress(ivk_d);
+
+    if(ivk == null){
+      logger.info("getSaplingPaymentAddress failed !!!");
+    }else{
+      logger.info("pkd:" + ByteArray.toHexString(paymentAddress.getPkD().toByteArray()));
+    }
+  }
+  //ending of added 2019-05-08
 
   private void updateAccount(String[] parameters)
       throws IOException, CipherException, CancelException {
@@ -2011,6 +2237,16 @@ public class Client {
 //   System.out.println("GetTransactionsFromThisCount");
 //   System.out.println("GetTransactionsToThisCount");
 
+    System.out.println("ScanNoteByIvk");
+    System.out.println("ScanNoteByOvk");
+    System.out.println("GetSpendingKey");
+    System.out.println("GetExpandedSpendingKey");
+    System.out.println("GetAkFromAsk");
+    System.out.println("GetNkFromNsk");
+    System.out.println("GetIncomingViewingKey");
+    System.out.println("GetDiversifier");
+    System.out.println("GetSaplingPaymentAddress");
+
     System.out.println("Exit or Quit");
 
     System.out.println("Input any one of the listed commands, to display how-to tips.");
@@ -2377,6 +2613,42 @@ public class Client {
           }
           case "getblockbylatestnum": {
             getBlockByLatestNum(parameters);
+            break;
+          }
+          case "scannotebyivk": {
+            scanNoteByIvk(parameters);
+            break;
+          }
+          case "scannotebyovk": {
+            ScanNoteByOvk(parameters);
+            break;
+          }
+          case "getspendingkey": {
+            getSpendingKey(parameters);
+            break;
+          }
+          case "getexpandedspendingkey": {
+            getExpandedSpendingKey(parameters);
+            break;
+          }
+          case "getakfromask": {
+            getAkFromAsk(parameters);
+            break;
+          }
+          case "getnkfromnsk": {
+            getNkFromNsk(parameters);
+            break;
+          }
+          case "getincomingviewingkey": {
+            getIncomingViewingKey(parameters);
+            break;
+          }
+          case "getdiversifier": {
+            getDiversifier(parameters);
+            break;
+          }
+          case "getsaplingpaymentaddress": {
+            getSaplingPaymentAddress(parameters);
             break;
           }
           case "updatesetting": {
