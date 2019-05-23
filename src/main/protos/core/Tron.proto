@@ -177,11 +177,11 @@ message Permission {
     Active = 2;
   }
   PermissionType type = 1;
-  int32 id = 2; //Owner id=0, Witness id=1, Active id start by 2
+  int32 id = 2;     //Owner id=0, Witness id=1, Active id start by 2
   string permission_name = 3;
   int64 threshold = 4;
   int32 parent_id = 5;
-  bytes operations = 6; //1 bit 1 contract
+  bytes operations = 6;   //1 bit 1 contract
   repeated Key keys = 7;
 }
 
@@ -303,6 +303,7 @@ message Transaction {
       OUT_OF_TIME = 11;
       JVM_STACK_OVER_FLOW = 12;
       UNKNOWN = 13;
+      TRANSFER_FAILED = 14;
     }
     int64 fee = 1;
     code ret = 2;
@@ -391,6 +392,7 @@ message BlockHeader {
     int64 witness_id = 8;
     bytes witness_address = 9;
     int32 version = 10;
+    bytes accountStateRoot = 11;
   }
   raw raw_data = 1;
   bytes witness_signature = 2;
@@ -543,7 +545,7 @@ message SmartContract {
   int64 consume_user_resource_percent = 6;
   string name = 7;
   int64 origin_energy_limit = 8;
-
+  bytes code_hash = 9;
 }
 
 message InternalTransaction {
