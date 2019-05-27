@@ -2426,6 +2426,12 @@ public class Client {
     System.out.println("UpdateAccountPermission");
     System.out.println("VoteWitness");
     System.out.println("WithdrawBalance");
+
+    System.out.println("generateshieldaddress");
+    System.out.println("listshieldaddress");
+    System.out.println("sendshieldcoin");
+    System.out.println("listshieldnote");
+
     System.out.println("Create2");
 //    System.out.println("buyStorage");
 //    System.out.println("buyStorageBytes");
