@@ -256,9 +256,9 @@ message ExchangeTransactionContract {
 
 message AccountPermissionUpdateContract {
   bytes owner_address = 1;
-  Permission owner = 2;  //Empty is invalidate
-  Permission witness = 3;//Can be empty
-  repeated Permission actives = 4;//Empty is invalidate
+  Permission owner = 2; //Empty is invalidate
+  Permission witness = 3; //Can be empty
+  repeated Permission actives = 4; //Empty is invalidate
 }
 
 // for shielded transaction
@@ -333,7 +333,6 @@ message ShieldedTransferContract {
   bytes binding_signature = 5;
   bytes transparent_to_address = 6; // transparent address
   int64 to_amount = 7; // the amount to transparent to_address
-  int64 fee = 8;
 }
 // end shielded transaction
 
