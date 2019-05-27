@@ -7,6 +7,7 @@ import com.alibaba.fastjson.JSONObject;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
+import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.typesafe.config.Config;
@@ -49,11 +50,13 @@ import org.tron.api.GrpcAPI.IncomingViewingKeyDiversifierMessage;
 import org.tron.api.GrpcAPI.IncomingViewingKeyMessage;
 import org.tron.api.GrpcAPI.IvkDecryptParameters;
 import org.tron.api.GrpcAPI.NodeList;
+import org.tron.api.GrpcAPI.NoteParameters;
 import org.tron.api.GrpcAPI.OvkDecryptParameters;
 import org.tron.api.GrpcAPI.PrivateParameters;
 import org.tron.api.GrpcAPI.ProposalList;
 import org.tron.api.GrpcAPI.Return;
 import org.tron.api.GrpcAPI.SaplingPaymentAddressMessage;
+import org.tron.api.GrpcAPI.SpendResult;
 import org.tron.api.GrpcAPI.TransactionApprovedList;
 import org.tron.api.GrpcAPI.TransactionExtention;
 import org.tron.api.GrpcAPI.TransactionList;
@@ -85,7 +88,10 @@ import org.tron.protos.Contract.BuyStorageContract;
 import org.tron.protos.Contract.ClearABIContract;
 import org.tron.protos.Contract.CreateSmartContract;
 import org.tron.protos.Contract.FreezeBalanceContract;
+import org.tron.protos.Contract.IncrementalMerkleVoucherInfo;
+import org.tron.protos.Contract.OutputPointInfo;
 import org.tron.protos.Contract.SellStorageContract;
+import org.tron.protos.Contract.ShieldedTransferContract;
 import org.tron.protos.Contract.UnfreezeAssetContract;
 import org.tron.protos.Contract.UnfreezeBalanceContract;
 import org.tron.protos.Contract.UpdateEnergyLimitContract;
@@ -504,11 +510,15 @@ public class WalletApi {
     System.out.println("transaction hex string is " + Utils.printTransaction(transaction));
     System.out.println(Utils.printTransaction(transactionExtention));
 
-
     if (transaction.getRawData().getContract(0).getType() != ShieldedTransferContract ) {
       transaction = signTransaction(transaction);
     } else {
-      transaction = signOnlyForShieldTransaction(transaction);
+      Any any = transaction.getRawData().getContract(0).getParameter();
+      Contract.ShieldedTransferContract shieldedTransferContract =
+          any.unpack(ShieldedTransferContract.class);
+      if (shieldedTransferContract.getFromAmount() > 0 ) {
+        transaction = signOnlyForShieldTransaction(transaction);
+      }
     }
 
     return rpcCli.broadcastTransaction(transaction);
@@ -2031,36 +2041,39 @@ public class WalletApi {
     return transaction;
   }
 
+  public IncrementalMerkleVoucherInfo GetMerkleTreeVoucherInfo(OutputPointInfo info) {
+    return rpcCli.GetMerkleTreeVoucherInfo(info);
+  }
 
-  public static DecryptNotes scanNoteByIvk(IvkDecryptParameters ivkDecryptParameters){
+  public DecryptNotes scanNoteByIvk(IvkDecryptParameters ivkDecryptParameters){
     return rpcCli.scanNoteByIvk(ivkDecryptParameters);
   }
 
-  public static DecryptNotes scanNoteByOvk(OvkDecryptParameters ovkDecryptParameters){
+  public DecryptNotes scanNoteByOvk(OvkDecryptParameters ovkDecryptParameters){
     return rpcCli.scanNoteByOvk(ovkDecryptParameters);
   }
 
-  public static BytesMessage getSpendingKey() {
+  public BytesMessage getSpendingKey() {
     return rpcCli.getSpendingKey();
   }
 
-  public static ExpandedSpendingKeyMessage getExpandedSpendingKey(BytesMessage spendingKey) {
+  public ExpandedSpendingKeyMessage getExpandedSpendingKey(BytesMessage spendingKey) {
     return rpcCli.getExpandedSpendingKey(spendingKey);
   }
 
-  public static BytesMessage getAkFromAsk(BytesMessage ask) {
+  public BytesMessage getAkFromAsk(BytesMessage ask) {
     return rpcCli.getAkFromAsk(ask);
   }
 
-  public static BytesMessage getNkFromNsk(BytesMessage nsk) {
+  public BytesMessage getNkFromNsk(BytesMessage nsk) {
     return rpcCli.getNkFromNsk(nsk);
   }
 
-  public static IncomingViewingKeyMessage getIncomingViewingKey(ViewingKeyMessage viewingKeyMessage) {
+  public IncomingViewingKeyMessage getIncomingViewingKey(ViewingKeyMessage viewingKeyMessage) {
     return rpcCli.getIncomingViewingKey(viewingKeyMessage);
   }
 
-  public static DiversifierMessage getDiversifier() {
+  public DiversifierMessage getDiversifier() {
     return rpcCli.getDiversifier();
   }
 
@@ -2068,5 +2081,9 @@ public class WalletApi {
       throws CipherException, IOException, CancelException {
     TransactionExtention transactionExtention = rpcCli.createShieldTransaction(privateParameters);
     return processTransactionExtention(transactionExtention);
+  }
+
+  public SpendResult isNoteSpend(NoteParameters noteParameters) {
+    return rpcCli.isNoteSpend(noteParameters);
   }
 }

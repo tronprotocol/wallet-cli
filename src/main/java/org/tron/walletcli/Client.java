@@ -16,6 +16,8 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Scanner;
 import java.util.regex.Matcher;
@@ -66,8 +68,6 @@ import org.tron.core.exception.CipherException;
 import org.tron.core.exception.EncodingException;
 import org.tron.core.zen.ShieldAddressInfo;
 import org.tron.core.zen.ShieldNoteInfo;
-import org.tron.core.zen.ShieldWrapper;
-import org.tron.core.zen.address.DiversifierT;
 import org.tron.core.zen.address.PaymentAddress;
 import org.tron.keystore.StringUtils;
 import org.tron.keystore.Wallet;
@@ -302,6 +302,7 @@ public class Client {
     }
   }
 
+  /*
 
   //added 2019-05-08
   private void scanNoteByIvk(String[] parameters) {
@@ -483,7 +484,7 @@ public class Client {
       logger.info(ByteArray.toHexString(diversifierMessage.getD().toByteArray()));
     }
   }
-
+*/
 //  private void getSaplingPaymentAddress(String[] parameters) {
 //    if (parameters == null || parameters.length != 2 || parameters[1].length() != 22) {
 //      System.out.println("getSaplingPaymentAddress needs 2 parameter like the following: ");
@@ -2174,20 +2175,31 @@ public class Client {
     if (!StringUtil.isNullOrEmpty(amountString)) {
       shieldInputNum = Integer.valueOf(amountString);
     }
-    List<Note> shieldInputList = new ArrayList<>();
+
+//    List<Note> shieldInputList = new ArrayList<>();
+//    for (int i = 0; i < shieldInputNum; ++i) {
+//      int mapIndex = Integer.valueOf(parameters[parameterIndex++]);
+//      if (mapIndex < 0 || mapIndex > walletApiWrapper.getShieldWrapper().getUtxoMapNote().size() ) {
+//        System.out.println("index of map note isn't exist.");
+//        return;
+//      }
+//      ShieldNoteInfo noteInfo = walletApiWrapper.getShieldWrapper().getUtxoMapNote().get(mapIndex);
+//      Note.Builder noteBuild = Note.newBuilder();
+//      noteBuild.setD(ByteString.copyFrom(noteInfo.getD().getData()));
+//      noteBuild.setPkD(ByteString.copyFrom(noteInfo.getPkD()));
+//      noteBuild.setValue(noteInfo.getValue());
+//      noteBuild.setRcm(ByteString.copyFrom(noteInfo.getR()));
+//      shieldInputList.add( noteBuild.build() );
+//    }
+
+    List<Integer> shieldInputList = new ArrayList<>();
     for (int i = 0; i < shieldInputNum; ++i) {
       int mapIndex = Integer.valueOf(parameters[parameterIndex++]);
       if (mapIndex < 0 || mapIndex > walletApiWrapper.getShieldWrapper().getUtxoMapNote().size() ) {
         System.out.println("index of map note isn't exist.");
         return;
       }
-      ShieldNoteInfo noteInfo = walletApiWrapper.getShieldWrapper().getUtxoMapNote().get(mapIndex);
-      Note.Builder noteBuild = Note.newBuilder();
-      noteBuild.setD(ByteString.copyFrom(noteInfo.getD().getData()));
-      noteBuild.setPkD(ByteString.copyFrom(noteInfo.getPkD()));
-      noteBuild.setValue(noteInfo.getValue());
-      noteBuild.setRcm(ByteString.copyFrom(noteInfo.getR()));
-      shieldInputList.add( noteBuild.build() );
+      shieldInputList.add( mapIndex );
     }
 
     String toPublicAddress = parameters[parameterIndex++];
@@ -2233,7 +2245,7 @@ public class Client {
       noteBuild.setValue(shieldAmount);
       //生成一个随机数
       noteBuild.setRcm(ByteString.copyFrom(org.tron.core.zen.note.Note.generateR()));
-      shieldInputList.add( noteBuild.build() );
+      shieldOutList.add( noteBuild.build() );
     }
 
     //check parameter
@@ -2253,6 +2265,54 @@ public class Client {
   }
 
 
+  private void listShieldNote(String[] parameters) {
+    int showType = 0;
+    if (parameters.length > 0) {
+      if (!StringUtil.isNullOrEmpty(parameters[0])) {
+        showType = Integer.valueOf(parameters[0]);
+      }
+    }
+
+    // 0 未花费的Note  1 未花费和已花费的Note
+    if (showType == 0 ) {
+      Map<Integer, ShieldNoteInfo> noteMap = walletApiWrapper.getShieldWrapper().getUtxoMapNote();
+      System.out.println("Unspend note list like:");
+      for (Entry<Integer, ShieldNoteInfo> entry : noteMap.entrySet() ) {
+        String string = entry.getKey() + " " + entry.getValue().getAddress() + " ";
+        string += entry.getValue().getTrxId();
+        string += " ";
+        string += entry.getValue().getIndex();
+        string += " ";
+        string += "UnSpend";
+
+        System.out.println(string);
+      }
+    } else {
+      Map<Integer, ShieldNoteInfo> noteMap = walletApiWrapper.getShieldWrapper().getUtxoMapNote();
+      System.out.println("All note list like:");
+      for (Entry<Integer, ShieldNoteInfo> entry : noteMap.entrySet() ) {
+        String string = entry.getValue().getAddress() + " ";
+        string += entry.getValue().getTrxId();
+        string += " ";
+        string += entry.getValue().getIndex();
+        string += " ";
+        string += "UnSpend";
+
+        System.out.println(string);
+      }
+
+      List<ShieldNoteInfo> noteList = walletApiWrapper.getShieldWrapper().getSpendUtxoList();
+      for (ShieldNoteInfo noteInfo : noteList ) {
+        String string = noteInfo.getAddress() + " ";
+        string += noteInfo.getTrxId();
+        string += " ";
+        string += noteInfo.getIndex();
+        string += " ";
+        string += "Spend";
+        System.out.println(string);
+      }
+    }
+  }
 
 
 
@@ -2758,10 +2818,10 @@ public class Client {
             getBlockByLatestNum(parameters);
             break;
           }
-          case "scannotebyivk": {
-            scanNoteByIvk(parameters);
-            break;
-          }
+//          case "scannotebyivk": {
+//            scanNoteByIvk(parameters);
+//            break;
+//          }
 //          case "scannotebyovk": {
 //            ScanNoteByOvk(parameters);
 //            break;
@@ -2853,6 +2913,10 @@ public class Client {
           }
           case "sendshieldcoin": {
             sendShieldCoin(parameters);
+            break;
+          }
+          case "listshieldnote": {
+            listShieldNote(parameters);
             break;
           }
 

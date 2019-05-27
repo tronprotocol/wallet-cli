@@ -11,21 +11,27 @@ import lombok.Setter;
 import org.tron.api.GrpcAPI.DecryptNotes;
 import org.tron.api.GrpcAPI.DecryptNotes.NoteTx;
 import org.tron.api.GrpcAPI.IvkDecryptParameters;
+import org.tron.api.GrpcAPI.Note;
+import org.tron.api.GrpcAPI.NoteParameters;
+import org.tron.api.GrpcAPI.SpendResult;
 import org.tron.common.utils.ByteArray;
 import org.tron.core.zen.address.DiversifierT;
+import org.tron.protos.Contract.IncrementalMerkleVoucherInfo;
+import org.tron.protos.Contract.OutputPoint;
+import org.tron.protos.Contract.OutputPointInfo;
 import org.tron.protos.Protocol.Block;
 import org.tron.walletserver.WalletApi;
 
 //封装所有跟匿名交易相关的内容
 public class ShieldWrapper {
 
-  @Getter
-  @Setter
   private WalletApi wallet;
 
   private final String ivkFileName = "ivk.txt";
   private final String unspendNoteFileName = "unspendNotes.txt";
   private final String spendNoteFileName = "spendNotes.txt";
+  private Thread thread ;
+
 
   @Getter
   public ShieldAddressList shieldAddressList = new ShieldAddressList();
@@ -45,12 +51,19 @@ public class ShieldWrapper {
   public List<ShieldNoteInfo> spendUtxoList = new ArrayList<>();
 
 
+  public void setWallet(WalletApi walletApi) {
+    wallet = walletApi;
+    thread.start();
+  }
+
+
   public class scanIvkRunable implements Runnable {
     public void run(){
       // synchronized (ivkMapScanBlockNum)
       for (;;) {
         try {
           scanBlockByIvk();
+          updateWhetherSpend();
           Thread.sleep(5000);
         } catch (Exception e) {
           e.printStackTrace();
@@ -59,6 +72,7 @@ public class ShieldWrapper {
     }
   }
 
+  //扫描获取Note信息
   private void scanBlockByIvk() {
     Block block = wallet.getBlock(-1);
     if (block != null) {
@@ -66,8 +80,8 @@ public class ShieldWrapper {
       for (Entry<String, Long> entry : ivkMapScanBlockNum.entrySet()) {
 
         long start = entry.getValue();
-        long end = 0;
-        while (entry.getValue() < blockNum) {
+        long end = start;
+        while (end < blockNum) {
           if ((blockNum - start) > 1000) {
             end = start + 1000;
           } else {
@@ -80,14 +94,13 @@ public class ShieldWrapper {
           builder.setIvk(ByteString.copyFrom(ByteArray.fromHexString(entry.getKey())));
           DecryptNotes notes = wallet.scanNoteByIvk(builder.build());
           if (notes != null) {
-            notes.getNoteTxsList();
             for (int i = 0; i < notes.getNoteTxsList().size(); ++i) {
               NoteTx noteTx = notes.getNoteTxsList().get(i);
 
               ShieldNoteInfo noteInfo = new ShieldNoteInfo();
               noteInfo.setD(new DiversifierT(noteTx.getNote().getD().toByteArray()));
               noteInfo.setPkD(noteTx.getNote().getPkD().toByteArray());
-              noteInfo.setR(noteTx.getNote().getPkD().toByteArray());
+              noteInfo.setR(noteTx.getNote().getRcm().toByteArray());
               noteInfo.setValue(noteTx.getNote().getValue());
               noteInfo.setTrxId(ByteArray.toHexString(noteTx.getTxid().toByteArray()));
               noteInfo.setIndex(noteTx.getIndex());
@@ -110,6 +123,39 @@ public class ShieldWrapper {
     }
   }
 
+  //获取Note是否被花掉
+  private void updateWhetherSpend() {
+    for (Entry<Integer, ShieldNoteInfo> entry : utxoMapNote.entrySet() ) {
+      ShieldNoteInfo noteInfo = entry.getValue();
+
+      OutputPointInfo.Builder request = OutputPointInfo.newBuilder();
+      OutputPoint.Builder outPointBuild = OutputPoint.newBuilder();
+      outPointBuild.setHash(ByteString.copyFrom(ByteArray.fromHexString(noteInfo.getTrxId())));
+      outPointBuild.setIndex(noteInfo.getIndex());
+      request.addOutPoints(outPointBuild.build());
+      IncrementalMerkleVoucherInfo merkleVoucherInfo = wallet.GetMerkleTreeVoucherInfo(request.build());
+
+      ShieldAddressInfo addressInfo =
+          shieldAddressList.getShieldAddressInfoMap().get( noteInfo.getAddress() );
+      NoteParameters.Builder builder = NoteParameters.newBuilder();
+      builder.setAk(ByteString.copyFrom(addressInfo.getFullViewingKey().getAk()));
+      builder.setNk(ByteString.copyFrom(addressInfo.getFullViewingKey().getNk()));
+
+      Note.Builder noteBuild = Note.newBuilder();
+      noteBuild.setD(ByteString.copyFrom(noteInfo.getD().getData()));
+      noteBuild.setPkD(ByteString.copyFrom(noteInfo.getPkD()));
+      noteBuild.setValue(noteInfo.getValue());
+      noteBuild.setRcm(ByteString.copyFrom(noteInfo.getR()));
+      builder.setNote(noteBuild.build());
+      builder.setVoucher(merkleVoucherInfo.getVouchers(0));
+
+      SpendResult result = wallet.isNoteSpend(builder.build());
+      if ( result.getResult() ) {
+        spendNote(entry.getKey());
+      }
+    }
+  }
+
   public boolean Init() {
     shieldAddressList.init();
     loadIvkFromFile();
@@ -117,8 +163,7 @@ public class ShieldWrapper {
     loadSpendNoteFromFile();
 
     //启动扫描线程
-    Thread thread = new Thread(new scanIvkRunable());
-    thread.start();
+    thread = new Thread(new scanIvkRunable());
 
     return true;
   }

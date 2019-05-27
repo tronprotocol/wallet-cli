@@ -33,6 +33,18 @@ public class ShieldNoteInfo {
   public ShieldNoteInfo(){
   }
 
+  public String getAddress() {
+    if (d != null && d.getData().length > 0 && pkD!= null && pkD.length >0 ) {
+      byte[] byteAddress = new byte[d.getData().length + pkD.length ];
+      System.arraycopy(d.getData(), 0, byteAddress, 0, d.getData().length);
+      System.arraycopy(pkD, 0, byteAddress, d.getData().length, pkD.length);
+
+      return ByteArray.toHexString(byteAddress);
+    } else {
+      return "";
+    }
+  }
+
   /**
    * 获取格式化的，加密信息
    * TODO  暂时仅格式化下

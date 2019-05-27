@@ -36,6 +36,11 @@ public class ShieldAddressInfo {
   public ShieldAddressInfo(){
   }
 
+  public FullViewingKey getFullViewingKey(){
+    SpendingKey spendingKey = new SpendingKey(sk);
+    return spendingKey.fullViewingKey();
+  }
+
   /**
    * 保存每个匿名地址时，做参数校验
    * @return

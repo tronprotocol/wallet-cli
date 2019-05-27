@@ -8,6 +8,7 @@ import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.Getter;
 import lombok.Setter;
+import org.tron.common.utils.ByteArray;
 
 public class ShieldAddressList {
   //TODO 这里是否会涉及到多线程使用的场景
@@ -61,6 +62,7 @@ public class ShieldAddressList {
   public List<String> getShieldAddressList() {
     List<String>  addressList = new ArrayList<>();
     for (Entry<String, ShieldAddressInfo> entry : shieldAddressInfoMap.entrySet()) {
+      System.out.println("ivk:" + ByteArray.toHexString(entry.getValue().getIvk()));
       addressList.add(entry.getKey());
     }
     return addressList;
