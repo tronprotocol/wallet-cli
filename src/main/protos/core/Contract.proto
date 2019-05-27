@@ -48,98 +48,6 @@ message TransferContract {
 }
 
 
-message BN128G1 {
-  bytes x = 1;
-  bytes y = 2;
-}
-
-message BN128G2 {
-  bytes x1 = 1;
-  bytes x2 = 2;
-  bytes y1 = 3;
-  bytes y2 = 4;
-}
-
-message zkv0proof {
-  BN128G1 a = 1;
-  BN128G1 a_p = 2;
-  BN128G2 b = 3;
-  BN128G1 b_p = 4;
-  BN128G1 c = 5;
-  BN128G1 c_p = 6;
-  BN128G1 k = 7;
-  BN128G1 h = 8;
-}
-
-message AuthenticationPath {
-  repeated bool value = 1;
-}
-
-message MerklePath {
-  repeated AuthenticationPath authentication_paths = 1;
-  repeated bool index = 2;
-  bytes rt = 3;
-}
-
-message OutputPoint {
-  bytes hash = 1;
-  int32 index = 2;
-}
-
-message OutputPointInfo {
-  OutputPoint out_point_1 = 1;
-  OutputPoint out_point_2 = 2;
-  int32 block_num = 3;
-}
-
-message PedersenHash {
-  bytes content = 1;
-}
-
-message IncrementalMerkleTree {
-  PedersenHash left = 1;
-  PedersenHash right = 2;
-  repeated PedersenHash parents = 3;
-}
-
-message IncrementalMerkleVoucher {
-  IncrementalMerkleTree tree = 1;
-  repeated PedersenHash filled = 2;
-  IncrementalMerkleTree cursor = 3;
-  int64 cursor_depth = 4;
-  bytes rt = 5;
-  OutputPoint output_point = 10;
-}
-
-message IncrementalMerkleVoucherInfo {
-  IncrementalMerkleVoucher voucher1 = 1;
-  bytes path1 = 2;
-  IncrementalMerkleVoucher voucher2 = 3;
-  bytes path2 = 4;
-  int32 block_num = 5;
-}
-
-message ZksnarkV0TransferContract {
-  bytes owner_address = 1;
-  bytes to_address = 2;
-  int64 v_from_pub = 3;
-  int64 v_to_pub = 4;
-  bytes rt = 5;
-  bytes nf1 = 6;
-  bytes nf2 = 7;
-  bytes cm1 = 8;
-  bytes cm2 = 9;
-  bytes pksig = 10;
-  bytes randomSeed = 11;
-  bytes epk = 12;
-  int64 fee = 13;
-  bytes h1 = 20;
-  bytes h2 = 21;
-  bytes C1 = 22;
-  bytes C2 = 23;
-  zkv0proof proof = 30;
-}
-
 message ShieldAddress {
   bytes private_address = 1;
   bytes public_address = 2;
@@ -354,8 +262,49 @@ message AccountPermissionUpdateContract {
 }
 
 // for shielded transaction
-message GrothProof {
-  bytes values = 1;
+
+message AuthenticationPath {
+  repeated bool value = 1;
+}
+
+message MerklePath {
+  repeated AuthenticationPath authentication_paths = 1;
+  repeated bool index = 2;
+  bytes rt = 3;
+}
+
+message OutputPoint {
+  bytes hash = 1;
+  int32 index = 2;
+}
+
+message OutputPointInfo {
+  repeated OutputPoint out_points = 1;
+  int32 block_num = 2;
+}
+
+message PedersenHash {
+  bytes content = 1;
+}
+
+message IncrementalMerkleTree {
+  PedersenHash left = 1;
+  PedersenHash right = 2;
+  repeated PedersenHash parents = 3;
+}
+
+message IncrementalMerkleVoucher {
+  IncrementalMerkleTree tree = 1;
+  repeated PedersenHash filled = 2;
+  IncrementalMerkleTree cursor = 3;
+  int64 cursor_depth = 4;
+  bytes rt = 5;
+  OutputPoint output_point = 10;
+}
+
+message IncrementalMerkleVoucherInfo {
+  repeated IncrementalMerkleVoucher vouchers = 1;
+  repeated bytes paths = 2;
 }
 
 message SpendDescription {
@@ -363,7 +312,7 @@ message SpendDescription {
   bytes anchor = 2; // merkle root
   bytes nullifier = 3; // used for check double spend
   bytes rk = 4; // used for check spend authority signature
-  GrothProof zkproof = 5;
+  bytes zkproof = 5;
   bytes spend_authority_signature = 6;
 }
 
@@ -373,7 +322,7 @@ message ReceiveDescription {
   bytes epk = 3; // for Encryption
   bytes c_enc = 4; // Encryption for incoming, decrypt it with ivk
   bytes c_out = 5; // Encryption for audit, decrypt it with ovk
-  GrothProof zkproof = 6;
+  bytes zkproof = 6;
 }
 
 message ShieldedTransferContract {
@@ -387,3 +336,4 @@ message ShieldedTransferContract {
   int64 fee = 8;
 }
 // end shielded transaction
+

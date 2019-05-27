@@ -46,9 +46,6 @@ service Wallet {
   rpc CreateTransaction2 (TransferContract) returns (TransactionExtention) {
   };
 
-  rpc ZksnarkV0TransferTrx (ZksnarkV0TransferContract) returns (TransactionExtention) {
-  };
-
   rpc BroadcastTransaction (Transaction) returns (Return) {
     option (google.api.http) = {
       post: "/wallet/broadcasttransaction"
@@ -410,7 +407,7 @@ service Wallet {
 
   rpc TriggerConstantContract (TriggerSmartContract) returns (TransactionExtention) {
   }
-  
+
   rpc ClearContractABI (ClearABIContract) returns (TransactionExtention) {
   }
 
@@ -608,6 +605,31 @@ service Wallet {
     };
   }
 
+  //  rpc GetMerklePath (BytesMessage) returns (MerklePath) {
+  //  }
+  //
+  //
+  //  rpc GetBestMerkleRoot (EmptyMessage) returns (BytesMessage) {
+  //  }
+  //
+  //  rpc GetNullifier (BytesMessage) returns (BytesMessage) {
+  //  }
+  //
+  //
+  //  rpc GetMerkleRoot (BytesMessage) returns (BytesMessage) {
+  //  }
+  //
+  //  rpc GenerateShieldAddress (EmptyMessage) returns (ShieldAddress) {
+  //  }
+  //
+  //  //Get zero-snark blockExtention list
+  //  rpc GetZKBlockByLimitNext (BlockLimit) returns (BlockListExtention) {
+  //  }
+  //
+  //  //Get the specified height block merkleTree
+  //  rpc GetMerkleTreeOfBlock (NumberMessage) returns (BlockIncrementalMerkleTree) {
+  //  }
+
   rpc AccountPermissionUpdate (AccountPermissionUpdateContract) returns (TransactionExtention) {
     option (google.api.http) = {
       post: "/wallet/accountpermissionupdate"
@@ -627,7 +649,7 @@ service Wallet {
 
   }
 
-  rpc GetTransactionApprovedList(Transaction) returns (TransactionApprovedList) {
+  rpc GetTransactionApprovedList (Transaction) returns (TransactionApprovedList) {
 
   }
 
@@ -637,9 +659,10 @@ service Wallet {
   // for shiededTransaction
   rpc CreateShieldedTransaction (PrivateParameters) returns (TransactionExtention) {
   };
-  // end for shiededTransaction
 
-  //protocol p47
+  rpc GetMerkleTreeVoucherInfo (OutputPointInfo) returns (IncrementalMerkleVoucherInfo) {
+  }
+
   rpc ScanNoteByIvk (IvkDecryptParameters) returns (DecryptNotes) {
   };
 
@@ -664,11 +687,16 @@ service Wallet {
   rpc GetDiversifier (EmptyMessage) returns (DiversifierMessage) {
   }
 
-  rpc GetSaplingPaymentAddress (IncomingViewingKeyDiversifierMessage) returns (SaplingPaymentAddressMessage) {
+  rpc GetZenPaymentAddress (IncomingViewingKeyDiversifierMessage) returns (SaplingPaymentAddressMessage) {
   }
 
   rpc GetRcm (EmptyMessage) returns (BytesMessage) {
   }
+
+  rpc IsSpend (NoteParameters) returns (SpendResult) {
+  }
+
+  // end for shiededTransaction
 };
 
 service WalletSolidity {
@@ -779,8 +807,6 @@ service WalletSolidity {
       }
     };
   }
-
-
   rpc GetTransactionInfoById (BytesMessage) returns (TransactionInfo) {
     option (google.api.http) = {
       post: "/walletsolidity/gettransactioninfobyid"
@@ -790,7 +816,6 @@ service WalletSolidity {
       }
     };
   }
-
   //Warning: do not invoke this interface provided by others.
   rpc GenerateAddress (EmptyMessage) returns (AddressPrKeyPairMessage) {
     option (google.api.http) = {
@@ -1102,7 +1127,7 @@ message OvkDecryptParameters {
 }
 
 message DecryptNotes {
-  message NoteTx{
+  message NoteTx {
     Note note = 1;
     bytes txid = 2; //transaction id =  sha256(transaction.rowdata)
     int32 index = 3; //the index of note in receive
@@ -1114,13 +1139,13 @@ message Note {
   int64 value = 1;
   bytes d = 2;
   bytes pkD = 3;
-  bytes rcm = 4;  // random 32
+  bytes rcm = 4; // random 32
 }
 
 message SpendNote {
   Note note = 3;
   bytes alpha = 4; // random number for spend authority signature
-  bytes anchor = 5; // merkle root
+  IncrementalMerkleVoucher voucher = 5;
   bytes path = 6; // path for cm from leaf to root in merkle tree
 }
 
@@ -1167,4 +1192,16 @@ message IncomingViewingKeyDiversifierMessage {
 message SaplingPaymentAddressMessage {
   DiversifierMessage d = 1;
   bytes pkD = 2;
+}
+
+message NoteParameters {
+  bytes ak = 1;
+  bytes nk = 2;
+  Note note = 3;
+  IncrementalMerkleVoucher voucher = 4;
+}
+
+message SpendResult {
+  bool result = 1;
+  string message = 2;
 }

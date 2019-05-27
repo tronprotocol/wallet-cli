@@ -1,9 +1,12 @@
 package org.tron.walletcli;
 
 import com.google.protobuf.ByteString;
+import io.netty.util.internal.StringUtil;
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Optional;
+import lombok.Getter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tron.api.GrpcAPI;
@@ -12,11 +15,25 @@ import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.BlockExtention;
 import org.tron.api.GrpcAPI.ExchangeList;
 import org.tron.api.GrpcAPI.NodeList;
+import org.tron.api.GrpcAPI.Note;
+import org.tron.api.GrpcAPI.PrivateParameters;
+import org.tron.api.GrpcAPI.PrivateParameters.Builder;
 import org.tron.api.GrpcAPI.ProposalList;
+import org.tron.api.GrpcAPI.ReceiveNote;
+import org.tron.api.GrpcAPI.SpendNote;
 import org.tron.api.GrpcAPI.WitnessList;
+import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Utils;
 import org.tron.core.exception.CancelException;
 import org.tron.core.exception.CipherException;
+import org.tron.core.zen.ShieldAddressInfo;
+import org.tron.core.zen.ShieldWrapper;
+import org.tron.core.zen.address.DiversifierT;
+import org.tron.core.zen.address.ExpandedSpendingKey;
+import org.tron.core.zen.address.FullViewingKey;
+import org.tron.core.zen.address.IncomingViewingKey;
+import org.tron.core.zen.address.PaymentAddress;
+import org.tron.core.zen.address.SpendingKey;
 import org.tron.keystore.StringUtils;
 import org.tron.keystore.WalletFile;
 import org.tron.protos.Contract;
@@ -33,6 +50,8 @@ public class WalletApiWrapper {
 
   private static final Logger logger = LoggerFactory.getLogger("WalletApiWrapper");
   private WalletApi wallet;
+  @Getter
+  private ShieldWrapper shieldWrapper = new ShieldWrapper();
 
   public String registerWallet(char[] password) throws CipherException, IOException {
     if (!WalletApi.passwordValid(password)) {
@@ -696,6 +715,72 @@ public class WalletApiWrapper {
       return null;
     }
     return wallet.addTransactionSign(transaction);
+  }
+
+  public boolean sendShieldCoin(String fromAddress, long fromAmount, List<GrpcAPI.Note> shieldInputList,
+      List<GrpcAPI.Note> shieldOutputList, String toAddress, long toAmount)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warning: sendShieldCoin failed,  Please login first !!");
+      return false;
+    }
+    //TODO 其他条件判断
+
+    PrivateParameters.Builder builder = PrivateParameters.newBuilder();
+    if ( !StringUtil.isNullOrEmpty( fromAddress )) {
+      byte[] from = WalletApi.decodeFromBase58Check(fromAddress);
+      if (from == null) {
+        return false;
+      }
+      builder.setTransparentFromAddress(ByteString.copyFrom(from));
+      builder.setFromAmount(fromAmount);
+    }
+
+    if ( !StringUtil.isNullOrEmpty( toAddress)) {
+      byte[] to = WalletApi.decodeFromBase58Check(toAddress);
+      if (to == null) {
+        return false;
+      }
+      builder.setTransparentFromAddress(ByteString.copyFrom(to));
+      builder.setToAmount(toAmount);
+    }
+
+    if ( shieldInputList.size() > 0 ) {
+      String shieldAddress = ShieldAddressInfo.getShieldAddress(new DiversifierT(shieldInputList.get(0).getD().toByteArray()),
+          shieldInputList.get(0).getPkD().toByteArray());
+      ShieldAddressInfo addressInfo = shieldWrapper.getShieldAddressList().getShieldAddressInfoMap().get(shieldAddress);
+
+      SpendingKey spendingKey = new SpendingKey(addressInfo.getSk());
+      ExpandedSpendingKey expandedSpendingKey = spendingKey.expandedSpendingKey();
+
+      builder.setAsk(ByteString.copyFrom(expandedSpendingKey.getAsk()));
+      builder.setNsk(ByteString.copyFrom(expandedSpendingKey.getNsk()));
+      builder.setOvk(ByteString.copyFrom(expandedSpendingKey.getOvk()));
+
+      //TODO
+      for (int i = 0; i<shieldInputList.size(); ++i) {
+        Note note = shieldInputList.get(i);
+
+
+
+        SpendNote.Builder spendNoteBuild = SpendNote.newBuilder();
+
+
+      }
+
+    } else {
+      //TODO
+      byte[] ovk = ByteArray.fromHexString("030c8c2bc59fb3eb8afb047a8ea4b028743d23e7d38c6fa30908358431e2314d");
+      builder.setOvk(ByteString.copyFrom(ovk));
+    }
+
+    if ( shieldOutputList.size() > 0 ) {
+      for (int i = 0; i<shieldOutputList.size(); ++i) {
+        builder.addShieldedReceives(ReceiveNote.newBuilder().setNote(shieldOutputList.get(i)).build());
+      }
+    }
+
+    return wallet.sendShieldCoin(builder.build());
   }
 
 }

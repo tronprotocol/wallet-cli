@@ -5,6 +5,7 @@ import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.Arrays;
+import java.util.Optional;
 import java.util.UUID;
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
@@ -12,6 +13,8 @@ import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
+import lombok.Getter;
+import lombok.Setter;
 import org.bouncycastle.crypto.digests.SHA256Digest;
 import org.bouncycastle.crypto.generators.PKCS5S2ParametersGenerator;
 import org.bouncycastle.crypto.generators.SCrypt;
@@ -20,6 +23,12 @@ import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.Hash;
 import org.tron.common.utils.ByteArray;
 import org.tron.core.exception.CipherException;
+import org.tron.core.zen.ShieldAddressInfo;
+import org.tron.core.zen.address.DiversifierT;
+import org.tron.core.zen.address.FullViewingKey;
+import org.tron.core.zen.address.IncomingViewingKey;
+import org.tron.core.zen.address.PaymentAddress;
+import org.tron.core.zen.address.SpendingKey;
 import org.tron.walletserver.WalletApi;
 
 /**
@@ -130,7 +139,7 @@ public class Wallet {
       byte[] password, byte[] salt, int c, String prf) throws CipherException {
 
     if (!prf.equals("hmac-sha256")) {
-      throw new CipherException("Unsupported prf:" + prf);
+       throw new CipherException("Unsupported prf:" + prf);
     }
 
     // Java 8 supports this, but you have to convert the password to a character array, see
@@ -283,9 +292,33 @@ public class Wallet {
     }
   }
 
-  static byte[] generateRandomBytes(int size) {
+  public static byte[] generateRandomBytes(int size) {
     byte[] bytes = new byte[size];
     new SecureRandom().nextBytes(bytes);
     return bytes;
   }
+
+  //生成一个新的匿名地址
+  public static Optional<ShieldAddressInfo> generateShieldAddress() {
+    ShieldAddressInfo addressInfo = new ShieldAddressInfo();
+
+    DiversifierT diversifier = new DiversifierT().random();
+    SpendingKey spendingKey = SpendingKey.random();
+    FullViewingKey fullViewingKey = spendingKey.fullViewingKey();
+    IncomingViewingKey incomingViewingKey = fullViewingKey.inViewingKey();
+    PaymentAddress paymentAddress = incomingViewingKey.address(diversifier).get();
+
+    addressInfo.setSk(spendingKey.getValue());
+    addressInfo.setD(diversifier);
+    addressInfo.setIvk(incomingViewingKey.getValue());
+    addressInfo.setOvk(fullViewingKey.getOvk());
+    addressInfo.setPkD(paymentAddress.getPkD());
+
+    if (addressInfo.validateCheck()) {
+      return Optional.of(addressInfo);
+    } else {
+      return Optional.empty();
+    }
+  }
+
 }

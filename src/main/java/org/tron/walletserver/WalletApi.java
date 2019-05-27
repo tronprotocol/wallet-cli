@@ -1,5 +1,7 @@
 package org.tron.walletserver;
 
+import static org.tron.protos.Protocol.Transaction.Contract.ContractType.ShieldedTransferContract;
+
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.google.gson.JsonArray;
@@ -48,6 +50,7 @@ import org.tron.api.GrpcAPI.IncomingViewingKeyMessage;
 import org.tron.api.GrpcAPI.IvkDecryptParameters;
 import org.tron.api.GrpcAPI.NodeList;
 import org.tron.api.GrpcAPI.OvkDecryptParameters;
+import org.tron.api.GrpcAPI.PrivateParameters;
 import org.tron.api.GrpcAPI.ProposalList;
 import org.tron.api.GrpcAPI.Return;
 import org.tron.api.GrpcAPI.SaplingPaymentAddressMessage;
@@ -383,45 +386,6 @@ public class WalletApi {
     return rpcCli.queryAccountById(accountId);
   }
 
-  //added 2019-05-08
-  public static DecryptNotes scanNoteByIvk(IvkDecryptParameters ivkDecryptParameters){
-    return rpcCli.scanNoteByIvk(ivkDecryptParameters);
-  }
-
-  public static DecryptNotes scanNoteByOvk(OvkDecryptParameters ovkDecryptParameters){
-    return rpcCli.scanNoteByOvk(ovkDecryptParameters);
-  }
-
-  public static BytesMessage getSpendingKey() {
-    return rpcCli.getSpendingKey();
-  }
-
-  public static ExpandedSpendingKeyMessage getExpandedSpendingKey(BytesMessage spendingKey) {
-    return rpcCli.getExpandedSpendingKey(spendingKey);
-  }
-
-  public static BytesMessage getAkFromAsk(BytesMessage ask) {
-    return rpcCli.getAkFromAsk(ask);
-  }
-
-  public static BytesMessage getNkFromNsk(BytesMessage nsk) {
-    return rpcCli.getNkFromNsk(nsk);
-  }
-
-  public static IncomingViewingKeyMessage getIncomingViewingKey(ViewingKeyMessage viewingKeyMessage) {
-    return rpcCli.getIncomingViewingKey(viewingKeyMessage);
-  }
-
-  public static DiversifierMessage getDiversifier() {
-    return rpcCli.getDiversifier();
-  }
-
-  public static SaplingPaymentAddressMessage getSaplingPaymentAddress(
-          IncomingViewingKeyDiversifierMessage ivk) {
-    return rpcCli.getSaplingPaymentAddress(ivk);
-  }
-  //ending of added 2019-05-08
-
   private boolean confirm() {
     Scanner in = new Scanner(System.in);
     while (true) {
@@ -481,6 +445,44 @@ public class WalletApi {
     return transaction;
   }
 
+  //TODO  优化，创建交易时setPermissionId
+  private Transaction signOnlyForShieldTransaction(Transaction transaction)
+      throws CipherException, IOException, CancelException {
+    System.out.println(
+        "Please confirm and input your permission id, if input y or Y means default 0, other non-numeric characters will cancell transaction.");
+
+    while (true) {
+      System.out.println("Please choose your key for sign.");
+      WalletFile walletFile = selcetWalletFileE();
+      System.out.println("Please input your password.");
+      char[] password = Utils.inputPassword(false);
+      byte[] passwd = org.tron.keystore.StringUtils.char2Byte(password);
+      org.tron.keystore.StringUtils.clear(password);
+
+      transaction = TransactionUtils.sign(transaction, this.getEcKey(walletFile, passwd));
+      System.out
+          .println("current transaction hex string is " + ByteArray
+              .toHexString(transaction.toByteArray()));
+      org.tron.keystore.StringUtils.clear(passwd);
+
+      TransactionSignWeight weight = getTransactionSignWeight(transaction);
+      if (weight.getResult().getCode() == response_code.ENOUGH_PERMISSION) {
+        break;
+      }
+      if (weight.getResult().getCode() == response_code.NOT_ENOUGH_PERMISSION) {
+        System.out.println("Current signWeight is:");
+        System.out.println(Utils.printTransactionSignWeight(weight));
+        System.out.println("Please confirm if continue add signature enter y or Y, else any other");
+        if (!confirm()) {
+          throw new CancelException("User cancelled");
+        }
+        continue;
+      }
+      throw new CancelException(weight.getResult().getMessage());
+    }
+    return transaction;
+  }
+
   private boolean processTransactionExtention(TransactionExtention transactionExtention)
       throws IOException, CipherException, CancelException {
     if (transactionExtention == null) {
@@ -501,7 +503,14 @@ public class WalletApi {
         "Receive txid = " + ByteArray.toHexString(transactionExtention.getTxid().toByteArray()));
     System.out.println("transaction hex string is " + Utils.printTransaction(transaction));
     System.out.println(Utils.printTransaction(transactionExtention));
-    transaction = signTransaction(transaction);
+
+
+    if (transaction.getRawData().getContract(0).getType() != ShieldedTransferContract ) {
+      transaction = signTransaction(transaction);
+    } else {
+      transaction = signOnlyForShieldTransaction(transaction);
+    }
+
     return rpcCli.broadcastTransaction(transaction);
   }
 
@@ -2022,4 +2031,42 @@ public class WalletApi {
     return transaction;
   }
 
+
+  public static DecryptNotes scanNoteByIvk(IvkDecryptParameters ivkDecryptParameters){
+    return rpcCli.scanNoteByIvk(ivkDecryptParameters);
+  }
+
+  public static DecryptNotes scanNoteByOvk(OvkDecryptParameters ovkDecryptParameters){
+    return rpcCli.scanNoteByOvk(ovkDecryptParameters);
+  }
+
+  public static BytesMessage getSpendingKey() {
+    return rpcCli.getSpendingKey();
+  }
+
+  public static ExpandedSpendingKeyMessage getExpandedSpendingKey(BytesMessage spendingKey) {
+    return rpcCli.getExpandedSpendingKey(spendingKey);
+  }
+
+  public static BytesMessage getAkFromAsk(BytesMessage ask) {
+    return rpcCli.getAkFromAsk(ask);
+  }
+
+  public static BytesMessage getNkFromNsk(BytesMessage nsk) {
+    return rpcCli.getNkFromNsk(nsk);
+  }
+
+  public static IncomingViewingKeyMessage getIncomingViewingKey(ViewingKeyMessage viewingKeyMessage) {
+    return rpcCli.getIncomingViewingKey(viewingKeyMessage);
+  }
+
+  public static DiversifierMessage getDiversifier() {
+    return rpcCli.getDiversifier();
+  }
+
+  public boolean sendShieldCoin(PrivateParameters privateParameters)
+      throws CipherException, IOException, CancelException {
+    TransactionExtention transactionExtention = rpcCli.createShieldTransaction(privateParameters);
+    return processTransactionExtention(transactionExtention);
+  }
 }
