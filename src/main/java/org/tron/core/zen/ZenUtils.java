@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class ZenUtils {
+
   public static List<String> getListFromFile(final String fileName ) {
     List<String> list = new ArrayList<>();
     try {

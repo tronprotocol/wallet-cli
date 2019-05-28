@@ -8,11 +8,8 @@ import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.Getter;
 import lombok.Setter;
-import org.tron.common.utils.ByteArray;
 
 public class ShieldAddressList {
-  //TODO 这里是否会涉及到多线程使用的场景
-
   @Setter
   @Getter
   Map<String, ShieldAddressInfo>  shieldAddressInfoMap = new ConcurrentHashMap();
@@ -28,7 +25,6 @@ public class ShieldAddressList {
    */
   public boolean loadAddressFromFile() {
     List<String> addressList = ZenUtils.getListFromFile( FileName );
-    //System.out.println("shieldAddress size: " + addressList.size());
 
     shieldAddressInfoMap.clear();
     for (String addressString : addressList ) {
@@ -50,7 +46,6 @@ public class ShieldAddressList {
   public boolean appendAddressInfoToFile(final ShieldAddressInfo addressInfo ) {
     String shieldAddress = addressInfo.getAddress();
     if ( !StringUtil.isNullOrEmpty( shieldAddress ) ) {
-      //格式化，添加到文件的末尾
       String addressString = addressInfo.encode();
       ZenUtils.appendToFileTail(FileName, addressString);
 
@@ -62,7 +57,6 @@ public class ShieldAddressList {
   public List<String> getShieldAddressList() {
     List<String>  addressList = new ArrayList<>();
     for (Entry<String, ShieldAddressInfo> entry : shieldAddressInfoMap.entrySet()) {
-      //System.out.println("ivk:" + ByteArray.toHexString(entry.getValue().getIvk()));
       addressList.add(entry.getKey());
     }
     return addressList;

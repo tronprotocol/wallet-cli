@@ -5,7 +5,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Semaphore;
 import lombok.Getter;
 import lombok.Setter;
 import org.tron.api.GrpcAPI.DecryptNotes;
@@ -22,7 +24,6 @@ import org.tron.protos.Contract.OutputPointInfo;
 import org.tron.protos.Protocol.Block;
 import org.tron.walletserver.WalletApi;
 
-//封装所有跟匿名交易相关的内容
 public class ShieldWrapper {
 
   private WalletApi wallet;
@@ -31,45 +32,60 @@ public class ShieldWrapper {
   private final String unspendNoteFileName = "unspendNotes.txt";
   private final String spendNoteFileName = "spendNotes.txt";
   private Thread thread ;
-
-
+  @Getter
+  @Setter
+  private boolean resetNote = false;
   @Getter
   public ShieldAddressList shieldAddressList = new ShieldAddressList();
-
-  //ivk  blockNum  什么时候更新文件
   @Getter
   @Setter
   public Map<String, Long> ivkMapScanBlockNum = new ConcurrentHashMap();
-
-  //临街资源，需要保护
   @Getter
   @Setter
   public Map<Integer, ShieldNoteInfo>  utxoMapNote = new ConcurrentHashMap();
-
   @Getter
   @Setter
   public List<ShieldNoteInfo> spendUtxoList = new ArrayList<>();
-
 
   public void setWallet(WalletApi walletApi) {
     wallet = walletApi;
     thread.start();
   }
 
-
   public class scanIvkRunable implements Runnable {
     public void run(){
-      // synchronized (ivkMapScanBlockNum)
       for (;;) {
         try {
           scanBlockByIvk();
           updateWhetherSpend();
-          Thread.sleep(5000);
+          //wait for 5 seconds
+          for (int i=0; i<10; ++i) {
+            Thread.sleep(500);
+            if (resetNote) {
+              resetShieldNote();
+              resetNote = false;
+              System.out.println("Reset shield note success!");
+            }
+          }
         } catch (Exception e) {
           e.printStackTrace();
         }
       }
     }
+  }
+
+  private void resetShieldNote() {
+    Set<String>  shieldaddress = ivkMapScanBlockNum.keySet();
+    for (String address : shieldaddress ) {
+      ivkMapScanBlockNum.put(address, 0L);
+    }
+
+    utxoMapNote.clear();
+    spendUtxoList.clear();
+
+    ZenUtils.clearFile(ivkFileName);
+    ZenUtils.clearFile(unspendNoteFileName);
+    ZenUtils.clearFile(spendNoteFileName);
   }
 
   //扫描获取Note信息
@@ -106,19 +122,15 @@ public class ShieldWrapper {
               noteInfo.setIndex(noteTx.getIndex());
               noteInfo.setSpend(false);
 
-              //更新本地缓存的数据
               utxoMapNote.put(utxoMapNote.size(), noteInfo);
             }
-            //保存为文件
-            saveUnspendNoteToFile();  //TODO 看是否可以优化
+            saveUnspendNoteToFile();
           }
           start = end;
         }
 
-        //更新扫描的最新块
         ivkMapScanBlockNum.put(entry.getKey(), blockNum);
       }
-      //更新文件
       updateIvkAndBlockNumFile();
     }
   }
@@ -162,9 +174,7 @@ public class ShieldWrapper {
     loadUnSpendNoteFromFile();
     loadSpendNoteFromFile();
 
-    //启动扫描线程
     thread = new Thread(new scanIvkRunable());
-
     return true;
   }
 
@@ -174,7 +184,6 @@ public class ShieldWrapper {
       utxoMapNote.remove(noteIndex);
       spendUtxoList.add(noteInfo);
 
-      //保存文件，将未花费的UTXO 转移到 花费的 UTXO 中
       saveUnspendNoteToFile();
       savespendNoteToFile(noteInfo);
     } else {

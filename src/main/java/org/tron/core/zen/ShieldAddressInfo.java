@@ -5,7 +5,6 @@ import java.util.Optional;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
-import org.omg.Messaging.SYNC_WITH_TRANSPORT;
 import org.tron.common.utils.ByteArray;
 import org.tron.core.zen.address.Constant;
 import org.tron.core.zen.address.DiversifierT;

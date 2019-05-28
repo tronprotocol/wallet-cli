@@ -2126,16 +2126,23 @@ public class Client {
     }
   }
 
-  private void generateShieldAddress() {
-    Optional<ShieldAddressInfo> addressInfo = Wallet.generateShieldAddress();
-    if ( addressInfo.isPresent() ) {
-      if ( walletApiWrapper.getShieldWrapper().addNewShieldAddress( addressInfo.get()) ) {
-        System.out.println("ShieldAddress :" + addressInfo.get().getAddress());
-        logger.info("GenerateShieldAddress successful !!");
-        return ;
+  private void generateShieldAddress(String[] parameters) {
+    int addressNum = 1;
+    if (parameters.length>0 && !StringUtil.isNullOrEmpty(parameters[0])) {
+      addressNum = Integer.valueOf(parameters[0]);
+    }
+
+    System.out.println("ShieldAddress list:");
+    for (int i=0; i<addressNum; ++i ) {
+      Optional<ShieldAddressInfo> addressInfo = Wallet.generateShieldAddress();
+      if ( addressInfo.isPresent() ) {
+        if ( walletApiWrapper.getShieldWrapper().addNewShieldAddress( addressInfo.get()) ) {
+          System.out.println(addressInfo.get().getAddress());
+        }
       }
     }
-    logger.info("GenerateShieldAddress  failed !!");
+
+    logger.info("GenerateShieldAddress successful !!");
   }
 
   private void listShieldAddress() {
@@ -2314,6 +2321,12 @@ public class Client {
   }
 
 
+  private void resetShieldNote(String[] parameters) {
+    System.out.println("Start to reset reset shield notes ...");
+    walletApiWrapper.getShieldWrapper().setResetNote(true);
+  }
+
+
   private void create2(String[] parameters) {
     if (parameters == null || parameters.length != 3) {
       System.out.println("create2 needs 3 parameter: ");
@@ -2429,6 +2442,8 @@ public class Client {
     System.out.println("listshieldaddress");
     System.out.println("sendshieldcoin");
     System.out.println("listshieldnote");
+    System.out.println("resetshieldnote");
+
 
     System.out.println("Create2");
 //    System.out.println("buyStorage");
@@ -2908,7 +2923,7 @@ public class Client {
           }
           //*****************
           case "generateshieldaddress": {
-            generateShieldAddress();
+            generateShieldAddress(parameters);
             break;
           }
           case "listshieldaddress": {
@@ -2923,8 +2938,10 @@ public class Client {
             listShieldNote(parameters);
             break;
           }
-
-
+          case "resetshieldnote": {
+            resetShieldNote(parameters);
+            break;
+          }
 
           case "create2": {
             create2(parameters);
