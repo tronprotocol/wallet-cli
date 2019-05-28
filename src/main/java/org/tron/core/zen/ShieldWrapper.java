@@ -207,17 +207,21 @@ public class ShieldWrapper {
    * @return
    */
   private boolean updateIvkAndBlockNum(final String ivk, long blockNum ) {
-    String date = ivk + ";" + blockNum;
-    ZenUtils.appendToFileTail(ivkFileName, date);
+    synchronized (ivkFileName) {
+      String date = ivk + ";" + blockNum;
+      ZenUtils.appendToFileTail(ivkFileName, date);
+    }
     return true;
   }
 
   private boolean updateIvkAndBlockNumFile() {
-    ZenUtils.clearFile(ivkFileName);
+    synchronized (ivkFileName) {
+      ZenUtils.clearFile(ivkFileName);
 
-    for (Entry<String, Long> entry : ivkMapScanBlockNum.entrySet()) {
-      String date = entry.getKey() + ";" + entry.getValue();
-      ZenUtils.appendToFileTail(ivkFileName, date);
+      for (Entry<String, Long> entry : ivkMapScanBlockNum.entrySet()) {
+        String date = entry.getKey() + ";" + entry.getValue();
+        ZenUtils.appendToFileTail(ivkFileName, date);
+      }
     }
 
     return true;

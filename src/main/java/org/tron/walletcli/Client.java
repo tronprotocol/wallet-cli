@@ -2176,28 +2176,22 @@ public class Client {
       shieldInputNum = Integer.valueOf(amountString);
     }
 
-//    List<Note> shieldInputList = new ArrayList<>();
-//    for (int i = 0; i < shieldInputNum; ++i) {
-//      int mapIndex = Integer.valueOf(parameters[parameterIndex++]);
-//      if (mapIndex < 0 || mapIndex > walletApiWrapper.getShieldWrapper().getUtxoMapNote().size() ) {
-//        System.out.println("index of map note isn't exist.");
-//        return;
-//      }
-//      ShieldNoteInfo noteInfo = walletApiWrapper.getShieldWrapper().getUtxoMapNote().get(mapIndex);
-//      Note.Builder noteBuild = Note.newBuilder();
-//      noteBuild.setD(ByteString.copyFrom(noteInfo.getD().getData()));
-//      noteBuild.setPkD(ByteString.copyFrom(noteInfo.getPkD()));
-//      noteBuild.setValue(noteInfo.getValue());
-//      noteBuild.setRcm(ByteString.copyFrom(noteInfo.getR()));
-//      shieldInputList.add( noteBuild.build() );
-//    }
-
     List<Integer> shieldInputList = new ArrayList<>();
+    String shieldInputAddress = "";
     for (int i = 0; i < shieldInputNum; ++i) {
       int mapIndex = Integer.valueOf(parameters[parameterIndex++]);
       if (mapIndex < 0 || mapIndex > walletApiWrapper.getShieldWrapper().getUtxoMapNote().size() ) {
         System.out.println("index of map note isn't exist.");
         return;
+      }
+      ShieldNoteInfo noteInfo = walletApiWrapper.getShieldWrapper().getUtxoMapNote().get(mapIndex);
+      if ( i == 0 ) {
+        shieldInputAddress = noteInfo.getAddress();
+      } else {
+        if (!noteInfo.getAddress().equals( shieldInputAddress )) {
+          System.err.println("All input note shall be the same address!");
+          return;
+        }
       }
       shieldInputList.add( mapIndex );
     }
@@ -2250,7 +2244,6 @@ public class Client {
 
     //check parameter
     //判断判断每个CM的有效性，获取cm及path，
-    //判断每个Note是否有效，是否同属于一个匿名地址
     //其他判断交给服务器去做处理
 
     //TODO 做一个参数的简单判断
@@ -2276,16 +2269,22 @@ public class Client {
     // 0 未花费的Note  1 未花费和已花费的Note
     if (showType == 0 ) {
       Map<Integer, ShieldNoteInfo> noteMap = walletApiWrapper.getShieldWrapper().getUtxoMapNote();
-      System.out.println("Unspend note list like:");
-      for (Entry<Integer, ShieldNoteInfo> entry : noteMap.entrySet() ) {
-        String string = entry.getKey() + " " + entry.getValue().getAddress() + " ";
-        string += entry.getValue().getTrxId();
-        string += " ";
-        string += entry.getValue().getIndex();
-        string += " ";
-        string += "UnSpend";
+      if (noteMap.size() == 0 ) {
+        System.out.println("Unspend note is 0.");
+      } else {
+        System.out.println("Unspend note list like:");
+        for (Entry<Integer, ShieldNoteInfo> entry : noteMap.entrySet() ) {
+          String string = entry.getKey() + " " + entry.getValue().getAddress() + " ";
+          string += entry.getValue().getValue();
+          string += " ";
+          string += entry.getValue().getTrxId();
+          string += " ";
+          string += entry.getValue().getIndex();
+          string += " ";
+          string += "UnSpend";
 
-        System.out.println(string);
+          System.out.println(string);
+        }
       }
     } else {
       Map<Integer, ShieldNoteInfo> noteMap = walletApiWrapper.getShieldWrapper().getUtxoMapNote();
@@ -2313,7 +2312,6 @@ public class Client {
       }
     }
   }
-
 
 
   private void create2(String[] parameters) {

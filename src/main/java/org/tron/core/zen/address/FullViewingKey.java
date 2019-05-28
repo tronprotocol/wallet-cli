@@ -25,7 +25,7 @@ public class FullViewingKey {
   public IncomingViewingKey inViewingKey() {
     byte[] ivk = new byte[32]; // the incoming viewing key
     Librustzcash.librustzcashCrhIvk(ak, nk, ivk);
-    System.out.println("inviewkey.ivk is: " + ByteUtil.toHexString(ivk));
+    //System.out.println("inviewkey.ivk is: " + ByteUtil.toHexString(ivk));
     return new IncomingViewingKey(ivk);
   }
 

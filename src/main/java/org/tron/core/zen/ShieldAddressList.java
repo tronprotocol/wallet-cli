@@ -28,7 +28,7 @@ public class ShieldAddressList {
    */
   public boolean loadAddressFromFile() {
     List<String> addressList = ZenUtils.getListFromFile( FileName );
-    System.out.println("shieldAddress size: " + addressList.size());
+    //System.out.println("shieldAddress size: " + addressList.size());
 
     shieldAddressInfoMap.clear();
     for (String addressString : addressList ) {
@@ -62,7 +62,7 @@ public class ShieldAddressList {
   public List<String> getShieldAddressList() {
     List<String>  addressList = new ArrayList<>();
     for (Entry<String, ShieldAddressInfo> entry : shieldAddressInfoMap.entrySet()) {
-      System.out.println("ivk:" + ByteArray.toHexString(entry.getValue().getIvk()));
+      //System.out.println("ivk:" + ByteArray.toHexString(entry.getValue().getIvk()));
       addressList.add(entry.getKey());
     }
     return addressList;
