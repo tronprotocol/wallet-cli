@@ -24,10 +24,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.apache.commons.lang3.ArrayUtils;
 import org.bouncycastle.util.encoders.Hex;
-import org.omg.Messaging.SYNC_WITH_TRANSPORT;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.tron.api.GrpcAPI;
 import org.tron.api.GrpcAPI.AccountNetMessage;
 import org.tron.api.GrpcAPI.AccountResourceMessage;
 import org.tron.api.GrpcAPI.AddressPrKeyPairMessage;
@@ -35,28 +33,17 @@ import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.BlockExtention;
 import org.tron.api.GrpcAPI.BlockList;
 import org.tron.api.GrpcAPI.BlockListExtention;
-import org.tron.api.GrpcAPI.BytesMessage;
-import org.tron.api.GrpcAPI.DecryptNotes;
-import org.tron.api.GrpcAPI.DecryptNotes.NoteTx;
 import org.tron.api.GrpcAPI.DelegatedResourceList;
-import org.tron.api.GrpcAPI.DiversifierMessage;
 import org.tron.api.GrpcAPI.ExchangeList;
-import org.tron.api.GrpcAPI.ExpandedSpendingKeyMessage;
-import org.tron.api.GrpcAPI.IncomingViewingKeyDiversifierMessage;
-import org.tron.api.GrpcAPI.IncomingViewingKeyMessage;
-import org.tron.api.GrpcAPI.IvkDecryptParameters;
 import org.tron.api.GrpcAPI.Node;
 import org.tron.api.GrpcAPI.NodeList;
 import org.tron.api.GrpcAPI.Note;
 import org.tron.api.GrpcAPI.NumberMessage;
-import org.tron.api.GrpcAPI.OvkDecryptParameters;
 import org.tron.api.GrpcAPI.ProposalList;
-import org.tron.api.GrpcAPI.SaplingPaymentAddressMessage;
 import org.tron.api.GrpcAPI.TransactionApprovedList;
 import org.tron.api.GrpcAPI.TransactionList;
 import org.tron.api.GrpcAPI.TransactionListExtention;
 import org.tron.api.GrpcAPI.TransactionSignWeight;
-import org.tron.api.GrpcAPI.ViewingKeyMessage;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.crypto.Hash;
 import org.tron.common.utils.AbiUtil;
@@ -2320,12 +2307,31 @@ public class Client {
     }
   }
 
-
-  private void resetShieldNote(String[] parameters) {
-    System.out.println("Start to reset reset shield notes ...");
-    walletApiWrapper.getShieldWrapper().setResetNote(true);
+  private void resetShieldNote() {
+    walletApiWrapper.resetShieldNote();
   }
 
+  private void scanNoteByAddress(String[] parameters) {
+    if (parameters == null || parameters.length != 3) {
+      System.out.println("scannotebyaddress needs 3 parameter like the following: ");
+      System.out.println("scannotebyaddress shieldAddress startNum endNum ");
+      return;
+    }
+    long startNum,endNum;
+    try {
+      startNum = Long.parseLong(parameters[1]);
+      endNum = Long.parseLong(parameters[2]);
+    }catch (NumberFormatException e){
+      System.out.println("invalid parameter: startNum, endNum.");
+      return;
+    }
+    if (endNum<=0 || startNum >= endNum || endNum-startNum > 1000) {
+      System.out.println("Invalid parameters");
+      return ;
+    }
+
+    walletApiWrapper.scanShieldNoteByShieldAddress(parameters[0], startNum, endNum);
+  }
 
   private void create2(String[] parameters) {
     if (parameters == null || parameters.length != 3) {
@@ -2861,10 +2867,6 @@ public class Client {
 //            getNkFromNsk(parameters);
 //            break;
 //          }
-//          case "getincomingviewingkey": {
-//            getIncomingViewingKey(parameters);
-//            break;
-//          }
 //          case "getdiversifier": {
 //            getDiversifier(parameters);
 //            break;
@@ -2939,10 +2941,13 @@ public class Client {
             break;
           }
           case "resetshieldnote": {
-            resetShieldNote(parameters);
+            resetShieldNote();
             break;
           }
-
+          case "scannotebyaddress": {
+            scanNoteByAddress(parameters);
+            break;
+          }
           case "create2": {
             create2(parameters);
             break;

@@ -5,9 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Semaphore;
 import lombok.Getter;
 import lombok.Setter;
 import org.tron.api.GrpcAPI.DecryptNotes;
@@ -49,7 +47,9 @@ public class ShieldWrapper {
 
   public void setWallet(WalletApi walletApi) {
     wallet = walletApi;
-    thread.start();
+    if (!thread.isAlive()) {
+      thread.start();
+    }
   }
 
   public class scanIvkRunable implements Runnable {
@@ -75,9 +75,10 @@ public class ShieldWrapper {
   }
 
   private void resetShieldNote() {
-    Set<String>  shieldaddress = ivkMapScanBlockNum.keySet();
-    for (String address : shieldaddress ) {
-      ivkMapScanBlockNum.put(address, 0L);
+    ivkMapScanBlockNum.clear();
+    for (Entry<String, ShieldAddressInfo> entry :
+        shieldAddressList.getShieldAddressInfoMap().entrySet() ) {
+      ivkMapScanBlockNum.put(ByteArray.toHexString(entry.getValue().getIvk()), 0L);
     }
 
     utxoMapNote.clear();
@@ -86,84 +87,103 @@ public class ShieldWrapper {
     ZenUtils.clearFile(ivkFileName);
     ZenUtils.clearFile(unspendNoteFileName);
     ZenUtils.clearFile(spendNoteFileName);
+
+    updateIvkAndBlockNumFile();
   }
 
   //扫描获取Note信息
   private void scanBlockByIvk() {
-    Block block = wallet.getBlock(-1);
-    if (block != null) {
-      long blockNum = block.getBlockHeader().toBuilder().getRawData().getNumber();
-      for (Entry<String, Long> entry : ivkMapScanBlockNum.entrySet()) {
+    try {
+      Block block = wallet.getBlock(-1);
+      if (block != null) {
+        long blockNum = block.getBlockHeader().toBuilder().getRawData().getNumber();
+        for (Entry<String, Long> entry : ivkMapScanBlockNum.entrySet()) {
 
-        long start = entry.getValue();
-        long end = start;
-        while (end < blockNum) {
-          if ((blockNum - start) > 1000) {
-            end = start + 1000;
-          } else {
-            end = blockNum;
-          }
-
-          IvkDecryptParameters.Builder builder = IvkDecryptParameters.newBuilder();
-          builder.setStartBlockIndex(start);
-          builder.setEndBlockIndex(end);
-          builder.setIvk(ByteString.copyFrom(ByteArray.fromHexString(entry.getKey())));
-          DecryptNotes notes = wallet.scanNoteByIvk(builder.build());
-          if (notes != null) {
-            for (int i = 0; i < notes.getNoteTxsList().size(); ++i) {
-              NoteTx noteTx = notes.getNoteTxsList().get(i);
-
-              ShieldNoteInfo noteInfo = new ShieldNoteInfo();
-              noteInfo.setD(new DiversifierT(noteTx.getNote().getD().toByteArray()));
-              noteInfo.setPkD(noteTx.getNote().getPkD().toByteArray());
-              noteInfo.setR(noteTx.getNote().getRcm().toByteArray());
-              noteInfo.setValue(noteTx.getNote().getValue());
-              noteInfo.setTrxId(ByteArray.toHexString(noteTx.getTxid().toByteArray()));
-              noteInfo.setIndex(noteTx.getIndex());
-              noteInfo.setSpend(false);
-
-              utxoMapNote.put(utxoMapNote.size(), noteInfo);
+          long start = entry.getValue();
+          long end = start;
+          while (end < blockNum) {
+            if ((blockNum - start) > 1000) {
+              end = start + 1000;
+            } else {
+              end = blockNum;
             }
-            saveUnspendNoteToFile();
-          }
-          start = end;
-        }
 
-        ivkMapScanBlockNum.put(entry.getKey(), blockNum);
+            IvkDecryptParameters.Builder builder = IvkDecryptParameters.newBuilder();
+            builder.setStartBlockIndex(start);
+            builder.setEndBlockIndex(end);
+            builder.setIvk(ByteString.copyFrom(ByteArray.fromHexString(entry.getKey())));
+            DecryptNotes notes = wallet.scanNoteByIvk(builder.build());
+            if (notes != null) {
+              for (int i = 0; i < notes.getNoteTxsList().size(); ++i) {
+                NoteTx noteTx = notes.getNoteTxsList().get(i);
+
+                ShieldNoteInfo noteInfo = new ShieldNoteInfo();
+                noteInfo.setD(new DiversifierT(noteTx.getNote().getD().toByteArray()));
+                noteInfo.setPkD(noteTx.getNote().getPkD().toByteArray());
+                noteInfo.setR(noteTx.getNote().getRcm().toByteArray());
+                noteInfo.setValue(noteTx.getNote().getValue());
+                noteInfo.setTrxId(ByteArray.toHexString(noteTx.getTxid().toByteArray()));
+                noteInfo.setIndex(noteTx.getIndex());
+                noteInfo.setSpend(false);
+
+                utxoMapNote.put(utxoMapNote.size(), noteInfo);
+              }
+              saveUnspendNoteToFile();
+            }
+            start = end;
+          }
+
+          ivkMapScanBlockNum.put(entry.getKey(), blockNum);
+        }
+        updateIvkAndBlockNumFile();
       }
-      updateIvkAndBlockNumFile();
+    } catch (Exception e) {
+      if (e.getMessage() != null) {
+        System.out.println(e.getMessage());
+      } else {
+        System.out.println("scanBlockByIvk null");
+      }
     }
   }
 
   //获取Note是否被花掉
   private void updateWhetherSpend() {
-    for (Entry<Integer, ShieldNoteInfo> entry : utxoMapNote.entrySet() ) {
-      ShieldNoteInfo noteInfo = entry.getValue();
+    try {
+      for (Entry<Integer, ShieldNoteInfo> entry : utxoMapNote.entrySet()) {
+        ShieldNoteInfo noteInfo = entry.getValue();
 
-      OutputPointInfo.Builder request = OutputPointInfo.newBuilder();
-      OutputPoint.Builder outPointBuild = OutputPoint.newBuilder();
-      outPointBuild.setHash(ByteString.copyFrom(ByteArray.fromHexString(noteInfo.getTrxId())));
-      outPointBuild.setIndex(noteInfo.getIndex());
-      request.addOutPoints(outPointBuild.build());
-      IncrementalMerkleVoucherInfo merkleVoucherInfo = wallet.GetMerkleTreeVoucherInfo(request.build());
+        OutputPointInfo.Builder request = OutputPointInfo.newBuilder();
+        OutputPoint.Builder outPointBuild = OutputPoint.newBuilder();
+        outPointBuild.setHash(ByteString.copyFrom(ByteArray.fromHexString(noteInfo.getTrxId())));
+        outPointBuild.setIndex(noteInfo.getIndex());
+        request.addOutPoints(outPointBuild.build());
+        IncrementalMerkleVoucherInfo merkleVoucherInfo = wallet
+            .GetMerkleTreeVoucherInfo(request.build());
 
-      ShieldAddressInfo addressInfo =
-          shieldAddressList.getShieldAddressInfoMap().get( noteInfo.getAddress() );
-      NoteParameters.Builder builder = NoteParameters.newBuilder();
-      builder.setAk(ByteString.copyFrom(addressInfo.getFullViewingKey().getAk()));
-      builder.setNk(ByteString.copyFrom(addressInfo.getFullViewingKey().getNk()));
+        ShieldAddressInfo addressInfo =
+            shieldAddressList.getShieldAddressInfoMap().get(noteInfo.getAddress());
+        NoteParameters.Builder builder = NoteParameters.newBuilder();
+        builder.setAk(ByteString.copyFrom(addressInfo.getFullViewingKey().getAk()));
+        builder.setNk(ByteString.copyFrom(addressInfo.getFullViewingKey().getNk()));
 
-      Note.Builder noteBuild = Note.newBuilder();
-      noteBuild.setD(ByteString.copyFrom(noteInfo.getD().getData()));
-      noteBuild.setPkD(ByteString.copyFrom(noteInfo.getPkD()));
-      noteBuild.setValue(noteInfo.getValue());
-      noteBuild.setRcm(ByteString.copyFrom(noteInfo.getR()));
-      builder.setNote(noteBuild.build());
-      builder.setVoucher(merkleVoucherInfo.getVouchers(0));
+        Note.Builder noteBuild = Note.newBuilder();
+        noteBuild.setD(ByteString.copyFrom(noteInfo.getD().getData()));
+        noteBuild.setPkD(ByteString.copyFrom(noteInfo.getPkD()));
+        noteBuild.setValue(noteInfo.getValue());
+        noteBuild.setRcm(ByteString.copyFrom(noteInfo.getR()));
+        builder.setNote(noteBuild.build());
+        builder.setVoucher(merkleVoucherInfo.getVouchers(0));
 
-      SpendResult result = wallet.isNoteSpend(builder.build());
-      if ( result.getResult() ) {
-        spendNote(entry.getKey());
+        SpendResult result = wallet.isNoteSpend(builder.build());
+        if (result.getResult()) {
+          spendNote(entry.getKey());
+        }
+      }
+    } catch (Exception e) {
+      if (e.getMessage() != null) {
+        System.out.println(e.getMessage());
+      } else {
+        System.out.println("updateWhetherSpend null");
       }
     }
   }

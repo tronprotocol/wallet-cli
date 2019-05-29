@@ -13,11 +13,13 @@ import org.tron.api.GrpcAPI;
 import org.tron.api.GrpcAPI.AddressPrKeyPairMessage;
 import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.BlockExtention;
+import org.tron.api.GrpcAPI.DecryptNotes;
+import org.tron.api.GrpcAPI.DecryptNotes.NoteTx;
 import org.tron.api.GrpcAPI.ExchangeList;
+import org.tron.api.GrpcAPI.IvkDecryptParameters;
 import org.tron.api.GrpcAPI.NodeList;
 import org.tron.api.GrpcAPI.Note;
 import org.tron.api.GrpcAPI.PrivateParameters;
-import org.tron.api.GrpcAPI.PrivateParameters.Builder;
 import org.tron.api.GrpcAPI.ProposalList;
 import org.tron.api.GrpcAPI.ReceiveNote;
 import org.tron.api.GrpcAPI.SpendNote;
@@ -29,17 +31,12 @@ import org.tron.core.exception.CipherException;
 import org.tron.core.zen.ShieldAddressInfo;
 import org.tron.core.zen.ShieldNoteInfo;
 import org.tron.core.zen.ShieldWrapper;
-import org.tron.core.zen.address.DiversifierT;
 import org.tron.core.zen.address.ExpandedSpendingKey;
-import org.tron.core.zen.address.FullViewingKey;
-import org.tron.core.zen.address.IncomingViewingKey;
-import org.tron.core.zen.address.PaymentAddress;
 import org.tron.core.zen.address.SpendingKey;
 import org.tron.keystore.StringUtils;
 import org.tron.keystore.WalletFile;
 import org.tron.protos.Contract;
 import org.tron.protos.Contract.AssetIssueContract;
-import org.tron.protos.Contract.IncrementalMerkleVoucher;
 import org.tron.protos.Contract.IncrementalMerkleVoucherInfo;
 import org.tron.protos.Contract.OutputPoint;
 import org.tron.protos.Contract.OutputPointInfo;
@@ -791,7 +788,6 @@ public class WalletApiWrapper {
         System.out.println("trxId " + noteInfo.getTrxId());
         System.out.println("index " + noteInfo.getIndex());
 
-
         SpendNote.Builder spendNoteBuilder = SpendNote.newBuilder();
         spendNoteBuilder.setNote(noteBuild.build());
         spendNoteBuilder.setAlpha(ByteString.copyFrom(org.tron.core.zen.note.Note.generateR()));
@@ -813,5 +809,55 @@ public class WalletApiWrapper {
     }
 
     return wallet.sendShieldCoin(builder.build());
+  }
+
+  public boolean resetShieldNote() {
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warning: resetShieldNote failed,  Please login first !!");
+      return false;
+    }
+    System.out.println("Start to reset reset shield notes, please wait ...");
+    shieldWrapper.setResetNote(true);
+    return true;
+  }
+
+  public boolean scanShieldNoteByShieldAddress(final String shieldAddress, long start, long end ) {
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warning: scannotebyaddress failed,  Please login first !!");
+      return false;
+    }
+
+    ShieldAddressInfo addressInfo = shieldWrapper.getShieldAddressList().
+        getShieldAddressInfoMap().get(shieldAddress);
+    if (addressInfo == null ) {
+      System.out.println("Can't find shieldAddress in local, please check shieldAddress.");
+      return false;
+    }
+
+    GrpcAPI.IvkDecryptParameters ivkDecryptParameters = IvkDecryptParameters.newBuilder()
+        .setStartBlockIndex(start)
+        .setEndBlockIndex(end)
+        .setIvk(ByteString.copyFrom(addressInfo.getIvk()))
+        .build();
+
+    DecryptNotes decryptNotes = wallet.scanNoteByIvk(ivkDecryptParameters);
+
+    if(decryptNotes == null){
+      logger.info("scanNoteByIvk failed !!!");
+    }else{
+      for(int i=0; i<decryptNotes.getNoteTxsList().size();i++) {
+        NoteTx noteTx = decryptNotes.getNoteTxs(i);
+        Note note = noteTx.getNote();
+        logger.info("\ntxid:{}\nindex:{}\nd:{}\npk_d:{}\nrcm:{}\nvalue:{}",
+            ByteArray.toHexString(noteTx.getTxid().toByteArray()),
+            noteTx.getIndex(),
+            ByteArray.toHexString(note.getD().toByteArray()),
+            ByteArray.toHexString(note.getPkD().toByteArray()),
+            ByteArray.toHexString(note.getRcm().toByteArray()),
+            note.getValue());
+      }
+      logger.info("complete.");
+    }
+    return true;
   }
 }
