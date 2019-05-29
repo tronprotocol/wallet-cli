@@ -70,4 +70,20 @@ public class ZenUtils {
     }
   }
 
+  public static void checkFolderExist(final String filePath) {
+    try {
+      File file = new File(filePath);
+      if (file.exists()) {
+        if (file.isDirectory()) {
+          return;
+        } else {
+          file.delete();
+        }
+      }
+      file.mkdir();
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+  }
+
 }

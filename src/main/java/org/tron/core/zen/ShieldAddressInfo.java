@@ -41,7 +41,7 @@ public class ShieldAddressInfo {
   }
 
   /**
-   * 保存每个匿名地址时，做参数校验
+   * check parameters
    * @return
    */
   public boolean validateCheck() {
@@ -65,10 +65,7 @@ public class ShieldAddressInfo {
     return true;
   }
 
-  /**
-   * TODO 获取匿名地址，后续这里需要调整
-   * @return
-   */
+  //TODO
   public String getAddress() {
     if (d != null && d.getData().length > 0 && pkD!= null && pkD.length >0 ) {
       byte[] byteAddress = new byte[d.getData().length + pkD.length ];
@@ -81,12 +78,6 @@ public class ShieldAddressInfo {
     }
   }
 
-  /**
-   * 通过参数获取匿名地址
-   * @param d
-   * @param pkD
-   * @return
-   */
   public static String getShieldAddress(DiversifierT d, byte[] pkD ) {
     if (d != null && d.getData().length > 0 && pkD!= null && pkD.length >0 ) {
       byte[] byteAddress = new byte[d.getData().length + pkD.length ];
@@ -99,11 +90,6 @@ public class ShieldAddressInfo {
     }
   }
 
-
-  /**
-   * TODO 获取匿名地址，后续这里需要调整
-   * @return
-   */
   public static PaymentAddress parseFromShieldAddress(final String shieldAddress) {
     PaymentAddress paymentAddress = null;
     try {
@@ -118,14 +104,14 @@ public class ShieldAddressInfo {
       paymentAddress = new PaymentAddress(new DiversifierT(d), pkd);
     } catch (Exception e) {
       System.out.println("parseFromShieldAddress " + shieldAddress + " failure.");
+      e.printStackTrace();
     }
 
     return paymentAddress;
   }
 
   /**
-   * 获取格式化的，加密信息
-   * TODO  暂时仅格式化下
+   * format shield address info to a string
    * @return
    */
   public String encode() {
@@ -141,7 +127,7 @@ public class ShieldAddressInfo {
   }
 
   /**
-   * 从密文中获取一个有效的地址信息
+   * parse string to get a shield address info
    * @param data
    * @return
    */

@@ -27,8 +27,8 @@ public class ShieldNoteInfo {
   @Getter
   public int index;
   @Setter
-  @Getter  //分开保存，这里参数没用到
-  public boolean isSpend = false;
+  @Getter
+  public long noteIndex;
 
   public ShieldNoteInfo(){
   }
@@ -46,17 +46,11 @@ public class ShieldNoteInfo {
   }
 
   /**
-   * 获取格式化的，加密信息
-   * TODO  暂时仅格式化下
+   * format shield note to a string
    * @return
    */
   public String encode() {
-    String encodeString = "";
-    if ( isSpend ) {
-      encodeString += "1;";
-    } else {
-      encodeString += "0;";
-    }
+    String encodeString = noteIndex +";";
     encodeString += ByteArray.toHexString(d.getData());
     encodeString += ";";
     encodeString += ByteArray.toHexString(pkD);
@@ -72,7 +66,7 @@ public class ShieldNoteInfo {
   }
 
   /**
-   * 从密文中获取一个Note信息
+   * parse string to get shield note
    * @param data
    * @return
    */
@@ -82,7 +76,7 @@ public class ShieldNoteInfo {
       System.out.println("len is not right.");
       return false;
     }
-    isSpend = Boolean.valueOf(sourceStrArray[0]);
+    noteIndex = Long.valueOf(sourceStrArray[0]);
     d = new DiversifierT(ByteArray.fromHexString(sourceStrArray[1]));
     pkD = ByteArray.fromHexString(sourceStrArray[2]);
     r = ByteArray.fromHexString(sourceStrArray[3]);

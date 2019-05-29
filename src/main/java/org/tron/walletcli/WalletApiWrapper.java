@@ -720,14 +720,13 @@ public class WalletApiWrapper {
     return wallet.addTransactionSign(transaction);
   }
 
-  public boolean sendShieldCoin(String fromAddress, long fromAmount, List<Integer> shieldInputList,
+  public boolean sendShieldCoin(String fromAddress, long fromAmount, List<Long> shieldInputList,
       List<GrpcAPI.Note> shieldOutputList, String toAddress, long toAmount)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: sendShieldCoin failed,  Please login first !!");
       return false;
     }
-    //TODO 其他条件判断
 
     PrivateParameters.Builder builder = PrivateParameters.newBuilder();
     if ( !StringUtil.isNullOrEmpty( fromAddress )) {
@@ -767,7 +766,7 @@ public class WalletApiWrapper {
           String shieldAddress = ShieldAddressInfo
               .getShieldAddress(noteInfo.getD(), noteInfo.getPkD());
           ShieldAddressInfo addressInfo =
-              shieldWrapper.getShieldAddressList().getShieldAddressInfoMap().get(shieldAddress);
+              shieldWrapper.getShieldAddressInfoMap().get(shieldAddress);
           SpendingKey spendingKey = new SpendingKey(addressInfo.getSk());
           ExpandedSpendingKey expandedSpendingKey = spendingKey.expandedSpendingKey();
 
@@ -797,7 +796,7 @@ public class WalletApiWrapper {
         builder.addShieldedSpends(spendNoteBuilder.build());
       }
     } else {
-      //TODO 可以随便找一个ovk吗？
+      //TODO
       byte[] ovk = ByteArray.fromHexString("030c8c2bc59fb3eb8afb047a8ea4b028743d23e7d38c6fa30908358431e2314d");
       builder.setOvk(ByteString.copyFrom(ovk));
     }
@@ -827,8 +826,7 @@ public class WalletApiWrapper {
       return false;
     }
 
-    ShieldAddressInfo addressInfo = shieldWrapper.getShieldAddressList().
-        getShieldAddressInfoMap().get(shieldAddress);
+    ShieldAddressInfo addressInfo = shieldWrapper.getShieldAddressInfoMap().get(shieldAddress);
     if (addressInfo == null ) {
       System.out.println("Can't find shieldAddress in local, please check shieldAddress.");
       return false;

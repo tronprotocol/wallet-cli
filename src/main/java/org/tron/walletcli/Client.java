@@ -2119,25 +2119,23 @@ public class Client {
       addressNum = Integer.valueOf(parameters[0]);
     }
 
-    System.out.println("ShieldAddress list:");
+    logger.info("ShieldAddress list:");
     for (int i=0; i<addressNum; ++i ) {
       Optional<ShieldAddressInfo> addressInfo = Wallet.generateShieldAddress();
       if ( addressInfo.isPresent() ) {
         if ( walletApiWrapper.getShieldWrapper().addNewShieldAddress( addressInfo.get()) ) {
-          System.out.println(addressInfo.get().getAddress());
+          logger.info(addressInfo.get().getAddress());
         }
       }
     }
-
     logger.info("GenerateShieldAddress successful !!");
   }
 
   private void listShieldAddress() {
-    //TODO
-    List<String> listAddress = walletApiWrapper.getShieldWrapper().getShieldAddressList().getShieldAddressList();
-    System.out.println("ShieldAddress :");
+    List<String> listAddress = walletApiWrapper.getShieldWrapper().getShieldAddressList();
+    logger.info("ShieldAddress :");
     for (String address : listAddress ) {
-      System.out.println(address);
+      logger.info(address);
     }
   }
 
@@ -2149,9 +2147,7 @@ public class Client {
       return;
     }
 
-    //parese parameters
     int parameterIndex = 0;
-
     String fromPublicAddress = parameters[parameterIndex++];
     long fromPublicAmount = 0;
     if (fromPublicAddress.equals("null") ) {
@@ -2170,10 +2166,10 @@ public class Client {
       shieldInputNum = Integer.valueOf(amountString);
     }
 
-    List<Integer> shieldInputList = new ArrayList<>();
+    List<Long> shieldInputList = new ArrayList<>();
     String shieldInputAddress = "";
     for (int i = 0; i < shieldInputNum; ++i) {
-      int mapIndex = Integer.valueOf(parameters[parameterIndex++]);
+      long mapIndex = Long.valueOf(parameters[parameterIndex++]);
       if (mapIndex < 0 || mapIndex > walletApiWrapper.getShieldWrapper().getUtxoMapNote().size() ) {
         System.out.println("index of map note isn't exist.");
         return;
@@ -2231,19 +2227,12 @@ public class Client {
       noteBuild.setD(ByteString.copyFrom(paymentAddress.getD().getData()));
       noteBuild.setPkD(ByteString.copyFrom(paymentAddress.getPkD()));
       noteBuild.setValue(shieldAmount);
-      //生成一个随机数
       noteBuild.setRcm(ByteString.copyFrom(org.tron.core.zen.note.Note.generateR()));
       shieldOutList.add( noteBuild.build() );
     }
 
-    //check parameter
-    //判断判断每个CM的有效性，获取cm及path，
-    //其他判断交给服务器去做处理
-
-    //TODO 做一个参数的简单判断
-
-    boolean result = walletApiWrapper.sendShieldCoin(fromPublicAddress, fromPublicAmount,shieldInputList,
-        shieldOutList, toPublicAddress, toPublicAmount);
+    boolean result = walletApiWrapper.sendShieldCoin(fromPublicAddress,
+        fromPublicAmount, shieldInputList, shieldOutList, toPublicAddress, toPublicAmount);
     if (result) {
       logger.info("SendShieldAddress successful !!");
     } else {
@@ -2260,14 +2249,13 @@ public class Client {
       }
     }
 
-    // 0 未花费的Note  1 未花费和已花费的Note
     if (showType == 0 ) {
-      Map<Integer, ShieldNoteInfo> noteMap = walletApiWrapper.getShieldWrapper().getUtxoMapNote();
+      Map<Long, ShieldNoteInfo> noteMap = walletApiWrapper.getShieldWrapper().getUtxoMapNote();
       if (noteMap.size() == 0 ) {
         System.out.println("Unspend note is 0.");
       } else {
         System.out.println("Unspend note list like:");
-        for (Entry<Integer, ShieldNoteInfo> entry : noteMap.entrySet() ) {
+        for (Entry<Long, ShieldNoteInfo> entry : noteMap.entrySet() ) {
           String string = entry.getKey() + " " + entry.getValue().getAddress() + " ";
           string += entry.getValue().getValue();
           string += " ";
@@ -2281,9 +2269,9 @@ public class Client {
         }
       }
     } else {
-      Map<Integer, ShieldNoteInfo> noteMap = walletApiWrapper.getShieldWrapper().getUtxoMapNote();
+      Map<Long, ShieldNoteInfo> noteMap = walletApiWrapper.getShieldWrapper().getUtxoMapNote();
       System.out.println("All note list like:");
-      for (Entry<Integer, ShieldNoteInfo> entry : noteMap.entrySet() ) {
+      for (Entry<Long, ShieldNoteInfo> entry : noteMap.entrySet() ) {
         String string = entry.getValue().getAddress() + " ";
         string += entry.getValue().getTrxId();
         string += " ";
@@ -2449,7 +2437,7 @@ public class Client {
     System.out.println("sendshieldcoin");
     System.out.println("listshieldnote");
     System.out.println("resetshieldnote");
-
+    System.out.println("scannotebyaddress");
 
     System.out.println("Create2");
 //    System.out.println("buyStorage");
@@ -2923,7 +2911,6 @@ public class Client {
             broadcastTransaction(parameters);
             break;
           }
-          //*****************
           case "generateshieldaddress": {
             generateShieldAddress(parameters);
             break;
