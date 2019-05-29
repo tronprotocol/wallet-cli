@@ -92,6 +92,7 @@ public class ShieldWrapper {
     ZenUtils.clearFile(IVK_AND_NUM_FILE_NAME);
     ZenUtils.clearFile(UNSPEND_NOTE_FILE_NAME);
     ZenUtils.clearFile(SPEND_NOTE_FILE_NAME);
+    nodeIndex.set(0L);
 
     updateIvkAndBlockNumFile();
   }

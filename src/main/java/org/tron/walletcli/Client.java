@@ -2170,11 +2170,11 @@ public class Client {
     String shieldInputAddress = "";
     for (int i = 0; i < shieldInputNum; ++i) {
       long mapIndex = Long.valueOf(parameters[parameterIndex++]);
-      if (mapIndex < 0 || mapIndex > walletApiWrapper.getShieldWrapper().getUtxoMapNote().size() ) {
-        System.out.println("index of map note isn't exist.");
+      ShieldNoteInfo noteInfo = walletApiWrapper.getShieldWrapper().getUtxoMapNote().get(mapIndex);
+      if (noteInfo == null ) {
+        System.out.println("Can't find index " + mapIndex + " note.");
         return;
       }
-      ShieldNoteInfo noteInfo = walletApiWrapper.getShieldWrapper().getUtxoMapNote().get(mapIndex);
       if ( i == 0 ) {
         shieldInputAddress = noteInfo.getAddress();
       } else {
