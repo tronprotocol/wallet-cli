@@ -107,7 +107,11 @@ public class ShieldWrapper {
           long start = entry.getValue();
           long end = start;
           while (end < blockNum) {
-            end = start + 1000;
+            if (blockNum - start > 1000) {
+              end = start + 1000;
+            } else {
+              end = blockNum;
+            }
 
             IvkDecryptParameters.Builder builder = IvkDecryptParameters.newBuilder();
             builder.setStartBlockIndex(start);
@@ -141,7 +145,6 @@ public class ShieldWrapper {
       e.printStackTrace();
     }
   }
-
 
   private void updateNoteWhetherSpend() {
     try {
