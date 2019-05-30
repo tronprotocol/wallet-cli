@@ -28,6 +28,7 @@ import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Utils;
 import org.tron.core.exception.CancelException;
 import org.tron.core.exception.CipherException;
+import org.tron.core.exception.ZksnarkException;
 import org.tron.core.zen.ShieldAddressInfo;
 import org.tron.core.zen.ShieldNoteInfo;
 import org.tron.core.zen.ShieldWrapper;
@@ -722,7 +723,7 @@ public class WalletApiWrapper {
 
   public boolean sendShieldCoin(String fromAddress, long fromAmount, List<Long> shieldInputList,
       List<GrpcAPI.Note> shieldOutputList, String toAddress, long toAmount)
-      throws CipherException, IOException, CancelException {
+      throws CipherException, IOException, CancelException, ZksnarkException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: sendShieldCoin failed,  Please login first !!");
       return false;
@@ -748,7 +749,6 @@ public class WalletApiWrapper {
     }
 
     if ( shieldInputList.size() > 0 ) {
-      //TODO
       OutputPointInfo.Builder request = OutputPointInfo.newBuilder();
       for (int i = 0; i<shieldInputList.size(); ++i) {
         ShieldNoteInfo noteInfo = shieldWrapper.getUtxoMapNote().get(shieldInputList.get(i));
@@ -763,8 +763,7 @@ public class WalletApiWrapper {
       for (int i = 0; i<shieldInputList.size(); ++i) {
         ShieldNoteInfo noteInfo = shieldWrapper.getUtxoMapNote().get(shieldInputList.get(i));
         if (i == 0) {
-          String shieldAddress = ShieldAddressInfo
-              .getShieldAddress(noteInfo.getD(), noteInfo.getPkD());
+          String shieldAddress = noteInfo.getPaymentAddress();
           ShieldAddressInfo addressInfo =
               shieldWrapper.getShieldAddressInfoMap().get(shieldAddress);
           SpendingKey spendingKey = new SpendingKey(addressInfo.getSk());
@@ -776,16 +775,17 @@ public class WalletApiWrapper {
         }
 
         Note.Builder noteBuild = Note.newBuilder();
-        noteBuild.setD(ByteString.copyFrom(noteInfo.getD().getData()));
-        noteBuild.setPkD(ByteString.copyFrom(noteInfo.getPkD()));
+        noteBuild.setPaymentAddress(noteInfo.getPaymentAddress());
         noteBuild.setValue(noteInfo.getValue());
         noteBuild.setRcm(ByteString.copyFrom(noteInfo.getR()));
-        System.out.println("d " + ByteArray.toHexString(noteInfo.getD().getData()));
-        System.out.println("pkd " + ByteArray.toHexString(noteInfo.getPkD()));
+        noteBuild.setMemo(ByteString.copyFrom(noteInfo.getMemo()));
+
+        System.out.println("address " + noteInfo.getPaymentAddress());
         System.out.println("value " + noteInfo.getValue());
         System.out.println("rcm " + ByteArray.toHexString(noteInfo.getR()));
         System.out.println("trxId " + noteInfo.getTrxId());
         System.out.println("index " + noteInfo.getIndex());
+        System.out.println("meno " + new String(noteInfo.getMemo()));
 
         SpendNote.Builder spendNoteBuilder = SpendNote.newBuilder();
         spendNoteBuilder.setNote(noteBuild.build());
@@ -796,7 +796,6 @@ public class WalletApiWrapper {
         builder.addShieldedSpends(spendNoteBuilder.build());
       }
     } else {
-      //TODO
       byte[] ovk = ByteArray.fromHexString("030c8c2bc59fb3eb8afb047a8ea4b028743d23e7d38c6fa30908358431e2314d");
       builder.setOvk(ByteString.copyFrom(ovk));
     }
@@ -842,17 +841,17 @@ public class WalletApiWrapper {
 
     if(decryptNotes == null){
       logger.info("scanNoteByIvk failed !!!");
-    }else{
+    } else {
       for(int i=0; i<decryptNotes.getNoteTxsList().size();i++) {
         NoteTx noteTx = decryptNotes.getNoteTxs(i);
         Note note = noteTx.getNote();
-        logger.info("\ntxid:{}\nindex:{}\nd:{}\npk_d:{}\nrcm:{}\nvalue:{}",
+        logger.info("\ntxid:{}\nindex:{}\nd:{}\npk_d:{}\nrcm:{}\nvalue:{}\nmeno:{}",
             ByteArray.toHexString(noteTx.getTxid().toByteArray()),
             noteTx.getIndex(),
-            ByteArray.toHexString(note.getD().toByteArray()),
-            ByteArray.toHexString(note.getPkD().toByteArray()),
+            note.getPaymentAddress(),
             ByteArray.toHexString(note.getRcm().toByteArray()),
-            note.getValue());
+            note.getValue(),
+            new String(note.getMemo().toByteArray()));
       }
       logger.info("complete.");
     }

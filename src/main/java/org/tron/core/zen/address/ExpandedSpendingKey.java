@@ -5,8 +5,8 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.tron.common.utils.ByteArray;
-import org.tron.common.utils.ByteUtil;
 import org.tron.common.zksnark.Librustzcash;
+import org.tron.core.exception.ZksnarkException;
 
 @Slf4j(topic = "shieldTransaction")
 @AllArgsConstructor
@@ -26,26 +26,12 @@ public class ExpandedSpendingKey {
   public ExpandedSpendingKey() {
   }
 
-
-  public static byte [] getAkFromAsk(byte[] ask) {
+  public static byte[] getAkFromAsk(byte[] ask) throws ZksnarkException {
     return Librustzcash.librustzcashAskToAk(ask); // 256
   }
 
-  public static byte [] getNkFromNsk(byte[] nsk) {
+  public static byte[] getNkFromNsk(byte[] nsk) throws ZksnarkException {
     return Librustzcash.librustzcashNskToNk(nsk); // 256
-  }
-
-  public FullViewingKey fullViewingKey() {
-    byte[] ak = Librustzcash.librustzcashAskToAk(ask); // 256
-    byte[] nk = Librustzcash.librustzcashNskToNk(nsk); // 256
-
-    log.debug("espsk.ask is : " + ByteUtil.toHexString(ask));
-    log.debug("espsk.nsk is : " + ByteUtil.toHexString(nsk));
-    log.debug("espsk.ovk is : " + ByteUtil.toHexString(ovk));
-
-    log.debug("fullViewKey.ak is : " + ByteUtil.toHexString(ak));
-    log.debug("fullViewKey.nk is : " + ByteUtil.toHexString(nk));
-    return new FullViewingKey(ak, nk, ovk);
   }
 
   public static ExpandedSpendingKey decode(byte[] m_bytes) {
@@ -58,6 +44,13 @@ public class ExpandedSpendingKey {
     key.setNsk(nsk);
     key.setOvk(ovk);
     return key;
+  }
+
+  public FullViewingKey fullViewingKey() throws ZksnarkException {
+    byte[] ak = Librustzcash.librustzcashAskToAk(ask); // 256
+    byte[] nk = Librustzcash.librustzcashNskToNk(nsk); // 256
+
+    return new FullViewingKey(ak, nk, ovk);
   }
 
   public byte[] encode() {

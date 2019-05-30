@@ -301,24 +301,27 @@ public class Wallet {
   //生成一个新的匿名地址
   public static Optional<ShieldAddressInfo> generateShieldAddress() {
     ShieldAddressInfo addressInfo = new ShieldAddressInfo();
+    try {
+      DiversifierT diversifier = new DiversifierT().random();
+      SpendingKey spendingKey = SpendingKey.random();
+      FullViewingKey fullViewingKey = spendingKey.fullViewingKey();
+      IncomingViewingKey incomingViewingKey = fullViewingKey.inViewingKey();
+      PaymentAddress paymentAddress = incomingViewingKey.address(diversifier).get();
 
-    DiversifierT diversifier = new DiversifierT().random();
-    SpendingKey spendingKey = SpendingKey.random();
-    FullViewingKey fullViewingKey = spendingKey.fullViewingKey();
-    IncomingViewingKey incomingViewingKey = fullViewingKey.inViewingKey();
-    PaymentAddress paymentAddress = incomingViewingKey.address(diversifier).get();
+      addressInfo.setSk(spendingKey.getValue());
+      addressInfo.setD(diversifier);
+      addressInfo.setIvk(incomingViewingKey.getValue());
+      addressInfo.setOvk(fullViewingKey.getOvk());
+      addressInfo.setPkD(paymentAddress.getPkD());
 
-    addressInfo.setSk(spendingKey.getValue());
-    addressInfo.setD(diversifier);
-    addressInfo.setIvk(incomingViewingKey.getValue());
-    addressInfo.setOvk(fullViewingKey.getOvk());
-    addressInfo.setPkD(paymentAddress.getPkD());
-
-    if (addressInfo.validateCheck()) {
-      return Optional.of(addressInfo);
-    } else {
-      return Optional.empty();
+      if (addressInfo.validateCheck()) {
+        return Optional.of(addressInfo);
+      }
+    } catch (Exception e) {
+      e.printStackTrace();
     }
+
+    return Optional.empty();
   }
 
 }

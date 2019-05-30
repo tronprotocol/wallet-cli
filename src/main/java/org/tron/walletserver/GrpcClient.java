@@ -43,7 +43,6 @@ import org.tron.api.GrpcAPI.PaginatedMessage;
 import org.tron.api.GrpcAPI.PrivateParameters;
 import org.tron.api.GrpcAPI.ProposalList;
 import org.tron.api.GrpcAPI.Return.response_code;
-import org.tron.api.GrpcAPI.SaplingPaymentAddressMessage;
 import org.tron.api.GrpcAPI.SpendResult;
 import org.tron.api.GrpcAPI.TransactionApprovedList;
 import org.tron.api.GrpcAPI.TransactionExtention;
@@ -865,12 +864,6 @@ public class GrpcClient {
 
   public DiversifierMessage getDiversifier() {
     return blockingStubFull.getDiversifier(EmptyMessage.newBuilder().build());
-  }
-
-  public SaplingPaymentAddressMessage getZenPaymentAddress(
-      IncomingViewingKeyDiversifierMessage message) {
-    return blockingStubFull.getZenPaymentAddress(message);
-
   }
 
   public BytesMessage getRcm() {

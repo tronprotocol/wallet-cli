@@ -53,8 +53,10 @@ import org.tron.common.utils.Utils;
 import org.tron.core.exception.CancelException;
 import org.tron.core.exception.CipherException;
 import org.tron.core.exception.EncodingException;
+import org.tron.core.exception.ZksnarkException;
 import org.tron.core.zen.ShieldAddressInfo;
 import org.tron.core.zen.ShieldNoteInfo;
+import org.tron.core.zen.address.KeyIo;
 import org.tron.core.zen.address.PaymentAddress;
 import org.tron.keystore.StringUtils;
 import org.tron.keystore.Wallet;
@@ -2139,11 +2141,12 @@ public class Client {
     }
   }
 
-  private void sendShieldCoin(String[] parameters) throws IOException, CipherException, CancelException {
+  private void sendShieldCoin(String[] parameters) throws IOException, CipherException,
+      CancelException, ZksnarkException {
     if (parameters == null || parameters.length < 6) {
       System.out.println("sendShieldCoin needs more than 6 parameters like following: ");
       System.out.println("sendShieldCoin publicFromAddress fromAmount shieldInputNum input1 input2 "
-          + "input3 ... publicToAddress toAmount shieldOutputNum shieldAddress1 amount1 shieldAddress2 amount2 ... ");
+          + "input3 ... publicToAddress toAmount shieldOutputNum shieldAddress1 amount1 meno1 shieldAddress2 amount2 meno2 ... ");
       return;
     }
 
@@ -2176,9 +2179,9 @@ public class Client {
         return;
       }
       if ( i == 0 ) {
-        shieldInputAddress = noteInfo.getAddress();
+        shieldInputAddress = noteInfo.getPaymentAddress();
       } else {
-        if (!noteInfo.getAddress().equals( shieldInputAddress )) {
+        if (!noteInfo.getPaymentAddress().equals( shieldInputAddress )) {
           System.err.println("All input note shall be the same address!");
           return;
         }
@@ -2203,7 +2206,7 @@ public class Client {
     if (!StringUtil.isNullOrEmpty(amountString)) {
       shieldOutputNum = Integer.valueOf(amountString);
     }
-    if ((parameters.length - parameterIndex)%2 != 0) {
+    if ((parameters.length - parameterIndex)%3 != 0) {
       System.out.println("Invalid parameter!");
       return;
     }
@@ -2211,23 +2214,19 @@ public class Client {
     List<Note> shieldOutList = new ArrayList<>();
     for (int i = 0; i < shieldOutputNum; ++i) {
       String shieldAddress = parameters[parameterIndex++];
-      long shieldAmount = 0;
       amountString = parameters[parameterIndex++];
+      String menoString = parameters[parameterIndex++];
+      long shieldAmount = 0;
       if (!StringUtil.isNullOrEmpty(amountString)) {
         shieldAmount = Long.valueOf(amountString);
       }
 
-      PaymentAddress paymentAddress = ShieldAddressInfo.parseFromShieldAddress(shieldAddress);
-      if (paymentAddress == null) {
-        System.out.println("Invalid shieldAddress: " + shieldAddress);
-        return;
-      }
-
       Note.Builder noteBuild = Note.newBuilder();
-      noteBuild.setD(ByteString.copyFrom(paymentAddress.getD().getData()));
-      noteBuild.setPkD(ByteString.copyFrom(paymentAddress.getPkD()));
+      noteBuild.setPaymentAddress(shieldAddress);
+      noteBuild.setPaymentAddress(shieldAddress);
       noteBuild.setValue(shieldAmount);
       noteBuild.setRcm(ByteString.copyFrom(org.tron.core.zen.note.Note.generateR()));
+      noteBuild.setMemo(ByteString.copyFrom(menoString.getBytes()));
       shieldOutList.add( noteBuild.build() );
     }
 
@@ -2256,7 +2255,7 @@ public class Client {
       } else {
         System.out.println("Unspend note list like:");
         for (Entry<Long, ShieldNoteInfo> entry : noteMap.entrySet() ) {
-          String string = entry.getKey() + " " + entry.getValue().getAddress() + " ";
+          String string = entry.getKey() + " " + entry.getValue().getPaymentAddress() + " ";
           string += entry.getValue().getValue();
           string += " ";
           string += entry.getValue().getTrxId();
@@ -2264,7 +2263,8 @@ public class Client {
           string += entry.getValue().getIndex();
           string += " ";
           string += "UnSpend";
-
+          string += " ";
+          string += new String(entry.getValue().getMemo());
           System.out.println(string);
         }
       }
@@ -2272,24 +2272,27 @@ public class Client {
       Map<Long, ShieldNoteInfo> noteMap = walletApiWrapper.getShieldWrapper().getUtxoMapNote();
       System.out.println("All note list like:");
       for (Entry<Long, ShieldNoteInfo> entry : noteMap.entrySet() ) {
-        String string = entry.getValue().getAddress() + " ";
+        String string = entry.getValue().getPaymentAddress() + " ";
         string += entry.getValue().getTrxId();
         string += " ";
         string += entry.getValue().getIndex();
         string += " ";
         string += "UnSpend";
-
+        string += " ";
+        string += new String(entry.getValue().getMemo());
         System.out.println(string);
       }
 
       List<ShieldNoteInfo> noteList = walletApiWrapper.getShieldWrapper().getSpendUtxoList();
       for (ShieldNoteInfo noteInfo : noteList ) {
-        String string = noteInfo.getAddress() + " ";
+        String string = noteInfo.getPaymentAddress() + " ";
         string += noteInfo.getTrxId();
         string += " ";
         string += noteInfo.getIndex();
         string += " ";
         string += "Spend";
+        string += " ";
+        string += new String(noteInfo.getMemo());
         System.out.println(string);
       }
     }

@@ -6,10 +6,12 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
 import org.tron.common.utils.ByteArray;
+import org.tron.core.exception.ZksnarkException;
 import org.tron.core.zen.address.Constant;
 import org.tron.core.zen.address.DiversifierT;
 import org.tron.core.zen.address.FullViewingKey;
 import org.tron.core.zen.address.IncomingViewingKey;
+import org.tron.core.zen.address.KeyIo;
 import org.tron.core.zen.address.PaymentAddress;
 import org.tron.core.zen.address.SpendingKey;
 
@@ -35,7 +37,7 @@ public class ShieldAddressInfo {
   public ShieldAddressInfo(){
   }
 
-  public FullViewingKey getFullViewingKey(){
+  public FullViewingKey getFullViewingKey() throws ZksnarkException {
     SpendingKey spendingKey = new SpendingKey(sk);
     return spendingKey.fullViewingKey();
   }
@@ -45,70 +47,64 @@ public class ShieldAddressInfo {
    * @return
    */
   public boolean validateCheck() {
-    SpendingKey spendingKey = new SpendingKey(sk);
-    FullViewingKey fullViewingKey = spendingKey.fullViewingKey();
-    if (!Arrays.equals(fullViewingKey.getOvk(), ovk)) {
-      System.out.println("ovk check failure!");
-      return false;
+    try {
+      SpendingKey spendingKey = new SpendingKey(sk);
+      FullViewingKey fullViewingKey = spendingKey.fullViewingKey();
+      if (!Arrays.equals(fullViewingKey.getOvk(), ovk)) {
+        System.out.println("ovk check failure!");
+        return false;
+      }
+      IncomingViewingKey incomingViewingKey = fullViewingKey.inViewingKey();
+      if (!Arrays.equals(incomingViewingKey.getValue(), ivk)) {
+        System.out.println("ivk check failure!");
+        return false;
+      }
+      Optional<PaymentAddress> optionalPaymentAddress = incomingViewingKey.address(d);
+      if (!optionalPaymentAddress.isPresent()
+          || !Arrays.equals(optionalPaymentAddress.get().getPkD(), pkD)) {
+        System.out.println("pkd check failure!");
+        return false;
+      }
+      return true;
+    } catch (Exception e) {
+      e.printStackTrace();
     }
-    IncomingViewingKey incomingViewingKey = fullViewingKey.inViewingKey();
-    if (!Arrays.equals(incomingViewingKey.getValue(), ivk)) {
-      System.out.println("ivk check failure!");
-      return false;
-    }
-    Optional<PaymentAddress> optionalPaymentAddress = incomingViewingKey.address(d);
-    if (!optionalPaymentAddress.isPresent()
-        || !Arrays.equals(optionalPaymentAddress.get().getPkD(), pkD)) {
-      System.out.println("pkd check failure!");
-      return false;
-    }
-    return true;
+    return false;
   }
 
-  //TODO
   public String getAddress() {
-    if (d != null && d.getData().length > 0 && pkD!= null && pkD.length >0 ) {
-      byte[] byteAddress = new byte[d.getData().length + pkD.length ];
-      System.arraycopy(d.getData(), 0, byteAddress, 0, d.getData().length);
-      System.arraycopy(pkD, 0, byteAddress, d.getData().length, pkD.length);
-
-      return ByteArray.toHexString(byteAddress);
-    } else {
-      return "";
-    }
+    return getShieldAddress(d, pkD);
   }
 
   public static String getShieldAddress(DiversifierT d, byte[] pkD ) {
-    if (d != null && d.getData().length > 0 && pkD!= null && pkD.length >0 ) {
-      byte[] byteAddress = new byte[d.getData().length + pkD.length ];
-      System.arraycopy(d.getData(), 0, byteAddress, 0, d.getData().length);
-      System.arraycopy(pkD, 0, byteAddress, d.getData().length, pkD.length);
-
-      return ByteArray.toHexString(byteAddress);
-    } else {
-      return "";
-    }
-  }
-
-  public static PaymentAddress parseFromShieldAddress(final String shieldAddress) {
-    PaymentAddress paymentAddress = null;
     try {
-      byte[] byteShield = ByteArray.fromHexString(shieldAddress);
-      int lenPkd = byteShield.length - Constant.ZC_DIVERSIFIER_SIZE;
-      byte[] d =  new byte[Constant.ZC_DIVERSIFIER_SIZE];
-      byte[] pkd = new byte[lenPkd];
-
-      System.arraycopy(byteShield, 0, d, 0, Constant.ZC_DIVERSIFIER_SIZE);
-      System.arraycopy(byteShield, Constant.ZC_DIVERSIFIER_SIZE, pkd, 0, lenPkd);
-
-      paymentAddress = new PaymentAddress(new DiversifierT(d), pkd);
-    } catch (Exception e) {
-      System.out.println("parseFromShieldAddress " + shieldAddress + " failure.");
+      PaymentAddress paymentAddress = new PaymentAddress(d, pkD);
+      return KeyIo.encodePaymentAddress(paymentAddress);
+    } catch (Exception e ) {
       e.printStackTrace();
     }
-
-    return paymentAddress;
+    return "";
   }
+
+//  public static PaymentAddress parseFromShieldAddress(final String shieldAddress) {
+//    PaymentAddress paymentAddress = null;
+//    try {
+//      byte[] byteShield = ByteArray.fromHexString(shieldAddress);
+//      int lenPkd = byteShield.length - Constant.ZC_DIVERSIFIER_SIZE;
+//      byte[] d =  new byte[Constant.ZC_DIVERSIFIER_SIZE];
+//      byte[] pkd = new byte[lenPkd];
+//
+//      System.arraycopy(byteShield, 0, d, 0, Constant.ZC_DIVERSIFIER_SIZE);
+//      System.arraycopy(byteShield, Constant.ZC_DIVERSIFIER_SIZE, pkd, 0, lenPkd);
+//
+//      paymentAddress = new PaymentAddress(new DiversifierT(d), pkd);
+//    } catch (Exception e) {
+//      System.out.println("parseFromShieldAddress " + shieldAddress + " failure.");
+//      e.printStackTrace();
+//    }
+//
+//    return paymentAddress;
+//  }
 
   /**
    * format shield address info to a string

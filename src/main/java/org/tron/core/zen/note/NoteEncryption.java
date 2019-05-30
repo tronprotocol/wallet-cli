@@ -10,7 +10,10 @@ import static org.tron.core.zen.note.ZenChainParams.ZC_OUTPLAINTEXT_SIZE;
 import java.util.Optional;
 import lombok.AllArgsConstructor;
 import org.tron.common.zksnark.Librustzcash;
+import org.tron.common.zksnark.LibrustzcashParam.KaAgreeParams;
+import org.tron.common.zksnark.LibrustzcashParam.KaDerivepublicParams;
 import org.tron.common.zksnark.Libsodium;
+import org.tron.core.exception.ZksnarkException;
 import org.tron.core.zen.address.DiversifierT;
 import org.tron.core.zen.note.NoteEncryption.Encryption.EncCiphertext;
 import org.tron.core.zen.note.NoteEncryption.Encryption.EncPlaintext;
@@ -22,7 +25,6 @@ public class NoteEncryption {
 
   // Ephemeral public key
   public byte[] epk;
-
   // Ephemeral secret key
   public byte[] esk;
 
@@ -34,26 +36,25 @@ public class NoteEncryption {
     this.esk = esk;
   }
 
-  //todo:
-  public static Optional<NoteEncryption> fromDiversifier(DiversifierT d) {
+  public static Optional<NoteEncryption> fromDiversifier(DiversifierT d) throws ZksnarkException {
     byte[] epk = new byte[32];
     byte[] esk = new byte[32];
     Librustzcash.librustzcashSaplingGenerateR(esk);
-    if (!Librustzcash.librustzcashSaplingKaDerivepublic(d.data, esk, epk)) {
+    if (!Librustzcash
+        .librustzcashSaplingKaDerivepublic(new KaDerivepublicParams(d.data, esk, epk))) {
       return Optional.empty();
     }
-
     return Optional.of(new NoteEncryption(epk, esk));
-
   }
 
-  public Optional<EncCiphertext> encryptToRecipient(byte[] pk_d, EncPlaintext message) {
+  public Optional<EncCiphertext> encryptToRecipient(byte[] pk_d, EncPlaintext message)
+      throws ZksnarkException {
     if (already_encrypted_enc) {
-      throw new RuntimeException("already encrypted to the recipient using this key");
+      throw new ZksnarkException("already encrypted to the recipient using this key");
     }
 
     byte[] dhsecret = new byte[32];
-    if (!Librustzcash.librustzcashSaplingKaAgree(pk_d, esk, dhsecret)) {
+    if (!Librustzcash.librustzcashKaAgree(new KaAgreeParams(pk_d, esk, dhsecret))) {
       return Optional.empty();
     }
 
@@ -68,9 +69,9 @@ public class NoteEncryption {
   }
 
   public OutCiphertext encryptToOurselves(
-      byte[] ovk, byte[] cv, byte[] cm, OutPlaintext message) {
+      byte[] ovk, byte[] cv, byte[] cm, OutPlaintext message) throws ZksnarkException {
     if (already_encrypted_out) {
-      throw new RuntimeException("already encrypted to the recipient using this key");
+      throw new ZksnarkException("already encrypted to the recipient using this key");
     }
 
     byte[] k = new byte[NOTEENCRYPTION_CIPHER_KEYSIZE];
@@ -87,6 +88,114 @@ public class NoteEncryption {
   public static class Encryption {
 
     public static final int NOTEENCRYPTION_CIPHER_KEYSIZE = 32;
+
+    public static void PRFOck(byte[] K, byte[] ovk, byte[] cv, byte[] cm, byte[] epk)
+        throws ZksnarkException {
+      byte[] block = new byte[128];
+      System.arraycopy(ovk, 0, block, 0, 32);
+      System.arraycopy(cv, 0, block, 32, 32);
+      System.arraycopy(cm, 0, block, 64, 32);
+      System.arraycopy(epk, 0, block, 96, 32);
+
+      byte[] personalization = new byte[Libsodium.crypto_generichash_blake2b_PERSONALBYTES];
+      byte[] temp = "Ztron_Derive_ock".getBytes();
+      System.arraycopy(temp, 0, personalization, 0, temp.length);
+      if (Libsodium.cryptoGenerichashBlack2bSaltPersonal(K, NOTEENCRYPTION_CIPHER_KEYSIZE,
+          block, 128,
+          null, 0, // No key.
+          null,    // No salt.
+          personalization
+      ) != 0) {
+        throw new ZksnarkException("hash function failure");
+      }
+
+      return;
+    }
+
+    public static void KDFSapling(byte[] K, byte[] dhsecret, byte[] epk) throws ZksnarkException {
+      byte[] block = new byte[64];
+      System.arraycopy(dhsecret, 0, block, 0, 32);
+      System.arraycopy(epk, 0, block, 32, 32);
+      byte[] personalization = new byte[Libsodium.crypto_generichash_blake2b_PERSONALBYTES];
+      byte[] temp = "Ztron_SaplingKDF".getBytes();
+      System.arraycopy(temp, 0, personalization, 0, temp.length);
+      if (Libsodium.cryptoGenerichashBlack2bSaltPersonal(K, NOTEENCRYPTION_CIPHER_KEYSIZE,
+          block, 64,
+          null, 0, // No key.
+          null,    // No salt.
+          personalization
+      ) != 0) {
+        throw new ZksnarkException(("hash function failure"));
+      }
+
+      return;
+    }
+
+    public static Optional<EncPlaintext> AttemptEncDecryption(
+        byte[] ciphertext, byte[] ivk, byte[] epk) throws ZksnarkException {
+      byte[] dhsecret = new byte[32];
+      if (!Librustzcash.librustzcashKaAgree(new KaAgreeParams(epk, ivk, dhsecret))) {
+        return Optional.empty();
+      }
+      byte[] K = new byte[NOTEENCRYPTION_CIPHER_KEYSIZE];
+      KDFSapling(K, dhsecret, epk);
+      byte[] cipher_nonce = new byte[crypto_aead_chacha20poly1305_IETF_NPUBBYTES];
+      EncPlaintext plaintext = new EncPlaintext();
+      plaintext.data = new byte[ZC_ENCPLAINTEXT_SIZE];
+      if (Libsodium.cryptoAeadChacha20poly1305IetfDecrypt(
+          plaintext.data, null,
+          null,
+          ciphertext, ZC_ENCCIPHERTEXT_SIZE,
+          null,
+          0,
+          cipher_nonce, K) != 0) {
+        return Optional.empty();
+      }
+      return Optional.of(plaintext);
+    }
+
+    public static Optional<EncPlaintext> AttemptEncDecryption(
+        EncCiphertext ciphertext, byte[] epk, byte[] esk, byte[] pk_d) throws ZksnarkException {
+      byte[] dhsecret = new byte[32];
+      if (!Librustzcash.librustzcashKaAgree(new KaAgreeParams(pk_d, esk, dhsecret))) {
+        return Optional.empty();
+      }
+      byte[] K = new byte[NOTEENCRYPTION_CIPHER_KEYSIZE];
+      KDFSapling(K, dhsecret, epk);
+      byte[] cipher_nonce = new byte[crypto_aead_chacha20poly1305_IETF_NPUBBYTES];
+      EncPlaintext plaintext = new EncPlaintext();
+      plaintext.data = new byte[ZC_ENCPLAINTEXT_SIZE];
+      if (Libsodium.cryptoAeadChacha20poly1305IetfDecrypt(
+          plaintext.data, null,
+          null,
+          ciphertext.data, ZC_ENCCIPHERTEXT_SIZE,
+          null,
+          0,
+          cipher_nonce, K) != 0) {
+        return Optional.empty();
+      }
+
+      return Optional.of(plaintext);
+    }
+
+    public static Optional<OutPlaintext> AttemptOutDecryption(
+        OutCiphertext ciphertext, byte[] ovk, byte[] cv, byte[] cm, byte[] epk)
+        throws ZksnarkException {
+      byte[] K = new byte[NOTEENCRYPTION_CIPHER_KEYSIZE];
+      PRFOck(K, ovk, cv, cm, epk);
+      byte[] cipher_nonce = new byte[crypto_aead_chacha20poly1305_IETF_NPUBBYTES];
+      OutPlaintext plaintext = new OutPlaintext();
+      plaintext.data = new byte[ZC_OUTPLAINTEXT_SIZE];
+      if (Libsodium.cryptoAeadChacha20poly1305IetfDecrypt(plaintext.data, null,
+          null,
+          ciphertext.data, ZC_OUTCIPHERTEXT_SIZE,
+          null,
+          0,
+          cipher_nonce, K) != 0) {
+        return Optional.empty();
+      }
+      return Optional.of(plaintext);
+    }
 
     public static class EncCiphertext {
 
@@ -107,132 +216,5 @@ public class NoteEncryption {
 
       public byte[] data = new byte[ZC_OUTPLAINTEXT_SIZE]; // ZC_OUTPLAINTEXT_SIZE
     }
-
-    public static void PRFOck(byte[] K, byte[] ovk, byte[] cv, byte[] cm, byte[] epk) {
-      byte[] block = new byte[128];
-
-      System.arraycopy(ovk, 0, block, 0, 32);
-      System.arraycopy(cv, 0, block, 32, 32);
-      System.arraycopy(cm, 0, block, 64, 32);
-      System.arraycopy(epk, 0, block, 96, 32);
-
-      byte[] personalization = new byte[Libsodium.crypto_generichash_blake2b_PERSONALBYTES];
-      byte[] temp = "Zcash_Derive_ock".getBytes();
-      System.arraycopy(temp, 0, personalization, 0, temp.length);
-      if (Libsodium.cryptoGenerichashBlack2bSaltPersonal(K, NOTEENCRYPTION_CIPHER_KEYSIZE,
-          block, 128,
-          null, 0, // No key.
-          null,    // No salt.
-          personalization
-      ) != 0) {
-        throw new RuntimeException("hash function failure");
-      }
-
-      return;
-    }
-
-    public static void KDFSapling(byte[] K, byte[] dhsecret, byte[] epk) {
-      byte[] block = new byte[64];
-
-      System.arraycopy(dhsecret, 0, block, 0, 32);
-      System.arraycopy(epk, 0, block, 32, 32);
-
-      byte[] personalization = new byte[Libsodium.crypto_generichash_blake2b_PERSONALBYTES];
-      byte[] temp = "Zcash_SaplingKDF".getBytes();
-      System.arraycopy(temp, 0, personalization, 0, temp.length);
-
-      if (Libsodium.cryptoGenerichashBlack2bSaltPersonal(K, NOTEENCRYPTION_CIPHER_KEYSIZE,
-          block, 64,
-          null, 0, // No key.
-          null,    // No salt.
-          personalization
-      ) != 0) {
-        throw new RuntimeException(("hash function failure"));
-      }
-
-      return;
-    }
-
-
-    public static Optional<EncPlaintext> AttemptSaplingEncDecryption(
-        byte[] ciphertext, byte[] ivk, byte[] epk) {
-      byte[] dhsecret = new byte[32];
-
-      if (!Librustzcash.librustzcashSaplingKaAgree(epk, ivk, dhsecret)) {
-        return Optional.empty();
-      }
-
-      byte[] K = new byte[NOTEENCRYPTION_CIPHER_KEYSIZE];
-      KDFSapling(K, dhsecret, epk);
-
-      byte[] cipher_nonce = new byte[crypto_aead_chacha20poly1305_IETF_NPUBBYTES];
-
-      EncPlaintext plaintext = new EncPlaintext();
-      plaintext.data = new byte[ZC_ENCPLAINTEXT_SIZE];
-
-      if (Libsodium.cryptoAeadChacha20poly1305IetfDecrypt(
-          plaintext.data, null,
-          null,
-          ciphertext, ZC_ENCCIPHERTEXT_SIZE,
-          null,
-          0,
-          cipher_nonce, K) != 0) {
-        return Optional.empty();
-      }
-
-      return Optional.of(plaintext);
-    }
-
-    public static Optional<EncPlaintext> AttemptSaplingEncDecryption(
-        EncCiphertext ciphertext, byte[] epk, byte[] esk, byte[] pk_d) {
-      byte[] dhsecret = new byte[32];
-
-      if (!Librustzcash.librustzcashSaplingKaAgree(pk_d, esk, dhsecret)) {
-        return Optional.empty();
-      }
-
-      byte[] K = new byte[NOTEENCRYPTION_CIPHER_KEYSIZE];
-      KDFSapling(K, dhsecret, epk);
-
-      byte[] cipher_nonce = new byte[crypto_aead_chacha20poly1305_IETF_NPUBBYTES];
-
-      EncPlaintext plaintext = new EncPlaintext();
-      plaintext.data = new byte[ZC_ENCPLAINTEXT_SIZE];
-
-      if (Libsodium.cryptoAeadChacha20poly1305IetfDecrypt(
-          plaintext.data, null,
-          null,
-          ciphertext.data, ZC_ENCCIPHERTEXT_SIZE,
-          null,
-          0,
-          cipher_nonce, K) != 0) {
-        return Optional.empty();
-      }
-
-      return Optional.of(plaintext);
-    }
-
-    public static Optional<OutPlaintext> AttemptOutDecryption(
-        OutCiphertext ciphertext, byte[] ovk, byte[] cv, byte[] cm, byte[] epk) {
-
-      byte[] K = new byte[NOTEENCRYPTION_CIPHER_KEYSIZE];
-      PRFOck(K, ovk, cv, cm, epk);
-
-      byte[] cipher_nonce = new byte[crypto_aead_chacha20poly1305_IETF_NPUBBYTES];
-      OutPlaintext plaintext = new OutPlaintext();
-      plaintext.data = new byte[ZC_OUTPLAINTEXT_SIZE];
-
-      if (Libsodium.cryptoAeadChacha20poly1305IetfDecrypt(plaintext.data, null,
-          null,
-          ciphertext.data, ZC_OUTCIPHERTEXT_SIZE,
-          null,
-          0,
-          cipher_nonce, K) != 0) {
-        return Optional.empty();
-      }
-
-      return Optional.of(plaintext);
-    }
-
   }
 }

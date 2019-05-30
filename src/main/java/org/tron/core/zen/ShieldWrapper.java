@@ -117,15 +117,14 @@ public class ShieldWrapper {
             if (notes != null) {
               for (int i = 0; i < notes.getNoteTxsList().size(); ++i) {
                 NoteTx noteTx = notes.getNoteTxsList().get(i);
-
                 ShieldNoteInfo noteInfo = new ShieldNoteInfo();
-                noteInfo.setD(new DiversifierT(noteTx.getNote().getD().toByteArray()));
-                noteInfo.setPkD(noteTx.getNote().getPkD().toByteArray());
+                noteInfo.setPaymentAddress(noteTx.getNote().getPaymentAddress());
                 noteInfo.setR(noteTx.getNote().getRcm().toByteArray());
                 noteInfo.setValue(noteTx.getNote().getValue());
                 noteInfo.setTrxId(ByteArray.toHexString(noteTx.getTxid().toByteArray()));
                 noteInfo.setIndex(noteTx.getIndex());
                 noteInfo.setNoteIndex(nodeIndex.getAndIncrement());
+                noteInfo.setMemo(noteTx.getNote().getMemo().toByteArray());
 
                 utxoMapNote.put(noteInfo.getNoteIndex(), noteInfo);
               }
@@ -156,23 +155,24 @@ public class ShieldWrapper {
         request.addOutPoints(outPointBuild.build());
         IncrementalMerkleVoucherInfo merkleVoucherInfo = wallet
             .GetMerkleTreeVoucherInfo(request.build());
+        if (merkleVoucherInfo.getVouchersCount() > 0) {
+          ShieldAddressInfo addressInfo = getShieldAddressInfoMap().get(noteInfo.getPaymentAddress());
+          NoteParameters.Builder builder = NoteParameters.newBuilder();
+          builder.setAk(ByteString.copyFrom(addressInfo.getFullViewingKey().getAk()));
+          builder.setNk(ByteString.copyFrom(addressInfo.getFullViewingKey().getNk()));
 
-        ShieldAddressInfo addressInfo = getShieldAddressInfoMap().get(noteInfo.getAddress());
-        NoteParameters.Builder builder = NoteParameters.newBuilder();
-        builder.setAk(ByteString.copyFrom(addressInfo.getFullViewingKey().getAk()));
-        builder.setNk(ByteString.copyFrom(addressInfo.getFullViewingKey().getNk()));
+          Note.Builder noteBuild = Note.newBuilder();
+          noteBuild.setPaymentAddress(noteInfo.getPaymentAddress());
+          noteBuild.setValue(noteInfo.getValue());
+          noteBuild.setRcm(ByteString.copyFrom(noteInfo.getR()));
+          noteBuild.setMemo(ByteString.copyFrom(noteInfo.getMemo()));
+          builder.setNote(noteBuild.build());
+          builder.setVoucher(merkleVoucherInfo.getVouchers(0));
 
-        Note.Builder noteBuild = Note.newBuilder();
-        noteBuild.setD(ByteString.copyFrom(noteInfo.getD().getData()));
-        noteBuild.setPkD(ByteString.copyFrom(noteInfo.getPkD()));
-        noteBuild.setValue(noteInfo.getValue());
-        noteBuild.setRcm(ByteString.copyFrom(noteInfo.getR()));
-        builder.setNote(noteBuild.build());
-        builder.setVoucher(merkleVoucherInfo.getVouchers(0));
-
-        SpendResult result = wallet.isNoteSpend(builder.build());
-        if (result.getResult()) {
-          spendNote(entry.getKey());
+          SpendResult result = wallet.isNoteSpend(builder.build());
+          if (result.getResult()) {
+            spendNote(entry.getKey());
+          }
         }
       }
     } catch (Exception e) {

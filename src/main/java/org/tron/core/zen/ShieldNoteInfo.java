@@ -4,7 +4,6 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
 import org.tron.common.utils.ByteArray;
-import org.tron.core.zen.address.DiversifierT;
 
 @AllArgsConstructor
 public class ShieldNoteInfo {
@@ -13,10 +12,7 @@ public class ShieldNoteInfo {
   public long value = 0;
   @Setter
   @Getter
-  public DiversifierT d;
-  @Setter
-  @Getter
-  public byte[] pkD; // 256
+  public String paymentAddress;
   @Setter
   @Getter
   public byte[] r; // 256
@@ -29,20 +25,11 @@ public class ShieldNoteInfo {
   @Setter
   @Getter
   public long noteIndex;
+  @Setter
+  @Getter
+  public  byte[] memo;
 
   public ShieldNoteInfo(){
-  }
-
-  public String getAddress() {
-    if (d != null && d.getData().length > 0 && pkD!= null && pkD.length >0 ) {
-      byte[] byteAddress = new byte[d.getData().length + pkD.length ];
-      System.arraycopy(d.getData(), 0, byteAddress, 0, d.getData().length);
-      System.arraycopy(pkD, 0, byteAddress, d.getData().length, pkD.length);
-
-      return ByteArray.toHexString(byteAddress);
-    } else {
-      return "";
-    }
   }
 
   /**
@@ -51,9 +38,7 @@ public class ShieldNoteInfo {
    */
   public String encode() {
     String encodeString = noteIndex +";";
-    encodeString += ByteArray.toHexString(d.getData());
-    encodeString += ";";
-    encodeString += ByteArray.toHexString(pkD);
+    encodeString += paymentAddress;
     encodeString += ";";
     encodeString += ByteArray.toHexString(r);
     encodeString += ";";
@@ -62,6 +47,8 @@ public class ShieldNoteInfo {
     encodeString += String.valueOf(value);
     encodeString += ";";
     encodeString += String.valueOf(index);
+    encodeString += ";";
+    encodeString += ByteArray.toHexString(memo);
     return encodeString;
   }
 
@@ -77,12 +64,12 @@ public class ShieldNoteInfo {
       return false;
     }
     noteIndex = Long.valueOf(sourceStrArray[0]);
-    d = new DiversifierT(ByteArray.fromHexString(sourceStrArray[1]));
-    pkD = ByteArray.fromHexString(sourceStrArray[2]);
-    r = ByteArray.fromHexString(sourceStrArray[3]);
-    trxId = sourceStrArray[4];
-    value = Long.valueOf(sourceStrArray[5]);
-    index = Integer.valueOf(sourceStrArray[6]);
+    paymentAddress = sourceStrArray[1];
+    r = ByteArray.fromHexString(sourceStrArray[2]);
+    trxId = sourceStrArray[3];
+    value = Long.valueOf(sourceStrArray[4]);
+    index = Integer.valueOf(sourceStrArray[5]);
+    memo = ByteArray.fromHexString(sourceStrArray[6]);
     return true;
   }
 

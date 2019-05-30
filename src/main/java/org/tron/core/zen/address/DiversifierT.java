@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
 import org.tron.common.zksnark.Librustzcash;
+import org.tron.core.exception.ZksnarkException;
 
 @AllArgsConstructor
 public class DiversifierT {
@@ -13,10 +14,9 @@ public class DiversifierT {
   public byte[] data = new byte[Constant.ZC_DIVERSIFIER_SIZE];
 
   public DiversifierT() {
-
   }
 
-  public DiversifierT random() {
+  public DiversifierT random() throws ZksnarkException {
     byte[] d;
     while (true) {
       d = org.tron.keystore.Wallet.generateRandomBytes(Constant.ZC_DIVERSIFIER_SIZE);
