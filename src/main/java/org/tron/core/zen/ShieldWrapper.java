@@ -64,8 +64,8 @@ public class ShieldWrapper {
         try {
           scanBlockByIvk();
           updateNoteWhetherSpend();
-          //wait for 5 seconds
-          for (int i=0; i<10; ++i) {
+          //wait for 2.5 seconds
+          for (int i=0; i<5; ++i) {
             Thread.sleep(500);
             if (resetNote) {
               resetShieldNote();

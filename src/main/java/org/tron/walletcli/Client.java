@@ -2216,6 +2216,9 @@ public class Client {
       String shieldAddress = parameters[parameterIndex++];
       amountString = parameters[parameterIndex++];
       String menoString = parameters[parameterIndex++];
+      if (menoString.equals("null")) {
+        menoString = "";
+      }
       long shieldAmount = 0;
       if (!StringUtil.isNullOrEmpty(amountString)) {
         shieldAmount = Long.valueOf(amountString);
@@ -2227,7 +2230,7 @@ public class Client {
       noteBuild.setValue(shieldAmount);
       noteBuild.setRcm(ByteString.copyFrom(org.tron.core.zen.note.Note.generateR()));
       noteBuild.setMemo(ByteString.copyFrom(menoString.getBytes()));
-      shieldOutList.add( noteBuild.build() );
+      shieldOutList.add(noteBuild.build());
     }
 
     boolean result = walletApiWrapper.sendShieldCoin(fromPublicAddress,
@@ -2238,7 +2241,6 @@ public class Client {
       logger.info("SendShieldAddress  failed !!");
     }
   }
-
 
   private void listShieldNote(String[] parameters) {
     int showType = 0;
