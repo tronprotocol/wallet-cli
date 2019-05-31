@@ -2207,7 +2207,7 @@ public class Client {
       shieldOutputNum = Integer.valueOf(amountString);
     }
     if ((parameters.length - parameterIndex)%3 != 0) {
-      System.out.println("Invalid parameter!");
+      System.out.println("Invalid parameter number!");
       return;
     }
 

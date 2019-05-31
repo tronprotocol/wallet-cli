@@ -758,7 +758,10 @@ public class WalletApiWrapper {
         request.addOutPoints(outPointBuild.build());
       }
       IncrementalMerkleVoucherInfo merkleVoucherInfo = wallet.GetMerkleTreeVoucherInfo(request.build());
-
+      if (merkleVoucherInfo.getVouchersCount() != shieldInputList.size()) {
+        System.out.println("Can't get all merkel tree, please check the notes.");
+        return false;
+      }
 
       for (int i = 0; i<shieldInputList.size(); ++i) {
         ShieldNoteInfo noteInfo = shieldWrapper.getUtxoMapNote().get(shieldInputList.get(i));
