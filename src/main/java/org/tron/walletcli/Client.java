@@ -2141,19 +2141,14 @@ public class Client {
     }
   }
 
-  private void sendShieldCoin(String[] parameters) throws IOException, CipherException,
-      CancelException, ZksnarkException {
-    if (parameters == null || parameters.length < 6) {
-      System.out.println("sendShieldCoin needs more than 6 parameters like following: ");
-      System.out.println("sendShieldCoin publicFromAddress fromAmount shieldInputNum input1 input2 "
-          + "input3 ... publicToAddress toAmount shieldOutputNum shieldAddress1 amount1 meno1 shieldAddress2 amount2 meno2 ... ");
-      return;
-    }
 
+  private boolean sendShieldCoinNormal(String[] parameters, boolean withAsk)
+      throws IOException, CipherException,
+      CancelException, ZksnarkException {
     int parameterIndex = 0;
     String fromPublicAddress = parameters[parameterIndex++];
     long fromPublicAmount = 0;
-    if (fromPublicAddress.equals("null") ) {
+    if (fromPublicAddress.equals("null")) {
       fromPublicAddress = null;
       ++parameterIndex;
     } else {
@@ -2174,24 +2169,24 @@ public class Client {
     for (int i = 0; i < shieldInputNum; ++i) {
       long mapIndex = Long.valueOf(parameters[parameterIndex++]);
       ShieldNoteInfo noteInfo = walletApiWrapper.getShieldWrapper().getUtxoMapNote().get(mapIndex);
-      if (noteInfo == null ) {
+      if (noteInfo == null) {
         System.out.println("Can't find index " + mapIndex + " note.");
-        return;
+        return false;
       }
-      if ( i == 0 ) {
+      if (i == 0) {
         shieldInputAddress = noteInfo.getPaymentAddress();
       } else {
-        if (!noteInfo.getPaymentAddress().equals( shieldInputAddress )) {
+        if (!noteInfo.getPaymentAddress().equals(shieldInputAddress)) {
           System.err.println("All input note shall be the same address!");
-          return;
+          return false;
         }
       }
-      shieldInputList.add( mapIndex );
+      shieldInputList.add(mapIndex);
     }
 
     String toPublicAddress = parameters[parameterIndex++];
     long toPublicAmount = 0;
-    if (toPublicAddress.equals("null") ) {
+    if (toPublicAddress.equals("null")) {
       toPublicAddress = null;
       ++parameterIndex;
     } else {
@@ -2206,9 +2201,9 @@ public class Client {
     if (!StringUtil.isNullOrEmpty(amountString)) {
       shieldOutputNum = Integer.valueOf(amountString);
     }
-    if ((parameters.length - parameterIndex)%3 != 0) {
+    if ((parameters.length - parameterIndex) % 3 != 0) {
       System.out.println("Invalid parameter number!");
-      return;
+      return false;
     }
 
     List<Note> shieldOutList = new ArrayList<>();
@@ -2233,12 +2228,46 @@ public class Client {
       shieldOutList.add(noteBuild.build());
     }
 
-    boolean result = walletApiWrapper.sendShieldCoin(fromPublicAddress,
-        fromPublicAmount, shieldInputList, shieldOutList, toPublicAddress, toPublicAmount);
+    if (withAsk) {
+      return walletApiWrapper.sendShieldCoin(fromPublicAddress,
+          fromPublicAmount, shieldInputList, shieldOutList, toPublicAddress, toPublicAmount);
+    } else {
+      return walletApiWrapper.sendShieldCoinWithoutAsk(fromPublicAddress,
+          fromPublicAmount, shieldInputList, shieldOutList, toPublicAddress, toPublicAmount);
+    }
+  }
+
+  private void sendShieldCoin(String[] parameters) throws IOException, CipherException,
+      CancelException, ZksnarkException {
+    if (parameters == null || parameters.length < 6) {
+      System.out.println("sendShieldCoin needs more than 6 parameters like following: ");
+      System.out.println("sendShieldCoin publicFromAddress fromAmount shieldInputNum input1 input2 "
+          + "input3 ... publicToAddress toAmount shieldOutputNum shieldAddress1 amount1 meno1 shieldAddress2 amount2 meno2 ... ");
+      return;
+    }
+
+    boolean result = sendShieldCoinNormal(parameters, true);
     if (result) {
       logger.info("SendShieldAddress successful !!");
     } else {
       logger.info("SendShieldAddress  failed !!");
+    }
+  }
+
+  private void sendShieldCoinWithoutAsk(String[] parameters) throws IOException, CipherException,
+      CancelException, ZksnarkException {
+    if (parameters == null || parameters.length < 6) {
+      System.out.println("sendShieldCoinWithoutAsk needs more than 6 parameters like following: ");
+      System.out.println("sendShieldCoinWithoutAsk publicFromAddress fromAmount shieldInputNum input1 input2 "
+          + "input3 ... publicToAddress toAmount shieldOutputNum shieldAddress1 amount1 meno1 shieldAddress2 amount2 meno2 ... ");
+      return;
+    }
+
+    boolean result = sendShieldCoinNormal(parameters, false);
+    if (result) {
+      logger.info("sendShieldCoinWithoutAsk successful !!");
+    } else {
+      logger.info("sendShieldCoinWithoutAsk  failed !!");
     }
   }
 
@@ -2440,6 +2469,7 @@ public class Client {
     System.out.println("generateshieldaddress");
     System.out.println("listshieldaddress");
     System.out.println("sendshieldcoin");
+    System.out.println("sendshieldcoinwithoutask");
     System.out.println("listshieldnote");
     System.out.println("resetshieldnote");
     System.out.println("scannotebyaddress");
@@ -2926,6 +2956,10 @@ public class Client {
           }
           case "sendshieldcoin": {
             sendShieldCoin(parameters);
+            break;
+          }
+          case "sendshieldcoinwithoutask": {
+            sendShieldCoinWithoutAsk(parameters);
             break;
           }
           case "listshieldnote": {

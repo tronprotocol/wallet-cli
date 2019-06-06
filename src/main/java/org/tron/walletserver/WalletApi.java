@@ -52,8 +52,10 @@ import org.tron.api.GrpcAPI.NodeList;
 import org.tron.api.GrpcAPI.NoteParameters;
 import org.tron.api.GrpcAPI.OvkDecryptParameters;
 import org.tron.api.GrpcAPI.PrivateParameters;
+import org.tron.api.GrpcAPI.PrivateParametersWithoutAsk;
 import org.tron.api.GrpcAPI.ProposalList;
 import org.tron.api.GrpcAPI.Return;
+import org.tron.api.GrpcAPI.SpendAuthSigParameters;
 import org.tron.api.GrpcAPI.SpendResult;
 import org.tron.api.GrpcAPI.TransactionApprovedList;
 import org.tron.api.GrpcAPI.TransactionExtention;
@@ -90,6 +92,7 @@ import org.tron.protos.Contract.IncrementalMerkleVoucherInfo;
 import org.tron.protos.Contract.OutputPointInfo;
 import org.tron.protos.Contract.SellStorageContract;
 import org.tron.protos.Contract.ShieldedTransferContract;
+import org.tron.protos.Contract.SpendDescription;
 import org.tron.protos.Contract.UnfreezeAssetContract;
 import org.tron.protos.Contract.UnfreezeBalanceContract;
 import org.tron.protos.Contract.UpdateEnergyLimitContract;
@@ -105,6 +108,7 @@ import org.tron.protos.Protocol.Permission;
 import org.tron.protos.Protocol.Proposal;
 import org.tron.protos.Protocol.SmartContract;
 import org.tron.protos.Protocol.Transaction;
+import org.tron.protos.Protocol.Transaction.Contract.ContractType;
 import org.tron.protos.Protocol.Transaction.Result;
 import org.tron.protos.Protocol.TransactionInfo;
 import org.tron.protos.Protocol.TransactionSign;
@@ -2081,7 +2085,60 @@ public class WalletApi {
     return processTransactionExtention(transactionExtention);
   }
 
+  public boolean sendShieldCoinWithoutAsk(PrivateParametersWithoutAsk privateParameters, byte[] ask)
+      throws CipherException, IOException, CancelException {
+    TransactionExtention transactionExtention =
+        rpcCli.createShieldTransactionWithoutSpendAuthSig(privateParameters);
+    if (transactionExtention == null ) {
+      System.out.println("sendShieldCoinWithoutAsk failure.");
+      return false;
+    }
+
+    BytesMessage trxHash = rpcCli.getShieldTransactionHash(transactionExtention.getTransaction());
+    if (trxHash == null || trxHash.getValue().toByteArray().length != 32) {
+      System.out.println("sendShieldCoinWithoutAsk get transaction hash failure.");
+      return false;
+    }
+
+    Transaction transaction = transactionExtention.getTransaction();
+    if (transaction.getRawData().getContract(0).getType() != ShieldedTransferContract) {
+      System.out.println("This method only for ShieldedTransferContract, please check!");
+      return false;
+    }
+
+    Any any = transaction.getRawData().getContract(0).getParameter();
+    ShieldedTransferContract shieldContract =  any.unpack(ShieldedTransferContract.class);
+    List<SpendDescription> spendDescList = shieldContract.getSpendDescriptionList();
+    ShieldedTransferContract.Builder contractBuild = shieldContract.toBuilder().clearSpendDescription();
+    for (int i=0; i<spendDescList.size(); i++ ) {
+      SpendDescription.Builder spendDescription = spendDescList.get(i).toBuilder();
+      SpendAuthSigParameters.Builder builder = SpendAuthSigParameters.newBuilder();
+      builder.setAsk(ByteString.copyFrom(ask));
+      builder.setTxHash(ByteString.copyFrom(trxHash.getValue().toByteArray()));
+      builder.setAlpha(privateParameters.getShieldedSpends(i).getAlpha());
+
+      BytesMessage authSig = rpcCli.createSpendAuthSig(builder.build());
+      spendDescription.setSpendAuthoritySignature(
+          ByteString.copyFrom(authSig.getValue().toByteArray()));
+
+      contractBuild.addSpendDescription(spendDescription.build());
+    }
+
+    Transaction.raw.Builder rawBuilder = transaction.toBuilder().getRawDataBuilder().clearContract()
+        .addContract(
+            Transaction.Contract.newBuilder().setType(ContractType.ShieldedTransferContract)
+                .setParameter(
+                    Any.pack(contractBuild.build())).build());
+
+    transaction = transaction.toBuilder().clearRawData().setRawData(rawBuilder).build();
+
+    transactionExtention = transactionExtention.toBuilder().setTransaction(transaction).build();
+
+    return processTransactionExtention(transactionExtention);
+  }
+
   public SpendResult isNoteSpend(NoteParameters noteParameters) {
     return rpcCli.isNoteSpend(noteParameters);
   }
+
 }

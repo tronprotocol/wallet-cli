@@ -35,14 +35,17 @@ import org.tron.api.GrpcAPI.ExpandedSpendingKeyMessage;
 import org.tron.api.GrpcAPI.IncomingViewingKeyDiversifierMessage;
 import org.tron.api.GrpcAPI.IncomingViewingKeyMessage;
 import org.tron.api.GrpcAPI.IvkDecryptParameters;
+import org.tron.api.GrpcAPI.NfParameters;
 import org.tron.api.GrpcAPI.NodeList;
 import org.tron.api.GrpcAPI.NoteParameters;
 import org.tron.api.GrpcAPI.NumberMessage;
 import org.tron.api.GrpcAPI.OvkDecryptParameters;
 import org.tron.api.GrpcAPI.PaginatedMessage;
 import org.tron.api.GrpcAPI.PrivateParameters;
+import org.tron.api.GrpcAPI.PrivateParametersWithoutAsk;
 import org.tron.api.GrpcAPI.ProposalList;
 import org.tron.api.GrpcAPI.Return.response_code;
+import org.tron.api.GrpcAPI.SpendAuthSigParameters;
 import org.tron.api.GrpcAPI.SpendResult;
 import org.tron.api.GrpcAPI.TransactionApprovedList;
 import org.tron.api.GrpcAPI.TransactionExtention;
@@ -831,15 +834,27 @@ public class GrpcClient {
   }
 
   public IncrementalMerkleVoucherInfo GetMerkleTreeVoucherInfo(OutputPointInfo info) {
-    return blockingStubFull.getMerkleTreeVoucherInfo(info);
+    if (blockingStubSolidity != null) {
+      return blockingStubSolidity.getMerkleTreeVoucherInfo(info);
+    } else {
+      return blockingStubFull.getMerkleTreeVoucherInfo(info);
+    }
   }
 
   public DecryptNotes scanNoteByIvk(IvkDecryptParameters ivkDecryptParameters) {
-    return blockingStubFull.scanNoteByIvk(ivkDecryptParameters);
+    if (blockingStubSolidity != null) {
+      return blockingStubSolidity.scanNoteByIvk(ivkDecryptParameters);
+    } else {
+      return blockingStubFull.scanNoteByIvk(ivkDecryptParameters);
+    }
   }
 
   public DecryptNotes scanNoteByOvk(OvkDecryptParameters ovkDecryptParameters) {
-    return blockingStubFull.scanNoteByOvk(ovkDecryptParameters);
+    if (blockingStubSolidity != null) {
+      return blockingStubSolidity.scanNoteByOvk(ovkDecryptParameters);
+    } else {
+      return blockingStubFull.scanNoteByOvk(ovkDecryptParameters);
+    }
   }
 
   public BytesMessage getSpendingKey() {
@@ -871,7 +886,27 @@ public class GrpcClient {
   }
 
   public SpendResult isNoteSpend(NoteParameters noteParameters) {
-    return blockingStubFull.isSpend(noteParameters);
+    if (blockingStubSolidity != null) {
+      return blockingStubSolidity.isSpend(noteParameters);
+    } else {
+      return blockingStubFull.isSpend(noteParameters);
+    }
   }
 
+  public TransactionExtention createShieldTransactionWithoutSpendAuthSig(
+      PrivateParametersWithoutAsk privateParameters) {
+    return blockingStubFull.createShieldedTransactionWithoutSpendAuthSig(privateParameters);
+  }
+
+  public BytesMessage getShieldTransactionHash(Transaction transaction) {
+    return blockingStubFull.getShieldTransactionHash(transaction);
+  }
+
+  public BytesMessage createSpendAuthSig(SpendAuthSigParameters parameters) {
+    return blockingStubFull.createSpendAuthSig(parameters);
+  }
+
+  public BytesMessage createShieldNullifier(NfParameters parameters) {
+    return blockingStubFull.createShieldNullifier(parameters);
+  }
 }
