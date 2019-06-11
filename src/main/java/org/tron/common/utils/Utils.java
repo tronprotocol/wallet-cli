@@ -65,7 +65,10 @@ import org.tron.protos.Contract.ParticipateAssetIssueContract;
 import org.tron.protos.Contract.ProposalApproveContract;
 import org.tron.protos.Contract.ProposalCreateContract;
 import org.tron.protos.Contract.ProposalDeleteContract;
+import org.tron.protos.Contract.ReceiveDescription;
 import org.tron.protos.Contract.SetAccountIdContract;
+import org.tron.protos.Contract.ShieldedTransferContract;
+import org.tron.protos.Contract.SpendDescription;
 import org.tron.protos.Contract.TransferAssetContract;
 import org.tron.protos.Contract.TransferContract;
 import org.tron.protos.Contract.TriggerSmartContract;
@@ -1152,6 +1155,51 @@ public class Utils {
               .encode58Check(clearABIContract.getContractAddress().toByteArray());
           result += "\n";
           break;
+        case ShieldedTransferContract:
+          ShieldedTransferContract shieldedTransferContract = contract.getParameter()
+              .unpack(ShieldedTransferContract.class);
+          if (shieldedTransferContract.getFromAmount() != 0 ) {
+            result += "transparent_from_address: ";
+            result += WalletApi
+                .encode58Check(shieldedTransferContract.getTransparentFromAddress().toByteArray());
+            result += "\n";
+            result += "from_amount: ";
+            result += shieldedTransferContract.getFromAmount();
+            result += "\n";
+          }
+          if (shieldedTransferContract.getSpendDescriptionCount() > 0 ) {
+            result += "spend_description: ";
+            result += "\n";
+            result += "[";
+            result += "\n";
+            result += printSpendDescriptionList(shieldedTransferContract.getSpendDescriptionList());
+            result += "\n";
+            result += "]";
+            result += "\n";
+          }
+          if (shieldedTransferContract.getReceiveDescriptionCount() > 0 ) {
+            result += "receive_description: ";
+            result += "\n";
+            result += "[";
+            result += "\n";
+            result += printReceiveDescriptonList(shieldedTransferContract.getReceiveDescriptionList());
+            result += "\n";
+            result += "]";
+            result += "\n";
+          }
+          result += "binding_signature: ";
+          result += ByteArray.toHexString(shieldedTransferContract.getBindingSignature().toByteArray());
+          result += "\n";
+          if (shieldedTransferContract.getToAmount() != 0 ) {
+            result += "transparent_to_address: ";
+            result += WalletApi
+                .encode58Check(shieldedTransferContract.getTransparentToAddress().toByteArray());
+            result += "\n";
+            result += "to_amount: ";
+            result += shieldedTransferContract.getToAmount();
+            result += "\n";
+          }
+          break;
         // case BuyStorageContract:
         //   BuyStorageContract buyStorageContract = contract.getParameter()
         //       .unpack(BuyStorageContract.class);
@@ -1973,6 +2021,71 @@ public class Utils {
     result.append(printTransaction(transactionApprovedList.getTransaction()));
     result.append("}");
     result.append("\n");
+    return result.toString();
+  }
+
+
+  public static String printSpendDescriptionList(List<SpendDescription> spendDescriptionList) {
+    StringBuffer result = new StringBuffer();
+    for (int i=0; i<spendDescriptionList.size(); ++i) {
+      SpendDescription spendDescription = spendDescriptionList.get(i);
+      result.append("{");
+      result.append("\n");
+      result.append("value_commitment:");
+      result.append(ByteArray.toHexString(spendDescription.getValueCommitment().toByteArray()));
+      result.append("\n");
+      result.append("anchor:");
+      result.append(ByteArray.toHexString(spendDescription.getAnchor().toByteArray()));
+      result.append("\n");
+      result.append("nullifier:");
+      result.append(ByteArray.toHexString(spendDescription.getNullifier().toByteArray()));
+      result.append("\n");
+      result.append("rk:");
+      result.append(ByteArray.toHexString(spendDescription.getRk().toByteArray()));
+      result.append("\n");
+      result.append("zkproof:");
+      result.append(ByteArray.toHexString(spendDescription.getZkproof().toByteArray()));
+      result.append("\n");
+      result.append("spend_authority_signature:");
+      result.append(ByteArray.toHexString(spendDescription.getSpendAuthoritySignature().toByteArray()));
+      result.append("\n");
+      result.append("}");
+      if ( i < spendDescriptionList.size()-1) {
+        result.append(",");
+      }
+    }
+    return result.toString();
+  }
+
+  public static String printReceiveDescriptonList(List<ReceiveDescription> receiveDescriptionList) {
+    StringBuffer result = new StringBuffer();
+    for (int i=0; i<receiveDescriptionList.size(); ++i) {
+      ReceiveDescription receiveDescription = receiveDescriptionList.get(i);
+      result.append("{");
+      result.append("\n");
+      result.append("value_commitment:");
+      result.append(ByteArray.toHexString(receiveDescription.getValueCommitment().toByteArray()));
+      result.append("\n");
+      result.append("note_commitment:");
+      result.append(ByteArray.toHexString(receiveDescription.getNoteCommitment().toByteArray()));
+      result.append("\n");
+      result.append("epk:");
+      result.append(ByteArray.toHexString(receiveDescription.getEpk().toByteArray()));
+      result.append("\n");
+      result.append("c_enc:");
+      result.append(ByteArray.toHexString(receiveDescription.getCEnc().toByteArray()));
+      result.append("\n");
+      result.append("c_out:");
+      result.append(ByteArray.toHexString(receiveDescription.getCOut().toByteArray()));
+      result.append("\n");
+      result.append("zkproof:");
+      result.append(ByteArray.toHexString(receiveDescription.getZkproof().toByteArray()));
+      result.append("\n");
+      result.append("}");
+      if ( i < receiveDescriptionList.size()-1) {
+        result.append(",");
+      }
+    }
     return result.toString();
   }
 

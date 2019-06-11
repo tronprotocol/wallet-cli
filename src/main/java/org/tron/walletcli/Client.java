@@ -56,8 +56,7 @@ import org.tron.core.exception.EncodingException;
 import org.tron.core.exception.ZksnarkException;
 import org.tron.core.zen.ShieldAddressInfo;
 import org.tron.core.zen.ShieldNoteInfo;
-import org.tron.core.zen.address.KeyIo;
-import org.tron.core.zen.address.PaymentAddress;
+import org.tron.core.zen.ZenUtils;
 import org.tron.keystore.StringUtils;
 import org.tron.keystore.Wallet;
 import org.tron.protos.Contract.AssetIssueContract;
@@ -2295,7 +2294,7 @@ public class Client {
           string += " ";
           string += "UnSpend";
           string += " ";
-          string += new String(entry.getValue().getMemo());
+          string += ZenUtils.getMemo(entry.getValue().getMemo());
           System.out.println(string);
         }
       }
@@ -2310,7 +2309,7 @@ public class Client {
         string += " ";
         string += "UnSpend";
         string += " ";
-        string += new String(entry.getValue().getMemo());
+        string += ZenUtils.getMemo(entry.getValue().getMemo());
         System.out.println(string);
       }
 

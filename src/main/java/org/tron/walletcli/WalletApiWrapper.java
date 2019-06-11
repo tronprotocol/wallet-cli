@@ -33,6 +33,7 @@ import org.tron.core.exception.ZksnarkException;
 import org.tron.core.zen.ShieldAddressInfo;
 import org.tron.core.zen.ShieldNoteInfo;
 import org.tron.core.zen.ShieldWrapper;
+import org.tron.core.zen.ZenUtils;
 import org.tron.core.zen.address.ExpandedSpendingKey;
 import org.tron.core.zen.address.SpendingKey;
 import org.tron.keystore.StringUtils;
@@ -789,7 +790,7 @@ public class WalletApiWrapper {
         System.out.println("rcm " + ByteArray.toHexString(noteInfo.getR()));
         System.out.println("trxId " + noteInfo.getTrxId());
         System.out.println("index " + noteInfo.getIndex());
-        System.out.println("meno " + new String(noteInfo.getMemo()));
+        System.out.println("meno " + ZenUtils.getMemo(noteInfo.getMemo()));
 
         SpendNote.Builder spendNoteBuilder = SpendNote.newBuilder();
         spendNoteBuilder.setNote(noteBuild.build());
