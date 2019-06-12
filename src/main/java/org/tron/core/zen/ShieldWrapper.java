@@ -3,6 +3,7 @@ package org.tron.core.zen;
 import com.google.protobuf.ByteString;
 import io.netty.util.internal.StringUtil;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -17,7 +18,6 @@ import org.tron.api.GrpcAPI.Note;
 import org.tron.api.GrpcAPI.NoteParameters;
 import org.tron.api.GrpcAPI.SpendResult;
 import org.tron.common.utils.ByteArray;
-import org.tron.core.zen.address.DiversifierT;
 import org.tron.protos.Contract.IncrementalMerkleVoucherInfo;
 import org.tron.protos.Contract.OutputPoint;
 import org.tron.protos.Contract.OutputPointInfo;
@@ -103,7 +103,6 @@ public class ShieldWrapper {
       if (block != null) {
         long blockNum = block.getBlockHeader().toBuilder().getRawData().getNumber();
         for (Entry<String, Long> entry : ivkMapScanBlockNum.entrySet()) {
-
           long start = entry.getValue();
           long end = start;
           while (end < blockNum) {
@@ -296,7 +295,36 @@ public class ShieldWrapper {
     return addressList;
   }
 
+  /**
+   * sort by value of UTXO
+   * @return
+   */
+  public List<String> getvalidateSortUtxoList() {
+    List<Map.Entry<Long, ShieldNoteInfo>> list = new ArrayList<>(utxoMapNote.entrySet());
+    Collections.sort(list, (Entry<Long, ShieldNoteInfo> o1, Entry<Long, ShieldNoteInfo> o2) -> {
+        if (o1.getValue().getValue() < o2.getValue().getValue()) {
+          return 1;
+        } else {
+          return -1;
+        }
+      });
 
+    List<String> utxoList = new ArrayList<>();
+    for (Map.Entry<Long, ShieldNoteInfo> entry : list ) {
+      String string = entry.getKey() + " " + entry.getValue().getPaymentAddress() + " ";
+      string += entry.getValue().getValue();
+      string += " ";
+      string += entry.getValue().getTrxId();
+      string += " ";
+      string += entry.getValue().getIndex();
+      string += " ";
+      string += "UnSpend";
+      string += " ";
+      string += ZenUtils.getMemo(entry.getValue().getMemo());
+      utxoList.add(string);
+    }
+    return utxoList;
+  }
 
   /**
    * update unspend note

@@ -2279,22 +2279,12 @@ public class Client {
     }
 
     if (showType == 0 ) {
-      Map<Long, ShieldNoteInfo> noteMap = walletApiWrapper.getShieldWrapper().getUtxoMapNote();
-      if (noteMap.size() == 0 ) {
+      List<String> utxoList = walletApiWrapper.getShieldWrapper().getvalidateSortUtxoList();
+      if (utxoList.size() == 0 ) {
         System.out.println("Unspend note is 0.");
       } else {
         System.out.println("Unspend note list like:");
-        for (Entry<Long, ShieldNoteInfo> entry : noteMap.entrySet() ) {
-          String string = entry.getKey() + " " + entry.getValue().getPaymentAddress() + " ";
-          string += entry.getValue().getValue();
-          string += " ";
-          string += entry.getValue().getTrxId();
-          string += " ";
-          string += entry.getValue().getIndex();
-          string += " ";
-          string += "UnSpend";
-          string += " ";
-          string += ZenUtils.getMemo(entry.getValue().getMemo());
+        for (String string : utxoList ) {
           System.out.println(string);
         }
       }
@@ -2303,6 +2293,8 @@ public class Client {
       System.out.println("All note list like:");
       for (Entry<Long, ShieldNoteInfo> entry : noteMap.entrySet() ) {
         String string = entry.getValue().getPaymentAddress() + " ";
+        string += entry.getValue().getValue();
+        string += " ";
         string += entry.getValue().getTrxId();
         string += " ";
         string += entry.getValue().getIndex();
@@ -2316,13 +2308,15 @@ public class Client {
       List<ShieldNoteInfo> noteList = walletApiWrapper.getShieldWrapper().getSpendUtxoList();
       for (ShieldNoteInfo noteInfo : noteList ) {
         String string = noteInfo.getPaymentAddress() + " ";
+        string += noteInfo.getValue();
+        string += " ";
         string += noteInfo.getTrxId();
         string += " ";
         string += noteInfo.getIndex();
         string += " ";
         string += "Spend";
         string += " ";
-        string += new String(noteInfo.getMemo());
+        string += ZenUtils.getMemo(noteInfo.getMemo());
         System.out.println(string);
       }
     }
