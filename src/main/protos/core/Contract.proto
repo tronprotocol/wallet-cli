@@ -335,4 +335,3 @@ message ShieldedTransferContract {
   int64 to_amount = 7; // the amount to transparent to_address
 }
 // end shielded transaction
-
