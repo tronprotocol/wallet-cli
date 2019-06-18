@@ -58,7 +58,6 @@ import org.tron.core.zen.ShieldAddressInfo;
 import org.tron.core.zen.ShieldNoteInfo;
 import org.tron.core.zen.ZenUtils;
 import org.tron.keystore.StringUtils;
-import org.tron.keystore.Wallet;
 import org.tron.protos.Contract.AssetIssueContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
@@ -319,48 +318,6 @@ public class Client {
 
     if(decryptNotes == null){
       logger.info("scanNoteByIvk failed !!!");
-    }else{
-      for(int i=0; i<decryptNotes.getNoteTxsList().size();i++) {
-        NoteTx noteTx = decryptNotes.getNoteTxs(i);
-        Note note = noteTx.getNote();
-        logger.info("\ntxid:{}\nindex:{}\nd:{}\npk_d:{}\nrcm:{}\nvalue:{}",
-                ByteArray.toHexString(noteTx.getTxid().toByteArray()),
-                noteTx.getIndex(),
-                ByteArray.toHexString(note.getD().toByteArray()),
-                ByteArray.toHexString(note.getPkD().toByteArray()),
-                ByteArray.toHexString(note.getRcm().toByteArray()),
-                note.getValue());
-      }
-      logger.info("complete.");
-    }
-  }
-
-  private void ScanNoteByOvk(String[] parameters) {
-    if (parameters == null || parameters.length != 3) {
-      System.out.println("ScanNoteByOvk needs 3 parameter like the following: ");
-      System.out.println("ScanNoteByOvk startNum endNum ovk");
-      return;
-    }
-    long startNum,endNum;
-    try {
-      startNum = Long.parseLong(parameters[0]);
-      endNum = Long.parseLong(parameters[1]);
-    }catch (NumberFormatException e){
-      System.out.println("invalid parameter: startNum, endNum.");
-      return;
-    }
-    String ovk = parameters[2];
-
-    GrpcAPI.OvkDecryptParameters ovkDecryptParameters = OvkDecryptParameters.newBuilder()
-            .setStartBlockIndex(startNum)
-            .setEndBlockIndex(endNum)
-            .setOvk(ByteString.copyFrom(ByteArray.fromHexString(ovk)))
-            .build();
-
-    DecryptNotes decryptNotes = WalletApi.scanNoteByOvk(ovkDecryptParameters);
-
-    if(decryptNotes == null){
-      logger.info("ScanNoteByOvk failed !!!");
     }else{
       for(int i=0; i<decryptNotes.getNoteTxsList().size();i++) {
         NoteTx noteTx = decryptNotes.getNoteTxs(i);
@@ -2122,7 +2079,7 @@ public class Client {
 
     logger.info("ShieldAddress list:");
     for (int i=0; i<addressNum; ++i ) {
-      Optional<ShieldAddressInfo> addressInfo = Wallet.generateShieldAddress();
+      Optional<ShieldAddressInfo> addressInfo = walletApiWrapper.getNewShieldedAddress();
       if ( addressInfo.isPresent() ) {
         if ( walletApiWrapper.getShieldWrapper().addNewShieldAddress( addressInfo.get()) ) {
           logger.info(addressInfo.get().getAddress());
@@ -2139,7 +2096,6 @@ public class Client {
       logger.info(address);
     }
   }
-
 
   private boolean sendShieldCoinNormal(String[] parameters, boolean withAsk)
       throws IOException, CipherException,
@@ -2222,7 +2178,7 @@ public class Client {
       noteBuild.setPaymentAddress(shieldAddress);
       noteBuild.setPaymentAddress(shieldAddress);
       noteBuild.setValue(shieldAmount);
-      noteBuild.setRcm(ByteString.copyFrom(org.tron.core.zen.note.Note.generateR()));
+      noteBuild.setRcm(ByteString.copyFrom(walletApiWrapper.getRcm()));
       noteBuild.setMemo(ByteString.copyFrom(menoString.getBytes()));
       shieldOutList.add(noteBuild.build());
     }
@@ -2348,6 +2304,43 @@ public class Client {
     walletApiWrapper.scanShieldNoteByShieldAddress(parameters[0], startNum, endNum);
   }
 
+  private void ScanNoteByOvk(String[] parameters) {
+    if (parameters == null || parameters.length != 3) {
+      System.out.println("scannotebyovk needs 3 parameter like the following: ");
+      System.out.println("scannotebyovk startNum endNum ovk");
+      return;
+    }
+    long startNum,endNum;
+    try {
+      startNum = Long.parseLong(parameters[1]);
+      endNum = Long.parseLong(parameters[2]);
+    }catch (NumberFormatException e){
+      System.out.println("invalid parameter: startNum, endNum.");
+      return;
+    }
+    if (endNum<=0 || startNum >= endNum || endNum-startNum > 1000) {
+      System.out.println("Invalid parameters");
+      return ;
+    }
+
+    walletApiWrapper.scanShieldNoteByovk(parameters[0], startNum, endNum);
+  }
+
+  private void getShieldNullifier(String[] parameters) {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("getshieldnullifier needs 1 parameter like the following: ");
+      System.out.println("getshieldnullifier index");
+      return;
+    }
+    long index = Long.valueOf(parameters[0]);
+    String hash = walletApiWrapper.getShieldNulltifier(index);
+    if (hash != null ) {
+      System.out.println("ShieldNullifier:" + hash);
+    } else {
+      System.out.println("getshieldnullifier failure!");
+    }
+  }
+
   private void create2(String[] parameters) {
     if (parameters == null || parameters.length != 3) {
       System.out.println("create2 needs 3 parameter: ");
@@ -2466,6 +2459,8 @@ public class Client {
     System.out.println("listshieldnote");
     System.out.println("resetshieldnote");
     System.out.println("scannotebyaddress");
+    System.out.println("scannotebyovk");
+    System.out.println("getshieldnullifier");
 
     System.out.println("Create2");
 //    System.out.println("buyStorage");
@@ -2967,6 +2962,16 @@ public class Client {
             scanNoteByAddress(parameters);
             break;
           }
+          case "scannotebyovk": {
+            ScanNoteByOvk(parameters);
+            break;
+          }
+          case "getshieldnullifier": {
+            getShieldNullifier(parameters);
+            break;
+          }
+
+
           case "create2": {
             create2(parameters);
             break;

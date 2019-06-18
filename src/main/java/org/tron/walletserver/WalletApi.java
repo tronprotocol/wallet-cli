@@ -46,11 +46,14 @@ import org.tron.api.GrpcAPI.EasyTransferResponse;
 import org.tron.api.GrpcAPI.EmptyMessage;
 import org.tron.api.GrpcAPI.ExchangeList;
 import org.tron.api.GrpcAPI.ExpandedSpendingKeyMessage;
+import org.tron.api.GrpcAPI.IncomingViewingKeyDiversifierMessage;
 import org.tron.api.GrpcAPI.IncomingViewingKeyMessage;
 import org.tron.api.GrpcAPI.IvkDecryptParameters;
+import org.tron.api.GrpcAPI.NfParameters;
 import org.tron.api.GrpcAPI.NodeList;
 import org.tron.api.GrpcAPI.NoteParameters;
 import org.tron.api.GrpcAPI.OvkDecryptParameters;
+import org.tron.api.GrpcAPI.PaymentAddressMessage;
 import org.tron.api.GrpcAPI.PrivateParameters;
 import org.tron.api.GrpcAPI.PrivateParametersWithoutAsk;
 import org.tron.api.GrpcAPI.ProposalList;
@@ -2139,6 +2142,18 @@ public class WalletApi {
 
   public SpendResult isNoteSpend(NoteParameters noteParameters) {
     return rpcCli.isNoteSpend(noteParameters);
+  }
+
+  public BytesMessage getRcm() {
+    return rpcCli.getRcm();
+  }
+
+  public BytesMessage createShieldNullifier(NfParameters parameters) {
+    return rpcCli.createShieldNullifier(parameters);
+  }
+
+  public PaymentAddressMessage getZenPaymentAddress(IncomingViewingKeyDiversifierMessage msg) {
+    return rpcCli.getZenPaymentAddress(msg);
   }
 
 }

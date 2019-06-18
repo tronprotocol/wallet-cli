@@ -23,6 +23,7 @@ import org.tron.common.utils.ByteArray;
 import org.tron.core.exception.CipherException;
 import org.tron.core.zen.ShieldAddressInfo;
 import org.tron.core.zen.address.DiversifierT;
+import org.tron.core.zen.address.ExpandedSpendingKey;
 import org.tron.core.zen.address.FullViewingKey;
 import org.tron.core.zen.address.IncomingViewingKey;
 import org.tron.core.zen.address.PaymentAddress;
@@ -296,30 +297,37 @@ public class Wallet {
     return bytes;
   }
 
-  //生成一个新的匿名地址
-  public static Optional<ShieldAddressInfo> generateShieldAddress() {
-    ShieldAddressInfo addressInfo = new ShieldAddressInfo();
+  public static void main(String[] args){
     try {
-      DiversifierT diversifier = new DiversifierT().random();
-      SpendingKey spendingKey = SpendingKey.random();
+      DiversifierT diversifier = new DiversifierT(ByteArray.fromHexString("30bd3696a9c029196edbdf"));
+      SpendingKey spendingKey =
+          new SpendingKey(ByteArray.fromHexString("07e1dfbbb305bca3e66e7222aaa50ee2f5cc22d0ef935d04dfbd3fb3fd1d96b2"));
+
+//      DiversifierT diversifier = new DiversifierT().random();
+//      SpendingKey spendingKey = SpendingKey.random();
+
+      ExpandedSpendingKey expandedSpendingKey = spendingKey.expandedSpendingKey();
       FullViewingKey fullViewingKey = spendingKey.fullViewingKey();
       IncomingViewingKey incomingViewingKey = fullViewingKey.inViewingKey();
       PaymentAddress paymentAddress = incomingViewingKey.address(diversifier).get();
 
-      addressInfo.setSk(spendingKey.getValue());
-      addressInfo.setD(diversifier);
-      addressInfo.setIvk(incomingViewingKey.getValue());
-      addressInfo.setOvk(fullViewingKey.getOvk());
-      addressInfo.setPkD(paymentAddress.getPkD());
 
-      if (addressInfo.validateCheck()) {
-        return Optional.of(addressInfo);
-      }
+      System.out.println("d: " + ByteArray.toHexString(diversifier.getData()));
+      System.out.println("sk: " + ByteArray.toHexString(spendingKey.getValue()));
+      System.out.println("ask: " + ByteArray.toHexString(expandedSpendingKey.getAsk()));
+      System.out.println("nsk: " + ByteArray.toHexString(expandedSpendingKey.getNsk()));
+      System.out.println("ovk: " + ByteArray.toHexString(expandedSpendingKey.getOvk()));
+
+      System.out.println("ak: " + ByteArray.toHexString(fullViewingKey.getAk()));
+      System.out.println("nk: " + ByteArray.toHexString(fullViewingKey.getNk()));
+
+      System.out.println("ivk: " + ByteArray.toHexString(incomingViewingKey.getValue()));
+
+      System.out.println("address: " + ShieldAddressInfo.getShieldAddress(paymentAddress.getD(), paymentAddress.getPkD()));
+
     } catch (Exception e) {
       e.printStackTrace();
     }
-
-    return Optional.empty();
   }
 
 }
