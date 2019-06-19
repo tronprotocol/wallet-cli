@@ -7,6 +7,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.Getter;
@@ -116,10 +117,10 @@ public class ShieldWrapper {
             builder.setStartBlockIndex(start);
             builder.setEndBlockIndex(end);
             builder.setIvk(ByteString.copyFrom(ByteArray.fromHexString(entry.getKey())));
-            DecryptNotes notes = wallet.scanNoteByIvk(builder.build());
-            if (notes != null) {
-              for (int i = 0; i < notes.getNoteTxsList().size(); ++i) {
-                NoteTx noteTx = notes.getNoteTxsList().get(i);
+            Optional<DecryptNotes> notes = wallet.scanNoteByIvk(builder.build());
+            if (notes.isPresent()) {
+              for (int i = 0; i < notes.get().getNoteTxsList().size(); ++i) {
+                NoteTx noteTx = notes.get().getNoteTxsList().get(i);
                 ShieldNoteInfo noteInfo = new ShieldNoteInfo();
                 noteInfo.setPaymentAddress(noteTx.getNote().getPaymentAddress());
                 noteInfo.setR(noteTx.getNote().getRcm().toByteArray());
@@ -155,9 +156,9 @@ public class ShieldWrapper {
         outPointBuild.setHash(ByteString.copyFrom(ByteArray.fromHexString(noteInfo.getTrxId())));
         outPointBuild.setIndex(noteInfo.getIndex());
         request.addOutPoints(outPointBuild.build());
-        IncrementalMerkleVoucherInfo merkleVoucherInfo = wallet
+        Optional<IncrementalMerkleVoucherInfo> merkleVoucherInfo = wallet
             .GetMerkleTreeVoucherInfo(request.build());
-        if (merkleVoucherInfo.getVouchersCount() > 0) {
+        if (merkleVoucherInfo.isPresent() && merkleVoucherInfo.get().getVouchersCount() > 0) {
           ShieldAddressInfo addressInfo = getShieldAddressInfoMap().get(noteInfo.getPaymentAddress());
           NoteParameters.Builder builder = NoteParameters.newBuilder();
           builder.setAk(ByteString.copyFrom(addressInfo.getFullViewingKey().getAk()));
@@ -169,10 +170,10 @@ public class ShieldWrapper {
           noteBuild.setRcm(ByteString.copyFrom(noteInfo.getR()));
           noteBuild.setMemo(ByteString.copyFrom(noteInfo.getMemo()));
           builder.setNote(noteBuild.build());
-          builder.setVoucher(merkleVoucherInfo.getVouchers(0));
+          builder.setVoucher(merkleVoucherInfo.get().getVouchers(0));
 
-          SpendResult result = wallet.isNoteSpend(builder.build());
-          if (result.getResult()) {
+          Optional<SpendResult> result = wallet.isNoteSpend(builder.build());
+          if (result.isPresent() && result.get().getResult()) {
             spendNote(entry.getKey());
           }
         }

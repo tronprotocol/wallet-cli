@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
+import jdk.nashorn.internal.runtime.regexp.joni.constants.OPCode;
 import lombok.Getter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -775,8 +776,8 @@ public class WalletApiWrapper {
         outPointBuild.setIndex(noteInfo.getIndex());
         request.addOutPoints(outPointBuild.build());
       }
-      IncrementalMerkleVoucherInfo merkleVoucherInfo = wallet.GetMerkleTreeVoucherInfo(request.build());
-      if (merkleVoucherInfo.getVouchersCount() != shieldInputList.size()) {
+      Optional<IncrementalMerkleVoucherInfo> merkleVoucherInfo = wallet.GetMerkleTreeVoucherInfo(request.build());
+      if (!merkleVoucherInfo.isPresent() || merkleVoucherInfo.get().getVouchersCount() != shieldInputList.size()) {
         System.out.println("Can't get all merkel tree, please check the notes.");
         return false;
       }
@@ -811,8 +812,8 @@ public class WalletApiWrapper {
         SpendNote.Builder spendNoteBuilder = SpendNote.newBuilder();
         spendNoteBuilder.setNote(noteBuild.build());
         spendNoteBuilder.setAlpha(ByteString.copyFrom(getRcm()));
-        spendNoteBuilder.setVoucher(merkleVoucherInfo.getVouchers(i));
-        spendNoteBuilder.setPath(merkleVoucherInfo.getPaths(i));
+        spendNoteBuilder.setVoucher(merkleVoucherInfo.get().getVouchers(i));
+        spendNoteBuilder.setPath(merkleVoucherInfo.get().getPaths(i));
 
         builder.addShieldedSpends(spendNoteBuilder.build());
       }
@@ -868,8 +869,8 @@ public class WalletApiWrapper {
         outPointBuild.setIndex(noteInfo.getIndex());
         request.addOutPoints(outPointBuild.build());
       }
-      IncrementalMerkleVoucherInfo merkleVoucherInfo = wallet.GetMerkleTreeVoucherInfo(request.build());
-      if (merkleVoucherInfo.getVouchersCount() != shieldInputList.size()) {
+      Optional<IncrementalMerkleVoucherInfo> merkleVoucherInfo = wallet.GetMerkleTreeVoucherInfo(request.build());
+      if (!merkleVoucherInfo.isPresent() || merkleVoucherInfo.get().getVouchersCount() != shieldInputList.size()) {
         System.out.println("Can't get all merkel tree, please check the notes.");
         return false;
       }
@@ -906,8 +907,8 @@ public class WalletApiWrapper {
         SpendNote.Builder spendNoteBuilder = SpendNote.newBuilder();
         spendNoteBuilder.setNote(noteBuild.build());
         spendNoteBuilder.setAlpha(ByteString.copyFrom(getRcm()));
-        spendNoteBuilder.setVoucher(merkleVoucherInfo.getVouchers(i));
-        spendNoteBuilder.setPath(merkleVoucherInfo.getPaths(i));
+        spendNoteBuilder.setVoucher(merkleVoucherInfo.get().getVouchers(i));
+        spendNoteBuilder.setPath(merkleVoucherInfo.get().getPaths(i));
 
         builder.addShieldedSpends(spendNoteBuilder.build());
       }
@@ -953,12 +954,12 @@ public class WalletApiWrapper {
         .setIvk(ByteString.copyFrom(addressInfo.getIvk()))
         .build();
 
-    DecryptNotes decryptNotes = wallet.scanNoteByIvk(ivkDecryptParameters);
-    if(decryptNotes == null){
+    Optional<DecryptNotes> decryptNotes = wallet.scanNoteByIvk(ivkDecryptParameters);
+    if(!decryptNotes.isPresent()){
       logger.info("scanNoteByIvk failed !!!");
     } else {
-      for(int i=0; i<decryptNotes.getNoteTxsList().size();i++) {
-        NoteTx noteTx = decryptNotes.getNoteTxs(i);
+      for(int i=0; i<decryptNotes.get().getNoteTxsList().size();i++) {
+        NoteTx noteTx = decryptNotes.get().getNoteTxs(i);
         Note note = noteTx.getNote();
         logger.info("\ntxid:{}\nindex:{}\naddress:{}\nrcm:{}\nvalue:{}\nmeno:{}",
             ByteArray.toHexString(noteTx.getTxid().toByteArray()),
@@ -985,12 +986,12 @@ public class WalletApiWrapper {
         .setOvk(ByteString.copyFrom(ByteArray.fromHexString(shieldAddress)))
         .build();
 
-    DecryptNotes decryptNotes = wallet.scanNoteByOvk(ovkDecryptParameters);
-    if(decryptNotes == null){
+    Optional<DecryptNotes> decryptNotes = wallet.scanNoteByOvk(ovkDecryptParameters);
+    if( !decryptNotes.isPresent() ){
       logger.info("ScanNoteByOvk failed !!!");
     }else{
-      for(int i=0; i<decryptNotes.getNoteTxsList().size();i++) {
-        NoteTx noteTx = decryptNotes.getNoteTxs(i);
+      for(int i=0; i<decryptNotes.get().getNoteTxsList().size();i++) {
+        NoteTx noteTx = decryptNotes.get().getNoteTxs(i);
         Note note = noteTx.getNote();
         logger.info("\ntxid:{}\nindex:{}\npaymentAddress:{}\nrcm:{}\nmeno:{}\nvalue:{}",
             ByteArray.toHexString(noteTx.getTxid().toByteArray()),
@@ -1011,50 +1012,50 @@ public class WalletApiWrapper {
 
       if (fromRPC) {
         //获取SK
-        BytesMessage sk = wallet.getSpendingKey();
-        System.out.println("sk: " + ByteArray.toHexString(sk.getValue().toByteArray()));
+        Optional<BytesMessage> sk = wallet.getSpendingKey();
+        System.out.println("sk: " + ByteArray.toHexString(sk.get().getValue().toByteArray()));
 
         //获取D
-        DiversifierMessage d = wallet.getDiversifier();
-        System.out.println("d: " + ByteArray.toHexString(d.getD().toByteArray()));
+        Optional<DiversifierMessage> d = wallet.getDiversifier();
+        System.out.println("d: " + ByteArray.toHexString(d.get().getD().toByteArray()));
 
         //通过sk获取ask，nsk，ovk
-        ExpandedSpendingKeyMessage expandedSpendingKeyMessage = wallet.getExpandedSpendingKey(sk);
-        System.out.println("ask: " + ByteArray.toHexString(expandedSpendingKeyMessage.getAsk().toByteArray()));
-        System.out.println("nsk: " + ByteArray.toHexString(expandedSpendingKeyMessage.getNsk().toByteArray()));
-        System.out.println("ovk: " + ByteArray.toHexString(expandedSpendingKeyMessage.getOvk().toByteArray()));
+        Optional<ExpandedSpendingKeyMessage> expandedSpendingKeyMessage = wallet.getExpandedSpendingKey(sk.get());
+        System.out.println("ask: " + ByteArray.toHexString(expandedSpendingKeyMessage.get().getAsk().toByteArray()));
+        System.out.println("nsk: " + ByteArray.toHexString(expandedSpendingKeyMessage.get().getNsk().toByteArray()));
+        System.out.println("ovk: " + ByteArray.toHexString(expandedSpendingKeyMessage.get().getOvk().toByteArray()));
 
         //通过ask获取ak
         BytesMessage.Builder askBuilder = BytesMessage.newBuilder();
-        askBuilder.setValue(expandedSpendingKeyMessage.getAsk());
-        BytesMessage ak = wallet.getAkFromAsk(askBuilder.build());
-        System.out.println("ak: " + ByteArray.toHexString(ak.getValue().toByteArray()));
+        askBuilder.setValue(expandedSpendingKeyMessage.get().getAsk());
+        Optional<BytesMessage> ak = wallet.getAkFromAsk(askBuilder.build());
+        System.out.println("ak: " + ByteArray.toHexString(ak.get().getValue().toByteArray()));
 
         //通过nsk获取nk
         BytesMessage.Builder nskBuilder = BytesMessage.newBuilder();
-        nskBuilder.setValue(expandedSpendingKeyMessage.getNsk());
-        BytesMessage nk = wallet.getNkFromNsk(nskBuilder.build());
-        System.out.println("nk: " + ByteArray.toHexString(nk.getValue().toByteArray()));
+        nskBuilder.setValue(expandedSpendingKeyMessage.get().getNsk());
+        Optional<BytesMessage> nk = wallet.getNkFromNsk(nskBuilder.build());
+        System.out.println("nk: " + ByteArray.toHexString(nk.get().getValue().toByteArray()));
 
         //通过ak,nk获取ivk
         ViewingKeyMessage.Builder viewBuilder = ViewingKeyMessage.newBuilder();
-        viewBuilder.setAk(ak.getValue());
-        viewBuilder.setNk(nk.getValue());
-        IncomingViewingKeyMessage ivk = wallet.getIncomingViewingKey(viewBuilder.build());
-        System.out.println("ivk: " + ByteArray.toHexString(ivk.getIvk().toByteArray()));
+        viewBuilder.setAk(ak.get().getValue());
+        viewBuilder.setNk(nk.get().getValue());
+        Optional<IncomingViewingKeyMessage> ivk = wallet.getIncomingViewingKey(viewBuilder.build());
+        System.out.println("ivk: " + ByteArray.toHexString(ivk.get().getIvk().toByteArray()));
 
         // 通过ivk，d获取匿名地址
         IncomingViewingKeyDiversifierMessage.Builder builder = IncomingViewingKeyDiversifierMessage.newBuilder();
-        builder.setD(d);
-        builder.setIvk(ivk);
-        PaymentAddressMessage addressMessage = wallet.getZenPaymentAddress(builder.build());
-        System.out.println("pkd: " +  ByteArray.toHexString(addressMessage.getPkD().toByteArray()));
-        System.out.println("address: " + addressMessage.getPaymentAddress());
-        addressInfo.setSk(sk.getValue().toByteArray());
-        addressInfo.setD(new DiversifierT(d.getD().toByteArray()));
-        addressInfo.setIvk(ivk.getIvk().toByteArray());
-        addressInfo.setOvk(expandedSpendingKeyMessage.getOvk().toByteArray());
-        addressInfo.setPkD(addressMessage.getPkD().toByteArray());
+        builder.setD(d.get());
+        builder.setIvk(ivk.get());
+        Optional<PaymentAddressMessage> addressMessage = wallet.getZenPaymentAddress(builder.build());
+        System.out.println("pkd: " +  ByteArray.toHexString(addressMessage.get().getPkD().toByteArray()));
+        System.out.println("address: " + addressMessage.get().getPaymentAddress());
+        addressInfo.setSk(sk.get().getValue().toByteArray());
+        addressInfo.setD(new DiversifierT(d.get().getD().toByteArray()));
+        addressInfo.setIvk(ivk.get().getIvk().toByteArray());
+        addressInfo.setOvk(expandedSpendingKeyMessage.get().getOvk().toByteArray());
+        addressInfo.setPkD(addressMessage.get().getPkD().toByteArray());
 
       } else {
         DiversifierT diversifier = new DiversifierT().random();
@@ -1092,8 +1093,8 @@ public class WalletApiWrapper {
     outPointBuild.setHash(ByteString.copyFrom(ByteArray.fromHexString(noteInfo.getTrxId())));
     outPointBuild.setIndex(noteInfo.getIndex());
     request.addOutPoints(outPointBuild.build());
-    IncrementalMerkleVoucherInfo merkleVoucherInfo = wallet.GetMerkleTreeVoucherInfo(request.build());
-    if (merkleVoucherInfo.getVouchersCount() < 1) {
+    Optional<IncrementalMerkleVoucherInfo> merkleVoucherInfo = wallet.GetMerkleTreeVoucherInfo(request.build());
+    if ( !merkleVoucherInfo.isPresent() || merkleVoucherInfo.get().getVouchersCount() < 1) {
       System.out.println("get merkleVoucherInfo failure.");
       return null;
     }
@@ -1121,12 +1122,12 @@ public class WalletApiWrapper {
       FullViewingKey fullViewingKey = spendingKey.fullViewingKey();
       NfParameters.Builder builder = NfParameters.newBuilder();
       builder.setNote(noteBuild.build());
-      builder.setVoucher(merkleVoucherInfo.getVouchers(0));
+      builder.setVoucher(merkleVoucherInfo.get().getVouchers(0));
       builder.setAk(ByteString.copyFrom(fullViewingKey.getAk()));
       builder.setNk(ByteString.copyFrom(fullViewingKey.getNk()));
 
-      BytesMessage nullifier = wallet.createShieldNullifier(builder.build());
-      return ByteArray.toHexString(nullifier.getValue().toByteArray());
+      Optional<BytesMessage> nullifier = wallet.createShieldNullifier(builder.build());
+      return ByteArray.toHexString(nullifier.get().getValue().toByteArray());
 
     } catch (Exception e) {
       e.printStackTrace();
@@ -1136,14 +1137,14 @@ public class WalletApiWrapper {
 
   public byte[] getRcm() {
     if (fromRPC) {
-      return wallet.getRcm().getValue().toByteArray();
+      return wallet.getRcm().get().getValue().toByteArray();
     } else {
       try {
         return org.tron.core.zen.note.Note.generateR();
       } catch (Exception e) {
         e.printStackTrace();
       }
-      return wallet.getRcm().getValue().toByteArray();
+      return wallet.getRcm().get().getValue().toByteArray();
     }
   }
 

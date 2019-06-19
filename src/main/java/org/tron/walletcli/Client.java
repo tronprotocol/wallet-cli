@@ -2296,10 +2296,10 @@ public class Client {
       System.out.println("invalid parameter: startNum, endNum.");
       return;
     }
-    if (endNum<=0 || startNum >= endNum || endNum-startNum > 1000) {
-      System.out.println("Invalid parameters");
-      return ;
-    }
+//    if (endNum<=0 || startNum >= endNum || endNum-startNum > 1000) {
+//      System.out.println("Invalid parameters");
+//      return ;
+//    }
 
     walletApiWrapper.scanShieldNoteByShieldAddress(parameters[0], startNum, endNum);
   }
@@ -2318,10 +2318,10 @@ public class Client {
       System.out.println("invalid parameter: startNum, endNum.");
       return;
     }
-    if (endNum<=0 || startNum >= endNum || endNum-startNum > 1000) {
-      System.out.println("Invalid parameters");
-      return ;
-    }
+//    if (endNum<=0 || startNum >= endNum || endNum-startNum > 1000) {
+//      System.out.println("Invalid parameters");
+//      return ;
+//    }
 
     walletApiWrapper.scanShieldNoteByovk(parameters[0], startNum, endNum);
   }

@@ -12,6 +12,7 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigObject;
+import io.grpc.Status;
 import java.io.File;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
@@ -2046,40 +2047,94 @@ public class WalletApi {
     return transaction;
   }
 
-  public IncrementalMerkleVoucherInfo GetMerkleTreeVoucherInfo(OutputPointInfo info) {
-    return rpcCli.GetMerkleTreeVoucherInfo(info);
+  public Optional<IncrementalMerkleVoucherInfo> GetMerkleTreeVoucherInfo(OutputPointInfo info) {
+    try {
+      return Optional.of(rpcCli.GetMerkleTreeVoucherInfo(info));
+    }catch (Exception e) {
+      Status status = Status.fromThrowable(e);
+      logger.info("GetMerkleTreeVoucherInfo failed,error {}", status.getDescription());
+    }
+    return Optional.empty();
   }
 
-  public DecryptNotes scanNoteByIvk(IvkDecryptParameters ivkDecryptParameters){
-    return rpcCli.scanNoteByIvk(ivkDecryptParameters);
+  public Optional<DecryptNotes> scanNoteByIvk(IvkDecryptParameters ivkDecryptParameters){
+    try {
+      return Optional.of(rpcCli.scanNoteByIvk(ivkDecryptParameters));
+    }catch (Exception e) {
+      Status status = Status.fromThrowable(e);
+      logger.info("scanNoteByIvk failed,error {}", status.getDescription());
+    }
+    return Optional.empty();
   }
 
-  public DecryptNotes scanNoteByOvk(OvkDecryptParameters ovkDecryptParameters){
-    return rpcCli.scanNoteByOvk(ovkDecryptParameters);
+  public Optional<DecryptNotes> scanNoteByOvk(OvkDecryptParameters ovkDecryptParameters){
+    try {
+      return Optional.of(rpcCli.scanNoteByOvk(ovkDecryptParameters));
+    }catch (Exception e) {
+      Status status = Status.fromThrowable(e);
+      logger.info("scanNoteByOvk failed,error {}", status.getDescription());
+    }
+    return Optional.empty();
   }
 
-  public BytesMessage getSpendingKey() {
-    return rpcCli.getSpendingKey();
+  public Optional<BytesMessage> getSpendingKey() {
+    try {
+      return Optional.of(rpcCli.getSpendingKey());
+    }catch (Exception e) {
+      Status status = Status.fromThrowable(e);
+      logger.info("getSpendingKey failed,error {}", status.getDescription());
+    }
+    return Optional.empty();
   }
 
-  public ExpandedSpendingKeyMessage getExpandedSpendingKey(BytesMessage spendingKey) {
-    return rpcCli.getExpandedSpendingKey(spendingKey);
+  public Optional<ExpandedSpendingKeyMessage> getExpandedSpendingKey(BytesMessage spendingKey) {
+    try {
+      return Optional.of(rpcCli.getExpandedSpendingKey(spendingKey));
+    }catch (Exception e) {
+      Status status = Status.fromThrowable(e);
+      logger.info("getExpandedSpendingKey failed,error {}", status.getDescription());
+    }
+    return Optional.empty();
   }
 
-  public BytesMessage getAkFromAsk(BytesMessage ask) {
-    return rpcCli.getAkFromAsk(ask);
+  public Optional<BytesMessage> getAkFromAsk(BytesMessage ask) {
+    try {
+      return Optional.of(rpcCli.getAkFromAsk(ask));
+    }catch (Exception e) {
+      Status status = Status.fromThrowable(e);
+      logger.info("getAkFromAsk failed,error {}", status.getDescription());
+    }
+    return Optional.empty();
   }
 
-  public BytesMessage getNkFromNsk(BytesMessage nsk) {
-    return rpcCli.getNkFromNsk(nsk);
+  public Optional<BytesMessage> getNkFromNsk(BytesMessage nsk) {
+    try {
+      return Optional.of(rpcCli.getNkFromNsk(nsk));
+    }catch (Exception e) {
+      Status status = Status.fromThrowable(e);
+      logger.info("getNkFromNsk failed,error {}", status.getDescription());
+    }
+    return Optional.empty();
   }
 
-  public IncomingViewingKeyMessage getIncomingViewingKey(ViewingKeyMessage viewingKeyMessage) {
-    return rpcCli.getIncomingViewingKey(viewingKeyMessage);
+  public Optional<IncomingViewingKeyMessage> getIncomingViewingKey(ViewingKeyMessage viewingKeyMessage) {
+    try {
+      return Optional.of(rpcCli.getIncomingViewingKey(viewingKeyMessage));
+    }catch (Exception e) {
+      Status status = Status.fromThrowable(e);
+      logger.info("getIncomingViewingKey failed,error {}", status.getDescription());
+    }
+    return Optional.empty();
   }
 
-  public DiversifierMessage getDiversifier() {
-    return rpcCli.getDiversifier();
+  public Optional<DiversifierMessage> getDiversifier() {
+    try {
+      return Optional.of(rpcCli.getDiversifier());
+    }catch (Exception e) {
+      Status status = Status.fromThrowable(e);
+      logger.info("getDiversifier failed,error {}", status.getDescription());
+    }
+    return Optional.empty();
   }
 
   public boolean sendShieldCoin(PrivateParameters privateParameters)
@@ -2140,20 +2195,44 @@ public class WalletApi {
     return processTransactionExtention(transactionExtention);
   }
 
-  public SpendResult isNoteSpend(NoteParameters noteParameters) {
-    return rpcCli.isNoteSpend(noteParameters);
+  public Optional<SpendResult> isNoteSpend(NoteParameters noteParameters) {
+    try {
+      return Optional.of(rpcCli.isNoteSpend(noteParameters));
+    }catch (Exception e) {
+      Status status = Status.fromThrowable(e);
+      logger.info("isNoteSpend failed,error {}", status.getDescription());
+    }
+    return Optional.empty();
   }
 
-  public BytesMessage getRcm() {
-    return rpcCli.getRcm();
+  public Optional<BytesMessage> getRcm() {
+    try {
+      return Optional.of(rpcCli.getRcm());
+    }catch (Exception e) {
+      Status status = Status.fromThrowable(e);
+      logger.info("getRcm failed,error {}", status.getDescription());
+    }
+    return Optional.empty();
   }
 
-  public BytesMessage createShieldNullifier(NfParameters parameters) {
-    return rpcCli.createShieldNullifier(parameters);
+  public Optional<BytesMessage> createShieldNullifier(NfParameters parameters) {
+    try {
+      return Optional.of(rpcCli.createShieldNullifier(parameters));
+    }catch (Exception e) {
+      Status status = Status.fromThrowable(e);
+      logger.info("createShieldNullifier failed,error {}", status.getDescription());
+    }
+    return Optional.empty();
   }
 
-  public PaymentAddressMessage getZenPaymentAddress(IncomingViewingKeyDiversifierMessage msg) {
-    return rpcCli.getZenPaymentAddress(msg);
+  public Optional<PaymentAddressMessage> getZenPaymentAddress(IncomingViewingKeyDiversifierMessage msg) {
+    try {
+      return Optional.of(rpcCli.getZenPaymentAddress(msg));
+    }catch (Exception e) {
+      Status status = Status.fromThrowable(e);
+      logger.info("getZenPaymentAddress failed,error {}", status.getDescription());
+    }
+    return Optional.empty();
   }
 
 }
