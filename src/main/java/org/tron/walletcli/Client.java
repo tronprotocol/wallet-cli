@@ -2307,7 +2307,7 @@ public class Client {
   private void ScanNoteByOvk(String[] parameters) {
     if (parameters == null || parameters.length != 3) {
       System.out.println("scannotebyovk needs 3 parameter like the following: ");
-      System.out.println("scannotebyovk startNum endNum ovk");
+      System.out.println("scannotebyovk ovk startNum endNum");
       return;
     }
     long startNum,endNum;
