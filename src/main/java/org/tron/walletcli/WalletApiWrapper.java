@@ -1013,6 +1013,11 @@ public class WalletApiWrapper {
       if (fromRPC) {
         //获取SK
         Optional<BytesMessage> sk = wallet.getSpendingKey();
+
+//        ByteString byteString = ByteString.copyFrom(ByteArray.fromHexString("04b63bba792a506d448d52a0dbfe478d275a105ae96638c477464000a0bd2e15"));
+//        BytesMessage bytesMessage = BytesMessage.newBuilder().setValue(byteString).build();
+//        Optional<BytesMessage> sk = Optional.of(bytesMessage);
+
         System.out.println("sk: " + ByteArray.toHexString(sk.get().getValue().toByteArray()));
 
         //获取D

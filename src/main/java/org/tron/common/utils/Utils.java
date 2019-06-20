@@ -20,6 +20,7 @@ package org.tron.common.utils;
 
 import com.beust.jcommander.Strings;
 import com.google.protobuf.ByteString;
+import io.netty.util.internal.StringUtil;
 import java.io.Console;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -1316,6 +1317,47 @@ public class Utils {
       results += "ContractRet ::: ";
       results += result.getContractRet().name();
       results += "\n";
+      if ( !StringUtil.isNullOrEmpty(result.getAssetIssueID())) {
+        results += "assetIssueID: ";
+        results += result.getAssetIssueID();
+        results += "\n";
+      }
+      if (result.getWithdrawAmount() != 0) {
+        results += "WithdrawAmount: ";
+        results += result.getWithdrawAmount();
+        results += "\n";
+      }
+      if (result.getUnfreezeAmount() != 0) {
+        results += "UnfreezeAmount: ";
+        results += result.getUnfreezeAmount();
+        results += "\n";
+      }
+      if (result.getExchangeReceivedAmount() != 0) {
+        results += "ExchangeReceivedAmount: ";
+        results += result.getExchangeReceivedAmount();
+        results += "\n";
+      }
+      if (result.getExchangeInjectAnotherAmount() != 0) {
+        results += "ExchangeInjectAnotherAmount: ";
+        results += result.getExchangeInjectAnotherAmount();
+        results += "\n";
+      }
+      if (result.getExchangeWithdrawAnotherAmount() != 0) {
+        results += "ExchangeWithdrawAnotherAmount: ";
+        results += result.getExchangeWithdrawAnotherAmount();
+        results += "\n";
+      }
+      if (result.getExchangeId() != 0) {
+        results += "ExchangeId: ";
+        results += result.getExchangeId();
+        results += "\n";
+      }
+      if (result.getShieldedTransactionFee() != 0) {
+        results += "ShieldedTransactionFee: ";
+        results += result.getShieldedTransactionFee();
+        results += "\n";
+      }
+
       results += "]";
       results += "\n";
       i++;
@@ -1478,6 +1520,12 @@ public class Utils {
       result += transactionInfo.getExchangeId();
       result += "\n";
     }
+    if (transactionInfo.getShieldedTransactionFee() != 0) {
+      result += "ShieldedTransactionFee: ";
+      result += transactionInfo.getShieldedTransactionFee();
+      result += "\n";
+    }
+
     result += "InternalTransactionList: ";
     result += "\n";
     result += printInternalTransactionList(transactionInfo.getInternalTransactionsList());
