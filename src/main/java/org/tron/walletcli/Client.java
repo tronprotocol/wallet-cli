@@ -1505,7 +1505,7 @@ public class Client {
       txid = parameters[0];
     }
     Optional<TransactionInfo> result = WalletApi.getTransactionInfoById(txid);
-    if (result.isPresent()) {
+    if (result.isPresent() && !result.get().equals(TransactionInfo.getDefaultInstance())) {
       TransactionInfo transactionInfo = result.get();
       logger.info(Utils.printTransactionInfo(transactionInfo));
     } else {
