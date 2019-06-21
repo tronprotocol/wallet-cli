@@ -2047,32 +2047,53 @@ public class WalletApi {
     return transaction;
   }
 
-  public Optional<IncrementalMerkleVoucherInfo> GetMerkleTreeVoucherInfo(OutputPointInfo info) {
-    try {
+  public Optional<IncrementalMerkleVoucherInfo> GetMerkleTreeVoucherInfo(OutputPointInfo info,
+      boolean showErrorMsg) {
+    if ( showErrorMsg ) {
+      try {
+        return Optional.of(rpcCli.GetMerkleTreeVoucherInfo(info));
+      }catch (Exception e) {
+        if (showErrorMsg) {
+          Status status = Status.fromThrowable(e);
+          logger.info("GetMerkleTreeVoucherInfo failed,error {}", status.getDescription());
+        }
+      }
+    } else {
       return Optional.of(rpcCli.GetMerkleTreeVoucherInfo(info));
-    }catch (Exception e) {
-      Status status = Status.fromThrowable(e);
-      logger.info("GetMerkleTreeVoucherInfo failed,error {}", status.getDescription());
     }
     return Optional.empty();
   }
 
-  public Optional<DecryptNotes> scanNoteByIvk(IvkDecryptParameters ivkDecryptParameters){
-    try {
+  public Optional<DecryptNotes> scanNoteByIvk(IvkDecryptParameters ivkDecryptParameters,
+      boolean showErrorMsg) {
+    if (showErrorMsg) {
+      try {
+        return Optional.of(rpcCli.scanNoteByIvk(ivkDecryptParameters));
+      } catch (Exception e) {
+        if (showErrorMsg) {
+          Status status = Status.fromThrowable(e);
+          logger.info("scanNoteByIvk failed,error {}", status.getDescription());
+        }
+      }
+    } else {
       return Optional.of(rpcCli.scanNoteByIvk(ivkDecryptParameters));
-    }catch (Exception e) {
-      Status status = Status.fromThrowable(e);
-      logger.info("scanNoteByIvk failed,error {}", status.getDescription());
     }
     return Optional.empty();
   }
 
-  public Optional<DecryptNotes> scanNoteByOvk(OvkDecryptParameters ovkDecryptParameters){
-    try {
+  public Optional<DecryptNotes> scanNoteByOvk(OvkDecryptParameters ovkDecryptParameters,
+      boolean showErrorMsg) {
+    if (showErrorMsg) {
+      try {
+        return Optional.of(rpcCli.scanNoteByOvk(ovkDecryptParameters));
+      } catch (Exception e) {
+        if (showErrorMsg) {
+          Status status = Status.fromThrowable(e);
+          logger.info("scanNoteByOvk failed,error {}", status.getDescription());
+        }
+      }
+    } else {
       return Optional.of(rpcCli.scanNoteByOvk(ovkDecryptParameters));
-    }catch (Exception e) {
-      Status status = Status.fromThrowable(e);
-      logger.info("scanNoteByOvk failed,error {}", status.getDescription());
     }
     return Optional.empty();
   }
@@ -2195,12 +2216,18 @@ public class WalletApi {
     return processTransactionExtention(transactionExtention);
   }
 
-  public Optional<SpendResult> isNoteSpend(NoteParameters noteParameters) {
-    try {
+  public Optional<SpendResult> isNoteSpend(NoteParameters noteParameters, boolean showErrorMsg) {
+    if (showErrorMsg) {
+      try {
+        return Optional.of(rpcCli.isNoteSpend(noteParameters));
+      } catch (Exception e) {
+        if (showErrorMsg) {
+          Status status = Status.fromThrowable(e);
+          logger.info("isNoteSpend failed,error {}", status.getDescription());
+        }
+      }
+    } else {
       return Optional.of(rpcCli.isNoteSpend(noteParameters));
-    }catch (Exception e) {
-      Status status = Status.fromThrowable(e);
-      logger.info("isNoteSpend failed,error {}", status.getDescription());
     }
     return Optional.empty();
   }

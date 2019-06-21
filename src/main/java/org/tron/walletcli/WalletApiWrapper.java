@@ -776,7 +776,8 @@ public class WalletApiWrapper {
         outPointBuild.setIndex(noteInfo.getIndex());
         request.addOutPoints(outPointBuild.build());
       }
-      Optional<IncrementalMerkleVoucherInfo> merkleVoucherInfo = wallet.GetMerkleTreeVoucherInfo(request.build());
+      Optional<IncrementalMerkleVoucherInfo> merkleVoucherInfo =
+          wallet.GetMerkleTreeVoucherInfo(request.build(), true);
       if (!merkleVoucherInfo.isPresent() || merkleVoucherInfo.get().getVouchersCount() != shieldInputList.size()) {
         System.out.println("Can't get all merkel tree, please check the notes.");
         return false;
@@ -869,7 +870,8 @@ public class WalletApiWrapper {
         outPointBuild.setIndex(noteInfo.getIndex());
         request.addOutPoints(outPointBuild.build());
       }
-      Optional<IncrementalMerkleVoucherInfo> merkleVoucherInfo = wallet.GetMerkleTreeVoucherInfo(request.build());
+      Optional<IncrementalMerkleVoucherInfo> merkleVoucherInfo =
+          wallet.GetMerkleTreeVoucherInfo(request.build(), true);
       if (!merkleVoucherInfo.isPresent() || merkleVoucherInfo.get().getVouchersCount() != shieldInputList.size()) {
         System.out.println("Can't get all merkel tree, please check the notes.");
         return false;
@@ -954,7 +956,7 @@ public class WalletApiWrapper {
         .setIvk(ByteString.copyFrom(addressInfo.getIvk()))
         .build();
 
-    Optional<DecryptNotes> decryptNotes = wallet.scanNoteByIvk(ivkDecryptParameters);
+    Optional<DecryptNotes> decryptNotes = wallet.scanNoteByIvk(ivkDecryptParameters, true);
     if(!decryptNotes.isPresent()){
       logger.info("scanNoteByIvk failed !!!");
     } else {
@@ -986,7 +988,7 @@ public class WalletApiWrapper {
         .setOvk(ByteString.copyFrom(ByteArray.fromHexString(shieldAddress)))
         .build();
 
-    Optional<DecryptNotes> decryptNotes = wallet.scanNoteByOvk(ovkDecryptParameters);
+    Optional<DecryptNotes> decryptNotes = wallet.scanNoteByOvk(ovkDecryptParameters, true);
     if( !decryptNotes.isPresent() ){
       logger.info("ScanNoteByOvk failed !!!");
     }else{
@@ -1098,7 +1100,8 @@ public class WalletApiWrapper {
     outPointBuild.setHash(ByteString.copyFrom(ByteArray.fromHexString(noteInfo.getTrxId())));
     outPointBuild.setIndex(noteInfo.getIndex());
     request.addOutPoints(outPointBuild.build());
-    Optional<IncrementalMerkleVoucherInfo> merkleVoucherInfo = wallet.GetMerkleTreeVoucherInfo(request.build());
+    Optional<IncrementalMerkleVoucherInfo> merkleVoucherInfo =
+        wallet.GetMerkleTreeVoucherInfo(request.build(), true);
     if ( !merkleVoucherInfo.isPresent() || merkleVoucherInfo.get().getVouchersCount() < 1) {
       System.out.println("get merkleVoucherInfo failure.");
       return null;

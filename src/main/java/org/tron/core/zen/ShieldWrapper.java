@@ -61,21 +61,34 @@ public class ShieldWrapper {
 
   public class scanIvkRunable implements Runnable {
     public void run(){
+      int count = 24;
       for (;;) {
         try {
           scanBlockByIvk();
           updateNoteWhetherSpend();
-          //wait for 2.5 seconds
-          for (int i=0; i<5; ++i) {
-            Thread.sleep(500);
-            if (resetNote) {
-              resetShieldNote();
-              resetNote = false;
-              System.out.println("Reset shield note success!");
-            }
-          }
         } catch (Exception e) {
-          e.printStackTrace();
+          ++count;
+          if (count >= 24) {
+            if (e.getMessage() != null) {
+              System.out.println(e.getMessage());
+            }
+            System.out.println("Please user command resetshieldnote to reset notes!!");
+            count = 0;
+          }
+        } finally {
+          try {
+            //wait for 2.5 seconds
+            for (int i=0; i<5; ++i) {
+              Thread.sleep(500);
+              if (resetNote) {
+                resetShieldNote();
+                resetNote = false;
+                count = 0;
+                System.out.println("Reset shield note success!");
+              }
+            }
+          } catch ( Exception e) {
+          }
         }
       }
     }
@@ -99,87 +112,78 @@ public class ShieldWrapper {
   }
 
   private void scanBlockByIvk() {
-    try {
-      Block block = wallet.getBlock(-1);
-      if (block != null) {
-        long blockNum = block.getBlockHeader().toBuilder().getRawData().getNumber();
-        for (Entry<String, Long> entry : ivkMapScanBlockNum.entrySet()) {
-          long start = entry.getValue();
-          long end = start;
-          while (end < blockNum) {
-            if (blockNum - start > 1000) {
-              end = start + 1000;
-            } else {
-              end = blockNum;
-            }
-
-            IvkDecryptParameters.Builder builder = IvkDecryptParameters.newBuilder();
-            builder.setStartBlockIndex(start);
-            builder.setEndBlockIndex(end);
-            builder.setIvk(ByteString.copyFrom(ByteArray.fromHexString(entry.getKey())));
-            Optional<DecryptNotes> notes = wallet.scanNoteByIvk(builder.build());
-            if (notes.isPresent()) {
-              for (int i = 0; i < notes.get().getNoteTxsList().size(); ++i) {
-                NoteTx noteTx = notes.get().getNoteTxsList().get(i);
-                ShieldNoteInfo noteInfo = new ShieldNoteInfo();
-                noteInfo.setPaymentAddress(noteTx.getNote().getPaymentAddress());
-                noteInfo.setR(noteTx.getNote().getRcm().toByteArray());
-                noteInfo.setValue(noteTx.getNote().getValue());
-                noteInfo.setTrxId(ByteArray.toHexString(noteTx.getTxid().toByteArray()));
-                noteInfo.setIndex(noteTx.getIndex());
-                noteInfo.setNoteIndex(nodeIndex.getAndIncrement());
-                noteInfo.setMemo(noteTx.getNote().getMemo().toByteArray());
-
-                utxoMapNote.put(noteInfo.getNoteIndex(), noteInfo);
-              }
-              saveUnspendNoteToFile();
-            }
-            start = end;
+    Block block = wallet.getBlock(-1);
+    if (block != null) {
+      long blockNum = block.getBlockHeader().toBuilder().getRawData().getNumber();
+      for (Entry<String, Long> entry : ivkMapScanBlockNum.entrySet()) {
+        long start = entry.getValue();
+        long end = start;
+        while (end < blockNum) {
+          if (blockNum - start > 1000) {
+            end = start + 1000;
+          } else {
+            end = blockNum;
           }
 
-          ivkMapScanBlockNum.put(entry.getKey(), blockNum);
+          IvkDecryptParameters.Builder builder = IvkDecryptParameters.newBuilder();
+          builder.setStartBlockIndex(start);
+          builder.setEndBlockIndex(end);
+          builder.setIvk(ByteString.copyFrom(ByteArray.fromHexString(entry.getKey())));
+          Optional<DecryptNotes> notes = wallet.scanNoteByIvk(builder.build(), false);
+          if (notes.isPresent()) {
+            for (int i = 0; i < notes.get().getNoteTxsList().size(); ++i) {
+              NoteTx noteTx = notes.get().getNoteTxsList().get(i);
+              ShieldNoteInfo noteInfo = new ShieldNoteInfo();
+              noteInfo.setPaymentAddress(noteTx.getNote().getPaymentAddress());
+              noteInfo.setR(noteTx.getNote().getRcm().toByteArray());
+              noteInfo.setValue(noteTx.getNote().getValue());
+              noteInfo.setTrxId(ByteArray.toHexString(noteTx.getTxid().toByteArray()));
+              noteInfo.setIndex(noteTx.getIndex());
+              noteInfo.setNoteIndex(nodeIndex.getAndIncrement());
+              noteInfo.setMemo(noteTx.getNote().getMemo().toByteArray());
+
+              utxoMapNote.put(noteInfo.getNoteIndex(), noteInfo);
+            }
+            saveUnspendNoteToFile();
+          }
+          start = end;
         }
-        updateIvkAndBlockNumFile();
+        ivkMapScanBlockNum.put(entry.getKey(), blockNum);
       }
-    } catch (Exception e) {
-      e.printStackTrace();
+      updateIvkAndBlockNumFile();
     }
   }
 
-  private void updateNoteWhetherSpend() {
-    try {
-      for (Entry<Long, ShieldNoteInfo> entry : utxoMapNote.entrySet()) {
-        ShieldNoteInfo noteInfo = entry.getValue();
+  private void updateNoteWhetherSpend() throws Exception {
+    for (Entry<Long, ShieldNoteInfo> entry : utxoMapNote.entrySet()) {
+      ShieldNoteInfo noteInfo = entry.getValue();
 
-        OutputPointInfo.Builder request = OutputPointInfo.newBuilder();
-        OutputPoint.Builder outPointBuild = OutputPoint.newBuilder();
-        outPointBuild.setHash(ByteString.copyFrom(ByteArray.fromHexString(noteInfo.getTrxId())));
-        outPointBuild.setIndex(noteInfo.getIndex());
-        request.addOutPoints(outPointBuild.build());
-        Optional<IncrementalMerkleVoucherInfo> merkleVoucherInfo = wallet
-            .GetMerkleTreeVoucherInfo(request.build());
-        if (merkleVoucherInfo.isPresent() && merkleVoucherInfo.get().getVouchersCount() > 0) {
-          ShieldAddressInfo addressInfo = getShieldAddressInfoMap().get(noteInfo.getPaymentAddress());
-          NoteParameters.Builder builder = NoteParameters.newBuilder();
-          builder.setAk(ByteString.copyFrom(addressInfo.getFullViewingKey().getAk()));
-          builder.setNk(ByteString.copyFrom(addressInfo.getFullViewingKey().getNk()));
+      OutputPointInfo.Builder request = OutputPointInfo.newBuilder();
+      OutputPoint.Builder outPointBuild = OutputPoint.newBuilder();
+      outPointBuild.setHash(ByteString.copyFrom(ByteArray.fromHexString(noteInfo.getTrxId())));
+      outPointBuild.setIndex(noteInfo.getIndex());
+      request.addOutPoints(outPointBuild.build());
+      Optional<IncrementalMerkleVoucherInfo> merkleVoucherInfo = wallet
+          .GetMerkleTreeVoucherInfo(request.build(), false);
+      if (merkleVoucherInfo.isPresent() && merkleVoucherInfo.get().getVouchersCount() > 0) {
+        ShieldAddressInfo addressInfo = getShieldAddressInfoMap().get(noteInfo.getPaymentAddress());
+        NoteParameters.Builder builder = NoteParameters.newBuilder();
+        builder.setAk(ByteString.copyFrom(addressInfo.getFullViewingKey().getAk()));
+        builder.setNk(ByteString.copyFrom(addressInfo.getFullViewingKey().getNk()));
 
-          Note.Builder noteBuild = Note.newBuilder();
-          noteBuild.setPaymentAddress(noteInfo.getPaymentAddress());
-          noteBuild.setValue(noteInfo.getValue());
-          noteBuild.setRcm(ByteString.copyFrom(noteInfo.getR()));
-          noteBuild.setMemo(ByteString.copyFrom(noteInfo.getMemo()));
-          builder.setNote(noteBuild.build());
-          builder.setVoucher(merkleVoucherInfo.get().getVouchers(0));
+        Note.Builder noteBuild = Note.newBuilder();
+        noteBuild.setPaymentAddress(noteInfo.getPaymentAddress());
+        noteBuild.setValue(noteInfo.getValue());
+        noteBuild.setRcm(ByteString.copyFrom(noteInfo.getR()));
+        noteBuild.setMemo(ByteString.copyFrom(noteInfo.getMemo()));
+        builder.setNote(noteBuild.build());
+        builder.setVoucher(merkleVoucherInfo.get().getVouchers(0));
 
-          Optional<SpendResult> result = wallet.isNoteSpend(builder.build());
-          if (result.isPresent() && result.get().getResult()) {
-            spendNote(entry.getKey());
-          }
+        Optional<SpendResult> result = wallet.isNoteSpend(builder.build(), false);
+        if (result.isPresent() && result.get().getResult()) {
+          spendNote(entry.getKey());
         }
       }
-    } catch (Exception e) {
-      e.printStackTrace();
     }
   }
 
