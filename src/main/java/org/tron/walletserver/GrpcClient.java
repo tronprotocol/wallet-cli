@@ -918,7 +918,10 @@ public class GrpcClient {
   }
 
   public DecryptNotesMarked scanAndMarkNoteByIvk(IvkDecryptAndMarkParameters parameters) {
+    if (blockingStubSolidity != null) {
+      return blockingStubSolidity.scanAndMarkNoteByIvk(parameters);
+    } else {
       return blockingStubFull.scanAndMarkNoteByIvk(parameters);
+    }
   }
-
 }
