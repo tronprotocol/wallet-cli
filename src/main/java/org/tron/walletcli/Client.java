@@ -2304,6 +2304,24 @@ public class Client {
     walletApiWrapper.scanShieldNoteByShieldAddress(parameters[0], startNum, endNum);
   }
 
+  private void scanAndMarkNoteByAddress(String[] parameters) {
+    if (parameters == null || parameters.length != 3) {
+      System.out.println("scanandmarknotebyaddress needs 3 parameter like the following: ");
+      System.out.println("scanandmarknotebyaddress shieldAddress startNum endNum ");
+      return;
+    }
+    long startNum,endNum;
+    try {
+      startNum = Long.parseLong(parameters[1]);
+      endNum = Long.parseLong(parameters[2]);
+    }catch (NumberFormatException e){
+      System.out.println("invalid parameter: startNum, endNum.");
+      return;
+    }
+
+    walletApiWrapper.scanAndMarkNoteByAddress(parameters[0], startNum, endNum);
+  }
+
   private void ScanNoteByOvk(String[] parameters) {
     if (parameters == null || parameters.length != 3) {
       System.out.println("scannotebyovk needs 3 parameter like the following: ");
@@ -2461,6 +2479,7 @@ public class Client {
     System.out.println("scannotebyaddress");
     System.out.println("scannotebyovk");
     System.out.println("getshieldnullifier");
+    System.out.println("scanandmarknotebyaddress");
 
     System.out.println("Create2");
 //    System.out.println("buyStorage");
@@ -2970,7 +2989,9 @@ public class Client {
             getShieldNullifier(parameters);
             break;
           }
-
+          case "scanandmarknotebyaddress": {
+            scanAndMarkNoteByAddress(parameters);
+          }
 
           case "create2": {
             create2(parameters);

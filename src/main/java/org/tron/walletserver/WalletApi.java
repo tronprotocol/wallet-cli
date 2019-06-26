@@ -41,6 +41,7 @@ import org.tron.api.GrpcAPI.BlockList;
 import org.tron.api.GrpcAPI.BlockListExtention;
 import org.tron.api.GrpcAPI.BytesMessage;
 import org.tron.api.GrpcAPI.DecryptNotes;
+import org.tron.api.GrpcAPI.DecryptNotesMarked;
 import org.tron.api.GrpcAPI.DelegatedResourceList;
 import org.tron.api.GrpcAPI.DiversifierMessage;
 import org.tron.api.GrpcAPI.EasyTransferResponse;
@@ -49,6 +50,7 @@ import org.tron.api.GrpcAPI.ExchangeList;
 import org.tron.api.GrpcAPI.ExpandedSpendingKeyMessage;
 import org.tron.api.GrpcAPI.IncomingViewingKeyDiversifierMessage;
 import org.tron.api.GrpcAPI.IncomingViewingKeyMessage;
+import org.tron.api.GrpcAPI.IvkDecryptAndMarkParameters;
 import org.tron.api.GrpcAPI.IvkDecryptParameters;
 import org.tron.api.GrpcAPI.NfParameters;
 import org.tron.api.GrpcAPI.NodeList;
@@ -2258,6 +2260,16 @@ public class WalletApi {
     }catch (Exception e) {
       Status status = Status.fromThrowable(e);
       logger.info("getZenPaymentAddress failed,error {}", status.getDescription());
+    }
+    return Optional.empty();
+  }
+
+  public Optional<DecryptNotesMarked> scanAndMarkNoteByIvk(IvkDecryptAndMarkParameters parameters) {
+    try {
+      return Optional.of(rpcCli.scanAndMarkNoteByIvk(parameters));
+    }catch (Exception e) {
+      Status status = Status.fromThrowable(e);
+      logger.info("scanAndMarkNoteByIvk failed,error {}", status.getDescription());
     }
     return Optional.empty();
   }

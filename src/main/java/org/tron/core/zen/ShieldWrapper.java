@@ -158,31 +158,23 @@ public class ShieldWrapper {
     for (Entry<Long, ShieldNoteInfo> entry : utxoMapNote.entrySet()) {
       ShieldNoteInfo noteInfo = entry.getValue();
 
-      OutputPointInfo.Builder request = OutputPointInfo.newBuilder();
-      OutputPoint.Builder outPointBuild = OutputPoint.newBuilder();
-      outPointBuild.setHash(ByteString.copyFrom(ByteArray.fromHexString(noteInfo.getTrxId())));
-      outPointBuild.setIndex(noteInfo.getIndex());
-      request.addOutPoints(outPointBuild.build());
-      Optional<IncrementalMerkleVoucherInfo> merkleVoucherInfo = wallet
-          .GetMerkleTreeVoucherInfo(request.build(), false);
-      if (merkleVoucherInfo.isPresent() && merkleVoucherInfo.get().getVouchersCount() > 0) {
-        ShieldAddressInfo addressInfo = getShieldAddressInfoMap().get(noteInfo.getPaymentAddress());
-        NoteParameters.Builder builder = NoteParameters.newBuilder();
-        builder.setAk(ByteString.copyFrom(addressInfo.getFullViewingKey().getAk()));
-        builder.setNk(ByteString.copyFrom(addressInfo.getFullViewingKey().getNk()));
+      ShieldAddressInfo addressInfo = getShieldAddressInfoMap().get(noteInfo.getPaymentAddress());
+      NoteParameters.Builder builder = NoteParameters.newBuilder();
+      builder.setAk(ByteString.copyFrom(addressInfo.getFullViewingKey().getAk()));
+      builder.setNk(ByteString.copyFrom(addressInfo.getFullViewingKey().getNk()));
 
-        Note.Builder noteBuild = Note.newBuilder();
-        noteBuild.setPaymentAddress(noteInfo.getPaymentAddress());
-        noteBuild.setValue(noteInfo.getValue());
-        noteBuild.setRcm(ByteString.copyFrom(noteInfo.getR()));
-        noteBuild.setMemo(ByteString.copyFrom(noteInfo.getMemo()));
-        builder.setNote(noteBuild.build());
-        builder.setVoucher(merkleVoucherInfo.get().getVouchers(0));
+      Note.Builder noteBuild = Note.newBuilder();
+      noteBuild.setPaymentAddress(noteInfo.getPaymentAddress());
+      noteBuild.setValue(noteInfo.getValue());
+      noteBuild.setRcm(ByteString.copyFrom(noteInfo.getR()));
+      noteBuild.setMemo(ByteString.copyFrom(noteInfo.getMemo()));
+      builder.setNote(noteBuild.build());
+      builder.setTxid(ByteString.copyFrom(ByteArray.fromHexString(noteInfo.getTrxId())));
+      builder.setIndex(noteInfo.getIndex());
 
-        Optional<SpendResult> result = wallet.isNoteSpend(builder.build(), false);
-        if (result.isPresent() && result.get().getResult()) {
-          spendNote(entry.getKey());
-        }
+      Optional<SpendResult> result = wallet.isNoteSpend(builder.build(), false);
+      if (result.isPresent() && result.get().getResult()) {
+        spendNote(entry.getKey());
       }
     }
   }

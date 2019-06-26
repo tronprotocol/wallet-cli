@@ -17,11 +17,13 @@ import org.tron.api.GrpcAPI.BlockExtention;
 import org.tron.api.GrpcAPI.BytesMessage;
 import org.tron.api.GrpcAPI.DecryptNotes;
 import org.tron.api.GrpcAPI.DecryptNotes.NoteTx;
+import org.tron.api.GrpcAPI.DecryptNotesMarked;
 import org.tron.api.GrpcAPI.DiversifierMessage;
 import org.tron.api.GrpcAPI.ExchangeList;
 import org.tron.api.GrpcAPI.ExpandedSpendingKeyMessage;
 import org.tron.api.GrpcAPI.IncomingViewingKeyDiversifierMessage;
 import org.tron.api.GrpcAPI.IncomingViewingKeyMessage;
+import org.tron.api.GrpcAPI.IvkDecryptAndMarkParameters;
 import org.tron.api.GrpcAPI.IvkDecryptParameters;
 import org.tron.api.GrpcAPI.NfParameters;
 import org.tron.api.GrpcAPI.NodeList;
@@ -973,6 +975,50 @@ public class WalletApiWrapper {
       }
       logger.info("complete.");
     }
+    return true;
+  }
+
+  public boolean scanAndMarkNoteByAddress(final String shieldAddress, long start, long end ) {
+    if (wallet == null || !wallet.isLoginState()) {
+      logger.warn("Warning: scanandmarknotebyaddress failed,  Please login first !!");
+      return false;
+    }
+
+    ShieldAddressInfo addressInfo = shieldWrapper.getShieldAddressInfoMap().get(shieldAddress);
+    if (addressInfo == null ) {
+      System.out.println("Can't find shieldAddress in local, please check shieldAddress.");
+      return false;
+    }
+
+    try {
+      IvkDecryptAndMarkParameters.Builder builder = IvkDecryptAndMarkParameters.newBuilder();
+      builder.setStartBlockIndex(start);
+      builder.setEndBlockIndex(end);
+      builder.setIvk(ByteString.copyFrom(addressInfo.getIvk()));
+      builder.setAk(ByteString.copyFrom(addressInfo.getFullViewingKey().getAk()));
+      builder.setNk(ByteString.copyFrom(addressInfo.getFullViewingKey().getNk()));
+
+      Optional<DecryptNotesMarked> decryptNotes = wallet.scanAndMarkNoteByIvk(builder.build());
+      if(decryptNotes.isPresent()){
+        for(int i=0; i<decryptNotes.get().getNoteTxsList().size();i++) {
+          DecryptNotesMarked.NoteTx noteTx = decryptNotes.get().getNoteTxs(i);
+          Note note = noteTx.getNote();
+          logger.info("\ntxid:{}\nindex:{}\nisSpend:{}\naddress:{}\nrcm:{}\nvalue:{}\nmeno:{}",
+              ByteArray.toHexString(noteTx.getTxid().toByteArray()),
+              noteTx.getIndex(),
+              noteTx.getIsSpend(),
+              note.getPaymentAddress(),
+              ByteArray.toHexString(note.getRcm().toByteArray()),
+              note.getValue(),
+              ZenUtils.getMemo(note.getMemo().toByteArray()));
+        }
+      } else {
+        logger.info("scanAndMarkNoteByIvk failed !!!");
+      }
+    } catch ( Exception e) {
+
+    }
+    logger.info("complete.");
     return true;
   }
 

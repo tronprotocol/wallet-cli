@@ -21,6 +21,7 @@ import org.tron.api.GrpcAPI.BlockList;
 import org.tron.api.GrpcAPI.BlockListExtention;
 import org.tron.api.GrpcAPI.BytesMessage;
 import org.tron.api.GrpcAPI.DecryptNotes;
+import org.tron.api.GrpcAPI.DecryptNotesMarked;
 import org.tron.api.GrpcAPI.DelegatedResourceList;
 import org.tron.api.GrpcAPI.DelegatedResourceMessage;
 import org.tron.api.GrpcAPI.DiversifierMessage;
@@ -34,6 +35,7 @@ import org.tron.api.GrpcAPI.ExchangeList;
 import org.tron.api.GrpcAPI.ExpandedSpendingKeyMessage;
 import org.tron.api.GrpcAPI.IncomingViewingKeyDiversifierMessage;
 import org.tron.api.GrpcAPI.IncomingViewingKeyMessage;
+import org.tron.api.GrpcAPI.IvkDecryptAndMarkParameters;
 import org.tron.api.GrpcAPI.IvkDecryptParameters;
 import org.tron.api.GrpcAPI.NfParameters;
 import org.tron.api.GrpcAPI.NodeList;
@@ -852,7 +854,6 @@ public class GrpcClient {
 
   public DecryptNotes scanNoteByOvk(OvkDecryptParameters ovkDecryptParameters) {
     if (blockingStubSolidity != null) {
-      System.out.println("from solidify rpc");
       return blockingStubSolidity.scanNoteByOvk(ovkDecryptParameters);
     } else {
       return blockingStubFull.scanNoteByOvk(ovkDecryptParameters);
@@ -914,6 +915,10 @@ public class GrpcClient {
 
   public PaymentAddressMessage getZenPaymentAddress(IncomingViewingKeyDiversifierMessage msg) {
     return blockingStubFull.getZenPaymentAddress(msg);
+  }
+
+  public DecryptNotesMarked scanAndMarkNoteByIvk(IvkDecryptAndMarkParameters parameters) {
+      return blockingStubFull.scanAndMarkNoteByIvk(parameters);
   }
 
 }
