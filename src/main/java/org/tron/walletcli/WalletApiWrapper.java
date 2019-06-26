@@ -1003,7 +1003,7 @@ public class WalletApiWrapper {
         for(int i=0; i<decryptNotes.get().getNoteTxsList().size();i++) {
           DecryptNotesMarked.NoteTx noteTx = decryptNotes.get().getNoteTxs(i);
           Note note = noteTx.getNote();
-          logger.info("\ntxid:{}\nindex:{}\nisSpend:{}\naddress:{}\nrcm:{}\nvalue:{}\nmeno:{}",
+          logger.info("\ntxid:{}\nindex:{}\nisSpend:{}\naddress:{}\nrcm:{}\nvalue:{}\nmemo:{}",
               ByteArray.toHexString(noteTx.getTxid().toByteArray()),
               noteTx.getIndex(),
               noteTx.getIsSpend(),

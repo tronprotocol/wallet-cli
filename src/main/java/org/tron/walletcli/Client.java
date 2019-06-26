@@ -2991,6 +2991,7 @@ public class Client {
           }
           case "scanandmarknotebyaddress": {
             scanAndMarkNoteByAddress(parameters);
+            break;
           }
 
           case "create2": {
