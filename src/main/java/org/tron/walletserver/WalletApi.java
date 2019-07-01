@@ -2100,7 +2100,7 @@ public class WalletApi {
     return Optional.empty();
   }
 
-  public Optional<BytesMessage> getSpendingKey() {
+  public static Optional<BytesMessage> getSpendingKey() {
     try {
       return Optional.of(rpcCli.getSpendingKey());
     }catch (Exception e) {
@@ -2110,7 +2110,7 @@ public class WalletApi {
     return Optional.empty();
   }
 
-  public Optional<ExpandedSpendingKeyMessage> getExpandedSpendingKey(BytesMessage spendingKey) {
+  public static Optional<ExpandedSpendingKeyMessage> getExpandedSpendingKey(BytesMessage spendingKey) {
     try {
       return Optional.of(rpcCli.getExpandedSpendingKey(spendingKey));
     }catch (Exception e) {
@@ -2120,7 +2120,7 @@ public class WalletApi {
     return Optional.empty();
   }
 
-  public Optional<BytesMessage> getAkFromAsk(BytesMessage ask) {
+  public static Optional<BytesMessage> getAkFromAsk(BytesMessage ask) {
     try {
       return Optional.of(rpcCli.getAkFromAsk(ask));
     }catch (Exception e) {
@@ -2130,7 +2130,7 @@ public class WalletApi {
     return Optional.empty();
   }
 
-  public Optional<BytesMessage> getNkFromNsk(BytesMessage nsk) {
+  public static Optional<BytesMessage> getNkFromNsk(BytesMessage nsk) {
     try {
       return Optional.of(rpcCli.getNkFromNsk(nsk));
     }catch (Exception e) {
@@ -2140,7 +2140,7 @@ public class WalletApi {
     return Optional.empty();
   }
 
-  public Optional<IncomingViewingKeyMessage> getIncomingViewingKey(ViewingKeyMessage viewingKeyMessage) {
+  public static Optional<IncomingViewingKeyMessage> getIncomingViewingKey(ViewingKeyMessage viewingKeyMessage) {
     try {
       return Optional.of(rpcCli.getIncomingViewingKey(viewingKeyMessage));
     }catch (Exception e) {
@@ -2150,7 +2150,7 @@ public class WalletApi {
     return Optional.empty();
   }
 
-  public Optional<DiversifierMessage> getDiversifier() {
+  public static Optional<DiversifierMessage> getDiversifier() {
     try {
       return Optional.of(rpcCli.getDiversifier());
     }catch (Exception e) {
@@ -2254,7 +2254,7 @@ public class WalletApi {
     return Optional.empty();
   }
 
-  public Optional<PaymentAddressMessage> getZenPaymentAddress(IncomingViewingKeyDiversifierMessage msg) {
+  public static Optional<PaymentAddressMessage> getZenPaymentAddress(IncomingViewingKeyDiversifierMessage msg) {
     try {
       return Optional.of(rpcCli.getZenPaymentAddress(msg));
     }catch (Exception e) {
