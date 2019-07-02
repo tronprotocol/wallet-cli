@@ -51,6 +51,9 @@ import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.walletserver.GrpcClient;
 
+/**
+ * 通过HTTP，RPC接口不停的创建匿名交易，但不上链，验证大压力下匿名系统是否出错
+ */
 public class ShieldHttpPressTest {
 
   private final long AMOUNT = 100000000L;
