@@ -10,6 +10,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
 import org.joda.time.DateTime;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.tron.api.GrpcAPI.DecryptNotes;
 import org.tron.api.GrpcAPI.DecryptNotesMarked;
 import org.tron.api.GrpcAPI.DecryptNotesMarked.NoteTx;
@@ -35,6 +37,8 @@ import org.tron.protos.Contract.IncrementalMerkleVoucherInfo;
 import org.tron.protos.Contract.OutputPoint;
 import org.tron.protos.Contract.OutputPointInfo;
 import org.tron.protos.Protocol.Block;
+import org.tron.protos.Protocol.ChainParameters;
+import org.tron.protos.Protocol.ChainParameters.ChainParameter;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.TransactionInfo;
 import org.tron.walletserver.GrpcClient;
@@ -44,6 +48,7 @@ import org.tron.walletserver.GrpcClient;
  * 一个块最多打包一个匿名交易，理论上单线程就可以了，支持多线程
  */
 public class ShieldPressTest {
+  private static final Logger logger = LoggerFactory.getLogger("ShieldPressTest");
   //设置为账户中金额的最大值即可
   private final long AMOUNT = 100000000L;
 
@@ -142,6 +147,14 @@ public class ShieldPressTest {
 
 
   public long getShieldFee() {
+    Optional<ChainParameters> chainParameters = rpcCli.getChainParameters();
+    if (chainParameters.isPresent()) {
+      for (ChainParameter para : chainParameters.get().getChainParameterList()) {
+        if (para.getKey().equals("getShieldedTransactionFee")) {
+          return para.getValue();
+        }
+      }
+    }
     return 10000000L;
   }
 
@@ -234,7 +247,6 @@ public class ShieldPressTest {
           }
         }
       }
-
     } catch (Exception e) {
       e.printStackTrace();
     }
@@ -277,6 +289,11 @@ public class ShieldPressTest {
       if (shieldedTransferContract.getFromAmount() > 0) {
         transaction = TransactionUtils.sign(transaction, ecKey);
       }
+
+      logger.info("TrxId {} fromAddress {} toAddress {}",
+          ByteArray.toHexString(transactionExtention.getTxid().toByteArray()),
+          ByteArray.toHexString(fromAddress),
+          shieldAddress.getAddress());
 
       rpcCli.broadcastTransaction(transaction);
       return ByteArray.toHexString(transactionExtention.getTxid().toByteArray());
@@ -379,6 +396,12 @@ public class ShieldPressTest {
       }
 
       TransactionExtention transactionExtention = rpcCli.createShieldTransaction(builder.build());
+
+      logger.info("TrxId {} fromAddress {} toAddress {}",
+          ByteArray.toHexString(transactionExtention.getTxid().toByteArray()),
+          fromShieldAddress.getAddress(),
+          toShieldAddress.getAddress());
+
       rpcCli.broadcastTransaction(transactionExtention.getTransaction());
       return ByteArray.toHexString(transactionExtention.getTxid().toByteArray());
     } catch (Exception e) {
@@ -446,8 +469,8 @@ public class ShieldPressTest {
     test.startWork();
 
     while (true) {
-      System.out.println("<->" + new DateTime(System.currentTimeMillis())
-          + "Transaction num: " + shieldTransactionCount.get() );
+      System.out.println("-->  " + new DateTime(System.currentTimeMillis())
+          + " Transaction num: " + shieldTransactionCount.get() );
       try {
         Thread.sleep(30000);
       } catch (Exception e) {
