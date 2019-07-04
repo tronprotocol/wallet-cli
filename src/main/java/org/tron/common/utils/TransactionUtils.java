@@ -111,7 +111,10 @@ public class TransactionUtils {
           owner = contract.getParameter().unpack(org.tron.protos.Contract.UpdateAssetContract.class)
               .getOwnerAddress();
           break;
-
+        case AccountPermissionUpdateContract:
+          owner = contract.getParameter().unpack(org.tron.protos.Contract.AccountPermissionUpdateContract.class)
+              .getOwnerAddress();
+          break;
         default:
           return null;
       }
