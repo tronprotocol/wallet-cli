@@ -27,7 +27,6 @@ import org.tron.common.crypto.ECKey.ECDSASignature;
 import org.tron.common.crypto.Sha256Hash;
 import org.tron.core.exception.CancelException;
 import org.tron.protos.Protocol.Transaction;
-import org.tron.protos.Protocol.Transaction.Contract;
 
 public class TransactionUtils {
 
