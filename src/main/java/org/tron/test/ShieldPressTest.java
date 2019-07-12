@@ -1,14 +1,29 @@
 package org.tron.test;
 
+
+import com.alibaba.fastjson.JSONObject;
 import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
 import com.typesafe.config.Config;
 import io.netty.util.internal.StringUtil;
+import java.io.File;
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.nio.charset.Charset;
+import java.util.List;
 import java.util.Optional;
 import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.ClientProtocolException;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.util.EntityUtils;
 import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,6 +41,7 @@ import org.tron.common.crypto.ECKey;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.TransactionUtils;
 import org.tron.core.zen.ShieldAddressInfo;
+import org.tron.core.zen.ZenUtils;
 import org.tron.core.zen.address.DiversifierT;
 import org.tron.core.zen.address.ExpandedSpendingKey;
 import org.tron.core.zen.address.FullViewingKey;
@@ -49,21 +65,29 @@ import org.tron.walletserver.GrpcClient;
  */
 public class ShieldPressTest {
   private static final Logger logger = LoggerFactory.getLogger("ShieldPressTest");
-  //设置为账户中金额的最大值即可
-  private final long AMOUNT = 100000000L;
 
+  private  int workType = 1;
+
+  //设置为账户中金额的最大值即可
+  private final long AMOUNT = 10000;
   private static byte[] PRIVATE_KEY;
   private GrpcClient rpcCli;
-  private String fullNodeUrl;
   private int workThread = 8;
   private final static String OVK = "030c8c2bc59fb3eb8afb047a8ea4b028743d23e7d38c6fa30908358431e2314d";
   private static AtomicLong shieldTransactionCount = new AtomicLong(0);
-
   //以固定线程数启动
   private ExecutorService fixedThreadPool;
 
+  private String trxIdFile;
+  private String fullNodeUrl;
+
   private boolean initParameters() {
     Config config = Configuration.getByFileName(null,"config_test.conf");
+
+    if (config.hasPath("worktype")) {
+      workType = config.getInt("worktype");
+    }
+    System.out.println("workType: " +  workType );
 
     String fullNode = "";
     if (config.hasPath("fullnode.ip.list")) {
@@ -80,26 +104,40 @@ public class ShieldPressTest {
     System.out.println("solidityNode " + solidityNode);
     rpcCli = new GrpcClient(fullNode, solidityNode);
 
-    if (config.hasPath("fullhttp")) {
-      fullNodeUrl = "http://" + config.getString("fullhttp")+"/wallet/";
-    } else {
-      System.out.println("Please config fullhttp");
-      return false;
-    }
-    if (config.hasPath("priKey")) {
-      PRIVATE_KEY = ByteArray.fromHexString(config.getString("priKey"));
-    } else {
-      System.out.println("Please config priKey");
-      return false;
-    }
-    System.out.println("fullhttp " + fullNodeUrl);
-    System.out.println("priKey " + ByteArray.toHexString(PRIVATE_KEY));
+    if (workType == 1 ) {
+      if (config.hasPath("priKey")) {
+        PRIVATE_KEY = ByteArray.fromHexString(config.getString("priKey"));
+      } else {
+        System.out.println("Please config priKey");
+        return false;
+      }
 
-    if (config.hasPath("workthread")) {
-      workThread = config.getInt("workthread");
+      System.out.println("priKey " + ByteArray.toHexString(PRIVATE_KEY));
+
+      if (config.hasPath("workthread")) {
+        workThread = config.getInt("workthread");
+      }
+      System.out.println("workThread " + workThread);
+      fixedThreadPool = Executors.newFixedThreadPool(workThread);
+    } else {
+      if (config.hasPath("fullhttp")) {
+        fullNodeUrl = "http://" + config.getString("fullhttp")+"/wallet/";
+      } else {
+        System.out.println("Please config fullhttp");
+        return false;
+      }
+
+      if (config.hasPath("trxidfile")) {
+        trxIdFile = config.getString("trxidfile");
+      } else {
+        System.out.println("Please config trxidfile");
+        return false;
+      }
+
+      System.out.println("fullhttp " + fullNodeUrl);
+      System.out.println("trxidfile " + trxIdFile);
     }
-    System.out.println("workThread " + workThread);
-    fixedThreadPool = Executors.newFixedThreadPool(workThread);
+
     return true;
   }
 
@@ -184,7 +222,6 @@ public class ShieldPressTest {
     return false;
   }
 
-
   private boolean getTransactionInfoById(final String hash) {
     Optional<TransactionInfo> transactionInfo = rpcCli.getTransactionInfoById(hash);
     if (transactionInfo.isPresent() && transactionInfo.get().getBlockNumber() != 0L) {
@@ -192,6 +229,15 @@ public class ShieldPressTest {
       return true;
     }
     return false;
+  }
+
+  private long getTransactionBlockNum(final String hash) {
+    Optional<TransactionInfo> transactionInfo = rpcCli.getTransactionInfoById(hash);
+    if (transactionInfo.isPresent() && transactionInfo.get().getBlockNumber() != 0L) {
+      //System.out.println("TrxId " + hash + " is in block " + transactionInfo.get().getBlockNumber());
+      return transactionInfo.get().getBlockNumber();
+    }
+    return 0;
   }
 
   public SpendNote getUnspendNote(final ShieldAddressInfo shieldAddress ) {
@@ -419,8 +465,9 @@ public class ShieldPressTest {
   }
 
   void rpcPress() {
+    //随机等待后启动线程
+    sleepRadom(workThread*3/2 );
     System.out.println("Rpc Thread " + Thread.currentThread().getName() + " start to work");
-    Random random = new Random();
 
     while (true) {
       //公开转匿名
@@ -434,6 +481,9 @@ public class ShieldPressTest {
           break;
         }
         shieldTransactionCount.incrementAndGet();
+
+        long blockNum = getTransactionBlockNum(hash);
+        logger.info("Transaction {} is in blcok {}", hash, blockNum);
 //        System.out.println("transaction hash is " + hash + " online.");
         ShieldAddressInfo toShieldAddress = getNewShieldedAddress().get();
         hash = generatShieldToShieldOnlineTransaction(fromShieldAddress, toShieldAddress);
@@ -447,34 +497,178 @@ public class ShieldPressTest {
   }
 
 
-  void startWork() {
-    for (int i = 0; i < workThread; i++) {
-      fixedThreadPool.execute(new Runnable() {
-        @Override
-        public void run() {
-          rpcPress();
+  void sleepRadom(int n) {
+    Random random = new Random();
+    int s = random.nextInt(n);
+    threadSleep(s*1000);
+  }
+
+  void threadSleep(long millisecond) {
+    try {
+      Thread.sleep(millisecond);
+    } catch (Exception e) {
+    }
+  }
+
+
+
+
+//  private final int[] BLOCK_INDEX = {0, 100, 300, 500, 700, 900};
+
+  private final int[] BLOCK_INDEX = {0, 5,10,11,13,18};
+
+  void checkMerkerPath() {
+    List<String> trxIdList = ZenUtils.getListFromFile(trxIdFile);
+
+    boolean fileExist = false;
+    final String resultFileName = "cm.result";
+    File file = new File(resultFileName);
+    if (file.exists()) {
+      fileExist = true;
+    }
+    List<String> stringList = ZenUtils.getListFromFile(resultFileName);
+
+    for (int i = 0; i < trxIdList.size(); i++) {
+      String trxId = trxIdList.get(i);
+      OutputPointInfo.Builder request = OutputPointInfo.newBuilder();
+      OutputPoint.Builder outPointBuild = OutputPoint.newBuilder();
+      outPointBuild.setHash(ByteString.copyFrom(ByteArray.fromHexString(trxId)));
+      outPointBuild.setIndex(0);
+      request.addOutPoints(outPointBuild.build());
+      for (int j = 0; j < BLOCK_INDEX.length; j++) {
+        request.setBlockNum(BLOCK_INDEX[j]);
+
+        IncrementalMerkleVoucherInfo merkleVoucherInfo = rpcCli
+            .GetMerkleTreeVoucherInfo(request.build());
+        String result = JsonFormat.printToString(merkleVoucherInfo, false);
+
+        if (!fileExist) {
+          ZenUtils.appendToFileTail(resultFileName, result);
+          continue;
         }
-      });
+
+        if (!stringList.get(i * BLOCK_INDEX.length + j).equals(result)) {
+          System.out.println("!! TRXID: " + trxId + "(" + BLOCK_INDEX[j] + ") not equals !!");
+          System.out.println("Target is: " + stringList.get(i));
+          System.out.println("Result is: " + result);
+        }
+      }
+    }
+  }
+
+
+
+  /**
+   * 发送 post请求访问本地应用并根据传递参数不同返回不同结果
+   */
+  public static boolean post(final String url, final JSONObject requestBody) {
+    boolean bRet = false;
+    // 创建默认的httpClient实例.
+    CloseableHttpClient httpclient = HttpClients.createDefault();
+    // 创建httppost
+    HttpPost httppost = new HttpPost(url);
+    httppost.setHeader("Content-type", "application/json; charset=utf-8");
+    httppost.setHeader("Connection", "Close");
+    // 创建参数队列
+    if (requestBody != null) {
+      StringEntity entity = new StringEntity(requestBody.toString(), Charset.forName("UTF-8"));
+      entity.setContentEncoding("UTF-8");
+      entity.setContentType("application/json");
+      httppost.setEntity(entity);
     }
 
+    try {
+      CloseableHttpResponse response = httpclient.execute(httppost);
+      try {
+        bRet = verificationResult(response);
+      } finally {
+        response.close();
+      }
+    } catch (ClientProtocolException e) {
+      e.printStackTrace();
+    } catch (UnsupportedEncodingException e1) {
+      e1.printStackTrace();
+    } catch (IOException e) {
+      e.printStackTrace();
+    } finally {
+      // 关闭连接,释放资源
+      try {
+        httpclient.close();
+      } catch (IOException e) {
+        e.printStackTrace();
+      }
+    }
+    return bRet;
+  }
+
+  public static JSONObject parseResponseContent(HttpResponse response) {
+    try {
+      String result = EntityUtils.toString(response.getEntity());
+      StringEntity entity = new StringEntity(result, Charset.forName("UTF-8"));
+      System.out.print("Response content: " + EntityUtils.toString(entity, "UTF-8"));
+//      response.setEntity(entity);
+//      JSONObject obj = JSONObject.parseObject(result);
+//      return obj;
+      return new JSONObject();
+    } catch (Exception e) {
+      e.printStackTrace();
+      return null;
+    }
+  }
+
+  /**
+   * constructor.
+   */
+  public static Boolean verificationResult(HttpResponse response) {
+    if (response.getStatusLine().getStatusCode() != 200) {
+      return false;
+    }
+
+    parseResponseContent(response);
+//    JSONObject responseContent = parseResponseContent(response);
+//    if (responseContent.containsKey("raw_data") &&
+//        !StringUtil.isNullOrEmpty(responseContent.getString("raw_data"))) {
+//      return true;
+//    }
+    return false;
+  }
+
+  void startWork() {
+    if (workType == 1) { //匿名交易压测模式
+      for (int i = 0; i < workThread; i++) {
+        fixedThreadPool.execute(new Runnable() {
+          @Override
+          public void run() {
+            rpcPress();
+          }
+        });
+      }
+
+      while (true) {
+        System.out.println("-->  " + new DateTime(System.currentTimeMillis())
+            + " Transaction num: " + shieldTransactionCount.get());
+        try {
+          Thread.sleep(30000);
+        } catch (Exception e) {
+        }
+      }
+    } else {  //监控模式
+      DateTime dateTime = new DateTime(System.currentTimeMillis());
+      String fileName = dateTime.toString();
+
+      checkMerkerPath();
+
+      post(fullNodeUrl+"getmerker", new JSONObject());
+      System.out.println(fileName + "  Deal finished!!");
+    }
   }
 
   public static void main(String[] args) {
-
     ShieldPressTest test = new ShieldPressTest();
     if (!test.init()) {
       System.out.println("init failure");
       return;
     }
     test.startWork();
-
-    while (true) {
-      System.out.println("-->  " + new DateTime(System.currentTimeMillis())
-          + " Transaction num: " + shieldTransactionCount.get() );
-      try {
-        Thread.sleep(30000);
-      } catch (Exception e) {
-      }
-    }
   }
 }

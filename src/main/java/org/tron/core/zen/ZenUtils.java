@@ -24,7 +24,7 @@ public class ZenUtils {
       String str = null;
       while((str = bufferedReader.readLine()) != null)
       {
-        System.out.println(str);
+//        System.out.println(str);
         list.add(str);
       }
       inputStream.close();
