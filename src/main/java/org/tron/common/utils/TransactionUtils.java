@@ -19,11 +19,13 @@ import com.google.protobuf.ByteString;
 import java.security.SignatureException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Scanner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.ECKey.ECDSASignature;
 import org.tron.common.crypto.Sha256Hash;
+import org.tron.core.exception.CancelException;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.Transaction.Contract;
 
@@ -166,14 +168,10 @@ public class TransactionUtils {
   public static Transaction sign(Transaction transaction, ECKey myKey) {
     Transaction.Builder transactionBuilderSigned = transaction.toBuilder();
     byte[] hash = Sha256Hash.hash(transaction.getRawData().toByteArray());
-    List<Contract> listContract = transaction.getRawData().getContractList();
-    for (int i = 0; i < listContract.size(); i++) {
-      ECDSASignature signature = myKey.sign(hash);
-      ByteString bsSign = ByteString.copyFrom(signature.toByteArray());
-      transactionBuilderSigned.addSignature(
-          bsSign);//Each contract may be signed with a different private key in the future.
-    }
 
+    ECDSASignature signature = myKey.sign(hash);
+    ByteString bsSign = ByteString.copyFrom(signature.toByteArray());
+    transactionBuilderSigned.addSignature(bsSign);
     transaction = transactionBuilderSigned.build();
     return transaction;
   }
@@ -186,5 +184,54 @@ public class TransactionUtils {
     rowBuilder.setTimestamp(currentTime);
     builder.setRawData(rowBuilder.build());
     return builder.build();
+  }
+
+  public static Transaction setExpirationTime(Transaction transaction) {
+    if (transaction.getSignatureCount() == 0) {
+      long expirationTime = System.currentTimeMillis() + 6 * 60 * 60 * 1000;
+      Transaction.Builder builder = transaction.toBuilder();
+      org.tron.protos.Protocol.Transaction.raw.Builder rowBuilder = transaction.getRawData()
+          .toBuilder();
+      rowBuilder.setExpiration(expirationTime);
+      builder.setRawData(rowBuilder.build());
+      return builder.build();
+    }
+    return transaction;
+  }
+
+  public static Transaction setPermissionId(Transaction transaction) throws CancelException {
+    if (transaction.getSignatureCount() != 0
+        || transaction.getRawData().getContract(0).getPermissionId() != 0) {
+      return transaction;
+    }
+    int permission_id = inputPermissionId();
+    if (permission_id < 0) {
+      throw new CancelException("User cancelled");
+    }
+    if (permission_id != 0) {
+      Transaction.raw.Builder raw = transaction.getRawData().toBuilder();
+      Transaction.Contract.Builder contract = raw.getContract(0).toBuilder()
+          .setPermissionId(permission_id);
+      raw.clearContract();
+      raw.addContract(contract);
+      transaction = transaction.toBuilder().setRawData(raw).build();
+    }
+    return transaction;
+  }
+
+  private static int inputPermissionId() {
+    Scanner in = new Scanner(System.in);
+    while (true) {
+      String input = in.nextLine().trim();
+      String str = input.split("\\s+")[0];
+      if ("y".equalsIgnoreCase(str)) {
+        return 0;
+      }
+      try {
+        return Integer.parseInt(str);
+      } catch (Exception e) {
+        return -1;
+      }
+    }
   }
 }
