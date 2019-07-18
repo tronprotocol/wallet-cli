@@ -6,7 +6,7 @@ import lombok.Setter;
 import org.tron.common.utils.ByteArray;
 
 @AllArgsConstructor
-public class ShieldNoteInfo {
+public class ShieldedNoteInfo {
   @Setter
   @Getter
   public long value = 0;
@@ -29,11 +29,11 @@ public class ShieldNoteInfo {
   @Getter
   public  byte[] memo;
 
-  public ShieldNoteInfo(){
+  public ShieldedNoteInfo(){
   }
 
   /**
-   * format shield note to a string
+   * format shielded note to a string
    * @return
    */
   public String encode() {
@@ -53,7 +53,7 @@ public class ShieldNoteInfo {
   }
 
   /**
-   * parse string to get shield note
+   * parse string to get shielded note
    * @param data
    * @return
    */

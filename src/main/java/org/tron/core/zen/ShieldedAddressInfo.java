@@ -7,7 +7,6 @@ import lombok.Getter;
 import lombok.Setter;
 import org.tron.common.utils.ByteArray;
 import org.tron.core.exception.ZksnarkException;
-import org.tron.core.zen.address.Constant;
 import org.tron.core.zen.address.DiversifierT;
 import org.tron.core.zen.address.FullViewingKey;
 import org.tron.core.zen.address.IncomingViewingKey;
@@ -16,7 +15,7 @@ import org.tron.core.zen.address.PaymentAddress;
 import org.tron.core.zen.address.SpendingKey;
 
 @AllArgsConstructor
-public class ShieldAddressInfo {
+public class ShieldedAddressInfo {
 
   @Setter
   @Getter
@@ -34,7 +33,7 @@ public class ShieldAddressInfo {
   @Getter
   byte[] pkD; // 256
 
-  public ShieldAddressInfo(){
+  public ShieldedAddressInfo(){
   }
 
   public FullViewingKey getFullViewingKey() throws ZksnarkException {
@@ -73,10 +72,10 @@ public class ShieldAddressInfo {
   }
 
   public String getAddress() {
-    return getShieldAddress(d, pkD);
+    return getShieldedAddress(d, pkD);
   }
 
-  public static String getShieldAddress(DiversifierT d, byte[] pkD ) {
+  public static String getShieldedAddress(DiversifierT d, byte[] pkD ) {
     try {
       PaymentAddress paymentAddress = new PaymentAddress(d, pkD);
       return KeyIo.encodePaymentAddress(paymentAddress);
@@ -86,28 +85,8 @@ public class ShieldAddressInfo {
     return "";
   }
 
-//  public static PaymentAddress parseFromShieldAddress(final String shieldAddress) {
-//    PaymentAddress paymentAddress = null;
-//    try {
-//      byte[] byteShield = ByteArray.fromHexString(shieldAddress);
-//      int lenPkd = byteShield.length - Constant.ZC_DIVERSIFIER_SIZE;
-//      byte[] d =  new byte[Constant.ZC_DIVERSIFIER_SIZE];
-//      byte[] pkd = new byte[lenPkd];
-//
-//      System.arraycopy(byteShield, 0, d, 0, Constant.ZC_DIVERSIFIER_SIZE);
-//      System.arraycopy(byteShield, Constant.ZC_DIVERSIFIER_SIZE, pkd, 0, lenPkd);
-//
-//      paymentAddress = new PaymentAddress(new DiversifierT(d), pkd);
-//    } catch (Exception e) {
-//      System.out.println("parseFromShieldAddress " + shieldAddress + " failure.");
-//      e.printStackTrace();
-//    }
-//
-//    return paymentAddress;
-//  }
-
   /**
-   * format shield address info to a string
+   * format shielded address info to a string
    * @return
    */
   public String encode() {
@@ -123,7 +102,7 @@ public class ShieldAddressInfo {
   }
 
   /**
-   * parse string to get a shield address info
+   * parse string to get a shielded address info
    * @param data
    * @return
    */

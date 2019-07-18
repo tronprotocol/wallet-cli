@@ -832,7 +832,7 @@ public class GrpcClient {
   }
 
 
-  public TransactionExtention createShieldTransaction(PrivateParameters privateParameters) {
+  public TransactionExtention createShieldedTransaction(PrivateParameters privateParameters) {
     return blockingStubFull.createShieldedTransaction(privateParameters);
   }
 
@@ -896,12 +896,12 @@ public class GrpcClient {
     }
   }
 
-  public TransactionExtention createShieldTransactionWithoutSpendAuthSig(
+  public TransactionExtention createShieldedTransactionWithoutSpendAuthSig(
       PrivateParametersWithoutAsk privateParameters) {
     return blockingStubFull.createShieldedTransactionWithoutSpendAuthSig(privateParameters);
   }
 
-  public BytesMessage getShieldTransactionHash(Transaction transaction) {
+  public BytesMessage getShieldedTransactionHash(Transaction transaction) {
     return blockingStubFull.getShieldTransactionHash(transaction);
   }
 
@@ -909,7 +909,7 @@ public class GrpcClient {
     return blockingStubFull.createSpendAuthSig(parameters);
   }
 
-  public BytesMessage createShieldNullifier(NfParameters parameters) {
+  public BytesMessage createShieldedNullifier(NfParameters parameters) {
     return blockingStubFull.createShieldNullifier(parameters);
   }
 

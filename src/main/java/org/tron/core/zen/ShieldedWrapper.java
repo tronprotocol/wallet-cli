@@ -19,19 +19,16 @@ import org.tron.api.GrpcAPI.Note;
 import org.tron.api.GrpcAPI.NoteParameters;
 import org.tron.api.GrpcAPI.SpendResult;
 import org.tron.common.utils.ByteArray;
-import org.tron.protos.Contract.IncrementalMerkleVoucherInfo;
-import org.tron.protos.Contract.OutputPoint;
-import org.tron.protos.Contract.OutputPointInfo;
 import org.tron.protos.Protocol.Block;
 import org.tron.walletserver.WalletApi;
 
-public class ShieldWrapper {
+public class ShieldedWrapper {
 
-  private final static String PREFIX_FOLDER = "WalletShield";
+  private final static String PREFIX_FOLDER = "WalletShielded";
   private final static String IVK_AND_NUM_FILE_NAME = PREFIX_FOLDER + "/scanblocknumber";
   private final static String UNSPEND_NOTE_FILE_NAME = PREFIX_FOLDER + "/unspendnote";
   private final static String SPEND_NOTE_FILE_NAME = PREFIX_FOLDER + "/spendnote";
-  private final static String SHIELD_ADDRESS_FILE_NAME = PREFIX_FOLDER + "/shieldaddress";
+  private final static String SHIELDED_ADDRESS_FILE_NAME = PREFIX_FOLDER + "/shieldedaddress";
 
   private WalletApi wallet;
   private static AtomicLong nodeIndex = new AtomicLong(0L);
@@ -39,7 +36,7 @@ public class ShieldWrapper {
 
   @Setter
   @Getter
-  Map<String, ShieldAddressInfo>  shieldAddressInfoMap = new ConcurrentHashMap();
+  Map<String, ShieldedAddressInfo> shieldedAddressInfoMap = new ConcurrentHashMap();
   @Setter
   private boolean resetNote = false;
   @Getter
@@ -47,10 +44,10 @@ public class ShieldWrapper {
   public Map<String, Long> ivkMapScanBlockNum = new ConcurrentHashMap();
   @Getter
   @Setter
-  public Map<Long, ShieldNoteInfo>  utxoMapNote = new ConcurrentHashMap();
+  public Map<Long, ShieldedNoteInfo>  utxoMapNote = new ConcurrentHashMap();
   @Getter
   @Setter
-  public List<ShieldNoteInfo> spendUtxoList = new ArrayList<>();
+  public List<ShieldedNoteInfo> spendUtxoList = new ArrayList<>();
 
   public void setWallet(WalletApi walletApi) {
     wallet = walletApi;
@@ -72,7 +69,7 @@ public class ShieldWrapper {
             if (e.getMessage() != null) {
               System.out.println(e.getMessage());
             }
-            System.out.println("Please user command resetshieldnote to reset notes!!");
+            System.out.println("Please user command resetshieldednote to reset notes!!");
             count = 0;
           }
         } finally {
@@ -81,10 +78,10 @@ public class ShieldWrapper {
             for (int i=0; i<5; ++i) {
               Thread.sleep(500);
               if (resetNote) {
-                resetShieldNote();
+                resetShieldedNote();
                 resetNote = false;
                 count = 0;
-                System.out.println("Reset shield note success!");
+                System.out.println("Reset shielded note success!");
               }
             }
           } catch ( Exception e) {
@@ -94,9 +91,9 @@ public class ShieldWrapper {
     }
   }
 
-  private void resetShieldNote() {
+  private void resetShieldedNote() {
     ivkMapScanBlockNum.clear();
-    for (Entry<String, ShieldAddressInfo> entry : getShieldAddressInfoMap().entrySet() ) {
+    for (Entry<String, ShieldedAddressInfo> entry : getShieldedAddressInfoMap().entrySet() ) {
       ivkMapScanBlockNum.put(ByteArray.toHexString(entry.getValue().getIvk()), 0L);
     }
 
@@ -133,7 +130,7 @@ public class ShieldWrapper {
           if (notes.isPresent()) {
             for (int i = 0; i < notes.get().getNoteTxsList().size(); ++i) {
               NoteTx noteTx = notes.get().getNoteTxsList().get(i);
-              ShieldNoteInfo noteInfo = new ShieldNoteInfo();
+              ShieldedNoteInfo noteInfo = new ShieldedNoteInfo();
               noteInfo.setPaymentAddress(noteTx.getNote().getPaymentAddress());
               noteInfo.setR(noteTx.getNote().getRcm().toByteArray());
               noteInfo.setValue(noteTx.getNote().getValue());
@@ -155,10 +152,10 @@ public class ShieldWrapper {
   }
 
   private void updateNoteWhetherSpend() throws Exception {
-    for (Entry<Long, ShieldNoteInfo> entry : utxoMapNote.entrySet()) {
-      ShieldNoteInfo noteInfo = entry.getValue();
+    for (Entry<Long, ShieldedNoteInfo> entry : utxoMapNote.entrySet()) {
+      ShieldedNoteInfo noteInfo = entry.getValue();
 
-      ShieldAddressInfo addressInfo = getShieldAddressInfoMap().get(noteInfo.getPaymentAddress());
+      ShieldedAddressInfo addressInfo = getShieldedAddressInfoMap().get(noteInfo.getPaymentAddress());
       NoteParameters.Builder builder = NoteParameters.newBuilder();
       builder.setAk(ByteString.copyFrom(addressInfo.getFullViewingKey().getAk()));
       builder.setNk(ByteString.copyFrom(addressInfo.getFullViewingKey().getNk()));
@@ -197,7 +194,7 @@ public class ShieldWrapper {
    * @return
    */
   public boolean spendNote(long noteIndex ) {
-    ShieldNoteInfo noteInfo = utxoMapNote.get(noteIndex);
+    ShieldedNoteInfo noteInfo = utxoMapNote.get(noteIndex);
     if (noteInfo != null) {
       utxoMapNote.remove(noteIndex);
       spendUtxoList.add(noteInfo);
@@ -211,11 +208,11 @@ public class ShieldWrapper {
   }
 
   /**
-   * save new shield address and scan block num
-   * @param addressInfo  new shield address
+   * save new shielded address and scan block num
+   * @param addressInfo  new shielded address
    * @return
    */
-  public boolean addNewShieldAddress(final ShieldAddressInfo addressInfo) {
+  public boolean addNewShieldedAddress(final ShieldedAddressInfo addressInfo) {
     appendAddressInfoToFile(addressInfo);
     long blockNum = 0;
     try {
@@ -281,12 +278,12 @@ public class ShieldWrapper {
   }
 
   /**
-   * get shield address list
+   * get shielded address list
    * @return
    */
-  public List<String> getShieldAddressList() {
+  public List<String> getShieldedAddressList() {
     List<String>  addressList = new ArrayList<>();
-    for (Entry<String, ShieldAddressInfo> entry : shieldAddressInfoMap.entrySet()) {
+    for (Entry<String, ShieldedAddressInfo> entry : shieldedAddressInfoMap.entrySet()) {
       addressList.add(entry.getKey());
     }
     return addressList;
@@ -297,8 +294,8 @@ public class ShieldWrapper {
    * @return
    */
   public List<String> getvalidateSortUtxoList() {
-    List<Map.Entry<Long, ShieldNoteInfo>> list = new ArrayList<>(utxoMapNote.entrySet());
-    Collections.sort(list, (Entry<Long, ShieldNoteInfo> o1, Entry<Long, ShieldNoteInfo> o2) -> {
+    List<Map.Entry<Long, ShieldedNoteInfo>> list = new ArrayList<>(utxoMapNote.entrySet());
+    Collections.sort(list, (Entry<Long, ShieldedNoteInfo> o1, Entry<Long, ShieldedNoteInfo> o2) -> {
         if (o1.getValue().getValue() < o2.getValue().getValue()) {
           return 1;
         } else {
@@ -307,7 +304,7 @@ public class ShieldWrapper {
       });
 
     List<String> utxoList = new ArrayList<>();
-    for (Map.Entry<Long, ShieldNoteInfo> entry : list ) {
+    for (Map.Entry<Long, ShieldedNoteInfo> entry : list ) {
       String string = entry.getKey() + " " + entry.getValue().getPaymentAddress() + " ";
       string += entry.getValue().getValue();
       string += " ";
@@ -329,7 +326,7 @@ public class ShieldWrapper {
    */
   private boolean saveUnspendNoteToFile() {
     ZenUtils.clearFile(UNSPEND_NOTE_FILE_NAME);
-    for (Entry<Long, ShieldNoteInfo> entry : utxoMapNote.entrySet()) {
+    for (Entry<Long, ShieldedNoteInfo> entry : utxoMapNote.entrySet()) {
       String date = entry.getValue().encode();
       ZenUtils.appendToFileTail(UNSPEND_NOTE_FILE_NAME, date);
     }
@@ -345,7 +342,7 @@ public class ShieldWrapper {
 
     List<String> list = ZenUtils.getListFromFile(UNSPEND_NOTE_FILE_NAME);
     for (int i = 0; i < list.size(); ++i) {
-      ShieldNoteInfo noteInfo = new ShieldNoteInfo();
+      ShieldedNoteInfo noteInfo = new ShieldedNoteInfo();
       noteInfo.decode(list.get(i));
       utxoMapNote.put(noteInfo.getNoteIndex(), noteInfo);
 
@@ -361,7 +358,7 @@ public class ShieldWrapper {
    * append spend note to file tail
    * @return
    */
-  private boolean saveSpendNoteToFile(ShieldNoteInfo noteInfo) {
+  private boolean saveSpendNoteToFile(ShieldedNoteInfo noteInfo) {
     String date = noteInfo.encode();
     ZenUtils.appendToFileTail(SPEND_NOTE_FILE_NAME, date);
     return true;
@@ -375,7 +372,7 @@ public class ShieldWrapper {
     spendUtxoList.clear();
     List<String> list = ZenUtils.getListFromFile(SPEND_NOTE_FILE_NAME);
     for (int i = 0; i < list.size(); ++i) {
-      ShieldNoteInfo noteInfo = new ShieldNoteInfo();
+      ShieldedNoteInfo noteInfo = new ShieldedNoteInfo();
       noteInfo.decode(list.get(i));
       spendUtxoList.add(noteInfo);
     }
@@ -384,17 +381,17 @@ public class ShieldWrapper {
 
 
   /**
-   * load shield address from file
+   * load shielded address from file
    * @return
    */
   public boolean loadAddressFromFile() {
-    List<String> addressList = ZenUtils.getListFromFile(SHIELD_ADDRESS_FILE_NAME);
+    List<String> addressList = ZenUtils.getListFromFile(SHIELDED_ADDRESS_FILE_NAME);
 
-    shieldAddressInfoMap.clear();
+    shieldedAddressInfoMap.clear();
     for (String addressString : addressList ) {
-      ShieldAddressInfo addressInfo = new ShieldAddressInfo();
+      ShieldedAddressInfo addressInfo = new ShieldedAddressInfo();
       if ( addressInfo.decode(addressString) ) {
-        shieldAddressInfoMap.put(addressInfo.getAddress(), addressInfo);
+        shieldedAddressInfoMap.put(addressInfo.getAddress(), addressInfo);
       } else {
         System.out.println("*******************");
       }
@@ -403,17 +400,17 @@ public class ShieldWrapper {
   }
 
   /**
-   * put new shield address to address list
+   * put new shielded address to address list
    * @param addressInfo
    * @return
    */
-  public boolean appendAddressInfoToFile(final ShieldAddressInfo addressInfo ) {
-    String shieldAddress = addressInfo.getAddress();
-    if ( !StringUtil.isNullOrEmpty( shieldAddress ) ) {
+  public boolean appendAddressInfoToFile(final ShieldedAddressInfo addressInfo ) {
+    String shieldedAddress = addressInfo.getAddress();
+    if ( !StringUtil.isNullOrEmpty( shieldedAddress ) ) {
       String addressString = addressInfo.encode();
-      ZenUtils.appendToFileTail(SHIELD_ADDRESS_FILE_NAME, addressString);
+      ZenUtils.appendToFileTail(SHIELDED_ADDRESS_FILE_NAME, addressString);
 
-      shieldAddressInfoMap.put(shieldAddress, addressInfo);
+      shieldedAddressInfoMap.put(shieldedAddress, addressInfo);
     }
     return true;
   }

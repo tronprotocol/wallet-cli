@@ -459,8 +459,7 @@ public class WalletApi {
     return transaction;
   }
 
-  //TODO  优化，创建交易时setPermissionId
-  private Transaction signOnlyForShieldTransaction(Transaction transaction)
+  private Transaction signOnlyForShieldedTransaction(Transaction transaction)
       throws CipherException, IOException, CancelException {
     System.out.println(
         "Please confirm and input your permission id, if input y or Y means default 0, other non-numeric characters will cancell transaction.");
@@ -525,7 +524,7 @@ public class WalletApi {
       Contract.ShieldedTransferContract shieldedTransferContract =
           any.unpack(ShieldedTransferContract.class);
       if (shieldedTransferContract.getFromAmount() > 0 ) {
-        transaction = signOnlyForShieldTransaction(transaction);
+        transaction = signOnlyForShieldedTransaction(transaction);
       }
     }
 
@@ -2160,24 +2159,24 @@ public class WalletApi {
     return Optional.empty();
   }
 
-  public boolean sendShieldCoin(PrivateParameters privateParameters)
+  public boolean sendShieldedCoin(PrivateParameters privateParameters)
       throws CipherException, IOException, CancelException {
-    TransactionExtention transactionExtention = rpcCli.createShieldTransaction(privateParameters);
+    TransactionExtention transactionExtention = rpcCli.createShieldedTransaction(privateParameters);
     return processTransactionExtention(transactionExtention);
   }
 
-  public boolean sendShieldCoinWithoutAsk(PrivateParametersWithoutAsk privateParameters, byte[] ask)
+  public boolean sendShieldedCoinWithoutAsk(PrivateParametersWithoutAsk privateParameters, byte[] ask)
       throws CipherException, IOException, CancelException {
     TransactionExtention transactionExtention =
-        rpcCli.createShieldTransactionWithoutSpendAuthSig(privateParameters);
+        rpcCli.createShieldedTransactionWithoutSpendAuthSig(privateParameters);
     if (transactionExtention == null ) {
-      System.out.println("sendShieldCoinWithoutAsk failure.");
+      System.out.println("sendShieldedCoinWithoutAsk failure.");
       return false;
     }
 
-    BytesMessage trxHash = rpcCli.getShieldTransactionHash(transactionExtention.getTransaction());
+    BytesMessage trxHash = rpcCli.getShieldedTransactionHash(transactionExtention.getTransaction());
     if (trxHash == null || trxHash.getValue().toByteArray().length != 32) {
-      System.out.println("sendShieldCoinWithoutAsk get transaction hash failure.");
+      System.out.println("sendShieldedCoinWithoutAsk get transaction hash failure.");
       return false;
     }
 
@@ -2244,12 +2243,12 @@ public class WalletApi {
     return Optional.empty();
   }
 
-  public Optional<BytesMessage> createShieldNullifier(NfParameters parameters) {
+  public Optional<BytesMessage> createShieldedNullifier(NfParameters parameters) {
     try {
-      return Optional.of(rpcCli.createShieldNullifier(parameters));
+      return Optional.of(rpcCli.createShieldedNullifier(parameters));
     }catch (Exception e) {
       Status status = Status.fromThrowable(e);
-      logger.info("createShieldNullifier failed,error {}", status.getDescription());
+      logger.info("createShieldedNullifier failed,error {}", status.getDescription());
     }
     return Optional.empty();
   }

@@ -170,7 +170,7 @@ public class TransactionUtils {
     Transaction.Builder transactionBuilderSigned = transaction.toBuilder();
     byte[] hash = Sha256Hash.hash(transaction.getRawData().toByteArray());
 
-    System.out.println("Sign address: " + WalletApi.encode58Check(myKey.getAddress()));
+    //System.out.println("Sign address: " + WalletApi.encode58Check(myKey.getAddress()));
 
     ECDSASignature signature = myKey.sign(hash);
     ByteString bsSign = ByteString.copyFrom(signature.toByteArray());
