@@ -1059,45 +1059,31 @@ public class WalletApiWrapper {
     try {
 
       if (fromRPC) {
-        //获取SK
         Optional<BytesMessage> sk = WalletApi.getSpendingKey();
-
-//        ByteString byteString = ByteString.copyFrom(ByteArray.fromHexString("04b63bba792a506d448d52a0dbfe478d275a105ae96638c477464000a0bd2e15"));
-//        BytesMessage bytesMessage = BytesMessage.newBuilder().setValue(byteString).build();
-//        Optional<BytesMessage> sk = Optional.of(bytesMessage);
-
-        System.out.println("sk: " + ByteArray.toHexString(sk.get().getValue().toByteArray()));
-
-        //获取D
         Optional<DiversifierMessage> d = WalletApi.getDiversifier();
         System.out.println("d: " + ByteArray.toHexString(d.get().getD().toByteArray()));
 
-        //通过sk获取ask，nsk，ovk
         Optional<ExpandedSpendingKeyMessage> expandedSpendingKeyMessage = WalletApi.getExpandedSpendingKey(sk.get());
         System.out.println("ask: " + ByteArray.toHexString(expandedSpendingKeyMessage.get().getAsk().toByteArray()));
         System.out.println("nsk: " + ByteArray.toHexString(expandedSpendingKeyMessage.get().getNsk().toByteArray()));
         System.out.println("ovk: " + ByteArray.toHexString(expandedSpendingKeyMessage.get().getOvk().toByteArray()));
 
-        //通过ask获取ak
         BytesMessage.Builder askBuilder = BytesMessage.newBuilder();
         askBuilder.setValue(expandedSpendingKeyMessage.get().getAsk());
         Optional<BytesMessage> ak = WalletApi.getAkFromAsk(askBuilder.build());
         System.out.println("ak: " + ByteArray.toHexString(ak.get().getValue().toByteArray()));
 
-        //通过nsk获取nk
         BytesMessage.Builder nskBuilder = BytesMessage.newBuilder();
         nskBuilder.setValue(expandedSpendingKeyMessage.get().getNsk());
         Optional<BytesMessage> nk = WalletApi.getNkFromNsk(nskBuilder.build());
         System.out.println("nk: " + ByteArray.toHexString(nk.get().getValue().toByteArray()));
 
-        //通过ak,nk获取ivk
         ViewingKeyMessage.Builder viewBuilder = ViewingKeyMessage.newBuilder();
         viewBuilder.setAk(ak.get().getValue());
         viewBuilder.setNk(nk.get().getValue());
         Optional<IncomingViewingKeyMessage> ivk = WalletApi.getIncomingViewingKey(viewBuilder.build());
         System.out.println("ivk: " + ByteArray.toHexString(ivk.get().getIvk().toByteArray()));
 
-        // 通过ivk，d获取匿名地址
         IncomingViewingKeyDiversifierMessage.Builder builder = IncomingViewingKeyDiversifierMessage.newBuilder();
         builder.setD(d.get());
         builder.setIvk(ivk.get());
