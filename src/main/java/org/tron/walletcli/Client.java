@@ -2120,7 +2120,7 @@ public class Client {
   private void scanNoteByIvk(String[] parameters) {
     if (parameters == null || parameters.length != 3) {
       System.out.println("ScanNotebyIvk needs 3 parameter like the following: ");
-      System.out.println("ScanNotebyIvk shieldedAddress startNum endNum ");
+      System.out.println("ScanNotebyIvk ivk startNum endNum ");
       return;
     }
     long startNum,endNum;
@@ -2191,7 +2191,7 @@ public class Client {
     if (!sk.isPresent()) {
       logger.info("getSpendingKey failed !!!");
     } else {
-      logger.info(ByteArray.toHexString(sk.get().toByteArray()));
+      logger.info(ByteArray.toHexString(sk.get().getValue().toByteArray()));
     }
   }
 
@@ -2209,7 +2209,6 @@ public class Client {
     if (!esk.isPresent()) {
       logger.info("getExpandedSpendingKey failed !!!");
     } else {
-      logger.info("esk:{}", ByteArray.toHexString(esk.get().toByteArray()));
       logger.info("ask:{}", ByteArray.toHexString(esk.get().getAsk().toByteArray()));
       logger.info("nsk:{}", ByteArray.toHexString(esk.get().getNsk().toByteArray()));
       logger.info("ovk:{}", ByteArray.toHexString(esk.get().getOvk().toByteArray()));
@@ -2230,7 +2229,7 @@ public class Client {
     if (!ak.isPresent()) {
       logger.info("getAkFromAsk failed !!!");
     } else {
-      logger.info("ak:{}", ByteArray.toHexString(ak.get().toByteArray()));
+      logger.info("ak:{}", ByteArray.toHexString(ak.get().getValue().toByteArray()));
     }
   }
 
@@ -2248,7 +2247,7 @@ public class Client {
     if (!nk.isPresent()) {
       logger.info("getNkFromNsk failed !!!");
     } else {
-      logger.info("nk:{}", ByteArray.toHexString(nk.get().toByteArray()));
+      logger.info("nk:{}", ByteArray.toHexString(nk.get().getValue().toByteArray()));
     }
   }
 
@@ -2270,7 +2269,7 @@ public class Client {
     if (!ivk.isPresent()) {
       logger.info("getIncomingViewingKey failed !!!");
     } else {
-      logger.info("ivk:" + ByteArray.toHexString(ivk.get().toByteArray()));
+      logger.info("ivk:" + ByteArray.toHexString(ivk.get().getIvk().toByteArray()));
     }
   }
 
@@ -2837,7 +2836,7 @@ public class Client {
             getNkFromNsk(parameters);
             break;
           }
-          case "GetIncomingViewingKey": {
+          case "getincomingviewingkey": {
             getIncomingViewingKey(parameters);
             break;
           }

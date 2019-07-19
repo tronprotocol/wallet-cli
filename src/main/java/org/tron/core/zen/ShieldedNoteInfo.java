@@ -1,5 +1,6 @@
 package org.tron.core.zen;
 
+import io.netty.util.internal.StringUtil;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
@@ -48,7 +49,12 @@ public class ShieldedNoteInfo {
     encodeString += ";";
     encodeString += String.valueOf(index);
     encodeString += ";";
-    encodeString += ByteArray.toHexString(memo);
+    String stringMemo = ByteArray.toHexString(memo);
+    if (StringUtil.isNullOrEmpty(stringMemo)) {
+      encodeString += "null";
+    } else {
+      encodeString += stringMemo;
+    }
     return encodeString;
   }
 
@@ -69,8 +75,11 @@ public class ShieldedNoteInfo {
     trxId = sourceStrArray[3];
     value = Long.valueOf(sourceStrArray[4]);
     index = Integer.valueOf(sourceStrArray[5]);
-    memo = ByteArray.fromHexString(sourceStrArray[6]);
+    if (sourceStrArray[6].equals("null")) {
+      memo = ByteArray.fromHexString("");
+    } else {
+      memo = ByteArray.fromHexString(sourceStrArray[6]);
+    }
     return true;
   }
-
 }
