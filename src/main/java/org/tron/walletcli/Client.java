@@ -2031,7 +2031,7 @@ public class Client {
       System.out.println("SendShieldedCoin needs more than 6 parameters like following: ");
       System.out.println("SendShieldedCoin publicFromAddress fromAmount shieldedInputNum "
           + "input1 input2 input3 ... publicToAddress toAmount shieldedOutputNum shieldedAddress1"
-          + " amount1 meno1 shieldedAddress2 amount2 meno2 ... ");
+          + " amount1 memo1 shieldedAddress2 amount2 memo2 ... ");
       return;
     }
 
@@ -2049,7 +2049,7 @@ public class Client {
       System.out.println("SendShieldedCoinWithoutAsk needs more than 6 parameters like following: ");
       System.out.println("SendShieldedCoinWithoutAsk publicFromAddress fromAmount "
           + "shieldedInputNum input1 input2 input3 ... publicToAddress toAmount shieldedOutputNum "
-          + "shieldedAddress1 amount1 meno1 shieldedAddress2 amount2 meno2 ... ");
+          + "shieldedAddress1 amount1 memo1 shieldedAddress2 amount2 memo2 ... ");
       return;
     }
 
@@ -2897,47 +2897,46 @@ public class Client {
             broadcastTransaction(parameters);
             break;
           }
-          case "GenerateShieldedAddress": {
+          case "generateshieldedaddress": {
             generateShieldedAddress(parameters);
             break;
           }
-          case "ListShieldedAddress": {
+          case "listshieldedaddress": {
             listShieldedAddress();
             break;
           }
-          case "SendShieldedCoin": {
+          case "sendshieldedcoin": {
             sendShieldedCoin(parameters);
             break;
           }
-          case "SendShieldedCoinWithoutAsk": {
+          case "sendshieldedcoinwithoutask": {
             sendShieldedCoinWithoutAsk(parameters);
             break;
           }
-          case "ListShieldedNote": {
+          case "listshieldednote": {
             listShieldedNote(parameters);
             break;
           }
-          case "ResetShieldedNote": {
+          case "resetshieldednote": {
             resetShieldedNote();
             break;
           }
-          case "ScanNotebyIvk": {
+          case "scannotebyivk": {
             scanNoteByIvk(parameters);
             break;
           }
-          case "ScanNotebyOvk": {
+          case "scannotebyovk": {
             ScanNoteByOvk(parameters);
             break;
           }
-          case "GetShieldedNullifier": {
+          case "getshieldednullifier": {
             getShieldedNullifier(parameters);
             break;
           }
-          case "ScanAndMarkNotebyAddress": {
+          case "scanandmarknotebyaddress": {
             scanAndMarkNoteByAddress(parameters);
             break;
           }
-
           case "create2": {
             create2(parameters);
             break;

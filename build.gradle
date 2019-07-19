@@ -86,14 +86,9 @@ dependencies {
     compile group: 'com.google.api.grpc', name: 'googleapis-common-protos', version: '0.0.3'
     compile 'com.alibaba:fastjson:1.2.47'
 
-    // for jna, zksark
     compile group: 'com.sun.jna', name: 'jna', version: '3.0.9'
-
-    // https://mvnrepository.com/artifact/commons-io/commons-io
     compile group: 'commons-io', name: 'commons-io', version: '2.6'
-
     compile group: 'com.muquit.libsodiumjna', name: 'libsodium-jna', version: '1.0.4'
-
     compile group: 'org.projectlombok', name: 'lombok', version: '1.18.2'
 }
 

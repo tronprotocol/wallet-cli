@@ -809,7 +809,7 @@ public class WalletApiWrapper {
         System.out.println("rcm " + ByteArray.toHexString(noteInfo.getR()));
         System.out.println("trxId " + noteInfo.getTrxId());
         System.out.println("index " + noteInfo.getIndex());
-        System.out.println("meno " + ZenUtils.getMemo(noteInfo.getMemo()));
+        System.out.println("memo " + ZenUtils.getMemo(noteInfo.getMemo()));
 
         SpendNote.Builder spendNoteBuilder = SpendNote.newBuilder();
         spendNoteBuilder.setNote(noteBuild.build());
@@ -908,7 +908,7 @@ public class WalletApiWrapper {
         System.out.println("rcm " + ByteArray.toHexString(noteInfo.getR()));
         System.out.println("trxId " + noteInfo.getTrxId());
         System.out.println("index " + noteInfo.getIndex());
-        System.out.println("meno " + ZenUtils.getMemo(noteInfo.getMemo()));
+        System.out.println("memo " + ZenUtils.getMemo(noteInfo.getMemo()));
 
         SpendNote.Builder spendNoteBuilder = SpendNote.newBuilder();
         spendNoteBuilder.setNote(noteBuild.build());
@@ -963,7 +963,7 @@ public class WalletApiWrapper {
       for(int i=0; i<decryptNotes.get().getNoteTxsList().size();i++) {
         NoteTx noteTx = decryptNotes.get().getNoteTxs(i);
         Note note = noteTx.getNote();
-        logger.info("\ntxid:{}\nindex:{}\naddress:{}\nrcm:{}\nvalue:{}\nmeno:{}",
+        logger.info("\ntxid:{}\nindex:{}\naddress:{}\nrcm:{}\nvalue:{}\nmemo:{}",
             ByteArray.toHexString(noteTx.getTxid().toByteArray()),
             noteTx.getIndex(),
             note.getPaymentAddress(),
@@ -1039,7 +1039,7 @@ public class WalletApiWrapper {
       for(int i=0; i<decryptNotes.get().getNoteTxsList().size();i++) {
         NoteTx noteTx = decryptNotes.get().getNoteTxs(i);
         Note note = noteTx.getNote();
-        logger.info("\ntxid:{}\nindex:{}\npaymentAddress:{}\nrcm:{}\nmeno:{}\nvalue:{}",
+        logger.info("\ntxid:{}\nindex:{}\npaymentAddress:{}\nrcm:{}\nmemo:{}\nvalue:{}",
             ByteArray.toHexString(noteTx.getTxid().toByteArray()),
             noteTx.getIndex(),
             note.getPaymentAddress(),
@@ -1059,35 +1059,35 @@ public class WalletApiWrapper {
       if (fromRPC) {
         Optional<BytesMessage> sk = WalletApi.getSpendingKey();
         Optional<DiversifierMessage> d = WalletApi.getDiversifier();
-        System.out.println("d: " + ByteArray.toHexString(d.get().getD().toByteArray()));
+//        System.out.println("d: " + ByteArray.toHexString(d.get().getD().toByteArray()));
 
         Optional<ExpandedSpendingKeyMessage> expandedSpendingKeyMessage = WalletApi.getExpandedSpendingKey(sk.get());
-        System.out.println("ask: " + ByteArray.toHexString(expandedSpendingKeyMessage.get().getAsk().toByteArray()));
-        System.out.println("nsk: " + ByteArray.toHexString(expandedSpendingKeyMessage.get().getNsk().toByteArray()));
-        System.out.println("ovk: " + ByteArray.toHexString(expandedSpendingKeyMessage.get().getOvk().toByteArray()));
+//        System.out.println("ask: " + ByteArray.toHexString(expandedSpendingKeyMessage.get().getAsk().toByteArray()));
+//        System.out.println("nsk: " + ByteArray.toHexString(expandedSpendingKeyMessage.get().getNsk().toByteArray()));
+//        System.out.println("ovk: " + ByteArray.toHexString(expandedSpendingKeyMessage.get().getOvk().toByteArray()));
 
         BytesMessage.Builder askBuilder = BytesMessage.newBuilder();
         askBuilder.setValue(expandedSpendingKeyMessage.get().getAsk());
         Optional<BytesMessage> ak = WalletApi.getAkFromAsk(askBuilder.build());
-        System.out.println("ak: " + ByteArray.toHexString(ak.get().getValue().toByteArray()));
+//        System.out.println("ak: " + ByteArray.toHexString(ak.get().getValue().toByteArray()));
 
         BytesMessage.Builder nskBuilder = BytesMessage.newBuilder();
         nskBuilder.setValue(expandedSpendingKeyMessage.get().getNsk());
         Optional<BytesMessage> nk = WalletApi.getNkFromNsk(nskBuilder.build());
-        System.out.println("nk: " + ByteArray.toHexString(nk.get().getValue().toByteArray()));
+//        System.out.println("nk: " + ByteArray.toHexString(nk.get().getValue().toByteArray()));
 
         ViewingKeyMessage.Builder viewBuilder = ViewingKeyMessage.newBuilder();
         viewBuilder.setAk(ak.get().getValue());
         viewBuilder.setNk(nk.get().getValue());
         Optional<IncomingViewingKeyMessage> ivk = WalletApi.getIncomingViewingKey(viewBuilder.build());
-        System.out.println("ivk: " + ByteArray.toHexString(ivk.get().getIvk().toByteArray()));
+//        System.out.println("ivk: " + ByteArray.toHexString(ivk.get().getIvk().toByteArray()));
 
         IncomingViewingKeyDiversifierMessage.Builder builder = IncomingViewingKeyDiversifierMessage.newBuilder();
         builder.setD(d.get());
         builder.setIvk(ivk.get());
         Optional<PaymentAddressMessage> addressMessage = WalletApi.getZenPaymentAddress(builder.build());
-        System.out.println("pkd: " +  ByteArray.toHexString(addressMessage.get().getPkD().toByteArray()));
-        System.out.println("address: " + addressMessage.get().getPaymentAddress());
+//        System.out.println("pkd: " +  ByteArray.toHexString(addressMessage.get().getPkD().toByteArray()));
+//        System.out.println("address: " + addressMessage.get().getPaymentAddress());
         addressInfo.setSk(sk.get().getValue().toByteArray());
         addressInfo.setD(new DiversifierT(d.get().getD().toByteArray()));
         addressInfo.setIvk(ivk.get().getIvk().toByteArray());
@@ -1148,7 +1148,7 @@ public class WalletApiWrapper {
     System.out.println("rcm " + ByteArray.toHexString(noteInfo.getR()));
     System.out.println("trxId " + noteInfo.getTrxId());
     System.out.println("index " + noteInfo.getIndex());
-    System.out.println("meno " + ZenUtils.getMemo(noteInfo.getMemo()));
+    System.out.println("memo " + ZenUtils.getMemo(noteInfo.getMemo()));
 
     String shieldedAddress = noteInfo.getPaymentAddress();
     ShieldedAddressInfo addressInfo = shieldedWrapper.getShieldedAddressInfoMap()
