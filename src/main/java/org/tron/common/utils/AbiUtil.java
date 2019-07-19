@@ -9,8 +9,6 @@ import java.util.regex.Pattern;
 import org.apache.commons.lang3.StringUtils;
 import org.spongycastle.util.encoders.Hex;
 import org.tron.common.crypto.Hash;
-import org.tron.common.utils.ByteUtil;
-import org.tron.common.utils.DataWord;
 import org.tron.walletserver.WalletApi;
 
 public class AbiUtil {
@@ -30,9 +28,10 @@ public class AbiUtil {
   public static String[] getTypes(String methodSign) {
     int start = methodSign.indexOf('(') + 1;
     int end = methodSign.indexOf(')');
-
+    if (start == end) {
+      return new String[0];
+    }
     String typeString = methodSign.subSequence(start,end).toString();
-
     return typeString.split(",");
   }
 
@@ -339,19 +338,44 @@ public class AbiUtil {
     return parseMethod(methodSign, params, false);
   }
 
-  public static String parseMethod(String methodSign, String input, boolean isHex) {
+  public static String parseParameters(String methodSign, List<Object> parameters) {
+    String[] inputArr = new String[parameters.size()];
+    int i = 0;
+    for (Object parameter: parameters) {
+      if (parameter instanceof  List) {
+        StringBuilder sb = new StringBuilder();
+        for (Object item: (List) parameter) {
+          if (sb.length() != 0) {
+            sb.append(",");
+          }
+          sb.append("\"").append(item).append("\"");
+        }
+        inputArr[i++] = "[" + sb.toString() + "]";
+      } else {
+        inputArr[i++] = (parameter instanceof String) ? ("\"" + parameter + "\"") : ("" + parameter);
+      }
+    }
+    String input = StringUtils.join(inputArr, ',');
+    return parseParameters(methodSign, input);
+  }
+
+  public static String parseParameters(String methodSign, String input) {
+    byte[] encodedParms = encodeInput(methodSign, input);
+    return Hex.toHexString(encodedParms);
+  }
+
+  public static String parseSelector(String methodSign) {
     byte[] selector = new byte[4];
     System.arraycopy(Hash.sha3(methodSign.getBytes()), 0, selector,0, 4);
-    System.out.println(methodSign + ":" + Hex.toHexString(selector));
-    if (input.length() == 0) {
-      return Hex.toHexString(selector);
-    }
-    if (isHex) {
-      return Hex.toHexString(selector) + input;
-    }
-    byte[] encodedParms = encodeInput(methodSign, input);
+    return Hex.toHexString(selector);
+  }
 
-    return Hex.toHexString(selector) + Hex.toHexString(encodedParms);
+  public static String parseMethod(String methodSign, String input, boolean isHex) {
+    if (isHex) {
+      return parseSelector(methodSign) + input;
+    } else {
+      return parseSelector(methodSign) + parseParameters(methodSign, input);
+    }
   }
 
   public static byte[] encodeInput(String methodSign, String input) {
@@ -375,26 +399,25 @@ public class AbiUtil {
   }
 
   public static String parseMethod(String methodSign, List<Object> parameters) {
-    String[] inputArr = new String[parameters.size()];
-    int i = 0;
-    for (Object parameter: parameters) {
-      if (parameter instanceof  List) {
-        StringBuilder sb = new StringBuilder();
-        for (Object item: (List) parameter) {
-          if (sb.length() != 0) {
-            sb.append(",");
-          }
-          sb.append("\"").append(item).append("\"");
-        }
-        inputArr[i++] = "[" + sb.toString() + "]";
-      } else {
-        inputArr[i++] = (parameter instanceof String) ? ("\"" + parameter + "\"") : ("" + parameter);
-      }
-    }
-    return parseMethod(methodSign, StringUtils.join(inputArr, ','));
+    return parseSelector(methodSign) + parseParameters(methodSign, parameters);
   }
 
   public  static void main(String[] args) {
+    String method3 = "test(uint256,bytes[])";
+    List<Object> paramaters = new ArrayList<>();
+    paramaters.add(1);
+
+    List<String> bytesArray = new ArrayList<>();
+    bytesArray.add("0x1234");
+    bytesArray.add("0x1234");
+//    bytesArray.add("0x123");
+//    bytesArray.add("0x123");
+    paramaters.add(bytesArray);
+
+
+    System.out.println("ret:" + parseMethod(method3, paramaters));
+
+
     String method = "test(string,int2,string)";
     String params = "asdf,3123,adf";
 
@@ -403,11 +426,6 @@ public class AbiUtil {
     String arrayMethod3 = "test(uint,address[])";
     String byteMethod1 = "test(bytes32,bytes11)";
     String tokenMethod = "test(trcToken,uint256)";
-    String tokenParams = "\"nmb\",111";
-
-    System.out.println("token:" + parseMethod(tokenMethod, tokenParams));
-
-
     String method1 = "test(uint256,string,string,uint256[])";
     String expected1  = "db103cf30000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000000000c0000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000014200000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000143000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000003000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000003";
     String method2 = "test(uint256,string,string,uint256[3])";
@@ -419,6 +437,9 @@ public class AbiUtil {
     String bytesValue1 = "\"0112313\",112313";
 
     System.out.println(parseMethod(byteMethod1, bytesValue1));
+
+
+
   }
 
 
