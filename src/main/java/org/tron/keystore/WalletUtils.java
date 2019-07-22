@@ -174,6 +174,8 @@ public class WalletUtils {
     return String.format("%s%skeystore", getDefaultKeyDirectory(), File.separator);
   }
 
+
+
 //    public static boolean isValidPrivateKey(String privateKey) {
 //        String cleanPrivateKey = Numeric.cleanHexPrefix(privateKey);
 //        return cleanPrivateKey.length() == PRIVATE_KEY_LENGTH_IN_HEX;

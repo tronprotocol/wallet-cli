@@ -20,6 +20,13 @@ import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.Hash;
 import org.tron.common.utils.ByteArray;
 import org.tron.core.exception.CipherException;
+import org.tron.core.zen.ShieldedAddressInfo;
+import org.tron.core.zen.address.DiversifierT;
+import org.tron.core.zen.address.ExpandedSpendingKey;
+import org.tron.core.zen.address.FullViewingKey;
+import org.tron.core.zen.address.IncomingViewingKey;
+import org.tron.core.zen.address.PaymentAddress;
+import org.tron.core.zen.address.SpendingKey;
 import org.tron.walletserver.WalletApi;
 
 /**
@@ -130,7 +137,7 @@ public class Wallet {
       byte[] password, byte[] salt, int c, String prf) throws CipherException {
 
     if (!prf.equals("hmac-sha256")) {
-      throw new CipherException("Unsupported prf:" + prf);
+       throw new CipherException("Unsupported prf:" + prf);
     }
 
     // Java 8 supports this, but you have to convert the password to a character array, see
@@ -283,9 +290,10 @@ public class Wallet {
     }
   }
 
-  static byte[] generateRandomBytes(int size) {
+  public static byte[] generateRandomBytes(int size) {
     byte[] bytes = new byte[size];
     new SecureRandom().nextBytes(bytes);
     return bytes;
   }
+
 }

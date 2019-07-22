@@ -830,11 +830,457 @@ Get the latest n blocks, where 0< n < 100
 GetBlockByLimitNext	startBlockId endBlockId     
 Get the block in the range [startBlockId, endBlockId)     
 
-some others
+Some others
 -----------    
 GetNextMaintenanceTime:	Get the start time of the next maintain period    
 ListNodes:				Get other peer information    
 ListWitnesses:			Get all miner node information    
 BroadcastTransaction:	Broadcast the transaction, where the transaction is in hex string format.
+
+How to transfer to shielded address
+-----------------------------------
+a generateshieldedaddress number    Generate shielded addresses    
+number            The number of shielded addresses, the default is 1   
+Example:    
+generateshieldedaddress 2    
+10:11:02.482 INFO  [main] [Client](Client.java:1914) ShieldedAddress list:    
+10:11:02.526 INFO  [main] [Client](Client.java:1919) ztron1ghdy60hya8y72deu0q0r25qfl60unmue6889m3xfc3296a5ut6jcyafzhtp9nlutndukufzap4h    
+10:11:02.567 INFO  [main] [Client](Client.java:1919) ztron1hn9r3wmytavslztwmlzvuzk3dqpdhwcmda2d0deyu5pwv32dp78saaslyt82w0078y6uzfg8x6w    
+10:11:02.567 INFO  [main] [Client](Client.java:1923) GenerateShieldedAddress successful !!    
     
-  
+b listshieldedaddress             Display cached local shielded address list    
+Example:    
+listshieldedaddress    
+10:11:55.370 INFO  [main] [Client](Client.java:1928) ShieldedAddress :    
+10:11:55.371 INFO  [main] [Client](Client.java:1930) ztron16j06s3p5gvp2jde4vh7w3ug3zz3m62zkyfu86s7ara5lafhp22p9wr3gz0lcdm3pvt7qx0aftu4    
+10:11:55.371 INFO  [main] [Client](Client.java:1930) ztron1ghdy60hya8y72deu0q0r25qfl60unmue6889m3xfc3296a5ut6jcyafzhtp9nlutndukufzap4h    
+10:11:55.371 INFO  [main] [Client](Client.java:1930) ztron1hn9r3wmytavslztwmlzvuzk3dqpdhwcmda2d0deyu5pwv32dp78saaslyt82w0078y6uzfg8x6w    
+
+c SendShieldedCoin publicFromAddress fromAmount shieldedInputNum input1 input2 input3 ... publicToAddress toAmount shieldedOutputNum shieldedAddress1 amount1 memo1 shieldedAddress2 amount2 memo2 ...    
+Shielded transfer, support from public address or shielded address to public address and shielded address, does not support public address to public address, does not support automatic change.    
+Public from amount / shielded input amount = public output amount + shielded output amount + fee    
+publicFromAddress 	Public from address, set to null if not needed.    
+fromAmount			    The amount transfer from public address, if publicFromAddress set to null, this variable must be 0.   
+shieldedInputNum	  The number of shielded input note, should be 0 or 1.    
+input				        The index of shielded input note, get from execute command listshieldednote,if shieldedInputNum set to 0,no need to set.
+publicToAddress		  Public to address, set to null if not needed.    
+toAmount			      The amount transfer to public address, if publicToAddress set to null, this variable must be 0.  
+shieldedOutputNum	  The amount of shielded output note. That is the number of (shieldedAddress amount meno) pairs, should be 0,1,2    
+shieldedAddress1	  Output shielded address
+amount1				      The amount transfer to shieldedAddress1    
+memo1				        The memo of this note, up to 512 bytes, can be set to null if not needed    
+Example:    
+1. Public address transfer to two shielded addresses
+sendshieldedcoin TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ 210000000 0 null 0 2 ztron16j06s3p5gvp2jde4vh7w3ug3zz3m62zkyfu86s7ara5lafhp22p9wr3gz0lcdm3pvt7qx0aftu4 100000000 test1 ztron1ghdy60hya8y72deu0q0r25qfl60unmue6889m3xfc3296a5ut6jcyafzhtp9nlutndukufzap4h 100000000 null    
+Receive txid = 4ce5656a13049df00abc7fb3ce78d54c78944d3cbbdfdb29f288e1df5fdf67e1    
+transaction hex string is hash:     
+259979e238ea70d76802a77c6fb50810a94a198e4ae7b8a5d51ae6b1a0d18fb9    
+txid:     
+4ce5656a13049df00abc7fb3ce78d54c78944d3cbbdfdb29f288e1df5fdf67e1    
+raw_data:     
+{    
+ref_block_bytes: 04ac    
+ref_block_hash: eb00771525105249    
+contract:     
+{    
+contract 0 :::    
+[    
+contract_type: ShieldedTransferContract    
+transparent_from_address: TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ    
+from_amount: 210000000    
+receive_description:     
+[    
+{     
+value_commitment:de75bc31efea3a115c387d70721cb0f9aecfec2474f27475abcb980886ad0d3d    
+note_commitment:3b89783436db7d908b0639a4da16ffe16be3af123dcac2d7bbd34c0e6d7d6544    
+epk:13905055444c524ada9730e591360fef353e7badfd5111aa483d2c18ff1aa325    
+c_enc:283bad882abc89bf5726535ccbbcb279ff6858bc5882c32380117ea693dfeb145377b4509e9d8ac7211519af29a07f95dd3c92c937352e12c33c8f23a1eab8669a7f4a0b87ae0173e47e2b63488f7568e3960101b9b30be87f7e8ccae954fab14776dfaf7157eddaf92e76385b3c03364a14689e661e225f13414e3a2930bb03b374e6afe01e3e1109963d9cf2a89598226f4617fda887390bf96227befcf13769ca733ed8b5966fcf4e24142399530b86dd2b310760eb5be40aeb617a8f417532417c7a6c1dabcf511be38545ff37be77a7868a9bcefed6d64c906975e55172f23e2bd5e5fad01fe881b43df1bc5305b01f6790929f06aa2ff76edd22d7f07a076a1df670424dd49b0f9736f2e732e69b46ee533dc9772a960c81f57555a98367554d2baece36155dd8cf8fc62b9474117bcf8eb9a7905e4b143d64c168ae2490d811749aaccc44f9a91a2630cb90bfc922e2b49a3083f18e2b227fc1db9c91a725c17bb5400b769c0c5c80c0083a3e0a8f00e72565b927ba4a95d6d79187219fb836282ebac38671929ac232739ee1a35b21e51ff01dd3d6de1a3a1a0b42ca8b1ae435f124860c2d9ecd5835ad0e94dd33a36edbd37ed2e581e28cc0d6740945dc5f71f9310fbabcd881036f3ccfb7524e7877de54c295577f43c7551accab575b9bcde331ee529d69e40540414f179d914c8b7c62e0e11547d3687d837bd129af855902f647a6eca89d83a4b4442e8b44d87839d0c95a79727ffed286ac78a512b20a03c8e5aeb7c997bd24e8e61a74cd6824afe1f844c14e52958f72896c91214d46    
+c_out:28084dab0df35e91f297508e71de534ed8ea9aaa5f9c2c5e8fcc472552107581c58a11fbfb500c05d3b75472e770e4aec9dafa97a4e11a0a145ee4f58eeb996e4d0b8f90a29480f43be490e6119989ef    
+zkproof:8eed2aef1edf5d000f8bcdbb1bc228fa6ea4ca1e237da41dde6e49057398ca9db4f785f0327ff87cd2685594ab637c0989604856571d6b2373c949796d52a432094bce27d445e1ec751203480803c19c1ddd5b435f88c27a90700296f2d5473d11234dde23740cd532987b7e7a5eb129f67f63f2b64b07f980856d19dee4965ef2c8d9cea30778db888e0500d04d910d990fb2de69d5062a5e9bababfd54d23376c9aa53c6359551bd296658be04dc1392b1d30ea2d8572862deb1e9402d5d6c    
+},{    
+value_commitment:c43166a68ea4585bd99a28f2b22be8c9acf35874ab19d94314eb7972a89723a4    
+note_commitment:93f76ff28e95094e2bbd3f3b8a0680bdfdc4f06cf67abb59d6cf6bb2a30ffb13    
+epk:28aeccd4e7c6ec30db5c8cfa0f0c530ade45a0e0802ae77279d35b1cf086f947    
+c_enc:6c62fde60d4c0cc48e84b1b023c6664332a244d8a2e650f41f323b9d05c0637959796b9ef6c3dabee35c81a409e8d5279197af772eddf3fd609822393d2e17fc215f09da41ebd991407b9b206e93fcdbbb3ccf53dcdacdb9759460cb35bd00e281ba2ebd6f04af46c3872b12bccb7b70f61397d27dbfee5e508ca02451047b25520307831ceb7cb39ea35305dae84b3a9a5871ade0f364a35b7214b1b7bb4e5b2bd80ab83740d3e00e57218e499ee2763fa683f9e2118eb7dab943cfac6cef8fd36d37e91cf08459d1077813d506040fa8b6c5cf76a75c7cf0a476a8eb36ad428db29a31d0eadcca7f70f8768a6893991899ba0a3f469ef5f0a8feb0877e4557a2ca1d41ca944db3de4d13125b82dabcbbf36624308eaff2055109446777ca592a3c4f62a9823cd53de6993d5edeaef7e9cd471fd7bc0973e46732c5dbc2f642504fb6fe840c99c012f2dcf035495237f2451dc7e708bf4e22010e86fe21c30aac0e9f3ad31feee69849d6eafeba8337690e163bb22c8d9aff2c55865663af5d4dd23132a7d6d9748dbdc86d71cf773a0a1a2768ce8da9e6fbecda29ab2eb1ad75705ab1fb448cd6c2987b814d759462e4930e124b48838319f5907f33911cb80a583e91c552d1d41de91ed02aba232b9a53331260c8061ae354646e96fde0818d695b7aa058d0ac09fb4f92cb412e218f4e9f9771c1cd067023e844c96ac188db8869c50b1297010d9c21dbce60d815a1c936170df77e057a13b4798f39f5bfc36f5acf36728ea7e017ab5fc39a06e2bbd42ad3118a8c2e5531fb6ae63adf525591ed1a    
+c_out:ecf81a290d80573434d45024a8050a0d51c6e74f4ac2c539f6d68694b367a3568ba9187872d9b648fd4dcc9a01de7b2c8d1036d7b2e37b57d89c8df37e26be4bad0728e2922915901339b8a908fb2a56    
+zkproof:8b6ca51f29b66e7cc833e1b602f954d3ccc6ed80cf727ce0e4bd74500b32635d909fb7dda7be7d0807b93318e81108c4a1d2c4dc73e7b393b5cc66e18fb7a49d665f3bde62b1832ec01fabecdf8fa77668b78db3679376938820ada3ccf23f540c1fa1c32b4c3303c0ac72351da080c0bab70b8effdc304089601feb613f0c11b57822474a788479ca7322b6d3f606fea2208d45ff3c1f893617f628304ba6765a4eeb1ac52a0e666373e5c746ddc48a781331eff4e465f8993c1bbaafd25d3b    
+}    
+]    
+binding_signature: 1c9732654d45f51fd2cadf1baf0d85a50f55f08d181ef08eb704392d5ee03bc4bc77d56e26b706ab88cae85f6ac608abd2e16b2242653c90e058a3c8a3d23108    
+]    
+    
+}    
+timestamp: Fri Jul 19 10:28:20 CST 2019    
+fee_limit: 0    
+}    
+    
+txid:     
+4ce5656a13049df00abc7fb3ce78d54c78944d3cbbdfdb29f288e1df5fdf67e1    
+raw_data:     
+{    
+ref_block_bytes: 04ac    
+ref_block_hash: eb00771525105249    
+contract:     
+{    
+contract 0 :::    
+[    
+contract_type: ShieldedTransferContract    
+transparent_from_address: TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ    
+from_amount: 210000000    
+receive_description:     
+[    
+{    
+value_commitment:de75bc31efea3a115c387d70721cb0f9aecfec2474f27475abcb980886ad0d3d    
+note_commitment:3b89783436db7d908b0639a4da16ffe16be3af123dcac2d7bbd34c0e6d7d6544    
+epk:13905055444c524ada9730e591360fef353e7badfd5111aa483d2c18ff1aa325    
+c_enc:283bad882abc89bf5726535ccbbcb279ff6858bc5882c32380117ea693dfeb145377b4509e9d8ac7211519af29a07f95dd3c92c937352e12c33c8f23a1eab8669a7f4a0b87ae0173e47e2b63488f7568e3960101b9b30be87f7e8ccae954fab14776dfaf7157eddaf92e76385b3c03364a14689e661e225f13414e3a2930bb03b374e6afe01e3e1109963d9cf2a89598226f4617fda887390bf96227befcf13769ca733ed8b5966fcf4e24142399530b86dd2b310760eb5be40aeb617a8f417532417c7a6c1dabcf511be38545ff37be77a7868a9bcefed6d64c906975e55172f23e2bd5e5fad01fe881b43df1bc5305b01f6790929f06aa2ff76edd22d7f07a076a1df670424dd49b0f9736f2e732e69b46ee533dc9772a960c81f57555a98367554d2baece36155dd8cf8fc62b9474117bcf8eb9a7905e4b143d64c168ae2490d811749aaccc44f9a91a2630cb90bfc922e2b49a3083f18e2b227fc1db9c91a725c17bb5400b769c0c5c80c0083a3e0a8f00e72565b927ba4a95d6d79187219fb836282ebac38671929ac232739ee1a35b21e51ff01dd3d6de1a3a1a0b42ca8b1ae435f124860c2d9ecd5835ad0e94dd33a36edbd37ed2e581e28cc0d6740945dc5f71f9310fbabcd881036f3ccfb7524e7877de54c295577f43c7551accab575b9bcde331ee529d69e40540414f179d914c8b7c62e0e11547d3687d837bd129af855902f647a6eca89d83a4b4442e8b44d87839d0c95a79727ffed286ac78a512b20a03c8e5aeb7c997bd24e8e61a74cd6824afe1f844c14e52958f72896c91214d46    
+c_out:28084dab0df35e91f297508e71de534ed8ea9aaa5f9c2c5e8fcc472552107581c58a11fbfb500c05d3b75472e770e4aec9dafa97a4e11a0a145ee4f58eeb996e4d0b8f90a29480f43be490e6119989ef    
+zkproof:8eed2aef1edf5d000f8bcdbb1bc228fa6ea4ca1e237da41dde6e49057398ca9db4f785f0327ff87cd2685594ab637c0989604856571d6b2373c949796d52a432094bce27d445e1ec751203480803c19c1ddd5b435f88c27a90700296f2d5473d11234dde23740cd532987b7e7a5eb129f67f63f2b64b07f980856d19dee4965ef2c8d9cea30778db888e0500d04d910d990fb2de69d5062a5e9bababfd54d23376c9aa53c6359551bd296658be04dc1392b1d30ea2d8572862deb1e9402d5d6c    
+},{    
+value_commitment:c43166a68ea4585bd99a28f2b22be8c9acf35874ab19d94314eb7972a89723a4    
+note_commitment:93f76ff28e95094e2bbd3f3b8a0680bdfdc4f06cf67abb59d6cf6bb2a30ffb13    
+epk:28aeccd4e7c6ec30db5c8cfa0f0c530ade45a0e0802ae77279d35b1cf086f947    
+c_enc:6c62fde60d4c0cc48e84b1b023c6664332a244d8a2e650f41f323b9d05c0637959796b9ef6c3dabee35c81a409e8d5279197af772eddf3fd609822393d2e17fc215f09da41ebd991407b9b206e93fcdbbb3ccf53dcdacdb9759460cb35bd00e281ba2ebd6f04af46c3872b12bccb7b70f61397d27dbfee5e508ca02451047b25520307831ceb7cb39ea35305dae84b3a9a5871ade0f364a35b7214b1b7bb4e5b2bd80ab83740d3e00e57218e499ee2763fa683f9e2118eb7dab943cfac6cef8fd36d37e91cf08459d1077813d506040fa8b6c5cf76a75c7cf0a476a8eb36ad428db29a31d0eadcca7f70f8768a6893991899ba0a3f469ef5f0a8feb0877e4557a2ca1d41ca944db3de4d13125b82dabcbbf36624308eaff2055109446777ca592a3c4f62a9823cd53de6993d5edeaef7e9cd471fd7bc0973e46732c5dbc2f642504fb6fe840c99c012f2dcf035495237f2451dc7e708bf4e22010e86fe21c30aac0e9f3ad31feee69849d6eafeba8337690e163bb22c8d9aff2c55865663af5d4dd23132a7d6d9748dbdc86d71cf773a0a1a2768ce8da9e6fbecda29ab2eb1ad75705ab1fb448cd6c2987b814d759462e4930e124b48838319f5907f33911cb80a583e91c552d1d41de91ed02aba232b9a53331260c8061ae354646e96fde0818d695b7aa058d0ac09fb4f92cb412e218f4e9f9771c1cd067023e844c96ac188db8869c50b1297010d9c21dbce60d815a1c936170df77e057a13b4798f39f5bfc36f5acf36728ea7e017ab5fc39a06e2bbd42ad3118a8c2e5531fb6ae63adf525591ed1a    
+c_out:ecf81a290d80573434d45024a8050a0d51c6e74f4ac2c539f6d68694b367a3568ba9187872d9b648fd4dcc9a01de7b2c8d1036d7b2e37b57d89c8df37e26be4bad0728e2922915901339b8a908fb2a56    
+zkproof:8b6ca51f29b66e7cc833e1b602f954d3ccc6ed80cf727ce0e4bd74500b32635d909fb7dda7be7d0807b93318e81108c4a1d2c4dc73e7b393b5cc66e18fb7a49d665f3bde62b1832ec01fabecdf8fa77668b78db3679376938820ada3ccf23f540c1fa1c32b4c3303c0ac72351da080c0bab70b8effdc304089601feb613f0c11b57822474a788479ca7322b6d3f606fea2208d45ff3c1f893617f628304ba6765a4eeb1ac52a0e666373e5c746ddc48a781331eff4e465f8993c1bbaafd25d3b    
+}    
+]    
+binding_signature: 1c9732654d45f51fd2cadf1baf0d85a50f55f08d181ef08eb704392d5ee03bc4bc77d56e26b706ab88cae85f6ac608abd2e16b2242653c90e058a3c8a3d23108    
+]    
+    
+}    
+timestamp: Fri Jul 19 10:28:20 CST 2019    
+fee_limit: 0    
+}    
+    
+Please confirm and input your permission id, if input y or Y means default 0, other non-numeric characters will cancell transaction.    
+Please choose your key for sign.    
+The 1th keystore file name is UTC--2019-07-11T07-48-10.599000000Z--TK46L2BNfbmbScnAnaqgZuobkSBVyNsvTM.json    
+The 2th keystore file name is UTC--2018-11-20T07-47-52.297000000Z--TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ.json    
+Please choose between 1 and 2    
+2    
+Please input your password.    
+1qa@WS#ED    
+current transaction hex string is 0ac6100a0204ac2208eb0077152510524940b0e0bfc0c02d5aa710083312a2100a35747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e536869656c6465645472616e73666572436f6e747261637412e80f0a1541a7d8a35b260395c14aa456297662092ba3b76fc01080b1916422c2070a20de75bc31efea3a115c387d70721cb0f9aecfec2474f27475abcb980886ad0d3d12203b89783436db7d908b0639a4da16ffe16be3af123dcac2d7bbd34c0e6d7d65441a2013905055444c524ada9730e591360fef353e7badfd5111aa483d2c18ff1aa32522c404283bad882abc89bf5726535ccbbcb279ff6858bc5882c32380117ea693dfeb145377b4509e9d8ac7211519af29a07f95dd3c92c937352e12c33c8f23a1eab8669a7f4a0b87ae0173e47e2b63488f7568e3960101b9b30be87f7e8ccae954fab14776dfaf7157eddaf92e76385b3c03364a14689e661e225f13414e3a2930bb03b374e6afe01e3e1109963d9cf2a89598226f4617fda887390bf96227befcf13769ca733ed8b5966fcf4e24142399530b86dd2b310760eb5be40aeb617a8f417532417c7a6c1dabcf511be38545ff37be77a7868a9bcefed6d64c906975e55172f23e2bd5e5fad01fe881b43df1bc5305b01f6790929f06aa2ff76edd22d7f07a076a1df670424dd49b0f9736f2e732e69b46ee533dc9772a960c81f57555a98367554d2baece36155dd8cf8fc62b9474117bcf8eb9a7905e4b143d64c168ae2490d811749aaccc44f9a91a2630cb90bfc922e2b49a3083f18e2b227fc1db9c91a725c17bb5400b769c0c5c80c0083a3e0a8f00e72565b927ba4a95d6d79187219fb836282ebac38671929ac232739ee1a35b21e51ff01dd3d6de1a3a1a0b42ca8b1ae435f124860c2d9ecd5835ad0e94dd33a36edbd37ed2e581e28cc0d6740945dc5f71f9310fbabcd881036f3ccfb7524e7877de54c295577f43c7551accab575b9bcde331ee529d69e40540414f179d914c8b7c62e0e11547d3687d837bd129af855902f647a6eca89d83a4b4442e8b44d87839d0c95a79727ffed286ac78a512b20a03c8e5aeb7c997bd24e8e61a74cd6824afe1f844c14e52958f72896c91214d462a5028084dab0df35e91f297508e71de534ed8ea9aaa5f9c2c5e8fcc472552107581c58a11fbfb500c05d3b75472e770e4aec9dafa97a4e11a0a145ee4f58eeb996e4d0b8f90a29480f43be490e6119989ef32c0018eed2aef1edf5d000f8bcdbb1bc228fa6ea4ca1e237da41dde6e49057398ca9db4f785f0327ff87cd2685594ab637c0989604856571d6b2373c949796d52a432094bce27d445e1ec751203480803c19c1ddd5b435f88c27a90700296f2d5473d11234dde23740cd532987b7e7a5eb129f67f63f2b64b07f980856d19dee4965ef2c8d9cea30778db888e0500d04d910d990fb2de69d5062a5e9bababfd54d23376c9aa53c6359551bd296658be04dc1392b1d30ea2d8572862deb1e9402d5d6c22c2070a20c43166a68ea4585bd99a28f2b22be8c9acf35874ab19d94314eb7972a89723a4122093f76ff28e95094e2bbd3f3b8a0680bdfdc4f06cf67abb59d6cf6bb2a30ffb131a2028aeccd4e7c6ec30db5c8cfa0f0c530ade45a0e0802ae77279d35b1cf086f94722c4046c62fde60d4c0cc48e84b1b023c6664332a244d8a2e650f41f323b9d05c0637959796b9ef6c3dabee35c81a409e8d5279197af772eddf3fd609822393d2e17fc215f09da41ebd991407b9b206e93fcdbbb3ccf53dcdacdb9759460cb35bd00e281ba2ebd6f04af46c3872b12bccb7b70f61397d27dbfee5e508ca02451047b25520307831ceb7cb39ea35305dae84b3a9a5871ade0f364a35b7214b1b7bb4e5b2bd80ab83740d3e00e57218e499ee2763fa683f9e2118eb7dab943cfac6cef8fd36d37e91cf08459d1077813d506040fa8b6c5cf76a75c7cf0a476a8eb36ad428db29a31d0eadcca7f70f8768a6893991899ba0a3f469ef5f0a8feb0877e4557a2ca1d41ca944db3de4d13125b82dabcbbf36624308eaff2055109446777ca592a3c4f62a9823cd53de6993d5edeaef7e9cd471fd7bc0973e46732c5dbc2f642504fb6fe840c99c012f2dcf035495237f2451dc7e708bf4e22010e86fe21c30aac0e9f3ad31feee69849d6eafeba8337690e163bb22c8d9aff2c55865663af5d4dd23132a7d6d9748dbdc86d71cf773a0a1a2768ce8da9e6fbecda29ab2eb1ad75705ab1fb448cd6c2987b814d759462e4930e124b48838319f5907f33911cb80a583e91c552d1d41de91ed02aba232b9a53331260c8061ae354646e96fde0818d695b7aa058d0ac09fb4f92cb412e218f4e9f9771c1cd067023e844c96ac188db8869c50b1297010d9c21dbce60d815a1c936170df77e057a13b4798f39f5bfc36f5acf36728ea7e017ab5fc39a06e2bbd42ad3118a8c2e5531fb6ae63adf525591ed1a2a50ecf81a290d80573434d45024a8050a0d51c6e74f4ac2c539f6d68694b367a3568ba9187872d9b648fd4dcc9a01de7b2c8d1036d7b2e37b57d89c8df37e26be4bad0728e2922915901339b8a908fb2a5632c0018b6ca51f29b66e7cc833e1b602f954d3ccc6ed80cf727ce0e4bd74500b32635d909fb7dda7be7d0807b93318e81108c4a1d2c4dc73e7b393b5cc66e18fb7a49d665f3bde62b1832ec01fabecdf8fa77668b78db3679376938820ada3ccf23f540c1fa1c32b4c3303c0ac72351da080c0bab70b8effdc304089601feb613f0c11b57822474a788479ca7322b6d3f606fea2208d45ff3c1f893617f628304ba6765a4eeb1ac52a0e666373e5c746ddc48a781331eff4e465f8993c1bbaafd25d3b2a401c9732654d45f51fd2cadf1baf0d85a50f55f08d181ef08eb704392d5ee03bc4bc77d56e26b706ab88cae85f6ac608abd2e16b2242653c90e058a3c8a3d2310870f8a2bcc0c02d1241f1e90556d1ef91c26c01261c30c79a20a2a14a68196956bb1d0375179c897a143eaf5f357df22f21b556b17e12335ae01c9929bda86dcf101367407e0d115de401    
+10:28:26.914 INFO  [main] [Client](Client.java:2040) SendShieldedCoin successful !!    
+    
+2. shielded address transfer to shielded address    
+listshieldednote    
+Unspend note list like:    
+1 ztron1ghdy60hya8y72deu0q0r25qfl60unmue6889m3xfc3296a5ut6jcyafzhtp9nlutndukufzap4h 100000000 4ce5656a13049df00abc7fb3ce78d54c78944d3cbbdfdb29f288e1df5fdf67e1 1 UnSpend     
+0 ztron16j06s3p5gvp2jde4vh7w3ug3zz3m62zkyfu86s7ara5lafhp22p9wr3gz0lcdm3pvt7qx0aftu4 100000000 4ce5656a13049df00abc7fb3ce78d54c78944d3cbbdfdb29f288e1df5fdf67e1 0 UnSpend test1    
+    
+sendshieldedcoin null 0 1 0 null 0 1 ztron1hn9r3wmytavslztwmlzvuzk3dqpdhwcmda2d0deyu5pwv32dp78saaslyt82w0078y6uzfg8x6w 90000000 test2    
+address ztron16j06s3p5gvp2jde4vh7w3ug3zz3m62zkyfu86s7ara5lafhp22p9wr3gz0lcdm3pvt7qx0aftu4    
+value 100000000    
+rcm 224463fbba4ef49a4e547d5b7fe608ebd9ec717591db2f6b6644a862a5528b07    
+trxId 4ce5656a13049df00abc7fb3ce78d54c78944d3cbbdfdb29f288e1df5fdf67e1    
+index 0    
+memo test1    
+Receive txid = 840b127fea05f7f86c43ad9fb5fe7fa27e977465cea4e4ae25e59e0de75ad99e    
+transaction hex string is hash:     
+69ef6fa21da0d1633187a0c55c1ba20f323e88ba8e27e52ece452860c9726e9f    
+txid:     
+06b55fc27f7ec649396706d149d18a0bb003347bdd7f489e3d47205da9cee802    
+raw_data:     
+{    
+ref_block_bytes: 05d8    
+ref_block_hash: d5877abdc498f58f    
+contract:     
+{    
+contract 0 :::    
+[    
+contract_type: ShieldedTransferContract    
+spend_description:     
+[    
+{    
+value_commitment:d972b1946f3884732f0c1d67d447ab6aa2128cc70fc44f7ec664c257361e7638    
+anchor:efe6dd711e8dc619a892b3a3f8b0e86bb51e867718e34e8e5c483e45ba1d1f13    
+nullifier:8a5185c92d707bde700aad36ae54966cb9bc747cacc422425e41c176f3c7294c    
+rk:1fd62d517815b8f717b86d93cd1c6cd196c6ac6be785a8043cbd860264908fc3    
+zkproof:975a3ea4d6682945ad6d036401027cff7ec26b554ece18bc42e69acdbeb3742daa1a556d2b707dee5cfd6ab391e35705a7fef815c69cb76974c7519f82c8115110aa9ce702dcc0dd07322ea07bdffdfa7947b90f2beb50308fb4640352c7e4fd07ae8d23f77dec6ee7f0ef538064002b5e6b3a35b781d64080adb0a244afa86d06811c145551516948c834343a85a938942b3b538d8ba5d1d765a7cf3bb16a1a4f211bb1dff93ca85b16f814cf0939f64cfa89dcd833cb31a726b689e0d4b4d4    
+spend_authority_signature:5caaa268628276ef71a709e31c9cc5ab1160ba6ab82be0064fbaa31fc372ab4f311dd2ccb50e5d908522acea4cd512241aed7c54bdf65bc76fbba27d8451dc03    
+}    
+]    
+receive_description:     
+[    
+{    
+value_commitment:9e9bd0ff2d6c1dfa134dd7c834426c3158a1c0b1780cd7cfd4fdf3a055ff2e50    
+note_commitment:7ffbb461e35abd8c7505e71399ad2d2d41749af8b567043940cee496790e773f    
+epk:ef92ed5d2725ffc92fb02fa632bc4b68b246600149e2207d69c7209d4fbb88bf    
+c_enc:b462cecb440db4cb994a9f2877f812972bd93f127f8c0b6e0909532ba013f70c7953146a7d22149f96b04c23a820f0cbb422ccdb01f676c4345230c67325f1de1bba5f8bd88db21db6c86f7da7765dbbe9b389326cab3deaaa59ea903c3d2db50394e6d431e193ff37ecd164cd3b9579904cc79096acdc7b1c47d91142d0d5beea48bcfbc540aa78ef02f3fb8ba68a1ee0705abc1aaa07200a02a7c9aaa930649de0adf8f90b6acd349136b550a3b1adbad913fef482b73914f5511e758ec280d463b2df8c89c127b0c127bc1e8b68f5dca0682684c9c2a560015593762ee6e401ce6aac23c97de7f636d01b27dc4caa1bff8c98a36342661ff26e41826601d0945aefb9d86b94382fb912e8f32cb2c8990101765aa9e78cbe6c48c2ee3c0fd4df3050cb1395f98d3335b01a5f8bdbfefd3a445ab91cd69f30b1ed5da2c7b0c4ef732cc1e33951714bcce6d2f580711d86a7663defdd09998237282c710de15db31dbbcfe043efad8ee55f9c5de779553a173a7b87bb062412d061c20ebf46f918024e460bf9f7a9650986eb9962478e5c069ae8bc7c01d6399e60d0154f956d0b7613d774d2e8b8bde3d4b1cf5ed46edfec663017a70312eb04ee68baaae9c0779d782031fad6f99a37981db699fdcfa29fdc5e0628b73209b8fef58ca70581f90899c756a0b2911caab7685b9cdaf7da3a02a258df8d8fe16a939f2c601e39ec795faa1c7d06e00e9c2dbc9181f9a97dde5fc23053a2753262d7c570eca6e104bf0e308de99d0e04dab9130a4b3fb1fec21f75f4d1096270130199664e39687d3cc777    
+c_out:fcb1be9acda155d265301b76eb6dd199dad759af298746bfd6588844affb7c53c702b4915978483c28a5753d3a02a91d1769874d7b5b5e55288aa1420b90b9eb71f21a25fb653f41352cb9cf762f1a77    
+zkproof:a5229d0065d15720421f5dc95236521aa5a1f676ed695892a6c5e6cb504f72712ac2b462a78b7b57543bd7939a74550eb978c343080926480d1119e9b299ed07a943f8cdc937f5f68e3b1fdd17cffb8e81225ef867ffbdf288b61947e4cf69d70b8cf697fc77bd8132c1ed9d8b816a07a285e6b77955ac6d9b8009094875ce531abac0443486aba986afd61bc6d1e05484390f1444de7d54f6af5d8bba38106a2262e9c74d86d981388ea1cba44280e0d993e21b358bbc7a80f13e4236cdb62e    
+}    
+]    
+binding_signature: 87e087f3eb8455a327c9621787bf6fbf592a3d6307bfee7e5ac7282e5c50c9556f8feb4cbe21d33e22b4d6c40046419be88cc3acd6ebae781945aea904627e02    
+]    
+    
+}    
+timestamp: Fri Jul 19 10:43:38 CST 2019    
+fee_limit: 0    
+}    
+    
+txid:     
+840b127fea05f7f86c43ad9fb5fe7fa27e977465cea4e4ae25e59e0de75ad99e    
+raw_data:     
+{    
+ref_block_bytes: 05d8    
+ref_block_hash: d5877abdc498f58f    
+contract:     
+{    
+contract 0 :::    
+[    
+contract_type: ShieldedTransferContract    
+spend_description:     
+[    
+{    
+value_commitment:d972b1946f3884732f0c1d67d447ab6aa2128cc70fc44f7ec664c257361e7638    
+anchor:efe6dd711e8dc619a892b3a3f8b0e86bb51e867718e34e8e5c483e45ba1d1f13    
+nullifier:8a5185c92d707bde700aad36ae54966cb9bc747cacc422425e41c176f3c7294c    
+rk:1fd62d517815b8f717b86d93cd1c6cd196c6ac6be785a8043cbd860264908fc3    
+zkproof:975a3ea4d6682945ad6d036401027cff7ec26b554ece18bc42e69acdbeb3742daa1a556d2b707dee5cfd6ab391e35705a7fef815c69cb76974c7519f82c8115110aa9ce702dcc0dd07322ea07bdffdfa7947b90f2beb50308fb4640352c7e4fd07ae8d23f77dec6ee7f0ef538064002b5e6b3a35b781d64080adb0a244afa86d06811c145551516948c834343a85a938942b3b538d8ba5d1d765a7cf3bb16a1a4f211bb1dff93ca85b16f814cf0939f64cfa89dcd833cb31a726b689e0d4b4d4    
+spend_authority_signature:5caaa268628276ef71a709e31c9cc5ab1160ba6ab82be0064fbaa31fc372ab4f311dd2ccb50e5d908522acea4cd512241aed7c54bdf65bc76fbba27d8451dc03    
+}    
+]    
+receive_description:     
+[    
+{    
+value_commitment:9e9bd0ff2d6c1dfa134dd7c834426c3158a1c0b1780cd7cfd4fdf3a055ff2e50    
+note_commitment:7ffbb461e35abd8c7505e71399ad2d2d41749af8b567043940cee496790e773f    
+epk:ef92ed5d2725ffc92fb02fa632bc4b68b246600149e2207d69c7209d4fbb88bf    
+c_enc:b462cecb440db4cb994a9f2877f812972bd93f127f8c0b6e0909532ba013f70c7953146a7d22149f96b04c23a820f0cbb422ccdb01f676c4345230c67325f1de1bba5f8bd88db21db6c86f7da7765dbbe9b389326cab3deaaa59ea903c3d2db50394e6d431e193ff37ecd164cd3b9579904cc79096acdc7b1c47d91142d0d5beea48bcfbc540aa78ef02f3fb8ba68a1ee0705abc1aaa07200a02a7c9aaa930649de0adf8f90b6acd349136b550a3b1adbad913fef482b73914f5511e758ec280d463b2df8c89c127b0c127bc1e8b68f5dca0682684c9c2a560015593762ee6e401ce6aac23c97de7f636d01b27dc4caa1bff8c98a36342661ff26e41826601d0945aefb9d86b94382fb912e8f32cb2c8990101765aa9e78cbe6c48c2ee3c0fd4df3050cb1395f98d3335b01a5f8bdbfefd3a445ab91cd69f30b1ed5da2c7b0c4ef732cc1e33951714bcce6d2f580711d86a7663defdd09998237282c710de15db31dbbcfe043efad8ee55f9c5de779553a173a7b87bb062412d061c20ebf46f918024e460bf9f7a9650986eb9962478e5c069ae8bc7c01d6399e60d0154f956d0b7613d774d2e8b8bde3d4b1cf5ed46edfec663017a70312eb04ee68baaae9c0779d782031fad6f99a37981db699fdcfa29fdc5e0628b73209b8fef58ca70581f90899c756a0b2911caab7685b9cdaf7da3a02a258df8d8fe16a939f2c601e39ec795faa1c7d06e00e9c2dbc9181f9a97dde5fc23053a2753262d7c570eca6e104bf0e308de99d0e04dab9130a4b3fb1fec21f75f4d1096270130199664e39687d3cc777    
+c_out:fcb1be9acda155d265301b76eb6dd199dad759af298746bfd6588844affb7c53c702b4915978483c28a5753d3a02a91d1769874d7b5b5e55288aa1420b90b9eb71f21a25fb653f41352cb9cf762f1a77    
+zkproof:a5229d0065d15720421f5dc95236521aa5a1f676ed695892a6c5e6cb504f72712ac2b462a78b7b57543bd7939a74550eb978c343080926480d1119e9b299ed07a943f8cdc937f5f68e3b1fdd17cffb8e81225ef867ffbdf288b61947e4cf69d70b8cf697fc77bd8132c1ed9d8b816a07a285e6b77955ac6d9b8009094875ce531abac0443486aba986afd61bc6d1e05484390f1444de7d54f6af5d8bba38106a2262e9c74d86d981388ea1cba44280e0d993e21b358bbc7a80f13e4236cdb62e    
+}    
+]    
+binding_signature: 87e087f3eb8455a327c9621787bf6fbf592a3d6307bfee7e5ac7282e5c50c9556f8feb4cbe21d33e22b4d6c40046419be88cc3acd6ebae781945aea904627e02    
+]    
+    
+}
+timestamp: Fri Jul 19 10:43:38 CST 2019    
+fee_limit: 0    
+}    
+    
+10:43:38.722 INFO  [main] [Client](Client.java:2058) SendShieldedCoinWithoutAsk successful !!    
+    
+3. shielded address transfer to public address    
+listshieldednote    
+Unspend note list like:    
+1 ztron1ghdy60hya8y72deu0q0r25qfl60unmue6889m3xfc3296a5ut6jcyafzhtp9nlutndukufzap4h 100000000 4ce5656a13049df00abc7fb3ce78d54c78944d3cbbdfdb29f288e1df5fdf67e1 1 UnSpend     
+2 ztron1hn9r3wmytavslztwmlzvuzk3dqpdhwcmda2d0deyu5pwv32dp78saaslyt82w0078y6uzfg8x6w 90000000 06b55fc27f7ec649396706d149d18a0bb003347bdd7f489e3d47205da9cee802 0 UnSpend test2    
+    
+sendshieldedcoin null 0 1 2 TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ 80000000 0    
+address ztron1hn9r3wmytavslztwmlzvuzk3dqpdhwcmda2d0deyu5pwv32dp78saaslyt82w0078y6uzfg8x6w    
+value 90000000    
+rcm becfc0d183a9fe0f8571c9a071bd91fafa7f84c0a5c8c704b100a1ecbd611804    
+trxId 06b55fc27f7ec649396706d149d18a0bb003347bdd7f489e3d47205da9cee802    
+index 0    
+memo test2    
+Receive txid = f8bd9e486bdd3a7fa99b4e0b8492f6dac6179c143e44c94e363a397a1ab9fc3b    
+transaction hex string is hash:     
+d6487d07461fc5c32e61469be9deec6d6e0288e5906eb840b6bac287b2e946e6    
+txid:     
+f8bd9e486bdd3a7fa99b4e0b8492f6dac6179c143e44c94e363a397a1ab9fc3b    
+raw_data:     
+{    
+ref_block_bytes: 060c    
+ref_block_hash: c047800cdbd6b5db    
+contract:     
+{    
+contract 0 :::    
+[    
+contract_type: ShieldedTransferContract    
+spend_description:     
+[    
+{    
+value_commitment:65f4ee0430e1d6ee492be68885ac38aa44a0d341ceec915dc4c6821bd1e09535    
+anchor:e43b41c9f42c98aa5f88c2d78760c2bf592a73b9fc5f5f62deb24aa0ce5e7113    
+nullifier:047965dfee699250578d728e9a11ca733774e604b4c28a4b40d4d1f8cd8b8c2c    
+rk:460b69899b5d18dcba9a2af5e9520542396731caf09611cc4f1d7c61bc7ceddb    
+zkproof:a87f2f3445338304142a0b515b2bc90525dcc51c6f16cfd49b00e7592efa9847004a253334408bfe0637e3cb831647968bd8117cf152d3233296a2d5b3cce6c70d80ffb95917ebc5ef378b994c7ecf95217496de41ddf09a9618279cf697352d0c2d4546d53ce1d9f7c6a05915fa5bc66745b58984fc6d76adff9292237bbd75c306fc0e9576a1b0478d80ca6dba2185a4dde684669e0e1af50de954fad5ef440f8248f10f08c22185585d30c917506ec98a92ee8d0cd8c7e31503697280d010    
+spend_authority_signature:588f25beaf8d2a52bb4b5ff09d34c756cd2da4623b08f580046e0a858b32a41b2fc8c5acecce59c74368fbfff05d64f09a72dde569b16d2ac020f7df1bb15105    
+}    
+]    
+receive_description:     
+[    
+{    
+value_commitment:577acf5e74a0359cd2850287ac141845a5cdae3152e0b1770842c01516a1606b    
+note_commitment:bf656bf6273c96507dd0316284be8894a738c674498e64389235f033df1e0d41    
+epk:8a2666e7762a31a4a796bd4b1630cafc475f47699c1c05e1e2f0265537f14f66    
+c_enc:4c0a89428c210d848f8f7cbb89f2305aad60d9bc9a222d46f588fcf03b73341f3a400a2026f999e7c8a0a74a7fb37bd4aa6072c05ea1bff8ecf234b4cdc064a00481ab153c2f5168de1cbec568c305956b2d1459e7d75effc8902958f51de77efb8ee1614d5de22bd80536d5a24c8799e5c04294f3db9e6180f91de3d83209e6b7e7bf7c54c7e3da8fa938a975446e5227c34227a7ce5e1cff66420a641aca44c0a85a527a1cedb49934c38665d91ebc8623678f99de7aa46af27b9f060552686c9e1911298729404e2cbe317d0cf3779861538af9307f76079f7afb725dda3c80912e5b869d85fe0781518e1cb41c2275ef776e4bf31fb6bec99ee70eb4cba35fc5816d7c809c810a13dd685cd2d7aa08fb4cbc75767af82657d50d1594c6e6aafe0c2b4fffbb897e68c506d33efaacff8b9b8cd099b3b291a045dbc76dd54a87780c6f83b340f00fb0d436f7f71ab6a2487fab39c3826f2cddb50d367e9fac61b949f8593cd6dbf26e26c5772bd3a5a3145768303442708151b27a714b142d9dc9ad96ea4fd69e9ae3b8c2a78aae7c25e32b6d23330f5ba1950ab1357c5c8a1400d920d16ae30a5c30921c93d1f6beda6bb58825a59a75a322325b87690656c8370eeb50e500690fb7076017f029997bc8c8ca6f1d1d555fe630076057bc3327ff00a518c1a36a21156175639e50c78fea2a3ac44df60e96e7b3f731f9d947166328b85ffbeb938e3dbddfce0a07b9b11ec7da5a319471401f1a40da6b70e330e484159408526ea7a4c350216d15ca62e084608f0adae5fa3c1e8312019fdf2543ed4c    
+c_out:eb8baa73655503aee8d8ec3d4e281c58de48693fac562862c3b875faa7e3b915cfba3bb8a497dd6d3a13b49c02a034d10df0df2029c0b8a9080ef88f6152e6f4ecd4c639e8f450a5d5e818ba4620475b    
+zkproof:93556b5e801251c410930717abbb8f4aaecf102383ec0ac0cbec0dab16f5fd11009154e2e7260c7de14b4a52d2f5e3d898816ff8377e9c7e4592afbe716924239b56f776cf1c4a505a78ff5b8c783432bb3eeacda3ae3a73d8297de0786abe91123ea85faa3531021e6ede128fb2cc4aed1b0ef34f178e011e1b05f348d8b0d199fe97308f2ae0a681b03c273bc8925cb00850d59f8274613ee02563f61a9160bcb9b88d0c07824ef6a8f68051dc1b21fa815452b3a1b692983f5139abbc1ccc    
+}    
+]    
+binding_signature: 3780fa22547965820a00f9e3fbe94f49f8e4d9afcd1cf561946557a08de1b28aba8597ca4159b29cf42fa4ce6beb6570af8d622f642b7ac4896c012cf8d1fb00    
+transparent_to_address: TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ    
+to_amount: 80000000    
+]    
+    
+}    
+timestamp: Fri Jul 19 10:46:19 CST 2019    
+fee_limit: 0    
+}    
+    
+txid:     
+f8bd9e486bdd3a7fa99b4e0b8492f6dac6179c143e44c94e363a397a1ab9fc3b    
+raw_data:     
+{    
+ref_block_bytes: 060c    
+ref_block_hash: c047800cdbd6b5db    
+contract:     
+{    
+contract 0 :::    
+[
+contract_type: ShieldedTransferContract    
+spend_description:     
+[    
+{    
+value_commitment:65f4ee0430e1d6ee492be68885ac38aa44a0d341ceec915dc4c6821bd1e09535    
+anchor:e43b41c9f42c98aa5f88c2d78760c2bf592a73b9fc5f5f62deb24aa0ce5e7113    
+nullifier:047965dfee699250578d728e9a11ca733774e604b4c28a4b40d4d1f8cd8b8c2c    
+rk:460b69899b5d18dcba9a2af5e9520542396731caf09611cc4f1d7c61bc7ceddb    
+zkproof:a87f2f3445338304142a0b515b2bc90525dcc51c6f16cfd49b00e7592efa9847004a253334408bfe0637e3cb831647968bd8117cf152d3233296a2d5b3cce6c70d80ffb95917ebc5ef378b994c7ecf95217496de41ddf09a9618279cf697352d0c2d4546d53ce1d9f7c6a05915fa5bc66745b58984fc6d76adff9292237bbd75c306fc0e9576a1b0478d80ca6dba2185a4dde684669e0e1af50de954fad5ef440f8248f10f08c22185585d30c917506ec98a92ee8d0cd8c7e31503697280d010    
+spend_authority_signature:588f25beaf8d2a52bb4b5ff09d34c756cd2da4623b08f580046e0a858b32a41b2fc8c5acecce59c74368fbfff05d64f09a72dde569b16d2ac020f7df1bb15105    
+}    
+]    
+receive_description:     
+[    
+{    
+value_commitment:577acf5e74a0359cd2850287ac141845a5cdae3152e0b1770842c01516a1606b    
+note_commitment:bf656bf6273c96507dd0316284be8894a738c674498e64389235f033df1e0d41    
+epk:8a2666e7762a31a4a796bd4b1630cafc475f47699c1c05e1e2f0265537f14f66    
+c_enc:4c0a89428c210d848f8f7cbb89f2305aad60d9bc9a222d46f588fcf03b73341f3a400a2026f999e7c8a0a74a7fb37bd4aa6072c05ea1bff8ecf234b4cdc064a00481ab153c2f5168de1cbec568c305956b2d1459e7d75effc8902958f51de77efb8ee1614d5de22bd80536d5a24c8799e5c04294f3db9e6180f91de3d83209e6b7e7bf7c54c7e3da8fa938a975446e5227c34227a7ce5e1cff66420a641aca44c0a85a527a1cedb49934c38665d91ebc8623678f99de7aa46af27b9f060552686c9e1911298729404e2cbe317d0cf3779861538af9307f76079f7afb725dda3c80912e5b869d85fe0781518e1cb41c2275ef776e4bf31fb6bec99ee70eb4cba35fc5816d7c809c810a13dd685cd2d7aa08fb4cbc75767af82657d50d1594c6e6aafe0c2b4fffbb897e68c506d33efaacff8b9b8cd099b3b291a045dbc76dd54a87780c6f83b340f00fb0d436f7f71ab6a2487fab39c3826f2cddb50d367e9fac61b949f8593cd6dbf26e26c5772bd3a5a3145768303442708151b27a714b142d9dc9ad96ea4fd69e9ae3b8c2a78aae7c25e32b6d23330f5ba1950ab1357c5c8a1400d920d16ae30a5c30921c93d1f6beda6bb58825a59a75a322325b87690656c8370eeb50e500690fb7076017f029997bc8c8ca6f1d1d555fe630076057bc3327ff00a518c1a36a21156175639e50c78fea2a3ac44df60e96e7b3f731f9d947166328b85ffbeb938e3dbddfce0a07b9b11ec7da5a319471401f1a40da6b70e330e484159408526ea7a4c350216d15ca62e084608f0adae5fa3c1e8312019fdf2543ed4c    
+c_out:eb8baa73655503aee8d8ec3d4e281c58de48693fac562862c3b875faa7e3b915cfba3bb8a497dd6d3a13b49c02a034d10df0df2029c0b8a9080ef88f6152e6f4ecd4c639e8f450a5d5e818ba4620475b    
+zkproof:93556b5e801251c410930717abbb8f4aaecf102383ec0ac0cbec0dab16f5fd11009154e2e7260c7de14b4a52d2f5e3d898816ff8377e9c7e4592afbe716924239b56f776cf1c4a505a78ff5b8c783432bb3eeacda3ae3a73d8297de0786abe91123ea85faa3531021e6ede128fb2cc4aed1b0ef34f178e011e1b05f348d8b0d199fe97308f2ae0a681b03c273bc8925cb00850d59f8274613ee02563f61a9160bcb9b88d0c07824ef6a8f68051dc1b21fa815452b3a1b692983f5139abbc1ccc    
+}    
+]    
+binding_signature: 3780fa22547965820a00f9e3fbe94f49f8e4d9afcd1cf561946557a08de1b28aba8597ca4159b29cf42fa4ce6beb6570af8d622f642b7ac4896c012cf8d1fb00    
+transparent_to_address: TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ    
+to_amount: 80000000    
+]    
+    
+}    
+timestamp: Fri Jul 19 10:46:19 CST 2019    
+fee_limit: 0    
+}    
+    
+10:46:19.226 INFO  [main] [Client](Client.java:2040) SendShieldedCoin successful !!    
+    
+d sendshieldedcoinwithoutask     
+Usage and parameters are consistent with the command sendshieldedcoin, the only difference is that sendshieldedcoin uses ask signature, but sendshieldedcoinwithoutask uses ak signature.    
+    
+e listshieldednote type          List the note scanned by the local cache address    
+type		      Show type. 0 show not spent note; other value show all notes, include spend notes and not spend notes. default is 0.    
+Example:  
+listshieldednote 0    
+Unspend note list like:    
+1 ztron1ghdy60hya8y72deu0q0r25qfl60unmue6889m3xfc3296a5ut6jcyafzhtp9nlutndukufzap4h 100000000 4ce5656a13049df00abc7fb3ce78d54c78944d3cbbdfdb29f288e1df5fdf67e1 1 UnSpend     
+listshieldednote 1    
+All note list like:    
+ztron1ghdy60hya8y72deu0q0r25qfl60unmue6889m3xfc3296a5ut6jcyafzhtp9nlutndukufzap4h 100000000 4ce5656a13049df00abc7fb3ce78d54c78944d3cbbdfdb29f288e1df5fdf67e1 1 UnSpend     
+ztron16j06s3p5gvp2jde4vh7w3ug3zz3m62zkyfu86s7ara5lafhp22p9wr3gz0lcdm3pvt7qx0aftu4 100000000 4ce5656a13049df00abc7fb3ce78d54c78944d3cbbdfdb29f288e1df5fdf67e1 0 Spend test1    
+ztron1hn9r3wmytavslztwmlzvuzk3dqpdhwcmda2d0deyu5pwv32dp78saaslyt82w0078y6uzfg8x6w 90000000 06b55fc27f7ec649396706d149d18a0bb003347bdd7f489e3d47205da9cee802 0 Spend test2    
+    
+f resetshieldednote             Clean all the note scanned,rescanned all blocks.generally used when there is a problem with the notes or when switching environments    
+
+g ScanNotebyIvk ivk startNum endNum     Scan notes by ivk    
+ivk				    The ivk of shielded address    
+startNum		  The starting block number of the scan     
+endNum			  The end block number of the scan    
+Example:      
+scannotebyivk d2a4137cecf049965c4183f78fe9fc9fbeadab6ab3ef70ea749421b4c6b8de04 500 1499    
+11:25:43.728 INFO  [main] [WalletApiWrapper](WalletApiWrapper.java:966)     
+txid:4ce5656a13049df00abc7fb3ce78d54c78944d3cbbdfdb29f288e1df5fdf67e1     
+index:0     
+address:ztron16j06s3p5gvp2jde4vh7w3ug3zz3m62zkyfu86s7ara5lafhp22p9wr3gz0lcdm3pvt7qx0aftu4     
+rcm:224463fbba4ef49a4e547d5b7fe608ebd9ec717591db2f6b6644a862a5528b07     
+value:100000000     
+memo:test1     
+11:25:43.730 INFO  [main] [WalletApiWrapper](WalletApiWrapper.java:974) complete.     
+     
+h ScanNotebyOvk ovk startNum endNum   Scan notes by ovk
+ovk				    The ivk of shielded address
+startNum		  The starting block number of the scan     
+endNum			  The end block number of the scan   
+Example:      
+scannotebyovk a5b06ef3067855d741f966d54dfa1c124548535107333336bd9552a427f0529e 500 1499    
+11:27:17.760 INFO  [main] [WalletApiWrapper](WalletApiWrapper.java:1042)     
+txid:06b55fc27f7ec649396706d149d18a0bb003347bdd7f489e3d47205da9cee802    
+index:0    
+paymentAddress:ztron1hn9r3wmytavslztwmlzvuzk3dqpdhwcmda2d0deyu5pwv32dp78saaslyt82w0078y6uzfg8x6w    
+rcm:becfc0d183a9fe0f8571c9a071bd91fafa7f84c0a5c8c704b100a1ecbd611804    
+memo:test2    
+value:90000000    
+11:27:17.760 INFO  [main] [WalletApiWrapper](WalletApiWrapper.java:1050) complete.    
+    
+i GetShieldedNullifier index    Get the nullifier of the note
+index			    The note index obtained by the listshieldednote command
+Example:   
+listshieldednote    
+Unspend note list like:    
+2 ztron1ghdy60hya8y72deu0q0r25qfl60unmue6889m3xfc3296a5ut6jcyafzhtp9nlutndukufzap4h 100000000 4ce5656a13049df00abc7fb3ce78d54c78944d3cbbdfdb29f288e1df5fdf67e1 1 UnSpend     
+getshieldednullifier 2    
+address ztron1ghdy60hya8y72deu0q0r25qfl60unmue6889m3xfc3296a5ut6jcyafzhtp9nlutndukufzap4h    
+value 100000000    
+rcm 07ed5471098652ad441575c61868d1e11317de0f73cbb743a4c5cfe78e3d150c    
+trxId 4ce5656a13049df00abc7fb3ce78d54c78944d3cbbdfdb29f288e1df5fdf67e1    
+index 1    
+memo     
+ShieldedNullifier:2a524a3be2643365ecdacf8f0d3ca1de8fad3080eea0b9561435b5d1ee467042    
+    
+j ScanAndMarkNotebyAddress shieldedAddress startNum endNum  Scan the note with a locally cached shielded address and mark whether it is spent out    
+shieldedAddress			  Locally cached shielded address, if it is not a locally cached shielded address, an error will be reported.    
+startNum				      The starting block number of the scan 
+endNum					      The end block number of the scan  
+Example:    
+ScanAndMarkNotebyAddress  ztron16j06s3p5gvp2jde4vh7w3ug3zz3m62zkyfu86s7ara5lafhp22p9wr3gz0lcdm3pvt7qx0aftu4 500 1500    
+11:33:27.789 INFO  [main] [WalletApiWrapper](WalletApiWrapper.java:1004)     
+txid:4ce5656a13049df00abc7fb3ce78d54c78944d3cbbdfdb29f288e1df5fdf67e1    
+index:0    
+isSpend:true    
+address:ztron16j06s3p5gvp2jde4vh7w3ug3zz3m62zkyfu86s7ara5lafhp22p9wr3gz0lcdm3pvt7qx0aftu4    
+rcm:224463fbba4ef49a4e547d5b7fe608ebd9ec717591db2f6b6644a862a5528b07    
+value:100000000    
+memo:test1    
+11:33:27.789 INFO  [main] [WalletApiWrapper](WalletApiWrapper.java:1019) complete.    
+    
+k GetSpendingKey      Generate a sk    
+Example:    
+GetSpendingKey    
+11:48:52.918 INFO  [main] [Client](Client.java:2194) 0eb458b309fa544066c40d80ce30a8002756c37d2716315c59a98c893dbb5f6a    
+    
+l getExpandedSpendingKey sk   Generate ask,nsk,ovk from sk    
+Example:        
+getExpandedSpendingKey 0eb458b309fa544066c40d80ce30a8002756c37d2716315c59a98c893dbb5f6a    
+11:49:00.481 INFO  [main] [Client](Client.java:2212) ask:252a0f6f6f0bac114a13e1e663d51943f1df9309649400218437586dea78260e    
+11:49:00.485 INFO  [main] [Client](Client.java:2213) nsk:5cd2bc8d9468dbad26ea37c5335a0cd25f110eaf533248c59a3310dcbc03e503    
+11:49:00.485 INFO  [main] [Client](Client.java:2214) ovk:892a10c1d3e8ea22242849e13f177d69e1180d1d5bba118c586765241ba2d3d6    
+		    
+m getAkFromAsk ask          Generate ak from ask    
+Example:    
+GetAkFromAsk 252a0f6f6f0bac114a13e1e663d51943f1df9309649400218437586dea78260e    
+11:49:33.547 INFO  [main] [Client](Client.java:2232) ak:f1b843147150027daa5b522dd8d0757ec5c8c146defd8e01b62b34cf917299f1    
+    
+n getNkFromNsk nsk         Generate nk from nsk    
+Example:    
+GetNkFromNsk 5cd2bc8d9468dbad26ea37c5335a0cd25f110eaf533248c59a3310dcbc03e503    
+11:49:44.651 INFO  [main] [Client](Client.java:2250) nk:ed3dc885049f0a716a4de8c08c6cabcad0da3c437202341aa3d9248d8eb2b74a    
+    
+o getIncomingViewingKey ak[64] nk[64]  Generate ivk from ak and nk    
+Example:    
+getincomingviewingkey  f1b843147150027daa5b522dd8d0757ec5c8c146defd8e01b62b34cf917299f1  ed3dc885049f0a716a4de8c08c6cabcad0da3c437202341aa3d9248d8eb2b74a    
+11:51:45.686 INFO  [main] [Client](Client.java:2272) ivk:148cf9e91f1e6656a41dc9b6c6ee4e52ff7a25b25c2d4a3a3182d0a2cd851205    
+    
+p GetDiversifier      Generate a diversifier    
+Example:    
+GetDiversifier    
+11:49:19.158 INFO  [main] [Client](Client.java:2281) 11db4baf6bd5d5afd3a8b5    
+
+q getshieldedpaymentaddress ivk[64] d[22]   Generate a shielded address from sk and d    
+Example:    
+GetShieldedPaymentAddress 148cf9e91f1e6656a41dc9b6c6ee4e52ff7a25b25c2d4a3a3182d0a2cd851205  11db4baf6bd5d5afd3a8b5    
+11:52:33.542 INFO  [main] [Client](Client.java:2309) pkd:65c11642115d386ed716b9cc06a3498e86e303d7f20d0869c9de90e31322ac15    
+11:52:33.543 INFO  [main] [Client](Client.java:2310) shieldedAddress:ztron1z8d5htmt6h26l5agk4juz9jzz9wnsmkhz6uucp4rfx8gdccr6leq6zrfe80fpccny2kp2cray8z    	
+    

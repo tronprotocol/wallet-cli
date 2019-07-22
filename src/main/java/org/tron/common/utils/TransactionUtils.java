@@ -28,6 +28,7 @@ import org.tron.common.crypto.Sha256Hash;
 import org.tron.core.exception.CancelException;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.Transaction.Contract;
+import org.tron.walletserver.WalletApi;
 
 public class TransactionUtils {
 
@@ -168,6 +169,8 @@ public class TransactionUtils {
   public static Transaction sign(Transaction transaction, ECKey myKey) {
     Transaction.Builder transactionBuilderSigned = transaction.toBuilder();
     byte[] hash = Sha256Hash.hash(transaction.getRawData().toByteArray());
+
+    //System.out.println("Sign address: " + WalletApi.encode58Check(myKey.getAddress()));
 
     ECDSASignature signature = myKey.sign(hash);
     ByteString bsSign = ByteString.copyFrom(signature.toByteArray());

@@ -20,8 +20,11 @@ import org.tron.api.GrpcAPI.BlockLimit;
 import org.tron.api.GrpcAPI.BlockList;
 import org.tron.api.GrpcAPI.BlockListExtention;
 import org.tron.api.GrpcAPI.BytesMessage;
+import org.tron.api.GrpcAPI.DecryptNotes;
+import org.tron.api.GrpcAPI.DecryptNotesMarked;
 import org.tron.api.GrpcAPI.DelegatedResourceList;
 import org.tron.api.GrpcAPI.DelegatedResourceMessage;
+import org.tron.api.GrpcAPI.DiversifierMessage;
 import org.tron.api.GrpcAPI.EasyTransferAssetByPrivateMessage;
 import org.tron.api.GrpcAPI.EasyTransferAssetMessage;
 import org.tron.api.GrpcAPI.EasyTransferByPrivateMessage;
@@ -29,22 +32,38 @@ import org.tron.api.GrpcAPI.EasyTransferMessage;
 import org.tron.api.GrpcAPI.EasyTransferResponse;
 import org.tron.api.GrpcAPI.EmptyMessage;
 import org.tron.api.GrpcAPI.ExchangeList;
+import org.tron.api.GrpcAPI.ExpandedSpendingKeyMessage;
+import org.tron.api.GrpcAPI.IncomingViewingKeyDiversifierMessage;
+import org.tron.api.GrpcAPI.IncomingViewingKeyMessage;
+import org.tron.api.GrpcAPI.IvkDecryptAndMarkParameters;
+import org.tron.api.GrpcAPI.IvkDecryptParameters;
+import org.tron.api.GrpcAPI.NfParameters;
 import org.tron.api.GrpcAPI.NodeList;
+import org.tron.api.GrpcAPI.NoteParameters;
 import org.tron.api.GrpcAPI.NumberMessage;
+import org.tron.api.GrpcAPI.OvkDecryptParameters;
 import org.tron.api.GrpcAPI.PaginatedMessage;
+import org.tron.api.GrpcAPI.PaymentAddressMessage;
+import org.tron.api.GrpcAPI.PrivateParameters;
+import org.tron.api.GrpcAPI.PrivateParametersWithoutAsk;
 import org.tron.api.GrpcAPI.ProposalList;
 import org.tron.api.GrpcAPI.Return.response_code;
+import org.tron.api.GrpcAPI.SpendAuthSigParameters;
+import org.tron.api.GrpcAPI.SpendResult;
 import org.tron.api.GrpcAPI.TransactionApprovedList;
 import org.tron.api.GrpcAPI.TransactionExtention;
 import org.tron.api.GrpcAPI.TransactionList;
 import org.tron.api.GrpcAPI.TransactionListExtention;
 import org.tron.api.GrpcAPI.TransactionSignWeight;
+import org.tron.api.GrpcAPI.ViewingKeyMessage;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.api.WalletExtensionGrpc;
 import org.tron.api.WalletGrpc;
 import org.tron.api.WalletSolidityGrpc;
 import org.tron.common.utils.ByteArray;
 import org.tron.protos.Contract;
+import org.tron.protos.Contract.IncrementalMerkleVoucherInfo;
+import org.tron.protos.Contract.OutputPointInfo;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.ChainParameters;
@@ -812,4 +831,97 @@ public class GrpcClient {
     return blockingStubFull.accountPermissionUpdate(request);
   }
 
+
+  public TransactionExtention createShieldedTransaction(PrivateParameters privateParameters) {
+    return blockingStubFull.createShieldedTransaction(privateParameters);
+  }
+
+  public IncrementalMerkleVoucherInfo GetMerkleTreeVoucherInfo(OutputPointInfo info) {
+    if (blockingStubSolidity != null) {
+      return blockingStubSolidity.getMerkleTreeVoucherInfo(info);
+    } else {
+      return blockingStubFull.getMerkleTreeVoucherInfo(info);
+    }
+  }
+
+  public DecryptNotes scanNoteByIvk(IvkDecryptParameters ivkDecryptParameters) {
+    if (blockingStubSolidity != null) {
+      return blockingStubSolidity.scanNoteByIvk(ivkDecryptParameters);
+    } else {
+      return blockingStubFull.scanNoteByIvk(ivkDecryptParameters);
+    }
+  }
+
+  public DecryptNotes scanNoteByOvk(OvkDecryptParameters ovkDecryptParameters) {
+    if (blockingStubSolidity != null) {
+      return blockingStubSolidity.scanNoteByOvk(ovkDecryptParameters);
+    } else {
+      return blockingStubFull.scanNoteByOvk(ovkDecryptParameters);
+    }
+  }
+
+  public BytesMessage getSpendingKey() {
+    return blockingStubFull.getSpendingKey(EmptyMessage.newBuilder().build());
+  }
+
+  public ExpandedSpendingKeyMessage getExpandedSpendingKey(BytesMessage spendingKey) {
+    return blockingStubFull.getExpandedSpendingKey(spendingKey);
+  }
+
+  public BytesMessage getAkFromAsk(BytesMessage ask) {
+    return blockingStubFull.getAkFromAsk(ask);
+  }
+
+  public BytesMessage getNkFromNsk(BytesMessage nsk) {
+    return blockingStubFull.getNkFromNsk(nsk);
+  }
+
+  public IncomingViewingKeyMessage getIncomingViewingKey(ViewingKeyMessage viewingKeyMessage) {
+    return blockingStubFull.getIncomingViewingKey(viewingKeyMessage);
+  }
+
+  public DiversifierMessage getDiversifier() {
+    return blockingStubFull.getDiversifier(EmptyMessage.newBuilder().build());
+  }
+
+  public BytesMessage getRcm() {
+    return blockingStubFull.getRcm(EmptyMessage.newBuilder().build());
+  }
+
+  public SpendResult isNoteSpend(NoteParameters noteParameters) {
+    if (blockingStubSolidity != null) {
+      return blockingStubSolidity.isSpend(noteParameters);
+    } else {
+      return blockingStubFull.isSpend(noteParameters);
+    }
+  }
+
+  public TransactionExtention createShieldedTransactionWithoutSpendAuthSig(
+      PrivateParametersWithoutAsk privateParameters) {
+    return blockingStubFull.createShieldedTransactionWithoutSpendAuthSig(privateParameters);
+  }
+
+  public BytesMessage getShieldedTransactionHash(Transaction transaction) {
+    return blockingStubFull.getShieldTransactionHash(transaction);
+  }
+
+  public BytesMessage createSpendAuthSig(SpendAuthSigParameters parameters) {
+    return blockingStubFull.createSpendAuthSig(parameters);
+  }
+
+  public BytesMessage createShieldedNullifier(NfParameters parameters) {
+    return blockingStubFull.createShieldNullifier(parameters);
+  }
+
+  public PaymentAddressMessage getZenPaymentAddress(IncomingViewingKeyDiversifierMessage msg) {
+    return blockingStubFull.getZenPaymentAddress(msg);
+  }
+
+  public DecryptNotesMarked scanAndMarkNoteByIvk(IvkDecryptAndMarkParameters parameters) {
+    if (blockingStubSolidity != null) {
+      return blockingStubSolidity.scanAndMarkNoteByIvk(parameters);
+    } else {
+      return blockingStubFull.scanAndMarkNoteByIvk(parameters);
+    }
+  }
 }

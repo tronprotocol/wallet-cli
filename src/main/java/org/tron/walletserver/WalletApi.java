@@ -1,14 +1,18 @@
 package org.tron.walletserver;
 
+import static org.tron.protos.Protocol.Transaction.Contract.ContractType.ShieldedTransferContract;
+
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
+import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigObject;
+import io.grpc.Status;
 import java.io.File;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
@@ -35,19 +39,37 @@ import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.BlockExtention;
 import org.tron.api.GrpcAPI.BlockList;
 import org.tron.api.GrpcAPI.BlockListExtention;
+import org.tron.api.GrpcAPI.BytesMessage;
+import org.tron.api.GrpcAPI.DecryptNotes;
+import org.tron.api.GrpcAPI.DecryptNotesMarked;
 import org.tron.api.GrpcAPI.DelegatedResourceList;
+import org.tron.api.GrpcAPI.DiversifierMessage;
 import org.tron.api.GrpcAPI.EasyTransferResponse;
 import org.tron.api.GrpcAPI.EmptyMessage;
 import org.tron.api.GrpcAPI.ExchangeList;
+import org.tron.api.GrpcAPI.ExpandedSpendingKeyMessage;
+import org.tron.api.GrpcAPI.IncomingViewingKeyDiversifierMessage;
+import org.tron.api.GrpcAPI.IncomingViewingKeyMessage;
+import org.tron.api.GrpcAPI.IvkDecryptAndMarkParameters;
+import org.tron.api.GrpcAPI.IvkDecryptParameters;
+import org.tron.api.GrpcAPI.NfParameters;
 import org.tron.api.GrpcAPI.NodeList;
+import org.tron.api.GrpcAPI.NoteParameters;
+import org.tron.api.GrpcAPI.OvkDecryptParameters;
+import org.tron.api.GrpcAPI.PaymentAddressMessage;
+import org.tron.api.GrpcAPI.PrivateParameters;
+import org.tron.api.GrpcAPI.PrivateParametersWithoutAsk;
 import org.tron.api.GrpcAPI.ProposalList;
 import org.tron.api.GrpcAPI.Return;
+import org.tron.api.GrpcAPI.SpendAuthSigParameters;
+import org.tron.api.GrpcAPI.SpendResult;
 import org.tron.api.GrpcAPI.TransactionApprovedList;
 import org.tron.api.GrpcAPI.TransactionExtention;
 import org.tron.api.GrpcAPI.TransactionList;
 import org.tron.api.GrpcAPI.TransactionListExtention;
 import org.tron.api.GrpcAPI.TransactionSignWeight;
 import org.tron.api.GrpcAPI.TransactionSignWeight.Result.response_code;
+import org.tron.api.GrpcAPI.ViewingKeyMessage;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.Hash;
@@ -72,7 +94,11 @@ import org.tron.protos.Contract.BuyStorageContract;
 import org.tron.protos.Contract.ClearABIContract;
 import org.tron.protos.Contract.CreateSmartContract;
 import org.tron.protos.Contract.FreezeBalanceContract;
+import org.tron.protos.Contract.IncrementalMerkleVoucherInfo;
+import org.tron.protos.Contract.OutputPointInfo;
 import org.tron.protos.Contract.SellStorageContract;
+import org.tron.protos.Contract.ShieldedTransferContract;
+import org.tron.protos.Contract.SpendDescription;
 import org.tron.protos.Contract.UnfreezeAssetContract;
 import org.tron.protos.Contract.UnfreezeBalanceContract;
 import org.tron.protos.Contract.UpdateEnergyLimitContract;
@@ -88,6 +114,7 @@ import org.tron.protos.Protocol.Permission;
 import org.tron.protos.Protocol.Proposal;
 import org.tron.protos.Protocol.SmartContract;
 import org.tron.protos.Protocol.Transaction;
+import org.tron.protos.Protocol.Transaction.Contract.ContractType;
 import org.tron.protos.Protocol.Transaction.Result;
 import org.tron.protos.Protocol.TransactionInfo;
 import org.tron.protos.Protocol.TransactionSign;
@@ -432,6 +459,43 @@ public class WalletApi {
     return transaction;
   }
 
+  private Transaction signOnlyForShieldedTransaction(Transaction transaction)
+      throws CipherException, IOException, CancelException {
+    System.out.println(
+        "Please confirm and input your permission id, if input y or Y means default 0, other non-numeric characters will cancell transaction.");
+
+    while (true) {
+      System.out.println("Please choose your key for sign.");
+      WalletFile walletFile = selcetWalletFileE();
+      System.out.println("Please input your password.");
+      char[] password = Utils.inputPassword(false);
+      byte[] passwd = org.tron.keystore.StringUtils.char2Byte(password);
+      org.tron.keystore.StringUtils.clear(password);
+
+      transaction = TransactionUtils.sign(transaction, this.getEcKey(walletFile, passwd));
+      System.out
+          .println("current transaction hex string is " + ByteArray
+              .toHexString(transaction.toByteArray()));
+      org.tron.keystore.StringUtils.clear(passwd);
+
+      TransactionSignWeight weight = getTransactionSignWeight(transaction);
+      if (weight.getResult().getCode() == response_code.ENOUGH_PERMISSION) {
+        break;
+      }
+      if (weight.getResult().getCode() == response_code.NOT_ENOUGH_PERMISSION) {
+        System.out.println("Current signWeight is:");
+        System.out.println(Utils.printTransactionSignWeight(weight));
+        System.out.println("Please confirm if continue add signature enter y or Y, else any other");
+        if (!confirm()) {
+          throw new CancelException("User cancelled");
+        }
+        continue;
+      }
+      throw new CancelException(weight.getResult().getMessage());
+    }
+    return transaction;
+  }
+
   private boolean processTransactionExtention(TransactionExtention transactionExtention)
       throws IOException, CipherException, CancelException {
     if (transactionExtention == null) {
@@ -452,7 +516,18 @@ public class WalletApi {
         "Receive txid = " + ByteArray.toHexString(transactionExtention.getTxid().toByteArray()));
     System.out.println("transaction hex string is " + Utils.printTransaction(transaction));
     System.out.println(Utils.printTransaction(transactionExtention));
-    transaction = signTransaction(transaction);
+
+    if (transaction.getRawData().getContract(0).getType() != ShieldedTransferContract ) {
+      transaction = signTransaction(transaction);
+    } else {
+      Any any = transaction.getRawData().getContract(0).getParameter();
+      Contract.ShieldedTransferContract shieldedTransferContract =
+          any.unpack(ShieldedTransferContract.class);
+      if (shieldedTransferContract.getFromAmount() > 0 ) {
+        transaction = signOnlyForShieldedTransaction(transaction);
+      }
+    }
+
     return rpcCli.broadcastTransaction(transaction);
   }
 
@@ -1971,6 +2046,231 @@ public class WalletApi {
     transaction = TransactionUtils.sign(transaction, this.getEcKey(walletFile, passwd));
     org.tron.keystore.StringUtils.clear(passwd);
     return transaction;
+  }
+
+  public Optional<IncrementalMerkleVoucherInfo> GetMerkleTreeVoucherInfo(OutputPointInfo info,
+      boolean showErrorMsg) {
+    if ( showErrorMsg ) {
+      try {
+        return Optional.of(rpcCli.GetMerkleTreeVoucherInfo(info));
+      }catch (Exception e) {
+        if (showErrorMsg) {
+          Status status = Status.fromThrowable(e);
+          logger.info("GetMerkleTreeVoucherInfo failed,error {}", status.getDescription());
+        }
+      }
+    } else {
+      return Optional.of(rpcCli.GetMerkleTreeVoucherInfo(info));
+    }
+    return Optional.empty();
+  }
+
+  public Optional<DecryptNotes> scanNoteByIvk(IvkDecryptParameters ivkDecryptParameters,
+      boolean showErrorMsg) {
+    if (showErrorMsg) {
+      try {
+        return Optional.of(rpcCli.scanNoteByIvk(ivkDecryptParameters));
+      } catch (Exception e) {
+        if (showErrorMsg) {
+          Status status = Status.fromThrowable(e);
+          logger.info("scanNoteByIvk failed,error {}", status.getDescription());
+        }
+      }
+    } else {
+      return Optional.of(rpcCli.scanNoteByIvk(ivkDecryptParameters));
+    }
+    return Optional.empty();
+  }
+
+  public Optional<DecryptNotes> scanNoteByOvk(OvkDecryptParameters ovkDecryptParameters,
+      boolean showErrorMsg) {
+    if (showErrorMsg) {
+      try {
+        return Optional.of(rpcCli.scanNoteByOvk(ovkDecryptParameters));
+      } catch (Exception e) {
+        if (showErrorMsg) {
+          Status status = Status.fromThrowable(e);
+          logger.info("scanNoteByOvk failed,error {}", status.getDescription());
+        }
+      }
+    } else {
+      return Optional.of(rpcCli.scanNoteByOvk(ovkDecryptParameters));
+    }
+    return Optional.empty();
+  }
+
+  public static Optional<BytesMessage> getSpendingKey() {
+    try {
+      return Optional.of(rpcCli.getSpendingKey());
+    }catch (Exception e) {
+      Status status = Status.fromThrowable(e);
+      logger.info("getSpendingKey failed,error {}", status.getDescription());
+    }
+    return Optional.empty();
+  }
+
+  public static Optional<ExpandedSpendingKeyMessage> getExpandedSpendingKey(BytesMessage spendingKey) {
+    try {
+      return Optional.of(rpcCli.getExpandedSpendingKey(spendingKey));
+    }catch (Exception e) {
+      Status status = Status.fromThrowable(e);
+      logger.info("getExpandedSpendingKey failed,error {}", status.getDescription());
+    }
+    return Optional.empty();
+  }
+
+  public static Optional<BytesMessage> getAkFromAsk(BytesMessage ask) {
+    try {
+      return Optional.of(rpcCli.getAkFromAsk(ask));
+    }catch (Exception e) {
+      Status status = Status.fromThrowable(e);
+      logger.info("getAkFromAsk failed,error {}", status.getDescription());
+    }
+    return Optional.empty();
+  }
+
+  public static Optional<BytesMessage> getNkFromNsk(BytesMessage nsk) {
+    try {
+      return Optional.of(rpcCli.getNkFromNsk(nsk));
+    }catch (Exception e) {
+      Status status = Status.fromThrowable(e);
+      logger.info("getNkFromNsk failed,error {}", status.getDescription());
+    }
+    return Optional.empty();
+  }
+
+  public static Optional<IncomingViewingKeyMessage> getIncomingViewingKey(ViewingKeyMessage viewingKeyMessage) {
+    try {
+      return Optional.of(rpcCli.getIncomingViewingKey(viewingKeyMessage));
+    }catch (Exception e) {
+      Status status = Status.fromThrowable(e);
+      logger.info("getIncomingViewingKey failed,error {}", status.getDescription());
+    }
+    return Optional.empty();
+  }
+
+  public static Optional<DiversifierMessage> getDiversifier() {
+    try {
+      return Optional.of(rpcCli.getDiversifier());
+    }catch (Exception e) {
+      Status status = Status.fromThrowable(e);
+      logger.info("getDiversifier failed,error {}", status.getDescription());
+    }
+    return Optional.empty();
+  }
+
+  public boolean sendShieldedCoin(PrivateParameters privateParameters)
+      throws CipherException, IOException, CancelException {
+    TransactionExtention transactionExtention = rpcCli.createShieldedTransaction(privateParameters);
+    return processTransactionExtention(transactionExtention);
+  }
+
+  public boolean sendShieldedCoinWithoutAsk(PrivateParametersWithoutAsk privateParameters, byte[] ask)
+      throws CipherException, IOException, CancelException {
+    TransactionExtention transactionExtention =
+        rpcCli.createShieldedTransactionWithoutSpendAuthSig(privateParameters);
+    if (transactionExtention == null ) {
+      System.out.println("sendShieldedCoinWithoutAsk failure.");
+      return false;
+    }
+
+    BytesMessage trxHash = rpcCli.getShieldedTransactionHash(transactionExtention.getTransaction());
+    if (trxHash == null || trxHash.getValue().toByteArray().length != 32) {
+      System.out.println("sendShieldedCoinWithoutAsk get transaction hash failure.");
+      return false;
+    }
+
+    Transaction transaction = transactionExtention.getTransaction();
+    if (transaction.getRawData().getContract(0).getType() != ShieldedTransferContract) {
+      System.out.println("This method only for ShieldedTransferContract, please check!");
+      return false;
+    }
+
+    Any any = transaction.getRawData().getContract(0).getParameter();
+    ShieldedTransferContract shieldContract =  any.unpack(ShieldedTransferContract.class);
+    List<SpendDescription> spendDescList = shieldContract.getSpendDescriptionList();
+    ShieldedTransferContract.Builder contractBuild = shieldContract.toBuilder().clearSpendDescription();
+    for (int i=0; i<spendDescList.size(); i++ ) {
+      SpendDescription.Builder spendDescription = spendDescList.get(i).toBuilder();
+      SpendAuthSigParameters.Builder builder = SpendAuthSigParameters.newBuilder();
+      builder.setAsk(ByteString.copyFrom(ask));
+      builder.setTxHash(ByteString.copyFrom(trxHash.getValue().toByteArray()));
+      builder.setAlpha(privateParameters.getShieldedSpends(i).getAlpha());
+
+      BytesMessage authSig = rpcCli.createSpendAuthSig(builder.build());
+      spendDescription.setSpendAuthoritySignature(
+          ByteString.copyFrom(authSig.getValue().toByteArray()));
+
+      contractBuild.addSpendDescription(spendDescription.build());
+    }
+
+    Transaction.raw.Builder rawBuilder = transaction.toBuilder().getRawDataBuilder().clearContract()
+        .addContract(
+            Transaction.Contract.newBuilder().setType(ContractType.ShieldedTransferContract)
+                .setParameter(
+                    Any.pack(contractBuild.build())).build());
+
+    transaction = transaction.toBuilder().clearRawData().setRawData(rawBuilder).build();
+
+    transactionExtention = transactionExtention.toBuilder().setTransaction(transaction).build();
+
+    return processTransactionExtention(transactionExtention);
+  }
+
+  public Optional<SpendResult> isNoteSpend(NoteParameters noteParameters, boolean showErrorMsg) {
+    if (showErrorMsg) {
+      try {
+        return Optional.of(rpcCli.isNoteSpend(noteParameters));
+      } catch (Exception e) {
+        if (showErrorMsg) {
+          Status status = Status.fromThrowable(e);
+          logger.info("isNoteSpend failed,error {}", status.getDescription());
+        }
+      }
+    } else {
+      return Optional.of(rpcCli.isNoteSpend(noteParameters));
+    }
+    return Optional.empty();
+  }
+
+  public Optional<BytesMessage> getRcm() {
+    try {
+      return Optional.of(rpcCli.getRcm());
+    }catch (Exception e) {
+      Status status = Status.fromThrowable(e);
+      logger.info("getRcm failed,error {}", status.getDescription());
+    }
+    return Optional.empty();
+  }
+
+  public Optional<BytesMessage> createShieldedNullifier(NfParameters parameters) {
+    try {
+      return Optional.of(rpcCli.createShieldedNullifier(parameters));
+    }catch (Exception e) {
+      Status status = Status.fromThrowable(e);
+      logger.info("createShieldedNullifier failed,error {}", status.getDescription());
+    }
+    return Optional.empty();
+  }
+
+  public static Optional<PaymentAddressMessage> getZenPaymentAddress(IncomingViewingKeyDiversifierMessage msg) {
+    try {
+      return Optional.of(rpcCli.getZenPaymentAddress(msg));
+    }catch (Exception e) {
+      Status status = Status.fromThrowable(e);
+      logger.info("getZenPaymentAddress failed,error {}", status.getDescription());
+    }
+    return Optional.empty();
+  }
+
+  public Optional<DecryptNotesMarked> scanAndMarkNoteByIvk(IvkDecryptAndMarkParameters parameters) {
+    try {
+      return Optional.of(rpcCli.scanAndMarkNoteByIvk(parameters));
+    }catch (Exception e) {
+      Status status = Status.fromThrowable(e);
+      logger.info("scanAndMarkNoteByIvk failed,error {}", status.getDescription());
+    }
+    return Optional.empty();
   }
 
 }

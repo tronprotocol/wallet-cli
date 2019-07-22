@@ -64,7 +64,7 @@ task wrapper(type: Wrapper) {
 dependencies {
     testCompile group: 'junit', name: 'junit', version: '4.12'
     compile group: 'com.beust', name: 'jcommander', version: '1.72'
-    compile group: 'org.slf4j', name: 'slf4j-api', version: '1.7.25'
+    //compile group: 'org.slf4j', name: 'slf4j-api', version: '1.7.25'
     compile group: 'org.slf4j', name: 'jcl-over-slf4j', version: '1.7.25'
     compile group: 'ch.qos.logback', name: 'logback-classic', version: '1.2.3'
     compile 'com.maxmind.geoip2:geoip2:2.10.0'
@@ -85,6 +85,11 @@ dependencies {
     compile "org.apache.commons:commons-lang3:3.4"
     compile group: 'com.google.api.grpc', name: 'googleapis-common-protos', version: '0.0.3'
     compile 'com.alibaba:fastjson:1.2.47'
+
+    compile group: 'com.sun.jna', name: 'jna', version: '3.0.9'
+    compile group: 'commons-io', name: 'commons-io', version: '2.6'
+    compile group: 'com.muquit.libsodiumjna', name: 'libsodium-jna', version: '1.0.4'
+    compile group: 'org.projectlombok', name: 'lombok', version: '1.18.2'
 }
 
 protobuf {

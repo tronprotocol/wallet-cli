@@ -2,7 +2,9 @@ package org.tron.walletcli;
 
 import com.beust.jcommander.JCommander;
 import com.google.common.primitives.Longs;
+import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
+import io.netty.util.internal.StringUtil;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -14,6 +16,8 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Scanner;
 import java.util.regex.Matcher;
@@ -29,16 +33,24 @@ import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.BlockExtention;
 import org.tron.api.GrpcAPI.BlockList;
 import org.tron.api.GrpcAPI.BlockListExtention;
+import org.tron.api.GrpcAPI.BytesMessage;
 import org.tron.api.GrpcAPI.DelegatedResourceList;
+import org.tron.api.GrpcAPI.DiversifierMessage;
 import org.tron.api.GrpcAPI.ExchangeList;
+import org.tron.api.GrpcAPI.ExpandedSpendingKeyMessage;
+import org.tron.api.GrpcAPI.IncomingViewingKeyDiversifierMessage;
+import org.tron.api.GrpcAPI.IncomingViewingKeyMessage;
 import org.tron.api.GrpcAPI.Node;
 import org.tron.api.GrpcAPI.NodeList;
+import org.tron.api.GrpcAPI.Note;
 import org.tron.api.GrpcAPI.NumberMessage;
+import org.tron.api.GrpcAPI.PaymentAddressMessage;
 import org.tron.api.GrpcAPI.ProposalList;
 import org.tron.api.GrpcAPI.TransactionApprovedList;
 import org.tron.api.GrpcAPI.TransactionList;
 import org.tron.api.GrpcAPI.TransactionListExtention;
 import org.tron.api.GrpcAPI.TransactionSignWeight;
+import org.tron.api.GrpcAPI.ViewingKeyMessage;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.crypto.Hash;
 import org.tron.common.utils.AbiUtil;
@@ -48,6 +60,10 @@ import org.tron.common.utils.Utils;
 import org.tron.core.exception.CancelException;
 import org.tron.core.exception.CipherException;
 import org.tron.core.exception.EncodingException;
+import org.tron.core.exception.ZksnarkException;
+import org.tron.core.zen.ShieldedAddressInfo;
+import org.tron.core.zen.ShieldedNoteInfo;
+import org.tron.core.zen.ZenUtils;
 import org.tron.keystore.StringUtils;
 import org.tron.protos.Contract.AssetIssueContract;
 import org.tron.protos.Protocol.Account;
@@ -279,7 +295,6 @@ public class Client {
       logger.info("\n" + Utils.printAccount(account));
     }
   }
-
 
   private void updateAccount(String[] parameters)
       throws IOException, CipherException, CancelException {
@@ -1324,7 +1339,7 @@ public class Client {
       txid = parameters[0];
     }
     Optional<TransactionInfo> result = WalletApi.getTransactionInfoById(txid);
-    if (result.isPresent()) {
+    if (result.isPresent() && !result.get().equals(TransactionInfo.getDefaultInstance())) {
       TransactionInfo transactionInfo = result.get();
       logger.info(Utils.printTransactionInfo(transactionInfo));
     } else {
@@ -1888,7 +1903,412 @@ public class Client {
     } else {
       logger.info("BroadcastTransaction failed !!!!");
     }
+  }
 
+  private void generateShieldedAddress(String[] parameters) {
+    int addressNum = 1;
+    if (parameters.length>0 && !StringUtil.isNullOrEmpty(parameters[0])) {
+      addressNum = Integer.valueOf(parameters[0]);
+    }
+
+    logger.info("ShieldedAddress list:");
+    for (int i=0; i<addressNum; ++i ) {
+      Optional<ShieldedAddressInfo> addressInfo = walletApiWrapper.getNewShieldedAddress();
+      if ( addressInfo.isPresent() ) {
+        if ( walletApiWrapper.getShieldedWrapper().addNewShieldedAddress( addressInfo.get()) ) {
+          logger.info(addressInfo.get().getAddress());
+        }
+      }
+    }
+    logger.info("GenerateShieldedAddress successful !!");
+  }
+
+  private void listShieldedAddress() {
+    List<String> listAddress = walletApiWrapper.getShieldedWrapper().getShieldedAddressList();
+    logger.info("ShieldedAddress :");
+    for (String address : listAddress ) {
+      logger.info(address);
+    }
+  }
+
+  private boolean sendShieldedCoinNormal(String[] parameters, boolean withAsk)
+      throws IOException, CipherException, CancelException, ZksnarkException {
+    int parameterIndex = 0;
+    String fromPublicAddress = parameters[parameterIndex++];
+    long fromPublicAmount = 0;
+    if (fromPublicAddress.equals("null")) {
+      fromPublicAddress = null;
+      ++parameterIndex;
+    } else {
+      String amountString = parameters[parameterIndex++];
+      if (!StringUtil.isNullOrEmpty(amountString)) {
+        fromPublicAmount = Long.valueOf(amountString);
+      }
+    }
+
+    int shieldedInputNum = 0;
+    String amountString = parameters[parameterIndex++];
+    if (!StringUtil.isNullOrEmpty(amountString)) {
+      shieldedInputNum = Integer.valueOf(amountString);
+    }
+
+    List<Long> shieldedInputList = new ArrayList<>();
+    String shieldedInputAddress = "";
+    for (int i = 0; i < shieldedInputNum; ++i) {
+      long mapIndex = Long.valueOf(parameters[parameterIndex++]);
+      ShieldedNoteInfo noteInfo = walletApiWrapper.getShieldedWrapper().getUtxoMapNote().get(mapIndex);
+      if (noteInfo == null) {
+        System.out.println("Can't find index " + mapIndex + " note.");
+        return false;
+      }
+      if (i == 0) {
+        shieldedInputAddress = noteInfo.getPaymentAddress();
+      } else {
+        if (!noteInfo.getPaymentAddress().equals(shieldedInputAddress)) {
+          System.err.println("All input note shall be the same address!");
+          return false;
+        }
+      }
+      shieldedInputList.add(mapIndex);
+    }
+
+    String toPublicAddress = parameters[parameterIndex++];
+    long toPublicAmount = 0;
+    if (toPublicAddress.equals("null")) {
+      toPublicAddress = null;
+      ++parameterIndex;
+    } else {
+      amountString = parameters[parameterIndex++];
+      if (!StringUtil.isNullOrEmpty(amountString)) {
+        toPublicAmount = Long.valueOf(amountString);
+      }
+    }
+
+    int shieldedOutputNum = 0;
+    amountString = parameters[parameterIndex++];
+    if (!StringUtil.isNullOrEmpty(amountString)) {
+      shieldedOutputNum = Integer.valueOf(amountString);
+    }
+    if ((parameters.length - parameterIndex) % 3 != 0) {
+      System.out.println("Invalid parameter number!");
+      return false;
+    }
+
+    List<Note> shieldedOutList = new ArrayList<>();
+    for (int i = 0; i < shieldedOutputNum; ++i) {
+      String shieldedAddress = parameters[parameterIndex++];
+      amountString = parameters[parameterIndex++];
+      String menoString = parameters[parameterIndex++];
+      if (menoString.equals("null")) {
+        menoString = "";
+      }
+      long shieldedAmount = 0;
+      if (!StringUtil.isNullOrEmpty(amountString)) {
+        shieldedAmount = Long.valueOf(amountString);
+      }
+
+      Note.Builder noteBuild = Note.newBuilder();
+      noteBuild.setPaymentAddress(shieldedAddress);
+      noteBuild.setPaymentAddress(shieldedAddress);
+      noteBuild.setValue(shieldedAmount);
+      noteBuild.setRcm(ByteString.copyFrom(walletApiWrapper.getRcm()));
+      noteBuild.setMemo(ByteString.copyFrom(menoString.getBytes()));
+      shieldedOutList.add(noteBuild.build());
+    }
+
+    if (withAsk) {
+      return walletApiWrapper.sendShieldedCoin(fromPublicAddress,
+          fromPublicAmount, shieldedInputList, shieldedOutList, toPublicAddress, toPublicAmount);
+    } else {
+      return walletApiWrapper.sendShieldedCoinWithoutAsk(fromPublicAddress,
+          fromPublicAmount, shieldedInputList, shieldedOutList, toPublicAddress, toPublicAmount);
+    }
+  }
+
+  private void sendShieldedCoin(String[] parameters) throws IOException, CipherException,
+      CancelException, ZksnarkException {
+    if (parameters == null || parameters.length < 6) {
+      System.out.println("SendShieldedCoin needs more than 6 parameters like following: ");
+      System.out.println("SendShieldedCoin publicFromAddress fromAmount shieldedInputNum "
+          + "input1 input2 input3 ... publicToAddress toAmount shieldedOutputNum shieldedAddress1"
+          + " amount1 memo1 shieldedAddress2 amount2 memo2 ... ");
+      return;
+    }
+
+    boolean result = sendShieldedCoinNormal(parameters, true);
+    if (result) {
+      logger.info("SendShieldedCoin successful !!");
+    } else {
+      logger.info("SendShieldedCoin failed !!");
+    }
+  }
+
+  private void sendShieldedCoinWithoutAsk(String[] parameters) throws IOException, CipherException,
+      CancelException, ZksnarkException {
+    if (parameters == null || parameters.length < 6) {
+      System.out.println("SendShieldedCoinWithoutAsk needs more than 6 parameters like following: ");
+      System.out.println("SendShieldedCoinWithoutAsk publicFromAddress fromAmount "
+          + "shieldedInputNum input1 input2 input3 ... publicToAddress toAmount shieldedOutputNum "
+          + "shieldedAddress1 amount1 memo1 shieldedAddress2 amount2 memo2 ... ");
+      return;
+    }
+
+    boolean result = sendShieldedCoinNormal(parameters, false);
+    if (result) {
+      logger.info("SendShieldedCoinWithoutAsk successful !!");
+    } else {
+      logger.info("SendShieldedCoinWithoutAsk  failed !!");
+    }
+  }
+
+  private void listShieldedNote(String[] parameters) {
+    int showType = 0;
+    if (parameters.length > 0) {
+      if (!StringUtil.isNullOrEmpty(parameters[0])) {
+        showType = Integer.valueOf(parameters[0]);
+      }
+    }
+
+    if (showType == 0 ) {
+      List<String> utxoList = walletApiWrapper.getShieldedWrapper().getvalidateSortUtxoList();
+      if (utxoList.size() == 0 ) {
+        System.out.println("Unspend note is 0.");
+      } else {
+        System.out.println("Unspend note list like:");
+        for (String string : utxoList ) {
+          System.out.println(string);
+        }
+      }
+    } else {
+      Map<Long, ShieldedNoteInfo> noteMap = walletApiWrapper.getShieldedWrapper().getUtxoMapNote();
+      System.out.println("All note list like:");
+      for (Entry<Long, ShieldedNoteInfo> entry : noteMap.entrySet() ) {
+        String string = entry.getValue().getPaymentAddress() + " ";
+        string += entry.getValue().getValue();
+        string += " ";
+        string += entry.getValue().getTrxId();
+        string += " ";
+        string += entry.getValue().getIndex();
+        string += " ";
+        string += "UnSpend";
+        string += " ";
+        string += ZenUtils.getMemo(entry.getValue().getMemo());
+        System.out.println(string);
+      }
+
+      List<ShieldedNoteInfo> noteList = walletApiWrapper.getShieldedWrapper().getSpendUtxoList();
+      for (ShieldedNoteInfo noteInfo : noteList ) {
+        String string = noteInfo.getPaymentAddress() + " ";
+        string += noteInfo.getValue();
+        string += " ";
+        string += noteInfo.getTrxId();
+        string += " ";
+        string += noteInfo.getIndex();
+        string += " ";
+        string += "Spend";
+        string += " ";
+        string += ZenUtils.getMemo(noteInfo.getMemo());
+        System.out.println(string);
+      }
+    }
+  }
+
+  private void resetShieldedNote() {
+    walletApiWrapper.resetShieldedNote();
+  }
+
+  private void scanNoteByIvk(String[] parameters) {
+    if (parameters == null || parameters.length != 3) {
+      System.out.println("ScanNotebyIvk needs 3 parameter like the following: ");
+      System.out.println("ScanNotebyIvk ivk startNum endNum ");
+      return;
+    }
+    long startNum,endNum;
+    try {
+      startNum = Long.parseLong(parameters[1]);
+      endNum = Long.parseLong(parameters[2]);
+    }catch (NumberFormatException e){
+      System.out.println("invalid parameter: startNum, endNum.");
+      return;
+    }
+
+    walletApiWrapper.scanNoteByIvk(parameters[0], startNum, endNum);
+  }
+
+  private void scanAndMarkNoteByAddress(String[] parameters) {
+    if (parameters == null || parameters.length != 3) {
+      System.out.println("ScanAndMarkNotebyAddress needs 3 parameter like the following: ");
+      System.out.println("ScanAndMarkNotebyAddress shieldedAddress startNum endNum ");
+      return;
+    }
+    long startNum,endNum;
+    try {
+      startNum = Long.parseLong(parameters[1]);
+      endNum = Long.parseLong(parameters[2]);
+    }catch (NumberFormatException e){
+      System.out.println("invalid parameter: startNum, endNum.");
+      return;
+    }
+
+    walletApiWrapper.scanAndMarkNoteByAddress(parameters[0], startNum, endNum);
+  }
+
+  private void ScanNoteByOvk(String[] parameters) {
+    if (parameters == null || parameters.length != 3) {
+      System.out.println("ScanNotebyOvk needs 3 parameter like the following: ");
+      System.out.println("ScanNotebyOvk ovk startNum endNum");
+      return;
+    }
+    long startNum,endNum;
+    try {
+      startNum = Long.parseLong(parameters[1]);
+      endNum = Long.parseLong(parameters[2]);
+    }catch (NumberFormatException e){
+      System.out.println("invalid parameter: startNum, endNum.");
+      return;
+    }
+
+    walletApiWrapper.scanShieldedNoteByovk(parameters[0], startNum, endNum);
+  }
+
+  private void getShieldedNullifier(String[] parameters) {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("GetShieldedNullifier needs 1 parameter like the following: ");
+      System.out.println("GetShieldedNullifier index");
+      return;
+    }
+    long index = Long.valueOf(parameters[0]);
+    String hash = walletApiWrapper.getShieldedNulltifier(index);
+    if (hash != null ) {
+      System.out.println("ShieldedNullifier:" + hash);
+    } else {
+      System.out.println("GetShieldedNullifier failure!");
+    }
+  }
+
+  private void getSpendingKey(String[] parameters) {
+    Optional<BytesMessage> sk = WalletApi.getSpendingKey();
+    if (!sk.isPresent()) {
+      logger.info("getSpendingKey failed !!!");
+    } else {
+      logger.info(ByteArray.toHexString(sk.get().getValue().toByteArray()));
+    }
+  }
+
+  private void getExpandedSpendingKey(String[] parameters) {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("getExpandedSpendingKey needs 1 parameter like the following: ");
+      System.out.println("getExpandedSpendingKey sk ");
+      return;
+    }
+    String spendingKey = parameters[0];
+
+    BytesMessage sk = BytesMessage.newBuilder()
+        .setValue(ByteString.copyFrom(ByteArray.fromHexString(spendingKey))).build();
+    Optional<ExpandedSpendingKeyMessage> esk = WalletApi.getExpandedSpendingKey(sk);
+    if (!esk.isPresent()) {
+      logger.info("getExpandedSpendingKey failed !!!");
+    } else {
+      logger.info("ask:{}", ByteArray.toHexString(esk.get().getAsk().toByteArray()));
+      logger.info("nsk:{}", ByteArray.toHexString(esk.get().getNsk().toByteArray()));
+      logger.info("ovk:{}", ByteArray.toHexString(esk.get().getOvk().toByteArray()));
+    }
+  }
+
+  private void getAkFromAsk(String[] parameters) {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("getAkFromAsk needs 1 parameter like the following: ");
+      System.out.println("getAkFromAsk ask ");
+      return;
+    }
+    String ask = parameters[0];
+
+    BytesMessage ask1 = BytesMessage.newBuilder()
+        .setValue(ByteString.copyFrom(ByteArray.fromHexString(ask))).build();
+    Optional<BytesMessage> ak = WalletApi.getAkFromAsk(ask1);
+    if (!ak.isPresent()) {
+      logger.info("getAkFromAsk failed !!!");
+    } else {
+      logger.info("ak:{}", ByteArray.toHexString(ak.get().getValue().toByteArray()));
+    }
+  }
+
+  private void getNkFromNsk(String[] parameters) {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("getNkFromNsk needs 1 parameter like the following: ");
+      System.out.println("getNkFromNsk nsk ");
+      return;
+    }
+    String nsk = parameters[0];
+
+    BytesMessage nsk1 = BytesMessage.newBuilder()
+        .setValue(ByteString.copyFrom(ByteArray.fromHexString(nsk))).build();
+    Optional<BytesMessage> nk = WalletApi.getNkFromNsk(nsk1);
+    if (!nk.isPresent()) {
+      logger.info("getNkFromNsk failed !!!");
+    } else {
+      logger.info("nk:{}", ByteArray.toHexString(nk.get().getValue().toByteArray()));
+    }
+  }
+
+  private void getIncomingViewingKey(String[] parameters) {
+    if (parameters == null || parameters.length != 2 || parameters[0].length() != 64
+        || parameters[1].length() != 64) {
+      System.out.println("getIncomingViewingKey needs 2 parameter like the following: ");
+      System.out.println("getIncomingViewingKey ak[64] nk[64] ");
+      return;
+    }
+    String ak = parameters[0];
+    String nk = parameters[1];
+    ViewingKeyMessage vk = ViewingKeyMessage.newBuilder()
+        .setAk(ByteString.copyFrom(ByteArray.fromHexString(ak)))
+        .setNk(ByteString.copyFrom(ByteArray.fromHexString(nk)))
+        .build();
+
+    Optional<IncomingViewingKeyMessage> ivk = WalletApi.getIncomingViewingKey(vk);
+    if (!ivk.isPresent()) {
+      logger.info("getIncomingViewingKey failed !!!");
+    } else {
+      logger.info("ivk:" + ByteArray.toHexString(ivk.get().getIvk().toByteArray()));
+    }
+  }
+
+  private void getDiversifier(String[] parameters) {
+    Optional<DiversifierMessage> diversifierMessage = WalletApi.getDiversifier();
+    if (!diversifierMessage.isPresent()) {
+      logger.info("getDiversifier failed !!!");
+    } else {
+      logger.info(ByteArray.toHexString(diversifierMessage.get().getD().toByteArray()));
+    }
+  }
+
+  private void getShieldedPaymentAddress(String[] parameters) {
+    if (parameters == null || parameters.length != 2 || parameters[1].length() != 22) {
+      System.out.println("getshieldedpaymentaddress needs 2 parameter like the following: ");
+      System.out.println("getshieldedpaymentaddress ivk[64] d[22] ");
+      return;
+    }
+    String ivk = parameters[0];
+    String d = parameters[1];
+
+    IncomingViewingKeyMessage ivk1 = IncomingViewingKeyMessage.newBuilder()
+        .setIvk(ByteString.copyFrom(ByteArray.fromHexString(ivk)))
+        .build();
+    DiversifierMessage d1 = DiversifierMessage.newBuilder()
+        .setD(ByteString.copyFrom(ByteArray.fromHexString(d)))
+        .build();
+    IncomingViewingKeyDiversifierMessage ivk_d = IncomingViewingKeyDiversifierMessage.newBuilder()
+        .setIvk(ivk1)
+        .setD(d1)
+        .build();
+
+    Optional<PaymentAddressMessage> paymentAddress = WalletApi.getZenPaymentAddress(ivk_d);
+    if (!paymentAddress.isPresent()) {
+      logger.info("getshieldedpaymentaddress failed !!!");
+    } else {
+      logger.info("pkd:" + ByteArray.toHexString(paymentAddress.get().getPkD().toByteArray()));
+      logger.info("shieldedAddress:" + paymentAddress.get().getPaymentAddress());
+    }
   }
 
   private void create2(String[] parameters) {
@@ -1946,6 +2366,7 @@ public class Client {
     System.out.println("ExchangeWithdraw");
     System.out.println("FreezeBalance");
     System.out.println("GenerateAddress");
+    System.out.println("GenerateShieldedAddress");
     System.out.println("GetAccount");
     System.out.println("GetAccountNet");
     System.out.println("GetAccountResource");
@@ -1954,6 +2375,7 @@ public class Client {
     System.out.println("GetAssetIssueById");
     System.out.println("GetAssetIssueByName");
     System.out.println("GetAssetIssueListByName");
+    System.out.println("GetAkFromAsk");
     System.out.println("GetBalance");
     System.out.println("GetBlock");
     System.out.println("GetBlockById");
@@ -1962,8 +2384,15 @@ public class Client {
     System.out.println("GetContract contractAddress");
     System.out.println("GetDelegatedResource");
     System.out.println("GetDelegatedResourceAccountIndex");
+    System.out.println("GetDiversifier");
     System.out.println("GetExchange");
+    System.out.println("GetExpandedSpendingKey");
+    System.out.println("GetIncomingViewingKey");
+    System.out.println("GetNkFromNsk");
     System.out.println("GetNextMaintenanceTime");
+    System.out.println("GetSaplingPaymentAddress");
+    System.out.println("GetShieldedNullifier");
+    System.out.println("GetSpendingKey");
     System.out.println("GetProposal");
     System.out.println("GetTotalTransaction");
     System.out.println("GetTransactionApprovedList");
@@ -1979,6 +2408,8 @@ public class Client {
     System.out.println("ListExchanges");
     System.out.println("ListExchangesPaginated");
     System.out.println("ListNodes");
+    System.out.println("ListShieldedAddress");
+    System.out.println("ListShieldedNote");
     System.out.println("ListProposals");
     System.out.println("ListProposalsPaginated");
     System.out.println("ListWitnesses");
@@ -1986,7 +2417,13 @@ public class Client {
     System.out.println("Logout");
     System.out.println("ParticipateAssetIssue");
     System.out.println("RegisterWallet");
+    System.out.println("ResetShieldedNote");
+    System.out.println("ScanAndMarkNotebyAddress");
+    System.out.println("ScanNotebyIvk");
+    System.out.println("ScanNotebyOvk");
     System.out.println("SendCoin");
+    System.out.println("SendShieldedCoin");
+    System.out.println("SendShieldedCoinWithoutAsk");
     System.out.println("SetAccountId");
     System.out.println("TransferAsset");
     System.out.println("TriggerContract contractAddress method args isHex fee_limit value");
@@ -2010,6 +2447,7 @@ public class Client {
 //   System.out.println("GetTransactionsByTimestampCount");
 //   System.out.println("GetTransactionsFromThisCount");
 //   System.out.println("GetTransactionsToThisCount");
+
 
     System.out.println("Exit or Quit");
 
@@ -2056,6 +2494,9 @@ public class Client {
   }
 
   private void run() {
+
+    walletApiWrapper.getShieldedWrapper().Init();
+
     Scanner in = new Scanner(System.in);
     System.out.println(" ");
     System.out.println("Welcome to Tron Wallet-Cli");
@@ -2379,6 +2820,34 @@ public class Client {
             getBlockByLatestNum(parameters);
             break;
           }
+          case "getspendingkey": {
+            getSpendingKey(parameters);
+            break;
+          }
+          case "getexpandedspendingkey": {
+            getExpandedSpendingKey(parameters);
+            break;
+          }
+          case "getakfromask": {
+            getAkFromAsk(parameters);
+            break;
+          }
+          case "getnkfromnsk": {
+            getNkFromNsk(parameters);
+            break;
+          }
+          case "getincomingviewingkey": {
+            getIncomingViewingKey(parameters);
+            break;
+          }
+          case "getdiversifier": {
+            getDiversifier(parameters);
+            break;
+          }
+          case "getshieldedpaymentaddress": {
+            getShieldedPaymentAddress(parameters);
+            break;
+          }
           case "updatesetting": {
             updateSetting(parameters);
             break;
@@ -2425,6 +2894,46 @@ public class Client {
           }
           case "broadcasttransaction": {
             broadcastTransaction(parameters);
+            break;
+          }
+          case "generateshieldedaddress": {
+            generateShieldedAddress(parameters);
+            break;
+          }
+          case "listshieldedaddress": {
+            listShieldedAddress();
+            break;
+          }
+          case "sendshieldedcoin": {
+            sendShieldedCoin(parameters);
+            break;
+          }
+          case "sendshieldedcoinwithoutask": {
+            sendShieldedCoinWithoutAsk(parameters);
+            break;
+          }
+          case "listshieldednote": {
+            listShieldedNote(parameters);
+            break;
+          }
+          case "resetshieldednote": {
+            resetShieldedNote();
+            break;
+          }
+          case "scannotebyivk": {
+            scanNoteByIvk(parameters);
+            break;
+          }
+          case "scannotebyovk": {
+            ScanNoteByOvk(parameters);
+            break;
+          }
+          case "getshieldednullifier": {
+            getShieldedNullifier(parameters);
+            break;
+          }
+          case "scanandmarknotebyaddress": {
+            scanAndMarkNoteByAddress(parameters);
             break;
           }
           case "create2": {
