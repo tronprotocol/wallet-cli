@@ -1,7 +1,5 @@
 package org.tron.walletserver;
 
-import static org.tron.protos.Protocol.Transaction.Contract.ContractType.ShieldedTransferContract;
-
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.google.gson.JsonArray;
@@ -419,10 +417,6 @@ public class WalletApi {
       transaction = TransactionUtils.setTimestamp(transaction);
     }
     transaction = TransactionUtils.setExpirationTime(transaction);
-    System.out.println("Your transaction details are as follows, please confirm.");
-    System.out
-        .println("transaction hex string is " + ByteArray.toHexString(transaction.toByteArray()));
-    System.out.println(Utils.printTransaction(transaction));
 
     System.out.println(
         "Please confirm and input your permission id, if input y or Y means default 0, other non-numeric characters will cancell transaction.");
@@ -456,6 +450,7 @@ public class WalletApi {
       }
       throw new CancelException(weight.getResult().getMessage());
     }
+
     return transaction;
   }
 
@@ -463,7 +458,7 @@ public class WalletApi {
       throws CipherException, IOException, CancelException {
     System.out.println(
         "Please confirm and input your permission id, if input y or Y means default 0, other non-numeric characters will cancell transaction.");
-
+    transaction = TransactionUtils.setPermissionId(transaction);
     while (true) {
       System.out.println("Please choose your key for sign.");
       WalletFile walletFile = selcetWalletFileE();
@@ -512,12 +507,12 @@ public class WalletApi {
       System.out.println("Transaction is empty");
       return false;
     }
-    System.out.println(
-        "Receive txid = " + ByteArray.toHexString(transactionExtention.getTxid().toByteArray()));
-    System.out.println("transaction hex string is " + Utils.printTransaction(transaction));
-    System.out.println(Utils.printTransaction(transactionExtention));
+//    System.out.println(
+//        "Receive txid = " + ByteArray.toHexString(transactionExtention.getTxid().toByteArray()));
+//    System.out.println("transaction hex string is " + Utils.printTransaction(transaction));
+//    System.out.println(Utils.printTransaction(transactionExtention));
 
-    if (transaction.getRawData().getContract(0).getType() != ShieldedTransferContract ) {
+    if (transaction.getRawData().getContract(0).getType() != ContractType.ShieldedTransferContract ) {
       transaction = signTransaction(transaction);
     } else {
       Any any = transaction.getRawData().getContract(0).getParameter();
@@ -527,8 +522,21 @@ public class WalletApi {
         transaction = signOnlyForShieldedTransaction(transaction);
       }
     }
-
+    showTransactionAfterSign(transaction);
     return rpcCli.broadcastTransaction(transaction);
+  }
+
+  private void showTransactionAfterSign(Transaction transaction) {
+    System.out.println("Your transaction details are as follows, please confirm.");
+    System.out.println(Utils.printTransaction(transaction));
+    System.out
+        .println("transaction hex string is " + ByteArray.toHexString(transaction.toByteArray()));
+
+    if (transaction.getRawData().getContract(0).getType() == ContractType.CreateSmartContract ) {
+      byte[] contractAddress = generateContractAddress(transaction);
+      System.out.println(
+          "Your smart contract address will be: " + WalletApi.encode58Check(contractAddress));
+    }
   }
 
   private boolean processTransaction(Transaction transaction)
@@ -537,6 +545,8 @@ public class WalletApi {
       return false;
     }
     transaction = signTransaction(transaction);
+
+    showTransactionAfterSign(transaction);
     return rpcCli.broadcastTransaction(transaction);
   }
 
@@ -644,13 +654,11 @@ public class WalletApi {
     byte[] owner = getAddress();
     Contract.SetAccountIdContract contract = createSetAccountIdContract(accountIdBytes, owner);
     Transaction transaction = rpcCli.createTransaction(contract);
-
     if (transaction == null || transaction.getRawData().getContractCount() == 0) {
       return false;
     }
 
-    transaction = signTransaction(transaction);
-    return rpcCli.broadcastTransaction(transaction);
+    return processTransaction(transaction);
   }
 
 
@@ -1881,9 +1889,9 @@ public class WalletApi {
     texBuilder.setTxid(transactionExtention.getTxid());
     transactionExtention = texBuilder.build();
 
-    byte[] contractAddress = generateContractAddress(transactionExtention.getTransaction());
-    System.out.println(
-        "Your smart contract address will be: " + WalletApi.encode58Check(contractAddress));
+//    byte[] contractAddress = generateContractAddress(transactionExtention.getTransaction());
+//    System.out.println(
+//        "Your smart contract address will be: " + WalletApi.encode58Check(contractAddress));
     return processTransactionExtention(transactionExtention);
 
   }
@@ -2181,7 +2189,7 @@ public class WalletApi {
     }
 
     Transaction transaction = transactionExtention.getTransaction();
-    if (transaction.getRawData().getContract(0).getType() != ShieldedTransferContract) {
+    if (transaction.getRawData().getContract(0).getType() != ContractType.ShieldedTransferContract) {
       System.out.println("This method only for ShieldedTransferContract, please check!");
       return false;
     }
