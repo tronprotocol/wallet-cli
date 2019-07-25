@@ -1365,6 +1365,38 @@ public class Utils {
     return results;
   }
 
+  public static String printTransactionExceptId(Transaction transaction) {
+    String result = "";
+    if (transaction.getRawData() != null) {
+      result += "raw_data: ";
+      result += "\n";
+      result += "{";
+      result += "\n";
+      result += printTransactionRow(transaction.getRawData());
+      result += "}";
+      result += "\n";
+    }
+    if (transaction.getSignatureCount() > 0) {
+      result += "signature: ";
+      result += "\n";
+      result += "{";
+      result += "\n";
+      result += printSignature(transaction.getSignatureList());
+      result += "}";
+      result += "\n";
+    }
+    if (transaction.getRetCount() != 0) {
+      result += "ret: ";
+      result += "\n";
+      result += "{";
+      result += "\n";
+      result += printRet(transaction.getRetList());
+      result += "}";
+      result += "\n";
+    }
+    return result;
+  }
+
   public static String printTransaction(Transaction transaction) {
     String result = "";
     result += "hash: ";
@@ -1376,6 +1408,13 @@ public class Utils {
     result += ByteArray.toHexString(Sha256Hash.hash(transaction.getRawData().toByteArray()));
     result += "\n";
 
+    result += printTransactionExceptId(transaction);
+    return result;
+  }
+
+  public static String printTransactionExceptId(TransactionExtention transactionExtention) {
+    String result = "";
+    Transaction transaction = transactionExtention.getTransaction();
     if (transaction.getRawData() != null) {
       result += "raw_data: ";
       result += "\n";
@@ -1413,34 +1452,7 @@ public class Utils {
     result += ByteArray.toHexString(transactionExtention.getTxid().toByteArray());
     result += "\n";
 
-    Transaction transaction = transactionExtention.getTransaction();
-    if (transaction.getRawData() != null) {
-      result += "raw_data: ";
-      result += "\n";
-      result += "{";
-      result += "\n";
-      result += printTransactionRow(transaction.getRawData());
-      result += "}";
-      result += "\n";
-    }
-    if (transaction.getSignatureCount() > 0) {
-      result += "signature: ";
-      result += "\n";
-      result += "{";
-      result += "\n";
-      result += printSignature(transaction.getSignatureList());
-      result += "}";
-      result += "\n";
-    }
-    if (transaction.getRetCount() != 0) {
-      result += "ret: ";
-      result += "\n";
-      result += "{";
-      result += "\n";
-      result += printRet(transaction.getRetList());
-      result += "}";
-      result += "\n";
-    }
+    result += printTransactionExceptId(transactionExtention);
     return result;
   }
 
@@ -2135,6 +2147,23 @@ public class Utils {
       }
     }
     return result.toString();
+  }
+
+  public static char[] inputPassword2Twice() throws IOException {
+    char[] password0;
+    while (true) {
+      System.out.println("Please input password.");
+      password0 = Utils.inputPassword(true);
+      System.out.println("Please input password again.");
+      char[] password1 = Utils.inputPassword(true);
+      boolean flag = Arrays.equals(password0, password1);
+      StringUtils.clear(password1);
+      if (flag) {
+        break;
+      }
+      System.out.println("The passwords do not match, please input again.");
+    }
+    return password0;
   }
 
   public static char[] inputPassword(boolean checkStrength) throws IOException {
