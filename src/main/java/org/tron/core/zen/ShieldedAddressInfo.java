@@ -1,11 +1,18 @@
 package org.tron.core.zen;
 
+import java.security.InvalidAlgorithmParameterException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.Optional;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
+import org.apache.commons.lang3.ArrayUtils;
+import org.tron.common.utils.Base58;
 import org.tron.common.utils.ByteArray;
+import org.tron.core.exception.CipherException;
 import org.tron.core.exception.ZksnarkException;
 import org.tron.core.zen.address.DiversifierT;
 import org.tron.core.zen.address.FullViewingKey;
@@ -13,6 +20,13 @@ import org.tron.core.zen.address.IncomingViewingKey;
 import org.tron.core.zen.address.KeyIo;
 import org.tron.core.zen.address.PaymentAddress;
 import org.tron.core.zen.address.SpendingKey;
+
+import javax.crypto.BadPaddingException;
+import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
+import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
 
 @AllArgsConstructor
 public class ShieldedAddressInfo {
@@ -89,16 +103,16 @@ public class ShieldedAddressInfo {
    * format shielded address info to a string
    * @return
    */
-  public String encode() {
-    String encodeString = ByteArray.toHexString(sk) + ";";
-    encodeString += ByteArray.toHexString(ivk);
-    encodeString += ";";
-    encodeString += ByteArray.toHexString(ovk);
-    encodeString += ";";
-    encodeString += ByteArray.toHexString(d.getData());
-    encodeString += ";";
-    encodeString += ByteArray.toHexString(pkD);
-    return encodeString;
+  public String encode(byte[] encryptKey) throws CipherException {
+    byte[] text = new byte[sk.length + ivk.length + ovk.length + d.getData().length + pkD.length];
+    System.arraycopy(sk, 0, text, 0, sk.length);
+    System.arraycopy(ivk, 0, text, sk.length, ivk.length);
+    System.arraycopy(ovk, 0, text, sk.length + ivk.length, ovk.length);
+    System.arraycopy(d.getData(), 0, text, sk.length + ivk.length + ovk.length, d.getData().length);
+    System.arraycopy(pkD, 0, text, sk.length + ivk.length + ovk.length + d.getData().length, pkD.length);
+    
+    byte[] cipherText = ZenUtils.aesCtrEncrypt(text, encryptKey);
+    return Base58.encode(cipherText);
   }
 
   /**
@@ -106,17 +120,15 @@ public class ShieldedAddressInfo {
    * @param data
    * @return
    */
-  public boolean decode(final String data) {
-    String[] sourceStrArray = data.split(";");
-    if (sourceStrArray.length != 5) {
-      System.out.println("len is not right.");
-      return false;
-    }
-    sk = ByteArray.fromHexString(sourceStrArray[0]);
-    ivk = ByteArray.fromHexString(sourceStrArray[1]);
-    ovk = ByteArray.fromHexString(sourceStrArray[2]);
-    d = new DiversifierT(ByteArray.fromHexString(sourceStrArray[3]));
-    pkD = ByteArray.fromHexString(sourceStrArray[4]);
+  public boolean decode(final String data, byte[] encryptKey) throws CipherException {
+    byte[] cipherText = Base58.decode(data);
+    byte[] text = ZenUtils.aesCtrDecrypt(cipherText, encryptKey);
+
+    sk = Arrays.copyOfRange(text, 0, 32);
+    ivk = Arrays.copyOfRange(text, 32, 64);
+    ovk = Arrays.copyOfRange(text, 64, 96);
+    d = new DiversifierT(Arrays.copyOfRange(text, 96, 107));
+    pkD = Arrays.copyOfRange(text, 107, 139);;
 
     if (validateCheck()) {
       return true;
