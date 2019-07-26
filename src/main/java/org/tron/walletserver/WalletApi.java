@@ -507,30 +507,23 @@ public class WalletApi {
       System.out.println("Transaction is empty");
       return false;
     }
-//    System.out.println(
-//        "Receive txid = " + ByteArray.toHexString(transactionExtention.getTxid().toByteArray()));
-//    System.out.println("transaction hex string is " + Utils.printTransaction(transaction));
-//    System.out.println(Utils.printTransaction(transactionExtention));
 
-    if (transaction.getRawData().getContract(0).getType() != ContractType.ShieldedTransferContract ) {
-      transaction = signTransaction(transaction);
-    } else {
-      Any any = transaction.getRawData().getContract(0).getParameter();
-      Contract.ShieldedTransferContract shieldedTransferContract =
-          any.unpack(ShieldedTransferContract.class);
-      if (shieldedTransferContract.getFromAmount() > 0 ) {
-        transaction = signOnlyForShieldedTransaction(transaction);
-      }
+    if (transaction.getRawData().getContract(0).getType()
+        == ContractType.ShieldedTransferContract) {
+      return false;
     }
+
+    System.out.println(Utils.printTransactionExceptId(transactionExtention));
+    transaction = signTransaction(transaction);
     showTransactionAfterSign(transaction);
     return rpcCli.broadcastTransaction(transaction);
   }
 
   private void showTransactionAfterSign(Transaction transaction) {
-    System.out.println("Your transaction details are as follows, please confirm.");
-    System.out.println(Utils.printTransaction(transaction));
-    System.out
-        .println("transaction hex string is " + ByteArray.toHexString(transaction.toByteArray()));
+    System.out.println("transaction hex string is " +
+        ByteArray.toHexString(transaction.toByteArray()));
+    System.out.println("txid is " +
+        ByteArray.toHexString(Sha256Hash.hash(transaction.getRawData().toByteArray())));
 
     if (transaction.getRawData().getContract(0).getType() == ContractType.CreateSmartContract) {
       byte[] contractAddress = generateContractAddress(transaction);
@@ -539,8 +532,9 @@ public class WalletApi {
     }
   }
 
-  private static boolean processShieldedTransaction(TransactionExtention transactionExtention, WalletApi wallet)
-          throws IOException, CipherException, CancelException {
+  private static boolean processShieldedTransaction(TransactionExtention transactionExtention,
+      WalletApi wallet)
+      throws IOException, CipherException, CancelException {
     if (transactionExtention == null) {
       return false;
     }
@@ -556,34 +550,39 @@ public class WalletApi {
       return false;
     }
 
-    if (transaction.getRawData().getContract(0).getType() != ContractType.ShieldedTransferContract ) {
+    if (transaction.getRawData().getContract(0).getType()
+        != ContractType.ShieldedTransferContract) {
       return false;
     }
+    System.out.println(Utils.printTransactionExceptId(transactionExtention));
 
     Any any = transaction.getRawData().getContract(0).getParameter();
     Contract.ShieldedTransferContract shieldedTransferContract =
-            any.unpack(ShieldedTransferContract.class);
-    if (shieldedTransferContract.getFromAmount() > 0 ) {
+        any.unpack(ShieldedTransferContract.class);
+    if (shieldedTransferContract.getFromAmount() > 0) {
       if (wallet == null || !wallet.isLoginState()) {
         logger.warn("Warning: processShieldedTransaction failed, Please login first !!");
         return false;
       }
-
-      System.out.println("Receive txid = " + ByteArray.toHexString(transactionExtention.getTxid().toByteArray()));
-      System.out.println("transaction hex string is " + Utils.printTransaction(transaction));
-      System.out.println(Utils.printTransaction(transactionExtention));
-
       transaction = wallet.signOnlyForShieldedTransaction(transaction);
     }
 
+    System.out.println("transaction hex string is " +
+        ByteArray.toHexString(transaction.toByteArray()));
+    System.out.println("txid is " +
+        ByteArray.toHexString(Sha256Hash.hash(transaction.getRawData().toByteArray())));
+
     return rpcCli.broadcastTransaction(transaction);
-  }
+}
 
   private boolean processTransaction(Transaction transaction)
       throws IOException, CipherException, CancelException {
     if (transaction == null || transaction.getRawData().getContractCount() == 0) {
       return false;
     }
+
+    System.out.println(Utils.printTransactionExceptId(transaction));
+
     transaction = signTransaction(transaction);
 
     showTransactionAfterSign(transaction);
@@ -2096,12 +2095,13 @@ public class WalletApi {
     return transaction;
   }
 
-  public static Optional<IncrementalMerkleVoucherInfo> GetMerkleTreeVoucherInfo(OutputPointInfo info,
+  public static Optional<IncrementalMerkleVoucherInfo> GetMerkleTreeVoucherInfo(
+      OutputPointInfo info,
       boolean showErrorMsg) {
-    if ( showErrorMsg ) {
+    if (showErrorMsg) {
       try {
         return Optional.of(rpcCli.GetMerkleTreeVoucherInfo(info));
-      }catch (Exception e) {
+      } catch (Exception e) {
         if (showErrorMsg) {
           Status status = Status.fromThrowable(e);
           logger.info("GetMerkleTreeVoucherInfo failed,error {}", status.getDescription());
@@ -2150,17 +2150,18 @@ public class WalletApi {
   public static Optional<BytesMessage> getSpendingKey() {
     try {
       return Optional.of(rpcCli.getSpendingKey());
-    }catch (Exception e) {
+    } catch (Exception e) {
       Status status = Status.fromThrowable(e);
       logger.info("getSpendingKey failed,error {}", status.getDescription());
     }
     return Optional.empty();
   }
 
-  public static Optional<ExpandedSpendingKeyMessage> getExpandedSpendingKey(BytesMessage spendingKey) {
+  public static Optional<ExpandedSpendingKeyMessage> getExpandedSpendingKey(
+      BytesMessage spendingKey) {
     try {
       return Optional.of(rpcCli.getExpandedSpendingKey(spendingKey));
-    }catch (Exception e) {
+    } catch (Exception e) {
       Status status = Status.fromThrowable(e);
       logger.info("getExpandedSpendingKey failed,error {}", status.getDescription());
     }
@@ -2170,7 +2171,7 @@ public class WalletApi {
   public static Optional<BytesMessage> getAkFromAsk(BytesMessage ask) {
     try {
       return Optional.of(rpcCli.getAkFromAsk(ask));
-    }catch (Exception e) {
+    } catch (Exception e) {
       Status status = Status.fromThrowable(e);
       logger.info("getAkFromAsk failed,error {}", status.getDescription());
     }
@@ -2180,17 +2181,18 @@ public class WalletApi {
   public static Optional<BytesMessage> getNkFromNsk(BytesMessage nsk) {
     try {
       return Optional.of(rpcCli.getNkFromNsk(nsk));
-    }catch (Exception e) {
+    } catch (Exception e) {
       Status status = Status.fromThrowable(e);
       logger.info("getNkFromNsk failed,error {}", status.getDescription());
     }
     return Optional.empty();
   }
 
-  public static Optional<IncomingViewingKeyMessage> getIncomingViewingKey(ViewingKeyMessage viewingKeyMessage) {
+  public static Optional<IncomingViewingKeyMessage> getIncomingViewingKey(
+      ViewingKeyMessage viewingKeyMessage) {
     try {
       return Optional.of(rpcCli.getIncomingViewingKey(viewingKeyMessage));
-    }catch (Exception e) {
+    } catch (Exception e) {
       Status status = Status.fromThrowable(e);
       logger.info("getIncomingViewingKey failed,error {}", status.getDescription());
     }
@@ -2200,7 +2202,7 @@ public class WalletApi {
   public static Optional<DiversifierMessage> getDiversifier() {
     try {
       return Optional.of(rpcCli.getDiversifier());
-    }catch (Exception e) {
+    } catch (Exception e) {
       Status status = Status.fromThrowable(e);
       logger.info("getDiversifier failed,error {}", status.getDescription());
     }
@@ -2213,11 +2215,12 @@ public class WalletApi {
     return processShieldedTransaction(transactionExtention, wallet);
   }
 
-  public static boolean sendShieldedCoinWithoutAsk(PrivateParametersWithoutAsk privateParameters, byte[] ask, WalletApi wallet)
+  public static boolean sendShieldedCoinWithoutAsk(PrivateParametersWithoutAsk privateParameters,
+      byte[] ask, WalletApi wallet)
       throws CipherException, IOException, CancelException {
     TransactionExtention transactionExtention =
         rpcCli.createShieldedTransactionWithoutSpendAuthSig(privateParameters);
-    if (transactionExtention == null ) {
+    if (transactionExtention == null) {
       System.out.println("sendShieldedCoinWithoutAsk failure.");
       return false;
     }
@@ -2229,16 +2232,18 @@ public class WalletApi {
     }
 
     Transaction transaction = transactionExtention.getTransaction();
-    if (transaction.getRawData().getContract(0).getType() != ContractType.ShieldedTransferContract) {
+    if (transaction.getRawData().getContract(0).getType()
+        != ContractType.ShieldedTransferContract) {
       System.out.println("This method only for ShieldedTransferContract, please check!");
       return false;
     }
 
     Any any = transaction.getRawData().getContract(0).getParameter();
-    ShieldedTransferContract shieldContract =  any.unpack(ShieldedTransferContract.class);
+    ShieldedTransferContract shieldContract = any.unpack(ShieldedTransferContract.class);
     List<SpendDescription> spendDescList = shieldContract.getSpendDescriptionList();
-    ShieldedTransferContract.Builder contractBuild = shieldContract.toBuilder().clearSpendDescription();
-    for (int i=0; i<spendDescList.size(); i++ ) {
+    ShieldedTransferContract.Builder contractBuild = shieldContract.toBuilder()
+        .clearSpendDescription();
+    for (int i = 0; i < spendDescList.size(); i++) {
       SpendDescription.Builder spendDescription = spendDescList.get(i).toBuilder();
       SpendAuthSigParameters.Builder builder = SpendAuthSigParameters.newBuilder();
       builder.setAsk(ByteString.copyFrom(ask));
@@ -2265,7 +2270,8 @@ public class WalletApi {
     return processShieldedTransaction(transactionExtention, wallet);
   }
 
-  public static Optional<SpendResult> isNoteSpend(NoteParameters noteParameters, boolean showErrorMsg) {
+  public static Optional<SpendResult> isNoteSpend(NoteParameters noteParameters,
+      boolean showErrorMsg) {
     if (showErrorMsg) {
       try {
         return Optional.of(rpcCli.isNoteSpend(noteParameters));
@@ -2284,7 +2290,7 @@ public class WalletApi {
   public static Optional<BytesMessage> getRcm() {
     try {
       return Optional.of(rpcCli.getRcm());
-    }catch (Exception e) {
+    } catch (Exception e) {
       Status status = Status.fromThrowable(e);
       logger.info("getRcm failed,error {}", status.getDescription());
     }
@@ -2294,27 +2300,29 @@ public class WalletApi {
   public static Optional<BytesMessage> createShieldedNullifier(NfParameters parameters) {
     try {
       return Optional.of(rpcCli.createShieldedNullifier(parameters));
-    }catch (Exception e) {
+    } catch (Exception e) {
       Status status = Status.fromThrowable(e);
       logger.info("createShieldedNullifier failed,error {}", status.getDescription());
     }
     return Optional.empty();
   }
 
-  public static Optional<PaymentAddressMessage> getZenPaymentAddress(IncomingViewingKeyDiversifierMessage msg) {
+  public static Optional<PaymentAddressMessage> getZenPaymentAddress(
+      IncomingViewingKeyDiversifierMessage msg) {
     try {
       return Optional.of(rpcCli.getZenPaymentAddress(msg));
-    }catch (Exception e) {
+    } catch (Exception e) {
       Status status = Status.fromThrowable(e);
       logger.info("getZenPaymentAddress failed,error {}", status.getDescription());
     }
     return Optional.empty();
   }
 
-  public static Optional<DecryptNotesMarked> scanAndMarkNoteByIvk(IvkDecryptAndMarkParameters parameters) {
+  public static Optional<DecryptNotesMarked> scanAndMarkNoteByIvk(
+      IvkDecryptAndMarkParameters parameters) {
     try {
       return Optional.of(rpcCli.scanAndMarkNoteByIvk(parameters));
-    }catch (Exception e) {
+    } catch (Exception e) {
       Status status = Status.fromThrowable(e);
       logger.info("scanAndMarkNoteByIvk failed,error {}", status.getDescription());
     }

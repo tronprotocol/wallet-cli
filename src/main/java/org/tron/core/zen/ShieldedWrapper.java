@@ -463,7 +463,6 @@ public class ShieldedWrapper {
     return true;
   }
 
-
   /**
    * load shielded address from file
    * @return
