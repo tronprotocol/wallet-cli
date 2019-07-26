@@ -6,7 +6,6 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
-import lombok.Getter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tron.api.GrpcAPI;
@@ -48,8 +47,6 @@ import org.tron.core.zen.ZenUtils;
 import org.tron.core.zen.address.DiversifierT;
 import org.tron.core.zen.address.ExpandedSpendingKey;
 import org.tron.core.zen.address.FullViewingKey;
-import org.tron.core.zen.address.IncomingViewingKey;
-import org.tron.core.zen.address.PaymentAddress;
 import org.tron.core.zen.address.SpendingKey;
 import org.tron.keystore.StringUtils;
 import org.tron.keystore.WalletFile;
@@ -70,7 +67,6 @@ public class WalletApiWrapper {
 
   private static final Logger logger = LoggerFactory.getLogger("WalletApiWrapper");
   private WalletApi wallet;
-  private final static boolean fromRPC = true;
 
   public String registerWallet(char[] password) throws CipherException, IOException {
     if (!WalletApi.passwordValid(password)) {
@@ -413,7 +409,6 @@ public class WalletApiWrapper {
     }
   }
 
-
   public Optional<ExchangeList> getExchangeListPaginated(long offset, long limit) {
     try {
       return WalletApi.getExchangeListPaginated(offset, limit);
@@ -422,7 +417,6 @@ public class WalletApiWrapper {
       return Optional.empty();
     }
   }
-
 
   public Optional<NodeList> listNodes() {
     try {
@@ -1022,59 +1016,33 @@ public class WalletApiWrapper {
   public Optional<ShieldedAddressInfo> getNewShieldedAddress() {
     ShieldedAddressInfo addressInfo = new ShieldedAddressInfo();
     try {
-
-      if (fromRPC) {
         Optional<BytesMessage> sk = WalletApi.getSpendingKey();
         Optional<DiversifierMessage> d = WalletApi.getDiversifier();
-//        System.out.println("d: " + ByteArray.toHexString(d.get().getD().toByteArray()));
 
         Optional<ExpandedSpendingKeyMessage> expandedSpendingKeyMessage = WalletApi.getExpandedSpendingKey(sk.get());
-//        System.out.println("ask: " + ByteArray.toHexString(expandedSpendingKeyMessage.get().getAsk().toByteArray()));
-//        System.out.println("nsk: " + ByteArray.toHexString(expandedSpendingKeyMessage.get().getNsk().toByteArray()));
-//        System.out.println("ovk: " + ByteArray.toHexString(expandedSpendingKeyMessage.get().getOvk().toByteArray()));
 
         BytesMessage.Builder askBuilder = BytesMessage.newBuilder();
         askBuilder.setValue(expandedSpendingKeyMessage.get().getAsk());
         Optional<BytesMessage> ak = WalletApi.getAkFromAsk(askBuilder.build());
-//        System.out.println("ak: " + ByteArray.toHexString(ak.get().getValue().toByteArray()));
 
         BytesMessage.Builder nskBuilder = BytesMessage.newBuilder();
         nskBuilder.setValue(expandedSpendingKeyMessage.get().getNsk());
         Optional<BytesMessage> nk = WalletApi.getNkFromNsk(nskBuilder.build());
-//        System.out.println("nk: " + ByteArray.toHexString(nk.get().getValue().toByteArray()));
 
         ViewingKeyMessage.Builder viewBuilder = ViewingKeyMessage.newBuilder();
         viewBuilder.setAk(ak.get().getValue());
         viewBuilder.setNk(nk.get().getValue());
         Optional<IncomingViewingKeyMessage> ivk = WalletApi.getIncomingViewingKey(viewBuilder.build());
-//        System.out.println("ivk: " + ByteArray.toHexString(ivk.get().getIvk().toByteArray()));
 
         IncomingViewingKeyDiversifierMessage.Builder builder = IncomingViewingKeyDiversifierMessage.newBuilder();
         builder.setD(d.get());
         builder.setIvk(ivk.get());
         Optional<PaymentAddressMessage> addressMessage = WalletApi.getZenPaymentAddress(builder.build());
-//        System.out.println("pkd: " +  ByteArray.toHexString(addressMessage.get().getPkD().toByteArray()));
-//        System.out.println("address: " + addressMessage.get().getPaymentAddress());
         addressInfo.setSk(sk.get().getValue().toByteArray());
         addressInfo.setD(new DiversifierT(d.get().getD().toByteArray()));
         addressInfo.setIvk(ivk.get().getIvk().toByteArray());
         addressInfo.setOvk(expandedSpendingKeyMessage.get().getOvk().toByteArray());
         addressInfo.setPkD(addressMessage.get().getPkD().toByteArray());
-
-      } else {
-        DiversifierT diversifier = new DiversifierT().random();
-        SpendingKey spendingKey = SpendingKey.random();
-
-        FullViewingKey fullViewingKey = spendingKey.fullViewingKey();
-        IncomingViewingKey incomingViewingKey = fullViewingKey.inViewingKey();
-        PaymentAddress paymentAddress = incomingViewingKey.address(diversifier).get();
-
-        addressInfo.setSk(spendingKey.getValue());
-        addressInfo.setD(diversifier);
-        addressInfo.setIvk(incomingViewingKey.getValue());
-        addressInfo.setOvk(fullViewingKey.getOvk());
-        addressInfo.setPkD(paymentAddress.getPkD());
-      }
 
       if (addressInfo.validateCheck()) {
         return Optional.of(addressInfo);
@@ -1141,16 +1109,7 @@ public class WalletApiWrapper {
   }
 
   public byte[] getRcm() {
-    if (fromRPC) {
-      return WalletApi.getRcm().get().getValue().toByteArray();
-    } else {
-      try {
-        return org.tron.core.zen.note.Note.generateR();
-      } catch (Exception e) {
-        e.printStackTrace();
-      }
-      return WalletApi.getRcm().get().getValue().toByteArray();
-    }
+    return WalletApi.getRcm().get().getValue().toByteArray();
   }
 
 }
