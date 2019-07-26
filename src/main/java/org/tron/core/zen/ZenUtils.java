@@ -1,8 +1,6 @@
 package org.tron.core.zen;
 
-import org.tron.common.utils.Base58;
 import org.tron.core.exception.CipherException;
-
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;

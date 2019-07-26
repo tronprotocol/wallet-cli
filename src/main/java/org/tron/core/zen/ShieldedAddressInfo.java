@@ -1,17 +1,11 @@
 package org.tron.core.zen;
 
-import java.security.InvalidAlgorithmParameterException;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.Optional;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
-import org.apache.commons.lang3.ArrayUtils;
 import org.tron.common.utils.Base58;
-import org.tron.common.utils.ByteArray;
 import org.tron.core.exception.CipherException;
 import org.tron.core.exception.ZksnarkException;
 import org.tron.core.zen.address.DiversifierT;
@@ -20,13 +14,6 @@ import org.tron.core.zen.address.IncomingViewingKey;
 import org.tron.core.zen.address.KeyIo;
 import org.tron.core.zen.address.PaymentAddress;
 import org.tron.core.zen.address.SpendingKey;
-
-import javax.crypto.BadPaddingException;
-import javax.crypto.Cipher;
-import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.NoSuchPaddingException;
-import javax.crypto.spec.IvParameterSpec;
-import javax.crypto.spec.SecretKeySpec;
 
 @AllArgsConstructor
 public class ShieldedAddressInfo {
@@ -128,7 +115,7 @@ public class ShieldedAddressInfo {
     ivk = Arrays.copyOfRange(text, 32, 64);
     ovk = Arrays.copyOfRange(text, 64, 96);
     d = new DiversifierT(Arrays.copyOfRange(text, 96, 107));
-    pkD = Arrays.copyOfRange(text, 107, 139);;
+    pkD = Arrays.copyOfRange(text, 107, 139);
 
     if (validateCheck()) {
       return true;

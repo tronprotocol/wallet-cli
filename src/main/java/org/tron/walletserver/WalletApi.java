@@ -430,9 +430,9 @@ public class WalletApi {
       org.tron.keystore.StringUtils.clear(password);
 
       transaction = TransactionUtils.sign(transaction, this.getEcKey(walletFile, passwd));
-      System.out
-          .println("current transaction hex string is " + ByteArray
-              .toHexString(transaction.toByteArray()));
+//      System.out
+//          .println("current transaction hex string is " + ByteArray
+//              .toHexString(transaction.toByteArray()));
       org.tron.keystore.StringUtils.clear(passwd);
 
       TransactionSignWeight weight = getTransactionSignWeight(transaction);
@@ -468,9 +468,9 @@ public class WalletApi {
       org.tron.keystore.StringUtils.clear(password);
 
       transaction = TransactionUtils.sign(transaction, this.getEcKey(walletFile, passwd));
-      System.out
-          .println("current transaction hex string is " + ByteArray
-              .toHexString(transaction.toByteArray()));
+//      System.out
+//          .println("current transaction hex string is " + ByteArray
+//              .toHexString(transaction.toByteArray()));
       org.tron.keystore.StringUtils.clear(passwd);
 
       TransactionSignWeight weight = getTransactionSignWeight(transaction);
