@@ -463,12 +463,11 @@ public class ShieldedWrapper {
     return true;
   }
 
-
   /**
    * load shielded address from file
    * @return
    */
-  public boolean loadAddressFromFile() throws CipherException {
+  private boolean loadAddressFromFile() throws CipherException {
     if (ArrayUtils.isEmpty(shieldedSkey)){
       return false;
     }
@@ -492,7 +491,7 @@ public class ShieldedWrapper {
    * @param addressInfo
    * @return
    */
-  public boolean appendAddressInfoToFile(final ShieldedAddressInfo addressInfo) throws CipherException {
+  private boolean appendAddressInfoToFile(final ShieldedAddressInfo addressInfo) throws CipherException {
     if (ArrayUtils.isEmpty(shieldedSkey)){
       return false;
     }
@@ -507,7 +506,7 @@ public class ShieldedWrapper {
     return true;
   }
 
-  public boolean shieldedSkeyFileExist() {
+  private boolean shieldedSkeyFileExist() {
     File file = new File(SHIELDED_SKEY_FILE_NAME);
     return file != null && file.exists();
   }
@@ -538,7 +537,7 @@ public class ShieldedWrapper {
     return SKeyEncryptor.decrypt2PrivateBytes(passwd, skey);
   }
 
-  public byte[] generateSkey() throws IOException, CipherException {
+  private byte[] generateSkey() throws IOException, CipherException {
     File file = new File(SHIELDED_SKEY_FILE_NAME);
     byte[] skey = new byte[16];
     new SecureRandom().nextBytes(skey);
