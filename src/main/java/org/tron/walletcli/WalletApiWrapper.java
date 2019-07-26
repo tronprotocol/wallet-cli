@@ -6,7 +6,6 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
-import lombok.Getter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tron.api.GrpcAPI;
@@ -48,8 +47,6 @@ import org.tron.core.zen.ZenUtils;
 import org.tron.core.zen.address.DiversifierT;
 import org.tron.core.zen.address.ExpandedSpendingKey;
 import org.tron.core.zen.address.FullViewingKey;
-import org.tron.core.zen.address.IncomingViewingKey;
-import org.tron.core.zen.address.PaymentAddress;
 import org.tron.core.zen.address.SpendingKey;
 import org.tron.keystore.StringUtils;
 import org.tron.keystore.WalletFile;
@@ -70,10 +67,6 @@ public class WalletApiWrapper {
 
   private static final Logger logger = LoggerFactory.getLogger("WalletApiWrapper");
   private WalletApi wallet;
-  @Getter
-  private ShieldedWrapper shieldedWrapper = new ShieldedWrapper();
-
-  private final static boolean fromRPC = true;
 
   public String registerWallet(char[] password) throws CipherException, IOException {
     if (!WalletApi.passwordValid(password)) {
@@ -142,7 +135,6 @@ public class WalletApiWrapper {
       return false;
     }
     wallet.setLogin();
-    shieldedWrapper.setWallet(wallet);
     return true;
   }
 
@@ -417,7 +409,6 @@ public class WalletApiWrapper {
     }
   }
 
-
   public Optional<ExchangeList> getExchangeListPaginated(long offset, long limit) {
     try {
       return WalletApi.getExchangeListPaginated(offset, limit);
@@ -426,7 +417,6 @@ public class WalletApiWrapper {
       return Optional.empty();
     }
   }
-
 
   public Optional<NodeList> listNodes() {
     try {
@@ -743,11 +733,6 @@ public class WalletApiWrapper {
   public boolean sendShieldedCoin(String fromAddress, long fromAmount, List<Long> shieldedInputList,
       List<GrpcAPI.Note> shieldedOutputList, String toAddress, long toAmount)
       throws CipherException, IOException, CancelException, ZksnarkException {
-    if (wallet == null || !wallet.isLoginState()) {
-      logger.warn("Warning: sendShieldedCoin failed,  Please login first !!");
-      return false;
-    }
-
     PrivateParameters.Builder builder = PrivateParameters.newBuilder();
     if (!StringUtil.isNullOrEmpty(fromAddress)) {
       byte[] from = WalletApi.decodeFromBase58Check(fromAddress);
@@ -770,14 +755,14 @@ public class WalletApiWrapper {
     if (shieldedInputList.size() > 0) {
       OutputPointInfo.Builder request = OutputPointInfo.newBuilder();
       for (int i = 0; i < shieldedInputList.size(); ++i) {
-        ShieldedNoteInfo noteInfo = shieldedWrapper.getUtxoMapNote().get(shieldedInputList.get(i));
+        ShieldedNoteInfo noteInfo = ShieldedWrapper.getInstance().getUtxoMapNote().get(shieldedInputList.get(i));
         OutputPoint.Builder outPointBuild = OutputPoint.newBuilder();
         outPointBuild.setHash(ByteString.copyFrom(ByteArray.fromHexString(noteInfo.getTrxId())));
         outPointBuild.setIndex(noteInfo.getIndex());
         request.addOutPoints(outPointBuild.build());
       }
       Optional<IncrementalMerkleVoucherInfo> merkleVoucherInfo =
-          wallet.GetMerkleTreeVoucherInfo(request.build(), true);
+              WalletApi.GetMerkleTreeVoucherInfo(request.build(), true);
       if (!merkleVoucherInfo.isPresent()
           || merkleVoucherInfo.get().getVouchersCount() != shieldedInputList.size()) {
         System.out.println("Can't get all merkel tree, please check the notes.");
@@ -785,11 +770,11 @@ public class WalletApiWrapper {
       }
 
       for (int i = 0; i < shieldedInputList.size(); ++i) {
-        ShieldedNoteInfo noteInfo = shieldedWrapper.getUtxoMapNote().get(shieldedInputList.get(i));
+        ShieldedNoteInfo noteInfo = ShieldedWrapper.getInstance().getUtxoMapNote().get(shieldedInputList.get(i));
         if (i == 0) {
           String shieldedAddress = noteInfo.getPaymentAddress();
           ShieldedAddressInfo addressInfo =
-              shieldedWrapper.getShieldedAddressInfoMap().get(shieldedAddress);
+                  ShieldedWrapper.getInstance().getShieldedAddressInfoMap().get(shieldedAddress);
           SpendingKey spendingKey = new SpendingKey(addressInfo.getSk());
           ExpandedSpendingKey expandedSpendingKey = spendingKey.expandedSpendingKey();
 
@@ -832,18 +817,13 @@ public class WalletApiWrapper {
       }
     }
 
-    return wallet.sendShieldedCoin(builder.build());
+    return WalletApi.sendShieldedCoin(builder.build(), wallet);
   }
 
   public boolean sendShieldedCoinWithoutAsk(String fromAddress, long fromAmount,
       List<Long> shieldedInputList,
       List<GrpcAPI.Note> shieldedOutputList, String toAddress, long toAmount)
       throws CipherException, IOException, CancelException, ZksnarkException {
-    if (wallet == null || !wallet.isLoginState()) {
-      logger.warn("Warning: sendShieldedCoinWithoutAsk failed,  Please login first !!");
-      return false;
-    }
-
     PrivateParametersWithoutAsk.Builder builder = PrivateParametersWithoutAsk.newBuilder();
     if (!StringUtil.isNullOrEmpty(fromAddress)) {
       byte[] from = WalletApi.decodeFromBase58Check(fromAddress);
@@ -867,14 +847,14 @@ public class WalletApiWrapper {
     if (shieldedInputList.size() > 0) {
       OutputPointInfo.Builder request = OutputPointInfo.newBuilder();
       for (int i = 0; i < shieldedInputList.size(); ++i) {
-        ShieldedNoteInfo noteInfo = shieldedWrapper.getUtxoMapNote().get(shieldedInputList.get(i));
+        ShieldedNoteInfo noteInfo = ShieldedWrapper.getInstance().getUtxoMapNote().get(shieldedInputList.get(i));
         OutputPoint.Builder outPointBuild = OutputPoint.newBuilder();
         outPointBuild.setHash(ByteString.copyFrom(ByteArray.fromHexString(noteInfo.getTrxId())));
         outPointBuild.setIndex(noteInfo.getIndex());
         request.addOutPoints(outPointBuild.build());
       }
       Optional<IncrementalMerkleVoucherInfo> merkleVoucherInfo =
-          wallet.GetMerkleTreeVoucherInfo(request.build(), true);
+          WalletApi.GetMerkleTreeVoucherInfo(request.build(), true);
       if (!merkleVoucherInfo.isPresent()
           || merkleVoucherInfo.get().getVouchersCount() != shieldedInputList.size()) {
         System.out.println("Can't get all merkel tree, please check the notes.");
@@ -882,11 +862,11 @@ public class WalletApiWrapper {
       }
 
       for (int i = 0; i < shieldedInputList.size(); ++i) {
-        ShieldedNoteInfo noteInfo = shieldedWrapper.getUtxoMapNote().get(shieldedInputList.get(i));
+        ShieldedNoteInfo noteInfo = ShieldedWrapper.getInstance().getUtxoMapNote().get(shieldedInputList.get(i));
         if (i == 0) {
           String shieldAddress = noteInfo.getPaymentAddress();
           ShieldedAddressInfo addressInfo =
-              shieldedWrapper.getShieldedAddressInfoMap().get(shieldAddress);
+                  ShieldedWrapper.getInstance().getShieldedAddressInfoMap().get(shieldAddress);
           SpendingKey spendingKey = new SpendingKey(addressInfo.getSk());
           ExpandedSpendingKey expandedSpendingKey = spendingKey.expandedSpendingKey();
 
@@ -931,32 +911,23 @@ public class WalletApiWrapper {
       }
     }
 
-    return wallet.sendShieldedCoinWithoutAsk(builder.build(), ask);
+    return WalletApi.sendShieldedCoinWithoutAsk(builder.build(), ask, wallet);
   }
 
   public boolean resetShieldedNote() {
-    if (wallet == null || !wallet.isLoginState()) {
-      logger.warn("Warning: ResetShieldedNote failed,  Please login first !!");
-      return false;
-    }
     System.out.println("Start to reset reset shielded notes, please wait ...");
-    shieldedWrapper.setResetNote(true);
+    ShieldedWrapper.getInstance().setResetNote(true);
     return true;
   }
 
   public boolean scanNoteByIvk(final String ivk, long start, long end ) {
-    if (wallet == null || !wallet.isLoginState()) {
-      logger.warn("Warning: scanNoteByIvk failed,  Please login first !!");
-      return false;
-    }
-
     GrpcAPI.IvkDecryptParameters ivkDecryptParameters = IvkDecryptParameters.newBuilder()
         .setStartBlockIndex(start)
         .setEndBlockIndex(end)
         .setIvk(ByteString.copyFrom(ByteArray.fromHexString(ivk)))
         .build();
 
-    Optional<DecryptNotes> decryptNotes = wallet.scanNoteByIvk(ivkDecryptParameters, true);
+    Optional<DecryptNotes> decryptNotes = WalletApi.scanNoteByIvk(ivkDecryptParameters, true);
     if(!decryptNotes.isPresent()){
       logger.info("scanNoteByIvk failed !!!");
     } else {
@@ -977,12 +948,7 @@ public class WalletApiWrapper {
   }
 
   public boolean scanAndMarkNoteByAddress(final String shieldedAddress, long start, long end ) {
-    if (wallet == null || !wallet.isLoginState()) {
-      logger.warn("Warning: scanandmarknotebyaddress failed,  Please login first !!");
-      return false;
-    }
-
-    ShieldedAddressInfo addressInfo = shieldedWrapper.getShieldedAddressInfoMap().get(shieldedAddress);
+    ShieldedAddressInfo addressInfo = ShieldedWrapper.getInstance().getShieldedAddressInfoMap().get(shieldedAddress);
     if (addressInfo == null ) {
       System.out.println("Can't find shieldedAddress in local, please check shieldedAddress.");
       return false;
@@ -996,7 +962,7 @@ public class WalletApiWrapper {
       builder.setAk(ByteString.copyFrom(addressInfo.getFullViewingKey().getAk()));
       builder.setNk(ByteString.copyFrom(addressInfo.getFullViewingKey().getNk()));
 
-      Optional<DecryptNotesMarked> decryptNotes = wallet.scanAndMarkNoteByIvk(builder.build());
+      Optional<DecryptNotesMarked> decryptNotes = WalletApi.scanAndMarkNoteByIvk(builder.build());
       if(decryptNotes.isPresent()){
         for(int i=0; i<decryptNotes.get().getNoteTxsList().size();i++) {
           DecryptNotesMarked.NoteTx noteTx = decryptNotes.get().getNoteTxs(i);
@@ -1021,18 +987,13 @@ public class WalletApiWrapper {
   }
 
   public boolean scanShieldedNoteByovk(final String shieldedAddress, long start, long end ) {
-    if (wallet == null || !wallet.isLoginState()) {
-      logger.warn("Warning: scannotebyovk failed,  Please login first !!");
-      return false;
-    }
-
     GrpcAPI.OvkDecryptParameters ovkDecryptParameters = OvkDecryptParameters.newBuilder()
         .setStartBlockIndex(start)
         .setEndBlockIndex(end)
         .setOvk(ByteString.copyFrom(ByteArray.fromHexString(shieldedAddress)))
         .build();
 
-    Optional<DecryptNotes> decryptNotes = wallet.scanNoteByOvk(ovkDecryptParameters, true);
+    Optional<DecryptNotes> decryptNotes = WalletApi.scanNoteByOvk(ovkDecryptParameters, true);
     if( !decryptNotes.isPresent() ){
       logger.info("ScanNoteByOvk failed !!!");
     }else{
@@ -1055,59 +1016,33 @@ public class WalletApiWrapper {
   public Optional<ShieldedAddressInfo> getNewShieldedAddress() {
     ShieldedAddressInfo addressInfo = new ShieldedAddressInfo();
     try {
-
-      if (fromRPC) {
         Optional<BytesMessage> sk = WalletApi.getSpendingKey();
         Optional<DiversifierMessage> d = WalletApi.getDiversifier();
-//        System.out.println("d: " + ByteArray.toHexString(d.get().getD().toByteArray()));
 
         Optional<ExpandedSpendingKeyMessage> expandedSpendingKeyMessage = WalletApi.getExpandedSpendingKey(sk.get());
-//        System.out.println("ask: " + ByteArray.toHexString(expandedSpendingKeyMessage.get().getAsk().toByteArray()));
-//        System.out.println("nsk: " + ByteArray.toHexString(expandedSpendingKeyMessage.get().getNsk().toByteArray()));
-//        System.out.println("ovk: " + ByteArray.toHexString(expandedSpendingKeyMessage.get().getOvk().toByteArray()));
 
         BytesMessage.Builder askBuilder = BytesMessage.newBuilder();
         askBuilder.setValue(expandedSpendingKeyMessage.get().getAsk());
         Optional<BytesMessage> ak = WalletApi.getAkFromAsk(askBuilder.build());
-//        System.out.println("ak: " + ByteArray.toHexString(ak.get().getValue().toByteArray()));
 
         BytesMessage.Builder nskBuilder = BytesMessage.newBuilder();
         nskBuilder.setValue(expandedSpendingKeyMessage.get().getNsk());
         Optional<BytesMessage> nk = WalletApi.getNkFromNsk(nskBuilder.build());
-//        System.out.println("nk: " + ByteArray.toHexString(nk.get().getValue().toByteArray()));
 
         ViewingKeyMessage.Builder viewBuilder = ViewingKeyMessage.newBuilder();
         viewBuilder.setAk(ak.get().getValue());
         viewBuilder.setNk(nk.get().getValue());
         Optional<IncomingViewingKeyMessage> ivk = WalletApi.getIncomingViewingKey(viewBuilder.build());
-//        System.out.println("ivk: " + ByteArray.toHexString(ivk.get().getIvk().toByteArray()));
 
         IncomingViewingKeyDiversifierMessage.Builder builder = IncomingViewingKeyDiversifierMessage.newBuilder();
         builder.setD(d.get());
         builder.setIvk(ivk.get());
         Optional<PaymentAddressMessage> addressMessage = WalletApi.getZenPaymentAddress(builder.build());
-//        System.out.println("pkd: " +  ByteArray.toHexString(addressMessage.get().getPkD().toByteArray()));
-//        System.out.println("address: " + addressMessage.get().getPaymentAddress());
         addressInfo.setSk(sk.get().getValue().toByteArray());
         addressInfo.setD(new DiversifierT(d.get().getD().toByteArray()));
         addressInfo.setIvk(ivk.get().getIvk().toByteArray());
         addressInfo.setOvk(expandedSpendingKeyMessage.get().getOvk().toByteArray());
         addressInfo.setPkD(addressMessage.get().getPkD().toByteArray());
-
-      } else {
-        DiversifierT diversifier = new DiversifierT().random();
-        SpendingKey spendingKey = SpendingKey.random();
-
-        FullViewingKey fullViewingKey = spendingKey.fullViewingKey();
-        IncomingViewingKey incomingViewingKey = fullViewingKey.inViewingKey();
-        PaymentAddress paymentAddress = incomingViewingKey.address(diversifier).get();
-
-        addressInfo.setSk(spendingKey.getValue());
-        addressInfo.setD(diversifier);
-        addressInfo.setIvk(incomingViewingKey.getValue());
-        addressInfo.setOvk(fullViewingKey.getOvk());
-        addressInfo.setPkD(paymentAddress.getPkD());
-      }
 
       if (addressInfo.validateCheck()) {
         return Optional.of(addressInfo);
@@ -1120,7 +1055,7 @@ public class WalletApiWrapper {
   }
 
   public String getShieldedNulltifier(long index) {
-    ShieldedNoteInfo noteInfo = shieldedWrapper.getUtxoMapNote().get(index);
+    ShieldedNoteInfo noteInfo = ShieldedWrapper.getInstance().getUtxoMapNote().get(index);
     if (noteInfo == null) {
       return null;
     }
@@ -1131,7 +1066,7 @@ public class WalletApiWrapper {
     outPointBuild.setIndex(noteInfo.getIndex());
     request.addOutPoints(outPointBuild.build());
     Optional<IncrementalMerkleVoucherInfo> merkleVoucherInfo =
-        wallet.GetMerkleTreeVoucherInfo(request.build(), true);
+        WalletApi.GetMerkleTreeVoucherInfo(request.build(), true);
     if (!merkleVoucherInfo.isPresent() || merkleVoucherInfo.get().getVouchersCount() < 1) {
       System.out.println("get merkleVoucherInfo failure.");
       return null;
@@ -1151,7 +1086,7 @@ public class WalletApiWrapper {
     System.out.println("memo " + ZenUtils.getMemo(noteInfo.getMemo()));
 
     String shieldedAddress = noteInfo.getPaymentAddress();
-    ShieldedAddressInfo addressInfo = shieldedWrapper.getShieldedAddressInfoMap()
+    ShieldedAddressInfo addressInfo = ShieldedWrapper.getInstance().getShieldedAddressInfoMap()
         .get(shieldedAddress);
 
     SpendingKey spendingKey = new SpendingKey(addressInfo.getSk());
@@ -1164,7 +1099,7 @@ public class WalletApiWrapper {
       builder.setAk(ByteString.copyFrom(fullViewingKey.getAk()));
       builder.setNk(ByteString.copyFrom(fullViewingKey.getNk()));
 
-      Optional<BytesMessage> nullifier = wallet.createShieldedNullifier(builder.build());
+      Optional<BytesMessage> nullifier = WalletApi.createShieldedNullifier(builder.build());
       return ByteArray.toHexString(nullifier.get().getValue().toByteArray());
 
     } catch (Exception e) {
@@ -1174,16 +1109,7 @@ public class WalletApiWrapper {
   }
 
   public byte[] getRcm() {
-    if (fromRPC) {
-      return wallet.getRcm().get().getValue().toByteArray();
-    } else {
-      try {
-        return org.tron.core.zen.note.Note.generateR();
-      } catch (Exception e) {
-        e.printStackTrace();
-      }
-      return wallet.getRcm().get().getValue().toByteArray();
-    }
+    return WalletApi.getRcm().get().getValue().toByteArray();
   }
 
 }

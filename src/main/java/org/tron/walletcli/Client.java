@@ -63,6 +63,7 @@ import org.tron.core.exception.EncodingException;
 import org.tron.core.exception.ZksnarkException;
 import org.tron.core.zen.ShieldedAddressInfo;
 import org.tron.core.zen.ShieldedNoteInfo;
+import org.tron.core.zen.ShieldedWrapper;
 import org.tron.core.zen.ZenUtils;
 import org.tron.keystore.StringUtils;
 import org.tron.protos.Contract.AssetIssueContract;
@@ -81,23 +82,6 @@ public class Client {
 
   private static final Logger logger = LoggerFactory.getLogger("Client");
   private WalletApiWrapper walletApiWrapper = new WalletApiWrapper();
-
-  private char[] inputPassword2Twice() throws IOException {
-    char[] password0;
-    while (true) {
-      System.out.println("Please input password.");
-      password0 = Utils.inputPassword(true);
-      System.out.println("Please input password again.");
-      char[] password1 = Utils.inputPassword(true);
-      boolean flag = Arrays.equals(password0, password1);
-      StringUtils.clear(password1);
-      if (flag) {
-        break;
-      }
-      System.out.println("The passwords do not match, please input again.");
-    }
-    return password0;
-  }
 
   private byte[] inputPrivateKey() throws IOException {
     byte[] temp = new byte[128];
@@ -142,7 +126,7 @@ public class Client {
   }
 
   private void registerWallet() throws CipherException, IOException {
-    char[] password = inputPassword2Twice();
+    char[] password = Utils.inputPassword2Twice();
     String fileName = walletApiWrapper.registerWallet(password);
     StringUtils.clear(password);
 
@@ -154,7 +138,7 @@ public class Client {
   }
 
   private void importWallet() throws CipherException, IOException {
-    char[] password = inputPassword2Twice();
+    char[] password = Utils.inputPassword2Twice();
     byte[] priKey = inputPrivateKey();
 
     String fileName = walletApiWrapper.importWallet(password, priKey);
@@ -169,7 +153,7 @@ public class Client {
   }
 
   private void importwalletByBase64() throws CipherException, IOException {
-    char[] password = inputPassword2Twice();
+    char[] password = Utils.inputPassword2Twice();
     byte[] priKey = inputPrivateKey64();
 
     String fileName = walletApiWrapper.importWallet(password, priKey);
@@ -187,7 +171,7 @@ public class Client {
     System.out.println("Please input old password.");
     char[] oldPassword = Utils.inputPassword(false);
     System.out.println("Please input new password.");
-    char[] newPassword = inputPassword2Twice();
+    char[] newPassword = Utils.inputPassword2Twice();
     StringUtils.clear(oldPassword);
     StringUtils.clear(newPassword);
     if (walletApiWrapper.changePassword(oldPassword, newPassword)) {
@@ -210,6 +194,15 @@ public class Client {
   private void logout() {
     walletApiWrapper.logout();
     System.out.println("Logout successful !!!");
+  }
+
+  private void loadShieldedWallet() throws CipherException, IOException {
+    boolean result = ShieldedWrapper.getInstance().loadShieldWallet();
+    if (result) {
+      System.out.println("LoadShieldedWallet successful !!!");
+    } else {
+      System.out.println("LoadShieldedWallet failed !!!");
+    }
   }
 
   private void backupWallet() throws IOException, CipherException {
@@ -1905,26 +1898,34 @@ public class Client {
     }
   }
 
-  private void generateShieldedAddress(String[] parameters) {
+  private void generateShieldedAddress(String[] parameters) throws IOException, CipherException {
     int addressNum = 1;
     if (parameters.length>0 && !StringUtil.isNullOrEmpty(parameters[0])) {
       addressNum = Integer.valueOf(parameters[0]);
     }
 
+    ShieldedWrapper.getInstance().initShieldedWaletFile();
+
     logger.info("ShieldedAddress list:");
     for (int i=0; i<addressNum; ++i ) {
       Optional<ShieldedAddressInfo> addressInfo = walletApiWrapper.getNewShieldedAddress();
       if ( addressInfo.isPresent() ) {
-        if ( walletApiWrapper.getShieldedWrapper().addNewShieldedAddress( addressInfo.get()) ) {
+        if ( ShieldedWrapper.getInstance().addNewShieldedAddress(addressInfo.get()) ) {
           logger.info(addressInfo.get().getAddress());
         }
       }
     }
+
     logger.info("GenerateShieldedAddress successful !!");
   }
 
   private void listShieldedAddress() {
-    List<String> listAddress = walletApiWrapper.getShieldedWrapper().getShieldedAddressList();
+    if (!ShieldedWrapper.getInstance().ifShieldedWalletLoaded()){
+      System.out.println("ListShieldedAddress failed, please loadShieldedWallet first!");
+      return;
+    }
+
+    List<String> listAddress = ShieldedWrapper.getInstance().getShieldedAddressList();
     logger.info("ShieldedAddress :");
     for (String address : listAddress ) {
       logger.info(address);
@@ -1956,7 +1957,7 @@ public class Client {
     String shieldedInputAddress = "";
     for (int i = 0; i < shieldedInputNum; ++i) {
       long mapIndex = Long.valueOf(parameters[parameterIndex++]);
-      ShieldedNoteInfo noteInfo = walletApiWrapper.getShieldedWrapper().getUtxoMapNote().get(mapIndex);
+      ShieldedNoteInfo noteInfo = ShieldedWrapper.getInstance().getUtxoMapNote().get(mapIndex);
       if (noteInfo == null) {
         System.out.println("Can't find index " + mapIndex + " note.");
         return false;
@@ -2035,6 +2036,11 @@ public class Client {
       return;
     }
 
+    if (!ShieldedWrapper.getInstance().ifShieldedWalletLoaded()){
+      System.out.println("SendShieldedCoin failed, please loadShieldedWallet first!");
+      return;
+    }
+
     boolean result = sendShieldedCoinNormal(parameters, true);
     if (result) {
       logger.info("SendShieldedCoin successful !!");
@@ -2053,6 +2059,11 @@ public class Client {
       return;
     }
 
+    if (!ShieldedWrapper.getInstance().ifShieldedWalletLoaded()){
+      System.out.println("SendShieldedCoinWithoutAsk failed, please loadShieldedWallet first!");
+      return;
+    }
+
     boolean result = sendShieldedCoinNormal(parameters, false);
     if (result) {
       logger.info("SendShieldedCoinWithoutAsk successful !!");
@@ -2062,6 +2073,11 @@ public class Client {
   }
 
   private void listShieldedNote(String[] parameters) {
+    if (!ShieldedWrapper.getInstance().ifShieldedWalletLoaded()){
+      System.out.println("ListShieldedNote failed, please loadShieldedWallet first!");
+      return;
+    }
+
     int showType = 0;
     if (parameters.length > 0) {
       if (!StringUtil.isNullOrEmpty(parameters[0])) {
@@ -2070,7 +2086,7 @@ public class Client {
     }
 
     if (showType == 0 ) {
-      List<String> utxoList = walletApiWrapper.getShieldedWrapper().getvalidateSortUtxoList();
+      List<String> utxoList = ShieldedWrapper.getInstance().getvalidateSortUtxoList();
       if (utxoList.size() == 0 ) {
         System.out.println("Unspend note is 0.");
       } else {
@@ -2080,7 +2096,7 @@ public class Client {
         }
       }
     } else {
-      Map<Long, ShieldedNoteInfo> noteMap = walletApiWrapper.getShieldedWrapper().getUtxoMapNote();
+      Map<Long, ShieldedNoteInfo> noteMap = ShieldedWrapper.getInstance().getUtxoMapNote();
       System.out.println("All note list like:");
       for (Entry<Long, ShieldedNoteInfo> entry : noteMap.entrySet() ) {
         String string = entry.getValue().getPaymentAddress() + " ";
@@ -2096,7 +2112,7 @@ public class Client {
         System.out.println(string);
       }
 
-      List<ShieldedNoteInfo> noteList = walletApiWrapper.getShieldedWrapper().getSpendUtxoList();
+      List<ShieldedNoteInfo> noteList = ShieldedWrapper.getInstance().getSpendUtxoList();
       for (ShieldedNoteInfo noteInfo : noteList ) {
         String string = noteInfo.getPaymentAddress() + " ";
         string += noteInfo.getValue();
@@ -2114,6 +2130,11 @@ public class Client {
   }
 
   private void resetShieldedNote() {
+    if (!ShieldedWrapper.getInstance().ifShieldedWalletLoaded()){
+      System.out.println("ResetShieldedNote failed, please loadShieldedWallet first!");
+      return;
+    }
+
     walletApiWrapper.resetShieldedNote();
   }
 
@@ -2123,6 +2144,7 @@ public class Client {
       System.out.println("ScanNotebyIvk ivk startNum endNum ");
       return;
     }
+
     long startNum,endNum;
     try {
       startNum = Long.parseLong(parameters[1]);
@@ -2186,7 +2208,7 @@ public class Client {
     }
   }
 
-  private void getSpendingKey(String[] parameters) {
+  private void getSpendingKey() {
     Optional<BytesMessage> sk = WalletApi.getSpendingKey();
     if (!sk.isPresent()) {
       logger.info("getSpendingKey failed !!!");
@@ -2415,6 +2437,7 @@ public class Client {
     System.out.println("ListWitnesses");
     System.out.println("Login");
     System.out.println("Logout");
+    System.out.println("LoadShieledWallet");
     System.out.println("ParticipateAssetIssue");
     System.out.println("RegisterWallet");
     System.out.println("ResetShieldedNote");
@@ -2494,9 +2517,6 @@ public class Client {
   }
 
   private void run() {
-
-    walletApiWrapper.getShieldedWrapper().Init();
-
     Scanner in = new Scanner(System.in);
     System.out.println(" ");
     System.out.println("Welcome to Tron Wallet-Cli");
@@ -2550,6 +2570,10 @@ public class Client {
           }
           case "logout": {
             logout();
+            break;
+          }
+          case "loadshieldedwallet": {
+            loadShieldedWallet();
             break;
           }
           case "backupwallet": {
@@ -2821,7 +2845,7 @@ public class Client {
             break;
           }
           case "getspendingkey": {
-            getSpendingKey(parameters);
+            getSpendingKey();
             break;
           }
           case "getexpandedspendingkey": {

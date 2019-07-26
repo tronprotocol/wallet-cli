@@ -192,4 +192,13 @@ public class WalletUtils {
 //
 //        return cleanInput.length() == ADDRESS_LENGTH_IN_HEX;
 //    }
+
+  public static void generateSkeyFile(SKeyCapsule skey, File file)
+          throws IOException {
+    objectMapper.writeValue(file, skey);
+  }
+
+  public static SKeyCapsule loadSkeyFile(File source) throws IOException {
+    return objectMapper.readValue(source, SKeyCapsule.class);
+  }
 }

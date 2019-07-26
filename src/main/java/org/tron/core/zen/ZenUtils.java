@@ -1,5 +1,12 @@
 package org.tron.core.zen;
 
+import org.tron.core.exception.CipherException;
+import javax.crypto.BadPaddingException;
+import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
+import javax.crypto.spec.IvParameterSpec;
+import javax.crypto.spec.SecretKeySpec;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -10,7 +17,12 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.nio.charset.Charset;
+import java.security.InvalidAlgorithmParameterException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class ZenUtils {
@@ -99,4 +111,43 @@ public class ZenUtils {
     return new String(inputCheck, Charset.forName("UTF-8"));
   }
 
+
+  public static byte[] aesCtrEncrypt(byte[] text, byte[] encryptKey) throws CipherException {
+    try {
+      byte[] iv = new byte[16];
+      new SecureRandom().nextBytes(iv);
+      IvParameterSpec ivParameterSpec = new IvParameterSpec(iv);
+      Cipher cipher = Cipher.getInstance("AES/CTR/NoPadding");
+
+      SecretKeySpec secretKeySpec = new SecretKeySpec(encryptKey, "AES");
+      cipher.init(Cipher.ENCRYPT_MODE, secretKeySpec, ivParameterSpec);
+      byte[] cipherText = cipher.doFinal(text);
+      byte[] result = new byte[cipherText.length + iv.length];
+      System.arraycopy(iv, 0, result, 0, iv.length);
+      System.arraycopy(cipherText, 0, result, iv.length, cipherText.length);
+      return result;
+    } catch (NoSuchPaddingException | NoSuchAlgorithmException
+            | InvalidAlgorithmParameterException | InvalidKeyException
+            | BadPaddingException | IllegalBlockSizeException e) {
+      throw new CipherException("Error performing cipher operation", e);
+    }
+  }
+
+  public static byte[] aesCtrDecrypt(byte[] cipherText, byte[] encryptKey) throws CipherException {
+    try {
+      byte[] iv = Arrays.copyOfRange(cipherText, 0, 16);
+      cipherText = Arrays.copyOfRange(cipherText, iv.length, cipherText.length);
+
+      IvParameterSpec ivParameterSpec = new IvParameterSpec(iv);
+      Cipher cipher = Cipher.getInstance("AES/CTR/NoPadding");
+
+      SecretKeySpec secretKeySpec = new SecretKeySpec(encryptKey, "AES");
+      cipher.init(Cipher.DECRYPT_MODE, secretKeySpec, ivParameterSpec);
+      return cipher.doFinal(cipherText);
+    } catch (NoSuchPaddingException | NoSuchAlgorithmException
+            | InvalidAlgorithmParameterException | InvalidKeyException
+            | BadPaddingException | IllegalBlockSizeException e) {
+      throw new CipherException("Error performing cipher operation", e);
+    }
+  }
 }

@@ -2,23 +2,28 @@ package org.tron.core.zen;
 
 import com.google.protobuf.ByteString;
 import io.netty.util.internal.StringUtil;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+
+import java.io.File;
+import java.io.IOException;
+import java.security.SecureRandom;
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import lombok.Getter;
 import lombok.Setter;
+import org.apache.commons.lang3.ArrayUtils;
 import org.tron.api.GrpcAPI.DecryptNotes;
 import org.tron.api.GrpcAPI.DecryptNotes.NoteTx;
 import org.tron.api.GrpcAPI.IvkDecryptParameters;
 import org.tron.api.GrpcAPI.Note;
 import org.tron.api.GrpcAPI.NoteParameters;
 import org.tron.api.GrpcAPI.SpendResult;
+import org.tron.common.utils.Base58;
 import org.tron.common.utils.ByteArray;
+import org.tron.common.utils.Utils;
+import org.tron.core.exception.CipherException;
+import org.tron.keystore.*;
 import org.tron.protos.Protocol.Block;
 import org.tron.walletserver.WalletApi;
 
@@ -29,10 +34,12 @@ public class ShieldedWrapper {
   private final static String UNSPEND_NOTE_FILE_NAME = PREFIX_FOLDER + "/unspendnote";
   private final static String SPEND_NOTE_FILE_NAME = PREFIX_FOLDER + "/spendnote";
   private final static String SHIELDED_ADDRESS_FILE_NAME = PREFIX_FOLDER + "/shieldedaddress";
-
-  private WalletApi wallet;
+  private final static String SHIELDED_SKEY_FILE_NAME = PREFIX_FOLDER + "/shieldedskey.json";
   private static AtomicLong nodeIndex = new AtomicLong(0L);
   private Thread thread;
+
+  private byte[] shieldedSkey;
+  private static ShieldedWrapper instance;
 
   @Setter
   @Getter
@@ -49,11 +56,49 @@ public class ShieldedWrapper {
   @Setter
   public List<ShieldedNoteInfo> spendUtxoList = new ArrayList<>();
 
-  public void setWallet(WalletApi walletApi) {
-    wallet = walletApi;
+  private ShieldedWrapper() {
+    thread = new Thread(new scanIvkRunable());
+  }
+
+  public static ShieldedWrapper getInstance(){
+    if (instance == null){
+      instance = new ShieldedWrapper();
+    }
+    return instance;
+  }
+
+  public boolean ifShieldedWalletLoaded() {
+    return !ArrayUtils.isEmpty(shieldedSkey);
+  }
+
+  private void loadWalletFile() throws CipherException {
+    loadAddressFromFile();
+    loadIvkFromFile();
+    loadUnSpendNoteFromFile();
+    loadSpendNoteFromFile();
+  }
+
+  public boolean loadShieldWallet() throws CipherException, IOException {
+    if (!shieldedSkeyFileExist()) {
+      System.out.println("Shielded wallet is not exist.");
+      return false;
+    }
+
+    if (ArrayUtils.isEmpty(shieldedSkey)) {
+      shieldedSkey = loadSkey();
+    }
+
+    if (ArrayUtils.isEmpty(shieldedSkey)){
+      return false;
+    }
+
+    loadWalletFile();
+
     if (!thread.isAlive()) {
       thread.start();
     }
+
+    return true;
   }
 
   public class scanIvkRunable implements Runnable {
@@ -108,8 +153,8 @@ public class ShieldedWrapper {
     updateIvkAndBlockNumFile();
   }
 
-  private void scanBlockByIvk() {
-    Block block = wallet.getBlock(-1);
+  private void scanBlockByIvk() throws CipherException {
+    Block block = WalletApi.getBlock(-1);
     if (block != null) {
       long blockNum = block.getBlockHeader().toBuilder().getRawData().getNumber();
       for (Entry<String, Long> entry : ivkMapScanBlockNum.entrySet()) {
@@ -126,7 +171,7 @@ public class ShieldedWrapper {
           builder.setStartBlockIndex(start);
           builder.setEndBlockIndex(end);
           builder.setIvk(ByteString.copyFrom(ByteArray.fromHexString(entry.getKey())));
-          Optional<DecryptNotes> notes = wallet.scanNoteByIvk(builder.build(), false);
+          Optional<DecryptNotes> notes = WalletApi.scanNoteByIvk(builder.build(), false);
           if (notes.isPresent()) {
             for (int i = 0; i < notes.get().getNoteTxsList().size(); ++i) {
               NoteTx noteTx = notes.get().getNoteTxsList().get(i);
@@ -169,23 +214,11 @@ public class ShieldedWrapper {
       builder.setTxid(ByteString.copyFrom(ByteArray.fromHexString(noteInfo.getTrxId())));
       builder.setIndex(noteInfo.getIndex());
 
-      Optional<SpendResult> result = wallet.isNoteSpend(builder.build(), false);
+      Optional<SpendResult> result = WalletApi.isNoteSpend(builder.build(), false);
       if (result.isPresent() && result.get().getResult()) {
         spendNote(entry.getKey());
       }
     }
-  }
-
-  public boolean Init() {
-    ZenUtils.checkFolderExist(PREFIX_FOLDER);
-
-    loadAddressFromFile();
-    loadIvkFromFile();
-    loadUnSpendNoteFromFile();
-    loadSpendNoteFromFile();
-
-    thread = new Thread(new scanIvkRunable());
-    return true;
   }
 
   /**
@@ -193,7 +226,7 @@ public class ShieldedWrapper {
    * @param noteIndex
    * @return
    */
-  public boolean spendNote(long noteIndex ) {
+  public boolean spendNote(long noteIndex ) throws CipherException {
     ShieldedNoteInfo noteInfo = utxoMapNote.get(noteIndex);
     if (noteInfo != null) {
       utxoMapNote.remove(noteIndex);
@@ -212,11 +245,11 @@ public class ShieldedWrapper {
    * @param addressInfo  new shielded address
    * @return
    */
-  public boolean addNewShieldedAddress(final ShieldedAddressInfo addressInfo) {
+  public boolean addNewShieldedAddress(final ShieldedAddressInfo addressInfo) throws CipherException {
     appendAddressInfoToFile(addressInfo);
     long blockNum = 0;
     try {
-      Block block = wallet.getBlock(-1);
+      Block block = WalletApi.getBlock(-1);
       if (block != null) {
         blockNum = block.getBlockHeader().toBuilder().getRawData().getNumber();
       }
@@ -224,7 +257,7 @@ public class ShieldedWrapper {
       e.printStackTrace();
     }
 
-    ivkMapScanBlockNum.put( ByteArray.toHexString(addressInfo.getIvk()), blockNum );
+    ivkMapScanBlockNum.put(ByteArray.toHexString(addressInfo.getIvk()), blockNum );
     updateIvkAndBlockNum(ByteArray.toHexString(addressInfo.getIvk()), blockNum);
 
     return true;
@@ -237,9 +270,23 @@ public class ShieldedWrapper {
    * @return
    */
   private boolean updateIvkAndBlockNum(final String ivk, long blockNum ) {
+    if (ArrayUtils.isEmpty(shieldedSkey)){
+      return false;
+    }
+
     synchronized (IVK_AND_NUM_FILE_NAME) {
-      String date = ivk + ";" + blockNum;
-      ZenUtils.appendToFileTail(IVK_AND_NUM_FILE_NAME, date);
+      byte[] value = ByteArray.fromLong(blockNum);
+      byte[] key = ByteArray.fromHexString(ivk);
+      byte[] text = new byte[key.length + value.length];
+      System.arraycopy(key, 0, text, 0, key.length);
+      System.arraycopy(value, 0, text, key.length, value.length);
+      try {
+        byte[] cipherText = ZenUtils.aesCtrEncrypt(text, shieldedSkey);
+        String date = Base58.encode(cipherText);
+        ZenUtils.appendToFileTail(IVK_AND_NUM_FILE_NAME, date);
+      } catch (CipherException e) {
+        e.printStackTrace();
+      }
     }
     return true;
   }
@@ -249,11 +296,25 @@ public class ShieldedWrapper {
    * @return
    */
   private boolean updateIvkAndBlockNumFile() {
+    if (ArrayUtils.isEmpty(shieldedSkey)){
+      return false;
+    }
+
     synchronized (IVK_AND_NUM_FILE_NAME) {
       ZenUtils.clearFile(IVK_AND_NUM_FILE_NAME);
       for (Entry<String, Long> entry : ivkMapScanBlockNum.entrySet()) {
-        String date = entry.getKey() + ";" + entry.getValue();
-        ZenUtils.appendToFileTail(IVK_AND_NUM_FILE_NAME, date);
+        byte[] value = ByteArray.fromLong(entry.getValue());
+        byte[] key = ByteArray.fromHexString(entry.getKey());
+        byte[] text = new byte[key.length + value.length];
+        System.arraycopy(key, 0, text, 0, key.length);
+        System.arraycopy(value, 0, text, key.length, value.length);
+        try {
+          byte[] cipherText = ZenUtils.aesCtrEncrypt(text, shieldedSkey);
+          String date = Base58.encode(cipherText);
+          ZenUtils.appendToFileTail(IVK_AND_NUM_FILE_NAME, date);
+        } catch (CipherException e) {
+          e.printStackTrace();
+        }
       }
     }
     return true;
@@ -264,15 +325,22 @@ public class ShieldedWrapper {
    * @return
    */
   private boolean loadIvkFromFile() {
+    if (ArrayUtils.isEmpty(shieldedSkey)){
+      return false;
+    }
+
     ivkMapScanBlockNum.clear();
     List<String> list = ZenUtils.getListFromFile(IVK_AND_NUM_FILE_NAME);
-    for (int i=0; i<list.size(); ++i) {
-      String[] sourceStrArray = list.get(i).split(";");
-      if (sourceStrArray.length != 2) {
-        System.err.println("len is not right.");
-        return false;
+    for (int i = 0; i < list.size(); ++i) {
+      byte[] cipherText = Base58.decode(list.get(i));
+      try {
+        byte[] text = ZenUtils.aesCtrDecrypt(cipherText, shieldedSkey);
+        byte[] key = Arrays.copyOfRange(text, 0, 32);
+        byte[] value = Arrays.copyOfRange(text, 32, text.length);
+        ivkMapScanBlockNum.put(ByteArray.toHexString(key), ByteArray.toLong(value));
+      } catch (CipherException e) {
+        e.printStackTrace();
       }
-      ivkMapScanBlockNum.put(sourceStrArray[0], Long.valueOf(sourceStrArray[1]));
     }
     return true;
   }
@@ -324,10 +392,14 @@ public class ShieldedWrapper {
    * update unspend note
    * @return
    */
-  private boolean saveUnspendNoteToFile() {
+  private boolean saveUnspendNoteToFile() throws CipherException {
+    if (ArrayUtils.isEmpty(shieldedSkey)){
+      return false;
+    }
+
     ZenUtils.clearFile(UNSPEND_NOTE_FILE_NAME);
     for (Entry<Long, ShieldedNoteInfo> entry : utxoMapNote.entrySet()) {
-      String date = entry.getValue().encode();
+      String date = entry.getValue().encode(shieldedSkey);
       ZenUtils.appendToFileTail(UNSPEND_NOTE_FILE_NAME, date);
     }
     return true;
@@ -337,13 +409,17 @@ public class ShieldedWrapper {
    * load unspend note from file
    * @return
    */
-  private boolean loadUnSpendNoteFromFile() {
+  private boolean loadUnSpendNoteFromFile() throws CipherException {
+    if (ArrayUtils.isEmpty(shieldedSkey)){
+      return false;
+    }
+
     utxoMapNote.clear();
 
     List<String> list = ZenUtils.getListFromFile(UNSPEND_NOTE_FILE_NAME);
     for (int i = 0; i < list.size(); ++i) {
       ShieldedNoteInfo noteInfo = new ShieldedNoteInfo();
-      noteInfo.decode(list.get(i));
+      noteInfo.decode(list.get(i), shieldedSkey);
       utxoMapNote.put(noteInfo.getNoteIndex(), noteInfo);
 
       if (noteInfo.getNoteIndex() > nodeIndex.get()) {
@@ -358,8 +434,12 @@ public class ShieldedWrapper {
    * append spend note to file tail
    * @return
    */
-  private boolean saveSpendNoteToFile(ShieldedNoteInfo noteInfo) {
-    String date = noteInfo.encode();
+  private boolean saveSpendNoteToFile(ShieldedNoteInfo noteInfo) throws CipherException {
+    if (ArrayUtils.isEmpty(shieldedSkey)){
+      return false;
+    }
+
+    String date = noteInfo.encode(shieldedSkey);
     ZenUtils.appendToFileTail(SPEND_NOTE_FILE_NAME, date);
     return true;
   }
@@ -368,29 +448,36 @@ public class ShieldedWrapper {
    * load spend note from file
    * @return
    */
-  private boolean loadSpendNoteFromFile() {
+  private boolean loadSpendNoteFromFile() throws CipherException {
+    if (ArrayUtils.isEmpty(shieldedSkey)){
+      return false;
+    }
+
     spendUtxoList.clear();
     List<String> list = ZenUtils.getListFromFile(SPEND_NOTE_FILE_NAME);
     for (int i = 0; i < list.size(); ++i) {
       ShieldedNoteInfo noteInfo = new ShieldedNoteInfo();
-      noteInfo.decode(list.get(i));
+      noteInfo.decode(list.get(i), shieldedSkey);
       spendUtxoList.add(noteInfo);
     }
     return true;
   }
 
-
   /**
    * load shielded address from file
    * @return
    */
-  public boolean loadAddressFromFile() {
+  private boolean loadAddressFromFile() throws CipherException {
+    if (ArrayUtils.isEmpty(shieldedSkey)){
+      return false;
+    }
+
     List<String> addressList = ZenUtils.getListFromFile(SHIELDED_ADDRESS_FILE_NAME);
 
     shieldedAddressInfoMap.clear();
     for (String addressString : addressList ) {
       ShieldedAddressInfo addressInfo = new ShieldedAddressInfo();
-      if ( addressInfo.decode(addressString) ) {
+      if ( addressInfo.decode(addressString, shieldedSkey) ) {
         shieldedAddressInfoMap.put(addressInfo.getAddress(), addressInfo);
       } else {
         System.out.println("*******************");
@@ -404,10 +491,14 @@ public class ShieldedWrapper {
    * @param addressInfo
    * @return
    */
-  public boolean appendAddressInfoToFile(final ShieldedAddressInfo addressInfo ) {
+  private boolean appendAddressInfoToFile(final ShieldedAddressInfo addressInfo) throws CipherException {
+    if (ArrayUtils.isEmpty(shieldedSkey)){
+      return false;
+    }
+
     String shieldedAddress = addressInfo.getAddress();
     if ( !StringUtil.isNullOrEmpty( shieldedAddress ) ) {
-      String addressString = addressInfo.encode();
+      String addressString = addressInfo.encode(shieldedSkey);
       ZenUtils.appendToFileTail(SHIELDED_ADDRESS_FILE_NAME, addressString);
 
       shieldedAddressInfoMap.put(shieldedAddress, addressInfo);
@@ -415,4 +506,61 @@ public class ShieldedWrapper {
     return true;
   }
 
+  private boolean shieldedSkeyFileExist() {
+    File file = new File(SHIELDED_SKEY_FILE_NAME);
+    return file != null && file.exists();
+  }
+
+  private byte[] loadSkey() throws IOException, CipherException {
+    File file = new File(SHIELDED_SKEY_FILE_NAME);
+    SKeyCapsule skey = WalletUtils.loadSkeyFile(file);
+
+    byte[] passwd = null;
+    System.out.println("Please input your password for shielded wallet.");
+    for (int i = 6; i > 0; i--) {
+      char[] password = Utils.inputPassword(false);
+      passwd = StringUtils.char2Byte(password);
+      try {
+        SKeyEncryptor.validPassword(passwd, skey);
+        break;
+      } catch (CipherException e) {
+        passwd = null;
+        System.out.println(e.getMessage());
+        System.out.printf("Left times : %d, please try again.\n", i-1);
+        continue;
+      }
+    }
+    if (passwd == null) {
+      System.out.println("Load skey failed, you can not use operation for shileded transaction.");
+      return null;
+    }
+    return SKeyEncryptor.decrypt2PrivateBytes(passwd, skey);
+  }
+
+  private byte[] generateSkey() throws IOException, CipherException {
+    File file = new File(SHIELDED_SKEY_FILE_NAME);
+    byte[] skey = new byte[16];
+    new SecureRandom().nextBytes(skey);
+
+    System.out.println("Shielded wallet is not exist, will build it.");
+    char[] password = Utils.inputPassword2Twice();
+    byte[] passwd = StringUtils.char2Byte(password);
+
+    SKeyCapsule sKeyCapsule = SKeyEncryptor.createStandard(passwd, skey);
+    WalletUtils.generateSkeyFile(sKeyCapsule, file);
+    return skey;
+  }
+
+  public void initShieldedWaletFile() throws IOException, CipherException {
+    ZenUtils.checkFolderExist(PREFIX_FOLDER);
+
+    if (ArrayUtils.isEmpty(shieldedSkey)){
+      if (shieldedSkeyFileExist()) {
+        shieldedSkey = loadSkey();
+      } else {
+        shieldedSkey = generateSkey();
+      }
+      loadShieldWallet();
+    }
+  }
 }
