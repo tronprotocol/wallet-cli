@@ -2137,6 +2137,23 @@ public class Utils {
     return result.toString();
   }
 
+  public static char[] inputPassword2Twice() throws IOException {
+    char[] password0;
+    while (true) {
+      System.out.println("Please input password.");
+      password0 = Utils.inputPassword(true);
+      System.out.println("Please input password again.");
+      char[] password1 = Utils.inputPassword(true);
+      boolean flag = Arrays.equals(password0, password1);
+      StringUtils.clear(password1);
+      if (flag) {
+        break;
+      }
+      System.out.println("The passwords do not match, please input again.");
+    }
+    return password0;
+  }
+
   public static char[] inputPassword(boolean checkStrength) throws IOException {
     char[] password;
     Console cons = System.console();

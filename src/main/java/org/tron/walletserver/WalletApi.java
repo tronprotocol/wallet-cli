@@ -532,11 +532,51 @@ public class WalletApi {
     System.out
         .println("transaction hex string is " + ByteArray.toHexString(transaction.toByteArray()));
 
-    if (transaction.getRawData().getContract(0).getType() == ContractType.CreateSmartContract ) {
+    if (transaction.getRawData().getContract(0).getType() == ContractType.CreateSmartContract) {
       byte[] contractAddress = generateContractAddress(transaction);
       System.out.println(
           "Your smart contract address will be: " + WalletApi.encode58Check(contractAddress));
     }
+  }
+
+  private static boolean processShieldedTransaction(TransactionExtention transactionExtention, WalletApi wallet)
+          throws IOException, CipherException, CancelException {
+    if (transactionExtention == null) {
+      return false;
+    }
+    Return ret = transactionExtention.getResult();
+    if (!ret.getResult()) {
+      System.out.println("Code = " + ret.getCode());
+      System.out.println("Message = " + ret.getMessage().toStringUtf8());
+      return false;
+    }
+    Transaction transaction = transactionExtention.getTransaction();
+    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
+      System.out.println("Transaction is empty");
+      return false;
+    }
+
+    if (transaction.getRawData().getContract(0).getType() != ContractType.ShieldedTransferContract ) {
+      return false;
+    }
+
+    Any any = transaction.getRawData().getContract(0).getParameter();
+    Contract.ShieldedTransferContract shieldedTransferContract =
+            any.unpack(ShieldedTransferContract.class);
+    if (shieldedTransferContract.getFromAmount() > 0 ) {
+      if (wallet == null || !wallet.isLoginState()) {
+        logger.warn("Warning: processShieldedTransaction failed, Please login first !!");
+        return false;
+      }
+
+      System.out.println("Receive txid = " + ByteArray.toHexString(transactionExtention.getTxid().toByteArray()));
+      System.out.println("transaction hex string is " + Utils.printTransaction(transaction));
+      System.out.println(Utils.printTransaction(transactionExtention));
+
+      transaction = wallet.signOnlyForShieldedTransaction(transaction);
+    }
+
+    return rpcCli.broadcastTransaction(transaction);
   }
 
   private boolean processTransaction(Transaction transaction)
@@ -2056,7 +2096,7 @@ public class WalletApi {
     return transaction;
   }
 
-  public Optional<IncrementalMerkleVoucherInfo> GetMerkleTreeVoucherInfo(OutputPointInfo info,
+  public static Optional<IncrementalMerkleVoucherInfo> GetMerkleTreeVoucherInfo(OutputPointInfo info,
       boolean showErrorMsg) {
     if ( showErrorMsg ) {
       try {
@@ -2073,7 +2113,7 @@ public class WalletApi {
     return Optional.empty();
   }
 
-  public Optional<DecryptNotes> scanNoteByIvk(IvkDecryptParameters ivkDecryptParameters,
+  public static Optional<DecryptNotes> scanNoteByIvk(IvkDecryptParameters ivkDecryptParameters,
       boolean showErrorMsg) {
     if (showErrorMsg) {
       try {
@@ -2090,7 +2130,7 @@ public class WalletApi {
     return Optional.empty();
   }
 
-  public Optional<DecryptNotes> scanNoteByOvk(OvkDecryptParameters ovkDecryptParameters,
+  public static Optional<DecryptNotes> scanNoteByOvk(OvkDecryptParameters ovkDecryptParameters,
       boolean showErrorMsg) {
     if (showErrorMsg) {
       try {
@@ -2167,13 +2207,13 @@ public class WalletApi {
     return Optional.empty();
   }
 
-  public boolean sendShieldedCoin(PrivateParameters privateParameters)
+  public static boolean sendShieldedCoin(PrivateParameters privateParameters, WalletApi wallet)
       throws CipherException, IOException, CancelException {
     TransactionExtention transactionExtention = rpcCli.createShieldedTransaction(privateParameters);
-    return processTransactionExtention(transactionExtention);
+    return processShieldedTransaction(transactionExtention, wallet);
   }
 
-  public boolean sendShieldedCoinWithoutAsk(PrivateParametersWithoutAsk privateParameters, byte[] ask)
+  public static boolean sendShieldedCoinWithoutAsk(PrivateParametersWithoutAsk privateParameters, byte[] ask, WalletApi wallet)
       throws CipherException, IOException, CancelException {
     TransactionExtention transactionExtention =
         rpcCli.createShieldedTransactionWithoutSpendAuthSig(privateParameters);
@@ -2222,10 +2262,10 @@ public class WalletApi {
 
     transactionExtention = transactionExtention.toBuilder().setTransaction(transaction).build();
 
-    return processTransactionExtention(transactionExtention);
+    return processShieldedTransaction(transactionExtention, wallet);
   }
 
-  public Optional<SpendResult> isNoteSpend(NoteParameters noteParameters, boolean showErrorMsg) {
+  public static Optional<SpendResult> isNoteSpend(NoteParameters noteParameters, boolean showErrorMsg) {
     if (showErrorMsg) {
       try {
         return Optional.of(rpcCli.isNoteSpend(noteParameters));
@@ -2241,7 +2281,7 @@ public class WalletApi {
     return Optional.empty();
   }
 
-  public Optional<BytesMessage> getRcm() {
+  public static Optional<BytesMessage> getRcm() {
     try {
       return Optional.of(rpcCli.getRcm());
     }catch (Exception e) {
@@ -2251,7 +2291,7 @@ public class WalletApi {
     return Optional.empty();
   }
 
-  public Optional<BytesMessage> createShieldedNullifier(NfParameters parameters) {
+  public static Optional<BytesMessage> createShieldedNullifier(NfParameters parameters) {
     try {
       return Optional.of(rpcCli.createShieldedNullifier(parameters));
     }catch (Exception e) {
@@ -2271,7 +2311,7 @@ public class WalletApi {
     return Optional.empty();
   }
 
-  public Optional<DecryptNotesMarked> scanAndMarkNoteByIvk(IvkDecryptAndMarkParameters parameters) {
+  public static Optional<DecryptNotesMarked> scanAndMarkNoteByIvk(IvkDecryptAndMarkParameters parameters) {
     try {
       return Optional.of(rpcCli.scanAndMarkNoteByIvk(parameters));
     }catch (Exception e) {

@@ -4,7 +4,9 @@ import io.netty.util.internal.StringUtil;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
+import org.tron.common.utils.Base58;
 import org.tron.common.utils.ByteArray;
+import org.tron.core.exception.CipherException;
 
 @AllArgsConstructor
 public class ShieldedNoteInfo {
@@ -37,7 +39,7 @@ public class ShieldedNoteInfo {
    * format shielded note to a string
    * @return
    */
-  public String encode() {
+  public String encode(byte[] encryptKey) throws CipherException {
     String encodeString = noteIndex +";";
     encodeString += paymentAddress;
     encodeString += ";";
@@ -55,6 +57,8 @@ public class ShieldedNoteInfo {
     } else {
       encodeString += stringMemo;
     }
+    byte[] chipherText = ZenUtils.aesCtrEncrypt(encodeString.getBytes(), encryptKey);
+    encodeString = Base58.encode(chipherText);
     return encodeString;
   }
 
@@ -63,7 +67,11 @@ public class ShieldedNoteInfo {
    * @param data
    * @return
    */
-  public boolean decode(final String data) {
+  public boolean decode(String data, byte[] encryptKey) throws CipherException {
+    byte[] chipherText = Base58.decode(data);
+    byte[] text = ZenUtils.aesCtrDecrypt(chipherText, encryptKey);
+    data = new String(text);
+
     String[] sourceStrArray = data.split(";");
     if (sourceStrArray.length != 7) {
       System.out.println("len is not right.");
