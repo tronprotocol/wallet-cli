@@ -173,6 +173,7 @@ public class ShieldedWrapper {
           builder.setIvk(ByteString.copyFrom(ByteArray.fromHexString(entry.getKey())));
           Optional<DecryptNotes> notes = WalletApi.scanNoteByIvk(builder.build(), false);
           if (notes.isPresent()) {
+            int startNum = utxoMapNote.size();
             for (int i = 0; i < notes.get().getNoteTxsList().size(); ++i) {
               NoteTx noteTx = notes.get().getNoteTxsList().get(i);
               ShieldedNoteInfo noteInfo = new ShieldedNoteInfo();
@@ -186,7 +187,10 @@ public class ShieldedWrapper {
 
               utxoMapNote.put(noteInfo.getNoteIndex(), noteInfo);
             }
-            saveUnspendNoteToFile();
+            int endNum = utxoMapNote.size();
+            if (endNum > startNum ) {
+              saveUnspendNoteToFile();
+            }
           }
           start = end;
         }
@@ -423,7 +427,7 @@ public class ShieldedWrapper {
       utxoMapNote.put(noteInfo.getNoteIndex(), noteInfo);
 
       if (noteInfo.getNoteIndex() > nodeIndex.get()) {
-        nodeIndex.set(noteInfo.getNoteIndex());
+        nodeIndex.set(noteInfo.getNoteIndex()+1);
       }
     }
     return true;
@@ -459,6 +463,10 @@ public class ShieldedWrapper {
       ShieldedNoteInfo noteInfo = new ShieldedNoteInfo();
       noteInfo.decode(list.get(i), shieldedSkey);
       spendUtxoList.add(noteInfo);
+
+      if (noteInfo.getNoteIndex() > nodeIndex.get()) {
+        nodeIndex.set(noteInfo.getNoteIndex()+1);
+      }
     }
     return true;
   }
