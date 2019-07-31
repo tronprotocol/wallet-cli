@@ -628,6 +628,9 @@ public class Utils {
     result += "name: ";
     result += new String(assetIssue.getName().toByteArray(), Charset.forName("UTF-8"));
     result += "\n";
+    result += "abbr: ";
+    result += new String(assetIssue.getAbbr().toByteArray(), Charset.forName("UTF-8"));
+    result += "\n";
     result += "order: ";
     result += assetIssue.getOrder();
     result += "\n";

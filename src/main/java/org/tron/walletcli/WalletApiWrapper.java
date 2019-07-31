@@ -226,8 +226,8 @@ public class WalletApiWrapper {
     return wallet.participateAssetIssue(to, assertName.getBytes(), amount);
   }
 
-  public boolean assetIssue(String name, long totalSupply, int trxNum, int icoNum, int precision,
-      long startTime, long endTime, int voteScore, String description, String url,
+  public boolean assetIssue(String name, String abbrName, long totalSupply, int trxNum, int icoNum,
+      int precision, long startTime, long endTime, int voteScore, String description, String url,
       long freeNetLimit, long publicFreeNetLimit, HashMap<String, String> frozenSupply)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
@@ -238,39 +238,52 @@ public class WalletApiWrapper {
     Contract.AssetIssueContract.Builder builder = Contract.AssetIssueContract.newBuilder();
     builder.setOwnerAddress(ByteString.copyFrom(wallet.getAddress()));
     builder.setName(ByteString.copyFrom(name.getBytes()));
+    builder.setAbbr(ByteString.copyFrom(abbrName.getBytes()));
 
     if (totalSupply <= 0) {
+      System.out.println("totalSupply should greater than 0. but really is " + totalSupply);
       return false;
     }
     builder.setTotalSupply(totalSupply);
 
     if (trxNum <= 0) {
+      System.out.println("trxNum should greater than 0. but really is " + trxNum);
       return false;
     }
     builder.setTrxNum(trxNum);
 
     if (icoNum <= 0) {
+      System.out.println("num should greater than 0. but really is " + icoNum);
       return false;
     }
     builder.setNum(icoNum);
 
     if (precision < 0) {
+      System.out.println("precision should greater or equal to 0. but really is " + icoNum);
       return false;
     }
     builder.setPrecision(precision);
 
     long now = System.currentTimeMillis();
     if (startTime <= now) {
+      System.out.println("startTime should greater than now. but really is startTime("
+          + startTime + ") now(" + now + ")");
       return false;
     }
     if (endTime <= startTime) {
+      System.out.println("endTime should greater or equal to startTime. but really is endTime("
+          + endTime + ") startTime(" + startTime + ")");
       return false;
     }
 
     if (freeNetLimit < 0) {
+      System.out.println("freeAssetNetLimit should greater or equal to 0. but really is "
+          + freeNetLimit);
       return false;
     }
     if (publicFreeNetLimit < 0) {
+      System.out.println("publicFreeAssetNetLimit should greater or equal to 0. but really is "
+          + publicFreeNetLimit);
       return false;
     }
 
