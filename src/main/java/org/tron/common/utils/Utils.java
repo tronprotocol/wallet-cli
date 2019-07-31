@@ -339,7 +339,7 @@ public class Utils {
       result += "\n";
       result += "{";
       result += "\n";
-      result += printPermission(account.getOwnerPermission());
+      result += printPermission(account.getOwnerPermission(), true);
       result += "\n";
       result += "}";
       result += "\n";
@@ -350,7 +350,7 @@ public class Utils {
       result += "\n";
       result += "{";
       result += "\n";
-      result += printPermission(account.getWitnessPermission());
+      result += printPermission(account.getWitnessPermission(), true);
       result += "\n";
       result += "}";
       result += "\n";
@@ -358,7 +358,7 @@ public class Utils {
 
     if (account.getActivePermissionCount() > 0) {
       result += "active_permissions: ";
-      result += printPermissionList(account.getActivePermissionList());
+      result += printPermissionList(account.getActivePermissionList(), true);
     }
 
     return result;
@@ -1094,7 +1094,7 @@ public class Utils {
             result += "\n";
             result += "{";
             result += "\n";
-            result += printPermission(accountPermissionUpdateContract.getOwner());
+            result += printPermission(accountPermissionUpdateContract.getOwner(), false);
             result += "\n";
             result += "}";
             result += "\n";
@@ -1105,7 +1105,7 @@ public class Utils {
             result += "\n";
             result += "{";
             result += "\n";
-            result += printPermission(accountPermissionUpdateContract.getWitness());
+            result += printPermission(accountPermissionUpdateContract.getWitness(), false);
             result += "\n";
             result += "}";
             result += "\n";
@@ -1113,7 +1113,7 @@ public class Utils {
 
           if (accountPermissionUpdateContract.getActivesCount() > 0) {
             result += "active_permissions: ";
-            result += printPermissionList(accountPermissionUpdateContract.getActivesList());
+            result += printPermissionList(accountPermissionUpdateContract.getActivesList(), false);
             result += "\n";
           }
           break;
@@ -1710,9 +1710,9 @@ public class Utils {
     result += raw.getNumber();
     result += "\n";
 
-    result += "witness_id: ";
-    result += raw.getWitnessId();
-    result += "\n";
+//    result += "witness_id: ";
+//    result += raw.getWitnessId();
+//    result += "\n";
 
     result += "witness_address: ";
     result += WalletApi.encode58Check(raw.getWitnessAddress().toByteArray());
@@ -1934,7 +1934,7 @@ public class Utils {
     return result.toString();
   }
 
-  public static String printPermissionList(List<Permission> permissionList) {
+  public static String printPermissionList(List<Permission> permissionList, boolean showId) {
     String result = "\n";
     result += "[";
     result += "\n";
@@ -1944,7 +1944,7 @@ public class Utils {
       result += "\n";
       result += "{";
       result += "\n";
-      result += printPermission(permission);
+      result += printPermission(permission, showId);
       result += "\n";
       result += "}";
       result += "\n";
@@ -1954,23 +1954,25 @@ public class Utils {
     return result;
   }
 
-  public static String printPermission(Permission permission) {
+  public static String printPermission(Permission permission, boolean showId) {
     StringBuffer result = new StringBuffer();
     result.append("permission_type: ");
     result.append(permission.getType());
     result.append("\n");
-    result.append("permission_id: ");
-    result.append(permission.getId());
-    result.append("\n");
+    if (showId) {
+      result.append("permission_id: ");
+      result.append(permission.getId());
+      result.append("\n");
+    }
     result.append("permission_name: ");
     result.append(permission.getPermissionName());
     result.append("\n");
     result.append("threshold: ");
     result.append(permission.getThreshold());
     result.append("\n");
-    result.append("parent_id: ");
-    result.append(permission.getParentId());
-    result.append("\n");
+//    result.append("parent_id: ");
+//    result.append(permission.getParentId());
+//    result.append("\n");
     result.append("operations: ");
     result.append(ByteArray.toHexString(permission.getOperations().toByteArray()));
     result.append("\n");
@@ -2020,7 +2022,7 @@ public class Utils {
     result.append("\n");
     result.append("{");
     result.append("\n");
-    result.append(printPermission(transactionSignWeight.getPermission()));
+    result.append(printPermission(transactionSignWeight.getPermission(), true));
     result.append("}");
     result.append("\n");
     result.append("current_weight: ");

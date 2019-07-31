@@ -641,6 +641,7 @@ public class Client {
     if (startDate == null || endDate == null ) {
       System.out
           .println("The StartDate and EndDate format should look like 2018-03-01 2018-03-21 .");
+      logger.info("AssetIssue " + name + " failed !!");
       return;
     }
     long startTime = startDate.getTime();
