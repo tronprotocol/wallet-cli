@@ -82,12 +82,14 @@ public class Client {
 
   private static final Logger logger = LoggerFactory.getLogger("Client");
   private WalletApiWrapper walletApiWrapper = new WalletApiWrapper();
+  private static int retryTime = 3;
 
   private byte[] inputPrivateKey() throws IOException {
     byte[] temp = new byte[128];
     byte[] result = null;
-    System.out.println("Please input private key.");
-    while (true) {
+    System.out.println("Please input private key. Max retry time:" + retryTime);
+    int nTime = 0;
+    while (nTime < retryTime) {
       int len = System.in.read(temp, 0, temp.length);
       if (len >= 64) {
         byte[] privateKey = Arrays.copyOfRange(temp, 0, 64);
@@ -99,6 +101,7 @@ public class Client {
       }
       StringUtils.clear(result);
       System.out.println("Invalid private key, please input again.");
+      ++nTime;
     }
     StringUtils.clear(temp);
     return result;
@@ -107,9 +110,10 @@ public class Client {
   private byte[] inputPrivateKey64() throws IOException {
     Decoder decoder = Base64.getDecoder();
     byte[] temp = new byte[128];
-    byte[] result;
-    System.out.println("Please input private key by base64.");
-    while (true) {
+    byte[] result = null;
+    System.out.println("Please input private key by base64. Max retry time:" + retryTime);
+    int nTime = 0;
+    while (nTime < retryTime) {
       int len = System.in.read(temp, 0, temp.length);
       if (len >= 44) {
         byte[] priKey64 = Arrays.copyOfRange(temp, 0, 44);
@@ -120,6 +124,7 @@ public class Client {
         }
       }
       System.out.println("Invalid base64 private key, please input again.");
+      ++nTime;
     }
     StringUtils.clear(temp);
     return result;
@@ -172,8 +177,8 @@ public class Client {
     char[] oldPassword = Utils.inputPassword(false);
     System.out.println("Please input new password.");
     char[] newPassword = Utils.inputPassword2Twice();
-    StringUtils.clear(oldPassword);
-    StringUtils.clear(newPassword);
+//    StringUtils.clear(oldPassword);
+//    StringUtils.clear(newPassword);
     if (walletApiWrapper.changePassword(oldPassword, newPassword)) {
       System.out.println("ChangePassword successful !!");
     } else {
@@ -552,7 +557,7 @@ public class Client {
       throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length != 3) {
       System.out.println("TransferAsset needs 3 parameters using the following syntax: ");
-      System.out.println("TransferAsset ToAddress AssertName Amount");
+      System.out.println("TransferAsset ToAddress AssertID Amount");
       return;
     }
 
@@ -573,7 +578,7 @@ public class Client {
       throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length != 3) {
       System.out.println("ParticipateAssetIssue needs 3 parameters using the following syntax: ");
-      System.out.println("ParticipateAssetIssue ToAddress AssetName Amount");
+      System.out.println("ParticipateAssetIssue ToAddress AssetID Amount");
       return;
     }
 
@@ -594,52 +599,58 @@ public class Client {
 
   private void assetIssue(String[] parameters)
       throws IOException, CipherException, CancelException {
-    if (parameters == null || parameters.length < 11 || (parameters.length & 1) == 0) {
+    if (parameters == null || parameters.length < 12 || (parameters.length & 1) == 1) {
       System.out
           .println("Use the assetIssue command for features that you require with below syntax: ");
       System.out.println(
-          "AssetIssue AssetName TotalSupply TrxNum AssetNum Precision "
+          "AssetIssue AssetName AbbrName TotalSupply TrxNum AssetNum Precision "
               + "StartDate EndDate Description Url FreeNetLimitPerAccount PublicFreeNetLimit "
               + "FrozenAmount0 FrozenDays0 ... FrozenAmountN FrozenDaysN");
       System.out
           .println(
               "TrxNum and AssetNum represents the conversion ratio of the tron to the asset.");
       System.out
-          .println("The StartDate and EndDate format should look like 2018-3-1 2018-3-21 .");
+          .println("The StartDate and EndDate format should look like 2018-03-01 2018-03-21 .");
       return;
     }
 
     String name = parameters[0];
-    String totalSupplyStr = parameters[1];
-    String trxNumStr = parameters[2];
-    String icoNumStr = parameters[3];
-    String precisionStr = parameters[4];
-    String startYyyyMmDd = parameters[5];
-    String endYyyyMmDd = parameters[6];
-    String description = parameters[7];
-    String url = parameters[8];
-    String freeNetLimitPerAccount = parameters[9];
-    String publicFreeNetLimitString = parameters[10];
+    String abbrName = parameters[1];
+    String totalSupplyStr = parameters[2];
+    String trxNumStr = parameters[3];
+    String icoNumStr = parameters[4];
+    String precisionStr = parameters[5];
+    String startYyyyMmDd = parameters[6];
+    String endYyyyMmDd = parameters[7];
+    String description = parameters[8];
+    String url = parameters[9];
+    String freeNetLimitPerAccount = parameters[10];
+    String publicFreeNetLimitString = parameters[11];
     HashMap<String, String> frozenSupply = new HashMap<>();
-    for (int i = 11; i < parameters.length; i += 2) {
+    for (int i = 12; i < parameters.length; i += 2) {
       String amount = parameters[i];
       String days = parameters[i + 1];
       frozenSupply.put(days, amount);
     }
-
     long totalSupply = new Long(totalSupplyStr);
     int trxNum = new Integer(trxNumStr);
     int icoNum = new Integer(icoNumStr);
     int precision = new Integer(precisionStr);
     Date startDate = Utils.strToDateLong(startYyyyMmDd);
     Date endDate = Utils.strToDateLong(endYyyyMmDd);
+    if (startDate == null || endDate == null ) {
+      System.out
+          .println("The StartDate and EndDate format should look like 2018-03-01 2018-03-21 .");
+      logger.info("AssetIssue " + name + " failed !!");
+      return;
+    }
     long startTime = startDate.getTime();
     long endTime = endDate.getTime();
     long freeAssetNetLimit = new Long(freeNetLimitPerAccount);
     long publicFreeNetLimit = new Long(publicFreeNetLimitString);
 
     boolean result = walletApiWrapper
-        .assetIssue(name, totalSupply, trxNum, icoNum, precision, startTime, endTime,
+        .assetIssue(name, abbrName, totalSupply, trxNum, icoNum, precision, startTime, endTime,
             0, description, url, freeAssetNetLimit, publicFreeNetLimit, frozenSupply);
     if (result) {
       logger.info("AssetIssue " + name + " successful !!");
@@ -826,11 +837,12 @@ public class Client {
   }
 
   private void getTransactionCountByBlockNum(String[] parameters) {
-    if (parameters.length != 1) {
-      System.out.println("Too many parameters !!!");
-      System.out.println("You need input number with the following syntax:");
+    if (parameters == null || parameters.length != 1 ) {
+      System.out.println("Use GetTransactionCountByBlockNum command with below syntax");
       System.out.println("GetTransactionCountByBlockNum number");
+      return;
     }
+
     long blockNum = Long.parseLong(parameters[0]);
     long count = walletApiWrapper.getTransactionCountByBlockNum(blockNum);
     System.out.println("The block contain " + count + " transactions");
@@ -1628,8 +1640,8 @@ public class Client {
       System.out.println("DeployContract needs at least 8 parameters like following: ");
       System.out.println(
           "DeployContract contractName ABI byteCode constructor params isHex fee_limit consume_user_resource_percent origin_energy_limit value token_value token_id(e.g: TRXTOKEN, use # if don't provided) <library:address,library:address,...> <lib_compiler_version(e.g:v5)>");
-      System.out.println(
-          "Note: Please append the param for constructor tightly with byteCode without any space");
+//      System.out.println(
+//          "Note: Please append the param for constructor tightly with byteCode without any space");
       return;
     }
     int idx = 0;
@@ -2412,7 +2424,6 @@ public class Client {
     System.out.println("GetIncomingViewingKey");
     System.out.println("GetNkFromNsk");
     System.out.println("GetNextMaintenanceTime");
-    System.out.println("GetSaplingPaymentAddress");
     System.out.println("GetShieldedNullifier");
     System.out.println("GetSpendingKey");
     System.out.println("GetProposal");
