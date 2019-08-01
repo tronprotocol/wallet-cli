@@ -259,7 +259,7 @@ public class WalletApiWrapper {
     builder.setNum(icoNum);
 
     if (precision < 0) {
-      System.out.println("precision should greater or equal to 0. but really is " + icoNum);
+      System.out.println("precision should greater or equal to 0. but really is " + precision);
       return false;
     }
     builder.setPrecision(precision);
