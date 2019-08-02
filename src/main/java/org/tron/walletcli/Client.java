@@ -1922,7 +1922,7 @@ public class Client {
     for (int i=0; i<addressNum; ++i ) {
       Optional<ShieldedAddressInfo> addressInfo = walletApiWrapper.getNewShieldedAddress();
       if ( addressInfo.isPresent() ) {
-        if ( ShieldedWrapper.getInstance().addNewShieldedAddress(addressInfo.get()) ) {
+        if ( ShieldedWrapper.getInstance().addNewShieldedAddress(addressInfo.get(), true) ) {
           logger.info(addressInfo.get().getAddress());
         }
       }
@@ -2038,6 +2038,19 @@ public class Client {
     }
   }
 
+  private boolean isFromShieldedNote(String shieldedStringInputNum) {
+    int shieldedInputNum = 0;
+    if (!StringUtil.isNullOrEmpty(shieldedStringInputNum)) {
+      shieldedInputNum = Integer.valueOf(shieldedStringInputNum);
+    }
+
+    if (shieldedInputNum > 0 ) {
+      return true;
+    } else {
+      return false;
+    }
+  }
+
   private void sendShieldedCoin(String[] parameters) throws IOException, CipherException,
       CancelException, ZksnarkException {
     if (parameters == null || parameters.length < 6) {
@@ -2048,7 +2061,8 @@ public class Client {
       return;
     }
 
-    if (!ShieldedWrapper.getInstance().ifShieldedWalletLoaded()){
+    if (isFromShieldedNote(parameters[2]) &&
+        !ShieldedWrapper.getInstance().ifShieldedWalletLoaded()) {
       System.out.println("SendShieldedCoin failed, please loadShieldedWallet first!");
       return;
     }
@@ -2071,8 +2085,9 @@ public class Client {
       return;
     }
 
-    if (!ShieldedWrapper.getInstance().ifShieldedWalletLoaded()){
-      System.out.println("SendShieldedCoinWithoutAsk failed, please loadShieldedWallet first!");
+    if (isFromShieldedNote(parameters[2]) &&
+        !ShieldedWrapper.getInstance().ifShieldedWalletLoaded()) {
+      System.out.println("SendShieldedCoin failed, please loadShieldedWallet first!");
       return;
     }
 
@@ -2345,6 +2360,41 @@ public class Client {
     }
   }
 
+  private void backupShieldedAddress() throws IOException, CipherException {
+    byte[] priKey = ShieldedWrapper.getInstance().backupShieldedAddress();
+    if (!ArrayUtils.isEmpty(priKey)) {
+      for (int i = 0; i < priKey.length; i++) {
+        StringUtils.printOneByte(priKey[i]);
+      }
+      System.out.println();
+      StringUtils.clear(priKey);
+      System.out.println("BackupShieldedAddress successful !!");
+    } else {
+      System.out.println("BackupShieldedAddress failure !!");
+    }
+  }
+
+  private void importShieldedAddress() throws CipherException, IOException {
+    byte[] priKey = ShieldedWrapper.getInstance().importShieldedAddress();
+    if (!ArrayUtils.isEmpty(priKey) && priKey.length == 43) {
+      byte[] sk = new byte[32];
+      byte[] d = new byte[11];
+      System.arraycopy(priKey, 0, sk, 0, sk.length);
+      System.arraycopy(priKey, sk.length, d, 0, d.length);
+      Optional<ShieldedAddressInfo> addressInfo =
+          walletApiWrapper.getNewShieldedAddressBySkAndD(sk, d);
+      if (addressInfo.isPresent() &&
+          ShieldedWrapper.getInstance().addNewShieldedAddress(addressInfo.get(), false)) {
+        System.out.println("Import new shielded address is: " + addressInfo.get().getAddress());
+        System.out.println("ImportShieldedAddress successful !!");
+      } else {
+        System.out.println("ImportShieldedAddress failure !!");
+      }
+    } else {
+      System.out.println("ImportShieldedAddress failure !!");
+    }
+  }
+
   private void create2(String[] parameters) {
     if (parameters == null || parameters.length != 3) {
       System.out.println("create2 needs 3 parameter: ");
@@ -2383,6 +2433,7 @@ public class Client {
     System.out.println("AddTransactionSign");
     System.out.println("ApproveProposal");
     System.out.println("AssetIssue");
+    System.out.println("BackupShieldedAddress");
     System.out.println("BackupWallet");
     System.out.println("BackupWallet2Base64");
     System.out.println("BroadcastTransaction");
@@ -2435,6 +2486,7 @@ public class Client {
     System.out.println("GetTransactionsFromThis");
     System.out.println("GetTransactionsToThis");
     System.out.println("GetTransactionSignWeight");
+    System.out.println("ImportShieldedAddress");
     System.out.println("ImportWallet");
     System.out.println("ImportWalletByBase64");
     System.out.println("ListAssetIssue");
@@ -2448,7 +2500,7 @@ public class Client {
     System.out.println("ListWitnesses");
     System.out.println("Login");
     System.out.println("Logout");
-    System.out.println("LoadShieledWallet");
+    System.out.println("LoadShieldedWallet");
     System.out.println("ParticipateAssetIssue");
     System.out.println("RegisterWallet");
     System.out.println("ResetShieldedNote");
@@ -2969,6 +3021,14 @@ public class Client {
           }
           case "scanandmarknotebyaddress": {
             scanAndMarkNoteByAddress(parameters);
+            break;
+          }
+          case "importshieldedaddress": {
+            importShieldedAddress();
+            break;
+          }
+          case "backupshieldedaddress": {
+            backupShieldedAddress();
             break;
           }
           case "create2": {

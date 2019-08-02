@@ -1067,6 +1067,54 @@ public class WalletApiWrapper {
     return Optional.empty();
   }
 
+  public Optional<ShieldedAddressInfo> getNewShieldedAddressBySkAndD(byte[] sk, byte[] d) {
+    ShieldedAddressInfo addressInfo = new ShieldedAddressInfo();
+    try {
+      BytesMessage.Builder skBuilder = BytesMessage.newBuilder();
+      skBuilder.setValue(ByteString.copyFrom(sk));
+
+      DiversifierMessage.Builder dBuilder = DiversifierMessage.newBuilder();
+      dBuilder.setD(ByteString.copyFrom(d));
+
+      Optional<ExpandedSpendingKeyMessage> expandedSpendingKeyMessage = WalletApi
+          .getExpandedSpendingKey(skBuilder.build());
+
+      BytesMessage.Builder askBuilder = BytesMessage.newBuilder();
+      askBuilder.setValue(expandedSpendingKeyMessage.get().getAsk());
+      Optional<BytesMessage> ak = WalletApi.getAkFromAsk(askBuilder.build());
+
+      BytesMessage.Builder nskBuilder = BytesMessage.newBuilder();
+      nskBuilder.setValue(expandedSpendingKeyMessage.get().getNsk());
+      Optional<BytesMessage> nk = WalletApi.getNkFromNsk(nskBuilder.build());
+
+      ViewingKeyMessage.Builder viewBuilder = ViewingKeyMessage.newBuilder();
+      viewBuilder.setAk(ak.get().getValue());
+      viewBuilder.setNk(nk.get().getValue());
+      Optional<IncomingViewingKeyMessage> ivk = WalletApi
+          .getIncomingViewingKey(viewBuilder.build());
+
+      IncomingViewingKeyDiversifierMessage.Builder builder = IncomingViewingKeyDiversifierMessage
+          .newBuilder();
+      builder.setD(dBuilder.build());
+      builder.setIvk(ivk.get());
+      Optional<PaymentAddressMessage> addressMessage = WalletApi
+          .getZenPaymentAddress(builder.build());
+      addressInfo.setSk(sk);
+      addressInfo.setD(new DiversifierT(d));
+      addressInfo.setIvk(ivk.get().getIvk().toByteArray());
+      addressInfo.setOvk(expandedSpendingKeyMessage.get().getOvk().toByteArray());
+      addressInfo.setPkD(addressMessage.get().getPkD().toByteArray());
+
+      if (addressInfo.validateCheck()) {
+        return Optional.of(addressInfo);
+      }
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+
+    return Optional.empty();
+  }
+
   public String getShieldedNulltifier(long index) {
     ShieldedNoteInfo noteInfo = ShieldedWrapper.getInstance().getUtxoMapNote().get(index);
     if (noteInfo == null) {

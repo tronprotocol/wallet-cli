@@ -839,7 +839,14 @@ BroadcastTransaction:	Broadcast the transaction, where the transaction is in hex
 
 How to transfer to shielded address
 -----------------------------------
-a generateshieldedaddress number    Generate shielded addresses    
+a loadshieldedwallet                Load shielded address, shielded note and start to scan by ivk    
+Example:     
+loadshieldedwallet    
+Please input your password for shielded wallet.    
+1qa@WS#ED    
+LoadShieldedWallet successful !!!    
+    
+b generateshieldedaddress number    Generate shielded addresses    
 number            The number of shielded addresses, the default is 1   
 Example:    
 generateshieldedaddress 2    
@@ -848,7 +855,7 @@ generateshieldedaddress 2
 10:11:02.567 INFO  [main] [Client](Client.java:1919) ztron1hn9r3wmytavslztwmlzvuzk3dqpdhwcmda2d0deyu5pwv32dp78saaslyt82w0078y6uzfg8x6w    
 10:11:02.567 INFO  [main] [Client](Client.java:1923) GenerateShieldedAddress successful !!    
     
-b listshieldedaddress             Display cached local shielded address list    
+c listshieldedaddress             Display cached local shielded address list    
 Example:    
 listshieldedaddress    
 10:11:55.370 INFO  [main] [Client](Client.java:1928) ShieldedAddress :    
@@ -856,7 +863,7 @@ listshieldedaddress
 10:11:55.371 INFO  [main] [Client](Client.java:1930) ztron1ghdy60hya8y72deu0q0r25qfl60unmue6889m3xfc3296a5ut6jcyafzhtp9nlutndukufzap4h    
 10:11:55.371 INFO  [main] [Client](Client.java:1930) ztron1hn9r3wmytavslztwmlzvuzk3dqpdhwcmda2d0deyu5pwv32dp78saaslyt82w0078y6uzfg8x6w    
 
-c SendShieldedCoin publicFromAddress fromAmount shieldedInputNum input1 input2 input3 ... publicToAddress toAmount shieldedOutputNum shieldedAddress1 amount1 memo1 shieldedAddress2 amount2 memo2 ...    
+d SendShieldedCoin publicFromAddress fromAmount shieldedInputNum input1 input2 input3 ... publicToAddress toAmount shieldedOutputNum shieldedAddress1 amount1 memo1 shieldedAddress2 amount2 memo2 ...    
 Shielded transfer, support from public address or shielded address to public address and shielded address, does not support public address to public address, does not support automatic change.    
 Public from amount / shielded input amount = public output amount + shielded output amount + fee    
 publicFromAddress 	Public from address, set to null if not needed.    
@@ -870,7 +877,7 @@ shieldedAddress1	  Output shielded address
 amount1				      The amount transfer to shieldedAddress1    
 memo1				        The memo of this note, up to 512 bytes, can be set to null if not needed    
 Example:    
-1. Public address transfer to two shielded addresses
+1. Public address transfer to two shielded addresses    
 sendshieldedcoin TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ 210000000 0 null 0 2 ztron16j06s3p5gvp2jde4vh7w3ug3zz3m62zkyfu86s7ara5lafhp22p9wr3gz0lcdm3pvt7qx0aftu4 100000000 test1 ztron1ghdy60hya8y72deu0q0r25qfl60unmue6889m3xfc3296a5ut6jcyafzhtp9nlutndukufzap4h 100000000 null    
 Receive txid = 4ce5656a13049df00abc7fb3ce78d54c78944d3cbbdfdb29f288e1df5fdf67e1    
 transaction hex string is hash:     
@@ -1168,10 +1175,10 @@ fee_limit: 0
     
 10:46:19.226 INFO  [main] [Client](Client.java:2040) SendShieldedCoin successful !!    
     
-d sendshieldedcoinwithoutask     
+e sendshieldedcoinwithoutask     
 Usage and parameters are consistent with the command sendshieldedcoin, the only difference is that sendshieldedcoin uses ask signature, but sendshieldedcoinwithoutask uses ak signature.    
     
-e listshieldednote type          List the note scanned by the local cache address    
+f listshieldednote type          List the note scanned by the local cache address    
 type		      Show type. 0 show not spent note; other value show all notes, include spend notes and not spend notes. default is 0.    
 Example:  
 listshieldednote 0    
@@ -1183,9 +1190,9 @@ ztron1ghdy60hya8y72deu0q0r25qfl60unmue6889m3xfc3296a5ut6jcyafzhtp9nlutndukufzap4
 ztron16j06s3p5gvp2jde4vh7w3ug3zz3m62zkyfu86s7ara5lafhp22p9wr3gz0lcdm3pvt7qx0aftu4 100000000 4ce5656a13049df00abc7fb3ce78d54c78944d3cbbdfdb29f288e1df5fdf67e1 0 Spend test1    
 ztron1hn9r3wmytavslztwmlzvuzk3dqpdhwcmda2d0deyu5pwv32dp78saaslyt82w0078y6uzfg8x6w 90000000 06b55fc27f7ec649396706d149d18a0bb003347bdd7f489e3d47205da9cee802 0 Spend test2    
     
-f resetshieldednote             Clean all the note scanned,rescanned all blocks.generally used when there is a problem with the notes or when switching environments    
+g resetshieldednote             Clean all the note scanned,rescanned all blocks.generally used when there is a problem with the notes or when switching environments    
 
-g ScanNotebyIvk ivk startNum endNum     Scan notes by ivk    
+h ScanNotebyIvk ivk startNum endNum     Scan notes by ivk    
 ivk				    The ivk of shielded address    
 startNum		  The starting block number of the scan     
 endNum			  The end block number of the scan    
@@ -1200,7 +1207,7 @@ value:100000000
 memo:test1     
 11:25:43.730 INFO  [main] [WalletApiWrapper](WalletApiWrapper.java:974) complete.     
      
-h ScanNotebyOvk ovk startNum endNum   Scan notes by ovk
+i ScanNotebyOvk ovk startNum endNum   Scan notes by ovk
 ovk				    The ivk of shielded address
 startNum		  The starting block number of the scan     
 endNum			  The end block number of the scan   
@@ -1215,7 +1222,7 @@ memo:test2
 value:90000000    
 11:27:17.760 INFO  [main] [WalletApiWrapper](WalletApiWrapper.java:1050) complete.    
     
-i GetShieldedNullifier index    Get the nullifier of the note
+j GetShieldedNullifier index    Get the nullifier of the note
 index			    The note index obtained by the listshieldednote command
 Example:   
 listshieldednote    
@@ -1230,7 +1237,7 @@ index 1
 memo     
 ShieldedNullifier:2a524a3be2643365ecdacf8f0d3ca1de8fad3080eea0b9561435b5d1ee467042    
     
-j ScanAndMarkNotebyAddress shieldedAddress startNum endNum  Scan the note with a locally cached shielded address and mark whether it is spent out    
+k ScanAndMarkNotebyAddress shieldedAddress startNum endNum  Scan the note with a locally cached shielded address and mark whether it is spent out    
 shieldedAddress			  Locally cached shielded address, if it is not a locally cached shielded address, an error will be reported.    
 startNum				      The starting block number of the scan 
 endNum					      The end block number of the scan  
@@ -1246,41 +1253,68 @@ value:100000000
 memo:test1    
 11:33:27.789 INFO  [main] [WalletApiWrapper](WalletApiWrapper.java:1019) complete.    
     
-k GetSpendingKey      Generate a sk    
+l GetSpendingKey      Generate a sk    
 Example:    
 GetSpendingKey    
 11:48:52.918 INFO  [main] [Client](Client.java:2194) 0eb458b309fa544066c40d80ce30a8002756c37d2716315c59a98c893dbb5f6a    
     
-l getExpandedSpendingKey sk   Generate ask,nsk,ovk from sk    
+m getExpandedSpendingKey sk   Generate ask,nsk,ovk from sk    
 Example:        
 getExpandedSpendingKey 0eb458b309fa544066c40d80ce30a8002756c37d2716315c59a98c893dbb5f6a    
 11:49:00.481 INFO  [main] [Client](Client.java:2212) ask:252a0f6f6f0bac114a13e1e663d51943f1df9309649400218437586dea78260e    
 11:49:00.485 INFO  [main] [Client](Client.java:2213) nsk:5cd2bc8d9468dbad26ea37c5335a0cd25f110eaf533248c59a3310dcbc03e503    
 11:49:00.485 INFO  [main] [Client](Client.java:2214) ovk:892a10c1d3e8ea22242849e13f177d69e1180d1d5bba118c586765241ba2d3d6    
 		    
-m getAkFromAsk ask          Generate ak from ask    
+n getAkFromAsk ask          Generate ak from ask    
 Example:    
 GetAkFromAsk 252a0f6f6f0bac114a13e1e663d51943f1df9309649400218437586dea78260e    
 11:49:33.547 INFO  [main] [Client](Client.java:2232) ak:f1b843147150027daa5b522dd8d0757ec5c8c146defd8e01b62b34cf917299f1    
     
-n getNkFromNsk nsk         Generate nk from nsk    
+o getNkFromNsk nsk         Generate nk from nsk    
 Example:    
 GetNkFromNsk 5cd2bc8d9468dbad26ea37c5335a0cd25f110eaf533248c59a3310dcbc03e503    
 11:49:44.651 INFO  [main] [Client](Client.java:2250) nk:ed3dc885049f0a716a4de8c08c6cabcad0da3c437202341aa3d9248d8eb2b74a    
     
-o getIncomingViewingKey ak[64] nk[64]  Generate ivk from ak and nk    
+p getIncomingViewingKey ak[64] nk[64]  Generate ivk from ak and nk    
 Example:    
 getincomingviewingkey  f1b843147150027daa5b522dd8d0757ec5c8c146defd8e01b62b34cf917299f1  ed3dc885049f0a716a4de8c08c6cabcad0da3c437202341aa3d9248d8eb2b74a    
 11:51:45.686 INFO  [main] [Client](Client.java:2272) ivk:148cf9e91f1e6656a41dc9b6c6ee4e52ff7a25b25c2d4a3a3182d0a2cd851205    
     
-p GetDiversifier      Generate a diversifier    
+q GetDiversifier      Generate a diversifier    
 Example:    
 GetDiversifier    
 11:49:19.158 INFO  [main] [Client](Client.java:2281) 11db4baf6bd5d5afd3a8b5    
 
-q getshieldedpaymentaddress ivk[64] d[22]   Generate a shielded address from sk and d    
+r getshieldedpaymentaddress ivk[64] d[22]   Generate a shielded address from sk and d    
 Example:    
 GetShieldedPaymentAddress 148cf9e91f1e6656a41dc9b6c6ee4e52ff7a25b25c2d4a3a3182d0a2cd851205  11db4baf6bd5d5afd3a8b5    
 11:52:33.542 INFO  [main] [Client](Client.java:2309) pkd:65c11642115d386ed716b9cc06a3498e86e303d7f20d0869c9de90e31322ac15    
-11:52:33.543 INFO  [main] [Client](Client.java:2310) shieldedAddress:ztron1z8d5htmt6h26l5agk4juz9jzz9wnsmkhz6uucp4rfx8gdccr6leq6zrfe80fpccny2kp2cray8z    	
-    
+11:52:33.543 INFO  [main] [Client](Client.java:2310) shieldedAddress:ztron1z8d5htmt6h26l5agk4juz9jzz9wnsmkhz6uucp4rfx8gdccr6leq6zrfe80fpccny2kp2cray8z   
+
+s BackupShieldedAddress 	      Back up one shielded address    
+Example:    
+loadshieldedwallet     
+Please input your password for shielded wallet.     
+1qa@WS#ED        
+LoadShieldedWallet successful !!!     
+BackupShieldedAddress     
+Please input your password for shielded wallet.     
+1qa@WS#ED     
+The 1th shielded address is ztron15y0cthwduz7mjpx3mc7cl9cxj8aqq9m8z08g6xns8qsvp7hgqstp9w5t8eh0vydlyf42gtxjzun     
+The 2th shielded address is ztron1akz7mt4zqsjqrdrwdsmffu6g5dnehhhtahjlc0c6syy3z9nxxjrzqszy22lyx326edmwqjhqe48     
+The 3th shielded address is ztron1m5dx50gryu789q5sh5207chzmmgzf5c7hvn8lr6xs60jfxvkv3d3h0kqkglc60rwq26dchztsty     
+The 4th shielded address is ztron1at9ud3crdsehe8rgrjkltqly7gsp85y8qzq93pq480hzd2az55pja5cc8r4yfwrnrqqs7q35n4x     
+Please choose between 1 and 4     
+1     
+0b1cf73b85742e13015dc6fb8d0986e4ad34c8f468bd8c73cc8fb34bff0dfacea11f85ddcde0bdb904d1de     
+BackupShieldedAddress successful !!     
+     
+t ImportShieldedAddress         Import one shieled address to local wallet     
+Example:    
+ImportShieldedAddress     
+Please input your password for shielded wallet.     
+1qa@WS#ED     
+Please input shielded address hex string. Max retry time: 3     
+0b1cf73b85742e13015dc6fb8d0986e4ad34c8f468bd8c73cc8fb34bff0dfacea11f85ddcde0bdb904d1de     
+Import new shielded address is: ztron15y0cthwduz7mjpx3mc7cl9cxj8aqq9m8z08g6xns8qsvp7hgqstp9w5t8eh0vydlyf42gtxjzun     
+ImportShieldedAddress successful !!     
