@@ -977,10 +977,13 @@ public class Client {
         receiverAddress = parameters[0];
       }
     }
-
     if (parameters.length == 2) {
       resourceCode = Integer.parseInt(parameters[0]);
       receiverAddress = parameters[1];
+    }
+    if (parameters.length == 0) {
+      System.out.println("Now you are unfreeze balance frozen for bandwidth.");
+      System.out.println("If you want to do something else, please refer to unfreezeBalance [ResourceCode:0 BANDWIDTH,1 CPU] [receiverAddress]");
     }
 
     boolean result = walletApiWrapper.unfreezeBalance(resourceCode, receiverAddress);
@@ -990,7 +993,6 @@ public class Client {
       logger.info("unfreezeBalance " + " failed !!");
     }
   }
-
 
   private void unfreezeAsset() throws IOException, CipherException, CancelException {
     boolean result = walletApiWrapper.unfreezeAsset();
@@ -2106,7 +2108,10 @@ public class Client {
     }
 
     int showType = 0;
-    if (parameters.length > 0) {
+    if (parameters == null || parameters.length <= 0) {
+      System.out.println("Now you are show all unspent note list!!");
+      System.out.println("If you want to show spent note and unspent note, please use command ListShieldedNote 1 ");
+    } else {
       if (!StringUtil.isNullOrEmpty(parameters[0])) {
         showType = Integer.valueOf(parameters[0]);
       }
