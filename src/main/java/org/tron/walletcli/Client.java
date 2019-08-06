@@ -53,10 +53,7 @@ import org.tron.api.GrpcAPI.TransactionSignWeight;
 import org.tron.api.GrpcAPI.ViewingKeyMessage;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.crypto.Hash;
-import org.tron.common.utils.AbiUtil;
-import org.tron.common.utils.ByteArray;
-import org.tron.common.utils.ByteUtil;
-import org.tron.common.utils.Utils;
+import org.tron.common.utils.*;
 import org.tron.core.exception.CancelException;
 import org.tron.core.exception.CipherException;
 import org.tron.core.exception.EncodingException;
@@ -247,11 +244,24 @@ public class Client {
     }
   }
 
-  private void getBalance() {
-    Account account = walletApiWrapper.queryAccount();
+  private void getBalance(String[] parameters) {
+    Account account;
+    if (ArrayUtils.isEmpty(parameters)){
+      account = walletApiWrapper.queryAccount();
+    } else if (parameters.length == 1) {
+      byte[] addressBytes = WalletApi.decodeFromBase58Check(parameters[0]);
+      if (addressBytes == null) {
+        return;
+      }
+      account = WalletApi.queryAccount(addressBytes);
+    } else {
+      System.out.println("GetBalance needs no parameter or 1 parameter like the following: ");
+      System.out.println("GetBalance Address ");
+      return;
+    }
+
     if (account == null) {
       logger.info("GetBalance failed !!!!");
-
     } else {
       long balance = account.getBalance();
       logger.info("Balance = " + balance);
@@ -296,16 +306,27 @@ public class Client {
 
   private void updateAccount(String[] parameters)
       throws IOException, CipherException, CancelException {
-    if (parameters == null || parameters.length != 1) {
+    if (parameters == null || (parameters.length != 1 && parameters.length != 2)) {
       System.out.println("UpdateAccount needs 1 parameter like the following: ");
       System.out.println("UpdateAccount AccountName ");
+      System.out.println("Or 2 parameter like the following: ");
+      System.out.println("UpdateAccount OwnerAddress AccountName ");
       return;
     }
 
-    String accountName = parameters[0];
+    int index = 0;
+    byte[] ownerAddress = null;
+    if (parameters.length == 2) {
+      ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
+      if (ownerAddress == null) {
+        System.out.println("Invalid OwnerAddress.");
+        return;
+      }
+    }
+    String accountName = parameters[index++];
     byte[] accountNameBytes = ByteArray.fromString(accountName);
 
-    boolean ret = walletApiWrapper.updateAccount(accountNameBytes);
+    boolean ret = walletApiWrapper.updateAccount(ownerAddress, accountNameBytes);
     if (ret) {
       logger.info("Update Account successful !!!!");
     } else {
@@ -315,16 +336,27 @@ public class Client {
 
   private void setAccountId(String[] parameters)
       throws IOException, CipherException, CancelException {
-    if (parameters == null || parameters.length != 1) {
+    if (parameters == null || (parameters.length != 1 && parameters.length != 2)) {
       System.out.println("SetAccountId needs 1 parameter like the following: ");
       System.out.println("SetAccountId AccountId ");
+      System.out.println("Or 2 parameter like the following: ");
+      System.out.println("SetAccountId OwnerAddress AccountId ");
       return;
     }
 
-    String accountId = parameters[0];
+    int index = 0;
+    byte[] ownerAddress = null;
+    if (parameters.length == 2) {
+      ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
+      if (ownerAddress == null) {
+        System.out.println("Invalid OwnerAddress.");
+        return;
+      }
+    }
+    String accountId = parameters[index++];
     byte[] accountIdBytes = ByteArray.fromString(accountId);
 
-    boolean ret = walletApiWrapper.setAccountId(accountIdBytes);
+    boolean ret = walletApiWrapper.setAccountId(ownerAddress, accountIdBytes);
     if (ret) {
       logger.info("Set AccountId successful !!!!");
     } else {
@@ -334,16 +366,27 @@ public class Client {
 
   private void updateAsset(String[] parameters)
       throws IOException, CipherException, CancelException {
-    if (parameters == null || parameters.length != 4) {
+    if (parameters == null || (parameters.length != 4 && parameters.length != 5)) {
       System.out.println("UpdateAsset needs 4 parameters like the following: ");
       System.out.println("UpdateAsset newLimit newPublicLimit description url");
+      System.out.println("Or 5 parameters like the following: ");
+      System.out.println("UpdateAsset OwnerAddress newLimit newPublicLimit description url");
       return;
     }
 
-    String newLimitString = parameters[0];
-    String newPublicLimitString = parameters[1];
-    String description = parameters[2];
-    String url = parameters[3];
+    int index = 0;
+    byte[] ownerAddress = null;
+    if (parameters.length == 5) {
+      ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
+      if (ownerAddress == null) {
+        System.out.println("Invalid OwnerAddress.");
+        return;
+      }
+    }
+    String newLimitString = parameters[index++];
+    String newPublicLimitString = parameters[index++];
+    String description = parameters[index++];
+    String url = parameters[index++];
 
     byte[] descriptionBytes = ByteArray.fromString(description);
     byte[] urlBytes = ByteArray.fromString(url);
@@ -351,7 +394,7 @@ public class Client {
     long newPublicLimit = new Long(newPublicLimitString);
 
     boolean ret = walletApiWrapper
-        .updateAsset(descriptionBytes, urlBytes, newLimit, newPublicLimit);
+        .updateAsset(ownerAddress, descriptionBytes, urlBytes, newLimit, newPublicLimit);
     if (ret) {
       logger.info("Update Asset successful !!!!");
     } else {
@@ -473,17 +516,34 @@ public class Client {
   }
 
   private void sendCoin(String[] parameters) throws IOException, CipherException, CancelException {
-    if (parameters == null || parameters.length != 2) {
+    if (parameters == null || (parameters.length != 2 && parameters.length != 3)) {
       System.out.println("SendCoin needs 2 parameters like following: ");
       System.out.println("SendCoin ToAddress Amount");
+      System.out.println("Or 3 parameters like following: ");
+      System.out.println("SendCoin OwnerAddress ToAddress Amount");
       return;
     }
 
-    String toAddress = parameters[0];
-    String amountStr = parameters[1];
+    int index = 0;
+    byte[] ownerAddress = null;
+    if (parameters.length == 3) {
+      ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
+      if (ownerAddress == null) {
+        System.out.println("Invalid OwnerAddress.");
+        return;
+      }
+    }
+
+    byte[] toAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
+    if (toAddress == null) {
+      System.out.println("Invalid toAddress.");
+      return;
+    }
+
+    String amountStr = parameters[index++];
     long amount = new Long(amountStr);
 
-    boolean result = walletApiWrapper.sendCoin(toAddress, amount);
+    boolean result = walletApiWrapper.sendCoin(ownerAddress, toAddress, amount);
     if (result) {
       logger.info("Send " + amount + " drop to " + toAddress + " successful !!");
     } else {
@@ -491,82 +551,36 @@ public class Client {
     }
   }
 
-  private void testTransaction(String[] parameters)
-      throws IOException, CipherException, CancelException {
-    if (parameters == null || (parameters.length != 3 && parameters.length != 4)) {
-      System.out.println("testTransaction needs 3 or 4 parameters using the following syntax: ");
-      System.out.println("testTransaction ToAddress assertName times");
-      System.out.println("testTransaction ToAddress assertName times interval");
-      System.out.println("If needing transferAsset, assertName input null");
-      return;
-    }
-
-    String toAddress = parameters[0];
-    String assertName = parameters[1];
-    String loopTime = parameters[2];
-    int intervalInt = 0;//s
-    if (parameters.length == 5) {
-      String interval = parameters[4];
-      intervalInt = Integer.parseInt(interval);//s
-    }
-    intervalInt *= 500; //ms
-    long times = new Long(loopTime);
-
-    for (int i = 1; i <= times; i++) {
-      long amount = i;
-      boolean result = walletApiWrapper.sendCoin(toAddress, amount);
-      if (result) {
-        logger.info("Send " + amount + " drop to " + toAddress + " successful !!");
-        if (intervalInt > 0) {
-          try {
-            Thread.sleep(intervalInt);
-          } catch (Exception e) {
-            e.printStackTrace();
-            break;
-          }
-        }
-      } else {
-        logger.info("Send " + amount + " drop to " + toAddress + " failed !!");
-        break;
-      }
-
-      if (!"null".equalsIgnoreCase(assertName)) {
-        result = walletApiWrapper.transferAsset(toAddress, assertName, amount);
-        if (result) {
-          logger
-              .info(
-                  "transferAsset " + amount + assertName + " to " + toAddress + " successful !!");
-          if (intervalInt > 0) {
-            try {
-              Thread.sleep(intervalInt);
-            } catch (Exception e) {
-              e.printStackTrace();
-              break;
-            }
-          }
-        } else {
-          logger.info("transferAsset " + amount + assertName + " to " + toAddress + " failed !!");
-          break;
-        }
-      }
-    }
-
-  }
-
   private void transferAsset(String[] parameters)
       throws IOException, CipherException, CancelException {
-    if (parameters == null || parameters.length != 3) {
+    if (parameters == null || (parameters.length != 3 && parameters.length != 4)) {
       System.out.println("TransferAsset needs 3 parameters using the following syntax: ");
       System.out.println("TransferAsset ToAddress AssertID Amount");
+      System.out.println("Or 4 parameters using the following syntax: ");
+      System.out.println("TransferAsset OwnerAddress ToAddress AssertID Amount");
       return;
     }
 
-    String toAddress = parameters[0];
-    String assertName = parameters[1];
-    String amountStr = parameters[2];
+    int index = 0;
+    byte[] ownerAddress = null;
+    if (parameters.length == 4) {
+      ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
+      if (ownerAddress == null) {
+        System.out.println("Invalid OwnerAddress.");
+        return;
+      }
+    }
+
+    byte[] toAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
+    if (toAddress == null) {
+      System.out.println("Invalid toAddress.");
+      return;
+    }
+    String assertName = parameters[index++];
+    String amountStr = parameters[index++];
     long amount = new Long(amountStr);
 
-    boolean result = walletApiWrapper.transferAsset(toAddress, assertName, amount);
+    boolean result = walletApiWrapper.transferAsset(ownerAddress, toAddress, assertName, amount);
     if (result) {
       logger.info("TransferAsset " + amount + " to " + toAddress + " successful !!");
     } else {
@@ -576,18 +590,34 @@ public class Client {
 
   private void participateAssetIssue(String[] parameters)
       throws IOException, CipherException, CancelException {
-    if (parameters == null || parameters.length != 3) {
+    if (parameters == null || (parameters.length != 3 && parameters.length != 4)) {
       System.out.println("ParticipateAssetIssue needs 3 parameters using the following syntax: ");
       System.out.println("ParticipateAssetIssue ToAddress AssetID Amount");
+      System.out.println("Or 4 parameters using the following syntax: ");
+      System.out.println("ParticipateAssetIssue OwnerAddress ToAddress AssetID Amount");
       return;
     }
 
-    String toAddress = parameters[0];
-    String assertName = parameters[1];
-    String amountStr = parameters[2];
+    int index = 0;
+    byte[] ownerAddress = null;
+    if (parameters.length == 4) {
+      ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
+      if (ownerAddress == null) {
+        System.out.println("Invalid OwnerAddress.");
+        return;
+      }
+    }
+
+    byte[] toAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
+    if (toAddress == null) {
+      System.out.println("Invalid toAddress.");
+      return;
+    }
+    String assertName = parameters[index++];
+    String amountStr = parameters[index++];
     long amount = Long.parseLong(amountStr);
 
-    boolean result = walletApiWrapper.participateAssetIssue(toAddress, assertName, amount);
+    boolean result = walletApiWrapper.participateAssetIssue(ownerAddress, toAddress, assertName, amount);
     if (result) {
       logger.info("ParticipateAssetIssue " + assertName + " " + amount + " from " + toAddress
           + " successful !!");
@@ -599,11 +629,11 @@ public class Client {
 
   private void assetIssue(String[] parameters)
       throws IOException, CipherException, CancelException {
-    if (parameters == null || parameters.length < 12 || (parameters.length & 1) == 1) {
+    if (parameters == null || parameters.length < 12) {
       System.out
           .println("Use the assetIssue command for features that you require with below syntax: ");
       System.out.println(
-          "AssetIssue AssetName AbbrName TotalSupply TrxNum AssetNum Precision "
+          "AssetIssue [OwnerAddress] AssetName AbbrName TotalSupply TrxNum AssetNum Precision "
               + "StartDate EndDate Description Url FreeNetLimitPerAccount PublicFreeNetLimit "
               + "FrozenAmount0 FrozenDays0 ... FrozenAmountN FrozenDaysN");
       System.out
@@ -614,22 +644,32 @@ public class Client {
       return;
     }
 
-    String name = parameters[0];
-    String abbrName = parameters[1];
-    String totalSupplyStr = parameters[2];
-    String trxNumStr = parameters[3];
-    String icoNumStr = parameters[4];
-    String precisionStr = parameters[5];
-    String startYyyyMmDd = parameters[6];
-    String endYyyyMmDd = parameters[7];
-    String description = parameters[8];
-    String url = parameters[9];
-    String freeNetLimitPerAccount = parameters[10];
-    String publicFreeNetLimitString = parameters[11];
+    int index = 0;
+    byte[] ownerAddress = null;
+    if ((parameters.length & 1) == 1) {
+      ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
+      if (ownerAddress == null) {
+        System.out.println("Invalid OwnerAddress.");
+        return;
+      }
+    }
+
+    String name = parameters[index++];
+    String abbrName = parameters[index++];
+    String totalSupplyStr = parameters[index++];
+    String trxNumStr = parameters[index++];
+    String icoNumStr = parameters[index++];
+    String precisionStr = parameters[index++];
+    String startYyyyMmDd = parameters[index++];
+    String endYyyyMmDd = parameters[index++];
+    String description = parameters[index++];
+    String url = parameters[index++];
+    String freeNetLimitPerAccount = parameters[index++];
+    String publicFreeNetLimitString = parameters[index++];
     HashMap<String, String> frozenSupply = new HashMap<>();
-    for (int i = 12; i < parameters.length; i += 2) {
-      String amount = parameters[i];
-      String days = parameters[i + 1];
+    while (index < parameters.length) {
+      String amount = parameters[index++];
+      String days = parameters[index++];
       frozenSupply.put(days, amount);
     }
     long totalSupply = new Long(totalSupplyStr);
@@ -650,7 +690,7 @@ public class Client {
     long publicFreeNetLimit = new Long(publicFreeNetLimitString);
 
     boolean result = walletApiWrapper
-        .assetIssue(name, abbrName, totalSupply, trxNum, icoNum, precision, startTime, endTime,
+        .assetIssue(ownerAddress, name, abbrName, totalSupply, trxNum, icoNum, precision, startTime, endTime,
             0, description, url, freeAssetNetLimit, publicFreeNetLimit, frozenSupply);
     if (result) {
       logger.info("AssetIssue " + name + " successful !!");
@@ -661,15 +701,31 @@ public class Client {
 
   private void createAccount(String[] parameters)
       throws CipherException, IOException, CancelException {
-    if (parameters == null || parameters.length != 1) {
+    if (parameters == null || (parameters.length != 1 && parameters.length != 2)) {
       System.out.println("CreateAccount needs 1 parameter using the following syntax: ");
       System.out.println("CreateAccount Address");
+      System.out.println("Or 2 parameter using the following syntax: ");
+      System.out.println("CreateAccount OwnerAddress Address");
       return;
     }
 
-    String address = parameters[0];
+    int index = 0;
+    byte[] ownerAddress = null;
+    if (parameters.length == 2) {
+      ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
+      if (ownerAddress == null) {
+        System.out.println("Invalid OwnerAddress.");
+        return;
+      }
+    }
 
-    boolean result = walletApiWrapper.createAccount(address);
+    byte[] address = WalletApi.decodeFromBase58Check(parameters[index++]);
+    if (address == null) {
+      System.out.println("Invalid Address.");
+      return;
+    }
+
+    boolean result = walletApiWrapper.createAccount(ownerAddress, address);
     if (result) {
       logger.info("CreateAccount " + " successful !!");
     } else {
@@ -679,15 +735,27 @@ public class Client {
 
   private void createWitness(String[] parameters)
       throws IOException, CipherException, CancelException {
-    if (parameters == null || parameters.length != 1) {
+    if (parameters == null || (parameters.length != 1 && parameters.length != 2)) {
       System.out.println("CreateWitness needs 1 parameter using the following syntax: ");
       System.out.println("CreateWitness Url");
+      System.out.println("Or 2 parameter using the following syntax: ");
+      System.out.println("CreateWitness OwnerAddress Url");
       return;
     }
 
-    String url = parameters[0];
+    int index = 0;
+    byte[] ownerAddress = null;
+    if (parameters.length == 2) {
+      ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
+      if (ownerAddress == null) {
+        System.out.println("Invalid OwnerAddress.");
+        return;
+      }
+    }
 
-    boolean result = walletApiWrapper.createWitness(url);
+    String url = parameters[index++];
+
+    boolean result = walletApiWrapper.createWitness(ownerAddress, url);
     if (result) {
       logger.info("CreateWitness " + " successful !!");
     } else {
@@ -697,15 +765,27 @@ public class Client {
 
   private void updateWitness(String[] parameters)
       throws IOException, CipherException, CancelException {
-    if (parameters == null || parameters.length != 1) {
+    if (parameters == null || (parameters.length != 1 && parameters.length != 2)) {
       System.out.println("updateWitness needs 1 parameter using the following syntax: ");
       System.out.println("updateWitness Url");
+      System.out.println("Or 2 parameter using the following syntax: ");
+      System.out.println("updateWitness OwnerAddress Url");
       return;
     }
 
-    String url = parameters[0];
+    int index = 0;
+    byte[] ownerAddress = null;
+    if (parameters.length == 2) {
+      ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
+      if (ownerAddress == null) {
+        System.out.println("Invalid OwnerAddress.");
+        return;
+      }
+    }
 
-    boolean result = walletApiWrapper.updateWitness(url);
+    String url = parameters[index++];
+
+    boolean result = walletApiWrapper.updateWitness(ownerAddress, url);
     if (result) {
       logger.info("updateWitness " + " successful !!");
     } else {
@@ -850,20 +930,30 @@ public class Client {
 
   private void voteWitness(String[] parameters)
       throws IOException, CipherException, CancelException {
-    if (parameters == null || parameters.length < 2 || (parameters.length & 1) != 0) {
+    if (parameters == null || parameters.length < 2) {
       System.out.println("Use VoteWitness command with below syntax: ");
-      System.out.println("VoteWitness Address0 Count0 ... AddressN CountN");
+      System.out.println("VoteWitness [OwnerAddress] Address0 Count0 ... AddressN CountN");
       return;
     }
 
+    int index = 0;
+    byte[] ownerAddress = null;
+    if ((parameters.length & 1) != 0) {
+      ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
+      if (ownerAddress == null) {
+        System.out.println("Invalid OwnerAddress.");
+        return;
+      }
+    }
+
     HashMap<String, String> witness = new HashMap<String, String>();
-    for (int i = 0; i < parameters.length; i += 2) {
-      String address = parameters[i];
-      String countStr = parameters[i + 1];
+    while (index < parameters.length){
+      String address = parameters[index++];
+      String countStr = parameters[index++];
       witness.put(address, countStr);
     }
 
-    boolean result = walletApiWrapper.voteWitness(witness);
+    boolean result = walletApiWrapper.voteWitness(ownerAddress, witness);
     if (result) {
       logger.info("VoteWitness " + " successful !!");
     } else {
@@ -1541,20 +1631,36 @@ public class Client {
 
   private void updateSetting(String[] parameters)
       throws IOException, CipherException, CancelException {
-    if (parameters == null ||
-        parameters.length < 2) {
+    if (parameters == null || (parameters.length != 2 && parameters.length != 3)) {
       System.out.println("updateSetting needs 2 parameters like following: ");
       System.out.println("updateSetting contract_address consume_user_resource_percent");
+      System.out.println("Or 3 parameters like following: ");
+      System.out.println("updateSetting owner_address contract_address consume_user_resource_percent");
       return;
     }
 
-    byte[] contractAddress = WalletApi.decodeFromBase58Check(parameters[0]);
-    long consumeUserResourcePercent = Long.valueOf(parameters[1]).longValue();
+    int index = 0;
+    byte[] ownerAddress = null;
+    if (parameters.length == 3) {
+      ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
+      if (ownerAddress == null) {
+        System.out.println("Invalid OwnerAddress.");
+        return;
+      }
+    }
+
+    byte[] contractAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
+    if (contractAddress == null) {
+      System.out.println("Invalid contractAddress.");
+      return;
+    }
+
+    long consumeUserResourcePercent = Long.valueOf(parameters[index++]).longValue();
     if (consumeUserResourcePercent > 100 || consumeUserResourcePercent < 0) {
       System.out.println("consume_user_resource_percent must >= 0 and <= 100");
       return;
     }
-    boolean result = walletApiWrapper.updateSetting(contractAddress, consumeUserResourcePercent);
+    boolean result = walletApiWrapper.updateSetting(ownerAddress, contractAddress, consumeUserResourcePercent);
     if (result) {
       System.out.println("update setting successfully");
     } else {
@@ -1564,20 +1670,36 @@ public class Client {
 
   private void updateEnergyLimit(String[] parameters)
       throws IOException, CipherException, CancelException {
-    if (parameters == null ||
-        parameters.length < 2) {
+    if (parameters == null || (parameters.length != 2 && parameters.length != 3)) {
       System.out.println("updateEnergyLimit needs 2 parameters like following: ");
       System.out.println("updateEnergyLimit contract_address energy_limit");
+      System.out.println("Or 3 parameters like following: ");
+      System.out.println("updateEnergyLimit owner_address contract_address energy_limit");
       return;
     }
 
-    byte[] contractAddress = WalletApi.decodeFromBase58Check(parameters[0]);
-    long originEnergyLimit = Long.valueOf(parameters[1]).longValue();
+    int index = 0;
+    byte[] ownerAddress = null;
+    if (parameters.length == 3) {
+      ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
+      if (ownerAddress == null) {
+        System.out.println("Invalid OwnerAddress.");
+        return;
+      }
+    }
+
+    byte[] contractAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
+    if (contractAddress == null) {
+      System.out.println("Invalid contractAddress.");
+      return;
+    }
+
+    long originEnergyLimit = Long.valueOf(parameters[index++]).longValue();
     if (originEnergyLimit < 0) {
       System.out.println("origin_energy_limit need > 0 ");
       return;
     }
-    boolean result = walletApiWrapper.updateEnergyLimit(contractAddress, originEnergyLimit);
+    boolean result = walletApiWrapper.updateEnergyLimit(ownerAddress, contractAddress, originEnergyLimit);
     if (result) {
       System.out.println("update setting for origin_energy_limit successfully");
     } else {
@@ -2657,7 +2779,7 @@ public class Client {
             break;
           }
           case "getbalance": {
-            getBalance();
+            getBalance(parameters);
             break;
           }
           case "getaccount": {
@@ -2706,10 +2828,6 @@ public class Client {
           }
           case "sendcoin": {
             sendCoin(parameters);
-            break;
-          }
-          case "testtransaction": {
-            testTransaction(parameters);
             break;
           }
           case "transferasset": {

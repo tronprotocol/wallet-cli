@@ -662,9 +662,12 @@ public class WalletApi {
     return rpcCli.easyTransferAssetByPrivate(privateKey, toAddress, assetId, amount);
   }
 
-  public boolean sendCoin(byte[] to, long amount)
+  public boolean sendCoin(byte[] owner, byte[] to, long amount)
       throws CipherException, IOException, CancelException {
-    byte[] owner = getAddress();
+    if (owner == null){
+      owner = getAddress();
+    }
+
     Contract.TransferContract contract = createTransferContract(to, owner, amount);
     if (rpcVersion == 2) {
       TransactionExtention transactionExtention = rpcCli.createTransaction2(contract);
@@ -675,9 +678,12 @@ public class WalletApi {
     }
   }
 
-  public boolean updateAccount(byte[] accountNameBytes)
+  public boolean updateAccount(byte[] owner, byte[] accountNameBytes)
       throws CipherException, IOException, CancelException {
-    byte[] owner = getAddress();
+    if (owner == null){
+      owner = getAddress();
+    }
+
     Contract.AccountUpdateContract contract = createAccountUpdateContract(accountNameBytes, owner);
     if (rpcVersion == 2) {
       TransactionExtention transactionExtention = rpcCli.createTransaction2(contract);
@@ -688,9 +694,12 @@ public class WalletApi {
     }
   }
 
-  public boolean setAccountId(byte[] accountIdBytes)
+  public boolean setAccountId(byte[] owner, byte[] accountIdBytes)
       throws CipherException, IOException, CancelException {
-    byte[] owner = getAddress();
+    if (owner == null){
+      owner = getAddress();
+    }
+
     Contract.SetAccountIdContract contract = createSetAccountIdContract(accountIdBytes, owner);
     Transaction transaction = rpcCli.createTransaction(contract);
     if (transaction == null || transaction.getRawData().getContractCount() == 0) {
@@ -701,10 +710,13 @@ public class WalletApi {
   }
 
 
-  public boolean updateAsset(byte[] description, byte[] url, long newLimit,
+  public boolean updateAsset(byte[] owner, byte[] description, byte[] url, long newLimit,
       long newPublicLimit)
       throws CipherException, IOException, CancelException {
-    byte[] owner = getAddress();
+    if (owner == null){
+      owner = getAddress();
+    }
+
     Contract.UpdateAssetContract contract
         = createUpdateAssetContract(owner, description, url, newLimit, newPublicLimit);
     if (rpcVersion == 2) {
@@ -716,9 +728,12 @@ public class WalletApi {
     }
   }
 
-  public boolean transferAsset(byte[] to, byte[] assertName, long amount)
+  public boolean transferAsset(byte[] owner, byte[] to, byte[] assertName, long amount)
       throws CipherException, IOException, CancelException {
-    byte[] owner = getAddress();
+    if (owner == null){
+      owner = getAddress();
+    }
+
     Contract.TransferAssetContract contract = createTransferAssetContract(to, assertName, owner,
         amount);
     if (rpcVersion == 2) {
@@ -730,9 +745,12 @@ public class WalletApi {
     }
   }
 
-  public boolean participateAssetIssue(byte[] to, byte[] assertName, long amount)
+  public boolean participateAssetIssue(byte[] owner, byte[] to, byte[] assertName, long amount)
       throws CipherException, IOException, CancelException {
-    byte[] owner = getAddress();
+    if (owner == null){
+      owner = getAddress();
+    }
+
     Contract.ParticipateAssetIssueContract contract = participateAssetIssueContract(to, assertName,
         owner, amount);
     if (rpcVersion == 2) {
@@ -766,9 +784,12 @@ public class WalletApi {
     }
   }
 
-  public boolean createAccount(byte[] address)
+  public boolean createAccount(byte[] owner, byte[] address)
       throws CipherException, IOException, CancelException {
-    byte[] owner = getAddress();
+    if (owner == null){
+      owner = getAddress();
+    }
+
     Contract.AccountCreateContract contract = createAccountCreateContract(owner, address);
     if (rpcVersion == 2) {
       TransactionExtention transactionExtention = rpcCli.createAccount2(contract);
@@ -785,8 +806,11 @@ public class WalletApi {
     return rpcCli.generateAddress(builder.build());
   }
 
-  public boolean createWitness(byte[] url) throws CipherException, IOException, CancelException {
-    byte[] owner = getAddress();
+  public boolean createWitness(byte[] owner, byte[] url) throws CipherException, IOException, CancelException {
+    if (owner == null){
+      owner = getAddress();
+    }
+
     Contract.WitnessCreateContract contract = createWitnessCreateContract(owner, url);
     if (rpcVersion == 2) {
       TransactionExtention transactionExtention = rpcCli.createWitness2(contract);
@@ -797,8 +821,11 @@ public class WalletApi {
     }
   }
 
-  public boolean updateWitness(byte[] url) throws CipherException, IOException, CancelException {
-    byte[] owner = getAddress();
+  public boolean updateWitness(byte[] owner, byte[] url) throws CipherException, IOException, CancelException {
+    if (owner == null){
+      owner = getAddress();
+    }
+
     Contract.WitnessUpdateContract contract = createWitnessUpdateContract(owner, url);
     if (rpcVersion == 2) {
       TransactionExtention transactionExtention = rpcCli.updateWitness2(contract);
@@ -821,9 +848,12 @@ public class WalletApi {
     return rpcCli.getTransactionCountByBlockNum(blockNum);
   }
 
-  public boolean voteWitness(HashMap<String, String> witness)
+  public boolean voteWitness(byte[] owner, HashMap<String, String> witness)
       throws CipherException, IOException, CancelException {
-    byte[] owner = getAddress();
+    if (owner == null){
+      owner = getAddress();
+    }
+
     Contract.VoteWitnessContract contract = createVoteWitnessContract(owner, witness);
     if (rpcVersion == 2) {
       TransactionExtention transactionExtention = rpcCli.voteWitnessAccount2(contract);
@@ -1827,9 +1857,12 @@ public class WalletApi {
 
   }
 
-  public boolean updateSetting(byte[] contractAddress, long consumeUserResourcePercent)
+  public boolean updateSetting(byte[] owner, byte[] contractAddress, long consumeUserResourcePercent)
       throws IOException, CipherException, CancelException {
-    byte[] owner = getAddress();
+    if (owner == null){
+      owner = getAddress();
+    }
+
     UpdateSettingContract updateSettingContract = createUpdateSettingContract(owner,
         contractAddress, consumeUserResourcePercent);
 
@@ -1848,9 +1881,12 @@ public class WalletApi {
 
   }
 
-  public boolean updateEnergyLimit(byte[] contractAddress, long originEnergyLimit)
+  public boolean updateEnergyLimit(byte[] owner, byte[] contractAddress, long originEnergyLimit)
       throws IOException, CipherException, CancelException {
-    byte[] owner = getAddress();
+    if (owner == null){
+      owner = getAddress();
+    }
+
     UpdateEnergyLimitContract updateEnergyLimitContract = createUpdateEnergyLimitContract(
         owner,
         contractAddress, originEnergyLimit);

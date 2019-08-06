@@ -184,49 +184,37 @@ public class WalletApiWrapper {
     return wallet.queryAccount();
   }
 
-  public boolean sendCoin(String toAddress, long amount)
+  public boolean sendCoin(byte[] ownerAddress, byte[] toAddress, long amount)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: SendCoin failed,  Please login first !!");
       return false;
     }
-    byte[] to = WalletApi.decodeFromBase58Check(toAddress);
-    if (to == null) {
-      return false;
-    }
 
-    return wallet.sendCoin(to, amount);
+    return wallet.sendCoin(ownerAddress, toAddress, amount);
   }
 
-  public boolean transferAsset(String toAddress, String assertName, long amount)
+  public boolean transferAsset(byte[] ownerAddress, byte[] toAddress, String assertName, long amount)
       throws IOException, CipherException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: TransferAsset failed,  Please login first !!");
       return false;
     }
-    byte[] to = WalletApi.decodeFromBase58Check(toAddress);
-    if (to == null) {
-      return false;
-    }
 
-    return wallet.transferAsset(to, assertName.getBytes(), amount);
+    return wallet.transferAsset(ownerAddress, toAddress, assertName.getBytes(), amount);
   }
 
-  public boolean participateAssetIssue(String toAddress, String assertName,
+  public boolean participateAssetIssue(byte[] ownerAddress, byte[] toAddress, String assertName,
       long amount) throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: TransferAsset failed,  Please login first !!");
       return false;
     }
-    byte[] to = WalletApi.decodeFromBase58Check(toAddress);
-    if (to == null) {
-      return false;
-    }
 
-    return wallet.participateAssetIssue(to, assertName.getBytes(), amount);
+    return wallet.participateAssetIssue(ownerAddress, toAddress, assertName.getBytes(), amount);
   }
 
-  public boolean assetIssue(String name, String abbrName, long totalSupply, int trxNum, int icoNum,
+  public boolean assetIssue(byte[] ownerAddress, String name, String abbrName, long totalSupply, int trxNum, int icoNum,
       int precision, long startTime, long endTime, int voteScore, String description, String url,
       long freeNetLimit, long publicFreeNetLimit, HashMap<String, String> frozenSupply)
       throws CipherException, IOException, CancelException {
@@ -236,7 +224,10 @@ public class WalletApiWrapper {
     }
 
     Contract.AssetIssueContract.Builder builder = Contract.AssetIssueContract.newBuilder();
-    builder.setOwnerAddress(ByteString.copyFrom(wallet.getAddress()));
+    if (ownerAddress == null) {
+      ownerAddress = wallet.getAddress();
+    }
+    builder.setOwnerAddress(ByteString.copyFrom(ownerAddress));
     builder.setName(ByteString.copyFrom(name.getBytes()));
     builder.setAbbr(ByteString.copyFrom(abbrName.getBytes()));
 
@@ -309,15 +300,14 @@ public class WalletApiWrapper {
     return wallet.createAssetIssue(builder.build());
   }
 
-  public boolean createAccount(String address)
+  public boolean createAccount(byte[] ownerAddress, byte[] address)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: createAccount failed,  Please login first !!");
       return false;
     }
 
-    byte[] addressBytes = WalletApi.decodeFromBase58Check(address);
-    return wallet.createAccount(addressBytes);
+    return wallet.createAccount(ownerAddress, address);
   }
 
   public AddressPrKeyPairMessage generateAddress() {
@@ -329,22 +319,22 @@ public class WalletApiWrapper {
   }
 
 
-  public boolean createWitness(String url) throws CipherException, IOException, CancelException {
+  public boolean createWitness(byte[] ownerAddress, String url) throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: createWitness failed,  Please login first !!");
       return false;
     }
 
-    return wallet.createWitness(url.getBytes());
+    return wallet.createWitness(ownerAddress, url.getBytes());
   }
 
-  public boolean updateWitness(String url) throws CipherException, IOException, CancelException {
+  public boolean updateWitness(byte[] ownerAddress, String url) throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: updateWitness failed,  Please login first !!");
       return false;
     }
 
-    return wallet.updateWitness(url.getBytes());
+    return wallet.updateWitness(ownerAddress, url.getBytes());
   }
 
   public Block getBlock(long blockNum) {
@@ -359,14 +349,14 @@ public class WalletApiWrapper {
     return WalletApi.getBlock2(blockNum);
   }
 
-  public boolean voteWitness(HashMap<String, String> witness)
+  public boolean voteWitness(byte[] ownerAddress, HashMap<String, String> witness)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: VoteWitness failed,  Please login first !!");
       return false;
     }
 
-    return wallet.voteWitness(witness);
+    return wallet.voteWitness(ownerAddress, witness);
   }
 
   public Optional<WitnessList> listWitnesses() {
@@ -448,35 +438,35 @@ public class WalletApiWrapper {
     return WalletApi.getNextMaintenanceTime();
   }
 
-  public boolean updateAccount(byte[] accountNameBytes)
+  public boolean updateAccount(byte[] ownerAddress, byte[] accountNameBytes)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: updateAccount failed, Please login first !!");
       return false;
     }
 
-    return wallet.updateAccount(accountNameBytes);
+    return wallet.updateAccount(ownerAddress, accountNameBytes);
   }
 
-  public boolean setAccountId(byte[] accountIdBytes)
+  public boolean setAccountId(byte[] ownerAddress, byte[] accountIdBytes)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: setAccount failed, Please login first !!");
       return false;
     }
 
-    return wallet.setAccountId(accountIdBytes);
+    return wallet.setAccountId(ownerAddress, accountIdBytes);
   }
 
 
-  public boolean updateAsset(byte[] description, byte[] url, long newLimit,
+  public boolean updateAsset(byte[] ownerAddress, byte[] description, byte[] url, long newLimit,
       long newPublicLimit) throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: updateAsset failed, Please login first !!");
       return false;
     }
 
-    return wallet.updateAsset(description, url, newLimit, newPublicLimit);
+    return wallet.updateAsset(ownerAddress, description, url, newLimit, newPublicLimit);
   }
 
   public boolean freezeBalance(long frozen_balance, long frozen_duration, int resourceCode,
@@ -669,24 +659,24 @@ public class WalletApiWrapper {
     return wallet.exchangeTransaction(exchangeId, tokenId, quant, expected);
   }
 
-  public boolean updateSetting(byte[] contractAddress, long consumeUserResourcePercent)
+  public boolean updateSetting(byte[] ownerAddress, byte[] contractAddress, long consumeUserResourcePercent)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: updateSetting failed,  Please login first !!");
       return false;
     }
-    return wallet.updateSetting(contractAddress, consumeUserResourcePercent);
+    return wallet.updateSetting(ownerAddress, contractAddress, consumeUserResourcePercent);
 
   }
 
-  public boolean updateEnergyLimit(byte[] contractAddress, long originEnergyLimit)
+  public boolean updateEnergyLimit(byte[] ownerAddress, byte[] contractAddress, long originEnergyLimit)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       logger.warn("Warning: updateSetting failed,  Please login first !!");
       return false;
     }
-    return wallet.updateEnergyLimit(contractAddress, originEnergyLimit);
 
+    return wallet.updateEnergyLimit(ownerAddress, contractAddress, originEnergyLimit);
   }
 
   public boolean clearContractABI(byte[] contractAddress)
