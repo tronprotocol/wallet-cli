@@ -1,6 +1,8 @@
-# wallet-cli [![Build Status](https://travis-ci.org/tronprotocol/wallet-cli.svg?branch=master)](https://travis-ci.org/tronprotocol/wallet-cli)
+# wallet-cli [![Build Status](https://travis-ci.org/tronprotocol/wallet-cli.svg?branch=master)](https://travis-ci.org/tronprotocol/wallet-cli)  
+
 Wallet CLI
 
+[gitter](https://gitter.im/tronprotocol/wallet-cli)  
 
 Download wallet-cli
 ---------------------------------
