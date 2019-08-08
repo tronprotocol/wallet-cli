@@ -519,14 +519,15 @@ public class WalletApi {
     return rpcCli.broadcastTransaction(transaction);
   }
 
-  private void showTransactionAfterSign(Transaction transaction) {
+  private void showTransactionAfterSign(Transaction transaction) throws InvalidProtocolBufferException {
     System.out.println("transaction hex string is " +
         ByteArray.toHexString(transaction.toByteArray()));
     System.out.println("txid is " +
         ByteArray.toHexString(Sha256Hash.hash(transaction.getRawData().toByteArray())));
 
     if (transaction.getRawData().getContract(0).getType() == ContractType.CreateSmartContract) {
-      byte[] contractAddress = generateContractAddress(transaction);
+      CreateSmartContract createSmartContract = transaction.getRawData().getContract(0).getParameter().unpack(CreateSmartContract.class);
+      byte[] contractAddress = generateContractAddress(createSmartContract.getOwnerAddress().toByteArray(), transaction);
       System.out.println(
           "Your smart contract address will be: " + WalletApi.encode58Check(contractAddress));
     }
@@ -1424,9 +1425,12 @@ public class WalletApi {
     return rpcCli.getBlockByLatestNum2(num);
   }
 
-  public boolean createProposal(HashMap<Long, Long> parametersMap)
+  public boolean createProposal(byte[] owner, HashMap<Long, Long> parametersMap)
       throws CipherException, IOException, CancelException {
-    byte[] owner = getAddress();
+    if (owner == null){
+      owner = getAddress();
+    }
+
     Contract.ProposalCreateContract contract = createProposalCreateContract(owner, parametersMap);
     TransactionExtention transactionExtention = rpcCli.proposalCreate(contract);
     return processTransactionExtention(transactionExtention);
@@ -1471,9 +1475,12 @@ public class WalletApi {
     return builder.build();
   }
 
-  public boolean approveProposal(long id, boolean is_add_approval)
+  public boolean approveProposal(byte[] owner, long id, boolean is_add_approval)
       throws CipherException, IOException, CancelException {
-    byte[] owner = getAddress();
+    if (owner == null){
+      owner = getAddress();
+    }
+
     Contract.ProposalApproveContract contract = createProposalApproveContract(owner, id,
         is_add_approval);
     TransactionExtention transactionExtention = rpcCli.proposalApprove(contract);
@@ -1490,9 +1497,12 @@ public class WalletApi {
     return builder.build();
   }
 
-  public boolean deleteProposal(long id)
+  public boolean deleteProposal(byte[] owner, long id)
       throws CipherException, IOException, CancelException {
-    byte[] owner = getAddress();
+    if (owner == null){
+      owner = getAddress();
+    }
+
     Contract.ProposalDeleteContract contract = createProposalDeleteContract(owner, id);
     TransactionExtention transactionExtention = rpcCli.proposalDelete(contract);
     return processTransactionExtention(transactionExtention);
@@ -1506,10 +1516,13 @@ public class WalletApi {
     return builder.build();
   }
 
-  public boolean exchangeCreate(byte[] firstTokenId, long firstTokenBalance,
+  public boolean exchangeCreate(byte[] owner, byte[] firstTokenId, long firstTokenBalance,
       byte[] secondTokenId, long secondTokenBalance)
       throws CipherException, IOException, CancelException {
-    byte[] owner = getAddress();
+    if (owner == null){
+      owner = getAddress();
+    }
+
     Contract.ExchangeCreateContract contract = createExchangeCreateContract(owner, firstTokenId,
         firstTokenBalance, secondTokenId, secondTokenBalance);
     TransactionExtention transactionExtention = rpcCli.exchangeCreate(contract);
@@ -1529,9 +1542,12 @@ public class WalletApi {
     return builder.build();
   }
 
-  public boolean exchangeInject(long exchangeId, byte[] tokenId, long quant)
+  public boolean exchangeInject(byte[] owner, long exchangeId, byte[] tokenId, long quant)
       throws CipherException, IOException, CancelException {
-    byte[] owner = getAddress();
+    if (owner == null){
+      owner = getAddress();
+    }
+
     Contract.ExchangeInjectContract contract = createExchangeInjectContract(owner, exchangeId,
         tokenId, quant);
     TransactionExtention transactionExtention = rpcCli.exchangeInject(contract);
@@ -1549,9 +1565,12 @@ public class WalletApi {
     return builder.build();
   }
 
-  public boolean exchangeWithdraw(long exchangeId, byte[] tokenId, long quant)
+  public boolean exchangeWithdraw(byte[] owner, long exchangeId, byte[] tokenId, long quant)
       throws CipherException, IOException, CancelException {
-    byte[] owner = getAddress();
+    if (owner == null){
+      owner = getAddress();
+    }
+
     Contract.ExchangeWithdrawContract contract = createExchangeWithdrawContract(owner, exchangeId,
         tokenId, quant);
     TransactionExtention transactionExtention = rpcCli.exchangeWithdraw(contract);
@@ -1570,9 +1589,12 @@ public class WalletApi {
     return builder.build();
   }
 
-  public boolean exchangeTransaction(long exchangeId, byte[] tokenId, long quant, long expected)
+  public boolean exchangeTransaction(byte[] owner, long exchangeId, byte[] tokenId, long quant, long expected)
       throws CipherException, IOException, CancelException {
-    byte[] owner = getAddress();
+    if (owner == null){
+      owner = getAddress();
+    }
+
     Contract.ExchangeTransactionContract contract = createExchangeTransactionContract(owner,
         exchangeId, tokenId, quant, expected);
     TransactionExtention transactionExtention = rpcCli.exchangeTransaction(contract);
@@ -1858,12 +1880,7 @@ public class WalletApi {
     return builder.build();
   }
 
-  public byte[] generateContractAddress(Transaction trx) {
-
-    // get owner address
-    // this address should be as same as the onweraddress in trx, DONNOT modify it
-    byte[] ownerAddress = getAddress();
-
+  public byte[] generateContractAddress(byte[] ownerAddress, Transaction trx) {
     // get tx hash
     byte[] txRawDataHash = Sha256Hash.of(trx.getRawData().toByteArray()).getBytes();
 
@@ -1926,9 +1943,12 @@ public class WalletApi {
 
   }
 
-  public boolean clearContractABI(byte[] contractAddress)
+  public boolean clearContractABI(byte[] owner, byte[] contractAddress)
       throws IOException, CipherException, CancelException {
-    byte[] owner = getAddress();
+    if (owner == null){
+      owner = getAddress();
+    }
+
     ClearABIContract clearABIContract = createClearABIContract(owner, contractAddress);
     TransactionExtention transactionExtention = rpcCli.clearContractABI(clearABIContract);
     if (transactionExtention == null || !transactionExtention.getResult().getResult()) {
@@ -1944,11 +1964,14 @@ public class WalletApi {
     return processTransactionExtention(transactionExtention);
   }
 
-  public boolean deployContract(String contractName, String ABI, String code,
+  public boolean deployContract(byte[] owner, String contractName, String ABI, String code,
       long feeLimit, long value, long consumeUserResourcePercent, long originEnergyLimit,
       long tokenValue, String tokenId, String libraryAddressPair, String compilerVersion)
       throws IOException, CipherException, CancelException {
-    byte[] owner = getAddress();
+    if (owner == null){
+      owner = getAddress();
+    }
+
     CreateSmartContract contractDeployContract = createContractDeployContract(contractName, owner,
         ABI, code, value, consumeUserResourcePercent, originEnergyLimit, tokenValue, tokenId,
         libraryAddressPair, compilerVersion);
@@ -1990,10 +2013,13 @@ public class WalletApi {
 
   }
 
-  public boolean triggerContract(byte[] contractAddress, long callValue, byte[] data, long feeLimit,
+  public boolean triggerContract(byte[] owner, byte[] contractAddress, long callValue, byte[] data, long feeLimit,
       long tokenValue, String tokenId, boolean isConstant)
       throws IOException, CipherException, CancelException {
-    byte[] owner = getAddress();
+    if (owner == null){
+      owner = getAddress();
+    }
+
     Contract.TriggerSmartContract triggerContract = triggerCallContract(owner, contractAddress,
         callValue, data, tokenValue, tokenId);
     TransactionExtention transactionExtention;

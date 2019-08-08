@@ -1156,7 +1156,6 @@ public class Client {
   }
 
   private void unfreezeAsset(String[] parameters) throws IOException, CipherException, CancelException {
-
     byte[] ownerAddress = null;
     if (parameters != null && parameters.length > 0) {
       ownerAddress = WalletApi.decodeFromBase58Check(parameters[0]);
@@ -1176,19 +1175,29 @@ public class Client {
 
   private void createProposal(String[] parameters)
       throws IOException, CipherException, CancelException {
-    if (parameters == null || parameters.length < 2 || (parameters.length & 1) != 0) {
+    if (parameters == null || parameters.length < 2) {
       System.out.println("Use createProposal command with below syntax: ");
-      System.out.println("createProposal id0 value0 ... idN valueN");
+      System.out.println("createProposal [OwnerAddress] id0 value0 ... idN valueN");
       return;
     }
 
+    int index = 0;
+    byte[] ownerAddress = null;
+    if ((parameters.length & 1) != 0) {
+      ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
+      if (ownerAddress == null) {
+        System.out.println("Invalid OwnerAddress.");
+        return;
+      }
+    }
+
     HashMap<Long, Long> parametersMap = new HashMap<>();
-    for (int i = 0; i < parameters.length; i += 2) {
-      long id = Long.valueOf(parameters[i]);
-      long value = Long.valueOf(parameters[i + 1]);
+    while (index < parameters.length) {
+      long id = Long.valueOf(parameters[index++]);
+      long value = Long.valueOf(parameters[index++]);
       parametersMap.put(id, value);
     }
-    boolean result = walletApiWrapper.createProposal(parametersMap);
+    boolean result = walletApiWrapper.createProposal(ownerAddress, parametersMap);
     if (result) {
       logger.info("createProposal " + " successful !!");
     } else {
@@ -1198,15 +1207,25 @@ public class Client {
 
   private void approveProposal(String[] parameters)
       throws IOException, CipherException, CancelException {
-    if (parameters == null || parameters.length != 2) {
+    if (parameters == null || (parameters.length != 2 && parameters.length != 3)) {
       System.out.println("Use approveProposal command with below syntax: ");
-      System.out.println("approveProposal id is_or_not_add_approval");
+      System.out.println("approveProposal [OwnerAddress] id is_or_not_add_approval");
       return;
     }
 
-    long id = Long.valueOf(parameters[0]);
-    boolean is_add_approval = Boolean.valueOf(parameters[1]);
-    boolean result = walletApiWrapper.approveProposal(id, is_add_approval);
+    int index = 0;
+    byte[] ownerAddress = null;
+    if (parameters.length == 3) {
+      ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
+      if (ownerAddress == null) {
+        System.out.println("Invalid OwnerAddress.");
+        return;
+      }
+    }
+
+    long id = Long.valueOf(parameters[index++]);
+    boolean is_add_approval = Boolean.valueOf(parameters[index++]);
+    boolean result = walletApiWrapper.approveProposal(ownerAddress, id, is_add_approval);
     if (result) {
       logger.info("approveProposal " + " successful !!");
     } else {
@@ -1216,14 +1235,24 @@ public class Client {
 
   private void deleteProposal(String[] parameters)
       throws IOException, CipherException, CancelException {
-    if (parameters == null || parameters.length != 1) {
+    if (parameters == null || (parameters.length != 1 && parameters.length != 2)) {
       System.out.println("Use deleteProposal command with below syntax: ");
-      System.out.println("deleteProposal proposalId");
+      System.out.println("deleteProposal [OwnerAddress] proposalId");
       return;
     }
 
-    long id = Long.valueOf(parameters[0]);
-    boolean result = walletApiWrapper.deleteProposal(id);
+    int index = 0;
+    byte[] ownerAddress = null;
+    if (parameters.length == 2) {
+      ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
+      if (ownerAddress == null) {
+        System.out.println("Invalid OwnerAddress.");
+        return;
+      }
+    }
+
+    long id = Long.valueOf(parameters[index++]);
+    boolean result = walletApiWrapper.deleteProposal(ownerAddress, id);
     if (result) {
       logger.info("deleteProposal " + " successful !!");
     } else {
@@ -1297,18 +1326,28 @@ public class Client {
 
   private void exchangeCreate(String[] parameters)
       throws IOException, CipherException, CancelException {
-    if (parameters == null || parameters.length != 4) {
+    if (parameters == null || (parameters.length != 4 && parameters.length != 5)) {
       System.out.println("Use exchangeCreate command with below syntax: ");
       System.out.println("exchangeCreate first_token_id first_token_balance "
           + "second_token_id second_token_balance");
       return;
     }
 
-    byte[] firstTokenId = parameters[0].getBytes();
-    long firstTokenBalance = Long.parseLong(parameters[1]);
-    byte[] secondTokenId = parameters[2].getBytes();
-    long secondTokenBalance = Long.parseLong(parameters[3]);
-    boolean result = walletApiWrapper.exchangeCreate(firstTokenId, firstTokenBalance,
+    int index = 0;
+    byte[] ownerAddress = null;
+    if (parameters.length == 5) {
+      ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
+      if (ownerAddress == null) {
+        System.out.println("Invalid OwnerAddress.");
+        return;
+      }
+    }
+
+    byte[] firstTokenId = parameters[index++].getBytes();
+    long firstTokenBalance = Long.parseLong(parameters[index++]);
+    byte[] secondTokenId = parameters[index++].getBytes();
+    long secondTokenBalance = Long.parseLong(parameters[index++]);
+    boolean result = walletApiWrapper.exchangeCreate(ownerAddress, firstTokenId, firstTokenBalance,
         secondTokenId, secondTokenBalance);
     if (result) {
       logger.info("exchange create " + " successful !!");
@@ -1319,16 +1358,26 @@ public class Client {
 
   private void exchangeInject(String[] parameters)
       throws IOException, CipherException, CancelException {
-    if (parameters == null || parameters.length != 3) {
+    if (parameters == null || (parameters.length != 3 && parameters.length != 4)) {
       System.out.println("Use exchangeInject command with below syntax: ");
-      System.out.println("exchangeInject exchange_id token_id quant");
+      System.out.println("exchangeInject [OwnerAddress] exchange_id token_id quant");
       return;
     }
 
-    long exchangeId = Long.valueOf(parameters[0]);
-    byte[] tokenId = parameters[1].getBytes();
-    long quant = Long.valueOf(parameters[2]);
-    boolean result = walletApiWrapper.exchangeInject(exchangeId, tokenId, quant);
+    int index = 0;
+    byte[] ownerAddress = null;
+    if (parameters.length == 4) {
+      ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
+      if (ownerAddress == null) {
+        System.out.println("Invalid OwnerAddress.");
+        return;
+      }
+    }
+
+    long exchangeId = Long.valueOf(parameters[index++]);
+    byte[] tokenId = parameters[index++].getBytes();
+    long quant = Long.valueOf(parameters[index++]);
+    boolean result = walletApiWrapper.exchangeInject(ownerAddress, exchangeId, tokenId, quant);
     if (result) {
       logger.info("exchange inject " + " successful !!");
     } else {
@@ -1338,16 +1387,26 @@ public class Client {
 
   private void exchangeWithdraw(String[] parameters)
       throws IOException, CipherException, CancelException {
-    if (parameters == null || parameters.length != 3) {
+    if (parameters == null || (parameters.length != 3 && parameters.length != 4)) {
       System.out.println("Use exchangeWithdraw command with below syntax: ");
-      System.out.println("exchangeWithdraw exchange_id token_id quant");
+      System.out.println("exchangeWithdraw [OwnerAddress] exchange_id token_id quant");
       return;
     }
 
-    long exchangeId = Long.valueOf(parameters[0]);
-    byte[] tokenId = parameters[1].getBytes();
-    long quant = Long.valueOf(parameters[2]);
-    boolean result = walletApiWrapper.exchangeWithdraw(exchangeId, tokenId, quant);
+    int index = 0;
+    byte[] ownerAddress = null;
+    if (parameters.length == 4) {
+      ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
+      if (ownerAddress == null) {
+        System.out.println("Invalid OwnerAddress.");
+        return;
+      }
+    }
+
+    long exchangeId = Long.valueOf(parameters[index++]);
+    byte[] tokenId = parameters[index++].getBytes();
+    long quant = Long.valueOf(parameters[index++]);
+    boolean result = walletApiWrapper.exchangeWithdraw(ownerAddress, exchangeId, tokenId, quant);
     if (result) {
       logger.info("exchange withdraw " + " successful !!");
     } else {
@@ -1357,17 +1416,27 @@ public class Client {
 
   private void exchangeTransaction(String[] parameters)
       throws IOException, CipherException, CancelException {
-    if (parameters == null || parameters.length != 4) {
+    if (parameters == null || (parameters.length != 4 && parameters.length != 5)) {
       System.out.println("Use exchangeTransaction command with below syntax: ");
-      System.out.println("exchangeTransaction exchange_id token_id quant expected");
+      System.out.println("exchangeTransaction [OwnerAddress] exchange_id token_id quant expected");
       return;
     }
 
-    long exchangeId = Long.valueOf(parameters[0]);
-    byte[] tokenId = parameters[1].getBytes();
-    long quant = Long.valueOf(parameters[2]);
-    long expected = Long.valueOf(parameters[3]);
-    boolean result = walletApiWrapper.exchangeTransaction(exchangeId, tokenId, quant, expected);
+    int index = 0;
+    byte[] ownerAddress = null;
+    if (parameters.length == 5) {
+      ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
+      if (ownerAddress == null) {
+        System.out.println("Invalid OwnerAddress.");
+        return;
+      }
+    }
+
+    long exchangeId = Long.valueOf(parameters[index++]);
+    byte[] tokenId = parameters[index++].getBytes();
+    long quant = Long.valueOf(parameters[index++]);
+    long expected = Long.valueOf(parameters[index++]);
+    boolean result = walletApiWrapper.exchangeTransaction(ownerAddress, exchangeId, tokenId, quant, expected);
     if (result) {
       logger.info("exchange Transaction " + " successful !!");
     } else {
@@ -1797,11 +1866,20 @@ public class Client {
 
   private void clearContractABI(String[] parameters)
       throws IOException, CipherException, CancelException {
-    if (parameters == null ||
-        parameters.length != 1) {
-      System.out.println("clearContractABI needs 1 parameters like following: ");
-      System.out.println("clearContractABI contract_address");
+    if (parameters == null || (parameters.length != 1 && parameters.length != 2)) {
+      System.out.println("clearContractABI needs 1-2 parameters like following: ");
+      System.out.println("clearContractABI [ownerAddress] contract_address");
       return;
+    }
+
+    int index = 0;
+    byte[] ownerAddress = null;
+    if (parameters.length == 2) {
+      ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
+      if (ownerAddress == null) {
+        System.out.println("Invalid OwnerAddress.");
+        return;
+      }
     }
 
     byte[] contractAddress = WalletApi.decodeFromBase58Check(parameters[0]);
@@ -1809,7 +1887,7 @@ public class Client {
       return;
     }
 
-    boolean result = walletApiWrapper.clearContractABI(contractAddress);
+    boolean result = walletApiWrapper.clearContractABI(ownerAddress, contractAddress);
     if (result) {
       System.out.println("clearContractABI successfully");
     } else {
@@ -1844,19 +1922,25 @@ public class Client {
   }
 
   private void deployContract(String[] parameter)
-      throws IOException, CipherException, CancelException, EncodingException {
+      throws IOException, CipherException, CancelException{
 
     String[] parameters = getParas(parameter);
     if (parameters == null ||
         parameters.length < 11) {
-      System.out.println("DeployContract needs at least 8 parameters like following: ");
+      System.out.println("DeployContract needs at least 11 parameters like following: ");
       System.out.println(
-          "DeployContract contractName ABI byteCode constructor params isHex fee_limit consume_user_resource_percent origin_energy_limit value token_value token_id(e.g: TRXTOKEN, use # if don't provided) <library:address,library:address,...> <lib_compiler_version(e.g:v5)>");
+          "DeployContract [ownerAddress] contractName ABI byteCode constructor params isHex fee_limit consume_user_resource_percent origin_energy_limit value token_value token_id(e.g: TRXTOKEN, use # if don't provided) <library:address,library:address,...> <lib_compiler_version(e.g:v5)>");
 //      System.out.println(
 //          "Note: Please append the param for constructor tightly with byteCode without any space");
       return;
     }
+
     int idx = 0;
+    byte[] ownerAddress = WalletApi.decodeFromBase58Check(parameters[idx]);
+    if (ownerAddress != null) {
+      idx++;
+    }
+
     String contractName = parameters[idx++];
     String abiStr = parameters[idx++];
     String codeStr = parameters[idx++];
@@ -1902,7 +1986,7 @@ public class Client {
     /* Consider to move below null value, since we append the constructor param just after bytecode without any space.
      * Or we can re-design it to give other developers better user experience. Set this value in protobuf as null for now.
      */
-    boolean result = walletApiWrapper.deployContract(contractName, abiStr, codeStr, feeLimit, value,
+    boolean result = walletApiWrapper.deployContract(ownerAddress, contractName, abiStr, codeStr, feeLimit, value,
         consumeUserResourcePercent, originEnergyLimit, tokenValue, tokenId, libraryAddressPair,
         compilerVersion);
     if (result) {
@@ -1918,38 +2002,48 @@ public class Client {
     String cmdMethodStr = isConstant ? "TriggerConstantContract" : "TriggerContract";
 
     if (isConstant) {
-      if (parameters == null || parameters.length < 4) {
-        System.out.println(cmdMethodStr + " needs 4 parameters like following: ");
+      if (parameters == null || (parameters.length != 4 && parameters.length != 5)) {
+        System.out.println(cmdMethodStr + " needs 4-5 parameters like following: ");
         System.out.println(
             cmdMethodStr
-                + " contractAddress method args isHex");
+                + "[OwnerAddress] contractAddress method args isHex");
         return;
       }
     } else {
-      if (parameters == null || parameters.length < 8) {
-        System.out.println(cmdMethodStr + " needs 8 parameters like following: ");
+      if (parameters == null || (parameters.length != 8 && parameters.length != 9)) {
+        System.out.println(cmdMethodStr + " needs 8-9 parameters like following: ");
         System.out.println(
             cmdMethodStr
-                + " contractAddress method args isHex fee_limit value token_value token_id(e.g: TRXTOKEN, use # if don't provided)");
+                + "[OwnerAddress] contractAddress method args isHex fee_limit value token_value token_id(e.g: TRXTOKEN, use # if don't provided)");
         // System.out.println("example:\nTriggerContract password contractAddress method args value");
         return;
       }
     }
 
-    String contractAddrStr = parameters[0];
-    String methodStr = parameters[1];
-    String argsStr = parameters[2];
-    boolean isHex = Boolean.valueOf(parameters[3]);
+    int index = 0;
+    byte[] ownerAddress = null;
+    if (parameters.length == 5 || parameters.length == 9) {
+      ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
+      if (ownerAddress == null) {
+        System.out.println("Invalid OwnerAddress.");
+        return;
+      }
+    }
+
+    String contractAddrStr = parameters[index++];
+    String methodStr = parameters[index++];
+    String argsStr = parameters[index++];
+    boolean isHex = Boolean.valueOf(parameters[index++]);
     long feeLimit = 0;
     long callValue = 0;
     long tokenCallValue = 0;
     String tokenId = "";
 
     if (!isConstant) {
-      feeLimit = Long.valueOf(parameters[4]);
-      callValue = Long.valueOf(parameters[5]);
-      tokenCallValue = Long.valueOf(parameters[6]);
-      tokenId = parameters[7];
+      feeLimit = Long.valueOf(parameters[index++]);
+      callValue = Long.valueOf(parameters[index++]);
+      tokenCallValue = Long.valueOf(parameters[index++]);
+      tokenId = parameters[index++];
     }
     if (argsStr.equalsIgnoreCase("#")) {
       argsStr = "";
@@ -1961,7 +2055,7 @@ public class Client {
     byte[] contractAddress = WalletApi.decodeFromBase58Check(contractAddrStr);
 
     boolean result = walletApiWrapper
-        .callContract(contractAddress, callValue, input, feeLimit, tokenCallValue, tokenId,
+        .callContract(contractAddress, contractAddress, callValue, input, feeLimit, tokenCallValue, tokenId,
             isConstant);
     if (!isConstant) {
       if (result) {
