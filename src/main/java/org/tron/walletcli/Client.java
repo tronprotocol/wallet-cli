@@ -906,6 +906,48 @@ public class Client {
     }
   }
 
+  private void voteWitnessMax(String[] parameters)
+          throws IOException, CipherException, CancelException {
+    if (parameters == null || parameters.length != 1 ) {
+      System.out.println("Use VoteWitnessMax command with below syntax: ");
+      System.out.println("VoteWitnessMax Address");
+      return;
+    }
+
+    Account account = walletApiWrapper.queryAccount();
+    String address = parameters[0];
+    String maxCountStr = "0";
+
+    if (account == null) {
+      logger.info("GetAccount failed !!!!");
+    } else {
+
+      if (account.getFrozenCount() > 0 || account.getAccountResource().getFrozenBalanceForEnergy().getFrozenBalance() > 0 ||
+              account.getDelegatedFrozenBalanceForBandwidth() > 0 || account.getAccountResource().getDelegatedFrozenBalanceForEnergy() > 0) {
+
+        long frozenBalance4BandWidth = account.getFrozenCount() > 0 ? account.getFrozen(0).getFrozenBalance() : 0;
+        long frozenBalance4Energy = account.getAccountResource().getFrozenBalanceForEnergy().getFrozenBalance();
+        long frozenBalance4DelBandWidth = account.getDelegatedFrozenBalanceForBandwidth();
+        long frozenBalance4DelEnergy = account.getAccountResource().getDelegatedFrozenBalanceForEnergy();
+
+        maxCountStr=""+((frozenBalance4BandWidth + frozenBalance4Energy + frozenBalance4DelBandWidth + frozenBalance4DelEnergy) / 1000000);
+      } else {
+        logger.info("No TronPower.");
+      }
+
+    }
+    HashMap<String, String> witness = new HashMap<String, String>();
+
+    witness.put(address, maxCountStr);
+
+    boolean result = walletApiWrapper.voteWitness(witness);
+    if (result) {
+      logger.info("voteWitnessMax " + " successful !!");
+    } else {
+      logger.info("voteWitnessMax " + " failed !!");
+    }
+  }
+
   private void freezeBalance(String[] parameters)
           throws IOException, CipherException, CancelException {
     if (parameters == null || !(parameters.length == 2 || parameters.length == 3
@@ -2496,6 +2538,7 @@ public class Client {
     System.out.println("GetAccountNet");
     System.out.println("GetAccountResource");
     System.out.println("GetTronPower");
+    System.out.println("VoteWitnessMax");
     System.out.println("GetAddress");
     System.out.println("GetAssetIssueByAccount");
     System.out.println("GetAssetIssueById");
@@ -2702,6 +2745,10 @@ public class Client {
           }
           case "gettronpower": {
             getTronPower(parameters);
+            break;
+          }
+          case "votewitnessmax": {
+            voteWitnessMax(parameters);
             break;
           }
           case "getaccountbyid": {
