@@ -284,7 +284,7 @@ public class Client {
     if (account == null) {
       logger.info("GetAccount failed !!!!");
     } else {
-      logger.info("\n" + Utils.printAccount(account));
+      logger.info("\n" + Utils.formatMessageString(account));
     }
   }
 
@@ -300,7 +300,7 @@ public class Client {
     if (account == null) {
       logger.info("GetAccountById failed !!!!");
     } else {
-      logger.info("\n" + Utils.printAccount(account));
+      logger.info("\n" + Utils.formatMessageString(account));
     }
   }
 
@@ -417,7 +417,7 @@ public class Client {
     Optional<AssetIssueList> result = WalletApi.getAssetIssueByAccount(addressBytes);
     if (result.isPresent()) {
       AssetIssueList assetIssueList = result.get();
-      logger.info(Utils.printAssetIssueList(assetIssueList));
+      logger.info(Utils.formatMessageString(assetIssueList));
     } else {
       logger.info("GetAssetIssueByAccount " + " failed !!");
     }
@@ -439,7 +439,7 @@ public class Client {
     if (result == null) {
       logger.info("GetAccountNet " + " failed !!");
     } else {
-      logger.info("\n" + Utils.printAccountNet(result));
+      logger.info("\n" + Utils.formatMessageString(result));
     }
   }
 
@@ -459,7 +459,7 @@ public class Client {
     if (result == null) {
       logger.info("getAccountResource " + " failed !!");
     } else {
-      logger.info("\n" + Utils.printAccountResourceMessage(result));
+      logger.info("\n" + Utils.formatMessageString(result));
     }
   }
 
@@ -476,7 +476,7 @@ public class Client {
 
     AssetIssueContract assetIssueContract = WalletApi.getAssetIssueByName(assetName);
     if (assetIssueContract != null) {
-      logger.info("\n" + Utils.printAssetIssue(assetIssueContract));
+      logger.info("\n" + Utils.formatMessageString(assetIssueContract));
     } else {
       logger.info("getAssetIssueByName " + " failed !!");
     }
@@ -493,7 +493,7 @@ public class Client {
     Optional<AssetIssueList> result = WalletApi.getAssetIssueListByName(assetName);
     if (result.isPresent()) {
       AssetIssueList assetIssueList = result.get();
-      logger.info(Utils.printAssetIssueList(assetIssueList));
+      logger.info(Utils.formatMessageString(assetIssueList));
     } else {
       logger.info("getAssetIssueListByName " + " failed !!");
     }
@@ -509,7 +509,7 @@ public class Client {
 
     AssetIssueContract assetIssueContract = WalletApi.getAssetIssueById(assetId);
     if (assetIssueContract != null) {
-      logger.info("\n" + Utils.printAssetIssue(assetIssueContract));
+      logger.info("\n" + Utils.formatMessageString(assetIssueContract));
     } else {
       logger.info("getAssetIssueById " + " failed !!");
     }
@@ -534,7 +534,8 @@ public class Client {
       }
     }
 
-    byte[] toAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
+    String base58ToAddress = parameters[index++];
+    byte[] toAddress = WalletApi.decodeFromBase58Check(base58ToAddress);
     if (toAddress == null) {
       System.out.println("Invalid toAddress.");
       return;
@@ -545,9 +546,9 @@ public class Client {
 
     boolean result = walletApiWrapper.sendCoin(ownerAddress, toAddress, amount);
     if (result) {
-      logger.info("Send " + amount + " drop to " + toAddress + " successful !!");
+      logger.info("Send " + amount + " drop to " + base58ToAddress + " successful !!");
     } else {
-      logger.info("Send " + amount + " drop to " + toAddress + " failed !!");
+      logger.info("Send " + amount + " drop to " + base58ToAddress + " failed !!");
     }
   }
 
@@ -797,7 +798,7 @@ public class Client {
     Optional<WitnessList> result = walletApiWrapper.listWitnesses();
     if (result.isPresent()) {
       WitnessList witnessList = result.get();
-      logger.info(Utils.printWitnessList(witnessList));
+      logger.info(Utils.formatMessageString(witnessList));
     } else {
       logger.info("List witnesses " + " failed !!");
     }
@@ -807,7 +808,7 @@ public class Client {
     Optional<AssetIssueList> result = walletApiWrapper.getAssetIssueList();
     if (result.isPresent()) {
       AssetIssueList assetIssueList = result.get();
-      logger.info(Utils.printAssetIssueList(assetIssueList));
+      logger.info(Utils.formatMessageString(assetIssueList));
     } else {
       logger.info("GetAssetIssueList " + " failed !!");
     }
@@ -825,7 +826,7 @@ public class Client {
     Optional<AssetIssueList> result = walletApiWrapper.getAssetIssueList(offset, limit);
     if (result.isPresent()) {
       AssetIssueList assetIssueList = result.get();
-      logger.info(Utils.printAssetIssueList(assetIssueList));
+      logger.info(Utils.formatMessageString(assetIssueList));
     } else {
       logger.info("GetAssetIssueListPaginated " + " failed !!");
     }
@@ -843,7 +844,7 @@ public class Client {
     Optional<ProposalList> result = walletApiWrapper.getProposalListPaginated(offset, limit);
     if (result.isPresent()) {
       ProposalList proposalList = result.get();
-      logger.info(Utils.printProposalsList(proposalList));
+      logger.info(Utils.formatMessageString(proposalList));
     } else {
       logger.info("listproposalspaginated " + " failed !!");
     }
@@ -861,7 +862,7 @@ public class Client {
     Optional<ExchangeList> result = walletApiWrapper.getExchangeListPaginated(offset, limit);
     if (result.isPresent()) {
       ExchangeList exchangeList = result.get();
-      logger.info(Utils.printExchangeList(exchangeList));
+      logger.info(Utils.formatMessageString(exchangeList));
     } else {
       logger.info("listexchangespaginated " + " failed !!");
     }
@@ -1265,7 +1266,7 @@ public class Client {
     Optional<ProposalList> result = walletApiWrapper.getProposalsList();
     if (result.isPresent()) {
       ProposalList proposalList = result.get();
-      logger.info(Utils.printProposalsList(proposalList));
+      logger.info(Utils.formatMessageString(proposalList));
     } else {
       logger.info("List witnesses " + " failed !!");
     }
@@ -1282,7 +1283,7 @@ public class Client {
     Optional<Proposal> result = WalletApi.getProposal(id);
     if (result.isPresent()) {
       Proposal proposal = result.get();
-      logger.info(Utils.printProposal(proposal));
+      logger.info(Utils.formatMessageString(proposal));
     } else {
       logger.info("getProposal " + " failed !!");
     }
@@ -1300,7 +1301,7 @@ public class Client {
     Optional<DelegatedResourceList> result = WalletApi.getDelegatedResource(fromAddress, toAddress);
     if (result.isPresent()) {
       DelegatedResourceList delegatedResourceList = result.get();
-      logger.info(Utils.printDelegatedResourceList(delegatedResourceList));
+      logger.info(Utils.formatMessageString(delegatedResourceList));
     } else {
       logger.info("getDelegatedResource " + " failed !!");
     }
@@ -1317,7 +1318,7 @@ public class Client {
         .getDelegatedResourceAccountIndex(address);
     if (result.isPresent()) {
       DelegatedResourceAccountIndex delegatedResourceAccountIndex = result.get();
-      logger.info(Utils.printDelegatedResourceAccountIndex(delegatedResourceAccountIndex));
+      logger.info(Utils.formatMessageString(delegatedResourceAccountIndex));
     } else {
       logger.info("getDelegatedResourceAccountIndex " + " failed !!");
     }
@@ -1448,7 +1449,7 @@ public class Client {
     Optional<ExchangeList> result = walletApiWrapper.getExchangeList();
     if (result.isPresent()) {
       ExchangeList exchangeList = result.get();
-      logger.info(Utils.printExchangeList(exchangeList));
+      logger.info(Utils.formatMessageString(exchangeList));
     } else {
       logger.info("List exchanges " + " failed !!");
     }
@@ -1465,7 +1466,7 @@ public class Client {
     Optional<Exchange> result = walletApiWrapper.getExchange(id);
     if (result.isPresent()) {
       Exchange exchange = result.get();
-      logger.info(Utils.printExchange(exchange));
+      logger.info(Utils.formatMessageString(exchange));
     } else {
       logger.info("getExchange " + " failed !!");
     }
@@ -1595,7 +1596,7 @@ public class Client {
     Optional<TransactionInfo> result = WalletApi.getTransactionInfoById(txid);
     if (result.isPresent() && !result.get().equals(TransactionInfo.getDefaultInstance())) {
       TransactionInfo transactionInfo = result.get();
-      logger.info(Utils.printTransactionInfo(transactionInfo));
+      logger.info(Utils.formatMessageString(transactionInfo));
     } else {
       logger.info("getTransactionInfoById " + " failed !!");
     }
@@ -3371,7 +3372,7 @@ public class Client {
     Optional<ChainParameters> result = walletApiWrapper.getChainParameters();
     if (result.isPresent()) {
       ChainParameters chainParameters = result.get();
-      logger.info(Utils.printChainParameters(chainParameters));
+      logger.info(Utils.formatMessageString(chainParameters));
     } else {
       logger.info("List witnesses " + " failed !!");
     }

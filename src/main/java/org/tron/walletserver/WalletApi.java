@@ -513,7 +513,7 @@ public class WalletApi {
       return false;
     }
 
-    System.out.println(Utils.printTransactionExceptId(transactionExtention));
+    System.out.println(Utils.printTransactionExceptId(transactionExtention.getTransaction()));
     transaction = signTransaction(transaction);
     showTransactionAfterSign(transaction);
     return rpcCli.broadcastTransaction(transaction);
@@ -555,7 +555,7 @@ public class WalletApi {
         != ContractType.ShieldedTransferContract) {
       return false;
     }
-    System.out.println(Utils.printTransactionExceptId(transactionExtention));
+    System.out.println(Utils.printTransactionExceptId(transactionExtention.getTransaction()));
 
     Any any = transaction.getRawData().getContract(0).getParameter();
     Contract.ShieldedTransferContract shieldedTransferContract =
