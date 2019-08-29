@@ -8,8 +8,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.tron.api.GrpcAPI;
 import org.tron.api.GrpcAPI.AddressPrKeyPairMessage;
 import org.tron.api.GrpcAPI.AssetIssueList;
@@ -65,9 +64,9 @@ import org.tron.protos.Protocol.Proposal;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.walletserver.WalletApi;
 
+@Slf4j
 public class WalletApiWrapper {
 
-    private static final Logger logger = LoggerFactory.getLogger("WalletApiWrapper");
     private WalletApi wallet;
 
     public String registerWallet(char[] password) throws CipherException, IOException {
@@ -934,20 +933,21 @@ public class WalletApiWrapper {
 
         Optional<DecryptNotes> decryptNotes = WalletApi.scanNoteByIvk(ivkDecryptParameters, true);
         if (!decryptNotes.isPresent()) {
-            logger.info("scanNoteByIvk failed !!!");
+            System.out.println("scanNoteByIvk failed !!!");
         } else {
-            for (int i = 0; i < decryptNotes.get().getNoteTxsList().size(); i++) {
-                NoteTx noteTx = decryptNotes.get().getNoteTxs(i);
-                Note note = noteTx.getNote();
-                logger.info("\ntxid:{}\nindex:{}\naddress:{}\nrcm:{}\nvalue:{}\nmemo:{}",
-                        ByteArray.toHexString(noteTx.getTxid().toByteArray()),
-                        noteTx.getIndex(),
-                        note.getPaymentAddress(),
-                        ByteArray.toHexString(note.getRcm().toByteArray()),
-                        note.getValue(),
-                        ZenUtils.getMemo(note.getMemo().toByteArray()));
-            }
-            logger.info("complete.");
+            System.out.println(Utils.formatMessageString(decryptNotes.get()));
+//            for (int i = 0; i < decryptNotes.get().getNoteTxsList().size(); i++) {
+//                NoteTx noteTx = decryptNotes.get().getNoteTxs(i);
+//                Note note = noteTx.getNote();
+//                System.out.println("\ntxid:{}\nindex:{}\naddress:{}\nrcm:{}\nvalue:{}\nmemo:{}",
+//                        ByteArray.toHexString(noteTx.getTxid().toByteArray()),
+//                        noteTx.getIndex(),
+//                        note.getPaymentAddress(),
+//                        ByteArray.toHexString(note.getRcm().toByteArray()),
+//                        note.getValue(),
+//                        ZenUtils.getMemo(note.getMemo().toByteArray()));
+//            }
+//            System.out.println("complete.");
         }
         return true;
     }
@@ -969,25 +969,27 @@ public class WalletApiWrapper {
 
             Optional<DecryptNotesMarked> decryptNotes = WalletApi.scanAndMarkNoteByIvk(builder.build());
             if (decryptNotes.isPresent()) {
-                for (int i = 0; i < decryptNotes.get().getNoteTxsList().size(); i++) {
-                    DecryptNotesMarked.NoteTx noteTx = decryptNotes.get().getNoteTxs(i);
-                    Note note = noteTx.getNote();
-                    logger.info("\ntxid:{}\nindex:{}\nisSpend:{}\naddress:{}\nrcm:{}\nvalue:{}\nmemo:{}",
-                            ByteArray.toHexString(noteTx.getTxid().toByteArray()),
-                            noteTx.getIndex(),
-                            noteTx.getIsSpend(),
-                            note.getPaymentAddress(),
-                            ByteArray.toHexString(note.getRcm().toByteArray()),
-                            note.getValue(),
-                            ZenUtils.getMemo(note.getMemo().toByteArray()));
-                }
+                System.out.println(Utils.formatMessageString(decryptNotes.get()));
+
+//                for (int i = 0; i < decryptNotes.get().getNoteTxsList().size(); i++) {
+//                    DecryptNotesMarked.NoteTx noteTx = decryptNotes.get().getNoteTxs(i);
+//                    Note note = noteTx.getNote();
+//                    System.out.println("\ntxid:{}\nindex:{}\nisSpend:{}\naddress:{}\nrcm:{}\nvalue:{}\nmemo:{}",
+//                            ByteArray.toHexString(noteTx.getTxid().toByteArray()),
+//                            noteTx.getIndex(),
+//                            noteTx.getIsSpend(),
+//                            note.getPaymentAddress(),
+//                            ByteArray.toHexString(note.getRcm().toByteArray()),
+//                            note.getValue(),
+//                            ZenUtils.getMemo(note.getMemo().toByteArray()));
+//                }
             } else {
-                logger.info("scanAndMarkNoteByIvk failed !!!");
+                System.out.println("scanAndMarkNoteByIvk failed !!!");
             }
         } catch (Exception e) {
 
         }
-        logger.info("complete.");
+        System.out.println("complete.");
         return true;
     }
 
@@ -1000,20 +1002,21 @@ public class WalletApiWrapper {
 
         Optional<DecryptNotes> decryptNotes = WalletApi.scanNoteByOvk(ovkDecryptParameters, true);
         if (!decryptNotes.isPresent()) {
-            logger.info("ScanNoteByOvk failed !!!");
+            System.out.println("ScanNoteByOvk failed !!!");
         } else {
-            for (int i = 0; i < decryptNotes.get().getNoteTxsList().size(); i++) {
-                NoteTx noteTx = decryptNotes.get().getNoteTxs(i);
-                Note note = noteTx.getNote();
-                logger.info("\ntxid:{}\nindex:{}\npaymentAddress:{}\nrcm:{}\nmemo:{}\nvalue:{}",
-                        ByteArray.toHexString(noteTx.getTxid().toByteArray()),
-                        noteTx.getIndex(),
-                        note.getPaymentAddress(),
-                        ByteArray.toHexString(note.getRcm().toByteArray()),
-                        ZenUtils.getMemo(note.getMemo().toByteArray()),
-                        note.getValue());
-            }
-            logger.info("complete.");
+            System.out.println(Utils.formatMessageString(decryptNotes.get()));
+//            for (int i = 0; i < decryptNotes.get().getNoteTxsList().size(); i++) {
+//                NoteTx noteTx = decryptNotes.get().getNoteTxs(i);
+//                Note note = noteTx.getNote();
+//                System.out.println("\ntxid:{}\nindex:{}\npaymentAddress:{}\nrcm:{}\nmemo:{}\nvalue:{}",
+//                        ByteArray.toHexString(noteTx.getTxid().toByteArray()),
+//                        noteTx.getIndex(),
+//                        note.getPaymentAddress(),
+//                        ByteArray.toHexString(note.getRcm().toByteArray()),
+//                        ZenUtils.getMemo(note.getMemo().toByteArray()),
+//                        note.getValue());
+//            }
+            System.out.println("complete.");
         }
         return true;
     }
