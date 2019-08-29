@@ -266,7 +266,6 @@ public class Utils {
     }
   }
 
-
   public static byte[] generateContractAddress(Transaction trx, byte[] ownerAddress) {
     // get tx hash
     byte[] txRawDataHash = Sha256Hash.of(trx.getRawData().toByteArray()).getBytes();
@@ -281,23 +280,27 @@ public class Utils {
 
   public static JSONObject printBlockExtentionToJSON(BlockExtention blockExtention) {
     JSONObject jsonObject = JSONObject.parseObject(JsonFormat.printToString(blockExtention, true));
-    JSONArray jsonArray = new JSONArray();
-    List<TransactionExtention> transactions = blockExtention.getTransactionsList();
-    transactions.stream().forEach(transaction -> {
-      jsonArray.add(printTransactionExtentionToJSON(transaction));
-    });
-    jsonObject.put(TRANSACTION, jsonArray);
+    if (blockExtention.getTransactionsCount() > 0 ) {
+      JSONArray jsonArray = new JSONArray();
+      List<TransactionExtention> transactions = blockExtention.getTransactionsList();
+      transactions.stream().forEach(transaction -> {
+        jsonArray.add(printTransactionExtentionToJSON(transaction));
+      });
+      jsonObject.put(TRANSACTION, jsonArray);
+    }
     return jsonObject;
   }
 
   public static JSONObject printBlockToJSON(Block block) {
     JSONObject jsonObject = JSONObject.parseObject(JsonFormat.printToString(block, true));
-    JSONArray jsonArray = new JSONArray();
-    List<Transaction> transactions = block.getTransactionsList();
-    transactions.stream().forEach(transaction -> {
-      jsonArray.add(printTransactionToJSON(transaction, true));
-    });
-    jsonObject.put(TRANSACTION, jsonArray);
+    if (block.getTransactionsCount() > 0) {
+      JSONArray jsonArray = new JSONArray();
+      List<Transaction> transactions = block.getTransactionsList();
+      transactions.stream().forEach(transaction -> {
+        jsonArray.add(printTransactionToJSON(transaction, true));
+      });
+      jsonObject.put(TRANSACTION, jsonArray);
+    }
     return jsonObject;
   }
 
