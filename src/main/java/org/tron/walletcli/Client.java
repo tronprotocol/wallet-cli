@@ -19,12 +19,18 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
-import java.util.Scanner;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ArrayUtils;
 import org.bouncycastle.util.encoders.Hex;
+import org.jline.reader.EndOfFileException;
+import org.jline.reader.Completer;
+import org.jline.reader.LineReader;
+import org.jline.reader.LineReaderBuilder;
+import org.jline.reader.impl.completer.StringsCompleter;
+import org.jline.terminal.Terminal;
+import org.jline.terminal.TerminalBuilder;
 import org.tron.api.GrpcAPI.AccountNetMessage;
 import org.tron.api.GrpcAPI.AccountResourceMessage;
 import org.tron.api.GrpcAPI.AddressPrKeyPairMessage;
@@ -79,6 +85,201 @@ public class Client {
 
   private WalletApiWrapper walletApiWrapper = new WalletApiWrapper();
   private static int retryTime = 3;
+
+  private static String[] commandHelp = {
+      "AddTransactionSign",
+      "ApproveProposal",
+      "AssetIssue",
+      "BackupShieldedAddress",
+      "BackupWallet",
+      "BackupWallet2Base64",
+      "BroadcastTransaction",
+      "ChangePassword",
+      "ClearContractABI",
+      "Create2",
+      "CreateAccount",
+      "CreateProposal",
+      "CreateWitness",
+      "DeleteProposal",
+      "DeployContract contractName ABI byteCode constructor params isHex fee_limit consume_user_resource_percent origin_energy_limit value token_value token_id <library:address,library:address,...> <lib_compiler_version(e.g:v5)>",
+      "ExchangeCreate",
+      "ExchangeInject",
+      "ExchangeTransaction",
+      "ExchangeWithdraw",
+      "FreezeBalance",
+      "GenerateAddress",
+      "GenerateShieldedAddress",
+      "GetAccount",
+      "GetAccountNet",
+      "GetAccountResource",
+      "GetAddress",
+      "GetAssetIssueByAccount",
+      "GetAssetIssueById",
+      "GetAssetIssueByName",
+      "GetAssetIssueListByName",
+      "GetAkFromAsk",
+      "GetBalance",
+      "GetBlock",
+      "GetBlockById",
+      "GetBlockByLatestNum",
+      "GetBlockByLimitNext",
+      "GetContract contractAddress",
+      "GetDelegatedResource",
+      "GetDelegatedResourceAccountIndex",
+      "GetDiversifier",
+      "GetExchange",
+      "GetExpandedSpendingKey",
+      "GetIncomingViewingKey",
+      "GetNkFromNsk",
+      "GetNextMaintenanceTime",
+      "GetShieldedNullifier",
+      "GetSpendingKey",
+      "GetProposal",
+      "GetTotalTransaction",
+      "GetTransactionApprovedList",
+      "GetTransactionById",
+      "GetTransactionCountByBlockNum",
+      "GetTransactionInfoById",
+      "GetTransactionsFromThis",
+      "GetTransactionsToThis",
+      "GetTransactionSignWeight",
+      "ImportShieldedAddress",
+      "ImportWallet",
+      "ImportWalletByBase64",
+      "ListAssetIssue",
+      "ListExchanges",
+      "ListExchangesPaginated",
+      "ListNodes",
+      "ListShieldedAddress",
+      "ListShieldedNote",
+      "ListProposals",
+      "ListProposalsPaginated",
+      "ListWitnesses",
+      "Login",
+      "Logout",
+      "LoadShieldedWallet",
+      "ParticipateAssetIssue",
+      "RegisterWallet",
+      "ResetShieldedNote",
+      "ScanAndMarkNotebyAddress",
+      "ScanNotebyIvk",
+      "ScanNotebyOvk",
+      "SendCoin",
+      "SendShieldedCoin",
+      "SendShieldedCoinWithoutAsk",
+      "SetAccountId",
+      "TransferAsset",
+      "TriggerContract contractAddress method args isHex fee_limit value",
+      "TriggerConstantContract contractAddress method args isHex",
+      "UnfreezeAsset",
+      "UnfreezeBalance",
+      "UpdateAccount",
+      "UpdateAsset",
+      "UpdateEnergyLimit contract_address energy_limit",
+      "UpdateSetting contract_address consume_user_resource_percent",
+      "UpdateWitness",
+      "UpdateAccountPermission",
+      "VoteWitness",
+      "WithdrawBalance"
+  };
+
+  private static String[] commandList = {
+      "AddTransactionSign",
+      "ApproveProposal",
+      "AssetIssue",
+      "BackupShieldedAddress",
+      "BackupWallet",
+      "BackupWallet2Base64",
+      "BroadcastTransaction",
+      "ChangePassword",
+      "ClearContractABI",
+      "Create2",
+      "CreateAccount",
+      "CreateProposal",
+      "CreateWitness",
+      "DeleteProposal",
+      "DeployContract",
+      "ExchangeCreate",
+      "ExchangeInject",
+      "ExchangeTransaction",
+      "ExchangeWithdraw",
+      "FreezeBalance",
+      "GenerateAddress",
+      "GenerateShieldedAddress",
+      "GetAccount",
+      "GetAccountNet",
+      "GetAccountResource",
+      "GetAddress",
+      "GetAssetIssueByAccount",
+      "GetAssetIssueById",
+      "GetAssetIssueByName",
+      "GetAssetIssueListByName",
+      "GetAkFromAsk",
+      "GetBalance",
+      "GetBlock",
+      "GetBlockById",
+      "GetBlockByLatestNum",
+      "GetBlockByLimitNext",
+      "GetContract contractAddress",
+      "GetDelegatedResource",
+      "GetDelegatedResourceAccountIndex",
+      "GetDiversifier",
+      "GetExchange",
+      "GetExpandedSpendingKey",
+      "GetIncomingViewingKey",
+      "GetNkFromNsk",
+      "GetNextMaintenanceTime",
+      "GetShieldedNullifier",
+      "GetSpendingKey",
+      "GetProposal",
+      "GetTotalTransaction",
+      "GetTransactionApprovedList",
+      "GetTransactionById",
+      "GetTransactionCountByBlockNum",
+      "GetTransactionInfoById",
+      "GetTransactionsFromThis",
+      "GetTransactionsToThis",
+      "GetTransactionSignWeight",
+      "Help",
+      "ImportShieldedAddress",
+      "ImportWallet",
+      "ImportWalletByBase64",
+      "ListAssetIssue",
+      "ListExchanges",
+      "ListExchangesPaginated",
+      "ListNodes",
+      "ListShieldedAddress",
+      "ListShieldedNote",
+      "ListProposals",
+      "ListProposalsPaginated",
+      "ListWitnesses",
+      "Login",
+      "Logout",
+      "LoadShieldedWallet",
+      "ParticipateAssetIssue",
+      "RegisterWallet",
+      "ResetShieldedNote",
+      "ScanAndMarkNotebyAddress",
+      "ScanNotebyIvk",
+      "ScanNotebyOvk",
+      "SendCoin",
+      "SendShieldedCoin",
+      "SendShieldedCoinWithoutAsk",
+      "SetAccountId",
+      "TransferAsset",
+      "TriggerContract",
+      "TriggerConstantContract",
+      "UnfreezeAsset",
+      "UnfreezeBalance",
+      "UpdateAccount",
+      "UpdateAsset",
+      "UpdateEnergyLimit",
+      "UpdateSetting",
+      "UpdateWitness",
+      "UpdateAccountPermission",
+      "VoteWitness",
+      "WithdrawBalance"
+  };
 
   private byte[] inputPrivateKey() throws IOException {
     byte[] temp = new byte[128];
@@ -2736,101 +2937,11 @@ public class Client {
     System.out.println(
         "For more information on a specific command, type the command and it will display tips");
     System.out.println("");
-    System.out.println("AddTransactionSign");
-    System.out.println("ApproveProposal");
-    System.out.println("AssetIssue");
-    System.out.println("BackupShieldedAddress");
-    System.out.println("BackupWallet");
-    System.out.println("BackupWallet2Base64");
-    System.out.println("BroadcastTransaction");
-    System.out.println("ChangePassword");
-    System.out.println("ClearContractABI");
-    System.out.println("CreateAccount");
-    System.out.println("CreateProposal");
-    System.out.println("CreateWitness");
-    System.out.println("DeleteProposal");
-    System.out.println(
-        "DeployContract contractName ABI byteCode constructor params isHex fee_limit consume_user_resource_percent origin_energy_limit value token_value token_id <library:address,library:address,...> <lib_compiler_version(e.g:v5)>");
-    System.out.println("ExchangeCreate");
-    System.out.println("ExchangeInject");
-    System.out.println("ExchangeTransaction");
-    System.out.println("ExchangeWithdraw");
-    System.out.println("FreezeBalance");
-    System.out.println("GenerateAddress");
-    System.out.println("GenerateShieldedAddress");
-    System.out.println("GetAccount");
-    System.out.println("GetAccountNet");
-    System.out.println("GetAccountResource");
-    System.out.println("GetAddress");
-    System.out.println("GetAssetIssueByAccount");
-    System.out.println("GetAssetIssueById");
-    System.out.println("GetAssetIssueByName");
-    System.out.println("GetAssetIssueListByName");
-    System.out.println("GetAkFromAsk");
-    System.out.println("GetBalance");
-    System.out.println("GetBlock");
-    System.out.println("GetBlockById");
-    System.out.println("GetBlockByLatestNum");
-    System.out.println("GetBlockByLimitNext");
-    System.out.println("GetContract contractAddress");
-    System.out.println("GetDelegatedResource");
-    System.out.println("GetDelegatedResourceAccountIndex");
-    System.out.println("GetDiversifier");
-    System.out.println("GetExchange");
-    System.out.println("GetExpandedSpendingKey");
-    System.out.println("GetIncomingViewingKey");
-    System.out.println("GetNkFromNsk");
-    System.out.println("GetNextMaintenanceTime");
-    System.out.println("GetShieldedNullifier");
-    System.out.println("GetSpendingKey");
-    System.out.println("GetProposal");
-    System.out.println("GetTotalTransaction");
-    System.out.println("GetTransactionApprovedList");
-    System.out.println("GetTransactionById");
-    System.out.println("GetTransactionCountByBlockNum");
-    System.out.println("GetTransactionInfoById");
-    System.out.println("GetTransactionsFromThis");
-    System.out.println("GetTransactionsToThis");
-    System.out.println("GetTransactionSignWeight");
-    System.out.println("ImportShieldedAddress");
-    System.out.println("ImportWallet");
-    System.out.println("ImportWalletByBase64");
-    System.out.println("ListAssetIssue");
-    System.out.println("ListExchanges");
-    System.out.println("ListExchangesPaginated");
-    System.out.println("ListNodes");
-    System.out.println("ListShieldedAddress");
-    System.out.println("ListShieldedNote");
-    System.out.println("ListProposals");
-    System.out.println("ListProposalsPaginated");
-    System.out.println("ListWitnesses");
-    System.out.println("Login");
-    System.out.println("Logout");
-    System.out.println("LoadShieldedWallet");
-    System.out.println("ParticipateAssetIssue");
-    System.out.println("RegisterWallet");
-    System.out.println("ResetShieldedNote");
-    System.out.println("ScanAndMarkNotebyAddress");
-    System.out.println("ScanNotebyIvk");
-    System.out.println("ScanNotebyOvk");
-    System.out.println("SendCoin");
-    System.out.println("SendShieldedCoin");
-    System.out.println("SendShieldedCoinWithoutAsk");
-    System.out.println("SetAccountId");
-    System.out.println("TransferAsset");
-    System.out.println("TriggerContract contractAddress method args isHex fee_limit value");
-    System.out.println("TriggerConstantContract contractAddress method args isHex");
-    System.out.println("UnfreezeAsset");
-    System.out.println("UnfreezeBalance");
-    System.out.println("UpdateAccount");
-    System.out.println("UpdateAsset");
-    System.out.println("UpdateEnergyLimit contract_address energy_limit");
-    System.out.println("UpdateSetting contract_address consume_user_resource_percent");
-    System.out.println("UpdateWitness");
-    System.out.println("UpdateAccountPermission");
-    System.out.println("VoteWitness");
-    System.out.println("WithdrawBalance");
-    System.out.println("Create2");
+
+    for (String commandItem : commandHelp) {
+      System.out.println(commandItem);
+    }
+
 //    System.out.println("buyStorage");
 //    System.out.println("buyStorageBytes");
 //    System.out.println("sellStorage");
@@ -2839,7 +2950,6 @@ public class Client {
 //   System.out.println("GetTransactionsByTimestampCount");
 //   System.out.println("GetTransactionsFromThisCount");
 //   System.out.println("GetTransactionsToThisCount");
-
 
     System.out.println("Exit or Quit");
 
@@ -2886,7 +2996,6 @@ public class Client {
   }
 
   private void run() {
-    Scanner in = new Scanner(System.in);
     System.out.println(" ");
     System.out.println("Welcome to Tron Wallet-Cli");
     System.out.println("Please type one of the following commands to proceed.");
@@ -2895,272 +3004,291 @@ public class Client {
     System.out.println(
         "You may also use the Help command at anytime to display a full list of commands.");
     System.out.println(" ");
-    while (in.hasNextLine()) {
-      String cmd = "";
-      try {
-        String cmdLine = in.nextLine().trim();
-        String[] cmdArray = getCmd(cmdLine);
-        // split on trim() string will always return at the minimum: [""]
-        cmd = cmdArray[0];
-        if ("".equals(cmd)) {
-          continue;
-        }
-        String[] parameters = Arrays.copyOfRange(cmdArray, 1, cmdArray.length);
-        String cmdLowerCase = cmd.toLowerCase();
 
-        switch (cmdLowerCase) {
-          case "help": {
-            help();
-            break;
+    try {
+      Terminal terminal = TerminalBuilder.builder()
+          .system(true)
+          .build();
+
+      Completer commandCompleter = new StringsCompleter(
+          commandList
+      );
+
+      LineReader lineReader = LineReaderBuilder.builder()
+          .terminal(terminal)
+          .completer(commandCompleter)
+          .build();
+
+      String prompt = "wallet> ";
+
+      String cmdLine;
+
+      while (true) {
+        String cmd = "";
+        try {
+          cmdLine = lineReader.readLine(prompt).trim();
+          String[] cmdArray = getCmd(cmdLine);
+          // split on trim() string will always return at the minimum: [""]
+          cmd = cmdArray[0];
+          if ("".equals(cmd)) {
+            continue;
           }
-          case "registerwallet": {
-            registerWallet();
-            break;
-          }
-          case "importwallet": {
-            importWallet();
-            break;
-          }
-          case "importwalletbybase64": {
-            importwalletByBase64();
-            break;
-          }
-          case "changepassword": {
-            changePassword();
-            break;
-          }
-          case "clearcontractabi": {
-            clearContractABI(parameters);
-            break;
-          }
-          case "login": {
-            login();
-            break;
-          }
-          case "logout": {
-            logout();
-            break;
-          }
-          case "loadshieldedwallet": {
-            loadShieldedWallet();
-            break;
-          }
-          case "backupwallet": {
-            backupWallet();
-            break;
-          }
-          case "backupwallet2base64": {
-            backupWallet2Base64();
-            break;
-          }
-          case "getaddress": {
-            getAddress();
-            break;
-          }
-          case "getbalance": {
-            getBalance(parameters);
-            break;
-          }
-          case "getaccount": {
-            getAccount(parameters);
-            break;
-          }
-          case "getaccountbyid": {
-            getAccountById(parameters);
-            break;
-          }
-          case "updateaccount": {
-            updateAccount(parameters);
-            break;
-          }
-          case "setaccountid": {
-            setAccountId(parameters);
-            break;
-          }
-          case "updateasset": {
-            updateAsset(parameters);
-            break;
-          }
-          case "getassetissuebyaccount": {
-            getAssetIssueByAccount(parameters);
-            break;
-          }
-          case "getaccountnet": {
-            getAccountNet(parameters);
-            break;
-          }
-          case "getaccountresource": {
-            getAccountResource(parameters);
-            break;
-          }
-          case "getassetissuebyname": {
-            getAssetIssueByName(parameters);
-            break;
-          }
-          case "getassetissuelistbyname": {
-            getAssetIssueListByName(parameters);
-            break;
-          }
-          case "getassetissuebyid": {
-            getAssetIssueById(parameters);
-            break;
-          }
-          case "sendcoin": {
-            sendCoin(parameters);
-            break;
-          }
-          case "transferasset": {
-            transferAsset(parameters);
-            break;
-          }
-          case "participateassetissue": {
-            participateAssetIssue(parameters);
-            break;
-          }
-          case "assetissue": {
-            assetIssue(parameters);
-            break;
-          }
-          case "createaccount": {
-            createAccount(parameters);
-            break;
-          }
-          case "createwitness": {
-            createWitness(parameters);
-            break;
-          }
-          case "updatewitness": {
-            updateWitness(parameters);
-            break;
-          }
-          case "votewitness": {
-            voteWitness(parameters);
-            break;
-          }
-          case "freezebalance": {
-            freezeBalance(parameters);
-            break;
-          }
-          case "unfreezebalance": {
-            unfreezeBalance(parameters);
-            break;
-          }
-          case "buystorage": {
-            buyStorage(parameters);
-            break;
-          }
-          case "buystoragebytes": {
-            buyStorageBytes(parameters);
-            break;
-          }
-          case "sellstorage": {
-            sellStorage(parameters);
-            break;
-          }
-          case "withdrawbalance": {
-            withdrawBalance(parameters);
-            break;
-          }
-          case "unfreezeasset": {
-            unfreezeAsset(parameters);
-            break;
-          }
-          case "createproposal": {
-            createProposal(parameters);
-            break;
-          }
-          case "approveproposal": {
-            approveProposal(parameters);
-            break;
-          }
-          case "deleteproposal": {
-            deleteProposal(parameters);
-            break;
-          }
-          case "listproposals": {
-            listProposals();
-            break;
-          }
-          case "listproposalspaginated": {
-            getProposalsListPaginated(parameters);
-            break;
-          }
-          case "getproposal": {
-            getProposal(parameters);
-            break;
-          }
-          case "getdelegatedresource": {
-            getDelegatedResource(parameters);
-            break;
-          }
-          case "getdelegatedresourceaccountindex": {
-            getDelegatedResourceAccountIndex(parameters);
-            break;
-          }
-          case "exchangecreate": {
-            exchangeCreate(parameters);
-            break;
-          }
-          case "exchangeinject": {
-            exchangeInject(parameters);
-            break;
-          }
-          case "exchangewithdraw": {
-            exchangeWithdraw(parameters);
-            break;
-          }
-          case "exchangetransaction": {
-            exchangeTransaction(parameters);
-            break;
-          }
-          case "listexchanges": {
-            listExchanges();
-            break;
-          }
-          case "listexchangespaginated": {
-            getExchangesListPaginated(parameters);
-            break;
-          }
-          case "getexchange": {
-            getExchange(parameters);
-            break;
-          }
-          case "getchainparameters": {
-            getChainParameters();
-            break;
-          }
-          case "listwitnesses": {
-            listWitnesses();
-            break;
-          }
-          case "listassetissue": {
-            getAssetIssueList();
-            break;
-          }
-          case "listassetissuepaginated": {
-            getAssetIssueList(parameters);
-            break;
-          }
-          case "listnodes": {
-            listNodes();
-            break;
-          }
-          case "getblock": {
-            getBlock(parameters);
-            break;
-          }
-          case "gettransactioncountbyblocknum": {
-            getTransactionCountByBlockNum(parameters);
-            break;
-          }
-          case "gettotaltransaction": {
-            getTotalTransaction();
-            break;
-          }
-          case "getnextmaintenancetime": {
-            getNextMaintenanceTime();
-            break;
-          }
+          String[] parameters = Arrays.copyOfRange(cmdArray, 1, cmdArray.length);
+          String cmdLowerCase = cmd.toLowerCase();
+
+          switch (cmdLowerCase) {
+            case "help": {
+              help();
+              break;
+            }
+            case "registerwallet": {
+              registerWallet();
+              break;
+            }
+            case "importwallet": {
+              importWallet();
+              break;
+            }
+            case "importwalletbybase64": {
+              importwalletByBase64();
+              break;
+            }
+            case "changepassword": {
+              changePassword();
+              break;
+            }
+            case "clearcontractabi": {
+              clearContractABI(parameters);
+              break;
+            }
+            case "login": {
+              login();
+              break;
+            }
+            case "logout": {
+              logout();
+              break;
+            }
+            case "loadshieldedwallet": {
+              loadShieldedWallet();
+              break;
+            }
+            case "backupwallet": {
+              backupWallet();
+              break;
+            }
+            case "backupwallet2base64": {
+              backupWallet2Base64();
+              break;
+            }
+            case "getaddress": {
+              getAddress();
+              break;
+            }
+            case "getbalance": {
+              getBalance(parameters);
+              break;
+            }
+            case "getaccount": {
+              getAccount(parameters);
+              break;
+            }
+            case "getaccountbyid": {
+              getAccountById(parameters);
+              break;
+            }
+            case "updateaccount": {
+              updateAccount(parameters);
+              break;
+            }
+            case "setaccountid": {
+              setAccountId(parameters);
+              break;
+            }
+            case "updateasset": {
+              updateAsset(parameters);
+              break;
+            }
+            case "getassetissuebyaccount": {
+              getAssetIssueByAccount(parameters);
+              break;
+            }
+            case "getaccountnet": {
+              getAccountNet(parameters);
+              break;
+            }
+            case "getaccountresource": {
+              getAccountResource(parameters);
+              break;
+            }
+            case "getassetissuebyname": {
+              getAssetIssueByName(parameters);
+              break;
+            }
+            case "getassetissuelistbyname": {
+              getAssetIssueListByName(parameters);
+              break;
+            }
+            case "getassetissuebyid": {
+              getAssetIssueById(parameters);
+              break;
+            }
+            case "sendcoin": {
+              sendCoin(parameters);
+              break;
+            }
+            case "transferasset": {
+              transferAsset(parameters);
+              break;
+            }
+            case "participateassetissue": {
+              participateAssetIssue(parameters);
+              break;
+            }
+            case "assetissue": {
+              assetIssue(parameters);
+              break;
+            }
+            case "createaccount": {
+              createAccount(parameters);
+              break;
+            }
+            case "createwitness": {
+              createWitness(parameters);
+              break;
+            }
+            case "updatewitness": {
+              updateWitness(parameters);
+              break;
+            }
+            case "votewitness": {
+              voteWitness(parameters);
+              break;
+            }
+            case "freezebalance": {
+              freezeBalance(parameters);
+              break;
+            }
+            case "unfreezebalance": {
+              unfreezeBalance(parameters);
+              break;
+            }
+            case "buystorage": {
+              buyStorage(parameters);
+              break;
+            }
+            case "buystoragebytes": {
+              buyStorageBytes(parameters);
+              break;
+            }
+            case "sellstorage": {
+              sellStorage(parameters);
+              break;
+            }
+            case "withdrawbalance": {
+              withdrawBalance(parameters);
+              break;
+            }
+            case "unfreezeasset": {
+              unfreezeAsset(parameters);
+              break;
+            }
+            case "createproposal": {
+              createProposal(parameters);
+              break;
+            }
+            case "approveproposal": {
+              approveProposal(parameters);
+              break;
+            }
+            case "deleteproposal": {
+              deleteProposal(parameters);
+              break;
+            }
+            case "listproposals": {
+              listProposals();
+              break;
+            }
+            case "listproposalspaginated": {
+              getProposalsListPaginated(parameters);
+              break;
+            }
+            case "getproposal": {
+              getProposal(parameters);
+              break;
+            }
+            case "getdelegatedresource": {
+              getDelegatedResource(parameters);
+              break;
+            }
+            case "getdelegatedresourceaccountindex": {
+              getDelegatedResourceAccountIndex(parameters);
+              break;
+            }
+            case "exchangecreate": {
+              exchangeCreate(parameters);
+              break;
+            }
+            case "exchangeinject": {
+              exchangeInject(parameters);
+              break;
+            }
+            case "exchangewithdraw": {
+              exchangeWithdraw(parameters);
+              break;
+            }
+            case "exchangetransaction": {
+              exchangeTransaction(parameters);
+              break;
+            }
+            case "listexchanges": {
+              listExchanges();
+              break;
+            }
+            case "listexchangespaginated": {
+              getExchangesListPaginated(parameters);
+              break;
+            }
+            case "getexchange": {
+              getExchange(parameters);
+              break;
+            }
+            case "getchainparameters": {
+              getChainParameters();
+              break;
+            }
+            case "listwitnesses": {
+              listWitnesses();
+              break;
+            }
+            case "listassetissue": {
+              getAssetIssueList();
+              break;
+            }
+            case "listassetissuepaginated": {
+              getAssetIssueList(parameters);
+              break;
+            }
+            case "listnodes": {
+              listNodes();
+              break;
+            }
+            case "getblock": {
+              getBlock(parameters);
+              break;
+            }
+            case "gettransactioncountbyblocknum": {
+              getTransactionCountByBlockNum(parameters);
+              break;
+            }
+            case "gettotaltransaction": {
+              getTotalTransaction();
+              break;
+            }
+            case "getnextmaintenancetime": {
+              getNextMaintenanceTime();
+              break;
+            }
 //          case "getassetissuelistbytimestamp": {
 //            getAssetIssueListByTimestamp(parameters);
 //            break;
@@ -3169,18 +3297,18 @@ public class Client {
 //            getTransactionsByTimestampCount(parameters);
 //            break;
 //          }
-          case "gettransactionsfromthis": {
-            getTransactionsFromThis(parameters);
-            break;
-          }
+            case "gettransactionsfromthis": {
+              getTransactionsFromThis(parameters);
+              break;
+            }
 //          case "gettransactionsfromthiscount": {
 //            getTransactionsFromThisCount(parameters);
 //            break;
 //          }
-          case "gettransactionstothis": {
-            getTransactionsToThis(parameters);
-            break;
-          }
+            case "gettransactionstothis": {
+              getTransactionsToThis(parameters);
+              break;
+            }
 //          case "gettransactionstothiscount": {
 //            getTransactionsToThisCount(parameters);
 //            break;
@@ -3189,178 +3317,185 @@ public class Client {
 //            getTransactionsByTimestamp(parameters);
 //            break;
 //          }
-          case "gettransactionbyid": {
-            getTransactionById(parameters);
-            break;
+            case "gettransactionbyid": {
+              getTransactionById(parameters);
+              break;
+            }
+            case "gettransactioninfobyid": {
+              getTransactionInfoById(parameters);
+              break;
+            }
+            case "getblockbyid": {
+              getBlockById(parameters);
+              break;
+            }
+            case "getblockbylimitnext": {
+              getBlockByLimitNext(parameters);
+              break;
+            }
+            case "getblockbylatestnum": {
+              getBlockByLatestNum(parameters);
+              break;
+            }
+            case "getspendingkey": {
+              getSpendingKey();
+              break;
+            }
+            case "getexpandedspendingkey": {
+              getExpandedSpendingKey(parameters);
+              break;
+            }
+            case "getakfromask": {
+              getAkFromAsk(parameters);
+              break;
+            }
+            case "getnkfromnsk": {
+              getNkFromNsk(parameters);
+              break;
+            }
+            case "getincomingviewingkey": {
+              getIncomingViewingKey(parameters);
+              break;
+            }
+            case "getdiversifier": {
+              getDiversifier(parameters);
+              break;
+            }
+            case "getshieldedpaymentaddress": {
+              getShieldedPaymentAddress(parameters);
+              break;
+            }
+            case "updatesetting": {
+              updateSetting(parameters);
+              break;
+            }
+            case "updateenergylimit": {
+              updateEnergyLimit(parameters);
+              break;
+            }
+            case "deploycontract": {
+              deployContract(parameters);
+              break;
+            }
+            case "triggercontract": {
+              triggerContract(parameters, false);
+              break;
+            }
+            case "triggerconstantcontract": {
+              triggerContract(parameters, true);
+              break;
+            }
+            case "getcontract": {
+              getContract(parameters);
+              break;
+            }
+            case "generateaddress": {
+              generateAddress();
+              break;
+            }
+            case "updateaccountpermission": {
+              updateAccountPermission(parameters);
+              break;
+            }
+            case "gettransactionsignweight": {
+              getTransactionSignWeight(parameters);
+              break;
+            }
+            case "gettransactionapprovedlist": {
+              getTransactionApprovedList(parameters);
+              break;
+            }
+            case "addtransactionsign": {
+              addTransactionSign(parameters);
+              break;
+            }
+            case "broadcasttransaction": {
+              broadcastTransaction(parameters);
+              break;
+            }
+            case "generateshieldedaddress": {
+              generateShieldedAddress(parameters);
+              break;
+            }
+            case "listshieldedaddress": {
+              listShieldedAddress();
+              break;
+            }
+            case "sendshieldedcoin": {
+              sendShieldedCoin(parameters);
+              break;
+            }
+            case "sendshieldedcoinwithoutask": {
+              sendShieldedCoinWithoutAsk(parameters);
+              break;
+            }
+            case "listshieldednote": {
+              listShieldedNote(parameters);
+              break;
+            }
+            case "resetshieldednote": {
+              resetShieldedNote();
+              break;
+            }
+            case "scannotebyivk": {
+              scanNoteByIvk(parameters);
+              break;
+            }
+            case "scannotebyovk": {
+              ScanNoteByOvk(parameters);
+              break;
+            }
+            case "getshieldednullifier": {
+              getShieldedNullifier(parameters);
+              break;
+            }
+            case "scanandmarknotebyaddress": {
+              scanAndMarkNoteByAddress(parameters);
+              break;
+            }
+            case "importshieldedaddress": {
+              importShieldedAddress();
+              break;
+            }
+            case "backupshieldedaddress": {
+              backupShieldedAddress();
+              break;
+            }
+            case "create2": {
+              create2(parameters);
+              break;
+            }
+            case "exit":
+            case "quit": {
+              System.out.println("Exit !!!");
+              return;
+            }
+            default: {
+              System.out.println("Invalid cmd: " + cmd);
+              help();
+            }
           }
-          case "gettransactioninfobyid": {
-            getTransactionInfoById(parameters);
-            break;
-          }
-          case "getblockbyid": {
-            getBlockById(parameters);
-            break;
-          }
-          case "getblockbylimitnext": {
-            getBlockByLimitNext(parameters);
-            break;
-          }
-          case "getblockbylatestnum": {
-            getBlockByLatestNum(parameters);
-            break;
-          }
-          case "getspendingkey": {
-            getSpendingKey();
-            break;
-          }
-          case "getexpandedspendingkey": {
-            getExpandedSpendingKey(parameters);
-            break;
-          }
-          case "getakfromask": {
-            getAkFromAsk(parameters);
-            break;
-          }
-          case "getnkfromnsk": {
-            getNkFromNsk(parameters);
-            break;
-          }
-          case "getincomingviewingkey": {
-            getIncomingViewingKey(parameters);
-            break;
-          }
-          case "getdiversifier": {
-            getDiversifier(parameters);
-            break;
-          }
-          case "getshieldedpaymentaddress": {
-            getShieldedPaymentAddress(parameters);
-            break;
-          }
-          case "updatesetting": {
-            updateSetting(parameters);
-            break;
-          }
-          case "updateenergylimit": {
-            updateEnergyLimit(parameters);
-            break;
-          }
-          case "deploycontract": {
-            deployContract(parameters);
-            break;
-          }
-          case "triggercontract": {
-            triggerContract(parameters, false);
-            break;
-          }
-          case "triggerconstantcontract": {
-            triggerContract(parameters, true);
-            break;
-          }
-          case "getcontract": {
-            getContract(parameters);
-            break;
-          }
-          case "generateaddress": {
-            generateAddress();
-            break;
-          }
-          case "updateaccountpermission": {
-            updateAccountPermission(parameters);
-            break;
-          }
-          case "gettransactionsignweight": {
-            getTransactionSignWeight(parameters);
-            break;
-          }
-          case "gettransactionapprovedlist": {
-            getTransactionApprovedList(parameters);
-            break;
-          }
-          case "addtransactionsign": {
-            addTransactionSign(parameters);
-            break;
-          }
-          case "broadcasttransaction": {
-            broadcastTransaction(parameters);
-            break;
-          }
-          case "generateshieldedaddress": {
-            generateShieldedAddress(parameters);
-            break;
-          }
-          case "listshieldedaddress": {
-            listShieldedAddress();
-            break;
-          }
-          case "sendshieldedcoin": {
-            sendShieldedCoin(parameters);
-            break;
-          }
-          case "sendshieldedcoinwithoutask": {
-            sendShieldedCoinWithoutAsk(parameters);
-            break;
-          }
-          case "listshieldednote": {
-            listShieldedNote(parameters);
-            break;
-          }
-          case "resetshieldednote": {
-            resetShieldedNote();
-            break;
-          }
-          case "scannotebyivk": {
-            scanNoteByIvk(parameters);
-            break;
-          }
-          case "scannotebyovk": {
-            ScanNoteByOvk(parameters);
-            break;
-          }
-          case "getshieldednullifier": {
-            getShieldedNullifier(parameters);
-            break;
-          }
-          case "scanandmarknotebyaddress": {
-            scanAndMarkNoteByAddress(parameters);
-            break;
-          }
-          case "importshieldedaddress": {
-            importShieldedAddress();
-            break;
-          }
-          case "backupshieldedaddress": {
-            backupShieldedAddress();
-            break;
-          }
-          case "create2": {
-            create2(parameters);
-            break;
-          }
-          case "exit":
-          case "quit": {
-            System.out.println("Exit !!!");
-            return;
-          }
-          default: {
-            System.out.println("Invalid cmd: " + cmd);
-            help();
-          }
+        } catch (CipherException e) {
+          System.out.println(cmd + " failed!");
+          System.out.println(e.getMessage());
+        } catch (IOException e) {
+          System.out.println(cmd + " failed!");
+          System.out.println(e.getMessage());
+        } catch (CancelException e) {
+          System.out.println(cmd + " failed!");
+          System.out.println(e.getMessage());
+        } catch (EndOfFileException e) {
+          System.out.println("\nBye.");
+          return;
+        } catch (Exception e) {
+          System.out.println(cmd + " failed!");
+          logger.error(e.getMessage());
+          e.printStackTrace();
         }
-      } catch (CipherException e) {
-        System.out.println(cmd + " failed!");
-        System.out.println(e.getMessage());
-      } catch (IOException e) {
-        System.out.println(cmd + " failed!");
-        System.out.println(e.getMessage());
-      } catch (CancelException e) {
-        System.out.println(cmd + " failed!");
-        System.out.println(e.getMessage());
-      } catch (Exception e) {
-        System.out.println(cmd + " failed!");
-        logger.error(e.getMessage());
-        e.printStackTrace();
       }
+    } catch (IOException e) {
+      System.out.println("\nBye.");
+      return;
     }
   }
 
