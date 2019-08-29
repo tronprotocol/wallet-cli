@@ -3006,27 +3006,18 @@ public class Client {
     System.out.println(" ");
 
     try {
-      Terminal terminal = TerminalBuilder.builder()
-          .system(true)
-          .build();
-
-      Completer commandCompleter = new StringsCompleter(
-          commandList
-      );
-
+      Terminal terminal = TerminalBuilder.builder().system(true).build();
+      Completer commandCompleter = new StringsCompleter(commandList);
       LineReader lineReader = LineReaderBuilder.builder()
           .terminal(terminal)
           .completer(commandCompleter)
           .build();
-
       String prompt = "wallet> ";
-
-      String cmdLine;
 
       while (true) {
         String cmd = "";
         try {
-          cmdLine = lineReader.readLine(prompt).trim();
+          String cmdLine = lineReader.readLine(prompt).trim();
           String[] cmdArray = getCmd(cmdLine);
           // split on trim() string will always return at the minimum: [""]
           cmd = cmdArray[0];

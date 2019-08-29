@@ -464,7 +464,7 @@ public class GrpcClient {
         && i > 0) {
       i--;
       response = blockingStubFull.broadcastTransaction(signaturedTransaction);
-      logger.info("repeat times = " + (11 - i));
+      System.out.println("repeat times = " + (11 - i));
       try {
         Thread.sleep(1000);
       } catch (InterruptedException e) {
@@ -472,8 +472,8 @@ public class GrpcClient {
       }
     }
     if (response.getResult() == false) {
-      logger.info("Code = " + response.getCode());
-      logger.info("Message = " + response.getMessage().toStringUtf8());
+      System.out.println("Code = " + response.getCode());
+      System.out.println("Message = " + response.getMessage().toStringUtf8());
     }
     return response.getResult();
   }
