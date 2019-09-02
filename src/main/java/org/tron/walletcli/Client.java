@@ -220,7 +220,7 @@ public class Client {
       "GetBlockById",
       "GetBlockByLatestNum",
       "GetBlockByLimitNext",
-      "GetContract contractAddress",
+      "GetContract",
       "GetDelegatedResource",
       "GetDelegatedResourceAccountIndex",
       "GetDiversifier",
