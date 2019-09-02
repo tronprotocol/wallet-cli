@@ -24,6 +24,7 @@ import java.util.Optional;
 import java.util.Scanner;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -118,10 +119,8 @@ import org.tron.protos.Protocol.TransactionInfo;
 import org.tron.protos.Protocol.TransactionSign;
 import org.tron.protos.Protocol.Witness;
 
-
+@Slf4j
 public class WalletApi {
-
-  private static final Logger logger = LoggerFactory.getLogger("WalletApi");
   private static final String FilePath = "Wallet";
   private List<WalletFile> walletFile = new ArrayList<>();
   private boolean loginState = false;
@@ -270,7 +269,7 @@ public class WalletApi {
 
   public static String store2Keystore(WalletFile walletFile) throws IOException {
     if (walletFile == null) {
-      logger.warn("Warning: Store wallet failed, walletFile is null !!");
+      System.out.println("Warning: Store wallet failed, walletFile is null !!");
       return null;
     }
     File file = new File(FilePath);
@@ -562,7 +561,7 @@ public class WalletApi {
         any.unpack(ShieldedTransferContract.class);
     if (shieldedTransferContract.getFromAmount() > 0) {
       if (wallet == null || !wallet.isLoginState()) {
-        logger.warn("Warning: processShieldedTransaction failed, Please login first !!");
+        System.out.println("Warning: processShieldedTransaction failed, Please login first !!");
         return false;
       }
       transaction = wallet.signOnlyForShieldedTransaction(transaction);
@@ -1003,7 +1002,7 @@ public class WalletApi {
       throw new IllegalArgumentException("password is empty");
     }
     if (password.length < 6) {
-      logger.warn("Warning: Password is too short !!");
+      System.out.println("Warning: Password is too short !!");
       return false;
     }
     //Other rule;
@@ -1025,19 +1024,18 @@ public class WalletApi {
 
   public static boolean addressValid(byte[] address) {
     if (ArrayUtils.isEmpty(address)) {
-      logger.warn("Warning: Address is empty !!");
+      System.out.println("Warning: Address is empty !!");
       return false;
     }
     if (address.length != CommonConstant.ADDRESS_SIZE) {
-      logger.warn(
+      System.out.println(
           "Warning: Address length need " + CommonConstant.ADDRESS_SIZE + " but " + address.length
               + " !!");
       return false;
     }
     byte preFixbyte = address[0];
     if (preFixbyte != WalletApi.getAddressPreFixByte()) {
-      logger
-          .warn("Warning: Address need prefix with " + WalletApi.getAddressPreFixByte() + " but "
+      System.out.println("Warning: Address need prefix with " + WalletApi.getAddressPreFixByte() + " but "
               + preFixbyte + " !!");
       return false;
     }
@@ -1074,7 +1072,7 @@ public class WalletApi {
 
   public static byte[] decodeFromBase58Check(String addressBase58) {
     if (StringUtils.isEmpty(addressBase58)) {
-      logger.warn("Warning: Address is empty !!");
+      System.out.println("Warning: Address is empty !!");
       return null;
     }
     byte[] address = decode58Check(addressBase58);
@@ -1086,11 +1084,11 @@ public class WalletApi {
 
   public static boolean priKeyValid(byte[] priKey) {
     if (ArrayUtils.isEmpty(priKey)) {
-      logger.warn("Warning: PrivateKey is empty !!");
+      System.out.println("Warning: PrivateKey is empty !!");
       return false;
     }
     if (priKey.length != 32) {
-      logger.warn("Warning: PrivateKey length need 64 but " + priKey.length + " !!");
+      System.out.println("Warning: PrivateKey length need 64 but " + priKey.length + " !!");
       return false;
     }
     //Other rule;
@@ -1674,11 +1672,11 @@ public class WalletApi {
       String stateMutability = abiItem.getAsJsonObject().get("stateMutability") != null ?
           abiItem.getAsJsonObject().get("stateMutability").getAsString() : null;
       if (type == null) {
-        logger.error("No type!");
+        System.out.println("No type!");
         return null;
       }
       if (!type.equalsIgnoreCase("fallback") && null == inputs) {
-        logger.error("No inputs!");
+        System.out.println("No inputs!");
         return null;
       }
 
@@ -1695,7 +1693,7 @@ public class WalletApi {
           JsonElement inputItem = inputs.get(j);
           if (inputItem.getAsJsonObject().get("name") == null ||
               inputItem.getAsJsonObject().get("type") == null) {
-            logger.error("Input argument invalid due to no name or no type!");
+            System.out.println("Input argument invalid due to no name or no type!");
             return null;
           }
           String inputName = inputItem.getAsJsonObject().get("name").getAsString();
@@ -1720,7 +1718,7 @@ public class WalletApi {
           JsonElement outputItem = outputs.get(k);
           if (outputItem.getAsJsonObject().get("name") == null ||
               outputItem.getAsJsonObject().get("type") == null) {
-            logger.error("Output argument invalid due to no name or no type!");
+            System.out.println("Output argument invalid due to no name or no type!");
             return null;
           }
           String outputName = outputItem.getAsJsonObject().get("name").getAsString();
@@ -1790,7 +1788,7 @@ public class WalletApi {
       String libraryAddressPair, String compilerVersion) {
     SmartContract.ABI abi = jsonStr2ABI(ABI);
     if (abi == null) {
-      logger.error("abi is null");
+      System.out.println("abi is null");
       return null;
     }
 
@@ -1914,7 +1912,6 @@ public class WalletApi {
     }
 
     return processTransactionExtention(transactionExtention);
-
   }
 
   public boolean updateEnergyLimit(byte[] owner, byte[] contractAddress, long originEnergyLimit)
@@ -2185,7 +2182,7 @@ public class WalletApi {
       } catch (Exception e) {
         if (showErrorMsg) {
           Status status = Status.fromThrowable(e);
-          logger.info("GetMerkleTreeVoucherInfo failed,error {}", status.getDescription());
+          System.out.println("GetMerkleTreeVoucherInfo failed,error " + status.getDescription());
         }
       }
     } else {
@@ -2202,7 +2199,7 @@ public class WalletApi {
       } catch (Exception e) {
         if (showErrorMsg) {
           Status status = Status.fromThrowable(e);
-          logger.info("scanNoteByIvk failed,error {}", status.getDescription());
+          System.out.println("scanNoteByIvk failed,error " + status.getDescription());
         }
       }
     } else {
@@ -2219,7 +2216,7 @@ public class WalletApi {
       } catch (Exception e) {
         if (showErrorMsg) {
           Status status = Status.fromThrowable(e);
-          logger.info("scanNoteByOvk failed,error {}", status.getDescription());
+          System.out.println("scanNoteByOvk failed,error " + status.getDescription());
         }
       }
     } else {
@@ -2233,7 +2230,7 @@ public class WalletApi {
       return Optional.of(rpcCli.getSpendingKey());
     } catch (Exception e) {
       Status status = Status.fromThrowable(e);
-      logger.info("getSpendingKey failed,error {}", status.getDescription());
+      System.out.println("getSpendingKey failed,error " + status.getDescription());
     }
     return Optional.empty();
   }
@@ -2244,7 +2241,7 @@ public class WalletApi {
       return Optional.of(rpcCli.getExpandedSpendingKey(spendingKey));
     } catch (Exception e) {
       Status status = Status.fromThrowable(e);
-      logger.info("getExpandedSpendingKey failed,error {}", status.getDescription());
+      System.out.println("getExpandedSpendingKey failed,error " + status.getDescription());
     }
     return Optional.empty();
   }
@@ -2254,7 +2251,7 @@ public class WalletApi {
       return Optional.of(rpcCli.getAkFromAsk(ask));
     } catch (Exception e) {
       Status status = Status.fromThrowable(e);
-      logger.info("getAkFromAsk failed,error {}", status.getDescription());
+      System.out.println("getAkFromAsk failed,error " + status.getDescription());
     }
     return Optional.empty();
   }
@@ -2264,7 +2261,7 @@ public class WalletApi {
       return Optional.of(rpcCli.getNkFromNsk(nsk));
     } catch (Exception e) {
       Status status = Status.fromThrowable(e);
-      logger.info("getNkFromNsk failed,error {}", status.getDescription());
+      System.out.println("getNkFromNsk failed,error " + status.getDescription());
     }
     return Optional.empty();
   }
@@ -2275,7 +2272,7 @@ public class WalletApi {
       return Optional.of(rpcCli.getIncomingViewingKey(viewingKeyMessage));
     } catch (Exception e) {
       Status status = Status.fromThrowable(e);
-      logger.info("getIncomingViewingKey failed,error {}", status.getDescription());
+      System.out.println("getIncomingViewingKey failed,error " + status.getDescription());
     }
     return Optional.empty();
   }
@@ -2285,7 +2282,7 @@ public class WalletApi {
       return Optional.of(rpcCli.getDiversifier());
     } catch (Exception e) {
       Status status = Status.fromThrowable(e);
-      logger.info("getDiversifier failed,error {}", status.getDescription());
+      System.out.println("getDiversifier failed,error " + status.getDescription());
     }
     return Optional.empty();
   }
@@ -2359,7 +2356,7 @@ public class WalletApi {
       } catch (Exception e) {
         if (showErrorMsg) {
           Status status = Status.fromThrowable(e);
-          logger.info("isNoteSpend failed,error {}", status.getDescription());
+          System.out.println("isNoteSpend failed,error " + status.getDescription());
         }
       }
     } else {
@@ -2373,7 +2370,7 @@ public class WalletApi {
       return Optional.of(rpcCli.getRcm());
     } catch (Exception e) {
       Status status = Status.fromThrowable(e);
-      logger.info("getRcm failed,error {}", status.getDescription());
+      System.out.println("getRcm failed,error " + status.getDescription());
     }
     return Optional.empty();
   }
@@ -2383,7 +2380,7 @@ public class WalletApi {
       return Optional.of(rpcCli.createShieldedNullifier(parameters));
     } catch (Exception e) {
       Status status = Status.fromThrowable(e);
-      logger.info("createShieldedNullifier failed,error {}", status.getDescription());
+      System.out.println("createShieldedNullifier failed,error " + status.getDescription());
     }
     return Optional.empty();
   }
@@ -2394,7 +2391,7 @@ public class WalletApi {
       return Optional.of(rpcCli.getZenPaymentAddress(msg));
     } catch (Exception e) {
       Status status = Status.fromThrowable(e);
-      logger.info("getZenPaymentAddress failed,error {}", status.getDescription());
+      System.out.println("getZenPaymentAddress failed,error " + status.getDescription());
     }
     return Optional.empty();
   }
@@ -2405,7 +2402,7 @@ public class WalletApi {
       return Optional.of(rpcCli.scanAndMarkNoteByIvk(parameters));
     } catch (Exception e) {
       Status status = Status.fromThrowable(e);
-      logger.info("scanAndMarkNoteByIvk failed,error {}", status.getDescription());
+      System.out.println("scanAndMarkNoteByIvk failed,error " + status.getDescription());
     }
     return Optional.empty();
   }
