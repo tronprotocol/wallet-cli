@@ -220,7 +220,7 @@ public class Client {
       "GetBlockById",
       "GetBlockByLatestNum",
       "GetBlockByLimitNext",
-      "GetContract contractAddress",
+      "GetContract",
       "GetDelegatedResource",
       "GetDelegatedResourceAccountIndex",
       "GetDiversifier",
@@ -880,10 +880,9 @@ public class Client {
     long freeAssetNetLimit = new Long(freeNetLimitPerAccount);
     long publicFreeNetLimit = new Long(publicFreeNetLimitString);
 
-    boolean result = walletApiWrapper
-        .assetIssue(ownerAddress, name, abbrName, totalSupply, trxNum, icoNum, precision, startTime,
-            endTime,
-            0, description, url, freeAssetNetLimit, publicFreeNetLimit, frozenSupply);
+    boolean result = walletApiWrapper.assetIssue(ownerAddress, name, abbrName, totalSupply,
+        trxNum, icoNum, precision, startTime, endTime, 0,
+        description, url, freeAssetNetLimit, publicFreeNetLimit, frozenSupply);
     if (result) {
       System.out.println("AssetIssue " + name + " successful !!");
     } else {
@@ -1184,7 +1183,16 @@ public class Client {
     } else if ((!hasOwnerAddressPara && (parameters.length == 4)) ||
         (hasOwnerAddressPara && (parameters.length == 5))) {
       resourceCode = Integer.parseInt(parameters[index++]);
-      receiverAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
+      receiverAddress = WalletApi.decodeFromBase58Check(parameters[index]);
+      if (receiverAddress == null){
+        System.out.println("Invalid receiverAddress.");
+        return;
+      }
+    }
+
+    if (parameters.length != index) {
+      System.out.println("Invalid parameter list.");
+      return;
     }
 
     boolean result = walletApiWrapper.freezeBalance(ownerAddress, frozen_balance,
