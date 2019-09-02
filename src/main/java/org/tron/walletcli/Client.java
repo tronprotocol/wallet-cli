@@ -1184,15 +1184,6 @@ public class Client {
         (hasOwnerAddressPara && (parameters.length == 5))) {
       resourceCode = Integer.parseInt(parameters[index++]);
       receiverAddress = WalletApi.decodeFromBase58Check(parameters[index]);
-      if (receiverAddress == null){
-        System.out.println("Invalid receiverAddress.");
-        return;
-      }
-    }
-
-    if (parameters.length != index) {
-      System.out.println("Invalid parameter list.");
-      return;
     }
 
     boolean result = walletApiWrapper.freezeBalance(ownerAddress, frozen_balance,
