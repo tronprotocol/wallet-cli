@@ -888,8 +888,8 @@ public class Client {
     long publicFreeNetLimit = new Long(publicFreeNetLimitString);
 
     boolean result = walletApiWrapper
-        .assetIssue(ownerAddress, name, abbrName, totalSupply, trxNum, icoNum, precision, startTime, endTime,
-            0, description, url, freeAssetNetLimit, publicFreeNetLimit, frozenSupply);
+        .assetIssue(ownerAddress, name, abbrName, totalSupply, trxNum, icoNum, precision, startTime,
+            endTime, 0, description, url, freeAssetNetLimit, publicFreeNetLimit, frozenSupply);
     if (result) {
       System.out.println("AssetIssue " + name + " successful !!");
     } else {
@@ -1208,7 +1208,9 @@ public class Client {
       return;
     }
 
-    boolean result = walletApiWrapper.freezeBalance(ownerAddress, frozen_balance, frozen_duration, resourceCode, receiverAddress);
+    boolean result = walletApiWrapper
+        .freezeBalance(ownerAddress, frozen_balance, frozen_duration, resourceCode,
+            receiverAddress);
     if (result) {
       System.out.println("freezeBalance " + " successful !!");
     } else {
@@ -1698,72 +1700,6 @@ public class Client {
     String date = formatter.format(nextMaintenanceTime.getNum());
     System.out.println("Next maintenance time is : " + date);
   }
-
-//  private void getAssetIssueListByTimestamp(String[] parameters) {
-//    long timeStamp = -1;
-//    if (parameters == null || parameters.length == 0) {
-//      System.out.println("no time input, use current time");
-//      timeStamp = System.currentTimeMillis();
-//    } else {
-//      if (parameters.length != 2) {
-//        System.out.println("You can GetAssetIssueListByTimestamp like:");
-//        System.out.println("GetAssetIssueListByTimestamp yyyy-mm-dd hh:mm:ss");
-//        return;
-//      } else {
-//        timeStamp = Timestamp.valueOf(parameters[0] + " " + parameters[1]).getTime();
-//      }
-//    }
-//    Optional<AssetIssueList> result = WalletApi.getAssetIssueListByTimestamp(timeStamp);
-//    if (result.isPresent()) {
-//      AssetIssueList assetIssueList = result.get();
-//      System.out.println(Utils.printAssetIssueList(assetIssueList));
-//    } else {
-//      System.out.println("GetAssetIssueListByTimestamp " + " failed !!");
-//    }
-//  }
-
-//  private void getTransactionsByTimestamp(String[] parameters) {
-//    String start = "";
-//    String end = "";
-//    if (parameters == null || parameters.length != 6) {
-//      System.out.println(
-//          "getTransactionsByTimestamp needs 4 parameters, start_time and end_time, time format is yyyy-mm-dd hh:mm:ss, offset and limit");
-//      return;
-//    } else {
-//      start = parameters[0] + " " + parameters[1];
-//      end = parameters[2] + " " + parameters[3];
-//    }
-//    long startTime = Timestamp.valueOf(start).getTime();
-//    long endTime = Timestamp.valueOf(end).getTime();
-//    int offset = Integer.parseInt(parameters[4]);
-//    int limit = Integer.parseInt(parameters[5]);
-//    Optional<TransactionList> result = WalletApi
-//        .getTransactionsByTimestamp(startTime, endTime, offset, limit);
-//    if (result.isPresent()) {
-//      TransactionList transactionList = result.get();
-//      System.out.println(Utils.printTransactionList(transactionList));
-//    } else {
-//      System.out.println("getTransactionsByTimestamp " + " failed !!");
-//    }
-//  }
-
-//  private void getTransactionsByTimestampCount(String[] parameters) {
-//    String start = "";
-//    String end = "";
-//    if (parameters == null || parameters.length != 4) {
-//      System.out.println(
-//          "getTransactionsByTimestampCount needs 2 parameters, start_time and end_time, time format is yyyy-mm-dd hh:mm:ss");
-//      return;
-//    } else {
-//      start = parameters[0] + " " + parameters[1];
-//      end = parameters[2] + " " + parameters[3];
-//    }
-//    long startTime = Timestamp.valueOf(start).getTime();
-//    long endTime = Timestamp.valueOf(end).getTime();
-//
-//    NumberMessage result = WalletApi.getTransactionsByTimestampCount(startTime, endTime);
-//    System.out.println("the number of Transactions from " + start + " to " + end + " is " + result);
-//  }
 
   private void getTransactionById(String[] parameters) {
     String txid = "";
