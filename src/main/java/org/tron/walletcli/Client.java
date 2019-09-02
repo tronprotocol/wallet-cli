@@ -2962,15 +2962,6 @@ public class Client {
       System.out.println(commandItem);
     }
 
-//    System.out.println("buyStorage");
-//    System.out.println("buyStorageBytes");
-//    System.out.println("sellStorage");
-//   System.out.println("GetAssetIssueListByTimestamp");
-//   System.out.println("GetTransactionsByTimestamp");
-//   System.out.println("GetTransactionsByTimestampCount");
-//   System.out.println("GetTransactionsFromThisCount");
-//   System.out.println("GetTransactionsToThisCount");
-
     System.out.println("Exit or Quit");
 
     System.out.println("Input any one of the listed commands, to display how-to tips.");
@@ -3300,34 +3291,14 @@ public class Client {
               getNextMaintenanceTime();
               break;
             }
-//          case "getassetissuelistbytimestamp": {
-//            getAssetIssueListByTimestamp(parameters);
-//            break;
-//          }
-//          case "gettransactionsbytimestampcount": {
-//            getTransactionsByTimestampCount(parameters);
-//            break;
-//          }
             case "gettransactionsfromthis": {
               getTransactionsFromThis(parameters);
               break;
             }
-//          case "gettransactionsfromthiscount": {
-//            getTransactionsFromThisCount(parameters);
-//            break;
-//          }
             case "gettransactionstothis": {
               getTransactionsToThis(parameters);
               break;
             }
-//          case "gettransactionstothiscount": {
-//            getTransactionsToThisCount(parameters);
-//            break;
-//          }
-//          case "gettransactionsbytimestamp": {
-//            getTransactionsByTimestamp(parameters);
-//            break;
-//          }
             case "gettransactionbyid": {
               getTransactionById(parameters);
               break;
