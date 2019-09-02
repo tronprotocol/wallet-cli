@@ -1142,63 +1142,15 @@ public class Client {
       System.out.println("VoteWitness failed !!");
     }
   }
-//
-//  private void freezeBalance(String[] parameters)
-//      throws IOException, CipherException, CancelException {
-//    if (parameters == null || !(parameters.length == 2 || parameters.length == 3
-//        || parameters.length == 4 || parameters.length == 5 )) {
-//      System.out.println("Use freezeBalance command with below syntax: ");
-//      System.out.println("freezeBalance [OwnerAddress] frozen_balance frozen_duration "
-//          + "[ResourceCode:0 BANDWIDTH,1 ENERGY] [receiverAddress]");
-//      return;
-//    }
-//
-//    int index = 0;
-//    byte[] ownerAddress = null;
-//    try {
-//      ownerAddress = WalletApi.decodeFromBase58Check(parameters[index]);
-//    } catch (Exception e) {
-//    }
-//    if (ownerAddress != null) {
-//      index++;
-//    }
-//
-//    long frozen_balance = Long.parseLong(parameters[index++]);
-//    long frozen_duration = Long.parseLong(parameters[index++]);
-//    int resourceCode = 0;
-//    byte[] receiverAddress = null;
-//
-//    if (parameters.length >= index+1) {
-//      try {
-//        resourceCode = Integer.parseInt(parameters[index++]);
-//      } catch (NumberFormatException e) {
-//        System.out.println("Invalid resourceCode.");
-//        return;
-//      }
-//    }
-//
-//    if (parameters.length >= index+1) {
-//      receiverAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
-//      if (receiverAddress == null) {
-//        System.out.println("Invalid receiverAddress.");
-//        return;
-//      }
-//    }
-//
-//    if (parameters.length != index) {
-//      System.out.println("Invalid parameter list.");
-//      return;
-//    }
-//
-//    boolean result = walletApiWrapper
-//        .freezeBalance(ownerAddress, frozen_balance, frozen_duration, resourceCode,
-//            receiverAddress);
-//    if (result) {
-//      System.out.println("freezeBalance successful !!");
-//    } else {
-//      System.out.println("freezeBalance failed !!");
-//    }
-//  }
+
+  private byte[] getAddressBytes(final String address) {
+    byte[] ownerAddress = null;
+    try {
+      ownerAddress = WalletApi.decodeFromBase58Check(address);
+    } catch (Exception e) {
+    }
+    return ownerAddress;
+  }
 
   private void freezeBalance(String[] parameters)
       throws IOException, CipherException, CancelException {
@@ -1212,7 +1164,7 @@ public class Client {
 
     int index = 0;
     boolean hasOwnerAddressPara = false;
-    byte[] ownerAddress = WalletApi.decodeFromBase58Check(parameters[index]);
+    byte[] ownerAddress = getAddressBytes(parameters[index]);
     if (ownerAddress != null) {
       index++;
       hasOwnerAddressPara = true;
@@ -1244,88 +1196,6 @@ public class Client {
     }
   }
 
-//  private void buyStorage(String[] parameters)
-//      throws IOException, CipherException, CancelException {
-//    if (parameters == null || (parameters.length != 1 && parameters.length != 2)) {
-//      System.out.println("Use buyStorage command with below syntax: ");
-//      System.out.println("buyStorage [OwnerAddress] quantity ");
-//      return;
-//    }
-//
-//    int index = 0;
-//    byte[] ownerAddress = null;
-//    if (parameters.length == 2) {
-//      ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
-//      if (ownerAddress == null) {
-//        System.out.println("Invalid OwnerAddress.");
-//        return;
-//      }
-//    }
-//
-//    long quantity = Long.parseLong(parameters[index++]);
-//    boolean result = walletApiWrapper.buyStorage(ownerAddress, quantity);
-//    if (result) {
-//      System.out.println("buyStorage " + " successful !!");
-//    } else {
-//      System.out.println("buyStorage " + " failed !!");
-//    }
-//  }
-//
-//  private void buyStorageBytes(String[] parameters)
-//      throws IOException, CipherException, CancelException {
-//    if (parameters == null || (parameters.length != 1 && parameters.length != 2)) {
-//      System.out.println("Use buyStorageBytes command with below syntax: ");
-//      System.out.println("buyStorageBytes [OwnerAddress] bytes ");
-//      return;
-//    }
-//
-//    int index = 0;
-//    byte[] ownerAddress = null;
-//    if (parameters.length == 2) {
-//      ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
-//      if (ownerAddress == null) {
-//        System.out.println("Invalid OwnerAddress.");
-//        return;
-//      }
-//    }
-//
-//    long bytes = Long.parseLong(parameters[index++]);
-//    boolean result = walletApiWrapper.buyStorageBytes(ownerAddress, bytes);
-//    if (result) {
-//      System.out.println("buyStorageBytes " + " successful !!");
-//    } else {
-//      System.out.println("buyStorageBytes " + " failed !!");
-//    }
-//  }
-//
-//  private void sellStorage(String[] parameters)
-//      throws IOException, CipherException, CancelException {
-//    if (parameters == null || (parameters.length != 1 && parameters.length != 2)) {
-//      System.out.println("Use sellStorage command with below syntax: ");
-//      System.out.println("sellStorage [OwnerAddress] quantity ");
-//      return;
-//    }
-//
-//    int index = 0;
-//    byte[] ownerAddress = null;
-//    if (parameters.length == 2) {
-//      ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
-//      if (ownerAddress == null) {
-//        System.out.println("Invalid OwnerAddress.");
-//        return;
-//      }
-//    }
-//
-//    long storageBytes = Long.parseLong(parameters[index++]);
-//    boolean result = walletApiWrapper.sellStorage(ownerAddress, storageBytes);
-//    if (result) {
-//      System.out.println("sellStorage " + " successful !!");
-//    } else {
-//      System.out.println("sellStorage " + " failed !!");
-//    }
-//  }
-
-
   private void unfreezeBalance(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length < 1 || parameters.length > 3) {
@@ -1340,7 +1210,7 @@ public class Client {
     int resourceCode = 0;
     byte[] receiverAddress = null;
     if (parameters.length == 2) {
-      ownerAddress = WalletApi.decodeFromBase58Check(parameters[index]);
+      ownerAddress = getAddressBytes(parameters[index]);
       if (ownerAddress != null) {
         index++;
         resourceCode = Integer.parseInt(parameters[index++]);
@@ -1716,72 +1586,6 @@ public class Client {
     System.out.println("Next maintenance time is : " + date);
   }
 
-//  private void getAssetIssueListByTimestamp(String[] parameters) {
-//    long timeStamp = -1;
-//    if (parameters == null || parameters.length == 0) {
-//      System.out.println("no time input, use current time");
-//      timeStamp = System.currentTimeMillis();
-//    } else {
-//      if (parameters.length != 2) {
-//        System.out.println("You can GetAssetIssueListByTimestamp like:");
-//        System.out.println("GetAssetIssueListByTimestamp yyyy-mm-dd hh:mm:ss");
-//        return;
-//      } else {
-//        timeStamp = Timestamp.valueOf(parameters[0] + " " + parameters[1]).getTime();
-//      }
-//    }
-//    Optional<AssetIssueList> result = WalletApi.getAssetIssueListByTimestamp(timeStamp);
-//    if (result.isPresent()) {
-//      AssetIssueList assetIssueList = result.get();
-//      System.out.println(Utils.printAssetIssueList(assetIssueList));
-//    } else {
-//      System.out.println("GetAssetIssueListByTimestamp " + " failed !!");
-//    }
-//  }
-
-//  private void getTransactionsByTimestamp(String[] parameters) {
-//    String start = "";
-//    String end = "";
-//    if (parameters == null || parameters.length != 6) {
-//      System.out.println(
-//          "getTransactionsByTimestamp needs 4 parameters, start_time and end_time, time format is yyyy-mm-dd hh:mm:ss, offset and limit");
-//      return;
-//    } else {
-//      start = parameters[0] + " " + parameters[1];
-//      end = parameters[2] + " " + parameters[3];
-//    }
-//    long startTime = Timestamp.valueOf(start).getTime();
-//    long endTime = Timestamp.valueOf(end).getTime();
-//    int offset = Integer.parseInt(parameters[4]);
-//    int limit = Integer.parseInt(parameters[5]);
-//    Optional<TransactionList> result = WalletApi
-//        .getTransactionsByTimestamp(startTime, endTime, offset, limit);
-//    if (result.isPresent()) {
-//      TransactionList transactionList = result.get();
-//      System.out.println(Utils.printTransactionList(transactionList));
-//    } else {
-//      System.out.println("getTransactionsByTimestamp " + " failed !!");
-//    }
-//  }
-
-//  private void getTransactionsByTimestampCount(String[] parameters) {
-//    String start = "";
-//    String end = "";
-//    if (parameters == null || parameters.length != 4) {
-//      System.out.println(
-//          "getTransactionsByTimestampCount needs 2 parameters, start_time and end_time, time format is yyyy-mm-dd hh:mm:ss");
-//      return;
-//    } else {
-//      start = parameters[0] + " " + parameters[1];
-//      end = parameters[2] + " " + parameters[3];
-//    }
-//    long startTime = Timestamp.valueOf(start).getTime();
-//    long endTime = Timestamp.valueOf(end).getTime();
-//
-//    NumberMessage result = WalletApi.getTransactionsByTimestampCount(startTime, endTime);
-//    System.out.println("the number of Transactions from " + start + " to " + end + " is " + result);
-//  }
-
   private void getTransactionById(String[] parameters) {
     String txid = "";
     if (parameters == null || parameters.length != 1) {
@@ -2096,7 +1900,7 @@ public class Client {
       }
     }
 
-    byte[] contractAddress = WalletApi.decodeFromBase58Check(parameters[0]);
+    byte[] contractAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
     if (contractAddress == null) {
       return;
     }
@@ -2121,8 +1925,13 @@ public class Client {
       paras = paras.replaceAll("(\\[.*?\\]) ", "");
 
       String[] parts = paras.split(" ");
+      int abiIndex = 1;
+      if (getAddressBytes(parts[0]) != null) {
+        abiIndex = 2;
+      }
+
       for (int i = 0; i < parts.length; i++) {
-        if (1 == i) {
+        if (abiIndex == i) {
           tempList.add(ABI);
         }
         tempList.add(parts[i]);
@@ -2150,7 +1959,7 @@ public class Client {
     }
 
     int idx = 0;
-    byte[] ownerAddress = WalletApi.decodeFromBase58Check(parameters[idx]);
+    byte[] ownerAddress = getAddressBytes(parameters[idx]);
     if (ownerAddress != null) {
       idx++;
     }
@@ -2219,18 +2028,14 @@ public class Client {
     if (isConstant) {
       if (parameters == null || (parameters.length != 4 && parameters.length != 5)) {
         System.out.println(cmdMethodStr + " needs 4-5 parameters like following: ");
-        System.out.println(
-            cmdMethodStr
-                + "[OwnerAddress] contractAddress method args isHex");
+        System.out.println(cmdMethodStr + " [OwnerAddress] contractAddress method args isHex");
         return;
       }
     } else {
       if (parameters == null || (parameters.length != 8 && parameters.length != 9)) {
         System.out.println(cmdMethodStr + " needs 8-9 parameters like following: ");
-        System.out.println(
-            cmdMethodStr
-                + "[OwnerAddress] contractAddress method args isHex fee_limit value token_value token_id(e.g: TRXTOKEN, use # if don't provided)");
-        // System.out.println("example:\nTriggerContract password contractAddress method args value");
+        System.out.println(cmdMethodStr + " [OwnerAddress] contractAddress method args isHex"
+            + " fee_limit value token_value token_id(e.g: TRXTOKEN, use # if don't provided)");
         return;
       }
     }
@@ -2270,7 +2075,7 @@ public class Client {
     byte[] contractAddress = WalletApi.decodeFromBase58Check(contractAddrStr);
 
     boolean result = walletApiWrapper
-        .callContract(contractAddress, contractAddress, callValue, input, feeLimit, tokenCallValue,
+        .callContract(ownerAddress, contractAddress, callValue, input, feeLimit, tokenCallValue,
             tokenId,
             isConstant);
     if (!isConstant) {
@@ -3175,18 +2980,6 @@ public class Client {
               unfreezeBalance(parameters);
               break;
             }
-//            case "buystorage": {
-//              buyStorage(parameters);
-//              break;
-//            }
-//            case "buystoragebytes": {
-//              buyStorageBytes(parameters);
-//              break;
-//            }
-//            case "sellstorage": {
-//              sellStorage(parameters);
-//              break;
-//            }
             case "withdrawbalance": {
               withdrawBalance(parameters);
               break;
@@ -3487,7 +3280,7 @@ public class Client {
       ChainParameters chainParameters = result.get();
       System.out.println(Utils.formatMessageString(chainParameters));
     } else {
-      System.out.println("List witnesses " + " failed !!");
+      System.out.println("List witnesses failed !!");
     }
   }
 
