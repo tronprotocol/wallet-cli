@@ -123,6 +123,7 @@ public class Client {
       "GetBlockById",
       "GetBlockByLatestNum",
       "GetBlockByLimitNext",
+      "GetChainParameters",
       "GetContract contractAddress",
       "GetDelegatedResource",
       "GetDelegatedResourceAccountIndex",
@@ -147,6 +148,7 @@ public class Client {
       "ImportWallet",
       "ImportWalletByBase64",
       "ListAssetIssue",
+      "ListAssetIssuePaginated",
       "ListExchanges",
       "ListExchangesPaginated",
       "ListNodes",
@@ -220,6 +222,7 @@ public class Client {
       "GetBlockById",
       "GetBlockByLatestNum",
       "GetBlockByLimitNext",
+      "GetChainParameters",
       "GetContract",
       "GetDelegatedResource",
       "GetDelegatedResourceAccountIndex",
@@ -245,6 +248,7 @@ public class Client {
       "ImportWallet",
       "ImportWalletByBase64",
       "ListAssetIssue",
+      "ListAssetIssuePaginated",
       "ListExchanges",
       "ListExchangesPaginated",
       "ListNodes",
@@ -1743,7 +1747,7 @@ public class Client {
     long end = 0;
     if (parameters == null || parameters.length != 2) {
       System.out
-          .println("GetBlockByLimitNext needs 2 parameters, start block id and end block id");
+          .println("GetBlockByLimitNext needs 2 parameters, start block number and end block number");
       return;
     } else {
       start = Long.parseLong(parameters[0]);
