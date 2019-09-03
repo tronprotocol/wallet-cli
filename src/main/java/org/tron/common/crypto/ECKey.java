@@ -40,8 +40,6 @@ import java.security.spec.InvalidKeySpecException;
 import java.util.Arrays;
 import javax.annotation.Nullable;
 import javax.crypto.KeyAgreement;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.spongycastle.asn1.ASN1InputStream;
 import org.spongycastle.asn1.ASN1Integer;
 import org.spongycastle.asn1.DLSequence;
@@ -91,7 +89,6 @@ public class ECKey implements Serializable {
    * https://github.com/bitcoin/bips/blob/master/bip-0062.mediawiki #Low_S_values_in_signatures
    */
   public static final BigInteger HALF_CURVE_ORDER;
-  private static final Logger logger = LoggerFactory.getLogger(ECKey.class);
   private static final BigInteger SECP256K1N = new BigInteger
       ("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141", 16);
   private static final SecureRandom secureRandom;
@@ -527,7 +524,7 @@ public class ECKey implements Serializable {
       // specially crafted signatures.
       // Those signatures are inherently invalid/attack sigs so we just
       // fail them here rather than crash the thread.
-      logger.error("Caught NPE inside bouncy castle", npe);
+      System.out.println("Caught NPE inside bouncy castle" + npe);
       return false;
     }
   }
