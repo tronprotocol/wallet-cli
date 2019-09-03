@@ -80,7 +80,7 @@ import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.TransactionInfo;
 import org.tron.walletserver.WalletApi;
 
-@Slf4j
+
 public class Client {
 
   private WalletApiWrapper walletApiWrapper = new WalletApiWrapper();
@@ -1193,9 +1193,9 @@ public class Client {
     boolean result = walletApiWrapper.freezeBalance(ownerAddress, frozen_balance,
         frozen_duration, resourceCode, receiverAddress);
     if (result) {
-      logger.info("freezeBalance successful !!");
+      System.out.println("freezeBalance successful !!");
     } else {
-      logger.info("freezeBalance failed !!");
+      System.out.println("freezeBalance failed !!");
     }
   }
 
