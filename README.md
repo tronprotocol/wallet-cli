@@ -60,46 +60,107 @@ We can set the connected java-tron node IP in config.conf of wallet-cli.
 Wallet-cli supported command list:
 ----------------------------------
 
-RegisterWallet  
-RegisterWallet Password
-Register a wallet in local.
-Generate a pair of ecc keys.
-Derive a AES Key by password and then use the AES algorithm to encrypt and save the private key.
-The account address is calculated by the public key sha3-256, and taking the last 20 bytes.
-All subsequent operations that require the use of a private key must enter the password.
+Help: List of Tron Wallet-cli commands
+For more information on a specific command, type the command and it will display tips
 
-ImportWallet  
-ImportwalletByBase64  
-ChangePassword  
-Login  
-Logout  
-BackupWallet  
-BackupWallet2Base64  
-Getaddress  
-GetBalance  
-GetAccount  
-GetAssetissueByAccount                          
-GetAssetIssueByName                       
-SendCoin  
-TransferAsset  
-ParticipateAssetissue  
-Assetissue  
-CreateWitness  
-VoteWitness  
-FreezeBalance
-UnfreezeBalance
-WithdrawBalance
-Listaccounts  
-Listwitnesses  
-Listassetissue    
-listNodes               
-GetAssetIssueByName   
-Getblock
-UpdateAccount  
-Exit or Quit  
-help  
-
-Input any one of them, you will get more tips.
+AddTransactionSign    
+ApproveProposal    
+AssetIssue    
+BackupShieldedAddress    
+BackupWallet    
+BackupWallet2Base64    
+BroadcastTransaction    
+ChangePassword    
+ClearContractABI    
+Create2    
+CreateAccount    
+CreateProposal    
+CreateWitness    
+DeleteProposal    
+DeployContract contractName ABI byteCode constructor params isHex fee_limit consume_user_resource_percent origin_energy_limit value token_value token_id <library:address,library:address,...> <lib_compiler_version(e.g:v5)>    
+ExchangeCreate    
+ExchangeInject    
+ExchangeTransaction    
+ExchangeWithdraw    
+FreezeBalance    
+GenerateAddress    
+GenerateShieldedAddress    
+GetAccount    
+GetAccountNet    
+GetAccountResource    
+GetAddress    
+GetAssetIssueByAccount    
+GetAssetIssueById    
+GetAssetIssueByName    
+GetAssetIssueListByName    
+GetAkFromAsk    
+GetBalance    
+GetBlock    
+GetBlockById    
+GetBlockByLatestNum    
+GetBlockByLimitNext    
+GetChainParameters    
+GetContract contractAddress    
+GetDelegatedResource    
+GetDelegatedResourceAccountIndex    
+GetDiversifier    
+GetExchange    
+GetExpandedSpendingKey    
+GetIncomingViewingKey    
+GetNkFromNsk    
+GetNextMaintenanceTime    
+GetShieldedNullifier    
+GetSpendingKey    
+GetProposal    
+GetTotalTransaction    
+GetTransactionApprovedList    
+GetTransactionById    
+GetTransactionCountByBlockNum    
+GetTransactionInfoById    
+GetTransactionsFromThis    
+GetTransactionsToThis    
+GetTransactionSignWeight    
+ImportShieldedAddress    
+ImportWallet    
+ImportWalletByBase64    
+ListAssetIssue    
+ListAssetIssuePaginated    
+ListExchanges    
+ListExchangesPaginated    
+ListNodes    
+ListShieldedAddress    
+ListShieldedNote    
+ListProposals    
+ListProposalsPaginated    
+ListWitnesses    
+Login    
+Logout    
+LoadShieldedWallet    
+ParticipateAssetIssue    
+RegisterWallet    
+ResetShieldedNote    
+ScanAndMarkNotebyAddress    
+ScanNotebyIvk    
+ScanNotebyOvk    
+SendCoin    
+SendShieldedCoin    
+SendShieldedCoinWithoutAsk    
+SetAccountId    
+TransferAsset    
+TriggerContract contractAddress method args isHex fee_limit value    
+TriggerConstantContract contractAddress method args isHex    
+UnfreezeAsset    
+UnfreezeBalance    
+UpdateAccount    
+UpdateAsset    
+UpdateEnergyLimit contract_address energy_limit    
+UpdateSetting contract_address consume_user_resource_percent    
+UpdateWitness    
+UpdateAccountPermission    
+VoteWitness    
+WithdrawBalance    
+Exit or Quit    
+Input any one of the listed commands, to display how-to tips.    
 
 
 How to freeze/unfreeze balance
@@ -113,13 +174,13 @@ After the funds are frozen, the corresponding number of shares and bandwidth wil
 **Freeze operation is as follows：**
 
 ```
-freezeBalance amount time energy/bandwidth address
+freezeBalance [OwnerAddress] frozen_balance frozen_duration [ResourceCode:0 BANDWIDTH,1 ENERGY] [receiverAddress]
 ```
 
-*amount:The amount of frozen funds，the unit is drop.
+*frozen_balance:The amount of frozen funds，the unit is drop.
 The minimum value is **1000000 drop(1TRX)**.*
 
-*time：Freeze time, this value is currently only allowed for **3 days***
+*frozen_duration：Freeze time, this value is currently only allowed for **3 days***
 
 
 For example：
@@ -141,7 +202,7 @@ After the freezing time expires, funds can be unfroze.
 
 **Unfreeze operation is as follows：**
 ```
-unfreezebalance password 
+unfreezeBalance [OwnerAddress] ResourceCode(0 BANDWIDTH,1 CPU) [receiverAddress]
 ```
 
 
@@ -236,9 +297,11 @@ How to issue TRC10 tokens
 -------------------------
 Each account can only issue one TRC10 token.     
 a. Issue TRC10 tokens        
-AssetIssue AssetName TotalSupply TrxNum AssetNum Precision StartDate EndDate Description Url 
-FreeNetLimitPerAccount PublicFreeNetLimit FrozenAmount0 FrozenDays0 ... FrozenAmountN FrozenDaysN   
-AssetName: 				The name of the issued TRC10 token      
+AssetIssue [OwnerAddress] AssetName AbbrName TotalSupply TrxNum AssetNum Precision StartDate 
+EndDate Description Url FreeNetLimitPerAccount PublicFreeNetLimit FrozenAmount0 FrozenDays0 ... FrozenAmountN FrozenDaysN
+OwnerAddress:     The Account issue trc10 tokens        
+AssetName: 				The name of the issued TRC10 token    
+AbbrName:         The Abbreviation    
 TotalSupply:			Total issuing amount = account balance of the issuer at the time of 
 issuance + all the frozen amount, before asset transfer and the issuance.     
 TrxNum,AssetNum:		these two parameters determine the exchange rate between the issued token
@@ -252,91 +315,87 @@ users can participate in token issuance.
 FrozenAmount0 FrozenDays0:	Amount and time of token freeze. FrozenAmount0 must be bigger than 0,
  FrozenDays0 must be bigger than 1 and smaller than 3653.     
 Example:   
-AssetIssue TestTRX 100000 1 1 2 "2019-04-04 11:48:00" "2019-04-05" "just for test" www.test.com 
-100 100000 10000 10 10000 1     
+AssetIssue TestTRX TRX 75000000000000000 1 1 2 "2019-10-02 15:10:00" "2020-07-11" "just for test121212" www.test.com 100 100000 10000 10 10000 1       
 View published information:    
 GetAssetIssueByAccount TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ     
-11:50:02.688 INFO  [main] [Client](Client.java: 361)     
-assetIssue 0 :::   
-[   
-Id: 1000001   
-Owner_address: TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ   
-Name: TestTRX   
-Order: 0   
-Total_supply: 100000   
-Trx_num: 1   
-Num: 1   
-Precision 2   
-Start_time: Thu Apr 04 11:48:00 CST 2019   
-End_time: Fri Apr 05 00:00:00 CST 2019   
-Vote_score: 0   
-Description: just for test   
-Url: www.test.com   
-Free asset net limit: 100   
-Public free asset net limit: 100000   
-Public free asset net usage: 0   
-Public latest free net time: 0   
-Frozen_supply   
-{   
-  Amount: 10000   
-  Frozen_days: 1    
-}   
-Frozen_supply    
-{   
-  Amount: 10000    
-  Frozen_days: 10    
-}   
-]   
+{    
+	"assetIssue": [    
+		{    
+			"owner_address": "TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ",    
+			"name": "TestTRX",    
+			"abbr": "TRX",    
+			"total_supply": 75000000000000000,    
+			"frozen_supply": [    
+				{    
+					"frozen_amount": 10000,    
+					"frozen_days": 1    
+				},    
+				{    
+					"frozen_amount": 10000,    
+					"frozen_days": 10    
+				}    
+			],    
+			"trx_num": 1,    
+			"precision": 2,    
+			"num": 1,    
+			"start_time": 1570000200000,    
+			"end_time": 1594396800000,    
+			"description": "just for test121212",    
+			"url": "www.test.com",    
+			"free_asset_net_limit": 100,    
+			"public_free_asset_net_limit": 100000,    
+			"id": "1000001"    
+		}    
+	]    
+}     
  
 b. Update parameters of TRC10 token    
-UpdateAsset FreeNetLimitPerAccount PublicFreeNetLimit Description Url   
+UpdateAsset [OwnerAddress] newLimit newPublicLimit description url   
 Specific meaning of the parameters is the same with that of AssetIssue   
 Example:   
 UpdateAsset 1000 1000000 "change description" www.changetest.com    
 View the modified information:   
 GetAssetIssueByAccount TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ   
-11:52:16.677 INFO  [main] [Client](Client.java: 361)    
-assetIssue 0 :::  
-[  
-Id: 1000001   
-Owner_address: TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ   
-Name: TestTRX   
-Order: 0   
-Total_supply: 100000   
-Trx_num: 1   
-Num: 1   
-Precision 2   
-Start_time: Thu Apr 04 11:48:00 CST 2019   
-End_time: Fri Apr 05 00:00:00 CST 2019    
-Vote_score: 0   
-description: change description    
-url: www.changetest.com   
-Free asset net limit: 1000   
-public free asset net limit: 1000000   
-Public free asset net usage: 0   
-public latest free net time: 0   
-Frozen_supply  
-{   
-  Amount: 10000   
-  Frozen_days: 1   
-}   
-Frozen_supply    
-{   
-  Amount: 10000    
-  Frozen_days: 10    
-}   
-]   
+{     
+	"assetIssue": [     
+		{     
+			"owner_address": "TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ",     
+			"name": "TestTRX",     
+			"abbr": "TRX",     
+			"total_supply": 75000000000000000,     
+			"frozen_supply": [     
+				{     
+					"frozen_amount": 10000,     
+					"frozen_days": 1     
+				},     
+				{     
+					"frozen_amount": 10000,     
+					"frozen_days": 10     
+				}     
+			],     
+			"trx_num": 1,     
+			"precision": 2,     
+			"num": 1,     
+			"start_time": 1570000200000,     
+			"end_time": 1594396800000,     
+			"description": "change description",     
+			"url": "www.changetest.com",     
+			"free_asset_net_limit": 1000,     
+			"public_free_asset_net_limit": 1000000,     
+			"id": "1000001"     
+		}     
+	]     
+}       
   
 c. TRC10 transfer    
-TransferAsset ToAddress AssertName Amount    
+TransferAsset [OwnerAddress] ToAddress AssertID Amount        
 ToAddress:				Address of the target account     
 AssertName:				TRC10 id, 1000001 in the example    
 Amount:                 The number of TRC10 token to transfer       
 Example:  
 TransferAsset TN3zfjYUmMFK3ZsHSsrdJoNRtGkQmZLBLz 1000001 1000    
 View target account information after the transfer:    
-getaccount TN3zfjYUmMFK3ZsHSsrdJoNRtGkQmZLBLz  
-11:54:33.118 INFO  [main] [Client](Client.java:260)      
+getaccount TN3zfjYUmMFK3ZsHSsrdJoNRtGkQmZLBLz      
 address: TN3zfjYUmMFK3ZsHSsrdJoNRtGkQmZLBLz     
 ...   
 assetV2   
@@ -350,7 +409,7 @@ assetV2
 }    
     
 d. Participating in the issue of TRC10   
-ParticipateAssetIssue ToAddress AssetName Amount    
+ParticipateAssetIssue [OwnerAddress] ToAddress AssetID Amount        
 ToAddress:				Account address of Token 10 issuers     
 AssertName:				TRC10 ID,1000001 in the example    
 Amount:                 The number of TRC10 token to transfers	    		
@@ -358,8 +417,7 @@ It must happen during the release of Token 10, otherwise an error may occur
 Example:    
 ParticipateAssetIssue TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ 1000001 1000    
 View remaining balance:    
-getaccount TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW    
-11:59:57.558 INFO  [main] [Client](Client.java:260)     
+getaccount TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW     
 address: TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW    
 ...    
 assetV2    
@@ -374,7 +432,7 @@ assetV2
     
 e. unfreeze TRC10 token    
 It must be unfrozen after the freezing period, unfreeze Token10, which has stopped being frozen.    
-UnfreezeAsset    
+unfreezeasset [OwnerAddress]    
     
 f. Obtain information about Token 10    
 ListAssetIssue			Obtain all of the published Token 10 information     
@@ -389,7 +447,7 @@ How to initiate a proposal
 Any proposal-related operations, except for viewing operations, must be performed by committee 
 members.     
 a. Initiate a proposal    
-createProposal id0 value0 ... idN valueN    
+createProposal [OwnerAddress] id0 value0 ... idN valueN        
 id0:					the serial number of the parameter. Every parameter of TRON network has a
  serial number. Go to "http://tronscan.org/#/sr/committee" to see the specifics  
 Value0:                 the modified value
@@ -397,20 +455,26 @@ In the example, modification No.4 (modifying token issuance fee) costs 1000TRX a
 createProposal 4 1000    
 View initiated proposal:     
 listproposals    
-12:20:50.288 INFO  [main] [Client](Client.java:1043)    
-proposal 0 :::    
-[    
-id: 1    
-state: PENDING    
-createTime: 1554351564000    
-expirationTime: 1554616800000    
-parametersMap: {4=1000}    
-approvalsList: [     
-]]    
+{     
+	"proposals": [     
+		{     
+			"proposal_id": 1,     
+			"proposer_address": "TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ",     
+			"parameters": [     
+				{     
+					"key": 4,     
+					"value": 1000     
+				}     
+			],     
+			"expiration_time": 1567498800000,     
+			"create_time": 1567498308000     
+		}     
+	]     
+}        
 The corresponding id is 1    
      
 b. Approve/cancel the proposal    
-approveProposal id is_or_not_add_approval    
+approveProposal [OwnerAddress] id is_or_not_add_approval    
 id:                         ID of the initiated proposal, 1 in the example    
 is_or_not_add_approval:	    true for approve; false against    
 Example:    
@@ -418,7 +482,7 @@ ApproveProposal 1 true              in favor of the offer
 ApproveProposal 1 false             Cancel the approved proposal    
     
 c Cancel the created proposal    
-DeleteProposal proposal ID    
+deleteProposal [OwnerAddress] proposalId  
 proposalId ID of the initiated proposal, 1 in the example    
 The proposal must be canceled by the supernode that initiated the proposal    
 Example：    
@@ -435,7 +499,7 @@ How to trade on the exchange
 The trading and price fluctuations of trading pairs are in accordance with the Bancor Agreement, 
 which can be found in TRON's related documents.    
 a Create a trading pair    
-exchangeCreate first_token_id first_token_balance second_token_id second_token_balance    
+exchangeCreate [OwnerAddress] first_token_id first_token_balance second_token_id second_token_balance        
 First_token_id, first_token_balance:    ID and amount of the first token    
 second_token_id, second_token_balance:  ID and amount of the second token    
 The ID is the ID of the issued TRC10 token. If it is TRX, the ID is "_", the amount must be greater 
@@ -445,7 +509,7 @@ exchangeCreate 1000001 10000 _ 10000
 Create trading pairs with the IDs of 1000001 and TRX, the amount is 10000 for both.    
     
 b Capital injection    
-exchangeInject exchange_id token_id quant    
+exchangeInject [OwnerAddress] exchange_id token_id quant        
 exchange_id:    The ID of the transaction pair to be funded    
 token_id,quant: TokenId and quantity of capital injection	   
 When conducting capital injection, depending on the amount of capital injection, the proportion 
@@ -454,7 +518,7 @@ pair. Depending on the difference in the balance of the transaction, the same am
  the same token is different.    
     
 c Transactions   
-exchangeTransaction exchange_id token_id quant expected    
+exchangeTransaction [OwnerAddress] exchange_id token_id quant expected        
 exchange_id:        ID of the transaction pair    
 token_id, quant:    The ID and quantity of tokens being exchanged, equivalent to selling    
 expected:           Expected quantity of another token     
@@ -465,7 +529,7 @@ It is expected to acquire the 80 TRX by exchanging 1000001 from the transaction 
  the amount is 100 (equivalent to selling token10, the ID is 1000001, the amount is 100).    
     
 d Divestment    
-exchangeWithdraw exchange_id token_id quant    
+exchangeWithdraw [OwnerAddress] exchange_id token_id quant    
 Exchange_id:    The ID of the transaction pair to be divested    
 Token_id,quant: TokenId and quantity of divestment	    
 When conducting divestment, depending on the amount of divestment, the proportion of each token 
@@ -527,113 +591,114 @@ Obtain weight information according to transaction
 getTransactionSignWeight 
 0a8c010a020318220860e195d3609c86614096eadec79d2d5a6e080112680a2d747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e5472616e73666572436f6e747261637412370a1541a7d8a35b260395c14aa456297662092ba3b76fc01215415a523b449890854c8fc460ab602df9f31fe4293f18808084fea6dee11128027094bcb8bd9d2d1241c18ca91f1533ecdd83041eb0005683c4a39a2310ec60456b1f0075b4517443cf4f601a69788f001d4bc03872e892a5e25c618e38e7b81b8b1e69d07823625c2b0112413d61eb0f8868990cfa138b19878e607af957c37b51961d8be16168d7796675384e24043d121d01569895fcc7deb37648c59f538a8909115e64da167ff659c26101      
 The information displays as follows:          
-14:56:30.574 INFO  [main] [Client](Client.java:1764) permission:   
-{   
-permission_type: Active   
-permission_id: 2   
-permission_name: active12323   
-threshold: 2  
-parent_id: 0  
-operations: 7fff1fc0033e0000000000000000000000000000000000000000000000000000   
-keys:  
-[   
-address: TNhXo1GbRNCuorvYu5JFWN3m2NYr9QQpVR  
-weight: 1  
-address: TKwhcDup8L2PH5r6hxp5CQvQzZqJLmKvZP  
-weight: 1  
-]  
-}  
-current_weight: 2  
-result:  
-{  
-code: ENOUGH_PERMISSION  
-}  
-approved_list:  
-[  
-TKwhcDup8L2PH5r6hxp5CQvQzZqJLmKvZP  
-TNhXo1GbRNCuorvYu5JFWN3m2NYr9QQpVR  
-]  
-transaction:  
-{  
-txid:   
-7da63b6a1f008d03ef86fa871b24a56a501a8bbf15effd7aca635de6c738df4b   
-raw_data:   
-{  
-ref_block_bytes: 0318   
-ref_block_hash: 60e195d3609c8661   
-contract:   
-{   
-contract 0 :::  
-[  
-contract_type: TransferContract   
-owner_address: TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ  
-to_address: TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW   
-amount: 10000000000000000  
-]  
-  
-}   
-timestamp: Mon Apr 01 14:55:06 CST 2019   
-fee_limit: 0   
-}  
-signature:   
-{   
-signature 0 
-:c18ca91f1533ecdd83041eb0005683c4a39a2310ec60456b1f0075b4517443cf4f601a69788f001d4bc03872e892a5e25c618e38e7b81b8b1e69d07823625c2b01  
-signature 1 
-:3d61eb0f8868990cfa138b19878e607af957c37b51961d8be16168d7796675384e24043d121d01569895fcc7deb37648c59f538a8909115e64da167ff659c26101   
-}  
-}  
+{     
+	"result":{     
+		"code":"PERMISSION_ERROR",     
+		"message":"Signature count is 2 more than key counts of permission : 1"     
+	},
+	"permission":{     
+		"operations":"7fff1fc0033e0100000000000000000000000000000000000000000000000000",     
+		"keys":[     
+			{     
+				"address":"TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ",     
+				"weight":1     
+			}     
+		],     
+		"threshold":1,     
+		"id":2,     
+		"type":"Active",     
+		"permission_name":"active"     
+	},     
+	"transaction":{     
+		"result":{     
+			"result":true     
+		},     
+		"txid":"7da63b6a1f008d03ef86fa871b24a56a501a8bbf15effd7aca635de6c738df4b",     
+		"transaction":{     
+			"signature":[     
+				"c18ca91f1533ecdd83041eb0005683c4a39a2310ec60456b1f0075b4517443cf4f601a69788f001d4bc03872e892a5e25c618e38e7b81b8b1e69d07823625c2b01",     
+				"3d61eb0f8868990cfa138b19878e607af957c37b51961d8be16168d7796675384e24043d121d01569895fcc7deb37648c59f538a8909115e64da167ff659c26101"     
+			],     
+			"txID":"7da63b6a1f008d03ef86fa871b24a56a501a8bbf15effd7aca635de6c738df4b",     
+			"raw_data":{     
+				"contract":[     
+					{     
+						"parameter":{     
+							"value":{     
+								"amount":10000000000000000,     
+								"owner_address":"TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ",     
+								"to_address":"TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW"     
+							},     
+							"type_url":"type.googleapis.com/protocol.TransferContract"     
+						},     
+						"type":"TransferContract",     
+						"Permission_id":2     
+					}     
+				],     
+				"ref_block_bytes":"0318",     
+				"ref_block_hash":"60e195d3609c8661",     
+				"expiration":1554123306262,     
+				"timestamp":1554101706260     
+			},     
+			"raw_data_hex":"0a020318220860e195d3609c86614096eadec79d2d5a6e080112680a2d747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e5472616e73666572436f6e747261637412370a1541a7d8a35b260395c14aa456297662092ba3b76fc01215415a523b449890854c8fc460ab602df9f31fe4293f18808084fea6dee11128027094bcb8bd9d2d"     
+		}     
+	}     
+}     
    
  
 Get signature information according to transactions    
 getTransactionApprovedList 
 0a8c010a020318220860e195d3609c86614096eadec79d2d5a6e080112680a2d747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e5472616e73666572436f6e747261637412370a1541a7d8a35b260395c14aa456297662092ba3b76fc01215415a523b449890854c8fc460ab602df9f31fe4293f18808084fea6dee11128027094bcb8bd9d2d1241c18ca91f1533ecdd83041eb0005683c4a39a2310ec60456b1f0075b4517443cf4f601a69788f001d4bc03872e892a5e25c618e38e7b81b8b1e69d07823625c2b0112413d61eb0f8868990cfa138b19878e607af957c37b51961d8be16168d7796675384e24043d121d01569895fcc7deb37648c59f538a8909115e64da167ff659c26101      
-14:57:37.807 INFO  [main] [Client](Client.java:1784) result:    
 {    
-code: SUCCESS   
-}   
-approved_list:   
-[   
-TKwhcDup8L2PH5r6hxp5CQvQzZqJLmKvZP  
-TNhXo1GbRNCuorvYu5JFWN3m2NYr9QQpVR   
-]   
-transaction:  
-{  
-txid:    
-7da63b6a1f008d03ef86fa871b24a56a501a8bbf15effd7aca635de6c738df4b   
-raw_data:    
-{   
-ref_block_bytes: 0318   
-ref_block_hash: 60e195d3609c8661   
-contract:    
-{    
-contract 0 :::  
-[   
-contract_type: TransferContract   
-owner_address: TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ   
-to_address: TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW   
-amount: 10000000000000000   
-]  
-   
-}   
-timestamp: Mon Apr 01 14:55:06 CST 2019  
-fee_limit: 0   
-}  
-signature:    
-{   
-signature 0 
-:c18ca91f1533ecdd83041eb0005683c4a39a2310ec60456b1f0075b4517443cf4f601a69788f001d4bc03872e892a5e25c618e38e7b81b8b1e69d07823625c2b01    
-signature 1 
-:3d61eb0f8868990cfa138b19878e607af957c37b51961d8be16168d7796675384e24043d121d01569895fcc7deb37648c59f538a8909115e64da167ff659c26101   
-}   
-}  
+	"result":{     
+    
+	},     
+	"approved_list":[     
+		"TKwhcDup8L2PH5r6hxp5CQvQzZqJLmKvZP",     
+		"TNhXo1GbRNCuorvYu5JFWN3m2NYr9QQpVR"     
+	],     
+	"transaction":{     
+		"result":{     
+			"result":true     
+		},     
+		"txid":"7da63b6a1f008d03ef86fa871b24a56a501a8bbf15effd7aca635de6c738df4b",     
+		"transaction":{     
+			"signature":[     
+				"c18ca91f1533ecdd83041eb0005683c4a39a2310ec60456b1f0075b4517443cf4f601a69788f001d4bc03872e892a5e25c618e38e7b81b8b1e69d07823625c2b01",     
+				"3d61eb0f8868990cfa138b19878e607af957c37b51961d8be16168d7796675384e24043d121d01569895fcc7deb37648c59f538a8909115e64da167ff659c26101"     
+			],     
+			"txID":"7da63b6a1f008d03ef86fa871b24a56a501a8bbf15effd7aca635de6c738df4b",     
+			"raw_data":{     
+				"contract":[     
+					{     
+						"parameter":{     
+							"value":{     
+								"amount":10000000000000000,     
+								"owner_address":"TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ",     
+								"to_address":"TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW"     
+							},     
+							"type_url":"type.googleapis.com/protocol.TransferContract"     
+						},     
+						"type":"TransferContract",     
+						"Permission_id":2     
+					}     
+				],     
+				"ref_block_bytes":"0318",     
+				"ref_block_hash":"60e195d3609c8661",     
+				"expiration":1554123306262,     
+				"timestamp":1554101706260     
+			},     
+			"raw_data_hex":"0a020318220860e195d3609c86614096eadec79d2d5a6e080112680a2d747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e5472616e73666572436f6e747261637412370a1541a7d8a35b260395c14aa456297662092ba3b76fc01215415a523b449890854c8fc460ab602df9f31fe4293f18808084fea6dee11128027094bcb8bd9d2d"     
+		}     
+	}     
+}      
 
 How to use smart contracts 
 -------------------------- 
 a deploy smart contracts   
-DeployContract contractName ABI byteCode constructor params isHex fee_limit 
-consume_user_resource_percent origin_energy_limit value token_value token_id <library:address,
-library:address,...>   
+DeployContract [ownerAddress] contractName ABI byteCode constructor params isHex fee_limit 
+consume_user_resource_percent origin_energy_limit value token_value token_id(e.g: TRXTOKEN, use # if don't provided)
+ <library:address,library:address,...> <lib_compiler_version(e.g:v5)> library:address,...>   
 contractName:					name of smart contract   
 ABI:							Compile generated ABI code   
 byteCode:						Compile generated byte code   
@@ -688,7 +753,7 @@ NetFee:
 InternalTransactionList:    
    
 b trigger smart contarct   
-TriggerContract contractAddress method args isHex fee_limit value token_value token_id    
+TriggerContract [ownerAddress] contractAddress method args isHex fee_limit value token_value token_id    
 contractAddress:				smart contarct address    
 method:							The name of function and parameters, please refer to the example    
 args:							Parameter value    
@@ -760,9 +825,8 @@ contract ConsumeUserResourcePercent:75
 contract energy limit:50000    
     
 d update smart contract parameters    
-UpdateEnergyLimit contract_address energy_limit					Update parameter energy_limit    
-UpdateSetting contract_address consume_user_resource_percent	Update parameter 
-consume_user_resource_percent    
+UpdateEnergyLimit [ownerAddress] contract_address energy_limit					      Update parameter energy_limit    
+UpdateSetting [ownerAddress] contract_address consume_user_resource_percent	  Update parameter consume_user_resource_percent    
     
 How to delegate resource
 ------------------------    
@@ -770,8 +834,7 @@ a delegate resource
 The latter two parameters are optional parameters. If not set, the TRX is frozen to obtain 
 resources for its own use; if it is not empty, the acquired resources are used by receiverAddress
 .    
-freezeBalance frozen_balance frozen_duration [ResourceCode:0 BANDWIDTH,1 ENERGY] 
-[receiverAddress]    
+freezeBalance [OwnerAddress] frozen_balance frozen_duration [ResourceCode:0 BANDWIDTH,1 ENERGY] [receiverAddress]       
 frozen_balance:				The amount of frozen TRX, the unit is the smallest unit (sun), the 
 minimum is 1000000sun    
 frozen_duration:			frezen duration, 3 days    
@@ -781,7 +844,7 @@ receiverAddress:			target account address
 b unfreeze delegated resource     
 The latter two parameters are optional. If they are not set, the BANDWIDTH resource is unfreeze 
 by default; when the receiverAddress is set, the delegate resources are unfreezed.    
-unfreezeBalance  [ResourceCode:0 BANDWIDTH,1 CPU] [receiverAddress]     
+unfreezeBalance [OwnerAddress] ResourceCode(0 BANDWIDTH,1 CPU) [receiverAddress]    
      
 c get resource delegation information    
 getDelegatedResource fromAddress toAddress 	   
@@ -852,18 +915,21 @@ b generateshieldedaddress number    Generate shielded addresses
 number            The number of shielded addresses, the default is 1   
 Example:    
 generateshieldedaddress 2    
-10:11:02.482 INFO  [main] [Client](Client.java:1914) ShieldedAddress list:    
-10:11:02.526 INFO  [main] [Client](Client.java:1919) ztron1ghdy60hya8y72deu0q0r25qfl60unmue6889m3xfc3296a5ut6jcyafzhtp9nlutndukufzap4h    
-10:11:02.567 INFO  [main] [Client](Client.java:1919) ztron1hn9r3wmytavslztwmlzvuzk3dqpdhwcmda2d0deyu5pwv32dp78saaslyt82w0078y6uzfg8x6w    
-10:11:02.567 INFO  [main] [Client](Client.java:1923) GenerateShieldedAddress successful !!    
+ShieldedAddress list:    
+ztron165vh2d0qqj7ytrkjeehwy0sg3uvc4tnvcqnpqnzrqq4jpw2p7pzgm2d3chrwxk2jf9ck6rza8jr    
+ztron1klw4nge0dz45axsyf5rq4tujmwernmwzzlq3s5wly3tewkf8d87zl66xt8seud0jkap2wpwkjcc    
+GenerateShieldedAddress successful !!      
     
 c listshieldedaddress             Display cached local shielded address list    
 Example:    
 listshieldedaddress    
-10:11:55.370 INFO  [main] [Client](Client.java:1928) ShieldedAddress :    
-10:11:55.371 INFO  [main] [Client](Client.java:1930) ztron16j06s3p5gvp2jde4vh7w3ug3zz3m62zkyfu86s7ara5lafhp22p9wr3gz0lcdm3pvt7qx0aftu4    
-10:11:55.371 INFO  [main] [Client](Client.java:1930) ztron1ghdy60hya8y72deu0q0r25qfl60unmue6889m3xfc3296a5ut6jcyafzhtp9nlutndukufzap4h    
-10:11:55.371 INFO  [main] [Client](Client.java:1930) ztron1hn9r3wmytavslztwmlzvuzk3dqpdhwcmda2d0deyu5pwv32dp78saaslyt82w0078y6uzfg8x6w    
+ShieldedAddress :
+ztron1akz7mt4zqsjqrdrwdsmffu6g5dnehhhtahjlc0c6syy3z9nxxjrzqszy22lyx326edmwqjhqe48    
+ztron1ujhgjxazfnv8gzmkx0djn8cj4ef0mtfec6lkyslnslhf0mxlyg99ptk5hsuxmeqlqyakx7220ar    
+ztron1vtf8ta7cztkk23pvs7euuh7jw6wzxhqr7pg48zznxt6cxel27ch3t9qhs8npeptdaqvf2sgwqfr    
+ztron1lpfz287u6q3sfgdmfeh7n7dgmd7lq9780e858jzz0xeqssh0ahcfxg6wmhcqky744adjyk9nc0z    
+ztron1m5dx50gryu789q5sh5207chzmmgzf5c7hvn8lr6xs60jfxvkv3d3h0kqkglc60rwq26dchztsty    
+ztron165vh2d0qqj7ytrkjeehwy0sg3uvc4tnvcqnpqnzrqq4jpw2p7pzgm2d3chrwxk2jf9ck6rza8jr     
 
 d SendShieldedCoin publicFromAddress fromAmount shieldedInputNum input1 input2 input3 ... publicToAddress toAmount shieldedOutputNum shieldedAddress1 amount1 memo1 shieldedAddress2 amount2 memo2 ...    
 Shielded transfer, support from public address or shielded address to public address and shielded address, does not support public address to public address, does not support automatic change.    
