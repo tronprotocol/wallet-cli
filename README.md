@@ -298,7 +298,7 @@ How to issue TRC10 tokens
 Each account can only issue one TRC10 token.     
 a. Issue TRC10 tokens        
 AssetIssue [OwnerAddress] AssetName AbbrName TotalSupply TrxNum AssetNum Precision StartDate 
-EndDate Description Url FreeNetLimitPerAccount PublicFreeNetLimit FrozenAmount0 FrozenDays0 ... FrozenAmountN FrozenDaysN
+EndDate Description Url FreeNetLimitPerAccount PublicFreeNetLimit FrozenAmount0 FrozenDays0 ... FrozenAmountN FrozenDaysN    
 OwnerAddress:     The Account issue trc10 tokens        
 AssetName: 				The name of the issued TRC10 token    
 AbbrName:         The Abbreviation    
@@ -318,6 +318,7 @@ Example:
 AssetIssue TestTRX TRX 75000000000000000 1 1 2 "2019-10-02 15:10:00" "2020-07-11" "just for test121212" www.test.com 100 100000 10000 10 10000 1       
 View published information:    
 GetAssetIssueByAccount TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ     
+```
 {    
 	"assetIssue": [    
 		{    
@@ -347,7 +348,8 @@ GetAssetIssueByAccount TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ
 			"id": "1000001"    
 		}    
 	]    
-}     
+} 
+```    
  
 b. Update parameters of TRC10 token    
 UpdateAsset [OwnerAddress] newLimit newPublicLimit description url   
@@ -356,6 +358,7 @@ Example:
 UpdateAsset 1000 1000000 "change description" www.changetest.com    
 View the modified information:   
 GetAssetIssueByAccount TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ   
+```
 {     
 	"assetIssue": [     
 		{     
@@ -385,7 +388,8 @@ GetAssetIssueByAccount TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ
 			"id": "1000001"     
 		}     
 	]     
-}       
+}   
+```    
   
 c. TRC10 transfer    
 TransferAsset [OwnerAddress] ToAddress AssertID Amount        
@@ -455,6 +459,7 @@ In the example, modification No.4 (modifying token issuance fee) costs 1000TRX a
 createProposal 4 1000    
 View initiated proposal:     
 listproposals    
+```
 {     
 	"proposals": [     
 		{     
@@ -470,7 +475,8 @@ listproposals
 			"create_time": 1567498308000     
 		}     
 	]     
-}        
+}
+```        
 The corresponding id is 1    
      
 b. Approve/cancel the proposal    
@@ -590,7 +596,8 @@ manually.
 Obtain weight information according to transaction    
 getTransactionSignWeight 
 0a8c010a020318220860e195d3609c86614096eadec79d2d5a6e080112680a2d747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e5472616e73666572436f6e747261637412370a1541a7d8a35b260395c14aa456297662092ba3b76fc01215415a523b449890854c8fc460ab602df9f31fe4293f18808084fea6dee11128027094bcb8bd9d2d1241c18ca91f1533ecdd83041eb0005683c4a39a2310ec60456b1f0075b4517443cf4f601a69788f001d4bc03872e892a5e25c618e38e7b81b8b1e69d07823625c2b0112413d61eb0f8868990cfa138b19878e607af957c37b51961d8be16168d7796675384e24043d121d01569895fcc7deb37648c59f538a8909115e64da167ff659c26101      
-The information displays as follows:          
+The information displays as follows:      
+```    
 {     
 	"result":{     
 		"code":"PERMISSION_ERROR",     
@@ -643,12 +650,13 @@ The information displays as follows:
 			"raw_data_hex":"0a020318220860e195d3609c86614096eadec79d2d5a6e080112680a2d747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e5472616e73666572436f6e747261637412370a1541a7d8a35b260395c14aa456297662092ba3b76fc01215415a523b449890854c8fc460ab602df9f31fe4293f18808084fea6dee11128027094bcb8bd9d2d"     
 		}     
 	}     
-}     
-   
+}  
+```    
  
 Get signature information according to transactions    
 getTransactionApprovedList 
 0a8c010a020318220860e195d3609c86614096eadec79d2d5a6e080112680a2d747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e5472616e73666572436f6e747261637412370a1541a7d8a35b260395c14aa456297662092ba3b76fc01215415a523b449890854c8fc460ab602df9f31fe4293f18808084fea6dee11128027094bcb8bd9d2d1241c18ca91f1533ecdd83041eb0005683c4a39a2310ec60456b1f0075b4517443cf4f601a69788f001d4bc03872e892a5e25c618e38e7b81b8b1e69d07823625c2b0112413d61eb0f8868990cfa138b19878e607af957c37b51961d8be16168d7796675384e24043d121d01569895fcc7deb37648c59f538a8909115e64da167ff659c26101      
+```
 {    
 	"result":{     
     
@@ -691,7 +699,8 @@ getTransactionApprovedList
 			"raw_data_hex":"0a020318220860e195d3609c86614096eadec79d2d5a6e080112680a2d747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e5472616e73666572436f6e747261637412370a1541a7d8a35b260395c14aa456297662092ba3b76fc01215415a523b449890854c8fc460ab602df9f31fe4293f18808084fea6dee11128027094bcb8bd9d2d"     
 		}     
 	}     
-}      
+} 
+```     
 
 How to use smart contracts 
 -------------------------- 
@@ -712,43 +721,29 @@ value:							The amount of trx transferred to the contract account
 token_value:					Number of TRX10   
 token_id:						TRX10 Id   
 Example:    
-deployContract normalcontract544 [{"constant":false,"inputs":[{"name":"i","type":"uint256"}],
-"name":"findArgsByIndexTest","outputs":[{"name":"z","type":"uint256"}],"payable":false,
-"stateMutability":"nonpayable","type":"function"}] 
+deployContract normalcontract544 [{"constant":false,"inputs":[{"name":"i","type":"uint256"}],"name":
+"findArgsByIndexTest","outputs":[{"name":"z","type":"uint256"}],"payable":false,"stateMutability":"nonpayable","type":"function"}] 
 608060405234801561001057600080fd5b50610134806100206000396000f3006080604052600436106100405763ffffffff7c0100000000000000000000000000000000000000000000000000000000600035041663329000b58114610045575b600080fd5b34801561005157600080fd5b5061005d60043561006f565b60408051918252519081900360200190f35b604080516003808252608082019092526000916060919060208201838038833901905050905060018160008151811015156100a657fe5b602090810290910101528051600290829060019081106100c257fe5b602090810290910101528051600390829060029081106100de57fe5b6020908102909101015280518190849081106100f657fe5b906020019060200201519150509190505600a165627a7a72305820b24fc247fdaf3644b3c4c94fcee380aa610ed83415061ff9e65d7fa94a5a50a00029  # # false 1000000000 75 50000 0 0 #    
 Get the result of the contract execution with the getTransactionInfoById command:  
 getTransactionInfoById 4978dc64ff746ca208e51780cce93237ee444f598b24d5e9ce0da885fb3a3eb9   
-14:13:40.627 INFO  [main] [Client](Client.java:1326) txid:    
-4978dc64ff746ca208e51780cce93237ee444f598b24d5e9ce0da885fb3a3eb9    
-fee:   
-6170500   
-blockNumber:    
-26   
-blockTimeStamp:    
-1554703977000   
-result:    
-SUCCESS   
-resMessage:   
-   
-contractResult:    
-6080604052600436106100405763ffffffff7c0100000000000000000000000000000000000000000000000000000000600035041663329000b58114610045575b600080fd5b34801561005157600080fd5b5061005d60043561006f565b60408051918252519081900360200190f35b604080516003808252608082019092526000916060919060208201838038833901905050905060018160008151811015156100a657fe5b602090810290910101528051600290829060019081106100c257fe5b602090810290910101528051600390829060029081106100de57fe5b6020908102909101015280518190849081106100f657fe5b906020019060200201519150509190505600a165627a7a72305820b24fc247fdaf3644b3c4c94fcee380aa610ed83415061ff9e65d7fa94a5a50a00029     
-contractAddress:    
-TGdtALTPZ1FWQcc5MW7aK3o1ASaookkJxG    
-logList:    
-    
-receipt:     
-EnergyUsage:     
-0    
-EnergyFee(SUN):    
-6170500     
-OriginEnergyUsage:     
-0     
-EnergyUsageTotal:     
-61705    
-NetUsage:    
-704    
-NetFee:    
-0   
+```
+{
+	"id": "8c1f57a5e53b15bb0a0a0a0d4740eda9c31fbdb6a63bc429ec2113a92e8ff361",
+	"fee": 6170500,
+	"blockNumber": 1867,
+	"blockTimeStamp": 1567499757000,
+	"contractResult": [
+		"6080604052600436106100405763ffffffff7c0100000000000000000000000000000000000000000000000000000000600035041663329000b58114610045575b600080fd5b34801561005157600080fd5b5061005d60043561006f565b60408051918252519081900360200190f35b604080516003808252608082019092526000916060919060208201838038833901905050905060018160008151811015156100a657fe5b602090810290910101528051600290829060019081106100c257fe5b602090810290910101528051600390829060029081106100de57fe5b6020908102909101015280518190849081106100f657fe5b906020019060200201519150509190505600a165627a7a72305820b24fc247fdaf3644b3c4c94fcee380aa610ed83415061ff9e65d7fa94a5a50a00029"
+	],
+	"contract_address": "TJMKWmC6mwF1QVax8Sy2AcgT6MqaXmHEds",
+	"receipt": {
+		"energy_fee": 6170500,
+		"energy_usage_total": 61705,
+		"net_usage": 704,
+		"result": "SUCCESS"
+	}
+}  
+```
    
 InternalTransactionList:    
    
@@ -757,8 +752,7 @@ TriggerContract [ownerAddress] contractAddress method args isHex fee_limit value
 contractAddress:				smart contarct address    
 method:							The name of function and parameters, please refer to the example    
 args:							Parameter value    
-isHex:							The format of the parameters method and args,is hex string or not
-.      
+isHex:							The format of the parameters method and args,is hex string or not       
 fee_limit:						The most amount of trx allows for the consumption	    		
 token_value:					Number of TRX10    
 token_id:						TRC10 id，If not, use ‘#’ instead    
@@ -766,8 +760,9 @@ Example:
 triggerContract TGdtALTPZ1FWQcc5MW7aK3o1ASaookkJxG findArgsByIndexTest(uint256) 0 false 
 1000000000 0 0 #    
 Get the result of the contract execution with the getTransactionInfoById command:   
-getTransactionInfoById 7d9c4e765ea53cf6749d8a89ac07d577141b93f83adc4015f0b266d8f5c2dec4    
-14:27:50.055 INFO  [main] [Client](Client.java:1326) txid:    
+getTransactionInfoById 7d9c4e765ea53cf6749d8a89ac07d577141b93f83adc4015f0b266d8f5c2dec4  
+``` 
+txid:    
 7d9c4e765ea53cf6749d8a89ac07d577141b93f83adc4015f0b266d8f5c2dec4    
 fee:    
 54400   
@@ -797,7 +792,8 @@ EnergyUsageTotal:
 NetUsage:    
 314   
 NetFee:   
-0   
+0  
+```  
    
 InternalTransactionList:    
    
@@ -805,7 +801,8 @@ c get details of a smart contract
 GetContract contractAddress   
 contractAddress:		smart contarct address   
 Example:    
-GetContract  TGdtALTPZ1FWQcc5MW7aK3o1ASaookkJxG    
+GetContract  TGdtALTPZ1FWQcc5MW7aK3o1ASaookkJxG   
+```  
 contract :entrys {   
   name: "findArgsByIndexTest"   
   inputs {   
@@ -823,6 +820,7 @@ contract :entrys {
 contract owner:TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ    
 contract ConsumeUserResourcePercent:75    
 contract energy limit:50000    
+``` 
     
 d update smart contract parameters    
 UpdateEnergyLimit [ownerAddress] contract_address energy_limit					      Update parameter energy_limit    
