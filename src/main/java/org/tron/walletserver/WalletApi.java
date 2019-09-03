@@ -511,13 +511,15 @@ public class WalletApi {
     }
 
     System.out.println(Utils.printTransactionExceptId(transactionExtention.getTransaction()));
+    System.out.println("before sign transaction hex string is " +
+        ByteArray.toHexString(transaction.toByteArray()));
     transaction = signTransaction(transaction);
     showTransactionAfterSign(transaction);
     return rpcCli.broadcastTransaction(transaction);
   }
 
   private void showTransactionAfterSign(Transaction transaction) throws InvalidProtocolBufferException {
-    System.out.println("transaction hex string is " +
+    System.out.println("after sign transaction hex string is " +
         ByteArray.toHexString(transaction.toByteArray()));
     System.out.println("txid is " +
         ByteArray.toHexString(Sha256Hash.hash(transaction.getRawData().toByteArray())));
@@ -580,6 +582,8 @@ public class WalletApi {
     }
 
     System.out.println(Utils.printTransactionExceptId(transaction));
+    System.out.println("before sign transaction hex string is " +
+        ByteArray.toHexString(transaction.toByteArray()));
 
     transaction = signTransaction(transaction);
 

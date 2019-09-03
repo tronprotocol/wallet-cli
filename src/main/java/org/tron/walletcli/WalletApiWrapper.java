@@ -1049,6 +1049,9 @@ public class WalletApiWrapper {
             addressInfo.setOvk(expandedSpendingKeyMessage.get().getOvk().toByteArray());
             addressInfo.setPkD(addressMessage.get().getPkD().toByteArray());
 
+//            System.out.println("ivk " + ByteArray.toHexString(ivk.get().getIvk().toByteArray()));
+//            System.out.println("ovk " + ByteArray.toHexString(expandedSpendingKeyMessage.get().getOvk().toByteArray()));
+
             if (addressInfo.validateCheck()) {
                 return Optional.of(addressInfo);
             }

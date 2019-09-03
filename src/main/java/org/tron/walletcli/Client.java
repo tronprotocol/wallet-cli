@@ -2103,13 +2103,7 @@ public class Client {
 
     SmartContract contractDeployContract = WalletApi.getContract(addressBytes);
     if (contractDeployContract != null) {
-      System.out.println("contract :" + contractDeployContract.getAbi().toString());
-      System.out.println("contract owner:" + WalletApi.encode58Check(contractDeployContract
-          .getOriginAddress().toByteArray()));
-      System.out.println("contract ConsumeUserResourcePercent:" + contractDeployContract
-          .getConsumeUserResourcePercent());
-      System.out.println("contract energy limit:" + contractDeployContract
-          .getOriginEnergyLimit());
+      System.out.println(Utils.formatMessageString(contractDeployContract));
     } else {
       System.out.println("query contract failed!");
     }
@@ -2118,11 +2112,9 @@ public class Client {
   private void generateAddress() {
     AddressPrKeyPairMessage result = walletApiWrapper.generateAddress();
     if (null != result) {
-      System.out.println("Address: " + result.getAddress());
-      System.out.println("PrivateKey: " + result.getPrivateKey());
-      System.out.println("GenerateAddress " + " successful !!");
+      System.out.println(Utils.formatMessageString(result));
     } else {
-      System.out.println("GenerateAddress " + " failed !!");
+      System.out.println("GenerateAddress failed !!");
     }
   }
 
@@ -2204,9 +2196,9 @@ public class Client {
 
     transaction = walletApiWrapper.addTransactionSign(transaction);
     if (transaction != null) {
+      System.out.println(Utils.printTransaction(transaction));
       System.out.println("Transaction hex string is " +
           ByteArray.toHexString(transaction.toByteArray()));
-      System.out.println(Utils.printTransaction(transaction));
     } else {
       System.out.println("AddTransactionSign failed !!");
     }
@@ -2821,7 +2813,7 @@ public class Client {
     System.out.println(" ");
 
     try {
-      Terminal terminal = TerminalBuilder.builder().system(true).build();
+      Terminal terminal = TerminalBuilder.builder().system(true).dumb(true).build();
       Completer commandCompleter = new StringsCompleter(commandList);
       LineReader lineReader = LineReaderBuilder.builder()
           .terminal(terminal)
