@@ -2933,7 +2933,7 @@ public class Client {
     System.out.println(" ");
 
     try {
-      Terminal terminal = TerminalBuilder.builder().system(true).build();
+      Terminal terminal = TerminalBuilder.builder().system(true).dumb(true).build();
       Completer commandCompleter = new StringsCompleter(commandList);
       LineReader lineReader = LineReaderBuilder.builder()
           .terminal(terminal)
