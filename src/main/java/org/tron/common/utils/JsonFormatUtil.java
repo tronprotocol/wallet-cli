@@ -4,11 +4,11 @@ public class JsonFormatUtil {
 
   /**
    * format json string to show type
-   * @param jsonStr
-   * @return
    */
   public static String formatJson(String jsonStr) {
-    if (null == jsonStr || "".equals(jsonStr)) return "";
+    if (null == jsonStr || "".equals(jsonStr)) {
+      return "";
+    }
     StringBuilder sb = new StringBuilder();
     char last = '\0';
     char current = '\0';
@@ -48,8 +48,6 @@ public class JsonFormatUtil {
 
   /**
    * add space
-   * @param sb
-   * @param indent
    */
   private static void addIndentBlank(StringBuilder sb, int indent) {
     for (int i = 0; i < indent; i++) {
