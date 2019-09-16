@@ -437,7 +437,7 @@ public class ShieldedWrapper {
       noteInfo.decode(list.get(i), shieldedSkey);
       utxoMapNote.put(noteInfo.getNoteIndex(), noteInfo);
 
-      if (noteInfo.getNoteIndex() > nodeIndex.get()) {
+      if (noteInfo.getNoteIndex() >= nodeIndex.get()) {
         nodeIndex.set(noteInfo.getNoteIndex()+1);
       }
     }
@@ -475,7 +475,7 @@ public class ShieldedWrapper {
       noteInfo.decode(list.get(i), shieldedSkey);
       spendUtxoList.add(noteInfo);
 
-      if (noteInfo.getNoteIndex() > nodeIndex.get()) {
+      if (noteInfo.getNoteIndex() >= nodeIndex.get()) {
         nodeIndex.set(noteInfo.getNoteIndex()+1);
       }
     }
