@@ -64,1068 +64,740 @@ import org.tron.walletserver.WalletApi;
 @Slf4j
 public class WalletApiWrapper {
 
-    private WalletApi wallet;
+  private WalletApi wallet;
 
-    public String registerWallet(char[] password) throws CipherException, IOException {
-        if (!WalletApi.passwordValid(password)) {
-            return null;
-        }
+  public String registerWallet(char[] password) throws CipherException, IOException {
+    if (!WalletApi.passwordValid(password)) {
+      return null;
+    }
+
+    byte[] passwd = StringUtils.char2Byte(password);
+
+    WalletFile walletFile = WalletApi.CreateWalletFile(passwd);
+    StringUtils.clear(passwd);
+
+    String keystoreName = WalletApi.store2Keystore(walletFile);
+    logout();
+    return keystoreName;
+  }
+
+  public String importWallet(char[] password, byte[] priKey) throws CipherException, IOException {
+    if (!WalletApi.passwordValid(password)) {
+      return null;
+    }
+    if (!WalletApi.priKeyValid(priKey)) {
+      return null;
+    }
+
+    byte[] passwd = StringUtils.char2Byte(password);
+
+    WalletFile walletFile = WalletApi.CreateWalletFile(passwd, priKey);
+    StringUtils.clear(passwd);
+
+    String keystoreName = WalletApi.store2Keystore(walletFile);
+    logout();
+    return keystoreName;
+  }
+
+  public boolean changePassword(char[] oldPassword, char[] newPassword)
+      throws IOException, CipherException {
+    logout();
+    if (!WalletApi.passwordValid(newPassword)) {
+      System.out.println("Warning: ChangePassword failed, NewPassword is invalid !!");
+      return false;
+    }
 
-        byte[] passwd = StringUtils.char2Byte(password);
+    byte[] oldPasswd = StringUtils.char2Byte(oldPassword);
+    byte[] newPasswd = StringUtils.char2Byte(newPassword);
 
-        WalletFile walletFile = WalletApi.CreateWalletFile(passwd);
-        StringUtils.clear(passwd);
+    boolean result = WalletApi.changeKeystorePassword(oldPasswd, newPasswd);
+    StringUtils.clear(oldPasswd);
+    StringUtils.clear(newPasswd);
 
-        String keystoreName = WalletApi.store2Keystore(walletFile);
-        logout();
-        return keystoreName;
+    return result;
+  }
+
+  public boolean login() throws IOException, CipherException {
+    logout();
+    wallet = WalletApi.loadWalletFromKeystore();
+
+    System.out.println("Please input your password.");
+    char[] password = Utils.inputPassword(false);
+    byte[] passwd = StringUtils.char2Byte(password);
+    StringUtils.clear(password);
+    wallet.checkPassword(passwd);
+    StringUtils.clear(passwd);
+
+    if (wallet == null) {
+      System.out.println("Warning: Login failed, Please registerWallet or importWallet first !!");
+      return false;
+    }
+    wallet.setLogin();
+    return true;
+  }
+
+  public void logout() {
+    if (wallet != null) {
+      wallet.logout();
+      wallet = null;
+    }
+    //Neddn't logout
+  }
+
+  //password is current, will be enc by password2.
+  public byte[] backupWallet() throws IOException, CipherException {
+    if (wallet == null || !wallet.isLoginState()) {
+      wallet = WalletApi.loadWalletFromKeystore();
+      if (wallet == null) {
+        System.out.println("Warning: BackupWallet failed, no wallet can be backup !!");
+        return null;
+      }
+    }
+
+    System.out.println("Please input your password.");
+    char[] password = Utils.inputPassword(false);
+    byte[] passwd = StringUtils.char2Byte(password);
+    StringUtils.clear(password);
+    byte[] privateKey = wallet.getPrivateBytes(passwd);
+    StringUtils.clear(passwd);
+
+    return privateKey;
+  }
+
+  public String getAddress() {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: GetAddress failed,  Please login first !!");
+      return null;
     }
 
-    public String importWallet(char[] password, byte[] priKey) throws CipherException, IOException {
-        if (!WalletApi.passwordValid(password)) {
-            return null;
-        }
-        if (!WalletApi.priKeyValid(priKey)) {
-            return null;
-        }
+    return WalletApi.encode58Check(wallet.getAddress());
+  }
 
-        byte[] passwd = StringUtils.char2Byte(password);
+  public Account queryAccount() {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: QueryAccount failed,  Please login first !!");
+      return null;
+    }
 
-        WalletFile walletFile = WalletApi.CreateWalletFile(passwd, priKey);
-        StringUtils.clear(passwd);
+    return wallet.queryAccount();
+  }
 
-        String keystoreName = WalletApi.store2Keystore(walletFile);
-        logout();
-        return keystoreName;
+  public boolean sendCoin(byte[] ownerAddress, byte[] toAddress, long amount)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: SendCoin failed,  Please login first !!");
+      return false;
     }
 
-    public boolean changePassword(char[] oldPassword, char[] newPassword)
-            throws IOException, CipherException {
-        logout();
-        if (!WalletApi.passwordValid(newPassword)) {
-            System.out.println("Warning: ChangePassword failed, NewPassword is invalid !!");
-            return false;
-        }
+    return wallet.sendCoin(ownerAddress, toAddress, amount);
+  }
 
-        byte[] oldPasswd = StringUtils.char2Byte(oldPassword);
-        byte[] newPasswd = StringUtils.char2Byte(newPassword);
+  public boolean transferAsset(byte[] ownerAddress, byte[] toAddress, String assertName,
+      long amount)
+      throws IOException, CipherException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: TransferAsset failed,  Please login first !!");
+      return false;
+    }
 
-        boolean result = WalletApi.changeKeystorePassword(oldPasswd, newPasswd);
-        StringUtils.clear(oldPasswd);
-        StringUtils.clear(newPasswd);
+    return wallet.transferAsset(ownerAddress, toAddress, assertName.getBytes(), amount);
+  }
 
-        return result;
+  public boolean participateAssetIssue(byte[] ownerAddress, byte[] toAddress, String assertName,
+      long amount) throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: TransferAsset failed,  Please login first !!");
+      return false;
     }
 
-    public boolean login() throws IOException, CipherException {
-        logout();
-        wallet = WalletApi.loadWalletFromKeystore();
+    return wallet.participateAssetIssue(ownerAddress, toAddress, assertName.getBytes(), amount);
+  }
 
-        System.out.println("Please input your password.");
-        char[] password = Utils.inputPassword(false);
-        byte[] passwd = StringUtils.char2Byte(password);
-        StringUtils.clear(password);
-        wallet.checkPassword(passwd);
-        StringUtils.clear(passwd);
+  public boolean assetIssue(byte[] ownerAddress, String name, String abbrName, long totalSupply,
+      int trxNum, int icoNum,
+      int precision, long startTime, long endTime, int voteScore, String description, String url,
+      long freeNetLimit, long publicFreeNetLimit, HashMap<String, String> frozenSupply)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: assetIssue failed,  Please login first !!");
+      return false;
+    }
 
-        if (wallet == null) {
-            System.out.println("Warning: Login failed, Please registerWallet or importWallet first !!");
-            return false;
-        }
-        wallet.setLogin();
-        return true;
+    Contract.AssetIssueContract.Builder builder = Contract.AssetIssueContract.newBuilder();
+    if (ownerAddress == null) {
+      ownerAddress = wallet.getAddress();
     }
+    builder.setOwnerAddress(ByteString.copyFrom(ownerAddress));
+    builder.setName(ByteString.copyFrom(name.getBytes()));
+    builder.setAbbr(ByteString.copyFrom(abbrName.getBytes()));
 
-    public void logout() {
-        if (wallet != null) {
-            wallet.logout();
-            wallet = null;
-        }
-        //Neddn't logout
+    if (totalSupply <= 0) {
+      System.out.println("totalSupply should greater than 0. but really is " + totalSupply);
+      return false;
     }
+    builder.setTotalSupply(totalSupply);
 
-    //password is current, will be enc by password2.
-    public byte[] backupWallet() throws IOException, CipherException {
-        if (wallet == null || !wallet.isLoginState()) {
-            wallet = WalletApi.loadWalletFromKeystore();
-            if (wallet == null) {
-                System.out.println("Warning: BackupWallet failed, no wallet can be backup !!");
-                return null;
-            }
-        }
-
-        System.out.println("Please input your password.");
-        char[] password = Utils.inputPassword(false);
-        byte[] passwd = StringUtils.char2Byte(password);
-        StringUtils.clear(password);
-        byte[] privateKey = wallet.getPrivateBytes(passwd);
-        StringUtils.clear(passwd);
-
-        return privateKey;
-    }
-
-    public String getAddress() {
-        if (wallet == null || !wallet.isLoginState()) {
-            System.out.println("Warning: GetAddress failed,  Please login first !!");
-            return null;
-        }
-
-        return WalletApi.encode58Check(wallet.getAddress());
-    }
-
-    public Account queryAccount() {
-        if (wallet == null || !wallet.isLoginState()) {
-            System.out.println("Warning: QueryAccount failed,  Please login first !!");
-            return null;
-        }
-
-        return wallet.queryAccount();
-    }
-
-    public boolean sendCoin(byte[] ownerAddress, byte[] toAddress, long amount)
-            throws CipherException, IOException, CancelException {
-        if (wallet == null || !wallet.isLoginState()) {
-            System.out.println("Warning: SendCoin failed,  Please login first !!");
-            return false;
-        }
-
-        return wallet.sendCoin(ownerAddress, toAddress, amount);
-    }
-
-    public boolean transferAsset(byte[] ownerAddress, byte[] toAddress, String assertName, long amount)
-            throws IOException, CipherException, CancelException {
-        if (wallet == null || !wallet.isLoginState()) {
-            System.out.println("Warning: TransferAsset failed,  Please login first !!");
-            return false;
-        }
-
-        return wallet.transferAsset(ownerAddress, toAddress, assertName.getBytes(), amount);
-    }
-
-    public boolean participateAssetIssue(byte[] ownerAddress, byte[] toAddress, String assertName,
-                                         long amount) throws CipherException, IOException, CancelException {
-        if (wallet == null || !wallet.isLoginState()) {
-            System.out.println("Warning: TransferAsset failed,  Please login first !!");
-            return false;
-        }
-
-        return wallet.participateAssetIssue(ownerAddress, toAddress, assertName.getBytes(), amount);
-    }
-
-    public boolean assetIssue(byte[] ownerAddress, String name, String abbrName, long totalSupply, int trxNum, int icoNum,
-                              int precision, long startTime, long endTime, int voteScore, String description, String url,
-                              long freeNetLimit, long publicFreeNetLimit, HashMap<String, String> frozenSupply)
-            throws CipherException, IOException, CancelException {
-        if (wallet == null || !wallet.isLoginState()) {
-            System.out.println("Warning: assetIssue failed,  Please login first !!");
-            return false;
-        }
-
-        Contract.AssetIssueContract.Builder builder = Contract.AssetIssueContract.newBuilder();
-        if (ownerAddress == null) {
-            ownerAddress = wallet.getAddress();
-        }
-        builder.setOwnerAddress(ByteString.copyFrom(ownerAddress));
-        builder.setName(ByteString.copyFrom(name.getBytes()));
-        builder.setAbbr(ByteString.copyFrom(abbrName.getBytes()));
-
-        if (totalSupply <= 0) {
-            System.out.println("totalSupply should greater than 0. but really is " + totalSupply);
-            return false;
-        }
-        builder.setTotalSupply(totalSupply);
-
-        if (trxNum <= 0) {
-            System.out.println("trxNum should greater than 0. but really is " + trxNum);
-            return false;
-        }
-        builder.setTrxNum(trxNum);
-
-        if (icoNum <= 0) {
-            System.out.println("num should greater than 0. but really is " + icoNum);
-            return false;
-        }
-        builder.setNum(icoNum);
-
-        if (precision < 0) {
-            System.out.println("precision should greater or equal to 0. but really is " + precision);
-            return false;
-        }
-        builder.setPrecision(precision);
-
-        long now = System.currentTimeMillis();
-        if (startTime <= now) {
-            System.out.println("startTime should greater than now. but really is startTime("
-                    + startTime + ") now(" + now + ")");
-            return false;
-        }
-        if (endTime <= startTime) {
-            System.out.println("endTime should greater or equal to startTime. but really is endTime("
-                    + endTime + ") startTime(" + startTime + ")");
-            return false;
-        }
-
-        if (freeNetLimit < 0) {
-            System.out.println("freeAssetNetLimit should greater or equal to 0. but really is "
-                    + freeNetLimit);
-            return false;
-        }
-        if (publicFreeNetLimit < 0) {
-            System.out.println("publicFreeAssetNetLimit should greater or equal to 0. but really is "
-                    + publicFreeNetLimit);
-            return false;
-        }
-
-        builder.setStartTime(startTime);
-        builder.setEndTime(endTime);
-        builder.setVoteScore(voteScore);
-        builder.setDescription(ByteString.copyFrom(description.getBytes()));
-        builder.setUrl(ByteString.copyFrom(url.getBytes()));
-        builder.setFreeAssetNetLimit(freeNetLimit);
-        builder.setPublicFreeAssetNetLimit(publicFreeNetLimit);
-
-        for (String daysStr : frozenSupply.keySet()) {
-            String amountStr = frozenSupply.get(daysStr);
-            long amount = Long.parseLong(amountStr);
-            long days = Long.parseLong(daysStr);
-            Contract.AssetIssueContract.FrozenSupply.Builder frozenSupplyBuilder
-                    = Contract.AssetIssueContract.FrozenSupply.newBuilder();
-            frozenSupplyBuilder.setFrozenAmount(amount);
-            frozenSupplyBuilder.setFrozenDays(days);
-            builder.addFrozenSupply(frozenSupplyBuilder.build());
-        }
-
-        return wallet.createAssetIssue(builder.build());
-    }
-
-    public boolean createAccount(byte[] ownerAddress, byte[] address)
-            throws CipherException, IOException, CancelException {
-        if (wallet == null || !wallet.isLoginState()) {
-            System.out.println("Warning: createAccount failed,  Please login first !!");
-            return false;
-        }
+    if (trxNum <= 0) {
+      System.out.println("trxNum should greater than 0. but really is " + trxNum);
+      return false;
+    }
+    builder.setTrxNum(trxNum);
 
-        return wallet.createAccount(ownerAddress, address);
-    }
-
-    public AddressPrKeyPairMessage generateAddress() {
-        if (wallet == null || !wallet.isLoginState()) {
-            System.out.println("Warning: createAccount failed,  Please login first !!");
-            return null;
-        }
-        return WalletApi.generateAddress();
-    }
-
-
-    public boolean createWitness(byte[] ownerAddress, String url) throws CipherException, IOException, CancelException {
-        if (wallet == null || !wallet.isLoginState()) {
-            System.out.println("Warning: createWitness failed,  Please login first !!");
-            return false;
-        }
-
-        return wallet.createWitness(ownerAddress, url.getBytes());
-    }
-
-    public boolean updateWitness(byte[] ownerAddress, String url) throws CipherException, IOException, CancelException {
-        if (wallet == null || !wallet.isLoginState()) {
-            System.out.println("Warning: updateWitness failed,  Please login first !!");
-            return false;
-        }
+    if (icoNum <= 0) {
+      System.out.println("num should greater than 0. but really is " + icoNum);
+      return false;
+    }
+    builder.setNum(icoNum);
 
-        return wallet.updateWitness(ownerAddress, url.getBytes());
+    if (precision < 0) {
+      System.out.println("precision should greater or equal to 0. but really is " + precision);
+      return false;
     }
+    builder.setPrecision(precision);
 
-    public Block getBlock(long blockNum) {
-        return WalletApi.getBlock(blockNum);
+    long now = System.currentTimeMillis();
+    if (startTime <= now) {
+      System.out.println("startTime should greater than now. but really is startTime("
+          + startTime + ") now(" + now + ")");
+      return false;
     }
+    if (endTime <= startTime) {
+      System.out.println("endTime should greater or equal to startTime. but really is endTime("
+          + endTime + ") startTime(" + startTime + ")");
+      return false;
+    }
 
-    public long getTransactionCountByBlockNum(long blockNum) {
-        return WalletApi.getTransactionCountByBlockNum(blockNum);
+    if (freeNetLimit < 0) {
+      System.out.println("freeAssetNetLimit should greater or equal to 0. but really is "
+          + freeNetLimit);
+      return false;
+    }
+    if (publicFreeNetLimit < 0) {
+      System.out.println("publicFreeAssetNetLimit should greater or equal to 0. but really is "
+          + publicFreeNetLimit);
+      return false;
     }
 
-    public BlockExtention getBlock2(long blockNum) {
-        return WalletApi.getBlock2(blockNum);
+    builder.setStartTime(startTime);
+    builder.setEndTime(endTime);
+    builder.setVoteScore(voteScore);
+    builder.setDescription(ByteString.copyFrom(description.getBytes()));
+    builder.setUrl(ByteString.copyFrom(url.getBytes()));
+    builder.setFreeAssetNetLimit(freeNetLimit);
+    builder.setPublicFreeAssetNetLimit(publicFreeNetLimit);
+
+    for (String daysStr : frozenSupply.keySet()) {
+      String amountStr = frozenSupply.get(daysStr);
+      long amount = Long.parseLong(amountStr);
+      long days = Long.parseLong(daysStr);
+      Contract.AssetIssueContract.FrozenSupply.Builder frozenSupplyBuilder
+          = Contract.AssetIssueContract.FrozenSupply.newBuilder();
+      frozenSupplyBuilder.setFrozenAmount(amount);
+      frozenSupplyBuilder.setFrozenDays(days);
+      builder.addFrozenSupply(frozenSupplyBuilder.build());
     }
 
-    public boolean voteWitness(byte[] ownerAddress, HashMap<String, String> witness)
-            throws CipherException, IOException, CancelException {
-        if (wallet == null || !wallet.isLoginState()) {
-            System.out.println("Warning: VoteWitness failed,  Please login first !!");
-            return false;
-        }
+    return wallet.createAssetIssue(builder.build());
+  }
 
-        return wallet.voteWitness(ownerAddress, witness);
+  public boolean createAccount(byte[] ownerAddress, byte[] address)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: createAccount failed,  Please login first !!");
+      return false;
     }
 
-    public Optional<WitnessList> listWitnesses() {
-        try {
-            return WalletApi.listWitnesses();
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            return Optional.empty();
-        }
+    return wallet.createAccount(ownerAddress, address);
+  }
+
+  public AddressPrKeyPairMessage generateAddress() {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: createAccount failed,  Please login first !!");
+      return null;
     }
+    return WalletApi.generateAddress();
+  }
+
 
-    public Optional<AssetIssueList> getAssetIssueList() {
-        try {
-            return WalletApi.getAssetIssueList();
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            return Optional.empty();
-        }
+  public boolean createWitness(byte[] ownerAddress, String url)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: createWitness failed,  Please login first !!");
+      return false;
     }
 
-    public Optional<AssetIssueList> getAssetIssueList(long offset, long limit) {
-        try {
-            return WalletApi.getAssetIssueList(offset, limit);
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            return Optional.empty();
-        }
+    return wallet.createWitness(ownerAddress, url.getBytes());
+  }
+
+  public boolean updateWitness(byte[] ownerAddress, String url)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: updateWitness failed,  Please login first !!");
+      return false;
     }
+
+    return wallet.updateWitness(ownerAddress, url.getBytes());
+  }
+
+  public Block getBlock(long blockNum) {
+    return WalletApi.getBlock(blockNum);
+  }
 
-    public AssetIssueContract getAssetIssueByName(String assetName) {
-        return WalletApi.getAssetIssueByName(assetName);
+  public long getTransactionCountByBlockNum(long blockNum) {
+    return WalletApi.getTransactionCountByBlockNum(blockNum);
+  }
+
+  public BlockExtention getBlock2(long blockNum) {
+    return WalletApi.getBlock2(blockNum);
+  }
+
+  public boolean voteWitness(byte[] ownerAddress, HashMap<String, String> witness)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: VoteWitness failed,  Please login first !!");
+      return false;
     }
+
+    return wallet.voteWitness(ownerAddress, witness);
+  }
 
-    public Optional<AssetIssueList> getAssetIssueListByName(String assetName) {
-        try {
-            return WalletApi.getAssetIssueListByName(assetName);
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            return Optional.empty();
-        }
+  public Optional<WitnessList> listWitnesses() {
+    try {
+      return WalletApi.listWitnesses();
+    } catch (Exception ex) {
+      ex.printStackTrace();
+      return Optional.empty();
     }
+  }
 
-    public AssetIssueContract getAssetIssueById(String assetId) {
-        return WalletApi.getAssetIssueById(assetId);
+  public Optional<AssetIssueList> getAssetIssueList() {
+    try {
+      return WalletApi.getAssetIssueList();
+    } catch (Exception ex) {
+      ex.printStackTrace();
+      return Optional.empty();
     }
+  }
 
-    public Optional<ProposalList> getProposalListPaginated(long offset, long limit) {
-        try {
-            return WalletApi.getProposalListPaginated(offset, limit);
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            return Optional.empty();
-        }
+  public Optional<AssetIssueList> getAssetIssueList(long offset, long limit) {
+    try {
+      return WalletApi.getAssetIssueList(offset, limit);
+    } catch (Exception ex) {
+      ex.printStackTrace();
+      return Optional.empty();
     }
+  }
 
-    public Optional<ExchangeList> getExchangeListPaginated(long offset, long limit) {
-        try {
-            return WalletApi.getExchangeListPaginated(offset, limit);
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            return Optional.empty();
-        }
+  public AssetIssueContract getAssetIssueByName(String assetName) {
+    return WalletApi.getAssetIssueByName(assetName);
+  }
+
+  public Optional<AssetIssueList> getAssetIssueListByName(String assetName) {
+    try {
+      return WalletApi.getAssetIssueListByName(assetName);
+    } catch (Exception ex) {
+      ex.printStackTrace();
+      return Optional.empty();
     }
+  }
 
-    public Optional<NodeList> listNodes() {
-        try {
-            return WalletApi.listNodes();
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            return Optional.empty();
-        }
+  public AssetIssueContract getAssetIssueById(String assetId) {
+    return WalletApi.getAssetIssueById(assetId);
+  }
+
+  public Optional<ProposalList> getProposalListPaginated(long offset, long limit) {
+    try {
+      return WalletApi.getProposalListPaginated(offset, limit);
+    } catch (Exception ex) {
+      ex.printStackTrace();
+      return Optional.empty();
     }
+  }
 
-    public GrpcAPI.NumberMessage getTotalTransaction() {
-        return WalletApi.getTotalTransaction();
+  public Optional<ExchangeList> getExchangeListPaginated(long offset, long limit) {
+    try {
+      return WalletApi.getExchangeListPaginated(offset, limit);
+    } catch (Exception ex) {
+      ex.printStackTrace();
+      return Optional.empty();
     }
+  }
 
-    public GrpcAPI.NumberMessage getNextMaintenanceTime() {
-        return WalletApi.getNextMaintenanceTime();
+  public Optional<NodeList> listNodes() {
+    try {
+      return WalletApi.listNodes();
+    } catch (Exception ex) {
+      ex.printStackTrace();
+      return Optional.empty();
     }
+  }
+
+  public GrpcAPI.NumberMessage getTotalTransaction() {
+    return WalletApi.getTotalTransaction();
+  }
 
-    public boolean updateAccount(byte[] ownerAddress, byte[] accountNameBytes)
-            throws CipherException, IOException, CancelException {
-        if (wallet == null || !wallet.isLoginState()) {
-            System.out.println("Warning: updateAccount failed, Please login first !!");
-            return false;
-        }
+  public GrpcAPI.NumberMessage getNextMaintenanceTime() {
+    return WalletApi.getNextMaintenanceTime();
+  }
 
-        return wallet.updateAccount(ownerAddress, accountNameBytes);
+  public boolean updateAccount(byte[] ownerAddress, byte[] accountNameBytes)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: updateAccount failed, Please login first !!");
+      return false;
     }
 
-    public boolean setAccountId(byte[] ownerAddress, byte[] accountIdBytes)
-            throws CipherException, IOException, CancelException {
-        if (wallet == null || !wallet.isLoginState()) {
-            System.out.println("Warning: setAccount failed, Please login first !!");
-            return false;
-        }
+    return wallet.updateAccount(ownerAddress, accountNameBytes);
+  }
 
-        return wallet.setAccountId(ownerAddress, accountIdBytes);
+  public boolean setAccountId(byte[] ownerAddress, byte[] accountIdBytes)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: setAccount failed, Please login first !!");
+      return false;
     }
 
+    return wallet.setAccountId(ownerAddress, accountIdBytes);
+  }
 
-    public boolean updateAsset(byte[] ownerAddress, byte[] description, byte[] url, long newLimit,
-                               long newPublicLimit) throws CipherException, IOException, CancelException {
-        if (wallet == null || !wallet.isLoginState()) {
-            System.out.println("Warning: updateAsset failed, Please login first !!");
-            return false;
-        }
 
-        return wallet.updateAsset(ownerAddress, description, url, newLimit, newPublicLimit);
+  public boolean updateAsset(byte[] ownerAddress, byte[] description, byte[] url, long newLimit,
+      long newPublicLimit) throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: updateAsset failed, Please login first !!");
+      return false;
     }
 
-    public boolean freezeBalance(byte[] ownerAddress, long frozen_balance, long frozen_duration,
-                                 int resourceCode, byte[] receiverAddress)
-            throws CipherException, IOException, CancelException {
-        if (wallet == null || !wallet.isLoginState()) {
-            System.out.println("Warning: freezeBalance failed, Please login first !!");
-            return false;
-        }
+    return wallet.updateAsset(ownerAddress, description, url, newLimit, newPublicLimit);
+  }
 
-        return wallet.freezeBalance(ownerAddress, frozen_balance, frozen_duration, resourceCode, receiverAddress);
+  public boolean freezeBalance(byte[] ownerAddress, long frozen_balance, long frozen_duration,
+      int resourceCode, byte[] receiverAddress)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: freezeBalance failed, Please login first !!");
+      return false;
     }
 
-    public boolean buyStorage(byte[] ownerAddress, long quantity)
-            throws CipherException, IOException, CancelException {
-        if (wallet == null || !wallet.isLoginState()) {
-            System.out.println("Warning: buyStorage failed, Please login first !!");
-            return false;
-        }
+    return wallet.freezeBalance(ownerAddress, frozen_balance, frozen_duration, resourceCode,
+        receiverAddress);
+  }
 
-        return wallet.buyStorage(ownerAddress, quantity);
+  public boolean buyStorage(byte[] ownerAddress, long quantity)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: buyStorage failed, Please login first !!");
+      return false;
     }
 
-    public boolean buyStorageBytes(byte[] ownerAddress, long bytes)
-            throws CipherException, IOException, CancelException {
-        if (wallet == null || !wallet.isLoginState()) {
-            System.out.println("Warning: buyStorageBytes failed, Please login first !!");
-            return false;
-        }
+    return wallet.buyStorage(ownerAddress, quantity);
+  }
 
-        return wallet.buyStorageBytes(ownerAddress, bytes);
+  public boolean buyStorageBytes(byte[] ownerAddress, long bytes)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: buyStorageBytes failed, Please login first !!");
+      return false;
     }
 
-    public boolean sellStorage(byte[] ownerAddress, long storageBytes)
-            throws CipherException, IOException, CancelException {
-        if (wallet == null || !wallet.isLoginState()) {
-            System.out.println("Warning: sellStorage failed, Please login first !!");
-            return false;
-        }
+    return wallet.buyStorageBytes(ownerAddress, bytes);
+  }
 
-        return wallet.sellStorage(ownerAddress, storageBytes);
+  public boolean sellStorage(byte[] ownerAddress, long storageBytes)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: sellStorage failed, Please login first !!");
+      return false;
     }
 
+    return wallet.sellStorage(ownerAddress, storageBytes);
+  }
 
-    public boolean unfreezeBalance(byte[] ownerAddress, int resourceCode, byte[] receiverAddress)
-            throws CipherException, IOException, CancelException {
-        if (wallet == null || !wallet.isLoginState()) {
-            System.out.println("Warning: unfreezeBalance failed, Please login first !!");
-            return false;
-        }
 
-        return wallet.unfreezeBalance(ownerAddress, resourceCode, receiverAddress);
+  public boolean unfreezeBalance(byte[] ownerAddress, int resourceCode, byte[] receiverAddress)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: unfreezeBalance failed, Please login first !!");
+      return false;
     }
 
+    return wallet.unfreezeBalance(ownerAddress, resourceCode, receiverAddress);
+  }
 
-    public boolean unfreezeAsset(byte[] ownerAddress) throws CipherException, IOException, CancelException {
-        if (wallet == null || !wallet.isLoginState()) {
-            System.out.println("Warning: unfreezeAsset failed, Please login first !!");
-            return false;
-        }
 
-        return wallet.unfreezeAsset(ownerAddress);
+  public boolean unfreezeAsset(byte[] ownerAddress)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: unfreezeAsset failed, Please login first !!");
+      return false;
     }
 
-    public boolean withdrawBalance(byte[] ownerAddress) throws CipherException, IOException, CancelException {
-        if (wallet == null || !wallet.isLoginState()) {
-            System.out.println("Warning: withdrawBalance failed, Please login first !!");
-            return false;
-        }
+    return wallet.unfreezeAsset(ownerAddress);
+  }
 
-        return wallet.withdrawBalance(ownerAddress);
+  public boolean withdrawBalance(byte[] ownerAddress)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: withdrawBalance failed, Please login first !!");
+      return false;
     }
 
-    public boolean createProposal(byte[] ownerAddress, HashMap<Long, Long> parametersMap)
-            throws CipherException, IOException, CancelException {
-        if (wallet == null || !wallet.isLoginState()) {
-            System.out.println("Warning: createProposal failed, Please login first !!");
-            return false;
-        }
+    return wallet.withdrawBalance(ownerAddress);
+  }
 
-        return wallet.createProposal(ownerAddress, parametersMap);
+  public boolean createProposal(byte[] ownerAddress, HashMap<Long, Long> parametersMap)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: createProposal failed, Please login first !!");
+      return false;
     }
 
+    return wallet.createProposal(ownerAddress, parametersMap);
+  }
 
-    public Optional<ProposalList> getProposalsList() {
-        try {
-            return WalletApi.listProposals();
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            return Optional.empty();
-        }
+
+  public Optional<ProposalList> getProposalsList() {
+    try {
+      return WalletApi.listProposals();
+    } catch (Exception ex) {
+      ex.printStackTrace();
+      return Optional.empty();
     }
+  }
 
-    public Optional<Proposal> getProposals(String id) {
-        try {
-            return WalletApi.getProposal(id);
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            return Optional.empty();
-        }
+  public Optional<Proposal> getProposals(String id) {
+    try {
+      return WalletApi.getProposal(id);
+    } catch (Exception ex) {
+      ex.printStackTrace();
+      return Optional.empty();
     }
+  }
 
-    public Optional<ExchangeList> getExchangeList() {
-        try {
-            return WalletApi.listExchanges();
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            return Optional.empty();
-        }
+  public Optional<ExchangeList> getExchangeList() {
+    try {
+      return WalletApi.listExchanges();
+    } catch (Exception ex) {
+      ex.printStackTrace();
+      return Optional.empty();
     }
+  }
 
-    public Optional<Exchange> getExchange(String id) {
-        try {
-            return WalletApi.getExchange(id);
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            return Optional.empty();
-        }
+  public Optional<Exchange> getExchange(String id) {
+    try {
+      return WalletApi.getExchange(id);
+    } catch (Exception ex) {
+      ex.printStackTrace();
+      return Optional.empty();
     }
+  }
 
-    public Optional<ChainParameters> getChainParameters() {
-        try {
-            return WalletApi.getChainParameters();
-        } catch (Exception ex) {
-            ex.printStackTrace();
-            return Optional.empty();
-        }
+  public Optional<ChainParameters> getChainParameters() {
+    try {
+      return WalletApi.getChainParameters();
+    } catch (Exception ex) {
+      ex.printStackTrace();
+      return Optional.empty();
     }
+  }
 
+
+  public boolean approveProposal(byte[] ownerAddress, long id, boolean is_add_approval)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: approveProposal failed, Please login first !!");
+      return false;
+    }
 
-    public boolean approveProposal(byte[] ownerAddress, long id, boolean is_add_approval)
-            throws CipherException, IOException, CancelException {
-        if (wallet == null || !wallet.isLoginState()) {
-            System.out.println("Warning: approveProposal failed, Please login first !!");
-            return false;
-        }
+    return wallet.approveProposal(ownerAddress, id, is_add_approval);
+  }
 
-        return wallet.approveProposal(ownerAddress, id, is_add_approval);
+  public boolean deleteProposal(byte[] ownerAddress, long id)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: deleteProposal failed, Please login first !!");
+      return false;
     }
 
-    public boolean deleteProposal(byte[] ownerAddress, long id)
-            throws CipherException, IOException, CancelException {
-        if (wallet == null || !wallet.isLoginState()) {
-            System.out.println("Warning: deleteProposal failed, Please login first !!");
-            return false;
-        }
+    return wallet.deleteProposal(ownerAddress, id);
+  }
 
-        return wallet.deleteProposal(ownerAddress, id);
+  public boolean exchangeCreate(byte[] ownerAddress, byte[] firstTokenId, long firstTokenBalance,
+      byte[] secondTokenId, long secondTokenBalance)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: exchangeCreate failed, Please login first !!");
+      return false;
     }
 
-    public boolean exchangeCreate(byte[] ownerAddress, byte[] firstTokenId, long firstTokenBalance,
-                                  byte[] secondTokenId, long secondTokenBalance)
-            throws CipherException, IOException, CancelException {
-        if (wallet == null || !wallet.isLoginState()) {
-            System.out.println("Warning: exchangeCreate failed, Please login first !!");
-            return false;
-        }
+    return wallet.exchangeCreate(ownerAddress, firstTokenId, firstTokenBalance,
+        secondTokenId, secondTokenBalance);
+  }
 
-        return wallet.exchangeCreate(ownerAddress, firstTokenId, firstTokenBalance,
-                secondTokenId, secondTokenBalance);
+  public boolean exchangeInject(byte[] ownerAddress, long exchangeId, byte[] tokenId, long quant)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: exchangeInject failed, Please login first !!");
+      return false;
     }
 
-    public boolean exchangeInject(byte[] ownerAddress, long exchangeId, byte[] tokenId, long quant)
-            throws CipherException, IOException, CancelException {
-        if (wallet == null || !wallet.isLoginState()) {
-            System.out.println("Warning: exchangeInject failed, Please login first !!");
-            return false;
-        }
+    return wallet.exchangeInject(ownerAddress, exchangeId, tokenId, quant);
+  }
 
-        return wallet.exchangeInject(ownerAddress, exchangeId, tokenId, quant);
+  public boolean exchangeWithdraw(byte[] ownerAddress, long exchangeId, byte[] tokenId, long quant)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: exchangeWithdraw failed, Please login first !!");
+      return false;
     }
 
-    public boolean exchangeWithdraw(byte[] ownerAddress, long exchangeId, byte[] tokenId, long quant)
-            throws CipherException, IOException, CancelException {
-        if (wallet == null || !wallet.isLoginState()) {
-            System.out.println("Warning: exchangeWithdraw failed, Please login first !!");
-            return false;
-        }
+    return wallet.exchangeWithdraw(ownerAddress, exchangeId, tokenId, quant);
+  }
 
-        return wallet.exchangeWithdraw(ownerAddress, exchangeId, tokenId, quant);
+  public boolean exchangeTransaction(byte[] ownerAddress, long exchangeId, byte[] tokenId,
+      long quant, long expected)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: exchangeTransaction failed, Please login first !!");
+      return false;
     }
 
-    public boolean exchangeTransaction(byte[] ownerAddress, long exchangeId, byte[] tokenId, long quant, long expected)
-            throws CipherException, IOException, CancelException {
-        if (wallet == null || !wallet.isLoginState()) {
-            System.out.println("Warning: exchangeTransaction failed, Please login first !!");
-            return false;
-        }
+    return wallet.exchangeTransaction(ownerAddress, exchangeId, tokenId, quant, expected);
+  }
 
-        return wallet.exchangeTransaction(ownerAddress, exchangeId, tokenId, quant, expected);
+  public boolean updateSetting(byte[] ownerAddress, byte[] contractAddress,
+      long consumeUserResourcePercent)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: updateSetting failed,  Please login first !!");
+      return false;
     }
+    return wallet.updateSetting(ownerAddress, contractAddress, consumeUserResourcePercent);
 
-    public boolean updateSetting(byte[] ownerAddress, byte[] contractAddress, long consumeUserResourcePercent)
-            throws CipherException, IOException, CancelException {
-        if (wallet == null || !wallet.isLoginState()) {
-            System.out.println("Warning: updateSetting failed,  Please login first !!");
-            return false;
-        }
-        return wallet.updateSetting(ownerAddress, contractAddress, consumeUserResourcePercent);
+  }
 
+  public boolean updateEnergyLimit(byte[] ownerAddress, byte[] contractAddress,
+      long originEnergyLimit)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: updateSetting failed,  Please login first !!");
+      return false;
     }
 
-    public boolean updateEnergyLimit(byte[] ownerAddress, byte[] contractAddress, long originEnergyLimit)
-            throws CipherException, IOException, CancelException {
-        if (wallet == null || !wallet.isLoginState()) {
-            System.out.println("Warning: updateSetting failed,  Please login first !!");
-            return false;
-        }
+    return wallet.updateEnergyLimit(ownerAddress, contractAddress, originEnergyLimit);
+  }
 
-        return wallet.updateEnergyLimit(ownerAddress, contractAddress, originEnergyLimit);
+  public boolean clearContractABI(byte[] ownerAddress, byte[] contractAddress)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: updateSetting failed,  Please login first !!");
+      return false;
     }
+    return wallet.clearContractABI(ownerAddress, contractAddress);
+  }
 
-    public boolean clearContractABI(byte[] ownerAddress, byte[] contractAddress)
-            throws CipherException, IOException, CancelException {
-        if (wallet == null || !wallet.isLoginState()) {
-            System.out.println("Warning: updateSetting failed,  Please login first !!");
-            return false;
-        }
-        return wallet.clearContractABI(ownerAddress, contractAddress);
+  public boolean deployContract(byte[] ownerAddress, String name, String abiStr, String codeStr,
+      long feeLimit, long value, long consumeUserResourcePercent, long originEnergyLimit,
+      long tokenValue, String tokenId, String libraryAddressPair, String compilerVersion)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: createContract failed,  Please login first !!");
+      return false;
     }
+    return wallet
+        .deployContract(ownerAddress, name, abiStr, codeStr, feeLimit, value,
+            consumeUserResourcePercent,
+            originEnergyLimit, tokenValue, tokenId,
+            libraryAddressPair, compilerVersion);
+  }
 
-    public boolean deployContract(byte[] ownerAddress, String name, String abiStr, String codeStr,
-                                  long feeLimit, long value, long consumeUserResourcePercent, long originEnergyLimit,
-                                  long tokenValue, String tokenId, String libraryAddressPair, String compilerVersion)
-            throws CipherException, IOException, CancelException {
-        if (wallet == null || !wallet.isLoginState()) {
-            System.out.println("Warning: createContract failed,  Please login first !!");
-            return false;
-        }
-        return wallet
-                .deployContract(ownerAddress, name, abiStr, codeStr, feeLimit, value, consumeUserResourcePercent,
-                        originEnergyLimit, tokenValue, tokenId,
-                        libraryAddressPair, compilerVersion);
+  public boolean callContract(byte[] ownerAddress, byte[] contractAddress, long callValue,
+      byte[] data, long feeLimit,
+      long tokenValue, String tokenId, boolean isConstant)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: callContract failed,  Please login first !!");
+      return false;
     }
 
-    public boolean callContract(byte[] ownerAddress, byte[] contractAddress, long callValue, byte[] data, long feeLimit,
-                                long tokenValue, String tokenId, boolean isConstant)
-            throws CipherException, IOException, CancelException {
-        if (wallet == null || !wallet.isLoginState()) {
-            System.out.println("Warning: callContract failed,  Please login first !!");
-            return false;
-        }
+    return wallet
+        .triggerContract(ownerAddress, contractAddress, callValue, data, feeLimit, tokenValue,
+            tokenId,
+            isConstant);
+  }
 
-        return wallet.triggerContract(ownerAddress, contractAddress, callValue, data, feeLimit, tokenValue, tokenId,
-                isConstant);
+  public boolean accountPermissionUpdate(byte[] ownerAddress, String permission)
+      throws IOException, CipherException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: accountPermissionUpdate failed,  Please login first !!");
+      return false;
     }
+    return wallet.accountPermissionUpdate(ownerAddress, permission);
+  }
 
-    public boolean accountPermissionUpdate(byte[] ownerAddress, String permission)
-            throws IOException, CipherException, CancelException {
-        if (wallet == null || !wallet.isLoginState()) {
-            System.out.println("Warning: accountPermissionUpdate failed,  Please login first !!");
-            return false;
-        }
-        return wallet.accountPermissionUpdate(ownerAddress, permission);
+
+  public Transaction addTransactionSign(Transaction transaction)
+      throws IOException, CipherException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: addTransactionSign failed,  Please login first !!");
+      return null;
+    }
+    return wallet.addTransactionSign(transaction);
+  }
+
+  public boolean sendShieldedCoin(String fromAddress, long fromAmount, List<Long> shieldedInputList,
+      List<GrpcAPI.Note> shieldedOutputList, String toAddress, long toAmount)
+      throws CipherException, IOException, CancelException, ZksnarkException {
+    PrivateParameters.Builder builder = PrivateParameters.newBuilder();
+    if (!StringUtil.isNullOrEmpty(fromAddress)) {
+      byte[] from = WalletApi.decodeFromBase58Check(fromAddress);
+      if (from == null) {
+        return false;
+      }
+      builder.setTransparentFromAddress(ByteString.copyFrom(from));
+      builder.setFromAmount(fromAmount);
     }
 
+    if (!StringUtil.isNullOrEmpty(toAddress)) {
+      byte[] to = WalletApi.decodeFromBase58Check(toAddress);
+      if (to == null) {
+        return false;
+      }
+      builder.setTransparentToAddress(ByteString.copyFrom(to));
+      builder.setToAmount(toAmount);
+    }
 
-    public Transaction addTransactionSign(Transaction transaction)
-            throws IOException, CipherException, CancelException {
-        if (wallet == null || !wallet.isLoginState()) {
-            System.out.println("Warning: addTransactionSign failed,  Please login first !!");
-            return null;
-        }
-        return wallet.addTransactionSign(transaction);
-    }
-
-    public boolean sendShieldedCoin(String fromAddress, long fromAmount, List<Long> shieldedInputList,
-                                    List<GrpcAPI.Note> shieldedOutputList, String toAddress, long toAmount)
-            throws CipherException, IOException, CancelException, ZksnarkException {
-        PrivateParameters.Builder builder = PrivateParameters.newBuilder();
-        if (!StringUtil.isNullOrEmpty(fromAddress)) {
-            byte[] from = WalletApi.decodeFromBase58Check(fromAddress);
-            if (from == null) {
-                return false;
-            }
-            builder.setTransparentFromAddress(ByteString.copyFrom(from));
-            builder.setFromAmount(fromAmount);
-        }
-
-        if (!StringUtil.isNullOrEmpty(toAddress)) {
-            byte[] to = WalletApi.decodeFromBase58Check(toAddress);
-            if (to == null) {
-                return false;
-            }
-            builder.setTransparentToAddress(ByteString.copyFrom(to));
-            builder.setToAmount(toAmount);
-        }
-
-        if (shieldedInputList.size() > 0) {
-            OutputPointInfo.Builder request = OutputPointInfo.newBuilder();
-            for (int i = 0; i < shieldedInputList.size(); ++i) {
-                ShieldedNoteInfo noteInfo = ShieldedWrapper.getInstance().getUtxoMapNote().get(shieldedInputList.get(i));
-                OutputPoint.Builder outPointBuild = OutputPoint.newBuilder();
-                outPointBuild.setHash(ByteString.copyFrom(ByteArray.fromHexString(noteInfo.getTrxId())));
-                outPointBuild.setIndex(noteInfo.getIndex());
-                request.addOutPoints(outPointBuild.build());
-            }
-            Optional<IncrementalMerkleVoucherInfo> merkleVoucherInfo =
-                    WalletApi.GetMerkleTreeVoucherInfo(request.build(), true);
-            if (!merkleVoucherInfo.isPresent()
-                    || merkleVoucherInfo.get().getVouchersCount() != shieldedInputList.size()) {
-                System.out.println("Can't get all merkel tree, please check the notes.");
-                return false;
-            }
-
-            for (int i = 0; i < shieldedInputList.size(); ++i) {
-                ShieldedNoteInfo noteInfo = ShieldedWrapper.getInstance().getUtxoMapNote().get(shieldedInputList.get(i));
-                if (i == 0) {
-                    String shieldedAddress = noteInfo.getPaymentAddress();
-                    ShieldedAddressInfo addressInfo =
-                            ShieldedWrapper.getInstance().getShieldedAddressInfoMap().get(shieldedAddress);
-                    SpendingKey spendingKey = new SpendingKey(addressInfo.getSk());
-                    ExpandedSpendingKey expandedSpendingKey = spendingKey.expandedSpendingKey();
-
-                    builder.setAsk(ByteString.copyFrom(expandedSpendingKey.getAsk()));
-                    builder.setNsk(ByteString.copyFrom(expandedSpendingKey.getNsk()));
-                    builder.setOvk(ByteString.copyFrom(expandedSpendingKey.getOvk()));
-                }
-
-                Note.Builder noteBuild = Note.newBuilder();
-                noteBuild.setPaymentAddress(noteInfo.getPaymentAddress());
-                noteBuild.setValue(noteInfo.getValue());
-                noteBuild.setRcm(ByteString.copyFrom(noteInfo.getR()));
-                noteBuild.setMemo(ByteString.copyFrom(noteInfo.getMemo()));
-
-                System.out.println("address " + noteInfo.getPaymentAddress());
-                System.out.println("value " + noteInfo.getValue());
-                System.out.println("rcm " + ByteArray.toHexString(noteInfo.getR()));
-                System.out.println("trxId " + noteInfo.getTrxId());
-                System.out.println("index " + noteInfo.getIndex());
-                System.out.println("memo " + ZenUtils.getMemo(noteInfo.getMemo()));
-
-                SpendNote.Builder spendNoteBuilder = SpendNote.newBuilder();
-                spendNoteBuilder.setNote(noteBuild.build());
-                spendNoteBuilder.setAlpha(ByteString.copyFrom(getRcm()));
-                spendNoteBuilder.setVoucher(merkleVoucherInfo.get().getVouchers(i));
-                spendNoteBuilder.setPath(merkleVoucherInfo.get().getPaths(i));
-
-                builder.addShieldedSpends(spendNoteBuilder.build());
-            }
-        } else {
-            byte[] ovk = ByteArray
-                    .fromHexString("030c8c2bc59fb3eb8afb047a8ea4b028743d23e7d38c6fa30908358431e2314d");
-            builder.setOvk(ByteString.copyFrom(ovk));
-        }
-
-        if (shieldedOutputList.size() > 0) {
-            for (int i = 0; i < shieldedOutputList.size(); ++i) {
-                builder.addShieldedReceives(
-                        ReceiveNote.newBuilder().setNote(shieldedOutputList.get(i)).build());
-            }
-        }
-
-        return WalletApi.sendShieldedCoin(builder.build(), wallet);
-    }
-
-    public boolean sendShieldedCoinWithoutAsk(String fromAddress, long fromAmount,
-                                              List<Long> shieldedInputList,
-                                              List<GrpcAPI.Note> shieldedOutputList, String toAddress, long toAmount)
-            throws CipherException, IOException, CancelException, ZksnarkException {
-        PrivateParametersWithoutAsk.Builder builder = PrivateParametersWithoutAsk.newBuilder();
-        if (!StringUtil.isNullOrEmpty(fromAddress)) {
-            byte[] from = WalletApi.decodeFromBase58Check(fromAddress);
-            if (from == null) {
-                return false;
-            }
-            builder.setTransparentFromAddress(ByteString.copyFrom(from));
-            builder.setFromAmount(fromAmount);
-        }
-
-        if (!StringUtil.isNullOrEmpty(toAddress)) {
-            byte[] to = WalletApi.decodeFromBase58Check(toAddress);
-            if (to == null) {
-                return false;
-            }
-            builder.setTransparentToAddress(ByteString.copyFrom(to));
-            builder.setToAmount(toAmount);
-        }
-
-        byte[] ask = new byte[32];
-        if (shieldedInputList.size() > 0) {
-            OutputPointInfo.Builder request = OutputPointInfo.newBuilder();
-            for (int i = 0; i < shieldedInputList.size(); ++i) {
-                ShieldedNoteInfo noteInfo = ShieldedWrapper.getInstance().getUtxoMapNote().get(shieldedInputList.get(i));
-                OutputPoint.Builder outPointBuild = OutputPoint.newBuilder();
-                outPointBuild.setHash(ByteString.copyFrom(ByteArray.fromHexString(noteInfo.getTrxId())));
-                outPointBuild.setIndex(noteInfo.getIndex());
-                request.addOutPoints(outPointBuild.build());
-            }
-            Optional<IncrementalMerkleVoucherInfo> merkleVoucherInfo =
-                    WalletApi.GetMerkleTreeVoucherInfo(request.build(), true);
-            if (!merkleVoucherInfo.isPresent()
-                    || merkleVoucherInfo.get().getVouchersCount() != shieldedInputList.size()) {
-                System.out.println("Can't get all merkel tree, please check the notes.");
-                return false;
-            }
-
-            for (int i = 0; i < shieldedInputList.size(); ++i) {
-                ShieldedNoteInfo noteInfo = ShieldedWrapper.getInstance().getUtxoMapNote().get(shieldedInputList.get(i));
-                if (i == 0) {
-                    String shieldAddress = noteInfo.getPaymentAddress();
-                    ShieldedAddressInfo addressInfo =
-                            ShieldedWrapper.getInstance().getShieldedAddressInfoMap().get(shieldAddress);
-                    SpendingKey spendingKey = new SpendingKey(addressInfo.getSk());
-                    ExpandedSpendingKey expandedSpendingKey = spendingKey.expandedSpendingKey();
-
-                    System.arraycopy(expandedSpendingKey.getAsk(), 0, ask, 0, 32);
-                    builder.setAk(ByteString.copyFrom(
-                            ExpandedSpendingKey.getAkFromAsk(expandedSpendingKey.getAsk())));
-                    builder.setNsk(ByteString.copyFrom(expandedSpendingKey.getNsk()));
-                    builder.setOvk(ByteString.copyFrom(expandedSpendingKey.getOvk()));
-                }
-
-                Note.Builder noteBuild = Note.newBuilder();
-                noteBuild.setPaymentAddress(noteInfo.getPaymentAddress());
-                noteBuild.setValue(noteInfo.getValue());
-                noteBuild.setRcm(ByteString.copyFrom(noteInfo.getR()));
-                noteBuild.setMemo(ByteString.copyFrom(noteInfo.getMemo()));
-
-                System.out.println("address " + noteInfo.getPaymentAddress());
-                System.out.println("value " + noteInfo.getValue());
-                System.out.println("rcm " + ByteArray.toHexString(noteInfo.getR()));
-                System.out.println("trxId " + noteInfo.getTrxId());
-                System.out.println("index " + noteInfo.getIndex());
-                System.out.println("memo " + ZenUtils.getMemo(noteInfo.getMemo()));
-
-                SpendNote.Builder spendNoteBuilder = SpendNote.newBuilder();
-                spendNoteBuilder.setNote(noteBuild.build());
-                spendNoteBuilder.setAlpha(ByteString.copyFrom(getRcm()));
-                spendNoteBuilder.setVoucher(merkleVoucherInfo.get().getVouchers(i));
-                spendNoteBuilder.setPath(merkleVoucherInfo.get().getPaths(i));
-
-                builder.addShieldedSpends(spendNoteBuilder.build());
-            }
-        } else {
-            byte[] ovk = ByteArray
-                    .fromHexString("030c8c2bc59fb3eb8afb047a8ea4b028743d23e7d38c6fa30908358431e2314d");
-            builder.setOvk(ByteString.copyFrom(ovk));
-        }
-
-        if (shieldedOutputList.size() > 0) {
-            for (int i = 0; i < shieldedOutputList.size(); ++i) {
-                builder.addShieldedReceives(
-                        ReceiveNote.newBuilder().setNote(shieldedOutputList.get(i)).build());
-            }
-        }
-
-        return WalletApi.sendShieldedCoinWithoutAsk(builder.build(), ask, wallet);
-    }
-
-    public boolean resetShieldedNote() {
-        System.out.println("Start to reset reset shielded notes, please wait ...");
-        ShieldedWrapper.getInstance().setResetNote(true);
-        return true;
-    }
-
-    public boolean scanNoteByIvk(final String ivk, long start, long end) {
-        GrpcAPI.IvkDecryptParameters ivkDecryptParameters = IvkDecryptParameters.newBuilder()
-                .setStartBlockIndex(start)
-                .setEndBlockIndex(end)
-                .setIvk(ByteString.copyFrom(ByteArray.fromHexString(ivk)))
-                .build();
-
-        Optional<DecryptNotes> decryptNotes = WalletApi.scanNoteByIvk(ivkDecryptParameters, true);
-        if (!decryptNotes.isPresent()) {
-            System.out.println("scanNoteByIvk failed !!!");
-        } else {
-            System.out.println(Utils.formatMessageString(decryptNotes.get()));
-//            for (int i = 0; i < decryptNotes.get().getNoteTxsList().size(); i++) {
-//                NoteTx noteTx = decryptNotes.get().getNoteTxs(i);
-//                Note note = noteTx.getNote();
-//                System.out.println("\ntxid:{}\nindex:{}\naddress:{}\nrcm:{}\nvalue:{}\nmemo:{}",
-//                        ByteArray.toHexString(noteTx.getTxid().toByteArray()),
-//                        noteTx.getIndex(),
-//                        note.getPaymentAddress(),
-//                        ByteArray.toHexString(note.getRcm().toByteArray()),
-//                        note.getValue(),
-//                        ZenUtils.getMemo(note.getMemo().toByteArray()));
-//            }
-//            System.out.println("complete.");
-        }
-        return true;
-    }
-
-    public boolean scanAndMarkNoteByAddress(final String shieldedAddress, long start, long end) {
-        ShieldedAddressInfo addressInfo = ShieldedWrapper.getInstance().getShieldedAddressInfoMap().get(shieldedAddress);
-        if (addressInfo == null) {
-            System.out.println("Can't find shieldedAddress in local, please check shieldedAddress.");
-            return false;
-        }
-
-        try {
-            IvkDecryptAndMarkParameters.Builder builder = IvkDecryptAndMarkParameters.newBuilder();
-            builder.setStartBlockIndex(start);
-            builder.setEndBlockIndex(end);
-            builder.setIvk(ByteString.copyFrom(addressInfo.getIvk()));
-            builder.setAk(ByteString.copyFrom(addressInfo.getFullViewingKey().getAk()));
-            builder.setNk(ByteString.copyFrom(addressInfo.getFullViewingKey().getNk()));
-
-            Optional<DecryptNotesMarked> decryptNotes = WalletApi.scanAndMarkNoteByIvk(builder.build());
-            if (decryptNotes.isPresent()) {
-                System.out.println(Utils.formatMessageString(decryptNotes.get()));
-
-//                for (int i = 0; i < decryptNotes.get().getNoteTxsList().size(); i++) {
-//                    DecryptNotesMarked.NoteTx noteTx = decryptNotes.get().getNoteTxs(i);
-//                    Note note = noteTx.getNote();
-//                    System.out.println("\ntxid:{}\nindex:{}\nisSpend:{}\naddress:{}\nrcm:{}\nvalue:{}\nmemo:{}",
-//                            ByteArray.toHexString(noteTx.getTxid().toByteArray()),
-//                            noteTx.getIndex(),
-//                            noteTx.getIsSpend(),
-//                            note.getPaymentAddress(),
-//                            ByteArray.toHexString(note.getRcm().toByteArray()),
-//                            note.getValue(),
-//                            ZenUtils.getMemo(note.getMemo().toByteArray()));
-//                }
-            } else {
-                System.out.println("scanAndMarkNoteByIvk failed !!!");
-            }
-        } catch (Exception e) {
-
-        }
-        System.out.println("complete.");
-        return true;
-    }
-
-    public boolean scanShieldedNoteByovk(final String shieldedAddress, long start, long end) {
-        GrpcAPI.OvkDecryptParameters ovkDecryptParameters = OvkDecryptParameters.newBuilder()
-                .setStartBlockIndex(start)
-                .setEndBlockIndex(end)
-                .setOvk(ByteString.copyFrom(ByteArray.fromHexString(shieldedAddress)))
-                .build();
-
-        Optional<DecryptNotes> decryptNotes = WalletApi.scanNoteByOvk(ovkDecryptParameters, true);
-        if (!decryptNotes.isPresent()) {
-            System.out.println("ScanNoteByOvk failed !!!");
-        } else {
-            System.out.println(Utils.formatMessageString(decryptNotes.get()));
-//            for (int i = 0; i < decryptNotes.get().getNoteTxsList().size(); i++) {
-//                NoteTx noteTx = decryptNotes.get().getNoteTxs(i);
-//                Note note = noteTx.getNote();
-//                System.out.println("\ntxid:{}\nindex:{}\npaymentAddress:{}\nrcm:{}\nmemo:{}\nvalue:{}",
-//                        ByteArray.toHexString(noteTx.getTxid().toByteArray()),
-//                        noteTx.getIndex(),
-//                        note.getPaymentAddress(),
-//                        ByteArray.toHexString(note.getRcm().toByteArray()),
-//                        ZenUtils.getMemo(note.getMemo().toByteArray()),
-//                        note.getValue());
-//            }
-            System.out.println("complete.");
-        }
-        return true;
-    }
-
-    public Optional<ShieldedAddressInfo> getNewShieldedAddress() {
-        ShieldedAddressInfo addressInfo = new ShieldedAddressInfo();
-        try {
-            Optional<BytesMessage> sk = WalletApi.getSpendingKey();
-            Optional<DiversifierMessage> d = WalletApi.getDiversifier();
-
-            Optional<ExpandedSpendingKeyMessage> expandedSpendingKeyMessage = WalletApi.getExpandedSpendingKey(sk.get());
-
-            BytesMessage.Builder askBuilder = BytesMessage.newBuilder();
-            askBuilder.setValue(expandedSpendingKeyMessage.get().getAsk());
-            Optional<BytesMessage> ak = WalletApi.getAkFromAsk(askBuilder.build());
-
-            BytesMessage.Builder nskBuilder = BytesMessage.newBuilder();
-            nskBuilder.setValue(expandedSpendingKeyMessage.get().getNsk());
-            Optional<BytesMessage> nk = WalletApi.getNkFromNsk(nskBuilder.build());
-
-            ViewingKeyMessage.Builder viewBuilder = ViewingKeyMessage.newBuilder();
-            viewBuilder.setAk(ak.get().getValue());
-            viewBuilder.setNk(nk.get().getValue());
-            Optional<IncomingViewingKeyMessage> ivk = WalletApi.getIncomingViewingKey(viewBuilder.build());
-
-            IncomingViewingKeyDiversifierMessage.Builder builder = IncomingViewingKeyDiversifierMessage.newBuilder();
-            builder.setD(d.get());
-            builder.setIvk(ivk.get());
-            Optional<PaymentAddressMessage> addressMessage = WalletApi.getZenPaymentAddress(builder.build());
-            addressInfo.setSk(sk.get().getValue().toByteArray());
-            addressInfo.setD(new DiversifierT(d.get().getD().toByteArray()));
-            addressInfo.setIvk(ivk.get().getIvk().toByteArray());
-            addressInfo.setOvk(expandedSpendingKeyMessage.get().getOvk().toByteArray());
-            addressInfo.setPkD(addressMessage.get().getPkD().toByteArray());
-
-//            System.out.println("ivk " + ByteArray.toHexString(ivk.get().getIvk().toByteArray()));
-//            System.out.println("ovk " + ByteArray.toHexString(expandedSpendingKeyMessage.get().getOvk().toByteArray()));
-
-            if (addressInfo.validateCheck()) {
-                return Optional.of(addressInfo);
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        return Optional.empty();
-    }
-
-    public Optional<ShieldedAddressInfo> getNewShieldedAddressBySkAndD(byte[] sk, byte[] d) {
-        ShieldedAddressInfo addressInfo = new ShieldedAddressInfo();
-        try {
-            BytesMessage.Builder skBuilder = BytesMessage.newBuilder();
-            skBuilder.setValue(ByteString.copyFrom(sk));
-
-            DiversifierMessage.Builder dBuilder = DiversifierMessage.newBuilder();
-            dBuilder.setD(ByteString.copyFrom(d));
-
-            Optional<ExpandedSpendingKeyMessage> expandedSpendingKeyMessage = WalletApi
-                    .getExpandedSpendingKey(skBuilder.build());
-
-            BytesMessage.Builder askBuilder = BytesMessage.newBuilder();
-            askBuilder.setValue(expandedSpendingKeyMessage.get().getAsk());
-            Optional<BytesMessage> ak = WalletApi.getAkFromAsk(askBuilder.build());
-
-            BytesMessage.Builder nskBuilder = BytesMessage.newBuilder();
-            nskBuilder.setValue(expandedSpendingKeyMessage.get().getNsk());
-            Optional<BytesMessage> nk = WalletApi.getNkFromNsk(nskBuilder.build());
-
-            ViewingKeyMessage.Builder viewBuilder = ViewingKeyMessage.newBuilder();
-            viewBuilder.setAk(ak.get().getValue());
-            viewBuilder.setNk(nk.get().getValue());
-            Optional<IncomingViewingKeyMessage> ivk = WalletApi
-                    .getIncomingViewingKey(viewBuilder.build());
-
-            IncomingViewingKeyDiversifierMessage.Builder builder = IncomingViewingKeyDiversifierMessage
-                    .newBuilder();
-            builder.setD(dBuilder.build());
-            builder.setIvk(ivk.get());
-            Optional<PaymentAddressMessage> addressMessage = WalletApi
-                    .getZenPaymentAddress(builder.build());
-            addressInfo.setSk(sk);
-            addressInfo.setD(new DiversifierT(d));
-            addressInfo.setIvk(ivk.get().getIvk().toByteArray());
-            addressInfo.setOvk(expandedSpendingKeyMessage.get().getOvk().toByteArray());
-            addressInfo.setPkD(addressMessage.get().getPkD().toByteArray());
-
-            if (addressInfo.validateCheck()) {
-                return Optional.of(addressInfo);
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        return Optional.empty();
-    }
-
-    public String getShieldedNulltifier(long index) {
-        ShieldedNoteInfo noteInfo = ShieldedWrapper.getInstance().getUtxoMapNote().get(index);
-        if (noteInfo == null) {
-            return null;
-        }
-
-        OutputPointInfo.Builder request = OutputPointInfo.newBuilder();
+    if (shieldedInputList.size() > 0) {
+      OutputPointInfo.Builder request = OutputPointInfo.newBuilder();
+      for (int i = 0; i < shieldedInputList.size(); ++i) {
+        ShieldedNoteInfo noteInfo = ShieldedWrapper.getInstance().getUtxoMapNote()
+            .get(shieldedInputList.get(i));
         OutputPoint.Builder outPointBuild = OutputPoint.newBuilder();
         outPointBuild.setHash(ByteString.copyFrom(ByteArray.fromHexString(noteInfo.getTrxId())));
         outPointBuild.setIndex(noteInfo.getIndex());
         request.addOutPoints(outPointBuild.build());
-        Optional<IncrementalMerkleVoucherInfo> merkleVoucherInfo =
-                WalletApi.GetMerkleTreeVoucherInfo(request.build(), true);
-        if (!merkleVoucherInfo.isPresent() || merkleVoucherInfo.get().getVouchersCount() < 1) {
-            System.out.println("get merkleVoucherInfo failure.");
-            return null;
+      }
+      Optional<IncrementalMerkleVoucherInfo> merkleVoucherInfo =
+          WalletApi.GetMerkleTreeVoucherInfo(request.build(), true);
+      if (!merkleVoucherInfo.isPresent()
+          || merkleVoucherInfo.get().getVouchersCount() != shieldedInputList.size()) {
+        System.out.println("Can't get all merkel tree, please check the notes.");
+        return false;
+      }
+
+      for (int i = 0; i < shieldedInputList.size(); ++i) {
+        ShieldedNoteInfo noteInfo = ShieldedWrapper.getInstance().getUtxoMapNote()
+            .get(shieldedInputList.get(i));
+        if (i == 0) {
+          String shieldedAddress = noteInfo.getPaymentAddress();
+          ShieldedAddressInfo addressInfo =
+              ShieldedWrapper.getInstance().getShieldedAddressInfoMap().get(shieldedAddress);
+          SpendingKey spendingKey = new SpendingKey(addressInfo.getSk());
+          ExpandedSpendingKey expandedSpendingKey = spendingKey.expandedSpendingKey();
+
+          builder.setAsk(ByteString.copyFrom(expandedSpendingKey.getAsk()));
+          builder.setNsk(ByteString.copyFrom(expandedSpendingKey.getNsk()));
+          builder.setOvk(ByteString.copyFrom(expandedSpendingKey.getOvk()));
         }
 
         Note.Builder noteBuild = Note.newBuilder();
@@ -1141,31 +813,398 @@ public class WalletApiWrapper {
         System.out.println("index " + noteInfo.getIndex());
         System.out.println("memo " + ZenUtils.getMemo(noteInfo.getMemo()));
 
-        String shieldedAddress = noteInfo.getPaymentAddress();
-        ShieldedAddressInfo addressInfo = ShieldedWrapper.getInstance().getShieldedAddressInfoMap()
-                .get(shieldedAddress);
+        SpendNote.Builder spendNoteBuilder = SpendNote.newBuilder();
+        spendNoteBuilder.setNote(noteBuild.build());
+        spendNoteBuilder.setAlpha(ByteString.copyFrom(getRcm()));
+        spendNoteBuilder.setVoucher(merkleVoucherInfo.get().getVouchers(i));
+        spendNoteBuilder.setPath(merkleVoucherInfo.get().getPaths(i));
 
-        SpendingKey spendingKey = new SpendingKey(addressInfo.getSk());
+        builder.addShieldedSpends(spendNoteBuilder.build());
+      }
+    } else {
+      byte[] ovk = ByteArray
+          .fromHexString("030c8c2bc59fb3eb8afb047a8ea4b028743d23e7d38c6fa30908358431e2314d");
+      builder.setOvk(ByteString.copyFrom(ovk));
+    }
 
-        try {
-            FullViewingKey fullViewingKey = spendingKey.fullViewingKey();
-            NfParameters.Builder builder = NfParameters.newBuilder();
-            builder.setNote(noteBuild.build());
-            builder.setVoucher(merkleVoucherInfo.get().getVouchers(0));
-            builder.setAk(ByteString.copyFrom(fullViewingKey.getAk()));
-            builder.setNk(ByteString.copyFrom(fullViewingKey.getNk()));
+    if (shieldedOutputList.size() > 0) {
+      for (int i = 0; i < shieldedOutputList.size(); ++i) {
+        builder.addShieldedReceives(
+            ReceiveNote.newBuilder().setNote(shieldedOutputList.get(i)).build());
+      }
+    }
 
-            Optional<BytesMessage> nullifier = WalletApi.createShieldedNullifier(builder.build());
-            return ByteArray.toHexString(nullifier.get().getValue().toByteArray());
+    return WalletApi.sendShieldedCoin(builder.build(), wallet);
+  }
 
-        } catch (Exception e) {
-            e.printStackTrace();
+  public boolean sendShieldedCoinWithoutAsk(String fromAddress, long fromAmount,
+      List<Long> shieldedInputList,
+      List<GrpcAPI.Note> shieldedOutputList, String toAddress, long toAmount)
+      throws CipherException, IOException, CancelException, ZksnarkException {
+    PrivateParametersWithoutAsk.Builder builder = PrivateParametersWithoutAsk.newBuilder();
+    if (!StringUtil.isNullOrEmpty(fromAddress)) {
+      byte[] from = WalletApi.decodeFromBase58Check(fromAddress);
+      if (from == null) {
+        return false;
+      }
+      builder.setTransparentFromAddress(ByteString.copyFrom(from));
+      builder.setFromAmount(fromAmount);
+    }
+
+    if (!StringUtil.isNullOrEmpty(toAddress)) {
+      byte[] to = WalletApi.decodeFromBase58Check(toAddress);
+      if (to == null) {
+        return false;
+      }
+      builder.setTransparentToAddress(ByteString.copyFrom(to));
+      builder.setToAmount(toAmount);
+    }
+
+    byte[] ask = new byte[32];
+    if (shieldedInputList.size() > 0) {
+      OutputPointInfo.Builder request = OutputPointInfo.newBuilder();
+      for (int i = 0; i < shieldedInputList.size(); ++i) {
+        ShieldedNoteInfo noteInfo = ShieldedWrapper.getInstance().getUtxoMapNote()
+            .get(shieldedInputList.get(i));
+        OutputPoint.Builder outPointBuild = OutputPoint.newBuilder();
+        outPointBuild.setHash(ByteString.copyFrom(ByteArray.fromHexString(noteInfo.getTrxId())));
+        outPointBuild.setIndex(noteInfo.getIndex());
+        request.addOutPoints(outPointBuild.build());
+      }
+      Optional<IncrementalMerkleVoucherInfo> merkleVoucherInfo =
+          WalletApi.GetMerkleTreeVoucherInfo(request.build(), true);
+      if (!merkleVoucherInfo.isPresent()
+          || merkleVoucherInfo.get().getVouchersCount() != shieldedInputList.size()) {
+        System.out.println("Can't get all merkel tree, please check the notes.");
+        return false;
+      }
+
+      for (int i = 0; i < shieldedInputList.size(); ++i) {
+        ShieldedNoteInfo noteInfo = ShieldedWrapper.getInstance().getUtxoMapNote()
+            .get(shieldedInputList.get(i));
+        if (i == 0) {
+          String shieldAddress = noteInfo.getPaymentAddress();
+          ShieldedAddressInfo addressInfo =
+              ShieldedWrapper.getInstance().getShieldedAddressInfoMap().get(shieldAddress);
+          SpendingKey spendingKey = new SpendingKey(addressInfo.getSk());
+          ExpandedSpendingKey expandedSpendingKey = spendingKey.expandedSpendingKey();
+
+          System.arraycopy(expandedSpendingKey.getAsk(), 0, ask, 0, 32);
+          builder.setAk(ByteString.copyFrom(
+              ExpandedSpendingKey.getAkFromAsk(expandedSpendingKey.getAsk())));
+          builder.setNsk(ByteString.copyFrom(expandedSpendingKey.getNsk()));
+          builder.setOvk(ByteString.copyFrom(expandedSpendingKey.getOvk()));
         }
-        return null;
+
+        Note.Builder noteBuild = Note.newBuilder();
+        noteBuild.setPaymentAddress(noteInfo.getPaymentAddress());
+        noteBuild.setValue(noteInfo.getValue());
+        noteBuild.setRcm(ByteString.copyFrom(noteInfo.getR()));
+        noteBuild.setMemo(ByteString.copyFrom(noteInfo.getMemo()));
+
+        System.out.println("address " + noteInfo.getPaymentAddress());
+        System.out.println("value " + noteInfo.getValue());
+        System.out.println("rcm " + ByteArray.toHexString(noteInfo.getR()));
+        System.out.println("trxId " + noteInfo.getTrxId());
+        System.out.println("index " + noteInfo.getIndex());
+        System.out.println("memo " + ZenUtils.getMemo(noteInfo.getMemo()));
+
+        SpendNote.Builder spendNoteBuilder = SpendNote.newBuilder();
+        spendNoteBuilder.setNote(noteBuild.build());
+        spendNoteBuilder.setAlpha(ByteString.copyFrom(getRcm()));
+        spendNoteBuilder.setVoucher(merkleVoucherInfo.get().getVouchers(i));
+        spendNoteBuilder.setPath(merkleVoucherInfo.get().getPaths(i));
+
+        builder.addShieldedSpends(spendNoteBuilder.build());
+      }
+    } else {
+      byte[] ovk = ByteArray
+          .fromHexString("030c8c2bc59fb3eb8afb047a8ea4b028743d23e7d38c6fa30908358431e2314d");
+      builder.setOvk(ByteString.copyFrom(ovk));
     }
 
-    public byte[] getRcm() {
-        return WalletApi.getRcm().get().getValue().toByteArray();
+    if (shieldedOutputList.size() > 0) {
+      for (int i = 0; i < shieldedOutputList.size(); ++i) {
+        builder.addShieldedReceives(
+            ReceiveNote.newBuilder().setNote(shieldedOutputList.get(i)).build());
+      }
     }
 
+    return WalletApi.sendShieldedCoinWithoutAsk(builder.build(), ask, wallet);
+  }
+
+  public boolean resetShieldedNote() {
+    System.out.println("Start to reset reset shielded notes, please wait ...");
+    ShieldedWrapper.getInstance().setResetNote(true);
+    return true;
+  }
+
+  public boolean scanNoteByIvk(final String ivk, long start, long end) {
+    GrpcAPI.IvkDecryptParameters ivkDecryptParameters = IvkDecryptParameters.newBuilder()
+        .setStartBlockIndex(start)
+        .setEndBlockIndex(end)
+        .setIvk(ByteString.copyFrom(ByteArray.fromHexString(ivk)))
+        .build();
+
+    Optional<DecryptNotes> decryptNotes = WalletApi.scanNoteByIvk(ivkDecryptParameters, true);
+    if (!decryptNotes.isPresent()) {
+      System.out.println("scanNoteByIvk failed !!!");
+    } else {
+      System.out.println(Utils.formatMessageString(decryptNotes.get()));
+//            for (int i = 0; i < decryptNotes.get().getNoteTxsList().size(); i++) {
+//                NoteTx noteTx = decryptNotes.get().getNoteTxs(i);
+//                Note note = noteTx.getNote();
+//                System.out.println("\ntxid:{}\nindex:{}\naddress:{}\nrcm:{}\nvalue:{}\nmemo:{}",
+//                        ByteArray.toHexString(noteTx.getTxid().toByteArray()),
+//                        noteTx.getIndex(),
+//                        note.getPaymentAddress(),
+//                        ByteArray.toHexString(note.getRcm().toByteArray()),
+//                        note.getValue(),
+//                        ZenUtils.getMemo(note.getMemo().toByteArray()));
+//            }
+//            System.out.println("complete.");
+    }
+    return true;
+  }
+
+  public boolean scanAndMarkNoteByAddress(final String shieldedAddress, long start, long end) {
+    ShieldedAddressInfo addressInfo = ShieldedWrapper.getInstance().getShieldedAddressInfoMap()
+        .get(shieldedAddress);
+    if (addressInfo == null) {
+      System.out.println("Can't find shieldedAddress in local, please check shieldedAddress.");
+      return false;
+    }
+
+    try {
+      IvkDecryptAndMarkParameters.Builder builder = IvkDecryptAndMarkParameters.newBuilder();
+      builder.setStartBlockIndex(start);
+      builder.setEndBlockIndex(end);
+      builder.setIvk(ByteString.copyFrom(addressInfo.getIvk()));
+      builder.setAk(ByteString.copyFrom(addressInfo.getFullViewingKey().getAk()));
+      builder.setNk(ByteString.copyFrom(addressInfo.getFullViewingKey().getNk()));
+
+      Optional<DecryptNotesMarked> decryptNotes = WalletApi.scanAndMarkNoteByIvk(builder.build());
+      if (decryptNotes.isPresent()) {
+        System.out.println(Utils.formatMessageString(decryptNotes.get()));
+
+//                for (int i = 0; i < decryptNotes.get().getNoteTxsList().size(); i++) {
+//                    DecryptNotesMarked.NoteTx noteTx = decryptNotes.get().getNoteTxs(i);
+//                    Note note = noteTx.getNote();
+//                    System.out.println("\ntxid:{}\nindex:{}\nisSpend:{}\naddress:{}\nrcm:{}\nvalue:{}\nmemo:{}",
+//                            ByteArray.toHexString(noteTx.getTxid().toByteArray()),
+//                            noteTx.getIndex(),
+//                            noteTx.getIsSpend(),
+//                            note.getPaymentAddress(),
+//                            ByteArray.toHexString(note.getRcm().toByteArray()),
+//                            note.getValue(),
+//                            ZenUtils.getMemo(note.getMemo().toByteArray()));
+//                }
+      } else {
+        System.out.println("scanAndMarkNoteByIvk failed !!!");
+      }
+    } catch (Exception e) {
+
+    }
+    System.out.println("complete.");
+    return true;
+  }
+
+  public boolean scanShieldedNoteByovk(final String shieldedAddress, long start, long end) {
+    GrpcAPI.OvkDecryptParameters ovkDecryptParameters = OvkDecryptParameters.newBuilder()
+        .setStartBlockIndex(start)
+        .setEndBlockIndex(end)
+        .setOvk(ByteString.copyFrom(ByteArray.fromHexString(shieldedAddress)))
+        .build();
+
+    Optional<DecryptNotes> decryptNotes = WalletApi.scanNoteByOvk(ovkDecryptParameters, true);
+    if (!decryptNotes.isPresent()) {
+      System.out.println("ScanNoteByOvk failed !!!");
+    } else {
+      System.out.println(Utils.formatMessageString(decryptNotes.get()));
+//            for (int i = 0; i < decryptNotes.get().getNoteTxsList().size(); i++) {
+//                NoteTx noteTx = decryptNotes.get().getNoteTxs(i);
+//                Note note = noteTx.getNote();
+//                System.out.println("\ntxid:{}\nindex:{}\npaymentAddress:{}\nrcm:{}\nmemo:{}\nvalue:{}",
+//                        ByteArray.toHexString(noteTx.getTxid().toByteArray()),
+//                        noteTx.getIndex(),
+//                        note.getPaymentAddress(),
+//                        ByteArray.toHexString(note.getRcm().toByteArray()),
+//                        ZenUtils.getMemo(note.getMemo().toByteArray()),
+//                        note.getValue());
+//            }
+      System.out.println("complete.");
+    }
+    return true;
+  }
+
+  public Optional<ShieldedAddressInfo> getNewShieldedAddress() {
+    ShieldedAddressInfo addressInfo = new ShieldedAddressInfo();
+    try {
+      Optional<BytesMessage> sk = WalletApi.getSpendingKey();
+      Optional<DiversifierMessage> d = WalletApi.getDiversifier();
+
+      Optional<ExpandedSpendingKeyMessage> expandedSpendingKeyMessage = WalletApi
+          .getExpandedSpendingKey(sk.get());
+
+      BytesMessage.Builder askBuilder = BytesMessage.newBuilder();
+      askBuilder.setValue(expandedSpendingKeyMessage.get().getAsk());
+      Optional<BytesMessage> ak = WalletApi.getAkFromAsk(askBuilder.build());
+
+      BytesMessage.Builder nskBuilder = BytesMessage.newBuilder();
+      nskBuilder.setValue(expandedSpendingKeyMessage.get().getNsk());
+      Optional<BytesMessage> nk = WalletApi.getNkFromNsk(nskBuilder.build());
+
+      ViewingKeyMessage.Builder viewBuilder = ViewingKeyMessage.newBuilder();
+      viewBuilder.setAk(ak.get().getValue());
+      viewBuilder.setNk(nk.get().getValue());
+      Optional<IncomingViewingKeyMessage> ivk = WalletApi
+          .getIncomingViewingKey(viewBuilder.build());
+
+      IncomingViewingKeyDiversifierMessage.Builder builder = IncomingViewingKeyDiversifierMessage
+          .newBuilder();
+      builder.setD(d.get());
+      builder.setIvk(ivk.get());
+      Optional<PaymentAddressMessage> addressMessage = WalletApi
+          .getZenPaymentAddress(builder.build());
+      addressInfo.setSk(sk.get().getValue().toByteArray());
+      addressInfo.setD(new DiversifierT(d.get().getD().toByteArray()));
+      addressInfo.setIvk(ivk.get().getIvk().toByteArray());
+      addressInfo.setOvk(expandedSpendingKeyMessage.get().getOvk().toByteArray());
+      addressInfo.setPkD(addressMessage.get().getPkD().toByteArray());
+
+//            System.out.println("ivk " + ByteArray.toHexString(ivk.get().getIvk().toByteArray()));
+//            System.out.println("ovk " + ByteArray.toHexString(expandedSpendingKeyMessage.get().getOvk().toByteArray()));
+
+      if (addressInfo.validateCheck()) {
+        return Optional.of(addressInfo);
+      }
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+
+    return Optional.empty();
+  }
+
+  public Optional<ShieldedAddressInfo> getNewShieldedAddressBySkAndD(byte[] sk, byte[] d) {
+    ShieldedAddressInfo addressInfo = new ShieldedAddressInfo();
+    try {
+      BytesMessage.Builder skBuilder = BytesMessage.newBuilder();
+      skBuilder.setValue(ByteString.copyFrom(sk));
+
+      DiversifierMessage.Builder dBuilder = DiversifierMessage.newBuilder();
+      dBuilder.setD(ByteString.copyFrom(d));
+
+      Optional<ExpandedSpendingKeyMessage> expandedSpendingKeyMessage = WalletApi
+          .getExpandedSpendingKey(skBuilder.build());
+
+      BytesMessage.Builder askBuilder = BytesMessage.newBuilder();
+      askBuilder.setValue(expandedSpendingKeyMessage.get().getAsk());
+      Optional<BytesMessage> ak = WalletApi.getAkFromAsk(askBuilder.build());
+
+      BytesMessage.Builder nskBuilder = BytesMessage.newBuilder();
+      nskBuilder.setValue(expandedSpendingKeyMessage.get().getNsk());
+      Optional<BytesMessage> nk = WalletApi.getNkFromNsk(nskBuilder.build());
+
+      ViewingKeyMessage.Builder viewBuilder = ViewingKeyMessage.newBuilder();
+      viewBuilder.setAk(ak.get().getValue());
+      viewBuilder.setNk(nk.get().getValue());
+      Optional<IncomingViewingKeyMessage> ivk = WalletApi
+          .getIncomingViewingKey(viewBuilder.build());
+
+      IncomingViewingKeyDiversifierMessage.Builder builder = IncomingViewingKeyDiversifierMessage
+          .newBuilder();
+      builder.setD(dBuilder.build());
+      builder.setIvk(ivk.get());
+      Optional<PaymentAddressMessage> addressMessage = WalletApi
+          .getZenPaymentAddress(builder.build());
+      addressInfo.setSk(sk);
+      addressInfo.setD(new DiversifierT(d));
+      addressInfo.setIvk(ivk.get().getIvk().toByteArray());
+      addressInfo.setOvk(expandedSpendingKeyMessage.get().getOvk().toByteArray());
+      addressInfo.setPkD(addressMessage.get().getPkD().toByteArray());
+
+      if (addressInfo.validateCheck()) {
+        return Optional.of(addressInfo);
+      }
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+
+    return Optional.empty();
+  }
+
+  public String getShieldedNulltifier(long index) {
+    ShieldedNoteInfo noteInfo = ShieldedWrapper.getInstance().getUtxoMapNote().get(index);
+    if (noteInfo == null) {
+      return null;
+    }
+
+    OutputPointInfo.Builder request = OutputPointInfo.newBuilder();
+    OutputPoint.Builder outPointBuild = OutputPoint.newBuilder();
+    outPointBuild.setHash(ByteString.copyFrom(ByteArray.fromHexString(noteInfo.getTrxId())));
+    outPointBuild.setIndex(noteInfo.getIndex());
+    request.addOutPoints(outPointBuild.build());
+    Optional<IncrementalMerkleVoucherInfo> merkleVoucherInfo =
+        WalletApi.GetMerkleTreeVoucherInfo(request.build(), true);
+    if (!merkleVoucherInfo.isPresent() || merkleVoucherInfo.get().getVouchersCount() < 1) {
+      System.out.println("get merkleVoucherInfo failure.");
+      return null;
+    }
+
+    Note.Builder noteBuild = Note.newBuilder();
+    noteBuild.setPaymentAddress(noteInfo.getPaymentAddress());
+    noteBuild.setValue(noteInfo.getValue());
+    noteBuild.setRcm(ByteString.copyFrom(noteInfo.getR()));
+    noteBuild.setMemo(ByteString.copyFrom(noteInfo.getMemo()));
+
+    System.out.println("address " + noteInfo.getPaymentAddress());
+    System.out.println("value " + noteInfo.getValue());
+    System.out.println("rcm " + ByteArray.toHexString(noteInfo.getR()));
+    System.out.println("trxId " + noteInfo.getTrxId());
+    System.out.println("index " + noteInfo.getIndex());
+    System.out.println("memo " + ZenUtils.getMemo(noteInfo.getMemo()));
+
+    String shieldedAddress = noteInfo.getPaymentAddress();
+    ShieldedAddressInfo addressInfo = ShieldedWrapper.getInstance().getShieldedAddressInfoMap()
+        .get(shieldedAddress);
+
+    SpendingKey spendingKey = new SpendingKey(addressInfo.getSk());
+
+    try {
+      FullViewingKey fullViewingKey = spendingKey.fullViewingKey();
+      NfParameters.Builder builder = NfParameters.newBuilder();
+      builder.setNote(noteBuild.build());
+      builder.setVoucher(merkleVoucherInfo.get().getVouchers(0));
+      builder.setAk(ByteString.copyFrom(fullViewingKey.getAk()));
+      builder.setNk(ByteString.copyFrom(fullViewingKey.getNk()));
+
+      Optional<BytesMessage> nullifier = WalletApi.createShieldedNullifier(builder.build());
+      return ByteArray.toHexString(nullifier.get().getValue().toByteArray());
+
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+    return null;
+  }
+
+  public byte[] getRcm() {
+    return WalletApi.getRcm().get().getValue().toByteArray();
+  }
+
+  public boolean updateBrokerage(byte[] ownerAddress, int brokerage)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: updateSetting failed,  Please login first !!");
+      return false;
+    }
+    return wallet.updateBrokerage(ownerAddress, brokerage);
+  }
+
+  public GrpcAPI.NumberMessage getReward(byte[] ownerAddress) {
+    return WalletApi.getReward(ownerAddress);
+  }
+
+  public GrpcAPI.NumberMessage getBrokerage(byte[] ownerAddress) {
+    return WalletApi.getBrokerage(ownerAddress);
+  }
 }

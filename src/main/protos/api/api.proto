@@ -684,6 +684,16 @@ service Wallet {
 
   rpc CreateShieldNullifier (NfParameters) returns (BytesMessage) {
   };
+
+  rpc GetRewardInfo (BytesMessage) returns (NumberMessage) {
+  };
+
+  rpc GetBrokerageInfo (BytesMessage) returns (NumberMessage) {
+  };
+
+  rpc UpdateBrokerage (UpdateBrokerageContract) returns (TransactionExtention) {
+
+  };
   // end for shiededTransaction
 };
 

@@ -21,11 +21,10 @@ import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ArrayUtils;
 import org.bouncycastle.util.encoders.Hex;
-import org.jline.reader.EndOfFileException;
 import org.jline.reader.Completer;
+import org.jline.reader.EndOfFileException;
 import org.jline.reader.LineReader;
 import org.jline.reader.LineReaderBuilder;
 import org.jline.reader.impl.completer.StringsCompleter;
@@ -58,7 +57,10 @@ import org.tron.api.GrpcAPI.TransactionSignWeight;
 import org.tron.api.GrpcAPI.ViewingKeyMessage;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.crypto.Hash;
-import org.tron.common.utils.*;
+import org.tron.common.utils.AbiUtil;
+import org.tron.common.utils.ByteArray;
+import org.tron.common.utils.ByteUtil;
+import org.tron.common.utils.Utils;
 import org.tron.core.exception.CancelException;
 import org.tron.core.exception.CipherException;
 import org.tron.core.exception.EncodingException;
@@ -182,7 +184,10 @@ public class Client {
       "UpdateWitness",
       "UpdateAccountPermission",
       "VoteWitness",
-      "WithdrawBalance"
+      "WithdrawBalance",
+      "UpdateBrokerage",
+      "GetReward",
+      "GetBrokerage"
   };
 
   private static String[] commandList = {
@@ -282,7 +287,10 @@ public class Client {
       "UpdateWitness",
       "UpdateAccountPermission",
       "VoteWitness",
-      "WithdrawBalance"
+      "WithdrawBalance",
+      "UpdateBrokerage",
+      "GetReward",
+      "GetBrokerage"
   };
 
   private byte[] inputPrivateKey() throws IOException {
@@ -1747,7 +1755,8 @@ public class Client {
     long end = 0;
     if (parameters == null || parameters.length != 2) {
       System.out
-          .println("GetBlockByLimitNext needs 2 parameters, start block number and end block number");
+          .println(
+              "GetBlockByLimitNext needs 2 parameters, start block number and end block number");
       return;
     } else {
       start = Long.parseLong(parameters[0]);
@@ -1914,6 +1923,72 @@ public class Client {
     } else {
       System.out.println("clearContractABI failed");
     }
+  }
+
+  private void updateBrokerage(String[] parameters)
+      throws IOException, CipherException, CancelException {
+    if (parameters == null || parameters.length != 2) {
+      System.out.println("updateBrokerage needs 2 parameters like following: ");
+      System.out.println("updateBrokerage OwnerAddress brokerage");
+      return;
+    }
+
+    int index = 0;
+    byte[] ownerAddress = null;
+
+    ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
+    if (ownerAddress == null) {
+      System.out.println("Invalid OwnerAddress.");
+      return;
+    }
+
+    int brokerage = Integer.valueOf(parameters[index++]);
+    if (brokerage < 0 || brokerage > 100) {
+      return;
+    }
+
+    boolean result = walletApiWrapper.updateBrokerage(ownerAddress, brokerage);
+    if (result) {
+      System.out.println("updateBrokerage successfully");
+    } else {
+      System.out.println("updateBrokerage failed");
+    }
+  }
+
+  private void getReward(String[] parameters) {
+    int index = 0;
+    byte[] ownerAddress = null;
+    if (parameters.length == 1) {
+      ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
+      if (ownerAddress == null) {
+        System.out.println("Invalid OwnerAddress.");
+        return;
+      }
+    } else {
+      System.out.println("getReward needs 1 parameters like following: ");
+      System.out.println("getReward [OwnerAddress]");
+      return;
+    }
+    NumberMessage reward = walletApiWrapper.getReward(ownerAddress);
+    System.out.println("The reward is : " + reward.getNum());
+  }
+
+  private void getBrokerage(String[] parameters) {
+    int index = 0;
+    byte[] ownerAddress = null;
+    if (parameters.length == 1) {
+      ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
+      if (ownerAddress == null) {
+        System.out.println("Invalid OwnerAddress.");
+        return;
+      }
+    } else {
+      System.out.println("getBrokerage needs 1 parameters like following: ");
+      System.out.println("getBrokerage [OwnerAddress]");
+      return;
+    }
+    NumberMessage brokerage = walletApiWrapper.getBrokerage(ownerAddress);
+    System.out.println("The brokerage is : " + brokerage.getNum());
   }
 
   private String[] getParas(String[] para) {
@@ -2861,6 +2936,18 @@ public class Client {
             }
             case "clearcontractabi": {
               clearContractABI(parameters);
+              break;
+            }
+            case "updatebrokerage": {
+              updateBrokerage(parameters);
+              break;
+            }
+            case "getreward": {
+              getReward(parameters);
+              break;
+            }
+            case "getbrokerage": {
+              getBrokerage(parameters);
               break;
             }
             case "login": {
