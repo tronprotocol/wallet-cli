@@ -923,4 +923,20 @@ public class GrpcClient {
       return blockingStubFull.scanAndMarkNoteByIvk(parameters);
     }
   }
+
+  public TransactionExtention updateBrokerage(Contract.UpdateBrokerageContract request) {
+    return blockingStubFull.updateBrokerage(request);
+  }
+
+  public NumberMessage getReward(byte[] address) {
+    BytesMessage bytesMessage = BytesMessage.newBuilder().setValue(ByteString.copyFrom(address))
+        .build();
+    return blockingStubFull.getRewardInfo(bytesMessage);
+  }
+
+  public NumberMessage getBrokerage(byte[] address) {
+    BytesMessage bytesMessage = BytesMessage.newBuilder().setValue(ByteString.copyFrom(address))
+        .build();
+    return blockingStubFull.getBrokerageInfo(bytesMessage);
+  }
 }
