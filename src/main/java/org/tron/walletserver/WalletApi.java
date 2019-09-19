@@ -2448,17 +2448,11 @@ public class WalletApi {
     return processTransactionExtention(transactionExtention);
   }
 
-  public GrpcAPI.NumberMessage getReward(byte[] owner) {
-    if (owner == null) {
-      owner = getAddress();
-    }
+  public static GrpcAPI.NumberMessage getReward(byte[] owner) {
     return rpcCli.getReward(owner);
   }
 
-  public GrpcAPI.NumberMessage getBrokerage(byte[] owner) {
-    if (owner == null) {
-      owner = getAddress();
-    }
+  public static GrpcAPI.NumberMessage getBrokerage(byte[] owner) {
     return rpcCli.getBrokerage(owner);
   }
 

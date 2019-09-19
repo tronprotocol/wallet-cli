@@ -1201,10 +1201,10 @@ public class WalletApiWrapper {
   }
 
   public GrpcAPI.NumberMessage getReward(byte[] ownerAddress) {
-    return wallet.getReward(ownerAddress);
+    return WalletApi.getReward(ownerAddress);
   }
 
   public GrpcAPI.NumberMessage getBrokerage(byte[] ownerAddress) {
-    return wallet.getBrokerage(ownerAddress);
+    return WalletApi.getBrokerage(ownerAddress);
   }
 }

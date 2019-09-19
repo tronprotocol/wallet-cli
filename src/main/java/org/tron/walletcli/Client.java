@@ -185,9 +185,9 @@ public class Client {
       "UpdateAccountPermission",
       "VoteWitness",
       "WithdrawBalance",
-      "updateBrokerage",
-      "getReward",
-      "getBrokerage"
+      "UpdateBrokerage",
+      "GetReward",
+      "GetBrokerage"
   };
 
   private static String[] commandList = {
@@ -287,7 +287,10 @@ public class Client {
       "UpdateWitness",
       "UpdateAccountPermission",
       "VoteWitness",
-      "WithdrawBalance"
+      "WithdrawBalance",
+      "UpdateBrokerage",
+      "GetReward",
+      "GetBrokerage"
   };
 
   private byte[] inputPrivateKey() throws IOException {
@@ -1924,20 +1927,19 @@ public class Client {
 
   private void updateBrokerage(String[] parameters)
       throws IOException, CipherException, CancelException {
-    if (parameters == null || (parameters.length != 1 && parameters.length != 2)) {
-      System.out.println("updateBrokerage needs 1-2 parameters like following: ");
-      System.out.println("updateBrokerage [OwnerAddress] brokerage");
+    if (parameters == null || parameters.length != 2) {
+      System.out.println("updateBrokerage needs 2 parameters like following: ");
+      System.out.println("updateBrokerage OwnerAddress brokerage");
       return;
     }
 
     int index = 0;
     byte[] ownerAddress = null;
-    if (parameters.length == 2) {
-      ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
-      if (ownerAddress == null) {
-        System.out.println("Invalid OwnerAddress.");
-        return;
-      }
+
+    ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
+    if (ownerAddress == null) {
+      System.out.println("Invalid OwnerAddress.");
+      return;
     }
 
     int brokerage = Integer.valueOf(parameters[index++]);
@@ -1956,14 +1958,14 @@ public class Client {
   private void getReward(String[] parameters) {
     int index = 0;
     byte[] ownerAddress = null;
-    if (parameters != null && parameters.length == 1) {
+    if (parameters.length == 1) {
       ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
       if (ownerAddress == null) {
         System.out.println("Invalid OwnerAddress.");
         return;
       }
     } else {
-      System.out.println("getReward needs 0-1 parameters like following: ");
+      System.out.println("getReward needs 1 parameters like following: ");
       System.out.println("getReward [OwnerAddress]");
       return;
     }
@@ -1974,14 +1976,14 @@ public class Client {
   private void getBrokerage(String[] parameters) {
     int index = 0;
     byte[] ownerAddress = null;
-    if (parameters != null && parameters.length == 1) {
+    if (parameters.length == 1) {
       ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
       if (ownerAddress == null) {
         System.out.println("Invalid OwnerAddress.");
         return;
       }
     } else {
-      System.out.println("getBrokerage needs 0-1 parameters like following: ");
+      System.out.println("getBrokerage needs 1 parameters like following: ");
       System.out.println("getBrokerage [OwnerAddress]");
       return;
     }
@@ -2936,15 +2938,15 @@ public class Client {
               clearContractABI(parameters);
               break;
             }
-            case "updateBrokerage": {
+            case "updatebrokerage": {
               updateBrokerage(parameters);
               break;
             }
-            case "getReward": {
+            case "getreward": {
               getReward(parameters);
               break;
             }
-            case "getBrokerage": {
+            case "getbrokerage": {
               getBrokerage(parameters);
               break;
             }
