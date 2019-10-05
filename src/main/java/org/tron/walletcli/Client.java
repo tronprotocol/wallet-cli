@@ -246,7 +246,7 @@ public class Client {
 
   private void getAccount(String[] parameters) {
     if (parameters == null || parameters.length != 1) {
-      System.out.println("GetAccount needs 1 parameter like the following: ");
+      System.out.println("GetAccount requires 1 parameter using the following syntax: ");
       System.out.println("GetAccount Address ");
       return;
     }
@@ -266,7 +266,7 @@ public class Client {
 
   private void getAccountById(String[] parameters) {
     if (parameters == null || parameters.length != 1) {
-      System.out.println("GetAccountById needs 1 parameter like the following: ");
+      System.out.println("GetAccountById requires 1 parameter using the following syntax: ");
       System.out.println("GetAccountById accountId ");
       return;
     }
@@ -284,7 +284,7 @@ public class Client {
   private void updateAccount(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length != 1) {
-      System.out.println("UpdateAccount needs 1 parameter like the following: ");
+      System.out.println("UpdateAccount requires 1 parameter using the following syntax: ");
       System.out.println("UpdateAccount AccountName ");
       return;
     }
@@ -303,7 +303,7 @@ public class Client {
   private void setAccountId(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length != 1) {
-      System.out.println("SetAccountId needs 1 parameter like the following: ");
+      System.out.println("SetAccountId requires 1 parameter using the following syntax: ");
       System.out.println("SetAccountId AccountId ");
       return;
     }
@@ -322,7 +322,7 @@ public class Client {
   private void updateAsset(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length != 4) {
-      System.out.println("UpdateAsset needs 4 parameters like the following: ");
+      System.out.println("UpdateAsset requires 4 parameters using the following syntax: ");
       System.out.println("UpdateAsset newLimit newPublicLimit description url");
       return;
     }
@@ -348,7 +348,7 @@ public class Client {
 
   private void getAssetIssueByAccount(String[] parameters) {
     if (parameters == null || parameters.length != 1) {
-      System.out.println("GetAssetIssueByAccount needs 1 parameter like following: ");
+      System.out.println("GetAssetIssueByAccount requires 1 parameter using the following syntax: ");
       System.out.println("GetAssetIssueByAccount Address ");
       return;
     }
@@ -369,7 +369,7 @@ public class Client {
 
   private void getAccountNet(String[] parameters) {
     if (parameters == null || parameters.length != 1) {
-      System.out.println("GetAccountNet needs 1 parameter like following: ");
+      System.out.println("GetAccountNet requires 1 parameter using the following syntax: ");
       System.out.println("GetAccountNet Address ");
       return;
     }
@@ -389,7 +389,7 @@ public class Client {
 
   private void getAccountResource(String[] parameters) {
     if (parameters == null || parameters.length != 1) {
-      System.out.println("getAccountResource needs 1 parameter like following: ");
+      System.out.println("getAccountResource requires 1 parameter using the following syntax: ");
       System.out.println("getAccountResource Address ");
       return;
     }
@@ -412,7 +412,7 @@ public class Client {
   // This function just remains for compatibility.
   private void getAssetIssueByName(String[] parameters) {
     if (parameters == null || parameters.length != 1) {
-      System.out.println("GetAssetIssueByName needs 1 parameter like following: ");
+      System.out.println("GetAssetIssueByName requires 1 parameter using the following syntax: ");
       System.out.println("GetAssetIssueByName AssetName ");
       return;
     }
@@ -428,7 +428,7 @@ public class Client {
 
   private void getAssetIssueListByName(String[] parameters) {
     if (parameters == null || parameters.length != 1) {
-      System.out.println("getAssetIssueListByName needs 1 parameter like following: ");
+      System.out.println("getAssetIssueListByName requires 1 parameter using the following syntax: ");
       System.out.println("getAssetIssueListByName AssetName ");
       return;
     }
@@ -445,7 +445,7 @@ public class Client {
 
   private void getAssetIssueById(String[] parameters) {
     if (parameters == null || parameters.length != 1) {
-      System.out.println("getAssetIssueById needs 1 parameter like following: ");
+      System.out.println("getAssetIssueById requires 1 parameter using the following syntax: ");
       System.out.println("getAssetIssueById AssetId ");
       return;
     }
@@ -461,7 +461,7 @@ public class Client {
 
   private void sendCoin(String[] parameters) throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length != 2) {
-      System.out.println("SendCoin needs 2 parameters like following: ");
+      System.out.println("SendCoin requires 2 parameters using the following syntax: ");
       System.out.println("SendCoin ToAddress Amount");
       return;
     }
@@ -481,7 +481,7 @@ public class Client {
   private void testTransaction(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || (parameters.length != 3 && parameters.length != 4)) {
-      System.out.println("testTransaction needs 3 or 4 parameters using the following syntax: ");
+      System.out.println("testTransaction requires 3 or 4 parameters using the following syntax: ");
       System.out.println("testTransaction ToAddress assertName times");
       System.out.println("testTransaction ToAddress assertName times interval");
       System.out.println("If needing transferAsset, assertName input null");
@@ -543,7 +543,7 @@ public class Client {
   private void transferAsset(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length != 3) {
-      System.out.println("TransferAsset needs 3 parameters using the following syntax: ");
+      System.out.println("TransferAsset requires 3 parameters using the following syntax: ");
       System.out.println("TransferAsset ToAddress AssertName Amount");
       return;
     }
@@ -564,7 +564,7 @@ public class Client {
   private void participateAssetIssue(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length != 3) {
-      System.out.println("ParticipateAssetIssue needs 3 parameters using the following syntax: ");
+      System.out.println("ParticipateAssetIssue requires 3 parameters using the following syntax: ");
       System.out.println("ParticipateAssetIssue ToAddress AssetName Amount");
       return;
     }
@@ -643,7 +643,7 @@ public class Client {
   private void createAccount(String[] parameters)
       throws CipherException, IOException, CancelException {
     if (parameters == null || parameters.length != 1) {
-      System.out.println("CreateAccount needs 1 parameter using the following syntax: ");
+      System.out.println("CreateAccount requires 1 parameter using the following syntax: ");
       System.out.println("CreateAccount Address");
       return;
     }
@@ -661,7 +661,7 @@ public class Client {
   private void createWitness(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length != 1) {
-      System.out.println("CreateWitness needs 1 parameter using the following syntax: ");
+      System.out.println("CreateWitness requires 1 parameter using the following syntax: ");
       System.out.println("CreateWitness Url");
       return;
     }
@@ -679,7 +679,7 @@ public class Client {
   private void updateWitness(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length != 1) {
-      System.out.println("updateWitness needs 1 parameter using the following syntax: ");
+      System.out.println("updateWitness requires 1 parameter using the following syntax: ");
       System.out.println("updateWitness Url");
       return;
     }
@@ -717,7 +717,7 @@ public class Client {
   private void getAssetIssueList(String[] parameters) {
     if (parameters == null || parameters.length != 2) {
       System.out.println(
-          "The listassetissuepaginated command needs 2 parameters, use the following syntax:");
+          "The listassetissuepaginated command requires 2 parameters, use the following syntax:");
       System.out.println("listassetissuepaginated offset limit ");
       return;
     }
@@ -735,7 +735,7 @@ public class Client {
   private void getProposalsListPaginated(String[] parameters) {
     if (parameters == null || parameters.length != 2) {
       System.out.println(
-          "The listproposalspaginated command needs 2 parameters, use the following syntax:");
+          "The listproposalspaginated command requires 2 parameters, use the following syntax:");
       System.out.println("listproposalspaginated offset limit ");
       return;
     }
@@ -753,7 +753,7 @@ public class Client {
   private void getExchangesListPaginated(String[] parameters) {
     if (parameters == null || parameters.length != 2) {
       System.out.println(
-          "The listexchangespaginated command needs 2 parameters, use the following syntax:");
+          "The listexchangespaginated command requires 2 parameters, use the following syntax:");
       System.out.println("listexchangespaginated offset limit ");
       return;
     }
@@ -831,7 +831,7 @@ public class Client {
   private void voteWitness(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length < 2 || (parameters.length & 1) != 0) {
-      System.out.println("Use VoteWitness command with below syntax: ");
+      System.out.println("Use VoteWitness command with the below syntax: ");
       System.out.println("VoteWitness Address0 Count0 ... AddressN CountN");
       return;
     }
@@ -855,7 +855,7 @@ public class Client {
       throws IOException, CipherException, CancelException {
     if (parameters == null || !(parameters.length == 2 || parameters.length == 3
         || parameters.length == 4)) {
-      System.out.println("Use freezeBalance command with below syntax: ");
+      System.out.println("Use freezeBalance command with the following syntax: ");
       System.out
           .println(
               "freezeBalance frozen_balance frozen_duration [ResourceCode:0 BANDWIDTH,1 ENERGY] "
@@ -890,7 +890,7 @@ public class Client {
   private void buyStorage(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length != 1) {
-      System.out.println("Use buyStorage command with below syntax: ");
+      System.out.println("Use buyStorage command with the following syntax: ");
       System.out.println("buyStorage quantity ");
       return;
     }
@@ -907,7 +907,7 @@ public class Client {
   private void buyStorageBytes(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length != 1) {
-      System.out.println("Use buyStorageBytes command with below syntax: ");
+      System.out.println("Use buyStorageBytes command with following syntax: ");
       System.out.println("buyStorageBytes bytes ");
       return;
     }
@@ -924,7 +924,7 @@ public class Client {
   private void sellStorage(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length != 1) {
-      System.out.println("Use sellStorage command with below syntax: ");
+      System.out.println("Use sellStorage command with the following syntax: ");
       System.out.println("sellStorage quantity ");
       return;
     }
@@ -942,7 +942,7 @@ public class Client {
   private void unfreezeBalance(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters.length > 2) {
-      System.out.println("Use unfreezeBalance command with below syntax: ");
+      System.out.println("Use unfreezeBalance command with the following syntax: ");
       System.out.println("unfreezeBalance  [ResourceCode:0 BANDWIDTH,1 CPU]" + "[receiverAddress]");
       return;
     }
@@ -984,7 +984,7 @@ public class Client {
   private void createProposal(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length < 2 || (parameters.length & 1) != 0) {
-      System.out.println("Use createProposal command with below syntax: ");
+      System.out.println("Use createProposal command with the following syntax: ");
       System.out.println("createProposal id0 value0 ... idN valueN");
       return;
     }
@@ -1006,7 +1006,7 @@ public class Client {
   private void approveProposal(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length != 2) {
-      System.out.println("Use approveProposal command with below syntax: ");
+      System.out.println("Use approveProposal command with the following syntax: ");
       System.out.println("approveProposal id is_or_not_add_approval");
       return;
     }
@@ -1024,7 +1024,7 @@ public class Client {
   private void deleteProposal(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length != 1) {
-      System.out.println("Use deleteProposal command with below syntax: ");
+      System.out.println("Use deleteProposal command with the following syntax: ");
       System.out.println("deleteProposal proposalId");
       return;
     }
@@ -1051,7 +1051,7 @@ public class Client {
 
   private void getProposal(String[] parameters) {
     if (parameters == null || parameters.length != 1) {
-      System.out.println("getProposal needs 1 parameter like following: ");
+      System.out.println("getProposal requires 1 parameter using the following syntax: ");
       System.out.println("getProposal id ");
       return;
     }
@@ -1070,7 +1070,7 @@ public class Client {
   private void getDelegatedResource(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length != 2) {
-      System.out.println("Use getDelegatedResource command with below syntax: ");
+      System.out.println("Use getDelegatedResource command with the following syntax: ");
       System.out.println("getDelegatedResource fromAddress toAddress");
       return;
     }
@@ -1088,7 +1088,7 @@ public class Client {
   private void getDelegatedResourceAccountIndex(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length != 1) {
-      System.out.println("Use getDelegatedResourceAccountIndex command with below syntax: ");
+      System.out.println("Use getDelegatedResourceAccountIndex command with the following syntax: ");
       System.out.println("getDelegatedResourceAccountIndex address ");
       return;
     }
@@ -1107,7 +1107,7 @@ public class Client {
   private void exchangeCreate(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length != 4) {
-      System.out.println("Use exchangeCreate command with below syntax: ");
+      System.out.println("Use exchangeCreate command with the following syntax: ");
       System.out.println("exchangeCreate first_token_id first_token_balance "
           + "second_token_id second_token_balance");
       return;
@@ -1129,7 +1129,7 @@ public class Client {
   private void exchangeInject(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length != 3) {
-      System.out.println("Use exchangeInject command with below syntax: ");
+      System.out.println("Use exchangeInject command with the following syntax: ");
       System.out.println("exchangeInject exchange_id token_id quant");
       return;
     }
@@ -1148,7 +1148,7 @@ public class Client {
   private void exchangeWithdraw(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length != 3) {
-      System.out.println("Use exchangeWithdraw command with below syntax: ");
+      System.out.println("Use exchangeWithdraw command with the following syntax: ");
       System.out.println("exchangeWithdraw exchange_id token_id quant");
       return;
     }
@@ -1167,7 +1167,7 @@ public class Client {
   private void exchangeTransaction(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length != 4) {
-      System.out.println("Use exchangeTransaction command with below syntax: ");
+      System.out.println("Use exchangeTransaction command with the following syntax: ");
       System.out.println("exchangeTransaction exchange_id token_id quant expected");
       return;
     }
@@ -1196,7 +1196,7 @@ public class Client {
 
   private void getExchange(String[] parameters) {
     if (parameters == null || parameters.length != 1) {
-      System.out.println("getExchange needs 1 parameter like following: ");
+      System.out.println("getExchange requires 1 parameter using the following syntax: ");
       System.out.println("getExchange id ");
       return;
     }
@@ -1301,7 +1301,8 @@ public class Client {
   private void getTransactionById(String[] parameters) {
     String txid = "";
     if (parameters == null || parameters.length != 1) {
-      System.out.println("getTransactionById needs 1 parameter, transaction id");
+      System.out.println("getTransactionById requires 1 parameter using the following syntax:");
+      System.out.println("getTransactionById transaction id");
       return;
     } else {
       txid = parameters[0];
@@ -1318,7 +1319,8 @@ public class Client {
   private void getTransactionInfoById(String[] parameters) {
     String txid = "";
     if (parameters == null || parameters.length != 1) {
-      System.out.println("getTransactionInfoById needs 1 parameter, transaction id");
+      System.out.println("getTransactionInfoById requires 1 parameter using the following syntax:");
+      System.out.println("getTransactionInfoById transaction id");
       return;
     } else {
       txid = parameters[0];
@@ -1334,7 +1336,7 @@ public class Client {
 
   private void getTransactionsFromThis(String[] parameters) {
     if (parameters == null || parameters.length != 3) {
-      System.out.println("GetTransactionsFromThis needs 3 parameters, use the following syntax: ");
+      System.out.println("GetTransactionsFromThis requires 3 parameters using the following syntax: ");
       System.out.println("GetTransactionsFromThis Address offset limit");
       return;
     }
@@ -1377,7 +1379,7 @@ public class Client {
 
   private void getTransactionsToThis(String[] parameters) {
     if (parameters == null || parameters.length != 3) {
-      System.out.println("getTransactionsToThis needs 3 parameters, use the following syntax: ");
+      System.out.println("getTransactionsToThis requires 3 parameters using the following syntax: ");
       System.out.println("getTransactionsToThis Address offset limit");
       return;
     }
@@ -1437,7 +1439,8 @@ public class Client {
   private void getBlockById(String[] parameters) {
     String blockID = "";
     if (parameters == null || parameters.length != 1) {
-      System.out.println("getBlockById needs 1 parameter, block id which is hex format");
+      System.out.println("getBlockById requires 1 parameter in hex format using the following syntax: ");
+      System.out.println("getBlockById block_id");
       return;
     } else {
       blockID = parameters[0];
@@ -1455,8 +1458,8 @@ public class Client {
     long start = 0;
     long end = 0;
     if (parameters == null || parameters.length != 2) {
-      System.out
-          .println("GetBlockByLimitNext needs 2 parameters, start block id and end block id");
+      System.out.println("GetBlockByLimitNext requires 2 parameters in hex format using the following syntax:");
+      System.out.println("GetBlockByLimitNext start_block_id end_block_id");
       return;
     } else {
       start = Long.parseLong(parameters[0]);
@@ -1485,7 +1488,8 @@ public class Client {
   private void getBlockByLatestNum(String[] parameters) {
     long num = 0;
     if (parameters == null || parameters.length != 1) {
-      System.out.println("getBlockByLatestNum needs 1 parameter, block num");
+      System.out.println("getBlockByLatestNum requires 1 parameter using the following syntax: ");
+      System.out.println("getBlockByLatestNum block_num");
       return;
     } else {
       num = Long.parseLong(parameters[0]);
@@ -1521,7 +1525,7 @@ public class Client {
       throws IOException, CipherException, CancelException {
     if (parameters == null ||
         parameters.length < 2) {
-      System.out.println("updateSetting needs 2 parameters like following: ");
+      System.out.println("updateSetting requires 2 parameters using the following syntax: ");
       System.out.println("updateSetting contract_address consume_user_resource_percent");
       return;
     }
@@ -1534,9 +1538,9 @@ public class Client {
     }
     boolean result = walletApiWrapper.updateSetting(contractAddress, consumeUserResourcePercent);
     if (result) {
-      System.out.println("update setting successfully");
+      System.out.println("updateSetting command was successful!");
     } else {
-      System.out.println("update setting failed");
+      System.out.println("updateSetting command failed!");
     }
   }
 
@@ -1544,7 +1548,7 @@ public class Client {
       throws IOException, CipherException, CancelException {
     if (parameters == null ||
         parameters.length < 2) {
-      System.out.println("updateEnergyLimit needs 2 parameters like following: ");
+      System.out.println("updateEnergyLimit requires 2 parameters using the following syntax: ");
       System.out.println("updateEnergyLimit contract_address energy_limit");
       return;
     }
@@ -1557,9 +1561,9 @@ public class Client {
     }
     boolean result = walletApiWrapper.updateEnergyLimit(contractAddress, originEnergyLimit);
     if (result) {
-      System.out.println("update setting for origin_energy_limit successfully");
+      System.out.println("updateEnergyLimit command for origin_energy_limit was successful!!");
     } else {
-      System.out.println("update setting for origin_energy_limit failed");
+      System.out.println("updateEnergyLimit command for origin_energy_limit has failed!");
     }
   }
 
@@ -1567,7 +1571,7 @@ public class Client {
       throws IOException, CipherException, CancelException {
     if (parameters == null ||
         parameters.length != 1) {
-      System.out.println("clearContractABI needs 1 parameters like following: ");
+      System.out.println("clearContractABI requires 1 parameter using the following syntax: ");
       System.out.println("clearContractABI contract_address");
       return;
     }
@@ -1579,9 +1583,9 @@ public class Client {
 
     boolean result = walletApiWrapper.clearContractABI(contractAddress);
     if (result) {
-      System.out.println("clearContractABI successfully");
+      System.out.println("clearContractABI command was successful!!");
     } else {
-      System.out.println("clearContractABI failed");
+      System.out.println("clearContractABI command has failed!");
     }
   }
 
@@ -1617,7 +1621,7 @@ public class Client {
     String[] parameters = getParas(parameter);
     if (parameters == null ||
         parameters.length < 11) {
-      System.out.println("DeployContract needs at least 8 parameters like following: ");
+      System.out.println("DeployContract needs at least 8 parameters using the following syntax: ");
       System.out.println(
           "DeployContract contractName ABI byteCode constructor params isHex fee_limit consume_user_resource_percent origin_energy_limit value token_value token_id(e.g: TRXTOKEN, use # if don't provided) <library:address,library:address,...> <lib_compiler_version(e.g:v5)>");
       System.out.println(
@@ -1687,7 +1691,7 @@ public class Client {
 
     if (isConstant) {
       if (parameters == null || parameters.length < 4) {
-        System.out.println(cmdMethodStr + " needs 4 parameters like following: ");
+        System.out.println(cmdMethodStr + " requires 4 parameters using the following syntax: ");
         System.out.println(
             cmdMethodStr
                 + " contractAddress method args isHex");
@@ -1695,7 +1699,7 @@ public class Client {
       }
     } else {
       if (parameters == null || parameters.length < 8) {
-        System.out.println(cmdMethodStr + " needs 8 parameters like following: ");
+        System.out.println(cmdMethodStr + " requires 8 parameters using the following syntax: ");
         System.out.println(
             cmdMethodStr
                 + " contractAddress method args isHex fee_limit value token_value token_id(e.g: TRXTOKEN, use # if don't provided)");
@@ -1744,7 +1748,7 @@ public class Client {
   private void getContract(String[] parameters) {
     if (parameters == null ||
         parameters.length != 1) {
-      System.out.println("GetContract needs 1 parameter like following: ");
+      System.out.println("GetContract requires 1 parameter using the following syntax: ");
       System.out.println("GetContract contractAddress");
       return;
     }
@@ -1796,17 +1800,18 @@ public class Client {
 
     boolean ret = walletApiWrapper.accountPermissionUpdate(ownerAddress, parameters[1]);
     if (ret) {
-      logger.info("updateAccountPermission successful !!!!");
+      logger.info("updateAccountPermission command was successful !!");
     } else {
-      logger.info("updateAccountPermission failed !!!!");
+      logger.info("updateAccountPermission command failed !");
     }
   }
 
 
   private void getTransactionSignWeight(String[] parameters) throws InvalidProtocolBufferException {
     if (parameters == null || parameters.length != 1) {
-      System.out.println(
-          "getTransactionSignWeight needs 1 parameter, like getTransactionSignWeight transaction which is hex string");
+      System.out.println("getTransactionSignWeight requires 1 parameter using hex string with the following syntax:");
+      System.out.println("getTransactionSignWeight transaction ");
+      
       return;
     }
 
@@ -1817,15 +1822,16 @@ public class Client {
     if (transactionSignWeight != null) {
       logger.info(Utils.printTransactionSignWeight(transactionSignWeight));
     } else {
-      logger.info("GetTransactionSignWeight failed !!");
+      logger.info("GetTransactionSignWeight command failed !!");
     }
   }
 
   private void getTransactionApprovedList(String[] parameters)
       throws InvalidProtocolBufferException {
     if (parameters == null || parameters.length != 1) {
-      System.out.println(
-          "getTransactionApprovedList needs 1 parameter, like getTransactionApprovedList transaction which is hex string");
+      System.out.println("getTransactionApprovedList requires 1 parameter using hex string with the following syntax:");
+      System.out.println("getTransactionApprovedList transaction ");
+      
       return;
     }
 
@@ -1837,15 +1843,16 @@ public class Client {
     if (transactionApprovedList != null) {
       logger.info(Utils.printTransactionApprovedList(transactionApprovedList));
     } else {
-      logger.info("GetTransactionApprovedList failed !!");
+      logger.info("GetTransactionApprovedList command has failed !!");
     }
   }
 
   private void addTransactionSign(String[] parameters)
       throws CipherException, IOException, CancelException {
     if (parameters == null || parameters.length != 1) {
-      System.out.println(
-          "addTransactionSign needs 1 parameter, like addTransactionSign transaction which is hex string");
+      System.out.println("addTransactionSign requires 1 parameter using hex string with the following syntax:");
+      System.out.println("addTransactionSign transaction");
+      
       return;
     }
 
@@ -1863,15 +1870,15 @@ public class Client {
               .toHexString(transaction.toByteArray()));
       System.out.println(Utils.printTransaction(transaction));
     } else {
-      logger.info("AddTransactionSign failed !!");
+      logger.info("AddTransactionSign command failed !!");
     }
 
   }
 
   private void broadcastTransaction(String[] parameters) throws InvalidProtocolBufferException {
     if (parameters == null || parameters.length != 1) {
-      System.out.println(
-          "broadcastTransaction needs 1 parameter, like broadcastTransaction transaction which is hex string");
+      System.out.println("broadcastTransaction requires 1 parameter using hex string with the following syntax:");
+      System.out.println("broadcastTransaction transaction");
       return;
     }
 
@@ -1884,9 +1891,9 @@ public class Client {
 
     boolean ret = WalletApi.broadcastTransaction(transaction);
     if (ret) {
-      logger.info("BroadcastTransaction successful !!!!");
+      logger.info("BroadcastTransaction commmand was successful !!");
     } else {
-      logger.info("BroadcastTransaction failed !!!!");
+      logger.info("BroadcastTransaction command failed !");
     }
 
   }
