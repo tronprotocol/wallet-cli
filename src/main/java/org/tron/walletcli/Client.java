@@ -1585,6 +1585,72 @@ public class Client {
     }
   }
 
+  private void updateBrokerage(String[] parameters)
+      throws IOException, CipherException, CancelException {
+    if (parameters == null || parameters.length != 2) {
+      System.out.println("updateBrokerage needs 2 parameters like following: ");
+      System.out.println("updateBrokerage OwnerAddress brokerage");
+      return;
+    }
+
+    int index = 0;
+    byte[] ownerAddress = null;
+
+    ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
+    if (ownerAddress == null) {
+      System.out.println("Invalid OwnerAddress.");
+      return;
+    }
+
+    int brokerage = Integer.valueOf(parameters[index++]);
+    if (brokerage < 0 || brokerage > 100) {
+      return;
+    }
+
+    boolean result = walletApiWrapper.updateBrokerage(ownerAddress, brokerage);
+    if (result) {
+      System.out.println("updateBrokerage successfully");
+    } else {
+      System.out.println("updateBrokerage failed");
+    }
+  }
+
+  private void getReward(String[] parameters) {
+    int index = 0;
+    byte[] ownerAddress = null;
+    if (parameters.length == 1) {
+      ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
+      if (ownerAddress == null) {
+        System.out.println("Invalid OwnerAddress.");
+        return;
+      }
+    } else {
+      System.out.println("getReward needs 1 parameters like following: ");
+      System.out.println("getReward [OwnerAddress]");
+      return;
+    }
+    NumberMessage reward = walletApiWrapper.getReward(ownerAddress);
+    System.out.println("The reward is : " + reward.getNum());
+  }
+
+  private void getBrokerage(String[] parameters) {
+    int index = 0;
+    byte[] ownerAddress = null;
+    if (parameters.length == 1) {
+      ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
+      if (ownerAddress == null) {
+        System.out.println("Invalid OwnerAddress.");
+        return;
+      }
+    } else {
+      System.out.println("getBrokerage needs 1 parameters like following: ");
+      System.out.println("getBrokerage [OwnerAddress]");
+      return;
+    }
+    NumberMessage brokerage = walletApiWrapper.getBrokerage(ownerAddress);
+    System.out.println("The brokerage is : " + brokerage.getNum());
+  }
+
   private String[] getParas(String[] para) {
     String paras = String.join(" ", para);
     Pattern pattern = Pattern.compile(" (\\[.*?\\]) ");
@@ -2002,6 +2068,9 @@ public class Client {
     System.out.println("VoteWitness");
     System.out.println("WithdrawBalance");
     System.out.println("Create2");
+    System.out.println("UpdateBrokerage");
+    System.out.println("GetReward");
+    System.out.println("GetBrokerage");
 //    System.out.println("buyStorage");
 //    System.out.println("buyStorageBytes");
 //    System.out.println("sellStorage");
@@ -2429,6 +2498,18 @@ public class Client {
           }
           case "create2": {
             create2(parameters);
+            break;
+          }
+          case "updatebrokerage": {
+            updateBrokerage(parameters);
+            break;
+          }
+          case "getreward": {
+            getReward(parameters);
+            break;
+          }
+          case "getbrokerage": {
+            getBrokerage(parameters);
             break;
           }
           case "exit":

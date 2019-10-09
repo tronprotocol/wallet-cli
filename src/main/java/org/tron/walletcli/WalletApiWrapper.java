@@ -698,4 +698,21 @@ public class WalletApiWrapper {
     return wallet.addTransactionSign(transaction);
   }
 
+  public boolean updateBrokerage(byte[] ownerAddress, int brokerage)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: updateSetting failed,  Please login first !!");
+      return false;
+    }
+    return wallet.updateBrokerage(ownerAddress, brokerage);
+  }
+
+  public GrpcAPI.NumberMessage getReward(byte[] ownerAddress) {
+    return WalletApi.getReward(ownerAddress);
+  }
+
+  public GrpcAPI.NumberMessage getBrokerage(byte[] ownerAddress) {
+    return WalletApi.getBrokerage(ownerAddress);
+  }
+
 }
