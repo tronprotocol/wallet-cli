@@ -1,10 +1,13 @@
 package org.tron.demo;
 
+import java.util.Arrays;
+import org.tron.api.GrpcAPI.EasyTransferResponse;
 import org.tron.api.GrpcAPI.TransactionExtention;
 import org.tron.api.GrpcAPI.TransactionSignWeight;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Utils;
 import org.tron.core.exception.CancelException;
+import org.tron.protos.Contract;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.walletserver.WalletApi;
 

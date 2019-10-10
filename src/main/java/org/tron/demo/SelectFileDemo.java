@@ -1,9 +1,8 @@
 package org.tron.demo;
 
-import org.apache.commons.lang.ArrayUtils;
-
 import java.io.File;
 import java.io.IOException;
+import org.apache.commons.lang.ArrayUtils;
 
 public class SelectFileDemo {
 
