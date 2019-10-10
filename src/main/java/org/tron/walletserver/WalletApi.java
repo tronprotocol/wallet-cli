@@ -75,6 +75,7 @@ import org.tron.protos.Contract.FreezeBalanceContract;
 import org.tron.protos.Contract.SellStorageContract;
 import org.tron.protos.Contract.UnfreezeAssetContract;
 import org.tron.protos.Contract.UnfreezeBalanceContract;
+import org.tron.protos.Contract.UpdateBrokerageContract;
 import org.tron.protos.Contract.UpdateEnergyLimitContract;
 import org.tron.protos.Contract.UpdateSettingContract;
 import org.tron.protos.Contract.WithdrawBalanceContract;
@@ -1971,6 +1972,37 @@ public class WalletApi {
     transaction = TransactionUtils.sign(transaction, this.getEcKey(walletFile, passwd));
     org.tron.keystore.StringUtils.clear(passwd);
     return transaction;
+  }
+
+  public boolean updateBrokerage(byte[] owner, int brokerage)
+      throws IOException, CipherException, CancelException {
+    if (owner == null) {
+      owner = getAddress();
+    }
+
+    UpdateBrokerageContract.Builder updateBrokerageContract = UpdateBrokerageContract.newBuilder();
+    updateBrokerageContract.setOwnerAddress(ByteString.copyFrom(owner)).setBrokerage(brokerage);
+    TransactionExtention transactionExtention = rpcCli
+        .updateBrokerage(updateBrokerageContract.build());
+    if (transactionExtention == null || !transactionExtention.getResult().getResult()) {
+      System.out.println("RPC create trx failed!");
+      if (transactionExtention != null) {
+        System.out.println("Code = " + transactionExtention.getResult().getCode());
+        System.out
+            .println("Message = " + transactionExtention.getResult().getMessage().toStringUtf8());
+      }
+      return false;
+    }
+
+    return processTransactionExtention(transactionExtention);
+  }
+
+  public static GrpcAPI.NumberMessage getReward(byte[] owner) {
+    return rpcCli.getReward(owner);
+  }
+
+  public static GrpcAPI.NumberMessage getBrokerage(byte[] owner) {
+    return rpcCli.getBrokerage(owner);
   }
 
 }
