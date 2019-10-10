@@ -16,10 +16,6 @@
 package org.tron.common.utils;
 
 import com.google.protobuf.ByteString;
-import java.security.SignatureException;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Scanner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tron.common.crypto.ECKey;
@@ -27,7 +23,11 @@ import org.tron.common.crypto.ECKey.ECDSASignature;
 import org.tron.common.crypto.Sha256Hash;
 import org.tron.core.exception.CancelException;
 import org.tron.protos.Protocol.Transaction;
-import org.tron.protos.Protocol.Transaction.Contract;
+
+import java.security.SignatureException;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Scanner;
 
 public class TransactionUtils {
 

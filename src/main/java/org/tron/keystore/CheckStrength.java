@@ -16,8 +16,9 @@
 
 package org.tron.keystore;
 
-import java.util.Arrays;
 import org.apache.commons.lang3.ArrayUtils;
+
+import java.util.Arrays;
 
 /**
  * @author venshine

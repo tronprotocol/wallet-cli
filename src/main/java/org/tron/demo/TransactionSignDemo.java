@@ -3,7 +3,6 @@ package org.tron.demo;
 import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
-import java.util.Arrays;
 import org.tron.api.GrpcAPI.Return;
 import org.tron.api.GrpcAPI.TransactionExtention;
 import org.tron.common.crypto.ECKey;
@@ -14,6 +13,8 @@ import org.tron.protos.Contract;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.walletserver.WalletApi;
+
+import java.util.Arrays;
 
 public class TransactionSignDemo {
 

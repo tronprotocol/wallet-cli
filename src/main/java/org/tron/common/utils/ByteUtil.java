@@ -16,6 +16,9 @@
  * along with the ethereumJ library. If not, see <http://www.gnu.org/licenses/>.
  */
 package org.tron.common.utils;
+
+import org.spongycastle.util.encoders.Hex;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.math.BigInteger;
@@ -25,9 +28,6 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
-
-import org.spongycastle.util.encoders.Hex;
-import org.tron.common.utils.ByteArrayWrapper;
 
 
 public class ByteUtil {
