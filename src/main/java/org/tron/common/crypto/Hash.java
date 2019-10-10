@@ -18,17 +18,18 @@
 
 package org.tron.common.crypto;
 
-import static java.util.Arrays.copyOfRange;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.tron.common.crypto.jce.TronCastleProvider;
+import org.tron.common.utils.ByteArray;
+import org.tron.walletserver.WalletApi;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.Provider;
 import java.security.Security;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.tron.common.crypto.jce.TronCastleProvider;
-import org.tron.walletserver.WalletApi;
-import org.tron.common.utils.ByteArray;
+
+import static java.util.Arrays.copyOfRange;
 
 public class Hash {
 

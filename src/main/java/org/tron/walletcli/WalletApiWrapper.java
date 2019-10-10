@@ -1,19 +1,10 @@
 package org.tron.walletcli;
 
 import com.google.protobuf.ByteString;
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tron.api.GrpcAPI;
-import org.tron.api.GrpcAPI.AddressPrKeyPairMessage;
-import org.tron.api.GrpcAPI.AssetIssueList;
-import org.tron.api.GrpcAPI.BlockExtention;
-import org.tron.api.GrpcAPI.ExchangeList;
-import org.tron.api.GrpcAPI.NodeList;
-import org.tron.api.GrpcAPI.ProposalList;
-import org.tron.api.GrpcAPI.WitnessList;
+import org.tron.api.GrpcAPI.*;
 import org.tron.common.utils.Utils;
 import org.tron.core.exception.CancelException;
 import org.tron.core.exception.CipherException;
@@ -21,13 +12,12 @@ import org.tron.keystore.StringUtils;
 import org.tron.keystore.WalletFile;
 import org.tron.protos.Contract;
 import org.tron.protos.Contract.AssetIssueContract;
-import org.tron.protos.Protocol.Account;
-import org.tron.protos.Protocol.Block;
-import org.tron.protos.Protocol.ChainParameters;
-import org.tron.protos.Protocol.Exchange;
-import org.tron.protos.Protocol.Proposal;
-import org.tron.protos.Protocol.Transaction;
+import org.tron.protos.Protocol.*;
 import org.tron.walletserver.WalletApi;
+
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Optional;
 
 public class WalletApiWrapper {
 
