@@ -1,11 +1,12 @@
 package org.tron.core.zen.address;
 
-import java.util.Optional;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
 import org.tron.api.GrpcAPI.DiversifierMessage;
 import org.tron.walletserver.WalletApi;
+
+import java.util.Optional;
 
 @AllArgsConstructor
 public class DiversifierT {

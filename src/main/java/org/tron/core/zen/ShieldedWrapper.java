@@ -2,6 +2,21 @@ package org.tron.core.zen;
 
 import com.google.protobuf.ByteString;
 import io.netty.util.internal.StringUtil;
+import lombok.Getter;
+import lombok.Setter;
+import org.apache.commons.lang3.ArrayUtils;
+import org.tron.api.GrpcAPI.*;
+import org.tron.api.GrpcAPI.DecryptNotes.NoteTx;
+import org.tron.common.utils.Base58;
+import org.tron.common.utils.ByteArray;
+import org.tron.common.utils.Utils;
+import org.tron.core.exception.CipherException;
+import org.tron.keystore.SKeyCapsule;
+import org.tron.keystore.SKeyEncryptor;
+import org.tron.keystore.StringUtils;
+import org.tron.keystore.WalletUtils;
+import org.tron.protos.Protocol.Block;
+import org.tron.walletserver.WalletApi;
 
 import java.io.File;
 import java.io.IOException;
@@ -10,22 +25,6 @@ import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
-import lombok.Getter;
-import lombok.Setter;
-import org.apache.commons.lang3.ArrayUtils;
-import org.tron.api.GrpcAPI.DecryptNotes;
-import org.tron.api.GrpcAPI.DecryptNotes.NoteTx;
-import org.tron.api.GrpcAPI.IvkDecryptParameters;
-import org.tron.api.GrpcAPI.Note;
-import org.tron.api.GrpcAPI.NoteParameters;
-import org.tron.api.GrpcAPI.SpendResult;
-import org.tron.common.utils.Base58;
-import org.tron.common.utils.ByteArray;
-import org.tron.common.utils.Utils;
-import org.tron.core.exception.CipherException;
-import org.tron.keystore.*;
-import org.tron.protos.Protocol.Block;
-import org.tron.walletserver.WalletApi;
 
 public class ShieldedWrapper {
 

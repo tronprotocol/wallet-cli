@@ -3,6 +3,23 @@ package org.tron.test;
 import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
+import org.tron.common.crypto.ECKey;
+import org.tron.common.crypto.ECKey.ECDSASignature;
+import org.tron.common.crypto.Hash;
+import org.tron.common.crypto.Sha256Hash;
+import org.tron.common.utils.Base58;
+import org.tron.common.utils.ByteArray;
+import org.tron.common.utils.Utils;
+import org.tron.core.exception.CipherException;
+import org.tron.keystore.CheckStrength;
+import org.tron.keystore.Credentials;
+import org.tron.keystore.WalletUtils;
+import org.tron.protos.Contract;
+import org.tron.protos.Contract.TransferContract;
+import org.tron.protos.Protocol.Account;
+import org.tron.protos.Protocol.Transaction;
+import org.tron.walletserver.WalletApi;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
@@ -13,22 +30,6 @@ import java.util.Base64;
 import java.util.Base64.Decoder;
 import java.util.Base64.Encoder;
 import java.util.List;
-import org.tron.common.crypto.ECKey;
-import org.tron.common.crypto.ECKey.ECDSASignature;
-import org.tron.common.crypto.Hash;
-import org.tron.common.crypto.Sha256Hash;
-import org.tron.common.utils.Base58;
-import org.tron.common.utils.ByteArray;
-import org.tron.common.utils.Utils;
-import org.tron.keystore.CheckStrength;
-import org.tron.core.exception.CipherException;
-import org.tron.keystore.Credentials;
-import org.tron.keystore.WalletUtils;
-import org.tron.protos.Contract;
-import org.tron.protos.Contract.TransferContract;
-import org.tron.protos.Protocol.Account;
-import org.tron.protos.Protocol.Transaction;
-import org.tron.walletserver.WalletApi;
 
 public class Test {
 
