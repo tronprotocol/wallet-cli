@@ -326,7 +326,7 @@ public class Client {
     System.out.println("Import a wallet successful, keystore file name is " + fileName);
   }
 
-  private void importwalletByBase64() throws CipherException, IOException {
+  private void importWalletByBase64() throws CipherException, IOException {
     char[] password = Utils.inputPassword2Twice();
     byte[] priKey = inputPrivateKey64();
 
@@ -971,8 +971,8 @@ public class Client {
 
   private void getAssetIssueList(String[] parameters) {
     if (parameters == null || parameters.length != 2) {
-      System.out.println("listassetissuepaginated needs 2 parameter using the following syntax: ");
-      System.out.println("listassetissuepaginated offset limit ");
+      System.out.println("ListAssetIssuePaginated needs 2 parameters using the following syntax: ");
+      System.out.println("ListAssetIssuePaginated offset limit ");
       return;
     }
     int offset = Integer.parseInt(parameters[0]);
@@ -982,14 +982,14 @@ public class Client {
       AssetIssueList assetIssueList = result.get();
       System.out.println(Utils.formatMessageString(assetIssueList));
     } else {
-      System.out.println("GetAssetIssueListPaginated  failed !!");
+      System.out.println("GetAssetIssueListPaginated failed !!!");
     }
   }
 
   private void getProposalsListPaginated(String[] parameters) {
     if (parameters == null || parameters.length != 2) {
-      System.out.println("listproposalspaginated needs 2 parameters use the following syntax:");
-      System.out.println("listproposalspaginated offset limit ");
+      System.out.println("ListProposalsPaginated needs 2 parameters use the following syntax:");
+      System.out.println("ListProposalsPaginated offset limit ");
       return;
     }
     int offset = Integer.parseInt(parameters[0]);
@@ -999,15 +999,15 @@ public class Client {
       ProposalList proposalList = result.get();
       System.out.println(Utils.formatMessageString(proposalList));
     } else {
-      System.out.println("listproposalspaginated failed !!");
+      System.out.println("ListProposalsPaginated failed !!!");
     }
   }
 
   private void getExchangesListPaginated(String[] parameters) {
     if (parameters == null || parameters.length != 2) {
       System.out
-          .println("listexchangespaginated command needs 2 parameters, use the following syntax:");
-      System.out.println("listexchangespaginated offset limit ");
+          .println("ListExchangesPaginated command needs 2 parameters, use the following syntax:");
+      System.out.println("ListExchangesPaginated offset limit ");
       return;
     }
     int offset = Integer.parseInt(parameters[0]);
@@ -1017,7 +1017,7 @@ public class Client {
       ExchangeList exchangeList = result.get();
       System.out.println(Utils.formatMessageString(exchangeList));
     } else {
-      System.out.println("listexchangespaginated failed !!");
+      System.out.println("ListExchangesPaginated failed !!!");
     }
   }
 
@@ -1032,7 +1032,7 @@ public class Client {
         System.out.println("Port::" + node.getAddress().getPort());
       }
     } else {
-      System.out.println("GetAssetIssueList " + " failed !!");
+      System.out.println("GetAssetIssueList " + " failed !!!");
     }
   }
 
@@ -1040,14 +1040,14 @@ public class Client {
     long blockNum = -1;
 
     if (parameters == null || parameters.length == 0) {
-      System.out.println("Get current block !!!!");
+      System.out.println("Get current block !!!");
     } else {
       if (parameters.length != 1) {
-        System.out.println("Getblock has too many parameters !!!");
+        System.out.println("GetBlock has too many parameters !!!");
         System.out.println("You can get current block using the following command:");
-        System.out.println("Getblock");
+        System.out.println("GetBlock");
         System.out.println("Or get block by number with the following syntax:");
-        System.out.println("Getblock BlockNum");
+        System.out.println("GetBlock BlockNum");
       }
       blockNum = Long.parseLong(parameters[0]);
     }
@@ -1078,7 +1078,7 @@ public class Client {
 
     long blockNum = Long.parseLong(parameters[0]);
     long count = walletApiWrapper.getTransactionCountByBlockNum(blockNum);
-    System.out.println("The block contain " + count + " transactions");
+    System.out.println("The block contains " + count + " transactions");
   }
 
   private void voteWitness(String[] parameters)
@@ -1108,9 +1108,9 @@ public class Client {
 
     boolean result = walletApiWrapper.voteWitness(ownerAddress, witness);
     if (result) {
-      System.out.println("VoteWitness successful !!");
+      System.out.println("VoteWitness successful !!!");
     } else {
-      System.out.println("VoteWitness failed !!");
+      System.out.println("VoteWitness failed !!!");
     }
   }
 
@@ -1161,9 +1161,9 @@ public class Client {
     boolean result = walletApiWrapper.freezeBalance(ownerAddress, frozen_balance,
         frozen_duration, resourceCode, receiverAddress);
     if (result) {
-      System.out.println("freezeBalance successful !!");
+      System.out.println("FreezeBalance successful !!!");
     } else {
-      System.out.println("freezeBalance failed !!");
+      System.out.println("FreezeBalance failed !!!");
     }
   }
 
@@ -1197,16 +1197,16 @@ public class Client {
 
     boolean result = walletApiWrapper.unfreezeBalance(ownerAddress, resourceCode, receiverAddress);
     if (result) {
-      System.out.println("unfreezeBalance successful !!");
+      System.out.println("UnfreezeBalance successful !!!");
     } else {
-      System.out.println("unfreezeBalance failed !!");
+      System.out.println("UnfreezeBalance failed !!!");
     }
   }
 
   private void unfreezeAsset(String[] parameters) throws IOException,
       CipherException, CancelException {
-    System.out.println("Use unfreezeasset command like: ");
-    System.out.println("unfreezeasset [OwnerAddress] ");
+    System.out.println("Use UnfreezeAsset command like: ");
+    System.out.println("UnfreezeAsset [OwnerAddress] ");
 
     byte[] ownerAddress = null;
     if (parameters != null && parameters.length > 0) {
@@ -1219,9 +1219,9 @@ public class Client {
 
     boolean result = walletApiWrapper.unfreezeAsset(ownerAddress);
     if (result) {
-      System.out.println("unfreezeAsset successful !!");
+      System.out.println("UnfreezeAsset successful !!!");
     } else {
-      System.out.println("unfreezeAsset failed !!");
+      System.out.println("UnfreezeAsset failed !!!");
     }
   }
 
@@ -1251,9 +1251,9 @@ public class Client {
     }
     boolean result = walletApiWrapper.createProposal(ownerAddress, parametersMap);
     if (result) {
-      System.out.println("createProposal successful !!");
+      System.out.println("CreateProposal successful !!");
     } else {
-      System.out.println("createProposal failed !!");
+      System.out.println("CreateProposal failed !!");
     }
   }
 
@@ -1279,9 +1279,9 @@ public class Client {
     boolean is_add_approval = Boolean.valueOf(parameters[index++]);
     boolean result = walletApiWrapper.approveProposal(ownerAddress, id, is_add_approval);
     if (result) {
-      System.out.println("approveProposal successful !!");
+      System.out.println("ApproveProposal successful !!!");
     } else {
-      System.out.println("approveProposal failed !!");
+      System.out.println("ApproveProposal failed !!!");
     }
   }
 
@@ -1306,9 +1306,9 @@ public class Client {
     long id = Long.valueOf(parameters[index++]);
     boolean result = walletApiWrapper.deleteProposal(ownerAddress, id);
     if (result) {
-      System.out.println("deleteProposal successful !!");
+      System.out.println("DeleteProposal successful !!!");
     } else {
-      System.out.println("deleteProposal failed !!");
+      System.out.println("DeleteProposal failed !!!");
     }
   }
 
@@ -1319,13 +1319,13 @@ public class Client {
       ProposalList proposalList = result.get();
       System.out.println(Utils.formatMessageString(proposalList));
     } else {
-      System.out.println("List witnesses  failed !!");
+      System.out.println("List witnesses failed !!!");
     }
   }
 
   private void getProposal(String[] parameters) {
     if (parameters == null || parameters.length != 1) {
-      System.out.println("getProposal needs 1 parameter like following: ");
+      System.out.println("Using getProposal command needs 1 parameter like: ");
       System.out.println("getProposal id ");
       return;
     }
@@ -1336,14 +1336,14 @@ public class Client {
       Proposal proposal = result.get();
       System.out.println(Utils.formatMessageString(proposal));
     } else {
-      System.out.println("getProposal failed !!");
+      System.out.println("GetProposal failed !!!");
     }
   }
 
 
   private void getDelegatedResource(String[] parameters) {
     if (parameters == null || parameters.length != 2) {
-      System.out.println("Use getDelegatedResource command with below syntax: ");
+      System.out.println("Using getDelegatedResource command needs 2 parameters like: ");
       System.out.println("getDelegatedResource fromAddress toAddress");
       return;
     }
@@ -1354,14 +1354,14 @@ public class Client {
       DelegatedResourceList delegatedResourceList = result.get();
       System.out.println(Utils.formatMessageString(delegatedResourceList));
     } else {
-      System.out.println("getDelegatedResource failed !!");
+      System.out.println("GetDelegatedResource failed !!!");
     }
   }
 
   private void getDelegatedResourceAccountIndex(String[] parameters) {
     if (parameters == null || parameters.length != 1) {
-      System.out.println("Use getDelegatedResourceAccountIndex command with below syntax: ");
-      System.out.println("getDelegatedResourceAccountIndex address ");
+      System.out.println("Using getDelegatedResourceAccountIndex command needs 1 parameter like: ");
+      System.out.println("getDelegatedResourceAccountIndex address");
       return;
     }
     String address = parameters[0];
@@ -1371,7 +1371,7 @@ public class Client {
       DelegatedResourceAccountIndex delegatedResourceAccountIndex = result.get();
       System.out.println(Utils.formatMessageString(delegatedResourceAccountIndex));
     } else {
-      System.out.println("getDelegatedResourceAccountIndex failed !!");
+      System.out.println("GetDelegatedResourceAccountIndex failed !!");
     }
   }
 
@@ -1379,7 +1379,7 @@ public class Client {
   private void exchangeCreate(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || (parameters.length != 4 && parameters.length != 5)) {
-      System.out.println("Use exchangeCreate command with below syntax: ");
+      System.out.println("Using exchangeCreate command needs 4 or 5 parameters like: ");
       System.out.println("exchangeCreate [OwnerAddress] first_token_id first_token_balance "
           + "second_token_id second_token_balance");
       return;
@@ -1402,17 +1402,17 @@ public class Client {
     boolean result = walletApiWrapper.exchangeCreate(ownerAddress, firstTokenId, firstTokenBalance,
         secondTokenId, secondTokenBalance);
     if (result) {
-      System.out.println("exchange create successful !!");
+      System.out.println("ExchangeCreate successful !!!");
     } else {
-      System.out.println("exchange create failed !!");
+      System.out.println("ExchangeCreate failed !!!");
     }
   }
 
   private void exchangeInject(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || (parameters.length != 3 && parameters.length != 4)) {
-      System.out.println("Use exchangeInject command with below syntax: ");
-      System.out.println("exchangeInject [OwnerAddress] exchange_id token_id quant");
+      System.out.println("Using exchangeInject command needs 3 or 4 parameters like: ");
+      System.out.println("exchangeInject [OwnerAddress] exchange_id token_id quantity");
       return;
     }
 
@@ -1431,17 +1431,17 @@ public class Client {
     long quant = Long.valueOf(parameters[index++]);
     boolean result = walletApiWrapper.exchangeInject(ownerAddress, exchangeId, tokenId, quant);
     if (result) {
-      System.out.println("exchange inject successful !!");
+      System.out.println("ExchangeInject successful !!!");
     } else {
-      System.out.println("exchange inject failed !!");
+      System.out.println("ExchangeInject failed !!!");
     }
   }
 
   private void exchangeWithdraw(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || (parameters.length != 3 && parameters.length != 4)) {
-      System.out.println("Use exchangeWithdraw command with below syntax: ");
-      System.out.println("exchangeWithdraw [OwnerAddress] exchange_id token_id quant");
+      System.out.println("Using exchangeWithdraw command needs 3 or 4 parameters like: ");
+      System.out.println("exchangeWithdraw [OwnerAddress] exchange_id token_id quantity");
       return;
     }
 
@@ -1460,17 +1460,17 @@ public class Client {
     long quant = Long.valueOf(parameters[index++]);
     boolean result = walletApiWrapper.exchangeWithdraw(ownerAddress, exchangeId, tokenId, quant);
     if (result) {
-      System.out.println("exchange withdraw successful !!");
+      System.out.println("ExchangeWithdraw successful !!!");
     } else {
-      System.out.println("exchange withdraw failed !!");
+      System.out.println("ExchangeWithdraw failed !!!");
     }
   }
 
   private void exchangeTransaction(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || (parameters.length != 4 && parameters.length != 5)) {
-      System.out.println("Use exchangeTransaction command with below syntax: ");
-      System.out.println("exchangeTransaction [OwnerAddress] exchange_id token_id quant expected");
+      System.out.println("Using exchangeTransaction command needs 4 or 5 parameters like: ");
+      System.out.println("exchangeTransaction [OwnerAddress] exchange_id token_id quantity expected");
       return;
     }
 
@@ -1491,9 +1491,9 @@ public class Client {
     boolean result = walletApiWrapper
         .exchangeTransaction(ownerAddress, exchangeId, tokenId, quant, expected);
     if (result) {
-      System.out.println("exchange Transaction successful !!");
+      System.out.println("ExchangeTransaction successful !!!");
     } else {
-      System.out.println("exchange Transaction failed !!");
+      System.out.println("ExchangeTransaction failed !!!");
     }
   }
 
@@ -1503,14 +1503,14 @@ public class Client {
       ExchangeList exchangeList = result.get();
       System.out.println(Utils.formatMessageString(exchangeList));
     } else {
-      System.out.println("List exchanges failed !!");
+      System.out.println("ListExchanges failed !!!");
     }
   }
 
   private void getExchange(String[] parameters) {
     if (parameters == null || parameters.length != 1) {
-      System.out.println("getExchange needs 1 parameter like following: ");
-      System.out.println("getExchange id ");
+      System.out.println("Using getExchange command needs 1 parameter like: ");
+      System.out.println("getExchange id");
       return;
     }
     String id = parameters[0];
@@ -1520,13 +1520,13 @@ public class Client {
       Exchange exchange = result.get();
       System.out.println(Utils.formatMessageString(exchange));
     } else {
-      System.out.println("getExchange failed !!");
+      System.out.println("GetExchange failed !!!");
     }
   }
 
   private void withdrawBalance(String[] parameters)
       throws IOException, CipherException, CancelException {
-    System.out.println("Use withdrawBalance command like: ");
+    System.out.println("Using withdrawBalance command like: ");
     System.out.println("withdrawBalance [OwnerAddress] ");
     byte[] ownerAddress = null;
     if (parameters != null && parameters.length > 0) {
@@ -1539,15 +1539,15 @@ public class Client {
 
     boolean result = walletApiWrapper.withdrawBalance(ownerAddress);
     if (result) {
-      System.out.println("withdrawBalance successful !!");
+      System.out.println("WithdrawBalance successful !!!");
     } else {
-      System.out.println("withdrawBalance failed !!");
+      System.out.println("WithdrawBalance failed !!!");
     }
   }
 
   private void getTotalTransaction() {
     NumberMessage totalTransition = walletApiWrapper.getTotalTransaction();
-    System.out.println("The num of total transactions is : " + totalTransition.getNum());
+    System.out.println("The number of total transactions is : " + totalTransition.getNum());
   }
 
   private void getNextMaintenanceTime() {
@@ -1560,7 +1560,7 @@ public class Client {
   private void getTransactionById(String[] parameters) {
     String txid = "";
     if (parameters == null || parameters.length != 1) {
-      System.out.println("getTransactionById needs 1 parameter, transaction id");
+      System.out.println("Using getTransactionById command needs 1 parameter, transaction id");
       return;
     } else {
       txid = parameters[0];
@@ -1570,14 +1570,14 @@ public class Client {
       Transaction transaction = result.get();
       System.out.println(Utils.printTransaction(transaction));
     } else {
-      System.out.println("getTransactionById failed !!");
+      System.out.println("GetTransactionById failed !!");
     }
   }
 
   private void getTransactionInfoById(String[] parameters) {
     String txid = "";
     if (parameters == null || parameters.length != 1) {
-      System.out.println("getTransactionInfoById needs 1 parameter, transaction id");
+      System.out.println("Using getTransactionInfoById command needs 1 parameter, transaction id");
       return;
     } else {
       txid = parameters[0];
@@ -1587,14 +1587,14 @@ public class Client {
       TransactionInfo transactionInfo = result.get();
       System.out.println(Utils.formatMessageString(transactionInfo));
     } else {
-      System.out.println("getTransactionInfoById failed !!");
+      System.out.println("GetTransactionInfoById failed !!!");
     }
   }
 
   private void getTransactionsFromThis(String[] parameters) {
     if (parameters == null || parameters.length != 3) {
-      System.out.println("GetTransactionsFromThis needs 3 parameters, use the following syntax: ");
-      System.out.println("GetTransactionsFromThis Address offset limit");
+      System.out.println("Using getTransactionsFromThis command needs 3 parameters like: ");
+      System.out.println("getTransactionsFromThis Address offset limit");
       return;
     }
     String address = parameters[0];
@@ -1616,7 +1616,7 @@ public class Client {
         }
         System.out.println(Utils.printTransactionList(transactionList));
       } else {
-        System.out.println("GetTransactionsFromThis " + " failed !!");
+        System.out.println("GetTransactionsFromThis failed !!!");
       }
     } else {
       Optional<TransactionList> result = WalletApi
@@ -1629,14 +1629,14 @@ public class Client {
         }
         System.out.println(Utils.printTransactionList(transactionList));
       } else {
-        System.out.println("GetTransactionsFromThis " + " failed !!");
+        System.out.println("GetTransactionsFromThis failed !!!");
       }
     }
   }
 
   private void getTransactionsToThis(String[] parameters) {
     if (parameters == null || parameters.length != 3) {
-      System.out.println("getTransactionsToThis needs 3 parameters, use the following syntax: ");
+      System.out.println("Using getTransactionsToThis needs 3 parameters like: ");
       System.out.println("getTransactionsToThis Address offset limit");
       return;
     }
@@ -1659,7 +1659,7 @@ public class Client {
         }
         System.out.println(Utils.printTransactionList(transactionList));
       } else {
-        System.out.println("getTransactionsToThis " + " failed !!");
+        System.out.println("getTransactionsToThis failed !!!");
       }
     } else {
       Optional<TransactionList> result = WalletApi
@@ -1672,7 +1672,7 @@ public class Client {
         }
         System.out.println(Utils.printTransactionList(transactionList));
       } else {
-        System.out.println("getTransactionsToThis " + " failed !!");
+        System.out.println("getTransactionsToThis failed !!!");
       }
     }
   }
@@ -1696,7 +1696,7 @@ public class Client {
   private void getBlockById(String[] parameters) {
     String blockID = "";
     if (parameters == null || parameters.length != 1) {
-      System.out.println("getBlockById needs 1 parameter, block id which is hex format");
+      System.out.println("Using getBlockById command needs 1 parameter like: ");
       return;
     } else {
       blockID = parameters[0];
@@ -1706,7 +1706,7 @@ public class Client {
       Block block = result.get();
       System.out.println(Utils.printBlock(block));
     } else {
-      System.out.println("getBlockById failed !!");
+      System.out.println("GetBlockById failed !!");
     }
   }
 
@@ -1716,7 +1716,7 @@ public class Client {
     if (parameters == null || parameters.length != 2) {
       System.out
           .println(
-              "GetBlockByLimitNext needs 2 parameters, start block number and end block number");
+              "Using GetBlockByLimitNext command needs 2 parameters, start_block_number and end_block_number");
       return;
     } else {
       start = Long.parseLong(parameters[0]);
@@ -1745,7 +1745,7 @@ public class Client {
   private void getBlockByLatestNum(String[] parameters) {
     long num = 0;
     if (parameters == null || parameters.length != 1) {
-      System.out.println("getBlockByLatestNum needs 1 parameter, block num");
+      System.out.println("Using getBlockByLatestNum command needs 1 parameter, block_num");
       return;
     } else {
       num = Long.parseLong(parameters[0]);
@@ -1780,7 +1780,7 @@ public class Client {
   private void updateSetting(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || (parameters.length != 2 && parameters.length != 3)) {
-      System.out.println("updateSetting needs 2 parameters like following: ");
+      System.out.println("Using updateSetting needs 2 parameters like: ");
       System.out
           .println("updateSetting [OwnerAddress] contract_address consume_user_resource_percent");
       return;
@@ -1810,16 +1810,16 @@ public class Client {
     boolean result = walletApiWrapper
         .updateSetting(ownerAddress, contractAddress, consumeUserResourcePercent);
     if (result) {
-      System.out.println("update setting successfully");
+      System.out.println("UpdateSetting successful !!!");
     } else {
-      System.out.println("update setting failed");
+      System.out.println("UpdateSetting failed !!!");
     }
   }
 
   private void updateEnergyLimit(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || (parameters.length != 2 && parameters.length != 3)) {
-      System.out.println("updateEnergyLimit needs 2 parameters like following: ");
+      System.out.println("Using updateEnergyLimit command needs 2 parameters like: ");
       System.out.println("updateEnergyLimit [OwnerAddress] contract_address energy_limit");
       return;
     }
@@ -1848,16 +1848,16 @@ public class Client {
     boolean result = walletApiWrapper
         .updateEnergyLimit(ownerAddress, contractAddress, originEnergyLimit);
     if (result) {
-      System.out.println("update setting for origin_energy_limit successfully");
+      System.out.println("UpdateSetting for origin_energy_limit successful !!!");
     } else {
-      System.out.println("update setting for origin_energy_limit failed");
+      System.out.println("UpdateSetting for origin_energy_limit failed !!!");
     }
   }
 
   private void clearContractABI(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || (parameters.length != 1 && parameters.length != 2)) {
-      System.out.println("clearContractABI needs 1-2 parameters like following: ");
+      System.out.println("Using clearContractABI command needs 1 or 2 parameters like: ");
       System.out.println("clearContractABI [OwnerAddress] contract_address");
       return;
     }
@@ -1879,16 +1879,16 @@ public class Client {
 
     boolean result = walletApiWrapper.clearContractABI(ownerAddress, contractAddress);
     if (result) {
-      System.out.println("clearContractABI successfully");
+      System.out.println("ClearContractABI successful !!!");
     } else {
-      System.out.println("clearContractABI failed");
+      System.out.println("ClearContractABI failed !!!");
     }
   }
 
   private void updateBrokerage(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length != 2) {
-      System.out.println("updateBrokerage needs 2 parameters like following: ");
+      System.out.println("Using updateBrokerage command needs 2 parameters like: ");
       System.out.println("updateBrokerage OwnerAddress brokerage");
       return;
     }
@@ -1909,9 +1909,9 @@ public class Client {
 
     boolean result = walletApiWrapper.updateBrokerage(ownerAddress, brokerage);
     if (result) {
-      System.out.println("updateBrokerage successfully");
+      System.out.println("UpdateBrokerage successful !!!");
     } else {
-      System.out.println("updateBrokerage failed");
+      System.out.println("UpdateBrokerage failed !!!");
     }
   }
 
@@ -1925,7 +1925,7 @@ public class Client {
         return;
       }
     } else {
-      System.out.println("getReward needs 1 parameters like following: ");
+      System.out.println("Using getReward command needs 1 parameter like: ");
       System.out.println("getReward [OwnerAddress]");
       return;
     }
@@ -1943,7 +1943,7 @@ public class Client {
         return;
       }
     } else {
-      System.out.println("getBrokerage needs 1 parameters like following: ");
+      System.out.println("Using getBrokerage needs 1 parameter like following: ");
       System.out.println("getBrokerage [OwnerAddress]");
       return;
     }
@@ -1988,7 +1988,7 @@ public class Client {
     String[] parameters = getParas(parameter);
     if (parameters == null ||
         parameters.length < 11) {
-      System.out.println("DeployContract needs at least 11 parameters like following: ");
+      System.out.println("Using deployContract needs at least 11 parameters like: ");
       System.out.println(
           "DeployContract [ownerAddress] contractName ABI byteCode constructor params isHex fee_limit consume_user_resource_percent origin_energy_limit value token_value token_id(e.g: TRXTOKEN, use # if don't provided) <library:address,library:address,...> <lib_compiler_version(e.g:v5)>");
 //      System.out.println(
@@ -2052,10 +2052,10 @@ public class Client {
             consumeUserResourcePercent, originEnergyLimit, tokenValue, tokenId, libraryAddressPair,
             compilerVersion);
     if (result) {
-      System.out.println("Broadcast the createSmartContract successfully.\n"
+      System.out.println("Broadcast the createSmartContract successful.\n"
           + "Please check the given transaction id to confirm deploy status on blockchain using getTransactionInfoById command.");
     } else {
-      System.out.println("Broadcast the createSmartContract failed");
+      System.out.println("Broadcast the createSmartContract failed !!!");
     }
   }
 
@@ -2065,13 +2065,13 @@ public class Client {
 
     if (isConstant) {
       if (parameters == null || (parameters.length != 4 && parameters.length != 5)) {
-        System.out.println(cmdMethodStr + " needs 4-5 parameters like following: ");
+        System.out.println(cmdMethodStr + " needs 4 or 5 parameters like: ");
         System.out.println(cmdMethodStr + " [OwnerAddress] contractAddress method args isHex");
         return;
       }
     } else {
       if (parameters == null || (parameters.length != 8 && parameters.length != 9)) {
-        System.out.println(cmdMethodStr + " needs 8-9 parameters like following: ");
+        System.out.println(cmdMethodStr + " needs 8 or 9 parameters like: ");
         System.out.println(cmdMethodStr + " [OwnerAddress] contractAddress method args isHex"
             + " fee_limit value token_value token_id(e.g: TRXTOKEN, use # if don't provided)");
         return;
@@ -2118,7 +2118,7 @@ public class Client {
             isConstant);
     if (!isConstant) {
       if (result) {
-        System.out.println("Broadcast the " + cmdMethodStr + " successfully.\n"
+        System.out.println("Broadcast the " + cmdMethodStr + " successful.\n"
             + "Please check the given transaction id to get the result on blockchain using getTransactionInfoById command");
       } else {
         System.out.println("Broadcast the " + cmdMethodStr + " failed");
@@ -2129,14 +2129,14 @@ public class Client {
   private void getContract(String[] parameters) {
     if (parameters == null ||
         parameters.length != 1) {
-      System.out.println("GetContract needs 1 parameter like following: ");
+      System.out.println("Using getContract needs 1 parameter like: ");
       System.out.println("GetContract contractAddress");
       return;
     }
 
     byte[] addressBytes = WalletApi.decodeFromBase58Check(parameters[0]);
     if (addressBytes == null) {
-      System.out.println("GetContract: invalid address!");
+      System.out.println("GetContract: invalid address !!!");
       return;
     }
 
@@ -2144,7 +2144,7 @@ public class Client {
     if (contractDeployContract != null) {
       System.out.println(Utils.formatMessageString(contractDeployContract));
     } else {
-      System.out.println("query contract failed!");
+      System.out.println("Query contract failed !!!");
     }
   }
 
@@ -2153,7 +2153,7 @@ public class Client {
     if (null != result) {
       System.out.println(Utils.formatMessageString(result));
     } else {
-      System.out.println("GenerateAddress failed !!");
+      System.out.println("GenerateAddress failed !!!");
     }
   }
 
@@ -2161,7 +2161,7 @@ public class Client {
       throws CipherException, IOException, CancelException {
     if (parameters == null || parameters.length != 2) {
       System.out.println(
-          "UpdateAccountPermission needs 2 parameters, like UpdateAccountPermission ownerAddress permissions, permissions is json format");
+          "Using updateAccountPermission needs 2 parameters, like UpdateAccountPermission ownerAddress permissions, permissions is json format");
       return;
     }
 
@@ -2173,9 +2173,9 @@ public class Client {
 
     boolean ret = walletApiWrapper.accountPermissionUpdate(ownerAddress, parameters[1]);
     if (ret) {
-      System.out.println("updateAccountPermission successful !!!!");
+      System.out.println("UpdateAccountPermission successful !!!");
     } else {
-      System.out.println("updateAccountPermission failed !!!!");
+      System.out.println("UpdateAccountPermission failed !!!");
     }
   }
 
@@ -2183,7 +2183,7 @@ public class Client {
   private void getTransactionSignWeight(String[] parameters) throws InvalidProtocolBufferException {
     if (parameters == null || parameters.length != 1) {
       System.out.println(
-          "getTransactionSignWeight needs 1 parameter, like getTransactionSignWeight transaction which is hex string");
+          "Using getTransactionSignWeight needs 1 parameter, like getTransactionSignWeight transaction which is hex string");
       return;
     }
 
@@ -2194,7 +2194,7 @@ public class Client {
     if (transactionSignWeight != null) {
       System.out.println(Utils.printTransactionSignWeight(transactionSignWeight));
     } else {
-      System.out.println("GetTransactionSignWeight failed !!");
+      System.out.println("GetTransactionSignWeight failed !!!");
     }
   }
 
@@ -2202,7 +2202,7 @@ public class Client {
       throws InvalidProtocolBufferException {
     if (parameters == null || parameters.length != 1) {
       System.out.println(
-          "getTransactionApprovedList needs 1 parameter, like getTransactionApprovedList transaction which is hex string");
+          "Using getTransactionApprovedList needs 1 parameter, like getTransactionApprovedList transaction which is hex string");
       return;
     }
 
@@ -2214,7 +2214,7 @@ public class Client {
     if (transactionApprovedList != null) {
       System.out.println(Utils.printTransactionApprovedList(transactionApprovedList));
     } else {
-      System.out.println("GetTransactionApprovedList failed !!");
+      System.out.println("GetTransactionApprovedList failed !!!");
     }
   }
 
@@ -2222,14 +2222,14 @@ public class Client {
       throws CipherException, IOException, CancelException {
     if (parameters == null || parameters.length != 1) {
       System.out.println(
-          "addTransactionSign needs 1 parameter, like addTransactionSign transaction which is hex string");
+          "Using addTransactionSign needs 1 parameter, like addTransactionSign transaction which is hex string");
       return;
     }
 
     String transactionStr = parameters[0];
     Transaction transaction = Transaction.parseFrom(ByteArray.fromHexString(transactionStr));
     if (transaction == null || transaction.getRawData().getContractCount() == 0) {
-      System.out.println("invalid transaction");
+      System.out.println("Invalid transaction !!!");
       return;
     }
 
@@ -2239,7 +2239,7 @@ public class Client {
       System.out.println("Transaction hex string is " +
           ByteArray.toHexString(transaction.toByteArray()));
     } else {
-      System.out.println("AddTransactionSign failed !!");
+      System.out.println("AddTransactionSign failed !!!");
     }
 
   }
@@ -2247,22 +2247,22 @@ public class Client {
   private void broadcastTransaction(String[] parameters) throws InvalidProtocolBufferException {
     if (parameters == null || parameters.length != 1) {
       System.out.println(
-          "broadcastTransaction needs 1 parameter, like broadcastTransaction transaction which is hex string");
+          "Using broadcastTransaction needs 1 parameter, like broadcastTransaction transaction which is hex string");
       return;
     }
 
     String transactionStr = parameters[0];
     Transaction transaction = Transaction.parseFrom(ByteArray.fromHexString(transactionStr));
     if (transaction == null || transaction.getRawData().getContractCount() == 0) {
-      System.out.println("invalid transaction");
+      System.out.println("Invalid transaction");
       return;
     }
 
     boolean ret = WalletApi.broadcastTransaction(transaction);
     if (ret) {
-      System.out.println("BroadcastTransaction successful !!!!");
+      System.out.println("BroadcastTransaction successful !!!");
     } else {
-      System.out.println("BroadcastTransaction failed !!!!");
+      System.out.println("BroadcastTransaction failed !!!");
     }
   }
 
@@ -2284,7 +2284,7 @@ public class Client {
       }
     }
 
-    System.out.println("GenerateShieldedAddress successful !!");
+    System.out.println("GenerateShieldedAddress successful !!!");
   }
 
   private void listShieldedAddress() {
@@ -2334,7 +2334,7 @@ public class Client {
         shieldedInputAddress = noteInfo.getPaymentAddress();
       } else {
         if (!noteInfo.getPaymentAddress().equals(shieldedInputAddress)) {
-          System.err.println("All input note shall be the same address!");
+          System.err.println("All the input notes should be the same address!");
           return false;
         }
       }
@@ -2410,7 +2410,7 @@ public class Client {
   private void sendShieldedCoin(String[] parameters) throws IOException, CipherException,
       CancelException, ZksnarkException {
     if (parameters == null || parameters.length < 6) {
-      System.out.println("SendShieldedCoin needs more than 6 parameters like following: ");
+      System.out.println("Using SendShieldedCoin command needs more than 6 parameters like: ");
       System.out.println("SendShieldedCoin publicFromAddress fromAmount shieldedInputNum "
           + "input1 input2 input3 ... publicToAddress toAmount shieldedOutputNum shieldedAddress1"
           + " amount1 memo1 shieldedAddress2 amount2 memo2 ... ");
@@ -2419,15 +2419,15 @@ public class Client {
 
     if (isFromShieldedNote(parameters[2]) &&
         !ShieldedWrapper.getInstance().ifShieldedWalletLoaded()) {
-      System.out.println("SendShieldedCoin failed, please loadShieldedWallet first!");
+      System.out.println("SendShieldedCoin failed, please loadShieldedWallet first !!!");
       return;
     }
 
     boolean result = sendShieldedCoinNormal(parameters, true);
     if (result) {
-      System.out.println("SendShieldedCoin successful !!");
+      System.out.println("SendShieldedCoin successful !!!");
     } else {
-      System.out.println("SendShieldedCoin failed !!");
+      System.out.println("SendShieldedCoin failed !!!");
     }
   }
 
@@ -2435,7 +2435,7 @@ public class Client {
       CancelException, ZksnarkException {
     if (parameters == null || parameters.length < 6) {
       System.out
-          .println("SendShieldedCoinWithoutAsk needs more than 6 parameters like following: ");
+          .println("Using SendShieldedCoinWithoutAsk command needs more than 6 parameters like: ");
       System.out.println("SendShieldedCoinWithoutAsk publicFromAddress fromAmount "
           + "shieldedInputNum input1 input2 input3 ... publicToAddress toAmount shieldedOutputNum "
           + "shieldedAddress1 amount1 memo1 shieldedAddress2 amount2 memo2 ... ");
@@ -2450,9 +2450,9 @@ public class Client {
 
     boolean result = sendShieldedCoinNormal(parameters, false);
     if (result) {
-      System.out.println("SendShieldedCoinWithoutAsk successful !!");
+      System.out.println("SendShieldedCoinWithoutAsk successful !!!");
     } else {
-      System.out.println("SendShieldedCoinWithoutAsk  failed !!");
+      System.out.println("SendShieldedCoinWithoutAsk failed !!!");
     }
   }
 
@@ -2464,9 +2464,9 @@ public class Client {
 
     int showType = 0;
     if (parameters == null || parameters.length <= 0) {
-      System.out.println("Now you are show all unspent note list!!");
+      System.out.println("This command will show all the unspent notes. ");
       System.out.println(
-          "If you want to show spent note and unspent note, please use command ListShieldedNote 1 ");
+          "If you want to query all the spent notes and unspent notes, please use command ListShieldedNote 1 ");
     } else {
       if (!StringUtil.isNullOrEmpty(parameters[0])) {
         showType = Integer.valueOf(parameters[0]);
@@ -2476,16 +2476,16 @@ public class Client {
     if (showType == 0) {
       List<String> utxoList = ShieldedWrapper.getInstance().getvalidateSortUtxoList();
       if (utxoList.size() == 0) {
-        System.out.println("Unspend note is 0.");
+        System.out.println("Unspent note is 0.");
       } else {
-        System.out.println("Unspend note list like:");
+        System.out.println("Unspent note list like:");
         for (String string : utxoList) {
           System.out.println(string);
         }
       }
     } else {
       Map<Long, ShieldedNoteInfo> noteMap = ShieldedWrapper.getInstance().getUtxoMapNote();
-      System.out.println("All note list like:");
+      System.out.println("All notes list like:");
       for (Entry<Long, ShieldedNoteInfo> entry : noteMap.entrySet()) {
         String string = entry.getValue().getPaymentAddress() + " ";
         string += entry.getValue().getValue();
@@ -2494,7 +2494,7 @@ public class Client {
         string += " ";
         string += entry.getValue().getIndex();
         string += " ";
-        string += "UnSpend";
+        string += "UnSpent";
         string += " ";
         string += ZenUtils.getMemo(entry.getValue().getMemo());
         System.out.println(string);
@@ -2509,7 +2509,7 @@ public class Client {
         string += " ";
         string += noteInfo.getIndex();
         string += " ";
-        string += "Spend";
+        string += "Spent";
         string += " ";
         string += ZenUtils.getMemo(noteInfo.getMemo());
         System.out.println(string);
@@ -2528,7 +2528,7 @@ public class Client {
 
   private void scanNoteByIvk(String[] parameters) {
     if (parameters == null || parameters.length != 3) {
-      System.out.println("ScanNotebyIvk needs 3 parameter like the following: ");
+      System.out.println("Using ScanNotebyIvk command needs 3 parameters like: ");
       System.out.println("ScanNotebyIvk ivk startNum endNum ");
       return;
     }
@@ -2538,7 +2538,7 @@ public class Client {
       startNum = Long.parseLong(parameters[1]);
       endNum = Long.parseLong(parameters[2]);
     } catch (NumberFormatException e) {
-      System.out.println("invalid parameter: startNum, endNum.");
+      System.out.println("Invalid parameter: startNum, endNum.");
       return;
     }
 
@@ -2547,8 +2547,8 @@ public class Client {
 
   private void scanAndMarkNoteByAddress(String[] parameters) {
     if (parameters == null || parameters.length != 3) {
-      System.out.println("ScanAndMarkNotebyAddress needs 3 parameter like the following: ");
-      System.out.println("ScanAndMarkNotebyAddress shieldedAddress startNum endNum ");
+      System.out.println("Using scanAndMarkNotebyAddress needs 3 parameters like: ");
+      System.out.println("scanAndMarkNotebyAddress shieldedAddress startNum endNum ");
       return;
     }
     long startNum, endNum;
@@ -2556,7 +2556,7 @@ public class Client {
       startNum = Long.parseLong(parameters[1]);
       endNum = Long.parseLong(parameters[2]);
     } catch (NumberFormatException e) {
-      System.out.println("invalid parameter: startNum, endNum.");
+      System.out.println("Invalid parameter: startNum, endNum.");
       return;
     }
 
@@ -2565,8 +2565,8 @@ public class Client {
 
   private void ScanNoteByOvk(String[] parameters) {
     if (parameters == null || parameters.length != 3) {
-      System.out.println("ScanNotebyOvk needs 3 parameter like the following: ");
-      System.out.println("ScanNotebyOvk ovk startNum endNum");
+      System.out.println("Using scanNotebyOvk command needs 3 parameters like: ");
+      System.out.println("scanNotebyOvk ovk startNum endNum");
       return;
     }
     long startNum, endNum;
@@ -2574,7 +2574,7 @@ public class Client {
       startNum = Long.parseLong(parameters[1]);
       endNum = Long.parseLong(parameters[2]);
     } catch (NumberFormatException e) {
-      System.out.println("invalid parameter: startNum, endNum.");
+      System.out.println("Invalid parameter: startNum, endNum.");
       return;
     }
 
@@ -2583,8 +2583,8 @@ public class Client {
 
   private void getShieldedNullifier(String[] parameters) {
     if (parameters == null || parameters.length != 1) {
-      System.out.println("GetShieldedNullifier needs 1 parameter like the following: ");
-      System.out.println("GetShieldedNullifier index");
+      System.out.println("Using getShieldedNullifier needs 1 parameter like: ");
+      System.out.println("getShieldedNullifier index");
       return;
     }
     long index = Long.valueOf(parameters[0]);
@@ -2592,14 +2592,14 @@ public class Client {
     if (hash != null) {
       System.out.println("ShieldedNullifier:" + hash);
     } else {
-      System.out.println("GetShieldedNullifier failure!");
+      System.out.println("GetShieldedNullifier failed !!!");
     }
   }
 
   private void getSpendingKey() {
     Optional<BytesMessage> sk = WalletApi.getSpendingKey();
     if (!sk.isPresent()) {
-      System.out.println("getSpendingKey failed !!!");
+      System.out.println("GetSpendingKey failed !!!");
     } else {
       System.out.println(ByteArray.toHexString(sk.get().getValue().toByteArray()));
     }
@@ -2607,7 +2607,7 @@ public class Client {
 
   private void getExpandedSpendingKey(String[] parameters) {
     if (parameters == null || parameters.length != 1) {
-      System.out.println("getExpandedSpendingKey needs 1 parameter like the following: ");
+      System.out.println("Using getExpandedSpendingKey command needs 1 parameter like: ");
       System.out.println("getExpandedSpendingKey sk ");
       return;
     }
@@ -2617,7 +2617,7 @@ public class Client {
         .setValue(ByteString.copyFrom(ByteArray.fromHexString(spendingKey))).build();
     Optional<ExpandedSpendingKeyMessage> esk = WalletApi.getExpandedSpendingKey(sk);
     if (!esk.isPresent()) {
-      System.out.println("getExpandedSpendingKey failed !!!");
+      System.out.println("GetExpandedSpendingKey failed !!!");
     } else {
       System.out.println("ask:" + ByteArray.toHexString(esk.get().getAsk().toByteArray()));
       System.out.println("nsk:" + ByteArray.toHexString(esk.get().getNsk().toByteArray()));
@@ -2627,7 +2627,7 @@ public class Client {
 
   private void getAkFromAsk(String[] parameters) {
     if (parameters == null || parameters.length != 1) {
-      System.out.println("getAkFromAsk needs 1 parameter like the following: ");
+      System.out.println("Using getAkFromAsk needs 1 parameter like: ");
       System.out.println("getAkFromAsk ask ");
       return;
     }
@@ -2637,7 +2637,7 @@ public class Client {
         .setValue(ByteString.copyFrom(ByteArray.fromHexString(ask))).build();
     Optional<BytesMessage> ak = WalletApi.getAkFromAsk(ask1);
     if (!ak.isPresent()) {
-      System.out.println("getAkFromAsk failed !!!");
+      System.out.println("GetAkFromAsk failed !!!");
     } else {
       System.out.println("ak:" + ByteArray.toHexString(ak.get().getValue().toByteArray()));
     }
@@ -2645,7 +2645,7 @@ public class Client {
 
   private void getNkFromNsk(String[] parameters) {
     if (parameters == null || parameters.length != 1) {
-      System.out.println("getNkFromNsk needs 1 parameter like the following: ");
+      System.out.println("Using getNkFromNsk needs 1 parameter like: ");
       System.out.println("getNkFromNsk nsk ");
       return;
     }
@@ -2655,7 +2655,7 @@ public class Client {
         .setValue(ByteString.copyFrom(ByteArray.fromHexString(nsk))).build();
     Optional<BytesMessage> nk = WalletApi.getNkFromNsk(nsk1);
     if (!nk.isPresent()) {
-      System.out.println("getNkFromNsk failed !!!");
+      System.out.println("GetNkFromNsk failed !!!");
     } else {
       System.out.println("nk:" + ByteArray.toHexString(nk.get().getValue().toByteArray()));
     }
@@ -2664,7 +2664,7 @@ public class Client {
   private void getIncomingViewingKey(String[] parameters) {
     if (parameters == null || parameters.length != 2 || parameters[0].length() != 64
         || parameters[1].length() != 64) {
-      System.out.println("getIncomingViewingKey needs 2 parameter like the following: ");
+      System.out.println("Using getIncomingViewingKey needs 2 parameters like: ");
       System.out.println("getIncomingViewingKey ak[64] nk[64] ");
       return;
     }
@@ -2677,7 +2677,7 @@ public class Client {
 
     Optional<IncomingViewingKeyMessage> ivk = WalletApi.getIncomingViewingKey(vk);
     if (!ivk.isPresent()) {
-      System.out.println("getIncomingViewingKey failed !!!");
+      System.out.println("GetIncomingViewingKey failed !!!");
     } else {
       System.out.println("ivk:" + ByteArray.toHexString(ivk.get().getIvk().toByteArray()));
     }
@@ -2686,7 +2686,7 @@ public class Client {
   private void getDiversifier(String[] parameters) {
     Optional<DiversifierMessage> diversifierMessage = WalletApi.getDiversifier();
     if (!diversifierMessage.isPresent()) {
-      System.out.println("getDiversifier failed !!!");
+      System.out.println("GetDiversifier failed !!!");
     } else {
       System.out.println(ByteArray.toHexString(diversifierMessage.get().getD().toByteArray()));
     }
@@ -2694,8 +2694,8 @@ public class Client {
 
   private void getShieldedPaymentAddress(String[] parameters) {
     if (parameters == null || parameters.length != 2 || parameters[1].length() != 22) {
-      System.out.println("getshieldedpaymentaddress needs 2 parameter like the following: ");
-      System.out.println("getshieldedpaymentaddress ivk[64] d[22] ");
+      System.out.println("Using getShieldedPaymentAddress command needs 2 parameters like: ");
+      System.out.println("getShieldedPaymentAddress ivk[64] d[22] ");
       return;
     }
     String ivk = parameters[0];
@@ -2714,7 +2714,7 @@ public class Client {
 
     Optional<PaymentAddressMessage> paymentAddress = WalletApi.getZenPaymentAddress(ivk_d);
     if (!paymentAddress.isPresent()) {
-      System.out.println("getshieldedpaymentaddress failed !!!");
+      System.out.println("GetShieldedPaymentAddress failed !!!");
     } else {
       System.out
           .println("pkd:" + ByteArray.toHexString(paymentAddress.get().getPkD().toByteArray()));
@@ -2730,9 +2730,9 @@ public class Client {
       }
       System.out.println();
       StringUtils.clear(priKey);
-      System.out.println("BackupShieldedAddress successful !!");
+      System.out.println("BackupShieldedAddress successful !!!");
     } else {
-      System.out.println("BackupShieldedAddress failure !!");
+      System.out.println("BackupShieldedAddress failed !!!");
     }
   }
 
@@ -2748,32 +2748,32 @@ public class Client {
       if (addressInfo.isPresent() &&
           ShieldedWrapper.getInstance().addNewShieldedAddress(addressInfo.get(), false)) {
         System.out.println("Import new shielded address is: " + addressInfo.get().getAddress());
-        System.out.println("ImportShieldedAddress successful !!");
+        System.out.println("ImportShieldedAddress successful !!!");
       } else {
-        System.out.println("ImportShieldedAddress failure !!");
+        System.out.println("ImportShieldedAddress failed !!!");
       }
     } else {
-      System.out.println("ImportShieldedAddress failure !!");
+      System.out.println("ImportShieldedAddress failed !!!");
     }
   }
 
   private void create2(String[] parameters) {
     if (parameters == null || parameters.length != 3) {
-      System.out.println("create2 needs 3 parameter: ");
+      System.out.println("Using create2 command needs 3 parameters like: ");
       System.out.println("create2 address code salt");
       return;
     }
 
     byte[] address = WalletApi.decodeFromBase58Check(parameters[0]);
     if (!WalletApi.addressValid(address)) {
-      System.out.println("length of address must be 21 bytes.");
+      System.out.println("The length of address must be 21 bytes.");
       return;
     }
 
     byte[] code = Hex.decode(parameters[1]);
     byte[] temp = Longs.toByteArray(Long.parseLong(parameters[2]));
     if (temp.length != 8) {
-      System.out.println("invalid salt!");
+      System.out.println("Invalid salt!");
       return;
     }
     byte[] salt = new byte[32];
@@ -2782,7 +2782,7 @@ public class Client {
     byte[] mergedData = ByteUtil.merge(address, salt, Hash.sha3(code));
     String Address = WalletApi.encode58Check(Hash.sha3omit12(mergedData));
 
-    System.out.println("create2 Address: " + Address);
+    System.out.println("Create2 Address: " + Address);
 
     return;
   }
@@ -2887,7 +2887,7 @@ public class Client {
               break;
             }
             case "importwalletbybase64": {
-              importwalletByBase64();
+              importWalletByBase64();
               break;
             }
             case "changepassword": {
