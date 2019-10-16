@@ -878,12 +878,20 @@ public class GrpcClient {
   public NumberMessage getReward(byte[] address) {
     BytesMessage bytesMessage = BytesMessage.newBuilder().setValue(ByteString.copyFrom(address))
         .build();
-    return blockingStubFull.getRewardInfo(bytesMessage);
+    if (blockingStubSolidity != null) {
+      return blockingStubSolidity.getRewardInfo(bytesMessage);
+    } else {
+      return blockingStubFull.getRewardInfo(bytesMessage);
+    }
   }
 
   public NumberMessage getBrokerage(byte[] address) {
     BytesMessage bytesMessage = BytesMessage.newBuilder().setValue(ByteString.copyFrom(address))
         .build();
-    return blockingStubFull.getBrokerageInfo(bytesMessage);
+    if (blockingStubSolidity != null) {
+      return blockingStubSolidity.getBrokerageInfo(bytesMessage);
+    } else {
+      return blockingStubFull.getBrokerageInfo(bytesMessage);
+    }
   }
 }

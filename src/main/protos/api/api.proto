@@ -841,6 +841,12 @@ service WalletSolidity {
 
   rpc IsSpend (NoteParameters) returns (SpendResult) {
   }
+
+  rpc GetRewardInfo (BytesMessage) returns (NumberMessage) {
+  };
+
+  rpc GetBrokerageInfo (BytesMessage) returns (NumberMessage) {
+  };
 };
 
 service WalletExtension {

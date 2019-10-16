@@ -473,7 +473,13 @@ public class Utils {
             contractJson = JSONObject
                 .parseObject(JsonFormat.printToString(shieldedTransferContract, selfType));
             break;
-          // todo add other contract
+          case UpdateBrokerageContract:
+            UpdateBrokerageContract updateBrokerageContract = contract.getParameter()
+                .unpack(UpdateBrokerageContract.class);
+            contractJson = JSONObject
+                .parseObject(JsonFormat.printToString(updateBrokerageContract, selfType));
+            break;
+            // todo add other contract
           default:
         }
         JSONObject parameter = new JSONObject();
