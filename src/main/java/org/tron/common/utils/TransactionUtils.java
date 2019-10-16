@@ -16,22 +16,18 @@
 package org.tron.common.utils;
 
 import com.google.protobuf.ByteString;
-import java.security.SignatureException;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Scanner;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.ECKey.ECDSASignature;
 import org.tron.common.crypto.Sha256Hash;
 import org.tron.core.exception.CancelException;
 import org.tron.protos.Protocol.Transaction;
-import org.tron.protos.Protocol.Transaction.Contract;
+
+import java.security.SignatureException;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Scanner;
 
 public class TransactionUtils {
-
-  private static final Logger logger = LoggerFactory.getLogger("Transaction");
 
   /**
    * Obtain a data bytes after removing the id and SHA-256(data)
@@ -111,7 +107,10 @@ public class TransactionUtils {
           owner = contract.getParameter().unpack(org.tron.protos.Contract.UpdateAssetContract.class)
               .getOwnerAddress();
           break;
-
+        case AccountPermissionUpdateContract:
+          owner = contract.getParameter().unpack(org.tron.protos.Contract.AccountPermissionUpdateContract.class)
+              .getOwnerAddress();
+          break;
         default:
           return null;
       }
@@ -168,6 +167,8 @@ public class TransactionUtils {
   public static Transaction sign(Transaction transaction, ECKey myKey) {
     Transaction.Builder transactionBuilderSigned = transaction.toBuilder();
     byte[] hash = Sha256Hash.hash(transaction.getRawData().toByteArray());
+
+    //System.out.println("Sign address: " + WalletApi.encode58Check(myKey.getAddress()));
 
     ECDSASignature signature = myKey.sign(hash);
     ByteString bsSign = ByteString.copyFrom(signature.toByteArray());

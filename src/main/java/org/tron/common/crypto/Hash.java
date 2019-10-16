@@ -18,21 +18,21 @@
 
 package org.tron.common.crypto;
 
-import static java.util.Arrays.copyOfRange;
+import lombok.extern.slf4j.Slf4j;
+import org.tron.common.crypto.jce.TronCastleProvider;
+import org.tron.common.utils.ByteArray;
+import org.tron.walletserver.WalletApi;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.Provider;
 import java.security.Security;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.tron.common.crypto.jce.TronCastleProvider;
-import org.tron.walletserver.WalletApi;
-import org.tron.common.utils.ByteArray;
 
+import static java.util.Arrays.copyOfRange;
+
+@Slf4j
 public class Hash {
 
-  private static final Logger LOG = LoggerFactory.getLogger(Hash.class);
   private static final Provider CRYPTO_PROVIDER;
 
   private static final String HASH_256_ALGORITHM_NAME;
@@ -53,7 +53,7 @@ public class Hash {
       digest.update(input);
       return digest.digest();
     } catch (NoSuchAlgorithmException e) {
-      LOG.error("Can't find such algorithm", e);
+      System.out.println("Can't find such algorithm" + e);
       throw new RuntimeException(e);
     }
 
@@ -81,7 +81,7 @@ public class Hash {
       digest.update(input2, 0, input2.length);
       return digest.digest();
     } catch (NoSuchAlgorithmException e) {
-      LOG.error("Can't find such algorithm", e);
+      System.out.println("Can't find such algorithm" + e);
       throw new RuntimeException(e);
     }
   }
@@ -102,7 +102,7 @@ public class Hash {
       digest.update(input, start, length);
       return digest.digest();
     } catch (NoSuchAlgorithmException e) {
-      LOG.error("Can't find such algorithm", e);
+      System.out.println("Can't find such algorithm" + e);
       throw new RuntimeException(e);
     }
   }
@@ -115,7 +115,7 @@ public class Hash {
       digest.update(input);
       return digest.digest();
     } catch (NoSuchAlgorithmException e) {
-      LOG.error("Can't find such algorithm", e);
+      System.out.println("Can't find such algorithm" + e);
       throw new RuntimeException(e);
     }
   }
