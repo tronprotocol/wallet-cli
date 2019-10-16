@@ -773,6 +773,13 @@ service WalletSolidity {
       }
     };
   }
+
+  rpc GetRewardInfo (BytesMessage) returns (NumberMessage) {
+  };
+
+  rpc GetBrokerageInfo (BytesMessage) returns (NumberMessage) {
+  };
+
 };
 
 service WalletExtension {
