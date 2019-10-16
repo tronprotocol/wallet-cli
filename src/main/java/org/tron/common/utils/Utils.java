@@ -72,6 +72,7 @@ import org.tron.protos.Contract.TriggerSmartContract;
 import org.tron.protos.Contract.UnfreezeAssetContract;
 import org.tron.protos.Contract.UnfreezeBalanceContract;
 import org.tron.protos.Contract.UpdateAssetContract;
+import org.tron.protos.Contract.UpdateBrokerageContract;
 import org.tron.protos.Contract.UpdateEnergyLimitContract;
 import org.tron.protos.Contract.UpdateSettingContract;
 import org.tron.protos.Contract.VoteAssetContract;
@@ -1152,28 +1153,17 @@ public class Utils {
               .encode58Check(clearABIContract.getContractAddress().toByteArray());
           result += "\n";
           break;
-        // case BuyStorageContract:
-        //   BuyStorageContract buyStorageContract = contract.getParameter()
-        //       .unpack(BuyStorageContract.class);
-        //   result += "owner_address: ";
-        //   result += WalletApi
-        //       .encode58Check(buyStorageContract.getOwnerAddress().toByteArray());
-        //   result += "\n";
-        //   result += "quant:";
-        //   result += buyStorageContract.getQuant();
-        //   result += "\n";
-        //   break;
-        // case SellStorageContract:
-        //   SellStorageContract sellStorageContract = contract.getParameter()
-        //       .unpack(SellStorageContract.class);
-        //   result += "owner_address: ";
-        //   result += WalletApi
-        //       .encode58Check(sellStorageContract.getOwnerAddress().toByteArray());
-        //   result += "\n";
-        //   result += "storageBytes:";
-        //   result += sellStorageContract.getStorageBytes();
-        //   result += "\n";
-        //   break;
+        case UpdateBrokerageContract:
+          UpdateBrokerageContract updateBrokerageContract = contract.getParameter()
+              .unpack(UpdateBrokerageContract.class);
+          result += "owner_address: ";
+          result += WalletApi
+              .encode58Check(updateBrokerageContract.getOwnerAddress().toByteArray());
+          result += "\n";
+          result += "brokerage: ";
+          result += updateBrokerageContract.getBrokerage();
+          result += "\n";
+          break;
         default:
           return "";
       }
