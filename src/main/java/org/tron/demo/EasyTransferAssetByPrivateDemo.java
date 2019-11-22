@@ -1,34 +1,21 @@
 package org.tron.demo;
 
 import org.tron.api.GrpcAPI.EasyTransferResponse;
-import org.tron.common.crypto.ECKey;
-import org.tron.common.crypto.Sha256Hash;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Utils;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.walletserver.WalletApi;
 
-import java.util.Arrays;
-
-public class EasyTransferDemo {
-
-  private static byte[] getAddressByPassphrase(String passPhrase) {
-    byte[] privateKey = Sha256Hash.hash(passPhrase.getBytes());
-    ECKey ecKey = ECKey.fromPrivate(privateKey);
-    byte[] address = ecKey.getAddress();
-    return address;
-  }
+public class EasyTransferAssetByPrivateDemo {
 
   public static void main(String[] args) {
-    String passPhrase = "test pass phrase";
-    byte[] address = WalletApi.createAdresss(passPhrase.getBytes());
-    if (!Arrays.equals(address, getAddressByPassphrase(passPhrase))) {
-      System.out.println("The address is diffrent !!");
-    }
-    System.out.println("address === " + WalletApi.encode58Check(address));
-
+    String privateKey = "D95611A9AF2A2A45359106222ED1AFED48853D9A44DEFF8DC7913F5CBA727366";
+    String toAddress = "TKMZBoWbXbYedcBnQugYT7DaFnSgi9qg78";
+    String tokenId = "1000001";
     EasyTransferResponse response = WalletApi
-        .easyTransfer(passPhrase.getBytes(), getAddressByPassphrase("test pass phrase 2"), 10000L);
+        .easyTransferAssetByPrivate(ByteArray.fromHexString(privateKey),
+            WalletApi.decodeFromBase58Check(toAddress), tokenId, 1000000L);
+
     if (response.getResult().getResult() == true) {
       Transaction transaction = response.getTransaction();
       System.out.println("Easy transfer successful!!!");

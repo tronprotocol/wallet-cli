@@ -66,7 +66,6 @@ message ChainParameters {
   }
 }
 
-
 /* Account */
 message Account {
   /* frozen balance */
@@ -145,10 +144,17 @@ message Account {
 
   }
   AccountResource account_resource = 26;
-
   bytes codeHash = 30;
+  Permission owner_permission = 31;
+  Permission witness_permission = 32;
+  repeated Permission active_permission = 33;
 }
 
+
+message Key {
+  bytes address = 1;
+  int64 weight = 2;
+}
 
 message DelegatedResource {
   bytes from = 1;
@@ -164,8 +170,19 @@ message authority {
   bytes permission_name = 2;
 }
 
-message permission {
-  AccountId account = 1;
+message Permission {
+  enum PermissionType {
+    Owner = 0;
+    Witness = 1;
+    Active = 2;
+  }
+  PermissionType type = 1;
+  int32 id = 2; //Owner id=0, Witness id=1, Active id start by 2
+  string permission_name = 3;
+  int64 threshold = 4;
+  int32 parent_id = 5;
+  bytes operations = 6; //1 bit 1 contract
+  repeated Key keys = 7;
 }
 
 // Witness
@@ -254,11 +271,16 @@ message Transaction {
       ExchangeWithdrawContract = 43;
       ExchangeTransactionContract = 44;
       UpdateEnergyLimitContract = 45;
+      AccountPermissionUpdateContract = 46;
+      ClearABIContract = 48;
+      UpdateBrokerageContract = 49;
+      ShieldedTransferContract = 51;
     }
     ContractType type = 1;
     google.protobuf.Any parameter = 2;
     bytes provider = 3;
     bytes ContractName = 4;
+    int32 Permission_id = 5;
   }
 
   message Result {
@@ -281,17 +303,20 @@ message Transaction {
       OUT_OF_TIME = 11;
       JVM_STACK_OVER_FLOW = 12;
       UNKNOWN = 13;
+      TRANSFER_FAILED = 14;
     }
     int64 fee = 1;
     code ret = 2;
     contractResult contractRet = 3;
 
+    string assetIssueID = 14;
     int64 withdraw_amount = 15;
     int64 unfreeze_amount = 16;
     int64 exchange_received_amount = 18;
     int64 exchange_inject_another_amount = 19;
     int64 exchange_withdraw_another_amount = 20;
     int64 exchange_id = 21;
+    int64 shielded_transaction_fee = 22;
   }
 
   message raw {
@@ -337,6 +362,7 @@ message TransactionInfo {
   code result = 9;
   bytes resMessage = 10;
 
+  string assetIssueID = 14;
   int64 withdraw_amount = 15;
   int64 unfreeze_amount = 16;
   repeated InternalTransaction internal_transactions = 17;
@@ -344,6 +370,13 @@ message TransactionInfo {
   int64 exchange_inject_another_amount = 19;
   int64 exchange_withdraw_another_amount = 20;
   int64 exchange_id = 21;
+  int64 shielded_transaction_fee = 22;
+}
+
+message TransactionRet {
+  int64 blockNumber = 1;
+  int64 blockTimeStamp = 2;
+  repeated TransactionInfo transactioninfo = 3;
 }
 
 message Transactions {
@@ -366,6 +399,7 @@ message BlockHeader {
     int64 witness_id = 8;
     bytes witness_address = 9;
     int32 version = 10;
+    bytes accountStateRoot = 11;
   }
   raw raw_data = 1;
   bytes witness_signature = 2;
@@ -518,7 +552,8 @@ message SmartContract {
   int64 consume_user_resource_percent = 6;
   string name = 7;
   int64 origin_energy_limit = 8;
-
+  bytes code_hash = 9;
+  bytes trx_hash = 10;
 }
 
 message InternalTransaction {

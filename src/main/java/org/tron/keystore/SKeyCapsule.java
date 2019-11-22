@@ -12,24 +12,21 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import java.io.IOException;
 
-/**
- * Ethereum wallet file.
- */
-public class WalletFile {
-    private String address;
+public class SKeyCapsule {
+    private String fingerprint;
     private Crypto crypto;
     private String id;
     private int version;
 
-    public WalletFile() {
+    public SKeyCapsule() {
     }
 
-    public String getAddress() {
-        return address;
+    public String getFp() {
+        return fingerprint;
     }
 
-    public void setAddress(String address) {
-        this.address = address;
+    public void setFp(String fingerprint) {
+        this.fingerprint = fingerprint;
     }
 
     public Crypto getCrypto() {
@@ -41,7 +38,7 @@ public class WalletFile {
         this.crypto = crypto;
     }
 
-    @JsonSetter("Crypto")  // older wallet files may have this attribute name
+    @JsonSetter("Crypto")
     public void setCryptoV1(Crypto crypto) {
         setCrypto(crypto);
     }
@@ -67,15 +64,15 @@ public class WalletFile {
         if (this == o) {
             return true;
         }
-        if (!(o instanceof WalletFile)) {
+        if (!(o instanceof SKeyCapsule)) {
             return false;
         }
         
-        WalletFile that = (WalletFile) o;
+        SKeyCapsule that = (SKeyCapsule) o;
         
-        if (getAddress() != null 
-                ? !getAddress().equals(that.getAddress())
-                : that.getAddress() != null) {
+        if (getFp() != null
+                ? !getFp().equals(that.getFp())
+                : that.getFp() != null) {
             return false;
         }
         if (getCrypto() != null 
@@ -93,7 +90,7 @@ public class WalletFile {
 
     @Override
     public int hashCode() {
-        int result = getAddress() != null ? getAddress().hashCode() : 0;
+        int result = getFp() != null ? getFp().hashCode() : 0;
         result = 31 * result + (getCrypto() != null ? getCrypto().hashCode() : 0);
         result = 31 * result + (getId() != null ? getId().hashCode() : 0);
         result = 31 * result + version;

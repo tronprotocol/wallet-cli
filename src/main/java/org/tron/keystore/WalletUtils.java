@@ -3,6 +3,10 @@ package org.tron.keystore;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.tron.common.crypto.ECKey;
+import org.tron.common.utils.Utils;
+import org.tron.core.exception.CipherException;
+
 import java.io.File;
 import java.io.IOException;
 import java.security.InvalidAlgorithmParameterException;
@@ -11,9 +15,6 @@ import java.security.NoSuchProviderException;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
-import org.tron.common.crypto.ECKey;
-import org.tron.common.utils.Utils;
-import org.tron.core.exception.CipherException;
 
 /**
  * Utility functions for working with Wallet files.
@@ -174,6 +175,8 @@ public class WalletUtils {
     return String.format("%s%skeystore", getDefaultKeyDirectory(), File.separator);
   }
 
+
+
 //    public static boolean isValidPrivateKey(String privateKey) {
 //        String cleanPrivateKey = Numeric.cleanHexPrefix(privateKey);
 //        return cleanPrivateKey.length() == PRIVATE_KEY_LENGTH_IN_HEX;
@@ -190,4 +193,13 @@ public class WalletUtils {
 //
 //        return cleanInput.length() == ADDRESS_LENGTH_IN_HEX;
 //    }
+
+  public static void generateSkeyFile(SKeyCapsule skey, File file)
+          throws IOException {
+    objectMapper.writeValue(file, skey);
+  }
+
+  public static SKeyCapsule loadSkeyFile(File source) throws IOException {
+    return objectMapper.readValue(source, SKeyCapsule.class);
+  }
 }

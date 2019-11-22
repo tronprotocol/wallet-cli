@@ -3,58 +3,27 @@ package org.tron.walletserver;
 import com.google.protobuf.ByteString;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.concurrent.TimeUnit;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.tron.api.GrpcAPI;
-import org.tron.api.GrpcAPI.AccountNetMessage;
-import org.tron.api.GrpcAPI.AccountPaginated;
-import org.tron.api.GrpcAPI.AccountResourceMessage;
-import org.tron.api.GrpcAPI.AddressPrKeyPairMessage;
-import org.tron.api.GrpcAPI.AssetIssueList;
-import org.tron.api.GrpcAPI.BlockExtention;
-import org.tron.api.GrpcAPI.BlockLimit;
-import org.tron.api.GrpcAPI.BlockList;
-import org.tron.api.GrpcAPI.BlockListExtention;
-import org.tron.api.GrpcAPI.BytesMessage;
-import org.tron.api.GrpcAPI.DelegatedResourceList;
-import org.tron.api.GrpcAPI.DelegatedResourceMessage;
-import org.tron.api.GrpcAPI.EasyTransferByPrivateMessage;
-import org.tron.api.GrpcAPI.EasyTransferMessage;
-import org.tron.api.GrpcAPI.EasyTransferResponse;
-import org.tron.api.GrpcAPI.EmptyMessage;
-import org.tron.api.GrpcAPI.ExchangeList;
-import org.tron.api.GrpcAPI.NodeList;
-import org.tron.api.GrpcAPI.NumberMessage;
-import org.tron.api.GrpcAPI.PaginatedMessage;
-import org.tron.api.GrpcAPI.ProposalList;
+import org.tron.api.GrpcAPI.*;
 import org.tron.api.GrpcAPI.Return.response_code;
-import org.tron.api.GrpcAPI.TransactionExtention;
-import org.tron.api.GrpcAPI.TransactionList;
-import org.tron.api.GrpcAPI.TransactionListExtention;
-import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.api.WalletExtensionGrpc;
 import org.tron.api.WalletGrpc;
 import org.tron.api.WalletSolidityGrpc;
 import org.tron.common.utils.ByteArray;
 import org.tron.protos.Contract;
-import org.tron.protos.Protocol.Account;
-import org.tron.protos.Protocol.Block;
-import org.tron.protos.Protocol.ChainParameters;
-import org.tron.protos.Protocol.DelegatedResourceAccountIndex;
-import org.tron.protos.Protocol.Exchange;
-import org.tron.protos.Protocol.Proposal;
-import org.tron.protos.Protocol.SmartContract;
-import org.tron.protos.Protocol.Transaction;
-import org.tron.protos.Protocol.TransactionInfo;
-import org.tron.protos.Protocol.TransactionSign;
+import org.tron.protos.Contract.IncrementalMerkleVoucherInfo;
+import org.tron.protos.Contract.OutputPointInfo;
+import org.tron.protos.Protocol.*;
 
+import java.util.Objects;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
+
+@Slf4j
 public class GrpcClient {
 
-  private static final Logger logger = LoggerFactory.getLogger("GrpcClient");
   private ManagedChannel channelFull = null;
   private ManagedChannel channelSolidity = null;
   private WalletGrpc.WalletBlockingStub blockingStubFull = null;
@@ -124,6 +93,19 @@ public class GrpcClient {
   }
 
   //Warning: do not invoke this interface provided by others.
+  public TransactionExtention addSign(TransactionSign transactionSign) {
+    return blockingStubFull.addSign(transactionSign);
+  }
+
+  public TransactionSignWeight getTransactionSignWeight(Transaction transaction) {
+    return blockingStubFull.getTransactionSignWeight(transaction);
+  }
+
+  public TransactionApprovedList getTransactionApprovedList(Transaction transaction) {
+    return blockingStubFull.getTransactionApprovedList(transaction);
+  }
+
+  //Warning: do not invoke this interface provided by others.
   public byte[] createAdresss(byte[] passPhrase) {
     BytesMessage.Builder builder = BytesMessage.newBuilder();
     builder.setValue(ByteString.copyFrom(passPhrase));
@@ -151,6 +133,31 @@ public class GrpcClient {
     builder.setAmount(amount);
 
     return blockingStubFull.easyTransferByPrivate(builder.build());
+  }
+
+  //Warning: do not invoke this interface provided by others.
+  public EasyTransferResponse easyTransferAsset(byte[] passPhrase, byte[] toAddress,
+      String assetId, long amount) {
+    EasyTransferAssetMessage.Builder builder = EasyTransferAssetMessage.newBuilder();
+    builder.setPassPhrase(ByteString.copyFrom(passPhrase));
+    builder.setToAddress(ByteString.copyFrom(toAddress));
+    builder.setAssetId(assetId);
+    builder.setAmount(amount);
+
+    return blockingStubFull.easyTransferAsset(builder.build());
+  }
+
+  //Warning: do not invoke this interface provided by others.
+  public EasyTransferResponse easyTransferAssetByPrivate(byte[] privateKey, byte[] toAddress,
+      String assetId, long amount) {
+    EasyTransferAssetByPrivateMessage.Builder builder = EasyTransferAssetByPrivateMessage
+        .newBuilder();
+    builder.setPrivateKey(ByteString.copyFrom(privateKey));
+    builder.setToAddress(ByteString.copyFrom(toAddress));
+    builder.setAssetId(assetId);
+    builder.setAmount(amount);
+
+    return blockingStubFull.easyTransferAssetByPrivate(builder.build());
   }
 
   public Transaction createTransaction(Contract.AccountUpdateContract contract) {
@@ -405,6 +412,7 @@ public class GrpcClient {
       logger.info("repeate times = " + (10 - i));
       try {
         Thread.sleep(100);
+
       } catch (InterruptedException e) {
         e.printStackTrace();
       }
@@ -412,6 +420,7 @@ public class GrpcClient {
     if (response.getResult() == false) {
       //logger.info("Code = " + response.getCode());
       //logger.info("Message = " + response.getMessage().toStringUtf8());
+
     }
     return response.getResult();
   }
@@ -742,6 +751,11 @@ public class GrpcClient {
     return blockingStubFull.updateEnergyLimit(request);
   }
 
+  public TransactionExtention clearContractABI(
+      Contract.ClearABIContract request) {
+    return blockingStubFull.clearContractABI(request);
+  }
+
   public TransactionExtention deployContract(Contract.CreateSmartContract request) {
     return blockingStubFull.deployContract(request);
   }
@@ -750,9 +764,136 @@ public class GrpcClient {
     return blockingStubFull.triggerContract(request);
   }
 
+  public TransactionExtention triggerConstantContract(Contract.TriggerSmartContract request) {
+    return blockingStubFull.triggerConstantContract(request);
+  }
+
   public SmartContract getContract(byte[] address) {
     ByteString byteString = ByteString.copyFrom(address);
     BytesMessage bytesMessage = BytesMessage.newBuilder().setValue(byteString).build();
     return blockingStubFull.getContract(bytesMessage);
+  }
+
+  public TransactionExtention accountPermissionUpdate(
+      Contract.AccountPermissionUpdateContract request) {
+    return blockingStubFull.accountPermissionUpdate(request);
+  }
+
+
+  public TransactionExtention createShieldedTransaction(PrivateParameters privateParameters) {
+    return blockingStubFull.createShieldedTransaction(privateParameters);
+  }
+
+  public IncrementalMerkleVoucherInfo GetMerkleTreeVoucherInfo(OutputPointInfo info) {
+    if (blockingStubSolidity != null) {
+      return blockingStubSolidity.getMerkleTreeVoucherInfo(info);
+    } else {
+      return blockingStubFull.getMerkleTreeVoucherInfo(info);
+    }
+  }
+
+  public DecryptNotes scanNoteByIvk(IvkDecryptParameters ivkDecryptParameters) {
+    if (blockingStubSolidity != null) {
+      return blockingStubSolidity.scanNoteByIvk(ivkDecryptParameters);
+    } else {
+      return blockingStubFull.scanNoteByIvk(ivkDecryptParameters);
+    }
+  }
+
+  public DecryptNotes scanNoteByOvk(OvkDecryptParameters ovkDecryptParameters) {
+    if (blockingStubSolidity != null) {
+      return blockingStubSolidity.scanNoteByOvk(ovkDecryptParameters);
+    } else {
+      return blockingStubFull.scanNoteByOvk(ovkDecryptParameters);
+    }
+  }
+
+  public BytesMessage getSpendingKey() {
+    return blockingStubFull.getSpendingKey(EmptyMessage.newBuilder().build());
+  }
+
+  public ExpandedSpendingKeyMessage getExpandedSpendingKey(BytesMessage spendingKey) {
+    return blockingStubFull.getExpandedSpendingKey(spendingKey);
+  }
+
+  public BytesMessage getAkFromAsk(BytesMessage ask) {
+    return blockingStubFull.getAkFromAsk(ask);
+  }
+
+  public BytesMessage getNkFromNsk(BytesMessage nsk) {
+    return blockingStubFull.getNkFromNsk(nsk);
+  }
+
+  public IncomingViewingKeyMessage getIncomingViewingKey(ViewingKeyMessage viewingKeyMessage) {
+    return blockingStubFull.getIncomingViewingKey(viewingKeyMessage);
+  }
+
+  public DiversifierMessage getDiversifier() {
+    return blockingStubFull.getDiversifier(EmptyMessage.newBuilder().build());
+  }
+
+  public BytesMessage getRcm() {
+    return blockingStubFull.getRcm(EmptyMessage.newBuilder().build());
+  }
+
+  public SpendResult isNoteSpend(NoteParameters noteParameters) {
+    if (blockingStubSolidity != null) {
+      return blockingStubSolidity.isSpend(noteParameters);
+    } else {
+      return blockingStubFull.isSpend(noteParameters);
+    }
+  }
+
+  public TransactionExtention createShieldedTransactionWithoutSpendAuthSig(
+      PrivateParametersWithoutAsk privateParameters) {
+    return blockingStubFull.createShieldedTransactionWithoutSpendAuthSig(privateParameters);
+  }
+
+  public BytesMessage getShieldedTransactionHash(Transaction transaction) {
+    return blockingStubFull.getShieldTransactionHash(transaction);
+  }
+
+  public BytesMessage createSpendAuthSig(SpendAuthSigParameters parameters) {
+    return blockingStubFull.createSpendAuthSig(parameters);
+  }
+
+  public BytesMessage createShieldedNullifier(NfParameters parameters) {
+    return blockingStubFull.createShieldNullifier(parameters);
+  }
+
+  public PaymentAddressMessage getZenPaymentAddress(IncomingViewingKeyDiversifierMessage msg) {
+    return blockingStubFull.getZenPaymentAddress(msg);
+  }
+
+  public DecryptNotesMarked scanAndMarkNoteByIvk(IvkDecryptAndMarkParameters parameters) {
+    if (blockingStubSolidity != null) {
+      return blockingStubSolidity.scanAndMarkNoteByIvk(parameters);
+    } else {
+      return blockingStubFull.scanAndMarkNoteByIvk(parameters);
+    }
+  }
+
+  public TransactionExtention updateBrokerage(Contract.UpdateBrokerageContract request) {
+    return blockingStubFull.updateBrokerage(request);
+  }
+
+  public NumberMessage getReward(byte[] address) {
+    BytesMessage bytesMessage = BytesMessage.newBuilder().setValue(ByteString.copyFrom(address))
+        .build();
+    if (blockingStubSolidity != null) {
+      return blockingStubSolidity.getRewardInfo(bytesMessage);
+    } else {
+      return blockingStubFull.getRewardInfo(bytesMessage);
+    }
+  }
+
+  public NumberMessage getBrokerage(byte[] address) {
+    BytesMessage bytesMessage = BytesMessage.newBuilder().setValue(ByteString.copyFrom(address))
+        .build();
+    if (blockingStubSolidity != null) {
+      return blockingStubSolidity.getBrokerageInfo(bytesMessage);
+    } else {
+      return blockingStubFull.getBrokerageInfo(bytesMessage);
+    }
   }
 }

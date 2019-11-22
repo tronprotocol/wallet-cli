@@ -4,8 +4,8 @@ import org.bouncycastle.crypto.digests.SHA256Digest;
 import org.bouncycastle.crypto.generators.PKCS5S2ParametersGenerator;
 import org.bouncycastle.crypto.generators.SCrypt;
 import org.bouncycastle.crypto.params.KeyParameter;
-import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.Hash;
+import org.tron.common.crypto.Sha256Hash;
 import org.tron.common.utils.ByteArray;
 import org.tron.core.exception.CipherException;
 import org.tron.walletserver.WalletApi;
@@ -23,26 +23,7 @@ import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.UUID;
 
-/**
- * <p>Ethereum wallet file management. For reference, refer to <a href="https://github.com/ethereum/wiki/wiki/Web3-Secret-Storage-Definition">
- * Web3 Secret Storage Definition</a> or the <a href="https://github.com/ethereum/go-ethereum/blob/master/accounts/key_store_passphrase.go">
- * Go Ethereum client implementation</a>.</p>
- *
- * <p><strong>Note:</strong> the Bouncy Castle Scrypt implementation {@link SCrypt}, fails to comply
- * with the following Ethereum reference <a href="https://github.com/ethereum/wiki/wiki/Web3-Secret-Storage-Definition#scrypt">
- * Scrypt test vector</a>:</p>
- *
- * <pre>
- * {@code
- * // Only value of r that cost (as an int) could be exceeded for is 1
- * if (r == 1 && N_STANDARD > 65536)
- * {
- *     throw new IllegalArgumentException("Cost parameter N_STANDARD must be > 1 and < 65536.");
- * }
- * }
- * </pre>
- */
-public class Wallet {
+public class SKeyEncryptor {
 
   private static final int N_LIGHT = 1 << 12;
   private static final int P_LIGHT = 6;
@@ -59,7 +40,7 @@ public class Wallet {
   static final String AES_128_CTR = "pbkdf2";
   static final String SCRYPT = "scrypt";
 
-  public static WalletFile create(byte[] password, ECKey ecKeyPair, int n, int p)
+  public static SKeyCapsule create(byte[] password, byte[] skey, int n, int p)
       throws CipherException {
 
     byte[] salt = generateRandomBytes(32);
@@ -69,44 +50,44 @@ public class Wallet {
     byte[] encryptKey = Arrays.copyOfRange(derivedKey, 0, 16);
     byte[] iv = generateRandomBytes(16);
 
-    byte[] privateKeyBytes = ecKeyPair.getPrivKeyBytes();
-
     byte[] cipherText = performCipherOperation(Cipher.ENCRYPT_MODE, iv, encryptKey,
-        privateKeyBytes);
+            skey);
 
     byte[] mac = generateMac(derivedKey, cipherText);
 
-    return createWalletFile(ecKeyPair, cipherText, iv, salt, mac, n, p);
+    byte[] fp = Arrays.copyOfRange(Sha256Hash.hash(skey),0, 4);
+
+    return createSkey(fp, cipherText, iv, salt, mac, n, p);
   }
 
-  public static WalletFile createStandard(byte[] password, ECKey ecKeyPair)
+  public static SKeyCapsule createStandard(byte[] password, byte[] skey)
       throws CipherException {
-    return create(password, ecKeyPair, N_STANDARD, P_STANDARD);
+    return create(password, skey, N_STANDARD, P_STANDARD);
   }
 
-  public static WalletFile createLight(byte[] password, ECKey ecKeyPair)
+  public static SKeyCapsule createLight(byte[] password, byte[] skey)
       throws CipherException {
-    return create(password, ecKeyPair, N_LIGHT, P_LIGHT);
+    return create(password, skey, N_LIGHT, P_LIGHT);
   }
 
-  private static WalletFile createWalletFile(
-      ECKey ecKeyPair, byte[] cipherText, byte[] iv, byte[] salt, byte[] mac,
+  private static SKeyCapsule createSkey(
+      byte[] fp, byte[] cipherText, byte[] iv, byte[] salt, byte[] mac,
       int n, int p) {
 
-    WalletFile walletFile = new WalletFile();
-    walletFile.setAddress(WalletApi.encode58Check(ecKeyPair.getAddress()));
+    SKeyCapsule skey = new SKeyCapsule();
+    skey.setFp(WalletApi.encode58Check(fp));
 
-    WalletFile.Crypto crypto = new WalletFile.Crypto();
+    SKeyCapsule.Crypto crypto = new SKeyCapsule.Crypto();
     crypto.setCipher(CIPHER);
     crypto.setCiphertext(ByteArray.toHexString(cipherText));
-    walletFile.setCrypto(crypto);
+    skey.setCrypto(crypto);
 
-    WalletFile.CipherParams cipherParams = new WalletFile.CipherParams();
+    SKeyCapsule.CipherParams cipherParams = new SKeyCapsule.CipherParams();
     cipherParams.setIv(ByteArray.toHexString(iv));
     crypto.setCipherparams(cipherParams);
 
     crypto.setKdf(SCRYPT);
-    WalletFile.ScryptKdfParams kdfParams = new WalletFile.ScryptKdfParams();
+    SKeyCapsule.ScryptKdfParams kdfParams = new SKeyCapsule.ScryptKdfParams();
     kdfParams.setDklen(DKLEN);
     kdfParams.setN(n);
     kdfParams.setP(p);
@@ -115,15 +96,15 @@ public class Wallet {
     crypto.setKdfparams(kdfParams);
 
     crypto.setMac(ByteArray.toHexString(mac));
-    walletFile.setCrypto(crypto);
-    walletFile.setId(UUID.randomUUID().toString());
-    walletFile.setVersion(CURRENT_VERSION);
+    skey.setCrypto(crypto);
+    skey.setId(UUID.randomUUID().toString());
+    skey.setVersion(CURRENT_VERSION);
 
-    return walletFile;
+    return skey;
   }
 
   private static byte[] generateDerivedScryptKey(
-      byte[] password, byte[] salt, int n, int r, int p, int dkLen) throws CipherException {
+      byte[] password, byte[] salt, int n, int r, int p, int dkLen) {
     return SCrypt.generate(password, salt, n, r, p, dkLen);
   }
 
@@ -168,12 +149,12 @@ public class Wallet {
     return Hash.sha3(result);
   }
 
-  public static byte[] decrypt2PrivateBytes(byte[] password, WalletFile walletFile)
+  public static byte[] decrypt2PrivateBytes(byte[] password, SKeyCapsule skey)
       throws CipherException {
 
-    validate(walletFile);
+    validate(skey);
 
-    WalletFile.Crypto crypto = walletFile.getCrypto();
+    SKeyCapsule.Crypto crypto = skey.getCrypto();
 
     byte[] mac = ByteArray.fromHexString(crypto.getMac());
     byte[] iv = ByteArray.fromHexString(crypto.getCipherparams().getIv());
@@ -181,19 +162,19 @@ public class Wallet {
 
     byte[] derivedKey;
 
-    WalletFile.KdfParams kdfParams = crypto.getKdfparams();
-    if (kdfParams instanceof WalletFile.ScryptKdfParams) {
-      WalletFile.ScryptKdfParams scryptKdfParams =
-          (WalletFile.ScryptKdfParams) crypto.getKdfparams();
+    SKeyCapsule.KdfParams kdfParams = crypto.getKdfparams();
+    if (kdfParams instanceof SKeyCapsule.ScryptKdfParams) {
+      SKeyCapsule.ScryptKdfParams scryptKdfParams =
+          (SKeyCapsule.ScryptKdfParams) crypto.getKdfparams();
       int dklen = scryptKdfParams.getDklen();
       int n = scryptKdfParams.getN();
       int p = scryptKdfParams.getP();
       int r = scryptKdfParams.getR();
       byte[] salt = ByteArray.fromHexString(scryptKdfParams.getSalt());
       derivedKey = generateDerivedScryptKey(password, salt, n, r, p, dklen);
-    } else if (kdfParams instanceof WalletFile.Aes128CtrKdfParams) {
-      WalletFile.Aes128CtrKdfParams aes128CtrKdfParams =
-          (WalletFile.Aes128CtrKdfParams) crypto.getKdfparams();
+    } else if (kdfParams instanceof SKeyCapsule.Aes128CtrKdfParams) {
+      SKeyCapsule.Aes128CtrKdfParams aes128CtrKdfParams =
+          (SKeyCapsule.Aes128CtrKdfParams) crypto.getKdfparams();
       int c = aes128CtrKdfParams.getC();
       String prf = aes128CtrKdfParams.getPrf();
       byte[] salt = ByteArray.fromHexString(aes128CtrKdfParams.getSalt());
@@ -217,31 +198,31 @@ public class Wallet {
     return privateKey;
   }
 
-  public static boolean validPassword (byte[] password, WalletFile walletFile)
+  public static boolean validPassword (byte[] password, SKeyCapsule skey)
       throws CipherException {
 
-    validate(walletFile);
+    validate(skey);
 
-    WalletFile.Crypto crypto = walletFile.getCrypto();
+    SKeyCapsule.Crypto crypto = skey.getCrypto();
 
     byte[] mac = ByteArray.fromHexString(crypto.getMac());
     byte[] cipherText = ByteArray.fromHexString(crypto.getCiphertext());
 
     byte[] derivedKey;
 
-    WalletFile.KdfParams kdfParams = crypto.getKdfparams();
-    if (kdfParams instanceof WalletFile.ScryptKdfParams) {
-      WalletFile.ScryptKdfParams scryptKdfParams =
-          (WalletFile.ScryptKdfParams) crypto.getKdfparams();
+    SKeyCapsule.KdfParams kdfParams = crypto.getKdfparams();
+    if (kdfParams instanceof SKeyCapsule.ScryptKdfParams) {
+      SKeyCapsule.ScryptKdfParams scryptKdfParams =
+          (SKeyCapsule.ScryptKdfParams) crypto.getKdfparams();
       int dklen = scryptKdfParams.getDklen();
       int n = scryptKdfParams.getN();
       int p = scryptKdfParams.getP();
       int r = scryptKdfParams.getR();
       byte[] salt = ByteArray.fromHexString(scryptKdfParams.getSalt());
       derivedKey = generateDerivedScryptKey(password, salt, n, r, p, dklen);
-    } else if (kdfParams instanceof WalletFile.Aes128CtrKdfParams) {
-      WalletFile.Aes128CtrKdfParams aes128CtrKdfParams =
-          (WalletFile.Aes128CtrKdfParams) crypto.getKdfparams();
+    } else if (kdfParams instanceof SKeyCapsule.Aes128CtrKdfParams) {
+      SKeyCapsule.Aes128CtrKdfParams aes128CtrKdfParams =
+          (SKeyCapsule.Aes128CtrKdfParams) crypto.getKdfparams();
       int c = aes128CtrKdfParams.getC();
       String prf = aes128CtrKdfParams.getPrf();
       byte[] salt = ByteArray.fromHexString(aes128CtrKdfParams.getSalt());
@@ -260,18 +241,10 @@ public class Wallet {
     return true;
   }
 
-  public static ECKey decrypt(byte[] password, WalletFile walletFile)
-      throws CipherException {
-    byte[] privateKey = decrypt2PrivateBytes(password, walletFile);
-    ECKey ecKey = ECKey.fromPrivate(privateKey);
-    StringUtils.clear(privateKey);
-    return ecKey;
-  }
+  static void validate(SKeyCapsule skey) throws CipherException {
+    SKeyCapsule.Crypto crypto = skey.getCrypto();
 
-  static void validate(WalletFile walletFile) throws CipherException {
-    WalletFile.Crypto crypto = walletFile.getCrypto();
-
-    if (walletFile.getVersion() != CURRENT_VERSION) {
+    if (skey.getVersion() != CURRENT_VERSION) {
       throw new CipherException("Wallet version is not supported");
     }
 

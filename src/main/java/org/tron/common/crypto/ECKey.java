@@ -18,30 +18,6 @@
 
 package org.tron.common.crypto;
 
-import static org.tron.common.utils.BIUtil.isLessThan;
-import static org.tron.common.utils.ByteUtil.bigIntegerToBytes;
-
-import java.io.IOException;
-import java.io.Serializable;
-import java.math.BigInteger;
-import java.nio.charset.Charset;
-import java.security.InvalidKeyException;
-import java.security.KeyPair;
-import java.security.KeyPairGenerator;
-import java.security.PrivateKey;
-import java.security.Provider;
-import java.security.PublicKey;
-import java.security.SecureRandom;
-import java.security.Signature;
-import java.security.SignatureException;
-import java.security.interfaces.ECPrivateKey;
-import java.security.interfaces.ECPublicKey;
-import java.security.spec.InvalidKeySpecException;
-import java.util.Arrays;
-import javax.annotation.Nullable;
-import javax.crypto.KeyAgreement;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.spongycastle.asn1.ASN1InputStream;
 import org.spongycastle.asn1.ASN1Integer;
 import org.spongycastle.asn1.DLSequence;
@@ -52,11 +28,7 @@ import org.spongycastle.crypto.agreement.ECDHBasicAgreement;
 import org.spongycastle.crypto.digests.SHA256Digest;
 import org.spongycastle.crypto.engines.AESFastEngine;
 import org.spongycastle.crypto.modes.SICBlockCipher;
-import org.spongycastle.crypto.params.ECDomainParameters;
-import org.spongycastle.crypto.params.ECPrivateKeyParameters;
-import org.spongycastle.crypto.params.ECPublicKeyParameters;
-import org.spongycastle.crypto.params.KeyParameter;
-import org.spongycastle.crypto.params.ParametersWithIV;
+import org.spongycastle.crypto.params.*;
 import org.spongycastle.crypto.signers.ECDSASigner;
 import org.spongycastle.crypto.signers.HMacDSAKCalculator;
 import org.spongycastle.jcajce.provider.asymmetric.ec.BCECPrivateKey;
@@ -70,12 +42,23 @@ import org.spongycastle.math.ec.ECPoint;
 import org.spongycastle.util.BigIntegers;
 import org.spongycastle.util.encoders.Base64;
 import org.spongycastle.util.encoders.Hex;
-import org.tron.common.crypto.jce.ECKeyAgreement;
-import org.tron.common.crypto.jce.ECKeyFactory;
-import org.tron.common.crypto.jce.ECKeyPairGenerator;
-import org.tron.common.crypto.jce.ECSignatureFactory;
-import org.tron.common.crypto.jce.TronCastleProvider;
+import org.tron.common.crypto.jce.*;
 import org.tron.common.utils.ByteUtil;
+
+import javax.annotation.Nullable;
+import javax.crypto.KeyAgreement;
+import java.io.IOException;
+import java.io.Serializable;
+import java.math.BigInteger;
+import java.nio.charset.Charset;
+import java.security.*;
+import java.security.interfaces.ECPrivateKey;
+import java.security.interfaces.ECPublicKey;
+import java.security.spec.InvalidKeySpecException;
+import java.util.Arrays;
+
+import static org.tron.common.utils.BIUtil.isLessThan;
+import static org.tron.common.utils.ByteUtil.bigIntegerToBytes;
 
 public class ECKey implements Serializable {
 
@@ -91,7 +74,6 @@ public class ECKey implements Serializable {
    * https://github.com/bitcoin/bips/blob/master/bip-0062.mediawiki #Low_S_values_in_signatures
    */
   public static final BigInteger HALF_CURVE_ORDER;
-  private static final Logger logger = LoggerFactory.getLogger(ECKey.class);
   private static final BigInteger SECP256K1N = new BigInteger
       ("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141", 16);
   private static final SecureRandom secureRandom;
@@ -527,7 +509,7 @@ public class ECKey implements Serializable {
       // specially crafted signatures.
       // Those signatures are inherently invalid/attack sigs so we just
       // fail them here rather than crash the thread.
-      logger.error("Caught NPE inside bouncy castle", npe);
+      System.out.println("Caught NPE inside bouncy castle" + npe);
       return false;
     }
   }

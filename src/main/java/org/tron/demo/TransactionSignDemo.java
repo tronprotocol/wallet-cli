@@ -3,16 +3,18 @@ package org.tron.demo;
 import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
-import java.util.Arrays;
 import org.tron.api.GrpcAPI.Return;
 import org.tron.api.GrpcAPI.TransactionExtention;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.Sha256Hash;
 import org.tron.common.utils.ByteArray;
+import org.tron.core.exception.CancelException;
 import org.tron.protos.Contract;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.walletserver.WalletApi;
+
+import java.util.Arrays;
 
 public class TransactionSignDemo {
 
@@ -101,7 +103,7 @@ public class TransactionSignDemo {
     System.out.println(base58check);
   }
 
-  public static void main(String[] args) throws InvalidProtocolBufferException {
+  public static void main(String[] args) throws InvalidProtocolBufferException, CancelException {
     String privateStr = "D95611A9AF2A2A45359106222ED1AFED48853D9A44DEFF8DC7913F5CBA727366";
     byte[] privateBytes = ByteArray.fromHexString(privateStr);
     ECKey ecKey = ECKey.fromPrivate(privateBytes);
