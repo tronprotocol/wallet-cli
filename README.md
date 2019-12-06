@@ -35,7 +35,7 @@ How to run web wallet
 ----------------------------------------
 
 - connect to fullNode and soliditynode  
-    Take a look [GitHub](https://tronprotocol.github.io/documentation-en/developers/deployment/)  
+    Take a look [java-tron deployment](https://tronprotocol.github.io/documentation-en/developers/deployment/)  
 	run both fullNode and solidity node in your either local PC or remote server.  
 	Notice: THose node would take a lot of memory and CPU usage, please be aware if you do not use Wallet, just kill them.   
 -  run web wallet 
@@ -51,7 +51,7 @@ How to run web wallet
 How wallet-cli connects to java-tron :
 --------------------------------------
 Wallet-cli connect to java-tron by grpc protocol, where can be deployed locally or remotely. Check How to run web Wallet section.         
-We can set the connected java-tron node IP and port in config.conf of wallet-cli so that it can successfully take to java-tron nodes. 
+We can set  java-tron node IP and port in src/main/resources/config.conf of wallet-cli so that it can successfully talk to java-tron nodes. 
  
 
 Wallet-cli supported command list:
@@ -60,9 +60,10 @@ Wallet-cli supported command list:
 Following is a list of Tron Wallet-cli commands:  
 For more information on a specific command, just type the command on terminal when you start your Wallet.  
 
-
-AddTransactionSign  |  ApproveProposal   | AssetIssue    
-[Freeze](#freezeBalance) freezeBalance
+| Categorize        |     Command      |     Command     |   Command  |  Command |
+| -----             |:   -----        :|     -----     :|   -----  :|   ----- :|
+|                   | AddTransactionSign  |  ApproveProposal   | AssetIssue    
+| [How to freeze/unfreeze balance] (#Balance)       |    freezeBalance    | unfreezeBalance |  UnfreezeAsset |
 BackupShieldedAddress    
 BackupWallet    
 BackupWallet2Base64    
