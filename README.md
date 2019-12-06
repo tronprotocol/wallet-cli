@@ -60,7 +60,7 @@ Wallet-cli supported command list:
 Following is a list of Tron Wallet-cli commands:  
 For more information on a specific command, just type the command on terminal when you start your Wallet.   
 
-[How to freeze/unfreeze balance] (#Balance)   
+- [How to freeze/unfreeze balance] (#How to freeze/unfreeze balance)   
 
 BackupShieldedAddress    
 BackupWallet    
