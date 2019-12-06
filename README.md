@@ -60,11 +60,11 @@ Wallet-cli supported command list:
 Following is a list of Tron Wallet-cli commands:  
 For more information on a specific command, just type the command on terminal when you start your Wallet.   
 
-<!-- TOC -->
 
-- [testlink] (#testlink)   
 
-<!-- /TOC -->
+-  <a name="Testlink">  balance </a>
+
+
 
 BackupShieldedAddress    
 BackupWallet    
