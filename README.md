@@ -62,7 +62,7 @@ For more information on a specific command, just type the command on terminal wh
 
 
 
--  <a name="Testlink">  balance </a>
+-  [Testlink] (#testlink)
 
 
 
@@ -163,7 +163,7 @@ Exit or Quit
 Input any one of the listed commands, to display how-to tips.    
 
 
-## Testlink  
+# Testlink  
 
 
 After the funds are frozen, the corresponding number of shares and bandwidth will be obtained.
