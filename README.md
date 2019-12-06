@@ -60,7 +60,11 @@ Wallet-cli supported command list:
 Following is a list of Tron Wallet-cli commands:  
 For more information on a specific command, just type the command on terminal when you start your Wallet.   
 
+<!-- TOC -->
+
 - [testlink] (#testlink)   
+
+<!-- /TOC -->
 
 BackupShieldedAddress    
 BackupWallet    
@@ -159,7 +163,7 @@ Exit or Quit
 Input any one of the listed commands, to display how-to tips.    
 
 
-## testlink
+## testlink  
 
 
 After the funds are frozen, the corresponding number of shares and bandwidth will be obtained.
