@@ -31,32 +31,38 @@ soliditynode = {
 
 ```
 
-Build and run web wallet
+How to run web wallet
 ----------------------------------------
-```
-cd wallet-cli  
-./gradlew build
-cd build/libs
-java -jar wallet-cli.jar
-```
+
+- connect to fullNode and soliditynode  
+    Take a look [GitHub](https://tronprotocol.github.io/documentation-en/developers/deployment/)  
+	run both fullNode and solidity node in your either local PC or remote server.  
+	Notice: THose node would take a lot of memory and CPU usage, please be aware if you do not use Wallet, just kill them.   
+-  run web wallet 
+
+	```
+	cd wallet-cli  
+	./gradlew build
+	cd build/libs
+	java -jar wallet-cli.jar
+	```
 
 
 How wallet-cli connects to java-tron :
 --------------------------------------
-Wallet-cli connect to java-tron by grpc protocol.          
-Java-tron nodes can be deployed locally or remotely.          
-We can set the connected java-tron node IP in config.conf of wallet-cli.
+Wallet-cli connect to java-tron by grpc protocol, where can be deployed locally or remotely. Check How to run web Wallet section.         
+We can set the connected java-tron node IP and port in config.conf of wallet-cli so that it can successfully take to java-tron nodes. 
  
 
 Wallet-cli supported command list:
 ----------------------------------
 
-Help: List of Tron Wallet-cli commands
-For more information on a specific command, type the command and it will display tips
+Following is a list of Tron Wallet-cli commands:  
+For more information on a specific command, just type the command on terminal when you start your Wallet.  
 
-AddTransactionSign    
-ApproveProposal    
-AssetIssue    
+
+AddTransactionSign  |  ApproveProposal   | AssetIssue    
+[Freeze](#freezeBalance) freezeBalance
 BackupShieldedAddress    
 BackupWallet    
 BackupWallet2Base64    
@@ -68,7 +74,7 @@ CreateAccount
 CreateProposal    
 CreateWitness    
 DeleteProposal    
-DeployContract contractName ABI byteCode constructor params isHex fee_limit consume_user_resource_percent origin_energy_limit value token_value token_id <library:address,library:address,...> <lib_compiler_version(e.g:v5)>    
+DeployContract  
 ExchangeCreate    
 ExchangeInject    
 ExchangeTransaction    
