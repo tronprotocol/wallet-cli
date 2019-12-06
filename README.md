@@ -58,12 +58,12 @@ Wallet-cli supported command list:
 ----------------------------------
 
 Following is a list of Tron Wallet-cli commands:  
-For more information on a specific command, just type the command on terminal when you start your Wallet.  
+For more information on a specific command, just type the command on terminal when you start your Wallet.   
 
-| Categorize        |     Command      |     Command     |   Command  |  Command |
-| -----             |:   -----        :|     -----     :|   -----  :|   ----- :|
-|                   | AddTransactionSign  |  ApproveProposal   | AssetIssue    
-| [How to freeze/unfreeze balance] (#Balance)       |    freezeBalance    | unfreezeBalance |  UnfreezeAsset |
+| Categorize        |     Command      |     Command     |   Command  |  Command |  
+| -----             |:   -----        :|     -----     :|   -----  :|   ----- :|   
+|          xx         | AddTransactionSign  |  ApproveProposal   | AssetIssue   |   xx | 
+| [How to freeze/unfreeze balance] (#Balance)       |    freezeBalance    | unfreezeBalance |  UnfreezeAsset |  xx | 
 BackupShieldedAddress    
 BackupWallet    
 BackupWallet2Base64    
