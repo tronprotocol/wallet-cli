@@ -163,7 +163,7 @@ Exit or Quit
 Input any one of the listed commands, to display how-to tips.    
 
 
-## testlink  
+## Testlink  
 
 
 After the funds are frozen, the corresponding number of shares and bandwidth will be obtained.
