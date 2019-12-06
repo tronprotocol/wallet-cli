@@ -60,10 +60,8 @@ Wallet-cli supported command list:
 Following is a list of Tron Wallet-cli commands:  
 For more information on a specific command, just type the command on terminal when you start your Wallet.   
 
-| Categorize        |     Command      |     Command     |   Command  |  Command |  
-| -----             |:   -----        :|     -----     :|   -----  :|   ----- :|   
-|          xx         | AddTransactionSign  |  ApproveProposal   | AssetIssue   |   xx | 
-| [How to freeze/unfreeze balance] (#Balance)       |    freezeBalance    | unfreezeBalance |  UnfreezeAsset |  xx | 
+[How to freeze/unfreeze balance] (#Balance)   
+
 BackupShieldedAddress    
 BackupWallet    
 BackupWallet2Base64    
@@ -161,8 +159,8 @@ Exit or Quit
 Input any one of the listed commands, to display how-to tips.    
 
 
-How to freeze/unfreeze balance
-----------------------------------
+## How to freeze/unfreeze balance
+
 
 After the funds are frozen, the corresponding number of shares and bandwidth will be obtained.
  Shares can be used for voting and bandwidth can be used for trading.
