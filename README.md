@@ -54,116 +54,33 @@ Wallet-cli connect to java-tron by grpc protocol, where can be deployed locally 
 We can set  java-tron node IP and port in src/main/resources/config.conf of wallet-cli so that it can successfully talk to java-tron nodes. 
  
 
-Wallet-cli supported command list:
+Wallet-cli Summary
 ----------------------------------
 
-Following is a list of Tron Wallet-cli commands:  
-For more information on a specific command, just type the command on terminal when you start your Wallet.   
+Following is a overview of whole document include some command explanation and usage example, click following link to find your interesting commands:  
+
+-  [Freeze/unfreeze Balance](#How-to-freeze/unfreeze-balance)
+-  [vote](#How-to-vote)
+-  [bandwidth](#How-to-calculate-bandwidth)
+-  [accountCreate](#How-to-create-account) 
+-  [issueToke](#How-to-issue-TRC10-tokens)
+-   [initProposal](#How-to-initiate-a-proposal)
+-   [HowToReDE](#How-to-trade-on-the-exchange)
+-   [multi-signature ](#How-to-use-the-multi-signature-feature-of-wallet-cli?)
+-   [SmartContracts](#How-to-use-smart-contracts) 
+-  [delegateResource](How-to-delegate-resource) 
+-   [TransferToShieldedAddress](#How-to-transfer-to-shielded-address)
+-  [GetBlock](#How-to-get-block-information)
+-   [AccountCommand](#Account-related-commands)
+	-  [createAccount](#How-to-create-account)
+	- [createWitness](#How-to-create-witness) 
+-  [WalletCommands](#Wallet-related-commands) 
+-  [CommandLineFlow](#Command-line-operation-flow-example)
+-  [CommandList](#Command-list)
+ 
 
 
-
--  [Testlink] (#testlink)
-
-
-
-BackupShieldedAddress    
-BackupWallet    
-BackupWallet2Base64    
-BroadcastTransaction    
-ChangePassword    
-ClearContractABI    
-Create2    
-CreateAccount    
-CreateProposal    
-CreateWitness    
-DeleteProposal    
-DeployContract  
-ExchangeCreate    
-ExchangeInject    
-ExchangeTransaction    
-ExchangeWithdraw    
-FreezeBalance    
-GenerateAddress    
-GenerateShieldedAddress    
-GetAccount    
-GetAccountNet    
-GetAccountResource    
-GetAddress    
-GetAssetIssueByAccount    
-GetAssetIssueById    
-GetAssetIssueByName    
-GetAssetIssueListByName    
-GetAkFromAsk    
-GetBalance    
-GetBlock    
-GetBlockById    
-GetBlockByLatestNum    
-GetBlockByLimitNext    
-GetChainParameters    
-GetContract contractAddress    
-GetDelegatedResource    
-GetDelegatedResourceAccountIndex    
-GetDiversifier    
-GetExchange    
-GetExpandedSpendingKey    
-GetIncomingViewingKey    
-GetNkFromNsk    
-GetNextMaintenanceTime    
-GetShieldedNullifier    
-GetSpendingKey    
-GetProposal    
-GetTotalTransaction    
-GetTransactionApprovedList    
-GetTransactionById    
-GetTransactionCountByBlockNum    
-GetTransactionInfoById    
-GetTransactionsFromThis    
-GetTransactionsToThis    
-GetTransactionSignWeight    
-ImportShieldedAddress    
-ImportWallet    
-ImportWalletByBase64    
-ListAssetIssue    
-ListAssetIssuePaginated    
-ListExchanges    
-ListExchangesPaginated    
-ListNodes    
-ListShieldedAddress    
-ListShieldedNote    
-ListProposals    
-ListProposalsPaginated    
-ListWitnesses    
-Login    
-Logout    
-LoadShieldedWallet    
-ParticipateAssetIssue    
-RegisterWallet    
-ResetShieldedNote    
-ScanAndMarkNotebyAddress    
-ScanNotebyIvk    
-ScanNotebyOvk    
-SendCoin    
-SendShieldedCoin    
-SendShieldedCoinWithoutAsk    
-SetAccountId    
-TransferAsset    
-TriggerContract contractAddress method args isHex fee_limit value    
-TriggerConstantContract contractAddress method args isHex    
-UnfreezeAsset    
-UnfreezeBalance    
-UpdateAccount    
-UpdateAsset    
-UpdateEnergyLimit contract_address energy_limit    
-UpdateSetting contract_address consume_user_resource_percent    
-UpdateWitness    
-UpdateAccountPermission    
-VoteWitness    
-WithdrawBalance    
-Exit or Quit    
-Input any one of the listed commands, to display how-to tips.    
-
-
-# Testlink  
+## How to freeze/unfreeze balance 
 
 
 After the funds are frozen, the corresponding number of shares and bandwidth will be obtained.
@@ -208,8 +125,8 @@ unfreezeBalance [OwnerAddress] ResourceCode(0 BANDWIDTH,1 CPU) [receiverAddress]
 
 
 
-How to vote
-----------------------------------
+## How to vote
+
 
 Voting requires share. Share can be obtained by freezing funds.
 
@@ -1120,3 +1037,108 @@ Please input shielded address hex string. Max retry time: 3
 0b1cf73b85742e13015dc6fb8d0986e4ad34c8f468bd8c73cc8fb34bff0dfacea11f85ddcde0bdb904d1de     
 Import new shielded address is: ztron15y0cthwduz7mjpx3mc7cl9cxj8aqq9m8z08g6xns8qsvp7hgqstp9w5t8eh0vydlyf42gtxjzun     
 ImportShieldedAddress successful !!     
+
+
+## Command List
+
+Following is a list of Tron Wallet-cli commands:  
+For more information on a specific command, just type the command on terminal when you start your Wallet.   
+
+AddTransactionSign 
+ApproveProposal  
+AssetIssue  
+BackupShieldedAddress    
+BackupWallet    
+BackupWallet2Base64    
+BroadcastTransaction    
+ChangePassword    
+ClearContractABI    
+Create2    
+CreateAccount    
+CreateProposal    
+CreateWitness    
+DeleteProposal    
+DeployContract  
+ExchangeCreate    
+ExchangeInject    
+ExchangeTransaction    
+ExchangeWithdraw    
+FreezeBalance    
+GenerateAddress    
+GenerateShieldedAddress    
+GetAccount    
+GetAccountNet    
+GetAccountResource    
+GetAddress    
+GetAssetIssueByAccount    
+GetAssetIssueById    
+GetAssetIssueByName    
+GetAssetIssueListByName    
+GetBalance    
+GetBlock    
+GetBlockById    
+GetBlockByLatestNum    
+GetBlockByLimitNext    
+GetChainParameters    
+GetContract contractAddress    
+GetDelegatedResource    
+GetDelegatedResourceAccountIndex    
+GetDiversifier    
+GetExchange    
+GetExpandedSpendingKey    
+GetIncomingViewingKey    
+GetNextMaintenanceTime    
+GetShieldedNullifier    
+GetSpendingKey    
+GetProposal    
+GetTotalTransaction    
+GetTransactionApprovedList    
+GetTransactionById    
+GetTransactionCountByBlockNum    
+GetTransactionInfoById    
+GetTransactionsFromThis    
+GetTransactionsToThis    
+GetTransactionSignWeight    
+ImportShieldedAddress    
+ImportWallet    
+ImportWalletByBase64    
+ListAssetIssue    
+ListAssetIssuePaginated    
+ListExchanges    
+ListExchangesPaginated    
+ListNodes    
+ListShieldedAddress    
+ListShieldedNote    
+ListProposals    
+ListProposalsPaginated    
+ListWitnesses    
+Login    
+Logout    
+LoadShieldedWallet    
+ParticipateAssetIssue    
+RegisterWallet    
+ResetShieldedNote    
+ScanAndMarkNotebyAddress    
+ScanNotebyIvk    
+ScanNotebyOvk    
+SendCoin    
+SendShieldedCoin    
+SendShieldedCoinWithoutAsk    
+SetAccountId    
+TransferAsset    
+TriggerContract   
+TriggerConstantContract   
+UnfreezeAsset    
+UnfreezeBalance    
+UpdateAccount    
+UpdateAsset    
+UpdateEnergyLimit  
+UpdateSetting    
+UpdateWitness    
+UpdateAccountPermission    
+VoteWitness    
+WithdrawBalance    
+Exit or Quit    
+
+Input any one of the listed commands, to display how-to tips.   
+
