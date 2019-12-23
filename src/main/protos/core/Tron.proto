@@ -275,6 +275,8 @@ message Transaction {
       ClearABIContract = 48;
       UpdateBrokerageContract = 49;
       ShieldedTransferContract = 51;
+      MarketSellAssetContract = 60;
+      MarketCancelOrderContract = 61;
     }
     ContractType type = 1;
     google.protobuf.Any parameter = 2;
@@ -678,4 +680,54 @@ message NodeInfo {
       string stackTrace = 7;
     }
   }
+}
+
+//market
+message MarketOrder {
+  bytes order_id = 1;
+  bytes owner_address = 2;
+  int64 create_time = 3;
+  bytes sell_token_id = 4;
+  int64 sell_token_quantity = 6;
+  bytes buy_token_id = 5;
+  int64 buy_token_quantity = 7;//min to receive
+  int64 sell_token_quantity_remain = 9;
+  enum State {
+    ACTIVE = 0;
+    INACTIVE = 1;
+    CANCELED = 2;
+  }
+  State state = 10;
+}
+
+message MarketOrderList {
+  repeated MarketOrder orders = 1;
+}
+
+message MarketOrderPair{
+  bytes sell_token_id = 4;
+  bytes buy_token_id = 5;
+}
+
+message MarketAccountOrder {
+  bytes owner_address = 1;
+  //  repeated MarketOrder orders = 2;
+  repeated bytes orders = 2;
+  int64 count = 3;
+}
+
+message MarketPriceList {
+  bytes sell_token_id = 1;
+  bytes buy_token_id = 2;
+
+  message MarketPrice {
+    int64 sell_token_quantity = 1;
+    int64 buy_token_quantity = 2;
+  }
+  repeated MarketPrice prices = 5;
+}
+
+
+message MarketOrderIdList {
+  repeated bytes orders = 1;
 }

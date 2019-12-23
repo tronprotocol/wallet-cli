@@ -684,6 +684,7 @@ service Wallet {
 
   rpc CreateShieldNullifier (NfParameters) returns (BytesMessage) {
   };
+  // end for shiededTransaction
 
   rpc GetRewardInfo (BytesMessage) returns (NumberMessage) {
   };
@@ -692,9 +693,19 @@ service Wallet {
   };
 
   rpc UpdateBrokerage (UpdateBrokerageContract) returns (TransactionExtention) {
-
   };
-  // end for shiededTransaction
+
+  rpc MarketSellAsset (MarketSellAssetContract) returns (TransactionExtention) {
+  }
+
+  rpc MarketCancelOrder (MarketCancelOrderContract) returns (TransactionExtention) {
+  }
+
+  rpc GetMarketOrderByAccount (Account) returns (MarketOrderList) {
+  }
+
+  rpc GetMarketPriceByPair (MarketOrderPair) returns (MarketPriceList) {
+  }
 };
 
 service WalletSolidity {
@@ -847,6 +858,18 @@ service WalletSolidity {
 
   rpc GetBrokerageInfo (BytesMessage) returns (NumberMessage) {
   };
+
+  rpc MarketSellAsset (MarketSellAssetContract) returns (TransactionExtention) {
+  }
+
+  rpc MarketCancelOrder (MarketCancelOrderContract) returns (TransactionExtention) {
+  }
+
+  rpc GetMarketOrderByAccount (Account) returns (MarketOrderList) {
+  }
+
+  rpc GetMarketPriceByPair (MarketOrderPair) returns (MarketPriceList) {
+  }
 };
 
 service WalletExtension {
