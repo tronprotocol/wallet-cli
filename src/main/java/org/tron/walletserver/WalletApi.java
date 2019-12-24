@@ -21,6 +21,7 @@ import org.tron.api.GrpcAPI.TransactionSignWeight.Result.response_code;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.Hash;
 import org.tron.common.crypto.Sha256Hash;
+import org.tron.common.crypto.sm2.SM2;
 import org.tron.common.utils.Base58;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.TransactionUtils;
@@ -144,8 +145,10 @@ public class WalletApi {
 
   //  Create Wallet with a pritKey
   public static WalletFile CreateWalletFile(byte[] password, byte[] priKey) throws CipherException {
-    ECKey ecKey = ECKey.fromPrivate(priKey);
-    WalletFile walletFile = Wallet.createStandard(password, ecKey);
+//    ECKey ecKey = ECKey.fromPrivate(priKey);
+    SM2 sm2 = SM2.fromPrivate(priKey);
+//    WalletFile walletFile = Wallet.createStandard(password, ecKey);
+    WalletFile walletFile = Wallet.createStandard(password, sm2);
     return walletFile;
   }
 
@@ -181,6 +184,9 @@ public class WalletApi {
 
   public ECKey getEcKey(WalletFile walletFile, byte[] password) throws CipherException {
     return Wallet.decrypt(password, walletFile);
+  }
+  public SM2 getSM2(WalletFile walletFile, byte[] password) throws CipherException {
+    return Wallet.decryptSM2(password, walletFile);
   }
 
   public byte[] getPrivateBytes(byte[] password) throws CipherException, IOException {
@@ -353,7 +359,8 @@ public class WalletApi {
       byte[] passwd = org.tron.keystore.StringUtils.char2Byte(password);
       org.tron.keystore.StringUtils.clear(password);
 
-      transaction = TransactionUtils.sign(transaction, this.getEcKey(walletFile, passwd));
+//      transaction = TransactionUtils.sign(transaction, this.getEcKey(walletFile, passwd));
+      transaction = TransactionUtils.sign(transaction, this.getSM2(walletFile, passwd));
 //      System.out
 //          .println("current transaction hex string is " + ByteArray
 //              .toHexString(transaction.toByteArray()));
