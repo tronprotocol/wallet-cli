@@ -78,7 +78,6 @@ The following are a overview of documents including some command explanations an
 
 ## How to freeze/unfreeze balance
 
-
 After the funds are frozen, the corresponding number of shares and bandwidth will be obtained.
 Shares can be used for voting and bandwidth can be used for trading.
 The rules for the use and calculation of share and bandwidth are described later in this article.
@@ -86,14 +85,14 @@ The rules for the use and calculation of share and bandwidth are described later
 **Freeze operation is as follows:**
 
 ```console
-$ freezeBalance [OwnerAddress] frozen_balance frozen_duration [ResourceCode:0 BANDWIDTH,1 ENERGY] [receiverAddress]
+> freezeBalance [OwnerAddress] frozen_balance frozen_duration [ResourceCode:0 BANDWIDTH, 1 ENERGY] [receiverAddress]
 ```
 
 OwnerAddress
 > The address of the account that initiated the transaction, optional, default is the address of the login account.
 
 frozen_balance
-> The amount of frozen funds，the unit is drop.
+> The amount of frozen funds, the unit is drop.
 > The minimum value is **1000000 drop(1TRX)**.
 
 frozen_duration
@@ -102,10 +101,10 @@ frozen_duration
 For example:
 
 ```console
-$ freezeBalance 100000000 3 1 address
+> freezeBalance 100000000 3 1 address
 ```
 
-After the freeze operation,frozen funds will be transferred from Account Balance to Frozen,
+After the freeze operation, frozen funds will be transferred from Account Balance to Frozen,
 You can view frozen funds from your account information.
 After being unfrozen, it is transferred back to Balance by Frozen, and the frozen funds cannot be used for trading.
 
@@ -117,7 +116,7 @@ After the freezing time expires, funds can be unfroze.
 **Unfreeze operation is as follows:**
 
 ```console
-$ unfreezeBalance [OwnerAddress] ResourceCode(0 BANDWIDTH,1 CPU) [receiverAddress]
+> unfreezeBalance [OwnerAddress] ResourceCode(0 BANDWIDTH, 1 CPU) [receiverAddress]
 ```
 
 ## How to vote
@@ -132,11 +131,11 @@ Voting requires share. Share can be obtained by freezing funds.
 For example:
 
 ```console
-$ freezeBalance 100000000 3 1 address  # Freeze 10TRX and acquire 10 units of shares
+> freezeBalance 100000000 3 1 address  # Freeze 10TRX and acquire 10 units of shares
 
-$ votewitness 123455 witness1 4 witness2 6  # Cast 4 votes for witness1 and 6 votes for witness2 at the same time
+> votewitness 123455 witness1 4 witness2 6  # Cast 4 votes for witness1 and 6 votes for witness2 at the same time
 
-$ votewitness 123455 witness1 10  # Voted 10 votes for witness1
+> votewitness 123455 witness1 10  # Voted 10 votes for witness1
 ```
 
 The final result of the above command was 10 votes for witness1 and 0 vote for witness2.
@@ -221,7 +220,7 @@ AbbrName
 TotalSupply
 > Total issuing amount = account balance of the issuer at the time of issuance + all the frozen amount, before asset transfer and the issuance.
 
-TrxNum,AssetNum
+TrxNum, AssetNum
 > These two parameters determine the exchange rate between the issued token and the minimum unit of TRX (sun) when the token is issued.
 
 FreeNetLimitPerAccount
@@ -230,11 +229,11 @@ FreeNetLimitPerAccount
 PublicFreeNetLimit
 > The maximum amount of bandwidth issuing accounts are allowed user. Token issuers can freeze REX to obtain bandwidth (TransferAssetContract only)
 
-StartDate,EndDate
+StartDate, EndDate
 > The start and end date of token issuance. Within this period time, other users can participate in token issuance.*
 
 FrozenAmount0 FrozenDays0
-> Amount and time of token freeze. FrozenAmount0 must be bigger than 0,FrozenDays0 must be bigger than 1 and smaller than 3653.
+> Amount and time of token freeze. FrozenAmount0 must be bigger than 0, FrozenDays0 must be bigger than 1 and smaller than 3653.
 
 Example:
 
@@ -358,7 +357,7 @@ ToAddress
 > Account address of Token 10 issuers
 
 AssertName
-> TRC10 ID,1000001 in the example
+> TRC10 ID, 1000001 in the example
 
 Amount
 > The number of TRC10 token to transfers
@@ -644,21 +643,24 @@ need signatures from both accounts in order to take effect.
 
 If the account is not a witness, it's not necessary to set witness_permission, otherwise an error will occur.
 
-
 ### Signed transaction
 
     > SendCoin TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW 10000000000000000
 
 Will show "Please confirm and input your permission id, if input y or Y means default 0, other
 non-numeric characters will cancel transaction."
+
 This will require the transfer authorization of active access. Enter: 2
+
 Then select accounts and put in local password, i.e. TNhXo1GbRNCuorvYu5JFWN3m2NYr9QQpVR needs a
 private key TNhXo1GbRNCuorvYu5JFWN3m2NYr9QQpVR to sign a transaction.
+
 Select another account and enter the local password. i.e. TKwhcDup8L2PH5r6hxp5CQvQzZqJLmKvZP will
- need a private key of TKwhcDup8L2PH5r6hxp5CQvQzZqJLmKvZP to sign a transaction.
+need a private key of TKwhcDup8L2PH5r6hxp5CQvQzZqJLmKvZP to sign a transaction.
+
 The weight of each account is 1, threshold of access is 2. When the requirements are met, users
 will be notified with “Send 10000000000000000 drop to TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW
-successful !!”。
+successful !!”.
 
 This is how multiple accounts user multi-signature when using the same cli.
 Use the instruction addTransactionSign according to the obtained transaction hex string if
@@ -731,7 +733,7 @@ The information displays as follows:
 ### Get signature information according to transactions
 
     > getTransactionApprovedList
-    > 0a8c010a020318220860e195d3609c86614096eadec79d2d5a6e080112680a2d747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e5472616e73666572436f6e747261637412370a1541a7d8a35b260395c14aa456297662092ba3b76fc01215415a523b449890854c8fc460ab602df9f31fe4293f18808084fea6dee11128027094bcb8bd9d2d1241c18ca91f1533ecdd83041eb0005683c4a39a2310ec60456b1f0075b4517443cf4f601a69788f001d4bc03872e892a5e25c618e38e7b81b8b1e69d07823625c2b0112413d61eb0f8868990cfa138b19878e607af957c37b51961d8be16168d7796675384e24043d121d01569895fcc7deb37648c59f538a8909115e64da167ff659c26101
+    0a8c010a020318220860e195d3609c86614096eadec79d2d5a6e080112680a2d747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e5472616e73666572436f6e747261637412370a1541a7d8a35b260395c14aa456297662092ba3b76fc01215415a523b449890854c8fc460ab602df9f31fe4293f18808084fea6dee11128027094bcb8bd9d2d1241c18ca91f1533ecdd83041eb0005683c4a39a2310ec60456b1f0075b4517443cf4f601a69788f001d4bc03872e892a5e25c618e38e7b81b8b1e69d07823625c2b0112413d61eb0f8868990cfa138b19878e607af957c37b51961d8be16168d7796675384e24043d121d01569895fcc7deb37648c59f538a8909115e64da167ff659c26101
 
 ```json
 {
@@ -798,7 +800,7 @@ byteCode
 > Compile generated byte code
 
 constructor, params, isHex
-> Define the format of the bytecode，which determines the way to parse byteCode from parameters
+> Define the format of the bytecode, which determines the way to parse byteCode from parameters
 
 fee_limit
 > Transaction allows for the most consumed TRX
@@ -864,7 +866,7 @@ args
 > Parameter value
 
 isHex
-> The format of the parameters method and args,is hex string or not
+> The format of the parameters method and args, is hex string or not
 
 fee_limit
 > The most amount of trx allows for the consumption
@@ -954,7 +956,7 @@ Example:
 
 ### delegate resource
 
-    > freezeBalance [OwnerAddress] frozen_balance frozen_duration [ResourceCode:0 BANDWIDTH,1 ENERGY] [receiverAddress]
+    > freezeBalance [OwnerAddress] frozen_balance frozen_duration [ResourceCode:0 BANDWIDTH, 1 ENERGY] [receiverAddress]
 
 The latter two parameters are optional parameters. If not set, the TRX is frozen to obtain
 resources for its own use; if it is not empty, the acquired resources are used by receiverAddress.
@@ -976,7 +978,7 @@ receiverAddress
 
 ### unfreeze delegated resource
 
-    > unfreezeBalance [OwnerAddress] ResourceCode(0 BANDWIDTH,1 CPU) [receiverAddress]
+    > unfreezeBalance [OwnerAddress] ResourceCode(0 BANDWIDTH, 1 CPU) [receiverAddress]
 
 The latter two parameters are optional. If they are not set, the BANDWIDTH resource is unfreeze
 by default; when the receiverAddress is set, the delegate resources are unfreezed.
@@ -1004,10 +1006,10 @@ as: 721d63b074f18d41c147e04c952ec93467777a30b6f16745bc47a8eae5076545
 > Modify the password of an account
 
 **ImportWallet**
-> Import wallet, you need to set a password，hex String format
+> Import wallet, you need to set a password, hex String format
 
 **ImportWalletByBase64**
-> Import wallet, you need to set a password，base64 fromat
+> Import wallet, you need to set a password, base64 fromat
 
 ## Account related commands
 
@@ -1038,7 +1040,7 @@ as: 721d63b074f18d41c147e04c952ec93467777a30b6f16745bc47a8eae5076545
 > Get the number of transactions in the block based on the block height
 
 **GetTransactionInfoById**
-> Get transaction-info based on transaction id,generally used to check the result of a smart contract trigger
+> Get transaction-info based on transaction id, generally used to check the result of a smart contract trigger
 
 ## How to get block information
 
@@ -1135,7 +1137,7 @@ shieldedInputNum
 > The number of shielded input note, should be 0 or 1.
 
 input
-> The index of shielded input note, get from execute command listshieldednote,if shieldedInputNum set to 0,no need to set.
+> The index of shielded input note, get from execute command listshieldednote, if shieldedInputNum set to 0, no need to set.
 
 publicToAddress
 > Public to address, set to null if not needed.
@@ -1144,7 +1146,7 @@ toAmount
 > The amount transfer to public address, if publicToAddress set to null, this variable must be 0.
 
 shieldedOutputNum
-> The amount of shielded output note. That is the number of (shieldedAddress amount meno) pairs, should be 0,1,2
+> The amount of shielded output note. That is the number of (shieldedAddress amount meno) pairs, should be 0, 1, 2
 
 shieldedAddress1
 > Output shielded address
@@ -1176,6 +1178,7 @@ Example:
     ```
 
 3. shielded address transfer to public address
+
     ```console
     > listshieldednote
     Unspend note list like:
@@ -1212,7 +1215,7 @@ Example:
 
 6. resetshieldednote
 
-    Clean all the note scanned,rescanned all blocks.generally used when there is a problem with the notes or when switching environments
+    Clean all the note scanned, rescanned all blocks.generally used when there is a problem with the notes or when switching environments
 
 7. ScanNotebyIvk ivk startNum endNum
 
@@ -1301,7 +1304,7 @@ Example:
 
 12. getExpandedSpendingKey sk
 
-    Generate ask,nsk,ovk from sk
+    Generate ask, nsk, ovk from sk
 
     Example:
 
