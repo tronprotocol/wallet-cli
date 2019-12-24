@@ -1156,6 +1156,7 @@ memo1
 > The memo of this note, up to 512 bytes, can be set to null if not needed
 
 Example:
+
 1. Public address transfer to two shielded addresses
 
     ```console
@@ -1185,14 +1186,21 @@ Example:
     address ztron1hn9r3wmytavslztwmlzvuzk3dqpdhwcmda2d0deyu5pwv32dp78saaslyt82w0078y6uzfg8x6w
     ```
 
-- e sendshieldedcoinwithoutask
-Usage and parameters are consistent with the command sendshieldedcoin, the only difference is that sendshieldedcoin uses ask signature, but sendshieldedcoinwithoutask uses ak signature.
+4. sendshieldedcoinwithoutask
 
-- f listshieldednote type          List the note scanned by the local cache address
-*type:Show type. 0 show not spent note; other value show all notes, include spend notes and not spend notes. default is 0.*
-Example:
-    ```
-    listshieldednote 0
+    Usage and parameters are consistent with the command sendshieldedcoin, the only difference is that sendshieldedcoin uses ask signature, but sendshieldedcoinwithoutask uses ak signature.
+
+5. listshieldednote type
+
+    List the note scanned by the local cache address
+
+    type
+    > Show type. 0 show not spent note; other value show all notes, include spend notes and not spend notes. default is 0.
+
+    Example:
+
+    ```console
+    > listshieldednote 0
     Unspend note list like:
     1 ztron1ghdy60hya8y72deu0q0r25qfl60unmue6889m3xfc3296a5ut6jcyafzhtp9nlutndukufzap4h 100000000 4ce5656a13049df00abc7fb3ce78d54c78944d3cbbdfdb29f288e1df5fdf67e1 1 UnSpend
     listshieldednote 1
@@ -1202,112 +1210,202 @@ Example:
     ztron1hn9r3wmytavslztwmlzvuzk3dqpdhwcmda2d0deyu5pwv32dp78saaslyt82w0078y6uzfg8x6w 90000000 06b55fc27f7ec649396706d149d18a0bb003347bdd7f489e3d47205da9cee802 0 Spend test2
     ```
 
-- g resetshieldednote             Clean all the note scanned,rescanned all blocks.generally used when there is a problem with the notes or when switching environments
+6. resetshieldednote
 
-- h ScanNotebyIvk ivk startNum endNum     Scan notes by ivk
-*ivk:The ivk of shielded address*
-*startNum:The starting block number of the scan*
-*endNum:The end block number of the scan*
-Example:
-scannotebyivk d2a4137cecf049965c4183f78fe9fc9fbeadab6ab3ef70ea749421b4c6b8de04 500 1499
+    Clean all the note scanned,rescanned all blocks.generally used when there is a problem with the notes or when switching environments
 
+7. ScanNotebyIvk ivk startNum endNum
 
-- i ScanNotebyOvk ovk startNum endNum   Scan notes by ovk
-*ovk:The ivk of shielded address*
-*startNum:The starting block number of the scan*
-*endNum:The end block number of the scan*
-Example:
-scannotebyovk a5b06ef3067855d741f966d54dfa1c124548535107333336bd9552a427f0529e 500 1499
+    Scan notes by ivk
 
+    ivk
+    > The ivk of shielded address
 
-- j GetShieldedNullifier index    Get the nullifier of the note
-*index:The note index obtained by the listshieldednote command*
-Example:
-listshieldednote
-Unspend note list like:
-2 ztron1ghdy60hya8y72deu0q0r25qfl60unmue6889m3xfc3296a5ut6jcyafzhtp9nlutndukufzap4h 100000000 4ce5656a13049df00abc7fb3ce78d54c78944d3cbbdfdb29f288e1df5fdf67e1 1 UnSpend
-getshieldednullifier 2
-address ztron1ghdy60hya8y72deu0q0r25qfl60unmue6889m3xfc3296a5ut6jcyafzhtp9nlutndukufzap4h
-value 100000000
-rcm 07ed5471098652ad441575c61868d1e11317de0f73cbb743a4c5cfe78e3d150c
-trxId 4ce5656a13049df00abc7fb3ce78d54c78944d3cbbdfdb29f288e1df5fdf67e1
-index 1
-memo
-ShieldedNullifier:2a524a3be2643365ecdacf8f0d3ca1de8fad3080eea0b9561435b5d1ee467042
+    startNum
+    > The starting block number of the scan
 
-- k ScanAndMarkNotebyAddress shieldedAddress startNum endNum  Scan the note with a locally cached shielded address and mark whether it is spent out
-*shieldedAddress:Locally cached shielded address, if it is not a locally cached shielded address, an error will be reported.*
-*startNum:The starting block number of the scan*
-*endNum:The end block number of the scan*
-Example:
-ScanAndMarkNotebyAddress  ztron16j06s3p5gvp2jde4vh7w3ug3zz3m62zkyfu86s7ara5lafhp22p9wr3gz0lcdm3pvt7qx0aftu4 500 1500
+    endNum
+    > The end block number of the scan
 
-- l GetSpendingKey      Generate a sk
-Example:
-GetSpendingKey
-0eb458b309fa544066c40d80ce30a8002756c37d2716315c59a98c893dbb5f6a
+    Example:
 
-- m getExpandedSpendingKey sk   Generate ask,nsk,ovk from sk
-Example:
-getExpandedSpendingKey 0eb458b309fa544066c40d80ce30a8002756c37d2716315c59a98c893dbb5f6a
-ask:252a0f6f6f0bac114a13e1e663d51943f1df9309649400218437586dea78260e
-nsk:5cd2bc8d9468dbad26ea37c5335a0cd25f110eaf533248c59a3310dcbc03e503
-ovk:892a10c1d3e8ea22242849e13f177d69e1180d1d5bba118c586765241ba2d3d6
+        > scannotebyivk d2a4137cecf049965c4183f78fe9fc9fbeadab6ab3ef70ea749421b4c6b8de04 500 1499
 
-- n getAkFromAsk ask          Generate ak from ask
-Example:
-GetAkFromAsk 252a0f6f6f0bac114a13e1e663d51943f1df9309649400218437586dea78260e
-ak:f1b843147150027daa5b522dd8d0757ec5c8c146defd8e01b62b34cf917299f1
+8. ScanNotebyOvk ovk startNum endNum
 
-- o getNkFromNsk nsk         Generate nk from nsk
-Example:
-GetNkFromNsk 5cd2bc8d9468dbad26ea37c5335a0cd25f110eaf533248c59a3310dcbc03e503
-nk:ed3dc885049f0a716a4de8c08c6cabcad0da3c437202341aa3d9248d8eb2b74a
+    Scan notes by ovk
 
-- p getIncomingViewingKey ak[64] nk[64]  Generate ivk from ak and nk
-Example:
-getincomingviewingkey  f1b843147150027daa5b522dd8d0757ec5c8c146defd8e01b62b34cf917299f1  ed3dc885049f0a716a4de8c08c6cabcad0da3c437202341aa3d9248d8eb2b74a
-ivk:148cf9e91f1e6656a41dc9b6c6ee4e52ff7a25b25c2d4a3a3182d0a2cd851205
+    ovk
+    > the ivk of shielded address
 
-- q GetDiversifier      Generate a diversifier
-Example:
-GetDiversifier
-11db4baf6bd5d5afd3a8b5
+    startNum
+    > The starting block number of the scan
 
-- r getshieldedpaymentaddress ivk[64] d[22]   Generate a shielded address from sk and d
-Example:
-GetShieldedPaymentAddress 148cf9e91f1e6656a41dc9b6c6ee4e52ff7a25b25c2d4a3a3182d0a2cd851205  11db4baf6bd5d5afd3a8b5
-pkd:65c11642115d386ed716b9cc06a3498e86e303d7f20d0869c9de90e31322ac15
-shieldedAddress:ztron1z8d5htmt6h26l5agk4juz9jzz9wnsmkhz6uucp4rfx8gdccr6leq6zrfe80fpccny2kp2cray8z
+    endNum
+    > The end block number of the scan
 
-- s BackupShieldedAddress           Back up one shielded address
-Example:
-loadshieldedwallet
-Please input your password for shielded wallet.
-1qa@WS#ED
-LoadShieldedWallet successful !!!
-BackupShieldedAddress
-Please input your password for shielded wallet.
-1qa@WS#ED
-The 1th shielded address is ztron15y0cthwduz7mjpx3mc7cl9cxj8aqq9m8z08g6xns8qsvp7hgqstp9w5t8eh0vydlyf42gtxjzun
-The 2th shielded address is ztron1akz7mt4zqsjqrdrwdsmffu6g5dnehhhtahjlc0c6syy3z9nxxjrzqszy22lyx326edmwqjhqe48
-The 3th shielded address is ztron1m5dx50gryu789q5sh5207chzmmgzf5c7hvn8lr6xs60jfxvkv3d3h0kqkglc60rwq26dchztsty
-The 4th shielded address is ztron1at9ud3crdsehe8rgrjkltqly7gsp85y8qzq93pq480hzd2az55pja5cc8r4yfwrnrqqs7q35n4x
-Please choose between 1 and 4
-1
-0b1cf73b85742e13015dc6fb8d0986e4ad34c8f468bd8c73cc8fb34bff0dfacea11f85ddcde0bdb904d1de
-BackupShieldedAddress successful !!
+    Example:
 
+        > scannotebyovk a5b06ef3067855d741f966d54dfa1c124548535107333336bd9552a427f0529e 500 1499
 
-- t ImportShieldedAddress         Import one shieled address to local wallet
-Example:
-ImportShieldedAddress
-Please input your password for shielded wallet.
-1qa@WS#ED
-Please input shielded address hex string. Max retry time: 3
-0b1cf73b85742e13015dc6fb8d0986e4ad34c8f468bd8c73cc8fb34bff0dfacea11f85ddcde0bdb904d1de
-Import new shielded address is: ztron15y0cthwduz7mjpx3mc7cl9cxj8aqq9m8z08g6xns8qsvp7hgqstp9w5t8eh0vydlyf42gtxjzun
-ImportShieldedAddress successful !!
+9. GetShieldedNullifier index
+
+    Get the nullifier of the note
+
+    index
+    > The note index obtained by the listshieldednote command
+
+    Example:
+
+    ```console
+    > listshieldednote
+    Unspend note list like:
+    2 ztron1ghdy60hya8y72deu0q0r25qfl60unmue6889m3xfc3296a5ut6jcyafzhtp9nlutndukufzap4h 100000000 4ce5656a13049df00abc7fb3ce78d54c78944d3cbbdfdb29f288e1df5fdf67e1 1 UnSpend
+    getshieldednullifier 2
+    address ztron1ghdy60hya8y72deu0q0r25qfl60unmue6889m3xfc3296a5ut6jcyafzhtp9nlutndukufzap4h
+    value 100000000
+    rcm 07ed5471098652ad441575c61868d1e11317de0f73cbb743a4c5cfe78e3d150c
+    trxId 4ce5656a13049df00abc7fb3ce78d54c78944d3cbbdfdb29f288e1df5fdf67e1
+    index 1
+    memo
+    ShieldedNullifier:2a524a3be2643365ecdacf8f0d3ca1de8fad3080eea0b9561435b5d1ee467042
+    ```
+
+10. ScanAndMarkNotebyAddress shieldedAddress startNum endNum
+
+    Scan the note with a locally cached shielded address and mark whether it is spent out
+
+    shieldedAddress
+    > Locally cached shielded address, if it is not a locally cached shielded address, an error will be reported.
+
+    startNum
+    > The starting block number of the scan
+
+    endNum
+    > The end block number of the scan
+
+    Example:
+
+        > ScanAndMarkNotebyAddress  ztron16j06s3p5gvp2jde4vh7w3ug3zz3m62zkyfu86s7ara5lafhp22p9wr3gz0lcdm3pvt7qx0aftu4 500 1500
+
+11. GetSpendingKey
+
+    Generate a sk
+
+    Example:
+
+    ```console
+    > GetSpendingKey
+    0eb458b309fa544066c40d80ce30a8002756c37d2716315c59a98c893dbb5f6a
+    ```
+
+12. getExpandedSpendingKey sk
+
+    Generate ask,nsk,ovk from sk
+
+    Example:
+
+    ```console
+    > getExpandedSpendingKey 0eb458b309fa544066c40d80ce30a8002756c37d2716315c59a98c893dbb5f6a
+    ask:252a0f6f6f0bac114a13e1e663d51943f1df9309649400218437586dea78260e
+    nsk:5cd2bc8d9468dbad26ea37c5335a0cd25f110eaf533248c59a3310dcbc03e503
+    ovk:892a10c1d3e8ea22242849e13f177d69e1180d1d5bba118c586765241ba2d3d6
+    ```
+
+13. getAkFromAsk ask
+    Generate ak from ask
+
+    Example:
+
+    ```console
+    > GetAkFromAsk 252a0f6f6f0bac114a13e1e663d51943f1df9309649400218437586dea78260e
+    ak:f1b843147150027daa5b522dd8d0757ec5c8c146defd8e01b62b34cf917299f1
+    ```
+
+14. getNkFromNsk nsk
+
+    Generate nk from nsk
+
+    Example:
+
+    ```console
+    > GetNkFromNsk 5cd2bc8d9468dbad26ea37c5335a0cd25f110eaf533248c59a3310dcbc03e503
+    nk:ed3dc885049f0a716a4de8c08c6cabcad0da3c437202341aa3d9248d8eb2b74a
+    ```
+
+15. getIncomingViewingKey ak[64] nk[64]
+
+    Generate ivk from ak and nk
+
+    Example:
+
+    ```console
+    > getincomingviewingkey  f1b843147150027daa5b522dd8d0757ec5c8c146defd8e01b62b34cf917299f1  ed3dc885049f0a716a4de8c08c6cabcad0da3c437202341aa3d9248d8eb2b74a
+    ivk:148cf9e91f1e6656a41dc9b6c6ee4e52ff7a25b25c2d4a3a3182d0a2cd851205
+    ```
+
+16. GetDiversifier
+
+    Generate a diversifier
+
+    Example:
+
+    ```console
+    > GetDiversifier
+    11db4baf6bd5d5afd3a8b5
+    ```
+
+17. getshieldedpaymentaddress ivk[64] d[22]
+
+    Generate a shielded address from sk and d
+
+    Example:
+
+    ```console
+    GetShieldedPaymentAddress 148cf9e91f1e6656a41dc9b6c6ee4e52ff7a25b25c2d4a3a3182d0a2cd851205  11db4baf6bd5d5afd3a8b5
+    pkd:65c11642115d386ed716b9cc06a3498e86e303d7f20d0869c9de90e31322ac15
+    shieldedAddress:ztron1z8d5htmt6h26l5agk4juz9jzz9wnsmkhz6uucp4rfx8gdccr6leq6zrfe80fpccny2kp2cray8z
+    ```
+
+18. BackupShieldedAddress
+
+    Back up one shielded address
+
+    Example:
+
+    ```console
+    > loadshieldedwallet
+    Please input your password for shielded wallet.
+    > 1qa@WS#ED
+    LoadShieldedWallet successful !!!
+    > BackupShieldedAddress
+    Please input your password for shielded wallet.
+    > 1qa@WS#ED
+    The 1th shielded address is ztron15y0cthwduz7mjpx3mc7cl9cxj8aqq9m8z08g6xns8qsvp7hgqstp9w5t8eh0vydlyf42gtxjzun
+    The 2th shielded address is ztron1akz7mt4zqsjqrdrwdsmffu6g5dnehhhtahjlc0c6syy3z9nxxjrzqszy22lyx326edmwqjhqe48
+    The 3th shielded address is ztron1m5dx50gryu789q5sh5207chzmmgzf5c7hvn8lr6xs60jfxvkv3d3h0kqkglc60rwq26dchztsty
+    The 4th shielded address is ztron1at9ud3crdsehe8rgrjkltqly7gsp85y8qzq93pq480hzd2az55pja5cc8r4yfwrnrqqs7q35n4x
+    Please choose between 1 and 4
+    > 1
+    0b1cf73b85742e13015dc6fb8d0986e4ad34c8f468bd8c73cc8fb34bff0dfacea11f85ddcde0bdb904d1de
+    BackupShieldedAddress successful !!
+    ```
+
+19. ImportShieldedAddress
+
+    Import one shieled address to local wallet
+
+    Example:
+
+    ```console
+    > ImportShieldedAddress
+    Please input your password for shielded wallet.
+    > 1qa@WS#ED
+    Please input shielded address hex string. Max retry time: 3
+    > 0b1cf73b85742e13015dc6fb8d0986e4ad34c8f468bd8c73cc8fb34bff0dfacea11f85ddcde0bdb904d1de
+    Import new shielded address is: ztron15y0cthwduz7mjpx3mc7cl9cxj8aqq9m8z08g6xns8qsvp7hgqstp9w5t8eh0vydlyf42gtxjzun
+    ImportShieldedAddress successful !!
+    ```
 
 ## Command List
 
