@@ -6,6 +6,7 @@ import org.bouncycastle.crypto.generators.SCrypt;
 import org.bouncycastle.crypto.params.KeyParameter;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.Hash;
+import org.tron.common.crypto.sm2.SM2;
 import org.tron.common.utils.ByteArray;
 import org.tron.core.exception.CipherException;
 import org.tron.walletserver.WalletApi;
@@ -78,12 +79,33 @@ public class Wallet {
 
     return createWalletFile(ecKeyPair, cipherText, iv, salt, mac, n, p);
   }
+  public static WalletFile create(byte[] password, SM2 ecKeyPair, int n, int p)
+          throws CipherException {
 
+    byte[] salt = generateRandomBytes(32);
+
+    byte[] derivedKey = generateDerivedScryptKey(password, salt, n, R, p, DKLEN);
+
+    byte[] encryptKey = Arrays.copyOfRange(derivedKey, 0, 16);
+    byte[] iv = generateRandomBytes(16);
+
+    byte[] privateKeyBytes = ecKeyPair.getPrivKeyBytes();
+
+    byte[] cipherText = performCipherOperation(Cipher.ENCRYPT_MODE, iv, encryptKey,
+            privateKeyBytes);
+
+    byte[] mac = generateMac(derivedKey, cipherText);
+
+    return createWalletFile(ecKeyPair, cipherText, iv, salt, mac, n, p);
+  }
   public static WalletFile createStandard(byte[] password, ECKey ecKeyPair)
       throws CipherException {
     return create(password, ecKeyPair, N_STANDARD, P_STANDARD);
   }
-
+  public static WalletFile createStandard(byte[] password, SM2 ecKeyPair)
+          throws CipherException {
+    return create(password, ecKeyPair, N_STANDARD, P_STANDARD);
+  }
   public static WalletFile createLight(byte[] password, ECKey ecKeyPair)
       throws CipherException {
     return create(password, ecKeyPair, N_LIGHT, P_LIGHT);
@@ -92,6 +114,38 @@ public class Wallet {
   private static WalletFile createWalletFile(
       ECKey ecKeyPair, byte[] cipherText, byte[] iv, byte[] salt, byte[] mac,
       int n, int p) {
+
+    WalletFile walletFile = new WalletFile();
+    walletFile.setAddress(WalletApi.encode58Check(ecKeyPair.getAddress()));
+
+    WalletFile.Crypto crypto = new WalletFile.Crypto();
+    crypto.setCipher(CIPHER);
+    crypto.setCiphertext(ByteArray.toHexString(cipherText));
+    walletFile.setCrypto(crypto);
+
+    WalletFile.CipherParams cipherParams = new WalletFile.CipherParams();
+    cipherParams.setIv(ByteArray.toHexString(iv));
+    crypto.setCipherparams(cipherParams);
+
+    crypto.setKdf(SCRYPT);
+    WalletFile.ScryptKdfParams kdfParams = new WalletFile.ScryptKdfParams();
+    kdfParams.setDklen(DKLEN);
+    kdfParams.setN(n);
+    kdfParams.setP(p);
+    kdfParams.setR(R);
+    kdfParams.setSalt(ByteArray.toHexString(salt));
+    crypto.setKdfparams(kdfParams);
+
+    crypto.setMac(ByteArray.toHexString(mac));
+    walletFile.setCrypto(crypto);
+    walletFile.setId(UUID.randomUUID().toString());
+    walletFile.setVersion(CURRENT_VERSION);
+
+    return walletFile;
+  }
+  private static WalletFile createWalletFile(
+          SM2 ecKeyPair, byte[] cipherText, byte[] iv, byte[] salt, byte[] mac,
+          int n, int p) {
 
     WalletFile walletFile = new WalletFile();
     walletFile.setAddress(WalletApi.encode58Check(ecKeyPair.getAddress()));
@@ -266,6 +320,13 @@ public class Wallet {
     ECKey ecKey = ECKey.fromPrivate(privateKey);
     StringUtils.clear(privateKey);
     return ecKey;
+  }
+  public static SM2 decryptSM2(byte[] password, WalletFile walletFile)
+          throws CipherException {
+    byte[] privateKey = decrypt2PrivateBytes(password, walletFile);
+    SM2 sm2 = SM2.fromPrivate(privateKey);
+    StringUtils.clear(privateKey);
+    return sm2;
   }
 
   static void validate(WalletFile walletFile) throws CipherException {
