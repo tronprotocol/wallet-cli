@@ -36,7 +36,7 @@ soliditynode = {
 - connect to fullNode and solidityNode
 
     Take a look at: [java-tron deployment](https://tronprotocol.github.io/documentation-en/developers/deployment/)
-    Run both fullNode and solidity node in  either your local PC or remote server.
+    Run both fullNode and solidity node in either your local PC or remote server.
 
     NOTE: These nodes would consume a lot of memory and CPU. Please be aware if you do not use wallet, just kill them.
 - compile and run web wallet
@@ -189,7 +189,7 @@ priKey = 075725cf903fc1f6d6267b8076fc2c6adece0cfd18626c33427d9b2504ea3cef'  # ba
 > getbalance
 Balance = 0
 > AssetIssue TestTRX TRX 75000000000000000 1 1 2 "2019-10-02 15:10:00" "2020-07-11" "just for test121212" www.test.com 100 100000 10000 10 10000 1
-> getaccount  TRfwwLDpr4excH4V4QzghLEsdYwkapTxnm
+> getaccount TRfwwLDpr4excH4V4QzghLEsdYwkapTxnm
 (Print balance: 9999900000
 "assetV2": [
     {
@@ -588,7 +588,7 @@ Multi-signature allows other users to access the account in order to better mana
 three types of accesses:
 
 - owner: access to the owner of account
-- active:    access to other features of accounts, and access that authorizes a certain feature. Block production authorization is not included if it's for witness purposes.
+- active: access to other features of accounts, and access that authorizes a certain feature. Block production authorization is not included if it's for witness purposes.
 - witness: only for witness, block production authorization will be granted to one of the other users.
 
 The rest of the users will be granted
@@ -916,7 +916,7 @@ contractAddress
 Example:
 
 ```console
-> GetContract  TGdtALTPZ1FWQcc5MW7aK3o1ASaookkJxG
+> GetContract TGdtALTPZ1FWQcc5MW7aK3o1ASaookkJxG
 {
     "origin_address": "TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ",
     "contract_address": "TJMKWmC6mwF1QVax8Sy2AcgT6MqaXmHEds",
@@ -988,7 +988,7 @@ by default; when the receiverAddress is set, the delegate resources are unfreeze
 ### get resource delegation information
 
 getDelegatedResource fromAddress toAddress
-> get the information from the fromAddress to the  toAddress resource delegate
+> get the information from the fromAddress to the toAddress resource delegate
 getDelegatedResourceAccountIndex address
 > get the information that address is delegated to other account resources
 
@@ -1291,7 +1291,7 @@ Example:
 
     Example:
 
-        > ScanAndMarkNotebyAddress  ztron16j06s3p5gvp2jde4vh7w3ug3zz3m62zkyfu86s7ara5lafhp22p9wr3gz0lcdm3pvt7qx0aftu4 500 1500
+        > ScanAndMarkNotebyAddress ztron16j06s3p5gvp2jde4vh7w3ug3zz3m62zkyfu86s7ara5lafhp22p9wr3gz0lcdm3pvt7qx0aftu4 500 1500
 
 11. GetSpendingKey
 
@@ -1345,7 +1345,7 @@ Example:
     Example:
 
     ```console
-    > getincomingviewingkey  f1b843147150027daa5b522dd8d0757ec5c8c146defd8e01b62b34cf917299f1  ed3dc885049f0a716a4de8c08c6cabcad0da3c437202341aa3d9248d8eb2b74a
+    > getincomingviewingkey f1b843147150027daa5b522dd8d0757ec5c8c146defd8e01b62b34cf917299f1 ed3dc885049f0a716a4de8c08c6cabcad0da3c437202341aa3d9248d8eb2b74a
     ivk:148cf9e91f1e6656a41dc9b6c6ee4e52ff7a25b25c2d4a3a3182d0a2cd851205
     ```
 
@@ -1367,7 +1367,7 @@ Example:
     Example:
 
     ```console
-    GetShieldedPaymentAddress 148cf9e91f1e6656a41dc9b6c6ee4e52ff7a25b25c2d4a3a3182d0a2cd851205  11db4baf6bd5d5afd3a8b5
+    GetShieldedPaymentAddress 148cf9e91f1e6656a41dc9b6c6ee4e52ff7a25b25c2d4a3a3182d0a2cd851205 11db4baf6bd5d5afd3a8b5
     pkd:65c11642115d386ed716b9cc06a3498e86e303d7f20d0869c9de90e31322ac15
     shieldedAddress:ztron1z8d5htmt6h26l5agk4juz9jzz9wnsmkhz6uucp4rfx8gdccr6leq6zrfe80fpccny2kp2cray8z
     ```
