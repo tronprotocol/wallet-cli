@@ -34,9 +34,11 @@ soliditynode = {
 ### Run a web wallet
 
 - connect to fullNode and solidityNode
-  Take a look at: [java-tron deployment](https://tronprotocol.github.io/documentation-en/developers/deployment/)
-  Run both fullNode and solidity node in  either your local PC or remote server.
-  NOTE: These nodes would consume a lot of memory and CPU. Please be aware if you do not use wallet, just kill them.
+
+    Take a look at: [java-tron deployment](https://tronprotocol.github.io/documentation-en/developers/deployment/)
+    Run both fullNode and solidity node in  either your local PC or remote server.
+
+    NOTE: These nodes would consume a lot of memory and CPU. Please be aware if you do not use wallet, just kill them.
 - compile and run web wallet
 
     ```console
