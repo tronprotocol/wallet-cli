@@ -19,6 +19,8 @@ import com.google.protobuf.ByteString;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.ECKey.ECDSASignature;
 import org.tron.common.crypto.Sha256Hash;
+import org.tron.common.crypto.SignInterface;
+import org.tron.common.crypto.SignatureInterface;
 import org.tron.common.crypto.sm2.SM2;
 import org.tron.core.exception.CancelException;
 import org.tron.protos.Protocol.Transaction;
@@ -165,25 +167,10 @@ public class TransactionUtils {
     return true;
   }
 
-  public static Transaction sign(Transaction transaction, ECKey myKey) {
+  public static Transaction sign(Transaction transaction, SignInterface myKey) {
     Transaction.Builder transactionBuilderSigned = transaction.toBuilder();
     byte[] hash = Sha256Hash.hash(transaction.getRawData().toByteArray());
-
-    //System.out.println("Sign address: " + WalletApi.encode58Check(myKey.getAddress()));
-
-    ECDSASignature signature = myKey.sign(hash);
-    ByteString bsSign = ByteString.copyFrom(signature.toByteArray());
-    transactionBuilderSigned.addSignature(bsSign);
-    transaction = transactionBuilderSigned.build();
-    return transaction;
-  }
-  public static Transaction sign(Transaction transaction, SM2 myKey) {
-    Transaction.Builder transactionBuilderSigned = transaction.toBuilder();
-    byte[] hash = Sha256Hash.hash(transaction.getRawData().toByteArray());
-
-    //System.out.println("Sign address: " + WalletApi.encode58Check(myKey.getAddress()));
-
-    SM2.SM2Signature signature = myKey.sign(hash);
+    SignatureInterface signature = myKey.sign(hash);
     ByteString bsSign = ByteString.copyFrom(signature.toByteArray());
     transactionBuilderSigned.addSignature(bsSign);
     transaction = transactionBuilderSigned.build();

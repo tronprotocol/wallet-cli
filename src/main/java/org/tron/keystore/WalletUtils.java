@@ -3,8 +3,12 @@ package org.tron.keystore;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.typesafe.config.Config;
 import org.tron.common.crypto.ECKey;
+import org.tron.common.crypto.SignInterface;
+import org.tron.common.crypto.sm2.SM2;
 import org.tron.common.utils.Utils;
+import org.tron.core.config.Configuration;
 import org.tron.core.exception.CipherException;
 
 import java.io.File;
@@ -22,10 +26,16 @@ import java.time.format.DateTimeFormatter;
 public class WalletUtils {
 
   private static final ObjectMapper objectMapper = new ObjectMapper();
+  private static boolean isEckey = true;
 
   static {
+    Config config = Configuration.getByPath("config.conf");//it is needs set to be a constant
     objectMapper.configure(JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES, true);
     objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+    if (config.hasPath("crypto.engine")) {
+      isEckey = config.getString("crypto.engine").equalsIgnoreCase("eckey");
+      System.out.println("WalletUtils getConfig isEckey: " + isEckey);
+    }
   }
 
   public static String generateFullNewWalletFile(byte[] password, File destinationDirectory)
@@ -46,20 +56,24 @@ public class WalletUtils {
       byte[] password, File destinationDirectory, boolean useFullScrypt)
       throws CipherException, IOException, InvalidAlgorithmParameterException,
       NoSuchAlgorithmException, NoSuchProviderException {
-
-    ECKey ecKeyPair = new ECKey(Utils.getRandom());
-    return generateWalletFile(password, ecKeyPair, destinationDirectory, useFullScrypt);
+    SignInterface ecKeySm2Pair = null;
+    if (isEckey) {
+      ecKeySm2Pair = new ECKey(Utils.getRandom());
+    } else {
+      ecKeySm2Pair = new SM2(Utils.getRandom());
+    }
+    return generateWalletFile(password, ecKeySm2Pair, destinationDirectory, useFullScrypt);
   }
 
   public static String generateWalletFile(
-      byte[] password, ECKey ecKeyPair, File destinationDirectory, boolean useFullScrypt)
+      byte[] password, SignInterface ecKeySm2Pair, File destinationDirectory, boolean useFullScrypt)
       throws CipherException, IOException {
 
     WalletFile walletFile;
     if (useFullScrypt) {
-      walletFile = Wallet.createStandard(password, ecKeyPair);
+      walletFile = Wallet.createStandard(password, ecKeySm2Pair);
     } else {
-      walletFile = Wallet.createLight(password, ecKeyPair);
+      walletFile = Wallet.createLight(password, ecKeySm2Pair);
     }
 
     String fileName = getWalletFileName(walletFile);
@@ -71,14 +85,14 @@ public class WalletUtils {
   }
 
   public static void updateWalletFile(
-      byte[] password, ECKey ecKeyPair, File source, boolean useFullScrypt)
+      byte[] password, SignInterface ecKeySm2Pair, File source, boolean useFullScrypt)
       throws CipherException, IOException {
 
     WalletFile walletFile = objectMapper.readValue(source, WalletFile.class);
     if (useFullScrypt) {
-      walletFile = Wallet.createStandard(password, ecKeyPair);
+      walletFile = Wallet.createStandard(password, ecKeySm2Pair);
     } else {
-      walletFile = Wallet.createLight(password, ecKeyPair);
+      walletFile = Wallet.createLight(password, ecKeySm2Pair);
     }
 
     objectMapper.writeValue(source, walletFile);
@@ -128,11 +142,15 @@ public class WalletUtils {
   public static Credentials loadCredentials(byte[] password, File source)
       throws IOException, CipherException {
     WalletFile walletFile = objectMapper.readValue(source, WalletFile.class);
-    return Credentials.create(Wallet.decrypt(password, walletFile));
+
+    if (isEckey) {
+      return CredentialsEckey.create(Wallet.decrypt(password, walletFile));
+    }
+    return CredentialsSM2.create(Wallet.decryptSM2(password, walletFile));
   }
 
   public static WalletFile loadWalletFile(File source) throws IOException {
-   return objectMapper.readValue(source, WalletFile.class);
+    return objectMapper.readValue(source, WalletFile.class);
   }
 //
 //    public static Credentials loadBip39Credentials(String password, String mnemonic) {
@@ -176,7 +194,6 @@ public class WalletUtils {
   }
 
 
-
 //    public static boolean isValidPrivateKey(String privateKey) {
 //        String cleanPrivateKey = Numeric.cleanHexPrefix(privateKey);
 //        return cleanPrivateKey.length() == PRIVATE_KEY_LENGTH_IN_HEX;
@@ -195,7 +212,7 @@ public class WalletUtils {
 //    }
 
   public static void generateSkeyFile(SKeyCapsule skey, File file)
-          throws IOException {
+      throws IOException {
     objectMapper.writeValue(file, skey);
   }
 

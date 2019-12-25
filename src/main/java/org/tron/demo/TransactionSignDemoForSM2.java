@@ -70,21 +70,21 @@ public class TransactionSignDemoForSM2 {
 
   private static byte[] signTransaction2Byte(byte[] transaction, byte[] privateKey)
       throws InvalidProtocolBufferException {
-    SM2 ecKey = SM2.fromPrivate(privateKey);
+    SM2 sm2 = SM2.fromPrivate(privateKey);
     Transaction transaction1 = Transaction.parseFrom(transaction);
     byte[] rawdata = transaction1.getRawData().toByteArray();
-    byte[] hash = ecKey.hash(rawdata);
-    byte[] sign = ecKey.sign(hash).toByteArray();
+    byte[] hash = sm2.hash(rawdata);
+    byte[] sign = sm2.sign(hash).toByteArray();
     return transaction1.toBuilder().addSignature(ByteString.copyFrom(sign)).build().toByteArray();
   }
 
   private static Transaction signTransaction2Object(byte[] transaction, byte[] privateKey)
       throws InvalidProtocolBufferException {
-    SM2 ecKey = SM2.fromPrivate(privateKey);
+    SM2 sm2 = SM2.fromPrivate(privateKey);
     Transaction transaction1 = Transaction.parseFrom(transaction);
     byte[] rawdata = transaction1.getRawData().toByteArray();
-    byte[] hash = ecKey.hash(rawdata);
-    byte[] sign = ecKey.sign(hash).toByteArray();
+    byte[] hash = sm2.hash(rawdata);
+    byte[] sign = sm2.sign(hash).toByteArray();
     return transaction1.toBuilder().addSignature(ByteString.copyFrom(sign)).build();
   }
 
@@ -107,8 +107,8 @@ public class TransactionSignDemoForSM2 {
   public static void main(String[] args) throws InvalidProtocolBufferException, CancelException {
     String privateStr = "4afbef627636b159614be6e210febd5f14dd6531874fb01ece956516541c41c7";
     byte[] privateBytes = ByteArray.fromHexString(privateStr);
-    SM2 ecKey = SM2.fromPrivate(privateBytes);
-    byte[] from = ecKey.getAddress();
+    SM2 sm2 = SM2.fromPrivate(privateBytes);
+    byte[] from = sm2.getAddress();
     byte[] to = WalletApi.decodeFromBase58Check("TWdVF6Bdg4vzVAbyqZodMhEWFwNYmSH8nE");
     long amount = 100_000_000L; //100 TRX, api only receive trx in drop, and 1 trx = 1000000 drop
     Transaction transaction = createTransaction(from, to, amount);
@@ -117,9 +117,10 @@ public class TransactionSignDemoForSM2 {
 
     //sign a transaction in byte format and return a Transaction in byte format
     byte[] transaction4 = signTransaction2Byte(transactionBytes, privateBytes);
-
     boolean result = broadcast(transaction4);
 
     System.out.println(result);
   }
+
+
 }
