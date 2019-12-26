@@ -87,6 +87,7 @@ public class WalletApi {
     }
     if (config.hasPath("RPC_version")) {
       rpcVersion = config.getInt("RPC_version");
+      System.out.println("WalletApi getRpcVsersion: " + rpcVersion);
     }
     if (config.hasPath("crypto.engine")) {
       isEckey = config.getString("crypto.engine").equalsIgnoreCase("eckey");
@@ -632,6 +633,7 @@ public class WalletApi {
     }
 
     Contract.TransferContract contract = createTransferContract(to, owner, amount);
+    System.out.println("rpcVersion: "+rpcVersion);
     if (rpcVersion == 2) {
       TransactionExtention transactionExtention = rpcCli.createTransaction2(contract);
       return processTransactionExtention(transactionExtention);

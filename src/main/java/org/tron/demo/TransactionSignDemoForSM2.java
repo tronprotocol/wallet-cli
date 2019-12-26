@@ -117,9 +117,10 @@ public class TransactionSignDemoForSM2 {
 
     //sign a transaction in byte format and return a Transaction in byte format
     byte[] transaction4 = signTransaction2Byte(transactionBytes, privateBytes);
-
     boolean result = broadcast(transaction4);
 
     System.out.println(result);
   }
+
+
 }
