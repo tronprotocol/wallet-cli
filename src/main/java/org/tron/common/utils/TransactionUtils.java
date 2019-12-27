@@ -143,7 +143,7 @@ public class TransactionUtils {
    */
   public static boolean validTransaction(Transaction signedTransaction) {
     assert (signedTransaction.getSignatureCount() ==
-            signedTransaction.getRawData().getContractCount());
+        signedTransaction.getRawData().getContractCount());
     List<Transaction.Contract> listContract = signedTransaction.getRawData().getContractList();
     byte[] hash = Sha256Hash.hash(signedTransaction.getRawData().toByteArray());
     int count = signedTransaction.getSignatureCount();
@@ -155,7 +155,7 @@ public class TransactionUtils {
         Transaction.Contract contract = listContract.get(i);
         byte[] owner = getOwner(contract);
         byte[] address = ECKey
-                .signatureToAddress(hash, getBase64FromByteString(signedTransaction.getSignature(i)));
+            .signatureToAddress(hash, getBase64FromByteString(signedTransaction.getSignature(i)));
         if (!Arrays.equals(owner, address)) {
           return false;
         }
@@ -181,7 +181,7 @@ public class TransactionUtils {
     long currentTime = System.currentTimeMillis();//*1000000 + System.nanoTime()%1000000;
     Transaction.Builder builder = transaction.toBuilder();
     org.tron.protos.Protocol.Transaction.raw.Builder rowBuilder = transaction.getRawData()
-            .toBuilder();
+        .toBuilder();
     rowBuilder.setTimestamp(currentTime);
     builder.setRawData(rowBuilder.build());
     return builder.build();
@@ -192,7 +192,7 @@ public class TransactionUtils {
       long expirationTime = System.currentTimeMillis() + 6 * 60 * 60 * 1000;
       Transaction.Builder builder = transaction.toBuilder();
       org.tron.protos.Protocol.Transaction.raw.Builder rowBuilder = transaction.getRawData()
-              .toBuilder();
+          .toBuilder();
       rowBuilder.setExpiration(expirationTime);
       builder.setRawData(rowBuilder.build());
       return builder.build();
@@ -202,7 +202,7 @@ public class TransactionUtils {
 
   public static Transaction setPermissionId(Transaction transaction) throws CancelException {
     if (transaction.getSignatureCount() != 0
-            || transaction.getRawData().getContract(0).getPermissionId() != 0) {
+        || transaction.getRawData().getContract(0).getPermissionId() != 0) {
       return transaction;
     }
     int permission_id = inputPermissionId();
@@ -212,7 +212,7 @@ public class TransactionUtils {
     if (permission_id != 0) {
       Transaction.raw.Builder raw = transaction.getRawData().toBuilder();
       Transaction.Contract.Builder contract = raw.getContract(0).toBuilder()
-              .setPermissionId(permission_id);
+          .setPermissionId(permission_id);
       raw.clearContract();
       raw.addContract(contract);
       transaction = transaction.toBuilder().setRawData(raw).build();
