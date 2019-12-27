@@ -43,6 +43,7 @@ import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
+import java.util.Scanner;
 
 public class Utils {
   public static final String PERMISSION_ID = "Permission_id";
@@ -506,6 +507,18 @@ public class Utils {
     String txID = ByteArray.toHexString(Sha256Hash.hash(transaction.getRawData().toByteArray()));
     jsonTransaction.put("txID", txID);
     return jsonTransaction;
+  }
+
+  public static boolean confirmEncrption() {
+    System.out.println(
+            "Please confirm encryption module,if input y or Y means default Eckey, other means SM2.");
+    Scanner in = new Scanner(System.in);
+    String input = in.nextLine().trim();
+    String str = input.split("\\s+")[0];
+    if ("y".equalsIgnoreCase(str)) {
+      return true;
+    }
+    return false;
   }
 }
 
