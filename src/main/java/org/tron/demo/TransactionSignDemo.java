@@ -104,11 +104,11 @@ public class TransactionSignDemo {
   }
 
   public static void main(String[] args) throws InvalidProtocolBufferException, CancelException {
-    String privateStr = "040927135ad6104ef1724084c8b9b018df275c10be97373f0536bf0e3b4c3f6a";
+    String privateStr = "D95611A9AF2A2A45359106222ED1AFED48853D9A44DEFF8DC7913F5CBA727366";
     byte[] privateBytes = ByteArray.fromHexString(privateStr);
     ECKey ecKey = ECKey.fromPrivate(privateBytes);
     byte[] from = ecKey.getAddress();
-    byte[] to = WalletApi.decodeFromBase58Check("TJ4DU11WXj6gzTvnxLac4eoPppyYJZE2UE");
+    byte[] to = WalletApi.decodeFromBase58Check("TGehVcNhud84JDCGrNHKVz9jEAVKUpbuiv");
     long amount = 100_000_000L; //100 TRX, api only receive trx in drop, and 1 trx = 1000000 drop
     Transaction transaction = createTransaction(from, to, amount);
     byte[] transactionBytes = transaction.toByteArray();
