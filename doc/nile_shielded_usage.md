@@ -12,7 +12,7 @@ git clone https://github.com/tronprotocol/wallet-cli.git
 
 2）修改配置文件  
 你可以在这个[页面](http://nileex.io/status/getStatusPage) 找到[Nile测试网](http://nileex.io)提供的公开可用节点，并在src/main/resources/config.conf这个配置文件中对fullnode中的ip.list进行修改。  
-
+![](./images/nile_shielded_usage1.png)
 3）将项目源代码进行构建
 ```test
 $ cd wallet-cli
@@ -26,12 +26,14 @@ $ java -jar wallet-cli.jar
 ```
 
 如果你在构建wallet-cli软件的过程中遇到任何问题，请参考[wallet-cli使用教程](https://github.com/tronprotocol/wallet-cli#get-started)，如果你看到以下输出，说明你已经成功运行了wallet-cli软件。
+![](./images/nile_shielded_usage1.png)
 
 以下所有命令的演示过程都是在wallet-cli这个软件中进行的。  
 - 创建匿名地址
 执行命令GenerateShieldedAddress创建匿名地址，如果此时本地还没有匿名钱包，这个命令会首先创建一个匿名钱包，然后再创建匿名地址。
+![](./images/nile_shielded_usage2.png)
 
-ztron13ef0cjxz536snelt0rdnyqe80h2qq8j2zsh8kx7fqm4grh35rnnycx5rmewq6xwsn5elzfyshrx
+`ztron13ef0cjxz536snelt0rdnyqe80h2qq8j2zsh8kx7fqm4grh35rnnycx5rmewq6xwsn5elzfyshrx`
 
 note：GenerateShieldedAddress命令也支持一次性创建多个匿名地址，如一次性创建5个匿名地址的命令：
 ```test
@@ -39,21 +41,25 @@ GenerateShieldedAddress 5
 ```
 此时，你可以尝试查看之前已经创建的匿名地址。
 
-- 查看匿名地址
+- 查看匿名地址  
 执行命令ListShieldedAddress可以查看匿名钱包中已经创建的匿名地址。
+![](./images/nile_shielded_usage3.png)
 
 如果你重新运行wallet-cli程序，可以通过下面命令登陆到已经创建成功的本地钱包。
-- 登陆匿名钱包
+
+- 登陆匿名钱包  
 执行命令LoadShieldedWallet登陆本地的匿名钱包。
+![](./images/nile_shielded_usage4.png)
 
-当然，你有时可能需要将本地的匿名地址同时备份到其他匿名钱包中，通过以下两个命令完成：
+当然，你有时可能需要将本地的匿名地址同时备份到其他匿名钱包中，通过以下两个命令完成：  
 首先，在本地钱包执行BackupShieldedAddress命令将匿名地址进行导出。
-
-然后在其他匿名钱包中执行ImportShieldedAddress命令将该匿名地址进行导入：
+![](./images/nile_shielded_usage5.png)
+然后在其他匿名钱包中执行ImportShieldedAddress命令将该匿名地址进行导入：  
+![](./images/nile_shielded_usage6.png)
 注意：00645e78310c0619a62defeb5be3d48ba183f66e249c63e2eed4164e072e87ea8e52fc48c2a47509e7eb78 这个字符串是重要的秘密信息，请不要泄露给其他人。
 
-如果你准备好了匿名钱包，就可以进行匿名转账了，当然在这之前，我们先通过普通钱包获取一些TRZ。你可以首先创建一个普通钱包，它包含了一个公开地址。我们使用已经注册好的一个普通钱包，它包含一个公开地址TU23LEoPKbC5xKXTEJzLFp7R2ZEWbuKiXq
-然后在http://nileex.io/join/getJoinPage页面上请求获取一些TRZ用于测试。
+如果你准备好了匿名钱包，就可以进行匿名转账了，当然在这之前，我们先通过普通钱包获取一些TRZ。你可以首先创建一个普通钱包，它包含了一个公开地址。我们使用已经注册好的一个普通钱包，它包含一个公开地址`TU23LEoPKbC5xKXTEJzLFp7R2ZEWbuKiXq`
+然后在[页面](http://nileex.io/join/getJoinPage)上请求获取一些TRZ用于测试。
 
 ### 匿名转账
 有三种模式的转账涉及到匿名地址，分别是：
@@ -89,8 +95,7 @@ SendShieldedCoin publicFromAddress fromAmount shieldedInputNum input1 input2 inp
 SendShieldedCoin TU23LEoPKbC5xKXTEJzLFp7R2ZEWbuKiXq 210000000 0 null 0 2 ztron16uz8hugh397ndwrxxxfr6kne2jc3zry4msdls4rw8d0m79v9w0tus9czwafys8qa9ynpkzlz4ym 120000000 first ztron13ef0cjxz536snelt0rdnyqe80h2qq8j2zsh8kx7fqm4grh35rnnycx5rmewq6xwsn5elzfyshrx 80000000 second
 ```
 
-注意公开地址转出，需要额外进行签名的步骤。
-如果成功，可以看到
+注意公开地址转出，需要额外进行签名的步骤，如果成功，可以看到
 
 从公开地址TU23LEoPKbC5xKXTEJzLFp7R2ZEWbuKiXq转出210TRZ，其中向匿名地址ztron16uz8hugh397ndwrxxxfr6kne2jc3zry4msdls4rw8d0m79v9w0tus9czwafys8qa9ynpkzlz4ym转出120TRZ，并附言first，向匿名地址 
 ztron13ef0cjxz536snelt0rdnyqe80h2qq8j2zsh8kx7fqm4grh35rnnycx5rmewq6xwsn5elzfyshrx转出80TRZ，并附言second。
@@ -101,8 +106,8 @@ ztron13ef0cjxz536snelt0rdnyqe80h2qq8j2zsh8kx7fqm4grh35rnnycx5rmewq6xwsn5elzfyshr
 
 通过匿名地址向其他地址进行转账，首先需要通过只有标记为UnSpend的note才能做为匿名转出地址，由于1个匿名地址可以有多个note，所以需要填写note编号来指定要转出匿名地址中具体是哪个note。
 
-- 匿名地址向匿名地址转账
-为了更方便地说明，我们选择在本地钱包的两个匿名地址之间进行转账，  
+- 匿名地址向匿名地址转账  
+为了更方便地说明，我们选择在本地钱包的两个匿名地址之间进行转账， 
 ```test
 sendshieldedcoin null 0 1 1 null 0 1 ztron16uz8hugh397ndwrxxxfr6kne2jc3zry4msdls4rw8d0m79v9w0tus9czwafys8qa9ynpkzlz4ym 70000000 third
 ```
@@ -112,8 +117,8 @@ sendshieldedcoin null 0 1 1 null 0 1 ztron16uz8hugh397ndwrxxxfr6kne2jc3zry4msdls
 
 命令执行成功之后，再查看本地钱包所有的note，可以看出之前80TRZ的那个note已经变成Spent状态，多出来一个UnSpend状态的70TRZ的note，刚好符合预期。
 
-- 匿名地址向公开地址转账
-首先依然通过listshieldednote 0命令获取本地匿名地址对应的note，
+- 匿名地址向公开地址转账  
+首先依然通过`listshieldednote 0`命令获取本地匿名地址对应的note，
 
 然后执行下面的命令
 ```test
