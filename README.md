@@ -1161,14 +1161,14 @@ memo1
 
 Example:
 
-1. Public address transfer to shielded addresses
-  **When in this mode,shieldedInputNum=0,publicToAddress=null,toAmount=0**
+1. Public address transfer to shielded addresses    
+  **When in this mode,Some variables must be set as follows, shieldedInputNum=0,publicToAddress=null,toAmount=0**
     ```console
     > sendshieldedcoin TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ 210000000 0 null 0 2 ztron16j06s3p5gvp2jde4vh7w3ug3zz3m62zkyfu86s7ara5lafhp22p9wr3gz0lcdm3pvt7qx0aftu4 100000000 test1 ztron1ghdy60hya8y72deu0q0r25qfl60unmue6889m3xfc3296a5ut6jcyafzhtp9nlutndukufzap4h 100000000 null
     ```
 
-2. shielded address transfer to shielded address
-   **When in this mode,publicFromAddress=null,fromAmount=0,shieldedInputNum=1,publicToAddress=null,toAmount=0**
+2. shielded address transfer to shielded address    
+   **When in this mode,Some variables must be set as follows, publicFromAddress=null,fromAmount=0,shieldedInputNum=1,publicToAddress=null,toAmount=0**
 
     ```console
     > listshieldednote
@@ -1180,8 +1180,8 @@ Example:
     address ztron16j06s3p5gvp2jde4vh7w3ug3zz3m62zkyfu86s7ara5lafhp22p9wr3gz0lcdm3pvt7qx0aftu4
     ```
 
-3. shielded address transfer to public address
-   **When in this mode,publicFromAddress=null,fromAmount=0,shieldedInputNum=1,shieldedOutputNum=0**
+3. shielded address transfer to public address    
+   **When in this mode,Some variables must be set as follows, publicFromAddress=null,fromAmount=0,shieldedInputNum=1,shieldedOutputNum=0**
 
     ```console
     > listshieldednote
