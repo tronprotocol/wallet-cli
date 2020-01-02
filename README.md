@@ -456,8 +456,8 @@ OwnerAddress
 
 id
 > ID of the initiated proposal, 1 in the example
-is_or_not_add_approval
 
+is_or_not_add_approval
 > true for approve; false for disapprove
 
 Example:
@@ -816,8 +816,8 @@ origin_energy_limit
 value
 > The amount of trx transferred to the contract account
 
-> token_value
-Number of TRX10
+token_value
+> Number of TRX10
 
 token_id
 > TRX10 Id
@@ -966,8 +966,8 @@ resources for its own use; if it is not empty, the acquired resources are used b
 OwnerAddress
 > The address of the account that initiated the transaction, optional, default is the address of the login account.
 
-> frozen_balance
-The amount of frozen TRX, the unit is the smallest unit (sun), the minimum is 1000000sun.
+frozen_balance
+> The amount of frozen TRX, the unit is the smallest unit (sun), the minimum is 1000000sun.
 
 frozen_duration
 > frezen duration, 3 days
@@ -989,6 +989,7 @@ by default; when the receiverAddress is set, the delegate resources are unfreeze
 
 getDelegatedResource fromAddress toAddress
 > get the information from the fromAddress to the toAddress resource delegate
+
 getDelegatedResourceAccountIndex address
 > get the information that address is delegated to other account resources
 
@@ -1161,14 +1162,15 @@ memo1
 
 Example:
 
-1. Public address transfer to shielded addresses    
-  **When in this mode,Some variables must be set as follows, shieldedInputNum=0,publicToAddress=null,toAmount=0**
+1. Public address transfer to shielded addresses
+    **When in this mode,Some variables must be set as follows, shieldedInputNum=0, publicToAddress=null, toAmount=0**
+
     ```console
     > sendshieldedcoin TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ 210000000 0 null 0 2 ztron16j06s3p5gvp2jde4vh7w3ug3zz3m62zkyfu86s7ara5lafhp22p9wr3gz0lcdm3pvt7qx0aftu4 100000000 test1 ztron1ghdy60hya8y72deu0q0r25qfl60unmue6889m3xfc3296a5ut6jcyafzhtp9nlutndukufzap4h 100000000 null
     ```
 
-2. shielded address transfer to shielded address    
-   **When in this mode,Some variables must be set as follows, publicFromAddress=null,fromAmount=0,shieldedInputNum=1,publicToAddress=null,toAmount=0**
+2. shielded address transfer to shielded address
+    **When in this mode,Some variables must be set as follows, publicFromAddress=null, fromAmount=0, shieldedInputNum=1,publicToAddress=null,toAmount=0**
 
     ```console
     > listshieldednote
@@ -1180,8 +1182,8 @@ Example:
     address ztron16j06s3p5gvp2jde4vh7w3ug3zz3m62zkyfu86s7ara5lafhp22p9wr3gz0lcdm3pvt7qx0aftu4
     ```
 
-3. shielded address transfer to public address    
-   **When in this mode,Some variables must be set as follows, publicFromAddress=null,fromAmount=0,shieldedInputNum=1,shieldedOutputNum=0**
+3. shielded address transfer to public address
+    **When in this mode,Some variables must be set as follows, publicFromAddress=null,fromAmount=0,shieldedInputNum=1,shieldedOutputNum=0**
 
     ```console
     > listshieldednote
@@ -1206,16 +1208,16 @@ type
 
 Example:
 
-    ```console
-    > listshieldednote 0
-    Unspend note list like:
-    1 ztron1ghdy60hya8y72deu0q0r25qfl60unmue6889m3xfc3296a5ut6jcyafzhtp9nlutndukufzap4h 100000000 4ce5656a13049df00abc7fb3ce78d54c78944d3cbbdfdb29f288e1df5fdf67e1 1 UnSpend
-    listshieldednote 1
-    All note list like:
-    ztron1ghdy60hya8y72deu0q0r25qfl60unmue6889m3xfc3296a5ut6jcyafzhtp9nlutndukufzap4h 100000000 4ce5656a13049df00abc7fb3ce78d54c78944d3cbbdfdb29f288e1df5fdf67e1 1 UnSpend
-    ztron16j06s3p5gvp2jde4vh7w3ug3zz3m62zkyfu86s7ara5lafhp22p9wr3gz0lcdm3pvt7qx0aftu4 100000000 4ce5656a13049df00abc7fb3ce78d54c78944d3cbbdfdb29f288e1df5fdf67e1 0 Spend test1
-    ztron1hn9r3wmytavslztwmlzvuzk3dqpdhwcmda2d0deyu5pwv32dp78saaslyt82w0078y6uzfg8x6w 90000000 06b55fc27f7ec649396706d149d18a0bb003347bdd7f489e3d47205da9cee802 0 Spend test2
-    ```
+```console
+> listshieldednote 0
+Unspend note list like:
+1 ztron1ghdy60hya8y72deu0q0r25qfl60unmue6889m3xfc3296a5ut6jcyafzhtp9nlutndukufzap4h 100000000 4ce5656a13049df00abc7fb3ce78d54c78944d3cbbdfdb29f288e1df5fdf67e1 1 UnSpend
+listshieldednote 1
+All note list like:
+ztron1ghdy60hya8y72deu0q0r25qfl60unmue6889m3xfc3296a5ut6jcyafzhtp9nlutndukufzap4h 100000000 4ce5656a13049df00abc7fb3ce78d54c78944d3cbbdfdb29f288e1df5fdf67e1 1 UnSpend
+ztron16j06s3p5gvp2jde4vh7w3ug3zz3m62zkyfu86s7ara5lafhp22p9wr3gz0lcdm3pvt7qx0aftu4 100000000 4ce5656a13049df00abc7fb3ce78d54c78944d3cbbdfdb29f288e1df5fdf67e1 0 Spend test1
+ztron1hn9r3wmytavslztwmlzvuzk3dqpdhwcmda2d0deyu5pwv32dp78saaslyt82w0078y6uzfg8x6w 90000000 06b55fc27f7ec649396706d149d18a0bb003347bdd7f489e3d47205da9cee802 0 Spend test2
+```
 
 ### resetshieldednote
 
@@ -1236,7 +1238,7 @@ endNum
 
 Example:
 
-     > scannotebyivk d2a4137cecf049965c4183f78fe9fc9fbeadab6ab3ef70ea749421b4c6b8de04 500 1499
+    > scannotebyivk d2a4137cecf049965c4183f78fe9fc9fbeadab6ab3ef70ea749421b4c6b8de04 500 1499
 
 ### ScanNotebyOvk ovk startNum endNum
 
@@ -1264,19 +1266,19 @@ index
 
 Example:
 
-    ```console
-    > listshieldednote
-    Unspend note list like:
-    2 ztron1ghdy60hya8y72deu0q0r25qfl60unmue6889m3xfc3296a5ut6jcyafzhtp9nlutndukufzap4h 100000000 4ce5656a13049df00abc7fb3ce78d54c78944d3cbbdfdb29f288e1df5fdf67e1 1 UnSpend
-    getshieldednullifier 2
-    address ztron1ghdy60hya8y72deu0q0r25qfl60unmue6889m3xfc3296a5ut6jcyafzhtp9nlutndukufzap4h
-    value 100000000
-    rcm 07ed5471098652ad441575c61868d1e11317de0f73cbb743a4c5cfe78e3d150c
-    trxId 4ce5656a13049df00abc7fb3ce78d54c78944d3cbbdfdb29f288e1df5fdf67e1
-    index 1
-    memo
-    ShieldedNullifier:2a524a3be2643365ecdacf8f0d3ca1de8fad3080eea0b9561435b5d1ee467042
-    ```
+```console
+> listshieldednote
+Unspend note list like:
+2 ztron1ghdy60hya8y72deu0q0r25qfl60unmue6889m3xfc3296a5ut6jcyafzhtp9nlutndukufzap4h 100000000 4ce5656a13049df00abc7fb3ce78d54c78944d3cbbdfdb29f288e1df5fdf67e1 1 UnSpend
+getshieldednullifier 2
+address ztron1ghdy60hya8y72deu0q0r25qfl60unmue6889m3xfc3296a5ut6jcyafzhtp9nlutndukufzap4h
+value 100000000
+rcm 07ed5471098652ad441575c61868d1e11317de0f73cbb743a4c5cfe78e3d150c
+trxId 4ce5656a13049df00abc7fb3ce78d54c78944d3cbbdfdb29f288e1df5fdf67e1
+index 1
+memo
+ShieldedNullifier:2a524a3be2643365ecdacf8f0d3ca1de8fad3080eea0b9561435b5d1ee467042
+```
 
 ### ScanAndMarkNotebyAddress shieldedAddress startNum endNum
 
@@ -1301,10 +1303,10 @@ Generate a sk
 
 Example:
 
-    ```console
-    > GetSpendingKey
-    0eb458b309fa544066c40d80ce30a8002756c37d2716315c59a98c893dbb5f6a
-    ```
+```console
+> GetSpendingKey
+0eb458b309fa544066c40d80ce30a8002756c37d2716315c59a98c893dbb5f6a
+```
 
 ### getExpandedSpendingKey sk
 
@@ -1312,22 +1314,22 @@ Generate ask, nsk, ovk from sk
 
 Example:
 
-    ```console
-    > getExpandedSpendingKey 0eb458b309fa544066c40d80ce30a8002756c37d2716315c59a98c893dbb5f6a
-    ask:252a0f6f6f0bac114a13e1e663d51943f1df9309649400218437586dea78260e
-    nsk:5cd2bc8d9468dbad26ea37c5335a0cd25f110eaf533248c59a3310dcbc03e503
-    ovk:892a10c1d3e8ea22242849e13f177d69e1180d1d5bba118c586765241ba2d3d6
-    ```
+```console
+> getExpandedSpendingKey 0eb458b309fa544066c40d80ce30a8002756c37d2716315c59a98c893dbb5f6a
+ask:252a0f6f6f0bac114a13e1e663d51943f1df9309649400218437586dea78260e
+nsk:5cd2bc8d9468dbad26ea37c5335a0cd25f110eaf533248c59a3310dcbc03e503
+ovk:892a10c1d3e8ea22242849e13f177d69e1180d1d5bba118c586765241ba2d3d6
+```
 
 ### getAkFromAsk ask
 Generate ak from ask
 
 Example:
 
-    ```console
-    > GetAkFromAsk 252a0f6f6f0bac114a13e1e663d51943f1df9309649400218437586dea78260e
-    ak:f1b843147150027daa5b522dd8d0757ec5c8c146defd8e01b62b34cf917299f1
-    ```
+```console
+> GetAkFromAsk 252a0f6f6f0bac114a13e1e663d51943f1df9309649400218437586dea78260e
+ak:f1b843147150027daa5b522dd8d0757ec5c8c146defd8e01b62b34cf917299f1
+```
 
 ### getNkFromNsk nsk
 
@@ -1335,10 +1337,10 @@ Generate nk from nsk
 
 Example:
 
-    ```console
-    > GetNkFromNsk 5cd2bc8d9468dbad26ea37c5335a0cd25f110eaf533248c59a3310dcbc03e503
-    nk:ed3dc885049f0a716a4de8c08c6cabcad0da3c437202341aa3d9248d8eb2b74a
-    ```
+```console
+> GetNkFromNsk 5cd2bc8d9468dbad26ea37c5335a0cd25f110eaf533248c59a3310dcbc03e503
+nk:ed3dc885049f0a716a4de8c08c6cabcad0da3c437202341aa3d9248d8eb2b74a
+```
 
 ### getIncomingViewingKey ak[64] nk[64]
 
@@ -1346,10 +1348,10 @@ Generate ivk from ak and nk
 
 Example:
 
-    ```console
-    > getincomingviewingkey f1b843147150027daa5b522dd8d0757ec5c8c146defd8e01b62b34cf917299f1 ed3dc885049f0a716a4de8c08c6cabcad0da3c437202341aa3d9248d8eb2b74a
-    ivk:148cf9e91f1e6656a41dc9b6c6ee4e52ff7a25b25c2d4a3a3182d0a2cd851205
-    ```
+```console
+> getincomingviewingkey f1b843147150027daa5b522dd8d0757ec5c8c146defd8e01b62b34cf917299f1 ed3dc885049f0a716a4de8c08c6cabcad0da3c437202341aa3d9248d8eb2b74a
+ivk:148cf9e91f1e6656a41dc9b6c6ee4e52ff7a25b25c2d4a3a3182d0a2cd851205
+```
 
 ### GetDiversifier
 
@@ -1357,10 +1359,10 @@ Generate a diversifier
 
 Example:
 
-    ```console
-    > GetDiversifier
-    11db4baf6bd5d5afd3a8b5
-    ```
+```console
+> GetDiversifier
+11db4baf6bd5d5afd3a8b5
+```
 
 ### getshieldedpaymentaddress ivk[64] d[22]
 
@@ -1368,11 +1370,11 @@ Generate a shielded address from sk and d
 
 Example:
 
-    ```console
-    GetShieldedPaymentAddress 148cf9e91f1e6656a41dc9b6c6ee4e52ff7a25b25c2d4a3a3182d0a2cd851205 11db4baf6bd5d5afd3a8b5
-    pkd:65c11642115d386ed716b9cc06a3498e86e303d7f20d0869c9de90e31322ac15
-    shieldedAddress:ztron1z8d5htmt6h26l5agk4juz9jzz9wnsmkhz6uucp4rfx8gdccr6leq6zrfe80fpccny2kp2cray8z
-    ```
+```console
+GetShieldedPaymentAddress 148cf9e91f1e6656a41dc9b6c6ee4e52ff7a25b25c2d4a3a3182d0a2cd851205 11db4baf6bd5d5afd3a8b5
+pkd:65c11642115d386ed716b9cc06a3498e86e303d7f20d0869c9de90e31322ac15
+shieldedAddress:ztron1z8d5htmt6h26l5agk4juz9jzz9wnsmkhz6uucp4rfx8gdccr6leq6zrfe80fpccny2kp2cray8z
+```
 
 ### BackupShieldedAddress
 
@@ -1380,23 +1382,23 @@ Back up one shielded address
 
 Example:
 
-    ```console
-    > loadshieldedwallet
-    Please input your password for shielded wallet.
-    > 1qa@WS#ED
-    LoadShieldedWallet successful !!!
-    > BackupShieldedAddress
-    Please input your password for shielded wallet.
-    > 1qa@WS#ED
-    The 1th shielded address is ztron15y0cthwduz7mjpx3mc7cl9cxj8aqq9m8z08g6xns8qsvp7hgqstp9w5t8eh0vydlyf42gtxjzun
-    The 2th shielded address is ztron1akz7mt4zqsjqrdrwdsmffu6g5dnehhhtahjlc0c6syy3z9nxxjrzqszy22lyx326edmwqjhqe48
-    The 3th shielded address is ztron1m5dx50gryu789q5sh5207chzmmgzf5c7hvn8lr6xs60jfxvkv3d3h0kqkglc60rwq26dchztsty
-    The 4th shielded address is ztron1at9ud3crdsehe8rgrjkltqly7gsp85y8qzq93pq480hzd2az55pja5cc8r4yfwrnrqqs7q35n4x
-    Please choose between 1 and 4
-    > 1
-    0b1cf73b85742e13015dc6fb8d0986e4ad34c8f468bd8c73cc8fb34bff0dfacea11f85ddcde0bdb904d1de
-    BackupShieldedAddress successful !!
-    ```
+```console
+> loadshieldedwallet
+Please input your password for shielded wallet.
+> 1qa@WS#ED
+LoadShieldedWallet successful !!!
+> BackupShieldedAddress
+Please input your password for shielded wallet.
+> 1qa@WS#ED
+The 1th shielded address is ztron15y0cthwduz7mjpx3mc7cl9cxj8aqq9m8z08g6xns8qsvp7hgqstp9w5t8eh0vydlyf42gtxjzun
+The 2th shielded address is ztron1akz7mt4zqsjqrdrwdsmffu6g5dnehhhtahjlc0c6syy3z9nxxjrzqszy22lyx326edmwqjhqe48
+The 3th shielded address is ztron1m5dx50gryu789q5sh5207chzmmgzf5c7hvn8lr6xs60jfxvkv3d3h0kqkglc60rwq26dchztsty
+The 4th shielded address is ztron1at9ud3crdsehe8rgrjkltqly7gsp85y8qzq93pq480hzd2az55pja5cc8r4yfwrnrqqs7q35n4x
+Please choose between 1 and 4
+> 1
+0b1cf73b85742e13015dc6fb8d0986e4ad34c8f468bd8c73cc8fb34bff0dfacea11f85ddcde0bdb904d1de
+BackupShieldedAddress successful !!
+```
 
 ### ImportShieldedAddress
 
@@ -1404,15 +1406,15 @@ Import one shieled address to local wallet
 
 Example:
 
-    ```console
-    > ImportShieldedAddress
-    Please input your password for shielded wallet.
-    > 1qa@WS#ED
-    Please input shielded address hex string. Max retry time: 3
-    > 0b1cf73b85742e13015dc6fb8d0986e4ad34c8f468bd8c73cc8fb34bff0dfacea11f85ddcde0bdb904d1de
-    Import new shielded address is: ztron15y0cthwduz7mjpx3mc7cl9cxj8aqq9m8z08g6xns8qsvp7hgqstp9w5t8eh0vydlyf42gtxjzun
-    ImportShieldedAddress successful !!
-    ```
+```console
+> ImportShieldedAddress
+Please input your password for shielded wallet.
+> 1qa@WS#ED
+Please input shielded address hex string. Max retry time: 3
+> 0b1cf73b85742e13015dc6fb8d0986e4ad34c8f468bd8c73cc8fb34bff0dfacea11f85ddcde0bdb904d1de
+Import new shielded address is: ztron15y0cthwduz7mjpx3mc7cl9cxj8aqq9m8z08g6xns8qsvp7hgqstp9w5t8eh0vydlyf42gtxjzun
+ImportShieldedAddress successful !!
+```
 
 ### ShowShieldedAddressInfo
 
@@ -1420,23 +1422,24 @@ Display information about shielded addresses
 
 Example:
 
-    ```console
-    > listshieldedaddress
-    ShieldedAddress :
-    ztron14t95p936cyev678f6l6xsejnyfzrrzfsg56jaxgp7fzxlsczc2l6866fzc4c8awfnrzy74svkrl
-    ztron1v6tu4c760vs7m0h94t89m4jcxtuq0nxmag7eequc3c2rnee3sufllq8fjtvfff6y84x3zgcapwp
-    ztron18vaszshuluufz64uesvzw6wtune90uwexzmsfwtgqq2mlydt4fhy0kz02k3vm2j8er7s5xuyujv
-    > showshieldedaddressinfo ztron18vaszshuluufz64uesvzw6wtune90uwexzmsfwtgqq2mlydt4fhy0kz02k3vm2j8er7s5xuyujv
-    The following variables are secret information, please don't show to other people!!!
-    sk :0deebe55fe7e591803126b531d4fe7c0e3979a2fcadb5a7996f73a8e463231f8
-    ivk:aa955c5798e3f611c72fa22842847810114dd5a860db272b2ef50cc8448ced00
-    ovk:a1d00b6f761137e1d8b58e77d8685347137131317ba3671f644ffb64bc5baa94
-    pkd:182769cbe4f257f1d930b704b9680015bf91abaa6e47d84f55a2cdaa47c8fd0a
-    d  :3b3b0142fcff38916abccc
-    > showshieldedaddressinfo ztron19lgz39ja8dz427dt9qa8gpkpxanu05y09zplfzzwc640mlx74n4au3037nde3h6m7zsu5xgkrnn
-    pkd:3a7406c13767c7d08f2883f4884ec6aafdfcdeacebde45f1f4db98df5bf0a1ca
-    d  :2fd028965d3b455579ab28 
-    ```
+```console
+> listshieldedaddress
+ShieldedAddress :
+ztron14t95p936cyev678f6l6xsejnyfzrrzfsg56jaxgp7fzxlsczc2l6866fzc4c8awfnrzy74svkrl
+ztron1v6tu4c760vs7m0h94t89m4jcxtuq0nxmag7eequc3c2rnee3sufllq8fjtvfff6y84x3zgcapwp
+ztron18vaszshuluufz64uesvzw6wtune90uwexzmsfwtgqq2mlydt4fhy0kz02k3vm2j8er7s5xuyujv
+> showshieldedaddressinfo ztron18vaszshuluufz64uesvzw6wtune90uwexzmsfwtgqq2mlydt4fhy0kz02k3vm2j8er7s5xuyujv
+The following variables are secret information, please don't show to other people!!!
+sk :0deebe55fe7e591803126b531d4fe7c0e3979a2fcadb5a7996f73a8e463231f8
+ivk:aa955c5798e3f611c72fa22842847810114dd5a860db272b2ef50cc8448ced00
+ovk:a1d00b6f761137e1d8b58e77d8685347137131317ba3671f644ffb64bc5baa94
+pkd:182769cbe4f257f1d930b704b9680015bf91abaa6e47d84f55a2cdaa47c8fd0a
+d  :3b3b0142fcff38916abccc
+> showshieldedaddressinfo ztron19lgz39ja8dz427dt9qa8gpkpxanu05y09zplfzzwc640mlx74n4au3037nde3h6m7zsu5xgkrnn
+pkd:3a7406c13767c7d08f2883f4884ec6aafdfcdeacebde45f1f4db98df5bf0a1ca
+d  :2fd028965d3b455579ab28
+```
+
 ## Command List
 
 Following is a list of Tron Wallet-cli commands:
