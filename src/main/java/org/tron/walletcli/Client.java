@@ -28,6 +28,8 @@ import org.tron.core.zen.ShieldedAddressInfo;
 import org.tron.core.zen.ShieldedNoteInfo;
 import org.tron.core.zen.ShieldedWrapper;
 import org.tron.core.zen.ZenUtils;
+import org.tron.core.zen.address.KeyIo;
+import org.tron.core.zen.address.PaymentAddress;
 import org.tron.keystore.StringUtils;
 import org.tron.protos.Contract.AssetIssueContract;
 import org.tron.protos.Protocol.*;
@@ -132,6 +134,7 @@ public class Client {
       "SendShieldedCoin",
       "SendShieldedCoinWithoutAsk",
       "SetAccountId",
+      "ShowShieldedAddressInfo",
       "TransferAsset",
       "TriggerContract contractAddress method args isHex fee_limit value",
       "TriggerConstantContract contractAddress method args isHex",
@@ -235,6 +238,7 @@ public class Client {
       "SendShieldedCoin",
       "SendShieldedCoinWithoutAsk",
       "SetAccountId",
+      "ShowShieldedAddressInfo",
       "TransferAsset",
       "TriggerContract",
       "TriggerConstantContract",
@@ -409,6 +413,8 @@ public class Client {
     if (address != null) {
       System.out.println("GetAddress successful !!");
       System.out.println("address = " + address);
+    } else {
+      System.out.println("Warning: GetAddress failed,  Please login first !!");
     }
   }
 
@@ -2300,20 +2306,53 @@ public class Client {
     }
   }
 
+  private void showShieldedAddressInfo(String[] parameters) {
+    if (parameters == null || parameters.length < 1) {
+      System.out.println("Using ShowShieldedAddressInfo needs 1 parameter like: ");
+      System.out.println("ShowShieldedAddressInfo shieldedAddress");
+      return;
+    }
+
+    if (!ShieldedWrapper.getInstance().ifShieldedWalletLoaded()) {
+      System.out.println("ShowShieldedAddressInfo failed, please loadShieldedWallet first!");
+      return;
+    }
+
+    String shieldedAddress = parameters[0];
+    ShieldedAddressInfo addressInfo =
+        ShieldedWrapper.getInstance().getShieldedAddressInfoMap().get(shieldedAddress);
+    if (addressInfo != null) {
+      System.out.println("The following variables are secret information, please don't show to other people!!!");
+      System.out.println("sk :" + ByteArray.toHexString(addressInfo.getSk()));
+      System.out.println("ivk:" + ByteArray.toHexString(addressInfo.getIvk()));
+      System.out.println("ovk:" + ByteArray.toHexString(addressInfo.getOvk()));
+      System.out.println("pkd:" + ByteArray.toHexString(addressInfo.getPkD()));
+      System.out.println("d  :" + ByteArray.toHexString(addressInfo.getD().getData()));
+    } else {
+      PaymentAddress decodePaymentAddress = KeyIo.decodePaymentAddress(shieldedAddress);
+      if (decodePaymentAddress != null) {
+        System.out.println("pkd:" + ByteArray.toHexString(decodePaymentAddress.getPkD()));
+        System.out.println("d  :" + ByteArray.toHexString(decodePaymentAddress.getD().getData()));
+      } else {
+        System.out.println("Shielded address " + shieldedAddress + " is Invalid, please check!");
+      }
+    }
+  }
+
   private boolean sendShieldedCoinNormal(String[] parameters, boolean withAsk)
       throws IOException, CipherException, CancelException, ZksnarkException {
     int parameterIndex = 0;
-    String fromPublicAddress = parameters[parameterIndex++];
-    long fromPublicAmount = 0;
-    if (fromPublicAddress.equals("null")) {
-      fromPublicAddress = null;
-      ++parameterIndex;
+
+    String fromPublicAddress;
+    if (Utils.isNumericString(parameters[0])) {
+      fromPublicAddress = walletApiWrapper.getAddress();
     } else {
-      String amountString = parameters[parameterIndex++];
-      if (!StringUtil.isNullOrEmpty(amountString)) {
-        fromPublicAmount = Long.valueOf(amountString);
+      fromPublicAddress = parameters[parameterIndex++];
+      if (fromPublicAddress.equals("null")) {
+        fromPublicAddress = null;
       }
     }
+    long fromPublicAmount = Long.valueOf(parameters[parameterIndex++]);
 
     int shieldedInputNum = 0;
     String amountString = parameters[parameterIndex++];
@@ -2394,31 +2433,48 @@ public class Client {
     }
   }
 
-  private boolean isFromShieldedNote(String shieldedStringInputNum) {
-    int shieldedInputNum = 0;
-    if (!StringUtil.isNullOrEmpty(shieldedStringInputNum)) {
-      shieldedInputNum = Integer.valueOf(shieldedStringInputNum);
-    }
-
-    if (shieldedInputNum > 0) {
-      return true;
+  private boolean isFromPublicAddress(String[] parameters) {
+    if (Utils.isNumericString(parameters[0])) {
+      if (Long.valueOf(parameters[0]) > 0) {
+        return true;
+      }
     } else {
-      return false;
+      if (Long.valueOf(parameters[1]) > 0) {
+        return true;
+      }
     }
+    return false;
+  }
+
+  private boolean isFromShieldedNote(String[] parameters) {
+    if (Utils.isNumericString(parameters[0])) {
+      if (Long.valueOf(parameters[1]) > 0) {
+        return true;
+      }
+    } else {
+      if (Long.valueOf(parameters[2]) > 0) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private void sendShieldedCoin(String[] parameters) throws IOException, CipherException,
       CancelException, ZksnarkException {
     if (parameters == null || parameters.length < 6) {
       System.out.println("Using SendShieldedCoin command needs more than 6 parameters like: ");
-      System.out.println("SendShieldedCoin publicFromAddress fromAmount shieldedInputNum "
+      System.out.println("SendShieldedCoin [publicFromAddress] fromAmount shieldedInputNum "
           + "input1 input2 input3 ... publicToAddress toAmount shieldedOutputNum shieldedAddress1"
           + " amount1 memo1 shieldedAddress2 amount2 memo2 ... ");
       return;
     }
 
-    if (isFromShieldedNote(parameters[2]) &&
-        !ShieldedWrapper.getInstance().ifShieldedWalletLoaded()) {
+    if (isFromPublicAddress(parameters) && !walletApiWrapper.isLoginState()) {
+      System.out.println("SendShieldedCoin failed, Please login first !!");
+      return;
+    }
+
+    if (isFromShieldedNote(parameters) && !ShieldedWrapper.getInstance().ifShieldedWalletLoaded()) {
       System.out.println("SendShieldedCoin failed, please loadShieldedWallet first !!!");
       return;
     }
@@ -2436,15 +2492,19 @@ public class Client {
     if (parameters == null || parameters.length < 6) {
       System.out
           .println("Using SendShieldedCoinWithoutAsk command needs more than 6 parameters like: ");
-      System.out.println("SendShieldedCoinWithoutAsk publicFromAddress fromAmount "
+      System.out.println("SendShieldedCoinWithoutAsk [publicFromAddress] fromAmount "
           + "shieldedInputNum input1 input2 input3 ... publicToAddress toAmount shieldedOutputNum "
           + "shieldedAddress1 amount1 memo1 shieldedAddress2 amount2 memo2 ... ");
       return;
     }
 
-    if (isFromShieldedNote(parameters[2]) &&
-        !ShieldedWrapper.getInstance().ifShieldedWalletLoaded()) {
-      System.out.println("SendShieldedCoin failed, please loadShieldedWallet first!");
+    if (isFromPublicAddress(parameters) && !walletApiWrapper.isLoginState()) {
+      System.out.println("SendShieldedCoinWithoutAsk failed, Please login first !!");
+      return;
+    }
+
+    if (isFromShieldedNote(parameters) && !ShieldedWrapper.getInstance().ifShieldedWalletLoaded()) {
+      System.out.println("SendShieldedCoinWithoutAsk failed, please loadShieldedWallet first !!!");
       return;
     }
 
@@ -3236,6 +3296,10 @@ public class Client {
             }
             case "listshieldedaddress": {
               listShieldedAddress();
+              break;
+            }
+            case "showshieldedaddressinfo": {
+              showShieldedAddressInfo(parameters);
               break;
             }
             case "sendshieldedcoin": {

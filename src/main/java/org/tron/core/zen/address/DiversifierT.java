@@ -10,10 +10,11 @@ import java.util.Optional;
 
 @AllArgsConstructor
 public class DiversifierT {
+  public static final int ZC_DIVERSIFIER_SIZE = 11;
 
   @Setter
   @Getter
-  public byte[] data;
+  private byte[] data = new byte[ZC_DIVERSIFIER_SIZE];
 
   public DiversifierT() {
   }

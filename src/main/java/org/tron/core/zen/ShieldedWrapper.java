@@ -339,21 +339,23 @@ public class ShieldedWrapper {
    * @return
    */
   private boolean loadIvkFromFile() {
-    if (ArrayUtils.isEmpty(shieldedSkey)){
+    if (ArrayUtils.isEmpty(shieldedSkey)) {
       return false;
     }
 
     ivkMapScanBlockNum.clear();
-    List<String> list = ZenUtils.getListFromFile(IVK_AND_NUM_FILE_NAME);
-    for (int i = 0; i < list.size(); ++i) {
-      byte[] cipherText = Base58.decode(list.get(i));
-      try {
-        byte[] text = ZenUtils.aesCtrDecrypt(cipherText, shieldedSkey);
-        byte[] key = Arrays.copyOfRange(text, 0, 32);
-        byte[] value = Arrays.copyOfRange(text, 32, text.length);
-        ivkMapScanBlockNum.put(ByteArray.toHexString(key), ByteArray.toLong(value));
-      } catch (CipherException e) {
-        e.printStackTrace();
+    if (ZenUtils.checkFileExist(IVK_AND_NUM_FILE_NAME)) {
+      List<String> list = ZenUtils.getListFromFile(IVK_AND_NUM_FILE_NAME);
+      for (int i = 0; i < list.size(); ++i) {
+        byte[] cipherText = Base58.decode(list.get(i));
+        try {
+          byte[] text = ZenUtils.aesCtrDecrypt(cipherText, shieldedSkey);
+          byte[] key = Arrays.copyOfRange(text, 0, 32);
+          byte[] value = Arrays.copyOfRange(text, 32, text.length);
+          ivkMapScanBlockNum.put(ByteArray.toHexString(key), ByteArray.toLong(value));
+        } catch (CipherException e) {
+          e.printStackTrace();
+        }
       }
     }
     return true;
@@ -424,20 +426,21 @@ public class ShieldedWrapper {
    * @return
    */
   private boolean loadUnSpendNoteFromFile() throws CipherException {
-    if (ArrayUtils.isEmpty(shieldedSkey)){
+    if (ArrayUtils.isEmpty(shieldedSkey)) {
       return false;
     }
-
     utxoMapNote.clear();
 
-    List<String> list = ZenUtils.getListFromFile(UNSPEND_NOTE_FILE_NAME);
-    for (int i = 0; i < list.size(); ++i) {
-      ShieldedNoteInfo noteInfo = new ShieldedNoteInfo();
-      noteInfo.decode(list.get(i), shieldedSkey);
-      utxoMapNote.put(noteInfo.getNoteIndex(), noteInfo);
+    if (ZenUtils.checkFileExist(UNSPEND_NOTE_FILE_NAME)) {
+      List<String> list = ZenUtils.getListFromFile(UNSPEND_NOTE_FILE_NAME);
+      for (int i = 0; i < list.size(); ++i) {
+        ShieldedNoteInfo noteInfo = new ShieldedNoteInfo();
+        noteInfo.decode(list.get(i), shieldedSkey);
+        utxoMapNote.put(noteInfo.getNoteIndex(), noteInfo);
 
-      if (noteInfo.getNoteIndex() >= nodeIndex.get()) {
-        nodeIndex.set(noteInfo.getNoteIndex()+1);
+        if (noteInfo.getNoteIndex() >= nodeIndex.get()) {
+          nodeIndex.set(noteInfo.getNoteIndex() + 1);
+        }
       }
     }
     return true;
@@ -468,14 +471,16 @@ public class ShieldedWrapper {
     }
 
     spendUtxoList.clear();
-    List<String> list = ZenUtils.getListFromFile(SPEND_NOTE_FILE_NAME);
-    for (int i = 0; i < list.size(); ++i) {
-      ShieldedNoteInfo noteInfo = new ShieldedNoteInfo();
-      noteInfo.decode(list.get(i), shieldedSkey);
-      spendUtxoList.add(noteInfo);
+    if (ZenUtils.checkFileExist(SPEND_NOTE_FILE_NAME)) {
+      List<String> list = ZenUtils.getListFromFile(SPEND_NOTE_FILE_NAME);
+      for (int i = 0; i < list.size(); ++i) {
+        ShieldedNoteInfo noteInfo = new ShieldedNoteInfo();
+        noteInfo.decode(list.get(i), shieldedSkey);
+        spendUtxoList.add(noteInfo);
 
-      if (noteInfo.getNoteIndex() >= nodeIndex.get()) {
-        nodeIndex.set(noteInfo.getNoteIndex()+1);
+        if (noteInfo.getNoteIndex() >= nodeIndex.get()) {
+          nodeIndex.set(noteInfo.getNoteIndex() + 1);
+        }
       }
     }
     return true;
@@ -486,19 +491,20 @@ public class ShieldedWrapper {
    * @return
    */
   private boolean loadAddressFromFile() throws CipherException {
-    if (ArrayUtils.isEmpty(shieldedSkey)){
+    if (ArrayUtils.isEmpty(shieldedSkey)) {
       return false;
     }
 
-    List<String> addressList = ZenUtils.getListFromFile(SHIELDED_ADDRESS_FILE_NAME);
-
     shieldedAddressInfoMap.clear();
-    for (String addressString : addressList ) {
-      ShieldedAddressInfo addressInfo = new ShieldedAddressInfo();
-      if ( addressInfo.decode(addressString, shieldedSkey) ) {
-        shieldedAddressInfoMap.put(addressInfo.getAddress(), addressInfo);
-      } else {
-        System.out.println("*******************");
+    if (ZenUtils.checkFileExist(SHIELDED_ADDRESS_FILE_NAME)) {
+      List<String> addressList = ZenUtils.getListFromFile(SHIELDED_ADDRESS_FILE_NAME);
+      for (String addressString : addressList) {
+        ShieldedAddressInfo addressInfo = new ShieldedAddressInfo();
+        if (addressInfo.decode(addressString, shieldedSkey)) {
+          shieldedAddressInfoMap.put(addressInfo.getAddress(), addressInfo);
+        } else {
+          System.out.println("*******************");
+        }
       }
     }
     return true;
