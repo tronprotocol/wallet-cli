@@ -1123,14 +1123,14 @@ ztron165vh2d0qqj7ytrkjeehwy0sg3uvc4tnvcqnpqnzrqq4jpw2p7pzgm2d3chrwxk2jf9ck6rza8j
 
 ### SendShieldedCoin
 
-    > SendShieldedCoin publicFromAddress fromAmount shieldedInputNum input1 input2 input3 ... publicToAddress toAmount shieldedOutputNum shieldedAddress1 amount1 memo1 shieldedAddress2 amount2 memo2 ...
+    > SendShieldedCoin [publicFromAddress] fromAmount shieldedInputNum input1 input2 input3 ... publicToAddress toAmount shieldedOutputNum shieldedAddress1 amount1 memo1 shieldedAddress2 amount2 memo2 ...
 
 Shielded transfer, support from public address or shielded address to public address and shielded address, does not support public address to public address, does not support automatic change.
 
 Public from amount / shielded input amount = public output amount + shielded output amount + fee
 
 publicFromAddress
-> Public from address, set to null if not needed.
+> Public from address, set to null if not needed.Optional, If this variable is not configured, it is the address of the current login account
 
 fromAmount
 > The amount transfer from public address, if publicFromAddress set to null, this variable must be 0.
@@ -1412,6 +1412,29 @@ Example:
     ImportShieldedAddress successful !!
     ```
 
+20. ShowShieldedAddressInfo
+
+    Display information about shielded addresses
+
+    Example:
+
+    ```console
+    > listshieldedaddress
+    ShieldedAddress :
+    ztron14t95p936cyev678f6l6xsejnyfzrrzfsg56jaxgp7fzxlsczc2l6866fzc4c8awfnrzy74svkrl
+    ztron1v6tu4c760vs7m0h94t89m4jcxtuq0nxmag7eequc3c2rnee3sufllq8fjtvfff6y84x3zgcapwp
+    ztron18vaszshuluufz64uesvzw6wtune90uwexzmsfwtgqq2mlydt4fhy0kz02k3vm2j8er7s5xuyujv
+    > showshieldedaddressinfo ztron18vaszshuluufz64uesvzw6wtune90uwexzmsfwtgqq2mlydt4fhy0kz02k3vm2j8er7s5xuyujv
+    The following variables are secret information, please don't show to other people!!!
+    sk :0deebe55fe7e591803126b531d4fe7c0e3979a2fcadb5a7996f73a8e463231f8
+    ivk:aa955c5798e3f611c72fa22842847810114dd5a860db272b2ef50cc8448ced00
+    ovk:a1d00b6f761137e1d8b58e77d8685347137131317ba3671f644ffb64bc5baa94
+    pkd:182769cbe4f257f1d930b704b9680015bf91abaa6e47d84f55a2cdaa47c8fd0a
+    d  :3b3b0142fcff38916abccc
+    > showshieldedaddressinfo ztron19lgz39ja8dz427dt9qa8gpkpxanu05y09zplfzzwc640mlx74n4au3037nde3h6m7zsu5xgkrnn
+    pkd:3a7406c13767c7d08f2883f4884ec6aafdfcdeacebde45f1f4db98df5bf0a1ca
+    d  :2fd028965d3b455579ab28 
+    ```
 ## Command List
 
 Following is a list of Tron Wallet-cli commands:
@@ -1498,6 +1521,7 @@ For more information on a specific command, just type the command on terminal wh
     SendShieldedCoin
     SendShieldedCoinWithoutAsk
     SetAccountId
+    ShowShieldedAddressInfo
     TransferAsset
     TriggerContract
     TriggerConstantContract
