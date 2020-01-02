@@ -2334,7 +2334,7 @@ public class Client {
         System.out.println("pkd:" + ByteArray.toHexString(decodePaymentAddress.getPkD()));
         System.out.println("d  :" + ByteArray.toHexString(decodePaymentAddress.getD().getData()));
       } else {
-        System.out.println("Shielded address " + shieldedAddress + " is Invalid, please check!");
+        System.out.println("Shielded address " + shieldedAddress + " is invalid, please check!");
       }
     }
   }
@@ -2526,7 +2526,7 @@ public class Client {
     if (parameters == null || parameters.length <= 0) {
       System.out.println("This command will show all the unspent notes. ");
       System.out.println(
-          "If you want to query all the spent notes and unspent notes, please use command ListShieldedNote 1 ");
+          "If you want to display all notes, including spent notes and unspent notes, please use command ListShieldedNote 1 ");
     } else {
       if (!StringUtil.isNullOrEmpty(parameters[0])) {
         showType = Integer.valueOf(parameters[0]);
@@ -2536,16 +2536,16 @@ public class Client {
     if (showType == 0) {
       List<String> utxoList = ShieldedWrapper.getInstance().getvalidateSortUtxoList();
       if (utxoList.size() == 0) {
-        System.out.println("Unspent note is 0.");
+        System.out.println("The count of unspent note is 0.");
       } else {
-        System.out.println("Unspent note list like:");
+        System.out.println("The unspent note list is shown below:");
         for (String string : utxoList) {
           System.out.println(string);
         }
       }
     } else {
       Map<Long, ShieldedNoteInfo> noteMap = ShieldedWrapper.getInstance().getUtxoMapNote();
-      System.out.println("All notes list like:");
+      System.out.println("All notes is shown below:");
       for (Entry<Long, ShieldedNoteInfo> entry : noteMap.entrySet()) {
         String string = entry.getValue().getPaymentAddress() + " ";
         string += entry.getValue().getValue();

@@ -1083,7 +1083,7 @@ Example:
 ```console
 > loadshieldedwallet
 Please input your password for shielded wallet.
-> 1qa@WS#ED
+> *******
 LoadShieldedWallet successful !!!
 ```
 
@@ -1130,7 +1130,7 @@ Shielded transfer, support from public address or shielded address to public add
 Public from amount / shielded input amount = public output amount + shielded output amount + fee
 
 publicFromAddress
-> Public from address, set to null if not needed.Optional, If this variable is not configured, it is the address of the current login account
+> Public from address, set to null if not needed. Optional, If this variable is not configured, it is the address of the current login account
 
 fromAmount
 > The amount transfer from public address, if publicFromAddress set to null, this variable must be 0.
@@ -1200,7 +1200,7 @@ Example:
     List the note scanned by the local cache address
 
     type
-    > Show type. 0 show not spent note; other value show all notes, include spend notes and not spend notes. default is 0.
+    > Shows the type of note. If the variable is 0, it shows all unspent notes; For other values, it shows all the notes, including spent notes and unspent notes.
 
     Example:
 
