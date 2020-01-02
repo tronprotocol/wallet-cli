@@ -1083,7 +1083,7 @@ Example:
 ```console
 > loadshieldedwallet
 Please input your password for shielded wallet.
-> 1qa@WS#ED
+> *******
 LoadShieldedWallet successful !!!
 ```
 
@@ -1123,14 +1123,14 @@ ztron165vh2d0qqj7ytrkjeehwy0sg3uvc4tnvcqnpqnzrqq4jpw2p7pzgm2d3chrwxk2jf9ck6rza8j
 
 ### SendShieldedCoin
 
-    > SendShieldedCoin publicFromAddress fromAmount shieldedInputNum input1 input2 input3 ... publicToAddress toAmount shieldedOutputNum shieldedAddress1 amount1 memo1 shieldedAddress2 amount2 memo2 ...
+    > SendShieldedCoin [publicFromAddress] fromAmount shieldedInputNum input publicToAddress toAmount shieldedOutputNum shieldedAddress1 amount1 memo1 ...
 
 Shielded transfer, support from public address or shielded address to public address and shielded address, does not support public address to public address, does not support automatic change.
 
-Public from amount / shielded input amount = public output amount + shielded output amount + fee
+Public input amount / shielded input amount = public output amount + shielded output amount + fee
 
 publicFromAddress
-> Public from address, set to null if not needed.
+> Public from address, set to null if not needed. Optional, If this variable is not configured, it is the address of the current login account
 
 fromAmount
 > The amount transfer from public address, if publicFromAddress set to null, this variable must be 0.
@@ -1161,13 +1161,14 @@ memo1
 
 Example:
 
-1. Public address transfer to two shielded addresses
-
+1. Public address transfer to shielded addresses    
+  **When in this mode,Some variables must be set as follows, shieldedInputNum=0,publicToAddress=null,toAmount=0**
     ```console
     > sendshieldedcoin TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ 210000000 0 null 0 2 ztron16j06s3p5gvp2jde4vh7w3ug3zz3m62zkyfu86s7ara5lafhp22p9wr3gz0lcdm3pvt7qx0aftu4 100000000 test1 ztron1ghdy60hya8y72deu0q0r25qfl60unmue6889m3xfc3296a5ut6jcyafzhtp9nlutndukufzap4h 100000000 null
     ```
 
-2. shielded address transfer to shielded address
+2. shielded address transfer to shielded address    
+   **When in this mode,Some variables must be set as follows, publicFromAddress=null,fromAmount=0,shieldedInputNum=1,publicToAddress=null,toAmount=0**
 
     ```console
     > listshieldednote
@@ -1179,7 +1180,8 @@ Example:
     address ztron16j06s3p5gvp2jde4vh7w3ug3zz3m62zkyfu86s7ara5lafhp22p9wr3gz0lcdm3pvt7qx0aftu4
     ```
 
-3. shielded address transfer to public address
+3. shielded address transfer to public address    
+   **When in this mode,Some variables must be set as follows, publicFromAddress=null,fromAmount=0,shieldedInputNum=1,shieldedOutputNum=0**
 
     ```console
     > listshieldednote
@@ -1191,18 +1193,18 @@ Example:
     address ztron1hn9r3wmytavslztwmlzvuzk3dqpdhwcmda2d0deyu5pwv32dp78saaslyt82w0078y6uzfg8x6w
     ```
 
-4. sendshieldedcoinwithoutask
+### sendshieldedcoinwithoutask
 
-    Usage and parameters are consistent with the command sendshieldedcoin, the only difference is that sendshieldedcoin uses ask signature, but sendshieldedcoinwithoutask uses ak signature.
+Usage and parameters are consistent with the command sendshieldedcoin, the only difference is that sendshieldedcoin uses ask signature, but sendshieldedcoinwithoutask uses ak signature.
 
-5. listshieldednote type
+### listshieldednote type
 
-    List the note scanned by the local cache address
+List the note scanned by the local cache address
 
-    type
-    > Show type. 0 show not spent note; other value show all notes, include spend notes and not spend notes. default is 0.
+type
+> Shows the type of note. If the variable is 0, it shows all unspent notes; For other values, it shows all the notes, including spent notes and unspent notes.
 
-    Example:
+Example:
 
     ```console
     > listshieldednote 0
@@ -1215,52 +1217,52 @@ Example:
     ztron1hn9r3wmytavslztwmlzvuzk3dqpdhwcmda2d0deyu5pwv32dp78saaslyt82w0078y6uzfg8x6w 90000000 06b55fc27f7ec649396706d149d18a0bb003347bdd7f489e3d47205da9cee802 0 Spend test2
     ```
 
-6. resetshieldednote
+### resetshieldednote
 
-    Clean all the note scanned, rescanned all blocks.generally used when there is a problem with the notes or when switching environments
+Clean all the note scanned, rescanned all blocks.generally used when there is a problem with the notes or when switching environments
 
-7. ScanNotebyIvk ivk startNum endNum
+### ScanNotebyIvk ivk startNum endNum
 
-    Scan notes by ivk
+Scan notes by ivk
 
-    ivk
-    > The ivk of shielded address
+ivk
+> The ivk of shielded address
 
-    startNum
-    > The starting block number of the scan
+startNum
+> The starting block number of the scan
 
-    endNum
-    > The end block number of the scan
+endNum
+> The end block number of the scan
 
-    Example:
+Example:
 
-        > scannotebyivk d2a4137cecf049965c4183f78fe9fc9fbeadab6ab3ef70ea749421b4c6b8de04 500 1499
+     > scannotebyivk d2a4137cecf049965c4183f78fe9fc9fbeadab6ab3ef70ea749421b4c6b8de04 500 1499
 
-8. ScanNotebyOvk ovk startNum endNum
+### ScanNotebyOvk ovk startNum endNum
 
-    Scan notes by ovk
+Scan notes by ovk
 
-    ovk
-    > the ivk of shielded address
+ovk
+> the ivk of shielded address
 
-    startNum
-    > The starting block number of the scan
+startNum
+> The starting block number of the scan
 
-    endNum
-    > The end block number of the scan
+endNum
+> The end block number of the scan
 
-    Example:
+Example:
 
-        > scannotebyovk a5b06ef3067855d741f966d54dfa1c124548535107333336bd9552a427f0529e 500 1499
+    > scannotebyovk a5b06ef3067855d741f966d54dfa1c124548535107333336bd9552a427f0529e 500 1499
 
-9. GetShieldedNullifier index
+### GetShieldedNullifier index
 
-    Get the nullifier of the note
+Get the nullifier of the note
 
-    index
-    > The note index obtained by the listshieldednote command
+index
+> The note index obtained by the listshieldednote command
 
-    Example:
+Example:
 
     ```console
     > listshieldednote
@@ -1276,39 +1278,39 @@ Example:
     ShieldedNullifier:2a524a3be2643365ecdacf8f0d3ca1de8fad3080eea0b9561435b5d1ee467042
     ```
 
-10. ScanAndMarkNotebyAddress shieldedAddress startNum endNum
+### ScanAndMarkNotebyAddress shieldedAddress startNum endNum
 
-    Scan the note with a locally cached shielded address and mark whether it is spent out
+Scan the note with a locally cached shielded address and mark whether it is spent out
 
-    shieldedAddress
-    > Locally cached shielded address, if it is not a locally cached shielded address, an error will be reported.
+shieldedAddress
+> Locally cached shielded address, if it is not a locally cached shielded address, an error will be reported.
 
-    startNum
-    > The starting block number of the scan
+startNum
+> The starting block number of the scan
 
-    endNum
-    > The end block number of the scan
+endNum
+> The end block number of the scan
 
-    Example:
+Example:
 
-        > ScanAndMarkNotebyAddress ztron16j06s3p5gvp2jde4vh7w3ug3zz3m62zkyfu86s7ara5lafhp22p9wr3gz0lcdm3pvt7qx0aftu4 500 1500
+    > ScanAndMarkNotebyAddress ztron16j06s3p5gvp2jde4vh7w3ug3zz3m62zkyfu86s7ara5lafhp22p9wr3gz0lcdm3pvt7qx0aftu4 500 1500
 
-11. GetSpendingKey
+### GetSpendingKey
 
-    Generate a sk
+Generate a sk
 
-    Example:
+Example:
 
     ```console
     > GetSpendingKey
     0eb458b309fa544066c40d80ce30a8002756c37d2716315c59a98c893dbb5f6a
     ```
 
-12. getExpandedSpendingKey sk
+### getExpandedSpendingKey sk
 
-    Generate ask, nsk, ovk from sk
+Generate ask, nsk, ovk from sk
 
-    Example:
+Example:
 
     ```console
     > getExpandedSpendingKey 0eb458b309fa544066c40d80ce30a8002756c37d2716315c59a98c893dbb5f6a
@@ -1317,54 +1319,54 @@ Example:
     ovk:892a10c1d3e8ea22242849e13f177d69e1180d1d5bba118c586765241ba2d3d6
     ```
 
-13. getAkFromAsk ask
-    Generate ak from ask
+### getAkFromAsk ask
+Generate ak from ask
 
-    Example:
+Example:
 
     ```console
     > GetAkFromAsk 252a0f6f6f0bac114a13e1e663d51943f1df9309649400218437586dea78260e
     ak:f1b843147150027daa5b522dd8d0757ec5c8c146defd8e01b62b34cf917299f1
     ```
 
-14. getNkFromNsk nsk
+### getNkFromNsk nsk
 
-    Generate nk from nsk
+Generate nk from nsk
 
-    Example:
+Example:
 
     ```console
     > GetNkFromNsk 5cd2bc8d9468dbad26ea37c5335a0cd25f110eaf533248c59a3310dcbc03e503
     nk:ed3dc885049f0a716a4de8c08c6cabcad0da3c437202341aa3d9248d8eb2b74a
     ```
 
-15. getIncomingViewingKey ak[64] nk[64]
+### getIncomingViewingKey ak[64] nk[64]
 
-    Generate ivk from ak and nk
+Generate ivk from ak and nk
 
-    Example:
+Example:
 
     ```console
     > getincomingviewingkey f1b843147150027daa5b522dd8d0757ec5c8c146defd8e01b62b34cf917299f1 ed3dc885049f0a716a4de8c08c6cabcad0da3c437202341aa3d9248d8eb2b74a
     ivk:148cf9e91f1e6656a41dc9b6c6ee4e52ff7a25b25c2d4a3a3182d0a2cd851205
     ```
 
-16. GetDiversifier
+### GetDiversifier
 
-    Generate a diversifier
+Generate a diversifier
 
-    Example:
+Example:
 
     ```console
     > GetDiversifier
     11db4baf6bd5d5afd3a8b5
     ```
 
-17. getshieldedpaymentaddress ivk[64] d[22]
+### getshieldedpaymentaddress ivk[64] d[22]
 
-    Generate a shielded address from sk and d
+Generate a shielded address from sk and d
 
-    Example:
+Example:
 
     ```console
     GetShieldedPaymentAddress 148cf9e91f1e6656a41dc9b6c6ee4e52ff7a25b25c2d4a3a3182d0a2cd851205 11db4baf6bd5d5afd3a8b5
@@ -1372,11 +1374,11 @@ Example:
     shieldedAddress:ztron1z8d5htmt6h26l5agk4juz9jzz9wnsmkhz6uucp4rfx8gdccr6leq6zrfe80fpccny2kp2cray8z
     ```
 
-18. BackupShieldedAddress
+### BackupShieldedAddress
 
-    Back up one shielded address
+Back up one shielded address
 
-    Example:
+Example:
 
     ```console
     > loadshieldedwallet
@@ -1396,11 +1398,11 @@ Example:
     BackupShieldedAddress successful !!
     ```
 
-19. ImportShieldedAddress
+### ImportShieldedAddress
 
-    Import one shieled address to local wallet
+Import one shieled address to local wallet
 
-    Example:
+Example:
 
     ```console
     > ImportShieldedAddress
@@ -1412,6 +1414,29 @@ Example:
     ImportShieldedAddress successful !!
     ```
 
+### ShowShieldedAddressInfo
+
+Display information about shielded addresses
+
+Example:
+
+    ```console
+    > listshieldedaddress
+    ShieldedAddress :
+    ztron14t95p936cyev678f6l6xsejnyfzrrzfsg56jaxgp7fzxlsczc2l6866fzc4c8awfnrzy74svkrl
+    ztron1v6tu4c760vs7m0h94t89m4jcxtuq0nxmag7eequc3c2rnee3sufllq8fjtvfff6y84x3zgcapwp
+    ztron18vaszshuluufz64uesvzw6wtune90uwexzmsfwtgqq2mlydt4fhy0kz02k3vm2j8er7s5xuyujv
+    > showshieldedaddressinfo ztron18vaszshuluufz64uesvzw6wtune90uwexzmsfwtgqq2mlydt4fhy0kz02k3vm2j8er7s5xuyujv
+    The following variables are secret information, please don't show to other people!!!
+    sk :0deebe55fe7e591803126b531d4fe7c0e3979a2fcadb5a7996f73a8e463231f8
+    ivk:aa955c5798e3f611c72fa22842847810114dd5a860db272b2ef50cc8448ced00
+    ovk:a1d00b6f761137e1d8b58e77d8685347137131317ba3671f644ffb64bc5baa94
+    pkd:182769cbe4f257f1d930b704b9680015bf91abaa6e47d84f55a2cdaa47c8fd0a
+    d  :3b3b0142fcff38916abccc
+    > showshieldedaddressinfo ztron19lgz39ja8dz427dt9qa8gpkpxanu05y09zplfzzwc640mlx74n4au3037nde3h6m7zsu5xgkrnn
+    pkd:3a7406c13767c7d08f2883f4884ec6aafdfcdeacebde45f1f4db98df5bf0a1ca
+    d  :2fd028965d3b455579ab28 
+    ```
 ## Command List
 
 Following is a list of Tron Wallet-cli commands:
@@ -1498,6 +1523,7 @@ For more information on a specific command, just type the command on terminal wh
     SendShieldedCoin
     SendShieldedCoinWithoutAsk
     SetAccountId
+    ShowShieldedAddressInfo
     TransferAsset
     TriggerContract
     TriggerConstantContract
