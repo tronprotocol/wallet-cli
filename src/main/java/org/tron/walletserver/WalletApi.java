@@ -236,6 +236,7 @@ public class WalletApi {
       if (wallets.length == 1) {
         tipInfo = "Please choose address index 1";
       }
+      System.out.println(tipInfo);
       Scanner in = new Scanner(System.in);
       while (true) {
         String input = in.nextLine().trim();
@@ -249,6 +250,7 @@ public class WalletApi {
           continue;
         }
         if (n < 1 || n > wallets.length) {
+          System.out.println("Invalid number of " + num);
           System.out.println(tipInfo);
           continue;
         }

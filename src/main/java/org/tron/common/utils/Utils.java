@@ -31,7 +31,6 @@ import org.tron.protos.Contract.*;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.walletserver.WalletApi;
-
 import java.io.Console;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -515,6 +514,16 @@ public class Utils {
       }
     }
     return true;
+  }
+
+  public static boolean isHexString(String str) {
+    boolean bRet = false;
+    try {
+      ByteArray.fromHexString(str);
+      bRet = true;
+    } catch (Exception e) {
+    }
+    return bRet;
   }
 
 }

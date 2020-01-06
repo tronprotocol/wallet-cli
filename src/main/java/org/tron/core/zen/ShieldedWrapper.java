@@ -1,7 +1,5 @@
 package org.tron.core.zen;
 
-import static org.tron.walletcli.Client.getCmd;
-
 import com.google.protobuf.ByteString;
 import io.netty.util.internal.StringUtil;
 import lombok.Getter;
@@ -20,7 +18,6 @@ import org.tron.keystore.WalletUtils;
 import org.tron.protos.Protocol.Block;
 import org.tron.walletcli.Client;
 import org.tron.walletserver.WalletApi;
-
 import java.io.File;
 import java.io.IOException;
 import java.security.SecureRandom;
@@ -642,56 +639,13 @@ public class ShieldedWrapper {
         continue;
       }
       if (n < 1 || n > shieldedAddressInfoList.size()) {
+        System.out.println("Invalid number of " + num);
         System.out.println(tipInfo);
         continue;
       }
-//      ShieldedAddressInfo targetShieldedAddress = shieldedAddressInfoList.get(n - 1);
-//      byte[] skAndD = new byte[targetShieldedAddress.getSk().length + targetShieldedAddress.getD()
-//          .getData().length];
-//
-//      System.arraycopy(targetShieldedAddress.getSk(), 0, skAndD, 0,
-//          targetShieldedAddress.getSk().length);
-//      System.arraycopy(targetShieldedAddress.getD().getData(), 0,
-//          skAndD, targetShieldedAddress.getSk().length, targetShieldedAddress.getD().getData().length);
-//      return skAndD;
       return  shieldedAddressInfoList.get(n - 1);
     }
   }
-
-//  public byte[] importShieldedWallet() throws IOException, CipherException {
-//    ZenUtils.checkFolderExist(PREFIX_FOLDER);
-//
-//    if (shieldedSkeyFileExist()) {
-//      byte[] tempShieldedKey = loadSkey();
-//      if (ArrayUtils.isEmpty(tempShieldedKey)) {
-//        System.out.println("Invalid password.");
-//        return null;
-//      } else {
-//        shieldedSkey = tempShieldedKey;
-//      }
-//    } else {
-//      shieldedSkey = generateSkey();
-//    }
-//    loadShieldWallet();
-//
-//    byte[] temp = new byte[86];
-//    byte[] result = null;
-//    System.out.println("Please input shielded wallet hex string. such as 'sk d',Max retry time:" + 3);
-//    int nTime = 0;
-//    while (nTime < 3) {
-//      int len = System.in.read(temp, 0, temp.length);
-//      if (len >= 86) {
-//        byte[] privateKey = Arrays.copyOfRange(temp, 0, 86);
-//        result = StringUtils.hexs2Bytes(privateKey);
-//        StringUtils.clear(privateKey);
-//        break;
-//      }
-//      StringUtils.clear(result);
-//      System.out.println("Invalid shielded address, please input again.");
-//      ++nTime;
-//    }
-//    return result;
-//  }
 
   public byte[] importShieldedWallet() throws IOException, CipherException {
     ZenUtils.checkFolderExist(PREFIX_FOLDER);
@@ -713,44 +667,25 @@ public class ShieldedWrapper {
     System.out.println("Please input shielded wallet hex string. such as 'sk d',Max retry time:" + 3);
     int nTime = 0;
 
-    byte[] buffer = new byte[1000];
+    Scanner in = new Scanner(System.in);
     while (nTime < 3) {
-      System.in.read(buffer, 0, buffer.length);
-      String[] array = Client.getCmd(new String(buffer).trim());
-      if (array.length == 2) {
+      String input = in.nextLine().trim();
+      String[] array = Client.getCmd(input.trim());
+      if (array.length == 2 && Utils.isHexString(array[0]) && Utils.isHexString(array[1])) {
         System.out.println("Import shielded wallet hex string is : ");
-        System.out.println("sk:" +  array[0]);
-        System.out.println("d :" +  array[1]);
+        System.out.println("sk:" + array[0]);
+        System.out.println("d :" + array[1]);
 
         byte[] sk = ByteArray.fromHexString(array[0]);
         byte[] d = ByteArray.fromHexString(array[1]);
         result = new byte[sk.length + d.length];
-        System.arraycopy(result, 0, sk, 0, sk.length);
-        System.arraycopy(result, sk.length, d, 0, d.length);
+        System.arraycopy(sk, 0, result, 0, sk.length);
+        System.arraycopy(d, 0, result, sk.length, d.length);
         break;
       }
 
-
-
-//      if (len >= 86) {
-//        byte[] privateKey = Arrays.copyOfRange(temp, 0, 86);
-//        result = StringUtils.hexs2Bytes(privateKey);
-//        StringUtils.clear(privateKey);
-//        break;
-//      }
-
-
-//      int len = System.in.read(temp, 0, temp.length);
-//      if (len >= 86) {
-//        byte[] privateKey = Arrays.copyOfRange(temp, 0, 86);
-//        result = StringUtils.hexs2Bytes(privateKey);
-//        StringUtils.clear(privateKey);
-//        break;
-//      }
-
-
       StringUtils.clear(result);
-      System.out.println("Invalid shielded address, please input again.");
+      System.out.println("Invalid shielded wallet hex string, please input again.");
       ++nTime;
     }
     return result;

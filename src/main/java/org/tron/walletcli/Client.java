@@ -54,7 +54,7 @@ public class Client {
       "AddTransactionSign",
       "ApproveProposal",
       "AssetIssue",
-      "BackupShieldedAddress",
+      "BackupShieldedWallet",
       "BackupWallet",
       "BackupWallet2Base64",
       "BroadcastTransaction",
@@ -108,7 +108,7 @@ public class Client {
       "GetTransactionsFromThis",
       "GetTransactionsToThis",
       "GetTransactionSignWeight",
-      "ImportShieldedAddress",
+      "ImportShieldedWallet",
       "ImportWallet",
       "ImportWalletByBase64",
       "ListAssetIssue",
@@ -157,7 +157,7 @@ public class Client {
       "AddTransactionSign",
       "ApproveProposal",
       "AssetIssue",
-      "BackupShieldedAddress",
+      "BackupShieldedWallet",
       "BackupWallet",
       "BackupWallet2Base64",
       "BroadcastTransaction",
@@ -212,7 +212,7 @@ public class Client {
       "GetTransactionsToThis",
       "GetTransactionSignWeight",
       "Help",
-      "ImportShieldedAddress",
+      "ImportShieldedWallet",
       "ImportWallet",
       "ImportWalletByBase64",
       "ListAssetIssue",
@@ -2785,17 +2785,8 @@ public class Client {
   private void backupShieldedWallet() throws IOException, CipherException {
     ShieldedAddressInfo addressInfo = ShieldedWrapper.getInstance().backupShieldedWallet();
     if (addressInfo != null) {
-      System.out.print("sk:");
-      for (int i = 0; i < addressInfo.getSk().length; i++) {
-        StringUtils.printOneByte(addressInfo.getSk()[i]);
-      }
-      System.out.println();
-
-      System.out.print("d :");
-      for (int i = 0; i < addressInfo.getD().getData().length; i++) {
-        StringUtils.printOneByte(addressInfo.getD().getData()[i]);
-      }
-      System.out.println();
+      System.out.println("sk:" + ByteArray.toHexString(addressInfo.getSk()));
+      System.out.println("d :" + ByteArray.toHexString(addressInfo.getD().getData()));
       System.out.println("BackupShieldedAddress successful !!!");
     } else {
       System.out.println("BackupShieldedAddress failed !!!");
