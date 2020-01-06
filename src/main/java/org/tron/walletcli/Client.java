@@ -2787,9 +2787,9 @@ public class Client {
     if (addressInfo != null) {
       System.out.println("sk:" + ByteArray.toHexString(addressInfo.getSk()));
       System.out.println("d :" + ByteArray.toHexString(addressInfo.getD().getData()));
-      System.out.println("BackupShieldedAddress successful !!!");
+      System.out.println("BackupShieldedWallet successful !!!");
     } else {
-      System.out.println("BackupShieldedAddress failed !!!");
+      System.out.println("BackupShieldedWallet failed !!!");
     }
   }
 
@@ -2804,13 +2804,13 @@ public class Client {
           walletApiWrapper.getNewShieldedAddressBySkAndD(sk, d);
       if (addressInfo.isPresent() &&
           ShieldedWrapper.getInstance().addNewShieldedAddress(addressInfo.get(), false)) {
-        System.out.println("Import new shielded address is: " + addressInfo.get().getAddress());
-        System.out.println("ImportShieldedAddress successful !!!");
+        System.out.println("Import new shielded wallet address is: " + addressInfo.get().getAddress());
+        System.out.println("ImportShieldedWallet successful !!!");
       } else {
-        System.out.println("ImportShieldedAddress failed !!!");
+        System.out.println("ImportShieldedWallet failed !!!");
       }
     } else {
-      System.out.println("ImportShieldedAddress failed !!!");
+      System.out.println("ImportShieldedWallet failed !!!");
     }
   }
 
