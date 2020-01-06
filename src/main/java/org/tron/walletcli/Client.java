@@ -2854,7 +2854,7 @@ public class Client {
     if (parameters == null || parameters.length != 2) {
       System.out.println("Using GetMarketPriceByPair command needs 2 parameters like: ");
       System.out.println(
-          "GetMarketPriceByPair ownerAddress");
+          "GetMarketPriceByPair sellTokenId buyTokenId");
       return;
     }
 
