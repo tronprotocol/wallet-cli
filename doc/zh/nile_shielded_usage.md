@@ -154,8 +154,8 @@ ImportShieldedAddress successful !!!
 ```test
 SendShieldedCoin publicFromAddress fromAmount shieldedInputNum input1 publicToAddress toAmount shieldedOutputNum shieldedAddress1 amount1 memo1 shieldedAddress2 amount2 memo2 
 ```
-`publicFromAddress` 转出公开地址，公开地址转账给匿名地址时使用，不需要则设置为`null`。  
-`fromAmount` 转出到透明地址金额，如果`publicFromAddress`设置为`null`，该变量必须设置为`0`。  
+`publicFromAddress` 转出的公开地址，公开地址转账给匿名地址时使用，不需要则设置为`null`。  
+`fromAmount` 公开地址转出的金额，如果`publicFromAddress`设置为`null`，该变量必须设置为`0`。  
 `shieldedInputNum` 转出匿名note的个数，可以设置成`0`或者`1`。  
 `input1` 匿名note在本地的序号，个数跟`shieldedInputNum`保存一致，如果`shieldedInputNum`为`0`，则这些变量不需要设置。  
 `publicToAddress` 转入公开地址，匿名地址转账给公开地址时使用。  
@@ -163,10 +163,10 @@ SendShieldedCoin publicFromAddress fromAmount shieldedInputNum input1 publicToAd
 `shieldedOutputNum` 转入匿名note的个数，可以设置成`0`、`1`或者`2`。  
 `shieldedAddress1` 转入匿名地址。  
 `amount1` 转入到匿名地址`shieldedAddress1`的金额。
-`memo1` note的备注（最多512个字节）可以在不需要时设置为`null`。
+`memo1` note的备注（最多512个字节）可以在不需要时设置为`null`。 
 `shieldedAddress2` 转入匿名地址。  
-`amount2` 转入到匿名地址`shieldedAddress1`的金额。
-`memo2` note的备注（最多512个字节）可以在不需要时设置为`null`。
+`amount2` 转入到匿名地址`shieldedAddress2`的金额。 
+`memo2` note的备注（最多512个字节）可以在不需要时设置为`null`。 
 
 **注意：一个合法的`SendShieldedCoin`命令必须保证从转出地址转出的TRZ数量等于所有转入地址收到的TRZ数量与手续费之和。我们在下面的例子中也会提到这一点。**
 

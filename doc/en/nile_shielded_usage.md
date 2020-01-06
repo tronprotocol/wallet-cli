@@ -155,7 +155,7 @@ Here are the full description and explanation of relevant parameters of the comm
 SendShieldedCoin publicFromAddress fromAmount shieldedInputNum input1 publicToAddress toAmount shieldedOutputNum shieldedAddress1 amount1 memo1 shieldedAddress2 amount2 memo2 
 ```
 `publicFromAddress` The public sender address. The parameter is used when transferring from a public address to a shielded address. Otherwise, please set to `null`.  
-`fromAmount` Amount of transfer to a transparent address. If `publicFromAddress` is set to `null`, this parameter needs to be set to `0`.  
+`fromAmount` Amount of transfer from the public sender address. If `publicFromAddress` is set to `null`, this parameter needs to be set to `0`.  
 `shieldedInputNum` Number of shielded notes to be sent. This can be set to `0` or `1`.  
 `input1` Local serial numbers of shielded notes. The number of notes should equal the value of `shieldedInputNum`. No need to set these parameters if `shieldedInputNum` is `0`.  
 `publicToAddress` Public address to receive the transfer. This parameter is used when transferring from a shielded address to a public address.  
