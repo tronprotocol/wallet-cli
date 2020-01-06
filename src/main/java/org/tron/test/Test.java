@@ -7,12 +7,15 @@ import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.ECKey.ECDSASignature;
 import org.tron.common.crypto.Hash;
 import org.tron.common.crypto.Sha256Hash;
+import org.tron.common.crypto.SignInterface;
+import org.tron.common.crypto.sm2.SM2;
 import org.tron.common.utils.Base58;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Utils;
 import org.tron.core.exception.CipherException;
 import org.tron.keystore.CheckStrength;
 import org.tron.keystore.Credentials;
+import org.tron.keystore.CredentialsEckey;
 import org.tron.keystore.WalletUtils;
 import org.tron.protos.Contract;
 import org.tron.protos.Contract.TransferContract;
@@ -316,13 +319,14 @@ public class Test {
   public static void testGenerateWalletFile() throws CipherException, IOException {
     String PASSWORD = "Insecure Pa55w0rd";
     String priKeyHex = "cba92a516ea09f620a16ff7ee95ce0df1d56550a8babe9964981a7144c8a784a";
-    ECKey eCkey = ECKey.fromPrivate(ByteArray.fromHexString(priKeyHex));
+//    ECKey eCkey = ECKey.fromPrivate(ByteArray.fromHexString(priKeyHex));
+    SignInterface sm2 = SM2.fromPrivate(ByteArray.fromHexString(priKeyHex));
     File file = new File("out");
-    String fileName = WalletUtils.generateWalletFile(PASSWORD.getBytes(), eCkey, file, true);
+    String fileName = WalletUtils.generateWalletFile(PASSWORD.getBytes(), sm2, file, true);
     Credentials credentials = WalletUtils.loadCredentials(PASSWORD.getBytes(), new File(file, fileName));
     String address = credentials.getAddress();
-    ECKey ecKeyPair = credentials.getEcKeyPair();
-    String prikey = ByteArray.toHexString(ecKeyPair.getPrivKeyBytes());
+    SignInterface pair = credentials.getPair();
+    String prikey = ByteArray.toHexString(pair.getPrivKeyBytes());
     System.out.println("address = " + address);
     System.out.println("prikey = " + prikey);
 
@@ -359,6 +363,13 @@ public class Test {
       int level = CheckStrength.checkPasswordStrength(password.toCharArray());
       System.out.println(password + " strength is " + level);
     }
+  }
+
+  public static void interfaceTest() {
+    String privateKey = "4afbef627636b159614be6e210febd5f14dd6531874fb01ece956516541c41c7";
+    SignInterface sm2 = SM2.fromPrivate(ByteArray.fromHexString(privateKey));
+    String address = WalletApi.encode58Check(sm2.getAddress());
+    System.out.println(address);
   }
   public static void main(String[] args) throws Exception {
 

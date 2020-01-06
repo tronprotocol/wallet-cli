@@ -70,21 +70,21 @@ public class TransactionSignDemoForSM2 {
 
   private static byte[] signTransaction2Byte(byte[] transaction, byte[] privateKey)
       throws InvalidProtocolBufferException {
-    SM2 ecKey = SM2.fromPrivate(privateKey);
+    SM2 sm2 = SM2.fromPrivate(privateKey);
     Transaction transaction1 = Transaction.parseFrom(transaction);
     byte[] rawdata = transaction1.getRawData().toByteArray();
-    byte[] hash = ecKey.hash(rawdata);
-    byte[] sign = ecKey.sign(hash).toByteArray();
+    byte[] hash = sm2.hash(rawdata);
+    byte[] sign = sm2.sign(hash).toByteArray();
     return transaction1.toBuilder().addSignature(ByteString.copyFrom(sign)).build().toByteArray();
   }
 
   private static Transaction signTransaction2Object(byte[] transaction, byte[] privateKey)
       throws InvalidProtocolBufferException {
-    SM2 ecKey = SM2.fromPrivate(privateKey);
+    SM2 sm2 = SM2.fromPrivate(privateKey);
     Transaction transaction1 = Transaction.parseFrom(transaction);
     byte[] rawdata = transaction1.getRawData().toByteArray();
-    byte[] hash = ecKey.hash(rawdata);
-    byte[] sign = ecKey.sign(hash).toByteArray();
+    byte[] hash = sm2.hash(rawdata);
+    byte[] sign = sm2.sign(hash).toByteArray();
     return transaction1.toBuilder().addSignature(ByteString.copyFrom(sign)).build();
   }
 
@@ -105,56 +105,22 @@ public class TransactionSignDemoForSM2 {
   }
 
   public static void main(String[] args) throws InvalidProtocolBufferException, CancelException {
-    String privateStr = "D95611A9AF2A2A45359106222ED1AFED48853D9A44DEFF8DC7913F5CBA727366";
+    String privateStr = "4afbef627636b159614be6e210febd5f14dd6531874fb01ece956516541c41c7";
     byte[] privateBytes = ByteArray.fromHexString(privateStr);
-    SM2 ecKey = SM2.fromPrivate(privateBytes);
-    byte[] from = ecKey.getAddress();
-    byte[] to = WalletApi.decodeFromBase58Check("TGehVcNhud84JDCGrNHKVz9jEAVKUpbuiv");
+    SM2 sm2 = SM2.fromPrivate(privateBytes);
+    byte[] from = sm2.getAddress();
+    byte[] to = WalletApi.decodeFromBase58Check("TWdVF6Bdg4vzVAbyqZodMhEWFwNYmSH8nE");
     long amount = 100_000_000L; //100 TRX, api only receive trx in drop, and 1 trx = 1000000 drop
     Transaction transaction = createTransaction(from, to, amount);
     byte[] transactionBytes = transaction.toByteArray();
 
-    /*
-    //sign a transaction
-    Transaction transaction1 = TransactionUtils.sign(transaction, ecKey);
-    //get byte transaction
-    byte[] transaction2 = transaction1.toByteArray();
-    System.out.println("transaction2 ::::: " + ByteArray.toHexString(transaction2));
-
-    //sign a transaction in byte format and return a Transaction object
-    Transaction transaction3 = signTransaction2Object(transactionBytes, privateBytes);
-    System.out.println("transaction3 ::::: " + ByteArray.toHexString(transaction3.toByteArray()));
-    */
 
     //sign a transaction in byte format and return a Transaction in byte format
     byte[] transaction4 = signTransaction2Byte(transactionBytes, privateBytes);
-    System.out.println("transaction4 ::::: " + ByteArray.toHexString(transaction4));
-    Transaction transactionSigned;
-    if (WalletApi.getRpcVersion() == 2) {
-      TransactionExtention transactionExtention = WalletApi.signTransactionByApi2(transaction, ecKey.getPrivKeyBytes());
-      if (transactionExtention == null) {
-        System.out.println("transactionExtention is null");
-        return;
-      }
-      Return ret = transactionExtention.getResult();
-      if (!ret.getResult()) {
-        System.out.println("Code = " + ret.getCode());
-        System.out.println("Message = " + ret.getMessage().toStringUtf8());
-        return;
-      }
-      System.out.println(
-          "Receive txid = " + ByteArray.toHexString(transactionExtention.getTxid().toByteArray()));
-      transactionSigned = transactionExtention.getTransaction();
-    } else {
-      transactionSigned = WalletApi.signTransactionByApi(transaction, ecKey.getPrivKeyBytes());
-    }
-    byte[] transaction5 = transactionSigned.toByteArray();
-    System.out.println("transaction5 ::::: " + ByteArray.toHexString(transaction5));
-    if (!Arrays.equals(transaction4, transaction5)){
-      System.out.println("transaction4 is not equals to transaction5 !!!!!");
-    }
     boolean result = broadcast(transaction4);
 
     System.out.println(result);
   }
+
+
 }
