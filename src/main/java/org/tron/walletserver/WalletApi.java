@@ -260,11 +260,12 @@ public class WalletApi {
         try {
           n = new Integer(num);
         } catch (NumberFormatException e) {
-          System.out.println("Invaild number of " + num);
+          System.out.println("Invalid number of " + num);
           System.out.println("Please choose again between 1 and " + wallets.length);
           continue;
         }
         if (n < 1 || n > wallets.length) {
+          System.out.println("Invalid number of " + num);
           System.out.println("Please choose again between 1 and " + wallets.length);
           continue;
         }
