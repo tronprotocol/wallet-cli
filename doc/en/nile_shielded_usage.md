@@ -105,31 +105,34 @@ LoadShieldedWallet successful !!!
   
 Surely you may need to back up the local shielded address to other shielded wallets. You can do so by executing the two commands below: 
 #### 2.2.4 Export the shielded address  
-> Execute the command `BackupShieldedAddress` in the local wallet to export the shielded address:  
+> Execute the command `BackupShieldedWallet` in the local wallet to export the shielded address:  
   
 ```test
-wallet> BackupShieldedAddress
+wallet> BackupShieldedWallet
 Please input your password for shielded wallet.
 password: 
 The 1th shielded address is ztron13ef0cjxz536snelt0rdnyqe80h2qq8j2zsh8kx7fqm4grh35rnnycx5rmewq6xwsn5elzfyshrx
-Please choose between 1 and 1
-1
-00645e78310c0619a62defeb5be3d48ba183f66e249c63e2eed4164e072e87ea8e52fc48c2a47509e7eb78
-BackupShieldedAddress successful !!!
-```
-#### 2.2.5 Import the shielded address  
-> Execute the command `ImportShieldedAddress` in other shielded wallets to import the shielded address:  
+sk:00645e78310c0619a62defeb5be3d48ba183f66e249c63e2eed4164e072e87ea
+d :8e52fc48c2a47509e7eb78
+BackupShieldedWallet successful !!!
+
+
+#### 2.2.5 Import the shielded wallet address  
+> Execute the command `ImportShieldedWallet` in other shielded wallets to import the shielded address:  
 ```test  
-wallet> ImportShieldedAddress
+wallet> ImportShieldedWallet
 Please input your password for shielded wallet.
 password: 
-Please input shielded address hex string. Max retry time: 3
-00645e78310c0619a62defeb5be3d48ba183f66e249c63e2eed4164e072e87ea8e52fc48c2a47509e7eb78
-Import new shielded address is: ztron13ef0cjxz536snelt0rdnyqe80h2qq8j2zsh8kx7fqm4grh35rnnycx5rmewq6xwsn5elzfyshrx
-ImportShieldedAddress successful !!!
+Please input shielded wallet hex string. such as 'sk d',Max retry time:3
+00645e78310c0619a62defeb5be3d48ba183f66e249c63e2eed4164e072e87ea 8e52fc48c2a47509e7eb78
+Import shielded wallet hex string is : 
+sk:00645e78310c0619a62defeb5be3d48ba183f66e249c63e2eed4164e072e87ea
+d :8e52fc48c2a47509e7eb78
+Import new shielded wallet address is: ztron13ef0cjxz536snelt0rdnyqe80h2qq8j2zsh8kx7fqm4grh35rnnycx5rmewq6xwsn5elzfyshrx
+ImportShieldedWallet successful !!!
 ```
   
-**Warning: The string (`00645e78310c0619a62defeb5be3d48ba183f66e249c63e2eed4164e072e87ea8e52fc48c2a47509e7eb78`) used for exporting and importing the shielded address is confidential. Please do not disclose the information to anyone else.**
+**Warning: The string (`sk:00645e78310c0619a62defeb5be3d48ba183f66e249c63e2eed4164e072e87ea d :8e52fc48c2a47509e7eb78`) used for exporting and importing the shielded address is confidential. Please do not disclose the information to anyone else.**
  
 After the shielded wallet is all set up, you can maket a shielded transaction. Before proceeding to the next step, let's first acquire some TRZ via a wallet that is not shielded. The first step is to create a wallet that is not shielded which contains an public address. Here, we use a registered wallet with the public address `TU23LEoPKbC5xKXTEJzLFp7R2ZEWbuKiXq` and request some TRZ on the [page](http://nileex.io/join/getJoinPage) for further tests.
 ![](./../images/nile_shielded_usage7.png)  
@@ -152,9 +155,9 @@ The above three types of shielded transactions can all be executed using the com
 #### 2.3.2 Use SendShieldedCoin command
 Here are the full description and explanation of relevant parameters of the command `SendShieldedCoin`:
 ```test
-SendShieldedCoin publicFromAddress fromAmount shieldedInputNum input1 publicToAddress toAmount shieldedOutputNum shieldedAddress1 amount1 memo1 shieldedAddress2 amount2 memo2 
+SendShieldedCoin [publicFromAddress] fromAmount shieldedInputNum input1 publicToAddress toAmount shieldedOutputNum shieldedAddress1 amount1 memo1 ... 
 ```
-`publicFromAddress` The public sender address. The parameter is used when transferring from a public address to a shielded address. Otherwise, please set to `null`.  
+`publicFromAddress` The public sender address. The parameter is used when transferring from a public address to a shielded address. Otherwise, please set to `null`. Optional, If this variable is not configured, it is the address of the current login account.     
 `fromAmount` Amount of transfer from the public sender address. If `publicFromAddress` is set to `null`, this parameter needs to be set to `0`.  
 `shieldedInputNum` Number of shielded notes to be sent. This can be set to `0` or `1`.  
 `input1` Local serial numbers of shielded notes. The number of notes should equal the value of `shieldedInputNum`. No need to set these parameters if `shieldedInputNum` is `0`.  
@@ -164,11 +167,8 @@ SendShieldedCoin publicFromAddress fromAmount shieldedInputNum input1 publicToAd
 `shieldedAddress1` Shielded address to receive the transfer.  
 `amount1` The amount sent to the shielded address `shieldedAddress1`.  
 `memo1` Remarks of note (512 bytes at most). This parameter can be set to `null` when not in use.  
-`shieldedAddress2` Shielded address to receive the transfer.  
-`amount2` The amount sent to the shielded address `shieldedAddress2`.   
-`memo2` Remarks of note (512 bytes at most). This parameter can be set to `null` when not in use.  
 
-**Note: A legitimate `SendShieldedCoin` command needs to make sure the TRZ transferred from a sender address equals the sum of TRZ received by all receiving addresses plus the fees paid. We'll touch upon it in the following examples.
+**Note: A legitimate `SendShieldedCoin` command needs to make sure the TRZ transferred from a sender address equals the sum of TRZ received by all receiving addresses plus the fees paid. We'll touch upon it in the following examples.**
  
 *Below are examples of the three types of transactions:*    
 ##### 2.3.2.1 Transfer from a public address to a shielded address

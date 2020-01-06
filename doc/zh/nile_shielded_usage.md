@@ -103,33 +103,35 @@ LoadShieldedWallet successful !!!
 ```
 
 当然，你有时可能需要将本地的匿名地址同时备份到其他匿名钱包中，这可通过以下两个命令完成： 
-#### 2.2.4 导出匿名地址  
-> 在本地钱包执行命令`BackupShieldedAddress`将匿名地址进行导出:  
+#### 2.2.4 导出匿名钱包地址  
+> 在本地钱包执行命令`BackupShieldedWallet`将匿名钱包地址进行导出:  
   
 ```test
-wallet> BackupShieldedAddress
+wallet> BackupShieldedWallet
 Please input your password for shielded wallet.
 password: 
 The 1th shielded address is ztron13ef0cjxz536snelt0rdnyqe80h2qq8j2zsh8kx7fqm4grh35rnnycx5rmewq6xwsn5elzfyshrx
-Please choose between 1 and 1
-1
-00645e78310c0619a62defeb5be3d48ba183f66e249c63e2eed4164e072e87ea8e52fc48c2a47509e7eb78
-BackupShieldedAddress successful !!!
+sk:00645e78310c0619a62defeb5be3d48ba183f66e249c63e2eed4164e072e87ea
+d :8e52fc48c2a47509e7eb78
+BackupShieldedWallet successful !!!
 ```
 #### 2.2.5 导入匿名地址  
-> 在其他匿名钱包中执行`ImportShieldedAddress`命令将该匿名地址进行导入:  
+> 在其他匿名钱包中执行`ImportShieldedWallet`命令将该匿名地址进行导入:  
 
 ```test  
-wallet> ImportShieldedAddress
+wallet> ImportShieldedWallet
 Please input your password for shielded wallet.
 password: 
-Please input shielded address hex string. Max retry time: 3
-00645e78310c0619a62defeb5be3d48ba183f66e249c63e2eed4164e072e87ea8e52fc48c2a47509e7eb78
-Import new shielded address is: ztron13ef0cjxz536snelt0rdnyqe80h2qq8j2zsh8kx7fqm4grh35rnnycx5rmewq6xwsn5elzfyshrx
-ImportShieldedAddress successful !!!
+Please input shielded wallet hex string. such as 'sk d',Max retry time:3
+00645e78310c0619a62defeb5be3d48ba183f66e249c63e2eed4164e072e87ea 8e52fc48c2a47509e7eb78
+Import shielded wallet hex string is : 
+sk:00645e78310c0619a62defeb5be3d48ba183f66e249c63e2eed4164e072e87ea
+d :8e52fc48c2a47509e7eb78
+Import new shielded wallet address is: ztron13ef0cjxz536snelt0rdnyqe80h2qq8j2zsh8kx7fqm4grh35rnnycx5rmewq6xwsn5elzfyshrx
+ImportShieldedWallet successful !!!
 ```
 
-**警告:导出匿名地址和导入匿名地址过程中的字符串`00645e78310c0619a62defeb5be3d48ba183f66e249c63e2eed4164e072e87ea8e52fc48c2a47509e7eb78`是重要的秘密信息，请不要泄露给其他人。**
+**警告:导出匿名地址和导入匿名地址过程中的字符串`sk:00645e78310c0619a62defeb5be3d48ba183f66e249c63e2eed4164e072e87ea d :8e52fc48c2a47509e7eb78`是重要的秘密信息，请不要泄露给其他人。**
 
 如果你准备好了匿名钱包，就可以进行匿名转账了，当然在此之前，我们先通过普通钱包获取一些TRZ。你可以首先创建一个普通钱包，它包含了一个公开地址。我们使用已经注册好的一个普通钱包，它包含一个公开地址`TU23LEoPKbC5xKXTEJzLFp7R2ZEWbuKiXq`，然后在[页面](http://nileex.io/join/getJoinPage)上请求获取一些TRZ用于测试。
 ![](./images/nile_shielded_usage7.png)  
@@ -152,9 +154,9 @@ ImportShieldedAddress successful !!!
 #### 2.3.2 SendShieldedCoin命令使用
 下面我们先看一下`SendShieldedCoin`命令的完整描述和相关参数的含义：
 ```test
-SendShieldedCoin publicFromAddress fromAmount shieldedInputNum input1 publicToAddress toAmount shieldedOutputNum shieldedAddress1 amount1 memo1 shieldedAddress2 amount2 memo2 
+SendShieldedCoin [publicFromAddress] fromAmount shieldedInputNum input1 publicToAddress toAmount shieldedOutputNum shieldedAddress1 amount1 memo1 ... 
 ```
-`publicFromAddress` 转出的公开地址，公开地址转账给匿名地址时使用，不需要则设置为`null`。  
+`publicFromAddress` 转出的公开地址，公开地址转账给匿名地址时使用，不需要则设置为`null`，如果不设置这个参数，则会默认使用当前登陆的钱包地址。  
 `fromAmount` 公开地址转出的金额，如果`publicFromAddress`设置为`null`，该变量必须设置为`0`。  
 `shieldedInputNum` 转出匿名note的个数，可以设置成`0`或者`1`。  
 `input1` 匿名note在本地的序号，个数跟`shieldedInputNum`保存一致，如果`shieldedInputNum`为`0`，则这些变量不需要设置。  
@@ -162,11 +164,8 @@ SendShieldedCoin publicFromAddress fromAmount shieldedInputNum input1 publicToAd
 `toAmount` 转入到公开地址金额。  
 `shieldedOutputNum` 转入匿名note的个数，可以设置成`0`、`1`或者`2`。  
 `shieldedAddress1` 转入匿名地址。  
-`amount1` 转入到匿名地址`shieldedAddress1`的金额。
+`amount1` 转入到匿名地址`shieldedAddress1`的金额。  
 `memo1` note的备注（最多512个字节）可以在不需要时设置为`null`。 
-`shieldedAddress2` 转入匿名地址。  
-`amount2` 转入到匿名地址`shieldedAddress2`的金额。 
-`memo2` note的备注（最多512个字节）可以在不需要时设置为`null`。 
 
 **注意：一个合法的`SendShieldedCoin`命令必须保证从转出地址转出的TRZ数量等于所有转入地址收到的TRZ数量与手续费之和。我们在下面的例子中也会提到这一点。**
 
