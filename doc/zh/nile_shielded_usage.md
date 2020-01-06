@@ -95,7 +95,10 @@ ztron13ef0cjxz536snelt0rdnyqe80h2qq8j2zsh8kx7fqm4grh35rnnycx5rmewq6xwsn5elzfyshr
 #### 2.2.3 登陆匿名钱包  
 > 执行`LoadShieldedWallet`命令登陆本地的匿名钱包。  
 ```test 
-wallet> LoadShieldedWallet
+wallet> LoadShieldedWallet 
+Please input your password for shielded wallet.
+password: 
+user defined config file doesn't exists, use default config file in jar
 LoadShieldedWallet successful !!!
 ```
 

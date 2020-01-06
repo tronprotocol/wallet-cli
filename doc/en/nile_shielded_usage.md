@@ -96,7 +96,10 @@ If you re-run wallet-cli, you can log into the local shielded wallet you have cr
 #### 2.2.3 Log into the shielded wallet  
 > Execute the command `LoadShieldedWallet` to log into the local shielded wallet.  
 ```test 
-wallet> LoadShieldedWallet
+wallet> LoadShieldedWallet 
+Please input your password for shielded wallet.
+password: 
+user defined config file doesn't exists, use default config file in jar
 LoadShieldedWallet successful !!!
 ```
   
