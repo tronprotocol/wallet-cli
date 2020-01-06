@@ -85,7 +85,7 @@ public class ShieldedWrapper {
     }
 
     if (!shieldedSkeyFileExist()) {
-      System.out.println("Shielded wallet is not exist.");
+      System.out.println("Shielded wallet does not exist.");
       return false;
     }
 
@@ -567,7 +567,7 @@ public class ShieldedWrapper {
     byte[] skey = new byte[16];
     new SecureRandom().nextBytes(skey);
 
-    System.out.println("Shielded wallet is not exist, will build it.");
+    System.out.println("Shielded wallet does not exist, will build it.");
     char[] password = Utils.inputPassword2Twice();
     byte[] passwd = StringUtils.char2Byte(password);
 
@@ -605,7 +605,7 @@ public class ShieldedWrapper {
         return null;
       }
     } else {
-      System.out.println("Shielded wallet is not exist, please build it first.");
+      System.out.println("Shielded wallet does not exist, please build it first.");
       return null;
     }
 
@@ -621,29 +621,30 @@ public class ShieldedWrapper {
       System.out.println("The " + (i + 1) + "th shielded address is "
           + shieldedAddressInfoList.get(i).getAddress());
     }
-    String tipInfo = "Please choose between 1 and " + shieldedAddressInfoList.size();
+
     if (shieldedAddressInfoList.size() == 1) {
-      tipInfo = "Please choose shielded address index 1";
-    }
-    System.out.println(tipInfo);
-    Scanner in = new Scanner(System.in);
-    while (true) {
-      String input = in.nextLine().trim();
-      String num = input.split("\\s+")[0];
-      int n;
-      try {
-        n = new Integer(num);
-      } catch (NumberFormatException e) {
-        System.out.println("Invalid number of " + num);
-        System.out.println(tipInfo);
-        continue;
+      return shieldedAddressInfoList.get(0);
+    } else {
+      System.out.println("Please choose between 1 and " + shieldedAddressInfoList.size());
+      Scanner in = new Scanner(System.in);
+      while (true) {
+        String input = in.nextLine().trim();
+        String num = input.split("\\s+")[0];
+        int n;
+        try {
+          n = new Integer(num);
+        } catch (NumberFormatException e) {
+          System.out.println("Invalid number of " + num);
+          System.out.println("Please choose again between 1 and " + shieldedAddressInfoList.size());
+          continue;
+        }
+        if (n < 1 || n > shieldedAddressInfoList.size()) {
+          System.out.println("Invalid number of " + num);
+          System.out.println("Please choose again between 1 and " + shieldedAddressInfoList.size());
+          continue;
+        }
+        return shieldedAddressInfoList.get(n - 1);
       }
-      if (n < 1 || n > shieldedAddressInfoList.size()) {
-        System.out.println("Invalid number of " + num);
-        System.out.println(tipInfo);
-        continue;
-      }
-      return  shieldedAddressInfoList.get(n - 1);
     }
   }
 
