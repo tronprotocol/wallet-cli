@@ -509,16 +509,13 @@ public class Utils {
     return jsonTransaction;
   }
 
-  public static boolean confirmEncrption() {
-    System.out.println(
-            "Please confirm encryption module,if input y or Y means default Eckey, other means SM2.");
-    Scanner in = new Scanner(System.in);
-    String input = in.nextLine().trim();
-    String str = input.split("\\s+")[0];
-    if ("y".equalsIgnoreCase(str)) {
-      return true;
+  public static boolean isNumericString(String str) {
+    for (int i = str.length(); --i >= 0; ) {
+      if (!Character.isDigit(str.charAt(i))) {
+        return false;
+      }
     }
-    return false;
+    return true;
   }
 }
 
