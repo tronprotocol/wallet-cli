@@ -43,7 +43,6 @@ import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
-import java.util.Scanner;
 
 public class Utils {
   public static final String PERMISSION_ID = "Permission_id";
@@ -517,5 +516,6 @@ public class Utils {
     }
     return true;
   }
+
 }
 
