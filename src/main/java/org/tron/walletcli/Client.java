@@ -54,7 +54,7 @@ public class Client {
       "AddTransactionSign",
       "ApproveProposal",
       "AssetIssue",
-      "BackupShieldedAddress",
+      "BackupShieldedWallet",
       "BackupWallet",
       "BackupWallet2Base64",
       "BroadcastTransaction",
@@ -108,7 +108,7 @@ public class Client {
       "GetTransactionsFromThis",
       "GetTransactionsToThis",
       "GetTransactionSignWeight",
-      "ImportShieldedAddress",
+      "ImportShieldedWallet",
       "ImportWallet",
       "ImportWalletByBase64",
       "ListAssetIssue",
@@ -157,7 +157,7 @@ public class Client {
       "AddTransactionSign",
       "ApproveProposal",
       "AssetIssue",
-      "BackupShieldedAddress",
+      "BackupShieldedWallet",
       "BackupWallet",
       "BackupWallet2Base64",
       "BroadcastTransaction",
@@ -212,7 +212,7 @@ public class Client {
       "GetTransactionsToThis",
       "GetTransactionSignWeight",
       "Help",
-      "ImportShieldedAddress",
+      "ImportShieldedWallet",
       "ImportWallet",
       "ImportWalletByBase64",
       "ListAssetIssue",
@@ -2782,22 +2782,19 @@ public class Client {
     }
   }
 
-  private void backupShieldedAddress() throws IOException, CipherException {
-    byte[] priKey = ShieldedWrapper.getInstance().backupShieldedAddress();
-    if (!ArrayUtils.isEmpty(priKey)) {
-      for (int i = 0; i < priKey.length; i++) {
-        StringUtils.printOneByte(priKey[i]);
-      }
-      System.out.println();
-      StringUtils.clear(priKey);
-      System.out.println("BackupShieldedAddress successful !!!");
+  private void backupShieldedWallet() throws IOException, CipherException {
+    ShieldedAddressInfo addressInfo = ShieldedWrapper.getInstance().backupShieldedWallet();
+    if (addressInfo != null) {
+      System.out.println("sk:" + ByteArray.toHexString(addressInfo.getSk()));
+      System.out.println("d :" + ByteArray.toHexString(addressInfo.getD().getData()));
+      System.out.println("BackupShieldedWallet successful !!!");
     } else {
-      System.out.println("BackupShieldedAddress failed !!!");
+      System.out.println("BackupShieldedWallet failed !!!");
     }
   }
 
-  private void importShieldedAddress() throws CipherException, IOException {
-    byte[] priKey = ShieldedWrapper.getInstance().importShieldedAddress();
+  private void importShieldedWallet() throws CipherException, IOException {
+    byte[] priKey = ShieldedWrapper.getInstance().importShieldedWallet();
     if (!ArrayUtils.isEmpty(priKey) && priKey.length == 43) {
       byte[] sk = new byte[32];
       byte[] d = new byte[11];
@@ -2807,13 +2804,13 @@ public class Client {
           walletApiWrapper.getNewShieldedAddressBySkAndD(sk, d);
       if (addressInfo.isPresent() &&
           ShieldedWrapper.getInstance().addNewShieldedAddress(addressInfo.get(), false)) {
-        System.out.println("Import new shielded address is: " + addressInfo.get().getAddress());
-        System.out.println("ImportShieldedAddress successful !!!");
+        System.out.println("Import new shielded wallet address is: " + addressInfo.get().getAddress());
+        System.out.println("ImportShieldedWallet successful !!!");
       } else {
-        System.out.println("ImportShieldedAddress failed !!!");
+        System.out.println("ImportShieldedWallet failed !!!");
       }
     } else {
-      System.out.println("ImportShieldedAddress failed !!!");
+      System.out.println("ImportShieldedWallet failed !!!");
     }
   }
 
@@ -2862,7 +2859,7 @@ public class Client {
     System.out.println("Input any one of the listed commands, to display how-to tips.");
   }
 
-  private String[] getCmd(String cmdLine) {
+  public static String[] getCmd(String cmdLine) {
     if (cmdLine.indexOf("\"") < 0 || cmdLine.toLowerCase().startsWith("deploycontract")
         || cmdLine.toLowerCase().startsWith("triggercontract")
         || cmdLine.toLowerCase().startsWith("triggerconstantcontract")
@@ -3334,12 +3331,12 @@ public class Client {
               scanAndMarkNoteByAddress(parameters);
               break;
             }
-            case "importshieldedaddress": {
-              importShieldedAddress();
+            case "importshieldedwallet": {
+              importShieldedWallet();
               break;
             }
-            case "backupshieldedaddress": {
-              backupShieldedAddress();
+            case "backupshieldedwallet": {
+              backupShieldedWallet();
               break;
             }
             case "create2": {
