@@ -232,7 +232,10 @@ public class WalletApi {
       for (int i = 0; i < wallets.length; i++) {
         System.out.println("The " + (i + 1) + "th keystore file name is " + wallets[i].getName());
       }
-      System.out.println("Please choose between 1 and " + wallets.length);
+      String tipInfo = "Please choose between 1 and " + wallets.length;
+      if (wallets.length == 1) {
+        tipInfo = "Please choose address index 1";
+      }
       Scanner in = new Scanner(System.in);
       while (true) {
         String input = in.nextLine().trim();
@@ -241,12 +244,12 @@ public class WalletApi {
         try {
           n = new Integer(num);
         } catch (NumberFormatException e) {
-          System.out.println("Invaild number of " + num);
-          System.out.println("Please choose again between 1 and " + wallets.length);
+          System.out.println("Invalid number of " + num);
+          System.out.println(tipInfo);
           continue;
         }
         if (n < 1 || n > wallets.length) {
-          System.out.println("Please choose again between 1 and " + wallets.length);
+          System.out.println(tipInfo);
           continue;
         }
         wallet = wallets[n - 1];

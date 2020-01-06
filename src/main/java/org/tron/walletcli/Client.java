@@ -2782,22 +2782,28 @@ public class Client {
     }
   }
 
-  private void backupShieldedAddress() throws IOException, CipherException {
-    byte[] priKey = ShieldedWrapper.getInstance().backupShieldedAddress();
-    if (!ArrayUtils.isEmpty(priKey)) {
-      for (int i = 0; i < priKey.length; i++) {
-        StringUtils.printOneByte(priKey[i]);
+  private void backupShieldedWallet() throws IOException, CipherException {
+    ShieldedAddressInfo addressInfo = ShieldedWrapper.getInstance().backupShieldedWallet();
+    if (addressInfo != null) {
+      System.out.print("sk:");
+      for (int i = 0; i < addressInfo.getSk().length; i++) {
+        StringUtils.printOneByte(addressInfo.getSk()[i]);
       }
       System.out.println();
-      StringUtils.clear(priKey);
+
+      System.out.print("d :");
+      for (int i = 0; i < addressInfo.getD().getData().length; i++) {
+        StringUtils.printOneByte(addressInfo.getD().getData()[i]);
+      }
+      System.out.println();
       System.out.println("BackupShieldedAddress successful !!!");
     } else {
       System.out.println("BackupShieldedAddress failed !!!");
     }
   }
 
-  private void importShieldedAddress() throws CipherException, IOException {
-    byte[] priKey = ShieldedWrapper.getInstance().importShieldedAddress();
+  private void importShieldedWallet() throws CipherException, IOException {
+    byte[] priKey = ShieldedWrapper.getInstance().importShieldedWallet();
     if (!ArrayUtils.isEmpty(priKey) && priKey.length == 43) {
       byte[] sk = new byte[32];
       byte[] d = new byte[11];
@@ -2862,7 +2868,7 @@ public class Client {
     System.out.println("Input any one of the listed commands, to display how-to tips.");
   }
 
-  private String[] getCmd(String cmdLine) {
+  public static String[] getCmd(String cmdLine) {
     if (cmdLine.indexOf("\"") < 0 || cmdLine.toLowerCase().startsWith("deploycontract")
         || cmdLine.toLowerCase().startsWith("triggercontract")
         || cmdLine.toLowerCase().startsWith("triggerconstantcontract")
@@ -3334,12 +3340,12 @@ public class Client {
               scanAndMarkNoteByAddress(parameters);
               break;
             }
-            case "importshieldedaddress": {
-              importShieldedAddress();
+            case "importshieldedwallet": {
+              importShieldedWallet();
               break;
             }
-            case "backupshieldedaddress": {
-              backupShieldedAddress();
+            case "backupshieldedwallet": {
+              backupShieldedWallet();
               break;
             }
             case "create2": {
