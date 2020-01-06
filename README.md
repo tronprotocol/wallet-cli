@@ -1374,44 +1374,44 @@ Example:
     shieldedAddress:ztron1z8d5htmt6h26l5agk4juz9jzz9wnsmkhz6uucp4rfx8gdccr6leq6zrfe80fpccny2kp2cray8z
     ```
 
-### BackupShieldedAddress
+### BackupShieldedWallet
 
 Back up one shielded address
 
 Example:
 
     ```console
-    > loadshieldedwallet
+    wallet> BackUpShieldedWallet
     Please input your password for shielded wallet.
-    > 1qa@WS#ED
-    LoadShieldedWallet successful !!!
-    > BackupShieldedAddress
-    Please input your password for shielded wallet.
-    > 1qa@WS#ED
-    The 1th shielded address is ztron15y0cthwduz7mjpx3mc7cl9cxj8aqq9m8z08g6xns8qsvp7hgqstp9w5t8eh0vydlyf42gtxjzun
-    The 2th shielded address is ztron1akz7mt4zqsjqrdrwdsmffu6g5dnehhhtahjlc0c6syy3z9nxxjrzqszy22lyx326edmwqjhqe48
-    The 3th shielded address is ztron1m5dx50gryu789q5sh5207chzmmgzf5c7hvn8lr6xs60jfxvkv3d3h0kqkglc60rwq26dchztsty
-    The 4th shielded address is ztron1at9ud3crdsehe8rgrjkltqly7gsp85y8qzq93pq480hzd2az55pja5cc8r4yfwrnrqqs7q35n4x
-    Please choose between 1 and 4
-    > 1
-    0b1cf73b85742e13015dc6fb8d0986e4ad34c8f468bd8c73cc8fb34bff0dfacea11f85ddcde0bdb904d1de
-    BackupShieldedAddress successful !!
+    password: 
+    The 1th shielded address is ztron165gswmwecarmyph4x8jfrygezw78tejy3a8y5d9rxnlre7ju5q8jfsfe4qjerhfk0mmkzsx2t6t
+    The 2th shielded address is ztron1hpd2aau0s55zaauu2dlnnu6umxcqz4wuhflu4p4uqpt9w0nqd88ucf036alw2zjfmclry4tnkf6
+    The 3th shielded address is ztron19lgz39ja8dz427dt9qa8gpkpxanu05y09zplfzzwc640mlx74n4au3037nde3h6m7zsu5xgkrnn
+    Please choose between 1 and 3
+    2
+    sk:0c2dcfde42a484ecfcf6e7a00a3c9484022674739f405845d8d75fd6d8619153
+    d :b85aaef78f85282ef79c53
+    BackupShieldedWallet successful !!!
     ```
 
-### ImportShieldedAddress
+### ImportShieldedWallet
 
-Import one shieled address to local wallet
+Import one shielded address to local wallet
 
 Example:
 
     ```console
-    > ImportShieldedAddress
+    wallet> ImportShieldedWallet
     Please input your password for shielded wallet.
-    > 1qa@WS#ED
-    Please input shielded address hex string. Max retry time: 3
-    > 0b1cf73b85742e13015dc6fb8d0986e4ad34c8f468bd8c73cc8fb34bff0dfacea11f85ddcde0bdb904d1de
-    Import new shielded address is: ztron15y0cthwduz7mjpx3mc7cl9cxj8aqq9m8z08g6xns8qsvp7hgqstp9w5t8eh0vydlyf42gtxjzun
-    ImportShieldedAddress successful !!
+    password: 
+    Please input shielded wallet hex string. such as 'sk d',Max retry time:3
+    0b18ba69b7963d2ff47e69ac60c20dc30df34b221fa8960d7d61d68123999b8f  2fd028965d3b455579ab28
+    Import shielded wallet hex string is : 
+    sk:0b18ba69b7963d2ff47e69ac60c20dc30df34b221fa8960d7d61d68123999b8f
+    d :2fd028965d3b455579ab28
+    Import new shielded wallet address is: ztron19lgz39ja8dz427dt9qa8gpkpxanu05y09zplfzzwc640mlx74n4au3037nde3h6m7zsu5xgkrnn
+    ImportShieldedWallet successful !!!
+    wallet> 
     ```
 
 ### ShowShieldedAddressInfo
@@ -1445,7 +1445,7 @@ For more information on a specific command, just type the command on terminal wh
     AddTransactionSign
     ApproveProposal
     AssetIssue
-    BackupShieldedAddress
+    BackupShieldedWallet
     BackupWallet
     BackupWallet2Base64
     BroadcastTransaction
@@ -1497,7 +1497,7 @@ For more information on a specific command, just type the command on terminal wh
     GetTransactionsFromThis
     GetTransactionsToThis
     GetTransactionSignWeight
-    ImportShieldedAddress
+    ImportShieldedWallet
     ImportWallet
     ImportWalletByBase64
     ListAssetIssue
