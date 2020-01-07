@@ -383,7 +383,7 @@ public class SM2 implements Serializable, SignInterface {
     return key;
   }
 
-  @Override
+  //  @Override
   public byte[] hash(byte[] message) {
     SM2Signer signer = this.getSM2SignerForHash();
     return signer.generateSM3Hash(message);

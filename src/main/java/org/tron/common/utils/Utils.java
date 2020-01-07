@@ -23,9 +23,12 @@ import com.alibaba.fastjson.JSONObject;
 import com.google.protobuf.Any;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
+import com.typesafe.config.Config;
 import org.tron.api.GrpcAPI.*;
 import org.tron.common.crypto.Hash;
+import org.tron.common.crypto.SM3Hash;
 import org.tron.common.crypto.Sha256Hash;
+import org.tron.core.config.Configuration;
 import org.tron.keystore.StringUtils;
 import org.tron.protos.Contract.*;
 import org.tron.protos.Protocol.Block;
@@ -52,6 +55,16 @@ public class Utils {
   public static final String VALUE = "value";
 
   private static SecureRandom random = new SecureRandom();
+  private static boolean isEckey = true;
+
+  static {
+    Config config = Configuration.getByPath("config.conf");
+
+    if (config.hasPath("crypto.engine")) {
+      isEckey = config.getString("crypto.engine").equalsIgnoreCase("eckey");
+      System.out.println("WalletApi getConfig isEckey: " + isEckey);
+    }
+  }
 
   public static SecureRandom getRandom() {
     return random;
@@ -236,7 +249,12 @@ public class Utils {
 
   public static byte[] generateContractAddress(Transaction trx, byte[] ownerAddress) {
     // get tx hash
-    byte[] txRawDataHash = Sha256Hash.of(trx.getRawData().toByteArray()).getBytes();
+    byte[] txRawDataHash;
+    if (isEckey) {
+      txRawDataHash = Sha256Hash.of(trx.getRawData().toByteArray()).getBytes();
+    } else {
+      txRawDataHash = SM3Hash.of(trx.getRawData().toByteArray()).getBytes();
+    }
 
     // combine
     byte[] combined = new byte[txRawDataHash.length + ownerAddress.length];
@@ -504,7 +522,12 @@ public class Utils {
     jsonTransaction.put("raw_data", rawData);
     String rawDataHex = ByteArray.toHexString(transaction.getRawData().toByteArray());
     jsonTransaction.put("raw_data_hex", rawDataHex);
-    String txID = ByteArray.toHexString(Sha256Hash.hash(transaction.getRawData().toByteArray()));
+    String txID;
+    if (isEckey) {
+      txID = ByteArray.toHexString(Sha256Hash.hash(transaction.getRawData().toByteArray()));
+    } else {
+      txID = ByteArray.toHexString(SM3Hash.hash(transaction.getRawData().toByteArray()));
+    }
     jsonTransaction.put("txID", txID);
     return jsonTransaction;
   }

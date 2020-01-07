@@ -3,11 +3,9 @@ package org.tron.demo;
 import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
-import org.tron.api.GrpcAPI.Return;
-import org.tron.api.GrpcAPI.TransactionExtention;
-
-import org.tron.common.crypto.Sha256Hash;
+import org.tron.common.crypto.SM3Hash;
 import org.tron.common.crypto.sm2.SM2;
+import org.tron.common.crypto.sm2.SM3;
 import org.tron.common.utils.ByteArray;
 import org.tron.core.exception.CancelException;
 import org.tron.protos.Contract;
@@ -15,38 +13,38 @@ import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.walletserver.WalletApi;
 
-import java.util.Arrays;
-
 public class TransactionSignDemoForSM2 {
 
   public static Transaction setReference(Transaction transaction, Block newestBlock) {
     long blockHeight = newestBlock.getBlockHeader().getRawData().getNumber();
     byte[] blockHash = getBlockHash(newestBlock).getBytes();
     byte[] refBlockNum = ByteArray.fromLong(blockHeight);
-    Transaction.raw rawData = transaction.getRawData().toBuilder()
-        .setRefBlockHash(ByteString.copyFrom(ByteArray.subArray(blockHash, 8, 16)))
-        .setRefBlockBytes(ByteString.copyFrom(ByteArray.subArray(refBlockNum, 6, 8)))
-        .build();
+    Transaction.raw rawData =
+        transaction
+            .getRawData()
+            .toBuilder()
+            .setRefBlockHash(ByteString.copyFrom(ByteArray.subArray(blockHash, 8, 16)))
+            .setRefBlockBytes(ByteString.copyFrom(ByteArray.subArray(refBlockNum, 6, 8)))
+            .build();
     return transaction.toBuilder().setRawData(rawData).build();
   }
 
-  public static Sha256Hash getBlockHash(Block block) {
-    return Sha256Hash.of(block.getBlockHeader().getRawData().toByteArray());
+  public static SM3Hash getBlockHash(Block block) {
+    return SM3Hash.of(block.getBlockHeader().getRawData().toByteArray());
   }
 
   public static String getTransactionHash(Transaction transaction) {
-    String txid = ByteArray.toHexString(Sha256Hash.hash(transaction.getRawData().toByteArray()));
+    String txid = ByteArray.toHexString(SM3.hash(transaction.getRawData().toByteArray()));
     return txid;
   }
-
 
   public static Transaction createTransaction(byte[] from, byte[] to, long amount) {
     Transaction.Builder transactionBuilder = Transaction.newBuilder();
     Block newestBlock = WalletApi.getBlock(-1);
 
     Transaction.Contract.Builder contractBuilder = Transaction.Contract.newBuilder();
-    Contract.TransferContract.Builder transferContractBuilder = Contract.TransferContract
-        .newBuilder();
+    Contract.TransferContract.Builder transferContractBuilder =
+        Contract.TransferContract.newBuilder();
     transferContractBuilder.setAmount(amount);
     ByteString bsTo = ByteString.copyFrom(to);
     ByteString bsOwner = ByteString.copyFrom(from);
@@ -59,14 +57,16 @@ public class TransactionSignDemoForSM2 {
       return null;
     }
     contractBuilder.setType(Transaction.Contract.ContractType.TransferContract);
-    transactionBuilder.getRawDataBuilder().addContract(contractBuilder)
+    transactionBuilder
+        .getRawDataBuilder()
+        .addContract(contractBuilder)
         .setTimestamp(System.currentTimeMillis())
-        .setExpiration(newestBlock.getBlockHeader().getRawData().getTimestamp() + 10 * 60 * 60 * 1000);
+        .setExpiration(
+            newestBlock.getBlockHeader().getRawData().getTimestamp() + 10 * 60 * 60 * 1000);
     Transaction transaction = transactionBuilder.build();
     Transaction refTransaction = setReference(transaction, newestBlock);
     return refTransaction;
   }
-
 
   private static byte[] signTransaction2Byte(byte[] transaction, byte[] privateKey)
       throws InvalidProtocolBufferException {
@@ -110,17 +110,14 @@ public class TransactionSignDemoForSM2 {
     SM2 sm2 = SM2.fromPrivate(privateBytes);
     byte[] from = sm2.getAddress();
     byte[] to = WalletApi.decodeFromBase58Check("TWdVF6Bdg4vzVAbyqZodMhEWFwNYmSH8nE");
-    long amount = 100_000_000L; //100 TRX, api only receive trx in drop, and 1 trx = 1000000 drop
+    long amount = 100_000_000L; // 100 TRX, api only receive trx in drop, and 1 trx = 1000000 drop
     Transaction transaction = createTransaction(from, to, amount);
     byte[] transactionBytes = transaction.toByteArray();
 
-
-    //sign a transaction in byte format and return a Transaction in byte format
+    // sign a transaction in byte format and return a Transaction in byte format
     byte[] transaction4 = signTransaction2Byte(transactionBytes, privateBytes);
     boolean result = broadcast(transaction4);
 
     System.out.println(result);
   }
-
-
 }
