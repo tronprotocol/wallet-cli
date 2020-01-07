@@ -2425,6 +2425,16 @@ public class WalletApi {
 
   public static Optional<MarketPriceList> GetMarketPriceByPair(
       byte[] sellTokenId, byte[] buyTokenId) {
-    return rpcCli.GetMarketPriceByPair(sellTokenId, buyTokenId);
+    return rpcCli.getMarketPriceByPair(sellTokenId, buyTokenId);
   }
+
+  public static Optional<MarketOrderList> getMarketOrderListByPair(
+      byte[] sellTokenId, byte[] buyTokenId) {
+    return rpcCli.getMarketOrderListByPair(sellTokenId, buyTokenId);
+  }
+
+  public static Optional<MarketOrderPairList> getMarketPairList() {
+    return rpcCli.getMarketPairList();
+  }
+
 }

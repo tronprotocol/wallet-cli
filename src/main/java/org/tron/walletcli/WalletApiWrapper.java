@@ -1207,8 +1207,20 @@ public class WalletApiWrapper {
     return WalletApi.getMarketOrderByAccount(address);
   }
 
-  public Optional<MarketPriceList> GetMarketPriceByPair(
+  public Optional<MarketPriceList> getMarketPriceByPair(
       byte[] sellTokenId, byte[] buyTokenId) {
     return WalletApi.GetMarketPriceByPair(sellTokenId, buyTokenId);
   }
+
+
+  public Optional<MarketOrderList> getMarketOrderListByPair(
+      byte[] sellTokenId, byte[] buyTokenId) {
+    return WalletApi.getMarketOrderListByPair(sellTokenId, buyTokenId);
+  }
+
+
+  public Optional<MarketOrderPairList> getMarketPairList() {
+    return WalletApi.getMarketPairList();
+  }
+
 }

@@ -707,6 +707,13 @@ service Wallet {
   rpc GetMarketPriceByPair (MarketOrderPair) returns (MarketPriceList) {
   }
 
+  rpc GetMarketOrderListByPair (MarketOrderPair) returns (MarketOrderList) {
+  }
+
+  rpc GetMarketPairList (EmptyMessage) returns (MarketOrderPairList) {
+  }
+
+
 };
 
 service WalletSolidity {
@@ -870,6 +877,13 @@ service WalletSolidity {
   }
 
   rpc GetMarketPriceByPair (MarketOrderPair) returns (MarketPriceList) {
+  }
+
+
+  rpc GetMarketOrderListByPair (MarketOrderPair) returns (MarketOrderList) {
+  }
+
+  rpc GetMarketPairList (EmptyMessage) returns (MarketOrderPairList) {
   }
 
 };

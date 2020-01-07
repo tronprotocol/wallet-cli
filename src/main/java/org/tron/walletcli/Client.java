@@ -97,6 +97,8 @@ public class Client {
       "GetIncomingViewingKey",
       "GetMarketOrderByAccount",
       "GetMarketPriceByPair",
+      "getMarketOrderListByPair",
+      "getMarketPairList",
       "GetNextMaintenanceTime",
       "GetNkFromNsk",
       "GetProposal",
@@ -1480,7 +1482,8 @@ public class Client {
       throws IOException, CipherException, CancelException {
     if (parameters == null || (parameters.length != 4 && parameters.length != 5)) {
       System.out.println("Using exchangeTransaction command needs 4 or 5 parameters like: ");
-      System.out.println("exchangeTransaction [OwnerAddress] exchange_id token_id quantity expected");
+      System.out
+          .println("exchangeTransaction [OwnerAddress] exchange_id token_id quantity expected");
       return;
     }
 
@@ -2842,7 +2845,8 @@ public class Client {
       return;
     }
 
-    Optional<MarketOrderList> marketOrderList = walletApiWrapper.getMarketOrderByAccount(ownerAddress);
+    Optional<MarketOrderList> marketOrderList = walletApiWrapper
+        .getMarketOrderByAccount(ownerAddress);
     if (!marketOrderList.isPresent()) {
       System.out.println("GetMarketOrderByAccount failed !!!");
     } else {
@@ -2850,7 +2854,7 @@ public class Client {
     }
   }
 
-  private void getMarketPriceByPair (String[] parameters) {
+  private void getMarketPriceByPair(String[] parameters) {
     if (parameters == null || parameters.length != 2) {
       System.out.println("Using GetMarketPriceByPair command needs 2 parameters like: ");
       System.out.println(
@@ -2862,11 +2866,52 @@ public class Client {
     byte[] sellTokenId = parameters[index++].getBytes();
     byte[] buyTokenId = parameters[index++].getBytes();
 
-    Optional<MarketPriceList> marketPriceList = walletApiWrapper.GetMarketPriceByPair(sellTokenId, buyTokenId);
+    Optional<MarketPriceList> marketPriceList = walletApiWrapper
+        .getMarketPriceByPair(sellTokenId, buyTokenId);
     if (!marketPriceList.isPresent()) {
       System.out.println("GetMarketPriceByPair failed !!!");
     } else {
       System.out.println(Utils.formatMessageString(marketPriceList.get()));
+    }
+  }
+
+
+  private void getMarketOrderListByPair(String[] parameters) {
+    if (parameters == null || parameters.length != 2) {
+      System.out.println("Using getMarketOrderListByPair command needs 2 parameters like: ");
+      System.out.println(
+          "getMarketOrderListByPair sellTokenId buyTokenId");
+      return;
+    }
+
+    int index = 0;
+    byte[] sellTokenId = parameters[index++].getBytes();
+    byte[] buyTokenId = parameters[index++].getBytes();
+
+    Optional<MarketOrderList> orderListByPair = walletApiWrapper
+        .getMarketOrderListByPair(sellTokenId, buyTokenId);
+    if (!orderListByPair.isPresent()) {
+      System.out.println("getMarketOrderListByPair failed !!!");
+    } else {
+      System.out.println(Utils.formatMessageString(orderListByPair.get()));
+    }
+  }
+
+
+  private void getMarketPairList(String[] parameters) {
+    if (parameters == null || parameters.length != 0) {
+      System.out.println("Using getMarketPairList command does not need any parameters, like: ");
+      System.out.println(
+          "getMarketPairList");
+      return;
+    }
+
+    Optional<MarketOrderPairList> pairList = walletApiWrapper
+        .getMarketPairList();
+    if (!pairList.isPresent()) {
+      System.out.println("getMarketPairList failed !!!");
+    } else {
+      System.out.println(Utils.formatMessageString(pairList.get()));
     }
   }
 
@@ -3410,6 +3455,14 @@ public class Client {
             }
             case "getmarketpricebypair": {
               getMarketPriceByPair(parameters);
+              break;
+            }
+            case "getmarketorderlistbypair": {
+              getMarketOrderListByPair(parameters);
+              break;
+            }
+            case "getmarketpairlist": {
+              getMarketPairList(parameters);
               break;
             }
             case "exit":

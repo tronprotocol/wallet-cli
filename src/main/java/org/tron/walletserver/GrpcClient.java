@@ -919,7 +919,7 @@ public class GrpcClient {
     return Optional.ofNullable(marketOrderList);
   }
 
-  public Optional<MarketPriceList> GetMarketPriceByPair(byte[] sellTokenId, byte[] buyTokenId) {
+  public Optional<MarketPriceList> getMarketPriceByPair(byte[] sellTokenId, byte[] buyTokenId) {
     MarketOrderPair request =
         MarketOrderPair.newBuilder()
             .setSellTokenId(ByteString.copyFrom(sellTokenId))
@@ -933,6 +933,35 @@ public class GrpcClient {
       marketPriceList = blockingStubFull.getMarketPriceByPair(request);
     }
     return Optional.ofNullable(marketPriceList);
+  }
+
+
+  public Optional<MarketOrderList> getMarketOrderListByPair(byte[] sellTokenId, byte[] buyTokenId) {
+    MarketOrderPair request =
+        MarketOrderPair.newBuilder()
+            .setSellTokenId(ByteString.copyFrom(sellTokenId))
+            .setBuyTokenId(ByteString.copyFrom(buyTokenId))
+            .build();
+
+    MarketOrderList marketOrderList;
+    if (blockingStubSolidity != null) {
+      marketOrderList =blockingStubSolidity.getMarketOrderListByPair(request);
+    } else {
+      marketOrderList = blockingStubFull.getMarketOrderListByPair(request);
+    }
+    return Optional.ofNullable(marketOrderList);
+  }
+
+
+  public Optional<MarketOrderPairList> getMarketPairList() {
+
+    MarketOrderPairList orderPairList;
+    if (blockingStubSolidity != null) {
+      orderPairList =blockingStubSolidity.getMarketPairList(EmptyMessage.newBuilder().build());
+    } else {
+      orderPairList = blockingStubFull.getMarketPairList(EmptyMessage.newBuilder().build());
+    }
+    return Optional.ofNullable(orderPairList);
   }
 
 }
