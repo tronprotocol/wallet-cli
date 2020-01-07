@@ -136,17 +136,17 @@ public class SM3Hash implements Serializable, Comparable<SM3Hash>, HashInterface
     }
 
     /**
-     * Returns a new SHA-256 MessageDigest instance. This is a convenience method which wraps the
+     * Returns a new SM3 MessageDigest instance. This is a convenience method which wraps the
      * checked exception that can never occur with a RuntimeException.
      *
-     * @return a new SHA-256 MessageDigest instance
+     * @return a new SM3 MessageDigest instance
      */
     public static SM3Digest newDigest() {
         return new SM3Digest();
     }
 
     /**
-     * Calculates the SHA-256 hash of the given bytes.
+     * Calculates the SM3 hash of the given bytes.
      *
      * @param input the bytes to hash
      * @return the hash (in big-endian order)
@@ -156,7 +156,7 @@ public class SM3Hash implements Serializable, Comparable<SM3Hash>, HashInterface
     }
 
     /**
-     * Calculates the SHA-256 hash of the given byte range.
+     * Calculates the SM3 hash of the given byte range.
      *
      * @param input the array containing the bytes to hash
      * @param offset the offset within the array of the bytes to hash
@@ -173,7 +173,7 @@ public class SM3Hash implements Serializable, Comparable<SM3Hash>, HashInterface
     }
 
     /**
-     * Calculates the SHA-256 hash of the given bytes, and then hashes the resulting hash again.
+     * Calculates the SM3 hash of the given bytes, and then hashes the resulting hash again.
      *
      * @param input the bytes to hash
      * @return the double-hash (in big-endian order)
@@ -183,7 +183,7 @@ public class SM3Hash implements Serializable, Comparable<SM3Hash>, HashInterface
     }
 
     /**
-     * Calculates the SHA-256 hash of the given byte range, and then hashes the resulting hash again.
+     * Calculates the SM3 hash of the given byte range, and then hashes the resulting hash again.
      *
      * @param input the array containing the bytes to hash
      * @param offset the offset within the array of the bytes to hash
