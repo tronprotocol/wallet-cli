@@ -5,7 +5,6 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import org.tron.common.crypto.SM3Hash;
 import org.tron.common.crypto.sm2.SM2;
-import org.tron.common.crypto.sm2.SM3;
 import org.tron.common.utils.ByteArray;
 import org.tron.core.exception.CancelException;
 import org.tron.protos.Contract;
@@ -34,7 +33,7 @@ public class TransactionSignDemoForSM2 {
   }
 
   public static String getTransactionHash(Transaction transaction) {
-    String txid = ByteArray.toHexString(SM3.hash(transaction.getRawData().toByteArray()));
+    String txid = ByteArray.toHexString(SM3Hash.hash(transaction.getRawData().toByteArray()));
     return txid;
   }
 

@@ -19,7 +19,6 @@ import com.google.protobuf.ByteString;
 import com.typesafe.config.Config;
 import org.tron.common.crypto.*;
 import org.tron.common.crypto.ECKey.ECDSASignature;
-import org.tron.common.crypto.sm2.SM3;
 import org.tron.core.config.Configuration;
 import org.tron.core.exception.CancelException;
 import org.tron.protos.Protocol.Transaction;
@@ -237,7 +236,7 @@ public class TransactionUtils {
     if (isEckey) {
       hash = Sha256Hash.hash(transaction.getRawData().toByteArray());
     } else {
-      hash = SM3.hash(transaction.getRawData().toByteArray());
+      hash = SM3Hash.hash(transaction.getRawData().toByteArray());
     }
     SignatureInterface signature = myKey.sign(hash);
     ByteString bsSign = ByteString.copyFrom(signature.toByteArray());
