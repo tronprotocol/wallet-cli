@@ -707,8 +707,6 @@ service Wallet {
   rpc GetMarketPriceByPair (MarketOrderPair) returns (MarketPriceList) {
   }
 
-  rpc GetMarketPositionKey (MarketSellAssetContract) returns (MarketOrderPosition) {
-  }
 };
 
 service WalletSolidity {
@@ -873,6 +871,7 @@ service WalletSolidity {
 
   rpc GetMarketPriceByPair (MarketOrderPair) returns (MarketPriceList) {
   }
+
 };
 
 service WalletExtension {
