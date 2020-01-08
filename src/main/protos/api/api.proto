@@ -701,7 +701,7 @@ service Wallet {
   rpc MarketCancelOrder (MarketCancelOrderContract) returns (TransactionExtention) {
   }
 
-  rpc GetMarketOrderByAccount (Account) returns (MarketOrderList) {
+  rpc GetMarketOrderByAccount (BytesMessage) returns (MarketOrderList) {
   }
 
   rpc GetMarketPriceByPair (MarketOrderPair) returns (MarketPriceList) {
@@ -873,7 +873,7 @@ service WalletSolidity {
   rpc MarketCancelOrder (MarketCancelOrderContract) returns (TransactionExtention) {
   }
 
-  rpc GetMarketOrderByAccount (Account) returns (MarketOrderList) {
+  rpc GetMarketOrderByAccount (BytesMessage) returns (MarketOrderList) {
   }
 
   rpc GetMarketPriceByPair (MarketOrderPair) returns (MarketPriceList) {

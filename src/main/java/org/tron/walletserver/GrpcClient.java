@@ -913,7 +913,7 @@ public class GrpcClient {
 
   public Optional<MarketOrderList> getMarketOrderByAccount(byte[] address) {
     ByteString addressBS = ByteString.copyFrom(address);
-    Account request = Account.newBuilder().setAddress(addressBS).build();
+    BytesMessage request = BytesMessage.newBuilder().setValue(addressBS).build();
 
     MarketOrderList marketOrderList = blockingStubFull.getMarketOrderByAccount(request);
     return Optional.ofNullable(marketOrderList);
