@@ -5,7 +5,7 @@ import org.bouncycastle.crypto.generators.PKCS5S2ParametersGenerator;
 import org.bouncycastle.crypto.generators.SCrypt;
 import org.bouncycastle.crypto.params.KeyParameter;
 import org.tron.common.crypto.Hash;
-import org.tron.common.crypto.Sha256Hash;
+import org.tron.common.crypto.Sha256Sm3Hash;
 import org.tron.common.utils.ByteArray;
 import org.tron.core.exception.CipherException;
 import org.tron.walletserver.WalletApi;
@@ -50,29 +50,25 @@ public class SKeyEncryptor {
     byte[] encryptKey = Arrays.copyOfRange(derivedKey, 0, 16);
     byte[] iv = generateRandomBytes(16);
 
-    byte[] cipherText = performCipherOperation(Cipher.ENCRYPT_MODE, iv, encryptKey,
-            skey);
+    byte[] cipherText = performCipherOperation(Cipher.ENCRYPT_MODE, iv, encryptKey, skey);
 
     byte[] mac = generateMac(derivedKey, cipherText);
 
-    byte[] fp = Arrays.copyOfRange(Sha256Hash.hash(skey),0, 4);
+    byte[] fp = Arrays.copyOfRange(Sha256Sm3Hash.hash(skey), 0, 4);
 
     return createSkey(fp, cipherText, iv, salt, mac, n, p);
   }
 
-  public static SKeyCapsule createStandard(byte[] password, byte[] skey)
-      throws CipherException {
+  public static SKeyCapsule createStandard(byte[] password, byte[] skey) throws CipherException {
     return create(password, skey, N_STANDARD, P_STANDARD);
   }
 
-  public static SKeyCapsule createLight(byte[] password, byte[] skey)
-      throws CipherException {
+  public static SKeyCapsule createLight(byte[] password, byte[] skey) throws CipherException {
     return create(password, skey, N_LIGHT, P_LIGHT);
   }
 
   private static SKeyCapsule createSkey(
-      byte[] fp, byte[] cipherText, byte[] iv, byte[] salt, byte[] mac,
-      int n, int p) {
+      byte[] fp, byte[] cipherText, byte[] iv, byte[] salt, byte[] mac, int n, int p) {
 
     SKeyCapsule skey = new SKeyCapsule();
     skey.setFp(WalletApi.encode58Check(fp));
@@ -108,11 +104,11 @@ public class SKeyEncryptor {
     return SCrypt.generate(password, salt, n, r, p, dkLen);
   }
 
-  private static byte[] generateAes128CtrDerivedKey(
-      byte[] password, byte[] salt, int c, String prf) throws CipherException {
+  private static byte[] generateAes128CtrDerivedKey(byte[] password, byte[] salt, int c, String prf)
+      throws CipherException {
 
     if (!prf.equals("hmac-sha256")) {
-       throw new CipherException("Unsupported prf:" + prf);
+      throw new CipherException("Unsupported prf:" + prf);
     }
 
     // Java 8 supports this, but you have to convert the password to a character array, see
@@ -123,8 +119,8 @@ public class SKeyEncryptor {
     return ((KeyParameter) gen.generateDerivedParameters(256)).getKey();
   }
 
-  private static byte[] performCipherOperation(
-      int mode, byte[] iv, byte[] encryptKey, byte[] text) throws CipherException {
+  private static byte[] performCipherOperation(int mode, byte[] iv, byte[] encryptKey, byte[] text)
+      throws CipherException {
 
     try {
       IvParameterSpec ivParameterSpec = new IvParameterSpec(iv);
@@ -133,9 +129,12 @@ public class SKeyEncryptor {
       SecretKeySpec secretKeySpec = new SecretKeySpec(encryptKey, "AES");
       cipher.init(mode, secretKeySpec, ivParameterSpec);
       return cipher.doFinal(text);
-    } catch (NoSuchPaddingException | NoSuchAlgorithmException
-        | InvalidAlgorithmParameterException | InvalidKeyException
-        | BadPaddingException | IllegalBlockSizeException e) {
+    } catch (NoSuchPaddingException
+        | NoSuchAlgorithmException
+        | InvalidAlgorithmParameterException
+        | InvalidKeyException
+        | BadPaddingException
+        | IllegalBlockSizeException e) {
       throw new CipherException("Error performing cipher operation", e);
     }
   }
@@ -198,8 +197,7 @@ public class SKeyEncryptor {
     return privateKey;
   }
 
-  public static boolean validPassword (byte[] password, SKeyCapsule skey)
-      throws CipherException {
+  public static boolean validPassword(byte[] password, SKeyCapsule skey) throws CipherException {
 
     validate(skey);
 
@@ -262,5 +260,4 @@ public class SKeyEncryptor {
     new SecureRandom().nextBytes(bytes);
     return bytes;
   }
-
 }

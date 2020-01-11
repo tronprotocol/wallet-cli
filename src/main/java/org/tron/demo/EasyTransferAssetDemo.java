@@ -2,7 +2,7 @@ package org.tron.demo;
 
 import org.tron.api.GrpcAPI.EasyTransferResponse;
 import org.tron.common.crypto.ECKey;
-import org.tron.common.crypto.Sha256Hash;
+import org.tron.common.crypto.Sha256Sm3Hash;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Utils;
 import org.tron.protos.Protocol.Transaction;
@@ -13,7 +13,7 @@ import java.util.Arrays;
 public class EasyTransferAssetDemo {
 
   private static byte[] getAddressByPassphrase(String passPhrase) {
-    byte[] privateKey = Sha256Hash.hash(passPhrase.getBytes());
+    byte[] privateKey = Sha256Sm3Hash.hash(passPhrase.getBytes());
     ECKey ecKey = ECKey.fromPrivate(privateKey);
     byte[] address = ecKey.getAddress();
     return address;
@@ -28,9 +28,9 @@ public class EasyTransferAssetDemo {
     }
     System.out.println("address === " + WalletApi.encode58Check(address));
 
-    EasyTransferResponse response = WalletApi
-        .easyTransferAsset(passPhrase.getBytes(), getAddressByPassphrase("test pass phrase 2"),
-            tokenId, 10000L);
+    EasyTransferResponse response =
+        WalletApi.easyTransferAsset(
+            passPhrase.getBytes(), getAddressByPassphrase("test pass phrase 2"), tokenId, 10000L);
     if (response.getResult().getResult() == true) {
       Transaction transaction = response.getTransaction();
       System.out.println("Easy transfer successful!!!");
