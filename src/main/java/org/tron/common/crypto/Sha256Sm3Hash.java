@@ -17,14 +17,14 @@ package org.tron.common.crypto;
  * limitations under the License.
  */
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.common.io.ByteStreams;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 import com.google.protobuf.ByteString;
 import com.typesafe.config.Config;
 import org.spongycastle.crypto.digests.SM3Digest;
-import org.tron.common.utils.ByteArray;
-import org.tron.core.config.Configuration;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -34,31 +34,31 @@ import java.math.BigInteger;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
+import org.tron.common.utils.ByteArray;
+import org.tron.core.config.Configuration;
 
-import static com.google.common.base.Preconditions.checkArgument;
 
 /**
  * A Sha256Sm3Hash just wraps a byte[] so that equals and hashcode work correctly, allowing it to be
  * used as keys in a map. It also checks that the length is correct and provides a bit more type
  * safety.
  */
-public class Sha256Sm3Hash implements Serializable, Comparable<Sha256Sm3Hash>, HashInterface {
+public class Sha256Sm3Hash implements Serializable, Comparable<Sha256Sm3Hash> {
 
+  public static final int LENGTH = 32; // bytes
+  public static final Sha256Sm3Hash ZERO_HASH = wrap(new byte[LENGTH]);
+
+  private final byte[] bytes;
   private static boolean isEckey = true;
 
   static {
     Config config = Configuration.getByPath("config.conf"); // it is needs set to be a constant
     if (config.hasPath("crypto.engine")) {
       isEckey = config.getString("crypto.engine").equalsIgnoreCase("eckey");
-      System.out.println("WalletUtils getConfig isEckey: " + isEckey);
+      System.out.println("Sha256Sm3Hash getConfig isEckey: " + isEckey);
     }
   }
-
-  public static final int LENGTH = 32; // bytes
-  public static final Sha256Sm3Hash ZERO_HASH = wrap(new byte[LENGTH]);
-
-  private final byte[] bytes;
-
+  
   public Sha256Sm3Hash(long num, byte[] hash) {
     byte[] rawHashBytes = this.generateBlockId(num, hash);
     checkArgument(rawHashBytes.length == LENGTH);
@@ -71,7 +71,9 @@ public class Sha256Sm3Hash implements Serializable, Comparable<Sha256Sm3Hash>, H
     this.bytes = rawHashBytes;
   }
 
-  /** Use {@link #wrap(byte[])} instead. */
+  /**
+   * Use {@link #wrap(byte[])} instead.
+   */
   @Deprecated
   public Sha256Sm3Hash(byte[] rawHashBytes) {
     checkArgument(rawHashBytes.length == LENGTH);
@@ -94,9 +96,11 @@ public class Sha256Sm3Hash implements Serializable, Comparable<Sha256Sm3Hash>, H
     return wrap(rawHashByteString.toByteArray());
   }
 
-  /** Use {@link #of(byte[])} instead: this old name is ambiguous. */
+  /**
+   * Use {@link #of(byte[])} instead: this old name is ambiguous.
+   */
   @Deprecated
-  public static Sha256Sm3Hash create(byte[] contents) {
+  public static Sha256Sm3Hash create( byte[] contents) {
     return of(contents);
   }
 
@@ -106,7 +110,7 @@ public class Sha256Sm3Hash implements Serializable, Comparable<Sha256Sm3Hash>, H
    * @param contents the bytes on which the hash value is calculated
    * @return a new instance containing the calculated (one-time) hash
    */
-  public static Sha256Sm3Hash of(byte[] contents) {
+  public static Sha256Sm3Hash of( byte[] contents) {
     return wrap(hash(contents));
   }
 
@@ -119,17 +123,19 @@ public class Sha256Sm3Hash implements Serializable, Comparable<Sha256Sm3Hash>, H
    * @return a new instance containing the calculated (one-time) hash
    * @throws IOException if an error occurs while reading the file
    */
-  public static Sha256Sm3Hash of(File file) throws IOException {
+  public static Sha256Sm3Hash of( File file) throws IOException {
 
     try (FileInputStream in = new FileInputStream(file)) {
       return of(ByteStreams.toByteArray(in));
     }
   }
 
-  /** Use {@link #twiceOf(byte[])} instead: this old name is ambiguous. */
+  /**
+   * Use {@link #twiceOf(byte[])} instead: this old name is ambiguous.
+   */
   @Deprecated
-  public static Sha256Sm3Hash createDouble(byte[] contents) {
-    return twiceOf(contents);
+  public static Sha256Sm3Hash createDouble( byte[] contents) {
+    return twiceOf( contents);
   }
 
   /**
@@ -138,8 +144,8 @@ public class Sha256Sm3Hash implements Serializable, Comparable<Sha256Sm3Hash>, H
    * @param contents the bytes on which the hash value is calculated
    * @return a new instance containing the calculated (two-time) hash
    */
-  public static Sha256Sm3Hash twiceOf(byte[] contents) {
-    return wrap(hashTwice(contents));
+  public static Sha256Sm3Hash twiceOf( byte[] contents) {
+    return wrap(hashTwice( contents));
   }
 
   /**
@@ -148,15 +154,21 @@ public class Sha256Sm3Hash implements Serializable, Comparable<Sha256Sm3Hash>, H
    *
    * @return a new SHA-256 MessageDigest instance
    */
-  public static MessageDigest newDigestEckey() {
+  public static MessageDigest newDigest() {
     try {
       return MessageDigest.getInstance("SHA-256");
     } catch (NoSuchAlgorithmException e) {
-      throw new RuntimeException(e); // Can't happen.
+      throw new RuntimeException(e);  // Can't happen.
     }
   }
 
-  public static SM3Digest newDigestSM3() {
+  /**
+   * Returns a new SM3 MessageDigest instance. This is a convenience method which wraps the
+   * checked exception that can never occur with a RuntimeException.
+   *
+   * @return a new SM3 MessageDigest instance
+   */
+  public static SM3Digest newSM3Digest() {
     return new SM3Digest();
   }
 
@@ -166,8 +178,8 @@ public class Sha256Sm3Hash implements Serializable, Comparable<Sha256Sm3Hash>, H
    * @param input the bytes to hash
    * @return the hash (in big-endian order)
    */
-  public static byte[] hash(byte[] input) {
-    return hash(input, 0, input.length);
+  public static byte[] hash( byte[] input) {
+    return hash( input, 0, input.length);
   }
 
   /**
@@ -178,17 +190,19 @@ public class Sha256Sm3Hash implements Serializable, Comparable<Sha256Sm3Hash>, H
    * @param length the number of bytes to hash
    * @return the hash (in big-endian order)
    */
-  public static byte[] hash(byte[] input, int offset, int length) {
+  public static byte[] hash( byte[] input, int offset, int length) {
     if (isEckey) {
-      MessageDigest digest = newDigestEckey();
+      MessageDigest digest = newDigest();
       digest.update(input, offset, length);
       return digest.digest();
+    } else {
+      SM3Digest digest = newSM3Digest();
+      digest.update(input, offset, length);
+      byte[] eHash = new byte[digest.getDigestSize()];
+      digest.doFinal(eHash, 0);
+      return eHash;
     }
-    SM3Digest digest = newDigestSM3();
-    digest.update(input, offset, length);
-    byte[] eHash = new byte[digest.getDigestSize()];
-    digest.doFinal(eHash, 0);
-    return eHash;
+
   }
 
   /**
@@ -197,8 +211,8 @@ public class Sha256Sm3Hash implements Serializable, Comparable<Sha256Sm3Hash>, H
    * @param input the bytes to hash
    * @return the double-hash (in big-endian order)
    */
-  public static byte[] hashTwice(byte[] input) {
-    return hashTwice(input, 0, input.length);
+  public static byte[] hashTwice( byte[] input) {
+    return hashTwice( input, 0, input.length);
   }
 
   /**
@@ -209,40 +223,43 @@ public class Sha256Sm3Hash implements Serializable, Comparable<Sha256Sm3Hash>, H
    * @param length the number of bytes to hash
    * @return the double-hash (in big-endian order)
    */
-  public static byte[] hashTwice(byte[] input, int offset, int length) {
+  public static byte[] hashTwice( byte[] input, int offset, int length) {
     if (isEckey) {
-      MessageDigest digest = newDigestEckey();
+      MessageDigest digest = newDigest();
       digest.update(input, offset, length);
       return digest.digest(digest.digest());
+    } else {
+      SM3Digest digest = newSM3Digest();
+      digest.update(input, offset, length);
+      byte[] eHash = new byte[digest.getDigestSize()];
+      digest.doFinal(eHash, 0);
+      digest.reset();
+      digest.update(eHash,0,eHash.length);
+      digest.doFinal(eHash,0);
+      return eHash;
     }
-    SM3Digest digest = newDigestSM3();
-    digest.update(input, offset, length);
-    byte[] eHash = new byte[digest.getDigestSize()];
-    digest.doFinal(eHash, 0);
-    digest.reset();
-    digest.update(eHash, 0, eHash.length);
-    digest.doFinal(eHash, 0);
-    return eHash;
+
   }
 
   /**
    * Calculates the hash of hash on the given byte ranges. This is equivalent to concatenating the
    * two ranges and then passing the result to {@link #hashTwice(byte[])}.
    */
-  public static byte[] hashTwice(
-      byte[] input1, int offset1, int length1, byte[] input2, int offset2, int length2) {
+  public static byte[] hashTwice( byte[] input1, int offset1, int length1,
+                                 byte[] input2, int offset2, int length2) {
     if (isEckey) {
-      MessageDigest digest = newDigestEckey();
+      MessageDigest digest = newDigest();
       digest.update(input1, offset1, length1);
       digest.update(input2, offset2, length2);
       return digest.digest(digest.digest());
+    } else {
+      SM3Digest digest = newSM3Digest();
+      digest.update(input1, offset1, length1);
+      digest.update(input2, offset2, length2);
+      byte[] eHash = new byte[digest.getDigestSize()];
+      digest.doFinal(eHash,0);
+      return eHash;
     }
-    SM3Digest digest = newDigestSM3();
-    digest.update(input1, offset1, length1);
-    digest.update(input2, offset2, length2);
-    byte[] eHash = new byte[digest.getDigestSize()];
-    digest.doFinal(eHash, 0);
-    return eHash;
   }
 
   private byte[] generateBlockId(long blockNum, Sha256Sm3Hash blockHash) {
@@ -285,11 +302,13 @@ public class Sha256Sm3Hash implements Serializable, Comparable<Sha256Sm3Hash>, H
   @Override
   public int hashCode() {
     // Use the last 4 bytes, not the first 4 which are often zeros in Bitcoin.
-    return Ints.fromBytes(
-        bytes[LENGTH - 4], bytes[LENGTH - 3], bytes[LENGTH - 2], bytes[LENGTH - 1]);
+    return Ints
+        .fromBytes(bytes[LENGTH - 4], bytes[LENGTH - 3], bytes[LENGTH - 2], bytes[LENGTH - 1]);
   }
 
-  /** Returns the bytes interpreted as a positive integer. */
+  /**
+   * Returns the bytes interpreted as a positive integer.
+   */
   public BigInteger toBigInteger() {
     return new BigInteger(1, bytes);
   }
@@ -302,7 +321,9 @@ public class Sha256Sm3Hash implements Serializable, Comparable<Sha256Sm3Hash>, H
     return bytes;
   }
 
-  /** For pb return ByteString. */
+  /**
+   * For pb return ByteString.
+   */
   public ByteString getByteString() {
     return ByteString.copyFrom(bytes);
   }

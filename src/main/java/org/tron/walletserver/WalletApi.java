@@ -20,7 +20,6 @@ import org.tron.api.GrpcAPI.*;
 import org.tron.api.GrpcAPI.TransactionSignWeight.Result.response_code;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.Hash;
-import org.tron.common.crypto.Sha256Hash;
 import org.tron.common.crypto.Sha256Sm3Hash;
 import org.tron.common.crypto.sm2.SM2;
 import org.tron.common.utils.Base58;
@@ -1002,8 +1001,8 @@ public class WalletApi {
   }
 
   public static String encode58Check(byte[] input) {
-    byte[] hash0 = Sha256Hash.hash(input);
-    byte[] hash1 = Sha256Hash.hash(hash0);
+    byte[] hash0 = Sha256Sm3Hash.hash(input);
+    byte[] hash1 = Sha256Sm3Hash.hash(hash0);
     byte[] inputCheck = new byte[input.length + 4];
     System.arraycopy(input, 0, inputCheck, 0, input.length);
     System.arraycopy(hash1, 0, inputCheck, input.length, 4);
@@ -1017,8 +1016,8 @@ public class WalletApi {
     }
     byte[] decodeData = new byte[decodeCheck.length - 4];
     System.arraycopy(decodeCheck, 0, decodeData, 0, decodeData.length);
-    byte[] hash0 = Sha256Hash.hash(decodeData);
-    byte[] hash1 = Sha256Hash.hash(hash0);
+    byte[] hash0 = Sha256Sm3Hash.hash(decodeData);
+    byte[] hash1 = Sha256Sm3Hash.hash(hash0);
     if (hash1[0] == decodeCheck[decodeData.length]
         && hash1[1] == decodeCheck[decodeData.length + 1]
         && hash1[2] == decodeCheck[decodeData.length + 2]
