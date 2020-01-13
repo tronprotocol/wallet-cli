@@ -682,7 +682,7 @@ message NodeInfo {
   }
 }
 
-//market
+// market
 message MarketOrder {
   bytes order_id = 1;
   bytes owner_address = 2;
@@ -725,7 +725,7 @@ message MarketAccountOrder {
 }
 
 message MarketOrderPosition {
-  //if price list is empty or price exist, pre_price_key = null
+  // if price list is empty or price exist, pre_price_key = null
   bool price_list_not_empty = 1;
   bool price_exist = 2;
   bytes pre_price_key = 3;
@@ -751,7 +751,7 @@ message MarketPriceList {
 }
 
 message MarketOrderIdList {
-  //  repeated bytes orders = 1;
+  // repeated bytes orders = 1;
 
   bytes head = 2;
   bytes tail = 3;
