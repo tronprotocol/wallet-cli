@@ -751,8 +751,6 @@ message MarketPriceList {
 }
 
 message MarketOrderIdList {
-  // repeated bytes orders = 1;
-
-  bytes head = 2;
-  bytes tail = 3;
+  bytes head = 1;
+  bytes tail = 2;
 }
