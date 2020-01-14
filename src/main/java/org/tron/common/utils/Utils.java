@@ -565,4 +565,21 @@ public class Utils {
     }
     return false;
   }
+  public static boolean isNumericString(String str) {
+    for (int i = str.length(); --i >= 0; ) {
+      if (!Character.isDigit(str.charAt(i))) {
+        return false;
+      }
+    }
+    return true;
+  }
+  public static boolean isHexString(String str) {
+    boolean bRet = false;
+    try {
+      ByteArray.fromHexString(str);
+      bRet = true;
+    } catch (Exception e) {
+    }
+    return bRet;
+  }
 }
