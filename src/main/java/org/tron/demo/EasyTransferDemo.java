@@ -27,9 +27,8 @@ public class EasyTransferDemo {
     }
     System.out.println("address === " + WalletApi.encode58Check(address));
 
-    EasyTransferResponse response =
-        WalletApi.easyTransfer(
-            passPhrase.getBytes(), getAddressByPassphrase("test pass phrase 2"), 10000L);
+    EasyTransferResponse response = WalletApi
+        .easyTransfer(passPhrase.getBytes(), getAddressByPassphrase("test pass phrase 2"), 10000L);
     if (response.getResult().getResult() == true) {
       Transaction transaction = response.getTransaction();
       System.out.println("Easy transfer successful!!!");

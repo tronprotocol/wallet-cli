@@ -44,12 +44,13 @@ public class Test {
 
     for (int i = 0; i < 10; i++) {
       Transaction.Contract.Builder contractBuilder = Transaction.Contract.newBuilder();
-      Contract.TransferContract.Builder transferContractBuilder =
-          Contract.TransferContract.newBuilder();
+      Contract.TransferContract.Builder transferContractBuilder = Contract.TransferContract
+          .newBuilder();
       transferContractBuilder.setAmount(amount);
-      ByteString bsTo = ByteString.copyFrom(ByteArray.fromHexString(toAddress));
-      ByteString bsOwner =
-          ByteString.copyFrom(ByteArray.fromHexString("e1a17255ccf15d6b12dcc074ca1152477ccf9b84"));
+      ByteString bsTo = ByteString.copyFrom(ByteArray
+          .fromHexString(toAddress));
+      ByteString bsOwner = ByteString.copyFrom(ByteArray
+          .fromHexString("e1a17255ccf15d6b12dcc074ca1152477ccf9b84"));
       transferContractBuilder.setToAddress(bsTo);
       transferContractBuilder.setOwnerAddress(bsOwner);
       try {
@@ -68,35 +69,6 @@ public class Test {
     Transaction transaction = transactionBuilder.build();
     return transaction;
   }
-
-  //  public static Transaction createTransactionAccount() {
-  //    Transaction.Builder transactionBuilder = Transaction.newBuilder();
-  //
-  //    for (int i = 0; i < 10; i++) {
-  //      Transaction.Contract.Builder contractBuilder = Transaction.Contract.newBuilder();
-  //      Contract.AccountCreateContract.Builder accountCreateContract =
-  // Contract.AccountCreateContract
-  //          .newBuilder();
-  //      accountCreateContract.setAccountName(ByteString.copyFrom("zawtest".getBytes()));
-  //
-  //      ByteString bsOwner = ByteString.copyFrom(ByteArray
-  //          .fromHexString("e1a17255ccf15d6b12dcc074ca1152477ccf9b84"));
-  //      accountCreateContract.setOwnerAddress(bsOwner);
-  //      try {
-  //        Any anyTo = Any.pack(accountCreateContract.build());
-  //        contractBuilder.setParameter(anyTo);
-  //      } catch (Exception e) {
-  //        return null;
-  //      }
-  //      contractBuilder.setType(Transaction.Contract.ContractType.AccountCreateContract);
-  //
-  //      transactionBuilder.getRawDataBuilder().addContract(contractBuilder);
-  //    }
-  //    transactionBuilder.getRawDataBuilder();
-  //
-  //    Transaction transaction = transactionBuilder.build();
-  //    return transaction;
-  //  }
 
   public static void test64() throws UnsupportedEncodingException {
     Encoder encoder = Base64.getEncoder();
@@ -127,9 +99,8 @@ public class Test {
     System.out.println("pubKey ::: " + ByteArray.toHexString(pubKey));
     System.out.println("addresss ::: " + ByteArray.toHexString(addresss));
     byte[] msg = {
-      0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
-      12, 13, 14, 15
-    };
+      0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0, 1, 2, 3, 4, 5, 6, 7, 8,
+        9, 10, 11, 12, 13, 14, 15};
 
     byte[] sha256 = Sha256Sm3Hash.hash(msg);
     ECDSASignature signature = eCkey.sign(sha256);
@@ -140,31 +111,6 @@ public class Test {
     System.out.println("id:::" + signature.v);
   }
 
-  //  public static void testTransaction() {
-  //    Transaction transaction = createTransactionAccount();
-  //    String priKey = "8e812436a0e3323166e1f0e8ba79e19e217b2c4a53c970d4cca0cfb1078979df";
-  //
-  //    ECKey eCkey = null;
-  //    try {
-  //      BigInteger priK = new BigInteger(priKey, 16);
-  //      eCkey = ECKey.fromPrivate(priK);
-  //    } catch (Exception ex) {
-  //      ex.printStackTrace();
-  //    }
-  //    byte[] msg = transaction.getRawData().toByteArray();
-  //    byte[] sha256 = Hash.sha256(msg);
-  //    eCkey.sign(sha256);
-  //
-  //    ECDSASignature signature = eCkey.sign(sha256);
-  //
-  //    System.out.println("msg:::" + ByteArray.toHexString(msg));
-  //    System.out.println("priKey:::" + ByteArray.toHexString(eCkey.getPrivKeyBytes()));
-  //    System.out.println("pubKey::" + ByteArray.toHexString(eCkey.getPubKey()));
-  //    System.out.println("hash:::" + ByteArray.toHexString(sha256));
-  //    System.out.println("r:::" + ByteArray.toHexString(signature.r.toByteArray()));
-  //    System.out.println("s:::" + ByteArray.toHexString(signature.s.toByteArray()));
-  //    System.out.println("id:::" + signature.v);
-  //  }
 
   public static void testVerify() {
     String hashBytes = "630211D6CA9440639F4965AA24831EB84815AB6BEF11E8BE6962A8540D861339";
@@ -174,11 +120,11 @@ public class Test {
     ECKey eCkey = null;
     String signatureBase64 = "";
     try {
-      signatureBase64 =
-          new String(Base64.getEncoder().encode(ByteArray.fromHexString(sign)), "UTF-8");
+      signatureBase64 = new String(Base64.getEncoder().encode(ByteArray.fromHexString(sign)),
+          "UTF-8");
 
-      byte[] pubKey =
-          ECKey.signatureToKeyBytes(ByteArray.fromHexString(hashBytes), signatureBase64);
+      byte[] pubKey = ECKey
+          .signatureToKeyBytes(ByteArray.fromHexString(hashBytes), signatureBase64);
       System.out.println("pubKey::" + ByteArray.toHexString(pubKey));
     } catch (Exception ex) {
       ex.printStackTrace();
@@ -225,10 +171,38 @@ public class Test {
 
   public static void testSignEx() {
     byte[] priKey = {
-      0, 69, 242 - 256, 238 - 256, 134 - 256, 57, 112, 55, 243 - 256, 242 - 256, 121, 104,
-      182 - 256, 252 - 256, 247 - 256, 242 - 256, 107, 230 - 256, 211 - 256, 208 - 256, 167 - 256,
-      194 - 256, 18, 229 - 256, 160 - 256, 229 - 256, 91, 179 - 256, 48, 96, 209 - 256, 78
-    };
+        0,
+        69,
+        242 - 256,
+        238 - 256,
+        134 - 256,
+        57,
+        112,
+        55,
+        243 - 256,
+        242 - 256,
+        121,
+        104,
+        182 - 256,
+        252 - 256,
+        247 - 256,
+        242 - 256,
+        107,
+        230 - 256,
+        211 - 256,
+        208 - 256,
+        167 - 256,
+        194 - 256,
+        18,
+        229 - 256,
+        160 - 256,
+        229 - 256,
+        91,
+        179 - 256,
+        48,
+        96,
+        209 - 256,
+        78};
 
     ECKey eCkey = null;
     try {

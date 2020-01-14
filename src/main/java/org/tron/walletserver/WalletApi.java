@@ -57,18 +57,6 @@ public class WalletApi {
 
   private static GrpcClient rpcCli = init();
 
-  //  static {
-  //    new Timer().schedule(new TimerTask() {
-  //      @Override
-  //      public void run() {
-  //        String fullnode = selectFullNode();
-  //        if(!"".equals(fullnode)) {
-  //          rpcCli = new GrpcClient(fullnode);
-  //        }
-  //      }
-  //    }, 3 * 60 * 1000, 3 * 60 * 1000);
-  //  }
-
   public static GrpcClient init() {
     Config config = Configuration.getByPath("config.conf");
 
@@ -140,7 +128,9 @@ public class WalletApi {
     return rpcVersion;
   }
 
-  /** Creates a new WalletApi with a random ECKey or no ECKey. */
+  /**
+   * Creates a new WalletApi with a random ECKey or no ECKey.
+   * */
   public static WalletFile CreateWalletFile(byte[] password) throws CipherException {
     WalletFile walletFile = null;
     if (isEckey) {
@@ -184,7 +174,9 @@ public class WalletApi {
     return Wallet.validPassword(passwd, this.walletFile.get(0));
   }
 
-  /** Creates a Wallet with an existing ECKey. */
+  /**
+   * Creates a Wallet with an existing ECKey.
+   * */
   public WalletApi(WalletFile walletFile) {
     if (this.walletFile.isEmpty()) {
       this.walletFile.add(walletFile);
@@ -318,7 +310,9 @@ public class WalletApi {
     return WalletUtils.loadWalletFile(wallet);
   }
 
-  /** load a Wallet from keystore */
+  /**
+   * load a Wallet from keystore
+   * */
   public static WalletApi loadWalletFromKeystore() throws IOException {
     WalletFile walletFile = loadWalletFile();
     WalletApi walletApi = new WalletApi(walletFile);
@@ -372,9 +366,6 @@ public class WalletApi {
       } else {
         transaction = TransactionUtils.sign(transaction, this.getSM2(walletFile, passwd));
       }
-      //      System.out
-      //          .println("current transaction hex string is " + ByteArray
-      //              .toHexString(transaction.toByteArray()));
       org.tron.keystore.StringUtils.clear(passwd);
 
       TransactionSignWeight weight = getTransactionSignWeight(transaction);
@@ -414,9 +405,6 @@ public class WalletApi {
       } else {
         transaction = TransactionUtils.sign(transaction, this.getSM2(walletFile, passwd));
       }
-      //      System.out
-      //          .println("current transaction hex string is " + ByteArray
-      //              .toHexString(transaction.toByteArray()));
       org.tron.keystore.StringUtils.clear(passwd);
 
       TransactionSignWeight weight = getTransactionSignWeight(transaction);
@@ -460,9 +448,8 @@ public class WalletApi {
     }
 
     System.out.println(Utils.printTransactionExceptId(transactionExtention.getTransaction()));
-    System.out.println(
-        "before sign transaction hex string is "
-            + ByteArray.toHexString(transaction.toByteArray()));
+    System.out.println("before sign transaction hex string is " +
+        ByteArray.toHexString(transaction.toByteArray()));
     transaction = signTransaction(transaction);
     showTransactionAfterSign(transaction);
     return rpcCli.broadcastTransaction(transaction);
@@ -470,24 +457,23 @@ public class WalletApi {
 
   private void showTransactionAfterSign(Transaction transaction)
       throws InvalidProtocolBufferException {
-    System.out.println(
-        "after sign transaction hex string is " + ByteArray.toHexString(transaction.toByteArray()));
-    System.out.println(
-        "txid is "
-            + ByteArray.toHexString(Sha256Sm3Hash.hash(transaction.getRawData().toByteArray())));
+    System.out.println("after sign transaction hex string is " +
+        ByteArray.toHexString(transaction.toByteArray()));
+    System.out.println("txid is " +
+        ByteArray.toHexString(Sha256Sm3Hash.hash(transaction.getRawData().toByteArray())));
 
     if (transaction.getRawData().getContract(0).getType() == ContractType.CreateSmartContract) {
-      CreateSmartContract createSmartContract =
-          transaction.getRawData().getContract(0).getParameter().unpack(CreateSmartContract.class);
-      byte[] contractAddress =
-          generateContractAddress(createSmartContract.getOwnerAddress().toByteArray(), transaction);
+      CreateSmartContract createSmartContract = transaction.getRawData().getContract(0)
+          .getParameter().unpack(CreateSmartContract.class);
+      byte[] contractAddress = generateContractAddress(
+          createSmartContract.getOwnerAddress().toByteArray(), transaction);
       System.out.println(
           "Your smart contract address will be: " + WalletApi.encode58Check(contractAddress));
     }
   }
 
-  private static boolean processShieldedTransaction(
-      TransactionExtention transactionExtention, WalletApi wallet)
+  private static boolean processShieldedTransaction(TransactionExtention transactionExtention,
+                                                    WalletApi wallet)
       throws IOException, CipherException, CancelException {
     if (transactionExtention == null) {
       return false;

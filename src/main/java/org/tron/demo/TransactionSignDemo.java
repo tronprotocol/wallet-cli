@@ -22,10 +22,7 @@ public class TransactionSignDemo {
     long blockHeight = newestBlock.getBlockHeader().getRawData().getNumber();
     byte[] blockHash = getBlockHash(newestBlock).getBytes();
     byte[] refBlockNum = ByteArray.fromLong(blockHeight);
-    Transaction.raw rawData =
-        transaction
-            .getRawData()
-            .toBuilder()
+    Transaction.raw rawData = transaction.getRawData().toBuilder()
             .setRefBlockHash(ByteString.copyFrom(ByteArray.subArray(blockHash, 8, 16)))
             .setRefBlockBytes(ByteString.copyFrom(ByteArray.subArray(refBlockNum, 6, 8)))
             .build();
@@ -60,12 +57,9 @@ public class TransactionSignDemo {
       return null;
     }
     contractBuilder.setType(Transaction.Contract.ContractType.TransferContract);
-    transactionBuilder
-        .getRawDataBuilder()
-        .addContract(contractBuilder)
+    transactionBuilder.getRawDataBuilder().addContract(contractBuilder)
         .setTimestamp(System.currentTimeMillis())
-        .setExpiration(
-            newestBlock.getBlockHeader().getRawData().getTimestamp() + 10 * 60 * 60 * 1000);
+        .setExpiration(newestBlock.getBlockHeader().getRawData().getTimestamp() + 10 * 60 * 60 * 1000);
     Transaction transaction = transactionBuilder.build();
     Transaction refTransaction = setReference(transaction, newestBlock);
     return refTransaction;
