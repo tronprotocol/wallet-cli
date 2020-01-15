@@ -134,7 +134,7 @@ ImportShieldedWallet successful !!!
 **警告:导出匿名地址和导入匿名地址过程中的字符串`sk:00645e78310c0619a62defeb5be3d48ba183f66e249c63e2eed4164e072e87ea d :8e52fc48c2a47509e7eb78`是重要的秘密信息，请不要泄露给其他人。**
 
 如果你准备好了匿名钱包，就可以进行匿名转账了，当然在此之前，我们先通过普通钱包获取一些TRZ。你可以首先创建一个普通钱包，它包含了一个公开地址。我们使用已经注册好的一个普通钱包，它包含一个公开地址`TU23LEoPKbC5xKXTEJzLFp7R2ZEWbuKiXq`，然后在[页面](http://nileex.io/join/getJoinPage)上请求获取一些TRZ用于测试。
-![](./images/nile_shielded_usage7.png)  
+![](./../images/nile_shielded_usage7.png)  
 
 *在完成这些准备工作后，下面介绍如何基于wallet-cli的匿名钱包地址进行匿名转账*  
 
