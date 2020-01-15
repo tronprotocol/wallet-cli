@@ -16,10 +16,11 @@
 package org.tron.common.utils;
 
 import com.google.protobuf.ByteString;
-import com.typesafe.config.Config;
-import org.tron.common.crypto.*;
+import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.ECKey.ECDSASignature;
-import org.tron.core.config.Configuration;
+import org.tron.common.crypto.Sha256Sm3Hash;
+import org.tron.common.crypto.SignInterface;
+import org.tron.common.crypto.SignatureInterface;
 import org.tron.core.exception.CancelException;
 import org.tron.protos.Protocol.Transaction;
 
@@ -36,23 +37,11 @@ public class TransactionUtils {
    * @param transaction {@link Transaction} transaction
    * @return byte[] the hash of the transaction's data bytes which have no id
    */
-  private static boolean isEckey = true;
-
-  static {
-    Config config = Configuration.getByPath("config.conf"); // it is needs set to be a constant
-    if (config.hasPath("crypto.engine")) {
-      isEckey = config.getString("crypto.engine").equalsIgnoreCase("eckey");
-    }
-  }
-
   public static byte[] getHash(Transaction transaction) {
     Transaction.Builder tmp = transaction.toBuilder();
     // tmp.clearId();
-    if (isEckey) {
-      return Sha256Hash.hash(tmp.build().toByteArray());
-    } else {
-      return SM3Hash.hash(tmp.build().toByteArray());
-    }
+
+    return Sha256Sm3Hash.hash(tmp.build().toByteArray());
   }
 
   public static byte[] getOwner(Transaction.Contract contract) {
@@ -202,12 +191,7 @@ public class TransactionUtils {
     assert (signedTransaction.getSignatureCount()
         == signedTransaction.getRawData().getContractCount());
     List<Transaction.Contract> listContract = signedTransaction.getRawData().getContractList();
-    byte[] hash;
-    if (isEckey) {
-      hash = Sha256Hash.hash(signedTransaction.getRawData().toByteArray());
-    } else {
-      hash = SM3Hash.hash(signedTransaction.getRawData().toByteArray());
-    }
+    byte[] hash = Sha256Sm3Hash.hash(signedTransaction.getRawData().toByteArray());
     int count = signedTransaction.getSignatureCount();
     if (count == 0) {
       return false;
@@ -232,12 +216,7 @@ public class TransactionUtils {
 
   public static Transaction sign(Transaction transaction, SignInterface myKey) {
     Transaction.Builder transactionBuilderSigned = transaction.toBuilder();
-    byte[] hash;
-    if (isEckey) {
-      hash = Sha256Hash.hash(transaction.getRawData().toByteArray());
-    } else {
-      hash = SM3Hash.hash(transaction.getRawData().toByteArray());
-    }
+    byte[] hash = Sha256Sm3Hash.hash(transaction.getRawData().toByteArray());
     SignatureInterface signature = myKey.sign(hash);
     ByteString bsSign = ByteString.copyFrom(signature.toByteArray());
     transactionBuilderSigned.addSignature(bsSign);

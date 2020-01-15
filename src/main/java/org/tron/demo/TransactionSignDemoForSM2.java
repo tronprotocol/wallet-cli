@@ -3,7 +3,7 @@ package org.tron.demo;
 import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
-import org.tron.common.crypto.SM3Hash;
+import org.tron.common.crypto.Sha256Sm3Hash;
 import org.tron.common.crypto.sm2.SM2;
 import org.tron.common.utils.ByteArray;
 import org.tron.core.exception.CancelException;
@@ -18,22 +18,19 @@ public class TransactionSignDemoForSM2 {
     long blockHeight = newestBlock.getBlockHeader().getRawData().getNumber();
     byte[] blockHash = getBlockHash(newestBlock).getBytes();
     byte[] refBlockNum = ByteArray.fromLong(blockHeight);
-    Transaction.raw rawData =
-        transaction
-            .getRawData()
-            .toBuilder()
+    Transaction.raw rawData = transaction.getRawData().toBuilder()
             .setRefBlockHash(ByteString.copyFrom(ByteArray.subArray(blockHash, 8, 16)))
             .setRefBlockBytes(ByteString.copyFrom(ByteArray.subArray(refBlockNum, 6, 8)))
             .build();
     return transaction.toBuilder().setRawData(rawData).build();
   }
 
-  public static SM3Hash getBlockHash(Block block) {
-    return SM3Hash.of(block.getBlockHeader().getRawData().toByteArray());
+  public static Sha256Sm3Hash getBlockHash(Block block) {
+    return Sha256Sm3Hash.of(block.getBlockHeader().getRawData().toByteArray());
   }
 
   public static String getTransactionHash(Transaction transaction) {
-    String txid = ByteArray.toHexString(SM3Hash.hash(transaction.getRawData().toByteArray()));
+    String txid = ByteArray.toHexString(Sha256Sm3Hash.hash(transaction.getRawData().toByteArray()));
     return txid;
   }
 
@@ -56,12 +53,9 @@ public class TransactionSignDemoForSM2 {
       return null;
     }
     contractBuilder.setType(Transaction.Contract.ContractType.TransferContract);
-    transactionBuilder
-        .getRawDataBuilder()
-        .addContract(contractBuilder)
+    transactionBuilder.getRawDataBuilder().addContract(contractBuilder)
         .setTimestamp(System.currentTimeMillis())
-        .setExpiration(
-            newestBlock.getBlockHeader().getRawData().getTimestamp() + 10 * 60 * 60 * 1000);
+        .setExpiration(newestBlock.getBlockHeader().getRawData().getTimestamp() + 10 * 60 * 60 * 1000);
     Transaction transaction = transactionBuilder.build();
     Transaction refTransaction = setReference(transaction, newestBlock);
     return refTransaction;
@@ -104,11 +98,11 @@ public class TransactionSignDemoForSM2 {
   }
 
   public static void main(String[] args) throws InvalidProtocolBufferException, CancelException {
-    String privateStr = "4afbef627636b159614be6e210febd5f14dd6531874fb01ece956516541c41c7";
+    String privateStr = "D95611A9AF2A2A45359106222ED1AFED48853D9A44DEFF8DC7913F5CBA727366";
     byte[] privateBytes = ByteArray.fromHexString(privateStr);
     SM2 sm2 = SM2.fromPrivate(privateBytes);
     byte[] from = sm2.getAddress();
-    byte[] to = WalletApi.decodeFromBase58Check("TWdVF6Bdg4vzVAbyqZodMhEWFwNYmSH8nE");
+    byte[] to = WalletApi.decodeFromBase58Check("TGehVcNhud84JDCGrNHKVz9jEAVKUpbuiv");
     long amount = 100_000_000L; // 100 TRX, api only receive trx in drop, and 1 trx = 1000000 drop
     Transaction transaction = createTransaction(from, to, amount);
     byte[] transactionBytes = transaction.toByteArray();

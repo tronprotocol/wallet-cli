@@ -20,8 +20,7 @@ import org.tron.api.GrpcAPI.*;
 import org.tron.api.GrpcAPI.TransactionSignWeight.Result.response_code;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.Hash;
-import org.tron.common.crypto.SM3Hash;
-import org.tron.common.crypto.Sha256Hash;
+import org.tron.common.crypto.Sha256Sm3Hash;
 import org.tron.common.crypto.sm2.SM2;
 import org.tron.common.utils.Base58;
 import org.tron.common.utils.ByteArray;
@@ -57,18 +56,6 @@ public class WalletApi {
   private static boolean isEckey = true;
 
   private static GrpcClient rpcCli = init();
-
-  //  static {
-  //    new Timer().schedule(new TimerTask() {
-  //      @Override
-  //      public void run() {
-  //        String fullnode = selectFullNode();
-  //        if(!"".equals(fullnode)) {
-  //          rpcCli = new GrpcClient(fullnode);
-  //        }
-  //      }
-  //    }, 3 * 60 * 1000, 3 * 60 * 1000);
-  //  }
 
   public static GrpcClient init() {
     Config config = Configuration.getByPath("config.conf");
@@ -141,7 +128,9 @@ public class WalletApi {
     return rpcVersion;
   }
 
-  /** Creates a new WalletApi with a random ECKey or no ECKey. */
+  /**
+   * Creates a new WalletApi with a random ECKey or no ECKey.
+   * */
   public static WalletFile CreateWalletFile(byte[] password) throws CipherException {
     WalletFile walletFile = null;
     if (isEckey) {
@@ -185,7 +174,9 @@ public class WalletApi {
     return Wallet.validPassword(passwd, this.walletFile.get(0));
   }
 
-  /** Creates a Wallet with an existing ECKey. */
+  /**
+   * Creates a Wallet with an existing ECKey.
+   * */
   public WalletApi(WalletFile walletFile) {
     if (this.walletFile.isEmpty()) {
       this.walletFile.add(walletFile);
@@ -261,12 +252,11 @@ public class WalletApi {
         try {
           n = new Integer(num);
         } catch (NumberFormatException e) {
-          System.out.println("Invalid number of " + num);
+          System.out.println("Invaild number of " + num);
           System.out.println("Please choose again between 1 and " + wallets.length);
           continue;
         }
         if (n < 1 || n > wallets.length) {
-          System.out.println("Invalid number of " + num);
           System.out.println("Please choose again between 1 and " + wallets.length);
           continue;
         }
@@ -320,7 +310,9 @@ public class WalletApi {
     return WalletUtils.loadWalletFile(wallet);
   }
 
-  /** load a Wallet from keystore */
+  /**
+   * load a Wallet from keystore
+   * */
   public static WalletApi loadWalletFromKeystore() throws IOException {
     WalletFile walletFile = loadWalletFile();
     WalletApi walletApi = new WalletApi(walletFile);
@@ -374,9 +366,6 @@ public class WalletApi {
       } else {
         transaction = TransactionUtils.sign(transaction, this.getSM2(walletFile, passwd));
       }
-      //      System.out
-      //          .println("current transaction hex string is " + ByteArray
-      //              .toHexString(transaction.toByteArray()));
       org.tron.keystore.StringUtils.clear(passwd);
 
       TransactionSignWeight weight = getTransactionSignWeight(transaction);
@@ -416,7 +405,6 @@ public class WalletApi {
       } else {
         transaction = TransactionUtils.sign(transaction, this.getSM2(walletFile, passwd));
       }
-
       org.tron.keystore.StringUtils.clear(passwd);
 
       TransactionSignWeight weight = getTransactionSignWeight(transaction);
@@ -460,9 +448,8 @@ public class WalletApi {
     }
 
     System.out.println(Utils.printTransactionExceptId(transactionExtention.getTransaction()));
-    System.out.println(
-        "before sign transaction hex string is "
-            + ByteArray.toHexString(transaction.toByteArray()));
+    System.out.println("before sign transaction hex string is " +
+        ByteArray.toHexString(transaction.toByteArray()));
     transaction = signTransaction(transaction);
     showTransactionAfterSign(transaction);
     return rpcCli.broadcastTransaction(transaction);
@@ -470,29 +457,23 @@ public class WalletApi {
 
   private void showTransactionAfterSign(Transaction transaction)
       throws InvalidProtocolBufferException {
-    System.out.println(
-        "after sign transaction hex string is " + ByteArray.toHexString(transaction.toByteArray()));
-    if (isEckey) {
-      System.out.println(
-          "txid is "
-              + ByteArray.toHexString(Sha256Hash.hash(transaction.getRawData().toByteArray())));
-    } else {
-      System.out.println(
-          "txid is " + ByteArray.toHexString(SM3Hash.hash(transaction.getRawData().toByteArray())));
-    }
+    System.out.println("after sign transaction hex string is " +
+        ByteArray.toHexString(transaction.toByteArray()));
+    System.out.println("txid is " +
+        ByteArray.toHexString(Sha256Sm3Hash.hash(transaction.getRawData().toByteArray())));
 
     if (transaction.getRawData().getContract(0).getType() == ContractType.CreateSmartContract) {
-      CreateSmartContract createSmartContract =
-          transaction.getRawData().getContract(0).getParameter().unpack(CreateSmartContract.class);
-      byte[] contractAddress =
-          generateContractAddress(createSmartContract.getOwnerAddress().toByteArray(), transaction);
+      CreateSmartContract createSmartContract = transaction.getRawData().getContract(0)
+          .getParameter().unpack(CreateSmartContract.class);
+      byte[] contractAddress = generateContractAddress(
+          createSmartContract.getOwnerAddress().toByteArray(), transaction);
       System.out.println(
           "Your smart contract address will be: " + WalletApi.encode58Check(contractAddress));
     }
   }
 
-  private static boolean processShieldedTransaction(
-      TransactionExtention transactionExtention, WalletApi wallet)
+  private static boolean processShieldedTransaction(TransactionExtention transactionExtention,
+                                                    WalletApi wallet)
       throws IOException, CipherException, CancelException {
     if (transactionExtention == null) {
       return false;
@@ -528,14 +509,10 @@ public class WalletApi {
 
     System.out.println(
         "transaction hex string is " + ByteArray.toHexString(transaction.toByteArray()));
-    if (isEckey) {
-      System.out.println(
-          "txid is "
-              + ByteArray.toHexString(Sha256Hash.hash(transaction.getRawData().toByteArray())));
-    } else {
-      System.out.println(
-          "txid is " + ByteArray.toHexString(SM3Hash.hash(transaction.getRawData().toByteArray())));
-    }
+    System.out.println(
+        "txid is "
+            + ByteArray.toHexString(Sha256Sm3Hash.hash(transaction.getRawData().toByteArray())));
+
     return rpcCli.broadcastTransaction(transaction);
   }
 
@@ -1010,15 +987,8 @@ public class WalletApi {
   }
 
   public static String encode58Check(byte[] input) {
-    byte[] hash0;
-    byte[] hash1;
-    if (isEckey) {
-      hash0 = Sha256Hash.hash(input);
-      hash1 = Sha256Hash.hash(hash0);
-    } else {
-      hash0 = SM3Hash.hash(input);
-      hash1 = SM3Hash.hash(hash0);
-    }
+    byte[] hash0 = Sha256Sm3Hash.hash(input);
+    byte[] hash1 = Sha256Sm3Hash.hash(hash0);
     byte[] inputCheck = new byte[input.length + 4];
     System.arraycopy(input, 0, inputCheck, 0, input.length);
     System.arraycopy(hash1, 0, inputCheck, input.length, 4);
@@ -1032,15 +1002,8 @@ public class WalletApi {
     }
     byte[] decodeData = new byte[decodeCheck.length - 4];
     System.arraycopy(decodeCheck, 0, decodeData, 0, decodeData.length);
-    byte[] hash0;
-    byte[] hash1;
-    if (isEckey) {
-      hash0 = Sha256Hash.hash(decodeData);
-      hash1 = Sha256Hash.hash(hash0);
-    } else {
-      hash0 = SM3Hash.hash(decodeData);
-      hash1 = SM3Hash.hash(hash0);
-    }
+    byte[] hash0 = Sha256Sm3Hash.hash(decodeData);
+    byte[] hash1 = Sha256Sm3Hash.hash(hash0);
     if (hash1[0] == decodeCheck[decodeData.length]
         && hash1[1] == decodeCheck[decodeData.length + 1]
         && hash1[2] == decodeCheck[decodeData.length + 2]
@@ -1075,6 +1038,21 @@ public class WalletApi {
     return true;
   }
 
+  //  public static Optional<AccountList> listAccounts() {
+  //    Optional<AccountList> result = rpcCli.listAccounts();
+  //    if (result.isPresent()) {
+  //      AccountList accountList = result.get();
+  //      List<Account> list = accountList.getAccountsList();
+  //      List<Account> newList = new ArrayList();
+  //      newList.addAll(list);
+  //      newList.sort(new AccountComparator());
+  //      AccountList.Builder builder = AccountList.newBuilder();
+  //      newList.forEach(account -> builder.addAccounts(account));
+  //      result = Optional.of(builder.build());
+  //    }
+  //    return result;
+  //  }
+
   public static Optional<WitnessList> listWitnesses() {
     Optional<WitnessList> result = rpcCli.listWitnesses();
     if (result.isPresent()) {
@@ -1095,6 +1073,19 @@ public class WalletApi {
     }
     return result;
   }
+
+  //  public static Optional<AssetIssueList> getAssetIssueListByTimestamp(long timestamp) {
+  //    return rpcCli.getAssetIssueListByTimestamp(timestamp);
+  //  }
+  //
+  //  public static Optional<TransactionList> getTransactionsByTimestamp(long start, long end,
+  //      int offset, int limit) {
+  //    return rpcCli.getTransactionsByTimestamp(start, end, offset, limit);
+  //  }
+  //
+  //  public static GrpcAPI.NumberMessage getTransactionsByTimestampCount(long start, long end) {
+  //    return rpcCli.getTransactionsByTimestampCount(start, end);
+  //  }
 
   public static Optional<AssetIssueList> getAssetIssueList() {
     return rpcCli.getAssetIssueList();
@@ -1157,6 +1148,9 @@ public class WalletApi {
       byte[] address, int offset, int limit) {
     return rpcCli.getTransactionsFromThis2(address, offset, limit);
   }
+  //  public static GrpcAPI.NumberMessage getTransactionsFromThisCount(byte[] address) {
+  //    return rpcCli.getTransactionsFromThisCount(address);
+  //  }
 
   public static Optional<TransactionList> getTransactionsToThis(
       byte[] address, int offset, int limit) {
@@ -1167,6 +1161,9 @@ public class WalletApi {
       byte[] address, int offset, int limit) {
     return rpcCli.getTransactionsToThis2(address, offset, limit);
   }
+  //  public static GrpcAPI.NumberMessage getTransactionsToThisCount(byte[] address) {
+  //    return rpcCli.getTransactionsToThisCount(address);
+  //  }
 
   public static Optional<Transaction> getTransactionById(String txID) {
     return rpcCli.getTransactionById(txID);
@@ -1872,12 +1869,7 @@ public class WalletApi {
 
   public byte[] generateContractAddress(byte[] ownerAddress, Transaction trx) {
     // get tx hash
-    byte[] txRawDataHash;
-    if (isEckey) {
-      txRawDataHash = Sha256Hash.of(trx.getRawData().toByteArray()).getBytes();
-    } else {
-      txRawDataHash = SM3Hash.of(trx.getRawData().toByteArray()).getBytes();
-    }
+    byte[] txRawDataHash = Sha256Sm3Hash.of(trx.getRawData().toByteArray()).getBytes();
 
     // combine
     byte[] combined = new byte[txRawDataHash.length + ownerAddress.length];
