@@ -4,7 +4,7 @@ import com.google.protobuf.ByteString;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang.StringUtils;
+import org.springframework.util.StringUtils;
 import org.tron.api.GrpcAPI;
 import org.tron.api.GrpcAPI.*;
 import org.tron.api.GrpcAPI.Return.response_code;
@@ -404,7 +404,7 @@ public class GrpcClient {
 
   public boolean broadcastTransaction(Transaction signaturedTransaction) {
     int i = 10;
-    GrpcAPI.Return response = blockingStubFull.broadcastTransaction(signaturedTransaction);
+    Return response = blockingStubFull.broadcastTransaction(signaturedTransaction);
     while (response.getResult() == false && response.getCode() == response_code.SERVER_BUSY
         && i > 0) {
       i--;

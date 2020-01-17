@@ -1,10 +1,10 @@
-group 'Tron'
-version '1.0-SNAPSHOT'
+group 'tronprotocol'
+version '1.3.0-RELEASE'
 
 apply plugin: 'java'
 apply plugin: 'com.google.protobuf'
-apply plugin: 'com.github.johnrengelman.shadow'
-apply plugin: 'application'
+apply plugin: 'maven'
+apply plugin: 'maven-publish'
 
 sourceCompatibility = 1.8
 targetCompatibility = JavaVersion.VERSION_1_8
@@ -16,6 +16,19 @@ compileJava.options*.compilerArgs = [
         "-Xlint:path", "-Xlint:static", "-Xlint:try", "-Xlint:fallthrough",
         "-Xlint:deprecation", "-Xlint:unchecked", "-Xlint:-options"
 ]
+
+ext {
+    groupId = 'com.github.tronprotocol'
+    artifactId = 'tron-grpc'
+    libraryVersion = '1.3.0-RELEASE'
+    licenseName = 'GNU LESSER GENERAL PUBLIC LICENSE Version 3'
+    licenseUrl = 'https://www.gnu.org/licenses/lgpl-3.0.ru.html'
+    allLicenses = ["LGPL"]
+
+    nexusUrl = ''
+    nexusUser = ''
+    nexusPassword = ''
+}
 
 repositories {
     mavenLocal()
@@ -41,13 +54,6 @@ buildscript {
             url "https://cdn.lfrs.sl/repository.liferay.com/nexus/content/groups/public"
         }
         mavenCentral()
-    }
-    ext {
-        projectVersion = '1.3.0-RELEASE'
-        grpcVersion = '1.6.1'
-        protobufVersion = '3.3.0'
-        protobufGradlePluginVersion = '0.8.0'
-        springCloudConsulVersion = '1.2.1.RELEASE'
     }
 
     dependencies {
@@ -79,7 +85,14 @@ dependencies {
     compile "com.madgag.spongycastle:prov:1.58.0.0"
     compile group: 'com.typesafe', name: 'config', version: '1.3.2'
     compile "com.google.code.findbugs:jsr305:3.0.0"
-    compile "org.springframework.cloud:spring-cloud-starter-consul-discovery:${springCloudConsulVersion}"
+
+    // https://mvnrepository.com/artifact/org.bouncycastle/bcprov-jdk15on
+    compile group: 'org.bouncycastle', name: 'bcprov-jdk15on', version: '1.64'
+    // https://mvnrepository.com/artifact/org.apache.commons/commons-lang3
+    compile group: 'org.apache.commons', name: 'commons-lang3', version: '3.9'
+    // https://mvnrepository.com/artifact/org.springframework/spring-core
+    compile group: 'org.springframework', name: 'spring-core', version: '5.2.3.RELEASE'
+
     compile "org.apache.commons:commons-collections4:4.0"
     compile "org.apache.commons:commons-lang3:3.4"
     compile group: 'com.google.api.grpc', name: 'googleapis-common-protos', version: '0.0.3'
@@ -101,6 +114,9 @@ protobuf {
         grpc {
             artifact = 'io.grpc:protoc-gen-grpc-java:1.9.0'
         }
+        bintray {
+            artifact = 'com.jfrog.bintray:1.8.3'
+        }
     }
     generateProtoTasks {
         all().each { task ->
@@ -118,14 +134,62 @@ protobuf {
     }
 }
 
-run {
-    standardInput = System.in
-    mainClassName = 'org.tron.walletcli.Client'
+task writeNewPom {
+    doLast {
+        pom {
+            project {
+
+            }
+        }.writeTo("$buildDir/pom.xml")
+    }
 }
 
+publishing {
+    publications {
+        maven(MavenPublication) {
+            groupId groupId
+            artifactId artifactId
+            description = 'An TRON client library that uses GRPC to make request to tron nodes.'
+            version libraryVersion
+            pom {
+                description 'An TRON client library that uses GRPC to make request to tron nodes.'
+            }
+            from components.java
+        }
+    }
+}
 
-shadowJar {
-    baseName = 'wallet-cli'
-    classifier = null
-    version = null
+configurations {
+    oneLib
+}
+
+artifacts {
+    oneLib file("./build/libs/${artifactId}-${libraryVersion}.jar")
+    oneLib file("./build/libs/${artifactId}-${libraryVersion}-sources.jar")
+}
+
+project.tasks.create('uploadToNexus', Upload.class) {
+
+    configuration = configurations.oneLib
+
+    repositories {
+
+        mavenDeployer {
+
+            repository(url: "${nexusUrl}") {
+
+                authentication(userName: "${nexusUser}", password: "${nexusPassword}")
+
+            }
+
+            pom.version = "${libraryVersion}"
+
+            pom.artifactId = "${artifactId}"
+
+            pom.groupId = "${groupId}"
+
+        }
+
+    }
+
 }

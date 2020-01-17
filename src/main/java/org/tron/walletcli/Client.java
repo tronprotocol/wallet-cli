@@ -44,7 +44,8 @@ import java.util.Map.Entry;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-
+// todo: команды сделаны под консоль, то есть они лишь печают в вывод, можно использовать, чтобы видеть логику парсинга,
+//  менять по мере надобности (если нет желания делать парсинг на стороне программы, использующей эту либу).
 public class Client {
 
   private WalletApiWrapper walletApiWrapper = new WalletApiWrapper();

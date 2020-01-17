@@ -205,7 +205,7 @@ public class WalletApiWrapper {
       return false;
     }
 
-    Contract.AssetIssueContract.Builder builder = Contract.AssetIssueContract.newBuilder();
+    AssetIssueContract.Builder builder = AssetIssueContract.newBuilder();
     if (ownerAddress == null) {
       ownerAddress = wallet.getAddress();
     }
@@ -272,8 +272,8 @@ public class WalletApiWrapper {
       String amountStr = frozenSupply.get(daysStr);
       long amount = Long.parseLong(amountStr);
       long days = Long.parseLong(daysStr);
-      Contract.AssetIssueContract.FrozenSupply.Builder frozenSupplyBuilder
-          = Contract.AssetIssueContract.FrozenSupply.newBuilder();
+      AssetIssueContract.FrozenSupply.Builder frozenSupplyBuilder
+          = AssetIssueContract.FrozenSupply.newBuilder();
       frozenSupplyBuilder.setFrozenAmount(amount);
       frozenSupplyBuilder.setFrozenDays(days);
       builder.addFrozenSupply(frozenSupplyBuilder.build());
@@ -414,11 +414,11 @@ public class WalletApiWrapper {
     }
   }
 
-  public GrpcAPI.NumberMessage getTotalTransaction() {
+  public NumberMessage getTotalTransaction() {
     return WalletApi.getTotalTransaction();
   }
 
-  public GrpcAPI.NumberMessage getNextMaintenanceTime() {
+  public NumberMessage getNextMaintenanceTime() {
     return WalletApi.getNextMaintenanceTime();
   }
 
@@ -728,7 +728,7 @@ public class WalletApiWrapper {
   }
 
   public boolean sendShieldedCoin(String fromAddress, long fromAmount, List<Long> shieldedInputList,
-      List<GrpcAPI.Note> shieldedOutputList, String toAddress, long toAmount)
+                                  List<Note> shieldedOutputList, String toAddress, long toAmount)
       throws CipherException, IOException, CancelException, ZksnarkException {
     PrivateParameters.Builder builder = PrivateParameters.newBuilder();
     if (!StringUtil.isNullOrEmpty(fromAddress) && fromAmount > 0) {
@@ -820,8 +820,8 @@ public class WalletApiWrapper {
   }
 
   public boolean sendShieldedCoinWithoutAsk(String fromAddress, long fromAmount,
-      List<Long> shieldedInputList,
-      List<GrpcAPI.Note> shieldedOutputList, String toAddress, long toAmount)
+                                            List<Long> shieldedInputList,
+                                            List<Note> shieldedOutputList, String toAddress, long toAmount)
       throws CipherException, IOException, CancelException, ZksnarkException {
     PrivateParametersWithoutAsk.Builder builder = PrivateParametersWithoutAsk.newBuilder();
     if (!StringUtil.isNullOrEmpty(fromAddress)) {
@@ -922,7 +922,7 @@ public class WalletApiWrapper {
   }
 
   public boolean scanNoteByIvk(final String ivk, long start, long end) {
-    GrpcAPI.IvkDecryptParameters ivkDecryptParameters = IvkDecryptParameters.newBuilder()
+    IvkDecryptParameters ivkDecryptParameters = IvkDecryptParameters.newBuilder()
         .setStartBlockIndex(start)
         .setEndBlockIndex(end)
         .setIvk(ByteString.copyFrom(ByteArray.fromHexString(ivk)))
@@ -992,7 +992,7 @@ public class WalletApiWrapper {
   }
 
   public boolean scanShieldedNoteByovk(final String shieldedAddress, long start, long end) {
-    GrpcAPI.OvkDecryptParameters ovkDecryptParameters = OvkDecryptParameters.newBuilder()
+    OvkDecryptParameters ovkDecryptParameters = OvkDecryptParameters.newBuilder()
         .setStartBlockIndex(start)
         .setEndBlockIndex(end)
         .setOvk(ByteString.copyFrom(ByteArray.fromHexString(shieldedAddress)))
@@ -1182,11 +1182,11 @@ public class WalletApiWrapper {
     return wallet.updateBrokerage(ownerAddress, brokerage);
   }
 
-  public GrpcAPI.NumberMessage getReward(byte[] ownerAddress) {
+  public NumberMessage getReward(byte[] ownerAddress) {
     return WalletApi.getReward(ownerAddress);
   }
 
-  public GrpcAPI.NumberMessage getBrokerage(byte[] ownerAddress) {
+  public NumberMessage getBrokerage(byte[] ownerAddress) {
     return WalletApi.getBrokerage(ownerAddress);
   }
 }
