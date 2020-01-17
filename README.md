@@ -1,4 +1,8 @@
-# wallet-cli [![Build Status](https://travis-ci.org/tronprotocol/wallet-cli.svg?branch=master)](https://travis-ci.org/tronprotocol/wallet-cli)
+Для использования инстанциировать GrpcClient. 
+
+--- Далее readme из форкнутого репозитория.
+
+# wallet-cli
 
 Wallet CLI
 
