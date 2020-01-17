@@ -1,4 +1,4 @@
-group 'tronprotocol'
+group 'tron-grpc'
 version '1.3.0-RELEASE'
 
 apply plugin: 'java'
@@ -114,9 +114,6 @@ protobuf {
         grpc {
             artifact = 'io.grpc:protoc-gen-grpc-java:1.9.0'
         }
-        bintray {
-            artifact = 'com.jfrog.bintray:1.8.3'
-        }
     }
     generateProtoTasks {
         all().each { task ->
@@ -147,16 +144,21 @@ task writeNewPom {
 publishing {
     publications {
         maven(MavenPublication) {
-            groupId groupId
-            artifactId artifactId
-            description = 'An TRON client library that uses GRPC to make request to tron nodes.'
+            groupId = groupId
+            artifactId = artifactId
+            description = 'TRON client library that uses GRPC to make request to tron nodes.'
             version libraryVersion
             pom {
-                description 'An TRON client library that uses GRPC to make request to tron nodes.'
+                description 'TRON client library that uses GRPC to make request to tron nodes.'
             }
             from components.java
         }
     }
+}
+
+task sourcesJar(type: Jar, dependsOn: classes) {
+    classifier = 'sources'
+    from sourceSets.main.allSource
 }
 
 configurations {
@@ -164,6 +166,7 @@ configurations {
 }
 
 artifacts {
+    archives sourcesJar
     oneLib file("./build/libs/${artifactId}-${libraryVersion}.jar")
     oneLib file("./build/libs/${artifactId}-${libraryVersion}-sources.jar")
 }
