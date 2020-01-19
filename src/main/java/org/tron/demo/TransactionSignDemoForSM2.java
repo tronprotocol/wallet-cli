@@ -103,7 +103,7 @@ public class TransactionSignDemoForSM2 {
     SM2 sm2 = SM2.fromPrivate(privateBytes);
     byte[] from = sm2.getAddress();
     byte[] to = WalletApi.decodeFromBase58Check("TGehVcNhud84JDCGrNHKVz9jEAVKUpbuiv");
-    long amount = 100_000_000L; // 100 TRX, api only receive trx in drop, and 1 trx = 1000000 drop
+    long amount = 100_000_000L; // 100 TRX, api only receive trx in sun, and 1 trx = 1000000 sun
     Transaction transaction = createTransaction(from, to, amount);
     byte[] transactionBytes = transaction.toByteArray();
 

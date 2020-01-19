@@ -94,8 +94,8 @@ OwnerAddress
 > The address of the account that initiated the transaction, optional, default is the address of the login account.
 
 frozen_balance
-> The amount of frozen funds, the unit is drop.
-> The minimum value is **1000000 drop(1TRX)**.
+> The amount of frozen funds, the unit is sun.
+> The minimum value is **1000000 sun(1TRX)**.
 
 frozen_duration
 > Freeze time, this value is currently only allowed for **3 days**.
@@ -148,7 +148,7 @@ The bandwidth calculation rule is:
 
     constant * FrozenFunds * days
 
-Assuming freeze 1TRX（1_000_000 DROP), 3 days, bandwidth obtained = 1 * 1_000_000 * 3 = 3_000_000.
+Assuming freeze 1TRX（1_000_000 SUN), 3 days, bandwidth obtained = 1 * 1_000_000 * 3 = 3_000_000.
 
 All contracts consume bandwidth, including transferring, transferring of assets, voting, freezing, etc.
 Querying does not consume bandwidth. Each contract needs to consume **100_000 bandwidth**.
@@ -661,7 +661,7 @@ Select another account and enter the local password. i.e. TKwhcDup8L2PH5r6hxp5CQ
 need a private key of TKwhcDup8L2PH5r6hxp5CQvQzZqJLmKvZP to sign a transaction.
 
 The weight of each account is 1, threshold of access is 2. When the requirements are met, users
-will be notified with “Send 10000000000000000 drop to TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW
+will be notified with “Send 10000000000000000 sun to TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW
 successful !!”.
 
 This is how multiple accounts user multi-signature when using the same cli.

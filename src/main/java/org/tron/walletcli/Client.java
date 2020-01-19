@@ -712,9 +712,9 @@ public class Client {
 
     boolean result = walletApiWrapper.sendCoin(ownerAddress, toAddress, amount);
     if (result) {
-      System.out.println("Send " + amount + " drop to " + base58ToAddress + " successful !!");
+      System.out.println("Send " + amount + " sun to " + base58ToAddress + " successful !!");
     } else {
-      System.out.println("Send " + amount + " drop to " + base58ToAddress + " failed !!");
+      System.out.println("Send " + amount + " sun to " + base58ToAddress + " failed !!");
     }
   }
 
