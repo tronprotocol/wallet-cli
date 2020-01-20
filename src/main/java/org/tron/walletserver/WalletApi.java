@@ -351,7 +351,8 @@ public class WalletApi {
     }
     transaction = TransactionUtils.setExpirationTime(transaction);
 
-    String tipsString = "Please confirm and input your permission id, if input y or Y means default 0, other non-numeric characters will cancel transaction.";
+    String tipsString = "Please confirm and input your permission id, if input y or Y means "
+        + "default 0, other non-numeric characters will cancel transaction.";
     transaction = TransactionUtils.setPermissionId(transaction, tipsString);
     while (true) {
       System.out.println("Please choose your key for sign.");
@@ -389,7 +390,8 @@ public class WalletApi {
 
   private Transaction signOnlyForShieldedTransaction(Transaction transaction)
       throws CipherException, IOException, CancelException {
-    String tipsString = "Please confirm and input your permission id, if input y or Y means default 0, other non-numeric characters will cancel transaction.";
+    String tipsString = "Please confirm and input your permission id, if input y or Y means "
+        + "default 0, other non-numeric characters will cancel transaction.";
     transaction = TransactionUtils.setPermissionId(transaction, tipsString);
     while (true) {
       System.out.println("Please choose your key for sign.");
