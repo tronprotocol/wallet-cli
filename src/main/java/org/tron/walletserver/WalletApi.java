@@ -376,6 +376,7 @@ public class WalletApi {
         System.out.println(Utils.printTransactionSignWeight(weight));
         System.out.println("Please confirm if continue add signature enter y or Y, else any other");
         if (!confirm()) {
+          showTransactionAfterSign(transaction);
           throw new CancelException("User cancelled");
         }
         continue;
