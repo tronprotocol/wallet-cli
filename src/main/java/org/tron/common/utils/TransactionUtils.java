@@ -247,11 +247,14 @@ public class TransactionUtils {
     return transaction;
   }
 
-  public static Transaction setPermissionId(Transaction transaction) throws CancelException {
+  public static Transaction setPermissionId(Transaction transaction, String tipString)
+      throws CancelException {
     if (transaction.getSignatureCount() != 0
         || transaction.getRawData().getContract(0).getPermissionId() != 0) {
       return transaction;
     }
+
+    System.out.println(tipString);
     int permission_id = inputPermissionId();
     if (permission_id < 0) {
       throw new CancelException("User cancelled");
