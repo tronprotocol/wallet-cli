@@ -1191,7 +1191,8 @@ public class WalletApiWrapper {
       System.out.println("Warning: updateSetting failed,  Please login first !!");
       return false;
     }
-    return wallet.marketSellAsset(owner, sellTokenId, sellTokenQuantity, buyTokenId, buyTokenQuantity);
+    return wallet.marketSellAsset(owner, sellTokenId, sellTokenQuantity,
+        buyTokenId, buyTokenQuantity);
   }
 
   public boolean marketCancelOrder(byte[] owner, byte[] orderId)
