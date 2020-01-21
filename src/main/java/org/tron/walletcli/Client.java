@@ -2915,6 +2915,23 @@ public class Client {
     }
   }
 
+  private void getMarketOrderById(String[] parameters) {
+    if (parameters == null || parameters.length != 0) {
+      System.out.println("Using getMarketOrderById command needs 1 parameters like:");
+      System.out.println(
+          "getMarketOrderById orderId");
+      return;
+    }
+    byte[] orderId = parameters[0].getBytes();
+    Optional<MarketOrder> pairList = walletApiWrapper
+        .getMarketOrderById(orderId);
+    if (!pairList.isPresent()) {
+      System.out.println("getMarketOrderById failed !!!");
+    } else {
+      System.out.println(Utils.formatMessageString(pairList.get()));
+    }
+  }
+
 
   private void create2(String[] parameters) {
     if (parameters == null || parameters.length != 3) {
@@ -3463,6 +3480,10 @@ public class Client {
             }
             case "getmarketpairlist": {
               getMarketPairList(parameters);
+              break;
+            }
+            case "getmarketorderbyid": {
+              getMarketOrderById(parameters);
               break;
             }
             case "exit":

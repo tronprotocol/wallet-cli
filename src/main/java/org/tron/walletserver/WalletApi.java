@@ -2437,4 +2437,8 @@ public class WalletApi {
     return rpcCli.getMarketPairList();
   }
 
+  public static Optional<MarketOrder> getMarketOrderById(byte[] order) {
+    return rpcCli.getMarketOrderById(order);
+  }
+
 }

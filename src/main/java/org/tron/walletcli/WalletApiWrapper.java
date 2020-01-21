@@ -1223,4 +1223,8 @@ public class WalletApiWrapper {
     return WalletApi.getMarketPairList();
   }
 
+  public Optional<MarketOrder> getMarketOrderById(byte[] order) {
+    return WalletApi.getMarketOrderById(order);
+  }
+
 }

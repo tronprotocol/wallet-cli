@@ -964,4 +964,16 @@ public class GrpcClient {
     return Optional.ofNullable(orderPairList);
   }
 
+  public Optional<MarketOrder> getMarketOrderById(byte[] order) {
+    ByteString orderBytes = ByteString.copyFrom(order);
+    BytesMessage request = BytesMessage.newBuilder().setValue(orderBytes).build();
+    MarketOrder orderPair;
+    if (blockingStubSolidity != null) {
+      orderPair =blockingStubSolidity.getMarketOrderById(request);
+    } else {
+      orderPair = blockingStubFull.getMarketOrderById(request);
+    }
+    return Optional.ofNullable(orderPair);
+  }
+
 }
