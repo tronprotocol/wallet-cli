@@ -16,13 +16,17 @@
 package org.tron.common.utils;
 
 import com.google.protobuf.ByteString;
+import org.tron.api.GrpcAPI;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.ECKey.ECDSASignature;
 import org.tron.common.crypto.Sha256Sm3Hash;
 import org.tron.common.crypto.SignInterface;
 import org.tron.common.crypto.SignatureInterface;
 import org.tron.core.exception.CancelException;
+import org.tron.protos.Contract;
 import org.tron.protos.Protocol.Transaction;
+import org.tron.walletserver.GrpcClientHolder;
+import org.tron.walletserver.WalletApi;
 
 import java.security.SignatureException;
 import java.util.Arrays;
@@ -281,5 +285,45 @@ public class TransactionUtils {
         return -1;
       }
     }
+  }
+
+  /**
+   * @author Evgeniy Melnikov (e.melnikov@unitedtraders.com)
+   */
+  public static Transaction send(String from, String to, long amount, ECKey privateKey) {
+    Contract.TransferContract contract = WalletApi.createTransferContract(WalletApi.decodeFromBase58Check(to), WalletApi.decodeFromBase58Check(from), amount);
+    GrpcAPI.TransactionExtention transactionExtention = GrpcClientHolder.getGrpcClient().createTransaction2(contract);
+    GrpcAPI.Return ret = transactionExtention.getResult();
+    if (!ret.getResult()) {
+      throw new RuntimeException(String.format("Code = %s. Message = %s.", ret.getCode(), ret.getMessage().toStringUtf8()));
+    }
+    Transaction transaction = transactionExtention.getTransaction();
+    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
+      throw new RuntimeException("Transaction is empty");
+    }
+
+    if (transaction.getRawData().getContract(0).getType()
+            == Transaction.Contract.ContractType.ShieldedTransferContract) {
+      throw new RuntimeException("Contract type ShieldedTransferContract. Processing this contract now not implemented.");
+    }
+
+    if (transaction.getRawData().getTimestamp() == 0) {
+      transaction = TransactionUtils.setTimestamp(transaction);
+    }
+    transaction = TransactionUtils.setExpirationTime(transaction);
+
+    transaction = TransactionUtils.sign(transaction, privateKey);
+
+    GrpcAPI.TransactionSignWeight weight = WalletApi.getTransactionSignWeight(transaction);
+    if (weight.getResult().getCode() == GrpcAPI.TransactionSignWeight.Result.response_code.NOT_ENOUGH_PERMISSION) {
+      throw new RuntimeException(String.format("Current signWeight is: %s. Get error with response code: %s",
+              Utils.printTransactionSignWeight(weight), GrpcAPI.TransactionSignWeight.Result.response_code.NOT_ENOUGH_PERMISSION.name()));
+    }
+
+    boolean broadcastTransaction = GrpcClientHolder.getGrpcClient().broadcastTransaction(transaction);
+    if (!broadcastTransaction) {
+      throw new RuntimeException("Something gone wrong. Status false after broadcast transaction.");
+    }
+    return transaction;
   }
 }

@@ -4,19 +4,21 @@ import com.google.protobuf.ByteString;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.util.StringUtils;
-import org.tron.api.GrpcAPI;
+import org.apache.commons.lang3.StringUtils;
 import org.tron.api.GrpcAPI.*;
 import org.tron.api.GrpcAPI.Return.response_code;
 import org.tron.api.WalletExtensionGrpc;
 import org.tron.api.WalletGrpc;
 import org.tron.api.WalletSolidityGrpc;
+import org.tron.common.crypto.ECKey;
 import org.tron.common.utils.ByteArray;
+import org.tron.common.utils.TransactionUtils;
 import org.tron.protos.Contract;
 import org.tron.protos.Contract.IncrementalMerkleVoucherInfo;
 import org.tron.protos.Contract.OutputPointInfo;
 import org.tron.protos.Protocol.*;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
@@ -893,5 +895,9 @@ public class GrpcClient {
     } else {
       return blockingStubFull.getBrokerageInfo(bytesMessage);
     }
+  }
+
+  public Transaction send(String from, String to, long amount, String privateKey) {
+      return TransactionUtils.send(from, to, amount, ECKey.fromPrivate(privateKey.getBytes(StandardCharsets.UTF_8)));
   }
 }

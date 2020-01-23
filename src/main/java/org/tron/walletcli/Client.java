@@ -3387,14 +3387,4 @@ public class Client {
       System.out.println("List witnesses failed !!");
     }
   }
-
-  public static void main(String[] args) {
-    Client cli = new Client();
-    JCommander.newBuilder()
-        .addObject(cli)
-        .build()
-        .parse(args);
-
-    cli.run();
-  }
 }
