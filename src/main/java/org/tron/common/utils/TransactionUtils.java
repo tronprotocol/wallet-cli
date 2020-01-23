@@ -15,15 +15,20 @@
 
 package org.tron.common.utils;
 
+import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
 import org.tron.api.GrpcAPI;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.ECKey.ECDSASignature;
+import org.tron.common.crypto.Sha256Hash;
 import org.tron.common.crypto.Sha256Sm3Hash;
 import org.tron.common.crypto.SignInterface;
 import org.tron.common.crypto.SignatureInterface;
+import org.tron.core.exception.BadItemException;
 import org.tron.core.exception.CancelException;
+import org.tron.core.exception.TransactionException;
 import org.tron.protos.Contract;
+import org.tron.protos.Protocol;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.walletserver.GrpcClientHolder;
 import org.tron.walletserver.WalletApi;
@@ -290,40 +295,74 @@ public class TransactionUtils {
   /**
    * @author Evgeniy Melnikov (e.melnikov@unitedtraders.com)
    */
-  public static Transaction send(String from, String to, long amount, ECKey privateKey) {
-    Contract.TransferContract contract = WalletApi.createTransferContract(WalletApi.decodeFromBase58Check(to), WalletApi.decodeFromBase58Check(from), amount);
-    GrpcAPI.TransactionExtention transactionExtention = GrpcClientHolder.getGrpcClient().createTransaction2(contract);
-    GrpcAPI.Return ret = transactionExtention.getResult();
-    if (!ret.getResult()) {
-      throw new RuntimeException(String.format("Code = %s. Message = %s.", ret.getCode(), ret.getMessage().toStringUtf8()));
-    }
-    Transaction transaction = transactionExtention.getTransaction();
-    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
-      throw new RuntimeException("Transaction is empty");
-    }
+  public static Transaction send(String from, String to, long amount, ECKey privateKey) throws TransactionException {
+      byte[] fromByte = WalletApi.decodeFromBase58Check(from);
+      byte[] toByte = WalletApi.decodeFromBase58Check(to);
+      GrpcAPI.TransactionExtention transactionByApi2 = signTransactionByApi2(createTransaction(fromByte, toByte, amount), privateKey.getPrivKeyBytes());
 
-    if (transaction.getRawData().getContract(0).getType()
-            == Transaction.Contract.ContractType.ShieldedTransferContract) {
-      throw new RuntimeException("Contract type ShieldedTransferContract. Processing this contract now not implemented.");
-    }
+      Transaction transactionSigned = transactionByApi2.getTransaction();
+      GrpcAPI.TransactionSignWeight weight = WalletApi.getTransactionSignWeight(transactionSigned);
 
-    if (transaction.getRawData().getTimestamp() == 0) {
-      transaction = TransactionUtils.setTimestamp(transaction);
-    }
-    transaction = TransactionUtils.setExpirationTime(transaction);
+      if (weight.getResult().getCode() == GrpcAPI.TransactionSignWeight.Result.response_code.NOT_ENOUGH_PERMISSION) {
+          throw new TransactionException(String.format("Current signWeight is: %s. Get error with response code: %s",
+                  Utils.printTransactionSignWeight(weight), GrpcAPI.TransactionSignWeight.Result.response_code.NOT_ENOUGH_PERMISSION.name()));
+      }
 
-    transaction = TransactionUtils.sign(transaction, privateKey);
-
-    GrpcAPI.TransactionSignWeight weight = WalletApi.getTransactionSignWeight(transaction);
-    if (weight.getResult().getCode() == GrpcAPI.TransactionSignWeight.Result.response_code.NOT_ENOUGH_PERMISSION) {
-      throw new RuntimeException(String.format("Current signWeight is: %s. Get error with response code: %s",
-              Utils.printTransactionSignWeight(weight), GrpcAPI.TransactionSignWeight.Result.response_code.NOT_ENOUGH_PERMISSION.name()));
-    }
-
-    boolean broadcastTransaction = GrpcClientHolder.getGrpcClient().broadcastTransaction(transaction);
-    if (!broadcastTransaction) {
-      throw new RuntimeException("Something gone wrong. Status false after broadcast transaction.");
-    }
-    return transaction;
+      boolean broadcastTransaction = GrpcClientHolder.getGrpcClient().broadcastTransaction(transactionSigned);
+      if (!broadcastTransaction) {
+          throw new TransactionException("Something gone wrong. Status false after broadcast transaction.");
+      }
+      return transactionSigned;
   }
+
+    public static Transaction createTransaction(byte[] from, byte[] to, long amount) {
+        Transaction.Builder transactionBuilder = Transaction.newBuilder();
+        Protocol.Block newestBlock = WalletApi.getBlock(-1);
+
+        Transaction.Contract.Builder contractBuilder = Transaction.Contract.newBuilder();
+        Contract.TransferContract.Builder transferContractBuilder = Contract.TransferContract
+                .newBuilder();
+        transferContractBuilder.setAmount(amount);
+        ByteString bsTo = ByteString.copyFrom(to);
+        ByteString bsOwner = ByteString.copyFrom(from);
+        transferContractBuilder.setToAddress(bsTo);
+        transferContractBuilder.setOwnerAddress(bsOwner);
+        try {
+            Any any = Any.pack(transferContractBuilder.build());
+            contractBuilder.setParameter(any);
+        } catch (Exception e) {
+            return null;
+        }
+        contractBuilder.setType(Transaction.Contract.ContractType.TransferContract);
+        transactionBuilder.getRawDataBuilder().addContract(contractBuilder)
+                .setTimestamp(System.currentTimeMillis())
+                .setExpiration(newestBlock.getBlockHeader().getRawData().getTimestamp() + 10 * 60 * 60 * 1000);
+        Transaction transaction = transactionBuilder.build();
+        Transaction refTransaction = setReference(transaction, newestBlock);
+        return refTransaction;
+    }
+
+    public static Transaction setReference(Transaction transaction, Protocol.Block newestBlock) {
+        long blockHeight = newestBlock.getBlockHeader().getRawData().getNumber();
+        byte[] blockHash = getBlockHash(newestBlock).getBytes();
+        byte[] refBlockNum = ByteArray.fromLong(blockHeight);
+        Transaction.raw rawData = transaction.getRawData().toBuilder()
+                .setRefBlockHash(ByteString.copyFrom(ByteArray.subArray(blockHash, 8, 16)))
+                .setRefBlockBytes(ByteString.copyFrom(ByteArray.subArray(refBlockNum, 6, 8)))
+                .build();
+        return transaction.toBuilder().setRawData(rawData).build();
+    }
+
+    public static Sha256Hash getBlockHash(Protocol.Block block) {
+        return Sha256Hash.of(block.getBlockHeader().getRawData().toByteArray());
+    }
+
+    public static GrpcAPI.TransactionExtention signTransactionByApi2(
+            Transaction transaction, byte[] privateKey) {
+        transaction = TransactionUtils.setExpirationTime(transaction);
+        Protocol.TransactionSign.Builder builder = Protocol.TransactionSign.newBuilder();
+        builder.setPrivateKey(ByteString.copyFrom(privateKey));
+        builder.setTransaction(transaction);
+        return GrpcClientHolder.getGrpcClient().signTransaction2(builder.build());
+    }
 }

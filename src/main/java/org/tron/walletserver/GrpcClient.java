@@ -13,15 +13,18 @@ import org.tron.api.WalletSolidityGrpc;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.TransactionUtils;
+import org.tron.core.exception.TransactionException;
 import org.tron.protos.Contract;
 import org.tron.protos.Contract.IncrementalMerkleVoucherInfo;
 import org.tron.protos.Contract.OutputPointInfo;
 import org.tron.protos.Protocol.*;
 
-import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+
+import static org.tron.common.crypto.Sha256Sm3Hash.newDigest;
 
 @Slf4j
 public class GrpcClient {
@@ -39,7 +42,7 @@ public class GrpcClient {
 //    blockingStub = WalletGrpc.newBlockingStub(channel);
 //  }
 
-  public GrpcClient(String fullnode, String soliditynode) {
+  public GrpcClient(String fullnode, String soliditynode, boolean isTestNet) {
     if (!StringUtils.isEmpty(fullnode)) {
       channelFull = ManagedChannelBuilder.forTarget(fullnode)
           .usePlaintext(true)
@@ -53,6 +56,16 @@ public class GrpcClient {
       blockingStubSolidity = WalletSolidityGrpc.newBlockingStub(channelSolidity);
       blockingStubExtension = WalletExtensionGrpc.newBlockingStub(channelSolidity);
     }
+
+    GrpcClientHolder.setGrpcClient(this);
+//    if (isTestNet) {
+//        GrpcClientHolder.setPrefix((byte) 0xa0);
+//    } else {
+//        GrpcClientHolder.setPrefix((byte) 0x41);
+//    }
+
+    // несмотря на testnet prefix 0x41 (65)
+    GrpcClientHolder.setPrefix((byte) 0x41);
   }
 
   public void shutdown() throws InterruptedException {
@@ -407,7 +420,7 @@ public class GrpcClient {
   public boolean broadcastTransaction(Transaction signaturedTransaction) {
     int i = 10;
     Return response = blockingStubFull.broadcastTransaction(signaturedTransaction);
-    while (response.getResult() == false && response.getCode() == response_code.SERVER_BUSY
+    while (!response.getResult() && response.getCode() == response_code.SERVER_BUSY
         && i > 0) {
       i--;
       response = blockingStubFull.broadcastTransaction(signaturedTransaction);
@@ -418,11 +431,10 @@ public class GrpcClient {
         e.printStackTrace();
       }
     }
-    if (response.getResult() == false) {
-      System.out.println("Code = " + response.getCode());
-      System.out.println("Message = " + response.getMessage().toStringUtf8());
+    if (!response.getResult()) {
+      throw new TransactionException("Code = " + response.getCode() + "; Message = " + response.getMessage().toStringUtf8());
     }
-    return response.getResult();
+    return true;
   }
 
   public Block getBlock(long blockNum) {
@@ -897,7 +909,11 @@ public class GrpcClient {
     }
   }
 
-  public Transaction send(String from, String to, long amount, String privateKey) {
-      return TransactionUtils.send(from, to, amount, ECKey.fromPrivate(privateKey.getBytes(StandardCharsets.UTF_8)));
+  public String send(String from, String to, long amount, String privateKey) throws TransactionException {
+    Transaction transaction = TransactionUtils.send(from, to, amount, ECKey.fromPrivate(ByteArray.fromHexString(privateKey)));
+    byte[] bytes = transaction.getRawData().toByteArray();
+    MessageDigest digest = newDigest();
+    digest.update(transaction.getRawData().toByteArray(), 0, bytes.length);
+    return ByteArray.toHexString(digest.digest());
   }
 }

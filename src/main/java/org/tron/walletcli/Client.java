@@ -1,6 +1,5 @@
 package org.tron.walletcli;
 
-import com.beust.jcommander.JCommander;
 import com.google.common.primitives.Longs;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
