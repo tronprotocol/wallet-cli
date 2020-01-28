@@ -30,6 +30,7 @@ import org.tron.core.config.Configuration;
 import org.tron.core.config.Parameter.CommonConstant;
 import org.tron.core.exception.CancelException;
 import org.tron.core.exception.CipherException;
+import org.tron.core.exception.EncodingException;
 import org.tron.keystore.*;
 import org.tron.protos.Contract;
 import org.tron.protos.Contract.*;
@@ -927,27 +928,24 @@ public class WalletApi {
 
   public static boolean addressValid(byte[] address) {
     if (ArrayUtils.isEmpty(address)) {
-      System.out.println("Warning: Address is empty !!");
-      return false;
+      throw new EncodingException("Warning: Address is empty !!");
     }
     if (address.length != CommonConstant.ADDRESS_SIZE) {
-      System.out.println(
+      throw new EncodingException(
           "Warning: Address length need "
               + CommonConstant.ADDRESS_SIZE
               + " but "
               + address.length
               + " !!");
-      return false;
     }
     byte preFixbyte = address[0];
     if (preFixbyte != GrpcClientHolder.getPrefix()) {
-      System.out.println(
+      throw new EncodingException(
           "Warning: Address need prefix with "
               + GrpcClientHolder.getPrefix()
               + " but "
               + preFixbyte
               + " !!");
-      return false;
     }
     // Other rule;
     return true;
@@ -982,12 +980,14 @@ public class WalletApi {
 
   public static byte[] decodeFromBase58Check(String addressBase58) {
     if (StringUtils.isEmpty(addressBase58)) {
-      System.out.println("Warning: Address is empty !!");
-      return null;
+      throw new EncodingException("Warning: Address is empty !!");
     }
     byte[] address = decode58Check(addressBase58);
+    if (address == null) {
+      throw new EncodingException(String.format("Address %s not valid", addressBase58));
+    }
     if (!addressValid(address)) {
-      return null;
+      throw new EncodingException(String.format("Address %s not valid", addressBase58));
     }
     return address;
   }

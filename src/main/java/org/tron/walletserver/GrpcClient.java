@@ -432,7 +432,11 @@ public class GrpcClient {
       }
     }
     if (!response.getResult()) {
-      throw new TransactionException("Code = " + response.getCode() + "; Message = " + response.getMessage().toStringUtf8());
+      throw new TransactionException(
+              "Code = " + response.getCode().name() + " " + response.getCode().getNumber() + "; Message = " + response.getMessage().toStringUtf8(),
+              response.getCode().name(),
+              response.getCode().getNumber()
+      );
     }
     return true;
   }

@@ -26,6 +26,7 @@ import org.tron.common.crypto.SignInterface;
 import org.tron.common.crypto.SignatureInterface;
 import org.tron.core.exception.BadItemException;
 import org.tron.core.exception.CancelException;
+import org.tron.core.exception.EncodingException;
 import org.tron.core.exception.TransactionException;
 import org.tron.protos.Contract;
 import org.tron.protos.Protocol;
@@ -305,12 +306,14 @@ public class TransactionUtils {
 
       if (weight.getResult().getCode() == GrpcAPI.TransactionSignWeight.Result.response_code.NOT_ENOUGH_PERMISSION) {
           throw new TransactionException(String.format("Current signWeight is: %s. Get error with response code: %s",
-                  Utils.printTransactionSignWeight(weight), GrpcAPI.TransactionSignWeight.Result.response_code.NOT_ENOUGH_PERMISSION.name()));
+                  Utils.printTransactionSignWeight(weight), GrpcAPI.TransactionSignWeight.Result.response_code.NOT_ENOUGH_PERMISSION.name()),
+                  weight.getResult().getCode().name(), weight.getResult().getCode().getNumber()
+              );
       }
 
       boolean broadcastTransaction = GrpcClientHolder.getGrpcClient().broadcastTransaction(transactionSigned);
       if (!broadcastTransaction) {
-          throw new TransactionException("Something gone wrong. Status false after broadcast transaction.");
+          throw new TransactionException("Something gone wrong. Status false after broadcast transaction.", "OTHER_ERROR", 20);
       }
       return transactionSigned;
   }
@@ -364,5 +367,14 @@ public class TransactionUtils {
         builder.setPrivateKey(ByteString.copyFrom(privateKey));
         builder.setTransaction(transaction);
         return GrpcClientHolder.getGrpcClient().signTransaction2(builder.build());
+    }
+
+    public static boolean validateAddress(String address) {
+        try {
+            WalletApi.decodeFromBase58Check(address);
+        } catch (EncodingException ex) {
+            return false;
+        }
+        return true;
     }
 }

@@ -1,6 +1,6 @@
 package org.tron.core.exception;
 
-public class EncodingException extends TronException {
+public class EncodingException extends RuntimeException {
   public EncodingException() {
     super();
   }
