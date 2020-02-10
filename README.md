@@ -1074,7 +1074,7 @@ getTransactionInfoById 10040f993cd9452b25bf367f38edadf11176355802baf61f3c49b96b4
 } 
 ```
 
-- get the order created by account(include all status)
+- get the order created by account(just include active status)
 GetMarketOrderByAccount ownerAddress    
 Example:   
 GetMarketOrderByAccount TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW
@@ -1094,6 +1094,24 @@ GetMarketOrderByAccount TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW
 	]
 }  
 ```  
+
+- get order by order_id
+GetMarketOrderById orderId   
+Example:  
+GetMarketOrderById fc9c64dfd48ae58952e85f05ecb8ec87f55e19402493bb2df501ae9d2da75db0
+```
+{
+	"order_id": "fc9c64dfd48ae58952e85f05ecb8ec87f55e19402493bb2df501ae9d2da75db0",
+	"owner_address": "TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW",
+	"create_time": 1578983490000,
+	"sell_token_id": "_",
+	"sell_token_quantity": 100,
+	"buy_token_id": "1000001",
+	"buy_token_quantity": 200,
+	"state": "CANCELED"
+}
+```
+
 	
 - get market pair list
 getMarketPairList
@@ -1228,6 +1246,7 @@ For more information on a specific command, just type the command on terminal wh
   GetExpandedSpendingKey   
   GetIncomingViewingKey   
   GetMarketOrderByAccount   
+  GetMarketOrderById   
   GetMarketOrderListByPair   
   GetMarketPairList   
   GetMarketPriceByPair   

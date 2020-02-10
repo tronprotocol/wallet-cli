@@ -96,6 +96,7 @@ public class Client {
       "GetExpandedSpendingKey",
       "GetIncomingViewingKey",
       "GetMarketOrderByAccount",
+      "GetMarketOrderById",
       "GetMarketOrderListByPair",
       "GetMarketPairList",
       "GetMarketPriceByPair",
@@ -205,6 +206,7 @@ public class Client {
       "GetExpandedSpendingKey",
       "GetIncomingViewingKey",
       "GetMarketOrderByAccount",
+      "GetMarketOrderById",
       "GetMarketOrderListByPair",
       "GetMarketPairList",
       "GetMarketPriceByPair",
@@ -269,7 +271,7 @@ public class Client {
 
 
   private void sysPrint(String msg) {
-    sysPrint(msg);
+    System.out.println(msg);
   }
 
   private byte[] inputPrivateKey() throws IOException {
@@ -2913,19 +2915,20 @@ public class Client {
   }
 
   private void getMarketOrderById(String[] parameters) {
-    if (parameters == null || parameters.length != 0) {
-      System.out.println("Using getMarketOrderById command needs 1 parameters like:");
-      System.out.println(
+    if (parameters == null || parameters.length != 1) {
+      sysPrint("Using getMarketOrderById command needs 1 parameters like:");
+      sysPrint(
           "getMarketOrderById orderId");
       return;
     }
-    byte[] orderId = parameters[0].getBytes();
-    Optional<MarketOrder> pairList = walletApiWrapper
+
+    byte[] orderId = ByteArray.fromHexString(parameters[0]);
+    Optional<MarketOrder> order = walletApiWrapper
         .getMarketOrderById(orderId);
-    if (!pairList.isPresent()) {
-      System.out.println("getMarketOrderById failed !!!");
+    if (!order.isPresent()) {
+      sysPrint("getMarketOrderById failed !!!");
     } else {
-      System.out.println(Utils.formatMessageString(pairList.get()));
+      sysPrint(Utils.formatMessageString(order.get()));
     }
   }
 
