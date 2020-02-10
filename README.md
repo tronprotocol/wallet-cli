@@ -1440,106 +1440,270 @@ pkd:3a7406c13767c7d08f2883f4884ec6aafdfcdeacebde45f1f4db98df5bf0a1ca
 d  :2fd028965d3b455579ab28
 ```
 
+
+How to use tron-dex to sell asset
+-----------------------------------
+
+-  create an order to sell asset    
+MarketSellAsset owner_address sell_token_id sell_token_quantity buy_token_id buy_token_quantity   
+*ownerAddress:The address of the account that initiated the transaction, optional, default is the address of the login account.*          
+*sell_token_id, sell_token_quantity:ID and amount of the token want to sell*      
+*buy_token_id, buy_token_quantity:ID and amount of the token want to buy*     
+
+Example:    
+MarketSellAsset TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW  _ 100 1000001 200      
+Get the result of the contract execution with the getTransactionInfoById command:   
+getTransactionInfoById 10040f993cd9452b25bf367f38edadf11176355802baf61f3c49b96b4480d374   
+
+```
+{
+	"id": "10040f993cd9452b25bf367f38edadf11176355802baf61f3c49b96b4480d374",
+	"blockNumber": 669,
+	"blockTimeStamp": 1578983493000,
+	"contractResult": [
+		""
+	],
+	"receipt": {
+		"net_usage": 264
+	}
+} 
+```
+
+- get the order created by account(just include active status)   
+GetMarketOrderByAccount ownerAddress    
+Example:   
+GetMarketOrderByAccount TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW   
+```
+{
+	"orders": [
+		{
+			"order_id": "fc9c64dfd48ae58952e85f05ecb8ec87f55e19402493bb2df501ae9d2da75db0",
+			"owner_address": "TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW",
+			"create_time": 1578983490000,
+			"sell_token_id": "_",
+			"sell_token_quantity": 100,
+			"buy_token_id": "1000001",
+			"buy_token_quantity": 200,
+			"sell_token_quantity_remain": 100
+		}
+	]
+}  
+```  
+
+- get order by order_id   
+GetMarketOrderById orderId   
+Example:  
+GetMarketOrderById fc9c64dfd48ae58952e85f05ecb8ec87f55e19402493bb2df501ae9d2da75db0   
+```
+{
+	"order_id": "fc9c64dfd48ae58952e85f05ecb8ec87f55e19402493bb2df501ae9d2da75db0",
+	"owner_address": "TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW",
+	"create_time": 1578983490000,
+	"sell_token_id": "_",
+	"sell_token_quantity": 100,
+	"buy_token_id": "1000001",
+	"buy_token_quantity": 200,
+	"state": "CANCELED"
+}
+```
+
+	
+- get market pair list   
+getMarketPairList   
+Example:  
+getMarketPairList   
+```
+{
+	"orderPair": [
+		{
+			"sell_token_id": "_",
+			"buy_token_id": "1000001"
+		}
+	]
+}
+```
+
+- get order list by pair   
+GetMarketOrderListByPair sell_token_id buy_token_id   
+*sell_token_id:ID of the token want to sell*      
+*buy_token_id:ID of the token want to buy* 
+
+Example: 
+GetMarketOrderListByPair _ 1000001   
+```
+{
+	"orders": [
+		{
+			"order_id": "fc9c64dfd48ae58952e85f05ecb8ec87f55e19402493bb2df501ae9d2da75db0",
+			"owner_address": "TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW",
+			"create_time": 1578983490000,
+			"sell_token_id": "_",
+			"sell_token_quantity": 100,
+			"buy_token_id": "1000001",
+			"buy_token_quantity": 200,
+			"sell_token_quantity_remain": 100
+		}
+	]
+}
+```
+
+- get market price by pair   
+GetMarketPriceByPair sell_token_id buy_token_id   
+*sell_token_id:ID of the token want to sell*      
+*buy_token_id:ID of the token want to buy* 
+
+Example:   
+GetMarketPriceByPair _ 1000001   
+```
+{
+	"sell_token_id": "_",
+	"buy_token_id": "1000001",
+	"prices": [
+		{
+			"sell_token_quantity": 100,
+			"buy_token_quantity": 200
+		}
+	]
+}
+```
+
+- cancel the order   
+MarketCancelOrder owner_address order_id   
+*owner_address: the account address who have created the order*   
+*order_id: the order id which want to cancel*   
+
+Example:   
+MarketCancelOrder TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW fc9c64dfd48ae58952e85f05ecb8ec87f55e19402493bb2df501ae9d2da75db0     
+Get the result of the contract execution with the getTransactionInfoById command:  
+getTransactionInfoById b375787a098498623403c755b1399e82910385251b643811936d914c9f37bd27   
+```
+{
+	"id": "b375787a098498623403c755b1399e82910385251b643811936d914c9f37bd27",
+	"blockNumber": 1582,
+	"blockTimeStamp": 1578986232000,
+	"contractResult": [
+		""
+	],
+	"receipt": {
+		"net_usage": 283
+	}
+}
+```
+
 ## Command List
 
-Following is a list of Tron Wallet-cli commands:
-For more information on a specific command, just type the command on terminal when you start your Wallet.
+Following is a list of Tron Wallet-cli commands:  
+For more information on a specific command, just type the command on terminal when you start your Wallet.   
 
-    AddTransactionSign
-    ApproveProposal
-    AssetIssue
-    BackupShieldedWallet
-    BackupWallet
-    BackupWallet2Base64
-    BroadcastTransaction
-    ChangePassword
-    ClearContractABI
-    Create2
-    CreateAccount
-    CreateProposal
-    CreateWitness
-    DeleteProposal
-    DeployContract
-    ExchangeCreate
-    ExchangeInject
-    ExchangeTransaction
-    ExchangeWithdraw
-    FreezeBalance
-    GenerateAddress
-    GenerateShieldedAddress
-    GetAccount
-    GetAccountNet
-    GetAccountResource
-    GetAddress
-    GetAssetIssueByAccount
-    GetAssetIssueById
-    GetAssetIssueByName
-    GetAssetIssueListByName
-    GetBalance
-    GetBlock
-    GetBlockById
-    GetBlockByLatestNum
-    GetBlockByLimitNext
-    GetChainParameters
-    GetContract contractAddress
-    GetDelegatedResource
-    GetDelegatedResourceAccountIndex
-    GetDiversifier
-    GetExchange
-    GetExpandedSpendingKey
-    GetIncomingViewingKey
-    GetNextMaintenanceTime
-    GetShieldedNullifier
-    GetSpendingKey
-    GetProposal
-    GetTotalTransaction
-    GetTransactionApprovedList
-    GetTransactionById
-    GetTransactionCountByBlockNum
-    GetTransactionInfoById
-    GetTransactionsFromThis
-    GetTransactionsToThis
-    GetTransactionSignWeight
-    ImportShieldedWallet
-    ImportWallet
-    ImportWalletByBase64
-    ListAssetIssue
-    ListAssetIssuePaginated
-    ListExchanges
-    ListExchangesPaginated
-    ListNodes
-    ListShieldedAddress
-    ListShieldedNote
-    ListProposals
-    ListProposalsPaginated
-    ListWitnesses
-    Login
-    Logout
-    LoadShieldedWallet
-    ParticipateAssetIssue
-    RegisterWallet
-    ResetShieldedNote
-    ScanAndMarkNotebyAddress
-    ScanNotebyIvk
-    ScanNotebyOvk
-    SendCoin
-    SendShieldedCoin
-    SendShieldedCoinWithoutAsk
-    SetAccountId
-    ShowShieldedAddressInfo
-    TransferAsset
-    TriggerContract
-    TriggerConstantContract
-    UnfreezeAsset
-    UnfreezeBalance
-    UpdateAccount
-    UpdateAsset
-    UpdateEnergyLimit
-    UpdateSetting
-    UpdateWitness
-    UpdateAccountPermission
-    VoteWitness
-    WithdrawBalance
-    Exit or Quit
+  AddTransactionSign   
+  ApproveProposal   
+  AssetIssue   
+  BackupShieldedAddress   
+  BackupWallet   
+  BackupWallet2Base64   
+  BroadcastTransaction   
+  ChangePassword   
+  ClearContractABI   
+  Create2   
+  CreateAccount   
+  CreateProposal   
+  CreateWitness   
+  DeleteProposal   
+  DeployContract   
+  ExchangeCreate   
+  ExchangeInject   
+  ExchangeTransaction   
+  ExchangeWithdraw   
+  FreezeBalance   
+  GenerateAddress   
+  GenerateShieldedAddress   
+  GetAccount   
+  GetAccountNet   
+  GetAccountResource   
+  GetAddress   
+  GetAkFromAsk   
+  GetAssetIssueByAccount   
+  GetAssetIssueById   
+  GetAssetIssueByName   
+  GetAssetIssueListByName   
+  GetBalance   
+  GetBlock   
+  GetBlockById   
+  GetBlockByLatestNum   
+  GetBlockByLimitNext   
+  GetBrokerage   
+  GetChainParameters   
+  GetContract   
+  GetDelegatedResource   
+  GetDelegatedResourceAccountIndex   
+  GetDiversifier   
+  GetExchange   
+  GetExpandedSpendingKey   
+  GetIncomingViewingKey   
+  GetMarketOrderByAccount   
+  GetMarketOrderById   
+  GetMarketOrderListByPair   
+  GetMarketPairList   
+  GetMarketPriceByPair   
+  GetNextMaintenanceTime   
+  GetNkFromNsk   
+  GetProposal   
+  GetReward   
+  GetShieldedNullifier   
+  GetSpendingKey   
+  GetTotalTransaction   
+  GetTransactionApprovedList   
+  GetTransactionById   
+  GetTransactionCountByBlockNum   
+  GetTransactionInfoById   
+  GetTransactionSignWeight   
+  GetTransactionsFromThis   
+  GetTransactionsToThis   
+  Help   
+  ImportShieldedAddress   
+  ImportWallet   
+  ImportWalletByBase64   
+  ListAssetIssue   
+  ListAssetIssuePaginated   
+  ListExchanges   
+  ListExchangesPaginated   
+  ListNodes   
+  ListProposals   
+  ListProposalsPaginated   
+  ListShieldedAddress   
+  ListShieldedNote   
+  ListWitnesses   
+  LoadShieldedWallet   
+  Login   
+  Logout   
+  MarketCancelOrder   
+  MarketSellAsset   
+  ParticipateAssetIssue   
+  RegisterWallet   
+  ResetShieldedNote   
+  ScanAndMarkNotebyAddress   
+  ScanNotebyIvk   
+  ScanNotebyOvk   
+  SendCoin   
+  SendShieldedCoin   
+  SendShieldedCoinWithoutAsk   
+  SetAccountId   
+  TransferAsset   
+  TriggerConstantContract   
+  TriggerContract   
+  UnfreezeAsset   
+  UnfreezeBalance   
+  UpdateAccount   
+  UpdateAccountPermission   
+  UpdateAsset   
+  UpdateBrokerage   
+  UpdateEnergyLimit   
+  UpdateSetting   
+  UpdateWitness   
+  VoteWitness   
+  WithdrawBalance       
+  Exit or Quit    
+	
 
-Type any one of the listed commands, to display how-to tips.
+Input any one of the listed commands, to display how-to tips.   
+

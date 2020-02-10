@@ -525,7 +525,19 @@ public class Utils {
                         JSONObject.parseObject(
                             JsonFormat.printToString(updateBrokerageContract, selfType));
                     break;
-                    // todo add other contract
+                  case MarketSellAssetContract:
+                    MarketSellAssetContract marketSellAssetContract = contract.getParameter()
+                        .unpack(MarketSellAssetContract.class);
+                    contractJson = JSONObject
+                        .parseObject(JsonFormat.printToString(marketSellAssetContract, selfType));
+                    break;
+                  case MarketCancelOrderContract:
+                    MarketCancelOrderContract marketCancelOrderContract = contract.getParameter()
+                        .unpack(MarketCancelOrderContract.class);
+                    contractJson = JSONObject
+                        .parseObject(JsonFormat.printToString(marketCancelOrderContract, selfType));
+                    break;
+                  // todo add other contract
                   default:
                 }
                 JSONObject parameter = new JSONObject();

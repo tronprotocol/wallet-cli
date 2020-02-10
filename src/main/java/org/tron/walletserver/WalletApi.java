@@ -2456,4 +2456,65 @@ public class WalletApi {
   public static GrpcAPI.NumberMessage getBrokerage(byte[] owner) {
     return rpcCli.getBrokerage(owner);
   }
+
+  public boolean marketSellAsset(
+      byte[] owner,
+      byte[] sellTokenId,
+      long sellTokenQuantity,
+      byte[] buyTokenId,
+      long buyTokenQuantity)
+      throws IOException, CipherException, CancelException {
+    if (owner == null) {
+      owner = getAddress();
+    }
+
+    Contract.MarketSellAssetContract.Builder builder =
+        Contract.MarketSellAssetContract.newBuilder();
+    builder
+        .setOwnerAddress(ByteString.copyFrom(owner))
+        .setSellTokenId(ByteString.copyFrom(sellTokenId))
+        .setSellTokenQuantity(sellTokenQuantity)
+        .setBuyTokenId(ByteString.copyFrom(buyTokenId))
+        .setBuyTokenQuantity(buyTokenQuantity);
+
+    TransactionExtention transactionExtention = rpcCli.marketSellAsset(builder.build());
+    return processTransactionExtention(transactionExtention);
+  }
+
+  public boolean marketCancelOrder(byte[] owner, byte[] orderId)
+      throws IOException, CipherException, CancelException {
+    if (owner == null) {
+      owner = getAddress();
+    }
+
+    Contract.MarketCancelOrderContract.Builder builder =
+        Contract.MarketCancelOrderContract.newBuilder();
+    builder.setOwnerAddress(ByteString.copyFrom(owner)).setOrderId(ByteString.copyFrom(orderId));
+
+    TransactionExtention transactionExtention = rpcCli.marketCancelOrder(builder.build());
+    return processTransactionExtention(transactionExtention);
+  }
+
+  public static Optional<MarketOrderList> getMarketOrderByAccount(byte[] address) {
+    return rpcCli.getMarketOrderByAccount(address);
+  }
+
+  public static Optional<MarketPriceList> GetMarketPriceByPair(
+      byte[] sellTokenId, byte[] buyTokenId) {
+    return rpcCli.getMarketPriceByPair(sellTokenId, buyTokenId);
+  }
+
+  public static Optional<MarketOrderList> getMarketOrderListByPair(
+      byte[] sellTokenId, byte[] buyTokenId) {
+    return rpcCli.getMarketOrderListByPair(sellTokenId, buyTokenId);
+  }
+
+  public static Optional<MarketOrderPairList> getMarketPairList() {
+    return rpcCli.getMarketPairList();
+  }
+
+  public static Optional<MarketOrder> getMarketOrderById(byte[] order) {
+    return rpcCli.getMarketOrderById(order);
+  }
+
 }

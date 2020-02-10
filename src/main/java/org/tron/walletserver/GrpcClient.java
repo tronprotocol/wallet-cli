@@ -894,4 +894,86 @@ public class GrpcClient {
       return blockingStubFull.getBrokerageInfo(bytesMessage);
     }
   }
+
+  public TransactionExtention marketSellAsset(Contract.MarketSellAssetContract request) {
+    if (blockingStubSolidity != null) {
+      return blockingStubSolidity.marketSellAsset(request);
+    } else {
+      return blockingStubFull.marketSellAsset(request);
+    }
+  }
+
+  public TransactionExtention marketCancelOrder(Contract.MarketCancelOrderContract request) {
+    if (blockingStubSolidity != null) {
+      return blockingStubSolidity.marketCancelOrder(request);
+    } else {
+      return blockingStubFull.marketCancelOrder(request);
+    }
+  }
+
+  public Optional<MarketOrderList> getMarketOrderByAccount(byte[] address) {
+    ByteString addressBS = ByteString.copyFrom(address);
+    BytesMessage request = BytesMessage.newBuilder().setValue(addressBS).build();
+
+    MarketOrderList marketOrderList = blockingStubFull.getMarketOrderByAccount(request);
+    return Optional.ofNullable(marketOrderList);
+  }
+
+  public Optional<MarketPriceList> getMarketPriceByPair(byte[] sellTokenId, byte[] buyTokenId) {
+    MarketOrderPair request =
+        MarketOrderPair.newBuilder()
+            .setSellTokenId(ByteString.copyFrom(sellTokenId))
+            .setBuyTokenId(ByteString.copyFrom(buyTokenId))
+            .build();
+
+    MarketPriceList marketPriceList;
+    if (blockingStubSolidity != null) {
+      marketPriceList =blockingStubSolidity.getMarketPriceByPair(request);
+    } else {
+      marketPriceList = blockingStubFull.getMarketPriceByPair(request);
+    }
+    return Optional.ofNullable(marketPriceList);
+  }
+
+
+  public Optional<MarketOrderList> getMarketOrderListByPair(byte[] sellTokenId, byte[] buyTokenId) {
+    MarketOrderPair request =
+        MarketOrderPair.newBuilder()
+            .setSellTokenId(ByteString.copyFrom(sellTokenId))
+            .setBuyTokenId(ByteString.copyFrom(buyTokenId))
+            .build();
+
+    MarketOrderList marketOrderList;
+    if (blockingStubSolidity != null) {
+      marketOrderList =blockingStubSolidity.getMarketOrderListByPair(request);
+    } else {
+      marketOrderList = blockingStubFull.getMarketOrderListByPair(request);
+    }
+    return Optional.ofNullable(marketOrderList);
+  }
+
+
+  public Optional<MarketOrderPairList> getMarketPairList() {
+
+    MarketOrderPairList orderPairList;
+    if (blockingStubSolidity != null) {
+      orderPairList =blockingStubSolidity.getMarketPairList(EmptyMessage.newBuilder().build());
+    } else {
+      orderPairList = blockingStubFull.getMarketPairList(EmptyMessage.newBuilder().build());
+    }
+    return Optional.ofNullable(orderPairList);
+  }
+
+  public Optional<MarketOrder> getMarketOrderById(byte[] order) {
+    ByteString orderBytes = ByteString.copyFrom(order);
+    BytesMessage request = BytesMessage.newBuilder().setValue(orderBytes).build();
+    MarketOrder orderPair;
+    if (blockingStubSolidity != null) {
+      orderPair =blockingStubSolidity.getMarketOrderById(request);
+    } else {
+      orderPair = blockingStubFull.getMarketOrderById(request);
+    }
+    return Optional.ofNullable(orderPair);
+  }
+
 }
