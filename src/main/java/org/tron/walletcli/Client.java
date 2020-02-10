@@ -269,15 +269,10 @@ public class Client {
       "WithdrawBalance",
   };
 
-
-  private void sysPrint(String msg) {
-    System.out.println(msg);
-  }
-
   private byte[] inputPrivateKey() throws IOException {
     byte[] temp = new byte[128];
     byte[] result = null;
-    sysPrint("Please input private key. Max retry time:" + retryTime);
+    System.out.println("Please input private key. Max retry time:" + retryTime);
     int nTime = 0;
     while (nTime < retryTime) {
       int len = System.in.read(temp, 0, temp.length);
@@ -290,7 +285,7 @@ public class Client {
         }
       }
       StringUtils.clear(result);
-      sysPrint("Invalid private key, please input again.");
+      System.out.println("Invalid private key, please input again.");
       ++nTime;
     }
     StringUtils.clear(temp);
@@ -301,7 +296,7 @@ public class Client {
     Decoder decoder = Base64.getDecoder();
     byte[] temp = new byte[128];
     byte[] result = null;
-    sysPrint("Please input private key by base64. Max retry time:" + retryTime);
+    System.out.println("Please input private key by base64. Max retry time:" + retryTime);
     int nTime = 0;
     while (nTime < retryTime) {
       int len = System.in.read(temp, 0, temp.length);
@@ -313,7 +308,7 @@ public class Client {
           break;
         }
       }
-      sysPrint("Invalid base64 private key, please input again.");
+      System.out.println("Invalid base64 private key, please input again.");
       ++nTime;
     }
     StringUtils.clear(temp);
@@ -326,10 +321,10 @@ public class Client {
     StringUtils.clear(password);
 
     if (null == fileName) {
-      sysPrint("Register wallet failed !!");
+      System.out.println("Register wallet failed !!");
       return;
     }
-    sysPrint("Register a wallet successful, keystore file name is " + fileName);
+    System.out.println("Register a wallet successful, keystore file name is " + fileName);
   }
 
   private void importWallet() throws CipherException, IOException {
@@ -341,10 +336,10 @@ public class Client {
     StringUtils.clear(priKey);
 
     if (null == fileName) {
-      sysPrint("Import wallet failed !!");
+      System.out.println("Import wallet failed !!");
       return;
     }
-    sysPrint("Import a wallet successful, keystore file name is " + fileName);
+    System.out.println("Import a wallet successful, keystore file name is " + fileName);
   }
 
   private void importWalletByBase64() throws CipherException, IOException {
@@ -356,55 +351,55 @@ public class Client {
     StringUtils.clear(priKey);
 
     if (null == fileName) {
-      sysPrint("Import wallet failed !!");
+      System.out.println("Import wallet failed !!");
       return;
     }
-    sysPrint("Import a wallet successful, keystore file name is " + fileName);
+    System.out.println("Import a wallet successful, keystore file name is " + fileName);
   }
 
   private void changePassword() throws IOException, CipherException {
-    sysPrint("Please input old password.");
+    System.out.println("Please input old password.");
     char[] oldPassword = Utils.inputPassword(false);
-    sysPrint("Please input new password.");
+    System.out.println("Please input new password.");
     char[] newPassword = Utils.inputPassword2Twice();
     if (walletApiWrapper.changePassword(oldPassword, newPassword)) {
-      sysPrint("ChangePassword successful !!");
+      System.out.println("ChangePassword successful !!");
     } else {
-      sysPrint("ChangePassword failed !!");
+      System.out.println("ChangePassword failed !!");
     }
   }
 
   private void login() throws IOException, CipherException {
     boolean result = walletApiWrapper.login();
     if (result) {
-      sysPrint("Login successful !!!");
+      System.out.println("Login successful !!!");
     } else {
-      sysPrint("Login failed !!!");
+      System.out.println("Login failed !!!");
     }
   }
 
   private void logout() {
     walletApiWrapper.logout();
-    sysPrint("Logout successful !!!");
+    System.out.println("Logout successful !!!");
   }
 
   private void loadShieldedWallet() throws CipherException, IOException {
     boolean result = ShieldedWrapper.getInstance().loadShieldWallet();
     if (result) {
-      sysPrint("LoadShieldedWallet successful !!!");
+      System.out.println("LoadShieldedWallet successful !!!");
     } else {
-      sysPrint("LoadShieldedWallet failed !!!");
+      System.out.println("LoadShieldedWallet failed !!!");
     }
   }
 
   private void backupWallet() throws IOException, CipherException {
     byte[] priKey = walletApiWrapper.backupWallet();
     if (!ArrayUtils.isEmpty(priKey)) {
-      sysPrint("BackupWallet successful !!");
+      System.out.println("BackupWallet successful !!");
       for (int i = 0; i < priKey.length; i++) {
         StringUtils.printOneByte(priKey[i]);
       }
-      sysPrint("\n");
+      System.out.println("\n");
     }
     StringUtils.clear(priKey);
   }
@@ -416,11 +411,11 @@ public class Client {
       Encoder encoder = Base64.getEncoder();
       byte[] priKey64 = encoder.encode(priKey);
       StringUtils.clear(priKey);
-      sysPrint("BackupWallet successful !!");
+      System.out.println("BackupWallet successful !!");
       for (int i = 0; i < priKey64.length; i++) {
         System.out.print((char) priKey64[i]);
       }
-      sysPrint("\n");
+      System.out.println("\n");
       StringUtils.clear(priKey64);
     }
   }
@@ -428,8 +423,8 @@ public class Client {
   private void getAddress() {
     String address = walletApiWrapper.getAddress();
     if (address != null) {
-      sysPrint("GetAddress successful !!");
-      sysPrint("address = " + address);
+      System.out.println("GetAddress successful !!");
+      System.out.println("address = " + address);
     }
   }
 
@@ -444,23 +439,23 @@ public class Client {
       }
       account = WalletApi.queryAccount(addressBytes);
     } else {
-      sysPrint("GetBalance needs no parameter or 1 parameter like the following: ");
-      sysPrint("GetBalance Address ");
+      System.out.println("GetBalance needs no parameter or 1 parameter like the following: ");
+      System.out.println("GetBalance Address ");
       return;
     }
 
     if (account == null) {
-      sysPrint("GetBalance failed !!!!");
+      System.out.println("GetBalance failed !!!!");
     } else {
       long balance = account.getBalance();
-      sysPrint("Balance = " + balance);
+      System.out.println("Balance = " + balance);
     }
   }
 
   private void getAccount(String[] parameters) {
     if (parameters == null || parameters.length != 1) {
-      sysPrint("GetAccount needs 1 parameter like the following: ");
-      sysPrint("GetAccount Address ");
+      System.out.println("GetAccount needs 1 parameter like the following: ");
+      System.out.println("GetAccount Address ");
       return;
     }
     String address = parameters[0];
@@ -471,33 +466,33 @@ public class Client {
 
     Account account = WalletApi.queryAccount(addressBytes);
     if (account == null) {
-      sysPrint("GetAccount failed !!!!");
+      System.out.println("GetAccount failed !!!!");
     } else {
-      sysPrint(Utils.formatMessageString(account));
+      System.out.println(Utils.formatMessageString(account));
     }
   }
 
   private void getAccountById(String[] parameters) {
     if (parameters == null || parameters.length != 1) {
-      sysPrint("GetAccountById needs 1 parameter like the following: ");
-      sysPrint("GetAccountById accountId ");
+      System.out.println("GetAccountById needs 1 parameter like the following: ");
+      System.out.println("GetAccountById accountId ");
       return;
     }
     String accountId = parameters[0];
 
     Account account = WalletApi.queryAccountById(accountId);
     if (account == null) {
-      sysPrint("GetAccountById failed !!!!");
+      System.out.println("GetAccountById failed !!!!");
     } else {
-      sysPrint(Utils.formatMessageString(account));
+      System.out.println(Utils.formatMessageString(account));
     }
   }
 
   private void updateAccount(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || (parameters.length != 1 && parameters.length != 2)) {
-      sysPrint("UpdateAccount needs 1 parameter like the following: ");
-      sysPrint("UpdateAccount [OwnerAddress] AccountName ");
+      System.out.println("UpdateAccount needs 1 parameter like the following: ");
+      System.out.println("UpdateAccount [OwnerAddress] AccountName ");
       return;
     }
 
@@ -506,7 +501,7 @@ public class Client {
     if (parameters.length == 2) {
       ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
       if (ownerAddress == null) {
-        sysPrint("Invalid OwnerAddress.");
+        System.out.println("Invalid OwnerAddress.");
         return;
       }
     }
@@ -515,17 +510,17 @@ public class Client {
 
     boolean ret = walletApiWrapper.updateAccount(ownerAddress, accountNameBytes);
     if (ret) {
-      sysPrint("Update Account successful !!!!");
+      System.out.println("Update Account successful !!!!");
     } else {
-      sysPrint("Update Account failed !!!!");
+      System.out.println("Update Account failed !!!!");
     }
   }
 
   private void setAccountId(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || (parameters.length != 1 && parameters.length != 2)) {
-      sysPrint("SetAccountId needs 1 parameter like the following: ");
-      sysPrint("SetAccountId [OwnerAddress] AccountId ");
+      System.out.println("SetAccountId needs 1 parameter like the following: ");
+      System.out.println("SetAccountId [OwnerAddress] AccountId ");
       return;
     }
 
@@ -534,7 +529,7 @@ public class Client {
     if (parameters.length == 2) {
       ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
       if (ownerAddress == null) {
-        sysPrint("Invalid OwnerAddress.");
+        System.out.println("Invalid OwnerAddress.");
         return;
       }
     }
@@ -543,17 +538,17 @@ public class Client {
 
     boolean ret = walletApiWrapper.setAccountId(ownerAddress, accountIdBytes);
     if (ret) {
-      sysPrint("Set AccountId successful !!!!");
+      System.out.println("Set AccountId successful !!!!");
     } else {
-      sysPrint("Set AccountId failed !!!!");
+      System.out.println("Set AccountId failed !!!!");
     }
   }
 
   private void updateAsset(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || (parameters.length != 4 && parameters.length != 5)) {
-      sysPrint("UpdateAsset needs 4 parameters like the following: ");
-      sysPrint("UpdateAsset [OwnerAddress] newLimit newPublicLimit description url");
+      System.out.println("UpdateAsset needs 4 parameters like the following: ");
+      System.out.println("UpdateAsset [OwnerAddress] newLimit newPublicLimit description url");
       return;
     }
 
@@ -562,7 +557,7 @@ public class Client {
     if (parameters.length == 5) {
       ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
       if (ownerAddress == null) {
-        sysPrint("Invalid OwnerAddress.");
+        System.out.println("Invalid OwnerAddress.");
         return;
       }
     }
@@ -579,16 +574,16 @@ public class Client {
     boolean ret = walletApiWrapper
         .updateAsset(ownerAddress, descriptionBytes, urlBytes, newLimit, newPublicLimit);
     if (ret) {
-      sysPrint("Update Asset successful !!!!");
+      System.out.println("Update Asset successful !!!!");
     } else {
-      sysPrint("Update Asset failed !!!!");
+      System.out.println("Update Asset failed !!!!");
     }
   }
 
   private void getAssetIssueByAccount(String[] parameters) {
     if (parameters == null || parameters.length != 1) {
-      sysPrint("GetAssetIssueByAccount needs 1 parameter like following: ");
-      sysPrint("GetAssetIssueByAccount Address ");
+      System.out.println("GetAssetIssueByAccount needs 1 parameter like following: ");
+      System.out.println("GetAssetIssueByAccount Address ");
       return;
     }
     String address = parameters[0];
@@ -600,16 +595,16 @@ public class Client {
     Optional<AssetIssueList> result = WalletApi.getAssetIssueByAccount(addressBytes);
     if (result.isPresent()) {
       AssetIssueList assetIssueList = result.get();
-      sysPrint(Utils.formatMessageString(assetIssueList));
+      System.out.println(Utils.formatMessageString(assetIssueList));
     } else {
-      sysPrint("GetAssetIssueByAccount failed !!");
+      System.out.println("GetAssetIssueByAccount failed !!");
     }
   }
 
   private void getAccountNet(String[] parameters) {
     if (parameters == null || parameters.length != 1) {
-      sysPrint("GetAccountNet needs 1 parameter like following: ");
-      sysPrint("GetAccountNet Address ");
+      System.out.println("GetAccountNet needs 1 parameter like following: ");
+      System.out.println("GetAccountNet Address ");
       return;
     }
     String address = parameters[0];
@@ -620,16 +615,16 @@ public class Client {
 
     AccountNetMessage result = WalletApi.getAccountNet(addressBytes);
     if (result == null) {
-      sysPrint("GetAccountNet failed !!");
+      System.out.println("GetAccountNet failed !!");
     } else {
-      sysPrint(Utils.formatMessageString(result));
+      System.out.println(Utils.formatMessageString(result));
     }
   }
 
   private void getAccountResource(String[] parameters) {
     if (parameters == null || parameters.length != 1) {
-      sysPrint("getAccountResource needs 1 parameter like following: ");
-      sysPrint("getAccountResource Address ");
+      System.out.println("getAccountResource needs 1 parameter like following: ");
+      System.out.println("getAccountResource Address ");
       return;
     }
     String address = parameters[0];
@@ -640,9 +635,9 @@ public class Client {
 
     AccountResourceMessage result = WalletApi.getAccountResource(addressBytes);
     if (result == null) {
-      sysPrint("getAccountResource failed !!");
+      System.out.println("getAccountResource failed !!");
     } else {
-      sysPrint(Utils.formatMessageString(result));
+      System.out.println(Utils.formatMessageString(result));
     }
   }
 
@@ -651,24 +646,24 @@ public class Client {
   // This function just remains for compatibility.
   private void getAssetIssueByName(String[] parameters) {
     if (parameters == null || parameters.length != 1) {
-      sysPrint("GetAssetIssueByName needs 1 parameter like following: ");
-      sysPrint("GetAssetIssueByName AssetName ");
+      System.out.println("GetAssetIssueByName needs 1 parameter like following: ");
+      System.out.println("GetAssetIssueByName AssetName ");
       return;
     }
     String assetName = parameters[0];
 
     AssetIssueContract assetIssueContract = WalletApi.getAssetIssueByName(assetName);
     if (assetIssueContract != null) {
-      sysPrint(Utils.formatMessageString(assetIssueContract));
+      System.out.println(Utils.formatMessageString(assetIssueContract));
     } else {
-      sysPrint("getAssetIssueByName failed !!");
+      System.out.println("getAssetIssueByName failed !!");
     }
   }
 
   private void getAssetIssueListByName(String[] parameters) {
     if (parameters == null || parameters.length != 1) {
-      sysPrint("getAssetIssueListByName needs 1 parameter like following: ");
-      sysPrint("getAssetIssueListByName AssetName ");
+      System.out.println("getAssetIssueListByName needs 1 parameter like following: ");
+      System.out.println("getAssetIssueListByName AssetName ");
       return;
     }
     String assetName = parameters[0];
@@ -676,32 +671,32 @@ public class Client {
     Optional<AssetIssueList> result = WalletApi.getAssetIssueListByName(assetName);
     if (result.isPresent()) {
       AssetIssueList assetIssueList = result.get();
-      sysPrint(Utils.formatMessageString(assetIssueList));
+      System.out.println(Utils.formatMessageString(assetIssueList));
     } else {
-      sysPrint("getAssetIssueListByName failed !!");
+      System.out.println("getAssetIssueListByName failed !!");
     }
   }
 
   private void getAssetIssueById(String[] parameters) {
     if (parameters == null || parameters.length != 1) {
-      sysPrint("getAssetIssueById needs 1 parameter like following: ");
-      sysPrint("getAssetIssueById AssetId ");
+      System.out.println("getAssetIssueById needs 1 parameter like following: ");
+      System.out.println("getAssetIssueById AssetId ");
       return;
     }
     String assetId = parameters[0];
 
     AssetIssueContract assetIssueContract = WalletApi.getAssetIssueById(assetId);
     if (assetIssueContract != null) {
-      sysPrint(Utils.formatMessageString(assetIssueContract));
+      System.out.println(Utils.formatMessageString(assetIssueContract));
     } else {
-      sysPrint("getAssetIssueById failed !!");
+      System.out.println("getAssetIssueById failed !!");
     }
   }
 
   private void sendCoin(String[] parameters) throws IOException, CipherException, CancelException {
     if (parameters == null || (parameters.length != 2 && parameters.length != 3)) {
-      sysPrint("SendCoin needs 2 parameters like following: ");
-      sysPrint("SendCoin [OwnerAddress] ToAddress Amount");
+      System.out.println("SendCoin needs 2 parameters like following: ");
+      System.out.println("SendCoin [OwnerAddress] ToAddress Amount");
       return;
     }
 
@@ -710,7 +705,7 @@ public class Client {
     if (parameters.length == 3) {
       ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
       if (ownerAddress == null) {
-        sysPrint("Invalid OwnerAddress.");
+        System.out.println("Invalid OwnerAddress.");
         return;
       }
     }
@@ -718,7 +713,7 @@ public class Client {
     String base58ToAddress = parameters[index++];
     byte[] toAddress = WalletApi.decodeFromBase58Check(base58ToAddress);
     if (toAddress == null) {
-      sysPrint("Invalid toAddress.");
+      System.out.println("Invalid toAddress.");
       return;
     }
 
@@ -727,17 +722,17 @@ public class Client {
 
     boolean result = walletApiWrapper.sendCoin(ownerAddress, toAddress, amount);
     if (result) {
-      sysPrint("Send " + amount + " drop to " + base58ToAddress + " successful !!");
+      System.out.println("Send " + amount + " drop to " + base58ToAddress + " successful !!");
     } else {
-      sysPrint("Send " + amount + " drop to " + base58ToAddress + " failed !!");
+      System.out.println("Send " + amount + " drop to " + base58ToAddress + " failed !!");
     }
   }
 
   private void transferAsset(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || (parameters.length != 3 && parameters.length != 4)) {
-      sysPrint("TransferAsset needs 3 parameters using the following syntax: ");
-      sysPrint("TransferAsset [OwnerAddress] ToAddress AssertID Amount");
+      System.out.println("TransferAsset needs 3 parameters using the following syntax: ");
+      System.out.println("TransferAsset [OwnerAddress] ToAddress AssertID Amount");
       return;
     }
 
@@ -746,7 +741,7 @@ public class Client {
     if (parameters.length == 4) {
       ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
       if (ownerAddress == null) {
-        sysPrint("Invalid OwnerAddress.");
+        System.out.println("Invalid OwnerAddress.");
         return;
       }
     }
@@ -754,7 +749,7 @@ public class Client {
     String base58Address = parameters[index++];
     byte[] toAddress = WalletApi.decodeFromBase58Check(base58Address);
     if (toAddress == null) {
-      sysPrint("Invalid toAddress.");
+      System.out.println("Invalid toAddress.");
       return;
     }
     String assertName = parameters[index++];
@@ -763,17 +758,17 @@ public class Client {
 
     boolean result = walletApiWrapper.transferAsset(ownerAddress, toAddress, assertName, amount);
     if (result) {
-      sysPrint("TransferAsset " + amount + " to " + base58Address + " successful !!");
+      System.out.println("TransferAsset " + amount + " to " + base58Address + " successful !!");
     } else {
-      sysPrint("TransferAsset " + amount + " to " + base58Address + " failed !!");
+      System.out.println("TransferAsset " + amount + " to " + base58Address + " failed !!");
     }
   }
 
   private void participateAssetIssue(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || (parameters.length != 3 && parameters.length != 4)) {
-      sysPrint("ParticipateAssetIssue needs 3 parameters using the following syntax: ");
-      sysPrint("ParticipateAssetIssue [OwnerAddress] ToAddress AssetID Amount");
+      System.out.println("ParticipateAssetIssue needs 3 parameters using the following syntax: ");
+      System.out.println("ParticipateAssetIssue [OwnerAddress] ToAddress AssetID Amount");
       return;
     }
 
@@ -782,7 +777,7 @@ public class Client {
     if (parameters.length == 4) {
       ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
       if (ownerAddress == null) {
-        sysPrint("Invalid OwnerAddress.");
+        System.out.println("Invalid OwnerAddress.");
         return;
       }
     }
@@ -790,7 +785,7 @@ public class Client {
     String base58Address = parameters[index++];
     byte[] toAddress = WalletApi.decodeFromBase58Check(base58Address);
     if (toAddress == null) {
-      sysPrint("Invalid toAddress.");
+      System.out.println("Invalid toAddress.");
       return;
     }
 
@@ -801,10 +796,10 @@ public class Client {
     boolean result = walletApiWrapper
         .participateAssetIssue(ownerAddress, toAddress, assertName, amount);
     if (result) {
-      sysPrint("ParticipateAssetIssue " + assertName + " " + amount + " from " + base58Address
+      System.out.println("ParticipateAssetIssue " + assertName + " " + amount + " from " + base58Address
               + " successful !!");
     } else {
-      sysPrint("ParticipateAssetIssue " + assertName + " " + amount + " from " + base58Address
+      System.out.println("ParticipateAssetIssue " + assertName + " " + amount + " from " + base58Address
               + " failed !!");
     }
   }
@@ -812,12 +807,12 @@ public class Client {
   private void assetIssue(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length < 12) {
-      sysPrint("Use the assetIssue command for features that you require with below syntax: ");
-      sysPrint("AssetIssue [OwnerAddress] AssetName AbbrName TotalSupply TrxNum AssetNum Precision "
+      System.out.println("Use the assetIssue command for features that you require with below syntax: ");
+      System.out.println("AssetIssue [OwnerAddress] AssetName AbbrName TotalSupply TrxNum AssetNum Precision "
               + "StartDate EndDate Description Url FreeNetLimitPerAccount PublicFreeNetLimit "
               + "FrozenAmount0 FrozenDays0 ... FrozenAmountN FrozenDaysN");
-      sysPrint("TrxNum and AssetNum represents the conversion ratio of the tron to the asset.");
-      sysPrint("The StartDate and EndDate format should look like 2018-03-01 2018-03-21 .");
+      System.out.println("TrxNum and AssetNum represents the conversion ratio of the tron to the asset.");
+      System.out.println("The StartDate and EndDate format should look like 2018-03-01 2018-03-21 .");
       return;
     }
 
@@ -826,7 +821,7 @@ public class Client {
     if ((parameters.length & 1) == 1) {
       ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
       if (ownerAddress == null) {
-        sysPrint("Invalid OwnerAddress.");
+        System.out.println("Invalid OwnerAddress.");
         return;
       }
     }
@@ -858,7 +853,7 @@ public class Client {
     if (startDate == null || endDate == null) {
       System.out
           .println("The StartDate and EndDate format should look like 2018-03-01 2018-03-21 .");
-      sysPrint("AssetIssue " + name + " failed !!");
+      System.out.println("AssetIssue " + name + " failed !!");
       return;
     }
     long startTime = startDate.getTime();
@@ -870,17 +865,17 @@ public class Client {
         trxNum, icoNum, precision, startTime, endTime, 0,
         description, url, freeAssetNetLimit, publicFreeNetLimit, frozenSupply);
     if (result) {
-      sysPrint("AssetIssue " + name + " successful !!");
+      System.out.println("AssetIssue " + name + " successful !!");
     } else {
-      sysPrint("AssetIssue " + name + " failed !!");
+      System.out.println("AssetIssue " + name + " failed !!");
     }
   }
 
   private void createAccount(String[] parameters)
       throws CipherException, IOException, CancelException {
     if (parameters == null || (parameters.length != 1 && parameters.length != 2)) {
-      sysPrint("CreateAccount needs 1 parameter using the following syntax: ");
-      sysPrint("CreateAccount [OwnerAddress] Address");
+      System.out.println("CreateAccount needs 1 parameter using the following syntax: ");
+      System.out.println("CreateAccount [OwnerAddress] Address");
       return;
     }
 
@@ -889,30 +884,30 @@ public class Client {
     if (parameters.length == 2) {
       ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
       if (ownerAddress == null) {
-        sysPrint("Invalid OwnerAddress.");
+        System.out.println("Invalid OwnerAddress.");
         return;
       }
     }
 
     byte[] address = WalletApi.decodeFromBase58Check(parameters[index++]);
     if (address == null) {
-      sysPrint("Invalid Address.");
+      System.out.println("Invalid Address.");
       return;
     }
 
     boolean result = walletApiWrapper.createAccount(ownerAddress, address);
     if (result) {
-      sysPrint("CreateAccount successful !!");
+      System.out.println("CreateAccount successful !!");
     } else {
-      sysPrint("CreateAccount failed !!");
+      System.out.println("CreateAccount failed !!");
     }
   }
 
   private void createWitness(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || (parameters.length != 1 && parameters.length != 2)) {
-      sysPrint("CreateWitness needs 1 parameter using the following syntax: ");
-      sysPrint("CreateWitness [OwnerAddress] Url");
+      System.out.println("CreateWitness needs 1 parameter using the following syntax: ");
+      System.out.println("CreateWitness [OwnerAddress] Url");
       return;
     }
 
@@ -921,7 +916,7 @@ public class Client {
     if (parameters.length == 2) {
       ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
       if (ownerAddress == null) {
-        sysPrint("Invalid OwnerAddress.");
+        System.out.println("Invalid OwnerAddress.");
         return;
       }
     }
@@ -930,17 +925,17 @@ public class Client {
 
     boolean result = walletApiWrapper.createWitness(ownerAddress, url);
     if (result) {
-      sysPrint("CreateWitness successful !!");
+      System.out.println("CreateWitness successful !!");
     } else {
-      sysPrint("CreateWitness failed !!");
+      System.out.println("CreateWitness failed !!");
     }
   }
 
   private void updateWitness(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || (parameters.length != 1 && parameters.length != 2)) {
-      sysPrint("updateWitness needs 1 parameter using the following syntax: ");
-      sysPrint("updateWitness [OwnerAddress] Url");
+      System.out.println("updateWitness needs 1 parameter using the following syntax: ");
+      System.out.println("updateWitness [OwnerAddress] Url");
       return;
     }
 
@@ -949,7 +944,7 @@ public class Client {
     if (parameters.length == 2) {
       ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
       if (ownerAddress == null) {
-        sysPrint("Invalid OwnerAddress.");
+        System.out.println("Invalid OwnerAddress.");
         return;
       }
     }
@@ -957,9 +952,9 @@ public class Client {
 
     boolean result = walletApiWrapper.updateWitness(ownerAddress, url);
     if (result) {
-      sysPrint("updateWitness successful !!");
+      System.out.println("updateWitness successful !!");
     } else {
-      sysPrint("updateWitness failed !!");
+      System.out.println("updateWitness failed !!");
     }
   }
 
@@ -967,9 +962,9 @@ public class Client {
     Optional<WitnessList> result = walletApiWrapper.listWitnesses();
     if (result.isPresent()) {
       WitnessList witnessList = result.get();
-      sysPrint(Utils.formatMessageString(witnessList));
+      System.out.println(Utils.formatMessageString(witnessList));
     } else {
-      sysPrint("List witnesses failed !!");
+      System.out.println("List witnesses failed !!");
     }
   }
 
@@ -977,16 +972,16 @@ public class Client {
     Optional<AssetIssueList> result = walletApiWrapper.getAssetIssueList();
     if (result.isPresent()) {
       AssetIssueList assetIssueList = result.get();
-      sysPrint(Utils.formatMessageString(assetIssueList));
+      System.out.println(Utils.formatMessageString(assetIssueList));
     } else {
-      sysPrint("GetAssetIssueList failed !!");
+      System.out.println("GetAssetIssueList failed !!");
     }
   }
 
   private void getAssetIssueList(String[] parameters) {
     if (parameters == null || parameters.length != 2) {
-      sysPrint("ListAssetIssuePaginated needs 2 parameters using the following syntax: ");
-      sysPrint("ListAssetIssuePaginated offset limit ");
+      System.out.println("ListAssetIssuePaginated needs 2 parameters using the following syntax: ");
+      System.out.println("ListAssetIssuePaginated offset limit ");
       return;
     }
     int offset = Integer.parseInt(parameters[0]);
@@ -994,16 +989,16 @@ public class Client {
     Optional<AssetIssueList> result = walletApiWrapper.getAssetIssueList(offset, limit);
     if (result.isPresent()) {
       AssetIssueList assetIssueList = result.get();
-      sysPrint(Utils.formatMessageString(assetIssueList));
+      System.out.println(Utils.formatMessageString(assetIssueList));
     } else {
-      sysPrint("GetAssetIssueListPaginated failed !!!");
+      System.out.println("GetAssetIssueListPaginated failed !!!");
     }
   }
 
   private void getProposalsListPaginated(String[] parameters) {
     if (parameters == null || parameters.length != 2) {
-      sysPrint("ListProposalsPaginated needs 2 parameters use the following syntax:");
-      sysPrint("ListProposalsPaginated offset limit ");
+      System.out.println("ListProposalsPaginated needs 2 parameters use the following syntax:");
+      System.out.println("ListProposalsPaginated offset limit ");
       return;
     }
     int offset = Integer.parseInt(parameters[0]);
@@ -1011,9 +1006,9 @@ public class Client {
     Optional<ProposalList> result = walletApiWrapper.getProposalListPaginated(offset, limit);
     if (result.isPresent()) {
       ProposalList proposalList = result.get();
-      sysPrint(Utils.formatMessageString(proposalList));
+      System.out.println(Utils.formatMessageString(proposalList));
     } else {
-      sysPrint("ListProposalsPaginated failed !!!");
+      System.out.println("ListProposalsPaginated failed !!!");
     }
   }
 
@@ -1021,7 +1016,7 @@ public class Client {
     if (parameters == null || parameters.length != 2) {
       System.out
           .println("ListExchangesPaginated command needs 2 parameters, use the following syntax:");
-      sysPrint("ListExchangesPaginated offset limit ");
+      System.out.println("ListExchangesPaginated offset limit ");
       return;
     }
     int offset = Integer.parseInt(parameters[0]);
@@ -1029,9 +1024,9 @@ public class Client {
     Optional<ExchangeList> result = walletApiWrapper.getExchangeListPaginated(offset, limit);
     if (result.isPresent()) {
       ExchangeList exchangeList = result.get();
-      sysPrint(Utils.formatMessageString(exchangeList));
+      System.out.println(Utils.formatMessageString(exchangeList));
     } else {
-      sysPrint("ListExchangesPaginated failed !!!");
+      System.out.println("ListExchangesPaginated failed !!!");
     }
   }
 
@@ -1042,11 +1037,11 @@ public class Client {
       List<Node> list = nodeList.getNodesList();
       for (int i = 0; i < list.size(); i++) {
         Node node = list.get(i);
-        sysPrint("IP::" + ByteArray.toStr(node.getAddress().getHost().toByteArray()));
-        sysPrint("Port::" + node.getAddress().getPort());
+        System.out.println("IP::" + ByteArray.toStr(node.getAddress().getHost().toByteArray()));
+        System.out.println("Port::" + node.getAddress().getPort());
       }
     } else {
-      sysPrint("GetAssetIssueList " + " failed !!!");
+      System.out.println("GetAssetIssueList " + " failed !!!");
     }
   }
 
@@ -1054,14 +1049,14 @@ public class Client {
     long blockNum = -1;
 
     if (parameters == null || parameters.length == 0) {
-      sysPrint("Get current block !!!");
+      System.out.println("Get current block !!!");
     } else {
       if (parameters.length != 1) {
-        sysPrint("GetBlock has too many parameters !!!");
-        sysPrint("You can get current block using the following command:");
-        sysPrint("GetBlock");
-        sysPrint("Or get block by number with the following syntax:");
-        sysPrint("GetBlock BlockNum");
+        System.out.println("GetBlock has too many parameters !!!");
+        System.out.println("You can get current block using the following command:");
+        System.out.println("GetBlock");
+        System.out.println("Or get block by number with the following syntax:");
+        System.out.println("GetBlock BlockNum");
       }
       blockNum = Long.parseLong(parameters[0]);
     }
@@ -1069,37 +1064,37 @@ public class Client {
     if (WalletApi.getRpcVersion() == 2) {
       BlockExtention blockExtention = walletApiWrapper.getBlock2(blockNum);
       if (blockExtention == null) {
-        sysPrint("No block for num : " + blockNum);
+        System.out.println("No block for num : " + blockNum);
         return;
       }
-      sysPrint(Utils.printBlockExtention(blockExtention));
+      System.out.println(Utils.printBlockExtention(blockExtention));
     } else {
       Block block = walletApiWrapper.getBlock(blockNum);
       if (block == null) {
-        sysPrint("No block for num : " + blockNum);
+        System.out.println("No block for num : " + blockNum);
         return;
       }
-      sysPrint(Utils.printBlock(block));
+      System.out.println(Utils.printBlock(block));
     }
   }
 
   private void getTransactionCountByBlockNum(String[] parameters) {
     if (parameters == null || parameters.length != 1) {
-      sysPrint("Use GetTransactionCountByBlockNum command with below syntax");
-      sysPrint("GetTransactionCountByBlockNum number");
+      System.out.println("Use GetTransactionCountByBlockNum command with below syntax");
+      System.out.println("GetTransactionCountByBlockNum number");
       return;
     }
 
     long blockNum = Long.parseLong(parameters[0]);
     long count = walletApiWrapper.getTransactionCountByBlockNum(blockNum);
-    sysPrint("The block contains " + count + " transactions");
+    System.out.println("The block contains " + count + " transactions");
   }
 
   private void voteWitness(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length < 2) {
-      sysPrint("Use VoteWitness command with below syntax: ");
-      sysPrint("VoteWitness [OwnerAddress] Address0 Count0 ... AddressN CountN");
+      System.out.println("Use VoteWitness command with below syntax: ");
+      System.out.println("VoteWitness [OwnerAddress] Address0 Count0 ... AddressN CountN");
       return;
     }
 
@@ -1108,7 +1103,7 @@ public class Client {
     if ((parameters.length & 1) != 0) {
       ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
       if (ownerAddress == null) {
-        sysPrint("Invalid OwnerAddress.");
+        System.out.println("Invalid OwnerAddress.");
         return;
       }
     }
@@ -1122,9 +1117,9 @@ public class Client {
 
     boolean result = walletApiWrapper.voteWitness(ownerAddress, witness);
     if (result) {
-      sysPrint("VoteWitness successful !!!");
+      System.out.println("VoteWitness successful !!!");
     } else {
-      sysPrint("VoteWitness failed !!!");
+      System.out.println("VoteWitness failed !!!");
     }
   }
 
@@ -1141,8 +1136,8 @@ public class Client {
       throws IOException, CipherException, CancelException {
     if (parameters == null || !(parameters.length == 2 || parameters.length == 3
         || parameters.length == 4 || parameters.length == 5)) {
-      sysPrint("Use freezeBalance command with below syntax: ");
-      sysPrint("freezeBalance [OwnerAddress] frozen_balance frozen_duration "
+      System.out.println("Use freezeBalance command with below syntax: ");
+      System.out.println("freezeBalance [OwnerAddress] frozen_balance frozen_duration "
           + "[ResourceCode:0 BANDWIDTH,1 ENERGY] [receiverAddress]");
       return;
     }
@@ -1175,17 +1170,17 @@ public class Client {
     boolean result = walletApiWrapper.freezeBalance(ownerAddress, frozen_balance,
         frozen_duration, resourceCode, receiverAddress);
     if (result) {
-      sysPrint("FreezeBalance successful !!!");
+      System.out.println("FreezeBalance successful !!!");
     } else {
-      sysPrint("FreezeBalance failed !!!");
+      System.out.println("FreezeBalance failed !!!");
     }
   }
 
   private void unfreezeBalance(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length < 1 || parameters.length > 3) {
-      sysPrint("Use unfreezeBalance command with below syntax: ");
-      sysPrint(
+      System.out.println("Use unfreezeBalance command with below syntax: ");
+      System.out.println(
           "unfreezeBalance [OwnerAddress] ResourceCode(0 BANDWIDTH,1 CPU) [receiverAddress]");
       return;
     }
@@ -1211,39 +1206,39 @@ public class Client {
 
     boolean result = walletApiWrapper.unfreezeBalance(ownerAddress, resourceCode, receiverAddress);
     if (result) {
-      sysPrint("UnfreezeBalance successful !!!");
+      System.out.println("UnfreezeBalance successful !!!");
     } else {
-      sysPrint("UnfreezeBalance failed !!!");
+      System.out.println("UnfreezeBalance failed !!!");
     }
   }
 
   private void unfreezeAsset(String[] parameters) throws IOException,
       CipherException, CancelException {
-    sysPrint("Use UnfreezeAsset command like: ");
-    sysPrint("UnfreezeAsset [OwnerAddress] ");
+    System.out.println("Use UnfreezeAsset command like: ");
+    System.out.println("UnfreezeAsset [OwnerAddress] ");
 
     byte[] ownerAddress = null;
     if (parameters != null && parameters.length > 0) {
       ownerAddress = WalletApi.decodeFromBase58Check(parameters[0]);
       if (ownerAddress == null) {
-        sysPrint("Invalid OwnerAddress.");
+        System.out.println("Invalid OwnerAddress.");
         return;
       }
     }
 
     boolean result = walletApiWrapper.unfreezeAsset(ownerAddress);
     if (result) {
-      sysPrint("UnfreezeAsset successful !!!");
+      System.out.println("UnfreezeAsset successful !!!");
     } else {
-      sysPrint("UnfreezeAsset failed !!!");
+      System.out.println("UnfreezeAsset failed !!!");
     }
   }
 
   private void createProposal(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length < 2) {
-      sysPrint("Use createProposal command with below syntax: ");
-      sysPrint("createProposal [OwnerAddress] id0 value0 ... idN valueN");
+      System.out.println("Use createProposal command with below syntax: ");
+      System.out.println("createProposal [OwnerAddress] id0 value0 ... idN valueN");
       return;
     }
 
@@ -1252,7 +1247,7 @@ public class Client {
     if ((parameters.length & 1) != 0) {
       ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
       if (ownerAddress == null) {
-        sysPrint("Invalid OwnerAddress.");
+        System.out.println("Invalid OwnerAddress.");
         return;
       }
     }
@@ -1265,17 +1260,17 @@ public class Client {
     }
     boolean result = walletApiWrapper.createProposal(ownerAddress, parametersMap);
     if (result) {
-      sysPrint("CreateProposal successful !!");
+      System.out.println("CreateProposal successful !!");
     } else {
-      sysPrint("CreateProposal failed !!");
+      System.out.println("CreateProposal failed !!");
     }
   }
 
   private void approveProposal(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || (parameters.length != 2 && parameters.length != 3)) {
-      sysPrint("Use approveProposal command with below syntax: ");
-      sysPrint("approveProposal [OwnerAddress] id is_or_not_add_approval");
+      System.out.println("Use approveProposal command with below syntax: ");
+      System.out.println("approveProposal [OwnerAddress] id is_or_not_add_approval");
       return;
     }
 
@@ -1284,7 +1279,7 @@ public class Client {
     if (parameters.length == 3) {
       ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
       if (ownerAddress == null) {
-        sysPrint("Invalid OwnerAddress.");
+        System.out.println("Invalid OwnerAddress.");
         return;
       }
     }
@@ -1293,17 +1288,17 @@ public class Client {
     boolean is_add_approval = Boolean.valueOf(parameters[index++]);
     boolean result = walletApiWrapper.approveProposal(ownerAddress, id, is_add_approval);
     if (result) {
-      sysPrint("ApproveProposal successful !!!");
+      System.out.println("ApproveProposal successful !!!");
     } else {
-      sysPrint("ApproveProposal failed !!!");
+      System.out.println("ApproveProposal failed !!!");
     }
   }
 
   private void deleteProposal(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || (parameters.length != 1 && parameters.length != 2)) {
-      sysPrint("Use deleteProposal command with below syntax: ");
-      sysPrint("deleteProposal [OwnerAddress] proposalId");
+      System.out.println("Use deleteProposal command with below syntax: ");
+      System.out.println("deleteProposal [OwnerAddress] proposalId");
       return;
     }
 
@@ -1312,7 +1307,7 @@ public class Client {
     if (parameters.length == 2) {
       ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
       if (ownerAddress == null) {
-        sysPrint("Invalid OwnerAddress.");
+        System.out.println("Invalid OwnerAddress.");
         return;
       }
     }
@@ -1320,9 +1315,9 @@ public class Client {
     long id = Long.valueOf(parameters[index++]);
     boolean result = walletApiWrapper.deleteProposal(ownerAddress, id);
     if (result) {
-      sysPrint("DeleteProposal successful !!!");
+      System.out.println("DeleteProposal successful !!!");
     } else {
-      sysPrint("DeleteProposal failed !!!");
+      System.out.println("DeleteProposal failed !!!");
     }
   }
 
@@ -1331,16 +1326,16 @@ public class Client {
     Optional<ProposalList> result = walletApiWrapper.getProposalsList();
     if (result.isPresent()) {
       ProposalList proposalList = result.get();
-      sysPrint(Utils.formatMessageString(proposalList));
+      System.out.println(Utils.formatMessageString(proposalList));
     } else {
-      sysPrint("List witnesses failed !!!");
+      System.out.println("List witnesses failed !!!");
     }
   }
 
   private void getProposal(String[] parameters) {
     if (parameters == null || parameters.length != 1) {
-      sysPrint("Using getProposal command needs 1 parameter like: ");
-      sysPrint("getProposal id ");
+      System.out.println("Using getProposal command needs 1 parameter like: ");
+      System.out.println("getProposal id ");
       return;
     }
     String id = parameters[0];
@@ -1348,17 +1343,17 @@ public class Client {
     Optional<Proposal> result = WalletApi.getProposal(id);
     if (result.isPresent()) {
       Proposal proposal = result.get();
-      sysPrint(Utils.formatMessageString(proposal));
+      System.out.println(Utils.formatMessageString(proposal));
     } else {
-      sysPrint("GetProposal failed !!!");
+      System.out.println("GetProposal failed !!!");
     }
   }
 
 
   private void getDelegatedResource(String[] parameters) {
     if (parameters == null || parameters.length != 2) {
-      sysPrint("Using getDelegatedResource command needs 2 parameters like: ");
-      sysPrint("getDelegatedResource fromAddress toAddress");
+      System.out.println("Using getDelegatedResource command needs 2 parameters like: ");
+      System.out.println("getDelegatedResource fromAddress toAddress");
       return;
     }
     String fromAddress = parameters[0];
@@ -1366,16 +1361,16 @@ public class Client {
     Optional<DelegatedResourceList> result = WalletApi.getDelegatedResource(fromAddress, toAddress);
     if (result.isPresent()) {
       DelegatedResourceList delegatedResourceList = result.get();
-      sysPrint(Utils.formatMessageString(delegatedResourceList));
+      System.out.println(Utils.formatMessageString(delegatedResourceList));
     } else {
-      sysPrint("GetDelegatedResource failed !!!");
+      System.out.println("GetDelegatedResource failed !!!");
     }
   }
 
   private void getDelegatedResourceAccountIndex(String[] parameters) {
     if (parameters == null || parameters.length != 1) {
-      sysPrint("Using getDelegatedResourceAccountIndex command needs 1 parameter like: ");
-      sysPrint("getDelegatedResourceAccountIndex address");
+      System.out.println("Using getDelegatedResourceAccountIndex command needs 1 parameter like: ");
+      System.out.println("getDelegatedResourceAccountIndex address");
       return;
     }
     String address = parameters[0];
@@ -1383,9 +1378,9 @@ public class Client {
         .getDelegatedResourceAccountIndex(address);
     if (result.isPresent()) {
       DelegatedResourceAccountIndex delegatedResourceAccountIndex = result.get();
-      sysPrint(Utils.formatMessageString(delegatedResourceAccountIndex));
+      System.out.println(Utils.formatMessageString(delegatedResourceAccountIndex));
     } else {
-      sysPrint("GetDelegatedResourceAccountIndex failed !!");
+      System.out.println("GetDelegatedResourceAccountIndex failed !!");
     }
   }
 
@@ -1393,8 +1388,8 @@ public class Client {
   private void exchangeCreate(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || (parameters.length != 4 && parameters.length != 5)) {
-      sysPrint("Using exchangeCreate command needs 4 or 5 parameters like: ");
-      sysPrint("exchangeCreate [OwnerAddress] first_token_id first_token_balance "
+      System.out.println("Using exchangeCreate command needs 4 or 5 parameters like: ");
+      System.out.println("exchangeCreate [OwnerAddress] first_token_id first_token_balance "
           + "second_token_id second_token_balance");
       return;
     }
@@ -1404,7 +1399,7 @@ public class Client {
     if (parameters.length == 5) {
       ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
       if (ownerAddress == null) {
-        sysPrint("Invalid OwnerAddress.");
+        System.out.println("Invalid OwnerAddress.");
         return;
       }
     }
@@ -1416,17 +1411,17 @@ public class Client {
     boolean result = walletApiWrapper.exchangeCreate(ownerAddress, firstTokenId, firstTokenBalance,
         secondTokenId, secondTokenBalance);
     if (result) {
-      sysPrint("ExchangeCreate successful !!!");
+      System.out.println("ExchangeCreate successful !!!");
     } else {
-      sysPrint("ExchangeCreate failed !!!");
+      System.out.println("ExchangeCreate failed !!!");
     }
   }
 
   private void exchangeInject(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || (parameters.length != 3 && parameters.length != 4)) {
-      sysPrint("Using exchangeInject command needs 3 or 4 parameters like: ");
-      sysPrint("exchangeInject [OwnerAddress] exchange_id token_id quantity");
+      System.out.println("Using exchangeInject command needs 3 or 4 parameters like: ");
+      System.out.println("exchangeInject [OwnerAddress] exchange_id token_id quantity");
       return;
     }
 
@@ -1435,7 +1430,7 @@ public class Client {
     if (parameters.length == 4) {
       ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
       if (ownerAddress == null) {
-        sysPrint("Invalid OwnerAddress.");
+        System.out.println("Invalid OwnerAddress.");
         return;
       }
     }
@@ -1445,17 +1440,17 @@ public class Client {
     long quant = Long.valueOf(parameters[index++]);
     boolean result = walletApiWrapper.exchangeInject(ownerAddress, exchangeId, tokenId, quant);
     if (result) {
-      sysPrint("ExchangeInject successful !!!");
+      System.out.println("ExchangeInject successful !!!");
     } else {
-      sysPrint("ExchangeInject failed !!!");
+      System.out.println("ExchangeInject failed !!!");
     }
   }
 
   private void exchangeWithdraw(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || (parameters.length != 3 && parameters.length != 4)) {
-      sysPrint("Using exchangeWithdraw command needs 3 or 4 parameters like: ");
-      sysPrint("exchangeWithdraw [OwnerAddress] exchange_id token_id quantity");
+      System.out.println("Using exchangeWithdraw command needs 3 or 4 parameters like: ");
+      System.out.println("exchangeWithdraw [OwnerAddress] exchange_id token_id quantity");
       return;
     }
 
@@ -1464,7 +1459,7 @@ public class Client {
     if (parameters.length == 4) {
       ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
       if (ownerAddress == null) {
-        sysPrint("Invalid OwnerAddress.");
+        System.out.println("Invalid OwnerAddress.");
         return;
       }
     }
@@ -1474,16 +1469,16 @@ public class Client {
     long quant = Long.valueOf(parameters[index++]);
     boolean result = walletApiWrapper.exchangeWithdraw(ownerAddress, exchangeId, tokenId, quant);
     if (result) {
-      sysPrint("ExchangeWithdraw successful !!!");
+      System.out.println("ExchangeWithdraw successful !!!");
     } else {
-      sysPrint("ExchangeWithdraw failed !!!");
+      System.out.println("ExchangeWithdraw failed !!!");
     }
   }
 
   private void exchangeTransaction(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || (parameters.length != 4 && parameters.length != 5)) {
-      sysPrint("Using exchangeTransaction command needs 4 or 5 parameters like: ");
+      System.out.println("Using exchangeTransaction command needs 4 or 5 parameters like: ");
       System.out
           .println("exchangeTransaction [OwnerAddress] exchange_id token_id quantity expected");
       return;
@@ -1494,7 +1489,7 @@ public class Client {
     if (parameters.length == 5) {
       ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
       if (ownerAddress == null) {
-        sysPrint("Invalid OwnerAddress.");
+        System.out.println("Invalid OwnerAddress.");
         return;
       }
     }
@@ -1506,9 +1501,9 @@ public class Client {
     boolean result = walletApiWrapper
         .exchangeTransaction(ownerAddress, exchangeId, tokenId, quant, expected);
     if (result) {
-      sysPrint("ExchangeTransaction successful !!!");
+      System.out.println("ExchangeTransaction successful !!!");
     } else {
-      sysPrint("ExchangeTransaction failed !!!");
+      System.out.println("ExchangeTransaction failed !!!");
     }
   }
 
@@ -1516,16 +1511,16 @@ public class Client {
     Optional<ExchangeList> result = walletApiWrapper.getExchangeList();
     if (result.isPresent()) {
       ExchangeList exchangeList = result.get();
-      sysPrint(Utils.formatMessageString(exchangeList));
+      System.out.println(Utils.formatMessageString(exchangeList));
     } else {
-      sysPrint("ListExchanges failed !!!");
+      System.out.println("ListExchanges failed !!!");
     }
   }
 
   private void getExchange(String[] parameters) {
     if (parameters == null || parameters.length != 1) {
-      sysPrint("Using getExchange command needs 1 parameter like: ");
-      sysPrint("getExchange id");
+      System.out.println("Using getExchange command needs 1 parameter like: ");
+      System.out.println("getExchange id");
       return;
     }
     String id = parameters[0];
@@ -1533,49 +1528,49 @@ public class Client {
     Optional<Exchange> result = walletApiWrapper.getExchange(id);
     if (result.isPresent()) {
       Exchange exchange = result.get();
-      sysPrint(Utils.formatMessageString(exchange));
+      System.out.println(Utils.formatMessageString(exchange));
     } else {
-      sysPrint("GetExchange failed !!!");
+      System.out.println("GetExchange failed !!!");
     }
   }
 
   private void withdrawBalance(String[] parameters)
       throws IOException, CipherException, CancelException {
-    sysPrint("Using withdrawBalance command like: ");
-    sysPrint("withdrawBalance [OwnerAddress] ");
+    System.out.println("Using withdrawBalance command like: ");
+    System.out.println("withdrawBalance [OwnerAddress] ");
     byte[] ownerAddress = null;
     if (parameters != null && parameters.length > 0) {
       ownerAddress = WalletApi.decodeFromBase58Check(parameters[0]);
       if (ownerAddress == null) {
-        sysPrint("Invalid OwnerAddress.");
+        System.out.println("Invalid OwnerAddress.");
         return;
       }
     }
 
     boolean result = walletApiWrapper.withdrawBalance(ownerAddress);
     if (result) {
-      sysPrint("WithdrawBalance successful !!!");
+      System.out.println("WithdrawBalance successful !!!");
     } else {
-      sysPrint("WithdrawBalance failed !!!");
+      System.out.println("WithdrawBalance failed !!!");
     }
   }
 
   private void getTotalTransaction() {
     NumberMessage totalTransition = walletApiWrapper.getTotalTransaction();
-    sysPrint("The number of total transactions is : " + totalTransition.getNum());
+    System.out.println("The number of total transactions is : " + totalTransition.getNum());
   }
 
   private void getNextMaintenanceTime() {
     NumberMessage nextMaintenanceTime = walletApiWrapper.getNextMaintenanceTime();
     SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
     String date = formatter.format(nextMaintenanceTime.getNum());
-    sysPrint("Next maintenance time is : " + date);
+    System.out.println("Next maintenance time is : " + date);
   }
 
   private void getTransactionById(String[] parameters) {
     String txid = "";
     if (parameters == null || parameters.length != 1) {
-      sysPrint("Using getTransactionById command needs 1 parameter, transaction id");
+      System.out.println("Using getTransactionById command needs 1 parameter, transaction id");
       return;
     } else {
       txid = parameters[0];
@@ -1583,16 +1578,16 @@ public class Client {
     Optional<Transaction> result = WalletApi.getTransactionById(txid);
     if (result.isPresent()) {
       Transaction transaction = result.get();
-      sysPrint(Utils.printTransaction(transaction));
+      System.out.println(Utils.printTransaction(transaction));
     } else {
-      sysPrint("GetTransactionById failed !!");
+      System.out.println("GetTransactionById failed !!");
     }
   }
 
   private void getTransactionInfoById(String[] parameters) {
     String txid = "";
     if (parameters == null || parameters.length != 1) {
-      sysPrint("Using getTransactionInfoById command needs 1 parameter, transaction id");
+      System.out.println("Using getTransactionInfoById command needs 1 parameter, transaction id");
       return;
     } else {
       txid = parameters[0];
@@ -1600,16 +1595,16 @@ public class Client {
     Optional<TransactionInfo> result = WalletApi.getTransactionInfoById(txid);
     if (result.isPresent() && !result.get().equals(TransactionInfo.getDefaultInstance())) {
       TransactionInfo transactionInfo = result.get();
-      sysPrint(Utils.formatMessageString(transactionInfo));
+      System.out.println(Utils.formatMessageString(transactionInfo));
     } else {
-      sysPrint("GetTransactionInfoById failed !!!");
+      System.out.println("GetTransactionInfoById failed !!!");
     }
   }
 
   private void getTransactionsFromThis(String[] parameters) {
     if (parameters == null || parameters.length != 3) {
-      sysPrint("Using getTransactionsFromThis command needs 3 parameters like: ");
-      sysPrint("getTransactionsFromThis Address offset limit");
+      System.out.println("Using getTransactionsFromThis command needs 3 parameters like: ");
+      System.out.println("getTransactionsFromThis Address offset limit");
       return;
     }
     String address = parameters[0];
@@ -1626,12 +1621,12 @@ public class Client {
       if (result.isPresent()) {
         TransactionListExtention transactionList = result.get();
         if (transactionList.getTransactionCount() == 0) {
-          sysPrint("No transaction from " + address);
+          System.out.println("No transaction from " + address);
           return;
         }
-        sysPrint(Utils.printTransactionList(transactionList));
+        System.out.println(Utils.printTransactionList(transactionList));
       } else {
-        sysPrint("GetTransactionsFromThis failed !!!");
+        System.out.println("GetTransactionsFromThis failed !!!");
       }
     } else {
       Optional<TransactionList> result = WalletApi
@@ -1639,20 +1634,20 @@ public class Client {
       if (result.isPresent()) {
         TransactionList transactionList = result.get();
         if (transactionList.getTransactionCount() == 0) {
-          sysPrint("No transaction from " + address);
+          System.out.println("No transaction from " + address);
           return;
         }
-        sysPrint(Utils.printTransactionList(transactionList));
+        System.out.println(Utils.printTransactionList(transactionList));
       } else {
-        sysPrint("GetTransactionsFromThis failed !!!");
+        System.out.println("GetTransactionsFromThis failed !!!");
       }
     }
   }
 
   private void getTransactionsToThis(String[] parameters) {
     if (parameters == null || parameters.length != 3) {
-      sysPrint("Using getTransactionsToThis needs 3 parameters like: ");
-      sysPrint("getTransactionsToThis Address offset limit");
+      System.out.println("Using getTransactionsToThis needs 3 parameters like: ");
+      System.out.println("getTransactionsToThis Address offset limit");
       return;
     }
     String address = parameters[0];
@@ -1669,12 +1664,12 @@ public class Client {
       if (result.isPresent()) {
         TransactionListExtention transactionList = result.get();
         if (transactionList.getTransactionCount() == 0) {
-          sysPrint("No transaction to " + address);
+          System.out.println("No transaction to " + address);
           return;
         }
-        sysPrint(Utils.printTransactionList(transactionList));
+        System.out.println(Utils.printTransactionList(transactionList));
       } else {
-        sysPrint("getTransactionsToThis failed !!!");
+        System.out.println("getTransactionsToThis failed !!!");
       }
     } else {
       Optional<TransactionList> result = WalletApi
@@ -1682,20 +1677,20 @@ public class Client {
       if (result.isPresent()) {
         TransactionList transactionList = result.get();
         if (transactionList.getTransactionCount() == 0) {
-          sysPrint("No transaction to " + address);
+          System.out.println("No transaction to " + address);
           return;
         }
-        sysPrint(Utils.printTransactionList(transactionList));
+        System.out.println(Utils.printTransactionList(transactionList));
       } else {
-        sysPrint("getTransactionsToThis failed !!!");
+        System.out.println("getTransactionsToThis failed !!!");
       }
     }
   }
 
 //  private void getTransactionsToThisCount(String[] parameters) {
 //    if (parameters == null || parameters.length != 1) {
-//      sysPrint("getTransactionsToThisCount need 1 parameter like following: ");
-//      sysPrint("getTransactionsToThisCount Address");
+//      System.out.println("getTransactionsToThisCount need 1 parameter like following: ");
+//      System.out.println("getTransactionsToThisCount Address");
 //      return;
 //    }
 //    String address = parameters[0];
@@ -1711,7 +1706,7 @@ public class Client {
   private void getBlockById(String[] parameters) {
     String blockID = "";
     if (parameters == null || parameters.length != 1) {
-      sysPrint("Using getBlockById command needs 1 parameter like: ");
+      System.out.println("Using getBlockById command needs 1 parameter like: ");
       return;
     } else {
       blockID = parameters[0];
@@ -1719,9 +1714,9 @@ public class Client {
     Optional<Block> result = WalletApi.getBlockById(blockID);
     if (result.isPresent()) {
       Block block = result.get();
-      sysPrint(Utils.printBlock(block));
+      System.out.println(Utils.printBlock(block));
     } else {
-      sysPrint("GetBlockById failed !!");
+      System.out.println("GetBlockById failed !!");
     }
   }
 
@@ -1742,17 +1737,17 @@ public class Client {
       Optional<BlockListExtention> result = WalletApi.getBlockByLimitNext2(start, end);
       if (result.isPresent()) {
         BlockListExtention blockList = result.get();
-        sysPrint(Utils.printBlockList(blockList));
+        System.out.println(Utils.printBlockList(blockList));
       } else {
-        sysPrint("GetBlockByLimitNext failed !!");
+        System.out.println("GetBlockByLimitNext failed !!");
       }
     } else {
       Optional<BlockList> result = WalletApi.getBlockByLimitNext(start, end);
       if (result.isPresent()) {
         BlockList blockList = result.get();
-        sysPrint(Utils.printBlockList(blockList));
+        System.out.println(Utils.printBlockList(blockList));
       } else {
-        sysPrint("GetBlockByLimitNext failed !!");
+        System.out.println("GetBlockByLimitNext failed !!");
       }
     }
   }
@@ -1760,7 +1755,7 @@ public class Client {
   private void getBlockByLatestNum(String[] parameters) {
     long num = 0;
     if (parameters == null || parameters.length != 1) {
-      sysPrint("Using getBlockByLatestNum command needs 1 parameter, block_num");
+      System.out.println("Using getBlockByLatestNum command needs 1 parameter, block_num");
       return;
     } else {
       num = Long.parseLong(parameters[0]);
@@ -1770,24 +1765,24 @@ public class Client {
       if (result.isPresent()) {
         BlockListExtention blockList = result.get();
         if (blockList.getBlockCount() == 0) {
-          sysPrint("No block");
+          System.out.println("No block");
           return;
         }
-        sysPrint(Utils.printBlockList(blockList));
+        System.out.println(Utils.printBlockList(blockList));
       } else {
-        sysPrint("GetBlockByLimitNext failed !!");
+        System.out.println("GetBlockByLimitNext failed !!");
       }
     } else {
       Optional<BlockList> result = WalletApi.getBlockByLatestNum(num);
       if (result.isPresent()) {
         BlockList blockList = result.get();
         if (blockList.getBlockCount() == 0) {
-          sysPrint("No block");
+          System.out.println("No block");
           return;
         }
-        sysPrint(Utils.printBlockList(blockList));
+        System.out.println(Utils.printBlockList(blockList));
       } else {
-        sysPrint("GetBlockByLimitNext failed !!");
+        System.out.println("GetBlockByLimitNext failed !!");
       }
     }
   }
@@ -1795,8 +1790,8 @@ public class Client {
   private void updateSetting(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || (parameters.length != 2 && parameters.length != 3)) {
-      sysPrint("Using updateSetting needs 2 parameters like: ");
-      sysPrint("updateSetting [OwnerAddress] contract_address consume_user_resource_percent");
+      System.out.println("Using updateSetting needs 2 parameters like: ");
+      System.out.println("updateSetting [OwnerAddress] contract_address consume_user_resource_percent");
       return;
     }
 
@@ -1805,36 +1800,36 @@ public class Client {
     if (parameters.length == 3) {
       ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
       if (ownerAddress == null) {
-        sysPrint("Invalid OwnerAddress.");
+        System.out.println("Invalid OwnerAddress.");
         return;
       }
     }
 
     byte[] contractAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
     if (contractAddress == null) {
-      sysPrint("Invalid contractAddress.");
+      System.out.println("Invalid contractAddress.");
       return;
     }
 
     long consumeUserResourcePercent = Long.valueOf(parameters[index++]).longValue();
     if (consumeUserResourcePercent > 100 || consumeUserResourcePercent < 0) {
-      sysPrint("consume_user_resource_percent must >= 0 and <= 100");
+      System.out.println("consume_user_resource_percent must >= 0 and <= 100");
       return;
     }
     boolean result = walletApiWrapper
         .updateSetting(ownerAddress, contractAddress, consumeUserResourcePercent);
     if (result) {
-      sysPrint("UpdateSetting successful !!!");
+      System.out.println("UpdateSetting successful !!!");
     } else {
-      sysPrint("UpdateSetting failed !!!");
+      System.out.println("UpdateSetting failed !!!");
     }
   }
 
   private void updateEnergyLimit(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || (parameters.length != 2 && parameters.length != 3)) {
-      sysPrint("Using updateEnergyLimit command needs 2 parameters like: ");
-      sysPrint("updateEnergyLimit [OwnerAddress] contract_address energy_limit");
+      System.out.println("Using updateEnergyLimit command needs 2 parameters like: ");
+      System.out.println("updateEnergyLimit [OwnerAddress] contract_address energy_limit");
       return;
     }
 
@@ -1843,36 +1838,36 @@ public class Client {
     if (parameters.length == 3) {
       ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
       if (ownerAddress == null) {
-        sysPrint("Invalid OwnerAddress.");
+        System.out.println("Invalid OwnerAddress.");
         return;
       }
     }
 
     byte[] contractAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
     if (contractAddress == null) {
-      sysPrint("Invalid contractAddress.");
+      System.out.println("Invalid contractAddress.");
       return;
     }
 
     long originEnergyLimit = Long.valueOf(parameters[index++]).longValue();
     if (originEnergyLimit < 0) {
-      sysPrint("origin_energy_limit need > 0 ");
+      System.out.println("origin_energy_limit need > 0 ");
       return;
     }
     boolean result = walletApiWrapper
         .updateEnergyLimit(ownerAddress, contractAddress, originEnergyLimit);
     if (result) {
-      sysPrint("UpdateSetting for origin_energy_limit successful !!!");
+      System.out.println("UpdateSetting for origin_energy_limit successful !!!");
     } else {
-      sysPrint("UpdateSetting for origin_energy_limit failed !!!");
+      System.out.println("UpdateSetting for origin_energy_limit failed !!!");
     }
   }
 
   private void clearContractABI(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || (parameters.length != 1 && parameters.length != 2)) {
-      sysPrint("Using clearContractABI command needs 1 or 2 parameters like: ");
-      sysPrint("clearContractABI [OwnerAddress] contract_address");
+      System.out.println("Using clearContractABI command needs 1 or 2 parameters like: ");
+      System.out.println("clearContractABI [OwnerAddress] contract_address");
       return;
     }
 
@@ -1881,7 +1876,7 @@ public class Client {
     if (parameters.length == 2) {
       ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
       if (ownerAddress == null) {
-        sysPrint("Invalid OwnerAddress.");
+        System.out.println("Invalid OwnerAddress.");
         return;
       }
     }
@@ -1893,17 +1888,17 @@ public class Client {
 
     boolean result = walletApiWrapper.clearContractABI(ownerAddress, contractAddress);
     if (result) {
-      sysPrint("ClearContractABI successful !!!");
+      System.out.println("ClearContractABI successful !!!");
     } else {
-      sysPrint("ClearContractABI failed !!!");
+      System.out.println("ClearContractABI failed !!!");
     }
   }
 
   private void updateBrokerage(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length != 2) {
-      sysPrint("Using updateBrokerage command needs 2 parameters like: ");
-      sysPrint("updateBrokerage OwnerAddress brokerage");
+      System.out.println("Using updateBrokerage command needs 2 parameters like: ");
+      System.out.println("updateBrokerage OwnerAddress brokerage");
       return;
     }
 
@@ -1912,7 +1907,7 @@ public class Client {
 
     ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
     if (ownerAddress == null) {
-      sysPrint("Invalid OwnerAddress.");
+      System.out.println("Invalid OwnerAddress.");
       return;
     }
 
@@ -1923,9 +1918,9 @@ public class Client {
 
     boolean result = walletApiWrapper.updateBrokerage(ownerAddress, brokerage);
     if (result) {
-      sysPrint("UpdateBrokerage successful !!!");
+      System.out.println("UpdateBrokerage successful !!!");
     } else {
-      sysPrint("UpdateBrokerage failed !!!");
+      System.out.println("UpdateBrokerage failed !!!");
     }
   }
 
@@ -1935,16 +1930,16 @@ public class Client {
     if (parameters.length == 1) {
       ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
       if (ownerAddress == null) {
-        sysPrint("Invalid OwnerAddress.");
+        System.out.println("Invalid OwnerAddress.");
         return;
       }
     } else {
-      sysPrint("Using getReward command needs 1 parameter like: ");
-      sysPrint("getReward [OwnerAddress]");
+      System.out.println("Using getReward command needs 1 parameter like: ");
+      System.out.println("getReward [OwnerAddress]");
       return;
     }
     NumberMessage reward = walletApiWrapper.getReward(ownerAddress);
-    sysPrint("The reward is : " + reward.getNum());
+    System.out.println("The reward is : " + reward.getNum());
   }
 
   private void getBrokerage(String[] parameters) {
@@ -1953,16 +1948,16 @@ public class Client {
     if (parameters.length == 1) {
       ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
       if (ownerAddress == null) {
-        sysPrint("Invalid OwnerAddress.");
+        System.out.println("Invalid OwnerAddress.");
         return;
       }
     } else {
-      sysPrint("Using getBrokerage needs 1 parameter like following: ");
-      sysPrint("getBrokerage [OwnerAddress]");
+      System.out.println("Using getBrokerage needs 1 parameter like following: ");
+      System.out.println("getBrokerage [OwnerAddress]");
       return;
     }
     NumberMessage brokerage = walletApiWrapper.getBrokerage(ownerAddress);
-    sysPrint("The brokerage is : " + brokerage.getNum());
+    System.out.println("The brokerage is : " + brokerage.getNum());
   }
 
   private String[] getParas(String[] para) {
@@ -2002,10 +1997,10 @@ public class Client {
     String[] parameters = getParas(parameter);
     if (parameters == null ||
         parameters.length < 11) {
-      sysPrint("Using deployContract needs at least 11 parameters like: ");
-      sysPrint(
+      System.out.println("Using deployContract needs at least 11 parameters like: ");
+      System.out.println(
           "DeployContract [ownerAddress] contractName ABI byteCode constructor params isHex fee_limit consume_user_resource_percent origin_energy_limit value token_value token_id(e.g: TRXTOKEN, use # if don't provided) <library:address,library:address,...> <lib_compiler_version(e.g:v5)>");
-//      sysPrint(
+//      System.out.println(
 //          "Note: Please append the param for constructor tightly with byteCode without any space");
       return;
     }
@@ -2026,11 +2021,11 @@ public class Client {
     long consumeUserResourcePercent = Long.parseLong(parameters[idx++]);
     long originEnergyLimit = Long.parseLong(parameters[idx++]);
     if (consumeUserResourcePercent > 100 || consumeUserResourcePercent < 0) {
-      sysPrint("consume_user_resource_percent should be >= 0 and <= 100");
+      System.out.println("consume_user_resource_percent should be >= 0 and <= 100");
       return;
     }
     if (originEnergyLimit <= 0) {
-      sysPrint("origin_energy_limit must > 0");
+      System.out.println("origin_energy_limit must > 0");
       return;
     }
     if (!constructorStr.equals("#")) {
@@ -2066,10 +2061,10 @@ public class Client {
             consumeUserResourcePercent, originEnergyLimit, tokenValue, tokenId, libraryAddressPair,
             compilerVersion);
     if (result) {
-      sysPrint("Broadcast the createSmartContract successful.\n"
+      System.out.println("Broadcast the createSmartContract successful.\n"
           + "Please check the given transaction id to confirm deploy status on blockchain using getTransactionInfoById command.");
     } else {
-      sysPrint("Broadcast the createSmartContract failed !!!");
+      System.out.println("Broadcast the createSmartContract failed !!!");
     }
   }
 
@@ -2079,14 +2074,14 @@ public class Client {
 
     if (isConstant) {
       if (parameters == null || (parameters.length != 4 && parameters.length != 5)) {
-        sysPrint(cmdMethodStr + " needs 4 or 5 parameters like: ");
-        sysPrint(cmdMethodStr + " [OwnerAddress] contractAddress method args isHex");
+        System.out.println(cmdMethodStr + " needs 4 or 5 parameters like: ");
+        System.out.println(cmdMethodStr + " [OwnerAddress] contractAddress method args isHex");
         return;
       }
     } else {
       if (parameters == null || (parameters.length != 8 && parameters.length != 9)) {
-        sysPrint(cmdMethodStr + " needs 8 or 9 parameters like: ");
-        sysPrint(cmdMethodStr + " [OwnerAddress] contractAddress method args isHex"
+        System.out.println(cmdMethodStr + " needs 8 or 9 parameters like: ");
+        System.out.println(cmdMethodStr + " [OwnerAddress] contractAddress method args isHex"
             + " fee_limit value token_value token_id(e.g: TRXTOKEN, use # if don't provided)");
         return;
       }
@@ -2097,7 +2092,7 @@ public class Client {
     if (parameters.length == 5 || parameters.length == 9) {
       ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
       if (ownerAddress == null) {
-        sysPrint("Invalid OwnerAddress.");
+        System.out.println("Invalid OwnerAddress.");
         return;
       }
     }
@@ -2132,10 +2127,10 @@ public class Client {
             isConstant);
     if (!isConstant) {
       if (result) {
-        sysPrint("Broadcast the " + cmdMethodStr + " successful.\n"
+        System.out.println("Broadcast the " + cmdMethodStr + " successful.\n"
             + "Please check the given transaction id to get the result on blockchain using getTransactionInfoById command");
       } else {
-        sysPrint("Broadcast the " + cmdMethodStr + " failed");
+        System.out.println("Broadcast the " + cmdMethodStr + " failed");
       }
     }
   }
@@ -2143,60 +2138,60 @@ public class Client {
   private void getContract(String[] parameters) {
     if (parameters == null ||
         parameters.length != 1) {
-      sysPrint("Using getContract needs 1 parameter like: ");
-      sysPrint("GetContract contractAddress");
+      System.out.println("Using getContract needs 1 parameter like: ");
+      System.out.println("GetContract contractAddress");
       return;
     }
 
     byte[] addressBytes = WalletApi.decodeFromBase58Check(parameters[0]);
     if (addressBytes == null) {
-      sysPrint("GetContract: invalid address !!!");
+      System.out.println("GetContract: invalid address !!!");
       return;
     }
 
     SmartContract contractDeployContract = WalletApi.getContract(addressBytes);
     if (contractDeployContract != null) {
-      sysPrint(Utils.formatMessageString(contractDeployContract));
+      System.out.println(Utils.formatMessageString(contractDeployContract));
     } else {
-      sysPrint("Query contract failed !!!");
+      System.out.println("Query contract failed !!!");
     }
   }
 
   private void generateAddress() {
     AddressPrKeyPairMessage result = walletApiWrapper.generateAddress();
     if (null != result) {
-      sysPrint(Utils.formatMessageString(result));
+      System.out.println(Utils.formatMessageString(result));
     } else {
-      sysPrint("GenerateAddress failed !!!");
+      System.out.println("GenerateAddress failed !!!");
     }
   }
 
   private void updateAccountPermission(String[] parameters)
       throws CipherException, IOException, CancelException {
     if (parameters == null || parameters.length != 2) {
-      sysPrint(
+      System.out.println(
           "Using updateAccountPermission needs 2 parameters, like UpdateAccountPermission ownerAddress permissions, permissions is json format");
       return;
     }
 
     byte[] ownerAddress = WalletApi.decodeFromBase58Check(parameters[0]);
     if (ownerAddress == null) {
-      sysPrint("GetContract: invalid address!");
+      System.out.println("GetContract: invalid address!");
       return;
     }
 
     boolean ret = walletApiWrapper.accountPermissionUpdate(ownerAddress, parameters[1]);
     if (ret) {
-      sysPrint("UpdateAccountPermission successful !!!");
+      System.out.println("UpdateAccountPermission successful !!!");
     } else {
-      sysPrint("UpdateAccountPermission failed !!!");
+      System.out.println("UpdateAccountPermission failed !!!");
     }
   }
 
 
   private void getTransactionSignWeight(String[] parameters) throws InvalidProtocolBufferException {
     if (parameters == null || parameters.length != 1) {
-      sysPrint(
+      System.out.println(
           "Using getTransactionSignWeight needs 1 parameter, like getTransactionSignWeight transaction which is hex string");
       return;
     }
@@ -2206,16 +2201,16 @@ public class Client {
 
     TransactionSignWeight transactionSignWeight = WalletApi.getTransactionSignWeight(transaction);
     if (transactionSignWeight != null) {
-      sysPrint(Utils.printTransactionSignWeight(transactionSignWeight));
+      System.out.println(Utils.printTransactionSignWeight(transactionSignWeight));
     } else {
-      sysPrint("GetTransactionSignWeight failed !!!");
+      System.out.println("GetTransactionSignWeight failed !!!");
     }
   }
 
   private void getTransactionApprovedList(String[] parameters)
       throws InvalidProtocolBufferException {
     if (parameters == null || parameters.length != 1) {
-      sysPrint(
+      System.out.println(
           "Using getTransactionApprovedList needs 1 parameter, like getTransactionApprovedList transaction which is hex string");
       return;
     }
@@ -2226,16 +2221,16 @@ public class Client {
     TransactionApprovedList transactionApprovedList = WalletApi
         .getTransactionApprovedList(transaction);
     if (transactionApprovedList != null) {
-      sysPrint(Utils.printTransactionApprovedList(transactionApprovedList));
+      System.out.println(Utils.printTransactionApprovedList(transactionApprovedList));
     } else {
-      sysPrint("GetTransactionApprovedList failed !!!");
+      System.out.println("GetTransactionApprovedList failed !!!");
     }
   }
 
   private void addTransactionSign(String[] parameters)
       throws CipherException, IOException, CancelException {
     if (parameters == null || parameters.length != 1) {
-      sysPrint(
+      System.out.println(
           "Using addTransactionSign needs 1 parameter, like addTransactionSign transaction which is hex string");
       return;
     }
@@ -2243,24 +2238,24 @@ public class Client {
     String transactionStr = parameters[0];
     Transaction transaction = Transaction.parseFrom(ByteArray.fromHexString(transactionStr));
     if (transaction == null || transaction.getRawData().getContractCount() == 0) {
-      sysPrint("Invalid transaction !!!");
+      System.out.println("Invalid transaction !!!");
       return;
     }
 
     transaction = walletApiWrapper.addTransactionSign(transaction);
     if (transaction != null) {
-      sysPrint(Utils.printTransaction(transaction));
-      sysPrint("Transaction hex string is " +
+      System.out.println(Utils.printTransaction(transaction));
+      System.out.println("Transaction hex string is " +
           ByteArray.toHexString(transaction.toByteArray()));
     } else {
-      sysPrint("AddTransactionSign failed !!!");
+      System.out.println("AddTransactionSign failed !!!");
     }
 
   }
 
   private void broadcastTransaction(String[] parameters) throws InvalidProtocolBufferException {
     if (parameters == null || parameters.length != 1) {
-      sysPrint(
+      System.out.println(
           "Using broadcastTransaction needs 1 parameter, like broadcastTransaction transaction which is hex string");
       return;
     }
@@ -2268,15 +2263,15 @@ public class Client {
     String transactionStr = parameters[0];
     Transaction transaction = Transaction.parseFrom(ByteArray.fromHexString(transactionStr));
     if (transaction == null || transaction.getRawData().getContractCount() == 0) {
-      sysPrint("Invalid transaction");
+      System.out.println("Invalid transaction");
       return;
     }
 
     boolean ret = WalletApi.broadcastTransaction(transaction);
     if (ret) {
-      sysPrint("BroadcastTransaction successful !!!");
+      System.out.println("BroadcastTransaction successful !!!");
     } else {
-      sysPrint("BroadcastTransaction failed !!!");
+      System.out.println("BroadcastTransaction failed !!!");
     }
   }
 
@@ -2288,29 +2283,29 @@ public class Client {
 
     ShieldedWrapper.getInstance().initShieldedWaletFile();
 
-    sysPrint("ShieldedAddress list:");
+    System.out.println("ShieldedAddress list:");
     for (int i = 0; i < addressNum; ++i) {
       Optional<ShieldedAddressInfo> addressInfo = walletApiWrapper.getNewShieldedAddress();
       if (addressInfo.isPresent()) {
         if (ShieldedWrapper.getInstance().addNewShieldedAddress(addressInfo.get(), true)) {
-          sysPrint(addressInfo.get().getAddress());
+          System.out.println(addressInfo.get().getAddress());
         }
       }
     }
 
-    sysPrint("GenerateShieldedAddress successful !!!");
+    System.out.println("GenerateShieldedAddress successful !!!");
   }
 
   private void listShieldedAddress() {
     if (!ShieldedWrapper.getInstance().ifShieldedWalletLoaded()) {
-      sysPrint("ListShieldedAddress failed, please loadShieldedWallet first!");
+      System.out.println("ListShieldedAddress failed, please loadShieldedWallet first!");
       return;
     }
 
     List<String> listAddress = ShieldedWrapper.getInstance().getShieldedAddressList();
-    sysPrint("ShieldedAddress :");
+    System.out.println("ShieldedAddress :");
     for (String address : listAddress) {
-      sysPrint(address);
+      System.out.println(address);
     }
   }
 
@@ -2341,7 +2336,7 @@ public class Client {
       long mapIndex = Long.valueOf(parameters[parameterIndex++]);
       ShieldedNoteInfo noteInfo = ShieldedWrapper.getInstance().getUtxoMapNote().get(mapIndex);
       if (noteInfo == null) {
-        sysPrint("Can't find index " + mapIndex + " note.");
+        System.out.println("Can't find index " + mapIndex + " note.");
         return false;
       }
       if (i == 0) {
@@ -2373,7 +2368,7 @@ public class Client {
       shieldedOutputNum = Integer.valueOf(amountString);
     }
     if ((parameters.length - parameterIndex) % 3 != 0) {
-      sysPrint("Invalid parameter number!");
+      System.out.println("Invalid parameter number!");
       return false;
     }
 
@@ -2424,8 +2419,8 @@ public class Client {
   private void sendShieldedCoin(String[] parameters) throws IOException, CipherException,
       CancelException, ZksnarkException {
     if (parameters == null || parameters.length < 6) {
-      sysPrint("Using SendShieldedCoin command needs more than 6 parameters like: ");
-      sysPrint("SendShieldedCoin publicFromAddress fromAmount shieldedInputNum "
+      System.out.println("Using SendShieldedCoin command needs more than 6 parameters like: ");
+      System.out.println("SendShieldedCoin publicFromAddress fromAmount shieldedInputNum "
           + "input1 input2 input3 ... publicToAddress toAmount shieldedOutputNum shieldedAddress1"
           + " amount1 memo1 shieldedAddress2 amount2 memo2 ... ");
       return;
@@ -2433,23 +2428,23 @@ public class Client {
 
     if (isFromShieldedNote(parameters[2]) &&
         !ShieldedWrapper.getInstance().ifShieldedWalletLoaded()) {
-      sysPrint("SendShieldedCoin failed, please loadShieldedWallet first !!!");
+      System.out.println("SendShieldedCoin failed, please loadShieldedWallet first !!!");
       return;
     }
 
     boolean result = sendShieldedCoinNormal(parameters, true);
     if (result) {
-      sysPrint("SendShieldedCoin successful !!!");
+      System.out.println("SendShieldedCoin successful !!!");
     } else {
-      sysPrint("SendShieldedCoin failed !!!");
+      System.out.println("SendShieldedCoin failed !!!");
     }
   }
 
   private void sendShieldedCoinWithoutAsk(String[] parameters) throws IOException, CipherException,
       CancelException, ZksnarkException {
     if (parameters == null || parameters.length < 6) {
-      sysPrint("Using SendShieldedCoinWithoutAsk command needs more than 6 parameters like: ");
-      sysPrint("SendShieldedCoinWithoutAsk publicFromAddress fromAmount "
+      System.out.println("Using SendShieldedCoinWithoutAsk command needs more than 6 parameters like: ");
+      System.out.println("SendShieldedCoinWithoutAsk publicFromAddress fromAmount "
           + "shieldedInputNum input1 input2 input3 ... publicToAddress toAmount shieldedOutputNum "
           + "shieldedAddress1 amount1 memo1 shieldedAddress2 amount2 memo2 ... ");
       return;
@@ -2457,28 +2452,28 @@ public class Client {
 
     if (isFromShieldedNote(parameters[2]) &&
         !ShieldedWrapper.getInstance().ifShieldedWalletLoaded()) {
-      sysPrint("SendShieldedCoin failed, please loadShieldedWallet first!");
+      System.out.println("SendShieldedCoin failed, please loadShieldedWallet first!");
       return;
     }
 
     boolean result = sendShieldedCoinNormal(parameters, false);
     if (result) {
-      sysPrint("SendShieldedCoinWithoutAsk successful !!!");
+      System.out.println("SendShieldedCoinWithoutAsk successful !!!");
     } else {
-      sysPrint("SendShieldedCoinWithoutAsk failed !!!");
+      System.out.println("SendShieldedCoinWithoutAsk failed !!!");
     }
   }
 
   private void listShieldedNote(String[] parameters) {
     if (!ShieldedWrapper.getInstance().ifShieldedWalletLoaded()) {
-      sysPrint("ListShieldedNote failed, please loadShieldedWallet first!");
+      System.out.println("ListShieldedNote failed, please loadShieldedWallet first!");
       return;
     }
 
     int showType = 0;
     if (parameters == null || parameters.length <= 0) {
-      sysPrint("This command will show all the unspent notes. ");
-      sysPrint(
+      System.out.println("This command will show all the unspent notes. ");
+      System.out.println(
           "If you want to query all the spent notes and unspent notes, please use command ListShieldedNote 1 ");
     } else {
       if (!StringUtil.isNullOrEmpty(parameters[0])) {
@@ -2489,16 +2484,16 @@ public class Client {
     if (showType == 0) {
       List<String> utxoList = ShieldedWrapper.getInstance().getvalidateSortUtxoList();
       if (utxoList.size() == 0) {
-        sysPrint("Unspent note is 0.");
+        System.out.println("Unspent note is 0.");
       } else {
-        sysPrint("Unspent note list like:");
+        System.out.println("Unspent note list like:");
         for (String string : utxoList) {
-          sysPrint(string);
+          System.out.println(string);
         }
       }
     } else {
       Map<Long, ShieldedNoteInfo> noteMap = ShieldedWrapper.getInstance().getUtxoMapNote();
-      sysPrint("All notes list like:");
+      System.out.println("All notes list like:");
       for (Entry<Long, ShieldedNoteInfo> entry : noteMap.entrySet()) {
         String string = entry.getValue().getPaymentAddress() + " ";
         string += entry.getValue().getValue();
@@ -2510,7 +2505,7 @@ public class Client {
         string += "UnSpent";
         string += " ";
         string += ZenUtils.getMemo(entry.getValue().getMemo());
-        sysPrint(string);
+        System.out.println(string);
       }
 
       List<ShieldedNoteInfo> noteList = ShieldedWrapper.getInstance().getSpendUtxoList();
@@ -2525,14 +2520,14 @@ public class Client {
         string += "Spent";
         string += " ";
         string += ZenUtils.getMemo(noteInfo.getMemo());
-        sysPrint(string);
+        System.out.println(string);
       }
     }
   }
 
   private void resetShieldedNote() {
     if (!ShieldedWrapper.getInstance().ifShieldedWalletLoaded()) {
-      sysPrint("ResetShieldedNote failed, please loadShieldedWallet first!");
+      System.out.println("ResetShieldedNote failed, please loadShieldedWallet first!");
       return;
     }
 
@@ -2541,8 +2536,8 @@ public class Client {
 
   private void scanNoteByIvk(String[] parameters) {
     if (parameters == null || parameters.length != 3) {
-      sysPrint("Using ScanNotebyIvk command needs 3 parameters like: ");
-      sysPrint("ScanNotebyIvk ivk startNum endNum ");
+      System.out.println("Using ScanNotebyIvk command needs 3 parameters like: ");
+      System.out.println("ScanNotebyIvk ivk startNum endNum ");
       return;
     }
 
@@ -2551,7 +2546,7 @@ public class Client {
       startNum = Long.parseLong(parameters[1]);
       endNum = Long.parseLong(parameters[2]);
     } catch (NumberFormatException e) {
-      sysPrint("Invalid parameter: startNum, endNum.");
+      System.out.println("Invalid parameter: startNum, endNum.");
       return;
     }
 
@@ -2560,8 +2555,8 @@ public class Client {
 
   private void scanAndMarkNoteByAddress(String[] parameters) {
     if (parameters == null || parameters.length != 3) {
-      sysPrint("Using scanAndMarkNotebyAddress needs 3 parameters like: ");
-      sysPrint("scanAndMarkNotebyAddress shieldedAddress startNum endNum ");
+      System.out.println("Using scanAndMarkNotebyAddress needs 3 parameters like: ");
+      System.out.println("scanAndMarkNotebyAddress shieldedAddress startNum endNum ");
       return;
     }
     long startNum, endNum;
@@ -2569,7 +2564,7 @@ public class Client {
       startNum = Long.parseLong(parameters[1]);
       endNum = Long.parseLong(parameters[2]);
     } catch (NumberFormatException e) {
-      sysPrint("Invalid parameter: startNum, endNum.");
+      System.out.println("Invalid parameter: startNum, endNum.");
       return;
     }
 
@@ -2578,8 +2573,8 @@ public class Client {
 
   private void ScanNoteByOvk(String[] parameters) {
     if (parameters == null || parameters.length != 3) {
-      sysPrint("Using scanNotebyOvk command needs 3 parameters like: ");
-      sysPrint("scanNotebyOvk ovk startNum endNum");
+      System.out.println("Using scanNotebyOvk command needs 3 parameters like: ");
+      System.out.println("scanNotebyOvk ovk startNum endNum");
       return;
     }
     long startNum, endNum;
@@ -2587,7 +2582,7 @@ public class Client {
       startNum = Long.parseLong(parameters[1]);
       endNum = Long.parseLong(parameters[2]);
     } catch (NumberFormatException e) {
-      sysPrint("Invalid parameter: startNum, endNum.");
+      System.out.println("Invalid parameter: startNum, endNum.");
       return;
     }
 
@@ -2596,32 +2591,32 @@ public class Client {
 
   private void getShieldedNullifier(String[] parameters) {
     if (parameters == null || parameters.length != 1) {
-      sysPrint("Using getShieldedNullifier needs 1 parameter like: ");
-      sysPrint("getShieldedNullifier index");
+      System.out.println("Using getShieldedNullifier needs 1 parameter like: ");
+      System.out.println("getShieldedNullifier index");
       return;
     }
     long index = Long.valueOf(parameters[0]);
     String hash = walletApiWrapper.getShieldedNulltifier(index);
     if (hash != null) {
-      sysPrint("ShieldedNullifier:" + hash);
+      System.out.println("ShieldedNullifier:" + hash);
     } else {
-      sysPrint("GetShieldedNullifier failed !!!");
+      System.out.println("GetShieldedNullifier failed !!!");
     }
   }
 
   private void getSpendingKey() {
     Optional<BytesMessage> sk = WalletApi.getSpendingKey();
     if (!sk.isPresent()) {
-      sysPrint("GetSpendingKey failed !!!");
+      System.out.println("GetSpendingKey failed !!!");
     } else {
-      sysPrint(ByteArray.toHexString(sk.get().getValue().toByteArray()));
+      System.out.println(ByteArray.toHexString(sk.get().getValue().toByteArray()));
     }
   }
 
   private void getExpandedSpendingKey(String[] parameters) {
     if (parameters == null || parameters.length != 1) {
-      sysPrint("Using getExpandedSpendingKey command needs 1 parameter like: ");
-      sysPrint("getExpandedSpendingKey sk ");
+      System.out.println("Using getExpandedSpendingKey command needs 1 parameter like: ");
+      System.out.println("getExpandedSpendingKey sk ");
       return;
     }
     String spendingKey = parameters[0];
@@ -2630,18 +2625,18 @@ public class Client {
         .setValue(ByteString.copyFrom(ByteArray.fromHexString(spendingKey))).build();
     Optional<ExpandedSpendingKeyMessage> esk = WalletApi.getExpandedSpendingKey(sk);
     if (!esk.isPresent()) {
-      sysPrint("GetExpandedSpendingKey failed !!!");
+      System.out.println("GetExpandedSpendingKey failed !!!");
     } else {
-      sysPrint("ask:" + ByteArray.toHexString(esk.get().getAsk().toByteArray()));
-      sysPrint("nsk:" + ByteArray.toHexString(esk.get().getNsk().toByteArray()));
-      sysPrint("ovk:" + ByteArray.toHexString(esk.get().getOvk().toByteArray()));
+      System.out.println("ask:" + ByteArray.toHexString(esk.get().getAsk().toByteArray()));
+      System.out.println("nsk:" + ByteArray.toHexString(esk.get().getNsk().toByteArray()));
+      System.out.println("ovk:" + ByteArray.toHexString(esk.get().getOvk().toByteArray()));
     }
   }
 
   private void getAkFromAsk(String[] parameters) {
     if (parameters == null || parameters.length != 1) {
-      sysPrint("Using getAkFromAsk needs 1 parameter like: ");
-      sysPrint("getAkFromAsk ask ");
+      System.out.println("Using getAkFromAsk needs 1 parameter like: ");
+      System.out.println("getAkFromAsk ask ");
       return;
     }
     String ask = parameters[0];
@@ -2650,16 +2645,16 @@ public class Client {
         .setValue(ByteString.copyFrom(ByteArray.fromHexString(ask))).build();
     Optional<BytesMessage> ak = WalletApi.getAkFromAsk(ask1);
     if (!ak.isPresent()) {
-      sysPrint("GetAkFromAsk failed !!!");
+      System.out.println("GetAkFromAsk failed !!!");
     } else {
-      sysPrint("ak:" + ByteArray.toHexString(ak.get().getValue().toByteArray()));
+      System.out.println("ak:" + ByteArray.toHexString(ak.get().getValue().toByteArray()));
     }
   }
 
   private void getNkFromNsk(String[] parameters) {
     if (parameters == null || parameters.length != 1) {
-      sysPrint("Using getNkFromNsk needs 1 parameter like: ");
-      sysPrint("getNkFromNsk nsk ");
+      System.out.println("Using getNkFromNsk needs 1 parameter like: ");
+      System.out.println("getNkFromNsk nsk ");
       return;
     }
     String nsk = parameters[0];
@@ -2668,17 +2663,17 @@ public class Client {
         .setValue(ByteString.copyFrom(ByteArray.fromHexString(nsk))).build();
     Optional<BytesMessage> nk = WalletApi.getNkFromNsk(nsk1);
     if (!nk.isPresent()) {
-      sysPrint("GetNkFromNsk failed !!!");
+      System.out.println("GetNkFromNsk failed !!!");
     } else {
-      sysPrint("nk:" + ByteArray.toHexString(nk.get().getValue().toByteArray()));
+      System.out.println("nk:" + ByteArray.toHexString(nk.get().getValue().toByteArray()));
     }
   }
 
   private void getIncomingViewingKey(String[] parameters) {
     if (parameters == null || parameters.length != 2 || parameters[0].length() != 64
         || parameters[1].length() != 64) {
-      sysPrint("Using getIncomingViewingKey needs 2 parameters like: ");
-      sysPrint("getIncomingViewingKey ak[64] nk[64] ");
+      System.out.println("Using getIncomingViewingKey needs 2 parameters like: ");
+      System.out.println("getIncomingViewingKey ak[64] nk[64] ");
       return;
     }
     String ak = parameters[0];
@@ -2690,25 +2685,25 @@ public class Client {
 
     Optional<IncomingViewingKeyMessage> ivk = WalletApi.getIncomingViewingKey(vk);
     if (!ivk.isPresent()) {
-      sysPrint("GetIncomingViewingKey failed !!!");
+      System.out.println("GetIncomingViewingKey failed !!!");
     } else {
-      sysPrint("ivk:" + ByteArray.toHexString(ivk.get().getIvk().toByteArray()));
+      System.out.println("ivk:" + ByteArray.toHexString(ivk.get().getIvk().toByteArray()));
     }
   }
 
   private void getDiversifier(String[] parameters) {
     Optional<DiversifierMessage> diversifierMessage = WalletApi.getDiversifier();
     if (!diversifierMessage.isPresent()) {
-      sysPrint("GetDiversifier failed !!!");
+      System.out.println("GetDiversifier failed !!!");
     } else {
-      sysPrint(ByteArray.toHexString(diversifierMessage.get().getD().toByteArray()));
+      System.out.println(ByteArray.toHexString(diversifierMessage.get().getD().toByteArray()));
     }
   }
 
   private void getShieldedPaymentAddress(String[] parameters) {
     if (parameters == null || parameters.length != 2 || parameters[1].length() != 22) {
-      sysPrint("Using getShieldedPaymentAddress command needs 2 parameters like: ");
-      sysPrint("getShieldedPaymentAddress ivk[64] d[22] ");
+      System.out.println("Using getShieldedPaymentAddress command needs 2 parameters like: ");
+      System.out.println("getShieldedPaymentAddress ivk[64] d[22] ");
       return;
     }
     String ivk = parameters[0];
@@ -2727,10 +2722,10 @@ public class Client {
 
     Optional<PaymentAddressMessage> paymentAddress = WalletApi.getZenPaymentAddress(ivk_d);
     if (!paymentAddress.isPresent()) {
-      sysPrint("GetShieldedPaymentAddress failed !!!");
+      System.out.println("GetShieldedPaymentAddress failed !!!");
     } else {
-      sysPrint("pkd:" + ByteArray.toHexString(paymentAddress.get().getPkD().toByteArray()));
-      sysPrint("shieldedAddress:" + paymentAddress.get().getPaymentAddress());
+      System.out.println("pkd:" + ByteArray.toHexString(paymentAddress.get().getPkD().toByteArray()));
+      System.out.println("shieldedAddress:" + paymentAddress.get().getPaymentAddress());
     }
   }
 
@@ -2740,11 +2735,11 @@ public class Client {
       for (int i = 0; i < priKey.length; i++) {
         StringUtils.printOneByte(priKey[i]);
       }
-      sysPrint("\n");
+      System.out.println("\n");
       StringUtils.clear(priKey);
-      sysPrint("BackupShieldedAddress successful !!!");
+      System.out.println("BackupShieldedAddress successful !!!");
     } else {
-      sysPrint("BackupShieldedAddress failed !!!");
+      System.out.println("BackupShieldedAddress failed !!!");
     }
   }
 
@@ -2759,21 +2754,21 @@ public class Client {
           walletApiWrapper.getNewShieldedAddressBySkAndD(sk, d);
       if (addressInfo.isPresent() &&
           ShieldedWrapper.getInstance().addNewShieldedAddress(addressInfo.get(), false)) {
-        sysPrint("Import new shielded address is: " + addressInfo.get().getAddress());
-        sysPrint("ImportShieldedAddress successful !!!");
+        System.out.println("Import new shielded address is: " + addressInfo.get().getAddress());
+        System.out.println("ImportShieldedAddress successful !!!");
       } else {
-        sysPrint("ImportShieldedAddress failed !!!");
+        System.out.println("ImportShieldedAddress failed !!!");
       }
     } else {
-      sysPrint("ImportShieldedAddress failed !!!");
+      System.out.println("ImportShieldedAddress failed !!!");
     }
   }
 
   private void marketSellAsset(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length != 5) {
-      sysPrint("Using MarketSellAsset command needs 5 parameters like: ");
-      sysPrint(
+      System.out.println("Using MarketSellAsset command needs 5 parameters like: ");
+      System.out.println(
           "MarketSellAsset ownerAddress sellTokenId sellTokenQuantity buyTokenId buyTokenQuantity");
       return;
     }
@@ -2781,7 +2776,7 @@ public class Client {
     int index = 0;
     byte[] ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
     if (ownerAddress == null) {
-      sysPrint("Invalid OwnerAddress.");
+      System.out.println("Invalid OwnerAddress.");
       return;
     }
 
@@ -2794,9 +2789,9 @@ public class Client {
         .marketSellAsset(ownerAddress, sellTokenId, sellTokenQuantity, buyTokenId,
             buyTokenQuantity);
     if (result) {
-      sysPrint("MarketSellAsset successful !!!");
+      System.out.println("MarketSellAsset successful !!!");
     } else {
-      sysPrint("MarketSellAsset failed !!!");
+      System.out.println("MarketSellAsset failed !!!");
     }
   }
 
@@ -2804,8 +2799,8 @@ public class Client {
   private void marketCancelOrder(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length != 2) {
-      sysPrint("Using MarketCancelOrder command needs 2 parameters like: ");
-      sysPrint(
+      System.out.println("Using MarketCancelOrder command needs 2 parameters like: ");
+      System.out.println(
           "MarketCancelOrder ownerAddress orderId");
       return;
     }
@@ -2813,7 +2808,7 @@ public class Client {
     int index = 0;
     byte[] ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
     if (ownerAddress == null) {
-      sysPrint("Invalid OwnerAddress.");
+      System.out.println("Invalid OwnerAddress.");
       return;
     }
 
@@ -2822,17 +2817,17 @@ public class Client {
     boolean result = walletApiWrapper
         .marketCancelOrder(ownerAddress, orderId);
     if (result) {
-      sysPrint("MarketCancelOrder successful !!!");
+      System.out.println("MarketCancelOrder successful !!!");
     } else {
-      sysPrint("MarketCancelOrder failed !!!");
+      System.out.println("MarketCancelOrder failed !!!");
     }
   }
 
 
   private void getMarketOrderByAccount(String[] parameters) {
     if (parameters == null || parameters.length != 1) {
-      sysPrint("Using GetMarketOrderByAccount command needs 1 parameters like: ");
-      sysPrint(
+      System.out.println("Using GetMarketOrderByAccount command needs 1 parameters like: ");
+      System.out.println(
           "GetMarketOrderByAccount ownerAddress");
       return;
     }
@@ -2840,23 +2835,23 @@ public class Client {
     int index = 0;
     byte[] ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
     if (ownerAddress == null) {
-      sysPrint("Invalid OwnerAddress.");
+      System.out.println("Invalid OwnerAddress.");
       return;
     }
 
     Optional<MarketOrderList> marketOrderList = walletApiWrapper
         .getMarketOrderByAccount(ownerAddress);
     if (!marketOrderList.isPresent()) {
-      sysPrint("GetMarketOrderByAccount failed !!!");
+      System.out.println("GetMarketOrderByAccount failed !!!");
     } else {
-      sysPrint(Utils.formatMessageString(marketOrderList.get()));
+      System.out.println(Utils.formatMessageString(marketOrderList.get()));
     }
   }
 
   private void getMarketPriceByPair(String[] parameters) {
     if (parameters == null || parameters.length != 2) {
-      sysPrint("Using GetMarketPriceByPair command needs 2 parameters like: ");
-      sysPrint(
+      System.out.println("Using GetMarketPriceByPair command needs 2 parameters like: ");
+      System.out.println(
           "GetMarketPriceByPair sellTokenId buyTokenId");
       return;
     }
@@ -2868,17 +2863,17 @@ public class Client {
     Optional<MarketPriceList> marketPriceList = walletApiWrapper
         .getMarketPriceByPair(sellTokenId, buyTokenId);
     if (!marketPriceList.isPresent()) {
-      sysPrint("GetMarketPriceByPair failed !!!");
+      System.out.println("GetMarketPriceByPair failed !!!");
     } else {
-      sysPrint(Utils.formatMessageString(marketPriceList.get()));
+      System.out.println(Utils.formatMessageString(marketPriceList.get()));
     }
   }
 
 
   private void getMarketOrderListByPair(String[] parameters) {
     if (parameters == null || parameters.length != 2) {
-      sysPrint("Using getMarketOrderListByPair command needs 2 parameters like: ");
-      sysPrint(
+      System.out.println("Using getMarketOrderListByPair command needs 2 parameters like: ");
+      System.out.println(
           "getMarketOrderListByPair sellTokenId buyTokenId");
       return;
     }
@@ -2890,17 +2885,17 @@ public class Client {
     Optional<MarketOrderList> orderListByPair = walletApiWrapper
         .getMarketOrderListByPair(sellTokenId, buyTokenId);
     if (!orderListByPair.isPresent()) {
-      sysPrint("getMarketOrderListByPair failed !!!");
+      System.out.println("getMarketOrderListByPair failed !!!");
     } else {
-      sysPrint(Utils.formatMessageString(orderListByPair.get()));
+      System.out.println(Utils.formatMessageString(orderListByPair.get()));
     }
   }
 
 
   private void getMarketPairList(String[] parameters) {
     if (parameters == null || parameters.length != 0) {
-      sysPrint("Using getMarketPairList command does not need any parameters, like: ");
-      sysPrint(
+      System.out.println("Using getMarketPairList command does not need any parameters, like: ");
+      System.out.println(
           "getMarketPairList");
       return;
     }
@@ -2908,16 +2903,16 @@ public class Client {
     Optional<MarketOrderPairList> pairList = walletApiWrapper
         .getMarketPairList();
     if (!pairList.isPresent()) {
-      sysPrint("getMarketPairList failed !!!");
+      System.out.println("getMarketPairList failed !!!");
     } else {
-      sysPrint(Utils.formatMessageString(pairList.get()));
+      System.out.println(Utils.formatMessageString(pairList.get()));
     }
   }
 
   private void getMarketOrderById(String[] parameters) {
     if (parameters == null || parameters.length != 1) {
-      sysPrint("Using getMarketOrderById command needs 1 parameters like:");
-      sysPrint(
+      System.out.println("Using getMarketOrderById command needs 1 parameters like:");
+      System.out.println(
           "getMarketOrderById orderId");
       return;
     }
@@ -2926,30 +2921,30 @@ public class Client {
     Optional<MarketOrder> order = walletApiWrapper
         .getMarketOrderById(orderId);
     if (!order.isPresent()) {
-      sysPrint("getMarketOrderById failed !!!");
+      System.out.println("getMarketOrderById failed !!!");
     } else {
-      sysPrint(Utils.formatMessageString(order.get()));
+      System.out.println(Utils.formatMessageString(order.get()));
     }
   }
 
 
   private void create2(String[] parameters) {
     if (parameters == null || parameters.length != 3) {
-      sysPrint("Using create2 command needs 3 parameters like: ");
-      sysPrint("create2 address code salt");
+      System.out.println("Using create2 command needs 3 parameters like: ");
+      System.out.println("create2 address code salt");
       return;
     }
 
     byte[] address = WalletApi.decodeFromBase58Check(parameters[0]);
     if (!WalletApi.addressValid(address)) {
-      sysPrint("The length of address must be 21 bytes.");
+      System.out.println("The length of address must be 21 bytes.");
       return;
     }
 
     byte[] code = Hex.decode(parameters[1]);
     byte[] temp = Longs.toByteArray(Long.parseLong(parameters[2]));
     if (temp.length != 8) {
-      sysPrint("Invalid salt!");
+      System.out.println("Invalid salt!");
       return;
     }
     byte[] salt = new byte[32];
@@ -2958,24 +2953,24 @@ public class Client {
     byte[] mergedData = ByteUtil.merge(address, salt, Hash.sha3(code));
     String Address = WalletApi.encode58Check(Hash.sha3omit12(mergedData));
 
-    sysPrint("Create2 Address: " + Address);
+    System.out.println("Create2 Address: " + Address);
 
     return;
   }
 
   private void help() {
-    sysPrint("Help: List of Tron Wallet-cli commands");
-    sysPrint(
+    System.out.println("Help: List of Tron Wallet-cli commands");
+    System.out.println(
         "For more information on a specific command, type the command and it will display tips");
-    sysPrint("");
+    System.out.println("");
 
     for (String commandItem : commandHelp) {
-      sysPrint(commandItem);
+      System.out.println(commandItem);
     }
 
-    sysPrint("Exit or Quit");
+    System.out.println("Exit or Quit");
 
-    sysPrint("Input any one of the listed commands, to display how-to tips.");
+    System.out.println("Input any one of the listed commands, to display how-to tips.");
   }
 
   private String[] getCmd(String cmdLine) {
@@ -3018,14 +3013,14 @@ public class Client {
   }
 
   private void run() {
-    sysPrint(" ");
-    sysPrint("Welcome to Tron Wallet-Cli");
-    sysPrint("Please type one of the following commands to proceed.");
-    sysPrint("Login, RegisterWallet or ImportWallet");
-    sysPrint(" ");
-    sysPrint(
+    System.out.println(" ");
+    System.out.println("Welcome to Tron Wallet-Cli");
+    System.out.println("Please type one of the following commands to proceed.");
+    System.out.println("Login, RegisterWallet or ImportWallet");
+    System.out.println(" ");
+    System.out.println(
         "You may also use the Help command at anytime to display a full list of commands.");
-    sysPrint(" ");
+    System.out.println(" ");
 
     try {
       Terminal terminal = TerminalBuilder.builder().system(true).dumb(true).build();
@@ -3488,34 +3483,34 @@ public class Client {
             }
             case "exit":
             case "quit": {
-              sysPrint("Exit !!!");
+              System.out.println("Exit !!!");
               return;
             }
             default: {
-              sysPrint("Invalid cmd: " + cmd);
+              System.out.println("Invalid cmd: " + cmd);
               help();
             }
           }
         } catch (CipherException e) {
-          sysPrint(cmd + " failed!");
-          sysPrint(e.getMessage());
+          System.out.println(cmd + " failed!");
+          System.out.println(e.getMessage());
         } catch (IOException e) {
-          sysPrint(cmd + " failed!");
-          sysPrint(e.getMessage());
+          System.out.println(cmd + " failed!");
+          System.out.println(e.getMessage());
         } catch (CancelException e) {
-          sysPrint(cmd + " failed!");
-          sysPrint(e.getMessage());
+          System.out.println(cmd + " failed!");
+          System.out.println(e.getMessage());
         } catch (EndOfFileException e) {
-          sysPrint("\nBye.");
+          System.out.println("\nBye.");
           return;
         } catch (Exception e) {
-          sysPrint(cmd + " failed!");
-          sysPrint(e.getMessage());
+          System.out.println(cmd + " failed!");
+          System.out.println(e.getMessage());
           e.printStackTrace();
         }
       }
     } catch (IOException e) {
-      sysPrint("\nBye.");
+      System.out.println("\nBye.");
       return;
     }
   }
@@ -3524,9 +3519,9 @@ public class Client {
     Optional<ChainParameters> result = walletApiWrapper.getChainParameters();
     if (result.isPresent()) {
       ChainParameters chainParameters = result.get();
-      sysPrint(Utils.formatMessageString(chainParameters));
+      System.out.println(Utils.formatMessageString(chainParameters));
     } else {
-      sysPrint("GetChainParameters failed !!");
+      System.out.println("GetChainParameters failed !!");
     }
   }
 
