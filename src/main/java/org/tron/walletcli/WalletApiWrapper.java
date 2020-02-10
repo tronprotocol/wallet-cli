@@ -89,6 +89,14 @@ public class WalletApiWrapper {
     return result;
   }
 
+  public boolean isLoginState() {
+    if (wallet == null || !wallet.isLoginState()) {
+      return false;
+    } else {
+      return true;
+    }
+  }
+
   public boolean login() throws IOException, CipherException {
     logout();
     wallet = WalletApi.loadWalletFromKeystore();
@@ -116,6 +124,8 @@ public class WalletApiWrapper {
     //Neddn't logout
   }
 
+
+
   //password is current, will be enc by password2.
   public byte[] backupWallet() throws IOException, CipherException {
     if (wallet == null || !wallet.isLoginState()) {
@@ -138,7 +148,7 @@ public class WalletApiWrapper {
 
   public String getAddress() {
     if (wallet == null || !wallet.isLoginState()) {
-      System.out.println("Warning: GetAddress failed,  Please login first !!");
+//      System.out.println("Warning: GetAddress failed,  Please login first !!");
       return null;
     }
 
@@ -721,7 +731,7 @@ public class WalletApiWrapper {
       List<GrpcAPI.Note> shieldedOutputList, String toAddress, long toAmount)
       throws CipherException, IOException, CancelException, ZksnarkException {
     PrivateParameters.Builder builder = PrivateParameters.newBuilder();
-    if (!StringUtil.isNullOrEmpty(fromAddress)) {
+    if (!StringUtil.isNullOrEmpty(fromAddress) && fromAmount > 0) {
       byte[] from = WalletApi.decodeFromBase58Check(fromAddress);
       if (from == null) {
         return false;

@@ -211,7 +211,7 @@ message TriggerSmartContract {
 
 message BuyStorageContract {
   bytes owner_address = 1;
-  int64 quant = 2; // trx quantity for buy storage (sun)
+  int64 quant = 2; // trx quantity for buy storage (Sun)
 }
 
 message BuyStorageBytesContract {
