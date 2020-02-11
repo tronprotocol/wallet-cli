@@ -1451,7 +1451,7 @@ MarketSellAsset owner_address sell_token_id sell_token_quantity buy_token_id buy
 *buy_token_id, buy_token_quantity:ID and amount of the token want to buy*     
 
 Example:    
-MarketSellAsset TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW  _ 100 1000001 200      
+MarketSellAsset TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW  1000001 200 _ 100    
 Get the result of the contract execution with the getTransactionInfoById command:   
 getTransactionInfoById 10040f993cd9452b25bf367f38edadf11176355802baf61f3c49b96b4480d374   
 
@@ -1503,7 +1503,6 @@ GetMarketOrderById fc9c64dfd48ae58952e85f05ecb8ec87f55e19402493bb2df501ae9d2da75
 	"sell_token_quantity": 100,
 	"buy_token_id": "1000001",
 	"buy_token_quantity": 200,
-	"state": "CANCELED"
 }
 ```
 
