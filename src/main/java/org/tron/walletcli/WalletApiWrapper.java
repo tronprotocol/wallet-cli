@@ -804,9 +804,7 @@ public class WalletApiWrapper {
         builder.addShieldedSpends(spendNoteBuilder.build());
       }
     } else {
-      byte[] ovk = ByteArray
-          .fromHexString("030c8c2bc59fb3eb8afb047a8ea4b028743d23e7d38c6fa30908358431e2314d");
-      builder.setOvk(ByteString.copyFrom(ovk));
+      builder.setOvk(ByteString.copyFrom(getRandomOvk()));
     }
 
     if (shieldedOutputList.size() > 0) {
@@ -900,9 +898,7 @@ public class WalletApiWrapper {
         builder.addShieldedSpends(spendNoteBuilder.build());
       }
     } else {
-      byte[] ovk = ByteArray
-          .fromHexString("030c8c2bc59fb3eb8afb047a8ea4b028743d23e7d38c6fa30908358431e2314d");
-      builder.setOvk(ByteString.copyFrom(ovk));
+      builder.setOvk(ByteString.copyFrom(getRandomOvk()));
     }
 
     if (shieldedOutputList.size() > 0) {
@@ -1065,6 +1061,18 @@ public class WalletApiWrapper {
     }
 
     return Optional.empty();
+  }
+
+  public byte[] getRandomOvk() {
+    try {
+      Optional<BytesMessage> sk = WalletApi.getSpendingKey();
+      Optional<ExpandedSpendingKeyMessage> expandedSpendingKeyMessage = WalletApi
+          .getExpandedSpendingKey(sk.get());
+      return expandedSpendingKeyMessage.get().getOvk().toByteArray();
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+    return null;
   }
 
   public Optional<ShieldedAddressInfo> getNewShieldedAddressBySkAndD(byte[] sk, byte[] d) {
