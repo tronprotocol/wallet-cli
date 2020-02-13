@@ -804,7 +804,13 @@ public class WalletApiWrapper {
         builder.addShieldedSpends(spendNoteBuilder.build());
       }
     } else {
-      builder.setOvk(ByteString.copyFrom(getRandomOvk()));
+      byte[] ovk = getRandomOvk();
+      if (ovk != null) {
+        builder.setOvk(ByteString.copyFrom(ovk));
+      } else {
+        System.out.println("Get random ovk from Rpc failure,please check config");
+        return false;
+      }
     }
 
     if (shieldedOutputList.size() > 0) {
@@ -898,7 +904,13 @@ public class WalletApiWrapper {
         builder.addShieldedSpends(spendNoteBuilder.build());
       }
     } else {
-      builder.setOvk(ByteString.copyFrom(getRandomOvk()));
+      byte[] ovk = getRandomOvk();
+      if (ovk != null) {
+        builder.setOvk(ByteString.copyFrom(ovk));
+      } else {
+        System.out.println("Get random ovk from Rpc failure,please check config");
+        return false;
+      }
     }
 
     if (shieldedOutputList.size() > 0) {
