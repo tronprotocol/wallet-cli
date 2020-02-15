@@ -698,6 +698,9 @@ service Wallet {
 
   };
   // end for shiededTransaction
+  rpc CreateCommonTransaction (Transaction) returns (TransactionExtention) {
+
+  };
 };
 
 service WalletSolidity {

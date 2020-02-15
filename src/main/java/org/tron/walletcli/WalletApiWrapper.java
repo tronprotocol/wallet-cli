@@ -2,9 +2,37 @@ package org.tron.walletcli;
 
 import com.google.protobuf.ByteString;
 import io.netty.util.internal.StringUtil;
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.tron.api.GrpcAPI;
-import org.tron.api.GrpcAPI.*;
+import org.tron.api.GrpcAPI.AddressPrKeyPairMessage;
+import org.tron.api.GrpcAPI.AssetIssueList;
+import org.tron.api.GrpcAPI.BlockExtention;
+import org.tron.api.GrpcAPI.BytesMessage;
+import org.tron.api.GrpcAPI.DecryptNotes;
+import org.tron.api.GrpcAPI.DecryptNotesMarked;
+import org.tron.api.GrpcAPI.DiversifierMessage;
+import org.tron.api.GrpcAPI.ExchangeList;
+import org.tron.api.GrpcAPI.ExpandedSpendingKeyMessage;
+import org.tron.api.GrpcAPI.IncomingViewingKeyDiversifierMessage;
+import org.tron.api.GrpcAPI.IncomingViewingKeyMessage;
+import org.tron.api.GrpcAPI.IvkDecryptAndMarkParameters;
+import org.tron.api.GrpcAPI.IvkDecryptParameters;
+import org.tron.api.GrpcAPI.NfParameters;
+import org.tron.api.GrpcAPI.NodeList;
+import org.tron.api.GrpcAPI.Note;
+import org.tron.api.GrpcAPI.OvkDecryptParameters;
+import org.tron.api.GrpcAPI.PaymentAddressMessage;
+import org.tron.api.GrpcAPI.PrivateParameters;
+import org.tron.api.GrpcAPI.PrivateParametersWithoutAsk;
+import org.tron.api.GrpcAPI.ProposalList;
+import org.tron.api.GrpcAPI.ReceiveNote;
+import org.tron.api.GrpcAPI.SpendNote;
+import org.tron.api.GrpcAPI.ViewingKeyMessage;
+import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Utils;
 import org.tron.core.exception.CancelException;
@@ -25,13 +53,13 @@ import org.tron.protos.Contract.AssetIssueContract;
 import org.tron.protos.Contract.IncrementalMerkleVoucherInfo;
 import org.tron.protos.Contract.OutputPoint;
 import org.tron.protos.Contract.OutputPointInfo;
-import org.tron.protos.Protocol.*;
+import org.tron.protos.Protocol.Account;
+import org.tron.protos.Protocol.Block;
+import org.tron.protos.Protocol.ChainParameters;
+import org.tron.protos.Protocol.Exchange;
+import org.tron.protos.Protocol.Proposal;
+import org.tron.protos.Protocol.Transaction;
 import org.tron.walletserver.WalletApi;
-
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Optional;
 
 @Slf4j
 public class WalletApiWrapper {
@@ -123,7 +151,6 @@ public class WalletApiWrapper {
     }
     //Neddn't logout
   }
-
 
 
   //password is current, will be enc by password2.
@@ -1208,5 +1235,16 @@ public class WalletApiWrapper {
 
   public GrpcAPI.NumberMessage getBrokerage(byte[] ownerAddress) {
     return WalletApi.getBrokerage(ownerAddress);
+  }
+
+  public boolean createCrossChainTransaction(String ownerChainId, String toChainId, byte[] owner,
+      byte[] toAddress, String tokenId, String tokenName, int precision, long amount)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: updateSetting failed,  Please login first !!");
+      return false;
+    }
+    return wallet.createCrossChainTransaction(ownerChainId, toChainId, owner, toAddress, tokenId,
+        tokenName, precision, amount);
   }
 }

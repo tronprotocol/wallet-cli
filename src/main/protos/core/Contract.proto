@@ -340,3 +340,21 @@ message ShieldedTransferContract {
   int64 to_amount = 7; // the amount to transparent to_address
 }
 // end shielded transaction
+message CrossContract {
+  bytes owner_address = 1;
+  bytes owner_chainId = 2;
+  bytes to_address = 3;
+  bytes to_chainId = 4;
+  bytes data = 5;
+  CrossDataType type = 6;
+  enum CrossDataType {
+    TOKEN = 0;
+  }
+}
+
+message CrossToken {
+  int64 amount = 1;
+  bytes token_id = 2;
+  bytes token_name = 3;
+  int32 precision = 4;
+}

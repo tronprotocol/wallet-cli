@@ -11,13 +11,63 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigObject;
 import io.grpc.Status;
+import java.io.File;
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Scanner;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.spongycastle.util.encoders.Hex;
 import org.tron.api.GrpcAPI;
-import org.tron.api.GrpcAPI.*;
+import org.tron.api.GrpcAPI.AccountNetMessage;
+import org.tron.api.GrpcAPI.AccountResourceMessage;
+import org.tron.api.GrpcAPI.AddressPrKeyPairMessage;
+import org.tron.api.GrpcAPI.AssetIssueList;
+import org.tron.api.GrpcAPI.BlockExtention;
+import org.tron.api.GrpcAPI.BlockList;
+import org.tron.api.GrpcAPI.BlockListExtention;
+import org.tron.api.GrpcAPI.BytesMessage;
+import org.tron.api.GrpcAPI.DecryptNotes;
+import org.tron.api.GrpcAPI.DecryptNotesMarked;
+import org.tron.api.GrpcAPI.DelegatedResourceList;
+import org.tron.api.GrpcAPI.DiversifierMessage;
+import org.tron.api.GrpcAPI.EasyTransferResponse;
+import org.tron.api.GrpcAPI.EmptyMessage;
+import org.tron.api.GrpcAPI.ExchangeList;
+import org.tron.api.GrpcAPI.ExpandedSpendingKeyMessage;
+import org.tron.api.GrpcAPI.IncomingViewingKeyDiversifierMessage;
+import org.tron.api.GrpcAPI.IncomingViewingKeyMessage;
+import org.tron.api.GrpcAPI.IvkDecryptAndMarkParameters;
+import org.tron.api.GrpcAPI.IvkDecryptParameters;
+import org.tron.api.GrpcAPI.NfParameters;
+import org.tron.api.GrpcAPI.NodeList;
+import org.tron.api.GrpcAPI.NoteParameters;
+import org.tron.api.GrpcAPI.OvkDecryptParameters;
+import org.tron.api.GrpcAPI.PaymentAddressMessage;
+import org.tron.api.GrpcAPI.PrivateParameters;
+import org.tron.api.GrpcAPI.PrivateParametersWithoutAsk;
+import org.tron.api.GrpcAPI.ProposalList;
+import org.tron.api.GrpcAPI.Return;
+import org.tron.api.GrpcAPI.SpendAuthSigParameters;
+import org.tron.api.GrpcAPI.SpendResult;
+import org.tron.api.GrpcAPI.TransactionApprovedList;
+import org.tron.api.GrpcAPI.TransactionExtention;
+import org.tron.api.GrpcAPI.TransactionList;
+import org.tron.api.GrpcAPI.TransactionListExtention;
+import org.tron.api.GrpcAPI.TransactionSignWeight;
 import org.tron.api.GrpcAPI.TransactionSignWeight.Result.response_code;
+import org.tron.api.GrpcAPI.ViewingKeyMessage;
+import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.Hash;
 import org.tron.common.crypto.Sha256Sm3Hash;
@@ -30,19 +80,48 @@ import org.tron.core.config.Configuration;
 import org.tron.core.config.Parameter.CommonConstant;
 import org.tron.core.exception.CancelException;
 import org.tron.core.exception.CipherException;
-import org.tron.keystore.*;
+import org.tron.keystore.CheckStrength;
+import org.tron.keystore.Credentials;
+import org.tron.keystore.Wallet;
+import org.tron.keystore.WalletFile;
+import org.tron.keystore.WalletUtils;
 import org.tron.protos.Contract;
-import org.tron.protos.Contract.*;
-import org.tron.protos.Protocol.*;
+import org.tron.protos.Contract.AssetIssueContract;
+import org.tron.protos.Contract.BuyStorageBytesContract;
+import org.tron.protos.Contract.BuyStorageContract;
+import org.tron.protos.Contract.ClearABIContract;
+import org.tron.protos.Contract.CreateSmartContract;
+import org.tron.protos.Contract.CrossContract;
+import org.tron.protos.Contract.CrossContract.CrossDataType;
+import org.tron.protos.Contract.CrossToken;
+import org.tron.protos.Contract.FreezeBalanceContract;
+import org.tron.protos.Contract.IncrementalMerkleVoucherInfo;
+import org.tron.protos.Contract.OutputPointInfo;
+import org.tron.protos.Contract.SellStorageContract;
+import org.tron.protos.Contract.ShieldedTransferContract;
+import org.tron.protos.Contract.SpendDescription;
+import org.tron.protos.Contract.UnfreezeAssetContract;
+import org.tron.protos.Contract.UnfreezeBalanceContract;
+import org.tron.protos.Contract.UpdateBrokerageContract;
+import org.tron.protos.Contract.UpdateEnergyLimitContract;
+import org.tron.protos.Contract.UpdateSettingContract;
+import org.tron.protos.Contract.WithdrawBalanceContract;
+import org.tron.protos.Protocol.Account;
+import org.tron.protos.Protocol.Block;
+import org.tron.protos.Protocol.ChainParameters;
+import org.tron.protos.Protocol.DelegatedResourceAccountIndex;
+import org.tron.protos.Protocol.Exchange;
+import org.tron.protos.Protocol.Key;
+import org.tron.protos.Protocol.Permission;
+import org.tron.protos.Protocol.Proposal;
+import org.tron.protos.Protocol.SmartContract;
+import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.Transaction.Contract.ContractType;
 import org.tron.protos.Protocol.Transaction.Result;
-
-import java.io.File;
-import java.io.IOException;
-import java.io.UnsupportedEncodingException;
-import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import org.tron.protos.Protocol.Transaction.raw;
+import org.tron.protos.Protocol.TransactionInfo;
+import org.tron.protos.Protocol.TransactionSign;
+import org.tron.protos.Protocol.Witness;
 
 @Slf4j
 public class WalletApi {
@@ -130,7 +209,7 @@ public class WalletApi {
 
   /**
    * Creates a new WalletApi with a random ECKey or no ECKey.
-   * */
+   */
   public static WalletFile CreateWalletFile(byte[] password) throws CipherException {
     WalletFile walletFile = null;
     if (isEckey) {
@@ -176,7 +255,7 @@ public class WalletApi {
 
   /**
    * Creates a Wallet with an existing ECKey.
-   * */
+   */
   public WalletApi(WalletFile walletFile) {
     if (this.walletFile.isEmpty()) {
       this.walletFile.add(walletFile);
@@ -312,7 +391,7 @@ public class WalletApi {
 
   /**
    * load a Wallet from keystore
-   * */
+   */
   public static WalletApi loadWalletFromKeystore() throws IOException {
     WalletFile walletFile = loadWalletFile();
     WalletApi walletApi = new WalletApi(walletFile);
@@ -474,7 +553,7 @@ public class WalletApi {
   }
 
   private static boolean processShieldedTransaction(TransactionExtention transactionExtention,
-                                                    WalletApi wallet)
+      WalletApi wallet)
       throws IOException, CipherException, CancelException {
     if (transactionExtention == null) {
       return false;
@@ -2455,5 +2534,46 @@ public class WalletApi {
 
   public static GrpcAPI.NumberMessage getBrokerage(byte[] owner) {
     return rpcCli.getBrokerage(owner);
+  }
+
+  public boolean createCrossChainTransaction(String ownerChainId, String toChainId, byte[] owner,
+      byte[] toAddress, String tokenId, String tokenName, int precision, long amount)
+      throws IOException, CipherException, CancelException {
+    if (owner == null) {
+      owner = getAddress();
+    }
+
+    CrossToken.Builder crossToken = CrossToken.newBuilder();
+    crossToken.setAmount(amount).setTokenId(ByteString.copyFrom(ByteArray.fromString(tokenId)))
+        .setTokenName(ByteString.copyFrom(ByteArray.fromString(tokenName))).setPrecision(precision);
+    CrossContract.Builder builder = CrossContract.newBuilder();
+    builder.setOwnerAddress(ByteString.copyFrom(owner))
+        .setOwnerChainId(ByteString.copyFrom(ByteArray.fromHexString(ownerChainId)))
+        .setToChainId(ByteString.copyFrom(ByteArray.fromHexString(toChainId)))
+        .setToAddress(ByteString.copyFrom(toAddress)).setType(CrossDataType.TOKEN)
+        .setData(crossToken.build().toByteString());
+    Transaction.Builder transaction = Transaction.newBuilder();
+    raw.Builder raw = Transaction.raw.newBuilder();
+    Transaction.Contract.Builder contract = Transaction.Contract.newBuilder();
+    contract.setType(ContractType.CrossContract)
+        .setParameter(Any.pack(builder.build()));
+    raw.addContract(contract.build());
+    transaction.setRawData(raw.build());
+
+    TransactionExtention transactionExtention =
+        rpcCli.createCrossChainTransaction(transaction.build());
+    if (transactionExtention == null || !transactionExtention.getResult().getResult()) {
+      System.out.println("RPC create cross trx failed!");
+      if (transactionExtention != null) {
+        System.out.println("Code = " + transactionExtention.getResult().getCode());
+        System.out.println(
+            "Message = " + transactionExtention.getResult().getMessage().toStringUtf8());
+      }
+      return false;
+    }
+
+    return processTransactionExtention(transactionExtention);
+
+
   }
 }

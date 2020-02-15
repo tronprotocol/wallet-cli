@@ -5,6 +5,22 @@ import com.google.common.primitives.Longs;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import io.netty.util.internal.StringUtil;
+import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Base64;
+import java.util.Base64.Decoder;
+import java.util.Base64.Encoder;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.apache.commons.lang3.ArrayUtils;
 import org.bouncycastle.util.encoders.Hex;
 import org.jline.reader.Completer;
@@ -14,7 +30,32 @@ import org.jline.reader.LineReaderBuilder;
 import org.jline.reader.impl.completer.StringsCompleter;
 import org.jline.terminal.Terminal;
 import org.jline.terminal.TerminalBuilder;
-import org.tron.api.GrpcAPI.*;
+import org.tron.api.GrpcAPI.AccountNetMessage;
+import org.tron.api.GrpcAPI.AccountResourceMessage;
+import org.tron.api.GrpcAPI.AddressPrKeyPairMessage;
+import org.tron.api.GrpcAPI.AssetIssueList;
+import org.tron.api.GrpcAPI.BlockExtention;
+import org.tron.api.GrpcAPI.BlockList;
+import org.tron.api.GrpcAPI.BlockListExtention;
+import org.tron.api.GrpcAPI.BytesMessage;
+import org.tron.api.GrpcAPI.DelegatedResourceList;
+import org.tron.api.GrpcAPI.DiversifierMessage;
+import org.tron.api.GrpcAPI.ExchangeList;
+import org.tron.api.GrpcAPI.ExpandedSpendingKeyMessage;
+import org.tron.api.GrpcAPI.IncomingViewingKeyDiversifierMessage;
+import org.tron.api.GrpcAPI.IncomingViewingKeyMessage;
+import org.tron.api.GrpcAPI.Node;
+import org.tron.api.GrpcAPI.NodeList;
+import org.tron.api.GrpcAPI.Note;
+import org.tron.api.GrpcAPI.NumberMessage;
+import org.tron.api.GrpcAPI.PaymentAddressMessage;
+import org.tron.api.GrpcAPI.ProposalList;
+import org.tron.api.GrpcAPI.TransactionApprovedList;
+import org.tron.api.GrpcAPI.TransactionList;
+import org.tron.api.GrpcAPI.TransactionListExtention;
+import org.tron.api.GrpcAPI.TransactionSignWeight;
+import org.tron.api.GrpcAPI.ViewingKeyMessage;
+import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.crypto.Hash;
 import org.tron.common.utils.AbiUtil;
 import org.tron.common.utils.ByteArray;
@@ -32,17 +73,16 @@ import org.tron.core.zen.address.KeyIo;
 import org.tron.core.zen.address.PaymentAddress;
 import org.tron.keystore.StringUtils;
 import org.tron.protos.Contract.AssetIssueContract;
-import org.tron.protos.Protocol.*;
+import org.tron.protos.Protocol.Account;
+import org.tron.protos.Protocol.Block;
+import org.tron.protos.Protocol.ChainParameters;
+import org.tron.protos.Protocol.DelegatedResourceAccountIndex;
+import org.tron.protos.Protocol.Exchange;
+import org.tron.protos.Protocol.Proposal;
+import org.tron.protos.Protocol.SmartContract;
+import org.tron.protos.Protocol.Transaction;
+import org.tron.protos.Protocol.TransactionInfo;
 import org.tron.walletserver.WalletApi;
-
-import java.io.IOException;
-import java.text.SimpleDateFormat;
-import java.util.*;
-import java.util.Base64.Decoder;
-import java.util.Base64.Encoder;
-import java.util.Map.Entry;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 
 public class Client {
@@ -150,7 +190,8 @@ public class Client {
       "WithdrawBalance",
       "UpdateBrokerage",
       "GetReward",
-      "GetBrokerage"
+      "GetBrokerage",
+      "CreateCrossChainTransaction"
   };
 
   private static String[] commandList = {
@@ -254,7 +295,8 @@ public class Client {
       "WithdrawBalance",
       "UpdateBrokerage",
       "GetReward",
-      "GetBrokerage"
+      "GetBrokerage",
+      "CreateCrossChainTransaction"
   };
 
   private byte[] inputPrivateKey() throws IOException {
@@ -1476,7 +1518,8 @@ public class Client {
       throws IOException, CipherException, CancelException {
     if (parameters == null || (parameters.length != 4 && parameters.length != 5)) {
       System.out.println("Using exchangeTransaction command needs 4 or 5 parameters like: ");
-      System.out.println("exchangeTransaction [OwnerAddress] exchange_id token_id quantity expected");
+      System.out
+          .println("exchangeTransaction [OwnerAddress] exchange_id token_id quantity expected");
       return;
     }
 
@@ -2322,7 +2365,8 @@ public class Client {
     ShieldedAddressInfo addressInfo =
         ShieldedWrapper.getInstance().getShieldedAddressInfoMap().get(shieldedAddress);
     if (addressInfo != null) {
-      System.out.println("The following variables are secret information, please don't show to other people!!!");
+      System.out.println(
+          "The following variables are secret information, please don't show to other people!!!");
       System.out.println("sk :" + ByteArray.toHexString(addressInfo.getSk()));
       System.out.println("ivk:" + ByteArray.toHexString(addressInfo.getIvk()));
       System.out.println("ovk:" + ByteArray.toHexString(addressInfo.getOvk()));
@@ -2804,7 +2848,8 @@ public class Client {
           walletApiWrapper.getNewShieldedAddressBySkAndD(sk, d);
       if (addressInfo.isPresent() &&
           ShieldedWrapper.getInstance().addNewShieldedAddress(addressInfo.get(), false)) {
-        System.out.println("Import new shielded wallet address is: " + addressInfo.get().getAddress());
+        System.out
+            .println("Import new shielded wallet address is: " + addressInfo.get().getAddress());
         System.out.println("ImportShieldedWallet successful !!!");
       } else {
         System.out.println("ImportShieldedWallet failed !!!");
@@ -2842,6 +2887,42 @@ public class Client {
     System.out.println("Create2 Address: " + Address);
 
     return;
+  }
+
+  private void createCrossChainTransaction(String[] parameters)
+      throws IOException, CipherException, CancelException {
+    if (parameters == null || parameters.length < 7) {
+      System.out.println("Using createCrossChainTransaction command needs 2 parameters like: ");
+      System.out.println(
+          "createCrossChainTransaction [OwnerAddress] ownerChainId toAddress toChainId tokenId tokenName precision amount");
+      return;
+    }
+
+    int index = 0;
+    byte[] ownerAddress = null;
+
+    if (parameters.length == 8) {
+      ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
+    }
+    String ownerChainId = parameters[index++];
+    byte[] toAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
+    String toChainId = parameters[index++];
+    String tokenId = parameters[index++];
+    String tokenName = parameters[index++];
+    int precision = Integer.valueOf(parameters[index++]);
+    long amount = Long.valueOf(parameters[index++]);
+
+    if (precision < 0 || precision > 6) {
+      System.out.println("precision between 0-6.");
+      return;
+    }
+    boolean result = walletApiWrapper.createCrossChainTransaction(ownerChainId, toChainId,
+        ownerAddress, toAddress, tokenId, tokenName, precision, amount);
+    if (result) {
+      System.out.println("createCrossChainTransaction successful !!!");
+    } else {
+      System.out.println("createCrossChainTransaction failed !!!");
+    }
   }
 
   private void help() {
@@ -3341,6 +3422,10 @@ public class Client {
             }
             case "create2": {
               create2(parameters);
+              break;
+            }
+            case "createcrosschaintransaction": {
+              createCrossChainTransaction(parameters);
               break;
             }
             case "exit":
