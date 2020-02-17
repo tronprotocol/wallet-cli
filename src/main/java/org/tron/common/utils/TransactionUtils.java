@@ -24,7 +24,6 @@ import org.tron.common.crypto.Sha256Hash;
 import org.tron.common.crypto.Sha256Sm3Hash;
 import org.tron.common.crypto.SignInterface;
 import org.tron.common.crypto.SignatureInterface;
-import org.tron.core.exception.BadItemException;
 import org.tron.core.exception.CancelException;
 import org.tron.core.exception.EncodingException;
 import org.tron.core.exception.TransactionException;
@@ -293,32 +292,19 @@ public class TransactionUtils {
     }
   }
 
-  /**
-   * @author Evgeniy Melnikov (e.melnikov@unitedtraders.com)
-   */
-  public static Transaction send(String from, String to, long amount, ECKey privateKey) throws TransactionException {
-      byte[] fromByte = WalletApi.decodeFromBase58Check(from);
-      byte[] toByte = WalletApi.decodeFromBase58Check(to);
-      GrpcAPI.TransactionExtention transactionByApi2 = signTransactionByApi2(createTransaction(fromByte, toByte, amount), privateKey.getPrivKeyBytes());
+    /**
+     * @author Evgeniy Melnikov (e.melnikov@unitedtraders.com)
+     */
+    public static Transaction send(String from, String to, long amount, ECKey privateKey) throws TransactionException {
+        GrpcAPI.TransactionExtention transactionByApi2 = signTransactionByApi2(createRawTransaction(from, to, amount), privateKey.getPrivKeyBytes());
+        Transaction transactionSigned = transactionByApi2.getTransaction();
+        return broadcastTransaction(transactionSigned);
+    }
 
-      Transaction transactionSigned = transactionByApi2.getTransaction();
-      GrpcAPI.TransactionSignWeight weight = WalletApi.getTransactionSignWeight(transactionSigned);
+    public static Transaction createRawTransaction(String from, String to, long amount) {
+        byte[] fromByte = WalletApi.decodeFromBase58Check(from);
+        byte[] toByte = WalletApi.decodeFromBase58Check(to);
 
-      if (weight.getResult().getCode() == GrpcAPI.TransactionSignWeight.Result.response_code.NOT_ENOUGH_PERMISSION) {
-          throw new TransactionException(String.format("Current signWeight is: %s. Get error with response code: %s",
-                  Utils.printTransactionSignWeight(weight), GrpcAPI.TransactionSignWeight.Result.response_code.NOT_ENOUGH_PERMISSION.name()),
-                  weight.getResult().getCode().name(), weight.getResult().getCode().getNumber()
-              );
-      }
-
-      boolean broadcastTransaction = GrpcClientHolder.getGrpcClient().broadcastTransaction(transactionSigned);
-      if (!broadcastTransaction) {
-          throw new TransactionException("Something gone wrong. Status false after broadcast transaction.", "OTHER_ERROR", 20);
-      }
-      return transactionSigned;
-  }
-
-    public static Transaction createTransaction(byte[] from, byte[] to, long amount) {
         Transaction.Builder transactionBuilder = Transaction.newBuilder();
         Protocol.Block newestBlock = WalletApi.getBlock(-1);
 
@@ -326,8 +312,8 @@ public class TransactionUtils {
         Contract.TransferContract.Builder transferContractBuilder = Contract.TransferContract
                 .newBuilder();
         transferContractBuilder.setAmount(amount);
-        ByteString bsTo = ByteString.copyFrom(to);
-        ByteString bsOwner = ByteString.copyFrom(from);
+        ByteString bsTo = ByteString.copyFrom(toByte);
+        ByteString bsOwner = ByteString.copyFrom(fromByte);
         transferContractBuilder.setToAddress(bsTo);
         transferContractBuilder.setOwnerAddress(bsOwner);
         try {
@@ -343,6 +329,23 @@ public class TransactionUtils {
         Transaction transaction = transactionBuilder.build();
         Transaction refTransaction = setReference(transaction, newestBlock);
         return refTransaction;
+    }
+
+    public static Transaction broadcastTransaction(Transaction transactionSigned) {
+        GrpcAPI.TransactionSignWeight weight = WalletApi.getTransactionSignWeight(transactionSigned);
+
+        if (weight.getResult().getCode() == GrpcAPI.TransactionSignWeight.Result.response_code.NOT_ENOUGH_PERMISSION) {
+            throw new TransactionException(String.format("Current signWeight is: %s. Get error with response code: %s",
+                    Utils.printTransactionSignWeight(weight), GrpcAPI.TransactionSignWeight.Result.response_code.NOT_ENOUGH_PERMISSION.name()),
+                    weight.getResult().getCode().name(), weight.getResult().getCode().getNumber()
+            );
+        }
+
+        boolean broadcastTransaction = GrpcClientHolder.getGrpcClient().broadcastTransaction(transactionSigned);
+        if (!broadcastTransaction) {
+            throw new TransactionException("Something gone wrong. Status false after broadcast transaction.", "OTHER_ERROR", 20);
+        }
+        return transactionSigned;
     }
 
     public static Transaction setReference(Transaction transaction, Protocol.Block newestBlock) {
