@@ -296,7 +296,7 @@ public class TransactionUtils {
      * @author Evgeniy Melnikov (e.melnikov@unitedtraders.com)
      */
     public static Transaction send(String from, String to, long amount, ECKey privateKey) throws TransactionException {
-        GrpcAPI.TransactionExtention transactionByApi2 = signTransactionByApi2(createRawTransaction(from, to, amount), privateKey.getPrivKeyBytes());
+        GrpcAPI.TransactionExtention transactionByApi2 = signTransaction(createRawTransaction(from, to, amount), privateKey);
         Transaction transactionSigned = transactionByApi2.getTransaction();
         return broadcastTransaction(transactionSigned);
     }
@@ -329,6 +329,10 @@ public class TransactionUtils {
         Transaction transaction = transactionBuilder.build();
         Transaction refTransaction = setReference(transaction, newestBlock);
         return refTransaction;
+    }
+
+    public static GrpcAPI.TransactionExtention signTransaction(Transaction rawTransaction, ECKey privateKey) {
+        return signTransactionByApi2(rawTransaction, privateKey.getPrivKeyBytes());
     }
 
     public static Transaction broadcastTransaction(Transaction transactionSigned) {

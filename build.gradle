@@ -1,5 +1,5 @@
 group 'tron-grpc'
-version '1.3.0.1-RELEASE'
+version '1.3.0.2-RELEASE'
 
 apply plugin: 'java'
 apply plugin: 'com.google.protobuf'
@@ -20,7 +20,7 @@ compileJava.options*.compilerArgs = [
 ext {
     groupId = 'com.github.tronprotocol'
     artifactId = 'tron-grpc'
-    libraryVersion = '1.3.0.1-RELEASE'
+    libraryVersion = '1.3.0.2-RELEASE'
     licenseName = 'GNU LESSER GENERAL PUBLIC LICENSE Version 3'
     licenseUrl = 'https://www.gnu.org/licenses/lgpl-3.0.ru.html'
     allLicenses = ["LGPL"]

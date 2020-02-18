@@ -18,7 +18,6 @@ import org.tron.protos.Contract;
 import org.tron.protos.Contract.IncrementalMerkleVoucherInfo;
 import org.tron.protos.Contract.OutputPointInfo;
 import org.tron.protos.Protocol.*;
-
 import java.security.MessageDigest;
 import java.util.Objects;
 import java.util.Optional;
@@ -915,9 +914,25 @@ public class GrpcClient {
 
   public String send(String from, String to, long amount, String privateKey) throws TransactionException {
     Transaction transaction = TransactionUtils.send(from, to, amount, ECKey.fromPrivate(ByteArray.fromHexString(privateKey)));
-    byte[] bytes = transaction.getRawData().toByteArray();
-    MessageDigest digest = newDigest();
-    digest.update(transaction.getRawData().toByteArray(), 0, bytes.length);
-    return ByteArray.toHexString(digest.digest());
+    return getTxId(transaction);
   }
+
+   public Transaction createRawTransaction(String from, String to, long amount) throws TransactionException {
+      return TransactionUtils.createRawTransaction(from, to, amount);
+   }
+
+   public Transaction signRawTransaction(Transaction transaction, String privateKey) {
+      return TransactionUtils.signTransaction(transaction, ECKey.fromPrivate(ByteArray.fromHexString(privateKey))).getTransaction();
+   }
+
+   public Long getBalance(String address) {
+      return queryAccount(WalletApi.decodeFromBase58Check(address)).getBalance();
+   }
+
+   public String getTxId(Transaction transaction) {
+       byte[] bytes = transaction.getRawData().toByteArray();
+       MessageDigest digest = newDigest();
+       digest.update(transaction.getRawData().toByteArray(), 0, bytes.length);
+       return ByteArray.toHexString(digest.digest());
+   }
 }
