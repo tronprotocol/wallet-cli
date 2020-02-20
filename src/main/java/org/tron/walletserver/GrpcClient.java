@@ -45,6 +45,7 @@ import org.tron.api.WalletGrpc;
 import org.tron.api.WalletSolidityGrpc;
 import org.tron.common.utils.ByteArray;
 import org.tron.protos.Contract;
+import org.tron.protos.Protocol;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.ChainParameters;
@@ -331,8 +332,12 @@ public class GrpcClient {
         .setFromAddress(fromAddressBS)
         .setToAddress(toAddressBS)
         .build();
-    DelegatedResourceList delegatedResource = blockingStubFull
-        .getDelegatedResource(request);
+    DelegatedResourceList delegatedResource;
+    if (blockingStubSolidity != null) {
+      delegatedResource = blockingStubSolidity.getDelegatedResource(request);
+    } else {
+      delegatedResource = blockingStubFull.getDelegatedResource(request);
+    }
     return Optional.ofNullable(delegatedResource);
   }
 
@@ -342,9 +347,12 @@ public class GrpcClient {
         Objects.requireNonNull(WalletApi.decodeFromBase58Check(address)));
 
     BytesMessage bytesMessage = BytesMessage.newBuilder().setValue(addressBS).build();
-
-    DelegatedResourceAccountIndex accountIndex = blockingStubFull
-        .getDelegatedResourceAccountIndex(bytesMessage);
+    DelegatedResourceAccountIndex accountIndex;
+    if (blockingStubSolidity != null) {
+      accountIndex = blockingStubSolidity.getDelegatedResourceAccountIndex(bytesMessage);
+    } else {
+      accountIndex = blockingStubFull.getDelegatedResourceAccountIndex(bytesMessage);
+    }
     return Optional.ofNullable(accountIndex);
   }
 
@@ -724,7 +732,12 @@ public class GrpcClient {
   public Optional<Transaction> getTransactionById(String txID) {
     ByteString bsTxid = ByteString.copyFrom(ByteArray.fromHexString(txID));
     BytesMessage request = BytesMessage.newBuilder().setValue(bsTxid).build();
-    Transaction transaction = blockingStubFull.getTransactionById(request);
+    Transaction transaction;
+    if (blockingStubSolidity != null) {
+      transaction = blockingStubSolidity.getTransactionById(request);
+    } else {
+      transaction = blockingStubFull.getTransactionById(request);
+    }
     return Optional.ofNullable(transaction);
   }
 
