@@ -3368,7 +3368,8 @@ public class Client {
         } catch (Exception e) {
           System.out.println(cmd + " failed!");
           System.out.println(e.getMessage());
-          e.printStackTrace();
+          System.out.println(e.getCause().getMessage());
+//          e.printStackTrace();
         }
       }
     } catch (IOException e) {
