@@ -44,6 +44,7 @@ import org.tron.api.GrpcAPI.ProposalList;
 import org.tron.api.GrpcAPI.Return;
 import org.tron.api.GrpcAPI.TransactionApprovedList;
 import org.tron.api.GrpcAPI.TransactionExtention;
+import org.tron.api.GrpcAPI.TransactionInfoList;
 import org.tron.api.GrpcAPI.TransactionList;
 import org.tron.api.GrpcAPI.TransactionListExtention;
 import org.tron.api.GrpcAPI.TransactionSignWeight;
@@ -2003,6 +2004,10 @@ public class WalletApi {
 
   public static GrpcAPI.NumberMessage getBrokerage(byte[] owner) {
     return rpcCli.getBrokerage(owner);
+  }
+
+  public static Optional<TransactionInfoList> getTransactionInfoByBlockNum(long blockNum) {
+    return rpcCli.getTransactionInfoByBlockNum(blockNum);
   }
 
 }

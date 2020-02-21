@@ -13,6 +13,7 @@ import org.tron.api.GrpcAPI.BlockExtention;
 import org.tron.api.GrpcAPI.ExchangeList;
 import org.tron.api.GrpcAPI.NodeList;
 import org.tron.api.GrpcAPI.ProposalList;
+import org.tron.api.GrpcAPI.TransactionInfoList;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.utils.Utils;
 import org.tron.core.exception.CancelException;
@@ -713,6 +714,10 @@ public class WalletApiWrapper {
 
   public GrpcAPI.NumberMessage getBrokerage(byte[] ownerAddress) {
     return WalletApi.getBrokerage(ownerAddress);
+  }
+
+  public static Optional<TransactionInfoList> getTransactionInfoByBlockNum(long blockNum) {
+    return WalletApi.getTransactionInfoByBlockNum(blockNum);
   }
 
 }

@@ -36,6 +36,7 @@ import org.tron.api.GrpcAPI.NodeList;
 import org.tron.api.GrpcAPI.NumberMessage;
 import org.tron.api.GrpcAPI.ProposalList;
 import org.tron.api.GrpcAPI.TransactionApprovedList;
+import org.tron.api.GrpcAPI.TransactionInfoList;
 import org.tron.api.GrpcAPI.TransactionList;
 import org.tron.api.GrpcAPI.TransactionListExtention;
 import org.tron.api.GrpcAPI.TransactionSignWeight;
@@ -822,7 +823,9 @@ public class Client {
       System.out.println("Too many parameters !!!");
       System.out.println("You need input number with the following syntax:");
       System.out.println("GetTransactionCountByBlockNum number");
+      return;
     }
+
     long blockNum = Long.parseLong(parameters[0]);
     long count = walletApiWrapper.getTransactionCountByBlockNum(blockNum);
     System.out.println("The block contain " + count + " transactions");
@@ -1651,6 +1654,30 @@ public class Client {
     System.out.println("The brokerage is : " + brokerage.getNum());
   }
 
+  private void getTransactionInfoByBlockNum(String[] parameters) {
+    if (parameters.length != 1) {
+      System.out.println("Too many parameters !!!");
+      System.out.println("You need input number with the following syntax:");
+      System.out.println("GetTransactionInfoByBlockNum number");
+      return;
+    }
+
+    long blockNum = Long.parseLong(parameters[0]);
+    Optional<TransactionInfoList> result = walletApiWrapper.getTransactionInfoByBlockNum(blockNum);
+
+    if (result.isPresent()) {
+      TransactionInfoList transactionInfoList = result.get();
+      if (transactionInfoList.getTransactionInfoCount() == 0) {
+        System.out.println("[]");
+      } else {
+        System.out.println(Utils.printTransactionInfoList(transactionInfoList));
+      }
+    } else {
+      System.out.println("GetTransactionInfoByBlockNum failed !!!");
+    }
+
+  }
+
   private String[] getParas(String[] para) {
     String paras = String.join(" ", para);
     Pattern pattern = Pattern.compile(" (\\[.*?\\]) ");
@@ -1998,6 +2025,7 @@ public class Client {
     System.out.println("BackupWallet");
     System.out.println("BackupWallet2Base64");
     System.out.println("BroadcastTransaction");
+    System.out.println("Create2");
     System.out.println("ChangePassword");
     System.out.println("ClearContractABI");
     System.out.println("CreateAccount");
@@ -2035,6 +2063,7 @@ public class Client {
     System.out.println("GetTransactionApprovedList");
     System.out.println("GetTransactionById");
     System.out.println("GetTransactionCountByBlockNum");
+    System.out.println("GetTransactionInfoByBlockNum");
     System.out.println("GetTransactionInfoById");
     System.out.println("GetTransactionsFromThis");
     System.out.println("GetTransactionsToThis");
@@ -2067,7 +2096,6 @@ public class Client {
     System.out.println("UpdateAccountPermission");
     System.out.println("VoteWitness");
     System.out.println("WithdrawBalance");
-    System.out.println("Create2");
     System.out.println("UpdateBrokerage");
     System.out.println("GetReward");
     System.out.println("GetBrokerage");
@@ -2510,6 +2538,10 @@ public class Client {
           }
           case "getbrokerage": {
             getBrokerage(parameters);
+            break;
+          }
+          case "gettransactioninfobyblocknum": {
+            getTransactionInfoByBlockNum(parameters);
             break;
           }
           case "exit":

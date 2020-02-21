@@ -43,6 +43,7 @@ import org.tron.api.GrpcAPI.ExchangeList;
 import org.tron.api.GrpcAPI.ProposalList;
 import org.tron.api.GrpcAPI.TransactionApprovedList;
 import org.tron.api.GrpcAPI.TransactionExtention;
+import org.tron.api.GrpcAPI.TransactionInfoList;
 import org.tron.api.GrpcAPI.TransactionList;
 import org.tron.api.GrpcAPI.TransactionListExtention;
 import org.tron.api.GrpcAPI.TransactionSignWeight;
@@ -1340,6 +1341,25 @@ public class Utils {
       result += printRet(transaction.getRetList());
       result += "}";
       result += "\n";
+    }
+    return result;
+  }
+
+  public static String printTransactionInfoList(TransactionInfoList transactionInfoList) {
+    List<TransactionInfo> infoList = transactionInfoList.getTransactionInfoList();
+
+    String result = "\n";
+    int i = 0;
+    for (TransactionInfo transactioninfo : infoList) {
+      result += "transactionInfo " + i + " :::";
+      result += "\n";
+      result += "[";
+      result += "\n";
+      result += printTransactionInfo(transactioninfo);
+      result += "]";
+      result += "\n";
+      result += "\n";
+      i++;
     }
     return result;
   }
