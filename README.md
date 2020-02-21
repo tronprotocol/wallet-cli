@@ -819,7 +819,7 @@ GetTransactionCountByBlockNum:		Get the number of transactions in the block base
 block height    
 GetTransactionInfoById:				Get transaction-info based on transaction id,generally used 
 to check the result of a smart contract trigger     
-GetTransactioninfoByBlockNum:  Get transaction-info list in the block based on the block height
+GetTransactionInfoByBlockNum:  Get transaction-info list in the block based on the block height
 
 How to get block information
 ----------------------------    
