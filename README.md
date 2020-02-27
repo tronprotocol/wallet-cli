@@ -70,29 +70,29 @@ All subsequent operations that require the use of a private key must enter the p
 
 For more information on a specific command, just type the command on terminal when you start your Wallet.
 
-| [AddTransactionSign](#How-to-use-the-multi-signature-feature-of-wallet-cli?) | [ApproveProposal](#How-to-initiate-a-proposal)  | [AssetIssue](#How-to-issue-TRC10-tokens) |
+| [AddTransactionSign](#How-to-use-the-multi-signature-feature-of-wallet-cli) | [ApproveProposal](#How-to-initiate-a-proposal)  | [AssetIssue](#How-to-issue-TRC10-tokens) |
 | :---------:|:---------:|:--------: |
 | [BackupWallet](#Wallet-related-commands)| [BackupWallet2Base64](#Wallet-related-commands) | [BroadcastTransaction](#Some-others) |
 |[ChangePassword](#Wallet-related-commands)| [CreateProposal](#How-to-initiate-a-proposal) |[DeleteProposal](#How-to-initiate-a-proposal) |
 | [DeployContract](#How-to-use-smart-contracts) | [ExchangeCreate](#How-to-trade-on-the-exchange) | [ExchangeInject](#How-to-trade-on-the-exchange) |
-| [ExchangeTransaction](#How-to-trade-on-the-exchange) | [ExchangeWithdraw](#How-to-trade-on-the-exchange) | [FreezeBalance](#How-to-freeze/unfreeze-balance) |
+| [ExchangeTransaction](#How-to-trade-on-the-exchange) | [ExchangeWithdraw](#How-to-trade-on-the-exchange) | [FreezeBalance](#How-to-freezeunfreeze-balance) |
 | [GenerateAddress](#Account-related-commands) | [GetAccount](#Account-related-commands) |[GetAccountNet](#Account-related-commands) |
 |[GetAccountResource](#Account-related-commands) | [GetAddress](#Account-related-commands) |[GetAssetIssueByAccount](#How-to-issue-TRC10-tokens) | 
 |[GetAssetIssueById](#How-to-issue-TRC10-tokens) | [GetAssetIssueByName](#How-to-issue-TRC10-tokens) |[GetAssetIssueListByName](#How-to-issue-TRC10-tokens) | 
 |[GetBalance](#Account-related-commands) | [GetBlock](#How-to-get-block-information) |[GetBlockById](#How-to-get-block-information) | 
-|[GetBlockByLatestNum](#How-to-get-block-information) | [GetBlockByLimitNext](#How-to-get-block-information) |[GetContract contractAddress](#How-to-use-smart-contracts) |
-|[GetDelegatedResource](#How-to-delegate-resource) | [GetDelegatedResourceAccountIndex](#How-to-delegate-resource) | [GetNextMaintenanceTime](#Some-others) |
-[GetProposal](#How-to-initiate-a-proposal) |[GetTransactionApprovedList](#How-to-use-the-multi-signature-feature-of-wallet-cli?) |[GetTransactionById](#How-to-get-transaction-information) |
-| [GetTransactionCountByBlockNum](#How-to-get-transaction-information) | [GetTransactionInfoById](#How-to-get-transaction-information) | [GetTransactionSignWeight](#How-to-use-the-multi-signature-feature-of-wallet-cli?) |
-|[ImportWallet](#Wallet-related-commands) | [ImportWalletByBase64](#Wallet-related-commands) |[ListAssetIssue](#How-to-issue-TRC10-tokens) |
-|[ListExchanges](#How-to-trade-on-the-exchange) | [ListExchangesPaginated](#How-to-trade-on-the-exchange) |[ListNodes](#Some-others) |
-| [ListProposals](#How-to-initiate-a-proposal) | [ListProposalsPaginated](#How-to-initiate-a-proposal) | [ListWitnesses](#Some-others) |
-| [Login](#Command-line-operation-flow-example) |[ParticipateAssetIssue](#How-to-issue-TRC10-tokens) |[RegisterWallet](#Wallet-related-commands) |
-| [SendCoin](#How-to-use-the-multi-signature-feature-of-wallet-cli?) |[TransferAsset](#How-to-issue-TRC10-tokens) | [TriggerContract](#How-to-use-smart-contracts) |
-|[UnfreezeAsset](#How-to-issue-TRC10-tokens) |[UnfreezeBalance](#How-to-freeze/unfreeze-balance) | [UpdateAsset](#How-to-issue-TRC10-tokens) |
-|[UpdateEnergyLimit](#How-to-use-smart-contracts) |[UpdateSetting](#How-to-use-smart-contracts) | [UpdateAccountPermission](#How-to-use-the-multi-signature-feature-of-wallet-cli?) | 
-|[VoteWitness](#How-to-vote) |[getbrokerage](#getbrokerage) | [getreward](#getreward) | 
-|[updateBrokerage](#updateBrokerage) |  
+|[GetBlockByLatestNum](#How-to-get-block-information) | [GetBlockByLimitNext](#How-to-get-block-information) |[GetBrokerage](#Brokerage) |
+|[GetContract contractAddress](#How-to-use-smart-contracts) |[GetDelegatedResource](#How-to-delegate-resource) |[GetDelegatedResourceAccountIndex](#How-to-delegate-resource) | 
+[GetNextMaintenanceTime](#Some-others) |[GetProposal](#How-to-initiate-a-proposal) |[GetReward](#Brokerage) |
+|[GetTransactionApprovedList](#How-to-use-the-multi-signature-feature-of-wallet-cli) |[GetTransactionById](#How-to-get-transaction-information) |[GetTransactionCountByBlockNum](#How-to-get-transaction-information) | 
+|[GetTransactionInfoById](#How-to-get-transaction-information) | [GetTransactionSignWeight](#How-to-use-the-multi-signature-feature-of-wallet-cli) |[ImportWallet](#Wallet-related-commands) | 
+|[ImportWalletByBase64](#Wallet-related-commands) |[ListAssetIssue](#How-to-issue-TRC10-tokens) |[ListExchanges](#How-to-trade-on-the-exchange) |
+|[ListExchangesPaginated](#How-to-trade-on-the-exchange) |[ListNodes](#Some-others) |[ListProposals](#How-to-initiate-a-proposal) | 
+|[ListProposalsPaginated](#How-to-initiate-a-proposal) | [ListWitnesses](#Some-others) | [Login](#Command-line-operation-flow-example) |
+|[ParticipateAssetIssue](#How-to-issue-TRC10-tokens) |[RegisterWallet](#Wallet-related-commands) |[SendCoin](#How-to-use-the-multi-signature-feature-of-wallet-cli) |
+|[TransferAsset](#How-to-issue-TRC10-tokens) | [TriggerContract](#How-to-use-smart-contracts) |[UnfreezeAsset](#How-to-issue-TRC10-tokens) |
+|[UnfreezeBalance](#How-to-freezeunfreeze-balance) | [UpdateAsset](#How-to-issue-TRC10-tokens) |[UpdateBrokerage](#Brokerage) |
+|[UpdateEnergyLimit](#How-to-use-smart-contracts) |[UpdateSetting](#How-to-use-smart-contracts) | [UpdateAccountPermission](#How-to-use-the-multi-signature-feature-of-wallet-cli) | 
+|[VoteWitness](#How-to-vote) |  
 
 Input any one of them, you will get more tips.
 
@@ -171,7 +171,7 @@ After voting for the witness, you will receive the rewards. The witness has the 
 
 By default, if a witness is rewarded, he will receive 20% of the whole rewards, and 80% of the rewards will be distributed to his voters.
 
-**getbrokerage**
+**GetBrokerage**
 
 View the ratio of brokerage of the witness.
 
@@ -180,7 +180,7 @@ View the ratio of brokerage of the witness.
 OwnerAddress
 > The address of the witness's account, it is a base58check type address.
 
-**getreward**
+**GetReward**
 
 Query unclaimed reward.
 
@@ -189,7 +189,7 @@ Query unclaimed reward.
 OwnerAddress
 > The address of the voter's account, it is a base58check type address.
 
-**updateBrokerage**
+**UpdateBrokerage**
 
 Update the ratio of brokerage, this command is usually used by a witness account.
 
