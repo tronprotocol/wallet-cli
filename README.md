@@ -57,7 +57,7 @@ We can configure java-tron node IP and port in ``src/main/resources/config.conf`
 
 The following are a overview of documents including some command explanations and usage examples. Check following links to find your interesting commands:
 
-- [Freeze/unfreeze Balance](#How-to-freeze/unfreeze-balance)
+- [Freeze/unfreeze Balance](#How-to-freezeunfreeze-balance)
 - [Vote](#How-to-vote)
 - [Bandwidth](#How-to-calculate-bandwidth)
 - [IssueToke](#How-to-issue-TRC10-tokens)
@@ -226,10 +226,10 @@ TrxNum, AssetNum
 > These two parameters determine the exchange rate between the issued token and the minimum unit of TRX (Sun) when the token is issued.
 
 FreeNetLimitPerAccount
-> The maximum amount of bandwidth an account is allowed to use. Token issuers can freeze TRX to obtain bandwidth (TransferAssetContract only)
+> The maximum amount of bandwidth an account is allowed to use. Token issuers can freeze TRX to obtain bandwidth (TransferAssetContract only).
 
 PublicFreeNetLimit
-> The maximum amount of bandwidth issuing accounts are allowed user. Token issuers can freeze REX to obtain bandwidth (TransferAssetContract only)
+> The maximum amount of bandwidth issuing accounts are allowed user. Token issuers can freeze REX to obtain bandwidth (TransferAssetContract only).
 
 StartDate, EndDate
 > The start and end date of token issuance. Within this period time, other users can participate in token issuance.*
