@@ -2342,6 +2342,7 @@ public class Client {
   private boolean sendShieldedCoinNormal(String[] parameters, boolean withAsk)
       throws IOException, CipherException, CancelException, ZksnarkException {
     int parameterIndex = 0;
+    int parameterLength = parameters.length;
 
     String fromPublicAddress;
     if (Utils.isNumericString(parameters[0])) {
@@ -2424,12 +2425,20 @@ public class Client {
       shieldedOutList.add(noteBuild.build());
     }
 
+    // check if set timeout, the last param
+    long timeout = 0;
+    if (parameterIndex == parameterLength - 1) {
+      timeout = Long.valueOf(parameters[parameterIndex]);
+    }
+
     if (withAsk) {
       return walletApiWrapper.sendShieldedCoin(fromPublicAddress,
-          fromPublicAmount, shieldedInputList, shieldedOutList, toPublicAddress, toPublicAmount);
+          fromPublicAmount, shieldedInputList, shieldedOutList, toPublicAddress, toPublicAmount,
+          timeout);
     } else {
       return walletApiWrapper.sendShieldedCoinWithoutAsk(fromPublicAddress,
-          fromPublicAmount, shieldedInputList, shieldedOutList, toPublicAddress, toPublicAmount);
+          fromPublicAmount, shieldedInputList, shieldedOutList, toPublicAddress, toPublicAmount,
+          timeout);
     }
   }
 

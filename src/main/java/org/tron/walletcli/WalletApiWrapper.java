@@ -728,7 +728,7 @@ public class WalletApiWrapper {
   }
 
   public boolean sendShieldedCoin(String fromAddress, long fromAmount, List<Long> shieldedInputList,
-      List<GrpcAPI.Note> shieldedOutputList, String toAddress, long toAmount)
+      List<GrpcAPI.Note> shieldedOutputList, String toAddress, long toAmount, long timeout)
       throws CipherException, IOException, CancelException, ZksnarkException {
     PrivateParameters.Builder builder = PrivateParameters.newBuilder();
     if (!StringUtil.isNullOrEmpty(fromAddress) && fromAmount > 0) {
@@ -820,12 +820,14 @@ public class WalletApiWrapper {
       }
     }
 
+    builder.setTimeout(timeout);
+
     return WalletApi.sendShieldedCoin(builder.build(), wallet);
   }
 
   public boolean sendShieldedCoinWithoutAsk(String fromAddress, long fromAmount,
       List<Long> shieldedInputList,
-      List<GrpcAPI.Note> shieldedOutputList, String toAddress, long toAmount)
+      List<GrpcAPI.Note> shieldedOutputList, String toAddress, long toAmount, long timeout)
       throws CipherException, IOException, CancelException, ZksnarkException {
     PrivateParametersWithoutAsk.Builder builder = PrivateParametersWithoutAsk.newBuilder();
     if (!StringUtil.isNullOrEmpty(fromAddress)) {
@@ -919,6 +921,8 @@ public class WalletApiWrapper {
             ReceiveNote.newBuilder().setNote(shieldedOutputList.get(i)).build());
       }
     }
+
+    builder.setTimeout(timeout);
 
     return WalletApi.sendShieldedCoinWithoutAsk(builder.build(), ask, wallet);
   }

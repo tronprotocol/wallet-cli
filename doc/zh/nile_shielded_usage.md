@@ -154,7 +154,7 @@ ImportShieldedWallet successful !!!
 #### 2.3.2 SendShieldedCoin命令使用
 下面我们先看一下`SendShieldedCoin`命令的完整描述和相关参数的含义：
 ```test
-SendShieldedCoin [publicFromAddress] fromAmount shieldedInputNum input1 publicToAddress toAmount shieldedOutputNum shieldedAddress1 amount1 memo1 ... 
+SendShieldedCoin [publicFromAddress] fromAmount shieldedInputNum input1 publicToAddress toAmount shieldedOutputNum shieldedAddress1 amount1 memo1 ... timeout 
 ```
 `publicFromAddress` 转出的公开地址，公开地址转账给匿名地址时使用，不需要则设置为`null`，如果不设置这个参数，则会默认使用当前登陆的钱包地址。  
 `fromAmount` 公开地址转出的金额，如果`publicFromAddress`设置为`null`，该变量必须设置为`0`。  
@@ -166,6 +166,7 @@ SendShieldedCoin [publicFromAddress] fromAmount shieldedInputNum input1 publicTo
 `shieldedAddress1` 转入匿名地址。  
 `amount1` 转入到匿名地址`shieldedAddress1`的金额。  
 `memo1` note的备注（最多512个字节）可以在不需要时设置为`null`。 
+`time` 交易的过期时间，可以忽略这个参数，或者设置为一个大于的整数，以秒为单位。   
 
 **注意：一个合法的`SendShieldedCoin`命令必须保证从转出地址转出的TRZ数量等于所有转入地址收到的TRZ数量与手续费之和。我们在下面的例子中也会提到这一点。**
 

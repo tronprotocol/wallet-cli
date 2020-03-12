@@ -1124,7 +1124,7 @@ ztron165vh2d0qqj7ytrkjeehwy0sg3uvc4tnvcqnpqnzrqq4jpw2p7pzgm2d3chrwxk2jf9ck6rza8j
 
 ### SendShieldedCoin
 
-    > SendShieldedCoin [publicFromAddress] fromAmount shieldedInputNum input publicToAddress toAmount shieldedOutputNum shieldedAddress1 amount1 memo1 ...
+    > SendShieldedCoin [publicFromAddress] fromAmount shieldedInputNum input publicToAddress toAmount shieldedOutputNum shieldedAddress1 amount1 memo1 ... timeout
 
 Shielded transfer, support from public address or shielded address to public address and shielded address, does not support public address to public address, does not support automatic change.
 
@@ -1159,6 +1159,9 @@ amount1
 
 memo1
 > The memo of this note, up to 512 bytes, can be set to null if not needed
+
+timeout
+> The timeout seconds of the transaction, you can ignore it or set it to a value which should bigger than 0
 
 Example:
 

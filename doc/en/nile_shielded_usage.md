@@ -155,7 +155,7 @@ The above three types of shielded transactions can all be executed using the com
 #### 2.3.2 Use SendShieldedCoin command
 Here are the full description and explanation of relevant parameters of the command `SendShieldedCoin`:
 ```test
-SendShieldedCoin [publicFromAddress] fromAmount shieldedInputNum input1 publicToAddress toAmount shieldedOutputNum shieldedAddress1 amount1 memo1 ... 
+SendShieldedCoin [publicFromAddress] fromAmount shieldedInputNum input1 publicToAddress toAmount shieldedOutputNum shieldedAddress1 amount1 memo1 ... timeout 
 ```
 `publicFromAddress` The public sender address. The parameter is used when transferring from a public address to a shielded address. Otherwise, please set to `null`. Optional, If this variable is not configured, it is the address of the current login account.     
 `fromAmount` Amount of transfer from the public sender address. If `publicFromAddress` is set to `null`, this parameter needs to be set to `0`.  
@@ -167,6 +167,7 @@ SendShieldedCoin [publicFromAddress] fromAmount shieldedInputNum input1 publicTo
 `shieldedAddress1` Shielded address to receive the transfer.  
 `amount1` The amount sent to the shielded address `shieldedAddress1`.  
 `memo1` Remarks of note (512 bytes at most). This parameter can be set to `null` when not in use.  
+`timeout` The timeout seconds of the transaction, you can ignore it or set it to a value which should bigger than 0.    
 
 **Note: A legitimate `SendShieldedCoin` command needs to make sure the TRZ transferred from a sender address equals the sum of TRZ received by all receiving addresses plus the fees paid. We'll touch upon it in the following examples.**
  
