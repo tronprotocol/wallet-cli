@@ -640,6 +640,9 @@ service Wallet {
 
   };
 
+  rpc GetTransactionInfoByBlockNum (NumberMessage) returns (TransactionInfoList) {
+  }
+
 };
 
 
@@ -779,6 +782,9 @@ service WalletSolidity {
 
   rpc GetBrokerageInfo (BytesMessage) returns (NumberMessage) {
   };
+
+  rpc GetTransactionInfoByBlockNum (NumberMessage) returns (TransactionInfoList) {
+  }
 
 };
 
@@ -1061,4 +1067,8 @@ message TransactionApprovedList {
   repeated bytes approved_list = 2;
   Result result = 4;
   TransactionExtention transaction = 5;
+}
+
+message TransactionInfoList {
+  repeated TransactionInfo transactionInfo = 1;
 }

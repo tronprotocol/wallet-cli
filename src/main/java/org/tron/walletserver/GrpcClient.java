@@ -36,6 +36,7 @@ import org.tron.api.GrpcAPI.ProposalList;
 import org.tron.api.GrpcAPI.Return.response_code;
 import org.tron.api.GrpcAPI.TransactionApprovedList;
 import org.tron.api.GrpcAPI.TransactionExtention;
+import org.tron.api.GrpcAPI.TransactionInfoList;
 import org.tron.api.GrpcAPI.TransactionList;
 import org.tron.api.GrpcAPI.TransactionListExtention;
 import org.tron.api.GrpcAPI.TransactionSignWeight;
@@ -847,6 +848,20 @@ public class GrpcClient {
     } else {
       return blockingStubFull.getBrokerageInfo(bytesMessage);
     }
+  }
+
+  public Optional<TransactionInfoList> getTransactionInfoByBlockNum(long blockNum) {
+    TransactionInfoList transactionInfoList;
+    NumberMessage.Builder builder = NumberMessage.newBuilder();
+    builder.setNum(blockNum);
+
+    if (blockingStubSolidity != null) {
+      transactionInfoList = blockingStubSolidity.getTransactionInfoByBlockNum(builder.build());
+    } else {
+      transactionInfoList = blockingStubFull.getTransactionInfoByBlockNum(builder.build());
+    }
+
+    return Optional.ofNullable(transactionInfoList);
   }
 
 }
