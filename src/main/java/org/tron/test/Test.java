@@ -24,10 +24,9 @@ import org.tron.keystore.CheckStrength;
 import org.tron.core.exception.CipherException;
 import org.tron.keystore.Credentials;
 import org.tron.keystore.WalletUtils;
-import org.tron.protos.Contract;
-import org.tron.protos.Contract.TransferContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Transaction;
+import org.tron.protos.contract.BalanceContract.TransferContract;
 import org.tron.walletserver.WalletApi;
 
 public class Test {
@@ -41,7 +40,7 @@ public class Test {
 
     for (int i = 0; i < 10; i++) {
       Transaction.Contract.Builder contractBuilder = Transaction.Contract.newBuilder();
-      Contract.TransferContract.Builder transferContractBuilder = Contract.TransferContract
+      TransferContract.Builder transferContractBuilder = TransferContract
           .newBuilder();
       transferContractBuilder.setAmount(amount);
       ByteString bsTo = ByteString.copyFrom(ByteArray
@@ -72,7 +71,7 @@ public class Test {
 //
 //    for (int i = 0; i < 10; i++) {
 //      Transaction.Contract.Builder contractBuilder = Transaction.Contract.newBuilder();
-//      Contract.AccountCreateContract.Builder accountCreateContract = Contract.AccountCreateContract
+//      AccountCreateContract.Builder accountCreateContract = AccountCreateContract
 //          .newBuilder();
 //      accountCreateContract.setAccountName(ByteString.copyFrom("zawtest".getBytes()));
 //
