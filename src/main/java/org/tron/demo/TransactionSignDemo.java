@@ -10,9 +10,9 @@ import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.Sha256Hash;
 import org.tron.common.utils.ByteArray;
 import org.tron.core.exception.CancelException;
-import org.tron.protos.Contract;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.Transaction;
+import org.tron.protos.contract.BalanceContract.TransferContract;
 import org.tron.walletserver.WalletApi;
 
 public class TransactionSignDemo {
@@ -43,7 +43,7 @@ public class TransactionSignDemo {
     Block newestBlock = WalletApi.getBlock(-1);
 
     Transaction.Contract.Builder contractBuilder = Transaction.Contract.newBuilder();
-    Contract.TransferContract.Builder transferContractBuilder = Contract.TransferContract
+    TransferContract.Builder transferContractBuilder = TransferContract
         .newBuilder();
     transferContractBuilder.setAmount(amount);
     ByteString bsTo = ByteString.copyFrom(to);

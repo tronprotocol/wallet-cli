@@ -20,14 +20,13 @@ import org.tron.core.exception.CancelException;
 import org.tron.core.exception.CipherException;
 import org.tron.keystore.StringUtils;
 import org.tron.keystore.WalletFile;
-import org.tron.protos.Contract;
-import org.tron.protos.Contract.AssetIssueContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.ChainParameters;
 import org.tron.protos.Protocol.Exchange;
 import org.tron.protos.Protocol.Proposal;
 import org.tron.protos.Protocol.Transaction;
+import org.tron.protos.contract.AssetIssueContractOuterClass.AssetIssueContract;
 import org.tron.walletserver.WalletApi;
 
 public class WalletApiWrapper {
@@ -202,7 +201,7 @@ public class WalletApiWrapper {
       return false;
     }
 
-    Contract.AssetIssueContract.Builder builder = Contract.AssetIssueContract.newBuilder();
+    AssetIssueContract.Builder builder = AssetIssueContract.newBuilder();
     builder.setOwnerAddress(ByteString.copyFrom(wallet.getAddress()));
     builder.setName(ByteString.copyFrom(name.getBytes()));
 
@@ -253,8 +252,8 @@ public class WalletApiWrapper {
       String amountStr = frozenSupply.get(daysStr);
       long amount = Long.parseLong(amountStr);
       long days = Long.parseLong(daysStr);
-      Contract.AssetIssueContract.FrozenSupply.Builder frozenSupplyBuilder
-          = Contract.AssetIssueContract.FrozenSupply.newBuilder();
+      AssetIssueContract.FrozenSupply.Builder frozenSupplyBuilder
+          = AssetIssueContract.FrozenSupply.newBuilder();
       frozenSupplyBuilder.setFrozenAmount(amount);
       frozenSupplyBuilder.setFrozenDays(days);
       builder.addFrozenSupply(frozenSupplyBuilder.build());
