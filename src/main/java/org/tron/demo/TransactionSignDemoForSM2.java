@@ -7,9 +7,9 @@ import org.tron.common.crypto.Sha256Sm3Hash;
 import org.tron.common.crypto.sm2.SM2;
 import org.tron.common.utils.ByteArray;
 import org.tron.core.exception.CancelException;
-import org.tron.protos.Contract;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.Transaction;
+import org.tron.protos.contract.BalanceContract.TransferContract;
 import org.tron.walletserver.WalletApi;
 
 public class TransactionSignDemoForSM2 {
@@ -39,8 +39,8 @@ public class TransactionSignDemoForSM2 {
     Block newestBlock = WalletApi.getBlock(-1);
 
     Transaction.Contract.Builder contractBuilder = Transaction.Contract.newBuilder();
-    Contract.TransferContract.Builder transferContractBuilder =
-        Contract.TransferContract.newBuilder();
+    TransferContract.Builder transferContractBuilder =
+        TransferContract.newBuilder();
     transferContractBuilder.setAmount(amount);
     ByteString bsTo = ByteString.copyFrom(to);
     ByteString bsOwner = ByteString.copyFrom(from);

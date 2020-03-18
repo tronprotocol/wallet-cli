@@ -1045,6 +1045,9 @@ as: 721d63b074f18d41c147e04c952ec93467777a30b6f16745bc47a8eae5076545
 **GetTransactionInfoById**
 > Get transaction-info based on transaction id, generally used to check the result of a smart contract trigger
 
+**GetTransactionInfoByBlockNum**
+> Get the list of transaction information in the block based on the block height
+
 ## How to get block information
 
 **GetBlock**
@@ -1496,6 +1499,7 @@ For more information on a specific command, just type the command on terminal wh
     GetTransactionApprovedList
     GetTransactionById
     GetTransactionCountByBlockNum
+    GetTransactionInfoByBlockNum
     GetTransactionInfoById
     GetTransactionsFromThis
     GetTransactionsToThis
