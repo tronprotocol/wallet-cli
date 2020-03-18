@@ -1296,10 +1296,6 @@ message ShieldedAddressInfo{
   string payment_address = 10;
 }
 
-<<<<<<< HEAD
-
-=======
->>>>>>> master
 message NoteParameters {
   bytes ak = 1;
   bytes nk = 2;
@@ -1312,10 +1308,7 @@ message SpendResult {
   bool result = 1;
   string message = 2;
 }
-<<<<<<< HEAD
-=======
 
 message TransactionInfoList {
   repeated TransactionInfo transactionInfo = 1;
 }
->>>>>>> master
