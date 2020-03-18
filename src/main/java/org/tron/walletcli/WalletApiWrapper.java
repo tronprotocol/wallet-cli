@@ -20,12 +20,16 @@ import org.tron.core.zen.address.FullViewingKey;
 import org.tron.core.zen.address.SpendingKey;
 import org.tron.keystore.StringUtils;
 import org.tron.keystore.WalletFile;
-import org.tron.protos.Contract;
-import org.tron.protos.Contract.AssetIssueContract;
-import org.tron.protos.Contract.IncrementalMerkleVoucherInfo;
-import org.tron.protos.Contract.OutputPoint;
-import org.tron.protos.Contract.OutputPointInfo;
-import org.tron.protos.Protocol.*;
+import org.tron.protos.Protocol.Account;
+import org.tron.protos.Protocol.Block;
+import org.tron.protos.Protocol.ChainParameters;
+import org.tron.protos.Protocol.Exchange;
+import org.tron.protos.Protocol.Proposal;
+import org.tron.protos.Protocol.Transaction;
+import org.tron.protos.contract.AssetIssueContractOuterClass.AssetIssueContract;
+import org.tron.protos.contract.ShieldContract.IncrementalMerkleVoucherInfo;
+import org.tron.protos.contract.ShieldContract.OutputPoint;
+import org.tron.protos.contract.ShieldContract.OutputPointInfo;
 import org.tron.walletserver.WalletApi;
 
 import java.io.IOException;
@@ -205,7 +209,7 @@ public class WalletApiWrapper {
       return false;
     }
 
-    Contract.AssetIssueContract.Builder builder = Contract.AssetIssueContract.newBuilder();
+    AssetIssueContract.Builder builder = AssetIssueContract.newBuilder();
     if (ownerAddress == null) {
       ownerAddress = wallet.getAddress();
     }
@@ -272,8 +276,8 @@ public class WalletApiWrapper {
       String amountStr = frozenSupply.get(daysStr);
       long amount = Long.parseLong(amountStr);
       long days = Long.parseLong(daysStr);
-      Contract.AssetIssueContract.FrozenSupply.Builder frozenSupplyBuilder
-          = Contract.AssetIssueContract.FrozenSupply.newBuilder();
+      AssetIssueContract.FrozenSupply.Builder frozenSupplyBuilder
+          = AssetIssueContract.FrozenSupply.newBuilder();
       frozenSupplyBuilder.setFrozenAmount(amount);
       frozenSupplyBuilder.setFrozenDays(days);
       builder.addFrozenSupply(frozenSupplyBuilder.build());
@@ -1209,4 +1213,9 @@ public class WalletApiWrapper {
   public GrpcAPI.NumberMessage getBrokerage(byte[] ownerAddress) {
     return WalletApi.getBrokerage(ownerAddress);
   }
+
+  public static Optional<TransactionInfoList> getTransactionInfoByBlockNum(long blockNum) {
+    return WalletApi.getTransactionInfoByBlockNum(blockNum);
+  }
+
 }
