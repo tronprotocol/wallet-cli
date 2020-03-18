@@ -259,9 +259,6 @@ message Transaction {
       ProposalDeleteContract = 18;
       SetAccountIdContract = 19;
       CustomContract = 20;
-      // BuyStorageContract = 21;
-      // BuyStorageBytesContract = 22;
-      // SellStorageContract = 23;
       CreateSmartContract = 30;
       TriggerSmartContract = 31;
       GetContract = 32;
@@ -509,6 +506,7 @@ message HelloMessage {
   BlockId headBlockId = 6;
 }
 
+<<<<<<< HEAD
 message SmartContract {
   message ABI {
     message Entry {
@@ -556,6 +554,8 @@ message SmartContract {
   bytes trx_hash = 10;
 }
 
+=======
+>>>>>>> master
 message InternalTransaction {
   // internalTransaction identity, the root InternalTransaction hash
   // should equals to root transaction id.
