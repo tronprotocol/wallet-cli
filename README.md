@@ -2,7 +2,7 @@
 
 Wallet CLI
 
-[gitter](https://gitter.im/tronprotocol/wallet-cli)
+[Telegram](https://t.me/troncoredevscommunity)
 
 ## Get started
 
@@ -53,30 +53,36 @@ soliditynode = {
 Wallet-cli connect to java-tron via gRPC protocol, which can be deployed locally or remotely. Check **Run a web Wallet** section.
 We can configure java-tron node IP and port in ``src/main/resources/config.conf``, so that wallet-cli server can successfully talk to java-tron nodes.
 
-## Wallet-cli Document Summary
+## Wallet-cli supported command list
 
-The following are a overview of documents including some command explanations and usage examples. Check following links to find your interesting commands:
+Following is a list of Tron Wallet-cli commands:
+For more information on a specific command, just type the command on terminal when you start your Wallet.
 
-- [Freeze/unfreeze Balance](#How-to-freezeunfreeze-balance)
-- [Vote](#How-to-vote)
-- [Bandwidth](#How-to-calculate-bandwidth)
-- [IssueToke](#How-to-issue-TRC10-tokens)
-- [Proposal](#How-to-initiate-a-proposal)
-- [HowToTrade](#How-to-trade-on-the-exchange)
-- [Multi-signature ](#How-to-use-the-multi-signature-feature-of-wallet-cli)
-- [SmartContract](#How-to-use-smart-contract)
-- [DelegateResource](#How-to-delegate-resource)
-- [TransferToShieldedAddress](#How-to-transfer-to-shielded-address)
-- [GetBlock](#How-to-get-block-information)
-- [GetTransaction](#How-to-get-transaction-information)
-- [GetToken10](#Get-Token10)
-- [GetProposal](#Get-proposal-information)
-- [AccountCommand](#Account-related-commands)
-  - [createAccount](#How-to-create-account)
-  - [createWitness](#How-to-create-witness)
-- [WalletCommands](#Wallet-related-commands)
-- [CommandLineFlow](#Command-line-operation-flow-example)
-- [CommandList](#Command-list)
+| [AddTransactionSign](#How-to-use-the-multi-signature-feature-of-wallet-cli) | [ApproveProposal](#Approvecancel-the-proposal)  | [AssetIssue](#How-to-issue-TRC10-tokens) |
+| :---------:|:---------:|:--------: |
+| [BackupWallet](#Wallet-related-commands)| [BackupWallet2Base64](#Wallet-related-commands) | [BroadcastTransaction](#Some-others) |
+|[ChangePassword](#Wallet-related-commands)| [CreateProposal](#How-to-initiate-a-proposal) |[DeleteProposal](#Cancel-the-created-proposal) |
+| [DeployContract](#How-to-use-smart-contract) | [ExchangeCreate](#How-to-trade-on-the-exchange) | [ExchangeInject](#How-to-trade-on-the-exchange) |
+| [ExchangeTransaction](#How-to-trade-on-the-exchange) | [ExchangeWithdraw](#How-to-trade-on-the-exchange) | [FreezeBalance](#How-to-delegate-resourcee) |
+| [GenerateAddress](#Account-related-commands) | [GetAccount](#Account-related-commands) |[GetAccountNet](#Account-related-commands) |
+|[GetAccountResource](#Account-related-commands) | [GetAddress](#Account-related-commands) |[GetAssetIssueByAccount](#How-to-issue-TRC10-tokens) | 
+|[GetAssetIssueById](#How-to-issue-TRC10-tokens) | [GetAssetIssueByName](#How-to-issue-TRC10-tokens) |[GetAssetIssueListByName](#How-to-issue-TRC10-tokens) | 
+|[GetBalance](#Account-related-commands) | [GetBlock](#How-to-get-block-information) |[GetBlockById](#How-to-get-block-information) | 
+|[GetBlockByLatestNum](#How-to-get-block-information) | [GetBlockByLimitNext](#How-to-get-block-information) |[GetBrokerage](#Brokerage) |
+|[GetContract](#How-to-use-smart-contracts) |[GetDelegatedResource](#How-to-delegate-resource) |[GetDelegatedResourceAccountIndex](#How-to-delegate-resource) | 
+|[GetNextMaintenanceTime](#Some-others) |[GetProposal](#Get-proposal-information) |[GetReward](#Brokerage) |
+|[GetTransactionApprovedList](#How-to-use-the-multi-signature-feature-of-wallet-cli) |[GetTransactionById](#How-to-get-transaction-information) |[GetTransactionCountByBlockNum](#How-to-get-transaction-information) |
+|[GetTransactionInfoByBlockNum](#How-to-get-transaction-information) | [GetTransactionInfoById](#How-to-get-transaction-information) |[GetTransactionSignWeight](#How-to-use-the-multi-signature-feature-of-wallet-cli) |
+|[ImportWallet](#Wallet-related-commands) |[ImportWalletByBase64](#Wallet-related-commands) |[ListAssetIssue](#Get-Token10) |
+|[ListExchanges](#How-to-trade-on-the-exchange) |[ListExchangesPaginated](#How-to-trade-on-the-exchange) |[ListNodes](#Some-others) |
+|[ListProposals](#How-to-initiate-a-proposal) | [ListProposalsPaginated](#How-to-initiate-a-proposal) | [ListWitnesses](#Some-others) | 
+|[Login](#Command-line-operation-flow-example) |[ParticipateAssetIssue](#How-to-issue-TRC10-tokens) |[RegisterWallet](#Wallet-related-commands) |
+|[SendCoin](#How-to-use-the-multi-signature-feature-of-wallet-cli) |[TransferAsset](#How-to-issue-TRC10-tokens) | [TriggerContract](#How-to-use-smart-contracts) |
+|[UnfreezeAsset](#How-to-issue-TRC10-tokens) |[UnfreezeBalance](#How-to-delegate-resource) |[UpdateAsset](#How-to-issue-TRC10-tokens) |
+|[UpdateBrokerage](#Brokerage) |[UpdateEnergyLimit](#How-to-use-smart-contracts) |[UpdateSetting](#How-to-use-smart-contracts) | 
+|[UpdateAccountPermission](#How-to-use-the-multi-signature-feature-of-wallet-cli) | [VoteWitness](#How-to-vote) |
+ 
+Type any one of the listed commands, to display how-to tips.
 
 ## How to freeze/unfreeze balance
 
@@ -141,6 +147,52 @@ For example:
 ```
 
 The final result of the above command was 10 votes for witness1 and 0 vote for witness2.
+
+## Brokerage
+
+After voting for the witness, you will receive the rewards. The witness has the right to decide the ratio of brokerage. The default ratio is 20%, and the witness can adjust it.
+
+By default, if a witness is rewarded, he will receive 20% of the whole rewards, and 80% of the rewards will be distributed to his voters.
+
+### GetBrokerage
+
+View the ratio of brokerage of the witness.
+
+    > getbrokerage OwnerAddress
+
+OwnerAddress
+> The address of the witness's account, it is a base58check type address.
+
+### GetReward
+
+Query unclaimed reward.
+
+    > getreward OwnerAddress
+    
+OwnerAddress
+> The address of the voter's account, it is a base58check type address.
+
+### UpdateBrokerage
+
+Update the ratio of brokerage, this command is usually used by a witness account.
+
+    > updateBrokerage OwnerAddress brokerage
+    
+OwnerAddress
+> The address of the witness's account, it is a base58check type address.
+
+brokerage
+> The ratio of brokerage you want to update to, the limit of it: 0-100.
+
+For example:
+
+```console
+> getbrokerage TZ7U1WVBRLZ2umjizxqz3XfearEHhXKX7h  
+
+> getreward  TNfu3u8jo1LDWerHGbzs2Pv88Biqd85wEY
+
+> updateBrokerage TZ7U1WVBRLZ2umjizxqz3XfearEHhXKX7h 30
+```
 
 ## How to calculate bandwidth
 
@@ -226,10 +278,10 @@ TrxNum, AssetNum
 > These two parameters determine the exchange rate between the issued token and the minimum unit of TRX (Sun) when the token is issued.
 
 FreeNetLimitPerAccount
-> The maximum amount of bandwidth an account is allowed to use. Token issuers can freeze TRX to obtain bandwidth (TransferAssetContract only).
+> The maximum amount of bandwidth an account is allowed to use. Token issuers can freeze TRX to obtain bandwidth (TransferAssetContract only)
 
 PublicFreeNetLimit
-> The maximum amount of bandwidth issuing accounts are allowed user. Token issuers can freeze REX to obtain bandwidth (TransferAssetContract only).
+> The maximum amount of bandwidth issuing accounts are allowed user. Token issuers can freeze REX to obtain bandwidth (TransferAssetContract only)
 
 StartDate, EndDate
 > The start and end date of token issuance. Within this period time, other users can participate in token issuance.*
@@ -1045,6 +1097,9 @@ as: 721d63b074f18d41c147e04c952ec93467777a30b6f16745bc47a8eae5076545
 **GetTransactionInfoById**
 > Get transaction-info based on transaction id, generally used to check the result of a smart contract trigger
 
+**GetTransactionInfoByBlockNum**
+> Get the list of transaction information in the block based on the block height
+
 ## How to get block information
 
 **GetBlock**
@@ -1439,107 +1494,3 @@ d  :3b3b0142fcff38916abccc
 pkd:3a7406c13767c7d08f2883f4884ec6aafdfcdeacebde45f1f4db98df5bf0a1ca
 d  :2fd028965d3b455579ab28
 ```
-
-## Command List
-
-Following is a list of Tron Wallet-cli commands:
-For more information on a specific command, just type the command on terminal when you start your Wallet.
-
-    AddTransactionSign
-    ApproveProposal
-    AssetIssue
-    BackupShieldedWallet
-    BackupWallet
-    BackupWallet2Base64
-    BroadcastTransaction
-    ChangePassword
-    ClearContractABI
-    Create2
-    CreateAccount
-    CreateProposal
-    CreateWitness
-    DeleteProposal
-    DeployContract
-    ExchangeCreate
-    ExchangeInject
-    ExchangeTransaction
-    ExchangeWithdraw
-    FreezeBalance
-    GenerateAddress
-    GenerateShieldedAddress
-    GetAccount
-    GetAccountNet
-    GetAccountResource
-    GetAddress
-    GetAssetIssueByAccount
-    GetAssetIssueById
-    GetAssetIssueByName
-    GetAssetIssueListByName
-    GetBalance
-    GetBlock
-    GetBlockById
-    GetBlockByLatestNum
-    GetBlockByLimitNext
-    GetChainParameters
-    GetContract contractAddress
-    GetDelegatedResource
-    GetDelegatedResourceAccountIndex
-    GetDiversifier
-    GetExchange
-    GetExpandedSpendingKey
-    GetIncomingViewingKey
-    GetNextMaintenanceTime
-    GetShieldedNullifier
-    GetSpendingKey
-    GetProposal
-    GetTotalTransaction
-    GetTransactionApprovedList
-    GetTransactionById
-    GetTransactionCountByBlockNum
-    GetTransactionInfoById
-    GetTransactionsFromThis
-    GetTransactionsToThis
-    GetTransactionSignWeight
-    ImportShieldedWallet
-    ImportWallet
-    ImportWalletByBase64
-    ListAssetIssue
-    ListAssetIssuePaginated
-    ListExchanges
-    ListExchangesPaginated
-    ListNodes
-    ListShieldedAddress
-    ListShieldedNote
-    ListProposals
-    ListProposalsPaginated
-    ListWitnesses
-    Login
-    Logout
-    LoadShieldedWallet
-    ParticipateAssetIssue
-    RegisterWallet
-    ResetShieldedNote
-    ScanAndMarkNotebyAddress
-    ScanNotebyIvk
-    ScanNotebyOvk
-    SendCoin
-    SendShieldedCoin
-    SendShieldedCoinWithoutAsk
-    SetAccountId
-    ShowShieldedAddressInfo
-    TransferAsset
-    TriggerContract
-    TriggerConstantContract
-    UnfreezeAsset
-    UnfreezeBalance
-    UpdateAccount
-    UpdateAsset
-    UpdateEnergyLimit
-    UpdateSetting
-    UpdateWitness
-    UpdateAccountPermission
-    VoteWitness
-    WithdrawBalance
-    Exit or Quit
-
-Type any one of the listed commands, to display how-to tips.
