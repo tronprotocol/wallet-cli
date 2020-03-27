@@ -2499,7 +2499,7 @@ public class WalletApi {
     return rpcCli.getMarketOrderByAccount(address);
   }
 
-  public static Optional<MarketPriceList> GetMarketPriceByPair(
+  public static Optional<MarketPriceList> getMarketPriceByPair(
       byte[] sellTokenId, byte[] buyTokenId) {
     return rpcCli.getMarketPriceByPair(sellTokenId, buyTokenId);
   }

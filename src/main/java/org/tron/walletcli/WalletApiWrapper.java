@@ -1220,7 +1220,7 @@ public class WalletApiWrapper {
 
   public Optional<MarketPriceList> getMarketPriceByPair(
       byte[] sellTokenId, byte[] buyTokenId) {
-    return WalletApi.GetMarketPriceByPair(sellTokenId, buyTokenId);
+    return WalletApi.getMarketPriceByPair(sellTokenId, buyTokenId);
   }
 
 
