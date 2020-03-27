@@ -53,30 +53,36 @@ soliditynode = {
 Wallet-cli connect to java-tron via gRPC protocol, which can be deployed locally or remotely. Check **Run a web Wallet** section.
 We can configure java-tron node IP and port in ``src/main/resources/config.conf``, so that wallet-cli server can successfully talk to java-tron nodes.
 
-## Wallet-cli Document Summary
+## Wallet-cli supported command list
 
-The following are a overview of documents including some command explanations and usage examples. Check following links to find your interesting commands:
+Following is a list of Tron Wallet-cli commands:
+For more information on a specific command, just type the command on terminal when you start your Wallet.
 
-- [Freeze/unfreeze Balance](#How-to-freeze/unfreeze-balance)
-- [Vote](#How-to-vote)
-- [Bandwidth](#How-to-calculate-bandwidth)
-- [IssueToke](#How-to-issue-TRC10-tokens)
-- [Proposal](#How-to-initiate-a-proposal)
-- [HowToTrade](#How-to-trade-on-the-exchange)
-- [Multi-signature ](#How-to-use-the-multi-signature-feature-of-wallet-cli)
-- [SmartContract](#How-to-use-smart-contract)
-- [DelegateResource](#How-to-delegate-resource)
-- [TransferToShieldedAddress](#How-to-transfer-to-shielded-address)
-- [GetBlock](#How-to-get-block-information)
-- [GetTransaction](#How-to-get-transaction-information)
-- [GetToken10](#Get-Token10)
-- [GetProposal](#Get-proposal-information)
-- [AccountCommand](#Account-related-commands)
-  - [createAccount](#How-to-create-account)
-  - [createWitness](#How-to-create-witness)
-- [WalletCommands](#Wallet-related-commands)
-- [CommandLineFlow](#Command-line-operation-flow-example)
-- [CommandList](#Command-list)
+| [AddTransactionSign](#How-to-use-the-multi-signature-feature-of-wallet-cli) | [ApproveProposal](#Approvecancel-the-proposal)  | [AssetIssue](#How-to-issue-TRC10-tokens) |
+| :---------:|:---------:|:--------: |
+| [BackupWallet](#Wallet-related-commands)| [BackupWallet2Base64](#Wallet-related-commands) | [BroadcastTransaction](#Some-others) |
+|[ChangePassword](#Wallet-related-commands)| [CreateProposal](#How-to-initiate-a-proposal) |[DeleteProposal](#Cancel-the-created-proposal) |
+| [DeployContract](#How-to-use-smart-contract) | [ExchangeCreate](#How-to-trade-on-the-exchange) | [ExchangeInject](#How-to-trade-on-the-exchange) |
+| [ExchangeTransaction](#How-to-trade-on-the-exchange) | [ExchangeWithdraw](#How-to-trade-on-the-exchange) | [FreezeBalance](#How-to-delegate-resourcee) |
+| [GenerateAddress](#Account-related-commands) | [GetAccount](#Account-related-commands) |[GetAccountNet](#Account-related-commands) |
+|[GetAccountResource](#Account-related-commands) | [GetAddress](#Account-related-commands) |[GetAssetIssueByAccount](#How-to-issue-TRC10-tokens) | 
+|[GetAssetIssueById](#How-to-issue-TRC10-tokens) | [GetAssetIssueByName](#How-to-issue-TRC10-tokens) |[GetAssetIssueListByName](#How-to-issue-TRC10-tokens) | 
+|[GetBalance](#Account-related-commands) | [GetBlock](#How-to-get-block-information) |[GetBlockById](#How-to-get-block-information) | 
+|[GetBlockByLatestNum](#How-to-get-block-information) | [GetBlockByLimitNext](#How-to-get-block-information) |[GetBrokerage](#Brokerage) |
+|[GetContract](#How-to-use-smart-contracts) |[GetDelegatedResource](#How-to-delegate-resource) |[GetDelegatedResourceAccountIndex](#How-to-delegate-resource) | 
+|[GetNextMaintenanceTime](#Some-others) |[GetProposal](#Get-proposal-information) |[GetReward](#Brokerage) |
+|[GetTransactionApprovedList](#How-to-use-the-multi-signature-feature-of-wallet-cli) |[GetTransactionById](#How-to-get-transaction-information) |[GetTransactionCountByBlockNum](#How-to-get-transaction-information) |
+|[GetTransactionInfoByBlockNum](#How-to-get-transaction-information) | [GetTransactionInfoById](#How-to-get-transaction-information) |[GetTransactionSignWeight](#How-to-use-the-multi-signature-feature-of-wallet-cli) |
+|[ImportWallet](#Wallet-related-commands) |[ImportWalletByBase64](#Wallet-related-commands) |[ListAssetIssue](#Get-Token10) |
+|[ListExchanges](#How-to-trade-on-the-exchange) |[ListExchangesPaginated](#How-to-trade-on-the-exchange) |[ListNodes](#Some-others) |
+|[ListProposals](#How-to-initiate-a-proposal) | [ListProposalsPaginated](#How-to-initiate-a-proposal) | [ListWitnesses](#Some-others) | 
+|[Login](#Command-line-operation-flow-example) |[ParticipateAssetIssue](#How-to-issue-TRC10-tokens) |[RegisterWallet](#Wallet-related-commands) |
+|[SendCoin](#How-to-use-the-multi-signature-feature-of-wallet-cli) |[TransferAsset](#How-to-issue-TRC10-tokens) | [TriggerContract](#How-to-use-smart-contracts) |
+|[UnfreezeAsset](#How-to-issue-TRC10-tokens) |[UnfreezeBalance](#How-to-delegate-resource) |[UpdateAsset](#How-to-issue-TRC10-tokens) |
+|[UpdateBrokerage](#Brokerage) |[UpdateEnergyLimit](#How-to-use-smart-contracts) |[UpdateSetting](#How-to-use-smart-contracts) | 
+|[UpdateAccountPermission](#How-to-use-the-multi-signature-feature-of-wallet-cli) | [VoteWitness](#How-to-vote) |
+ 
+Type any one of the listed commands, to display how-to tips.
 
 ## How to freeze/unfreeze balance
 
@@ -141,6 +147,52 @@ For example:
 ```
 
 The final result of the above command was 10 votes for witness1 and 0 vote for witness2.
+
+## Brokerage
+
+After voting for the witness, you will receive the rewards. The witness has the right to decide the ratio of brokerage. The default ratio is 20%, and the witness can adjust it.
+
+By default, if a witness is rewarded, he will receive 20% of the whole rewards, and 80% of the rewards will be distributed to his voters.
+
+### GetBrokerage
+
+View the ratio of brokerage of the witness.
+
+    > getbrokerage OwnerAddress
+
+OwnerAddress
+> The address of the witness's account, it is a base58check type address.
+
+### GetReward
+
+Query unclaimed reward.
+
+    > getreward OwnerAddress
+    
+OwnerAddress
+> The address of the voter's account, it is a base58check type address.
+
+### UpdateBrokerage
+
+Update the ratio of brokerage, this command is usually used by a witness account.
+
+    > updateBrokerage OwnerAddress brokerage
+    
+OwnerAddress
+> The address of the witness's account, it is a base58check type address.
+
+brokerage
+> The ratio of brokerage you want to update to, the limit of it: 0-100.
+
+For example:
+
+```console
+> getbrokerage TZ7U1WVBRLZ2umjizxqz3XfearEHhXKX7h  
+
+> getreward  TNfu3u8jo1LDWerHGbzs2Pv88Biqd85wEY
+
+> updateBrokerage TZ7U1WVBRLZ2umjizxqz3XfearEHhXKX7h 30
+```
 
 ## How to calculate bandwidth
 
