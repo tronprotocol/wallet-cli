@@ -2,7 +2,7 @@
 
 Wallet CLI
 
-[gitter](https://gitter.im/tronprotocol/wallet-cli)
+[Telegram](https://t.me/troncoredevscommunity)
 
 ## Get started
 
