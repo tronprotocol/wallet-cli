@@ -1494,3 +1494,108 @@ d  :3b3b0142fcff38916abccc
 pkd:3a7406c13767c7d08f2883f4884ec6aafdfcdeacebde45f1f4db98df5bf0a1ca
 d  :2fd028965d3b455579ab28
 ```
+
+## Command List
+
+Following is a list of Tron Wallet-cli commands:
+For more information on a specific command, just type the command on terminal when you start your Wallet.
+
+    AddTransactionSign
+    ApproveProposal
+    AssetIssue
+    BackupShieldedWallet
+    BackupWallet
+    BackupWallet2Base64
+    BroadcastTransaction
+    ChangePassword
+    ClearContractABI
+    Create2
+    CreateAccount
+    CreateProposal
+    CreateWitness
+    DeleteProposal
+    DeployContract
+    ExchangeCreate
+    ExchangeInject
+    ExchangeTransaction
+    ExchangeWithdraw
+    FreezeBalance
+    GenerateAddress
+    GenerateShieldedAddress
+    GetAccount
+    GetAccountNet
+    GetAccountResource
+    GetAddress
+    GetAssetIssueByAccount
+    GetAssetIssueById
+    GetAssetIssueByName
+    GetAssetIssueListByName
+    GetBalance
+    GetBlock
+    GetBlockById
+    GetBlockByLatestNum
+    GetBlockByLimitNext
+    GetChainParameters
+    GetContract contractAddress
+    GetDelegatedResource
+    GetDelegatedResourceAccountIndex
+    GetDiversifier
+    GetExchange
+    GetExpandedSpendingKey
+    GetIncomingViewingKey
+    GetNextMaintenanceTime
+    GetShieldedNullifier
+    GetSpendingKey
+    GetProposal
+    GetTotalTransaction
+    GetTransactionApprovedList
+    GetTransactionById
+    GetTransactionCountByBlockNum
+    GetTransactionInfoByBlockNum
+    GetTransactionInfoById
+    GetTransactionsFromThis
+    GetTransactionsToThis
+    GetTransactionSignWeight
+    ImportShieldedWallet
+    ImportWallet
+    ImportWalletByBase64
+    ListAssetIssue
+    ListAssetIssuePaginated
+    ListExchanges
+    ListExchangesPaginated
+    ListNodes
+    ListShieldedAddress
+    ListShieldedNote
+    ListProposals
+    ListProposalsPaginated
+    ListWitnesses
+    Login
+    Logout
+    LoadShieldedWallet
+    ParticipateAssetIssue
+    RegisterWallet
+    ResetShieldedNote
+    ScanAndMarkNotebyAddress
+    ScanNotebyIvk
+    ScanNotebyOvk
+    SendCoin
+    SendShieldedCoin
+    SendShieldedCoinWithoutAsk
+    SetAccountId
+    ShowShieldedAddressInfo
+    TransferAsset
+    TriggerContract
+    TriggerConstantContract
+    UnfreezeAsset
+    UnfreezeBalance
+    UpdateAccount
+    UpdateAsset
+    UpdateEnergyLimit
+    UpdateSetting
+    UpdateWitness
+    UpdateAccountPermission
+    VoteWitness
+    WithdrawBalance
+    Exit or Quit
+
+Type any one of the listed commands, to display how-to tips.
