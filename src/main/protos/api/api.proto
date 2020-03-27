@@ -872,12 +872,6 @@ service WalletSolidity {
   rpc GetBrokerageInfo (BytesMessage) returns (NumberMessage) {
   };
 
-  rpc MarketSellAsset (MarketSellAssetContract) returns (TransactionExtention) {
-  }
-
-  rpc MarketCancelOrder (MarketCancelOrderContract) returns (TransactionExtention) {
-  }
-
   rpc GetMarketOrderByAccount (BytesMessage) returns (MarketOrderList) {
   }
 
