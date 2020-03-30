@@ -3403,6 +3403,9 @@ public class Client {
         } catch (EndOfFileException e) {
           System.out.println("\nBye.");
           return;
+        } catch (RuntimeException e) {
+          System.out.println(cmd + " failed!");
+          System.out.println(e.getMessage());
         } catch (Exception e) {
           System.out.println(cmd + " failed!");
           System.out.println(e.getMessage());
