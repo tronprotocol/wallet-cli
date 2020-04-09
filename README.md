@@ -279,14 +279,13 @@ TotalSupply
 > All Frozen Token Amount: Before asset transfer and the issuance
 
 TrxNum, AssetNum
-> ![Exchange Rate = AssetNum / TrxNum](http://latex.codecogs.com/gif.latex?ExchangeRate%20=%20AssetNum%20/%20TrxNum)
+> ![Exchange Rate = TrxNum / AssetNum](http://latex.codecogs.com/gif.latex?ExchangeRate%20=%20TrxNum%20/%20AssetNum)
 > These two parameters determine the exchange rate when the token is issued.
-> AssetNum: 
+> AssetNum: Unit in base unit of the issued token
 > TrxNum: Unit in SUN (0.000001 TRX)
 
 Precision
 > Precision to how many decimal places  
-> Example: 2
 
 FreeNetLimitPerAccount
 > The maximum amount of bandwidth each account is allowed to use. Token issuers can freeze TRX to obtain bandwidth (TransferAssetContract only)
