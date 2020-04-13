@@ -2,16 +2,23 @@ package org.tron.walletcli;
 
 import com.google.protobuf.ByteString;
 import io.netty.util.internal.StringUtil;
+import java.util.ArrayList;
+import java.util.Arrays;
 import lombok.extern.slf4j.Slf4j;
+import org.bouncycastle.util.encoders.Hex;
 import org.tron.api.GrpcAPI;
 import org.tron.api.GrpcAPI.*;
+import org.tron.common.utils.AbiUtil;
 import org.tron.common.utils.ByteArray;
+import org.tron.common.utils.ByteUtil;
 import org.tron.common.utils.Utils;
 import org.tron.core.exception.CancelException;
 import org.tron.core.exception.CipherException;
 import org.tron.core.exception.ZksnarkException;
 import org.tron.core.zen.ShieldedAddressInfo;
 import org.tron.core.zen.ShieldedNoteInfo;
+import org.tron.core.zen.ShieldedTRC20NoteInfo;
+import org.tron.core.zen.ShieldedTRC20Wrapper;
 import org.tron.core.zen.ShieldedWrapper;
 import org.tron.core.zen.ZenUtils;
 import org.tron.core.zen.address.DiversifierT;
@@ -1208,5 +1215,539 @@ public class WalletApiWrapper {
 
   public GrpcAPI.NumberMessage getBrokerage(byte[] ownerAddress) {
     return WalletApi.getBrokerage(ownerAddress);
+  }
+
+  public boolean scanShieldedTRC20NoteByIvk(final String ivk, final String ak, final String nk,
+                                            byte[] contractAddress, long start, long end) {
+    GrpcAPI.IvkDecryptTRC20Parameters parameters = IvkDecryptTRC20Parameters
+        .newBuilder()
+        .setStartBlockIndex(start)
+        .setEndBlockIndex(end)
+        .setShieldedTRC20ContractAddress(ByteString.copyFrom(contractAddress))
+        .setIvk(ByteString.copyFrom(ByteArray.fromHexString(ivk)))
+        .setAk(ByteString.copyFrom(ByteArray.fromHexString(ak)))
+        .setNk(ByteString.copyFrom(ByteArray.fromHexString(nk)))
+        .build();
+
+    Optional<DecryptNotesTRC20> notes = WalletApi.scanShieldedTRC20NoteByIvk(
+        parameters, true);
+    if (!notes.isPresent()) {
+      System.out.println("ScanShieldedTRC20NoteByIvk failed !!!");
+    } else {
+      System.out.println(Utils.formatMessageString(notes.get()));
+//            for (int i = 0; i < decryptNotes.get().getNoteTxsList().size(); i++) {
+//                NoteTx noteTx = decryptNotes.get().getNoteTxs(i);
+//                Note note = noteTx.getNote();
+//                System.out.println("\ntxid:{}\nindex:{}\naddress:{}\nrcm:{}\nvalue:{}\nmemo:{}",
+//                        ByteArray.toHexString(noteTx.getTxid().toByteArray()),
+//                        noteTx.getIndex(),
+//                        note.getPaymentAddress(),
+//                        ByteArray.toHexString(note.getRcm().toByteArray()),
+//                        note.getValue(),
+//                        ZenUtils.getMemo(note.getMemo().toByteArray()));
+//            }
+//            System.out.println("complete.");
+    }
+    return true;
+  }
+
+  public boolean scanShieldedTRC20NoteByOvk(final String ovk, long start, long end,
+                                            byte[] contractAddress) {
+    GrpcAPI.OvkDecryptTRC20Parameters parameters = OvkDecryptTRC20Parameters.newBuilder()
+        .setStartBlockIndex(start)
+        .setEndBlockIndex(end)
+        .setOvk(ByteString.copyFrom(ByteArray.fromHexString(ovk)))
+        .setShieldedTRC20ContractAddress(ByteString.copyFrom(contractAddress))
+        .build();
+
+    Optional<DecryptNotesTRC20> notes = WalletApi.scanShieldedTRC20NoteByOvk(parameters, true);
+    if (!notes.isPresent()) {
+      System.out.println("ScanShieldedTRC20NoteByovk failed !!!");
+    } else {
+      System.out.println(Utils.formatMessageString(notes.get()));
+//            for (int i = 0; i < decryptNotes.get().getNoteTxsList().size(); i++) {
+//                NoteTx noteTx = decryptNotes.get().getNoteTxs(i);
+//                Note note = noteTx.getNote();
+//                System.out.println("\ntxid:{}\nindex:{}\npaymentAddress:{}\nrcm:{}\nmemo
+//                :{}\nvalue:{}",
+//                        ByteArray.toHexString(noteTx.getTxid().toByteArray()),
+//                        noteTx.getIndex(),
+//                        note.getPaymentAddress(),
+//                        ByteArray.toHexString(note.getRcm().toByteArray()),
+//                        ZenUtils.getMemo(note.getMemo().toByteArray()),
+//                        note.getValue());
+//            }
+      System.out.println("complete.");
+    }
+    return true;
+  }
+
+  public boolean sendShieldedTRC20Coin(int shieldedContractType, long fromAmount,
+                                       List<Long> shieldedInputList,
+                                       List<GrpcAPI.Note> shieldedOutputList,
+                                       String toAddress, long toAmount,
+                                       String contractAddress, String shieldedContractAddress)
+      throws CipherException, IOException, CancelException, ZksnarkException {
+    if (shieldedContractType == 0 && fromAmount != shieldedOutputList.get(0).getValue()) {
+      System.out.println("MINT: fromPublicAmount must be equal to note value");
+      return false;
+    }
+    if (shieldedContractType == 2) {
+      ShieldedTRC20NoteInfo noteInfo = ShieldedTRC20Wrapper.getInstance().getUtxoMapNote()
+          .get(shieldedInputList.get(0));
+      if (toAmount != noteInfo.getValue()) {
+        System.out.println("BURN: toPublicAmount must be equal to note value");
+        return false;
+      }
+    }
+
+    PrivateShieldedTRC20Parameters.Builder builder = PrivateShieldedTRC20Parameters.newBuilder();
+    builder.setFromAmount(fromAmount);
+    byte[] shieldedContractAddressBytes = WalletApi.decodeFromBase58Check(shieldedContractAddress);
+    builder.setShieldedTRC20ContractAddress(ByteString.copyFrom(shieldedContractAddressBytes));
+
+    if (!StringUtil.isNullOrEmpty(toAddress)) {
+      byte[] to = WalletApi.decodeFromBase58Check(toAddress);
+      if (to == null) {
+        return false;
+      }
+      builder.setTransparentToAddress(ByteString.copyFrom(to));
+      builder.setToAmount(toAmount);
+    }
+
+    if (shieldedInputList.size() > 0) {
+      List<String> rootAndPath = new ArrayList<>();
+      for (int i = 0; i < shieldedInputList.size(); i++) {
+        ShieldedTRC20NoteInfo noteInfo = ShieldedTRC20Wrapper.getInstance().getUtxoMapNote()
+            .get(shieldedInputList.get(i));
+        long position = noteInfo.getPosition();
+        rootAndPath.add(getRootAndPath(shieldedContractAddress, position));
+      }
+      if (rootAndPath.isEmpty() || rootAndPath.size() != shieldedInputList.size()) {
+        System.out.println("Can't get all merkle tree, please check the notes.");
+        return false;
+      }
+
+      for (int i = 0; i < shieldedInputList.size(); ++i) {
+        ShieldedTRC20NoteInfo noteInfo = ShieldedTRC20Wrapper.getInstance().getUtxoMapNote()
+            .get(shieldedInputList.get(i));
+        if (i == 0) {
+          String shieldedAddress = noteInfo.getPaymentAddress();
+          ShieldedAddressInfo addressInfo =
+              ShieldedTRC20Wrapper.getInstance().getShieldedAddressInfoMap().get(shieldedAddress);
+          SpendingKey spendingKey = new SpendingKey(addressInfo.getSk());
+          ExpandedSpendingKey expandedSpendingKey = spendingKey.expandedSpendingKey();
+
+          builder.setAsk(ByteString.copyFrom(expandedSpendingKey.getAsk()));
+          builder.setNsk(ByteString.copyFrom(expandedSpendingKey.getNsk()));
+          builder.setOvk(ByteString.copyFrom(expandedSpendingKey.getOvk()));
+        }
+
+        Note.Builder noteBuild = Note.newBuilder();
+        noteBuild.setPaymentAddress(noteInfo.getPaymentAddress());
+        noteBuild.setValue(noteInfo.getValue());
+        noteBuild.setRcm(ByteString.copyFrom(noteInfo.getR()));
+        noteBuild.setMemo(ByteString.copyFrom(noteInfo.getMemo()));
+
+        System.out.println("address " + noteInfo.getPaymentAddress());
+        System.out.println("value " + noteInfo.getValue());
+        System.out.println("rcm " + ByteArray.toHexString(noteInfo.getR()));
+        System.out.println("trxId " + noteInfo.getTrxId());
+        System.out.println("index " + noteInfo.getIndex());
+        System.out.println("position " + noteInfo.getPosition());
+        System.out.println("memo " + ZenUtils.getMemo(noteInfo.getMemo()));
+
+        byte[] eachRootAndPath = rootAndPath.get(i).getBytes();
+        byte[] root = Arrays.copyOfRange(eachRootAndPath, 0, 32);
+        byte[] path = Arrays.copyOfRange(eachRootAndPath, 32, 1056);
+        SpendNoteTRC20.Builder spendTRC20NoteBuilder = SpendNoteTRC20.newBuilder();
+        spendTRC20NoteBuilder.setNote(noteBuild.build());
+        spendTRC20NoteBuilder.setAlpha(ByteString.copyFrom(getRcm()));
+        spendTRC20NoteBuilder.setRoot(ByteString.copyFrom(root));
+        spendTRC20NoteBuilder.setPath(ByteString.copyFrom(path));
+        spendTRC20NoteBuilder.setPos(noteInfo.getPosition());
+
+        builder.addShieldedSpends(spendTRC20NoteBuilder.build());
+      }
+    } else {
+      //@TODO remove randomOvk by sha256.of(privateKey)
+      byte[] ovk = getRandomOvk();
+      if (ovk != null) {
+        builder.setOvk(ByteString.copyFrom(ovk));
+      } else {
+        System.out.println("Get random ovk from Rpc failure,please check config");
+        return false;
+      }
+    }
+
+    if (shieldedOutputList.size() > 0) {
+      for (int i = 0; i < shieldedOutputList.size(); i++) {
+        builder.addShieldedReceives(
+            ReceiveNote.newBuilder().setNote(shieldedOutputList.get(i)).build());
+      }
+    }
+    ShieldedTRC20Parameters parameters =
+        WalletApi.createShieldedContractParameters(builder.build());
+    if (parameters == null) {
+      System.out.println("CreateShieldedContractParameters failed, please check input data!");
+      return false;
+    }
+
+    if (shieldedContractType == 0) {//MINT
+      boolean setAllowanceResult = setAllowance(contractAddress, shieldedContractAddress,
+          fromAmount);
+      if (!setAllowanceResult) {
+        System.out.println("SetAllowance failed, please check wallet account!");
+        return false;
+      }
+      String inputData = encodeMintParamsToHexString(parameters, fromAmount);
+      boolean mintResult = triggerShieldedContract(shieldedContractAddress, inputData, 0);
+      if (mintResult) {
+        System.out.println("MINT succeed!");
+        return true;
+      } else {
+        System.out.println("Trigger shielded contract MINT failed!!");
+        return false;
+      }
+    } else if (shieldedContractType == 1) { //TRANSFER
+      String inputData = encodeTransferParamsToHexString(parameters);
+      boolean transferResult = triggerShieldedContract(shieldedContractAddress, inputData, 1);
+      if (transferResult) {
+        System.out.println("TRANSFER succeed!");
+        return true;
+      } else {
+        System.out.println("Trigger shielded contract TRANSFER failed!");
+        return false;
+      }
+    } else if (shieldedContractType == 2) {//BURN
+      String inputData = encodeBurnParamsToHexString(parameters, toAmount, toAddress);
+      boolean transferResult = triggerShieldedContract(shieldedContractAddress, inputData, 1);
+      if (transferResult) {
+        System.out.println("TRANSFER succeed!");
+        return true;
+      } else {
+        System.out.println("Trigger shielded contract TRANSFER failed!");
+        return false;
+      }
+    } else {
+      System.out.println("Error shieldedContractType!");
+      return false;
+    }
+  }
+
+  public boolean sendShieldedTRC20CoinWithoutAsk(int shieldedContractType, long fromAmount,
+                                                 List<Long> shieldedInputList,
+                                                 List<GrpcAPI.Note> shieldedOutputList,
+                                                 String toAddress, long toAmount,
+                                                 String contractAddress,
+                                                 String shieldedContractAddress)
+      throws CipherException, IOException, CancelException, ZksnarkException {
+    if (shieldedContractType == 0 && fromAmount != shieldedOutputList.get(0).getValue()) {
+      System.out.println("MINT: fromPublicAmount must be equal to note value");
+      return false;
+    }
+    if (shieldedContractType == 2) {
+      ShieldedTRC20NoteInfo noteInfo = ShieldedTRC20Wrapper.getInstance().getUtxoMapNote()
+          .get(shieldedInputList.get(0));
+      if (toAmount != noteInfo.getValue()) {
+        System.out.println("BURN: toPublicAmount must be equal to note value");
+        return false;
+      }
+    }
+
+    PrivateShieldedTRC20ParametersWithoutAsk.Builder builder =
+        PrivateShieldedTRC20ParametersWithoutAsk.newBuilder();
+    builder.setFromAmount(fromAmount);
+    byte[] shieldedContractAddressBytes = WalletApi.decodeFromBase58Check(shieldedContractAddress);
+    builder.setShieldedTRC20ContractAddress(ByteString.copyFrom(shieldedContractAddressBytes));
+
+    if (!StringUtil.isNullOrEmpty(toAddress)) {
+      byte[] to = WalletApi.decodeFromBase58Check(toAddress);
+      if (to == null) {
+        return false;
+      }
+      builder.setTransparentToAddress(ByteString.copyFrom(to));
+      builder.setToAmount(toAmount);
+    }
+
+    byte[] ask = new byte[32];
+    if (shieldedInputList.size() > 0) {
+      List<String> rootAndPath = new ArrayList<>();
+      for (int i = 0; i < shieldedInputList.size(); i++) {
+        ShieldedTRC20NoteInfo noteInfo = ShieldedTRC20Wrapper.getInstance().getUtxoMapNote()
+            .get(shieldedInputList.get(i));
+        long position = noteInfo.getPosition();
+        rootAndPath.add(getRootAndPath(shieldedContractAddress, position));
+      }
+      if (rootAndPath.isEmpty() || rootAndPath.size() != shieldedInputList.size()) {
+        System.out.println("Can't get all merkle tree, please check the notes.");
+        return false;
+      }
+
+      for (int i = 0; i < shieldedInputList.size(); i++) {
+        ShieldedTRC20NoteInfo noteInfo = ShieldedTRC20Wrapper.getInstance().getUtxoMapNote()
+            .get(shieldedInputList.get(i));
+        if (i == 0) {
+          String shieldAddress = noteInfo.getPaymentAddress();
+          ShieldedAddressInfo addressInfo =
+              ShieldedTRC20Wrapper.getInstance().getShieldedAddressInfoMap().get(shieldAddress);
+          SpendingKey spendingKey = new SpendingKey(addressInfo.getSk());
+          ExpandedSpendingKey expandedSpendingKey = spendingKey.expandedSpendingKey();
+
+          System.arraycopy(expandedSpendingKey.getAsk(), 0, ask, 0, 32);
+          builder.setAk(ByteString.copyFrom(
+              ExpandedSpendingKey.getAkFromAsk(expandedSpendingKey.getAsk())));
+          builder.setNsk(ByteString.copyFrom(expandedSpendingKey.getNsk()));
+          builder.setOvk(ByteString.copyFrom(expandedSpendingKey.getOvk()));
+        }
+
+        Note.Builder noteBuild = Note.newBuilder();
+        noteBuild.setPaymentAddress(noteInfo.getPaymentAddress());
+        noteBuild.setValue(noteInfo.getValue());
+        noteBuild.setRcm(ByteString.copyFrom(noteInfo.getR()));
+        noteBuild.setMemo(ByteString.copyFrom(noteInfo.getMemo()));
+
+        System.out.println("address " + noteInfo.getPaymentAddress());
+        System.out.println("value " + noteInfo.getValue());
+        System.out.println("rcm " + ByteArray.toHexString(noteInfo.getR()));
+        System.out.println("trxId " + noteInfo.getTrxId());
+        System.out.println("index " + noteInfo.getIndex());
+        System.out.println("position " + noteInfo.getPosition());
+        System.out.println("memo " + ZenUtils.getMemo(noteInfo.getMemo()));
+
+        byte[] eachRootAndPath = rootAndPath.get(i).getBytes();
+        byte[] root = Arrays.copyOfRange(eachRootAndPath, 0, 32);
+        byte[] path = Arrays.copyOfRange(eachRootAndPath, 32, 1056);
+        SpendNoteTRC20.Builder spendTRC20NoteBuilder = SpendNoteTRC20.newBuilder();
+        spendTRC20NoteBuilder.setNote(noteBuild.build());
+        spendTRC20NoteBuilder.setAlpha(ByteString.copyFrom(getRcm()));
+        spendTRC20NoteBuilder.setRoot(ByteString.copyFrom(root));
+        spendTRC20NoteBuilder.setPath(ByteString.copyFrom(path));
+        spendTRC20NoteBuilder.setPos(noteInfo.getPosition());
+
+        builder.addShieldedSpends(spendTRC20NoteBuilder.build());
+      }
+    } else {
+      //@TODO remove randomOvk by sha256.of(privateKey)
+      byte[] ovk = getRandomOvk();
+      if (ovk != null) {
+        builder.setOvk(ByteString.copyFrom(ovk));
+      } else {
+        System.out.println("Get random ovk from Rpc failure,please check config");
+        return false;
+      }
+    }
+
+    if (shieldedOutputList.size() > 0) {
+      for (int i = 0; i < shieldedOutputList.size(); ++i) {
+        builder.addShieldedReceives(
+            ReceiveNote.newBuilder().setNote(shieldedOutputList.get(i)).build());
+      }
+    }
+
+    ShieldedTRC20Parameters parameters =
+        WalletApi.createShieldedContractParametersWithoutAsk(builder.build(), ask);
+    if (parameters == null) {
+      System.out.println("CreateShieldedContractParametersWithoutAsk failed,"
+          + " please check input data!");
+      return false;
+    }
+
+    if (shieldedContractType == 0) {//MINT
+      boolean setAllowanceResult = setAllowance(contractAddress, shieldedContractAddress,
+          fromAmount);
+      if (!setAllowanceResult) {
+        System.out.println("SetAllowance failed, please check wallet account!");
+        return false;
+      }
+      String inputData = encodeMintParamsToHexString(parameters, fromAmount);
+      boolean mintResult = triggerShieldedContract(shieldedContractAddress, inputData, 0);
+      if (mintResult) {
+        System.out.println("MINT succeed!");
+        return true;
+      } else {
+        System.out.println("Trigger shielded contract MINT failed!!");
+        return false;
+      }
+    } else if (shieldedContractType == 1) { //TRANSFER
+      String inputData = encodeTransferParamsToHexString(parameters);
+      boolean transferResult = triggerShieldedContract(shieldedContractAddress, inputData, 1);
+      if (transferResult) {
+        System.out.println("TRANSFER succeed!");
+        return true;
+      } else {
+        System.out.println("Trigger shielded contract TRANSFER failed!");
+        return false;
+      }
+    } else if (shieldedContractType == 2) {//BURN
+      String inputData = encodeBurnParamsToHexString(parameters, toAmount, toAddress);
+      boolean transferResult = triggerShieldedContract(shieldedContractAddress, inputData, 2);
+      if (transferResult) {
+        System.out.println("TRANSFER succeed!");
+        return true;
+      } else {
+        System.out.println("Trigger shielded contract TRANSFER failed!");
+        return false;
+      }
+    } else {
+      System.out.println("Error shieldedContractType!");
+      return false;
+    }
+  }
+
+  public String getRootAndPath(String address, long position) {
+    byte[] shieldedContractAddress = WalletApi.decodeFromBase58Check(address);
+    String methodStr = "getPath(uint256)";
+    byte[] indexBytes = ByteArray.fromLong(position);
+    String argsStr = ByteArray.toHexString(indexBytes);
+    argsStr = "000000000000000000000000000000000000000000000000" + argsStr;
+    byte[] input = Hex.decode(AbiUtil.parseMethod(methodStr, argsStr, true));
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: getRootAndPath failed,  Please login wallet first !!");
+      return null;
+    }
+    return wallet.getRootAndPath(shieldedContractAddress, input);
+  }
+
+  public boolean setAllowance(String contractAddress, String shieldedContractAddress, long value)
+      throws CipherException, IOException, CancelException {
+    byte[] contractAddressBytes = WalletApi.decodeFromBase58Check(contractAddress);
+    byte[] shieldedContractAddressBytes = WalletApi.decodeFromBase58Check(shieldedContractAddress);
+    String methodStr = "approve(address,uint256)";
+    byte[] mergedBytes = ByteUtil.merge(new byte[11], shieldedContractAddressBytes,
+        longTo32Bytes(value));
+    String argsStr = ByteArray.toHexString(mergedBytes);
+    byte[] inputData = Hex.decode(AbiUtil.parseMethod(methodStr, argsStr, true));
+    byte[] ownerAddress = wallet.getAddress();
+
+    return callContract(ownerAddress, contractAddressBytes, 0, inputData, 1000_000_000L,
+        0, "", false);
+  }
+
+  public boolean triggerShieldedContract(String contractAddress, String data,
+                                         int shieldedContractType)
+      throws CipherException, IOException, CancelException {
+    byte[] contractAddressBytes = WalletApi.decodeFromBase58Check(contractAddress);
+    String methodStr;
+    if (shieldedContractType == 0) {
+      methodStr = "mint(uint64,bytes32[9],bytes32[2],bytes32[21])";
+    } else if (shieldedContractType == 1) {
+      methodStr = "transfer(bytes32[10][],bytes32[2][],bytes32[9][],bytes32[2],bytes32[21][])";
+    } else if (shieldedContractType == 2) {
+      methodStr = "burn(bytes32[10],bytes32[2],uint64,bytes32[2],uint256)";
+    } else {
+      System.out.println("shieldedContractType should be 0, 1 or 2. ");
+      return false;
+    }
+    byte[] inputData = Hex.decode(AbiUtil.parseMethod(methodStr, data, true));
+    byte[] ownerAddress = wallet.getAddress();
+
+    return callContract(ownerAddress, contractAddressBytes, 0, inputData, 1000_000_000L,
+        0, "", false);
+  }
+
+  public String encodeMintParamsToHexString(ShieldedTRC20Parameters parameters,
+                                            long value) {
+    byte[] mergedBytes;
+    Contract.ReceiveDescription revDesc = parameters.getReceiveDescription(0);
+    mergedBytes = ByteUtil.merge(
+        longTo32Bytes(value),
+        revDesc.getNoteCommitment().toByteArray(),
+        revDesc.getValueCommitment().toByteArray(),
+        revDesc.getEpk().toByteArray(),
+        revDesc.getZkproof().toByteArray(),
+        parameters.getBindingSignature().toByteArray(),
+        revDesc.getCEnc().toByteArray(),
+        revDesc.getCOut().toByteArray(),
+        new byte[12]
+    );
+    return ByteArray.toHexString(mergedBytes);
+  }
+
+  public String encodeTransferParamsToHexString(ShieldedTRC20Parameters parameters) {
+    byte[] input = new byte[0];
+    byte[] spendAuthSig = new byte[0];
+    byte[] output = new byte[0];
+    byte[] c = new byte[0];
+    byte[] bindingSig;
+    byte[] mergedBytes;
+    List<Contract.SpendDescription> spendDescs = parameters.getSpendDescriptionList();
+    for (Contract.SpendDescription spendDesc : spendDescs) {
+      input = ByteUtil.merge(input,
+          spendDesc.getNullifier().toByteArray(),
+          spendDesc.getAnchor().toByteArray(),
+          spendDesc.getValueCommitment().toByteArray(),
+          spendDesc.getRk().toByteArray(),
+          spendDesc.getZkproof().toByteArray()
+      );
+      spendAuthSig = ByteUtil.merge(
+          spendAuthSig, spendDesc.getSpendAuthoritySignature().toByteArray());
+    }
+    byte[] inputOffsetbytes = longTo32Bytes(192);
+    long spendCount = spendDescs.size();
+    byte[] spendCountBytes = longTo32Bytes(spendCount);
+    byte[] authOffsetBytes = longTo32Bytes(192 + 32 + 320 * spendCount);
+    List<Contract.ReceiveDescription> recvDescs = parameters.getReceiveDescriptionList();
+    for (Contract.ReceiveDescription recvDesc : recvDescs) {
+      output = ByteUtil.merge(output,
+          recvDesc.getNoteCommitment().toByteArray(),
+          recvDesc.getValueCommitment().toByteArray(),
+          recvDesc.getEpk().toByteArray(),
+          recvDesc.getZkproof().toByteArray()
+      );
+      c = ByteUtil.merge(c,
+          recvDesc.getCEnc().toByteArray(),
+          recvDesc.getCOut().toByteArray(),
+          new byte[12]
+      );
+    }
+    long recvCount = recvDescs.size();
+    byte[] recvCountBytes = longTo32Bytes(recvCount);
+    byte[] outputOffsetbytes = longTo32Bytes(192 + 32 + 320 * spendCount + 32 + 64 * spendCount);
+    byte[] coffsetBytes = longTo32Bytes(192 + 32 + 320 * spendCount + 32 + 64 * spendCount + 32
+        + 288 * recvCount);
+    bindingSig = parameters.getBindingSignature().toByteArray();
+    mergedBytes = ByteUtil.merge(inputOffsetbytes,
+        authOffsetBytes,
+        outputOffsetbytes,
+        bindingSig,
+        coffsetBytes,
+        spendCountBytes,
+        input,
+        spendCountBytes,
+        spendAuthSig,
+        recvCountBytes,
+        output,
+        recvCountBytes,
+        c
+    );
+    return ByteArray.toHexString(mergedBytes);
+  }
+
+  public String encodeBurnParamsToHexString(ShieldedTRC20Parameters parameters, long value,
+                                            String transparentToAddress) {
+    byte[] mergedBytes;
+    byte[] payTo = new byte[32];
+    byte[] transparentToAddressBytes = WalletApi.decodeFromBase58Check(transparentToAddress);
+    System.arraycopy(transparentToAddressBytes, 0, payTo, 11, 21);
+    Contract.SpendDescription spendDesc = parameters.getSpendDescription(0);
+    mergedBytes = ByteUtil.merge(
+        spendDesc.getNullifier().toByteArray(),
+        spendDesc.getAnchor().toByteArray(),
+        spendDesc.getValueCommitment().toByteArray(),
+        spendDesc.getRk().toByteArray(),
+        spendDesc.getZkproof().toByteArray(),
+        spendDesc.getSpendAuthoritySignature().toByteArray(),
+        longTo32Bytes(value),
+        parameters.getBindingSignature().toByteArray(),
+        payTo
+    );
+    return ByteArray.toHexString(mergedBytes);
+  }
+
+  public byte[] longTo32Bytes(long value) {
+    byte[] longBytes = ByteArray.fromLong(value);
+    byte[] zeroBytes = new byte[24];
+    return ByteUtil.merge(zeroBytes, longBytes);
   }
 }

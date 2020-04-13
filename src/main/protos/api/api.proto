@@ -698,6 +698,22 @@ service Wallet {
 
   };
   // end for shiededTransaction
+  // for shieldedTRC20Contract
+  rpc CreateShieldedContractParameters (PrivateShieldedTRC20Parameters) returns (ShieldedTRC20Parameters) {
+  };
+
+  rpc CreateShieldedContractParametersWithoutAsk (PrivateShieldedTRC20ParametersWithoutAsk) returns (ShieldedTRC20Parameters) {
+  };
+
+  rpc ScanShieldedTRC20NotesbyIvk (IvkDecryptTRC20Parameters) returns (DecryptNotesTRC20) {
+  };
+
+  rpc ScanShieldedTRC20NotesbyOvk (OvkDecryptTRC20Parameters) returns (DecryptNotesTRC20) {
+  };
+
+  rpc IsShieldedTRC20ContractNoteSpent (NfTRC20Parameters) returns (NullifierResult) {
+  };
+  // end for shieldedTRC20Contract
 };
 
 service WalletSolidity {
@@ -849,6 +865,15 @@ service WalletSolidity {
   };
 
   rpc GetBrokerageInfo (BytesMessage) returns (NumberMessage) {
+  };
+
+  rpc ScanShieldedTRC20NotesbyIvk (IvkDecryptTRC20Parameters) returns (DecryptNotesTRC20) {
+  };
+
+  rpc ScanShieldedTRC20NotesbyOvk (OvkDecryptTRC20Parameters) returns (DecryptNotesTRC20) {
+  };
+
+  rpc IsShieldedTRC20ContractNoteSpent (NfTRC20Parameters) returns (NullifierResult) {
   };
 };
 
@@ -1287,4 +1312,82 @@ message NoteParameters {
 message SpendResult {
   bool result = 1;
   string message = 2;
+}
+
+message SpendNoteTRC20 {
+  Note note = 1;
+  bytes alpha = 2;
+  bytes root = 3;
+  bytes path = 4;
+  int64 pos = 5;
+}
+
+message PrivateShieldedTRC20Parameters {
+  bytes ask = 1;
+  bytes nsk = 2;
+  bytes ovk = 3;
+  int64 from_amount = 4;
+  repeated SpendNoteTRC20 shielded_spends = 5;
+  repeated ReceiveNote shielded_receives = 6;
+  bytes transparent_to_address = 7;
+  int64 to_amount = 8;
+  bytes shielded_TRC20_contract_address = 9;
+}
+
+message PrivateShieldedTRC20ParametersWithoutAsk {
+  bytes ak = 1;
+  bytes nsk = 2;
+  bytes ovk = 3;
+  int64 from_amount = 4;
+  repeated SpendNoteTRC20 shielded_spends = 5;
+  repeated ReceiveNote shielded_receives = 6;
+  bytes transparent_to_address = 7;
+  int64 to_amount = 8;
+  bytes shielded_TRC20_contract_address = 9;
+}
+
+message ShieldedTRC20Parameters {
+  repeated SpendDescription spend_description = 1;
+  repeated ReceiveDescription receive_description = 2;
+  bytes binding_signature = 3;
+  bytes message_hash = 4;
+}
+
+message IvkDecryptTRC20Parameters {
+  int64 start_block_index = 1;
+  int64 end_block_index = 2;
+  bytes shielded_TRC20_contract_address = 3;
+  bytes ivk = 4;
+  bytes ak = 5;
+  bytes nk = 6;
+}
+
+message OvkDecryptTRC20Parameters {
+  int64 start_block_index = 1;
+  int64 end_block_index = 2;
+  bytes ovk = 3;
+  bytes shielded_TRC20_contract_address = 4;
+}
+
+message DecryptNotesTRC20 {
+  message NoteTx {
+    Note note = 1;
+    int64 position = 2;
+    bool isSpent = 3;
+    bytes txid = 4;
+    int32 index = 5; //the index of note in txid
+  }
+  repeated NoteTx noteTxs = 1;
+}
+
+message NfTRC20Parameters {
+  Note note = 1;
+  bytes ak = 2;
+  bytes nk = 3;
+  int64 position = 4;
+  bytes shielded_TRC20_contract_address = 5;
+}
+
+message NullifierResult {
+  bool isSpent = 1;
 }

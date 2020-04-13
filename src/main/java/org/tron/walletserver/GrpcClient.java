@@ -894,4 +894,39 @@ public class GrpcClient {
       return blockingStubFull.getBrokerageInfo(bytesMessage);
     }
   }
+
+  public DecryptNotesTRC20 scanShieldedTRC20NoteByIvk(IvkDecryptTRC20Parameters parameters) {
+    if (blockingStubSolidity != null) {
+      return blockingStubSolidity.scanShieldedTRC20NotesbyIvk(parameters);
+    } else {
+      return blockingStubFull.scanShieldedTRC20NotesbyIvk(parameters);
+    }
+  }
+
+  public DecryptNotesTRC20 scanShieldedTRC20NoteByOvk(OvkDecryptTRC20Parameters parameters) {
+    if (blockingStubSolidity != null) {
+      return blockingStubSolidity.scanShieldedTRC20NotesbyOvk(parameters);
+    } else {
+      return blockingStubFull.scanShieldedTRC20NotesbyOvk(parameters);
+    }
+  }
+
+  public ShieldedTRC20Parameters createShieldedContractParameters(
+      PrivateShieldedTRC20Parameters parameters) {
+    return blockingStubFull.createShieldedContractParameters(parameters);
+  }
+
+  public ShieldedTRC20Parameters createShieldedContractParametersWithoutAsk(
+      PrivateShieldedTRC20ParametersWithoutAsk parameters) {
+    return blockingStubFull.createShieldedContractParametersWithoutAsk(parameters);
+  }
+
+  public NullifierResult IsShieldedTRC20ContractNoteSpent(NfTRC20Parameters prameters) {
+    if (blockingStubSolidity != null) {
+      return blockingStubSolidity.isShieldedTRC20ContractNoteSpent(prameters);
+    } else {
+      return blockingStubFull.isShieldedTRC20ContractNoteSpent(prameters);
+    }
+  }
+
 }
