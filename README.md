@@ -583,7 +583,7 @@ exchange_id
 > The ID of the trading pair to be funded
 
 token_id, quant
-> TokenId and quantity of capital injection
+> TokenId and quantity (unit in base unit) of capital injection
 
 When conducting a capital injection, depending on its quantity (quant), a proportion
 of each token in the trading pair will be withdrawn from the account, and injected into the trading
@@ -629,7 +629,7 @@ Exchange_id
 The ID of the trading pair to be withdrawn
 
 Token_id, quant
-> TokenId and quantity of capital withdrawal
+> TokenId and quantity (unit in base unit) of capital withdrawal
 
 When conducting a capital withdrawal, depending on its quantity (quant), a proportion of each token
 in the transaction pair is withdrawn from the trading pair, and injected into the account. Depending on the difference in the balance of the transaction, the same amount of money for the same token would vary.
