@@ -273,14 +273,14 @@ AbbrName
 > The abbreviation of TRC10 token
 
 TotalSupply
-> ​![Total Supply = Account Balance Of Issuer + AllFrozenTokenAmount](http://latex.codecogs.com/gif.latex?Total%20Supply%20%3D%20Account%20Balance%20Of%20Issuer%20&plus;%20AllFrozenTokenAmount)
-> Total Supply: Total Issuing Amount
+> ​TotalSupply = Account Balance of Issuer + All Frozen Token Amount
+> TotalSupply: Total Issuing Amount
 > Account Balance Of Issuer: At the time of issuance
 > All Frozen Token Amount: Before asset transfer and the issuance
 
 TrxNum, AssetNum
-> ![Exchange Rate = TrxNum / AssetNum](http://latex.codecogs.com/gif.latex?ExchangeRate%20=%20TrxNum%20/%20AssetNum)
-> These two parameters determine the exchange rate when the token is issued.
+>  These two parameters determine the exchange rate when the token is issued.
+> Exchange Rate = TrxNum / AssetNum
 > AssetNum: Unit in base unit of the issued token
 > TrxNum: Unit in SUN (0.000001 TRX)
 
