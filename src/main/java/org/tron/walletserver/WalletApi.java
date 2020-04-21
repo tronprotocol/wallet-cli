@@ -2537,7 +2537,8 @@ public class WalletApi {
   }
 
   public boolean createCrossChainTransaction(String ownerChainId, String toChainId, byte[] owner,
-      byte[] toAddress, String tokenId, String tokenName, int precision, long amount)
+      byte[] toAddress, String tokenId, String tokenChainId, String tokenName, int precision,
+      long amount)
       throws IOException, CipherException, CancelException {
     if (owner == null) {
       owner = getAddress();
@@ -2545,7 +2546,8 @@ public class WalletApi {
 
     CrossToken.Builder crossToken = CrossToken.newBuilder();
     crossToken.setAmount(amount).setTokenId(ByteString.copyFrom(ByteArray.fromString(tokenId)))
-        .setTokenName(ByteString.copyFrom(ByteArray.fromString(tokenName))).setPrecision(precision);
+        .setTokenName(ByteString.copyFrom(ByteArray.fromString(tokenName))).setPrecision(precision)
+        .setChainId(ByteString.copyFrom(ByteArray.fromHexString(tokenChainId)));
     CrossContract.Builder builder = CrossContract.newBuilder();
     builder.setOwnerAddress(ByteString.copyFrom(owner))
         .setOwnerChainId(ByteString.copyFrom(ByteArray.fromHexString(ownerChainId)))

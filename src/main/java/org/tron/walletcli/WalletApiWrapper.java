@@ -1238,13 +1238,14 @@ public class WalletApiWrapper {
   }
 
   public boolean createCrossChainTransaction(String ownerChainId, String toChainId, byte[] owner,
-      byte[] toAddress, String tokenId, String tokenName, int precision, long amount)
+      byte[] toAddress, String tokenId, String tokenChainId, String tokenName, int precision,
+      long amount)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       System.out.println("Warning: updateSetting failed,  Please login first !!");
       return false;
     }
     return wallet.createCrossChainTransaction(ownerChainId, toChainId, owner, toAddress, tokenId,
-        tokenName, precision, amount);
+        tokenChainId, tokenName, precision, amount);
   }
 }

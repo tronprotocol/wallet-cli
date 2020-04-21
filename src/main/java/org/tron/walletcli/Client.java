@@ -2891,23 +2891,24 @@ public class Client {
 
   private void createCrossChainTransaction(String[] parameters)
       throws IOException, CipherException, CancelException {
-    if (parameters == null || parameters.length < 7) {
+    if (parameters == null || parameters.length < 8) {
       System.out.println("Using createCrossChainTransaction command needs 2 parameters like: ");
       System.out.println(
-          "createCrossChainTransaction [OwnerAddress] ownerChainId toAddress toChainId tokenId tokenName precision amount");
+          "createCrossChainTransaction [OwnerAddress] ownerChainId toAddress toChainId tokenId tokenChainId tokenName precision amount");
       return;
     }
 
     int index = 0;
     byte[] ownerAddress = null;
 
-    if (parameters.length == 8) {
+    if (parameters.length == 9) {
       ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
     }
     String ownerChainId = parameters[index++];
     byte[] toAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
     String toChainId = parameters[index++];
     String tokenId = parameters[index++];
+    String tokenChainId = parameters[index++];
     String tokenName = parameters[index++];
     int precision = Integer.valueOf(parameters[index++]);
     long amount = Long.valueOf(parameters[index++]);
@@ -2917,7 +2918,7 @@ public class Client {
       return;
     }
     boolean result = walletApiWrapper.createCrossChainTransaction(ownerChainId, toChainId,
-        ownerAddress, toAddress, tokenId, tokenName, precision, amount);
+        ownerAddress, toAddress, tokenId, tokenChainId, tokenName, precision, amount);
     if (result) {
       System.out.println("createCrossChainTransaction successful !!!");
     } else {
