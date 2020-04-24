@@ -32,14 +32,14 @@ import java.util.concurrent.atomic.AtomicLong;
 
 public class ShieldedTRC20Wrapper {
 
-  private static String prefixFolder;// = "WalletShieldedTRC20Contract/";
+  private static String prefixFolder;
   private static String trc20ContractAddress;
   private static String shieldedTRC20ContarctAddress;
-  private static String ivkAndNumFileName;// = "/scanblocknumber";
-  private static String unspendNoteFileName;// = "/unspendnote";
-  private static String spendNoteFileName;// = "/spendnote";
-  private static String shieldedAddressFileName;// = "/shieldedaddress";
-  private static String shieldedSkeyFileName;// = "/shieldedskey.json";
+  private static String ivkAndNumFileName;
+  private static String unspendNoteFileName;
+  private static String spendNoteFileName;
+  private static String shieldedAddressFileName;
+  private static String shieldedSkeyFileName;
   private static AtomicLong nodeIndex = new AtomicLong(0L);
   private Thread thread;
 
@@ -146,8 +146,8 @@ public class ShieldedTRC20Wrapper {
       int count = 24;
       for (; ; ) {
         try {
-          scanBlockByIvk();
           updateNoteWhetherSpend();
+          scanBlockByIvk();
         } catch (Exception e) {
           ++count;
           if (count >= 24) {
@@ -658,7 +658,7 @@ public class ShieldedTRC20Wrapper {
   }
 
   public void initShieldedTRC20WalletFile() throws IOException, CipherException {
-    ZenUtils.checkFolderExist(prefixFolder);
+    ZenUtils.checkFoldersExist(prefixFolder);
 
     if (ArrayUtils.isEmpty(shieldedSkey)) {
       if (shieldedSkeyFileExist()) {
@@ -672,12 +672,11 @@ public class ShieldedTRC20Wrapper {
 
   public ShieldedAddressInfo backupShieldedTRC20Wallet() throws IOException,
       CipherException {
-    ZenUtils.checkFolderExist(prefixFolder);
+    ZenUtils.checkFoldersExist(prefixFolder);
 
     if (shieldedSkeyFileExist()) {
       byte[] tempShieldedKey = loadSkey();
       if (!ArrayUtils.isEmpty(tempShieldedKey)) {
-
         if (ArrayUtils.isEmpty(shieldedSkey)) {
           shieldedSkey = tempShieldedKey;
           loadShieldTRC20Wallet();
@@ -731,7 +730,7 @@ public class ShieldedTRC20Wrapper {
   }
 
   public byte[] importShieldedTRC20Wallet() throws IOException, CipherException {
-    ZenUtils.checkFolderExist(prefixFolder);
+    ZenUtils.checkFoldersExist(prefixFolder);
 
     if (shieldedSkeyFileExist()) {
       byte[] tempShieldedKey = loadSkey();

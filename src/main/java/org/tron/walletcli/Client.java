@@ -2887,7 +2887,7 @@ public class Client {
   }
 
   private void backupShieldedTRC20Wallet() throws IOException, CipherException {
-    if (ShieldedTRC20Wrapper.isSetShieldedTRC20WalletPath()) {
+    if (!ShieldedTRC20Wrapper.isSetShieldedTRC20WalletPath()) {
       System.out.println("BackupShieldedTRC20Wallet failed !!!"
           + " Please SetShieldedTRC20ContractAddress first !!!");
       return;
@@ -2906,7 +2906,7 @@ public class Client {
 
   private void generateShieldedTRC20Address(String[] parameters) throws IOException,
       CipherException, ZksnarkException {
-    if (ShieldedTRC20Wrapper.isSetShieldedTRC20WalletPath()) {
+    if (!ShieldedTRC20Wrapper.isSetShieldedTRC20WalletPath()) {
       System.out.println("GenerateShieldedTRC20Address failed !!!"
           + " Please SetShieldedTRC20ContractAddress first !!!");
       return;
@@ -2933,7 +2933,7 @@ public class Client {
   }
 
   private void importShieldedTRC20Wallet() throws CipherException, IOException, ZksnarkException {
-    if (ShieldedTRC20Wrapper.isSetShieldedTRC20WalletPath()) {
+    if (!ShieldedTRC20Wrapper.isSetShieldedTRC20WalletPath()) {
       System.out.println("ImportShieldedTRC20Wallet failed !!!"
           + " Please SetShieldedTRC20ContractAddress first !!!");
       return;
@@ -2980,13 +2980,13 @@ public class Client {
   }
 
   private void listShieldedTRC20Note(String[] parameters) {
-    if (ShieldedTRC20Wrapper.isSetShieldedTRC20WalletPath()) {
+    if (!ShieldedTRC20Wrapper.isSetShieldedTRC20WalletPath()) {
       System.out.println("ListShieldedTRC20Note failed !!!"
           + " Please SetShieldedTRC20ContractAddress first !!!");
       return;
     }
     if (!ShieldedTRC20Wrapper.getInstance().ifShieldedTRC20WalletLoaded()) {
-      System.out.println("ListShieldedNote failed, please LoadShieldedWallet first!");
+      System.out.println("ListShieldedTRC20Note failed, please LoadShieldedTRC20Wallet first!");
       return;
     }
 
@@ -3081,7 +3081,7 @@ public class Client {
   }
 
   private void scanShieldedTRC20NoteByIvk(String[] parameters) {
-    if (ShieldedTRC20Wrapper.isSetShieldedTRC20WalletPath()) {
+    if (!ShieldedTRC20Wrapper.isSetShieldedTRC20WalletPath()) {
       System.out.println("ScanShieldedTRC20NoteByIvk failed !!!"
           + " Please SetShieldedTRC20ContractAddress first !!!");
       return;
@@ -3107,7 +3107,7 @@ public class Client {
   }
 
   private void scanShieldedTRC20NoteByOvk(String[] parameters) {
-    if (ShieldedTRC20Wrapper.isSetShieldedTRC20WalletPath()) {
+    if (!ShieldedTRC20Wrapper.isSetShieldedTRC20WalletPath()) {
       System.out.println("ScanShieldedTRC20NoteByOvk failed !!!"
           + " Please SetShieldedTRC20ContractAddress first !!!");
       return;
@@ -3165,8 +3165,8 @@ public class Client {
   }
 
   private boolean firstCheck(String[] parameters, String sendCoinType) {
-    if (parameters == null || parameters.length < 8) {
-      System.out.println(sendCoinType + " command needs more than 8 parameters like: ");
+    if (parameters == null || parameters.length < 6) {
+      System.out.println(sendCoinType + " command needs more than 6 parameters like: ");
       System.out.println(sendCoinType + " fromAmount shieldedInputNum input1 input2 ... "
           + "publicToAddress toAmount shieldedOutputNum shieldedAddress1 amount1 memo1 "
           + "shieldedAddress2 amount2 memo2 ... ");
@@ -3842,11 +3842,7 @@ public class Client {
               loadShieldedTRC20Wallet();
               break;
             }
-            // case "markshieldedtrc20note": {
-            //   markShieldedTRC20Note(parameters);
-            //   break;
-            // }
-            case "resettrc20contractshieldednote": {
+            case "resetshieldedtrc20note": {
               resetShieldedTRC20Note();
               break;
             }

@@ -1328,6 +1328,13 @@ public class WalletApiWrapper {
         return false;
       }
 
+      for(int i = 0; i < rootAndPath.size(); i++) {
+        if (rootAndPath.get(i) == null) {
+          System.out.println("Can't get merkle path, please check the note " + i + ".");
+          return false;
+        }
+      }
+
       for (int i = 0; i < shieldedInputList.size(); ++i) {
         ShieldedTRC20NoteInfo noteInfo = ShieldedTRC20Wrapper.getInstance().getUtxoMapNote()
             .get(shieldedInputList.get(i));
@@ -1357,7 +1364,7 @@ public class WalletApiWrapper {
         System.out.println("position " + noteInfo.getPosition());
         System.out.println("memo " + ZenUtils.getMemo(noteInfo.getMemo()));
 
-        byte[] eachRootAndPath = rootAndPath.get(i).getBytes();
+        byte[] eachRootAndPath = ByteArray.fromHexString(rootAndPath.get(i));
         byte[] root = Arrays.copyOfRange(eachRootAndPath, 0, 32);
         byte[] path = Arrays.copyOfRange(eachRootAndPath, 32, 1056);
         SpendNoteTRC20.Builder spendTRC20NoteBuilder = SpendNoteTRC20.newBuilder();
@@ -1421,12 +1428,12 @@ public class WalletApiWrapper {
       }
     } else if (shieldedContractType == 2) {//BURN
       String inputData = encodeBurnParamsToHexString(parameters, toAmount, toAddress);
-      boolean transferResult = triggerShieldedContract(shieldedContractAddress, inputData, 1);
+      boolean transferResult = triggerShieldedContract(shieldedContractAddress, inputData, 2);
       if (transferResult) {
-        System.out.println("TRANSFER succeed!");
+        System.out.println("BURN succeed!");
         return true;
       } else {
-        System.out.println("Trigger shielded contract TRANSFER failed!");
+        System.out.println("Trigger shielded contract BURN failed!");
         return false;
       }
     } else {
@@ -1484,6 +1491,13 @@ public class WalletApiWrapper {
         return false;
       }
 
+      for(int i = 0; i < rootAndPath.size(); i++) {
+        if (rootAndPath.get(i) == null) {
+          System.out.println("Can't get merkle path, please check the note " + i + ".");
+          return false;
+        }
+      }
+
       for (int i = 0; i < shieldedInputList.size(); i++) {
         ShieldedTRC20NoteInfo noteInfo = ShieldedTRC20Wrapper.getInstance().getUtxoMapNote()
             .get(shieldedInputList.get(i));
@@ -1515,7 +1529,7 @@ public class WalletApiWrapper {
         System.out.println("position " + noteInfo.getPosition());
         System.out.println("memo " + ZenUtils.getMemo(noteInfo.getMemo()));
 
-        byte[] eachRootAndPath = rootAndPath.get(i).getBytes();
+        byte[] eachRootAndPath = ByteArray.fromHexString(rootAndPath.get(i));
         byte[] root = Arrays.copyOfRange(eachRootAndPath, 0, 32);
         byte[] path = Arrays.copyOfRange(eachRootAndPath, 32, 1056);
         SpendNoteTRC20.Builder spendTRC20NoteBuilder = SpendNoteTRC20.newBuilder();
@@ -1583,10 +1597,10 @@ public class WalletApiWrapper {
       String inputData = encodeBurnParamsToHexString(parameters, toAmount, toAddress);
       boolean transferResult = triggerShieldedContract(shieldedContractAddress, inputData, 2);
       if (transferResult) {
-        System.out.println("TRANSFER succeed!");
+        System.out.println("BURN succeed!");
         return true;
       } else {
-        System.out.println("Trigger shielded contract TRANSFER failed!");
+        System.out.println("Trigger shielded contract BURN failed!");
         return false;
       }
     } else {
@@ -1634,7 +1648,7 @@ public class WalletApiWrapper {
     } else if (shieldedContractType == 1) {
       methodStr = "transfer(bytes32[10][],bytes32[2][],bytes32[9][],bytes32[2],bytes32[21][])";
     } else if (shieldedContractType == 2) {
-      methodStr = "burn(bytes32[10],bytes32[2],uint64,bytes32[2],uint256)";
+      methodStr = "burn(bytes32[10],bytes32[2],uint64,bytes32[2],address)";
     } else {
       System.out.println("shieldedContractType should be 0, 1 or 2. ");
       return false;

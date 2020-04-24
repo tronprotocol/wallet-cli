@@ -2510,8 +2510,7 @@ public class WalletApi {
     if (transaction.getRetCount() != 0
         && transactionExtention.getConstantResult(0) != null
         && transactionExtention.getResult() != null) {
-      byte[] contractResult = transactionExtention.getConstantResult(0).toByteArray();
-      byte[] result = ByteArray.subArray(contractResult, 0, 1056);
+      byte[] result = transactionExtention.getConstantResult(0).toByteArray();
       return ByteArray.toHexString(result);
     } else {
       return null;
