@@ -2459,35 +2459,27 @@ public class WalletApi {
   }
 
   public static Optional<DecryptNotesTRC20> scanShieldedTRC20NoteByIvk(
-      IvkDecryptTRC20Parameters parameters, boolean showErrorMsg) {
-    if (showErrorMsg) {
-      try {
-        return Optional.of(rpcCli.scanShieldedTRC20NoteByIvk(parameters));
-      } catch (Exception e) {
-        if (showErrorMsg) {
-          Status status = Status.fromThrowable(e);
-          System.out.println("ScanShieldedTRC20NoteByIvk failed,error " + status.getDescription());
-        }
-      }
-    } else {
+          IvkDecryptTRC20Parameters parameters, boolean showErrorMsg) {
+    try {
       return Optional.of(rpcCli.scanShieldedTRC20NoteByIvk(parameters));
+    } catch (Exception e) {
+      if (showErrorMsg) {
+        Status status = Status.fromThrowable(e);
+        System.out.println("ScanShieldedTRC20NoteByIvk failed,error " + status.getDescription());
+      }
     }
     return Optional.empty();
   }
 
   public static Optional<DecryptNotesTRC20> scanShieldedTRC20NoteByOvk(
-      OvkDecryptTRC20Parameters parameters, boolean showErrorMsg) {
-    if (showErrorMsg) {
-      try {
-        return Optional.of(rpcCli.scanShieldedTRC20NoteByOvk(parameters));
-      } catch (Exception e) {
-        if (showErrorMsg) {
-          Status status = Status.fromThrowable(e);
-          System.out.println("scanNoteByOvk failed,error " + status.getDescription());
-        }
-      }
-    } else {
+          OvkDecryptTRC20Parameters parameters, boolean showErrorMsg) {
+    try {
       return Optional.of(rpcCli.scanShieldedTRC20NoteByOvk(parameters));
+    } catch (Exception e) {
+      if (showErrorMsg) {
+        Status status = Status.fromThrowable(e);
+        System.out.println("scanNoteByOvk failed,error " + status.getDescription());
+      }
     }
     return Optional.empty();
   }

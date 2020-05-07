@@ -2,12 +2,10 @@ package org.tron.core.zen;
 
 import com.google.protobuf.ByteString;
 import io.netty.util.internal.StringUtil;
-import java.lang.reflect.Field;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.commons.lang3.ArrayUtils;
 import org.tron.api.GrpcAPI.*;
-import org.tron.api.GrpcAPI.DecryptNotes.NoteTx;
 import org.tron.api.GrpcAPI.DecryptNotesTRC20;
 import org.tron.common.utils.Base58;
 import org.tron.common.utils.ByteArray;
@@ -81,17 +79,23 @@ public class ShieldedTRC20Wrapper {
         || shieldedAddressFileName == null || shieldedSkeyFileName == null);
   }
 
-  public static void setShieldedTRC20WalletPath(String contractAddress,
-                                                String shieldedContractAddress) {
-    trc20ContractAddress = contractAddress;
-    shieldedTRC20ContarctAddress = shieldedContractAddress;
-    prefixFolder = "WalletShieldedTRC20Contract/"
-        + trc20ContractAddress + "_" + shieldedTRC20ContarctAddress;
-    ivkAndNumFileName = prefixFolder + "/scanblocknumber";
-    unspendNoteFileName = prefixFolder + "/unspendnote";
-    spendNoteFileName = prefixFolder + "/spendnote";
-    shieldedAddressFileName = prefixFolder + "/shieldedaddress";
-    shieldedSkeyFileName = prefixFolder + "/shieldedskey.json";
+  public void setShieldedTRC20WalletPath(String contractAddress,
+                                         String shieldedContractAddress) {
+    if (contractAddress == null || shieldedContractAddress == null
+        || !contractAddress.equals(trc20ContractAddress)
+        || !shieldedContractAddress.equals(shieldedTRC20ContarctAddress)) {
+      loadShieldedStatus = false;
+      shieldedSkey = null;
+      trc20ContractAddress = contractAddress;
+      shieldedTRC20ContarctAddress = shieldedContractAddress;
+      prefixFolder = "WalletShieldedTRC20Contract/"
+          + trc20ContractAddress + "_" + shieldedTRC20ContarctAddress;
+      ivkAndNumFileName = prefixFolder + "/scanblocknumber";
+      unspendNoteFileName = prefixFolder + "/unspendnote";
+      spendNoteFileName = prefixFolder + "/spendnote";
+      shieldedAddressFileName = prefixFolder + "/shieldedaddress";
+      shieldedSkeyFileName = prefixFolder + "/shieldedskey.json";
+    }
   }
 
   public String getShieldedTRC20ContractAddress() {
@@ -145,6 +149,13 @@ public class ShieldedTRC20Wrapper {
     public void run() {
       int count = 24;
       for (; ; ) {
+        if (!ifShieldedTRC20WalletLoaded()) {
+          try {
+            Thread.sleep(500);
+          } catch (Exception e) {
+          }
+          continue;
+        }
         try {
           updateNoteWhetherSpend();
           scanBlockByIvk();

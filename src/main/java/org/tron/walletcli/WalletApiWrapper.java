@@ -1217,13 +1217,14 @@ public class WalletApiWrapper {
     return WalletApi.getBrokerage(ownerAddress);
   }
 
-  public boolean scanShieldedTRC20NoteByIvk(final String ivk, final String ak, final String nk,
-                                            byte[] contractAddress, long start, long end) {
+  public boolean scanShieldedTRC20NoteByIvk(byte[] address, final String ivk,
+                                            final String ak, final String nk,
+                                            long start, long end) {
     GrpcAPI.IvkDecryptTRC20Parameters parameters = IvkDecryptTRC20Parameters
         .newBuilder()
         .setStartBlockIndex(start)
         .setEndBlockIndex(end)
-        .setShieldedTRC20ContractAddress(ByteString.copyFrom(contractAddress))
+        .setShieldedTRC20ContractAddress(ByteString.copyFrom(address))
         .setIvk(ByteString.copyFrom(ByteArray.fromHexString(ivk)))
         .setAk(ByteString.copyFrom(ByteArray.fromHexString(ak)))
         .setNk(ByteString.copyFrom(ByteArray.fromHexString(nk)))
@@ -1235,18 +1236,6 @@ public class WalletApiWrapper {
       System.out.println("ScanShieldedTRC20NoteByIvk failed !!!");
     } else {
       System.out.println(Utils.formatMessageString(notes.get()));
-//            for (int i = 0; i < decryptNotes.get().getNoteTxsList().size(); i++) {
-//                NoteTx noteTx = decryptNotes.get().getNoteTxs(i);
-//                Note note = noteTx.getNote();
-//                System.out.println("\ntxid:{}\nindex:{}\naddress:{}\nrcm:{}\nvalue:{}\nmemo:{}",
-//                        ByteArray.toHexString(noteTx.getTxid().toByteArray()),
-//                        noteTx.getIndex(),
-//                        note.getPaymentAddress(),
-//                        ByteArray.toHexString(note.getRcm().toByteArray()),
-//                        note.getValue(),
-//                        ZenUtils.getMemo(note.getMemo().toByteArray()));
-//            }
-//            System.out.println("complete.");
     }
     return true;
   }
@@ -1265,18 +1254,6 @@ public class WalletApiWrapper {
       System.out.println("ScanShieldedTRC20NoteByovk failed !!!");
     } else {
       System.out.println(Utils.formatMessageString(notes.get()));
-//            for (int i = 0; i < decryptNotes.get().getNoteTxsList().size(); i++) {
-//                NoteTx noteTx = decryptNotes.get().getNoteTxs(i);
-//                Note note = noteTx.getNote();
-//                System.out.println("\ntxid:{}\nindex:{}\npaymentAddress:{}\nrcm:{}\nmemo
-//                :{}\nvalue:{}",
-//                        ByteArray.toHexString(noteTx.getTxid().toByteArray()),
-//                        noteTx.getIndex(),
-//                        note.getPaymentAddress(),
-//                        ByteArray.toHexString(note.getRcm().toByteArray()),
-//                        ZenUtils.getMemo(note.getMemo().toByteArray()),
-//                        note.getValue());
-//            }
       System.out.println("complete.");
     }
     return true;
@@ -1315,6 +1292,7 @@ public class WalletApiWrapper {
       builder.setToAmount(toAmount);
     }
 
+    long valueBalance = 0;
     if (shieldedInputList.size() > 0) {
       List<String> rootAndPath = new ArrayList<>();
       for (int i = 0; i < shieldedInputList.size(); i++) {
@@ -1374,6 +1352,7 @@ public class WalletApiWrapper {
         spendTRC20NoteBuilder.setPath(ByteString.copyFrom(path));
         spendTRC20NoteBuilder.setPos(noteInfo.getPosition());
 
+        valueBalance += noteInfo.getValue();
         builder.addShieldedSpends(spendTRC20NoteBuilder.build());
       }
     } else {
@@ -1389,9 +1368,16 @@ public class WalletApiWrapper {
 
     if (shieldedOutputList.size() > 0) {
       for (int i = 0; i < shieldedOutputList.size(); i++) {
+        GrpcAPI.Note note = shieldedOutputList.get(i);
+        valueBalance -= note.getValue();
         builder.addShieldedReceives(
-            ReceiveNote.newBuilder().setNote(shieldedOutputList.get(i)).build());
+            ReceiveNote.newBuilder().setNote(note).build());
       }
+    }
+    if (shieldedContractType == 1 && valueBalance != 0) {
+      System.out.println("TRANSFER: the sum of shielded input amount should be equal to the " +
+              "sum of shielded output amount");
+      return false;
     }
     ShieldedTRC20Parameters parameters =
         WalletApi.createShieldedContractParameters(builder.build());
