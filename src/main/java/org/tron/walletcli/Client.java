@@ -38,6 +38,7 @@ import org.tron.protos.Protocol.*;
 import org.tron.walletserver.WalletApi;
 
 import java.io.IOException;
+import java.math.BigInteger;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.Base64.Decoder;
@@ -2878,6 +2879,21 @@ public class Client {
       byte[] shieldedContractAddress = WalletApi.decodeFromBase58Check(parameters[1]);
       if (!(trc20ContractAddress == null || shieldedContractAddress == null)) {
         ShieldedTRC20Wrapper.getInstance().setShieldedTRC20WalletPath(parameters[0], parameters[1]);
+        //set scaling factor
+        String scalingFactorHexStr = walletApiWrapper.getScalingFactor(shieldedContractAddress);
+        if (scalingFactorHexStr != null) {
+          BigInteger scalingFactor = new BigInteger(scalingFactorHexStr, 16);
+          ShieldedTRC20Wrapper.getInstance().setScalingFactor(scalingFactor);
+          System.out.println("SetShieldedTRC20ContractAddress succeed!");
+          System.out.println("The scalingFactor is " + scalingFactor.toString());
+          System.out.println("That means:");
+          System.out.println("If you mint " + scalingFactor.toString() + " token into " +
+              "shielded contract, you can get 1 shielded token.");
+          System.out.println("If you burn 1 shielded token into toPublicAddress, " +
+              "you can get " + scalingFactor.toString() + " token.");
+        } else {
+          System.out.println("Get scalingFactor failed!! Please check shielded contract!");
+        }
       } else {
         System.out.println("SetShieldedTRC20ContractAddress failed !!! Invalid Address !!!");
       }
@@ -3041,6 +3057,10 @@ public class Client {
         System.out.println(string);
       }
     }
+    BigInteger scalingFactor = ShieldedTRC20Wrapper.getInstance().getScalingFactor();
+    System.out.println("The Scaling Factor is " + scalingFactor.toString());
+    System.out.println("That means 1 shielded token is equal to " + scalingFactor.toString() +
+        " TRC20 token");
   }
 
   private void loadShieldedTRC20Wallet() throws CipherException, IOException {
@@ -3184,8 +3204,8 @@ public class Client {
       throws IOException, CipherException, CancelException, ZksnarkException {
     int parameterIndex = 0;
 
-    long fromPublicAmount = Long.valueOf(parameters[parameterIndex++]);
-    if (fromPublicAmount < 0) {
+    BigInteger fromPublicAmount = new BigInteger(parameters[parameterIndex++]);
+    if (fromPublicAmount.compareTo(BigInteger.ZERO) < 0) {
       System.out.println("fromPublicAmount must be non-negative. ");
       return false;
     }
@@ -3218,15 +3238,15 @@ public class Client {
     }
 
     String toPublicAddress = parameters[parameterIndex++];
-    long toPublicAmount = 0;
+    BigInteger toPublicAmount = BigInteger.ZERO;
     if (toPublicAddress.equals("null")) {
       toPublicAddress = null;
       ++parameterIndex;
     } else {
       amountString = parameters[parameterIndex++];
       if (!StringUtil.isNullOrEmpty(amountString)) {
-        toPublicAmount = Long.valueOf(amountString);
-        if (toPublicAmount <= 0) {
+        toPublicAmount = new BigInteger(amountString);
+        if (toPublicAmount.compareTo(BigInteger.ZERO) <= 0) {
           System.out.println("toPublicAmount must be positive. ");
           return false;
         }
@@ -3270,17 +3290,18 @@ public class Client {
     }
 
     int shieldedContractType = -1;
-    if (fromPublicAmount > 0 && shieldedOutList.size() == 1
-        && shieldedInputList.size() == 0 && toPublicAmount == 0) {
+    if (fromPublicAmount.compareTo(BigInteger.ZERO) > 0 && shieldedOutList.size() == 1
+        && shieldedInputList.size() == 0 && toPublicAmount.compareTo(BigInteger.ZERO) == 0) {
       System.out.println("This is an MINT. ");
       shieldedContractType = 0;
-    } else if (fromPublicAmount == 0 && toPublicAmount == 0
+    } else if (fromPublicAmount.compareTo(BigInteger.ZERO) == 0
+        && toPublicAmount.compareTo(BigInteger.ZERO) == 0
         && shieldedOutList.size() > 0 && shieldedOutList.size() < 3
         && shieldedInputList.size() > 0 && shieldedInputList.size() < 3) {
       System.out.println("This is an TRANSFER. ");
       shieldedContractType = 1;
-    } else if (fromPublicAmount == 0 && shieldedOutList.size() == 0
-        && shieldedInputList.size() == 1 && toPublicAmount > 0) {
+    } else if (fromPublicAmount.compareTo(BigInteger.ZERO) == 0 && shieldedOutList.size() == 0
+        && shieldedInputList.size() == 1 && toPublicAmount.compareTo(BigInteger.ZERO) > 0) {
       System.out.println("This is an BURN. ");
       shieldedContractType = 2;
     } else {

@@ -22,6 +22,7 @@ import org.tron.walletcli.Client;
 import org.tron.walletserver.WalletApi;
 import java.io.File;
 import java.io.IOException;
+import java.math.BigInteger;
 import java.security.SecureRandom;
 import java.util.*;
 import java.util.Map.Entry;
@@ -38,6 +39,7 @@ public class ShieldedTRC20Wrapper {
   private static String spendNoteFileName;
   private static String shieldedAddressFileName;
   private static String shieldedSkeyFileName;
+  private static BigInteger scalingFactor;
   private static AtomicLong nodeIndex = new AtomicLong(0L);
   private Thread thread;
 
@@ -51,7 +53,7 @@ public class ShieldedTRC20Wrapper {
   private boolean resetNote = false;
   @Getter
   @Setter
-  public Map<Ivk, Long> ivkMapScanBlockNum = new ConcurrentHashMap();
+  public Map<String, Long> ivkMapScanBlockNum = new ConcurrentHashMap();
   @Getter
   @Setter
   public Map<Long, ShieldedTRC20NoteInfo> utxoMapNote = new ConcurrentHashMap();
@@ -96,6 +98,13 @@ public class ShieldedTRC20Wrapper {
       shieldedAddressFileName = prefixFolder + "/shieldedaddress";
       shieldedSkeyFileName = prefixFolder + "/shieldedskey.json";
     }
+  }
+
+  public void setScalingFactor(BigInteger factor) {
+    scalingFactor = factor;
+  }
+  public BigInteger getScalingFactor() {
+    return scalingFactor;
   }
 
   public String getShieldedTRC20ContractAddress() {
@@ -190,11 +199,10 @@ public class ShieldedTRC20Wrapper {
   private void resetShieldedTRC20Note() throws ZksnarkException {
     ivkMapScanBlockNum.clear();
     for (Entry<String, ShieldedAddressInfo> entry : getShieldedAddressInfoMap().entrySet()) {
-      Ivk ivk = new Ivk();
-      ivk.setIvk(entry.getValue().getIvk());
-      ivk.setAk(entry.getValue().getFullViewingKey().getAk());
-      ivk.setNk(entry.getValue().getFullViewingKey().getNk());
-      ivkMapScanBlockNum.put(ivk, 0L);
+      byte[] key = ByteUtil.merge(entry.getValue().getIvk(),
+          entry.getValue().getFullViewingKey().getAk(),
+          entry.getValue().getFullViewingKey().getNk());
+      ivkMapScanBlockNum.put(ByteArray.toHexString(key), 0L);
     }
 
     utxoMapNote.clear();
@@ -212,7 +220,7 @@ public class ShieldedTRC20Wrapper {
     Block block = WalletApi.getBlock(-1);
     if (block != null) {
       long blockNum = block.getBlockHeader().toBuilder().getRawData().getNumber();
-      for (Entry<Ivk, Long> entry : ivkMapScanBlockNum.entrySet()) {
+      for (Entry<String, Long> entry : ivkMapScanBlockNum.entrySet()) {
         long start = entry.getValue();
         long end = start;
         while (end < blockNum) {
@@ -229,9 +237,10 @@ public class ShieldedTRC20Wrapper {
               ByteString.copyFrom(
                   WalletApi.decodeFromBase58Check(
                       getShieldedTRC20ContractAddress())));
-          builder.setIvk(ByteString.copyFrom(entry.getKey().getIvk()));
-          builder.setAk(ByteString.copyFrom(entry.getKey().getAk()));
-          builder.setNk(ByteString.copyFrom(entry.getKey().getNk()));
+          byte[] key = ByteArray.fromHexString(entry.getKey());
+          builder.setIvk(ByteString.copyFrom(ByteArray.subArray(key, 0, 32)));
+          builder.setAk(ByteString.copyFrom(ByteArray.subArray(key, 32, 64)));
+          builder.setNk(ByteString.copyFrom(ByteArray.subArray(key, 64, 96)));
           Optional<DecryptNotesTRC20> notes = WalletApi.scanShieldedTRC20NoteByIvk(
               builder.build(), false);
           if (notes.isPresent()) {
@@ -339,13 +348,13 @@ public class ShieldedTRC20Wrapper {
         e.printStackTrace();
       }
     }
-    Ivk ivk = new Ivk();
-    ivk.setIvk(addressInfo.getIvk());
-    ivk.setAk(addressInfo.getFullViewingKey().getAk());
-    ivk.setNk(addressInfo.getFullViewingKey().getNk());
-    if (!ivkMapScanBlockNum.containsKey(ivk)) {
-      ivkMapScanBlockNum.put(ivk, blockNum);
-      updateIvkAndBlockNum(ivk, blockNum);
+    String key = ByteArray.toHexString(ByteUtil.merge(
+        addressInfo.getIvk(),
+        addressInfo.getFullViewingKey().getAk(),
+        addressInfo.getFullViewingKey().getNk()));
+    if (!ivkMapScanBlockNum.containsKey(key)) {
+      ivkMapScanBlockNum.put(key, blockNum);
+      updateIvkAndBlockNum(key, blockNum);
     }
     return true;
   }
@@ -357,17 +366,15 @@ public class ShieldedTRC20Wrapper {
    * @param blockNum
    * @return
    */
-  private boolean updateIvkAndBlockNum(Ivk ivk, long blockNum) {
+  private boolean updateIvkAndBlockNum(String ivk, long blockNum) {
     if (ArrayUtils.isEmpty(shieldedSkey)) {
       return false;
     }
 
     synchronized (ivkAndNumFileName) {
-      byte[] key = ByteUtil.merge(ivk.getIvk(), ivk.getAk(), ivk.getNk());
+      byte[] key = ByteArray.fromHexString(ivk);
       byte[] value = ByteArray.fromLong(blockNum);
-      byte[] text = new byte[key.length + value.length];
-      System.arraycopy(key, 0, text, 0, key.length);
-      System.arraycopy(value, 0, text, key.length, value.length);
+      byte[] text = ByteUtil.merge(key, value);
       try {
         byte[] cipherText = ZenUtils.aesCtrEncrypt(text, shieldedSkey);
         String data = Base58.encode(cipherText);
@@ -391,13 +398,10 @@ public class ShieldedTRC20Wrapper {
 
     synchronized (ivkAndNumFileName) {
       ZenUtils.clearFile(ivkAndNumFileName);
-      for (Entry<Ivk, Long> entry : ivkMapScanBlockNum.entrySet()) {
-        byte[] key = ByteUtil.merge(entry.getKey().getIvk(), entry.getKey().getAk(),
-            entry.getKey().getNk());
+      for (Entry<String, Long> entry : ivkMapScanBlockNum.entrySet()) {
+        byte[] key = ByteArray.fromHexString(entry.getKey());
         byte[] value = ByteArray.fromLong(entry.getValue());
-        byte[] text = new byte[key.length + value.length];
-        System.arraycopy(key, 0, text, 0, key.length);
-        System.arraycopy(value, 0, text, key.length, value.length);
+        byte[] text = ByteUtil.merge(key, value);
         try {
           byte[] cipherText = ZenUtils.aesCtrEncrypt(text, shieldedSkey);
           String date = Base58.encode(cipherText);
@@ -427,13 +431,10 @@ public class ShieldedTRC20Wrapper {
         byte[] cipherText = Base58.decode(list.get(i));
         try {
           byte[] text = ZenUtils.aesCtrDecrypt(cipherText, shieldedSkey);
-          Ivk ivk = new Ivk();
-          ivk.setIvk(Arrays.copyOfRange(text, 0, 32));
-          ivk.setAk(Arrays.copyOfRange(text, 32, 64));
-          ivk.setNk(Arrays.copyOfRange(text, 64, 96));
+          byte[] key = Arrays.copyOfRange(text, 0, 96);
           byte[] value = Arrays.copyOfRange(text, 96, text.length);
 
-          ivkMapScanBlockNum.put(ivk, ByteArray.toLong(value));
+          ivkMapScanBlockNum.put(ByteArray.toHexString(key), ByteArray.toLong(value));
         } catch (CipherException e) {
           e.printStackTrace();
         }
@@ -783,20 +784,5 @@ public class ShieldedTRC20Wrapper {
       ++nTime;
     }
     return result;
-  }
-
-  public class Ivk {
-    @Setter
-    @Getter
-    public byte[] ivk;
-    @Setter
-    @Getter
-    public byte[] ak;
-    @Setter
-    @Getter
-    public byte[] nk;
-
-    public Ivk() {
-    }
   }
 }

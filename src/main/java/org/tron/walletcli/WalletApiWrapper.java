@@ -2,6 +2,7 @@ package org.tron.walletcli;
 
 import com.google.protobuf.ByteString;
 import io.netty.util.internal.StringUtil;
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Arrays;
 import lombok.extern.slf4j.Slf4j;
@@ -1259,27 +1260,35 @@ public class WalletApiWrapper {
     return true;
   }
 
-  public boolean sendShieldedTRC20Coin(int shieldedContractType, long fromAmount,
+  public boolean sendShieldedTRC20Coin(int shieldedContractType, BigInteger fromAmount,
                                        List<Long> shieldedInputList,
                                        List<GrpcAPI.Note> shieldedOutputList,
-                                       String toAddress, long toAmount,
+                                       String toAddress, BigInteger toAmount,
                                        String contractAddress, String shieldedContractAddress)
       throws CipherException, IOException, CancelException, ZksnarkException {
-    if (shieldedContractType == 0 && fromAmount != shieldedOutputList.get(0).getValue()) {
-      System.out.println("MINT: fromPublicAmount must be equal to note value");
+    BigInteger scalingFactor = ShieldedTRC20Wrapper.getInstance().getScalingFactor();
+    if (shieldedContractType == 0
+        && BigInteger.valueOf(shieldedOutputList.get(0).getValue())
+                     .multiply(scalingFactor)
+                     .compareTo(fromAmount) != 0) {
+      System.out.println("MINT: fromPublicAmount must be equal to noteValue * scalingFactor.");
+      System.out.println("The scalingFactor is " + scalingFactor.toString());
       return false;
     }
     if (shieldedContractType == 2) {
       ShieldedTRC20NoteInfo noteInfo = ShieldedTRC20Wrapper.getInstance().getUtxoMapNote()
           .get(shieldedInputList.get(0));
-      if (toAmount != noteInfo.getValue()) {
-        System.out.println("BURN: toPublicAmount must be equal to note value");
+      if (BigInteger.valueOf(noteInfo.getValue())
+                    .multiply(scalingFactor)
+                    .compareTo(toAmount) != 0) {
+        System.out.println("BURN: toPublicAmount must be equal to noteValue * scalingFactor");
+        System.out.println("The scalingFactor is " + scalingFactor.toString());
         return false;
       }
     }
 
     PrivateShieldedTRC20Parameters.Builder builder = PrivateShieldedTRC20Parameters.newBuilder();
-    builder.setFromAmount(fromAmount);
+    builder.setFromAmount(fromAmount.toString());
     byte[] shieldedContractAddressBytes = WalletApi.decodeFromBase58Check(shieldedContractAddress);
     builder.setShieldedTRC20ContractAddress(ByteString.copyFrom(shieldedContractAddressBytes));
 
@@ -1289,7 +1298,7 @@ public class WalletApiWrapper {
         return false;
       }
       builder.setTransparentToAddress(ByteString.copyFrom(to));
-      builder.setToAmount(toAmount);
+      builder.setToAmount(toAmount.toString());
     }
 
     long valueBalance = 0;
@@ -1352,7 +1361,7 @@ public class WalletApiWrapper {
         spendTRC20NoteBuilder.setPath(ByteString.copyFrom(path));
         spendTRC20NoteBuilder.setPos(noteInfo.getPosition());
 
-        valueBalance += noteInfo.getValue();
+        valueBalance = Math.addExact(valueBalance, noteInfo.getValue());
         builder.addShieldedSpends(spendTRC20NoteBuilder.build());
       }
     } else {
@@ -1369,7 +1378,7 @@ public class WalletApiWrapper {
     if (shieldedOutputList.size() > 0) {
       for (int i = 0; i < shieldedOutputList.size(); i++) {
         GrpcAPI.Note note = shieldedOutputList.get(i);
-        valueBalance -= note.getValue();
+        valueBalance = Math.subtractExact(valueBalance, note.getValue());
         builder.addShieldedReceives(
             ReceiveNote.newBuilder().setNote(note).build());
       }
@@ -1428,29 +1437,35 @@ public class WalletApiWrapper {
     }
   }
 
-  public boolean sendShieldedTRC20CoinWithoutAsk(int shieldedContractType, long fromAmount,
+  public boolean sendShieldedTRC20CoinWithoutAsk(int shieldedContractType, BigInteger fromAmount,
                                                  List<Long> shieldedInputList,
                                                  List<GrpcAPI.Note> shieldedOutputList,
-                                                 String toAddress, long toAmount,
+                                                 String toAddress, BigInteger toAmount,
                                                  String contractAddress,
                                                  String shieldedContractAddress)
       throws CipherException, IOException, CancelException, ZksnarkException {
-    if (shieldedContractType == 0 && fromAmount != shieldedOutputList.get(0).getValue()) {
-      System.out.println("MINT: fromPublicAmount must be equal to note value");
+    BigInteger scalingFactor = ShieldedTRC20Wrapper.getInstance().getScalingFactor();
+    if (shieldedContractType == 0
+        && BigInteger.valueOf(shieldedOutputList.get(0).getValue())
+                     .multiply(scalingFactor)
+                     .compareTo(fromAmount) != 0) {
+      System.out.println("MINT: fromPublicAmount must be equal to noteValue * scalingFactor");
       return false;
     }
     if (shieldedContractType == 2) {
       ShieldedTRC20NoteInfo noteInfo = ShieldedTRC20Wrapper.getInstance().getUtxoMapNote()
           .get(shieldedInputList.get(0));
-      if (toAmount != noteInfo.getValue()) {
-        System.out.println("BURN: toPublicAmount must be equal to note value");
+      if (BigInteger.valueOf(noteInfo.getValue())
+                    .multiply(scalingFactor)
+                    .compareTo(toAmount) != 0) {
+        System.out.println("BURN: toPublicAmount must be equal to noteValue * scalingFactor");
         return false;
       }
     }
 
     PrivateShieldedTRC20ParametersWithoutAsk.Builder builder =
         PrivateShieldedTRC20ParametersWithoutAsk.newBuilder();
-    builder.setFromAmount(fromAmount);
+    builder.setFromAmount(fromAmount.toString());
     byte[] shieldedContractAddressBytes = WalletApi.decodeFromBase58Check(shieldedContractAddress);
     builder.setShieldedTRC20ContractAddress(ByteString.copyFrom(shieldedContractAddressBytes));
 
@@ -1460,10 +1475,11 @@ public class WalletApiWrapper {
         return false;
       }
       builder.setTransparentToAddress(ByteString.copyFrom(to));
-      builder.setToAmount(toAmount);
+      builder.setToAmount(toAmount.toString());
     }
 
     byte[] ask = new byte[32];
+    long valueBalance = 0;
     if (shieldedInputList.size() > 0) {
       List<String> rootAndPath = new ArrayList<>();
       for (int i = 0; i < shieldedInputList.size(); i++) {
@@ -1526,6 +1542,7 @@ public class WalletApiWrapper {
         spendTRC20NoteBuilder.setPos(noteInfo.getPosition());
 
         builder.addShieldedSpends(spendTRC20NoteBuilder.build());
+        valueBalance = Math.addExact(valueBalance, noteInfo.getValue());
       }
     } else {
       //@TODO remove randomOvk by sha256.of(privateKey)
@@ -1540,9 +1557,17 @@ public class WalletApiWrapper {
 
     if (shieldedOutputList.size() > 0) {
       for (int i = 0; i < shieldedOutputList.size(); ++i) {
+        GrpcAPI.Note note = shieldedOutputList.get(i);
+        valueBalance = Math.subtractExact(valueBalance, note.getValue());
         builder.addShieldedReceives(
-            ReceiveNote.newBuilder().setNote(shieldedOutputList.get(i)).build());
+            ReceiveNote.newBuilder().setNote(note).build());
       }
+    }
+
+    if (shieldedContractType == 1 && valueBalance != 0) {
+      System.out.println("TRANSFER: the sum of shielded input amount should be equal to the " +
+          "sum of shielded output amount");
+      return false;
     }
 
     ShieldedTRC20Parameters parameters =
@@ -1606,16 +1631,26 @@ public class WalletApiWrapper {
       System.out.println("Warning: getRootAndPath failed,  Please login wallet first !!");
       return null;
     }
-    return wallet.getRootAndPath(shieldedContractAddress, input);
+    return wallet.constantCallShieldedContract(shieldedContractAddress, input, methodStr);
   }
 
-  public boolean setAllowance(String contractAddress, String shieldedContractAddress, long value)
-      throws CipherException, IOException, CancelException {
+  public String getScalingFactor(byte[] address) {
+    String methodStr = "scalingFactor()";
+    byte[] input = Hex.decode(AbiUtil.parseMethod(methodStr, "", false));
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: scalingFactor failed,  Please login wallet first !!");
+      return null;
+    }
+    return wallet.constantCallShieldedContract(address, input, methodStr);
+  }
+
+  public boolean setAllowance(String contractAddress, String shieldedContractAddress,
+      BigInteger value) throws CipherException, IOException, CancelException {
     byte[] contractAddressBytes = WalletApi.decodeFromBase58Check(contractAddress);
     byte[] shieldedContractAddressBytes = WalletApi.decodeFromBase58Check(shieldedContractAddress);
     String methodStr = "approve(address,uint256)";
     byte[] mergedBytes = ByteUtil.merge(new byte[11], shieldedContractAddressBytes,
-        longTo32Bytes(value));
+        ByteUtil.bigIntegerToBytes(value, 32));
     String argsStr = ByteArray.toHexString(mergedBytes);
     byte[] inputData = Hex.decode(AbiUtil.parseMethod(methodStr, argsStr, true));
     byte[] ownerAddress = wallet.getAddress();
@@ -1630,11 +1665,11 @@ public class WalletApiWrapper {
     byte[] contractAddressBytes = WalletApi.decodeFromBase58Check(contractAddress);
     String methodStr;
     if (shieldedContractType == 0) {
-      methodStr = "mint(uint64,bytes32[9],bytes32[2],bytes32[21])";
+      methodStr = "mint(uint256,bytes32[9],bytes32[2],bytes32[21])";
     } else if (shieldedContractType == 1) {
       methodStr = "transfer(bytes32[10][],bytes32[2][],bytes32[9][],bytes32[2],bytes32[21][])";
     } else if (shieldedContractType == 2) {
-      methodStr = "burn(bytes32[10],bytes32[2],uint64,bytes32[2],address)";
+      methodStr = "burn(bytes32[10],bytes32[2],uint256,bytes32[2],address)";
     } else {
       System.out.println("shieldedContractType should be 0, 1 or 2. ");
       return false;
@@ -1647,11 +1682,11 @@ public class WalletApiWrapper {
   }
 
   public String encodeMintParamsToHexString(ShieldedTRC20Parameters parameters,
-                                            long value) {
+                                            BigInteger value) {
     byte[] mergedBytes;
     Contract.ReceiveDescription revDesc = parameters.getReceiveDescription(0);
     mergedBytes = ByteUtil.merge(
-        longTo32Bytes(value),
+        ByteUtil.bigIntegerToBytes(value, 32),
         revDesc.getNoteCommitment().toByteArray(),
         revDesc.getValueCommitment().toByteArray(),
         revDesc.getEpk().toByteArray(),
@@ -1724,7 +1759,7 @@ public class WalletApiWrapper {
     return ByteArray.toHexString(mergedBytes);
   }
 
-  public String encodeBurnParamsToHexString(ShieldedTRC20Parameters parameters, long value,
+  public String encodeBurnParamsToHexString(ShieldedTRC20Parameters parameters, BigInteger value,
                                             String transparentToAddress) {
     byte[] mergedBytes;
     byte[] payTo = new byte[32];
@@ -1738,7 +1773,7 @@ public class WalletApiWrapper {
         spendDesc.getRk().toByteArray(),
         spendDesc.getZkproof().toByteArray(),
         spendDesc.getSpendAuthoritySignature().toByteArray(),
-        longTo32Bytes(value),
+        ByteUtil.bigIntegerToBytes(value, 32),
         parameters.getBindingSignature().toByteArray(),
         payTo
     );

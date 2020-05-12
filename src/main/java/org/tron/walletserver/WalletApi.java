@@ -2484,14 +2484,14 @@ public class WalletApi {
     return Optional.empty();
   }
 
-  public String getRootAndPath(byte[] contractAddress, byte[] data) {
+  public String constantCallShieldedContract(byte[] contractAddress, byte[] data, String functionName) {
     byte[] address = getAddress();
     Contract.TriggerSmartContract triggerContract =
         triggerCallContract(address, contractAddress, 0, data, 0, "");
     TransactionExtention transactionExtention = rpcCli.triggerConstantContract(triggerContract);
 
     if (transactionExtention == null || !transactionExtention.getResult().getResult()) {
-      System.out.println("getPath failed!");
+      System.out.println("Get " + functionName + " failed!");
       System.out.println("Code = " + transactionExtention.getResult().getCode());
       System.out.println(
           "Message = " + transactionExtention.getResult().getMessage().toStringUtf8());
@@ -2508,16 +2508,6 @@ public class WalletApi {
       return null;
     }
   }
-
-  // public static boolean createShieldedContractParameters(
-  //     PrivateShieldedTRC20Parameters parameters) {
-  //   return rpcCli.createShieldedContractParameters(parameters);
-  // }
-  //
-  // public static ShieldedTRC20Parameters createShieldedContractParametersWithoutAsk(
-  //     PrivateShieldedTRC20ParametersWithoutAsk parameters) {
-  //   return rpcCli.createShieldedContractParametersWithoutAsk(parameters);
-  // }
 
   public static ShieldedTRC20Parameters createShieldedContractParameters(
       PrivateShieldedTRC20Parameters privateParameters) {
