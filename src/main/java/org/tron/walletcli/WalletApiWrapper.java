@@ -1272,7 +1272,7 @@ public class WalletApiWrapper {
                      .multiply(scalingFactor)
                      .compareTo(fromAmount) != 0) {
       System.out.println("MINT: fromPublicAmount must be equal to noteValue * scalingFactor.");
-      System.out.println("The scalingFactor is " + scalingFactor.toString());
+      System.out.println("The Scaling Factor is " + scalingFactor.toString());
       return false;
     }
     if (shieldedContractType == 2) {
@@ -1282,7 +1282,7 @@ public class WalletApiWrapper {
                     .multiply(scalingFactor)
                     .compareTo(toAmount) != 0) {
         System.out.println("BURN: toPublicAmount must be equal to noteValue * scalingFactor");
-        System.out.println("The scalingFactor is " + scalingFactor.toString());
+        System.out.println("The Scaling Factor is " + scalingFactor.toString());
         return false;
       }
     }
@@ -1638,7 +1638,7 @@ public class WalletApiWrapper {
     String methodStr = "scalingFactor()";
     byte[] input = Hex.decode(AbiUtil.parseMethod(methodStr, "", false));
     if (wallet == null || !wallet.isLoginState()) {
-      System.out.println("Warning: scalingFactor failed,  Please login wallet first !!");
+      System.out.println("Warning: get Scaling Factor failed,  Please login wallet first !!");
       return null;
     }
     return wallet.constantCallShieldedContract(address, input, methodStr);

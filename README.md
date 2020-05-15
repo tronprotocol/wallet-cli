@@ -1444,7 +1444,9 @@ d  :2fd028965d3b455579ab28
 
 ### SetShieldedTRC20ContractAddress TRC20ContractAddress ShieldedContractAddress
 
-Set TRC20 contract address and shielded contract address. Please execute this command before you perform all operations related to the shielded transaction of TRC20.
+Set TRC20 contract address and shielded contract address. Please execute this command before you perform all operations related to the shielded transaction of TRC20 token.
+
+When you execute this command, the `Scaling Factor` will be shown. The `Scaling Factor` is set in the shileded contract, and defines the ratio of public TRC20 token to shielded token. For example, the `Scaling Factor` is 1000, if you mint 1 shielded token, you need 1000 TRC20 tokens; if you burn 1 shielded token, you can get 1000  TRC20 tokens.
 
 TRC20ContractAddress
 > TRC20 contract address
@@ -1456,6 +1458,12 @@ Example:
 
 ```console
 > SetShieldedTRC20ContractAddress TLDxNTzNvEPd4gHox8V1zK2w82LFnideKE TKERuAmhJh8vZi1dzJtx8926xeCT74747e
+scalingFactor():ed3437f8
+SetShieldedTRC20ContractAddress succeed!
+The Scaling Factor is 1000
+That means:
+If you mint 1000 token into shielded contract, you can get 1 shielded token.
+If you burn 1 shielded token into toPublicAddress, you can get 1000 token.
 ```
 
 ### LoadShieldedTRC20Wallet
@@ -1511,12 +1519,12 @@ ztron15t3c27a5ve43ssflqepa8dke36vzvccxrren4ma2lghu3hle8rtwltufnvvzrm76w042s9p5f4
 
 Shielded transfer, support three types:
 
-- MINT: one public address to one shielded address, fromAmount shoule be equal to shielded output amount.
-- TRANSFER: one or two shielded address(es) to one or two shielded address(es), the sum of shielded input amount should be equal to the sum of shielded output amount.
-- BURN: one shielded address to one public address, shielded input amount should be equal to toAmount.
+- MINT: transfer from one public address to one shielded address, fromAmount shoule be equal to the product of Scaling Factor and shielded output amount.
+- TRANSFER: transfer from one or two shielded address(es) to one or two shielded address(es), the sum of shielded input amount should be equal to the sum of shielded output amount.
+- BURN: transfer from one shielded address to one public address, toAmount shoule be equal to the product of Scaling Factor and shielded input amount.
 
 fromAmount
-> The amount transfer from public address. If the transfer type is MINT, this variable must be positive, or it must be 0.
+> The amount transfer from public address. If the transfer type is MINT, this variable must be the product of Scaling Factor and shielded output amount, otherwise it must be 0.
 
 shieldedInputNum
 > The number of shielded input note, should be 0, 1 or 2. If the transfer type is MINT, this variable must be 0; if BURN, it must be 1.
@@ -1528,10 +1536,10 @@ publicToAddress
 > Public to address. If the transfer type is BURN, this variable must be a valid address, otherwise it should be set null.
 
 toAmount
-> The amount transfer to public address. If publicToAddress set to null, this variable must be 0.
+> The amount transfer to public address. If the transfer type is BURN, this variable must be the product of Scaling Factor and shielded input amount, otherwise it should be 0.
 
 shieldedOutputNum
-> The amount of shielded output note. That is the number of (shieldedAddress amount meno) pairs, should be 0, 1 or 2.
+> The amount of shielded output note. That is the number of (shieldedAddress amount memo) pairs, should be 0, 1 or 2.
 
 shieldedAddress1/shieldedAddress2
 > Output shielded address
@@ -1544,17 +1552,19 @@ memo1/memo2
 
 Example:
 
+In this example, the scalingFactor is 1000.
+
 1. MINT
     
-    **When in this mode, Some variables must be set as follows, shieldedInputNum=0, publicToAddress=null, toAmount=0**
+    **In this mode, some variables must be set as follows, shieldedInputNum = 0, publicToAddress = null, toAmount = 0.**
 
     ```console
-    > SendShieldedTRC20Coin 1000000000 0 null 0 1 ztron15t3c27a5ve43ssflqepa8dke36vzvccxrren4ma2lghu3hle8rtwltufnvvzrm76w042s9p5f46 1000000000 null
+    > SendShieldedTRC20Coin 1000000000000 0 null 0 1 ztron15t3c27a5ve43ssflqepa8dke36vzvccxrren4ma2lghu3hle8rtwltufnvvzrm76w042s9p5f46 1000000000 null
     ```
 
 2. TRANSFER
     
-    **When in this mode, Some variables must be set as follows, fromAmount=0, publicToAddress=null,toAmount=0**
+    **In this mode, some variables must be set as follows, fromAmount = 0, publicToAddress = null,toAmount = 0.**
 
     Transfer from one shielded address to one shielded address.
     ```console
@@ -1564,6 +1574,8 @@ Example:
     The unspent note list is shown below:
     9 ztron1tjgkfk9hgrl0u6d07w3hq0s9jtgq9q64vek3e5l447dmnzhe27yy0ftpee45h07sa092wkrgrjl 2000000000 23f171f6552680b553707715bead8de807a70255c0b091f7e788bf3b59fe3bea 1 UnSpend
     8 ztron15t3c27a5ve43ssflqepa8dke36vzvccxrren4ma2lghu3hle8rtwltufnvvzrm76w042s9p5f46 1000000000 23f171f6552680b553707715bead8de807a70255c0b091f7e788bf3b59fe3bea 0 UnSpend
+    The Scaling Factor is 1000
+    That means 1 shielded token is equal to 1000 TRC20 token
     
     > SendShieldedTRC20Coin 0 1 8 null 0 1 ztron1da9rnkmnzl89kqq87gzh534xmkdhq9cnm0j39lackskrhflfe9d26chnq3adl86es0jm2098hzc 1000000000 null
     ```
@@ -1576,6 +1588,8 @@ Example:
     The unspent note list is shown below:
     9 ztron1tjgkfk9hgrl0u6d07w3hq0s9jtgq9q64vek3e5l447dmnzhe27yy0ftpee45h07sa092wkrgrjl 2000000000 23f171f6552680b553707715bead8de807a70255c0b091f7e788bf3b59fe3bea 1 UnSpend
     10 ztron1da9rnkmnzl89kqq87gzh534xmkdhq9cnm0j39lackskrhflfe9d26chnq3adl86es0jm2098hzc 1000000000 81a06080f2be3f795c506826e066b9bb5327ca234eb31a0ef2446e11339a3935 0 UnSpend
+    The Scaling Factor is 1000
+    That means 1 shielded token is equal to 1000 TRC20 token
     
     > SendShieldedTRC20Coin 0 1 9 null 0 2 ztron1da9rnkmnzl89kqq87gzh534xmkdhq9cnm0j39lackskrhflfe9d26chnq3adl86es0jm2098hzc 1500000000 test1 ztron1mm20lkcpj6tx6jfd6ek5fxkgmpk9f2hda6vxdtkwlzr45ez32wa7dt8uka9xwfqamr7zyk7jpzf 500000000 null
     ```
@@ -1589,6 +1603,8 @@ Example:
     11 ztron1da9rnkmnzl89kqq87gzh534xmkdhq9cnm0j39lackskrhflfe9d26chnq3adl86es0jm2098hzc 1500000000 35901973a96369618e5e3f7f4dcede2b5ddb5bc99bf6feac29f2706420ea99c0 0 UnSpend test1
     10 ztron1da9rnkmnzl89kqq87gzh534xmkdhq9cnm0j39lackskrhflfe9d26chnq3adl86es0jm2098hzc 1000000000 81a06080f2be3f795c506826e066b9bb5327ca234eb31a0ef2446e11339a3935 0 UnSpend
     12 ztron1mm20lkcpj6tx6jfd6ek5fxkgmpk9f2hda6vxdtkwlzr45ez32wa7dt8uka9xwfqamr7zyk7jpzf 500000000 35901973a96369618e5e3f7f4dcede2b5ddb5bc99bf6feac29f2706420ea99c0 1 UnSpend
+    The Scaling Factor is 1000
+    That means 1 shielded token is equal to 1000 TRC20 token    
     
     > SendShieldedTRC20Coin 0 2 10 11 null 0 1 ztron1mm20lkcpj6tx6jfd6ek5fxkgmpk9f2hda6vxdtkwlzr45ez32wa7dt8uka9xwfqamr7zyk7jpzf 2500000000 null
     ```
@@ -1601,13 +1617,15 @@ Example:
     The unspent note list is shown below:
     13 ztron1mm20lkcpj6tx6jfd6ek5fxkgmpk9f2hda6vxdtkwlzr45ez32wa7dt8uka9xwfqamr7zyk7jpzf 2500000000 6ec74435e32261a6dfe10f9498b3ab5a5cfede7c4e31299752b449b9506efc11 0 UnSpend
     12 ztron1mm20lkcpj6tx6jfd6ek5fxkgmpk9f2hda6vxdtkwlzr45ez32wa7dt8uka9xwfqamr7zyk7jpzf 500000000 35901973a96369618e5e3f7f4dcede2b5ddb5bc99bf6feac29f2706420ea99c0 1 UnSpend   
+    The Scaling Factor is 1000
+    That means 1 shielded token is equal to 1000 TRC20 token
     
     > SendShieldedTRC20Coin 0 2 12 13 null 0 2 ztron15t3c27a5ve43ssflqepa8dke36vzvccxrren4ma2lghu3hle8rtwltufnvvzrm76w042s9p5f46 1300000000 null ztron1tjgkfk9hgrl0u6d07w3hq0s9jtgq9q64vek3e5l447dmnzhe27yy0ftpee45h07sa092wkrgrjl 1700000000 null
     ```
 
 3. BURN 
 
-    **When in this mode, Some variables must be set as follows, fromAmount=0, shieldedInputNum=1, shieldedOutputNum=0**
+    **In this mode, some variables must be set as follows, fromAmount = 0, shieldedInputNum = 1, shieldedOutputNum = 0.**
     
     > ListShieldedTRC20Note
     This command will show all the unspent notes.
@@ -1615,8 +1633,10 @@ Example:
     The unspent note list is shown below:
     15 ztron1tjgkfk9hgrl0u6d07w3hq0s9jtgq9q64vek3e5l447dmnzhe27yy0ftpee45h07sa092wkrgrjl 1700000000 7291b2c58cafb4dede626388f12e846470441f9bb05581221fd742bdd8909a24 1 UnSpend
     14 ztron15t3c27a5ve43ssflqepa8dke36vzvccxrren4ma2lghu3hle8rtwltufnvvzrm76w042s9p5f46 1300000000 7291b2c58cafb4dede626388f12e846470441f9bb05581221fd742bdd8909a24 0 UnSpend
+    The Scaling Factor is 1000
+    That means 1 shielded token is equal to 1000 TRC20 token
 
-    > SendShieldedTRC20Coin 0 1 14 TDVr15jvAx6maR28tP7RRpxuKZ38tgsyNE 1300000000 0
+    > SendShieldedTRC20Coin 0 1 14 TDVr15jvAx6maR28tP7RRpxuKZ38tgsyNE 1300000000000 0
     ```
 
 ### SendShieldedTRC20CoinWithoutAsk
@@ -1625,7 +1645,7 @@ Usage and parameters are consistent with the command SendShieldedTRC20Coin, the 
 
 ### ListShieldedTRC20Note type
 
-List the note scanned by the local cache address.
+List the note scanned by the local cache address, and the `Scaling Factor`.
 
 type
 > Shows the type of note. If the variable is omitted or set to 0, it shows all unspent notes; For other values, it shows all the notes, including spent notes and unspent notes.
@@ -1638,6 +1658,8 @@ This command will show all the unspent notes.
 If you want to display all notes, including spent notes and unspent notes, please use command ListShieldedTRC20Note 1
 The unspent note list is shown below:
 15 ztron1tjgkfk9hgrl0u6d07w3hq0s9jtgq9q64vek3e5l447dmnzhe27yy0ftpee45h07sa092wkrgrjl 1700000000 7291b2c58cafb4dede626388f12e846470441f9bb05581221fd742bdd8909a24 1 UnSpend
+The Scaling Factor is 1000
+That means 1 shielded token is equal to 1000 TRC20 token
 
 > ListShieldedTRC20Note 1
 All notes are shown below:
@@ -1657,6 +1679,8 @@ ztron1da9rnkmnzl89kqq87gzh534xmkdhq9cnm0j39lackskrhflfe9d26chnq3adl86es0jm2098hz
 ztron1mm20lkcpj6tx6jfd6ek5fxkgmpk9f2hda6vxdtkwlzr45ez32wa7dt8uka9xwfqamr7zyk7jpzf 500000000 35901973a96369618e5e3f7f4dcede2b5ddb5bc99bf6feac29f2706420ea99c0 1 12 Spent
 ztron1mm20lkcpj6tx6jfd6ek5fxkgmpk9f2hda6vxdtkwlzr45ez32wa7dt8uka9xwfqamr7zyk7jpzf 2500000000 6ec74435e32261a6dfe10f9498b3ab5a5cfede7c4e31299752b449b9506efc11 0 13 Spent
 ztron15t3c27a5ve43ssflqepa8dke36vzvccxrren4ma2lghu3hle8rtwltufnvvzrm76w042s9p5f46 1300000000 7291b2c58cafb4dede626388f12e846470441f9bb05581221fd742bdd8909a24 0 14 Spent
+The Scaling Factor is 1000
+That means 1 shielded token is equal to 1000 TRC20 token
 ```
 
 ### ResetShieldedTRC20Note

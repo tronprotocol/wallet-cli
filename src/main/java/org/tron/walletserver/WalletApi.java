@@ -2478,7 +2478,7 @@ public class WalletApi {
     } catch (Exception e) {
       if (showErrorMsg) {
         Status status = Status.fromThrowable(e);
-        System.out.println("scanNoteByOvk failed,error " + status.getDescription());
+        System.out.println("ScanShieldedTRC20NoteByOvk failed,error " + status.getDescription());
       }
     }
     return Optional.empty();

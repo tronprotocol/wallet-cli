@@ -2885,14 +2885,14 @@ public class Client {
           BigInteger scalingFactor = new BigInteger(scalingFactorHexStr, 16);
           ShieldedTRC20Wrapper.getInstance().setScalingFactor(scalingFactor);
           System.out.println("SetShieldedTRC20ContractAddress succeed!");
-          System.out.println("The scalingFactor is " + scalingFactor.toString());
+          System.out.println("The Scaling Factor is " + scalingFactor.toString());
           System.out.println("That means:");
           System.out.println("If you mint " + scalingFactor.toString() + " token into " +
               "shielded contract, you can get 1 shielded token.");
           System.out.println("If you burn 1 shielded token into toPublicAddress, " +
               "you can get " + scalingFactor.toString() + " token.");
         } else {
-          System.out.println("Get scalingFactor failed!! Please check shielded contract!");
+          System.out.println("Get Scaling Factor failed!! Please check shielded contract!");
         }
       } else {
         System.out.println("SetShieldedTRC20ContractAddress failed !!! Invalid Address !!!");
