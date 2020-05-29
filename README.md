@@ -1891,7 +1891,6 @@ For more information on a specific command, just type the command on terminal wh
     ApproveProposal
     AssetIssue
     BackupShieldedTRC20Wallet
-    <!-- BackupShieldedWallet -->
     BackupWallet
     BackupWallet2Base64
     BroadcastTransaction
@@ -1909,7 +1908,6 @@ For more information on a specific command, just type the command on terminal wh
     ExchangeWithdraw
     FreezeBalance
     GenerateAddress
-    <!-- GenerateShieldedAddress -->
     GenerateShieldedTRC20Address
     GetAccount
     GetAccountNet
@@ -1933,7 +1931,6 @@ For more information on a specific command, just type the command on terminal wh
     GetExpandedSpendingKey
     GetIncomingViewingKey
     GetNextMaintenanceTime
-    <!-- GetShieldedNullifier -->
     GetShieldedPaymentAddress
     GetSpendingKey
     GetProposal
@@ -1946,7 +1943,6 @@ For more information on a specific command, just type the command on terminal wh
     GetTransactionsToThis
     GetTransactionSignWeight
     ImportShieldedTRC20Wallet
-    <!-- ImportShieldedWallet -->
     ImportWallet
     ImportWalletByBase64
     ListAssetIssue
@@ -1954,34 +1950,24 @@ For more information on a specific command, just type the command on terminal wh
     ListExchanges
     ListExchangesPaginated
     ListNodes
-    <!-- ListShieldedAddress -->
-    <!-- ListShieldedNote -->
     ListShieldedTRC20Address
     ListShieldedTRC20Note
     ListProposals
     ListProposalsPaginated
     ListWitnesses
-    <!-- LoadShieldedWallet -->
     LoadShieldedTRC20Wallet
     Login
     Logout
     ParticipateAssetIssue
     RegisterWallet
-    <!-- ResetShieldedNote -->
     ResetShieldedTRC20Note
-    <!-- ScanAndMarkNotebyAddress -->
-    <!-- ScanNotebyIvk -->
-    <!-- ScanNotebyOvk -->
     ScanShieldedTRC20NoteByIvk
     ScanShieldedTRC20NoteByOvk
     SendCoin
-    <!-- SendShieldedCoin -->
-    <!-- SendShieldedCoinWithoutAsk -->
     SendShieldedTRC20Coin
     SendShieldedTRC20CoinWithoutAsk
     SetAccountId
     SetShieldedTRC20ContractAddress
-    <!-- ShowShieldedAddressInfo -->
     ShowShieldedTRC20AddressInfo
     TransferAsset
     TriggerContract
