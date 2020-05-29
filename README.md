@@ -1073,6 +1073,7 @@ as: 721d63b074f18d41c147e04c952ec93467777a30b6f16745bc47a8eae5076545
 **BroadcastTransaction**
 > Broadcast the transaction, where the transaction is in hex string format.
 
+<!--  
 ## How to transfer to shielded address
 
 ### loadshieldedwallet
@@ -1439,14 +1440,94 @@ d  :3b3b0142fcff38916abccc
 pkd:3a7406c13767c7d08f2883f4884ec6aafdfcdeacebde45f1f4db98df5bf0a1ca
 d  :2fd028965d3b455579ab28
 ```
+-->
 
 ## How to transfer TRC20 token to shielded address
 
+### GetSpendingKey
+
+Generate a sk
+
+Example:
+
+```console
+> GetSpendingKey
+0eb458b309fa544066c40d80ce30a8002756c37d2716315c59a98c893dbb5f6a
+```
+
+### getExpandedSpendingKey sk
+
+Generate ask, nsk, ovk from sk
+
+Example:
+
+```console
+> getExpandedSpendingKey 0eb458b309fa544066c40d80ce30a8002756c37d2716315c59a98c893dbb5f6a
+ask:252a0f6f6f0bac114a13e1e663d51943f1df9309649400218437586dea78260e
+nsk:5cd2bc8d9468dbad26ea37c5335a0cd25f110eaf533248c59a3310dcbc03e503
+ovk:892a10c1d3e8ea22242849e13f177d69e1180d1d5bba118c586765241ba2d3d6
+```
+
+### getAkFromAsk ask
+Generate ak from ask
+
+Example:
+
+```console
+> GetAkFromAsk 252a0f6f6f0bac114a13e1e663d51943f1df9309649400218437586dea78260e
+ak:f1b843147150027daa5b522dd8d0757ec5c8c146defd8e01b62b34cf917299f1
+```
+
+### getNkFromNsk nsk
+
+Generate nk from nsk
+
+Example:
+
+```console
+> GetNkFromNsk 5cd2bc8d9468dbad26ea37c5335a0cd25f110eaf533248c59a3310dcbc03e503
+nk:ed3dc885049f0a716a4de8c08c6cabcad0da3c437202341aa3d9248d8eb2b74a
+```
+
+### getIncomingViewingKey ak[64] nk[64]
+
+Generate ivk from ak and nk
+
+Example:
+
+```console
+> getincomingviewingkey f1b843147150027daa5b522dd8d0757ec5c8c146defd8e01b62b34cf917299f1 ed3dc885049f0a716a4de8c08c6cabcad0da3c437202341aa3d9248d8eb2b74a
+ivk:148cf9e91f1e6656a41dc9b6c6ee4e52ff7a25b25c2d4a3a3182d0a2cd851205
+```
+
+### GetDiversifier
+
+Generate a diversifier
+
+Example:
+
+```console
+> GetDiversifier
+11db4baf6bd5d5afd3a8b5
+```
+
+### getshieldedpaymentaddress ivk[64] d[22]
+
+Generate a shielded address from sk and d
+
+Example:
+
+```console
+GetShieldedPaymentAddress 148cf9e91f1e6656a41dc9b6c6ee4e52ff7a25b25c2d4a3a3182d0a2cd851205 11db4baf6bd5d5afd3a8b5
+pkd:65c11642115d386ed716b9cc06a3498e86e303d7f20d0869c9de90e31322ac15
+shieldedAddress:ztron1z8d5htmt6h26l5agk4juz9jzz9wnsmkhz6uucp4rfx8gdccr6leq6zrfe80fpccny2kp2cray8z
+```
+
 ### SetShieldedTRC20ContractAddress TRC20ContractAddress ShieldedContractAddress
 
-Set TRC20 contract address and shielded contract address. Please execute this command before you perform all operations related to the shielded transaction of TRC20 token.
+Set TRC20 contract address and shielded contract address. Please execute this command before you perform all the following operations related to the shielded transaction of TRC20 token except `ScanShieldedTRC20NoteByIvk` and `ScanShieldedTRC20NoteByOvk`.
 
-When you execute this command, the `Scaling Factor` will be shown. The `Scaling Factor` is set in the shileded contract, and defines the ratio of public TRC20 token to shielded token. For example, the `Scaling Factor` is 1000, if you mint 1 shielded token, you need 1000 TRC20 tokens; if you burn 1 shielded token, you can get 1000  TRC20 tokens.
+When you execute this command, the `Scaling Factor` will be shown. The `Scaling Factor` is set in the shileded contract. 
 
 TRC20ContractAddress
 > TRC20 contract address
@@ -1462,8 +1543,7 @@ scalingFactor():ed3437f8
 SetShieldedTRC20ContractAddress succeed!
 The Scaling Factor is 1000
 That means:
-If you mint 1000 token into shielded contract, you can get 1 shielded token.
-If you burn 1 shielded token into toPublicAddress, you can get 1000 token.
+No matter you MINT, TRANSFER or BURN, the value must be an integer multiple of 1000
 ```
 
 ### LoadShieldedTRC20Wallet
@@ -1519,24 +1599,24 @@ ztron15t3c27a5ve43ssflqepa8dke36vzvccxrren4ma2lghu3hle8rtwltufnvvzrm76w042s9p5f4
 
 Shielded transfer, support three types:
 
-- MINT: transfer from one public address to one shielded address, fromAmount shoule be equal to the product of Scaling Factor and shielded output amount.
+- MINT: transfer from one public address to one shielded address, fromAmount shoule be equal to the shielded output amount.
 - TRANSFER: transfer from one or two shielded address(es) to one or two shielded address(es), the sum of shielded input amount should be equal to the sum of shielded output amount.
-- BURN: transfer from one shielded address to one public address, toAmount shoule be equal to the product of Scaling Factor and shielded input amount.
+- BURN: transfer from one shielded address to one public address, toAmount shoule be equal to the shielded input amount.
 
 fromAmount
-> The amount transfer from public address. If the transfer type is MINT, this variable must be the product of Scaling Factor and shielded output amount, otherwise it must be 0.
+> The amount transfer from public address. If the transfer type is MINT, this variable must be equal to the shielded output amount, otherwise it must be 0.
 
 shieldedInputNum
 > The number of shielded input note, should be 0, 1 or 2. If the transfer type is MINT, this variable must be 0; if BURN, it must be 1.
 
 input1/input2
-> The index of shielded input note, get from execute command ListShieldedTRC20Note. If shieldedInputNum set to 0, no need to set.
+> The index of shielded input note, get from executing command ListShieldedTRC20Note. If shieldedInputNum set to 0, no need to set.
 
 publicToAddress
 > Public to address. If the transfer type is BURN, this variable must be a valid address, otherwise it should be set null.
 
 toAmount
-> The amount transfer to public address. If the transfer type is BURN, this variable must be the product of Scaling Factor and shielded input amount, otherwise it should be 0.
+> The amount transfer to public address. If the transfer type is BURN, this variable must be equal to the shielded input amount, otherwise it should be 0.
 
 shieldedOutputNum
 > The amount of shielded output note. That is the number of (shieldedAddress amount memo) pairs, should be 0, 1 or 2.
@@ -1552,14 +1632,14 @@ memo1/memo2
 
 Example:
 
-In this example, the scalingFactor is 1000.
+In this example, the scalingFactor is 1000. 
 
 1. MINT
     
     **In this mode, some variables must be set as follows, shieldedInputNum = 0, publicToAddress = null, toAmount = 0.**
 
     ```console
-    > SendShieldedTRC20Coin 1000000000000 0 null 0 1 ztron15t3c27a5ve43ssflqepa8dke36vzvccxrren4ma2lghu3hle8rtwltufnvvzrm76w042s9p5f46 1000000000 null
+    > SendShieldedTRC20Coin 1000000000000 0 null 0 1 ztron15t3c27a5ve43ssflqepa8dke36vzvccxrren4ma2lghu3hle8rtwltufnvvzrm76w042s9p5f46 1000000000000 null
     ```
 
 2. TRANSFER
@@ -1572,12 +1652,12 @@ In this example, the scalingFactor is 1000.
     This command will show all the unspent notes.
     If you want to display all notes, including spent notes and unspent notes, please use command ListShieldedTRC20Note 1
     The unspent note list is shown below:
-    9 ztron1tjgkfk9hgrl0u6d07w3hq0s9jtgq9q64vek3e5l447dmnzhe27yy0ftpee45h07sa092wkrgrjl 2000000000 23f171f6552680b553707715bead8de807a70255c0b091f7e788bf3b59fe3bea 1 UnSpend
-    8 ztron15t3c27a5ve43ssflqepa8dke36vzvccxrren4ma2lghu3hle8rtwltufnvvzrm76w042s9p5f46 1000000000 23f171f6552680b553707715bead8de807a70255c0b091f7e788bf3b59fe3bea 0 UnSpend
+    9 ztron1tjgkfk9hgrl0u6d07w3hq0s9jtgq9q64vek3e5l447dmnzhe27yy0ftpee45h07sa092wkrgrjl 2000000000000 23f171f6552680b553707715bead8de807a70255c0b091f7e788bf3b59fe3bea 1 UnSpend
+    8 ztron15t3c27a5ve43ssflqepa8dke36vzvccxrren4ma2lghu3hle8rtwltufnvvzrm76w042s9p5f46 1000000000000 23f171f6552680b553707715bead8de807a70255c0b091f7e788bf3b59fe3bea 0 UnSpend
     The Scaling Factor is 1000
-    That means 1 shielded token is equal to 1000 TRC20 token
+    No matter you MINT, TRANSFER or BURN, the value must be an integer multiple of 1000
     
-    > SendShieldedTRC20Coin 0 1 8 null 0 1 ztron1da9rnkmnzl89kqq87gzh534xmkdhq9cnm0j39lackskrhflfe9d26chnq3adl86es0jm2098hzc 1000000000 null
+    > SendShieldedTRC20Coin 0 1 8 null 0 1 ztron1da9rnkmnzl89kqq87gzh534xmkdhq9cnm0j39lackskrhflfe9d26chnq3adl86es0jm2098hzc 1000000000000 null
     ```
 
     Transfer from one shielded address to two shielded addresses.
@@ -1586,12 +1666,12 @@ In this example, the scalingFactor is 1000.
     This command will show all the unspent notes.
     If you want to display all notes, including spent notes and unspent notes, please use command ListShieldedTRC20Note 1
     The unspent note list is shown below:
-    9 ztron1tjgkfk9hgrl0u6d07w3hq0s9jtgq9q64vek3e5l447dmnzhe27yy0ftpee45h07sa092wkrgrjl 2000000000 23f171f6552680b553707715bead8de807a70255c0b091f7e788bf3b59fe3bea 1 UnSpend
-    10 ztron1da9rnkmnzl89kqq87gzh534xmkdhq9cnm0j39lackskrhflfe9d26chnq3adl86es0jm2098hzc 1000000000 81a06080f2be3f795c506826e066b9bb5327ca234eb31a0ef2446e11339a3935 0 UnSpend
+    9 ztron1tjgkfk9hgrl0u6d07w3hq0s9jtgq9q64vek3e5l447dmnzhe27yy0ftpee45h07sa092wkrgrjl 2000000000000 23f171f6552680b553707715bead8de807a70255c0b091f7e788bf3b59fe3bea 1 UnSpend
+    10 ztron1da9rnkmnzl89kqq87gzh534xmkdhq9cnm0j39lackskrhflfe9d26chnq3adl86es0jm2098hzc 1000000000000 81a06080f2be3f795c506826e066b9bb5327ca234eb31a0ef2446e11339a3935 0 UnSpend
     The Scaling Factor is 1000
-    That means 1 shielded token is equal to 1000 TRC20 token
+    No matter you MINT, TRANSFER or BURN, the value must be an integer multiple of 1000
     
-    > SendShieldedTRC20Coin 0 1 9 null 0 2 ztron1da9rnkmnzl89kqq87gzh534xmkdhq9cnm0j39lackskrhflfe9d26chnq3adl86es0jm2098hzc 1500000000 test1 ztron1mm20lkcpj6tx6jfd6ek5fxkgmpk9f2hda6vxdtkwlzr45ez32wa7dt8uka9xwfqamr7zyk7jpzf 500000000 null
+    > SendShieldedTRC20Coin 0 1 9 null 0 2 ztron1da9rnkmnzl89kqq87gzh534xmkdhq9cnm0j39lackskrhflfe9d26chnq3adl86es0jm2098hzc 1500000000000 test1 ztron1mm20lkcpj6tx6jfd6ek5fxkgmpk9f2hda6vxdtkwlzr45ez32wa7dt8uka9xwfqamr7zyk7jpzf 500000000000 null
     ```
 
     Transfer from two shielded addresses to one shielded address.
@@ -1600,13 +1680,13 @@ In this example, the scalingFactor is 1000.
     This command will show all the unspent notes.
     If you want to display all notes, including spent notes and unspent notes, please use command ListShieldedTRC20Note 1
     The unspent note list is shown below:
-    11 ztron1da9rnkmnzl89kqq87gzh534xmkdhq9cnm0j39lackskrhflfe9d26chnq3adl86es0jm2098hzc 1500000000 35901973a96369618e5e3f7f4dcede2b5ddb5bc99bf6feac29f2706420ea99c0 0 UnSpend test1
-    10 ztron1da9rnkmnzl89kqq87gzh534xmkdhq9cnm0j39lackskrhflfe9d26chnq3adl86es0jm2098hzc 1000000000 81a06080f2be3f795c506826e066b9bb5327ca234eb31a0ef2446e11339a3935 0 UnSpend
-    12 ztron1mm20lkcpj6tx6jfd6ek5fxkgmpk9f2hda6vxdtkwlzr45ez32wa7dt8uka9xwfqamr7zyk7jpzf 500000000 35901973a96369618e5e3f7f4dcede2b5ddb5bc99bf6feac29f2706420ea99c0 1 UnSpend
+    11 ztron1da9rnkmnzl89kqq87gzh534xmkdhq9cnm0j39lackskrhflfe9d26chnq3adl86es0jm2098hzc 1500000000000 35901973a96369618e5e3f7f4dcede2b5ddb5bc99bf6feac29f2706420ea99c0 0 UnSpend test1
+    10 ztron1da9rnkmnzl89kqq87gzh534xmkdhq9cnm0j39lackskrhflfe9d26chnq3adl86es0jm2098hzc 1000000000000 81a06080f2be3f795c506826e066b9bb5327ca234eb31a0ef2446e11339a3935 0 UnSpend
+    12 ztron1mm20lkcpj6tx6jfd6ek5fxkgmpk9f2hda6vxdtkwlzr45ez32wa7dt8uka9xwfqamr7zyk7jpzf 500000000000 35901973a96369618e5e3f7f4dcede2b5ddb5bc99bf6feac29f2706420ea99c0 1 UnSpend
     The Scaling Factor is 1000
-    That means 1 shielded token is equal to 1000 TRC20 token    
+    No matter you MINT, TRANSFER or BURN, the value must be an integer multiple of 1000    
     
-    > SendShieldedTRC20Coin 0 2 10 11 null 0 1 ztron1mm20lkcpj6tx6jfd6ek5fxkgmpk9f2hda6vxdtkwlzr45ez32wa7dt8uka9xwfqamr7zyk7jpzf 2500000000 null
+    > SendShieldedTRC20Coin 0 2 10 11 null 0 1 ztron1mm20lkcpj6tx6jfd6ek5fxkgmpk9f2hda6vxdtkwlzr45ez32wa7dt8uka9xwfqamr7zyk7jpzf 2500000000000 null
     ```
 
     Transfer from two shielded addresses to two shielded addresses.
@@ -1615,28 +1695,28 @@ In this example, the scalingFactor is 1000.
     This command will show all the unspent notes.
     If you want to display all notes, including spent notes and unspent notes, please use command ListShieldedTRC20Note 1
     The unspent note list is shown below:
-    13 ztron1mm20lkcpj6tx6jfd6ek5fxkgmpk9f2hda6vxdtkwlzr45ez32wa7dt8uka9xwfqamr7zyk7jpzf 2500000000 6ec74435e32261a6dfe10f9498b3ab5a5cfede7c4e31299752b449b9506efc11 0 UnSpend
-    12 ztron1mm20lkcpj6tx6jfd6ek5fxkgmpk9f2hda6vxdtkwlzr45ez32wa7dt8uka9xwfqamr7zyk7jpzf 500000000 35901973a96369618e5e3f7f4dcede2b5ddb5bc99bf6feac29f2706420ea99c0 1 UnSpend   
+    13 ztron1mm20lkcpj6tx6jfd6ek5fxkgmpk9f2hda6vxdtkwlzr45ez32wa7dt8uka9xwfqamr7zyk7jpzf 2500000000000 6ec74435e32261a6dfe10f9498b3ab5a5cfede7c4e31299752b449b9506efc11 0 UnSpend
+    12 ztron1mm20lkcpj6tx6jfd6ek5fxkgmpk9f2hda6vxdtkwlzr45ez32wa7dt8uka9xwfqamr7zyk7jpzf 500000000000 35901973a96369618e5e3f7f4dcede2b5ddb5bc99bf6feac29f2706420ea99c0 1 UnSpend   
     The Scaling Factor is 1000
-    That means 1 shielded token is equal to 1000 TRC20 token
+    No matter you MINT, TRANSFER or BURN, the value must be an integer multiple of 1000
     
-    > SendShieldedTRC20Coin 0 2 12 13 null 0 2 ztron15t3c27a5ve43ssflqepa8dke36vzvccxrren4ma2lghu3hle8rtwltufnvvzrm76w042s9p5f46 1300000000 null ztron1tjgkfk9hgrl0u6d07w3hq0s9jtgq9q64vek3e5l447dmnzhe27yy0ftpee45h07sa092wkrgrjl 1700000000 null
+    > SendShieldedTRC20Coin 0 2 12 13 null 0 2 ztron15t3c27a5ve43ssflqepa8dke36vzvccxrren4ma2lghu3hle8rtwltufnvvzrm76w042s9p5f46 1300000000000 null ztron1tjgkfk9hgrl0u6d07w3hq0s9jtgq9q64vek3e5l447dmnzhe27yy0ftpee45h07sa092wkrgrjl 1700000000000 null
     ```
 
 3. BURN 
 
     **In this mode, some variables must be set as follows, fromAmount = 0, shieldedInputNum = 1, shieldedOutputNum = 0.**
-    
+    ```console
     > ListShieldedTRC20Note
     This command will show all the unspent notes.
     If you want to display all notes, including spent notes and unspent notes, please use command ListShieldedTRC20Note 1
     The unspent note list is shown below:
-    15 ztron1tjgkfk9hgrl0u6d07w3hq0s9jtgq9q64vek3e5l447dmnzhe27yy0ftpee45h07sa092wkrgrjl 1700000000 7291b2c58cafb4dede626388f12e846470441f9bb05581221fd742bdd8909a24 1 UnSpend
-    14 ztron15t3c27a5ve43ssflqepa8dke36vzvccxrren4ma2lghu3hle8rtwltufnvvzrm76w042s9p5f46 1300000000 7291b2c58cafb4dede626388f12e846470441f9bb05581221fd742bdd8909a24 0 UnSpend
+    15 ztron1tjgkfk9hgrl0u6d07w3hq0s9jtgq9q64vek3e5l447dmnzhe27yy0ftpee45h07sa092wkrgrjl 1700000000000 7291b2c58cafb4dede626388f12e846470441f9bb05581221fd742bdd8909a24 1 UnSpend
+    14 ztron15t3c27a5ve43ssflqepa8dke36vzvccxrren4ma2lghu3hle8rtwltufnvvzrm76w042s9p5f46 1300000000000 7291b2c58cafb4dede626388f12e846470441f9bb05581221fd742bdd8909a24 0 UnSpend
     The Scaling Factor is 1000
-    That means 1 shielded token is equal to 1000 TRC20 token
+    No matter you MINT, TRANSFER or BURN, the value must be an integer multiple of 1000
 
-    > SendShieldedTRC20Coin 0 1 14 TDVr15jvAx6maR28tP7RRpxuKZ38tgsyNE 1300000000000 0
+    > SendShieldedTRC20Coin 0 1 14 TDVr15jvAx6maR28tP7RRpxuKZ38tgsyNE 1300000000000000 0
     ```
 
 ### SendShieldedTRC20CoinWithoutAsk
@@ -1657,30 +1737,30 @@ Example:
 This command will show all the unspent notes.
 If you want to display all notes, including spent notes and unspent notes, please use command ListShieldedTRC20Note 1
 The unspent note list is shown below:
-15 ztron1tjgkfk9hgrl0u6d07w3hq0s9jtgq9q64vek3e5l447dmnzhe27yy0ftpee45h07sa092wkrgrjl 1700000000 7291b2c58cafb4dede626388f12e846470441f9bb05581221fd742bdd8909a24 1 UnSpend
+15 ztron1tjgkfk9hgrl0u6d07w3hq0s9jtgq9q64vek3e5l447dmnzhe27yy0ftpee45h07sa092wkrgrjl 1700000000000 7291b2c58cafb4dede626388f12e846470441f9bb05581221fd742bdd8909a24 1 UnSpend
 The Scaling Factor is 1000
-That means 1 shielded token is equal to 1000 TRC20 token
+No matter you MINT, TRANSFER or BURN, the value must be an integer multiple of 1000
 
 > ListShieldedTRC20Note 1
 All notes are shown below:
-ztron1tjgkfk9hgrl0u6d07w3hq0s9jtgq9q64vek3e5l447dmnzhe27yy0ftpee45h07sa092wkrgrjl 1700000000 7291b2c58cafb4dede626388f12e846470441f9bb05581221fd742bdd8909a24 1 15 UnSpent
-ztron15t3c27a5ve43ssflqepa8dke36vzvccxrren4ma2lghu3hle8rtwltufnvvzrm76w042s9p5f46 1000000000 dc02678b0cf1c93c557dc805edb776fe79201c77f210f08f60cea5d687b14f2e 0 0 Spent
-ztron1mm20lkcpj6tx6jfd6ek5fxkgmpk9f2hda6vxdtkwlzr45ez32wa7dt8uka9xwfqamr7zyk7jpzf 1000000000 e4d35d147762020078d7d197c98fffde181250e4a637d4bdd9ca809116d74131 0 2 Spent
-ztron15t3c27a5ve43ssflqepa8dke36vzvccxrren4ma2lghu3hle8rtwltufnvvzrm76w042s9p5f46 1000000000 1594e1ee06c8420a4f1d80670000cd9268a2ff4e97e3f630909feeb51a9de993 0 3 Spent
-ztron15t3c27a5ve43ssflqepa8dke36vzvccxrren4ma2lghu3hle8rtwltufnvvzrm76w042s9p5f46 2000000000 3f035e966b3ef636ae9c0a0f64bff781b1d1a8b52bab5d8124c0f9162f71f68f 0 1 Spent
-ztron1mm20lkcpj6tx6jfd6ek5fxkgmpk9f2hda6vxdtkwlzr45ez32wa7dt8uka9xwfqamr7zyk7jpzf 300000000 6929757cb86cb6cf3e89df19f3212c3e62070b12d8b36de48e663fed214a4082 0 4 Spent test1
-ztron1mm20lkcpj6tx6jfd6ek5fxkgmpk9f2hda6vxdtkwlzr45ez32wa7dt8uka9xwfqamr7zyk7jpzf 2000000000 e39a1e1d5af7dcbab0d55a63a0c62ec9cc7c0aaf8ce98733802674c3ec1f3a06 0 6 Spent
-ztron109r3w5gpm0qcf67r67a9ftjt3zy9wmzux4fqgtgcql8gwhcmauv5dm6t9t9x9ht7h3lvs8shxhq 700000000 6929757cb86cb6cf3e89df19f3212c3e62070b12d8b36de48e663fed214a4082 1 5 Spent
-ztron109r3w5gpm0qcf67r67a9ftjt3zy9wmzux4fqgtgcql8gwhcmauv5dm6t9t9x9ht7h3lvs8shxhq 2300000000 4ce1ce9f6377ee3cd936757b696ac43ecc39ee6e8a0eab1b8f8ef093e15010f8 0 7 Spent
-ztron15t3c27a5ve43ssflqepa8dke36vzvccxrren4ma2lghu3hle8rtwltufnvvzrm76w042s9p5f46 1000000000 23f171f6552680b553707715bead8de807a70255c0b091f7e788bf3b59fe3bea 0 8 Spent
-ztron1tjgkfk9hgrl0u6d07w3hq0s9jtgq9q64vek3e5l447dmnzhe27yy0ftpee45h07sa092wkrgrjl 2000000000 23f171f6552680b553707715bead8de807a70255c0b091f7e788bf3b59fe3bea 1 9 Spent
-ztron1da9rnkmnzl89kqq87gzh534xmkdhq9cnm0j39lackskrhflfe9d26chnq3adl86es0jm2098hzc 1000000000 81a06080f2be3f795c506826e066b9bb5327ca234eb31a0ef2446e11339a3935 0 10 Spent
-ztron1da9rnkmnzl89kqq87gzh534xmkdhq9cnm0j39lackskrhflfe9d26chnq3adl86es0jm2098hzc 1500000000 35901973a96369618e5e3f7f4dcede2b5ddb5bc99bf6feac29f2706420ea99c0 0 11 Spent test1
-ztron1mm20lkcpj6tx6jfd6ek5fxkgmpk9f2hda6vxdtkwlzr45ez32wa7dt8uka9xwfqamr7zyk7jpzf 500000000 35901973a96369618e5e3f7f4dcede2b5ddb5bc99bf6feac29f2706420ea99c0 1 12 Spent
-ztron1mm20lkcpj6tx6jfd6ek5fxkgmpk9f2hda6vxdtkwlzr45ez32wa7dt8uka9xwfqamr7zyk7jpzf 2500000000 6ec74435e32261a6dfe10f9498b3ab5a5cfede7c4e31299752b449b9506efc11 0 13 Spent
-ztron15t3c27a5ve43ssflqepa8dke36vzvccxrren4ma2lghu3hle8rtwltufnvvzrm76w042s9p5f46 1300000000 7291b2c58cafb4dede626388f12e846470441f9bb05581221fd742bdd8909a24 0 14 Spent
+ztron1tjgkfk9hgrl0u6d07w3hq0s9jtgq9q64vek3e5l447dmnzhe27yy0ftpee45h07sa092wkrgrjl 1700000000000 7291b2c58cafb4dede626388f12e846470441f9bb05581221fd742bdd8909a24 1 15 UnSpent
+ztron15t3c27a5ve43ssflqepa8dke36vzvccxrren4ma2lghu3hle8rtwltufnvvzrm76w042s9p5f46 1000000000000 dc02678b0cf1c93c557dc805edb776fe79201c77f210f08f60cea5d687b14f2e 0 0 Spent
+ztron1mm20lkcpj6tx6jfd6ek5fxkgmpk9f2hda6vxdtkwlzr45ez32wa7dt8uka9xwfqamr7zyk7jpzf 1000000000000 e4d35d147762020078d7d197c98fffde181250e4a637d4bdd9ca809116d74131 0 2 Spent
+ztron15t3c27a5ve43ssflqepa8dke36vzvccxrren4ma2lghu3hle8rtwltufnvvzrm76w042s9p5f46 1000000000000 1594e1ee06c8420a4f1d80670000cd9268a2ff4e97e3f630909feeb51a9de993 0 3 Spent
+ztron15t3c27a5ve43ssflqepa8dke36vzvccxrren4ma2lghu3hle8rtwltufnvvzrm76w042s9p5f46 2000000000000 3f035e966b3ef636ae9c0a0f64bff781b1d1a8b52bab5d8124c0f9162f71f68f 0 1 Spent
+ztron1mm20lkcpj6tx6jfd6ek5fxkgmpk9f2hda6vxdtkwlzr45ez32wa7dt8uka9xwfqamr7zyk7jpzf 300000000000 6929757cb86cb6cf3e89df19f3212c3e62070b12d8b36de48e663fed214a4082 0 4 Spent test1
+ztron1mm20lkcpj6tx6jfd6ek5fxkgmpk9f2hda6vxdtkwlzr45ez32wa7dt8uka9xwfqamr7zyk7jpzf 2000000000000 e39a1e1d5af7dcbab0d55a63a0c62ec9cc7c0aaf8ce98733802674c3ec1f3a06 0 6 Spent
+ztron109r3w5gpm0qcf67r67a9ftjt3zy9wmzux4fqgtgcql8gwhcmauv5dm6t9t9x9ht7h3lvs8shxhq 700000000000 6929757cb86cb6cf3e89df19f3212c3e62070b12d8b36de48e663fed214a4082 1 5 Spent
+ztron109r3w5gpm0qcf67r67a9ftjt3zy9wmzux4fqgtgcql8gwhcmauv5dm6t9t9x9ht7h3lvs8shxhq 2300000000000 4ce1ce9f6377ee3cd936757b696ac43ecc39ee6e8a0eab1b8f8ef093e15010f8 0 7 Spent
+ztron15t3c27a5ve43ssflqepa8dke36vzvccxrren4ma2lghu3hle8rtwltufnvvzrm76w042s9p5f46 1000000000000 23f171f6552680b553707715bead8de807a70255c0b091f7e788bf3b59fe3bea 0 8 Spent
+ztron1tjgkfk9hgrl0u6d07w3hq0s9jtgq9q64vek3e5l447dmnzhe27yy0ftpee45h07sa092wkrgrjl 2000000000000 23f171f6552680b553707715bead8de807a70255c0b091f7e788bf3b59fe3bea 1 9 Spent
+ztron1da9rnkmnzl89kqq87gzh534xmkdhq9cnm0j39lackskrhflfe9d26chnq3adl86es0jm2098hzc 1000000000000 81a06080f2be3f795c506826e066b9bb5327ca234eb31a0ef2446e11339a3935 0 10 Spent
+ztron1da9rnkmnzl89kqq87gzh534xmkdhq9cnm0j39lackskrhflfe9d26chnq3adl86es0jm2098hzc 1500000000000 35901973a96369618e5e3f7f4dcede2b5ddb5bc99bf6feac29f2706420ea99c0 0 11 Spent test1
+ztron1mm20lkcpj6tx6jfd6ek5fxkgmpk9f2hda6vxdtkwlzr45ez32wa7dt8uka9xwfqamr7zyk7jpzf 500000000000 35901973a96369618e5e3f7f4dcede2b5ddb5bc99bf6feac29f2706420ea99c0 1 12 Spent
+ztron1mm20lkcpj6tx6jfd6ek5fxkgmpk9f2hda6vxdtkwlzr45ez32wa7dt8uka9xwfqamr7zyk7jpzf 2500000000000 6ec74435e32261a6dfe10f9498b3ab5a5cfede7c4e31299752b449b9506efc11 0 13 Spent
+ztron15t3c27a5ve43ssflqepa8dke36vzvccxrren4ma2lghu3hle8rtwltufnvvzrm76w042s9p5f46 1300000000000 7291b2c58cafb4dede626388f12e846470441f9bb05581221fd742bdd8909a24 0 14 Spent
 The Scaling Factor is 1000
-That means 1 shielded token is equal to 1000 TRC20 token
+No matter you MINT, TRANSFER or BURN, the value must be an integer multiple of 1000
 ```
 
 ### ResetShieldedTRC20Note
@@ -1711,7 +1791,7 @@ endNum
 
 Example:
 
-> ScanShieldedTRC20NoteByIvk TKERuAmhJh8vZi1dzJtx8926xeCT74747e  fe8203f3dc5feb2497986512f94a3b9631bffec02aee0bca735639742d2cef07 a150fa887ed45b6d9eca73ec94e1dd53dddf945cc947fbc6a2c5cc334c940233 696aca6b5db2f42041850423d63d95574ad1256519716507c5c074a924e47b0c  500 1499
+> ScanShieldedTRC20NoteByIvk TKERuAmhJh8vZi1dzJtx8926xeCT74747e  fe8203f3dc5feb2497986512f94a3b9631bffec02aee0bca735639742d2cef07 a150fa887ed45b6d9eca73ec94e1dd53dddf945cc947fbc6a2c5cc334c940233 696aca6b5db2f42041850423d63d95574ad1256519716507c5c074a924e47b0c  0 1000
 
 ### ScanShieldedTRC20NoteByOvk shieldedTRC20ContarctAddress ovk startNum endNum
 
@@ -1731,7 +1811,7 @@ endNum
 
 Example:
 
-> ScanShieldedTRC20NoteByOvk TKERuAmhJh8vZi1dzJtx8926xeCT74747e 00bad26a4f1d2380345fd2ab28008a593ba9a2e19c75cba28333afa73c89e6d8 500 1499
+> ScanShieldedTRC20NoteByOvk TKERuAmhJh8vZi1dzJtx8926xeCT74747e 00bad26a4f1d2380345fd2ab28008a593ba9a2e19c75cba28333afa73c89e6d8 0 1000
 
 
 ### BackupShieldedTRC20Wallet
@@ -1778,7 +1858,7 @@ ImportShieldedTRC20Wallet successfully !!!
 
 ### ShowShieldedTRC20AddressInfo
 
-Display information about shielded addresses
+Display information about shielded addresses. If this address is not in the wallet, it will only display `d` and `pkd`
 
 Example:
 
@@ -1796,6 +1876,10 @@ ivk:7d2e9c14ff1d82843f39cb69e8bcc228370e4ea8750669bba79e90c485d94c03
 ovk:2c3d164fffa63b41a34f495e0c9d8af79d595cfb07db1539545ddcecf046d66e
 pkd:70d84ee492ad5d0f3ba80ce902f513ccad717f6b57bd8e89b51b8b896ab87922
 d  :da5fd7e087d48e3dcebff3
+
+wallet> ShowShieldedTRC20AddressInfo ztron1z8d5htmt6h26l5agk8r7wxw9pyhc0a78hl5thva4k9kcn7fsqvygchyt3n2ncy0r4xv4j5mywnu
+pkd:c7e719c5092f87f7c7bfe8bbb3b5b16d89f93003088c5c8b8cd53c11e3a99959
+d  :11db4baf6bd5d5afd3a8b1
 ```
 
 ## Command List
@@ -1807,7 +1891,7 @@ For more information on a specific command, just type the command on terminal wh
     ApproveProposal
     AssetIssue
     BackupShieldedTRC20Wallet
-    BackupShieldedWallet
+    <!-- BackupShieldedWallet -->
     BackupWallet
     BackupWallet2Base64
     BroadcastTransaction
@@ -1825,7 +1909,7 @@ For more information on a specific command, just type the command on terminal wh
     ExchangeWithdraw
     FreezeBalance
     GenerateAddress
-    GenerateShieldedAddress
+    <!-- GenerateShieldedAddress -->
     GenerateShieldedTRC20Address
     GetAccount
     GetAccountNet
@@ -1849,7 +1933,8 @@ For more information on a specific command, just type the command on terminal wh
     GetExpandedSpendingKey
     GetIncomingViewingKey
     GetNextMaintenanceTime
-    GetShieldedNullifier
+    <!-- GetShieldedNullifier -->
+    GetShieldedPaymentAddress
     GetSpendingKey
     GetProposal
     GetTotalTransaction
@@ -1861,7 +1946,7 @@ For more information on a specific command, just type the command on terminal wh
     GetTransactionsToThis
     GetTransactionSignWeight
     ImportShieldedTRC20Wallet
-    ImportShieldedWallet
+    <!-- ImportShieldedWallet -->
     ImportWallet
     ImportWalletByBase64
     ListAssetIssue
@@ -1869,34 +1954,34 @@ For more information on a specific command, just type the command on terminal wh
     ListExchanges
     ListExchangesPaginated
     ListNodes
-    ListShieldedAddress
-    ListShieldedNote
+    <!-- ListShieldedAddress -->
+    <!-- ListShieldedNote -->
     ListShieldedTRC20Address
     ListShieldedTRC20Note
     ListProposals
     ListProposalsPaginated
     ListWitnesses
-    LoadShieldedWallet
+    <!-- LoadShieldedWallet -->
     LoadShieldedTRC20Wallet
     Login
     Logout
     ParticipateAssetIssue
     RegisterWallet
-    ResetShieldedNote
+    <!-- ResetShieldedNote -->
     ResetShieldedTRC20Note
-    ScanAndMarkNotebyAddress
-    ScanNotebyIvk
-    ScanNotebyOvk
+    <!-- ScanAndMarkNotebyAddress -->
+    <!-- ScanNotebyIvk -->
+    <!-- ScanNotebyOvk -->
     ScanShieldedTRC20NoteByIvk
     ScanShieldedTRC20NoteByOvk
     SendCoin
-    SendShieldedCoin
-    SendShieldedCoinWithoutAsk
+    <!-- SendShieldedCoin -->
+    <!-- SendShieldedCoinWithoutAsk -->
     SendShieldedTRC20Coin
     SendShieldedTRC20CoinWithoutAsk
     SetAccountId
     SetShieldedTRC20ContractAddress
-    ShowShieldedAddressInfo
+    <!-- ShowShieldedAddressInfo -->
     ShowShieldedTRC20AddressInfo
     TransferAsset
     TriggerContract

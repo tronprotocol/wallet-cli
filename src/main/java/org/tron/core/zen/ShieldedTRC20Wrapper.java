@@ -13,6 +13,8 @@ import org.tron.common.utils.ByteUtil;
 import org.tron.common.utils.Utils;
 import org.tron.core.exception.CipherException;
 import org.tron.core.exception.ZksnarkException;
+import org.tron.core.zen.address.KeyIo;
+import org.tron.core.zen.address.PaymentAddress;
 import org.tron.keystore.SKeyCapsule;
 import org.tron.keystore.SKeyEncryptor;
 import org.tron.keystore.StringUtils;
@@ -33,7 +35,7 @@ public class ShieldedTRC20Wrapper {
 
   private static String prefixFolder;
   private static String trc20ContractAddress;
-  private static String shieldedTRC20ContarctAddress;
+  private static String shieldedTRC20ContractAddress;
   private static String ivkAndNumFileName;
   private static String unspendNoteFileName;
   private static String spendNoteFileName;
@@ -76,7 +78,7 @@ public class ShieldedTRC20Wrapper {
 
   public static boolean isSetShieldedTRC20WalletPath() {
     return !(prefixFolder == null || trc20ContractAddress == null
-        || shieldedTRC20ContarctAddress == null || ivkAndNumFileName == null
+        || shieldedTRC20ContractAddress == null || ivkAndNumFileName == null
         || unspendNoteFileName == null || spendNoteFileName == null
         || shieldedAddressFileName == null || shieldedSkeyFileName == null);
   }
@@ -85,13 +87,13 @@ public class ShieldedTRC20Wrapper {
                                          String shieldedContractAddress) {
     if (contractAddress == null || shieldedContractAddress == null
         || !contractAddress.equals(trc20ContractAddress)
-        || !shieldedContractAddress.equals(shieldedTRC20ContarctAddress)) {
+        || !shieldedContractAddress.equals(shieldedTRC20ContractAddress)) {
       loadShieldedStatus = false;
       shieldedSkey = null;
       trc20ContractAddress = contractAddress;
-      shieldedTRC20ContarctAddress = shieldedContractAddress;
+      shieldedTRC20ContractAddress = shieldedContractAddress;
       prefixFolder = "WalletShieldedTRC20Contract/"
-          + trc20ContractAddress + "_" + shieldedTRC20ContarctAddress;
+          + trc20ContractAddress + "_" + shieldedTRC20ContractAddress;
       ivkAndNumFileName = prefixFolder + "/scanblocknumber";
       unspendNoteFileName = prefixFolder + "/unspendnote";
       spendNoteFileName = prefixFolder + "/spendnote";
@@ -108,7 +110,7 @@ public class ShieldedTRC20Wrapper {
   }
 
   public String getShieldedTRC20ContractAddress() {
-    return shieldedTRC20ContarctAddress;
+    return shieldedTRC20ContractAddress;
   }
 
   public String getTRC20ContractAddress() {
@@ -221,6 +223,12 @@ public class ShieldedTRC20Wrapper {
     if (block != null) {
       long blockNum = block.getBlockHeader().toBuilder().getRawData().getNumber();
       for (Entry<String, Long> entry : ivkMapScanBlockNum.entrySet()) {
+        byte[] key = ByteArray.fromHexString(entry.getKey());
+        byte[] ivk = ByteArray.subArray(key, 0, 32);
+        byte[] ak = ByteArray.subArray(key, 32, 64);
+        byte[] nk = ByteArray.subArray(key, 64, 96);
+        //find a shieldedAddressInfo whose ivk is equal to this ivk
+        ShieldedAddressInfo sampleAdressInfo = getShieldedAddressInfoFromIvk(ivk);
         long start = entry.getValue();
         long end = start;
         while (end < blockNum) {
@@ -237,10 +245,9 @@ public class ShieldedTRC20Wrapper {
               ByteString.copyFrom(
                   WalletApi.decodeFromBase58Check(
                       getShieldedTRC20ContractAddress())));
-          byte[] key = ByteArray.fromHexString(entry.getKey());
-          builder.setIvk(ByteString.copyFrom(ByteArray.subArray(key, 0, 32)));
-          builder.setAk(ByteString.copyFrom(ByteArray.subArray(key, 32, 64)));
-          builder.setNk(ByteString.copyFrom(ByteArray.subArray(key, 64, 96)));
+          builder.setIvk(ByteString.copyFrom(ivk));
+          builder.setAk(ByteString.copyFrom(ak));
+          builder.setNk(ByteString.copyFrom(nk));
           Optional<DecryptNotesTRC20> notes = WalletApi.scanShieldedTRC20NoteByIvk(
               builder.build(), false);
           if (notes.isPresent()) {
@@ -250,7 +257,9 @@ public class ShieldedTRC20Wrapper {
               ShieldedTRC20NoteInfo noteInfo = new ShieldedTRC20NoteInfo();
               noteInfo.setPaymentAddress(noteTx.getNote().getPaymentAddress());
               noteInfo.setR(noteTx.getNote().getRcm().toByteArray());
-              noteInfo.setValue(noteTx.getNote().getValue());
+              long noteValue = noteTx.getNote().getValue();
+              noteInfo.setValue(noteValue);
+              noteInfo.setRawValue(BigInteger.valueOf(noteValue).multiply(scalingFactor));
               noteInfo.setTrxId(ByteArray.toHexString(noteTx.getTxid().toByteArray()));
               noteInfo.setIndex(noteTx.getIndex());
               noteInfo.setNoteIndex(nodeIndex.getAndIncrement());
@@ -262,6 +271,18 @@ public class ShieldedTRC20Wrapper {
               } else {
                 spendUtxoList.add(noteInfo);
                 saveSpendNoteToFile(noteInfo);
+              }
+              //put note payment address into  shieldedAddressInfoMap
+              if (!shieldedAddressInfoMap.containsKey(noteInfo.getPaymentAddress())) {
+                PaymentAddress paymentAddress =
+                    KeyIo.decodePaymentAddress(noteInfo.getPaymentAddress());
+                ShieldedAddressInfo addressInfo = new ShieldedAddressInfo();
+                addressInfo.setD(paymentAddress.getD());
+                addressInfo.setPkD(paymentAddress.getPkD());
+                addressInfo.setSk(sampleAdressInfo.getSk());
+                addressInfo.setIvk(sampleAdressInfo.getIvk());
+                addressInfo.setOvk(sampleAdressInfo.getOvk());
+                appendAddressInfoToFile(addressInfo);
               }
             }
             int endNum = utxoMapNote.size();
@@ -275,6 +296,15 @@ public class ShieldedTRC20Wrapper {
       }
       updateIvkAndBlockNumFile();
     }
+  }
+
+  private ShieldedAddressInfo getShieldedAddressInfoFromIvk(byte[] ivk) {
+    for (Entry<String, ShieldedAddressInfo> entry : shieldedAddressInfoMap.entrySet()) {
+      if (ByteUtil.equals(ivk, entry.getValue().getIvk())) {
+        return entry.getValue();
+      }
+    }
+    return null;//It should not return null.
   }
 
   private void updateNoteWhetherSpend() throws Exception {
@@ -475,7 +505,7 @@ public class ShieldedTRC20Wrapper {
     List<String> utxoList = new ArrayList<>();
     for (Map.Entry<Long, ShieldedTRC20NoteInfo> entry : list) {
       String string = entry.getKey() + " " + entry.getValue().getPaymentAddress() + " ";
-      string += entry.getValue().getValue();
+      string += entry.getValue().getRawValue().toString();
       string += " ";
       string += entry.getValue().getTrxId();
       string += " ";

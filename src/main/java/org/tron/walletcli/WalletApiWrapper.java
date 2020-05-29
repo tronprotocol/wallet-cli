@@ -28,6 +28,7 @@ import org.tron.core.zen.address.FullViewingKey;
 import org.tron.core.zen.address.SpendingKey;
 import org.tron.keystore.StringUtils;
 import org.tron.keystore.WalletFile;
+import org.tron.keystore.WalletUtils;
 import org.tron.protos.Contract;
 import org.tron.protos.Contract.AssetIssueContract;
 import org.tron.protos.Contract.IncrementalMerkleVoucherInfo;
@@ -1234,9 +1235,41 @@ public class WalletApiWrapper {
     Optional<DecryptNotesTRC20> notes = WalletApi.scanShieldedTRC20NoteByIvk(
         parameters, true);
     if (!notes.isPresent()) {
-      System.out.println("ScanShieldedTRC20NoteByIvk failed !!!");
+      return false;
+    }
+    if (notes.get().getNoteTxsList().size() > 0) {
+      BigInteger scalingFactor;
+      if (ShieldedTRC20Wrapper.getInstance().ifShieldedTRC20WalletLoaded()
+          && ByteUtil.equals(address, WalletApi.decodeFromBase58Check(
+              ShieldedTRC20Wrapper.getInstance().getShieldedTRC20ContractAddress()))) {
+        scalingFactor = ShieldedTRC20Wrapper.getInstance().getScalingFactor();
+      } else {
+        try {
+          String scalingFactorHexStr = getScalingFactor(address);
+          scalingFactor = new BigInteger(scalingFactorHexStr, 16);
+        } catch (Exception e) {
+          return false;
+        }
+      }
+      // System.out.println(Utils.formatMessageString(notes.get()));
+      System.out.println("[");
+      for(DecryptNotesTRC20.NoteTx noteTx : notes.get().getNoteTxsList()) {
+        System.out.println("\t{");
+        System.out.println("\t\t note: {");
+        BigInteger showValue =
+            BigInteger.valueOf(noteTx.getNote().getValue()).multiply(scalingFactor);
+        System.out.println("\t\t\t value: " + showValue.toString());
+        System.out.println("\t\t\t payment_address: " + noteTx.getNote().getPaymentAddress());
+        System.out.println("\t\t\t rcm: "
+            + ByteArray.toHexString(noteTx.getNote().getRcm().toByteArray()));
+        System.out.println("\t\t }\n\t\t position: " + noteTx.getPosition());
+        System.out.println("\t\t is_spent: " + noteTx.getIsSpent());
+        System.out.println("\t\t tx_id: " + ByteArray.toHexString(noteTx.getTxid().toByteArray()));
+        System.out.println("\t}");
+      }
+      System.out.println("]");
     } else {
-      System.out.println(Utils.formatMessageString(notes.get()));
+      System.out.println("No notes found!");
     }
     return true;
   }
@@ -1252,10 +1285,40 @@ public class WalletApiWrapper {
 
     Optional<DecryptNotesTRC20> notes = WalletApi.scanShieldedTRC20NoteByOvk(parameters, true);
     if (!notes.isPresent()) {
-      System.out.println("ScanShieldedTRC20NoteByovk failed !!!");
+      return false;
+    }
+    if (notes.get().getNoteTxsList().size() > 0) {
+      BigInteger scalingFactor;
+      if (ShieldedTRC20Wrapper.getInstance().ifShieldedTRC20WalletLoaded()
+          && ByteUtil.equals(contractAddress, WalletApi.decodeFromBase58Check(
+          ShieldedTRC20Wrapper.getInstance().getShieldedTRC20ContractAddress()))) {
+        scalingFactor = ShieldedTRC20Wrapper.getInstance().getScalingFactor();
+      } else {
+        try {
+          String scalingFactorHexStr = getScalingFactor(contractAddress);
+          scalingFactor = new BigInteger(scalingFactorHexStr, 16);
+        } catch (Exception e) {
+          return false;
+        }
+      }
+      // System.out.println(Utils.formatMessageString(notes.get()));
+      System.out.println("[");
+      for(DecryptNotesTRC20.NoteTx noteTx : notes.get().getNoteTxsList()) {
+        System.out.println("\t{");
+        System.out.println("\t\t note: {");
+        BigInteger showValue =
+            BigInteger.valueOf(noteTx.getNote().getValue()).multiply(scalingFactor);
+        System.out.println("\t\t\t value: " + showValue.toString());
+        System.out.println("\t\t\t payment_address: " + noteTx.getNote().getPaymentAddress());
+        System.out.println("\t\t\t rcm: "
+            + ByteArray.toHexString(noteTx.getNote().getRcm().toByteArray()));
+        System.out.println("\t\t }");
+        System.out.println("\t\t tx_id: " + ByteArray.toHexString(noteTx.getTxid().toByteArray()));
+        System.out.println("\t}");
+      }
+      System.out.println("]");
     } else {
-      System.out.println(Utils.formatMessageString(notes.get()));
-      System.out.println("complete.");
+      System.out.println("No notes found!");
     }
     return true;
   }
@@ -1271,18 +1334,14 @@ public class WalletApiWrapper {
         && BigInteger.valueOf(shieldedOutputList.get(0).getValue())
                      .multiply(scalingFactor)
                      .compareTo(fromAmount) != 0) {
-      System.out.println("MINT: fromPublicAmount must be equal to noteValue * scalingFactor.");
-      System.out.println("The Scaling Factor is " + scalingFactor.toString());
+      System.out.println("MINT: fromPublicAmount must be equal to note amount.");
       return false;
     }
     if (shieldedContractType == 2) {
       ShieldedTRC20NoteInfo noteInfo = ShieldedTRC20Wrapper.getInstance().getUtxoMapNote()
           .get(shieldedInputList.get(0));
-      if (BigInteger.valueOf(noteInfo.getValue())
-                    .multiply(scalingFactor)
-                    .compareTo(toAmount) != 0) {
-        System.out.println("BURN: toPublicAmount must be equal to noteValue * scalingFactor");
-        System.out.println("The Scaling Factor is " + scalingFactor.toString());
+      if (noteInfo.getRawValue().compareTo(toAmount) != 0) {
+        System.out.println("BURN: toPublicAmount must be equal to note amount.");
         return false;
       }
     }
@@ -1344,7 +1403,7 @@ public class WalletApiWrapper {
         noteBuild.setMemo(ByteString.copyFrom(noteInfo.getMemo()));
 
         System.out.println("address " + noteInfo.getPaymentAddress());
-        System.out.println("value " + noteInfo.getValue());
+        System.out.println("value " + noteInfo.getRawValue().toString());
         System.out.println("rcm " + ByteArray.toHexString(noteInfo.getR()));
         System.out.println("trxId " + noteInfo.getTrxId());
         System.out.println("index " + noteInfo.getIndex());
@@ -1449,16 +1508,14 @@ public class WalletApiWrapper {
         && BigInteger.valueOf(shieldedOutputList.get(0).getValue())
                      .multiply(scalingFactor)
                      .compareTo(fromAmount) != 0) {
-      System.out.println("MINT: fromPublicAmount must be equal to noteValue * scalingFactor");
+      System.out.println("MINT: fromPublicAmount must be equal to note amount.");
       return false;
     }
     if (shieldedContractType == 2) {
       ShieldedTRC20NoteInfo noteInfo = ShieldedTRC20Wrapper.getInstance().getUtxoMapNote()
           .get(shieldedInputList.get(0));
-      if (BigInteger.valueOf(noteInfo.getValue())
-                    .multiply(scalingFactor)
-                    .compareTo(toAmount) != 0) {
-        System.out.println("BURN: toPublicAmount must be equal to noteValue * scalingFactor");
+      if (noteInfo.getRawValue().compareTo(toAmount) != 0) {
+        System.out.println("BURN: toPublicAmount must be equal to note amount.");
         return false;
       }
     }
@@ -1524,7 +1581,7 @@ public class WalletApiWrapper {
         noteBuild.setMemo(ByteString.copyFrom(noteInfo.getMemo()));
 
         System.out.println("address " + noteInfo.getPaymentAddress());
-        System.out.println("value " + noteInfo.getValue());
+        System.out.println("value " + noteInfo.getRawValue().toString());
         System.out.println("rcm " + ByteArray.toHexString(noteInfo.getR()));
         System.out.println("trxId " + noteInfo.getTrxId());
         System.out.println("index " + noteInfo.getIndex());
@@ -1566,7 +1623,7 @@ public class WalletApiWrapper {
 
     if (shieldedContractType == 1 && valueBalance != 0) {
       System.out.println("TRANSFER: the sum of shielded input amount should be equal to the " +
-          "sum of shielded output amount");
+          "sum of shielded output amount.");
       return false;
     }
 
@@ -1641,7 +1698,13 @@ public class WalletApiWrapper {
       System.out.println("Warning: get Scaling Factor failed,  Please login wallet first !!");
       return null;
     }
-    return wallet.constantCallShieldedContract(address, input, methodStr);
+    String scalingFactorHexStr = wallet.constantCallShieldedContract(address, input, methodStr);
+    if (scalingFactorHexStr != null) {
+      return scalingFactorHexStr;
+    } else {
+      System.out.println("Get Scaling Factor failed!! Please check shielded contract!");
+      return null;
+    }
   }
 
   public boolean setAllowance(String contractAddress, String shieldedContractAddress,
