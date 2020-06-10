@@ -3004,7 +3004,12 @@ public class Client {
               + "please use command ListShieldedTRC20Note 1 ");
     } else {
       if (!StringUtil.isNullOrEmpty(parameters[0])) {
-        showType = Integer.valueOf(parameters[0]);
+        try {
+          showType = Integer.valueOf(parameters[0]);
+        } catch (NumberFormatException e) {
+          System.out.println("Invalid parameter!");
+          return;
+        }
       }
     }
 
@@ -3086,10 +3091,10 @@ public class Client {
   }
 
   private void scanShieldedTRC20NoteByIvk(String[] parameters) {
-    if (parameters == null || parameters.length != 6) {
-      System.out.println("ScanShieldedTRC20NoteByIvk command needs 6 parameters like: ");
+    if (parameters == null || parameters.length < 6) {
+      System.out.println("ScanShieldedTRC20NoteByIvk command needs at least 6 parameters like: ");
       System.out.println("ScanShieldedTRC20NoteByIvk shieldedTRC20ContractAddress ivk ak nk " +
-              "startNum endNum ");
+              "startNum endNum [event1] [event2]");
       return;
     }
     byte[] contractAddress = WalletApi.decodeFromBase58Check(parameters[0]);
@@ -3105,15 +3110,25 @@ public class Client {
       System.out.println("Invalid parameter: startNum, endNum.");
       return;
     }
-    walletApiWrapper.scanShieldedTRC20NoteByIvk(contractAddress,
-        parameters[1], parameters[2], parameters[3], startNum, endNum);
+    int eventNum = parameters.length - 6;
+    if (eventNum > 0) {
+      String[] eventArray = new String[eventNum];
+      for (int i = 0; i < eventNum; i++) {
+        eventArray[i] = parameters[i + 6];
+      }
+      walletApiWrapper.scanShieldedTRC20NoteByIvk(contractAddress,
+          parameters[1], parameters[2], parameters[3], startNum, endNum, eventArray);
+    } else {
+      walletApiWrapper.scanShieldedTRC20NoteByIvk(contractAddress,
+          parameters[1], parameters[2], parameters[3], startNum, endNum, null);
+    }
   }
 
   private void scanShieldedTRC20NoteByOvk(String[] parameters) {
-    if (parameters == null || parameters.length != 4) {
-      System.out.println("ScanShieldedTRC20NoteByOvk command needs 4 parameters like: ");
+    if (parameters == null || parameters.length < 4) {
+      System.out.println("ScanShieldedTRC20NoteByOvk command needs at lease 4 parameters like: ");
       System.out.println("ScanShieldedTRC20NoteByOvk shieldedTRC20ContractAddress ovk startNum " +
-              "endNum");
+              "endNum [event1] [event2] ");
       return;
     }
     byte[] contractAddress = WalletApi.decodeFromBase58Check(parameters[0]);
@@ -3129,7 +3144,19 @@ public class Client {
       System.out.println("Invalid parameter: startNum, endNum.");
       return;
     }
-    walletApiWrapper.scanShieldedTRC20NoteByOvk(parameters[1], startNum, endNum, contractAddress);
+
+    int eventNum = parameters.length - 4;
+    if (eventNum > 0) {
+      String[] eventArray = new String[eventNum];
+      for (int i = 0; i < eventNum; i++) {
+        eventArray[i] = parameters[i + 4];
+      }
+      walletApiWrapper.scanShieldedTRC20NoteByOvk(parameters[1], startNum, endNum,
+          contractAddress, eventArray);
+    } else {
+      walletApiWrapper.scanShieldedTRC20NoteByOvk(parameters[1], startNum, endNum,
+          contractAddress, null);
+    }
   }
 
   private void sendShieldedTRC20Coin(String[] parameters) throws IOException, CipherException,
@@ -3193,7 +3220,13 @@ public class Client {
       throws IOException, CipherException, CancelException, ZksnarkException {
     BigInteger scalingFactor = ShieldedTRC20Wrapper.getInstance().getScalingFactor();
     int parameterIndex = 0;
-    BigInteger fromPublicAmount = new BigInteger(parameters[parameterIndex++]);
+    BigInteger fromPublicAmount;
+    try {
+      fromPublicAmount = new BigInteger(parameters[parameterIndex++]);
+    } catch (NumberFormatException e) {
+      System.out.println("Invalid fromPublicAmount!");
+      return false;
+    }
     if (!checkAmountValid(fromPublicAmount, scalingFactor)) {
       System.out.println("fromPublicAmount must be 0 or positive integer multiple of "
           + scalingFactor.toString());
@@ -3203,13 +3236,24 @@ public class Client {
     int shieldedInputNum = 0;
     String amountString = parameters[parameterIndex++];
     if (!StringUtil.isNullOrEmpty(amountString)) {
-      shieldedInputNum = Integer.valueOf(amountString);
+      try {
+        shieldedInputNum = Integer.valueOf(amountString);
+      } catch (NumberFormatException e) {
+        System.out.println("Invalid shieldedInputNum!");
+        return false;
+      }
     }
 
     List<Long> shieldedInputList = new ArrayList<>();
     String shieldedInputAddress = "";
     for (int i = 0; i < shieldedInputNum; ++i) {
-      long mapIndex = Long.valueOf(parameters[parameterIndex++]);
+      long mapIndex;
+      try {
+        mapIndex = Long.valueOf(parameters[parameterIndex++]);
+      } catch (NumberFormatException e) {
+        System.out.println("Invalid the " + (i + 1) + "shielded input");
+        return false;
+      }
       ShieldedTRC20NoteInfo noteInfo =
           ShieldedTRC20Wrapper.getInstance().getUtxoMapNote().get(mapIndex);
       if (noteInfo == null) {
@@ -3235,7 +3279,12 @@ public class Client {
     } else {
       amountString = parameters[parameterIndex++];
       if (!StringUtil.isNullOrEmpty(amountString)) {
-        toPublicAmount = new BigInteger(amountString);
+        try {
+          toPublicAmount = new BigInteger(amountString);
+        } catch (NumberFormatException e) {
+          System.out.println("Invalid toPublicAmount!");
+          return false;
+        }
         if (!checkAmountValid(toPublicAmount, scalingFactor)) {
           System.out.println("toPublicAmount must be positive integer multiple of "
               + scalingFactor.toString());
@@ -3247,7 +3296,12 @@ public class Client {
     int shieldedOutputNum = 0;
     amountString = parameters[parameterIndex++];
     if (!StringUtil.isNullOrEmpty(amountString)) {
-      shieldedOutputNum = Integer.valueOf(amountString);
+      try {
+        shieldedOutputNum = Integer.valueOf(amountString);
+      } catch (NumberFormatException e) {
+        System.out.println("Invalid shieldedOutputNum!");
+        return false;
+      }
     }
     if ((parameters.length - parameterIndex) % 3 != 0) {
       System.out.println("Invalid parameter number!");
@@ -3264,7 +3318,12 @@ public class Client {
       }
       BigInteger shieldedAmountBi = BigInteger.ZERO;
       if (!StringUtil.isNullOrEmpty(amountString)) {
-        shieldedAmountBi = new BigInteger(amountString);
+        try {
+          shieldedAmountBi = new BigInteger(amountString);
+        } catch (NumberFormatException e) {
+          System.out.println("Invalid shielded output amount");
+          return false;
+        }
         if (!checkAmountValid(shieldedAmountBi, scalingFactor)) {
           System.out.println("shielded amount must be an integer multiple of "
               + scalingFactor.toString());

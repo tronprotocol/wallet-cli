@@ -2522,13 +2522,32 @@ public class WalletApi {
 
   public static ShieldedTRC20Parameters createShieldedContractParametersWithoutAsk(
       PrivateShieldedTRC20ParametersWithoutAsk privateParameters, byte[] ask) {
-    ShieldedTRC20Parameters parameters =
-        rpcCli.createShieldedContractParametersWithoutAsk(privateParameters);
+    ShieldedTRC20Parameters parameters;
+    try {
+      parameters = rpcCli.createShieldedContractParametersWithoutAsk(privateParameters);
+    } catch (Exception e) {
+      Status status = Status.fromThrowable(e);
+      System.out.println("createShieldedContractParametersWithoutAsk failed,error "
+          + status.getDescription());
+      parameters = null;
+    }
+
     if (parameters == null) {
       System.out.println("createShieldedContractParametersWithoutAsk failed!");
       return null;
     }
 
+    if (parameters.getParameterType().equals("mint")) {
+        return parameters;
+    }
+    //generate spendAuthority signature and trigger input data
+    ShieldedTRC20TriggerContractParameters.Builder stBuilder =
+        ShieldedTRC20TriggerContractParameters.newBuilder();
+    stBuilder.setShieldedTRC20Parameters(parameters);
+    if (parameters.getParameterType().equals("burn")) {
+      stBuilder.setAmount(privateParameters.getToAmount());
+      stBuilder.setTransparentToAddress(privateParameters.getTransparentToAddress());
+    }
     ByteString messageHash = parameters.getMessageHash();
     List<SpendDescription> spendDescList = parameters.getSpendDescriptionList();
     ShieldedTRC20Parameters.Builder newBuilder =
@@ -2539,20 +2558,43 @@ public class WalletApi {
       builder.setTxHash(messageHash);
       builder.setAlpha(privateParameters.getShieldedSpends(i).getAlpha());
 
-      BytesMessage authSig = rpcCli.createSpendAuthSig(builder.build());
+      BytesMessage authSig;
+      try {
+        authSig = rpcCli.createSpendAuthSig(builder.build());
+      } catch (Exception e) {
+        Status status = Status.fromThrowable(e);
+        System.out.println("createSpendAuthSig failed,error "
+            + status.getDescription());
+        authSig = null;
+      }
+      if (authSig == null) {
+        return null;
+      }
       newBuilder.getSpendDescriptionBuilder(i)
-          .setSpendAuthoritySignature(
-              ByteString.copyFrom(
-                  authSig.getValue().toByteArray()));
+                .setSpendAuthoritySignature(
+                    ByteString.copyFrom(
+                        authSig.getValue().toByteArray()));
+      stBuilder.addSpendAuthoritySignature(authSig);
     }
+    BytesMessage triggerInputData;
+    try {
+      triggerInputData = rpcCli.getTriggerInputForShieldedTRC20Contract(stBuilder.build());
+    } catch (Exception e) {
+      triggerInputData = null;
+      System.out.println("getTriggerInputForShieldedTRC20Contract error, please retry!");
+    }
+    if (triggerInputData == null) {
+      return null;
+    }
+    newBuilder.setTriggerContractInputBytes(triggerInputData.toByteString());
     return newBuilder.build();
   }
 
-  public static Optional<NullifierResult> IsShieldedTRC20ContractNoteSpent(
+  public static Optional<NullifierResult> isShieldedTRC20ContractNoteSpent(
       NfTRC20Parameters parameters, boolean showErrorMsg) {
     if (showErrorMsg) {
       try {
-        return Optional.of(rpcCli.IsShieldedTRC20ContractNoteSpent(parameters));
+        return Optional.of(rpcCli.isShieldedTRC20ContractNoteSpent(parameters));
       } catch (Exception e) {
         if (showErrorMsg) {
           Status status = Status.fromThrowable(e);
@@ -2561,7 +2603,7 @@ public class WalletApi {
         }
       }
     } else {
-      return Optional.of(rpcCli.IsShieldedTRC20ContractNoteSpent(parameters));
+      return Optional.of(rpcCli.isShieldedTRC20ContractNoteSpent(parameters));
     }
     return Optional.empty();
   }

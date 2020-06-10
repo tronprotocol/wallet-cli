@@ -134,7 +134,9 @@ public class ShieldedTRC20Wrapper {
     }
 
     if (!shieldedSkeyFileExist()) {
-      System.out.println("shieldedTRC20 wallet does not exist.");
+      System.out.println("shieldedTRC20 wallet does not exist. Please use " +
+          "ImportShieldedTRC20Wallet command to import a shielded TRC20 wallet, or " +
+          "GenerateShieldedTRC20Address to generate one.");
       return false;
     }
 
@@ -329,7 +331,7 @@ public class ShieldedTRC20Wrapper {
       noteBuild.setMemo(ByteString.copyFrom(noteInfo.getMemo()));
       builder.setNote(noteBuild.build());
 
-      Optional<NullifierResult> result = WalletApi.IsShieldedTRC20ContractNoteSpent(
+      Optional<NullifierResult> result = WalletApi.isShieldedTRC20ContractNoteSpent(
           builder.build(), false);
       if (result.isPresent() && result.get().getIsSpent()) {
         spendNote(entry.getKey());

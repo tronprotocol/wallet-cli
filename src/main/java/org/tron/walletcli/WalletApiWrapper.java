@@ -1221,16 +1221,21 @@ public class WalletApiWrapper {
 
   public boolean scanShieldedTRC20NoteByIvk(byte[] address, final String ivk,
                                             final String ak, final String nk,
-                                            long start, long end) {
-    GrpcAPI.IvkDecryptTRC20Parameters parameters = IvkDecryptTRC20Parameters
-        .newBuilder()
-        .setStartBlockIndex(start)
-        .setEndBlockIndex(end)
-        .setShieldedTRC20ContractAddress(ByteString.copyFrom(address))
-        .setIvk(ByteString.copyFrom(ByteArray.fromHexString(ivk)))
-        .setAk(ByteString.copyFrom(ByteArray.fromHexString(ak)))
-        .setNk(ByteString.copyFrom(ByteArray.fromHexString(nk)))
-        .build();
+                                            long start, long end, String[] events) {
+    GrpcAPI.IvkDecryptTRC20Parameters.Builder builder = IvkDecryptTRC20Parameters
+        .newBuilder();
+    builder.setStartBlockIndex(start)
+           .setEndBlockIndex(end)
+           .setShieldedTRC20ContractAddress(ByteString.copyFrom(address))
+           .setIvk(ByteString.copyFrom(ByteArray.fromHexString(ivk)))
+           .setAk(ByteString.copyFrom(ByteArray.fromHexString(ak)))
+           .setNk(ByteString.copyFrom(ByteArray.fromHexString(nk)));
+    if (events != null ) {
+      for (String event : events) {
+        builder.addEvents(event);
+      }
+    }
+    GrpcAPI.IvkDecryptTRC20Parameters parameters = builder.build();
 
     Optional<DecryptNotesTRC20> notes = WalletApi.scanShieldedTRC20NoteByIvk(
         parameters, true);
@@ -1262,6 +1267,7 @@ public class WalletApiWrapper {
         System.out.println("\t\t\t payment_address: " + noteTx.getNote().getPaymentAddress());
         System.out.println("\t\t\t rcm: "
             + ByteArray.toHexString(noteTx.getNote().getRcm().toByteArray()));
+        System.out.println("\t\t\t memo: " + noteTx.getNote().getMemo().toStringUtf8());
         System.out.println("\t\t }\n\t\t position: " + noteTx.getPosition());
         System.out.println("\t\t is_spent: " + noteTx.getIsSpent());
         System.out.println("\t\t tx_id: " + ByteArray.toHexString(noteTx.getTxid().toByteArray()));
@@ -1275,14 +1281,18 @@ public class WalletApiWrapper {
   }
 
   public boolean scanShieldedTRC20NoteByOvk(final String ovk, long start, long end,
-                                            byte[] contractAddress) {
-    GrpcAPI.OvkDecryptTRC20Parameters parameters = OvkDecryptTRC20Parameters.newBuilder()
-        .setStartBlockIndex(start)
-        .setEndBlockIndex(end)
-        .setOvk(ByteString.copyFrom(ByteArray.fromHexString(ovk)))
-        .setShieldedTRC20ContractAddress(ByteString.copyFrom(contractAddress))
-        .build();
-
+                                            byte[] contractAddress, String[] events) {
+    GrpcAPI.OvkDecryptTRC20Parameters.Builder builder = OvkDecryptTRC20Parameters.newBuilder();
+    builder.setStartBlockIndex(start)
+           .setEndBlockIndex(end)
+           .setOvk(ByteString.copyFrom(ByteArray.fromHexString(ovk)))
+           .setShieldedTRC20ContractAddress(ByteString.copyFrom(contractAddress));
+    if (events != null ) {
+      for (String event : events) {
+        builder.addEvents(event);
+      }
+    }
+    GrpcAPI.OvkDecryptTRC20Parameters parameters = builder.build();
     Optional<DecryptNotesTRC20> notes = WalletApi.scanShieldedTRC20NoteByOvk(parameters, true);
     if (!notes.isPresent()) {
       return false;
@@ -1305,14 +1315,23 @@ public class WalletApiWrapper {
       System.out.println("[");
       for(DecryptNotesTRC20.NoteTx noteTx : notes.get().getNoteTxsList()) {
         System.out.println("\t{");
-        System.out.println("\t\t note: {");
-        BigInteger showValue =
-            BigInteger.valueOf(noteTx.getNote().getValue()).multiply(scalingFactor);
-        System.out.println("\t\t\t value: " + showValue.toString());
-        System.out.println("\t\t\t payment_address: " + noteTx.getNote().getPaymentAddress());
-        System.out.println("\t\t\t rcm: "
-            + ByteArray.toHexString(noteTx.getNote().getRcm().toByteArray()));
-        System.out.println("\t\t }");
+        //note
+        if (noteTx.hasNote()) {
+          System.out.println("\t\t note: {");
+          BigInteger showValue =
+              BigInteger.valueOf(noteTx.getNote().getValue()).multiply(scalingFactor);
+          System.out.println("\t\t\t value: " + showValue.toString());
+          System.out.println("\t\t\t payment_address: " + noteTx.getNote().getPaymentAddress());
+          System.out.println("\t\t\t rcm: "
+              + ByteArray.toHexString(noteTx.getNote().getRcm().toByteArray()));
+          System.out.println("\t\t\t memo: " + noteTx.getNote().getMemo().toStringUtf8());
+          System.out.println("\t\t }");
+        } else {
+          //This is specific for BURN.
+          System.out.println("\t\t transparent_to_address: "
+              + ByteArray.toHexString(noteTx.getTransparentToAddress().toByteArray()));
+          System.out.println("\t\t transparent_amount: " + noteTx.getToAmount());
+        }
         System.out.println("\t\t tx_id: " + ByteArray.toHexString(noteTx.getTxid().toByteArray()));
         System.out.println("\t}");
       }
@@ -1453,6 +1472,11 @@ public class WalletApiWrapper {
       System.out.println("CreateShieldedContractParameters failed, please check input data!");
       return false;
     }
+    String inputData = parameters.getTriggerContractInput();
+    if (inputData == null) {
+      System.out.println("CreateShieldedContractParameters failed, please check input data!");
+      return false;
+    }
 
     if (shieldedContractType == 0) {//MINT
       boolean setAllowanceResult = setAllowance(contractAddress, shieldedContractAddress,
@@ -1461,7 +1485,6 @@ public class WalletApiWrapper {
         System.out.println("SetAllowance failed, please check wallet account!");
         return false;
       }
-      String inputData = encodeMintParamsToHexString(parameters, fromAmount);
       boolean mintResult = triggerShieldedContract(shieldedContractAddress, inputData, 0);
       if (mintResult) {
         System.out.println("MINT succeed!");
@@ -1471,7 +1494,6 @@ public class WalletApiWrapper {
         return false;
       }
     } else if (shieldedContractType == 1) { //TRANSFER
-      String inputData = encodeTransferParamsToHexString(parameters);
       boolean transferResult = triggerShieldedContract(shieldedContractAddress, inputData, 1);
       if (transferResult) {
         System.out.println("TRANSFER succeed!");
@@ -1481,7 +1503,6 @@ public class WalletApiWrapper {
         return false;
       }
     } else if (shieldedContractType == 2) {//BURN
-      String inputData = encodeBurnParamsToHexString(parameters, toAmount, toAddress);
       boolean transferResult = triggerShieldedContract(shieldedContractAddress, inputData, 2);
       if (transferResult) {
         System.out.println("BURN succeed!");
@@ -1491,7 +1512,7 @@ public class WalletApiWrapper {
         return false;
       }
     } else {
-      System.out.println("Error shieldedContractType!");
+      System.out.println("Unsupported shieldedContractType!");
       return false;
     }
   }
@@ -1635,6 +1656,12 @@ public class WalletApiWrapper {
       return false;
     }
 
+    String inputData = parameters.getTriggerContractInput();
+    if (inputData == null) {
+      System.out.println("CreateShieldedContractParametersWithoutAsk failed, " +
+          "please check input data!");
+      return false;
+    }
     if (shieldedContractType == 0) {//MINT
       boolean setAllowanceResult = setAllowance(contractAddress, shieldedContractAddress,
           fromAmount);
@@ -1642,7 +1669,6 @@ public class WalletApiWrapper {
         System.out.println("SetAllowance failed, please check wallet account!");
         return false;
       }
-      String inputData = encodeMintParamsToHexString(parameters, fromAmount);
       boolean mintResult = triggerShieldedContract(shieldedContractAddress, inputData, 0);
       if (mintResult) {
         System.out.println("MINT succeed!");
@@ -1652,7 +1678,6 @@ public class WalletApiWrapper {
         return false;
       }
     } else if (shieldedContractType == 1) { //TRANSFER
-      String inputData = encodeTransferParamsToHexString(parameters);
       boolean transferResult = triggerShieldedContract(shieldedContractAddress, inputData, 1);
       if (transferResult) {
         System.out.println("TRANSFER succeed!");
@@ -1662,7 +1687,6 @@ public class WalletApiWrapper {
         return false;
       }
     } else if (shieldedContractType == 2) {//BURN
-      String inputData = encodeBurnParamsToHexString(parameters, toAmount, toAddress);
       boolean transferResult = triggerShieldedContract(shieldedContractAddress, inputData, 2);
       if (transferResult) {
         System.out.println("BURN succeed!");
@@ -1732,9 +1756,9 @@ public class WalletApiWrapper {
     } else if (shieldedContractType == 1) {
       methodStr = "transfer(bytes32[10][],bytes32[2][],bytes32[9][],bytes32[2],bytes32[21][])";
     } else if (shieldedContractType == 2) {
-      methodStr = "burn(bytes32[10],bytes32[2],uint256,bytes32[2],address)";
+      methodStr = "burn(bytes32[10],bytes32[2],uint256,bytes32[2],address,bytes32[3])";
     } else {
-      System.out.println("shieldedContractType should be 0, 1 or 2. ");
+      System.out.println("unsupported shieldedContractType! ");
       return false;
     }
     byte[] inputData = Hex.decode(AbiUtil.parseMethod(methodStr, data, true));
@@ -1747,19 +1771,24 @@ public class WalletApiWrapper {
   public String encodeMintParamsToHexString(ShieldedTRC20Parameters parameters,
                                             BigInteger value) {
     byte[] mergedBytes;
-    Contract.ReceiveDescription revDesc = parameters.getReceiveDescription(0);
-    mergedBytes = ByteUtil.merge(
-        ByteUtil.bigIntegerToBytes(value, 32),
-        revDesc.getNoteCommitment().toByteArray(),
-        revDesc.getValueCommitment().toByteArray(),
-        revDesc.getEpk().toByteArray(),
-        revDesc.getZkproof().toByteArray(),
-        parameters.getBindingSignature().toByteArray(),
-        revDesc.getCEnc().toByteArray(),
-        revDesc.getCOut().toByteArray(),
-        new byte[12]
-    );
-    return ByteArray.toHexString(mergedBytes);
+    try {
+      Contract.ReceiveDescription revDesc = parameters.getReceiveDescription(0);
+      mergedBytes = ByteUtil.merge(
+          ByteUtil.bigIntegerToBytes(value, 32),
+          revDesc.getNoteCommitment().toByteArray(),
+          revDesc.getValueCommitment().toByteArray(),
+          revDesc.getEpk().toByteArray(),
+          revDesc.getZkproof().toByteArray(),
+          parameters.getBindingSignature().toByteArray(),
+          revDesc.getCEnc().toByteArray(),
+          revDesc.getCOut().toByteArray(),
+          new byte[12]
+      );
+      return ByteArray.toHexString(mergedBytes);
+    } catch (Exception e) {
+    }
+
+    return  null;
   }
 
   public String encodeTransferParamsToHexString(ShieldedTRC20Parameters parameters) {
@@ -1769,78 +1798,87 @@ public class WalletApiWrapper {
     byte[] c = new byte[0];
     byte[] bindingSig;
     byte[] mergedBytes;
-    List<Contract.SpendDescription> spendDescs = parameters.getSpendDescriptionList();
-    for (Contract.SpendDescription spendDesc : spendDescs) {
-      input = ByteUtil.merge(input,
-          spendDesc.getNullifier().toByteArray(),
-          spendDesc.getAnchor().toByteArray(),
-          spendDesc.getValueCommitment().toByteArray(),
-          spendDesc.getRk().toByteArray(),
-          spendDesc.getZkproof().toByteArray()
+    try {
+      List<Contract.SpendDescription> spendDescs = parameters.getSpendDescriptionList();
+      for (Contract.SpendDescription spendDesc : spendDescs) {
+        input = ByteUtil.merge(input,
+            spendDesc.getNullifier().toByteArray(),
+            spendDesc.getAnchor().toByteArray(),
+            spendDesc.getValueCommitment().toByteArray(),
+            spendDesc.getRk().toByteArray(),
+            spendDesc.getZkproof().toByteArray()
+        );
+        spendAuthSig = ByteUtil.merge(
+            spendAuthSig, spendDesc.getSpendAuthoritySignature().toByteArray());
+      }
+      byte[] inputOffsetbytes = longTo32Bytes(192);
+      long spendCount = spendDescs.size();
+      byte[] spendCountBytes = longTo32Bytes(spendCount);
+      byte[] authOffsetBytes = longTo32Bytes(192 + 32 + 320 * spendCount);
+      List<Contract.ReceiveDescription> recvDescs = parameters.getReceiveDescriptionList();
+      for (Contract.ReceiveDescription recvDesc : recvDescs) {
+        output = ByteUtil.merge(output,
+            recvDesc.getNoteCommitment().toByteArray(),
+            recvDesc.getValueCommitment().toByteArray(),
+            recvDesc.getEpk().toByteArray(),
+            recvDesc.getZkproof().toByteArray()
+        );
+        c = ByteUtil.merge(c,
+            recvDesc.getCEnc().toByteArray(),
+            recvDesc.getCOut().toByteArray(),
+            new byte[12]
+        );
+      }
+      long recvCount = recvDescs.size();
+      byte[] recvCountBytes = longTo32Bytes(recvCount);
+      byte[] outputOffsetbytes = longTo32Bytes(192 + 32 + 320 * spendCount + 32 + 64 * spendCount);
+      byte[] coffsetBytes = longTo32Bytes(192 + 32 + 320 * spendCount + 32 + 64 * spendCount + 32
+          + 288 * recvCount);
+      bindingSig = parameters.getBindingSignature().toByteArray();
+      mergedBytes = ByteUtil.merge(inputOffsetbytes,
+          authOffsetBytes,
+          outputOffsetbytes,
+          bindingSig,
+          coffsetBytes,
+          spendCountBytes,
+          input,
+          spendCountBytes,
+          spendAuthSig,
+          recvCountBytes,
+          output,
+          recvCountBytes,
+          c
       );
-      spendAuthSig = ByteUtil.merge(
-          spendAuthSig, spendDesc.getSpendAuthoritySignature().toByteArray());
+      return ByteArray.toHexString(mergedBytes);
+    } catch (Exception e) {
     }
-    byte[] inputOffsetbytes = longTo32Bytes(192);
-    long spendCount = spendDescs.size();
-    byte[] spendCountBytes = longTo32Bytes(spendCount);
-    byte[] authOffsetBytes = longTo32Bytes(192 + 32 + 320 * spendCount);
-    List<Contract.ReceiveDescription> recvDescs = parameters.getReceiveDescriptionList();
-    for (Contract.ReceiveDescription recvDesc : recvDescs) {
-      output = ByteUtil.merge(output,
-          recvDesc.getNoteCommitment().toByteArray(),
-          recvDesc.getValueCommitment().toByteArray(),
-          recvDesc.getEpk().toByteArray(),
-          recvDesc.getZkproof().toByteArray()
-      );
-      c = ByteUtil.merge(c,
-          recvDesc.getCEnc().toByteArray(),
-          recvDesc.getCOut().toByteArray(),
-          new byte[12]
-      );
-    }
-    long recvCount = recvDescs.size();
-    byte[] recvCountBytes = longTo32Bytes(recvCount);
-    byte[] outputOffsetbytes = longTo32Bytes(192 + 32 + 320 * spendCount + 32 + 64 * spendCount);
-    byte[] coffsetBytes = longTo32Bytes(192 + 32 + 320 * spendCount + 32 + 64 * spendCount + 32
-        + 288 * recvCount);
-    bindingSig = parameters.getBindingSignature().toByteArray();
-    mergedBytes = ByteUtil.merge(inputOffsetbytes,
-        authOffsetBytes,
-        outputOffsetbytes,
-        bindingSig,
-        coffsetBytes,
-        spendCountBytes,
-        input,
-        spendCountBytes,
-        spendAuthSig,
-        recvCountBytes,
-        output,
-        recvCountBytes,
-        c
-    );
-    return ByteArray.toHexString(mergedBytes);
+    return null;
   }
 
   public String encodeBurnParamsToHexString(ShieldedTRC20Parameters parameters, BigInteger value,
                                             String transparentToAddress) {
     byte[] mergedBytes;
     byte[] payTo = new byte[32];
-    byte[] transparentToAddressBytes = WalletApi.decodeFromBase58Check(transparentToAddress);
-    System.arraycopy(transparentToAddressBytes, 0, payTo, 11, 21);
-    Contract.SpendDescription spendDesc = parameters.getSpendDescription(0);
-    mergedBytes = ByteUtil.merge(
-        spendDesc.getNullifier().toByteArray(),
-        spendDesc.getAnchor().toByteArray(),
-        spendDesc.getValueCommitment().toByteArray(),
-        spendDesc.getRk().toByteArray(),
-        spendDesc.getZkproof().toByteArray(),
-        spendDesc.getSpendAuthoritySignature().toByteArray(),
-        ByteUtil.bigIntegerToBytes(value, 32),
-        parameters.getBindingSignature().toByteArray(),
-        payTo
-    );
-    return ByteArray.toHexString(mergedBytes);
+    try {
+      byte[] transparentToAddressBytes = WalletApi.decodeFromBase58Check(transparentToAddress);
+      System.arraycopy(transparentToAddressBytes, 0, payTo, 11, 21);
+      Contract.SpendDescription spendDesc = parameters.getSpendDescription(0);
+      mergedBytes = ByteUtil.merge(
+          spendDesc.getNullifier().toByteArray(),
+          spendDesc.getAnchor().toByteArray(),
+          spendDesc.getValueCommitment().toByteArray(),
+          spendDesc.getRk().toByteArray(),
+          spendDesc.getZkproof().toByteArray(),
+          spendDesc.getSpendAuthoritySignature().toByteArray(),
+          ByteUtil.bigIntegerToBytes(value, 32),
+          parameters.getBindingSignature().toByteArray(),
+          payTo
+      );
+      return ByteArray.toHexString(mergedBytes);
+    } catch (Exception e) {
+    }
+
+    return null;
   }
 
   public byte[] longTo32Bytes(long value) {
