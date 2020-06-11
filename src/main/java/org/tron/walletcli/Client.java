@@ -2930,7 +2930,16 @@ public class Client {
 
     int addressNum = 1;
     if (parameters.length > 0 && !StringUtil.isNullOrEmpty(parameters[0])) {
-      addressNum = Integer.valueOf(parameters[0]);
+      try {
+        addressNum = Integer.valueOf(parameters[0]);
+        if (addressNum == 0) {
+          System.out.println("Parameter must be positive!");
+          return;
+        }
+      } catch (NumberFormatException e) {
+        System.out.println("Invalid parameter!");
+        return;
+      }
     }
 
     ShieldedTRC20Wrapper.getInstance().initShieldedTRC20WalletFile();
@@ -3303,7 +3312,15 @@ public class Client {
         return false;
       }
     }
-    if ((parameters.length - parameterIndex) % 3 != 0) {
+    int parameterNum;
+    try {
+      parameterNum = shieldedOutputNum * 3 + parameterIndex;
+    } catch (Exception e) {
+      System.out.println("Invalid parameter number!");
+      return false;
+    }
+
+    if (parameters.length != parameterNum) {
       System.out.println("Invalid parameter number!");
       return false;
     }
@@ -3409,7 +3426,13 @@ public class Client {
       System.out.println("pkd:" + ByteArray.toHexString(addressInfo.getPkD()));
       System.out.println("d  :" + ByteArray.toHexString(addressInfo.getD().getData()));
     } else {
-      PaymentAddress decodePaymentAddress = KeyIo.decodePaymentAddress(shieldedAddress);
+      PaymentAddress decodePaymentAddress;
+      try {
+        decodePaymentAddress = KeyIo.decodePaymentAddress(shieldedAddress);
+      } catch (IllegalArgumentException e) {
+        System.out.println("Shielded address " + shieldedAddress + " is invalid, please check!");
+        return;
+      }
       if (decodePaymentAddress != null) {
         System.out.println("pkd:" + ByteArray.toHexString(decodePaymentAddress.getPkD()));
         System.out.println("d  :" + ByteArray.toHexString(decodePaymentAddress.getD().getData()));

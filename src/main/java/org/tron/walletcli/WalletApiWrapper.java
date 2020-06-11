@@ -1328,8 +1328,14 @@ public class WalletApiWrapper {
           System.out.println("\t\t }");
         } else {
           //This is specific for BURN.
-          System.out.println("\t\t transparent_to_address: "
-              + ByteArray.toHexString(noteTx.getTransparentToAddress().toByteArray()));
+          try {
+            String toAddress =
+                WalletApi.encode58Check(noteTx.getTransparentToAddress().toByteArray());
+            System.out.println("\t\t transparent_to_address: " + toAddress);
+          } catch (Exception e) {
+            System.out.println("\t\t transparent_to_address: "
+                + ByteArray.toHexString(noteTx.getTransparentToAddress().toByteArray()));
+          }
           System.out.println("\t\t transparent_amount: " + noteTx.getToAmount());
         }
         System.out.println("\t\t tx_id: " + ByteArray.toHexString(noteTx.getTxid().toByteArray()));

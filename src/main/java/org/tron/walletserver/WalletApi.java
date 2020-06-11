@@ -2586,7 +2586,8 @@ public class WalletApi {
     if (triggerInputData == null) {
       return null;
     }
-    newBuilder.setTriggerContractInputBytes(triggerInputData.toByteString());
+    newBuilder.setTriggerContractInput(
+        ByteArray.toHexString(triggerInputData.getValue().toByteArray()));
     return newBuilder.build();
   }
 
@@ -2598,7 +2599,7 @@ public class WalletApi {
       } catch (Exception e) {
         if (showErrorMsg) {
           Status status = Status.fromThrowable(e);
-          System.out.println("IsShieldedTRC20ContractNoteSpent failed,error "
+          System.out.println("IsShieldedTRC20ContractNoteSpent failed, error "
               + status.getDescription());
         }
       }
