@@ -3359,17 +3359,17 @@ public class Client {
     int shieldedContractType = -1;
     if (fromPublicAmount.compareTo(BigInteger.ZERO) > 0 && shieldedOutList.size() == 1
         && shieldedInputList.size() == 0 && toPublicAmount.compareTo(BigInteger.ZERO) == 0) {
-      System.out.println("This is an MINT. ");
+      System.out.println("This is MINT.");
       shieldedContractType = 0;
     } else if (fromPublicAmount.compareTo(BigInteger.ZERO) == 0
         && toPublicAmount.compareTo(BigInteger.ZERO) == 0
         && shieldedOutList.size() > 0 && shieldedOutList.size() < 3
         && shieldedInputList.size() > 0 && shieldedInputList.size() < 3) {
-      System.out.println("This is an TRANSFER. ");
+      System.out.println("This is TRANSFER.");
       shieldedContractType = 1;
-    } else if (fromPublicAmount.compareTo(BigInteger.ZERO) == 0 && shieldedOutList.size() == 0
+    } else if (fromPublicAmount.compareTo(BigInteger.ZERO) == 0 && shieldedOutList.size() < 2
         && shieldedInputList.size() == 1 && toPublicAmount.compareTo(BigInteger.ZERO) > 0) {
-      System.out.println("This is an BURN. ");
+      System.out.println("This is BURN.");
       shieldedContractType = 2;
     } else {
       System.out.println("The shieldedContractType is not MINT, TRANSFER or BURN");

@@ -1365,8 +1365,13 @@ public class WalletApiWrapper {
     if (shieldedContractType == 2) {
       ShieldedTRC20NoteInfo noteInfo = ShieldedTRC20Wrapper.getInstance().getUtxoMapNote()
           .get(shieldedInputList.get(0));
-      if (noteInfo.getRawValue().compareTo(toAmount) != 0) {
-        System.out.println("BURN: toPublicAmount must be equal to note amount.");
+      BigInteger valueBalanceBi = noteInfo.getRawValue();
+      if (shieldedOutputList.size() > 0) {
+        valueBalanceBi = valueBalanceBi.subtract(BigInteger.valueOf(
+            shieldedOutputList.get(0).getValue()).multiply(scalingFactor));
+      }
+      if (valueBalanceBi.compareTo(toAmount) != 0) {
+        System.out.println("BURN: shielded input amount must be equal to output amount.");
         return false;
       }
     }
@@ -1509,8 +1514,8 @@ public class WalletApiWrapper {
         return false;
       }
     } else if (shieldedContractType == 2) {//BURN
-      boolean transferResult = triggerShieldedContract(shieldedContractAddress, inputData, 2);
-      if (transferResult) {
+      boolean burnResult = triggerShieldedContract(shieldedContractAddress, inputData, 2);
+      if (burnResult) {
         System.out.println("BURN succeed!");
         return true;
       } else {
@@ -1541,8 +1546,13 @@ public class WalletApiWrapper {
     if (shieldedContractType == 2) {
       ShieldedTRC20NoteInfo noteInfo = ShieldedTRC20Wrapper.getInstance().getUtxoMapNote()
           .get(shieldedInputList.get(0));
-      if (noteInfo.getRawValue().compareTo(toAmount) != 0) {
-        System.out.println("BURN: toPublicAmount must be equal to note amount.");
+      BigInteger valueBalanceBi = noteInfo.getRawValue();
+      if (shieldedOutputList.size() > 0) {
+        valueBalanceBi = valueBalanceBi.subtract(BigInteger.valueOf(
+            shieldedOutputList.get(0).getValue()).multiply(scalingFactor));
+      }
+      if (valueBalanceBi.compareTo(toAmount) != 0) {
+        System.out.println("BURN: shielded input amount must be equal to output amount.");
         return false;
       }
     }
@@ -1693,8 +1703,8 @@ public class WalletApiWrapper {
         return false;
       }
     } else if (shieldedContractType == 2) {//BURN
-      boolean transferResult = triggerShieldedContract(shieldedContractAddress, inputData, 2);
-      if (transferResult) {
+      boolean burnResult = triggerShieldedContract(shieldedContractAddress, inputData, 2);
+      if (burnResult) {
         System.out.println("BURN succeed!");
         return true;
       } else {
@@ -1762,7 +1772,7 @@ public class WalletApiWrapper {
     } else if (shieldedContractType == 1) {
       methodStr = "transfer(bytes32[10][],bytes32[2][],bytes32[9][],bytes32[2],bytes32[21][])";
     } else if (shieldedContractType == 2) {
-      methodStr = "burn(bytes32[10],bytes32[2],uint256,bytes32[2],address,bytes32[3])";
+      methodStr = "burn(bytes32[10],bytes32[2],uint256,bytes32[2],address,bytes32[3],bytes32[9][],bytes32[21][])";
     } else {
       System.out.println("unsupported shieldedContractType! ");
       return false;
@@ -1772,124 +1782,5 @@ public class WalletApiWrapper {
 
     return callContract(ownerAddress, contractAddressBytes, 0, inputData, 1000_000_000L,
         0, "", false);
-  }
-
-  public String encodeMintParamsToHexString(ShieldedTRC20Parameters parameters,
-                                            BigInteger value) {
-    byte[] mergedBytes;
-    try {
-      Contract.ReceiveDescription revDesc = parameters.getReceiveDescription(0);
-      mergedBytes = ByteUtil.merge(
-          ByteUtil.bigIntegerToBytes(value, 32),
-          revDesc.getNoteCommitment().toByteArray(),
-          revDesc.getValueCommitment().toByteArray(),
-          revDesc.getEpk().toByteArray(),
-          revDesc.getZkproof().toByteArray(),
-          parameters.getBindingSignature().toByteArray(),
-          revDesc.getCEnc().toByteArray(),
-          revDesc.getCOut().toByteArray(),
-          new byte[12]
-      );
-      return ByteArray.toHexString(mergedBytes);
-    } catch (Exception e) {
-    }
-
-    return  null;
-  }
-
-  public String encodeTransferParamsToHexString(ShieldedTRC20Parameters parameters) {
-    byte[] input = new byte[0];
-    byte[] spendAuthSig = new byte[0];
-    byte[] output = new byte[0];
-    byte[] c = new byte[0];
-    byte[] bindingSig;
-    byte[] mergedBytes;
-    try {
-      List<Contract.SpendDescription> spendDescs = parameters.getSpendDescriptionList();
-      for (Contract.SpendDescription spendDesc : spendDescs) {
-        input = ByteUtil.merge(input,
-            spendDesc.getNullifier().toByteArray(),
-            spendDesc.getAnchor().toByteArray(),
-            spendDesc.getValueCommitment().toByteArray(),
-            spendDesc.getRk().toByteArray(),
-            spendDesc.getZkproof().toByteArray()
-        );
-        spendAuthSig = ByteUtil.merge(
-            spendAuthSig, spendDesc.getSpendAuthoritySignature().toByteArray());
-      }
-      byte[] inputOffsetbytes = longTo32Bytes(192);
-      long spendCount = spendDescs.size();
-      byte[] spendCountBytes = longTo32Bytes(spendCount);
-      byte[] authOffsetBytes = longTo32Bytes(192 + 32 + 320 * spendCount);
-      List<Contract.ReceiveDescription> recvDescs = parameters.getReceiveDescriptionList();
-      for (Contract.ReceiveDescription recvDesc : recvDescs) {
-        output = ByteUtil.merge(output,
-            recvDesc.getNoteCommitment().toByteArray(),
-            recvDesc.getValueCommitment().toByteArray(),
-            recvDesc.getEpk().toByteArray(),
-            recvDesc.getZkproof().toByteArray()
-        );
-        c = ByteUtil.merge(c,
-            recvDesc.getCEnc().toByteArray(),
-            recvDesc.getCOut().toByteArray(),
-            new byte[12]
-        );
-      }
-      long recvCount = recvDescs.size();
-      byte[] recvCountBytes = longTo32Bytes(recvCount);
-      byte[] outputOffsetbytes = longTo32Bytes(192 + 32 + 320 * spendCount + 32 + 64 * spendCount);
-      byte[] coffsetBytes = longTo32Bytes(192 + 32 + 320 * spendCount + 32 + 64 * spendCount + 32
-          + 288 * recvCount);
-      bindingSig = parameters.getBindingSignature().toByteArray();
-      mergedBytes = ByteUtil.merge(inputOffsetbytes,
-          authOffsetBytes,
-          outputOffsetbytes,
-          bindingSig,
-          coffsetBytes,
-          spendCountBytes,
-          input,
-          spendCountBytes,
-          spendAuthSig,
-          recvCountBytes,
-          output,
-          recvCountBytes,
-          c
-      );
-      return ByteArray.toHexString(mergedBytes);
-    } catch (Exception e) {
-    }
-    return null;
-  }
-
-  public String encodeBurnParamsToHexString(ShieldedTRC20Parameters parameters, BigInteger value,
-                                            String transparentToAddress) {
-    byte[] mergedBytes;
-    byte[] payTo = new byte[32];
-    try {
-      byte[] transparentToAddressBytes = WalletApi.decodeFromBase58Check(transparentToAddress);
-      System.arraycopy(transparentToAddressBytes, 0, payTo, 11, 21);
-      Contract.SpendDescription spendDesc = parameters.getSpendDescription(0);
-      mergedBytes = ByteUtil.merge(
-          spendDesc.getNullifier().toByteArray(),
-          spendDesc.getAnchor().toByteArray(),
-          spendDesc.getValueCommitment().toByteArray(),
-          spendDesc.getRk().toByteArray(),
-          spendDesc.getZkproof().toByteArray(),
-          spendDesc.getSpendAuthoritySignature().toByteArray(),
-          ByteUtil.bigIntegerToBytes(value, 32),
-          parameters.getBindingSignature().toByteArray(),
-          payTo
-      );
-      return ByteArray.toHexString(mergedBytes);
-    } catch (Exception e) {
-    }
-
-    return null;
-  }
-
-  public byte[] longTo32Bytes(long value) {
-    byte[] longBytes = ByteArray.fromLong(value);
-    byte[] zeroBytes = new byte[24];
-    return ByteUtil.merge(zeroBytes, longBytes);
   }
 }
