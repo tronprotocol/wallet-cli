@@ -2,7 +2,7 @@
 
 
 
-Release 4.0 provides support for shielded TRC-20 contract, which can hide the source address, destination address, and the token amount for TRC-20 transaction and provide users better privacy.  The shielded TRC-20 contract has three core functions: `mint`, `transfer` and `burn`. `mint` is used to transform the public TRC-20 token to shielded token; `transfer` is used for shielded token transactions; `burn` is used to transform the shielded token back to the public TRC-20 token.
+Release 4.0 has implemented the shielded TRC-20 contract, which can hide the source address, destination address, and the token amount for TRC-20 transaction and provide users better privacy.  The shielded TRC-20 contract has three core functions: `mint`, `transfer` and `burn`. `mint` is used to transform the public TRC-20 token to shielded token; `transfer` is used for shielded token transactions; `burn` is used to transform the shielded token back to the public TRC-20 token. To support the shielded TRC-20 contract,  four new zero-knowledge instructions (`verifyMintProof`, `verifyTransferProof`, `verifyBurnProof` and `pedersenHash`) are add in TVM, which make it convenient to provide privacy for arbitrary TRC-20 contract.
 
 
 The following TIPs are implemented in this release:
