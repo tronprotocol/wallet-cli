@@ -6,7 +6,7 @@ Release 4.0 has implemented the shielded TRC-20 contract, which can hide the sou
 
 
 New features:
- - add 4 new zero-knowledge instructions (`verifyMintProof`, `verifyTransferProof`, `verifyBurnProof` and `pedersenHash`) in TVM to support TRC20 shielded transactions.  
+ - add 4 new instructions (`verifyMintProof`, `verifyTransferProof`, `verifyBurnProof` and `pedersenHash`) in TVM to support TRC20 shielded transactions based on zk-SNARKS.  
  `verifyMintProof`: used to validate the zero-knowledge proof for `mint` function.  
  `verifyTransferProof`: used to validate the zero-knowledge proof for `transfer` function.  
  `verifyBurnProof`: used to validate  the zero-knowledge proof for `burn` function.  
