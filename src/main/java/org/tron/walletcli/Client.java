@@ -4061,7 +4061,6 @@ public class Client {
           if (e.getCause() != null) {
             System.out.println(e.getCause().getMessage());
           }
-//          e.printStackTrace();
         }
       }
     } catch (IOException e) {

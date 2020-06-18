@@ -638,6 +638,16 @@ service Wallet {
   rpc GetNodeInfo (EmptyMessage) returns (NodeInfo) {
   };
 
+  rpc GetRewardInfo (BytesMessage) returns (NumberMessage) {
+  };
+
+  rpc GetBrokerageInfo (BytesMessage) returns (NumberMessage) {
+  };
+
+  rpc UpdateBrokerage (UpdateBrokerageContract) returns (TransactionExtention) {
+
+  };
+
   // for shiededTransaction
   rpc CreateShieldedTransaction (PrivateParameters) returns (TransactionExtention) {
   };
@@ -695,19 +705,8 @@ service Wallet {
 
   rpc CreateShieldNullifier (NfParameters) returns (BytesMessage) {
   };
-  // end for shiededTransaction
 
-  rpc GetRewardInfo (BytesMessage) returns (NumberMessage) {
-  };
-
-  rpc GetBrokerageInfo (BytesMessage) returns (NumberMessage) {
-  };
-
-  rpc UpdateBrokerage (UpdateBrokerageContract) returns (TransactionExtention) {
-
-  };
-  // end for shiededTransaction
-  // for shieldedTRC20Contract
+  //for shielded contract
   rpc CreateShieldedContractParameters (PrivateShieldedTRC20Parameters) returns (ShieldedTRC20Parameters) {
   };
 
@@ -725,7 +724,7 @@ service Wallet {
 
   rpc GetTriggerInputForShieldedTRC20Contract (ShieldedTRC20TriggerContractParameters) returns (BytesMessage) {
   };
-  // end for shieldedTRC20Contract
+  // end for shieldedTransaction
 
   rpc CreateCommonTransaction (Transaction) returns (TransactionExtention) {
   };
@@ -879,12 +878,6 @@ service WalletSolidity {
   rpc IsSpend (NoteParameters) returns (SpendResult) {
   }
 
-  rpc GetRewardInfo (BytesMessage) returns (NumberMessage) {
-  };
-
-  rpc GetBrokerageInfo (BytesMessage) returns (NumberMessage) {
-  };
-
   rpc ScanShieldedTRC20NotesByIvk (IvkDecryptTRC20Parameters) returns (DecryptNotesTRC20) {
   };
 
@@ -892,6 +885,12 @@ service WalletSolidity {
   };
 
   rpc IsShieldedTRC20ContractNoteSpent (NfTRC20Parameters) returns (NullifierResult) {
+  };
+
+  rpc GetRewardInfo (BytesMessage) returns (NumberMessage) {
+  };
+
+  rpc GetBrokerageInfo (BytesMessage) returns (NumberMessage) {
   };
 
   rpc TriggerConstantContract (TriggerSmartContract) returns (TransactionExtention) {
@@ -1255,6 +1254,7 @@ message PrivateParameters {
   repeated ReceiveNote shielded_receives = 7;
   bytes transparent_to_address = 8;
   int64 to_amount = 9;
+  int64 timeout = 10;  // timeout in seconds, it works only when it bigger than 0
 }
 
 message PrivateParametersWithoutAsk {
@@ -1267,6 +1267,7 @@ message PrivateParametersWithoutAsk {
   repeated ReceiveNote shielded_receives = 7;
   bytes transparent_to_address = 8;
   int64 to_amount = 9;
+  int64 timeout = 10;  // timeout in seconds, it works only when it bigger than 0
 }
 
 message SpendAuthSigParameters {
@@ -1336,6 +1337,10 @@ message NoteParameters {
 message SpendResult {
   bool result = 1;
   string message = 2;
+}
+
+message TransactionInfoList {
+  repeated TransactionInfo transactionInfo = 1;
 }
 
 message SpendNoteTRC20 {
@@ -1427,7 +1432,4 @@ message ShieldedTRC20TriggerContractParameters {
   repeated BytesMessage spend_authority_signature = 2;
   string amount = 3;
   bytes transparent_to_address = 4;
-}
-message TransactionInfoList {
-  repeated TransactionInfo transactionInfo = 1;
 }
