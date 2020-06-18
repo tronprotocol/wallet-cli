@@ -2,7 +2,7 @@
 
 Wallet CLI
 
-[gitter](https://gitter.im/tronprotocol/wallet-cli)
+[Telegram](https://t.me/troncoredevscommunity)
 
 ## Get started
 
@@ -53,30 +53,36 @@ soliditynode = {
 Wallet-cli connect to java-tron via gRPC protocol, which can be deployed locally or remotely. Check **Run a web Wallet** section.
 We can configure java-tron node IP and port in ``src/main/resources/config.conf``, so that wallet-cli server can successfully talk to java-tron nodes.
 
-## Wallet-cli Document Summary
+## Wallet-cli supported command list
 
-The following are a overview of documents including some command explanations and usage examples. Check following links to find your interesting commands:
+Following is a list of Tron Wallet-cli commands:
+For more information on a specific command, just type the command on terminal when you start your Wallet.
 
-- [Freeze/unfreeze Balance](#How-to-freeze/unfreeze-balance)
-- [Vote](#How-to-vote)
-- [Bandwidth](#How-to-calculate-bandwidth)
-- [IssueToke](#How-to-issue-TRC10-tokens)
-- [Proposal](#How-to-initiate-a-proposal)
-- [HowToTrade](#How-to-trade-on-the-exchange)
-- [Multi-signature ](#How-to-use-the-multi-signature-feature-of-wallet-cli)
-- [SmartContract](#How-to-use-smart-contract)
-- [DelegateResource](#How-to-delegate-resource)
-- [TransferToShieldedAddress](#How-to-transfer-to-shielded-address)
-- [GetBlock](#How-to-get-block-information)
-- [GetTransaction](#How-to-get-transaction-information)
-- [GetToken10](#Get-Token10)
-- [GetProposal](#Get-proposal-information)
-- [AccountCommand](#Account-related-commands)
-  - [createAccount](#How-to-create-account)
-  - [createWitness](#How-to-create-witness)
-- [WalletCommands](#Wallet-related-commands)
-- [CommandLineFlow](#Command-line-operation-flow-example)
-- [CommandList](#Command-list)
+| [AddTransactionSign](#How-to-use-the-multi-signature-feature-of-wallet-cli) | [ApproveProposal](#Approvecancel-the-proposal)  | [AssetIssue](#How-to-issue-TRC10-tokens) |
+| :---------:|:---------:|:--------: |
+| [BackupWallet](#Wallet-related-commands)| [BackupWallet2Base64](#Wallet-related-commands) | [BroadcastTransaction](#Some-others) |
+|[ChangePassword](#Wallet-related-commands)| [CreateProposal](#How-to-initiate-a-proposal) |[DeleteProposal](#Cancel-the-created-proposal) |
+| [DeployContract](#How-to-use-smart-contract) | [ExchangeCreate](#How-to-trade-on-the-exchange) | [ExchangeInject](#How-to-trade-on-the-exchange) |
+| [ExchangeTransaction](#How-to-trade-on-the-exchange) | [ExchangeWithdraw](#How-to-trade-on-the-exchange) | [FreezeBalance](#How-to-delegate-resourcee) |
+| [GenerateAddress](#Account-related-commands) | [GetAccount](#Account-related-commands) |[GetAccountNet](#Account-related-commands) |
+|[GetAccountResource](#Account-related-commands) | [GetAddress](#Account-related-commands) |[GetAssetIssueByAccount](#How-to-issue-TRC10-tokens) |
+|[GetAssetIssueById](#How-to-issue-TRC10-tokens) | [GetAssetIssueByName](#How-to-issue-TRC10-tokens) |[GetAssetIssueListByName](#How-to-issue-TRC10-tokens) |
+|[GetBalance](#Account-related-commands) | [GetBlock](#How-to-get-block-information) |[GetBlockById](#How-to-get-block-information) |
+|[GetBlockByLatestNum](#How-to-get-block-information) | [GetBlockByLimitNext](#How-to-get-block-information) |[GetBrokerage](#Brokerage) |
+|[GetContract](#How-to-use-smart-contracts) |[GetDelegatedResource](#How-to-delegate-resource) |[GetDelegatedResourceAccountIndex](#How-to-delegate-resource) |
+|[GetNextMaintenanceTime](#Some-others) |[GetProposal](#Get-proposal-information) |[GetReward](#Brokerage) |
+|[GetTransactionApprovedList](#How-to-use-the-multi-signature-feature-of-wallet-cli) |[GetTransactionById](#How-to-get-transaction-information) |[GetTransactionCountByBlockNum](#How-to-get-transaction-information) |
+|[GetTransactionInfoByBlockNum](#How-to-get-transaction-information) | [GetTransactionInfoById](#How-to-get-transaction-information) |[GetTransactionSignWeight](#How-to-use-the-multi-signature-feature-of-wallet-cli) |
+|[ImportWallet](#Wallet-related-commands) |[ImportWalletByBase64](#Wallet-related-commands) |[ListAssetIssue](#Get-Token10) |
+|[ListExchanges](#How-to-trade-on-the-exchange) |[ListExchangesPaginated](#How-to-trade-on-the-exchange) |[ListNodes](#Some-others) |
+|[ListProposals](#How-to-initiate-a-proposal) | [ListProposalsPaginated](#How-to-initiate-a-proposal) | [ListWitnesses](#Some-others) |
+|[Login](#Command-line-operation-flow-example) |[ParticipateAssetIssue](#How-to-issue-TRC10-tokens) |[RegisterWallet](#Wallet-related-commands) |
+|[SendCoin](#How-to-use-the-multi-signature-feature-of-wallet-cli) |[TransferAsset](#How-to-issue-TRC10-tokens) | [TriggerContract](#How-to-use-smart-contracts) |
+|[UnfreezeAsset](#How-to-issue-TRC10-tokens) |[UnfreezeBalance](#How-to-delegate-resource) |[UpdateAsset](#How-to-issue-TRC10-tokens) |
+|[UpdateBrokerage](#Brokerage) |[UpdateEnergyLimit](#How-to-use-smart-contracts) |[UpdateSetting](#How-to-use-smart-contracts) |
+|[UpdateAccountPermission](#How-to-use-the-multi-signature-feature-of-wallet-cli) | [VoteWitness](#How-to-vote) |
+
+Type any one of the listed commands, to display how-to tips.
 
 ## How to freeze/unfreeze balance
 
@@ -141,6 +147,52 @@ For example:
 ```
 
 The final result of the above command was 10 votes for witness1 and 0 vote for witness2.
+
+## Brokerage
+
+After voting for the witness, you will receive the rewards. The witness has the right to decide the ratio of brokerage. The default ratio is 20%, and the witness can adjust it.
+
+By default, if a witness is rewarded, he will receive 20% of the whole rewards, and 80% of the rewards will be distributed to his voters.
+
+### GetBrokerage
+
+View the ratio of brokerage of the witness.
+
+    > getbrokerage OwnerAddress
+
+OwnerAddress
+> The address of the witness's account, it is a base58check type address.
+
+### GetReward
+
+Query unclaimed reward.
+
+    > getreward OwnerAddress
+
+OwnerAddress
+> The address of the voter's account, it is a base58check type address.
+
+### UpdateBrokerage
+
+Update the ratio of brokerage, this command is usually used by a witness account.
+
+    > updateBrokerage OwnerAddress brokerage
+
+OwnerAddress
+> The address of the witness's account, it is a base58check type address.
+
+brokerage
+> The ratio of brokerage you want to update to, the limit of it: 0-100.
+
+For example:
+
+```console
+> getbrokerage TZ7U1WVBRLZ2umjizxqz3XfearEHhXKX7h  
+
+> getreward  TNfu3u8jo1LDWerHGbzs2Pv88Biqd85wEY
+
+> updateBrokerage TZ7U1WVBRLZ2umjizxqz3XfearEHhXKX7h 30
+```
 
 ## How to calculate bandwidth
 
@@ -493,55 +545,61 @@ GetProposal
 
 ## How to trade on the exchange
 
-The trading and price fluctuations of trading pairs are in accordance with the Bancor Agreement,
-which can be found in TRON's related documents.
+The trading and price fluctuations of trading pairs are in accordance with the [Bancor Agreement](https://storage.googleapis.com/website-bancor/2018/04/01ba8253-bancor_protocol_whitepaper_en.pdf),
+which can be found in TRON's [related documents](https://developers.tron.network/docs/tronscan-dex).
 
 ### Create a trading pair
 
     > exchangeCreate [OwnerAddress] first_token_id first_token_balance second_token_id second_token_balance
 
-OwnerAddress
-> The address of the account that initiated the transaction, optional, default is the address of the login account.
+OwnerAddress (optional)
+> The address of the account which initiated the transaction.
+> Default: the address of the login account.
 
 First_token_id, first_token_balance
 > ID and amount of the first token
 
 second_token_id, second_token_balance
 > ID and amount of the second token
-> The ID is the ID of the issued TRC10 token. If it is TRX, the ID is "_", the amount must be greater than 0, and less than 1,000,000,000,000,000.
+>
+> The ID is the ID of the issued TRC10 token. 
+> If it is TRX, the ID is "_". 
+> The amount must be greater than 0, and less than 1,000,000,000,000,000.
 
 Example:
 
     > exchangeCreate 1000001 10000 _ 10000
-    # Create trading pairs with the IDs of 1000001 and TRX, the amount is 10000 for both.
+    # Create trading pairs with the IDs of 1000001 and TRX, with amount 10000 for both.
 
 ### Capital injection
 
     > exchangeInject [OwnerAddress] exchange_id token_id quant
 
-OwnerAddress
-> The address of the account that initiated the transaction, optional, default is the address of the login account.
+OwnerAddress (optional)
+> The address of the account which initiated the transaction.
+> Default: the address of the login account.
 
 exchange_id
-> The ID of the transaction pair to be funded
+> The ID of the trading pair to be funded
 
 token_id, quant
-> TokenId and quantity of capital injection
+> TokenId and quantity (unit in base unit) of capital injection
 
-When conducting capital injection, depending on the amount of capital injection, the proportion
-of each token in the transaction pair is deducted from the account and added to the transaction
+When conducting a capital injection, depending on its quantity (quant), a proportion
+of each token in the trading pair will be withdrawn from the account, and injected into the trading
 pair. Depending on the difference in the balance of the transaction, the same amount of money for
-the same token is different.
+the same token would vary.
 
 ### Transactions
 
     > exchangeTransaction [OwnerAddress] exchange_id token_id quant expected
 
-OwnerAddress
-> The address of the account that initiated the transaction, optional, default is the address of the login account.
+OwnerAddress (optional)
+> The address of the account which initiated the transaction.
+> Default: the address of the login account.
 
 exchange_id
-> ID of the transaction pair
+> ID of the trading pair
 
 token_id, quant
 > The ID and quantity of tokens being exchanged, equivalent to selling
@@ -549,37 +607,39 @@ token_id, quant
 expected
 > Expected quantity of another token
 
-The expected must be less than exchanged, otherwise, an error will be reported.
+expected must be less than quant, or an error will be reported.
 
 Example：
 
     > ExchangeTransaction 1 1000001 100 80
 
-It is expected to acquire the 80 TRX by exchanging 1000001 from the transaction pair ID of 1, and the amount is 100 (equivalent to selling token10, the ID is 1000001, the amount is 100).
+It is expected to acquire the 80 TRX by exchanging 1000001 from the trading pair ID of 1, and the amount is 100.(Equivalent to selling an amount of 100 tokenID - 1000001, at a price of 80 TRX, in trading pair ID - 1).
 
-### Divestment
+### Capital Withdrawal
 
     > exchangeWithdraw [OwnerAddress] exchange_id token_id quant
 
-OwnerAddress
-> The address of the account that initiated the transaction, optional, default is the address of the login account.
+OwnerAddress (optional)
+> The address of the account which initiated the transaction.
+> Default: the address of the login account.
 
-> Exchange_id
-The ID of the transaction pair to be divested
+Exchange_id
+
+> 
+The ID of the trading pair to be withdrawn
 
 Token_id, quant
-> TokenId and quantity of divestment
+> TokenId and quantity (unit in base unit) of capital withdrawal
 
-When conducting divestment, depending on the amount of divestment, the proportion of each token
-in the transaction pair is deducted from the account and added to the transaction pair. Depending
-on the difference in the balance of the transaction, the same amount of money for the same token is different.
+When conducting a capital withdrawal, depending on its quantity (quant), a proportion of each token
+in the transaction pair is withdrawn from the trading pair, and injected into the account. Depending on the difference in the balance of the transaction, the same amount of money for the same token would vary.
 
 ### Obtain information on trading pairs
 
 ListExchanges
-> lists trading pairs
+> List trading pairs
 
-ListexchangesPaginated
+ListExchangesPaginated
 > List trading pairs by page
 
 ## How to use the multi-signature feature of wallet-cli?
@@ -1044,6 +1104,9 @@ as: 721d63b074f18d41c147e04c952ec93467777a30b6f16745bc47a8eae5076545
 
 **GetTransactionInfoById**
 > Get transaction-info based on transaction id, generally used to check the result of a smart contract trigger
+
+**GetTransactionInfoByBlockNum**
+> Get the list of transaction information in the block based on the block height
 
 ## How to get block information
 
@@ -2049,6 +2112,7 @@ For more information on a specific command, just type the command on terminal wh
     GetTransactionApprovedList
     GetTransactionById
     GetTransactionCountByBlockNum
+    GetTransactionInfoByBlockNum
     GetTransactionInfoById
     GetTransactionsFromThis
     GetTransactionsToThis

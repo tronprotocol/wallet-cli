@@ -1,5 +1,14 @@
 package org.tron.walletcli;
 
+import java.io.IOException;
+import java.math.BigInteger;
+import java.text.SimpleDateFormat;
+import java.util.*;
+import java.util.Base64.Decoder;
+import java.util.Base64.Encoder;
+import java.util.Map.Entry;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import com.beust.jcommander.JCommander;
 import com.google.common.primitives.Longs;
 import com.google.protobuf.ByteString;
@@ -33,19 +42,18 @@ import org.tron.core.zen.ZenUtils;
 import org.tron.core.zen.address.KeyIo;
 import org.tron.core.zen.address.PaymentAddress;
 import org.tron.keystore.StringUtils;
-import org.tron.protos.Contract.AssetIssueContract;
-import org.tron.protos.Protocol.*;
+import org.tron.protos.contract.AssetIssueContractOuterClass.AssetIssueContract;
+import org.tron.protos.Protocol.Account;
+import org.tron.protos.Protocol.Block;
+import org.tron.protos.Protocol.ChainParameters;
+import org.tron.protos.Protocol.DelegatedResourceAccountIndex;
+import org.tron.protos.Protocol.Exchange;
+import org.tron.protos.Protocol.Proposal;
+import org.tron.protos.contract.SmartContractOuterClass.SmartContract;
+import org.tron.protos.Protocol.Transaction;
+import org.tron.protos.Protocol.TransactionInfo;
 import org.tron.walletserver.WalletApi;
 
-import java.io.IOException;
-import java.math.BigInteger;
-import java.text.SimpleDateFormat;
-import java.util.*;
-import java.util.Base64.Decoder;
-import java.util.Base64.Encoder;
-import java.util.Map.Entry;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 
 public class Client {
@@ -110,6 +118,7 @@ public class Client {
       "GetTransactionApprovedList",
       "GetTransactionById",
       "GetTransactionCountByBlockNum",
+      "GetTransactionInfoByBlockNum",
       "GetTransactionInfoById",
       "GetTransactionsFromThis",
       "GetTransactionsToThis",
@@ -227,6 +236,7 @@ public class Client {
       "GetTransactionApprovedList",
       "GetTransactionById",
       "GetTransactionCountByBlockNum",
+      "GetTransactionInfoByBlockNum",
       "GetTransactionInfoById",
       "GetTransactionsFromThis",
       "GetTransactionsToThis",
@@ -1986,6 +1996,30 @@ public class Client {
     }
     NumberMessage brokerage = walletApiWrapper.getBrokerage(ownerAddress);
     System.out.println("The brokerage is : " + brokerage.getNum());
+  }
+
+  private void getTransactionInfoByBlockNum(String[] parameters) {
+    if (parameters.length != 1) {
+      System.out.println("Too many parameters !!!");
+      System.out.println("You need input number with the following syntax:");
+      System.out.println("GetTransactionInfoByBlockNum number");
+      return;
+    }
+
+    long blockNum = Long.parseLong(parameters[0]);
+    Optional<TransactionInfoList> result = walletApiWrapper.getTransactionInfoByBlockNum(blockNum);
+
+    if (result.isPresent()) {
+      TransactionInfoList transactionInfoList = result.get();
+      if (transactionInfoList.getTransactionInfoCount() == 0) {
+        System.out.println("[]");
+      } else {
+        System.out.println(Utils.printTransactionInfoList(transactionInfoList));
+      }
+    } else {
+      System.out.println("GetTransactionInfoByBlockNum failed !!!");
+    }
+
   }
 
   private String[] getParas(String[] para) {
@@ -3995,6 +4029,10 @@ public class Client {
               showShieldedTRC20AddressInfo(parameters);
               break;
             }
+            case "gettransactioninfobyblocknum": {
+              getTransactionInfoByBlockNum(parameters);
+              break;
+            }
             case "exit":
             case "quit": {
               System.out.println("Exit !!!");
@@ -4020,7 +4058,9 @@ public class Client {
         } catch (Exception e) {
           System.out.println(cmd + " failed!");
           System.out.println(e.getMessage());
-          System.out.println(e.getCause().getMessage());
+          if (e.getCause() != null) {
+            System.out.println(e.getCause().getMessage());
+          }
 //          e.printStackTrace();
         }
       }
