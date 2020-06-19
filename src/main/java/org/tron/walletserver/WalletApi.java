@@ -26,6 +26,7 @@ import org.tron.api.GrpcAPI.BlockListExtention;
 import org.tron.api.GrpcAPI.BytesMessage;
 import org.tron.api.GrpcAPI.DecryptNotes;
 import org.tron.api.GrpcAPI.DecryptNotesMarked;
+import org.tron.api.GrpcAPI.DecryptNotesTRC20;
 import org.tron.api.GrpcAPI.DelegatedResourceList;
 import org.tron.api.GrpcAPI.DiversifierMessage;
 import org.tron.api.GrpcAPI.EasyTransferResponse;
@@ -37,16 +38,24 @@ import org.tron.api.GrpcAPI.IncomingViewingKeyMessage;
 import org.tron.api.GrpcAPI.IvkDecryptAndMarkParameters;
 import org.tron.api.GrpcAPI.IvkDecryptParameters;
 import org.tron.api.GrpcAPI.NfParameters;
+import org.tron.api.GrpcAPI.NfTRC20Parameters;
 import org.tron.api.GrpcAPI.NodeList;
 import org.tron.api.GrpcAPI.NoteParameters;
+import org.tron.api.GrpcAPI.NullifierResult;
+import org.tron.api.GrpcAPI.IvkDecryptTRC20Parameters;
 import org.tron.api.GrpcAPI.OvkDecryptParameters;
+import org.tron.api.GrpcAPI.OvkDecryptTRC20Parameters;
 import org.tron.api.GrpcAPI.PaymentAddressMessage;
 import org.tron.api.GrpcAPI.PrivateParameters;
 import org.tron.api.GrpcAPI.PrivateParametersWithoutAsk;
+import org.tron.api.GrpcAPI.PrivateShieldedTRC20Parameters;
+import org.tron.api.GrpcAPI.PrivateShieldedTRC20ParametersWithoutAsk;
 import org.tron.api.GrpcAPI.ProposalList;
 import org.tron.api.GrpcAPI.Return;
 import org.tron.api.GrpcAPI.SpendAuthSigParameters;
 import org.tron.api.GrpcAPI.SpendResult;
+import org.tron.api.GrpcAPI.ShieldedTRC20Parameters;
+import org.tron.api.GrpcAPI.ShieldedTRC20TriggerContractParameters;
 import org.tron.api.GrpcAPI.TransactionApprovedList;
 import org.tron.api.GrpcAPI.TransactionExtention;
 import org.tron.api.GrpcAPI.TransactionInfoList;
@@ -2562,6 +2571,157 @@ public class WalletApi {
 
   public static GrpcAPI.NumberMessage getBrokerage(byte[] owner) {
     return rpcCli.getBrokerage(owner);
+  }
+
+  public static Optional<DecryptNotesTRC20> scanShieldedTRC20NoteByIvk(
+          IvkDecryptTRC20Parameters parameters, boolean showErrorMsg) {
+    try {
+      return Optional.of(rpcCli.scanShieldedTRC20NoteByIvk(parameters));
+    } catch (Exception e) {
+      if (showErrorMsg) {
+        Status status = Status.fromThrowable(e);
+        System.out.println("ScanShieldedTRC20NoteByIvk failed,error " + status.getDescription());
+      }
+    }
+    return Optional.empty();
+  }
+
+  public static Optional<DecryptNotesTRC20> scanShieldedTRC20NoteByOvk(
+          OvkDecryptTRC20Parameters parameters, boolean showErrorMsg) {
+    try {
+      return Optional.of(rpcCli.scanShieldedTRC20NoteByOvk(parameters));
+    } catch (Exception e) {
+      if (showErrorMsg) {
+        Status status = Status.fromThrowable(e);
+        System.out.println("ScanShieldedTRC20NoteByOvk failed,error " + status.getDescription());
+      }
+    }
+    return Optional.empty();
+  }
+
+  public String constantCallShieldedContract(byte[] contractAddress, byte[] data, String functionName) {
+    byte[] address = getAddress();
+    TriggerSmartContract triggerContract =
+        triggerCallContract(address, contractAddress, 0, data, 0, "");
+    TransactionExtention transactionExtention = rpcCli.triggerConstantContract(triggerContract);
+
+    if (transactionExtention == null || !transactionExtention.getResult().getResult()) {
+      System.out.println("Get " + functionName + " failed!");
+      System.out.println("Code = " + transactionExtention.getResult().getCode());
+      System.out.println(
+          "Message = " + transactionExtention.getResult().getMessage().toStringUtf8());
+      return null;
+    }
+
+    Transaction transaction = transactionExtention.getTransaction();
+    if (transaction.getRetCount() != 0
+        && transactionExtention.getConstantResult(0) != null
+        && transactionExtention.getResult() != null) {
+      byte[] result = transactionExtention.getConstantResult(0).toByteArray();
+      return ByteArray.toHexString(result);
+    } else {
+      return null;
+    }
+  }
+
+  public static ShieldedTRC20Parameters createShieldedContractParameters(
+      PrivateShieldedTRC20Parameters privateParameters) {
+    try {
+      return rpcCli.createShieldedContractParameters(privateParameters);
+    } catch (Exception e) {
+      Status status = Status.fromThrowable(e);
+      System.out.println("createShieldedContractParameters failed,error " + status.getDescription());
+    }
+    return null;
+  }
+
+  public static ShieldedTRC20Parameters createShieldedContractParametersWithoutAsk(
+      PrivateShieldedTRC20ParametersWithoutAsk privateParameters, byte[] ask) {
+    ShieldedTRC20Parameters parameters;
+    try {
+      parameters = rpcCli.createShieldedContractParametersWithoutAsk(privateParameters);
+    } catch (Exception e) {
+      Status status = Status.fromThrowable(e);
+      System.out.println("createShieldedContractParametersWithoutAsk failed,error "
+          + status.getDescription());
+      parameters = null;
+    }
+
+    if (parameters == null) {
+      System.out.println("createShieldedContractParametersWithoutAsk failed!");
+      return null;
+    }
+
+    if (parameters.getParameterType().equals("mint")) {
+        return parameters;
+    }
+    //generate spendAuthority signature and trigger input data
+    ShieldedTRC20TriggerContractParameters.Builder stBuilder =
+        ShieldedTRC20TriggerContractParameters.newBuilder();
+    stBuilder.setShieldedTRC20Parameters(parameters);
+    if (parameters.getParameterType().equals("burn")) {
+      stBuilder.setAmount(privateParameters.getToAmount());
+      stBuilder.setTransparentToAddress(privateParameters.getTransparentToAddress());
+    }
+    ByteString messageHash = parameters.getMessageHash();
+    List<SpendDescription> spendDescList = parameters.getSpendDescriptionList();
+    ShieldedTRC20Parameters.Builder newBuilder =
+        ShieldedTRC20Parameters.newBuilder().mergeFrom(parameters);
+    for (int i = 0; i < spendDescList.size(); i++) {
+      SpendAuthSigParameters.Builder builder = SpendAuthSigParameters.newBuilder();
+      builder.setAsk(ByteString.copyFrom(ask));
+      builder.setTxHash(messageHash);
+      builder.setAlpha(privateParameters.getShieldedSpends(i).getAlpha());
+
+      BytesMessage authSig;
+      try {
+        authSig = rpcCli.createSpendAuthSig(builder.build());
+      } catch (Exception e) {
+        Status status = Status.fromThrowable(e);
+        System.out.println("createSpendAuthSig failed,error "
+            + status.getDescription());
+        authSig = null;
+      }
+      if (authSig == null) {
+        return null;
+      }
+      newBuilder.getSpendDescriptionBuilder(i)
+                .setSpendAuthoritySignature(
+                    ByteString.copyFrom(
+                        authSig.getValue().toByteArray()));
+      stBuilder.addSpendAuthoritySignature(authSig);
+    }
+    BytesMessage triggerInputData;
+    try {
+      triggerInputData = rpcCli.getTriggerInputForShieldedTRC20Contract(stBuilder.build());
+    } catch (Exception e) {
+      triggerInputData = null;
+      System.out.println("getTriggerInputForShieldedTRC20Contract error, please retry!");
+    }
+    if (triggerInputData == null) {
+      return null;
+    }
+    newBuilder.setTriggerContractInput(
+        ByteArray.toHexString(triggerInputData.getValue().toByteArray()));
+    return newBuilder.build();
+  }
+
+  public static Optional<NullifierResult> isShieldedTRC20ContractNoteSpent(
+      NfTRC20Parameters parameters, boolean showErrorMsg) {
+    if (showErrorMsg) {
+      try {
+        return Optional.of(rpcCli.isShieldedTRC20ContractNoteSpent(parameters));
+      } catch (Exception e) {
+        if (showErrorMsg) {
+          Status status = Status.fromThrowable(e);
+          System.out.println("IsShieldedTRC20ContractNoteSpent failed, error "
+              + status.getDescription());
+        }
+      }
+    } else {
+      return Optional.of(rpcCli.isShieldedTRC20ContractNoteSpent(parameters));
+    }
+    return Optional.empty();
   }
 
   public static Optional<TransactionInfoList> getTransactionInfoByBlockNum(long blockNum) {
