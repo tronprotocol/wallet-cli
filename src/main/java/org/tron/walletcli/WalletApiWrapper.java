@@ -1260,7 +1260,7 @@ public class WalletApiWrapper {
           return false;
         }
       }
-      // System.out.println(Utils.formatMessageString(notes.get()));
+
       System.out.println("[");
       for(DecryptNotesTRC20.NoteTx noteTx : notes.get().getNoteTxsList()) {
         System.out.println("\t{");
@@ -1315,7 +1315,7 @@ public class WalletApiWrapper {
           return false;
         }
       }
-      // System.out.println(Utils.formatMessageString(notes.get()));
+
       System.out.println("[");
       for(DecryptNotesTRC20.NoteTx noteTx : notes.get().getNoteTxsList()) {
         System.out.println("\t{");
@@ -1383,6 +1383,10 @@ public class WalletApiWrapper {
     PrivateShieldedTRC20Parameters.Builder builder = PrivateShieldedTRC20Parameters.newBuilder();
     builder.setFromAmount(fromAmount.toString());
     byte[] shieldedContractAddressBytes = WalletApi.decodeFromBase58Check(shieldedContractAddress);
+    if (shieldedContractAddressBytes == null) {
+      System.out.println("Invalid shieldedContractAddress.");
+      return false;
+    }
     builder.setShieldedTRC20ContractAddress(ByteString.copyFrom(shieldedContractAddressBytes));
 
     if (!StringUtil.isNullOrEmpty(toAddress)) {
@@ -1395,7 +1399,7 @@ public class WalletApiWrapper {
     }
 
     long valueBalance = 0;
-    if (shieldedInputList.size() > 0) {
+    if (!shieldedInputList.isEmpty()) {
       List<String> rootAndPath = new ArrayList<>();
       for (int i = 0; i < shieldedInputList.size(); i++) {
         ShieldedTRC20NoteInfo noteInfo = ShieldedTRC20Wrapper.getInstance().getUtxoMapNote()
@@ -1458,12 +1462,11 @@ public class WalletApiWrapper {
         builder.addShieldedSpends(spendTRC20NoteBuilder.build());
       }
     } else {
-      //@TODO remove randomOvk by sha256.of(privateKey)
       byte[] ovk = getRandomOvk();
       if (ovk != null) {
         builder.setOvk(ByteString.copyFrom(ovk));
       } else {
-        System.out.println("Get random ovk from Rpc failure,please check config");
+        System.out.println("Get random ovk from Rpc failure, please check config");
         return false;
       }
     }
@@ -1493,7 +1496,7 @@ public class WalletApiWrapper {
       return false;
     }
 
-    if (shieldedContractType == 0) {//MINT
+    if (shieldedContractType == 0) { //MINT
       boolean setAllowanceResult = setAllowance(contractAddress, shieldedContractAddress,
           fromAmount);
       if (!setAllowanceResult) {
@@ -1517,7 +1520,7 @@ public class WalletApiWrapper {
         System.out.println("Trigger shielded contract TRANSFER failed!");
         return false;
       }
-    } else if (shieldedContractType == 2) {//BURN
+    } else if (shieldedContractType == 2) { //BURN
       boolean burnResult = triggerShieldedContract(shieldedContractAddress, inputData, 2);
       if (burnResult) {
         System.out.println("BURN succeed!");
@@ -1565,6 +1568,10 @@ public class WalletApiWrapper {
         PrivateShieldedTRC20ParametersWithoutAsk.newBuilder();
     builder.setFromAmount(fromAmount.toString());
     byte[] shieldedContractAddressBytes = WalletApi.decodeFromBase58Check(shieldedContractAddress);
+    if (shieldedContractAddressBytes == null) {
+      System.out.println("Invalid shieldedContractAddress.");
+      return false;
+    }
     builder.setShieldedTRC20ContractAddress(ByteString.copyFrom(shieldedContractAddressBytes));
 
     if (!StringUtil.isNullOrEmpty(toAddress)) {
@@ -1578,7 +1585,7 @@ public class WalletApiWrapper {
 
     byte[] ask = new byte[32];
     long valueBalance = 0;
-    if (shieldedInputList.size() > 0) {
+    if (!shieldedInputList.isEmpty()) {
       List<String> rootAndPath = new ArrayList<>();
       for (int i = 0; i < shieldedInputList.size(); i++) {
         ShieldedTRC20NoteInfo noteInfo = ShieldedTRC20Wrapper.getInstance().getUtxoMapNote()
@@ -1643,7 +1650,6 @@ public class WalletApiWrapper {
         valueBalance = Math.addExact(valueBalance, noteInfo.getValue());
       }
     } else {
-      //@TODO remove randomOvk by sha256.of(privateKey)
       byte[] ovk = getRandomOvk();
       if (ovk != null) {
         builder.setOvk(ByteString.copyFrom(ovk));
@@ -1682,7 +1688,7 @@ public class WalletApiWrapper {
           "please check input data!");
       return false;
     }
-    if (shieldedContractType == 0) {//MINT
+    if (shieldedContractType == 0) { //MINT
       boolean setAllowanceResult = setAllowance(contractAddress, shieldedContractAddress,
           fromAmount);
       if (!setAllowanceResult) {
@@ -1706,7 +1712,7 @@ public class WalletApiWrapper {
         System.out.println("Trigger shielded contract TRANSFER failed!");
         return false;
       }
-    } else if (shieldedContractType == 2) {//BURN
+    } else if (shieldedContractType == 2) { //BURN
       boolean burnResult = triggerShieldedContract(shieldedContractAddress, inputData, 2);
       if (burnResult) {
         System.out.println("BURN succeed!");

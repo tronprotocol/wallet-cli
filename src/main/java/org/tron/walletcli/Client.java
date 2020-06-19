@@ -2438,7 +2438,7 @@ public class Client {
         shieldedInputAddress = noteInfo.getPaymentAddress();
       } else {
         if (!noteInfo.getPaymentAddress().equals(shieldedInputAddress)) {
-          System.err.println("All the input notes should be the same address!");
+          System.out.println("All the input notes should be the same address!");
           return false;
         }
       }
@@ -3058,7 +3058,7 @@ public class Client {
 
     if (showType == 0) {
       List<String> utxoList = ShieldedTRC20Wrapper.getInstance().getvalidateSortUtxoList();
-      if (utxoList.size() == 0) {
+      if (utxoList.isEmpty()) {
         System.out.println("The count of unspent note is 0.");
       } else {
         System.out.println("The unspent note list is shown below:");
@@ -3145,7 +3145,8 @@ public class Client {
       System.out.println("ScanShieldedTRC20NoteByIvk failed! Invalid shieldedTRC20ContractAddress");
       return;
     }
-    long startNum, endNum;
+    long startNum;
+    long endNum;
     try {
       startNum = Long.parseLong(parameters[4]);
       endNum = Long.parseLong(parameters[5]);
@@ -3179,7 +3180,8 @@ public class Client {
       System.out.println("ScanShieldedTRC20NoteByOvk failed! Invalid shieldedTRC20ContractAddress");
       return;
     }
-    long startNum, endNum;
+    long startNum;
+    long endNum;
     try {
       startNum = Long.parseLong(parameters[2]);
       endNum = Long.parseLong(parameters[3]);
@@ -3307,7 +3309,7 @@ public class Client {
         shieldedInputAddress = noteInfo.getPaymentAddress();
       } else {
         if (!noteInfo.getPaymentAddress().equals(shieldedInputAddress)) {
-          System.err.println("All the input notes should be the same address!");
+          System.out.println("All the input notes should be the same address!");
           return false;
         }
       }
@@ -3392,7 +3394,7 @@ public class Client {
 
     int shieldedContractType = -1;
     if (fromPublicAmount.compareTo(BigInteger.ZERO) > 0 && shieldedOutList.size() == 1
-        && shieldedInputList.size() == 0 && toPublicAmount.compareTo(BigInteger.ZERO) == 0) {
+        && shieldedInputList.isEmpty() && toPublicAmount.compareTo(BigInteger.ZERO) == 0) {
       System.out.println("This is MINT.");
       shieldedContractType = 0;
     } else if (fromPublicAmount.compareTo(BigInteger.ZERO) == 0
