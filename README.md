@@ -60,27 +60,34 @@ For more information on a specific command, just type the command on terminal wh
 
 | [AddTransactionSign](#How-to-use-the-multi-signature-feature-of-wallet-cli) | [ApproveProposal](#Approvecancel-the-proposal)  | [AssetIssue](#How-to-issue-TRC10-tokens) |
 | :---------:|:---------:|:--------: |
-| [BackupWallet](#Wallet-related-commands)| [BackupWallet2Base64](#Wallet-related-commands) | [BroadcastTransaction](#Some-others) |
-|[ChangePassword](#Wallet-related-commands)| [CreateProposal](#How-to-initiate-a-proposal) |[DeleteProposal](#Cancel-the-created-proposal) |
-| [DeployContract](#How-to-use-smart-contract) | [ExchangeCreate](#How-to-trade-on-the-exchange) | [ExchangeInject](#How-to-trade-on-the-exchange) |
-| [ExchangeTransaction](#How-to-trade-on-the-exchange) | [ExchangeWithdraw](#How-to-trade-on-the-exchange) | [FreezeBalance](#How-to-delegate-resourcee) |
-| [GenerateAddress](#Account-related-commands) | [GetAccount](#Account-related-commands) |[GetAccountNet](#Account-related-commands) |
-|[GetAccountResource](#Account-related-commands) | [GetAddress](#Account-related-commands) |[GetAssetIssueByAccount](#How-to-issue-TRC10-tokens) |
-|[GetAssetIssueById](#How-to-issue-TRC10-tokens) | [GetAssetIssueByName](#How-to-issue-TRC10-tokens) |[GetAssetIssueListByName](#How-to-issue-TRC10-tokens) |
-|[GetBalance](#Account-related-commands) | [GetBlock](#How-to-get-block-information) |[GetBlockById](#How-to-get-block-information) |
-|[GetBlockByLatestNum](#How-to-get-block-information) | [GetBlockByLimitNext](#How-to-get-block-information) |[GetBrokerage](#Brokerage) |
-|[GetContract](#How-to-use-smart-contracts) |[GetDelegatedResource](#How-to-delegate-resource) |[GetDelegatedResourceAccountIndex](#How-to-delegate-resource) |
-|[GetNextMaintenanceTime](#Some-others) |[GetProposal](#Get-proposal-information) |[GetReward](#Brokerage) |
-|[GetTransactionApprovedList](#How-to-use-the-multi-signature-feature-of-wallet-cli) |[GetTransactionById](#How-to-get-transaction-information) |[GetTransactionCountByBlockNum](#How-to-get-transaction-information) |
-|[GetTransactionInfoByBlockNum](#How-to-get-transaction-information) | [GetTransactionInfoById](#How-to-get-transaction-information) |[GetTransactionSignWeight](#How-to-use-the-multi-signature-feature-of-wallet-cli) |
-|[ImportWallet](#Wallet-related-commands) |[ImportWalletByBase64](#Wallet-related-commands) |[ListAssetIssue](#Get-Token10) |
-|[ListExchanges](#How-to-trade-on-the-exchange) |[ListExchangesPaginated](#How-to-trade-on-the-exchange) |[ListNodes](#Some-others) |
-|[ListProposals](#How-to-initiate-a-proposal) | [ListProposalsPaginated](#How-to-initiate-a-proposal) | [ListWitnesses](#Some-others) |
-|[Login](#Command-line-operation-flow-example) |[ParticipateAssetIssue](#How-to-issue-TRC10-tokens) |[RegisterWallet](#Wallet-related-commands) |
-|[SendCoin](#How-to-use-the-multi-signature-feature-of-wallet-cli) |[TransferAsset](#How-to-issue-TRC10-tokens) | [TriggerContract](#How-to-use-smart-contracts) |
-|[UnfreezeAsset](#How-to-issue-TRC10-tokens) |[UnfreezeBalance](#How-to-delegate-resource) |[UpdateAsset](#How-to-issue-TRC10-tokens) |
-|[UpdateBrokerage](#Brokerage) |[UpdateEnergyLimit](#How-to-use-smart-contracts) |[UpdateSetting](#How-to-use-smart-contracts) |
-|[UpdateAccountPermission](#How-to-use-the-multi-signature-feature-of-wallet-cli) | [VoteWitness](#How-to-vote) |
+| [BackupShieldedTRC20Wallet](#How-to-transfer-shielded-TRC20-token) | [BackupWallet](#Wallet-related-commands)| [BackupWallet2Base64](#Wallet-related-commands) |
+| [BroadcastTransaction](#Some-others) | [ChangePassword](#Wallet-related-commands)| [CreateProposal](#How-to-initiate-a-proposal) 
+| [DeleteProposal](#Cancel-the-created-proposal) | [DeployContract](#How-to-use-smart-contract) | [ExchangeCreate](#How-to-trade-on-the-exchange) |
+| [ExchangeInject](#How-to-trade-on-the-exchange) | [ExchangeTransaction](#How-to-trade-on-the-exchange) | [ExchangeWithdraw](#How-to-trade-on-the-exchange) |
+| [FreezeBalance](#How-to-delegate-resourcee) | [GenerateAddress](#Account-related-commands) | [GenerateShieldedTRC20Address](#How-to-transfer-shielded-TRC20-token)|
+| [GetAccount](#Account-related-commands) |[GetAccountNet](#Account-related-commands) | [GetAccountResource](#Account-related-commands) | 
+| [GetAddress](#Account-related-commands) | [GetAkFromAsk](#How-to-transfer-shielded-TRC20-token) |[GetAssetIssueByAccount](#How-to-issue-TRC10-tokens) | 
+| [GetAssetIssueById](#How-to-issue-TRC10-tokens) | [GetAssetIssueByName](#How-to-issue-TRC10-tokens) |[GetAssetIssueListByName](#How-to-issue-TRC10-tokens) | 
+| [GetBalance](#Account-related-commands) | [GetBlock](#How-to-get-block-information) |[GetBlockById](#How-to-get-block-information) | 
+| [GetBlockByLatestNum](#How-to-get-block-information) | [GetBlockByLimitNext](#How-to-get-block-information) | [GetBrokerage](#Brokerage) | 
+| [GetContract](#How-to-use-smart-contracts) | [GetDelegatedResource](#How-to-delegate-resource) |[GetDelegatedResourceAccountIndex](#How-to-delegate-resource) | 
+| [GetDiversifier](#How-to-transfer-shielded-TRC20-token)| [GetExpandedSpendingKey](#How-to-transfer-shielded-TRC20-token)| [GetIncomingViewingKey](#How-to-transfer-shielded-TRC20-token)| 
+| [GetNextMaintenanceTime](#Some-others) | [GetNkFromNsk](#How-to-transfer-shielded-TRC20-token) | [GetProposal](#Get-proposal-information) | 
+| [GetShieldedPaymentAddress](#How-to-transfer-shielded-TRC20-token)| [GetSpendingKey](#How-to-transfer-shielded-TRC20-token) | [GetReward](#Brokerage) | 
+| [GetTransactionApprovedList](#How-to-use-the-multi-signature-feature-of-wallet-cli) |[GetTransactionById](#How-to-get-transaction-information) | [GetTransactionCountByBlockNum](#How-to-get-transaction-information) | 
+| [GetTransactionInfoByBlockNum](#How-to-get-transaction-information) | [GetTransactionInfoById](#How-to-get-transaction-information) | [GetTransactionSignWeight](#How-to-use-the-multi-signature-feature-of-wallet-cli) | 
+| [ImportShieldedTRC20Wallet](#How-to-transfer-shielded-TRC20-token) | [ImportWallet](#Wallet-related-commands) | [ImportWalletByBase64](#Wallet-related-commands) |
+| [ListAssetIssue](#Get-Token10) | [ListExchanges](#How-to-trade-on-the-exchange) | [ListExchangesPaginated](#How-to-trade-on-the-exchange) |
+| [ListNodes](#Some-others) | [ListShieldedTRC20Address](#How-to-transfer-shielded-TRC20-token) | [ListShieldedTRC20Note](#How-to-transfer-shielded-TRC20-token) | 
+| [ListProposals](#How-to-initiate-a-proposal) | [ListProposalsPaginated](#How-to-initiate-a-proposal) | [ListWitnesses](#Some-others) | 
+| [LoadShieldedTRC20Wallet](#How-to-transfer-shielded-TRC20-token) | [Login](#Command-line-operation-flow-example) | [ParticipateAssetIssue](#How-to-issue-TRC10-tokens) |
+| [RegisterWallet](#Wallet-related-commands) | [ResetShieldedTRC20Note](#How-to-transfer-shielded-TRC20-token) | [ScanShieldedTRC20NoteByIvk](#How-to-transfer-shielded-TRC20-token) | 
+| [ScanShieldedTRC20NoteByOvk](#How-to-transfer-shielded-TRC20-token) |[SendCoin](#How-to-use-the-multi-signature-feature-of-wallet-cli) | [SendShieldedTRC20Coin](#How-to-transfer-shielded-TRC20-token) | 
+| [SendShieldedTRC20CoinWithoutAsk](#How-to-transfer-shielded-TRC20-token) | [SetShieldedTRC20ContractAddress](#How-to-transfer-shielded-TRC20-token) | [ShowShieldedTRC20AddressInfo](#How-to-transfer-shielded-TRC20-token) | 
+| [TransferAsset](#How-to-issue-TRC10-tokens) | [TriggerContract](#How-to-use-smart-contracts) |[UnfreezeAsset](#How-to-issue-TRC10-tokens) |
+| [UnfreezeBalance](#How-to-delegate-resource) |[UpdateAsset](#How-to-issue-TRC10-tokens) | [UpdateBrokerage](#Brokerage) |
+| [UpdateEnergyLimit](#How-to-use-smart-contracts) |[UpdateSetting](#How-to-use-smart-contracts) | [UpdateAccountPermission](#How-to-use-the-multi-signature-feature-of-wallet-cli) | 
+| [VoteWitness](#How-to-vote) |
 
 Type any one of the listed commands, to display how-to tips.
 
@@ -2087,6 +2094,7 @@ For more information on a specific command, just type the command on terminal wh
     GetAccountNet
     GetAccountResource
     GetAddress
+    GetAkFromAsk
     GetAssetIssueByAccount
     GetAssetIssueById
     GetAssetIssueByName
@@ -2105,9 +2113,10 @@ For more information on a specific command, just type the command on terminal wh
     GetExpandedSpendingKey
     GetIncomingViewingKey
     GetNextMaintenanceTime
+    GetNkFromNsk
+    GetProposal
     GetShieldedPaymentAddress
     GetSpendingKey
-    GetProposal
     GetTotalTransaction
     GetTransactionApprovedList
     GetTransactionById
