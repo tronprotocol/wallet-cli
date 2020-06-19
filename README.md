@@ -1685,8 +1685,10 @@ Shielded transfer, support three types:
  sum of shielded input amount should be equal to the sum of shielded output amount. When you
  TRANSFER, you need to enter password of public account as prompted, and this is used to trigger
  'transfer' method of shielded contract that executes TRANSFER. 
-- BURN: transfer from one shielded address to one public address, toAmount should be equal to the
- shielded input amount.When you BURN, you need to enter password of public account as prompted, and
+- BURN: transfer from one shielded address to one public address and one optional shielded
+ address. If there is no shielded output, toAmount should be equal to the shielded input amount
+ , otherwise, the sum of toAmount and shielded output amount should be equal to the shielded
+  input amount. When you BURN, you need to enter password of public account as prompted, and
  this is used to trigger 'burn' method of shielded contract that executes BURN. 
 
 It's better to use different accounts to trigger BURN, TRANSFER and MINT.
@@ -1793,7 +1795,7 @@ In this example, the scalingFactor is 1000.
 
 3. BURN 
 
-    **In this mode, some variables must be set as follows, fromAmount = 0, shieldedInputNum = 1, shieldedOutputNum = 0.**
+    **In this mode, some variables must be set as follows, fromAmount = 0, shieldedInputNum = 1.**
     ```console
     > ListShieldedTRC20Note
     This command will show all the unspent notes.
@@ -1805,6 +1807,7 @@ In this example, the scalingFactor is 1000.
     No matter you MINT, TRANSFER or BURN, the value must be an integer multiple of 1000
 
     > SendShieldedTRC20Coin 0 1 14 TDVr15jvAx6maR28tP7RRpxuKZ38tgsyNE 1300000000000000 0
+    > SendShieldedTRC20Coin 0 1 14 TDVr15jvAx6maR28tP7RRpxuKZ38tgsyNE 300000000000000 1 ztron1mm20lkcpj6tx6jfd6ek5fxkgmpk9f2hda6vxdtkwlzr45ez32wa7dt8uka9xwfqamr7zyk7jpzf 1000000000000000 null
     ```
 
 ### SendShieldedTRC20CoinWithoutAsk
