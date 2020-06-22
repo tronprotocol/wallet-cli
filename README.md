@@ -1881,11 +1881,7 @@ endNum
 > The end block number of the scan
 
 event1/event2
-> The events you want to scan. These events must be compatible with standard events, that is
->,MintNewLeaf(uint256,bytes32,bytes32,bytes32,bytes32[21]), TransferNewLeaf(uint256,bytes32
->,bytes32,bytes32,bytes32[21]) and BurnNewLeaf(uint256,bytes32,bytes32,bytes32,bytes32[21]). If
-> you ignore this field, the command will scan the standard events.
->In most cases, you can ignore these parameters.
+> The events you want to scan. These events must be compatible with standard events, that is, MintNewLeaf(uint256,bytes32,bytes32,bytes32,bytes32[21]), TransferNewLeaf(uint256,bytes32,bytes32,bytes32,bytes32[21]) and BurnNewLeaf(uint256,bytes32,bytes32,bytes32,bytes32[21]). If you ignore this field, the command will scan the standard events. In most cases, you can ignore these parameters.
 
 Example:
 
