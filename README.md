@@ -1528,8 +1528,11 @@ Example:
 0eb458b309fa544066c40d80ce30a8002756c37d2716315c59a98c893dbb5f6a
 ```
 
-### GetExpandedSpendingKey sk
+### GetExpandedSpendingKey
 
+```console
+> GetExpandedSpendingKey sk
+```
 Generate ask, nsk, ovk from sk
 
 Example:
@@ -1541,7 +1544,11 @@ nsk:5cd2bc8d9468dbad26ea37c5335a0cd25f110eaf533248c59a3310dcbc03e503
 ovk:892a10c1d3e8ea22242849e13f177d69e1180d1d5bba118c586765241ba2d3d6
 ```
 
-### GetAkFromAsk ask
+### GetAkFromAsk
+
+```console
+> GetAkFromAsk ask
+```
 Generate ak from ask
 
 Example:
@@ -1551,8 +1558,11 @@ Example:
 ak:f1b843147150027daa5b522dd8d0757ec5c8c146defd8e01b62b34cf917299f1
 ```
 
-### GetNkFromNsk nsk
+### GetNkFromNsk
 
+```console
+> GetNkFromNsk nsk
+```
 Generate nk from nsk
 
 Example:
@@ -1562,8 +1572,11 @@ Example:
 nk:ed3dc885049f0a716a4de8c08c6cabcad0da3c437202341aa3d9248d8eb2b74a
 ```
 
-### GetIncomingViewingKey ak[64] nk[64]
+### GetIncomingViewingKey
 
+```console
+> GetIncomingViewingKey ak[64] nk[64]
+```
 Generate ivk from ak and nk
 
 Example:
@@ -1585,8 +1598,11 @@ Example:
 11db4baf6bd5d5afd3a8b5
 ```
 
-### GetShieldedPaymentAddress ivk[64] d[22]
+### GetShieldedPaymentAddress
 
+```console
+> GetShieldedPaymentAddress ivk[64] d[22]
+```
 Generate a shielded address from ivk and d
 
 Example:
@@ -1598,18 +1614,23 @@ pkd:65c11642115d386ed716b9cc06a3498e86e303d7f20d0869c9de90e31322ac15
 shieldedAddress:ztron1z8d5htmt6h26l5agk4juz9jzz9wnsmkhz6uucp4rfx8gdccr6leq6zrfe80fpccny2kp2cray8z
 ```
 
-### SetShieldedTRC20ContractAddress TRC20ContractAddress ShieldedContractAddress
+### SetShieldedTRC20ContractAddress
+
+```console
+> SetShieldedTRC20ContractAddress TRC20ContractAddress ShieldedContractAddress
+```
+TRC20ContractAddress
+> TRC20 contract address
+
+ShieldedContractAddress
+> Shielded contract address
 
 Set TRC20 contract address and shielded contract address. Please execute this command before you perform all the following operations related to the shielded transaction of TRC20 token except `ScanShieldedTRC20NoteByIvk` and `ScanShieldedTRC20NoteByOvk`.
 
 When you execute this command, the `Scaling Factor` will be shown. The `Scaling Factor` is set in
  the shielded contract. 
 
-TRC20ContractAddress
-> TRC20 contract address
 
-ShieldedContractAddress
-> Shielded contract address
 
 Example:
 
@@ -1635,12 +1656,15 @@ Please input your password for shieldedTRC20 wallet.
 LoadShieldedTRC20Wallet successful !!!
 ```
 
-### GenerateShieldedTRC20Address number
+### GenerateShieldedTRC20Address
 
-Generate TRC20 shielded addresses.
-
+```console
+> GenerateShieldedTRC20Address number
+```
 number
 > The number of TRC20 shielded addresses, the default is 1.
+
+Generate TRC20 shielded addresses.
 
 Example:
 
@@ -1814,12 +1838,15 @@ In this example, the scalingFactor is 1000.
 
 Usage and parameters are consistent with the command SendShieldedTRC20Coin, the only difference is that SendShieldedTRC20Coin uses ask for signature, but SendShieldedTRC20CoinWithoutAsk uses ak.
 
-### ListShieldedTRC20Note type
+### ListShieldedTRC20Note
 
-List the note scanned by the local cache address, and the `Scaling Factor`.
-
+```console
+> ListShieldedTRC20Note type
+```
 type
 > Shows the type of note. If the variable is omitted or set to 0, it shows all unspent notes; For other values, it shows all the notes, including spent notes and unspent notes.
+
+List the note scanned by the local cache address, and the `Scaling Factor`.
 
 Example:
 
@@ -1858,9 +1885,11 @@ No matter you MINT, TRANSFER or BURN, the value must be an integer multiple of 1
 
 Clean all the notes scanned, and rescan all blocks. Generally used when there is a problem with the notes or when switching environments.
 
-### ScanShieldedTRC20NoteByIvk shieldedTRC20ContractAddress ivk ak nk startNum endNum [event1] [event2] ...
+### ScanShieldedTRC20NoteByIvk
 
-Scan notes by ivk, ak and nk.
+```console
+> ScanShieldedTRC20NoteByIvk shieldedTRC20ContractAddress ivk ak nk startNum endNum [event1] [event2] ...
+```
 
 shieldedTRC20ContractAddress
 > The address of shielded contract
@@ -1883,60 +1912,63 @@ endNum
 event1/event2
 > The events you want to scan. These events must be compatible with standard events, that is, MintNewLeaf(uint256,bytes32,bytes32,bytes32,bytes32[21]), TransferNewLeaf(uint256,bytes32,bytes32,bytes32,bytes32[21]) and BurnNewLeaf(uint256,bytes32,bytes32,bytes32,bytes32[21]). If you ignore this field, the command will scan the standard events. In most cases, you can ignore these parameters.
 
+Scan notes by ivk, ak and nk.
+
 Example:
 
 ```console
 > ScanShieldedTRC20NoteByIvk TVqa39sqP8ZJNTWjtKrDRifGdVmA4Ycsxu fed8fa4714e6a19511760f9b8ed33388f14c626adff26034f4a21557cb928f01 faf63a2d959df05d4441c0fd42262e0a53629c532e8d29501fe94f9d86c51313 66458c23d737a30146533374d7c5c78f3e05f8f158192e8855493cc55cf8953f 5000 5400
 [
-	{
-		 note: {
-			 value: 100000
-			 payment_address: ztron12dq4ktrydrxzxrsgpmusp4pe0xawqyz4qfxzsgjdauw99n4n3efnw4kmrptlw8jcrrydx5694mw
-			 rcm: a45878a4e0d53f5cac79370fea1bf4aa82c67d3b2f647ac89c2b1e7061ea740a
-			 memo: without ask 2v1
-		 }
-		 position: 10
-		 is_spent: true
-		 tx_id: 5891fd3a8e860b336b7f7d31f64ec52ec5dc76f81b9bb4e4d0fa8a5756a61dd6
-	}
+    {
+        note: {
+            value: 100000
+            payment_address:
+            ztron12dq4ktrydrxzxrsgpmusp4pe0xawqyz4qfxzsgjdauw99n4n3efnw4kmrptlw8jcrrydx5694mw
+            rcm: a45878a4e0d53f5cac79370fea1bf4aa82c67d3b2f647ac89c2b1e7061ea740a
+            memo: without ask 2v1
+        }
+        position: 10
+        is_spent: true
+        tx_id: 5891fd3a8e860b336b7f7d31f64ec52ec5dc76f81b9bb4e4d0fa8a5756a61dd6
+    }
 ]
 
 > ScanShieldedTRC20NoteByIvk TVqa39sqP8ZJNTWjtKrDRifGdVmA4Ycsxu fed8fa4714e6a19511760f9b8ed33388f14c626adff26034f4a21557cb928f01  faf63a2d959df05d4441c0fd42262e0a53629c532e8d29501fe94f9d86c51313 66458c23d737a30146533374d7c5c78f3e05f8f158192e8855493cc55cf8953f 5000  6000 MintNewLeaf(uint256,bytes32,bytes32,bytes32,bytes32[21])
-  [
-  	{
-  		 note: {
-  			 value: 100000
-  			 payment_address: ztron1z8d5htmt6h26l5agk4ywv86xv3shuv4gjc2rzufyz4s2g5x0035nwrcqmxj4a49n2dy5sq28s5p
-  			 rcm: 07604b4a8018d353c08f93044df0fc04ef988c2f65f9222eacc8d41f0e095404
-  			 memo: mint
-  		 }
-  		 position: 16
-  		 is_spent: false
-  		 tx_id: 38d759216f62503c2b8bf7fc9777e6e25f5f77ec22dd760cc03057c4704277a2
-  	}
-  ] 
+[
+    {
+        note: {
+            value: 100000
+            payment_address: ztron1z8d5htmt6h26l5agk4ywv86xv3shuv4gjc2rzufyz4s2g5x0035nwrcqmxj4a49n2dy5sq28s5p
+            rcm: 07604b4a8018d353c08f93044df0fc04ef988c2f65f9222eacc8d41f0e095404
+            memo: mint
+        }
+        position: 16
+        is_spent: false
+        tx_id: 38d759216f62503c2b8bf7fc9777e6e25f5f77ec22dd760cc03057c4704277a2
+    }
+] 
 
 > ScanShieldedTRC20NoteByIvk TVqa39sqP8ZJNTWjtKrDRifGdVmA4Ycsxu fed8fa4714e6a19511760f9b8ed33388f14c626adff26034f4a21557cb928f01 faf63a2d959df05d4441c0fd42262e0a53629c532e8d29501fe94f9d86c51313 66458c23d737a30146533374d7c5c78f3e05f8f158192e8855493cc55cf8953f 5000 5400 BurnNewLeaf(uint256,bytes32,bytes32,bytes32,bytes32[21])
 [
-	{
-		 note: {
-			 value: 100000
-			 payment_address: ztron12dq4ktrydrxzxrsgpmusp4pe0xawqyz4qfxzsgjdauw99n4n3efnw4kmrptlw8jcrrydx5694mw
-			 rcm: a45878a4e0d53f5cac79370fea1bf4aa82c67d3b2f647ac89c2b1e7061ea740a
-			 memo: without ask 2v1
-		 }
-		 position: 10
-		 is_spent: true
-		 tx_id: 5891fd3a8e860b336b7f7d31f64ec52ec5dc76f81b9bb4e4d0fa8a5756a61dd6
-	}
+    {
+        note: {
+            value: 100000
+            payment_address: ztron12dq4ktrydrxzxrsgpmusp4pe0xawqyz4qfxzsgjdauw99n4n3efnw4kmrptlw8jcrrydx5694mw
+            rcm: a45878a4e0d53f5cac79370fea1bf4aa82c67d3b2f647ac89c2b1e7061ea740a
+            memo: without ask 2v1
+        }
+        position: 10
+        is_spent: true
+        tx_id: 5891fd3a8e860b336b7f7d31f64ec52ec5dc76f81b9bb4e4d0fa8a5756a61dd6
+    }
 ]
-
 ```
 
-## ScanShieldedTRC20NoteByOvk shieldedTRC20ContractAddress ovk startNum endNum [event1] [event2] ...
+## ScanShieldedTRC20NoteByOvk
 
-Scan notes by ovk
-
+```console
+> ScanShieldedTRC20NoteByOvk shieldedTRC20ContractAddress ovk startNum endNum [event1] [event2] ...
+```
 shieldedTRC20ContractAddress
 > The address of shielded contract
 
@@ -1953,61 +1985,63 @@ event1/event2
 > The event you want to scan. These events must be compatible with standard events, that is, MintNewLeaf(uint256,bytes32,bytes32,bytes32,bytes32[21]), TransferNewLeaf(uint256,bytes32,bytes32,bytes32,bytes32[21]), BurnNewLeaf(uint256,bytes32,bytes32,bytes32,bytes32[21]) and TokenBurn(address,uint256,bytes32[3]). 
 If you ignore this field, the command will scan the standard events.
 
+Scan notes by ovk
+
 Example:
 
 ```console
 > ScanShieldedTRC20NoteByOvk TVqa39sqP8ZJNTWjtKrDRifGdVmA4Ycsxu 4b33fc947a53a5e2a1d1636b323f7f6cecff8c34c9fc511ccc7cfaf0dd6f4c03 5000 6000
 [
-	{
-		 note: {
-			 value: 60000
-			 payment_address: ztron1z8d5htmt6h26l5agk5nlxdlz66fahhcp8vwhyydrwfdajc5yalftew5uhwn6wjz4pwrxu0msu34
-			 rcm: 50698dc3c97fb4d2c818b62de2265a271eb9a58b5dd65074122ddf4d794c6b03
-			 memo: 1
-		 }
-		 tx_id: 19c8aaa244dbcdf30a4b2a02b9b17054dc5d8ebf41d1f82daea044e65dff29d5
-	}
-	{
-		 note: {
-			 value: 40000
-			 payment_address: ztron1z8d5htmt6h26l5agk5nlxdlz66fahhcp8vwhyydrwfdajc5yalftew5uhwn6wjz4pwrxu0msu34
-			 rcm: 94afb02c6fd4b19ada89b6b85e2cc23f2fb76c5188ede646c5046b2539a3bf00
-			 memo: 2
-		 }
-		 tx_id: 19c8aaa244dbcdf30a4b2a02b9b17054dc5d8ebf41d1f82daea044e65dff29d5
-	}
-	{
-		 transparent_to_address: TV7ceN4tHDNPB47DMStcUFC3Y8QQ7KzN32
-		 transparent_amount: 130000
-		 tx_id: d45da3394be6c15220d31ac17c13e02130aab0c3edf97750620538f4efae366b
-	}
+    {
+        note: {
+            value: 60000
+            payment_address: ztron1z8d5htmt6h26l5agk5nlxdlz66fahhcp8vwhyydrwfdajc5yalftew5uhwn6wjz4pwrxu0msu34
+            rcm: 50698dc3c97fb4d2c818b62de2265a271eb9a58b5dd65074122ddf4d794c6b03
+            memo: 1
+        }
+        tx_id: 19c8aaa244dbcdf30a4b2a02b9b17054dc5d8ebf41d1f82daea044e65dff29d5
+    }
+    {
+        note: {
+            value: 40000
+            payment_address: ztron1z8d5htmt6h26l5agk5nlxdlz66fahhcp8vwhyydrwfdajc5yalftew5uhwn6wjz4pwrxu0msu34
+            rcm: 94afb02c6fd4b19ada89b6b85e2cc23f2fb76c5188ede646c5046b2539a3bf00
+            memo: 2
+        }
+        tx_id: 19c8aaa244dbcdf30a4b2a02b9b17054dc5d8ebf41d1f82daea044e65dff29d5
+    }
+    {
+        transparent_to_address: TV7ceN4tHDNPB47DMStcUFC3Y8QQ7KzN32
+        transparent_amount: 130000
+        tx_id: d45da3394be6c15220d31ac17c13e02130aab0c3edf97750620538f4efae366b
+    }
 ]
 
 > ScanShieldedTRC20NoteByOvk TVqa39sqP8ZJNTWjtKrDRifGdVmA4Ycsxu 4b33fc947a53a5e2a1d1636b323f7f6cecff8c34c9fc511ccc7cfaf0dd6f4c03 5000 6000  BurnNewLeaf(uint256,bytes32,bytes32,bytes32,bytes32[21])  TokenBurn(address,uint256,bytes32[3])
 [
-	{
-		 note: {
-			 value: 60000
-			 payment_address: ztron1z8d5htmt6h26l5agk5nlxdlz66fahhcp8vwhyydrwfdajc5yalftew5uhwn6wjz4pwrxu0msu34
-			 rcm: 50698dc3c97fb4d2c818b62de2265a271eb9a58b5dd65074122ddf4d794c6b03
-			 memo: 1
-		 }
-		 tx_id: 19c8aaa244dbcdf30a4b2a02b9b17054dc5d8ebf41d1f82daea044e65dff29d5
-	}
-	{
-		 note: {
-			 value: 40000
-			 payment_address: ztron1z8d5htmt6h26l5agk5nlxdlz66fahhcp8vwhyydrwfdajc5yalftew5uhwn6wjz4pwrxu0msu34
-			 rcm: 94afb02c6fd4b19ada89b6b85e2cc23f2fb76c5188ede646c5046b2539a3bf00
-			 memo: 2
-		 }
-		 tx_id: 19c8aaa244dbcdf30a4b2a02b9b17054dc5d8ebf41d1f82daea044e65dff29d5
-	}
-	{
-		 transparent_to_address: TV7ceN4tHDNPB47DMStcUFC3Y8QQ7KzN32
-		 transparent_amount: 130000
-		 tx_id: d45da3394be6c15220d31ac17c13e02130aab0c3edf97750620538f4efae366b
-	}
+    {
+        note: {
+            value: 60000
+            payment_address: ztron1z8d5htmt6h26l5agk5nlxdlz66fahhcp8vwhyydrwfdajc5yalftew5uhwn6wjz4pwrxu0msu34
+            rcm: 50698dc3c97fb4d2c818b62de2265a271eb9a58b5dd65074122ddf4d794c6b03
+            memo: 1
+        }
+        tx_id: 19c8aaa244dbcdf30a4b2a02b9b17054dc5d8ebf41d1f82daea044e65dff29d5
+    }
+    {
+        note: {
+            value: 40000
+            payment_address: ztron1z8d5htmt6h26l5agk5nlxdlz66fahhcp8vwhyydrwfdajc5yalftew5uhwn6wjz4pwrxu0msu34
+            rcm: 94afb02c6fd4b19ada89b6b85e2cc23f2fb76c5188ede646c5046b2539a3bf00
+            memo: 2
+        }
+        tx_id: 19c8aaa244dbcdf30a4b2a02b9b17054dc5d8ebf41d1f82daea044e65dff29d5
+    }
+    {
+        transparent_to_address: TV7ceN4tHDNPB47DMStcUFC3Y8QQ7KzN32
+        transparent_amount: 130000
+        tx_id: d45da3394be6c15220d31ac17c13e02130aab0c3edf97750620538f4efae366b
+    }
 ]
 ```
 
@@ -2055,6 +2089,9 @@ ImportShieldedTRC20Wallet successfully !!!
 
 ### ShowShieldedTRC20AddressInfo
 
+```console
+> ShowShieldedTRC20AddressInfo address
+```
 Display information about shielded addresses. If this address is not in the wallet, it will only display `d` and `pkd`
 
 Example:
