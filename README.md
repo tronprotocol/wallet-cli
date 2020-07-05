@@ -1,8 +1,8 @@
 # wallet-cli [![Build Status](https://travis-ci.org/tronprotocol/wallet-cli.svg?branch=master)](https://travis-ci.org/tronprotocol/wallet-cli)
 
-Wallet CLI
+Welcome to use the Wallet-CLI.  
 
-[Telegram](https://t.me/troncoredevscommunity)
+If you need any help, please join the [Telegram](https://t.me/troncoredevscommunity)
 
 ## Get started
 
@@ -2078,110 +2078,3 @@ d  :da5fd7e087d48e3dcebff3
 pkd:c7e719c5092f87f7c7bfe8bbb3b5b16d89f93003088c5c8b8cd53c11e3a99959
 d  :11db4baf6bd5d5afd3a8b1
 ```
-
-## Command List
-
-Following is a list of Tron Wallet-cli commands:
-For more information on a specific command, just type the command on terminal when you start your Wallet.
-
-    AddTransactionSign
-    ApproveProposal
-    AssetIssue
-    BackupShieldedTRC20Wallet
-    BackupWallet
-    BackupWallet2Base64
-    BroadcastTransaction
-    ChangePassword
-    ClearContractABI
-    Create2
-    CreateAccount
-    CreateProposal
-    CreateWitness
-    DeleteProposal
-    DeployContract
-    ExchangeCreate
-    ExchangeInject
-    ExchangeTransaction
-    ExchangeWithdraw
-    FreezeBalance
-    GenerateAddress
-    GenerateShieldedTRC20Address
-    GetAccount
-    GetAccountNet
-    GetAccountResource
-    GetAddress
-    GetAkFromAsk
-    GetAssetIssueByAccount
-    GetAssetIssueById
-    GetAssetIssueByName
-    GetAssetIssueListByName
-    GetBalance
-    GetBlock
-    GetBlockById
-    GetBlockByLatestNum
-    GetBlockByLimitNext
-    GetChainParameters
-    GetContract contractAddress
-    GetDelegatedResource
-    GetDelegatedResourceAccountIndex
-    GetDiversifier
-    GetExchange
-    GetExpandedSpendingKey
-    GetIncomingViewingKey
-    GetNextMaintenanceTime
-    GetNkFromNsk
-    GetProposal
-    GetShieldedPaymentAddress
-    GetSpendingKey
-    GetTotalTransaction
-    GetTransactionApprovedList
-    GetTransactionById
-    GetTransactionCountByBlockNum
-    GetTransactionInfoByBlockNum
-    GetTransactionInfoById
-    GetTransactionsFromThis
-    GetTransactionsToThis
-    GetTransactionSignWeight
-    ImportShieldedTRC20Wallet
-    ImportWallet
-    ImportWalletByBase64
-    ListAssetIssue
-    ListAssetIssuePaginated
-    ListExchanges
-    ListExchangesPaginated
-    ListNodes
-    ListShieldedTRC20Address
-    ListShieldedTRC20Note
-    ListProposals
-    ListProposalsPaginated
-    ListWitnesses
-    LoadShieldedTRC20Wallet
-    Login
-    Logout
-    ParticipateAssetIssue
-    RegisterWallet
-    ResetShieldedTRC20Note
-    ScanShieldedTRC20NoteByIvk
-    ScanShieldedTRC20NoteByOvk
-    SendCoin
-    SendShieldedTRC20Coin
-    SendShieldedTRC20CoinWithoutAsk
-    SetAccountId
-    SetShieldedTRC20ContractAddress
-    ShowShieldedTRC20AddressInfo
-    TransferAsset
-    TriggerContract
-    TriggerConstantContract
-    UnfreezeAsset
-    UnfreezeBalance
-    UpdateAccount
-    UpdateAsset
-    UpdateEnergyLimit
-    UpdateSetting
-    UpdateWitness
-    UpdateAccountPermission
-    VoteWitness
-    WithdrawBalance
-    Exit or Quit
-
-Type any one of the listed commands, to display how-to tips.
