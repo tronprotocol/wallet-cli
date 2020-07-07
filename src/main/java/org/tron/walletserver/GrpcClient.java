@@ -1,38 +1,16 @@
 package org.tron.walletserver;
 
-import com.google.protobuf.ByteString;
-import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+
+import com.google.protobuf.ByteString;
+import io.grpc.ManagedChannel;
+import io.grpc.ManagedChannelBuilder;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.tron.api.GrpcAPI;
-import org.tron.api.GrpcAPI.AccountNetMessage;
-import org.tron.api.GrpcAPI.AccountPaginated;
-import org.tron.api.GrpcAPI.AccountResourceMessage;
-import org.tron.api.GrpcAPI.AddressPrKeyPairMessage;
-import org.tron.api.GrpcAPI.AssetIssueList;
-import org.tron.api.GrpcAPI.BlockExtention;
-import org.tron.api.GrpcAPI.BlockLimit;
-import org.tron.api.GrpcAPI.BlockList;
-import org.tron.api.GrpcAPI.BlockListExtention;
-import org.tron.api.GrpcAPI.BytesMessage;
-import org.tron.api.GrpcAPI.DelegatedResourceList;
-import org.tron.api.GrpcAPI.DelegatedResourceMessage;
-import org.tron.api.GrpcAPI.EasyTransferAssetByPrivateMessage;
-import org.tron.api.GrpcAPI.EasyTransferAssetMessage;
-import org.tron.api.GrpcAPI.EasyTransferByPrivateMessage;
-import org.tron.api.GrpcAPI.EasyTransferMessage;
-import org.tron.api.GrpcAPI.EasyTransferResponse;
-import org.tron.api.GrpcAPI.EmptyMessage;
-import org.tron.api.GrpcAPI.ExchangeList;
-import org.tron.api.GrpcAPI.NodeList;
-import org.tron.api.GrpcAPI.NumberMessage;
-import org.tron.api.GrpcAPI.PaginatedMessage;
-import org.tron.api.GrpcAPI.ProposalList;
+import org.tron.api.GrpcAPI.*;
 import org.tron.api.GrpcAPI.Return.response_code;
 import org.tron.api.GrpcAPI.TransactionApprovedList;
 import org.tron.api.GrpcAPI.TransactionExtention;
@@ -71,6 +49,8 @@ import org.tron.protos.contract.ExchangeContract.ExchangeWithdrawContract;
 import org.tron.protos.contract.ProposalContract.ProposalApproveContract;
 import org.tron.protos.contract.ProposalContract.ProposalCreateContract;
 import org.tron.protos.contract.ProposalContract.ProposalDeleteContract;
+import org.tron.protos.contract.ShieldContract.IncrementalMerkleVoucherInfo;
+import org.tron.protos.contract.ShieldContract.OutputPointInfo;
 import org.tron.protos.contract.SmartContractOuterClass.ClearABIContract;
 import org.tron.protos.contract.SmartContractOuterClass.CreateSmartContract;
 import org.tron.protos.contract.SmartContractOuterClass.SmartContract;
@@ -88,9 +68,9 @@ import org.tron.protos.contract.WitnessContract.VoteWitnessContract;
 import org.tron.protos.contract.WitnessContract.WitnessCreateContract;
 import org.tron.protos.contract.WitnessContract.WitnessUpdateContract;
 
+@Slf4j
 public class GrpcClient {
 
-  private static final Logger logger = LoggerFactory.getLogger("GrpcClient");
   private ManagedChannel channelFull = null;
   private ManagedChannel channelSolidity = null;
   private WalletGrpc.WalletBlockingStub blockingStubFull = null;
@@ -483,7 +463,7 @@ public class GrpcClient {
         && i > 0) {
       i--;
       response = blockingStubFull.broadcastTransaction(signaturedTransaction);
-      logger.info("repeat times = " + (11 - i));
+      System.out.println("repeat times = " + (11 - i));
       try {
         Thread.sleep(1000);
       } catch (InterruptedException e) {
@@ -491,8 +471,8 @@ public class GrpcClient {
       }
     }
     if (response.getResult() == false) {
-      logger.info("Code = " + response.getCode());
-      logger.info("Message = " + response.getMessage().toStringUtf8());
+      System.out.println("Code = " + response.getCode());
+      System.out.println("Message = " + response.getMessage().toStringUtf8());
     }
     return response.getResult();
   }
@@ -856,6 +836,99 @@ public class GrpcClient {
     return blockingStubFull.accountPermissionUpdate(request);
   }
 
+  public TransactionExtention createShieldedTransaction(PrivateParameters privateParameters) {
+    return blockingStubFull.createShieldedTransaction(privateParameters);
+  }
+
+  public IncrementalMerkleVoucherInfo GetMerkleTreeVoucherInfo(OutputPointInfo info) {
+    if (blockingStubSolidity != null) {
+      return blockingStubSolidity.getMerkleTreeVoucherInfo(info);
+    } else {
+      return blockingStubFull.getMerkleTreeVoucherInfo(info);
+    }
+  }
+
+  public DecryptNotes scanNoteByIvk(IvkDecryptParameters ivkDecryptParameters) {
+    if (blockingStubSolidity != null) {
+      return blockingStubSolidity.scanNoteByIvk(ivkDecryptParameters);
+    } else {
+      return blockingStubFull.scanNoteByIvk(ivkDecryptParameters);
+    }
+  }
+
+  public DecryptNotes scanNoteByOvk(OvkDecryptParameters ovkDecryptParameters) {
+    if (blockingStubSolidity != null) {
+      return blockingStubSolidity.scanNoteByOvk(ovkDecryptParameters);
+    } else {
+      return blockingStubFull.scanNoteByOvk(ovkDecryptParameters);
+    }
+  }
+
+  public BytesMessage getSpendingKey() {
+    return blockingStubFull.getSpendingKey(EmptyMessage.newBuilder().build());
+  }
+
+  public ExpandedSpendingKeyMessage getExpandedSpendingKey(BytesMessage spendingKey) {
+    return blockingStubFull.getExpandedSpendingKey(spendingKey);
+  }
+
+  public BytesMessage getAkFromAsk(BytesMessage ask) {
+    return blockingStubFull.getAkFromAsk(ask);
+  }
+
+  public BytesMessage getNkFromNsk(BytesMessage nsk) {
+    return blockingStubFull.getNkFromNsk(nsk);
+  }
+
+  public IncomingViewingKeyMessage getIncomingViewingKey(ViewingKeyMessage viewingKeyMessage) {
+    return blockingStubFull.getIncomingViewingKey(viewingKeyMessage);
+  }
+
+  public DiversifierMessage getDiversifier() {
+    return blockingStubFull.getDiversifier(EmptyMessage.newBuilder().build());
+  }
+
+  public BytesMessage getRcm() {
+    return blockingStubFull.getRcm(EmptyMessage.newBuilder().build());
+  }
+
+  public SpendResult isNoteSpend(NoteParameters noteParameters) {
+    if (blockingStubSolidity != null) {
+      return blockingStubSolidity.isSpend(noteParameters);
+    } else {
+      return blockingStubFull.isSpend(noteParameters);
+    }
+  }
+
+  public TransactionExtention createShieldedTransactionWithoutSpendAuthSig(
+      PrivateParametersWithoutAsk privateParameters) {
+    return blockingStubFull.createShieldedTransactionWithoutSpendAuthSig(privateParameters);
+  }
+
+  public BytesMessage getShieldedTransactionHash(Transaction transaction) {
+    return blockingStubFull.getShieldTransactionHash(transaction);
+  }
+
+  public BytesMessage createSpendAuthSig(SpendAuthSigParameters parameters) {
+    return blockingStubFull.createSpendAuthSig(parameters);
+  }
+
+  public BytesMessage createShieldedNullifier(NfParameters parameters) {
+    return blockingStubFull.createShieldNullifier(parameters);
+  }
+
+  public PaymentAddressMessage getZenPaymentAddress(IncomingViewingKeyDiversifierMessage msg) {
+    return blockingStubFull.getZenPaymentAddress(msg);
+  }
+
+  public DecryptNotesMarked scanAndMarkNoteByIvk(IvkDecryptAndMarkParameters parameters) {
+    if (blockingStubSolidity != null) {
+      return blockingStubSolidity.scanAndMarkNoteByIvk(parameters);
+    } else {
+      return blockingStubFull.scanAndMarkNoteByIvk(parameters);
+    }
+  }
+
   public TransactionExtention updateBrokerage(UpdateBrokerageContract request) {
     return blockingStubFull.updateBrokerage(request);
   }
@@ -892,6 +965,46 @@ public class GrpcClient {
     }
 
     return Optional.ofNullable(transactionInfoList);
+  }
+
+
+  public DecryptNotesTRC20 scanShieldedTRC20NoteByIvk(IvkDecryptTRC20Parameters parameters) {
+    if (blockingStubSolidity != null) {
+      return blockingStubSolidity.scanShieldedTRC20NotesByIvk(parameters);
+    } else {
+      return blockingStubFull.scanShieldedTRC20NotesByIvk(parameters);
+    }
+  }
+
+  public DecryptNotesTRC20 scanShieldedTRC20NoteByOvk(OvkDecryptTRC20Parameters parameters) {
+    if (blockingStubSolidity != null) {
+      return blockingStubSolidity.scanShieldedTRC20NotesByOvk(parameters);
+    } else {
+      return blockingStubFull.scanShieldedTRC20NotesByOvk(parameters);
+    }
+  }
+
+  public ShieldedTRC20Parameters createShieldedContractParameters(
+      PrivateShieldedTRC20Parameters parameters) {
+    return blockingStubFull.createShieldedContractParameters(parameters);
+  }
+
+  public ShieldedTRC20Parameters createShieldedContractParametersWithoutAsk(
+      PrivateShieldedTRC20ParametersWithoutAsk parameters) {
+    return blockingStubFull.createShieldedContractParametersWithoutAsk(parameters);
+  }
+
+  public NullifierResult isShieldedTRC20ContractNoteSpent(NfTRC20Parameters prameters) {
+    if (blockingStubSolidity != null) {
+      return blockingStubSolidity.isShieldedTRC20ContractNoteSpent(prameters);
+    } else {
+      return blockingStubFull.isShieldedTRC20ContractNoteSpent(prameters);
+    }
+  }
+
+  public BytesMessage getTriggerInputForShieldedTRC20Contract(
+      ShieldedTRC20TriggerContractParameters parameters) {
+    return blockingStubFull.getTriggerInputForShieldedTRC20Contract(parameters);
   }
 
 }
