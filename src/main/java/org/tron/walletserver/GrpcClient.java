@@ -967,4 +967,44 @@ public class GrpcClient {
     return Optional.ofNullable(transactionInfoList);
   }
 
+
+  public DecryptNotesTRC20 scanShieldedTRC20NoteByIvk(IvkDecryptTRC20Parameters parameters) {
+    if (blockingStubSolidity != null) {
+      return blockingStubSolidity.scanShieldedTRC20NotesByIvk(parameters);
+    } else {
+      return blockingStubFull.scanShieldedTRC20NotesByIvk(parameters);
+    }
+  }
+
+  public DecryptNotesTRC20 scanShieldedTRC20NoteByOvk(OvkDecryptTRC20Parameters parameters) {
+    if (blockingStubSolidity != null) {
+      return blockingStubSolidity.scanShieldedTRC20NotesByOvk(parameters);
+    } else {
+      return blockingStubFull.scanShieldedTRC20NotesByOvk(parameters);
+    }
+  }
+
+  public ShieldedTRC20Parameters createShieldedContractParameters(
+      PrivateShieldedTRC20Parameters parameters) {
+    return blockingStubFull.createShieldedContractParameters(parameters);
+  }
+
+  public ShieldedTRC20Parameters createShieldedContractParametersWithoutAsk(
+      PrivateShieldedTRC20ParametersWithoutAsk parameters) {
+    return blockingStubFull.createShieldedContractParametersWithoutAsk(parameters);
+  }
+
+  public NullifierResult isShieldedTRC20ContractNoteSpent(NfTRC20Parameters prameters) {
+    if (blockingStubSolidity != null) {
+      return blockingStubSolidity.isShieldedTRC20ContractNoteSpent(prameters);
+    } else {
+      return blockingStubFull.isShieldedTRC20ContractNoteSpent(prameters);
+    }
+  }
+
+  public BytesMessage getTriggerInputForShieldedTRC20Contract(
+      ShieldedTRC20TriggerContractParameters parameters) {
+    return blockingStubFull.getTriggerInputForShieldedTRC20Contract(parameters);
+  }
+
 }
