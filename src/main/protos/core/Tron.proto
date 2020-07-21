@@ -236,7 +236,6 @@ message ResourceReceipt {
   Transaction.Result.contractResult result = 7;
 }
 
-
 message MarketOrderDetail {
   bytes makerOrderId = 1;
   bytes takerOrderId = 2;
