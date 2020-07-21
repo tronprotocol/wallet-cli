@@ -92,6 +92,22 @@ public class ZenUtils {
     }
   }
 
+  public static void checkFoldersExist(final String filePath) {
+    try {
+      File file = new File(filePath);
+      if (file.exists()) {
+        if (file.isDirectory()) {
+          return;
+        } else {
+          file.delete();
+        }
+      }
+      file.mkdirs();
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+  }
+
   public static boolean checkFileExist(final String filePath) {
     try {
       File file = new File(filePath);

@@ -23,14 +23,6 @@ import com.alibaba.fastjson.JSONObject;
 import com.google.protobuf.Any;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
-import org.tron.api.GrpcAPI.*;
-import org.tron.common.crypto.Hash;
-import org.tron.common.crypto.Sha256Sm3Hash;
-import org.tron.keystore.StringUtils;
-import org.tron.protos.Contract.*;
-import org.tron.protos.Protocol.Block;
-import org.tron.protos.Protocol.Transaction;
-import org.tron.walletserver.WalletApi;
 
 import java.io.Console;
 import java.io.IOException;
@@ -44,6 +36,48 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.Scanner;
+
+import org.tron.api.GrpcAPI.*;
+import org.tron.common.crypto.Hash;
+import org.tron.common.crypto.Sha256Sm3Hash;
+import org.tron.keystore.StringUtils;
+import org.tron.walletserver.WalletApi;
+import org.tron.protos.Protocol.Block;
+import org.tron.protos.Protocol.Transaction;
+import org.tron.protos.Protocol.TransactionInfo;
+import org.tron.protos.contract.AccountContract.AccountCreateContract;
+import org.tron.protos.contract.AccountContract.AccountPermissionUpdateContract;
+import org.tron.protos.contract.AccountContract.AccountUpdateContract;
+import org.tron.protos.contract.AccountContract.SetAccountIdContract;
+import org.tron.protos.contract.AssetIssueContractOuterClass.AssetIssueContract;
+import org.tron.protos.contract.AssetIssueContractOuterClass.ParticipateAssetIssueContract;
+import org.tron.protos.contract.AssetIssueContractOuterClass.TransferAssetContract;
+import org.tron.protos.contract.AssetIssueContractOuterClass.UnfreezeAssetContract;
+import org.tron.protos.contract.AssetIssueContractOuterClass.UpdateAssetContract;
+import org.tron.protos.contract.BalanceContract.FreezeBalanceContract;
+import org.tron.protos.contract.BalanceContract.TransferContract;
+import org.tron.protos.contract.BalanceContract.UnfreezeBalanceContract;
+import org.tron.protos.contract.BalanceContract.WithdrawBalanceContract;
+import org.tron.protos.contract.ExchangeContract.ExchangeCreateContract;
+import org.tron.protos.contract.ExchangeContract.ExchangeInjectContract;
+import org.tron.protos.contract.ExchangeContract.ExchangeTransactionContract;
+import org.tron.protos.contract.ExchangeContract.ExchangeWithdrawContract;
+import org.tron.protos.contract.ProposalContract.ProposalApproveContract;
+import org.tron.protos.contract.ProposalContract.ProposalCreateContract;
+import org.tron.protos.contract.ProposalContract.ProposalDeleteContract;
+import org.tron.protos.contract.SmartContractOuterClass.ClearABIContract;
+import org.tron.protos.contract.SmartContractOuterClass.CreateSmartContract;
+import org.tron.protos.contract.SmartContractOuterClass.TriggerSmartContract;
+import org.tron.protos.contract.SmartContractOuterClass.UpdateEnergyLimitContract;
+import org.tron.protos.contract.SmartContractOuterClass.UpdateSettingContract;
+import org.tron.protos.contract.StorageContract.UpdateBrokerageContract;
+import org.tron.protos.contract.VoteAssetContractOuterClass.VoteAssetContract;
+import org.tron.protos.contract.WitnessContract.VoteWitnessContract;
+import org.tron.protos.contract.WitnessContract.WitnessCreateContract;
+import org.tron.protos.contract.WitnessContract.WitnessUpdateContract;
+import org.tron.protos.contract.ShieldContract.ShieldedTransferContract;
+import org.tron.protos.contract.MarketContract.MarketCancelOrderContract;
+import org.tron.protos.contract.MarketContract.MarketSellAssetContract;
 
 public class Utils {
   public static final String PERMISSION_ID = "Permission_id";
@@ -123,6 +157,16 @@ public class Utils {
             transaction -> {
               jsonArray.add(printTransactionToJSON(transaction, true));
             });
+    return JsonFormatUtil.formatJson(jsonArray.toJSONString());
+  }
+
+  public static String printTransactionInfoList(TransactionInfoList transactionInfoList) {
+    JSONArray jsonArray = new JSONArray();
+    List<TransactionInfo> infoList = transactionInfoList.getTransactionInfoList();
+    infoList.stream()
+        .forEach(
+            transactionInfo -> jsonArray.add(formatMessageString(transactionInfo))
+        );
     return JsonFormatUtil.formatJson(jsonArray.toJSONString());
   }
 
@@ -432,9 +476,9 @@ public class Utils {
                             JsonFormat.printToString(proposalDeleteContract, selfType));
                     break;
                   case SetAccountIdContract:
-                    org.tron.protos.Contract.SetAccountIdContract setAccountIdContract =
+                    SetAccountIdContract setAccountIdContract =
                         contractParameter.unpack(
-                            org.tron.protos.Contract.SetAccountIdContract.class);
+                            SetAccountIdContract.class);
                     contractJson =
                         JSONObject.parseObject(
                             JsonFormat.printToString(setAccountIdContract, selfType));
@@ -505,8 +549,8 @@ public class Utils {
                             JsonFormat.printToString(accountPermissionUpdateContract, selfType));
                     break;
                   case ClearABIContract:
-                    org.tron.protos.Contract.ClearABIContract clearABIContract =
-                        contractParameter.unpack(org.tron.protos.Contract.ClearABIContract.class);
+                    ClearABIContract clearABIContract =
+                        contractParameter.unpack(ClearABIContract.class);
                     contractJson =
                         JSONObject.parseObject(
                             JsonFormat.printToString(clearABIContract, selfType));

@@ -1,5 +1,14 @@
 package org.tron.walletcli;
 
+import java.io.IOException;
+import java.math.BigInteger;
+import java.text.SimpleDateFormat;
+import java.util.*;
+import java.util.Base64.Decoder;
+import java.util.Base64.Encoder;
+import java.util.Map.Entry;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import com.beust.jcommander.JCommander;
 import com.google.common.primitives.Longs;
 import com.google.protobuf.ByteString;
@@ -26,23 +35,29 @@ import org.tron.core.exception.EncodingException;
 import org.tron.core.exception.ZksnarkException;
 import org.tron.core.zen.ShieldedAddressInfo;
 import org.tron.core.zen.ShieldedNoteInfo;
+import org.tron.core.zen.ShieldedTRC20NoteInfo;
+import org.tron.core.zen.ShieldedTRC20Wrapper;
 import org.tron.core.zen.ShieldedWrapper;
 import org.tron.core.zen.ZenUtils;
 import org.tron.core.zen.address.KeyIo;
 import org.tron.core.zen.address.PaymentAddress;
 import org.tron.keystore.StringUtils;
-import org.tron.protos.Contract.AssetIssueContract;
-import org.tron.protos.Protocol.*;
+import org.tron.protos.Protocol.MarketOrder;
+import org.tron.protos.Protocol.MarketOrderList;
+import org.tron.protos.Protocol.MarketOrderPairList;
+import org.tron.protos.Protocol.MarketPriceList;
+import org.tron.protos.contract.AssetIssueContractOuterClass.AssetIssueContract;
+import org.tron.protos.Protocol.Account;
+import org.tron.protos.Protocol.Block;
+import org.tron.protos.Protocol.ChainParameters;
+import org.tron.protos.Protocol.DelegatedResourceAccountIndex;
+import org.tron.protos.Protocol.Exchange;
+import org.tron.protos.Protocol.Proposal;
+import org.tron.protos.contract.SmartContractOuterClass.SmartContract;
+import org.tron.protos.Protocol.Transaction;
+import org.tron.protos.Protocol.TransactionInfo;
 import org.tron.walletserver.WalletApi;
 
-import java.io.IOException;
-import java.text.SimpleDateFormat;
-import java.util.*;
-import java.util.Base64.Decoder;
-import java.util.Base64.Encoder;
-import java.util.Map.Entry;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 
 public class Client {
@@ -55,7 +70,8 @@ public class Client {
       "AddTransactionSign",
       "ApproveProposal",
       "AssetIssue",
-      "BackupShieldedWallet",
+      // "BackupShieldedWallet",
+      "BackupShieldedTRC20Wallet",
       "BackupWallet",
       "BackupWallet2Base64",
       "BroadcastTransaction",
@@ -73,7 +89,8 @@ public class Client {
       "ExchangeWithdraw",
       "FreezeBalance",
       "GenerateAddress",
-      "GenerateShieldedAddress",
+      // "GenerateShieldedAddress",
+      "GenerateShieldedTRC20Address",
       "GetAccount",
       "GetAccountNet",
       "GetAccountResource",
@@ -106,17 +123,20 @@ public class Client {
       "GetNkFromNsk",
       "GetProposal",
       "GetReward",
-      "GetShieldedNullifier",
+      // "GetShieldedNullifier",
+      "GetShieldedPaymentAddress",
       "GetSpendingKey",
       "GetTotalTransaction",
       "GetTransactionApprovedList",
       "GetTransactionById",
       "GetTransactionCountByBlockNum",
+      "GetTransactionInfoByBlockNum",
       "GetTransactionInfoById",
       "GetTransactionSignWeight",
       "GetTransactionsFromThis",
       "GetTransactionsToThis",
-      "ImportShieldedAddress",
+      "ImportShieldedTRC20Wallet",
+      // "ImportShieldedWallet",
       "ImportWallet",
       "ImportWalletByBase64",
       "ListAssetIssue",
@@ -124,6 +144,10 @@ public class Client {
       "ListExchanges",
       "ListExchangesPaginated",
       "ListNodes",
+      // "ListShieldedAddress",
+      // "ListShieldedNote",
+      "ListShieldedTRC20Address",
+      "ListShieldedTRC20Note",
       "ListProposals",
       "ListProposalsPaginated",
       "ListShieldedAddress",
@@ -132,19 +156,28 @@ public class Client {
       "LoadShieldedWallet",
       "Login",
       "Logout",
+      "LoadShieldedTRC20Wallet",
+      // "LoadShieldedWallet",
       "MarketCancelOrder",
       "MarketSellAsset",
       "ParticipateAssetIssue",
       "RegisterWallet",
-      "ResetShieldedNote",
-      "ScanAndMarkNotebyAddress",
-      "ScanNotebyIvk",
-      "ScanNotebyOvk",
+      // "ResetShieldedNote",
+      "ResetShieldedTRC20Note",
+      // "ScanAndMarkNotebyAddress",
+      // "ScanNotebyIvk",
+      // "ScanNotebyOvk",
+      "ScanShieldedTRC20NoteByIvk",
+      "ScanShieldedTRC20NoteByOvk",
       "SendCoin",
-      "SendShieldedCoin",
-      "SendShieldedCoinWithoutAsk",
+      // "SendShieldedCoin",
+      // "SendShieldedCoinWithoutAsk",
+      "SendShieldedTRC20Coin",
+      "SendShieldedTRC20CoinWithoutAsk",
       "SetAccountId",
-      "ShowShieldedAddressInfo",
+      "SetShieldedTRC20ContractAddress",
+      // "ShowShieldedAddressInfo",
+      "ShowShieldedTRC20AddressInfo",
       "TransferAsset",
       "TriggerConstantContract contractAddress method args isHex",
       "TriggerContract contractAddress method args isHex fee_limit value",
@@ -166,7 +199,8 @@ public class Client {
       "AddTransactionSign",
       "ApproveProposal",
       "AssetIssue",
-      "BackupShieldedWallet",
+      // "BackupShieldedWallet",
+      "BackupShieldedTRC20Wallet",
       "BackupWallet",
       "BackupWallet2Base64",
       "BroadcastTransaction",
@@ -184,7 +218,8 @@ public class Client {
       "ExchangeWithdraw",
       "FreezeBalance",
       "GenerateAddress",
-      "GenerateShieldedAddress",
+      // "GenerateShieldedAddress",
+      "GenerateShieldedTRC20Address",
       "GetAccount",
       "GetAccountNet",
       "GetAccountResource",
@@ -217,18 +252,21 @@ public class Client {
       "GetNkFromNsk",
       "GetProposal",
       "GetReward",
-      "GetShieldedNullifier",
+      // "GetShieldedNullifier",
+      "GetShieldedPaymentAddress",
       "GetSpendingKey",
       "GetTotalTransaction",
       "GetTransactionApprovedList",
       "GetTransactionById",
       "GetTransactionCountByBlockNum",
+      "GetTransactionInfoByBlockNum",
       "GetTransactionInfoById",
       "GetTransactionSignWeight",
       "GetTransactionsFromThis",
       "GetTransactionsToThis",
       "Help",
-      "ImportShieldedWallet",
+      "ImportShieldedTRC20Wallet",
+      // "ImportShieldedWallet",
       "ImportWallet",
       "ImportWalletByBase64",
       "ListAssetIssue",
@@ -236,27 +274,39 @@ public class Client {
       "ListExchanges",
       "ListExchangesPaginated",
       "ListNodes",
+      // "ListShieldedAddress",
+      // "ListShieldedNote",
+      "ListShieldedTRC20Address",
+      "ListShieldedTRC20Note",
       "ListProposals",
       "ListProposalsPaginated",
       "ListShieldedAddress",
       "ListShieldedNote",
       "ListWitnesses",
-      "LoadShieldedWallet",
       "Login",
       "Logout",
+      "LoadShieldedTRC20Wallet",
+      // "LoadShieldedWallet",
       "MarketCancelOrder",
       "MarketSellAsset",
       "ParticipateAssetIssue",
       "RegisterWallet",
-      "ResetShieldedNote",
-      "ScanAndMarkNotebyAddress",
-      "ScanNotebyIvk",
-      "ScanNotebyOvk",
+      // "ResetShieldedNote",
+      "ResetShieldedTRC20Note",
+      // "ScanAndMarkNotebyAddress",
+      // "ScanNotebyIvk",
+      // "ScanNotebyOvk",
+      "ScanShieldedTRC20NoteByIvk",
+      "ScanShieldedTRC20NoteByOvk",
       "SendCoin",
-      "SendShieldedCoin",
-      "SendShieldedCoinWithoutAsk",
+      // "SendShieldedCoin",
+      // "SendShieldedCoinWithoutAsk",
+      "SendShieldedTRC20Coin",
+      "SendShieldedTRC20CoinWithoutAsk",
       "SetAccountId",
-      "ShowShieldedAddressInfo",
+      "SetShieldedTRC20ContractAddress",
+      // "ShowShieldedAddressInfo",
+      "ShowShieldedTRC20AddressInfo",
       "TransferAsset",
       "TriggerConstantContract",
       "TriggerContract",
@@ -1966,6 +2016,30 @@ public class Client {
     System.out.println("The brokerage is : " + brokerage.getNum());
   }
 
+  private void getTransactionInfoByBlockNum(String[] parameters) {
+    if (parameters.length != 1) {
+      System.out.println("Too many parameters !!!");
+      System.out.println("You need input number with the following syntax:");
+      System.out.println("GetTransactionInfoByBlockNum number");
+      return;
+    }
+
+    long blockNum = Long.parseLong(parameters[0]);
+    Optional<TransactionInfoList> result = walletApiWrapper.getTransactionInfoByBlockNum(blockNum);
+
+    if (result.isPresent()) {
+      TransactionInfoList transactionInfoList = result.get();
+      if (transactionInfoList.getTransactionInfoCount() == 0) {
+        System.out.println("[]");
+      } else {
+        System.out.println(Utils.printTransactionInfoList(transactionInfoList));
+      }
+    } else {
+      System.out.println("GetTransactionInfoByBlockNum failed !!!");
+    }
+
+  }
+
   private String[] getParas(String[] para) {
     String paras = String.join(" ", para);
     Pattern pattern = Pattern.compile(" (\\[.*?\\]) ");
@@ -2382,7 +2456,7 @@ public class Client {
         shieldedInputAddress = noteInfo.getPaymentAddress();
       } else {
         if (!noteInfo.getPaymentAddress().equals(shieldedInputAddress)) {
-          System.err.println("All the input notes should be the same address!");
+          System.out.println("All the input notes should be the same address!");
           return false;
         }
       }
@@ -3016,6 +3090,575 @@ public class Client {
     return;
   }
 
+  private void setShieldedTRC20ContractAddress(String[] parameters) {
+    if (parameters.length == 2) {
+      byte[] trc20ContractAddress = WalletApi.decodeFromBase58Check(parameters[0]);
+      byte[] shieldedContractAddress = WalletApi.decodeFromBase58Check(parameters[1]);
+      if (!(trc20ContractAddress == null || shieldedContractAddress == null)) {
+        ShieldedTRC20Wrapper.getInstance().setShieldedTRC20WalletPath(parameters[0], parameters[1]);
+        //set scaling factor
+        String scalingFactorHexStr = walletApiWrapper.getScalingFactor(shieldedContractAddress);
+        if (scalingFactorHexStr != null) {
+          BigInteger scalingFactor = new BigInteger(scalingFactorHexStr, 16);
+          ShieldedTRC20Wrapper.getInstance().setScalingFactor(scalingFactor);
+          System.out.println("SetShieldedTRC20ContractAddress succeed!");
+          System.out.println("The Scaling Factor is " + scalingFactor.toString());
+          System.out.println("That means:");
+          System.out.println("No matter you MINT, TRANSFER or BURN, the value must be an integer "
+              + "multiple of " + scalingFactor.toString());
+        }
+      } else {
+        System.out.println("SetShieldedTRC20ContractAddress failed !!! Invalid Address !!!");
+      }
+    } else {
+      System.out.println("SetShieldedTRC20ContractAddress command needs 2 parameters like:");
+      System.out.println("SetShieldedTRC20ContractAddress TRC20ContractAddress"
+          + " ShieldedContractAddress");
+    }
+  }
+
+  private void backupShieldedTRC20Wallet() throws IOException, CipherException {
+    if (!ShieldedTRC20Wrapper.isSetShieldedTRC20WalletPath()) {
+      System.out.println("BackupShieldedTRC20Wallet failed !!!"
+          + " Please SetShieldedTRC20ContractAddress first !!!");
+      return;
+    }
+
+    ShieldedAddressInfo addressInfo = ShieldedTRC20Wrapper.getInstance()
+        .backupShieldedTRC20Wallet();
+    if (addressInfo != null) {
+      System.out.println("sk:" + ByteArray.toHexString(addressInfo.getSk()));
+      System.out.println("d :" + ByteArray.toHexString(addressInfo.getD().getData()));
+      System.out.println("BackupShieldedTRC20Wallet successful !!!");
+    } else {
+      System.out.println("BackupShieldedTRC20Wallet failed !!!");
+    }
+  }
+
+  private void generateShieldedTRC20Address(String[] parameters) throws IOException,
+      CipherException, ZksnarkException {
+    if (!ShieldedTRC20Wrapper.isSetShieldedTRC20WalletPath()) {
+      System.out.println("GenerateShieldedTRC20Address failed !!!"
+          + " Please SetShieldedTRC20ContractAddress first !!!");
+      return;
+    }
+
+    int addressNum = 1;
+    if (parameters.length > 0 && !StringUtil.isNullOrEmpty(parameters[0])) {
+      try {
+        addressNum = Integer.valueOf(parameters[0]);
+        if (addressNum == 0) {
+          System.out.println("Parameter must be positive!");
+          return;
+        }
+      } catch (NumberFormatException e) {
+        System.out.println("Invalid parameter!");
+        return;
+      }
+    }
+
+    ShieldedTRC20Wrapper.getInstance().initShieldedTRC20WalletFile();
+
+    System.out.println("ShieldedTRC20Address list:");
+    for (int i = 0; i < addressNum; ++i) {
+      Optional<ShieldedAddressInfo> addressInfo = walletApiWrapper.getNewShieldedAddress();
+      if (addressInfo.isPresent()) {
+        if (ShieldedTRC20Wrapper.getInstance().addNewShieldedTRC20Address(
+            addressInfo.get(), true)) {
+          System.out.println(addressInfo.get().getAddress());
+        }
+      }
+    }
+    System.out.println("GenerateShieldedTRC20Address successful !!!");
+  }
+
+  private void importShieldedTRC20Wallet() throws CipherException, IOException, ZksnarkException {
+    if (!ShieldedTRC20Wrapper.isSetShieldedTRC20WalletPath()) {
+      System.out.println("ImportShieldedTRC20Wallet failed !!!"
+          + " Please SetShieldedTRC20ContractAddress first !!!");
+      return;
+    }
+
+    byte[] priKey = ShieldedTRC20Wrapper.getInstance().importShieldedTRC20Wallet();
+    if (!ArrayUtils.isEmpty(priKey) && priKey.length == 43) {
+      byte[] sk = new byte[32];
+      byte[] d = new byte[11];
+      System.arraycopy(priKey, 0, sk, 0, sk.length);
+      System.arraycopy(priKey, sk.length, d, 0, d.length);
+      Optional<ShieldedAddressInfo> addressInfo =
+          walletApiWrapper.getNewShieldedAddressBySkAndD(sk, d);
+      if (addressInfo.isPresent() && ShieldedTRC20Wrapper.getInstance().addNewShieldedTRC20Address(
+          addressInfo.get(), false)) {
+        System.out.println("Import new shieldedTRC20 wallet address is: "
+            + addressInfo.get().getAddress());
+        System.out.println("ImportShieldedTRC20Wallet successfully !!!");
+      } else {
+        System.out.println("ImportShieldedTRC20Wallet failed !!!");
+      }
+    } else {
+      System.out.println("ImportShieldedTRC20Wallet failed !!!");
+    }
+  }
+
+  private void listShieldedTRC20Address() {
+    if (!ShieldedTRC20Wrapper.getInstance().ifShieldedTRC20WalletLoaded()) {
+      System.out.println("ListShieldedTRC20Address failed, please LoadShieldedTRC20Wallet " +
+          "first!");
+      return;
+    }
+
+    List<String> listAddress = ShieldedTRC20Wrapper.getInstance().getShieldedTRC20AddressList();
+    System.out.println("ShieldedTRC20Address :");
+    for (String address : listAddress) {
+      System.out.println(address);
+    }
+  }
+
+  private void listShieldedTRC20Note(String[] parameters) {
+    if (!ShieldedTRC20Wrapper.getInstance().ifShieldedTRC20WalletLoaded()) {
+      System.out.println("ListShieldedTRC20Note failed, please LoadShieldedTRC20Wallet first!");
+      return;
+    }
+
+    int showType = 0;
+    if (parameters == null || parameters.length <= 0) {
+      System.out.println("This command will show all the unspent notes. ");
+      System.out.println(
+          "If you want to display all notes, including spent notes and unspent notes, "
+              + "please use command ListShieldedTRC20Note 1 ");
+    } else {
+      if (!StringUtil.isNullOrEmpty(parameters[0])) {
+        try {
+          showType = Integer.valueOf(parameters[0]);
+        } catch (NumberFormatException e) {
+          System.out.println("Invalid parameter!");
+          return;
+        }
+      }
+    }
+
+    if (showType == 0) {
+      List<String> utxoList = ShieldedTRC20Wrapper.getInstance().getvalidateSortUtxoList();
+      if (utxoList.isEmpty()) {
+        System.out.println("The count of unspent note is 0.");
+      } else {
+        System.out.println("The unspent note list is shown below:");
+        for (String string : utxoList) {
+          System.out.println(string);
+        }
+      }
+    } else {
+      Map<Long, ShieldedTRC20NoteInfo> noteMap =
+          ShieldedTRC20Wrapper.getInstance().getUtxoMapNote();
+      System.out.println("All notes are shown below:");
+      for (Entry<Long, ShieldedTRC20NoteInfo> entry : noteMap.entrySet()) {
+        String string = entry.getValue().getPaymentAddress() + " ";
+        string += entry.getValue().getRawValue().toString();
+        string += " ";
+        string += entry.getValue().getTrxId();
+        string += " ";
+        string += entry.getValue().getIndex();
+        string += " ";
+        string += entry.getValue().getPosition();
+        string += " ";
+        string += "UnSpent";
+        string += " ";
+        string += ZenUtils.getMemo(entry.getValue().getMemo());
+        System.out.println(string);
+      }
+
+      List<ShieldedTRC20NoteInfo> noteList = ShieldedTRC20Wrapper.getInstance().getSpendUtxoList();
+      for (ShieldedTRC20NoteInfo noteInfo : noteList) {
+        String string = noteInfo.getPaymentAddress() + " ";
+        string += noteInfo.getRawValue().toString();
+        string += " ";
+        string += noteInfo.getTrxId();
+        string += " ";
+        string += noteInfo.getIndex();
+        string += " ";
+        string += noteInfo.getPosition();
+        string += " ";
+        string += "Spent";
+        string += " ";
+        string += ZenUtils.getMemo(noteInfo.getMemo());
+        System.out.println(string);
+      }
+    }
+    BigInteger scalingFactor = ShieldedTRC20Wrapper.getInstance().getScalingFactor();
+    System.out.println("The Scaling Factor is " + scalingFactor.toString());
+    System.out.println("No matter you MINT, TRANSFER or BURN, the value must be an integer "
+        + "multiple of " + scalingFactor.toString());
+  }
+
+  private void loadShieldedTRC20Wallet() throws CipherException, IOException {
+    if (ShieldedTRC20Wrapper.isSetShieldedTRC20WalletPath()) {
+      boolean result = ShieldedTRC20Wrapper.getInstance().loadShieldTRC20Wallet();
+      if (result) {
+        System.out.println("LoadShieldedTRC20Wallet successful !!!");
+      } else {
+        System.out.println("LoadShieldedTRC20Wallet failed !!!");
+      }
+    } else {
+      System.out.println("LoadShieldedTRC20Wallet failed !!!"
+          + " Please SetShieldedTRC20ContractAddress first !!!");
+    }
+  }
+
+  private void resetShieldedTRC20Note() {
+    if (!ShieldedTRC20Wrapper.getInstance().ifShieldedTRC20WalletLoaded()) {
+      System.out.println("ResetShieldedTRC20Note failed, please LoadShieldedTRC20Wallet first!");
+      return;
+    } else {
+      System.out.println("Start to reset shieldedTRC20 notes, please wait ...");
+      ShieldedTRC20Wrapper.getInstance().setResetNote(true);
+    }
+  }
+
+  private void scanShieldedTRC20NoteByIvk(String[] parameters) {
+    if (parameters == null || parameters.length < 6) {
+      System.out.println("ScanShieldedTRC20NoteByIvk command needs at least 6 parameters like: ");
+      System.out.println("ScanShieldedTRC20NoteByIvk shieldedTRC20ContractAddress ivk ak nk " +
+              "startNum endNum [event1] [event2]");
+      return;
+    }
+    byte[] contractAddress = WalletApi.decodeFromBase58Check(parameters[0]);
+    if (contractAddress == null) {
+      System.out.println("ScanShieldedTRC20NoteByIvk failed! Invalid shieldedTRC20ContractAddress");
+      return;
+    }
+    long startNum;
+    long endNum;
+    try {
+      startNum = Long.parseLong(parameters[4]);
+      endNum = Long.parseLong(parameters[5]);
+    } catch (NumberFormatException e) {
+      System.out.println("Invalid parameter: startNum, endNum.");
+      return;
+    }
+    int eventNum = parameters.length - 6;
+    if (eventNum > 0) {
+      String[] eventArray = new String[eventNum];
+      for (int i = 0; i < eventNum; i++) {
+        eventArray[i] = parameters[i + 6];
+      }
+      walletApiWrapper.scanShieldedTRC20NoteByIvk(contractAddress,
+          parameters[1], parameters[2], parameters[3], startNum, endNum, eventArray);
+    } else {
+      walletApiWrapper.scanShieldedTRC20NoteByIvk(contractAddress,
+          parameters[1], parameters[2], parameters[3], startNum, endNum, null);
+    }
+  }
+
+  private void scanShieldedTRC20NoteByOvk(String[] parameters) {
+    if (parameters == null || parameters.length < 4) {
+      System.out.println("ScanShieldedTRC20NoteByOvk command needs at lease 4 parameters like: ");
+      System.out.println("ScanShieldedTRC20NoteByOvk shieldedTRC20ContractAddress ovk startNum " +
+              "endNum [event1] [event2] ");
+      return;
+    }
+    byte[] contractAddress = WalletApi.decodeFromBase58Check(parameters[0]);
+    if (contractAddress == null) {
+      System.out.println("ScanShieldedTRC20NoteByOvk failed! Invalid shieldedTRC20ContractAddress");
+      return;
+    }
+    long startNum;
+    long endNum;
+    try {
+      startNum = Long.parseLong(parameters[2]);
+      endNum = Long.parseLong(parameters[3]);
+    } catch (NumberFormatException e) {
+      System.out.println("Invalid parameter: startNum, endNum.");
+      return;
+    }
+
+    int eventNum = parameters.length - 4;
+    if (eventNum > 0) {
+      String[] eventArray = new String[eventNum];
+      for (int i = 0; i < eventNum; i++) {
+        eventArray[i] = parameters[i + 4];
+      }
+      walletApiWrapper.scanShieldedTRC20NoteByOvk(parameters[1], startNum, endNum,
+          contractAddress, eventArray);
+    } else {
+      walletApiWrapper.scanShieldedTRC20NoteByOvk(parameters[1], startNum, endNum,
+          contractAddress, null);
+    }
+  }
+
+  private void sendShieldedTRC20Coin(String[] parameters) throws IOException, CipherException,
+      CancelException, ZksnarkException {
+    if (firstCheck(parameters, "SendShieldedTRC20Coin")) {
+      String contractAddress =
+          ShieldedTRC20Wrapper.getInstance().getTRC20ContractAddress();
+      String shieldedContractAddress =
+          ShieldedTRC20Wrapper.getInstance().getShieldedTRC20ContractAddress();
+      boolean result = sendShieldedTRC20CoinNormal(parameters, true,
+          contractAddress, shieldedContractAddress);
+      if (result) {
+        System.out.println("SendShieldedTRC20Coin successfully !!!");
+      } else {
+        System.out.println("SendShieldedTRC20Coin failed !!!");
+      }
+    }
+  }
+
+  private void sendShieldedTRC20CoinWithoutAsk(String[] parameters) throws IOException,
+      CipherException, CancelException, ZksnarkException {
+    if (firstCheck(parameters, "SendShieldedTRC20CoinWithoutAsk")) {
+      String contractAddress =
+          ShieldedTRC20Wrapper.getInstance().getTRC20ContractAddress();
+      String shieldedContractAddress =
+          ShieldedTRC20Wrapper.getInstance().getShieldedTRC20ContractAddress();
+      boolean result = sendShieldedTRC20CoinNormal(parameters, false,
+          contractAddress, shieldedContractAddress);
+      if (result) {
+        System.out.println("SendShieldedTRC20CoinWithoutAsk successfully !!!");
+      } else {
+        System.out.println("SendShieldedTRC20CoinWithoutAsk failed !!!");
+      }
+    }
+  }
+
+  private boolean firstCheck(String[] parameters, String sendCoinType) {
+    if (parameters == null || parameters.length < 6) {
+      System.out.println(sendCoinType + " command needs more than 6 parameters like: ");
+      System.out.println(sendCoinType + " fromPublicAmount shieldedInputNum input1 input2 ... "
+          + "publicToAddress toPublicAmount shieldedOutputNum shieldedAddress1 amount1 memo1 "
+          + "shieldedAddress2 amount2 memo2 ... ");
+      return false;
+    }
+
+    if (!walletApiWrapper.isLoginState()) {
+      System.out.println(sendCoinType + " failed, please login wallet first !!");
+      return false;
+    }
+
+    if (!ShieldedTRC20Wrapper.getInstance().ifShieldedTRC20WalletLoaded()) {
+      System.out.println("SendShieldedTRC20Coin failed, please LoadShieldedTRC20Wallet first !!!");
+      return false;
+    }
+    return true;
+  }
+
+  private boolean sendShieldedTRC20CoinNormal(String[] parameters, boolean withAsk,
+                                              String contractAddress,
+                                              String shieldedContractAddress)
+      throws IOException, CipherException, CancelException, ZksnarkException {
+    BigInteger scalingFactor = ShieldedTRC20Wrapper.getInstance().getScalingFactor();
+    int parameterIndex = 0;
+    BigInteger fromPublicAmount;
+    try {
+      fromPublicAmount = new BigInteger(parameters[parameterIndex++]);
+    } catch (NumberFormatException e) {
+      System.out.println("Invalid fromPublicAmount!");
+      return false;
+    }
+    if (!checkAmountValid(fromPublicAmount, scalingFactor)) {
+      System.out.println("fromPublicAmount must be 0 or positive integer multiple of "
+          + scalingFactor.toString());
+      return false;
+    }
+
+    int shieldedInputNum = 0;
+    String amountString = parameters[parameterIndex++];
+    if (!StringUtil.isNullOrEmpty(amountString)) {
+      try {
+        shieldedInputNum = Integer.valueOf(amountString);
+      } catch (NumberFormatException e) {
+        System.out.println("Invalid shieldedInputNum!");
+        return false;
+      }
+    }
+
+    List<Long> shieldedInputList = new ArrayList<>();
+    String shieldedInputAddress = "";
+    for (int i = 0; i < shieldedInputNum; ++i) {
+      long mapIndex;
+      try {
+        mapIndex = Long.valueOf(parameters[parameterIndex++]);
+      } catch (NumberFormatException e) {
+        System.out.println("Invalid the " + (i + 1) + "shielded input");
+        return false;
+      }
+      ShieldedTRC20NoteInfo noteInfo =
+          ShieldedTRC20Wrapper.getInstance().getUtxoMapNote().get(mapIndex);
+      if (noteInfo == null) {
+        System.out.println("Can't find index " + mapIndex + " note.");
+        return false;
+      }
+      if (i == 0) {
+        shieldedInputAddress = noteInfo.getPaymentAddress();
+      } else {
+        if (!noteInfo.getPaymentAddress().equals(shieldedInputAddress)) {
+          System.out.println("All the input notes should be the same address!");
+          return false;
+        }
+      }
+      shieldedInputList.add(mapIndex);
+    }
+
+    String toPublicAddress = parameters[parameterIndex++];
+    BigInteger toPublicAmount = BigInteger.ZERO;
+    if (toPublicAddress.equals("null")) {
+      toPublicAddress = null;
+      ++parameterIndex;
+    } else {
+      amountString = parameters[parameterIndex++];
+      if (!StringUtil.isNullOrEmpty(amountString)) {
+        try {
+          toPublicAmount = new BigInteger(amountString);
+        } catch (NumberFormatException e) {
+          System.out.println("Invalid toPublicAmount!");
+          return false;
+        }
+        if (!checkAmountValid(toPublicAmount, scalingFactor)) {
+          System.out.println("toPublicAmount must be positive integer multiple of "
+              + scalingFactor.toString());
+          return false;
+        }
+      }
+    }
+
+    int shieldedOutputNum = 0;
+    amountString = parameters[parameterIndex++];
+    if (!StringUtil.isNullOrEmpty(amountString)) {
+      try {
+        shieldedOutputNum = Integer.valueOf(amountString);
+      } catch (NumberFormatException e) {
+        System.out.println("Invalid shieldedOutputNum!");
+        return false;
+      }
+    }
+    int parameterNum;
+    try {
+      parameterNum = shieldedOutputNum * 3 + parameterIndex;
+    } catch (Exception e) {
+      System.out.println("Invalid parameter number!");
+      return false;
+    }
+
+    if (parameters.length != parameterNum) {
+      System.out.println("Invalid parameter number!");
+      return false;
+    }
+
+    List<Note> shieldedOutList = new ArrayList<>();
+    for (int i = 0; i < shieldedOutputNum; ++i) {
+      String shieldedAddress = parameters[parameterIndex++];
+      amountString = parameters[parameterIndex++];
+      String memoString = parameters[parameterIndex++];
+      if (memoString.equals("null")) {
+        memoString = "";
+      }
+      BigInteger shieldedAmountBi = BigInteger.ZERO;
+      if (!StringUtil.isNullOrEmpty(amountString)) {
+        try {
+          shieldedAmountBi = new BigInteger(amountString);
+        } catch (NumberFormatException e) {
+          System.out.println("Invalid shielded output amount");
+          return false;
+        }
+        if (!checkAmountValid(shieldedAmountBi, scalingFactor)) {
+          System.out.println("shielded amount must be an integer multiple of "
+              + scalingFactor.toString());
+        }
+      }
+      long shieldedAmount = shieldedAmountBi.divide(scalingFactor).longValueExact();
+      Note.Builder noteBuild = Note.newBuilder();
+      noteBuild.setPaymentAddress(shieldedAddress);
+      noteBuild.setPaymentAddress(shieldedAddress);
+      noteBuild.setValue(shieldedAmount);
+      noteBuild.setRcm(ByteString.copyFrom(walletApiWrapper.getRcm()));
+      noteBuild.setMemo(ByteString.copyFrom(memoString.getBytes()));
+      shieldedOutList.add(noteBuild.build());
+    }
+
+    int shieldedContractType = -1;
+    if (fromPublicAmount.compareTo(BigInteger.ZERO) > 0 && shieldedOutList.size() == 1
+        && shieldedInputList.isEmpty() && toPublicAmount.compareTo(BigInteger.ZERO) == 0) {
+      System.out.println("This is MINT.");
+      shieldedContractType = 0;
+    } else if (fromPublicAmount.compareTo(BigInteger.ZERO) == 0
+        && toPublicAmount.compareTo(BigInteger.ZERO) == 0
+        && shieldedOutList.size() > 0 && shieldedOutList.size() < 3
+        && shieldedInputList.size() > 0 && shieldedInputList.size() < 3) {
+      System.out.println("This is TRANSFER.");
+      shieldedContractType = 1;
+    } else if (fromPublicAmount.compareTo(BigInteger.ZERO) == 0 && shieldedOutList.size() < 2
+        && shieldedInputList.size() == 1 && toPublicAmount.compareTo(BigInteger.ZERO) > 0) {
+      System.out.println("This is BURN.");
+      shieldedContractType = 2;
+    } else {
+      System.out.println("The shieldedContractType is not MINT, TRANSFER or BURN");
+      return false;
+    }
+
+    if (withAsk) {
+      return walletApiWrapper.sendShieldedTRC20Coin(shieldedContractType, fromPublicAmount,
+          shieldedInputList, shieldedOutList, toPublicAddress, toPublicAmount, contractAddress,
+          shieldedContractAddress);
+    } else {
+      return walletApiWrapper.sendShieldedTRC20CoinWithoutAsk(shieldedContractType,
+          fromPublicAmount, shieldedInputList, shieldedOutList, toPublicAddress, toPublicAmount,
+          contractAddress, shieldedContractAddress);
+    }
+  }
+
+  private boolean checkAmountValid(BigInteger amount, BigInteger scalingFactor) {
+    if (amount.compareTo(BigInteger.ZERO) < 0) {
+      return false;
+    }
+    BigInteger[] quotientAndReminder = amount.divideAndRemainder(scalingFactor);
+    if (quotientAndReminder[1].compareTo(BigInteger.ZERO) != 0) {
+      return false;
+    }
+    if (quotientAndReminder[0].compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0) {
+      return false;
+    }
+    return true;
+  }
+
+  private void showShieldedTRC20AddressInfo(String[] parameters) {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("Using ShowShieldedTRC20AddressInfo needs 1 parameter like: ");
+      System.out.println("ShowShieldedTRC20AddressInfo shieldedTRC20Address");
+      return;
+    }
+
+    if (!ShieldedTRC20Wrapper.getInstance().ifShieldedTRC20WalletLoaded()) {
+      System.out.println("ShowShieldedTRC20AddressInfo failed, " +
+          "please loadShieldedTRC20Wallet first!");
+      return;
+    }
+
+    String shieldedAddress = parameters[0];
+    ShieldedAddressInfo addressInfo =
+        ShieldedTRC20Wrapper.getInstance().getShieldedAddressInfoMap().get(shieldedAddress);
+    if (addressInfo != null) {
+      System.out.println("The following variables are secret information, " +
+          "please don't show to other people!!!");
+      System.out.println("sk :" + ByteArray.toHexString(addressInfo.getSk()));
+      System.out.println("ivk:" + ByteArray.toHexString(addressInfo.getIvk()));
+      System.out.println("ovk:" + ByteArray.toHexString(addressInfo.getOvk()));
+      System.out.println("pkd:" + ByteArray.toHexString(addressInfo.getPkD()));
+      System.out.println("d  :" + ByteArray.toHexString(addressInfo.getD().getData()));
+    } else {
+      PaymentAddress decodePaymentAddress;
+      try {
+        decodePaymentAddress = KeyIo.decodePaymentAddress(shieldedAddress);
+      } catch (IllegalArgumentException e) {
+        System.out.println("Shielded address " + shieldedAddress + " is invalid, please check!");
+        return;
+      }
+      if (decodePaymentAddress != null) {
+        System.out.println("pkd:" + ByteArray.toHexString(decodePaymentAddress.getPkD()));
+        System.out.println("d  :" + ByteArray.toHexString(decodePaymentAddress.getD().getData()));
+      } else {
+        System.out.println("Shielded address " + shieldedAddress + " is invalid, please check!");
+      }
+    }
+  }
+
   private void help() {
     System.out.println("Help: List of Tron Wallet-cli commands");
     System.out.println(
@@ -3147,10 +3790,10 @@ public class Client {
               logout();
               break;
             }
-            case "loadshieldedwallet": {
-              loadShieldedWallet();
-              break;
-            }
+            // case "loadshieldedwallet": {
+            //   loadShieldedWallet();
+            //   break;
+            // }
             case "backupwallet": {
               backupWallet();
               break;
@@ -3459,6 +4102,7 @@ public class Client {
               broadcastTransaction(parameters);
               break;
             }
+            /*
             case "generateshieldedaddress": {
               generateShieldedAddress(parameters);
               break;
@@ -3511,9 +4155,65 @@ public class Client {
               backupShieldedWallet();
               break;
             }
+             */
             case "create2": {
               create2(parameters);
               break;
+            }
+            case "setshieldedtrc20contractaddress": {
+              setShieldedTRC20ContractAddress(parameters);
+              break;
+            }
+            case "backupshieldedtrc20wallet": {
+              backupShieldedTRC20Wallet();
+              break;
+            }
+            case "generateshieldedtrc20address": {
+              generateShieldedTRC20Address(parameters);
+              break;
+            }
+            case "importshieldedtrc20wallet": {
+              importShieldedTRC20Wallet();
+              break;
+            }
+            case "listshieldedtrc20address": {
+              listShieldedTRC20Address();
+              break;
+            }
+            case "listshieldedtrc20note": {
+              listShieldedTRC20Note(parameters);
+              break;
+            }
+            case "loadshieldedtrc20wallet": {
+              loadShieldedTRC20Wallet();
+              break;
+            }
+            case "resetshieldedtrc20note": {
+              resetShieldedTRC20Note();
+              break;
+            }
+            case "scanshieldedtrc20notebyivk": {
+              scanShieldedTRC20NoteByIvk(parameters);
+              break;
+            }
+            case "scanshieldedtrc20notebyovk": {
+              scanShieldedTRC20NoteByOvk(parameters);
+              break;
+            }
+            case "sendshieldedtrc20coin": {
+              sendShieldedTRC20Coin(parameters);
+              break;
+            }
+            case "sendshieldedtrc20coinwithoutask": {
+              sendShieldedTRC20CoinWithoutAsk(parameters);
+              break;
+            }
+            case "showshieldedtrc20addressinfo": {
+              showShieldedTRC20AddressInfo(parameters);
+              break;
+            }
+            case "gettransactioninfobyblocknum": {
+              getTransactionInfoByBlockNum(parameters);
             }
             case "marketsellasset": {
               marketSellAsset(parameters);
@@ -3568,7 +4268,9 @@ public class Client {
         } catch (Exception e) {
           System.out.println(cmd + " failed!");
           System.out.println(e.getMessage());
-          e.printStackTrace();
+          if (e.getCause() != null) {
+            System.out.println(e.getCause().getMessage());
+          }
         }
       }
     } catch (IOException e) {

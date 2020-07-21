@@ -2,9 +2,18 @@ syntax = "proto3";
 package protocol;
 
 import "core/Tron.proto";
-import "core/Contract.proto";
 import "google/api/annotations.proto";
 
+import "core/contract/asset_issue_contract.proto";
+import "core/contract/account_contract.proto";
+import "core/contract/witness_contract.proto";
+import "core/contract/balance_contract.proto";
+import "core/contract/proposal_contract.proto";
+import "core/contract/storage_contract.proto";
+import "core/contract/exchange_contract.proto";
+import "core/contract/smart_contract.proto";
+import "core/contract/shield_contract.proto";
+import "core/contract/market_contract.proto";
 
 option java_package = "org.tron.api"; //Specify the name of the package that generated the Java file
 option java_outer_classname = "GrpcAPI"; //Specify the class name of the generated Java file
@@ -630,6 +639,16 @@ service Wallet {
   rpc GetNodeInfo (EmptyMessage) returns (NodeInfo) {
   };
 
+  rpc GetRewardInfo (BytesMessage) returns (NumberMessage) {
+  };
+
+  rpc GetBrokerageInfo (BytesMessage) returns (NumberMessage) {
+  };
+
+  rpc UpdateBrokerage (UpdateBrokerageContract) returns (TransactionExtention) {
+
+  };
+
   // for shiededTransaction
   rpc CreateShieldedTransaction (PrivateParameters) returns (TransactionExtention) {
   };
@@ -689,15 +708,33 @@ service Wallet {
   };
   // end for shiededTransaction
 
-  rpc GetRewardInfo (BytesMessage) returns (NumberMessage) {
+  //for shielded contract
+  rpc CreateShieldedContractParameters (PrivateShieldedTRC20Parameters) returns (ShieldedTRC20Parameters) {
   };
 
-  rpc GetBrokerageInfo (BytesMessage) returns (NumberMessage) {
+  rpc CreateShieldedContractParametersWithoutAsk (PrivateShieldedTRC20ParametersWithoutAsk) returns (ShieldedTRC20Parameters) {
   };
 
-  rpc UpdateBrokerage (UpdateBrokerageContract) returns (TransactionExtention) {
+  rpc ScanShieldedTRC20NotesByIvk (IvkDecryptTRC20Parameters) returns (DecryptNotesTRC20) {
   };
 
+  rpc ScanShieldedTRC20NotesByOvk (OvkDecryptTRC20Parameters) returns (DecryptNotesTRC20) {
+  };
+
+  rpc IsShieldedTRC20ContractNoteSpent (NfTRC20Parameters) returns (NullifierResult) {
+  };
+
+  rpc GetTriggerInputForShieldedTRC20Contract (ShieldedTRC20TriggerContractParameters) returns (BytesMessage) {
+  };
+  // end for shieldedTransaction
+
+  rpc CreateCommonTransaction (Transaction) returns (TransactionExtention) {
+  };
+
+  rpc GetTransactionInfoByBlockNum (NumberMessage) returns (TransactionInfoList) {
+  }
+
+  // for market
   rpc MarketSellAsset (MarketSellAssetContract) returns (TransactionExtention) {
   }
 
@@ -718,7 +755,7 @@ service Wallet {
 
   rpc GetMarketPairList (EmptyMessage) returns (MarketOrderPairList) {
   }
-
+  // end for market
 };
 
 service WalletSolidity {
@@ -866,11 +903,26 @@ service WalletSolidity {
   rpc IsSpend (NoteParameters) returns (SpendResult) {
   }
 
+  rpc ScanShieldedTRC20NotesByIvk (IvkDecryptTRC20Parameters) returns (DecryptNotesTRC20) {
+  };
+
+  rpc ScanShieldedTRC20NotesByOvk (OvkDecryptTRC20Parameters) returns (DecryptNotesTRC20) {
+  };
+
+  rpc IsShieldedTRC20ContractNoteSpent (NfTRC20Parameters) returns (NullifierResult) {
+  };
+
   rpc GetRewardInfo (BytesMessage) returns (NumberMessage) {
   };
 
   rpc GetBrokerageInfo (BytesMessage) returns (NumberMessage) {
   };
+
+  rpc TriggerConstantContract (TriggerSmartContract) returns (TransactionExtention) {
+  }
+
+  rpc GetTransactionInfoByBlockNum (NumberMessage) returns (TransactionInfoList) {
+  }
 
   rpc GetMarketOrderByAccount (BytesMessage) returns (MarketOrderList) {
   }
@@ -1102,7 +1154,7 @@ message EasyTransferAssetByPrivateMessage {
 message EasyTransferResponse {
   Transaction transaction = 1;
   Return result = 2;
-  bytes txid = 3; //transaction id =  sha256(transaction.rowdata)
+  bytes txid = 3; //transaction id = sha256(transaction.raw_data)
 }
 
 message AddressPrKeyPairMessage {
@@ -1112,7 +1164,7 @@ message AddressPrKeyPairMessage {
 
 message TransactionExtention {
   Transaction transaction = 1;
-  bytes txid = 2; //transaction id =  sha256(transaction.rowdata)
+  bytes txid = 2; //transaction id = sha256(transaction.raw_data)
   repeated bytes constant_result = 3;
   Return result = 4;
 }
@@ -1197,7 +1249,7 @@ message OvkDecryptParameters {
 message DecryptNotes {
   message NoteTx {
     Note note = 1;
-    bytes txid = 2; //transaction id =  sha256(transaction.rowdata)
+    bytes txid = 2; //transaction id = sha256(transaction.raw_data)
     int32 index = 3; //the index of note in receive
   }
   repeated NoteTx noteTxs = 1;
@@ -1206,7 +1258,7 @@ message DecryptNotes {
 message DecryptNotesMarked {
   message NoteTx {
     Note note = 1;
-    bytes txid = 2; //transaction id =  sha256(transaction.rowdata)
+    bytes txid = 2; //transaction id = sha256(transaction.raw_data)
     int32 index = 3; //the index of note in receive
     bool is_spend = 4;
   }
@@ -1241,6 +1293,7 @@ message PrivateParameters {
   repeated ReceiveNote shielded_receives = 7;
   bytes transparent_to_address = 8;
   int64 to_amount = 9;
+  int64 timeout = 10;  // timeout in seconds, it works only when it bigger than 0
 }
 
 message PrivateParametersWithoutAsk {
@@ -1253,6 +1306,7 @@ message PrivateParametersWithoutAsk {
   repeated ReceiveNote shielded_receives = 7;
   bytes transparent_to_address = 8;
   int64 to_amount = 9;
+  int64 timeout = 10;  // timeout in seconds, it works only when it bigger than 0
 }
 
 message SpendAuthSigParameters {
@@ -1311,7 +1365,6 @@ message ShieldedAddressInfo{
   string payment_address = 10;
 }
 
-
 message NoteParameters {
   bytes ak = 1;
   bytes nk = 2;
@@ -1323,4 +1376,99 @@ message NoteParameters {
 message SpendResult {
   bool result = 1;
   string message = 2;
+}
+
+message TransactionInfoList {
+  repeated TransactionInfo transactionInfo = 1;
+}
+
+message SpendNoteTRC20 {
+  Note note = 1;
+  bytes alpha = 2;
+  bytes root = 3;
+  bytes path = 4;
+  int64 pos = 5;
+}
+
+message PrivateShieldedTRC20Parameters {
+  bytes ask = 1;
+  bytes nsk = 2;
+  bytes ovk = 3;
+  string from_amount = 4;
+  repeated SpendNoteTRC20 shielded_spends = 5;
+  repeated ReceiveNote shielded_receives = 6;
+  bytes transparent_to_address = 7;
+  string to_amount = 8;
+  bytes shielded_TRC20_contract_address = 9;
+}
+
+message PrivateShieldedTRC20ParametersWithoutAsk {
+  bytes ak = 1;
+  bytes nsk = 2;
+  bytes ovk = 3;
+  string from_amount = 4;
+  repeated SpendNoteTRC20 shielded_spends = 5;
+  repeated ReceiveNote shielded_receives = 6;
+  bytes transparent_to_address = 7;
+  string to_amount = 8;
+  bytes shielded_TRC20_contract_address = 9;
+}
+
+message ShieldedTRC20Parameters {
+  repeated SpendDescription spend_description = 1;
+  repeated ReceiveDescription receive_description = 2;
+  bytes binding_signature = 3;
+  bytes message_hash = 4;
+  string trigger_contract_input = 5;
+  string parameter_type = 6;
+}
+
+message IvkDecryptTRC20Parameters {
+  int64 start_block_index = 1;
+  int64 end_block_index = 2;
+  bytes shielded_TRC20_contract_address = 3;
+  bytes ivk = 4;
+  bytes ak = 5;
+  bytes nk = 6;
+  repeated string events = 7;
+}
+
+message OvkDecryptTRC20Parameters {
+  int64 start_block_index = 1;
+  int64 end_block_index = 2;
+  bytes ovk = 3;
+  bytes shielded_TRC20_contract_address = 4;
+  repeated string events = 5;
+}
+
+message DecryptNotesTRC20 {
+  message NoteTx {
+    Note note = 1;
+    int64 position = 2;
+    bool is_spent = 3;
+    bytes txid = 4;
+    int32 index = 5; //the index of note in txid
+    string to_amount = 6;
+    bytes transparent_to_address = 7;
+  }
+  repeated NoteTx noteTxs = 1;
+}
+
+message NfTRC20Parameters {
+  Note note = 1;
+  bytes ak = 2;
+  bytes nk = 3;
+  int64 position = 4;
+  bytes shielded_TRC20_contract_address = 5;
+}
+
+message NullifierResult {
+  bool is_spent = 1;
+}
+
+message ShieldedTRC20TriggerContractParameters {
+  ShieldedTRC20Parameters shielded_TRC20_Parameters = 1;
+  repeated BytesMessage spend_authority_signature = 2;
+  string amount = 3;
+  bytes transparent_to_address = 4;
 }
