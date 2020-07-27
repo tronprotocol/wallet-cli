@@ -33,6 +33,10 @@ import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.ChainParameters;
 import org.tron.protos.Protocol.Exchange;
+import org.tron.protos.Protocol.MarketOrder;
+import org.tron.protos.Protocol.MarketOrderList;
+import org.tron.protos.Protocol.MarketOrderPairList;
+import org.tron.protos.Protocol.MarketPriceList;
 import org.tron.protos.Protocol.Proposal;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.contract.AssetIssueContractOuterClass.AssetIssueContract;
@@ -1796,6 +1800,54 @@ public class WalletApiWrapper {
 
   public static Optional<TransactionInfoList> getTransactionInfoByBlockNum(long blockNum) {
     return WalletApi.getTransactionInfoByBlockNum(blockNum);
+  }
+
+  public boolean marketSellAsset(
+      byte[] owner,
+      byte[] sellTokenId,
+      long sellTokenQuantity,
+      byte[] buyTokenId,
+      long buyTokenQuantity)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: updateSetting failed,  Please login first !!");
+      return false;
+    }
+    return wallet.marketSellAsset(owner, sellTokenId, sellTokenQuantity,
+        buyTokenId, buyTokenQuantity);
+  }
+
+  public boolean marketCancelOrder(byte[] owner, byte[] orderId)
+      throws IOException, CipherException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: updateSetting failed,  Please login first !!");
+      return false;
+    }
+    return wallet.marketCancelOrder(owner, orderId);
+  }
+
+  public Optional<MarketOrderList> getMarketOrderByAccount(byte[] address) {
+    return WalletApi.getMarketOrderByAccount(address);
+  }
+
+  public Optional<MarketPriceList> getMarketPriceByPair(
+      byte[] sellTokenId, byte[] buyTokenId) {
+    return WalletApi.getMarketPriceByPair(sellTokenId, buyTokenId);
+  }
+
+
+  public Optional<MarketOrderList> getMarketOrderListByPair(
+      byte[] sellTokenId, byte[] buyTokenId) {
+    return WalletApi.getMarketOrderListByPair(sellTokenId, buyTokenId);
+  }
+
+
+  public Optional<MarketOrderPairList> getMarketPairList() {
+    return WalletApi.getMarketPairList();
+  }
+
+  public Optional<MarketOrder> getMarketOrderById(byte[] order) {
+    return WalletApi.getMarketOrderById(order);
   }
 
 }

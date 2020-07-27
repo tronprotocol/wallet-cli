@@ -71,23 +71,25 @@ For more information on a specific command, just type the command on terminal wh
 | [GetBalance](#Account-related-commands) | [GetBlock](#How-to-get-block-information) |[GetBlockById](#How-to-get-block-information) | 
 | [GetBlockByLatestNum](#How-to-get-block-information) | [GetBlockByLimitNext](#How-to-get-block-information) | [GetBrokerage](#Brokerage) | 
 | [GetContract](#How-to-use-smart-contracts) | [GetDelegatedResource](#How-to-delegate-resource) |[GetDelegatedResourceAccountIndex](#How-to-delegate-resource) | 
-| [GetDiversifier](#How-to-transfer-shielded-TRC20-token)| [GetExpandedSpendingKey](#How-to-transfer-shielded-TRC20-token)| [GetIncomingViewingKey](#How-to-transfer-shielded-TRC20-token)| 
-| [GetNextMaintenanceTime](#Some-others) | [GetNkFromNsk](#How-to-transfer-shielded-TRC20-token) | [GetProposal](#Get-proposal-information) | 
-| [GetShieldedPaymentAddress](#How-to-transfer-shielded-TRC20-token)| [GetSpendingKey](#How-to-transfer-shielded-TRC20-token) | [GetReward](#Brokerage) | 
-| [GetTransactionApprovedList](#How-to-use-the-multi-signature-feature-of-wallet-cli) |[GetTransactionById](#How-to-get-transaction-information) | [GetTransactionCountByBlockNum](#How-to-get-transaction-information) | 
-| [GetTransactionInfoByBlockNum](#How-to-get-transaction-information) | [GetTransactionInfoById](#How-to-get-transaction-information) | [GetTransactionSignWeight](#How-to-use-the-multi-signature-feature-of-wallet-cli) | 
-| [ImportShieldedTRC20Wallet](#How-to-transfer-shielded-TRC20-token) | [ImportWallet](#Wallet-related-commands) | [ImportWalletByBase64](#Wallet-related-commands) |
-| [ListAssetIssue](#Get-Token10) | [ListExchanges](#How-to-trade-on-the-exchange) | [ListExchangesPaginated](#How-to-trade-on-the-exchange) |
-| [ListNodes](#Some-others) | [ListShieldedTRC20Address](#How-to-transfer-shielded-TRC20-token) | [ListShieldedTRC20Note](#How-to-transfer-shielded-TRC20-token) | 
-| [ListProposals](#How-to-initiate-a-proposal) | [ListProposalsPaginated](#How-to-initiate-a-proposal) | [ListWitnesses](#Some-others) | 
-| [LoadShieldedTRC20Wallet](#How-to-transfer-shielded-TRC20-token) | [Login](#Command-line-operation-flow-example) | [ParticipateAssetIssue](#How-to-issue-TRC10-tokens) |
-| [RegisterWallet](#Wallet-related-commands) | [ResetShieldedTRC20Note](#How-to-transfer-shielded-TRC20-token) | [ScanShieldedTRC20NoteByIvk](#How-to-transfer-shielded-TRC20-token) | 
-| [ScanShieldedTRC20NoteByOvk](#How-to-transfer-shielded-TRC20-token) |[SendCoin](#How-to-use-the-multi-signature-feature-of-wallet-cli) | [SendShieldedTRC20Coin](#How-to-transfer-shielded-TRC20-token) | 
-| [SendShieldedTRC20CoinWithoutAsk](#How-to-transfer-shielded-TRC20-token) | [SetShieldedTRC20ContractAddress](#How-to-transfer-shielded-TRC20-token) | [ShowShieldedTRC20AddressInfo](#How-to-transfer-shielded-TRC20-token) | 
-| [TransferAsset](#How-to-issue-TRC10-tokens) | [TriggerContract](#How-to-use-smart-contracts) |[UnfreezeAsset](#How-to-issue-TRC10-tokens) |
-| [UnfreezeBalance](#How-to-delegate-resource) |[UpdateAsset](#How-to-issue-TRC10-tokens) | [UpdateBrokerage](#Brokerage) |
-| [UpdateEnergyLimit](#How-to-use-smart-contracts) |[UpdateSetting](#How-to-use-smart-contracts) | [UpdateAccountPermission](#How-to-use-the-multi-signature-feature-of-wallet-cli) | 
-| [VoteWitness](#How-to-vote) |
+| [GetDiversifier](#How-to-transfer-shielded-TRC20-token)| [GetExpandedSpendingKey](#How-to-transfer-shielded-TRC20-token)| [GetIncomingViewingKey](#How-to-transfer-shielded-TRC20-token)  | 
+| [GetMarketOrderByAccount](#How-to-use-tron-dex-to-sell-asset)| [GetMarketOrderById](#How-to-use-tron-dex-to-sell-asset)| [GetMarketOrderListByPair](#How-to-use-tron-dex-to-sell-asset)  | 
+| [GetMarketPairList](#How-to-use-tron-dex-to-sell-asset)| [GetMarketPriceByPair](#How-to-use-tron-dex-to-sell-asset)| [GetNextMaintenanceTime](#Some-others) | 
+| [GetNkFromNsk](#How-to-transfer-shielded-TRC20-token) | [GetProposal](#Get-proposal-information) | [GetShieldedPaymentAddress](#How-to-transfer-shielded-TRC20-token)| 
+| [GetSpendingKey](#How-to-transfer-shielded-TRC20-token) | [GetReward](#Brokerage) |  [GetTransactionApprovedList](#How-to-use-the-multi-signature-feature-of-wallet-cli) |
+| [GetTransactionById](#How-to-get-transaction-information) | [GetTransactionCountByBlockNum](#How-to-get-transaction-information) | [GetTransactionInfoByBlockNum](#How-to-get-transaction-information) | 
+| [GetTransactionInfoById](#How-to-get-transaction-information) | [GetTransactionSignWeight](#How-to-use-the-multi-signature-feature-of-wallet-cli) | [ImportShieldedTRC20Wallet](#How-to-transfer-shielded-TRC20-token) | 
+| [ImportWallet](#Wallet-related-commands) | [ImportWalletByBase64](#Wallet-related-commands) | [ListAssetIssue](#Get-Token10) | 
+| [ListExchanges](#How-to-trade-on-the-exchange) | [ListExchangesPaginated](#How-to-trade-on-the-exchange) | [ListNodes](#Some-others) | 
+| [ListShieldedTRC20Address](#How-to-transfer-shielded-TRC20-token) | [ListShieldedTRC20Note](#How-to-transfer-shielded-TRC20-token) | [ListProposals](#How-to-initiate-a-proposal) | 
+| [ListProposalsPaginated](#How-to-initiate-a-proposal) | [ListWitnesses](#Some-others) | [LoadShieldedTRC20Wallet](#How-to-transfer-shielded-TRC20-token) | 
+| [Login](#Command-line-operation-flow-example) | [MarketCancelOrder](#How-to-use-tron-dex-to-sell-asset) | [MarketSellAsset](#How-to-use-tron-dex-to-sell-asset)| 
+| [ParticipateAssetIssue](#How-to-issue-TRC10-tokens) | [RegisterWallet](#Wallet-related-commands) | [ResetShieldedTRC20Note](#How-to-transfer-shielded-TRC20-token) | 
+| [ScanShieldedTRC20NoteByIvk](#How-to-transfer-shielded-TRC20-token) |  [ScanShieldedTRC20NoteByOvk](#How-to-transfer-shielded-TRC20-token) |[SendCoin](#How-to-use-the-multi-signature-feature-of-wallet-cli) | 
+| [SendShieldedTRC20Coin](#How-to-transfer-shielded-TRC20-token) | [SendShieldedTRC20CoinWithoutAsk](#How-to-transfer-shielded-TRC20-token) | [SetShieldedTRC20ContractAddress](#How-to-transfer-shielded-TRC20-token) | 
+| [ShowShieldedTRC20AddressInfo](#How-to-transfer-shielded-TRC20-token) | [TransferAsset](#How-to-issue-TRC10-tokens) | [TriggerContract](#How-to-use-smart-contracts) |
+| [UnfreezeAsset](#How-to-issue-TRC10-tokens) | [UnfreezeBalance](#How-to-delegate-resource) |[UpdateAsset](#How-to-issue-TRC10-tokens) | 
+| [UpdateBrokerage](#Brokerage) | [UpdateEnergyLimit](#How-to-use-smart-contracts) |[UpdateSetting](#How-to-use-smart-contracts) | 
+| [UpdateAccountPermission](#How-to-use-the-multi-signature-feature-of-wallet-cli) | [VoteWitness](#How-to-vote) |
 
 Type any one of the listed commands, to display how-to tips.
 
@@ -2114,4 +2116,205 @@ d  :da5fd7e087d48e3dcebff3
 > ShowShieldedTRC20AddressInfo ztron1z8d5htmt6h26l5agk8r7wxw9pyhc0a78hl5thva4k9kcn7fsqvygchyt3n2ncy0r4xv4j5mywnu
 pkd:c7e719c5092f87f7c7bfe8bbb3b5b16d89f93003088c5c8b8cd53c11e3a99959
 d  :11db4baf6bd5d5afd3a8b1
+```
+
+
+## How to use tron-dex to sell asset
+
+### MarketSellAsset
+
+Create an order to sell asset    
+
+> MarketSellAsset owner_address sell_token_id sell_token_quantity buy_token_id buy_token_quantity  
+ 
+ownerAddress
+> The address of the account that initiated the transaction
+
+sell_token_id, sell_token_quantity
+> ID and amount of the token want to sell
+
+buy_token_id, buy_token_quantity
+> ID and amount of the token want to buy
+
+Example: 
+
+```console
+MarketSellAsset TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW  1000001 200 _ 100    
+
+Get the result of the contract execution with the getTransactionInfoById command:   
+getTransactionInfoById 10040f993cd9452b25bf367f38edadf11176355802baf61f3c49b96b4480d374   
+
+{
+	"id": "10040f993cd9452b25bf367f38edadf11176355802baf61f3c49b96b4480d374",
+	"blockNumber": 669,
+	"blockTimeStamp": 1578983493000,
+	"contractResult": [
+		""
+	],
+	"receipt": {
+		"net_usage": 264
+	}
+} 
+```
+
+### GetMarketOrderByAccount
+
+Get the order created by account(just include active status)
+
+> GetMarketOrderByAccount ownerAddress
+
+ownerAddress
+> The address of the account that created market order
+
+Example:
+
+```console
+GetMarketOrderByAccount TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW   
+{
+	"orders": [
+		{
+			"order_id": "fc9c64dfd48ae58952e85f05ecb8ec87f55e19402493bb2df501ae9d2da75db0",
+			"owner_address": "TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW",
+			"create_time": 1578983490000,
+			"sell_token_id": "_",
+			"sell_token_quantity": 100,
+			"buy_token_id": "1000001",
+			"buy_token_quantity": 200,
+			"sell_token_quantity_remain": 100
+		}
+	]
+}  
+```  
+
+### GetMarketOrderById
+
+Get the specific order by order_id
+
+> GetMarketOrderById orderId
+
+Example:  
+
+```console
+GetMarketOrderById fc9c64dfd48ae58952e85f05ecb8ec87f55e19402493bb2df501ae9d2da75db0   
+{
+	"order_id": "fc9c64dfd48ae58952e85f05ecb8ec87f55e19402493bb2df501ae9d2da75db0",
+	"owner_address": "TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW",
+	"create_time": 1578983490000,
+	"sell_token_id": "_",
+	"sell_token_quantity": 100,
+	"buy_token_id": "1000001",
+	"buy_token_quantity": 200,
+}
+```
+
+### GetMarketPairList
+
+Get market pair list
+   
+Example:
+
+```console
+GetMarketPairList   
+{
+	"orderPair": [
+		{
+			"sell_token_id": "_",
+			"buy_token_id": "1000001"
+		}
+	]
+}
+```
+
+### GetMarketOrderListByPair
+
+Get order list by pair   
+
+> GetMarketOrderListByPair sell_token_id buy_token_id   
+
+sell_token_id
+> ID of the token want to sell      
+
+buy_token_id
+> ID of the token want to buy
+
+Example: 
+
+```console
+GetMarketOrderListByPair _ 1000001   
+{
+	"orders": [
+		{
+			"order_id": "fc9c64dfd48ae58952e85f05ecb8ec87f55e19402493bb2df501ae9d2da75db0",
+			"owner_address": "TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW",
+			"create_time": 1578983490000,
+			"sell_token_id": "_",
+			"sell_token_quantity": 100,
+			"buy_token_id": "1000001",
+			"buy_token_quantity": 200,
+			"sell_token_quantity_remain": 100
+		}
+	]
+}
+```
+
+### GetMarketPriceByPair
+
+Get market price by pair   
+
+> GetMarketPriceByPair sell_token_id buy_token_id   
+
+sell_token_id
+> ID of the token want to sell
+
+buy_token_id
+> ID of the token want to buy
+
+Example:   
+
+```console
+GetMarketPriceByPair _ 1000001   
+{
+	"sell_token_id": "_",
+	"buy_token_id": "1000001",
+	"prices": [
+		{
+			"sell_token_quantity": 100,
+			"buy_token_quantity": 200
+		}
+	]
+}
+```
+
+### MarketCancelOrder
+
+Cancel the order   
+
+> MarketCancelOrder owner_address order_id  
+ 
+owner_address
+> the account address who have created the order
+
+order_id
+> the order id which want to cancel 
+
+Example:   
+
+```console
+MarketCancelOrder TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW fc9c64dfd48ae58952e85f05ecb8ec87f55e19402493bb2df501ae9d2da75db0  
+```
+   
+Get the result of the contract execution with the getTransactionInfoById command:  
+```console
+getTransactionInfoById b375787a098498623403c755b1399e82910385251b643811936d914c9f37bd27   
+{
+	"id": "b375787a098498623403c755b1399e82910385251b643811936d914c9f37bd27",
+	"blockNumber": 1582,
+	"blockTimeStamp": 1578986232000,
+	"contractResult": [
+		""
+	],
+	"receipt": {
+		"net_usage": 283
+	}
+}
 ```
