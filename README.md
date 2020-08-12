@@ -263,40 +263,52 @@ Balance = 0
 > TransferAsset TWzrEZYtwzkAxXJ8PatVrGuoSNsexejRiM 1000001 10000
 ```
 
-## How to issue TRC10 tokens
+## How to issue a TRC10 token
 
-Each account can only issue one TRC10 token.
+Each account can only issue **ONE** TRC10 token.
 
 ### Issue TRC10 tokens
 
     > AssetIssue [OwnerAddress] AssetName AbbrName TotalSupply TrxNum AssetNum Precision StartDate EndDate Description Url FreeNetLimitPerAccount PublicFreeNetLimit FrozenAmount0 FrozenDays0 [...] FrozenAmountN FrozenDaysN
 
-OwnerAddress
-> The address of the account that initiated the transaction, optional, default is the address of the login account.*
+OwnerAddress (optional)
+> The address of the account which initiated the transaction. 
+> Default: the address of the login account.
 
 AssetName
 > The name of the issued TRC10 token
 
 AbbrName
-> The Abbreviation of TRC10 tokens
+> The abbreviation of TRC10 token
 
 TotalSupply
-> Total issuing amount = account balance of the issuer at the time of issuance + all the frozen amount, before asset transfer and the issuance.
+> ​TotalSupply = Account Balance of Issuer + All Frozen Token Amount
+> TotalSupply: Total Issuing Amount
+> Account Balance Of Issuer: At the time of issuance
+> All Frozen Token Amount: Before asset transfer and the issuance
 
 TrxNum, AssetNum
-> These two parameters determine the exchange rate between the issued token and the minimum unit of TRX (Sun) when the token is issued.
+>  These two parameters determine the exchange rate when the token is issued.
+> Exchange Rate = TrxNum / AssetNum
+> AssetNum: Unit in base unit of the issued token
+> TrxNum: Unit in SUN (0.000001 TRX)
+
+Precision
+> Precision to how many decimal places  
 
 FreeNetLimitPerAccount
-> The maximum amount of bandwidth an account is allowed to use. Token issuers can freeze TRX to obtain bandwidth (TransferAssetContract only)
+> The maximum amount of bandwidth each account is allowed to use. Token issuers can freeze TRX to obtain bandwidth (TransferAssetContract only)
 
 PublicFreeNetLimit
-> The maximum amount of bandwidth issuing accounts are allowed user. Token issuers can freeze REX to obtain bandwidth (TransferAssetContract only)
+> The maximum total amount of bandwidth which is allowed to use for all accounts. Token issuers can freeze TRX to obtain bandwidth (TransferAssetContract only)
 
 StartDate, EndDate
-> The start and end date of token issuance. Within this period time, other users can participate in token issuance.*
+> The start and end date of token issuance. Within this period time, other users can participate in token issuance.
 
 FrozenAmount0 FrozenDays0
-> Amount and time of token freeze. FrozenAmount0 must be bigger than 0, FrozenDays0 must be bigger than 1 and smaller than 3653.
+> Amount and days of token freeze. 
+> FrozenAmount0: Must be bigger than 0
+> FrozenDays0: Must between 1 and 3653.
 
 Example:
 
@@ -339,7 +351,7 @@ Example:
 
     > UpdateAsset [OwnerAddress] newLimit newPublicLimit description url
 
-Specific meaning of the parameters is the same with that of AssetIssue.
+Specific meaning of the parameters is the same as that of AssetIssue.
 
 Example:
 
@@ -378,18 +390,20 @@ Example:
 }
 ```
 
-### TRC10 transfer
+### TRC10 token transfer
 
     > TransferAsset [OwnerAddress] ToAddress AssertID Amount
 
-OwnerAddress
-> The address of the account that initiated the transaction, optional, default is the address of the login account.
+OwnerAddress (optional)
+> The address of the account which initiated the transaction. 
+> Default: the address of the login account.
 
 ToAddress
 > Address of the target account
 
 AssertName
-> TRC10 id, 1000001 in the example
+> TRC10 token ID
+> Example: 1000001
 
 Amount
 > The number of TRC10 token to transfer
@@ -409,23 +423,25 @@ address: TN3zfjYUmMFK3ZsHSsrdJoNRtGkQmZLBLz
     }
 ```
 
-### Participating in the issue of TRC10
+### Participating in the issue of TRC10 token
 
     > ParticipateAssetIssue [OwnerAddress] ToAddress AssetID Amount
 
-OwnerAddress
-> The address of the account that initiated the transaction, optional, default is the address of the login account.
+OwnerAddress (optional)
+> The address of the account which initiated the transaction. 
+> Default: the address of the login account.
 
 ToAddress
-> Account address of Token 10 issuers
+> Account address of TRC10 issuers
 
 AssertName
-> TRC10 ID, 1000001 in the example
+> TRC10 token ID
+> Example: 1000001
 
 Amount
 > The number of TRC10 token to transfers
 
-It must happen during the release of Token 10, otherwise an error may occur.
+The participation process must happen during the release of TRC10, otherwise an error may occur.
 
 Example:
 
@@ -442,43 +458,43 @@ assetV2
     }
 ```
 
-### unfreeze TRC10 token
+### Unfreeze TRC10 token
 
-It must be unfrozen after the freezing period, unfreeze Token10, which has stopped being frozen.
+To unfreeze all TRC10 token which are supposed to be unfrozen after the freezing period.
 
     > unfreezeasset [OwnerAddress]
 
-## Get Token10
+## How to obtain TRC10 token information
 
 ListAssetIssue
-> Obtain all of the published Token 10 information
+> Obtain all of the published TRC10 token information
 
 GetAssetIssueByAccount
-> Obtain Token10 information according to the issuing address
+> Obtain TRC10 token information based on issuing address
 
 GetAssetIssueById
-> Obtain Token10 Information based on ID
+> Obtain TRC10 token Information based on ID
 
 GetAssetIssueByName
-> Obtain Token10 Information based on names
+> Obtain TRC10 token Information based on names
 
 GetAssetIssueListByName
-> Get list information on Token10 based on names
+> Obtain a list of TRC10 token information based on names
 
-## How to initiate a proposal
+## How to operate with proposal
 
-Any proposal-related operations, except for viewing operations, must be performed by committee
-members.
+Any proposal-related operations, except for viewing operations, must be performed by committee members.
 
 ### Initiate a proposal
 
     > createProposal [OwnerAddress] id0 value0 ... idN valueN
 
-OwnerAddress
-> The address of the account that initiated the transaction, optional, default is the address of the login account.
+OwnerAddress (optional)
+> The address of the account which initiated the transaction. 
+> Default: the address of the login account.
 
 id0
-> The serial number of the parameter. Every parameter of TRON network has a serial number. Go to "http://tronscan.org/#/sr/committee" to see the specifics
+> The serial number of the parameter. Every parameter of TRON network has a serial number. Please refer to "http://tronscan.org/#/sr/committee" 
 
 Value0
 > The modified value
@@ -508,15 +524,17 @@ In the example, modification No.4 (modifying token issuance fee) costs 1000TRX a
 
 The corresponding id is 1.
 
-### Approve/cancel the proposal
+### Approve / Disapprove a proposal
 
     > approveProposal [OwnerAddress] id is_or_not_add_approval
 
-OwnerAddress
-> The address of the account that initiated the transaction, optional, default is the address of the login account.
+OwnerAddress (optional)
+> The address of the account which initiated the transaction. 
+> Default: the address of the login account.
 
 id
-> ID of the initiated proposal, 1 in the example
+> ID of the initiated proposal
+> Example: 1
 
 is_or_not_add_approval
 > true for approve; false for disapprove
@@ -528,12 +546,13 @@ Example:
 > ApproveProposal 1 false  # Cancel the approved proposal
 ```
 
-### Cancel the created proposal
+### Delete an existed proposal
 
     > deleteProposal [OwnerAddress] proposalId
 
 proposalId
-> ID of the initiated proposal, 1 in the example
+> ID of the initiated proposal
+> Example: 1
 
 The proposal must be canceled by the supernode that initiated the proposal.
 
@@ -541,10 +560,10 @@ Example：
 
     > DeleteProposal 1
 
-## Get proposal information
+### Obtain proposal information
 
 ListProposals
-> Obtain initiated proposals
+> Obtain a list of initiated proposals
 
 ListProposalsPaginated
 > Use the paging mode to obtain the initiated proposal
