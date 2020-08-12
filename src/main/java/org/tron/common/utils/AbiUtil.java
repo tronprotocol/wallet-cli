@@ -1,6 +1,7 @@
 package org.tron.common.utils;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.math.BigInteger;
 import org.apache.commons.lang3.StringUtils;
 import org.spongycastle.util.encoders.Hex;
 import org.tron.common.crypto.Hash;
@@ -125,9 +126,9 @@ public class AbiUtil {
 
     @Override
     byte[] encode(String value) {
-      long n = Long.valueOf(value);
-      DataWord word = new DataWord(Math.abs(n));
-      if (n < 0) {
+      BigInteger bigInteger = new BigInteger(value);
+      DataWord word = new DataWord(bigInteger.abs().toByteArray());
+      if (bigInteger.compareTo(new BigInteger("0")) == -1) {
         word.negate();
       }
       return word.getData();
