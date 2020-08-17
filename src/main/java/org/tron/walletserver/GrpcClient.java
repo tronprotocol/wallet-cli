@@ -62,6 +62,7 @@ import org.tron.protos.contract.SmartContractOuterClass.SmartContract;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.TransactionInfo;
 import org.tron.protos.Protocol.TransactionSign;
+import org.tron.protos.contract.SmartContractOuterClass.SmartContractDataWrapper;
 import org.tron.protos.contract.SmartContractOuterClass.TriggerSmartContract;
 import org.tron.protos.contract.SmartContractOuterClass.UpdateEnergyLimitContract;
 import org.tron.protos.contract.SmartContractOuterClass.UpdateSettingContract;
@@ -836,6 +837,12 @@ public class GrpcClient {
     ByteString byteString = ByteString.copyFrom(address);
     BytesMessage bytesMessage = BytesMessage.newBuilder().setValue(byteString).build();
     return blockingStubFull.getContract(bytesMessage);
+  }
+
+  public SmartContractDataWrapper getContractInfo(byte[] address) {
+    ByteString byteString = ByteString.copyFrom(address);
+    BytesMessage bytesMessage = BytesMessage.newBuilder().setValue(byteString).build();
+    return blockingStubFull.getContractInfo(bytesMessage);
   }
 
   public TransactionExtention accountPermissionUpdate(
