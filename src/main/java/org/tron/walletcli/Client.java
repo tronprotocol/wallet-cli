@@ -56,6 +56,7 @@ import org.tron.protos.Protocol.Proposal;
 import org.tron.protos.contract.SmartContractOuterClass.SmartContract;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.TransactionInfo;
+import org.tron.protos.contract.SmartContractOuterClass.SmartContractDataWrapper;
 import org.tron.walletserver.WalletApi;
 
 
@@ -108,6 +109,7 @@ public class Client {
       "GetBrokerage",
       "GetChainParameters",
       "GetContract contractAddress",
+      "GetContractInfo contractAddress",
       "GetDelegatedResource",
       "GetDelegatedResourceAccountIndex",
       "GetDiversifier",
@@ -237,6 +239,7 @@ public class Client {
       "GetBrokerage",
       "GetChainParameters",
       "GetContract",
+      "GetContractInfo",
       "GetDelegatedResource",
       "GetDelegatedResourceAccountIndex",
       "GetDiversifier",
@@ -2237,6 +2240,28 @@ public class Client {
     }
   }
 
+  private void getContractInfo(String[] parameters) {
+    if (parameters == null ||
+        parameters.length != 1) {
+      System.out.println("Using getContractInfo needs 1 parameter like: ");
+      System.out.println("GetContractInfo contractAddress");
+      return;
+    }
+
+    byte[] addressBytes = WalletApi.decodeFromBase58Check(parameters[0]);
+    if (addressBytes == null) {
+      System.out.println("GetContractInfo: invalid address !!!");
+      return;
+    }
+
+    SmartContractDataWrapper contractDeployContract = WalletApi.getContractInfo(addressBytes);
+    if (contractDeployContract != null) {
+      System.out.println(Utils.formatMessageString(contractDeployContract));
+    } else {
+      System.out.println("Query contract failed !!!");
+    }
+  }
+
   private void generateAddress() {
     AddressPrKeyPairMessage result = walletApiWrapper.generateAddress();
     if (null != result) {
@@ -4076,6 +4101,10 @@ public class Client {
             }
             case "getcontract": {
               getContract(parameters);
+              break;
+            }
+            case "getcontractinfo": {
+              getContractInfo(parameters);
               break;
             }
             case "generateaddress": {
