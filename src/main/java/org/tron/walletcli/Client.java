@@ -3704,7 +3704,7 @@ public class Client {
         || cmdLine.toLowerCase().startsWith("triggercontract")
         || cmdLine.toLowerCase().startsWith("triggerconstantcontract")
         || cmdLine.toLowerCase().startsWith("updateaccountpermission")) {
-      return cmdLine.split("\\s+");
+      return cmdLine.split(" ", -1);
     }
     String[] strArray = cmdLine.split("\"");
     int num = strArray.length;
