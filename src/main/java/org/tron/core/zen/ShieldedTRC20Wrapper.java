@@ -1,6 +1,7 @@
 package org.tron.core.zen;
 
 import com.google.protobuf.ByteString;
+import com.typesafe.config.Config;
 import io.netty.util.internal.StringUtil;
 import lombok.Getter;
 import lombok.Setter;
@@ -11,6 +12,7 @@ import org.tron.common.utils.Base58;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.ByteUtil;
 import org.tron.common.utils.Utils;
+import org.tron.core.config.Configuration;
 import org.tron.core.exception.CipherException;
 import org.tron.core.exception.ZksnarkException;
 import org.tron.core.zen.address.KeyIo;
@@ -62,8 +64,21 @@ public class ShieldedTRC20Wrapper {
   @Getter
   @Setter
   public List<ShieldedTRC20NoteInfo> spendUtxoList = new ArrayList<>();
+  @Getter
+  @Setter
+  public static long defaultBlockNumberToScan = 0;
 
   private boolean loadShieldedStatus = false;
+
+  static {
+    Config config = Configuration.getByPath("config.conf");
+    if (config.hasPath("blockNumberStartToScan")) {
+      try {
+        defaultBlockNumberToScan = config.getLong("blockNumberStartToScan");
+      } catch (Exception e) {
+      }
+    }
+  }
 
   private ShieldedTRC20Wrapper() {
     thread = new Thread(new scanIvkRunable());
@@ -206,7 +221,7 @@ public class ShieldedTRC20Wrapper {
       byte[] key = ByteUtil.merge(entry.getValue().getIvk(),
           entry.getValue().getFullViewingKey().getAk(),
           entry.getValue().getFullViewingKey().getNk());
-      ivkMapScanBlockNum.put(ByteArray.toHexString(key), 0L);
+      ivkMapScanBlockNum.put(ByteArray.toHexString(key), defaultBlockNumberToScan);
     }
 
     utxoMapNote.clear();
@@ -234,8 +249,8 @@ public class ShieldedTRC20Wrapper {
         long start = entry.getValue();
         long end = start;
         while (end < blockNum) {
-          if (blockNum - start > 1000) {
-            end = start + 1000;
+          if (blockNum - start > 200) { // scan 200 blocks at a time
+            end = start + 200;
           } else {
             end = blockNum;
           }
@@ -293,10 +308,10 @@ public class ShieldedTRC20Wrapper {
             }
           }
           start = end;
+          ivkMapScanBlockNum.put(entry.getKey(), start);
+          updateIvkAndBlockNumFile();
         }
-        ivkMapScanBlockNum.put(entry.getKey(), blockNum);
       }
-      updateIvkAndBlockNumFile();
     }
   }
 
@@ -369,7 +384,7 @@ public class ShieldedTRC20Wrapper {
                                             boolean newAddress)
       throws CipherException, ZksnarkException {
     appendAddressInfoToFile(addressInfo);
-    long blockNum = 0;
+    long blockNum = defaultBlockNumberToScan;
     if (newAddress) {
       try {
         Block block = WalletApi.getBlock(-1);
