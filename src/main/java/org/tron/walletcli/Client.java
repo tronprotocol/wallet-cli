@@ -2112,7 +2112,7 @@ public class Client {
       if (isHex) {
         codeStr += argsStr;
       } else {
-        codeStr += Hex.toHexString(AbiUtil.encodeInput(constructorStr, argsStr));
+        codeStr += AbiUtil.parseMethod(constructorStr, argsStr);
       }
     }
     long value = 0;
