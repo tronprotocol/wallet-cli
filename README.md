@@ -25,9 +25,13 @@ fullnode = {
 }
 
 soliditynode = {
+  // the IPs in this list can only be totally set to solidity or pBFT.
   ip.list = [
-    "solidity ip : port"
+    "ip : solidity port" // default solidity
   ]
+#  ip.list = [
+#    "ip : pBFT port" // or pBFT
+#  ]
 } // NOTE: solidity node is optional
 
 blockNumberStartToScan = 22690588 // NOTE: this field is optional
@@ -73,23 +77,25 @@ For more information on a specific command, just type the command on terminal wh
 | [GetBalance](#Account-related-commands) | [GetBlock](#How-to-get-block-information) |[GetBlockById](#How-to-get-block-information) | 
 | [GetBlockByLatestNum](#How-to-get-block-information) | [GetBlockByLimitNext](#How-to-get-block-information) | [GetBrokerage](#Brokerage) | 
 | [GetContract](#How-to-use-smart-contracts) | [GetDelegatedResource](#How-to-delegate-resource) |[GetDelegatedResourceAccountIndex](#How-to-delegate-resource) | 
-| [GetDiversifier](#How-to-transfer-shielded-TRC20-token)| [GetExpandedSpendingKey](#How-to-transfer-shielded-TRC20-token)| [GetIncomingViewingKey](#How-to-transfer-shielded-TRC20-token)| 
-| [GetNextMaintenanceTime](#Some-others) | [GetNkFromNsk](#How-to-transfer-shielded-TRC20-token) | [GetProposal](#Get-proposal-information) | 
-| [GetShieldedPaymentAddress](#How-to-transfer-shielded-TRC20-token)| [GetSpendingKey](#How-to-transfer-shielded-TRC20-token) | [GetReward](#Brokerage) | 
-| [GetTransactionApprovedList](#How-to-use-the-multi-signature-feature-of-wallet-cli) |[GetTransactionById](#How-to-get-transaction-information) | [GetTransactionCountByBlockNum](#How-to-get-transaction-information) | 
-| [GetTransactionInfoByBlockNum](#How-to-get-transaction-information) | [GetTransactionInfoById](#How-to-get-transaction-information) | [GetTransactionSignWeight](#How-to-use-the-multi-signature-feature-of-wallet-cli) | 
-| [ImportShieldedTRC20Wallet](#How-to-transfer-shielded-TRC20-token) | [ImportWallet](#Wallet-related-commands) | [ImportWalletByBase64](#Wallet-related-commands) |
-| [ListAssetIssue](#Get-Token10) | [ListExchanges](#How-to-trade-on-the-exchange) | [ListExchangesPaginated](#How-to-trade-on-the-exchange) |
-| [ListNodes](#Some-others) | [ListShieldedTRC20Address](#How-to-transfer-shielded-TRC20-token) | [ListShieldedTRC20Note](#How-to-transfer-shielded-TRC20-token) | 
-| [ListProposals](#How-to-initiate-a-proposal) | [ListProposalsPaginated](#How-to-initiate-a-proposal) | [ListWitnesses](#Some-others) | 
-| [LoadShieldedTRC20Wallet](#How-to-transfer-shielded-TRC20-token) | [Login](#Command-line-operation-flow-example) | [ParticipateAssetIssue](#How-to-issue-TRC10-tokens) |
-| [RegisterWallet](#Wallet-related-commands) | [ResetShieldedTRC20Note](#How-to-transfer-shielded-TRC20-token) | [ScanShieldedTRC20NoteByIvk](#How-to-transfer-shielded-TRC20-token) | 
-| [ScanShieldedTRC20NoteByOvk](#How-to-transfer-shielded-TRC20-token) |[SendCoin](#How-to-use-the-multi-signature-feature-of-wallet-cli) | [SendShieldedTRC20Coin](#How-to-transfer-shielded-TRC20-token) | 
-| [SendShieldedTRC20CoinWithoutAsk](#How-to-transfer-shielded-TRC20-token) | [SetShieldedTRC20ContractAddress](#How-to-transfer-shielded-TRC20-token) | [ShowShieldedTRC20AddressInfo](#How-to-transfer-shielded-TRC20-token) | 
-| [TransferAsset](#How-to-issue-TRC10-tokens) | [TriggerContract](#How-to-use-smart-contracts) |[UnfreezeAsset](#How-to-issue-TRC10-tokens) |
-| [UnfreezeBalance](#How-to-delegate-resource) |[UpdateAsset](#How-to-issue-TRC10-tokens) | [UpdateBrokerage](#Brokerage) |
-| [UpdateEnergyLimit](#How-to-use-smart-contracts) |[UpdateSetting](#How-to-use-smart-contracts) | [UpdateAccountPermission](#How-to-use-the-multi-signature-feature-of-wallet-cli) | 
-| [VoteWitness](#How-to-vote) |
+| [GetDiversifier](#How-to-transfer-shielded-TRC20-token)| [GetExpandedSpendingKey](#How-to-transfer-shielded-TRC20-token)| [GetIncomingViewingKey](#How-to-transfer-shielded-TRC20-token)  | 
+| [GetMarketOrderByAccount](#How-to-use-tron-dex-to-sell-asset)| [GetMarketOrderById](#How-to-use-tron-dex-to-sell-asset)| [GetMarketOrderListByPair](#How-to-use-tron-dex-to-sell-asset)  | 
+| [GetMarketPairList](#How-to-use-tron-dex-to-sell-asset)| [GetMarketPriceByPair](#How-to-use-tron-dex-to-sell-asset)| [GetNextMaintenanceTime](#Some-others) | 
+| [GetNkFromNsk](#How-to-transfer-shielded-TRC20-token) | [GetProposal](#Get-proposal-information) | [GetShieldedPaymentAddress](#How-to-transfer-shielded-TRC20-token)| 
+| [GetSpendingKey](#How-to-transfer-shielded-TRC20-token) | [GetReward](#Brokerage) |  [GetTransactionApprovedList](#How-to-use-the-multi-signature-feature-of-wallet-cli) |
+| [GetTransactionById](#How-to-get-transaction-information) | [GetTransactionCountByBlockNum](#How-to-get-transaction-information) | [GetTransactionInfoByBlockNum](#How-to-get-transaction-information) | 
+| [GetTransactionInfoById](#How-to-get-transaction-information) | [GetTransactionSignWeight](#How-to-use-the-multi-signature-feature-of-wallet-cli) | [ImportShieldedTRC20Wallet](#How-to-transfer-shielded-TRC20-token) | 
+| [ImportWallet](#Wallet-related-commands) | [ImportWalletByBase64](#Wallet-related-commands) | [ListAssetIssue](#Get-Token10) | 
+| [ListExchanges](#How-to-trade-on-the-exchange) | [ListExchangesPaginated](#How-to-trade-on-the-exchange) | [ListNodes](#Some-others) | 
+| [ListShieldedTRC20Address](#How-to-transfer-shielded-TRC20-token) | [ListShieldedTRC20Note](#How-to-transfer-shielded-TRC20-token) | [ListProposals](#How-to-initiate-a-proposal) | 
+| [ListProposalsPaginated](#How-to-initiate-a-proposal) | [ListWitnesses](#Some-others) | [LoadShieldedTRC20Wallet](#How-to-transfer-shielded-TRC20-token) | 
+| [Login](#Command-line-operation-flow-example) | [MarketCancelOrder](#How-to-use-tron-dex-to-sell-asset) | [MarketSellAsset](#How-to-use-tron-dex-to-sell-asset)| 
+| [ParticipateAssetIssue](#How-to-issue-TRC10-tokens) | [RegisterWallet](#Wallet-related-commands) | [ResetShieldedTRC20Note](#How-to-transfer-shielded-TRC20-token) | 
+| [ScanShieldedTRC20NoteByIvk](#How-to-transfer-shielded-TRC20-token) |  [ScanShieldedTRC20NoteByOvk](#How-to-transfer-shielded-TRC20-token) |[SendCoin](#How-to-use-the-multi-signature-feature-of-wallet-cli) | 
+| [SendShieldedTRC20Coin](#How-to-transfer-shielded-TRC20-token) | [SendShieldedTRC20CoinWithoutAsk](#How-to-transfer-shielded-TRC20-token) | [SetShieldedTRC20ContractAddress](#How-to-transfer-shielded-TRC20-token) | 
+| [ShowShieldedTRC20AddressInfo](#How-to-transfer-shielded-TRC20-token) | [TransferAsset](#How-to-issue-TRC10-tokens) | [TriggerContract](#How-to-use-smart-contracts) |
+| [UnfreezeAsset](#How-to-issue-TRC10-tokens) | [UnfreezeBalance](#How-to-delegate-resource) |[UpdateAsset](#How-to-issue-TRC10-tokens) | 
+| [UpdateBrokerage](#Brokerage) | [UpdateEnergyLimit](#How-to-use-smart-contracts) |[UpdateSetting](#How-to-use-smart-contracts) | 
+| [UpdateAccountPermission](#How-to-use-the-multi-signature-feature-of-wallet-cli) | [VoteWitness](#How-to-vote) |
 
 Type any one of the listed commands, to display how-to tips.
 
@@ -263,40 +269,52 @@ Balance = 0
 > TransferAsset TWzrEZYtwzkAxXJ8PatVrGuoSNsexejRiM 1000001 10000
 ```
 
-## How to issue TRC10 tokens
+## How to issue a TRC10 token
 
-Each account can only issue one TRC10 token.
+Each account can only issue **ONE** TRC10 token.
 
 ### Issue TRC10 tokens
 
     > AssetIssue [OwnerAddress] AssetName AbbrName TotalSupply TrxNum AssetNum Precision StartDate EndDate Description Url FreeNetLimitPerAccount PublicFreeNetLimit FrozenAmount0 FrozenDays0 [...] FrozenAmountN FrozenDaysN
 
-OwnerAddress
-> The address of the account that initiated the transaction, optional, default is the address of the login account.*
+OwnerAddress (optional)
+> The address of the account which initiated the transaction. 
+> Default: the address of the login account.
 
 AssetName
 > The name of the issued TRC10 token
 
 AbbrName
-> The Abbreviation of TRC10 tokens
+> The abbreviation of TRC10 token
 
 TotalSupply
-> Total issuing amount = account balance of the issuer at the time of issuance + all the frozen amount, before asset transfer and the issuance.
+> ​TotalSupply = Account Balance of Issuer + All Frozen Token Amount
+> TotalSupply: Total Issuing Amount
+> Account Balance Of Issuer: At the time of issuance
+> All Frozen Token Amount: Before asset transfer and the issuance
 
 TrxNum, AssetNum
-> These two parameters determine the exchange rate between the issued token and the minimum unit of TRX (Sun) when the token is issued.
+>  These two parameters determine the exchange rate when the token is issued.
+> Exchange Rate = TrxNum / AssetNum
+> AssetNum: Unit in base unit of the issued token
+> TrxNum: Unit in SUN (0.000001 TRX)
+
+Precision
+> Precision to how many decimal places  
 
 FreeNetLimitPerAccount
-> The maximum amount of bandwidth an account is allowed to use. Token issuers can freeze TRX to obtain bandwidth (TransferAssetContract only)
+> The maximum amount of bandwidth each account is allowed to use. Token issuers can freeze TRX to obtain bandwidth (TransferAssetContract only)
 
 PublicFreeNetLimit
-> The maximum amount of bandwidth issuing accounts are allowed user. Token issuers can freeze REX to obtain bandwidth (TransferAssetContract only)
+> The maximum total amount of bandwidth which is allowed to use for all accounts. Token issuers can freeze TRX to obtain bandwidth (TransferAssetContract only)
 
 StartDate, EndDate
-> The start and end date of token issuance. Within this period time, other users can participate in token issuance.*
+> The start and end date of token issuance. Within this period time, other users can participate in token issuance.
 
 FrozenAmount0 FrozenDays0
-> Amount and time of token freeze. FrozenAmount0 must be bigger than 0, FrozenDays0 must be bigger than 1 and smaller than 3653.
+> Amount and days of token freeze. 
+> FrozenAmount0: Must be bigger than 0
+> FrozenDays0: Must between 1 and 3653.
 
 Example:
 
@@ -339,7 +357,7 @@ Example:
 
     > UpdateAsset [OwnerAddress] newLimit newPublicLimit description url
 
-Specific meaning of the parameters is the same with that of AssetIssue.
+Specific meaning of the parameters is the same as that of AssetIssue.
 
 Example:
 
@@ -378,18 +396,20 @@ Example:
 }
 ```
 
-### TRC10 transfer
+### TRC10 token transfer
 
     > TransferAsset [OwnerAddress] ToAddress AssertID Amount
 
-OwnerAddress
-> The address of the account that initiated the transaction, optional, default is the address of the login account.
+OwnerAddress (optional)
+> The address of the account which initiated the transaction. 
+> Default: the address of the login account.
 
 ToAddress
 > Address of the target account
 
 AssertName
-> TRC10 id, 1000001 in the example
+> TRC10 token ID
+> Example: 1000001
 
 Amount
 > The number of TRC10 token to transfer
@@ -409,23 +429,25 @@ address: TN3zfjYUmMFK3ZsHSsrdJoNRtGkQmZLBLz
     }
 ```
 
-### Participating in the issue of TRC10
+### Participating in the issue of TRC10 token
 
     > ParticipateAssetIssue [OwnerAddress] ToAddress AssetID Amount
 
-OwnerAddress
-> The address of the account that initiated the transaction, optional, default is the address of the login account.
+OwnerAddress (optional)
+> The address of the account which initiated the transaction. 
+> Default: the address of the login account.
 
 ToAddress
-> Account address of Token 10 issuers
+> Account address of TRC10 issuers
 
 AssertName
-> TRC10 ID, 1000001 in the example
+> TRC10 token ID
+> Example: 1000001
 
 Amount
 > The number of TRC10 token to transfers
 
-It must happen during the release of Token 10, otherwise an error may occur.
+The participation process must happen during the release of TRC10, otherwise an error may occur.
 
 Example:
 
@@ -442,43 +464,43 @@ assetV2
     }
 ```
 
-### unfreeze TRC10 token
+### Unfreeze TRC10 token
 
-It must be unfrozen after the freezing period, unfreeze Token10, which has stopped being frozen.
+To unfreeze all TRC10 token which are supposed to be unfrozen after the freezing period.
 
     > unfreezeasset [OwnerAddress]
 
-## Get Token10
+## How to obtain TRC10 token information
 
 ListAssetIssue
-> Obtain all of the published Token 10 information
+> Obtain all of the published TRC10 token information
 
 GetAssetIssueByAccount
-> Obtain Token10 information according to the issuing address
+> Obtain TRC10 token information based on issuing address
 
 GetAssetIssueById
-> Obtain Token10 Information based on ID
+> Obtain TRC10 token Information based on ID
 
 GetAssetIssueByName
-> Obtain Token10 Information based on names
+> Obtain TRC10 token Information based on names
 
 GetAssetIssueListByName
-> Get list information on Token10 based on names
+> Obtain a list of TRC10 token information based on names
 
-## How to initiate a proposal
+## How to operate with proposal
 
-Any proposal-related operations, except for viewing operations, must be performed by committee
-members.
+Any proposal-related operations, except for viewing operations, must be performed by committee members.
 
 ### Initiate a proposal
 
     > createProposal [OwnerAddress] id0 value0 ... idN valueN
 
-OwnerAddress
-> The address of the account that initiated the transaction, optional, default is the address of the login account.
+OwnerAddress (optional)
+> The address of the account which initiated the transaction. 
+> Default: the address of the login account.
 
 id0
-> The serial number of the parameter. Every parameter of TRON network has a serial number. Go to "http://tronscan.org/#/sr/committee" to see the specifics
+> The serial number of the parameter. Every parameter of TRON network has a serial number. Please refer to "http://tronscan.org/#/sr/committee" 
 
 Value0
 > The modified value
@@ -508,15 +530,17 @@ In the example, modification No.4 (modifying token issuance fee) costs 1000TRX a
 
 The corresponding id is 1.
 
-### Approve/cancel the proposal
+### Approve / Disapprove a proposal
 
     > approveProposal [OwnerAddress] id is_or_not_add_approval
 
-OwnerAddress
-> The address of the account that initiated the transaction, optional, default is the address of the login account.
+OwnerAddress (optional)
+> The address of the account which initiated the transaction. 
+> Default: the address of the login account.
 
 id
-> ID of the initiated proposal, 1 in the example
+> ID of the initiated proposal
+> Example: 1
 
 is_or_not_add_approval
 > true for approve; false for disapprove
@@ -528,12 +552,13 @@ Example:
 > ApproveProposal 1 false  # Cancel the approved proposal
 ```
 
-### Cancel the created proposal
+### Delete an existed proposal
 
     > deleteProposal [OwnerAddress] proposalId
 
 proposalId
-> ID of the initiated proposal, 1 in the example
+> ID of the initiated proposal
+> Example: 1
 
 The proposal must be canceled by the supernode that initiated the proposal.
 
@@ -541,10 +566,10 @@ Example：
 
     > DeleteProposal 1
 
-## Get proposal information
+### Obtain proposal information
 
 ListProposals
-> Obtain initiated proposals
+> Obtain a list of initiated proposals
 
 ListProposalsPaginated
 > Use the paging mode to obtain the initiated proposal
@@ -2125,4 +2150,205 @@ d  :da5fd7e087d48e3dcebff3
 > ShowShieldedTRC20AddressInfo ztron1z8d5htmt6h26l5agk8r7wxw9pyhc0a78hl5thva4k9kcn7fsqvygchyt3n2ncy0r4xv4j5mywnu
 pkd:c7e719c5092f87f7c7bfe8bbb3b5b16d89f93003088c5c8b8cd53c11e3a99959
 d  :11db4baf6bd5d5afd3a8b1
+```
+
+
+## How to use tron-dex to sell asset
+
+### MarketSellAsset
+
+Create an order to sell asset    
+
+> MarketSellAsset owner_address sell_token_id sell_token_quantity buy_token_id buy_token_quantity  
+ 
+ownerAddress
+> The address of the account that initiated the transaction
+
+sell_token_id, sell_token_quantity
+> ID and amount of the token want to sell
+
+buy_token_id, buy_token_quantity
+> ID and amount of the token want to buy
+
+Example: 
+
+```console
+MarketSellAsset TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW  1000001 200 _ 100    
+
+Get the result of the contract execution with the getTransactionInfoById command:   
+getTransactionInfoById 10040f993cd9452b25bf367f38edadf11176355802baf61f3c49b96b4480d374   
+
+{
+	"id": "10040f993cd9452b25bf367f38edadf11176355802baf61f3c49b96b4480d374",
+	"blockNumber": 669,
+	"blockTimeStamp": 1578983493000,
+	"contractResult": [
+		""
+	],
+	"receipt": {
+		"net_usage": 264
+	}
+} 
+```
+
+### GetMarketOrderByAccount
+
+Get the order created by account(just include active status)
+
+> GetMarketOrderByAccount ownerAddress
+
+ownerAddress
+> The address of the account that created market order
+
+Example:
+
+```console
+GetMarketOrderByAccount TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW   
+{
+	"orders": [
+		{
+			"order_id": "fc9c64dfd48ae58952e85f05ecb8ec87f55e19402493bb2df501ae9d2da75db0",
+			"owner_address": "TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW",
+			"create_time": 1578983490000,
+			"sell_token_id": "_",
+			"sell_token_quantity": 100,
+			"buy_token_id": "1000001",
+			"buy_token_quantity": 200,
+			"sell_token_quantity_remain": 100
+		}
+	]
+}  
+```  
+
+### GetMarketOrderById
+
+Get the specific order by order_id
+
+> GetMarketOrderById orderId
+
+Example:  
+
+```console
+GetMarketOrderById fc9c64dfd48ae58952e85f05ecb8ec87f55e19402493bb2df501ae9d2da75db0   
+{
+	"order_id": "fc9c64dfd48ae58952e85f05ecb8ec87f55e19402493bb2df501ae9d2da75db0",
+	"owner_address": "TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW",
+	"create_time": 1578983490000,
+	"sell_token_id": "_",
+	"sell_token_quantity": 100,
+	"buy_token_id": "1000001",
+	"buy_token_quantity": 200,
+}
+```
+
+### GetMarketPairList
+
+Get market pair list
+   
+Example:
+
+```console
+GetMarketPairList   
+{
+	"orderPair": [
+		{
+			"sell_token_id": "_",
+			"buy_token_id": "1000001"
+		}
+	]
+}
+```
+
+### GetMarketOrderListByPair
+
+Get order list by pair   
+
+> GetMarketOrderListByPair sell_token_id buy_token_id   
+
+sell_token_id
+> ID of the token want to sell      
+
+buy_token_id
+> ID of the token want to buy
+
+Example: 
+
+```console
+GetMarketOrderListByPair _ 1000001   
+{
+	"orders": [
+		{
+			"order_id": "fc9c64dfd48ae58952e85f05ecb8ec87f55e19402493bb2df501ae9d2da75db0",
+			"owner_address": "TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW",
+			"create_time": 1578983490000,
+			"sell_token_id": "_",
+			"sell_token_quantity": 100,
+			"buy_token_id": "1000001",
+			"buy_token_quantity": 200,
+			"sell_token_quantity_remain": 100
+		}
+	]
+}
+```
+
+### GetMarketPriceByPair
+
+Get market price by pair   
+
+> GetMarketPriceByPair sell_token_id buy_token_id   
+
+sell_token_id
+> ID of the token want to sell
+
+buy_token_id
+> ID of the token want to buy
+
+Example:   
+
+```console
+GetMarketPriceByPair _ 1000001   
+{
+	"sell_token_id": "_",
+	"buy_token_id": "1000001",
+	"prices": [
+		{
+			"sell_token_quantity": 100,
+			"buy_token_quantity": 200
+		}
+	]
+}
+```
+
+### MarketCancelOrder
+
+Cancel the order   
+
+> MarketCancelOrder owner_address order_id  
+ 
+owner_address
+> the account address who have created the order
+
+order_id
+> the order id which want to cancel 
+
+Example:   
+
+```console
+MarketCancelOrder TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW fc9c64dfd48ae58952e85f05ecb8ec87f55e19402493bb2df501ae9d2da75db0  
+```
+   
+Get the result of the contract execution with the getTransactionInfoById command:  
+```console
+getTransactionInfoById b375787a098498623403c755b1399e82910385251b643811936d914c9f37bd27   
+{
+	"id": "b375787a098498623403c755b1399e82910385251b643811936d914c9f37bd27",
+	"blockNumber": 1582,
+	"blockTimeStamp": 1578986232000,
+	"contractResult": [
+		""
+	],
+	"receipt": {
+		"net_usage": 283
+	}
+}
 ```

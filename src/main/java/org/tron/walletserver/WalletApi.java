@@ -77,6 +77,10 @@ import org.tron.core.config.Configuration;
 import org.tron.core.config.Parameter.CommonConstant;
 import org.tron.core.exception.CancelException;
 import org.tron.core.exception.CipherException;
+import org.tron.protos.Protocol.MarketOrder;
+import org.tron.protos.Protocol.MarketOrderList;
+import org.tron.protos.Protocol.MarketOrderPairList;
+import org.tron.protos.Protocol.MarketPriceList;
 import org.tron.protos.Protocol.Transaction.Contract.ContractType;
 import org.tron.protos.Protocol.Transaction.Result;
 import org.tron.keystore.CheckStrength;
@@ -104,6 +108,7 @@ import org.tron.protos.contract.ShieldContract.IncrementalMerkleVoucherInfo;
 import org.tron.protos.contract.ShieldContract.OutputPointInfo;
 import org.tron.protos.contract.ShieldContract.ShieldedTransferContract;
 import org.tron.protos.contract.ShieldContract.SpendDescription;
+import org.tron.protos.contract.SmartContractOuterClass.SmartContractDataWrapper;
 import org.tron.protos.contract.SmartContractOuterClass.TriggerSmartContract;
 import org.tron.protos.contract.StorageContract.BuyStorageBytesContract;
 import org.tron.protos.contract.StorageContract.BuyStorageContract;
@@ -133,6 +138,9 @@ import org.tron.protos.Protocol.Witness;
 import org.tron.protos.contract.WitnessContract.VoteWitnessContract;
 import org.tron.protos.contract.WitnessContract.WitnessCreateContract;
 import org.tron.protos.contract.WitnessContract.WitnessUpdateContract;
+import org.tron.protos.contract.MarketContract.MarketCancelOrderContract;
+import org.tron.protos.contract.MarketContract.MarketSellAssetContract;
+import org.tron.protos.contract.MarketContract.MarketSellAssetContract;
 
 import java.io.File;
 import java.io.IOException;
@@ -2202,6 +2210,10 @@ public class WalletApi {
     return rpcCli.getContract(address);
   }
 
+  public static SmartContractDataWrapper getContractInfo(byte[] address) {
+    return rpcCli.getContractInfo(address);
+  }
+
   public boolean accountPermissionUpdate(byte[] owner, String permissionJson)
       throws CipherException, IOException, CancelException {
     AccountPermissionUpdateContract contract =
@@ -2726,6 +2738,64 @@ public class WalletApi {
 
   public static Optional<TransactionInfoList> getTransactionInfoByBlockNum(long blockNum) {
     return rpcCli.getTransactionInfoByBlockNum(blockNum);
+  }
+
+  public boolean marketSellAsset(
+      byte[] owner,
+      byte[] sellTokenId,
+      long sellTokenQuantity,
+      byte[] buyTokenId,
+      long buyTokenQuantity)
+      throws IOException, CipherException, CancelException {
+    if (owner == null) {
+      owner = getAddress();
+    }
+
+    MarketSellAssetContract.Builder builder = MarketSellAssetContract.newBuilder();
+    builder
+        .setOwnerAddress(ByteString.copyFrom(owner))
+        .setSellTokenId(ByteString.copyFrom(sellTokenId))
+        .setSellTokenQuantity(sellTokenQuantity)
+        .setBuyTokenId(ByteString.copyFrom(buyTokenId))
+        .setBuyTokenQuantity(buyTokenQuantity);
+
+    TransactionExtention transactionExtention = rpcCli.marketSellAsset(builder.build());
+    return processTransactionExtention(transactionExtention);
+  }
+
+  public boolean marketCancelOrder(byte[] owner, byte[] orderId)
+      throws IOException, CipherException, CancelException {
+    if (owner == null) {
+      owner = getAddress();
+    }
+
+    MarketCancelOrderContract.Builder builder = MarketCancelOrderContract.newBuilder();
+    builder.setOwnerAddress(ByteString.copyFrom(owner)).setOrderId(ByteString.copyFrom(orderId));
+
+    TransactionExtention transactionExtention = rpcCli.marketCancelOrder(builder.build());
+    return processTransactionExtention(transactionExtention);
+  }
+
+  public static Optional<MarketOrderList> getMarketOrderByAccount(byte[] address) {
+    return rpcCli.getMarketOrderByAccount(address);
+  }
+
+  public static Optional<MarketPriceList> getMarketPriceByPair(
+      byte[] sellTokenId, byte[] buyTokenId) {
+    return rpcCli.getMarketPriceByPair(sellTokenId, buyTokenId);
+  }
+
+  public static Optional<MarketOrderList> getMarketOrderListByPair(
+      byte[] sellTokenId, byte[] buyTokenId) {
+    return rpcCli.getMarketOrderListByPair(sellTokenId, buyTokenId);
+  }
+
+  public static Optional<MarketOrderPairList> getMarketPairList() {
+    return rpcCli.getMarketPairList();
+  }
+
+  public static Optional<MarketOrder> getMarketOrderById(byte[] order) {
+    return rpcCli.getMarketOrderById(order);
   }
 
 }

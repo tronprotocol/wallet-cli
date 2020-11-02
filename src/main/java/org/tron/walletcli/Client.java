@@ -42,6 +42,10 @@ import org.tron.core.zen.ZenUtils;
 import org.tron.core.zen.address.KeyIo;
 import org.tron.core.zen.address.PaymentAddress;
 import org.tron.keystore.StringUtils;
+import org.tron.protos.Protocol.MarketOrder;
+import org.tron.protos.Protocol.MarketOrderList;
+import org.tron.protos.Protocol.MarketOrderPairList;
+import org.tron.protos.Protocol.MarketPriceList;
 import org.tron.protos.contract.AssetIssueContractOuterClass.AssetIssueContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
@@ -52,6 +56,7 @@ import org.tron.protos.Protocol.Proposal;
 import org.tron.protos.contract.SmartContractOuterClass.SmartContract;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.TransactionInfo;
+import org.tron.protos.contract.SmartContractOuterClass.SmartContractDataWrapper;
 import org.tron.walletserver.WalletApi;
 
 
@@ -61,6 +66,7 @@ public class Client {
   private WalletApiWrapper walletApiWrapper = new WalletApiWrapper();
   private static int retryTime = 3;
 
+  // note: this is sorted by alpha
   private static String[] commandHelp = {
       "AddTransactionSign",
       "ApproveProposal",
@@ -90,41 +96,49 @@ public class Client {
       "GetAccountNet",
       "GetAccountResource",
       "GetAddress",
+      "GetAkFromAsk",
       "GetAssetIssueByAccount",
       "GetAssetIssueById",
       "GetAssetIssueByName",
       "GetAssetIssueListByName",
-      "GetAkFromAsk",
       "GetBalance",
       "GetBlock",
       "GetBlockById",
       "GetBlockByLatestNum",
       "GetBlockByLimitNext",
+      "GetBrokerage",
       "GetChainParameters",
       "GetContract contractAddress",
+      "GetContractInfo contractAddress",
       "GetDelegatedResource",
       "GetDelegatedResourceAccountIndex",
       "GetDiversifier",
       "GetExchange",
       "GetExpandedSpendingKey",
       "GetIncomingViewingKey",
-      "GetNkFromNsk",
+      "GetMarketOrderByAccount",
+      "GetMarketOrderById",
+      "GetMarketOrderListByPair",
+      "GetMarketPairList",
+      "GetMarketPriceByPair",
       "GetNextMaintenanceTime",
+      "GetNkFromNsk",
+      "GetProposal",
+      "GetReward",
       // "GetShieldedNullifier",
       "GetShieldedPaymentAddress",
       "GetSpendingKey",
-      "GetProposal",
       "GetTotalTransaction",
       "GetTransactionApprovedList",
       "GetTransactionById",
       "GetTransactionCountByBlockNum",
       "GetTransactionInfoByBlockNum",
       "GetTransactionInfoById",
+      "GetTransactionSignWeight",
       "GetTransactionsFromThis",
       "GetTransactionsToThis",
-      "GetTransactionSignWeight",
-      // "ImportShieldedWallet",
       "ImportShieldedTRC20Wallet",
+      // "ImportShieldedWallet",
       "ImportWallet",
       "ImportWalletByBase64",
       "ListAssetIssue",
@@ -138,11 +152,16 @@ public class Client {
       "ListShieldedTRC20Note",
       "ListProposals",
       "ListProposalsPaginated",
+      "ListShieldedAddress",
+      "ListShieldedNote",
       "ListWitnesses",
+      "LoadShieldedWallet",
       "Login",
       "Logout",
-      // "LoadShieldedWallet",
       "LoadShieldedTRC20Wallet",
+      // "LoadShieldedWallet",
+      "MarketCancelOrder",
+      "MarketSellAsset",
       "ParticipateAssetIssue",
       "RegisterWallet",
       // "ResetShieldedNote",
@@ -162,23 +181,22 @@ public class Client {
       // "ShowShieldedAddressInfo",
       "ShowShieldedTRC20AddressInfo",
       "TransferAsset",
-      "TriggerContract contractAddress method args isHex fee_limit value",
       "TriggerConstantContract contractAddress method args isHex",
+      "TriggerContract contractAddress method args isHex fee_limit value",
       "UnfreezeAsset",
       "UnfreezeBalance",
       "UpdateAccount",
+      "UpdateAccountPermission",
       "UpdateAsset",
+      "UpdateBrokerage",
       "UpdateEnergyLimit contract_address energy_limit",
       "UpdateSetting contract_address consume_user_resource_percent",
       "UpdateWitness",
-      "UpdateAccountPermission",
       "VoteWitness",
       "WithdrawBalance",
-      "UpdateBrokerage",
-      "GetReward",
-      "GetBrokerage"
   };
 
+  // note: this is sorted by alpha
   private static String[] commandList = {
       "AddTransactionSign",
       "ApproveProposal",
@@ -208,42 +226,50 @@ public class Client {
       "GetAccountNet",
       "GetAccountResource",
       "GetAddress",
+      "GetAkFromAsk",
       "GetAssetIssueByAccount",
       "GetAssetIssueById",
       "GetAssetIssueByName",
       "GetAssetIssueListByName",
-      "GetAkFromAsk",
       "GetBalance",
       "GetBlock",
       "GetBlockById",
       "GetBlockByLatestNum",
       "GetBlockByLimitNext",
+      "GetBrokerage",
       "GetChainParameters",
       "GetContract",
+      "GetContractInfo",
       "GetDelegatedResource",
       "GetDelegatedResourceAccountIndex",
       "GetDiversifier",
       "GetExchange",
       "GetExpandedSpendingKey",
       "GetIncomingViewingKey",
-      "GetNkFromNsk",
+      "GetMarketOrderByAccount",
+      "GetMarketOrderById",
+      "GetMarketOrderListByPair",
+      "GetMarketPairList",
+      "GetMarketPriceByPair",
       "GetNextMaintenanceTime",
+      "GetNkFromNsk",
+      "GetProposal",
+      "GetReward",
       // "GetShieldedNullifier",
       "GetShieldedPaymentAddress",
       "GetSpendingKey",
-      "GetProposal",
       "GetTotalTransaction",
       "GetTransactionApprovedList",
       "GetTransactionById",
       "GetTransactionCountByBlockNum",
       "GetTransactionInfoByBlockNum",
       "GetTransactionInfoById",
+      "GetTransactionSignWeight",
       "GetTransactionsFromThis",
       "GetTransactionsToThis",
-      "GetTransactionSignWeight",
       "Help",
-      // "ImportShieldedWallet",
       "ImportShieldedTRC20Wallet",
+      // "ImportShieldedWallet",
       "ImportWallet",
       "ImportWalletByBase64",
       "ListAssetIssue",
@@ -257,11 +283,15 @@ public class Client {
       "ListShieldedTRC20Note",
       "ListProposals",
       "ListProposalsPaginated",
+      "ListShieldedAddress",
+      "ListShieldedNote",
       "ListWitnesses",
       "Login",
       "Logout",
-      // "LoadShieldedWallet",
       "LoadShieldedTRC20Wallet",
+      // "LoadShieldedWallet",
+      "MarketCancelOrder",
+      "MarketSellAsset",
       "ParticipateAssetIssue",
       "RegisterWallet",
       // "ResetShieldedNote",
@@ -281,21 +311,19 @@ public class Client {
       // "ShowShieldedAddressInfo",
       "ShowShieldedTRC20AddressInfo",
       "TransferAsset",
-      "TriggerContract",
       "TriggerConstantContract",
+      "TriggerContract",
       "UnfreezeAsset",
       "UnfreezeBalance",
       "UpdateAccount",
+      "UpdateAccountPermission",
       "UpdateAsset",
+      "UpdateBrokerage",
       "UpdateEnergyLimit",
       "UpdateSetting",
       "UpdateWitness",
-      "UpdateAccountPermission",
       "VoteWitness",
       "WithdrawBalance",
-      "UpdateBrokerage",
-      "GetReward",
-      "GetBrokerage"
   };
 
   private byte[] inputPrivateKey() throws IOException {
@@ -428,7 +456,7 @@ public class Client {
       for (int i = 0; i < priKey.length; i++) {
         StringUtils.printOneByte(priKey[i]);
       }
-      System.out.println();
+      System.out.println("\n");
     }
     StringUtils.clear(priKey);
   }
@@ -444,7 +472,7 @@ public class Client {
       for (int i = 0; i < priKey64.length; i++) {
         System.out.print((char) priKey64[i]);
       }
-      System.out.println();
+      System.out.println("\n");
       StringUtils.clear(priKey64);
     }
   }
@@ -827,12 +855,10 @@ public class Client {
     boolean result = walletApiWrapper
         .participateAssetIssue(ownerAddress, toAddress, assertName, amount);
     if (result) {
-      System.out
-          .println("ParticipateAssetIssue " + assertName + " " + amount + " from " + base58Address
+      System.out.println("ParticipateAssetIssue " + assertName + " " + amount + " from " + base58Address
               + " successful !!");
     } else {
-      System.out
-          .println("ParticipateAssetIssue " + assertName + " " + amount + " from " + base58Address
+      System.out.println("ParticipateAssetIssue " + assertName + " " + amount + " from " + base58Address
               + " failed !!");
     }
   }
@@ -840,17 +866,12 @@ public class Client {
   private void assetIssue(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length < 12) {
-      System.out
-          .println("Use the assetIssue command for features that you require with below syntax: ");
-      System.out.println(
-          "AssetIssue [OwnerAddress] AssetName AbbrName TotalSupply TrxNum AssetNum Precision "
+      System.out.println("Use the assetIssue command for features that you require with below syntax: ");
+      System.out.println("AssetIssue [OwnerAddress] AssetName AbbrName TotalSupply TrxNum AssetNum Precision "
               + "StartDate EndDate Description Url FreeNetLimitPerAccount PublicFreeNetLimit "
               + "FrozenAmount0 FrozenDays0 ... FrozenAmountN FrozenDaysN");
-      System.out
-          .println(
-              "TrxNum and AssetNum represents the conversion ratio of the tron to the asset.");
-      System.out
-          .println("The StartDate and EndDate format should look like 2018-03-01 2018-03-21 .");
+      System.out.println("TrxNum and AssetNum represents the conversion ratio of the tron to the asset.");
+      System.out.println("The StartDate and EndDate format should look like 2018-03-01 2018-03-21 .");
       return;
     }
 
@@ -1517,7 +1538,8 @@ public class Client {
       throws IOException, CipherException, CancelException {
     if (parameters == null || (parameters.length != 4 && parameters.length != 5)) {
       System.out.println("Using exchangeTransaction command needs 4 or 5 parameters like: ");
-      System.out.println("exchangeTransaction [OwnerAddress] exchange_id token_id quantity expected");
+      System.out
+          .println("exchangeTransaction [OwnerAddress] exchange_id token_id quantity expected");
       return;
     }
 
@@ -1828,8 +1850,7 @@ public class Client {
       throws IOException, CipherException, CancelException {
     if (parameters == null || (parameters.length != 2 && parameters.length != 3)) {
       System.out.println("Using updateSetting needs 2 parameters like: ");
-      System.out
-          .println("updateSetting [OwnerAddress] contract_address consume_user_resource_percent");
+      System.out.println("updateSetting [OwnerAddress] contract_address consume_user_resource_percent");
       return;
     }
 
@@ -2212,6 +2233,28 @@ public class Client {
     }
 
     SmartContract contractDeployContract = WalletApi.getContract(addressBytes);
+    if (contractDeployContract != null) {
+      System.out.println(Utils.formatMessageString(contractDeployContract));
+    } else {
+      System.out.println("Query contract failed !!!");
+    }
+  }
+
+  private void getContractInfo(String[] parameters) {
+    if (parameters == null ||
+        parameters.length != 1) {
+      System.out.println("Using getContractInfo needs 1 parameter like: ");
+      System.out.println("GetContractInfo contractAddress");
+      return;
+    }
+
+    byte[] addressBytes = WalletApi.decodeFromBase58Check(parameters[0]);
+    if (addressBytes == null) {
+      System.out.println("GetContractInfo: invalid address !!!");
+      return;
+    }
+
+    SmartContractDataWrapper contractDeployContract = WalletApi.getContractInfo(addressBytes);
     if (contractDeployContract != null) {
       System.out.println(Utils.formatMessageString(contractDeployContract));
     } else {
@@ -2841,8 +2884,7 @@ public class Client {
     if (!paymentAddress.isPresent()) {
       System.out.println("GetShieldedPaymentAddress failed !!!");
     } else {
-      System.out
-          .println("pkd:" + ByteArray.toHexString(paymentAddress.get().getPkD().toByteArray()));
+      System.out.println("pkd:" + ByteArray.toHexString(paymentAddress.get().getPkD().toByteArray()));
       System.out.println("shieldedAddress:" + paymentAddress.get().getPaymentAddress());
     }
   }
@@ -2878,6 +2920,170 @@ public class Client {
       System.out.println("ImportShieldedWallet failed !!!");
     }
   }
+
+  private void marketSellAsset(String[] parameters)
+      throws IOException, CipherException, CancelException {
+    if (parameters == null || parameters.length != 5) {
+      System.out.println("Using MarketSellAsset command needs 5 parameters like: ");
+      System.out.println(
+          "MarketSellAsset ownerAddress sellTokenId sellTokenQuantity buyTokenId buyTokenQuantity");
+      return;
+    }
+
+    int index = 0;
+    byte[] ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
+    if (ownerAddress == null) {
+      System.out.println("Invalid OwnerAddress.");
+      return;
+    }
+
+    byte[] sellTokenId = parameters[index++].getBytes();
+    long sellTokenQuantity = Long.parseLong(parameters[index++]);
+    byte[] buyTokenId = parameters[index++].getBytes();
+    long buyTokenQuantity = Long.parseLong(parameters[index++]);
+
+    boolean result = walletApiWrapper
+        .marketSellAsset(ownerAddress, sellTokenId, sellTokenQuantity, buyTokenId,
+            buyTokenQuantity);
+    if (result) {
+      System.out.println("MarketSellAsset successful !!!");
+    } else {
+      System.out.println("MarketSellAsset failed !!!");
+    }
+  }
+
+
+  private void marketCancelOrder(String[] parameters)
+      throws IOException, CipherException, CancelException {
+    if (parameters == null || parameters.length != 2) {
+      System.out.println("Using MarketCancelOrder command needs 2 parameters like: ");
+      System.out.println(
+          "MarketCancelOrder ownerAddress orderId");
+      return;
+    }
+
+    int index = 0;
+    byte[] ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
+    if (ownerAddress == null) {
+      System.out.println("Invalid OwnerAddress.");
+      return;
+    }
+
+    byte[] orderId = ByteArray.fromHexString(parameters[index++]);
+
+    boolean result = walletApiWrapper
+        .marketCancelOrder(ownerAddress, orderId);
+    if (result) {
+      System.out.println("MarketCancelOrder successful !!!");
+    } else {
+      System.out.println("MarketCancelOrder failed !!!");
+    }
+  }
+
+
+  private void getMarketOrderByAccount(String[] parameters) {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("Using GetMarketOrderByAccount command needs 1 parameters like: ");
+      System.out.println(
+          "GetMarketOrderByAccount ownerAddress");
+      return;
+    }
+
+    int index = 0;
+    byte[] ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
+    if (ownerAddress == null) {
+      System.out.println("Invalid OwnerAddress.");
+      return;
+    }
+
+    Optional<MarketOrderList> marketOrderList = walletApiWrapper
+        .getMarketOrderByAccount(ownerAddress);
+    if (!marketOrderList.isPresent()) {
+      System.out.println("GetMarketOrderByAccount failed !!!");
+    } else {
+      System.out.println(Utils.formatMessageString(marketOrderList.get()));
+    }
+  }
+
+  private void getMarketPriceByPair(String[] parameters) {
+    if (parameters == null || parameters.length != 2) {
+      System.out.println("Using GetMarketPriceByPair command needs 2 parameters like: ");
+      System.out.println(
+          "GetMarketPriceByPair sellTokenId buyTokenId");
+      return;
+    }
+
+    int index = 0;
+    byte[] sellTokenId = parameters[index++].getBytes();
+    byte[] buyTokenId = parameters[index++].getBytes();
+
+    Optional<MarketPriceList> marketPriceList = walletApiWrapper
+        .getMarketPriceByPair(sellTokenId, buyTokenId);
+    if (!marketPriceList.isPresent()) {
+      System.out.println("GetMarketPriceByPair failed !!!");
+    } else {
+      System.out.println(Utils.formatMessageString(marketPriceList.get()));
+    }
+  }
+
+
+  private void getMarketOrderListByPair(String[] parameters) {
+    if (parameters == null || parameters.length != 2) {
+      System.out.println("Using getMarketOrderListByPair command needs 2 parameters like: ");
+      System.out.println(
+          "getMarketOrderListByPair sellTokenId buyTokenId");
+      return;
+    }
+
+    int index = 0;
+    byte[] sellTokenId = parameters[index++].getBytes();
+    byte[] buyTokenId = parameters[index++].getBytes();
+
+    Optional<MarketOrderList> orderListByPair = walletApiWrapper
+        .getMarketOrderListByPair(sellTokenId, buyTokenId);
+    if (!orderListByPair.isPresent()) {
+      System.out.println("getMarketOrderListByPair failed !!!");
+    } else {
+      System.out.println(Utils.formatMessageString(orderListByPair.get()));
+    }
+  }
+
+
+  private void getMarketPairList(String[] parameters) {
+    if (parameters == null || parameters.length != 0) {
+      System.out.println("Using getMarketPairList command does not need any parameters, like: ");
+      System.out.println(
+          "getMarketPairList");
+      return;
+    }
+
+    Optional<MarketOrderPairList> pairList = walletApiWrapper
+        .getMarketPairList();
+    if (!pairList.isPresent()) {
+      System.out.println("getMarketPairList failed !!!");
+    } else {
+      System.out.println(Utils.formatMessageString(pairList.get()));
+    }
+  }
+
+  private void getMarketOrderById(String[] parameters) {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("Using getMarketOrderById command needs 1 parameters like:");
+      System.out.println(
+          "getMarketOrderById orderId");
+      return;
+    }
+
+    byte[] orderId = ByteArray.fromHexString(parameters[0]);
+    Optional<MarketOrder> order = walletApiWrapper
+        .getMarketOrderById(orderId);
+    if (!order.isPresent()) {
+      System.out.println("getMarketOrderById failed !!!");
+    } else {
+      System.out.println(Utils.formatMessageString(order.get()));
+    }
+  }
+
 
   private void create2(String[] parameters) {
     if (parameters == null || parameters.length != 3) {
@@ -3897,6 +4103,10 @@ public class Client {
               getContract(parameters);
               break;
             }
+            case "getcontractinfo": {
+              getContractInfo(parameters);
+              break;
+            }
             case "generateaddress": {
               generateAddress();
               break;
@@ -4033,6 +4243,33 @@ public class Client {
             }
             case "gettransactioninfobyblocknum": {
               getTransactionInfoByBlockNum(parameters);
+            }
+            case "marketsellasset": {
+              marketSellAsset(parameters);
+              break;
+            }
+            case "marketcancelorder": {
+              marketCancelOrder(parameters);
+              break;
+            }
+            case "getmarketorderbyaccount": {
+              getMarketOrderByAccount(parameters);
+              break;
+            }
+            case "getmarketpricebypair": {
+              getMarketPriceByPair(parameters);
+              break;
+            }
+            case "getmarketorderlistbypair": {
+              getMarketOrderListByPair(parameters);
+              break;
+            }
+            case "getmarketpairlist": {
+              getMarketPairList(parameters);
+              break;
+            }
+            case "getmarketorderbyid": {
+              getMarketOrderById(parameters);
               break;
             }
             case "exit":
@@ -4077,7 +4314,7 @@ public class Client {
       ChainParameters chainParameters = result.get();
       System.out.println(Utils.formatMessageString(chainParameters));
     } else {
-      System.out.println("List witnesses failed !!");
+      System.out.println("GetChainParameters failed !!");
     }
   }
 

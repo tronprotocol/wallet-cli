@@ -28,6 +28,11 @@ import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.ChainParameters;
 import org.tron.protos.Protocol.DelegatedResourceAccountIndex;
 import org.tron.protos.Protocol.Exchange;
+import org.tron.protos.Protocol.MarketOrder;
+import org.tron.protos.Protocol.MarketOrderList;
+import org.tron.protos.Protocol.MarketOrderPair;
+import org.tron.protos.Protocol.MarketOrderPairList;
+import org.tron.protos.Protocol.MarketPriceList;
 import org.tron.protos.Protocol.Proposal;
 import org.tron.protos.contract.AccountContract.AccountCreateContract;
 import org.tron.protos.contract.AccountContract.AccountPermissionUpdateContract;
@@ -57,6 +62,7 @@ import org.tron.protos.contract.SmartContractOuterClass.SmartContract;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.TransactionInfo;
 import org.tron.protos.Protocol.TransactionSign;
+import org.tron.protos.contract.SmartContractOuterClass.SmartContractDataWrapper;
 import org.tron.protos.contract.SmartContractOuterClass.TriggerSmartContract;
 import org.tron.protos.contract.SmartContractOuterClass.UpdateEnergyLimitContract;
 import org.tron.protos.contract.SmartContractOuterClass.UpdateSettingContract;
@@ -67,6 +73,8 @@ import org.tron.protos.contract.StorageContract.UpdateBrokerageContract;
 import org.tron.protos.contract.WitnessContract.VoteWitnessContract;
 import org.tron.protos.contract.WitnessContract.WitnessCreateContract;
 import org.tron.protos.contract.WitnessContract.WitnessUpdateContract;
+import org.tron.protos.contract.MarketContract.MarketCancelOrderContract;
+import org.tron.protos.contract.MarketContract.MarketSellAssetContract;
 
 @Slf4j
 public class GrpcClient {
@@ -831,6 +839,12 @@ public class GrpcClient {
     return blockingStubFull.getContract(bytesMessage);
   }
 
+  public SmartContractDataWrapper getContractInfo(byte[] address) {
+    ByteString byteString = ByteString.copyFrom(address);
+    BytesMessage bytesMessage = BytesMessage.newBuilder().setValue(byteString).build();
+    return blockingStubFull.getContractInfo(bytesMessage);
+  }
+
   public TransactionExtention accountPermissionUpdate(
       AccountPermissionUpdateContract request) {
     return blockingStubFull.accountPermissionUpdate(request);
@@ -1005,6 +1019,83 @@ public class GrpcClient {
   public BytesMessage getTriggerInputForShieldedTRC20Contract(
       ShieldedTRC20TriggerContractParameters parameters) {
     return blockingStubFull.getTriggerInputForShieldedTRC20Contract(parameters);
+  }
+
+  public TransactionExtention marketSellAsset(MarketSellAssetContract request) {
+    return blockingStubFull.marketSellAsset(request);
+  }
+
+  public TransactionExtention marketCancelOrder(MarketCancelOrderContract request) {
+    return blockingStubFull.marketCancelOrder(request);
+  }
+
+  public Optional<MarketOrderList> getMarketOrderByAccount(byte[] address) {
+    ByteString addressBS = ByteString.copyFrom(address);
+    BytesMessage request = BytesMessage.newBuilder().setValue(addressBS).build();
+
+    MarketOrderList marketOrderList;
+    if (blockingStubSolidity != null) {
+      marketOrderList = blockingStubSolidity.getMarketOrderByAccount(request);
+    } else {
+      marketOrderList = blockingStubFull.getMarketOrderByAccount(request);
+    }
+    return Optional.ofNullable(marketOrderList);
+  }
+
+  public Optional<MarketPriceList> getMarketPriceByPair(byte[] sellTokenId, byte[] buyTokenId) {
+    MarketOrderPair request =
+        MarketOrderPair.newBuilder()
+            .setSellTokenId(ByteString.copyFrom(sellTokenId))
+            .setBuyTokenId(ByteString.copyFrom(buyTokenId))
+            .build();
+
+    MarketPriceList marketPriceList;
+    if (blockingStubSolidity != null) {
+      marketPriceList = blockingStubSolidity.getMarketPriceByPair(request);
+    } else {
+      marketPriceList = blockingStubFull.getMarketPriceByPair(request);
+    }
+    return Optional.ofNullable(marketPriceList);
+  }
+
+
+  public Optional<MarketOrderList> getMarketOrderListByPair(byte[] sellTokenId, byte[] buyTokenId) {
+    MarketOrderPair request =
+        MarketOrderPair.newBuilder()
+            .setSellTokenId(ByteString.copyFrom(sellTokenId))
+            .setBuyTokenId(ByteString.copyFrom(buyTokenId))
+            .build();
+
+    MarketOrderList marketOrderList;
+    if (blockingStubSolidity != null) {
+      marketOrderList = blockingStubSolidity.getMarketOrderListByPair(request);
+    } else {
+      marketOrderList = blockingStubFull.getMarketOrderListByPair(request);
+    }
+    return Optional.ofNullable(marketOrderList);
+  }
+
+
+  public Optional<MarketOrderPairList> getMarketPairList() {
+    MarketOrderPairList orderPairList;
+    if (blockingStubSolidity != null) {
+      orderPairList = blockingStubSolidity.getMarketPairList(EmptyMessage.newBuilder().build());
+    } else {
+      orderPairList = blockingStubFull.getMarketPairList(EmptyMessage.newBuilder().build());
+    }
+    return Optional.ofNullable(orderPairList);
+  }
+
+  public Optional<MarketOrder> getMarketOrderById(byte[] order) {
+    ByteString orderBytes = ByteString.copyFrom(order);
+    BytesMessage request = BytesMessage.newBuilder().setValue(orderBytes).build();
+    MarketOrder orderPair;
+    if (blockingStubSolidity != null) {
+      orderPair = blockingStubSolidity.getMarketOrderById(request);
+    } else {
+      orderPair = blockingStubFull.getMarketOrderById(request);
+    }
+    return Optional.ofNullable(orderPair);
   }
 
 }

@@ -76,6 +76,8 @@ import org.tron.protos.contract.WitnessContract.VoteWitnessContract;
 import org.tron.protos.contract.WitnessContract.WitnessCreateContract;
 import org.tron.protos.contract.WitnessContract.WitnessUpdateContract;
 import org.tron.protos.contract.ShieldContract.ShieldedTransferContract;
+import org.tron.protos.contract.MarketContract.MarketCancelOrderContract;
+import org.tron.protos.contract.MarketContract.MarketSellAssetContract;
 
 public class Utils {
   public static final String PERMISSION_ID = "Permission_id";
@@ -567,7 +569,19 @@ public class Utils {
                         JSONObject.parseObject(
                             JsonFormat.printToString(updateBrokerageContract, selfType));
                     break;
-                    // todo add other contract
+                  case MarketSellAssetContract:
+                    MarketSellAssetContract marketSellAssetContract = contract.getParameter()
+                        .unpack(MarketSellAssetContract.class);
+                    contractJson = JSONObject
+                        .parseObject(JsonFormat.printToString(marketSellAssetContract, selfType));
+                    break;
+                  case MarketCancelOrderContract:
+                    MarketCancelOrderContract marketCancelOrderContract = contract.getParameter()
+                        .unpack(MarketCancelOrderContract.class);
+                    contractJson = JSONObject
+                        .parseObject(JsonFormat.printToString(marketCancelOrderContract, selfType));
+                    break;
+                  // todo add other contract
                   default:
                 }
                 JSONObject parameter = new JSONObject();
