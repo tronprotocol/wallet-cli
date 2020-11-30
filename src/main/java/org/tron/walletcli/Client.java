@@ -2198,7 +2198,10 @@ public class Client {
     if (tokenId.equalsIgnoreCase("#")) {
       tokenId = "";
     }
-    byte[] input = Hex.decode(AbiUtil.parseMethod(methodStr, argsStr, isHex));
+    byte[] input = new byte[0];
+    if (!methodStr.equalsIgnoreCase("#")) {
+      input = Hex.decode(AbiUtil.parseMethod(methodStr, argsStr, isHex));
+    }
     byte[] contractAddress = WalletApi.decodeFromBase58Check(contractAddrStr);
 
     boolean result = walletApiWrapper
