@@ -1693,6 +1693,8 @@ public class WalletApi {
         return SmartContract.ABI.Entry.EntryType.Event;
       case "fallback":
         return SmartContract.ABI.Entry.EntryType.Fallback;
+      case "receive":
+        return SmartContract.ABI.Entry.EntryType.Receive;
       default:
         return SmartContract.ABI.Entry.EntryType.UNRECOGNIZED;
     }
@@ -1767,11 +1769,12 @@ public class WalletApi {
         System.out.println("No type!");
         return null;
       }
-      if (!type.equalsIgnoreCase("fallback") && null == inputs) {
-        System.out.println("No inputs!");
-        return null;
+      if(inputs == null) {
+        if(!(type.equalsIgnoreCase("fallback") || type.equalsIgnoreCase("receive"))) {
+          logger.error("No inputs!");
+          return null;
+        }
       }
-
       SmartContract.ABI.Entry.Builder entryBuilder = SmartContract.ABI.Entry.newBuilder();
       entryBuilder.setAnonymous(anonymous);
       entryBuilder.setConstant(constant);
