@@ -2111,11 +2111,11 @@ public class Client {
       System.out.println("origin_energy_limit must > 0");
       return;
     }
-    if (!constructorStr.equals("#")) {
+    if (!(constructorStr.equals("#") || argsStr.equals("#"))) {
       if (isHex) {
         codeStr += argsStr;
       } else {
-        codeStr += AbiUtil.parseMethod(constructorStr, argsStr);
+        codeStr += Hex.toHexString(AbiUtil.encodeInput(constructorStr, argsStr));
       }
     }
     long value = 0;
@@ -3704,7 +3704,7 @@ public class Client {
         || cmdLine.toLowerCase().startsWith("triggercontract")
         || cmdLine.toLowerCase().startsWith("triggerconstantcontract")
         || cmdLine.toLowerCase().startsWith("updateaccountpermission")) {
-      return cmdLine.split(" ", -1);
+      return cmdLine.split("\\s+", -1);
     }
     String[] strArray = cmdLine.split("\"");
     int num = strArray.length;
