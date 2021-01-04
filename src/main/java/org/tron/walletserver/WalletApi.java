@@ -108,6 +108,7 @@ import org.tron.protos.contract.ShieldContract.IncrementalMerkleVoucherInfo;
 import org.tron.protos.contract.ShieldContract.OutputPointInfo;
 import org.tron.protos.contract.ShieldContract.ShieldedTransferContract;
 import org.tron.protos.contract.ShieldContract.SpendDescription;
+import org.tron.protos.contract.SmartContractOuterClass.SmartContractDataWrapper;
 import org.tron.protos.contract.SmartContractOuterClass.TriggerSmartContract;
 import org.tron.protos.contract.StorageContract.BuyStorageBytesContract;
 import org.tron.protos.contract.StorageContract.BuyStorageContract;
@@ -138,6 +139,7 @@ import org.tron.protos.contract.WitnessContract.VoteWitnessContract;
 import org.tron.protos.contract.WitnessContract.WitnessCreateContract;
 import org.tron.protos.contract.WitnessContract.WitnessUpdateContract;
 import org.tron.protos.contract.MarketContract.MarketCancelOrderContract;
+import org.tron.protos.contract.MarketContract.MarketSellAssetContract;
 import org.tron.protos.contract.MarketContract.MarketSellAssetContract;
 
 import java.io.File;
@@ -2209,6 +2211,10 @@ public class WalletApi {
 
   public static SmartContract getContract(byte[] address) {
     return rpcCli.getContract(address);
+  }
+
+  public static SmartContractDataWrapper getContractInfo(byte[] address) {
+    return rpcCli.getContractInfo(address);
   }
 
   public boolean accountPermissionUpdate(byte[] owner, String permissionJson)
