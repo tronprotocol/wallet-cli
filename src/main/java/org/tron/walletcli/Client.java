@@ -56,6 +56,7 @@ import org.tron.protos.Protocol.Proposal;
 import org.tron.protos.contract.SmartContractOuterClass.SmartContract;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.TransactionInfo;
+import org.tron.protos.contract.SmartContractOuterClass.SmartContractDataWrapper;
 import org.tron.walletserver.WalletApi;
 
 
@@ -108,6 +109,7 @@ public class Client {
       "GetBrokerage",
       "GetChainParameters",
       "GetContract contractAddress",
+      "GetContractInfo contractAddress",
       "GetDelegatedResource",
       "GetDelegatedResourceAccountIndex",
       "GetDiversifier",
@@ -237,6 +239,7 @@ public class Client {
       "GetBrokerage",
       "GetChainParameters",
       "GetContract",
+      "GetContractInfo",
       "GetDelegatedResource",
       "GetDelegatedResourceAccountIndex",
       "GetDiversifier",
@@ -2108,11 +2111,11 @@ public class Client {
       System.out.println("origin_energy_limit must > 0");
       return;
     }
-    if (!constructorStr.equals("#")) {
+    if (!(constructorStr.equals("#") || argsStr.equals("#"))) {
       if (isHex) {
         codeStr += argsStr;
       } else {
-        codeStr += AbiUtil.parseMethod(constructorStr, argsStr);
+        codeStr += Hex.toHexString(AbiUtil.encodeInput(constructorStr, argsStr));
       }
     }
     long value = 0;
@@ -2233,6 +2236,28 @@ public class Client {
     }
 
     SmartContract contractDeployContract = WalletApi.getContract(addressBytes);
+    if (contractDeployContract != null) {
+      System.out.println(Utils.formatMessageString(contractDeployContract));
+    } else {
+      System.out.println("Query contract failed !!!");
+    }
+  }
+
+  private void getContractInfo(String[] parameters) {
+    if (parameters == null ||
+        parameters.length != 1) {
+      System.out.println("Using getContractInfo needs 1 parameter like: ");
+      System.out.println("GetContractInfo contractAddress");
+      return;
+    }
+
+    byte[] addressBytes = WalletApi.decodeFromBase58Check(parameters[0]);
+    if (addressBytes == null) {
+      System.out.println("GetContractInfo: invalid address !!!");
+      return;
+    }
+
+    SmartContractDataWrapper contractDeployContract = WalletApi.getContractInfo(addressBytes);
     if (contractDeployContract != null) {
       System.out.println(Utils.formatMessageString(contractDeployContract));
     } else {
@@ -3682,7 +3707,7 @@ public class Client {
         || cmdLine.toLowerCase().startsWith("triggercontract")
         || cmdLine.toLowerCase().startsWith("triggerconstantcontract")
         || cmdLine.toLowerCase().startsWith("updateaccountpermission")) {
-      return cmdLine.split(" ", -1);
+      return cmdLine.split("\\s+", -1);
     }
     String[] strArray = cmdLine.split("\"");
     int num = strArray.length;
@@ -4079,6 +4104,10 @@ public class Client {
             }
             case "getcontract": {
               getContract(parameters);
+              break;
+            }
+            case "getcontractinfo": {
+              getContractInfo(parameters);
               break;
             }
             case "generateaddress": {
