@@ -63,6 +63,8 @@ import org.tron.walletserver.WalletApi;
 
 public class Client {
 
+
+
   private WalletApiWrapper walletApiWrapper = new WalletApiWrapper();
   private static int retryTime = 3;
 
@@ -4321,8 +4323,28 @@ public class Client {
     }
   }
 
+  public static String fullNode;
+  public static String solidityNode;
+
+  public Client(String fullNodeStr,String solidityStr) {
+    fullNode = fullNodeStr;
+    solidityNode = solidityStr;
+
+  }
+
+  public Client() {
+  }
+
+
   public static void main(String[] args) {
-    Client cli = new Client();
+    Client cli;
+    if(args.length == 2) {
+      cli = new Client(args[0],args[1]);
+      args = new String[0];
+    } else {
+      cli = new Client();
+    }
+
     JCommander.newBuilder()
         .addObject(cli)
         .build()
