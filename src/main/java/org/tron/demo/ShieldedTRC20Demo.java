@@ -200,7 +200,7 @@ public class ShieldedTRC20Demo {
         "mint(uint256,bytes32[9],bytes32[2],bytes32[21])",
         input,
         true,
-        0L, 10000000L,
+        0L, 50000000L,
         "0", 0,
         callerAddress, privateKey);
   }
@@ -212,7 +212,7 @@ public class ShieldedTRC20Demo {
         "transfer(bytes32[10][],bytes32[2][],bytes32[9][],bytes32[2],bytes32[21][])",
         input,
         true,
-        0L, 1000000000L,
+        0L, 50000000L,
         "0",
         0,
         callerAddress, privateKey);
@@ -227,7 +227,7 @@ public class ShieldedTRC20Demo {
             + "bytes32[21][])",
         input,
         true,
-        0L, 1000000000L,
+        0L, 50000000L,
         "0",
         0,
         callerAddress, privateKey);
@@ -399,8 +399,6 @@ public class ShieldedTRC20Demo {
     BigInteger fromAmount = BigInteger.valueOf(value).multiply(scalingFactorBi);
     SpendingKey sk = new SpendingKey(ByteArray.fromHexString(spendingKey));
     ExpandedSpendingKey expsk = sk.expandedSpendingKey();
-    byte[] ask = expsk.getAsk();
-    byte[] nsk = expsk.getNsk();
     byte[] ovk = expsk.getOvk();
 
     // ReceiveNote
@@ -418,8 +416,6 @@ public class ShieldedTRC20Demo {
 
     GrpcAPI.PrivateShieldedTRC20Parameters.Builder paramBuilder = GrpcAPI
         .PrivateShieldedTRC20Parameters.newBuilder();
-    paramBuilder.setAsk(ByteString.copyFrom(ask));
-    paramBuilder.setNsk(ByteString.copyFrom(nsk));
     paramBuilder.setOvk(ByteString.copyFrom(ovk));
     paramBuilder.setFromAmount(fromAmount.toString());
     paramBuilder.addShieldedReceives(revNoteBuilder.build());
@@ -452,9 +448,9 @@ public class ShieldedTRC20Demo {
     while (infoById.get().getLogList().size() < 2) {
       logger.info("Can not get transaction info, please wait....");
       Thread.sleep(5000);
-      return WalletApi.getTransactionInfoById(txid);
+      infoById = WalletApi.getTransactionInfoById(txid);
     }
-    return null;
+    return infoById;
   }
 
   private static SpendNoteTRC20 getSpendNote(TransactionInfo txInfo,
