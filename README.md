@@ -1934,10 +1934,10 @@ ivk
 > The ivk of shielded address
 
 ak
-> The ak of shielded address
+> The ak of shielded address. Please set this field to null, if you don't care whether the notes are spent or not.
 
 nk
-> The nk of shielded address
+> The nk of shielded address. Please set this field to null, if you don't care whether the notes are spent or not.
 
 startNum
 > The starting block number of the scan
