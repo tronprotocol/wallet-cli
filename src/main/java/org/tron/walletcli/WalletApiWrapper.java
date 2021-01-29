@@ -1277,7 +1277,9 @@ public class WalletApiWrapper {
             + ByteArray.toHexString(noteTx.getNote().getRcm().toByteArray()));
         System.out.println("\t\t\t memo: " + noteTx.getNote().getMemo().toStringUtf8());
         System.out.println("\t\t }\n\t\t position: " + noteTx.getPosition());
-        System.out.println("\t\t is_spent: " + noteTx.getIsSpent());
+        if (!(ak == null || nk == null)) {
+          System.out.println("\t\t is_spent: " + noteTx.getIsSpent());
+        }
         System.out.println("\t\t tx_id: " + ByteArray.toHexString(noteTx.getTxid().toByteArray()));
         System.out.println("\t}");
       }
