@@ -1796,7 +1796,7 @@ public class WalletApiWrapper {
     byte[] inputData = Hex.decode(AbiUtil.parseMethod(methodStr, data, true));
     byte[] ownerAddress = wallet.getAddress();
 
-    return callContract(ownerAddress, contractAddressBytes, 0, inputData, 20_000_000L,
+    return callContract(ownerAddress, contractAddressBytes, 0, inputData, 200_000_000L,
         0, "", false);
   }
 
