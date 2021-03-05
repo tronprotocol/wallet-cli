@@ -29,10 +29,8 @@ import org.tron.core.config.Parameter.CommonConstant;
 import org.tron.core.exception.ZksnarkException;
 import org.tron.core.zen.address.DiversifierT;
 import org.tron.core.zen.address.ExpandedSpendingKey;
-import org.tron.core.zen.address.FullViewingKey;
 import org.tron.core.zen.address.IncomingViewingKey;
 import org.tron.core.zen.address.KeyIo;
-import org.tron.core.zen.address.PaymentAddress;
 import org.tron.core.zen.address.SpendingKey;
 import org.tron.protos.Protocol;
 import org.tron.protos.Protocol.Transaction;
@@ -49,7 +47,7 @@ public class ShieldedTRC20Demo {
 
   private byte[] trc20 = WalletApi.decodeFromBase58Check(
       "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t");
-  private byte[] deShieldedTRC20 = WalletApi.decodeFromBase58Check(
+  private byte[] shieldedTRC20 = WalletApi.decodeFromBase58Check(
       "TQEuSEVRk1GtfExm5q9T8a1w84GvgQJ13V");
 
   private String privateKey = "your private key of transparent address";
@@ -150,7 +148,7 @@ public class ShieldedTRC20Demo {
   }
 
   public void setContractAddress(PrivateShieldedTRC20Parameters.Builder paramBuilder) {
-    paramBuilder.setShieldedTRC20ContractAddress(ByteString.copyFrom(deShieldedTRC20));
+    paramBuilder.setShieldedTRC20ContractAddress(ByteString.copyFrom(shieldedTRC20));
   }
 
   public void setKey(PrivateShieldedTRC20Parameters.Builder paramBuilder, byte[] ask, byte[] nsk,
@@ -194,7 +192,7 @@ public class ShieldedTRC20Demo {
         PrivateShieldedTRC20Parameters.newBuilder();
     //set spend note
     Note note = buildNote(5, toShieldedAddress, ByteArray.fromHexString(rcm), new byte[512]);
-    privateTRC20Builder.addShieldedSpends(getSpendNote(infoById.get(), note, deShieldedTRC20));
+    privateTRC20Builder.addShieldedSpends(getSpendNote(infoById.get(), note, shieldedTRC20));
     //set receive note 1
     addReceiveShieldedNote(privateTRC20Builder, toShieldedAddress, toAmount1);
     //set receive note 2
@@ -207,7 +205,7 @@ public class ShieldedTRC20Demo {
 
     GrpcAPI.ShieldedTRC20Parameters transferParam = WalletApi
         .createShieldedContractParameters(privateTRC20Builder.build());
-    triggerTransfer(deShieldedTRC20, privateKey, transferParam.getTriggerContractInput());
+    triggerTransfer(shieldedTRC20, privateKey, transferParam.getTriggerContractInput());
   }
 
   public void burnDemo(String fromPrivate, long fromAmount, String toShieldedAddress,
@@ -225,7 +223,7 @@ public class ShieldedTRC20Demo {
     //set transparent
     setTransparent(privateTRC20Builder, 0, toTransparentAddress, toTransparentAmount);
     //set spend note
-    privateTRC20Builder.addShieldedSpends(getSpendNote(infoById.get(), note, deShieldedTRC20));
+    privateTRC20Builder.addShieldedSpends(getSpendNote(infoById.get(), note, shieldedTRC20));
     //set receive note
     addReceiveShieldedNote(privateTRC20Builder, toShieldedAddress, toShieldedAmount);
     //set contract address
@@ -234,7 +232,7 @@ public class ShieldedTRC20Demo {
     GrpcAPI.ShieldedTRC20Parameters burnParam = WalletApi
         .createShieldedContractParameters(privateTRC20Builder.build());
 
-    triggerBurn(deShieldedTRC20, privateKey, burnParam.getTriggerContractInput());
+    triggerBurn(shieldedTRC20, privateKey, burnParam.getTriggerContractInput());
   }
 
   public GrpcAPI.Note buildNote(long value, String paymentAddress, byte[] rcm, byte[] memo) {
@@ -265,7 +263,7 @@ public class ShieldedTRC20Demo {
     String methodSign = "mint(uint256,bytes32[9],bytes32[2],bytes32[21])";
     byte[] selector = new byte[4];
     System.arraycopy(Hash.sha3(methodSign.getBytes()), 0, selector, 0, 4);
-    return triggerContract(deShieldedTRC20,
+    return triggerContract(shieldedTRC20,
         "mint(uint256,bytes32[9],bytes32[2],bytes32[21])",
         input,
         true,
@@ -403,7 +401,7 @@ public class ShieldedTRC20Demo {
   }
 
   private BigInteger getScalingFactorBi() {
-    byte[] scalingFactorBytes = triggerGetScalingFactor(deShieldedTRC20);
+    byte[] scalingFactorBytes = triggerGetScalingFactor(shieldedTRC20);
     return ByteUtil.bytesToBigInteger(scalingFactorBytes);
   }
 
@@ -433,7 +431,7 @@ public class ShieldedTRC20Demo {
 
   public void setAllowance(String privateKey, long amount) {
     byte[] shieldedContractAddressPadding = new byte[32];
-    System.arraycopy(deShieldedTRC20, 0,
+    System.arraycopy(shieldedTRC20, 0,
         shieldedContractAddressPadding, 11, 21);
     byte[] valueBytes = longTo32Bytes(amount);
     String input = Hex.toHexString(ByteUtil.merge(shieldedContractAddressPadding, valueBytes));
