@@ -68,10 +68,10 @@ public class ShieldedTRC20Demo {
     demo.transferDemo(demo.privateKey, 5, demo.shieldedKey.getKioAddress(),
         2, 3);
     demo.burnDemo(demo.privateKey, 5, demo.shieldedKey.getKioAddress(), 3,
-        getAddressFromPK(demo.privateKey), 2);
+        getAddressFromPk(demo.privateKey), 2);
   }
 
-  public static byte[] getAddressFromPK(String pk) {
+  public static byte[] getAddressFromPk(String pk) {
     ECKey ecKey = ECKey.fromPrivate(ByteArray.fromHexString(pk));
     return ecKey.getAddress();
   }
@@ -315,7 +315,7 @@ public class ShieldedTRC20Demo {
       argsStr = "";
     }
 
-    byte[] owner = getAddressFromPK(priKey);
+    byte[] owner = getAddressFromPk(priKey);
     byte[] input = Hex.decode(AbiUtil.parseMethod(method, argsStr, isHex));
     TriggerSmartContract.Builder builder = TriggerSmartContract.newBuilder();
     builder.setOwnerAddress(ByteString.copyFrom(owner));
