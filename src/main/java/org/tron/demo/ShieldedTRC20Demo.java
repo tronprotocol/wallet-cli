@@ -29,10 +29,8 @@ import org.tron.core.config.Parameter.CommonConstant;
 import org.tron.core.exception.ZksnarkException;
 import org.tron.core.zen.address.DiversifierT;
 import org.tron.core.zen.address.ExpandedSpendingKey;
-import org.tron.core.zen.address.FullViewingKey;
 import org.tron.core.zen.address.IncomingViewingKey;
 import org.tron.core.zen.address.KeyIo;
-import org.tron.core.zen.address.PaymentAddress;
 import org.tron.core.zen.address.SpendingKey;
 import org.tron.protos.Protocol;
 import org.tron.protos.Protocol.Transaction;
@@ -47,9 +45,10 @@ import org.tron.walletserver.WalletApi;
 @Slf4j
 public class ShieldedTRC20Demo {
 
-  private String trc20 = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
-  private String shieldedTRC20 = "TQEuSEVRk1GtfExm5q9T8a1w84GvgQJ13V";
-  private byte[] deShieldedTRC20 = WalletApi.decodeFromBase58Check(shieldedTRC20);
+  private byte[] trc20 = WalletApi.decodeFromBase58Check(
+      "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t");
+  private byte[] shieldedTRC20 = WalletApi.decodeFromBase58Check(
+      "TQEuSEVRk1GtfExm5q9T8a1w84GvgQJ13V");
 
   private String privateKey = "your private key of transparent address";
 
@@ -69,10 +68,10 @@ public class ShieldedTRC20Demo {
     demo.transferDemo(demo.privateKey, 5, demo.shieldedKey.getKioAddress(),
         2, 3);
     demo.burnDemo(demo.privateKey, 5, demo.shieldedKey.getKioAddress(), 3,
-        getAddressFromPK(demo.privateKey), 2);
+        getAddressFromPk(demo.privateKey), 2);
   }
 
-  public static byte[] getAddressFromPK(String pk) {
+  public static byte[] getAddressFromPk(String pk) {
     ECKey ecKey = ECKey.fromPrivate(ByteArray.fromHexString(pk));
     return ecKey.getAddress();
   }
@@ -149,7 +148,7 @@ public class ShieldedTRC20Demo {
   }
 
   public void setContractAddress(PrivateShieldedTRC20Parameters.Builder paramBuilder) {
-    paramBuilder.setShieldedTRC20ContractAddress(ByteString.copyFrom(deShieldedTRC20));
+    paramBuilder.setShieldedTRC20ContractAddress(ByteString.copyFrom(shieldedTRC20));
   }
 
   public void setKey(PrivateShieldedTRC20Parameters.Builder paramBuilder, byte[] ask, byte[] nsk,
@@ -193,7 +192,7 @@ public class ShieldedTRC20Demo {
         PrivateShieldedTRC20Parameters.newBuilder();
     //set spend note
     Note note = buildNote(5, toShieldedAddress, ByteArray.fromHexString(rcm), new byte[512]);
-    privateTRC20Builder.addShieldedSpends(getSpendNote(infoById.get(), note, deShieldedTRC20));
+    privateTRC20Builder.addShieldedSpends(getSpendNote(infoById.get(), note, shieldedTRC20));
     //set receive note 1
     addReceiveShieldedNote(privateTRC20Builder, toShieldedAddress, toAmount1);
     //set receive note 2
@@ -206,7 +205,7 @@ public class ShieldedTRC20Demo {
 
     GrpcAPI.ShieldedTRC20Parameters transferParam = WalletApi
         .createShieldedContractParameters(privateTRC20Builder.build());
-    triggerTransfer(deShieldedTRC20, privateKey, transferParam.getTriggerContractInput());
+    triggerTransfer(shieldedTRC20, privateKey, transferParam.getTriggerContractInput());
   }
 
   public void burnDemo(String fromPrivate, long fromAmount, String toShieldedAddress,
@@ -224,7 +223,7 @@ public class ShieldedTRC20Demo {
     //set transparent
     setTransparent(privateTRC20Builder, 0, toTransparentAddress, toTransparentAmount);
     //set spend note
-    privateTRC20Builder.addShieldedSpends(getSpendNote(infoById.get(), note, deShieldedTRC20));
+    privateTRC20Builder.addShieldedSpends(getSpendNote(infoById.get(), note, shieldedTRC20));
     //set receive note
     addReceiveShieldedNote(privateTRC20Builder, toShieldedAddress, toShieldedAmount);
     //set contract address
@@ -233,11 +232,10 @@ public class ShieldedTRC20Demo {
     GrpcAPI.ShieldedTRC20Parameters burnParam = WalletApi
         .createShieldedContractParameters(privateTRC20Builder.build());
 
-    triggerBurn(deShieldedTRC20, privateKey, burnParam.getTriggerContractInput());
+    triggerBurn(shieldedTRC20, privateKey, burnParam.getTriggerContractInput());
   }
 
-  private static GrpcAPI.Note buildNote(
-      long value, String paymentAddress, byte[] rcm, byte[] memo) {
+  public GrpcAPI.Note buildNote(long value, String paymentAddress, byte[] rcm, byte[] memo) {
     GrpcAPI.Note.Builder noteBuilder = GrpcAPI.Note.newBuilder();
     noteBuilder.setValue(value);
     noteBuilder.setPaymentAddress(paymentAddress);
@@ -246,8 +244,7 @@ public class ShieldedTRC20Demo {
     return noteBuilder.build();
   }
 
-  private SpendNoteTRC20 getSpendNote(TransactionInfo txInfo,
-      Note note, byte[] contractAddress) {
+  public SpendNoteTRC20 getSpendNote(TransactionInfo txInfo, Note note, byte[] contractAddress) {
     byte[] txData = txInfo.getLog(1).getData().toByteArray();
     long pos = bytes32ToLong(ByteArray.subArray(txData, 0, 32));
     byte[] contractResult = triggerGetPath(contractAddress, pos);
@@ -266,7 +263,7 @@ public class ShieldedTRC20Demo {
     String methodSign = "mint(uint256,bytes32[9],bytes32[2],bytes32[21])";
     byte[] selector = new byte[4];
     System.arraycopy(Hash.sha3(methodSign.getBytes()), 0, selector, 0, 4);
-    return triggerContract(deShieldedTRC20,
+    return triggerContract(shieldedTRC20,
         "mint(uint256,bytes32[9],bytes32[2],bytes32[21])",
         input,
         true,
@@ -284,7 +281,7 @@ public class ShieldedTRC20Demo {
         "0",
         0,
         privateKey);
-    Optional<TransactionInfo> infoById = WalletApi.getTransactionInfoById(txid);
+    WalletApi.getTransactionInfoById(txid);
     return txid;
   }
 
@@ -297,7 +294,7 @@ public class ShieldedTRC20Demo {
         0L, 100000000L,
         "0",
         0,
-         privateKey);
+        privateKey);
   }
 
 
@@ -318,7 +315,7 @@ public class ShieldedTRC20Demo {
       argsStr = "";
     }
 
-    byte[] owner = getAddressFromPK(priKey);
+    byte[] owner = getAddressFromPk(priKey);
     byte[] input = Hex.decode(AbiUtil.parseMethod(method, argsStr, isHex));
     TriggerSmartContract.Builder builder = TriggerSmartContract.newBuilder();
     builder.setOwnerAddress(ByteString.copyFrom(owner));
@@ -391,8 +388,7 @@ public class ShieldedTRC20Demo {
     return txid;
   }
 
-  public static Protocol.Transaction signTransaction(ECKey ecKey,
-      Protocol.Transaction transaction) {
+  public static Protocol.Transaction signTransaction(ECKey ecKey, Transaction transaction) {
     WalletApi.setAddressPreFixByte(CommonConstant.ADD_PRE_FIX_BYTE_MAINNET);
     if (ecKey == null || ecKey.getPrivKey() == null) {
       //logger.warn("Warning: Can't sign,there is no private key !!");
@@ -405,12 +401,11 @@ public class ShieldedTRC20Demo {
   }
 
   private BigInteger getScalingFactorBi() {
-    byte[] scalingFactorBytes = triggerGetScalingFactor(deShieldedTRC20);
+    byte[] scalingFactorBytes = triggerGetScalingFactor(shieldedTRC20);
     return ByteUtil.bytesToBigInteger(scalingFactorBytes);
   }
 
-  private byte[] triggerGetScalingFactor(
-      byte[] contractAddress) {
+  private byte[] triggerGetScalingFactor(byte[] contractAddress) {
     String methodSign = "scalingFactor()";
     byte[] selector = new byte[4];
     System.arraycopy(Hash.sha3(methodSign.getBytes()), 0, selector, 0, 4);
@@ -429,52 +424,22 @@ public class ShieldedTRC20Demo {
     return result;
   }
 
-  private String getScaledPublicAmount(long amount) {
+  public String getScaledPublicAmount(long amount) {
     BigInteger result = BigInteger.valueOf(amount).multiply(scalingFactorBi);
     return result.toString();
   }
 
-  private void setAllowance(String privateKey, long amount) {
-    byte[] contractAddress = WalletApi.decodeFromBase58Check(trc20);
+  public void setAllowance(String privateKey, long amount) {
     byte[] shieldedContractAddressPadding = new byte[32];
-    System.arraycopy(deShieldedTRC20, 0,
+    System.arraycopy(shieldedTRC20, 0,
         shieldedContractAddressPadding, 11, 21);
     byte[] valueBytes = longTo32Bytes(amount);
     String input = Hex.toHexString(ByteUtil.merge(shieldedContractAddressPadding, valueBytes));
-    triggerContract(contractAddress, "approve(address,uint256)", input, true,
+    triggerContract(trc20, "approve(address,uint256)", input, true,
         0L, 10000000L, "0", 0, privateKey);
   }
 
-  private PrivateShieldedTRC20Parameters mintParams(long value, String contractAddr)
-      throws ZksnarkException {
-    BigInteger fromAmount = BigInteger.valueOf(value).multiply(scalingFactorBi);
-    SpendingKey spendingKey = new SpendingKey(ByteArray.fromHexString(sk));
-    ExpandedSpendingKey expsk = spendingKey.expandedSpendingKey();
-    byte[] ovk = expsk.getOvk();
-
-    // ReceiveNote
-    GrpcAPI.ReceiveNote.Builder revNoteBuilder = GrpcAPI.ReceiveNote.newBuilder();
-    // SpendingKey spendingKey = SpendingKey.random();
-    FullViewingKey fullViewingKey = spendingKey.fullViewingKey();
-    IncomingViewingKey incomingViewingKey = fullViewingKey.inViewingKey();
-    PaymentAddress paymentAddress = incomingViewingKey.address(new DiversifierT().random()).get();
-    byte[] memo = new byte[512];
-//    byte[] rcm = WalletApi.getRcm().get().getValue().toByteArray();
-    String paymentAddressStr = KeyIo.encodePaymentAddress(paymentAddress);
-    GrpcAPI.Note revNote = buildNote(value, paymentAddressStr, ByteArray.fromHexString(rcm), memo);
-    revNoteBuilder.setNote(revNote);
-    byte[] contractAddress = WalletApi.decodeFromBase58Check(contractAddr);
-
-    GrpcAPI.PrivateShieldedTRC20Parameters.Builder paramBuilder = GrpcAPI
-        .PrivateShieldedTRC20Parameters.newBuilder();
-    paramBuilder.setOvk(ByteString.copyFrom(ovk));
-    paramBuilder.setFromAmount(fromAmount.toString());
-    paramBuilder.addShieldedReceives(revNoteBuilder.build());
-    paramBuilder.setShieldedTRC20ContractAddress(ByteString.copyFrom(contractAddress));
-    return paramBuilder.build();
-  }
-
-  private byte[] triggerGetPath(byte[] contractAddress, long pos) {
+  public byte[] triggerGetPath(byte[] contractAddress, long pos) {
     String methodSign = "getPath(uint256)";
     byte[] selector = new byte[4];
     System.arraycopy(Hash.sha3(methodSign.getBytes()), 0, selector, 0, 4);
