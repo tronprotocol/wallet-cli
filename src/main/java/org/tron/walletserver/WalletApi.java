@@ -73,6 +73,8 @@ import org.tron.common.utils.Base58;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.TransactionUtils;
 import org.tron.common.utils.Utils;
+import org.tron.common.zksnark.JLibrustzcash;
+import org.tron.common.zksnark.LibrustzcashParam.SpendSigParams;
 import org.tron.core.config.Configuration;
 import org.tron.core.config.Parameter.CommonConstant;
 import org.tron.core.exception.CancelException;
@@ -1695,6 +1697,8 @@ public class WalletApi {
         return SmartContract.ABI.Entry.EntryType.Event;
       case "fallback":
         return SmartContract.ABI.Entry.EntryType.Fallback;
+      case "receive":
+        return SmartContract.ABI.Entry.EntryType.Receive;
       default:
         return SmartContract.ABI.Entry.EntryType.UNRECOGNIZED;
     }
@@ -1769,11 +1773,12 @@ public class WalletApi {
         System.out.println("No type!");
         return null;
       }
-      if (!type.equalsIgnoreCase("fallback") && null == inputs) {
-        System.out.println("No inputs!");
-        return null;
+      if(inputs == null) {
+        if(!(type.equalsIgnoreCase("fallback") || type.equalsIgnoreCase("receive"))) {
+          logger.error("No inputs!");
+          return null;
+        }
       }
-
       SmartContract.ABI.Entry.Builder entryBuilder = SmartContract.ABI.Entry.newBuilder();
       entryBuilder.setAnonymous(anonymous);
       entryBuilder.setConstant(constant);
@@ -2680,14 +2685,16 @@ public class WalletApi {
     ShieldedTRC20Parameters.Builder newBuilder =
         ShieldedTRC20Parameters.newBuilder().mergeFrom(parameters);
     for (int i = 0; i < spendDescList.size(); i++) {
-      SpendAuthSigParameters.Builder builder = SpendAuthSigParameters.newBuilder();
-      builder.setAsk(ByteString.copyFrom(ask));
-      builder.setTxHash(messageHash);
-      builder.setAlpha(privateParameters.getShieldedSpends(i).getAlpha());
-
       BytesMessage authSig;
       try {
-        authSig = rpcCli.createSpendAuthSig(builder.build());
+        byte[] sig = new byte[64];
+        SpendSigParams spendSigParams = new SpendSigParams(
+            ask,
+            privateParameters.getShieldedSpends(i).getAlpha().toByteArray(),
+            messageHash.toByteArray(),
+            sig);
+        JLibrustzcash.librustzcashSaplingSpendSig(spendSigParams);
+        authSig = BytesMessage.newBuilder().setValue(ByteString.copyFrom(sig)).build();
       } catch (Exception e) {
         Status status = Status.fromThrowable(e);
         System.out.println("createSpendAuthSig failed,error "

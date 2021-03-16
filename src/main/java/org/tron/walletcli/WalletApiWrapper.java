@@ -1277,7 +1277,9 @@ public class WalletApiWrapper {
             + ByteArray.toHexString(noteTx.getNote().getRcm().toByteArray()));
         System.out.println("\t\t\t memo: " + noteTx.getNote().getMemo().toStringUtf8());
         System.out.println("\t\t }\n\t\t position: " + noteTx.getPosition());
-        System.out.println("\t\t is_spent: " + noteTx.getIsSpent());
+        if (!(ak == null || nk == null)) {
+          System.out.println("\t\t is_spent: " + noteTx.getIsSpent());
+        }
         System.out.println("\t\t tx_id: " + ByteArray.toHexString(noteTx.getTxid().toByteArray()));
         System.out.println("\t}");
       }
@@ -1794,7 +1796,7 @@ public class WalletApiWrapper {
     byte[] inputData = Hex.decode(AbiUtil.parseMethod(methodStr, data, true));
     byte[] ownerAddress = wallet.getAddress();
 
-    return callContract(ownerAddress, contractAddressBytes, 0, inputData, 20_000_000L,
+    return callContract(ownerAddress, contractAddressBytes, 0, inputData, 200_000_000L,
         0, "", false);
   }
 

@@ -2,6 +2,7 @@ package org.tron.walletcli;
 
 import java.io.IOException;
 import java.math.BigInteger;
+import java.security.SecureRandom;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.Base64.Decoder;
@@ -29,6 +30,8 @@ import org.tron.common.utils.AbiUtil;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.ByteUtil;
 import org.tron.common.utils.Utils;
+import org.tron.common.zksnark.JLibrustzcash;
+import org.tron.common.zksnark.LibrustzcashParam;
 import org.tron.core.exception.CancelException;
 import org.tron.core.exception.CipherException;
 import org.tron.core.exception.EncodingException;
@@ -39,8 +42,12 @@ import org.tron.core.zen.ShieldedTRC20NoteInfo;
 import org.tron.core.zen.ShieldedTRC20Wrapper;
 import org.tron.core.zen.ShieldedWrapper;
 import org.tron.core.zen.ZenUtils;
+import org.tron.core.zen.address.DiversifierT;
+import org.tron.core.zen.address.ExpandedSpendingKey;
+import org.tron.core.zen.address.IncomingViewingKey;
 import org.tron.core.zen.address.KeyIo;
 import org.tron.core.zen.address.PaymentAddress;
+import org.tron.core.zen.address.SpendingKey;
 import org.tron.keystore.StringUtils;
 import org.tron.protos.Protocol.MarketOrder;
 import org.tron.protos.Protocol.MarketOrderList;
@@ -152,10 +159,10 @@ public class Client {
       "ListShieldedTRC20Note",
       "ListProposals",
       "ListProposalsPaginated",
-      "ListShieldedAddress",
-      "ListShieldedNote",
+      // "ListShieldedAddress",
+      // "ListShieldedNote",
       "ListWitnesses",
-      "LoadShieldedWallet",
+      // "LoadShieldedWallet",
       "Login",
       "Logout",
       "LoadShieldedTRC20Wallet",
@@ -283,8 +290,8 @@ public class Client {
       "ListShieldedTRC20Note",
       "ListProposals",
       "ListProposalsPaginated",
-      "ListShieldedAddress",
-      "ListShieldedNote",
+      // "ListShieldedAddress",
+      // "ListShieldedNote",
       "ListWitnesses",
       "Login",
       "Logout",
@@ -2201,7 +2208,10 @@ public class Client {
     if (tokenId.equalsIgnoreCase("#")) {
       tokenId = "";
     }
-    byte[] input = Hex.decode(AbiUtil.parseMethod(methodStr, argsStr, isHex));
+    byte[] input = new byte[0];
+    if (!methodStr.equalsIgnoreCase("#")) {
+      input = Hex.decode(AbiUtil.parseMethod(methodStr, argsStr, isHex));
+    }
     byte[] contractAddress = WalletApi.decodeFromBase58Check(contractAddrStr);
 
     boolean result = walletApiWrapper
@@ -2765,11 +2775,16 @@ public class Client {
   }
 
   private void getSpendingKey() {
-    Optional<BytesMessage> sk = WalletApi.getSpendingKey();
-    if (!sk.isPresent()) {
-      System.out.println("GetSpendingKey failed !!!");
-    } else {
-      System.out.println(ByteArray.toHexString(sk.get().getValue().toByteArray()));
+    while (true) {
+      byte[] skBytes = org.tron.keystore.Wallet.generateRandomBytes(32);
+      SpendingKey sk = new SpendingKey(skBytes);
+      try {
+        if (sk.fullViewingKey().isValid()) {
+          System.out.println(ByteArray.toHexString(skBytes));
+          break;
+        }
+      } catch (ZksnarkException e) {
+      }
     }
   }
 
@@ -2779,17 +2794,18 @@ public class Client {
       System.out.println("getExpandedSpendingKey sk ");
       return;
     }
-    String spendingKey = parameters[0];
-
-    BytesMessage sk = BytesMessage.newBuilder()
-        .setValue(ByteString.copyFrom(ByteArray.fromHexString(spendingKey))).build();
-    Optional<ExpandedSpendingKeyMessage> esk = WalletApi.getExpandedSpendingKey(sk);
-    if (!esk.isPresent()) {
+    byte[] spendingKey = ByteArray.fromHexString(parameters[0]);
+    if (spendingKey.length != 32) {
       System.out.println("GetExpandedSpendingKey failed !!!");
-    } else {
-      System.out.println("ask:" + ByteArray.toHexString(esk.get().getAsk().toByteArray()));
-      System.out.println("nsk:" + ByteArray.toHexString(esk.get().getNsk().toByteArray()));
-      System.out.println("ovk:" + ByteArray.toHexString(esk.get().getOvk().toByteArray()));
+      return;
+    }
+    try {
+      ExpandedSpendingKey esk = new SpendingKey(spendingKey).expandedSpendingKey();
+      System.out.println("ask:" + ByteArray.toHexString(esk.getAsk()));
+      System.out.println("nsk:" + ByteArray.toHexString(esk.getNsk()));
+      System.out.println("ovk:" + ByteArray.toHexString(esk.getOvk()));
+    } catch (ZksnarkException e) {
+      System.out.println("GetExpandedSpendingKey failed !!!");
     }
   }
 
@@ -2799,15 +2815,12 @@ public class Client {
       System.out.println("getAkFromAsk ask ");
       return;
     }
-    String ask = parameters[0];
-
-    BytesMessage ask1 = BytesMessage.newBuilder()
-        .setValue(ByteString.copyFrom(ByteArray.fromHexString(ask))).build();
-    Optional<BytesMessage> ak = WalletApi.getAkFromAsk(ask1);
-    if (!ak.isPresent()) {
+    byte[] ask = ByteArray.fromHexString(parameters[0]);
+    try {
+      byte[] ak = ExpandedSpendingKey.getAkFromAsk(ask);
+      System.out.println("ak:" + ByteArray.toHexString(ak));
+    } catch (ZksnarkException e) {
       System.out.println("GetAkFromAsk failed !!!");
-    } else {
-      System.out.println("ak:" + ByteArray.toHexString(ak.get().getValue().toByteArray()));
     }
   }
 
@@ -2817,15 +2830,12 @@ public class Client {
       System.out.println("getNkFromNsk nsk ");
       return;
     }
-    String nsk = parameters[0];
-
-    BytesMessage nsk1 = BytesMessage.newBuilder()
-        .setValue(ByteString.copyFrom(ByteArray.fromHexString(nsk))).build();
-    Optional<BytesMessage> nk = WalletApi.getNkFromNsk(nsk1);
-    if (!nk.isPresent()) {
+    byte[] nsk = ByteArray.fromHexString(parameters[0]);
+    try {
+      byte[] nk = ExpandedSpendingKey.getNkFromNsk(nsk);
+      System.out.println("nk:" + ByteArray.toHexString(nk));
+    } catch (ZksnarkException e) {
       System.out.println("GetNkFromNsk failed !!!");
-    } else {
-      System.out.println("nk:" + ByteArray.toHexString(nk.get().getValue().toByteArray()));
     }
   }
 
@@ -2836,27 +2846,24 @@ public class Client {
       System.out.println("getIncomingViewingKey ak[64] nk[64] ");
       return;
     }
-    String ak = parameters[0];
-    String nk = parameters[1];
-    ViewingKeyMessage vk = ViewingKeyMessage.newBuilder()
-        .setAk(ByteString.copyFrom(ByteArray.fromHexString(ak)))
-        .setNk(ByteString.copyFrom(ByteArray.fromHexString(nk)))
-        .build();
+    byte[] ak = ByteArray.fromHexString(parameters[0]);
+    byte[] nk = ByteArray.fromHexString(parameters[1]);
 
-    Optional<IncomingViewingKeyMessage> ivk = WalletApi.getIncomingViewingKey(vk);
-    if (!ivk.isPresent()) {
+    byte[] ivk = new byte[32]; // the incoming viewing key
+    try {
+      JLibrustzcash.librustzcashCrhIvk(new LibrustzcashParam.CrhIvkParams(ak, nk, ivk));
+      System.out.println("ivk:" + ByteArray.toHexString(ivk));
+    } catch (ZksnarkException e) {
       System.out.println("GetIncomingViewingKey failed !!!");
-    } else {
-      System.out.println("ivk:" + ByteArray.toHexString(ivk.get().getIvk().toByteArray()));
     }
   }
 
-  private void getDiversifier(String[] parameters) {
-    Optional<DiversifierMessage> diversifierMessage = WalletApi.getDiversifier();
-    if (!diversifierMessage.isPresent()) {
+  private void getDiversifier() {
+    try {
+      DiversifierT d = new DiversifierT().random();
+      System.out.println(ByteArray.toHexString(d.getData()));
+    } catch (ZksnarkException e) {
       System.out.println("GetDiversifier failed !!!");
-    } else {
-      System.out.println(ByteArray.toHexString(diversifierMessage.get().getD().toByteArray()));
     }
   }
 
@@ -2866,26 +2873,22 @@ public class Client {
       System.out.println("getShieldedPaymentAddress ivk[64] d[22] ");
       return;
     }
-    String ivk = parameters[0];
-    String d = parameters[1];
 
-    IncomingViewingKeyMessage ivk1 = IncomingViewingKeyMessage.newBuilder()
-        .setIvk(ByteString.copyFrom(ByteArray.fromHexString(ivk)))
-        .build();
-    DiversifierMessage d1 = DiversifierMessage.newBuilder()
-        .setD(ByteString.copyFrom(ByteArray.fromHexString(d)))
-        .build();
-    IncomingViewingKeyDiversifierMessage ivk_d = IncomingViewingKeyDiversifierMessage.newBuilder()
-        .setIvk(ivk1)
-        .setD(d1)
-        .build();
+    byte[] ivkBytes = ByteArray.fromHexString(parameters[0]);
+    byte[] d = ByteArray.fromHexString(parameters[1]);
+    IncomingViewingKey ivk = new IncomingViewingKey(ivkBytes);
 
-    Optional<PaymentAddressMessage> paymentAddress = WalletApi.getZenPaymentAddress(ivk_d);
-    if (!paymentAddress.isPresent()) {
+    try {
+      Optional<PaymentAddress> paymentAddress = ivk.address(new DiversifierT(d));
+      if (!paymentAddress.isPresent()) {
+        System.out.println("GetShieldedPaymentAddress failed !!!");
+      } else {
+        PaymentAddress pa = paymentAddress.get();
+        System.out.println("pkd:" + ByteArray.toHexString(pa.getPkD()));
+        System.out.println("shieldedAddress:" + KeyIo.encodePaymentAddress(pa));
+      }
+    } catch (ZksnarkException e) {
       System.out.println("GetShieldedPaymentAddress failed !!!");
-    } else {
-      System.out.println("pkd:" + ByteArray.toHexString(paymentAddress.get().getPkD().toByteArray()));
-      System.out.println("shieldedAddress:" + paymentAddress.get().getPaymentAddress());
     }
   }
 
@@ -3186,7 +3189,7 @@ public class Client {
 
     System.out.println("ShieldedTRC20Address list:");
     for (int i = 0; i < addressNum; ++i) {
-      Optional<ShieldedAddressInfo> addressInfo = walletApiWrapper.getNewShieldedAddress();
+      Optional<ShieldedAddressInfo> addressInfo = new ShieldedAddressInfo().getNewShieldedAddress();
       if (addressInfo.isPresent()) {
         if (ShieldedTRC20Wrapper.getInstance().addNewShieldedTRC20Address(
             addressInfo.get(), true)) {
@@ -3194,7 +3197,6 @@ public class Client {
         }
       }
     }
-    System.out.println("GenerateShieldedTRC20Address successful !!!");
   }
 
   private void importShieldedTRC20Wallet() throws CipherException, IOException, ZksnarkException {
@@ -3211,7 +3213,7 @@ public class Client {
       System.arraycopy(priKey, 0, sk, 0, sk.length);
       System.arraycopy(priKey, sk.length, d, 0, d.length);
       Optional<ShieldedAddressInfo> addressInfo =
-          walletApiWrapper.getNewShieldedAddressBySkAndD(sk, d);
+          new ShieldedAddressInfo().getNewShieldedAddressBySkAndD(sk, d);
       if (addressInfo.isPresent() && ShieldedTRC20Wrapper.getInstance().addNewShieldedTRC20Address(
           addressInfo.get(), false)) {
         System.out.println("Import new shieldedTRC20 wallet address is: "
@@ -3351,6 +3353,12 @@ public class Client {
       System.out.println("ScanShieldedTRC20NoteByIvk failed! Invalid shieldedTRC20ContractAddress");
       return;
     }
+    String ak = parameters[2];
+    String nk = parameters[3];
+    if (ak.equals("null") || nk.equals("null")) {
+      ak = null;
+      nk = null;
+    }
     long startNum;
     long endNum;
     try {
@@ -3367,10 +3375,10 @@ public class Client {
         eventArray[i] = parameters[i + 6];
       }
       walletApiWrapper.scanShieldedTRC20NoteByIvk(contractAddress,
-          parameters[1], parameters[2], parameters[3], startNum, endNum, eventArray);
+          parameters[1], ak, nk, startNum, endNum, eventArray);
     } else {
       walletApiWrapper.scanShieldedTRC20NoteByIvk(contractAddress,
-          parameters[1], parameters[2], parameters[3], startNum, endNum, null);
+          parameters[1], ak, nk, startNum, endNum, null);
     }
   }
 
@@ -4072,7 +4080,7 @@ public class Client {
               break;
             }
             case "getdiversifier": {
-              getDiversifier(parameters);
+              getDiversifier();
               break;
             }
             case "getshieldedpaymentaddress": {
