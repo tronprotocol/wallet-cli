@@ -288,7 +288,7 @@ AbbrName
 > The abbreviation of TRC10 token
 
 TotalSupply
-> ​TotalSupply = Account Balance of Issuer + All Frozen Token Amount
+> TotalSupply = Account Balance of Issuer + All Frozen Token Amount
 > TotalSupply: Total Issuing Amount
 > Account Balance Of Issuer: At the time of issuance
 > All Frozen Token Amount: Before asset transfer and the issuance
@@ -959,7 +959,7 @@ method
 > The name of function and parameters, please refer to the example
 
 args
-> Parameter value
+> Parameter value, if you want to call `receive`, pass '#' instead
 
 isHex
 > The format of the parameters method and args, is hex string or not
@@ -1783,7 +1783,7 @@ Example:
 In this example, the scalingFactor is 1000. 
 
 1. MINT
-    
+   
     **In this mode, some variables must be set as follows, shieldedInputNum = 0, publicToAddress = null, toAmount = 0.**
 
     ```console
@@ -1791,7 +1791,7 @@ In this example, the scalingFactor is 1000.
     ```
 
 2. TRANSFER
-    
+   
     **In this mode, some variables must be set as follows, fromAmount = 0, publicToAddress = null,toAmount = 0.**
 
     Transfer from one shielded address to one shielded address.
@@ -1934,10 +1934,10 @@ ivk
 > The ivk of shielded address
 
 ak
-> The ak of shielded address
+> The ak of shielded address. Please set this field to null, if you don't care whether the notes are spent or not.
 
 nk
-> The nk of shielded address
+> The nk of shielded address. Please set this field to null, if you don't care whether the notes are spent or not.
 
 startNum
 > The starting block number of the scan
@@ -2160,7 +2160,7 @@ d  :11db4baf6bd5d5afd3a8b1
 Create an order to sell asset    
 
 > MarketSellAsset owner_address sell_token_id sell_token_quantity buy_token_id buy_token_quantity  
- 
+
 ownerAddress
 > The address of the account that initiated the transaction
 
@@ -2218,7 +2218,7 @@ GetMarketOrderByAccount TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW
 		}
 	]
 }  
-```  
+```
 
 ### GetMarketOrderById
 
@@ -2244,7 +2244,7 @@ GetMarketOrderById fc9c64dfd48ae58952e85f05ecb8ec87f55e19402493bb2df501ae9d2da75
 ### GetMarketPairList
 
 Get market pair list
-   
+
 Example:
 
 ```console
@@ -2324,7 +2324,7 @@ GetMarketPriceByPair _ 1000001
 Cancel the order   
 
 > MarketCancelOrder owner_address order_id  
- 
+
 owner_address
 > the account address who have created the order
 
@@ -2336,7 +2336,7 @@ Example:
 ```console
 MarketCancelOrder TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW fc9c64dfd48ae58952e85f05ecb8ec87f55e19402493bb2df501ae9d2da75db0  
 ```
-   
+
 Get the result of the contract execution with the getTransactionInfoById command:  
 ```console
 getTransactionInfoById b375787a098498623403c755b1399e82910385251b643811936d914c9f37bd27   

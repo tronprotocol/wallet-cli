@@ -73,6 +73,8 @@ import org.tron.common.utils.Base58;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.TransactionUtils;
 import org.tron.common.utils.Utils;
+import org.tron.common.zksnark.JLibrustzcash;
+import org.tron.common.zksnark.LibrustzcashParam.SpendSigParams;
 import org.tron.core.config.Configuration;
 import org.tron.core.config.Parameter.CommonConstant;
 import org.tron.core.exception.CancelException;
@@ -2683,14 +2685,16 @@ public class WalletApi {
     ShieldedTRC20Parameters.Builder newBuilder =
         ShieldedTRC20Parameters.newBuilder().mergeFrom(parameters);
     for (int i = 0; i < spendDescList.size(); i++) {
-      SpendAuthSigParameters.Builder builder = SpendAuthSigParameters.newBuilder();
-      builder.setAsk(ByteString.copyFrom(ask));
-      builder.setTxHash(messageHash);
-      builder.setAlpha(privateParameters.getShieldedSpends(i).getAlpha());
-
       BytesMessage authSig;
       try {
-        authSig = rpcCli.createSpendAuthSig(builder.build());
+        byte[] sig = new byte[64];
+        SpendSigParams spendSigParams = new SpendSigParams(
+            ask,
+            privateParameters.getShieldedSpends(i).getAlpha().toByteArray(),
+            messageHash.toByteArray(),
+            sig);
+        JLibrustzcash.librustzcashSaplingSpendSig(spendSigParams);
+        authSig = BytesMessage.newBuilder().setValue(ByteString.copyFrom(sig)).build();
       } catch (Exception e) {
         Status status = Status.fromThrowable(e);
         System.out.println("createSpendAuthSig failed,error "
