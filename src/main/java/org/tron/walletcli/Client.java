@@ -4251,6 +4251,7 @@ public class Client {
             }
             case "gettransactioninfobyblocknum": {
               getTransactionInfoByBlockNum(parameters);
+              break;
             }
             case "marketsellasset": {
               marketSellAsset(parameters);
