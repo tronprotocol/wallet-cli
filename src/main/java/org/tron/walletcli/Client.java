@@ -2028,7 +2028,6 @@ public class Client {
 
   private void getTransactionInfoByBlockNum(String[] parameters) {
     if (parameters.length != 1) {
-      System.out.println("Too many parameters !!!");
       System.out.println("You need input number with the following syntax:");
       System.out.println("GetTransactionInfoByBlockNum number");
       return;
@@ -4251,6 +4250,7 @@ public class Client {
             }
             case "gettransactioninfobyblocknum": {
               getTransactionInfoByBlockNum(parameters);
+              break;
             }
             case "marketsellasset": {
               marketSellAsset(parameters);

@@ -165,7 +165,7 @@ public class Utils {
     List<TransactionInfo> infoList = transactionInfoList.getTransactionInfoList();
     infoList.stream()
         .forEach(
-            transactionInfo -> jsonArray.add(formatMessageString(transactionInfo))
+            transactionInfo -> jsonArray.add(printTransactionInfoToJSON(transactionInfo))
         );
     return JsonFormatUtil.formatJson(jsonArray.toJSONString());
   }
@@ -608,6 +608,10 @@ public class Utils {
     String txID = ByteArray.toHexString(Sha256Sm3Hash.hash(transaction.getRawData().toByteArray()));
     jsonTransaction.put("txID", txID);
     return jsonTransaction;
+  }
+
+  public static JSONObject printTransactionInfoToJSON(TransactionInfo transactioninfo) {
+    return JSONObject.parseObject(JsonFormat.printToString(transactioninfo, true));
   }
 
   public static boolean confirmEncrption() {
