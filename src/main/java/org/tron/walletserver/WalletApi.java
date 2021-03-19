@@ -167,7 +167,7 @@ public class WalletApi {
 
   public static GrpcClient init() {
     Config config = Configuration.getByPath("config.conf");
-    if(Client.fullNode != null && Client.solidityNode != null) {
+    if(!Client.fullNode.isEmpty() && !Client.solidityNode.isEmpty()) {
       if (config.hasPath("net.type") && "mainnet".equalsIgnoreCase(config.getString("net.type"))) {
         WalletApi.setAddressPreFixByte(CommonConstant.ADD_PRE_FIX_BYTE_MAINNET);
       } else {
@@ -182,6 +182,22 @@ public class WalletApi {
         System.out.println("WalletApi getConfig isEckey: " + isEckey);
       }
       return new GrpcClient(Client.fullNode, Client.solidityNode);
+    } else if(!Client.fullNode.isEmpty() && Client.solidityNode.isEmpty()) {
+      if (config.hasPath("net.type") && "mainnet".equalsIgnoreCase(config.getString("net.type"))) {
+        WalletApi.setAddressPreFixByte(CommonConstant.ADD_PRE_FIX_BYTE_MAINNET);
+      } else {
+        WalletApi.setAddressPreFixByte(CommonConstant.ADD_PRE_FIX_BYTE_TESTNET);
+      }
+      if (config.hasPath("RPC_version")) {
+        rpcVersion = config.getInt("RPC_version");
+        System.out.println("WalletApi getRpcVsersion: " + rpcVersion);
+      }
+      if (config.hasPath("crypto.engine")) {
+        isEckey = config.getString("crypto.engine").equalsIgnoreCase("eckey");
+        System.out.println("WalletApi getConfig isEckey: " + isEckey);
+      }
+      return new GrpcClient(Client.fullNode, "");
+
     } else {
 
       String fullNode = "";

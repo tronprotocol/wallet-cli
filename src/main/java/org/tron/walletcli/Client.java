@@ -4328,8 +4328,8 @@ public class Client {
     }
   }
 
-  public static String fullNode;
-  public static String solidityNode;
+  public static String fullNode = "";
+  public static String solidityNode = "";
 
   public Client(String fullNodeStr,String solidityStr) {
     fullNode = fullNodeStr;
@@ -4345,6 +4345,9 @@ public class Client {
     Client cli;
     if(args.length == 2) {
       cli = new Client(args[0],args[1]);
+      args = new String[0];
+    } else if(args.length == 1) {
+      cli = new Client(args[0],"");
       args = new String[0];
     } else {
       cli = new Client();
