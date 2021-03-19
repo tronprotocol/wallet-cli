@@ -3343,7 +3343,7 @@ public class Client {
   private void scanShieldedTRC20NoteByIvk(String[] parameters) {
     if (parameters == null || parameters.length < 6) {
       System.out.println("ScanShieldedTRC20NoteByIvk command needs at least 6 parameters like: ");
-      System.out.println("ScanShieldedTRC20NoteByIvk shieldedTRC20ContractAddress ivk ak nk " +
+      System.out.println("ScanShieldedTRC20NoteByIvk shieldedContractAddress ivk ak nk " +
               "startNum endNum [event1] [event2]");
       return;
     }
