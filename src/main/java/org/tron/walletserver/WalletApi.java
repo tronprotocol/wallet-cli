@@ -171,7 +171,7 @@ public class WalletApi {
       if (config.hasPath("net.type") && "mainnet".equalsIgnoreCase(config.getString("net.type"))) {
         WalletApi.setAddressPreFixByte(CommonConstant.ADD_PRE_FIX_BYTE_MAINNET);
       } else {
-        WalletApi.setAddressPreFixByte(CommonConstant.ADD_PRE_FIX_BYTE_TESTNET);
+        WalletApi.setAddressPreFixByte(CommonConstant.ADD_PRE_FIX_BYTE_MAINNET);
       }
       if (config.hasPath("RPC_version")) {
         rpcVersion = config.getInt("RPC_version");
@@ -186,7 +186,7 @@ public class WalletApi {
       if (config.hasPath("net.type") && "mainnet".equalsIgnoreCase(config.getString("net.type"))) {
         WalletApi.setAddressPreFixByte(CommonConstant.ADD_PRE_FIX_BYTE_MAINNET);
       } else {
-        WalletApi.setAddressPreFixByte(CommonConstant.ADD_PRE_FIX_BYTE_TESTNET);
+        WalletApi.setAddressPreFixByte(CommonConstant.ADD_PRE_FIX_BYTE_MAINNET);
       }
       if (config.hasPath("RPC_version")) {
         rpcVersion = config.getInt("RPC_version");
@@ -211,7 +211,7 @@ public class WalletApi {
       if (config.hasPath("net.type") && "mainnet".equalsIgnoreCase(config.getString("net.type"))) {
         WalletApi.setAddressPreFixByte(CommonConstant.ADD_PRE_FIX_BYTE_MAINNET);
       } else {
-        WalletApi.setAddressPreFixByte(CommonConstant.ADD_PRE_FIX_BYTE_TESTNET);
+        WalletApi.setAddressPreFixByte(CommonConstant.ADD_PRE_FIX_BYTE_MAINNET);
       }
       if (config.hasPath("RPC_version")) {
         rpcVersion = config.getInt("RPC_version");
