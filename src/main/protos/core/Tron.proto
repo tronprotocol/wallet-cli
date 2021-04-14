@@ -413,6 +413,7 @@ message BlockHeader {
     bytes witness_address = 9;
     int32 version = 10;
     bytes accountStateRoot = 11;
+    bytes receiptsRoot = 12;
   }
   raw raw_data = 1;
   bytes witness_signature = 2;
@@ -539,12 +540,6 @@ message InternalTransaction {
   repeated CallValueInfo callValueInfo = 4;
   bytes note = 5;
   bool rejected = 6;
-}
-
-message DelegatedResourceAccountIndex {
-  bytes account = 1;
-  repeated bytes fromAccounts = 2;
-  repeated bytes toAccounts = 3;
 }
 
 message NodeInfo {
