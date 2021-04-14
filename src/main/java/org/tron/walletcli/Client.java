@@ -1387,7 +1387,6 @@ public class Client {
     }
   }
 
-
   private void listProposals() {
     Optional<ProposalList> result = walletApiWrapper.getProposalsList();
     if (result.isPresent()) {
