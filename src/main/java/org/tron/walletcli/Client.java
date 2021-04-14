@@ -1255,7 +1255,9 @@ public class Client {
     byte[] ownerAddress = null;
     int resourceCode = 0;
     byte[] receiverAddress = null;
-    if (parameters.length == 2) {
+    if (parameters.length == 1) {
+      resourceCode = Integer.parseInt(parameters[index++]);
+    } else if (parameters.length == 2) {
       ownerAddress = getAddressBytes(parameters[index]);
       if (ownerAddress != null) {
         index++;
