@@ -150,6 +150,7 @@ import java.io.UnsupportedEncodingException;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.tron.walletcli.Client;
 
 @Slf4j
 public class WalletApi {
@@ -166,29 +167,64 @@ public class WalletApi {
 
   public static GrpcClient init() {
     Config config = Configuration.getByPath("config.conf");
+    if(!Client.fullNode.isEmpty() && !Client.solidityNode.isEmpty()) {
+      if (config.hasPath("net.type") && "mainnet".equalsIgnoreCase(config.getString("net.type"))) {
+        WalletApi.setAddressPreFixByte(CommonConstant.ADD_PRE_FIX_BYTE_MAINNET);
+      } else {
+        WalletApi.setAddressPreFixByte(CommonConstant.ADD_PRE_FIX_BYTE_MAINNET);
+      }
+      if (config.hasPath("RPC_version")) {
+        rpcVersion = config.getInt("RPC_version");
+        System.out.println("WalletApi getRpcVsersion: " + rpcVersion);
+      }
+      if (config.hasPath("crypto.engine")) {
+        isEckey = config.getString("crypto.engine").equalsIgnoreCase("eckey");
+        System.out.println("WalletApi getConfig isEckey: " + isEckey);
+      }
+      return new GrpcClient(Client.fullNode, Client.solidityNode);
+    } else if(!Client.fullNode.isEmpty() && Client.solidityNode.isEmpty()) {
+      if (config.hasPath("net.type") && "mainnet".equalsIgnoreCase(config.getString("net.type"))) {
+        WalletApi.setAddressPreFixByte(CommonConstant.ADD_PRE_FIX_BYTE_MAINNET);
+      } else {
+        WalletApi.setAddressPreFixByte(CommonConstant.ADD_PRE_FIX_BYTE_MAINNET);
+      }
+      if (config.hasPath("RPC_version")) {
+        rpcVersion = config.getInt("RPC_version");
+        System.out.println("WalletApi getRpcVsersion: " + rpcVersion);
+      }
+      if (config.hasPath("crypto.engine")) {
+        isEckey = config.getString("crypto.engine").equalsIgnoreCase("eckey");
+        System.out.println("WalletApi getConfig isEckey: " + isEckey);
+      }
+      return new GrpcClient(Client.fullNode, "");
 
-    String fullNode = "";
-    String solidityNode = "";
-    if (config.hasPath("soliditynode.ip.list")) {
-      solidityNode = config.getStringList("soliditynode.ip.list").get(0);
-    }
-    if (config.hasPath("fullnode.ip.list")) {
-      fullNode = config.getStringList("fullnode.ip.list").get(0);
-    }
-    if (config.hasPath("net.type") && "mainnet".equalsIgnoreCase(config.getString("net.type"))) {
-      WalletApi.setAddressPreFixByte(CommonConstant.ADD_PRE_FIX_BYTE_MAINNET);
     } else {
-      WalletApi.setAddressPreFixByte(CommonConstant.ADD_PRE_FIX_BYTE_TESTNET);
+
+      String fullNode = "";
+      String solidityNode = "";
+      if (config.hasPath("soliditynode.ip.list")) {
+        solidityNode = config.getStringList("soliditynode.ip.list").get(0);
+      }
+      if (config.hasPath("fullnode.ip.list")) {
+        fullNode = config.getStringList("fullnode.ip.list").get(0);
+      }
+      if (config.hasPath("net.type") && "mainnet".equalsIgnoreCase(config.getString("net.type"))) {
+        WalletApi.setAddressPreFixByte(CommonConstant.ADD_PRE_FIX_BYTE_MAINNET);
+      } else {
+        WalletApi.setAddressPreFixByte(CommonConstant.ADD_PRE_FIX_BYTE_MAINNET);
+      }
+      if (config.hasPath("RPC_version")) {
+        rpcVersion = config.getInt("RPC_version");
+        System.out.println("WalletApi getRpcVsersion: " + rpcVersion);
+      }
+      if (config.hasPath("crypto.engine")) {
+        isEckey = config.getString("crypto.engine").equalsIgnoreCase("eckey");
+        System.out.println("WalletApi getConfig isEckey: " + isEckey);
+      }
+      return new GrpcClient(fullNode, solidityNode);
     }
-    if (config.hasPath("RPC_version")) {
-      rpcVersion = config.getInt("RPC_version");
-      System.out.println("WalletApi getRpcVsersion: " + rpcVersion);
-    }
-    if (config.hasPath("crypto.engine")) {
-      isEckey = config.getString("crypto.engine").equalsIgnoreCase("eckey");
-      System.out.println("WalletApi getConfig isEckey: " + isEckey);
-    }
-    return new GrpcClient(fullNode, solidityNode);
+
+
   }
 
   public static String selectFullNode() {
