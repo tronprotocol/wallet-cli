@@ -1204,7 +1204,7 @@ public class Client {
         || parameters.length == 4 || parameters.length == 5)) {
       System.out.println("Use freezeBalance command with below syntax: ");
       System.out.println("freezeBalance [OwnerAddress] frozen_balance frozen_duration "
-          + "[ResourceCode:0 BANDWIDTH,1 ENERGY] [receiverAddress]");
+          + "[ResourceCode:0 BANDWIDTH,1 ENERGY,2 TRON_POWER] [receiverAddress]");
       return;
     }
 
@@ -1247,7 +1247,7 @@ public class Client {
     if (parameters == null || parameters.length < 1 || parameters.length > 3) {
       System.out.println("Use unfreezeBalance command with below syntax: ");
       System.out.println(
-          "unfreezeBalance [OwnerAddress] ResourceCode(0 BANDWIDTH,1 CPU) [receiverAddress]");
+          "unfreezeBalance [OwnerAddress] ResourceCode(0 BANDWIDTH,1 ENERGY,2 TRON_POWER) [receiverAddress]");
       return;
     }
 
@@ -2028,7 +2028,6 @@ public class Client {
 
   private void getTransactionInfoByBlockNum(String[] parameters) {
     if (parameters.length != 1) {
-      System.out.println("Too many parameters !!!");
       System.out.println("You need input number with the following syntax:");
       System.out.println("GetTransactionInfoByBlockNum number");
       return;
@@ -3344,7 +3343,7 @@ public class Client {
   private void scanShieldedTRC20NoteByIvk(String[] parameters) {
     if (parameters == null || parameters.length < 6) {
       System.out.println("ScanShieldedTRC20NoteByIvk command needs at least 6 parameters like: ");
-      System.out.println("ScanShieldedTRC20NoteByIvk shieldedTRC20ContractAddress ivk ak nk " +
+      System.out.println("ScanShieldedTRC20NoteByIvk shieldedContractAddress ivk ak nk " +
               "startNum endNum [event1] [event2]");
       return;
     }
@@ -4251,6 +4250,7 @@ public class Client {
             }
             case "gettransactioninfobyblocknum": {
               getTransactionInfoByBlockNum(parameters);
+              break;
             }
             case "marketsellasset": {
               marketSellAsset(parameters);
