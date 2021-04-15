@@ -160,7 +160,7 @@ public class WalletApi {
   private boolean loginState = false;
   private byte[] address;
   private static byte addressPreFixByte = CommonConstant.ADD_PRE_FIX_BYTE_TESTNET;
-  private static int rpcVersion = 0;
+  private static int rpcVersion = 2;
   private static boolean isEckey = true;
 
   private static GrpcClient rpcCli = init();
