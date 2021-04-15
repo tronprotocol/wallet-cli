@@ -120,7 +120,6 @@ public class Client {
       "GetContract contractAddress",
       "GetContractInfo contractAddress",
       "GetDelegatedResource",
-      "GetDelegatedResourceAccountIndex",
       "GetDiversifier",
       "GetExchange",
       "GetExpandedSpendingKey",
