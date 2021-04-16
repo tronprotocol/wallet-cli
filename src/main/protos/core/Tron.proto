@@ -542,12 +542,6 @@ message InternalTransaction {
   bool rejected = 6;
 }
 
-message DelegatedResourceAccountIndex {
-  bytes account = 1;
-  repeated bytes fromAccounts = 2;
-  repeated bytes toAccounts = 3;
-}
-
 message NodeInfo {
   int64 beginSyncNum = 1;
   string block = 2;

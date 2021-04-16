@@ -118,6 +118,7 @@ public class Client {
       "GetContract contractAddress",
       "GetContractInfo contractAddress",
       "GetDelegatedResource",
+      "GetDelegatedResourceAccountIndex",
       "GetDiversifier",
       "GetExchange",
       "GetExpandedSpendingKey",
@@ -1433,6 +1434,22 @@ public class Client {
     }
   }
 
+  private void getDelegatedResourceAccountIndex(String[] parameters) {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("Using getDelegatedResourceAccountIndex command needs 1 parameter like: ");
+      System.out.println("getDelegatedResourceAccountIndex address");
+      return;
+    }
+    String address = parameters[0];
+    Optional<DelegatedResourceAccountIndex> result = WalletApi
+        .getDelegatedResourceAccountIndex(address);
+    if (result.isPresent()) {
+      DelegatedResourceAccountIndex delegatedResourceAccountIndex = result.get();
+      System.out.println(Utils.formatMessageString(delegatedResourceAccountIndex));
+    } else {
+      System.out.println("GetDelegatedResourceAccountIndex failed !!");
+    }
+  }
 
 
   private void exchangeCreate(String[] parameters)
@@ -3944,6 +3961,10 @@ public class Client {
             }
             case "getdelegatedresource": {
               getDelegatedResource(parameters);
+              break;
+            }
+            case "getdelegatedresourceaccountindex": {
+              getDelegatedResourceAccountIndex(parameters);
               break;
             }
             case "exchangecreate": {

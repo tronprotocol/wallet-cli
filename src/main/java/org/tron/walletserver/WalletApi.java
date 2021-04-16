@@ -1504,6 +1504,12 @@ public class WalletApi {
     return rpcCli.getDelegatedResource(fromAddress, toAddress);
   }
 
+  public static Optional<DelegatedResourceAccountIndex> getDelegatedResourceAccountIndex
+      (
+          String address) {
+    return rpcCli.getDelegatedResourceAccountIndex(address);
+  }
+
   public static Optional<ExchangeList> listExchanges() {
     return rpcCli.listExchanges();
   }
