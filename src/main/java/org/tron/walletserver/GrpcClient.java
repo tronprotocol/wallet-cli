@@ -360,21 +360,6 @@ public class GrpcClient {
     return Optional.ofNullable(delegatedResource);
   }
 
-  public Optional<DelegatedResourceAccountIndex> getDelegatedResourceAccountIndex(String address) {
-
-    ByteString addressBS = ByteString.copyFrom(
-        Objects.requireNonNull(WalletApi.decodeFromBase58Check(address)));
-
-    BytesMessage bytesMessage = BytesMessage.newBuilder().setValue(addressBS).build();
-    DelegatedResourceAccountIndex accountIndex;
-    if (blockingStubSolidity != null) {
-      accountIndex = blockingStubSolidity.getDelegatedResourceAccountIndex(bytesMessage);
-    } else {
-      accountIndex = blockingStubFull.getDelegatedResourceAccountIndex(bytesMessage);
-    }
-    return Optional.ofNullable(accountIndex);
-  }
-
 
   public Optional<ExchangeList> listExchanges() {
     ExchangeList exchangeList;
