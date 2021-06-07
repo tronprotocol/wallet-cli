@@ -1,6 +1,10 @@
 package org.tron.demo;
 
-import org.spongycastle.math.ec.ECPoint;
+import static java.util.Arrays.copyOfRange;
+
+import java.math.BigInteger;
+import java.util.Arrays;
+import org.bouncycastle.math.ec.ECPoint;
 import org.springframework.util.StringUtils;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.Hash;
@@ -10,11 +14,6 @@ import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Utils;
 import org.tron.core.exception.CipherException;
 import org.tron.walletserver.WalletApi;
-
-import java.math.BigInteger;
-import java.util.Arrays;
-
-import static java.util.Arrays.copyOfRange;
 
 public class ECKeyDemo {
 

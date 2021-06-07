@@ -18,18 +18,19 @@
 
 package org.tron.common.utils;
 
-import lombok.extern.slf4j.Slf4j;
-import org.spongycastle.math.ec.ECPoint;
-import org.tron.common.crypto.jce.TronCastleProvider;
+import static java.util.Arrays.copyOfRange;
+import static org.tron.common.utils.ByteUtil.EMPTY_BYTE_ARRAY;
+import static org.tron.common.utils.ByteUtil.isNullOrZeroArray;
+import static org.tron.common.utils.ByteUtil.isSingleZero;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.Provider;
 import java.security.Security;
 import java.util.Arrays;
-
-import static java.util.Arrays.copyOfRange;
-import static org.tron.common.utils.ByteUtil.*;
+import lombok.extern.slf4j.Slf4j;
+import org.bouncycastle.math.ec.ECPoint;
+import org.tron.common.crypto.jce.TronCastleProvider;
 
 @Slf4j(topic = "crypto")
 public class Hash {
