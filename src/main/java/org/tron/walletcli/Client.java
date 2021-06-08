@@ -2065,6 +2065,7 @@ public class Client {
     }
   }
 
+  // https://github.com/tronprotocol/wallet-cli#How-to-use-smart-contracts
   private void triggerContract(String[] parameters, boolean isConstant)
       throws IOException, CipherException, CancelException, EncodingException {
     String cmdMethodStr = isConstant ? "TriggerConstantContract" : "TriggerContract";

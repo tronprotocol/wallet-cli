@@ -15,7 +15,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.spongycastle.util.encoders.Hex;
-import org.tron.api.GrpcAPI;
 import org.tron.api.GrpcAPI.*;
 import org.tron.api.GrpcAPI.TransactionSignWeight.Result.response_code;
 import org.tron.common.crypto.ECKey;
@@ -32,7 +31,6 @@ import org.tron.core.exception.CancelException;
 import org.tron.core.exception.CipherException;
 import org.tron.core.exception.EncodingException;
 import org.tron.keystore.*;
-import org.tron.protos.Contract;
 import org.tron.protos.Contract.*;
 import org.tron.protos.Protocol.*;
 import org.tron.protos.Protocol.Transaction.Contract.ContractType;
@@ -547,7 +545,7 @@ public class WalletApi {
 
   // Warning: do not invoke this interface provided by others.
   public static byte[] createAdresss(byte[] passPhrase) {
-    return GrpcClientHolder.getGrpcClient().createAdresss(passPhrase);
+    return GrpcClientHolder.getGrpcClient().createAddress(passPhrase);
   }
 
   // Warning: do not invoke this interface provided by others.

@@ -5,19 +5,80 @@ import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.tron.api.GrpcAPI.*;
+import org.bouncycastle.util.encoders.Hex;
+import org.tron.api.GrpcAPI;
+import org.tron.api.GrpcAPI.AccountNetMessage;
+import org.tron.api.GrpcAPI.AccountPaginated;
+import org.tron.api.GrpcAPI.AccountResourceMessage;
+import org.tron.api.GrpcAPI.AddressPrKeyPairMessage;
+import org.tron.api.GrpcAPI.AssetIssueList;
+import org.tron.api.GrpcAPI.BlockExtention;
+import org.tron.api.GrpcAPI.BlockLimit;
+import org.tron.api.GrpcAPI.BlockList;
+import org.tron.api.GrpcAPI.BlockListExtention;
+import org.tron.api.GrpcAPI.BytesMessage;
+import org.tron.api.GrpcAPI.DecryptNotes;
+import org.tron.api.GrpcAPI.DecryptNotesMarked;
+import org.tron.api.GrpcAPI.DelegatedResourceList;
+import org.tron.api.GrpcAPI.DelegatedResourceMessage;
+import org.tron.api.GrpcAPI.DiversifierMessage;
+import org.tron.api.GrpcAPI.EasyTransferAssetByPrivateMessage;
+import org.tron.api.GrpcAPI.EasyTransferAssetMessage;
+import org.tron.api.GrpcAPI.EasyTransferByPrivateMessage;
+import org.tron.api.GrpcAPI.EasyTransferMessage;
+import org.tron.api.GrpcAPI.EasyTransferResponse;
+import org.tron.api.GrpcAPI.EmptyMessage;
+import org.tron.api.GrpcAPI.ExchangeList;
+import org.tron.api.GrpcAPI.ExpandedSpendingKeyMessage;
+import org.tron.api.GrpcAPI.IncomingViewingKeyDiversifierMessage;
+import org.tron.api.GrpcAPI.IncomingViewingKeyMessage;
+import org.tron.api.GrpcAPI.IvkDecryptAndMarkParameters;
+import org.tron.api.GrpcAPI.IvkDecryptParameters;
+import org.tron.api.GrpcAPI.NfParameters;
+import org.tron.api.GrpcAPI.NodeList;
+import org.tron.api.GrpcAPI.NoteParameters;
+import org.tron.api.GrpcAPI.NumberMessage;
+import org.tron.api.GrpcAPI.OvkDecryptParameters;
+import org.tron.api.GrpcAPI.PaginatedMessage;
+import org.tron.api.GrpcAPI.PaymentAddressMessage;
+import org.tron.api.GrpcAPI.PrivateParameters;
+import org.tron.api.GrpcAPI.PrivateParametersWithoutAsk;
+import org.tron.api.GrpcAPI.ProposalList;
+import org.tron.api.GrpcAPI.Return;
 import org.tron.api.GrpcAPI.Return.response_code;
+import org.tron.api.GrpcAPI.SpendAuthSigParameters;
+import org.tron.api.GrpcAPI.SpendResult;
+import org.tron.api.GrpcAPI.TransactionApprovedList;
+import org.tron.api.GrpcAPI.TransactionExtention;
+import org.tron.api.GrpcAPI.TransactionList;
+import org.tron.api.GrpcAPI.TransactionListExtention;
+import org.tron.api.GrpcAPI.TransactionSignWeight;
+import org.tron.api.GrpcAPI.ViewingKeyMessage;
+import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.api.WalletExtensionGrpc;
 import org.tron.api.WalletGrpc;
 import org.tron.api.WalletSolidityGrpc;
 import org.tron.common.crypto.ECKey;
+import org.tron.common.utils.AbiUtil;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.TransactionUtils;
 import org.tron.core.exception.TransactionException;
 import org.tron.protos.Contract;
 import org.tron.protos.Contract.IncrementalMerkleVoucherInfo;
 import org.tron.protos.Contract.OutputPointInfo;
-import org.tron.protos.Protocol.*;
+import org.tron.protos.Protocol;
+import org.tron.protos.Protocol.Account;
+import org.tron.protos.Protocol.Block;
+import org.tron.protos.Protocol.ChainParameters;
+import org.tron.protos.Protocol.DelegatedResourceAccountIndex;
+import org.tron.protos.Protocol.Exchange;
+import org.tron.protos.Protocol.Proposal;
+import org.tron.protos.Protocol.SmartContract;
+import org.tron.protos.Protocol.Transaction;
+import org.tron.protos.Protocol.TransactionInfo;
+import org.tron.protos.Protocol.TransactionSign;
+
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.Objects;
 import java.util.Optional;
@@ -120,7 +181,7 @@ public class GrpcClient {
   }
 
   //Warning: do not invoke this interface provided by others.
-  public byte[] createAdresss(byte[] passPhrase) {
+  public byte[] createAddress(byte[] passPhrase) {
     BytesMessage.Builder builder = BytesMessage.newBuilder();
     builder.setValue(ByteString.copyFrom(passPhrase));
 
@@ -919,6 +980,51 @@ public class GrpcClient {
 
    public Transaction createRawTransaction(String from, String to, long amount) throws TransactionException {
       return TransactionUtils.createRawTransaction(from, to, amount);
+   }
+
+   // if feeLimit is null, will use default = 10 TRX * TRX precision
+  public Transaction createRawTrc20Transaction(String from, String to, String contractAddress, long rawAmount, Long feeLimit) throws TransactionException {
+    byte[] data = Hex.decode(AbiUtil.parseMethod("transfer(address,uint256)", String.format("\"%s\",%s", to, rawAmount), false));
+    Contract.TriggerSmartContract triggerSmartContractRequest = Contract.TriggerSmartContract.newBuilder()
+            .setContractAddress(ByteString.copyFrom(WalletApi.decodeFromBase58Check(contractAddress)))
+            .setOwnerAddress(ByteString.copyFrom(WalletApi.decodeFromBase58Check(from)))
+            .setData(ByteString.copyFrom(data))
+            .setCallValue(0)
+            .build();
+    TransactionExtention transactionExtention = triggerContract(triggerSmartContractRequest);
+    if (!(transactionExtention.hasResult() && transactionExtention.getResult().getCode() == response_code.SUCCESS)) {
+      throw new RuntimeException("Something went wrong. Response: " + transactionExtention);
+    }
+    Protocol.Block newestBlock = WalletApi.getBlock(-1);
+    Transaction originalTransaction = transactionExtention.getTransaction();
+
+    Transaction.Builder transactionBuilder = Transaction.newBuilder(originalTransaction);
+    transactionBuilder.getRawDataBuilder()
+            .setFeeLimit(feeLimit == null ? 10_000_000 : feeLimit * 1000_000)
+            .setTimestamp(System.currentTimeMillis())
+            .setExpiration(newestBlock.getBlockHeader().getRawData().getTimestamp() + 10 * 60 * 60 * 1000);
+    return TransactionUtils.setReference(transactionBuilder.build(), newestBlock);
+  }
+
+   public int getPrecision(String from, String contractAddress) {
+     byte[] data = Hex.decode(AbiUtil.parseMethod("decimals()", "", false));
+     Contract.TriggerSmartContract triggerSmartContractRequest = Contract.TriggerSmartContract.newBuilder()
+             .setContractAddress(ByteString.copyFrom(WalletApi.decodeFromBase58Check(contractAddress)))
+             .setOwnerAddress(ByteString.copyFrom(WalletApi.decodeFromBase58Check(from)))
+             .setData(ByteString.copyFrom(data))
+             .setCallValue(0)
+             .build();
+     TransactionExtention transactionExtention = GrpcClientHolder.getGrpcClient().triggerConstantContract(triggerSmartContractRequest);
+     Transaction transaction = transactionExtention.getTransaction();
+     // for constant
+     if (transaction.getRetCount() != 0
+             && transactionExtention.getConstantResult(0) != null
+             && transactionExtention.getResult() != null) {
+       byte[] result = transactionExtention.getConstantResult(0).toByteArray();
+       return Integer.valueOf(result[result.length-1]);
+     } else {
+       throw new RuntimeException("Something went wrong!");
+     }
    }
 
    public Transaction signRawTransaction(Transaction transaction, String privateKey) {
