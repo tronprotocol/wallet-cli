@@ -16,11 +16,32 @@ public class GrpcClientTest {
         Protocol.Transaction rawTrc20Transaction = client.createRawTrc20Transaction(
                 "TLrEGwHV78cp1vYU42j8r5HNKxpmKwPQD9",
                 "TW9E8eWpFgJoEX5F9WsvbQC1vptjsExnQG",
-                "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
+                contractAddress,
                 4000L * client.getPrecision("TLrEGwHV78cp1vYU42j8r5HNKxpmKwPQD9", contractAddress),
                 null
         );
         System.out.println(rawTrc20Transaction);
+    }
+
+    @Test
+    public void testGetSymbol() {
+        String ticker = client.getSymbol(
+                "TLrEGwHV78cp1vYU42j8r5HNKxpmKwPQD9",
+                "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
+        );
+        Assert.assertEquals("USDT", ticker);
+
+        ticker = client.getSymbol(
+                "TLrEGwHV78cp1vYU42j8r5HNKxpmKwPQD9",
+                "TMwFHYXLJaRUPeW6421aqXL4ZEzPRFGkGT"
+        );
+        Assert.assertEquals("USDJ", ticker);
+
+        ticker = client.getSymbol(
+                "TLrEGwHV78cp1vYU42j8r5HNKxpmKwPQD9",
+                "TCFLL5dx5ZJdKnWuesXxi1VPwjLVmWZZy9"
+        );
+        Assert.assertEquals("JST", ticker);
     }
 
     @Test

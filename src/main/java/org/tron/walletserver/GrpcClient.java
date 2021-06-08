@@ -4,6 +4,7 @@ import com.google.protobuf.ByteString;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.bouncycastle.util.encoders.Hex;
 import org.tron.api.GrpcAPI;
@@ -80,6 +81,9 @@ import org.tron.protos.Protocol.TransactionSign;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
@@ -1026,6 +1030,33 @@ public class GrpcClient {
        throw new RuntimeException("Something went wrong!");
      }
    }
+
+  public String getSymbol(String from, String contractAddress) {
+    byte[] data = Hex.decode(AbiUtil.parseMethod("symbol()", "", false));
+    Contract.TriggerSmartContract triggerSmartContractRequest = Contract.TriggerSmartContract.newBuilder()
+            .setContractAddress(ByteString.copyFrom(WalletApi.decodeFromBase58Check(contractAddress)))
+            .setOwnerAddress(ByteString.copyFrom(WalletApi.decodeFromBase58Check(from)))
+            .setData(ByteString.copyFrom(data))
+            .setCallValue(0)
+            .build();
+    TransactionExtention transactionExtention = GrpcClientHolder.getGrpcClient().triggerConstantContract(triggerSmartContractRequest);
+    Transaction transaction = transactionExtention.getTransaction();
+    // for constant
+    if (transaction.getRetCount() != 0
+            && transactionExtention.getConstantResult(0) != null
+            && transactionExtention.getResult() != null) {
+      byte[] result = transactionExtention.getConstantResult(0).toByteArray();
+      List<Byte> resultList = new ArrayList<>(result.length - 64);
+      for (byte b : Arrays.copyOfRange(result, 64, result.length)) {
+        if (b != 0) {
+          resultList.add(b);
+        }
+      }
+      return new String(ArrayUtils.toPrimitive(resultList.toArray(new Byte[0])), StandardCharsets.UTF_8);
+    } else {
+      throw new RuntimeException("Something went wrong!");
+    }
+  }
 
    public Transaction signRawTransaction(Transaction transaction, String privateKey) {
       return TransactionUtils.signTransaction(transaction, ECKey.fromPrivate(ByteArray.fromHexString(privateKey))).getTransaction();
