@@ -20,7 +20,7 @@ public class GrpcClientTest {
                 4000L * client.getPrecision("TLrEGwHV78cp1vYU42j8r5HNKxpmKwPQD9", contractAddress),
                 null
         );
-        System.out.println(rawTrc20Transaction);
+        Assert.assertNotNull(rawTrc20Transaction);
     }
 
     @Test
