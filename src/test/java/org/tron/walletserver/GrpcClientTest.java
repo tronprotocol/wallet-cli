@@ -24,6 +24,17 @@ public class GrpcClientTest {
     }
 
     @Test
+    @Ignore
+    public void testGetTrc20TokenBalance() {
+        String contractAddress = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t";
+        long rawAmount = client.getTrc20TokenBalance(
+                "TLrEGwHV78cp1vYU42j8r5HNKxpmKwPQD9",
+                contractAddress
+        );
+        Assert.assertEquals(4000_000_000L, rawAmount);
+    }
+
+    @Test
     public void testGetSymbol() {
         String ticker = client.getSymbol(
                 "TLrEGwHV78cp1vYU42j8r5HNKxpmKwPQD9",

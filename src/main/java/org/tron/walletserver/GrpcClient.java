@@ -1010,6 +1010,26 @@ public class GrpcClient {
     return TransactionUtils.setReference(transactionBuilder.build(), newestBlock);
   }
 
+  // amount is in RAW format (you can convert it to double/bigdecimal using getPrecision method)
+  public long getTrc20TokenBalance(String from, String contractAddress) {
+    byte[] data = Hex.decode(AbiUtil.parseMethod("balanceOf(address)", "\"" + from + "\"", false));
+    Contract.TriggerSmartContract triggerSmartContractRequest = Contract.TriggerSmartContract.newBuilder()
+            .setContractAddress(ByteString.copyFrom(WalletApi.decodeFromBase58Check(contractAddress)))
+            .setOwnerAddress(ByteString.copyFrom(WalletApi.decodeFromBase58Check(from)))
+            .setData(ByteString.copyFrom(data))
+            .setCallValue(0)
+            .build();
+    TransactionExtention transactionExtention = GrpcClientHolder.getGrpcClient().triggerConstantContract(triggerSmartContractRequest);
+    if (!(transactionExtention.hasResult() && transactionExtention.getResult().getCode() == response_code.SUCCESS) || !(
+            transactionExtention.getTransaction().getRetCount() != 0
+                    && transactionExtention.getConstantResult(0) != null
+                    && transactionExtention.getResult() != null
+            )) {
+      throw new RuntimeException("Something went wrong. Response: " + transactionExtention);
+    }
+    return Long.parseLong(new String(Hex.encode(transactionExtention.getConstantResult(0).toByteArray()), StandardCharsets.UTF_8), 16);
+  }
+
    public int getPrecision(String from, String contractAddress) {
      byte[] data = Hex.decode(AbiUtil.parseMethod("decimals()", "", false));
      Contract.TriggerSmartContract triggerSmartContractRequest = Contract.TriggerSmartContract.newBuilder()
