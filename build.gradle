@@ -25,7 +25,7 @@ ext {
     licenseUrl = 'https://www.gnu.org/licenses/lgpl-3.0.ru.html'
     allLicenses = ["LGPL"]
 
-    nexusUrl = 'https://nexus.unitedtraders.team/nexus/content/repositories/releases/'
+    nexusUrl = ''
     nexusUser = ''
     nexusPassword = ''
 }

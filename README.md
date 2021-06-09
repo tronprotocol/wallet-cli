@@ -1,6 +1,6 @@
 Для использования инстанциировать GrpcClient. 
 
-Для релиза: поднимаем версию, вводим свои креды в nexusUser, nexusPassword, затем assemble, затем uploadToNexus
+Для релиза: поднимаем версию, вводим свои креды в nexusUrl (урл с releases и с '/' на конце), nexusUser, nexusPassword, затем assemble, затем uploadToNexus
 
 --- Далее readme из форкнутого репозитория.
 
