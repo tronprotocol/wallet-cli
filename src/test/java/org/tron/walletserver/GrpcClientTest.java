@@ -7,6 +7,7 @@ import org.tron.protos.Protocol;
 
 public class GrpcClientTest {
 
+    // one of official public nodes from here: https://developers.tron.network/docs/official-public-node
     private final GrpcClient client = new GrpcClient("3.225.171.164:50051", null, false);
 
     @Test
