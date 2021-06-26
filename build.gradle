@@ -91,6 +91,10 @@ dependencies {
 
     compile group: 'org.jline', name: 'jline', version: '3.15.0'
     compile 'com.github.tronprotocol:zksnark-java-sdk:master-SNAPSHOT'
+    implementation group: 'org.bouncycastle', name: 'bcprov-jdk15on', version: '1.68'
+    // https://mvnrepository.com/artifact/org.bitcoinj/bitcoinj-core
+    implementation group: 'org.bitcoinj', name: 'bitcoinj-core', version: '0.14.7'
+
 }
 
 protobuf {
