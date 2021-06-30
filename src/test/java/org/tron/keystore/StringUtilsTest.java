@@ -30,6 +30,11 @@ public class StringUtilsTest {
     char[] b = "ghijkl".toCharArray();
     char[] c = "defghi".toCharArray();
     char[] d = "abcdefghijkl".toCharArray();
+    char[] empty = "".toCharArray();
+
+    Assert.assertFalse(StringUtils.isContains(empty, d));
+    Assert.assertFalse(StringUtils.isContains(d, empty));
+
     Assert.assertTrue(StringUtils.isContains(d, d));
     Assert.assertTrue(StringUtils.isContains(d, a));
     Assert.assertTrue(StringUtils.isContains(d, b));
