@@ -57,25 +57,10 @@ public class StringUtils {
     if (ArrayUtils.isEmpty(a) || ArrayUtils.isEmpty(b)) {
       return false;
     }
-
-    int alen = a.length;
-    int blen = b.length;
-
-    for (int i = 0; i < alen; i++) {
-      if (alen - i < blen) {
-        return false;
-      }
-      int j;
-      for (j = 0; j < blen; j++) {
-        if (a[i + j] != b[j]) {
-          break;
-        }
-      }
-      if (j == blen) {
-        return true;
-      }
+    if (a.length < b.length) {
+      return false;
     }
-    return false;
+    return KMP.search(a, b);
   }
 
   public static void clear(char[] a) {
