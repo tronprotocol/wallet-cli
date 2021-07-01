@@ -57,7 +57,10 @@ public class StringUtils {
     if (ArrayUtils.isEmpty(a) || ArrayUtils.isEmpty(b)) {
       return false;
     }
-    return new String(a).contains(new String(b));
+    if (a.length < b.length) {
+      return false;
+    }
+    return KMP.search(a, b);
   }
 
   public static void clear(char[] a) {

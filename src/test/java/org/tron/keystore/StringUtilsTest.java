@@ -7,7 +7,6 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class StringUtilsTest {
 
-
   @Test
   public void isCharEqual() {
     char[] a = "aaaaaa".toCharArray();
@@ -31,6 +30,11 @@ public class StringUtilsTest {
     char[] c = "defghi".toCharArray();
     char[] d = "abcdefghijkl".toCharArray();
     char[] empty = "".toCharArray();
+
+    char[] longarr = "xxxxxxxx123xxxxxxxxx".toCharArray();
+    char[] shortarr = "123".toCharArray();
+    Assert.assertFalse(StringUtils.isContains(shortarr, longarr));
+    Assert.assertTrue(StringUtils.isContains(longarr, shortarr));
 
     Assert.assertFalse(StringUtils.isContains(empty, d));
     Assert.assertFalse(StringUtils.isContains(d, empty));
