@@ -1697,8 +1697,10 @@ public class WalletApi {
         return SmartContract.ABI.Entry.EntryType.Fallback;
       case "receive":
         return SmartContract.ABI.Entry.EntryType.Receive;
+      case "error":
+        return SmartContract.ABI.Entry.EntryType.Error;
       default:
-        return SmartContract.ABI.Entry.EntryType.UNRECOGNIZED;
+        return SmartContract.ABI.Entry.EntryType.UnknownEntryType;
     }
   }
 
@@ -1714,7 +1716,7 @@ public class WalletApi {
       case "payable":
         return SmartContract.ABI.Entry.StateMutabilityType.Payable;
       default:
-        return SmartContract.ABI.Entry.StateMutabilityType.UNRECOGNIZED;
+        return SmartContract.ABI.Entry.StateMutabilityType.UnknownMutabilityType;
     }
   }
 
