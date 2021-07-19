@@ -1,32 +1,9 @@
 package org.tron.common.crypto.sm2;
 
-import lombok.extern.slf4j.Slf4j;
-import org.spongycastle.asn1.ASN1InputStream;
-import org.spongycastle.asn1.ASN1Integer;
-import org.spongycastle.asn1.DLSequence;
-import org.spongycastle.asn1.x9.X9IntegerConverter;
-import org.spongycastle.crypto.AsymmetricCipherKeyPair;
-import org.spongycastle.crypto.generators.ECKeyPairGenerator;
-import org.spongycastle.crypto.params.ECDomainParameters;
-import org.spongycastle.crypto.params.ECKeyGenerationParameters;
-import org.spongycastle.crypto.params.ECPrivateKeyParameters;
-import org.spongycastle.crypto.params.ECPublicKeyParameters;
-import org.spongycastle.jcajce.provider.asymmetric.ec.BCECPrivateKey;
-import org.spongycastle.jce.spec.ECParameterSpec;
-import org.spongycastle.jce.spec.ECPrivateKeySpec;
-import org.spongycastle.math.ec.ECAlgorithms;
-import org.spongycastle.math.ec.ECCurve;
-import org.spongycastle.math.ec.ECPoint;
-import org.spongycastle.util.encoders.Base64;
-import org.spongycastle.util.encoders.Hex;
-import org.tron.common.crypto.ECKey;
-import org.tron.common.crypto.SignInterface;
-import org.tron.common.crypto.SignatureInterface;
-import org.tron.common.crypto.jce.ECKeyFactory;
-import org.tron.common.crypto.jce.TronCastleProvider;
-import org.tron.common.utils.ByteUtil;
+import static org.tron.common.utils.BIUtil.isLessThan;
+import static org.tron.common.utils.ByteUtil.bigIntegerToBytes;
+import static org.tron.common.utils.Hash.computeAddress;
 
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.io.Serializable;
 import java.math.BigInteger;
@@ -38,10 +15,32 @@ import java.security.interfaces.ECPrivateKey;
 import java.security.interfaces.ECPublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.util.Arrays;
-
-import static org.tron.common.utils.BIUtil.isLessThan;
-import static org.tron.common.utils.ByteUtil.bigIntegerToBytes;
-import static org.tron.common.utils.Hash.computeAddress;
+import javax.annotation.Nullable;
+import lombok.extern.slf4j.Slf4j;
+import org.bouncycastle.asn1.ASN1InputStream;
+import org.bouncycastle.asn1.ASN1Integer;
+import org.bouncycastle.asn1.DLSequence;
+import org.bouncycastle.asn1.x9.X9IntegerConverter;
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair;
+import org.bouncycastle.crypto.generators.ECKeyPairGenerator;
+import org.bouncycastle.crypto.params.ECDomainParameters;
+import org.bouncycastle.crypto.params.ECKeyGenerationParameters;
+import org.bouncycastle.crypto.params.ECPrivateKeyParameters;
+import org.bouncycastle.crypto.params.ECPublicKeyParameters;
+import org.bouncycastle.jcajce.provider.asymmetric.ec.BCECPrivateKey;
+import org.bouncycastle.jce.spec.ECParameterSpec;
+import org.bouncycastle.jce.spec.ECPrivateKeySpec;
+import org.bouncycastle.math.ec.ECAlgorithms;
+import org.bouncycastle.math.ec.ECCurve;
+import org.bouncycastle.math.ec.ECPoint;
+import org.bouncycastle.util.encoders.Base64;
+import org.bouncycastle.util.encoders.Hex;
+import org.tron.common.crypto.ECKey;
+import org.tron.common.crypto.SignInterface;
+import org.tron.common.crypto.SignatureInterface;
+import org.tron.common.crypto.jce.ECKeyFactory;
+import org.tron.common.crypto.jce.TronCastleProvider;
+import org.tron.common.utils.ByteUtil;
 
 /** Implement Chinese Commercial Cryptographic Standard of SM2 */
 @Slf4j(topic = "crypto")
@@ -815,30 +814,30 @@ public class SM2 implements Serializable, SignInterface {
     }
   }
 
-  /**
-   * Returns a copy of this key, but with the public point represented in uncompressed form.
-   * Normally you would never need this: it's for specialised scenarios or when backwards
-   * compatibility in encoded form is necessary.
-   *
-   * @return -
-   * @deprecated per-point compression property will be removed in Bouncy Castle
-   */
-  public SM2 decompress() {
-    if (!pub.isCompressed()) {
-      return this;
-    } else {
-      return new SM2(this.privKey, decompressPoint(pub));
-    }
-  }
-
-  /** @deprecated per-point compression property will be removed in Bouncy Castle */
-  public SM2 compress() {
-    if (pub.isCompressed()) {
-      return this;
-    } else {
-      return new SM2(this.privKey, compressPoint(pub));
-    }
-  }
+//  /**
+//   * Returns a copy of this key, but with the public point represented in uncompressed form.
+//   * Normally you would never need this: it's for specialised scenarios or when backwards
+//   * compatibility in encoded form is necessary.
+//   *
+//   * @return -
+//   * @deprecated per-point compression property will be removed in Bouncy Castle
+//   */
+//  public SM2 decompress() {
+//    if (!pub.isCompressed()) {
+//      return this;
+//    } else {
+//      return new SM2(this.privKey, decompressPoint(pub));
+//    }
+//  }
+//
+//  /** @deprecated per-point compression property will be removed in Bouncy Castle */
+//  public SM2 compress() {
+//    if (pub.isCompressed()) {
+//      return this;
+//    } else {
+//      return new SM2(this.privKey, compressPoint(pub));
+//    }
+//  }
 
   /**
    * Returns true if this key doesn't have access to private key bytes. This may be because it was
@@ -894,15 +893,15 @@ public class SM2 implements Serializable, SignInterface {
     }
   }
 
-  /**
-   * Returns whether this key is using the compressed form or not. Compressed pubkeys are only 33
-   * bytes, not 64.
-   *
-   * @return -
-   */
-  public boolean isCompressed() {
-    return pub.isCompressed();
-  }
+//  /**
+//   * Returns whether this key is using the compressed form or not. Compressed pubkeys are only 33
+//   * bytes, not 64.
+//   *
+//   * @return -
+//   */
+//  public boolean isCompressed() {
+//    return pub.isCompressed();
+//  }
 
   public String toString() {
     StringBuilder b = new StringBuilder();
