@@ -17,21 +17,20 @@ package org.tron.common.crypto;
  * limitations under the License.
  */
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import com.google.common.io.ByteStreams;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 import com.google.protobuf.ByteString;
-import org.spongycastle.crypto.digests.SM3Digest;
-import org.tron.common.utils.ByteArray;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.Serializable;
 import java.math.BigInteger;
 import java.util.Arrays;
-
-import static com.google.common.base.Preconditions.checkArgument;
+import org.bouncycastle.crypto.digests.SM3Digest;
+import org.tron.common.utils.ByteArray;
 
 /**
  * A SM3Hash just wraps a byte[] so that equals and hashcode work correctly, allowing it to be used
