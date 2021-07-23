@@ -2186,6 +2186,7 @@ public class WalletApi {
       System.out.println(
           ":" + ByteArray.toStr(transactionExtention.getResult().getMessage().toByteArray()));
       System.out.println("Result:" + Hex.toHexString(result));
+      System.out.println("EnergyUsed:" + transactionExtention.getEnergyUsed());
       return true;
     }
 
