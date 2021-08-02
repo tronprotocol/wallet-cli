@@ -24,8 +24,6 @@ import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 import com.google.protobuf.ByteString;
 import com.typesafe.config.Config;
-import org.spongycastle.crypto.digests.SM3Digest;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -34,6 +32,7 @@ import java.math.BigInteger;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
+import org.bouncycastle.crypto.digests.SM3Digest;
 import org.tron.common.utils.ByteArray;
 import org.tron.core.config.Configuration;
 

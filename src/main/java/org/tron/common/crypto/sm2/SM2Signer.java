@@ -1,17 +1,25 @@
 package org.tron.common.crypto.sm2;
 
-import org.spongycastle.crypto.CipherParameters;
-import org.spongycastle.crypto.Digest;
-import org.spongycastle.crypto.digests.SM3Digest;
-import org.spongycastle.crypto.params.*;
-import org.spongycastle.crypto.signers.DSAKCalculator;
-import org.spongycastle.crypto.signers.RandomDSAKCalculator;
-import org.spongycastle.math.ec.*;
-import org.spongycastle.util.BigIntegers;
-
-import javax.annotation.Nullable;
 import java.math.BigInteger;
 import java.security.SecureRandom;
+import javax.annotation.Nullable;
+import org.bouncycastle.crypto.CipherParameters;
+import org.bouncycastle.crypto.Digest;
+import org.bouncycastle.crypto.digests.SM3Digest;
+import org.bouncycastle.crypto.params.ECDomainParameters;
+import org.bouncycastle.crypto.params.ECKeyParameters;
+import org.bouncycastle.crypto.params.ECPrivateKeyParameters;
+import org.bouncycastle.crypto.params.ECPublicKeyParameters;
+import org.bouncycastle.crypto.params.ParametersWithID;
+import org.bouncycastle.crypto.params.ParametersWithRandom;
+import org.bouncycastle.crypto.signers.DSAKCalculator;
+import org.bouncycastle.crypto.signers.RandomDSAKCalculator;
+import org.bouncycastle.math.ec.ECConstants;
+import org.bouncycastle.math.ec.ECFieldElement;
+import org.bouncycastle.math.ec.ECMultiplier;
+import org.bouncycastle.math.ec.ECPoint;
+import org.bouncycastle.math.ec.FixedPointCombMultiplier;
+import org.bouncycastle.util.BigIntegers;
 
 public class SM2Signer implements ECConstants {
   private final DSAKCalculator kCalculator = new RandomDSAKCalculator();
