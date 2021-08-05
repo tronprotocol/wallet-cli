@@ -18,10 +18,9 @@
 
 package org.tron.common.utils;
 
-import org.spongycastle.util.encoders.Hex;
-
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
+import org.bouncycastle.util.encoders.Hex;
 
 public class ByteArray {
     public static final byte[] EMPTY_BYTE_ARRAY = new byte[0];
