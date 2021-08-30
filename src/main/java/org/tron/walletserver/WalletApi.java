@@ -2178,15 +2178,13 @@ public class WalletApi {
     Transaction transaction = transactionExtention
         .getTransaction();
     // for constant
-    if (transaction.getRetCount() != 0
-        && transactionExtention.getConstantResult(0) != null
-        && transactionExtention.getResult() != null) {
-      byte[] result = transactionExtention.getConstantResult(0).toByteArray();
-      System.out.println("message:" + transaction.getRet(0).getRet());
-      System.out.println(
-          ":" + ByteArray.toStr(transactionExtention.getResult().getMessage().toByteArray()));
-      System.out.println("Result:" + Hex.toHexString(result));
-      System.out.println("EnergyUsed:" + transactionExtention.getEnergyUsed());
+    if (transaction.getRetCount() != 0) {
+      TransactionExtention.Builder builder =
+          transactionExtention.toBuilder().clearTransaction().clearTxid();
+      if (transaction.getRet(0).getRet() == Result.code.FAILED) {
+        builder.setResult(builder.getResult().toBuilder().setResult(false));
+      }
+      System.out.println("Execution result = " + Utils.formatMessageString(builder.build()));
       return true;
     }
 
