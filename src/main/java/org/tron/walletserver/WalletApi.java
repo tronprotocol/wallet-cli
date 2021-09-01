@@ -1985,7 +1985,9 @@ public class WalletApi {
       String tokenId) {
     TriggerSmartContract.Builder builder = TriggerSmartContract.newBuilder();
     builder.setOwnerAddress(ByteString.copyFrom(address));
-    builder.setContractAddress(ByteString.copyFrom(contractAddress));
+    if (contractAddress != null) {
+      builder.setContractAddress(ByteString.copyFrom(contractAddress));
+    }
     builder.setData(ByteString.copyFrom(data));
     builder.setCallValue(callValue);
     if (tokenId != null && tokenId != "") {
