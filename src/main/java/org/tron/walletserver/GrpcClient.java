@@ -7,7 +7,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.bouncycastle.util.encoders.Hex;
-import org.tron.api.GrpcAPI;
 import org.tron.api.GrpcAPI.AccountNetMessage;
 import org.tron.api.GrpcAPI.AccountPaginated;
 import org.tron.api.GrpcAPI.AccountResourceMessage;
@@ -79,6 +78,7 @@ import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.TransactionInfo;
 import org.tron.protos.Protocol.TransactionSign;
 
+import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.ArrayList;
@@ -1027,7 +1027,7 @@ public class GrpcClient {
             )) {
       throw new RuntimeException("Something went wrong. Response: " + transactionExtention);
     }
-    return Long.parseLong(new String(Hex.encode(transactionExtention.getConstantResult(0).toByteArray()), StandardCharsets.UTF_8), 16);
+    return new BigInteger(transactionExtention.getConstantResult(0).toByteArray()).longValue();
   }
 
    public int getPrecision(String from, String contractAddress) {
