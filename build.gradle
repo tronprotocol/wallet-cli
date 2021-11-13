@@ -130,3 +130,10 @@ shadowJar {
     classifier = null
     version = null
 }
+
+allprojects {
+    tasks.withType(Test).configureEach {
+        forkEvery = 100
+    }
+
+}
