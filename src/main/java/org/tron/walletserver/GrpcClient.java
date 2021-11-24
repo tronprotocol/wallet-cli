@@ -1027,7 +1027,7 @@ public class GrpcClient {
             )) {
       throw new RuntimeException("Something went wrong. Response: " + transactionExtention);
     }
-    return new BigInteger(transactionExtention.getConstantResult(0).toByteArray()).longValue();
+    return new BigInteger(transactionExtention.getConstantResult(0).toByteArray()).longValueExact();
   }
 
    public int getPrecision(String from, String contractAddress) {
