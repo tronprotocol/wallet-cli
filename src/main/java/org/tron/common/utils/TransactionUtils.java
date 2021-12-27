@@ -335,6 +335,18 @@ public class TransactionUtils {
         return signTransactionByApi2(rawTransaction, privateKey.getPrivKeyBytes());
     }
 
+    public static Transaction signTransactionOffline(Transaction transaction, String privateKey) {
+        byte[] privKeyBytes = org.tron.common.utils.ByteArray.fromHexString(privateKey);
+        ECKey myKey = ECKey.fromPrivate(privKeyBytes);
+        Transaction.Builder transactionBuilderSigned = transaction.toBuilder();
+        byte[] hash = Sha256Sm3Hash.hash(transaction.getRawData().toByteArray());
+        SignatureInterface signature = myKey.sign(hash);
+        ByteString bsSign = ByteString.copyFrom(signature.toByteArray());
+        transactionBuilderSigned.addSignature(bsSign);
+        transaction = transactionBuilderSigned.build();
+        return transaction;
+    }
+
     public static Transaction broadcastTransaction(Transaction transactionSigned) {
         GrpcAPI.TransactionSignWeight weight = WalletApi.getTransactionSignWeight(transactionSigned);
 
