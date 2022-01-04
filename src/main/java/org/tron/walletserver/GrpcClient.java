@@ -1,5 +1,7 @@
 package org.tron.walletserver;
 
+import io.grpc.Metadata;
+import io.grpc.stub.MetadataUtils;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
@@ -93,11 +95,17 @@ public class GrpcClient {
 //  }
 
   public GrpcClient(String fullnode, String soliditynode) {
+       // create a custom header
+        Metadata header=new Metadata();
+    Metadata.Key<String> key =
+             Metadata.Key.of("TRON-PRO-API-KEY", Metadata.ASCII_STRING_MARSHALLER);
+      header.put(key, "e90d50a8-0ce5-4887-a029-53399d43803d");
     if (!StringUtils.isEmpty(fullnode)) {
       channelFull = ManagedChannelBuilder.forTarget(fullnode)
           .usePlaintext(true)
           .build();
       blockingStubFull = WalletGrpc.newBlockingStub(channelFull);
+      blockingStubFull = MetadataUtils.attachHeaders(blockingStubFull, header);
     }
     if (!StringUtils.isEmpty(soliditynode)) {
       channelSolidity = ManagedChannelBuilder.forTarget(soliditynode)
@@ -105,6 +113,7 @@ public class GrpcClient {
           .build();
       blockingStubSolidity = WalletSolidityGrpc.newBlockingStub(channelSolidity);
       blockingStubExtension = WalletExtensionGrpc.newBlockingStub(channelSolidity);
+      blockingStubExtension = MetadataUtils.attachHeaders(blockingStubExtension, header);
     }
   }
 
