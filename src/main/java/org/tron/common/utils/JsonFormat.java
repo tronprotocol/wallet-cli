@@ -322,7 +322,9 @@ public class JsonFormat {
         } else {
           generator.print(", ");
         }
+        generator.print("\"");
         generator.print(String.format((Locale) null, "0x%08x", value));
+        generator.print("\"");
       }
       for (long value : field.getFixed64List()) {
         if (firstValue) {
@@ -330,7 +332,9 @@ public class JsonFormat {
         } else {
           generator.print(", ");
         }
+        generator.print("\"");
         generator.print(String.format((Locale) null, "0x%016x", value));
+        generator.print("\"");
       }
       for (ByteString value : field.getLengthDelimitedList()) {
         if (firstValue) {
