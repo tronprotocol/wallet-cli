@@ -147,6 +147,7 @@ import org.tron.protos.contract.SmartContractOuterClass.SmartContractDataWrapper
 import org.tron.protos.contract.SmartContractOuterClass.TriggerSmartContract;
 import org.tron.protos.contract.SmartContractOuterClass.UpdateEnergyLimitContract;
 import org.tron.protos.contract.SmartContractOuterClass.UpdateSettingContract;
+import org.tron.protos.contract.StableMarketContract;
 import org.tron.protos.contract.StorageContract.BuyStorageBytesContract;
 import org.tron.protos.contract.StorageContract.BuyStorageContract;
 import org.tron.protos.contract.StorageContract.SellStorageContract;
@@ -2804,6 +2805,24 @@ public class WalletApi {
 
   public static Optional<MarketOrder> getMarketOrderById(byte[] order) {
     return rpcCli.getMarketOrderById(order);
+  }
+
+  public boolean stableMarketExchange(
+      byte[] owner, byte[] to, byte[] sourceAssetId, byte[] destAssetId, long amount)
+      throws IOException, CipherException, CancelException {
+    if (owner == null) {
+      owner = getAddress();
+    }
+
+    StableMarketContract.StableMarketExchangeContract.Builder builder = StableMarketContract.StableMarketExchangeContract.newBuilder();
+    builder.setOwnerAddress(ByteString.copyFrom(owner))
+        .setToAddress(ByteString.copyFrom(to))
+        .setSourceAssetId(ByteArray.toStr(sourceAssetId))
+        .setDestAssetId(ByteArray.toStr(destAssetId))
+        .setAmount(amount);
+
+    TransactionExtention transactionExtention = rpcCli.createStableMarketExchange(builder.build());
+    return processTransactionExtention(transactionExtention);
   }
 
 }
