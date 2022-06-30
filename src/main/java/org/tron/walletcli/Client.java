@@ -186,6 +186,7 @@ public class Client {
       "SetShieldedTRC20ContractAddress",
       // "ShowShieldedAddressInfo",
       "ShowShieldedTRC20AddressInfo",
+      "StableMarketExchange",
       "TransferAsset",
       "TriggerConstantContract contractAddress method args isHex",
       "TriggerContract contractAddress method args isHex fee_limit value",
@@ -316,6 +317,7 @@ public class Client {
       "SetShieldedTRC20ContractAddress",
       // "ShowShieldedAddressInfo",
       "ShowShieldedTRC20AddressInfo",
+      "StableMarketExchange",
       "TransferAsset",
       "TriggerConstantContract",
       "TriggerContract",
@@ -3767,6 +3769,46 @@ public class Client {
     }
   }
 
+  private void stableMarketExchange(String[] parameters)
+      throws IOException, CipherException, CancelException {
+    if (parameters == null || parameters.length != 5) {
+      System.out.println("stableMarketExchange needs 5 parameters using the following syntax: ");
+      System.out.println("stableMarketExchange OwnerAddress ToAddress SourceAssetID DestAssetID Amount");
+      return;
+    }
+
+    int index = 0;
+    byte[] ownerAddress = null;
+    String ownerBase58Address = parameters[index++];
+    ownerAddress = WalletApi.decodeFromBase58Check(ownerBase58Address);
+    if (ownerAddress == null) {
+      System.out.println("Invalid OwnerAddress.");
+      return;
+    }
+
+    String toBase58Address = parameters[index++];
+    byte[] toAddress = WalletApi.decodeFromBase58Check(toBase58Address);
+    if (toAddress == null) {
+      System.out.println("Invalid toAddress.");
+      return;
+    }
+    String sourceAssetId = parameters[index++];
+    String destAssetId = parameters[index++];
+    String amountStr = parameters[index++];
+    long amount = new Long(amountStr);
+
+    boolean result = walletApiWrapper.stableMarketExchange(ownerAddress, toAddress, sourceAssetId, destAssetId, amount);
+    if (result) {
+      System.out.println("Stable Market Exchange, from: " + ownerAddress + ", source asset: " + sourceAssetId
+          + ", dest: " + toBase58Address + ", dest asset: " + destAssetId + ", amount: " + amountStr
+          + " successful !!");
+    } else {
+      System.out.println("Stable Market Exchange, from: " + ownerAddress + ", source asset: " + sourceAssetId
+          + ", dest: " + toBase58Address + ", dest asset: " + destAssetId + ", amount: " + amountStr
+          + " failed !!");
+    }
+  }
+
   private void help() {
     System.out.println("Help: List of Tron Wallet-cli commands");
     System.out.println(
@@ -4356,6 +4398,9 @@ public class Client {
             case "getmarketorderbyid": {
               getMarketOrderById(parameters);
               break;
+            }
+            case "stablemarketexchange": {
+              stableMarketExchange(parameters);
             }
             case "exit":
             case "quit": {

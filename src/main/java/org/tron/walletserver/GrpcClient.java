@@ -66,6 +66,7 @@ import org.tron.protos.contract.SmartContractOuterClass.SmartContractDataWrapper
 import org.tron.protos.contract.SmartContractOuterClass.TriggerSmartContract;
 import org.tron.protos.contract.SmartContractOuterClass.UpdateEnergyLimitContract;
 import org.tron.protos.contract.SmartContractOuterClass.UpdateSettingContract;
+import org.tron.protos.contract.StableMarketContract;
 import org.tron.protos.contract.StorageContract.BuyStorageBytesContract;
 import org.tron.protos.contract.StorageContract.BuyStorageContract;
 import org.tron.protos.contract.StorageContract.SellStorageContract;
@@ -1081,6 +1082,11 @@ public class GrpcClient {
       orderPair = blockingStubFull.getMarketOrderById(request);
     }
     return Optional.ofNullable(orderPair);
+  }
+
+  public TransactionExtention createStableMarketExchange(
+      StableMarketContract.StableMarketExchangeContract tx) {
+    return blockingStubFull.createStableMarketExchange(tx);
   }
 
 }

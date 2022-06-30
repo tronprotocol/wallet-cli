@@ -1852,4 +1852,16 @@ public class WalletApiWrapper {
     return WalletApi.getMarketOrderById(order);
   }
 
+  public boolean stableMarketExchange(byte[] ownerAddress, byte[] toAddress, String sourceAssetId,
+                               String destAssetId, long amount)
+      throws IOException, CipherException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: stableMarketExchange failed,  Please login first !!");
+      return false;
+    }
+
+    return wallet.stableMarketExchange(ownerAddress, toAddress,
+        sourceAssetId.getBytes(), destAssetId.getBytes(), amount);
+  }
+
 }
