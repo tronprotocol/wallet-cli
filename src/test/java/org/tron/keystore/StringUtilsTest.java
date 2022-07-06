@@ -1,9 +1,8 @@
-package org.tron.keystore;
+package org.tron.keystore
+import org.junit.Assert
+import org.junit.Test
 
-import org.junit.Assert;
-import org.junit.Test;
-
-import static java.nio.charset.StandardCharsets.UTF_8;
+import static java.nio.charset.StandardCharsets.UTF_8
 
 public class StringUtilsTest {
 
@@ -18,15 +17,15 @@ public class StringUtilsTest {
 
   @Test
   public void isNumeric() {
-    char[] a = "0123456".toCharArray();
-    char[] b = "123456a".toCharArray();
+    char[] a = "0123456".toCharArray()
+    char[] b = "123456a".toCharArray()
     Assert.assertTrue(StringUtils.isNumeric(a));
     Assert.assertFalse(StringUtils.isNumeric(b));
   }
 
   @Test
   public void isContains() {
-    char[] a = "abcdef".toCharArray();
+    char[] a = "abcdef".toCharArray()
     char[] b = "ghijkl".toCharArray();
     char[] c = "defghi".toCharArray();
     char[] d = "abcdefghijkl".toCharArray();
