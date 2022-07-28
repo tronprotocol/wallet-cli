@@ -111,6 +111,7 @@ public class Client {
       "GetBalance",
       "GetBlock",
       "GetBlockById",
+      "GetBlockByIdOrNum",
       "GetBlockByLatestNum",
       "GetBlockByLimitNext",
       "GetBrokerage",
@@ -240,6 +241,7 @@ public class Client {
       "GetBalance",
       "GetBlock",
       "GetBlockById",
+      "GetBlockByIdOrNum",
       "GetBlockByLatestNum",
       "GetBlockByLimitNext",
       "GetBrokerage",
@@ -4357,6 +4359,10 @@ public class Client {
               getMarketOrderById(parameters);
               break;
             }
+            case "getblockbyidornum": {
+              getBlockByIdOrNum(parameters);
+              break;
+            }
             case "exit":
             case "quit": {
               System.out.println("Exit !!!");
@@ -4401,6 +4407,47 @@ public class Client {
     } else {
       System.out.println("GetChainParameters failed !!");
     }
+  }
+
+  private void getBlockByIdOrNum(String[] parameters) {
+    String idOrNum = null;
+    boolean detail = false;
+    if (parameters == null || parameters.length == 0) {
+      // query current header
+      System.out.println("Get current header !!!");
+    } else {
+      if (parameters.length == 1) {
+       String param = parameters[0];
+       if ("help".equalsIgnoreCase(param)) {
+         // print help
+         System.out.println("1.get current header using the following command:");
+         System.out.println("getBlockByIdOrNum");
+         System.out.println("2. get current block command:");
+         System.out.println("getBlockByIdOrNum true");
+         System.out.println("3. get header by id or number with the following syntax:");
+         System.out.println("getBlockByIdOrNum idOrNum");
+         System.out.println("4. get block by id or number with the following syntax:");
+         System.out.println("getBlockByIdOrNum idOrNum true");
+         return;
+        }
+       if ("true".equalsIgnoreCase(param)) {
+         // query current block
+         detail = true;
+       } else {
+         // query header by id or num
+         idOrNum = parameters[0];
+       }
+      } else {
+        idOrNum = parameters[0];
+        detail = Boolean.parseBoolean(parameters[1]);
+      }
+    }
+    BlockExtention blockExtention = walletApiWrapper.getBlock(idOrNum, detail);
+      if (blockExtention == null) {
+        System.out.println("No header for idOrNum : " + idOrNum);
+        return;
+      }
+      System.out.println(Utils.printBlockExtention(blockExtention));
   }
 
   public static void main(String[] args) {

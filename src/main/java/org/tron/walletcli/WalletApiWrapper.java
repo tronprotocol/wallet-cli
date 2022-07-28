@@ -1852,4 +1852,8 @@ public class WalletApiWrapper {
     return WalletApi.getMarketOrderById(order);
   }
 
+  public BlockExtention getBlock(String idOrNum, boolean detail) {
+    return WalletApi.getBlock(idOrNum, detail);
+  }
+
 }
