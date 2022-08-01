@@ -3,16 +3,18 @@ package org.tron.demo;
 import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
-import java.util.Arrays;
 import org.tron.api.GrpcAPI.Return;
 import org.tron.api.GrpcAPI.TransactionExtention;
 import org.tron.common.crypto.ECKey;
-import org.tron.common.crypto.Sha256Hash;
+import org.tron.common.crypto.Sha256Sm3Hash;
 import org.tron.common.utils.ByteArray;
-import org.tron.protos.Contract;
+import org.tron.core.exception.CancelException;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.Transaction;
+import org.tron.protos.contract.BalanceContract.TransferContract;
 import org.tron.walletserver.WalletApi;
+
+import java.util.Arrays;
 
 public class TransactionSignDemo {
 
@@ -21,29 +23,27 @@ public class TransactionSignDemo {
     byte[] blockHash = getBlockHash(newestBlock).getBytes();
     byte[] refBlockNum = ByteArray.fromLong(blockHeight);
     Transaction.raw rawData = transaction.getRawData().toBuilder()
-        .setRefBlockHash(ByteString.copyFrom(ByteArray.subArray(blockHash, 8, 16)))
-        .setRefBlockBytes(ByteString.copyFrom(ByteArray.subArray(refBlockNum, 6, 8)))
-        .build();
+            .setRefBlockHash(ByteString.copyFrom(ByteArray.subArray(blockHash, 8, 16)))
+            .setRefBlockBytes(ByteString.copyFrom(ByteArray.subArray(refBlockNum, 6, 8)))
+            .build();
     return transaction.toBuilder().setRawData(rawData).build();
   }
 
-  public static Sha256Hash getBlockHash(Block block) {
-    return Sha256Hash.of(block.getBlockHeader().getRawData().toByteArray());
+  public static Sha256Sm3Hash getBlockHash(Block block) {
+    return Sha256Sm3Hash.of(block.getBlockHeader().getRawData().toByteArray());
   }
 
   public static String getTransactionHash(Transaction transaction) {
-    String txid = ByteArray.toHexString(Sha256Hash.hash(transaction.getRawData().toByteArray()));
+    String txid = ByteArray.toHexString(Sha256Sm3Hash.hash(transaction.getRawData().toByteArray()));
     return txid;
   }
-
 
   public static Transaction createTransaction(byte[] from, byte[] to, long amount) {
     Transaction.Builder transactionBuilder = Transaction.newBuilder();
     Block newestBlock = WalletApi.getBlock(-1);
 
     Transaction.Contract.Builder contractBuilder = Transaction.Contract.newBuilder();
-    Contract.TransferContract.Builder transferContractBuilder = Contract.TransferContract
-        .newBuilder();
+    TransferContract.Builder transferContractBuilder = TransferContract.newBuilder();
     transferContractBuilder.setAmount(amount);
     ByteString bsTo = ByteString.copyFrom(to);
     ByteString bsOwner = ByteString.copyFrom(from);
@@ -64,13 +64,12 @@ public class TransactionSignDemo {
     return refTransaction;
   }
 
-
   private static byte[] signTransaction2Byte(byte[] transaction, byte[] privateKey)
       throws InvalidProtocolBufferException {
     ECKey ecKey = ECKey.fromPrivate(privateKey);
     Transaction transaction1 = Transaction.parseFrom(transaction);
     byte[] rawdata = transaction1.getRawData().toByteArray();
-    byte[] hash = Sha256Hash.hash(rawdata);
+    byte[] hash = Sha256Sm3Hash.hash(rawdata);
     byte[] sign = ecKey.sign(hash).toByteArray();
     return transaction1.toBuilder().addSignature(ByteString.copyFrom(sign)).build().toByteArray();
   }
@@ -80,7 +79,7 @@ public class TransactionSignDemo {
     ECKey ecKey = ECKey.fromPrivate(privateKey);
     Transaction transaction1 = Transaction.parseFrom(transaction);
     byte[] rawdata = transaction1.getRawData().toByteArray();
-    byte[] hash = Sha256Hash.hash(rawdata);
+    byte[] hash = Sha256Sm3Hash.hash(rawdata);
     byte[] sign = ecKey.sign(hash).toByteArray();
     return transaction1.toBuilder().addSignature(ByteString.copyFrom(sign)).build();
   }
@@ -101,13 +100,13 @@ public class TransactionSignDemo {
     System.out.println(base58check);
   }
 
-  public static void main(String[] args) throws InvalidProtocolBufferException {
+  public static void main(String[] args) throws InvalidProtocolBufferException, CancelException {
     String privateStr = "D95611A9AF2A2A45359106222ED1AFED48853D9A44DEFF8DC7913F5CBA727366";
     byte[] privateBytes = ByteArray.fromHexString(privateStr);
     ECKey ecKey = ECKey.fromPrivate(privateBytes);
     byte[] from = ecKey.getAddress();
     byte[] to = WalletApi.decodeFromBase58Check("TGehVcNhud84JDCGrNHKVz9jEAVKUpbuiv");
-    long amount = 100_000_000L; //100 TRX, api only receive trx in drop, and 1 trx = 1000000 drop
+    long amount = 100_000_000L; // 100 TRX, api only receive trx in Sun, and 1 trx = 1000000 Sun
     Transaction transaction = createTransaction(from, to, amount);
     byte[] transactionBytes = transaction.toByteArray();
 
@@ -123,12 +122,13 @@ public class TransactionSignDemo {
     System.out.println("transaction3 ::::: " + ByteArray.toHexString(transaction3.toByteArray()));
     */
 
-    //sign a transaction in byte format and return a Transaction in byte format
+    // sign a transaction in byte format and return a Transaction in byte format
     byte[] transaction4 = signTransaction2Byte(transactionBytes, privateBytes);
     System.out.println("transaction4 ::::: " + ByteArray.toHexString(transaction4));
     Transaction transactionSigned;
     if (WalletApi.getRpcVersion() == 2) {
-      TransactionExtention transactionExtention = WalletApi.signTransactionByApi2(transaction, ecKey.getPrivKeyBytes());
+      TransactionExtention transactionExtention =
+          WalletApi.signTransactionByApi2(transaction, ecKey.getPrivKeyBytes());
       if (transactionExtention == null) {
         System.out.println("transactionExtention is null");
         return;
@@ -147,7 +147,7 @@ public class TransactionSignDemo {
     }
     byte[] transaction5 = transactionSigned.toByteArray();
     System.out.println("transaction5 ::::: " + ByteArray.toHexString(transaction5));
-    if (!Arrays.equals(transaction4, transaction5)){
+    if (!Arrays.equals(transaction4, transaction5)) {
       System.out.println("transaction4 is not equals to transaction5 !!!!!");
     }
     boolean result = broadcast(transaction4);

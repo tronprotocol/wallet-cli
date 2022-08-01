@@ -1,60 +1,84 @@
 package org.tron.walletserver;
 
-import com.google.protobuf.ByteString;
-import io.grpc.ManagedChannel;
-import io.grpc.ManagedChannelBuilder;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+
+import com.google.protobuf.ByteString;
+import io.grpc.ManagedChannel;
+import io.grpc.ManagedChannelBuilder;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.tron.api.GrpcAPI;
-import org.tron.api.GrpcAPI.AccountNetMessage;
-import org.tron.api.GrpcAPI.AccountPaginated;
-import org.tron.api.GrpcAPI.AccountResourceMessage;
-import org.tron.api.GrpcAPI.AddressPrKeyPairMessage;
-import org.tron.api.GrpcAPI.AssetIssueList;
-import org.tron.api.GrpcAPI.BlockExtention;
-import org.tron.api.GrpcAPI.BlockLimit;
-import org.tron.api.GrpcAPI.BlockList;
-import org.tron.api.GrpcAPI.BlockListExtention;
-import org.tron.api.GrpcAPI.BytesMessage;
-import org.tron.api.GrpcAPI.DelegatedResourceList;
-import org.tron.api.GrpcAPI.DelegatedResourceMessage;
-import org.tron.api.GrpcAPI.EasyTransferByPrivateMessage;
-import org.tron.api.GrpcAPI.EasyTransferMessage;
-import org.tron.api.GrpcAPI.EasyTransferResponse;
-import org.tron.api.GrpcAPI.EmptyMessage;
-import org.tron.api.GrpcAPI.ExchangeList;
-import org.tron.api.GrpcAPI.NodeList;
-import org.tron.api.GrpcAPI.NumberMessage;
-import org.tron.api.GrpcAPI.PaginatedMessage;
-import org.tron.api.GrpcAPI.ProposalList;
+import org.tron.api.GrpcAPI.*;
 import org.tron.api.GrpcAPI.Return.response_code;
+import org.tron.api.GrpcAPI.TransactionApprovedList;
 import org.tron.api.GrpcAPI.TransactionExtention;
+import org.tron.api.GrpcAPI.TransactionInfoList;
 import org.tron.api.GrpcAPI.TransactionList;
 import org.tron.api.GrpcAPI.TransactionListExtention;
+import org.tron.api.GrpcAPI.TransactionSignWeight;
 import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.api.WalletExtensionGrpc;
 import org.tron.api.WalletGrpc;
 import org.tron.api.WalletSolidityGrpc;
 import org.tron.common.utils.ByteArray;
-import org.tron.protos.Contract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.ChainParameters;
 import org.tron.protos.Protocol.DelegatedResourceAccountIndex;
 import org.tron.protos.Protocol.Exchange;
+import org.tron.protos.Protocol.MarketOrder;
+import org.tron.protos.Protocol.MarketOrderList;
+import org.tron.protos.Protocol.MarketOrderPair;
+import org.tron.protos.Protocol.MarketOrderPairList;
+import org.tron.protos.Protocol.MarketPriceList;
 import org.tron.protos.Protocol.Proposal;
-import org.tron.protos.Protocol.SmartContract;
+import org.tron.protos.contract.AccountContract.AccountCreateContract;
+import org.tron.protos.contract.AccountContract.AccountPermissionUpdateContract;
+import org.tron.protos.contract.AccountContract.AccountUpdateContract;
+import org.tron.protos.contract.AccountContract.SetAccountIdContract;
+import org.tron.protos.contract.AssetIssueContractOuterClass.AssetIssueContract;
+import org.tron.protos.contract.AssetIssueContractOuterClass.ParticipateAssetIssueContract;
+import org.tron.protos.contract.AssetIssueContractOuterClass.TransferAssetContract;
+import org.tron.protos.contract.AssetIssueContractOuterClass.UnfreezeAssetContract;
+import org.tron.protos.contract.AssetIssueContractOuterClass.UpdateAssetContract;
+import org.tron.protos.contract.BalanceContract.FreezeBalanceContract;
+import org.tron.protos.contract.BalanceContract.TransferContract;
+import org.tron.protos.contract.BalanceContract.UnfreezeBalanceContract;
+import org.tron.protos.contract.BalanceContract.WithdrawBalanceContract;
+import org.tron.protos.contract.ExchangeContract.ExchangeCreateContract;
+import org.tron.protos.contract.ExchangeContract.ExchangeInjectContract;
+import org.tron.protos.contract.ExchangeContract.ExchangeTransactionContract;
+import org.tron.protos.contract.ExchangeContract.ExchangeWithdrawContract;
+import org.tron.protos.contract.ProposalContract.ProposalApproveContract;
+import org.tron.protos.contract.ProposalContract.ProposalCreateContract;
+import org.tron.protos.contract.ProposalContract.ProposalDeleteContract;
+import org.tron.protos.contract.ShieldContract.IncrementalMerkleVoucherInfo;
+import org.tron.protos.contract.ShieldContract.OutputPointInfo;
+import org.tron.protos.contract.SmartContractOuterClass.ClearABIContract;
+import org.tron.protos.contract.SmartContractOuterClass.CreateSmartContract;
+import org.tron.protos.contract.SmartContractOuterClass.SmartContract;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.TransactionInfo;
 import org.tron.protos.Protocol.TransactionSign;
+import org.tron.protos.contract.SmartContractOuterClass.SmartContractDataWrapper;
+import org.tron.protos.contract.SmartContractOuterClass.TriggerSmartContract;
+import org.tron.protos.contract.SmartContractOuterClass.UpdateEnergyLimitContract;
+import org.tron.protos.contract.SmartContractOuterClass.UpdateSettingContract;
+import org.tron.protos.contract.StorageContract.BuyStorageBytesContract;
+import org.tron.protos.contract.StorageContract.BuyStorageContract;
+import org.tron.protos.contract.StorageContract.SellStorageContract;
+import org.tron.protos.contract.StorageContract.UpdateBrokerageContract;
+import org.tron.protos.contract.WitnessContract.VoteWitnessContract;
+import org.tron.protos.contract.WitnessContract.WitnessCreateContract;
+import org.tron.protos.contract.WitnessContract.WitnessUpdateContract;
+import org.tron.protos.contract.MarketContract.MarketCancelOrderContract;
+import org.tron.protos.contract.MarketContract.MarketSellAssetContract;
 
+@Slf4j
 public class GrpcClient {
 
-  private static final Logger logger = LoggerFactory.getLogger("GrpcClient");
   private ManagedChannel channelFull = null;
   private ManagedChannel channelSolidity = null;
   private WalletGrpc.WalletBlockingStub blockingStubFull = null;
@@ -124,6 +148,19 @@ public class GrpcClient {
   }
 
   //Warning: do not invoke this interface provided by others.
+  public TransactionExtention addSign(TransactionSign transactionSign) {
+    return blockingStubFull.addSign(transactionSign);
+  }
+
+  public TransactionSignWeight getTransactionSignWeight(Transaction transaction) {
+    return blockingStubFull.getTransactionSignWeight(transaction);
+  }
+
+  public TransactionApprovedList getTransactionApprovedList(Transaction transaction) {
+    return blockingStubFull.getTransactionApprovedList(transaction);
+  }
+
+  //Warning: do not invoke this interface provided by others.
   public byte[] createAdresss(byte[] passPhrase) {
     BytesMessage.Builder builder = BytesMessage.newBuilder();
     builder.setValue(ByteString.copyFrom(passPhrase));
@@ -153,114 +190,139 @@ public class GrpcClient {
     return blockingStubFull.easyTransferByPrivate(builder.build());
   }
 
-  public Transaction createTransaction(Contract.AccountUpdateContract contract) {
+  //Warning: do not invoke this interface provided by others.
+  public EasyTransferResponse easyTransferAsset(byte[] passPhrase, byte[] toAddress,
+      String assetId, long amount) {
+    EasyTransferAssetMessage.Builder builder = EasyTransferAssetMessage.newBuilder();
+    builder.setPassPhrase(ByteString.copyFrom(passPhrase));
+    builder.setToAddress(ByteString.copyFrom(toAddress));
+    builder.setAssetId(assetId);
+    builder.setAmount(amount);
+
+    return blockingStubFull.easyTransferAsset(builder.build());
+  }
+
+  //Warning: do not invoke this interface provided by others.
+  public EasyTransferResponse easyTransferAssetByPrivate(byte[] privateKey, byte[] toAddress,
+      String assetId, long amount) {
+    EasyTransferAssetByPrivateMessage.Builder builder = EasyTransferAssetByPrivateMessage
+        .newBuilder();
+    builder.setPrivateKey(ByteString.copyFrom(privateKey));
+    builder.setToAddress(ByteString.copyFrom(toAddress));
+    builder.setAssetId(assetId);
+    builder.setAmount(amount);
+
+    return blockingStubFull.easyTransferAssetByPrivate(builder.build());
+  }
+
+  public Transaction createTransaction(AccountUpdateContract contract) {
     return blockingStubFull.updateAccount(contract);
   }
 
-  public TransactionExtention createTransaction2(Contract.AccountUpdateContract contract) {
+  public TransactionExtention createTransaction2(AccountUpdateContract contract) {
     return blockingStubFull.updateAccount2(contract);
   }
 
-  public Transaction createTransaction(Contract.SetAccountIdContract contract) {
+  public Transaction createTransaction(SetAccountIdContract contract) {
     return blockingStubFull.setAccountId(contract);
   }
 
-  public Transaction createTransaction(Contract.UpdateAssetContract contract) {
+  public Transaction createTransaction(UpdateAssetContract contract) {
     return blockingStubFull.updateAsset(contract);
   }
 
-  public TransactionExtention createTransaction2(Contract.UpdateAssetContract contract) {
+  public TransactionExtention createTransaction2(UpdateAssetContract contract) {
     return blockingStubFull.updateAsset2(contract);
   }
 
-  public Transaction createTransaction(Contract.TransferContract contract) {
+  public Transaction createTransaction(TransferContract contract) {
     return blockingStubFull.createTransaction(contract);
   }
 
-  public TransactionExtention createTransaction2(Contract.TransferContract contract) {
+  public TransactionExtention createTransaction2(TransferContract contract) {
     return blockingStubFull.createTransaction2(contract);
   }
 
-  public Transaction createTransaction(Contract.FreezeBalanceContract contract) {
+  public Transaction createTransaction(FreezeBalanceContract contract) {
     return blockingStubFull.freezeBalance(contract);
   }
 
-  public TransactionExtention createTransaction(Contract.BuyStorageContract contract) {
+  public TransactionExtention createTransaction(BuyStorageContract contract) {
     return blockingStubFull.buyStorage(contract);
   }
 
-  public TransactionExtention createTransaction(Contract.BuyStorageBytesContract contract) {
+  public TransactionExtention createTransaction(BuyStorageBytesContract contract) {
     return blockingStubFull.buyStorageBytes(contract);
   }
 
-  public TransactionExtention createTransaction(Contract.SellStorageContract contract) {
+  public TransactionExtention createTransaction(SellStorageContract contract) {
     return blockingStubFull.sellStorage(contract);
   }
 
-  public TransactionExtention createTransaction2(Contract.FreezeBalanceContract contract) {
+  public TransactionExtention createTransaction2(FreezeBalanceContract contract) {
     return blockingStubFull.freezeBalance2(contract);
   }
 
-  public Transaction createTransaction(Contract.WithdrawBalanceContract contract) {
+  public Transaction createTransaction(WithdrawBalanceContract contract) {
     return blockingStubFull.withdrawBalance(contract);
   }
 
-  public TransactionExtention createTransaction2(Contract.WithdrawBalanceContract contract) {
+  public TransactionExtention createTransaction2(WithdrawBalanceContract contract) {
     return blockingStubFull.withdrawBalance2(contract);
   }
 
-  public Transaction createTransaction(Contract.UnfreezeBalanceContract contract) {
+  public Transaction createTransaction(UnfreezeBalanceContract contract) {
     return blockingStubFull.unfreezeBalance(contract);
   }
 
-  public TransactionExtention createTransaction2(Contract.UnfreezeBalanceContract contract) {
+  public TransactionExtention createTransaction2(UnfreezeBalanceContract contract) {
     return blockingStubFull.unfreezeBalance2(contract);
   }
 
-  public Transaction createTransaction(Contract.UnfreezeAssetContract contract) {
+  public Transaction createTransaction(UnfreezeAssetContract contract) {
     return blockingStubFull.unfreezeAsset(contract);
   }
 
-  public TransactionExtention createTransaction2(Contract.UnfreezeAssetContract contract) {
+  public TransactionExtention createTransaction2(UnfreezeAssetContract contract) {
     return blockingStubFull.unfreezeAsset2(contract);
   }
 
-  public Transaction createTransferAssetTransaction(Contract.TransferAssetContract contract) {
+  public Transaction createTransferAssetTransaction(TransferAssetContract contract) {
     return blockingStubFull.transferAsset(contract);
   }
 
   public TransactionExtention createTransferAssetTransaction2(
-      Contract.TransferAssetContract contract) {
+      TransferAssetContract contract) {
     return blockingStubFull.transferAsset2(contract);
   }
 
   public Transaction createParticipateAssetIssueTransaction(
-      Contract.ParticipateAssetIssueContract contract) {
+      ParticipateAssetIssueContract contract) {
     return blockingStubFull.participateAssetIssue(contract);
   }
 
   public TransactionExtention createParticipateAssetIssueTransaction2(
-      Contract.ParticipateAssetIssueContract contract) {
+      ParticipateAssetIssueContract contract) {
     return blockingStubFull.participateAssetIssue2(contract);
   }
 
-  public Transaction createAssetIssue(Contract.AssetIssueContract contract) {
+  public Transaction createAssetIssue(AssetIssueContract contract) {
     return blockingStubFull.createAssetIssue(contract);
   }
 
-  public TransactionExtention createAssetIssue2(Contract.AssetIssueContract contract) {
+  public TransactionExtention createAssetIssue2(AssetIssueContract contract) {
     return blockingStubFull.createAssetIssue2(contract);
   }
 
-  public Transaction voteWitnessAccount(Contract.VoteWitnessContract contract) {
+  public Transaction voteWitnessAccount(VoteWitnessContract contract) {
     return blockingStubFull.voteWitnessAccount(contract);
   }
 
-  public TransactionExtention voteWitnessAccount2(Contract.VoteWitnessContract contract) {
+  public TransactionExtention voteWitnessAccount2(VoteWitnessContract contract) {
     return blockingStubFull.voteWitnessAccount2(contract);
   }
 
-  public TransactionExtention proposalCreate(Contract.ProposalCreateContract contract) {
+  public TransactionExtention proposalCreate(ProposalCreateContract contract) {
     return blockingStubFull.proposalCreate(contract);
   }
 
@@ -289,21 +351,13 @@ public class GrpcClient {
         .setFromAddress(fromAddressBS)
         .setToAddress(toAddressBS)
         .build();
-    DelegatedResourceList delegatedResource = blockingStubFull
-        .getDelegatedResource(request);
+    DelegatedResourceList delegatedResource;
+    if (blockingStubSolidity != null) {
+      delegatedResource = blockingStubSolidity.getDelegatedResource(request);
+    } else {
+      delegatedResource = blockingStubFull.getDelegatedResource(request);
+    }
     return Optional.ofNullable(delegatedResource);
-  }
-
-  public Optional<DelegatedResourceAccountIndex> getDelegatedResourceAccountIndex(String address) {
-
-    ByteString addressBS = ByteString.copyFrom(
-        Objects.requireNonNull(WalletApi.decodeFromBase58Check(address)));
-
-    BytesMessage bytesMessage = BytesMessage.newBuilder().setValue(addressBS).build();
-
-    DelegatedResourceAccountIndex accountIndex = blockingStubFull
-        .getDelegatedResourceAccountIndex(bytesMessage);
-    return Optional.ofNullable(accountIndex);
   }
 
 
@@ -339,35 +393,35 @@ public class GrpcClient {
     return Optional.ofNullable(chainParameters);
   }
 
-  public TransactionExtention proposalApprove(Contract.ProposalApproveContract contract) {
+  public TransactionExtention proposalApprove(ProposalApproveContract contract) {
     return blockingStubFull.proposalApprove(contract);
   }
 
-  public TransactionExtention proposalDelete(Contract.ProposalDeleteContract contract) {
+  public TransactionExtention proposalDelete(ProposalDeleteContract contract) {
     return blockingStubFull.proposalDelete(contract);
   }
 
-  public TransactionExtention exchangeCreate(Contract.ExchangeCreateContract contract) {
+  public TransactionExtention exchangeCreate(ExchangeCreateContract contract) {
     return blockingStubFull.exchangeCreate(contract);
   }
 
-  public TransactionExtention exchangeInject(Contract.ExchangeInjectContract contract) {
+  public TransactionExtention exchangeInject(ExchangeInjectContract contract) {
     return blockingStubFull.exchangeInject(contract);
   }
 
-  public TransactionExtention exchangeWithdraw(Contract.ExchangeWithdrawContract contract) {
+  public TransactionExtention exchangeWithdraw(ExchangeWithdrawContract contract) {
     return blockingStubFull.exchangeWithdraw(contract);
   }
 
-  public TransactionExtention exchangeTransaction(Contract.ExchangeTransactionContract contract) {
+  public TransactionExtention exchangeTransaction(ExchangeTransactionContract contract) {
     return blockingStubFull.exchangeTransaction(contract);
   }
 
-  public Transaction createAccount(Contract.AccountCreateContract contract) {
+  public Transaction createAccount(AccountCreateContract contract) {
     return blockingStubFull.createAccount(contract);
   }
 
-  public TransactionExtention createAccount2(Contract.AccountCreateContract contract) {
+  public TransactionExtention createAccount2(AccountCreateContract contract) {
     return blockingStubFull.createAccount2(contract);
   }
 
@@ -379,19 +433,19 @@ public class GrpcClient {
     }
   }
 
-  public Transaction createWitness(Contract.WitnessCreateContract contract) {
+  public Transaction createWitness(WitnessCreateContract contract) {
     return blockingStubFull.createWitness(contract);
   }
 
-  public TransactionExtention createWitness2(Contract.WitnessCreateContract contract) {
+  public TransactionExtention createWitness2(WitnessCreateContract contract) {
     return blockingStubFull.createWitness2(contract);
   }
 
-  public Transaction updateWitness(Contract.WitnessUpdateContract contract) {
+  public Transaction updateWitness(WitnessUpdateContract contract) {
     return blockingStubFull.updateWitness(contract);
   }
 
-  public TransactionExtention updateWitness2(Contract.WitnessUpdateContract contract) {
+  public TransactionExtention updateWitness2(WitnessUpdateContract contract) {
     return blockingStubFull.updateWitness2(contract);
   }
 
@@ -402,16 +456,16 @@ public class GrpcClient {
         && i > 0) {
       i--;
       response = blockingStubFull.broadcastTransaction(signaturedTransaction);
-      logger.info("repeate times = " + (11 - i));
+      System.out.println("repeat times = " + (11 - i));
       try {
-        Thread.sleep(300);
+        Thread.sleep(1000);
       } catch (InterruptedException e) {
         e.printStackTrace();
       }
     }
     if (response.getResult() == false) {
-      logger.info("Code = " + response.getCode());
-      logger.info("Message = " + response.getMessage().toStringUtf8());
+      System.out.println("Code = " + response.getCode());
+      System.out.println("Message = " + response.getMessage().toStringUtf8());
     }
     return response.getResult();
   }
@@ -549,7 +603,7 @@ public class GrpcClient {
     return blockingStubFull.getAccountResource(request);
   }
 
-  public Contract.AssetIssueContract getAssetIssueByName(String assetName) {
+  public AssetIssueContract getAssetIssueByName(String assetName) {
     ByteString assetNameBs = ByteString.copyFrom(assetName.getBytes());
     BytesMessage request = BytesMessage.newBuilder().setValue(assetNameBs).build();
     if (blockingStubSolidity != null) {
@@ -571,7 +625,7 @@ public class GrpcClient {
     }
   }
 
-  public Contract.AssetIssueContract getAssetIssueById(String assetId) {
+  public AssetIssueContract getAssetIssueById(String assetId) {
     ByteString assetIdBs = ByteString.copyFrom(assetId.getBytes());
     BytesMessage request = BytesMessage.newBuilder().setValue(assetIdBs).build();
     if (blockingStubSolidity != null) {
@@ -682,7 +736,12 @@ public class GrpcClient {
   public Optional<Transaction> getTransactionById(String txID) {
     ByteString bsTxid = ByteString.copyFrom(ByteArray.fromHexString(txID));
     BytesMessage request = BytesMessage.newBuilder().setValue(bsTxid).build();
-    Transaction transaction = blockingStubFull.getTransactionById(request);
+    Transaction transaction;
+    if (blockingStubSolidity != null) {
+      transaction = blockingStubSolidity.getTransactionById(request);
+    } else {
+      transaction = blockingStubFull.getTransactionById(request);
+    }
     return Optional.ofNullable(transaction);
   }
 
@@ -733,21 +792,30 @@ public class GrpcClient {
     return Optional.ofNullable(blockList);
   }
 
-  public TransactionExtention updateSetting(Contract.UpdateSettingContract request) {
+  public TransactionExtention updateSetting(UpdateSettingContract request) {
     return blockingStubFull.updateSetting(request);
   }
 
   public TransactionExtention updateEnergyLimit(
-      Contract.UpdateEnergyLimitContract request) {
+      UpdateEnergyLimitContract request) {
     return blockingStubFull.updateEnergyLimit(request);
   }
 
-  public TransactionExtention deployContract(Contract.CreateSmartContract request) {
+  public TransactionExtention clearContractABI(
+      ClearABIContract request) {
+    return blockingStubFull.clearContractABI(request);
+  }
+
+  public TransactionExtention deployContract(CreateSmartContract request) {
     return blockingStubFull.deployContract(request);
   }
 
-  public TransactionExtention triggerContract(Contract.TriggerSmartContract request) {
+  public TransactionExtention triggerContract(TriggerSmartContract request) {
     return blockingStubFull.triggerContract(request);
+  }
+
+  public TransactionExtention triggerConstantContract(TriggerSmartContract request) {
+    return blockingStubFull.triggerConstantContract(request);
   }
 
   public SmartContract getContract(byte[] address) {
@@ -755,4 +823,264 @@ public class GrpcClient {
     BytesMessage bytesMessage = BytesMessage.newBuilder().setValue(byteString).build();
     return blockingStubFull.getContract(bytesMessage);
   }
+
+  public SmartContractDataWrapper getContractInfo(byte[] address) {
+    ByteString byteString = ByteString.copyFrom(address);
+    BytesMessage bytesMessage = BytesMessage.newBuilder().setValue(byteString).build();
+    return blockingStubFull.getContractInfo(bytesMessage);
+  }
+
+  public TransactionExtention accountPermissionUpdate(
+      AccountPermissionUpdateContract request) {
+    return blockingStubFull.accountPermissionUpdate(request);
+  }
+
+  public TransactionExtention createShieldedTransaction(PrivateParameters privateParameters) {
+    return blockingStubFull.createShieldedTransaction(privateParameters);
+  }
+
+  public IncrementalMerkleVoucherInfo GetMerkleTreeVoucherInfo(OutputPointInfo info) {
+    if (blockingStubSolidity != null) {
+      return blockingStubSolidity.getMerkleTreeVoucherInfo(info);
+    } else {
+      return blockingStubFull.getMerkleTreeVoucherInfo(info);
+    }
+  }
+
+  public DecryptNotes scanNoteByIvk(IvkDecryptParameters ivkDecryptParameters) {
+    if (blockingStubSolidity != null) {
+      return blockingStubSolidity.scanNoteByIvk(ivkDecryptParameters);
+    } else {
+      return blockingStubFull.scanNoteByIvk(ivkDecryptParameters);
+    }
+  }
+
+  public DecryptNotes scanNoteByOvk(OvkDecryptParameters ovkDecryptParameters) {
+    if (blockingStubSolidity != null) {
+      return blockingStubSolidity.scanNoteByOvk(ovkDecryptParameters);
+    } else {
+      return blockingStubFull.scanNoteByOvk(ovkDecryptParameters);
+    }
+  }
+
+  public BytesMessage getSpendingKey() {
+    return blockingStubFull.getSpendingKey(EmptyMessage.newBuilder().build());
+  }
+
+  public ExpandedSpendingKeyMessage getExpandedSpendingKey(BytesMessage spendingKey) {
+    return blockingStubFull.getExpandedSpendingKey(spendingKey);
+  }
+
+  public BytesMessage getAkFromAsk(BytesMessage ask) {
+    return blockingStubFull.getAkFromAsk(ask);
+  }
+
+  public BytesMessage getNkFromNsk(BytesMessage nsk) {
+    return blockingStubFull.getNkFromNsk(nsk);
+  }
+
+  public IncomingViewingKeyMessage getIncomingViewingKey(ViewingKeyMessage viewingKeyMessage) {
+    return blockingStubFull.getIncomingViewingKey(viewingKeyMessage);
+  }
+
+  public DiversifierMessage getDiversifier() {
+    return blockingStubFull.getDiversifier(EmptyMessage.newBuilder().build());
+  }
+
+  public BytesMessage getRcm() {
+    return blockingStubFull.getRcm(EmptyMessage.newBuilder().build());
+  }
+
+  public SpendResult isNoteSpend(NoteParameters noteParameters) {
+    if (blockingStubSolidity != null) {
+      return blockingStubSolidity.isSpend(noteParameters);
+    } else {
+      return blockingStubFull.isSpend(noteParameters);
+    }
+  }
+
+  public TransactionExtention createShieldedTransactionWithoutSpendAuthSig(
+      PrivateParametersWithoutAsk privateParameters) {
+    return blockingStubFull.createShieldedTransactionWithoutSpendAuthSig(privateParameters);
+  }
+
+  public BytesMessage getShieldedTransactionHash(Transaction transaction) {
+    return blockingStubFull.getShieldTransactionHash(transaction);
+  }
+
+  public BytesMessage createSpendAuthSig(SpendAuthSigParameters parameters) {
+    return blockingStubFull.createSpendAuthSig(parameters);
+  }
+
+  public BytesMessage createShieldedNullifier(NfParameters parameters) {
+    return blockingStubFull.createShieldNullifier(parameters);
+  }
+
+  public PaymentAddressMessage getZenPaymentAddress(IncomingViewingKeyDiversifierMessage msg) {
+    return blockingStubFull.getZenPaymentAddress(msg);
+  }
+
+  public DecryptNotesMarked scanAndMarkNoteByIvk(IvkDecryptAndMarkParameters parameters) {
+    if (blockingStubSolidity != null) {
+      return blockingStubSolidity.scanAndMarkNoteByIvk(parameters);
+    } else {
+      return blockingStubFull.scanAndMarkNoteByIvk(parameters);
+    }
+  }
+
+  public TransactionExtention updateBrokerage(UpdateBrokerageContract request) {
+    return blockingStubFull.updateBrokerage(request);
+  }
+
+  public NumberMessage getReward(byte[] address) {
+    BytesMessage bytesMessage = BytesMessage.newBuilder().setValue(ByteString.copyFrom(address))
+        .build();
+    if (blockingStubSolidity != null) {
+      return blockingStubSolidity.getRewardInfo(bytesMessage);
+    } else {
+      return blockingStubFull.getRewardInfo(bytesMessage);
+    }
+  }
+
+  public NumberMessage getBrokerage(byte[] address) {
+    BytesMessage bytesMessage = BytesMessage.newBuilder().setValue(ByteString.copyFrom(address))
+        .build();
+    if (blockingStubSolidity != null) {
+      return blockingStubSolidity.getBrokerageInfo(bytesMessage);
+    } else {
+      return blockingStubFull.getBrokerageInfo(bytesMessage);
+    }
+  }
+
+  public Optional<TransactionInfoList> getTransactionInfoByBlockNum(long blockNum) {
+    TransactionInfoList transactionInfoList;
+    NumberMessage.Builder builder = NumberMessage.newBuilder();
+    builder.setNum(blockNum);
+
+    if (blockingStubSolidity != null) {
+      transactionInfoList = blockingStubSolidity.getTransactionInfoByBlockNum(builder.build());
+    } else {
+      transactionInfoList = blockingStubFull.getTransactionInfoByBlockNum(builder.build());
+    }
+
+    return Optional.ofNullable(transactionInfoList);
+  }
+
+
+  public DecryptNotesTRC20 scanShieldedTRC20NoteByIvk(IvkDecryptTRC20Parameters parameters) {
+    if (blockingStubSolidity != null) {
+      return blockingStubSolidity.scanShieldedTRC20NotesByIvk(parameters);
+    } else {
+      return blockingStubFull.scanShieldedTRC20NotesByIvk(parameters);
+    }
+  }
+
+  public DecryptNotesTRC20 scanShieldedTRC20NoteByOvk(OvkDecryptTRC20Parameters parameters) {
+    if (blockingStubSolidity != null) {
+      return blockingStubSolidity.scanShieldedTRC20NotesByOvk(parameters);
+    } else {
+      return blockingStubFull.scanShieldedTRC20NotesByOvk(parameters);
+    }
+  }
+
+  public ShieldedTRC20Parameters createShieldedContractParameters(
+      PrivateShieldedTRC20Parameters parameters) {
+    return blockingStubFull.createShieldedContractParameters(parameters);
+  }
+
+  public ShieldedTRC20Parameters createShieldedContractParametersWithoutAsk(
+      PrivateShieldedTRC20ParametersWithoutAsk parameters) {
+    return blockingStubFull.createShieldedContractParametersWithoutAsk(parameters);
+  }
+
+  public NullifierResult isShieldedTRC20ContractNoteSpent(NfTRC20Parameters prameters) {
+    if (blockingStubSolidity != null) {
+      return blockingStubSolidity.isShieldedTRC20ContractNoteSpent(prameters);
+    } else {
+      return blockingStubFull.isShieldedTRC20ContractNoteSpent(prameters);
+    }
+  }
+
+  public BytesMessage getTriggerInputForShieldedTRC20Contract(
+      ShieldedTRC20TriggerContractParameters parameters) {
+    return blockingStubFull.getTriggerInputForShieldedTRC20Contract(parameters);
+  }
+
+  public TransactionExtention marketSellAsset(MarketSellAssetContract request) {
+    return blockingStubFull.marketSellAsset(request);
+  }
+
+  public TransactionExtention marketCancelOrder(MarketCancelOrderContract request) {
+    return blockingStubFull.marketCancelOrder(request);
+  }
+
+  public Optional<MarketOrderList> getMarketOrderByAccount(byte[] address) {
+    ByteString addressBS = ByteString.copyFrom(address);
+    BytesMessage request = BytesMessage.newBuilder().setValue(addressBS).build();
+
+    MarketOrderList marketOrderList;
+    if (blockingStubSolidity != null) {
+      marketOrderList = blockingStubSolidity.getMarketOrderByAccount(request);
+    } else {
+      marketOrderList = blockingStubFull.getMarketOrderByAccount(request);
+    }
+    return Optional.ofNullable(marketOrderList);
+  }
+
+  public Optional<MarketPriceList> getMarketPriceByPair(byte[] sellTokenId, byte[] buyTokenId) {
+    MarketOrderPair request =
+        MarketOrderPair.newBuilder()
+            .setSellTokenId(ByteString.copyFrom(sellTokenId))
+            .setBuyTokenId(ByteString.copyFrom(buyTokenId))
+            .build();
+
+    MarketPriceList marketPriceList;
+    if (blockingStubSolidity != null) {
+      marketPriceList = blockingStubSolidity.getMarketPriceByPair(request);
+    } else {
+      marketPriceList = blockingStubFull.getMarketPriceByPair(request);
+    }
+    return Optional.ofNullable(marketPriceList);
+  }
+
+
+  public Optional<MarketOrderList> getMarketOrderListByPair(byte[] sellTokenId, byte[] buyTokenId) {
+    MarketOrderPair request =
+        MarketOrderPair.newBuilder()
+            .setSellTokenId(ByteString.copyFrom(sellTokenId))
+            .setBuyTokenId(ByteString.copyFrom(buyTokenId))
+            .build();
+
+    MarketOrderList marketOrderList;
+    if (blockingStubSolidity != null) {
+      marketOrderList = blockingStubSolidity.getMarketOrderListByPair(request);
+    } else {
+      marketOrderList = blockingStubFull.getMarketOrderListByPair(request);
+    }
+    return Optional.ofNullable(marketOrderList);
+  }
+
+
+  public Optional<MarketOrderPairList> getMarketPairList() {
+    MarketOrderPairList orderPairList;
+    if (blockingStubSolidity != null) {
+      orderPairList = blockingStubSolidity.getMarketPairList(EmptyMessage.newBuilder().build());
+    } else {
+      orderPairList = blockingStubFull.getMarketPairList(EmptyMessage.newBuilder().build());
+    }
+    return Optional.ofNullable(orderPairList);
+  }
+
+  public Optional<MarketOrder> getMarketOrderById(byte[] order) {
+    ByteString orderBytes = ByteString.copyFrom(order);
+    BytesMessage request = BytesMessage.newBuilder().setValue(orderBytes).build();
+    MarketOrder orderPair;
+    if (blockingStubSolidity != null) {
+      orderPair = blockingStubSolidity.getMarketOrderById(request);
+    } else {
+      orderPair = blockingStubFull.getMarketOrderById(request);
+    }
+    return Optional.ofNullable(orderPair);
+  }
+
 }

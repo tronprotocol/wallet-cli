@@ -18,10 +18,9 @@
 
 package org.tron.common.crypto.jce;
 
-import org.spongycastle.jce.provider.BouncyCastleProvider;
-
 import java.security.Provider;
 import java.security.Security;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
 public final class TronCastleProvider {
 
@@ -33,7 +32,7 @@ public final class TronCastleProvider {
         private static final Provider INSTANCE;
 
         static {
-            Provider p = Security.getProvider("SC");
+            Provider p = Security.getProvider("BC");
 
             INSTANCE = (p != null) ? p : new BouncyCastleProvider();
 
