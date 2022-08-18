@@ -2843,4 +2843,8 @@ public class WalletApi {
     return rpcCli.getMarketOrderById(order);
   }
 
+  public static BlockExtention getBlock(String idOrNum, boolean detail) {
+    return rpcCli.getBlock(idOrNum, detail);
+  }
+
 }

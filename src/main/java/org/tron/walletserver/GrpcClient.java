@@ -1098,4 +1098,23 @@ public class GrpcClient {
     return Optional.ofNullable(orderPair);
   }
 
+  public BlockExtention getBlock(String idOrNum, boolean detail) {
+    BlockExtention block;
+
+    BlockReq.Builder builder = BlockReq.newBuilder();
+    if (idOrNum != null && !idOrNum.isEmpty()) {
+      builder.setIdOrNum(idOrNum);
+    }
+    builder.setDetail(detail);
+    if (blockingStubSolidity != null) {
+      block = blockingStubSolidity.getBlock(builder.build());
+    } else {
+      block = blockingStubFull.getBlock(builder.build());
+    }
+    if (block == BlockExtention.getDefaultInstance()) {
+      block = null; // set to null
+    }
+    return block;
+  }
+
 }
