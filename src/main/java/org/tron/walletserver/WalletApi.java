@@ -123,6 +123,7 @@ import org.tron.protos.contract.AssetIssueContractOuterClass.ParticipateAssetIss
 import org.tron.protos.contract.AssetIssueContractOuterClass.TransferAssetContract;
 import org.tron.protos.contract.AssetIssueContractOuterClass.UnfreezeAssetContract;
 import org.tron.protos.contract.AssetIssueContractOuterClass.UpdateAssetContract;
+import org.tron.protos.contract.BalanceContract;
 import org.tron.protos.contract.BalanceContract.FreezeBalanceContract;
 import org.tron.protos.contract.BalanceContract.TransferContract;
 import org.tron.protos.contract.BalanceContract.UnfreezeBalanceContract;
@@ -1295,6 +1296,20 @@ public class WalletApi {
     }
   }
 
+  public boolean freezeBalanceV2(
+          byte[] ownerAddress,
+          long frozen_balance,
+          int resourceCode)
+          throws CipherException, IOException, CancelException {
+    BalanceContract.FreezeBalanceV2Contract contract =
+            createFreezeBalanceContractV2(
+                    ownerAddress, frozen_balance, resourceCode);
+
+    TransactionExtention transactionExtention = rpcCli.createTransaction2(contract);
+    return processTransactionExtention(transactionExtention);
+  }
+
+
   public boolean buyStorage(byte[] ownerAddress, long quantity)
       throws CipherException, IOException, CancelException {
     BuyStorageContract contract = createBuyStorageContract(ownerAddress, quantity);
@@ -1339,6 +1354,23 @@ public class WalletApi {
           ByteString.copyFrom(Objects.requireNonNull(receiverAddress));
       builder.setReceiverAddress(receiverAddressBytes);
     }
+    return builder.build();
+  }
+
+  private BalanceContract.FreezeBalanceV2Contract createFreezeBalanceContractV2(
+          byte[] address,
+          long frozen_balance,
+          int resourceCode) {
+    if (address == null) {
+      address = getAddress();
+    }
+
+    BalanceContract.FreezeBalanceV2Contract.Builder builder = BalanceContract.FreezeBalanceV2Contract.newBuilder();
+    ByteString byteAddress = ByteString.copyFrom(address);
+    builder.setOwnerAddress(byteAddress)
+            .setFrozenBalance(frozen_balance)
+            .setResourceValue(resourceCode);
+
     return builder.build();
   }
 
@@ -1391,6 +1423,41 @@ public class WalletApi {
     }
   }
 
+  public boolean unfreezeBalanceV2(byte[] ownerAddress, int unfreezeBalance
+          , int resourceCode)
+          throws CipherException, IOException, CancelException {
+    BalanceContract.UnfreezeBalanceV2Contract contract =
+            createUnfreezeBalanceContractV2(ownerAddress, unfreezeBalance, resourceCode);
+      TransactionExtention transactionExtention = rpcCli.createTransactionV2(contract);
+      return processTransactionExtention(transactionExtention);
+  }
+
+  public boolean withdrawExpireUnfreeze(byte[] ownerAddress)
+          throws CipherException, IOException, CancelException {
+    BalanceContract.WithdrawExpireUnfreezeContract contract =
+            createWithdrawExpireUnfreezeContract(ownerAddress);
+    TransactionExtention transactionExtention = rpcCli.createTransactionV2(contract);
+    return processTransactionExtention(transactionExtention);
+  }
+
+  public boolean delegateResource(byte[] ownerAddress, int balance
+          ,int resourceCode, byte[] receiverAddress)
+          throws CipherException, IOException, CancelException {
+    BalanceContract.DelegateResourceContract contract =
+            createDelegateResourceContract(ownerAddress, balance, resourceCode, receiverAddress);
+    TransactionExtention transactionExtention = rpcCli.createTransactionV2(contract);
+    return processTransactionExtention(transactionExtention);
+  }
+
+  public boolean unDelegateResource(byte[] ownerAddress, int balance
+          ,int resourceCode, byte[] receiverAddress)
+          throws CipherException, IOException, CancelException {
+    BalanceContract.UnDelegateResourceContract contract =
+            createUnDelegateResourceContract(ownerAddress, balance, resourceCode, receiverAddress);
+    TransactionExtention transactionExtention = rpcCli.createTransactionV2(contract);
+    return processTransactionExtention(transactionExtention);
+  }
+
   private UnfreezeBalanceContract createUnfreezeBalanceContract(
       byte[] address, int resourceCode, byte[] receiverAddress) {
     if (address == null) {
@@ -1407,6 +1474,71 @@ public class WalletApi {
           ByteString.copyFrom(Objects.requireNonNull(receiverAddress));
       builder.setReceiverAddress(receiverAddressBytes);
     }
+
+    return builder.build();
+  }
+
+  private BalanceContract.UnfreezeBalanceV2Contract createUnfreezeBalanceContractV2(
+          byte[] address, int unfreezeBalance, int resourceCode) {
+    if (address == null) {
+      address = getAddress();
+    }
+
+    BalanceContract.UnfreezeBalanceV2Contract.Builder builder =
+            BalanceContract.UnfreezeBalanceV2Contract.newBuilder();
+    ByteString byteAddreess = ByteString.copyFrom(address);
+    builder.setOwnerAddress(byteAddreess).setResourceValue(resourceCode).setUnfreezeBalance(unfreezeBalance);
+
+    return builder.build();
+  }
+
+  private BalanceContract.WithdrawExpireUnfreezeContract createWithdrawExpireUnfreezeContract(byte[] address) {
+    if (address == null) {
+      address = getAddress();
+    }
+
+    BalanceContract.WithdrawExpireUnfreezeContract.Builder builder =
+            BalanceContract.WithdrawExpireUnfreezeContract.newBuilder();
+    ByteString byteAddreess = ByteString.copyFrom(address);
+    builder.setOwnerAddress(byteAddreess);
+
+    return builder.build();
+  }
+
+  private BalanceContract.DelegateResourceContract createDelegateResourceContract(
+          byte[] address, int balance
+          ,int resourceCode, byte[] receiver) {
+    if (address == null) {
+      address = getAddress();
+    }
+
+    BalanceContract.DelegateResourceContract.Builder builder =
+            BalanceContract.DelegateResourceContract.newBuilder();
+    ByteString byteAddreess = ByteString.copyFrom(address);
+    ByteString byteReceiverAddreess = ByteString.copyFrom(receiver);
+    builder.setOwnerAddress(byteAddreess)
+            .setResourceValue(resourceCode)
+            .setBalance(balance)
+            .setReceiverAddress(byteReceiverAddreess);
+
+    return builder.build();
+  }
+
+  private BalanceContract.UnDelegateResourceContract createUnDelegateResourceContract(
+          byte[] address, int balance
+          ,int resourceCode, byte[] receiver) {
+    if (address == null) {
+      address = getAddress();
+    }
+
+    BalanceContract.UnDelegateResourceContract.Builder builder =
+            BalanceContract.UnDelegateResourceContract.newBuilder();
+    ByteString byteAddreess = ByteString.copyFrom(address);
+    ByteString byteReceiverAddreess = ByteString.copyFrom(receiver);
+    builder.setOwnerAddress(byteAddreess)
+            .setResourceValue(resourceCode)
+            .setBalance(balance)
+            .setReceiverAddress(byteReceiverAddreess);
 
     return builder.build();
   }
