@@ -43,6 +43,7 @@ import org.tron.protos.contract.AssetIssueContractOuterClass.ParticipateAssetIss
 import org.tron.protos.contract.AssetIssueContractOuterClass.TransferAssetContract;
 import org.tron.protos.contract.AssetIssueContractOuterClass.UnfreezeAssetContract;
 import org.tron.protos.contract.AssetIssueContractOuterClass.UpdateAssetContract;
+import org.tron.protos.contract.BalanceContract;
 import org.tron.protos.contract.BalanceContract.FreezeBalanceContract;
 import org.tron.protos.contract.BalanceContract.TransferContract;
 import org.tron.protos.contract.BalanceContract.UnfreezeBalanceContract;
@@ -263,6 +264,10 @@ public class GrpcClient {
     return blockingStubFull.freezeBalance2(contract);
   }
 
+  public TransactionExtention createTransaction2(BalanceContract.FreezeBalanceV2Contract contract) {
+    return blockingStubFull.freezeBalanceV2(contract);
+  }
+
   public Transaction createTransaction(WithdrawBalanceContract contract) {
     return blockingStubFull.withdrawBalance(contract);
   }
@@ -277,6 +282,22 @@ public class GrpcClient {
 
   public TransactionExtention createTransaction2(UnfreezeBalanceContract contract) {
     return blockingStubFull.unfreezeBalance2(contract);
+  }
+
+  public TransactionExtention createTransactionV2(BalanceContract.UnfreezeBalanceV2Contract contract) {
+    return blockingStubFull.unfreezeBalanceV2(contract);
+  }
+
+  public TransactionExtention createTransactionV2(BalanceContract.WithdrawExpireUnfreezeContract contract) {
+    return blockingStubFull.withdrawExpireUnfreeze(contract);
+  }
+
+  public TransactionExtention createTransactionV2(BalanceContract.DelegateResourceContract contract) {
+    return blockingStubFull.delegateResource(contract);
+  }
+
+  public TransactionExtention createTransactionV2(BalanceContract.UnDelegateResourceContract contract) {
+    return blockingStubFull.unDelegateResource(contract);
   }
 
   public Transaction createTransaction(UnfreezeAssetContract contract) {
