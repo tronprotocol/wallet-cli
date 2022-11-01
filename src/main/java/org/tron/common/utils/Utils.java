@@ -41,6 +41,7 @@ import org.tron.api.GrpcAPI.*;
 import org.tron.common.crypto.Hash;
 import org.tron.common.crypto.Sha256Sm3Hash;
 import org.tron.keystore.StringUtils;
+import org.tron.protos.contract.BalanceContract;
 import org.tron.walletserver.WalletApi;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.Transaction;
@@ -581,6 +582,43 @@ public class Utils {
                     contractJson = JSONObject
                         .parseObject(JsonFormat.printToString(marketCancelOrderContract, selfType));
                     break;
+                  // new freeze begin
+                  case FreezeBalanceV2Contract:
+                    BalanceContract.FreezeBalanceV2Contract freezeBalanceV2Contract =
+                            contractParameter.unpack(BalanceContract.FreezeBalanceV2Contract.class);
+                    contractJson =
+                            JSONObject.parseObject(
+                                    JsonFormat.printToString(freezeBalanceV2Contract, selfType));
+                    break;
+                  case UnfreezeBalanceV2Contract:
+                    BalanceContract.UnfreezeBalanceV2Contract unfreezeBalanceV2Contract =
+                            contractParameter.unpack(BalanceContract.UnfreezeBalanceV2Contract.class);
+                    contractJson =
+                            JSONObject.parseObject(
+                                    JsonFormat.printToString(unfreezeBalanceV2Contract, selfType));
+                    break;
+                  case WithdrawExpireUnfreezeContract:
+                    BalanceContract.WithdrawExpireUnfreezeContract withdrawExpireUnfreezeContract =
+                            contractParameter.unpack(BalanceContract.WithdrawExpireUnfreezeContract.class);
+                    contractJson =
+                            JSONObject.parseObject(
+                                    JsonFormat.printToString(withdrawExpireUnfreezeContract, selfType));
+                    break;
+                  case DelegateResourceContract:
+                    BalanceContract.DelegateResourceContract delegateResourceContract =
+                            contractParameter.unpack(BalanceContract.DelegateResourceContract.class);
+                    contractJson =
+                            JSONObject.parseObject(
+                                    JsonFormat.printToString(delegateResourceContract, selfType));
+                    break;
+                  case UnDelegateResourceContract:
+                    BalanceContract.UnDelegateResourceContract unDelegateResourceContract =
+                            contractParameter.unpack(BalanceContract.UnDelegateResourceContract.class);
+                    contractJson =
+                            JSONObject.parseObject(
+                                    JsonFormat.printToString(unDelegateResourceContract, selfType));
+                    break;
+                  // new freeze end
                   // todo add other contract
                   default:
                 }
