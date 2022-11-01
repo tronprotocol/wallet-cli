@@ -97,6 +97,7 @@ import org.tron.keystore.Credentials;
 import org.tron.keystore.Wallet;
 import org.tron.keystore.WalletFile;
 import org.tron.keystore.WalletUtils;
+import org.tron.protos.Protocol;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.ChainParameters;
@@ -1423,7 +1424,7 @@ public class WalletApi {
     }
   }
 
-  public boolean unfreezeBalanceV2(byte[] ownerAddress, int unfreezeBalance
+  public boolean unfreezeBalanceV2(byte[] ownerAddress, long unfreezeBalance
           , int resourceCode)
           throws CipherException, IOException, CancelException {
     BalanceContract.UnfreezeBalanceV2Contract contract =
@@ -1440,7 +1441,7 @@ public class WalletApi {
     return processTransactionExtention(transactionExtention);
   }
 
-  public boolean delegateResource(byte[] ownerAddress, int balance
+  public boolean delegateResource(byte[] ownerAddress, long balance
           ,int resourceCode, byte[] receiverAddress)
           throws CipherException, IOException, CancelException {
     BalanceContract.DelegateResourceContract contract =
@@ -1449,7 +1450,7 @@ public class WalletApi {
     return processTransactionExtention(transactionExtention);
   }
 
-  public boolean unDelegateResource(byte[] ownerAddress, int balance
+  public boolean unDelegateResource(byte[] ownerAddress, long balance
           ,int resourceCode, byte[] receiverAddress)
           throws CipherException, IOException, CancelException {
     BalanceContract.UnDelegateResourceContract contract =
@@ -1479,7 +1480,7 @@ public class WalletApi {
   }
 
   private BalanceContract.UnfreezeBalanceV2Contract createUnfreezeBalanceContractV2(
-          byte[] address, int unfreezeBalance, int resourceCode) {
+          byte[] address, long unfreezeBalance, int resourceCode) {
     if (address == null) {
       address = getAddress();
     }
@@ -1506,7 +1507,7 @@ public class WalletApi {
   }
 
   private BalanceContract.DelegateResourceContract createDelegateResourceContract(
-          byte[] address, int balance
+          byte[] address, long balance
           ,int resourceCode, byte[] receiver) {
     if (address == null) {
       address = getAddress();
@@ -1525,7 +1526,7 @@ public class WalletApi {
   }
 
   private BalanceContract.UnDelegateResourceContract createUnDelegateResourceContract(
-          byte[] address, int balance
+          byte[] address, long balance
           ,int resourceCode, byte[] receiver) {
     if (address == null) {
       address = getAddress();
@@ -1638,6 +1639,37 @@ public class WalletApi {
   public static Optional<DelegatedResourceList> getDelegatedResource(
       String fromAddress, String toAddress) {
     return rpcCli.getDelegatedResource(fromAddress, toAddress);
+  }
+
+  public static Optional<Protocol.DelegatedResourceAccountIndex> getDelegatedResourceAccountIndex(
+          String ownerAddress) {
+    return rpcCli.getDelegatedResourceAccountIndex(ownerAddress);
+  }
+
+  public static Optional<DelegatedResourceList> getDelegatedResourceV2(
+          String fromAddress, String toAddress) {
+    return rpcCli.getDelegatedResourceV2(fromAddress, toAddress);
+  }
+
+  public static Optional<Protocol.DelegatedResourceAccountIndex> getDelegatedResourceAccountIndexV2(
+          String ownerAddress) {
+    return rpcCli.getDelegatedResourceAccountIndexV2(ownerAddress);
+  }
+
+  public  Optional<GrpcAPI.CanDelegatedMaxSizeResponseMessage> getCanDelegatedMaxSize(
+          byte[] ownerAddress, int type) {
+    if (ownerAddress == null) {
+      ownerAddress = this.getAddress();
+    }
+    return rpcCli.getCanDelegatedMaxSize(ownerAddress, type);
+  }
+
+  public Optional<GrpcAPI.CanWithdrawUnfreezeAmountResponseMessage> getCanWithdrawUnfreezeAmount(
+          byte[] ownerAddress) {
+    if (ownerAddress == null) {
+      ownerAddress = this.getAddress();
+    }
+    return rpcCli.getCanWithdrawUnfreezeAmount(ownerAddress);
   }
 
   public static Optional<ExchangeList> listExchanges() {
