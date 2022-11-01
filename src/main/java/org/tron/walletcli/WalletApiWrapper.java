@@ -534,7 +534,7 @@ public class WalletApiWrapper {
     return wallet.unfreezeBalance(ownerAddress, resourceCode, receiverAddress);
   }
 
-  public boolean unfreezeBalanceV2(byte[] ownerAddress, int unfreezeBalance
+  public boolean unfreezeBalanceV2(byte[] ownerAddress, long unfreezeBalance
           , int resourceCode)
           throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
@@ -555,7 +555,7 @@ public class WalletApiWrapper {
     return wallet.withdrawExpireUnfreeze(ownerAddress);
   }
 
-  public boolean delegateresource(byte[] ownerAddress, int balance
+  public boolean delegateresource(byte[] ownerAddress, long balance
           , int resourceCode, byte[] receiverAddress)
           throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
@@ -566,7 +566,7 @@ public class WalletApiWrapper {
     return wallet.delegateResource(ownerAddress, balance, resourceCode, receiverAddress);
   }
 
-  public boolean undelegateresource(byte[] ownerAddress, int balance
+  public boolean undelegateresource(byte[] ownerAddress, long balance
           , int resourceCode, byte[] receiverAddress)
           throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
@@ -575,6 +575,27 @@ public class WalletApiWrapper {
     }
 
     return wallet.unDelegateResource(ownerAddress, balance, resourceCode, receiverAddress);
+  }
+
+
+  public Optional<GrpcAPI.CanDelegatedMaxSizeResponseMessage> getCanDelegatedMaxSize(byte[] ownerAddress, int type)
+          throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: getCanDelegatedMaxSize failed, Please login first !!");
+      return Optional.empty();
+    }
+
+    return wallet.getCanDelegatedMaxSize(ownerAddress, type);
+  }
+
+  public Optional<GrpcAPI.CanWithdrawUnfreezeAmountResponseMessage> getCanWithdrawUnfreezeAmount(byte[] ownerAddress)
+          throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: getCanWithdrawUnfreezeAmount failed, Please login first !!");
+      return Optional.empty();
+    }
+
+    return wallet.getCanWithdrawUnfreezeAmount(ownerAddress);
   }
 
   public boolean unfreezeAsset(byte[] ownerAddress)
