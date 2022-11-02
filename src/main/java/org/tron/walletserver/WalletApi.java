@@ -167,9 +167,9 @@ public class WalletApi {
   private static int rpcVersion = 0;
   private static boolean isEckey = true;
 
-  private static GrpcClient rpcCli = init();
+  private static GrpcClient rpcCli;
 
-  public static GrpcClient init() {
+  public static void init(int index) {
     Config config = Configuration.getByPath("config.conf");
 
     String fullNode = "";
@@ -178,7 +178,7 @@ public class WalletApi {
       solidityNode = config.getStringList("soliditynode.ip.list").get(0);
     }
     if (config.hasPath("fullnode.ip.list")) {
-      fullNode = config.getStringList("fullnode.ip.list").get(0);
+      fullNode = config.getStringList("fullnode.ip.list").get(index);
     }
     if (config.hasPath("net.type") && "mainnet".equalsIgnoreCase(config.getString("net.type"))) {
       WalletApi.setAddressPreFixByte(CommonConstant.ADD_PRE_FIX_BYTE_MAINNET);
@@ -193,7 +193,7 @@ public class WalletApi {
       isEckey = config.getString("crypto.engine").equalsIgnoreCase("eckey");
       System.out.println("WalletApi getConfig isEckey: " + isEckey);
     }
-    return new GrpcClient(fullNode, solidityNode);
+    rpcCli = new GrpcClient(fullNode, solidityNode);
   }
 
   public static String selectFullNode() {
@@ -350,7 +350,7 @@ public class WalletApi {
       return null;
     }
 
-    File wallet;
+    File wallet = null;
     if (wallets.length > 1) {
       for (int i = 0; i < wallets.length; i++) {
         System.out.println("The " + (i + 1) + "th keystore file name is " + wallets[i].getName());
@@ -364,9 +364,19 @@ public class WalletApi {
         try {
           n = new Integer(num);
         } catch (NumberFormatException e) {
-          System.out.println("Invaild number of " + num);
-          System.out.println("Please choose again between 1 and " + wallets.length);
-          continue;
+          if (Utils.getMe() == null) {
+            System.out.println("Invaild number of " + num);
+            System.out.println("Please choose again between 1 and " + wallets.length);
+            continue;
+          } else {
+            String me = Utils.getMe();
+            for (File w : wallets) {
+              if (w.getName().contains(me)) {
+                wallet = w;
+              }
+            }
+            break;
+          }
         }
         if (n < 1 || n > wallets.length) {
           System.out.println("Please choose again between 1 and " + wallets.length);
@@ -465,12 +475,17 @@ public class WalletApi {
 
     String tipsString = "Please confirm and input your permission id, if input y or Y means "
         + "default 0, other non-numeric characters will cancel transaction.";
-    transaction = TransactionUtils.setPermissionId(transaction, tipsString);
+//    transaction = TransactionUtils.setPermissionId(transaction, tipsString);
     while (true) {
       System.out.println("Please choose your key for sign.");
       WalletFile walletFile = selcetWalletFileE();
-      System.out.println("Please input your password.");
-      char[] password = Utils.inputPassword(false);
+      char[] password;
+      if (Utils.getPassword() == null) {
+        System.out.println("Please input your password.");
+        password = Utils.inputPassword(false);
+      } else {
+        password = Utils.getPassword().toCharArray();
+      }
       byte[] passwd = org.tron.keystore.StringUtils.char2Byte(password);
       org.tron.keystore.StringUtils.clear(password);
       if (isEckey) {
@@ -1297,18 +1312,17 @@ public class WalletApi {
   }
 
   public boolean freezeBalanceV2(
-          byte[] ownerAddress,
-          long frozen_balance,
-          int resourceCode)
-          throws CipherException, IOException, CancelException {
+      byte[] ownerAddress,
+      long frozen_balance,
+      int resourceCode)
+      throws CipherException, IOException, CancelException {
     BalanceContract.FreezeBalanceV2Contract contract =
-            createFreezeBalanceContractV2(
-                    ownerAddress, frozen_balance, resourceCode);
+        createFreezeBalanceContractV2(
+            ownerAddress, frozen_balance, resourceCode);
 
     TransactionExtention transactionExtention = rpcCli.createTransaction2(contract);
     return processTransactionExtention(transactionExtention);
   }
-
 
   public boolean buyStorage(byte[] ownerAddress, long quantity)
       throws CipherException, IOException, CancelException {
@@ -1358,18 +1372,19 @@ public class WalletApi {
   }
 
   private BalanceContract.FreezeBalanceV2Contract createFreezeBalanceContractV2(
-          byte[] address,
-          long frozen_balance,
-          int resourceCode) {
+      byte[] address,
+      long frozen_balance,
+      int resourceCode) {
     if (address == null) {
       address = getAddress();
     }
 
     BalanceContract.FreezeBalanceV2Contract.Builder builder = BalanceContract.FreezeBalanceV2Contract.newBuilder();
     ByteString byteAddress = ByteString.copyFrom(address);
-    builder.setOwnerAddress(byteAddress)
-            .setFrozenBalance(frozen_balance)
-            .setResourceValue(resourceCode);
+    builder
+        .setOwnerAddress(byteAddress)
+        .setFrozenBalance(frozen_balance)
+        .setResourceValue(resourceCode);
 
     return builder.build();
   }

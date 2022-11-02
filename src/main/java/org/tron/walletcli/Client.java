@@ -1,8 +1,11 @@
 package org.tron.walletcli;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.math.BigInteger;
-import java.security.SecureRandom;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.Base64.Decoder;
@@ -26,6 +29,7 @@ import org.jline.terminal.Terminal;
 import org.jline.terminal.TerminalBuilder;
 import org.tron.api.GrpcAPI.*;
 import org.tron.common.crypto.Hash;
+import org.tron.common.crypto.Sha256Sm3Hash;
 import org.tron.common.utils.AbiUtil;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.ByteUtil;
@@ -34,7 +38,6 @@ import org.tron.common.zksnark.JLibrustzcash;
 import org.tron.common.zksnark.LibrustzcashParam;
 import org.tron.core.exception.CancelException;
 import org.tron.core.exception.CipherException;
-import org.tron.core.exception.EncodingException;
 import org.tron.core.exception.ZksnarkException;
 import org.tron.core.zen.ShieldedAddressInfo;
 import org.tron.core.zen.ShieldedNoteInfo;
@@ -57,7 +60,6 @@ import org.tron.protos.contract.AssetIssueContractOuterClass.AssetIssueContract;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.ChainParameters;
-import org.tron.protos.Protocol.DelegatedResourceAccountIndex;
 import org.tron.protos.Protocol.Exchange;
 import org.tron.protos.Protocol.Proposal;
 import org.tron.protos.contract.SmartContractOuterClass.SmartContract;
@@ -138,6 +140,7 @@ public class Client {
       "GetSpendingKey",
       "GetTotalTransaction",
       "GetTransactionApprovedList",
+      "ById",
       "GetTransactionById",
       "GetTransactionCountByBlockNum",
       "GetTransactionInfoByBlockNum",
@@ -166,6 +169,7 @@ public class Client {
       // "LoadShieldedWallet",
       "Login",
       "Logout",
+      "Init",
       "LoadShieldedTRC20Wallet",
       // "LoadShieldedWallet",
       "MarketCancelOrder",
@@ -225,6 +229,7 @@ public class Client {
       "CreateProposal",
       "CreateWitness",
       "DeleteProposal",
+      "DeployConstantContract",
       "DeployContract",
       "ExchangeCreate",
       "ExchangeInject",
@@ -273,6 +278,7 @@ public class Client {
       "GetSpendingKey",
       "GetTotalTransaction",
       "GetTransactionApprovedList",
+      "ById",
       "GetTransactionById",
       "GetTransactionCountByBlockNum",
       "GetTransactionInfoByBlockNum",
@@ -301,6 +307,7 @@ public class Client {
       "ListWitnesses",
       "Login",
       "Logout",
+      "Init",
       "LoadShieldedTRC20Wallet",
       // "LoadShieldedWallet",
       "MarketCancelOrder",
@@ -453,6 +460,34 @@ public class Client {
     System.out.println("Logout successful !!!");
   }
 
+  private void init(String[] parameters) {
+    if (parameters == null || parameters.length == 0) {
+      System.out.println("Init parameter error.");
+      return;
+    }
+    switch (parameters[0].toLowerCase()) {
+      case "main":
+        WalletApi.init(0);
+        break;
+      case "nile":
+        WalletApi.init(1);
+        break;
+      case "shasta":
+        WalletApi.init(2);
+        break;
+      case "local":
+        WalletApi.init(3);
+        break;
+      case "qa":
+        WalletApi.init(4);
+        break;
+      default:
+        System.out.println("Init parameter error.");
+        return;
+    }
+    System.out.println("Init success: " + parameters[0].toLowerCase());
+  }
+
   private void loadShieldedWallet() throws CipherException, IOException {
     boolean result = ShieldedWrapper.getInstance().loadShieldWallet();
     if (result) {
@@ -540,6 +575,7 @@ public class Client {
     if (account == null) {
       System.out.println("GetAccount failed !!!!");
     } else {
+      System.out.println("Bytes: " + Hex.toHexString(account.toByteArray()));
       System.out.println(Utils.formatMessageString(account));
     }
   }
@@ -1139,7 +1175,16 @@ public class Client {
         System.out.println("No block for num : " + blockNum);
         return;
       }
+      List<TransactionExtention> txs = blockExtention.getTransactionsList();
+      blockExtention = blockExtention.toBuilder().clearTransactions().build();
       System.out.println(Utils.printBlockExtention(blockExtention));
+      txs.forEach(tx -> {
+        System.out.printf("[%s]: %s - %s%n",
+            Hex.toHexString(Sha256Sm3Hash.hash(
+                tx.getTransaction().getRawData().toByteArray())),
+            tx.getTransaction().getRawData().getContract(0).getType(),
+            tx.getTransaction().getRet(0).getContractRet());
+      });
     } else {
       Block block = walletApiWrapper.getBlock(blockNum);
       if (block == null) {
@@ -1326,7 +1371,7 @@ public class Client {
   }
 
   private void unfreezeBalanceV2(String[] parameters)
-          throws IOException, CipherException, CancelException {
+      throws IOException, CipherException, CancelException {
     if (parameters == null || !(parameters.length == 2 || parameters.length == 3)) {
       System.out.println("Use unfreezeBalanceV2 command with below syntax: ");
       System.out.println(
@@ -1390,7 +1435,7 @@ public class Client {
   }
 
   private void delegateResource(String[] parameters)
-          throws IOException, CipherException, CancelException {
+      throws IOException, CipherException, CancelException {
     if (parameters == null || !(parameters.length == 3 || parameters.length == 4)) {
       System.out.println("Use delegateResource command with below syntax: ");
       System.out.println(
@@ -1439,7 +1484,7 @@ public class Client {
   }
 
   private void unDelegateResource(String[] parameters)
-          throws IOException, CipherException, CancelException {
+      throws IOException, CipherException, CancelException {
     if (parameters == null || !(parameters.length == 3 || parameters.length == 4)) {
       System.out.println("Use unDelegateResource command with below syntax: ");
       System.out.println(
@@ -1835,6 +1880,7 @@ public class Client {
     Optional<Transaction> result = WalletApi.getTransactionById(txid);
     if (result.isPresent()) {
       Transaction transaction = result.get();
+      System.out.println("RawData Hex: " + Hex.toHexString(transaction.getRawData().toByteArray()));
       System.out.println(Utils.printTransaction(transaction));
     } else {
       System.out.println("GetTransactionById failed !!");
@@ -2297,7 +2343,7 @@ public class Client {
     String constructorStr = parameters[idx++];
     String argsStr = parameters[idx++];
     boolean isHex = Boolean.parseBoolean(parameters[idx++]);
-    long feeLimit = Long.parseLong(parameters[idx++]);
+    long feeLimit = parseTRX(parameters[idx++]);
     long consumeUserResourcePercent = Long.parseLong(parameters[idx++]);
     long originEnergyLimit = Long.parseLong(parameters[idx++]);
     if (consumeUserResourcePercent > 100 || consumeUserResourcePercent < 0) {
@@ -2315,11 +2361,10 @@ public class Client {
         codeStr += Hex.toHexString(AbiUtil.encodeInput(constructorStr, argsStr));
       }
     }
-    long value = 0;
-    value = Long.valueOf(parameters[idx++]);
-    long tokenValue = Long.valueOf(parameters[idx++]);
+    long value = parseTRX(parameters[idx++]);
+    long tokenValue = Long.parseLong(parameters[idx++]);
     String tokenId = parameters[idx++];
-    if (tokenId == "#") {
+    if (tokenId.equals("#")) {
       tokenId = "";
     }
     String libraryAddressPair = null;
@@ -2346,6 +2391,14 @@ public class Client {
     } else {
       System.out.println("Broadcast the createSmartContract failed !!!");
     }
+  }
+
+  private long parseTRX(String valueStr) throws NumberFormatException {
+    valueStr = valueStr.toLowerCase();
+    if (valueStr.contains("trx")) {
+      return Long.parseLong(valueStr.replace("trx", "")) * 1_000_000L;
+    }
+    return Long.parseLong(valueStr);
   }
 
   private void deployConstantContract(String[] parameters)
@@ -2402,7 +2455,7 @@ public class Client {
   private void triggerContract(String[] parameters)
       throws IOException, CipherException, CancelException {
 
-    if (parameters == null || (parameters.length != 8 && parameters.length != 9)) {
+    if (parameters == null || (parameters.length != 4 && parameters.length != 8 && parameters.length != 9)) {
       System.out.println("TriggerContract needs 8 or 9 parameters like: ");
       System.out.println("TriggerContract [OwnerAddress] contractAddress method args isHex"
           + " fee_limit value token_value token_id(e.g: TRXTOKEN, use # if don't provided)");
@@ -2422,11 +2475,27 @@ public class Client {
     String contractAddrStr = parameters[index++];
     String methodStr = parameters[index++];
     String argsStr = parameters[index++];
+    if (argsStr.equals("data")) {
+      File file = new File("data");
+      if (file.exists()) {
+        BufferedReader reader =
+            new BufferedReader(new InputStreamReader(new FileInputStream(file)));
+        argsStr = reader.readLine();
+        reader.close();
+      }
+    }
     boolean isHex = Boolean.parseBoolean(parameters[index++]);
-    long feeLimit = Long.parseLong(parameters[index++]);
-    long callValue = Long.parseLong(parameters[index++]);
-    long tokenValue = Long.parseLong(parameters[index++]);
-    String tokenId = parameters[index];
+
+    long feeLimit = 1000000000;
+    long callValue = 0;
+    long tokenValue = 0;
+    String tokenId = "#";
+    if (parameters.length != 4) {
+      feeLimit = parseTRX(parameters[index++]);
+      callValue = parseTRX(parameters[index++]);
+      tokenValue = Long.parseLong(parameters[index++]);
+      tokenId = parameters[index];
+    }
 
     if (argsStr.equalsIgnoreCase("#")) {
       argsStr = "";
@@ -2475,14 +2544,26 @@ public class Client {
     }
 
     String contractAddressStr = parameters[idx++];
-    byte[] contractAddress = WalletApi.decodeFromBase58Check(contractAddressStr);
-    if (contractAddress == null) {
-      System.out.println("Invalid Contract Address.");
-      return;
+    byte[] contractAddress = null;
+    if (!"#".equals(contractAddressStr)) {
+      contractAddress = WalletApi.decodeFromBase58Check(contractAddressStr);
+      if (contractAddress == null) {
+        System.out.println("Invalid Contract Address.");
+        return;
+      }
     }
 
     String methodStr = parameters[idx++];
     String argsStr = parameters[idx++];
+    if (argsStr.equals("data")) {
+      File file = new File("data");
+      if (file.exists()) {
+        BufferedReader reader =
+            new BufferedReader(new InputStreamReader(new FileInputStream(file)));
+        argsStr = reader.readLine();
+        reader.close();
+      }
+    }
     boolean isHex = Boolean.parseBoolean(parameters[idx++]);
     long callValue = 0;
     long tokenValue = 0;
@@ -2504,6 +2585,8 @@ public class Client {
     byte[] input = new byte[0];
     if (!methodStr.equalsIgnoreCase("#")) {
       input = Hex.decode(AbiUtil.parseMethod(methodStr, argsStr, isHex));
+    } else if (isHex) {
+      input = Hex.decode(argsStr);
     }
 
     walletApiWrapper.callContract(
@@ -4106,6 +4189,10 @@ public class Client {
               logout();
               break;
             }
+            case "init": {
+              init(parameters);
+              break;
+            }
             // case "loadshieldedwallet": {
             //   loadShieldedWallet();
             //   break;
@@ -4338,6 +4425,7 @@ public class Client {
               getTransactionsToThis(parameters);
               break;
             }
+            case "byid":
             case "gettransactionbyid": {
               getTransactionById(parameters);
               break;
@@ -4593,9 +4681,34 @@ public class Client {
               System.out.println("Exit !!!");
               return;
             }
+            case "deploy": {
+              File file = new File("bin");
+              if (file.exists()) {
+                BufferedReader reader =
+                    new BufferedReader(new InputStreamReader(new FileInputStream(file)));
+                String code = reader.readLine();
+                deployContract(new String[]{"Shabi", "[]", code,
+                    "#", "#", "false", "1000000000", "100", "1", "0", "0", "#"});
+                reader.close();
+              } else {
+                System.out.println("Bin not exist.");
+              }
+              break;
+            }
             default: {
-              System.out.println("Invalid cmd: " + cmd);
-              help();
+              //System.out.println("Invalid cmd: " + cmd);
+              //help();
+              if (cmd.contains("0x") || cmd.contains("0X")) {
+                cmd = cmd.substring(2);
+              }
+              if (cmd.length() == 64) {
+                getTransactionInfoById(new String[]{cmd});
+              } else if (cmd.length() == 34 && cmd.charAt(0) == 'T') {
+                getContractInfo(new String[]{cmd});
+              } else {
+                deployContract(new String[]{"Shabi", "[]", cmdLowerCase,
+                    "#", "#", "false", "1000000000", "100", "1", "0", "0", "#"});
+              }
             }
           }
         } catch (CipherException e) {

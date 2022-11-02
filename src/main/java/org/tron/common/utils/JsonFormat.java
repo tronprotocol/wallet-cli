@@ -35,6 +35,7 @@ import com.google.protobuf.Descriptors.EnumDescriptor;
 import com.google.protobuf.Descriptors.EnumValueDescriptor;
 import com.google.protobuf.Descriptors.FieldDescriptor;
 import org.apache.commons.lang3.StringUtils;
+import org.tron.protos.Protocol;
 import org.tron.walletserver.WalletApi;
 
 import java.io.IOException;
@@ -98,17 +99,22 @@ public class JsonFormat {
     for (Iterator<Map.Entry<FieldDescriptor, Object>> iter = message.getAllFields().entrySet()
         .iterator(); iter.hasNext(); ) {
       Map.Entry<FieldDescriptor, Object> field = iter.next();
+      if (field.getKey().isRepeated()
+        && field.getKey().getName().equals("callValueInfo")
+        && !((List<?>) field.getValue()).isEmpty()) {
+        Protocol.InternalTransaction.CallValueInfo callValueInfo =
+          (Protocol.InternalTransaction.CallValueInfo) ((List<?>) field.getValue()).get(0);
+        if (callValueInfo.getCallValue() == 0) continue;
+      }
       printField(field.getKey(), field.getValue(), generator, selfType);
       if (iter.hasNext()) {
         generator.print(",");
       }
     }
-
-    // do not print UnknownFields
-    // if (message.getUnknownFields().asMap().size() > 0) {
-    //   generator.print(", ");
-    // }
-    // printUnknownFields(message.getUnknownFields(), generator, selfType);
+    if (message.getUnknownFields().asMap().size() > 0) {
+      generator.print(", ");
+    }
+    printUnknownFields(message.getUnknownFields(), generator, selfType);
   }
 
   /**
@@ -322,9 +328,7 @@ public class JsonFormat {
         } else {
           generator.print(", ");
         }
-        generator.print("\"");
         generator.print(String.format((Locale) null, "0x%08x", value));
-        generator.print("\"");
       }
       for (long value : field.getFixed64List()) {
         if (firstValue) {
@@ -332,9 +336,7 @@ public class JsonFormat {
         } else {
           generator.print(", ");
         }
-        generator.print("\"");
         generator.print(String.format((Locale) null, "0x%016x", value));
-        generator.print("\"");
       }
       for (ByteString value : field.getLengthDelimitedList()) {
         if (firstValue) {
@@ -750,7 +752,11 @@ public class JsonFormat {
   static String escapeBytesSelfType(ByteString input, final String fliedName) {
     //Address
     if (HttpSelfFormatFieldName.isAddressFormat(fliedName)) {
-      return WalletApi.encode58Check(input.toByteArray());
+      byte[] address = input.toByteArray();
+      if (address != null && address.length == 20) {
+        address = ByteUtil.merge(new byte[]{0x41}, address);
+      }
+      return WalletApi.encode58Check(address);
     }
 
     //Normal String

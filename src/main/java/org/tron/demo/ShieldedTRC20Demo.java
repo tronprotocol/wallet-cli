@@ -56,7 +56,7 @@ public class ShieldedTRC20Demo {
   private String rcm = "should generate new rcm when trigger contract";
   private ShieldedKey shieldedKey = generateShieldedKey(sk);
 
-  private GrpcClient grpcClient = WalletApi.init();
+  private GrpcClient grpcClient = null;
   private BigInteger scalingFactorBi = getScalingFactorBi();
 
   public ShieldedTRC20Demo() throws ZksnarkException {

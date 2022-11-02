@@ -118,8 +118,13 @@ public class WalletApiWrapper {
     logout();
     wallet = WalletApi.loadWalletFromKeystore();
 
-    System.out.println("Please input your password.");
-    char[] password = Utils.inputPassword(false);
+    char[] password;
+    if (Utils.getPassword() == null) {
+      System.out.println("Please input your password.");
+      password = Utils.inputPassword(false);
+    } else {
+      password = Utils.getPassword().toCharArray();
+    }
     byte[] passwd = StringUtils.char2Byte(password);
     StringUtils.clear(password);
     wallet.checkPassword(passwd);
@@ -482,9 +487,8 @@ public class WalletApiWrapper {
         receiverAddress);
   }
 
-  public boolean freezeBalanceV2(byte[] ownerAddress, long frozen_balance,
-                               int resourceCode)
-          throws CipherException, IOException, CancelException {
+  public boolean freezeBalanceV2(byte[] ownerAddress, long frozen_balance, int resourceCode)
+      throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       System.out.println("Warning: freezeBalanceV2 failed, Please login first !!");
       return false;

@@ -24,6 +24,7 @@ import com.google.protobuf.Any;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
 
+import com.typesafe.config.Config;
 import java.io.Console;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -40,6 +41,7 @@ import java.util.Scanner;
 import org.tron.api.GrpcAPI.*;
 import org.tron.common.crypto.Hash;
 import org.tron.common.crypto.Sha256Sm3Hash;
+import org.tron.core.config.Configuration;
 import org.tron.keystore.StringUtils;
 import org.tron.walletserver.WalletApi;
 import org.tron.protos.Protocol.Block;
@@ -86,6 +88,22 @@ public class Utils {
   public static final String VALUE = "value";
 
   private static SecureRandom random = new SecureRandom();
+
+  public static String getPassword() {
+    Config config = Configuration.getByPath("config.conf");
+    if (config.hasPath("password")) {
+      return config.getString("password");
+    }
+    return null;
+  }
+
+  public static String getMe() {
+    Config config = Configuration.getByPath("config.conf");
+    if (config.hasPath("me")) {
+      return config.getString("me");
+    }
+    return null;
+  }
 
   public static SecureRandom getRandom() {
     return random;
@@ -486,6 +504,8 @@ public class Utils {
                   case CreateSmartContract:
                     CreateSmartContract deployContract =
                         contractParameter.unpack(CreateSmartContract.class);
+                    deployContract = deployContract.toBuilder().setNewContract(
+                        deployContract.getNewContract().toBuilder().clearAbi().build()).build();
                     contractJson =
                         JSONObject.parseObject(JsonFormat.printToString(deployContract, selfType));
                     byte[] ownerAddress = deployContract.getOwnerAddress().toByteArray();
@@ -495,6 +515,7 @@ public class Utils {
                   case TriggerSmartContract:
                     TriggerSmartContract triggerSmartContract =
                         contractParameter.unpack(TriggerSmartContract.class);
+                    System.out.println(JsonFormat.printToString(triggerSmartContract, selfType));
                     contractJson =
                         JSONObject.parseObject(
                             JsonFormat.printToString(triggerSmartContract, selfType));
@@ -604,7 +625,7 @@ public class Utils {
     rawData.put("contract", contracts);
     jsonTransaction.put("raw_data", rawData);
     String rawDataHex = ByteArray.toHexString(transaction.getRawData().toByteArray());
-    jsonTransaction.put("raw_data_hex", rawDataHex);
+    //jsonTransaction.put("raw_data_hex", rawDataHex);
     String txID = ByteArray.toHexString(Sha256Sm3Hash.hash(transaction.getRawData().toByteArray()));
     jsonTransaction.put("txID", txID);
     return jsonTransaction;

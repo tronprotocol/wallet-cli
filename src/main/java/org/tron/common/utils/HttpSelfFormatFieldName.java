@@ -150,6 +150,7 @@ public class HttpSelfFormatFieldName {
     //InternalTransaction
     AddressFieldNameMap.put("protocol.InternalTransaction.caller_address", 1);
     AddressFieldNameMap.put("protocol.InternalTransaction.transferTo_address", 1);
+    NameFieldNameMap.put("protocol.InternalTransaction.note", 1);
     //DelegatedResourceAccountIndex
     AddressFieldNameMap.put("protocol.DelegatedResourceAccountIndex.account", 1);
     AddressFieldNameMap.put("protocol.DelegatedResourceAccountIndex.fromAccounts", 1);
