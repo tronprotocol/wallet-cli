@@ -381,6 +381,72 @@ public class GrpcClient {
     return Optional.ofNullable(delegatedResource);
   }
 
+  public Optional<DelegatedResourceAccountIndex> getDelegatedResourceAccountIndex(String ownerAddress) {
+    ByteString ownerAddressBS = ByteString.copyFrom(
+            Objects.requireNonNull(WalletApi.decodeFromBase58Check(ownerAddress)));
+
+    BytesMessage request = BytesMessage.newBuilder()
+            .setValue(ownerAddressBS)
+            .build();
+    DelegatedResourceAccountIndex delegatedResourceAccountIndex;
+    if (blockingStubSolidity != null) {
+      delegatedResourceAccountIndex = blockingStubSolidity.getDelegatedResourceAccountIndex(request);
+    } else {
+      delegatedResourceAccountIndex = blockingStubFull.getDelegatedResourceAccountIndex(request);
+    }
+    return Optional.ofNullable(delegatedResourceAccountIndex);
+  }
+
+  public Optional<DelegatedResourceList> getDelegatedResourceV2(String fromAddress,
+                                                              String toAddress) {
+    ByteString fromAddressBS = ByteString.copyFrom(
+            Objects.requireNonNull(WalletApi.decodeFromBase58Check(fromAddress)));
+    ByteString toAddressBS = ByteString.copyFrom(
+            Objects.requireNonNull(WalletApi.decodeFromBase58Check(toAddress)));
+
+    DelegatedResourceMessage request = DelegatedResourceMessage.newBuilder()
+            .setFromAddress(fromAddressBS)
+            .setToAddress(toAddressBS)
+            .build();
+    DelegatedResourceList delegatedResource;
+    if (blockingStubSolidity != null) {
+      delegatedResource = blockingStubSolidity.getDelegatedResourceV2(request);
+    } else {
+      delegatedResource = blockingStubFull.getDelegatedResourceV2(request);
+    }
+    return Optional.ofNullable(delegatedResource);
+  }
+
+  public Optional<DelegatedResourceAccountIndex> getDelegatedResourceAccountIndexV2(String ownerAddress) {
+    ByteString ownerAddressBS = ByteString.copyFrom(
+            Objects.requireNonNull(WalletApi.decodeFromBase58Check(ownerAddress)));
+
+    BytesMessage request = BytesMessage.newBuilder()
+            .setValue(ownerAddressBS)
+            .build();
+    DelegatedResourceAccountIndex delegatedResourceAccountIndex;
+    if (blockingStubSolidity != null) {
+      delegatedResourceAccountIndex = blockingStubSolidity.getDelegatedResourceAccountIndexV2(request);
+    } else {
+      delegatedResourceAccountIndex = blockingStubFull.getDelegatedResourceAccountIndexV2(request);
+    }
+    return Optional.ofNullable(delegatedResourceAccountIndex);
+  }
+
+  public Optional<CanWithdrawUnfreezeAmountResponseMessage> getCanWithdrawUnfreezeAmount(
+          byte[] ownerAddress) {
+    ByteString ownerAddressBS = ByteString.copyFrom(ownerAddress);
+    CanWithdrawUnfreezeAmountRequestMessage request = CanWithdrawUnfreezeAmountRequestMessage.newBuilder()
+            .setOwnerAddress(ownerAddressBS)
+            .build();
+    CanWithdrawUnfreezeAmountResponseMessage canDelegatedMaxSizeResponseMessage;
+    if (blockingStubSolidity != null) {
+      canDelegatedMaxSizeResponseMessage = blockingStubSolidity.getCanWithdrawUnfreezeAmount(request);
+    } else {
+      canDelegatedMaxSizeResponseMessage = blockingStubFull.getCanWithdrawUnfreezeAmount(request);
+    }
+    return Optional.ofNullable(canDelegatedMaxSizeResponseMessage);
+  }
 
   public Optional<ExchangeList> listExchanges() {
     ExchangeList exchangeList;
