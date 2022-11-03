@@ -576,15 +576,36 @@ public class WalletApiWrapper {
 
     return wallet.unDelegateResource(ownerAddress, balance, resourceCode, receiverAddress);
   }
-
-  public Optional<GrpcAPI.CanWithdrawUnfreezeAmountResponseMessage> getCanWithdrawUnfreezeAmount(byte[] ownerAddress)
+  
+  public Optional<GrpcAPI.CanWithdrawUnfreezeAmountResponseMessage> getCanWithdrawUnfreezeAmount(
+          byte[] ownerAddress, long timestamp)
           throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       System.out.println("Warning: getCanWithdrawUnfreezeAmount failed, Please login first !!");
       return Optional.empty();
     }
 
-    return wallet.getCanWithdrawUnfreezeAmount(ownerAddress);
+    return wallet.getCanWithdrawUnfreezeAmount(ownerAddress, timestamp);
+  }
+
+  public Optional<GrpcAPI.CanDelegatedMaxSizeResponseMessage> getCanDelegatedMaxSize(byte[] ownerAddress, int type)
+          throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: getCanDelegatedMaxSize failed, Please login first !!");
+      return Optional.empty();
+    }
+
+    return wallet.getCanDelegatedMaxSize(ownerAddress, type);
+  }
+
+  public Optional<GrpcAPI.GetAvailableUnfreezeCountResponseMessage> getAvailableUnfreezeCount(byte[] ownerAddress)
+          throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: getAvailableUnfreezeCount failed, Please login first !!");
+      return Optional.empty();
+    }
+
+    return wallet.getAvailableUnfreezeCount(ownerAddress);
   }
 
   public boolean unfreezeAsset(byte[] ownerAddress)

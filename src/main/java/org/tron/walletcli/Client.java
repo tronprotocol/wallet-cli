@@ -123,6 +123,8 @@ public class Client {
       "GetDelegatedResourceV2",
       "GetDelegatedResourceAccountIndex",
       "GetDelegatedResourceAccountIndexV2",
+      "GetCanDelegatedMaxSize",
+      "GetAvailableUnfreezeCount",
       "GetCanWithdrawUnfreezeAmount",
       "GetDiversifier",
       "GetExchange",
@@ -261,6 +263,8 @@ public class Client {
       "GetDelegatedResourceV2",
       "GetDelegatedResourceAccountIndex",
       "GetDelegatedResourceAccountIndexV2",
+      "GetCanDelegatedMaxSize",
+      "GetAvailableUnfreezeCount",
       "GetCanWithdrawUnfreezeAmount",
       "GetDiversifier",
       "GetExchange",
@@ -1697,19 +1701,70 @@ public class Client {
   }
 
   private void getCanWithdrawUnfreezeAmount(String[] parameters) throws CipherException, IOException, CancelException {
-    if (parameters == null || !(parameters.length == 0 || parameters.length == 1)) {
-      System.out.println("Using getCanWithdrawUnfreezeAmount command needs 1 parameters like: ");
-      System.out.println("getcanwithdrawunfreezeamount [ownerAddress]");
+    if (parameters == null || !(parameters.length == 1 || parameters.length == 2)) {
+      System.out.println("Using getCanWithdrawUnfreezeAmount command needs 2 parameters like: ");
+      System.out.println("getcanwithdrawunfreezeamount [ownerAddress] timestamp");
       return;
     }
     int index = 0;
+    long timestamp = 0;
     byte[] ownerAddress = getAddressBytes(parameters[index]);
-    Optional<CanWithdrawUnfreezeAmountResponseMessage> result = walletApiWrapper.getCanWithdrawUnfreezeAmount(ownerAddress);
+    if (ownerAddress != null) {
+      index++;
+    }
+    timestamp = Long.parseLong(parameters[index++]);
+
+    Optional<CanWithdrawUnfreezeAmountResponseMessage> result = walletApiWrapper.
+            getCanWithdrawUnfreezeAmount(ownerAddress, timestamp);
     if (result.isPresent()) {
       CanWithdrawUnfreezeAmountResponseMessage canWithdrawUnfreezeAmountResponseMessage = result.get();
       System.out.println(Utils.formatMessageString(canWithdrawUnfreezeAmountResponseMessage));
     } else {
       System.out.println("GetCanWithdrawUnfreezeAmount failed !!!");
+    }
+  }
+
+  private void getCanDelegatedMaxSize(String[] parameters) throws CipherException, IOException, CancelException {
+    if (parameters == null || !(parameters.length == 1 || parameters.length == 2)) {
+      System.out.println("Using getcandelegatedmaxsize command needs 2 parameters like: ");
+      System.out.println("getcandelegatedmaxsize [ownerAddress] type");
+      return;
+    }
+    int index = 0;
+    int type = 0;
+    byte[] ownerAddress = getAddressBytes(parameters[index]);
+    if (ownerAddress != null) {
+      index++;
+    }
+    type = Integer.parseInt(parameters[index++]);
+
+    Optional<CanDelegatedMaxSizeResponseMessage> result = walletApiWrapper.getCanDelegatedMaxSize(ownerAddress, type);
+    if (result.isPresent()) {
+      CanDelegatedMaxSizeResponseMessage canDelegatedMaxSizeResponseMessage = result.get();
+      System.out.println(Utils.formatMessageString(canDelegatedMaxSizeResponseMessage));
+    } else {
+      System.out.println("GetCanDelegatedMaxSize failed !!!");
+    }
+  }
+
+  private void getAvailableUnfreezeCount(String[] parameters) throws CipherException, IOException, CancelException {
+    if (parameters == null || !(parameters.length == 0 || parameters.length == 1)) {
+      System.out.println("Using getavailableunfreezecount command needs 1 parameters like: ");
+      System.out.println("getavailableunfreezecount [owner_address] ");
+      return;
+    }
+    int index = 0;
+    byte[] ownerAddress = null;
+    if (parameters.length == 1) {
+        ownerAddress = getAddressBytes(parameters[index]);
+    }
+
+    Optional<GetAvailableUnfreezeCountResponseMessage> result = walletApiWrapper.getAvailableUnfreezeCount(ownerAddress);
+    if (result.isPresent()) {
+      GetAvailableUnfreezeCountResponseMessage getAvailableUnfreezeCountResponseMessage = result.get();
+      System.out.println(Utils.formatMessageString(getAvailableUnfreezeCountResponseMessage));
+    } else {
+      System.out.println("GetAvailableUnfreezeCount failed !!!");
     }
   }
 
@@ -4347,6 +4402,14 @@ public class Client {
             }
             case "getdelegatedresourceaccountindexv2": {
               getDelegatedResourceAccountIndexV2(parameters);
+              break;
+            }
+            case "getcandelegatedmaxsize": {
+              getCanDelegatedMaxSize(parameters);
+              break;
+            }
+            case "getavailableunfreezecount": {
+              getAvailableUnfreezeCount(parameters);
               break;
             }
             case "getcanwithdrawunfreezeamount": {
