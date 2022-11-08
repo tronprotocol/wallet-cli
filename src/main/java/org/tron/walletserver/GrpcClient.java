@@ -434,10 +434,11 @@ public class GrpcClient {
   }
 
   public Optional<CanWithdrawUnfreezeAmountResponseMessage> getCanWithdrawUnfreezeAmount(
-          byte[] ownerAddress) {
+          byte[] ownerAddress, long timestamp) {
     ByteString ownerAddressBS = ByteString.copyFrom(ownerAddress);
     CanWithdrawUnfreezeAmountRequestMessage request = CanWithdrawUnfreezeAmountRequestMessage.newBuilder()
             .setOwnerAddress(ownerAddressBS)
+            .setTimestamp(timestamp)
             .build();
     CanWithdrawUnfreezeAmountResponseMessage canDelegatedMaxSizeResponseMessage;
     if (blockingStubSolidity != null) {
@@ -446,6 +447,21 @@ public class GrpcClient {
       canDelegatedMaxSizeResponseMessage = blockingStubFull.getCanWithdrawUnfreezeAmount(request);
     }
     return Optional.ofNullable(canDelegatedMaxSizeResponseMessage);
+  }
+
+  public Optional<GetAvailableUnfreezeCountResponseMessage> getAvailableUnfreezeCount(
+          byte[] ownerAddress) {
+    ByteString ownerAddressBS = ByteString.copyFrom(ownerAddress);
+    GetAvailableUnfreezeCountRequestMessage request = GetAvailableUnfreezeCountRequestMessage.newBuilder()
+            .setOwnerAddress(ownerAddressBS)
+            .build();
+    GetAvailableUnfreezeCountResponseMessage getAvailableUnfreezeCountResponseMessage;
+    if (blockingStubSolidity != null) {
+      getAvailableUnfreezeCountResponseMessage = blockingStubSolidity.getAvailableUnfreezeCount(request);
+    } else {
+      getAvailableUnfreezeCountResponseMessage = blockingStubFull.getAvailableUnfreezeCount(request);
+    }
+    return Optional.ofNullable(getAvailableUnfreezeCountResponseMessage);
   }
 
   public Optional<ExchangeList> listExchanges() {
