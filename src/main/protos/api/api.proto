@@ -486,6 +486,9 @@ service Wallet {
   rpc GetDelegatedResourceAccountIndexV2 (BytesMessage) returns (DelegatedResourceAccountIndex) {
   };
 
+  rpc GetCanDelegatedMaxSize (CanDelegatedMaxSizeRequestMessage) returns (CanDelegatedMaxSizeResponseMessage) {
+  };
+
   rpc GetAvailableUnfreezeCount (GetAvailableUnfreezeCountRequestMessage)
       returns (GetAvailableUnfreezeCountResponseMessage) {
   };
@@ -915,6 +918,9 @@ service WalletSolidity {
   rpc GetDelegatedResourceAccountIndexV2 (BytesMessage) returns (DelegatedResourceAccountIndex) {
   };
 
+  rpc GetCanDelegatedMaxSize (CanDelegatedMaxSizeRequestMessage) returns (CanDelegatedMaxSizeResponseMessage) {
+  };
+
   rpc GetAvailableUnfreezeCount (GetAvailableUnfreezeCountRequestMessage)
       returns (GetAvailableUnfreezeCountResponseMessage) {
   };
@@ -1124,6 +1130,14 @@ message GetAvailableUnfreezeCountRequestMessage {
 }
 message GetAvailableUnfreezeCountResponseMessage {
   int64 count = 1;
+}
+
+message CanDelegatedMaxSizeRequestMessage {
+  int32 type = 1;
+  bytes owner_address = 2;
+}
+message CanDelegatedMaxSizeResponseMessage {
+  int64 max_size = 1;
 }
 
 message CanWithdrawUnfreezeAmountRequestMessage {
