@@ -1664,6 +1664,14 @@ public class WalletApi {
     return rpcCli.getCanWithdrawUnfreezeAmount(ownerAddress, timestamp);
   }
 
+  public  Optional<GrpcAPI.CanDelegatedMaxSizeResponseMessage> getCanDelegatedMaxSize(
+          byte[] ownerAddress, int type) {
+    if (ownerAddress == null) {
+      ownerAddress = this.getAddress();
+    }
+    return rpcCli.getCanDelegatedMaxSize(ownerAddress, type);
+  }
+
   public Optional<GrpcAPI.GetAvailableUnfreezeCountResponseMessage> getAvailableUnfreezeCount(
           byte[] ownerAddress) {
     if (ownerAddress == null) {

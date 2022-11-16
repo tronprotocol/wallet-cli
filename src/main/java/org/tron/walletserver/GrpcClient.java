@@ -433,6 +433,22 @@ public class GrpcClient {
     return Optional.ofNullable(delegatedResourceAccountIndex);
   }
 
+  public Optional<CanDelegatedMaxSizeResponseMessage> getCanDelegatedMaxSize(
+          byte[] ownerAddress, int type) {
+    ByteString ownerAddressBS = ByteString.copyFrom(ownerAddress);
+    CanDelegatedMaxSizeRequestMessage request = CanDelegatedMaxSizeRequestMessage.newBuilder()
+            .setOwnerAddress(ownerAddressBS)
+            .setType(type)
+            .build();
+    CanDelegatedMaxSizeResponseMessage canDelegatedMaxSizeResponseMessage;
+    if (blockingStubSolidity != null) {
+      canDelegatedMaxSizeResponseMessage = blockingStubSolidity.getCanDelegatedMaxSize(request);
+    } else {
+      canDelegatedMaxSizeResponseMessage = blockingStubFull.getCanDelegatedMaxSize(request);
+    }
+    return Optional.ofNullable(canDelegatedMaxSizeResponseMessage);
+  }
+
   public Optional<CanWithdrawUnfreezeAmountResponseMessage> getCanWithdrawUnfreezeAmount(
           byte[] ownerAddress, long timestamp) {
     ByteString ownerAddressBS = ByteString.copyFrom(ownerAddress);

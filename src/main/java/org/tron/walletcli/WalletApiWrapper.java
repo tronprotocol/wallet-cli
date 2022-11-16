@@ -588,6 +588,16 @@ public class WalletApiWrapper {
     return wallet.getCanWithdrawUnfreezeAmount(ownerAddress, timestamp);
   }
 
+  public Optional<GrpcAPI.CanDelegatedMaxSizeResponseMessage> getCanDelegatedMaxSize(byte[] ownerAddress, int type)
+          throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: getCanDelegatedMaxSize failed, Please login first !!");
+      return Optional.empty();
+    }
+
+    return wallet.getCanDelegatedMaxSize(ownerAddress, type);
+  }
+
   public Optional<GrpcAPI.GetAvailableUnfreezeCountResponseMessage> getAvailableUnfreezeCount(byte[] ownerAddress)
           throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {

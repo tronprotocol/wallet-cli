@@ -65,6 +65,7 @@ import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.TransactionInfo;
 import org.tron.protos.contract.SmartContractOuterClass.SmartContractDataWrapper;
 import org.tron.walletserver.WalletApi;
+import org.tron.protos.contract.Common.ResourceCode;
 
 
 
@@ -123,6 +124,7 @@ public class Client {
       "GetDelegatedResourceV2",
       "GetDelegatedResourceAccountIndex",
       "GetDelegatedResourceAccountIndexV2",
+      "GetCanDelegatedMaxSize",
       "GetAvailableUnfreezeCount",
       "GetCanWithdrawUnfreezeAmount",
       "GetDiversifier",
@@ -262,6 +264,7 @@ public class Client {
       "GetDelegatedResourceV2",
       "GetDelegatedResourceAccountIndex",
       "GetDelegatedResourceAccountIndexV2",
+      "GetCanDelegatedMaxSize",
       "GetAvailableUnfreezeCount",
       "GetCanWithdrawUnfreezeAmount",
       "GetDiversifier",
@@ -1723,6 +1726,33 @@ public class Client {
       System.out.println(Utils.formatMessageString(canWithdrawUnfreezeAmountResponseMessage));
     } else {
       System.out.println("GetCanWithdrawUnfreezeAmount failed !!!");
+    }
+  }
+
+  private void getCanDelegatedMaxSize(String[] parameters) throws CipherException, IOException, CancelException {
+    if (parameters == null || !(parameters.length == 1 || parameters.length == 2)) {
+      System.out.println("Using getcandelegatedmaxsize command needs 2 parameters like: ");
+      System.out.println("getcandelegatedmaxsize [ownerAddress] type");
+      return;
+    }
+    int index = 0;
+    int type = 0;
+    byte[] ownerAddress = getAddressBytes(parameters[index]);
+    if (ownerAddress != null) {
+      index++;
+    }
+    type = Integer.parseInt(parameters[index++]);
+    if (ResourceCode.BANDWIDTH.ordinal() != type && ResourceCode.ENERGY.ordinal() != type) {
+      System.out.println("getcandelegatedmaxsize param type must be: 0 or 1");
+      return;
+    }
+
+    Optional<CanDelegatedMaxSizeResponseMessage> result = walletApiWrapper.getCanDelegatedMaxSize(ownerAddress, type);
+    if (result.isPresent()) {
+      CanDelegatedMaxSizeResponseMessage canDelegatedMaxSizeResponseMessage = result.get();
+      System.out.println(Utils.formatMessageString(canDelegatedMaxSizeResponseMessage));
+    } else {
+      System.out.println("GetCanDelegatedMaxSize failed !!!");
     }
   }
 
@@ -4381,6 +4411,10 @@ public class Client {
             }
             case "getdelegatedresourceaccountindexv2": {
               getDelegatedResourceAccountIndexV2(parameters);
+              break;
+            }
+            case "getcandelegatedmaxsize": {
+              getCanDelegatedMaxSize(parameters);
               break;
             }
             case "getavailableunfreezecount": {
