@@ -65,6 +65,7 @@ import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.TransactionInfo;
 import org.tron.protos.contract.SmartContractOuterClass.SmartContractDataWrapper;
 import org.tron.walletserver.WalletApi;
+import org.tron.protos.contract.Common.ResourceCode;
 
 
 
@@ -96,6 +97,7 @@ public class Client {
       "ExchangeTransaction",
       "ExchangeWithdraw",
       "FreezeBalance",
+      "FreezeBalanceV2",
       "GenerateAddress",
       // "GenerateShieldedAddress",
       "GenerateShieldedTRC20Address",
@@ -119,6 +121,12 @@ public class Client {
       "GetContract contractAddress",
       "GetContractInfo contractAddress",
       "GetDelegatedResource",
+      "GetDelegatedResourceV2",
+      "GetDelegatedResourceAccountIndex",
+      "GetDelegatedResourceAccountIndexV2",
+      "GetCanDelegatedMaxSize",
+      "GetAvailableUnfreezeCount",
+      "GetCanWithdrawUnfreezeAmount",
       "GetDiversifier",
       "GetExchange",
       "GetExpandedSpendingKey",
@@ -192,6 +200,7 @@ public class Client {
       "TriggerContract contractAddress method args isHex fee_limit value",
       "UnfreezeAsset",
       "UnfreezeBalance",
+      "UnfreezeBalanceV2",
       "UpdateAccount",
       "UpdateAccountPermission",
       "UpdateAsset",
@@ -201,6 +210,9 @@ public class Client {
       "UpdateWitness",
       "VoteWitness",
       "WithdrawBalance",
+      "WithdrawExpireUnfreeze",
+      "DelegateResource",
+      "UnDelegateResource",
   };
 
   // note: this is sorted by alpha
@@ -249,7 +261,12 @@ public class Client {
       "GetContract",
       "GetContractInfo",
       "GetDelegatedResource",
+      "GetDelegatedResourceV2",
       "GetDelegatedResourceAccountIndex",
+      "GetDelegatedResourceAccountIndexV2",
+      "GetCanDelegatedMaxSize",
+      "GetAvailableUnfreezeCount",
+      "GetCanWithdrawUnfreezeAmount",
       "GetDiversifier",
       "GetExchange",
       "GetExpandedSpendingKey",
@@ -1243,6 +1260,45 @@ public class Client {
     }
   }
 
+  private void freezeBalanceV2(String[] parameters)
+          throws IOException, CipherException, CancelException {
+    if (parameters == null || !(parameters.length == 2 || parameters.length == 3)) {
+      System.out.println("Use freezeBalanceV2 command with below syntax: ");
+      System.out.println("freezeBalanceV2 [OwnerAddress] frozen_balance "
+              + "[ResourceCode:0 BANDWIDTH,1 ENERGY,2 TRON_POWER]");
+      return;
+    }
+
+    int index = 0;
+    boolean hasOwnerAddressPara = false;
+    byte[] ownerAddress = getAddressBytes(parameters[index]);
+    if (ownerAddress != null) {
+      index++;
+      hasOwnerAddressPara = true;
+    }
+
+    long frozen_balance = Long.parseLong(parameters[index++]);
+    int resourceCode = 0;
+
+    if ((!hasOwnerAddressPara && (parameters.length == 2)) ||
+            (hasOwnerAddressPara && (parameters.length == 3))) {
+      try {
+        resourceCode = Integer.parseInt(parameters[index]);
+      } catch (NumberFormatException e) {
+        System.out.println("freezeBalanceV2  [ResourceCode:0 BANDWIDTH,1 ENERGY,2 TRON_POWER]");
+        return;
+      }
+    }
+
+    boolean result = walletApiWrapper.freezeBalanceV2(ownerAddress, frozen_balance
+            , resourceCode);
+    if (result) {
+      System.out.println("freezeBalanceV2 successful !!!");
+    } else {
+      System.out.println("freezeBalanceV2 failed !!!");
+    }
+  }
+
   private void unfreezeBalance(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length < 1 || parameters.length > 3) {
@@ -1278,6 +1334,174 @@ public class Client {
       System.out.println("UnfreezeBalance successful !!!");
     } else {
       System.out.println("UnfreezeBalance failed !!!");
+    }
+  }
+
+  private void unfreezeBalanceV2(String[] parameters)
+          throws IOException, CipherException, CancelException {
+    if (parameters == null || !(parameters.length == 2 || parameters.length == 3)) {
+      System.out.println("Use unfreezeBalanceV2 command with below syntax: ");
+      System.out.println(
+              "unfreezeBalanceV2 [OwnerAddress] unfreezeBalance ResourceCode(0 BANDWIDTH,1 ENERGY,2 TRON_POWER)");
+      return;
+    }
+
+    int index = 0;
+    byte[] ownerAddress = null;
+    long unfreezeBalance = 0;
+    int resourceCode = 0;
+    if (parameters.length == 2) {
+      unfreezeBalance = Long.parseLong(parameters[index++]);
+      resourceCode = Integer.parseInt(parameters[index++]);
+    } else if (parameters.length == 3) {
+      ownerAddress = getAddressBytes(parameters[index]);
+      if (ownerAddress != null) {
+        index++;
+        unfreezeBalance = Long.parseLong(parameters[index++]);
+        resourceCode = Integer.parseInt(parameters[index++]);
+      } else {
+        System.out.println(
+                "unfreezeBalanceV2 OwnerAddress is invalid");
+        return;
+      }
+    }
+
+    boolean result = walletApiWrapper.unfreezeBalanceV2(ownerAddress, unfreezeBalance, resourceCode);
+    if (result) {
+      System.out.println("unfreezeBalanceV2 successful !!!");
+    } else {
+      System.out.println("unfreezeBalanceV2 failed !!!");
+    }
+  }
+
+  private void withdrawExpireUnfreeze(String[] parameters)
+          throws IOException, CipherException, CancelException {
+    if (parameters == null || !(parameters.length == 0 || parameters.length == 1)) {
+      System.out.println("Use withdrawExpireUnfreeze command with below syntax: ");
+      System.out.println(
+              "withdrawExpireUnfreeze OwnerAddress");
+      return;
+    }
+
+    byte[] ownerAddress = null;
+    if (parameters.length == 1) {
+      ownerAddress = getAddressBytes(parameters[0]);
+      if (ownerAddress == null) {
+        System.out.println(
+                "withdrawExpireUnfreeze OwnerAddress is invalid");
+        return;
+      }
+    }
+
+    boolean result = walletApiWrapper.withdrawExpireUnfreeze(ownerAddress);
+    if (result) {
+      System.out.println("withdrawExpireUnfreeze successful !!!");
+    } else {
+      System.out.println("withdrawExpireUnfreeze failed !!!");
+    }
+  }
+
+  private void delegateResource(String[] parameters)
+          throws IOException, CipherException, CancelException {
+    if (parameters == null || !(parameters.length == 3 || parameters.length == 4 || parameters.length == 5)) {
+      System.out.println("Use delegateResource command with below syntax: ");
+      System.out.println(
+              "delegateResource [OwnerAddress] balance ResourceCode(0 BANDWIDTH,1 ENERGY), ReceiverAddress [lock]");
+      return;
+    }
+
+    int index = 0;
+    byte[] ownerAddress = null;
+    long balance = 0;
+    int resourceCode = 0;
+    byte[] receiverAddress = null;
+    boolean lock = false;
+
+    if (parameters.length == 3) {
+      balance = Long.parseLong(parameters[index++]);
+      resourceCode = Integer.parseInt(parameters[index++]);
+      receiverAddress = getAddressBytes(parameters[index++]);
+      if (receiverAddress == null) {
+        System.out.println(
+                "delegateResource receiverAddress is invalid");
+        return;
+      }
+    } else if (parameters.length == 4 || parameters.length == 5) {
+      ownerAddress = getAddressBytes(parameters[index++]);
+      if (ownerAddress != null) {
+        balance = Long.parseLong(parameters[index++]);
+        resourceCode = Integer.parseInt(parameters[index++]);
+        receiverAddress = getAddressBytes(parameters[index++]);
+        if (receiverAddress == null) {
+          System.out.println(
+                  "delegateResource receiverAddress is invalid");
+          return;
+        }
+        if (parameters.length == 5) {
+          lock = Boolean.parseBoolean(parameters[index++]);
+        }
+      } if (ownerAddress == null) {
+        System.out.println(
+                "delegateResource ownerAddress is invalid");
+        return;
+      }
+    }
+
+
+    boolean result = walletApiWrapper.delegateresource(
+        ownerAddress, balance, resourceCode, receiverAddress, lock);
+    if (result) {
+      System.out.println("delegateResource successful !!!");
+    } else {
+      System.out.println("delegateResource failed !!!");
+    }
+  }
+
+  private void unDelegateResource(String[] parameters)
+          throws IOException, CipherException, CancelException {
+    if (parameters == null || !(parameters.length == 3 || parameters.length == 4)) {
+      System.out.println("Use unDelegateResource command with below syntax: ");
+      System.out.println(
+              "unDelegateResource [OwnerAddress] balance ResourceCode(0 BANDWIDTH,1 ENERGY), ReceiverAddress");
+      return;
+    }
+
+    int index = 0;
+    byte[] ownerAddress = null;
+    long balance = 0;
+    int resourceCode = 0;
+    byte[] receiverAddress = null;
+    if (parameters.length == 3) {
+      balance = Long.parseLong(parameters[index++]);
+      resourceCode = Integer.parseInt(parameters[index++]);
+      receiverAddress = getAddressBytes(parameters[index++]);
+      if (receiverAddress == null) {
+        System.out.println(
+                "unDelegateResource receiverAddress is invalid");
+        return;
+      }
+    } else if (parameters.length == 4) {
+      ownerAddress = getAddressBytes(parameters[index++]);
+      if (ownerAddress != null) {
+        balance = Long.parseLong(parameters[index++]);
+        resourceCode = Integer.parseInt(parameters[index++]);
+        receiverAddress = getAddressBytes(parameters[index++]);
+        if (receiverAddress == null) {
+          System.out.println(
+                  "unDelegateResource receiverAddress is invalid");
+          return;
+        }
+      } if (ownerAddress == null) {
+        System.out.println(
+                "unDelegateResource ownerAddress is invalid");
+        return;
+      }
+    }
+    boolean result = walletApiWrapper.undelegateresource(ownerAddress, balance, resourceCode, receiverAddress);
+    if (result) {
+      System.out.println("unDelegateResource successful !!!");
+    } else {
+      System.out.println("unDelegateResource failed !!!");
     }
   }
 
@@ -1435,7 +1659,130 @@ public class Client {
     }
   }
 
+  private void getDelegatedResourceAccountIndex(String[] parameters) {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("Using getDelegatedResourceAccountIndex command needs 1 parameters like: ");
+      System.out.println("getDelegatedResourceAccountIndex ownerAddress");
+      return;
+    }
+    String ownerAddress = parameters[0];
+    Optional<DelegatedResourceAccountIndex> result = WalletApi.getDelegatedResourceAccountIndex(ownerAddress);
+    if (result.isPresent()) {
+      DelegatedResourceAccountIndex delegatedResourceAccountIndex = result.get();
+      System.out.println(Utils.formatMessageString(delegatedResourceAccountIndex));
+    } else {
+      System.out.println("GetDelegatedResourceAccountIndex failed !!!");
+    }
+  }
 
+  private void getDelegatedResourceV2(String[] parameters) {
+    if (parameters == null || parameters.length != 2) {
+      System.out.println("Using getdelegatedresourcev2 command needs 2 parameters like: ");
+      System.out.println("getdelegatedresourcev2 fromAddress toAddress");
+      return;
+    }
+    String fromAddress = parameters[0];
+    String toAddress = parameters[1];
+    Optional<DelegatedResourceList> result = WalletApi.getDelegatedResourceV2(fromAddress, toAddress);
+    if (result.isPresent()) {
+      DelegatedResourceList delegatedResourceList = result.get();
+      System.out.println(Utils.formatMessageString(delegatedResourceList));
+    } else {
+      System.out.println("GetDelegatedResourceV2 failed !!!");
+    }
+  }
+
+  private void getDelegatedResourceAccountIndexV2(String[] parameters) {
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("Using getDelegatedResourceAccountIndexV2 command needs 1 parameters like: ");
+      System.out.println("getdelegatedresourceaccountindexv2 ownerAddress");
+      return;
+    }
+    String ownerAddress = parameters[0];
+    Optional<DelegatedResourceAccountIndex> result = WalletApi.getDelegatedResourceAccountIndexV2(ownerAddress);
+    if (result.isPresent()) {
+      DelegatedResourceAccountIndex delegatedResourceAccountIndex = result.get();
+      System.out.println(Utils.formatMessageString(delegatedResourceAccountIndex));
+    } else {
+      System.out.println("GetDelegatedResourceAccountIndexV2 failed !!!");
+    }
+  }
+
+  private void getCanWithdrawUnfreezeAmount(String[] parameters) throws CipherException, IOException, CancelException {
+    if (parameters == null || !(parameters.length == 1 || parameters.length == 2)) {
+      System.out.println("Using getCanWithdrawUnfreezeAmount command needs 2 parameters like: ");
+      System.out.println("getcanwithdrawunfreezeamount [ownerAddress] timestamp");
+      return;
+    }
+    int index = 0;
+    long timestamp = 0;
+    byte[] ownerAddress = getAddressBytes(parameters[index]);
+    if (ownerAddress != null) {
+      index++;
+    }
+    timestamp = Long.parseLong(parameters[index++]);
+    if (timestamp < 0) {
+      System.out.println("Invalid param, timestamp >= 0");
+      return;
+    }
+
+    Optional<CanWithdrawUnfreezeAmountResponseMessage> result = walletApiWrapper.
+            getCanWithdrawUnfreezeAmount(ownerAddress, timestamp);
+    if (result.isPresent()) {
+      CanWithdrawUnfreezeAmountResponseMessage canWithdrawUnfreezeAmountResponseMessage = result.get();
+      System.out.println(Utils.formatMessageString(canWithdrawUnfreezeAmountResponseMessage));
+    } else {
+      System.out.println("GetCanWithdrawUnfreezeAmount failed !!!");
+    }
+  }
+
+  private void getCanDelegatedMaxSize(String[] parameters) throws CipherException, IOException, CancelException {
+    if (parameters == null || !(parameters.length == 1 || parameters.length == 2)) {
+      System.out.println("Using getcandelegatedmaxsize command needs 2 parameters like: ");
+      System.out.println("getcandelegatedmaxsize [ownerAddress] type");
+      return;
+    }
+    int index = 0;
+    int type = 0;
+    byte[] ownerAddress = getAddressBytes(parameters[index]);
+    if (ownerAddress != null) {
+      index++;
+    }
+    type = Integer.parseInt(parameters[index++]);
+    if (ResourceCode.BANDWIDTH.ordinal() != type && ResourceCode.ENERGY.ordinal() != type) {
+      System.out.println("getcandelegatedmaxsize param type must be: 0 or 1");
+      return;
+    }
+
+    Optional<CanDelegatedMaxSizeResponseMessage> result = walletApiWrapper.getCanDelegatedMaxSize(ownerAddress, type);
+    if (result.isPresent()) {
+      CanDelegatedMaxSizeResponseMessage canDelegatedMaxSizeResponseMessage = result.get();
+      System.out.println(Utils.formatMessageString(canDelegatedMaxSizeResponseMessage));
+    } else {
+      System.out.println("GetCanDelegatedMaxSize failed !!!");
+    }
+  }
+
+  private void getAvailableUnfreezeCount(String[] parameters) throws CipherException, IOException, CancelException {
+    if (parameters == null || !(parameters.length == 0 || parameters.length == 1)) {
+      System.out.println("Using getavailableunfreezecount command needs 1 parameters like: ");
+      System.out.println("getavailableunfreezecount [owner_address] ");
+      return;
+    }
+    int index = 0;
+    byte[] ownerAddress = null;
+    if (parameters.length == 1) {
+        ownerAddress = getAddressBytes(parameters[index]);
+    }
+
+    Optional<GetAvailableUnfreezeCountResponseMessage> result = walletApiWrapper.getAvailableUnfreezeCount(ownerAddress);
+    if (result.isPresent()) {
+      GetAvailableUnfreezeCountResponseMessage getAvailableUnfreezeCountResponseMessage = result.get();
+      System.out.println(Utils.formatMessageString(getAvailableUnfreezeCountResponseMessage));
+    } else {
+      System.out.println("GetAvailableUnfreezeCount failed !!!");
+    }
+  }
 
   private void exchangeCreate(String[] parameters)
       throws IOException, CipherException, CancelException {
@@ -4001,8 +4348,28 @@ public class Client {
               freezeBalance(parameters);
               break;
             }
+            case "freezebalancev2": {
+              freezeBalanceV2(parameters);
+              break;
+            }
             case "unfreezebalance": {
               unfreezeBalance(parameters);
+              break;
+            }
+            case "unfreezebalancev2": {
+              unfreezeBalanceV2(parameters);
+              break;
+            }
+            case "withdrawexpireunfreeze": {
+              withdrawExpireUnfreeze(parameters);
+              break;
+            }
+            case "delegateresource": {
+              delegateResource(parameters);
+              break;
+            }
+            case "undelegateresource": {
+              unDelegateResource(parameters);
               break;
             }
             case "withdrawbalance": {
@@ -4039,6 +4406,30 @@ public class Client {
             }
             case "getdelegatedresource": {
               getDelegatedResource(parameters);
+              break;
+            }
+            case "getdelegatedresourceaccountindex": {
+              getDelegatedResourceAccountIndex(parameters);
+              break;
+            }
+            case "getdelegatedresourcev2": {
+              getDelegatedResourceV2(parameters);
+              break;
+            }
+            case "getdelegatedresourceaccountindexv2": {
+              getDelegatedResourceAccountIndexV2(parameters);
+              break;
+            }
+            case "getcandelegatedmaxsize": {
+              getCanDelegatedMaxSize(parameters);
+              break;
+            }
+            case "getavailableunfreezecount": {
+              getAvailableUnfreezeCount(parameters);
+              break;
+            }
+            case "getcanwithdrawunfreezeamount": {
+              getCanWithdrawUnfreezeAmount(parameters);
               break;
             }
             case "exchangecreate": {
