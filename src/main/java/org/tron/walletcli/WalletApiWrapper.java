@@ -482,6 +482,17 @@ public class WalletApiWrapper {
         receiverAddress);
   }
 
+  public boolean freezeBalanceV2(byte[] ownerAddress, long frozen_balance,
+                               int resourceCode)
+          throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: freezeBalanceV2 failed, Please login first !!");
+      return false;
+    }
+
+    return wallet.freezeBalanceV2(ownerAddress, frozen_balance, resourceCode);
+  }
+
   public boolean buyStorage(byte[] ownerAddress, long quantity)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
@@ -523,6 +534,80 @@ public class WalletApiWrapper {
     return wallet.unfreezeBalance(ownerAddress, resourceCode, receiverAddress);
   }
 
+  public boolean unfreezeBalanceV2(byte[] ownerAddress, long unfreezeBalance
+          , int resourceCode)
+          throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: unfreezeBalanceV2 failed, Please login first !!");
+      return false;
+    }
+
+    return wallet.unfreezeBalanceV2(ownerAddress, unfreezeBalance, resourceCode);
+  }
+
+  public boolean withdrawExpireUnfreeze(byte[] ownerAddress)
+          throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: withdrawExpireUnfreeze failed, Please login first !!");
+      return false;
+    }
+
+    return wallet.withdrawExpireUnfreeze(ownerAddress);
+  }
+
+  public boolean delegateresource(byte[] ownerAddress, long balance
+          , int resourceCode, byte[] receiverAddress, boolean lock)
+          throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: delegateresource failed, Please login first !!");
+      return false;
+    }
+
+    return wallet.delegateResource(ownerAddress, balance
+        , resourceCode, receiverAddress, lock);
+  }
+
+  public boolean undelegateresource(byte[] ownerAddress, long balance
+          , int resourceCode, byte[] receiverAddress)
+          throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: undelegateresource failed, Please login first !!");
+      return false;
+    }
+
+    return wallet.unDelegateResource(ownerAddress, balance, resourceCode, receiverAddress);
+  }
+  
+  public Optional<GrpcAPI.CanWithdrawUnfreezeAmountResponseMessage> getCanWithdrawUnfreezeAmount(
+          byte[] ownerAddress, long timestamp)
+          throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: getCanWithdrawUnfreezeAmount failed, Please login first !!");
+      return Optional.empty();
+    }
+
+    return wallet.getCanWithdrawUnfreezeAmount(ownerAddress, timestamp);
+  }
+
+  public Optional<GrpcAPI.CanDelegatedMaxSizeResponseMessage> getCanDelegatedMaxSize(byte[] ownerAddress, int type)
+          throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: getCanDelegatedMaxSize failed, Please login first !!");
+      return Optional.empty();
+    }
+
+    return wallet.getCanDelegatedMaxSize(ownerAddress, type);
+  }
+
+  public Optional<GrpcAPI.GetAvailableUnfreezeCountResponseMessage> getAvailableUnfreezeCount(byte[] ownerAddress)
+          throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: getAvailableUnfreezeCount failed, Please login first !!");
+      return Optional.empty();
+    }
+
+    return wallet.getAvailableUnfreezeCount(ownerAddress);
+  }
 
   public boolean unfreezeAsset(byte[] ownerAddress)
       throws CipherException, IOException, CancelException {
