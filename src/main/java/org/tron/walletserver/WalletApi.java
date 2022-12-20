@@ -80,6 +80,17 @@ import org.tron.core.config.Configuration;
 import org.tron.core.config.Parameter.CommonConstant;
 import org.tron.core.exception.CancelException;
 import org.tron.core.exception.CipherException;
+import org.tron.keystore.CheckStrength;
+import org.tron.keystore.Credentials;
+import org.tron.keystore.Wallet;
+import org.tron.keystore.WalletFile;
+import org.tron.keystore.WalletUtils;
+import org.tron.protos.Protocol;
+import org.tron.protos.Protocol.Account;
+import org.tron.protos.Protocol.Block;
+import org.tron.protos.Protocol.ChainParameters;
+import org.tron.protos.Protocol.Exchange;
+import org.tron.protos.Protocol.Key;
 import org.tron.protos.Protocol.MarketOrder;
 import org.tron.protos.Protocol.MarketOrderList;
 import org.tron.protos.Protocol.MarketOrderPairList;
@@ -1458,7 +1469,8 @@ public class WalletApi {
     }
   }
 
-  public boolean unfreezeBalanceV2(byte[] ownerAddress, int unfreezeBalance
+
+  public boolean unfreezeBalanceV2(byte[] ownerAddress, long unfreezeBalance
           , int resourceCode)
           throws CipherException, IOException, CancelException {
     BalanceContract.UnfreezeBalanceV2Contract contract =
@@ -1475,16 +1487,18 @@ public class WalletApi {
     return processTransactionExtention(transactionExtention);
   }
 
-  public boolean delegateResource(byte[] ownerAddress, int balance
-          ,int resourceCode, byte[] receiverAddress)
+
+  public boolean delegateResource(byte[] ownerAddress, long balance
+          ,int resourceCode, byte[] receiverAddress, boolean lock)
           throws CipherException, IOException, CancelException {
-    BalanceContract.DelegateResourceContract contract =
-            createDelegateResourceContract(ownerAddress, balance, resourceCode, receiverAddress);
+    BalanceContract.DelegateResourceContract contract = createDelegateResourceContract(
+        ownerAddress, balance, resourceCode, receiverAddress, lock);
     TransactionExtention transactionExtention = rpcCli.createTransactionV2(contract);
     return processTransactionExtention(transactionExtention);
   }
 
-  public boolean unDelegateResource(byte[] ownerAddress, int balance
+
+  public boolean unDelegateResource(byte[] ownerAddress, long balance
           ,int resourceCode, byte[] receiverAddress)
           throws CipherException, IOException, CancelException {
     BalanceContract.UnDelegateResourceContract contract =
@@ -1514,7 +1528,7 @@ public class WalletApi {
   }
 
   private BalanceContract.UnfreezeBalanceV2Contract createUnfreezeBalanceContractV2(
-          byte[] address, int unfreezeBalance, int resourceCode) {
+          byte[] address, long unfreezeBalance, int resourceCode) {
     if (address == null) {
       address = getAddress();
     }
@@ -1541,8 +1555,8 @@ public class WalletApi {
   }
 
   private BalanceContract.DelegateResourceContract createDelegateResourceContract(
-          byte[] address, int balance
-          ,int resourceCode, byte[] receiver) {
+          byte[] address, long balance
+          ,int resourceCode, byte[] receiver, boolean lock) {
     if (address == null) {
       address = getAddress();
     }
@@ -1554,13 +1568,14 @@ public class WalletApi {
     builder.setOwnerAddress(byteAddreess)
             .setResourceValue(resourceCode)
             .setBalance(balance)
-            .setReceiverAddress(byteReceiverAddreess);
+            .setReceiverAddress(byteReceiverAddreess)
+            .setLock(lock);
 
     return builder.build();
   }
 
   private BalanceContract.UnDelegateResourceContract createUnDelegateResourceContract(
-          byte[] address, int balance
+          byte[] address, long balance
           ,int resourceCode, byte[] receiver) {
     if (address == null) {
       address = getAddress();
@@ -1675,10 +1690,43 @@ public class WalletApi {
     return rpcCli.getDelegatedResource(fromAddress, toAddress);
   }
 
-  public static Optional<DelegatedResourceAccountIndex> getDelegatedResourceAccountIndex
-      (
-          String address) {
-    return rpcCli.getDelegatedResourceAccountIndex(address);
+  public static Optional<Protocol.DelegatedResourceAccountIndex> getDelegatedResourceAccountIndex(
+          String ownerAddress) {
+    return rpcCli.getDelegatedResourceAccountIndex(ownerAddress);
+  }
+
+  public static Optional<DelegatedResourceList> getDelegatedResourceV2(
+          String fromAddress, String toAddress) {
+    return rpcCli.getDelegatedResourceV2(fromAddress, toAddress);
+  }
+
+  public static Optional<Protocol.DelegatedResourceAccountIndex> getDelegatedResourceAccountIndexV2(
+          String ownerAddress) {
+    return rpcCli.getDelegatedResourceAccountIndexV2(ownerAddress);
+  }
+
+  public Optional<GrpcAPI.CanWithdrawUnfreezeAmountResponseMessage> getCanWithdrawUnfreezeAmount(
+          byte[] ownerAddress, long timestamp) {
+    if (ownerAddress == null) {
+      ownerAddress = this.getAddress();
+    }
+    return rpcCli.getCanWithdrawUnfreezeAmount(ownerAddress, timestamp);
+  }
+
+  public  Optional<GrpcAPI.CanDelegatedMaxSizeResponseMessage> getCanDelegatedMaxSize(
+          byte[] ownerAddress, int type) {
+    if (ownerAddress == null) {
+      ownerAddress = this.getAddress();
+    }
+    return rpcCli.getCanDelegatedMaxSize(ownerAddress, type);
+  }
+
+  public Optional<GrpcAPI.GetAvailableUnfreezeCountResponseMessage> getAvailableUnfreezeCount(
+          byte[] ownerAddress) {
+    if (ownerAddress == null) {
+      ownerAddress = this.getAddress();
+    }
+    return rpcCli.getAvailableUnfreezeCount(ownerAddress);
   }
 
   public static Optional<ExchangeList> listExchanges() {

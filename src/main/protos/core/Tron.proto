@@ -149,6 +149,8 @@ message Account {
     int64 latest_exchange_storage_time = 8;
 
     int64 energy_window_size = 9;
+    int64 delegated_frozenV2_balance_for_energy = 10;
+    int64 acquired_delegated_frozenV2_balance_for_energy = 11;
   }
   AccountResource account_resource = 26;
   bytes codeHash = 30;
@@ -167,6 +169,8 @@ message Account {
   }
   repeated FreezeV2 frozenV2 = 34;
   repeated UnFreezeV2 unfrozenV2 = 35;
+  int64 delegated_frozenV2_balance_for_bandwidth = 36;
+  int64 acquired_delegated_frozenV2_balance_for_bandwidth = 37;
 }
 
 
@@ -347,6 +351,8 @@ message Transaction {
     int64 exchange_withdraw_another_amount = 20;
     int64 exchange_id = 21;
     int64 shielded_transaction_fee = 22;
+
+    int64 withdraw_expire_amount = 27;
   }
 
   message raw {
@@ -405,6 +411,8 @@ message TransactionInfo {
   bytes orderId = 25;
   repeated MarketOrderDetail orderDetails = 26;
   int64 packingFee = 27;
+
+  int64 withdraw_expire_amount = 28;
 }
 
 message TransactionRet {
@@ -568,6 +576,7 @@ message DelegatedResourceAccountIndex {
   bytes account = 1;
   repeated bytes fromAccounts = 2;
   repeated bytes toAccounts = 3;
+  int64 timestamp = 4;
 }
 
 message NodeInfo {
