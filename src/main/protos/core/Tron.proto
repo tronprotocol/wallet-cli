@@ -151,6 +151,9 @@ message Account {
     int64 latest_exchange_storage_time = 8;
 
     int64 energy_window_size = 9;
+
+    int64 delegated_frozenV2_balance_for_energy = 10;
+    int64 acquired_delegated_frozenV2_balance_for_energy = 11;
   }
   AccountResource account_resource = 26;
   bytes codeHash = 30;
@@ -169,7 +172,11 @@ message Account {
   }
   repeated FreezeV2 frozenV2 = 34;
   repeated UnFreezeV2 unfrozenV2 = 35;
+
+  int64 delegated_frozenV2_balance_for_bandwidth = 36;
+  int64 acquired_delegated_frozenV2_balance_for_bandwidth = 37;
 }
+
 
 message Key {
   bytes address = 1;
@@ -303,7 +310,7 @@ message Transaction {
       MarketCancelOrderContract = 53;
       FreezeBalanceV2Contract = 54;
       UnfreezeBalanceV2Contract = 55;
-      WithdrawBalanceV2Contract = 56;
+      WithdrawExpireUnfreezeContract = 56;
       DelegateResourceContract = 57;
       UnDelegateResourceContract = 58;
     }
@@ -350,9 +357,7 @@ message Transaction {
     int64 exchange_id = 21;
     int64 shielded_transaction_fee = 22;
 
-
-    bytes orderId = 25;
-    repeated MarketOrderDetail orderDetails = 26;
+    int64 withdraw_expire_amount = 27;
   }
 
   message raw {
@@ -363,7 +368,7 @@ message Transaction {
     repeated authority auths = 9;
     // transaction note
     bytes data = 10;
-    //only support size = 1,  repeated list here for extension
+    //only support size = 1, repeated list here for extension
     repeated Contract contract = 11;
     // scripts not used
     bytes scripts = 12;
@@ -372,7 +377,7 @@ message Transaction {
   }
 
   raw raw_data = 1;
-  // only support size = 1,  repeated list here for muti-sig extension
+  // only support size = 1, repeated list here for muti-sig extension
   repeated bytes signature = 2;
   repeated Result ret = 5;
 }
@@ -412,6 +417,7 @@ message TransactionInfo {
   repeated MarketOrderDetail orderDetails = 26;
   int64 packingFee = 27;
 
+  int64 withdraw_expire_amount = 28;
 }
 
 message TransactionRet {
@@ -530,7 +536,6 @@ enum ReasonCode {
   TIME_OUT = 0x20;
   CONNECT_FAIL = 0x21;
   TOO_MANY_PEERS_WITH_SAME_IP = 0x22;
-  LIGHT_NODE_SYNC_FAIL = 0x23;
   UNKNOWN = 0xFF;
 }
 
@@ -550,10 +555,6 @@ message HelloMessage {
   BlockId genesisBlockId = 4;
   BlockId solidBlockId = 5;
   BlockId headBlockId = 6;
-  bytes address = 7;
-  bytes signature = 8;
-  int32 nodeType = 9;
-  int64 lowestBlockNum = 10;
 }
 
 message InternalTransaction {
@@ -580,6 +581,7 @@ message DelegatedResourceAccountIndex {
   bytes account = 1;
   repeated bytes fromAccounts = 2;
   repeated bytes toAccounts = 3;
+  int64 timestamp = 4;
 }
 
 message NodeInfo {
@@ -704,20 +706,20 @@ message MarketOrder {
 
   bytes prev = 12;
   bytes next = 13;
-    }
+}
 
 message MarketOrderList {
   repeated MarketOrder orders = 1;
-  }
+}
 
 message MarketOrderPairList {
   repeated MarketOrderPair orderPair = 1;
-  }
+}
 
 message MarketOrderPair{
   bytes sell_token_id = 1;
   bytes buy_token_id = 2;
-    }
+}
 
 message MarketAccountOrder {
   bytes owner_address = 1;
