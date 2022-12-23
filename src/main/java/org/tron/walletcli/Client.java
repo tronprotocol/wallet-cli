@@ -52,6 +52,7 @@ import org.tron.core.zen.address.KeyIo;
 import org.tron.core.zen.address.PaymentAddress;
 import org.tron.core.zen.address.SpendingKey;
 import org.tron.keystore.StringUtils;
+import org.tron.protos.Protocol;
 import org.tron.protos.Protocol.MarketOrder;
 import org.tron.protos.Protocol.MarketOrderList;
 import org.tron.protos.Protocol.MarketOrderPairList;
@@ -1711,9 +1712,9 @@ public class Client {
       return;
     }
     String ownerAddress = parameters[0];
-    Optional<DelegatedResourceAccountIndex> result = WalletApi.getDelegatedResourceAccountIndex(ownerAddress);
+    Optional<Protocol.DelegatedResourceAccountIndex> result = WalletApi.getDelegatedResourceAccountIndex(ownerAddress);
     if (result.isPresent()) {
-      DelegatedResourceAccountIndex delegatedResourceAccountIndex = result.get();
+      Protocol.DelegatedResourceAccountIndex delegatedResourceAccountIndex = result.get();
       System.out.println(Utils.formatMessageString(delegatedResourceAccountIndex));
     } else {
       System.out.println("GetDelegatedResourceAccountIndex failed !!!");
@@ -1744,9 +1745,9 @@ public class Client {
       return;
     }
     String ownerAddress = parameters[0];
-    Optional<DelegatedResourceAccountIndex> result = WalletApi.getDelegatedResourceAccountIndexV2(ownerAddress);
+    Optional<Protocol.DelegatedResourceAccountIndex> result = WalletApi.getDelegatedResourceAccountIndexV2(ownerAddress);
     if (result.isPresent()) {
-      DelegatedResourceAccountIndex delegatedResourceAccountIndex = result.get();
+      Protocol.DelegatedResourceAccountIndex delegatedResourceAccountIndex = result.get();
       System.out.println(Utils.formatMessageString(delegatedResourceAccountIndex));
     } else {
       System.out.println("GetDelegatedResourceAccountIndexV2 failed !!!");
@@ -4441,22 +4442,6 @@ public class Client {
             }
             case "unfreezebalance": {
               unfreezeBalance(parameters);
-              break;
-            }
-            case "unfreezebalancev2": {
-              unfreezeBalanceV2(parameters);
-              break;
-            }
-            case "withdrawexpireunfreeze": {
-              withdrawExpireUnfreeze(parameters);
-              break;
-            }
-            case "delegateresource": {
-              delegateResource(parameters);
-              break;
-            }
-            case "undelegateresource": {
-              unDelegateResource(parameters);
               break;
             }
             case "unfreezebalancev2": {
