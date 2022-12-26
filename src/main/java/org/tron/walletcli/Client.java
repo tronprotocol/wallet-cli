@@ -90,6 +90,7 @@ public class Client {
       "CreateAccount",
       "CreateProposal",
       "CreateWitness",
+      "DelegateResource",
       "DeleteProposal",
       "DeployContract contractName ABI byteCode constructor params isHex fee_limit consume_user_resource_percent origin_energy_limit value token_value token_id <library:address,library:address,...> <lib_compiler_version(e.g:v5)>",
       "ExchangeCreate",
@@ -198,6 +199,7 @@ public class Client {
       "TransferAsset",
       "TriggerConstantContract contractAddress method args isHex",
       "TriggerContract contractAddress method args isHex fee_limit value",
+      "UnDelegateResource",
       "UnfreezeAsset",
       "UnfreezeBalance",
       "UnfreezeBalanceV2",
@@ -211,8 +213,6 @@ public class Client {
       "VoteWitness",
       "WithdrawBalance",
       "WithdrawExpireUnfreeze",
-      "DelegateResource",
-      "UnDelegateResource",
   };
 
   // note: this is sorted by alpha
@@ -231,6 +231,7 @@ public class Client {
       "CreateAccount",
       "CreateProposal",
       "CreateWitness",
+      "DelegateResource",
       "DeleteProposal",
       "DeployContract",
       "ExchangeCreate",
@@ -238,6 +239,7 @@ public class Client {
       "ExchangeTransaction",
       "ExchangeWithdraw",
       "FreezeBalance",
+      "FreezeBalanceV2",
       "GenerateAddress",
       // "GenerateShieldedAddress",
       "GenerateShieldedTRC20Address",
@@ -338,8 +340,10 @@ public class Client {
       "TransferAsset",
       "TriggerConstantContract",
       "TriggerContract",
+      "UnDelegateResource",
       "UnfreezeAsset",
       "UnfreezeBalance",
+      "UnfreezeBalanceV2",
       "UpdateAccount",
       "UpdateAccountPermission",
       "UpdateAsset",
@@ -349,6 +353,7 @@ public class Client {
       "UpdateWitness",
       "VoteWitness",
       "WithdrawBalance",
+      "WithdrawExpireUnfreeze",
   };
 
   private byte[] inputPrivateKey() throws IOException {
@@ -1727,8 +1732,8 @@ public class Client {
       return;
     }
 
-    Optional<CanWithdrawUnfreezeAmountResponseMessage> result = walletApiWrapper.
-            getCanWithdrawUnfreezeAmount(ownerAddress, timestamp);
+    Optional<CanWithdrawUnfreezeAmountResponseMessage> result = WalletApi.getCanWithdrawUnfreezeAmount(
+        ownerAddress, timestamp);
     if (result.isPresent()) {
       CanWithdrawUnfreezeAmountResponseMessage canWithdrawUnfreezeAmountResponseMessage = result.get();
       System.out.println(Utils.formatMessageString(canWithdrawUnfreezeAmountResponseMessage));
@@ -1762,7 +1767,7 @@ public class Client {
       return;
     }
 
-    Optional<CanDelegatedMaxSizeResponseMessage> result = walletApiWrapper.getCanDelegatedMaxSize(ownerAddress, type);
+    Optional<CanDelegatedMaxSizeResponseMessage> result = WalletApi.getCanDelegatedMaxSize(ownerAddress, type);
     if (result.isPresent()) {
       CanDelegatedMaxSizeResponseMessage canDelegatedMaxSizeResponseMessage = result.get();
       System.out.println(Utils.formatMessageString(canDelegatedMaxSizeResponseMessage));
@@ -1782,11 +1787,13 @@ public class Client {
     if (parameters.length == 1) {
         ownerAddress = getAddressBytes(parameters[index]);
         if (ownerAddress == null) {
+          System.out.println("Using getavailableunfreezecount command needs 1 parameters like: ");
+          System.out.println("getavailableunfreezecount [owner_address] ");
           return ;
         }
     }
 
-    Optional<GetAvailableUnfreezeCountResponseMessage> result = walletApiWrapper.getAvailableUnfreezeCount(ownerAddress);
+    Optional<GetAvailableUnfreezeCountResponseMessage> result = WalletApi.getAvailableUnfreezeCount(ownerAddress);
     if (result.isPresent()) {
       GetAvailableUnfreezeCountResponseMessage getAvailableUnfreezeCountResponseMessage = result.get();
       System.out.println(Utils.formatMessageString(getAvailableUnfreezeCountResponseMessage));

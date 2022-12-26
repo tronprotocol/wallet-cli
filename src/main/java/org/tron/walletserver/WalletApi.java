@@ -1657,27 +1657,18 @@ public class WalletApi {
     return rpcCli.getDelegatedResourceAccountIndexV2(ownerAddress);
   }
 
-  public Optional<GrpcAPI.CanWithdrawUnfreezeAmountResponseMessage> getCanWithdrawUnfreezeAmount(
+  public static Optional<GrpcAPI.CanWithdrawUnfreezeAmountResponseMessage> getCanWithdrawUnfreezeAmount(
           byte[] ownerAddress, long timestamp) {
-    if (ownerAddress == null) {
-      ownerAddress = this.getAddress();
-    }
     return rpcCli.getCanWithdrawUnfreezeAmount(ownerAddress, timestamp);
   }
 
-  public  Optional<GrpcAPI.CanDelegatedMaxSizeResponseMessage> getCanDelegatedMaxSize(
+  public static Optional<GrpcAPI.CanDelegatedMaxSizeResponseMessage> getCanDelegatedMaxSize(
           byte[] ownerAddress, int type) {
-    if (ownerAddress == null) {
-      ownerAddress = this.getAddress();
-    }
     return rpcCli.getCanDelegatedMaxSize(ownerAddress, type);
   }
 
-  public Optional<GrpcAPI.GetAvailableUnfreezeCountResponseMessage> getAvailableUnfreezeCount(
+  public static Optional<GrpcAPI.GetAvailableUnfreezeCountResponseMessage> getAvailableUnfreezeCount(
           byte[] ownerAddress) {
-    if (ownerAddress == null) {
-      ownerAddress = this.getAddress();
-    }
     return rpcCli.getAvailableUnfreezeCount(ownerAddress);
   }
 
