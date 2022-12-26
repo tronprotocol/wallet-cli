@@ -1427,24 +1427,19 @@ public class Client {
         return;
       }
     } else if (parameters.length == 4 || parameters.length == 5) {
-      ownerAddress = getAddressBytes(parameters[index++]);
+      ownerAddress = getAddressBytes(parameters[index]);
       if (ownerAddress != null) {
-        balance = Long.parseLong(parameters[index++]);
-        resourceCode = Integer.parseInt(parameters[index++]);
-        receiverAddress = getAddressBytes(parameters[index++]);
-        if (receiverAddress == null) {
-          System.out.println(
-                  "delegateResource receiverAddress is invalid");
-          return;
-        }
-        if (parameters.length == 5) {
-          lock = Boolean.parseBoolean(parameters[index++]);
-        }
-      } if (ownerAddress == null) {
+        index ++;
+      }
+      balance = Long.parseLong(parameters[index++]);
+      resourceCode = Integer.parseInt(parameters[index++]);
+      receiverAddress = getAddressBytes(parameters[index++]);
+      if (receiverAddress == null) {
         System.out.println(
-                "delegateResource ownerAddress is invalid");
+            "delegateResource receiverAddress is invalid");
         return;
       }
+      lock = Boolean.parseBoolean(parameters[index++]);
     }
 
 
@@ -1719,7 +1714,13 @@ public class Client {
     byte[] ownerAddress = getAddressBytes(parameters[index]);
     if (ownerAddress != null) {
       index++;
+      if (parameters.length != 2) {
+        System.out.println("Using getCanWithdrawUnfreezeAmount command needs 2 parameters like: ");
+        System.out.println("getcanwithdrawunfreezeamount [ownerAddress] timestamp");
+        return;
+      }
     }
+
     timestamp = Long.parseLong(parameters[index++]);
     if (timestamp < 0) {
       System.out.println("Invalid param, timestamp >= 0");
@@ -1747,8 +1748,15 @@ public class Client {
     byte[] ownerAddress = getAddressBytes(parameters[index]);
     if (ownerAddress != null) {
       index++;
+      if (parameters.length < 2) {
+        System.out.println("Using getcandelegatedmaxsize command needs 2 parameters like: ");
+        System.out.println("getcandelegatedmaxsize [ownerAddress] type");
+        return ;
+      }
     }
+
     type = Integer.parseInt(parameters[index++]);
+
     if (ResourceCode.BANDWIDTH.ordinal() != type && ResourceCode.ENERGY.ordinal() != type) {
       System.out.println("getcandelegatedmaxsize param type must be: 0 or 1");
       return;
@@ -1773,6 +1781,9 @@ public class Client {
     byte[] ownerAddress = null;
     if (parameters.length == 1) {
         ownerAddress = getAddressBytes(parameters[index]);
+        if (ownerAddress == null) {
+          return ;
+        }
     }
 
     Optional<GetAvailableUnfreezeCountResponseMessage> result = walletApiWrapper.getAvailableUnfreezeCount(ownerAddress);
