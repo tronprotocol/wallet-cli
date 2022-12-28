@@ -1385,7 +1385,7 @@ wallet> getDelegatedResourceAccountIndexV2 TJAVcszse667FmSNCwU2fm6DmfM5D4AyDh
 }
 ```
 
-    > getcandelegatedmaxsize [ownerAddress] type
+    > getcandelegatedmaxsize ownerAddress type
 > get the max size that the ownerAddress can delegate use delegateResource
 
 ownerAddress
@@ -1396,13 +1396,13 @@ type
 
 Example:
 ```console
-wallet> getCanDelegatedMaxSize 0
+wallet> getCanDelegatedMaxSize TJAVcszse667FmSNCwU2fm6DmfM5D4AyDh 0
 {
 	"max_size": 999999978708334
 }
 ```
 
-    > getavailableunfreezecount [ownerAddress] 
+    > getavailableunfreezecount ownerAddress
 > get the available unfreeze count that the ownerAddress can call unfreezeBalanceV2
 
 ownerAddress
@@ -1410,13 +1410,13 @@ ownerAddress
 
 Example:
 ```console
-wallet> getAvailableUnfreezeCount
+wallet> getAvailableUnfreezeCount TJAVcszse667FmSNCwU2fm6DmfM5D4AyDh
 {
 	"count": 31
 }
 ```
 
-    > getcanwithdrawunfreezeamount [ownerAddress] timestamp
+    > getcanwithdrawunfreezeamount ownerAddress timestamp
 > get the withdraw unfreeze amount that the ownerAddress can get by  withdrawexpireunfreeze 
 
 ownerAddress
@@ -1428,7 +1428,7 @@ timestamp
 
 Example:
 ```console
-wallet> getCanWithdrawUnfreezeAmount 1671100335000
+wallet> getCanWithdrawUnfreezeAmount TJAVcszse667FmSNCwU2fm6DmfM5D4AyDh 1671100335000
 {
 	"amount": 9000000
 }
