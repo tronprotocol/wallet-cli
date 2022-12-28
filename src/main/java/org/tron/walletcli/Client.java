@@ -1444,9 +1444,12 @@ public class Client {
             "delegateResource receiverAddress is invalid");
         return;
       }
-      lock = Boolean.parseBoolean(parameters[index++]);
-    }
 
+      if (parameters.length == 5 ||
+          (ownerAddress == null && parameters.length == 4)) {
+        lock = Boolean.parseBoolean(parameters[index++]);
+      }
+    }
 
     boolean result = walletApiWrapper.delegateresource(
         ownerAddress, balance, resourceCode, receiverAddress, lock);
@@ -1708,28 +1711,54 @@ public class Client {
     }
   }
 
+  private void outputGetCanWithdrawUnfreezeAmountTip() {
+    System.out.println("Using getCanWithdrawUnfreezeAmount command needs 2 parameters like: ");
+    System.out.println("getcanwithdrawunfreezeamount ownerAddress timestamp");
+  }
+
   private void getCanWithdrawUnfreezeAmount(String[] parameters) throws CipherException, IOException, CancelException {
     if (parameters == null || !(parameters.length == 1 || parameters.length == 2)) {
-      System.out.println("Using getCanWithdrawUnfreezeAmount command needs 2 parameters like: ");
-      System.out.println("getcanwithdrawunfreezeamount [ownerAddress] timestamp");
+      this.outputGetCanWithdrawUnfreezeAmountTip();
       return;
     }
     int index = 0;
     long timestamp = 0;
-    byte[] ownerAddress = getAddressBytes(parameters[index]);
-    if (ownerAddress != null) {
-      index++;
-      if (parameters.length != 2) {
-        System.out.println("Using getCanWithdrawUnfreezeAmount command needs 2 parameters like: ");
-        System.out.println("getcanwithdrawunfreezeamount [ownerAddress] timestamp");
+    byte[] ownerAddress = null;
+
+    if (parameters.length == 1) {
+      try {
+        timestamp = Long.parseLong(parameters[index]);
+        if (timestamp < 0) {
+          System.out.println("Invalid param, timestamp >= 0");
+          return;
+        }
+      } catch (NumberFormatException nfe) {
+        this.outputGetCanWithdrawUnfreezeAmountTip();
         return;
       }
-    }
 
-    timestamp = Long.parseLong(parameters[index++]);
-    if (timestamp < 0) {
-      System.out.println("Invalid param, timestamp >= 0");
-      return;
+      ownerAddress = this.getLoginAddreess();
+      if (ownerAddress == null) {
+        System.out.println("getcanwithdrawunfreezeamount ownerAddress is invalid");
+        return ;
+      }
+    } else if (parameters.length == 2) {
+      ownerAddress = getAddressBytes(parameters[index++]);
+      if (ownerAddress == null) {
+        this.outputGetCanWithdrawUnfreezeAmountTip();
+        return;
+      }
+
+      try {
+        timestamp = Long.parseLong(parameters[index]);
+        if (timestamp < 0) {
+          System.out.println("Invalid param, timestamp >= 0");
+          return;
+        }
+      } catch (NumberFormatException nfe) {
+        this.outputGetCanWithdrawUnfreezeAmountTip();
+        return;
+      }
     }
 
     Optional<CanWithdrawUnfreezeAmountResponseMessage> result = WalletApi.getCanWithdrawUnfreezeAmount(
@@ -1742,29 +1771,55 @@ public class Client {
     }
   }
 
+
+  private void outputGetCanDelegatedMaxSizeTip() {
+    System.out.println("Using getcandelegatedmaxsize command needs 2 parameters like: ");
+    System.out.println("getcandelegatedmaxsize ownerAddress type");
+  }
+
   private void getCanDelegatedMaxSize(String[] parameters) throws CipherException, IOException, CancelException {
     if (parameters == null || !(parameters.length == 1 || parameters.length == 2)) {
-      System.out.println("Using getcandelegatedmaxsize command needs 2 parameters like: ");
-      System.out.println("getcandelegatedmaxsize [ownerAddress] type");
+      this.outputGetCanDelegatedMaxSizeTip();
       return;
     }
     int index = 0;
     int type = 0;
-    byte[] ownerAddress = getAddressBytes(parameters[index]);
-    if (ownerAddress != null) {
-      index++;
-      if (parameters.length < 2) {
-        System.out.println("Using getcandelegatedmaxsize command needs 2 parameters like: ");
-        System.out.println("getcandelegatedmaxsize [ownerAddress] type");
+    byte[] ownerAddress = null;
+
+    if (parameters.length == 1) {
+      try {
+        type = Integer.parseInt(parameters[index]);
+        if (ResourceCode.BANDWIDTH.ordinal() != type && ResourceCode.ENERGY.ordinal() != type) {
+          System.out.println("getcandelegatedmaxsize type must be: 0 or 1");
+          return;
+        }
+      } catch (NumberFormatException nfe) {
+        this.outputGetCanDelegatedMaxSizeTip();
+        return;
+      }
+
+      ownerAddress = this.getLoginAddreess();
+      if (ownerAddress == null) {
+        System.out.println("getcandelegatedmaxsize ownerAddress is invalid");
         return ;
       }
-    }
+    } else if (parameters.length == 2) {
+      ownerAddress = getAddressBytes(parameters[index++]);
+      if (ownerAddress == null) {
+        this.outputGetCanDelegatedMaxSizeTip();
+        return ;
+      }
 
-    type = Integer.parseInt(parameters[index++]);
-
-    if (ResourceCode.BANDWIDTH.ordinal() != type && ResourceCode.ENERGY.ordinal() != type) {
-      System.out.println("getcandelegatedmaxsize param type must be: 0 or 1");
-      return;
+      try {
+        type = Integer.parseInt(parameters[index]);
+        if (ResourceCode.BANDWIDTH.ordinal() != type && ResourceCode.ENERGY.ordinal() != type) {
+          System.out.println("getcandelegatedmaxsize type must be: 0 or 1");
+          return;
+        }
+      } catch (NumberFormatException nfe) {
+        this.outputGetCanDelegatedMaxSizeTip();
+        return;
+      }
     }
 
     Optional<CanDelegatedMaxSizeResponseMessage> result = WalletApi.getCanDelegatedMaxSize(ownerAddress, type);
@@ -1776,10 +1831,14 @@ public class Client {
     }
   }
 
+  private void outputGetAvailableUnfreezeCountTip() {
+    System.out.println("Using getavailableunfreezecount command needs 1 parameters like: ");
+    System.out.println("getavailableunfreezecount owner_address ");
+  }
+
   private void getAvailableUnfreezeCount(String[] parameters) throws CipherException, IOException, CancelException {
     if (parameters == null || !(parameters.length == 0 || parameters.length == 1)) {
-      System.out.println("Using getavailableunfreezecount command needs 1 parameters like: ");
-      System.out.println("getavailableunfreezecount [owner_address] ");
+      this.outputGetAvailableUnfreezeCountTip();
       return;
     }
     int index = 0;
@@ -1787,10 +1846,15 @@ public class Client {
     if (parameters.length == 1) {
         ownerAddress = getAddressBytes(parameters[index]);
         if (ownerAddress == null) {
-          System.out.println("Using getavailableunfreezecount command needs 1 parameters like: ");
-          System.out.println("getavailableunfreezecount [owner_address] ");
-          return ;
+          this.outputGetAvailableUnfreezeCountTip();
+          return;
         }
+    } else {
+      ownerAddress = this.getLoginAddreess();
+      if (ownerAddress == null) {
+        this.outputGetAvailableUnfreezeCountTip();
+        return;
+      }
     }
 
     Optional<GetAvailableUnfreezeCountResponseMessage> result = WalletApi.getAvailableUnfreezeCount(ownerAddress);
@@ -4816,6 +4880,14 @@ public class Client {
     } else {
       System.out.println("GetChainParameters failed !!");
     }
+  }
+
+  private byte[] getLoginAddreess() {
+    if (walletApiWrapper.isLoginState()) {
+      String ownerAddressStr = walletApiWrapper.getAddress();
+      return WalletApi.decodeFromBase58Check(ownerAddressStr);
+    }
+    return null;
   }
 
   private void getBlockByIdOrNum(String[] parameters) {
