@@ -779,6 +779,18 @@ public class WalletApiWrapper {
             isConstant);
   }
 
+  public boolean estimateEnergy(byte[] ownerAddress, byte[] contractAddress, long callValue,
+      byte[] data, long tokenValue, String tokenId)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: estimateEnergy failed, Please login first !!");
+      return false;
+    }
+
+    return wallet
+        .estimateEnergy(ownerAddress, contractAddress, callValue, data, tokenValue, tokenId);
+  }
+
   public boolean accountPermissionUpdate(byte[] ownerAddress, String permission)
       throws IOException, CipherException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
