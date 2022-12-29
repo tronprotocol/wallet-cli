@@ -583,37 +583,6 @@ public class WalletApiWrapper {
     return wallet.unDelegateResource(ownerAddress, balance, resourceCode, receiverAddress);
   }
 
-  public Optional<GrpcAPI.CanWithdrawUnfreezeAmountResponseMessage> getCanWithdrawUnfreezeAmount(
-          byte[] ownerAddress, long timestamp)
-          throws CipherException, IOException, CancelException {
-    if (wallet == null || !wallet.isLoginState()) {
-      System.out.println("Warning: getCanWithdrawUnfreezeAmount failed, Please login first !!");
-      return Optional.empty();
-    }
-
-    return wallet.getCanWithdrawUnfreezeAmount(ownerAddress, timestamp);
-  }
-
-  public Optional<GrpcAPI.CanDelegatedMaxSizeResponseMessage> getCanDelegatedMaxSize(byte[] ownerAddress, int type)
-          throws CipherException, IOException, CancelException {
-    if (wallet == null || !wallet.isLoginState()) {
-      System.out.println("Warning: getCanDelegatedMaxSize failed, Please login first !!");
-      return Optional.empty();
-    }
-
-    return wallet.getCanDelegatedMaxSize(ownerAddress, type);
-  }
-
-  public Optional<GrpcAPI.GetAvailableUnfreezeCountResponseMessage> getAvailableUnfreezeCount(byte[] ownerAddress)
-          throws CipherException, IOException, CancelException {
-    if (wallet == null || !wallet.isLoginState()) {
-      System.out.println("Warning: getAvailableUnfreezeCount failed, Please login first !!");
-      return Optional.empty();
-    }
-
-    return wallet.getAvailableUnfreezeCount(ownerAddress);
-  }
-
   public boolean unfreezeAsset(byte[] ownerAddress)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
@@ -813,6 +782,18 @@ public class WalletApiWrapper {
         .triggerContract(ownerAddress, contractAddress, callValue, data, feeLimit, tokenValue,
             tokenId,
             isConstant);
+  }
+
+  public boolean estimateEnergy(byte[] ownerAddress, byte[] contractAddress, long callValue,
+      byte[] data, long tokenValue, String tokenId)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: estimateEnergy failed, Please login first !!");
+      return false;
+    }
+
+    return wallet
+        .estimateEnergy(ownerAddress, contractAddress, callValue, data, tokenValue, tokenId);
   }
 
   public boolean accountPermissionUpdate(byte[] ownerAddress, String permission)
