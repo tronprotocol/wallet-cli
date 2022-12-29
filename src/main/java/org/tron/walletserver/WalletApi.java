@@ -44,6 +44,7 @@ import org.tron.api.GrpcAPI.DelegatedResourceList;
 import org.tron.api.GrpcAPI.DiversifierMessage;
 import org.tron.api.GrpcAPI.EasyTransferResponse;
 import org.tron.api.GrpcAPI.EmptyMessage;
+import org.tron.api.GrpcAPI.EstimateEnergyMessage;
 import org.tron.api.GrpcAPI.ExchangeList;
 import org.tron.api.GrpcAPI.ExpandedSpendingKeyMessage;
 import org.tron.api.GrpcAPI.IncomingViewingKeyDiversifierMessage;
@@ -2374,6 +2375,39 @@ public class WalletApi {
     transactionExtention = texBuilder.build();
 
     return processTransactionExtention(transactionExtention);
+  }
+
+  public boolean estimateEnergy(
+      byte[] owner,
+      byte[] contractAddress,
+      long callValue,
+      byte[] data,
+      long tokenValue,
+      String tokenId)
+      throws IOException, CipherException, CancelException {
+    if (owner == null) {
+      owner = getAddress();
+    }
+
+    TriggerSmartContract triggerContract = triggerCallContract(owner, contractAddress, callValue,
+        data, tokenValue, tokenId);
+
+    EstimateEnergyMessage estimateEnergyMessage = rpcCli.estimateEnergy(triggerContract);
+
+    if (estimateEnergyMessage == null) {
+      System.out.println("RPC create call trx failed!");
+      return false;
+    }
+
+    if (!estimateEnergyMessage.getResult().getResult()) {
+      System.out.println("RPC estimate energy failed!");
+      System.out.println("Code = " + estimateEnergyMessage.getResult().getCode());
+      System.out
+          .println("Message = " + estimateEnergyMessage.getResult().getMessage().toStringUtf8());
+      return false;
+    }
+    System.out.println("Estimate energy result = " + Utils.formatMessageString(estimateEnergyMessage));
+    return true;
   }
 
   public static SmartContract getContract(byte[] address) {

@@ -93,6 +93,7 @@ public class Client {
       "DelegateResource",
       "DeleteProposal",
       "DeployContract contractName ABI byteCode constructor params isHex fee_limit consume_user_resource_percent origin_energy_limit value token_value token_id <library:address,library:address,...> <lib_compiler_version(e.g:v5)>",
+      "EstimateEnergy",
       "ExchangeCreate",
       "ExchangeInject",
       "ExchangeTransaction",
@@ -234,6 +235,7 @@ public class Client {
       "DelegateResource",
       "DeleteProposal",
       "DeployContract",
+      "EstimateEnergy",
       "ExchangeCreate",
       "ExchangeInject",
       "ExchangeTransaction",
@@ -2734,6 +2736,65 @@ public class Client {
         ownerAddress, contractAddress, callValue, input, 0, tokenValue, tokenId, true);
   }
 
+  private void estimateEnergy(String[] parameters)
+      throws IOException, CipherException, CancelException  {
+
+    if (parameters == null || (parameters.length != 5 && parameters.length != 8)) {
+      System.out.println("EstimateEnergy needs 5 or 8 parameters like: ");
+      System.out.println("EstimateEnergy ownerAddress(use # if you own)"
+          + " contractAddress method args isHex "
+          + "[value token_value token_id(e.g: TRXTOKEN, use # if don't provided)]");
+      return;
+    }
+
+    int idx = 0;
+
+    String ownerAddressStr = parameters[idx++];
+    byte[] ownerAddress = null;
+    if (!"#".equals(ownerAddressStr)) {
+      ownerAddress = WalletApi.decodeFromBase58Check(ownerAddressStr);
+      if (ownerAddress == null) {
+        System.out.println("Invalid Owner Address.");
+        return;
+      }
+    }
+
+    String contractAddressStr = parameters[idx++];
+    byte[] contractAddress = WalletApi.decodeFromBase58Check(contractAddressStr);
+    if (contractAddress == null) {
+      System.out.println("Invalid Contract Address.");
+      return;
+    }
+
+    String methodStr = parameters[idx++];
+    String argsStr = parameters[idx++];
+    boolean isHex = Boolean.parseBoolean(parameters[idx++]);
+    long callValue = 0;
+    long tokenValue = 0;
+    String tokenId = "";
+    if (parameters.length == 8) {
+      callValue = Long.parseLong(parameters[idx++]);
+      tokenValue = Long.parseLong(parameters[idx++]);
+      tokenId = parameters[idx];
+    }
+
+    if (argsStr.equalsIgnoreCase("#")) {
+      argsStr = "";
+    }
+
+    if (tokenId.equalsIgnoreCase("#")) {
+      tokenId = "";
+    }
+
+    byte[] input = new byte[0];
+    if (!methodStr.equalsIgnoreCase("#")) {
+      input = Hex.decode(AbiUtil.parseMethod(methodStr, argsStr, isHex));
+    }
+
+    walletApiWrapper.estimateEnergy(
+        ownerAddress, contractAddress, callValue, input, tokenValue, tokenId);
+  }
+
   private void getContract(String[] parameters) {
     if (parameters == null ||
         parameters.length != 1) {
@@ -4656,6 +4717,10 @@ public class Client {
             }
             case "triggerconstantcontract": {
               triggerConstantContract(parameters);
+              break;
+            }
+            case "estimateenergy": {
+              estimateEnergy(parameters);
               break;
             }
             case "getcontract": {

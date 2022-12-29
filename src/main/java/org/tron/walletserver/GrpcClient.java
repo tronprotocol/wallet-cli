@@ -937,6 +937,10 @@ public class GrpcClient {
     return blockingStubFull.triggerConstantContract(request);
   }
 
+  public EstimateEnergyMessage estimateEnergy(TriggerSmartContract request) {
+    return blockingStubFull.estimateEnergy(request);
+  }
+
   public SmartContract getContract(byte[] address) {
     ByteString byteString = ByteString.copyFrom(address);
     BytesMessage bytesMessage = BytesMessage.newBuilder().setValue(byteString).build();
