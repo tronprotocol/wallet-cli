@@ -595,7 +595,6 @@ public class Client {
     if (account == null) {
       System.out.println("GetAccount failed !!!!");
     } else {
-      System.out.println("Bytes: " + Hex.toHexString(account.toByteArray()));
       System.out.println(Utils.formatMessageString(account));
     }
   }
@@ -2107,7 +2106,6 @@ public class Client {
     Optional<Transaction> result = WalletApi.getTransactionById(txid);
     if (result.isPresent()) {
       Transaction transaction = result.get();
-      System.out.println("RawData Hex: " + Hex.toHexString(transaction.getRawData().toByteArray()));
       System.out.println(Utils.printTransaction(transaction));
     } else {
       System.out.println("GetTransactionById failed !!");
@@ -2895,6 +2893,7 @@ public class Client {
 
     SmartContract contractDeployContract = WalletApi.getContract(addressBytes);
     if (contractDeployContract != null) {
+      contractDeployContract = contractDeployContract.toBuilder().clearAbi().build();
       System.out.println(Utils.formatMessageString(contractDeployContract));
     } else {
       System.out.println("Query contract failed !!!");
@@ -2917,6 +2916,10 @@ public class Client {
 
     SmartContractDataWrapper contractDeployContract = WalletApi.getContractInfo(addressBytes);
     if (contractDeployContract != null) {
+      SmartContract contract = contractDeployContract.getSmartContract()
+          .toBuilder().clearAbi().build();
+      contractDeployContract = contractDeployContract
+          .toBuilder().setSmartContract(contract).build();
       System.out.println(Utils.formatMessageString(contractDeployContract));
     } else {
       System.out.println("Query contract failed !!!");
@@ -5011,18 +5014,28 @@ public class Client {
               break;
             }
             default: {
-              //System.out.println("Invalid cmd: " + cmd);
-              //help();
               if (cmd.contains("0x") || cmd.contains("0X")) {
                 cmd = cmd.substring(2);
               }
               if (cmd.length() == 64) {
+                System.out.println("---[Tx]---");
+                getTransactionById(new String[]{cmd});
+                System.out.println("---[TxInfo]---");
                 getTransactionInfoById(new String[]{cmd});
               } else if (cmd.length() == 34 && cmd.charAt(0) == 'T') {
+                System.out.println("---[Contract]---");
                 getContractInfo(new String[]{cmd});
+                System.out.println("---[Account]---");
+                getAccount(new String[]{cmd});
               } else {
-                deployContract(new String[]{"Shabi", "[]", cmdLowerCase,
-                    "#", "#", "false", "1000000000", "100", "1", "0", "0", "#"});
+                try {
+                  Hex.decode(cmd);
+                  deployContract(new String[]{"Shabi", "[]", cmdLowerCase,
+                      "#", "#", "false", "1000000000", "100", "1", "0", "0", "#"});
+                } catch (Exception ignored) {
+                  System.out.println("Invalid cmd: " + cmd);
+                  help();
+                }
               }
             }
           }
