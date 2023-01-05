@@ -4363,7 +4363,8 @@ public class Client {
         || cmdLine.toLowerCase().startsWith("deployconstantcontract")
         || cmdLine.toLowerCase().startsWith("triggercontract")
         || cmdLine.toLowerCase().startsWith("triggerconstantcontract")
-        || cmdLine.toLowerCase().startsWith("updateaccountpermission")) {
+        || cmdLine.toLowerCase().startsWith("updateaccountpermission")
+        || cmdLine.toLowerCase().startsWith("estimateenergy")) {
       return cmdLine.split("\\s+", -1);
     }
     String[] strArray = cmdLine.split("\"");
