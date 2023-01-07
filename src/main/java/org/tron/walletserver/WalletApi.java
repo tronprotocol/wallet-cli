@@ -32,6 +32,7 @@ import org.tron.api.GrpcAPI.DelegatedResourceList;
 import org.tron.api.GrpcAPI.DiversifierMessage;
 import org.tron.api.GrpcAPI.EasyTransferResponse;
 import org.tron.api.GrpcAPI.EmptyMessage;
+import org.tron.api.GrpcAPI.EstimateEnergyMessage;
 import org.tron.api.GrpcAPI.ExchangeList;
 import org.tron.api.GrpcAPI.ExpandedSpendingKeyMessage;
 import org.tron.api.GrpcAPI.IncomingViewingKeyDiversifierMessage;
@@ -1705,27 +1706,18 @@ public class WalletApi {
     return rpcCli.getDelegatedResourceAccountIndexV2(ownerAddress);
   }
 
-  public Optional<GrpcAPI.CanWithdrawUnfreezeAmountResponseMessage> getCanWithdrawUnfreezeAmount(
+  public static Optional<GrpcAPI.CanWithdrawUnfreezeAmountResponseMessage> getCanWithdrawUnfreezeAmount(
           byte[] ownerAddress, long timestamp) {
-    if (ownerAddress == null) {
-      ownerAddress = this.getAddress();
-    }
     return rpcCli.getCanWithdrawUnfreezeAmount(ownerAddress, timestamp);
   }
 
-  public  Optional<GrpcAPI.CanDelegatedMaxSizeResponseMessage> getCanDelegatedMaxSize(
+  public static Optional<GrpcAPI.CanDelegatedMaxSizeResponseMessage> getCanDelegatedMaxSize(
           byte[] ownerAddress, int type) {
-    if (ownerAddress == null) {
-      ownerAddress = this.getAddress();
-    }
     return rpcCli.getCanDelegatedMaxSize(ownerAddress, type);
   }
 
-  public Optional<GrpcAPI.GetAvailableUnfreezeCountResponseMessage> getAvailableUnfreezeCount(
+  public static Optional<GrpcAPI.GetAvailableUnfreezeCountResponseMessage> getAvailableUnfreezeCount(
           byte[] ownerAddress) {
-    if (ownerAddress == null) {
-      ownerAddress = this.getAddress();
-    }
     return rpcCli.getAvailableUnfreezeCount(ownerAddress);
   }
 
@@ -2429,6 +2421,39 @@ public class WalletApi {
     transactionExtention = texBuilder.build();
 
     return processTransactionExtention(transactionExtention);
+  }
+
+  public boolean estimateEnergy(
+      byte[] owner,
+      byte[] contractAddress,
+      long callValue,
+      byte[] data,
+      long tokenValue,
+      String tokenId)
+      throws IOException, CipherException, CancelException {
+    if (owner == null) {
+      owner = getAddress();
+    }
+
+    TriggerSmartContract triggerContract = triggerCallContract(owner, contractAddress, callValue,
+        data, tokenValue, tokenId);
+
+    EstimateEnergyMessage estimateEnergyMessage = rpcCli.estimateEnergy(triggerContract);
+
+    if (estimateEnergyMessage == null) {
+      System.out.println("RPC create call trx failed!");
+      return false;
+    }
+
+    if (!estimateEnergyMessage.getResult().getResult()) {
+      System.out.println("RPC estimate energy failed!");
+      System.out.println("Code = " + estimateEnergyMessage.getResult().getCode());
+      System.out
+          .println("Message = " + estimateEnergyMessage.getResult().getMessage().toStringUtf8());
+      return false;
+    }
+    System.out.println("Estimate energy result = " + Utils.formatMessageString(estimateEnergyMessage));
+    return true;
   }
 
   public static SmartContract getContract(byte[] address) {

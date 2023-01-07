@@ -611,6 +611,7 @@ public class WalletApiWrapper {
   }
 
 
+
   public boolean unfreezeAsset(byte[] ownerAddress)
       throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
@@ -810,6 +811,18 @@ public class WalletApiWrapper {
         .triggerContract(ownerAddress, contractAddress, callValue, data, feeLimit, tokenValue,
             tokenId,
             isConstant);
+  }
+
+  public boolean estimateEnergy(byte[] ownerAddress, byte[] contractAddress, long callValue,
+      byte[] data, long tokenValue, String tokenId)
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: estimateEnergy failed, Please login first !!");
+      return false;
+    }
+
+    return wallet
+        .estimateEnergy(ownerAddress, contractAddress, callValue, data, tokenValue, tokenId);
   }
 
   public boolean accountPermissionUpdate(byte[] ownerAddress, String permission)
