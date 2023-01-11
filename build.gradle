@@ -89,7 +89,7 @@ dependencies {
     compile group: 'org.projectlombok', name: 'lombok', version: '1.18.2'
 
     compile group: 'org.jline', name: 'jline', version: '3.15.0'
-    compile 'com.github.tronprotocol:zksnark-java-sdk:master-SNAPSHOT'
+    compile 'io.github.tronprotocol:zksnark-java-sdk:1.0.0'
 }
 
 protobuf {
