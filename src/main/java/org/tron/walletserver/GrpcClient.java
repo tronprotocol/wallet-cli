@@ -43,6 +43,7 @@ import org.tron.protos.contract.AssetIssueContractOuterClass.ParticipateAssetIss
 import org.tron.protos.contract.AssetIssueContractOuterClass.TransferAssetContract;
 import org.tron.protos.contract.AssetIssueContractOuterClass.UnfreezeAssetContract;
 import org.tron.protos.contract.AssetIssueContractOuterClass.UpdateAssetContract;
+import org.tron.protos.contract.BalanceContract;
 import org.tron.protos.contract.BalanceContract.FreezeBalanceContract;
 import org.tron.protos.contract.BalanceContract.TransferContract;
 import org.tron.protos.contract.BalanceContract.UnfreezeBalanceContract;
@@ -263,6 +264,10 @@ public class GrpcClient {
     return blockingStubFull.freezeBalance2(contract);
   }
 
+  public TransactionExtention createTransaction2(BalanceContract.FreezeBalanceV2Contract contract) {
+    return blockingStubFull.freezeBalanceV2(contract);
+  }
+
   public Transaction createTransaction(WithdrawBalanceContract contract) {
     return blockingStubFull.withdrawBalance(contract);
   }
@@ -277,6 +282,22 @@ public class GrpcClient {
 
   public TransactionExtention createTransaction2(UnfreezeBalanceContract contract) {
     return blockingStubFull.unfreezeBalance2(contract);
+  }
+
+  public TransactionExtention createTransactionV2(BalanceContract.UnfreezeBalanceV2Contract contract) {
+    return blockingStubFull.unfreezeBalanceV2(contract);
+  }
+
+  public TransactionExtention createTransactionV2(BalanceContract.WithdrawExpireUnfreezeContract contract) {
+    return blockingStubFull.withdrawExpireUnfreeze(contract);
+  }
+
+  public TransactionExtention createTransactionV2(BalanceContract.DelegateResourceContract contract) {
+    return blockingStubFull.delegateResource(contract);
+  }
+
+  public TransactionExtention createTransactionV2(BalanceContract.UnDelegateResourceContract contract) {
+    return blockingStubFull.unDelegateResource(contract);
   }
 
   public Transaction createTransaction(UnfreezeAssetContract contract) {
@@ -360,6 +381,104 @@ public class GrpcClient {
     return Optional.ofNullable(delegatedResource);
   }
 
+  public Optional<DelegatedResourceAccountIndex> getDelegatedResourceAccountIndex(String ownerAddress) {
+    ByteString ownerAddressBS = ByteString.copyFrom(
+            Objects.requireNonNull(WalletApi.decodeFromBase58Check(ownerAddress)));
+
+    BytesMessage request = BytesMessage.newBuilder()
+            .setValue(ownerAddressBS)
+            .build();
+    DelegatedResourceAccountIndex delegatedResourceAccountIndex;
+    if (blockingStubSolidity != null) {
+      delegatedResourceAccountIndex = blockingStubSolidity.getDelegatedResourceAccountIndex(request);
+    } else {
+      delegatedResourceAccountIndex = blockingStubFull.getDelegatedResourceAccountIndex(request);
+    }
+    return Optional.ofNullable(delegatedResourceAccountIndex);
+  }
+
+  public Optional<DelegatedResourceList> getDelegatedResourceV2(String fromAddress,
+                                                              String toAddress) {
+    ByteString fromAddressBS = ByteString.copyFrom(
+            Objects.requireNonNull(WalletApi.decodeFromBase58Check(fromAddress)));
+    ByteString toAddressBS = ByteString.copyFrom(
+            Objects.requireNonNull(WalletApi.decodeFromBase58Check(toAddress)));
+
+    DelegatedResourceMessage request = DelegatedResourceMessage.newBuilder()
+            .setFromAddress(fromAddressBS)
+            .setToAddress(toAddressBS)
+            .build();
+    DelegatedResourceList delegatedResource;
+    if (blockingStubSolidity != null) {
+      delegatedResource = blockingStubSolidity.getDelegatedResourceV2(request);
+    } else {
+      delegatedResource = blockingStubFull.getDelegatedResourceV2(request);
+    }
+    return Optional.ofNullable(delegatedResource);
+  }
+
+  public Optional<DelegatedResourceAccountIndex> getDelegatedResourceAccountIndexV2(String ownerAddress) {
+    ByteString ownerAddressBS = ByteString.copyFrom(
+            Objects.requireNonNull(WalletApi.decodeFromBase58Check(ownerAddress)));
+
+    BytesMessage request = BytesMessage.newBuilder()
+            .setValue(ownerAddressBS)
+            .build();
+    DelegatedResourceAccountIndex delegatedResourceAccountIndex;
+    if (blockingStubSolidity != null) {
+      delegatedResourceAccountIndex = blockingStubSolidity.getDelegatedResourceAccountIndexV2(request);
+    } else {
+      delegatedResourceAccountIndex = blockingStubFull.getDelegatedResourceAccountIndexV2(request);
+    }
+    return Optional.ofNullable(delegatedResourceAccountIndex);
+  }
+
+  public Optional<CanDelegatedMaxSizeResponseMessage> getCanDelegatedMaxSize(
+          byte[] ownerAddress, int type) {
+    ByteString ownerAddressBS = ByteString.copyFrom(ownerAddress);
+    CanDelegatedMaxSizeRequestMessage request = CanDelegatedMaxSizeRequestMessage.newBuilder()
+            .setOwnerAddress(ownerAddressBS)
+            .setType(type)
+            .build();
+    CanDelegatedMaxSizeResponseMessage canDelegatedMaxSizeResponseMessage;
+    if (blockingStubSolidity != null) {
+      canDelegatedMaxSizeResponseMessage = blockingStubSolidity.getCanDelegatedMaxSize(request);
+    } else {
+      canDelegatedMaxSizeResponseMessage = blockingStubFull.getCanDelegatedMaxSize(request);
+    }
+    return Optional.ofNullable(canDelegatedMaxSizeResponseMessage);
+  }
+
+  public Optional<CanWithdrawUnfreezeAmountResponseMessage> getCanWithdrawUnfreezeAmount(
+          byte[] ownerAddress, long timestamp) {
+    ByteString ownerAddressBS = ByteString.copyFrom(ownerAddress);
+    CanWithdrawUnfreezeAmountRequestMessage request = CanWithdrawUnfreezeAmountRequestMessage.newBuilder()
+            .setOwnerAddress(ownerAddressBS)
+            .setTimestamp(timestamp)
+            .build();
+    CanWithdrawUnfreezeAmountResponseMessage canDelegatedMaxSizeResponseMessage;
+    if (blockingStubSolidity != null) {
+      canDelegatedMaxSizeResponseMessage = blockingStubSolidity.getCanWithdrawUnfreezeAmount(request);
+    } else {
+      canDelegatedMaxSizeResponseMessage = blockingStubFull.getCanWithdrawUnfreezeAmount(request);
+    }
+    return Optional.ofNullable(canDelegatedMaxSizeResponseMessage);
+  }
+
+  public Optional<GetAvailableUnfreezeCountResponseMessage> getAvailableUnfreezeCount(
+          byte[] ownerAddress) {
+    ByteString ownerAddressBS = ByteString.copyFrom(ownerAddress);
+    GetAvailableUnfreezeCountRequestMessage request = GetAvailableUnfreezeCountRequestMessage.newBuilder()
+            .setOwnerAddress(ownerAddressBS)
+            .build();
+    GetAvailableUnfreezeCountResponseMessage getAvailableUnfreezeCountResponseMessage;
+    if (blockingStubSolidity != null) {
+      getAvailableUnfreezeCountResponseMessage = blockingStubSolidity.getAvailableUnfreezeCount(request);
+    } else {
+      getAvailableUnfreezeCountResponseMessage = blockingStubFull.getAvailableUnfreezeCount(request);
+    }
+    return Optional.ofNullable(getAvailableUnfreezeCountResponseMessage);
+  }
 
   public Optional<ExchangeList> listExchanges() {
     ExchangeList exchangeList;
@@ -816,6 +935,10 @@ public class GrpcClient {
 
   public TransactionExtention triggerConstantContract(TriggerSmartContract request) {
     return blockingStubFull.triggerConstantContract(request);
+  }
+
+  public EstimateEnergyMessage estimateEnergy(TriggerSmartContract request) {
+    return blockingStubFull.estimateEnergy(request);
   }
 
   public SmartContract getContract(byte[] address) {
