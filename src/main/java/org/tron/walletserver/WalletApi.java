@@ -11,10 +11,23 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigObject;
 import io.grpc.Status;
+import java.io.File;
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Scanner;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.spongycastle.util.encoders.Hex;
+import org.bouncycastle.util.encoders.Hex;
 import org.tron.api.GrpcAPI;
 import org.tron.api.GrpcAPI.AccountNetMessage;
 import org.tron.api.GrpcAPI.AccountResourceMessage;
@@ -31,18 +44,19 @@ import org.tron.api.GrpcAPI.DelegatedResourceList;
 import org.tron.api.GrpcAPI.DiversifierMessage;
 import org.tron.api.GrpcAPI.EasyTransferResponse;
 import org.tron.api.GrpcAPI.EmptyMessage;
+import org.tron.api.GrpcAPI.EstimateEnergyMessage;
 import org.tron.api.GrpcAPI.ExchangeList;
 import org.tron.api.GrpcAPI.ExpandedSpendingKeyMessage;
 import org.tron.api.GrpcAPI.IncomingViewingKeyDiversifierMessage;
 import org.tron.api.GrpcAPI.IncomingViewingKeyMessage;
 import org.tron.api.GrpcAPI.IvkDecryptAndMarkParameters;
 import org.tron.api.GrpcAPI.IvkDecryptParameters;
+import org.tron.api.GrpcAPI.IvkDecryptTRC20Parameters;
 import org.tron.api.GrpcAPI.NfParameters;
 import org.tron.api.GrpcAPI.NfTRC20Parameters;
 import org.tron.api.GrpcAPI.NodeList;
 import org.tron.api.GrpcAPI.NoteParameters;
 import org.tron.api.GrpcAPI.NullifierResult;
-import org.tron.api.GrpcAPI.IvkDecryptTRC20Parameters;
 import org.tron.api.GrpcAPI.OvkDecryptParameters;
 import org.tron.api.GrpcAPI.OvkDecryptTRC20Parameters;
 import org.tron.api.GrpcAPI.PaymentAddressMessage;
@@ -52,10 +66,10 @@ import org.tron.api.GrpcAPI.PrivateShieldedTRC20Parameters;
 import org.tron.api.GrpcAPI.PrivateShieldedTRC20ParametersWithoutAsk;
 import org.tron.api.GrpcAPI.ProposalList;
 import org.tron.api.GrpcAPI.Return;
-import org.tron.api.GrpcAPI.SpendAuthSigParameters;
-import org.tron.api.GrpcAPI.SpendResult;
 import org.tron.api.GrpcAPI.ShieldedTRC20Parameters;
 import org.tron.api.GrpcAPI.ShieldedTRC20TriggerContractParameters;
+import org.tron.api.GrpcAPI.SpendAuthSigParameters;
+import org.tron.api.GrpcAPI.SpendResult;
 import org.tron.api.GrpcAPI.TransactionApprovedList;
 import org.tron.api.GrpcAPI.TransactionExtention;
 import org.tron.api.GrpcAPI.TransactionInfoList;
@@ -79,17 +93,29 @@ import org.tron.core.config.Configuration;
 import org.tron.core.config.Parameter.CommonConstant;
 import org.tron.core.exception.CancelException;
 import org.tron.core.exception.CipherException;
-import org.tron.protos.Protocol.MarketOrder;
-import org.tron.protos.Protocol.MarketOrderList;
-import org.tron.protos.Protocol.MarketOrderPairList;
-import org.tron.protos.Protocol.MarketPriceList;
-import org.tron.protos.Protocol.Transaction.Contract.ContractType;
-import org.tron.protos.Protocol.Transaction.Result;
 import org.tron.keystore.CheckStrength;
 import org.tron.keystore.Credentials;
 import org.tron.keystore.Wallet;
 import org.tron.keystore.WalletFile;
 import org.tron.keystore.WalletUtils;
+import org.tron.protos.Protocol;
+import org.tron.protos.Protocol.Account;
+import org.tron.protos.Protocol.Block;
+import org.tron.protos.Protocol.ChainParameters;
+import org.tron.protos.Protocol.Exchange;
+import org.tron.protos.Protocol.Key;
+import org.tron.protos.Protocol.MarketOrder;
+import org.tron.protos.Protocol.MarketOrderList;
+import org.tron.protos.Protocol.MarketOrderPairList;
+import org.tron.protos.Protocol.MarketPriceList;
+import org.tron.protos.Protocol.Permission;
+import org.tron.protos.Protocol.Proposal;
+import org.tron.protos.Protocol.Transaction;
+import org.tron.protos.Protocol.Transaction.Contract.ContractType;
+import org.tron.protos.Protocol.Transaction.Result;
+import org.tron.protos.Protocol.TransactionInfo;
+import org.tron.protos.Protocol.TransactionSign;
+import org.tron.protos.Protocol.Witness;
 import org.tron.protos.contract.AccountContract.AccountCreateContract;
 import org.tron.protos.contract.AccountContract.AccountPermissionUpdateContract;
 import org.tron.protos.contract.AccountContract.AccountUpdateContract;
@@ -97,12 +123,19 @@ import org.tron.protos.contract.AccountContract.SetAccountIdContract;
 import org.tron.protos.contract.AssetIssueContractOuterClass.AssetIssueContract;
 import org.tron.protos.contract.AssetIssueContractOuterClass.ParticipateAssetIssueContract;
 import org.tron.protos.contract.AssetIssueContractOuterClass.TransferAssetContract;
+import org.tron.protos.contract.AssetIssueContractOuterClass.UnfreezeAssetContract;
 import org.tron.protos.contract.AssetIssueContractOuterClass.UpdateAssetContract;
+import org.tron.protos.contract.BalanceContract;
+import org.tron.protos.contract.BalanceContract.FreezeBalanceContract;
 import org.tron.protos.contract.BalanceContract.TransferContract;
+import org.tron.protos.contract.BalanceContract.UnfreezeBalanceContract;
+import org.tron.protos.contract.BalanceContract.WithdrawBalanceContract;
 import org.tron.protos.contract.ExchangeContract.ExchangeCreateContract;
 import org.tron.protos.contract.ExchangeContract.ExchangeInjectContract;
 import org.tron.protos.contract.ExchangeContract.ExchangeTransactionContract;
 import org.tron.protos.contract.ExchangeContract.ExchangeWithdrawContract;
+import org.tron.protos.contract.MarketContract.MarketCancelOrderContract;
+import org.tron.protos.contract.MarketContract.MarketSellAssetContract;
 import org.tron.protos.contract.ProposalContract.ProposalApproveContract;
 import org.tron.protos.contract.ProposalContract.ProposalCreateContract;
 import org.tron.protos.contract.ProposalContract.ProposalDeleteContract;
@@ -110,46 +143,20 @@ import org.tron.protos.contract.ShieldContract.IncrementalMerkleVoucherInfo;
 import org.tron.protos.contract.ShieldContract.OutputPointInfo;
 import org.tron.protos.contract.ShieldContract.ShieldedTransferContract;
 import org.tron.protos.contract.ShieldContract.SpendDescription;
-import org.tron.protos.contract.SmartContractOuterClass.SmartContractDataWrapper;
-import org.tron.protos.contract.SmartContractOuterClass.TriggerSmartContract;
-import org.tron.protos.contract.StorageContract.BuyStorageBytesContract;
-import org.tron.protos.contract.StorageContract.BuyStorageContract;
 import org.tron.protos.contract.SmartContractOuterClass.ClearABIContract;
 import org.tron.protos.contract.SmartContractOuterClass.CreateSmartContract;
-import org.tron.protos.contract.BalanceContract.FreezeBalanceContract;
-import org.tron.protos.contract.StorageContract.SellStorageContract;
-import org.tron.protos.contract.AssetIssueContractOuterClass.UnfreezeAssetContract;
-import org.tron.protos.contract.BalanceContract.UnfreezeBalanceContract;
-import org.tron.protos.contract.StorageContract.UpdateBrokerageContract;
+import org.tron.protos.contract.SmartContractOuterClass.SmartContract;
+import org.tron.protos.contract.SmartContractOuterClass.SmartContractDataWrapper;
+import org.tron.protos.contract.SmartContractOuterClass.TriggerSmartContract;
 import org.tron.protos.contract.SmartContractOuterClass.UpdateEnergyLimitContract;
 import org.tron.protos.contract.SmartContractOuterClass.UpdateSettingContract;
-import org.tron.protos.contract.BalanceContract.WithdrawBalanceContract;
-import org.tron.protos.Protocol.Account;
-import org.tron.protos.Protocol.Block;
-import org.tron.protos.Protocol.ChainParameters;
-import org.tron.protos.Protocol.DelegatedResourceAccountIndex;
-import org.tron.protos.Protocol.Exchange;
-import org.tron.protos.Protocol.Key;
-import org.tron.protos.Protocol.Permission;
-import org.tron.protos.Protocol.Proposal;
-import org.tron.protos.contract.SmartContractOuterClass.SmartContract;
-import org.tron.protos.Protocol.Transaction;
-import org.tron.protos.Protocol.TransactionInfo;
-import org.tron.protos.Protocol.TransactionSign;
-import org.tron.protos.Protocol.Witness;
+import org.tron.protos.contract.StorageContract.BuyStorageBytesContract;
+import org.tron.protos.contract.StorageContract.BuyStorageContract;
+import org.tron.protos.contract.StorageContract.SellStorageContract;
+import org.tron.protos.contract.StorageContract.UpdateBrokerageContract;
 import org.tron.protos.contract.WitnessContract.VoteWitnessContract;
 import org.tron.protos.contract.WitnessContract.WitnessCreateContract;
 import org.tron.protos.contract.WitnessContract.WitnessUpdateContract;
-import org.tron.protos.contract.MarketContract.MarketCancelOrderContract;
-import org.tron.protos.contract.MarketContract.MarketSellAssetContract;
-import org.tron.protos.contract.MarketContract.MarketSellAssetContract;
-
-import java.io.File;
-import java.io.IOException;
-import java.io.UnsupportedEncodingException;
-import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 @Slf4j
 public class WalletApi {
@@ -1291,6 +1298,20 @@ public class WalletApi {
     }
   }
 
+  public boolean freezeBalanceV2(
+          byte[] ownerAddress,
+          long frozen_balance,
+          int resourceCode)
+          throws CipherException, IOException, CancelException {
+    BalanceContract.FreezeBalanceV2Contract contract =
+            createFreezeBalanceContractV2(
+                    ownerAddress, frozen_balance, resourceCode);
+
+    TransactionExtention transactionExtention = rpcCli.createTransaction2(contract);
+    return processTransactionExtention(transactionExtention);
+  }
+
+
   public boolean buyStorage(byte[] ownerAddress, long quantity)
       throws CipherException, IOException, CancelException {
     BuyStorageContract contract = createBuyStorageContract(ownerAddress, quantity);
@@ -1335,6 +1356,23 @@ public class WalletApi {
           ByteString.copyFrom(Objects.requireNonNull(receiverAddress));
       builder.setReceiverAddress(receiverAddressBytes);
     }
+    return builder.build();
+  }
+
+  private BalanceContract.FreezeBalanceV2Contract createFreezeBalanceContractV2(
+          byte[] address,
+          long frozen_balance,
+          int resourceCode) {
+    if (address == null) {
+      address = getAddress();
+    }
+
+    BalanceContract.FreezeBalanceV2Contract.Builder builder = BalanceContract.FreezeBalanceV2Contract.newBuilder();
+    ByteString byteAddress = ByteString.copyFrom(address);
+    builder.setOwnerAddress(byteAddress)
+            .setFrozenBalance(frozen_balance)
+            .setResourceValue(resourceCode);
+
     return builder.build();
   }
 
@@ -1387,6 +1425,41 @@ public class WalletApi {
     }
   }
 
+  public boolean unfreezeBalanceV2(byte[] ownerAddress, long unfreezeBalance
+          , int resourceCode)
+          throws CipherException, IOException, CancelException {
+    BalanceContract.UnfreezeBalanceV2Contract contract =
+            createUnfreezeBalanceContractV2(ownerAddress, unfreezeBalance, resourceCode);
+      TransactionExtention transactionExtention = rpcCli.createTransactionV2(contract);
+      return processTransactionExtention(transactionExtention);
+  }
+
+  public boolean withdrawExpireUnfreeze(byte[] ownerAddress)
+          throws CipherException, IOException, CancelException {
+    BalanceContract.WithdrawExpireUnfreezeContract contract =
+            createWithdrawExpireUnfreezeContract(ownerAddress);
+    TransactionExtention transactionExtention = rpcCli.createTransactionV2(contract);
+    return processTransactionExtention(transactionExtention);
+  }
+
+  public boolean delegateResource(byte[] ownerAddress, long balance
+          ,int resourceCode, byte[] receiverAddress, boolean lock)
+          throws CipherException, IOException, CancelException {
+    BalanceContract.DelegateResourceContract contract = createDelegateResourceContract(
+        ownerAddress, balance, resourceCode, receiverAddress, lock);
+    TransactionExtention transactionExtention = rpcCli.createTransactionV2(contract);
+    return processTransactionExtention(transactionExtention);
+  }
+
+  public boolean unDelegateResource(byte[] ownerAddress, long balance
+          ,int resourceCode, byte[] receiverAddress)
+          throws CipherException, IOException, CancelException {
+    BalanceContract.UnDelegateResourceContract contract =
+            createUnDelegateResourceContract(ownerAddress, balance, resourceCode, receiverAddress);
+    TransactionExtention transactionExtention = rpcCli.createTransactionV2(contract);
+    return processTransactionExtention(transactionExtention);
+  }
+
   private UnfreezeBalanceContract createUnfreezeBalanceContract(
       byte[] address, int resourceCode, byte[] receiverAddress) {
     if (address == null) {
@@ -1403,6 +1476,72 @@ public class WalletApi {
           ByteString.copyFrom(Objects.requireNonNull(receiverAddress));
       builder.setReceiverAddress(receiverAddressBytes);
     }
+
+    return builder.build();
+  }
+
+  private BalanceContract.UnfreezeBalanceV2Contract createUnfreezeBalanceContractV2(
+          byte[] address, long unfreezeBalance, int resourceCode) {
+    if (address == null) {
+      address = getAddress();
+    }
+
+    BalanceContract.UnfreezeBalanceV2Contract.Builder builder =
+            BalanceContract.UnfreezeBalanceV2Contract.newBuilder();
+    ByteString byteAddreess = ByteString.copyFrom(address);
+    builder.setOwnerAddress(byteAddreess).setResourceValue(resourceCode).setUnfreezeBalance(unfreezeBalance);
+
+    return builder.build();
+  }
+
+  private BalanceContract.WithdrawExpireUnfreezeContract createWithdrawExpireUnfreezeContract(byte[] address) {
+    if (address == null) {
+      address = getAddress();
+    }
+
+    BalanceContract.WithdrawExpireUnfreezeContract.Builder builder =
+            BalanceContract.WithdrawExpireUnfreezeContract.newBuilder();
+    ByteString byteAddreess = ByteString.copyFrom(address);
+    builder.setOwnerAddress(byteAddreess);
+
+    return builder.build();
+  }
+
+  private BalanceContract.DelegateResourceContract createDelegateResourceContract(
+          byte[] address, long balance
+          ,int resourceCode, byte[] receiver, boolean lock) {
+    if (address == null) {
+      address = getAddress();
+    }
+
+    BalanceContract.DelegateResourceContract.Builder builder =
+            BalanceContract.DelegateResourceContract.newBuilder();
+    ByteString byteAddreess = ByteString.copyFrom(address);
+    ByteString byteReceiverAddreess = ByteString.copyFrom(receiver);
+    builder.setOwnerAddress(byteAddreess)
+            .setResourceValue(resourceCode)
+            .setBalance(balance)
+            .setReceiverAddress(byteReceiverAddreess)
+            .setLock(lock);
+
+    return builder.build();
+  }
+
+  private BalanceContract.UnDelegateResourceContract createUnDelegateResourceContract(
+          byte[] address, long balance
+          ,int resourceCode, byte[] receiver) {
+    if (address == null) {
+      address = getAddress();
+    }
+
+    BalanceContract.UnDelegateResourceContract.Builder builder =
+            BalanceContract.UnDelegateResourceContract.newBuilder();
+    ByteString byteAddreess = ByteString.copyFrom(address);
+    ByteString byteReceiverAddreess = ByteString.copyFrom(receiver);
+    builder.setOwnerAddress(byteAddreess)
+            .setResourceValue(resourceCode)
+            .setBalance(balance)
+            .setReceiverAddress(byteReceiverAddreess);
 
     return builder.build();
   }
@@ -1502,6 +1641,36 @@ public class WalletApi {
   public static Optional<DelegatedResourceList> getDelegatedResource(
       String fromAddress, String toAddress) {
     return rpcCli.getDelegatedResource(fromAddress, toAddress);
+  }
+
+  public static Optional<Protocol.DelegatedResourceAccountIndex> getDelegatedResourceAccountIndex(
+          String ownerAddress) {
+    return rpcCli.getDelegatedResourceAccountIndex(ownerAddress);
+  }
+
+  public static Optional<DelegatedResourceList> getDelegatedResourceV2(
+          String fromAddress, String toAddress) {
+    return rpcCli.getDelegatedResourceV2(fromAddress, toAddress);
+  }
+
+  public static Optional<Protocol.DelegatedResourceAccountIndex> getDelegatedResourceAccountIndexV2(
+          String ownerAddress) {
+    return rpcCli.getDelegatedResourceAccountIndexV2(ownerAddress);
+  }
+
+  public static Optional<GrpcAPI.CanWithdrawUnfreezeAmountResponseMessage> getCanWithdrawUnfreezeAmount(
+          byte[] ownerAddress, long timestamp) {
+    return rpcCli.getCanWithdrawUnfreezeAmount(ownerAddress, timestamp);
+  }
+
+  public static Optional<GrpcAPI.CanDelegatedMaxSizeResponseMessage> getCanDelegatedMaxSize(
+          byte[] ownerAddress, int type) {
+    return rpcCli.getCanDelegatedMaxSize(ownerAddress, type);
+  }
+
+  public static Optional<GrpcAPI.GetAvailableUnfreezeCountResponseMessage> getAvailableUnfreezeCount(
+          byte[] ownerAddress) {
+    return rpcCli.getAvailableUnfreezeCount(ownerAddress);
   }
 
   public static Optional<ExchangeList> listExchanges() {
@@ -1693,8 +1862,10 @@ public class WalletApi {
         return SmartContract.ABI.Entry.EntryType.Fallback;
       case "receive":
         return SmartContract.ABI.Entry.EntryType.Receive;
+      case "error":
+        return SmartContract.ABI.Entry.EntryType.Error;
       default:
-        return SmartContract.ABI.Entry.EntryType.UNRECOGNIZED;
+        return SmartContract.ABI.Entry.EntryType.UnknownEntryType;
     }
   }
 
@@ -1710,7 +1881,7 @@ public class WalletApi {
       case "payable":
         return SmartContract.ABI.Entry.StateMutabilityType.Payable;
       default:
-        return SmartContract.ABI.Entry.StateMutabilityType.UNRECOGNIZED;
+        return SmartContract.ABI.Entry.StateMutabilityType.UnknownMutabilityType;
     }
   }
 
@@ -1979,7 +2150,9 @@ public class WalletApi {
       String tokenId) {
     TriggerSmartContract.Builder builder = TriggerSmartContract.newBuilder();
     builder.setOwnerAddress(ByteString.copyFrom(address));
-    builder.setContractAddress(ByteString.copyFrom(contractAddress));
+    if (contractAddress != null) {
+      builder.setContractAddress(ByteString.copyFrom(contractAddress));
+    }
     builder.setData(ByteString.copyFrom(data));
     builder.setCallValue(callValue);
     if (tokenId != null && tokenId != "") {
@@ -2172,14 +2345,13 @@ public class WalletApi {
     Transaction transaction = transactionExtention
         .getTransaction();
     // for constant
-    if (transaction.getRetCount() != 0
-        && transactionExtention.getConstantResult(0) != null
-        && transactionExtention.getResult() != null) {
-      byte[] result = transactionExtention.getConstantResult(0).toByteArray();
-      System.out.println("message:" + transaction.getRet(0).getRet());
-      System.out.println(
-          ":" + ByteArray.toStr(transactionExtention.getResult().getMessage().toByteArray()));
-      System.out.println("Result:" + Hex.toHexString(result));
+    if (transaction.getRetCount() != 0) {
+      TransactionExtention.Builder builder =
+          transactionExtention.toBuilder().clearTransaction().clearTxid();
+      if (transaction.getRet(0).getRet() == Result.code.FAILED) {
+        builder.setResult(builder.getResult().toBuilder().setResult(false));
+      }
+      System.out.println("Execution result = " + Utils.formatMessageString(builder.build()));
       return true;
     }
 
@@ -2203,6 +2375,39 @@ public class WalletApi {
     transactionExtention = texBuilder.build();
 
     return processTransactionExtention(transactionExtention);
+  }
+
+  public boolean estimateEnergy(
+      byte[] owner,
+      byte[] contractAddress,
+      long callValue,
+      byte[] data,
+      long tokenValue,
+      String tokenId)
+      throws IOException, CipherException, CancelException {
+    if (owner == null) {
+      owner = getAddress();
+    }
+
+    TriggerSmartContract triggerContract = triggerCallContract(owner, contractAddress, callValue,
+        data, tokenValue, tokenId);
+
+    EstimateEnergyMessage estimateEnergyMessage = rpcCli.estimateEnergy(triggerContract);
+
+    if (estimateEnergyMessage == null) {
+      System.out.println("RPC create call trx failed!");
+      return false;
+    }
+
+    if (!estimateEnergyMessage.getResult().getResult()) {
+      System.out.println("RPC estimate energy failed!");
+      System.out.println("Code = " + estimateEnergyMessage.getResult().getCode());
+      System.out
+          .println("Message = " + estimateEnergyMessage.getResult().getMessage().toStringUtf8());
+      return false;
+    }
+    System.out.println("Estimate energy result = " + Utils.formatMessageString(estimateEnergyMessage));
+    return true;
   }
 
   public static SmartContract getContract(byte[] address) {
@@ -2797,6 +3002,10 @@ public class WalletApi {
 
   public static Optional<MarketOrder> getMarketOrderById(byte[] order) {
     return rpcCli.getMarketOrderById(order);
+  }
+
+  public static BlockExtention getBlock(String idOrNum, boolean detail) {
+    return rpcCli.getBlock(idOrNum, detail);
   }
 
 }

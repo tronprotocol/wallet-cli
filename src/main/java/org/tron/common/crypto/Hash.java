@@ -18,17 +18,16 @@
 
 package org.tron.common.crypto;
 
-import lombok.extern.slf4j.Slf4j;
-import org.tron.common.crypto.jce.TronCastleProvider;
-import org.tron.common.utils.ByteArray;
-import org.tron.walletserver.WalletApi;
+import static java.util.Arrays.copyOfRange;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.Provider;
 import java.security.Security;
-
-import static java.util.Arrays.copyOfRange;
+import lombok.extern.slf4j.Slf4j;
+import org.tron.common.crypto.jce.TronCastleProvider;
+import org.tron.common.utils.ByteArray;
+import org.tron.walletserver.WalletApi;
 
 @Slf4j
 public class Hash {
@@ -40,7 +39,7 @@ public class Hash {
 
   static {
     Security.addProvider(TronCastleProvider.getInstance());
-    CRYPTO_PROVIDER = Security.getProvider("SC");
+    CRYPTO_PROVIDER = Security.getProvider("BC");
     HASH_256_ALGORITHM_NAME = "TRON-KECCAK-256";
     HASH_512_ALGORITHM_NAME = "TRON-KECCAK-512";
   }
