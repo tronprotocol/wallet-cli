@@ -100,7 +100,6 @@ public class Client {
       "ExchangeWithdraw",
       "FreezeBalance",
       "FreezeBalanceV2",
-      "GenerateAddress",
       // "GenerateShieldedAddress",
       "GenerateShieldedTRC20Address",
       "GetAccount",
@@ -242,7 +241,6 @@ public class Client {
       "ExchangeWithdraw",
       "FreezeBalance",
       "FreezeBalanceV2",
-      "GenerateAddress",
       // "GenerateShieldedAddress",
       "GenerateShieldedTRC20Address",
       "GetAccount",
@@ -2839,15 +2837,6 @@ public class Client {
     }
   }
 
-  private void generateAddress() {
-    AddressPrKeyPairMessage result = walletApiWrapper.generateAddress();
-    if (null != result) {
-      System.out.println(Utils.formatMessageString(result));
-    } else {
-      System.out.println("GenerateAddress failed !!!");
-    }
-  }
-
   private void updateAccountPermission(String[] parameters)
       throws CipherException, IOException, CancelException {
     if (parameters == null || parameters.length != 2) {
@@ -4730,10 +4719,6 @@ public class Client {
             }
             case "getcontractinfo": {
               getContractInfo(parameters);
-              break;
-            }
-            case "generateaddress": {
-              generateAddress();
               break;
             }
             case "updateaccountpermission": {
