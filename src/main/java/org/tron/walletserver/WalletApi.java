@@ -11,19 +11,6 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigObject;
 import io.grpc.Status;
-import java.io.File;
-import java.io.IOException;
-import java.io.UnsupportedEncodingException;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Scanner;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -48,12 +35,12 @@ import org.tron.api.GrpcAPI.IncomingViewingKeyDiversifierMessage;
 import org.tron.api.GrpcAPI.IncomingViewingKeyMessage;
 import org.tron.api.GrpcAPI.IvkDecryptAndMarkParameters;
 import org.tron.api.GrpcAPI.IvkDecryptParameters;
-import org.tron.api.GrpcAPI.IvkDecryptTRC20Parameters;
 import org.tron.api.GrpcAPI.NfParameters;
 import org.tron.api.GrpcAPI.NfTRC20Parameters;
 import org.tron.api.GrpcAPI.NodeList;
 import org.tron.api.GrpcAPI.NoteParameters;
 import org.tron.api.GrpcAPI.NullifierResult;
+import org.tron.api.GrpcAPI.IvkDecryptTRC20Parameters;
 import org.tron.api.GrpcAPI.OvkDecryptParameters;
 import org.tron.api.GrpcAPI.OvkDecryptTRC20Parameters;
 import org.tron.api.GrpcAPI.PaymentAddressMessage;
@@ -63,10 +50,10 @@ import org.tron.api.GrpcAPI.PrivateShieldedTRC20Parameters;
 import org.tron.api.GrpcAPI.PrivateShieldedTRC20ParametersWithoutAsk;
 import org.tron.api.GrpcAPI.ProposalList;
 import org.tron.api.GrpcAPI.Return;
-import org.tron.api.GrpcAPI.ShieldedTRC20Parameters;
-import org.tron.api.GrpcAPI.ShieldedTRC20TriggerContractParameters;
 import org.tron.api.GrpcAPI.SpendAuthSigParameters;
 import org.tron.api.GrpcAPI.SpendResult;
+import org.tron.api.GrpcAPI.ShieldedTRC20Parameters;
+import org.tron.api.GrpcAPI.ShieldedTRC20TriggerContractParameters;
 import org.tron.api.GrpcAPI.TransactionApprovedList;
 import org.tron.api.GrpcAPI.TransactionExtention;
 import org.tron.api.GrpcAPI.TransactionInfoList;
@@ -105,9 +92,6 @@ import org.tron.protos.Protocol.MarketOrder;
 import org.tron.protos.Protocol.MarketOrderList;
 import org.tron.protos.Protocol.MarketOrderPairList;
 import org.tron.protos.Protocol.MarketPriceList;
-import org.tron.protos.Protocol.Permission;
-import org.tron.protos.Protocol.Proposal;
-import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.Transaction.Contract.ContractType;
 import org.tron.protos.Protocol.Transaction.Result;
 import org.tron.protos.Protocol.TransactionInfo;
@@ -119,19 +103,14 @@ import org.tron.protos.contract.AccountContract.SetAccountIdContract;
 import org.tron.protos.contract.AssetIssueContractOuterClass.AssetIssueContract;
 import org.tron.protos.contract.AssetIssueContractOuterClass.ParticipateAssetIssueContract;
 import org.tron.protos.contract.AssetIssueContractOuterClass.TransferAssetContract;
-import org.tron.protos.contract.AssetIssueContractOuterClass.UnfreezeAssetContract;
 import org.tron.protos.contract.AssetIssueContractOuterClass.UpdateAssetContract;
 import org.tron.protos.contract.BalanceContract;
 import org.tron.protos.contract.BalanceContract.FreezeBalanceContract;
 import org.tron.protos.contract.BalanceContract.TransferContract;
-import org.tron.protos.contract.BalanceContract.UnfreezeBalanceContract;
-import org.tron.protos.contract.BalanceContract.WithdrawBalanceContract;
 import org.tron.protos.contract.ExchangeContract.ExchangeCreateContract;
 import org.tron.protos.contract.ExchangeContract.ExchangeInjectContract;
 import org.tron.protos.contract.ExchangeContract.ExchangeTransactionContract;
 import org.tron.protos.contract.ExchangeContract.ExchangeWithdrawContract;
-import org.tron.protos.contract.MarketContract.MarketCancelOrderContract;
-import org.tron.protos.contract.MarketContract.MarketSellAssetContract;
 import org.tron.protos.contract.ProposalContract.ProposalApproveContract;
 import org.tron.protos.contract.ProposalContract.ProposalCreateContract;
 import org.tron.protos.contract.ProposalContract.ProposalDeleteContract;
@@ -139,20 +118,35 @@ import org.tron.protos.contract.ShieldContract.IncrementalMerkleVoucherInfo;
 import org.tron.protos.contract.ShieldContract.OutputPointInfo;
 import org.tron.protos.contract.ShieldContract.ShieldedTransferContract;
 import org.tron.protos.contract.ShieldContract.SpendDescription;
-import org.tron.protos.contract.SmartContractOuterClass.ClearABIContract;
-import org.tron.protos.contract.SmartContractOuterClass.CreateSmartContract;
-import org.tron.protos.contract.SmartContractOuterClass.SmartContract;
 import org.tron.protos.contract.SmartContractOuterClass.SmartContractDataWrapper;
 import org.tron.protos.contract.SmartContractOuterClass.TriggerSmartContract;
-import org.tron.protos.contract.SmartContractOuterClass.UpdateEnergyLimitContract;
-import org.tron.protos.contract.SmartContractOuterClass.UpdateSettingContract;
 import org.tron.protos.contract.StorageContract.BuyStorageBytesContract;
 import org.tron.protos.contract.StorageContract.BuyStorageContract;
+import org.tron.protos.contract.SmartContractOuterClass.ClearABIContract;
+import org.tron.protos.contract.SmartContractOuterClass.CreateSmartContract;
 import org.tron.protos.contract.StorageContract.SellStorageContract;
+import org.tron.protos.contract.AssetIssueContractOuterClass.UnfreezeAssetContract;
+import org.tron.protos.contract.BalanceContract.UnfreezeBalanceContract;
 import org.tron.protos.contract.StorageContract.UpdateBrokerageContract;
+import org.tron.protos.contract.SmartContractOuterClass.UpdateEnergyLimitContract;
+import org.tron.protos.contract.SmartContractOuterClass.UpdateSettingContract;
+import org.tron.protos.contract.BalanceContract.WithdrawBalanceContract;
+import org.tron.protos.Protocol.Permission;
+import org.tron.protos.Protocol.Proposal;
+import org.tron.protos.contract.SmartContractOuterClass.SmartContract;
+import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.contract.WitnessContract.VoteWitnessContract;
 import org.tron.protos.contract.WitnessContract.WitnessCreateContract;
 import org.tron.protos.contract.WitnessContract.WitnessUpdateContract;
+import org.tron.protos.contract.MarketContract.MarketCancelOrderContract;
+import org.tron.protos.contract.MarketContract.MarketSellAssetContract;
+import java.io.File;
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import org.tron.walletcli.Client;
 
 @Slf4j
 public class WalletApi {
@@ -162,36 +156,71 @@ public class WalletApi {
   private boolean loginState = false;
   private byte[] address;
   private static byte addressPreFixByte = CommonConstant.ADD_PRE_FIX_BYTE_TESTNET;
-  private static int rpcVersion = 0;
+  private static int rpcVersion = 2;
   private static boolean isEckey = true;
 
   private static GrpcClient rpcCli = init();
 
   public static GrpcClient init() {
     Config config = Configuration.getByPath("config.conf");
+    if(!Client.fullNode.isEmpty() && !Client.solidityNode.isEmpty()) {
+      if (config.hasPath("net.type") && "mainnet".equalsIgnoreCase(config.getString("net.type"))) {
+        WalletApi.setAddressPreFixByte(CommonConstant.ADD_PRE_FIX_BYTE_MAINNET);
+      } else {
+        WalletApi.setAddressPreFixByte(CommonConstant.ADD_PRE_FIX_BYTE_MAINNET);
+      }
+      if (config.hasPath("RPC_version")) {
+        rpcVersion = config.getInt("RPC_version");
+        System.out.println("WalletApi getRpcVsersion: " + rpcVersion);
+      }
+      if (config.hasPath("crypto.engine")) {
+        isEckey = config.getString("crypto.engine").equalsIgnoreCase("eckey");
+        System.out.println("WalletApi getConfig isEckey: " + isEckey);
+      }
+      return new GrpcClient(Client.fullNode, Client.solidityNode);
+    } else if(!Client.fullNode.isEmpty() && Client.solidityNode.isEmpty()) {
+      if (config.hasPath("net.type") && "mainnet".equalsIgnoreCase(config.getString("net.type"))) {
+        WalletApi.setAddressPreFixByte(CommonConstant.ADD_PRE_FIX_BYTE_MAINNET);
+      } else {
+        WalletApi.setAddressPreFixByte(CommonConstant.ADD_PRE_FIX_BYTE_MAINNET);
+      }
+      if (config.hasPath("RPC_version")) {
+        rpcVersion = config.getInt("RPC_version");
+        System.out.println("WalletApi getRpcVsersion: " + rpcVersion);
+      }
+      if (config.hasPath("crypto.engine")) {
+        isEckey = config.getString("crypto.engine").equalsIgnoreCase("eckey");
+        System.out.println("WalletApi getConfig isEckey: " + isEckey);
+      }
+      return new GrpcClient(Client.fullNode, "");
 
-    String fullNode = "";
-    String solidityNode = "";
-    if (config.hasPath("soliditynode.ip.list")) {
-      solidityNode = config.getStringList("soliditynode.ip.list").get(0);
-    }
-    if (config.hasPath("fullnode.ip.list")) {
-      fullNode = config.getStringList("fullnode.ip.list").get(0);
-    }
-    if (config.hasPath("net.type") && "mainnet".equalsIgnoreCase(config.getString("net.type"))) {
-      WalletApi.setAddressPreFixByte(CommonConstant.ADD_PRE_FIX_BYTE_MAINNET);
     } else {
-      WalletApi.setAddressPreFixByte(CommonConstant.ADD_PRE_FIX_BYTE_TESTNET);
+
+      String fullNode = "";
+      String solidityNode = "";
+      if (config.hasPath("soliditynode.ip.list")) {
+        solidityNode = config.getStringList("soliditynode.ip.list").get(0);
+      }
+      if (config.hasPath("fullnode.ip.list")) {
+        fullNode = config.getStringList("fullnode.ip.list").get(0);
+      }
+      if (config.hasPath("net.type") && "mainnet".equalsIgnoreCase(config.getString("net.type"))) {
+        WalletApi.setAddressPreFixByte(CommonConstant.ADD_PRE_FIX_BYTE_MAINNET);
+      } else {
+        WalletApi.setAddressPreFixByte(CommonConstant.ADD_PRE_FIX_BYTE_MAINNET);
+      }
+      if (config.hasPath("RPC_version")) {
+        rpcVersion = config.getInt("RPC_version");
+        System.out.println("WalletApi getRpcVsersion: " + rpcVersion);
+      }
+      if (config.hasPath("crypto.engine")) {
+        isEckey = config.getString("crypto.engine").equalsIgnoreCase("eckey");
+        System.out.println("WalletApi getConfig isEckey: " + isEckey);
+      }
+      return new GrpcClient(fullNode, solidityNode);
     }
-    if (config.hasPath("RPC_version")) {
-      rpcVersion = config.getInt("RPC_version");
-      System.out.println("WalletApi getRpcVsersion: " + rpcVersion);
-    }
-    if (config.hasPath("crypto.engine")) {
-      isEckey = config.getString("crypto.engine").equalsIgnoreCase("eckey");
-      System.out.println("WalletApi getConfig isEckey: " + isEckey);
-    }
-    return new GrpcClient(fullNode, solidityNode);
+
+
   }
 
   public static String selectFullNode() {
@@ -1350,6 +1379,7 @@ public class WalletApi {
     }
   }
 
+
   public boolean unfreezeBalanceV2(byte[] ownerAddress, long unfreezeBalance
           , int resourceCode)
           throws CipherException, IOException, CancelException {
@@ -1367,6 +1397,7 @@ public class WalletApi {
     return processTransactionExtention(transactionExtention);
   }
 
+
   public boolean delegateResource(byte[] ownerAddress, long balance
           ,int resourceCode, byte[] receiverAddress, boolean lock)
           throws CipherException, IOException, CancelException {
@@ -1375,6 +1406,7 @@ public class WalletApi {
     TransactionExtention transactionExtention = rpcCli.createTransactionV2(contract);
     return processTransactionExtention(transactionExtention);
   }
+
 
   public boolean unDelegateResource(byte[] ownerAddress, long balance
           ,int resourceCode, byte[] receiverAddress)
@@ -1787,10 +1819,8 @@ public class WalletApi {
         return SmartContract.ABI.Entry.EntryType.Fallback;
       case "receive":
         return SmartContract.ABI.Entry.EntryType.Receive;
-      case "error":
-        return SmartContract.ABI.Entry.EntryType.Error;
       default:
-        return SmartContract.ABI.Entry.EntryType.UnknownEntryType;
+        return SmartContract.ABI.Entry.EntryType.UNRECOGNIZED;
     }
   }
 
@@ -1806,7 +1836,7 @@ public class WalletApi {
       case "payable":
         return SmartContract.ABI.Entry.StateMutabilityType.Payable;
       default:
-        return SmartContract.ABI.Entry.StateMutabilityType.UnknownMutabilityType;
+        return SmartContract.ABI.Entry.StateMutabilityType.UNRECOGNIZED;
     }
   }
 

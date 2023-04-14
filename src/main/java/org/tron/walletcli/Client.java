@@ -71,6 +71,8 @@ import org.tron.protos.contract.Common.ResourceCode;
 
 public class Client {
 
+
+
   private WalletApiWrapper walletApiWrapper = new WalletApiWrapper();
   private static int retryTime = 3;
 
@@ -1408,6 +1410,7 @@ public class Client {
 
   private void delegateResource(String[] parameters)
           throws IOException, CipherException, CancelException {
+
     if (parameters == null || !(parameters.length == 3 || parameters.length == 4 || parameters.length == 5)) {
       System.out.println("Use delegateResource command with below syntax: ");
       System.out.println(
@@ -1417,6 +1420,7 @@ public class Client {
 
     int index = 0;
     byte[] ownerAddress = null;
+
     long balance = 0;
     int resourceCode = 0;
     byte[] receiverAddress = null;
@@ -1424,6 +1428,7 @@ public class Client {
 
     if (parameters.length == 3) {
       balance = Long.parseLong(parameters[index++]);
+
       resourceCode = Integer.parseInt(parameters[index++]);
       receiverAddress = getAddressBytes(parameters[index++]);
       if (receiverAddress == null) {
@@ -1431,6 +1436,7 @@ public class Client {
                 "delegateResource receiverAddress is invalid");
         return;
       }
+
     } else if (parameters.length == 4 || parameters.length == 5) {
       ownerAddress = getAddressBytes(parameters[index]);
       if (ownerAddress != null) {
@@ -4933,6 +4939,21 @@ public class Client {
     }
   }
 
+
+  public static String fullNode = "";
+  public static String solidityNode = "";
+
+  public Client(String fullNodeStr,String solidityStr) {
+    fullNode = fullNodeStr;
+    solidityNode = solidityStr;
+
+  }
+
+  public Client() {
+  }
+
+
+
   private byte[] getLoginAddreess() {
     if (walletApiWrapper.isLoginState()) {
       String ownerAddressStr = walletApiWrapper.getAddress();
@@ -4982,8 +5003,19 @@ public class Client {
       System.out.println(Utils.printBlockExtention(blockExtention));
   }
 
+
   public static void main(String[] args) {
-    Client cli = new Client();
+    Client cli;
+    if(args.length == 2) {
+      cli = new Client(args[0],args[1]);
+      args = new String[0];
+    } else if(args.length == 1) {
+      cli = new Client(args[0],"");
+      args = new String[0];
+    } else {
+      cli = new Client();
+    }
+
     JCommander.newBuilder()
         .addObject(cli)
         .build()
