@@ -70,15 +70,15 @@ For more information on a specific command, just type the command on terminal wh
 | [BroadcastTransaction](#Some-others) | [ChangePassword](#Wallet-related-commands)| [CreateProposal](#How-to-initiate-a-proposal) 
 | [DeleteProposal](#Cancel-the-created-proposal) | [DeployContract](#How-to-use-smart-contract) | [ExchangeCreate](#How-to-trade-on-the-exchange) |
 | [ExchangeInject](#How-to-trade-on-the-exchange) | [ExchangeTransaction](#How-to-trade-on-the-exchange) | [ExchangeWithdraw](#How-to-trade-on-the-exchange) |
-| [FreezeBalance](#How-to-delegate-resourcee) |[GetCanWithdrawUnfreezeAmount](#How-to-freezev2)| [GenerateShieldedTRC20Address](#How-to-transfer-shielded-TRC20-token)|
+| [FreezeBalance](#How-to-delegate-resourcee) | [GenerateAddress](#Account-related-commands) | [GenerateShieldedTRC20Address](#How-to-transfer-shielded-TRC20-token)|
 | [GetAccount](#Account-related-commands) |[GetAccountNet](#Account-related-commands) | [GetAccountResource](#Account-related-commands) | 
 | [GetAddress](#Account-related-commands) | [GetAkFromAsk](#How-to-transfer-shielded-TRC20-token) |[GetAssetIssueByAccount](#How-to-issue-TRC10-tokens) | 
 | [GetAssetIssueById](#How-to-issue-TRC10-tokens) | [GetAssetIssueByName](#How-to-issue-TRC10-tokens) |[GetAssetIssueListByName](#How-to-issue-TRC10-tokens) | 
 | [GetBalance](#Account-related-commands) | [GetBlock](#How-to-get-block-information) |[GetBlockById](#How-to-get-block-information) | 
 | [GetBlockByLatestNum](#How-to-get-block-information) | [GetBlockByLimitNext](#How-to-get-block-information) | [GetBrokerage](#Brokerage) | 
 | [GetContract](#How-to-use-smart-contracts) | [GetDelegatedResource](#How-to-delegate-resource) |[GetDelegatedResourceAccountIndex](#How-to-delegate-resource) | 
-| [GetDiversifier](#How-to-transfer-shielded-TRC20-token)| [GetExpandedSpendingKey](#How-to-transfer-shielded-TRC20-token)| [GetIncomingViewingKey](#How-to-transfer-shielded-TRC20-token) | 
-| [GetMarketOrderByAccount](#How-to-use-tron-dex-to-sell-asset)| [GetMarketOrderById](#How-to-use-tron-dex-to-sell-asset)| [GetMarketOrderListByPair](#How-to-use-tron-dex-to-sell-asset) | 
+| [GetDiversifier](#How-to-transfer-shielded-TRC20-token)| [GetExpandedSpendingKey](#How-to-transfer-shielded-TRC20-token)| [GetIncomingViewingKey](#How-to-transfer-shielded-TRC20-token)  | 
+| [GetMarketOrderByAccount](#How-to-use-tron-dex-to-sell-asset)| [GetMarketOrderById](#How-to-use-tron-dex-to-sell-asset)| [GetMarketOrderListByPair](#How-to-use-tron-dex-to-sell-asset)  | 
 | [GetMarketPairList](#How-to-use-tron-dex-to-sell-asset)| [GetMarketPriceByPair](#How-to-use-tron-dex-to-sell-asset)| [GetNextMaintenanceTime](#Some-others) | 
 | [GetNkFromNsk](#How-to-transfer-shielded-TRC20-token) | [GetProposal](#Get-proposal-information) | [GetShieldedPaymentAddress](#How-to-transfer-shielded-TRC20-token)| 
 | [GetSpendingKey](#How-to-transfer-shielded-TRC20-token) | [GetReward](#Brokerage) |  [GetTransactionApprovedList](#How-to-use-the-multi-signature-feature-of-wallet-cli) |
@@ -98,7 +98,7 @@ For more information on a specific command, just type the command on terminal wh
 | [UpdateAccountPermission](#How-to-use-the-multi-signature-feature-of-wallet-cli) | [VoteWitness](#How-to-vote) | [FreezeBalanceV2](#How-to-freezev2) |
 | [UnfreezeBalanceV2](#How-to-freezev2) | [DelegateResource](#How-to-freezev2) | [UnDelegateResource](#How-to-freezev2) |
 | [WithdrawExpireUnfreeze](#How-to-freezev2) | [GetDelegatedResourceV2](#How-to-freezev2) | [GetDelegatedResourceAccountIndexV2](#How-to-freezev2) |
-| [GetCanDelegatedMaxSize](#How-to-freezev2) | [GetAvailableUnfreezeCount](#How-to-freezev2) | |
+| [GetCanDelegatedMaxSize](#How-to-freezev2) | [GetAvailableUnfreezeCount](#How-to-freezev2) | [GetCanWithdrawUnfreezeAmount](#How-to-freezev2) |
 
 Type any one of the listed commands, to display how-to tips.
 
@@ -1457,6 +1457,9 @@ as: 721d63b074f18d41c147e04c952ec93467777a30b6f16745bc47a8eae5076545
 > Import wallet, you need to set a password, base64 fromat
 
 ## Account related commands
+
+**GenerateAddress**
+> Generate an address and print out the public and private keys
 
 **GetAccount**
 > Get account information based on address
