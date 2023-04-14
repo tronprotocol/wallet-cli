@@ -2849,7 +2849,7 @@ public class Client {
       SignInterface cryptoEngine = SignUtils.getGeneratedRandomSign(Utils.getRandom(), isECKey);
       byte[] priKey = cryptoEngine.getPrivateKey();
       byte[] address = cryptoEngine.getAddress();
-      String addressStr = Base58.encode(address);
+      String addressStr = WalletApi.encode58Check(address);
       String priKeyStr = ByteArray.toHexString(priKey);
       AddressPrKeyPairMessage.Builder builder = AddressPrKeyPairMessage.newBuilder();
       builder.setAddress(addressStr);
