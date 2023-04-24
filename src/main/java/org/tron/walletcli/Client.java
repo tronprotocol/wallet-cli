@@ -33,6 +33,7 @@ import org.tron.common.crypto.Sha256Sm3Hash;
 import org.tron.common.utils.AbiUtil;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.ByteUtil;
+import org.tron.common.utils.FastByteComparisons;
 import org.tron.common.utils.Utils;
 import org.tron.common.zksnark.JLibrustzcash;
 import org.tron.common.zksnark.LibrustzcashParam;
@@ -1202,7 +1203,8 @@ public class Client {
             Hex.toHexString(Sha256Sm3Hash.hash(
                 tx.getTransaction().getRawData().toByteArray())),
             tx.getTransaction().getRawData().getContract(0).getType(),
-            tx.getTransaction().getRet(0).getContractRet());
+            tx.getTransaction().getRetCount() == 0 ? "SUCCESS"
+                : tx.getTransaction().getRet(0).getContractRet());
       });
     } else {
       Block block = walletApiWrapper.getBlock(blockNum);
@@ -2123,7 +2125,46 @@ public class Client {
     Optional<TransactionInfo> result = WalletApi.getTransactionInfoById(txid);
     if (result.isPresent() && !result.get().equals(TransactionInfo.getDefaultInstance())) {
       TransactionInfo transactionInfo = result.get();
+      List<Protocol.InternalTransaction> interTxs = transactionInfo.getInternalTransactionsList();
+      transactionInfo = transactionInfo.toBuilder().clearInternalTransactions().build();
+      System.out.println("---[TxInfo]---");
       System.out.println(Utils.formatMessageString(transactionInfo));
+      System.out.println("---[InternalTx]---");
+      final byte[] contract =  transactionInfo.getContractAddress().toByteArray();
+      int maxPrefix = Integer.MIN_VALUE;
+      for (Protocol.InternalTransaction tx : interTxs) {
+        maxPrefix = Math.max(maxPrefix, tx.getDeep() * 4 + tx.getNote().size() + 3);
+      }
+      String format = "%-" + (maxPrefix + 3) + "s";
+      for (Protocol.InternalTransaction tx : interTxs) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < tx.getDeep(); i++) {
+          sb.append("  ");
+        }
+        sb.append("|_ ");
+        sb.append(new String(tx.getNote().toByteArray()));
+        for (int i = 0; i < tx.getDeep(); i++) {
+          sb.append("_1");
+        }
+        System.out.printf(format, sb);
+        System.out.print(WalletApi.encode58Check(tx.getCallerAddress().toByteArray()));
+        byte[] to = tx.getTransferToAddress().toByteArray();
+        if (FastByteComparisons.isEqual(to, contract)) {
+          System.out.print(" => ");
+        } else {
+          System.out.print(" ≠> ");
+        }
+        System.out.print(WalletApi.encode58Check(to));
+        System.out.print("  " + tx.getEnergyLeft() + "  ");
+        byte[] data = tx.getData().toByteArray();
+//        if (data.length > 4) {
+//          data = Arrays.copyOfRange(data, 0, 4);
+//        }
+        System.out.println("0x" + Hex.toHexString(data));
+      }
+      interTxs.forEach(tx -> {
+
+      });
     } else {
       System.out.println("GetTransactionInfoById failed !!!");
     }
@@ -5020,7 +5061,6 @@ public class Client {
               if (cmd.length() == 64) {
                 System.out.println("---[Tx]---");
                 getTransactionById(new String[]{cmd});
-                System.out.println("---[TxInfo]---");
                 getTransactionInfoById(new String[]{cmd});
               } else if (cmd.length() == 34 && cmd.charAt(0) == 'T') {
                 System.out.println("---[Contract]---");
