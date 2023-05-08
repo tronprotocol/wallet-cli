@@ -30,7 +30,10 @@ import org.jline.terminal.TerminalBuilder;
 import org.tron.api.GrpcAPI.*;
 import org.tron.common.crypto.Hash;
 import org.tron.common.crypto.Sha256Sm3Hash;
+import org.tron.common.crypto.SignInterface;
+import org.tron.common.crypto.SignUtils;
 import org.tron.common.utils.AbiUtil;
+import org.tron.common.utils.Base58;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.ByteUtil;
 import org.tron.common.utils.FastByteComparisons;
@@ -2967,11 +2970,20 @@ public class Client {
     }
   }
 
-  private void generateAddress() {
-    AddressPrKeyPairMessage result = walletApiWrapper.generateAddress();
-    if (null != result) {
-      System.out.println(Utils.formatMessageString(result));
-    } else {
+  private void generateAddress(String[] parameters) {
+    try {
+      boolean isECKey  = parameters == null || parameters.length == 0
+         ||  Boolean.parseBoolean(parameters[0]);
+      SignInterface cryptoEngine = SignUtils.getGeneratedRandomSign(Utils.getRandom(), isECKey);
+      byte[] priKey = cryptoEngine.getPrivateKey();
+      byte[] address = cryptoEngine.getAddress();
+      String addressStr = WalletApi.encode58Check(address);
+      String priKeyStr = ByteArray.toHexString(priKey);
+      AddressPrKeyPairMessage.Builder builder = AddressPrKeyPairMessage.newBuilder();
+      builder.setAddress(addressStr);
+      builder.setPrivateKey(priKeyStr);
+      System.out.println(Utils.formatMessageString(builder.build()));
+    } catch (Exception e) {
       System.out.println("GenerateAddress failed !!!");
     }
   }
@@ -4866,7 +4878,7 @@ public class Client {
               break;
             }
             case "generateaddress": {
-              generateAddress();
+              generateAddress(parameters);
               break;
             }
             case "updateaccountpermission": {
