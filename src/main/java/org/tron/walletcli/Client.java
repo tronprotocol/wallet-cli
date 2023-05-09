@@ -1,5 +1,7 @@
 package org.tron.walletcli;
 
+import static org.tron.protos.Protocol.Transaction.Contract.ContractType.TriggerSmartContract;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
@@ -33,7 +35,6 @@ import org.tron.common.crypto.Sha256Sm3Hash;
 import org.tron.common.crypto.SignInterface;
 import org.tron.common.crypto.SignUtils;
 import org.tron.common.utils.AbiUtil;
-import org.tron.common.utils.Base58;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.ByteUtil;
 import org.tron.common.utils.FastByteComparisons;
@@ -67,14 +68,13 @@ import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.ChainParameters;
 import org.tron.protos.Protocol.Exchange;
 import org.tron.protos.Protocol.Proposal;
+import org.tron.protos.contract.SmartContractOuterClass;
 import org.tron.protos.contract.SmartContractOuterClass.SmartContract;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.TransactionInfo;
 import org.tron.protos.contract.SmartContractOuterClass.SmartContractDataWrapper;
 import org.tron.walletserver.WalletApi;
 import org.tron.protos.contract.Common.ResourceCode;
-
-
 
 public class Client {
 
@@ -1201,14 +1201,29 @@ public class Client {
       List<TransactionExtention> txs = blockExtention.getTransactionsList();
       blockExtention = blockExtention.toBuilder().clearTransactions().build();
       System.out.println(Utils.printBlockExtention(blockExtention));
-      txs.forEach(tx -> {
-        System.out.printf("[%s]: %s - %s%n",
+      System.out.println("[Txs List]");
+      for (int i = 0; i < txs.size(); i++) {
+        TransactionExtention tx = txs.get(i + 1);
+        System.out.printf("%3d. [%s]: %s - %s%n",
+            i,
             Hex.toHexString(Sha256Sm3Hash.hash(
                 tx.getTransaction().getRawData().toByteArray())),
             tx.getTransaction().getRawData().getContract(0).getType(),
             tx.getTransaction().getRetCount() == 0 ? "SUCCESS"
                 : tx.getTransaction().getRet(0).getContractRet());
-      });
+        Transaction.Contract contract = tx.getTransaction().getRawData().getContract(0);
+        if (contract.getType() == TriggerSmartContract) {
+          try {
+            SmartContractOuterClass.TriggerSmartContract triggerContract = contract.getParameter().unpack(
+                SmartContractOuterClass.TriggerSmartContract.class);
+            System.out.printf("       |_ [%s] => [%s]%n",
+                WalletApi.encode58Check(triggerContract.getOwnerAddress().toByteArray()),
+                WalletApi.encode58Check(triggerContract.getContractAddress().toByteArray()));
+          } catch (InvalidProtocolBufferException e) {
+            throw new RuntimeException(e);
+          }
+        }
+      }
     } else {
       Block block = walletApiWrapper.getBlock(blockNum);
       if (block == null) {

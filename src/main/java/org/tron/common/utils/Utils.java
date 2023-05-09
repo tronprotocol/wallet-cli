@@ -516,7 +516,6 @@ public class Utils {
                   case TriggerSmartContract:
                     TriggerSmartContract triggerSmartContract =
                         contractParameter.unpack(TriggerSmartContract.class);
-                    System.out.println(JsonFormat.printToString(triggerSmartContract, selfType));
                     contractJson =
                         JSONObject.parseObject(
                             JsonFormat.printToString(triggerSmartContract, selfType));

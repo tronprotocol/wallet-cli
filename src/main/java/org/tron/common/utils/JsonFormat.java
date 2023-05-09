@@ -111,10 +111,12 @@ public class JsonFormat {
         generator.print(",");
       }
     }
-    if (message.getUnknownFields().asMap().size() > 0) {
-      generator.print(", ");
-    }
-    printUnknownFields(message.getUnknownFields(), generator, selfType);
+
+    // do not print UnknownFields
+    // if (message.getUnknownFields().asMap().size() > 0) {
+    //   generator.print(", ");
+    // }
+    // printUnknownFields(message.getUnknownFields(), generator, selfType);
   }
 
   /**
