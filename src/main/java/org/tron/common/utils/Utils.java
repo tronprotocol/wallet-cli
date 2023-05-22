@@ -18,6 +18,7 @@
 
 package org.tron.common.utils;
 
+import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.google.protobuf.Any;
@@ -55,6 +56,7 @@ import org.tron.protos.contract.AssetIssueContractOuterClass.ParticipateAssetIss
 import org.tron.protos.contract.AssetIssueContractOuterClass.TransferAssetContract;
 import org.tron.protos.contract.AssetIssueContractOuterClass.UnfreezeAssetContract;
 import org.tron.protos.contract.AssetIssueContractOuterClass.UpdateAssetContract;
+import org.tron.protos.contract.BalanceContract.CancelAllUnfreezeV2Contract;
 import org.tron.protos.contract.BalanceContract.FreezeBalanceContract;
 import org.tron.protos.contract.BalanceContract.TransferContract;
 import org.tron.protos.contract.BalanceContract.UnfreezeBalanceContract;
@@ -617,6 +619,12 @@ public class Utils {
                     contractJson =
                             JSONObject.parseObject(
                                     JsonFormat.printToString(unDelegateResourceContract, selfType));
+                    break;
+                  case CancelAllUnfreezeV2Contract:
+                    CancelAllUnfreezeV2Contract cancelAllUnfreezeV2Contract =
+                        contractParameter.unpack(CancelAllUnfreezeV2Contract.class);
+                    contractJson = JSON.parseObject(
+                            JsonFormat.printToString(cancelAllUnfreezeV2Contract, selfType));
                     break;
                   // new freeze end
                   // todo add other contract

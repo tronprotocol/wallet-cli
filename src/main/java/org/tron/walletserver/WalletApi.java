@@ -122,6 +122,7 @@ import org.tron.protos.contract.AssetIssueContractOuterClass.TransferAssetContra
 import org.tron.protos.contract.AssetIssueContractOuterClass.UnfreezeAssetContract;
 import org.tron.protos.contract.AssetIssueContractOuterClass.UpdateAssetContract;
 import org.tron.protos.contract.BalanceContract;
+import org.tron.protos.contract.BalanceContract.CancelAllUnfreezeV2Contract;
 import org.tron.protos.contract.BalanceContract.FreezeBalanceContract;
 import org.tron.protos.contract.BalanceContract.TransferContract;
 import org.tron.protos.contract.BalanceContract.UnfreezeBalanceContract;
@@ -1368,10 +1369,10 @@ public class WalletApi {
   }
 
   public boolean delegateResource(byte[] ownerAddress, long balance
-          ,int resourceCode, byte[] receiverAddress, boolean lock)
+          ,int resourceCode, byte[] receiverAddress, boolean lock, long lockPeriod)
           throws CipherException, IOException, CancelException {
     BalanceContract.DelegateResourceContract contract = createDelegateResourceContract(
-        ownerAddress, balance, resourceCode, receiverAddress, lock);
+        ownerAddress, balance, resourceCode, receiverAddress, lock, lockPeriod);
     TransactionExtention transactionExtention = rpcCli.createTransactionV2(contract);
     return processTransactionExtention(transactionExtention);
   }
@@ -1385,6 +1386,13 @@ public class WalletApi {
     return processTransactionExtention(transactionExtention);
   }
 
+  public boolean cancelAllUnfreezeV2()
+      throws CipherException, IOException, CancelException {
+    CancelAllUnfreezeV2Contract contract = createCancelAllUnfreezeV2Contract();
+    TransactionExtention transactionExtention = rpcCli.createTransactionV2(contract);
+    return processTransactionExtention(transactionExtention);
+  }
+
   private UnfreezeBalanceContract createUnfreezeBalanceContract(
       byte[] address, int resourceCode, byte[] receiverAddress) {
     if (address == null) {
@@ -1393,8 +1401,8 @@ public class WalletApi {
 
     UnfreezeBalanceContract.Builder builder =
         UnfreezeBalanceContract.newBuilder();
-    ByteString byteAddreess = ByteString.copyFrom(address);
-    builder.setOwnerAddress(byteAddreess).setResourceValue(resourceCode);
+    ByteString byteAddress = ByteString.copyFrom(address);
+    builder.setOwnerAddress(byteAddress).setResourceValue(resourceCode);
 
     if (receiverAddress != null) {
       ByteString receiverAddressBytes =
@@ -1413,8 +1421,8 @@ public class WalletApi {
 
     BalanceContract.UnfreezeBalanceV2Contract.Builder builder =
             BalanceContract.UnfreezeBalanceV2Contract.newBuilder();
-    ByteString byteAddreess = ByteString.copyFrom(address);
-    builder.setOwnerAddress(byteAddreess).setResourceValue(resourceCode).setUnfreezeBalance(unfreezeBalance);
+    ByteString byteAddress = ByteString.copyFrom(address);
+    builder.setOwnerAddress(byteAddress).setResourceValue(resourceCode).setUnfreezeBalance(unfreezeBalance);
 
     return builder.build();
   }
@@ -1434,20 +1442,21 @@ public class WalletApi {
 
   private BalanceContract.DelegateResourceContract createDelegateResourceContract(
           byte[] address, long balance
-          ,int resourceCode, byte[] receiver, boolean lock) {
+          ,int resourceCode, byte[] receiver, boolean lock, long lockPeriod) {
     if (address == null) {
       address = getAddress();
     }
 
     BalanceContract.DelegateResourceContract.Builder builder =
             BalanceContract.DelegateResourceContract.newBuilder();
-    ByteString byteAddreess = ByteString.copyFrom(address);
-    ByteString byteReceiverAddreess = ByteString.copyFrom(receiver);
-    builder.setOwnerAddress(byteAddreess)
+    ByteString byteAddress = ByteString.copyFrom(address);
+    ByteString byteReceiverAddress = ByteString.copyFrom(receiver);
+    builder.setOwnerAddress(byteAddress)
             .setResourceValue(resourceCode)
             .setBalance(balance)
-            .setReceiverAddress(byteReceiverAddreess)
-            .setLock(lock);
+            .setReceiverAddress(byteReceiverAddress)
+            .setLock(lock)
+            .setLockPeriod(lockPeriod);
 
     return builder.build();
   }
@@ -1461,13 +1470,20 @@ public class WalletApi {
 
     BalanceContract.UnDelegateResourceContract.Builder builder =
             BalanceContract.UnDelegateResourceContract.newBuilder();
-    ByteString byteAddreess = ByteString.copyFrom(address);
-    ByteString byteReceiverAddreess = ByteString.copyFrom(receiver);
-    builder.setOwnerAddress(byteAddreess)
+    ByteString byteAddress = ByteString.copyFrom(address);
+    ByteString byteReceiverAddress = ByteString.copyFrom(receiver);
+    builder.setOwnerAddress(byteAddress)
             .setResourceValue(resourceCode)
             .setBalance(balance)
-            .setReceiverAddress(byteReceiverAddreess);
+            .setReceiverAddress(byteReceiverAddress);
 
+    return builder.build();
+  }
+
+  private CancelAllUnfreezeV2Contract createCancelAllUnfreezeV2Contract() {
+    CancelAllUnfreezeV2Contract.Builder builder = CancelAllUnfreezeV2Contract.newBuilder();
+    ByteString byteAddress = ByteString.copyFrom(getAddress());
+    builder.setOwnerAddress(byteAddress);
     return builder.build();
   }
 
