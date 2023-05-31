@@ -160,6 +160,7 @@ public class WalletApi {
   private static boolean isEckey = true;
 
   private static GrpcClient rpcCli = init();
+  public static byte[] loginPassword;
 
   public static GrpcClient init() {
     Config config = Configuration.getByPath("config.conf");
@@ -307,6 +308,9 @@ public class WalletApi {
 
   public void setLogin() {
     loginState = true;
+  }
+  public void setPassword(byte[] passwd){
+    loginPassword = ByteString.copyFrom(passwd).toByteArray();
   }
 
   public boolean checkPassword(byte[] passwd) throws CipherException {
@@ -496,17 +500,12 @@ public class WalletApi {
     while (true) {
       System.out.println("Please choose your key for sign.");
       WalletFile walletFile = selcetWalletFileE();
-      System.out.println("Please input your password.");
-      char[] password = Utils.inputPassword(false);
-      byte[] passwd = org.tron.keystore.StringUtils.char2Byte(password);
-      org.tron.keystore.StringUtils.clear(password);
+      System.out.println("Use login password..");
       if (isEckey) {
-        transaction = TransactionUtils.sign(transaction, this.getEcKey(walletFile, passwd));
+        transaction = TransactionUtils.sign(transaction, this.getEcKey(walletFile, loginPassword));
       } else {
-        transaction = TransactionUtils.sign(transaction, this.getSM2(walletFile, passwd));
+        transaction = TransactionUtils.sign(transaction, this.getSM2(walletFile, loginPassword));
       }
-      org.tron.keystore.StringUtils.clear(passwd);
-
       TransactionSignWeight weight = getTransactionSignWeight(transaction);
       if (weight.getResult().getCode() == response_code.ENOUGH_PERMISSION) {
         break;

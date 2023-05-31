@@ -255,36 +255,34 @@ public class Utils {
   }
 
   public static char[] inputPassword(boolean checkStrength) throws IOException {
-    System.out.println("Use auto input password");
-    char[] password = "Aa123456..".toCharArray();
-    return password;
-//    Console cons = System.console();
-//    while (true) {
-//      if (cons != null) {
-//        password = cons.readPassword("password: ");
-//      } else {
-//        byte[] passwd0 = new byte[64];
-//        int len = System.in.read(passwd0, 0, passwd0.length);
-//        int i;
-//        for (i = 0; i < len; i++) {
-//          if (passwd0[i] == 0x09 || passwd0[i] == 0x0A) {
-//            break;
-//          }
-//        }
-//        byte[] passwd1 = Arrays.copyOfRange(passwd0, 0, i);
-//        password = StringUtils.byte2Char(passwd1);
-//        StringUtils.clear(passwd0);
-//        StringUtils.clear(passwd1);
-//      }
-//      if (WalletApi.passwordValid(password)) {
-//        return password;
-//      }
-//      if (!checkStrength) {
-//        return password;
-//      }
-//      StringUtils.clear(password);
-//      System.out.println("Invalid password, please input again.");
-//    }
+    char[] password;
+    Console cons = System.console();
+    while (true) {
+      if (cons != null) {
+        password = cons.readPassword("password: ");
+      } else {
+        byte[] passwd0 = new byte[64];
+        int len = System.in.read(passwd0, 0, passwd0.length);
+        int i;
+        for (i = 0; i < len; i++) {
+          if (passwd0[i] == 0x09 || passwd0[i] == 0x0A) {
+            break;
+          }
+        }
+        byte[] passwd1 = Arrays.copyOfRange(passwd0, 0, i);
+        password = StringUtils.byte2Char(passwd1);
+        StringUtils.clear(passwd0);
+        StringUtils.clear(passwd1);
+      }
+      if (WalletApi.passwordValid(password)) {
+        return password;
+      }
+      if (!checkStrength) {
+        return password;
+      }
+      StringUtils.clear(password);
+      System.out.println("Invalid password, please input again.");
+    }
   }
 
   public static byte[] generateContractAddress(Transaction trx, byte[] ownerAddress) {
