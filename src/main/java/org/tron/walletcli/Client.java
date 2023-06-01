@@ -10,10 +10,16 @@ import java.util.Base64.Encoder;
 import java.util.Map.Entry;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
+import com.alibaba.fastjson.serializer.SerializerFeature;
 import com.beust.jcommander.JCommander;
 import com.google.common.primitives.Longs;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigObject;
 import io.netty.util.internal.StringUtil;
 import org.apache.commons.lang3.ArrayUtils;
 import org.bouncycastle.util.encoders.Hex;
@@ -35,6 +41,7 @@ import org.tron.common.utils.ByteUtil;
 import org.tron.common.utils.Utils;
 import org.tron.common.zksnark.JLibrustzcash;
 import org.tron.common.zksnark.LibrustzcashParam;
+import org.tron.core.config.Configuration;
 import org.tron.core.exception.CancelException;
 import org.tron.core.exception.CipherException;
 import org.tron.core.exception.EncodingException;
@@ -78,6 +85,7 @@ public class Client {
 
   private WalletApiWrapper walletApiWrapper = new WalletApiWrapper();
   private static int retryTime = 3;
+  public static Map<String, String> paramMap = new HashMap<>();
 
   // note: this is sorted by alpha
   private static String[] commandHelp = {
@@ -467,6 +475,10 @@ public class Client {
     boolean result = walletApiWrapper.login();
     if (result) {
       System.out.println("Login successful !!!");
+      String[] params = new String[]{"#", walletApiWrapper.getAddress()};
+      r(params);
+      s();
+      System.out.println("address has saved in default parameter");
     } else {
       System.out.println("Login failed !!!");
     }
@@ -4291,6 +4303,27 @@ public class Client {
 
     System.out.println("Input any one of the listed commands, to display how-to tips.");
   }
+  public static void r(String[] parameters){
+    if (parameters.length != 2){
+      System.out.println("r command help: re [paramName] [paramValue]");
+    }
+    paramMap.put("$"+parameters[0], parameters[1]);
+  }
+  public static void s(){
+    System.out.println("Current parameter list:");
+    String jsonString = JSON.toJSONString(paramMap, SerializerFeature.PrettyFormat);
+    System.out.println(jsonString);
+  }
+  public static void c(){
+    System.out.println("clear parameters finished!");
+    paramMap.clear();
+  }
+  public static void d(String[] parameters) {
+    if (parameters.length !=1) {
+      System.out.println("only parameter key input. example: d $owner");
+    }
+    paramMap.remove("$" + parameters[0]);
+  }
 
   public static String[] getCmd(String cmdLine) {
     if (cmdLine.indexOf("\"") < 0 || cmdLine.toLowerCase().startsWith("deploycontract")
@@ -4363,9 +4396,33 @@ public class Client {
             continue;
           }
           String[] parameters = Arrays.copyOfRange(cmdArray, 1, cmdArray.length);
+          for(int i =0; i< parameters.length; i++){
+            int index = i;
+            paramMap.forEach((k,v) ->{
+              if(parameters[index].contains(k)) {
+                parameters[index] = parameters[index].replace(k, v);
+              }
+            });
+          }
           String cmdLowerCase = cmd.toLowerCase();
 
           switch (cmdLowerCase) {
+            case "r": {
+              r(parameters);
+              break;
+            }
+            case "s": {
+              s();
+              break;
+            }
+            case "c": {
+              c();
+              break;
+            }
+            case "d": {
+              d(parameters);
+              break;
+            }
             case "help": {
               help();
               break;
@@ -5042,7 +5099,6 @@ public class Client {
     } else {
       cli = new Client();
     }
-
     JCommander.newBuilder()
         .addObject(cli)
         .build()
