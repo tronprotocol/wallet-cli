@@ -123,6 +123,7 @@ public class WalletApiWrapper {
     byte[] passwd = StringUtils.char2Byte(password);
     StringUtils.clear(password);
     wallet.checkPassword(passwd);
+    wallet.setPassword(passwd);
     StringUtils.clear(passwd);
 
     if (wallet == null) {

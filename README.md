@@ -2700,3 +2700,28 @@ getTransactionInfoById b375787a098498623403c755b1399e82910385251b643811936d914c9
 	}
 }
 ```
+
+### Custom variable usage
+
+some example:
+
+add variable :
+```agsl
+r address TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW
+```
+show variable list:
+```agsl
+s
+```
+use variable:
+```agsl
+getAccount $address
+```
+delete a variable:
+```agsl
+d address
+```
+clear all variable:
+```agsl
+c
+```

@@ -750,7 +750,11 @@ public class JsonFormat {
   static String escapeBytesSelfType(ByteString input, final String fliedName) {
     //Address
     if (HttpSelfFormatFieldName.isAddressFormat(fliedName)) {
-      return WalletApi.encode58Check(input.toByteArray());
+      byte[] address = input.toByteArray();
+      if(address.length == 20) {
+        return WalletApi.encode58Check(ByteArray.fromHexString("41" + ByteArray.toHexString(address)));
+      }
+      return WalletApi.encode58Check(address);
     }
 
     //Normal String
