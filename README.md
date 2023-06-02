@@ -2705,7 +2705,7 @@ getTransactionInfoById b375787a098498623403c755b1399e82910385251b643811936d914c9
 
 some example:
 
-add variable :
+remember variable :
 ```agsl
 r address TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW
 ```

@@ -4305,7 +4305,7 @@ public class Client {
   }
   public static void r(String[] parameters){
     if (parameters.length != 2){
-      System.out.println("r command help: re [paramName] [paramValue]");
+      System.out.println("r command help: r [paramName] [paramValue]");
     }
     paramMap.put("$"+parameters[0], parameters[1]);
   }
@@ -4331,7 +4331,8 @@ public class Client {
         || cmdLine.toLowerCase().startsWith("triggercontract")
         || cmdLine.toLowerCase().startsWith("triggerconstantcontract")
         || cmdLine.toLowerCase().startsWith("updateaccountpermission")
-        || cmdLine.toLowerCase().startsWith("estimateenergy")) {
+        || cmdLine.toLowerCase().startsWith("estimateenergy")
+        || cmdLine.toLowerCase().startsWith("r")) {
       return cmdLine.split("\\s+", -1);
     }
     String[] strArray = cmdLine.split("\"");
