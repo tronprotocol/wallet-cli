@@ -2883,8 +2883,7 @@ public class Client {
 
 
   private void generateAddress(String[] parameters) {
-    return;
-/*    try {
+    try {
       boolean isECKey  = parameters == null || parameters.length == 0
          ||  Boolean.parseBoolean(parameters[0]);
       SignInterface cryptoEngine = SignUtils.getGeneratedRandomSign(Utils.getRandom(), isECKey);
@@ -2898,7 +2897,7 @@ public class Client {
       System.out.println(Utils.formatMessageString(builder.build()));
     } catch (Exception e) {
       System.out.println("GenerateAddress failed !!!");
-    }*/
+    }
   }
 
 
