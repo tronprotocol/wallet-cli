@@ -1091,6 +1091,7 @@ message GetAvailableUnfreezeCountResponseMessage {
   int64 count = 1;
 }
 
+//GetCanDelegatedMaxSize
 message CanDelegatedMaxSizeRequestMessage {
   int32 type = 1;
   bytes owner_address = 2;
@@ -1099,6 +1100,7 @@ message CanDelegatedMaxSizeResponseMessage {
   int64 max_size = 1;
 }
 
+//GetCanWithdrawUnfreezeAmount
 message CanWithdrawUnfreezeAmountRequestMessage {
   bytes owner_address = 1;
   int64 timestamp = 2;
@@ -1193,6 +1195,11 @@ message AccountResourceMessage {
 message PaginatedMessage {
   int64 offset = 1;
   int64 limit = 2;
+}
+// for only wallet-cli, do not delete
+message AddressPrKeyPairMessage {
+  string address = 1;
+  string privateKey = 2;
 }
 
 message TransactionExtention {
