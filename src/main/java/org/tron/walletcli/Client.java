@@ -1447,7 +1447,7 @@ public class Client {
         return;
       }
 
-      if (parameters.length == 5 || (ownerAddress == null && parameters.length == 4)) {
+      if ((ownerAddress != null && parameters.length == 5) || (ownerAddress == null && parameters.length == 4)) {
         lock = Boolean.parseBoolean(parameters[index++]);
       }
       if (parameters.length == 6 || (ownerAddress == null && parameters.length == 5)) {
