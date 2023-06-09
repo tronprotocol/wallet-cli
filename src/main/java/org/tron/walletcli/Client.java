@@ -25,7 +25,10 @@ import org.jline.terminal.Terminal;
 import org.jline.terminal.TerminalBuilder;
 import org.tron.api.GrpcAPI.*;
 import org.tron.common.crypto.Hash;
+import org.tron.common.crypto.SignInterface;
+import org.tron.common.crypto.SignUtils;
 import org.tron.common.utils.AbiUtil;
+import org.tron.common.utils.Base58;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.ByteUtil;
 import org.tron.common.utils.Utils;
@@ -99,6 +102,7 @@ public class Client {
       "ExchangeWithdraw",
       "FreezeBalance",
       "FreezeBalanceV2",
+      "GenerateAddress",
       // "GenerateShieldedAddress",
       "GenerateShieldedTRC20Address",
       "GetAccount",
@@ -241,6 +245,7 @@ public class Client {
       "ExchangeWithdraw",
       "FreezeBalance",
       "FreezeBalanceV2",
+      "GenerateAddress",
       // "GenerateShieldedAddress",
       "GenerateShieldedTRC20Address",
       "GetAccount",
@@ -2857,6 +2862,24 @@ public class Client {
     }
   }
 
+  private void generateAddress(String[] parameters) {
+    try {
+      boolean isECKey  = parameters == null || parameters.length == 0
+         ||  Boolean.parseBoolean(parameters[0]);
+      SignInterface cryptoEngine = SignUtils.getGeneratedRandomSign(Utils.getRandom(), isECKey);
+      byte[] priKey = cryptoEngine.getPrivateKey();
+      byte[] address = cryptoEngine.getAddress();
+      String addressStr = WalletApi.encode58Check(address);
+      String priKeyStr = ByteArray.toHexString(priKey);
+      AddressPrKeyPairMessage.Builder builder = AddressPrKeyPairMessage.newBuilder();
+      builder.setAddress(addressStr);
+      builder.setPrivateKey(priKeyStr);
+      System.out.println(Utils.formatMessageString(builder.build()));
+    } catch (Exception e) {
+      System.out.println("GenerateAddress failed !!!");
+    }
+  }
+
   private void updateAccountPermission(String[] parameters)
       throws CipherException, IOException, CancelException {
     if (parameters == null || parameters.length != 2) {
@@ -4743,6 +4766,10 @@ public class Client {
             }
             case "getcontractinfo": {
               getContractInfo(parameters);
+              break;
+            }
+            case "generateaddress": {
+              generateAddress(parameters);
               break;
             }
             case "updateaccountpermission": {
