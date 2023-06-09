@@ -112,6 +112,7 @@ public class Client {
       "ExchangeWithdraw",
       "FreezeBalance",
       "FreezeBalanceV2",
+      "GenerateAddress",
       // "GenerateShieldedAddress",
       "GenerateShieldedTRC20Address",
       "GetAccount",
@@ -254,6 +255,7 @@ public class Client {
       "ExchangeWithdraw",
       "FreezeBalance",
       "FreezeBalanceV2",
+      "GenerateAddress",
       // "GenerateShieldedAddress",
       "GenerateShieldedTRC20Address",
       "GetAccount",
@@ -2881,7 +2883,6 @@ public class Client {
     }
   }
 
-
   private void generateAddress(String[] parameters) {
     try {
       boolean isECKey  = parameters == null || parameters.length == 0
@@ -2889,7 +2890,7 @@ public class Client {
       SignInterface cryptoEngine = SignUtils.getGeneratedRandomSign(Utils.getRandom(), isECKey);
       byte[] priKey = cryptoEngine.getPrivateKey();
       byte[] address = cryptoEngine.getAddress();
-      String addressStr = Base58.encode(address);
+      String addressStr = WalletApi.encode58Check(address);
       String priKeyStr = ByteArray.toHexString(priKey);
       AddressPrKeyPairMessage.Builder builder = AddressPrKeyPairMessage.newBuilder();
       builder.setAddress(addressStr);
@@ -4834,7 +4835,6 @@ public class Client {
               getContractInfo(parameters);
               break;
             }
-
             case "generateaddress": {
               generateAddress(parameters);
               break;
