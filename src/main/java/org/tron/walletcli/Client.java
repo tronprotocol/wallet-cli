@@ -2,7 +2,6 @@ package org.tron.walletcli;
 
 import java.io.IOException;
 import java.math.BigInteger;
-import java.security.SecureRandom;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.Base64.Decoder;
@@ -44,7 +43,6 @@ import org.tron.common.zksnark.LibrustzcashParam;
 import org.tron.core.config.Configuration;
 import org.tron.core.exception.CancelException;
 import org.tron.core.exception.CipherException;
-import org.tron.core.exception.EncodingException;
 import org.tron.core.exception.ZksnarkException;
 import org.tron.core.zen.ShieldedAddressInfo;
 import org.tron.core.zen.ShieldedNoteInfo;
@@ -97,6 +95,7 @@ public class Client {
       "BackupWallet",
       "BackupWallet2Base64",
       "BroadcastTransaction",
+      "CancelAllUnfreezeV2",
       "ChangePassword",
       "ClearContractABI",
       "Create2",
@@ -239,6 +238,7 @@ public class Client {
       "BackupWallet",
       "BackupWallet2Base64",
       "BroadcastTransaction",
+      "CancelAllUnfreezeV2",
       "ChangePassword",
       "ClearContractABI",
       "Create2",
@@ -1428,10 +1428,12 @@ public class Client {
   private void delegateResource(String[] parameters)
           throws IOException, CipherException, CancelException {
 
-    if (parameters == null || !(parameters.length == 3 || parameters.length == 4 || parameters.length == 5)) {
+    if (parameters == null || !(parameters.length == 3 || parameters.length == 4 || parameters.length == 5 || parameters.length == 6)) {
+
       System.out.println("Use delegateResource command with below syntax: ");
       System.out.println(
-              "delegateResource [OwnerAddress] balance ResourceCode(0 BANDWIDTH,1 ENERGY), ReceiverAddress [lock]");
+              "delegateResource [OwnerAddress] balance ResourceCode(0 BANDWIDTH,1 ENERGY), "
+                  + "ReceiverAddress [lock] [lockPeriod]");
       return;
     }
 
@@ -1442,19 +1444,22 @@ public class Client {
     int resourceCode = 0;
     byte[] receiverAddress = null;
     boolean lock = false;
+    long lockPeriod = 0;
 
     if (parameters.length == 3) {
       balance = Long.parseLong(parameters[index++]);
 
       resourceCode = Integer.parseInt(parameters[index++]);
-      receiverAddress = getAddressBytes(parameters[index++]);
+      receiverAddress = getAddressBytes(parameters[index]);
       if (receiverAddress == null) {
         System.out.println(
                 "delegateResource receiverAddress is invalid");
         return;
       }
 
+
     } else if (parameters.length == 4 || parameters.length == 5) {
+
       ownerAddress = getAddressBytes(parameters[index]);
       if (ownerAddress != null) {
         index ++;
@@ -1468,14 +1473,17 @@ public class Client {
         return;
       }
 
-      if (parameters.length == 5 ||
-          (ownerAddress == null && parameters.length == 4)) {
+      if ((ownerAddress != null && parameters.length == 5) || (ownerAddress == null && parameters.length == 4)) {
         lock = Boolean.parseBoolean(parameters[index++]);
+      }
+      if (parameters.length == 6 || (ownerAddress == null && parameters.length == 5)) {
+        lock = Boolean.parseBoolean(parameters[index++]);
+        lockPeriod = Long.parseLong(parameters[index]);
       }
     }
 
     boolean result = walletApiWrapper.delegateresource(
-        ownerAddress, balance, resourceCode, receiverAddress, lock);
+        ownerAddress, balance, resourceCode, receiverAddress, lock, lockPeriod);
     if (result) {
       System.out.println("delegateResource successful !!!");
     } else {
@@ -1528,6 +1536,21 @@ public class Client {
       System.out.println("unDelegateResource successful !!!");
     } else {
       System.out.println("unDelegateResource failed !!!");
+    }
+  }
+
+  private void cancelAllUnfreezeV2(String[] parameters)
+      throws IOException, CipherException, CancelException {
+    if (parameters.length > 0) {
+      System.out.println("Use CancelAllUnfreezeV2 command with below syntax: ");
+      System.out.println("CancelAllUnfreezeV2");
+      return;
+    }
+    boolean result = walletApiWrapper.cancelAllUnfreezeV2();
+    if (result) {
+      System.out.println("cancelAllUnfreezeV2 successful !!!");
+    } else {
+      System.out.println("cancelAllUnfreezeV2 failed !!!");
     }
   }
 
@@ -2867,7 +2890,7 @@ public class Client {
       SignInterface cryptoEngine = SignUtils.getGeneratedRandomSign(Utils.getRandom(), isECKey);
       byte[] priKey = cryptoEngine.getPrivateKey();
       byte[] address = cryptoEngine.getAddress();
-      String addressStr = Base58.encode(address);
+      String addressStr = WalletApi.encode58Check(address);
       String priKeyStr = ByteArray.toHexString(priKey);
       AddressPrKeyPairMessage.Builder builder = AddressPrKeyPairMessage.newBuilder();
       builder.setAddress(addressStr);
@@ -2877,6 +2900,7 @@ public class Client {
       System.out.println("GenerateAddress failed !!!");
     }
   }
+
 
   private void updateAccountPermission(String[] parameters)
       throws CipherException, IOException, CancelException {
@@ -4590,6 +4614,10 @@ public class Client {
             }
             case "undelegateresource": {
               unDelegateResource(parameters);
+              break;
+            }
+            case "cancelallunfreezev2": {
+              cancelAllUnfreezeV2(parameters);
               break;
             }
             case "withdrawbalance": {
