@@ -1427,39 +1427,32 @@ public class Client {
 
   private void delegateResource(String[] parameters)
           throws IOException, CipherException, CancelException {
-
     if (parameters == null || !(parameters.length == 3 || parameters.length == 4 || parameters.length == 5 || parameters.length == 6)) {
-
       System.out.println("Use delegateResource command with below syntax: ");
       System.out.println(
-              "delegateResource [OwnerAddress] balance ResourceCode(0 BANDWIDTH,1 ENERGY), "
-                  + "ReceiverAddress [lock] [lockPeriod]");
+        "delegateResource [OwnerAddress] balance ResourceCode(0 BANDWIDTH,1 ENERGY), "
+          + "ReceiverAddress [lock] [lockPeriod]");
       return;
     }
 
     int index = 0;
     byte[] ownerAddress = null;
-
-    long balance = 0;
-    int resourceCode = 0;
-    byte[] receiverAddress = null;
+    long balance;
+    int resourceCode;
+    byte[] receiverAddress;
     boolean lock = false;
     long lockPeriod = 0;
 
     if (parameters.length == 3) {
       balance = Long.parseLong(parameters[index++]);
-
       resourceCode = Integer.parseInt(parameters[index++]);
       receiverAddress = getAddressBytes(parameters[index]);
       if (receiverAddress == null) {
         System.out.println(
-                "delegateResource receiverAddress is invalid");
+          "delegateResource receiverAddress is invalid");
         return;
       }
-
-
-    } else if (parameters.length == 4 || parameters.length == 5) {
-
+    } else {
       ownerAddress = getAddressBytes(parameters[index]);
       if (ownerAddress != null) {
         index ++;
@@ -1469,7 +1462,7 @@ public class Client {
       receiverAddress = getAddressBytes(parameters[index++]);
       if (receiverAddress == null) {
         System.out.println(
-            "delegateResource receiverAddress is invalid");
+          "delegateResource receiverAddress is invalid");
         return;
       }
 
@@ -1483,7 +1476,7 @@ public class Client {
     }
 
     boolean result = walletApiWrapper.delegateresource(
-        ownerAddress, balance, resourceCode, receiverAddress, lock, lockPeriod);
+      ownerAddress, balance, resourceCode, receiverAddress, lock, lockPeriod);
     if (result) {
       System.out.println("delegateResource successful !!!");
     } else {
@@ -4329,7 +4322,7 @@ public class Client {
   }
   public static void r(String[] parameters){
     if (parameters.length != 2){
-      System.out.println("r command help: re [paramName] [paramValue]");
+      System.out.println("r command help: r [paramName] [paramValue]");
     }
     paramMap.put("$"+parameters[0], parameters[1]);
   }
@@ -4355,7 +4348,8 @@ public class Client {
         || cmdLine.toLowerCase().startsWith("triggercontract")
         || cmdLine.toLowerCase().startsWith("triggerconstantcontract")
         || cmdLine.toLowerCase().startsWith("updateaccountpermission")
-        || cmdLine.toLowerCase().startsWith("estimateenergy")) {
+        || cmdLine.toLowerCase().startsWith("estimateenergy")
+        || cmdLine.toLowerCase().startsWith("r")) {
       return cmdLine.split("\\s+", -1);
     }
     String[] strArray = cmdLine.split("\"");
