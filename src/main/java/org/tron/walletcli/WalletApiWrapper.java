@@ -309,6 +309,14 @@ public class WalletApiWrapper {
     return wallet.createAccount(ownerAddress, address);
   }
 
+  public AddressPrKeyPairMessage generateAddress() {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: createAccount failed,  Please login first !!");
+      return null;
+    }
+    return WalletApi.generateAddress();
+  }
+
 
   public boolean createWitness(byte[] ownerAddress, String url)
       throws CipherException, IOException, CancelException {

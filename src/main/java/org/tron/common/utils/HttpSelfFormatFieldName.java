@@ -13,6 +13,14 @@ public class HttpSelfFormatFieldName {
     //DelegatedResourceMessage
     AddressFieldNameMap.put("protocol.DelegatedResourceMessage.fromAddress", 1);
     AddressFieldNameMap.put("protocol.DelegatedResourceMessage.toAddress", 1);
+    //EasyTransferMessage
+    AddressFieldNameMap.put("protocol.EasyTransferMessage.toAddress", 1);
+    //EasyTransferAssetMessage
+    AddressFieldNameMap.put("protocol.EasyTransferAssetMessage.toAddress", 1);
+    //EasyTransferByPrivateMessage
+    AddressFieldNameMap.put("protocol.EasyTransferByPrivateMessage.toAddress", 1);
+    //EasyTransferAssetByPrivateMessage
+    AddressFieldNameMap.put("protocol.EasyTransferAssetByPrivateMessage.toAddress", 1);
     //TransactionSignWeight
     AddressFieldNameMap.put("protocol.TransactionSignWeight.approved_list", 1);
     //TransactionApprovedList
@@ -168,6 +176,10 @@ public class HttpSelfFormatFieldName {
     NameFieldNameMap.put("protocol.Return.message", 1);
     //Address
     NameFieldNameMap.put("protocol.Address.host", 1);
+    //EasyTransferMessage
+    NameFieldNameMap.put("protocol.EasyTransferMessage.passPhrase", 1);
+    //EasyTransferAssetMessage
+    NameFieldNameMap.put("protocol.EasyTransferAssetMessage.passPhrase", 1);
     //Note
     NameFieldNameMap.put("protocol.Note.memo", 1);
 

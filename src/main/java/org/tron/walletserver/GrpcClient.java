@@ -62,6 +62,7 @@ import org.tron.protos.contract.SmartContractOuterClass.CreateSmartContract;
 import org.tron.protos.contract.SmartContractOuterClass.SmartContract;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.TransactionInfo;
+import org.tron.protos.Protocol.TransactionSign;
 import org.tron.protos.contract.SmartContractOuterClass.SmartContractDataWrapper;
 import org.tron.protos.contract.SmartContractOuterClass.TriggerSmartContract;
 import org.tron.protos.contract.SmartContractOuterClass.UpdateEnergyLimitContract;
@@ -137,12 +138,82 @@ public class GrpcClient {
     }
   }
 
+  //Warning: do not invoke this interface provided by others.
+  public Transaction signTransaction(TransactionSign transactionSign) {
+    return blockingStubFull.getTransactionSign(transactionSign);
+  }
+
+  //Warning: do not invoke this interface provided by others.
+  public TransactionExtention signTransaction2(TransactionSign transactionSign) {
+    return blockingStubFull.getTransactionSign2(transactionSign);
+  }
+
+  //Warning: do not invoke this interface provided by others.
+  public TransactionExtention addSign(TransactionSign transactionSign) {
+    return blockingStubFull.addSign(transactionSign);
+  }
+
   public TransactionSignWeight getTransactionSignWeight(Transaction transaction) {
     return blockingStubFull.getTransactionSignWeight(transaction);
   }
 
   public TransactionApprovedList getTransactionApprovedList(Transaction transaction) {
     return blockingStubFull.getTransactionApprovedList(transaction);
+  }
+
+  //Warning: do not invoke this interface provided by others.
+  public byte[] createAdresss(byte[] passPhrase) {
+    BytesMessage.Builder builder = BytesMessage.newBuilder();
+    builder.setValue(ByteString.copyFrom(passPhrase));
+
+    BytesMessage result = blockingStubFull.createAddress(builder.build());
+    return result.getValue().toByteArray();
+  }
+
+  //Warning: do not invoke this interface provided by others.
+  public EasyTransferResponse easyTransfer(byte[] passPhrase, byte[] toAddress, long amount) {
+    EasyTransferMessage.Builder builder = EasyTransferMessage.newBuilder();
+    builder.setPassPhrase(ByteString.copyFrom(passPhrase));
+    builder.setToAddress(ByteString.copyFrom(toAddress));
+    builder.setAmount(amount);
+
+    return blockingStubFull.easyTransfer(builder.build());
+  }
+
+  //Warning: do not invoke this interface provided by others.
+  public EasyTransferResponse easyTransferByPrivate(byte[] privateKey, byte[] toAddress,
+      long amount) {
+    EasyTransferByPrivateMessage.Builder builder = EasyTransferByPrivateMessage.newBuilder();
+    builder.setPrivateKey(ByteString.copyFrom(privateKey));
+    builder.setToAddress(ByteString.copyFrom(toAddress));
+    builder.setAmount(amount);
+
+    return blockingStubFull.easyTransferByPrivate(builder.build());
+  }
+
+  //Warning: do not invoke this interface provided by others.
+  public EasyTransferResponse easyTransferAsset(byte[] passPhrase, byte[] toAddress,
+      String assetId, long amount) {
+    EasyTransferAssetMessage.Builder builder = EasyTransferAssetMessage.newBuilder();
+    builder.setPassPhrase(ByteString.copyFrom(passPhrase));
+    builder.setToAddress(ByteString.copyFrom(toAddress));
+    builder.setAssetId(assetId);
+    builder.setAmount(amount);
+
+    return blockingStubFull.easyTransferAsset(builder.build());
+  }
+
+  //Warning: do not invoke this interface provided by others.
+  public EasyTransferResponse easyTransferAssetByPrivate(byte[] privateKey, byte[] toAddress,
+      String assetId, long amount) {
+    EasyTransferAssetByPrivateMessage.Builder builder = EasyTransferAssetByPrivateMessage
+        .newBuilder();
+    builder.setPrivateKey(ByteString.copyFrom(privateKey));
+    builder.setToAddress(ByteString.copyFrom(toAddress));
+    builder.setAssetId(assetId);
+    builder.setAmount(amount);
+
+    return blockingStubFull.easyTransferAssetByPrivate(builder.build());
   }
 
   public Transaction createTransaction(AccountUpdateContract contract) {
@@ -471,6 +542,14 @@ public class GrpcClient {
 
   public TransactionExtention createAccount2(AccountCreateContract contract) {
     return blockingStubFull.createAccount2(contract);
+  }
+
+  public AddressPrKeyPairMessage generateAddress(EmptyMessage emptyMessage) {
+    if (blockingStubSolidity != null) {
+      return blockingStubSolidity.generateAddress(emptyMessage);
+    } else {
+      return blockingStubFull.generateAddress(emptyMessage);
+    }
   }
 
   public Transaction createWitness(WitnessCreateContract contract) {

@@ -31,6 +31,7 @@ import org.bouncycastle.util.encoders.Hex;
 import org.tron.api.GrpcAPI;
 import org.tron.api.GrpcAPI.AccountNetMessage;
 import org.tron.api.GrpcAPI.AccountResourceMessage;
+import org.tron.api.GrpcAPI.AddressPrKeyPairMessage;
 import org.tron.api.GrpcAPI.AssetIssueList;
 import org.tron.api.GrpcAPI.BlockExtention;
 import org.tron.api.GrpcAPI.BlockList;
@@ -41,6 +42,8 @@ import org.tron.api.GrpcAPI.DecryptNotesMarked;
 import org.tron.api.GrpcAPI.DecryptNotesTRC20;
 import org.tron.api.GrpcAPI.DelegatedResourceList;
 import org.tron.api.GrpcAPI.DiversifierMessage;
+import org.tron.api.GrpcAPI.EasyTransferResponse;
+import org.tron.api.GrpcAPI.EmptyMessage;
 import org.tron.api.GrpcAPI.EstimateEnergyMessage;
 import org.tron.api.GrpcAPI.ExchangeList;
 import org.tron.api.GrpcAPI.ExpandedSpendingKeyMessage;
@@ -111,6 +114,7 @@ import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.Transaction.Contract.ContractType;
 import org.tron.protos.Protocol.Transaction.Result;
 import org.tron.protos.Protocol.TransactionInfo;
+import org.tron.protos.Protocol.TransactionSign;
 import org.tron.protos.Protocol.Witness;
 import org.tron.protos.contract.AccountContract.AccountCreateContract;
 import org.tron.protos.contract.AccountContract.AccountPermissionUpdateContract;
@@ -643,12 +647,77 @@ public class WalletApi {
     return rpcCli.broadcastTransaction(transaction);
   }
 
+  // Warning: do not invoke this interface provided by others.
+  public static Transaction signTransactionByApi(Transaction transaction, byte[] privateKey)
+      throws CancelException {
+    transaction = TransactionUtils.setExpirationTime(transaction);
+    String tipsString = "Please input permission id.";
+    transaction = TransactionUtils.setPermissionId(transaction, tipsString);
+    TransactionSign.Builder builder = TransactionSign.newBuilder();
+    builder.setPrivateKey(ByteString.copyFrom(privateKey));
+    builder.setTransaction(transaction);
+    return rpcCli.signTransaction(builder.build());
+  }
+
+  // Warning: do not invoke this interface provided by others.
+  public static TransactionExtention signTransactionByApi2(
+      Transaction transaction, byte[] privateKey) throws CancelException {
+    transaction = TransactionUtils.setExpirationTime(transaction);
+    String tipsString = "Please input permission id.";
+    transaction = TransactionUtils.setPermissionId(transaction, tipsString);
+    TransactionSign.Builder builder = TransactionSign.newBuilder();
+    builder.setPrivateKey(ByteString.copyFrom(privateKey));
+    builder.setTransaction(transaction);
+    return rpcCli.signTransaction2(builder.build());
+  }
+
+  // Warning: do not invoke this interface provided by others.
+  public static TransactionExtention addSignByApi(Transaction transaction, byte[] privateKey)
+      throws CancelException {
+    transaction = TransactionUtils.setExpirationTime(transaction);
+    String tipsString = "Please input permission id.";
+    transaction = TransactionUtils.setPermissionId(transaction, tipsString);
+    TransactionSign.Builder builder = TransactionSign.newBuilder();
+    builder.setPrivateKey(ByteString.copyFrom(privateKey));
+    builder.setTransaction(transaction);
+    return rpcCli.addSign(builder.build());
+  }
+
   public static TransactionSignWeight getTransactionSignWeight(Transaction transaction) {
     return rpcCli.getTransactionSignWeight(transaction);
   }
 
   public static TransactionApprovedList getTransactionApprovedList(Transaction transaction) {
     return rpcCli.getTransactionApprovedList(transaction);
+  }
+
+  // Warning: do not invoke this interface provided by others.
+  public static byte[] createAdresss(byte[] passPhrase) {
+    return rpcCli.createAdresss(passPhrase);
+  }
+
+  // Warning: do not invoke this interface provided by others.
+  public static EasyTransferResponse easyTransfer(
+      byte[] passPhrase, byte[] toAddress, long amount) {
+    return rpcCli.easyTransfer(passPhrase, toAddress, amount);
+  }
+
+  // Warning: do not invoke this interface provided by others.
+  public static EasyTransferResponse easyTransferByPrivate(
+      byte[] privateKey, byte[] toAddress, long amount) {
+    return rpcCli.easyTransferByPrivate(privateKey, toAddress, amount);
+  }
+
+  // Warning: do not invoke this interface provided by others.
+  public static EasyTransferResponse easyTransferAsset(
+      byte[] passPhrase, byte[] toAddress, String assetId, long amount) {
+    return rpcCli.easyTransferAsset(passPhrase, toAddress, assetId, amount);
+  }
+
+  // Warning: do not invoke this interface provided by others.
+  public static EasyTransferResponse easyTransferAssetByPrivate(
+      byte[] privateKey, byte[] toAddress, String assetId, long amount) {
+    return rpcCli.easyTransferAssetByPrivate(privateKey, toAddress, assetId, amount);
   }
 
   public boolean sendCoin(byte[] owner, byte[] to, long amount)
@@ -785,6 +854,12 @@ public class WalletApi {
       Transaction transaction = rpcCli.createAccount(contract);
       return processTransaction(transaction);
     }
+  }
+
+  // Warning: do not invoke this interface provided by others.
+  public static AddressPrKeyPairMessage generateAddress() {
+    EmptyMessage.Builder builder = EmptyMessage.newBuilder();
+    return rpcCli.generateAddress(builder.build());
   }
 
   public boolean createWitness(byte[] owner, byte[] url)
