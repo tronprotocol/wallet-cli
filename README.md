@@ -77,8 +77,8 @@ For more information on a specific command, just type the command on terminal wh
 | [GetBalance](#Account-related-commands) | [GetBlock](#How-to-get-block-information) |[GetBlockById](#How-to-get-block-information) | 
 | [GetBlockByLatestNum](#How-to-get-block-information) | [GetBlockByLimitNext](#How-to-get-block-information) | [GetBrokerage](#Brokerage) | 
 | [GetContract](#How-to-use-smart-contracts) | [GetDelegatedResource](#How-to-delegate-resource) |[GetDelegatedResourceAccountIndex](#How-to-delegate-resource) | 
-| [GetDiversifier](#How-to-transfer-shielded-TRC20-token)| [GetExpandedSpendingKey](#How-to-transfer-shielded-TRC20-token)| [GetIncomingViewingKey](#How-to-transfer-shielded-TRC20-token)  | 
-| [GetMarketOrderByAccount](#How-to-use-tron-dex-to-sell-asset)| [GetMarketOrderById](#How-to-use-tron-dex-to-sell-asset)| [GetMarketOrderListByPair](#How-to-use-tron-dex-to-sell-asset)  | 
+| [GetDiversifier](#How-to-transfer-shielded-TRC20-token)| [GetExpandedSpendingKey](#How-to-transfer-shielded-TRC20-token)| [GetIncomingViewingKey](#How-to-transfer-shielded-TRC20-token) | 
+| [GetMarketOrderByAccount](#How-to-use-tron-dex-to-sell-asset)| [GetMarketOrderById](#How-to-use-tron-dex-to-sell-asset)| [GetMarketOrderListByPair](#How-to-use-tron-dex-to-sell-asset) | 
 | [GetMarketPairList](#How-to-use-tron-dex-to-sell-asset)| [GetMarketPriceByPair](#How-to-use-tron-dex-to-sell-asset)| [GetNextMaintenanceTime](#Some-others) | 
 | [GetNkFromNsk](#How-to-transfer-shielded-TRC20-token) | [GetProposal](#Get-proposal-information) | [GetShieldedPaymentAddress](#How-to-transfer-shielded-TRC20-token)| 
 | [GetSpendingKey](#How-to-transfer-shielded-TRC20-token) | [GetReward](#Brokerage) |  [GetTransactionApprovedList](#How-to-use-the-multi-signature-feature-of-wallet-cli) |
@@ -97,8 +97,9 @@ For more information on a specific command, just type the command on terminal wh
 | [UpdateBrokerage](#Brokerage) | [UpdateEnergyLimit](#How-to-use-smart-contracts) |[UpdateSetting](#How-to-use-smart-contracts) | 
 | [UpdateAccountPermission](#How-to-use-the-multi-signature-feature-of-wallet-cli) | [VoteWitness](#How-to-vote) | [FreezeBalanceV2](#How-to-freezev2) |
 | [UnfreezeBalanceV2](#How-to-freezev2) | [DelegateResource](#How-to-freezev2) | [UnDelegateResource](#How-to-freezev2) |
-| [WithdrawExpireUnfreeze](#How-to-freezev2) | [GetDelegatedResourceV2](#How-to-freezev2) | [GetDelegatedResourceAccountIndexV2](#How-to-freezev2) |
-| [GetCanDelegatedMaxSize](#How-to-freezev2) | [GetAvailableUnfreezeCount](#How-to-freezev2) | [GetCanWithdrawUnfreezeAmount](#How-to-freezev2) |
+| [WithdrawExpireUnfreeze](#How-to-freezev2) | [CancelAllUnfreezeV2](#How-to-freezev2) |[GetDelegatedResourceV2](#How-to-freezev2) | 
+| [GetDelegatedResourceAccountIndexV2](#How-to-freezev2) | [GetCanDelegatedMaxSize](#How-to-freezev2) | [GetAvailableUnfreezeCount](#How-to-freezev2) |
+| [GetCanWithdrawUnfreezeAmount](#How-to-freezev2) | | |
 
 Type any one of the listed commands, to display how-to tips.
 
@@ -1332,6 +1333,46 @@ wallet> GetTransactionById e5763ab8dfb1e7ed076770d55cf3c1ddaf36d75e23ec8330f99df
                     "type_url":"type.googleapis.com/protocol.WithdrawExpireUnfreezeContract"
                 },
                 "type":"WithdrawExpireUnfreezeContract"
+            }
+        ],
+        "ref_block_bytes":"0000",
+        "ref_block_hash":"19b59068c6058ff4",
+        "expiration":1671122055318,
+        "timestamp":1671100455315
+    },
+    "raw_data_hex":"0a020000220819b59068c6058ff44096e18bb5d1305a5a083812560a3b747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e5769746864726177457870697265556e667265657a65436f6e747261637412170a154159e3741a68ec3e1ebba80ad809d5ccd31674236e7093b3e5aad130"
+}
+```
+> cancelAllUnfreezeV2 [OwnerAddress]
+
+OwnerAddress
+> The address of the account that initiated the transaction, optional, default is the address of the login account.
+
+Example:
+```console
+wallet> cancelAllUnfreezeV2 TJAVcszse667FmSNCwU2fm6DmfM5D4AyDh
+txid is e5763ab8dfb1e7ed076770d55cf3c1ddaf36d75e23ec8330f99df7e98f54a147
+wallet> GetTransactionById e5763ab8dfb1e7ed076770d55cf3c1ddaf36d75e23ec8330f99df7e98f54a147
+{
+    "ret":[
+        {
+            "contractRet":"SUCCESS"
+        }
+    ],
+    "signature":[
+        "f8f02b5aa634b8666862a6d2ed68fcfd90afc616d14062952b0b09f0404d9bca6c4d3dc6dab082784950ff1ded235a07dab0d738c8a202be9451d5ca92b8eece01"
+    ],
+    "txID":"e5763ab8dfb1e7ed076770d55cf3c1ddaf36d75e23ec8330f99df7e98f54a147",
+    "raw_data":{
+        "contract":[
+            {
+                "parameter":{
+                    "value":{
+                        "owner_address":"4159e3741a68ec3e1ebba80ad809d5ccd31674236e"
+                    },
+                    "type_url":"type.googleapis.com/protocol.CancelAllUnfreezeV2"
+                },
+                "type":"CancelAllUnfreezeV2Contract"
             }
         ],
         "ref_block_bytes":"0000",
