@@ -70,7 +70,7 @@ For more information on a specific command, just type the command on terminal wh
 | [BroadcastTransaction](#Some-others) | [ChangePassword](#Wallet-related-commands)| [CreateProposal](#How-to-initiate-a-proposal) 
 | [DeleteProposal](#Cancel-the-created-proposal) | [DeployContract](#How-to-use-smart-contract) | [ExchangeCreate](#How-to-trade-on-the-exchange) |
 | [ExchangeInject](#How-to-trade-on-the-exchange) | [ExchangeTransaction](#How-to-trade-on-the-exchange) | [ExchangeWithdraw](#How-to-trade-on-the-exchange) |
-| [FreezeBalance](#How-to-delegate-resourcee) |[GetCanWithdrawUnfreezeAmount](#How-to-freezev2)| [GenerateShieldedTRC20Address](#How-to-transfer-shielded-TRC20-token)|
+| [FreezeBalance](#How-to-delegate-resourcee) |[GenerateAddress](#Account-related-commands) |[GetCanWithdrawUnfreezeAmount](#How-to-freezev2)| [GenerateShieldedTRC20Address](#How-to-transfer-shielded-TRC20-token)|
 | [GetAccount](#Account-related-commands) |[GetAccountNet](#Account-related-commands) | [GetAccountResource](#Account-related-commands) | 
 | [GetAddress](#Account-related-commands) | [GetAkFromAsk](#How-to-transfer-shielded-TRC20-token) |[GetAssetIssueByAccount](#How-to-issue-TRC10-tokens) | 
 | [GetAssetIssueById](#How-to-issue-TRC10-tokens) | [GetAssetIssueByName](#How-to-issue-TRC10-tokens) |[GetAssetIssueListByName](#How-to-issue-TRC10-tokens) | 
