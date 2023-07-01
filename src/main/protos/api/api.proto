@@ -281,6 +281,9 @@ service Wallet {
   rpc UnDelegateResource (UnDelegateResourceContract) returns (TransactionExtention) {
   }
 
+  rpc CancelAllUnfreezeV2 (CancelAllUnfreezeV2Contract) returns (TransactionExtention) {
+  }
+
   //Please use UpdateAsset2 instead of this function.
   rpc UpdateAsset (UpdateAssetContract) returns (Transaction) {
     option (google.api.http) = {
@@ -1088,6 +1091,7 @@ message GetAvailableUnfreezeCountResponseMessage {
   int64 count = 1;
 }
 
+//GetCanDelegatedMaxSize
 message CanDelegatedMaxSizeRequestMessage {
   int32 type = 1;
   bytes owner_address = 2;
@@ -1096,6 +1100,7 @@ message CanDelegatedMaxSizeResponseMessage {
   int64 max_size = 1;
 }
 
+//GetCanWithdrawUnfreezeAmount
 message CanWithdrawUnfreezeAmountRequestMessage {
   bytes owner_address = 1;
   int64 timestamp = 2;

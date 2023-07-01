@@ -44,6 +44,7 @@ import org.tron.protos.contract.AssetIssueContractOuterClass.TransferAssetContra
 import org.tron.protos.contract.AssetIssueContractOuterClass.UnfreezeAssetContract;
 import org.tron.protos.contract.AssetIssueContractOuterClass.UpdateAssetContract;
 import org.tron.protos.contract.BalanceContract;
+import org.tron.protos.contract.BalanceContract.CancelAllUnfreezeV2Contract;
 import org.tron.protos.contract.BalanceContract.FreezeBalanceContract;
 import org.tron.protos.contract.BalanceContract.TransferContract;
 import org.tron.protos.contract.BalanceContract.UnfreezeBalanceContract;
@@ -227,6 +228,10 @@ public class GrpcClient {
 
   public TransactionExtention createTransactionV2(BalanceContract.UnDelegateResourceContract contract) {
     return blockingStubFull.unDelegateResource(contract);
+  }
+
+  public TransactionExtention createTransactionV2(CancelAllUnfreezeV2Contract contract) {
+    return blockingStubFull.cancelAllUnfreezeV2(contract);
   }
 
   public Transaction createTransaction(UnfreezeAssetContract contract) {

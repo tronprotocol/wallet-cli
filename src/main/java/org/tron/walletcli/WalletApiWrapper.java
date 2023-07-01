@@ -28,7 +28,6 @@ import org.tron.core.zen.address.FullViewingKey;
 import org.tron.core.zen.address.SpendingKey;
 import org.tron.keystore.StringUtils;
 import org.tron.keystore.WalletFile;
-import org.tron.keystore.WalletUtils;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.ChainParameters;
@@ -548,7 +547,7 @@ public class WalletApiWrapper {
   }
 
   public boolean delegateresource(byte[] ownerAddress, long balance
-          , int resourceCode, byte[] receiverAddress, boolean lock)
+          , int resourceCode, byte[] receiverAddress, boolean lock, long lockPeriod)
           throws CipherException, IOException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
       System.out.println("Warning: delegateresource failed, Please login first !!");
@@ -556,7 +555,7 @@ public class WalletApiWrapper {
     }
 
     return wallet.delegateResource(ownerAddress, balance
-        , resourceCode, receiverAddress, lock);
+        , resourceCode, receiverAddress, lock, lockPeriod);
   }
 
   public boolean undelegateresource(byte[] ownerAddress, long balance
@@ -568,6 +567,15 @@ public class WalletApiWrapper {
     }
 
     return wallet.unDelegateResource(ownerAddress, balance, resourceCode, receiverAddress);
+  }
+
+  public boolean cancelAllUnfreezeV2()
+      throws CipherException, IOException, CancelException {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: cancelAllUnfreezeV2 failed, Please login first !!");
+      return false;
+    }
+    return wallet.cancelAllUnfreezeV2();
   }
 
   public boolean unfreezeAsset(byte[] ownerAddress)
