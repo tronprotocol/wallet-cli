@@ -23,30 +23,6 @@ public class HttpSelfFormatFieldName {
     //PrivateParametersWithoutAsk
     AddressFieldNameMap.put("protocol.PrivateParametersWithoutAsk.transparent_from_address", 1);
     AddressFieldNameMap.put("protocol.PrivateParametersWithoutAsk.transparent_to_address", 1);
-    //PrivateShieldedTRC20Parameters
-    AddressFieldNameMap.put(
-        "protocol.PrivateShieldedTRC20Parameters.transparent_to_address", 1);
-    AddressFieldNameMap.put(
-        "protocol.PrivateShieldedTRC20Parameters.shielded_TRC20_contract_address", 1);
-    //PrivateShieldedTRC20ParametersWithoutAsk
-    AddressFieldNameMap.put(
-        "protocol.PrivateShieldedTRC20ParametersWithoutAsk.transparent_to_address", 1);
-    AddressFieldNameMap.put(
-        "protocol.PrivateShieldedTRC20ParametersWithoutAsk.shielded_TRC20_contract_address", 1);
-    //IvkDecryptTRC20Parameters
-    AddressFieldNameMap.put(
-        "protocol.IvkDecryptTRC20Parameters.shielded_TRC20_contract_address", 1);
-    //OvkDecryptTRC20Parameters
-    AddressFieldNameMap.put(
-        "protocol.OvkDecryptTRC20Parameters.shielded_TRC20_contract_address", 1);
-    //NfTRC20Parameters
-    AddressFieldNameMap.put(
-        "protocol.NfTRC20Parameters.shielded_TRC20_contract_address", 1);
-    //ShieldedTRC20TriggerContractParameters
-    AddressFieldNameMap.put(
-        "protocol.ShieldedTRC20TriggerContractParameters.transparent_to_address", 1);
-    AddressFieldNameMap.put(
-        "protocol.DecryptNotesTRC20.NoteTx.transparent_to_address", 1);
 
     //***** Contract.proto *****
     //AccountCreateContract
@@ -127,8 +103,6 @@ public class HttpSelfFormatFieldName {
     AddressFieldNameMap.put("protocol.ExchangeTransactionContract.owner_address", 1);
     //AccountPermissionUpdateContract
     AddressFieldNameMap.put("protocol.AccountPermissionUpdateContract.owner_address", 1);
-    //UpdateBrokerageContract
-    AddressFieldNameMap.put("protocol.UpdateBrokerageContract.owner_address", 1);
     //ShieldedTransferContract
     AddressFieldNameMap.put("protocol.ShieldedTransferContract.transparent_from_address", 1);
     AddressFieldNameMap.put("protocol.ShieldedTransferContract.transparent_to_address", 1);
@@ -191,9 +165,6 @@ public class HttpSelfFormatFieldName {
     AddressFieldNameMap.put("protocol.DelegatedResourceAccountIndex.fromAccounts", 1);
     AddressFieldNameMap.put("protocol.DelegatedResourceAccountIndex.toAccounts", 1);
 
-    AddressFieldNameMap.put("protocol.AccountIdentifier.address", 1);
-    AddressFieldNameMap.put("protocol.TransactionBalanceTrace.Operation.address", 1);
-
     //***** api.proto *****
     //Return
     NameFieldNameMap.put("protocol.Return.message", 1);
@@ -251,7 +222,6 @@ public class HttpSelfFormatFieldName {
     //TransactionInfo
     NameFieldNameMap.put("protocol.TransactionInfo.resMessage", 1);
 
-    //***** market.proto *****
     // MarketSellAssetContract
     AddressFieldNameMap.put("protocol.MarketSellAssetContract.owner_address", 1);
     NameFieldNameMap.put("protocol.MarketSellAssetContract.sell_token_id", 1);
