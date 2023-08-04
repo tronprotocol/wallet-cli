@@ -599,6 +599,7 @@ public class Client {
     if (account == null) {
       System.out.println("GetAccount failed !!!!");
     } else {
+      account = account.toBuilder().clearAssetV2().clearFreeAssetNetUsageV2().build();
       System.out.println(Utils.formatMessageString(account));
     }
   }
