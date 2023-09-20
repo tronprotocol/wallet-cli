@@ -115,6 +115,7 @@ public class Client {
       "GetAssetIssueByName",
       "GetAssetIssueListByName",
       "GetBalance",
+      "GetBandwidthPrices",
       "GetBlock",
       "GetBlockById",
       "GetBlockByIdOrNum",
@@ -132,6 +133,7 @@ public class Client {
       "GetAvailableUnfreezeCount",
       "GetCanWithdrawUnfreezeAmount",
       "GetDiversifier",
+      "GetEnergyPrices",
       "GetExchange",
       "GetExpandedSpendingKey",
       "GetIncomingViewingKey",
@@ -140,6 +142,7 @@ public class Client {
       "GetMarketOrderListByPair",
       "GetMarketPairList",
       "GetMarketPriceByPair",
+      "GetMemoFee",
       "GetNextMaintenanceTime",
       "GetNkFromNsk",
       "GetProposal",
@@ -258,6 +261,7 @@ public class Client {
       "GetAssetIssueByName",
       "GetAssetIssueListByName",
       "GetBalance",
+      "GetBandwidthPrices",
       "GetBlock",
       "GetBlockById",
       "GetBlockByIdOrNum",
@@ -275,6 +279,7 @@ public class Client {
       "GetAvailableUnfreezeCount",
       "GetCanWithdrawUnfreezeAmount",
       "GetDiversifier",
+      "GetEnergyPrices",
       "GetExchange",
       "GetExpandedSpendingKey",
       "GetIncomingViewingKey",
@@ -283,6 +288,7 @@ public class Client {
       "GetMarketOrderListByPair",
       "GetMarketPairList",
       "GetMarketPriceByPair",
+      "GetMemoFee",
       "GetNextMaintenanceTime",
       "GetNkFromNsk",
       "GetProposal",
@@ -1531,6 +1537,36 @@ public class Client {
     } else {
       System.out.println("cancelAllUnfreezeV2 failed !!!");
     }
+  }
+
+  private void getBandwidthPrices(String[] parameters) {
+    if (parameters.length > 0) {
+      System.out.println("Use GetBandwidthPrices command with below syntax: ");
+      System.out.println("GetBandwidthPrices");
+      return;
+    }
+    PricesResponseMessage result = walletApiWrapper.getBandwidthPrices();
+    System.out.println("The BandwidthPrices is " + result.getPrices());
+  }
+
+  private void getEnergyPrices(String[] parameters) {
+    if (parameters.length > 0) {
+      System.out.println("Use GetEnergyPrices command with below syntax: ");
+      System.out.println("GetEnergyPrices");
+      return;
+    }
+    PricesResponseMessage result = walletApiWrapper.getEnergyPrices();
+    System.out.println("The EnergyPrices is "+ result.getPrices());
+  }
+
+  private void getMemoFee(String[] parameters) {
+    if (parameters.length > 0) {
+      System.out.println("Use GetMemoFee command with below syntax: ");
+      System.out.println("GetMemoFee");
+      return;
+    }
+    PricesResponseMessage result = walletApiWrapper.getMemoFee();
+    System.out.println("The MemoFee is " + result.getPrices());
   }
 
   private void unfreezeAsset(String[] parameters) throws IOException,
@@ -4936,6 +4972,18 @@ public class Client {
             }
             case "getblockbyidornum": {
               getBlockByIdOrNum(parameters);
+              break;
+            }
+            case "getbandwidthprices": {
+              getBandwidthPrices(parameters);
+              break;
+            }
+            case "getenergyprices": {
+              getEnergyPrices(parameters);
+              break;
+            }
+            case "getmemofee": {
+              getMemoFee(parameters);
               break;
             }
             case "exit":
