@@ -99,7 +99,8 @@ For more information on a specific command, just type the command on terminal wh
 | [UnfreezeBalanceV2](#How-to-freezev2) | [DelegateResource](#How-to-freezev2) | [UnDelegateResource](#How-to-freezev2) |
 | [WithdrawExpireUnfreeze](#How-to-freezev2) | [CancelAllUnfreezeV2](#How-to-freezev2) |[GetDelegatedResourceV2](#How-to-freezev2) | 
 | [GetDelegatedResourceAccountIndexV2](#How-to-freezev2) | [GetCanDelegatedMaxSize](#How-to-freezev2) | [GetAvailableUnfreezeCount](#How-to-freezev2) |
-| [GetCanWithdrawUnfreezeAmount](#How-to-freezev2) | | |
+| [GetCanWithdrawUnfreezeAmount](#How-to-freezev2) |[GetBandwidthPrices](#Prices) | [GetEnergyPrices](#Prices)|
+| [GetMemoFee](#Prices) |||
 
 Type any one of the listed commands, to display how-to tips.
 
@@ -1472,6 +1473,36 @@ Example:
 wallet> getCanWithdrawUnfreezeAmount TJAVcszse667FmSNCwU2fm6DmfM5D4AyDh 1671100335000
 {
 	"amount": 9000000
+}
+```
+    > getbandwidthprices
+> get historical unit price of bandwidth
+
+Example:
+```console
+wallet> getBandwidthPrices
+{
+    "prices": "0:10,1606537680000:40,1614238080000:140,1626581880000:1000,1626925680000:140,1627731480000:1000"
+}
+```
+    > getenergyprices
+> get historical unit price of energy
+
+Example:
+```console
+wallet> getEnergyPrices
+{
+    "prices": "0:100,1575871200000:10,1606537680000:40,1614238080000:140,1635739080000:280,1681895880000:420"
+}
+```
+    > getmemofee
+> get memo fee
+
+Example:
+```console
+wallet> getMemoFee
+{
+    "prices": "0:0,1675492680000:1000000"
 }
 ```
 

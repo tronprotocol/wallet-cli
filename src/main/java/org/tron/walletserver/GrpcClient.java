@@ -1001,6 +1001,29 @@ public class GrpcClient {
     }
   }
 
+  public PricesResponseMessage getBandwidthPrices() {
+    EmptyMessage message = EmptyMessage.newBuilder().build();
+    if (blockingStubSolidity != null) {
+      return blockingStubSolidity.getBandwidthPrices(message);
+    } else {
+      return blockingStubFull.getBandwidthPrices(message);
+    }
+  }
+
+  public PricesResponseMessage getEnergyPrices() {
+    EmptyMessage message = EmptyMessage.newBuilder().build();
+    if (blockingStubSolidity != null) {
+      return blockingStubSolidity.getEnergyPrices(message);
+    } else {
+      return blockingStubFull.getEnergyPrices(message);
+    }
+  }
+
+  public PricesResponseMessage getMemoFee() {
+    EmptyMessage message = EmptyMessage.newBuilder().build();
+    return blockingStubFull.getMemoFee(message);
+  }
+
   public Optional<TransactionInfoList> getTransactionInfoByBlockNum(long blockNum) {
     TransactionInfoList transactionInfoList;
     NumberMessage.Builder builder = NumberMessage.newBuilder();

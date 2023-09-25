@@ -57,6 +57,7 @@ import org.tron.api.GrpcAPI.NullifierResult;
 import org.tron.api.GrpcAPI.OvkDecryptParameters;
 import org.tron.api.GrpcAPI.OvkDecryptTRC20Parameters;
 import org.tron.api.GrpcAPI.PaymentAddressMessage;
+import org.tron.api.GrpcAPI.PricesResponseMessage;
 import org.tron.api.GrpcAPI.PrivateParameters;
 import org.tron.api.GrpcAPI.PrivateParametersWithoutAsk;
 import org.tron.api.GrpcAPI.PrivateShieldedTRC20Parameters;
@@ -2728,6 +2729,18 @@ public class WalletApi {
 
   public static GrpcAPI.NumberMessage getBrokerage(byte[] owner) {
     return rpcCli.getBrokerage(owner);
+  }
+
+  public static PricesResponseMessage getBandwidthPrices() {
+    return rpcCli.getBandwidthPrices();
+  }
+
+  public static PricesResponseMessage getEnergyPrices() {
+    return rpcCli.getEnergyPrices();
+  }
+
+  public static PricesResponseMessage getMemoFee() {
+    return rpcCli.getMemoFee();
   }
 
   public static Optional<DecryptNotesTRC20> scanShieldedTRC20NoteByIvk(
