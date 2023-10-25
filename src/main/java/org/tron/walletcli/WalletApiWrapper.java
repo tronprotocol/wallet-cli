@@ -1293,6 +1293,18 @@ public class WalletApiWrapper {
     return WalletApi.getBrokerage(ownerAddress);
   }
 
+  public PricesResponseMessage getBandwidthPrices() {
+    return WalletApi.getBandwidthPrices();
+  }
+
+  public PricesResponseMessage getEnergyPrices() {
+    return WalletApi.getEnergyPrices();
+  }
+
+  public PricesResponseMessage getMemoFee() {
+    return WalletApi.getMemoFee();
+  }
+
   public boolean scanShieldedTRC20NoteByIvk(byte[] address, final String ivk,
                                             final String ak, final String nk,
                                             long start, long end, String[] events) {
