@@ -33,8 +33,6 @@ soliditynode = {
 #    "ip : pBFT port" // or pBFT
 #  ]
 } // NOTE: solidity node is optional
-
-blockNumberStartToScan = 22690588 // NOTE: this field is optional
 ```
 
 ### Run a web wallet
@@ -1541,14 +1539,7 @@ d  :2fd028965d3b455579ab28
 
 ## How to transfer shielded TRC20 token
 
-If you want to try to transfer shielded TRC20 token, you'd better set the `blockNumberStartToScan` field in `config.conf` file.
-This field is used to set the starting block that the wallet needs to scan. If you ignore this field, or set it to 0, 
-the notes you receive will probably take a long time to show up in the wallet. It is recommended that this field is 
-set to the block number in which the earliest relevant shielded contract was created. If the exact number is not known, 
-this field can be set as follows. If used in mainnet, please set 22690588. If used in Nile testnet, please set 6380000. 
-Otherwise, please set 0.
-
-When you begin to transfer TRC20 token to shielded address, you must have a shielded address. The
+when you begin to transfer TRC20 token to shielded address, you must have a shielded address. The
  following commands help to generate shielded account.
 
 ### GetSpendingKey
@@ -1881,8 +1872,6 @@ type
 > Shows the type of note. If the variable is omitted or set to 0, it shows all unspent notes; For other values, it shows all the notes, including spent notes and unspent notes.
 
 List the note scanned by the local cache address, and the `Scaling Factor`.
-
-**NOTE** When you load shielded wallet, the wallet will scan blocks to find the notes others send to you in the backend. This will take a long time, so when you run `ListShieldedTRC20Note`, your notes will not be displayed immediately.
 
 Example:
 
