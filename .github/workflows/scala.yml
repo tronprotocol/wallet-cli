@@ -134,3 +134,26 @@ Minimum 1 day. Maximum 90 days unless changed from the repository settings page.
     # Name of Maven Toolchain Vendor if the default name of "${distribution}" is not wanted. See examples of supported syntax in Advanced Usage file
     mvn-toolchain-vendor: # optional
           
+            - name: Rapid7 InsightAppSec Scan
+  # You may pin to the exact commit or the version.
+  # uses: rapid7/insightappsec-scan-github-actions@9a48d668139f3b223a5d503fead614fc4eb3b7d3
+  uses: rapid7/insightappsec-scan-github-actions@v1.3.3
+  with:
+    # The region indicates the geo-location of the Insight Platform
+    region: # default is us
+    # The API key used to authorized the GitHub action to interact with the Rapid7 API. The API key should be stored as a GitHub secret
+
+    api-key: 
+    # The UUID of the scan configuration to be used during scanning. The scan configuration should be a sub-resource of the application and can be obtained from InsightAppSec
+
+    scan-config-id: 
+    # Scan gating query
+
+    vuln-query: # optional, default is 
+    # Wait for scan to complete before finishing action. False will return the InsightAppSec Scan ID.
+
+    wait-for-scan-complete: # optional, default is true
+    # The maximum amount of time (in minutes) the scan is allowed to run before canceling and failing the job.
+
+    scan-timeout-mins: # optional
+          
