@@ -4399,6 +4399,7 @@ public class Client {
       LineReader lineReader = LineReaderBuilder.builder()
           .terminal(terminal)
           .completer(commandCompleter)
+          .option(LineReader.Option.CASE_INSENSITIVE, true)
           .build();
       String prompt = "wallet> ";
 
