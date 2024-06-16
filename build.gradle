@@ -126,3 +126,10 @@ shadowJar {
     version = null
     mergeServiceFiles() //  https://github.com/grpc/grpc-java/issues/10853
 }
+
+allprojects {
+    tasks.withType(Test).configureEach {
+        forkEvery = 100
+    }
+
+}
