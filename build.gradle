@@ -94,10 +94,15 @@ protobuf {
 
     }
     plugins {
-        grpc {
-            artifact = "io.grpc:protoc-gen-grpc-java:${grpcVersion}"
-        }
-    }
+  id "org.sonarqube" version "4.4.1.3373"
+}
+
+sonar {
+  properties {
+    property "sonar.projectKey", "Liquid-illusion_tron-deployment"
+    property "sonar.organization", "liquid-illusion1121"
+    property "sonar.host.url", "https://sonarcloud.io"
+  }
     generateProtoTasks {
         all().each { task ->
             task.builtins {
