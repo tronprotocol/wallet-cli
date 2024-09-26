@@ -319,7 +319,7 @@ StartDate, EndDate
 FrozenAmount0 FrozenDays0
 > Amount and days of token freeze. 
 > FrozenAmount0: Must be bigger than 0
-> FrozenDays0: Must between 1 and 3653.
+> FrozenDays0: Must be between 1 and 3653.
 
 Example:
 
@@ -950,7 +950,7 @@ Get the result of the contract execution with the getTransactionInfoById command
 }
 ```
 
-### trigger smart contarct
+### trigger smart contract
 
     > TriggerContract [ownerAddress] contractAddress method args isHex fee_limit value token_value token_id
 
@@ -958,7 +958,7 @@ OwnerAddress
 > The address of the account that initiated the transaction, optional, default is the address of the login account.
 
 contractAddress
-> Smart contarct address
+> Smart contract address
 
 method
 > The name of function and parameters, please refer to the example
@@ -1527,7 +1527,7 @@ as: 721d63b074f18d41c147e04c952ec93467777a30b6f16745bc47a8eae5076545
 > Import wallet, you need to set a password, hex String format
 
 **ImportWalletByBase64**
-> Import wallet, you need to set a password, base64 fromat
+> Import wallet, you need to set a password, base64 format
 
 ## Account related commands
 
