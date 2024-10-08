@@ -59,9 +59,6 @@ public class StringUtils {
     }
     int alen = a.length;
     int blen = b.length;
-    if (alen < blen) {
-      return false;
-    }
     for (int i = 0; i < alen; i++) {
       if (alen - i < blen) {
         return false;
