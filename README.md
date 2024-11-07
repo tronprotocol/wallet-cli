@@ -584,8 +584,8 @@ GetProposal
 
 ## How to trade on the exchange
 
-The trading and price fluctuations of trading pairs are in accordance with the [Bancor Agreement](https://github.com/tronprotocol/wallet-cli/blob/develop/docs/bancor.pdf),
-which can be found in TRON's [related documents](https://github.com/tronprotocol/documentation-en/blob/master/docs/mechanism-algorithm/dex.md).
+The trading and price fluctuations of trading pairs are in accordance with the Bancor Agreement,
+which can be found in TRON's [related documents](https://tronprotocol.github.io/documentation-en/clients/wallet-cli-command/#dex).
 
 ### Create a trading pair
 
