@@ -584,7 +584,7 @@ GetProposal
 
 ## How to trade on the exchange
 
-The trading and price fluctuations of trading pairs are in accordance with the [Bancor Agreement](https://cryptopapers.info/assets/pdf/bancor.pdf),
+The trading and price fluctuations of trading pairs are in accordance with the [Bancor Agreement](https://github.com/tronprotocol/wallet-cli/blob/develop/docs/bancor.pdf),
 which can be found in TRON's [related documents](https://github.com/tronprotocol/documentation-en/blob/master/docs/mechanism-algorithm/dex.md).
 
 ### Create a trading pair
