@@ -295,7 +295,10 @@ public class WalletApiWrapper {
       builder.addFrozenSupply(frozenSupplyBuilder.build());
     }
 
-    return wallet.createAssetIssue(builder.build());
+    return wallet.createAssetIssue(builder.build(), ownerAddress, name, abbrName,
+      totalSupply, trxNum, icoNum, startTime, endTime,
+      url, freeNetLimit, publicFreeNetLimit,
+      precision, frozenSupply, description);
   }
 
   public boolean createAccount(byte[] ownerAddress, byte[] address)
