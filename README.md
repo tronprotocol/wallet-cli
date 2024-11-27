@@ -56,7 +56,7 @@ blockNumberStartToScan = 22690588 // NOTE: this field is optional
 
 ### Connect to java-tron
 
-Wallet-cli connect to java-tron via gRPC protocol, which can be deployed locally or remotely. Check **Run a web Wallet** section.
+Wallet-cli connects to java-tron via gRPC protocol, which can be deployed locally or remotely. Check **Run a web Wallet** section.
 We can configure java-tron node IP and port in ``src/main/resources/config.conf``, so that wallet-cli server can successfully talk to java-tron nodes.
 
 ## Wallet-cli supported command list
@@ -139,7 +139,7 @@ After being unfrozen, it is transferred back to Balance by Frozen, and the froze
 When more share or bandwidth is needed temporarily, additional funds may be frozen to obtain additional share and bandwidth.
 The unfrozen time is postponed until 3 days after the last freeze operation
 
-After the freezing time expires, funds can be unfroze.
+After the freezing time expires, funds can be unfrozen.
 
 **Unfreeze operation is as follows:**
 
@@ -166,7 +166,7 @@ For example:
 > votewitness 123455 witness1 10  # Voted 10 votes for witness1
 ```
 
-The final result of the above command was 10 votes for witness1 and 0 vote for witness2.
+The final result of the above command was 10 votes for witness1 and 0 votes for witness2.
 
 ## Brokerage
 
@@ -319,7 +319,7 @@ StartDate, EndDate
 FrozenAmount0 FrozenDays0
 > Amount and days of token freeze. 
 > FrozenAmount0: Must be bigger than 0
-> FrozenDays0: Must between 1 and 3653.
+> FrozenDays0: Must be between 1 and 3653.
 
 Example:
 
