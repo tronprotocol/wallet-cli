@@ -81,6 +81,9 @@ import org.tron.protos.contract.WitnessContract.WitnessUpdateContract;
 import org.tron.protos.contract.ShieldContract.ShieldedTransferContract;
 import org.tron.protos.contract.MarketContract.MarketCancelOrderContract;
 import org.tron.protos.contract.MarketContract.MarketSellAssetContract;
+import org.web3j.crypto.Bip32ECKeyPair;
+import org.web3j.crypto.Credentials;
+import org.web3j.crypto.MnemonicUtils;
 
 public class Utils {
   public static final String PERMISSION_ID = "Permission_id";
@@ -688,4 +691,19 @@ public class Utils {
     }
     return bRet;
   }
+
+  public static byte[] getPrivateKeyFromMnemonic(List<String> mnemonics) {
+    int HARDENED_BIT = 0x80000000;
+    String mnemonic = String.join(" ", mnemonics);
+    byte[] seed = MnemonicUtils.generateSeed(mnemonic, "");
+    Bip32ECKeyPair masterKeypair = Bip32ECKeyPair.generateKeyPair(seed);
+    // m/44'/195'/0'/0/0
+    final int[] path = {44 | HARDENED_BIT, 195 | HARDENED_BIT, 0 | HARDENED_BIT, 0, 0};
+    Bip32ECKeyPair bip44Keypair = Bip32ECKeyPair.deriveKeyPair(masterKeypair, path);
+    Credentials credentials = Credentials.create(bip44Keypair);
+    String privateKey = credentials.getEcKeyPair().getPrivateKey().toString(16);
+
+    return ByteArray.fromHexString(privateKey);
+  }
+
 }

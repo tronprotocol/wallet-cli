@@ -162,6 +162,7 @@ public class Client {
       "ImportShieldedTRC20Wallet",
       // "ImportShieldedWallet",
       "ImportWallet",
+      "ImportWalletByMnemonic",
       "ImportWalletByBase64",
       "ListAssetIssue",
       "ListAssetIssuePaginated",
@@ -309,6 +310,7 @@ public class Client {
       "ImportShieldedTRC20Wallet",
       // "ImportShieldedWallet",
       "ImportWallet",
+      "ImportWalletByMnemonic",
       "ImportWalletByBase64",
       "ListAssetIssue",
       "ListAssetIssuePaginated",
@@ -390,6 +392,105 @@ public class Client {
     return result;
   }
 
+  private List<String> inputMnemonicWords() throws IOException {
+    try {
+      List<String> words = readWordsWithRetry();
+      if (words != null) {
+        return words;
+      } else {
+        System.out.println("\nMaximum retry attempts reached, program exiting.");
+      }
+    } catch (Exception e) {
+      System.out.println("An error occurred in the program." + e.getMessage());
+    }
+    return null;
+  }
+
+  private static List<String> readWordsWithRetry() {
+    int REQUIRED_WORDS = 12;
+    int MAX_RETRY = 2;
+
+    int retryCount = 0;
+    while (retryCount <= MAX_RETRY) {
+      try {
+        System.out.printf("%nPlease enter %d words (separated by spaces) [Attempt %d/%d]:%n",
+            REQUIRED_WORDS, retryCount + 1, MAX_RETRY + 1);
+        String line = readLine();
+        if (line.isEmpty()) {
+          System.out.println("Error: Input cannot be empty.");
+          retryCount++;
+          continue;
+        }
+        String[] wordArray = line.split("\\s+");
+        if (wordArray.length != REQUIRED_WORDS) {
+          System.out.printf("Error: Expected %d words, but %d words were entered.",
+              REQUIRED_WORDS, wordArray.length);
+          retryCount++;
+          continue;
+        }
+        List<String> validatedWords = validateWords(wordArray);
+        if (validatedWords != null) {
+          return validatedWords;
+        }
+        retryCount++;
+      } catch (Exception e) {
+        System.out.println("Error: " + e.getMessage());
+        retryCount++;
+      }
+    }
+    return null;
+  }
+  private static String readLine() {
+    StringBuilder input = new StringBuilder();
+    try {
+      int c;
+      boolean isFirstChar = true;
+      while ((c = System.in.read()) != -1) {
+        if (c == 13) { // CR (\r)
+          continue;
+        }
+        if (c == 10) { // LF (\n)
+          if (input.length() > 0) {
+            break;
+          }
+          continue;
+        }
+        if (isFirstChar && Character.isWhitespace(c)) {
+          continue;
+        }
+        isFirstChar = false;
+        input.append((char) c);
+      }
+      while (input.length() > 0 &&
+          Character.isWhitespace(input.charAt(input.length() - 1))) {
+        input.setLength(input.length() - 1);
+      }
+    } catch (IOException e) {
+      System.err.println(e.getMessage());
+    }
+    return input.toString();
+  }
+  private static List<String> validateWords(String[] words) {
+    int MIN_WORD_LENGTH = 1;
+    final int MAX_WORD_LENGTH = 20;
+    List<String> validatedWords = new ArrayList<>();
+    for (int i = 0; i < words.length; i++) {
+      String word = words[i];
+      if (word.length() < MIN_WORD_LENGTH || word.length() > MAX_WORD_LENGTH) {
+        System.out.printf("Error: The length of the %dth word '%s' is invalid (should be between %d and %d characters).",
+            i + 1, word, MIN_WORD_LENGTH, MAX_WORD_LENGTH);
+        return null;
+      }
+      if (!word.matches("[a-zA-Z]+")) {
+        System.out.printf("Error: The %dth word '%s' contains illegal characters (only letters are allowed).",
+            i + 1, word);
+        return null;
+      }
+      validatedWords.add(word.toLowerCase());
+    }
+    return validatedWords;
+  }
+
   private byte[] inputPrivateKey64() throws IOException {
     Decoder decoder = Base64.getDecoder();
     byte[] temp = new byte[128];
@@ -437,6 +538,26 @@ public class Client {
       System.out.println("Import wallet failed !!");
       return;
     }
+    System.out.println("Import a wallet successful, keystore file name is " + fileName);
+  }
+
+  private void importWalletByMnemonic() throws CipherException, IOException {
+
+    char[] password = Utils.inputPassword2Twice();
+    List<String> mnemonic = inputMnemonicWords();
+
+    byte[] priKey = Utils.getPrivateKeyFromMnemonic(mnemonic);
+    mnemonic.clear();
+
+    String fileName = walletApiWrapper.importWallet(password, priKey);
+    StringUtils.clear(password);
+    StringUtils.clear(priKey);
+
+    if (null == fileName) {
+      System.out.println("Import wallet failed !!");
+      return;
+    }
+
     System.out.println("Import a wallet successful, keystore file name is " + fileName);
   }
 
@@ -4427,6 +4548,10 @@ public class Client {
             }
             case "importwallet": {
               importWallet();
+              break;
+            }
+            case "importwalletbymnemonic": {
+              importWalletByMnemonic();
               break;
             }
             case "importwalletbybase64": {
