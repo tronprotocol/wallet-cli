@@ -14,6 +14,7 @@ import io.grpc.Status;
 import java.io.File;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -80,6 +81,7 @@ import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.Hash;
 import org.tron.common.crypto.Sha256Sm3Hash;
+import org.tron.common.crypto.SignInterface;
 import org.tron.common.crypto.sm2.SM2;
 import org.tron.common.utils.Base58;
 import org.tron.common.utils.ByteArray;
@@ -93,6 +95,9 @@ import org.tron.core.exception.CancelException;
 import org.tron.core.exception.CipherException;
 import org.tron.keystore.CheckStrength;
 import org.tron.keystore.Credentials;
+import org.tron.mnemonic.Mnemonic;
+import org.tron.mnemonic.MnemonicFile;
+import org.tron.mnemonic.MnemonicUtils;
 import org.tron.keystore.Wallet;
 import org.tron.keystore.WalletFile;
 import org.tron.keystore.WalletUtils;
@@ -243,27 +248,47 @@ public class WalletApi {
   /**
    * Creates a new WalletApi with a random ECKey or no ECKey.
    */
-  public static WalletFile CreateWalletFile(byte[] password) throws CipherException {
+  public static WalletFile CreateWalletFile(byte[] password) throws CipherException, IOException {
     WalletFile walletFile = null;
+    SecureRandom secureRandom = Utils.getRandom();
+    List<String> mnemonicWords = MnemonicUtils.generateMnemonic(secureRandom);
+    System.out.println("generateMnemonic words:" + StringUtils.join(mnemonicWords, " "));
+    byte[] priKey = MnemonicUtils.getPrivateKeyFromMnemonic(mnemonicWords);
+
     if (isEckey) {
-      ECKey ecKey = new ECKey(Utils.getRandom());
+      ECKey ecKey = new ECKey(priKey, true);
       walletFile = Wallet.createStandard(password, ecKey);
+      storeMnemonicWords(password, ecKey, mnemonicWords);
     } else {
-      SM2 sm2 = new SM2(Utils.getRandom());
+      SM2 sm2 = new SM2(priKey, true);
       walletFile = Wallet.createStandard(password, sm2);
+      storeMnemonicWords(password, sm2, mnemonicWords);
     }
+
     return walletFile;
   }
 
+  public static void storeMnemonicWords(byte[] password, SignInterface ecKeySm2Pair, List<String> mnemonicWords) throws CipherException, IOException {
+    MnemonicFile mnemonicFile = Mnemonic.createStandard(password, ecKeySm2Pair, mnemonicWords);
+    String keystoreName = MnemonicUtils.store2Keystore(mnemonicFile);
+    System.out.println("store mnemonicWords in file :" + keystoreName);
+  }
+
   //  Create Wallet with a pritKey
-  public static WalletFile CreateWalletFile(byte[] password, byte[] priKey) throws CipherException {
+  public static WalletFile CreateWalletFile(byte[] password, byte[] priKey, List<String> mnemonicWords) throws CipherException, IOException {
     WalletFile walletFile = null;
     if (isEckey) {
       ECKey ecKey = ECKey.fromPrivate(priKey);
       walletFile = Wallet.createStandard(password, ecKey);
+      if (mnemonicWords !=null && !mnemonicWords.isEmpty()) {
+        storeMnemonicWords(password, ecKey, mnemonicWords);
+      }
     } else {
       SM2 sm2 = SM2.fromPrivate(priKey);
       walletFile = Wallet.createStandard(password, sm2);
+      if (mnemonicWords !=null && !mnemonicWords.isEmpty()) {
+        storeMnemonicWords(password, sm2, mnemonicWords);
+      }
     }
     return walletFile;
   }

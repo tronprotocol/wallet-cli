@@ -50,6 +50,7 @@ import org.tron.core.zen.address.KeyIo;
 import org.tron.core.zen.address.PaymentAddress;
 import org.tron.core.zen.address.SpendingKey;
 import org.tron.keystore.StringUtils;
+import org.tron.mnemonic.MnemonicUtils;
 import org.tron.protos.Protocol.MarketOrder;
 import org.tron.protos.Protocol.MarketOrderList;
 import org.tron.protos.Protocol.MarketOrderPairList;
@@ -69,7 +70,6 @@ import org.tron.walletserver.WalletApi;
 import org.tron.protos.contract.Common.ResourceCode;
 
 
-
 public class Client {
 
   private WalletApiWrapper walletApiWrapper = new WalletApiWrapper();
@@ -84,6 +84,7 @@ public class Client {
       "BackupShieldedTRC20Wallet",
       "BackupWallet",
       "BackupWallet2Base64",
+      "ExportWalletMnemonic",
       "BroadcastTransaction",
       "CancelAllUnfreezeV2",
       "ChangePassword",
@@ -231,6 +232,7 @@ public class Client {
       "BackupShieldedTRC20Wallet",
       "BackupWallet",
       "BackupWallet2Base64",
+      "ExportWalletMnemonic",
       "BroadcastTransaction",
       "CancelAllUnfreezeV2",
       "ChangePassword",
@@ -530,7 +532,7 @@ public class Client {
     char[] password = Utils.inputPassword2Twice();
     byte[] priKey = inputPrivateKey();
 
-    String fileName = walletApiWrapper.importWallet(password, priKey);
+    String fileName = walletApiWrapper.importWallet(password, priKey, null);
     StringUtils.clear(password);
     StringUtils.clear(priKey);
 
@@ -544,12 +546,12 @@ public class Client {
   private void importWalletByMnemonic() throws CipherException, IOException {
 
     char[] password = Utils.inputPassword2Twice();
-    List<String> mnemonic = inputMnemonicWords();
+    List<String> mnemonicWords = inputMnemonicWords();
 
-    byte[] priKey = Utils.getPrivateKeyFromMnemonic(mnemonic);
-    mnemonic.clear();
+    byte[] priKey = MnemonicUtils.getPrivateKeyFromMnemonic(mnemonicWords);
 
-    String fileName = walletApiWrapper.importWallet(password, priKey);
+    String fileName = walletApiWrapper.importWallet(password, priKey, mnemonicWords);
+    mnemonicWords.clear();
     StringUtils.clear(password);
     StringUtils.clear(priKey);
 
@@ -565,7 +567,7 @@ public class Client {
     char[] password = Utils.inputPassword2Twice();
     byte[] priKey = inputPrivateKey64();
 
-    String fileName = walletApiWrapper.importWallet(password, priKey);
+    String fileName = walletApiWrapper.importWallet(password, priKey, null);
     StringUtils.clear(password);
     StringUtils.clear(priKey);
 
@@ -637,6 +639,37 @@ public class Client {
       System.out.println("\n");
       StringUtils.clear(priKey64);
     }
+  }
+
+  private void exportWalletMnemonic() throws IOException, CipherException {
+    byte[] mnemonic = walletApiWrapper.exportWalletMnemonic();
+    char[] mnemonicChars = bytesToChars(mnemonic);
+    if (!ArrayUtils.isEmpty(mnemonic)) {
+      System.out.println("exportWalletMnemonic successful !!");
+      outputMnemonicChars(mnemonicChars);
+      System.out.println("\n");
+    }
+    StringUtils.clear(mnemonic);
+    clearChars(mnemonicChars);
+  }
+
+  private char[] bytesToChars(byte[] bytes) {
+    char[] chars = new char[bytes.length];
+    for (int i = 0; i < bytes.length; i++) {
+      chars[i] = (char) (bytes[i] & 0xFF);
+    }
+    return chars;
+  }
+
+  private void outputMnemonicChars(char[] mnemonic) {
+    for (char c : mnemonic) {
+      System.out.print(c);
+    }
+    System.out.println();
+  }
+
+  private void clearChars(char[] mnemonic) {
+    Arrays.fill(mnemonic, '\0');
   }
 
   private void getAddress() {
@@ -4596,6 +4629,10 @@ public class Client {
             }
             case "backupwallet2base64": {
               backupWallet2Base64();
+              break;
+            }
+            case "exportwalletmnemonic": {
+              exportWalletMnemonic();
               break;
             }
             case "getaddress": {
