@@ -213,7 +213,7 @@ public class WalletApiWrapper {
     return wallet.sendCoin(ownerAddress, toAddress, amount);
   }
 
-  public boolean transferAsset(byte[] ownerAddress, byte[] toAddress, String assertName,
+  public boolean transferAsset(byte[] ownerAddress, byte[] toAddress, String assetName,
       long amount)
       throws IOException, CipherException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
@@ -221,7 +221,7 @@ public class WalletApiWrapper {
       return false;
     }
 
-    return wallet.transferAsset(ownerAddress, toAddress, assertName.getBytes(), amount);
+    return wallet.transferAsset(ownerAddress, toAddress, assetName.getBytes(), amount);
   }
 
   public boolean participateAssetIssue(byte[] ownerAddress, byte[] toAddress, String assertName,
@@ -318,7 +318,10 @@ public class WalletApiWrapper {
       builder.addFrozenSupply(frozenSupplyBuilder.build());
     }
 
-    return wallet.createAssetIssue(builder.build());
+    return wallet.createAssetIssue(builder.build(), ownerAddress, name, abbrName,
+      totalSupply, trxNum, icoNum, startTime, endTime,
+      url, freeNetLimit, publicFreeNetLimit,
+      precision, frozenSupply, description);
   }
 
   public boolean createAccount(byte[] ownerAddress, byte[] address)
@@ -1937,7 +1940,6 @@ public class WalletApiWrapper {
       byte[] sellTokenId, byte[] buyTokenId) {
     return WalletApi.getMarketPriceByPair(sellTokenId, buyTokenId);
   }
-
 
   public Optional<MarketOrderList> getMarketOrderListByPair(
       byte[] sellTokenId, byte[] buyTokenId) {

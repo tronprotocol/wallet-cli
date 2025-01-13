@@ -38,6 +38,7 @@ import org.tron.protos.Protocol.Transaction.Result;
 import org.tron.protos.Protocol.TransactionInfo;
 import org.tron.protos.contract.SmartContractOuterClass;
 import org.tron.protos.contract.SmartContractOuterClass.TriggerSmartContract;
+import org.tron.trident.core.exceptions.IllegalException;
 import org.tron.walletserver.GrpcClient;
 import org.tron.walletserver.WalletApi;
 
@@ -56,13 +57,13 @@ public class ShieldedTRC20Demo {
   private String rcm = "should generate new rcm when trigger contract";
   private ShieldedKey shieldedKey = generateShieldedKey(sk);
 
-  private GrpcClient grpcClient = WalletApi.init();
+  private GrpcClient grpcClient = WalletApi.initRpcCli();
   private BigInteger scalingFactorBi = getScalingFactorBi();
 
   public ShieldedTRC20Demo() throws ZksnarkException {
   }
 
-  public static void main(String[] args) throws ZksnarkException, InterruptedException {
+  public static void main(String[] args) throws ZksnarkException, InterruptedException, IllegalException {
     ShieldedTRC20Demo demo = new ShieldedTRC20Demo();
     demo.mintDemo(demo.privateKey, 1, demo.shieldedKey.getKioAddress());
     demo.transferDemo(demo.privateKey, 5, demo.shieldedKey.getKioAddress(),
@@ -184,7 +185,7 @@ public class ShieldedTRC20Demo {
   }
 
   public void transferDemo(String fromPrivate, long fromAmount, String toShieldedAddress,
-      long toAmount1, long toAmount2) throws InterruptedException {
+      long toAmount1, long toAmount2) throws InterruptedException, IllegalException {
     String hash = mintDemo(fromPrivate, fromAmount, toShieldedAddress);
     Optional<TransactionInfo> infoById = waitToGetTransactionInfo(hash);
 
@@ -210,7 +211,7 @@ public class ShieldedTRC20Demo {
 
   public void burnDemo(String fromPrivate, long fromAmount, String toShieldedAddress,
       long toShieldedAmount,  byte[] toTransparentAddress, long toTransparentAmount)
-      throws InterruptedException {
+      throws InterruptedException, IllegalException {
     String hash = mintDemo(fromPrivate, fromAmount, toShieldedAddress);
     Optional<TransactionInfo> infoById = waitToGetTransactionInfo(hash);
     Note note = buildNote(fromAmount, toShieldedAddress,
@@ -272,7 +273,7 @@ public class ShieldedTRC20Demo {
         privateKey);
   }
 
-  private String triggerTransfer(byte[] contractAddress, String privateKey, String input) {
+  private String triggerTransfer(byte[] contractAddress, String privateKey, String input) throws IllegalException {
     String txid = triggerContract(contractAddress,
         "transfer(bytes32[10][],bytes32[2][],bytes32[9][],bytes32[2],bytes32[21][])",
         input,
@@ -458,7 +459,7 @@ public class ShieldedTRC20Demo {
   }
 
   private Optional<TransactionInfo> waitToGetTransactionInfo(String txid)
-      throws InterruptedException {
+      throws InterruptedException, IllegalException {
     logger.info("mint txid: " + txid);
     Optional<TransactionInfo> infoById = WalletApi.getTransactionInfoById(txid);
     while (infoById.get().getLogList().size() < 2) {

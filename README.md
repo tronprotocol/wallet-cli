@@ -257,7 +257,7 @@ $ ./gradlew run
 > getAddress
 address = TRfwwLDpr4excH4V4QzghLEsdYwkapTxnm'  # backup it!
 > BackupWallet 123456
-priKey = 075725cf903fc1f6d6267b8076fc2c6adece0cfd18626c33427d9b2504ea3cef'  # backup it!!! (BackupWallet2Base64 option)
+priKey = ''     # backup it!!! (BackupWallet2Base64 option)
 > getbalance
 Balance = 0
 > AssetIssue TestTRX TRX 75000000000000000 1 1 2 "2019-10-02 15:10:00" "2020-07-11" "just for test121212" www.test.com 100 100000 10000 10 10000 1

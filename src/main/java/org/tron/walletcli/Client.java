@@ -1006,11 +1006,11 @@ public class Client {
       System.out.println("Invalid toAddress.");
       return;
     }
-    String assertName = parameters[index++];
+    String assetName = parameters[index++];
     String amountStr = parameters[index++];
     long amount = new Long(amountStr);
 
-    boolean result = walletApiWrapper.transferAsset(ownerAddress, toAddress, assertName, amount);
+    boolean result = walletApiWrapper.transferAsset(ownerAddress, toAddress, assetName, amount);
     if (result) {
       System.out.println("TransferAsset " + amount + " to " + base58Address + " successful !!");
     } else {
@@ -1315,21 +1315,13 @@ public class Client {
       blockNum = Long.parseLong(parameters[0]);
     }
 
-    if (WalletApi.getRpcVersion() == 2) {
-      BlockExtention blockExtention = walletApiWrapper.getBlock2(blockNum);
-      if (blockExtention == null) {
-        System.out.println("No block for num : " + blockNum);
-        return;
-      }
-      System.out.println(Utils.printBlockExtention(blockExtention));
-    } else {
-      Block block = walletApiWrapper.getBlock(blockNum);
-      if (block == null) {
-        System.out.println("No block for num : " + blockNum);
-        return;
-      }
-      System.out.println(Utils.printBlock(block));
+
+    BlockExtention blockExtention = walletApiWrapper.getBlock2(blockNum);
+    if (blockExtention == null) {
+      System.out.println("No block for num : " + blockNum);
+      return;
     }
+    System.out.println(Utils.printBlockExtention(blockExtention));
   }
 
   private void getTransactionCountByBlockNum(String[] parameters) {
@@ -2429,7 +2421,7 @@ public class Client {
       end = Long.parseLong(parameters[1]);
     }
 
-    if (WalletApi.getRpcVersion() == 2) {
+    if (WalletApi.getRpcVersion() == 2 || WalletApi.getRpcVersion() == 3) {
       Optional<BlockListExtention> result = WalletApi.getBlockByLimitNext2(start, end);
       if (result.isPresent()) {
         BlockListExtention blockList = result.get();
@@ -2456,7 +2448,7 @@ public class Client {
     } else {
       num = Long.parseLong(parameters[0]);
     }
-    if (WalletApi.getRpcVersion() == 2) {
+    if (WalletApi.getRpcVersion() == 2 || WalletApi.getRpcVersion() == 3) {
       Optional<BlockListExtention> result = WalletApi.getBlockByLatestNum2(num);
       if (result.isPresent()) {
         BlockListExtention blockList = result.get();
@@ -2664,7 +2656,7 @@ public class Client {
     }
 
     long blockNum = Long.parseLong(parameters[0]);
-    Optional<TransactionInfoList> result = walletApiWrapper.getTransactionInfoByBlockNum(blockNum);
+    Optional<TransactionInfoList> result = WalletApiWrapper.getTransactionInfoByBlockNum(blockNum);
 
     if (result.isPresent()) {
       TransactionInfoList transactionInfoList = result.get();
