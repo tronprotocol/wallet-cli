@@ -2,7 +2,6 @@ package org.tron.walletcli;
 
 import com.google.protobuf.ByteString;
 import io.netty.util.internal.StringUtil;
-import java.io.File;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -29,8 +28,6 @@ import org.tron.core.zen.address.FullViewingKey;
 import org.tron.core.zen.address.SpendingKey;
 import org.tron.keystore.StringUtils;
 import org.tron.keystore.WalletFile;
-import org.tron.mnemonic.Mnemonic;
-import org.tron.mnemonic.MnemonicFile;
 import org.tron.mnemonic.MnemonicUtils;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
@@ -213,7 +210,7 @@ public class WalletApiWrapper {
     return wallet.sendCoin(ownerAddress, toAddress, amount);
   }
 
-  public boolean transferAsset(byte[] ownerAddress, byte[] toAddress, String assetName,
+  public boolean transferAsset(byte[] ownerAddress, byte[] toAddress, String assertName,
       long amount)
       throws IOException, CipherException, CancelException {
     if (wallet == null || !wallet.isLoginState()) {
@@ -221,7 +218,7 @@ public class WalletApiWrapper {
       return false;
     }
 
-    return wallet.transferAsset(ownerAddress, toAddress, assetName.getBytes(), amount);
+    return wallet.transferAsset(ownerAddress, toAddress, assertName.getBytes(), amount);
   }
 
   public boolean participateAssetIssue(byte[] ownerAddress, byte[] toAddress, String assertName,
@@ -1940,6 +1937,7 @@ public class WalletApiWrapper {
       byte[] sellTokenId, byte[] buyTokenId) {
     return WalletApi.getMarketPriceByPair(sellTokenId, buyTokenId);
   }
+
 
   public Optional<MarketOrderList> getMarketOrderListByPair(
       byte[] sellTokenId, byte[] buyTokenId) {
