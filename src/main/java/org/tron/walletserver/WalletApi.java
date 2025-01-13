@@ -1561,28 +1561,16 @@ public class WalletApi {
 
   public static Optional<ProposalList> getProposalListPaginated(long offset, long limit) {
     if (rpcVersion == 3) {
-      Response.ProposalList proposalList = rpcWrapper.listProposals();
-      List<Response.Proposal> list = Utils.getPage(proposalList.getProposalsList(), offset, limit);
-      ProposalList.Builder builder = ProposalList.newBuilder();
-      list.forEach(responseProposal -> {
-        Protocol.Proposal proposal = TridentUtil.convertProposal(responseProposal);
-        builder.addProposals(proposal);
-      });
-      return Optional.of(builder.build());
+      System.out.println("getProposalListPaginated is not supported in rpcVersion 3");
+      return Optional.empty();
     }
     return rpcOldCli.getProposalListPaginated(offset, limit);
   }
 
   public static Optional<ExchangeList> getExchangeListPaginated(long offset, long limit) {
     if (rpcVersion == 3) {
-      Response.ExchangeList exchangeList = rpcWrapper.listExchanges();
-      List<Response.Exchange> list = Utils.getPage(exchangeList.getExchangesList(), offset, limit);
-      ExchangeList.Builder builder = ExchangeList.newBuilder();
-      list.forEach(responseProposal -> {
-        Protocol.Exchange exchange = TridentUtil.convertExchange(responseProposal);
-        builder.addExchanges(exchange);
-      });
-      return Optional.of(builder.build());
+      System.out.println("getExchangeListPaginated is not supported in rpcVersion 3");
+      return Optional.empty();
     }
     return rpcOldCli.getExchangeListPaginated(offset, limit);
   }

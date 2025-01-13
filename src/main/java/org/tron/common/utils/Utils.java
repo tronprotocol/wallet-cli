@@ -1019,12 +1019,4 @@ public class Utils {
     }
     return bRet;
   }
-
-  public static <T> List<T> getPage(List<T> list, long offset, long limit) {
-    return list.stream()
-        .skip(offset)
-        .limit(limit)
-        .collect(Collectors.toList());
-  }
-
 }
