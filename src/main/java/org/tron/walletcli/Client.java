@@ -70,6 +70,7 @@ import org.tron.walletserver.WalletApi;
 import org.tron.protos.contract.Common.ResourceCode;
 
 
+
 public class Client {
 
   private WalletApiWrapper walletApiWrapper = new WalletApiWrapper();
@@ -442,6 +443,7 @@ public class Client {
     }
     return null;
   }
+
   private static String readLine() {
     StringBuilder input = new StringBuilder();
     try {
@@ -472,6 +474,7 @@ public class Client {
     }
     return input.toString();
   }
+
   private static List<String> validateWords(String[] words) {
     int MIN_WORD_LENGTH = 1;
     final int MAX_WORD_LENGTH = 20;
@@ -559,7 +562,6 @@ public class Client {
       System.out.println("Import wallet failed !!");
       return;
     }
-
     System.out.println("Import a wallet successful, keystore file name is " + fileName);
   }
 
@@ -1006,11 +1008,11 @@ public class Client {
       System.out.println("Invalid toAddress.");
       return;
     }
-    String assetName = parameters[index++];
+    String assertName = parameters[index++];
     String amountStr = parameters[index++];
     long amount = new Long(amountStr);
 
-    boolean result = walletApiWrapper.transferAsset(ownerAddress, toAddress, assetName, amount);
+    boolean result = walletApiWrapper.transferAsset(ownerAddress, toAddress, assertName, amount);
     if (result) {
       System.out.println("TransferAsset " + amount + " to " + base58Address + " successful !!");
     } else {
@@ -1315,13 +1317,21 @@ public class Client {
       blockNum = Long.parseLong(parameters[0]);
     }
 
-
-    BlockExtention blockExtention = walletApiWrapper.getBlock2(blockNum);
-    if (blockExtention == null) {
-      System.out.println("No block for num : " + blockNum);
-      return;
+    if (WalletApi.getRpcVersion() == 2) {
+      BlockExtention blockExtention = walletApiWrapper.getBlock2(blockNum);
+      if (blockExtention == null) {
+        System.out.println("No block for num : " + blockNum);
+        return;
+      }
+      System.out.println(Utils.printBlockExtention(blockExtention));
+    } else {
+      Block block = walletApiWrapper.getBlock(blockNum);
+      if (block == null) {
+        System.out.println("No block for num : " + blockNum);
+        return;
+      }
+      System.out.println(Utils.printBlock(block));
     }
-    System.out.println(Utils.printBlockExtention(blockExtention));
   }
 
   private void getTransactionCountByBlockNum(String[] parameters) {
