@@ -178,7 +178,6 @@ public class WalletApi {
   private static byte addressPreFixByte = CommonConstant.ADD_PRE_FIX_BYTE_TESTNET;
   private static int rpcVersion = 0;
   private static boolean isEckey = true;
-  private static String TRONGRID_APIKEY = "0cf8c490-acd3-4896-8ce9-e014f2ee38a3";
 
   private static GrpcClient rpcCli = init();
   private static ApiWrapper rpcWrapper = initApiWrapper();
@@ -215,33 +214,22 @@ public class WalletApi {
 
     String fullNode = "";
     String solidityNode = "";
+    String tronGridAPIKey = "";
     if (config.hasPath("soliditynode.ip.list")) {
       solidityNode = config.getStringList("soliditynode.ip.list").get(0);
     }
     if (config.hasPath("fullnode.ip.list")) {
       fullNode = config.getStringList("fullnode.ip.list").get(0);
     }
-    if (config.hasPath("net.type") && "mainnet".equalsIgnoreCase(config.getString("net.type"))) {
-      WalletApi.setAddressPreFixByte(CommonConstant.ADD_PRE_FIX_BYTE_MAINNET);
-    } else {
-      WalletApi.setAddressPreFixByte(CommonConstant.ADD_PRE_FIX_BYTE_TESTNET);
-    }
-    if (config.hasPath("RPC_version")) {
-      rpcVersion = config.getInt("RPC_version");
-      System.out.println("WalletApi getRpcVsersion: " + rpcVersion);
-    }
-    if (config.hasPath("crypto.engine")) {
-      isEckey = config.getString("crypto.engine").equalsIgnoreCase("eckey");
-      System.out.println("WalletApi getConfig isEckey: " + isEckey);
+    if (config.hasPath("TRONGRID_APIKEY")) {
+      tronGridAPIKey = config.getString("TRONGRID_APIKEY");
     }
 
     if (StringUtils.isNotEmpty(fullNode) || StringUtils.isNotEmpty(solidityNode)) {
-      System.out.println("fullNode:"+fullNode);
-      System.out.println("solidityNode:"+solidityNode);
       return new ApiWrapper(fullNode, solidityNode, AbiUtil.generateOccupationConstantPrivateKey());
     } else if (config.hasPath("net.type")) {
       if ("mainnet".equalsIgnoreCase(config.getString("net.type"))) {
-        return ApiWrapper.ofMainnet(AbiUtil.generateOccupationConstantPrivateKey(), TRONGRID_APIKEY);
+        return ApiWrapper.ofMainnet(AbiUtil.generateOccupationConstantPrivateKey(), tronGridAPIKey);
       } else if ("shasta".equalsIgnoreCase(config.getString("net.type"))) {
         return ApiWrapper.ofShasta(AbiUtil.generateOccupationConstantPrivateKey());
       } else if ("nile".equalsIgnoreCase(config.getString("net.type"))) {
@@ -249,31 +237,6 @@ public class WalletApi {
       }
     }
     return null;
-  }
-
-  public static void resetWrapper(String hexPrivateKey) {
-    Config config = Configuration.getByPath("config.conf");
-
-    String fullNode = "";
-    String solidityNode = "";
-    if (config.hasPath("soliditynode.ip.list")) {
-      solidityNode = config.getStringList("soliditynode.ip.list").get(0);
-    }
-    if (config.hasPath("fullnode.ip.list")) {
-      fullNode = config.getStringList("fullnode.ip.list").get(0);
-    }
-
-    if (StringUtils.isNotEmpty(fullNode) || StringUtils.isNotEmpty(solidityNode)) {
-      rpcWrapper =  new ApiWrapper(fullNode, solidityNode, hexPrivateKey);
-    } else if (config.hasPath("net.type")) {
-      if ("mainnet".equalsIgnoreCase(config.getString("net.type"))) {
-        rpcWrapper = ApiWrapper.ofMainnet(hexPrivateKey, TRONGRID_APIKEY);
-      } else if ("shasta".equalsIgnoreCase(config.getString("net.type"))) {
-        rpcWrapper =  ApiWrapper.ofShasta(hexPrivateKey);
-      } else if ("nile".equalsIgnoreCase(config.getString("net.type"))) {
-        rpcWrapper =  ApiWrapper.ofNile(hexPrivateKey);
-      }
-    }
   }
 
   public static String selectFullNode() {
