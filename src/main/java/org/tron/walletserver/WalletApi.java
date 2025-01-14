@@ -2248,13 +2248,8 @@ public class WalletApi {
 
   public static Optional<Proposal> getProposal(String id) {
     if (rpcVersion == 3) {
-      try {
-        Response.Proposal proposal = rpcWrapper.getProposalById(id);
-        return Optional.ofNullable(TridentUtil.convertProposal(proposal));
-      } catch (IllegalException e) {
-        System.err.println("get illegal exception: " + e.getMessage());
-        return Optional.empty();
-      }
+      System.out.println("getProposal is not supported in rpcVersion 3");
+      return Optional.empty();
     }
 
     return rpcCli.getProposal(id);
