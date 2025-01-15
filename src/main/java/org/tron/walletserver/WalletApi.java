@@ -2048,10 +2048,11 @@ public class WalletApi {
 
   public boolean unfreezeAsset(byte[] ownerAddress)
       throws CipherException, IOException, CancelException {
-    UnfreezeAssetContract contract = createUnfreezeAssetContract(ownerAddress);
-
     if (rpcVersion == 3) {
       try {
+        if (ownerAddress == null) {
+          ownerAddress = getAddress();
+        }
         String ownerAddressStr = encode58Check(ownerAddress);
         Response.TransactionExtention transactionExtention
             = rpcWrapper.unfreezeAsset(ownerAddressStr);
@@ -2061,9 +2062,11 @@ public class WalletApi {
         return false;
       }
     } else if (rpcVersion == 2) {
+      UnfreezeAssetContract contract = createUnfreezeAssetContract(ownerAddress);
       TransactionExtention transactionExtention = rpcCli.createTransaction2(contract);
       return processTransactionExtention(transactionExtention);
     } else {
+      UnfreezeAssetContract contract = createUnfreezeAssetContract(ownerAddress);
       Transaction transaction = rpcCli.createTransaction(contract);
       return processTransaction(transaction);
     }
