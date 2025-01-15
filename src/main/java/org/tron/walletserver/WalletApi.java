@@ -1711,13 +1711,13 @@ public class WalletApi {
           long frozen_balance,
           int resourceCode)
           throws CipherException, IOException, CancelException {
-    BalanceContract.FreezeBalanceV2Contract contract =
-            createFreezeBalanceContractV2(
-                    ownerAddress, frozen_balance, resourceCode);
-
     if (rpcVersion == 3) {
       try {
+        if (ownerAddress == null) {
+          ownerAddress = getAddress();
+        }
         String ownerAddressStr = encode58Check(ownerAddress);
+
         long frozenBalance = frozen_balance;
         Response.TransactionExtention transactionExtention
             = rpcWrapper.freezeBalanceV2(
@@ -1728,7 +1728,9 @@ public class WalletApi {
         return false;
       }
     }
-
+    BalanceContract.FreezeBalanceV2Contract contract =
+        createFreezeBalanceContractV2(
+            ownerAddress, frozen_balance, resourceCode);
     TransactionExtention transactionExtention = rpcCli.createTransaction2(contract);
     return processTransactionExtention(transactionExtention);
   }
@@ -1868,11 +1870,11 @@ public class WalletApi {
   public boolean unfreezeBalanceV2(byte[] ownerAddress, long unfreezeBalance
           , int resourceCode)
           throws CipherException, IOException, CancelException {
-    BalanceContract.UnfreezeBalanceV2Contract contract =
-            createUnfreezeBalanceContractV2(ownerAddress, unfreezeBalance, resourceCode);
-
       if (rpcVersion == 3) {
         try {
+          if (ownerAddress == null) {
+            ownerAddress = getAddress();
+          }
           String ownerAddressStr = encode58Check(ownerAddress);
           Response.TransactionExtention transactionExtention
               = rpcWrapper.unfreezeBalanceV2(ownerAddressStr, unfreezeBalance, resourceCode);
@@ -1882,16 +1884,19 @@ public class WalletApi {
           return false;
         }
       }
+      BalanceContract.UnfreezeBalanceV2Contract contract =
+          createUnfreezeBalanceContractV2(ownerAddress, unfreezeBalance, resourceCode);
       TransactionExtention transactionExtention = rpcCli.createTransactionV2(contract);
       return processTransactionExtention(transactionExtention);
   }
 
   public boolean withdrawExpireUnfreeze(byte[] ownerAddress)
           throws CipherException, IOException, CancelException {
-    BalanceContract.WithdrawExpireUnfreezeContract contract =
-            createWithdrawExpireUnfreezeContract(ownerAddress);
     if (rpcVersion == 3) {
       try {
+        if (ownerAddress == null) {
+          ownerAddress = getAddress();
+        }
         String ownerAddressStr = encode58Check(ownerAddress);
         Response.TransactionExtention transactionExtention
             = rpcWrapper.withdrawExpireUnfreeze(ownerAddressStr);
@@ -1901,7 +1906,8 @@ public class WalletApi {
         return false;
       }
     }
-
+    BalanceContract.WithdrawExpireUnfreezeContract contract =
+        createWithdrawExpireUnfreezeContract(ownerAddress);
     TransactionExtention transactionExtention = rpcCli.createTransactionV2(contract);
     return processTransactionExtention(transactionExtention);
   }
@@ -1909,10 +1915,11 @@ public class WalletApi {
   public boolean delegateResource(byte[] ownerAddress, long balance
           ,int resourceCode, byte[] receiverAddress, boolean lock, long lockPeriod)
           throws CipherException, IOException, CancelException {
-    BalanceContract.DelegateResourceContract contract = createDelegateResourceContract(
-        ownerAddress, balance, resourceCode, receiverAddress, lock, lockPeriod);
     if (rpcVersion == 3) {
       try {
+        if (ownerAddress == null) {
+          ownerAddress = getAddress();
+        }
         String ownerAddressStr = encode58Check(ownerAddress);
         String receiverAddressStr = encode58Check(receiverAddress);
         Response.TransactionExtention transactionExtention
@@ -1923,7 +1930,8 @@ public class WalletApi {
         return false;
       }
     }
-
+    BalanceContract.DelegateResourceContract contract = createDelegateResourceContract(
+        ownerAddress, balance, resourceCode, receiverAddress, lock, lockPeriod);
     TransactionExtention transactionExtention = rpcCli.createTransactionV2(contract);
     return processTransactionExtention(transactionExtention);
   }
@@ -1931,11 +1939,11 @@ public class WalletApi {
   public boolean unDelegateResource(byte[] ownerAddress, long balance
           ,int resourceCode, byte[] receiverAddress)
           throws CipherException, IOException, CancelException {
-    BalanceContract.UnDelegateResourceContract contract =
-            createUnDelegateResourceContract(ownerAddress, balance, resourceCode, receiverAddress);
-
     if (rpcVersion == 3) {
       try {
+        if (ownerAddress == null) {
+          ownerAddress = getAddress();
+        }
         String ownerAddressStr = encode58Check(ownerAddress);
         String receiverAddressStr = encode58Check(receiverAddress);
         Response.TransactionExtention transactionExtention
@@ -1947,14 +1955,14 @@ public class WalletApi {
       }
     }
 
+    BalanceContract.UnDelegateResourceContract contract =
+        createUnDelegateResourceContract(ownerAddress, balance, resourceCode, receiverAddress);
     TransactionExtention transactionExtention = rpcCli.createTransactionV2(contract);
     return processTransactionExtention(transactionExtention);
   }
 
   public boolean cancelAllUnfreezeV2()
       throws CipherException, IOException, CancelException {
-    CancelAllUnfreezeV2Contract contract = createCancelAllUnfreezeV2Contract();
-
     if (rpcVersion == 3) {
       try {
         String ownerAddressStr = encode58Check(address);
@@ -1966,7 +1974,7 @@ public class WalletApi {
         return false;
       }
     }
-
+    CancelAllUnfreezeV2Contract contract = createCancelAllUnfreezeV2Contract();
     TransactionExtention transactionExtention = rpcCli.createTransactionV2(contract);
     return processTransactionExtention(transactionExtention);
   }
@@ -2102,11 +2110,11 @@ public class WalletApi {
 
   public boolean withdrawBalance(byte[] ownerAddress)
       throws CipherException, IOException, CancelException {
-    WithdrawBalanceContract contract = createWithdrawBalanceContract(
-        ownerAddress);
-
     if (rpcVersion == 3) {
       try {
+        if (ownerAddress == null) {
+          ownerAddress = getAddress();
+        }
         String ownerAddressStr = encode58Check(ownerAddress);
         Response.TransactionExtention transactionExtention
             = rpcWrapper.withdrawBalance(ownerAddressStr);
@@ -2116,10 +2124,14 @@ public class WalletApi {
         return false;
       }
     } else if (rpcVersion == 2) {
+      WithdrawBalanceContract contract = createWithdrawBalanceContract(
+          ownerAddress);
       TransactionExtention transactionExtention = rpcCli
           .createTransaction2(contract);
       return processTransactionExtention(transactionExtention);
     } else {
+      WithdrawBalanceContract contract = createWithdrawBalanceContract(
+          ownerAddress);
       Transaction transaction = rpcCli.createTransaction(contract);
       return processTransaction(transaction);
     }
@@ -2293,14 +2305,8 @@ public class WalletApi {
   public static Optional<GrpcAPI.CanWithdrawUnfreezeAmountResponseMessage> getCanWithdrawUnfreezeAmount(
           byte[] ownerAddress, long timestamp) {
     if (rpcVersion == 3) {
-      String ownerAddressStr = encode58Check(ownerAddress);
-      long amount = rpcWrapper.getCanWithdrawUnfreezeAmount(ownerAddressStr);
-
-      GrpcAPI.CanWithdrawUnfreezeAmountResponseMessage responseMessage
-          = GrpcAPI.CanWithdrawUnfreezeAmountResponseMessage.newBuilder()
-          .setAmount(amount)
-          .build();
-      return Optional.ofNullable(responseMessage);
+      System.out.println("getCanWithdrawUnfreezeAmount is not supported in rpcVersion 3");
+      return Optional.empty();
     }
 
     return rpcCli.getCanWithdrawUnfreezeAmount(ownerAddress, timestamp);
@@ -3258,7 +3264,6 @@ public class WalletApi {
   public AccountPermissionUpdateContract createAccountPermissionContract(byte[] owner,
       String permissionJson) {
     AccountPermissionUpdateContract.Builder builder = AccountPermissionUpdateContract.newBuilder();
-
     JSONObject permissions = JSONObject.parseObject(permissionJson);
     JSONObject owner_permission = permissions.getJSONObject("owner_permission");
     JSONObject witness_permission = permissions.getJSONObject("witness_permission");
