@@ -1695,19 +1695,8 @@ public class WalletApi {
         createFreezeBalanceContract(
             ownerAddress, frozen_balance, frozen_duration, resourceCode, receiverAddress);
     if (rpcVersion == 3) {
-      try {
-        String ownerAddressStr = encode58Check(ownerAddress);
-        long frozenBalance = frozen_balance;
-        int frozenDuration = (int)frozen_duration;
-        String receiverAddressStr = encode58Check(receiverAddress);
-        Response.TransactionExtention transactionExtention
-            = rpcWrapper.freezeBalance(
-            ownerAddressStr, frozenBalance, frozenDuration, resourceCode, receiverAddressStr);
-        return processTransactionExtention(transactionExtention);
-      } catch (IllegalException e) {
-        System.err.println("get illegal exception: " + e.getMessage());
-        return false;
-      }
+      System.out.println("freezeBalance is not supported in rpcVersion 3");
+      return false;
     } else if (rpcVersion == 2) {
       TransactionExtention transactionExtention = rpcCli.createTransaction2(contract);
       return processTransactionExtention(transactionExtention);
@@ -1865,16 +1854,8 @@ public class WalletApi {
     UnfreezeBalanceContract contract =
         createUnfreezeBalanceContract(ownerAddress, resourceCode, receiverAddress);
     if (rpcVersion == 3) {
-      try {
-        String ownerAddressStr = encode58Check(ownerAddress);
-        String receiverAddressStr = encode58Check(receiverAddress);
-        Response.TransactionExtention transactionExtention
-            = rpcWrapper.unfreezeBalance(ownerAddressStr, resourceCode, receiverAddressStr);
-        return processTransactionExtention(transactionExtention);
-      } catch (IllegalException e) {
-        System.err.println("get illegal exception: " + e.getMessage());
-        return false;
-      }
+      System.out.println("unfreezeBalance is not supported in rpcVersion 3");
+      return false;
     } else if (rpcVersion == 2) {
       TransactionExtention transactionExtention = rpcCli.createTransaction2(contract);
       return processTransactionExtention(transactionExtention);
