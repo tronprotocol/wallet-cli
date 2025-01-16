@@ -87,6 +87,10 @@ dependencies {
 
     implementation group: 'org.jline', name: 'jline', version: '3.25.0'
     implementation group: 'io.github.tronprotocol', name: 'zksnark-java-sdk', version: '1.0.0'
+
+    implementation "org.bouncycastle:bcprov-jdk15on:1.68"
+    implementation fileTree(dir:'./libs', include: '*.jar')
+    implementation 'com.google.guava:guava:28.0-jre'
 }
 
 protobuf {
