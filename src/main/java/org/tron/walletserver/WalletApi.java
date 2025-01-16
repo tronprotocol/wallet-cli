@@ -253,7 +253,7 @@ public class WalletApi {
     WalletFile walletFile = null;
     SecureRandom secureRandom = Utils.getRandom();
     List<String> mnemonicWords = MnemonicUtils.generateMnemonic(secureRandom);
-    System.out.println("generateMnemonic words:" + StringUtils.join(mnemonicWords, " "));
+    //System.out.println("generateMnemonic words:" + StringUtils.join(mnemonicWords, " "));
     byte[] priKey = MnemonicUtils.getPrivateKeyFromMnemonic(mnemonicWords);
 
     if (isEckey) {
@@ -272,7 +272,7 @@ public class WalletApi {
   public static void storeMnemonicWords(byte[] password, SignInterface ecKeySm2Pair, List<String> mnemonicWords) throws CipherException, IOException {
     MnemonicFile mnemonicFile = Mnemonic.createStandard(password, ecKeySm2Pair, mnemonicWords);
     String keystoreName = MnemonicUtils.store2Keystore(mnemonicFile);
-    System.out.println("store mnemonicWords in file :" + keystoreName);
+    //System.out.println("store mnemonicWords in file :" + keystoreName);
   }
 
   //  Create Wallet with a pritKey
