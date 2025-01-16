@@ -2228,6 +2228,9 @@ public class WalletApi {
       String fromAddress, String toAddress) {
     if (rpcVersion == 3) {
       Response.DelegatedResourceList delegatedResourceList = rpcWrapper.getDelegatedResource(fromAddress, toAddress);
+      return Optional.ofNullable(
+          TridentUtil.convertDelegatedResourceList(delegatedResourceList)
+      );
     }
 
     return rpcCli.getDelegatedResource(fromAddress, toAddress);
