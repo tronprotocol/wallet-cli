@@ -1,4 +1,4 @@
-package org.tron.common.utils;
+package org.tron.trident;
 
 import org.tron.api.GrpcAPI;
 import org.tron.protos.Protocol;
