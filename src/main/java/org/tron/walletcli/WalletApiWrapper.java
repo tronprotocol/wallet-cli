@@ -28,6 +28,7 @@ import org.tron.core.zen.address.FullViewingKey;
 import org.tron.core.zen.address.SpendingKey;
 import org.tron.keystore.StringUtils;
 import org.tron.keystore.WalletFile;
+import org.tron.mnemonic.MnemonicUtils;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.ChainParameters;
@@ -69,7 +70,7 @@ public class WalletApiWrapper {
     return keystoreName;
   }
 
-  public String importWallet(char[] password, byte[] priKey) throws CipherException, IOException {
+  public String importWallet(char[] password, byte[] priKey, List<String> mnemonic) throws CipherException, IOException {
     if (!WalletApi.passwordValid(password)) {
       return null;
     }
@@ -79,7 +80,7 @@ public class WalletApiWrapper {
 
     byte[] passwd = StringUtils.char2Byte(password);
 
-    WalletFile walletFile = WalletApi.CreateWalletFile(passwd, priKey);
+    WalletFile walletFile = WalletApi.CreateWalletFile(passwd, priKey, mnemonic);
     StringUtils.clear(passwd);
 
     String keystoreName = WalletApi.store2Keystore(walletFile);
@@ -160,6 +161,25 @@ public class WalletApiWrapper {
     StringUtils.clear(passwd);
 
     return privateKey;
+  }
+
+  public byte[] exportWalletMnemonic() throws IOException, CipherException {
+    if (wallet == null || !wallet.isLoginState()) {
+      wallet = WalletApi.loadWalletFromKeystore();
+      if (wallet == null) {
+        System.out.println("Warning: ExportWalletMnemonic failed, no mnemonic can be exported !!");
+        return null;
+      }
+    }
+
+    System.out.println("Please input your password.");
+    char[] password = Utils.inputPassword(false);
+    byte[] passwd = StringUtils.char2Byte(password);
+    wallet.checkPassword(passwd);
+    StringUtils.clear(password);
+
+    String ownerAddress = WalletApi.encode58Check(wallet.getAddress());
+    return MnemonicUtils.exportMnemonic(passwd, ownerAddress);
   }
 
   public String getAddress() {
@@ -295,10 +315,7 @@ public class WalletApiWrapper {
       builder.addFrozenSupply(frozenSupplyBuilder.build());
     }
 
-    return wallet.createAssetIssue(builder.build(), ownerAddress, name, abbrName,
-      totalSupply, trxNum, icoNum, startTime, endTime,
-      url, freeNetLimit, publicFreeNetLimit,
-      precision, frozenSupply, description);
+    return wallet.createAssetIssue(builder.build());
   }
 
   public boolean createAccount(byte[] ownerAddress, byte[] address)

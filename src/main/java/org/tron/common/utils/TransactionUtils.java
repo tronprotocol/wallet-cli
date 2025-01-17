@@ -43,7 +43,6 @@ import org.tron.protos.contract.SmartContractOuterClass.TriggerSmartContract;
 import org.tron.protos.contract.VoteAssetContractOuterClass.VoteAssetContract;
 import org.tron.protos.contract.WitnessContract.VoteWitnessContract;
 import org.tron.protos.contract.WitnessContract.WitnessCreateContract;
-import org.tron.trident.proto.Chain;
 
 public class TransactionUtils {
 
@@ -237,15 +236,7 @@ public class TransactionUtils {
     transaction = transactionBuilderSigned.build();
     return transaction;
   }
-  public static Chain.Transaction sign(Chain.Transaction transaction, SignInterface myKey) {
-    Chain.Transaction.Builder transactionBuilderSigned = transaction.toBuilder();
-    byte[] hash = Sha256Sm3Hash.hash(transaction.getRawData().toByteArray());
-    SignatureInterface signature = myKey.sign(hash);
-    ByteString bsSign = ByteString.copyFrom(signature.toByteArray());
-    transactionBuilderSigned.addSignature(bsSign);
-    transaction = transactionBuilderSigned.build();
-    return transaction;
-  }
+
   public static Transaction setTimestamp(Transaction transaction) {
     long currentTime = System.currentTimeMillis(); // *1000000 + System.nanoTime()%1000000;
     Transaction.Builder builder = transaction.toBuilder();
@@ -255,15 +246,7 @@ public class TransactionUtils {
     builder.setRawData(rowBuilder.build());
     return builder.build();
   }
-  public static Chain.Transaction setTimestamp(Chain.Transaction transaction) {
-    long currentTime = System.currentTimeMillis(); // *1000000 + System.nanoTime()%1000000;
-    Chain.Transaction.Builder builder = transaction.toBuilder();
-    Chain.Transaction.raw.Builder rowBuilder =
-        transaction.getRawData().toBuilder();
-    rowBuilder.setTimestamp(currentTime);
-    builder.setRawData(rowBuilder.build());
-    return builder.build();
-  }
+
   public static Transaction setExpirationTime(Transaction transaction) {
     if (transaction.getSignatureCount() == 0) {
       long expirationTime = System.currentTimeMillis() + 6 * 60 * 60 * 1000;
@@ -276,18 +259,7 @@ public class TransactionUtils {
     }
     return transaction;
   }
-  public static Chain.Transaction setExpirationTime(Chain.Transaction transaction) {
-    if (transaction.getSignatureCount() == 0) {
-      long expirationTime = System.currentTimeMillis() + 6 * 60 * 60 * 1000;
-      Chain.Transaction.Builder builder = transaction.toBuilder();
-      Chain.Transaction.raw.Builder rowBuilder =
-          transaction.getRawData().toBuilder();
-      rowBuilder.setExpiration(expirationTime);
-      builder.setRawData(rowBuilder.build());
-      return builder.build();
-    }
-    return transaction;
-  }
+
   public static Transaction setPermissionId(Transaction transaction, String tipString)
       throws CancelException {
     if (transaction.getSignatureCount() != 0
@@ -303,28 +275,6 @@ public class TransactionUtils {
     if (permission_id != 0) {
       Transaction.raw.Builder raw = transaction.getRawData().toBuilder();
       Transaction.Contract.Builder contract =
-          raw.getContract(0).toBuilder().setPermissionId(permission_id);
-      raw.clearContract();
-      raw.addContract(contract);
-      transaction = transaction.toBuilder().setRawData(raw).build();
-    }
-    return transaction;
-  }
-  public static Chain.Transaction setPermissionId(Chain.Transaction transaction, String tipString)
-      throws CancelException {
-    if (transaction.getSignatureCount() != 0
-        || transaction.getRawData().getContract(0).getPermissionId() != 0) {
-      return transaction;
-    }
-
-    System.out.println(tipString);
-    int permission_id = inputPermissionId();
-    if (permission_id < 0) {
-      throw new CancelException("User cancelled");
-    }
-    if (permission_id != 0) {
-      Chain.Transaction.raw.Builder raw = transaction.getRawData().toBuilder();
-      Chain.Transaction.Contract.Builder contract =
           raw.getContract(0).toBuilder().setPermissionId(permission_id);
       raw.clearContract();
       raw.addContract(contract);
