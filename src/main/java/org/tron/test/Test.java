@@ -9,6 +9,7 @@ import org.tron.common.crypto.Hash;
 import org.tron.common.crypto.Sha256Sm3Hash;
 import org.tron.common.crypto.SignInterface;
 import org.tron.common.crypto.sm2.SM2;
+import org.tron.common.utils.AbiUtil;
 import org.tron.common.utils.Base58;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Utils;
@@ -113,7 +114,7 @@ public class Test {
 
   public static void testVerify() {
     String hashBytes = "630211D6CA9440639F4965AA24831EB84815AB6BEF11E8BE6962A8540D861339";
-    String priKeyBytes = "8E812436A0E3323166E1F0E8BA79E19E217B2C4A53C970D4CCA0CFB1078979DF";
+    String priKeyBytes = AbiUtil.generateOccupationConstantPrivateKey();
     String sign =
         "1D89243F93670AA2F209FD1E0BDACA67E327B78FA54D728628F4EBBF6B7917E5BB0642717EC2234D21BEFAA7577D5FC6B4D47C94F2C0618862CD4C9E3C839C464";
     ECKey eCkey = null;
@@ -132,7 +133,7 @@ public class Test {
 
   public static void testGenKey() {
     ECKey eCkey = null;
-    String priKeyHex = "cba92a516ea09f620a16ff7ee95ce0df1d56550a8babe9964981a7144c8a784a";
+    String priKeyHex = AbiUtil.generateOccupationConstantPrivateKey();
     try {
       BigInteger priK = new BigInteger(priKeyHex, 16);
       eCkey = ECKey.fromPrivate(priK);
@@ -263,7 +264,7 @@ public class Test {
 
   public static void testGenerateWalletFile() throws CipherException, IOException {
     String PASSWORD = "Insecure Pa55w0rd";
-    String priKeyHex = "cba92a516ea09f620a16ff7ee95ce0df1d56550a8babe9964981a7144c8a784a";
+    String priKeyHex = AbiUtil.generateOccupationConstantPrivateKey();
     //    ECKey eCkey = ECKey.fromPrivate(ByteArray.fromHexString(priKeyHex));
     SignInterface sm2 = SM2.fromPrivate(ByteArray.fromHexString(priKeyHex));
     File file = new File("out");
@@ -311,7 +312,7 @@ public class Test {
   }
 
   public static void interfaceTest() {
-    String privateKey = "4afbef627636b159614be6e210febd5f14dd6531874fb01ece956516541c41c7";
+    String privateKey = AbiUtil.generateOccupationConstantPrivateKey();
     SignInterface sm2 = SM2.fromPrivate(ByteArray.fromHexString(privateKey));
     String address = WalletApi.encode58Check(sm2.getAddress());
     System.out.println(address);
