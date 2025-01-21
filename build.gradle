@@ -89,10 +89,6 @@ dependencies {
     implementation group: 'io.github.tronprotocol', name: 'zksnark-java-sdk', version: '1.0.0'
 
     implementation group: 'org.web3j', name: 'crypto', version: '4.5.0'
-
-    implementation "org.bouncycastle:bcprov-jdk15on:1.68"
-    implementation fileTree(dir:'./libs', include: '*.jar')
-    implementation 'com.google.guava:guava:28.0-jre'
 }
 
 protobuf {

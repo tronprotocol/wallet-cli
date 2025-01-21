@@ -13,6 +13,9 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.SecureRandom;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -81,7 +84,11 @@ public class MnemonicUtils {
   }
 
   private static String getWalletFileName(MnemonicFile mnemonicFile) {
-    return mnemonicFile.getAddress() + ".json";
+    DateTimeFormatter format = DateTimeFormatter.ofPattern(
+        "'UTC--'yyyy-MM-dd'T'HH-mm-ss.nVV'--'");
+    ZonedDateTime now = ZonedDateTime.now(ZoneOffset.UTC);
+
+    return now.format(format) + mnemonicFile.getAddress() + ".json";
   }
 
   public static byte[] exportMnemonic(byte[] password, String ownerAddress) throws IOException, CipherException {

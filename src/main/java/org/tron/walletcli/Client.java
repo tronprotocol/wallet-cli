@@ -420,13 +420,13 @@ public class Client {
             REQUIRED_WORDS, retryCount + 1, MAX_RETRY + 1);
         String line = readLine();
         if (line.isEmpty()) {
-          System.out.println("Error: Input cannot be empty.");
+          System.err.println("Error: Input cannot be empty.");
           retryCount++;
           continue;
         }
         String[] wordArray = line.split("\\s+");
         if (wordArray.length != REQUIRED_WORDS) {
-          System.out.printf("Error: Expected %d words, but %d words were entered.",
+          System.err.printf("Error: Expected %d words, but %d words were entered.",
               REQUIRED_WORDS, wordArray.length);
           retryCount++;
           continue;
@@ -437,7 +437,7 @@ public class Client {
         }
         retryCount++;
       } catch (Exception e) {
-        System.out.println("Error: " + e.getMessage());
+        System.err.println("Error: " + e.getMessage());
         retryCount++;
       }
     }
@@ -482,18 +482,23 @@ public class Client {
     for (int i = 0; i < words.length; i++) {
       String word = words[i];
       if (word.length() < MIN_WORD_LENGTH || word.length() > MAX_WORD_LENGTH) {
-        System.out.printf("Error: The length of the %dth word '%s' is invalid (should be between %d and %d characters).",
+        System.err.printf("Error: The length of the %dth word '%s' is invalid (should be between %d and %d characters).",
             i + 1, word, MIN_WORD_LENGTH, MAX_WORD_LENGTH);
         return null;
       }
       if (!word.matches("[a-zA-Z]+")) {
-        System.out.printf("Error: The %dth word '%s' contains illegal characters (only letters are allowed).",
+        System.err.printf("Error: The %dth word '%s' contains illegal characters (only letters are allowed).",
             i + 1, word);
         return null;
       }
       validatedWords.add(word.toLowerCase());
     }
-    return validatedWords;
+    String mnemonic = String.join(" ", validatedWords);
+    if (!org.web3j.crypto.MnemonicUtils.validateMnemonic(mnemonic)) {
+      System.err.println("validate mnemonic failed");
+      return null;
+    }
+    return  validatedWords;
   }
 
   private byte[] inputPrivateKey64() throws IOException {
@@ -2431,7 +2436,7 @@ public class Client {
       end = Long.parseLong(parameters[1]);
     }
 
-    if (WalletApi.getRpcVersion() == 2 || WalletApi.getRpcVersion() == 3) {
+    if (WalletApi.getRpcVersion() == 2) {
       Optional<BlockListExtention> result = WalletApi.getBlockByLimitNext2(start, end);
       if (result.isPresent()) {
         BlockListExtention blockList = result.get();
