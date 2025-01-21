@@ -91,13 +91,17 @@ public class MnemonicUtils {
     return now.format(format) + mnemonicFile.getAddress() + ".json";
   }
 
-  public static byte[] exportMnemonic(byte[] password, String ownerAddress) throws IOException, CipherException {
-    File file = Paths.get(FilePath, ownerAddress + ".json").toFile();
+  public static byte[] exportMnemonic(byte[] password, File file, String address) throws IOException, CipherException {
     if (!file.exists()) {
-      System.out.println("mnemonic file of the address: " + ownerAddress + " not exist");
+      System.out.println("mnemonic file not exist");
       System.out.println("Please use ImportWalletByMnemonic to import the wallet or RegisterWallet to create a new wallet.");
+      return new byte[0];
     }
     MnemonicFile mnemonicFile = objectMapper.readValue(file, MnemonicFile.class);
+    if (!mnemonicFile.getAddress().equals(address)) {
+      System.out.println("You can't export the mnemonic of other addresses: " + address);
+      return new byte[0];
+    }
     return Mnemonic.decrypt2MnemonicWordsBytes(password, mnemonicFile);
   }
 
