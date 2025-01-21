@@ -87,6 +87,8 @@ dependencies {
 
     implementation group: 'org.jline', name: 'jline', version: '3.25.0'
     implementation group: 'io.github.tronprotocol', name: 'zksnark-java-sdk', version: '1.0.0'
+
+    implementation group: 'org.web3j', name: 'crypto', version: '4.5.0'
 }
 
 protobuf {
