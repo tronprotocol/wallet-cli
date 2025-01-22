@@ -84,11 +84,7 @@ public class MnemonicUtils {
   }
 
   private static String getWalletFileName(MnemonicFile mnemonicFile) {
-    DateTimeFormatter format = DateTimeFormatter.ofPattern(
-        "'UTC--'yyyy-MM-dd'T'HH-mm-ss.nVV'--'");
-    ZonedDateTime now = ZonedDateTime.now(ZoneOffset.UTC);
-
-    return now.format(format) + mnemonicFile.getAddress() + ".json";
+    return mnemonicFile.getAddress() + ".json";
   }
 
   public static byte[] exportMnemonic(byte[] password, String ownerAddress) throws IOException, CipherException {
