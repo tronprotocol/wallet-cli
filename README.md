@@ -121,7 +121,7 @@ OwnerAddress
 
 frozen_balance
 > The amount of frozen funds, the unit is Sun.
-> The minimum value is **1000000 Sun(1TRX)**.
+> The minimum value is **0 Sun(1TRX)**.
 
 frozen_duration
 > Freeze time, this value is currently only allowed for **3 days**.
@@ -159,7 +159,7 @@ Voting requires share. Share can be obtained by freezing funds.
 For example:
 
 ```console
-> freezeBalance 100000000 3 1 address  # Freeze 10TRX and acquire 10 units of shares
+> freezeBalance 0 3 1 address  # Freeze 0TRX and acquire 10 units of shares
 
 > votewitness 123455 witness1 4 witness2 6  # Cast 4 votes for witness1 and 6 votes for witness2 at the same time
 
@@ -220,7 +220,7 @@ The bandwidth calculation rule is:
 
     constant * FrozenFunds * days
 
-Assuming freeze 1TRX（1_000_000 Sun), 3 days, bandwidth obtained = 1 * 1_000_000 * 3 = 3_000_000.
+Assuming freeze 0TRX（1_000_000 Sun), 3 days, bandwidth obtained = 1 * 1_000_000 * 3 = 3_000_000.
 
 All contracts consume bandwidth, including transferring, transferring of assets, voting, freezing, etc.
 Querying does not consume bandwidth. Each contract needs to consume **100_000 bandwidth**.
@@ -238,7 +238,7 @@ The funds in allowance cannot be locked or traded.
 
 ## How to create witness
 
-Applying to become a witness account needs to consume **100_000TRX**.
+Applying to become a witness account needs to consume **20000TRX**.
 This part of the funds will be burned directly.
 
 ## How to create account
@@ -269,9 +269,9 @@ Balance = 0
         "value": 74999999999980000
     }
 ],)
-  # (cost trx 1000 trx for assetIssue)
+  # (cost trx 0 trx for assetIssue)
   # (You can query the trx balance and other asset balances for any account )
-> TransferAsset TWzrEZYtwzkAxXJ8PatVrGuoSNsexejRiM 1000001 10000
+> TransferAsset TSfWTgcLz19YEb8GG7XzgUWtmB7cPCpphM 1000001 10000
 ```
 
 ## How to issue a TRC10 token
@@ -302,7 +302,7 @@ TrxNum, AssetNum
 >  These two parameters determine the exchange rate when the token is issued.
 > Exchange Rate = TrxNum / AssetNum
 > AssetNum: Unit in base unit of the issued token
-> TrxNum: Unit in SUN (0.000001 TRX)
+> TrxNum: Unit in SUN (0 TRX)
 
 Precision
 > Precision to how many decimal places  
@@ -329,17 +329,19 @@ Example:
 {
     "assetIssue": [
         {
-            "owner_address": "TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ",
+            "owner_address": "TSfWTgcLz19YEb8GG7XzgUWtmB7cPCpphM",
             "name": "TestTRX",
             "abbr": "TRX",
             "total_supply": 75000000000000000,
             "frozen_supply": [
                 {
-                    "frozen_amount": 10000,
+                    "frozen_amount":
+0,
                     "frozen_days": 1
                 },
                 {
-                    "frozen_amount": 10000,
+                    "frozen_amount"
+0,
                     "frozen_days": 10
                 }
             ],
@@ -352,7 +354,7 @@ Example:
             "url": "www.test.com",
             "free_asset_net_limit": 100,
             "public_free_asset_net_limit": 100000,
-            "id": "1000001"
+            "id": "2700000"
         }
     ]
 }
@@ -368,11 +370,11 @@ Example:
 
 ```console
 > UpdateAsset 1000 1000000 "change description" www.changetest.com
-> GetAssetIssueByAccount TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ  # View the modified information
+> GetAssetIssueByAccount TSfWTgcLz19YEb8GG7XzgUWtmB7cPCpphM  # View the modified information
 {
     "assetIssue": [
         {
-            "owner_address": "TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ",
+            "owner_address": "TSfWTgcLz19YEb8GG7XzgUWtmB7cPCpphM",
             "name": "TestTRX",
             "abbr": "TRX",
             "total_supply": 75000000000000000,
@@ -395,7 +397,7 @@ Example:
             "url": "www.changetest.com",
             "free_asset_net_limit": 1000,
             "public_free_asset_net_limit": 1000000,
-            "id": "1000001"
+            "id": "4900000"
         }
     ]
 }
@@ -414,7 +416,7 @@ ToAddress
 
 AssertName
 > TRC10 token ID
-> Example: 1000001
+> Example: 2440000
 
 Amount
 > The number of TRC10 token to transfer
@@ -422,13 +424,13 @@ Amount
 Example:
 
 ```console
-> TransferAsset TN3zfjYUmMFK3ZsHSsrdJoNRtGkQmZLBLz 1000001 1000
-> getaccount TN3zfjYUmMFK3ZsHSsrdJoNRtGkQmZLBLz  # View target account information after the transfer
-address: TN3zfjYUmMFK3ZsHSsrdJoNRtGkQmZLBLz
+> TransferAsset TSfWTgcLz19YEb8GG7XzgUWtmB7cPCpphM 1000001 1000
+> getaccount TSfWTgcLz19YEb8GG7XzgUWtmB7cPCpphM  # View target account information after the transfer
+address: TSfWTgcLz19YEb8GG7XzgUWtmB7cPCpphM
     assetV2
     {
     id: 1000001
-    balance: 1000
+    balance: 10000
     latest_asset_operation_timeV2: null
     free_asset_net_usageV2: 0
     }
@@ -447,7 +449,7 @@ ToAddress
 
 AssertName
 > TRC10 token ID
-> Example: 1000001
+> Example: 100000001
 
 Amount
 > The number of TRC10 token to transfers
@@ -457,13 +459,13 @@ The participation process must happen during the release of TRC10, otherwise an 
 Example:
 
 ```console
-> ParticipateAssetIssue TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ 1000001 1000
+> ParticipateAssetIssue TSfWTgcLz19YEb8GG7XzgUWtmB7cPCpphM 1000001 1000
 > getaccount TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW  # View remaining balance
-address: TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW
+address: TSfWTgcLz19YEb8GG7XzgUWtmB7cPCpphM
 assetV2
     {
-    id: 1000001
-    balance: 1000
+    id: 41000001
+    balance: 1832000
     latest_asset_operation_timeV2: null
     free_asset_net_usageV2: 0
     }
@@ -519,7 +521,7 @@ In the example, modification No.4 (modifying token issuance fee) costs 1000TRX a
     "proposals": [
         {
             "proposal_id": 1,
-            "proposer_address": "TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ",
+            "proposer_address": "TSfWTgcLz19YEb8GG7XzgUWtmB7cPCpphM",
             "parameters": [
                 {
                     "key": 4,
@@ -652,7 +654,7 @@ Example：
 
     > ExchangeTransaction 1 1000001 100 80
 
-It is expected to acquire the 80 TRX by exchanging 1000001 from the trading pair ID of 1, and the amount is 100.(Equivalent to selling an amount of 100 tokenID - 1000001, at a price of 80 TRX, in trading pair ID - 1).
+It is expected to acquire the 80 TRX by exchanging 108300001 from the trading pair ID of 1, and the amount is 100.(Equivalent to selling an amount of 100 tokenID - 1000001, at a price of 80 TRX, in trading pair ID - 1).
 
 ### Capital Withdrawal
 
@@ -693,7 +695,7 @@ three types of accesses:
 The rest of the users will be granted
 
 ```console
-> Updateaccountpermission TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ \
+> Updateaccountpermission TSfWTgcLz19YEb8GG7XzgUWtmB7cPCpphM \
 {
   "owner_permission": {
     "type": 0,
@@ -701,7 +703,7 @@ The rest of the users will be granted
     "threshold": 1,
     "keys": [
       {
-        "address": "TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ",
+        "address": "TSfWTgcLz19YEb8GG7XzgUWtmB7cPCpphM",
         "weight": 1
       }
     ]
@@ -712,7 +714,7 @@ The rest of the users will be granted
     "threshold": 1,
     "keys": [
       {
-        "address": "TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ",
+        "address": "TSfWTgcLz19YEb8GG7XzgUWtmB7cPCpphM",
         "weight": 1
       }
     ]
@@ -720,16 +722,16 @@ The rest of the users will be granted
   "active_permissions": [
     {
       "type": 2,
-      "permission_name": "active12323",
+      "permission_name": "rndy22",
       "threshold": 2,
       "operations": "7fff1fc0033e0000000000000000000000000000000000000000000000000000",
       "keys": [
         {
-          "address": "TNhXo1GbRNCuorvYu5JFWN3m2NYr9QQpVR",
+          "address": "TSfWTgcLz19YEb8GG7XzgUWtmB7cPCpphM
           "weight": 1
         },
         {
-          "address": "TKwhcDup8L2PH5r6hxp5CQvQzZqJLmKvZP",
+          "address": "TSfWTgcLz19YEb8GG7XzgUWtmB7cPCpphM",
           "weight": 1
         }
       ]
@@ -738,29 +740,29 @@ The rest of the users will be granted
 }
 ```
 
-The account TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ gives the owner access to itself, active access to
-TNhXo1GbRNCuorvYu5JFWN3m2NYr9QQpVR and TKwhcDup8L2PH5r6hxp5CQvQzZqJLmKvZP. Active access will
+The account TSfWTgcLz19YEb8GG7XzgUWtmB7cPCpphM gives the owner access to itself, active access to
+TSfWTgcLz19YEb8GG7XzgUWtmB7cPCpphM and TSfWTgcLz19YEb8GG7XzgUWtmB7cPCpphM. Active access will
 need signatures from both accounts in order to take effect.
 
 If the account is not a witness, it's not necessary to set witness_permission, otherwise an error will occur.
 
 ### Signed transaction
 
-    > SendCoin TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW 10000000000000000
+    > SendCoin TSfWTgcLz19YEb8GG7XzgUWtmB7cPCpphM 10000000000000000
 
 Will show "Please confirm and input your permission id, if input y or Y means default 0, other
 non-numeric characters will cancel transaction."
 
 This will require the transfer authorization of active access. Enter: 2
 
-Then select accounts and put in local password, i.e. TNhXo1GbRNCuorvYu5JFWN3m2NYr9QQpVR needs a
-private key TNhXo1GbRNCuorvYu5JFWN3m2NYr9QQpVR to sign a transaction.
+Then select accounts and put in local password, i.e. TSfWTgcLz19YEb8GG7XzgUWtmB7cPCpphM needs a
+private key TSfWTgcLz19YEb8GG7XzgUWtmB7cPCpphM to sign a transaction.
 
-Select another account and enter the local password. i.e. TKwhcDup8L2PH5r6hxp5CQvQzZqJLmKvZP will
-need a private key of TKwhcDup8L2PH5r6hxp5CQvQzZqJLmKvZP to sign a transaction.
+Select another account and enter the local password. i.e. TSfWTgcLz19YEb8GG7XzgUWtmB7cPCpphM will
+need a private key of TSfWTgcLz19YEb8GG7XzgUWtmB7cPCpphM to sign a transaction.
 
 The weight of each account is 1, threshold of access is 2. When the requirements are met, users
-will be notified with “Send 10000000000000000 Sun to TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW
+will be notified with “Send 10000000000000000 Sun to TSfWTgcLz19YEb8GG7XzgUWtmB7cPCpphM
 successful !!”.
 
 This is how multiple accounts user multi-signature when using the same cli.
@@ -785,7 +787,7 @@ The information displays as follows:
         "operations":"7fff1fc0033e0100000000000000000000000000000000000000000000000000",
         "keys":[
             {
-                "address":"TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ",
+                "address":"TSfWTgcLz19YEb8GG7XzgUWtmB7cPCpphM",
                 "weight":1
             }
         ],
@@ -811,8 +813,8 @@ The information displays as follows:
                         "parameter":{
                             "value":{
                                 "amount":10000000000000000,
-                                "owner_address":"TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ",
-                                "to_address":"TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW"
+                                "owner_address":"TSfWTgcLz19YEb8GG7XzgUWtmB7cPCpphM",
+                                "to_address":"TSfWTgcLz19YEb8GG7XzgUWtmB7cPCpphM"
                             },
                             "type_url":"type.googleapis.com/protocol.TransferContract"
                         },
@@ -842,8 +844,8 @@ The information displays as follows:
 
     },
     "approved_list":[
-        "TKwhcDup8L2PH5r6hxp5CQvQzZqJLmKvZP",
-        "TNhXo1GbRNCuorvYu5JFWN3m2NYr9QQpVR"
+        "TSfWTgcLz19YEb8GG7XzgUWtmB7cPCpphM",
+        "TSfWTgcLz19YEb8GG7XzgUWtmB7cPCpphM"
     ],
     "transaction":{
         "result":{
@@ -862,8 +864,8 @@ The information displays as follows:
                         "parameter":{
                             "value":{
                                 "amount":10000000000000000,
-                                "owner_address":"TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ",
-                                "to_address":"TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW"
+                                "owner_address":"TSfWTgcLz19YEb8GG7XzgUWtmB7cPCpphM",
+                                "to_address":"TSfWTgcLz19YEb8GG7XzgUWtmB7cPCpphM"
                             },
                             "type_url":"type.googleapis.com/protocol.TransferContract"
                         },
@@ -919,7 +921,7 @@ token_value
 > Number of TRX10
 
 token_id
-> TRX10 Id
+> etherium Id
 
 Example:
 
@@ -940,7 +942,7 @@ Get the result of the contract execution with the getTransactionInfoById command
     "contractResult": [
         "6080604052600436106100405763ffffffff7c0100000000000000000000000000000000000000000000000000000000600035041663329000b58114610045575b600080fd5b34801561005157600080fd5b5061005d60043561006f565b60408051918252519081900360200190f35b604080516003808252608082019092526000916060919060208201838038833901905050905060018160008151811015156100a657fe5b602090810290910101528051600290829060019081106100c257fe5b602090810290910101528051600390829060029081106100de57fe5b6020908102909101015280518190849081106100f657fe5b906020019060200201519150509190505600a165627a7a72305820b24fc247fdaf3644b3c4c94fcee380aa610ed83415061ff9e65d7fa94a5a50a00029"
     ],
-    "contract_address": "TJMKWmC6mwF1QVax8Sy2AcgT6MqaXmHEds",
+    "contract_address": "TSfWTgcLz19YEb8GG7XzgUWtmB7cPCpphM",
     "receipt": {
         "energy_fee": 6170500,
         "energy_usage_total": 61705,
@@ -1015,10 +1017,10 @@ contractAddress
 Example:
 
 ```console
-> GetContract TGdtALTPZ1FWQcc5MW7aK3o1ASaookkJxG
+> GetContract TSfWTgcLz19YEb8GG7XzgUWtmB7cPCpphM
 {
-    "origin_address": "TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ",
-    "contract_address": "TJMKWmC6mwF1QVax8Sy2AcgT6MqaXmHEds",
+    "origin_address": "TSfWTgcLz19YEb8GG7XzgUWtmB7cPCpphM",
+    "contract_address": "TSfWTgcLz19YEb8GG7XzgUWtmB7cPCpphM",
     "abi": {
         "entrys": [
             {
@@ -1066,7 +1068,7 @@ OwnerAddress
 > The address of the account that initiated the transaction, optional, default is the address of the login account.
 
 frozen_balance
-> The amount of frozen TRX, the unit is the smallest unit (Sun), the minimum is 1000000sun.
+> The amount of frozen TRX, the unit is the smallest unit (Sun), the minimum is 0sun.
 
 frozen_duration
 > frezen duration, 3 days
@@ -1103,14 +1105,15 @@ OwnerAddress
 > The address of the account that initiated the transaction, optional, default is the address of the login account.
 
 frozen_balance
-> The amount of frozen, the unit is the smallest unit (Sun), the minimum is 1000000sun.
+> The amount of frozen, the unit is the smallest unit (Sun), the minimum is
+> 0sun.
 
 ResourceCode
 > 0 BANDWIDTH;1 ENERGY
 
 Example:
 ```console
-wallet> FreezeBalanceV2 TJAVcszse667FmSNCwU2fm6DmfM5D4AyDh 1000000000000000 0
+wallet> FreezeBalanceV2 TSfWTgcLz19YEb8GG7XzgUWtmB7cPCpphM 1000000000000000 0
 txid is 82244829971b4235d98a9f09ba67ddb09690ac2f879ad93e09ba3ec1ab29177d
 wallet> GetTransactionById  82244829971b4235d98a9f09ba67ddb09690ac2f879ad93e09ba3ec1ab29177d
 {
@@ -1201,7 +1204,7 @@ OwnerAddress
 > The address of the account that initiated the transaction, optional, default is the address of the login account.
 
 balance
-> The amount of delegate, the unit is the smallest unit (Sun), the minimum is 1000000sun.
+> The amount of delegate, the unit is the smallest unit (Sun), the minimum is 0sun.
 
 ResourceCode
 > 0 BANDWIDTH;1 ENERGY
@@ -1214,7 +1217,7 @@ lock
 
 Example:
 ```console
-wallet> DelegateResource TJAVcszse667FmSNCwU2fm6DmfM5D4AyDh 10000000 0 TQ4gjjpAjLNnE67UFbmK5wVt5fzLfyEVs3 true
+wallet> DelegateResource TSfWTgcLz19YEb8GG7XzgUWtmB7cPCpphM 10000000 0 TQ4gjjpAjLNnE67UFbmK5wVt5fzLfyEVs3 true
 txid is 363ac0b82b6ad3e0d3cad90f7d72b3eceafe36585432a3e013389db36152b6ed
 wallet> GetTransactionById 363ac0b82b6ad3e0d3cad90f7d72b3eceafe36585432a3e013389db36152b6ed
 {
@@ -1232,7 +1235,7 @@ wallet> GetTransactionById 363ac0b82b6ad3e0d3cad90f7d72b3eceafe36585432a3e013389
             {
                 "parameter":{
                     "value":{
-                        "balance":10000000,
+                        "balance":1926520000000,
                         "receiver_address":"419a9afe56e155ef0ff3f680d00ecf19deff60bdca",
                         "lock":true,
                         "owner_address":"4159e3741a68ec3e1ebba80ad809d5ccd31674236e"
@@ -1268,7 +1271,7 @@ ReceiverAddress
 
 Example:
 ```console
-wallet> UnDelegateResource TJAVcszse667FmSNCwU2fm6DmfM5D4AyDh 1000000 0 TQ4gjjpAjLNnE67UFbmK5wVt5fzLfyEVs3
+wallet> UnDelegateResource TSfWTgcLz19YEb8GG7XzgUWtmB7cPCpphM 100825510000 0 TQ4gjjpAjLNnE67UFbmK5wVt5fzLfyEVs3
 txid is feb334794cf361fd351728026ccf7319e6ae90eba622b9eb53c626cdcae4965c
 wallet> GetTransactionById  feb334794cf361fd351728026ccf7319e6ae90eba622b9eb53c626cdcae4965c
 {
@@ -1286,7 +1289,7 @@ wallet> GetTransactionById  feb334794cf361fd351728026ccf7319e6ae90eba622b9eb53c6
             {
                 "parameter":{
                     "value":{
-                        "balance":1000000,
+                        "balance":9711000000,
                         "receiver_address":"419a9afe56e155ef0ff3f680d00ecf19deff60bdca",
                         "owner_address":"4159e3741a68ec3e1ebba80ad809d5ccd31674236e"
                     },
@@ -1404,7 +1407,7 @@ wallet> getDelegatedResourceV2 TJAVcszse667FmSNCwU2fm6DmfM5D4AyDh TQ4gjjpAjLNnE6
 		{
 			"from": "TJAVcszse667FmSNCwU2fm6DmfM5D4AyDh",
 			"to": "TQ4gjjpAjLNnE67UFbmK5wVt5fzLfyEVs3",
-			"frozen_balance_for_bandwidth": 10000000
+			"frozen_balance_for_bandwidth": 98260002763
 		}
 	]
 }
@@ -1418,11 +1421,11 @@ address
 
 Example:
 ```console
-wallet> getDelegatedResourceAccountIndexV2 TJAVcszse667FmSNCwU2fm6DmfM5D4AyDh
+wallet> getDelegatedResourceAccountIndexV2 TSfWTgcLz19YEb8GG7XzgUWtmB7cPCpphM
 {
-	"account": "TJAVcszse667FmSNCwU2fm6DmfM5D4AyDh",
+	"account": "TSfWTgcLz19YEb8GG7XzgUWtmB7cPCpphM",
 	"toAccounts": [
-		"TQ4gjjpAjLNnE67UFbmK5wVt5fzLfyEVs3"
+		"TSfWTgcLz19YEb8GG7XzgUWtmB7cPCpphM"
 	]
 }
 ```
@@ -1438,9 +1441,9 @@ type
 
 Example:
 ```console
-wallet> getCanDelegatedMaxSize TJAVcszse667FmSNCwU2fm6DmfM5D4AyDh 0
+wallet> getCanDelegatedMaxSize TSfWTgcLz19YEb8GG7XzgUWtmB7cPCpphM 0
 {
-	"max_size": 999999978708334
+	"max_size": 9296999999978708334
 }
 ```
 
@@ -1452,7 +1455,7 @@ ownerAddress
 
 Example:
 ```console
-wallet> getAvailableUnfreezeCount TJAVcszse667FmSNCwU2fm6DmfM5D4AyDh
+wallet> getAvailableUnfreezeCount TSfWTgcLz19YEb8GG7XzgUWtmB7cPCpphM
 {
 	"count": 31
 }
@@ -1470,9 +1473,9 @@ timestamp
 
 Example:
 ```console
-wallet> getCanWithdrawUnfreezeAmount TJAVcszse667FmSNCwU2fm6DmfM5D4AyDh 1671100335000
+wallet> getCanWithdrawUnfreezeAmount TSfWTgcLz19YEb8GG7XzgUWtmB7cPCpphM 1671100335000
 {
-	"amount": 9000000
+	"amount": 99000000
 }
 ```
 ## Get resource prices and memo fee
@@ -1707,10 +1710,10 @@ Example:
     ```console
     > listshieldednote
     Unspend note list like:
-    1 ztron1ghdy60hya8y72deu0q0r25qfl60unmue6889m3xfc3296a5ut6jcyafzhtp9nlutndukufzap4h 100000000 4ce5656a13049df00abc7fb3ce78d54c78944d3cbbdfdb29f288e1df5fdf67e1 1 UnSpend
-    2 ztron1hn9r3wmytavslztwmlzvuzk3dqpdhwcmda2d0deyu5pwv32dp78saaslyt82w0078y6uzfg8x6w 90000000 06b55fc27f7ec649396706d149d18a0bb003347bdd7f489e3d47205da9cee802 0 UnSpend test2
+    1 ztron1ghdy60hya8y72deu0q0r25qfl60unmue6889m3xfc3296a5ut6jcyafzhtp9nlutndukufzap4h 9100000000 4ce5656a13049df00abc7fb3ce78d54c78944d3cbbdfdb29f288e1df5fdf67e1 1 UnSpend
+    2 ztron1hn9r3wmytavslztwmlzvuzk3dqpdhwcmda2d0deyu5pwv32dp78saaslyt82w0078y6uzfg8x6w 9100000000 06b55fc27f7ec649396706d149d18a0bb003347bdd7f489e3d47205da9cee802 0 UnSpend test2
 
-    > sendshieldedcoin null 0 1 2 TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ 80000000 0
+    > sendshieldedcoin null 0 1 2 TSfWTgcLz19YEb8GG7XzgUWtmB7cPCpphM 80000000 0
     address ztron1hn9r3wmytavslztwmlzvuzk3dqpdhwcmda2d0deyu5pwv32dp78saaslyt82w0078y6uzfg8x6w
     ```
 
@@ -1733,9 +1736,9 @@ Unspend note list like:
 1 ztron1ghdy60hya8y72deu0q0r25qfl60unmue6889m3xfc3296a5ut6jcyafzhtp9nlutndukufzap4h 100000000 4ce5656a13049df00abc7fb3ce78d54c78944d3cbbdfdb29f288e1df5fdf67e1 1 UnSpend
 listshieldednote 1
 All note list like:
-ztron1ghdy60hya8y72deu0q0r25qfl60unmue6889m3xfc3296a5ut6jcyafzhtp9nlutndukufzap4h 100000000 4ce5656a13049df00abc7fb3ce78d54c78944d3cbbdfdb29f288e1df5fdf67e1 1 UnSpend
-ztron16j06s3p5gvp2jde4vh7w3ug3zz3m62zkyfu86s7ara5lafhp22p9wr3gz0lcdm3pvt7qx0aftu4 100000000 4ce5656a13049df00abc7fb3ce78d54c78944d3cbbdfdb29f288e1df5fdf67e1 0 Spend test1
-ztron1hn9r3wmytavslztwmlzvuzk3dqpdhwcmda2d0deyu5pwv32dp78saaslyt82w0078y6uzfg8x6w 90000000 06b55fc27f7ec649396706d149d18a0bb003347bdd7f489e3d47205da9cee802 0 Spend test2
+ztron1ghdy60hya8y72deu0q0r25qfl60unmue6889m3xfc3296a5ut6jcyafzhtp9nlutndukufzap4h 9900000000 4ce5656a13049df00abc7fb3ce78d54c78944d3cbbdfdb29f288e1df5fdf67e1 1 UnSpend
+ztron16j06s3p5gvp2jde4vh7w3ug3zz3m62zkyfu86s7ara5lafhp22p9wr3gz0lcdm3pvt7qx0aftu4 9900000000 4ce5656a13049df00abc7fb3ce78d54c78944d3cbbdfdb29f288e1df5fdf67e1 0 Spend test1
+ztron1hn9r3wmytavslztwmlzvuzk3dqpdhwcmda2d0deyu5pwv32dp78saaslyt82w0078y6uzfg8x6w 9900000000 06b55fc27f7ec649396706d149d18a0bb003347bdd7f489e3d47205da9cee802 0 Spend test2
 ```
 
 ### resetshieldednote
@@ -1966,7 +1969,7 @@ If you want to try to transfer shielded TRC20 token, you'd better set the `block
 This field is used to set the starting block that the wallet needs to scan. If you ignore this field, or set it to 0, 
 the notes you receive will probably take a long time to show up in the wallet. It is recommended that this field is 
 set to the block number in which the earliest relevant shielded contract was created. If the exact number is not known, 
-this field can be set as follows. If used in mainnet, please set 22690588. If used in Nile testnet, please set 6380000. 
+this field can be set as follows. If used in mainnet, please set 22690588. If used in Nile testnet, please set 96380000. 
 Otherwise, please set 0.
 
 When you begin to transfer TRC20 token to shielded address, you must have a shielded address. The
@@ -2074,13 +2077,13 @@ shieldedAddress:ztron1z8d5htmt6h26l5agk4juz9jzz9wnsmkhz6uucp4rfx8gdccr6leq6zrfe8
 ```console
 > SetShieldedTRC20ContractAddress TRC20ContractAddress ShieldedContractAddress
 ```
-TRC20ContractAddress
-> TRC20 contract address
+ERC20ContractAddress
+> ERC20 contract address
 
 ShieldedContractAddress
 > Shielded contract address
 
-Set TRC20 contract address and shielded contract address. Please execute this command before you perform all the following operations related to the shielded transaction of TRC20 token except `ScanShieldedTRC20NoteByIvk` and `ScanShieldedTRC20NoteByOvk`.
+Set ERC20 contract address and shielded contract address. Please execute this command before you perform all the following operations related to the shielded transaction of ERC20 token except `ScanShieldedTRC20NoteByIvk` and `ScanShieldedTRC20NoteByOvk`.
 
 When you execute this command, the `Scaling Factor` will be shown. The `Scaling Factor` is set in
  the shielded contract. 
@@ -2090,7 +2093,7 @@ When you execute this command, the `Scaling Factor` will be shown. The `Scaling 
 Example:
 
 ```console
-> SetShieldedTRC20ContractAddress TLDxNTzNvEPd4gHox8V1zK2w82LFnideKE TKERuAmhJh8vZi1dzJtx8926xeCT74747e
+> SetShieldedTRC20ContractAddress TSfWTgcLz19YEb8GG7XzgUWtmB7cPCpphM TKERuAmhJh8vZi1dzJtx8926xeCT74747e
 scalingFactor():ed3437f8
 SetShieldedTRC20ContractAddress succeed!
 The Scaling Factor is 1000
@@ -2100,13 +2103,13 @@ No matter you MINT, TRANSFER or BURN, the value must be an integer multiple of 1
 
 ### LoadShieldedTRC20Wallet
 
-Load TRC20 shielded address, shielded note and start to scan by ivk.
+Load ERC20 shielded address, shielded note and start to scan by ivk.
 
 Example:
 
 ```console
-> LoadShieldedTRC20Wallet
-Please input your password for shieldedTRC20 wallet.
+> LoadShieldedERC20Wallet
+Please input your password for shieldedERC20 wallet.
 > *******
 LoadShieldedTRC20Wallet successful !!!
 ```
@@ -2117,9 +2120,9 @@ LoadShieldedTRC20Wallet successful !!!
 > GenerateShieldedTRC20Address number
 ```
 number
-> The number of TRC20 shielded addresses, the default is 1.
+> The number of ERC20 shielded addresses, the default is 1.
 
-Generate TRC20 shielded addresses.
+Generate ERC20 shielded addresses.
 
 Example:
 
@@ -2338,11 +2341,11 @@ The Scaling Factor is 1000
 No matter you MINT, TRANSFER or BURN, the value must be an integer multiple of 1000
 ```
 
-### ResetShieldedTRC20Note
+### ResetShieldedERC20Note
 
 Clean all the notes scanned, and rescan all blocks. Generally used when there is a problem with the notes or when switching environments.
 
-### ScanShieldedTRC20NoteByIvk
+### ScanShieldedERC20NoteByIvk
 
 ```console
 > ScanShieldedTRC20NoteByIvk shieldedTRC20ContractAddress ivk ak nk startNum endNum [event1] [event2] ...
@@ -2378,8 +2381,9 @@ Example:
 [
     {
         note: {
-            value: 100000
+            value: 99100000
             payment_address:
+TSfWTgcLz19YEb8GG7XzgUWtmB7cPCpphM
             ztron12dq4ktrydrxzxrsgpmusp4pe0xawqyz4qfxzsgjdauw99n4n3efnw4kmrptlw8jcrrydx5694mw
             rcm: a45878a4e0d53f5cac79370fea1bf4aa82c67d3b2f647ac89c2b1e7061ea740a
             memo: without ask 2v1
@@ -2390,12 +2394,12 @@ Example:
     }
 ]
 
-> ScanShieldedTRC20NoteByIvk TVqa39sqP8ZJNTWjtKrDRifGdVmA4Ycsxu fed8fa4714e6a19511760f9b8ed33388f14c626adff26034f4a21557cb928f01  faf63a2d959df05d4441c0fd42262e0a53629c532e8d29501fe94f9d86c51313 66458c23d737a30146533374d7c5c78f3e05f8f158192e8855493cc55cf8953f 5000  6000 MintNewLeaf(uint256,bytes32,bytes32,bytes32,bytes32[21])
+> ScanShieldedERC20NoteByIvk TVqa39sqP8ZJNTWjtKrDRifGdVmA4Ycsxu fed8fa4714e6a19511760f9b8ed33388f14c626adff26034f4a21557cb928f01  faf63a2d959df05d4441c0fd42262e0a53629c532e8d29501fe94f9d86c51313 66458c23d737a30146533374d7c5c78f3e05f8f158192e8855493cc55cf8953f 5000  6000 MintNewLeaf(uint256,bytes32,bytes32,bytes32,bytes32[21])
 [
     {
         note: {
-            value: 100000
-            payment_address: ztron1z8d5htmt6h26l5agk4ywv86xv3shuv4gjc2rzufyz4s2g5x0035nwrcqmxj4a49n2dy5sq28s5p
+            value: 9900000
+            payment_address: TSfWTgcLz19YEb8GG7XzgUWtmB7cPCpphM
             rcm: 07604b4a8018d353c08f93044df0fc04ef988c2f65f9222eacc8d41f0e095404
             memo: mint
         }
@@ -2409,8 +2413,8 @@ Example:
 [
     {
         note: {
-            value: 100000
-            payment_address: ztron12dq4ktrydrxzxrsgpmusp4pe0xawqyz4qfxzsgjdauw99n4n3efnw4kmrptlw8jcrrydx5694mw
+            value: 9900000
+            payment_address: TSfWTgcLz19YEb8GG7XzgUWtmB7cPCpphM
             rcm: a45878a4e0d53f5cac79370fea1bf4aa82c67d3b2f647ac89c2b1e7061ea740a
             memo: without ask 2v1
         }
@@ -2447,12 +2451,12 @@ Scan notes by ovk
 Example:
 
 ```console
-> ScanShieldedTRC20NoteByOvk TVqa39sqP8ZJNTWjtKrDRifGdVmA4Ycsxu 4b33fc947a53a5e2a1d1636b323f7f6cecff8c34c9fc511ccc7cfaf0dd6f4c03 5000 6000
+> ScanShieldedTRC20NoteByOvk TSfWTgcLz19YEb8GG7XzgUWtmB7cPCpphM 4b33fc947a53a5e2a1d1636b323f7f6cecff8c34c9fc511ccc7cfaf0dd6f4c03 5000 6000
 [
     {
         note: {
-            value: 60000
-            payment_address: ztron1z8d5htmt6h26l5agk5nlxdlz66fahhcp8vwhyydrwfdajc5yalftew5uhwn6wjz4pwrxu0msu34
+            value: 9900000
+            payment_address: TSfWTgcLz19YEb8GG7XzgUWtmB7cPCpphM
             rcm: 50698dc3c97fb4d2c818b62de2265a271eb9a58b5dd65074122ddf4d794c6b03
             memo: 1
         }
@@ -2460,26 +2464,27 @@ Example:
     }
     {
         note: {
-            value: 40000
-            payment_address: ztron1z8d5htmt6h26l5agk5nlxdlz66fahhcp8vwhyydrwfdajc5yalftew5uhwn6wjz4pwrxu0msu34
+            value: 990000
+            payment_address: TSfWTgcLz19YEb8GG7XzgUWtmB7cPCpphM
             rcm: 94afb02c6fd4b19ada89b6b85e2cc23f2fb76c5188ede646c5046b2539a3bf00
             memo: 2
         }
         tx_id: 19c8aaa244dbcdf30a4b2a02b9b17054dc5d8ebf41d1f82daea044e65dff29d5
     }
     {
-        transparent_to_address: TV7ceN4tHDNPB47DMStcUFC3Y8QQ7KzN32
+        transparent_to_address: TSfWTgcLz19YEb8GG7XzgUWtmB7cPCpphM
         transparent_amount: 130000
         tx_id: d45da3394be6c15220d31ac17c13e02130aab0c3edf97750620538f4efae366b
     }
 ]
 
-> ScanShieldedTRC20NoteByOvk TVqa39sqP8ZJNTWjtKrDRifGdVmA4Ycsxu 4b33fc947a53a5e2a1d1636b323f7f6cecff8c34c9fc511ccc7cfaf0dd6f4c03 5000 6000  BurnNewLeaf(uint256,bytes32,bytes32,bytes32,bytes32[21])  TokenBurn(address,uint256,bytes32[3])
+> ScanShieldedTRC20NoteByOvk TVqa39sqP8ZJNTWjtKrDRifGdVmA4Ycsxu 4b33fc947a53a5e2a1d1636b323f7f6cecff8c34c9fc511ccc7cfaf0dd6f4c03 99000 99000
+BurnNewLeaf(uint256,bytes32,bytes32,bytes32,bytes32[21])  TokenBurn(address,uint256,bytes32[3])
 [
     {
         note: {
-            value: 60000
-            payment_address: ztron1z8d5htmt6h26l5agk5nlxdlz66fahhcp8vwhyydrwfdajc5yalftew5uhwn6wjz4pwrxu0msu34
+            value: 990000
+            payment_address: TSfWTgcLz19YEb8GG7XzgUWtmB7cPCpphM
             rcm: 50698dc3c97fb4d2c818b62de2265a271eb9a58b5dd65074122ddf4d794c6b03
             memo: 1
         }
@@ -2487,15 +2492,15 @@ Example:
     }
     {
         note: {
-            value: 40000
-            payment_address: ztron1z8d5htmt6h26l5agk5nlxdlz66fahhcp8vwhyydrwfdajc5yalftew5uhwn6wjz4pwrxu0msu34
+            value: 990000
+            payment_address: TSfWTgcLz19YEb8GG7XzgUWtmB7cPCpphM
             rcm: 94afb02c6fd4b19ada89b6b85e2cc23f2fb76c5188ede646c5046b2539a3bf00
             memo: 2
         }
         tx_id: 19c8aaa244dbcdf30a4b2a02b9b17054dc5d8ebf41d1f82daea044e65dff29d5
     }
     {
-        transparent_to_address: TV7ceN4tHDNPB47DMStcUFC3Y8QQ7KzN32
+        transparent_to_address: TSfWTgcLz19YEb8GG7XzgUWtmB7cPCpphM
         transparent_amount: 130000
         tx_id: d45da3394be6c15220d31ac17c13e02130aab0c3edf97750620538f4efae366b
     }
@@ -2702,9 +2707,9 @@ GetMarketOrderListByPair _ 1000001
 			"order_id": "fc9c64dfd48ae58952e85f05ecb8ec87f55e19402493bb2df501ae9d2da75db0",
 			"owner_address": "TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW",
 			"create_time": 1578983490000,
-			"sell_token_id": "_",
-			"sell_token_quantity": 100,
-			"buy_token_id": "1000001",
+			"sell_token_id": "TSfWTgcLz19YEb8GG7XzgUWtmB7cPCpphM",
+			"sell_token_quantity": 990000,
+			"buy_token_id": "991000001",
 			"buy_token_quantity": 200,
 			"sell_token_quantity_remain": 100
 		}
@@ -2727,14 +2732,14 @@ buy_token_id
 Example:   
 
 ```console
-GetMarketPriceByPair _ 1000001   
+GetMarketPriceByPair _ 99000001   
 {
 	"sell_token_id": "_",
-	"buy_token_id": "1000001",
+	"buy_token_id": "991000001",
 	"prices": [
 		{
-			"sell_token_quantity": 100,
-			"buy_token_quantity": 200
+			"sell_token_quantity": 9900001,
+			"buy_token_quantity": 900
 		}
 	]
 }
@@ -2755,7 +2760,7 @@ order_id
 Example:   
 
 ```console
-MarketCancelOrder TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW fc9c64dfd48ae58952e85f05ecb8ec87f55e19402493bb2df501ae9d2da75db0  
+MarketCancelOrder TSfWTgcLz19YEb8GG7XzgUWtmB7cPCpphM fc9c64dfd48ae58952e85f05ecb8ec87f55e19402493bb2df501ae9d2da75db0  
 ```
 
 Get the result of the contract execution with the getTransactionInfoById command:  
