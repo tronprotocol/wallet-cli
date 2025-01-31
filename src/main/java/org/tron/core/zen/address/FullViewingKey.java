@@ -1,15 +1,12 @@
 package org.tron.core.zen.address;
 
-import com.google.protobuf.ByteString;
+import java.util.Arrays;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
-import org.tron.api.GrpcAPI.IncomingViewingKeyMessage;
-import org.tron.api.GrpcAPI.ViewingKeyMessage;
+import org.tron.common.zksnark.JLibrustzcash;
+import org.tron.common.zksnark.LibrustzcashParam;
 import org.tron.core.exception.ZksnarkException;
-import org.tron.walletserver.WalletApi;
-
-import java.util.Optional;
 
 @AllArgsConstructor
 public class FullViewingKey {
@@ -36,17 +33,15 @@ public class FullViewingKey {
   }
 
   public IncomingViewingKey inViewingKey() throws ZksnarkException {
-    ViewingKeyMessage vk = ViewingKeyMessage.newBuilder()
-        .setAk(ByteString.copyFrom(ak))
-        .setNk(ByteString.copyFrom(nk))
-        .build();
+    byte[] ivk = new byte[32]; // the incoming viewing keyåß
+    JLibrustzcash.librustzcashCrhIvk(new LibrustzcashParam.CrhIvkParams(ak, nk, ivk));
+    return new IncomingViewingKey(ivk);
+  }
 
-    Optional<IncomingViewingKeyMessage> ivk = WalletApi.getIncomingViewingKey(vk);
-    if (!ivk.isPresent()) {
-      throw new ZksnarkException("getIncomingViewingKey failed !!!");
-    } else {
-      return new IncomingViewingKey(ivk.get().getIvk().toByteArray());
-    }
+  public boolean isValid() throws ZksnarkException {
+    byte[] ivk = new byte[32];
+    JLibrustzcash.librustzcashCrhIvk(new LibrustzcashParam.CrhIvkParams(ak, nk, ivk));
+    return !Arrays.equals(ivk, new byte[32]);
   }
 
   public byte[] encode() {

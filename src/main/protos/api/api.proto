@@ -2,9 +2,18 @@ syntax = "proto3";
 package protocol;
 
 import "core/Tron.proto";
-import "core/Contract.proto";
 import "google/api/annotations.proto";
 
+import "core/contract/asset_issue_contract.proto";
+import "core/contract/account_contract.proto";
+import "core/contract/witness_contract.proto";
+import "core/contract/balance_contract.proto";
+import "core/contract/proposal_contract.proto";
+import "core/contract/storage_contract.proto";
+import "core/contract/exchange_contract.proto";
+import "core/contract/market_contract.proto";
+import "core/contract/smart_contract.proto";
+import "core/contract/shield_contract.proto";
 
 option java_package = "org.tron.api"; //Specify the name of the package that generated the Java file
 option java_outer_classname = "GrpcAPI"; //Specify the class name of the generated Java file
@@ -28,6 +37,26 @@ service Wallet {
       body: "*"
       additional_bindings {
         get: "/wallet/getaccountbyid"
+      }
+    };
+  };
+
+  rpc GetAccountBalance (AccountBalanceRequest) returns (AccountBalanceResponse) {
+    option (google.api.http) = {
+      post: "/wallet/getaccountbalance"
+      body: "*"
+      additional_bindings {
+        get: "/wallet/getaccountbalance"
+      }
+    };
+  };
+
+  rpc GetBlockBalanceTrace (BlockBalanceTrace.BlockIdentifier) returns (BlockBalanceTrace) {
+    option (google.api.http) = {
+      post: "/wallet/getblockbalancetrace"
+      body: "*"
+      additional_bindings {
+        get: "/wallet/getblockbalancetrace"
       }
     };
   };
@@ -195,6 +224,10 @@ service Wallet {
   //Use this function instead of FreezeBalance.
   rpc FreezeBalance2 (FreezeBalanceContract) returns (TransactionExtention) {
   }
+  //Use this function when FreezeBalanceV2.
+  rpc FreezeBalanceV2 (FreezeBalanceV2Contract) returns (TransactionExtention) {
+  }
+
   //Please use UnfreezeBalance2 instead of this function.
   rpc UnfreezeBalance (UnfreezeBalanceContract) returns (Transaction) {
     option (google.api.http) = {
@@ -208,6 +241,10 @@ service Wallet {
   //Use this function instead of UnfreezeBalance.
   rpc UnfreezeBalance2 (UnfreezeBalanceContract) returns (TransactionExtention) {
   }
+  //Use this function when UnfreezeBalanceV2.
+  rpc UnfreezeBalanceV2 (UnfreezeBalanceV2Contract) returns (TransactionExtention) {
+  }
+
   //Please use UnfreezeAsset2 instead of this function.
   rpc UnfreezeAsset (UnfreezeAssetContract) returns (Transaction) {
     option (google.api.http) = {
@@ -234,6 +271,19 @@ service Wallet {
   //Use this function instead of WithdrawBalance.
   rpc WithdrawBalance2 (WithdrawBalanceContract) returns (TransactionExtention) {
   }
+
+  rpc WithdrawExpireUnfreeze (WithdrawExpireUnfreezeContract) returns (TransactionExtention) {
+  }
+
+  rpc DelegateResource (DelegateResourceContract) returns (TransactionExtention) {
+  }
+
+  rpc UnDelegateResource (UnDelegateResourceContract) returns (TransactionExtention) {
+  }
+
+  rpc CancelAllUnfreezeV2 (CancelAllUnfreezeV2Contract) returns (TransactionExtention) {
+  }
+
   //Please use UpdateAsset2 instead of this function.
   rpc UpdateAsset (UpdateAssetContract) returns (Transaction) {
     option (google.api.http) = {
@@ -277,6 +327,28 @@ service Wallet {
 
   rpc ExchangeTransaction (ExchangeTransactionContract) returns (TransactionExtention) {
   }
+
+  rpc MarketSellAsset (MarketSellAssetContract) returns (TransactionExtention) {
+  }
+
+  rpc MarketCancelOrder (MarketCancelOrderContract) returns (TransactionExtention) {
+  }
+
+  rpc GetMarketOrderById (BytesMessage) returns (MarketOrder) {
+  }
+
+  rpc GetMarketOrderByAccount (BytesMessage) returns (MarketOrderList) {
+  }
+
+  rpc GetMarketPriceByPair (MarketOrderPair) returns (MarketPriceList) {
+  }
+
+  rpc GetMarketOrderListByPair (MarketOrderPair) returns (MarketOrderList) {
+  }
+
+  rpc GetMarketPairList (EmptyMessage) returns (MarketOrderPairList) {
+  }
+
 
   rpc ListNodes (EmptyMessage) returns (NodeList) {
     option (google.api.http) = {
@@ -402,10 +474,16 @@ service Wallet {
   rpc GetContract (BytesMessage) returns (SmartContract) {
   }
 
+  rpc GetContractInfo (BytesMessage) returns (SmartContractDataWrapper) {
+  }
+
   rpc TriggerContract (TriggerSmartContract) returns (TransactionExtention) {
   }
 
   rpc TriggerConstantContract (TriggerSmartContract) returns (TransactionExtention) {
+  }
+
+  rpc EstimateEnergy (TriggerSmartContract) returns (EstimateEnergyMessage) {
   }
 
   rpc ClearContractABI (ClearABIContract) returns (TransactionExtention) {
@@ -425,8 +503,25 @@ service Wallet {
   rpc GetDelegatedResource (DelegatedResourceMessage) returns (DelegatedResourceList) {
   };
 
+  rpc GetDelegatedResourceV2 (DelegatedResourceMessage) returns (DelegatedResourceList) {
+  };
+
   rpc GetDelegatedResourceAccountIndex (BytesMessage) returns (DelegatedResourceAccountIndex) {
   };
+
+  rpc GetDelegatedResourceAccountIndexV2 (BytesMessage) returns (DelegatedResourceAccountIndex) {
+  };
+
+  rpc GetCanDelegatedMaxSize (CanDelegatedMaxSizeRequestMessage) returns (CanDelegatedMaxSizeResponseMessage) {
+  };
+
+  rpc GetAvailableUnfreezeCount (GetAvailableUnfreezeCountRequestMessage)
+      returns (GetAvailableUnfreezeCountResponseMessage) {
+  };
+
+  rpc GetCanWithdrawUnfreezeAmount (CanWithdrawUnfreezeAmountRequestMessage)
+      returns (CanWithdrawUnfreezeAmountResponseMessage) {
+  }
 
   rpc ListProposals (EmptyMessage) returns (ProposalList) {
     option (google.api.http) = {
@@ -532,68 +627,6 @@ service Wallet {
       }
     };
   }
-  //Warning: do not invoke this interface provided by others.
-  //Please use GetTransactionSign2 instead of this function.
-  rpc GetTransactionSign (TransactionSign) returns (Transaction) {
-    option (google.api.http) = {
-      post: "/wallet/gettransactionsign"
-      body: "*"
-      additional_bindings {
-        get: "/wallet/gettransactionsign"
-      }
-    };
-  };
-  //Warning: do not invoke this interface provided by others.
-  //Use this function instead of GetTransactionSign.
-  rpc GetTransactionSign2 (TransactionSign) returns (TransactionExtention) {
-  };
-  //Warning: do not invoke this interface provided by others.
-  rpc CreateAddress (BytesMessage) returns (BytesMessage) {
-    option (google.api.http) = {
-      post: "/wallet/createaddress"
-      body: "*"
-      additional_bindings {
-        get: "/wallet/createaddress"
-      }
-    };
-  };
-  //Warning: do not invoke this interface provided by others.
-  rpc EasyTransferAsset (EasyTransferAssetMessage) returns (EasyTransferResponse) {
-  };
-  //Warning: do not invoke this interface provided by others.
-  rpc EasyTransferAssetByPrivate (EasyTransferAssetByPrivateMessage) returns (EasyTransferResponse) {
-  };
-  //Warning: do not invoke this interface provided by others.
-  rpc EasyTransfer (EasyTransferMessage) returns (EasyTransferResponse) {
-    option (google.api.http) = {
-      post: "/wallet/easytransfer"
-      body: "*"
-      additional_bindings {
-        get: "/wallet/easytransfer"
-      }
-    };
-  };
-  //Warning: do not invoke this interface provided by others.
-  rpc EasyTransferByPrivate (EasyTransferByPrivateMessage) returns (EasyTransferResponse) {
-    option (google.api.http) = {
-      post: "/wallet/easytransferbyprivate"
-      body: "*"
-      additional_bindings {
-        get: "/wallet/easytransferbyprivate"
-      }
-    };
-  };
-  //Warning: do not invoke this interface provided by others.
-  rpc GenerateAddress (EmptyMessage) returns (AddressPrKeyPairMessage) {
-
-    option (google.api.http) = {
-      post: "/wallet/generateaddress"
-      body: "*"
-      additional_bindings {
-        get: "/wallet/generateaddress"
-      }
-    };
-  }
 
   rpc GetTransactionInfoById (BytesMessage) returns (TransactionInfo) {
     option (google.api.http) = {
@@ -615,10 +648,6 @@ service Wallet {
     };
   }
 
-  rpc AddSign (TransactionSign) returns (TransactionExtention) {
-
-  }
-
   rpc GetTransactionSignWeight (Transaction) returns (TransactionSignWeight) {
 
   }
@@ -628,6 +657,16 @@ service Wallet {
   }
 
   rpc GetNodeInfo (EmptyMessage) returns (NodeInfo) {
+  };
+
+  rpc GetRewardInfo (BytesMessage) returns (NumberMessage) {
+  };
+
+  rpc GetBrokerageInfo (BytesMessage) returns (NumberMessage) {
+  };
+
+  rpc UpdateBrokerage (UpdateBrokerageContract) returns (TransactionExtention) {
+
   };
 
   // for shiededTransaction
@@ -688,16 +727,55 @@ service Wallet {
   rpc CreateShieldNullifier (NfParameters) returns (BytesMessage) {
   };
 
-  rpc GetRewardInfo (BytesMessage) returns (NumberMessage) {
+  //for shielded contract
+  rpc CreateShieldedContractParameters (PrivateShieldedTRC20Parameters) returns (ShieldedTRC20Parameters) {
   };
 
-  rpc GetBrokerageInfo (BytesMessage) returns (NumberMessage) {
+  rpc CreateShieldedContractParametersWithoutAsk (PrivateShieldedTRC20ParametersWithoutAsk) returns (ShieldedTRC20Parameters) {
   };
 
-  rpc UpdateBrokerage (UpdateBrokerageContract) returns (TransactionExtention) {
+  rpc ScanShieldedTRC20NotesByIvk (IvkDecryptTRC20Parameters) returns (DecryptNotesTRC20) {
+  };
 
+  rpc ScanShieldedTRC20NotesByOvk (OvkDecryptTRC20Parameters) returns (DecryptNotesTRC20) {
+  };
+
+  rpc IsShieldedTRC20ContractNoteSpent (NfTRC20Parameters) returns (NullifierResult) {
+  };
+
+  rpc GetTriggerInputForShieldedTRC20Contract (ShieldedTRC20TriggerContractParameters) returns (BytesMessage) {
   };
   // end for shiededTransaction
+
+  rpc CreateCommonTransaction (Transaction) returns (TransactionExtention) {
+  };
+
+  rpc GetTransactionInfoByBlockNum (NumberMessage) returns (TransactionInfoList) {
+  }
+
+  rpc GetBurnTrx (EmptyMessage) returns (NumberMessage) {
+  }
+
+  rpc GetTransactionFromPending (BytesMessage) returns (Transaction) {
+  }
+
+  rpc GetTransactionListFromPending (EmptyMessage) returns (TransactionIdList) {
+  }
+
+  rpc GetPendingSize (EmptyMessage) returns (NumberMessage) {
+  }
+
+  rpc GetBlock (BlockReq) returns (BlockExtention) {
+  }
+
+  rpc GetBandwidthPrices (EmptyMessage) returns (PricesResponseMessage) {
+  }
+
+  rpc GetEnergyPrices (EmptyMessage) returns (PricesResponseMessage) {
+  }
+
+  rpc GetMemoFee (EmptyMessage) returns (PricesResponseMessage) {
+  }
 };
 
 service WalletSolidity {
@@ -789,8 +867,25 @@ service WalletSolidity {
   rpc GetDelegatedResource (DelegatedResourceMessage) returns (DelegatedResourceList) {
   };
 
+  rpc GetDelegatedResourceV2 (DelegatedResourceMessage) returns (DelegatedResourceList) {
+  };
+
   rpc GetDelegatedResourceAccountIndex (BytesMessage) returns (DelegatedResourceAccountIndex) {
   };
+
+  rpc GetDelegatedResourceAccountIndexV2 (BytesMessage) returns (DelegatedResourceAccountIndex) {
+  };
+
+  rpc GetCanDelegatedMaxSize (CanDelegatedMaxSizeRequestMessage) returns (CanDelegatedMaxSizeResponseMessage) {
+  };
+
+  rpc GetAvailableUnfreezeCount (GetAvailableUnfreezeCountRequestMessage)
+      returns (GetAvailableUnfreezeCountResponseMessage) {
+  };
+
+  rpc GetCanWithdrawUnfreezeAmount (CanWithdrawUnfreezeAmountRequestMessage)
+      returns (CanWithdrawUnfreezeAmountResponseMessage) {
+  }
 
   rpc GetExchangeById (BytesMessage) returns (Exchange) {
   };
@@ -819,17 +914,6 @@ service WalletSolidity {
     };
   }
 
-  //Warning: do not invoke this interface provided by others.
-  rpc GenerateAddress (EmptyMessage) returns (AddressPrKeyPairMessage) {
-    option (google.api.http) = {
-      post: "/walletsolidity/generateaddress"
-      body: "*"
-      additional_bindings {
-        get: "/walletsolidity/generateaddress"
-      }
-    };
-  }
-
   rpc GetMerkleTreeVoucherInfo (OutputPointInfo) returns (IncrementalMerkleVoucherInfo) {
   }
 
@@ -845,11 +929,54 @@ service WalletSolidity {
   rpc IsSpend (NoteParameters) returns (SpendResult) {
   }
 
+  rpc ScanShieldedTRC20NotesByIvk (IvkDecryptTRC20Parameters) returns (DecryptNotesTRC20) {
+  };
+
+  rpc ScanShieldedTRC20NotesByOvk (OvkDecryptTRC20Parameters) returns (DecryptNotesTRC20) {
+  };
+
+  rpc IsShieldedTRC20ContractNoteSpent (NfTRC20Parameters) returns (NullifierResult) {
+  };
+
   rpc GetRewardInfo (BytesMessage) returns (NumberMessage) {
   };
 
   rpc GetBrokerageInfo (BytesMessage) returns (NumberMessage) {
   };
+
+  rpc TriggerConstantContract (TriggerSmartContract) returns (TransactionExtention) {
+  }
+
+  rpc EstimateEnergy (TriggerSmartContract) returns (EstimateEnergyMessage) {
+  }
+
+  rpc GetTransactionInfoByBlockNum (NumberMessage) returns (TransactionInfoList) {
+  }
+
+  rpc GetMarketOrderById (BytesMessage) returns (MarketOrder) {
+  }
+
+  rpc GetMarketOrderByAccount (BytesMessage) returns (MarketOrderList) {
+  }
+
+  rpc GetMarketPriceByPair (MarketOrderPair) returns (MarketPriceList) {
+  }
+
+  rpc GetMarketOrderListByPair (MarketOrderPair) returns (MarketOrderList) {
+  }
+
+  rpc GetMarketPairList (EmptyMessage) returns (MarketOrderPairList) {
+  }
+
+  rpc GetBurnTrx (EmptyMessage) returns (NumberMessage) {
+  }
+  rpc GetBlock (BlockReq) returns (BlockExtention) {
+  }
+  rpc GetBandwidthPrices (EmptyMessage) returns (PricesResponseMessage) {
+  }
+
+  rpc GetEnergyPrices (EmptyMessage) returns (PricesResponseMessage) {
+  }
 };
 
 service WalletExtension {
@@ -898,6 +1025,18 @@ service Database {
   }
 };
 
+service Monitor {
+  rpc GetStatsInfo (EmptyMessage) returns (MetricsInfo) {
+    option (google.api.http) = {
+      post: "/monitor/getstatsinfo"
+      body: "*"
+      additional_bindings {
+        get: "/monitor/getstatsinfo"
+      }
+    };
+  }
+}
+
 message Return {
   enum response_code {
     SUCCESS = 0;
@@ -912,6 +1051,8 @@ message Return {
     SERVER_BUSY = 9;
     NO_CONNECTION = 10;
     NOT_ENOUGH_EFFECTIVE_CONNECTION = 11;
+    BLOCK_UNSOLIDIFIED = 12;
+
     OTHER_ERROR = 20;
   }
 
@@ -948,12 +1089,44 @@ message BlockList {
 message TransactionList {
   repeated Transaction transaction = 1;
 }
+message TransactionIdList {
+  repeated string txId = 1;
+}
 message DelegatedResourceMessage {
   bytes fromAddress = 1;
   bytes toAddress = 2;
 }
 message DelegatedResourceList {
   repeated DelegatedResource delegatedResource = 1;
+}
+
+message GetAvailableUnfreezeCountRequestMessage {
+  bytes owner_address = 1;
+}
+message GetAvailableUnfreezeCountResponseMessage {
+  int64 count = 1;
+}
+
+//GetCanDelegatedMaxSize
+message CanDelegatedMaxSizeRequestMessage {
+  int32 type = 1;
+  bytes owner_address = 2;
+}
+message CanDelegatedMaxSizeResponseMessage {
+  int64 max_size = 1;
+}
+
+//GetCanWithdrawUnfreezeAmount
+message CanWithdrawUnfreezeAmountRequestMessage {
+  bytes owner_address = 1;
+  int64 timestamp = 2;
+}
+message CanWithdrawUnfreezeAmountResponseMessage {
+  int64 amount = 1;
+}
+
+message PricesResponseMessage {
+  string prices = 1;
 }
 
 // Gossip node list
@@ -983,6 +1156,10 @@ message BytesMessage {
 message TimeMessage {
   int64 beginInMilliseconds = 1;
   int64 endInMilliseconds = 2;
+}
+message BlockReq {
+  string id_or_num = 1;
+  bool   detail = 2;
 }
 message BlockLimit {
   int64 startNum = 1;
@@ -1022,6 +1199,9 @@ message AccountResourceMessage {
   map<string, int64> assetNetLimit = 6;
   int64 TotalNetLimit = 7;
   int64 TotalNetWeight = 8;
+  int64 TotalTronPowerWeight = 9;
+  int64 tronPowerUsed = 10;
+  int64 tronPowerLimit = 11;
 
   int64 EnergyUsed = 13;
   int64 EnergyLimit = 14;
@@ -1036,39 +1216,7 @@ message PaginatedMessage {
   int64 offset = 1;
   int64 limit = 2;
 }
-
-message EasyTransferMessage {
-  bytes passPhrase = 1;
-  bytes toAddress = 2;
-  int64 amount = 3;
-}
-
-message EasyTransferAssetMessage {
-  bytes passPhrase = 1;
-  bytes toAddress = 2;
-  string assetId = 3;
-  int64 amount = 4;
-}
-
-message EasyTransferByPrivateMessage {
-  bytes privateKey = 1;
-  bytes toAddress = 2;
-  int64 amount = 3;
-}
-
-message EasyTransferAssetByPrivateMessage {
-  bytes privateKey = 1;
-  bytes toAddress = 2;
-  string assetId = 3;
-  int64 amount = 4;
-}
-
-message EasyTransferResponse {
-  Transaction transaction = 1;
-  Return result = 2;
-  bytes txid = 3; //transaction id =  sha256(transaction.rowdata)
-}
-
+// for only wallet-cli, do not delete
 message AddressPrKeyPairMessage {
   string address = 1;
   string privateKey = 2;
@@ -1079,6 +1227,15 @@ message TransactionExtention {
   bytes txid = 2; //transaction id =  sha256(transaction.rowdata)
   repeated bytes constant_result = 3;
   Return result = 4;
+  int64 energy_used = 5;
+  repeated TransactionInfo.Log logs = 6;
+  repeated InternalTransaction internal_transactions = 7;
+  int64 energy_penalty = 8;
+}
+
+message EstimateEnergyMessage {
+  Return result = 1;
+  int64 energy_required = 2;
 }
 
 message BlockExtention {
@@ -1205,6 +1362,7 @@ message PrivateParameters {
   repeated ReceiveNote shielded_receives = 7;
   bytes transparent_to_address = 8;
   int64 to_amount = 9;
+  int64 timeout = 10; // timeout in seconds, it works only when it bigger than 0
 }
 
 message PrivateParametersWithoutAsk {
@@ -1217,6 +1375,7 @@ message PrivateParametersWithoutAsk {
   repeated ReceiveNote shielded_receives = 7;
   bytes transparent_to_address = 8;
   int64 to_amount = 9;
+  int64 timeout = 10; // timeout in seconds, it works only when it bigger than 0
 }
 
 message SpendAuthSigParameters {
@@ -1262,7 +1421,7 @@ message PaymentAddressMessage {
   string payment_address = 3;
 }
 
-message ShieldedAddressInfo{
+message ShieldedAddressInfo {
   bytes sk = 1;
   bytes ask = 2;
   bytes nsk = 3;
@@ -1275,7 +1434,6 @@ message ShieldedAddressInfo{
   string payment_address = 10;
 }
 
-
 message NoteParameters {
   bytes ak = 1;
   bytes nk = 2;
@@ -1287,4 +1445,99 @@ message NoteParameters {
 message SpendResult {
   bool result = 1;
   string message = 2;
+}
+
+message TransactionInfoList {
+  repeated TransactionInfo transactionInfo = 1;
+}
+
+message SpendNoteTRC20 {
+  Note note = 1;
+  bytes alpha = 2;
+  bytes root = 3;
+  bytes path = 4;
+  int64 pos = 5;
+}
+
+message PrivateShieldedTRC20Parameters {
+  bytes ask = 1;
+  bytes nsk = 2;
+  bytes ovk = 3;
+  string from_amount = 4;
+  repeated SpendNoteTRC20 shielded_spends = 5;
+  repeated ReceiveNote shielded_receives = 6;
+  bytes transparent_to_address = 7;
+  string to_amount = 8;
+  bytes shielded_TRC20_contract_address = 9;
+}
+
+message PrivateShieldedTRC20ParametersWithoutAsk {
+  bytes ak = 1;
+  bytes nsk = 2;
+  bytes ovk = 3;
+  string from_amount = 4;
+  repeated SpendNoteTRC20 shielded_spends = 5;
+  repeated ReceiveNote shielded_receives = 6;
+  bytes transparent_to_address = 7;
+  string to_amount = 8;
+  bytes shielded_TRC20_contract_address = 9;
+}
+
+message ShieldedTRC20Parameters {
+  repeated SpendDescription spend_description = 1;
+  repeated ReceiveDescription receive_description = 2;
+  bytes binding_signature = 3;
+  bytes message_hash = 4;
+  string trigger_contract_input = 5;
+  string parameter_type = 6;
+}
+
+message IvkDecryptTRC20Parameters {
+  int64 start_block_index = 1;
+  int64 end_block_index = 2;
+  bytes shielded_TRC20_contract_address = 3;
+  bytes ivk = 4;
+  bytes ak = 5;
+  bytes nk = 6;
+  repeated string events = 7;
+}
+
+message OvkDecryptTRC20Parameters {
+  int64 start_block_index = 1;
+  int64 end_block_index = 2;
+  bytes ovk = 3;
+  bytes shielded_TRC20_contract_address = 4;
+  repeated string events = 5;
+}
+
+message DecryptNotesTRC20 {
+  message NoteTx {
+    Note note = 1;
+    int64 position = 2;
+    bool is_spent = 3;
+    bytes txid = 4;
+    int32 index = 5; //the index of note in txid
+    string to_amount = 6;
+    bytes transparent_to_address = 7;
+  }
+  repeated NoteTx noteTxs = 1;
+}
+
+message NfTRC20Parameters {
+  Note note = 1;
+  bytes ak = 2;
+  bytes nk = 3;
+  int64 position = 4;
+  bytes shielded_TRC20_contract_address = 5;
+}
+
+message NullifierResult {
+  bool is_spent = 1;
+}
+
+message ShieldedTRC20TriggerContractParameters {
+  ShieldedTRC20Parameters shielded_TRC20_Parameters = 1;
+  repeated BytesMessage spend_authority_signature = 2;
+  string amount = 3;
+  bytes transparent_to_address = 4;
 }

@@ -20,13 +20,12 @@ package org.tron.common.utils;
 
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.UnsignedBytes;
-import org.spongycastle.util.encoders.Hex;
-
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import org.bouncycastle.util.encoders.Hex;
 
 public class ByteUtil {
 
@@ -71,7 +70,8 @@ public class ByteUtil {
   }
 
   /**
-   * Omitting sign indication byte. <br><br> Instead of {@link org.spongycastle.util.BigIntegers#asUnsignedByteArray(BigInteger)}
+   * Omitting sign indication byte. <br><br> Instead of
+   * {@link org.bouncycastle.util.BigIntegers#asUnsignedByteArray(BigInteger)}
    * <br>we use this custom method to avoid an empty array in case of BigInteger.ZERO
    *
    * @param value - any big integer number. A <code>null</code>-value will return <code>null</code>

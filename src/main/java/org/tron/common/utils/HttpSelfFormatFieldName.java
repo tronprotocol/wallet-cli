@@ -13,14 +13,6 @@ public class HttpSelfFormatFieldName {
     //DelegatedResourceMessage
     AddressFieldNameMap.put("protocol.DelegatedResourceMessage.fromAddress", 1);
     AddressFieldNameMap.put("protocol.DelegatedResourceMessage.toAddress", 1);
-    //EasyTransferMessage
-    AddressFieldNameMap.put("protocol.EasyTransferMessage.toAddress", 1);
-    //EasyTransferAssetMessage
-    AddressFieldNameMap.put("protocol.EasyTransferAssetMessage.toAddress", 1);
-    //EasyTransferByPrivateMessage
-    AddressFieldNameMap.put("protocol.EasyTransferByPrivateMessage.toAddress", 1);
-    //EasyTransferAssetByPrivateMessage
-    AddressFieldNameMap.put("protocol.EasyTransferAssetByPrivateMessage.toAddress", 1);
     //TransactionSignWeight
     AddressFieldNameMap.put("protocol.TransactionSignWeight.approved_list", 1);
     //TransactionApprovedList
@@ -114,6 +106,24 @@ public class HttpSelfFormatFieldName {
     //ShieldedTransferContract
     AddressFieldNameMap.put("protocol.ShieldedTransferContract.transparent_from_address", 1);
     AddressFieldNameMap.put("protocol.ShieldedTransferContract.transparent_to_address", 1);
+    //FreezeBalanceV2Contract
+    AddressFieldNameMap.put("protocol.FreezeBalanceV2Contract.owner_address", 1);
+    //UnfreezeBalanceV2Contract
+    AddressFieldNameMap.put("protocol.UnfreezeBalanceV2Contract.owner_address", 1);
+    //WithdrawExpireUnfreezeContract
+    AddressFieldNameMap.put("protocol.WithdrawExpireUnfreezeContract.owner_address", 1);
+    //DelegateResourceContract
+    AddressFieldNameMap.put("protocol.DelegateResourceContract.owner_address", 1);
+    AddressFieldNameMap.put("protocol.DelegateResourceContract.receiver_address", 1);
+    //UnDelegateResourceContract
+    AddressFieldNameMap.put("protocol.UnDelegateResourceContract.owner_address", 1);
+    AddressFieldNameMap.put("protocol.UnDelegateResourceContract.receiver_address", 1);
+    //CancelAllUnfreezeV2Contract
+    AddressFieldNameMap.put("protocol.CancelAllUnfreezeV2Contract.owner_address", 1);
+
+    AddressFieldNameMap.put("protocol.CanDelegatedMaxSizeRequestMessage.owner_address", 1);
+    AddressFieldNameMap.put("protocol.GetAvailableUnfreezeCountRequestMessage.owner_address", 1);
+    AddressFieldNameMap.put("protocol.CanWithdrawUnfreezeAmountRequestMessage.owner_address", 1);
 
     //***** Tron.proto *****
     //AccountId
@@ -160,10 +170,6 @@ public class HttpSelfFormatFieldName {
     NameFieldNameMap.put("protocol.Return.message", 1);
     //Address
     NameFieldNameMap.put("protocol.Address.host", 1);
-    //EasyTransferMessage
-    NameFieldNameMap.put("protocol.EasyTransferMessage.passPhrase", 1);
-    //EasyTransferAssetMessage
-    NameFieldNameMap.put("protocol.EasyTransferAssetMessage.passPhrase", 1);
     //Note
     NameFieldNameMap.put("protocol.Note.memo", 1);
 
@@ -215,6 +221,27 @@ public class HttpSelfFormatFieldName {
     NameFieldNameMap.put("protocol.Transaction.Contract.ContractName", 1);
     //TransactionInfo
     NameFieldNameMap.put("protocol.TransactionInfo.resMessage", 1);
+
+    // MarketSellAssetContract
+    AddressFieldNameMap.put("protocol.MarketSellAssetContract.owner_address", 1);
+    NameFieldNameMap.put("protocol.MarketSellAssetContract.sell_token_id", 1);
+    NameFieldNameMap.put("protocol.MarketSellAssetContract.buy_token_id", 1);
+
+    // MarketCancelOrderContract
+    AddressFieldNameMap.put("protocol.MarketCancelOrderContract.owner_address", 1);
+
+    // MarketOrder
+    AddressFieldNameMap.put("protocol.MarketOrder.owner_address", 1);
+    NameFieldNameMap.put("protocol.MarketOrder.sell_token_id", 1);
+    NameFieldNameMap.put("protocol.MarketOrder.buy_token_id", 1);
+
+    // MarketOrderPair
+    NameFieldNameMap.put("protocol.MarketOrderPair.sell_token_id", 1);
+    NameFieldNameMap.put("protocol.MarketOrderPair.buy_token_id", 1);
+
+    // MarketPriceList
+    NameFieldNameMap.put("protocol.MarketPriceList.sell_token_id", 1);
+    NameFieldNameMap.put("protocol.MarketPriceList.buy_token_id", 1);
   }
 
   public static boolean isAddressFormat(final String name) {

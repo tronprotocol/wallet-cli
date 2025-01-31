@@ -1,16 +1,16 @@
 package org.tron.common.utils;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.commons.lang3.StringUtils;
-import org.spongycastle.util.encoders.Hex;
-import org.tron.common.crypto.Hash;
-import org.tron.walletserver.WalletApi;
-
 import java.io.IOException;
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.apache.commons.lang3.StringUtils;
+import org.bouncycastle.util.encoders.Hex;
+import org.tron.common.crypto.Hash;
+import org.tron.walletserver.WalletApi;
 
 public class AbiUtil {
 
@@ -79,7 +79,6 @@ public class AbiUtil {
       if (length == -1) {
         this.dynamic = true;
       }
-      this.dynamic = true;
     }
 
     @Override
@@ -125,9 +124,9 @@ public class AbiUtil {
 
     @Override
     byte[] encode(String value) {
-      long n = Long.valueOf(value);
-      DataWord word = new DataWord(Math.abs(n));
-      if (n < 0) {
+      BigInteger bigInteger = new BigInteger(value);
+      DataWord word = new DataWord(bigInteger.abs().toByteArray());
+      if (bigInteger.compareTo(new BigInteger("0")) == -1) {
         word.negate();
       }
       return word.getData();

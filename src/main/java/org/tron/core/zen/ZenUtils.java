@@ -92,6 +92,36 @@ public class ZenUtils {
     }
   }
 
+  public static void checkFoldersExist(final String filePath) {
+    try {
+      File file = new File(filePath);
+      if (file.exists()) {
+        if (file.isDirectory()) {
+          return;
+        } else {
+          file.delete();
+        }
+      }
+      file.mkdirs();
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+  }
+
+  public static boolean checkFileExist(final String filePath) {
+    try {
+      File file = new File(filePath);
+      if (file.exists() && !file.isDirectory()) {
+        return true;
+      } else {
+        return false;
+      }
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+    return false;
+  }
+
   public static String getMemo(byte[] memo) {
     int index = memo.length;
     for (; index>0; --index) {

@@ -1,8 +1,8 @@
 # wallet-cli [![Build Status](https://travis-ci.org/tronprotocol/wallet-cli.svg?branch=master)](https://travis-ci.org/tronprotocol/wallet-cli)
 
-Wallet CLI
+Welcome to use the Wallet-CLI.  
 
-[gitter](https://gitter.im/tronprotocol/wallet-cli)
+If you need any help, please join the [Telegram](https://t.me/troncoredevscommunity)
 
 ## Get started
 
@@ -25,10 +25,16 @@ fullnode = {
 }
 
 soliditynode = {
+  // the IPs in this list can only be totally set to solidity or pBFT.
   ip.list = [
-    "solidity ip : port"
+    "ip : solidity port" // default solidity
   ]
+#  ip.list = [
+#    "ip : pBFT port" // or pBFT
+#  ]
 } // NOTE: solidity node is optional
+
+blockNumberStartToScan = 22690588 // NOTE: this field is optional
 ```
 
 ### Run a web wallet
@@ -53,30 +59,50 @@ soliditynode = {
 Wallet-cli connect to java-tron via gRPC protocol, which can be deployed locally or remotely. Check **Run a web Wallet** section.
 We can configure java-tron node IP and port in ``src/main/resources/config.conf``, so that wallet-cli server can successfully talk to java-tron nodes.
 
-## Wallet-cli Document Summary
+## Wallet-cli supported command list
 
-The following are a overview of documents including some command explanations and usage examples. Check following links to find your interesting commands:
+Following is a list of Tron Wallet-cli commands:
+For more information on a specific command, just type the command on terminal when you start your Wallet.
 
-- [Freeze/unfreeze Balance](#How-to-freeze/unfreeze-balance)
-- [Vote](#How-to-vote)
-- [Bandwidth](#How-to-calculate-bandwidth)
-- [IssueToke](#How-to-issue-TRC10-tokens)
-- [Proposal](#How-to-initiate-a-proposal)
-- [HowToTrade](#How-to-trade-on-the-exchange)
-- [Multi-signature ](#How-to-use-the-multi-signature-feature-of-wallet-cli)
-- [SmartContract](#How-to-use-smart-contract)
-- [DelegateResource](#How-to-delegate-resource)
-- [TransferToShieldedAddress](#How-to-transfer-to-shielded-address)
-- [GetBlock](#How-to-get-block-information)
-- [GetTransaction](#How-to-get-transaction-information)
-- [GetToken10](#Get-Token10)
-- [GetProposal](#Get-proposal-information)
-- [AccountCommand](#Account-related-commands)
-  - [createAccount](#How-to-create-account)
-  - [createWitness](#How-to-create-witness)
-- [WalletCommands](#Wallet-related-commands)
-- [CommandLineFlow](#Command-line-operation-flow-example)
-- [CommandList](#Command-list)
+| [AddTransactionSign](#How-to-use-the-multi-signature-feature-of-wallet-cli) | [ApproveProposal](#Approve--disapprove-a-proposal)  | [AssetIssue](#Issue-trc10-tokens) |
+| :---------:|:---------:|:--------: |
+| [BackupShieldedTRC20Wallet](#How-to-transfer-shielded-TRC20-token) | [BackupWallet](#Wallet-related-commands)| [BackupWallet2Base64](#Wallet-related-commands) |
+| [BroadcastTransaction](#Some-others) | [ChangePassword](#Wallet-related-commands)| [CreateProposal](#Initiate-a-proposal) 
+| [DeleteProposal](#Delete-an-existed-proposal) | [DeployContract](#How-to-use-smart-contract) | [ExchangeCreate](#How-to-trade-on-the-exchange) |
+| [ExchangeInject](#How-to-trade-on-the-exchange) | [ExchangeTransaction](#How-to-trade-on-the-exchange) | [ExchangeWithdraw](#How-to-trade-on-the-exchange) |
+| [FreezeBalance](#Delegate-resource) | [GenerateAddress](#Account-related-commands) | [GenerateShieldedTRC20Address](#How-to-transfer-shielded-TRC20-token)|
+| [GetAccount](#Account-related-commands) |[GetAccountNet](#Account-related-commands) | [GetAccountResource](#Account-related-commands) | 
+| [GetAddress](#Account-related-commands) | [GetAkFromAsk](#How-to-transfer-shielded-TRC20-token) |[GetAssetIssueByAccount](#How-to-obtain-trc10-token-information) | 
+| [GetAssetIssueById](#How-to-obtain-trc10-token-information) | [GetAssetIssueByName](#How-to-obtain-trc10-token-information) |[GetAssetIssueListByName](#How-to-obtain-trc10-token-information) | 
+| [GetBalance](#Account-related-commands) | [GetBlock](#How-to-get-block-information) |[GetBlockById](#How-to-get-block-information) | 
+| [GetBlockByLatestNum](#How-to-get-block-information) | [GetBlockByLimitNext](#How-to-get-block-information) | [GetBrokerage](#Brokerage) | 
+| [GetContract](#Get-details-of-a-smart-contract) | [GetDelegatedResource](#How-to-delegate-resource) |[GetDelegatedResourceAccountIndex](#How-to-delegate-resource) | 
+| [GetDiversifier](#How-to-transfer-shielded-TRC20-token)| [GetExpandedSpendingKey](#How-to-transfer-shielded-TRC20-token)| [GetIncomingViewingKey](#How-to-transfer-shielded-TRC20-token) | 
+| [GetMarketOrderByAccount](#How-to-use-tron-dex-to-sell-asset)| [GetMarketOrderById](#How-to-use-tron-dex-to-sell-asset)| [GetMarketOrderListByPair](#How-to-use-tron-dex-to-sell-asset) | 
+| [GetMarketPairList](#How-to-use-tron-dex-to-sell-asset)| [GetMarketPriceByPair](#How-to-use-tron-dex-to-sell-asset)| [GetNextMaintenanceTime](#Some-others) | 
+| [GetNkFromNsk](#How-to-transfer-shielded-TRC20-token) | [GetProposal](#Obtain-proposal-information) | [GetShieldedPaymentAddress](#How-to-transfer-shielded-TRC20-token)| 
+| [GetSpendingKey](#How-to-transfer-shielded-TRC20-token) | [GetReward](#Brokerage) |  [GetTransactionApprovedList](#How-to-use-the-multi-signature-feature-of-wallet-cli) |
+| [GetTransactionById](#How-to-get-transaction-information) | [GetTransactionCountByBlockNum](#How-to-get-transaction-information) | [GetTransactionInfoByBlockNum](#How-to-get-transaction-information) | 
+| [GetTransactionInfoById](#How-to-get-transaction-information) | [GetTransactionSignWeight](#How-to-use-the-multi-signature-feature-of-wallet-cli) | [ImportShieldedTRC20Wallet](#How-to-transfer-shielded-TRC20-token) | 
+| [ImportWallet](#Wallet-related-commands) | [ImportWalletByBase64](#Wallet-related-commands) | [ListAssetIssue](#How-to-obtain-trc10-token-information) | 
+| [ListExchanges](#How-to-trade-on-the-exchange) | [ListExchangesPaginated](#How-to-trade-on-the-exchange) | [ListNodes](#Some-others) | 
+| [ListShieldedTRC20Address](#How-to-transfer-shielded-TRC20-token) | [ListShieldedTRC20Note](#How-to-transfer-shielded-TRC20-token) | [ListProposals](#Obtain-proposal-information) | 
+| [ListProposalsPaginated](#Obtain-proposal-information) | [ListWitnesses](#Some-others) | [LoadShieldedTRC20Wallet](#How-to-transfer-shielded-TRC20-token) | 
+| [Login](#Command-line-operation-flow-example) | [MarketCancelOrder](#How-to-use-tron-dex-to-sell-asset) | [MarketSellAsset](#How-to-use-tron-dex-to-sell-asset)| 
+| [ParticipateAssetIssue](#Participating-in-the-issue-of-trc10-token) | [RegisterWallet](#Wallet-related-commands) | [ResetShieldedTRC20Note](#How-to-transfer-shielded-TRC20-token) | 
+| [ScanShieldedTRC20NoteByIvk](#How-to-transfer-shielded-TRC20-token) |  [ScanShieldedTRC20NoteByOvk](#How-to-transfer-shielded-TRC20-token) |[SendCoin](#How-to-use-the-multi-signature-feature-of-wallet-cli) | 
+| [SendShieldedTRC20Coin](#How-to-transfer-shielded-TRC20-token) | [SendShieldedTRC20CoinWithoutAsk](#How-to-transfer-shielded-TRC20-token) | [SetShieldedTRC20ContractAddress](#How-to-transfer-shielded-TRC20-token) | 
+| [ShowShieldedTRC20AddressInfo](#How-to-transfer-shielded-TRC20-token) | [TransferAsset](#Trc10-token-transfer) | [TriggerContract](#Trigger-smart-contarct) |
+| [UnfreezeAsset](#Unfreeze-trc10-token) | [UnfreezeBalance](#How-to-delegate-resource) |[UpdateAsset](#Update-parameters-of-trc10-token) | 
+| [UpdateBrokerage](#Brokerage) | [UpdateEnergyLimit](#Update-smart-contract-parameters) |[UpdateSetting](#Update-smart-contract-parameters) | 
+| [UpdateAccountPermission](#How-to-use-the-multi-signature-feature-of-wallet-cli) | [VoteWitness](#How-to-vote) | [FreezeBalanceV2](#How-to-freezev2) |
+| [UnfreezeBalanceV2](#How-to-freezev2) | [DelegateResource](#How-to-freezev2) | [UnDelegateResource](#How-to-freezev2) |
+| [WithdrawExpireUnfreeze](#How-to-freezev2) | [CancelAllUnfreezeV2](#How-to-freezev2) |[GetDelegatedResourceV2](#How-to-freezev2) | 
+| [GetDelegatedResourceAccountIndexV2](#How-to-freezev2) | [GetCanDelegatedMaxSize](#How-to-freezev2) | [GetAvailableUnfreezeCount](#How-to-freezev2) |
+| [GetCanWithdrawUnfreezeAmount](#How-to-freezev2) |[GetBandwidthPrices](#Get-resource-prices-and-memo-fee) | [GetEnergyPrices](#Get-resource-prices-and-memo-fee)|
+| [GetMemoFee](#Get-resource-prices-and-memo-fee) |||
+
+Type any one of the listed commands, to display how-to tips.
 
 ## How to freeze/unfreeze balance
 
@@ -94,8 +120,8 @@ OwnerAddress
 > The address of the account that initiated the transaction, optional, default is the address of the login account.
 
 frozen_balance
-> The amount of frozen funds, the unit is drop.
-> The minimum value is **1000000 drop(1TRX)**.
+> The amount of frozen funds, the unit is Sun.
+> The minimum value is **1000000 Sun(1TRX)**.
 
 frozen_duration
 > Freeze time, this value is currently only allowed for **3 days**.
@@ -142,13 +168,59 @@ For example:
 
 The final result of the above command was 10 votes for witness1 and 0 vote for witness2.
 
+## Brokerage
+
+After voting for the witness, you will receive the rewards. The witness has the right to decide the ratio of brokerage. The default ratio is 20%, and the witness can adjust it.
+
+By default, if a witness is rewarded, he will receive 20% of the whole rewards, and 80% of the rewards will be distributed to his voters.
+
+### GetBrokerage
+
+View the ratio of brokerage of the witness.
+
+    > getbrokerage OwnerAddress
+
+OwnerAddress
+> The address of the witness's account, it is a base58check type address.
+
+### GetReward
+
+Query unclaimed reward.
+
+    > getreward OwnerAddress
+
+OwnerAddress
+> The address of the voter's account, it is a base58check type address.
+
+### UpdateBrokerage
+
+Update the ratio of brokerage, this command is usually used by a witness account.
+
+    > updateBrokerage OwnerAddress brokerage
+
+OwnerAddress
+> The address of the witness's account, it is a base58check type address.
+
+brokerage
+> The ratio of brokerage you want to update to, the limit of it: 0-100.
+
+For example:
+
+```console
+> getbrokerage TZ7U1WVBRLZ2umjizxqz3XfearEHhXKX7h  
+
+> getreward  TNfu3u8jo1LDWerHGbzs2Pv88Biqd85wEY
+
+> updateBrokerage TZ7U1WVBRLZ2umjizxqz3XfearEHhXKX7h 30
+```
+
 ## How to calculate bandwidth
 
 The bandwidth calculation rule is:
 
     constant * FrozenFunds * days
 
-Assuming freeze 1TRX（1_000_000 DROP), 3 days, bandwidth obtained = 1 * 1_000_000 * 3 = 3_000_000.
+Assuming freeze 1TRX（1_000_000 Sun), 3 days, bandwidth obtained = 1 * 1_000_000 * 3 = 3_000_000.
 
 All contracts consume bandwidth, including transferring, transferring of assets, voting, freezing, etc.
 Querying does not consume bandwidth. Each contract needs to consume **100_000 bandwidth**.
@@ -202,40 +274,52 @@ Balance = 0
 > TransferAsset TWzrEZYtwzkAxXJ8PatVrGuoSNsexejRiM 1000001 10000
 ```
 
-## How to issue TRC10 tokens
+## How to issue a TRC10 token
 
-Each account can only issue one TRC10 token.
+Each account can only issue **ONE** TRC10 token.
 
 ### Issue TRC10 tokens
 
     > AssetIssue [OwnerAddress] AssetName AbbrName TotalSupply TrxNum AssetNum Precision StartDate EndDate Description Url FreeNetLimitPerAccount PublicFreeNetLimit FrozenAmount0 FrozenDays0 [...] FrozenAmountN FrozenDaysN
 
-OwnerAddress
-> The address of the account that initiated the transaction, optional, default is the address of the login account.*
+OwnerAddress (optional)
+> The address of the account which initiated the transaction. 
+> Default: the address of the login account.
 
 AssetName
 > The name of the issued TRC10 token
 
 AbbrName
-> The Abbreviation of TRC10 tokens
+> The abbreviation of TRC10 token
 
 TotalSupply
-> Total issuing amount = account balance of the issuer at the time of issuance + all the frozen amount, before asset transfer and the issuance.
+> TotalSupply = Account Balance of Issuer + All Frozen Token Amount
+> TotalSupply: Total Issuing Amount
+> Account Balance Of Issuer: At the time of issuance
+> All Frozen Token Amount: Before asset transfer and the issuance
 
 TrxNum, AssetNum
-> These two parameters determine the exchange rate between the issued token and the minimum unit of TRX (sun) when the token is issued.
+>  These two parameters determine the exchange rate when the token is issued.
+> Exchange Rate = TrxNum / AssetNum
+> AssetNum: Unit in base unit of the issued token
+> TrxNum: Unit in SUN (0.000001 TRX)
+
+Precision
+> Precision to how many decimal places  
 
 FreeNetLimitPerAccount
-> The maximum amount of bandwidth an account is allowed to use. Token issuers can freeze TRX to obtain bandwidth (TransferAssetContract only)
+> The maximum amount of bandwidth each account is allowed to use. Token issuers can freeze TRX to obtain bandwidth (TransferAssetContract only)
 
 PublicFreeNetLimit
-> The maximum amount of bandwidth issuing accounts are allowed user. Token issuers can freeze REX to obtain bandwidth (TransferAssetContract only)
+> The maximum total amount of bandwidth which is allowed to use for all accounts. Token issuers can freeze TRX to obtain bandwidth (TransferAssetContract only)
 
 StartDate, EndDate
-> The start and end date of token issuance. Within this period time, other users can participate in token issuance.*
+> The start and end date of token issuance. Within this period time, other users can participate in token issuance.
 
 FrozenAmount0 FrozenDays0
-> Amount and time of token freeze. FrozenAmount0 must be bigger than 0, FrozenDays0 must be bigger than 1 and smaller than 3653.
+> Amount and days of token freeze. 
+> FrozenAmount0: Must be bigger than 0
+> FrozenDays0: Must between 1 and 3653.
 
 Example:
 
@@ -278,7 +362,7 @@ Example:
 
     > UpdateAsset [OwnerAddress] newLimit newPublicLimit description url
 
-Specific meaning of the parameters is the same with that of AssetIssue.
+Specific meaning of the parameters is the same as that of AssetIssue.
 
 Example:
 
@@ -317,18 +401,20 @@ Example:
 }
 ```
 
-### TRC10 transfer
+### TRC10 token transfer
 
     > TransferAsset [OwnerAddress] ToAddress AssertID Amount
 
-OwnerAddress
-> The address of the account that initiated the transaction, optional, default is the address of the login account.
+OwnerAddress (optional)
+> The address of the account which initiated the transaction. 
+> Default: the address of the login account.
 
 ToAddress
 > Address of the target account
 
 AssertName
-> TRC10 id, 1000001 in the example
+> TRC10 token ID
+> Example: 1000001
 
 Amount
 > The number of TRC10 token to transfer
@@ -348,23 +434,25 @@ address: TN3zfjYUmMFK3ZsHSsrdJoNRtGkQmZLBLz
     }
 ```
 
-### Participating in the issue of TRC10
+### Participating in the issue of TRC10 token
 
     > ParticipateAssetIssue [OwnerAddress] ToAddress AssetID Amount
 
-OwnerAddress
-> The address of the account that initiated the transaction, optional, default is the address of the login account.
+OwnerAddress (optional)
+> The address of the account which initiated the transaction. 
+> Default: the address of the login account.
 
 ToAddress
-> Account address of Token 10 issuers
+> Account address of TRC10 issuers
 
 AssertName
-> TRC10 ID, 1000001 in the example
+> TRC10 token ID
+> Example: 1000001
 
 Amount
 > The number of TRC10 token to transfers
 
-It must happen during the release of Token 10, otherwise an error may occur.
+The participation process must happen during the release of TRC10, otherwise an error may occur.
 
 Example:
 
@@ -381,43 +469,43 @@ assetV2
     }
 ```
 
-### unfreeze TRC10 token
+### Unfreeze TRC10 token
 
-It must be unfrozen after the freezing period, unfreeze Token10, which has stopped being frozen.
+To unfreeze all TRC10 token which are supposed to be unfrozen after the freezing period.
 
     > unfreezeasset [OwnerAddress]
 
-## Get Token10
+## How to obtain TRC10 token information
 
 ListAssetIssue
-> Obtain all of the published Token 10 information
+> Obtain all of the published TRC10 token information
 
 GetAssetIssueByAccount
-> Obtain Token10 information according to the issuing address
+> Obtain TRC10 token information based on issuing address
 
 GetAssetIssueById
-> Obtain Token10 Information based on ID
+> Obtain TRC10 token Information based on ID
 
 GetAssetIssueByName
-> Obtain Token10 Information based on names
+> Obtain TRC10 token Information based on names
 
 GetAssetIssueListByName
-> Get list information on Token10 based on names
+> Obtain a list of TRC10 token information based on names
 
-## How to initiate a proposal
+## How to operate with proposal
 
-Any proposal-related operations, except for viewing operations, must be performed by committee
-members.
+Any proposal-related operations, except for viewing operations, must be performed by committee members.
 
 ### Initiate a proposal
 
     > createProposal [OwnerAddress] id0 value0 ... idN valueN
 
-OwnerAddress
-> The address of the account that initiated the transaction, optional, default is the address of the login account.
+OwnerAddress (optional)
+> The address of the account which initiated the transaction. 
+> Default: the address of the login account.
 
 id0
-> The serial number of the parameter. Every parameter of TRON network has a serial number. Go to "http://tronscan.org/#/sr/committee" to see the specifics
+> The serial number of the parameter. Every parameter of TRON network has a serial number. Please refer to "http://tronscan.org/#/sr/committee" 
 
 Value0
 > The modified value
@@ -447,17 +535,19 @@ In the example, modification No.4 (modifying token issuance fee) costs 1000TRX a
 
 The corresponding id is 1.
 
-### Approve/cancel the proposal
+### Approve / Disapprove a proposal
 
     > approveProposal [OwnerAddress] id is_or_not_add_approval
 
-OwnerAddress
-> The address of the account that initiated the transaction, optional, default is the address of the login account.
+OwnerAddress (optional)
+> The address of the account which initiated the transaction. 
+> Default: the address of the login account.
 
 id
-> ID of the initiated proposal, 1 in the example
-is_or_not_add_approval
+> ID of the initiated proposal
+> Example: 1
 
+is_or_not_add_approval
 > true for approve; false for disapprove
 
 Example:
@@ -467,12 +557,13 @@ Example:
 > ApproveProposal 1 false  # Cancel the approved proposal
 ```
 
-### Cancel the created proposal
+### Delete an existed proposal
 
     > deleteProposal [OwnerAddress] proposalId
 
 proposalId
-> ID of the initiated proposal, 1 in the example
+> ID of the initiated proposal
+> Example: 1
 
 The proposal must be canceled by the supernode that initiated the proposal.
 
@@ -480,10 +571,10 @@ Example：
 
     > DeleteProposal 1
 
-## Get proposal information
+### Obtain proposal information
 
 ListProposals
-> Obtain initiated proposals
+> Obtain a list of initiated proposals
 
 ListProposalsPaginated
 > Use the paging mode to obtain the initiated proposal
@@ -494,54 +585,60 @@ GetProposal
 ## How to trade on the exchange
 
 The trading and price fluctuations of trading pairs are in accordance with the Bancor Agreement,
-which can be found in TRON's related documents.
+which can be found in TRON's [related documents](https://tronprotocol.github.io/documentation-en/clients/wallet-cli-command/#dex).
 
 ### Create a trading pair
 
     > exchangeCreate [OwnerAddress] first_token_id first_token_balance second_token_id second_token_balance
 
-OwnerAddress
-> The address of the account that initiated the transaction, optional, default is the address of the login account.
+OwnerAddress (optional)
+> The address of the account which initiated the transaction.
+> Default: the address of the login account.
 
 First_token_id, first_token_balance
 > ID and amount of the first token
 
 second_token_id, second_token_balance
 > ID and amount of the second token
-> The ID is the ID of the issued TRC10 token. If it is TRX, the ID is "_", the amount must be greater than 0, and less than 1,000,000,000,000,000.
+>
+> The ID is the ID of the issued TRC10 token. 
+> If it is TRX, the ID is "_". 
+> The amount must be greater than 0, and less than 1,000,000,000,000,000.
 
 Example:
 
     > exchangeCreate 1000001 10000 _ 10000
-    # Create trading pairs with the IDs of 1000001 and TRX, the amount is 10000 for both.
+    # Create trading pairs with the IDs of 1000001 and TRX, with amount 10000 for both.
 
 ### Capital injection
 
     > exchangeInject [OwnerAddress] exchange_id token_id quant
 
-OwnerAddress
-> The address of the account that initiated the transaction, optional, default is the address of the login account.
+OwnerAddress (optional)
+> The address of the account which initiated the transaction.
+> Default: the address of the login account.
 
 exchange_id
-> The ID of the transaction pair to be funded
+> The ID of the trading pair to be funded
 
 token_id, quant
-> TokenId and quantity of capital injection
+> TokenId and quantity (unit in base unit) of capital injection
 
-When conducting capital injection, depending on the amount of capital injection, the proportion
-of each token in the transaction pair is deducted from the account and added to the transaction
+When conducting a capital injection, depending on its quantity (quant), a proportion
+of each token in the trading pair will be withdrawn from the account, and injected into the trading
 pair. Depending on the difference in the balance of the transaction, the same amount of money for
-the same token is different.
+the same token would vary.
 
 ### Transactions
 
     > exchangeTransaction [OwnerAddress] exchange_id token_id quant expected
 
-OwnerAddress
-> The address of the account that initiated the transaction, optional, default is the address of the login account.
+OwnerAddress (optional)
+> The address of the account which initiated the transaction.
+> Default: the address of the login account.
 
 exchange_id
-> ID of the transaction pair
+> ID of the trading pair
 
 token_id, quant
 > The ID and quantity of tokens being exchanged, equivalent to selling
@@ -549,37 +646,39 @@ token_id, quant
 expected
 > Expected quantity of another token
 
-The expected must be less than exchanged, otherwise, an error will be reported.
+expected must be less than quant, or an error will be reported.
 
 Example：
 
     > ExchangeTransaction 1 1000001 100 80
 
-It is expected to acquire the 80 TRX by exchanging 1000001 from the transaction pair ID of 1, and the amount is 100 (equivalent to selling token10, the ID is 1000001, the amount is 100).
+It is expected to acquire the 80 TRX by exchanging 1000001 from the trading pair ID of 1, and the amount is 100.(Equivalent to selling an amount of 100 tokenID - 1000001, at a price of 80 TRX, in trading pair ID - 1).
 
-### Divestment
+### Capital Withdrawal
 
     > exchangeWithdraw [OwnerAddress] exchange_id token_id quant
 
-OwnerAddress
-> The address of the account that initiated the transaction, optional, default is the address of the login account.
+OwnerAddress (optional)
+> The address of the account which initiated the transaction.
+> Default: the address of the login account.
 
-> Exchange_id
-The ID of the transaction pair to be divested
+Exchange_id
+
+> 
+The ID of the trading pair to be withdrawn
 
 Token_id, quant
-> TokenId and quantity of divestment
+> TokenId and quantity (unit in base unit) of capital withdrawal
 
-When conducting divestment, depending on the amount of divestment, the proportion of each token
-in the transaction pair is deducted from the account and added to the transaction pair. Depending
-on the difference in the balance of the transaction, the same amount of money for the same token is different.
+When conducting a capital withdrawal, depending on its quantity (quant), a proportion of each token
+in the transaction pair is withdrawn from the trading pair, and injected into the account. Depending on the difference in the balance of the transaction, the same amount of money for the same token would vary.
 
 ### Obtain information on trading pairs
 
 ListExchanges
-> lists trading pairs
+> List trading pairs
 
-ListexchangesPaginated
+ListExchangesPaginated
 > List trading pairs by page
 
 ## How to use the multi-signature feature of wallet-cli?
@@ -661,7 +760,7 @@ Select another account and enter the local password. i.e. TKwhcDup8L2PH5r6hxp5CQ
 need a private key of TKwhcDup8L2PH5r6hxp5CQvQzZqJLmKvZP to sign a transaction.
 
 The weight of each account is 1, threshold of access is 2. When the requirements are met, users
-will be notified with “Send 10000000000000000 drop to TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW
+will be notified with “Send 10000000000000000 Sun to TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW
 successful !!”.
 
 This is how multiple accounts user multi-signature when using the same cli.
@@ -816,8 +915,8 @@ origin_energy_limit
 value
 > The amount of trx transferred to the contract account
 
-> token_value
-Number of TRX10
+token_value
+> Number of TRX10
 
 token_id
 > TRX10 Id
@@ -865,7 +964,7 @@ method
 > The name of function and parameters, please refer to the example
 
 args
-> Parameter value
+> Parameter value, if you want to call `receive`, pass '#' instead
 
 isHex
 > The format of the parameters method and args, is hex string or not
@@ -966,8 +1065,8 @@ resources for its own use; if it is not empty, the acquired resources are used b
 OwnerAddress
 > The address of the account that initiated the transaction, optional, default is the address of the login account.
 
-> frozen_balance
-The amount of frozen TRX, the unit is the smallest unit (sun), the minimum is 1000000sun.
+frozen_balance
+> The amount of frozen TRX, the unit is the smallest unit (Sun), the minimum is 1000000sun.
 
 frozen_duration
 > frezen duration, 3 days
@@ -989,8 +1088,425 @@ by default; when the receiverAddress is set, the delegate resources are unfreeze
 
 getDelegatedResource fromAddress toAddress
 > get the information from the fromAddress to the toAddress resource delegate
+
 getDelegatedResourceAccountIndex address
 > get the information that address is delegated to other account resources
+
+
+## How to freezev2
+
+### freezev2/unfreezev2 resource
+
+    > freezeBalanceV2 [OwnerAddress] frozen_balance [ResourceCode:0 BANDWIDTH,1 ENERGY,2 TRON_POWER]
+
+OwnerAddress
+> The address of the account that initiated the transaction, optional, default is the address of the login account.
+
+frozen_balance
+> The amount of frozen, the unit is the smallest unit (Sun), the minimum is 1000000sun.
+
+ResourceCode
+> 0 BANDWIDTH;1 ENERGY
+
+Example:
+```console
+wallet> FreezeBalanceV2 TJAVcszse667FmSNCwU2fm6DmfM5D4AyDh 1000000000000000 0
+txid is 82244829971b4235d98a9f09ba67ddb09690ac2f879ad93e09ba3ec1ab29177d
+wallet> GetTransactionById  82244829971b4235d98a9f09ba67ddb09690ac2f879ad93e09ba3ec1ab29177d
+{
+    "ret":[
+        {
+            "contractRet":"SUCCESS"
+        }
+    ],
+    "signature":[
+        "4faa3772fa3d3e4792e8126cafed2dc2c5c069cd09c29532f0119bc982bf356004772e16fad86e401f5818c35b96d214d693efab06997ca2f07044d4494f12fd01"
+    ],
+    "txID":"82244829971b4235d98a9f09ba67ddb09690ac2f879ad93e09ba3ec1ab29177d",
+    "raw_data":{
+        "contract":[
+            {
+                "parameter":{
+                    "value":{
+                        "frozen_balance":1000000000000000,
+                        "owner_address":"4159e3741a68ec3e1ebba80ad809d5ccd31674236e"
+                    },
+                    "type_url":"type.googleapis.com/protocol.FreezeBalanceV2Contract"
+                },
+                "type":"FreezeBalanceV2Contract"
+            }
+        ],
+        "ref_block_bytes":"0000",
+        "ref_block_hash":"19b59068c6058ff4",
+        "expiration":1671109891800,
+        "timestamp":1671088291796
+    },
+    "raw_data_hex":"0a020000220819b59068c6058ff440d8ada5afd1305a5c083612580a34747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e467265657a6542616c616e63655632436f6e747261637412200a154159e3741a68ec3e1ebba80ad809d5ccd31674236e1080809aa6eaafe30170d4fffea4d130"
+}
+```
+
+    > unfreezeBalanceV2 [OwnerAddress] unfreezeBalance ResourceCode(0 BANDWIDTH,1 ENERGY,2 TRON_POWER)
+
+OwnerAddress
+> The address of the account that initiated the transaction, optional, default is the address of the login account.
+
+unfreezeBalance
+> The amount of unfreeze, the unit is the smallest unit (Sun)
+
+ResourceCode
+> 0 BANDWIDTH;1 ENERGY
+
+Example:
+```console
+wallet> UnFreezeBalanceV2 TJAVcszse667FmSNCwU2fm6DmfM5D4AyDh 9000000 0
+txid is dcfea1d92fc928d24c88f7f71a03ae8105d0b5b112d6d48be93d3b9c73bea634
+wallet> GetTransactionById dcfea1d92fc928d24c88f7f71a03ae8105d0b5b112d6d48be93d3b9c73bea634
+{
+    "ret":[
+        {
+            "contractRet":"SUCCESS"
+        }
+    ],
+    "signature":[
+        "f73a278f742c11e8e5ede693ca09b0447a804fcb28ea2bfdfd8545bb05da7be44bd08cfaa92bd4d159178f763fcf753f28d5296bd0c3d4557532cce3b256b9da00"
+    ],
+    "txID":"dcfea1d92fc928d24c88f7f71a03ae8105d0b5b112d6d48be93d3b9c73bea634",
+    "raw_data":{
+        "contract":[
+            {
+                "parameter":{
+                    "value":{
+                        "owner_address":"4159e3741a68ec3e1ebba80ad809d5ccd31674236e",
+                        "unfreeze_balance":9000000
+                    },
+                    "type_url":"type.googleapis.com/protocol.UnfreezeBalanceV2Contract"
+                },
+                "type":"UnfreezeBalanceV2Contract"
+            }
+        ],
+        "ref_block_bytes":"0000",
+        "ref_block_hash":"19b59068c6058ff4",
+        "expiration":1671119916913,
+        "timestamp":1671098316907
+    },
+    "raw_data_hex":"0a020000220819b59068c6058ff440f19e89b4d1305a5a083712560a36747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e556e667265657a6542616c616e63655632436f6e7472616374121c0a154159e3741a68ec3e1ebba80ad809d5ccd31674236e10c0a8a50470ebf0e2a9d130"
+}
+```
+
+### delegate/undelegate resource
+
+    > delegateResource [OwnerAddress] balance ResourceCode(0 BANDWIDTH,1 ENERGY), ReceiverAddress [lock]
+
+OwnerAddress
+> The address of the account that initiated the transaction, optional, default is the address of the login account.
+
+balance
+> The amount of delegate, the unit is the smallest unit (Sun), the minimum is 1000000sun.
+
+ResourceCode
+> 0 BANDWIDTH;1 ENERGY
+
+ReceiverAddress
+> The address of the account
+
+lock
+> default is false, set true if need lock delegate for 3 days
+
+Example:
+```console
+wallet> DelegateResource TJAVcszse667FmSNCwU2fm6DmfM5D4AyDh 10000000 0 TQ4gjjpAjLNnE67UFbmK5wVt5fzLfyEVs3 true
+txid is 363ac0b82b6ad3e0d3cad90f7d72b3eceafe36585432a3e013389db36152b6ed
+wallet> GetTransactionById 363ac0b82b6ad3e0d3cad90f7d72b3eceafe36585432a3e013389db36152b6ed
+{
+    "ret":[
+        {
+            "contractRet":"SUCCESS"
+        }
+    ],
+    "signature":[
+        "1f57fd78456136faadc5091b47f5fd27a8e1181621e49129df6a4062499429fb48ee72e5f9a9ff5bfb7f2575f01f4076f7d4b89ca382d36af46a6fa4bc749f4301"
+    ],
+    "txID":"363ac0b82b6ad3e0d3cad90f7d72b3eceafe36585432a3e013389db36152b6ed",
+    "raw_data":{
+        "contract":[
+            {
+                "parameter":{
+                    "value":{
+                        "balance":10000000,
+                        "receiver_address":"419a9afe56e155ef0ff3f680d00ecf19deff60bdca",
+                        "lock":true,
+                        "owner_address":"4159e3741a68ec3e1ebba80ad809d5ccd31674236e"
+                    },
+                    "type_url":"type.googleapis.com/protocol.DelegateResourceContract"
+                },
+                "type":"DelegateResourceContract"
+            }
+        ],
+        "ref_block_bytes":"0000",
+        "ref_block_hash":"19b59068c6058ff4",
+        "expiration":1671120059226,
+        "timestamp":1671098459216
+    },
+    "raw_data_hex":"0a020000220819b59068c6058ff440daf691b4d1305a720839126e0a35747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e44656c65676174655265736f75726365436f6e747261637412350a154159e3741a68ec3e1ebba80ad809d5ccd31674236e1880ade2042215419a9afe56e155ef0ff3f680d00ecf19deff60bdca280170d0c8eba9d130"
+}
+
+```
+
+    > unDelegateResource [OwnerAddress] balance ResourceCode(0 BANDWIDTH,1 ENERGY), ReceiverAddress
+
+OwnerAddress
+> The address of the account that initiated the transaction, optional, default is the address of the login account.
+
+balance
+> The amount of unDelegate, the unit is the smallest unit (Sun)
+
+ResourceCode
+> 0 BANDWIDTH;1 ENERGY
+
+ReceiverAddress
+> The address of the account
+
+Example:
+```console
+wallet> UnDelegateResource TJAVcszse667FmSNCwU2fm6DmfM5D4AyDh 1000000 0 TQ4gjjpAjLNnE67UFbmK5wVt5fzLfyEVs3
+txid is feb334794cf361fd351728026ccf7319e6ae90eba622b9eb53c626cdcae4965c
+wallet> GetTransactionById  feb334794cf361fd351728026ccf7319e6ae90eba622b9eb53c626cdcae4965c
+{
+    "ret":[
+        {
+            "contractRet":"SUCCESS"
+        }
+    ],
+    "signature":[
+        "85a41a4e44780ffbe0841a44fd71cf621f129d98e84984cfca68e03364f781aa7f9d44177af0b40d82da052feec9f47a399ed6e51be66c5db07cb13477dcde8c01"
+    ],
+    "txID":"feb334794cf361fd351728026ccf7319e6ae90eba622b9eb53c626cdcae4965c",
+    "raw_data":{
+        "contract":[
+            {
+                "parameter":{
+                    "value":{
+                        "balance":1000000,
+                        "receiver_address":"419a9afe56e155ef0ff3f680d00ecf19deff60bdca",
+                        "owner_address":"4159e3741a68ec3e1ebba80ad809d5ccd31674236e"
+                    },
+                    "type_url":"type.googleapis.com/protocol.UnDelegateResourceContract"
+                },
+                "type":"UnDelegateResourceContract"
+            }
+        ],
+        "ref_block_bytes":"0000",
+        "ref_block_hash":"19b59068c6058ff4",
+        "expiration":1671120342283,
+        "timestamp":1671098742280
+    },
+    "raw_data_hex":"0a020000220819b59068c6058ff4408b9aa3b4d1305a71083a126d0a37747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e556e44656c65676174655265736f75726365436f6e747261637412320a154159e3741a68ec3e1ebba80ad809d5ccd31674236e18c0843d2215419a9afe56e155ef0ff3f680d00ecf19deff60bdca7088ecfca9d130"
+}
+```
+
+    > withdrawExpireUnfreeze [OwnerAddress]
+
+OwnerAddress
+> The address of the account that initiated the transaction, optional, default is the address of the login account.
+
+Example:
+```console
+wallet> withdrawexpireunfreeze TJAVcszse667FmSNCwU2fm6DmfM5D4AyDh
+txid is e5763ab8dfb1e7ed076770d55cf3c1ddaf36d75e23ec8330f99df7e98f54a147
+wallet> GetTransactionById e5763ab8dfb1e7ed076770d55cf3c1ddaf36d75e23ec8330f99df7e98f54a147
+{
+    "ret":[
+        {
+            "contractRet":"SUCCESS"
+        }
+    ],
+    "signature":[
+        "f8f02b5aa634b8666862a6d2ed68fcfd90afc616d14062952b0b09f0404d9bca6c4d3dc6dab082784950ff1ded235a07dab0d738c8a202be9451d5ca92b8eece01"
+    ],
+    "txID":"e5763ab8dfb1e7ed076770d55cf3c1ddaf36d75e23ec8330f99df7e98f54a147",
+    "raw_data":{
+        "contract":[
+            {
+                "parameter":{
+                    "value":{
+                        "owner_address":"4159e3741a68ec3e1ebba80ad809d5ccd31674236e"
+                    },
+                    "type_url":"type.googleapis.com/protocol.WithdrawExpireUnfreezeContract"
+                },
+                "type":"WithdrawExpireUnfreezeContract"
+            }
+        ],
+        "ref_block_bytes":"0000",
+        "ref_block_hash":"19b59068c6058ff4",
+        "expiration":1671122055318,
+        "timestamp":1671100455315
+    },
+    "raw_data_hex":"0a020000220819b59068c6058ff44096e18bb5d1305a5a083812560a3b747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e5769746864726177457870697265556e667265657a65436f6e747261637412170a154159e3741a68ec3e1ebba80ad809d5ccd31674236e7093b3e5aad130"
+}
+```
+> cancelAllUnfreezeV2 [OwnerAddress]
+
+OwnerAddress
+> The address of the account that initiated the transaction, optional, default is the address of the login account.
+
+Example:
+```console
+wallet> cancelAllUnfreezeV2 TJAVcszse667FmSNCwU2fm6DmfM5D4AyDh
+txid is e5763ab8dfb1e7ed076770d55cf3c1ddaf36d75e23ec8330f99df7e98f54a147
+wallet> GetTransactionById e5763ab8dfb1e7ed076770d55cf3c1ddaf36d75e23ec8330f99df7e98f54a147
+{
+    "ret":[
+        {
+            "contractRet":"SUCCESS"
+        }
+    ],
+    "signature":[
+        "f8f02b5aa634b8666862a6d2ed68fcfd90afc616d14062952b0b09f0404d9bca6c4d3dc6dab082784950ff1ded235a07dab0d738c8a202be9451d5ca92b8eece01"
+    ],
+    "txID":"e5763ab8dfb1e7ed076770d55cf3c1ddaf36d75e23ec8330f99df7e98f54a147",
+    "raw_data":{
+        "contract":[
+            {
+                "parameter":{
+                    "value":{
+                        "owner_address":"4159e3741a68ec3e1ebba80ad809d5ccd31674236e"
+                    },
+                    "type_url":"type.googleapis.com/protocol.CancelAllUnfreezeV2"
+                },
+                "type":"CancelAllUnfreezeV2Contract"
+            }
+        ],
+        "ref_block_bytes":"0000",
+        "ref_block_hash":"19b59068c6058ff4",
+        "expiration":1671122055318,
+        "timestamp":1671100455315
+    },
+    "raw_data_hex":"0a020000220819b59068c6058ff44096e18bb5d1305a5a083812560a3b747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e5769746864726177457870697265556e667265657a65436f6e747261637412170a154159e3741a68ec3e1ebba80ad809d5ccd31674236e7093b3e5aad130"
+}
+```
+
+### get resource delegation information use v2 API
+
+    > getDelegatedResourceV2 fromAddress toAddress
+> get the information from the fromAddress to the toAddress resource delegate use v2 API
+
+fromAddress
+> The address of the account that start the delegate
+
+toAddress
+> The address of the account that receive the delegate
+
+Example:
+```console
+wallet> getDelegatedResourceV2 TJAVcszse667FmSNCwU2fm6DmfM5D4AyDh TQ4gjjpAjLNnE67UFbmK5wVt5fzLfyEVs3
+{
+	"delegatedResource": [
+		{
+			"from": "TJAVcszse667FmSNCwU2fm6DmfM5D4AyDh",
+			"to": "TQ4gjjpAjLNnE67UFbmK5wVt5fzLfyEVs3",
+			"frozen_balance_for_bandwidth": 10000000
+		}
+	]
+}
+```
+
+    > getDelegatedResourceAccountIndexV2 address
+> get the information that address is delegated to other account resources use v2 API
+
+address
+> The address of the account that start the delegate or receive the delegate
+
+Example:
+```console
+wallet> getDelegatedResourceAccountIndexV2 TJAVcszse667FmSNCwU2fm6DmfM5D4AyDh
+{
+	"account": "TJAVcszse667FmSNCwU2fm6DmfM5D4AyDh",
+	"toAccounts": [
+		"TQ4gjjpAjLNnE67UFbmK5wVt5fzLfyEVs3"
+	]
+}
+```
+
+    > getcandelegatedmaxsize ownerAddress type
+> get the max size that the ownerAddress can delegate use delegateResource
+
+ownerAddress
+> The address of the account that start the delegate, optional, default is the address of the login account.
+
+type
+> 0 bandwidth, 1 energy
+
+Example:
+```console
+wallet> getCanDelegatedMaxSize TJAVcszse667FmSNCwU2fm6DmfM5D4AyDh 0
+{
+	"max_size": 999999978708334
+}
+```
+
+    > getavailableunfreezecount ownerAddress
+> get the available unfreeze count that the ownerAddress can call unfreezeBalanceV2
+
+ownerAddress
+> The address of the account that initiated the transaction, optional, default is the address of the login account.
+
+Example:
+```console
+wallet> getAvailableUnfreezeCount TJAVcszse667FmSNCwU2fm6DmfM5D4AyDh
+{
+	"count": 31
+}
+```
+
+    > getcanwithdrawunfreezeamount ownerAddress timestamp
+> get the withdraw unfreeze amount that the ownerAddress can get by  withdrawexpireunfreeze 
+
+ownerAddress
+> The address of the account that initiated the transaction, optional, default is the address of the login account.
+
+timestamp
+> get can withdraw unfreeze amount until timestamp,
+
+
+Example:
+```console
+wallet> getCanWithdrawUnfreezeAmount TJAVcszse667FmSNCwU2fm6DmfM5D4AyDh 1671100335000
+{
+	"amount": 9000000
+}
+```
+## Get resource prices and memo fee
+    > getbandwidthprices
+> get historical unit price of bandwidth
+
+Example:
+```console
+wallet> getBandwidthPrices
+{
+    "prices": "0:10,1606537680000:40,1614238080000:140,1626581880000:1000,1626925680000:140,1627731480000:1000"
+}
+```
+    > getenergyprices
+> get historical unit price of energy
+
+Example:
+```console
+wallet> getEnergyPrices
+{
+    "prices": "0:100,1575871200000:10,1606537680000:40,1614238080000:140,1635739080000:280,1681895880000:420"
+}
+```
+    > getmemofee
+> get memo fee
+
+Example:
+```console
+wallet> getMemoFee
+{
+    "prices": "0:0,1675492680000:1000000"
+}
+```
+
 
 ## Wallet related commands
 
@@ -1044,6 +1560,9 @@ as: 721d63b074f18d41c147e04c952ec93467777a30b6f16745bc47a8eae5076545
 **GetTransactionInfoById**
 > Get transaction-info based on transaction id, generally used to check the result of a smart contract trigger
 
+**GetTransactionInfoByBlockNum**
+> Get the list of transaction information in the block based on the block height
+
 ## How to get block information
 
 **GetBlock**
@@ -1072,6 +1591,7 @@ as: 721d63b074f18d41c147e04c952ec93467777a30b6f16745bc47a8eae5076545
 **BroadcastTransaction**
 > Broadcast the transaction, where the transaction is in hex string format.
 
+<!--  
 ## How to transfer to shielded address
 
 ### loadshieldedwallet
@@ -1083,7 +1603,7 @@ Example:
 ```console
 > loadshieldedwallet
 Please input your password for shielded wallet.
-> 1qa@WS#ED
+> *******
 LoadShieldedWallet successful !!!
 ```
 
@@ -1123,14 +1643,14 @@ ztron165vh2d0qqj7ytrkjeehwy0sg3uvc4tnvcqnpqnzrqq4jpw2p7pzgm2d3chrwxk2jf9ck6rza8j
 
 ### SendShieldedCoin
 
-    > SendShieldedCoin publicFromAddress fromAmount shieldedInputNum input1 input2 input3 ... publicToAddress toAmount shieldedOutputNum shieldedAddress1 amount1 memo1 shieldedAddress2 amount2 memo2 ...
+    > SendShieldedCoin [publicFromAddress] fromAmount shieldedInputNum input publicToAddress toAmount shieldedOutputNum shieldedAddress1 amount1 memo1 ...
 
 Shielded transfer, support from public address or shielded address to public address and shielded address, does not support public address to public address, does not support automatic change.
 
-Public from amount / shielded input amount = public output amount + shielded output amount + fee
+Public input amount / shielded input amount = public output amount + shielded output amount + fee
 
 publicFromAddress
-> Public from address, set to null if not needed.
+> Public from address, set to null if not needed. Optional, If this variable is not configured, it is the address of the current login account
 
 fromAmount
 > The amount transfer from public address, if publicFromAddress set to null, this variable must be 0.
@@ -1161,13 +1681,15 @@ memo1
 
 Example:
 
-1. Public address transfer to two shielded addresses
+1. Public address transfer to shielded addresses
+    **When in this mode,Some variables must be set as follows, shieldedInputNum=0, publicToAddress=null, toAmount=0**
 
     ```console
     > sendshieldedcoin TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ 210000000 0 null 0 2 ztron16j06s3p5gvp2jde4vh7w3ug3zz3m62zkyfu86s7ara5lafhp22p9wr3gz0lcdm3pvt7qx0aftu4 100000000 test1 ztron1ghdy60hya8y72deu0q0r25qfl60unmue6889m3xfc3296a5ut6jcyafzhtp9nlutndukufzap4h 100000000 null
     ```
 
 2. shielded address transfer to shielded address
+    **When in this mode,Some variables must be set as follows, publicFromAddress=null, fromAmount=0, shieldedInputNum=1,publicToAddress=null,toAmount=0**
 
     ```console
     > listshieldednote
@@ -1180,6 +1702,7 @@ Example:
     ```
 
 3. shielded address transfer to public address
+    **When in this mode,Some variables must be set as follows, publicFromAddress=null,fromAmount=0,shieldedInputNum=1,shieldedOutputNum=0**
 
     ```console
     > listshieldednote
@@ -1191,326 +1714,1062 @@ Example:
     address ztron1hn9r3wmytavslztwmlzvuzk3dqpdhwcmda2d0deyu5pwv32dp78saaslyt82w0078y6uzfg8x6w
     ```
 
-4. sendshieldedcoinwithoutask
+### sendshieldedcoinwithoutask
 
-    Usage and parameters are consistent with the command sendshieldedcoin, the only difference is that sendshieldedcoin uses ask signature, but sendshieldedcoinwithoutask uses ak signature.
+Usage and parameters are consistent with the command sendshieldedcoin, the only difference is that sendshieldedcoin uses ask signature, but sendshieldedcoinwithoutask uses ak signature.
 
-5. listshieldednote type
+### listshieldednote type
 
-    List the note scanned by the local cache address
+List the note scanned by the local cache address
 
-    type
-    > Show type. 0 show not spent note; other value show all notes, include spend notes and not spend notes. default is 0.
+type
+> Shows the type of note. If the variable is 0, it shows all unspent notes; For other values, it shows all the notes, including spent notes and unspent notes.
 
-    Example:
+Example:
+
+```console
+> listshieldednote 0
+Unspend note list like:
+1 ztron1ghdy60hya8y72deu0q0r25qfl60unmue6889m3xfc3296a5ut6jcyafzhtp9nlutndukufzap4h 100000000 4ce5656a13049df00abc7fb3ce78d54c78944d3cbbdfdb29f288e1df5fdf67e1 1 UnSpend
+listshieldednote 1
+All note list like:
+ztron1ghdy60hya8y72deu0q0r25qfl60unmue6889m3xfc3296a5ut6jcyafzhtp9nlutndukufzap4h 100000000 4ce5656a13049df00abc7fb3ce78d54c78944d3cbbdfdb29f288e1df5fdf67e1 1 UnSpend
+ztron16j06s3p5gvp2jde4vh7w3ug3zz3m62zkyfu86s7ara5lafhp22p9wr3gz0lcdm3pvt7qx0aftu4 100000000 4ce5656a13049df00abc7fb3ce78d54c78944d3cbbdfdb29f288e1df5fdf67e1 0 Spend test1
+ztron1hn9r3wmytavslztwmlzvuzk3dqpdhwcmda2d0deyu5pwv32dp78saaslyt82w0078y6uzfg8x6w 90000000 06b55fc27f7ec649396706d149d18a0bb003347bdd7f489e3d47205da9cee802 0 Spend test2
+```
+
+### resetshieldednote
+
+Clean all the note scanned, rescanned all blocks.generally used when there is a problem with the notes or when switching environments
+
+### ScanNotebyIvk ivk startNum endNum
+
+Scan notes by ivk
+
+ivk
+> The ivk of shielded address
+
+startNum
+> The starting block number of the scan
+
+endNum
+> The end block number of the scan
+
+Example:
+
+    > scannotebyivk d2a4137cecf049965c4183f78fe9fc9fbeadab6ab3ef70ea749421b4c6b8de04 500 1499
+
+### ScanNotebyOvk ovk startNum endNum
+
+Scan notes by ovk
+
+ovk
+> the ivk of shielded address
+
+startNum
+> The starting block number of the scan
+
+endNum
+> The end block number of the scan
+
+Example:
+
+    > scannotebyovk a5b06ef3067855d741f966d54dfa1c124548535107333336bd9552a427f0529e 500 1499
+
+### GetShieldedNullifier index
+
+Get the nullifier of the note
+
+index
+> The note index obtained by the listshieldednote command
+
+Example:
+
+```console
+> listshieldednote
+Unspend note list like:
+2 ztron1ghdy60hya8y72deu0q0r25qfl60unmue6889m3xfc3296a5ut6jcyafzhtp9nlutndukufzap4h 100000000 4ce5656a13049df00abc7fb3ce78d54c78944d3cbbdfdb29f288e1df5fdf67e1 1 UnSpend
+getshieldednullifier 2
+address ztron1ghdy60hya8y72deu0q0r25qfl60unmue6889m3xfc3296a5ut6jcyafzhtp9nlutndukufzap4h
+value 100000000
+rcm 07ed5471098652ad441575c61868d1e11317de0f73cbb743a4c5cfe78e3d150c
+trxId 4ce5656a13049df00abc7fb3ce78d54c78944d3cbbdfdb29f288e1df5fdf67e1
+index 1
+memo
+ShieldedNullifier:2a524a3be2643365ecdacf8f0d3ca1de8fad3080eea0b9561435b5d1ee467042
+```
+
+### ScanAndMarkNotebyAddress shieldedAddress startNum endNum
+
+Scan the note with a locally cached shielded address and mark whether it is spent out
+
+shieldedAddress
+> Locally cached shielded address, if it is not a locally cached shielded address, an error will be reported.
+
+startNum
+> The starting block number of the scan
+
+endNum
+> The end block number of the scan
+
+Example:
+
+    > ScanAndMarkNotebyAddress ztron16j06s3p5gvp2jde4vh7w3ug3zz3m62zkyfu86s7ara5lafhp22p9wr3gz0lcdm3pvt7qx0aftu4 500 1500
+
+### GetSpendingKey
+
+Generate a sk
+
+Example:
+
+```console
+> GetSpendingKey
+0eb458b309fa544066c40d80ce30a8002756c37d2716315c59a98c893dbb5f6a
+```
+
+### getExpandedSpendingKey sk
+
+Generate ask, nsk, ovk from sk
+
+Example:
+
+```console
+> getExpandedSpendingKey 0eb458b309fa544066c40d80ce30a8002756c37d2716315c59a98c893dbb5f6a
+ask:252a0f6f6f0bac114a13e1e663d51943f1df9309649400218437586dea78260e
+nsk:5cd2bc8d9468dbad26ea37c5335a0cd25f110eaf533248c59a3310dcbc03e503
+ovk:892a10c1d3e8ea22242849e13f177d69e1180d1d5bba118c586765241ba2d3d6
+```
+
+### getAkFromAsk ask
+Generate ak from ask
+
+Example:
+
+```console
+> GetAkFromAsk 252a0f6f6f0bac114a13e1e663d51943f1df9309649400218437586dea78260e
+ak:f1b843147150027daa5b522dd8d0757ec5c8c146defd8e01b62b34cf917299f1
+```
+
+### getNkFromNsk nsk
+
+Generate nk from nsk
+
+Example:
+
+```console
+> GetNkFromNsk 5cd2bc8d9468dbad26ea37c5335a0cd25f110eaf533248c59a3310dcbc03e503
+nk:ed3dc885049f0a716a4de8c08c6cabcad0da3c437202341aa3d9248d8eb2b74a
+```
+
+### getIncomingViewingKey ak[64] nk[64]
+
+Generate ivk from ak and nk
+
+Example:
+
+```console
+> getincomingviewingkey f1b843147150027daa5b522dd8d0757ec5c8c146defd8e01b62b34cf917299f1 ed3dc885049f0a716a4de8c08c6cabcad0da3c437202341aa3d9248d8eb2b74a
+ivk:148cf9e91f1e6656a41dc9b6c6ee4e52ff7a25b25c2d4a3a3182d0a2cd851205
+```
+
+### GetDiversifier
+
+Generate a diversifier
+
+Example:
+
+```console
+> GetDiversifier
+11db4baf6bd5d5afd3a8b5
+```
+
+### getshieldedpaymentaddress ivk[64] d[22]
+
+Generate a shielded address from sk and d
+
+Example:
+
+```console
+GetShieldedPaymentAddress 148cf9e91f1e6656a41dc9b6c6ee4e52ff7a25b25c2d4a3a3182d0a2cd851205 11db4baf6bd5d5afd3a8b5
+pkd:65c11642115d386ed716b9cc06a3498e86e303d7f20d0869c9de90e31322ac15
+shieldedAddress:ztron1z8d5htmt6h26l5agk4juz9jzz9wnsmkhz6uucp4rfx8gdccr6leq6zrfe80fpccny2kp2cray8z
+```
+
+### BackupShieldedWallet
+
+Back up one shielded address
+
+Example:
+
+```console
+wallet> BackUpShieldedWallet
+Please input your password for shielded wallet.
+password: 
+The 1th shielded address is ztron165gswmwecarmyph4x8jfrygezw78tejy3a8y5d9rxnlre7ju5q8jfsfe4qjerhfk0mmkzsx2t6t
+The 2th shielded address is ztron1hpd2aau0s55zaauu2dlnnu6umxcqz4wuhflu4p4uqpt9w0nqd88ucf036alw2zjfmclry4tnkf6
+The 3th shielded address is ztron19lgz39ja8dz427dt9qa8gpkpxanu05y09zplfzzwc640mlx74n4au3037nde3h6m7zsu5xgkrnn
+Please choose between 1 and 3
+2
+sk:0c2dcfde42a484ecfcf6e7a00a3c9484022674739f405845d8d75fd6d8619153
+d :b85aaef78f85282ef79c53
+BackupShieldedWallet successful !!!
+```
+
+### ImportShieldedWallet
+
+Import one shielded address to local wallet
+
+Example:
+
+```console
+wallet> ImportShieldedWallet
+Please input your password for shielded wallet.
+password: 
+Please input shielded wallet hex string. such as 'sk d',Max retry time:3
+0b18ba69b7963d2ff47e69ac60c20dc30df34b221fa8960d7d61d68123999b8f  2fd028965d3b455579ab28
+Import shielded wallet hex string is : 
+sk:0b18ba69b7963d2ff47e69ac60c20dc30df34b221fa8960d7d61d68123999b8f
+d :2fd028965d3b455579ab28
+Import new shielded wallet address is: ztron19lgz39ja8dz427dt9qa8gpkpxanu05y09zplfzzwc640mlx74n4au3037nde3h6m7zsu5xgkrnn
+ImportShieldedWallet successful !!!
+wallet> 
+```
+
+### ShowShieldedAddressInfo
+
+Display information about shielded addresses
+
+Example:
+
+```console
+> listshieldedaddress
+ShieldedAddress :
+ztron14t95p936cyev678f6l6xsejnyfzrrzfsg56jaxgp7fzxlsczc2l6866fzc4c8awfnrzy74svkrl
+ztron1v6tu4c760vs7m0h94t89m4jcxtuq0nxmag7eequc3c2rnee3sufllq8fjtvfff6y84x3zgcapwp
+ztron18vaszshuluufz64uesvzw6wtune90uwexzmsfwtgqq2mlydt4fhy0kz02k3vm2j8er7s5xuyujv
+> showshieldedaddressinfo ztron18vaszshuluufz64uesvzw6wtune90uwexzmsfwtgqq2mlydt4fhy0kz02k3vm2j8er7s5xuyujv
+The following variables are secret information, please don't show to other people!!!
+sk :0deebe55fe7e591803126b531d4fe7c0e3979a2fcadb5a7996f73a8e463231f8
+ivk:aa955c5798e3f611c72fa22842847810114dd5a860db272b2ef50cc8448ced00
+ovk:a1d00b6f761137e1d8b58e77d8685347137131317ba3671f644ffb64bc5baa94
+pkd:182769cbe4f257f1d930b704b9680015bf91abaa6e47d84f55a2cdaa47c8fd0a
+d  :3b3b0142fcff38916abccc
+> showshieldedaddressinfo ztron19lgz39ja8dz427dt9qa8gpkpxanu05y09zplfzzwc640mlx74n4au3037nde3h6m7zsu5xgkrnn
+pkd:3a7406c13767c7d08f2883f4884ec6aafdfcdeacebde45f1f4db98df5bf0a1ca
+d  :2fd028965d3b455579ab28
+```
+-->
+
+## How to transfer shielded TRC20 token
+
+If you want to try to transfer shielded TRC20 token, you'd better set the `blockNumberStartToScan` field in `config.conf` file.
+This field is used to set the starting block that the wallet needs to scan. If you ignore this field, or set it to 0, 
+the notes you receive will probably take a long time to show up in the wallet. It is recommended that this field is 
+set to the block number in which the earliest relevant shielded contract was created. If the exact number is not known, 
+this field can be set as follows. If used in mainnet, please set 22690588. If used in Nile testnet, please set 6380000. 
+Otherwise, please set 0.
+
+When you begin to transfer TRC20 token to shielded address, you must have a shielded address. The
+ following commands help to generate shielded account.
+
+### GetSpendingKey
+
+Generate a sk
+
+Example:
+
+```console
+> GetSpendingKey
+0eb458b309fa544066c40d80ce30a8002756c37d2716315c59a98c893dbb5f6a
+```
+
+### GetExpandedSpendingKey
+
+```console
+> GetExpandedSpendingKey sk
+```
+Generate ask, nsk, ovk from sk
+
+Example:
+
+```console
+> GetExpandedSpendingKey 0eb458b309fa544066c40d80ce30a8002756c37d2716315c59a98c893dbb5f6a
+ask:252a0f6f6f0bac114a13e1e663d51943f1df9309649400218437586dea78260e
+nsk:5cd2bc8d9468dbad26ea37c5335a0cd25f110eaf533248c59a3310dcbc03e503
+ovk:892a10c1d3e8ea22242849e13f177d69e1180d1d5bba118c586765241ba2d3d6
+```
+
+### GetAkFromAsk
+
+```console
+> GetAkFromAsk ask
+```
+Generate ak from ask
+
+Example:
+
+```console
+> GetAkFromAsk 252a0f6f6f0bac114a13e1e663d51943f1df9309649400218437586dea78260e
+ak:f1b843147150027daa5b522dd8d0757ec5c8c146defd8e01b62b34cf917299f1
+```
+
+### GetNkFromNsk
+
+```console
+> GetNkFromNsk nsk
+```
+Generate nk from nsk
+
+Example:
+
+```console
+> GetNkFromNsk 5cd2bc8d9468dbad26ea37c5335a0cd25f110eaf533248c59a3310dcbc03e503
+nk:ed3dc885049f0a716a4de8c08c6cabcad0da3c437202341aa3d9248d8eb2b74a
+```
+
+### GetIncomingViewingKey
+
+```console
+> GetIncomingViewingKey ak[64] nk[64]
+```
+Generate ivk from ak and nk
+
+Example:
+
+```console
+> Getincomingviewingkey f1b843147150027daa5b522dd8d0757ec5c8c146defd8e01b62b34cf917299f1
+ ed3dc885049f0a716a4de8c08c6cabcad0da3c437202341aa3d9248d8eb2b74a
+ivk:148cf9e91f1e6656a41dc9b6c6ee4e52ff7a25b25c2d4a3a3182d0a2cd851205
+```
+
+### GetDiversifier
+
+Generate a diversifier
+
+Example:
+
+```console
+> GetDiversifier
+11db4baf6bd5d5afd3a8b5
+```
+
+### GetShieldedPaymentAddress
+
+```console
+> GetShieldedPaymentAddress ivk[64] d[22]
+```
+Generate a shielded address from ivk and d
+
+Example:
+
+```console
+> GetShieldedPaymentAddress 148cf9e91f1e6656a41dc9b6c6ee4e52ff7a25b25c2d4a3a3182d0a2cd851205
+ 11db4baf6bd5d5afd3a8b5
+pkd:65c11642115d386ed716b9cc06a3498e86e303d7f20d0869c9de90e31322ac15
+shieldedAddress:ztron1z8d5htmt6h26l5agk4juz9jzz9wnsmkhz6uucp4rfx8gdccr6leq6zrfe80fpccny2kp2cray8z
+```
+
+### SetShieldedTRC20ContractAddress
+
+```console
+> SetShieldedTRC20ContractAddress TRC20ContractAddress ShieldedContractAddress
+```
+TRC20ContractAddress
+> TRC20 contract address
+
+ShieldedContractAddress
+> Shielded contract address
+
+Set TRC20 contract address and shielded contract address. Please execute this command before you perform all the following operations related to the shielded transaction of TRC20 token except `ScanShieldedTRC20NoteByIvk` and `ScanShieldedTRC20NoteByOvk`.
+
+When you execute this command, the `Scaling Factor` will be shown. The `Scaling Factor` is set in
+ the shielded contract. 
+
+
+
+Example:
+
+```console
+> SetShieldedTRC20ContractAddress TLDxNTzNvEPd4gHox8V1zK2w82LFnideKE TKERuAmhJh8vZi1dzJtx8926xeCT74747e
+scalingFactor():ed3437f8
+SetShieldedTRC20ContractAddress succeed!
+The Scaling Factor is 1000
+That means:
+No matter you MINT, TRANSFER or BURN, the value must be an integer multiple of 1000
+```
+
+### LoadShieldedTRC20Wallet
+
+Load TRC20 shielded address, shielded note and start to scan by ivk.
+
+Example:
+
+```console
+> LoadShieldedTRC20Wallet
+Please input your password for shieldedTRC20 wallet.
+> *******
+LoadShieldedTRC20Wallet successful !!!
+```
+
+### GenerateShieldedTRC20Address
+
+```console
+> GenerateShieldedTRC20Address number
+```
+number
+> The number of TRC20 shielded addresses, the default is 1.
+
+Generate TRC20 shielded addresses.
+
+Example:
+
+```console
+> GenerateShieldedTRC20Address 3
+ShieldedTRC20Address list:
+ztron1da9rnkmnzl89kqq87gzh534xmkdhq9cnm0j39lackskrhflfe9d26chnq3adl86es0jm2098hzc
+ztron1mm20lkcpj6tx6jfd6ek5fxkgmpk9f2hda6vxdtkwlzr45ez32wa7dt8uka9xwfqamr7zyk7jpzf
+ztron109r3w5gpm0qcf67r67a9ftjt3zy9wmzux4fqgtgcql8gwhcmauv5dm6t9t9x9ht7h3lvs8shxhq
+GenerateShieldedTRC20Address successful !!!
+```
+
+### ListShieldedTRC20Address
+
+Display cached local TRC20 shielded address list.
+
+Example:
+
+```console
+> ListShieldedTRC20Address
+ShieldedTRC20Address :
+ztron1mm20lkcpj6tx6jfd6ek5fxkgmpk9f2hda6vxdtkwlzr45ez32wa7dt8uka9xwfqamr7zyk7jpzf
+ztron109r3w5gpm0qcf67r67a9ftjt3zy9wmzux4fqgtgcql8gwhcmauv5dm6t9t9x9ht7h3lvs8shxhq
+ztron1da9rnkmnzl89kqq87gzh534xmkdhq9cnm0j39lackskrhflfe9d26chnq3adl86es0jm2098hzc
+ztron1tjgkfk9hgrl0u6d07w3hq0s9jtgq9q64vek3e5l447dmnzhe27yy0ftpee45h07sa092wkrgrjl
+ztron15t3c27a5ve43ssflqepa8dke36vzvccxrren4ma2lghu3hle8rtwltufnvvzrm76w042s9p5f46
+```
+
+### SendShieldedTRC20Coin
+
+> SendShieldedTRC20Coin fromAmount shieldedInputNum input1 input2 ... publicToAddress toAmount shieldedOutputNum shieldedAddress1 amount1 memo1 shieldedAddress2 amount2 memo2 ....
+
+Shielded transfer, support three types:
+
+- MINT: transfer from one public address to one shielded address, fromAmount should be equal to
+ the shielded output amount. When you MINT, you need to enter password twice as prompted, one
+ time is for triggering `approve` method of TRC20 contract that allows the shielded contract can
+ transfer form your account, and other one is for triggering `mint` method of shielded contract
+ that executes MINT. It's important to remember that you must use the same public address to
+ trigger these two methods. 
+- TRANSFER: transfer from one or two shielded address(es) to one or two shielded address(es), the
+ sum of shielded input amount should be equal to the sum of shielded output amount. When you
+ TRANSFER, you need to enter password of public account as prompted, and this is used to trigger
+ 'transfer' method of shielded contract that executes TRANSFER. 
+- BURN: transfer from one shielded address to one public address and one optional shielded
+ address. If there is no shielded output, toAmount should be equal to the shielded input amount
+ , otherwise, the sum of toAmount and shielded output amount should be equal to the shielded
+  input amount. When you BURN, you need to enter password of public account as prompted, and
+ this is used to trigger 'burn' method of shielded contract that executes BURN. 
+
+It's better to use different accounts to trigger BURN, TRANSFER and MINT.
+
+fromAmount
+> The amount transfer from public address. If the transfer type is MINT, this variable must be equal to the shielded output amount, otherwise it must be 0.
+
+shieldedInputNum
+> The number of shielded input note, should be 0, 1 or 2. If the transfer type is MINT, this variable must be 0; if BURN, it must be 1.
+
+input1/input2
+> The index of shielded input note, get from executing command ListShieldedTRC20Note. If shieldedInputNum set to 0, no need to set.
+
+publicToAddress
+> Public to address. If the transfer type is BURN, this variable must be a valid address, otherwise it should be set null.
+
+toAmount
+> The amount transfer to public address. If the transfer type is BURN, this variable must be equal to the shielded input amount, otherwise it should be 0.
+
+shieldedOutputNum
+> The amount of shielded output note. That is the number of (shieldedAddress amount memo) pairs, should be 0, 1 or 2.
+
+shieldedAddress1/shieldedAddress2
+> Output shielded address
+
+amount1/amount2
+> The amount transfer to shieldedAddress1/shieldedAddress2
+
+memo1/memo2
+> The memo of this note, up to 512 bytes, can be set to null if not needed.
+
+Example:
+
+In this example, the scalingFactor is 1000. 
+
+1. MINT
+   
+    **In this mode, some variables must be set as follows, shieldedInputNum = 0, publicToAddress = null, toAmount = 0.**
 
     ```console
-    > listshieldednote 0
-    Unspend note list like:
-    1 ztron1ghdy60hya8y72deu0q0r25qfl60unmue6889m3xfc3296a5ut6jcyafzhtp9nlutndukufzap4h 100000000 4ce5656a13049df00abc7fb3ce78d54c78944d3cbbdfdb29f288e1df5fdf67e1 1 UnSpend
-    listshieldednote 1
-    All note list like:
-    ztron1ghdy60hya8y72deu0q0r25qfl60unmue6889m3xfc3296a5ut6jcyafzhtp9nlutndukufzap4h 100000000 4ce5656a13049df00abc7fb3ce78d54c78944d3cbbdfdb29f288e1df5fdf67e1 1 UnSpend
-    ztron16j06s3p5gvp2jde4vh7w3ug3zz3m62zkyfu86s7ara5lafhp22p9wr3gz0lcdm3pvt7qx0aftu4 100000000 4ce5656a13049df00abc7fb3ce78d54c78944d3cbbdfdb29f288e1df5fdf67e1 0 Spend test1
-    ztron1hn9r3wmytavslztwmlzvuzk3dqpdhwcmda2d0deyu5pwv32dp78saaslyt82w0078y6uzfg8x6w 90000000 06b55fc27f7ec649396706d149d18a0bb003347bdd7f489e3d47205da9cee802 0 Spend test2
+    > SendShieldedTRC20Coin 1000000000000 0 null 0 1 ztron15t3c27a5ve43ssflqepa8dke36vzvccxrren4ma2lghu3hle8rtwltufnvvzrm76w042s9p5f46 1000000000000 null
     ```
 
-6. resetshieldednote
+2. TRANSFER
+   
+    **In this mode, some variables must be set as follows, fromAmount = 0, publicToAddress = null,toAmount = 0.**
 
-    Clean all the note scanned, rescanned all blocks.generally used when there is a problem with the notes or when switching environments
-
-7. ScanNotebyIvk ivk startNum endNum
-
-    Scan notes by ivk
-
-    ivk
-    > The ivk of shielded address
-
-    startNum
-    > The starting block number of the scan
-
-    endNum
-    > The end block number of the scan
-
-    Example:
-
-        > scannotebyivk d2a4137cecf049965c4183f78fe9fc9fbeadab6ab3ef70ea749421b4c6b8de04 500 1499
-
-8. ScanNotebyOvk ovk startNum endNum
-
-    Scan notes by ovk
-
-    ovk
-    > the ivk of shielded address
-
-    startNum
-    > The starting block number of the scan
-
-    endNum
-    > The end block number of the scan
-
-    Example:
-
-        > scannotebyovk a5b06ef3067855d741f966d54dfa1c124548535107333336bd9552a427f0529e 500 1499
-
-9. GetShieldedNullifier index
-
-    Get the nullifier of the note
-
-    index
-    > The note index obtained by the listshieldednote command
-
-    Example:
-
+    Transfer from one shielded address to one shielded address.
     ```console
-    > listshieldednote
-    Unspend note list like:
-    2 ztron1ghdy60hya8y72deu0q0r25qfl60unmue6889m3xfc3296a5ut6jcyafzhtp9nlutndukufzap4h 100000000 4ce5656a13049df00abc7fb3ce78d54c78944d3cbbdfdb29f288e1df5fdf67e1 1 UnSpend
-    getshieldednullifier 2
-    address ztron1ghdy60hya8y72deu0q0r25qfl60unmue6889m3xfc3296a5ut6jcyafzhtp9nlutndukufzap4h
-    value 100000000
-    rcm 07ed5471098652ad441575c61868d1e11317de0f73cbb743a4c5cfe78e3d150c
-    trxId 4ce5656a13049df00abc7fb3ce78d54c78944d3cbbdfdb29f288e1df5fdf67e1
-    index 1
-    memo
-    ShieldedNullifier:2a524a3be2643365ecdacf8f0d3ca1de8fad3080eea0b9561435b5d1ee467042
+    > ListShieldedTRC20Note
+    This command will show all the unspent notes.
+    If you want to display all notes, including spent notes and unspent notes, please use command ListShieldedTRC20Note 1
+    The unspent note list is shown below:
+    9 ztron1tjgkfk9hgrl0u6d07w3hq0s9jtgq9q64vek3e5l447dmnzhe27yy0ftpee45h07sa092wkrgrjl 2000000000000 23f171f6552680b553707715bead8de807a70255c0b091f7e788bf3b59fe3bea 1 UnSpend
+    8 ztron15t3c27a5ve43ssflqepa8dke36vzvccxrren4ma2lghu3hle8rtwltufnvvzrm76w042s9p5f46 1000000000000 23f171f6552680b553707715bead8de807a70255c0b091f7e788bf3b59fe3bea 0 UnSpend
+    The Scaling Factor is 1000
+    No matter you MINT, TRANSFER or BURN, the value must be an integer multiple of 1000
+    
+    > SendShieldedTRC20Coin 0 1 8 null 0 1 ztron1da9rnkmnzl89kqq87gzh534xmkdhq9cnm0j39lackskrhflfe9d26chnq3adl86es0jm2098hzc 1000000000000 null
     ```
 
-10. ScanAndMarkNotebyAddress shieldedAddress startNum endNum
-
-    Scan the note with a locally cached shielded address and mark whether it is spent out
-
-    shieldedAddress
-    > Locally cached shielded address, if it is not a locally cached shielded address, an error will be reported.
-
-    startNum
-    > The starting block number of the scan
-
-    endNum
-    > The end block number of the scan
-
-    Example:
-
-        > ScanAndMarkNotebyAddress ztron16j06s3p5gvp2jde4vh7w3ug3zz3m62zkyfu86s7ara5lafhp22p9wr3gz0lcdm3pvt7qx0aftu4 500 1500
-
-11. GetSpendingKey
-
-    Generate a sk
-
-    Example:
-
+    Transfer from one shielded address to two shielded addresses.
     ```console
-    > GetSpendingKey
-    0eb458b309fa544066c40d80ce30a8002756c37d2716315c59a98c893dbb5f6a
+    > ListShieldedTRC20Note
+    This command will show all the unspent notes.
+    If you want to display all notes, including spent notes and unspent notes, please use command ListShieldedTRC20Note 1
+    The unspent note list is shown below:
+    9 ztron1tjgkfk9hgrl0u6d07w3hq0s9jtgq9q64vek3e5l447dmnzhe27yy0ftpee45h07sa092wkrgrjl 2000000000000 23f171f6552680b553707715bead8de807a70255c0b091f7e788bf3b59fe3bea 1 UnSpend
+    10 ztron1da9rnkmnzl89kqq87gzh534xmkdhq9cnm0j39lackskrhflfe9d26chnq3adl86es0jm2098hzc 1000000000000 81a06080f2be3f795c506826e066b9bb5327ca234eb31a0ef2446e11339a3935 0 UnSpend
+    The Scaling Factor is 1000
+    No matter you MINT, TRANSFER or BURN, the value must be an integer multiple of 1000
+    
+    > SendShieldedTRC20Coin 0 1 9 null 0 2 ztron1da9rnkmnzl89kqq87gzh534xmkdhq9cnm0j39lackskrhflfe9d26chnq3adl86es0jm2098hzc 1500000000000 test1 ztron1mm20lkcpj6tx6jfd6ek5fxkgmpk9f2hda6vxdtkwlzr45ez32wa7dt8uka9xwfqamr7zyk7jpzf 500000000000 null
     ```
 
-12. getExpandedSpendingKey sk
-
-    Generate ask, nsk, ovk from sk
-
-    Example:
-
+    Transfer from two shielded addresses to one shielded address.
     ```console
-    > getExpandedSpendingKey 0eb458b309fa544066c40d80ce30a8002756c37d2716315c59a98c893dbb5f6a
-    ask:252a0f6f6f0bac114a13e1e663d51943f1df9309649400218437586dea78260e
-    nsk:5cd2bc8d9468dbad26ea37c5335a0cd25f110eaf533248c59a3310dcbc03e503
-    ovk:892a10c1d3e8ea22242849e13f177d69e1180d1d5bba118c586765241ba2d3d6
+    > ListShieldedTRC20Note
+    This command will show all the unspent notes.
+    If you want to display all notes, including spent notes and unspent notes, please use command ListShieldedTRC20Note 1
+    The unspent note list is shown below:
+    11 ztron1da9rnkmnzl89kqq87gzh534xmkdhq9cnm0j39lackskrhflfe9d26chnq3adl86es0jm2098hzc 1500000000000 35901973a96369618e5e3f7f4dcede2b5ddb5bc99bf6feac29f2706420ea99c0 0 UnSpend test1
+    10 ztron1da9rnkmnzl89kqq87gzh534xmkdhq9cnm0j39lackskrhflfe9d26chnq3adl86es0jm2098hzc 1000000000000 81a06080f2be3f795c506826e066b9bb5327ca234eb31a0ef2446e11339a3935 0 UnSpend
+    12 ztron1mm20lkcpj6tx6jfd6ek5fxkgmpk9f2hda6vxdtkwlzr45ez32wa7dt8uka9xwfqamr7zyk7jpzf 500000000000 35901973a96369618e5e3f7f4dcede2b5ddb5bc99bf6feac29f2706420ea99c0 1 UnSpend
+    The Scaling Factor is 1000
+    No matter you MINT, TRANSFER or BURN, the value must be an integer multiple of 1000    
+    
+    > SendShieldedTRC20Coin 0 2 10 11 null 0 1 ztron1mm20lkcpj6tx6jfd6ek5fxkgmpk9f2hda6vxdtkwlzr45ez32wa7dt8uka9xwfqamr7zyk7jpzf 2500000000000 null
     ```
 
-13. getAkFromAsk ask
-    Generate ak from ask
-
-    Example:
-
+    Transfer from two shielded addresses to two shielded addresses.
     ```console
-    > GetAkFromAsk 252a0f6f6f0bac114a13e1e663d51943f1df9309649400218437586dea78260e
-    ak:f1b843147150027daa5b522dd8d0757ec5c8c146defd8e01b62b34cf917299f1
+    > ListShieldedTRC20Note
+    This command will show all the unspent notes.
+    If you want to display all notes, including spent notes and unspent notes, please use command ListShieldedTRC20Note 1
+    The unspent note list is shown below:
+    13 ztron1mm20lkcpj6tx6jfd6ek5fxkgmpk9f2hda6vxdtkwlzr45ez32wa7dt8uka9xwfqamr7zyk7jpzf 2500000000000 6ec74435e32261a6dfe10f9498b3ab5a5cfede7c4e31299752b449b9506efc11 0 UnSpend
+    12 ztron1mm20lkcpj6tx6jfd6ek5fxkgmpk9f2hda6vxdtkwlzr45ez32wa7dt8uka9xwfqamr7zyk7jpzf 500000000000 35901973a96369618e5e3f7f4dcede2b5ddb5bc99bf6feac29f2706420ea99c0 1 UnSpend   
+    The Scaling Factor is 1000
+    No matter you MINT, TRANSFER or BURN, the value must be an integer multiple of 1000
+    
+    > SendShieldedTRC20Coin 0 2 12 13 null 0 2 ztron15t3c27a5ve43ssflqepa8dke36vzvccxrren4ma2lghu3hle8rtwltufnvvzrm76w042s9p5f46 1300000000000 null ztron1tjgkfk9hgrl0u6d07w3hq0s9jtgq9q64vek3e5l447dmnzhe27yy0ftpee45h07sa092wkrgrjl 1700000000000 null
     ```
 
-14. getNkFromNsk nsk
+3. BURN 
 
-    Generate nk from nsk
-
-    Example:
-
+    **In this mode, some variables must be set as follows, fromAmount = 0, shieldedInputNum = 1.**
     ```console
-    > GetNkFromNsk 5cd2bc8d9468dbad26ea37c5335a0cd25f110eaf533248c59a3310dcbc03e503
-    nk:ed3dc885049f0a716a4de8c08c6cabcad0da3c437202341aa3d9248d8eb2b74a
+    > ListShieldedTRC20Note
+    This command will show all the unspent notes.
+    If you want to display all notes, including spent notes and unspent notes, please use command ListShieldedTRC20Note 1
+    The unspent note list is shown below:
+    15 ztron1tjgkfk9hgrl0u6d07w3hq0s9jtgq9q64vek3e5l447dmnzhe27yy0ftpee45h07sa092wkrgrjl 1700000000000 7291b2c58cafb4dede626388f12e846470441f9bb05581221fd742bdd8909a24 1 UnSpend
+    14 ztron15t3c27a5ve43ssflqepa8dke36vzvccxrren4ma2lghu3hle8rtwltufnvvzrm76w042s9p5f46 1300000000000 7291b2c58cafb4dede626388f12e846470441f9bb05581221fd742bdd8909a24 0 UnSpend
+    The Scaling Factor is 1000
+    No matter you MINT, TRANSFER or BURN, the value must be an integer multiple of 1000
+
+    > SendShieldedTRC20Coin 0 1 14 TDVr15jvAx6maR28tP7RRpxuKZ38tgsyNE 1300000000000000 0
+    > SendShieldedTRC20Coin 0 1 14 TDVr15jvAx6maR28tP7RRpxuKZ38tgsyNE 300000000000000 1 ztron1mm20lkcpj6tx6jfd6ek5fxkgmpk9f2hda6vxdtkwlzr45ez32wa7dt8uka9xwfqamr7zyk7jpzf 1000000000000000 null
     ```
 
-15. getIncomingViewingKey ak[64] nk[64]
+### SendShieldedTRC20CoinWithoutAsk
 
-    Generate ivk from ak and nk
+Usage and parameters are consistent with the command SendShieldedTRC20Coin, the only difference is that SendShieldedTRC20Coin uses ask for signature, but SendShieldedTRC20CoinWithoutAsk uses ak.
 
-    Example:
+### ListShieldedTRC20Note
 
-    ```console
-    > getincomingviewingkey f1b843147150027daa5b522dd8d0757ec5c8c146defd8e01b62b34cf917299f1 ed3dc885049f0a716a4de8c08c6cabcad0da3c437202341aa3d9248d8eb2b74a
-    ivk:148cf9e91f1e6656a41dc9b6c6ee4e52ff7a25b25c2d4a3a3182d0a2cd851205
-    ```
+```console
+> ListShieldedTRC20Note type
+```
+type
+> Shows the type of note. If the variable is omitted or set to 0, it shows all unspent notes; For other values, it shows all the notes, including spent notes and unspent notes.
 
-16. GetDiversifier
+List the note scanned by the local cache address, and the `Scaling Factor`.
 
-    Generate a diversifier
+**NOTE** When you load shielded wallet, the wallet will scan blocks to find the notes others send to you in the backend. This will take a long time, so when you run `ListShieldedTRC20Note`, your notes will not be displayed immediately.
 
-    Example:
+Example:
 
-    ```console
-    > GetDiversifier
-    11db4baf6bd5d5afd3a8b5
-    ```
+```console
+> ListShieldedTRC20Note
+This command will show all the unspent notes.
+If you want to display all notes, including spent notes and unspent notes, please use command ListShieldedTRC20Note 1
+The unspent note list is shown below:
+15 ztron1tjgkfk9hgrl0u6d07w3hq0s9jtgq9q64vek3e5l447dmnzhe27yy0ftpee45h07sa092wkrgrjl 1700000000000 7291b2c58cafb4dede626388f12e846470441f9bb05581221fd742bdd8909a24 1 UnSpend
+The Scaling Factor is 1000
+No matter you MINT, TRANSFER or BURN, the value must be an integer multiple of 1000
 
-17. getshieldedpaymentaddress ivk[64] d[22]
+> ListShieldedTRC20Note 1
+All notes are shown below:
+ztron1tjgkfk9hgrl0u6d07w3hq0s9jtgq9q64vek3e5l447dmnzhe27yy0ftpee45h07sa092wkrgrjl 1700000000000 7291b2c58cafb4dede626388f12e846470441f9bb05581221fd742bdd8909a24 1 15 UnSpent
+ztron15t3c27a5ve43ssflqepa8dke36vzvccxrren4ma2lghu3hle8rtwltufnvvzrm76w042s9p5f46 1000000000000 dc02678b0cf1c93c557dc805edb776fe79201c77f210f08f60cea5d687b14f2e 0 0 Spent
+ztron1mm20lkcpj6tx6jfd6ek5fxkgmpk9f2hda6vxdtkwlzr45ez32wa7dt8uka9xwfqamr7zyk7jpzf 1000000000000 e4d35d147762020078d7d197c98fffde181250e4a637d4bdd9ca809116d74131 0 2 Spent
+ztron15t3c27a5ve43ssflqepa8dke36vzvccxrren4ma2lghu3hle8rtwltufnvvzrm76w042s9p5f46 1000000000000 1594e1ee06c8420a4f1d80670000cd9268a2ff4e97e3f630909feeb51a9de993 0 3 Spent
+ztron15t3c27a5ve43ssflqepa8dke36vzvccxrren4ma2lghu3hle8rtwltufnvvzrm76w042s9p5f46 2000000000000 3f035e966b3ef636ae9c0a0f64bff781b1d1a8b52bab5d8124c0f9162f71f68f 0 1 Spent
+ztron1mm20lkcpj6tx6jfd6ek5fxkgmpk9f2hda6vxdtkwlzr45ez32wa7dt8uka9xwfqamr7zyk7jpzf 300000000000 6929757cb86cb6cf3e89df19f3212c3e62070b12d8b36de48e663fed214a4082 0 4 Spent test1
+ztron1mm20lkcpj6tx6jfd6ek5fxkgmpk9f2hda6vxdtkwlzr45ez32wa7dt8uka9xwfqamr7zyk7jpzf 2000000000000 e39a1e1d5af7dcbab0d55a63a0c62ec9cc7c0aaf8ce98733802674c3ec1f3a06 0 6 Spent
+ztron109r3w5gpm0qcf67r67a9ftjt3zy9wmzux4fqgtgcql8gwhcmauv5dm6t9t9x9ht7h3lvs8shxhq 700000000000 6929757cb86cb6cf3e89df19f3212c3e62070b12d8b36de48e663fed214a4082 1 5 Spent
+ztron109r3w5gpm0qcf67r67a9ftjt3zy9wmzux4fqgtgcql8gwhcmauv5dm6t9t9x9ht7h3lvs8shxhq 2300000000000 4ce1ce9f6377ee3cd936757b696ac43ecc39ee6e8a0eab1b8f8ef093e15010f8 0 7 Spent
+ztron15t3c27a5ve43ssflqepa8dke36vzvccxrren4ma2lghu3hle8rtwltufnvvzrm76w042s9p5f46 1000000000000 23f171f6552680b553707715bead8de807a70255c0b091f7e788bf3b59fe3bea 0 8 Spent
+ztron1tjgkfk9hgrl0u6d07w3hq0s9jtgq9q64vek3e5l447dmnzhe27yy0ftpee45h07sa092wkrgrjl 2000000000000 23f171f6552680b553707715bead8de807a70255c0b091f7e788bf3b59fe3bea 1 9 Spent
+ztron1da9rnkmnzl89kqq87gzh534xmkdhq9cnm0j39lackskrhflfe9d26chnq3adl86es0jm2098hzc 1000000000000 81a06080f2be3f795c506826e066b9bb5327ca234eb31a0ef2446e11339a3935 0 10 Spent
+ztron1da9rnkmnzl89kqq87gzh534xmkdhq9cnm0j39lackskrhflfe9d26chnq3adl86es0jm2098hzc 1500000000000 35901973a96369618e5e3f7f4dcede2b5ddb5bc99bf6feac29f2706420ea99c0 0 11 Spent test1
+ztron1mm20lkcpj6tx6jfd6ek5fxkgmpk9f2hda6vxdtkwlzr45ez32wa7dt8uka9xwfqamr7zyk7jpzf 500000000000 35901973a96369618e5e3f7f4dcede2b5ddb5bc99bf6feac29f2706420ea99c0 1 12 Spent
+ztron1mm20lkcpj6tx6jfd6ek5fxkgmpk9f2hda6vxdtkwlzr45ez32wa7dt8uka9xwfqamr7zyk7jpzf 2500000000000 6ec74435e32261a6dfe10f9498b3ab5a5cfede7c4e31299752b449b9506efc11 0 13 Spent
+ztron15t3c27a5ve43ssflqepa8dke36vzvccxrren4ma2lghu3hle8rtwltufnvvzrm76w042s9p5f46 1300000000000 7291b2c58cafb4dede626388f12e846470441f9bb05581221fd742bdd8909a24 0 14 Spent
+The Scaling Factor is 1000
+No matter you MINT, TRANSFER or BURN, the value must be an integer multiple of 1000
+```
 
-    Generate a shielded address from sk and d
+### ResetShieldedTRC20Note
 
-    Example:
+Clean all the notes scanned, and rescan all blocks. Generally used when there is a problem with the notes or when switching environments.
 
-    ```console
-    GetShieldedPaymentAddress 148cf9e91f1e6656a41dc9b6c6ee4e52ff7a25b25c2d4a3a3182d0a2cd851205 11db4baf6bd5d5afd3a8b5
-    pkd:65c11642115d386ed716b9cc06a3498e86e303d7f20d0869c9de90e31322ac15
-    shieldedAddress:ztron1z8d5htmt6h26l5agk4juz9jzz9wnsmkhz6uucp4rfx8gdccr6leq6zrfe80fpccny2kp2cray8z
-    ```
+### ScanShieldedTRC20NoteByIvk
 
-18. BackupShieldedAddress
+```console
+> ScanShieldedTRC20NoteByIvk shieldedTRC20ContractAddress ivk ak nk startNum endNum [event1] [event2] ...
+```
 
-    Back up one shielded address
+shieldedTRC20ContractAddress
+> The address of shielded contract
 
-    Example:
+ivk
+> The ivk of shielded address
 
-    ```console
-    > loadshieldedwallet
-    Please input your password for shielded wallet.
-    > 1qa@WS#ED
-    LoadShieldedWallet successful !!!
-    > BackupShieldedAddress
-    Please input your password for shielded wallet.
-    > 1qa@WS#ED
-    The 1th shielded address is ztron15y0cthwduz7mjpx3mc7cl9cxj8aqq9m8z08g6xns8qsvp7hgqstp9w5t8eh0vydlyf42gtxjzun
-    The 2th shielded address is ztron1akz7mt4zqsjqrdrwdsmffu6g5dnehhhtahjlc0c6syy3z9nxxjrzqszy22lyx326edmwqjhqe48
-    The 3th shielded address is ztron1m5dx50gryu789q5sh5207chzmmgzf5c7hvn8lr6xs60jfxvkv3d3h0kqkglc60rwq26dchztsty
-    The 4th shielded address is ztron1at9ud3crdsehe8rgrjkltqly7gsp85y8qzq93pq480hzd2az55pja5cc8r4yfwrnrqqs7q35n4x
-    Please choose between 1 and 4
-    > 1
-    0b1cf73b85742e13015dc6fb8d0986e4ad34c8f468bd8c73cc8fb34bff0dfacea11f85ddcde0bdb904d1de
-    BackupShieldedAddress successful !!
-    ```
+ak
+> The ak of shielded address. Please set this field to null, if you don't care whether the notes are spent or not.
 
-19. ImportShieldedAddress
+nk
+> The nk of shielded address. Please set this field to null, if you don't care whether the notes are spent or not.
 
-    Import one shieled address to local wallet
+startNum
+> The starting block number of the scan
 
-    Example:
+endNum
+> The end block number of the scan
 
-    ```console
-    > ImportShieldedAddress
-    Please input your password for shielded wallet.
-    > 1qa@WS#ED
-    Please input shielded address hex string. Max retry time: 3
-    > 0b1cf73b85742e13015dc6fb8d0986e4ad34c8f468bd8c73cc8fb34bff0dfacea11f85ddcde0bdb904d1de
-    Import new shielded address is: ztron15y0cthwduz7mjpx3mc7cl9cxj8aqq9m8z08g6xns8qsvp7hgqstp9w5t8eh0vydlyf42gtxjzun
-    ImportShieldedAddress successful !!
-    ```
+event1/event2
+> The events you want to scan. These events must be compatible with standard events, that is, MintNewLeaf(uint256,bytes32,bytes32,bytes32,bytes32[21]), TransferNewLeaf(uint256,bytes32,bytes32,bytes32,bytes32[21]) and BurnNewLeaf(uint256,bytes32,bytes32,bytes32,bytes32[21]). If you ignore this field, the command will scan the standard events. In most cases, you can ignore these parameters.
 
-## Command List
+Scan notes by ivk, ak and nk.
 
-Following is a list of Tron Wallet-cli commands:
-For more information on a specific command, just type the command on terminal when you start your Wallet.
+Example:
 
-    AddTransactionSign
-    ApproveProposal
-    AssetIssue
-    BackupShieldedAddress
-    BackupWallet
-    BackupWallet2Base64
-    BroadcastTransaction
-    ChangePassword
-    ClearContractABI
-    Create2
-    CreateAccount
-    CreateProposal
-    CreateWitness
-    DeleteProposal
-    DeployContract
-    ExchangeCreate
-    ExchangeInject
-    ExchangeTransaction
-    ExchangeWithdraw
-    FreezeBalance
-    GenerateAddress
-    GenerateShieldedAddress
-    GetAccount
-    GetAccountNet
-    GetAccountResource
-    GetAddress
-    GetAssetIssueByAccount
-    GetAssetIssueById
-    GetAssetIssueByName
-    GetAssetIssueListByName
-    GetBalance
-    GetBlock
-    GetBlockById
-    GetBlockByLatestNum
-    GetBlockByLimitNext
-    GetChainParameters
-    GetContract contractAddress
-    GetDelegatedResource
-    GetDelegatedResourceAccountIndex
-    GetDiversifier
-    GetExchange
-    GetExpandedSpendingKey
-    GetIncomingViewingKey
-    GetNextMaintenanceTime
-    GetShieldedNullifier
-    GetSpendingKey
-    GetProposal
-    GetTotalTransaction
-    GetTransactionApprovedList
-    GetTransactionById
-    GetTransactionCountByBlockNum
-    GetTransactionInfoById
-    GetTransactionsFromThis
-    GetTransactionsToThis
-    GetTransactionSignWeight
-    ImportShieldedAddress
-    ImportWallet
-    ImportWalletByBase64
-    ListAssetIssue
-    ListAssetIssuePaginated
-    ListExchanges
-    ListExchangesPaginated
-    ListNodes
-    ListShieldedAddress
-    ListShieldedNote
-    ListProposals
-    ListProposalsPaginated
-    ListWitnesses
-    Login
-    Logout
-    LoadShieldedWallet
-    ParticipateAssetIssue
-    RegisterWallet
-    ResetShieldedNote
-    ScanAndMarkNotebyAddress
-    ScanNotebyIvk
-    ScanNotebyOvk
-    SendCoin
-    SendShieldedCoin
-    SendShieldedCoinWithoutAsk
-    SetAccountId
-    TransferAsset
-    TriggerContract
-    TriggerConstantContract
-    UnfreezeAsset
-    UnfreezeBalance
-    UpdateAccount
-    UpdateAsset
-    UpdateEnergyLimit
-    UpdateSetting
-    UpdateWitness
-    UpdateAccountPermission
-    VoteWitness
-    WithdrawBalance
-    Exit or Quit
+```console
+> ScanShieldedTRC20NoteByIvk TVqa39sqP8ZJNTWjtKrDRifGdVmA4Ycsxu fed8fa4714e6a19511760f9b8ed33388f14c626adff26034f4a21557cb928f01 faf63a2d959df05d4441c0fd42262e0a53629c532e8d29501fe94f9d86c51313 66458c23d737a30146533374d7c5c78f3e05f8f158192e8855493cc55cf8953f 5000 5400
+[
+    {
+        note: {
+            value: 100000
+            payment_address:
+            ztron12dq4ktrydrxzxrsgpmusp4pe0xawqyz4qfxzsgjdauw99n4n3efnw4kmrptlw8jcrrydx5694mw
+            rcm: a45878a4e0d53f5cac79370fea1bf4aa82c67d3b2f647ac89c2b1e7061ea740a
+            memo: without ask 2v1
+        }
+        position: 10
+        is_spent: true
+        tx_id: 5891fd3a8e860b336b7f7d31f64ec52ec5dc76f81b9bb4e4d0fa8a5756a61dd6
+    }
+]
 
-Type any one of the listed commands, to display how-to tips.
+> ScanShieldedTRC20NoteByIvk TVqa39sqP8ZJNTWjtKrDRifGdVmA4Ycsxu fed8fa4714e6a19511760f9b8ed33388f14c626adff26034f4a21557cb928f01  faf63a2d959df05d4441c0fd42262e0a53629c532e8d29501fe94f9d86c51313 66458c23d737a30146533374d7c5c78f3e05f8f158192e8855493cc55cf8953f 5000  6000 MintNewLeaf(uint256,bytes32,bytes32,bytes32,bytes32[21])
+[
+    {
+        note: {
+            value: 100000
+            payment_address: ztron1z8d5htmt6h26l5agk4ywv86xv3shuv4gjc2rzufyz4s2g5x0035nwrcqmxj4a49n2dy5sq28s5p
+            rcm: 07604b4a8018d353c08f93044df0fc04ef988c2f65f9222eacc8d41f0e095404
+            memo: mint
+        }
+        position: 16
+        is_spent: false
+        tx_id: 38d759216f62503c2b8bf7fc9777e6e25f5f77ec22dd760cc03057c4704277a2
+    }
+] 
+
+> ScanShieldedTRC20NoteByIvk TVqa39sqP8ZJNTWjtKrDRifGdVmA4Ycsxu fed8fa4714e6a19511760f9b8ed33388f14c626adff26034f4a21557cb928f01 faf63a2d959df05d4441c0fd42262e0a53629c532e8d29501fe94f9d86c51313 66458c23d737a30146533374d7c5c78f3e05f8f158192e8855493cc55cf8953f 5000 5400 BurnNewLeaf(uint256,bytes32,bytes32,bytes32,bytes32[21])
+[
+    {
+        note: {
+            value: 100000
+            payment_address: ztron12dq4ktrydrxzxrsgpmusp4pe0xawqyz4qfxzsgjdauw99n4n3efnw4kmrptlw8jcrrydx5694mw
+            rcm: a45878a4e0d53f5cac79370fea1bf4aa82c67d3b2f647ac89c2b1e7061ea740a
+            memo: without ask 2v1
+        }
+        position: 10
+        is_spent: true
+        tx_id: 5891fd3a8e860b336b7f7d31f64ec52ec5dc76f81b9bb4e4d0fa8a5756a61dd6
+    }
+]
+```
+
+## ScanShieldedTRC20NoteByOvk
+
+```console
+> ScanShieldedTRC20NoteByOvk shieldedTRC20ContractAddress ovk startNum endNum [event1] [event2] ...
+```
+shieldedTRC20ContractAddress
+> The address of shielded contract
+
+ovk
+> the ovk of shielded address
+
+startNum
+> The starting block number of the scan
+
+endNum
+> The end block number of the scan
+
+event1/event2
+> The event you want to scan. These events must be compatible with standard events, that is, MintNewLeaf(uint256,bytes32,bytes32,bytes32,bytes32[21]), TransferNewLeaf(uint256,bytes32,bytes32,bytes32,bytes32[21]), BurnNewLeaf(uint256,bytes32,bytes32,bytes32,bytes32[21]) and TokenBurn(address,uint256,bytes32[3]). 
+If you ignore this field, the command will scan the standard events.
+
+Scan notes by ovk
+
+Example:
+
+```console
+> ScanShieldedTRC20NoteByOvk TVqa39sqP8ZJNTWjtKrDRifGdVmA4Ycsxu 4b33fc947a53a5e2a1d1636b323f7f6cecff8c34c9fc511ccc7cfaf0dd6f4c03 5000 6000
+[
+    {
+        note: {
+            value: 60000
+            payment_address: ztron1z8d5htmt6h26l5agk5nlxdlz66fahhcp8vwhyydrwfdajc5yalftew5uhwn6wjz4pwrxu0msu34
+            rcm: 50698dc3c97fb4d2c818b62de2265a271eb9a58b5dd65074122ddf4d794c6b03
+            memo: 1
+        }
+        tx_id: 19c8aaa244dbcdf30a4b2a02b9b17054dc5d8ebf41d1f82daea044e65dff29d5
+    }
+    {
+        note: {
+            value: 40000
+            payment_address: ztron1z8d5htmt6h26l5agk5nlxdlz66fahhcp8vwhyydrwfdajc5yalftew5uhwn6wjz4pwrxu0msu34
+            rcm: 94afb02c6fd4b19ada89b6b85e2cc23f2fb76c5188ede646c5046b2539a3bf00
+            memo: 2
+        }
+        tx_id: 19c8aaa244dbcdf30a4b2a02b9b17054dc5d8ebf41d1f82daea044e65dff29d5
+    }
+    {
+        transparent_to_address: TV7ceN4tHDNPB47DMStcUFC3Y8QQ7KzN32
+        transparent_amount: 130000
+        tx_id: d45da3394be6c15220d31ac17c13e02130aab0c3edf97750620538f4efae366b
+    }
+]
+
+> ScanShieldedTRC20NoteByOvk TVqa39sqP8ZJNTWjtKrDRifGdVmA4Ycsxu 4b33fc947a53a5e2a1d1636b323f7f6cecff8c34c9fc511ccc7cfaf0dd6f4c03 5000 6000  BurnNewLeaf(uint256,bytes32,bytes32,bytes32,bytes32[21])  TokenBurn(address,uint256,bytes32[3])
+[
+    {
+        note: {
+            value: 60000
+            payment_address: ztron1z8d5htmt6h26l5agk5nlxdlz66fahhcp8vwhyydrwfdajc5yalftew5uhwn6wjz4pwrxu0msu34
+            rcm: 50698dc3c97fb4d2c818b62de2265a271eb9a58b5dd65074122ddf4d794c6b03
+            memo: 1
+        }
+        tx_id: 19c8aaa244dbcdf30a4b2a02b9b17054dc5d8ebf41d1f82daea044e65dff29d5
+    }
+    {
+        note: {
+            value: 40000
+            payment_address: ztron1z8d5htmt6h26l5agk5nlxdlz66fahhcp8vwhyydrwfdajc5yalftew5uhwn6wjz4pwrxu0msu34
+            rcm: 94afb02c6fd4b19ada89b6b85e2cc23f2fb76c5188ede646c5046b2539a3bf00
+            memo: 2
+        }
+        tx_id: 19c8aaa244dbcdf30a4b2a02b9b17054dc5d8ebf41d1f82daea044e65dff29d5
+    }
+    {
+        transparent_to_address: TV7ceN4tHDNPB47DMStcUFC3Y8QQ7KzN32
+        transparent_amount: 130000
+        tx_id: d45da3394be6c15220d31ac17c13e02130aab0c3edf97750620538f4efae366b
+    }
+]
+```
+
+### BackupShieldedTRC20Wallet
+
+Back up one shielded address.
+
+Example:
+
+```console
+> BackupShieldedTRC20Wallet
+Please input your password for shieldedTRC20 wallet.
+password:
+The 1th shieldedTRC20 address is ztron1mf0a0cy86j8rmn4l7dcdsnhyj2k46rem4qxwjqh4z0x26utlddtmmr5fk5dchzt2hpujyvgk69z
+The 2th shieldedTRC20 address is ztron1mnkdjl0802dqha9ufh4m80f2ua9cff2hct8geeh77llrz4ywgtu0ct8ygy6k5xavdkd278jyttj
+The 3th shieldedTRC20 address is ztron1z8d5htmt6h26l5agk5nlxdlz66fahhcp8vwhyydrwfdajc5yalftew5uhwn6wjz4pwrxu0msu34
+Please choose between 1 and 3
+1
+sk:01ef2d71f8eef668e12db7aef1267c7d6a8f43c84dffa66fc09e2c749464190e
+d :da5fd7e087d48e3dcebff3
+BackupShieldedTRC20Wallet successful !!!
+```
+
+### ImportShieldedTRC20Wallet
+
+Import one shielded address to local wallet.
+
+Example:
+
+```console
+> ImportShieldedTRC20Wallet
+ShieldedTRC20 wallet does not exist, will build it.
+Please input password.
+password:
+Please input password again.
+password:
+Please input shieldedTRC20 wallet hex string. such as 'sk d',Max retry time:3
+0eb458b309fa544066c40d80ce30a8002756c37d2716315c59a98c893dbb000a 11db4baf6bd5d5afd3a8b5
+Import shieldedTRC20 wallet hex string is :
+sk:0eb458b309fa544066c40d80ce30a8002756c37d2716315c59a98c893dbb000a
+d :11db4baf6bd5d5afd3a8b5
+Import new shieldedTRC20 wallet address is: ztron1z8d5htmt6h26l5agk5nlxdlz66fahhcp8vwhyydrwfdajc5yalftew5uhwn6wjz4pwrxu0msu34
+ImportShieldedTRC20Wallet successfully !!!
+```
+
+### ShowShieldedTRC20AddressInfo
+
+```console
+> ShowShieldedTRC20AddressInfo address
+```
+Display information about shielded addresses. If this address is not in the wallet, it will only display `d` and `pkd`
+
+Example:
+
+```console
+> ListShieldedTRC20Address
+ShieldedTRC20Address :
+ztron1mf0a0cy86j8rmn4l7dcdsnhyj2k46rem4qxwjqh4z0x26utlddtmmr5fk5dchzt2hpujyvgk69z
+ztron1mnkdjl0802dqha9ufh4m80f2ua9cff2hct8geeh77llrz4ywgtu0ct8ygy6k5xavdkd278jyttj
+ztron1z8d5htmt6h26l5agk5nlxdlz66fahhcp8vwhyydrwfdajc5yalftew5uhwn6wjz4pwrxu0msu34
+
+> ShowShieldedTRC20AddressInfo ztron1mf0a0cy86j8rmn4l7dcdsnhyj2k46rem4qxwjqh4z0x26utlddtmmr5fk5dchzt2hpujyvgk69z
+The following variables are secret information, please don't show to other people!!!
+sk :01ef2d71f8eef668e12db7aef1267c7d6a8f43c84dffa66fc09e2c749464190e
+ivk:7d2e9c14ff1d82843f39cb69e8bcc228370e4ea8750669bba79e90c485d94c03
+ovk:2c3d164fffa63b41a34f495e0c9d8af79d595cfb07db1539545ddcecf046d66e
+pkd:70d84ee492ad5d0f3ba80ce902f513ccad717f6b57bd8e89b51b8b896ab87922
+d  :da5fd7e087d48e3dcebff3
+
+> ShowShieldedTRC20AddressInfo ztron1z8d5htmt6h26l5agk8r7wxw9pyhc0a78hl5thva4k9kcn7fsqvygchyt3n2ncy0r4xv4j5mywnu
+pkd:c7e719c5092f87f7c7bfe8bbb3b5b16d89f93003088c5c8b8cd53c11e3a99959
+d  :11db4baf6bd5d5afd3a8b1
+```
+
+
+## How to use tron-dex to sell asset
+
+### MarketSellAsset
+
+Create an order to sell asset    
+
+> MarketSellAsset owner_address sell_token_id sell_token_quantity buy_token_id buy_token_quantity  
+
+ownerAddress
+> The address of the account that initiated the transaction
+
+sell_token_id, sell_token_quantity
+> ID and amount of the token want to sell
+
+buy_token_id, buy_token_quantity
+> ID and amount of the token want to buy
+
+Example: 
+
+```console
+MarketSellAsset TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW  1000001 200 _ 100    
+
+Get the result of the contract execution with the getTransactionInfoById command:   
+getTransactionInfoById 10040f993cd9452b25bf367f38edadf11176355802baf61f3c49b96b4480d374   
+
+{
+	"id": "10040f993cd9452b25bf367f38edadf11176355802baf61f3c49b96b4480d374",
+	"blockNumber": 669,
+	"blockTimeStamp": 1578983493000,
+	"contractResult": [
+		""
+	],
+	"receipt": {
+		"net_usage": 264
+	}
+} 
+```
+
+### GetMarketOrderByAccount
+
+Get the order created by account(just include active status)
+
+> GetMarketOrderByAccount ownerAddress
+
+ownerAddress
+> The address of the account that created market order
+
+Example:
+
+```console
+GetMarketOrderByAccount TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW   
+{
+	"orders": [
+		{
+			"order_id": "fc9c64dfd48ae58952e85f05ecb8ec87f55e19402493bb2df501ae9d2da75db0",
+			"owner_address": "TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW",
+			"create_time": 1578983490000,
+			"sell_token_id": "_",
+			"sell_token_quantity": 100,
+			"buy_token_id": "1000001",
+			"buy_token_quantity": 200,
+			"sell_token_quantity_remain": 100
+		}
+	]
+}  
+```
+
+### GetMarketOrderById
+
+Get the specific order by order_id
+
+> GetMarketOrderById orderId
+
+Example:  
+
+```console
+GetMarketOrderById fc9c64dfd48ae58952e85f05ecb8ec87f55e19402493bb2df501ae9d2da75db0   
+{
+	"order_id": "fc9c64dfd48ae58952e85f05ecb8ec87f55e19402493bb2df501ae9d2da75db0",
+	"owner_address": "TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW",
+	"create_time": 1578983490000,
+	"sell_token_id": "_",
+	"sell_token_quantity": 100,
+	"buy_token_id": "1000001",
+	"buy_token_quantity": 200,
+}
+```
+
+### GetMarketPairList
+
+Get market pair list
+
+Example:
+
+```console
+GetMarketPairList   
+{
+	"orderPair": [
+		{
+			"sell_token_id": "_",
+			"buy_token_id": "1000001"
+		}
+	]
+}
+```
+
+### GetMarketOrderListByPair
+
+Get order list by pair   
+
+> GetMarketOrderListByPair sell_token_id buy_token_id   
+
+sell_token_id
+> ID of the token want to sell      
+
+buy_token_id
+> ID of the token want to buy
+
+Example: 
+
+```console
+GetMarketOrderListByPair _ 1000001   
+{
+	"orders": [
+		{
+			"order_id": "fc9c64dfd48ae58952e85f05ecb8ec87f55e19402493bb2df501ae9d2da75db0",
+			"owner_address": "TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW",
+			"create_time": 1578983490000,
+			"sell_token_id": "_",
+			"sell_token_quantity": 100,
+			"buy_token_id": "1000001",
+			"buy_token_quantity": 200,
+			"sell_token_quantity_remain": 100
+		}
+	]
+}
+```
+
+### GetMarketPriceByPair
+
+Get market price by pair   
+
+> GetMarketPriceByPair sell_token_id buy_token_id   
+
+sell_token_id
+> ID of the token want to sell
+
+buy_token_id
+> ID of the token want to buy
+
+Example:   
+
+```console
+GetMarketPriceByPair _ 1000001   
+{
+	"sell_token_id": "_",
+	"buy_token_id": "1000001",
+	"prices": [
+		{
+			"sell_token_quantity": 100,
+			"buy_token_quantity": 200
+		}
+	]
+}
+```
+
+### MarketCancelOrder
+
+Cancel the order   
+
+> MarketCancelOrder owner_address order_id  
+
+owner_address
+> the account address who have created the order
+
+order_id
+> the order id which want to cancel 
+
+Example:   
+
+```console
+MarketCancelOrder TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW fc9c64dfd48ae58952e85f05ecb8ec87f55e19402493bb2df501ae9d2da75db0  
+```
+
+Get the result of the contract execution with the getTransactionInfoById command:  
+```console
+getTransactionInfoById b375787a098498623403c755b1399e82910385251b643811936d914c9f37bd27   
+{
+	"id": "b375787a098498623403c755b1399e82910385251b643811936d914c9f37bd27",
+	"blockNumber": 1582,
+	"blockTimeStamp": 1578986232000,
+	"contractResult": [
+		""
+	],
+	"receipt": {
+		"net_usage": 283
+	}
+}
+```

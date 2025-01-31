@@ -119,4 +119,38 @@ public class ShieldedAddressInfo {
       return false;
     }
   }
+
+  public Optional<ShieldedAddressInfo> getNewShieldedAddress() throws ZksnarkException{
+    byte[] sk = org.tron.keystore.Wallet.generateRandomBytes(32);
+    byte[] d = new DiversifierT().random().getData();
+
+    return getNewShieldedAddressBySkAndD(sk, d);
+  }
+
+  public Optional<ShieldedAddressInfo> getNewShieldedAddressBySkAndD(byte[] skBytes,
+      byte[] dBytes) throws ZksnarkException {
+    if (!(skBytes.length == 32 && dBytes.length == 11)) {
+      return Optional.empty();
+    }
+    SpendingKey sk = new SpendingKey(skBytes);
+    DiversifierT d = new DiversifierT(dBytes);
+    ExpandedSpendingKey esk = sk.expandedSpendingKey();
+    FullViewingKey fvk = esk.fullViewingKey();
+    IncomingViewingKey ivk = fvk.inViewingKey();
+    Optional<PaymentAddress> pa = ivk.address(d);
+
+    ShieldedAddressInfo shieldedAddressInfo = new ShieldedAddressInfo(
+        skBytes,
+        ivk.value,
+        esk.getOvk(),
+        d,
+        pa.get().getPkD()
+    );
+
+    if (shieldedAddressInfo.validateCheck()) {
+      return Optional.of(shieldedAddressInfo);
+    } else {
+      return Optional.empty();
+    }
+  }
 }

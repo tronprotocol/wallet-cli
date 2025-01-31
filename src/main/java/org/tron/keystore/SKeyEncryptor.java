@@ -5,7 +5,7 @@ import org.bouncycastle.crypto.generators.PKCS5S2ParametersGenerator;
 import org.bouncycastle.crypto.generators.SCrypt;
 import org.bouncycastle.crypto.params.KeyParameter;
 import org.tron.common.crypto.Hash;
-import org.tron.common.crypto.Sha256Hash;
+import org.tron.common.crypto.Sha256Sm3Hash;
 import org.tron.common.utils.ByteArray;
 import org.tron.core.exception.CipherException;
 import org.tron.walletserver.WalletApi;
@@ -51,11 +51,11 @@ public class SKeyEncryptor {
     byte[] iv = generateRandomBytes(16);
 
     byte[] cipherText = performCipherOperation(Cipher.ENCRYPT_MODE, iv, encryptKey,
-            skey);
+        skey);
 
     byte[] mac = generateMac(derivedKey, cipherText);
 
-    byte[] fp = Arrays.copyOfRange(Sha256Hash.hash(skey),0, 4);
+    byte[] fp = Arrays.copyOfRange(Sha256Sm3Hash.hash(skey), 0, 4);
 
     return createSkey(fp, cipherText, iv, salt, mac, n, p);
   }
@@ -198,7 +198,7 @@ public class SKeyEncryptor {
     return privateKey;
   }
 
-  public static boolean validPassword (byte[] password, SKeyCapsule skey)
+  public static boolean validPassword(byte[] password, SKeyCapsule skey)
       throws CipherException {
 
     validate(skey);
