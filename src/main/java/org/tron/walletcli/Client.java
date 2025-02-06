@@ -655,6 +655,8 @@ public class Client {
       System.out.println("exportWalletMnemonic successful !!");
       outputMnemonicChars(mnemonicChars);
       System.out.println("\n");
+    } else {
+      System.out.println("exportWalletMnemonic failed !!");
     }
     StringUtils.clear(mnemonic);
     clearChars(mnemonicChars);

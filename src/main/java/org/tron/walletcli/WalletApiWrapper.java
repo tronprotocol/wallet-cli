@@ -2,6 +2,8 @@ package org.tron.walletcli;
 
 import com.google.protobuf.ByteString;
 import io.netty.util.internal.StringUtil;
+
+import java.io.File;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -165,21 +167,26 @@ public class WalletApiWrapper {
 
   public byte[] exportWalletMnemonic() throws IOException, CipherException {
     if (wallet == null || !wallet.isLoginState()) {
-      wallet = WalletApi.loadWalletFromKeystore();
-      if (wallet == null) {
-        System.out.println("Warning: ExportWalletMnemonic failed, no mnemonic can be exported !!");
-        return null;
-      }
+      System.out.println("Warning: ExportWalletMnemonic failed,  Please login first !!");
+      return null;
     }
 
+    //1.select mnemonic file
+    File mnemonicFile = WalletApi.selcetMnemonicFile();
+    if (mnemonicFile == null) {
+      throw new IOException(
+          "No mnemonic file found, please use RegisterWallet or ImportWalletByMnemonic first!");
+    }
+
+    //2.input password
     System.out.println("Please input your password.");
     char[] password = Utils.inputPassword(false);
     byte[] passwd = StringUtils.char2Byte(password);
     wallet.checkPassword(passwd);
     StringUtils.clear(password);
 
-    String ownerAddress = WalletApi.encode58Check(wallet.getAddress());
-    return MnemonicUtils.exportMnemonic(passwd, ownerAddress);
+    //3.export mnemonic words
+    return MnemonicUtils.exportMnemonic(passwd, mnemonicFile, getAddress());
   }
 
   public String getAddress() {

@@ -165,6 +165,7 @@ import org.tron.protos.contract.WitnessContract.WitnessUpdateContract;
 public class WalletApi {
 
   private static final String FilePath = "Wallet";
+  private static final String MnemonicFilePath = "Mnemonic";
   private List<WalletFile> walletFile = new ArrayList<>();
   private boolean loginState = false;
   private byte[] address;
@@ -405,6 +406,49 @@ public class WalletApi {
     }
 
     return wallet;
+  }
+
+  public static File selcetMnemonicFile() {
+    File file = new File(MnemonicFilePath);
+    if (!file.exists() || !file.isDirectory()) {
+      return null;
+    }
+
+    File[] mnemonicFiles = file.listFiles();
+    if (ArrayUtils.isEmpty(mnemonicFiles)) {
+      return null;
+    }
+
+    File mnemonicFile;
+    if (mnemonicFiles.length > 1) {
+      for (int i = 0; i < mnemonicFiles.length; i++) {
+        System.out.println("The " + (i + 1) + "th mnemonic file name is " + mnemonicFiles[i].getName());
+      }
+      System.out.println("Please choose between 1 and " + mnemonicFiles.length);
+      Scanner in = new Scanner(System.in);
+      while (true) {
+        String input = in.nextLine().trim();
+        String num = input.split("\\s+")[0];
+        int n;
+        try {
+          n = new Integer(num);
+        } catch (NumberFormatException e) {
+          System.out.println("Invaild number of " + num);
+          System.out.println("Please choose again between 1 and " + mnemonicFiles.length);
+          continue;
+        }
+        if (n < 1 || n > mnemonicFiles.length) {
+          System.out.println("Please choose again between 1 and " + mnemonicFiles.length);
+          continue;
+        }
+        mnemonicFile = mnemonicFiles[n - 1];
+        break;
+      }
+    } else {
+      mnemonicFile = mnemonicFiles[0];
+    }
+
+    return mnemonicFile;
   }
 
   public WalletFile selcetWalletFileE() throws IOException {
