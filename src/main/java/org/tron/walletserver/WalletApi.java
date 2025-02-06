@@ -14,6 +14,7 @@ import io.grpc.Status;
 import java.io.File;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.nio.file.Paths;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -435,6 +436,19 @@ public class WalletApi {
     }
     Credentials credentials = WalletUtils.loadCredentials(oldPassword, wallet);
     WalletUtils.updateWalletFile(newPassowrd, credentials.getPair(), wallet, true);
+
+    // udpate the password of mnemonicFile
+    String ownerAddress = credentials.getAddress();
+    File mnemonicFile = Paths.get("Mnemonic", ownerAddress + ".json").toFile();
+    if (mnemonicFile.exists()) {
+      try {
+        byte[] mnemonicBytes = MnemonicUtils.getMnemonicBytes(oldPassword, mnemonicFile);
+        List<String> words = MnemonicUtils.stringToMnemonicWords(new String(mnemonicBytes));
+        MnemonicUtils.updateMnemonicFile(newPassowrd, credentials.getPair(), mnemonicFile, true, words);
+      } catch (Exception e) {
+        System.out.println("update mnemonic file failed, please check the mnemonic file");
+      }
+    }
     return true;
   }
 
