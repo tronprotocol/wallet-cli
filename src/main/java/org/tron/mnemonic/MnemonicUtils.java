@@ -3,6 +3,7 @@ package org.tron.mnemonic;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.tron.common.crypto.SignInterface;
 import org.tron.common.utils.ByteArray;
 import org.tron.core.exception.CipherException;
 import org.web3j.crypto.Bip32ECKeyPair;
@@ -109,5 +110,26 @@ public class MnemonicUtils {
     String privateKey = credentials.getEcKeyPair().getPrivateKey().toString(16);
 
     return ByteArray.fromHexString(privateKey);
+  }
+
+  public static byte[] getMnemonicBytes(byte[] password, File source)
+      throws IOException, CipherException {
+    MnemonicFile mnemonicFile = objectMapper.readValue(source, MnemonicFile.class);
+    return Mnemonic.decrypt2MnemonicWordsBytes(password, mnemonicFile);
+  }
+
+  public static void updateMnemonicFile(
+      byte[] password, SignInterface ecKeySm2Pair, File source,
+      boolean useFullScrypt, List<String> mnemonics)
+      throws CipherException, IOException {
+
+    MnemonicFile mnemonicFile = objectMapper.readValue(source, MnemonicFile.class);
+    if (useFullScrypt) {
+      mnemonicFile = Mnemonic.createStandard(password, ecKeySm2Pair, mnemonics);
+    } else {
+      mnemonicFile = Mnemonic.createLight(password, ecKeySm2Pair, mnemonics);
+    }
+
+    objectMapper.writeValue(source, mnemonicFile);
   }
 }
