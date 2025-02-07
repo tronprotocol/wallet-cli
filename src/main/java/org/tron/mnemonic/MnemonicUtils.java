@@ -88,9 +88,9 @@ public class MnemonicUtils {
     return mnemonicFile.getAddress() + ".json";
   }
 
-  public static byte[] exportMnemonic(byte[] password, File file, String address)
+  public static byte[] exportMnemonic(byte[] password, String address)
       throws IOException, CipherException {
-
+    File file = Paths.get("Mnemonic", address + ".json").toFile();
     if (!file.exists()) {
       System.out.println("mnemonic file not exist");
       System.out.println("Please use ImportWalletByMnemonic to " +
@@ -98,10 +98,6 @@ public class MnemonicUtils {
       return new byte[0];
     }
     MnemonicFile mnemonicFile = objectMapper.readValue(file, MnemonicFile.class);
-    if (!mnemonicFile.getAddress().equals(address)) {
-      System.out.println("Your address : " + address + " You can only export your mnemonic");
-      return new byte[0];
-    }
     return Mnemonic.decrypt2MnemonicWordsBytes(password, mnemonicFile);
   }
 
