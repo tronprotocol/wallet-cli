@@ -1,5 +1,6 @@
 package org.tron.walletcli;
 
+import java.io.File;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.text.SimpleDateFormat;
@@ -533,10 +534,15 @@ public class Client {
       System.out.println("Register wallet failed !!");
       return;
     }
-    System.out.println("Register a wallet successful, keystore file name is " + fileName);
+    System.out.println("Register a wallet successful, keystore file : ."
+        + File.separator + "Wallet" + File.separator
+        + fileName);
   }
 
   private void importWallet() throws CipherException, IOException {
+    System.out.println("(Note:This operation will overwrite the old keystore file of the same address)");
+    System.out.println("Please make sure to back up the old keystore file in the Wallet directory if it is still needed!");
+
     char[] password = Utils.inputPassword2Twice();
     byte[] priKey = inputPrivateKey();
 
@@ -548,10 +554,14 @@ public class Client {
       System.out.println("Import wallet failed !!");
       return;
     }
-    System.out.println("Import a wallet successful, keystore file name is " + fileName);
+    System.out.println("Import a wallet successful, keystore file : ."
+        + File.separator + "Wallet" + File.separator
+        + fileName);
   }
 
   private void importWalletByMnemonic() throws CipherException, IOException {
+    System.out.println("(Note:This operation will overwrite the old keystore file of the same address)");
+    System.out.println("Please make sure to back up the old keystore file in the Wallet directory if it is still needed!");
 
     char[] password = Utils.inputPassword2Twice();
     List<String> mnemonicWords = inputMnemonicWords();
@@ -567,10 +577,15 @@ public class Client {
       System.out.println("Import wallet failed !!");
       return;
     }
-    System.out.println("Import a wallet successful, keystore file name is " + fileName);
+    System.out.println("Import a wallet successful, keystore file : ."
+        + File.separator + "Wallet" + File.separator
+        + fileName);
   }
 
   private void importWalletByBase64() throws CipherException, IOException {
+    System.out.println("(Note:This operation will overwrite the old keystore file of the same address)");
+    System.out.println("Please make sure to back up the old keystore file in the Wallet directory if it is still needed!");
+
     char[] password = Utils.inputPassword2Twice();
     byte[] priKey = inputPrivateKey64();
 
@@ -582,7 +597,9 @@ public class Client {
       System.out.println("Import wallet failed !!");
       return;
     }
-    System.out.println("Import a wallet successful, keystore file name is " + fileName);
+    System.out.println("Import a wallet successful, keystore file : ."
+        + File.separator + "Wallet" + File.separator
+        + fileName);
   }
 
   private void changePassword() throws IOException, CipherException {

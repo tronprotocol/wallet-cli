@@ -273,7 +273,9 @@ public class WalletApi {
   public static void storeMnemonicWords(byte[] password, SignInterface ecKeySm2Pair, List<String> mnemonicWords) throws CipherException, IOException {
     MnemonicFile mnemonicFile = Mnemonic.createStandard(password, ecKeySm2Pair, mnemonicWords);
     String keystoreName = MnemonicUtils.store2Keystore(mnemonicFile);
-    System.out.println("mnemonic file name is :" + keystoreName);
+    System.out.println("mnemonic file : ."
+        + File.separator + "Mnemonic" + File.separator
+        + keystoreName);
   }
 
   //  Create Wallet with a pritKey
@@ -346,6 +348,9 @@ public class WalletApi {
     if (walletFile == null) {
       System.out.println("Warning: Store wallet failed, walletFile is null !!");
       return null;
+    }
+    if (WalletUtils.hasStoreFile(walletFile.getAddress(), FilePath)) {
+      WalletUtils.deleteStoreFile(walletFile.getAddress(), FilePath);
     }
     File file = new File(FilePath);
     if (!file.exists()) {
