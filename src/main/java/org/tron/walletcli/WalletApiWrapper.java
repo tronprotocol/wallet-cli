@@ -171,22 +171,15 @@ public class WalletApiWrapper {
       return null;
     }
 
-    //1.select mnemonic file
-    File mnemonicFile = WalletApi.selcetMnemonicFile();
-    if (mnemonicFile == null) {
-      throw new IOException(
-          "No mnemonic file found, please use RegisterWallet or ImportWalletByMnemonic first!");
-    }
-
-    //2.input password
+    //1.input password
     System.out.println("Please input your password.");
     char[] password = Utils.inputPassword(false);
     byte[] passwd = StringUtils.char2Byte(password);
     wallet.checkPassword(passwd);
     StringUtils.clear(password);
 
-    //3.export mnemonic words
-    return MnemonicUtils.exportMnemonic(passwd, mnemonicFile, getAddress());
+    //2.export mnemonic words
+    return MnemonicUtils.exportMnemonic(passwd, getAddress());
   }
 
   public String getAddress() {
