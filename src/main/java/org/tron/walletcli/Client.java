@@ -534,6 +534,7 @@ public class Client {
       return;
     }
     System.out.println("Register a wallet successful, keystore file name is " + fileName);
+    System.out.println("(Note: If you delete an account, make sure to delete the wallet file and mnemonic file) ");
   }
 
   private void importWallet() throws CipherException, IOException {
