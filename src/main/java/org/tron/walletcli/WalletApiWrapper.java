@@ -30,6 +30,7 @@ import org.tron.core.zen.address.FullViewingKey;
 import org.tron.core.zen.address.SpendingKey;
 import org.tron.keystore.StringUtils;
 import org.tron.keystore.WalletFile;
+import org.tron.keystore.WalletUtils;
 import org.tron.mnemonic.MnemonicUtils;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
@@ -56,6 +57,7 @@ import java.util.Optional;
 public class WalletApiWrapper {
 
   private WalletApi wallet;
+  private static final String MnemonicFilePath = "Mnemonic";
 
   public String registerWallet(char[] password) throws CipherException, IOException {
     if (!WalletApi.passwordValid(password)) {
@@ -86,6 +88,9 @@ public class WalletApiWrapper {
     StringUtils.clear(passwd);
 
     String keystoreName = WalletApi.store2Keystore(walletFile);
+    if (mnemonic == null && WalletUtils.hasStoreFile(walletFile.getAddress(), MnemonicFilePath)) {
+      WalletUtils.deleteStoreFile(walletFile.getAddress(), MnemonicFilePath);
+    }
     logout();
     return keystoreName;
   }
