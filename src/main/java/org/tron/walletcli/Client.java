@@ -542,8 +542,8 @@ public class Client {
   }
 
   private void importWallet() throws CipherException, IOException {
-    System.out.println("(Note:This operation will overwrite the old keystore file of the same address)");
-    System.out.println("Please make sure to back up the old keystore file in the Wallet directory if it is still needed!");
+    System.out.println("((Note:This operation will overwrite the old keystore file  and mnemonic file of the same address)");
+    System.out.println("Please make sure to back up the old keystore files in the Wallet/Mnemonic directory if it is still needed!");
 
     char[] password = Utils.inputPassword2Twice();
     byte[] priKey = inputPrivateKey();
@@ -562,8 +562,8 @@ public class Client {
   }
 
   private void importWalletByMnemonic() throws CipherException, IOException {
-    System.out.println("(Note:This operation will overwrite the old keystore file of the same address)");
-    System.out.println("Please make sure to back up the old keystore file in the Wallet directory if it is still needed!");
+    System.out.println("((Note:This operation will overwrite the old keystore file  and mnemonic file of the same address)");
+    System.out.println("Please make sure to back up the old keystore files in the Wallet/Mnemonic directory if it is still needed!");
 
     char[] password = Utils.inputPassword2Twice();
     List<String> mnemonicWords = inputMnemonicWords();
@@ -585,8 +585,8 @@ public class Client {
   }
 
   private void importWalletByBase64() throws CipherException, IOException {
-    System.out.println("(Note:This operation will overwrite the old keystore file of the same address)");
-    System.out.println("Please make sure to back up the old keystore file in the Wallet directory if it is still needed!");
+    System.out.println("((Note:This operation will overwrite the old keystore file  and mnemonic file of the same address)");
+    System.out.println("Please make sure to back up the old keystore files in the Wallet/Mnemonic directory if it is still needed!");
 
     char[] password = Utils.inputPassword2Twice();
     byte[] priKey = inputPrivateKey64();
