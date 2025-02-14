@@ -2,6 +2,8 @@ package org.tron.walletcli;
 
 import com.google.protobuf.ByteString;
 import io.netty.util.internal.StringUtil;
+
+import java.io.File;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -28,6 +30,8 @@ import org.tron.core.zen.address.FullViewingKey;
 import org.tron.core.zen.address.SpendingKey;
 import org.tron.keystore.StringUtils;
 import org.tron.keystore.WalletFile;
+import org.tron.keystore.WalletUtils;
+import org.tron.mnemonic.MnemonicUtils;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.ChainParameters;
@@ -53,6 +57,7 @@ import java.util.Optional;
 public class WalletApiWrapper {
 
   private WalletApi wallet;
+  private static final String MnemonicFilePath = "Mnemonic";
 
   public String registerWallet(char[] password) throws CipherException, IOException {
     if (!WalletApi.passwordValid(password)) {
@@ -69,7 +74,7 @@ public class WalletApiWrapper {
     return keystoreName;
   }
 
-  public String importWallet(char[] password, byte[] priKey) throws CipherException, IOException {
+  public String importWallet(char[] password, byte[] priKey, List<String> mnemonic) throws CipherException, IOException {
     if (!WalletApi.passwordValid(password)) {
       return null;
     }
@@ -79,10 +84,13 @@ public class WalletApiWrapper {
 
     byte[] passwd = StringUtils.char2Byte(password);
 
-    WalletFile walletFile = WalletApi.CreateWalletFile(passwd, priKey);
+    WalletFile walletFile = WalletApi.CreateWalletFile(passwd, priKey, mnemonic);
     StringUtils.clear(passwd);
 
     String keystoreName = WalletApi.store2Keystore(walletFile);
+    if (mnemonic == null && WalletUtils.hasStoreFile(walletFile.getAddress(), MnemonicFilePath)) {
+      WalletUtils.deleteStoreFile(walletFile.getAddress(), MnemonicFilePath);
+    }
     logout();
     return keystoreName;
   }
@@ -160,6 +168,23 @@ public class WalletApiWrapper {
     StringUtils.clear(passwd);
 
     return privateKey;
+  }
+
+  public byte[] exportWalletMnemonic() throws IOException, CipherException {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: ExportWalletMnemonic failed,  Please login first !!");
+      return null;
+    }
+
+    //1.input password
+    System.out.println("Please input your password.");
+    char[] password = Utils.inputPassword(false);
+    byte[] passwd = StringUtils.char2Byte(password);
+    wallet.checkPassword(passwd);
+    StringUtils.clear(password);
+
+    //2.export mnemonic words
+    return MnemonicUtils.exportMnemonic(passwd, getAddress());
   }
 
   public String getAddress() {
