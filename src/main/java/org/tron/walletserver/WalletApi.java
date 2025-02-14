@@ -14,6 +14,8 @@ import io.grpc.Status;
 import java.io.File;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.nio.file.Paths;
+import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -80,6 +82,7 @@ import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.Hash;
 import org.tron.common.crypto.Sha256Sm3Hash;
+import org.tron.common.crypto.SignInterface;
 import org.tron.common.crypto.sm2.SM2;
 import org.tron.common.utils.Base58;
 import org.tron.common.utils.ByteArray;
@@ -93,6 +96,9 @@ import org.tron.core.exception.CancelException;
 import org.tron.core.exception.CipherException;
 import org.tron.keystore.CheckStrength;
 import org.tron.keystore.Credentials;
+import org.tron.mnemonic.Mnemonic;
+import org.tron.mnemonic.MnemonicFile;
+import org.tron.mnemonic.MnemonicUtils;
 import org.tron.keystore.Wallet;
 import org.tron.keystore.WalletFile;
 import org.tron.keystore.WalletUtils;
@@ -160,6 +166,7 @@ import org.tron.protos.contract.WitnessContract.WitnessUpdateContract;
 public class WalletApi {
 
   private static final String FilePath = "Wallet";
+  private static final String MnemonicFilePath = "Mnemonic";
   private List<WalletFile> walletFile = new ArrayList<>();
   private boolean loginState = false;
   private byte[] address;
@@ -243,27 +250,49 @@ public class WalletApi {
   /**
    * Creates a new WalletApi with a random ECKey or no ECKey.
    */
-  public static WalletFile CreateWalletFile(byte[] password) throws CipherException {
+  public static WalletFile CreateWalletFile(byte[] password) throws CipherException, IOException {
     WalletFile walletFile = null;
+    SecureRandom secureRandom = Utils.getRandom();
+    List<String> mnemonicWords = MnemonicUtils.generateMnemonic(secureRandom);
+    //System.out.println("generateMnemonic words:" + StringUtils.join(mnemonicWords, " "));
+    byte[] priKey = MnemonicUtils.getPrivateKeyFromMnemonic(mnemonicWords);
+
     if (isEckey) {
-      ECKey ecKey = new ECKey(Utils.getRandom());
+      ECKey ecKey = new ECKey(priKey, true);
       walletFile = Wallet.createStandard(password, ecKey);
+      storeMnemonicWords(password, ecKey, mnemonicWords);
     } else {
-      SM2 sm2 = new SM2(Utils.getRandom());
+      SM2 sm2 = new SM2(priKey, true);
       walletFile = Wallet.createStandard(password, sm2);
+      storeMnemonicWords(password, sm2, mnemonicWords);
     }
+
     return walletFile;
   }
 
+  public static void storeMnemonicWords(byte[] password, SignInterface ecKeySm2Pair, List<String> mnemonicWords) throws CipherException, IOException {
+    MnemonicFile mnemonicFile = Mnemonic.createStandard(password, ecKeySm2Pair, mnemonicWords);
+    String keystoreName = MnemonicUtils.store2Keystore(mnemonicFile);
+    System.out.println("mnemonic file : ."
+        + File.separator + "Mnemonic" + File.separator
+        + keystoreName);
+  }
+
   //  Create Wallet with a pritKey
-  public static WalletFile CreateWalletFile(byte[] password, byte[] priKey) throws CipherException {
+  public static WalletFile CreateWalletFile(byte[] password, byte[] priKey, List<String> mnemonicWords) throws CipherException, IOException {
     WalletFile walletFile = null;
     if (isEckey) {
       ECKey ecKey = ECKey.fromPrivate(priKey);
       walletFile = Wallet.createStandard(password, ecKey);
+      if (mnemonicWords !=null && !mnemonicWords.isEmpty()) {
+        storeMnemonicWords(password, ecKey, mnemonicWords);
+      }
     } else {
       SM2 sm2 = SM2.fromPrivate(priKey);
       walletFile = Wallet.createStandard(password, sm2);
+      if (mnemonicWords !=null && !mnemonicWords.isEmpty()) {
+        storeMnemonicWords(password, sm2, mnemonicWords);
+      }
     }
     return walletFile;
   }
@@ -319,6 +348,9 @@ public class WalletApi {
     if (walletFile == null) {
       System.out.println("Warning: Store wallet failed, walletFile is null !!");
       return null;
+    }
+    if (WalletUtils.hasStoreFile(walletFile.getAddress(), FilePath)) {
+      WalletUtils.deleteStoreFile(walletFile.getAddress(), FilePath);
     }
     File file = new File(FilePath);
     if (!file.exists()) {
@@ -382,6 +414,49 @@ public class WalletApi {
     return wallet;
   }
 
+  public static File selcetMnemonicFile() {
+    File file = new File(MnemonicFilePath);
+    if (!file.exists() || !file.isDirectory()) {
+      return null;
+    }
+
+    File[] mnemonicFiles = file.listFiles();
+    if (ArrayUtils.isEmpty(mnemonicFiles)) {
+      return null;
+    }
+
+    File mnemonicFile;
+    if (mnemonicFiles.length > 1) {
+      for (int i = 0; i < mnemonicFiles.length; i++) {
+        System.out.println("The " + (i + 1) + "th mnemonic file name is " + mnemonicFiles[i].getName());
+      }
+      System.out.println("Please choose between 1 and " + mnemonicFiles.length);
+      Scanner in = new Scanner(System.in);
+      while (true) {
+        String input = in.nextLine().trim();
+        String num = input.split("\\s+")[0];
+        int n;
+        try {
+          n = new Integer(num);
+        } catch (NumberFormatException e) {
+          System.out.println("Invaild number of " + num);
+          System.out.println("Please choose again between 1 and " + mnemonicFiles.length);
+          continue;
+        }
+        if (n < 1 || n > mnemonicFiles.length) {
+          System.out.println("Please choose again between 1 and " + mnemonicFiles.length);
+          continue;
+        }
+        mnemonicFile = mnemonicFiles[n - 1];
+        break;
+      }
+    } else {
+      mnemonicFile = mnemonicFiles[0];
+    }
+
+    return mnemonicFile;
+  }
+
   public WalletFile selcetWalletFileE() throws IOException {
     File file = selcetWalletFile();
     if (file == null) {
@@ -410,6 +485,19 @@ public class WalletApi {
     }
     Credentials credentials = WalletUtils.loadCredentials(oldPassword, wallet);
     WalletUtils.updateWalletFile(newPassowrd, credentials.getPair(), wallet, true);
+
+    // udpate the password of mnemonicFile
+    String ownerAddress = credentials.getAddress();
+    File mnemonicFile = Paths.get("Mnemonic", ownerAddress + ".json").toFile();
+    if (mnemonicFile.exists()) {
+      try {
+        byte[] mnemonicBytes = MnemonicUtils.getMnemonicBytes(oldPassword, mnemonicFile);
+        List<String> words = MnemonicUtils.stringToMnemonicWords(new String(mnemonicBytes));
+        MnemonicUtils.updateMnemonicFile(newPassowrd, credentials.getPair(), mnemonicFile, true, words);
+      } catch (Exception e) {
+        System.out.println("update mnemonic file failed, please check the mnemonic file");
+      }
+    }
     return true;
   }
 

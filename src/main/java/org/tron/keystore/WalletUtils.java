@@ -13,6 +13,8 @@ import org.tron.core.exception.CipherException;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
@@ -159,11 +161,7 @@ public class WalletUtils {
 //    }
 
   private static String getWalletFileName(WalletFile walletFile) {
-    DateTimeFormatter format = DateTimeFormatter.ofPattern(
-        "'UTC--'yyyy-MM-dd'T'HH-mm-ss.nVV'--'");
-    ZonedDateTime now = ZonedDateTime.now(ZoneOffset.UTC);
-
-    return now.format(format) + walletFile.getAddress() + ".json";
+    return walletFile.getAddress() + ".json";
   }
 
   public static String getDefaultKeyDirectory() {
@@ -218,5 +216,27 @@ public class WalletUtils {
 
   public static SKeyCapsule loadSkeyFile(File source) throws IOException {
     return objectMapper.readValue(source, SKeyCapsule.class);
+  }
+
+  public static boolean hasStoreFile(String address, String destinationDirectory) {
+    File dir = Paths.get(destinationDirectory).toFile();
+    if (!dir.exists() || !dir.isDirectory()) {
+      return false;
+    }
+    File[] files = dir.listFiles((d, name) ->
+        name.endsWith(address + ".json"));
+    return files != null && files.length > 0;
+  }
+
+  public static boolean deleteStoreFile(String address, String destinationDirectory) {
+    Path dir = Paths.get(destinationDirectory);
+    File[] files = dir.toFile().listFiles((d, name) ->
+        name.endsWith(address + ".json"));
+    if (files != null && files.length > 0) {
+      for (File file : files) {
+        file.delete();
+      }
+    }
+    return true;
   }
 }

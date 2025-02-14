@@ -1,5 +1,6 @@
 package org.tron.walletcli;
 
+import java.io.File;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.text.SimpleDateFormat;
@@ -50,6 +51,7 @@ import org.tron.core.zen.address.KeyIo;
 import org.tron.core.zen.address.PaymentAddress;
 import org.tron.core.zen.address.SpendingKey;
 import org.tron.keystore.StringUtils;
+import org.tron.mnemonic.MnemonicUtils;
 import org.tron.protos.Protocol.MarketOrder;
 import org.tron.protos.Protocol.MarketOrderList;
 import org.tron.protos.Protocol.MarketOrderPairList;
@@ -84,6 +86,7 @@ public class Client {
       "BackupShieldedTRC20Wallet",
       "BackupWallet",
       "BackupWallet2Base64",
+      "ExportWalletMnemonic",
       "BroadcastTransaction",
       "CancelAllUnfreezeV2",
       "ChangePassword",
@@ -162,6 +165,7 @@ public class Client {
       "ImportShieldedTRC20Wallet",
       // "ImportShieldedWallet",
       "ImportWallet",
+      "ImportWalletByMnemonic",
       "ImportWalletByBase64",
       "ListAssetIssue",
       "ListAssetIssuePaginated",
@@ -230,6 +234,7 @@ public class Client {
       "BackupShieldedTRC20Wallet",
       "BackupWallet",
       "BackupWallet2Base64",
+      "ExportWalletMnemonic",
       "BroadcastTransaction",
       "CancelAllUnfreezeV2",
       "ChangePassword",
@@ -309,6 +314,7 @@ public class Client {
       "ImportShieldedTRC20Wallet",
       // "ImportShieldedWallet",
       "ImportWallet",
+      "ImportWalletByMnemonic",
       "ImportWalletByBase64",
       "ListAssetIssue",
       "ListAssetIssuePaginated",
@@ -390,6 +396,112 @@ public class Client {
     return result;
   }
 
+  private List<String> inputMnemonicWords() throws IOException {
+    try {
+      List<String> words = readWordsWithRetry();
+      if (words != null) {
+        return words;
+      } else {
+        System.out.println("\nMaximum retry attempts reached, program exiting.");
+      }
+    } catch (Exception e) {
+      System.out.println("An error occurred in the program." + e.getMessage());
+    }
+    return null;
+  }
+
+  private static List<String> readWordsWithRetry() {
+    int REQUIRED_WORDS = 12;
+    int MAX_RETRY = 2;
+
+    int retryCount = 0;
+    while (retryCount <= MAX_RETRY) {
+      try {
+        System.out.printf("%nPlease enter %d words (separated by spaces) [Attempt %d/%d]:%n",
+            REQUIRED_WORDS, retryCount + 1, MAX_RETRY + 1);
+        String line = readLine();
+        if (line.isEmpty()) {
+          System.err.println("Error: Input cannot be empty.");
+          retryCount++;
+          continue;
+        }
+        String[] wordArray = line.split("\\s+");
+        if (wordArray.length != REQUIRED_WORDS) {
+          System.err.printf("Error: Expected %d words, but %d words were entered.",
+              REQUIRED_WORDS, wordArray.length);
+          retryCount++;
+          continue;
+        }
+        List<String> validatedWords = validateWords(wordArray);
+        if (validatedWords != null) {
+          return validatedWords;
+        }
+        retryCount++;
+      } catch (Exception e) {
+        System.err.println("Error: " + e.getMessage());
+        retryCount++;
+      }
+    }
+    return null;
+  }
+
+  private static String readLine() {
+    StringBuilder input = new StringBuilder();
+    try {
+      int c;
+      boolean isFirstChar = true;
+      while ((c = System.in.read()) != -1) {
+        if (c == 13) { // CR (\r)
+          continue;
+        }
+        if (c == 10) { // LF (\n)
+          if (input.length() > 0) {
+            break;
+          }
+          continue;
+        }
+        if (isFirstChar && Character.isWhitespace(c)) {
+          continue;
+        }
+        isFirstChar = false;
+        input.append((char) c);
+      }
+      while (input.length() > 0 &&
+          Character.isWhitespace(input.charAt(input.length() - 1))) {
+        input.setLength(input.length() - 1);
+      }
+    } catch (IOException e) {
+      System.err.println(e.getMessage());
+    }
+    return input.toString();
+  }
+
+  private static List<String> validateWords(String[] words) {
+    int MIN_WORD_LENGTH = 1;
+    final int MAX_WORD_LENGTH = 20;
+    List<String> validatedWords = new ArrayList<>();
+    for (int i = 0; i < words.length; i++) {
+      String word = words[i];
+      if (word.length() < MIN_WORD_LENGTH || word.length() > MAX_WORD_LENGTH) {
+        System.err.printf("Error: The length of the %dth word '%s' is invalid (should be between %d and %d characters).",
+            i + 1, word, MIN_WORD_LENGTH, MAX_WORD_LENGTH);
+        return null;
+      }
+      if (!word.matches("[a-zA-Z]+")) {
+        System.err.printf("Error: The %dth word '%s' contains illegal characters (only letters are allowed).",
+            i + 1, word);
+        return null;
+      }
+      validatedWords.add(word.toLowerCase());
+    }
+    String mnemonic = String.join(" ", validatedWords);
+    if (!org.web3j.crypto.MnemonicUtils.validateMnemonic(mnemonic)) {
+      System.err.println("validate mnemonic failed");
+      return null;
+    }
+    return  validatedWords;
+  }
+
   private byte[] inputPrivateKey64() throws IOException {
     Decoder decoder = Base64.getDecoder();
     byte[] temp = new byte[128];
@@ -422,14 +534,21 @@ public class Client {
       System.out.println("Register wallet failed !!");
       return;
     }
-    System.out.println("Register a wallet successful, keystore file name is " + fileName);
+
+    System.out.println("Register a wallet successful, keystore file : ."
+        + File.separator + "Wallet" + File.separator
+        + fileName);
+    System.out.println("(Note: If you delete an account, make sure to delete the wallet file and mnemonic file) ");
   }
 
   private void importWallet() throws CipherException, IOException {
+    System.out.println("((Note:This operation will overwrite the old keystore file  and mnemonic file of the same address)");
+    System.out.println("Please make sure to back up the old keystore files in the Wallet/Mnemonic directory if it is still needed!");
+
     char[] password = Utils.inputPassword2Twice();
     byte[] priKey = inputPrivateKey();
 
-    String fileName = walletApiWrapper.importWallet(password, priKey);
+    String fileName = walletApiWrapper.importWallet(password, priKey, null);
     StringUtils.clear(password);
     StringUtils.clear(priKey);
 
@@ -437,14 +556,42 @@ public class Client {
       System.out.println("Import wallet failed !!");
       return;
     }
-    System.out.println("Import a wallet successful, keystore file name is " + fileName);
+    System.out.println("Import a wallet successful, keystore file : ."
+        + File.separator + "Wallet" + File.separator
+        + fileName);
+  }
+
+  private void importWalletByMnemonic() throws CipherException, IOException {
+    System.out.println("((Note:This operation will overwrite the old keystore file  and mnemonic file of the same address)");
+    System.out.println("Please make sure to back up the old keystore files in the Wallet/Mnemonic directory if it is still needed!");
+
+    char[] password = Utils.inputPassword2Twice();
+    List<String> mnemonicWords = inputMnemonicWords();
+
+    byte[] priKey = MnemonicUtils.getPrivateKeyFromMnemonic(mnemonicWords);
+
+    String fileName = walletApiWrapper.importWallet(password, priKey, mnemonicWords);
+    mnemonicWords.clear();
+    StringUtils.clear(password);
+    StringUtils.clear(priKey);
+
+    if (null == fileName) {
+      System.out.println("Import wallet failed !!");
+      return;
+    }
+    System.out.println("Import a wallet successful, keystore file : ."
+        + File.separator + "Wallet" + File.separator
+        + fileName);
   }
 
   private void importWalletByBase64() throws CipherException, IOException {
+    System.out.println("((Note:This operation will overwrite the old keystore file  and mnemonic file of the same address)");
+    System.out.println("Please make sure to back up the old keystore files in the Wallet/Mnemonic directory if it is still needed!");
+
     char[] password = Utils.inputPassword2Twice();
     byte[] priKey = inputPrivateKey64();
 
-    String fileName = walletApiWrapper.importWallet(password, priKey);
+    String fileName = walletApiWrapper.importWallet(password, priKey, null);
     StringUtils.clear(password);
     StringUtils.clear(priKey);
 
@@ -452,7 +599,9 @@ public class Client {
       System.out.println("Import wallet failed !!");
       return;
     }
-    System.out.println("Import a wallet successful, keystore file name is " + fileName);
+    System.out.println("Import a wallet successful, keystore file : ."
+        + File.separator + "Wallet" + File.separator
+        + fileName);
   }
 
   private void changePassword() throws IOException, CipherException {
@@ -516,6 +665,39 @@ public class Client {
       System.out.println("\n");
       StringUtils.clear(priKey64);
     }
+  }
+
+  private void exportWalletMnemonic() throws IOException, CipherException {
+    byte[] mnemonic = walletApiWrapper.exportWalletMnemonic();
+    char[] mnemonicChars = bytesToChars(mnemonic);
+    if (!ArrayUtils.isEmpty(mnemonic)) {
+      System.out.println("exportWalletMnemonic successful !!");
+      outputMnemonicChars(mnemonicChars);
+      System.out.println("\n");
+    } else {
+      System.out.println("exportWalletMnemonic failed !!");
+    }
+    StringUtils.clear(mnemonic);
+    clearChars(mnemonicChars);
+  }
+
+  private char[] bytesToChars(byte[] bytes) {
+    char[] chars = new char[bytes.length];
+    for (int i = 0; i < bytes.length; i++) {
+      chars[i] = (char) (bytes[i] & 0xFF);
+    }
+    return chars;
+  }
+
+  private void outputMnemonicChars(char[] mnemonic) {
+    for (char c : mnemonic) {
+      System.out.print(c);
+    }
+    System.out.println();
+  }
+
+  private void clearChars(char[] mnemonic) {
+    Arrays.fill(mnemonic, '\0');
   }
 
   private void getAddress() {
@@ -2302,7 +2484,7 @@ public class Client {
     } else {
       num = Long.parseLong(parameters[0]);
     }
-    if (WalletApi.getRpcVersion() == 2) {
+    if (WalletApi.getRpcVersion() == 2 || WalletApi.getRpcVersion() == 3) {
       Optional<BlockListExtention> result = WalletApi.getBlockByLatestNum2(num);
       if (result.isPresent()) {
         BlockListExtention blockList = result.get();
@@ -2510,7 +2692,7 @@ public class Client {
     }
 
     long blockNum = Long.parseLong(parameters[0]);
-    Optional<TransactionInfoList> result = walletApiWrapper.getTransactionInfoByBlockNum(blockNum);
+    Optional<TransactionInfoList> result = WalletApiWrapper.getTransactionInfoByBlockNum(blockNum);
 
     if (result.isPresent()) {
       TransactionInfoList transactionInfoList = result.get();
@@ -4429,6 +4611,10 @@ public class Client {
               importWallet();
               break;
             }
+            case "importwalletbymnemonic": {
+              importWalletByMnemonic();
+              break;
+            }
             case "importwalletbybase64": {
               importWalletByBase64();
               break;
@@ -4471,6 +4657,10 @@ public class Client {
             }
             case "backupwallet2base64": {
               backupWallet2Base64();
+              break;
+            }
+            case "exportwalletmnemonic": {
+              exportWalletMnemonic();
               break;
             }
             case "getaddress": {
