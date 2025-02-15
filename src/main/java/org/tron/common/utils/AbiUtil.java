@@ -419,15 +419,7 @@ public class AbiUtil {
     System.out.println(parseMethod(byteMethod1, bytesValue1));
   }
 
-  public static String generateOccupationConstantPrivateKey() {
-    StringBuilder privateKey = new StringBuilder();
-    String baseKey = "1234567890";
-    for (int i = 0; i < 6; i++) {
-      privateKey.append(baseKey);
-    }
-    privateKey.append("1234");
-    return privateKey.toString();
-  }
+
 
 
 }

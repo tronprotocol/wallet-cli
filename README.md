@@ -100,8 +100,7 @@ For more information on a specific command, just type the command on terminal wh
 | [WithdrawExpireUnfreeze](#How-to-freezev2) | [CancelAllUnfreezeV2](#How-to-freezev2) |[GetDelegatedResourceV2](#How-to-freezev2) | 
 | [GetDelegatedResourceAccountIndexV2](#How-to-freezev2) | [GetCanDelegatedMaxSize](#How-to-freezev2) | [GetAvailableUnfreezeCount](#How-to-freezev2) |
 | [GetCanWithdrawUnfreezeAmount](#How-to-freezev2) |[GetBandwidthPrices](#Get-resource-prices-and-memo-fee) | [GetEnergyPrices](#Get-resource-prices-and-memo-fee)|
-| [GetMemoFee](#Get-resource-prices-and-memo-fee) |[ImportWalletByMnemonic](#import-and-export-mnemonic) | [ExportWalletMnemonic](#import-and-export-mnemonic) |
-
+| [GetMemoFee](#Get-resource-prices-and-memo-fee) |||
 
 Type any one of the listed commands, to display how-to tips.
 
@@ -585,8 +584,8 @@ GetProposal
 
 ## How to trade on the exchange
 
-The trading and price fluctuations of trading pairs are in accordance with the Bancor Agreement,
-which can be found in TRON's [related documents](https://tronprotocol.github.io/documentation-en/clients/wallet-cli-command/#dex).
+The trading and price fluctuations of trading pairs are in accordance with the [Bancor Agreement](https://storage.googleapis.com/website-bancor/2018/04/01ba8253-bancor_protocol_whitepaper_en.pdf),
+which can be found in TRON's [related documents](https://developers.tron.network/docs/tronscan-dex).
 
 ### Create a trading pair
 
@@ -1507,32 +1506,6 @@ wallet> getMemoFee
     "prices": "0:0,1675492680000:1000000"
 }
 ```
-## import and export mnemonic
-    >ImportWalletByMnemonic
->Import wallet, you need to set a password, mnemonic
-
-Example:
-```console
-wallet> ImportWalletByMnemonic
-Please input password.
-password:
-Please input password again.
-password:
-Please enter 12 words (separated by spaces) [Attempt 1/3]:
-```
-
-    >ExportWalletMnemonic
->export mnemonic of the address in the wallet
-
-Example:
-```console
-wallet> ExportWalletMnemonic
-Please input your password.
-password:
-exportWalletMnemonic successful !!
-a*ert tw*st co*rect mat*er pa*s g*ther p*t p*sition s*op em*ty coc*nut aband*n
-```
-
 
 
 ## Wallet related commands
