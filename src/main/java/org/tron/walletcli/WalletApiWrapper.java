@@ -59,14 +59,14 @@ public class WalletApiWrapper {
   private WalletApi wallet;
   private static final String MnemonicFilePath = "Mnemonic";
 
-  public String registerWallet(char[] password) throws CipherException, IOException {
+  public String registerWallet(char[] password, int wordsNumber) throws CipherException, IOException {
     if (!WalletApi.passwordValid(password)) {
       return null;
     }
 
     byte[] passwd = StringUtils.char2Byte(password);
 
-    WalletFile walletFile = WalletApi.CreateWalletFile(passwd);
+    WalletFile walletFile = WalletApi.CreateWalletFile(passwd, wordsNumber);
     StringUtils.clear(passwd);
 
     String keystoreName = WalletApi.store2Keystore(walletFile);

@@ -3,6 +3,10 @@ package org.tron.mnemonic;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.jline.reader.LineReader;
+import org.jline.reader.LineReaderBuilder;
+import org.jline.terminal.Terminal;
+import org.jline.terminal.TerminalBuilder;
 import org.tron.common.crypto.SignInterface;
 import org.tron.common.utils.ByteArray;
 import org.tron.core.exception.CipherException;
@@ -23,6 +27,14 @@ import java.util.List;
 
 public class MnemonicUtils {
   private static final String FilePath = "Mnemonic";
+  private static final int MNEMONIC_WORDS_LENGTH_12 = 12;
+  private static final int MNEMONIC_WORDS_LENGTH_24 = 24;
+  private static final int INVALID_INPUT_LENGTH = 0;
+  private static final String MNEMONIC_WORDS_LENGTH_12_STR = "12";
+  private static final String MNEMONIC_WORDS_LENGTH_24_STR = "24";
+  private static final int ENTROPY_LENGTH_12_WORDS = 16; // 128 bit
+  private static final int ENTROPY_LENGTH_24_WORDS = 32; // 256 bit
+
   private static final ObjectMapper objectMapper = new ObjectMapper();
 
   static {
@@ -30,8 +42,10 @@ public class MnemonicUtils {
     objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
   }
 
-  public static List<String> generateMnemonic(SecureRandom secureRandom) {
-    byte[] entropy = new byte[16];
+  public static List<String> generateMnemonic(SecureRandom secureRandom, int wordsNumber) {
+    int entropyLength =
+        (wordsNumber == MNEMONIC_WORDS_LENGTH_12) ? ENTROPY_LENGTH_12_WORDS : ENTROPY_LENGTH_24_WORDS;
+    byte[] entropy = new byte[entropyLength];
     secureRandom.nextBytes(entropy);
     String mnemonicStr = org.web3j.crypto.MnemonicUtils.generateMnemonic(entropy);
     return stringToMnemonicWords(mnemonicStr);
@@ -135,4 +149,41 @@ public class MnemonicUtils {
 
     objectMapper.writeValue(source, mnemonicFile);
   }
+
+  public static int inputMnemonicWordsNumber() {
+    try {
+      Terminal terminal = TerminalBuilder.builder().system(true).build();
+      LineReader lineReader = LineReaderBuilder.builder().terminal(terminal).build();
+      int attempts = 0;
+      final int maxAttempts = 3;
+
+      while (attempts < maxAttempts) {
+        String prompt = "Please enter the number of mnemonic words \n" +
+            "\tDefault: 12 mnemonic words, \n" +
+            "\tEnter 24 to use 24 mnemonic words\n" +
+            "\tPress Enter to use the default (12). \n" +
+            "\tValid inputs are \"12\" or \"24\")\n\n";
+        String input = lineReader.readLine(prompt).trim();
+        if (input.isEmpty() || MNEMONIC_WORDS_LENGTH_12_STR.equals(input)) {
+          return MNEMONIC_WORDS_LENGTH_12;
+        } else if (MNEMONIC_WORDS_LENGTH_24_STR.equals(input)) {
+          return MNEMONIC_WORDS_LENGTH_24;
+        } else {
+          attempts++;
+          System.out.println("Invalid input\n"
+              + "Please ensure that the value entered is valid (12 or 24).\n" +
+              "You have " + (maxAttempts - attempts) + " attempts left\n");
+        }
+      }
+      return INVALID_INPUT_LENGTH;
+    } catch (Exception e) {
+      System.err.println("Input error: " + e.getMessage() + "\n" +
+          "Please ensure that the value entered is valid (12 or 24)");
+      return INVALID_INPUT_LENGTH;
+    }
+  }
+  public static boolean inputMnemonicWordsNumberCheck(int wordsNumber) {
+    return wordsNumber == MNEMONIC_WORDS_LENGTH_12 || wordsNumber == MNEMONIC_WORDS_LENGTH_24;
+  }
+
 }

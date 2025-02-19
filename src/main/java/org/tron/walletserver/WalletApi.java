@@ -250,10 +250,10 @@ public class WalletApi {
   /**
    * Creates a new WalletApi with a random ECKey or no ECKey.
    */
-  public static WalletFile CreateWalletFile(byte[] password) throws CipherException, IOException {
+  public static WalletFile CreateWalletFile(byte[] password, int wordsNumber) throws CipherException, IOException {
     WalletFile walletFile = null;
     SecureRandom secureRandom = Utils.getRandom();
-    List<String> mnemonicWords = MnemonicUtils.generateMnemonic(secureRandom);
+    List<String> mnemonicWords = MnemonicUtils.generateMnemonic(secureRandom, wordsNumber);
     //System.out.println("generateMnemonic words:" + StringUtils.join(mnemonicWords, " "));
     byte[] priKey = MnemonicUtils.getPrivateKeyFromMnemonic(mnemonicWords);
 

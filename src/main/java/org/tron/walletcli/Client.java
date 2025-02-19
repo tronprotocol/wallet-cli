@@ -411,14 +411,15 @@ public class Client {
   }
 
   private static List<String> readWordsWithRetry() {
-    int REQUIRED_WORDS = 12;
+    int REQUIRED_WORDS_12 = 12;
+    int REQUIRED_WORDS_24 = 24;
     int MAX_RETRY = 2;
 
     int retryCount = 0;
     while (retryCount <= MAX_RETRY) {
       try {
-        System.out.printf("%nPlease enter %d words (separated by spaces) [Attempt %d/%d]:%n",
-            REQUIRED_WORDS, retryCount + 1, MAX_RETRY + 1);
+        System.out.printf("%nPlease enter 12 or 24 words (separated by spaces) [Attempt %d/%d]:%n",
+            retryCount + 1, MAX_RETRY + 1);
         String line = readLine();
         if (line.isEmpty()) {
           System.err.println("Error: Input cannot be empty.");
@@ -426,9 +427,9 @@ public class Client {
           continue;
         }
         String[] wordArray = line.split("\\s+");
-        if (wordArray.length != REQUIRED_WORDS) {
-          System.err.printf("Error: Expected %d words, but %d words were entered.",
-              REQUIRED_WORDS, wordArray.length);
+        if (wordArray.length != REQUIRED_WORDS_12 && wordArray.length != REQUIRED_WORDS_24) {
+          System.err.printf("Error: Expected 12 or 24 words, but %d words were entered.",
+              wordArray.length);
           retryCount++;
           continue;
         }
@@ -527,7 +528,11 @@ public class Client {
 
   private void registerWallet() throws CipherException, IOException {
     char[] password = Utils.inputPassword2Twice();
-    String fileName = walletApiWrapper.registerWallet(password);
+    int wordsNumber = MnemonicUtils.inputMnemonicWordsNumber();
+    if (!MnemonicUtils.inputMnemonicWordsNumberCheck(wordsNumber)) {
+      return ;
+    }
+    String fileName = walletApiWrapper.registerWallet(password, wordsNumber);
     StringUtils.clear(password);
 
     if (null == fileName) {
