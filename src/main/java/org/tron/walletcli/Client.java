@@ -91,6 +91,7 @@ public class Client {
       "CancelAllUnfreezeV2",
       "ChangePassword",
       "ClearContractABI",
+      "ClearWalletKeystore",
       "Create2",
       "CreateAccount",
       "CreateProposal",
@@ -239,6 +240,7 @@ public class Client {
       "CancelAllUnfreezeV2",
       "ChangePassword",
       "ClearContractABI",
+      "ClearWalletKeystore",
       "Create2",
       "CreateAccount",
       "CreateProposal",
@@ -2618,6 +2620,14 @@ public class Client {
     }
   }
 
+  private void clearWalletKeystoreIfExists() {
+    if (walletApiWrapper.clearWalletKeystore()) {
+      System.out.println("ClearWalletKeystore successful !!!");
+    } else {
+      System.out.println("ClearWalletKeystore failed !!!");
+    }
+  }
+
   private void updateBrokerage(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length != 2) {
@@ -4625,6 +4635,10 @@ public class Client {
             }
             case "clearcontractabi": {
               clearContractABI(parameters);
+              break;
+            }
+            case "clearwalletkeystore": {
+              clearWalletKeystoreIfExists();
               break;
             }
             case "updatebrokerage": {

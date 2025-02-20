@@ -774,6 +774,19 @@ public class WalletApiWrapper {
     return wallet.clearContractABI(ownerAddress, contractAddress);
   }
 
+  public boolean clearWalletKeystore() {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: clearWalletKeystore failed,  Please login first !!");
+      return false;
+    }
+    boolean clearWalletKeystoreRet =  wallet.clearWalletKeystore();
+    if (clearWalletKeystoreRet) {
+      logout();
+    }
+    return clearWalletKeystoreRet;
+  }
+
+
   public boolean deployContract(byte[] ownerAddress, String name, String abiStr, String codeStr,
       long feeLimit, long value, long consumeUserResourcePercent, long originEnergyLimit,
       long tokenValue, String tokenId, String libraryAddressPair, String compilerVersion)
