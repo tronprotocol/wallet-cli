@@ -32,6 +32,7 @@ import org.tron.common.utils.AbiUtil;
 import org.tron.common.utils.Base58;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.ByteUtil;
+import org.tron.common.utils.PathUtil;
 import org.tron.common.utils.Utils;
 import org.tron.common.zksnark.JLibrustzcash;
 import org.tron.common.zksnark.LibrustzcashParam;
@@ -51,6 +52,9 @@ import org.tron.core.zen.address.KeyIo;
 import org.tron.core.zen.address.PaymentAddress;
 import org.tron.core.zen.address.SpendingKey;
 import org.tron.keystore.StringUtils;
+import org.tron.keystore.Wallet;
+import org.tron.keystore.WalletFile;
+import org.tron.keystore.WalletUtils;
 import org.tron.mnemonic.MnemonicUtils;
 import org.tron.protos.Protocol.MarketOrder;
 import org.tron.protos.Protocol.MarketOrderList;
@@ -87,6 +91,8 @@ public class Client {
       "BackupWallet",
       "BackupWallet2Base64",
       "ExportWalletMnemonic",
+      "ExportWalletKeystore",
+      "ImportWalletByKeystore",
       "BroadcastTransaction",
       "CancelAllUnfreezeV2",
       "ChangePassword",
@@ -235,6 +241,8 @@ public class Client {
       "BackupWallet",
       "BackupWallet2Base64",
       "ExportWalletMnemonic",
+      "ExportWalletKeystore",
+      "ImportWalletByKeystore",
       "BroadcastTransaction",
       "CancelAllUnfreezeV2",
       "ChangePassword",
@@ -679,6 +687,55 @@ public class Client {
     }
     StringUtils.clear(mnemonic);
     clearChars(mnemonicChars);
+  }
+
+  private void exportWalletKeystore(String[] parameters) throws CipherException, IOException {
+    if (parameters.length < 2) {
+      System.out.println("exportWalletKeystore failed, parameters error !!");
+      return;
+    }
+
+    String walletChannel = parameters[0];
+    if (!walletChannel.equalsIgnoreCase("tronlink")) {
+      System.out.println("exportWalletKeystore failed, walletChannel error !!");
+    }
+    String walletExportPath = parameters[1];
+
+    System.out.println("walletChannel = " + walletChannel);
+    System.out.println("walletExportPath = " + walletExportPath);
+
+    boolean result = walletApiWrapper.exportKeystore(walletChannel, walletExportPath);
+    if (result) {
+      System.out.println("exportWalletKeystore successful !!");
+    } else {
+      System.out.println("exportWalletKeystore failed !!");
+    }
+  }
+
+  private void importWalletByKeystore(String[] parameters) throws CipherException, IOException {
+    if (parameters.length < 2) {
+      System.out.println("importWalletByKeystore failed, parameters error !!");
+      return;
+    }
+
+    String walletChannel = parameters[0];
+    if (!walletChannel.equalsIgnoreCase("tronlink")) {
+      System.out.println("importWalletByKeystore failed, walletChannel error !!");
+    }
+    String walletImportPath = parameters[1];
+
+    System.out.println("walletChannel = " + walletChannel);
+    System.out.println("walletImportPath = " + walletImportPath);
+
+    char[] password = Utils.inputPassword2Twice();
+
+    String fileName = walletApiWrapper.importWalletByKeystore(password, walletImportPath);
+    if (fileName != null) {
+      System.out.println("fileName = " + fileName);
+      System.out.println("importWalletByKeystore successful !!");
+    } else {
+      System.out.println("importWalletByKeystore failed !!");
+    }
   }
 
   private char[] bytesToChars(byte[] bytes) {
@@ -4661,6 +4718,14 @@ public class Client {
             }
             case "exportwalletmnemonic": {
               exportWalletMnemonic();
+              break;
+            }
+            case "exportwalletkeystore": {
+              exportWalletKeystore(parameters);
+              break;
+            }
+            case "importwalletbykeystore": {
+              importWalletByKeystore(parameters);
               break;
             }
             case "getaddress": {

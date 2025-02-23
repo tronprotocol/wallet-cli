@@ -14,6 +14,7 @@ import org.tron.api.GrpcAPI.*;
 import org.tron.common.utils.AbiUtil;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.ByteUtil;
+import org.tron.common.utils.PathUtil;
 import org.tron.common.utils.Utils;
 import org.tron.core.exception.CancelException;
 import org.tron.core.exception.CipherException;
@@ -29,6 +30,7 @@ import org.tron.core.zen.address.ExpandedSpendingKey;
 import org.tron.core.zen.address.FullViewingKey;
 import org.tron.core.zen.address.SpendingKey;
 import org.tron.keystore.StringUtils;
+import org.tron.keystore.Wallet;
 import org.tron.keystore.WalletFile;
 import org.tron.keystore.WalletUtils;
 import org.tron.mnemonic.MnemonicUtils;
@@ -185,6 +187,41 @@ public class WalletApiWrapper {
 
     //2.export mnemonic words
     return MnemonicUtils.exportMnemonic(passwd, getAddress());
+  }
+
+  public boolean exportKeystore(String walletChannel, String walletExportPath)
+      throws IOException, CipherException {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: ExportKeystore failed,  Please login first !!");
+      return false;
+    }
+
+    //1.input password
+    System.out.println("Please input your password.");
+    char[] password = Utils.inputPassword(false);
+    byte[] passwd = StringUtils.char2Byte(password);
+    wallet.checkPassword(passwd);
+    StringUtils.clear(password);
+
+    boolean bRet = wallet.exportKeystore(walletChannel, walletExportPath);
+    return bRet;
+  }
+
+  public String importWalletByKeystore(char[] password, String walletImportPath)
+      throws IOException, CipherException {
+    String importFilePath = PathUtil.toAbsolutePath(walletImportPath);
+    File importFile = new File(importFilePath);
+    if (!importFile.exists()) {
+      System.out.println("importWalletByKeystore failed, keystore file not exists !!");
+      return "";
+    }
+
+    WalletFile walletFile = WalletUtils.loadWalletFile(importFile);
+    byte[] passwdByte = StringUtils.char2Byte(password);
+    byte[] priKey = Wallet.decrypt2PrivateBytes(passwdByte, walletFile);
+    String fileName = importWallet(password, priKey, null);
+
+    return fileName;
   }
 
   public String getAddress() {

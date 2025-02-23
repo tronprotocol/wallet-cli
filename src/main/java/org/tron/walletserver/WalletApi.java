@@ -86,6 +86,7 @@ import org.tron.common.crypto.SignInterface;
 import org.tron.common.crypto.sm2.SM2;
 import org.tron.common.utils.Base58;
 import org.tron.common.utils.ByteArray;
+import org.tron.common.utils.PathUtil;
 import org.tron.common.utils.TransactionUtils;
 import org.tron.common.utils.Utils;
 import org.tron.common.zksnark.JLibrustzcash;
@@ -340,6 +341,27 @@ public class WalletApi {
     return Wallet.decrypt2PrivateBytes(password, walletFile);
   }
 
+  public boolean exportKeystore(String walletChannel, String walletExportPath) throws IOException {
+    WalletFile walletFile = loadWalletFile();
+    String exportFilePath = PathUtil.toAbsolutePath(walletExportPath);
+    File exportFile = new File(exportFilePath);
+
+    String walletHexAddress = getHexAddress(walletFile.getAddress());
+    walletFile.setAddress(walletHexAddress);
+
+    WalletUtils.exportWalletFile(walletFile, exportFile);
+    return true;
+  }
+
+  public boolean importKeystore(String walletChannel, String walletImportPath) throws IOException {
+    String importFilePath = PathUtil.toAbsolutePath(walletImportPath);
+    File importFile = new File(importFilePath);
+
+    //WalletFile walletFile =
+    //WalletUtils.importWalletFile(walletFile, importFile);
+    return true;
+  }
+
   public byte[] getAddress() {
     return address;
   }
@@ -370,6 +392,31 @@ public class WalletApi {
     }
     return WalletUtils.generateWalletFile(walletFile, file);
   }
+
+  public static String exportKeystore(WalletFile walletFile, String filePath) throws IOException {
+    if (walletFile == null) {
+      System.out.println("Warning: export wallet failed, walletFile is null !!");
+      return null;
+    }
+    File file = new File(filePath);
+    if (!file.exists()) {
+      if (!file.mkdir()) {
+        throw new IOException("Make directory failed!");
+      }
+    } else {
+      if (!file.isDirectory()) {
+        if (file.delete()) {
+          if (!file.mkdir()) {
+            throw new IOException("Make directory failed!");
+          }
+        } else {
+          throw new IOException("File exists and can not be deleted!");
+        }
+      }
+    }
+    return WalletUtils.exportWalletFile(walletFile, file);
+  }
+
 
   public static File selcetWalletFile() {
     File file = new File(FilePath);
@@ -1144,6 +1191,15 @@ public class WalletApi {
       return null;
     }
     return address;
+  }
+
+  public static String getHexAddress(final String address) {
+    if (address != null) {
+      byte[] addressByte = decodeFromBase58Check(address);
+      return ByteArray.toHexString(addressByte);
+    } else {
+      return null;
+    }
   }
 
   public static boolean priKeyValid(byte[] priKey) {
