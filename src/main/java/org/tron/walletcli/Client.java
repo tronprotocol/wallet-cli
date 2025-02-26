@@ -51,6 +51,8 @@ import org.tron.core.zen.address.KeyIo;
 import org.tron.core.zen.address.PaymentAddress;
 import org.tron.core.zen.address.SpendingKey;
 import org.tron.keystore.StringUtils;
+import org.tron.ledger.LedgerConstant;
+import org.tron.ledger.TronLedgerGetAddress;
 import org.tron.mnemonic.MnemonicUtils;
 import org.tron.protos.Protocol.MarketOrder;
 import org.tron.protos.Protocol.MarketOrderList;
@@ -70,6 +72,7 @@ import org.tron.protos.contract.SmartContractOuterClass.SmartContractDataWrapper
 import org.tron.walletserver.WalletApi;
 import org.tron.protos.contract.Common.ResourceCode;
 
+import static org.tron.ledger.LedgerConstant.DEFAULT_PATH;
 
 
 public class Client {
@@ -166,6 +169,7 @@ public class Client {
       // "ImportShieldedWallet",
       "ImportWallet",
       "ImportWalletByMnemonic",
+      "ImportWalletByLedger",
       "ImportWalletByBase64",
       "ListAssetIssue",
       "ListAssetIssuePaginated",
@@ -315,6 +319,7 @@ public class Client {
       // "ImportShieldedWallet",
       "ImportWallet",
       "ImportWalletByMnemonic",
+      "ImportWalletByLedger",
       "ImportWalletByBase64",
       "ListAssetIssue",
       "ListAssetIssuePaginated",
@@ -580,6 +585,46 @@ public class Client {
       return;
     }
     System.out.println("Import a wallet successful, keystore file : ."
+        + File.separator + "Wallet" + File.separator
+        + fileName);
+  }
+
+  private void importWalletByLedger() throws CipherException, IOException {
+    System.out.println("((Note:This is importWalletByLedger tips)");
+
+    if (TronLedgerGetAddress.getInstance().getConnectedDevice() == null) {
+      System.out.println("No Ledger device found");
+      return ;
+    }
+
+    char[] password = Utils.inputPassword2Twice();
+
+    String defaultAddress = "";
+    TronLedgerGetAddress tronLedgerGetAddress = TronLedgerGetAddress.getInstance();
+    try {
+      tronLedgerGetAddress.connect();
+      defaultAddress = tronLedgerGetAddress.getTronAddressByPath(DEFAULT_PATH);
+    } catch (Exception e) {
+      e.printStackTrace();
+    } finally {
+      tronLedgerGetAddress.close();
+    }
+
+    if (org.apache.commons.lang3.StringUtils.isEmpty(defaultAddress)) {
+      System.out.println("Get address from ledger failed !!");
+      return ;
+    }
+
+    String fileName = walletApiWrapper.importWalletByLedger(password,
+        defaultAddress,
+        tronLedgerGetAddress.getDevice());
+    if (null == fileName) {
+      System.out.println("Import wallet by ledger failed !!");
+      return;
+    }
+    StringUtils.clear(password);
+
+    System.out.println("Import a wallet by ledger successful, keystore file : ."
         + File.separator + "Wallet" + File.separator
         + fileName);
   }
@@ -4613,6 +4658,10 @@ public class Client {
             }
             case "importwalletbymnemonic": {
               importWalletByMnemonic();
+              break;
+            }
+            case "importwalletbyledger": {
+              importWalletByLedger();
               break;
             }
             case "importwalletbybase64": {

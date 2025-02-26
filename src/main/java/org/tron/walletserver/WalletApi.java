@@ -17,6 +17,7 @@ import java.io.UnsupportedEncodingException;
 import java.nio.file.Paths;
 import java.security.SecureRandom;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -26,6 +27,9 @@ import java.util.Optional;
 import java.util.Scanner;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -96,6 +100,8 @@ import org.tron.core.exception.CancelException;
 import org.tron.core.exception.CipherException;
 import org.tron.keystore.CheckStrength;
 import org.tron.keystore.Credentials;
+import org.tron.ledger.CommonUtil;
+import org.tron.ledger.LedgerSignUtil;
 import org.tron.mnemonic.Mnemonic;
 import org.tron.mnemonic.MnemonicFile;
 import org.tron.mnemonic.MnemonicUtils;
@@ -162,6 +168,8 @@ import org.tron.protos.contract.WitnessContract.VoteWitnessContract;
 import org.tron.protos.contract.WitnessContract.WitnessCreateContract;
 import org.tron.protos.contract.WitnessContract.WitnessUpdateContract;
 
+import static org.tron.ledger.LedgerConstant.LEDGER_SIGN_CANCEL;
+
 @Slf4j
 public class WalletApi {
 
@@ -173,6 +181,9 @@ public class WalletApi {
   private static byte addressPreFixByte = CommonConstant.ADD_PRE_FIX_BYTE_TESTNET;
   private static int rpcVersion = 0;
   private static boolean isEckey = true;
+  @Getter
+  @Setter
+  private boolean isLedgerUser = false;
 
   private static GrpcClient rpcCli = init();
 
@@ -267,6 +278,17 @@ public class WalletApi {
       storeMnemonicWords(password, sm2, mnemonicWords);
     }
 
+    return walletFile;
+  }
+
+  public static WalletFile CreateLedgerWalletFile(byte[] password
+      , String address, String uniqLedgerId) throws CipherException, IOException {
+    WalletFile walletFile = null;
+    if (isEckey) {
+      walletFile = Wallet.createStandardLedger(password, address, uniqLedgerId);
+    } else {
+      walletFile = Wallet.createStandardLedger(password, address, uniqLedgerId);
+    }
     return walletFile;
   }
 
@@ -369,6 +391,30 @@ public class WalletApi {
       }
     }
     return WalletUtils.generateWalletFile(walletFile, file);
+  }
+
+  public static String store2KeystoreLedger(WalletFile walletFile) throws IOException {
+    if (walletFile == null) {
+      System.out.println("Warning: Store wallet failed, walletFile is null !!");
+      return null;
+    }
+    File file = new File(FilePath);
+    if (!file.exists()) {
+      if (!file.mkdir()) {
+        throw new IOException("Make directory failed!");
+      }
+    } else {
+      if (!file.isDirectory()) {
+        if (file.delete()) {
+          if (!file.mkdir()) {
+            throw new IOException("Make directory failed!");
+          }
+        } else {
+          throw new IOException("File exists and can not be deleted!");
+        }
+      }
+    }
+    return WalletUtils.generateLegerWalletFile(walletFile, file);
   }
 
   public static File selcetWalletFile() {
@@ -555,18 +601,30 @@ public class WalletApi {
         + "default 0, other non-numeric characters will cancel transaction.";
     transaction = TransactionUtils.setPermissionId(transaction, tipsString);
     while (true) {
-      System.out.println("Please choose your key for sign.");
-      WalletFile walletFile = selcetWalletFileE();
-      System.out.println("Please input your password.");
-      char[] password = Utils.inputPassword(false);
-      byte[] passwd = org.tron.keystore.StringUtils.char2Byte(password);
-      org.tron.keystore.StringUtils.clear(password);
-      if (isEckey) {
-        transaction = TransactionUtils.sign(transaction, this.getEcKey(walletFile, passwd));
+      if (!isLedgerUser) {
+        System.out.println("Please choose your key for sign.");
+        WalletFile walletFile = selcetWalletFileE();
+        System.out.println("Please input your password.");
+        char[] password = Utils.inputPassword(false);
+        byte[] passwd = org.tron.keystore.StringUtils.char2Byte(password);
+        org.tron.keystore.StringUtils.clear(password);
+        if (isEckey) {
+          transaction = TransactionUtils.sign(transaction, this.getEcKey(walletFile, passwd));
+        } else {
+          transaction = TransactionUtils.sign(transaction, this.getSM2(walletFile, passwd));
+        }
+        org.tron.keystore.StringUtils.clear(passwd);
       } else {
-        transaction = TransactionUtils.sign(transaction, this.getSM2(walletFile, passwd));
+        System.out.println("Please verify the transaction details on the Ledger and confirm the signature.\n");
+        byte[] signResult =  LedgerSignUtil.reuqestLedgerSign(transaction);
+        if (LEDGER_SIGN_CANCEL.equalsIgnoreCase(CommonUtil.bytesToHex(signResult))) {
+          System.out.println("Ledger sign canceled");
+          break;
+        } else {
+          byte[] signature = Arrays.copyOfRange(signResult, 0, 65);
+          transaction = LedgerSignUtil.addSign(transaction, signature);
+        }
       }
-      org.tron.keystore.StringUtils.clear(passwd);
 
       TransactionSignWeight weight = getTransactionSignWeight(transaction);
       if (weight.getResult().getCode() == response_code.ENOUGH_PERMISSION) {

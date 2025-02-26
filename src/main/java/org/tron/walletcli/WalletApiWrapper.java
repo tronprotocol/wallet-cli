@@ -9,6 +9,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import lombok.extern.slf4j.Slf4j;
 import org.bouncycastle.util.encoders.Hex;
+import org.hid4java.HidDevice;
+import org.jline.reader.LineReader;
+import org.jline.reader.LineReaderBuilder;
+import org.jline.terminal.Terminal;
+import org.jline.terminal.TerminalBuilder;
 import org.tron.api.GrpcAPI;
 import org.tron.api.GrpcAPI.*;
 import org.tron.common.utils.AbiUtil;
@@ -95,6 +100,84 @@ public class WalletApiWrapper {
     return keystoreName;
   }
 
+  public String importWalletByLedger(char[] password
+      , String defaultAddress
+      , HidDevice device) throws CipherException {
+    if (!WalletApi.passwordValid(password)) {
+      return null;
+    }
+    String walletFileName = "";
+    String importAddress = defaultAddress;
+    byte[] passwd = StringUtils.char2Byte(password);
+
+    try {
+      Terminal terminal = TerminalBuilder.builder().system(true).build();
+      LineReader lineReader = LineReaderBuilder.builder().terminal(terminal).build();
+
+      String choice;
+      while (true) {
+        String[] options = {
+            "1. Import Account",
+            "2. Change Path",
+            "3. Custom Path"
+        };
+
+        for (String option : options) {
+          System.out.println(option);
+        }
+
+        choice = lineReader.readLine("Select an option: ").trim();
+        switch (choice) {
+          case "1":
+            System.out.println("You selected: Import Account, address: " + importAddress);
+            walletFileName = doImportAccount(password, importAddress, device);
+            break;
+          case "2":
+            System.out.println("You selected: Change Path");
+            importAddress = doChangeAccount(password, defaultAddress);
+            continue;
+          case "3":
+            System.out.println("You selected: Custom Path");
+            importAddress = doCustomPath(password, defaultAddress);
+            continue;
+          case "q":
+            break;
+          default:
+            System.out.println("Invalid option. Please select 1, 2, 3 or q.");
+            continue;
+        }
+        if (choice.equalsIgnoreCase("1")||choice.equalsIgnoreCase("q")) {
+          break;
+        }
+      }
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
+
+    StringUtils.clear(passwd);
+    return walletFileName;
+  }
+
+
+  public String doImportAccount(char[] password
+      , String address, HidDevice device) throws CipherException, IOException {
+    String uniqLedgerId = device.getVendorId() + device.getProductId()
+        + device.getSerialNumber() + device.getReleaseNumber();
+    byte[] passwdByte = StringUtils.char2Byte(password);
+    WalletFile walletLedgerFile = WalletApi.CreateLedgerWalletFile(passwdByte, address, uniqLedgerId);
+    String keystoreName = WalletApi.store2KeystoreLedger(walletLedgerFile);
+    loginLedger(walletLedgerFile);
+    return keystoreName;
+  }
+
+  public String doChangeAccount(char[] password, String address) {
+    return "";
+  }
+
+  public String doCustomPath(char[] password, String address) {
+    return "";
+  }
+
   public boolean changePassword(char[] oldPassword, char[] newPassword)
       throws IOException, CipherException {
     logout();
@@ -139,6 +222,19 @@ public class WalletApiWrapper {
     wallet.setLogin();
     return true;
   }
+
+  public boolean loginLedger(WalletFile walletLedgerFile) throws IOException, CipherException {
+    logout();
+    wallet = new WalletApi(walletLedgerFile);
+    if (wallet == null) {
+      System.out.println("Warning: Login failed");
+      return false;
+    }
+    wallet.setLedgerUser(true);
+    wallet.setLogin();
+    return true;
+  }
+
 
   public void logout() {
     if (wallet != null) {

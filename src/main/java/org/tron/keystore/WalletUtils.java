@@ -109,6 +109,15 @@ public class WalletUtils {
     return fileName;
   }
 
+  public static String generateLegerWalletFile(WalletFile walletFile, File destinationDirectory)
+      throws IOException {
+    String fileName = getLegerWalletFileName(walletFile);
+    File destination = new File(destinationDirectory, fileName);
+
+    objectMapper.writeValue(destination, walletFile);
+    return fileName;
+  }
+
   //    /**
 //     * Generates a BIP-39 compatible Ethereum wallet. The private key for the wallet can
 //     * be calculated using following algorithm:
@@ -163,7 +172,9 @@ public class WalletUtils {
   private static String getWalletFileName(WalletFile walletFile) {
     return walletFile.getAddress() + ".json";
   }
-
+  private static String getLegerWalletFileName(WalletFile walletFile) {
+    return "ledger-" + walletFile.getAddress() + ".json";
+  }
   public static String getDefaultKeyDirectory() {
     return getDefaultKeyDirectory(System.getProperty("os.name"));
   }
