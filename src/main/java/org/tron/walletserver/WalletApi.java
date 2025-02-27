@@ -100,7 +100,7 @@ import org.tron.core.exception.CancelException;
 import org.tron.core.exception.CipherException;
 import org.tron.keystore.CheckStrength;
 import org.tron.keystore.Credentials;
-import org.tron.ledger.CommonUtil;
+import org.tron.ledger.sdk.CommonUtil;
 import org.tron.ledger.LedgerSignUtil;
 import org.tron.mnemonic.Mnemonic;
 import org.tron.mnemonic.MnemonicFile;
@@ -168,7 +168,7 @@ import org.tron.protos.contract.WitnessContract.VoteWitnessContract;
 import org.tron.protos.contract.WitnessContract.WitnessCreateContract;
 import org.tron.protos.contract.WitnessContract.WitnessUpdateContract;
 
-import static org.tron.ledger.LedgerConstant.LEDGER_SIGN_CANCEL;
+import static org.tron.ledger.sdk.LedgerConstant.LEDGER_SIGN_CANCEL;
 
 @Slf4j
 public class WalletApi {
@@ -622,7 +622,7 @@ public class WalletApi {
           break;
         } else {
           byte[] signature = Arrays.copyOfRange(signResult, 0, 65);
-          transaction = LedgerSignUtil.addSign(transaction, signature);
+          transaction = LedgerSignUtil.addSignatureToTransaction(transaction, signature);
         }
       }
 

@@ -29,7 +29,6 @@ import org.tron.common.crypto.Hash;
 import org.tron.common.crypto.SignInterface;
 import org.tron.common.crypto.SignUtils;
 import org.tron.common.utils.AbiUtil;
-import org.tron.common.utils.Base58;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.ByteUtil;
 import org.tron.common.utils.Utils;
@@ -51,7 +50,6 @@ import org.tron.core.zen.address.KeyIo;
 import org.tron.core.zen.address.PaymentAddress;
 import org.tron.core.zen.address.SpendingKey;
 import org.tron.keystore.StringUtils;
-import org.tron.ledger.LedgerConstant;
 import org.tron.ledger.TronLedgerGetAddress;
 import org.tron.mnemonic.MnemonicUtils;
 import org.tron.protos.Protocol.MarketOrder;
@@ -72,7 +70,7 @@ import org.tron.protos.contract.SmartContractOuterClass.SmartContractDataWrapper
 import org.tron.walletserver.WalletApi;
 import org.tron.protos.contract.Common.ResourceCode;
 
-import static org.tron.ledger.LedgerConstant.DEFAULT_PATH;
+import static org.tron.ledger.sdk.LedgerConstant.DEFAULT_PATH;
 
 
 public class Client {

@@ -1,17 +1,20 @@
 package org.tron.ledger;
 
+import lombok.Getter;
 import org.hid4java.HidDevice;
 import org.hid4java.HidManager;
 import org.hid4java.HidServices;
 import org.hid4java.HidServicesSpecification;
+import org.tron.ledger.sdk.ApduExchangeHandler;
+import org.tron.ledger.sdk.ApduMessageBuilder;
+import org.tron.ledger.sdk.BIP32PathParser;
+import org.tron.ledger.sdk.CommonUtil;
 
 public class TronLedgerSignTrans {
   private static final int LEDGER_VENDOR_ID = 0x2c97;
-  private static final int CHANNEL = 0x0101;
-  private static final int PACKET_SIZE = 64;
-  private static final int TIMEOUT_MILLIS = 1000;
 
   private final HidServices hidServices;
+  @Getter
   private HidDevice device;
 
   public TronLedgerSignTrans() {
@@ -41,47 +44,14 @@ public class TronLedgerSignTrans {
     hidServices.shutdown();
   }
 
-  private byte[] exchangeApdu(byte[] apdu) {
-    byte[] wrappedCommand = LedgerProtocol.wrapCommandAPDU(
-        CHANNEL, apdu, PACKET_SIZE, false);
 
-    int result = device.write(wrappedCommand, wrappedCommand.length, (byte) 0);
-    if (result < 0) {
-      throw new RuntimeException("Failed to write to device");
-    }
 
-    ByteArrayBuilder response = new ByteArrayBuilder();
-    byte[] buffer = new byte[PACKET_SIZE];
-
-    while (true) {
-      result = device.read(buffer, TIMEOUT_MILLIS);
-      if (result < 0) {
-        throw new RuntimeException("Failed to read from device");
-      }
-      response.append(buffer, 0, result);
-      byte[] unwrapped = LedgerProtocol.unwrapResponseAPDU(
-          CHANNEL, response.toByteArray(),
-          PACKET_SIZE, false);
-      if (unwrapped != null) {
-        return unwrapped;
-      }
-    }
-  }
-
-  public static byte[] doSign(String transactionRaw, String path) {
+  public static byte[] signTronTransaction(String transactionRaw, String path) {
     TronLedgerSignTrans ledger = new TronLedgerSignTrans();
     try {
       ledger.connect();
-      String donglePath = BIP32PathParser.parseBip32Path(path);
-      int pathByteLength = donglePath.length() / 2;
-      int transactionByteLength = transactionRaw.length() / 2;
-      String totalLength = String.format("%02x", pathByteLength + 1 + transactionByteLength);
-      String pathSegments = String.format("%02x", donglePath.length() / 8);
-
-      String apduMessage = "e0041000" + totalLength + pathSegments + donglePath + transactionRaw;
-      byte[] result = ledger.exchangeApdu(
-          CommonUtil.hexStringToByteArray(apduMessage)
-      );
+      byte[] apdu = ApduMessageBuilder.buildTransactionSignApduMessage(path, transactionRaw);
+      byte[] result = ApduExchangeHandler.exchangeApdu(ledger.getDevice(), apdu);
       return result;
     } catch (Exception e) {
       System.err.println("Error: " + e.getMessage());

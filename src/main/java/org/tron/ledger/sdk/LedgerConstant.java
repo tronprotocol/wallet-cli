@@ -1,4 +1,4 @@
-package org.tron.ledger;
+package org.tron.ledger.sdk;
 
 public class LedgerConstant {
   public static final String DEFAULT_PATH = "44'/195'/0'/0/0";
