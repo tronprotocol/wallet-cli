@@ -7,8 +7,6 @@ import org.hid4java.HidServices;
 import org.hid4java.HidServicesSpecification;
 import org.tron.ledger.sdk.ApduExchangeHandler;
 import org.tron.ledger.sdk.ApduMessageBuilder;
-import org.tron.ledger.sdk.BIP32PathParser;
-import org.tron.ledger.sdk.CommonUtil;
 
 public class TronLedgerSignTrans {
   private static final int LEDGER_VENDOR_ID = 0x2c97;
@@ -43,8 +41,6 @@ public class TronLedgerSignTrans {
     }
     hidServices.shutdown();
   }
-
-
 
   public static byte[] signTronTransaction(String transactionRaw, String path) {
     TronLedgerSignTrans ledger = new TronLedgerSignTrans();

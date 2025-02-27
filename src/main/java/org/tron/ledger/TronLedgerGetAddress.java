@@ -1,22 +1,16 @@
 package org.tron.ledger;
 
 import lombok.Getter;
-import lombok.Setter;
 import org.hid4java.*;
 import org.tron.ledger.sdk.ApduExchangeHandler;
 import org.tron.ledger.sdk.ApduMessageBuilder;
-
 import java.util.Arrays;
-
-import static org.tron.ledger.sdk.CommonUtil.bytesToHex;
 
 public class TronLedgerGetAddress {
   private static final int LEDGER_VENDOR_ID = 0x2c97;
   private final HidServices hidServices;
   @Getter
   private HidDevice device;
-  @Setter
-  private boolean debug = false;
   private static TronLedgerGetAddress instance;
 
   private TronLedgerGetAddress() {
@@ -49,10 +43,6 @@ public class TronLedgerGetAddress {
         if (!device.open()) {
           throw new RuntimeException("Failed to open device");
         }
-        if (debug) {
-          System.out.println("Connected to Ledger device");
-        }
-
         return;
       }
     }
@@ -74,9 +64,6 @@ public class TronLedgerGetAddress {
       int size = result[0] & 0xFF;
       if (size == 65) {
         byte[] pubKey = Arrays.copyOfRange(result, 1, 1 + size);
-        if (debug) {
-          System.out.println("Public Key: " + bytesToHex(pubKey));
-        }
       } else {
         System.out.println("Error... Public Key Size: " + size);
         return "";
