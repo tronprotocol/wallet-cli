@@ -15,6 +15,10 @@ public class TronLedgerGetAddress {
 
   private TronLedgerGetAddress() {
     HidServicesSpecification spec = new HidServicesSpecification();
+    // hidServicesSpecification need the same in the program
+    spec.setAutoStart(false);
+    spec.setAutoDataRead(true);
+    spec.setDataReadInterval(500);
     hidServices = HidManager.getHidServices(spec);
     hidServices.start();
   }

@@ -100,6 +100,8 @@ import org.tron.core.exception.CancelException;
 import org.tron.core.exception.CipherException;
 import org.tron.keystore.CheckStrength;
 import org.tron.keystore.Credentials;
+import org.tron.ledger.listener.LedgerSignListener;
+import org.tron.ledger.listener.TransactionSignManager;
 import org.tron.ledger.sdk.CommonUtil;
 import org.tron.ledger.LedgerSignUtil;
 import org.tron.mnemonic.Mnemonic;
@@ -615,14 +617,23 @@ public class WalletApi {
         }
         org.tron.keystore.StringUtils.clear(passwd);
       } else {
-        System.out.println("Please verify the transaction details on the Ledger and confirm the signature.\n");
-        byte[] signResult =  LedgerSignUtil.reuqestLedgerSign(transaction);
-        if (LEDGER_SIGN_CANCEL.equalsIgnoreCase(CommonUtil.bytesToHex(signResult))) {
-          System.out.println("Ledger sign canceled");
-          break;
+
+        boolean syncSign = false;
+
+        if (syncSign) {
+          System.out.println("Please verify the transaction details on the Ledger and confirm the signature.\n");
+          byte[] signResult =  LedgerSignUtil.reuqestLedgerSign(transaction);
+          if (LEDGER_SIGN_CANCEL.equalsIgnoreCase(CommonUtil.bytesToHex(signResult))) {
+            System.out.println("Ledger sign canceled");
+            break;
+          } else {
+            byte[] signature = Arrays.copyOfRange(signResult, 0, 65);
+            transaction = LedgerSignUtil.addSignatureToTransaction(transaction, signature);
+          }
         } else {
-          byte[] signature = Arrays.copyOfRange(signResult, 0, 65);
-          transaction = LedgerSignUtil.addSignatureToTransaction(transaction, signature);
+          TransactionSignManager.getInstance().setTransaction(transaction);
+          LedgerSignListener ledgerSignListener = new LedgerSignListener();
+          ledgerSignListener.executeSignListen(transaction);
         }
       }
 

@@ -2,6 +2,9 @@ package org.tron.ledger.sdk;
 
 import java.nio.ByteBuffer;
 
+import static org.tron.common.utils.ByteArray.toHexString;
+import static org.tron.ledger.sdk.CommonUtil.hexStringToByteArray;
+
 public class LedgerProtocol {
   public static class CommException extends RuntimeException {
     public CommException(String message) {
@@ -148,4 +151,30 @@ public class LedgerProtocol {
       throw new CommException("Error unwrapping APDU response: " + e.getMessage());
     }
   }
+
+  public static void main(String[] args) {
+    final int CHANNEL = 0x0101;
+    final int PACKET_SIZE = 64;
+
+    //hex reponsee:
+    //Response:
+    //Response: 010105000000435303fcf4ec1e61280ec17fc47bdd51e937952f2e35a4796c9f6aa26eb3b211d44c098874ba633193afc984b41ab40030f25b496a259c13cf4a01010500019f45cc298e279301900000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+    String response = "01010500000002698500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
+    byte[] byteRes = hexStringToByteArray(response);
+    //System.out.println("Response: " + byteRes);
+    byte[] unwrapped = LedgerProtocol.unwrapResponseAPDU(
+        CHANNEL, byteRes, PACKET_SIZE, false);
+    System.out.println("Unwrapped hex: " + toHexString(unwrapped));
+
+    String response2 = "010105000000435303fcf4ec1e61280ec17fc47bdd51e937952f2e35a4796c9f6aa26eb3b211d44c098874ba633193afc984b41ab40030f25b496a259c13cf4a01010500019f45cc298e279301900000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
+    byte[] byteRes2 = hexStringToByteArray(response2);
+    //System.out.println("Response: " + byteRes);
+    byte[] unwrapped2 = LedgerProtocol.unwrapResponseAPDU(
+        CHANNEL, byteRes2, PACKET_SIZE, false);
+    System.out.println("Unwrapped2 hex: " + toHexString(unwrapped2));
+  }
+
+
+
+
 }

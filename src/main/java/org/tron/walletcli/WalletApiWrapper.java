@@ -250,6 +250,7 @@ public class WalletApiWrapper {
       System.out.println("Warning: Login failed, Please registerWallet or importWallet first !!");
       return false;
     }
+    wallet.setLedgerUser(true);
     wallet.setLogin();
     return true;
   }

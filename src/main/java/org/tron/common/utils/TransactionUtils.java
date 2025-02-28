@@ -20,12 +20,17 @@ import java.security.SignatureException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Scanner;
+
+import com.google.protobuf.CodedInputStream;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.ECKey.ECDSASignature;
 import org.tron.common.crypto.Sha256Sm3Hash;
 import org.tron.common.crypto.SignInterface;
 import org.tron.common.crypto.SignatureInterface;
 import org.tron.core.exception.CancelException;
+import org.tron.ledger.listener.LedgerSignListener;
+import org.tron.ledger.listener.TransactionSignManager;
+import org.tron.protos.Protocol;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.contract.AccountContract.AccountCreateContract;
 import org.tron.protos.contract.AccountContract.AccountPermissionUpdateContract;

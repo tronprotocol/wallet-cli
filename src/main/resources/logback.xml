@@ -46,6 +46,8 @@
     <appender-ref ref="FILE"/>
   </appender>
 
+  <logger name="org.hid4java" level="WARN"/>
+
   <root level="INFO">
     <appender-ref ref="STDOUT"/>
     <!-- <appender-ref ref="ASYNC"/> -->
