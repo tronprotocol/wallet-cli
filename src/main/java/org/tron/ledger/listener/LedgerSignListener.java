@@ -1,6 +1,5 @@
 package org.tron.ledger.listener;
 
-import com.google.protobuf.CodedInputStream;
 import org.hid4java.HidDevice;
 import org.hid4java.HidException;
 import org.hid4java.HidManager;
@@ -9,8 +8,6 @@ import org.hid4java.HidServicesSpecification;
 import org.hid4java.event.HidServicesEvent;
 import org.tron.common.crypto.Hash;
 import org.tron.common.crypto.Sha256Sm3Hash;
-import org.tron.common.utils.ByteArray;
-import org.tron.common.utils.TransactionUtils;
 import org.tron.ledger.sdk.ApduExchangeHandler;
 import org.tron.ledger.sdk.ApduMessageBuilder;
 import org.tron.ledger.sdk.CommonUtil;
@@ -21,6 +18,7 @@ import org.tron.walletserver.WalletApi;
 import java.util.Arrays;
 
 import static org.tron.ledger.sdk.CommonUtil.bytesToHex;
+import static org.tron.ledger.sdk.CommonUtil.hexStringToByteArray;
 import static org.tron.ledger.sdk.LedgerConstant.LEDGER_SIGN_CANCEL;
 
 public class LedgerSignListener extends BaseListener {
@@ -54,17 +52,20 @@ public class LedgerSignListener extends BaseListener {
           throw new IllegalStateException("Unable to open device");
         }
       }
-      handleTransSign(fidoDevice, transaction);
+      byte[] sendResult = handleTransSign(fidoDevice, transaction);
+      if (sendResult == null) {
+        System.out.println("transaction sign request is sent to ledger");
+        System.out.println("you can input y to cancel or just operate on ledger");
+      }
     }
     waitAndShutdown(hidServices);
   }
 
-  public boolean handleTransSign(HidDevice hidDevice, Protocol.Transaction transaction) {
+  public byte[] handleTransSign(HidDevice hidDevice, Protocol.Transaction transaction) {
     String transactionRaw = bytesToHex(transaction.getRawData().toByteArray());
     String path = "m/44'/195'/0'/0/0";
     byte[] apdu = ApduMessageBuilder.buildTransactionSignApduMessage(path, transactionRaw);
-    byte[] result = ApduExchangeHandler.exchangeApdu(hidDevice, apdu);
-    return true;
+    return ApduExchangeHandler.exchangeApdu(hidDevice, apdu);
   }
 
   @Override
@@ -86,7 +87,12 @@ public class LedgerSignListener extends BaseListener {
       byte[] signature = Arrays.copyOfRange(unwrappedResponse, 0, 65);
       TransactionSignManager.getInstance().addTransactionSign(signature);
       Protocol.Transaction transaction = TransactionSignManager.getInstance().getTransaction();
-      WalletApi.broadcastTransaction(transaction);
+      boolean ret = WalletApi.broadcastTransaction(transaction);
+      if (ret) {
+        System.out.println("BroadcastTransaction successful !!!");
+      } else {
+        System.out.println("BroadcastTransaction failed !!!");
+      }
     }
   }
 
@@ -102,4 +108,21 @@ public class LedgerSignListener extends BaseListener {
 
     return Hash.sha3omit12(combined);
   }
+
+
+  public static void main(String[] args) {
+    try {
+      String s = "0a6a5a68080112640a2d747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e5472616e73666572436f6e747261637412330a15410547286e6b520b6e77df7a6b1c4d2184d04866d3121541ccf2f3d3d97bb7dc6d89353bd2b5a956eda5c4ad18c090b82a";
+      byte [ ] data = hexStringToByteArray(s);
+      Protocol.Transaction transaction  =  Protocol.Transaction.parseFrom(data);
+
+      LedgerSignListener listener = new LedgerSignListener();
+      listener.executeSignListen(transaction);
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+
+  }
+
+
 }

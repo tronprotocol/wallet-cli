@@ -617,13 +617,12 @@ public class WalletApi {
         }
         org.tron.keystore.StringUtils.clear(passwd);
       } else {
-
         boolean syncSign = false;
-
         if (syncSign) {
           System.out.println("Please verify the transaction details on the Ledger and confirm the signature.\n");
           byte[] signResult =  LedgerSignUtil.reuqestLedgerSign(transaction);
-          if (LEDGER_SIGN_CANCEL.equalsIgnoreCase(CommonUtil.bytesToHex(signResult))) {
+          if (signResult == null
+              || LEDGER_SIGN_CANCEL.equalsIgnoreCase(CommonUtil.bytesToHex(signResult))) {
             System.out.println("Ledger sign canceled");
             break;
           } else {

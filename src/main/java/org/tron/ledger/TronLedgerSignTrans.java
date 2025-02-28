@@ -62,8 +62,7 @@ public class TronLedgerSignTrans {
     try {
       ledger.connect();
       byte[] apdu = ApduMessageBuilder.buildTransactionSignApduMessage(path, transactionRaw);
-      byte[] result = ApduExchangeHandler.exchangeApdu(ledger.getDevice(), apdu);
-      return result;
+      return ApduExchangeHandler.exchangeApdu(ledger.getDevice(), apdu);
     } catch (Exception e) {
       System.err.println("Error: " + e.getMessage());
       e.printStackTrace();
