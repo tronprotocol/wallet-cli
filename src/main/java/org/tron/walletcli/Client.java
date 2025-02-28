@@ -596,26 +596,7 @@ public class Client {
     }
 
     char[] password = Utils.inputPassword2Twice();
-
-    String defaultAddress = "";
-    TronLedgerGetAddress tronLedgerGetAddress = TronLedgerGetAddress.getInstance();
-    try {
-      tronLedgerGetAddress.connect();
-      defaultAddress = tronLedgerGetAddress.getTronAddressByPath(DEFAULT_PATH);
-    } catch (Exception e) {
-      e.printStackTrace();
-    } finally {
-      tronLedgerGetAddress.close();
-    }
-
-    if (org.apache.commons.lang3.StringUtils.isEmpty(defaultAddress)) {
-      System.out.println("Get address from ledger failed !!");
-      return ;
-    }
-
-    String fileName = walletApiWrapper.importWalletByLedger(password,
-        defaultAddress,
-        tronLedgerGetAddress.getDevice());
+    String fileName = walletApiWrapper.importWalletByLedger(password);
     if (null == fileName) {
       System.out.println("Import wallet by ledger failed !!");
       return;

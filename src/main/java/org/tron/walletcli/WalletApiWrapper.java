@@ -36,6 +36,12 @@ import org.tron.core.zen.address.SpendingKey;
 import org.tron.keystore.StringUtils;
 import org.tron.keystore.WalletFile;
 import org.tron.keystore.WalletUtils;
+import org.tron.ledger.LedgerAddressUtil;
+import org.tron.ledger.LedgerFileUtil;
+import org.tron.ledger.TronLedgerGetAddress;
+import org.tron.ledger.console.ImportAccount;
+import org.tron.ledger.console.TronLedgerImportAccount;
+import org.tron.ledger.sdk.LedgerConstant;
 import org.tron.mnemonic.MnemonicUtils;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
@@ -100,24 +106,31 @@ public class WalletApiWrapper {
     return keystoreName;
   }
 
-  public String importWalletByLedger(char[] password
-      , String defaultAddress
-      , HidDevice device) throws CipherException {
+  public String importWalletByLedger(char[] password) throws CipherException {
     if (!WalletApi.passwordValid(password)) {
       return null;
     }
     String walletFileName = "";
-    String importAddress = defaultAddress;
+    String importAddress = "";
     byte[] passwd = StringUtils.char2Byte(password);
 
     try {
       Terminal terminal = TerminalBuilder.builder().system(true).build();
       LineReader lineReader = LineReaderBuilder.builder().terminal(terminal).build();
 
+      String defaultImportAddress = LedgerAddressUtil.getImportAddress(
+          LedgerConstant.DEFAULT_PATH);
+
       String choice;
+      boolean quit = false;
       while (true) {
+        System.out.println("-------------------------------------------------");
+        System.out.println("Default Account Address: " + defaultImportAddress);
+        System.out.println("Default Path: " + LedgerConstant.DEFAULT_PATH);
+        System.out.println("-------------------------------------------------");
+
         String[] options = {
-            "1. Import Account",
+            "1. Import Default Account",
             "2. Change Path",
             "3. Custom Path"
         };
@@ -129,24 +142,28 @@ public class WalletApiWrapper {
         choice = lineReader.readLine("Select an option: ").trim();
         switch (choice) {
           case "1":
-            System.out.println("You selected: Import Account, address: " + importAddress);
-            walletFileName = doImportAccount(password, importAddress, device);
+            walletFileName = doImportAccount(password
+                , LedgerConstant.DEFAULT_PATH, defaultImportAddress);
+            quit = true;
             break;
           case "2":
             System.out.println("You selected: Change Path");
-            importAddress = doChangeAccount(password, defaultAddress);
-            continue;
+            walletFileName = doChangeAccount(password);
+            quit = true;
+            break;
           case "3":
             System.out.println("You selected: Custom Path");
-            importAddress = doCustomPath(password, defaultAddress);
-            continue;
+            walletFileName = doCustomPath(password);
+            quit = true;
+            break;
           case "q":
+            quit = true;
             break;
           default:
             System.out.println("Invalid option. Please select 1, 2, 3 or q.");
             continue;
         }
-        if (choice.equalsIgnoreCase("1")||choice.equalsIgnoreCase("q")) {
+        if (quit) {
           break;
         }
       }
@@ -158,24 +175,38 @@ public class WalletApiWrapper {
     return walletFileName;
   }
 
+  public String doChangeAccount(char[] password) throws CipherException, IOException {
+    ImportAccount account = TronLedgerImportAccount.changeAccount();
+    return doImportAccount(password, account.getPath(), account.getAddress());
+  }
 
-  public String doImportAccount(char[] password
-      , String address, HidDevice device) throws CipherException, IOException {
-    String uniqLedgerId = device.getVendorId() + device.getProductId()
-        + device.getSerialNumber() + device.getReleaseNumber();
+  public String doCustomPath(char[] password) throws CipherException, IOException {
+    ImportAccount account = TronLedgerImportAccount.enterMnemonicPath();
+    return doImportAccount(password, account.getPath(), account.getAddress());
+  }
+
+  public String doImportAccount(char[] password, String path, String importAddress)
+      throws CipherException, IOException {
+    String uniqLedgerId = getUniqLedgerId(path);
     byte[] passwdByte = StringUtils.char2Byte(password);
-    WalletFile walletLedgerFile = WalletApi.CreateLedgerWalletFile(passwdByte, address, uniqLedgerId);
+    WalletFile walletLedgerFile = WalletApi.CreateLedgerWalletFile(
+        passwdByte, importAddress, uniqLedgerId);
     String keystoreName = WalletApi.store2KeystoreLedger(walletLedgerFile);
     loginLedger(walletLedgerFile);
+    LedgerFileUtil.writePathsToFile(Arrays.asList(path));
     return keystoreName;
   }
 
-  public String doChangeAccount(char[] password, String address) {
-    return "";
-  }
-
-  public String doCustomPath(char[] password, String address) {
-    return "";
+  public String getUniqLedgerId(String path) {
+    HidDevice device = TronLedgerGetAddress.getInstance().getDevice();
+    StringBuilder uniqLedgerIdBuilder = new StringBuilder();
+    uniqLedgerIdBuilder.append(device.getVendorId()).append("_")
+        .append(device.getProductId()).append("_")
+        .append(device.getSerialNumber()).append("_")
+        .append(device.getReleaseNumber()).append("_")
+        .append(path);
+    String uniqLedgerId = uniqLedgerIdBuilder.toString();
+    return uniqLedgerId;
   }
 
   public boolean changePassword(char[] oldPassword, char[] newPassword)

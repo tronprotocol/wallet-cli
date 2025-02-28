@@ -19,17 +19,18 @@ public class TronLedgerGetAddress {
     hidServices.start();
   }
 
-  public static synchronized TronLedgerGetAddress getInstance() {
-    if (instance == null) {
-      instance = new TronLedgerGetAddress();
-    }
-    return instance;
+  private static class Holder {
+    private static final TronLedgerGetAddress INSTANCE = new TronLedgerGetAddress();
+  }
+
+  public static TronLedgerGetAddress getInstance() {
+    return Holder.INSTANCE;
   }
 
   public HidDevice getConnectedDevice() {
     for (HidDevice dev : hidServices.getAttachedHidDevices()) {
       if (dev.getVendorId() == LEDGER_VENDOR_ID) {
-        System.out.println("Ledger device: " + dev.getProduct() + " found\n");
+        //System.out.println("Ledger device: " + dev.getProduct() + " found\n");
         return dev;
       }
     }
