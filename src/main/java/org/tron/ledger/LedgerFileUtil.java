@@ -14,8 +14,7 @@ import java.util.Set;
 
 public class LedgerFileUtil {
 
-  public static void writePathsToFile(List<String> paths) {
-    HidDevice device = TronLedgerGetAddress.getInstance().getConnectedDevice();
+  public static void writePathsToFile(HidDevice device, List<String> paths) {
     String directoryName = "ledger";
     String fileName = String.format("%s_%s_%s_%s.txt",
         device.getVendorId(),
@@ -51,8 +50,8 @@ public class LedgerFileUtil {
     }
   }
 
-  public static boolean isPathInFile(String path) {
-    HidDevice device = TronLedgerGetAddress.getInstance().getConnectedDevice();
+  public static boolean isPathInFile(HidDevice device, String path) {
+    //HidDevice device = TronLedgerGetAddress.getInstance().getConnectedDevice();
     String directoryName = "ledger";
     String fileName = String.format("%s_%s_%s_%s.txt",
         device.getVendorId(),
@@ -79,11 +78,11 @@ public class LedgerFileUtil {
           "m/44'/195'/0'/0/0",
           "m/44'/195'/1'/0/0",
           "m/44'/195'/2'/0/0"); // Example paths
-      LedgerFileUtil.writePathsToFile(paths);
+      LedgerFileUtil.writePathsToFile(null, paths);
 
       // Check if a specific path exists
       String pathToCheck = "m/44'/195'/0'/0/0";
-      boolean exists = LedgerFileUtil.isPathInFile(pathToCheck);
+      boolean exists = LedgerFileUtil.isPathInFile(null, pathToCheck);
       System.out.println("Path " + pathToCheck + " exists: " + exists);
     }catch (Exception e){
       e.printStackTrace();

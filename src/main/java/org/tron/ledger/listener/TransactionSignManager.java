@@ -1,10 +1,12 @@
 package org.tron.ledger.listener;
 
 import com.google.protobuf.ByteString;
+import org.hid4java.HidDevice;
 import org.tron.protos.Protocol;
 
 public class TransactionSignManager {
   private Protocol.Transaction transaction;
+  private HidDevice hidDevice;
 
   private TransactionSignManager() {
 
@@ -22,8 +24,17 @@ public class TransactionSignManager {
     this.transaction = newTransaction;
   }
 
+  public synchronized void setHidDevice(HidDevice hidDevice) {
+    this.hidDevice = hidDevice;
+  }
+
+
   public synchronized Protocol.Transaction getTransaction() {
     return this.transaction;
+  }
+
+  public synchronized HidDevice getHidDevice() {
+    return this.hidDevice;
   }
 
   public synchronized void addTransactionSign(byte[] signByteArr) {

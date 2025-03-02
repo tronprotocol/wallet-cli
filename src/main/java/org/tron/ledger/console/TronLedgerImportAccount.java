@@ -1,5 +1,6 @@
 package org.tron.ledger.console;
 
+import org.hid4java.HidDevice;
 import org.jline.reader.LineReader;
 import org.jline.reader.LineReaderBuilder;
 import org.jline.terminal.Terminal;
@@ -17,18 +18,18 @@ public class TronLedgerImportAccount {
   private static final int TOTAL_PAGES = 10;
   private static Map<String, String> pathAddressMap;
 
-  public static CompletableFuture<Map<String, String>> getImportPathAddressMap(int start, int end) {
+  public static CompletableFuture<Map<String, String>> getImportPathAddressMap(HidDevice device, int start, int end) {
     CompletableFuture<Map<String, String>> addressFuture = CompletableFuture.supplyAsync(() -> {
       List<String> allPaths = new ArrayList<>();
       for (int i = start; i < end; i++) {
         allPaths.add("m/44'/195'/" + i + "'/0/0");
       }
-      return LedgerAddressUtil.getMultiImportAddress(allPaths);
+      return LedgerAddressUtil.getMultiImportAddress(device, allPaths);
     });
     return addressFuture;
   }
 
-  public static ImportAccount changeAccount() {
+  public static ImportAccount changeAccount(HidDevice device) {
     try {
       Terminal terminal = TerminalBuilder.builder().system(true).build();
       LineReader lineReader = LineReaderBuilder.builder().terminal(terminal).build();
@@ -38,14 +39,15 @@ public class TronLedgerImportAccount {
 
       while (true) {
         if (currentPage == 0 && (pathAddressMap == null || pathAddressMap.isEmpty())) {
-          pathAddressMap = getImportPathAddressMap(0, PAGE_SIZE).get();
+          pathAddressMap = getImportPathAddressMap(device, 0, PAGE_SIZE).get();
           generatedPage = 0;
         }
-        generateAccountsForPage(currentPage, pathAddressMap, accounts);
+        generateAccountsForPage(device, currentPage, pathAddressMap, accounts);
         displayPage(accounts, currentPage);
 
         if (currentPage + 1 < 10 && currentPage + 1 > generatedPage) {
-          CompletableFuture<Map<String, String>> addressFuture = getImportPathAddressMap((currentPage + 1) * PAGE_SIZE, (currentPage + 2) * PAGE_SIZE);
+          CompletableFuture<Map<String, String>> addressFuture = getImportPathAddressMap(
+              device, (currentPage + 1) * PAGE_SIZE, (currentPage + 2) * PAGE_SIZE);
           pathAddressMap.putAll(addressFuture.get());
           generatedPage = generatedPage + 1;
         }
@@ -91,13 +93,13 @@ public class TronLedgerImportAccount {
     return null;
   }
 
-  private static List<ImportAccount> generateAccountsForPage(int page, Map<String, String> pathAddressMap, List<ImportAccount> accounts) {
+  private static List<ImportAccount> generateAccountsForPage(HidDevice device, int page, Map<String, String> pathAddressMap, List<ImportAccount> accounts) {
     int start = page * PAGE_SIZE;
     try {
       for (int i = start; i < start + PAGE_SIZE; i++) {
         String path = "m/44'/195'/" + i + "'/0/0";
         String address = pathAddressMap.get(path);
-        boolean isGen = LedgerFileUtil.isPathInFile(path);
+        boolean isGen = LedgerFileUtil.isPathInFile(device, path);
         ImportAccount importAccount = new ImportAccount(path, address, isGen);
         if (!accounts.contains(importAccount)){
           accounts.add(importAccount);
@@ -121,7 +123,7 @@ public class TronLedgerImportAccount {
     }
   }
 
-  public static ImportAccount enterMnemonicPath() {
+  public static ImportAccount enterMnemonicPath(HidDevice device) {
     try {
       Terminal terminal = TerminalBuilder.builder().system(true).build();
       LineReader lineReader = LineReaderBuilder.builder().terminal(terminal).build();
@@ -153,8 +155,8 @@ public class TronLedgerImportAccount {
       }
 
       String path = String.format("m/%s'/%s'/%s'/%s/%s", purpose, coinType, account, change, addressIndex);
-      String address = LedgerAddressUtil.getImportAddress(path);
-      boolean isGen = LedgerFileUtil.isPathInFile(path);
+      String address = LedgerAddressUtil.getImportAddress(device, path);
+      boolean isGen = LedgerFileUtil.isPathInFile(device, path);
       return new ImportAccount(path, address, isGen);
     } catch (Exception e) {
       e.printStackTrace();
@@ -164,6 +166,6 @@ public class TronLedgerImportAccount {
 
   public static void main(String[] args) {
     //System.out.println(changeAccount());
-    enterMnemonicPath();
+    //enterMnemonicPath();
   }
 }

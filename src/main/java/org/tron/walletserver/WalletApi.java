@@ -11,13 +11,13 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigObject;
 import io.grpc.Status;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.nio.file.Paths;
 import java.security.SecureRandom;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Scanner;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -34,6 +35,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.bouncycastle.util.encoders.Hex;
+import org.hid4java.HidDevice;
 import org.tron.api.GrpcAPI;
 import org.tron.api.GrpcAPI.AccountNetMessage;
 import org.tron.api.GrpcAPI.AccountResourceMessage;
@@ -100,10 +102,9 @@ import org.tron.core.exception.CancelException;
 import org.tron.core.exception.CipherException;
 import org.tron.keystore.CheckStrength;
 import org.tron.keystore.Credentials;
-import org.tron.ledger.listener.LedgerSignListener;
+import org.tron.ledger.listener.LedgerEventListener;
 import org.tron.ledger.listener.TransactionSignManager;
-import org.tron.ledger.sdk.CommonUtil;
-import org.tron.ledger.LedgerSignUtil;
+import org.tron.ledger.wrapper.HidServicesWrapper;
 import org.tron.mnemonic.Mnemonic;
 import org.tron.mnemonic.MnemonicFile;
 import org.tron.mnemonic.MnemonicUtils;
@@ -169,8 +170,6 @@ import org.tron.protos.contract.StorageContract.UpdateBrokerageContract;
 import org.tron.protos.contract.WitnessContract.VoteWitnessContract;
 import org.tron.protos.contract.WitnessContract.WitnessCreateContract;
 import org.tron.protos.contract.WitnessContract.WitnessUpdateContract;
-
-import static org.tron.ledger.sdk.LedgerConstant.LEDGER_SIGN_CANCEL;
 
 @Slf4j
 public class WalletApi {
@@ -308,13 +307,13 @@ public class WalletApi {
     if (isEckey) {
       ECKey ecKey = ECKey.fromPrivate(priKey);
       walletFile = Wallet.createStandard(password, ecKey);
-      if (mnemonicWords !=null && !mnemonicWords.isEmpty()) {
+      if (mnemonicWords != null && !mnemonicWords.isEmpty()) {
         storeMnemonicWords(password, ecKey, mnemonicWords);
       }
     } else {
       SM2 sm2 = SM2.fromPrivate(priKey);
       walletFile = Wallet.createStandard(password, sm2);
-      if (mnemonicWords !=null && !mnemonicWords.isEmpty()) {
+      if (mnemonicWords != null && !mnemonicWords.isEmpty()) {
         storeMnemonicWords(password, sm2, mnemonicWords);
       }
     }
@@ -616,44 +615,59 @@ public class WalletApi {
           transaction = TransactionUtils.sign(transaction, this.getSM2(walletFile, passwd));
         }
         org.tron.keystore.StringUtils.clear(passwd);
-      } else {
-        boolean syncSign = false;
-        if (syncSign) {
-          System.out.println("Please verify the transaction details on the Ledger and confirm the signature.\n");
-          byte[] signResult =  LedgerSignUtil.reuqestLedgerSign(transaction);
-          if (signResult == null
-              || LEDGER_SIGN_CANCEL.equalsIgnoreCase(CommonUtil.bytesToHex(signResult))) {
-            System.out.println("Ledger sign canceled");
-            break;
-          } else {
-            byte[] signature = Arrays.copyOfRange(signResult, 0, 65);
-            transaction = LedgerSignUtil.addSignatureToTransaction(transaction, signature);
-          }
-        } else {
-          TransactionSignManager.getInstance().setTransaction(transaction);
-          LedgerSignListener ledgerSignListener = new LedgerSignListener();
-          ledgerSignListener.executeSignListen(transaction);
-        }
-      }
 
-      TransactionSignWeight weight = getTransactionSignWeight(transaction);
-      if (weight.getResult().getCode() == response_code.ENOUGH_PERMISSION) {
-        break;
-      }
-      if (weight.getResult().getCode() == response_code.NOT_ENOUGH_PERMISSION) {
-        System.out.println("Current signWeight is:");
-        System.out.println(Utils.printTransactionSignWeight(weight));
-        System.out.println("Please confirm if continue add signature enter y or Y, else any other");
-        if (!confirm()) {
-          showTransactionAfterSign(transaction);
-          throw new CancelException("User cancelled");
+        TransactionSignWeight weight = getTransactionSignWeight(transaction);
+        if (weight.getResult().getCode() == response_code.ENOUGH_PERMISSION) {
+          break;
         }
-        continue;
+        if (weight.getResult().getCode() == response_code.NOT_ENOUGH_PERMISSION) {
+          System.out.println("Current signWeight is:");
+          System.out.println(Utils.printTransactionSignWeight(weight));
+          System.out.println("Please confirm if continue add signature enter y or Y, else any other");
+          if (!confirm()) {
+            showTransactionAfterSign(transaction);
+            throw new CancelException("User cancelled");
+          }
+          continue;
+        }
+        throw new CancelException(weight.getResult().getMessage());
+      } else {
+        try {
+          if (TransactionSignManager.getInstance().getTransaction()==null) {
+            LedgerEventListener.getInstance().setLedgerSignEnd(new AtomicBoolean(false));
+            TransactionSignManager.getInstance().setTransaction(transaction);
+            HidDevice hidDevice = HidServicesWrapper.getInstance().getHidDevice();
+            if (hidDevice==null) {
+              System.out.println("Please check your ledger and try again");
+              System.out.println("Sign with ledger failed");
+              break;
+            }
+            boolean ret = LedgerEventListener.getInstance().executeSignListen(hidDevice, transaction);
+            if (ret) {
+              break;
+            } else {
+              System.out.println("Sign with ledger failed");
+              System.out.println("Please check your ledger and try again");
+              break;
+            }
+          } else {
+            System.out.println("Sign with ledger rejected");
+            System.out.println("Please check your last sign with ledger");
+            break;
+          }
+        } catch (Exception e) {
+          e.printStackTrace();
+          break;
+        }
       }
-      throw new CancelException(weight.getResult().getMessage());
     }
 
     return transaction;
+  }
+
+  private void revertLedgerSignEnv() {
+    LedgerEventListener.getInstance().setLedgerSignEnd(new AtomicBoolean(true));
+    TransactionSignManager.getInstance().setTransaction(null);
   }
 
   private Transaction signOnlyForShieldedTransaction(Transaction transaction)
@@ -720,8 +734,11 @@ public class WalletApi {
     System.out.println("before sign transaction hex string is " +
         ByteArray.toHexString(transaction.toByteArray()));
     transaction = signTransaction(transaction);
-    showTransactionAfterSign(transaction);
-    return rpcCli.broadcastTransaction(transaction);
+    if (!isLedgerUser) {
+      showTransactionAfterSign(transaction);
+      return rpcCli.broadcastTransaction(transaction);
+    }
+    return true;
   }
 
   private void showTransactionAfterSign(Transaction transaction)
@@ -742,7 +759,7 @@ public class WalletApi {
   }
 
   private static boolean processShieldedTransaction(TransactionExtention transactionExtention,
-      WalletApi wallet)
+                                                    WalletApi wallet)
       throws IOException, CipherException, CancelException {
     if (transactionExtention == null) {
       return false;
@@ -1103,7 +1120,7 @@ public class WalletApi {
   }
 
   public static VoteWitnessContract createVoteWitnessContract(byte[] owner,
-      HashMap<String, String> witness) {
+                                                              HashMap<String, String> witness) {
     VoteWitnessContract.Builder builder = VoteWitnessContract.newBuilder();
     builder.setOwnerAddress(ByteString.copyFrom(owner));
     for (String addressBase58 : witness.keySet()) {
@@ -1382,13 +1399,13 @@ public class WalletApi {
   }
 
   public boolean freezeBalanceV2(
-          byte[] ownerAddress,
-          long frozen_balance,
-          int resourceCode)
-          throws CipherException, IOException, CancelException {
+      byte[] ownerAddress,
+      long frozen_balance,
+      int resourceCode)
+      throws CipherException, IOException, CancelException {
     BalanceContract.FreezeBalanceV2Contract contract =
-            createFreezeBalanceContractV2(
-                    ownerAddress, frozen_balance, resourceCode);
+        createFreezeBalanceContractV2(
+            ownerAddress, frozen_balance, resourceCode);
 
     TransactionExtention transactionExtention = rpcCli.createTransaction2(contract);
     return processTransactionExtention(transactionExtention);
@@ -1443,9 +1460,9 @@ public class WalletApi {
   }
 
   private BalanceContract.FreezeBalanceV2Contract createFreezeBalanceContractV2(
-          byte[] address,
-          long frozen_balance,
-          int resourceCode) {
+      byte[] address,
+      long frozen_balance,
+      int resourceCode) {
     if (address == null) {
       address = getAddress();
     }
@@ -1453,8 +1470,8 @@ public class WalletApi {
     BalanceContract.FreezeBalanceV2Contract.Builder builder = BalanceContract.FreezeBalanceV2Contract.newBuilder();
     ByteString byteAddress = ByteString.copyFrom(address);
     builder.setOwnerAddress(byteAddress)
-            .setFrozenBalance(frozen_balance)
-            .setResourceValue(resourceCode);
+        .setFrozenBalance(frozen_balance)
+        .setResourceValue(resourceCode);
 
     return builder.build();
   }
@@ -1509,25 +1526,25 @@ public class WalletApi {
   }
 
   public boolean unfreezeBalanceV2(byte[] ownerAddress, long unfreezeBalance
-          , int resourceCode)
-          throws CipherException, IOException, CancelException {
+      , int resourceCode)
+      throws CipherException, IOException, CancelException {
     BalanceContract.UnfreezeBalanceV2Contract contract =
-            createUnfreezeBalanceContractV2(ownerAddress, unfreezeBalance, resourceCode);
-      TransactionExtention transactionExtention = rpcCli.createTransactionV2(contract);
-      return processTransactionExtention(transactionExtention);
+        createUnfreezeBalanceContractV2(ownerAddress, unfreezeBalance, resourceCode);
+    TransactionExtention transactionExtention = rpcCli.createTransactionV2(contract);
+    return processTransactionExtention(transactionExtention);
   }
 
   public boolean withdrawExpireUnfreeze(byte[] ownerAddress)
-          throws CipherException, IOException, CancelException {
+      throws CipherException, IOException, CancelException {
     BalanceContract.WithdrawExpireUnfreezeContract contract =
-            createWithdrawExpireUnfreezeContract(ownerAddress);
+        createWithdrawExpireUnfreezeContract(ownerAddress);
     TransactionExtention transactionExtention = rpcCli.createTransactionV2(contract);
     return processTransactionExtention(transactionExtention);
   }
 
   public boolean delegateResource(byte[] ownerAddress, long balance
-          ,int resourceCode, byte[] receiverAddress, boolean lock, long lockPeriod)
-          throws CipherException, IOException, CancelException {
+      , int resourceCode, byte[] receiverAddress, boolean lock, long lockPeriod)
+      throws CipherException, IOException, CancelException {
     BalanceContract.DelegateResourceContract contract = createDelegateResourceContract(
         ownerAddress, balance, resourceCode, receiverAddress, lock, lockPeriod);
     TransactionExtention transactionExtention = rpcCli.createTransactionV2(contract);
@@ -1535,10 +1552,10 @@ public class WalletApi {
   }
 
   public boolean unDelegateResource(byte[] ownerAddress, long balance
-          ,int resourceCode, byte[] receiverAddress)
-          throws CipherException, IOException, CancelException {
+      , int resourceCode, byte[] receiverAddress)
+      throws CipherException, IOException, CancelException {
     BalanceContract.UnDelegateResourceContract contract =
-            createUnDelegateResourceContract(ownerAddress, balance, resourceCode, receiverAddress);
+        createUnDelegateResourceContract(ownerAddress, balance, resourceCode, receiverAddress);
     TransactionExtention transactionExtention = rpcCli.createTransactionV2(contract);
     return processTransactionExtention(transactionExtention);
   }
@@ -1571,13 +1588,13 @@ public class WalletApi {
   }
 
   private BalanceContract.UnfreezeBalanceV2Contract createUnfreezeBalanceContractV2(
-          byte[] address, long unfreezeBalance, int resourceCode) {
+      byte[] address, long unfreezeBalance, int resourceCode) {
     if (address == null) {
       address = getAddress();
     }
 
     BalanceContract.UnfreezeBalanceV2Contract.Builder builder =
-            BalanceContract.UnfreezeBalanceV2Contract.newBuilder();
+        BalanceContract.UnfreezeBalanceV2Contract.newBuilder();
     ByteString byteAddress = ByteString.copyFrom(address);
     builder.setOwnerAddress(byteAddress).setResourceValue(resourceCode).setUnfreezeBalance(unfreezeBalance);
 
@@ -1590,7 +1607,7 @@ public class WalletApi {
     }
 
     BalanceContract.WithdrawExpireUnfreezeContract.Builder builder =
-            BalanceContract.WithdrawExpireUnfreezeContract.newBuilder();
+        BalanceContract.WithdrawExpireUnfreezeContract.newBuilder();
     ByteString byteAddreess = ByteString.copyFrom(address);
     builder.setOwnerAddress(byteAddreess);
 
@@ -1598,41 +1615,41 @@ public class WalletApi {
   }
 
   private BalanceContract.DelegateResourceContract createDelegateResourceContract(
-          byte[] address, long balance
-          ,int resourceCode, byte[] receiver, boolean lock, long lockPeriod) {
+      byte[] address, long balance
+      , int resourceCode, byte[] receiver, boolean lock, long lockPeriod) {
     if (address == null) {
       address = getAddress();
     }
 
     BalanceContract.DelegateResourceContract.Builder builder =
-            BalanceContract.DelegateResourceContract.newBuilder();
+        BalanceContract.DelegateResourceContract.newBuilder();
     ByteString byteAddress = ByteString.copyFrom(address);
     ByteString byteReceiverAddress = ByteString.copyFrom(receiver);
     builder.setOwnerAddress(byteAddress)
-            .setResourceValue(resourceCode)
-            .setBalance(balance)
-            .setReceiverAddress(byteReceiverAddress)
-            .setLock(lock)
-            .setLockPeriod(lockPeriod);
+        .setResourceValue(resourceCode)
+        .setBalance(balance)
+        .setReceiverAddress(byteReceiverAddress)
+        .setLock(lock)
+        .setLockPeriod(lockPeriod);
 
     return builder.build();
   }
 
   private BalanceContract.UnDelegateResourceContract createUnDelegateResourceContract(
-          byte[] address, long balance
-          ,int resourceCode, byte[] receiver) {
+      byte[] address, long balance
+      , int resourceCode, byte[] receiver) {
     if (address == null) {
       address = getAddress();
     }
 
     BalanceContract.UnDelegateResourceContract.Builder builder =
-            BalanceContract.UnDelegateResourceContract.newBuilder();
+        BalanceContract.UnDelegateResourceContract.newBuilder();
     ByteString byteAddress = ByteString.copyFrom(address);
     ByteString byteReceiverAddress = ByteString.copyFrom(receiver);
     builder.setOwnerAddress(byteAddress)
-            .setResourceValue(resourceCode)
-            .setBalance(balance)
-            .setReceiverAddress(byteReceiverAddress);
+        .setResourceValue(resourceCode)
+        .setBalance(balance)
+        .setReceiverAddress(byteReceiverAddress);
 
     return builder.build();
   }
@@ -1704,7 +1721,7 @@ public class WalletApi {
   }
 
   public static Optional<BlockListExtention> getBlockByLimitNext2(long start,
-      long end) {
+                                                                  long end) {
     return rpcCli.getBlockByLimitNext2(start, end);
   }
 
@@ -1742,32 +1759,32 @@ public class WalletApi {
   }
 
   public static Optional<Protocol.DelegatedResourceAccountIndex> getDelegatedResourceAccountIndex(
-          String ownerAddress) {
+      String ownerAddress) {
     return rpcCli.getDelegatedResourceAccountIndex(ownerAddress);
   }
 
   public static Optional<DelegatedResourceList> getDelegatedResourceV2(
-          String fromAddress, String toAddress) {
+      String fromAddress, String toAddress) {
     return rpcCli.getDelegatedResourceV2(fromAddress, toAddress);
   }
 
   public static Optional<Protocol.DelegatedResourceAccountIndex> getDelegatedResourceAccountIndexV2(
-          String ownerAddress) {
+      String ownerAddress) {
     return rpcCli.getDelegatedResourceAccountIndexV2(ownerAddress);
   }
 
   public static Optional<GrpcAPI.CanWithdrawUnfreezeAmountResponseMessage> getCanWithdrawUnfreezeAmount(
-          byte[] ownerAddress, long timestamp) {
+      byte[] ownerAddress, long timestamp) {
     return rpcCli.getCanWithdrawUnfreezeAmount(ownerAddress, timestamp);
   }
 
   public static Optional<GrpcAPI.CanDelegatedMaxSizeResponseMessage> getCanDelegatedMaxSize(
-          byte[] ownerAddress, int type) {
+      byte[] ownerAddress, int type) {
     return rpcCli.getCanDelegatedMaxSize(ownerAddress, type);
   }
 
   public static Optional<GrpcAPI.GetAvailableUnfreezeCountResponseMessage> getAvailableUnfreezeCount(
-          byte[] ownerAddress) {
+      byte[] ownerAddress) {
     return rpcCli.getAvailableUnfreezeCount(ownerAddress);
   }
 
@@ -1792,7 +1809,7 @@ public class WalletApi {
   }
 
   public boolean approveProposal(byte[] owner, long id,
-      boolean is_add_approval)
+                                 boolean is_add_approval)
       throws CipherException, IOException, CancelException {
     if (owner == null) {
       owner = getAddress();
@@ -1874,7 +1891,7 @@ public class WalletApi {
   }
 
   public boolean exchangeInject(byte[] owner, long exchangeId,
-      byte[] tokenId, long quant)
+                                byte[] tokenId, long quant)
       throws CipherException, IOException, CancelException {
     if (owner == null) {
       owner = getAddress();
@@ -1900,7 +1917,7 @@ public class WalletApi {
   }
 
   public boolean exchangeWithdraw(byte[] owner, long exchangeId,
-      byte[] tokenId, long quant)
+                                  byte[] tokenId, long quant)
       throws CipherException, IOException, CancelException {
     if (owner == null) {
       owner = getAddress();
@@ -1925,7 +1942,7 @@ public class WalletApi {
   }
 
   public boolean exchangeTransaction(byte[] owner, long exchangeId, byte[] tokenId, long quant,
-      long expected) throws CipherException, IOException, CancelException {
+                                     long expected) throws CipherException, IOException, CancelException {
     if (owner == null) {
       owner = getAddress();
     }
@@ -2036,8 +2053,8 @@ public class WalletApi {
         System.out.println("No type!");
         return null;
       }
-      if(inputs == null) {
-        if(!(type.equalsIgnoreCase("fallback") || type.equalsIgnoreCase("receive"))) {
+      if (inputs == null) {
+        if (!(type.equalsIgnoreCase("fallback") || type.equalsIgnoreCase("receive"))) {
           logger.error("No inputs!");
           return null;
         }
@@ -2193,7 +2210,7 @@ public class WalletApi {
   }
 
   private static byte[] replaceLibraryAddress(String code, String libraryAddressPair,
-      String compilerVersion) {
+                                              String compilerVersion) {
 
     String[] libraryAddressList = libraryAddressPair.split("[,]");
 
@@ -2273,7 +2290,7 @@ public class WalletApi {
   }
 
   public boolean updateSetting(byte[] owner, byte[] contractAddress,
-      long consumeUserResourcePercent) throws IOException, CipherException, CancelException {
+                               long consumeUserResourcePercent) throws IOException, CipherException, CancelException {
     if (owner == null) {
       owner = getAddress();
     }
@@ -2564,7 +2581,7 @@ public class WalletApi {
   }
 
   public AccountPermissionUpdateContract createAccountPermissionContract(byte[] owner,
-      String permissionJson) {
+                                                                         String permissionJson) {
     AccountPermissionUpdateContract.Builder builder = AccountPermissionUpdateContract.newBuilder();
 
     JSONObject permissions = JSONObject.parseObject(permissionJson);
@@ -2635,7 +2652,7 @@ public class WalletApi {
   }
 
   public static Optional<DecryptNotes> scanNoteByIvk(IvkDecryptParameters ivkDecryptParameters,
-      boolean showErrorMsg) {
+                                                     boolean showErrorMsg) {
     if (showErrorMsg) {
       try {
         return Optional.of(rpcCli.scanNoteByIvk(ivkDecryptParameters));
@@ -2652,7 +2669,7 @@ public class WalletApi {
   }
 
   public static Optional<DecryptNotes> scanNoteByOvk(OvkDecryptParameters ovkDecryptParameters,
-      boolean showErrorMsg) {
+                                                     boolean showErrorMsg) {
     if (showErrorMsg) {
       try {
         return Optional.of(rpcCli.scanNoteByOvk(ovkDecryptParameters));
@@ -2737,7 +2754,7 @@ public class WalletApi {
   }
 
   public static boolean sendShieldedCoinWithoutAsk(PrivateParametersWithoutAsk privateParameters,
-      byte[] ask, WalletApi wallet) throws CipherException, IOException, CancelException {
+                                                   byte[] ask, WalletApi wallet) throws CipherException, IOException, CancelException {
     TransactionExtention transactionExtention =
         rpcCli.createShieldedTransactionWithoutSpendAuthSig(privateParameters);
     if (transactionExtention == null) {
@@ -2900,7 +2917,7 @@ public class WalletApi {
   }
 
   public static Optional<DecryptNotesTRC20> scanShieldedTRC20NoteByIvk(
-          IvkDecryptTRC20Parameters parameters, boolean showErrorMsg) {
+      IvkDecryptTRC20Parameters parameters, boolean showErrorMsg) {
     try {
       return Optional.of(rpcCli.scanShieldedTRC20NoteByIvk(parameters));
     } catch (Exception e) {
@@ -2913,7 +2930,7 @@ public class WalletApi {
   }
 
   public static Optional<DecryptNotesTRC20> scanShieldedTRC20NoteByOvk(
-          OvkDecryptTRC20Parameters parameters, boolean showErrorMsg) {
+      OvkDecryptTRC20Parameters parameters, boolean showErrorMsg) {
     try {
       return Optional.of(rpcCli.scanShieldedTRC20NoteByOvk(parameters));
     } catch (Exception e) {
@@ -2979,7 +2996,7 @@ public class WalletApi {
     }
 
     if (parameters.getParameterType().equals("mint")) {
-        return parameters;
+      return parameters;
     }
     //generate spendAuthority signature and trigger input data
     ShieldedTRC20TriggerContractParameters.Builder stBuilder =
@@ -3014,9 +3031,9 @@ public class WalletApi {
         return null;
       }
       newBuilder.getSpendDescriptionBuilder(i)
-                .setSpendAuthoritySignature(
-                    ByteString.copyFrom(
-                        authSig.getValue().toByteArray()));
+          .setSpendAuthoritySignature(
+              ByteString.copyFrom(
+                  authSig.getValue().toByteArray()));
       stBuilder.addSpendAuthoritySignature(authSig);
     }
     BytesMessage triggerInputData;

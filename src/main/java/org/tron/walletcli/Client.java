@@ -17,6 +17,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import io.netty.util.internal.StringUtil;
 import org.apache.commons.lang3.ArrayUtils;
 import org.bouncycastle.util.encoders.Hex;
+import org.hid4java.HidDevice;
 import org.jline.reader.Completer;
 import org.jline.reader.EndOfFileException;
 import org.jline.reader.LineReader;
@@ -51,6 +52,8 @@ import org.tron.core.zen.address.PaymentAddress;
 import org.tron.core.zen.address.SpendingKey;
 import org.tron.keystore.StringUtils;
 import org.tron.ledger.TronLedgerGetAddress;
+import org.tron.ledger.listener.TransactionSignManager;
+import org.tron.ledger.wrapper.HidServicesWrapper;
 import org.tron.mnemonic.MnemonicUtils;
 import org.tron.protos.Protocol.MarketOrder;
 import org.tron.protos.Protocol.MarketOrderList;
@@ -590,22 +593,38 @@ public class Client {
   private void importWalletByLedger() throws CipherException, IOException {
     System.out.println("((Note:This is importWalletByLedger tips)");
 
-    if (TronLedgerGetAddress.getInstance().getConnectedDevice() == null) {
-      System.out.println("No Ledger device found");
-      return ;
-    }
-
-    char[] password = Utils.inputPassword2Twice();
-    String fileName = walletApiWrapper.importWalletByLedger(password);
-    if (null == fileName) {
-      System.out.println("Import wallet by ledger failed !!");
+    // device is using in transaction sign
+    HidDevice signDevice = TransactionSignManager.getInstance().getHidDevice();
+    if (signDevice != null) {
+      System.out.println("Import wallet by ledger failed !! Please repair your ledger device");
       return;
     }
-    StringUtils.clear(password);
 
-    System.out.println("Import a wallet by ledger successful, keystore file : ."
-        + File.separator + "Wallet" + File.separator
-        + fileName);
+    //get unused device
+    HidDevice device  = HidServicesWrapper.getInstance().getHidDevice();
+    if (device == null) {
+      System.out.println("No Ledger device found");
+      return ;
+    } else {
+      System.out.println("Ledger device found: " + device.getProduct());
+    }
+
+    try {
+      char[] password = Utils.inputPassword2Twice();
+      String fileName = walletApiWrapper.importWalletByLedger(device, password);
+      if (null == fileName) {
+        System.out.println("Import wallet by ledger failed !!");
+        return;
+      }
+      StringUtils.clear(password);
+
+      System.out.println("Import a wallet by ledger successful, keystore file : ."
+          + File.separator + "Wallet" + File.separator
+          + fileName);
+    } finally {
+      device.close();
+    }
+
   }
 
   private void importWalletByBase64() throws CipherException, IOException {
@@ -1027,6 +1046,9 @@ public class Client {
     long amount = new Long(amountStr);
 
     boolean result = walletApiWrapper.sendCoin(ownerAddress, toAddress, amount);
+    if (walletApiWrapper.getLedgerUser()) {
+      return ;
+    }
     if (result) {
       System.out.println("Send " + amount + " Sun to " + base58ToAddress + " successful !!");
     } else {

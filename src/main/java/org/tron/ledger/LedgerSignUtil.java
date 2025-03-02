@@ -8,6 +8,7 @@ import static org.tron.ledger.sdk.LedgerConstant.DEFAULT_PATH;
 
 public class LedgerSignUtil {
 
+  /*
   public static byte[] reuqestLedgerSign(Protocol.Transaction transaction) {
     return TronLedgerSignTrans.signTronTransaction(
         ByteArray.toHexString(transaction.getRawData().toByteArray())
@@ -22,4 +23,6 @@ public class LedgerSignUtil {
     transaction = transactionBuilderSigned.build();
     return transaction;
   }
+
+   */
 }

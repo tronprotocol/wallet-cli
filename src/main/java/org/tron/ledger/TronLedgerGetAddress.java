@@ -8,19 +8,19 @@ import java.util.Arrays;
 
 public class TronLedgerGetAddress {
   private static final int LEDGER_VENDOR_ID = 0x2c97;
-  private final HidServices hidServices;
-  @Getter
-  private HidDevice device;
+  //private final HidServices hidServices;
+  //@Getter
+  //private HidDevice device;
   private static TronLedgerGetAddress instance;
 
   private TronLedgerGetAddress() {
-    HidServicesSpecification spec = new HidServicesSpecification();
+    //HidServicesSpecification spec = new HidServicesSpecification();
     // hidServicesSpecification need the same in the program
-    spec.setAutoStart(false);
-    spec.setAutoDataRead(true);
-    spec.setDataReadInterval(500);
-    hidServices = HidManager.getHidServices(spec);
-    hidServices.start();
+    //  spec.setAutoStart(false);
+    //  spec.setAutoDataRead(true);
+    //  spec.setDataReadInterval(500);
+    //  hidServices = HidManager.getHidServices(spec);
+    //  hidServices.start();
   }
 
   private static class Holder {
@@ -31,10 +31,10 @@ public class TronLedgerGetAddress {
     return Holder.INSTANCE;
   }
 
+  /*
   public HidDevice getConnectedDevice() {
     for (HidDevice dev : hidServices.getAttachedHidDevices()) {
       if (dev.getVendorId() == LEDGER_VENDOR_ID) {
-        //System.out.println("Ledger device: " + dev.getProduct() + " found\n");
         return dev;
       }
     }
@@ -60,8 +60,9 @@ public class TronLedgerGetAddress {
     }
     hidServices.shutdown();
   }
+  */
 
-  public String getTronAddressByPath(String path) {
+  public String getTronAddressByPath(HidDevice device, String path) {
     try {
       byte[] apdu = ApduMessageBuilder.buildTronAddressApduMessage(path);
       byte[] result = ApduExchangeHandler.exchangeApdu(device, apdu);
