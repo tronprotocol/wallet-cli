@@ -104,6 +104,7 @@ import org.tron.keystore.CheckStrength;
 import org.tron.keystore.Credentials;
 import org.tron.ledger.listener.LedgerEventListener;
 import org.tron.ledger.listener.TransactionSignManager;
+import org.tron.ledger.wrapper.ContractTypeChecker;
 import org.tron.ledger.wrapper.HidServicesWrapper;
 import org.tron.mnemonic.Mnemonic;
 import org.tron.mnemonic.MnemonicFile;
@@ -170,6 +171,9 @@ import org.tron.protos.contract.StorageContract.UpdateBrokerageContract;
 import org.tron.protos.contract.WitnessContract.VoteWitnessContract;
 import org.tron.protos.contract.WitnessContract.WitnessCreateContract;
 import org.tron.protos.contract.WitnessContract.WitnessUpdateContract;
+
+import static org.tron.ledger.console.ConsoleColor.ANSI_RED;
+import static org.tron.ledger.console.ConsoleColor.ANSI_RESET;
 
 @Slf4j
 public class WalletApi {
@@ -633,6 +637,14 @@ public class WalletApi {
         throw new CancelException(weight.getResult().getMessage());
       } else {
         try {
+          if (!ContractTypeChecker.canUseLedgerSign(
+              transaction.getRawData().getContract(0).getType().toString())) {
+            System.out.println(ANSI_RED +
+                "Transaction type is not supported ledger sign, Please check your transaction type!!" +
+                ANSI_RESET);
+            break;
+          }
+
           if (TransactionSignManager.getInstance().getTransaction()==null) {
             HidDevice hidDevice = HidServicesWrapper.getInstance().getHidDevice();
             if (hidDevice==null) {

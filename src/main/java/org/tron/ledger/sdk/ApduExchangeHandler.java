@@ -5,10 +5,10 @@ import org.hid4java.HidDevice;
 public class ApduExchangeHandler {
   private static final int CHANNEL = 0x0101;
   private static final int PACKET_SIZE = 64;
-  private static final int TIMEOUT_MILLIS = 1000;
-  private static final int MAX_WAIT_TIME_MILLIS = 1000; // 1 seconds
 
-  public static byte[] exchangeApdu(HidDevice device, byte[] apdu) {
+
+  public static byte[] exchangeApdu(HidDevice device, byte[] apdu
+      , int readTimeoutMillis, int totalWaitTimeoutMillis) {
     byte[] wrappedCommand = LedgerProtocol.wrapCommandAPDU(
         CHANNEL, apdu, PACKET_SIZE, false);
 
@@ -22,7 +22,7 @@ public class ApduExchangeHandler {
     long startTime = System.currentTimeMillis();
 
     while (true) {
-      result = device.read(buffer, TIMEOUT_MILLIS);
+      result = device.read(buffer, readTimeoutMillis);
       if (result < 0) {
         throw new RuntimeException("Failed to read from device");
       }
@@ -33,9 +33,11 @@ public class ApduExchangeHandler {
         return unwrapped;
       }
       // Check if the maximum wait time has been exceeded
-      if (System.currentTimeMillis() - startTime > MAX_WAIT_TIME_MILLIS) {
-        //1秒钟内没有返回失败，则认为发送成功
-        System.err.println("Timeout: No response within 1 seconds");
+      if (System.currentTimeMillis() - startTime > totalWaitTimeoutMillis) {
+        //totalWaitTimeoutMillis/1000 seconds
+        System.out.println(totalWaitTimeoutMillis);
+        System.out.println(totalWaitTimeoutMillis/1000);
+        System.err.println("Timeout: No response within " + totalWaitTimeoutMillis/1000 + " seconds");
         return null;
       }
     }

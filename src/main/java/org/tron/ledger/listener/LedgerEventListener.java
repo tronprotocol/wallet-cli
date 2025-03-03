@@ -24,6 +24,10 @@ import static org.tron.ledger.sdk.CommonUtil.bytesToHex;
 import static org.tron.ledger.sdk.LedgerConstant.LEDGER_SIGN_CANCEL;
 
 public class LedgerEventListener extends BaseListener {
+  private static final int TRANSACTION_SIGN_TIMEOUT = 120;
+
+
+
   @Getter
   private AtomicBoolean isShutdown = new AtomicBoolean(false);
   @Getter
@@ -43,19 +47,20 @@ public class LedgerEventListener extends BaseListener {
   public boolean waitAndShutdownWithInput() {
     Thread inputThread = new Thread(() -> {
       Scanner scanner = new Scanner(System.in);
-      System.out.printf(ANSI_YELLOW + "Press 'y' to continue on other operation.\n" + ANSI_RESET);
-      System.out.printf(ANSI_YELLOW + "current transaction sign will be closed after 120s.\n" + ANSI_RESET);
+      System.out.printf(ANSI_YELLOW + "Press 'c' to cancel sign and continue on other operation.\n" + ANSI_RESET);
+      System.out.printf(ANSI_YELLOW + "如果交易签名没超时且ledger确认签名，这个交易还是会广播\n" + ANSI_RESET);
+      System.out.printf(ANSI_YELLOW + "current transaction sign will be closed after %ds.\n" + ANSI_RESET, TRANSACTION_SIGN_TIMEOUT);
       String input = scanner.nextLine();
-      while (!"y".equalsIgnoreCase(input)) {
+      while (!"c".equalsIgnoreCase(input)) {
         input = scanner.nextLine();
-        if ("y".equalsIgnoreCase(input)) {
+        if ("c".equalsIgnoreCase(input)) {
           break;
         }
       }
       System.out.printf(ANSI_RED + "input thread finished\n" + ANSI_RESET);
     });
     Thread shutdownThread = new Thread(() -> {
-      sleepNoInterruption(120);
+      sleepNoInterruption(TRANSACTION_SIGN_TIMEOUT);
       shutdownHidServices();
       System.out.printf(ANSI_RED + "shutdown thread finished\n" + ANSI_RESET);
     });
@@ -95,7 +100,7 @@ public class LedgerEventListener extends BaseListener {
       byte[] sendResult = handleTransSign(hidDevice, transaction);
       if (sendResult == null) {
         System.out.println("transaction sign request is sent to ledger");
-        System.out.println("you can input y to cancel or just operate on ledger");
+        //System.out.println("you can input y to cancel or just operate on ledger");
         TransactionSignManager.getInstance().setHidDevice(hidDevice);
         if (this.isShutdown.get()) {
           this.isShutdown.set(false);
@@ -110,10 +115,14 @@ public class LedgerEventListener extends BaseListener {
   }
 
   public byte[] handleTransSign(HidDevice hidDevice, Protocol.Transaction transaction) {
+    final int TIMEOUT_MILLIS = 1000;
+    final int MAX_WAIT_TIME_MILLIS = 1000; // 1.5 seconds
+
     String transactionRaw = bytesToHex(transaction.getRawData().toByteArray());
     String path = "m/44'/195'/0'/0/0";
     byte[] apdu = ApduMessageBuilder.buildTransactionSignApduMessage(path, transactionRaw);
-    byte[] respone = ApduExchangeHandler.exchangeApdu(hidDevice, apdu);
+    byte[] respone = ApduExchangeHandler.exchangeApdu(hidDevice, apdu
+        ,TIMEOUT_MILLIS, MAX_WAIT_TIME_MILLIS);
     if (respone!=null) {
       System.out.println("handleTransSign respone: " + bytesToHex(respone));
     } else {

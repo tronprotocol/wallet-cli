@@ -599,19 +599,19 @@ public class Client {
       System.out.println("Import wallet by ledger failed !! Please repair your ledger device");
       return;
     }
-
-    //get unused device
-    HidDevice device  = HidServicesWrapper.getInstance().getHidDevice();
-    if (device == null) {
-      System.out.println("No Ledger device found");
-      return ;
-    } else {
-      System.out.println("Ledger device found: " + device.getProduct());
-    }
-
+    HidDevice device  = null;
     try {
+      //get unused device
+      device  = TronLedgerGetAddress.getInstance().getConnectedDevice();
+      if (device == null) {
+        System.out.println("No Ledger device found");
+        return ;
+      } else {
+        System.out.println("Ledger device found: " + device.getProduct());
+      }
+
       char[] password = Utils.inputPassword2Twice();
-      String fileName = walletApiWrapper.importWalletByLedger(device, password);
+      String fileName = walletApiWrapper.importWalletByLedger(password);
       if (null == fileName) {
         System.out.println("Import wallet by ledger failed !!");
         return;

@@ -14,7 +14,8 @@ import java.util.Set;
 
 public class LedgerFileUtil {
 
-  public static void writePathsToFile(HidDevice device, List<String> paths) {
+  public static void writePathsToFile(List<String> paths) {
+    HidDevice device = TronLedgerGetAddress.getInstance().getConnectedDevice();
     String directoryName = "ledger";
     String fileName = String.format("%s_%s_%s_%s.txt",
         device.getVendorId(),
@@ -49,7 +50,8 @@ public class LedgerFileUtil {
     }
   }
 
-  public static boolean isPathInFile(HidDevice device, String path) {
+  public static boolean isPathInFile(String path) {
+    HidDevice device = TronLedgerGetAddress.getInstance().getConnectedDevice();
     String directoryName = "ledger";
     String fileName = String.format("%s_%s_%s_%s.txt",
         device.getVendorId(),
@@ -71,6 +73,7 @@ public class LedgerFileUtil {
   }
 
   public static void main(String[] args) {
+    /*
     try{
       List<String> paths = Arrays.asList(
           "m/44'/195'/0'/0/0",
@@ -85,5 +88,6 @@ public class LedgerFileUtil {
     }catch (Exception e){
       e.printStackTrace();
     }
+     */
   }
 }
