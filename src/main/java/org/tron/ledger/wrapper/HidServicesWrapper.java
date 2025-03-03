@@ -1,6 +1,5 @@
 package org.tron.ledger.wrapper;
 
-import lombok.Getter;
 import org.hid4java.HidDevice;
 import org.hid4java.HidManager;
 import org.hid4java.HidServices;
@@ -49,7 +48,6 @@ public class HidServicesWrapper {
     return hidServices;
   }
 
-  //TODO 处理多个同时在线的情况
   public static HidDevice getLedgerHidDevice(HidServices hidServices) {
     HidDevice fidoDevice = null;
     try {

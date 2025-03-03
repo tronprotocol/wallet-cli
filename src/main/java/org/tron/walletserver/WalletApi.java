@@ -634,18 +634,20 @@ public class WalletApi {
       } else {
         try {
           if (TransactionSignManager.getInstance().getTransaction()==null) {
-            LedgerEventListener.getInstance().setLedgerSignEnd(new AtomicBoolean(false));
-            TransactionSignManager.getInstance().setTransaction(transaction);
             HidDevice hidDevice = HidServicesWrapper.getInstance().getHidDevice();
             if (hidDevice==null) {
               System.out.println("Please check your ledger and try again");
               System.out.println("Sign with ledger failed");
               break;
             }
+            LedgerEventListener.getInstance().setLedgerSignEnd(new AtomicBoolean(false));
+            TransactionSignManager.getInstance().setTransaction(transaction);
             boolean ret = LedgerEventListener.getInstance().executeSignListen(hidDevice, transaction);
             if (ret) {
               break;
             } else {
+              LedgerEventListener.getInstance().setLedgerSignEnd(new AtomicBoolean(true));
+              TransactionSignManager.getInstance().setTransaction(null);
               System.out.println("Sign with ledger failed");
               System.out.println("Please check your ledger and try again");
               break;

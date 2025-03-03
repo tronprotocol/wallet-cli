@@ -44,14 +44,12 @@ public class LedgerFileUtil {
           writer.newLine();
         }
       }
-      //System.out.println("Paths written to file: " + fileName);
     } catch (IOException e) {
       e.printStackTrace();
     }
   }
 
   public static boolean isPathInFile(HidDevice device, String path) {
-    //HidDevice device = TronLedgerGetAddress.getInstance().getConnectedDevice();
     String directoryName = "ledger";
     String fileName = String.format("%s_%s_%s_%s.txt",
         device.getVendorId(),

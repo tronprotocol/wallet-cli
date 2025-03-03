@@ -1,8 +1,6 @@
 package org.tron.ledger;
 
 import org.hid4java.HidDevice;
-import org.tron.ledger.listener.TransactionSignManager;
-import org.tron.ledger.wrapper.HidServicesWrapper;
 
 import java.util.HashMap;
 import java.util.List;

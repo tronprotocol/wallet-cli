@@ -3,17 +3,13 @@ package org.tron.ledger.listener;
 import lombok.Getter;
 import lombok.Setter;
 import org.hid4java.HidDevice;
-import org.hid4java.HidServices;
 import org.hid4java.event.HidServicesEvent;
-import org.jline.reader.LineReader;
-import org.jline.reader.LineReaderBuilder;
 import org.tron.common.crypto.Hash;
 import org.tron.common.crypto.Sha256Sm3Hash;
 import org.tron.ledger.sdk.ApduExchangeHandler;
 import org.tron.ledger.sdk.ApduMessageBuilder;
 import org.tron.ledger.sdk.CommonUtil;
 import org.tron.ledger.sdk.LedgerProtocol;
-import org.tron.ledger.wrapper.HidServicesWrapper;
 import org.tron.protos.Protocol;
 import org.tron.walletserver.WalletApi;
 
@@ -25,7 +21,6 @@ import static org.tron.ledger.console.ConsoleColor.ANSI_RED;
 import static org.tron.ledger.console.ConsoleColor.ANSI_RESET;
 import static org.tron.ledger.console.ConsoleColor.ANSI_YELLOW;
 import static org.tron.ledger.sdk.CommonUtil.bytesToHex;
-import static org.tron.ledger.sdk.CommonUtil.hexStringToByteArray;
 import static org.tron.ledger.sdk.LedgerConstant.LEDGER_SIGN_CANCEL;
 
 public class LedgerEventListener extends BaseListener {
@@ -102,6 +97,9 @@ public class LedgerEventListener extends BaseListener {
         System.out.println("transaction sign request is sent to ledger");
         System.out.println("you can input y to cancel or just operate on ledger");
         TransactionSignManager.getInstance().setHidDevice(hidDevice);
+        if (this.isShutdown.get()) {
+          this.isShutdown.set(false);
+        }
       }
       ret = waitAndShutdownWithInput();
     } catch (Exception e) {

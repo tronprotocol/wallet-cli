@@ -1,26 +1,12 @@
 package org.tron.ledger;
 
-import lombok.Getter;
-import org.hid4java.*;
+import org.hid4java.HidDevice;
 import org.tron.ledger.sdk.ApduExchangeHandler;
 import org.tron.ledger.sdk.ApduMessageBuilder;
 import java.util.Arrays;
 
 public class TronLedgerGetAddress {
-  private static final int LEDGER_VENDOR_ID = 0x2c97;
-  //private final HidServices hidServices;
-  //@Getter
-  //private HidDevice device;
-  private static TronLedgerGetAddress instance;
-
   private TronLedgerGetAddress() {
-    //HidServicesSpecification spec = new HidServicesSpecification();
-    // hidServicesSpecification need the same in the program
-    //  spec.setAutoStart(false);
-    //  spec.setAutoDataRead(true);
-    //  spec.setDataReadInterval(500);
-    //  hidServices = HidManager.getHidServices(spec);
-    //  hidServices.start();
   }
 
   private static class Holder {
@@ -30,37 +16,6 @@ public class TronLedgerGetAddress {
   public static TronLedgerGetAddress getInstance() {
     return Holder.INSTANCE;
   }
-
-  /*
-  public HidDevice getConnectedDevice() {
-    for (HidDevice dev : hidServices.getAttachedHidDevices()) {
-      if (dev.getVendorId() == LEDGER_VENDOR_ID) {
-        return dev;
-      }
-    }
-    return null;
-  }
-
-  public void connect() {
-    for (HidDevice dev : hidServices.getAttachedHidDevices()) {
-      if (dev.getVendorId() == LEDGER_VENDOR_ID) {
-        device = dev;
-        if (!device.open()) {
-          throw new RuntimeException("Failed to open device");
-        }
-        return;
-      }
-    }
-    throw new RuntimeException("Ledger device not found");
-  }
-
-  public void close() {
-    if (device != null) {
-      device.close();
-    }
-    hidServices.shutdown();
-  }
-  */
 
   public String getTronAddressByPath(HidDevice device, String path) {
     try {
