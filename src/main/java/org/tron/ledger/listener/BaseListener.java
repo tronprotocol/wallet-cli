@@ -22,15 +22,15 @@ public abstract class BaseListener implements HidServicesListener {
    */
   public static void sleepNoInterruption(int sleepSeconds) {
     boolean interrupted = false;
-    boolean ledgerSignEnd = LedgerEventListener.getInstance().getLedgerSignEnd().get();
+    //boolean ledgerSignEnd = LedgerEventListener.getInstance().getLedgerSignEnd().get();
     try {
       long remainingNanos = TimeUnit.SECONDS.toNanos(sleepSeconds);
       long end = System.nanoTime() + remainingNanos;
-      while (!ledgerSignEnd) {
+      while (remainingNanos > 0 && !LedgerEventListener.getInstance().getLedgerSignEnd().get()) {
         try {
-          // TimeUnit.sleep() treats negative timeouts just like zero.
-          NANOSECONDS.sleep(remainingNanos);
-          return;
+          long sleepTime = Math.min(remainingNanos, TimeUnit.MILLISECONDS.toNanos(100));
+          NANOSECONDS.sleep(sleepTime);
+          remainingNanos = end - System.nanoTime();
         } catch (InterruptedException e) {
           interrupted = true;
           remainingNanos = end - System.nanoTime();

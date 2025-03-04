@@ -89,7 +89,7 @@ public class LedgerEventListener extends BaseListener {
       if (DebugConfig.isDebugEnabled()) {
         System.out.printf(ANSI_YELLOW + "ledger sign shutdown...%n" + ANSI_RESET);
       }
-      ledgerSignEnd.set(true);
+      ledgerSignEnd.compareAndSet(false, true);
       TransactionSignManager.getInstance().setTransaction(null);
       isShutdown.set(true);
     }
@@ -107,7 +107,10 @@ public class LedgerEventListener extends BaseListener {
           this.isShutdown.set(false);
         }
       }
-
+      String transactionId = TransactionUtils.getTransactionId(transaction).toString();
+      LedgerSignResult.createFileIfNotExists(hidDevice.getPath());
+      LedgerSignResult.appendLineIfNotExists(
+          hidDevice.getPath(), transactionId, LedgerSignResult.SIGN_RESULT_SIGNING);
       ret = waitAndShutdownWithInput();
     } catch (Exception e) {
       e.printStackTrace();

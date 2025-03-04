@@ -646,7 +646,6 @@ public class WalletApi {
             break;
           }
 
-          String transactionId = TransactionUtils.getTransactionId(transaction).toString();
           if (TransactionSignManager.getInstance().getTransaction()==null) {
             HidDevice hidDevice = HidServicesWrapper.getInstance().getHidDevice();
             if (hidDevice==null) {
@@ -658,9 +657,6 @@ public class WalletApi {
             TransactionSignManager.getInstance().setTransaction(transaction);
             boolean ret = LedgerEventListener.getInstance().executeSignListen(hidDevice, transaction);
             if (ret) {
-              LedgerSignResult.createFileIfNotExists(hidDevice.getPath());
-              LedgerSignResult.appendLineIfNotExists(
-                  hidDevice.getPath(), transactionId, LedgerSignResult.SIGN_RESULT_SIGNING);
               break;
             } else {
               LedgerEventListener.getInstance().setLedgerSignEnd(new AtomicBoolean(true));
