@@ -75,7 +75,6 @@ public class LedgerEventListener extends BaseListener {
     shutdownThread.setDaemon(true);
     shutdownThread.start();
 
-
     try {
       inputThread.join();
     } catch (InterruptedException e) {
@@ -90,7 +89,8 @@ public class LedgerEventListener extends BaseListener {
       if (DebugConfig.isDebugEnabled()) {
         System.out.printf(ANSI_YELLOW + "ledger sign shutdown...%n" + ANSI_RESET);
       }
-      doLedgerSignEnd();
+      ledgerSignEnd.set(true);
+      TransactionSignManager.getInstance().setTransaction(null);
       isShutdown.set(true);
     }
   }
@@ -107,6 +107,7 @@ public class LedgerEventListener extends BaseListener {
           this.isShutdown.set(false);
         }
       }
+
       ret = waitAndShutdownWithInput();
     } catch (Exception e) {
       e.printStackTrace();
