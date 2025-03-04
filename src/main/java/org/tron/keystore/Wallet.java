@@ -83,7 +83,7 @@ public class Wallet {
   }
 
   public static WalletFile createLedger(byte[] password, int n, int p
-      , String address, String uniqLedgerId)
+      , String address, String path)
       throws CipherException {
 
     byte[] salt = generateRandomBytes(32);
@@ -93,10 +93,10 @@ public class Wallet {
     byte[] encryptKey = Arrays.copyOfRange(derivedKey, 0, 16);
     byte[] iv = generateRandomBytes(16);
 
-    byte[] uniqLedgerIdBytes = uniqLedgerId.getBytes();
+    byte[] pathBytes = path.getBytes();
 
     byte[] cipherText = performCipherOperation(Cipher.ENCRYPT_MODE, iv, encryptKey,
-        uniqLedgerIdBytes);
+        pathBytes);
 
     byte[] mac = generateMac(derivedKey, cipherText);
 
@@ -108,9 +108,9 @@ public class Wallet {
     return create(password, ecKeySm2Pair, N_STANDARD, P_STANDARD);
   }
   public static WalletFile createStandardLedger(byte[] password
-      , String address, String uniqLedgerId)
+      , String address, String path)
       throws CipherException {
-    return createLedger(password, N_STANDARD, P_STANDARD,address, uniqLedgerId);
+    return createLedger(password, N_STANDARD, P_STANDARD,address, path);
   }
   public static WalletFile createLight(byte[] password, SignInterface ecKeySm2Pair)
       throws CipherException {

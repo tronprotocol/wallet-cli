@@ -36,6 +36,7 @@ import org.tron.core.zen.address.ExpandedSpendingKey;
 import org.tron.core.zen.address.FullViewingKey;
 import org.tron.core.zen.address.SpendingKey;
 import org.tron.keystore.StringUtils;
+import org.tron.keystore.Wallet;
 import org.tron.keystore.WalletFile;
 import org.tron.keystore.WalletUtils;
 import org.tron.ledger.LedgerAddressUtil;
@@ -117,7 +118,6 @@ public class WalletApiWrapper {
       return null;
     }
     String walletFileName = "";
-    String importAddress = "";
     byte[] passwd = StringUtils.char2Byte(password);
 
     try {
@@ -185,9 +185,10 @@ public class WalletApiWrapper {
       if (DebugConfig.isDebugEnabled()) {
         e.printStackTrace();
       }
+    } finally {
+      StringUtils.clear(passwd);
     }
 
-    StringUtils.clear(passwd);
     return walletFileName;
   }
 
@@ -241,12 +242,14 @@ public class WalletApiWrapper {
 
   public String doImportAccount(char[] password, String path, String importAddress)
       throws CipherException, IOException {
-    String uniqLedgerId = getUniqLedgerId(path);
     byte[] passwdByte = StringUtils.char2Byte(password);
     WalletFile walletLedgerFile = WalletApi.CreateLedgerWalletFile(
-        passwdByte, importAddress, uniqLedgerId);
+        passwdByte, importAddress, path);
+    boolean result = loginLedger(passwdByte, walletLedgerFile);
+    if (!result) {
+        return "";
+    }
     String keystoreName = WalletApi.store2KeystoreLedger(walletLedgerFile);
-    loginLedger(walletLedgerFile);
     LedgerFileUtil.writePathsToFile(Arrays.asList(path));
     return keystoreName;
   }
@@ -298,26 +301,65 @@ public class WalletApiWrapper {
     byte[] passwd = StringUtils.char2Byte(password);
     StringUtils.clear(password);
     wallet.checkPassword(passwd);
-    StringUtils.clear(passwd);
 
     if (wallet == null) {
       System.out.println("Warning: Login failed, Please registerWallet or importWallet first !!");
       return false;
     }
-    wallet.setLedgerUser(true);
+
+    WalletFile walletFile = wallet.getWalletFile();
+    if (walletFile == null) {
+      System.out.println("Warning: Login failed, Please check your walletFile");
+      return false;
+    }
+
+    try{
+      byte[] decryptByte = Wallet.decrypt2PrivateBytes(passwd, walletFile);
+      String decryptStr = new String(decryptByte);
+      String prefix = "m/44'/195'/";
+      boolean isLedgerUser = ( decryptStr != null && decryptStr.startsWith(prefix) );
+      if (isLedgerUser) {
+        wallet.setPath(decryptStr);
+        wallet.setLedgerUser(isLedgerUser);
+      }
+    } catch (Exception e) {
+      if (DebugConfig.isDebugEnabled()) {
+        e.printStackTrace();
+      }
+      return false;
+    } finally {
+      StringUtils.clear(passwd);
+    }
+
     wallet.setLogin();
     return true;
   }
 
-  public boolean loginLedger(WalletFile walletLedgerFile) throws IOException, CipherException {
+  public boolean loginLedger(byte[] passwdByte, WalletFile walletLedgerFile) {
     logout();
     wallet = new WalletApi(walletLedgerFile);
     if (wallet == null) {
       System.out.println("Warning: Login failed");
       return false;
     }
-    wallet.setLedgerUser(true);
-    wallet.setLogin();
+
+    try {
+      byte[] decrypt = Wallet.decrypt2PrivateBytes(passwdByte, walletLedgerFile);
+      String decryptStr = new String(decrypt);
+      String prefix = "m/44'/195'/";
+      boolean isLedgerUser = ( decryptStr != null && decryptStr.startsWith(prefix) );
+      if (isLedgerUser) {
+        wallet.setPath(decryptStr);
+        wallet.setLedgerUser(isLedgerUser);
+      }
+      wallet.setLogin();
+    } catch (Exception e) {
+      if (DebugConfig.isDebugEnabled()) {
+        e.printStackTrace();
+      }
+      return false;
+    }
+
     return true;
   }
 

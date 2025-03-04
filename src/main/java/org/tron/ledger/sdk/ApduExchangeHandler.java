@@ -7,7 +7,6 @@ public class ApduExchangeHandler {
   private static final int CHANNEL = 0x0101;
   private static final int PACKET_SIZE = 64;
 
-
   public static byte[] exchangeApdu(HidDevice device, byte[] apdu
       , int readTimeoutMillis, int totalWaitTimeoutMillis) {
     byte[] wrappedCommand = LedgerProtocol.wrapCommandAPDU(
@@ -45,7 +44,4 @@ public class ApduExchangeHandler {
       }
     }
   }
-
-
-
 }

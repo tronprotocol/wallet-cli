@@ -600,6 +600,7 @@ public class Client {
       return;
     }
     HidDevice device  = null;
+    char[] password = null;
     try {
       //get unused device
       device  = TronLedgerGetAddress.getInstance().getConnectedDevice();
@@ -610,21 +611,20 @@ public class Client {
         System.out.println("Ledger device found: " + device.getProduct());
       }
 
-      char[] password = Utils.inputPassword2Twice();
+      password = Utils.inputPassword2Twice();
       String fileName = walletApiWrapper.importWalletByLedger(password);
       if (fileName == null || fileName.trim().isEmpty() ) {
         System.out.println("Import wallet by ledger end !!");
         return;
       }
-      StringUtils.clear(password);
 
       System.out.println("Import a wallet by ledger successful, keystore file : ."
           + File.separator + "Wallet" + File.separator
           + fileName);
     } finally {
+      StringUtils.clear(password);
       device.close();
     }
-
   }
 
   private void importWalletByBase64() throws CipherException, IOException {

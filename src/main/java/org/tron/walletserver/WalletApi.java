@@ -29,6 +29,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import io.netty.util.internal.StringUtil;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -107,6 +108,7 @@ import org.tron.ledger.listener.TransactionSignManager;
 import org.tron.ledger.wrapper.ContractTypeChecker;
 import org.tron.ledger.wrapper.HidServicesWrapper;
 import org.tron.ledger.wrapper.LedgerSignResult;
+import org.tron.ledger.wrapper.TransOwnerChecker;
 import org.tron.mnemonic.Mnemonic;
 import org.tron.mnemonic.MnemonicFile;
 import org.tron.mnemonic.MnemonicUtils;
@@ -190,6 +192,9 @@ public class WalletApi {
   @Getter
   @Setter
   private boolean isLedgerUser = false;
+  @Getter
+  @Setter
+  private String path;
 
   private static GrpcClient rpcCli = init();
 
@@ -288,12 +293,12 @@ public class WalletApi {
   }
 
   public static WalletFile CreateLedgerWalletFile(byte[] password
-      , String address, String uniqLedgerId) throws CipherException, IOException {
+      , String address, String path) throws CipherException, IOException {
     WalletFile walletFile = null;
     if (isEckey) {
-      walletFile = Wallet.createStandardLedger(password, address, uniqLedgerId);
+      walletFile = Wallet.createStandardLedger(password, address, path);
     } else {
-      walletFile = Wallet.createStandardLedger(password, address, uniqLedgerId);
+      walletFile = Wallet.createStandardLedger(password, address, path);
     }
     return walletFile;
   }
@@ -353,6 +358,10 @@ public class WalletApi {
       this.walletFile.set(0, walletFile);
     }
     this.address = decodeFromBase58Check(walletFile.getAddress());
+  }
+
+  public WalletFile getWalletFile() {
+    return walletFile.get(0);
   }
 
   public ECKey getEcKey(WalletFile walletFile, byte[] password) throws CipherException {
@@ -647,6 +656,13 @@ public class WalletApi {
           }
 
           String transactionId = TransactionUtils.getTransactionId(transaction).toString();
+          if (!TransOwnerChecker.checkOwner(this.path, transaction)) {
+            System.out.println(ANSI_RED +
+                "Transaction id "+transactionId+" can only be signed by the owner_address" +
+                ANSI_RESET);
+            break;
+          }
+
           if (TransactionSignManager.getInstance().getTransaction()==null) {
             HidDevice hidDevice = HidServicesWrapper.getInstance().getHidDevice();
             if (hidDevice==null) {
