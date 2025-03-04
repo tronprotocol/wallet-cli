@@ -8,9 +8,15 @@ import org.jline.terminal.TerminalBuilder;
 import org.tron.ledger.LedgerAddressUtil;
 import org.tron.ledger.LedgerFileUtil;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
 public class TronLedgerImportAccount {
@@ -166,7 +172,44 @@ public class TronLedgerImportAccount {
     return null;
   }
 
+  public static String findFirstMissingPath(String filePath) {
+    Path path = Paths.get("./ledger/" + filePath);
+    Set<Integer> existingIndices = new HashSet<>();
+
+    try {
+      List<String> lines = Files.readAllLines(path);
+      for (String line : lines) {
+        String[] parts = line.split("/");
+        if (parts.length > 4) {
+          try {
+            int index = Integer.parseInt(parts[3].replace("'", ""));
+            existingIndices.add(index);
+          } catch (NumberFormatException e) {
+            System.err.println("Invalid format in line: " + line);
+          }
+        }
+      }
+
+      // Find the first missing index in the range 0-99
+      for (int i = 0; i < 100; i++) {
+        if (!existingIndices.contains(i)) {
+          return String.format("m/44'/195'/%d'/0/0", i);
+        }
+      }
+    } catch (IOException e) {
+      System.err.println("Error reading file: " + e.getMessage());
+    }
+
+    return null; // Return null if all indices are present
+  }
+
   public static void main(String[] args) {
+    String missingPath = findFirstMissingPath("11415_16384_0001_513.txt");
+    if (missingPath != null) {
+      System.out.println("First missing path: " + missingPath);
+    } else {
+      System.out.println("All paths are present.");
+    }
     //System.out.println(changeAccount());
     //enterMnemonicPath();
   }
