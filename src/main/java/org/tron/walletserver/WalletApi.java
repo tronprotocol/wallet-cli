@@ -106,6 +106,7 @@ import org.tron.ledger.listener.LedgerEventListener;
 import org.tron.ledger.listener.TransactionSignManager;
 import org.tron.ledger.wrapper.ContractTypeChecker;
 import org.tron.ledger.wrapper.HidServicesWrapper;
+import org.tron.ledger.wrapper.LedgerSignResult;
 import org.tron.mnemonic.Mnemonic;
 import org.tron.mnemonic.MnemonicFile;
 import org.tron.mnemonic.MnemonicUtils;
@@ -645,6 +646,7 @@ public class WalletApi {
             break;
           }
 
+          String transactionId = TransactionUtils.getTransactionId(transaction).toString();
           if (TransactionSignManager.getInstance().getTransaction()==null) {
             HidDevice hidDevice = HidServicesWrapper.getInstance().getHidDevice();
             if (hidDevice==null) {
@@ -656,6 +658,9 @@ public class WalletApi {
             TransactionSignManager.getInstance().setTransaction(transaction);
             boolean ret = LedgerEventListener.getInstance().executeSignListen(hidDevice, transaction);
             if (ret) {
+              LedgerSignResult.createFileIfNotExists(hidDevice.getPath());
+              LedgerSignResult.appendLineIfNotExists(
+                  hidDevice.getPath(), transactionId, LedgerSignResult.SIGN_RESULT_SIGNING);
               break;
             } else {
               LedgerEventListener.getInstance().setLedgerSignEnd(new AtomicBoolean(true));

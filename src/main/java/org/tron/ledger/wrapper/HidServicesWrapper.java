@@ -1,5 +1,6 @@
 package org.tron.ledger.wrapper;
 
+import lombok.Getter;
 import org.hid4java.HidDevice;
 import org.hid4java.HidManager;
 import org.hid4java.HidServices;
@@ -14,9 +15,10 @@ import static org.tron.ledger.console.ConsoleColor.ANSI_RESET;
 import static org.tron.ledger.console.ConsoleColor.ANSI_YELLOW;
 
 public class HidServicesWrapper {
-  // TODO, 对于get address和 trans sig 需要用2个不同的hidServices实例。
   private HidServices hidAddressServices;
   private HidServices hidServices;
+  @Getter
+  private boolean debug = true;
 
   private HidServicesWrapper() {
     if (hidServices==null) {
@@ -91,7 +93,9 @@ public class HidServicesWrapper {
       }
 
       if (fidoDevice == null) {
-        System.out.println(ANSI_YELLOW + "No FIDO2 devices attached." + ANSI_RESET);
+        if (DebugConfig.isDebugEnabled()) {
+          System.out.println(ANSI_YELLOW + "No FIDO2 devices attached." + ANSI_RESET);
+        }
       } else {
         if (fidoDevice.isClosed()) {
           if (!fidoDevice.open()) {
@@ -100,7 +104,9 @@ public class HidServicesWrapper {
         }
       }
     } catch (Exception e) {
-      e.printStackTrace();
+      if (DebugConfig.isDebugEnabled()) {
+        e.printStackTrace();
+      }
     }
 
     return fidoDevice;

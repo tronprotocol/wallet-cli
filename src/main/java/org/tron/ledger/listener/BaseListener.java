@@ -2,8 +2,11 @@ package org.tron.ledger.listener;
 
 import org.hid4java.HidServicesListener;
 import org.hid4java.event.HidServicesEvent;
+import org.tron.ledger.wrapper.DebugConfig;
+import org.tron.ledger.wrapper.LedgerSignResult;
 
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static org.tron.ledger.console.ConsoleColor.ANSI_GREEN;
@@ -43,20 +46,28 @@ public abstract class BaseListener implements HidServicesListener {
   @Override
   public void hidDeviceAttached(HidServicesEvent event) {
     if (event.getHidDevice().getManufacturer().equals("Ledger")) {
-      String product = event.getHidDevice().getProduct();
-
-      System.out.println(ANSI_GREEN + "Device " + product + " found: " + event + ANSI_RESET);
+      if (DebugConfig.isDebugEnabled()) {
+        String product = event.getHidDevice().getProduct();
+        System.out.println(ANSI_GREEN + "Device " + product + " found: " + event + ANSI_RESET);
+      }
     }
   }
 
   @Override
   public void hidDeviceDetached(HidServicesEvent event) {
-    System.out.println(ANSI_YELLOW + "Device detached: " + event + ANSI_RESET);
+    if (DebugConfig.isDebugEnabled()) {
+      System.out.println(ANSI_YELLOW + "Device detached: " + event + ANSI_RESET);
+    }
+    LedgerSignResult.updateAllSigningToReject(event.getHidDevice().getPath());
+    LedgerEventListener.getInstance().setLedgerSignEnd(new AtomicBoolean(true));
+    TransactionSignManager.getInstance().setTransaction(null);
   }
 
   @Override
   public void hidFailure(HidServicesEvent event) {
-    System.out.println(ANSI_RED + "HID failure: " + event + ANSI_RESET);
+    if (DebugConfig.isDebugEnabled()) {
+      System.out.println(ANSI_RED + "HID failure: " + event + ANSI_RESET);
+    }
   }
 
   @Override

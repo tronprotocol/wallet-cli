@@ -4,6 +4,8 @@ import lombok.Getter;
 import org.hid4java.*;
 import org.tron.ledger.sdk.ApduExchangeHandler;
 import org.tron.ledger.sdk.ApduMessageBuilder;
+import org.tron.ledger.wrapper.DebugConfig;
+
 import java.util.Arrays;
 
 public class TronLedgerGetAddress {
@@ -34,7 +36,6 @@ public class TronLedgerGetAddress {
   public HidDevice getConnectedDevice() {
     for (HidDevice dev : hidServices.getAttachedHidDevices()) {
       if (dev.getVendorId() == LEDGER_VENDOR_ID) {
-        //System.out.println("Ledger device: " + dev.getProduct() + " found\n");
         return dev;
       }
     }
@@ -85,7 +86,9 @@ public class TronLedgerGetAddress {
       }
     } catch (Exception e) {
       System.err.println("Error: " + e.getMessage());
-      e.printStackTrace();
+      if (DebugConfig.isDebugEnabled()) {
+        e.printStackTrace();
+      }
     }
     return "";
   }

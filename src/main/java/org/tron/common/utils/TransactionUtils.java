@@ -59,6 +59,10 @@ public class TransactionUtils {
     return Sha256Sm3Hash.hash(tmp.build().toByteArray());
   }
 
+  public static Sha256Hash getTransactionId(Transaction transaction) {
+    return Sha256Hash.of(true, transaction.getRawData().toByteArray());
+  }
+
   public static byte[] getOwner(Transaction.Contract contract) {
     ByteString owner;
     try {

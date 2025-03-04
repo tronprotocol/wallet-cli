@@ -1,6 +1,7 @@
 package org.tron.ledger;
 
 import org.hid4java.HidDevice;
+import org.tron.ledger.wrapper.DebugConfig;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -34,7 +35,9 @@ public class LedgerFileUtil {
       try {
         existingPaths.addAll(Files.readAllLines(file.toPath()));
       } catch (IOException e) {
-        e.printStackTrace();
+        if (DebugConfig.isDebugEnabled()) {
+          e.printStackTrace();
+        }
       }
     }
 
@@ -46,7 +49,9 @@ public class LedgerFileUtil {
         }
       }
     } catch (IOException e) {
-      e.printStackTrace();
+      if (DebugConfig.isDebugEnabled()) {
+        e.printStackTrace();
+      }
     }
   }
 
@@ -66,7 +71,9 @@ public class LedgerFileUtil {
         List<String> existingPaths = Files.readAllLines(file.toPath());
         return existingPaths.contains(path);
       } catch (IOException e) {
-        e.printStackTrace();
+        if (DebugConfig.isDebugEnabled()) {
+          e.printStackTrace();
+        }
       }
     }
     return false;

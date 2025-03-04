@@ -1,6 +1,7 @@
 package org.tron.ledger.sdk;
 
 import org.hid4java.HidDevice;
+import org.tron.ledger.wrapper.DebugConfig;
 
 public class ApduExchangeHandler {
   private static final int CHANNEL = 0x0101;
@@ -35,9 +36,11 @@ public class ApduExchangeHandler {
       // Check if the maximum wait time has been exceeded
       if (System.currentTimeMillis() - startTime > totalWaitTimeoutMillis) {
         //totalWaitTimeoutMillis/1000 seconds
-        System.out.println(totalWaitTimeoutMillis);
-        System.out.println(totalWaitTimeoutMillis/1000);
-        System.err.println("Timeout: No response within " + totalWaitTimeoutMillis/1000 + " seconds");
+        if (DebugConfig.isDebugEnabled()) {
+          System.out.println(totalWaitTimeoutMillis);
+          System.out.println(totalWaitTimeoutMillis/1000);
+          System.err.println("Timeout: No response within " + totalWaitTimeoutMillis/1000 + " seconds");
+        }
         return null;
       }
     }
