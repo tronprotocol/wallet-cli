@@ -1,12 +1,13 @@
 package org.tron.ledger.console;
 
-import org.hid4java.HidDevice;
 import org.jline.reader.LineReader;
 import org.jline.reader.LineReaderBuilder;
 import org.jline.terminal.Terminal;
 import org.jline.terminal.TerminalBuilder;
 import org.tron.ledger.LedgerAddressUtil;
 import org.tron.ledger.LedgerFileUtil;
+import org.tron.ledger.sdk.LedgerConstant;
+import org.tron.ledger.wrapper.DebugConfig;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -96,7 +97,9 @@ public class TronLedgerImportAccount {
         }
       }
     } catch (Exception e) {
-      e.printStackTrace();
+      if (DebugConfig.isDebugEnabled()) {
+        e.printStackTrace();
+      }
     }
     return null;
   }
@@ -145,20 +148,33 @@ public class TronLedgerImportAccount {
       String change = "0";
       String addressIndex = "";
 
+      final int MAX_ATTEMPTS = 3;
+      int attempts = 0;
       while (true) {
         account = lineReader.readLine("Enter x (account, e.g., 0): ");
         if (account.matches("\\d+")) {
           break;
         } else {
           System.out.println("Invalid input for x. Please enter a non-negative integer.");
+          attempts++;
+          if (attempts == MAX_ATTEMPTS) {
+            System.out.println("Maximum attempts reached. Exiting.");
+            return null;
+          }
         }
       }
+      attempts = 0;
       while (true) {
         addressIndex = lineReader.readLine("Enter y (address index, e.g., 0): ");
         if (addressIndex.matches("\\d+")) {
           break;
         } else {
           System.out.println("Invalid input for y. Please enter a non-negative integer.");
+          attempts++;
+          if (attempts == MAX_ATTEMPTS) {
+            System.out.println("Maximum attempts reached. Exiting.");
+            return null;
+          }
         }
       }
 
@@ -167,7 +183,9 @@ public class TronLedgerImportAccount {
       boolean isGen = LedgerFileUtil.isPathInFile(path);
       return new ImportAccount(path, address, isGen);
     } catch (Exception e) {
-      e.printStackTrace();
+      if (DebugConfig.isDebugEnabled()) {
+        e.printStackTrace();
+      }
     }
     return null;
   }
@@ -177,6 +195,10 @@ public class TronLedgerImportAccount {
     Set<Integer> existingIndices = new HashSet<>();
 
     try {
+      if (!Files.exists(path)) {
+        return LedgerConstant.DEFAULT_PATH;
+      }
+
       List<String> lines = Files.readAllLines(path);
       for (String line : lines) {
         String[] parts = line.split("/");
@@ -204,13 +226,12 @@ public class TronLedgerImportAccount {
   }
 
   public static void main(String[] args) {
+    /*
     String missingPath = findFirstMissingPath("11415_16384_0001_513.txt");
     if (missingPath != null) {
       System.out.println("First missing path: " + missingPath);
     } else {
       System.out.println("All paths are present.");
-    }
-    //System.out.println(changeAccount());
-    //enterMnemonicPath();
+    }*/
   }
 }

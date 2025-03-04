@@ -612,8 +612,8 @@ public class Client {
 
       char[] password = Utils.inputPassword2Twice();
       String fileName = walletApiWrapper.importWalletByLedger(password);
-      if (null == fileName) {
-        System.out.println("Import wallet by ledger failed !!");
+      if (fileName == null || fileName.trim().isEmpty() ) {
+        System.out.println("Import wallet by ledger end !!");
         return;
       }
       StringUtils.clear(password);

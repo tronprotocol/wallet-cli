@@ -6,7 +6,12 @@ import org.tron.ledger.sdk.ApduExchangeHandler;
 import org.tron.ledger.sdk.ApduMessageBuilder;
 import org.tron.ledger.wrapper.DebugConfig;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
+
+import static org.tron.ledger.console.ConsoleColor.ANSI_RED;
+import static org.tron.ledger.console.ConsoleColor.ANSI_RESET;
 
 public class TronLedgerGetAddress {
   private static final int LEDGER_VENDOR_ID = 0x2c97;
@@ -34,12 +39,39 @@ public class TronLedgerGetAddress {
   }
 
   public HidDevice getConnectedDevice() {
+    List<HidDevice> hidDeviceList = new ArrayList<>();
     for (HidDevice dev : hidServices.getAttachedHidDevices()) {
       if (dev.getVendorId() == LEDGER_VENDOR_ID) {
-        return dev;
+        hidDeviceList.add(dev);
       }
     }
+
+    if (hidDeviceList.size() ==1) {
+      return hidDeviceList.get(0);
+    } else if (hidDeviceList.size() > 1) {
+      System.out.println(ANSI_RED + "Only one ledger device is supported"+ ANSI_RESET);
+      System.out.println(ANSI_RED + "Please check your ledger connection"+ ANSI_RESET);
+      return null;
+    }
     return null;
+  }
+
+  public HidDevice getConnectedDeviceWithException() {
+    List<HidDevice> hidDeviceList = new ArrayList<>();
+    for (HidDevice dev : hidServices.getAttachedHidDevices()) {
+      if (dev.getVendorId() == LEDGER_VENDOR_ID) {
+        hidDeviceList.add(dev);
+      }
+    }
+
+    if (hidDeviceList.size() ==1) {
+      return hidDeviceList.get(0);
+    } else if (hidDeviceList.size() > 1) {
+      System.out.println(ANSI_RED + "Only one ledger device is supported"+ ANSI_RESET);
+      System.out.println(ANSI_RED + "Please check your ledger connection"+ ANSI_RESET);
+      throw new RuntimeException("Only one ledger device is supported");
+    }
+    throw new RuntimeException("No device is found");
   }
 
   public void connect() {
