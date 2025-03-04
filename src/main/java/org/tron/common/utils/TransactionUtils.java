@@ -27,6 +27,7 @@ import org.tron.common.crypto.SignInterface;
 import org.tron.common.crypto.SignatureInterface;
 import org.tron.core.exception.CancelException;
 import org.tron.protos.Protocol.Transaction;
+import org.tron.protos.contract.AccountContract;
 import org.tron.protos.contract.AccountContract.AccountCreateContract;
 import org.tron.protos.contract.AccountContract.AccountPermissionUpdateContract;
 import org.tron.protos.contract.AssetIssueContractOuterClass.AssetIssueContract;
@@ -34,10 +35,13 @@ import org.tron.protos.contract.AssetIssueContractOuterClass.ParticipateAssetIss
 import org.tron.protos.contract.AssetIssueContractOuterClass.TransferAssetContract;
 import org.tron.protos.contract.AssetIssueContractOuterClass.UnfreezeAssetContract;
 import org.tron.protos.contract.AssetIssueContractOuterClass.UpdateAssetContract;
+import org.tron.protos.contract.BalanceContract;
 import org.tron.protos.contract.BalanceContract.FreezeBalanceContract;
 import org.tron.protos.contract.BalanceContract.TransferContract;
 import org.tron.protos.contract.BalanceContract.UnfreezeBalanceContract;
 import org.tron.protos.contract.BalanceContract.WithdrawBalanceContract;
+import org.tron.protos.contract.ExchangeContract;
+import org.tron.protos.contract.ProposalContract;
 import org.tron.protos.contract.SmartContractOuterClass.CreateSmartContract;
 import org.tron.protos.contract.SmartContractOuterClass.TriggerSmartContract;
 import org.tron.protos.contract.VoteAssetContractOuterClass.VoteAssetContract;
@@ -142,11 +146,25 @@ public class TransactionUtils {
                   .unpack(FreezeBalanceContract.class)
                   .getOwnerAddress();
           break;
+        case FreezeBalanceV2Contract:
+          owner =
+              contract
+                  .getParameter()
+                  .unpack(BalanceContract.FreezeBalanceV2Contract.class)
+                  .getOwnerAddress();
+          break;
         case UnfreezeBalanceContract:
           owner =
               contract
                   .getParameter()
                   .unpack(UnfreezeBalanceContract.class)
+                  .getOwnerAddress();
+          break;
+        case UnfreezeBalanceV2Contract:
+          owner =
+              contract
+                  .getParameter()
+                  .unpack(BalanceContract.UnfreezeBalanceV2Contract.class)
                   .getOwnerAddress();
           break;
         case UnfreezeAssetContract:
@@ -175,6 +193,83 @@ public class TransactionUtils {
               contract
                   .getParameter()
                   .unpack(AccountPermissionUpdateContract.class)
+                  .getOwnerAddress();
+          break;
+        case ProposalCreateContract:
+          owner =
+              contract
+                  .getParameter()
+                  .unpack(ProposalContract.ProposalCreateContract.class)
+                  .getOwnerAddress();
+          break;
+        case ProposalApproveContract:
+          owner =
+              contract
+                  .getParameter()
+                  .unpack(ProposalContract.ProposalApproveContract.class)
+                  .getOwnerAddress();
+          break;
+        case ProposalDeleteContract:
+          owner =
+              contract
+                  .getParameter()
+                  .unpack(ProposalContract.ProposalDeleteContract.class)
+                  .getOwnerAddress();
+          break;
+        case DelegateResourceContract:
+          owner =
+              contract
+                  .getParameter()
+                  .unpack(BalanceContract.DelegateResourceContract.class)
+                  .getOwnerAddress();
+          break;
+        case UnDelegateResourceContract:
+          owner =
+              contract
+                  .getParameter()
+                  .unpack(BalanceContract.UnDelegateResourceContract.class)
+                  .getOwnerAddress();
+          break;
+        case AccountUpdateContract:
+          owner =
+              contract
+                  .getParameter()
+                  .unpack(AccountContract.AccountUpdateContract.class)
+                  .getOwnerAddress();
+          break;
+        case WithdrawExpireUnfreezeContract:
+          owner =
+              contract
+                  .getParameter()
+                  .unpack(BalanceContract.WithdrawExpireUnfreezeContract.class)
+                  .getOwnerAddress();
+          break;
+        case ExchangeCreateContract:
+          owner =
+              contract
+                  .getParameter()
+                  .unpack(ExchangeContract.ExchangeCreateContract.class)
+                  .getOwnerAddress();
+          break;
+        case ExchangeInjectContract:
+          owner =
+              contract
+                  .getParameter()
+                  .unpack(ExchangeContract.ExchangeInjectContract.class)
+                  .getOwnerAddress();
+          break;
+        case ExchangeWithdrawContract:
+          owner =
+              contract
+                  .getParameter()
+                  .unpack(ExchangeContract.ExchangeWithdrawContract.class)
+                  .getOwnerAddress();
+          break;
+        case ExchangeTransactionContract:
+          owner =
+              contract
+                  .getParameter()
+                  .unpack(ExchangeContract.ExchangeTransactionContract.class)
                   .getOwnerAddress();
           break;
         default:

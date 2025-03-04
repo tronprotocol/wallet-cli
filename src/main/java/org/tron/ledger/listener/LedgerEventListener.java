@@ -28,7 +28,7 @@ import static org.tron.ledger.sdk.CommonUtil.bytesToHex;
 import static org.tron.ledger.sdk.LedgerConstant.LEDGER_SIGN_CANCEL;
 
 public class LedgerEventListener extends BaseListener {
-  private static final int TRANSACTION_SIGN_TIMEOUT = 120;
+  private static final int TRANSACTION_SIGN_TIMEOUT = 30;
 
   @Getter
   private AtomicBoolean isShutdown = new AtomicBoolean(false);

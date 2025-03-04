@@ -10,8 +10,10 @@ import java.util.Arrays;
 import lombok.extern.slf4j.Slf4j;
 import org.bouncycastle.util.encoders.Hex;
 import org.hid4java.HidDevice;
+import org.jline.reader.EndOfFileException;
 import org.jline.reader.LineReader;
 import org.jline.reader.LineReaderBuilder;
+import org.jline.reader.UserInterruptException;
 import org.jline.terminal.Terminal;
 import org.jline.terminal.TerminalBuilder;
 import org.tron.api.GrpcAPI;
@@ -34,15 +36,18 @@ import org.tron.core.zen.address.ExpandedSpendingKey;
 import org.tron.core.zen.address.FullViewingKey;
 import org.tron.core.zen.address.SpendingKey;
 import org.tron.keystore.StringUtils;
+import org.tron.keystore.Wallet;
 import org.tron.keystore.WalletFile;
 import org.tron.keystore.WalletUtils;
 import org.tron.ledger.LedgerAddressUtil;
 import org.tron.ledger.LedgerFileUtil;
 import org.tron.ledger.TronLedgerGetAddress;
+import org.tron.ledger.console.ConsoleColor;
 import org.tron.ledger.console.ImportAccount;
 import org.tron.ledger.console.TronLedgerImportAccount;
 import org.tron.ledger.listener.TransactionSignManager;
 import org.tron.ledger.sdk.LedgerConstant;
+import org.tron.ledger.wrapper.DebugConfig;
 import org.tron.ledger.wrapper.HidServicesWrapper;
 import org.tron.mnemonic.MnemonicUtils;
 import org.tron.protos.Protocol.Account;
@@ -113,21 +118,25 @@ public class WalletApiWrapper {
       return null;
     }
     String walletFileName = "";
-    String importAddress = "";
     byte[] passwd = StringUtils.char2Byte(password);
 
     try {
       Terminal terminal = TerminalBuilder.builder().system(true).build();
       LineReader lineReader = LineReaderBuilder.builder().terminal(terminal).build();
 
-      String defaultImportAddress = LedgerAddressUtil.getImportAddress(LedgerConstant.DEFAULT_PATH);
+      String defaultPath = TronLedgerImportAccount.findFirstMissingPath(
+          LedgerFileUtil.getFileName());
+
+      String defaultImportAddress = LedgerAddressUtil.getImportAddress(defaultPath);
 
       String choice;
       boolean quit = false;
-      while (true) {
+      int retryCount = 0 ;
+      int MAX_RETRY_COUNT = 3;
+      while (retryCount++ < MAX_RETRY_COUNT) {
         System.out.println("-------------------------------------------------");
         System.out.println("Default Account Address: " + defaultImportAddress);
-        System.out.println("Default Path: " + LedgerConstant.DEFAULT_PATH);
+        System.out.println("Default Path: " + defaultPath);
         System.out.println("-------------------------------------------------");
 
         String[] options = {
@@ -144,7 +153,7 @@ public class WalletApiWrapper {
         switch (choice) {
           case "1":
             walletFileName = doImportAccount(password
-                , LedgerConstant.DEFAULT_PATH, defaultImportAddress);
+                , defaultPath, defaultImportAddress);
             quit = true;
             break;
           case "2":
@@ -155,8 +164,12 @@ public class WalletApiWrapper {
           case "3":
             System.out.println("You selected: Custom Path");
             walletFileName = doCustomPath(password);
-            quit = true;
-            break;
+            if ("cancel".equalsIgnoreCase(walletFileName)) {
+              continue;
+            } else {
+              quit = true;
+              break;
+            }
           case "q":
             quit = true;
             break;
@@ -169,31 +182,74 @@ public class WalletApiWrapper {
         }
       }
     } catch (IOException e) {
-      e.printStackTrace();
+      if (DebugConfig.isDebugEnabled()) {
+        e.printStackTrace();
+      }
+    } finally {
+      StringUtils.clear(passwd);
     }
 
-    StringUtils.clear(passwd);
     return walletFileName;
   }
 
   public String doChangeAccount(char[] password) throws CipherException, IOException {
     ImportAccount account = TronLedgerImportAccount.changeAccount();
+    if (account == null) {
+      return null;
+    }
     return doImportAccount(password, account.getPath(), account.getAddress());
   }
 
   public String doCustomPath(char[] password) throws CipherException, IOException {
-    ImportAccount account = TronLedgerImportAccount.enterMnemonicPath();
-    return doImportAccount(password, account.getPath(), account.getAddress());
+    System.out.println(ConsoleColor.ANSI_RED+"\nRisk Alert");
+    System.out.println("\nYou are not advised to change the \"Path\" of a generated account address unless you are an advanced user.");
+    System.out.println("\nPlease do not use the \"Custom Path\" feature if you do not understand how account addresses are generated or the definition of \"Path\", in case you lose access to the new account generated.");
+
+    System.out.println("\nPlease Understand the Risks & Continue.\n"+ConsoleColor.ANSI_RESET);
+
+    Terminal terminal = TerminalBuilder.builder().system(true).build();
+    LineReader lineReader = LineReaderBuilder.builder().terminal(terminal).build();
+
+    int invalidAttempts = 0;
+    final int MAX_ATTEMPTS = 3;
+
+    while (invalidAttempts < MAX_ATTEMPTS) {
+      try {
+        String input = lineReader.readLine("Enter 'y' to continue or 'c' to cancel: ").trim().toLowerCase();
+        if ("y".equals(input)) {
+          ImportAccount account = TronLedgerImportAccount.enterMnemonicPath();
+          if (account == null) {
+            return null;
+          }
+          return doImportAccount(password, account.getPath(), account.getAddress());
+        } else if ("c".equals(input)) {
+          return "cancel";
+        } else {
+          invalidAttempts++;
+          System.out.println("Invalid input. Please enter 'y' or 'c'.");
+          if (invalidAttempts == MAX_ATTEMPTS) {
+            System.out.println("Maximum invalid attempts reached. Exiting.");
+            return "cancel";
+          }
+        }
+      } catch (UserInterruptException | EndOfFileException e) {
+        System.out.println("Input interrupted. Exiting.");
+        return "cancel";
+      }
+    }
+    return "cancel";
   }
 
   public String doImportAccount(char[] password, String path, String importAddress)
       throws CipherException, IOException {
-    String uniqLedgerId = getUniqLedgerId(path);
     byte[] passwdByte = StringUtils.char2Byte(password);
     WalletFile walletLedgerFile = WalletApi.CreateLedgerWalletFile(
-        passwdByte, importAddress, uniqLedgerId);
+        passwdByte, importAddress, path);
+    boolean result = loginLedger(passwdByte, walletLedgerFile);
+    if (!result) {
+        return "";
+    }
     String keystoreName = WalletApi.store2KeystoreLedger(walletLedgerFile);
-    loginLedger(walletLedgerFile);
     LedgerFileUtil.writePathsToFile(Arrays.asList(path));
     return keystoreName;
   }
@@ -245,26 +301,65 @@ public class WalletApiWrapper {
     byte[] passwd = StringUtils.char2Byte(password);
     StringUtils.clear(password);
     wallet.checkPassword(passwd);
-    StringUtils.clear(passwd);
 
     if (wallet == null) {
       System.out.println("Warning: Login failed, Please registerWallet or importWallet first !!");
       return false;
     }
-    wallet.setLedgerUser(true);
+
+    WalletFile walletFile = wallet.getWalletFile();
+    if (walletFile == null) {
+      System.out.println("Warning: Login failed, Please check your walletFile");
+      return false;
+    }
+
+    try{
+      byte[] decryptByte = Wallet.decrypt2PrivateBytes(passwd, walletFile);
+      String decryptStr = new String(decryptByte);
+      String prefix = "m/44'/195'/";
+      boolean isLedgerUser = ( decryptStr != null && decryptStr.startsWith(prefix) );
+      if (isLedgerUser) {
+        wallet.setPath(decryptStr);
+        wallet.setLedgerUser(isLedgerUser);
+      }
+    } catch (Exception e) {
+      if (DebugConfig.isDebugEnabled()) {
+        e.printStackTrace();
+      }
+      return false;
+    } finally {
+      StringUtils.clear(passwd);
+    }
+
     wallet.setLogin();
     return true;
   }
 
-  public boolean loginLedger(WalletFile walletLedgerFile) throws IOException, CipherException {
+  public boolean loginLedger(byte[] passwdByte, WalletFile walletLedgerFile) {
     logout();
     wallet = new WalletApi(walletLedgerFile);
     if (wallet == null) {
       System.out.println("Warning: Login failed");
       return false;
     }
-    wallet.setLedgerUser(true);
-    wallet.setLogin();
+
+    try {
+      byte[] decrypt = Wallet.decrypt2PrivateBytes(passwdByte, walletLedgerFile);
+      String decryptStr = new String(decrypt);
+      String prefix = "m/44'/195'/";
+      boolean isLedgerUser = ( decryptStr != null && decryptStr.startsWith(prefix) );
+      if (isLedgerUser) {
+        wallet.setPath(decryptStr);
+        wallet.setLedgerUser(isLedgerUser);
+      }
+      wallet.setLogin();
+    } catch (Exception e) {
+      if (DebugConfig.isDebugEnabled()) {
+        e.printStackTrace();
+      }
+      return false;
+    }
+
     return true;
   }
 

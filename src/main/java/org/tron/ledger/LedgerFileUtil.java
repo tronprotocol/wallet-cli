@@ -15,6 +15,16 @@ import java.util.Set;
 
 public class LedgerFileUtil {
 
+
+  public static String getFileName() {
+    HidDevice device = TronLedgerGetAddress.getInstance().getConnectedDevice();
+    return String.format("%s_%s_%s_%s.txt",
+        device.getVendorId(),
+        device.getProductId(),
+        device.getSerialNumber(),
+        device.getReleaseNumber());
+  }
+
   public static void writePathsToFile(List<String> paths) {
     HidDevice device = TronLedgerGetAddress.getInstance().getConnectedDevice();
     String directoryName = "ledger";
