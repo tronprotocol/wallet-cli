@@ -96,10 +96,10 @@ public class LedgerEventListener extends BaseListener {
   }
 
 
-  public boolean executeSignListen(HidDevice hidDevice, Protocol.Transaction transaction) {
+  public boolean executeSignListen(HidDevice hidDevice, Protocol.Transaction transaction, String path) {
     boolean ret = false;
     try {
-      byte[] sendResult = handleTransSign(hidDevice, transaction);
+      byte[] sendResult = handleTransSign(hidDevice, transaction, path);
       if (sendResult == null) {
         System.out.println("transaction sign request is sent to ledger");
         TransactionSignManager.getInstance().setHidDevice(hidDevice);
@@ -119,12 +119,12 @@ public class LedgerEventListener extends BaseListener {
     return ret;
   }
 
-  public byte[] handleTransSign(HidDevice hidDevice, Protocol.Transaction transaction) {
+  public byte[] handleTransSign(HidDevice hidDevice, Protocol.Transaction transaction, String path) {
     final int TIMEOUT_MILLIS = 1000;
     final int MAX_WAIT_TIME_MILLIS = 1000; // 1.5 seconds
 
     String transactionRaw = bytesToHex(transaction.getRawData().toByteArray());
-    String path = "m/44'/195'/0'/0/0";
+    //String path = "m/44'/195'/0'/0/0";
     byte[] apdu = ApduMessageBuilder.buildTransactionSignApduMessage(path, transactionRaw);
     byte[] respone = ApduExchangeHandler.exchangeApdu(hidDevice, apdu
         ,TIMEOUT_MILLIS, MAX_WAIT_TIME_MILLIS);
@@ -176,19 +176,18 @@ public class LedgerEventListener extends BaseListener {
         byte[] signature = Arrays.copyOfRange(unwrappedResponse, 0, 65);
         TransactionSignManager.getInstance().addTransactionSign(signature);
         Protocol.Transaction transaction = TransactionSignManager.getInstance().getTransaction();
+        String transactionId = TransactionUtils.getTransactionId(transaction).toString();
         boolean ret = WalletApi.broadcastTransaction(transaction);
         if (ret) {
-          String transactionId = TransactionUtils.getTransactionId(transaction).toString();
           System.out.println("TransactionId: " + transactionId);
           System.out.println("BroadcastTransaction successful !!!");
-
-          hidDevice = TransactionSignManager.getInstance().getHidDevice();
-          LedgerSignResult.updateState(
-              hidDevice.getPath(), transactionId, LedgerSignResult.SIGN_RESULT_SUCCESS
-          );
         } else {
           System.out.println("BroadcastTransaction failed !!!");
         }
+        hidDevice = TransactionSignManager.getInstance().getHidDevice();
+        LedgerSignResult.updateState(
+            hidDevice.getPath(), transactionId, LedgerSignResult.SIGN_RESULT_SUCCESS
+        );
       }
       doLedgerSignEnd();
     }

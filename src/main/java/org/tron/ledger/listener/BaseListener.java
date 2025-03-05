@@ -16,13 +16,8 @@ import static org.tron.ledger.console.ConsoleColor.ANSI_YELLOW;
 
 
 public abstract class BaseListener implements HidServicesListener {
-  /**
-   * Invokes {@code unit.}{@link TimeUnit#sleep(long) sleep(sleepFor)}
-   * uninterruptibly.
-   */
   public static void sleepNoInterruption(int sleepSeconds) {
     boolean interrupted = false;
-    //boolean ledgerSignEnd = LedgerEventListener.getInstance().getLedgerSignEnd().get();
     try {
       long remainingNanos = TimeUnit.SECONDS.toNanos(sleepSeconds);
       long end = System.nanoTime() + remainingNanos;
@@ -59,7 +54,7 @@ public abstract class BaseListener implements HidServicesListener {
       System.out.println(ANSI_YELLOW + "Device detached: " + event + ANSI_RESET);
     }
     LedgerSignResult.updateAllSigningToReject(event.getHidDevice().getPath());
-    LedgerEventListener.getInstance().setLedgerSignEnd(new AtomicBoolean(true));
+    LedgerEventListener.getInstance().getLedgerSignEnd().compareAndSet(false, true);
     TransactionSignManager.getInstance().setTransaction(null);
   }
 

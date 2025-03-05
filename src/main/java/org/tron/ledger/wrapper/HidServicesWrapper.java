@@ -1,11 +1,11 @@
 package org.tron.ledger.wrapper;
 
-import lombok.Getter;
 import org.hid4java.HidDevice;
 import org.hid4java.HidManager;
 import org.hid4java.HidServices;
 import org.hid4java.HidServicesSpecification;
 import org.tron.ledger.listener.LedgerEventListener;
+import org.tron.ledger.sdk.LedgerConstant;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -15,17 +15,11 @@ import static org.tron.ledger.console.ConsoleColor.ANSI_RESET;
 import static org.tron.ledger.console.ConsoleColor.ANSI_YELLOW;
 
 public class HidServicesWrapper {
-  private HidServices hidAddressServices;
   private HidServices hidServices;
-  @Getter
-  private boolean debug = true;
 
   private HidServicesWrapper() {
     if (hidServices==null) {
       hidServices = initHidSerives();
-    }
-    if (hidAddressServices==null) {
-      hidAddressServices = initHidAddressServices();
     }
   }
   private static class Holder {
@@ -41,20 +35,12 @@ public class HidServicesWrapper {
     }
     return hidServices;
   }
-  public HidServices getHidAddressServices() {
-    if (hidAddressServices==null) {
-      hidAddressServices = initHidAddressServices();
-    }
-    return hidAddressServices;
-  }
+
 
   public HidDevice getHidDevice() {
     return getLedgerHidDevice(getHidServices());
   }
 
-  public HidDevice getHidAddressDevice() {
-    return getLedgerHidDevice(getHidAddressServices());
-  }
 
   public  HidServices initHidSerives() {
     HidServicesSpecification hidServicesSpecification = new HidServicesSpecification();
@@ -68,18 +54,14 @@ public class HidServicesWrapper {
 
     return hidServices;
   }
-  public  HidServices initHidAddressServices() {
-    HidServicesSpecification hidServicesSpecification = new HidServicesSpecification();
-    HidServices hidServices = HidManager.getHidServices(hidServicesSpecification);
-    return hidServices;
-  }
+
 
   public static HidDevice getLedgerHidDevice(HidServices hidServices) {
     List<HidDevice> hidDeviceList = new ArrayList<>();
     HidDevice fidoDevice = null;
     try {
       for (HidDevice hidDevice : hidServices.getAttachedHidDevices()) {
-        if (hidDevice.getVendorId() == 0x2c97) {
+        if (hidDevice.getVendorId() == LedgerConstant.LEDGER_VENDOR) {
           hidDeviceList.add(hidDevice);
         }
       }
@@ -113,9 +95,6 @@ public class HidServicesWrapper {
   }
 
   public void close() {
-    if (hidAddressServices!=null) {
-      hidAddressServices.shutdown();
-    }
     if (hidServices!=null) {
       hidServices.shutdown();
     }

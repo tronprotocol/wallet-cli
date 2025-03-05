@@ -4,6 +4,9 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 
+import static org.tron.ledger.console.ConsoleColor.ANSI_RED;
+import static org.tron.ledger.console.ConsoleColor.ANSI_RESET;
+
 public class ContractTypeChecker {
   private static final String[] CONTRACT_TYPES = {
       "ProposalCreateContract",
@@ -32,7 +35,13 @@ public class ContractTypeChecker {
   private static final Set<String> CONTRACT_TYPE_SET = new HashSet<>(Arrays.asList(CONTRACT_TYPES));
 
   public static boolean canUseLedgerSign(String contractType) {
-    return CONTRACT_TYPE_SET.contains(contractType);
+    boolean ret =  CONTRACT_TYPE_SET.contains(contractType);
+    if (!ret) {
+      System.out.println(ANSI_RED +
+          "Transaction type is not supported ledger sign, Please check your transaction type!!" +
+          ANSI_RESET);
+    }
+    return ret;
   }
 
 }

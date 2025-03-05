@@ -54,6 +54,7 @@ import org.tron.keystore.StringUtils;
 import org.tron.ledger.TronLedgerGetAddress;
 import org.tron.ledger.listener.TransactionSignManager;
 import org.tron.ledger.wrapper.HidServicesWrapper;
+import org.tron.ledger.wrapper.LegerUserHelper;
 import org.tron.mnemonic.MnemonicUtils;
 import org.tron.protos.Protocol.MarketOrder;
 import org.tron.protos.Protocol.MarketOrderList;
@@ -4643,6 +4644,9 @@ public class Client {
           }
           String[] parameters = Arrays.copyOfRange(cmdArray, 1, cmdArray.length);
           String cmdLowerCase = cmd.toLowerCase();
+          if (LegerUserHelper.ledgerUserForbit(walletApiWrapper, cmdLowerCase)) {
+            continue;
+          }
 
           switch (cmdLowerCase) {
             case "help": {

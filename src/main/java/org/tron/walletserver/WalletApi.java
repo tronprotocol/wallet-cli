@@ -650,21 +650,12 @@ public class WalletApi {
         try {
           if (!ContractTypeChecker.canUseLedgerSign(
               transaction.getRawData().getContract(0).getType().toString())) {
-            System.out.println(ANSI_RED +
-                "Transaction type is not supported ledger sign, Please check your transaction type!!" +
-                ANSI_RESET);
             break;
           }
-
-          /*
-          String transactionId = TransactionUtils.getTransactionId(transaction).toString();
-          if (!TransOwnerChecker.checkOwner(this.path, transaction)) {
-            System.out.println(ANSI_RED +
-                "Transaction id "+transactionId+" can only be signed by the owner_address" +
-                ANSI_RESET);
+          //String transactionId = TransactionUtils.getTransactionId(transaction).toString();
+          if (!TransOwnerChecker.checkOwner(this.address, transaction)) {
             break;
           }
-           */
           if (TransactionSignManager.getInstance().getTransaction()==null) {
             HidDevice hidDevice = null ;
             try {
@@ -684,7 +675,7 @@ public class WalletApi {
             TransactionSignManager.getInstance().setTransaction(transaction);
             boolean ret = false;
             try {
-               ret = LedgerEventListener.getInstance().executeSignListen(hidDevice, transaction);
+               ret = LedgerEventListener.getInstance().executeSignListen(hidDevice, transaction, this.path);
             } catch (IllegalStateException e) {
               if (DebugConfig.isDebugEnabled()) {
                 e.printStackTrace();

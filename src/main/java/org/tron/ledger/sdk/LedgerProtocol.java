@@ -153,6 +153,7 @@ public class LedgerProtocol {
   }
 
   public static void main(String[] args) {
+    /*
     final int CHANNEL = 0x0101;
     final int PACKET_SIZE = 64;
 
@@ -172,9 +173,6 @@ public class LedgerProtocol {
     byte[] unwrapped2 = LedgerProtocol.unwrapResponseAPDU(
         CHANNEL, byteRes2, PACKET_SIZE, false);
     System.out.println("Unwrapped2 hex: " + toHexString(unwrapped2));
+     */
   }
-
-
-
-
 }
