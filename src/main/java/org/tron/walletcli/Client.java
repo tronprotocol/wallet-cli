@@ -597,7 +597,7 @@ public class Client {
     // device is using in transaction sign
     HidDevice signDevice = TransactionSignManager.getInstance().getHidDevice();
     if (signDevice != null) {
-      System.out.println("Import wallet by ledger failed !! Please repair your ledger device");
+      System.out.println("Import wallet by ledger failed !! Please check your ledger device");
       return;
     }
     HidDevice device  = null;
@@ -606,6 +606,7 @@ public class Client {
       //get unused device
       device  = TronLedgerGetAddress.getInstance().getConnectedDevice();
       if (device == null) {
+        LegerUserHelper.showHidDeviceConnectionError();
         System.out.println("No Ledger device found");
         return ;
       } else {

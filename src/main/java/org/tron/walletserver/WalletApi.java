@@ -109,6 +109,7 @@ import org.tron.ledger.wrapper.ContractTypeChecker;
 import org.tron.ledger.wrapper.DebugConfig;
 import org.tron.ledger.wrapper.HidServicesWrapper;
 import org.tron.ledger.wrapper.LedgerSignResult;
+import org.tron.ledger.wrapper.LegerUserHelper;
 import org.tron.ledger.wrapper.TransOwnerChecker;
 import org.tron.mnemonic.Mnemonic;
 import org.tron.mnemonic.MnemonicFile;
@@ -667,6 +668,7 @@ public class WalletApi {
               hidDevice = null;
             }
             if (hidDevice==null) {
+              LegerUserHelper.showHidDeviceConnectionError();
               System.out.println("Please check your ledger and try again");
               System.out.println("Sign with ledger failed");
               break;
@@ -687,6 +689,7 @@ public class WalletApi {
             } else {
               LedgerEventListener.getInstance().setLedgerSignEnd(new AtomicBoolean(true));
               TransactionSignManager.getInstance().setTransaction(null);
+              LegerUserHelper.showHidDeviceConnectionError();
               System.out.println("Sign with ledger failed");
               System.out.println("Please check your ledger and try again");
               break;
