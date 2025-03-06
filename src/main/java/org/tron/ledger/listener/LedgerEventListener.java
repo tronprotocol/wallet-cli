@@ -106,14 +106,16 @@ public class LedgerEventListener extends BaseListener {
         if (this.isShutdown.get()) {
           this.isShutdown.set(false);
         }
+        String transactionId = TransactionUtils.getTransactionId(transaction).toString();
+        LedgerSignResult.createFileIfNotExists(hidDevice.getPath());
+        LedgerSignResult.appendLineIfNotExists(
+            hidDevice.getPath(), transactionId, LedgerSignResult.SIGN_RESULT_SIGNING);
+        ret = waitAndShutdownWithInput();
       }
-      String transactionId = TransactionUtils.getTransactionId(transaction).toString();
-      LedgerSignResult.createFileIfNotExists(hidDevice.getPath());
-      LedgerSignResult.appendLineIfNotExists(
-          hidDevice.getPath(), transactionId, LedgerSignResult.SIGN_RESULT_SIGNING);
-      ret = waitAndShutdownWithInput();
     } catch (Exception e) {
-      e.printStackTrace();
+      if (DebugConfig.isDebugEnabled()) {
+        e.printStackTrace();
+      }
     }
 
     return ret;
