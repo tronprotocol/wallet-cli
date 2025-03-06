@@ -4,6 +4,7 @@ import lombok.Getter;
 import org.hid4java.*;
 import org.tron.ledger.sdk.ApduExchangeHandler;
 import org.tron.ledger.sdk.ApduMessageBuilder;
+import org.tron.ledger.sdk.CommonUtil;
 import org.tron.ledger.wrapper.DebugConfig;
 
 import java.util.ArrayList;
@@ -100,22 +101,21 @@ public class TronLedgerGetAddress {
     try {
       byte[] apdu = ApduMessageBuilder.buildTronAddressApduMessage(path);
       byte[] result = ApduExchangeHandler.exchangeApdu(device, apdu, readTimeoutMillis, totalWaitTimeoutMillis);
-
-      int size = result[0] & 0xFF;
-      if (size == 65) {
-        byte[] pubKey = Arrays.copyOfRange(result, 1, 1 + size);
-      } else {
-        System.out.println("Error... Public Key Size: " + size);
-        return "";
+      if (DebugConfig.isDebugEnabled()) {
+        System.out.println("Get Address Result: " + CommonUtil.bytesToHex(result));
       }
 
-      int addressSize = result[size + 1] & 0xFF;
-      if (addressSize == 34) {
-        byte[] addressBytes = Arrays.copyOfRange(result, 67, 67 + addressSize);
-        return new String(addressBytes);
-      } else {
-        System.out.println("Error... Address Size: " + addressSize);
-      }
+      int offset = 0;
+      int publicKeyLength = result[offset++] & 0xFF;
+      byte[] publicKey = new byte[publicKeyLength];
+      System.arraycopy(result, offset, publicKey, 0, publicKeyLength);
+      offset += publicKeyLength;
+
+      int addressLength = result[offset++] & 0xFF;
+      byte[] addressBytes = new byte[addressLength];
+      System.arraycopy(result, offset, addressBytes, 0, addressLength);
+      String address = new String(addressBytes);
+      return address;
     } catch (Exception e) {
       System.err.println("Error: " + e.getMessage());
       if (DebugConfig.isDebugEnabled()) {
