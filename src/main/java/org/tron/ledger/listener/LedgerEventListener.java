@@ -50,7 +50,7 @@ public class LedgerEventListener extends BaseListener {
     Thread inputThread = new Thread(() -> {
       Scanner scanner = new Scanner(System.in);
       System.out.printf(ANSI_YELLOW + "Press 'c' to cancel sign and continue on other operation.\n" + ANSI_RESET);
-      System.out.printf(ANSI_YELLOW + "如果交易签名没超时且ledger确认签名，这个交易还是会广播\n" + ANSI_RESET);
+      System.out.printf(ANSI_YELLOW + "If the transaction signature hasn't timed out and the Ledger confirms the signature, the transaction will still be broadcast.\n" + ANSI_RESET);
       System.out.printf(ANSI_YELLOW + "current transaction sign will be closed after %ds.\n" + ANSI_RESET, TRANSACTION_SIGN_TIMEOUT);
       String input = scanner.nextLine();
       while (!"c".equalsIgnoreCase(input)) {

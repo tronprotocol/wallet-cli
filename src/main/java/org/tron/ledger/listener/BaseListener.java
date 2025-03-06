@@ -56,6 +56,10 @@ public abstract class BaseListener implements HidServicesListener {
     LedgerSignResult.updateAllSigningToReject(event.getHidDevice().getPath());
     LedgerEventListener.getInstance().getLedgerSignEnd().compareAndSet(false, true);
     TransactionSignManager.getInstance().setTransaction(null);
+    if (TransactionSignManager.getInstance().getHidDevice() !=null) {
+      TransactionSignManager.getInstance().getHidDevice().close();
+      TransactionSignManager.getInstance().setHidDevice(null);
+    }
   }
 
   @Override

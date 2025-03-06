@@ -662,6 +662,9 @@ public class WalletApi {
             // try to reuse the hiddevice
             if (TransactionSignManager.getInstance().getHidDevice() !=null) {
               hidDevice = TransactionSignManager.getInstance().getHidDevice();
+              if (DebugConfig.isDebugEnabled()) {
+                System.out.println("reuse TransactionSignManager.getInstance().getHidDevice() hiddevice");
+              }
             } else {
               try {
                 hidDevice = HidServicesWrapper.getInstance().getHidDevice();
@@ -676,6 +679,9 @@ public class WalletApi {
                 System.out.println("Please check your ledger and try again");
                 System.out.println("Sign with ledger failed");
                 break;
+              }
+              if (DebugConfig.isDebugEnabled()) {
+                System.out.println("reopen HidServicesWrapper.getInstance().getHidDevice");
               }
             }
 
@@ -718,11 +724,6 @@ public class WalletApi {
     }
 
     return transaction;
-  }
-
-  private void revertLedgerSignEnv() {
-    LedgerEventListener.getInstance().setLedgerSignEnd(new AtomicBoolean(true));
-    TransactionSignManager.getInstance().setTransaction(null);
   }
 
   private Transaction signOnlyForShieldedTransaction(Transaction transaction)
