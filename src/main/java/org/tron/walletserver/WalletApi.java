@@ -659,20 +659,26 @@ public class WalletApi {
           }
           if (TransactionSignManager.getInstance().getTransaction()==null) {
             HidDevice hidDevice = null ;
-            try {
-              hidDevice = HidServicesWrapper.getInstance().getHidDevice();
-            } catch (IllegalStateException e) {
-              if (DebugConfig.isDebugEnabled()) {
-                e.printStackTrace();
+            // try to reuse the hiddevice
+            if (TransactionSignManager.getInstance().getHidDevice() !=null) {
+              hidDevice = TransactionSignManager.getInstance().getHidDevice();
+            } else {
+              try {
+                hidDevice = HidServicesWrapper.getInstance().getHidDevice();
+              } catch (IllegalStateException e) {
+                if (DebugConfig.isDebugEnabled()) {
+                  e.printStackTrace();
+                }
+                hidDevice = null;
               }
-              hidDevice = null;
+              if (hidDevice==null) {
+                LegerUserHelper.showHidDeviceConnectionError();
+                System.out.println("Please check your ledger and try again");
+                System.out.println("Sign with ledger failed");
+                break;
+              }
             }
-            if (hidDevice==null) {
-              LegerUserHelper.showHidDeviceConnectionError();
-              System.out.println("Please check your ledger and try again");
-              System.out.println("Sign with ledger failed");
-              break;
-            }
+
             LedgerEventListener.getInstance().setLedgerSignEnd(new AtomicBoolean(false));
             TransactionSignManager.getInstance().setTransaction(transaction);
             boolean ret = false;
