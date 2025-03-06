@@ -696,6 +696,9 @@ public class WalletApi {
               LedgerEventListener.getInstance().setLedgerSignEnd(new AtomicBoolean(true));
               TransactionSignManager.getInstance().setTransaction(null);
               LegerUserHelper.showHidDeviceConnectionError();
+              if (hidDevice !=null) {
+                hidDevice.close();
+              }
               System.out.println("Sign with ledger failed");
               System.out.println("Please check your ledger and try again");
               break;
