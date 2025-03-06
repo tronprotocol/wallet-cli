@@ -125,4 +125,28 @@ public class TronLedgerGetAddress {
     return "";
   }
 
+  public static void main(String[] args) {
+    /*
+    HidDevice hidDevice = null;
+
+    while (true) {
+      try {
+        hidDevice = TronLedgerGetAddress.getInstance().getConnectedDevice();
+        if (hidDevice != null) {
+          System.out.println(hidDevice.toString());
+        }
+      } catch (Exception e) {
+        System.out.println("No device found, please connect your ledger device");
+      }
+      try {
+        Thread.sleep(1000); // Sleep for 1 second
+      } catch (InterruptedException e) {
+        System.out.println("Interrupted, stopping.");
+        break;
+      }
+    }
+     */
+
+  }
+
 }

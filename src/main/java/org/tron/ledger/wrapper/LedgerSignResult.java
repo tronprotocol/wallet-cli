@@ -16,7 +16,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 public class LedgerSignResult {
   public static final String SIGN_RESULT_SIGNING = "signing";
   public static final String SIGN_RESULT_SUCCESS = "confirmed";
-  public static final String SIGN_RESULT_FAIL = "rejected";
+  public static final String SIGN_RESULT_CANCEL = "cancel";
 
   private static final String FILE_PATH = "./ledger/transactions_";
   private static final ReadWriteLock lock = new ReentrantReadWriteLock();
@@ -159,8 +159,8 @@ public class LedgerSignResult {
     lock.readLock().lock();
     try {
       List<String> lines = readAllLines(devicePath);
-      if (!lines.isEmpty() && lines.size() >=2) {
-        String lastLine = lines.get(lines.size() - 2);
+      if (!lines.isEmpty() && lines.size() >=1) {
+        String lastLine = lines.get(lines.size() - 1);
         String[] parts = lastLine.split(":");
         if (parts.length == 2) {
           return Optional.of(parts[1]); // Return the state part
@@ -181,7 +181,7 @@ public class LedgerSignResult {
       for (String line : lines) {
         if (line.endsWith(":" + SIGN_RESULT_SIGNING)) {
           String[] parts = line.split(":");
-          updatedLines.add(parts[0] + ":" + SIGN_RESULT_FAIL);
+          updatedLines.add(parts[0] + ":" + SIGN_RESULT_CANCEL);
         } else {
           updatedLines.add(line);
         }

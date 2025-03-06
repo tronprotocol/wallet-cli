@@ -16,6 +16,7 @@ import static org.tron.ledger.console.ConsoleColor.ANSI_YELLOW;
 
 public class HidServicesWrapper {
   private HidServices hidServices;
+  private HidDevice hidDevice;
 
   private HidServicesWrapper() {
     if (hidServices==null) {
@@ -38,9 +39,16 @@ public class HidServicesWrapper {
 
 
   public HidDevice getHidDevice() {
-    return getLedgerHidDevice(getHidServices());
+    if (hidDevice!=null) {
+      return hidDevice;
+    }
+    hidDevice =  getLedgerHidDevice(getHidServices());
+    return hidDevice;
   }
 
+  public void setHidDevice(HidDevice hidDevice) {
+    this.hidDevice = hidDevice;
+  }
 
   public  HidServices initHidSerives() {
     HidServicesSpecification hidServicesSpecification = new HidServicesSpecification();

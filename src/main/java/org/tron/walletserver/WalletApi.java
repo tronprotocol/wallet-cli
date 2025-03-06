@@ -685,10 +685,22 @@ public class WalletApi {
               }
             }
 
+            // judge last transaction sign is signing
+            Optional<String> state = LedgerSignResult.getLastTransactionState(hidDevice.getPath());
+            if (state.isPresent() && LedgerSignResult.SIGN_RESULT_SIGNING.equals(state.get())) {
+              System.out.println("last transaction is signing");
+              System.out.println("Please confirm/cancel the transaction in ledger, or Quit&Reopen Tron app in ledger");
+              System.out.println("transaction sign is rejected");
+              break;
+            }
+
             LedgerEventListener.getInstance().setLedgerSignEnd(new AtomicBoolean(false));
             TransactionSignManager.getInstance().setTransaction(transaction);
             boolean ret = false;
             try {
+              if (hidDevice.isClosed()) {
+                hidDevice.open();
+              }
                ret = LedgerEventListener.getInstance().executeSignListen(hidDevice, transaction, this.path);
             } catch (IllegalStateException e) {
               if (DebugConfig.isDebugEnabled()) {
@@ -710,8 +722,9 @@ public class WalletApi {
               break;
             }
           } else {
-            System.out.println("Sign with ledger rejected");
             System.out.println("Please check your last sign with ledger");
+            System.out.println("Please confirm/cancel the transaction in ledger, or Quit&Reopen Tron app in ledger");
+            System.out.println("Sign with ledger rejected");
             break;
           }
         } catch (Exception e) {

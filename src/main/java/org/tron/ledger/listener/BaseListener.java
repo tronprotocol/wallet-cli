@@ -1,8 +1,10 @@
 package org.tron.ledger.listener;
 
+import org.hid4java.HidDevice;
 import org.hid4java.HidServicesListener;
 import org.hid4java.event.HidServicesEvent;
 import org.tron.ledger.wrapper.DebugConfig;
+import org.tron.ledger.wrapper.HidServicesWrapper;
 import org.tron.ledger.wrapper.LedgerSignResult;
 
 import java.util.concurrent.TimeUnit;
@@ -59,6 +61,11 @@ public abstract class BaseListener implements HidServicesListener {
     if (TransactionSignManager.getInstance().getHidDevice() !=null) {
       TransactionSignManager.getInstance().getHidDevice().close();
       TransactionSignManager.getInstance().setHidDevice(null);
+    }
+    HidDevice hidDevice = HidServicesWrapper.getInstance().getHidDevice();
+    if (hidDevice != null) {
+      HidServicesWrapper.getInstance().getHidDevice().close();
+      HidServicesWrapper.getInstance().setHidDevice(null);
     }
   }
 
