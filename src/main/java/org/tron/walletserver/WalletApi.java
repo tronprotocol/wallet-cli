@@ -17,6 +17,7 @@ import java.io.UnsupportedEncodingException;
 import java.nio.file.Paths;
 import java.security.SecureRandom;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -26,6 +27,8 @@ import java.util.Optional;
 import java.util.Scanner;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -95,6 +98,7 @@ import org.tron.core.config.Parameter.CommonConstant;
 import org.tron.core.exception.CancelException;
 import org.tron.core.exception.CipherException;
 import org.tron.keystore.CheckStrength;
+import org.tron.keystore.ClearWalletUtils;
 import org.tron.keystore.Credentials;
 import org.tron.mnemonic.Mnemonic;
 import org.tron.mnemonic.MnemonicFile;
@@ -2272,6 +2276,26 @@ public class WalletApi {
 
     return processTransactionExtention(transactionExtention);
   }
+
+  public boolean clearWalletKeystore() {
+    String ownerAddress = WalletApi.encode58Check(getAddress());
+    List<String> filePaths = new ArrayList<>();
+
+    ArrayList<String> walletPath = WalletUtils.getStoreFileNames(ownerAddress, "Wallet");
+    if (walletPath==null || walletPath.isEmpty()) {
+      System.err.println("Wallet Keystore file not found. Address: "  + ownerAddress);
+      return false;
+    }
+    filePaths.addAll(walletPath);
+
+    ArrayList<String> mnemonicPath = WalletUtils.getStoreFileNames(ownerAddress, "Mnemonic");
+    if (mnemonicPath!=null && !mnemonicPath.isEmpty()) {
+      filePaths.addAll(mnemonicPath);
+    }
+
+    return ClearWalletUtils.confirmAndDeleteWallet(ownerAddress, filePaths);
+  }
+
 
   public boolean deployContract(
       byte[] owner,

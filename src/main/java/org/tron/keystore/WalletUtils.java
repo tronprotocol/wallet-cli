@@ -21,6 +21,9 @@ import java.security.NoSuchProviderException;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.stream.Collectors;
 
 /**
  * Utility functions for working with Wallet files.
@@ -238,5 +241,24 @@ public class WalletUtils {
       }
     }
     return true;
+  }
+
+  public static File[]  getStoreFiles(String address, String destinationDirectory) {
+    File dir = Paths.get(destinationDirectory).toFile();
+    if (!dir.exists() || !dir.isDirectory()) {
+      return null;
+    }
+    File[] files = dir.listFiles((d, name) ->
+        name.endsWith(address + ".json"));
+    return files;
+  }
+
+  public static ArrayList<String> getStoreFileNames(String address, String destinationDirectory) {
+    File[] walletFiles = WalletUtils.getStoreFiles(address, destinationDirectory);
+    return walletFiles != null ?
+        Arrays.stream(walletFiles)
+            .map(File::getAbsolutePath)
+            .collect(Collectors.toCollection(ArrayList::new))
+        : new ArrayList<>();
   }
 }
