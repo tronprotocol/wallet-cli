@@ -14,6 +14,7 @@ import org.tron.api.GrpcAPI.*;
 import org.tron.common.utils.AbiUtil;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.ByteUtil;
+import org.tron.common.utils.PathUtil;
 import org.tron.common.utils.Utils;
 import org.tron.core.exception.CancelException;
 import org.tron.core.exception.CipherException;
@@ -29,6 +30,7 @@ import org.tron.core.zen.address.ExpandedSpendingKey;
 import org.tron.core.zen.address.FullViewingKey;
 import org.tron.core.zen.address.SpendingKey;
 import org.tron.keystore.StringUtils;
+import org.tron.keystore.Wallet;
 import org.tron.keystore.WalletFile;
 import org.tron.keystore.WalletUtils;
 import org.tron.mnemonic.MnemonicUtils;
@@ -211,6 +213,36 @@ public class WalletApiWrapper {
 
     //2.export mnemonic words
     return MnemonicUtils.exportMnemonic(passwd, getAddress());
+  }
+
+  public String exportKeystore(String walletChannel, File exportFullDir)
+      throws IOException, CipherException {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: ExportKeystore failed,  Please login first !!");
+      return null;
+    }
+
+    //1.input password
+    System.out.println("Please input your password.");
+    char[] password = Utils.inputPassword(false);
+    byte[] passwd = StringUtils.char2Byte(password);
+    try {
+      wallet.checkPassword(passwd);
+    } finally {
+      StringUtils.clear(password);
+      StringUtils.clear(passwd);
+    }
+
+    return wallet.exportKeystore(walletChannel, exportFullDir);
+  }
+
+  public String importWalletByKeystore(byte[] passwdByte, char[] password, File importFile)
+      throws IOException, CipherException {
+    WalletFile walletFile = WalletUtils.loadWalletFile(importFile);
+    byte[] priKey = Wallet.decrypt2PrivateBytes(passwdByte, walletFile);
+    String fileName = importWallet(password, priKey, null);
+
+    return fileName;
   }
 
   public String getAddress() {

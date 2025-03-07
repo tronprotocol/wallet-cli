@@ -89,6 +89,7 @@ import org.tron.common.crypto.SignInterface;
 import org.tron.common.crypto.sm2.SM2;
 import org.tron.common.utils.Base58;
 import org.tron.common.utils.ByteArray;
+import org.tron.common.utils.PathUtil;
 import org.tron.common.utils.TransactionUtils;
 import org.tron.common.utils.Utils;
 import org.tron.common.zksnark.JLibrustzcash;
@@ -344,6 +345,30 @@ public class WalletApi {
     return Wallet.decrypt2PrivateBytes(password, walletFile);
   }
 
+  public String exportKeystore(String walletChannel, File exportFullDir) throws IOException {
+    String ret = null;
+    try {
+      WalletFile walletFile = loadWalletFile();
+      String walletAddress = walletFile.getAddress();
+      String walletHexAddress = getHexAddress(walletFile.getAddress());
+      walletFile.setAddress(walletHexAddress);
+
+      ret = WalletUtils.exportWalletFile(walletFile, walletAddress, exportFullDir);
+    } catch (Exception e) {
+      System.out.println("exportKeystore failed. " + e.getMessage());
+    }
+    return ret;
+  }
+
+  public boolean importKeystore(String walletChannel, String walletImportPath) throws IOException {
+    String importFilePath = PathUtil.toAbsolutePath(walletImportPath);
+    File importFile = new File(importFilePath);
+
+    //WalletFile walletFile =
+    //WalletUtils.importWalletFile(walletFile, importFile);
+    return true;
+  }
+
   public byte[] getAddress() {
     return address;
   }
@@ -374,6 +399,7 @@ public class WalletApi {
     }
     return WalletUtils.generateWalletFile(walletFile, file);
   }
+
 
   public static File selcetWalletFile() {
     File file = new File(FilePath);
@@ -1148,6 +1174,15 @@ public class WalletApi {
       return null;
     }
     return address;
+  }
+
+  public static String getHexAddress(final String address) {
+    if (address != null) {
+      byte[] addressByte = decodeFromBase58Check(address);
+      return ByteArray.toHexString(addressByte);
+    } else {
+      return null;
+    }
   }
 
   public static boolean priKeyValid(byte[] priKey) {

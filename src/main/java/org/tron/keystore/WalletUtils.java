@@ -112,6 +112,26 @@ public class WalletUtils {
     return fileName;
   }
 
+  public static String exportWalletFile(WalletFile walletFile, String walletAddress, File destinationDirectory)
+      throws IOException {
+    String fileName = getExportWalletFileName(walletAddress);
+    File destination = new File(destinationDirectory, fileName);
+
+    objectMapper.writeValue(destination, walletFile);
+    return fileName;
+  }
+
+  public static String importWalletFile(WalletFile walletFile, File destinationDirectory)
+      throws IOException {
+    /*
+    String fileName = getWalletFileName(walletFile);
+    File destination = new File(destinationDirectory, fileName);
+
+    objectMapper.writeValue(destination, walletFile);
+    return fileName;
+     */
+    return "";
+  }
   //    /**
 //     * Generates a BIP-39 compatible Ethereum wallet. The private key for the wallet can
 //     * be calculated using following algorithm:
@@ -165,6 +185,10 @@ public class WalletUtils {
 
   private static String getWalletFileName(WalletFile walletFile) {
     return walletFile.getAddress() + ".json";
+  }
+
+  private static String getExportWalletFileName(String walletAddress) {
+    return walletAddress + ".txt";
   }
 
   public static String getDefaultKeyDirectory() {
