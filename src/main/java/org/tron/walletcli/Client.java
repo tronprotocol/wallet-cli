@@ -91,6 +91,7 @@ public class Client {
       "CancelAllUnfreezeV2",
       "ChangePassword",
       "ClearContractABI",
+      "ClearWalletKeystore",
       "Create2",
       "CreateAccount",
       "CreateProposal",
@@ -190,6 +191,7 @@ public class Client {
       "MarketSellAsset",
       "ParticipateAssetIssue",
       "RegisterWallet",
+      "GenerateSubAccount",
       // "ResetShieldedNote",
       "ResetShieldedTRC20Note",
       // "ScanAndMarkNotebyAddress",
@@ -239,6 +241,7 @@ public class Client {
       "CancelAllUnfreezeV2",
       "ChangePassword",
       "ClearContractABI",
+      "ClearWalletKeystore",
       "Create2",
       "CreateAccount",
       "CreateProposal",
@@ -338,6 +341,7 @@ public class Client {
       "MarketSellAsset",
       "ParticipateAssetIssue",
       "RegisterWallet",
+      "GenerateSubAccount",
       // "ResetShieldedNote",
       "ResetShieldedTRC20Note",
       // "ScanAndMarkNotebyAddress",
@@ -544,6 +548,15 @@ public class Client {
         + File.separator + "Wallet" + File.separator
         + fileName);
     System.out.println("(Note: If you delete an account, make sure to delete the wallet file and mnemonic file) ");
+  }
+
+  private void generateSubAccount() throws CipherException, IOException {
+    boolean ret = walletApiWrapper.generateSubAccount();
+    if (ret) {
+      System.out.println("generateSubAccount successful.");
+    } else {
+      System.out.println("generateSubAccount failed.");
+    }
   }
 
   private void importWallet() throws CipherException, IOException {
@@ -2623,6 +2636,14 @@ public class Client {
     }
   }
 
+  private void clearWalletKeystoreIfExists() {
+    if (walletApiWrapper.clearWalletKeystore()) {
+      System.out.println("ClearWalletKeystore successful !!!");
+    } else {
+      System.out.println("ClearWalletKeystore failed !!!");
+    }
+  }
+
   private void updateBrokerage(String[] parameters)
       throws IOException, CipherException, CancelException {
     if (parameters == null || parameters.length != 2) {
@@ -4612,6 +4633,10 @@ public class Client {
               registerWallet();
               break;
             }
+            case "generatesubaccount": {
+              generateSubAccount();
+              break;
+            }
             case "importwallet": {
               importWallet();
               break;
@@ -4630,6 +4655,10 @@ public class Client {
             }
             case "clearcontractabi": {
               clearContractABI(parameters);
+              break;
+            }
+            case "clearwalletkeystore": {
+              clearWalletKeystoreIfExists();
               break;
             }
             case "updatebrokerage": {
