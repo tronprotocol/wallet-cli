@@ -32,6 +32,7 @@ import org.tron.keystore.StringUtils;
 import org.tron.keystore.WalletFile;
 import org.tron.keystore.WalletUtils;
 import org.tron.mnemonic.MnemonicUtils;
+import org.tron.mnemonic.SubAccount;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.ChainParameters;
@@ -149,6 +150,31 @@ public class WalletApiWrapper {
   }
 
 
+  public boolean generateSubAccount() throws CipherException, IOException {
+    boolean result = false;
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: GenerateSubAccount failed,  Please login first !!");
+      return false;
+    }
+
+    System.out.println("Please input your password.");
+    char[] password = Utils.inputPassword(false);
+    byte[] passwd = StringUtils.char2Byte(password);
+    wallet.checkPassword(passwd);
+
+    String ownerAddress = WalletApi.encode58Check(wallet.getAddress());
+    byte[] mnemonic = MnemonicUtils.exportMnemonic(passwd, ownerAddress);
+    try {
+      SubAccount.getInstance(passwd, new String(mnemonic)).start();
+    } catch (Exception e) {
+      StringUtils.clear(password);
+      System.out.println("Warning: GenerateSubAccount failed, e :" + e.getMessage());
+      e.printStackTrace();
+      return false;
+    }
+    StringUtils.clear(password);
+    return true;
+  }
 
   //password is current, will be enc by password2.
   public byte[] backupWallet() throws IOException, CipherException {

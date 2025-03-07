@@ -190,6 +190,7 @@ public class Client {
       "MarketSellAsset",
       "ParticipateAssetIssue",
       "RegisterWallet",
+      "GenerateSubAccount",
       // "ResetShieldedNote",
       "ResetShieldedTRC20Note",
       // "ScanAndMarkNotebyAddress",
@@ -338,6 +339,7 @@ public class Client {
       "MarketSellAsset",
       "ParticipateAssetIssue",
       "RegisterWallet",
+      "GenerateSubAccount",
       // "ResetShieldedNote",
       "ResetShieldedTRC20Note",
       // "ScanAndMarkNotebyAddress",
@@ -539,6 +541,15 @@ public class Client {
         + File.separator + "Wallet" + File.separator
         + fileName);
     System.out.println("(Note: If you delete an account, make sure to delete the wallet file and mnemonic file) ");
+  }
+
+  private void generateSubAccount() throws CipherException, IOException {
+    boolean ret = walletApiWrapper.generateSubAccount();
+    if (ret) {
+      System.out.println("generateSubAccount successful.");
+    } else {
+      System.out.println("generateSubAccount failed.");
+    }
   }
 
   private void importWallet() throws CipherException, IOException {
@@ -4605,6 +4616,10 @@ public class Client {
             }
             case "registerwallet": {
               registerWallet();
+              break;
+            }
+            case "generatesubaccount": {
+              generateSubAccount();
               break;
             }
             case "importwallet": {
