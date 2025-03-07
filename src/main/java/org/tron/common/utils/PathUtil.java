@@ -22,4 +22,16 @@ public class PathUtil {
       throw new IOException("Invalid path: " + inputPath, e);
     }
   }
+
+  public static String getTempDirectoryPath() {
+    String osName = System.getProperty("os.name").toLowerCase();
+
+    if (osName.contains("win")) {
+      return System.getenv("TEMP");
+    } else if (osName.contains("mac") || osName.contains("nix") || osName.contains("nux")) {
+      return "/tmp";
+    } else {
+      throw new UnsupportedOperationException("Unsupported operating system: " + osName);
+    }
+  }
 }

@@ -109,9 +109,9 @@ public class WalletUtils {
     return fileName;
   }
 
-  public static String exportWalletFile(WalletFile walletFile, File destinationDirectory)
+  public static String exportWalletFile(WalletFile walletFile, String walletAddress, File destinationDirectory)
       throws IOException {
-    String fileName = getExportWalletFileName(walletFile);
+    String fileName = getExportWalletFileName(walletAddress);
     File destination = new File(destinationDirectory, fileName);
 
     objectMapper.writeValue(destination, walletFile);
@@ -184,8 +184,8 @@ public class WalletUtils {
     return walletFile.getAddress() + ".json";
   }
 
-  private static String getExportWalletFileName(WalletFile walletFile) {
-    return walletFile.getAddress() + ".txt";
+  private static String getExportWalletFileName(String walletAddress) {
+    return walletAddress + ".txt";
   }
 
   public static String getDefaultKeyDirectory() {

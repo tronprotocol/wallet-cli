@@ -341,16 +341,19 @@ public class WalletApi {
     return Wallet.decrypt2PrivateBytes(password, walletFile);
   }
 
-  public boolean exportKeystore(String walletChannel, String walletExportPath) throws IOException {
-    WalletFile walletFile = loadWalletFile();
-    String exportFilePath = PathUtil.toAbsolutePath(walletExportPath);
-    File exportFile = new File(exportFilePath);
+  public String exportKeystore(String walletChannel, File exportFullDir) throws IOException {
+    String ret = null;
+    try {
+      WalletFile walletFile = loadWalletFile();
+      String walletAddress = walletFile.getAddress();
+      String walletHexAddress = getHexAddress(walletFile.getAddress());
+      walletFile.setAddress(walletHexAddress);
 
-    String walletHexAddress = getHexAddress(walletFile.getAddress());
-    walletFile.setAddress(walletHexAddress);
-
-    WalletUtils.exportWalletFile(walletFile, exportFile);
-    return true;
+      ret = WalletUtils.exportWalletFile(walletFile, walletAddress, exportFullDir);
+    } catch (Exception e) {
+      System.out.println("exportKeystore failed. " + e.getMessage());
+    }
+    return ret;
   }
 
   public boolean importKeystore(String walletChannel, String walletImportPath) throws IOException {
@@ -391,30 +394,6 @@ public class WalletApi {
       }
     }
     return WalletUtils.generateWalletFile(walletFile, file);
-  }
-
-  public static String exportKeystore(WalletFile walletFile, String filePath) throws IOException {
-    if (walletFile == null) {
-      System.out.println("Warning: export wallet failed, walletFile is null !!");
-      return null;
-    }
-    File file = new File(filePath);
-    if (!file.exists()) {
-      if (!file.mkdir()) {
-        throw new IOException("Make directory failed!");
-      }
-    } else {
-      if (!file.isDirectory()) {
-        if (file.delete()) {
-          if (!file.mkdir()) {
-            throw new IOException("Make directory failed!");
-          }
-        } else {
-          throw new IOException("File exists and can not be deleted!");
-        }
-      }
-    }
-    return WalletUtils.exportWalletFile(walletFile, file);
   }
 
 

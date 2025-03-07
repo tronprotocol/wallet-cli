@@ -189,35 +189,30 @@ public class WalletApiWrapper {
     return MnemonicUtils.exportMnemonic(passwd, getAddress());
   }
 
-  public boolean exportKeystore(String walletChannel, String walletExportPath)
+  public String exportKeystore(String walletChannel, File exportFullDir)
       throws IOException, CipherException {
     if (wallet == null || !wallet.isLoginState()) {
       System.out.println("Warning: ExportKeystore failed,  Please login first !!");
-      return false;
+      return null;
     }
 
     //1.input password
     System.out.println("Please input your password.");
     char[] password = Utils.inputPassword(false);
     byte[] passwd = StringUtils.char2Byte(password);
-    wallet.checkPassword(passwd);
-    StringUtils.clear(password);
-
-    boolean bRet = wallet.exportKeystore(walletChannel, walletExportPath);
-    return bRet;
-  }
-
-  public String importWalletByKeystore(char[] password, String walletImportPath)
-      throws IOException, CipherException {
-    String importFilePath = PathUtil.toAbsolutePath(walletImportPath);
-    File importFile = new File(importFilePath);
-    if (!importFile.exists()) {
-      System.out.println("importWalletByKeystore failed, keystore file not exists !!");
-      return "";
+    try {
+      wallet.checkPassword(passwd);
+    } finally {
+      StringUtils.clear(password);
+      StringUtils.clear(passwd);
     }
 
+    return wallet.exportKeystore(walletChannel, exportFullDir);
+  }
+
+  public String importWalletByKeystore(byte[] passwdByte, char[] password, File importFile)
+      throws IOException, CipherException {
     WalletFile walletFile = WalletUtils.loadWalletFile(importFile);
-    byte[] passwdByte = StringUtils.char2Byte(password);
     byte[] priKey = Wallet.decrypt2PrivateBytes(passwdByte, walletFile);
     String fileName = importWallet(password, priKey, null);
 
