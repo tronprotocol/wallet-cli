@@ -13,6 +13,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import static org.tron.ledger.sdk.CommonUtil.sanitizeForFileName;
+
 public class LedgerFileUtil {
   public static final String LEDGER_DIR_NAME = "Ledger";
 
@@ -81,12 +83,6 @@ public class LedgerFileUtil {
     return String.format("%s_%s_%s_%s.txt", vendorId, productId, serialNumber, releaseNumber);
   }
 
-  private static String sanitizeForFileName(String input) {
-    if (input == null) {
-      return "unknown";
-    }
-    return input.replaceAll("[^a-zA-Z0-9]", "_");
-  }
 
   public static void main(String[] args) {
     /*

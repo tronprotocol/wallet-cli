@@ -17,6 +17,7 @@ import static org.tron.ledger.console.ConsoleColor.ANSI_GREEN;
 import static org.tron.ledger.console.ConsoleColor.ANSI_RED;
 import static org.tron.ledger.console.ConsoleColor.ANSI_RESET;
 import static org.tron.ledger.console.ConsoleColor.ANSI_YELLOW;
+import static org.tron.ledger.sdk.CommonUtil.getUIDByDevice;
 
 
 public abstract class BaseListener implements HidServicesListener {
@@ -48,9 +49,26 @@ public abstract class BaseListener implements HidServicesListener {
       return;
     }
 
+    // if a device is in using, print multi device is not suppored
+    HidDevice hidDevice = HidServicesWrapper.getInstance().getHidDevice();
+    if (hidDevice != null && !getUIDByDevice(hidDevice).equals(getUIDByDevice(event.getHidDevice()))) {
+      System.out.println(ANSI_RED + "Only one Ledger device is supported"+ ANSI_RESET);
+      System.out.println(ANSI_RED + "Please check your Ledger connection"+ ANSI_RESET);
+      System.out.println(ANSI_RED + "Please disconnect any unnecessary Ledger devices from your computer's USB ports."+ ANSI_RESET);
+      return;
+    }
+    hidDevice = TransactionSignManager.getInstance().getHidDevice();
+    if (hidDevice != null && !getUIDByDevice(hidDevice).equals(getUIDByDevice(event.getHidDevice()))) {
+      System.out.println(ANSI_RED + "Only one Ledger device is supported"+ ANSI_RESET);
+      System.out.println(ANSI_RED + "Please check your Ledger connection"+ ANSI_RESET);
+      System.out.println(ANSI_RED + "Please disconnect any unnecessary Ledger devices from your computer's USB ports."+ ANSI_RESET);
+      return;
+    }
+
     if (DebugConfig.isDebugEnabled()) {
       String product = event.getHidDevice().getProduct();
       System.out.println(ANSI_GREEN + "Device " + product + " found: " + event + ANSI_RESET);
+      System.out.println(event.getHidDevice().toString());
     }
   }
 
@@ -59,19 +77,35 @@ public abstract class BaseListener implements HidServicesListener {
     if (event.getHidDevice().getVendorId() != LedgerConstant.LEDGER_VENDOR) {
       return;
     }
-
     if (DebugConfig.isDebugEnabled()) {
       System.out.println(ANSI_YELLOW + "Device detached: " + event + ANSI_RESET);
+      System.out.println(event.getHidDevice().toString());
     }
+
+    // if the detached device is not in use, do nothing
+    HidDevice hidDevice = HidServicesWrapper.getInstance().getHidDevice();
+    if (hidDevice != null && !getUIDByDevice(hidDevice).equals(getUIDByDevice(event.getHidDevice()))) {
+      return;
+    }
+    hidDevice = TransactionSignManager.getInstance().getHidDevice();
+    if (hidDevice != null && !getUIDByDevice(hidDevice).equals(getUIDByDevice(event.getHidDevice()))) {
+      return;
+    }
+
     LedgerSignResult.updateAllSigningToReject(event.getHidDevice().getPath());
     LedgerEventListener.getInstance().getLedgerSignEnd().compareAndSet(false, true);
     TransactionSignManager.getInstance().setTransaction(null);
     if (TransactionSignManager.getInstance().getHidDevice() != null) {
+      if (DebugConfig.isDebugEnabled()) {
+        System.out.println(TransactionSignManager.getInstance().getHidDevice());
+      }
       TransactionSignManager.getInstance().getHidDevice().close();
       TransactionSignManager.getInstance().setHidDevice(null);
     }
-    HidDevice hidDevice = HidServicesWrapper.getInstance().getHidDevice();
-    if (hidDevice != null) {
+    if (HidServicesWrapper.getInstance().getHidDevice() != null) {
+      if (DebugConfig.isDebugEnabled()) {
+        System.out.println(HidServicesWrapper.getInstance().getHidDevice());
+      }
       HidServicesWrapper.getInstance().getHidDevice().close();
       HidServicesWrapper.getInstance().setHidDevice(null);
     }
@@ -99,4 +133,5 @@ public abstract class BaseListener implements HidServicesListener {
           CommonUtil.bytesToHex(event.getDataReceived()) + ANSI_RESET);
     }
   }
+
 }

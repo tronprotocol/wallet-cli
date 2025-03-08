@@ -53,27 +53,10 @@ public class TronLedgerGetAddress {
     } else if (hidDeviceList.size() > 1) {
       System.out.println(ANSI_RED + "Only one Ledger device is supported"+ ANSI_RESET);
       System.out.println(ANSI_RED + "Please check your Ledger connection"+ ANSI_RESET);
+      System.out.println(ANSI_RED + "Please disconnect any unnecessary Ledger devices from your computer's USB ports."+ ANSI_RESET);
       return null;
     }
     return null;
-  }
-
-  public HidDevice getConnectedDeviceWithException() {
-    List<HidDevice> hidDeviceList = new ArrayList<>();
-    for (HidDevice dev : hidServices.getAttachedHidDevices()) {
-      if (dev.getVendorId() == LEDGER_VENDOR_ID) {
-        hidDeviceList.add(dev);
-      }
-    }
-
-    if (hidDeviceList.size() ==1) {
-      return hidDeviceList.get(0);
-    } else if (hidDeviceList.size() > 1) {
-      System.out.println(ANSI_RED + "Only one Ledger is supported"+ ANSI_RESET);
-      System.out.println(ANSI_RED + "Please check your Ledger connection"+ ANSI_RESET);
-      throw new RuntimeException("Only one Ledger device is supported");
-    }
-    throw new RuntimeException("No device is found");
   }
 
   public void connect() {
@@ -93,7 +76,7 @@ public class TronLedgerGetAddress {
     if (device != null) {
       device.close();
     }
-    hidServices.shutdown();
+    //hidServices.shutdown();
   }
 
   public String getTronAddressByPath(String path) {

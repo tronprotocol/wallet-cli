@@ -38,7 +38,7 @@ public class ContractTypeChecker {
     boolean ret =  CONTRACT_TYPE_SET.contains(contractType);
     if (!ret) {
       System.out.println(ANSI_RED +
-          "Transaction type is not supported ledger sign, Please check your transaction type!!" +
+          "Transaction type is not supported Ledger sign, Please check your transaction type!!" +
           ANSI_RESET);
     }
     return ret;

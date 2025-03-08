@@ -75,8 +75,8 @@ public class HidServicesWrapper {
       }
 
       if (hidDeviceList.size() > 1) {
-        System.out.println(ANSI_RED + "Only one ledger device is supported"+ ANSI_RESET);
-        System.out.println(ANSI_RED + "Please check your ledger connection"+ ANSI_RESET);
+        System.out.println(ANSI_RED + "Only one Ledger device is supported"+ ANSI_RESET);
+        System.out.println(ANSI_RED + "Please check your Ledger connection"+ ANSI_RESET);
         return null;
       } else if (hidDeviceList.size()==1) {
         fidoDevice = hidDeviceList.get(0);
@@ -100,12 +100,6 @@ public class HidServicesWrapper {
     }
 
     return fidoDevice;
-  }
-
-  public void close() {
-    if (hidServices!=null) {
-      hidServices.shutdown();
-    }
   }
 
 }

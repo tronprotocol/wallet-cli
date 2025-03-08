@@ -597,7 +597,7 @@ public class Client {
     // device is using in transaction sign
     HidDevice signDevice = TransactionSignManager.getInstance().getHidDevice();
     if (signDevice != null) {
-      System.out.println("Import wallet by ledger failed !! Please check your ledger device");
+      System.out.println("Import wallet by Ledger failed !! Please check your Ledger device");
       return;
     }
     HidDevice device  = null;
@@ -616,7 +616,7 @@ public class Client {
       password = Utils.inputPassword2Twice();
       String fileName = walletApiWrapper.importWalletByLedger(password);
       if (fileName == null || fileName.trim().isEmpty() ) {
-        System.out.println("Import wallet by ledger end !!");
+        System.out.println("Import wallet by Ledger end !!");
         return;
       }
 

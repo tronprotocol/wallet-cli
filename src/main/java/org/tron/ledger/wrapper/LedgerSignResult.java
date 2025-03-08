@@ -18,12 +18,12 @@ public class LedgerSignResult {
   public static final String SIGN_RESULT_SUCCESS = "confirmed";
   public static final String SIGN_RESULT_CANCEL = "cancel";
 
-  private static final String FILE_PATH = "./ledger/transactions_";
   private static final ReadWriteLock lock = new ReentrantReadWriteLock();
-
+  private static final String DIRECTORY = "Ledger";
+  private static final String FILE_PREFIX = "transactions_";
 
   public static Path getFilePath(String devicePath) {
-    return Paths.get(FILE_PATH +  devicePath + ".txt");
+    return Paths.get(".", DIRECTORY, FILE_PREFIX + devicePath + ".txt");
   }
 
   // Check if the file exists

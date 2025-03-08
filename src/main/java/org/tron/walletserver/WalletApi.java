@@ -676,7 +676,7 @@ public class WalletApi {
               }
               if (hidDevice==null) {
                 LegerUserHelper.showHidDeviceConnectionError();
-                System.out.println("Please check your ledger and try again");
+                System.out.println("Please check your Ledger and try again");
                 System.out.println("Sign with ledger failed");
                 break;
               }

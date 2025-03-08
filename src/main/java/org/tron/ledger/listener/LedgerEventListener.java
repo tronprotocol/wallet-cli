@@ -180,7 +180,7 @@ public class LedgerEventListener extends BaseListener {
         }
         String transactionId = TransactionUtils.getTransactionId(transaction).toString();
         if (!isTimeOutShutdown.get()) {
-          System.out.println("\nConfirm sign from ledger");
+          System.out.println("\nConfirm sign from Ledger");
           byte[] signature = Arrays.copyOfRange(unwrappedResponse, 0, 65);
           if (DebugConfig.isDebugEnabled()) {
             System.out.println("Signature: " + CommonUtil.bytesToHex(signature));
