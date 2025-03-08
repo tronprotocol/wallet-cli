@@ -128,6 +128,10 @@ public class WalletApiWrapper {
           LedgerFileUtil.getFileName());
 
       String defaultImportAddress = LedgerAddressUtil.getImportAddress(defaultPath);
+      if (defaultImportAddress == null || defaultImportAddress.isEmpty()) {
+        System.out.println("No available address to import.");
+        return null;
+      }
 
       String choice;
       boolean quit = false;

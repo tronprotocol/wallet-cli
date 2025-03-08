@@ -37,6 +37,7 @@ public class LedgerAddressUtil {
           addressMap.put(path, importAddress);
         } else {
           System.out.println("Get address from Ledger failed for path: " + path);
+          break;
         }
       }
     } catch (Exception e) {

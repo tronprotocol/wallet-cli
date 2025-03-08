@@ -15,10 +15,13 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+
+import static org.apache.commons.lang3.StringUtils.isNumeric;
 
 public class TronLedgerImportAccount {
   private static final int PAGE_SIZE = 4;
@@ -42,12 +45,12 @@ public class TronLedgerImportAccount {
       LineReader lineReader = LineReaderBuilder.builder().terminal(terminal).build();
       int currentPage = 0;
       int generatedPage = 0;
-      List<ImportAccount> accounts = new ArrayList<>();
+      //List<ImportAccount> accounts = new ArrayList<>();
+      Map<Integer, ImportAccount> accounts = new LinkedHashMap<>();
 
       while (true) {
         if (currentPage == 0 && (pathAddressMap == null || pathAddressMap.isEmpty())) {
           pathAddressMap = getImportPathAddressMap(0, PAGE_SIZE).get();
-          generatedPage = 0;
         }
         generateAccountsForPage(currentPage, pathAddressMap, accounts);
         displayPage(accounts, currentPage);
@@ -59,18 +62,17 @@ public class TronLedgerImportAccount {
           generatedPage = generatedPage + 1;
         }
 
+        int choiceStartIndex = currentPage * PAGE_SIZE + 1;
+        int choiceEndIndex = (currentPage + 1) * PAGE_SIZE;
+
         String choice = lineReader.readLine(
-            "Options: [n]ext, [p]revious, [q]uit, [0-"+(PAGE_SIZE-1)+"] select: ")
+            "Options: [P] Previous page [N] Next page  [Q] Quit, [" + choiceStartIndex + "-" + choiceEndIndex + "] Select Index: ")
             .trim();
-        if (choice.matches("[0-"+(PAGE_SIZE-1)+"]")) {
+        if (isNumberInRange(choice, choiceStartIndex, choiceEndIndex)) {
           int index = Integer.parseInt(choice);
-          if (index >=0 && index <=(PAGE_SIZE-1)) {
-            int listIndex = currentPage * PAGE_SIZE + index;
-            System.out.println("Selected Address: " + accounts.get(listIndex).getAddress());
-            return accounts.get(listIndex);
-          } else {
-            System.out.println("Invalid selection.");
-          }
+          int listIndex = index - 1;
+          System.out.println("Selected Address: " + accounts.get(listIndex).getAddress());
+          return accounts.get(listIndex);
         } else {
           switch (choice) {
             case "n":
@@ -104,33 +106,46 @@ public class TronLedgerImportAccount {
     return null;
   }
 
-  private static List<ImportAccount> generateAccountsForPage(int page, Map<String, String> pathAddressMap, List<ImportAccount> accounts) {
+  private static Map<Integer, ImportAccount> generateAccountsForPage(int page, Map<String, String> pathAddressMap, Map<Integer, ImportAccount> accounts) {
     int start = page * PAGE_SIZE;
     try {
       for (int i = start; i < start + PAGE_SIZE; i++) {
         String path = "m/44'/195'/" + i + "'/0/0";
         String address = pathAddressMap.get(path);
-        boolean isGen = LedgerFileUtil.isPathInFile(path);
-        ImportAccount importAccount = new ImportAccount(path, address, isGen);
-        if (!accounts.contains(importAccount)){
-          accounts.add(importAccount);
+        if (address != null && !address.isEmpty()) {
+          boolean isGen = LedgerFileUtil.isPathInFile(path);
+          ImportAccount importAccount = new ImportAccount(path, address, isGen);
+          accounts.put(i, importAccount);
         }
       }
     } catch (Exception e) {
-      e.printStackTrace();
+      if (DebugConfig.isDebugEnabled()) {
+        e.printStackTrace();
+      }
     }
     return accounts;
   }
 
-  private static void displayPage(List<ImportAccount> accounts, int page) {
+  private static void displayPage(Map<Integer, ImportAccount> accounts, int page) {
     System.out.println("\nPage " + (page + 1) + " of " + TOTAL_PAGES);
-    int start = page * PAGE_SIZE;
-    int end = Math.min(start + PAGE_SIZE, accounts.size());
-    for (int i = start; i < end; i++) {
-      String status = accounts.get(i).isGen() ? "Imported" : "Not Imported";
-      System.out.println(i%PAGE_SIZE + ": " + accounts.get(i).getAddress()
-          + " \t " + accounts.get(i).getPath()
-          + " \t " + status);
+    System.out.printf(String.format("%-4s %-42s %-25s %s\n",
+        "No.", "Address", "Path", "Status"));
+    int displayIndex = page * PAGE_SIZE + 1;
+    int accountsIndex = page * PAGE_SIZE;
+
+    int end = accountsIndex + PAGE_SIZE;
+    for (int i = accountsIndex; i < end; i++, displayIndex++, accountsIndex++) {
+      if (accounts.get(accountsIndex) == null) {
+        break;
+      }
+
+      String displayStr = String.format("%-42s %-25s %s",
+          accounts.get(accountsIndex).getAddress(),
+          accounts.get(accountsIndex).getPath(),
+          accounts.get(accountsIndex).isGen() ? "✓" : "×");
+      String oneRow = String.format("%-4d %s\n",
+          displayIndex, displayStr);
+      System.out.printf(oneRow);
     }
   }
 
@@ -180,6 +195,10 @@ public class TronLedgerImportAccount {
 
       String path = String.format("m/%s'/%s'/%s'/%s/%s", purpose, coinType, account, change, addressIndex);
       String address = LedgerAddressUtil.getImportAddress(path);
+      if (address == null || address.isEmpty()) {
+        return null;
+      }
+
       boolean isGen = LedgerFileUtil.isPathInFile(path);
       return new ImportAccount(path, address, isGen);
     } catch (Exception e) {
@@ -225,13 +244,31 @@ public class TronLedgerImportAccount {
     return null; // Return null if all indices are present
   }
 
+  public static boolean isNumberInRange(String choice, int a, int b) {
+    if (choice == null || choice.isEmpty()) {
+      return false;
+    }
+
+    try {
+      int number = Integer.parseInt(choice);
+      return number >= a && number <= b;
+    } catch (NumberFormatException e) {
+      return false;
+    }
+  }
+
   public static void main(String[] args) {
-    /*
-    String missingPath = findFirstMissingPath("11415_16384_0001_513.txt");
-    if (missingPath != null) {
-      System.out.println("First missing path: " + missingPath);
-    } else {
-      System.out.println("All paths are present.");
-    }*/
+    Map<Integer, ImportAccount> accounts = new LinkedHashMap<>();
+    accounts.put(0, new ImportAccount("m/44'/0'/0'/0/0", "TAT7dA8F9HXGqmhvMCjxCKAD29YxDRw81y", true));
+    accounts.put(1, new ImportAccount("m/44'/0'/0'/0/1", "TAT7dA8F9HXGqmhvMCjxCKAD29YxDRw82y", false));
+    accounts.put(2, new ImportAccount("m/44'/0'/0'/0/2", "TAT7dA8F9HXGqmhvMCjxCKAD29YxDRw83y", true));
+    accounts.put(3, new ImportAccount("m/44'/0'/0'/0/3", "TAT7dA8F9HXGqmhvMCjxCKAD29YxDRw84y", false));
+    accounts.put(4, new ImportAccount("m/44'/0'/0'/0/4", "TAT7dA8F9HXGqmhvMCjxCKAD29YxDRw85y", true));
+    accounts.put(5, new ImportAccount("m/44'/0'/0'/0/5", "TAT7dA8F9HXGqmhvMCjxCKAD29YxDRw86y", false));
+    accounts.put(6, new ImportAccount("m/44'/0'/0'/0/6", "TAT7dA8F9HXGqmhvMCjxCKAD29YxDRw87y", true));
+    accounts.put(7, new ImportAccount("m/44'/0'/0'/0/7", "TAT7dA8F9HXGqmhvMCjxCKAD29YxDRw88y", false));
+    // Display the first page
+    displayPage(accounts, 0);
+    displayPage(accounts, 1);
   }
 }

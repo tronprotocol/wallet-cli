@@ -5,6 +5,7 @@ import org.hid4java.*;
 import org.tron.ledger.sdk.ApduExchangeHandler;
 import org.tron.ledger.sdk.ApduMessageBuilder;
 import org.tron.ledger.sdk.CommonUtil;
+import org.tron.ledger.sdk.LedgerConstant;
 import org.tron.ledger.wrapper.DebugConfig;
 
 import java.util.ArrayList;
@@ -100,9 +101,16 @@ public class TronLedgerGetAddress {
     int totalWaitTimeoutMillis = 5000;
     try {
       byte[] apdu = ApduMessageBuilder.buildTronAddressApduMessage(path);
+      if (DebugConfig.isDebugEnabled()) {
+        System.out.println("Get Address Request: " + path);
+      }
       byte[] result = ApduExchangeHandler.exchangeApdu(device, apdu, readTimeoutMillis, totalWaitTimeoutMillis);
       if (DebugConfig.isDebugEnabled()) {
-        System.out.println("Get Address Result: " + CommonUtil.bytesToHex(result));
+        System.out.println("Get Address Response: " + CommonUtil.bytesToHex(result));
+      }
+      if (LedgerConstant.LEDGER_LOCK.equalsIgnoreCase(CommonUtil.bytesToHex(result))) {
+        System.out.println(ANSI_RED + "Ledger is locked, please unlock it first"+ ANSI_RESET);
+        return "";
       }
 
       int offset = 0;
