@@ -20,7 +20,7 @@ public class LedgerAddressUtil {
     }
 
     if (org.apache.commons.lang3.StringUtils.isEmpty(importAddress)) {
-      System.out.println("Get address from ledger failed !!");
+      System.out.println("Get address from Ledger failed !!");
       return "";
     }
     return importAddress;
@@ -36,7 +36,7 @@ public class LedgerAddressUtil {
         if (org.apache.commons.lang3.StringUtils.isNotEmpty(importAddress)) {
           addressMap.put(path, importAddress);
         } else {
-          System.out.println("Get address from ledger failed for path: " + path);
+          System.out.println("Get address from Ledger failed for path: " + path);
         }
       }
     } catch (Exception e) {

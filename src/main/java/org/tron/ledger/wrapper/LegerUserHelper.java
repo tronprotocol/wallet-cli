@@ -26,7 +26,7 @@ public class LegerUserHelper {
     }
 
     if (forbit) {
-      System.out.println("ledger user can't use this command");
+      System.out.println("Ledger user can't use this command");
       return true;
     }
 

@@ -191,7 +191,7 @@ public class TronLedgerImportAccount {
   }
 
   public static String findFirstMissingPath(String filePath) {
-    Path path = Paths.get("./ledger/" + filePath);
+    Path path = Paths.get(".", "Ledger", filePath);
     Set<Integer> existingIndices = new HashSet<>();
 
     try {

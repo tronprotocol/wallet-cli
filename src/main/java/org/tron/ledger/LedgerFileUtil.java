@@ -14,27 +14,17 @@ import java.util.List;
 import java.util.Set;
 
 public class LedgerFileUtil {
-
+  public static final String LEDGER_DIR_NAME = "Ledger";
 
   public static String getFileName() {
     HidDevice device = TronLedgerGetAddress.getInstance().getConnectedDevice();
-    return String.format("%s_%s_%s_%s.txt",
-        device.getVendorId(),
-        device.getProductId(),
-        device.getSerialNumber(),
-        device.getReleaseNumber());
+    return getFileNameByDevice(device);
   }
 
   public static void writePathsToFile(List<String> paths) {
-    HidDevice device = TronLedgerGetAddress.getInstance().getConnectedDevice();
-    String directoryName = "ledger";
-    String fileName = String.format("%s_%s_%s_%s.txt",
-        device.getVendorId(),
-        device.getProductId(),
-        device.getSerialNumber(),
-        device.getReleaseNumber());
+    String fileName = getFileName();
 
-    File directory = new File(directoryName);
+    File directory = new File(LEDGER_DIR_NAME);
     if (!directory.exists()) {
       directory.mkdir();
     }
@@ -66,15 +56,8 @@ public class LedgerFileUtil {
   }
 
   public static boolean isPathInFile(String path) {
-    HidDevice device = TronLedgerGetAddress.getInstance().getConnectedDevice();
-    String directoryName = "ledger";
-    String fileName = String.format("%s_%s_%s_%s.txt",
-        device.getVendorId(),
-        device.getProductId(),
-        device.getSerialNumber(),
-        device.getReleaseNumber());
-
-    File file = new File(directoryName, fileName);
+    String fileName = getFileName();
+    File file = new File(LEDGER_DIR_NAME, fileName);
 
     if (file.exists()) {
       try {
@@ -87,6 +70,22 @@ public class LedgerFileUtil {
       }
     }
     return false;
+  }
+
+  public static String getFileNameByDevice(HidDevice device) {
+    String vendorId = String.valueOf(device.getVendorId());
+    String productId = String.valueOf(device.getProductId());
+    String serialNumber = sanitizeForFileName(device.getSerialNumber());
+    String releaseNumber = String.valueOf(device.getReleaseNumber());
+
+    return String.format("%s_%s_%s_%s.txt", vendorId, productId, serialNumber, releaseNumber);
+  }
+
+  private static String sanitizeForFileName(String input) {
+    if (input == null) {
+      return "unknown";
+    }
+    return input.replaceAll("[^a-zA-Z0-9]", "_");
   }
 
   public static void main(String[] args) {

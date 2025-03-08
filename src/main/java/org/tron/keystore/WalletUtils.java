@@ -173,7 +173,7 @@ public class WalletUtils {
     return walletFile.getAddress() + ".json";
   }
   private static String getLegerWalletFileName(WalletFile walletFile) {
-    return "ledger-" + walletFile.getAddress() + ".json";
+    return "Ledger-" + walletFile.getAddress() + ".json";
   }
   public static String getDefaultKeyDirectory() {
     return getDefaultKeyDirectory(System.getProperty("os.name"));

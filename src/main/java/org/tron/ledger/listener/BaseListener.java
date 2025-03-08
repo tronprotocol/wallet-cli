@@ -3,6 +3,8 @@ package org.tron.ledger.listener;
 import org.hid4java.HidDevice;
 import org.hid4java.HidServicesListener;
 import org.hid4java.event.HidServicesEvent;
+import org.tron.ledger.sdk.CommonUtil;
+import org.tron.ledger.sdk.LedgerConstant;
 import org.tron.ledger.wrapper.DebugConfig;
 import org.tron.ledger.wrapper.HidServicesWrapper;
 import org.tron.ledger.wrapper.LedgerSignResult;
@@ -42,23 +44,29 @@ public abstract class BaseListener implements HidServicesListener {
 
   @Override
   public void hidDeviceAttached(HidServicesEvent event) {
-    if (event.getHidDevice().getManufacturer().equals("Ledger")) {
-      if (DebugConfig.isDebugEnabled()) {
-        String product = event.getHidDevice().getProduct();
-        System.out.println(ANSI_GREEN + "Device " + product + " found: " + event + ANSI_RESET);
-      }
+    if (event.getHidDevice().getVendorId() != LedgerConstant.LEDGER_VENDOR) {
+      return;
+    }
+
+    if (DebugConfig.isDebugEnabled()) {
+      String product = event.getHidDevice().getProduct();
+      System.out.println(ANSI_GREEN + "Device " + product + " found: " + event + ANSI_RESET);
     }
   }
 
   @Override
   public void hidDeviceDetached(HidServicesEvent event) {
+    if (event.getHidDevice().getVendorId() != LedgerConstant.LEDGER_VENDOR) {
+      return;
+    }
+
     if (DebugConfig.isDebugEnabled()) {
       System.out.println(ANSI_YELLOW + "Device detached: " + event + ANSI_RESET);
     }
     LedgerSignResult.updateAllSigningToReject(event.getHidDevice().getPath());
     LedgerEventListener.getInstance().getLedgerSignEnd().compareAndSet(false, true);
     TransactionSignManager.getInstance().setTransaction(null);
-    if (TransactionSignManager.getInstance().getHidDevice() !=null) {
+    if (TransactionSignManager.getInstance().getHidDevice() != null) {
       TransactionSignManager.getInstance().getHidDevice().close();
       TransactionSignManager.getInstance().setHidDevice(null);
     }
@@ -71,6 +79,10 @@ public abstract class BaseListener implements HidServicesListener {
 
   @Override
   public void hidFailure(HidServicesEvent event) {
+    if (event.getHidDevice().getVendorId() != LedgerConstant.LEDGER_VENDOR) {
+      return;
+    }
+
     if (DebugConfig.isDebugEnabled()) {
       System.out.println(ANSI_RED + "HID failure: " + event + ANSI_RESET);
     }
@@ -78,7 +90,13 @@ public abstract class BaseListener implements HidServicesListener {
 
   @Override
   public void hidDataReceived(HidServicesEvent event) {
+    if (event.getHidDevice().getVendorId() != LedgerConstant.LEDGER_VENDOR) {
+      return;
+    }
 
+    if (DebugConfig.isDebugEnabled()) {
+      System.out.println(ANSI_GREEN + "Data received: " +
+          CommonUtil.bytesToHex(event.getDataReceived()) + ANSI_RESET);
+    }
   }
-
 }

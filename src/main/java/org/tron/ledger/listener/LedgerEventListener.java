@@ -51,9 +51,9 @@ public class LedgerEventListener extends BaseListener {
   public boolean waitAndShutdownWithInput() {
     Thread inputThread = new Thread(() -> {
       Scanner scanner = new Scanner(System.in);
-      System.out.printf(ANSI_YELLOW + "Press 'c' to cancel sign and continue on other operation.\n" + ANSI_RESET);
+      System.out.printf(ANSI_YELLOW + "Press 'c' to continue on other operation.\n" + ANSI_RESET);
       System.out.printf(ANSI_YELLOW + "If the transaction signature hasn't timed out and the Ledger confirms the signature, the transaction will still be broadcast.\n" + ANSI_RESET);
-      System.out.printf(ANSI_YELLOW + "current transaction sign will be closed after %ds.\n" + ANSI_RESET, TRANSACTION_SIGN_TIMEOUT);
+      System.out.printf(ANSI_YELLOW + "Current transaction sign will be closed after %ds.\n" + ANSI_RESET, TRANSACTION_SIGN_TIMEOUT);
       String input = scanner.nextLine();
       while (!"c".equalsIgnoreCase(input)) {
         input = scanner.nextLine();
@@ -62,14 +62,14 @@ public class LedgerEventListener extends BaseListener {
         }
       }
       if (DebugConfig.isDebugEnabled()) {
-        System.out.printf(ANSI_RED + "input thread finished\n" + ANSI_RESET);
+        System.out.printf(ANSI_RED + "Input thread finished\n" + ANSI_RESET);
       }
     });
     Thread shutdownThread = new Thread(() -> {
       sleepNoInterruption(TRANSACTION_SIGN_TIMEOUT);
       shutdownHidServices();
       if (DebugConfig.isDebugEnabled()) {
-        System.out.printf(ANSI_RED + "shutdown thread finished\n" + ANSI_RESET);
+        System.out.printf(ANSI_RED + "Shutdown thread finished\n" + ANSI_RESET);
       }
     });
 
@@ -89,7 +89,7 @@ public class LedgerEventListener extends BaseListener {
   private synchronized void shutdownHidServices() {
     if (!isTimeOutShutdown.get()) {
       if (DebugConfig.isDebugEnabled()) {
-        System.out.printf(ANSI_YELLOW + "ledger sign shutdown...%n" + ANSI_RESET);
+        System.out.printf(ANSI_YELLOW + "Ledger sign shutdown...%n" + ANSI_RESET);
       }
       ledgerSignEnd.compareAndSet(false, true);
       isTimeOutShutdown.compareAndSet(false,true);
@@ -102,7 +102,7 @@ public class LedgerEventListener extends BaseListener {
     try {
       byte[] sendResult = handleTransSign(hidDevice, transaction, path);
       if (sendResult == null) {
-        System.out.println("transaction sign request is sent to ledger");
+        System.out.println("Transaction sign request is sent to Ledger");
         TransactionSignManager.getInstance().setHidDevice(hidDevice);
         isTimeOutShutdown.compareAndSet(true,false);
         String transactionId = TransactionUtils.getTransactionId(transaction).toString();
@@ -131,11 +131,11 @@ public class LedgerEventListener extends BaseListener {
         ,TIMEOUT_MILLIS, MAX_WAIT_TIME_MILLIS);
     if (respone!=null) {
       if (DebugConfig.isDebugEnabled()) {
-        System.out.println("handleTransSign respone: " + bytesToHex(respone));
+        System.out.println("HandleTransSign respone: " + bytesToHex(respone));
       }
     } else {
       if (DebugConfig.isDebugEnabled()) {
-        System.out.println("handleTransSign respone is null");
+        System.out.println("HandleTransSign respone is null");
       }
     }
     return respone;
@@ -144,43 +144,46 @@ public class LedgerEventListener extends BaseListener {
   @Override
   public void hidDataReceived(HidServicesEvent event) {
     super.hidDataReceived(event);
+    if (event.getHidDevice().getVendorId() != LedgerConstant.LEDGER_VENDOR) {
+      return;
+    }
 
     byte[] response = event.getDataReceived();
     byte[] unwrappedResponse = LedgerProtocol.unwrapResponseAPDU(
         LedgerConstant.CHANNEL, response, LedgerConstant.PACKET_SIZE, false);
     if (DebugConfig.isDebugEnabled()) {
-      System.out.println("received unwrappedResponse: " + CommonUtil.bytesToHex(unwrappedResponse));
+      System.out.println("Received unwrappedResponse: " + CommonUtil.bytesToHex(unwrappedResponse));
     }
 
     if (LEDGER_SIGN_CANCEL.equalsIgnoreCase(CommonUtil.bytesToHex(unwrappedResponse))) {
       HidDevice hidDevice = HidServicesWrapper.getInstance().getHidDevice();
       LedgerSignResult.updateAllSigningToReject(hidDevice.getPath());
 
-      System.out.println("cancel sign from ledger");
+      System.out.println("\nCancel sign from Ledger");
       doLedgerSignEnd();
       hidDevice.close();
     } else {
       Protocol.Transaction transaction = TransactionSignManager.getInstance().getTransaction();
       if (transaction == null) {
         if (DebugConfig.isDebugEnabled()) {
-          System.out.println("transaction is null");
+          System.out.println("Transaction is null");
         }
         HidDevice hidDevice = HidServicesWrapper.getInstance().getHidDevice();
         LedgerSignResult.updateAllSigningToReject(hidDevice.getPath());
         if (DebugConfig.isDebugEnabled()) {
-          System.out.println("updateAllSigningToReject");
+          System.out.println("Do updateAllSigningToReject");
         }
         hidDevice.close();
       } else {
         if (DebugConfig.isDebugEnabled()) {
-          System.out.println("transaction is not null");
+          System.out.println("Transaction is not null");
         }
         String transactionId = TransactionUtils.getTransactionId(transaction).toString();
         if (!isTimeOutShutdown.get()) {
-          System.out.println("confirm sign from ledger");
+          System.out.println("\nConfirm sign from ledger");
           byte[] signature = Arrays.copyOfRange(unwrappedResponse, 0, 65);
           if (DebugConfig.isDebugEnabled()) {
-            System.out.println("signature: " + CommonUtil.bytesToHex(signature));
+            System.out.println("Signature: " + CommonUtil.bytesToHex(signature));
           }
           TransactionSignManager.getInstance().addTransactionSign(signature);
           boolean ret = WalletApi.broadcastTransaction(TransactionSignManager.getInstance().getTransaction());

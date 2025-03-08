@@ -592,7 +592,7 @@ public class Client {
   }
 
   private void importWalletByLedger() throws CipherException, IOException {
-    System.out.println("((Note:This is importWalletByLedger tips)");
+    System.out.println("((Note:This will pair Ledger to user your hardward wallet)");
 
     // device is using in transaction sign
     HidDevice signDevice = TransactionSignManager.getInstance().getHidDevice();
@@ -620,9 +620,11 @@ public class Client {
         return;
       }
 
-      System.out.println("Import a wallet by ledger successful, keystore file : ."
+      System.out.println("Import a wallet by Ledger successful, keystore file : ."
           + File.separator + "Wallet" + File.separator
           + fileName);
+
+      System.out.println("You are now logged in, and you can perform operations using this account.");
     } finally {
       StringUtils.clear(password);
       device.close();

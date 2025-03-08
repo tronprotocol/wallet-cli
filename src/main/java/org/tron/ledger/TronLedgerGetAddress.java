@@ -50,8 +50,8 @@ public class TronLedgerGetAddress {
     if (hidDeviceList.size() ==1) {
       return hidDeviceList.get(0);
     } else if (hidDeviceList.size() > 1) {
-      System.out.println(ANSI_RED + "Only one ledger device is supported"+ ANSI_RESET);
-      System.out.println(ANSI_RED + "Please check your ledger connection"+ ANSI_RESET);
+      System.out.println(ANSI_RED + "Only one Ledger device is supported"+ ANSI_RESET);
+      System.out.println(ANSI_RED + "Please check your Ledger connection"+ ANSI_RESET);
       return null;
     }
     return null;
@@ -68,9 +68,9 @@ public class TronLedgerGetAddress {
     if (hidDeviceList.size() ==1) {
       return hidDeviceList.get(0);
     } else if (hidDeviceList.size() > 1) {
-      System.out.println(ANSI_RED + "Only one ledger device is supported"+ ANSI_RESET);
-      System.out.println(ANSI_RED + "Please check your ledger connection"+ ANSI_RESET);
-      throw new RuntimeException("Only one ledger device is supported");
+      System.out.println(ANSI_RED + "Only one Ledger is supported"+ ANSI_RESET);
+      System.out.println(ANSI_RED + "Please check your Ledger connection"+ ANSI_RESET);
+      throw new RuntimeException("Only one Ledger device is supported");
     }
     throw new RuntimeException("No device is found");
   }
@@ -136,7 +136,7 @@ public class TronLedgerGetAddress {
           System.out.println(hidDevice.toString());
         }
       } catch (Exception e) {
-        System.out.println("No device found, please connect your ledger device");
+        System.out.println("No device found, please connect your Ledger device");
       }
       try {
         Thread.sleep(1000); // Sleep for 1 second
