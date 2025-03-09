@@ -55,7 +55,7 @@ public class HidServicesWrapper {
     // hidServicesSpecification need the same in the program
     hidServicesSpecification.setAutoStart(false);
     hidServicesSpecification.setAutoDataRead(true);
-    hidServicesSpecification.setDataReadInterval(500);
+    hidServicesSpecification.setDataReadInterval(1000);
     HidServices hidServices = HidManager.getHidServices(hidServicesSpecification);
     hidServices.addHidServicesListener(LedgerEventListener.getInstance());
     hidServices.start();
