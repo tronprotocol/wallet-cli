@@ -677,7 +677,7 @@ public class WalletApi {
               if (hidDevice==null) {
                 LegerUserHelper.showHidDeviceConnectionError();
                 System.out.println("Please check your Ledger and try again");
-                System.out.println("Sign with ledger failed");
+                System.out.println("Sign with Ledger failed");
                 break;
               }
               if (DebugConfig.isDebugEnabled()) {
@@ -689,7 +689,9 @@ public class WalletApi {
             Optional<String> state = LedgerSignResult.getLastTransactionState(hidDevice.getPath());
             if (state.isPresent() && LedgerSignResult.SIGN_RESULT_SIGNING.equals(state.get())) {
               System.out.println("last transaction is signing");
-              System.out.println("Please confirm/cancel the transaction in ledger, or Quit&Reopen Tron app in ledger");
+              System.out.println(ANSI_RED
+                  + "Please confirm/cancel the transaction in Ledger, or Quit&Reopen Tron app in Ledger" +
+                  ANSI_RESET);
               System.out.println("transaction sign is rejected");
               break;
             }
@@ -717,14 +719,16 @@ public class WalletApi {
               if (hidDevice !=null) {
                 hidDevice.close();
               }
-              System.out.println("Sign with ledger failed");
-              System.out.println("Please check your ledger and try again");
+              System.out.println("Sign with Ledger failed");
+              System.out.println("Please check your Ledger and try again");
               break;
             }
           } else {
-            System.out.println("Please check your last sign with ledger");
-            System.out.println("Please confirm/cancel the transaction in ledger, or Quit&Reopen Tron app in ledger");
-            System.out.println("Sign with ledger rejected");
+            System.out.println("Please check your last sign with Ledger");
+            System.out.println(ANSI_RED
+                + "Please confirm/cancel the transaction in Ledger, or Quit&Reopen Tron app in Ledger" +
+                ANSI_RESET);
+            System.out.println("Sign with Ledger rejected");
             break;
           }
         } catch (Exception e) {

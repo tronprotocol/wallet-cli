@@ -30,7 +30,7 @@ import static org.tron.ledger.sdk.CommonUtil.bytesToHex;
 import static org.tron.ledger.sdk.LedgerConstant.LEDGER_SIGN_CANCEL;
 
 public class LedgerEventListener extends BaseListener {
-  private static final int TRANSACTION_SIGN_TIMEOUT = 30;
+  private static final int TRANSACTION_SIGN_TIMEOUT = 120;
 
   @Getter
   private AtomicBoolean isTimeOutShutdown = new AtomicBoolean(false);
@@ -51,7 +51,7 @@ public class LedgerEventListener extends BaseListener {
   public boolean waitAndShutdownWithInput() {
     Thread inputThread = new Thread(() -> {
       Scanner scanner = new Scanner(System.in);
-      System.out.printf(ANSI_YELLOW + "Press 'c' to continue on other operation.\n" + ANSI_RESET);
+      System.out.printf(ANSI_RED + "Press 'c' to continue on other operation.\n" + ANSI_RESET);
       System.out.printf(ANSI_YELLOW + "If the transaction signature hasn't timed out and the Ledger confirms the signature, the transaction will still be broadcast.\n" + ANSI_RESET);
       System.out.printf(ANSI_YELLOW + "Current transaction sign will be closed after %ds.\n" + ANSI_RESET, TRANSACTION_SIGN_TIMEOUT);
       String input = scanner.nextLine();

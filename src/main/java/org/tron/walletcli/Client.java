@@ -4650,6 +4650,9 @@ public class Client {
           if (LegerUserHelper.ledgerUserForbit(walletApiWrapper, cmdLowerCase)) {
             continue;
           }
+          if (!LegerUserHelper.checkLedgerConnection(walletApiWrapper, cmdLowerCase)) {
+            continue;
+          }
 
           switch (cmdLowerCase) {
             case "help": {

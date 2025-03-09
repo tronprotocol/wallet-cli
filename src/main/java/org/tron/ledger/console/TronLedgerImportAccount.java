@@ -44,23 +44,19 @@ public class TronLedgerImportAccount {
       Terminal terminal = TerminalBuilder.builder().system(true).build();
       LineReader lineReader = LineReaderBuilder.builder().terminal(terminal).build();
       int currentPage = 0;
-      int generatedPage = 0;
+      int generatedPage = -1;
       //List<ImportAccount> accounts = new ArrayList<>();
       Map<Integer, ImportAccount> accounts = new LinkedHashMap<>();
 
       while (true) {
-        if (currentPage == 0 && (pathAddressMap == null || pathAddressMap.isEmpty())) {
-          pathAddressMap = getImportPathAddressMap(0, PAGE_SIZE).get();
-        }
-        generateAccountsForPage(currentPage, pathAddressMap, accounts);
-        displayPage(accounts, currentPage);
-
-        if (currentPage + 1 < TOTAL_PAGES && currentPage + 1 > generatedPage) {
-          CompletableFuture<Map<String, String>> addressFuture = getImportPathAddressMap(
-              (currentPage + 1) * PAGE_SIZE, (currentPage + 2) * PAGE_SIZE);
-          pathAddressMap.putAll(addressFuture.get());
+        if (currentPage < TOTAL_PAGES && currentPage > generatedPage) {
+          pathAddressMap = getImportPathAddressMap(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE).get();
+          pathAddressMap.putAll(pathAddressMap);
           generatedPage = generatedPage + 1;
         }
+
+        generateAccountsForPage(currentPage, pathAddressMap, accounts);
+        displayPage(accounts, currentPage);
 
         int choiceStartIndex = currentPage * PAGE_SIZE + 1;
         int choiceEndIndex = (currentPage + 1) * PAGE_SIZE;
@@ -74,7 +70,7 @@ public class TronLedgerImportAccount {
           System.out.println("Selected Address: " + accounts.get(listIndex).getAddress());
           return accounts.get(listIndex);
         } else {
-          switch (choice) {
+          switch (choice.toLowerCase()) {
             case "n":
               if (currentPage < TOTAL_PAGES - 1) {
                 currentPage++;

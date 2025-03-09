@@ -39,10 +39,14 @@ public class LedgerSignResult {
       if (!Files.exists(path)) {
         Files.createDirectories(path.getParent()); // Ensure the directory exists
         Files.createFile(path);
-        System.out.println("File created: " + path.toString());
+        if (DebugConfig.isDebugEnabled()) {
+          System.out.println("File created: " + path.toString());
+        }
       }
     } catch (IOException e) {
-      System.err.println("Error creating file: " + e.getMessage());
+      if (DebugConfig.isDebugEnabled()) {
+        System.err.println("Error creating file: " + e.getMessage());
+      }
     } finally {
       lock.writeLock().unlock();
     }
@@ -57,7 +61,9 @@ public class LedgerSignResult {
       }
       return Files.readAllLines(getFilePath(devicePath));
     } catch (IOException e) {
-      System.err.println("Error reading file: " + e.getMessage());
+      if (DebugConfig.isDebugEnabled()) {
+        System.err.println("Error reading file: " + e.getMessage());
+      }
       return Collections.emptyList();
     } finally {
       lock.readLock().unlock();
@@ -73,7 +79,9 @@ public class LedgerSignResult {
         writer.newLine();
       }
     } catch (IOException e) {
-      System.err.println("Error writing to file: " + e.getMessage());
+      if (DebugConfig.isDebugEnabled()) {
+        System.err.println("Error writing to file: " + e.getMessage());
+      }
     } finally {
       lock.writeLock().unlock();
     }
@@ -93,7 +101,9 @@ public class LedgerSignResult {
         }
       }
     } catch (IOException e) {
-      System.err.println("Error appending to file: " + e.getMessage());
+      if (DebugConfig.isDebugEnabled()) {
+        System.err.println("Error appending to file: " + e.getMessage());
+      }
     } finally {
       lock.writeLock().unlock();
     }
@@ -190,48 +200,5 @@ public class LedgerSignResult {
     } finally {
       lock.writeLock().unlock();
     }
-  }
-
-  public static void main(String[] args) {
-    /*
-    // Create the file if it does not exist
-    String devicPath = "12345";
-
-    createFileIfNotExists(devicPath);
-
-    // Check if file exists
-    System.out.println("File exists: " + fileExists(devicPath));
-
-    // Append a new transaction if it doesn't exist
-    appendLineIfNotExists(devicPath,"tx123", SIGN_RESULT_SIGNING);
-
-    // Read and print all lines
-    List<String> lines = readAllLines(devicPath);
-    lines.forEach(System.out::println);
-
-    // Update the state of an existing transaction
-    updateState(devicPath,"tx123", SIGN_RESULT_SUCCESS);
-
-    // Read and print all lines
-    lines = readAllLines(devicPath);
-    lines.forEach(System.out::println);
-
-    // Update all signing states to fail
-    updateAllSigningToReject(devicPath);
-
-    // Read and print all lines after update
-    lines = readAllLines(devicPath);
-    lines.forEach(System.out::println);
-
-    // Get and print the last transaction
-    Optional<String> lastTransactionState = getLastTransactionState(devicPath);
-    lastTransactionState.ifPresent(state -> System.out.println("Last transaction state: " + state));
-
-    // Get and print the state for a specific txid
-    Optional<String> state = getStateByTxid(devicPath,"tx123");
-    state.ifPresent(s -> System.out.println("State for tx123: " + s));
-
-     */
-
   }
 }

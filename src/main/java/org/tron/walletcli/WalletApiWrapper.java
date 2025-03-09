@@ -49,6 +49,7 @@ import org.tron.ledger.listener.TransactionSignManager;
 import org.tron.ledger.sdk.LedgerConstant;
 import org.tron.ledger.wrapper.DebugConfig;
 import org.tron.ledger.wrapper.HidServicesWrapper;
+import org.tron.ledger.wrapper.LegerUserHelper;
 import org.tron.mnemonic.MnemonicUtils;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
