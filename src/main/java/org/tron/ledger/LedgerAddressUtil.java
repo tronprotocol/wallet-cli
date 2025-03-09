@@ -35,16 +35,15 @@ public class LedgerAddressUtil {
   public static Map<String, String> getMultiImportAddress(List<String> paths) {
     Map<String, String> addressMap = new HashMap<>();
     TronLedgerGetAddress tronLedgerGetAddress = TronLedgerGetAddress.getInstance();
-    try {
-      tronLedgerGetAddress.connect();
-      for (String path : paths) {
-
+    for (String path : paths) {
+      try {
+        tronLedgerGetAddress.connect();
         long startTime = System.currentTimeMillis();
         String importAddress = tronLedgerGetAddress.getTronAddressByPath(path);
         long endTime = System.currentTimeMillis();
         if (DebugConfig.isDebugEnabled()) {
           long duration = endTime - startTime;
-          System.out.println("get address by path: "+path+", cost time: " + duration + " ms");
+          System.out.println("get address by path: " + path + ", cost time: " + duration + " ms");
         }
 
         if (org.apache.commons.lang3.StringUtils.isNotEmpty(importAddress)) {
@@ -55,13 +54,14 @@ public class LedgerAddressUtil {
           }
           break;
         }
+      } catch (Exception e) {
+        if (DebugConfig.isDebugEnabled()) {
+          e.printStackTrace();
+        }
+        break;
+      } finally {
+        tronLedgerGetAddress.close();
       }
-    } catch (Exception e) {
-      if (DebugConfig.isDebugEnabled()) {
-        e.printStackTrace();
-      }
-    } finally {
-      tronLedgerGetAddress.close();
     }
     return addressMap;
   }

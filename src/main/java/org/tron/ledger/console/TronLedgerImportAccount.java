@@ -24,8 +24,8 @@ import java.util.concurrent.CompletableFuture;
 import static org.apache.commons.lang3.StringUtils.isNumeric;
 
 public class TronLedgerImportAccount {
-  private static final int PAGE_SIZE = 4;
-  private static final int TOTAL_PAGES = 25;
+  private static final int PAGE_SIZE = 10;
+  private static final int TOTAL_PAGES = 10;
   private static Map<String, String> pathAddressMap;
 
   public static CompletableFuture<Map<String, String>> getImportPathAddressMap(int start, int end) {

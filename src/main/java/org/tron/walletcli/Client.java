@@ -74,7 +74,8 @@ import org.tron.protos.contract.SmartContractOuterClass.SmartContractDataWrapper
 import org.tron.walletserver.WalletApi;
 import org.tron.protos.contract.Common.ResourceCode;
 
-import static org.tron.ledger.sdk.LedgerConstant.DEFAULT_PATH;
+import static org.tron.ledger.console.ConsoleColor.ANSI_RED;
+import static org.tron.ledger.console.ConsoleColor.ANSI_RESET;
 
 
 public class Client {
@@ -592,7 +593,9 @@ public class Client {
   }
 
   private void importWalletByLedger() throws CipherException, IOException {
-    System.out.println("((Note:This will pair Ledger to user your hardward wallet)");
+    System.out.println(ANSI_RED +"((Note:This will pair Ledger to user your hardward wallet)");
+    System.out.println("Only one Ledger device is supported. If you have multiple devices, please ensure only one is connected."
+        + ANSI_RESET);
 
     // device is using in transaction sign
     HidDevice signDevice = TransactionSignManager.getInstance().getHidDevice();
