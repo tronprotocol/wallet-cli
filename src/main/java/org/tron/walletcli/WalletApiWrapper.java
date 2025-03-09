@@ -21,6 +21,7 @@ import org.tron.api.GrpcAPI.*;
 import org.tron.common.utils.AbiUtil;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.ByteUtil;
+import org.tron.common.utils.PathUtil;
 import org.tron.common.utils.Utils;
 import org.tron.core.exception.CancelException;
 import org.tron.core.exception.CipherException;
@@ -51,6 +52,7 @@ import org.tron.ledger.wrapper.DebugConfig;
 import org.tron.ledger.wrapper.HidServicesWrapper;
 import org.tron.ledger.wrapper.LegerUserHelper;
 import org.tron.mnemonic.MnemonicUtils;
+import org.tron.mnemonic.SubAccount;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.ChainParameters;
@@ -78,14 +80,14 @@ public class WalletApiWrapper {
   private WalletApi wallet;
   private static final String MnemonicFilePath = "Mnemonic";
 
-  public String registerWallet(char[] password) throws CipherException, IOException {
+  public String registerWallet(char[] password, int wordsNumber) throws CipherException, IOException {
     if (!WalletApi.passwordValid(password)) {
       return null;
     }
 
     byte[] passwd = StringUtils.char2Byte(password);
 
-    WalletFile walletFile = WalletApi.CreateWalletFile(passwd);
+    WalletFile walletFile = WalletApi.CreateWalletFile(passwd, wordsNumber);
     StringUtils.clear(passwd);
 
     String keystoreName = WalletApi.store2Keystore(walletFile);
@@ -378,6 +380,31 @@ public class WalletApiWrapper {
   }
 
 
+  public boolean generateSubAccount() throws CipherException, IOException {
+    boolean result = false;
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: GenerateSubAccount failed,  Please login first !!");
+      return false;
+    }
+
+    System.out.println("Please input your password.");
+    char[] password = Utils.inputPassword(false);
+    byte[] passwd = StringUtils.char2Byte(password);
+    wallet.checkPassword(passwd);
+
+    String ownerAddress = WalletApi.encode58Check(wallet.getAddress());
+    byte[] mnemonic = MnemonicUtils.exportMnemonic(passwd, ownerAddress);
+    try {
+      SubAccount.getInstance(passwd, new String(mnemonic)).start();
+    } catch (Exception e) {
+      StringUtils.clear(password);
+      System.out.println("Warning: GenerateSubAccount failed, e :" + e.getMessage());
+      e.printStackTrace();
+      return false;
+    }
+    StringUtils.clear(password);
+    return true;
+  }
 
   //password is current, will be enc by password2.
   public byte[] backupWallet() throws IOException, CipherException {
@@ -414,6 +441,36 @@ public class WalletApiWrapper {
 
     //2.export mnemonic words
     return MnemonicUtils.exportMnemonic(passwd, getAddress());
+  }
+
+  public String exportKeystore(String walletChannel, File exportFullDir)
+      throws IOException, CipherException {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: ExportKeystore failed,  Please login first !!");
+      return null;
+    }
+
+    //1.input password
+    System.out.println("Please input your password.");
+    char[] password = Utils.inputPassword(false);
+    byte[] passwd = StringUtils.char2Byte(password);
+    try {
+      wallet.checkPassword(passwd);
+    } finally {
+      StringUtils.clear(password);
+      StringUtils.clear(passwd);
+    }
+
+    return wallet.exportKeystore(walletChannel, exportFullDir);
+  }
+
+  public String importWalletByKeystore(byte[] passwdByte, char[] password, File importFile)
+      throws IOException, CipherException {
+    WalletFile walletFile = WalletUtils.loadWalletFile(importFile);
+    byte[] priKey = Wallet.decrypt2PrivateBytes(passwdByte, walletFile);
+    String fileName = importWallet(password, priKey, null);
+
+    return fileName;
   }
 
   public String getAddress() {
@@ -1002,6 +1059,19 @@ public class WalletApiWrapper {
     }
     return wallet.clearContractABI(ownerAddress, contractAddress);
   }
+
+  public boolean clearWalletKeystore() {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: clearWalletKeystore failed,  Please login first !!");
+      return false;
+    }
+    boolean clearWalletKeystoreRet =  wallet.clearWalletKeystore();
+    if (clearWalletKeystoreRet) {
+      logout();
+    }
+    return clearWalletKeystoreRet;
+  }
+
 
   public boolean deployContract(byte[] ownerAddress, String name, String abiStr, String codeStr,
       long feeLimit, long value, long consumeUserResourcePercent, long originEnergyLimit,

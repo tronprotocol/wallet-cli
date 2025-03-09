@@ -18,6 +18,7 @@ import java.io.UnsupportedEncodingException;
 import java.nio.file.Paths;
 import java.security.SecureRandom;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -32,6 +33,9 @@ import java.util.regex.Pattern;
 import io.netty.util.internal.StringUtil;
 import lombok.Getter;
 import lombok.Setter;
+
+import java.util.stream.Collectors;
+
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -93,6 +97,7 @@ import org.tron.common.crypto.SignInterface;
 import org.tron.common.crypto.sm2.SM2;
 import org.tron.common.utils.Base58;
 import org.tron.common.utils.ByteArray;
+import org.tron.common.utils.PathUtil;
 import org.tron.common.utils.TransactionUtils;
 import org.tron.common.utils.Utils;
 import org.tron.common.zksnark.JLibrustzcash;
@@ -102,6 +107,7 @@ import org.tron.core.config.Parameter.CommonConstant;
 import org.tron.core.exception.CancelException;
 import org.tron.core.exception.CipherException;
 import org.tron.keystore.CheckStrength;
+import org.tron.keystore.ClearWalletUtils;
 import org.tron.keystore.Credentials;
 import org.tron.ledger.listener.LedgerEventListener;
 import org.tron.ledger.listener.TransactionSignManager;
@@ -274,10 +280,10 @@ public class WalletApi {
   /**
    * Creates a new WalletApi with a random ECKey or no ECKey.
    */
-  public static WalletFile CreateWalletFile(byte[] password) throws CipherException, IOException {
+  public static WalletFile CreateWalletFile(byte[] password, int wordsNumber) throws CipherException, IOException {
     WalletFile walletFile = null;
     SecureRandom secureRandom = Utils.getRandom();
-    List<String> mnemonicWords = MnemonicUtils.generateMnemonic(secureRandom);
+    List<String> mnemonicWords = MnemonicUtils.generateMnemonic(secureRandom, wordsNumber);
     //System.out.println("generateMnemonic words:" + StringUtils.join(mnemonicWords, " "));
     byte[] priKey = MnemonicUtils.getPrivateKeyFromMnemonic(mnemonicWords);
 
@@ -377,6 +383,21 @@ public class WalletApi {
   public byte[] getPrivateBytes(byte[] password) throws CipherException, IOException {
     WalletFile walletFile = loadWalletFile();
     return Wallet.decrypt2PrivateBytes(password, walletFile);
+  }
+
+  public String exportKeystore(String walletChannel, File exportFullDir) throws IOException {
+    String ret = null;
+    try {
+      WalletFile walletFile = loadWalletFile();
+      String walletAddress = walletFile.getAddress();
+      String walletHexAddress = getHexAddress(walletFile.getAddress());
+      walletFile.setAddress(walletHexAddress);
+
+      ret = WalletUtils.exportWalletFile(walletFile, walletAddress, exportFullDir);
+    } catch (Exception e) {
+      System.out.println("exportKeystore failed. " + e.getMessage());
+    }
+    return ret;
   }
 
   public byte[] getAddress() {
@@ -1302,6 +1323,15 @@ public class WalletApi {
       return null;
     }
     return address;
+  }
+
+  public static String getHexAddress(final String address) {
+    if (address != null) {
+      byte[] addressByte = decodeFromBase58Check(address);
+      return ByteArray.toHexString(addressByte);
+    } else {
+      return null;
+    }
   }
 
   public static boolean priKeyValid(byte[] priKey) {
@@ -2430,6 +2460,26 @@ public class WalletApi {
 
     return processTransactionExtention(transactionExtention);
   }
+
+  public boolean clearWalletKeystore() {
+    String ownerAddress = WalletApi.encode58Check(getAddress());
+    List<String> filePaths = new ArrayList<>();
+
+    ArrayList<String> walletPath = WalletUtils.getStoreFileNames(ownerAddress, "Wallet");
+    if (walletPath==null || walletPath.isEmpty()) {
+      System.err.println("Wallet Keystore file not found. Address: "  + ownerAddress);
+      return false;
+    }
+    filePaths.addAll(walletPath);
+
+    ArrayList<String> mnemonicPath = WalletUtils.getStoreFileNames(ownerAddress, "Mnemonic");
+    if (mnemonicPath!=null && !mnemonicPath.isEmpty()) {
+      filePaths.addAll(mnemonicPath);
+    }
+
+    return ClearWalletUtils.confirmAndDeleteWallet(ownerAddress, filePaths);
+  }
+
 
   public boolean deployContract(
       byte[] owner,

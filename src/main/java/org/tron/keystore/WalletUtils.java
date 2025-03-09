@@ -21,6 +21,9 @@ import java.security.NoSuchProviderException;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.stream.Collectors;
 
 /**
  * Utility functions for working with Wallet files.
@@ -109,9 +112,20 @@ public class WalletUtils {
     return fileName;
   }
 
+
   public static String generateLegerWalletFile(WalletFile walletFile, File destinationDirectory)
       throws IOException {
     String fileName = getLegerWalletFileName(walletFile);
+    File destination = new File(destinationDirectory, fileName);
+
+    objectMapper.writeValue(destination, walletFile);
+    return fileName;
+  }
+
+  public static String exportWalletFile(WalletFile walletFile, String walletAddress, File destinationDirectory)
+      throws IOException {
+    String fileName = getExportWalletFileName(walletAddress);
+
     File destination = new File(destinationDirectory, fileName);
 
     objectMapper.writeValue(destination, walletFile);
@@ -172,9 +186,16 @@ public class WalletUtils {
   private static String getWalletFileName(WalletFile walletFile) {
     return walletFile.getAddress() + ".json";
   }
+
   private static String getLegerWalletFileName(WalletFile walletFile) {
     return "Ledger-" + walletFile.getAddress() + ".json";
   }
+
+
+  private static String getExportWalletFileName(String walletAddress) {
+    return walletAddress + ".txt";
+  }
+
   public static String getDefaultKeyDirectory() {
     return getDefaultKeyDirectory(System.getProperty("os.name"));
   }
@@ -249,5 +270,24 @@ public class WalletUtils {
       }
     }
     return true;
+  }
+
+  public static File[]  getStoreFiles(String address, String destinationDirectory) {
+    File dir = Paths.get(destinationDirectory).toFile();
+    if (!dir.exists() || !dir.isDirectory()) {
+      return null;
+    }
+    File[] files = dir.listFiles((d, name) ->
+        name.endsWith(address + ".json"));
+    return files;
+  }
+
+  public static ArrayList<String> getStoreFileNames(String address, String destinationDirectory) {
+    File[] walletFiles = WalletUtils.getStoreFiles(address, destinationDirectory);
+    return walletFiles != null ?
+        Arrays.stream(walletFiles)
+            .map(File::getAbsolutePath)
+            .collect(Collectors.toCollection(ArrayList::new))
+        : new ArrayList<>();
   }
 }

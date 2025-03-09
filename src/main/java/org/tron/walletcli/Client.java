@@ -3,6 +3,8 @@ package org.tron.walletcli;
 import java.io.File;
 import java.io.IOException;
 import java.math.BigInteger;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.Base64.Decoder;
@@ -32,6 +34,7 @@ import org.tron.common.crypto.SignUtils;
 import org.tron.common.utils.AbiUtil;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.ByteUtil;
+import org.tron.common.utils.PathUtil;
 import org.tron.common.utils.Utils;
 import org.tron.common.zksnark.JLibrustzcash;
 import org.tron.common.zksnark.LibrustzcashParam;
@@ -51,10 +54,16 @@ import org.tron.core.zen.address.KeyIo;
 import org.tron.core.zen.address.PaymentAddress;
 import org.tron.core.zen.address.SpendingKey;
 import org.tron.keystore.StringUtils;
+
 import org.tron.ledger.TronLedgerGetAddress;
 import org.tron.ledger.listener.TransactionSignManager;
 import org.tron.ledger.wrapper.HidServicesWrapper;
 import org.tron.ledger.wrapper.LegerUserHelper;
+
+import org.tron.keystore.Wallet;
+import org.tron.keystore.WalletFile;
+import org.tron.keystore.WalletUtils;
+
 import org.tron.mnemonic.MnemonicUtils;
 import org.tron.protos.Protocol.MarketOrder;
 import org.tron.protos.Protocol.MarketOrderList;
@@ -93,10 +102,13 @@ public class Client {
       "BackupWallet",
       "BackupWallet2Base64",
       "ExportWalletMnemonic",
+      "ExportWalletKeystore",
+      "ImportWalletByKeystore",
       "BroadcastTransaction",
       "CancelAllUnfreezeV2",
       "ChangePassword",
       "ClearContractABI",
+      "ClearWalletKeystore",
       "Create2",
       "CreateAccount",
       "CreateProposal",
@@ -197,6 +209,7 @@ public class Client {
       "MarketSellAsset",
       "ParticipateAssetIssue",
       "RegisterWallet",
+      "GenerateSubAccount",
       // "ResetShieldedNote",
       "ResetShieldedTRC20Note",
       // "ScanAndMarkNotebyAddress",
@@ -242,10 +255,13 @@ public class Client {
       "BackupWallet",
       "BackupWallet2Base64",
       "ExportWalletMnemonic",
+      "ExportWalletKeystore",
+      "ImportWalletByKeystore",
       "BroadcastTransaction",
       "CancelAllUnfreezeV2",
       "ChangePassword",
       "ClearContractABI",
+      "ClearWalletKeystore",
       "Create2",
       "CreateAccount",
       "CreateProposal",
@@ -346,6 +362,7 @@ public class Client {
       "MarketSellAsset",
       "ParticipateAssetIssue",
       "RegisterWallet",
+      "GenerateSubAccount",
       // "ResetShieldedNote",
       "ResetShieldedTRC20Note",
       // "ScanAndMarkNotebyAddress",
@@ -419,14 +436,15 @@ public class Client {
   }
 
   private static List<String> readWordsWithRetry() {
-    int REQUIRED_WORDS = 12;
+    int REQUIRED_WORDS_12 = 12;
+    int REQUIRED_WORDS_24 = 24;
     int MAX_RETRY = 2;
 
     int retryCount = 0;
     while (retryCount <= MAX_RETRY) {
       try {
-        System.out.printf("%nPlease enter %d words (separated by spaces) [Attempt %d/%d]:%n",
-            REQUIRED_WORDS, retryCount + 1, MAX_RETRY + 1);
+        System.out.printf("%nPlease enter 12 or 24 words (separated by spaces) [Attempt %d/%d]:%n",
+            retryCount + 1, MAX_RETRY + 1);
         String line = readLine();
         if (line.isEmpty()) {
           System.err.println("Error: Input cannot be empty.");
@@ -434,9 +452,9 @@ public class Client {
           continue;
         }
         String[] wordArray = line.split("\\s+");
-        if (wordArray.length != REQUIRED_WORDS) {
-          System.err.printf("Error: Expected %d words, but %d words were entered.",
-              REQUIRED_WORDS, wordArray.length);
+        if (wordArray.length != REQUIRED_WORDS_12 && wordArray.length != REQUIRED_WORDS_24) {
+          System.err.printf("Error: Expected 12 or 24 words, but %d words were entered.",
+              wordArray.length);
           retryCount++;
           continue;
         }
@@ -535,7 +553,11 @@ public class Client {
 
   private void registerWallet() throws CipherException, IOException {
     char[] password = Utils.inputPassword2Twice();
-    String fileName = walletApiWrapper.registerWallet(password);
+    int wordsNumber = MnemonicUtils.inputMnemonicWordsNumber();
+    if (!MnemonicUtils.inputMnemonicWordsNumberCheck(wordsNumber)) {
+      return ;
+    }
+    String fileName = walletApiWrapper.registerWallet(password, wordsNumber);
     StringUtils.clear(password);
 
     if (null == fileName) {
@@ -547,6 +569,15 @@ public class Client {
         + File.separator + "Wallet" + File.separator
         + fileName);
     System.out.println("(Note: If you delete an account, make sure to delete the wallet file and mnemonic file) ");
+  }
+
+  private void generateSubAccount() throws CipherException, IOException {
+    boolean ret = walletApiWrapper.generateSubAccount();
+    if (ret) {
+      System.out.println("generateSubAccount successful.");
+    } else {
+      System.out.println("generateSubAccount failed.");
+    }
   }
 
   private void importWallet() throws CipherException, IOException {
@@ -729,6 +760,78 @@ public class Client {
     }
     StringUtils.clear(mnemonic);
     clearChars(mnemonicChars);
+  }
+
+  private void exportWalletKeystore(String[] parameters) throws CipherException, IOException {
+    if (parameters.length < 2) {
+      String tempPath = PathUtil.getTempDirectoryPath();
+      System.out.println("Example usage: ExportWalletKeystore tronlink " + tempPath);
+      System.out.println("exportWalletKeystore failed, parameters error !!");
+      return;
+    }
+
+    String channel = parameters[0];
+    if (!channel.equalsIgnoreCase("tronlink")) {
+      System.out.println("exportWalletKeystore failed, channel error !!");
+      System.out.println("currrently only tronlink is supported!!");
+    }
+    String exportDirPath = parameters[1];
+    String exportFullDirPath = PathUtil.toAbsolutePath(exportDirPath);
+    File exportFullDir = new File(exportFullDirPath);
+    if (!exportFullDir.exists()) {
+      throw new IOException("Directory does not exist: " + exportFullDir.getAbsolutePath());
+    }
+    if (!exportFullDir.canWrite()) {
+      throw new IOException("Directory is not writable: " + exportFullDir.getAbsolutePath());
+    }
+
+    String exportFilePath = walletApiWrapper.exportKeystore(channel, exportFullDir);
+    if (exportFilePath != null) {
+      System.out.println("exported keystore file : " + Paths.get(exportFullDirPath, exportFilePath));
+      System.out.println("exportWalletKeystore successful !!");
+    } else {
+      System.out.println("exportWalletKeystore failed !!");
+    }
+  }
+
+  private void importWalletByKeystore(String[] parameters) throws CipherException, IOException {
+    if (parameters.length < 2) {
+      System.out.println("Example usage: ImportWalletByKeystore tronlink tronlink-export-keystore.txt");
+      System.out.println("importWalletByKeystore failed, parameters error !!");
+      return;
+    }
+
+    String channel = parameters[0];
+    if (!channel.equalsIgnoreCase("tronlink")) {
+      System.out.println("importWalletByKeystore failed, channel error !!");
+      return ;
+    }
+    String importPath = parameters[1];
+    String importFilePath = PathUtil.toAbsolutePath(importPath);
+    File importFile = new File(importFilePath);
+    if (!importFile.exists()) {
+      System.out.println("importWalletByKeystore failed, keystore file to import not exists !!");
+      return ;
+    }
+
+    char[] password = Utils.inputPassword2Twice();
+    byte[] passwdByte = StringUtils.char2Byte(password);
+
+    try {
+      String fileName = walletApiWrapper.importWalletByKeystore(passwdByte, password, importFile);
+      if (fileName != null) {
+        System.out.println("fileName = " + fileName);
+        System.out.println("importWalletByKeystore successful !!");
+      } else {
+        System.out.println("importWalletByKeystore failed !!");
+      }
+    } catch (Exception e) {
+      System.out.println("importWalletByKeystore failed !!");
+    } finally {
+      StringUtils.clear(password);
+      StringUtils.clear(passwdByte);
+    }
+
   }
 
   private char[] bytesToChars(byte[] bytes) {
@@ -2668,6 +2771,14 @@ public class Client {
       System.out.println("ClearContractABI successful !!!");
     } else {
       System.out.println("ClearContractABI failed !!!");
+    }
+  }
+
+  private void clearWalletKeystoreIfExists() {
+    if (walletApiWrapper.clearWalletKeystore()) {
+      System.out.println("ClearWalletKeystore successful !!!");
+    } else {
+      System.out.println("ClearWalletKeystore failed !!!");
     }
   }
 
@@ -4666,6 +4777,10 @@ public class Client {
               registerWallet();
               break;
             }
+            case "generatesubaccount": {
+              generateSubAccount();
+              break;
+            }
             case "importwallet": {
               importWallet();
               break;
@@ -4688,6 +4803,10 @@ public class Client {
             }
             case "clearcontractabi": {
               clearContractABI(parameters);
+              break;
+            }
+            case "clearwalletkeystore": {
+              clearWalletKeystoreIfExists();
               break;
             }
             case "updatebrokerage": {
@@ -4724,6 +4843,14 @@ public class Client {
             }
             case "exportwalletmnemonic": {
               exportWalletMnemonic();
+              break;
+            }
+            case "exportwalletkeystore": {
+              exportWalletKeystore(parameters);
+              break;
+            }
+            case "importwalletbykeystore": {
+              importWalletByKeystore(parameters);
               break;
             }
             case "getaddress": {
