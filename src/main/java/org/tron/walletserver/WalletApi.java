@@ -109,6 +109,7 @@ import org.tron.core.exception.CipherException;
 import org.tron.keystore.CheckStrength;
 import org.tron.keystore.ClearWalletUtils;
 import org.tron.keystore.Credentials;
+import org.tron.ledger.LedgerSignUtil;
 import org.tron.ledger.listener.LedgerEventListener;
 import org.tron.ledger.listener.TransactionSignManager;
 import org.tron.ledger.wrapper.ContractTypeChecker;
@@ -669,93 +670,8 @@ public class WalletApi {
         }
         throw new CancelException(weight.getResult().getMessage());
       } else {
-        try {
-          if (!ContractTypeChecker.canUseLedgerSign(
-              transaction.getRawData().getContract(0).getType().toString())) {
-            break;
-          }
-          //String transactionId = TransactionUtils.getTransactionId(transaction).toString();
-          if (!TransOwnerChecker.checkOwner(this.address, transaction)) {
-            break;
-          }
-          if (TransactionSignManager.getInstance().getTransaction()==null) {
-            HidDevice hidDevice = null ;
-            // try to reuse the hiddevice
-            if (TransactionSignManager.getInstance().getHidDevice() !=null) {
-              hidDevice = TransactionSignManager.getInstance().getHidDevice();
-              if (DebugConfig.isDebugEnabled()) {
-                System.out.println("Reuse TransactionSignManager.getInstance().getHidDevice() hiddevice");
-              }
-            } else {
-              try {
-                hidDevice = HidServicesWrapper.getInstance().getHidDevice();
-              } catch (IllegalStateException e) {
-                if (DebugConfig.isDebugEnabled()) {
-                  e.printStackTrace();
-                }
-                hidDevice = null;
-              }
-              if (hidDevice==null) {
-                LegerUserHelper.showHidDeviceConnectionError();
-                System.out.println("Please check your Ledger and try again");
-                System.out.println("Sign with Ledger failed");
-                break;
-              }
-              if (DebugConfig.isDebugEnabled()) {
-                System.out.println("reopen HidServicesWrapper.getInstance().getHidDevice");
-              }
-            }
-
-            // judge last transaction sign is signing
-            Optional<String> state = LedgerSignResult.getLastTransactionState(hidDevice.getPath());
-            if (state.isPresent() && LedgerSignResult.SIGN_RESULT_SIGNING.equals(state.get())) {
-              System.out.println("Last transaction is signing");
-              System.out.println(ANSI_RED
-                  + "Please confirm/cancel the transaction in Ledger, or Quit&Reopen Tron app in Ledger" +
-                  ANSI_RESET);
-              System.out.println("Transaction sign is rejected");
-              break;
-            }
-
-            LedgerEventListener.getInstance().setLedgerSignEnd(new AtomicBoolean(false));
-            TransactionSignManager.getInstance().setTransaction(transaction);
-            boolean ret = false;
-            try {
-              if (hidDevice.isClosed()) {
-                hidDevice.open();
-              }
-               ret = LedgerEventListener.getInstance().executeSignListen(hidDevice, transaction, this.path);
-            } catch (IllegalStateException e) {
-              if (DebugConfig.isDebugEnabled()) {
-                e.printStackTrace();
-              }
-              ret = false;
-            }
-            if (ret) {
-              break;
-            } else {
-              LedgerEventListener.getInstance().setLedgerSignEnd(new AtomicBoolean(true));
-              TransactionSignManager.getInstance().setTransaction(null);
-              LegerUserHelper.showHidDeviceConnectionError();
-              if (hidDevice !=null) {
-                hidDevice.close();
-              }
-              System.out.println("Sign with Ledger failed");
-              System.out.println("Please check your Ledger and try again");
-              break;
-            }
-          } else {
-            System.out.println("Please check your last sign with Ledger");
-            System.out.println(ANSI_RED
-                + "Please confirm/cancel the transaction in Ledger, or Quit&Reopen Tron app in Ledger" +
-                ANSI_RESET);
-            System.out.println("Sign with Ledger rejected");
-            break;
-          }
-        } catch (Exception e) {
-          if (DebugConfig.isDebugEnabled()) {
-            e.printStackTrace();
-          }
+        boolean result = LedgerSignUtil.requestLedgerSignLogic(transaction, this.path, this.address);
+        if (result) {
           break;
         }
       }
