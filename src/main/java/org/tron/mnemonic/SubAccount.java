@@ -114,52 +114,64 @@ public class SubAccount {
     for (int i = 0; i <= 99; i++) {
       try {
         WalletAddress newAddress = generateWalletAddress(mnemonic, addresses.get(i).getPathIndex());
+        if (newAddress == null) {
+          break;
+        }
         newAddress.setGenerated(MnemonicUtils.generatedAddress(newAddress.getAddress()));
         addresses.set(i, newAddress);
       } catch (Exception e) {
-        e.printStackTrace();
+        System.out.println(e.getMessage());
       }
     }
   }
 
   private WalletAddress generateWalletAddress(String mnemonic, int pathIndex) {
-    List<String> words = MnemonicUtils.stringToMnemonicWords(mnemonic);
-    byte[] privateKey = MnemonicUtils.getPrivateKeyFromMnemonicByPath(words, pathIndex);
-    String address = "";
-    if (isEckey) {
-      ECKey ecKey = ECKey.fromPrivate(privateKey);
-      address = WalletApi.encode58Check(ecKey.getAddress());
-    } else {
-      SM2 sm2 = SM2.fromPrivate(privateKey);
-      address = WalletApi.encode58Check(sm2.getAddress());
+    try {
+      List<String> words = MnemonicUtils.stringToMnemonicWords(mnemonic);
+      byte[] privateKey = MnemonicUtils.getPrivateKeyFromMnemonicByPath(words, pathIndex);
+      String address = "";
+      if (isEckey) {
+        ECKey ecKey = ECKey.fromPrivate(privateKey);
+        address = WalletApi.encode58Check(ecKey.getAddress());
+      } else {
+        SM2 sm2 = SM2.fromPrivate(privateKey);
+        address = WalletApi.encode58Check(sm2.getAddress());
+      }
+      return WalletAddress.builder()
+          .pathIndex(pathIndex)
+          .address(address)
+          .privateKey(privateKey)
+          .generated(false)
+          .build();
+    } catch (Exception e) {
+      System.out.println(e.getMessage());
+      return null;
     }
-
-    return WalletAddress.builder()
-        .pathIndex(pathIndex)
-        .address(address)
-        .privateKey(privateKey)
-        .generated(false)
-        .build();
   }
 
   private WalletAddress generateWalletAddressByCustomPath(String mnemonic, String pathFull) {
-    List<String> words = MnemonicUtils.stringToMnemonicWords(mnemonic);
-    byte[] privateKey = MnemonicUtils.getPrivateKeyFromMnemonicByCustomPath(words, pathFull);
-    String address = "";
-    if (isEckey) {
-      ECKey ecKey = ECKey.fromPrivate(privateKey);
-      address = WalletApi.encode58Check(ecKey.getAddress());
-    } else {
-      SM2 sm2 = SM2.fromPrivate(privateKey);
-      address = WalletApi.encode58Check(sm2.getAddress());
-    }
+    try {
+      List<String> words = MnemonicUtils.stringToMnemonicWords(mnemonic);
+      byte[] privateKey = MnemonicUtils.getPrivateKeyFromMnemonicByCustomPath(words, pathFull);
+      String address = "";
+      if (isEckey) {
+        ECKey ecKey = ECKey.fromPrivate(privateKey);
+        address = WalletApi.encode58Check(ecKey.getAddress());
+      } else {
+        SM2 sm2 = SM2.fromPrivate(privateKey);
+        address = WalletApi.encode58Check(sm2.getAddress());
+      }
 
-    return WalletAddress.builder()
-        .pathIndex(-1)
-        .address(address)
-        .privateKey(privateKey)
-        .generated(true)
-        .build();
+      return WalletAddress.builder()
+          .pathIndex(-1)
+          .address(address)
+          .privateKey(privateKey)
+          .generated(true)
+          .build();
+    } catch (Exception e) {
+      System.out.println("Generate wallet address failed: " + e.getMessage());
+      return null;
+    }
   }
 
   private void printProgress(String message) {
@@ -251,14 +263,23 @@ public class SubAccount {
   public void start() throws Exception {
     while (true) {
       clearScreen();
+      if (mnemonic == null || mnemonic.isEmpty()) {
+        System.out.println("MaKe sure your account has mnemonic words first!");
+        break;
+      }
       Integer firstIndex = getFirstNonGeneratedPathIndex();
       if (firstIndex == null) {
         System.out.println("All sub accounts have been generated!");
         break;
       }
       String defaulFullPath = buildFullPath("0", firstIndex.toString());
+
       WalletAddress walletAddress = this.generateWalletAddressByCustomPath(
           mnemonic, defaulFullPath);
+      if (walletAddress==null) {
+        System.out.println("Generate wallet address error!");
+        break;
+      }
 
       terminal.writer().println("\n=== Sub Account Generator ===");
 
@@ -367,8 +388,7 @@ public class SubAccount {
       }
       generateSubAccountByCustomPath(pathFull);
     } catch (Exception e) {
-      // debug
-      e.printStackTrace();
+      System.out.println(e.getMessage());
       return false;
     }
     return true;
@@ -377,6 +397,10 @@ public class SubAccount {
   private void generateSubAccountByCustomPath(String path) throws CipherException, IOException {
     WalletAddress walletAddress = this.generateWalletAddressByCustomPath(
         mnemonic, path);
+    if (walletAddress == null) {
+      System.out.println("Generate Subaccount by Custom Path failed");
+      return;
+    }
     if (MnemonicUtils.generatedAddress(walletAddress.getAddress())) {
       terminal.writer().println("The path is already generated...");
       terminal.flush();

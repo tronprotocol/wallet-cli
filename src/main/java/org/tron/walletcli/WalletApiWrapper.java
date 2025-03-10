@@ -391,18 +391,25 @@ public class WalletApiWrapper {
     char[] password = Utils.inputPassword(false);
     byte[] passwd = StringUtils.char2Byte(password);
     wallet.checkPassword(passwd);
-
-    String ownerAddress = WalletApi.encode58Check(wallet.getAddress());
-    byte[] mnemonic = MnemonicUtils.exportMnemonic(passwd, ownerAddress);
+    byte[] mnemonic = null;
     try {
+      String ownerAddress = WalletApi.encode58Check(wallet.getAddress());
+      mnemonic = MnemonicUtils.exportMnemonic(passwd, ownerAddress);
+      if (mnemonic == null || mnemonic.length == 0) {
+        System.out.println("GenerateSubAccount failed. Your account does not have mnemonic.");
+        return false;
+      }
       SubAccount.getInstance(passwd, new String(mnemonic)).start();
     } catch (Exception e) {
-      StringUtils.clear(password);
       System.out.println("Warning: GenerateSubAccount failed, e :" + e.getMessage());
       e.printStackTrace();
       return false;
+    } finally {
+      StringUtils.clear(mnemonic);
+      StringUtils.clear(password);
+      StringUtils.clear(passwd);
     }
-    StringUtils.clear(password);
+
     return true;
   }
 

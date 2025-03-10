@@ -14,8 +14,10 @@ import org.tron.core.exception.CipherException;
 import org.web3j.crypto.Bip32ECKeyPair;
 import org.web3j.crypto.Credentials;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.SecureRandom;
@@ -155,8 +157,6 @@ public class MnemonicUtils {
 
   public static int inputMnemonicWordsNumber() {
     try {
-      Terminal terminal = TerminalBuilder.builder().system(true).build();
-      LineReader lineReader = LineReaderBuilder.builder().terminal(terminal).build();
       int attempts = 0;
       final int maxAttempts = 3;
 
@@ -165,8 +165,10 @@ public class MnemonicUtils {
             "\tDefault: 12 mnemonic words, \n" +
             "\tEnter 24 to use 24 mnemonic words\n" +
             "\tPress Enter to use the default (12). \n" +
-            "\tValid inputs are \"12\" or \"24\")\n\n";
-        String input = lineReader.readLine(prompt).trim();
+            "\tValid inputs are \"12\" or \"24\")\n";
+        System.out.print(prompt);
+        BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+        String input = reader.readLine().trim();
         if (input.isEmpty() || MNEMONIC_WORDS_LENGTH_12_STR.equals(input)) {
           return MNEMONIC_WORDS_LENGTH_12;
         } else if (MNEMONIC_WORDS_LENGTH_24_STR.equals(input)) {
