@@ -24,13 +24,13 @@ public class CommonUtil {
   public static String getUIDByDevice(HidDevice device) {
     String vendorId = String.valueOf(device.getVendorId());
     String productId = String.valueOf(device.getProductId());
-    String serialNumber = sanitizeForFileName(device.getSerialNumber());
+    String serialNumber = sanitizeStringForFileName(device.getSerialNumber());
     String releaseNumber = String.valueOf(device.getReleaseNumber());
 
     return String.format("%s_%s_%s_%s.txt", vendorId, productId, serialNumber, releaseNumber);
   }
 
-  public static String sanitizeForFileName(String input) {
+  public static String sanitizeStringForFileName(String input) {
     if (input == null) {
       return "unknown";
     }

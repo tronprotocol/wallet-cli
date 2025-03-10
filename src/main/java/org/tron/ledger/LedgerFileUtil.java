@@ -14,7 +14,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import static org.tron.ledger.sdk.CommonUtil.sanitizeForFileName;
+import static org.tron.ledger.sdk.CommonUtil.sanitizeStringForFileName;
 
 public class LedgerFileUtil {
   public static final String LEDGER_DIR_NAME = "Ledger";
@@ -78,7 +78,7 @@ public class LedgerFileUtil {
   public static String getFileNameByDevice(HidDevice device) {
     String vendorId = String.valueOf(device.getVendorId());
     String productId = String.valueOf(device.getProductId());
-    String serialNumber = sanitizeForFileName(device.getSerialNumber());
+    String serialNumber = sanitizeStringForFileName(device.getSerialNumber());
     String releaseNumber = String.valueOf(device.getReleaseNumber());
 
     return String.format("%s_%s_%s_%s.txt", vendorId, productId, serialNumber, releaseNumber);

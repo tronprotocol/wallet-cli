@@ -7,7 +7,7 @@ import org.tron.ledger.wrapper.ContractTypeChecker;
 import org.tron.ledger.wrapper.DebugConfig;
 import org.tron.ledger.wrapper.HidServicesWrapper;
 import org.tron.ledger.wrapper.LedgerSignResult;
-import org.tron.ledger.wrapper.LegerUserHelper;
+import org.tron.ledger.wrapper.LedgerUserHelper;
 import org.tron.ledger.wrapper.TransOwnerChecker;
 import org.tron.protos.Protocol;
 
@@ -47,7 +47,7 @@ public class LedgerSignUtil {
             hidDevice = null;
           }
           if (hidDevice == null) {
-            LegerUserHelper.showHidDeviceConnectionError();
+            LedgerUserHelper.showHidDeviceConnectionError();
             System.out.println("Please check your Ledger and try again");
             System.out.println("Sign with Ledger failed");
             return true;
@@ -87,7 +87,7 @@ public class LedgerSignUtil {
         } else {
           LedgerEventListener.getInstance().setLedgerSignEnd(new AtomicBoolean(true));
           TransactionSignManager.getInstance().setTransaction(null);
-          LegerUserHelper.showHidDeviceConnectionError();
+          LedgerUserHelper.showHidDeviceConnectionError();
           if (hidDevice != null) {
             hidDevice.close();
           }

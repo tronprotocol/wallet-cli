@@ -3,7 +3,7 @@ package org.tron.ledger.sdk;
 public class BIP32PathParser {
   private static final int HARDENED_OFFSET = 0x80000000;
 
-  public static String parseBip32Path(String path) {
+  public static String convertBip32PathToHex(String path) {
     if (path.startsWith("m/") || path.startsWith("/")) {
       path = path.substring(path.indexOf("/") + 1);
     }

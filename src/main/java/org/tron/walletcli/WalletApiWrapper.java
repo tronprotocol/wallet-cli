@@ -9,7 +9,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import lombok.extern.slf4j.Slf4j;
 import org.bouncycastle.util.encoders.Hex;
-import org.hid4java.HidDevice;
 import org.jline.reader.EndOfFileException;
 import org.jline.reader.LineReader;
 import org.jline.reader.LineReaderBuilder;
@@ -21,7 +20,6 @@ import org.tron.api.GrpcAPI.*;
 import org.tron.common.utils.AbiUtil;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.ByteUtil;
-import org.tron.common.utils.PathUtil;
 import org.tron.common.utils.Utils;
 import org.tron.core.exception.CancelException;
 import org.tron.core.exception.CipherException;
@@ -42,15 +40,10 @@ import org.tron.keystore.WalletFile;
 import org.tron.keystore.WalletUtils;
 import org.tron.ledger.LedgerAddressUtil;
 import org.tron.ledger.LedgerFileUtil;
-import org.tron.ledger.TronLedgerGetAddress;
 import org.tron.ledger.console.ConsoleColor;
 import org.tron.ledger.console.ImportAccount;
 import org.tron.ledger.console.TronLedgerImportAccount;
-import org.tron.ledger.listener.TransactionSignManager;
-import org.tron.ledger.sdk.LedgerConstant;
 import org.tron.ledger.wrapper.DebugConfig;
-import org.tron.ledger.wrapper.HidServicesWrapper;
-import org.tron.ledger.wrapper.LegerUserHelper;
 import org.tron.mnemonic.MnemonicUtils;
 import org.tron.mnemonic.SubAccount;
 import org.tron.protos.Protocol.Account;
@@ -121,7 +114,6 @@ public class WalletApiWrapper {
       return null;
     }
     String walletFileName = "";
-    byte[] passwd = StringUtils.char2Byte(password);
 
     try {
       Terminal terminal = TerminalBuilder.builder().system(true).build();
@@ -192,8 +184,6 @@ public class WalletApiWrapper {
       if (DebugConfig.isDebugEnabled()) {
         e.printStackTrace();
       }
-    } finally {
-      StringUtils.clear(passwd);
     }
 
     return walletFileName;
@@ -250,27 +240,23 @@ public class WalletApiWrapper {
   public String doImportAccount(char[] password, String path, String importAddress)
       throws CipherException, IOException {
     byte[] passwdByte = StringUtils.char2Byte(password);
-    WalletFile walletLedgerFile = WalletApi.CreateLedgerWalletFile(
-        passwdByte, importAddress, path);
-    boolean result = loginLedger(passwdByte, walletLedgerFile);
-    if (!result) {
+    try {
+      WalletFile walletLedgerFile = WalletApi.CreateLedgerWalletFile(
+          passwdByte, importAddress, path);
+      boolean result = loginLedger(passwdByte, walletLedgerFile);
+      if (!result) {
+        System.out.println("Login Ledger failed for address: " + importAddress);
         return "";
+      }
+      String keystoreName = WalletApi.store2KeystoreLedger(walletLedgerFile);
+      LedgerFileUtil.writePathsToFile(Arrays.asList(path));
+      return keystoreName;
+    } catch (Exception e) {
+      System.out.println("Import account failed");
+      return "";
+    } finally {
+      StringUtils.clear(passwdByte);
     }
-    String keystoreName = WalletApi.store2KeystoreLedger(walletLedgerFile);
-    LedgerFileUtil.writePathsToFile(Arrays.asList(path));
-    return keystoreName;
-  }
-
-  public String getUniqLedgerId(String path) {
-    HidDevice device = TronLedgerGetAddress.getInstance().getConnectedDevice();
-    StringBuilder uniqLedgerIdBuilder = new StringBuilder();
-    uniqLedgerIdBuilder.append(device.getVendorId()).append("_")
-        .append(device.getProductId()).append("_")
-        .append(device.getSerialNumber()).append("_")
-        .append(device.getReleaseNumber()).append("_")
-        .append(path);
-    String uniqLedgerId = uniqLedgerIdBuilder.toString();
-    return uniqLedgerId;
   }
 
   public boolean changePassword(char[] oldPassword, char[] newPassword)
@@ -390,7 +376,12 @@ public class WalletApiWrapper {
     System.out.println("Please input your password.");
     char[] password = Utils.inputPassword(false);
     byte[] passwd = StringUtils.char2Byte(password);
-    wallet.checkPassword(passwd);
+    try {
+      wallet.checkPassword(passwd);
+    } catch (CipherException e) {
+      System.out.println("Password check failed");
+      return false;
+    }
     byte[] mnemonic = null;
     try {
       String ownerAddress = WalletApi.encode58Check(wallet.getAddress());
@@ -405,6 +396,9 @@ public class WalletApiWrapper {
       e.printStackTrace();
       return false;
     } finally {
+      if (SubAccount.getInstance() != null) {
+        SubAccount.getInstance().clearSensitiveData();
+      }
       StringUtils.clear(mnemonic);
       StringUtils.clear(password);
       StringUtils.clear(passwd);
@@ -463,6 +457,9 @@ public class WalletApiWrapper {
     byte[] passwd = StringUtils.char2Byte(password);
     try {
       wallet.checkPassword(passwd);
+    } catch (CipherException e) {
+      System.out.println("Password check failed");
+      return null;
     } finally {
       StringUtils.clear(password);
       StringUtils.clear(passwd);

@@ -5,7 +5,7 @@ import static org.tron.ledger.sdk.CommonUtil.hexStringToByteArray;
 public class ApduMessageBuilder {
 
   public static byte[] buildTronAddressApduMessage(String path) {
-    String donglePathHex = BIP32PathParser.parseBip32Path(path);
+    String donglePathHex = BIP32PathParser.convertBip32PathToHex(path);
     StringBuilder apduMessage = new StringBuilder();
     apduMessage.append("e0020000");
     int bytesLength = donglePathHex.length() / 2;
@@ -19,7 +19,7 @@ public class ApduMessageBuilder {
   }
 
   public static byte[] buildTransactionSignApduMessage(String path, String transactionRaw) {
-    String donglePath = BIP32PathParser.parseBip32Path(path);
+    String donglePath = BIP32PathParser.convertBip32PathToHex(path);
     int pathByteLength = donglePath.length() / 2;
     int transactionByteLength = transactionRaw.length() / 2;
     String totalLength = String.format("%02x", pathByteLength + 1 + transactionByteLength);

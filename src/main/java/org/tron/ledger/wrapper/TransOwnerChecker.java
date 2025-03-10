@@ -12,14 +12,25 @@ import static org.tron.ledger.console.ConsoleColor.ANSI_RESET;
 public class TransOwnerChecker {
 
   public static boolean checkOwner(byte[] loginAddress, Protocol.Transaction transaction) {
+    if (loginAddress == null || transaction == null) {
+      return false;
+    }
+    if (transaction.getRawData().getContractCount() == 0) {
+      return false;
+    }
 
     byte[] transOwner = TransactionUtils.getOwner(transaction.getRawData().getContract(0));
-    String transOwerAddress = WalletApi.encode58Check(transOwner);
+    String transOwnerAddress;
+    try {
+      transOwnerAddress = WalletApi.encode58Check(transOwner);
+    } catch (Exception e) {
+      return false;
+    }
 
     boolean ret =  Arrays.equals(loginAddress, transOwner);
     if (!ret) {
       System.out.println(ANSI_RED +
-          "Transaction can only be signed by the owner_address:" + transOwerAddress +
+          "Transaction can only be signed by the owner_address:" + transOwnerAddress +
           ANSI_RESET);
     }
 

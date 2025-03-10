@@ -21,6 +21,7 @@ import org.tron.walletserver.WalletApi;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Scanner;
 
@@ -50,6 +51,10 @@ public class SubAccount {
         }
       }
     }
+    return instance;
+  }
+
+  public static SubAccount getInstance() {
     return instance;
   }
 
@@ -554,35 +559,19 @@ public class SubAccount {
     return null; // Return null if all addresses are generated
   }
 
-  // 0 => exit, 1 => gen default and exit, 2 => go to change account
-  public int handleDefaultPathGen() {
-    Scanner scanner = new Scanner(System.in);
-    int attempts = 0;
-    final int maxAttempts = 3;
+  public void clearSensitiveData() {
+    // Clear mnemonic
+    this.mnemonic = null;
 
-    while (attempts < maxAttempts) {
-      System.out.println("Please enter Yes/Y or No/N:");
-      String input = scanner.nextLine().trim();
-
-      if (input.equalsIgnoreCase("Yes") || input.equalsIgnoreCase("Y")) {
-        return 1;
-      } else if (input.equalsIgnoreCase("No") || input.equalsIgnoreCase("N")) {
-        return 2;
-      } else {
-        attempts++;
-        if (attempts < maxAttempts) {
-          System.out.println("Invalid input. Please try again.");
-        }
-        return 0;
-      }
+    // Clear password
+    if (this.password != null) {
+        Arrays.fill(this.password, (byte) 0);
+        this.password = null;
     }
 
-    if (attempts == maxAttempts) {
-      System.out.println("Maximum attempts reached. Exiting.");
+    // Clear addresses
+    if (this.addresses != null) {
+        this.addresses.clear();
     }
-
-    scanner.close();
-    return 0;
   }
-
 }

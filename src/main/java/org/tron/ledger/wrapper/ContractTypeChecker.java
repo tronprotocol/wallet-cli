@@ -8,7 +8,7 @@ import static org.tron.ledger.console.ConsoleColor.ANSI_RED;
 import static org.tron.ledger.console.ConsoleColor.ANSI_RESET;
 
 public class ContractTypeChecker {
-  private static final String[] CONTRACT_TYPES = {
+  private static final Set<String> SUPPORTED_CONTRACT_TYPE_SET = new HashSet<>(Arrays.asList(
       "ProposalCreateContract",
       "ProposalApproveContract",
       "ProposalDeleteContract",
@@ -29,19 +29,22 @@ public class ContractTypeChecker {
       "ExchangeInjectContract",
       "ExchangeWithdrawContract",
       "ExchangeTransactionContract",
-      "TransferAssetContract",
-  };
+      "TransferAssetContract"
+  ));
 
-  private static final Set<String> CONTRACT_TYPE_SET = new HashSet<>(Arrays.asList(CONTRACT_TYPES));
 
   public static boolean canUseLedgerSign(String contractType) {
-    boolean ret =  CONTRACT_TYPE_SET.contains(contractType);
-    if (!ret) {
+    if (contractType == null || contractType.isEmpty()) {
+      return false;
+    }
+
+    boolean isSupported =  SUPPORTED_CONTRACT_TYPE_SET.contains(contractType);
+    if (!isSupported) {
       System.out.println(ANSI_RED +
           "Transaction type is not supported Ledger sign, Please check your transaction type!!" +
           ANSI_RESET);
     }
-    return ret;
+    return isSupported;
   }
 
 }

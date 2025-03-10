@@ -1,21 +1,19 @@
 package org.tron.ledger.wrapper;
 
 import org.hid4java.HidDevice;
-import org.tron.ledger.console.ConsoleColor;
 import org.tron.walletcli.WalletApiWrapper;
 
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 
-import static org.tron.ledger.console.ConsoleColor.ANSI_BLUE;
 import static org.tron.ledger.console.ConsoleColor.ANSI_RED;
 import static org.tron.ledger.console.ConsoleColor.ANSI_RESET;
 import static org.tron.ledger.console.ConsoleColor.ANSI_YELLOW;
 
-public class LegerUserHelper {
+public class LedgerUserHelper {
 
-  private static final String[] LEDGER_FORBIT_OP_ARR = {
+  private static final String[] LEDGER_FORBID_OP_ARR = {
       "addtransactionsign",
       "backupshieldedtrc20wallet",
       "backupwallet",
@@ -24,7 +22,7 @@ public class LegerUserHelper {
   };
 
   // if Ledger user login, and do this ops, need check Ledger Connection first
-  private static final String[] LEDGER_CMD_CHECK_CONNECTION = {
+  private static final Set<String> LEDGER_CMD_CHECK_CONNECTION_SET = new HashSet<>(Arrays.asList(
       "createproposal",
       "approveproposal",
       "deleteproposal",
@@ -47,15 +45,15 @@ public class LegerUserHelper {
       "exchangeinject",
       "exchangewithdraw",
       "exchangetransaction",
-      "transferasset",
-  };
+      "transferasset"
+  ));
 
-  private static final Set<String> LEDGER_FORBIT_OP_SET = new HashSet<>(Arrays.asList(LEDGER_FORBIT_OP_ARR));
+  private static final Set<String> LEDGER_FORBID_OP_SET = new HashSet<>(Arrays.asList(LEDGER_FORBID_OP_ARR));
 
-  public static boolean ledgerUserForbit(WalletApiWrapper walletApiWrapper, String cmdLowerCase) {
+  public static boolean ledgerUserForbid(WalletApiWrapper walletApiWrapper, String cmdLowerCase) {
     boolean forbit = false;
     if (walletApiWrapper.isLoginState() && walletApiWrapper.getLedgerUser()) {
-      forbit = LEDGER_FORBIT_OP_SET.contains(cmdLowerCase);
+      forbit = LEDGER_FORBID_OP_SET.contains(cmdLowerCase);
     }
 
     if (forbit) {
@@ -80,11 +78,11 @@ public class LegerUserHelper {
     boolean result = true;
     // when Ledger user login, init connection with Ledger device
     if (walletApiWrapper.isLoginState() && walletApiWrapper.getLedgerUser()) {
-      if (Arrays.asList(LEDGER_CMD_CHECK_CONNECTION).contains(cmdLowerCase)) {
+      if (LEDGER_CMD_CHECK_CONNECTION_SET.contains(cmdLowerCase)) {
         HidDevice hidDevice = null;
         try {
           hidDevice = HidServicesWrapper.getInstance().getHidDevice();
-        } catch (IllegalStateException e) {
+        } catch (Exception e) {
           if (DebugConfig.isDebugEnabled()) {
             e.printStackTrace();
           }
@@ -92,7 +90,7 @@ public class LegerUserHelper {
         }
         if (hidDevice == null) {
           result = false;
-          LegerUserHelper.showHidDeviceConnectionError();
+          LedgerUserHelper.showHidDeviceConnectionError();
         }
       }
     }

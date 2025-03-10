@@ -3,7 +3,6 @@ package org.tron.walletcli;
 import java.io.File;
 import java.io.IOException;
 import java.math.BigInteger;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -57,12 +56,7 @@ import org.tron.keystore.StringUtils;
 
 import org.tron.ledger.TronLedgerGetAddress;
 import org.tron.ledger.listener.TransactionSignManager;
-import org.tron.ledger.wrapper.HidServicesWrapper;
-import org.tron.ledger.wrapper.LegerUserHelper;
-
-import org.tron.keystore.Wallet;
-import org.tron.keystore.WalletFile;
-import org.tron.keystore.WalletUtils;
+import org.tron.ledger.wrapper.LedgerUserHelper;
 
 import org.tron.mnemonic.MnemonicUtils;
 import org.tron.protos.Protocol.MarketOrder;
@@ -640,7 +634,7 @@ public class Client {
       //get unused device
       device  = TronLedgerGetAddress.getInstance().getConnectedDevice();
       if (device == null) {
-        LegerUserHelper.showHidDeviceConnectionError();
+        LedgerUserHelper.showHidDeviceConnectionError();
         System.out.println("No Ledger device found");
         return ;
       } else {
@@ -659,9 +653,13 @@ public class Client {
           + fileName);
 
       System.out.println("You are now logged in, and you can perform operations using this account.");
+    }  catch (Exception e) {
+      System.out.println("Import wallet by Ledger failed");
     } finally {
       StringUtils.clear(password);
-      device.close();
+      if (device != null) {
+        device.close();
+      }
     }
   }
 
@@ -4775,10 +4773,10 @@ public class Client {
           }
           String[] parameters = Arrays.copyOfRange(cmdArray, 1, cmdArray.length);
           String cmdLowerCase = cmd.toLowerCase();
-          if (LegerUserHelper.ledgerUserForbit(walletApiWrapper, cmdLowerCase)) {
+          if (LedgerUserHelper.ledgerUserForbid(walletApiWrapper, cmdLowerCase)) {
             continue;
           }
-          if (!LegerUserHelper.checkLedgerConnection(walletApiWrapper, cmdLowerCase)) {
+          if (!LedgerUserHelper.checkLedgerConnection(walletApiWrapper, cmdLowerCase)) {
             continue;
           }
 

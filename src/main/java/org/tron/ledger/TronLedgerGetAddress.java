@@ -20,7 +20,6 @@ public class TronLedgerGetAddress {
   private final HidServices hidServices;
   @Getter
   private HidDevice device;
-  private static TronLedgerGetAddress instance;
 
   private TronLedgerGetAddress() {
     HidServicesSpecification spec = new HidServicesSpecification();
@@ -76,7 +75,6 @@ public class TronLedgerGetAddress {
     if (device != null) {
       device.close();
     }
-    //hidServices.shutdown();
   }
 
   public String getTronAddressByPath(String path) {
@@ -114,30 +112,6 @@ public class TronLedgerGetAddress {
       }
     }
     return "";
-  }
-
-  public static void main(String[] args) {
-    /*
-    HidDevice hidDevice = null;
-
-    while (true) {
-      try {
-        hidDevice = TronLedgerGetAddress.getInstance().getConnectedDevice();
-        if (hidDevice != null) {
-          System.out.println(hidDevice.toString());
-        }
-      } catch (Exception e) {
-        System.out.println("No device found, please connect your Ledger device");
-      }
-      try {
-        Thread.sleep(1000); // Sleep for 1 second
-      } catch (InterruptedException e) {
-        System.out.println("Interrupted, stopping.");
-        break;
-      }
-    }
-     */
-
   }
 
 }

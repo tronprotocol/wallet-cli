@@ -26,21 +26,16 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Scanner;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import io.netty.util.internal.StringUtil;
 import lombok.Getter;
 import lombok.Setter;
-
-import java.util.stream.Collectors;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.bouncycastle.util.encoders.Hex;
-import org.hid4java.HidDevice;
 import org.tron.api.GrpcAPI;
 import org.tron.api.GrpcAPI.AccountNetMessage;
 import org.tron.api.GrpcAPI.AccountResourceMessage;
@@ -97,7 +92,6 @@ import org.tron.common.crypto.SignInterface;
 import org.tron.common.crypto.sm2.SM2;
 import org.tron.common.utils.Base58;
 import org.tron.common.utils.ByteArray;
-import org.tron.common.utils.PathUtil;
 import org.tron.common.utils.TransactionUtils;
 import org.tron.common.utils.Utils;
 import org.tron.common.zksnark.JLibrustzcash;
@@ -111,14 +105,6 @@ import org.tron.keystore.ClearWalletUtils;
 import org.tron.keystore.Credentials;
 import org.tron.ledger.LedgerFileUtil;
 import org.tron.ledger.LedgerSignUtil;
-import org.tron.ledger.listener.LedgerEventListener;
-import org.tron.ledger.listener.TransactionSignManager;
-import org.tron.ledger.wrapper.ContractTypeChecker;
-import org.tron.ledger.wrapper.DebugConfig;
-import org.tron.ledger.wrapper.HidServicesWrapper;
-import org.tron.ledger.wrapper.LedgerSignResult;
-import org.tron.ledger.wrapper.LegerUserHelper;
-import org.tron.ledger.wrapper.TransOwnerChecker;
 import org.tron.mnemonic.Mnemonic;
 import org.tron.mnemonic.MnemonicFile;
 import org.tron.mnemonic.MnemonicUtils;
@@ -184,9 +170,6 @@ import org.tron.protos.contract.StorageContract.UpdateBrokerageContract;
 import org.tron.protos.contract.WitnessContract.VoteWitnessContract;
 import org.tron.protos.contract.WitnessContract.WitnessCreateContract;
 import org.tron.protos.contract.WitnessContract.WitnessUpdateContract;
-
-import static org.tron.ledger.console.ConsoleColor.ANSI_RED;
-import static org.tron.ledger.console.ConsoleColor.ANSI_RESET;
 
 @Slf4j
 public class WalletApi {
@@ -285,32 +268,33 @@ public class WalletApi {
   public static WalletFile CreateWalletFile(byte[] password, int wordsNumber) throws CipherException, IOException {
     WalletFile walletFile = null;
     SecureRandom secureRandom = Utils.getRandom();
-    List<String> mnemonicWords = MnemonicUtils.generateMnemonic(secureRandom, wordsNumber);
-    //System.out.println("generateMnemonic words:" + StringUtils.join(mnemonicWords, " "));
-    byte[] priKey = MnemonicUtils.getPrivateKeyFromMnemonic(mnemonicWords);
+    try {
+      List<String> mnemonicWords = MnemonicUtils.generateMnemonic(secureRandom, wordsNumber);
+      byte[] priKey = MnemonicUtils.getPrivateKeyFromMnemonic(mnemonicWords);
 
-    if (isEckey) {
-      ECKey ecKey = new ECKey(priKey, true);
-      walletFile = Wallet.createStandard(password, ecKey);
-      storeMnemonicWords(password, ecKey, mnemonicWords);
-    } else {
-      SM2 sm2 = new SM2(priKey, true);
-      walletFile = Wallet.createStandard(password, sm2);
-      storeMnemonicWords(password, sm2, mnemonicWords);
+      if (isEckey) {
+        ECKey ecKey = new ECKey(priKey, true);
+        walletFile = Wallet.createStandard(password, ecKey);
+        storeMnemonicWords(password, ecKey, mnemonicWords);
+      } else {
+        SM2 sm2 = new SM2(priKey, true);
+        walletFile = Wallet.createStandard(password, sm2);
+        storeMnemonicWords(password, sm2, mnemonicWords);
+      }
+      Arrays.fill(priKey, (byte) 0);
+      for (int i = 0; i < mnemonicWords.size(); i++) {
+        mnemonicWords.set(i, null);
+      }
+    } catch (Exception e) {
+      throw new IOException("Mnemonic generation failed", e);
     }
 
     return walletFile;
   }
 
-  public static WalletFile CreateLedgerWalletFile(byte[] password
-      , String address, String path) throws CipherException, IOException {
-    WalletFile walletFile = null;
-    if (isEckey) {
-      walletFile = Wallet.createStandardLedger(password, address, path);
-    } else {
-      walletFile = Wallet.createStandardLedger(password, address, path);
-    }
-    return walletFile;
+  public static WalletFile CreateLedgerWalletFile(byte[] password, String address, String path)
+      throws CipherException {
+      return Wallet.createStandardLedger(password, address, path);
   }
 
   public static void storeMnemonicWords(byte[] password, SignInterface ecKeySm2Pair, List<String> mnemonicWords) throws CipherException, IOException {
@@ -393,11 +377,16 @@ public class WalletApi {
       WalletFile walletFile = loadWalletFile();
       String walletAddress = walletFile.getAddress();
       String walletHexAddress = getHexAddress(walletFile.getAddress());
+      String originalAddress = walletFile.getAddress();
       walletFile.setAddress(walletHexAddress);
-
-      ret = WalletUtils.exportWalletFile(walletFile, walletAddress, exportFullDir);
+      try {
+        ret = WalletUtils.exportWalletFile(walletFile, walletAddress, exportFullDir);
+      } finally {
+        walletFile.setAddress(originalAddress);
+      }
     } catch (Exception e) {
       System.out.println("exportKeystore failed. " + e.getMessage());
+      return null;
     }
     return ret;
   }
@@ -1245,10 +1234,11 @@ public class WalletApi {
   public static String getHexAddress(final String address) {
     if (address != null) {
       byte[] addressByte = decodeFromBase58Check(address);
-      return ByteArray.toHexString(addressByte);
-    } else {
-      return null;
+      if (addressByte != null) {
+        return ByteArray.toHexString(addressByte);
+      }
     }
+    return null;
   }
 
   public static boolean priKeyValid(byte[] priKey) {
@@ -2382,7 +2372,13 @@ public class WalletApi {
     String ownerAddress = WalletApi.encode58Check(getAddress());
     List<String> filePaths = new ArrayList<>();
 
-    ArrayList<String> walletPath = WalletUtils.getStoreFileNames(ownerAddress, "Wallet");
+    ArrayList<String> walletPath = null;
+    try {
+        walletPath = WalletUtils.getStoreFileNames(ownerAddress, "Wallet");
+    } catch (Exception e) {
+        System.err.println("Error retrieving wallet file names: " + e.getMessage());
+        return false;
+    }
     if (walletPath==null || walletPath.isEmpty()) {
       System.err.println("Wallet Keystore file not found. Address: "  + ownerAddress);
       return false;
@@ -2395,10 +2391,20 @@ public class WalletApi {
     }
 
     if (this.isLedgerUser && this.path != null && !this.path.isEmpty()) {
-      LedgerFileUtil.removePathFromFile(this.path);
+      try {
+        LedgerFileUtil.removePathFromFile(this.path);
+      } catch (Exception e) {
+        System.err.println("Error removing path from file: " + e.getMessage());
+        return false;
+      }
     }
 
-    return ClearWalletUtils.confirmAndDeleteWallet(ownerAddress, filePaths);
+    try {
+        return ClearWalletUtils.confirmAndDeleteWallet(ownerAddress, filePaths);
+    } catch (Exception e) {
+        System.err.println("Error confirming and deleting wallet: " + e.getMessage());
+        return false;
+    }
   }
 
 

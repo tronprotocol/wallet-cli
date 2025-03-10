@@ -39,6 +39,8 @@ public class MnemonicUtils {
   private static final String MNEMONIC_WORDS_LENGTH_24_STR = "24";
   private static final int ENTROPY_LENGTH_12_WORDS = 16; // 128 bit
   private static final int ENTROPY_LENGTH_24_WORDS = 32; // 256 bit
+  private static final Pattern NUMBER_PATTERN =
+      Pattern.compile("m/(\\d+)'/(\\d+)'/(\\d+)'/(\\d+)/(\\d+)");
 
   private static final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -156,18 +158,17 @@ public class MnemonicUtils {
   }
 
   public static int inputMnemonicWordsNumber() {
-    try {
-      int attempts = 0;
-      final int maxAttempts = 3;
+    int attempts = 0;
+    final int maxAttempts = 3;
 
+    try (BufferedReader reader = new BufferedReader(new InputStreamReader(System.in))) {
       while (attempts < maxAttempts) {
         String prompt = "Please enter the number of mnemonic words \n" +
             "\tDefault: 12 mnemonic words, \n" +
             "\tEnter 24 to use 24 mnemonic words\n" +
             "\tPress Enter to use the default (12). \n" +
-            "\tValid inputs are \"12\" or \"24\")\n";
+            "\tValid inputs are \"12\" or \"24\"\n";
         System.out.print(prompt);
-        BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
         String input = reader.readLine().trim();
         if (input.isEmpty() || MNEMONIC_WORDS_LENGTH_12_STR.equals(input)) {
           return MNEMONIC_WORDS_LENGTH_12;
@@ -193,17 +194,27 @@ public class MnemonicUtils {
 
   // path = m/44'/195'/0'/0/0
   public static byte[] getPrivateKeyFromMnemonicByPath(List<String> mnemonics, int pathIndex) {
+    if (mnemonics == null || mnemonics.isEmpty()) {
+      throw new IllegalArgumentException("Mnemonics cannot be null or empty");
+    }
+    if (pathIndex < 0) {
+      throw new IllegalArgumentException("Path index cannot be negative");
+    }
     int HARDENED_BIT = 0x80000000;
     String mnemonic = String.join(" ", mnemonics);
-    byte[] seed = org.web3j.crypto.MnemonicUtils.generateSeed(mnemonic, "");
-    Bip32ECKeyPair masterKeypair = Bip32ECKeyPair.generateKeyPair(seed);
-    // m/44'/195'/0'/0/0
-    final int[] path = {44 | HARDENED_BIT, 195 | HARDENED_BIT, 0 | HARDENED_BIT, 0, pathIndex};
-    Bip32ECKeyPair bip44Keypair = Bip32ECKeyPair.deriveKeyPair(masterKeypair, path);
-    Credentials credentials = Credentials.create(bip44Keypair);
-    String privateKey = credentials.getEcKeyPair().getPrivateKey().toString(16);
+    try {
+      byte[] seed = org.web3j.crypto.MnemonicUtils.generateSeed(mnemonic, "");
+      Bip32ECKeyPair masterKeypair = Bip32ECKeyPair.generateKeyPair(seed);
+      // m/44'/195'/0'/0/0
+      final int[] path = {44 | HARDENED_BIT, 195 | HARDENED_BIT, 0 | HARDENED_BIT, 0, pathIndex};
+      Bip32ECKeyPair bip44Keypair = Bip32ECKeyPair.deriveKeyPair(masterKeypair, path);
+      Credentials credentials = Credentials.create(bip44Keypair);
+      String privateKey = credentials.getEcKeyPair().getPrivateKey().toString(16);
 
-    return ByteArray.fromHexString(privateKey);
+      return ByteArray.fromHexString(privateKey);
+    } catch (Exception e) {
+      throw new RuntimeException("Failed to derive private key from mnemonic", e);
+    }
   }
 
   public static String formatPathIndex2Path(int pathIndex) {
@@ -232,36 +243,43 @@ public class MnemonicUtils {
   public static byte[] getPrivateKeyFromMnemonicByCustomPath(List<String> mnemonics, String pathFull) {
     int[] pathNumer = extractNumbers(pathFull);
     if (pathNumer ==null) {
-      return null;
+      throw new IllegalArgumentException("Invalid path format: " + pathFull);
     }
     if (pathNumer[0] != 44 || pathNumer[1] != 195 || pathNumer[3] != 0) {
-      return null;
+      throw new IllegalArgumentException("Path does not match expected format: " + pathFull);
     }
 
     int HARDENED_BIT = 0x80000000;
     String mnemonic = String.join(" ", mnemonics);
-    byte[] seed = org.web3j.crypto.MnemonicUtils.generateSeed(mnemonic, "");
-    Bip32ECKeyPair masterKeypair = Bip32ECKeyPair.generateKeyPair(seed);
-    // m/44'/195'/0'/0/0
-    final int[] path = {44 | HARDENED_BIT, 195 | HARDENED_BIT, pathNumer[2] | HARDENED_BIT, 0, pathNumer[4]};
-    Bip32ECKeyPair bip44Keypair = Bip32ECKeyPair.deriveKeyPair(masterKeypair, path);
-    Credentials credentials = Credentials.create(bip44Keypair);
-    String privateKey = credentials.getEcKeyPair().getPrivateKey().toString(16);
+    try {
+      byte[] seed = org.web3j.crypto.MnemonicUtils.generateSeed(mnemonic, "");
+      Bip32ECKeyPair masterKeypair = Bip32ECKeyPair.generateKeyPair(seed);
+      // m/44'/195'/0'/0/0
+      final int[] path = {44 | HARDENED_BIT, 195 | HARDENED_BIT, pathNumer[2] | HARDENED_BIT, 0, pathNumer[4]};
+      Bip32ECKeyPair bip44Keypair = Bip32ECKeyPair.deriveKeyPair(masterKeypair, path);
+      Credentials credentials = Credentials.create(bip44Keypair);
+      String privateKey = credentials.getEcKeyPair().getPrivateKey().toString(16);
 
-    return ByteArray.fromHexString(privateKey);
+      return ByteArray.fromHexString(privateKey);
+    } catch (Exception e) {
+      throw new RuntimeException("Failed to derive private key from mnemonic", e);
+    }
   }
 
   public static int[] extractNumbers(String path) {
-    final Pattern NUMBER_PATTERN =
-        Pattern.compile("m/(\\d+)'/(\\d+)'/(\\d+)'/(\\d+)/(\\d+)");
     Matcher matcher = NUMBER_PATTERN.matcher(path);
     if (!matcher.matches()) {
-      return null;
+      throw new IllegalArgumentException("Invalid path format: " + path);
     }
     int[] numbers = new int[5];
-    for (int i = 0; i < 5; i++) {
-      numbers[i] = Integer.parseInt(matcher.group(i + 1));
+    try {
+      for (int i = 0; i < 5; i++) {
+        numbers[i] = Integer.parseInt(matcher.group(i + 1));
+      }
+    } catch (NumberFormatException e) {
+      throw new IllegalArgumentException("Path contains non-numeric values: " + path, e);
     }
+
     return numbers;
   }
 

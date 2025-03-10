@@ -1,5 +1,6 @@
 package org.tron.ledger.wrapper;
 
+import lombok.Getter;
 import org.hid4java.HidDevice;
 import org.hid4java.HidManager;
 import org.hid4java.HidServices;
@@ -20,7 +21,7 @@ public class HidServicesWrapper {
 
   private HidServicesWrapper() {
     if (hidServices==null) {
-      hidServices = initHidSerives();
+      hidServices = initHidServices();
     }
   }
   private static class Holder {
@@ -32,7 +33,7 @@ public class HidServicesWrapper {
 
   public HidServices getHidServices() {
     if (hidServices==null) {
-      hidServices = initHidSerives();
+      hidServices = initHidServices();
     }
     return hidServices;
   }
@@ -50,7 +51,7 @@ public class HidServicesWrapper {
     this.hidDevice = hidDevice;
   }
 
-  public  HidServices initHidSerives() {
+  public  HidServices initHidServices() {
     HidServicesSpecification hidServicesSpecification = new HidServicesSpecification();
     // hidServicesSpecification need the same in the program
     hidServicesSpecification.setAutoStart(false);
