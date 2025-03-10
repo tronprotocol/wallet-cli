@@ -69,7 +69,7 @@ public class HidServicesWrapper {
     HidDevice fidoDevice = null;
     try {
       for (HidDevice hidDevice : hidServices.getAttachedHidDevices()) {
-        if (hidDevice.getVendorId() == LedgerConstant.LEDGER_VENDOR) {
+        if (hidDevice.getVendorId() == LedgerConstant.LEDGER_VENDOR_ID) {
           hidDeviceList.add(hidDevice);
         }
       }

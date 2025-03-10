@@ -144,7 +144,7 @@ public class LedgerEventListener extends BaseListener {
   @Override
   public void hidDataReceived(HidServicesEvent event) {
     super.hidDataReceived(event);
-    if (event.getHidDevice().getVendorId() != LedgerConstant.LEDGER_VENDOR) {
+    if (event.getHidDevice().getVendorId() != LedgerConstant.LEDGER_VENDOR_ID) {
       return;
     }
 

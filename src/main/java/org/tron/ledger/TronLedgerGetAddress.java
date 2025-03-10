@@ -14,9 +14,9 @@ import java.util.List;
 
 import static org.tron.ledger.console.ConsoleColor.ANSI_RED;
 import static org.tron.ledger.console.ConsoleColor.ANSI_RESET;
+import static org.tron.ledger.sdk.LedgerConstant.LEDGER_VENDOR_ID;
 
 public class TronLedgerGetAddress {
-  private static final int LEDGER_VENDOR_ID = 0x2c97;
   private final HidServices hidServices;
   @Getter
   private HidDevice device;

@@ -45,7 +45,7 @@ public abstract class BaseListener implements HidServicesListener {
 
   @Override
   public void hidDeviceAttached(HidServicesEvent event) {
-    if (event.getHidDevice().getVendorId() != LedgerConstant.LEDGER_VENDOR) {
+    if (event.getHidDevice().getVendorId() != LedgerConstant.LEDGER_VENDOR_ID) {
       return;
     }
 
@@ -74,7 +74,7 @@ public abstract class BaseListener implements HidServicesListener {
 
   @Override
   public void hidDeviceDetached(HidServicesEvent event) {
-    if (event.getHidDevice().getVendorId() != LedgerConstant.LEDGER_VENDOR) {
+    if (event.getHidDevice().getVendorId() != LedgerConstant.LEDGER_VENDOR_ID) {
       return;
     }
     if (DebugConfig.isDebugEnabled()) {
@@ -113,7 +113,7 @@ public abstract class BaseListener implements HidServicesListener {
 
   @Override
   public void hidFailure(HidServicesEvent event) {
-    if (event.getHidDevice().getVendorId() != LedgerConstant.LEDGER_VENDOR) {
+    if (event.getHidDevice().getVendorId() != LedgerConstant.LEDGER_VENDOR_ID) {
       return;
     }
 
@@ -124,7 +124,7 @@ public abstract class BaseListener implements HidServicesListener {
 
   @Override
   public void hidDataReceived(HidServicesEvent event) {
-    if (event.getHidDevice().getVendorId() != LedgerConstant.LEDGER_VENDOR) {
+    if (event.getHidDevice().getVendorId() != LedgerConstant.LEDGER_VENDOR_ID) {
       return;
     }
 
