@@ -19,6 +19,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import io.netty.util.internal.StringUtil;
 import org.apache.commons.lang3.ArrayUtils;
 import org.bouncycastle.util.encoders.Hex;
+import org.hid4java.HidDevice;
 import org.jline.reader.Completer;
 import org.jline.reader.EndOfFileException;
 import org.jline.reader.LineReader;
@@ -31,7 +32,6 @@ import org.tron.common.crypto.Hash;
 import org.tron.common.crypto.SignInterface;
 import org.tron.common.crypto.SignUtils;
 import org.tron.common.utils.AbiUtil;
-import org.tron.common.utils.Base58;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.ByteUtil;
 import org.tron.common.utils.PathUtil;
@@ -54,9 +54,16 @@ import org.tron.core.zen.address.KeyIo;
 import org.tron.core.zen.address.PaymentAddress;
 import org.tron.core.zen.address.SpendingKey;
 import org.tron.keystore.StringUtils;
+
+import org.tron.ledger.TronLedgerGetAddress;
+import org.tron.ledger.listener.TransactionSignManager;
+import org.tron.ledger.wrapper.HidServicesWrapper;
+import org.tron.ledger.wrapper.LegerUserHelper;
+
 import org.tron.keystore.Wallet;
 import org.tron.keystore.WalletFile;
 import org.tron.keystore.WalletUtils;
+
 import org.tron.mnemonic.MnemonicUtils;
 import org.tron.protos.Protocol.MarketOrder;
 import org.tron.protos.Protocol.MarketOrderList;
@@ -76,6 +83,8 @@ import org.tron.protos.contract.SmartContractOuterClass.SmartContractDataWrapper
 import org.tron.walletserver.WalletApi;
 import org.tron.protos.contract.Common.ResourceCode;
 
+import static org.tron.ledger.console.ConsoleColor.ANSI_RED;
+import static org.tron.ledger.console.ConsoleColor.ANSI_RESET;
 
 
 public class Client {
@@ -175,6 +184,7 @@ public class Client {
       // "ImportShieldedWallet",
       "ImportWallet",
       "ImportWalletByMnemonic",
+      "ImportWalletByLedger",
       "ImportWalletByBase64",
       "ListAssetIssue",
       "ListAssetIssuePaginated",
@@ -328,6 +338,7 @@ public class Client {
       // "ImportShieldedWallet",
       "ImportWallet",
       "ImportWalletByMnemonic",
+      "ImportWalletByLedger",
       "ImportWalletByBase64",
       "ListAssetIssue",
       "ListAssetIssuePaginated",
@@ -610,6 +621,48 @@ public class Client {
     System.out.println("Import a wallet successful, keystore file : ."
         + File.separator + "Wallet" + File.separator
         + fileName);
+  }
+
+  private void importWalletByLedger() throws CipherException, IOException {
+    System.out.println(ANSI_RED +"((Note:This will pair Ledger to user your hardward wallet)");
+    System.out.println("Only one Ledger device is supported. If you have multiple devices, please ensure only one is connected."
+        + ANSI_RESET);
+
+    // device is using in transaction sign
+    HidDevice signDevice = TransactionSignManager.getInstance().getHidDevice();
+    if (signDevice != null) {
+      System.out.println("Import wallet by Ledger failed !! Please check your Ledger device");
+      return;
+    }
+    HidDevice device  = null;
+    char[] password = null;
+    try {
+      //get unused device
+      device  = TronLedgerGetAddress.getInstance().getConnectedDevice();
+      if (device == null) {
+        LegerUserHelper.showHidDeviceConnectionError();
+        System.out.println("No Ledger device found");
+        return ;
+      } else {
+        System.out.println("Ledger device found: " + device.getProduct());
+      }
+
+      password = Utils.inputPassword2Twice();
+      String fileName = walletApiWrapper.importWalletByLedger(password);
+      if (fileName == null || fileName.trim().isEmpty() ) {
+        System.out.println("Import wallet by Ledger end !!");
+        return;
+      }
+
+      System.out.println("Import a wallet by Ledger successful, keystore file : ."
+          + File.separator + "Wallet" + File.separator
+          + fileName);
+
+      System.out.println("You are now logged in, and you can perform operations using this account.");
+    } finally {
+      StringUtils.clear(password);
+      device.close();
+    }
   }
 
   private void importWalletByBase64() throws CipherException, IOException {
@@ -1103,6 +1156,9 @@ public class Client {
     long amount = new Long(amountStr);
 
     boolean result = walletApiWrapper.sendCoin(ownerAddress, toAddress, amount);
+    if (walletApiWrapper.getLedgerUser()) {
+      return ;
+    }
     if (result) {
       System.out.println("Send " + amount + " Sun to " + base58ToAddress + " successful !!");
     } else {
@@ -4705,6 +4761,12 @@ public class Client {
           }
           String[] parameters = Arrays.copyOfRange(cmdArray, 1, cmdArray.length);
           String cmdLowerCase = cmd.toLowerCase();
+          if (LegerUserHelper.ledgerUserForbit(walletApiWrapper, cmdLowerCase)) {
+            continue;
+          }
+          if (!LegerUserHelper.checkLedgerConnection(walletApiWrapper, cmdLowerCase)) {
+            continue;
+          }
 
           switch (cmdLowerCase) {
             case "help": {
@@ -4725,6 +4787,10 @@ public class Client {
             }
             case "importwalletbymnemonic": {
               importWalletByMnemonic();
+              break;
+            }
+            case "importwalletbyledger": {
+              importWalletByLedger();
               break;
             }
             case "importwalletbybase64": {
