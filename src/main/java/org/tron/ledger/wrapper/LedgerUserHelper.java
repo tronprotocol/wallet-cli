@@ -19,6 +19,8 @@ public class LedgerUserHelper {
       "backupwallet",
       "backupwallet2base64",
       "exportwalletmnemonic",
+      "generatesubaccount",
+      "exportwalletkeystore",
   };
 
   // if Ledger user login, and do this ops, need check Ledger Connection first

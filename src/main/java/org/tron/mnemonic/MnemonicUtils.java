@@ -158,10 +158,10 @@ public class MnemonicUtils {
   }
 
   public static int inputMnemonicWordsNumber() {
-    int attempts = 0;
-    final int maxAttempts = 3;
+    try {
+      int attempts = 0;
+      final int maxAttempts = 3;
 
-    try (BufferedReader reader = new BufferedReader(new InputStreamReader(System.in))) {
       while (attempts < maxAttempts) {
         String prompt = "Please enter the number of mnemonic words \n" +
             "\tDefault: 12 mnemonic words, \n" +
@@ -169,6 +169,7 @@ public class MnemonicUtils {
             "\tPress Enter to use the default (12). \n" +
             "\tValid inputs are \"12\" or \"24\"\n";
         System.out.print(prompt);
+        BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
         String input = reader.readLine().trim();
         if (input.isEmpty() || MNEMONIC_WORDS_LENGTH_12_STR.equals(input)) {
           return MNEMONIC_WORDS_LENGTH_12;

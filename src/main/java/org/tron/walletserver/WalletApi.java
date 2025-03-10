@@ -374,7 +374,7 @@ public class WalletApi {
   public String exportKeystore(String walletChannel, File exportFullDir) throws IOException {
     String ret = null;
     try {
-      WalletFile walletFile = loadWalletFile();
+      WalletFile walletFile = this.walletFile.get(0);
       String walletAddress = walletFile.getAddress();
       String walletHexAddress = getHexAddress(walletFile.getAddress());
       String originalAddress = walletFile.getAddress();

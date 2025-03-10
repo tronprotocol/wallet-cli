@@ -28,8 +28,6 @@ import java.util.Scanner;
 import static org.apache.commons.lang3.StringUtils.isNumeric;
 
 public class SubAccount {
-  private static volatile SubAccount instance;
-
   private final Terminal terminal;
   private final LineReader reader;
   private final List<WalletAddress> addresses;
@@ -42,21 +40,6 @@ public class SubAccount {
 
   private static final String PATH_PREFIX = "m/44'/195'/";
   private static final String PATH_MIDDLE = "'/0/";
-
-  public static SubAccount getInstance(byte[] password, String mnemonic) throws Exception {
-    if (instance == null) {
-      synchronized (SubAccount.class) {
-        if (instance == null) {
-          instance = new SubAccount(password, mnemonic);
-        }
-      }
-    }
-    return instance;
-  }
-
-  public static SubAccount getInstance() {
-    return instance;
-  }
 
   @Data
   @Builder
@@ -83,7 +66,7 @@ public class SubAccount {
     }
   }
 
-  private SubAccount(byte[] password, String mnemonic) throws Exception {
+  public SubAccount(byte[] password, String mnemonic) throws Exception {
     Config config = Configuration.getByPath("config.conf");
     if (config.hasPath("crypto.engine")) {
       isEckey = config.getString("crypto.engine").equalsIgnoreCase("eckey");
