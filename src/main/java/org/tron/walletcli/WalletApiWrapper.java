@@ -464,13 +464,30 @@ public class WalletApiWrapper {
     return wallet.exportKeystore(walletChannel, exportFullDir);
   }
 
-  public String importWalletByKeystore(byte[] passwdByte, char[] password, File importFile)
-      throws IOException, CipherException {
+  public String importWalletByKeystore(byte[] passwdByte, File importFile)
+      throws IOException {
     WalletFile walletFile = WalletUtils.loadWalletFile(importFile);
-    byte[] priKey = Wallet.decrypt2PrivateBytes(passwdByte, walletFile);
-    String fileName = importWallet(password, priKey, null);
 
-    return fileName;
+    byte[] priKey = null;
+    try {
+      priKey = Wallet.decrypt2PrivateBytes(passwdByte, walletFile);
+    } catch (Exception e) {
+      System.out.println(e.getMessage());
+    }
+
+    if (priKey !=null) {
+      System.out.println("Please enter the password for the new account after importing the keystore into wallet-cli, enter it twice.");
+      char[] password = Utils.inputPassword2Twice();
+      try {
+        String fileName = importWallet(password, priKey, null);
+        return fileName;
+      } catch (Exception e) {
+        System.out.println(e.getMessage());
+      } finally {
+        StringUtils.clear(password);
+      }
+    }
+    return "";
   }
 
   public String getAddress() {

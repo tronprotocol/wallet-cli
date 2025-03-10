@@ -814,12 +814,13 @@ public class Client {
       return ;
     }
 
-    char[] password = Utils.inputPassword2Twice();
-    byte[] passwdByte = StringUtils.char2Byte(password);
+    System.out.println("Please enter the password for the keystore file, enter it once.");
+    char[] keystorePassword = Utils.inputPasswordWithoutCheck();
+    byte[] keystorepasswdByte = StringUtils.char2Byte(keystorePassword);
 
     try {
-      String fileName = walletApiWrapper.importWalletByKeystore(passwdByte, password, importFile);
-      if (fileName != null) {
+      String fileName = walletApiWrapper.importWalletByKeystore(keystorepasswdByte, importFile);
+      if (fileName != null && !fileName.isEmpty()) {
         System.out.println("fileName = " + fileName);
         System.out.println("importWalletByKeystore successful !!");
       } else {
@@ -828,10 +829,9 @@ public class Client {
     } catch (Exception e) {
       System.out.println("importWalletByKeystore failed !!");
     } finally {
-      StringUtils.clear(password);
-      StringUtils.clear(passwdByte);
+      StringUtils.clear(keystorePassword);
+      StringUtils.clear(keystorepasswdByte);
     }
-
   }
 
   private char[] bytesToChars(byte[] bytes) {
