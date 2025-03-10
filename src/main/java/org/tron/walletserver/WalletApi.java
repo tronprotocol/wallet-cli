@@ -2394,7 +2394,9 @@ public class WalletApi {
       filePaths.addAll(mnemonicPath);
     }
 
-    LedgerFileUtil.removePathFromFile(this.path);
+    if (this.isLedgerUser && this.path != null && !this.path.isEmpty()) {
+      LedgerFileUtil.removePathFromFile(this.path);
+    }
 
     return ClearWalletUtils.confirmAndDeleteWallet(ownerAddress, filePaths);
   }

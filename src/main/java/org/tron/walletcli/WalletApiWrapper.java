@@ -391,18 +391,25 @@ public class WalletApiWrapper {
     char[] password = Utils.inputPassword(false);
     byte[] passwd = StringUtils.char2Byte(password);
     wallet.checkPassword(passwd);
-
-    String ownerAddress = WalletApi.encode58Check(wallet.getAddress());
-    byte[] mnemonic = MnemonicUtils.exportMnemonic(passwd, ownerAddress);
+    byte[] mnemonic = null;
     try {
+      String ownerAddress = WalletApi.encode58Check(wallet.getAddress());
+      mnemonic = MnemonicUtils.exportMnemonic(passwd, ownerAddress);
+      if (mnemonic == null || mnemonic.length == 0) {
+        System.out.println("GenerateSubAccount failed. Your account does not have mnemonic.");
+        return false;
+      }
       SubAccount.getInstance(passwd, new String(mnemonic)).start();
     } catch (Exception e) {
-      StringUtils.clear(password);
       System.out.println("Warning: GenerateSubAccount failed, e :" + e.getMessage());
       e.printStackTrace();
       return false;
+    } finally {
+      StringUtils.clear(mnemonic);
+      StringUtils.clear(password);
+      StringUtils.clear(passwd);
     }
-    StringUtils.clear(password);
+
     return true;
   }
 
@@ -464,13 +471,30 @@ public class WalletApiWrapper {
     return wallet.exportKeystore(walletChannel, exportFullDir);
   }
 
-  public String importWalletByKeystore(byte[] passwdByte, char[] password, File importFile)
-      throws IOException, CipherException {
+  public String importWalletByKeystore(byte[] passwdByte, File importFile)
+      throws IOException {
     WalletFile walletFile = WalletUtils.loadWalletFile(importFile);
-    byte[] priKey = Wallet.decrypt2PrivateBytes(passwdByte, walletFile);
-    String fileName = importWallet(password, priKey, null);
 
-    return fileName;
+    byte[] priKey = null;
+    try {
+      priKey = Wallet.decrypt2PrivateBytes(passwdByte, walletFile);
+    } catch (Exception e) {
+      System.out.println(e.getMessage());
+    }
+
+    if (priKey !=null) {
+      System.out.println("Please enter the password for the new account after importing the keystore into wallet-cli, enter it twice.");
+      char[] password = Utils.inputPassword2Twice();
+      try {
+        String fileName = importWallet(password, priKey, null);
+        return fileName;
+      } catch (Exception e) {
+        System.out.println(e.getMessage());
+      } finally {
+        StringUtils.clear(password);
+      }
+    }
+    return "";
   }
 
   public String getAddress() {

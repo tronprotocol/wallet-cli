@@ -581,7 +581,7 @@ public class Client {
   }
 
   private void importWallet() throws CipherException, IOException {
-    System.out.println("((Note:This operation will overwrite the old keystore file  and mnemonic file of the same address)");
+    System.out.println("(Note:This operation will overwrite the old keystore file and mnemonic file of the same address)");
     System.out.println("Please make sure to back up the old keystore files in the Wallet/Mnemonic directory if it is still needed!");
 
     char[] password = Utils.inputPassword2Twice();
@@ -601,7 +601,7 @@ public class Client {
   }
 
   private void importWalletByMnemonic() throws CipherException, IOException {
-    System.out.println("((Note:This operation will overwrite the old keystore file  and mnemonic file of the same address)");
+    System.out.println("(Note:This operation will overwrite the old keystore file and mnemonic file of the same address)");
     System.out.println("Please make sure to back up the old keystore files in the Wallet/Mnemonic directory if it is still needed!");
 
     char[] password = Utils.inputPassword2Twice();
@@ -624,7 +624,7 @@ public class Client {
   }
 
   private void importWalletByLedger() throws CipherException, IOException {
-    System.out.println(ANSI_RED +"((Note:This will pair Ledger to user your hardward wallet)");
+    System.out.println(ANSI_RED +"(Note:This will pair Ledger to user your hardward wallet)");
     System.out.println("Only one Ledger device is supported. If you have multiple devices, please ensure only one is connected."
         + ANSI_RESET);
 
@@ -666,7 +666,7 @@ public class Client {
   }
 
   private void importWalletByBase64() throws CipherException, IOException {
-    System.out.println("((Note:This operation will overwrite the old keystore file  and mnemonic file of the same address)");
+    System.out.println("(Note:This operation will overwrite the old keystore file and mnemonic file of the same address)");
     System.out.println("Please make sure to back up the old keystore files in the Wallet/Mnemonic directory if it is still needed!");
 
     char[] password = Utils.inputPassword2Twice();
@@ -774,15 +774,22 @@ public class Client {
     if (!channel.equalsIgnoreCase("tronlink")) {
       System.out.println("exportWalletKeystore failed, channel error !!");
       System.out.println("currrently only tronlink is supported!!");
+      return;
     }
     String exportDirPath = parameters[1];
     String exportFullDirPath = PathUtil.toAbsolutePath(exportDirPath);
     File exportFullDir = new File(exportFullDirPath);
     if (!exportFullDir.exists()) {
-      throw new IOException("Directory does not exist: " + exportFullDir.getAbsolutePath());
+      System.out.println("exportWalletKeystore failed, directory does not exist !!");
+      return;
+    }
+    if (!exportFullDir.isDirectory()) {
+      System.out.println("exportWalletKeystore failed, param 2 is not a directory!!");
+      return;
     }
     if (!exportFullDir.canWrite()) {
-      throw new IOException("Directory is not writable: " + exportFullDir.getAbsolutePath());
+      System.out.println("exportWalletKeystore failed, directory is not writable!!");
+      return;
     }
 
     String exportFilePath = walletApiWrapper.exportKeystore(channel, exportFullDir);
@@ -795,6 +802,9 @@ public class Client {
   }
 
   private void importWalletByKeystore(String[] parameters) throws CipherException, IOException {
+    System.out.println("(Note:This operation will overwrite the old keystore file and mnemonic file of the same address)");
+    System.out.println("Please make sure to back up the old keystore files in the Wallet/Mnemonic directory if it is still needed!");
+
     if (parameters.length < 2) {
       System.out.println("Example usage: ImportWalletByKeystore tronlink tronlink-export-keystore.txt");
       System.out.println("importWalletByKeystore failed, parameters error !!");
@@ -813,13 +823,18 @@ public class Client {
       System.out.println("importWalletByKeystore failed, keystore file to import not exists !!");
       return ;
     }
+    if (importFile.isDirectory()) {
+      System.out.println("importWalletByKeystore failed, parameters 2 is a directory!!");
+      return ;
+    }
 
-    char[] password = Utils.inputPassword2Twice();
-    byte[] passwdByte = StringUtils.char2Byte(password);
+    System.out.println("Please enter the password for the keystore file, enter it once.");
+    char[] keystorePassword = Utils.inputPasswordWithoutCheck();
+    byte[] keystorepasswdByte = StringUtils.char2Byte(keystorePassword);
 
     try {
-      String fileName = walletApiWrapper.importWalletByKeystore(passwdByte, password, importFile);
-      if (fileName != null) {
+      String fileName = walletApiWrapper.importWalletByKeystore(keystorepasswdByte, importFile);
+      if (fileName != null && !fileName.isEmpty()) {
         System.out.println("fileName = " + fileName);
         System.out.println("importWalletByKeystore successful !!");
       } else {
@@ -828,10 +843,9 @@ public class Client {
     } catch (Exception e) {
       System.out.println("importWalletByKeystore failed !!");
     } finally {
-      StringUtils.clear(password);
-      StringUtils.clear(passwdByte);
+      StringUtils.clear(keystorePassword);
+      StringUtils.clear(keystorepasswdByte);
     }
-
   }
 
   private char[] bytesToChars(byte[] bytes) {

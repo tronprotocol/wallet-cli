@@ -287,6 +287,28 @@ public class Utils {
     }
   }
 
+  public static char[] inputPasswordWithoutCheck() throws IOException {
+    char[] password;
+    Console cons = System.console();
+    if (cons != null) {
+      password = cons.readPassword("password: ");
+    } else {
+      byte[] passwd0 = new byte[64];
+      int len = System.in.read(passwd0, 0, passwd0.length);
+      int i;
+      for (i = 0; i < len; i++) {
+        if (passwd0[i] == 0x09 || passwd0[i] == 0x0A) {
+          break;
+        }
+      }
+      byte[] passwd1 = Arrays.copyOfRange(passwd0, 0, i);
+      password = StringUtils.byte2Char(passwd1);
+      StringUtils.clear(passwd0);
+      StringUtils.clear(passwd1);
+    }
+    return password;
+  }
+
   public static byte[] generateContractAddress(Transaction trx, byte[] ownerAddress) {
     // get tx hash
     byte[] txRawDataHash = Sha256Sm3Hash.of(trx.getRawData().toByteArray()).getBytes();
