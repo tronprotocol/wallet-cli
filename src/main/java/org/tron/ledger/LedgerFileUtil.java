@@ -8,6 +8,7 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
@@ -83,6 +84,29 @@ public class LedgerFileUtil {
     return String.format("%s_%s_%s_%s.txt", vendorId, productId, serialNumber, releaseNumber);
   }
 
+
+  public static void removePathFromFile(String path) {
+    String fileName = getFileName();
+    File file = new File(LEDGER_DIR_NAME, fileName);
+
+    if (file.exists()) {
+      try {
+        List<String> existingPaths = new ArrayList<>(Files.readAllLines(file.toPath()));
+        if (existingPaths.remove(path)) {
+          try (BufferedWriter writer = new BufferedWriter(new FileWriter(file))) {
+            for (String existingPath : existingPaths) {
+              writer.write(existingPath);
+              writer.newLine();
+            }
+          }
+        }
+      } catch (IOException e) {
+        if (DebugConfig.isDebugEnabled()) {
+          e.printStackTrace();
+        }
+      }
+    }
+  }
 
   public static void main(String[] args) {
     /*

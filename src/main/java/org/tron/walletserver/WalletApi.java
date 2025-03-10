@@ -109,6 +109,7 @@ import org.tron.core.exception.CipherException;
 import org.tron.keystore.CheckStrength;
 import org.tron.keystore.ClearWalletUtils;
 import org.tron.keystore.Credentials;
+import org.tron.ledger.LedgerFileUtil;
 import org.tron.ledger.LedgerSignUtil;
 import org.tron.ledger.listener.LedgerEventListener;
 import org.tron.ledger.listener.TransactionSignManager;
@@ -2392,6 +2393,8 @@ public class WalletApi {
     if (mnemonicPath!=null && !mnemonicPath.isEmpty()) {
       filePaths.addAll(mnemonicPath);
     }
+
+    LedgerFileUtil.removePathFromFile(this.path);
 
     return ClearWalletUtils.confirmAndDeleteWallet(ownerAddress, filePaths);
   }
