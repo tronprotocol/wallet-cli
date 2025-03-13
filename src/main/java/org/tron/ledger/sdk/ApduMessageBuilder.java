@@ -18,13 +18,15 @@ public class ApduMessageBuilder {
     return hexStringToByteArray(apduMessage.toString());
   }
 
-  public static byte[] buildTransactionSignApduMessage(String path, String transactionRaw) {
+  public static byte[] buildTransactionSignApduMessage(String path, String transactionRaw,
+                                                       String ins, String p1, String p2) {
     String donglePath = BIP32PathParser.convertBip32PathToHex(path);
     int pathByteLength = donglePath.length() / 2;
     int transactionByteLength = transactionRaw.length() / 2;
     String totalLength = String.format("%02x", pathByteLength + 1 + transactionByteLength);
     String pathSegments = String.format("%02x", donglePath.length() / 8);
-    String apduMessage = "e0041000" + totalLength + pathSegments + donglePath + transactionRaw;
+    String apduMessage = "E0" + ins + p1 + p2 + totalLength + pathSegments + donglePath + transactionRaw;
+    System.out.println("apduMessage:" + apduMessage);
     return hexStringToByteArray(apduMessage);
   }
 }

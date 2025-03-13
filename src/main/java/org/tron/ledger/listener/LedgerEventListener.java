@@ -1,14 +1,23 @@
 package org.tron.ledger.listener;
 
+import static org.tron.common.utils.TransactionUtils.getTransactionId;
+import static org.tron.ledger.console.ConsoleColor.ANSI_RED;
+import static org.tron.ledger.console.ConsoleColor.ANSI_RESET;
+import static org.tron.ledger.console.ConsoleColor.ANSI_YELLOW;
+import static org.tron.ledger.sdk.ApduMessageBuilder.buildTransactionSignApduMessage;
+import static org.tron.ledger.sdk.CommonUtil.bytesToHex;
+import static org.tron.ledger.sdk.LedgerConstant.LEDGER_SIGN_CANCEL;
+import static org.tron.walletserver.WalletApi.broadcastTransaction;
+
+import java.util.Arrays;
+import java.util.Scanner;
+import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.Getter;
 import lombok.Setter;
+import org.apache.commons.lang3.ArrayUtils;
 import org.hid4java.HidDevice;
 import org.hid4java.event.HidServicesEvent;
-import org.tron.common.crypto.Hash;
-import org.tron.common.crypto.Sha256Sm3Hash;
-import org.tron.common.utils.TransactionUtils;
 import org.tron.ledger.sdk.ApduExchangeHandler;
-import org.tron.ledger.sdk.ApduMessageBuilder;
 import org.tron.ledger.sdk.CommonUtil;
 import org.tron.ledger.sdk.LedgerConstant;
 import org.tron.ledger.sdk.LedgerProtocol;
@@ -16,18 +25,7 @@ import org.tron.ledger.wrapper.DebugConfig;
 import org.tron.ledger.wrapper.HidServicesWrapper;
 import org.tron.ledger.wrapper.LedgerSignResult;
 import org.tron.protos.Protocol;
-import org.tron.walletserver.WalletApi;
-
-import java.util.Arrays;
-import java.util.Optional;
-import java.util.Scanner;
-import java.util.concurrent.atomic.AtomicBoolean;
-
-import static org.tron.ledger.console.ConsoleColor.ANSI_RED;
-import static org.tron.ledger.console.ConsoleColor.ANSI_RESET;
-import static org.tron.ledger.console.ConsoleColor.ANSI_YELLOW;
-import static org.tron.ledger.sdk.CommonUtil.bytesToHex;
-import static org.tron.ledger.sdk.LedgerConstant.LEDGER_SIGN_CANCEL;
+import org.tron.protos.Protocol.Transaction;
 
 public class LedgerEventListener extends BaseListener {
   private static final int TRANSACTION_SIGN_TIMEOUT = 120;
@@ -97,7 +95,7 @@ public class LedgerEventListener extends BaseListener {
   }
 
 
-  public boolean executeSignListen(HidDevice hidDevice, Protocol.Transaction transaction, String path) {
+  public boolean executeSignListen(HidDevice hidDevice, Transaction transaction, String path) {
     boolean ret = false;
     try {
       byte[] sendResult = handleTransSign(hidDevice, transaction, path);
@@ -105,7 +103,7 @@ public class LedgerEventListener extends BaseListener {
         System.out.println("Transaction sign request is sent to Ledger");
         TransactionSignManager.getInstance().setHidDevice(hidDevice);
         isTimeOutShutdown.compareAndSet(true,false);
-        String transactionId = TransactionUtils.getTransactionId(transaction).toString();
+        String transactionId = getTransactionId(transaction).toString();
         LedgerSignResult.createFileIfNotExists(hidDevice.getPath());
         LedgerSignResult.appendLineIfNotExists(
             hidDevice.getPath(), transactionId, LedgerSignResult.SIGN_RESULT_SIGNING);
@@ -120,25 +118,50 @@ public class LedgerEventListener extends BaseListener {
     return ret;
   }
 
-  public byte[] handleTransSign(HidDevice hidDevice, Protocol.Transaction transaction, String path) {
+  /**
+   * @param path example "m/44'/195'/0'/0/0"
+   */
+  public byte[] handleTransSign(HidDevice hidDevice, Transaction transaction, String path) {
     final int TIMEOUT_MILLIS = 1000;
     final int MAX_WAIT_TIME_MILLIS = 1000; // 1.5 seconds
+    final int BYTE_LENGTH_THRESHOLD = 255;
+    final String SIGN_BY_HASH = "6a8c";
+    final String APP_IS_OPEN = "6511";
 
-    String transactionRaw = bytesToHex(transaction.getRawData().toByteArray());
-    //String path = "m/44'/195'/0'/0/0";
-    byte[] apdu = ApduMessageBuilder.buildTransactionSignApduMessage(path, transactionRaw);
-    byte[] respone = ApduExchangeHandler.exchangeApdu(hidDevice, apdu
-        ,TIMEOUT_MILLIS, MAX_WAIT_TIME_MILLIS);
-    if (respone!=null) {
+    byte[] rawBytes = transaction.getRawData().toByteArray();
+    String transactionRaw;
+    String ins;
+    String p1;
+    String p2 = "00";
+    if (rawBytes.length < BYTE_LENGTH_THRESHOLD) {
+      transactionRaw = bytesToHex(rawBytes);
+      ins = "04";
+      p1 = "10";
+    } else {
+      transactionRaw = bytesToHex(getTransactionId(transaction).getBytes());
+      ins = "05";
+      p1 = "00";
+    }
+    byte[] apdu = buildTransactionSignApduMessage(path, transactionRaw, ins, p1, p2);
+    byte[] response = ApduExchangeHandler.exchangeApdu(hidDevice, apdu,
+        TIMEOUT_MILLIS, MAX_WAIT_TIME_MILLIS);
+
+    if (ArrayUtils.isNotEmpty(response)) {
+      if (SIGN_BY_HASH.equals(bytesToHex(response))) {
+        System.out.println(ANSI_RED + "Please first set 'Sign By Hash' to 'Allowed' in Ledger TRON Settings." + ANSI_RESET);
+      }
+      if (APP_IS_OPEN.equals(bytesToHex(response))) {
+        System.out.println(ANSI_RED + "Please ensure The Tron app is open in your Ledger device. Usually, 'Application is ready' will be displayed on your ledger device." + ANSI_RESET);
+      }
       if (DebugConfig.isDebugEnabled()) {
-        System.out.println("HandleTransSign respone: " + bytesToHex(respone));
+        System.out.println("HandleTransSign response: " + bytesToHex(response));
       }
     } else {
       if (DebugConfig.isDebugEnabled()) {
-        System.out.println("HandleTransSign respone is null");
+        System.out.println("HandleTransSign response is null");
       }
     }
-    return respone;
+    return response;
   }
 
   @Override
@@ -178,7 +201,7 @@ public class LedgerEventListener extends BaseListener {
         if (DebugConfig.isDebugEnabled()) {
           System.out.println("Transaction is not null");
         }
-        String transactionId = TransactionUtils.getTransactionId(transaction).toString();
+        String transactionId = getTransactionId(transaction).toString();
         if (!isTimeOutShutdown.get()) {
           System.out.println("\nConfirm sign from Ledger");
           byte[] signature = Arrays.copyOfRange(unwrappedResponse, 0, 65);
@@ -186,7 +209,7 @@ public class LedgerEventListener extends BaseListener {
             System.out.println("Signature: " + CommonUtil.bytesToHex(signature));
           }
           TransactionSignManager.getInstance().addTransactionSign(signature);
-          boolean ret = WalletApi.broadcastTransaction(TransactionSignManager.getInstance().getTransaction());
+          boolean ret = broadcastTransaction(TransactionSignManager.getInstance().getTransaction());
           if (ret) {
             System.out.println("TransactionId: " + transactionId);
             System.out.println("BroadcastTransaction successful !!!");
