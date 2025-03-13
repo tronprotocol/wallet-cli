@@ -23,10 +23,10 @@ public class LedgerSignUtil {
     try {
       if (!ContractTypeChecker.canUseLedgerSign(
           transaction.getRawData().getContract(0).getType().toString())) {
-        return true;
+        return false;
       }
       if (!TransOwnerChecker.checkOwner(address, transaction)) {
-        return true;
+        return false;
       }
 
       if (TransactionSignManager.getInstance().getTransaction() == null) {
@@ -50,7 +50,7 @@ public class LedgerSignUtil {
             LedgerUserHelper.showHidDeviceConnectionError();
             System.out.println("Please check your Ledger and try again");
             System.out.println("Sign with Ledger failed");
-            return true;
+            return false;
           }
           if (DebugConfig.isDebugEnabled()) {
             System.out.println("reopen HidServicesWrapper.getInstance().getHidDevice");
@@ -65,7 +65,7 @@ public class LedgerSignUtil {
               + "Please confirm/cancel the transaction in Ledger, or Quit&Reopen Tron app in Ledger" +
               ANSI_RESET);
           System.out.println("Transaction sign is rejected");
-          return true;
+          return false;
         }
 
         LedgerEventListener.getInstance().setLedgerSignEnd(new AtomicBoolean(false));
@@ -93,7 +93,7 @@ public class LedgerSignUtil {
           }
           System.out.println("Sign with Ledger failed");
           System.out.println("Please check your Ledger and try again");
-          return true;
+          return false;
         }
       } else {
         System.out.println("Please check your last sign with Ledger");
@@ -101,13 +101,13 @@ public class LedgerSignUtil {
             + "Please confirm/cancel the transaction in Ledger, or Quit&Reopen Tron app in Ledger" +
             ANSI_RESET);
         System.out.println("Sign with Ledger rejected");
-        return true;
+        return false;
       }
     } catch (Exception e) {
       if (DebugConfig.isDebugEnabled()) {
         e.printStackTrace();
       }
-      return true;
+      return false;
     }
   }
 }

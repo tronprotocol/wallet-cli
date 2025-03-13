@@ -662,7 +662,9 @@ public class WalletApi {
       } else {
         boolean result = LedgerSignUtil.requestLedgerSignLogic(transaction, this.path, this.address);
         if (result) {
-          break;
+          return transaction;
+        } else {
+          return null;
         }
       }
     }
@@ -734,11 +736,12 @@ public class WalletApi {
     System.out.println("before sign transaction hex string is " +
         ByteArray.toHexString(transaction.toByteArray()));
     transaction = signTransaction(transaction);
-    if (!isLedgerUser) {
+    if (!isLedgerUser && transaction != null) {
       showTransactionAfterSign(transaction);
       return rpcCli.broadcastTransaction(transaction);
+    } else {
+      return transaction != null;
     }
-    return true;
   }
 
   private void showTransactionAfterSign(Transaction transaction)
@@ -813,7 +816,9 @@ public class WalletApi {
             + ByteArray.toHexString(transaction.toByteArray()));
 
     transaction = signTransaction(transaction);
-
+    if (transaction == null) {
+      return false;
+    }
     showTransactionAfterSign(transaction);
     return rpcCli.broadcastTransaction(transaction);
   }

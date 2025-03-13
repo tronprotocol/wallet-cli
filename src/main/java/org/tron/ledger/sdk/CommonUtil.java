@@ -1,17 +1,23 @@
 package org.tron.ledger.sdk;
 
+import org.apache.commons.lang3.ArrayUtils;
 import org.hid4java.HidDevice;
 
 public class CommonUtil {
   public static String bytesToHex(byte[] bytes) {
     StringBuilder sb = new StringBuilder();
-    for (byte b : bytes) {
-      sb.append(String.format("%02x", b & 0xFF));
+    if (ArrayUtils.isNotEmpty(bytes)) {
+      for (byte b : bytes) {
+        sb.append(String.format("%02x", b & 0xFF));
+      }
     }
     return sb.toString();
   }
 
   public static byte[] hexStringToByteArray(String s) {
+    if (s.length() % 2 != 0) {
+      s = "0" + s;
+    }
     int len = s.length();
     byte[] data = new byte[len / 2];
     for (int i = 0; i < len; i += 2) {
