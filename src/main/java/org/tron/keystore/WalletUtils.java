@@ -193,7 +193,7 @@ public class WalletUtils {
 
 
   private static String getExportWalletFileName(String walletAddress) {
-    return walletAddress + ".txt";
+    return walletAddress + ".json";
   }
 
   public static String getDefaultKeyDirectory() {

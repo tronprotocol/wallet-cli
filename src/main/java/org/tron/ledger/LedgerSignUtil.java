@@ -25,10 +25,6 @@ public class LedgerSignUtil {
           transaction.getRawData().getContract(0).getType().toString())) {
         return false;
       }
-      if (!TransOwnerChecker.checkOwner(address, transaction)) {
-        return false;
-      }
-
       if (TransactionSignManager.getInstance().getTransaction() == null) {
         HidDevice hidDevice = null;
         // try to reuse the hiddevice

@@ -804,7 +804,7 @@ public class Client {
     System.out.println("Please make sure to back up the old keystore files in the Wallet/Mnemonic directory if it is still needed!");
 
     if (parameters.length < 2) {
-      System.out.println("Example usage: ImportWalletByKeystore tronlink tronlink-export-keystore.txt");
+      System.out.println("Example usage: ImportWalletByKeystore tronlink tronlink-export-keystore.json");
       System.out.println("importWalletByKeystore failed, parameters error !!");
       return;
     }
@@ -822,6 +822,7 @@ public class Client {
       return ;
     }
     if (importFile.isDirectory()) {
+      System.out.println("Example usage: ImportWalletByKeystore tronlink tronlink-export-keystore.json");
       System.out.println("importWalletByKeystore failed, parameters 2 is a directory!!");
       return ;
     }
@@ -1168,9 +1169,6 @@ public class Client {
     long amount = new Long(amountStr);
 
     boolean result = walletApiWrapper.sendCoin(ownerAddress, toAddress, amount);
-    if (walletApiWrapper.getLedgerUser()) {
-      return ;
-    }
     if (result) {
       System.out.println("Send " + amount + " Sun to " + base58ToAddress + " successful !!");
     } else {

@@ -21,8 +21,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
-import static org.apache.commons.lang3.StringUtils.isNumeric;
-
 public class TronLedgerImportAccount {
   private static final int PAGE_SIZE = 5;
   private static final int TOTAL_PAGES = 20;
@@ -41,7 +39,7 @@ public class TronLedgerImportAccount {
 
   public static ImportAccount changeAccount() {
     try {
-      Terminal terminal = TerminalBuilder.builder().system(true).build();
+      Terminal terminal = TerminalBuilder.builder().system(true).dumb(true).build();
       LineReader lineReader = LineReaderBuilder.builder().terminal(terminal).build();
       int currentPage = 0;
       int generatedPage = -1;
@@ -147,7 +145,7 @@ public class TronLedgerImportAccount {
 
   public static ImportAccount enterMnemonicPath() {
     try {
-      Terminal terminal = TerminalBuilder.builder().system(true).build();
+      Terminal terminal = TerminalBuilder.builder().system(true).dumb(true).build();
       LineReader lineReader = LineReaderBuilder.builder().terminal(terminal).build();
       String purpose = "44";
       String coinType = "195";

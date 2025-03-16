@@ -18,7 +18,7 @@ public class ClearWalletUtils {
     final String CONFIRMATION_WORD = "DELETE";
     final int MAX_ATTEMPTS = 3;
     try {
-      Terminal terminal = TerminalBuilder.builder().system(true).build();
+      Terminal terminal = TerminalBuilder.builder().system(true).dumb(true).build();
       LineReader lineReader = LineReaderBuilder.builder().terminal(terminal).build();
 
       System.out.println("\n\u001B[31mWarning: Dangerous operation!\u001B[0m");
