@@ -218,7 +218,7 @@ public class Utils {
 
   public static String printTransactionSignWeight(TransactionSignWeight transactionSignWeight) {
     String string = JsonFormat.printToString(transactionSignWeight, true);
-    JSONObject jsonObject = JSONObject.parseObject(string);
+    JSONObject jsonObject = JSON.parseObject(string);
     JSONObject jsonObjectExt = jsonObject.getJSONObject(TRANSACTION);
     jsonObjectExt.put(
         TRANSACTION,

@@ -7,10 +7,8 @@ import static org.tron.ledger.console.ConsoleColor.ANSI_YELLOW;
 import static org.tron.ledger.sdk.ApduMessageBuilder.buildTransactionSignApduMessage;
 import static org.tron.ledger.sdk.CommonUtil.bytesToHex;
 import static org.tron.ledger.sdk.LedgerConstant.LEDGER_SIGN_CANCEL;
-import static org.tron.walletserver.WalletApi.broadcastTransaction;
 
 import java.util.Arrays;
-import java.util.Scanner;
 import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.Getter;
 import lombok.Setter;
@@ -28,7 +26,7 @@ import org.tron.protos.Protocol;
 import org.tron.protos.Protocol.Transaction;
 
 public class LedgerEventListener extends BaseListener {
-  private static final int TRANSACTION_SIGN_TIMEOUT = 120;
+  private static final int TRANSACTION_SIGN_TIMEOUT = 60;
 
   @Getter
   private AtomicBoolean isTimeOutShutdown = new AtomicBoolean(false);
@@ -47,23 +45,9 @@ public class LedgerEventListener extends BaseListener {
 
 
   public boolean waitAndShutdownWithInput() {
-    Thread inputThread = new Thread(() -> {
-      Scanner scanner = new Scanner(System.in);
-      System.out.printf(ANSI_RED + "Press 'c' to continue on other operation.\n" + ANSI_RESET);
+    Thread shutdownThread = new Thread(() -> {
       System.out.printf(ANSI_YELLOW + "If the transaction signature hasn't timed out and the Ledger confirms the signature, the transaction will still be broadcast.\n" + ANSI_RESET);
       System.out.printf(ANSI_YELLOW + "Current transaction sign will be closed after %ds.\n" + ANSI_RESET, TRANSACTION_SIGN_TIMEOUT);
-      String input = scanner.nextLine();
-      while (!"c".equalsIgnoreCase(input)) {
-        input = scanner.nextLine();
-        if ("c".equalsIgnoreCase(input)) {
-          break;
-        }
-      }
-      if (DebugConfig.isDebugEnabled()) {
-        System.out.printf(ANSI_RED + "Input thread finished\n" + ANSI_RESET);
-      }
-    });
-    Thread shutdownThread = new Thread(() -> {
       sleepNoInterruption(TRANSACTION_SIGN_TIMEOUT);
       shutdownHidServices();
       if (DebugConfig.isDebugEnabled()) {
@@ -71,12 +55,10 @@ public class LedgerEventListener extends BaseListener {
       }
     });
 
-    inputThread.start();
-    shutdownThread.setDaemon(true);
     shutdownThread.start();
 
     try {
-      inputThread.join();
+      shutdownThread.join();
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
     }
@@ -209,13 +191,6 @@ public class LedgerEventListener extends BaseListener {
             System.out.println("Signature: " + CommonUtil.bytesToHex(signature));
           }
           TransactionSignManager.getInstance().addTransactionSign(signature);
-          boolean ret = broadcastTransaction(TransactionSignManager.getInstance().getTransaction());
-          if (ret) {
-            System.out.println("TransactionId: " + transactionId);
-            System.out.println("BroadcastTransaction successful !!!");
-          } else {
-            System.out.println("BroadcastTransaction failed !!!");
-          }
           LedgerSignResult.updateState(
               TransactionSignManager.getInstance().getHidDevice().getPath()
               , transactionId, LedgerSignResult.SIGN_RESULT_SUCCESS
@@ -235,7 +210,6 @@ public class LedgerEventListener extends BaseListener {
 
   private void doLedgerSignEnd() {
     ledgerSignEnd.compareAndSet(false, true);
-    TransactionSignManager.getInstance().setTransaction(null);
     if (TransactionSignManager.getInstance().getHidDevice() != null) {
       TransactionSignManager.getInstance().getHidDevice().close();
       TransactionSignManager.getInstance().setHidDevice(null);

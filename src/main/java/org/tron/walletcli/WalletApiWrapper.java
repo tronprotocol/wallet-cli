@@ -116,7 +116,7 @@ public class WalletApiWrapper {
     String walletFileName = "";
 
     try {
-      Terminal terminal = TerminalBuilder.builder().system(true).build();
+      Terminal terminal = TerminalBuilder.builder().system(true).dumb(true).build();
       LineReader lineReader = LineReaderBuilder.builder().terminal(terminal).build();
 
       String defaultPath = TronLedgerImportAccount.findFirstMissingPath(
@@ -204,7 +204,7 @@ public class WalletApiWrapper {
 
     System.out.println("\nPlease Understand the Risks & Continue.\n"+ConsoleColor.ANSI_RESET);
 
-    Terminal terminal = TerminalBuilder.builder().system(true).build();
+    Terminal terminal = TerminalBuilder.builder().system(true).dumb(true).build();
     LineReader lineReader = LineReaderBuilder.builder().terminal(terminal).build();
 
     int invalidAttempts = 0;
@@ -307,13 +307,12 @@ public class WalletApiWrapper {
     }
 
     try{
-      byte[] decryptByte = Wallet.decrypt2PrivateBytes(passwd, walletFile);
-      String decryptStr = new String(decryptByte);
+      String decryptStr = getLedgerPath(passwd, walletFile);
       String prefix = "m/44'/195'/";
-      boolean isLedgerUser = ( decryptStr != null && decryptStr.startsWith(prefix) );
+      boolean isLedgerUser = decryptStr.startsWith(prefix);
       if (isLedgerUser) {
         wallet.setPath(decryptStr);
-        wallet.setLedgerUser(isLedgerUser);
+        wallet.setLedgerUser(true);
       }
     } catch (Exception e) {
       if (DebugConfig.isDebugEnabled()) {
@@ -337,13 +336,12 @@ public class WalletApiWrapper {
     }
 
     try {
-      byte[] decrypt = Wallet.decrypt2PrivateBytes(passwdByte, walletLedgerFile);
-      String decryptStr = new String(decrypt);
+      String decryptStr = getLedgerPath(passwdByte, walletLedgerFile);
       String prefix = "m/44'/195'/";
-      boolean isLedgerUser = ( decryptStr != null && decryptStr.startsWith(prefix) );
+      boolean isLedgerUser = decryptStr.startsWith(prefix);
       if (isLedgerUser) {
         wallet.setPath(decryptStr);
-        wallet.setLedgerUser(isLedgerUser);
+        wallet.setLedgerUser(true);
       }
       wallet.setLogin();
     } catch (Exception e) {
@@ -354,6 +352,12 @@ public class WalletApiWrapper {
     }
 
     return true;
+  }
+
+  public static String getLedgerPath(byte[] passwdByte, WalletFile walletLedgerFile)
+      throws CipherException {
+    byte[] decrypt = Wallet.decrypt2PrivateBytes(passwdByte, walletLedgerFile);
+    return new String(decrypt);
   }
 
 

@@ -75,6 +75,7 @@ public class SubAccount {
     this.password = password;
     this.terminal = TerminalBuilder.builder()
         .system(true)
+        .dumb(true)
         .build();
     this.reader = LineReaderBuilder.builder()
         .terminal(terminal)
@@ -219,13 +220,10 @@ public class SubAccount {
           System.out.println("Generate a sub account successful, keystore file name is " + keystoreName);
           selected.setGenerated(true);
           return true;
+        } else {
+          System.out.println(selected.getDetailString() + ", this sub account already exists.");
+          return false;
         }
-        clearScreen();
-        terminal.writer().println("\n=== Selected Address ===");
-        terminal.writer().println(selected.getDetailString());
-        terminal.writer().println("Press Enter to continue...");
-        terminal.flush();
-        reader.readLine();
       } else {
         terminal.writer().println("("+ start + "-" + end +") is valid");
         terminal.writer().println("Invalid index input!");
@@ -237,7 +235,6 @@ public class SubAccount {
       terminal.flush();
       return false;
     }
-    return true;
   }
 
 
@@ -260,10 +257,10 @@ public class SubAccount {
         System.out.println("All sub accounts have been generated!");
         break;
       }
-      String defaulFullPath = buildFullPath("0", firstIndex.toString());
+      String defaultFullPath = buildFullPath("0", firstIndex.toString());
 
       WalletAddress walletAddress = this.generateWalletAddressByCustomPath(
-          mnemonic, defaulFullPath);
+          mnemonic, defaultFullPath);
       if (walletAddress==null) {
         System.out.println("Generate wallet address error!");
         break;
@@ -273,7 +270,7 @@ public class SubAccount {
 
       terminal.writer().println("-------------------------------");
       terminal.writer().println("Default Address: " + walletAddress.getAddress());
-      terminal.writer().println("Default Path: " + defaulFullPath);
+      terminal.writer().println("Default Path: " + defaultFullPath);
       terminal.writer().println("-------------------------------\n");
 
       terminal.writer().println("1. Generate Default Path");
@@ -285,7 +282,7 @@ public class SubAccount {
       String choice = reader.readLine().trim();
       if (choice.equals("1")) {
         try {
-          genDefaultPath(defaulFullPath, walletAddress);
+          genDefaultPath(defaultFullPath, walletAddress);
         } catch (Exception e) {
           e.printStackTrace();
         }
@@ -424,14 +421,18 @@ public class SubAccount {
   private String handlePathInput() {
     try {
       printInstructions();
-      String firstNumber = getValidInput("Enter first number: ", 0);
+      String firstNumber = getValidInput("Enter X number: ", 0);
       if (firstNumber == null) {
         return "";
       }
-      String secondNumber = getValidInput("Enter second number: ", 1);
+      String secondNumber = getValidInput("Enter Y number: ", 1);
       if (secondNumber == null) {
         return "";
       }
+//      String thirdNumber = getValidInput("Enter third number: ", 2);
+//      if (thirdNumber == null) {
+//        return "";
+//      }
       String fullPath = buildFullPath(firstNumber, secondNumber);
       displayResult(fullPath, firstNumber, secondNumber);
       return fullPath;

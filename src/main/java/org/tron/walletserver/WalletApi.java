@@ -1,5 +1,8 @@
 package org.tron.walletserver;
 
+import static org.tron.keystore.StringUtils.char2Byte;
+import static org.tron.walletcli.WalletApiWrapper.getLedgerPath;
+
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.google.gson.JsonArray;
@@ -105,6 +108,7 @@ import org.tron.keystore.ClearWalletUtils;
 import org.tron.keystore.Credentials;
 import org.tron.ledger.LedgerFileUtil;
 import org.tron.ledger.LedgerSignUtil;
+import org.tron.ledger.listener.TransactionSignManager;
 import org.tron.mnemonic.Mnemonic;
 import org.tron.mnemonic.MnemonicFile;
 import org.tron.mnemonic.MnemonicUtils;
@@ -372,17 +376,17 @@ public class WalletApi {
   }
 
   public String exportKeystore(String walletChannel, File exportFullDir) throws IOException {
-    String ret = null;
+    String ret;
     try {
-      WalletFile walletFile = this.walletFile.get(0);
-      String walletAddress = walletFile.getAddress();
-      String walletHexAddress = getHexAddress(walletFile.getAddress());
-      String originalAddress = walletFile.getAddress();
-      walletFile.setAddress(walletHexAddress);
+      WalletFile wf = this.walletFile.get(0);
+      String walletAddress = wf.getAddress();
+      String walletHexAddress = getHexAddress(wf.getAddress());
+      String originalAddress = wf.getAddress();
+      wf.setAddress(walletHexAddress);
       try {
-        ret = WalletUtils.exportWalletFile(walletFile, walletAddress, exportFullDir);
+        ret = WalletUtils.exportWalletFile(wf, walletAddress, exportFullDir);
       } finally {
-        walletFile.setAddress(originalAddress);
+        wf.setAddress(originalAddress);
       }
     } catch (Exception e) {
       System.out.println("exportKeystore failed. " + e.getMessage());
@@ -532,7 +536,7 @@ public class WalletApi {
     return mnemonicFile;
   }
 
-  public WalletFile selcetWalletFileE() throws IOException {
+  public WalletFile selectWalletFileE() throws IOException {
     File file = selcetWalletFile();
     if (file == null) {
       throw new IOException(
@@ -540,14 +544,16 @@ public class WalletApi {
     }
     String name = file.getName();
     for (WalletFile wallet : this.walletFile) {
-      String address = wallet.getAddress();
-      if (name.contains(address)) {
+      String walletAddress = wallet.getAddress();
+      if (name.contains(walletAddress)) {
+        wallet.setName(name);
         return wallet;
       }
     }
 
     WalletFile wallet = WalletUtils.loadWalletFile(file);
     this.walletFile.add(wallet);
+    wallet.setName(name);
     return wallet;
   }
 
@@ -630,20 +636,45 @@ public class WalletApi {
         + "default 0, other non-numeric characters will cancel transaction.";
     transaction = TransactionUtils.setPermissionId(transaction, tipsString);
     while (true) {
-      if (!isLedgerUser) {
-        System.out.println("Please choose your key for sign.");
-        WalletFile walletFile = selcetWalletFileE();
-        System.out.println("Please input your password.");
-        char[] password = Utils.inputPassword(false);
-        byte[] passwd = org.tron.keystore.StringUtils.char2Byte(password);
-        org.tron.keystore.StringUtils.clear(password);
-        if (isEckey) {
-          transaction = TransactionUtils.sign(transaction, this.getEcKey(walletFile, passwd));
+      System.out.println("Please choose your key for sign.");
+      WalletFile wf = selectWalletFileE();
+      boolean isLedgerFile = wf.getName().contains("Ledger");
+      System.out.println("Please input your password.");
+      char[] password = Utils.inputPassword(false);
+      byte[] passwd = char2Byte(password);
+      org.tron.keystore.StringUtils.clear(password);
+      String ledgerPath = getLedgerPath(passwd, wf);
+      if (isLedgerFile) {
+        boolean result = LedgerSignUtil.requestLedgerSignLogic(transaction, ledgerPath, decodeFromBase58Check(wf.getAddress()));
+        if (result) {
+          transaction = TransactionSignManager.getInstance().getTransaction();
+          TransactionSignWeight weight = getTransactionSignWeight(transaction);
+          if (weight.getResult().getCode() == response_code.ENOUGH_PERMISSION) {
+            TransactionSignManager.getInstance().setTransaction(null);
+            return transaction;
+          }
+          if (weight.getResult().getCode() == response_code.NOT_ENOUGH_PERMISSION) {
+            System.out.println("Current signWeight is:");
+            System.out.println(Utils.printTransactionSignWeight(weight));
+            System.out.println("Please confirm if continue add signature enter y or Y, else any other");
+            if (!confirm()) {
+              showTransactionAfterSign(transaction);
+              throw new CancelException("User cancelled");
+            }
+            TransactionSignManager.getInstance().setTransaction(null);
+            continue;
+          }
+          throw new CancelException(weight.getResult().getMessage());
         } else {
-          transaction = TransactionUtils.sign(transaction, this.getSM2(walletFile, passwd));
+          return null;
+        }
+      } else {
+        if (isEckey) {
+          transaction = TransactionUtils.sign(transaction, this.getEcKey(wf, passwd));
+        } else {
+          transaction = TransactionUtils.sign(transaction, this.getSM2(wf, passwd));
         }
         org.tron.keystore.StringUtils.clear(passwd);
-
         TransactionSignWeight weight = getTransactionSignWeight(transaction);
         if (weight.getResult().getCode() == response_code.ENOUGH_PERMISSION) {
           break;
@@ -659,16 +690,8 @@ public class WalletApi {
           continue;
         }
         throw new CancelException(weight.getResult().getMessage());
-      } else {
-        boolean result = LedgerSignUtil.requestLedgerSignLogic(transaction, this.path, this.address);
-        if (result) {
-          return transaction;
-        } else {
-          return null;
-        }
       }
     }
-
     return transaction;
   }
 
@@ -679,10 +702,10 @@ public class WalletApi {
     transaction = TransactionUtils.setPermissionId(transaction, tipsString);
     while (true) {
       System.out.println("Please choose your key for sign.");
-      WalletFile walletFile = selcetWalletFileE();
+      WalletFile walletFile = selectWalletFileE();
       System.out.println("Please input your password.");
       char[] password = Utils.inputPassword(false);
-      byte[] passwd = org.tron.keystore.StringUtils.char2Byte(password);
+      byte[] passwd = char2Byte(password);
       org.tron.keystore.StringUtils.clear(password);
 
       if (isEckey) {
@@ -736,12 +759,11 @@ public class WalletApi {
     System.out.println("before sign transaction hex string is " +
         ByteArray.toHexString(transaction.toByteArray()));
     transaction = signTransaction(transaction);
-    if (!isLedgerUser && transaction != null) {
-      showTransactionAfterSign(transaction);
-      return rpcCli.broadcastTransaction(transaction);
-    } else {
-      return transaction != null;
+    if (transaction == null) {
+      return false;
     }
+    showTransactionAfterSign(transaction);
+    return rpcCli.broadcastTransaction(transaction);
   }
 
   private void showTransactionAfterSign(Transaction transaction)
@@ -2674,10 +2696,10 @@ public class WalletApi {
     transaction = TransactionUtils.setPermissionId(transaction, tipsString);
 
     System.out.println("Please choose your key for sign.");
-    WalletFile walletFile = selcetWalletFileE();
+    WalletFile walletFile = selectWalletFileE();
     System.out.println("Please input your password.");
     char[] password = Utils.inputPassword(false);
-    byte[] passwd = org.tron.keystore.StringUtils.char2Byte(password);
+    byte[] passwd = char2Byte(password);
     org.tron.keystore.StringUtils.clear(password);
 
     if (isEckey) {
