@@ -394,7 +394,7 @@ public class WalletApiWrapper {
       if (mnemonic == null || mnemonic.length == 0) {
         return false;
       }
-      subAccount = new SubAccount(passwd, new String(mnemonic));
+      subAccount = new SubAccount(passwd, new String(mnemonic), 0);
       subAccount.start();
     } catch (Exception e) {
       System.out.println("Warning: GenerateSubAccount failed, e :" + e.getMessage());
@@ -408,6 +408,26 @@ public class WalletApiWrapper {
       StringUtils.clear(passwd);
     }
 
+    return true;
+  }
+
+  public boolean importWalletByMnemonic(List<String> mnemonicWords, byte[] passwd) throws CipherException, IOException {
+    SubAccount subAccount = null;
+    try {
+      if (mnemonicWords == null || mnemonicWords.isEmpty()) {
+        return false;
+      }
+      subAccount = new SubAccount(passwd, String.join(" ", mnemonicWords), 1);
+      subAccount.start();
+    } catch (Exception e) {
+      System.out.println("Warning: importWalletByMnemonic failed, e :" + e.getMessage());
+      return false;
+    } finally {
+      if (subAccount != null) {
+        subAccount.clearSensitiveData();
+      }
+      StringUtils.clear(passwd);
+    }
     return true;
   }
 

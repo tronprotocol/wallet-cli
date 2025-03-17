@@ -1590,7 +1590,7 @@ Example:
 wallet> ExportWalletKeystore tronlink /tmp
 Please input your password.
 password:
-exported keystore file : /tmp/TYdhEg8b7tXm92UDbRDXPtJNU6T9xVGbbo.txt
+exported keystore file : /tmp/TYdhEg8b7tXm92UDbRDXPtJNU6T9xVGbbo.json
 exportWalletKeystore successful !!
 ```
     >ImportWalletByKeystore
@@ -1598,7 +1598,7 @@ exportWalletKeystore successful !!
 
 Example:
 ```console
-wallet> ImportWalletByKeystore tronlink /tmp/tronlink.txt
+wallet> ImportWalletByKeystore tronlink /tmp/tronlink.json
 Please input password.
 password:
 Please input password again.
