@@ -658,13 +658,14 @@ public class WalletApi {
           }
           HidDevice hidDevice = HidServicesWrapper.getInstance().getHidDevice();
           Optional<String> state = LedgerSignResult.getLastTransactionState(hidDevice.getPath());
-          boolean isSigning = state.isPresent() && LedgerSignResult.SIGN_RESULT_SIGNING.equals(state.get());
-          if (weight.getResult().getCode() == response_code.NOT_ENOUGH_PERMISSION && !isSigning) {
+          boolean confirmed = state.isPresent() && LedgerSignResult.SIGN_RESULT_SUCCESS.equals(state.get());
+          if (weight.getResult().getCode() == response_code.NOT_ENOUGH_PERMISSION && confirmed) {
             System.out.println("Current signWeight is:");
             System.out.println(Utils.printTransactionSignWeight(weight));
             System.out.println("Please confirm if continue add signature enter y or Y, else any other");
             if (!confirm()) {
               showTransactionAfterSign(transaction);
+              TransactionSignManager.getInstance().setTransaction(null);
               throw new CancelException("User cancelled");
             }
             TransactionSignManager.getInstance().setTransaction(null);

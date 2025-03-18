@@ -46,7 +46,7 @@ public class LedgerEventListener extends BaseListener {
 
   public boolean waitAndShutdownWithInput() {
     Thread shutdownThread = new Thread(() -> {
-      System.out.printf(ANSI_YELLOW + "If the transaction signature hasn't timed out and the Ledger confirms the signature, the transaction will still be broadcast.\n" + ANSI_RESET);
+      System.out.printf(ANSI_YELLOW + "If the Ledger confirms the signature, the transaction will be broadcast.\n" + ANSI_RESET);
       System.out.printf(ANSI_YELLOW + "Current transaction sign will be closed after %ds.\n" + ANSI_RESET, TRANSACTION_SIGN_TIMEOUT);
       sleepNoInterruption(TRANSACTION_SIGN_TIMEOUT);
       shutdownHidServices();
