@@ -9,6 +9,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import lombok.extern.slf4j.Slf4j;
 import org.bouncycastle.util.encoders.Hex;
+import org.jline.reader.EndOfFileException;
+import org.jline.reader.LineReader;
+import org.jline.reader.LineReaderBuilder;
+import org.jline.reader.UserInterruptException;
+import org.jline.terminal.Terminal;
+import org.jline.terminal.TerminalBuilder;
 import org.tron.api.GrpcAPI;
 import org.tron.api.GrpcAPI.*;
 import org.tron.common.utils.AbiUtil;
@@ -29,9 +35,17 @@ import org.tron.core.zen.address.ExpandedSpendingKey;
 import org.tron.core.zen.address.FullViewingKey;
 import org.tron.core.zen.address.SpendingKey;
 import org.tron.keystore.StringUtils;
+import org.tron.keystore.Wallet;
 import org.tron.keystore.WalletFile;
 import org.tron.keystore.WalletUtils;
+import org.tron.ledger.LedgerAddressUtil;
+import org.tron.ledger.LedgerFileUtil;
+import org.tron.ledger.console.ConsoleColor;
+import org.tron.ledger.console.ImportAccount;
+import org.tron.ledger.console.TronLedgerImportAccount;
+import org.tron.ledger.wrapper.DebugConfig;
 import org.tron.mnemonic.MnemonicUtils;
+import org.tron.mnemonic.SubAccount;
 import org.tron.protos.Protocol.Account;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.ChainParameters;
@@ -59,14 +73,14 @@ public class WalletApiWrapper {
   private WalletApi wallet;
   private static final String MnemonicFilePath = "Mnemonic";
 
-  public String registerWallet(char[] password) throws CipherException, IOException {
+  public String registerWallet(char[] password, int wordsNumber) throws CipherException, IOException {
     if (!WalletApi.passwordValid(password)) {
       return null;
     }
 
     byte[] passwd = StringUtils.char2Byte(password);
 
-    WalletFile walletFile = WalletApi.CreateWalletFile(passwd);
+    WalletFile walletFile = WalletApi.CreateWalletFile(passwd, wordsNumber);
     StringUtils.clear(passwd);
 
     String keystoreName = WalletApi.store2Keystore(walletFile);
@@ -93,6 +107,156 @@ public class WalletApiWrapper {
     }
     logout();
     return keystoreName;
+  }
+
+  public String importWalletByLedger(char[] password) throws CipherException {
+    if (!WalletApi.passwordValid(password)) {
+      return null;
+    }
+    String walletFileName = "";
+
+    try {
+      Terminal terminal = TerminalBuilder.builder().system(true).dumb(true).build();
+      LineReader lineReader = LineReaderBuilder.builder().terminal(terminal).build();
+
+      String defaultPath = TronLedgerImportAccount.findFirstMissingPath(
+          LedgerFileUtil.getFileName());
+
+      String defaultImportAddress = LedgerAddressUtil.getImportAddress(defaultPath);
+      if (defaultImportAddress == null || defaultImportAddress.isEmpty()) {
+        System.out.println("No available address to import.");
+        return null;
+      }
+
+      String choice;
+      boolean quit = false;
+      int retryCount = 0 ;
+      int MAX_RETRY_COUNT = 3;
+      while (retryCount++ < MAX_RETRY_COUNT) {
+        System.out.println("-------------------------------------------------");
+        System.out.println("Default Account Address: " + defaultImportAddress);
+        System.out.println("Default Path: " + defaultPath);
+        System.out.println("-------------------------------------------------");
+
+        String[] options = {
+            "1. Import Default Account",
+            "2. Change Path",
+            "3. Custom Path"
+        };
+
+        for (String option : options) {
+          System.out.println(option);
+        }
+
+        choice = lineReader.readLine("Select an option: ").trim();
+        switch (choice) {
+          case "1":
+            walletFileName = doImportAccount(password
+                , defaultPath, defaultImportAddress);
+            quit = true;
+            break;
+          case "2":
+            System.out.println("You selected: Change Path");
+            walletFileName = doChangeAccount(password);
+            quit = true;
+            break;
+          case "3":
+            System.out.println("You selected: Custom Path");
+            walletFileName = doCustomPath(password);
+            if ("cancel".equalsIgnoreCase(walletFileName)) {
+              continue;
+            } else {
+              quit = true;
+              break;
+            }
+          case "q":
+            quit = true;
+            break;
+          default:
+            System.out.println("Invalid option. Please select 1, 2, 3 or q.");
+            continue;
+        }
+        if (quit) {
+          break;
+        }
+      }
+    } catch (IOException e) {
+      if (DebugConfig.isDebugEnabled()) {
+        e.printStackTrace();
+      }
+    }
+
+    return walletFileName;
+  }
+
+  public String doChangeAccount(char[] password) throws CipherException, IOException {
+    ImportAccount account = TronLedgerImportAccount.changeAccount();
+    if (account == null) {
+      return null;
+    }
+    return doImportAccount(password, account.getPath(), account.getAddress());
+  }
+
+  public String doCustomPath(char[] password) throws CipherException, IOException {
+    System.out.println(ConsoleColor.ANSI_RED+"\nRisk Alert");
+    System.out.println("\nYou are not advised to change the \"Path\" of a generated account address unless you are an advanced user.");
+    System.out.println("\nPlease do not use the \"Custom Path\" feature if you do not understand how account addresses are generated or the definition of \"Path\", in case you lose access to the new account generated.");
+
+    System.out.println("\nPlease Understand the Risks & Continue.\n"+ConsoleColor.ANSI_RESET);
+
+    Terminal terminal = TerminalBuilder.builder().system(true).dumb(true).build();
+    LineReader lineReader = LineReaderBuilder.builder().terminal(terminal).build();
+
+    int invalidAttempts = 0;
+    final int MAX_ATTEMPTS = 3;
+
+    while (invalidAttempts < MAX_ATTEMPTS) {
+      try {
+        String input = lineReader.readLine("Enter 'y' to continue or 'c' to cancel: ").trim().toLowerCase();
+        if ("y".equals(input)) {
+          ImportAccount account = TronLedgerImportAccount.enterMnemonicPath();
+          if (account == null) {
+            return null;
+          }
+          return doImportAccount(password, account.getPath(), account.getAddress());
+        } else if ("c".equals(input)) {
+          return "cancel";
+        } else {
+          invalidAttempts++;
+          System.out.println("Invalid input. Please enter 'y' or 'c'.");
+          if (invalidAttempts == MAX_ATTEMPTS) {
+            System.out.println("Maximum invalid attempts reached. Exiting.");
+            return "cancel";
+          }
+        }
+      } catch (UserInterruptException | EndOfFileException e) {
+        System.out.println("Input interrupted. Exiting.");
+        return "cancel";
+      }
+    }
+    return "cancel";
+  }
+
+  public String doImportAccount(char[] password, String path, String importAddress)
+      throws CipherException, IOException {
+    byte[] passwdByte = StringUtils.char2Byte(password);
+    try {
+      WalletFile walletLedgerFile = WalletApi.CreateLedgerWalletFile(
+          passwdByte, importAddress, path);
+      boolean result = loginLedger(passwdByte, walletLedgerFile);
+      if (!result) {
+        System.out.println("Login Ledger failed for address: " + importAddress);
+        return "";
+      }
+      String keystoreName = WalletApi.store2KeystoreLedger(walletLedgerFile);
+      LedgerFileUtil.writePathsToFile(Arrays.asList(path));
+      return keystoreName;
+    } catch (Exception e) {
+      System.out.println("Import account failed");
+      return "";
+    } finally {
+      StringUtils.clear(passwdByte);
+    }
   }
 
   public boolean changePassword(char[] oldPassword, char[] newPassword)
@@ -130,15 +294,72 @@ public class WalletApiWrapper {
     byte[] passwd = StringUtils.char2Byte(password);
     StringUtils.clear(password);
     wallet.checkPassword(passwd);
-    StringUtils.clear(passwd);
 
     if (wallet == null) {
       System.out.println("Warning: Login failed, Please registerWallet or importWallet first !!");
       return false;
     }
+
+    WalletFile walletFile = wallet.getWalletFile();
+    if (walletFile == null) {
+      System.out.println("Warning: Login failed, Please check your walletFile");
+      return false;
+    }
+
+    try{
+      String decryptStr = getLedgerPath(passwd, walletFile);
+      String prefix = "m/44'/195'/";
+      boolean isLedgerUser = decryptStr.startsWith(prefix);
+      if (isLedgerUser) {
+        wallet.setPath(decryptStr);
+        wallet.setLedgerUser(true);
+      }
+    } catch (Exception e) {
+      if (DebugConfig.isDebugEnabled()) {
+        e.printStackTrace();
+      }
+      return false;
+    } finally {
+      StringUtils.clear(passwd);
+    }
+
     wallet.setLogin();
     return true;
   }
+
+  public boolean loginLedger(byte[] passwdByte, WalletFile walletLedgerFile) {
+    logout();
+    wallet = new WalletApi(walletLedgerFile);
+    if (wallet == null) {
+      System.out.println("Warning: Login failed");
+      return false;
+    }
+
+    try {
+      String decryptStr = getLedgerPath(passwdByte, walletLedgerFile);
+      String prefix = "m/44'/195'/";
+      boolean isLedgerUser = decryptStr.startsWith(prefix);
+      if (isLedgerUser) {
+        wallet.setPath(decryptStr);
+        wallet.setLedgerUser(true);
+      }
+      wallet.setLogin();
+    } catch (Exception e) {
+      if (DebugConfig.isDebugEnabled()) {
+        e.printStackTrace();
+      }
+      return false;
+    }
+
+    return true;
+  }
+
+  public static String getLedgerPath(byte[] passwdByte, WalletFile walletLedgerFile)
+      throws CipherException {
+    byte[] decrypt = Wallet.decrypt2PrivateBytes(passwdByte, walletLedgerFile);
+    return new String(decrypt);
+  }
+
 
   public void logout() {
     if (wallet != null) {
@@ -149,6 +370,66 @@ public class WalletApiWrapper {
   }
 
 
+  public boolean generateSubAccount() throws CipherException, IOException {
+    boolean result = false;
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: GenerateSubAccount failed,  Please login first !!");
+      return false;
+    }
+
+    System.out.println("Please input your password.");
+    char[] password = Utils.inputPassword(false);
+    byte[] passwd = StringUtils.char2Byte(password);
+    try {
+      wallet.checkPassword(passwd);
+    } catch (CipherException e) {
+      System.out.println("Password check failed");
+      return false;
+    }
+    byte[] mnemonic = null;
+    SubAccount subAccount = null;
+    try {
+      String ownerAddress = WalletApi.encode58Check(wallet.getAddress());
+      mnemonic = MnemonicUtils.exportMnemonic(passwd, ownerAddress);
+      if (mnemonic == null || mnemonic.length == 0) {
+        return false;
+      }
+      subAccount = new SubAccount(passwd, new String(mnemonic), 0);
+      subAccount.start();
+    } catch (Exception e) {
+      System.out.println("Warning: GenerateSubAccount failed, e :" + e.getMessage());
+      return false;
+    } finally {
+      if (subAccount != null) {
+        subAccount.clearSensitiveData();
+      }
+      StringUtils.clear(mnemonic);
+      StringUtils.clear(password);
+      StringUtils.clear(passwd);
+    }
+
+    return true;
+  }
+
+  public boolean importWalletByMnemonic(List<String> mnemonicWords, byte[] passwd) throws CipherException, IOException {
+    SubAccount subAccount = null;
+    try {
+      if (mnemonicWords == null || mnemonicWords.isEmpty()) {
+        return false;
+      }
+      subAccount = new SubAccount(passwd, String.join(" ", mnemonicWords), 1);
+      subAccount.start();
+    } catch (Exception e) {
+      System.out.println("Warning: importWalletByMnemonic failed, e :" + e.getMessage());
+      return false;
+    } finally {
+      if (subAccount != null) {
+        subAccount.clearSensitiveData();
+      }
+      StringUtils.clear(passwd);
+    }
+    return true;
+  }
 
   //password is current, will be enc by password2.
   public byte[] backupWallet() throws IOException, CipherException {
@@ -185,6 +466,56 @@ public class WalletApiWrapper {
 
     //2.export mnemonic words
     return MnemonicUtils.exportMnemonic(passwd, getAddress());
+  }
+
+  public String exportKeystore(String walletChannel, File exportFullDir)
+      throws IOException, CipherException {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: ExportKeystore failed,  Please login first !!");
+      return null;
+    }
+
+    //1.input password
+    System.out.println("Please input your password.");
+    char[] password = Utils.inputPassword(false);
+    byte[] passwd = StringUtils.char2Byte(password);
+    try {
+      wallet.checkPassword(passwd);
+    } catch (CipherException e) {
+      System.out.println("Password check failed");
+      return null;
+    } finally {
+      StringUtils.clear(password);
+      StringUtils.clear(passwd);
+    }
+
+    return wallet.exportKeystore(walletChannel, exportFullDir);
+  }
+
+  public String importWalletByKeystore(byte[] passwdByte, File importFile)
+      throws IOException {
+    WalletFile walletFile = WalletUtils.loadWalletFile(importFile);
+
+    byte[] priKey = null;
+    try {
+      priKey = Wallet.decrypt2PrivateBytes(passwdByte, walletFile);
+    } catch (Exception e) {
+      System.out.println(e.getMessage());
+    }
+
+    if (priKey !=null) {
+      System.out.println("Please enter the password for the new account after importing the keystore into wallet-cli, enter it twice.");
+      char[] password = Utils.inputPassword2Twice();
+      try {
+        String fileName = importWallet(password, priKey, null);
+        return fileName;
+      } catch (Exception e) {
+        System.out.println(e.getMessage());
+      } finally {
+        StringUtils.clear(password);
+      }
+    }
+    return "";
   }
 
   public String getAddress() {
@@ -773,6 +1104,19 @@ public class WalletApiWrapper {
     }
     return wallet.clearContractABI(ownerAddress, contractAddress);
   }
+
+  public boolean clearWalletKeystore() {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: clearWalletKeystore failed,  Please login first !!");
+      return false;
+    }
+    boolean clearWalletKeystoreRet =  wallet.clearWalletKeystore();
+    if (clearWalletKeystoreRet) {
+      logout();
+    }
+    return clearWalletKeystoreRet;
+  }
+
 
   public boolean deployContract(byte[] ownerAddress, String name, String abiStr, String codeStr,
       long feeLimit, long value, long consumeUserResourcePercent, long originEnergyLimit,
@@ -1929,6 +2273,14 @@ public class WalletApiWrapper {
       return false;
     }
     return wallet.marketCancelOrder(owner, orderId);
+  }
+
+  public boolean getLedgerUser( ) {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: getLedgerUser failed,  Please login first !!");
+      return false;
+    }
+    return wallet.isLedgerUser();
   }
 
   public Optional<MarketOrderList> getMarketOrderByAccount(byte[] address) {

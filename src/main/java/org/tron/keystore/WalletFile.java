@@ -16,10 +16,19 @@ import java.io.IOException;
  * Ethereum wallet file.
  */
 public class WalletFile {
+    private String name;
     private String address;
     private Crypto crypto;
     private String id;
     private int version;
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
 
     public WalletFile() {
     }
