@@ -1,19 +1,17 @@
 package org.tron.ledger.wrapper;
 
-import lombok.Getter;
+import static org.tron.ledger.console.ConsoleColor.ANSI_RED;
+import static org.tron.ledger.console.ConsoleColor.ANSI_RESET;
+import static org.tron.ledger.console.ConsoleColor.ANSI_YELLOW;
+
+import java.util.ArrayList;
+import java.util.List;
 import org.hid4java.HidDevice;
 import org.hid4java.HidManager;
 import org.hid4java.HidServices;
 import org.hid4java.HidServicesSpecification;
 import org.tron.ledger.listener.LedgerEventListener;
 import org.tron.ledger.sdk.LedgerConstant;
-
-import java.util.ArrayList;
-import java.util.List;
-
-import static org.tron.ledger.console.ConsoleColor.ANSI_RED;
-import static org.tron.ledger.console.ConsoleColor.ANSI_RESET;
-import static org.tron.ledger.console.ConsoleColor.ANSI_YELLOW;
 
 public class HidServicesWrapper {
   private HidServices hidServices;
@@ -57,11 +55,11 @@ public class HidServicesWrapper {
     hidServicesSpecification.setAutoStart(false);
     hidServicesSpecification.setAutoDataRead(true);
     hidServicesSpecification.setDataReadInterval(1000);
-    HidServices hidServices = HidManager.getHidServices(hidServicesSpecification);
-    hidServices.addHidServicesListener(LedgerEventListener.getInstance());
-    hidServices.start();
+    HidServices hs = HidManager.getHidServices(hidServicesSpecification);
+    hs.addHidServicesListener(LedgerEventListener.getInstance());
+    hs.start();
 
-    return hidServices;
+    return hs;
   }
 
 

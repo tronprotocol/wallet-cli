@@ -3,10 +3,11 @@ package org.tron.mnemonic;
 import com.typesafe.config.Config;
 import lombok.Builder;
 import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import org.apache.commons.lang3.StringUtils;
 import org.jline.reader.LineReader;
 import org.jline.reader.LineReaderBuilder;
-import org.jline.reader.UserInterruptException;
 import org.jline.terminal.Terminal;
 import org.jline.terminal.TerminalBuilder;
 import org.jline.utils.AttributedStringBuilder;
@@ -40,6 +41,9 @@ public class SubAccount {
 
   private static final String PATH_PREFIX = "m/44'/195'/";
   private static final String PATH_MIDDLE = "'/0/";
+  @Getter
+  @Setter
+  private int type; // 0:subAccount, 1:importWalletByMnemonic
 
   @Data
   @Builder
@@ -66,13 +70,14 @@ public class SubAccount {
     }
   }
 
-  public SubAccount(byte[] password, String mnemonic) throws Exception {
+  public SubAccount(byte[] password, String mnemonic, int type) throws Exception {
     Config config = Configuration.getByPath("config.conf");
     if (config.hasPath("crypto.engine")) {
       isEckey = config.getString("crypto.engine").equalsIgnoreCase("eckey");
     }
     this.mnemonic = mnemonic;
     this.password = password;
+    this.type = type;
     this.terminal = TerminalBuilder.builder()
         .system(true)
         .dumb(true)
@@ -217,11 +222,11 @@ public class SubAccount {
               , MnemonicUtils.stringToMnemonicWords(mnemonic)
           );
           String keystoreName = WalletApi.store2Keystore(walletFile);
-          System.out.println("Generate a sub account successful, keystore file name is " + keystoreName);
+          System.out.println(getStringByType(getType()) + " successful, keystore file name is " + keystoreName);
           selected.setGenerated(true);
           return true;
         } else {
-          System.out.println(selected.getDetailString() + ", this sub account already exists.");
+          System.out.println(selected.getDetailString() + ", this address already exists.");
           return false;
         }
       } else {
@@ -236,7 +241,6 @@ public class SubAccount {
       return false;
     }
   }
-
 
   private void showError(String message) {
     terminal.writer().println("\n" + message);
@@ -266,7 +270,7 @@ public class SubAccount {
         break;
       }
 
-      terminal.writer().println("\n=== Sub Account Generator ===");
+      terminal.writer().println("\n=== " + getStringByType(getType()) + " Generator ===");
 
       terminal.writer().println("-------------------------------");
       terminal.writer().println("Default Address: " + walletAddress.getAddress());
@@ -315,7 +319,7 @@ public class SubAccount {
         , MnemonicUtils.stringToMnemonicWords(mnemonic)
     );
     String keystoreName = WalletApi.store2Keystore(walletFile);
-    System.out.println("Generate a sub account successful, keystore file name is " + keystoreName);
+    System.out.println(getStringByType(getType()) + " successful, keystore file name is " + keystoreName);
 
     try {
       int subAccountIndex = getSubAccountIndex(path);
@@ -379,11 +383,15 @@ public class SubAccount {
     return true;
   }
 
+  public String getStringByType(int type) {
+    return type == 0 ? "GenerateSubAccount" : "importWalletByMnemonic";
+  }
+
   private void generateSubAccountByCustomPath(String path) throws CipherException, IOException {
     WalletAddress walletAddress = this.generateWalletAddressByCustomPath(
         mnemonic, path);
     if (walletAddress == null) {
-      System.out.println("Generate Subaccount by Custom Path failed");
+      System.out.println(getStringByType(getType()) + " by Custom Path failed");
       return;
     }
     if (MnemonicUtils.generatedAddress(walletAddress.getAddress())) {
@@ -398,7 +406,7 @@ public class SubAccount {
         .append("\n");
     terminal.writer().println(result.toAnsi());
     terminal.flush();
-    String response = reader.readLine("Input y/yes to generate the subaccount? (y/yes): ").trim().toLowerCase();
+    String response = reader.readLine("Input y/yes to " + getStringByType(getType()) + "? (y/yes): ").trim().toLowerCase();
     if (!response.equalsIgnoreCase("y")
         && !response.equalsIgnoreCase("yes")) {
       return;
@@ -408,7 +416,7 @@ public class SubAccount {
         , MnemonicUtils.stringToMnemonicWords(mnemonic)
     );
     String keystoreName = WalletApi.store2Keystore(walletFile);
-    System.out.println("Generate a sub account successful, keystore file name is " + keystoreName);
+    System.out.println(getStringByType(getType()) + " successful, keystore file name is " + keystoreName);
 
     try {
       int subAccountIndex = getSubAccountIndex(path);

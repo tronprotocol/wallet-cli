@@ -39,6 +39,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.bouncycastle.util.encoders.Hex;
+import org.hid4java.HidDevice;
 import org.tron.api.GrpcAPI;
 import org.tron.api.GrpcAPI.AccountNetMessage;
 import org.tron.api.GrpcAPI.AccountResourceMessage;
@@ -109,6 +110,8 @@ import org.tron.keystore.Credentials;
 import org.tron.ledger.LedgerFileUtil;
 import org.tron.ledger.LedgerSignUtil;
 import org.tron.ledger.listener.TransactionSignManager;
+import org.tron.ledger.wrapper.HidServicesWrapper;
+import org.tron.ledger.wrapper.LedgerSignResult;
 import org.tron.mnemonic.Mnemonic;
 import org.tron.mnemonic.MnemonicFile;
 import org.tron.mnemonic.MnemonicUtils;
@@ -653,7 +656,10 @@ public class WalletApi {
             TransactionSignManager.getInstance().setTransaction(null);
             return transaction;
           }
-          if (weight.getResult().getCode() == response_code.NOT_ENOUGH_PERMISSION) {
+          HidDevice hidDevice = HidServicesWrapper.getInstance().getHidDevice();
+          Optional<String> state = LedgerSignResult.getLastTransactionState(hidDevice.getPath());
+          boolean isSigning = state.isPresent() && LedgerSignResult.SIGN_RESULT_SIGNING.equals(state.get());
+          if (weight.getResult().getCode() == response_code.NOT_ENOUGH_PERMISSION && !isSigning) {
             System.out.println("Current signWeight is:");
             System.out.println(Utils.printTransactionSignWeight(weight));
             System.out.println("Please confirm if continue add signature enter y or Y, else any other");
@@ -664,6 +670,7 @@ public class WalletApi {
             TransactionSignManager.getInstance().setTransaction(null);
             continue;
           }
+          TransactionSignManager.getInstance().setTransaction(null);
           throw new CancelException(weight.getResult().getMessage());
         } else {
           return null;
