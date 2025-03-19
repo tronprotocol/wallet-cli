@@ -101,7 +101,8 @@ For more information on a specific command, just type the command on terminal wh
 | [GetDelegatedResourceAccountIndexV2](#How-to-freezev2) | [GetCanDelegatedMaxSize](#How-to-freezev2) | [GetAvailableUnfreezeCount](#How-to-freezev2) |
 | [GetCanWithdrawUnfreezeAmount](#How-to-freezev2) |[GetBandwidthPrices](#Get-resource-prices-and-memo-fee) | [GetEnergyPrices](#Get-resource-prices-and-memo-fee)|
 | [GetMemoFee](#Get-resource-prices-and-memo-fee) |[ImportWalletByMnemonic](#import-and-export-mnemonic) | [ExportWalletMnemonic](#import-and-export-mnemonic) |
-
+| [GenerateSubAccount](#generate-sub-account) |[ClearWalletKeystore](#clear-wallet-keystore) |[ExportWalletKeystore](#export-import-wallet-keystore) |
+| [ImportWalletByKeystore](#export-import-wallet-keystore) |[ImportWalletByLedger](#import-wallet-by-ledger) |
 
 Type any one of the listed commands, to display how-to tips.
 
@@ -1533,6 +1534,103 @@ exportWalletMnemonic successful !!
 a*ert tw*st co*rect mat*er pa*s g*ther p*t p*sition s*op em*ty coc*nut aband*n
 ```
 
+## generate sub account
+    >GenerateSubAccount
+>generate subaccount using the mnemonic in the wallet
+
+Example:
+```console
+wallet> GenerateSubAccount  
+Please input your password.  
+password:  
+
+=== Sub Account Generator ===  
+-----------------------------  
+Default Address: TYEhEg7b7tXm92UDbRDXPtJNU6T9xVGbbo  
+Default Path: m/44'/195'/0'/0/1  
+-----------------------------  
+
+1. Generate Default Path  
+2. Change Account  
+3. Custom Path  
+
+Enter your choice (1-3): 1  
+mnemonic file : ./Mnemonic/TYEhEg7b7tXm92UDbRDXPtJNU6T9xVGbbo.json  
+Generate a sub account successful, keystore file name is TYEhEg7b7tXm92UDbRDXPtJNU6T9xVGbbo.json  
+generateSubAccount successful.  
+```
+## clear wallet keystore
+    >ClearWalletKeystore
+>clear wallet keystore of the login account
+
+Example:
+```console
+wallet> ClearWalletKeystore 
+
+Warning: Dangerous operation!
+This operation will permanently delete the Wallet&Mnemonic files of the Address: TABWx7yFhWrvZHbwKcCmFLyPLWjd2dZ2Rq
+Warning: The private key and mnemonic words will be permanently lost and cannot be recovered!
+Continue? (Y/Yes to proceed):y
+
+Final confirmation:
+Please enter: 'DELETE' To confirm the delete operation:
+Confirm: (DELETE): DELETE
+
+File deleted successfully:
+- /wallet-cli/Wallet/TABWx8yFhWrvZHbwKcCmFLyPLWjd2dZ2Rq.json
+- /wallet-cli/Mnemonic/TABWx8yFhWrvZHbwKcCmFLyPLWjd2dZ2Rq.json
+ClearWalletKeystore successful !!!
+```
+## export import wallet keystore
+    >ExportWalletKeystore
+>export the wallet keystore to the format of tronlink wallet
+
+Example:
+```console
+wallet> ExportWalletKeystore tronlink /tmp
+Please input your password.
+password:
+exported keystore file : /tmp/TYdhEg8b7tXm92UDbRDXPtJNU6T9xVGbbo.json
+exportWalletKeystore successful !!
+```
+    >ImportWalletByKeystore
+>import the keystore file of tronlink wallet to wallet-cli 
+
+Example:
+```console
+wallet> ImportWalletByKeystore tronlink /tmp/tronlink.json
+Please input password.
+password:
+Please input password again.
+password:
+fileName = TYQq6zp51unQDNELmT4xKMWh5WLcwpCDZJ.json
+importWalletByKeystore successful !!
+```
+## import wallet by ledger
+    >ImportWalletByLedger
+>import the derived account of ledger to wallet-cli
+
+Example:
+```console
+wallet> ImportWalletByLedger
+((Note:This will pair Ledger to user your hardward wallet)
+Only one Ledger device is supported. If you have multiple devices, please ensure only one is connected.
+Ledger device found: Nano X
+Please input password.
+password:
+Please input password again.
+password:
+-------------------------------------------------
+Default Account Address: TAT1dA8F9HXGqmhvMCjxCKAD29YxDRw81y
+Default Path: m/44'/195'/0'/0/0
+-------------------------------------------------
+1. Import Default Account
+2. Change Path
+3. Custom Path
+Select an option: 1
+Import a wallet by Ledger successful, keystore file : ./Wallet/Ledger-TAT1dA8F9HXGqmhvMCjxCKAD29YxDRw81y.json
+You are now logged in, and you can perform operations using this account.
+```
 
 
 ## Wallet related commands
