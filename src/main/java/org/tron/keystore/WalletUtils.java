@@ -13,12 +13,17 @@ import org.tron.core.exception.CipherException;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.stream.Collectors;
 
 /**
  * Utility functions for working with Wallet files.
@@ -107,6 +112,26 @@ public class WalletUtils {
     return fileName;
   }
 
+
+  public static String generateLegerWalletFile(WalletFile walletFile, File destinationDirectory)
+      throws IOException {
+    String fileName = getLegerWalletFileName(walletFile);
+    File destination = new File(destinationDirectory, fileName);
+
+    objectMapper.writeValue(destination, walletFile);
+    return fileName;
+  }
+
+  public static String exportWalletFile(WalletFile walletFile, String walletAddress, File destinationDirectory)
+      throws IOException {
+    String fileName = getExportWalletFileName(walletAddress);
+
+    File destination = new File(destinationDirectory, fileName);
+
+    objectMapper.writeValue(destination, walletFile);
+    return fileName;
+  }
+
   //    /**
 //     * Generates a BIP-39 compatible Ethereum wallet. The private key for the wallet can
 //     * be calculated using following algorithm:
@@ -159,11 +184,16 @@ public class WalletUtils {
 //    }
 
   private static String getWalletFileName(WalletFile walletFile) {
-    DateTimeFormatter format = DateTimeFormatter.ofPattern(
-        "'UTC--'yyyy-MM-dd'T'HH-mm-ss.nVV'--'");
-    ZonedDateTime now = ZonedDateTime.now(ZoneOffset.UTC);
+    return walletFile.getAddress() + ".json";
+  }
 
-    return now.format(format) + walletFile.getAddress() + ".json";
+  private static String getLegerWalletFileName(WalletFile walletFile) {
+    return "Ledger-" + walletFile.getAddress() + ".json";
+  }
+
+
+  private static String getExportWalletFileName(String walletAddress) {
+    return walletAddress + ".json";
   }
 
   public static String getDefaultKeyDirectory() {
@@ -218,5 +248,46 @@ public class WalletUtils {
 
   public static SKeyCapsule loadSkeyFile(File source) throws IOException {
     return objectMapper.readValue(source, SKeyCapsule.class);
+  }
+
+  public static boolean hasStoreFile(String address, String destinationDirectory) {
+    File dir = Paths.get(destinationDirectory).toFile();
+    if (!dir.exists() || !dir.isDirectory()) {
+      return false;
+    }
+    File[] files = dir.listFiles((d, name) ->
+        name.endsWith(address + ".json"));
+    return files != null && files.length > 0;
+  }
+
+  public static boolean deleteStoreFile(String address, String destinationDirectory) {
+    Path dir = Paths.get(destinationDirectory);
+    File[] files = dir.toFile().listFiles((d, name) ->
+        name.endsWith(address + ".json"));
+    if (files != null && files.length > 0) {
+      for (File file : files) {
+        file.delete();
+      }
+    }
+    return true;
+  }
+
+  public static File[]  getStoreFiles(String address, String destinationDirectory) {
+    File dir = Paths.get(destinationDirectory).toFile();
+    if (!dir.exists() || !dir.isDirectory()) {
+      return null;
+    }
+    File[] files = dir.listFiles((d, name) ->
+        name.endsWith(address + ".json"));
+    return files;
+  }
+
+  public static ArrayList<String> getStoreFileNames(String address, String destinationDirectory) {
+    File[] walletFiles = WalletUtils.getStoreFiles(address, destinationDirectory);
+    return walletFiles != null ?
+        Arrays.stream(walletFiles)
+            .map(File::getAbsolutePath)
+            .collect(Collectors.toCollection(ArrayList::new))
+        : new ArrayList<>();
   }
 }

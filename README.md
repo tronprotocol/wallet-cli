@@ -64,43 +64,45 @@ We can configure java-tron node IP and port in ``src/main/resources/config.conf`
 Following is a list of Tron Wallet-cli commands:
 For more information on a specific command, just type the command on terminal when you start your Wallet.
 
-| [AddTransactionSign](#How-to-use-the-multi-signature-feature-of-wallet-cli) | [ApproveProposal](#Approvecancel-the-proposal)  | [AssetIssue](#How-to-issue-TRC10-tokens) |
+| [AddTransactionSign](#How-to-use-the-multi-signature-feature-of-wallet-cli) | [ApproveProposal](#Approve--disapprove-a-proposal)  | [AssetIssue](#Issue-trc10-tokens) |
 | :---------:|:---------:|:--------: |
 | [BackupShieldedTRC20Wallet](#How-to-transfer-shielded-TRC20-token) | [BackupWallet](#Wallet-related-commands)| [BackupWallet2Base64](#Wallet-related-commands) |
-| [BroadcastTransaction](#Some-others) | [ChangePassword](#Wallet-related-commands)| [CreateProposal](#How-to-initiate-a-proposal) 
-| [DeleteProposal](#Cancel-the-created-proposal) | [DeployContract](#How-to-use-smart-contract) | [ExchangeCreate](#How-to-trade-on-the-exchange) |
+| [BroadcastTransaction](#Some-others) | [ChangePassword](#Wallet-related-commands)| [CreateProposal](#Initiate-a-proposal) 
+| [DeleteProposal](#Delete-an-existed-proposal) | [DeployContract](#How-to-use-smart-contract) | [ExchangeCreate](#How-to-trade-on-the-exchange) |
 | [ExchangeInject](#How-to-trade-on-the-exchange) | [ExchangeTransaction](#How-to-trade-on-the-exchange) | [ExchangeWithdraw](#How-to-trade-on-the-exchange) |
-| [FreezeBalance](#How-to-delegate-resourcee) | [GenerateAddress](#Account-related-commands) | [GenerateShieldedTRC20Address](#How-to-transfer-shielded-TRC20-token)|
+| [FreezeBalance](#Delegate-resource) | [GenerateAddress](#Account-related-commands) | [GenerateShieldedTRC20Address](#How-to-transfer-shielded-TRC20-token)|
 | [GetAccount](#Account-related-commands) |[GetAccountNet](#Account-related-commands) | [GetAccountResource](#Account-related-commands) | 
-| [GetAddress](#Account-related-commands) | [GetAkFromAsk](#How-to-transfer-shielded-TRC20-token) |[GetAssetIssueByAccount](#How-to-issue-TRC10-tokens) | 
-| [GetAssetIssueById](#How-to-issue-TRC10-tokens) | [GetAssetIssueByName](#How-to-issue-TRC10-tokens) |[GetAssetIssueListByName](#How-to-issue-TRC10-tokens) | 
+| [GetAddress](#Account-related-commands) | [GetAkFromAsk](#How-to-transfer-shielded-TRC20-token) |[GetAssetIssueByAccount](#How-to-obtain-trc10-token-information) | 
+| [GetAssetIssueById](#How-to-obtain-trc10-token-information) | [GetAssetIssueByName](#How-to-obtain-trc10-token-information) |[GetAssetIssueListByName](#How-to-obtain-trc10-token-information) | 
 | [GetBalance](#Account-related-commands) | [GetBlock](#How-to-get-block-information) |[GetBlockById](#How-to-get-block-information) | 
 | [GetBlockByLatestNum](#How-to-get-block-information) | [GetBlockByLimitNext](#How-to-get-block-information) | [GetBrokerage](#Brokerage) | 
-| [GetContract](#How-to-use-smart-contracts) | [GetDelegatedResource](#How-to-delegate-resource) |[GetDelegatedResourceAccountIndex](#How-to-delegate-resource) | 
+| [GetContract](#Get-details-of-a-smart-contract) | [GetDelegatedResource](#How-to-delegate-resource) |[GetDelegatedResourceAccountIndex](#How-to-delegate-resource) | 
 | [GetDiversifier](#How-to-transfer-shielded-TRC20-token)| [GetExpandedSpendingKey](#How-to-transfer-shielded-TRC20-token)| [GetIncomingViewingKey](#How-to-transfer-shielded-TRC20-token) | 
 | [GetMarketOrderByAccount](#How-to-use-tron-dex-to-sell-asset)| [GetMarketOrderById](#How-to-use-tron-dex-to-sell-asset)| [GetMarketOrderListByPair](#How-to-use-tron-dex-to-sell-asset) | 
 | [GetMarketPairList](#How-to-use-tron-dex-to-sell-asset)| [GetMarketPriceByPair](#How-to-use-tron-dex-to-sell-asset)| [GetNextMaintenanceTime](#Some-others) | 
-| [GetNkFromNsk](#How-to-transfer-shielded-TRC20-token) | [GetProposal](#Get-proposal-information) | [GetShieldedPaymentAddress](#How-to-transfer-shielded-TRC20-token)| 
+| [GetNkFromNsk](#How-to-transfer-shielded-TRC20-token) | [GetProposal](#Obtain-proposal-information) | [GetShieldedPaymentAddress](#How-to-transfer-shielded-TRC20-token)| 
 | [GetSpendingKey](#How-to-transfer-shielded-TRC20-token) | [GetReward](#Brokerage) |  [GetTransactionApprovedList](#How-to-use-the-multi-signature-feature-of-wallet-cli) |
 | [GetTransactionById](#How-to-get-transaction-information) | [GetTransactionCountByBlockNum](#How-to-get-transaction-information) | [GetTransactionInfoByBlockNum](#How-to-get-transaction-information) | 
 | [GetTransactionInfoById](#How-to-get-transaction-information) | [GetTransactionSignWeight](#How-to-use-the-multi-signature-feature-of-wallet-cli) | [ImportShieldedTRC20Wallet](#How-to-transfer-shielded-TRC20-token) | 
-| [ImportWallet](#Wallet-related-commands) | [ImportWalletByBase64](#Wallet-related-commands) | [ListAssetIssue](#Get-Token10) | 
+| [ImportWallet](#Wallet-related-commands) | [ImportWalletByBase64](#Wallet-related-commands) | [ListAssetIssue](#How-to-obtain-trc10-token-information) | 
 | [ListExchanges](#How-to-trade-on-the-exchange) | [ListExchangesPaginated](#How-to-trade-on-the-exchange) | [ListNodes](#Some-others) | 
-| [ListShieldedTRC20Address](#How-to-transfer-shielded-TRC20-token) | [ListShieldedTRC20Note](#How-to-transfer-shielded-TRC20-token) | [ListProposals](#How-to-initiate-a-proposal) | 
-| [ListProposalsPaginated](#How-to-initiate-a-proposal) | [ListWitnesses](#Some-others) | [LoadShieldedTRC20Wallet](#How-to-transfer-shielded-TRC20-token) | 
+| [ListShieldedTRC20Address](#How-to-transfer-shielded-TRC20-token) | [ListShieldedTRC20Note](#How-to-transfer-shielded-TRC20-token) | [ListProposals](#Obtain-proposal-information) | 
+| [ListProposalsPaginated](#Obtain-proposal-information) | [ListWitnesses](#Some-others) | [LoadShieldedTRC20Wallet](#How-to-transfer-shielded-TRC20-token) | 
 | [Login](#Command-line-operation-flow-example) | [MarketCancelOrder](#How-to-use-tron-dex-to-sell-asset) | [MarketSellAsset](#How-to-use-tron-dex-to-sell-asset)| 
-| [ParticipateAssetIssue](#How-to-issue-TRC10-tokens) | [RegisterWallet](#Wallet-related-commands) | [ResetShieldedTRC20Note](#How-to-transfer-shielded-TRC20-token) | 
+| [ParticipateAssetIssue](#Participating-in-the-issue-of-trc10-token) | [RegisterWallet](#Wallet-related-commands) | [ResetShieldedTRC20Note](#How-to-transfer-shielded-TRC20-token) | 
 | [ScanShieldedTRC20NoteByIvk](#How-to-transfer-shielded-TRC20-token) |  [ScanShieldedTRC20NoteByOvk](#How-to-transfer-shielded-TRC20-token) |[SendCoin](#How-to-use-the-multi-signature-feature-of-wallet-cli) | 
 | [SendShieldedTRC20Coin](#How-to-transfer-shielded-TRC20-token) | [SendShieldedTRC20CoinWithoutAsk](#How-to-transfer-shielded-TRC20-token) | [SetShieldedTRC20ContractAddress](#How-to-transfer-shielded-TRC20-token) | 
-| [ShowShieldedTRC20AddressInfo](#How-to-transfer-shielded-TRC20-token) | [TransferAsset](#How-to-issue-TRC10-tokens) | [TriggerContract](#How-to-use-smart-contracts) |
-| [UnfreezeAsset](#How-to-issue-TRC10-tokens) | [UnfreezeBalance](#How-to-delegate-resource) |[UpdateAsset](#How-to-issue-TRC10-tokens) | 
-| [UpdateBrokerage](#Brokerage) | [UpdateEnergyLimit](#How-to-use-smart-contracts) |[UpdateSetting](#How-to-use-smart-contracts) | 
+| [ShowShieldedTRC20AddressInfo](#How-to-transfer-shielded-TRC20-token) | [TransferAsset](#Trc10-token-transfer) | [TriggerContract](#Trigger-smart-contarct) |
+| [UnfreezeAsset](#Unfreeze-trc10-token) | [UnfreezeBalance](#How-to-delegate-resource) |[UpdateAsset](#Update-parameters-of-trc10-token) | 
+| [UpdateBrokerage](#Brokerage) | [UpdateEnergyLimit](#Update-smart-contract-parameters) |[UpdateSetting](#Update-smart-contract-parameters) | 
 | [UpdateAccountPermission](#How-to-use-the-multi-signature-feature-of-wallet-cli) | [VoteWitness](#How-to-vote) | [FreezeBalanceV2](#How-to-freezev2) |
 | [UnfreezeBalanceV2](#How-to-freezev2) | [DelegateResource](#How-to-freezev2) | [UnDelegateResource](#How-to-freezev2) |
 | [WithdrawExpireUnfreeze](#How-to-freezev2) | [CancelAllUnfreezeV2](#How-to-freezev2) |[GetDelegatedResourceV2](#How-to-freezev2) | 
 | [GetDelegatedResourceAccountIndexV2](#How-to-freezev2) | [GetCanDelegatedMaxSize](#How-to-freezev2) | [GetAvailableUnfreezeCount](#How-to-freezev2) |
-| [GetCanWithdrawUnfreezeAmount](#How-to-freezev2) |[GetBandwidthPrices](#Prices) | [GetEnergyPrices](#Prices)|
-| [GetMemoFee](#Prices) |||
+| [GetCanWithdrawUnfreezeAmount](#How-to-freezev2) |[GetBandwidthPrices](#Get-resource-prices-and-memo-fee) | [GetEnergyPrices](#Get-resource-prices-and-memo-fee)|
+| [GetMemoFee](#Get-resource-prices-and-memo-fee) |[ImportWalletByMnemonic](#import-and-export-mnemonic) | [ExportWalletMnemonic](#import-and-export-mnemonic) |
+| [GenerateSubAccount](#generate-sub-account) |[ClearWalletKeystore](#clear-wallet-keystore) |[ExportWalletKeystore](#export-import-wallet-keystore) |
+| [ImportWalletByKeystore](#export-import-wallet-keystore) |[ImportWalletByLedger](#import-wallet-by-ledger) |
 
 Type any one of the listed commands, to display how-to tips.
 
@@ -584,8 +586,8 @@ GetProposal
 
 ## How to trade on the exchange
 
-The trading and price fluctuations of trading pairs are in accordance with the [Bancor Agreement](https://storage.googleapis.com/website-bancor/2018/04/01ba8253-bancor_protocol_whitepaper_en.pdf),
-which can be found in TRON's [related documents](https://developers.tron.network/docs/tronscan-dex).
+The trading and price fluctuations of trading pairs are in accordance with the Bancor Agreement,
+which can be found in TRON's [related documents](https://tronprotocol.github.io/documentation-en/clients/wallet-cli-command/#dex).
 
 ### Create a trading pair
 
@@ -1475,6 +1477,7 @@ wallet> getCanWithdrawUnfreezeAmount TJAVcszse667FmSNCwU2fm6DmfM5D4AyDh 16711003
 	"amount": 9000000
 }
 ```
+## Get resource prices and memo fee
     > getbandwidthprices
 > get historical unit price of bandwidth
 
@@ -1504,6 +1507,129 @@ wallet> getMemoFee
 {
     "prices": "0:0,1675492680000:1000000"
 }
+```
+## import and export mnemonic
+    >ImportWalletByMnemonic
+>Import wallet, you need to set a password, mnemonic
+
+Example:
+```console
+wallet> ImportWalletByMnemonic
+Please input password.
+password:
+Please input password again.
+password:
+Please enter 12 words (separated by spaces) [Attempt 1/3]:
+```
+
+    >ExportWalletMnemonic
+>export mnemonic of the address in the wallet
+
+Example:
+```console
+wallet> ExportWalletMnemonic
+Please input your password.
+password:
+exportWalletMnemonic successful !!
+a*ert tw*st co*rect mat*er pa*s g*ther p*t p*sition s*op em*ty coc*nut aband*n
+```
+
+## generate sub account
+    >GenerateSubAccount
+>generate subaccount using the mnemonic in the wallet
+
+Example:
+```console
+wallet> GenerateSubAccount  
+Please input your password.  
+password:  
+
+=== Sub Account Generator ===  
+-----------------------------  
+Default Address: TYEhEg7b7tXm92UDbRDXPtJNU6T9xVGbbo  
+Default Path: m/44'/195'/0'/0/1  
+-----------------------------  
+
+1. Generate Default Path  
+2. Change Account  
+3. Custom Path  
+
+Enter your choice (1-3): 1  
+mnemonic file : ./Mnemonic/TYEhEg7b7tXm92UDbRDXPtJNU6T9xVGbbo.json  
+Generate a sub account successful, keystore file name is TYEhEg7b7tXm92UDbRDXPtJNU6T9xVGbbo.json  
+generateSubAccount successful.  
+```
+## clear wallet keystore
+    >ClearWalletKeystore
+>clear wallet keystore of the login account
+
+Example:
+```console
+wallet> ClearWalletKeystore 
+
+Warning: Dangerous operation!
+This operation will permanently delete the Wallet&Mnemonic files of the Address: TABWx7yFhWrvZHbwKcCmFLyPLWjd2dZ2Rq
+Warning: The private key and mnemonic words will be permanently lost and cannot be recovered!
+Continue? (Y/Yes to proceed):y
+
+Final confirmation:
+Please enter: 'DELETE' To confirm the delete operation:
+Confirm: (DELETE): DELETE
+
+File deleted successfully:
+- /wallet-cli/Wallet/TABWx8yFhWrvZHbwKcCmFLyPLWjd2dZ2Rq.json
+- /wallet-cli/Mnemonic/TABWx8yFhWrvZHbwKcCmFLyPLWjd2dZ2Rq.json
+ClearWalletKeystore successful !!!
+```
+## export import wallet keystore
+    >ExportWalletKeystore
+>export the wallet keystore to the format of tronlink wallet
+
+Example:
+```console
+wallet> ExportWalletKeystore tronlink /tmp
+Please input your password.
+password:
+exported keystore file : /tmp/TYdhEg8b7tXm92UDbRDXPtJNU6T9xVGbbo.json
+exportWalletKeystore successful !!
+```
+    >ImportWalletByKeystore
+>import the keystore file of tronlink wallet to wallet-cli 
+
+Example:
+```console
+wallet> ImportWalletByKeystore tronlink /tmp/tronlink.json
+Please input password.
+password:
+Please input password again.
+password:
+fileName = TYQq6zp51unQDNELmT4xKMWh5WLcwpCDZJ.json
+importWalletByKeystore successful !!
+```
+## import wallet by ledger
+    >ImportWalletByLedger
+>import the derived account of ledger to wallet-cli
+
+Example:
+```console
+wallet> ImportWalletByLedger
+((Note:This will pair Ledger to user your hardward wallet)
+Only one Ledger device is supported. If you have multiple devices, please ensure only one is connected.
+Ledger device found: Nano X
+Please input password.
+password:
+Please input password again.
+password:
+-------------------------------------------------
+Default Account Address: TAT1dA8F9HXGqmhvMCjxCKAD29YxDRw81y
+Default Path: m/44'/195'/0'/0/0
+-------------------------------------------------
+1. Import Default Account
+2. Change Path
+3. Custom Path
+Select an option: 1
+Import a wallet by Ledger successful, keystore file : ./Wallet/Ledger-TAT1dA8F9HXGqmhvMCjxCKAD29YxDRw81y.json
+You are now logged in, and you can perform operations using this account.
 ```
 
 
