@@ -19,7 +19,7 @@ import static org.tron.ledger.console.ConsoleColor.ANSI_RESET;
 
 public class LedgerSignUtil {
 
-  public static boolean requestLedgerSignLogic(Protocol.Transaction transaction, String path, byte[] address) {
+  public static boolean requestLedgerSignLogic(Protocol.Transaction transaction, String path, String address) {
     try {
       if (!ContractTypeChecker.canUseLedgerSign(
           transaction.getRawData().getContract(0).getType().toString())) {
@@ -35,7 +35,7 @@ public class LedgerSignUtil {
           }
         } else {
           try {
-            hidDevice = HidServicesWrapper.getInstance().getHidDevice();
+            hidDevice = HidServicesWrapper.getInstance().getHidDevice(address, path);
           } catch (IllegalStateException e) {
             if (DebugConfig.isDebugEnabled()) {
               e.printStackTrace();
@@ -73,6 +73,7 @@ public class LedgerSignUtil {
           }
           ret = LedgerEventListener.getInstance().executeSignListen(hidDevice, transaction, path);
         } catch (IllegalStateException e) {
+          System.out.println(ANSI_RED + e.getMessage() + ANSI_RESET);
           if (DebugConfig.isDebugEnabled()) {
             e.printStackTrace();
           }

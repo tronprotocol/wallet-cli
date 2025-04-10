@@ -161,7 +161,7 @@ public class LedgerEventListener extends BaseListener {
     }
 
     if (LEDGER_SIGN_CANCEL.equalsIgnoreCase(CommonUtil.bytesToHex(unwrappedResponse))) {
-      HidDevice hidDevice = HidServicesWrapper.getInstance().getHidDevice();
+      HidDevice hidDevice = TransactionSignManager.getInstance().getHidDevice();
       LedgerSignResult.updateAllSigningToReject(hidDevice.getPath());
 
       System.out.println("\nCancel sign from Ledger");
@@ -173,7 +173,7 @@ public class LedgerEventListener extends BaseListener {
         if (DebugConfig.isDebugEnabled()) {
           System.out.println("Transaction is null");
         }
-        HidDevice hidDevice = HidServicesWrapper.getInstance().getHidDevice();
+        HidDevice hidDevice = TransactionSignManager.getInstance().getHidDevice();
         LedgerSignResult.updateAllSigningToReject(hidDevice.getPath());
         if (DebugConfig.isDebugEnabled()) {
           System.out.println("Do updateAllSigningToReject");

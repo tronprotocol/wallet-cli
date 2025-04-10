@@ -1,5 +1,10 @@
 package org.tron.keystore;
 
+import static org.apache.commons.lang3.StringUtils.EMPTY;
+import static org.apache.commons.lang3.StringUtils.isEmpty;
+import static org.tron.common.utils.Utils.greenBoldHighlight;
+import static org.tron.common.utils.Utils.redBoldHighlight;
+
 import org.jline.reader.LineReader;
 import org.jline.reader.LineReaderBuilder;
 import org.jline.terminal.Terminal;
@@ -22,12 +27,12 @@ public class ClearWalletUtils {
       LineReader lineReader = LineReaderBuilder.builder().terminal(terminal).build();
 
       System.out.println("\n\u001B[31mWarning: Dangerous operation!\u001B[0m");
-      System.out.println("This operation will permanently delete the Wallet&Mnemonic files of the Address: " + address);
+      System.out.println("This operation will permanently delete the Wallet&Mnemonic files "+ (isEmpty(address) ? EMPTY : "of the Address: " + address));
       System.out.println("\u001B[31mWarning: The private key and mnemonic words will be permanently lost and cannot be recovered!\u001B[0m");
 
       int attempts = 0;
       while (attempts < MAX_ATTEMPTS) {
-        String confirm = lineReader.readLine("Continue? (Y/Yes to proceed): ").trim();
+        String confirm = lineReader.readLine("Continue? (" + greenBoldHighlight("y/Y") + " to proceed): ").trim();
         if (isConfirmed(confirm)) {
           break;
         }
@@ -35,11 +40,11 @@ public class ClearWalletUtils {
           System.out.println("Maximum retry attempts reached, operation canceled.");
           return false;
         }
-        System.out.println("Invalid input, please enter Y or Yes to confirm.");
+        System.out.println("Invalid input, please enter " + greenBoldHighlight("y/Y") + " to confirm.");
       }
 
       System.out.println("\nFinal confirmation:");
-      System.out.println("Please enter: '" + CONFIRMATION_WORD + "' To confirm the delete operation:");
+      System.out.println("Please enter: '" + redBoldHighlight(CONFIRMATION_WORD) + "' To confirm the delete operation:");
 
       attempts = 0;
       while (attempts < MAX_ATTEMPTS) {
@@ -51,7 +56,7 @@ public class ClearWalletUtils {
           System.out.println("Maximum retry attempts reached, operation canceled.");
           return false;
         }
-        System.out.println("Input does not match, Please enter: 'DELETE' To confirm the delete operation.");
+        System.out.println("Input does not match, Please enter: '" + redBoldHighlight(CONFIRMATION_WORD) + "' To confirm the delete operation.");
       }
 
       return deleteFiles(filePaths);
@@ -62,7 +67,7 @@ public class ClearWalletUtils {
   }
 
   private static boolean isConfirmed(String input) {
-    return input.equalsIgnoreCase("Y") || input.equalsIgnoreCase("YES");
+    return input.equalsIgnoreCase("y") || input.equalsIgnoreCase("Y");
   }
 
   private static final String BACKUP_SUFFIX = ".bak";

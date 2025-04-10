@@ -1,9 +1,13 @@
 package org.tron.keystore;
 
+import static org.tron.common.utils.Utils.greenHighlight;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.typesafe.config.Config;
+import org.apache.commons.lang3.ArrayUtils;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.SignInterface;
 import org.tron.common.crypto.sm2.SM2;
@@ -23,6 +27,7 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.stream.Collectors;
 
 /**
@@ -37,6 +42,7 @@ public class WalletUtils {
     Config config = Configuration.getByPath("config.conf");//it is needs set to be a constant
     objectMapper.configure(JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES, true);
     objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+    objectMapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
     if (config.hasPath("crypto.engine")) {
       isEckey = config.getString("crypto.engine").equalsIgnoreCase("eckey");
       System.out.println("WalletUtils getConfig isEckey: " + isEckey);
@@ -107,8 +113,9 @@ public class WalletUtils {
       throws IOException {
     String fileName = getWalletFileName(walletFile);
     File destination = new File(destinationDirectory, fileName);
-
     objectMapper.writeValue(destination, walletFile);
+    walletFile.setName(fileName);
+    walletFile.setSourceFile(destination);
     return fileName;
   }
 
@@ -119,6 +126,8 @@ public class WalletUtils {
     File destination = new File(destinationDirectory, fileName);
 
     objectMapper.writeValue(destination, walletFile);
+    walletFile.setName(fileName);
+    walletFile.setSourceFile(destination);
     return fileName;
   }
 
@@ -272,22 +281,42 @@ public class WalletUtils {
     return true;
   }
 
-  public static File[]  getStoreFiles(String address, String destinationDirectory) {
+  public static File[] getStoreFiles(String address, String destinationDirectory) {
     File dir = Paths.get(destinationDirectory).toFile();
     if (!dir.exists() || !dir.isDirectory()) {
-      return null;
+      return new File[0];
     }
-    File[] files = dir.listFiles((d, name) ->
+    return dir.listFiles((d, name) ->
         name.endsWith(address + ".json"));
-    return files;
   }
 
-  public static ArrayList<String> getStoreFileNames(String address, String destinationDirectory) {
+  public static List<String> getStoreFileNames(String address, String destinationDirectory) {
     File[] walletFiles = WalletUtils.getStoreFiles(address, destinationDirectory);
-    return walletFiles != null ?
+    return ArrayUtils.isNotEmpty(walletFiles) ?
         Arrays.stream(walletFiles)
             .map(File::getAbsolutePath)
             .collect(Collectors.toCollection(ArrayList::new))
         : new ArrayList<>();
+  }
+
+  public static void show(int current, int total) {
+    int percent = (int) ((double) current / total * 100);
+    int barLength = 40;
+    int filledLength = (int) (barLength * percent / 100.0);
+
+    String bar = repeat(greenHighlight("="), filledLength) + repeat(" ", barLength - filledLength);
+    System.out.printf("\r[%s] %3d%%", bar, percent);
+
+    if (current == total) {
+      System.out.println();
+    }
+  }
+
+  public static String repeat(String str, int count) {
+    StringBuilder sb = new StringBuilder();
+    for (int i = 0; i < count; i++) {
+      sb.append(str);
+    }
+    return sb.toString();
   }
 }

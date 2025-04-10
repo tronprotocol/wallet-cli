@@ -1570,7 +1570,7 @@ wallet> ClearWalletKeystore
 Warning: Dangerous operation!
 This operation will permanently delete the Wallet&Mnemonic files of the Address: TABWx7yFhWrvZHbwKcCmFLyPLWjd2dZ2Rq
 Warning: The private key and mnemonic words will be permanently lost and cannot be recovered!
-Continue? (Y/Yes to proceed):y
+Continue? (y/Y to proceed):y
 
 Final confirmation:
 Please enter: 'DELETE' To confirm the delete operation:

@@ -10,7 +10,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
+import java.io.File;
 import java.io.IOException;
+import lombok.Getter;
+import lombok.Setter;
 
 /**
  * Ethereum wallet file.
@@ -21,6 +24,9 @@ public class WalletFile {
     private Crypto crypto;
     private String id;
     private int version;
+    @Getter
+    @Setter
+    private File sourceFile;
     public String getName() {
         return name;
     }
