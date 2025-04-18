@@ -18,6 +18,14 @@
 
 package org.tron.common.utils;
 
+import static org.apache.commons.lang3.StringUtils.isEmpty;
+import static org.tron.ledger.console.ConsoleColor.ANSI_BLUE;
+import static org.tron.ledger.console.ConsoleColor.ANSI_BOLD;
+import static org.tron.ledger.console.ConsoleColor.ANSI_GREEN;
+import static org.tron.ledger.console.ConsoleColor.ANSI_RED;
+import static org.tron.ledger.console.ConsoleColor.ANSI_RESET;
+import static org.tron.ledger.console.ConsoleColor.ANSI_YELLOW;
+
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
@@ -25,11 +33,14 @@ import com.google.protobuf.Any;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
 
+import java.io.ByteArrayOutputStream;
 import java.io.Console;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.text.ParsePosition;
 import java.text.SimpleDateFormat;
@@ -43,6 +54,7 @@ import org.tron.common.crypto.Hash;
 import org.tron.common.crypto.Sha256Sm3Hash;
 import org.tron.keystore.StringUtils;
 import org.tron.protos.contract.BalanceContract;
+import org.tron.walletcli.Client;
 import org.tron.walletserver.WalletApi;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.Transaction;
@@ -87,6 +99,9 @@ public class Utils {
   public static final String VISIBLE = "visible";
   public static final String TRANSACTION = "transaction";
   public static final String VALUE = "value";
+  public static final String LOCK_WARNING = "⚠️" + ANSI_YELLOW
+      + " Wallet is locked. Transaction not allowed. Please use " + greenBoldHighlight("unlock")
+      + ANSI_YELLOW + " to retry" + ANSI_RESET;
 
   private static SecureRandom random = new SecureRandom();
 
@@ -95,7 +110,7 @@ public class Utils {
   }
 
   public static byte[] getBytes(char[] chars) {
-    Charset cs = Charset.forName("UTF-8");
+    Charset cs = StandardCharsets.UTF_8;
     CharBuffer cb = CharBuffer.allocate(chars.length);
     cb.put(chars);
     cb.flip();
@@ -679,12 +694,12 @@ public class Utils {
   }
 
   public static JSONObject printTransactionInfoToJSON(TransactionInfo transactioninfo) {
-    return JSONObject.parseObject(JsonFormat.printToString(transactioninfo, true));
+    return JSON.parseObject(JsonFormat.printToString(transactioninfo, true));
   }
 
   public static boolean confirmEncrption() {
     System.out.println(
-        "Please confirm encryption module,if input y or Y means default Eckey, other means SM2.");
+        "Please confirm encryption module,if input " + greenBoldHighlight("y/Y") + " means default Eckey, other means SM2.");
     Scanner in = new Scanner(System.in);
     String input = in.nextLine().trim();
     String str = input.split("\\s+")[0];
@@ -709,5 +724,71 @@ public class Utils {
     } catch (Exception e) {
     }
     return bRet;
+  }
+
+  public static String yellowHighlight(String str) {
+    return ANSI_YELLOW + str + ANSI_RESET;
+  }
+
+  public static String greenHighlight(String str) {
+    return ANSI_GREEN + str + ANSI_RESET;
+  }
+
+  public static String greenBoldHighlight(String str) {
+    return ANSI_BOLD + ANSI_GREEN + str + ANSI_RESET;
+  }
+
+  public static String greenBoldHighlight(int i) {
+    return ANSI_BOLD + ANSI_GREEN + i + ANSI_RESET;
+  }
+
+  public static String blueHighlight(String str) {
+    return ANSI_BOLD + ANSI_BLUE + str + ANSI_RESET;
+  }
+
+  public static String redBoldHighlight(String str) {
+    return ANSI_BOLD + ANSI_RED + str + ANSI_RESET;
+  }
+
+  public static String successfulHighlight() {
+    return ANSI_BOLD + ANSI_GREEN + "successful" + ANSI_RESET;
+  }
+
+  public static String failedHighlight() {
+    return ANSI_BOLD + ANSI_RED + "failed" + ANSI_RESET;
+  }
+
+  public static long getLong(String str) {
+    if (isEmpty(str)) {
+      return 0;
+    }
+    try {
+      return Long.parseLong(str);
+    } catch (NumberFormatException e) {
+      throw new IllegalArgumentException("The parameter is invalid. Please enter an integer.");
+    }
+  }
+
+  public static void printBanner() {
+    try (InputStream inputStream = Client.class.getResourceAsStream("/banner.txt")) {
+      if (inputStream != null) {
+        String banner = new String(readAllBytes(inputStream), StandardCharsets.UTF_8);
+        System.out.println(banner);
+      } else {
+        System.out.println("No banner.txt found!");
+      }
+    } catch (IOException e) {
+      System.err.println("Failed to load banner: " + e.getMessage());
+    }
+  }
+
+  private static byte[] readAllBytes(InputStream inputStream) throws IOException {
+    ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+    byte[] data = new byte[4096];
+    int bytesRead;
+    while ((bytesRead = inputStream.read(data, 0, data.length)) != -1) {
+      buffer.write(data, 0, bytesRead);
+    }
+    return buffer.toByteArray();
   }
 }

@@ -1,5 +1,13 @@
 package org.tron.walletcli;
 
+import static org.tron.common.utils.Utils.blueHighlight;
+import static org.tron.common.utils.Utils.failedHighlight;
+import static org.tron.common.utils.Utils.getLong;
+import static org.tron.common.utils.Utils.greenBoldHighlight;
+import static org.tron.common.utils.Utils.printBanner;
+import static org.tron.common.utils.Utils.redBoldHighlight;
+import static org.tron.common.utils.Utils.successfulHighlight;
+import static org.tron.keystore.StringUtils.byte2Char;
 import static org.tron.keystore.StringUtils.char2Byte;
 import static org.tron.ledger.console.ConsoleColor.ANSI_RED;
 import static org.tron.ledger.console.ConsoleColor.ANSI_RESET;
@@ -9,9 +17,12 @@ import com.google.common.primitives.Longs;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import io.netty.util.internal.StringUtil;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -227,6 +238,9 @@ public class Client {
       // "LoadShieldedWallet",
       "Login",
       "Logout",
+      "LoginAll",
+      "switchWallet",
+      "resetWallet",
       "LoadShieldedTRC20Wallet",
       // "LoadShieldedWallet",
       "MarketCancelOrder",
@@ -267,6 +281,9 @@ public class Client {
       "VoteWitness",
       "WithdrawBalance",
       "WithdrawExpireUnfreeze",
+      "WithdrawExpireUnfreeze",
+      "lock",
+      "unlock",
   };
 
   // note: this is sorted by alpha
@@ -379,6 +396,9 @@ public class Client {
       // "ListShieldedNote",
       "ListWitnesses",
       "Login",
+      "LoginAll",
+      "switchWallet",
+      "resetWallet",
       "Logout",
       "LoadShieldedTRC20Wallet",
       // "LoadShieldedWallet",
@@ -420,6 +440,8 @@ public class Client {
       "VoteWitness",
       "WithdrawBalance",
       "WithdrawExpireUnfreeze",
+      "lock",
+      "unlock",
   };
 
   private byte[] inputPrivateKey() throws IOException {
@@ -585,11 +607,11 @@ public class Client {
     StringUtils.clear(password);
 
     if (null == fileName) {
-      System.out.println("Register wallet failed !!");
+      System.out.println("Register wallet " + failedHighlight() + " !!");
       return;
     }
 
-    System.out.println("Register a wallet successful, keystore file : ."
+    System.out.println("Register a wallet " + successfulHighlight() + ", keystore file : ."
         + File.separator + "Wallet" + File.separator
         + fileName);
     System.out.println("(Note: If you delete an account, make sure to delete the wallet file and mnemonic file) ");
@@ -598,17 +620,17 @@ public class Client {
   private void generateSubAccount() throws CipherException, IOException {
     boolean ret = walletApiWrapper.generateSubAccount();
     if (ret) {
-      System.out.println("generateSubAccount successful.");
+      System.out.println("generateSubAccount " + successfulHighlight() + ".");
     } else {
-      System.out.println("generateSubAccount failed.");
+      System.out.println("generateSubAccount " + failedHighlight() + ".");
     }
   }
 
   private void importWallet() throws CipherException, IOException {
     System.out.println("(Note:This operation will overwrite the old keystore file and mnemonic file of the same address)");
     System.out.println("Please make sure to back up the old keystore files in the Wallet/Mnemonic directory if it is still needed!");
-
-    char[] password = Utils.inputPassword2Twice();
+    char[] password = walletApiWrapper.isUnifiedExist()  ?
+        byte2Char(walletApiWrapper.getWallet().getUnifiedPassword()) : Utils.inputPassword2Twice();
     byte[] priKey = inputPrivateKey();
 
     String fileName = walletApiWrapper.importWallet(password, priKey, null);
@@ -616,23 +638,25 @@ public class Client {
     StringUtils.clear(priKey);
 
     if (null == fileName) {
-      System.out.println("Import wallet failed !!");
+      System.out.println("Import wallet " + failedHighlight() + " !!");
       return;
     }
-    System.out.println("Import a wallet successful, keystore file : ."
+    System.out.println("Import a wallet " + successfulHighlight() + ", keystore file : ."
         + File.separator + "Wallet" + File.separator
         + fileName);
   }
 
-  private void importWalletByMnemonic() throws CipherException, IOException {
+  private void importWalletByMnemonic() throws IOException {
     System.out.println("(Note:This operation will overwrite the old keystore file and mnemonic file of the same address)");
     System.out.println("Please make sure to back up the old keystore files in the Wallet/Mnemonic directory if it is still needed!");
-
-    char[] password = Utils.inputPassword2Twice();
+    char[] password = walletApiWrapper.isUnifiedExist()  ?
+        byte2Char(walletApiWrapper.getWallet().getUnifiedPassword()) : Utils.inputPassword2Twice();
     List<String> mnemonicWords = inputMnemonicWords();
     boolean result = walletApiWrapper.importWalletByMnemonic(mnemonicWords, char2Byte(password));
-    if (!result) {
-      System.out.println("importWalletByMnemonic failed.");
+    if (result) {
+      System.out.println("importWalletByMnemonic " + successfulHighlight() + " !");
+    } else {
+      System.out.println("importWalletByMnemonic " + failedHighlight() + ".");
     }
     if (mnemonicWords != null && !mnemonicWords.isEmpty()) {
       mnemonicWords.clear();
@@ -641,14 +665,11 @@ public class Client {
   }
 
   private void importWalletByLedger() throws CipherException, IOException {
-    System.out.println(ANSI_RED +"(Note:This will pair Ledger to user your hardward wallet)");
-    System.out.println("Only one Ledger device is supported. If you have multiple devices, please ensure only one is connected."
-        + ANSI_RESET);
-
+    System.out.println(ANSI_RED + "(Note:This will pair Ledger to user your hardware wallet)" + ANSI_RESET);
     // device is using in transaction sign
     HidDevice signDevice = TransactionSignManager.getInstance().getHidDevice();
     if (signDevice != null) {
-      System.out.println("Import wallet by Ledger failed !! Please check your Ledger device");
+      System.out.println("Import wallet by Ledger " + failedHighlight() + " !! Please check your Ledger device");
       return;
     }
     HidDevice device  = null;
@@ -663,21 +684,21 @@ public class Client {
       } else {
         System.out.println("Ledger device found: " + device.getProduct());
       }
-
-      password = Utils.inputPassword2Twice();
+      password = walletApiWrapper.isUnifiedExist()  ?
+          byte2Char(walletApiWrapper.getWallet().getUnifiedPassword()) : Utils.inputPassword2Twice();
       String fileName = walletApiWrapper.importWalletByLedger(password);
       if (fileName == null || fileName.trim().isEmpty() ) {
         System.out.println("Import wallet by Ledger end !!");
         return;
       }
 
-      System.out.println("Import a wallet by Ledger successful, keystore file : ."
+      System.out.println("Import a wallet by Ledger " + successfulHighlight() + ", keystore file : ."
           + File.separator + "Wallet" + File.separator
           + fileName);
 
       System.out.println("You are now logged in, and you can perform operations using this account.");
     }  catch (Exception e) {
-      System.out.println("Import wallet by Ledger failed");
+      System.out.println("Import wallet by Ledger " + failedHighlight());
     } finally {
       StringUtils.clear(password);
       if (device != null) {
@@ -689,8 +710,8 @@ public class Client {
   private void importWalletByBase64() throws CipherException, IOException {
     System.out.println("(Note:This operation will overwrite the old keystore file and mnemonic file of the same address)");
     System.out.println("Please make sure to back up the old keystore files in the Wallet/Mnemonic directory if it is still needed!");
-
-    char[] password = Utils.inputPassword2Twice();
+    char[] password = walletApiWrapper.isUnifiedExist() ?
+        byte2Char(walletApiWrapper.getWallet().getUnifiedPassword()) : Utils.inputPassword2Twice();
     byte[] priKey = inputPrivateKey64();
 
     String fileName = walletApiWrapper.importWallet(password, priKey, null);
@@ -698,10 +719,10 @@ public class Client {
     StringUtils.clear(priKey);
 
     if (null == fileName) {
-      System.out.println("Import wallet failed !!");
+      System.out.println("Import wallet " + failedHighlight() + " !!");
       return;
     }
-    System.out.println("Import a wallet successful, keystore file : ."
+    System.out.println("Import a wallet " + successfulHighlight() + ", keystore file : ."
         + File.separator + "Wallet" + File.separator
         + fileName);
   }
@@ -712,39 +733,67 @@ public class Client {
     System.out.println("Please input new password.");
     char[] newPassword = Utils.inputPassword2Twice();
     if (walletApiWrapper.changePassword(oldPassword, newPassword)) {
-      System.out.println("ChangePassword successful !!");
+      System.out.println("ChangePassword " + successfulHighlight() + " !!");
     } else {
-      System.out.println("ChangePassword failed !!");
+      System.out.println("ChangePassword " + failedHighlight() + " !!");
     }
   }
 
   private void login() throws IOException, CipherException {
     boolean result = walletApiWrapper.login();
     if (result) {
-      System.out.println("Login successful !!!");
+      System.out.println("Login " + successfulHighlight() + " !!!");
     } else {
-      System.out.println("Login failed !!!");
+      System.out.println("Login " + failedHighlight() + " !!!");
+    }
+  }
+
+  private void loginAll() throws IOException, CipherException {
+    boolean result = walletApiWrapper.loginAll();
+    if (result) {
+      System.out.println("LoginAll " + successfulHighlight() + " !!!");
+    } else {
+      System.out.println("LoginAll " + failedHighlight() + " !!!");
+    }
+  }
+
+  private void switchWallet() throws IOException, CipherException {
+    boolean result = walletApiWrapper.switchWallet();
+    if (result) {
+      System.out.println("switchWallet " + successfulHighlight() + " !!!");
+    } else {
+      System.out.println("switchWallet " + failedHighlight() + " !!!");
+    }
+  }
+
+  private void resetWallet() {
+    boolean result = walletApiWrapper.resetWallet();
+    if (result) {
+      System.out.println("resetWallet " + successfulHighlight() + " !!!");
+      System.out.println("Now, you can re " + greenBoldHighlight("RegisterWallet") + " or " + greenBoldHighlight("ImportWallet") + ".");
+    } else {
+      System.out.println("resetWallet " + failedHighlight() + " !!!");
     }
   }
 
   private void logout() {
     walletApiWrapper.logout();
-    System.out.println("Logout successful !!!");
+    System.out.println("Logout " + successfulHighlight() + " !!!");
   }
 
   private void loadShieldedWallet() throws CipherException, IOException {
     boolean result = ShieldedWrapper.getInstance().loadShieldWallet();
     if (result) {
-      System.out.println("LoadShieldedWallet successful !!!");
+      System.out.println("LoadShieldedWallet " + successfulHighlight() + " !!!");
     } else {
-      System.out.println("LoadShieldedWallet failed !!!");
+      System.out.println("LoadShieldedWallet " + failedHighlight() + " !!!");
     }
   }
 
   private void backupWallet() throws IOException, CipherException {
     byte[] priKey = walletApiWrapper.backupWallet();
     if (!ArrayUtils.isEmpty(priKey)) {
-      System.out.println("BackupWallet successful !!");
+      System.out.println("BackupWallet " + successfulHighlight() + " !!");
       for (int i = 0; i < priKey.length; i++) {
         StringUtils.printOneByte(priKey[i]);
       }
@@ -760,7 +809,7 @@ public class Client {
       Encoder encoder = Base64.getEncoder();
       byte[] priKey64 = encoder.encode(priKey);
       StringUtils.clear(priKey);
-      System.out.println("BackupWallet successful !!");
+      System.out.println("BackupWallet " + successfulHighlight() + " !!");
       for (int i = 0; i < priKey64.length; i++) {
         System.out.print((char) priKey64[i]);
       }
@@ -773,11 +822,11 @@ public class Client {
     byte[] mnemonic = walletApiWrapper.exportWalletMnemonic();
     char[] mnemonicChars = bytesToChars(mnemonic);
     if (!ArrayUtils.isEmpty(mnemonic)) {
-      System.out.println("exportWalletMnemonic successful !!");
+      System.out.println("exportWalletMnemonic " + successfulHighlight() + " !!");
       outputMnemonicChars(mnemonicChars);
       System.out.println("\n");
     } else {
-      System.out.println("exportWalletMnemonic failed !!");
+      System.out.println("exportWalletMnemonic " + failedHighlight() + " !!");
     }
     StringUtils.clear(mnemonic);
     clearChars(mnemonicChars);
@@ -816,13 +865,13 @@ public class Client {
     String exportFilePath = walletApiWrapper.exportKeystore(channel, exportFullDir);
     if (exportFilePath != null) {
       System.out.println("exported keystore file : " + Paths.get(exportFullDirPath, exportFilePath));
-      System.out.println("exportWalletKeystore successful !!");
+      System.out.println("exportWalletKeystore " + successfulHighlight() + " !!");
     } else {
-      System.out.println("exportWalletKeystore failed !!");
+      System.out.println("exportWalletKeystore " + failedHighlight() + " !!");
     }
   }
 
-  private void importWalletByKeystore(String[] parameters) throws CipherException, IOException {
+  private void importWalletByKeystore(String[] parameters) throws IOException {
     System.out.println("(Note:This operation will overwrite the old keystore file and mnemonic file of the same address)");
     System.out.println("Please make sure to back up the old keystore files in the Wallet/Mnemonic directory if it is still needed!");
 
@@ -852,21 +901,21 @@ public class Client {
 
     System.out.println("Please enter the password for the keystore file, enter it once.");
     char[] keystorePassword = Utils.inputPasswordWithoutCheck();
-    byte[] keystorepasswdByte = char2Byte(keystorePassword);
+    byte[] keystorePasswdByte = char2Byte(keystorePassword);
 
     try {
-      String fileName = walletApiWrapper.importWalletByKeystore(keystorepasswdByte, importFile);
+      String fileName = walletApiWrapper.importWalletByKeystore(keystorePasswdByte, importFile);
       if (fileName != null && !fileName.isEmpty()) {
         System.out.println("fileName = " + fileName);
-        System.out.println("importWalletByKeystore successful !!");
+        System.out.println("importWalletByKeystore " + successfulHighlight() + " !!");
       } else {
-        System.out.println("importWalletByKeystore failed !!");
+        System.out.println("importWalletByKeystore " + failedHighlight() + " !!");
       }
     } catch (Exception e) {
-      System.out.println("importWalletByKeystore failed !!");
+      System.out.println("importWalletByKeystore " + failedHighlight() + " !!");
     } finally {
       StringUtils.clear(keystorePassword);
-      StringUtils.clear(keystorepasswdByte);
+      StringUtils.clear(keystorePasswdByte);
     }
   }
 
@@ -892,10 +941,10 @@ public class Client {
   private void getAddress() {
     String address = walletApiWrapper.getAddress();
     if (address != null) {
-      System.out.println("GetAddress successful !!");
+      System.out.println("GetAddress " + successfulHighlight() + " !!");
       System.out.println("address = " + address);
     } else {
-      System.out.println("Warning: GetAddress failed,  Please login first !!");
+      System.out.println("Warning: GetAddress " + failedHighlight() + ",  Please login first !!");
     }
   }
 
@@ -916,7 +965,7 @@ public class Client {
     }
 
     if (account == null) {
-      System.out.println("GetBalance failed !!!!");
+      System.out.println("GetBalance " + failedHighlight() + " !!!!");
     } else {
       long balance = account.getBalance();
       System.out.println("Balance = " + balance);
@@ -937,7 +986,7 @@ public class Client {
 
     Account account = WalletApi.queryAccount(addressBytes);
     if (account == null) {
-      System.out.println("GetAccount failed !!!!");
+      System.out.println("GetAccount " + failedHighlight() + " !!!!");
     } else {
       System.out.println(Utils.formatMessageString(account));
     }
@@ -953,7 +1002,7 @@ public class Client {
 
     Account account = WalletApi.queryAccountById(accountId);
     if (account == null) {
-      System.out.println("GetAccountById failed !!!!");
+      System.out.println("GetAccountById " + failedHighlight() + " !!!!");
     } else {
       System.out.println(Utils.formatMessageString(account));
     }
@@ -981,9 +1030,9 @@ public class Client {
 
     boolean ret = walletApiWrapper.updateAccount(ownerAddress, accountNameBytes);
     if (ret) {
-      System.out.println("Update Account successful !!!!");
+      System.out.println("Update Account " + successfulHighlight() + " !!!!");
     } else {
-      System.out.println("Update Account failed !!!!");
+      System.out.println("Update Account " + failedHighlight() + " !!!!");
     }
   }
 
@@ -1009,9 +1058,9 @@ public class Client {
 
     boolean ret = walletApiWrapper.setAccountId(ownerAddress, accountIdBytes);
     if (ret) {
-      System.out.println("Set AccountId successful !!!!");
+      System.out.println("Set AccountId " + successfulHighlight() + " !!!!");
     } else {
-      System.out.println("Set AccountId failed !!!!");
+      System.out.println("Set AccountId " + failedHighlight() + " !!!!");
     }
   }
 
@@ -1045,9 +1094,9 @@ public class Client {
     boolean ret = walletApiWrapper
         .updateAsset(ownerAddress, descriptionBytes, urlBytes, newLimit, newPublicLimit);
     if (ret) {
-      System.out.println("Update Asset successful !!!!");
+      System.out.println("Update Asset " + successfulHighlight() + " !!!!");
     } else {
-      System.out.println("Update Asset failed !!!!");
+      System.out.println("Update Asset " + successfulHighlight() + " !!!!");
     }
   }
 
@@ -1068,7 +1117,7 @@ public class Client {
       AssetIssueList assetIssueList = result.get();
       System.out.println(Utils.formatMessageString(assetIssueList));
     } else {
-      System.out.println("GetAssetIssueByAccount failed !!");
+      System.out.println("GetAssetIssueByAccount " + failedHighlight() + " !!");
     }
   }
 
@@ -1086,7 +1135,7 @@ public class Client {
 
     AccountNetMessage result = WalletApi.getAccountNet(addressBytes);
     if (result == null) {
-      System.out.println("GetAccountNet failed !!");
+      System.out.println("GetAccountNet " + failedHighlight() + " !!");
     } else {
       System.out.println(Utils.formatMessageString(result));
     }
@@ -1106,7 +1155,7 @@ public class Client {
 
     AccountResourceMessage result = WalletApi.getAccountResource(addressBytes);
     if (result == null) {
-      System.out.println("getAccountResource failed !!");
+      System.out.println("getAccountResource " + failedHighlight() + " !!");
     } else {
       System.out.println(Utils.formatMessageString(result));
     }
@@ -1127,7 +1176,7 @@ public class Client {
     if (assetIssueContract != null) {
       System.out.println(Utils.formatMessageString(assetIssueContract));
     } else {
-      System.out.println("getAssetIssueByName failed !!");
+      System.out.println("getAssetIssueByName " + failedHighlight() + " !!");
     }
   }
 
@@ -1144,7 +1193,7 @@ public class Client {
       AssetIssueList assetIssueList = result.get();
       System.out.println(Utils.formatMessageString(assetIssueList));
     } else {
-      System.out.println("getAssetIssueListByName failed !!");
+      System.out.println("getAssetIssueListByName " + failedHighlight() + " !!");
     }
   }
 
@@ -1160,7 +1209,7 @@ public class Client {
     if (assetIssueContract != null) {
       System.out.println(Utils.formatMessageString(assetIssueContract));
     } else {
-      System.out.println("getAssetIssueById failed !!");
+      System.out.println("getAssetIssueById " + failedHighlight() + " !!");
     }
   }
 
@@ -1193,9 +1242,9 @@ public class Client {
 
     boolean result = walletApiWrapper.sendCoin(ownerAddress, toAddress, amount);
     if (result) {
-      System.out.println("Send " + amount + " Sun to " + base58ToAddress + " successful !!");
+      System.out.println("Send " + amount + " Sun to " + base58ToAddress + " " + successfulHighlight() + " !!");
     } else {
-      System.out.println("Send " + amount + " Sun to " + base58ToAddress + " failed !!");
+      System.out.println("Send " + amount + " Sun to " + base58ToAddress + " " + failedHighlight() + " !!");
     }
   }
 
@@ -1225,13 +1274,13 @@ public class Client {
     }
     String assertName = parameters[index++];
     String amountStr = parameters[index++];
-    long amount = new Long(amountStr);
+    long amount = Long.parseLong(amountStr);
 
     boolean result = walletApiWrapper.transferAsset(ownerAddress, toAddress, assertName, amount);
     if (result) {
-      System.out.println("TransferAsset " + amount + " to " + base58Address + " successful !!");
+      System.out.println("TransferAsset " + amount + " to " + base58Address + " " + successfulHighlight() + " !!");
     } else {
-      System.out.println("TransferAsset " + amount + " to " + base58Address + " failed !!");
+      System.out.println("TransferAsset " + amount + " to " + base58Address + " " + failedHighlight() + " !!");
     }
   }
 
@@ -1268,10 +1317,10 @@ public class Client {
         .participateAssetIssue(ownerAddress, toAddress, assertName, amount);
     if (result) {
       System.out.println("ParticipateAssetIssue " + assertName + " " + amount + " from " + base58Address
-              + " successful !!");
+              + " " + successfulHighlight() + " !!");
     } else {
       System.out.println("ParticipateAssetIssue " + assertName + " " + amount + " from " + base58Address
-              + " failed !!");
+              + " " + failedHighlight() + " !!");
     }
   }
 
@@ -1324,7 +1373,7 @@ public class Client {
     if (startDate == null || endDate == null) {
       System.out
           .println("The StartDate and EndDate format should look like 2018-03-01 2018-03-21 .");
-      System.out.println("AssetIssue " + name + " failed !!");
+      System.out.println("AssetIssue " + name + " " + failedHighlight() + " !!");
       return;
     }
     long startTime = startDate.getTime();
@@ -1336,9 +1385,9 @@ public class Client {
         trxNum, icoNum, precision, startTime, endTime, 0,
         description, url, freeAssetNetLimit, publicFreeNetLimit, frozenSupply);
     if (result) {
-      System.out.println("AssetIssue " + name + " successful !!");
+      System.out.println("AssetIssue " + name + " " + successfulHighlight() + " !!");
     } else {
-      System.out.println("AssetIssue " + name + " failed !!");
+      System.out.println("AssetIssue " + name + " " + failedHighlight() + " !!");
     }
   }
 
@@ -1368,9 +1417,9 @@ public class Client {
 
     boolean result = walletApiWrapper.createAccount(ownerAddress, address);
     if (result) {
-      System.out.println("CreateAccount successful !!");
+      System.out.println("CreateAccount " + successfulHighlight() + " !!");
     } else {
-      System.out.println("CreateAccount failed !!");
+      System.out.println("CreateAccount " + failedHighlight() + " !!");
     }
   }
 
@@ -1396,9 +1445,9 @@ public class Client {
 
     boolean result = walletApiWrapper.createWitness(ownerAddress, url);
     if (result) {
-      System.out.println("CreateWitness successful !!");
+      System.out.println("CreateWitness " + successfulHighlight() + " !!");
     } else {
-      System.out.println("CreateWitness failed !!");
+      System.out.println("CreateWitness " + failedHighlight() + " !!");
     }
   }
 
@@ -1423,9 +1472,9 @@ public class Client {
 
     boolean result = walletApiWrapper.updateWitness(ownerAddress, url);
     if (result) {
-      System.out.println("updateWitness successful !!");
+      System.out.println("updateWitness " + successfulHighlight() + " !!");
     } else {
-      System.out.println("updateWitness failed !!");
+      System.out.println("updateWitness " + failedHighlight() + " !!");
     }
   }
 
@@ -1435,7 +1484,7 @@ public class Client {
       WitnessList witnessList = result.get();
       System.out.println(Utils.formatMessageString(witnessList));
     } else {
-      System.out.println("List witnesses failed !!");
+      System.out.println("List witnesses " + failedHighlight() + " !!");
     }
   }
 
@@ -1445,7 +1494,7 @@ public class Client {
       AssetIssueList assetIssueList = result.get();
       System.out.println(Utils.formatMessageString(assetIssueList));
     } else {
-      System.out.println("GetAssetIssueList failed !!");
+      System.out.println("GetAssetIssueList " + failedHighlight() + " !!");
     }
   }
 
@@ -1462,7 +1511,7 @@ public class Client {
       AssetIssueList assetIssueList = result.get();
       System.out.println(Utils.formatMessageString(assetIssueList));
     } else {
-      System.out.println("GetAssetIssueListPaginated failed !!!");
+      System.out.println("GetAssetIssueListPaginated " + failedHighlight() + " !!!");
     }
   }
 
@@ -1479,7 +1528,7 @@ public class Client {
       ProposalList proposalList = result.get();
       System.out.println(Utils.formatMessageString(proposalList));
     } else {
-      System.out.println("ListProposalsPaginated failed !!!");
+      System.out.println("ListProposalsPaginated " + failedHighlight() + " !!!");
     }
   }
 
@@ -1497,7 +1546,7 @@ public class Client {
       ExchangeList exchangeList = result.get();
       System.out.println(Utils.formatMessageString(exchangeList));
     } else {
-      System.out.println("ListExchangesPaginated failed !!!");
+      System.out.println("ListExchangesPaginated " + failedHighlight() + " !!!");
     }
   }
 
@@ -1512,7 +1561,7 @@ public class Client {
         System.out.println("Port::" + node.getAddress().getPort());
       }
     } else {
-      System.out.println("GetAssetIssueList " + " failed !!!");
+      System.out.println("GetAssetIssueList " + failedHighlight() + " !!!");
     }
   }
 
@@ -1588,9 +1637,9 @@ public class Client {
 
     boolean result = walletApiWrapper.voteWitness(ownerAddress, witness);
     if (result) {
-      System.out.println("VoteWitness successful !!!");
+      System.out.println("VoteWitness " + successfulHighlight() + " !!!");
     } else {
-      System.out.println("VoteWitness failed !!!");
+      System.out.println("VoteWitness " + failedHighlight() + " !!!");
     }
   }
 
@@ -1641,9 +1690,9 @@ public class Client {
     boolean result = walletApiWrapper.freezeBalance(ownerAddress, frozen_balance,
         frozen_duration, resourceCode, receiverAddress);
     if (result) {
-      System.out.println("FreezeBalance successful !!!");
+      System.out.println("FreezeBalance " + successfulHighlight() + " !!!");
     } else {
-      System.out.println("FreezeBalance failed !!!");
+      System.out.println("FreezeBalance " + failedHighlight() + " !!!");
     }
   }
 
@@ -1680,9 +1729,9 @@ public class Client {
     boolean result = walletApiWrapper.freezeBalanceV2(ownerAddress, frozen_balance
             , resourceCode);
     if (result) {
-      System.out.println("freezeBalanceV2 successful !!!");
+      System.out.println("freezeBalanceV2 " + successfulHighlight() + " !!!");
     } else {
-      System.out.println("freezeBalanceV2 failed !!!");
+      System.out.println("freezeBalanceV2 " + failedHighlight() + " !!!");
     }
   }
 
@@ -1718,9 +1767,9 @@ public class Client {
 
     boolean result = walletApiWrapper.unfreezeBalance(ownerAddress, resourceCode, receiverAddress);
     if (result) {
-      System.out.println("UnfreezeBalance successful !!!");
+      System.out.println("UnfreezeBalance " + successfulHighlight() + " !!!");
     } else {
-      System.out.println("UnfreezeBalance failed !!!");
+      System.out.println("UnfreezeBalance " + failedHighlight() + " !!!");
     }
   }
 
@@ -1755,9 +1804,9 @@ public class Client {
 
     boolean result = walletApiWrapper.unfreezeBalanceV2(ownerAddress, unfreezeBalance, resourceCode);
     if (result) {
-      System.out.println("unfreezeBalanceV2 successful !!!");
+      System.out.println("unfreezeBalanceV2 " + successfulHighlight() + " !!!");
     } else {
-      System.out.println("unfreezeBalanceV2 failed !!!");
+      System.out.println("unfreezeBalanceV2 " + failedHighlight() + " !!!");
     }
   }
 
@@ -1782,9 +1831,9 @@ public class Client {
 
     boolean result = walletApiWrapper.withdrawExpireUnfreeze(ownerAddress);
     if (result) {
-      System.out.println("withdrawExpireUnfreeze successful !!!");
+      System.out.println("withdrawExpireUnfreeze " + successfulHighlight() + " !!!");
     } else {
-      System.out.println("withdrawExpireUnfreeze failed !!!");
+      System.out.println("withdrawExpireUnfreeze " + failedHighlight() + " !!!");
     }
   }
 
@@ -1841,9 +1890,9 @@ public class Client {
     boolean result = walletApiWrapper.delegateresource(
         ownerAddress, balance, resourceCode, receiverAddress, lock, lockPeriod);
     if (result) {
-      System.out.println("delegateResource successful !!!");
+      System.out.println("delegateResource " + successfulHighlight() + " !!!");
     } else {
-      System.out.println("delegateResource failed !!!");
+      System.out.println("delegateResource " + failedHighlight() + " !!!");
     }
   }
 
@@ -1889,9 +1938,9 @@ public class Client {
     }
     boolean result = walletApiWrapper.undelegateresource(ownerAddress, balance, resourceCode, receiverAddress);
     if (result) {
-      System.out.println("unDelegateResource successful !!!");
+      System.out.println("unDelegateResource " + successfulHighlight() + " !!!");
     } else {
-      System.out.println("unDelegateResource failed !!!");
+      System.out.println("unDelegateResource " + failedHighlight() + " !!!");
     }
   }
 
@@ -1904,9 +1953,9 @@ public class Client {
     }
     boolean result = walletApiWrapper.cancelAllUnfreezeV2();
     if (result) {
-      System.out.println("cancelAllUnfreezeV2 successful !!!");
+      System.out.println("cancelAllUnfreezeV2 " + successfulHighlight() + " !!!");
     } else {
-      System.out.println("cancelAllUnfreezeV2 failed !!!");
+      System.out.println("cancelAllUnfreezeV2 " + failedHighlight() + " !!!");
     }
   }
 
@@ -1956,9 +2005,9 @@ public class Client {
 
     boolean result = walletApiWrapper.unfreezeAsset(ownerAddress);
     if (result) {
-      System.out.println("UnfreezeAsset successful !!!");
+      System.out.println("UnfreezeAsset " + successfulHighlight() + " !!!");
     } else {
-      System.out.println("UnfreezeAsset failed !!!");
+      System.out.println("UnfreezeAsset " + failedHighlight() + " !!!");
     }
   }
 
@@ -1988,9 +2037,9 @@ public class Client {
     }
     boolean result = walletApiWrapper.createProposal(ownerAddress, parametersMap);
     if (result) {
-      System.out.println("CreateProposal successful !!");
+      System.out.println("CreateProposal " + successfulHighlight() + " !!");
     } else {
-      System.out.println("CreateProposal failed !!");
+      System.out.println("CreateProposal " + failedHighlight() + " !!");
     }
   }
 
@@ -2016,9 +2065,9 @@ public class Client {
     boolean is_add_approval = Boolean.valueOf(parameters[index++]);
     boolean result = walletApiWrapper.approveProposal(ownerAddress, id, is_add_approval);
     if (result) {
-      System.out.println("ApproveProposal successful !!!");
+      System.out.println("ApproveProposal " + successfulHighlight() + " !!!");
     } else {
-      System.out.println("ApproveProposal failed !!!");
+      System.out.println("ApproveProposal " + failedHighlight() + " !!!");
     }
   }
 
@@ -2043,9 +2092,9 @@ public class Client {
     long id = Long.valueOf(parameters[index++]);
     boolean result = walletApiWrapper.deleteProposal(ownerAddress, id);
     if (result) {
-      System.out.println("DeleteProposal successful !!!");
+      System.out.println("DeleteProposal " + successfulHighlight() + " !!!");
     } else {
-      System.out.println("DeleteProposal failed !!!");
+      System.out.println("DeleteProposal " + failedHighlight() + " !!!");
     }
   }
 
@@ -2055,7 +2104,7 @@ public class Client {
       ProposalList proposalList = result.get();
       System.out.println(Utils.formatMessageString(proposalList));
     } else {
-      System.out.println("List witnesses failed !!!");
+      System.out.println("List witnesses " + failedHighlight() + " !!!");
     }
   }
 
@@ -2072,7 +2121,7 @@ public class Client {
       Proposal proposal = result.get();
       System.out.println(Utils.formatMessageString(proposal));
     } else {
-      System.out.println("GetProposal failed !!!");
+      System.out.println("GetProposal " + failedHighlight() + " !!!");
     }
   }
 
@@ -2090,7 +2139,7 @@ public class Client {
       DelegatedResourceList delegatedResourceList = result.get();
       System.out.println(Utils.formatMessageString(delegatedResourceList));
     } else {
-      System.out.println("GetDelegatedResource failed !!!");
+      System.out.println("GetDelegatedResource " + failedHighlight() + " !!!");
     }
   }
 
@@ -2106,7 +2155,7 @@ public class Client {
       DelegatedResourceAccountIndex delegatedResourceAccountIndex = result.get();
       System.out.println(Utils.formatMessageString(delegatedResourceAccountIndex));
     } else {
-      System.out.println("GetDelegatedResourceAccountIndex failed !!!");
+      System.out.println("GetDelegatedResourceAccountIndex " + failedHighlight() + " !!!");
     }
   }
 
@@ -2123,7 +2172,7 @@ public class Client {
       DelegatedResourceList delegatedResourceList = result.get();
       System.out.println(Utils.formatMessageString(delegatedResourceList));
     } else {
-      System.out.println("GetDelegatedResourceV2 failed !!!");
+      System.out.println("GetDelegatedResourceV2 " + failedHighlight() + " !!!");
     }
   }
 
@@ -2139,7 +2188,7 @@ public class Client {
       DelegatedResourceAccountIndex delegatedResourceAccountIndex = result.get();
       System.out.println(Utils.formatMessageString(delegatedResourceAccountIndex));
     } else {
-      System.out.println("GetDelegatedResourceAccountIndexV2 failed !!!");
+      System.out.println("GetDelegatedResourceAccountIndexV2 " + failedHighlight() + " !!!");
     }
   }
 
@@ -2199,7 +2248,7 @@ public class Client {
       CanWithdrawUnfreezeAmountResponseMessage canWithdrawUnfreezeAmountResponseMessage = result.get();
       System.out.println(Utils.formatMessageString(canWithdrawUnfreezeAmountResponseMessage));
     } else {
-      System.out.println("GetCanWithdrawUnfreezeAmount failed !!!");
+      System.out.println("GetCanWithdrawUnfreezeAmount " + failedHighlight() + " !!!");
     }
   }
 
@@ -2259,7 +2308,7 @@ public class Client {
       CanDelegatedMaxSizeResponseMessage canDelegatedMaxSizeResponseMessage = result.get();
       System.out.println(Utils.formatMessageString(canDelegatedMaxSizeResponseMessage));
     } else {
-      System.out.println("GetCanDelegatedMaxSize failed !!!");
+      System.out.println("GetCanDelegatedMaxSize " + failedHighlight() + " !!!");
     }
   }
 
@@ -2294,7 +2343,7 @@ public class Client {
       GetAvailableUnfreezeCountResponseMessage getAvailableUnfreezeCountResponseMessage = result.get();
       System.out.println(Utils.formatMessageString(getAvailableUnfreezeCountResponseMessage));
     } else {
-      System.out.println("GetAvailableUnfreezeCount failed !!!");
+      System.out.println("GetAvailableUnfreezeCount " + failedHighlight() + " !!!");
     }
   }
 
@@ -2324,9 +2373,9 @@ public class Client {
     boolean result = walletApiWrapper.exchangeCreate(ownerAddress, firstTokenId, firstTokenBalance,
         secondTokenId, secondTokenBalance);
     if (result) {
-      System.out.println("ExchangeCreate successful !!!");
+      System.out.println("ExchangeCreate " + successfulHighlight() + " !!!");
     } else {
-      System.out.println("ExchangeCreate failed !!!");
+      System.out.println("ExchangeCreate " + failedHighlight() + " !!!");
     }
   }
 
@@ -2353,9 +2402,9 @@ public class Client {
     long quant = Long.valueOf(parameters[index++]);
     boolean result = walletApiWrapper.exchangeInject(ownerAddress, exchangeId, tokenId, quant);
     if (result) {
-      System.out.println("ExchangeInject successful !!!");
+      System.out.println("ExchangeInject " + successfulHighlight() + " !!!");
     } else {
-      System.out.println("ExchangeInject failed !!!");
+      System.out.println("ExchangeInject " + failedHighlight() + " !!!");
     }
   }
 
@@ -2382,9 +2431,9 @@ public class Client {
     long quant = Long.valueOf(parameters[index++]);
     boolean result = walletApiWrapper.exchangeWithdraw(ownerAddress, exchangeId, tokenId, quant);
     if (result) {
-      System.out.println("ExchangeWithdraw successful !!!");
+      System.out.println("ExchangeWithdraw " + successfulHighlight() + " !!!");
     } else {
-      System.out.println("ExchangeWithdraw failed !!!");
+      System.out.println("ExchangeWithdraw " + failedHighlight() + " !!!");
     }
   }
 
@@ -2414,9 +2463,9 @@ public class Client {
     boolean result = walletApiWrapper
         .exchangeTransaction(ownerAddress, exchangeId, tokenId, quant, expected);
     if (result) {
-      System.out.println("ExchangeTransaction successful !!!");
+      System.out.println("ExchangeTransaction " + successfulHighlight() + " !!!");
     } else {
-      System.out.println("ExchangeTransaction failed !!!");
+      System.out.println("ExchangeTransaction " + failedHighlight() + " !!!");
     }
   }
 
@@ -2426,7 +2475,7 @@ public class Client {
       ExchangeList exchangeList = result.get();
       System.out.println(Utils.formatMessageString(exchangeList));
     } else {
-      System.out.println("ListExchanges failed !!!");
+      System.out.println("ListExchanges " + failedHighlight() + " !!!");
     }
   }
 
@@ -2443,7 +2492,7 @@ public class Client {
       Exchange exchange = result.get();
       System.out.println(Utils.formatMessageString(exchange));
     } else {
-      System.out.println("GetExchange failed !!!");
+      System.out.println("GetExchange " + failedHighlight() + " !!!");
     }
   }
 
@@ -2462,9 +2511,9 @@ public class Client {
 
     boolean result = walletApiWrapper.withdrawBalance(ownerAddress);
     if (result) {
-      System.out.println("WithdrawBalance successful !!!");
+      System.out.println("WithdrawBalance " + successfulHighlight() + " !!!");
     } else {
-      System.out.println("WithdrawBalance failed !!!");
+      System.out.println("WithdrawBalance " + failedHighlight() + " !!!");
     }
   }
 
@@ -2493,7 +2542,7 @@ public class Client {
       Transaction transaction = result.get();
       System.out.println(Utils.printTransaction(transaction));
     } else {
-      System.out.println("GetTransactionById failed !!");
+      System.out.println("GetTransactionById " + failedHighlight() + " !!");
     }
   }
 
@@ -2510,7 +2559,7 @@ public class Client {
       TransactionInfo transactionInfo = result.get();
       System.out.println(Utils.formatMessageString(transactionInfo));
     } else {
-      System.out.println("GetTransactionInfoById failed !!!");
+      System.out.println("GetTransactionInfoById " + failedHighlight() + " !!!");
     }
   }
 
@@ -2539,7 +2588,7 @@ public class Client {
         }
         System.out.println(Utils.printTransactionList(transactionList));
       } else {
-        System.out.println("GetTransactionsFromThis failed !!!");
+        System.out.println("GetTransactionsFromThis " + failedHighlight() + " !!!");
       }
     } else {
       Optional<TransactionList> result = WalletApi
@@ -2552,7 +2601,7 @@ public class Client {
         }
         System.out.println(Utils.printTransactionList(transactionList));
       } else {
-        System.out.println("GetTransactionsFromThis failed !!!");
+        System.out.println("GetTransactionsFromThis " + failedHighlight() + " !!!");
       }
     }
   }
@@ -2582,7 +2631,7 @@ public class Client {
         }
         System.out.println(Utils.printTransactionList(transactionList));
       } else {
-        System.out.println("getTransactionsToThis failed !!!");
+        System.out.println("getTransactionsToThis " + failedHighlight() + " !!!");
       }
     } else {
       Optional<TransactionList> result = WalletApi
@@ -2595,7 +2644,7 @@ public class Client {
         }
         System.out.println(Utils.printTransactionList(transactionList));
       } else {
-        System.out.println("getTransactionsToThis failed !!!");
+        System.out.println("getTransactionsToThis " + failedHighlight() + " !!!");
       }
     }
   }
@@ -2629,7 +2678,7 @@ public class Client {
       Block block = result.get();
       System.out.println(Utils.printBlock(block));
     } else {
-      System.out.println("GetBlockById failed !!");
+      System.out.println("GetBlockById " + failedHighlight() + " !!");
     }
   }
 
@@ -2652,7 +2701,7 @@ public class Client {
         BlockListExtention blockList = result.get();
         System.out.println(Utils.printBlockList(blockList));
       } else {
-        System.out.println("GetBlockByLimitNext failed !!");
+        System.out.println("GetBlockByLimitNext " + failedHighlight() + " !!");
       }
     } else {
       Optional<BlockList> result = WalletApi.getBlockByLimitNext(start, end);
@@ -2660,7 +2709,7 @@ public class Client {
         BlockList blockList = result.get();
         System.out.println(Utils.printBlockList(blockList));
       } else {
-        System.out.println("GetBlockByLimitNext failed !!");
+        System.out.println("GetBlockByLimitNext " + failedHighlight() + " !!");
       }
     }
   }
@@ -2683,7 +2732,7 @@ public class Client {
         }
         System.out.println(Utils.printBlockList(blockList));
       } else {
-        System.out.println("GetBlockByLimitNext failed !!");
+        System.out.println("GetBlockByLimitNext " + failedHighlight() + " !!");
       }
     } else {
       Optional<BlockList> result = WalletApi.getBlockByLatestNum(num);
@@ -2695,7 +2744,7 @@ public class Client {
         }
         System.out.println(Utils.printBlockList(blockList));
       } else {
-        System.out.println("GetBlockByLimitNext failed !!");
+        System.out.println("GetBlockByLimitNext " + failedHighlight() + " !!");
       }
     }
   }
@@ -2732,9 +2781,9 @@ public class Client {
     boolean result = walletApiWrapper
         .updateSetting(ownerAddress, contractAddress, consumeUserResourcePercent);
     if (result) {
-      System.out.println("UpdateSetting successful !!!");
+      System.out.println("UpdateSetting " + successfulHighlight() + " !!!");
     } else {
-      System.out.println("UpdateSetting failed !!!");
+      System.out.println("UpdateSetting " + failedHighlight() + " !!!");
     }
   }
 
@@ -2770,9 +2819,9 @@ public class Client {
     boolean result = walletApiWrapper
         .updateEnergyLimit(ownerAddress, contractAddress, originEnergyLimit);
     if (result) {
-      System.out.println("UpdateSetting for origin_energy_limit successful !!!");
+      System.out.println("UpdateSetting for origin_energy_limit " + successfulHighlight() + " !!!");
     } else {
-      System.out.println("UpdateSetting for origin_energy_limit failed !!!");
+      System.out.println("UpdateSetting for origin_energy_limit " + failedHighlight() + " !!!");
     }
   }
 
@@ -2801,17 +2850,17 @@ public class Client {
 
     boolean result = walletApiWrapper.clearContractABI(ownerAddress, contractAddress);
     if (result) {
-      System.out.println("ClearContractABI successful !!!");
+      System.out.println("ClearContractABI " + successfulHighlight() + " !!!");
     } else {
-      System.out.println("ClearContractABI failed !!!");
+      System.out.println("ClearContractABI " + failedHighlight() + " !!!");
     }
   }
 
   private void clearWalletKeystoreIfExists() {
     if (walletApiWrapper.clearWalletKeystore()) {
-      System.out.println("ClearWalletKeystore successful !!!");
+      System.out.println("ClearWalletKeystore " + successfulHighlight() + " !!!");
     } else {
-      System.out.println("ClearWalletKeystore failed !!!");
+      System.out.println("ClearWalletKeystore " + failedHighlight() + " !!!");
     }
   }
 
@@ -2839,9 +2888,9 @@ public class Client {
 
     boolean result = walletApiWrapper.updateBrokerage(ownerAddress, brokerage);
     if (result) {
-      System.out.println("UpdateBrokerage successful !!!");
+      System.out.println("UpdateBrokerage " + successfulHighlight() + " !!!");
     } else {
-      System.out.println("UpdateBrokerage failed !!!");
+      System.out.println("UpdateBrokerage " + failedHighlight() + " !!!");
     }
   }
 
@@ -2899,7 +2948,7 @@ public class Client {
         System.out.println(Utils.printTransactionInfoList(transactionInfoList));
       }
     } else {
-      System.out.println("GetTransactionInfoByBlockNum failed !!!");
+      System.out.println("GetTransactionInfoByBlockNum " + failedHighlight() + " !!!");
     }
 
   }
@@ -3005,10 +3054,10 @@ public class Client {
             consumeUserResourcePercent, originEnergyLimit, tokenValue, tokenId, libraryAddressPair,
             compilerVersion);
     if (result) {
-      System.out.println("Broadcast the createSmartContract successful.\n"
+      System.out.println("Broadcast the createSmartContract " + successfulHighlight() + ".\n"
           + "Please check the given transaction id to confirm deploy status on blockchain using getTransactionInfoById command.");
     } else {
-      System.out.println("Broadcast the createSmartContract failed !!!");
+      System.out.println("Broadcast the createSmartContract " + failedHighlight() + " !!!");
     }
   }
 
@@ -3109,10 +3158,10 @@ public class Client {
     boolean result = walletApiWrapper.callContract(
         ownerAddress, contractAddress, callValue, input, feeLimit, tokenValue, tokenId, false);
     if (result) {
-      System.out.println("Broadcast the TriggerContract successful.\n"
+      System.out.println("Broadcast the TriggerContract " + successfulHighlight() + ".\n"
           + "Please check the given transaction id to get the result on blockchain using getTransactionInfoById command");
     } else {
-      System.out.println("Broadcast the TriggerContract failed");
+      System.out.println("Broadcast the TriggerContract " + failedHighlight() + ".");
     }
   }
 
@@ -3251,7 +3300,7 @@ public class Client {
     if (contractDeployContract != null) {
       System.out.println(Utils.formatMessageString(contractDeployContract));
     } else {
-      System.out.println("Query contract failed !!!");
+      System.out.println("Query contract " + failedHighlight() + " !!!");
     }
   }
 
@@ -3273,7 +3322,7 @@ public class Client {
     if (contractDeployContract != null) {
       System.out.println(Utils.formatMessageString(contractDeployContract));
     } else {
-      System.out.println("Query contract failed !!!");
+      System.out.println("Query contract " + failedHighlight() + " !!!");
     }
   }
 
@@ -3291,7 +3340,7 @@ public class Client {
       builder.setPrivateKey(priKeyStr);
       System.out.println(Utils.formatMessageString(builder.build()));
     } catch (Exception e) {
-      System.out.println("GenerateAddress failed !!!");
+      System.out.println("GenerateAddress " + failedHighlight() + " !!!");
     }
   }
 
@@ -3311,9 +3360,9 @@ public class Client {
 
     boolean ret = walletApiWrapper.accountPermissionUpdate(ownerAddress, parameters[1]);
     if (ret) {
-      System.out.println("UpdateAccountPermission successful !!!");
+      System.out.println("UpdateAccountPermission " + successfulHighlight() + " !!!");
     } else {
-      System.out.println("UpdateAccountPermission failed !!!");
+      System.out.println("UpdateAccountPermission " + failedHighlight() + " !!!");
     }
   }
 
@@ -3332,7 +3381,7 @@ public class Client {
     if (transactionSignWeight != null) {
       System.out.println(Utils.printTransactionSignWeight(transactionSignWeight));
     } else {
-      System.out.println("GetTransactionSignWeight failed !!!");
+      System.out.println("GetTransactionSignWeight " + failedHighlight() + " !!!");
     }
   }
 
@@ -3352,7 +3401,7 @@ public class Client {
     if (transactionApprovedList != null) {
       System.out.println(Utils.printTransactionApprovedList(transactionApprovedList));
     } else {
-      System.out.println("GetTransactionApprovedList failed !!!");
+      System.out.println("GetTransactionApprovedList " + failedHighlight() + " !!!");
     }
   }
 
@@ -3377,7 +3426,7 @@ public class Client {
       System.out.println("Transaction hex string is " +
           ByteArray.toHexString(transaction.toByteArray()));
     } else {
-      System.out.println("AddTransactionSign failed !!!");
+      System.out.println("AddTransactionSign " + failedHighlight() + " !!!");
     }
 
   }
@@ -3398,9 +3447,9 @@ public class Client {
 
     boolean ret = WalletApi.broadcastTransaction(transaction);
     if (ret) {
-      System.out.println("BroadcastTransaction successful !!!");
+      System.out.println("BroadcastTransaction " + successfulHighlight() + " !!!");
     } else {
-      System.out.println("BroadcastTransaction failed !!!");
+      System.out.println("BroadcastTransaction " + failedHighlight() + " !!!");
     }
   }
 
@@ -3422,7 +3471,7 @@ public class Client {
       }
     }
 
-    System.out.println("GenerateShieldedAddress successful !!!");
+    System.out.println("GenerateShieldedAddress " + successfulHighlight() + " !!!");
   }
 
   private void listShieldedAddress() {
@@ -3613,9 +3662,9 @@ public class Client {
 
     boolean result = sendShieldedCoinNormal(parameters, true);
     if (result) {
-      System.out.println("SendShieldedCoin successful !!!");
+      System.out.println("SendShieldedCoin " + successfulHighlight() + " !!!");
     } else {
-      System.out.println("SendShieldedCoin failed !!!");
+      System.out.println("SendShieldedCoin " + failedHighlight() + " !!!");
     }
   }
 
@@ -3642,9 +3691,9 @@ public class Client {
 
     boolean result = sendShieldedCoinNormal(parameters, false);
     if (result) {
-      System.out.println("SendShieldedCoinWithoutAsk successful !!!");
+      System.out.println("SendShieldedCoinWithoutAsk " + successfulHighlight() + " !!!");
     } else {
-      System.out.println("SendShieldedCoinWithoutAsk failed !!!");
+      System.out.println("SendShieldedCoinWithoutAsk " + failedHighlight() + " !!!");
     }
   }
 
@@ -3784,7 +3833,7 @@ public class Client {
     if (hash != null) {
       System.out.println("ShieldedNullifier:" + hash);
     } else {
-      System.out.println("GetShieldedNullifier failed !!!");
+      System.out.println("GetShieldedNullifier " + failedHighlight() + " !!!");
     }
   }
 
@@ -3810,7 +3859,7 @@ public class Client {
     }
     byte[] spendingKey = ByteArray.fromHexString(parameters[0]);
     if (spendingKey.length != 32) {
-      System.out.println("GetExpandedSpendingKey failed !!!");
+      System.out.println("GetExpandedSpendingKey " + failedHighlight() + " !!!");
       return;
     }
     try {
@@ -3819,7 +3868,7 @@ public class Client {
       System.out.println("nsk:" + ByteArray.toHexString(esk.getNsk()));
       System.out.println("ovk:" + ByteArray.toHexString(esk.getOvk()));
     } catch (ZksnarkException e) {
-      System.out.println("GetExpandedSpendingKey failed !!!");
+      System.out.println("GetExpandedSpendingKey " + failedHighlight() + " !!!");
     }
   }
 
@@ -3834,7 +3883,7 @@ public class Client {
       byte[] ak = ExpandedSpendingKey.getAkFromAsk(ask);
       System.out.println("ak:" + ByteArray.toHexString(ak));
     } catch (ZksnarkException e) {
-      System.out.println("GetAkFromAsk failed !!!");
+      System.out.println("GetAkFromAsk " + failedHighlight() + " !!!");
     }
   }
 
@@ -3849,7 +3898,7 @@ public class Client {
       byte[] nk = ExpandedSpendingKey.getNkFromNsk(nsk);
       System.out.println("nk:" + ByteArray.toHexString(nk));
     } catch (ZksnarkException e) {
-      System.out.println("GetNkFromNsk failed !!!");
+      System.out.println("GetNkFromNsk " + failedHighlight() + " !!!");
     }
   }
 
@@ -3868,7 +3917,7 @@ public class Client {
       JLibrustzcash.librustzcashCrhIvk(new LibrustzcashParam.CrhIvkParams(ak, nk, ivk));
       System.out.println("ivk:" + ByteArray.toHexString(ivk));
     } catch (ZksnarkException e) {
-      System.out.println("GetIncomingViewingKey failed !!!");
+      System.out.println("GetIncomingViewingKey " + failedHighlight() + " !!!");
     }
   }
 
@@ -3877,7 +3926,7 @@ public class Client {
       DiversifierT d = new DiversifierT().random();
       System.out.println(ByteArray.toHexString(d.getData()));
     } catch (ZksnarkException e) {
-      System.out.println("GetDiversifier failed !!!");
+      System.out.println("GetDiversifier " + failedHighlight() + " !!!");
     }
   }
 
@@ -3895,14 +3944,14 @@ public class Client {
     try {
       Optional<PaymentAddress> paymentAddress = ivk.address(new DiversifierT(d));
       if (!paymentAddress.isPresent()) {
-        System.out.println("GetShieldedPaymentAddress failed !!!");
+        System.out.println("GetShieldedPaymentAddress " + failedHighlight() + " !!!");
       } else {
         PaymentAddress pa = paymentAddress.get();
         System.out.println("pkd:" + ByteArray.toHexString(pa.getPkD()));
         System.out.println("shieldedAddress:" + KeyIo.encodePaymentAddress(pa));
       }
     } catch (ZksnarkException e) {
-      System.out.println("GetShieldedPaymentAddress failed !!!");
+      System.out.println("GetShieldedPaymentAddress " + failedHighlight() + " !!!");
     }
   }
 
@@ -3911,9 +3960,9 @@ public class Client {
     if (addressInfo != null) {
       System.out.println("sk:" + ByteArray.toHexString(addressInfo.getSk()));
       System.out.println("d :" + ByteArray.toHexString(addressInfo.getD().getData()));
-      System.out.println("BackupShieldedWallet successful !!!");
+      System.out.println("BackupShieldedWallet " + successfulHighlight() + " !!!");
     } else {
-      System.out.println("BackupShieldedWallet failed !!!");
+      System.out.println("BackupShieldedWallet " + failedHighlight() + " !!!");
     }
   }
 
@@ -3929,12 +3978,12 @@ public class Client {
       if (addressInfo.isPresent() &&
           ShieldedWrapper.getInstance().addNewShieldedAddress(addressInfo.get(), false)) {
         System.out.println("Import new shielded wallet address is: " + addressInfo.get().getAddress());
-        System.out.println("ImportShieldedWallet successful !!!");
+        System.out.println("ImportShieldedWallet " + successfulHighlight() + " !!!");
       } else {
-        System.out.println("ImportShieldedWallet failed !!!");
+        System.out.println("ImportShieldedWallet " + failedHighlight() + " !!!");
       }
     } else {
-      System.out.println("ImportShieldedWallet failed !!!");
+      System.out.println("ImportShieldedWallet " + failedHighlight() + " !!!");
     }
   }
 
@@ -3963,9 +4012,9 @@ public class Client {
         .marketSellAsset(ownerAddress, sellTokenId, sellTokenQuantity, buyTokenId,
             buyTokenQuantity);
     if (result) {
-      System.out.println("MarketSellAsset successful !!!");
+      System.out.println("MarketSellAsset " + successfulHighlight() + " !!!");
     } else {
-      System.out.println("MarketSellAsset failed !!!");
+      System.out.println("MarketSellAsset " + failedHighlight() + " !!!");
     }
   }
 
@@ -3991,9 +4040,9 @@ public class Client {
     boolean result = walletApiWrapper
         .marketCancelOrder(ownerAddress, orderId);
     if (result) {
-      System.out.println("MarketCancelOrder successful !!!");
+      System.out.println("MarketCancelOrder " + successfulHighlight() + " !!!");
     } else {
-      System.out.println("MarketCancelOrder failed !!!");
+      System.out.println("MarketCancelOrder " + failedHighlight() + " !!!");
     }
   }
 
@@ -4016,7 +4065,7 @@ public class Client {
     Optional<MarketOrderList> marketOrderList = walletApiWrapper
         .getMarketOrderByAccount(ownerAddress);
     if (!marketOrderList.isPresent()) {
-      System.out.println("GetMarketOrderByAccount failed !!!");
+      System.out.println("GetMarketOrderByAccount " + failedHighlight() + " !!!");
     } else {
       System.out.println(Utils.formatMessageString(marketOrderList.get()));
     }
@@ -4037,7 +4086,7 @@ public class Client {
     Optional<MarketPriceList> marketPriceList = walletApiWrapper
         .getMarketPriceByPair(sellTokenId, buyTokenId);
     if (!marketPriceList.isPresent()) {
-      System.out.println("GetMarketPriceByPair failed !!!");
+      System.out.println("GetMarketPriceByPair " + failedHighlight() + " !!!");
     } else {
       System.out.println(Utils.formatMessageString(marketPriceList.get()));
     }
@@ -4059,7 +4108,7 @@ public class Client {
     Optional<MarketOrderList> orderListByPair = walletApiWrapper
         .getMarketOrderListByPair(sellTokenId, buyTokenId);
     if (!orderListByPair.isPresent()) {
-      System.out.println("getMarketOrderListByPair failed !!!");
+      System.out.println("getMarketOrderListByPair " + failedHighlight() + " !!!");
     } else {
       System.out.println(Utils.formatMessageString(orderListByPair.get()));
     }
@@ -4077,7 +4126,7 @@ public class Client {
     Optional<MarketOrderPairList> pairList = walletApiWrapper
         .getMarketPairList();
     if (!pairList.isPresent()) {
-      System.out.println("getMarketPairList failed !!!");
+      System.out.println("getMarketPairList " + failedHighlight() + " !!!");
     } else {
       System.out.println(Utils.formatMessageString(pairList.get()));
     }
@@ -4095,7 +4144,7 @@ public class Client {
     Optional<MarketOrder> order = walletApiWrapper
         .getMarketOrderById(orderId);
     if (!order.isPresent()) {
-      System.out.println("getMarketOrderById failed !!!");
+      System.out.println("getMarketOrderById " + failedHighlight() + " !!!");
     } else {
       System.out.println(Utils.formatMessageString(order.get()));
     }
@@ -4144,13 +4193,13 @@ public class Client {
           BigInteger scalingFactor = new BigInteger(scalingFactorHexStr, 16);
           ShieldedTRC20Wrapper.getInstance().setScalingFactor(scalingFactor);
           System.out.println("SetShieldedTRC20ContractAddress succeed!");
-          System.out.println("The Scaling Factor is " + scalingFactor.toString());
+          System.out.println("The Scaling Factor is " + scalingFactor);
           System.out.println("That means:");
           System.out.println("No matter you MINT, TRANSFER or BURN, the value must be an integer "
-              + "multiple of " + scalingFactor.toString());
+              + "multiple of " + scalingFactor);
         }
       } else {
-        System.out.println("SetShieldedTRC20ContractAddress failed !!! Invalid Address !!!");
+        System.out.println("SetShieldedTRC20ContractAddress " + failedHighlight() + " !!! Invalid Address !!!");
       }
     } else {
       System.out.println("SetShieldedTRC20ContractAddress command needs 2 parameters like:");
@@ -4161,7 +4210,7 @@ public class Client {
 
   private void backupShieldedTRC20Wallet() throws IOException, CipherException {
     if (!ShieldedTRC20Wrapper.isSetShieldedTRC20WalletPath()) {
-      System.out.println("BackupShieldedTRC20Wallet failed !!!"
+      System.out.println("BackupShieldedTRC20Wallet " + failedHighlight() + " !!!"
           + " Please SetShieldedTRC20ContractAddress first !!!");
       return;
     }
@@ -4171,16 +4220,16 @@ public class Client {
     if (addressInfo != null) {
       System.out.println("sk:" + ByteArray.toHexString(addressInfo.getSk()));
       System.out.println("d :" + ByteArray.toHexString(addressInfo.getD().getData()));
-      System.out.println("BackupShieldedTRC20Wallet successful !!!");
+      System.out.println("BackupShieldedTRC20Wallet " + successfulHighlight() + " !!!");
     } else {
-      System.out.println("BackupShieldedTRC20Wallet failed !!!");
+      System.out.println("BackupShieldedTRC20Wallet " + failedHighlight() + " !!!");
     }
   }
 
   private void generateShieldedTRC20Address(String[] parameters) throws IOException,
       CipherException, ZksnarkException {
     if (!ShieldedTRC20Wrapper.isSetShieldedTRC20WalletPath()) {
-      System.out.println("GenerateShieldedTRC20Address failed !!!"
+      System.out.println("GenerateShieldedTRC20Address " + failedHighlight() + " !!!"
           + " Please SetShieldedTRC20ContractAddress first !!!");
       return;
     }
@@ -4188,7 +4237,7 @@ public class Client {
     int addressNum = 1;
     if (parameters.length > 0 && !StringUtil.isNullOrEmpty(parameters[0])) {
       try {
-        addressNum = Integer.valueOf(parameters[0]);
+        addressNum = Integer.parseInt(parameters[0]);
         if (addressNum == 0) {
           System.out.println("Parameter must be positive!");
           return;
@@ -4215,7 +4264,7 @@ public class Client {
 
   private void importShieldedTRC20Wallet() throws CipherException, IOException, ZksnarkException {
     if (!ShieldedTRC20Wrapper.isSetShieldedTRC20WalletPath()) {
-      System.out.println("ImportShieldedTRC20Wallet failed !!!"
+      System.out.println("ImportShieldedTRC20Wallet " + failedHighlight() + " !!!"
           + " Please SetShieldedTRC20ContractAddress first !!!");
       return;
     }
@@ -4232,12 +4281,12 @@ public class Client {
           addressInfo.get(), false)) {
         System.out.println("Import new shieldedTRC20 wallet address is: "
             + addressInfo.get().getAddress());
-        System.out.println("ImportShieldedTRC20Wallet successfully !!!");
+        System.out.println("ImportShieldedTRC20Wallet " + successfulHighlight() + " !!!");
       } else {
-        System.out.println("ImportShieldedTRC20Wallet failed !!!");
+        System.out.println("ImportShieldedTRC20Wallet " + failedHighlight() + " !!!");
       }
     } else {
-      System.out.println("ImportShieldedTRC20Wallet failed !!!");
+      System.out.println("ImportShieldedTRC20Wallet " + failedHighlight() + " !!!");
     }
   }
 
@@ -4335,12 +4384,12 @@ public class Client {
     if (ShieldedTRC20Wrapper.isSetShieldedTRC20WalletPath()) {
       boolean result = ShieldedTRC20Wrapper.getInstance().loadShieldTRC20Wallet();
       if (result) {
-        System.out.println("LoadShieldedTRC20Wallet successful !!!");
+        System.out.println("LoadShieldedTRC20Wallet " + successfulHighlight() + " !!!");
       } else {
-        System.out.println("LoadShieldedTRC20Wallet failed !!!");
+        System.out.println("LoadShieldedTRC20Wallet " + failedHighlight() + " !!!");
       }
     } else {
-      System.out.println("LoadShieldedTRC20Wallet failed !!!"
+      System.out.println("LoadShieldedTRC20Wallet " + failedHighlight() + " !!!"
           + " Please SetShieldedTRC20ContractAddress first !!!");
     }
   }
@@ -4442,9 +4491,9 @@ public class Client {
       boolean result = sendShieldedTRC20CoinNormal(parameters, true,
           contractAddress, shieldedContractAddress);
       if (result) {
-        System.out.println("SendShieldedTRC20Coin successfully !!!");
+        System.out.println("SendShieldedTRC20Coin " + successfulHighlight() + " !!!");
       } else {
-        System.out.println("SendShieldedTRC20Coin failed !!!");
+        System.out.println("SendShieldedTRC20Coin " + failedHighlight() + " !!!");
       }
     }
   }
@@ -4459,9 +4508,9 @@ public class Client {
       boolean result = sendShieldedTRC20CoinNormal(parameters, false,
           contractAddress, shieldedContractAddress);
       if (result) {
-        System.out.println("SendShieldedTRC20CoinWithoutAsk successfully !!!");
+        System.out.println("SendShieldedTRC20CoinWithoutAsk " + successfulHighlight() + " !!!");
       } else {
-        System.out.println("SendShieldedTRC20CoinWithoutAsk failed !!!");
+        System.out.println("SendShieldedTRC20CoinWithoutAsk " + failedHighlight() + " !!!");
       }
     }
   }
@@ -4764,12 +4813,16 @@ public class Client {
 
   private void run() {
     System.out.println(" ");
-    System.out.println("Welcome to Tron Wallet-Cli");
+    System.out.println("Welcome to Tron " + blueHighlight("Wallet-Cli"));
+    printBanner();
     System.out.println("Please type one of the following commands to proceed.");
-    System.out.println("Login, RegisterWallet or ImportWallet");
+    System.out.println(greenBoldHighlight("Login") + ", " + greenBoldHighlight("LoginAll")
+        + ", " + greenBoldHighlight("RegisterWallet")
+        + " or " + greenBoldHighlight("ImportWallet"));
     System.out.println(" ");
     System.out.println(
-        "You may also use the Help command at anytime to display a full list of commands.");
+        "You may also use the " + greenBoldHighlight("Help") + " command at anytime to display a "
+            + "full list of commands.");
     System.out.println(" ");
 
     try {
@@ -4860,6 +4913,18 @@ public class Client {
             }
             case "logout": {
               logout();
+              break;
+            }
+            case "loginall": {
+              loginAll();
+              break;
+            }
+            case "switchwallet": {
+              switchWallet();
+              break;
+            }
+            case "resetwallet": {
+              resetWallet();
               break;
             }
             // case "loadshieldedwallet": {
@@ -5402,8 +5467,17 @@ public class Client {
             }
             case "exit":
             case "quit": {
+              cleanup();
               System.out.println("Exit !!!");
               return;
+            }
+            case "lock": {
+              lock();
+              break;
+            }
+            case "unlock": {
+              unlock(parameters);
+              break;
             }
             default: {
               System.out.println("Invalid cmd: " + cmd);
@@ -5442,7 +5516,7 @@ public class Client {
       ChainParameters chainParameters = result.get();
       System.out.println(Utils.formatMessageString(chainParameters));
     } else {
-      System.out.println("GetChainParameters failed !!");
+      System.out.println("GetChainParameters " + failedHighlight() + " !!");
     }
   }
 
@@ -5493,6 +5567,29 @@ public class Client {
         return;
       }
       System.out.println(Utils.printBlockExtention(blockExtention));
+  }
+
+  private void lock() {
+    boolean result = walletApiWrapper.lock();
+    if (result) {
+      System.out.println("lock " + successfulHighlight() + " !!!");
+    } else {
+      System.out.println("lock " + failedHighlight() + " !!!");
+    }
+  }
+
+  private void cleanup() {
+    walletApiWrapper.cleanup();
+  }
+
+  private void unlock(String[] parameters) throws IOException {
+    long durationSeconds = ArrayUtils.isEmpty(parameters) ? 0 : getLong(parameters[0]);
+    boolean result = walletApiWrapper.unlock(durationSeconds);
+    if (result) {
+      System.out.println("unlock " + successfulHighlight() + " !!!");
+    } else {
+      System.out.println("unlock " + failedHighlight() + " !!!");
+    }
   }
 
   public static void main(String[] args) {

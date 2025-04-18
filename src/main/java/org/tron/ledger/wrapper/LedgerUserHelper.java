@@ -6,6 +6,7 @@ import org.tron.walletcli.WalletApiWrapper;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
+import org.tron.walletserver.WalletApi;
 
 import static org.tron.ledger.console.ConsoleColor.ANSI_RED;
 import static org.tron.ledger.console.ConsoleColor.ANSI_RESET;
@@ -83,7 +84,10 @@ public class LedgerUserHelper {
       if (LEDGER_CMD_CHECK_CONNECTION_SET.contains(cmdLowerCase)) {
         HidDevice hidDevice = null;
         try {
-          hidDevice = HidServicesWrapper.getInstance().getHidDevice();
+          WalletApi walletApi = walletApiWrapper.getWallet();
+          String address = walletApi.getWalletFile().getAddress();
+          String path = walletApi.getPath();
+          hidDevice = HidServicesWrapper.getInstance().getHidDevice(address, path);
         } catch (Exception e) {
           if (DebugConfig.isDebugEnabled()) {
             e.printStackTrace();

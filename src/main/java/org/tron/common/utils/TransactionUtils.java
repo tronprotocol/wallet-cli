@@ -367,14 +367,14 @@ public class TransactionUtils {
     }
 
     System.out.println(tipString);
-    int permission_id = inputPermissionId();
-    if (permission_id < 0) {
+    int permissionId = inputPermissionId();
+    if (permissionId < 0) {
       throw new CancelException("User cancelled");
     }
-    if (permission_id != 0) {
+    if (permissionId != 0) {
       Transaction.raw.Builder raw = transaction.getRawData().toBuilder();
       Transaction.Contract.Builder contract =
-          raw.getContract(0).toBuilder().setPermissionId(permission_id);
+          raw.getContract(0).toBuilder().setPermissionId(permissionId);
       raw.clearContract();
       raw.addContract(contract);
       transaction = transaction.toBuilder().setRawData(raw).build();

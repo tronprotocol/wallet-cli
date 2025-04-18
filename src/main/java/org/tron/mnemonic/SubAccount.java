@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.jline.reader.LineReader;
 import org.jline.reader.LineReaderBuilder;
@@ -27,6 +28,11 @@ import java.util.List;
 import java.util.Scanner;
 
 import static org.apache.commons.lang3.StringUtils.isNumeric;
+import static org.tron.common.utils.Utils.greenBoldHighlight;
+import static org.tron.common.utils.Utils.successfulHighlight;
+import static org.tron.ledger.console.ConsoleColor.ANSI_BOLD;
+import static org.tron.ledger.console.ConsoleColor.ANSI_RED;
+import static org.tron.ledger.console.ConsoleColor.ANSI_RESET;
 
 public class SubAccount {
   private final Terminal terminal;
@@ -187,29 +193,30 @@ public class SubAccount {
         .append(String.valueOf(totalPages))
         .append(" ===\n\n");
 
-    asb.append(String.format("%-4s %-42s %-25s %s\n",
-        "No.", "Address", "Path", "Status"));
+    asb.append(String.format("%-4s %-42s %-25s %s%n",
+        greenBoldHighlight("No."), greenBoldHighlight("Address"),
+        greenBoldHighlight("Path"), greenBoldHighlight("Status")));
     asb.append(StringUtils.repeat("-", 80)).append("\n");
 
     int start = currentPage * pageSize;
     int end = Math.min(start + pageSize, addresses.size());
 
     for (int i = start; i < end; i++) {
-      asb.append(String.format("%-4d %s\n",
+      asb.append(String.format("%-4d %s%n",
           i + 1,
           addresses.get(i).getDisplayString()));
     }
-    asb.append("Commands: [P] Previous page " +
-        "[N] Next page " +
-        "["+ (start+1) + "-" + end+"] Select address index " +
-        "[Q] Quit\n");
+    asb.append("Commands: [").append(greenBoldHighlight("P")).append("] Previous page ")
+        .append("[").append(greenBoldHighlight("N")).append("] Next page ").append("[")
+        .append(greenBoldHighlight((start + 1) + "-" + end)).append("] Select address index ")
+        .append("[").append(greenBoldHighlight("Q")).append("] Quit\n");
     asb.append("Enter your choice: ");
 
     terminal.writer().print(asb.toAnsi());
     terminal.flush();
   }
 
-  private boolean handleSelectAddress(int selectedIndex) throws Exception {
+  private boolean handleSelectAddress(int selectedIndex, WalletApi wallet) throws Exception {
     int start = currentPage * pageSize;
     int end = Math.min(start + pageSize, addresses.size());
     try {
@@ -222,8 +229,14 @@ public class SubAccount {
               , MnemonicUtils.stringToMnemonicWords(mnemonic)
           );
           String keystoreName = WalletApi.store2Keystore(walletFile);
-          System.out.println(getStringByType(getType()) + " successful, keystore file name is " + keystoreName);
+          System.out.println(getStringByType(getType()) + " " + successfulHighlight()
+              + ", keystore file name is " + keystoreName);
           selected.setGenerated(true);
+          boolean isUnifiedExist = wallet != null && wallet.isLoginState()
+              && ArrayUtils.isNotEmpty(wallet.getUnifiedPassword());
+          if (isUnifiedExist) {
+            wallet.getWalletList().add(walletFile);
+          }
           return true;
         } else {
           System.out.println(selected.getDetailString() + ", this address already exists.");
@@ -249,7 +262,7 @@ public class SubAccount {
     reader.readLine();
   }
 
-  public void start() throws Exception {
+  public void start(WalletApi wallet) throws Exception {
     while (true) {
       clearScreen();
       if (mnemonic == null || mnemonic.isEmpty()) {
@@ -286,16 +299,16 @@ public class SubAccount {
       String choice = reader.readLine().trim();
       if (choice.equals("1")) {
         try {
-          genDefaultPath(defaultFullPath, walletAddress);
+          genDefaultPath(defaultFullPath, walletAddress, wallet);
         } catch (Exception e) {
           e.printStackTrace();
         }
         break;
       } else if (choice.equals("2")) {
-        changeAccount();
+        changeAccount(wallet);
         break;
       } else if (choice.equals("3")) {
-        boolean ret = generateByCustomPath();
+        boolean ret = generateByCustomPath(wallet);
         if (!ret) {
           continue;
         } else {
@@ -307,7 +320,7 @@ public class SubAccount {
     }
   }
 
-  public void genDefaultPath(String path, WalletAddress walletAddress) throws Exception {
+  public void genDefaultPath(String path, WalletAddress walletAddress, WalletApi wallet) throws Exception {
     if (MnemonicUtils.generatedAddress(walletAddress.getAddress())) {
       terminal.writer().println("The path is already generated...");
       terminal.flush();
@@ -327,14 +340,19 @@ public class SubAccount {
     } catch (Exception e) {
       //e.printStackTrace();
     }
+    boolean isUnifiedExist = wallet != null && wallet.isLoginState()
+        && ArrayUtils.isNotEmpty(wallet.getUnifiedPassword());
+    if (isUnifiedExist) {
+      wallet.getWalletList().add(walletFile);
+    }
   }
 
-  public void changeAccount() throws Exception {
+  public void changeAccount(WalletApi wallet) throws Exception {
     while (true) {
       displayCurrentPage();
       String command = reader.readLine().trim().toUpperCase();
       if (isNumeric(command)) {
-        boolean ret = handleSelectAddress(Integer.parseInt(command));
+        boolean ret = handleSelectAddress(Integer.parseInt(command), wallet);
         if (ret) {
           break;
         }
@@ -365,7 +383,7 @@ public class SubAccount {
     }
   }
 
-  public boolean generateByCustomPath() {
+  public boolean generateByCustomPath(WalletApi wallet) {
     try {
       boolean ret = printRiskAlert();
       if (!ret) {
@@ -375,7 +393,7 @@ public class SubAccount {
       if (pathFull == null || pathFull.isEmpty()) {
         return false;
       }
-      generateSubAccountByCustomPath(pathFull);
+      generateSubAccountByCustomPath(pathFull, wallet);
     } catch (Exception e) {
       System.out.println(e.getMessage());
       return false;
@@ -387,7 +405,7 @@ public class SubAccount {
     return type == 0 ? "GenerateSubAccount" : "importWalletByMnemonic";
   }
 
-  private void generateSubAccountByCustomPath(String path) throws CipherException, IOException {
+  private void generateSubAccountByCustomPath(String path, WalletApi wallet) throws CipherException, IOException {
     WalletAddress walletAddress = this.generateWalletAddressByCustomPath(
         mnemonic, path);
     if (walletAddress == null) {
@@ -406,9 +424,9 @@ public class SubAccount {
         .append("\n");
     terminal.writer().println(result.toAnsi());
     terminal.flush();
-    String response = reader.readLine("Input y/yes to " + getStringByType(getType()) + "? (y/yes): ").trim().toLowerCase();
+    String response = reader.readLine("Input " + greenBoldHighlight("y/Y") + " to " + getStringByType(getType()) + "? (" + greenBoldHighlight("y/Y") + "): ").trim().toLowerCase();
     if (!response.equalsIgnoreCase("y")
-        && !response.equalsIgnoreCase("yes")) {
+        && !response.equalsIgnoreCase("Y")) {
       return;
     }
     WalletFile walletFile = WalletApi.CreateWalletFile(password
@@ -423,6 +441,11 @@ public class SubAccount {
       this.addresses.get(subAccountIndex).setGenerated(true);
     } catch (Exception e) {
       //e.printStackTrace();
+    }
+    boolean isUnifiedExist = wallet != null && wallet.isLoginState()
+        && ArrayUtils.isNotEmpty(wallet.getUnifiedPassword());
+    if (isUnifiedExist) {
+      wallet.getWalletList().add(walletFile);
     }
   }
 
@@ -451,13 +474,13 @@ public class SubAccount {
   }
 
   private boolean printRiskAlert() {
-    System.out.println("\nRisk Alert");
-    System.out.println("You are not advised to change the \"Path\" of a generated account address unless you are an advanced user.");
-    System.out.println("Please do not use the \"Custom Path\" feature if you do not understand how account addresses are generated or the definition of \"Path\", " +
-        "in case you lose access to the new account generated.\n");
+    System.out.println("\n" + ANSI_BOLD + ANSI_RED + "Risk Alert" + ANSI_RESET);
+    System.out.println(ANSI_RED + "You are not advised to change the \"Path\" of a generated account address unless you are an advanced user." + ANSI_RESET);
+    System.out.println(ANSI_RED + "Please do not use the \"Custom Path\" feature if you do not understand how account addresses are generated or the definition of \"Path\", " +
+        "in case you lose access to the new account generated.\n" + ANSI_RESET);
 
     Scanner scanner = new Scanner(System.in);
-    System.out.println("Enter 'y' (Understand the Risks & Continue)");
+    System.out.println("Enter " + greenBoldHighlight("y/Y") + " (Understand the Risks & Continue)");
 
     String input = scanner.nextLine().trim().toLowerCase();
     if ("y".equals(input)) {

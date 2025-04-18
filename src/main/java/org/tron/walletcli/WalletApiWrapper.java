@@ -1,5 +1,19 @@
 package org.tron.walletcli;
 
+import static com.google.common.collect.Lists.newArrayList;
+import static org.apache.commons.lang3.StringUtils.EMPTY;
+import static org.tron.common.utils.Utils.failedHighlight;
+import static org.tron.common.utils.Utils.greenBoldHighlight;
+import static org.tron.common.utils.Utils.inputPassword;
+import static org.tron.keystore.StringUtils.byte2Char;
+import static org.tron.keystore.StringUtils.char2Byte;
+import static org.tron.keystore.Wallet.validPassword;
+import static org.tron.keystore.WalletUtils.show;
+import static org.tron.ledger.LedgerFileUtil.LEDGER_DIR_NAME;
+import static org.tron.ledger.console.ConsoleColor.ANSI_RED;
+import static org.tron.ledger.console.ConsoleColor.ANSI_RESET;
+import static org.tron.walletserver.WalletApi.getAllWalletFile;
+
 import com.google.protobuf.ByteString;
 import io.netty.util.internal.StringUtil;
 
@@ -7,7 +21,13 @@ import java.io.File;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Scanner;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang3.ArrayUtils;
 import org.bouncycastle.util.encoders.Hex;
 import org.jline.reader.EndOfFileException;
 import org.jline.reader.LineReader;
@@ -34,6 +54,7 @@ import org.tron.core.zen.address.DiversifierT;
 import org.tron.core.zen.address.ExpandedSpendingKey;
 import org.tron.core.zen.address.FullViewingKey;
 import org.tron.core.zen.address.SpendingKey;
+import org.tron.keystore.ClearWalletUtils;
 import org.tron.keystore.StringUtils;
 import org.tron.keystore.Wallet;
 import org.tron.keystore.WalletFile;
@@ -70,6 +91,8 @@ import java.util.Optional;
 @Slf4j
 public class WalletApiWrapper {
 
+  @Getter
+  @Setter
   private WalletApi wallet;
   private static final String MnemonicFilePath = "Mnemonic";
 
@@ -78,7 +101,7 @@ public class WalletApiWrapper {
       return null;
     }
 
-    byte[] passwd = StringUtils.char2Byte(password);
+    byte[] passwd = char2Byte(password);
 
     WalletFile walletFile = WalletApi.CreateWalletFile(passwd, wordsNumber);
     StringUtils.clear(passwd);
@@ -96,7 +119,7 @@ public class WalletApiWrapper {
       return null;
     }
 
-    byte[] passwd = StringUtils.char2Byte(password);
+    byte[] passwd = char2Byte(password);
 
     WalletFile walletFile = WalletApi.CreateWalletFile(passwd, priKey, mnemonic);
     StringUtils.clear(passwd);
@@ -105,7 +128,12 @@ public class WalletApiWrapper {
     if (mnemonic == null && WalletUtils.hasStoreFile(walletFile.getAddress(), MnemonicFilePath)) {
       WalletUtils.deleteStoreFile(walletFile.getAddress(), MnemonicFilePath);
     }
-    logout();
+    if (isUnifiedExist()) {
+      wallet.getWalletList().add(walletFile);
+    }
+    if (!isUnifiedExist()) {
+      logout();
+    }
     return keystoreName;
   }
 
@@ -124,7 +152,7 @@ public class WalletApiWrapper {
 
       String defaultImportAddress = LedgerAddressUtil.getImportAddress(defaultPath);
       if (defaultImportAddress == null || defaultImportAddress.isEmpty()) {
-        System.out.println("No available address to import.");
+        System.out.println(ANSI_RED + "No available address to import, please open 'tron app' and try again!" + ANSI_RESET);
         return null;
       }
 
@@ -189,7 +217,7 @@ public class WalletApiWrapper {
     return walletFileName;
   }
 
-  public String doChangeAccount(char[] password) throws CipherException, IOException {
+  public String doChangeAccount(char[] password) throws IOException {
     ImportAccount account = TronLedgerImportAccount.changeAccount();
     if (account == null) {
       return null;
@@ -198,7 +226,7 @@ public class WalletApiWrapper {
   }
 
   public String doCustomPath(char[] password) throws CipherException, IOException {
-    System.out.println(ConsoleColor.ANSI_RED+"\nRisk Alert");
+    System.out.println(ANSI_RED+"\nRisk Alert");
     System.out.println("\nYou are not advised to change the \"Path\" of a generated account address unless you are an advanced user.");
     System.out.println("\nPlease do not use the \"Custom Path\" feature if you do not understand how account addresses are generated or the definition of \"Path\", in case you lose access to the new account generated.");
 
@@ -238,22 +266,25 @@ public class WalletApiWrapper {
   }
 
   public String doImportAccount(char[] password, String path, String importAddress)
-      throws CipherException, IOException {
-    byte[] passwdByte = StringUtils.char2Byte(password);
+      throws IOException {
+    byte[] passwdByte = char2Byte(password);
     try {
       WalletFile walletLedgerFile = WalletApi.CreateLedgerWalletFile(
           passwdByte, importAddress, path);
       boolean result = loginLedger(passwdByte, walletLedgerFile);
       if (!result) {
         System.out.println("Login Ledger failed for address: " + importAddress);
-        return "";
+        return EMPTY;
       }
       String keystoreName = WalletApi.store2KeystoreLedger(walletLedgerFile);
-      LedgerFileUtil.writePathsToFile(Arrays.asList(path));
+      LedgerFileUtil.writePathsToFile(Collections.singletonList(path));
+      if (isUnifiedExist()) {
+        wallet.getWalletList().add(walletLedgerFile);
+      }
       return keystoreName;
     } catch (Exception e) {
       System.out.println("Import account failed");
-      return "";
+      return EMPTY;
     } finally {
       StringUtils.clear(passwdByte);
     }
@@ -267,8 +298,8 @@ public class WalletApiWrapper {
       return false;
     }
 
-    byte[] oldPasswd = StringUtils.char2Byte(oldPassword);
-    byte[] newPasswd = StringUtils.char2Byte(newPassword);
+    byte[] oldPasswd = char2Byte(oldPassword);
+    byte[] newPasswd = char2Byte(newPassword);
 
     boolean result = WalletApi.changeKeystorePassword(oldPasswd, newPasswd);
     StringUtils.clear(oldPasswd);
@@ -278,10 +309,142 @@ public class WalletApiWrapper {
   }
 
   public boolean isLoginState() {
-    if (wallet == null || !wallet.isLoginState()) {
+    return wallet != null && wallet.isLoginState();
+  }
+
+  public boolean isUnifiedExist() {
+    return isLoginState() && ArrayUtils.isNotEmpty(wallet.getUnifiedPassword());
+  }
+
+  public boolean switchWallet() {
+    if (!isUnifiedExist()) {
+      System.out.println("Please log in with a unified password and try again.");
       return false;
+    }
+    byte[] password = wallet.getUnifiedPassword();
+    List<WalletFile> walletList = wallet.getWalletList();
+    selectWalletFileByList(walletList);
+    // switch to another wallet
+    wallet.setLogin();
+    wallet.setUnifiedPassword(password);
+    wallet.setWalletList(walletList);
+    WalletFile walletFile = wallet.getWalletFile();
+    if (walletFile == null) {
+      System.out.println("Warning: Login failed, Please check your walletFile");
+      return false;
+    }
+    wallet.setCredentials(null);
+    try{
+      String decryptStr = getLedgerPath(password, walletFile);
+      String prefix = "m/44'/195'/";
+      boolean isLedgerUser = decryptStr.startsWith(prefix);
+      if (isLedgerUser) {
+        wallet.setPath(decryptStr);
+        wallet.setLedgerUser(true);
+      }
+    } catch (Exception e) {
+      if (DebugConfig.isDebugEnabled()) {
+        e.printStackTrace();
+      }
+      return false;
+    }
+    wallet.setLogin();
+    return true;
+  }
+
+  public boolean loginAll() throws IOException, CipherException {
+    logout();
+
+    System.out.println("Please input your password.");
+    byte[] password = char2Byte(inputPassword(false));
+
+    File[] allWalletFile = getAllWalletFile();
+    if (ArrayUtils.isEmpty(allWalletFile)) {
+      throw new IOException(
+          "No keystore file found, please use " + greenBoldHighlight("RegisterWallet") + " or " + greenBoldHighlight("ImportWallet") + " first!");
+    }
+    List<WalletFile> walletFileList = newArrayList();
+    for (int i = 0; i < allWalletFile.length; i++) {
+      File file = allWalletFile[i];
+      WalletFile walletFile = WalletUtils.loadWalletFile(file);
+      walletFile.setName(file.getName());
+      walletFile.setSourceFile(file);
+      boolean valid;
+      try {
+        valid = validPassword(password, walletFile);
+      } catch (Exception e) {
+        valid = false;
+      }
+      if (valid) {
+        walletFileList.add(walletFile);
+      }
+      show(i + 1, allWalletFile.length);
+    }
+    if (walletFileList.isEmpty()) {
+      System.out.println("There is no corresponding Keystore file for this password.");
+      return false;
+    }
+    selectWalletFileByList(walletFileList);
+
+    wallet.setLogin();
+    wallet.setUnifiedPassword(password);
+    wallet.setWalletList(walletFileList);
+    WalletFile walletFile = wallet.getWalletFile();
+    if (walletFile == null) {
+      System.out.println("Warning: Login failed, Please check your walletFile");
+      return false;
+    }
+    wallet.setCredentials(null);
+    try{
+      String decryptStr = getLedgerPath(password, walletFile);
+      String prefix = "m/44'/195'/";
+      boolean isLedgerUser = decryptStr.startsWith(prefix);
+      if (isLedgerUser) {
+        wallet.setPath(decryptStr);
+        wallet.setLedgerUser(true);
+      }
+    } catch (Exception e) {
+      if (DebugConfig.isDebugEnabled()) {
+        e.printStackTrace();
+      }
+      return false;
+    }
+
+    wallet.setLogin();
+    return true;
+  }
+
+  private void selectWalletFileByList(List<WalletFile> walletFileList) {
+    int size = walletFileList.size();
+    if (size > 1) {
+      for (int i = 0; i < size; i++) {
+        System.out.println("The " + (i + 1) + "th keystore file name is " + walletFileList.get(i).getName());
+      }
+      System.out.println("Please choose between " + greenBoldHighlight(1) + " and "
+          + greenBoldHighlight(size));
+      Scanner in = new Scanner(System.in);
+      while (true) {
+        String input = in.nextLine().trim();
+        String num = input.split("\\s+")[0];
+        int n;
+        try {
+          n = Integer.parseInt(num);
+        } catch (NumberFormatException e) {
+          System.out.println("Invalid number of " + num);
+          System.out.println("Please choose again between 1 and " + size);
+          continue;
+        }
+        if (n < 1 || n > size) {
+          System.out.println("Please choose again between 1 and " + size);
+          continue;
+        }
+        WalletFile walletFile = walletFileList.get(n - 1);
+
+        wallet = new WalletApi(walletFile);
+        break;
+      }
     } else {
-      return true;
+      wallet = new WalletApi(walletFileList.get(0));
     }
   }
 
@@ -290,15 +453,10 @@ public class WalletApiWrapper {
     wallet = WalletApi.loadWalletFromKeystore();
 
     System.out.println("Please input your password.");
-    char[] password = Utils.inputPassword(false);
-    byte[] passwd = StringUtils.char2Byte(password);
+    char[] password = inputPassword(false);
+    byte[] passwd = char2Byte(password);
     StringUtils.clear(password);
     wallet.checkPassword(passwd);
-
-    if (wallet == null) {
-      System.out.println("Warning: Login failed, Please registerWallet or importWallet first !!");
-      return false;
-    }
 
     WalletFile walletFile = wallet.getWalletFile();
     if (walletFile == null) {
@@ -319,22 +477,28 @@ public class WalletApiWrapper {
         e.printStackTrace();
       }
       return false;
-    } finally {
-      StringUtils.clear(passwd);
     }
 
     wallet.setLogin();
+    wallet.setCredentials(null);
     return true;
   }
 
   public boolean loginLedger(byte[] passwdByte, WalletFile walletLedgerFile) {
-    logout();
-    wallet = new WalletApi(walletLedgerFile);
-    if (wallet == null) {
-      System.out.println("Warning: Login failed");
-      return false;
+    if (!isUnifiedExist()) {
+      logout();
     }
-
+    // old
+    List<WalletFile> walletList = newArrayList();
+    byte[] unifiedPassword = null;
+    if (isUnifiedExist()) {
+      walletList = wallet.getWalletList();
+      unifiedPassword = wallet.getUnifiedPassword();
+    }
+    // new
+    wallet = new WalletApi(walletLedgerFile);
+    wallet.setWalletList(walletList);
+    wallet.setUnifiedPassword(unifiedPassword);
     try {
       String decryptStr = getLedgerPath(passwdByte, walletLedgerFile);
       String prefix = "m/44'/195'/";
@@ -350,7 +514,6 @@ public class WalletApiWrapper {
       }
       return false;
     }
-
     return true;
   }
 
@@ -371,7 +534,6 @@ public class WalletApiWrapper {
 
 
   public boolean generateSubAccount() throws CipherException, IOException {
-    boolean result = false;
     if (wallet == null || !wallet.isLoginState()) {
       System.out.println("Warning: GenerateSubAccount failed,  Please login first !!");
       return false;
@@ -395,7 +557,7 @@ public class WalletApiWrapper {
         return false;
       }
       subAccount = new SubAccount(passwd, new String(mnemonic), 0);
-      subAccount.start();
+      subAccount.start(wallet);
     } catch (Exception e) {
       System.out.println("Warning: GenerateSubAccount failed, e :" + e.getMessage());
       return false;
@@ -411,14 +573,14 @@ public class WalletApiWrapper {
     return true;
   }
 
-  public boolean importWalletByMnemonic(List<String> mnemonicWords, byte[] passwd) throws CipherException, IOException {
+  public boolean importWalletByMnemonic(List<String> mnemonicWords, byte[] passwd) {
     SubAccount subAccount = null;
     try {
       if (mnemonicWords == null || mnemonicWords.isEmpty()) {
         return false;
       }
       subAccount = new SubAccount(passwd, String.join(" ", mnemonicWords), 1);
-      subAccount.start();
+      subAccount.start(wallet);
     } catch (Exception e) {
       System.out.println("Warning: importWalletByMnemonic failed, e :" + e.getMessage());
       return false;
@@ -436,7 +598,7 @@ public class WalletApiWrapper {
     if (wallet == null || !wallet.isLoginState()) {
       wallet = WalletApi.loadWalletFromKeystore();
       if (wallet == null) {
-        System.out.println("Warning: BackupWallet failed, no wallet can be backup !!");
+        System.out.println("Warning: BackupWallet " + failedHighlight() + ", no wallet can be backup !!");
         return null;
       }
     }
@@ -469,7 +631,7 @@ public class WalletApiWrapper {
   }
 
   public String exportKeystore(String walletChannel, File exportFullDir)
-      throws IOException, CipherException {
+      throws IOException {
     if (wallet == null || !wallet.isLoginState()) {
       System.out.println("Warning: ExportKeystore failed,  Please login first !!");
       return null;
@@ -503,24 +665,25 @@ public class WalletApiWrapper {
       System.out.println(e.getMessage());
     }
 
-    if (priKey !=null) {
-      System.out.println("Please enter the password for the new account after importing the keystore into wallet-cli, enter it twice.");
-      char[] password = Utils.inputPassword2Twice();
+    if (priKey != null) {
+      if (!isUnifiedExist()) {
+        System.out.println("Please enter the password for the new account after importing the keystore into wallet-cli, enter it twice.");
+      }
+      char[] password = isUnifiedExist() ?
+          byte2Char(wallet.getUnifiedPassword()) : Utils.inputPassword2Twice();
       try {
-        String fileName = importWallet(password, priKey, null);
-        return fileName;
+        return importWallet(password, priKey, null);
       } catch (Exception e) {
         System.out.println(e.getMessage());
       } finally {
         StringUtils.clear(password);
       }
     }
-    return "";
+    return EMPTY;
   }
 
   public String getAddress() {
     if (wallet == null || !wallet.isLoginState()) {
-//      System.out.println("Warning: GetAddress failed,  Please login first !!");
       return null;
     }
 
@@ -2311,4 +2474,75 @@ public class WalletApiWrapper {
     return WalletApi.getBlock(idOrNum, detail);
   }
 
+  public boolean lock () {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: updateSetting failed,  Please login first !!");
+      return false;
+    }
+    wallet.lock();
+    return true;
+  }
+
+  public boolean unlock(long durationSeconds) throws IOException {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: updateSetting failed,  Please login first !!");
+      return false;
+    }
+    System.out.println("Please input your password.");
+    char[] password = inputPassword(false);
+    byte[] passwd = char2Byte(password);
+    try {
+      wallet.checkPassword(passwd);
+    } catch (CipherException e) {
+      System.out.println("Password check failed");
+      return false;
+    }
+    return wallet.unlock(passwd, durationSeconds);
+  }
+
+  public void cleanup () {
+    if (wallet != null && wallet.isLoginState()) {
+      wallet.cleanup();
+    }
+  }
+
+  public boolean resetWallet() {
+    String ownerAddress = EMPTY;
+    List<String> walletPath;
+    try {
+      walletPath = WalletUtils.getStoreFileNames(ownerAddress, "Wallet");
+    } catch (Exception e) {
+      System.err.println("Error retrieving wallet file names: " + e.getMessage());
+      return false;
+    }
+    if (walletPath == null || walletPath.isEmpty()) {
+      System.err.println("Wallet Keystore file not found.");
+      return false;
+    }
+    List<String> filePaths = new ArrayList<>(walletPath);
+
+    List<String> mnemonicPath = WalletUtils.getStoreFileNames(ownerAddress, "Mnemonic");
+    if (mnemonicPath != null && !mnemonicPath.isEmpty()) {
+      filePaths.addAll(mnemonicPath);
+    }
+    boolean deleteAll;
+    try {
+      deleteAll = ClearWalletUtils.confirmAndDeleteWallet(ownerAddress, filePaths);
+    } catch (Exception e) {
+      System.err.println("Error confirming and deleting wallet: " + e.getMessage());
+      return false;
+    }
+    // remove about ledger
+    if (deleteAll) {
+      File ledgerDir = new File(LEDGER_DIR_NAME);
+      if (ledgerDir.exists()) {
+        try {
+          FileUtils.cleanDirectory(ledgerDir);
+        } catch (IOException e) {
+          e.printStackTrace();
+        }
+      }
+    }
+    return deleteAll;
+  }
 }

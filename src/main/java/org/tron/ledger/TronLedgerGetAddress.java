@@ -1,20 +1,22 @@
 package org.tron.ledger;
 
+import static org.apache.commons.lang3.StringUtils.EMPTY;
+import static org.tron.ledger.console.ConsoleColor.ANSI_RED;
+import static org.tron.ledger.console.ConsoleColor.ANSI_RESET;
+import static org.tron.ledger.sdk.LedgerConstant.LEDGER_VENDOR_ID;
+
+import java.util.ArrayList;
+import java.util.List;
 import lombok.Getter;
-import org.hid4java.*;
+import org.hid4java.HidDevice;
+import org.hid4java.HidManager;
+import org.hid4java.HidServices;
+import org.hid4java.HidServicesSpecification;
 import org.tron.ledger.sdk.ApduExchangeHandler;
 import org.tron.ledger.sdk.ApduMessageBuilder;
 import org.tron.ledger.sdk.CommonUtil;
 import org.tron.ledger.sdk.LedgerConstant;
 import org.tron.ledger.wrapper.DebugConfig;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-
-import static org.tron.ledger.console.ConsoleColor.ANSI_RED;
-import static org.tron.ledger.console.ConsoleColor.ANSI_RESET;
-import static org.tron.ledger.sdk.LedgerConstant.LEDGER_VENDOR_ID;
 
 public class TronLedgerGetAddress {
   private final HidServices hidServices;
@@ -46,14 +48,8 @@ public class TronLedgerGetAddress {
         hidDeviceList.add(dev);
       }
     }
-
-    if (hidDeviceList.size() ==1) {
+    if (!hidDeviceList.isEmpty()) {
       return hidDeviceList.get(0);
-    } else if (hidDeviceList.size() > 1) {
-      System.out.println(ANSI_RED + "Only one Ledger device is supported"+ ANSI_RESET);
-      System.out.println(ANSI_RED + "Please check your Ledger connection"+ ANSI_RESET);
-      System.out.println(ANSI_RED + "Please disconnect any unnecessary Ledger devices from your computer's USB ports."+ ANSI_RESET);
-      return null;
     }
     return null;
   }
@@ -62,13 +58,15 @@ public class TronLedgerGetAddress {
     for (HidDevice dev : hidServices.getAttachedHidDevices()) {
       if (dev.getVendorId() == LEDGER_VENDOR_ID) {
         device = dev;
-        if (!device.open()) {
-          throw new RuntimeException("Failed to open device");
+        try {
+          device.open();
+        } catch (Exception e) {
+          throw new RuntimeException(e.getMessage());
         }
         return;
       }
     }
-    throw new RuntimeException("Ledger device not found");
+    throw new RuntimeException(ANSI_RED + "Ledger device not found" + ANSI_RESET);
   }
 
   public void close() {
@@ -91,7 +89,7 @@ public class TronLedgerGetAddress {
       }
       if (LedgerConstant.LEDGER_LOCK.equalsIgnoreCase(CommonUtil.bytesToHex(result))) {
         System.out.println(ANSI_RED + "Ledger is locked, please unlock it first"+ ANSI_RESET);
-        return "";
+        return EMPTY;
       }
 
       int offset = 0;
@@ -103,15 +101,14 @@ public class TronLedgerGetAddress {
       int addressLength = result[offset++] & 0xFF;
       byte[] addressBytes = new byte[addressLength];
       System.arraycopy(result, offset, addressBytes, 0, addressLength);
-      String address = new String(addressBytes);
-      return address;
+      return new String(addressBytes);
     } catch (Exception e) {
       System.err.println("Error: " + e.getMessage());
       if (DebugConfig.isDebugEnabled()) {
         e.printStackTrace();
       }
     }
-    return "";
+    return EMPTY;
   }
 
 }

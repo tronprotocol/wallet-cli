@@ -51,13 +51,13 @@ public class Configuration {
       if(configFile.exists()){
         try {
           config = ConfigFactory.parseReader(new InputStreamReader(new FileInputStream(configurationPath)));
-          System.out.println("use user defined config file in current dir");
+          System.out.println("Use user defined config file in current dir");
         } catch (FileNotFoundException e) {
-          System.out.println("load user defined config file exception: " + e.getMessage());
+          System.out.println("Load user defined config file exception: " + e.getMessage());
         }
       }else {
         config = ConfigFactory.load(configurationPath);
-        System.out.println("user defined config file doesn't exists, use default config file in jar");
+        System.out.println("User defined config file doesn't exists, use default config file in jar");
       }
     }
     return config;
