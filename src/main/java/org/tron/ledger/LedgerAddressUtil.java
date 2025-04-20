@@ -1,5 +1,8 @@
 package org.tron.ledger;
 
+import static org.apache.commons.lang3.StringUtils.EMPTY;
+import static org.apache.commons.lang3.StringUtils.isEmpty;
+import static org.tron.common.utils.Utils.failedHighlight;
 import static org.tron.ledger.console.ConsoleColor.ANSI_RED;
 import static org.tron.ledger.console.ConsoleColor.ANSI_RESET;
 
@@ -16,12 +19,11 @@ import java.util.Map;
 
 public class LedgerAddressUtil {
 
-  public static String getImportAddress(String path) {
+  public static String getImportAddress(String path, HidDevice device) {
     String importAddress = "";
     TronLedgerGetAddress tronLedgerGetAddress = TronLedgerGetAddress.getInstance();
     try {
-      tronLedgerGetAddress.connect();
-      importAddress = tronLedgerGetAddress.getTronAddressByPath(path);
+      importAddress = tronLedgerGetAddress.getTronAddressByPath(path, device);
     } catch (Exception e) {
       if (DebugConfig.isDebugEnabled()) {
         e.printStackTrace();
@@ -30,23 +32,21 @@ public class LedgerAddressUtil {
       tronLedgerGetAddress.close();
     }
 
-    if (org.apache.commons.lang3.StringUtils.isEmpty(importAddress)) {
+    if (isEmpty(importAddress)) {
       if (DebugConfig.isDebugEnabled()) {
-        System.out.println("Get address from Ledger failed !!");
+        System.out.println("Get address from Ledger " + failedHighlight() + " !!");
       }
-      return "";
+      return EMPTY;
     }
     return importAddress;
   }
 
-  public static Map<String, String> getMultiImportAddress(List<String> paths) {
+  public static Map<String, String> getMultiImportAddress(List<String> paths, HidDevice hidDevice) {
     Map<String, String> addressMap = new HashMap<>();
-    TronLedgerGetAddress tronLedgerGetAddress = TronLedgerGetAddress.getInstance();
     for (String path : paths) {
       try {
-        tronLedgerGetAddress.connect();
         long startTime = System.currentTimeMillis();
-        String importAddress = tronLedgerGetAddress.getTronAddressByPath(path);
+        String importAddress = TronLedgerGetAddress.getInstance().getTronAddressByPath(path, hidDevice);
         long endTime = System.currentTimeMillis();
         if (DebugConfig.isDebugEnabled()) {
           long duration = endTime - startTime;
@@ -57,7 +57,7 @@ public class LedgerAddressUtil {
           addressMap.put(path, importAddress);
         } else {
           if (DebugConfig.isDebugEnabled()) {
-            System.out.println("Get address from Ledger failed for path: " + path);
+            System.out.println("Get address from Ledger " + failedHighlight() + " for path: " + path);
           }
           break;
         }
@@ -66,8 +66,6 @@ public class LedgerAddressUtil {
           e.printStackTrace();
         }
         break;
-      } finally {
-        tronLedgerGetAddress.close();
       }
     }
     return addressMap;
@@ -87,7 +85,7 @@ public class LedgerAddressUtil {
       }
       if (LedgerConstant.LEDGER_LOCK.equalsIgnoreCase(CommonUtil.bytesToHex(result))) {
         System.out.println(ANSI_RED + "Ledger is locked, please unlock it first"+ ANSI_RESET);
-        return "";
+        return EMPTY;
       }
 
       int offset = 0;
@@ -106,7 +104,7 @@ public class LedgerAddressUtil {
         e.printStackTrace();
       }
     }
-    return "";
+    return EMPTY;
   }
 
 }

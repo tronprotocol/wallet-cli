@@ -1,11 +1,10 @@
 package org.tron.walletcli;
 
-import static org.tron.common.utils.Utils.blueHighlight;
+import static org.tron.common.utils.Utils.blueBoldHighlight;
 import static org.tron.common.utils.Utils.failedHighlight;
 import static org.tron.common.utils.Utils.getLong;
 import static org.tron.common.utils.Utils.greenBoldHighlight;
 import static org.tron.common.utils.Utils.printBanner;
-import static org.tron.common.utils.Utils.redBoldHighlight;
 import static org.tron.common.utils.Utils.successfulHighlight;
 import static org.tron.keystore.StringUtils.byte2Char;
 import static org.tron.keystore.StringUtils.char2Byte;
@@ -17,12 +16,9 @@ import com.google.common.primitives.Longs;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import io.netty.util.internal.StringUtil;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.math.BigInteger;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -30,6 +26,7 @@ import java.util.Arrays;
 import java.util.Base64;
 import java.util.Base64.Decoder;
 import java.util.Base64.Encoder;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -236,11 +233,10 @@ public class Client {
       // "ListShieldedNote",
       "ListWitnesses",
       // "LoadShieldedWallet",
+      "Lock",
       "Login",
       "Logout",
       "LoginAll",
-      "switchWallet",
-      "resetWallet",
       "LoadShieldedTRC20Wallet",
       // "LoadShieldedWallet",
       "MarketCancelOrder",
@@ -250,6 +246,7 @@ public class Client {
       "GenerateSubAccount",
       // "ResetShieldedNote",
       "ResetShieldedTRC20Note",
+      "ResetWallet",
       // "ScanAndMarkNotebyAddress",
       // "ScanNotebyIvk",
       // "ScanNotebyOvk",
@@ -264,6 +261,7 @@ public class Client {
       "SetShieldedTRC20ContractAddress",
       // "ShowShieldedAddressInfo",
       "ShowShieldedTRC20AddressInfo",
+      "SwitchWallet",
       "TransferAsset",
       "TriggerConstantContract contractAddress method args isHex",
       "TriggerContract contractAddress method args isHex fee_limit value",
@@ -271,6 +269,7 @@ public class Client {
       "UnfreezeAsset",
       "UnfreezeBalance",
       "UnfreezeBalanceV2",
+      "Unlock",
       "UpdateAccount",
       "UpdateAccountPermission",
       "UpdateAsset",
@@ -282,8 +281,6 @@ public class Client {
       "WithdrawBalance",
       "WithdrawExpireUnfreeze",
       "WithdrawExpireUnfreeze",
-      "lock",
-      "unlock",
   };
 
   // note: this is sorted by alpha
@@ -395,10 +392,9 @@ public class Client {
       // "ListShieldedAddress",
       // "ListShieldedNote",
       "ListWitnesses",
+      "Lock",
       "Login",
       "LoginAll",
-      "switchWallet",
-      "resetWallet",
       "Logout",
       "LoadShieldedTRC20Wallet",
       // "LoadShieldedWallet",
@@ -409,6 +405,7 @@ public class Client {
       "GenerateSubAccount",
       // "ResetShieldedNote",
       "ResetShieldedTRC20Note",
+      "ResetWallet",
       // "ScanAndMarkNotebyAddress",
       // "ScanNotebyIvk",
       // "ScanNotebyOvk",
@@ -423,6 +420,7 @@ public class Client {
       "SetShieldedTRC20ContractAddress",
       // "ShowShieldedAddressInfo",
       "ShowShieldedTRC20AddressInfo",
+      "SwitchWallet",
       "TransferAsset",
       "TriggerConstantContract",
       "TriggerContract",
@@ -430,6 +428,7 @@ public class Client {
       "UnfreezeAsset",
       "UnfreezeBalance",
       "UnfreezeBalanceV2",
+      "Unlock",
       "UpdateAccount",
       "UpdateAccountPermission",
       "UpdateAsset",
@@ -440,8 +439,6 @@ public class Client {
       "VoteWitness",
       "WithdrawBalance",
       "WithdrawExpireUnfreeze",
-      "lock",
-      "unlock",
   };
 
   private byte[] inputPrivateKey() throws IOException {
@@ -467,7 +464,7 @@ public class Client {
     return result;
   }
 
-  private List<String> inputMnemonicWords() throws IOException {
+  private List<String> inputMnemonicWords() {
     try {
       List<String> words = readWordsWithRetry();
       if (words != null) {
@@ -478,7 +475,7 @@ public class Client {
     } catch (Exception e) {
       System.out.println("An error occurred in the program." + e.getMessage());
     }
-    return null;
+    return Collections.emptyList();
   }
 
   private static List<String> readWordsWithRetry() {
@@ -598,7 +595,7 @@ public class Client {
   }
 
   private void registerWallet() throws CipherException, IOException {
-    char[] password = Utils.inputPassword2Twice();
+    char[] password = Utils.inputPassword2Twice(false);
     int wordsNumber = MnemonicUtils.inputMnemonicWordsNumber();
     if (!MnemonicUtils.inputMnemonicWordsNumberCheck(wordsNumber)) {
       return ;
@@ -630,7 +627,7 @@ public class Client {
     System.out.println("(Note:This operation will overwrite the old keystore file and mnemonic file of the same address)");
     System.out.println("Please make sure to back up the old keystore files in the Wallet/Mnemonic directory if it is still needed!");
     char[] password = walletApiWrapper.isUnifiedExist()  ?
-        byte2Char(walletApiWrapper.getWallet().getUnifiedPassword()) : Utils.inputPassword2Twice();
+        byte2Char(walletApiWrapper.getWallet().getUnifiedPassword()) : Utils.inputPassword2Twice(false);
     byte[] priKey = inputPrivateKey();
 
     String fileName = walletApiWrapper.importWallet(password, priKey, null);
@@ -650,7 +647,7 @@ public class Client {
     System.out.println("(Note:This operation will overwrite the old keystore file and mnemonic file of the same address)");
     System.out.println("Please make sure to back up the old keystore files in the Wallet/Mnemonic directory if it is still needed!");
     char[] password = walletApiWrapper.isUnifiedExist()  ?
-        byte2Char(walletApiWrapper.getWallet().getUnifiedPassword()) : Utils.inputPassword2Twice();
+        byte2Char(walletApiWrapper.getWallet().getUnifiedPassword()) : Utils.inputPassword2Twice(false);
     List<String> mnemonicWords = inputMnemonicWords();
     boolean result = walletApiWrapper.importWalletByMnemonic(mnemonicWords, char2Byte(password));
     if (result) {
@@ -664,7 +661,7 @@ public class Client {
     StringUtils.clear(password);
   }
 
-  private void importWalletByLedger() throws CipherException, IOException {
+  private void importWalletByLedger() throws IOException {
     System.out.println(ANSI_RED + "(Note:This will pair Ledger to user your hardware wallet)" + ANSI_RESET);
     // device is using in transaction sign
     HidDevice signDevice = TransactionSignManager.getInstance().getHidDevice();
@@ -676,7 +673,7 @@ public class Client {
     char[] password = null;
     try {
       //get unused device
-      device  = TronLedgerGetAddress.getInstance().getConnectedDevice();
+      device  = TronLedgerGetAddress.getInstance().selectDevice();
       if (device == null) {
         LedgerUserHelper.showHidDeviceConnectionError();
         System.out.println("No Ledger device found");
@@ -685,8 +682,8 @@ public class Client {
         System.out.println("Ledger device found: " + device.getProduct());
       }
       password = walletApiWrapper.isUnifiedExist()  ?
-          byte2Char(walletApiWrapper.getWallet().getUnifiedPassword()) : Utils.inputPassword2Twice();
-      String fileName = walletApiWrapper.importWalletByLedger(password);
+          byte2Char(walletApiWrapper.getWallet().getUnifiedPassword()) : Utils.inputPassword2Twice(false);
+      String fileName = walletApiWrapper.importWalletByLedger(password, device);
       if (fileName == null || fileName.trim().isEmpty() ) {
         System.out.println("Import wallet by Ledger end !!");
         return;
@@ -711,7 +708,7 @@ public class Client {
     System.out.println("(Note:This operation will overwrite the old keystore file and mnemonic file of the same address)");
     System.out.println("Please make sure to back up the old keystore files in the Wallet/Mnemonic directory if it is still needed!");
     char[] password = walletApiWrapper.isUnifiedExist() ?
-        byte2Char(walletApiWrapper.getWallet().getUnifiedPassword()) : Utils.inputPassword2Twice();
+        byte2Char(walletApiWrapper.getWallet().getUnifiedPassword()) : Utils.inputPassword2Twice(false);
     byte[] priKey = inputPrivateKey64();
 
     String fileName = walletApiWrapper.importWallet(password, priKey, null);
@@ -730,8 +727,7 @@ public class Client {
   private void changePassword() throws IOException, CipherException {
     System.out.println("Please input old password.");
     char[] oldPassword = Utils.inputPassword(false);
-    System.out.println("Please input new password.");
-    char[] newPassword = Utils.inputPassword2Twice();
+    char[] newPassword = Utils.inputPassword2Twice(true);
     if (walletApiWrapper.changePassword(oldPassword, newPassword)) {
       System.out.println("ChangePassword " + successfulHighlight() + " !!");
     } else {
@@ -836,13 +832,13 @@ public class Client {
     if (parameters.length < 2) {
       String tempPath = PathUtil.getTempDirectoryPath();
       System.out.println("Example usage: ExportWalletKeystore tronlink " + tempPath);
-      System.out.println("exportWalletKeystore failed, parameters error !!");
+      System.out.println("exportWalletKeystore " + failedHighlight() + ", parameters error !!");
       return;
     }
 
     String channel = parameters[0];
     if (!channel.equalsIgnoreCase("tronlink")) {
-      System.out.println("exportWalletKeystore failed, channel error !!");
+      System.out.println("exportWalletKeystore " + failedHighlight() + ", channel error !!");
       System.out.println("currrently only tronlink is supported!!");
       return;
     }
@@ -850,15 +846,15 @@ public class Client {
     String exportFullDirPath = PathUtil.toAbsolutePath(exportDirPath);
     File exportFullDir = new File(exportFullDirPath);
     if (!exportFullDir.exists()) {
-      System.out.println("exportWalletKeystore failed, directory does not exist !!");
+      System.out.println("exportWalletKeystore " + failedHighlight() + ", directory does not exist !!");
       return;
     }
     if (!exportFullDir.isDirectory()) {
-      System.out.println("exportWalletKeystore failed, param 2 is not a directory!!");
+      System.out.println("exportWalletKeystore " + failedHighlight() + ", param 2 is not a directory!!");
       return;
     }
     if (!exportFullDir.canWrite()) {
-      System.out.println("exportWalletKeystore failed, directory is not writable!!");
+      System.out.println("exportWalletKeystore " + failedHighlight() + ", directory is not writable!!");
       return;
     }
 
@@ -877,25 +873,25 @@ public class Client {
 
     if (parameters.length < 2) {
       System.out.println("Example usage: ImportWalletByKeystore tronlink tronlink-export-keystore.json");
-      System.out.println("importWalletByKeystore failed, parameters error !!");
+      System.out.println("importWalletByKeystore " + failedHighlight() + ", parameters error !!");
       return;
     }
 
     String channel = parameters[0];
     if (!channel.equalsIgnoreCase("tronlink")) {
-      System.out.println("importWalletByKeystore failed, channel error !!");
+      System.out.println("importWalletByKeystore " + failedHighlight() + ", channel error !!");
       return ;
     }
     String importPath = parameters[1];
     String importFilePath = PathUtil.toAbsolutePath(importPath);
     File importFile = new File(importFilePath);
     if (!importFile.exists()) {
-      System.out.println("importWalletByKeystore failed, keystore file to import not exists !!");
+      System.out.println("importWalletByKeystore " + failedHighlight() + ", keystore file to import not exists !!");
       return ;
     }
     if (importFile.isDirectory()) {
       System.out.println("Example usage: ImportWalletByKeystore tronlink tronlink-export-keystore.json");
-      System.out.println("importWalletByKeystore failed, parameters 2 is a directory!!");
+      System.out.println("importWalletByKeystore " + failedHighlight() + ", parameters 2 is a directory!!");
       return ;
     }
 
@@ -4413,7 +4409,7 @@ public class Client {
     }
     byte[] contractAddress = WalletApi.decodeFromBase58Check(parameters[0]);
     if (contractAddress == null) {
-      System.out.println("ScanShieldedTRC20NoteByIvk failed! Invalid shieldedTRC20ContractAddress");
+      System.out.println("ScanShieldedTRC20NoteByIvk " + failedHighlight() + "! Invalid shieldedTRC20ContractAddress");
       return;
     }
     String ak = parameters[2];
@@ -4454,7 +4450,7 @@ public class Client {
     }
     byte[] contractAddress = WalletApi.decodeFromBase58Check(parameters[0]);
     if (contractAddress == null) {
-      System.out.println("ScanShieldedTRC20NoteByOvk failed! Invalid shieldedTRC20ContractAddress");
+      System.out.println("ScanShieldedTRC20NoteByOvk " + failedHighlight() + "! Invalid shieldedTRC20ContractAddress");
       return;
     }
     long startNum;
@@ -4813,7 +4809,7 @@ public class Client {
 
   private void run() {
     System.out.println(" ");
-    System.out.println("Welcome to Tron " + blueHighlight("Wallet-Cli"));
+    System.out.println("Welcome to Tron " + blueBoldHighlight("Wallet-Cli"));
     printBanner();
     System.out.println("Please type one of the following commands to proceed.");
     System.out.println(greenBoldHighlight("Login") + ", " + greenBoldHighlight("LoginAll")
@@ -5484,20 +5480,14 @@ public class Client {
               help();
             }
           }
-        } catch (CipherException e) {
-          System.out.println(cmd + " failed!");
+        } catch (CipherException | CancelException | IOException e) {
+          System.out.println(cmd + failedHighlight());
           System.out.println(e.getMessage());
-        } catch (IOException e) {
-          System.out.println(cmd + " failed!");
-          System.out.println(e.getMessage());
-        } catch (CancelException e) {
-          System.out.println(cmd + " failed!");
-          System.out.println(e.getMessage());
-        } catch (EndOfFileException e) {
+        }  catch (EndOfFileException e) {
           System.out.println("\nBye.");
           return;
         } catch (Exception e) {
-          System.out.println(cmd + " failed!");
+          System.out.println(cmd + failedHighlight());
           System.out.println(e.getMessage());
           if (e.getCause() != null) {
             System.out.println(e.getCause().getMessage());
@@ -5583,7 +5573,7 @@ public class Client {
   }
 
   private void unlock(String[] parameters) throws IOException {
-    long durationSeconds = ArrayUtils.isEmpty(parameters) ? 0 : getLong(parameters[0]);
+    long durationSeconds = ArrayUtils.isEmpty(parameters) ? 300 : getLong(parameters[0]);
     boolean result = walletApiWrapper.unlock(durationSeconds);
     if (result) {
       System.out.println("unlock " + successfulHighlight() + " !!!");

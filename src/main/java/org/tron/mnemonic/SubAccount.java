@@ -28,6 +28,8 @@ import java.util.List;
 import java.util.Scanner;
 
 import static org.apache.commons.lang3.StringUtils.isNumeric;
+import static org.tron.common.utils.Utils.blueBoldHighlight;
+import static org.tron.common.utils.Utils.failedHighlight;
 import static org.tron.common.utils.Utils.greenBoldHighlight;
 import static org.tron.common.utils.Utils.successfulHighlight;
 import static org.tron.ledger.console.ConsoleColor.ANSI_BOLD;
@@ -229,7 +231,7 @@ public class SubAccount {
               , MnemonicUtils.stringToMnemonicWords(mnemonic)
           );
           String keystoreName = WalletApi.store2Keystore(walletFile);
-          System.out.println(getStringByType(getType()) + " " + successfulHighlight()
+          System.out.println(getStringByType(getType()) + successfulHighlight()
               + ", keystore file name is " + keystoreName);
           selected.setGenerated(true);
           boolean isUnifiedExist = wallet != null && wallet.isLoginState()
@@ -293,7 +295,7 @@ public class SubAccount {
       terminal.writer().println("1. Generate Default Path");
       terminal.writer().println("2. Change Account");
       terminal.writer().println("3. Custom Path\n");
-      terminal.writer().print("Enter your choice (1-3): ");
+      terminal.writer().print("Enter your choice " + greenBoldHighlight("(1-3)") + ": ");
       terminal.flush();
 
       String choice = reader.readLine().trim();
@@ -332,7 +334,7 @@ public class SubAccount {
         , MnemonicUtils.stringToMnemonicWords(mnemonic)
     );
     String keystoreName = WalletApi.store2Keystore(walletFile);
-    System.out.println(getStringByType(getType()) + " successful, keystore file name is " + keystoreName);
+    System.out.println(getStringByType(getType()) + successfulHighlight() + ", keystore file name is " + keystoreName);
 
     try {
       int subAccountIndex = getSubAccountIndex(path);
@@ -409,7 +411,7 @@ public class SubAccount {
     WalletAddress walletAddress = this.generateWalletAddressByCustomPath(
         mnemonic, path);
     if (walletAddress == null) {
-      System.out.println(getStringByType(getType()) + " by Custom Path failed");
+      System.out.println(getStringByType(getType()) + " by Custom Path " + failedHighlight() + "!");
       return;
     }
     if (MnemonicUtils.generatedAddress(walletAddress.getAddress())) {
@@ -424,7 +426,8 @@ public class SubAccount {
         .append("\n");
     terminal.writer().println(result.toAnsi());
     terminal.flush();
-    String response = reader.readLine("Input " + greenBoldHighlight("y/Y") + " to " + getStringByType(getType()) + "? (" + greenBoldHighlight("y/Y") + "): ").trim().toLowerCase();
+    System.out.println("Input (" + greenBoldHighlight("y/Y") + ") to " + getStringByType(getType()) + " ?");
+    String response = reader.readLine("").trim().toLowerCase();
     if (!response.equalsIgnoreCase("y")
         && !response.equalsIgnoreCase("Y")) {
       return;
@@ -434,7 +437,7 @@ public class SubAccount {
         , MnemonicUtils.stringToMnemonicWords(mnemonic)
     );
     String keystoreName = WalletApi.store2Keystore(walletFile);
-    System.out.println(getStringByType(getType()) + " successful, keystore file name is " + keystoreName);
+    System.out.println(getStringByType(getType()) + successfulHighlight() + ", keystore file name is " + keystoreName);
 
     try {
       int subAccountIndex = getSubAccountIndex(path);
@@ -452,11 +455,11 @@ public class SubAccount {
   private String handlePathInput() {
     try {
       printInstructions();
-      String firstNumber = getValidInput("Enter X number: ", 0);
+      String firstNumber = getValidInput("Enter " + blueBoldHighlight("X") + " number: ", 0);
       if (firstNumber == null) {
         return "";
       }
-      String secondNumber = getValidInput("Enter Y number: ", 1);
+      String secondNumber = getValidInput("Enter " + blueBoldHighlight("Y") + " number: ", 1);
       if (secondNumber == null) {
         return "";
       }
@@ -507,9 +510,8 @@ public class SubAccount {
 
     while (attempts < MAX_ATTEMPTS) {
       try {
-        AttributedStringBuilder asb = new AttributedStringBuilder()
-            .append(prompt, AttributedStyle.BOLD);
-        String input = reader.readLine(asb.toAnsi());
+        System.out.print(prompt);
+        String input = reader.readLine("");
         if (!input.matches("^\\d+$")) {
           printError("Please enter a valid number");
           attempts++;

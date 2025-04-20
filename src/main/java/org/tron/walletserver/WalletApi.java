@@ -3,8 +3,10 @@ package org.tron.walletserver;
 import static com.google.common.collect.Lists.newArrayList;
 import static org.tron.common.utils.Base58.encode;
 import static org.tron.common.utils.Utils.LOCK_WARNING;
-import static org.tron.common.utils.Utils.blueHighlight;
+import static org.tron.common.utils.Utils.blueBoldHighlight;
+import static org.tron.common.utils.Utils.failedHighlight;
 import static org.tron.common.utils.Utils.greenBoldHighlight;
+import static org.tron.common.utils.Utils.inputPassword;
 import static org.tron.keystore.StringUtils.char2Byte;
 import static org.tron.keystore.Wallet.validPassword;
 import static org.tron.keystore.WalletUtils.show;
@@ -120,6 +122,7 @@ import org.tron.keystore.ClearWalletUtils;
 import org.tron.keystore.Credentials;
 import org.tron.ledger.LedgerFileUtil;
 import org.tron.ledger.LedgerSignUtil;
+import org.tron.ledger.TronLedgerGetAddress;
 import org.tron.ledger.listener.TransactionSignManager;
 import org.tron.ledger.wrapper.HidServicesWrapper;
 import org.tron.ledger.wrapper.LedgerSignResult;
@@ -199,6 +202,7 @@ public class WalletApi {
   private byte[] address;
   private static byte addressPreFixByte = CommonConstant.ADD_PRE_FIX_BYTE_TESTNET;
   private static int rpcVersion = 0;
+  private static boolean lockAccount;
   private static boolean isEckey = true;
   @Getter
   @Setter
@@ -244,6 +248,10 @@ public class WalletApi {
     if (config.hasPath("crypto.engine")) {
       isEckey = config.getString("crypto.engine").equalsIgnoreCase("eckey");
       System.out.println("WalletApi getConfig isEckey: " + isEckey);
+    }
+    if (config.hasPath("lockAccount")) {
+      lockAccount = config.getBoolean("lockAccount");
+      System.out.println("WalletApi lockAccount : " + lockAccount);
     }
     return new GrpcClient(fullNode, solidityNode);
   }
@@ -417,7 +425,7 @@ public class WalletApi {
         wf.setAddress(originalAddress);
       }
     } catch (Exception e) {
-      System.out.println("exportKeystore failed. " + e.getMessage());
+      System.out.println("exportKeystore " + failedHighlight() + ". " + e.getMessage());
       return null;
     }
     return ret;
@@ -429,7 +437,7 @@ public class WalletApi {
 
   public static String store2Keystore(WalletFile walletFile) throws IOException {
     if (walletFile == null) {
-      System.out.println("Warning: Store wallet failed, walletFile is null !!");
+      System.out.println("Warning: Store wallet " + failedHighlight() + ", walletFile is null !!");
       return null;
     }
     if (WalletUtils.hasStoreFile(walletFile.getAddress(), FilePath)) {
@@ -456,7 +464,7 @@ public class WalletApi {
 
   public static String store2KeystoreLedger(WalletFile walletFile) throws IOException {
     if (walletFile == null) {
-      System.out.println("Warning: Store wallet failed, walletFile is null !!");
+      System.out.println("Warning: Store wallet " + failedHighlight() + ", walletFile is null !!");
       return null;
     }
     File file = new File(FilePath);
@@ -516,6 +524,7 @@ public class WalletApi {
       }
     } else {
       wallet = wallets[0];
+      System.out.println("The keystore file " + wallet.getName() + "is loaded.");
     }
 
     return wallet;
@@ -673,7 +682,7 @@ public class WalletApi {
         List<String> words = MnemonicUtils.stringToMnemonicWords(new String(mnemonicBytes));
         MnemonicUtils.updateMnemonicFile(newPassowrd, credentials.getPair(), mnemonicFile, true, words);
       } catch (Exception e) {
-        System.out.println("update mnemonic file failed, please check the mnemonic file");
+        System.out.println("update mnemonic file " + failedHighlight() + ", please check the mnemonic file");
       }
     }
     return true;
@@ -741,18 +750,17 @@ public class WalletApi {
         + ", if input " + greenBoldHighlight("y/Y") + " means "
         + "default 0, other non-numeric characters will cancel transaction.";
     transaction = TransactionUtils.setPermissionId(transaction, tipsString);
-    int permissionId = transaction.getRawData().getContract(0).getPermissionId();
     while (true) {
-      boolean signBySelf = permissionId == 0 && isUnifiedExist();
-      if (!signBySelf) {
-        System.out.println("Please choose your key for sign.");
-      }
-      WalletFile wf = signBySelf ? getWalletFile() : selectWalletFileE();
+      System.out.println("Please choose your key for sign.");
+      WalletFile wf = selectWalletFileE();
       boolean isLedgerFile = wf.getName().contains("Ledger");
-      System.out.println("Please input your password.");
-      char[] password = Utils.inputPassword(false);
-      byte[] passwd = char2Byte(password);
-      org.tron.keystore.StringUtils.clear(password);
+      byte[] passwd;
+      if (lockAccount && Arrays.equals(decodeFromBase58Check(wf.getAddress()), getAddress())) {
+        passwd = getUnifiedPassword();
+      } else {
+        System.out.println("Please input your password.");
+        passwd = char2Byte(inputPassword(false));
+      }
       String ledgerPath = getLedgerPath(passwd, wf);
       if (isLedgerFile) {
         boolean result = LedgerSignUtil.requestLedgerSignLogic(transaction, ledgerPath, wf.getAddress());
@@ -789,7 +797,6 @@ public class WalletApi {
         } else {
           transaction = TransactionUtils.sign(transaction, this.getSM2(wf, passwd));
         }
-        org.tron.keystore.StringUtils.clear(passwd);
         TransactionSignWeight weight = getTransactionSignWeight(transaction);
         if (weight.getResult().getCode() == response_code.ENOUGH_PERMISSION) {
           break;
@@ -821,19 +828,20 @@ public class WalletApi {
     transaction = TransactionUtils.setPermissionId(transaction, tipsString);
     while (true) {
       System.out.println("Please choose your key for sign.");
-      WalletFile wf = ArrayUtils.isEmpty(getUnifiedPassword()) ?
-          selectWalletFileE() : selectWalletFileByUnifiedPassword();
-      System.out.println("Please input your password.");
-      char[] password = Utils.inputPassword(false);
-      byte[] passwd = char2Byte(password);
-      org.tron.keystore.StringUtils.clear(password);
+      WalletFile wf = selectWalletFileE();
+      byte[] passwd;
+      if (lockAccount && Arrays.equals(decodeFromBase58Check(wf.getAddress()), getAddress())) {
+        passwd = getUnifiedPassword();
+      } else {
+        System.out.println("Please input your password.");
+        passwd = char2Byte(inputPassword(false));
+      }
 
       if (isEckey) {
         transaction = TransactionUtils.sign(transaction, this.getEcKey(wf, passwd));
       } else {
         transaction = TransactionUtils.sign(transaction, this.getSM2(wf, passwd));
       }
-      org.tron.keystore.StringUtils.clear(passwd);
 
       TransactionSignWeight weight = getTransactionSignWeight(transaction);
       if (weight.getResult().getCode() == response_code.ENOUGH_PERMISSION) {
@@ -890,7 +898,7 @@ public class WalletApi {
       throws InvalidProtocolBufferException {
     System.out.println("After sign transaction hex string is " +
         ByteArray.toHexString(transaction.toByteArray()));
-    System.out.println("TxId is " + blueHighlight(ByteArray.toHexString(
+    System.out.println("TxId is " + blueBoldHighlight(ByteArray.toHexString(
         Sha256Sm3Hash.hash(transaction.getRawData().toByteArray()))));
 
     if (transaction.getRawData().getContract(0).getType() == ContractType.CreateSmartContract) {
@@ -931,7 +939,7 @@ public class WalletApi {
     ShieldedTransferContract shieldedTransferContract = any.unpack(ShieldedTransferContract.class);
     if (shieldedTransferContract.getFromAmount() > 0) {
       if (wallet == null || !wallet.isLoginState()) {
-        System.out.println("Warning: processShieldedTransaction failed, Please login first !!");
+        System.out.println("Warning: processShieldedTransaction " + failedHighlight() + ", Please login first !!");
         return false;
       }
       transaction = wallet.signOnlyForShieldedTransaction(transaction);
@@ -2550,7 +2558,7 @@ public class WalletApi {
 
     TransactionExtention transactionExtention = rpcCli.updateSetting(updateSettingContract);
     if (transactionExtention == null || !transactionExtention.getResult().getResult()) {
-      System.out.println("RPC create trx failed!");
+      System.out.println("RPC create trx " + failedHighlight() + "!");
       if (transactionExtention != null) {
         System.out.println("Code = " + transactionExtention.getResult().getCode());
         System.out
@@ -2577,7 +2585,7 @@ public class WalletApi {
 
     TransactionExtention transactionExtention = rpcCli.updateEnergyLimit(updateEnergyLimitContract);
     if (transactionExtention == null || !transactionExtention.getResult().getResult()) {
-      System.out.println("RPC create trx failed!");
+      System.out.println("RPC create trx " + failedHighlight() + "!");
       if (transactionExtention != null) {
         System.out.println("Code = " + transactionExtention.getResult().getCode());
         System.out
@@ -2602,7 +2610,7 @@ public class WalletApi {
     ClearABIContract clearABIContract = createClearABIContract(owner, contractAddress);
     TransactionExtention transactionExtention = rpcCli.clearContractABI(clearABIContract);
     if (transactionExtention == null || !transactionExtention.getResult().getResult()) {
-      System.out.println("RPC create trx failed!");
+      System.out.println("RPC create trx " + failedHighlight() + "!");
       if (transactionExtention != null) {
         System.out.println("Code = " + transactionExtention.getResult().getCode());
         System.out
@@ -2637,7 +2645,8 @@ public class WalletApi {
 
     if (this.isLedgerUser && this.path != null && !this.path.isEmpty()) {
       try {
-        LedgerFileUtil.removePathFromFile(this.path);
+        HidDevice matchedDevice = TronLedgerGetAddress.getInstance().getMatchedDevice(path, ownerAddress);
+        LedgerFileUtil.removePathFromFile(this.path, matchedDevice);
       } catch (Exception e) {
         System.err.println("Error removing path from file: " + e.getMessage());
         return false;
@@ -2690,7 +2699,7 @@ public class WalletApi {
 
     TransactionExtention transactionExtention = rpcCli.deployContract(contractDeployContract);
     if (transactionExtention == null || !transactionExtention.getResult().getResult()) {
-      System.out.println("RPC create trx failed!");
+      System.out.println("RPC create trx " + failedHighlight() + "!");
       if (transactionExtention != null) {
         System.out.println("Code = " + transactionExtention.getResult().getCode());
         System.out
@@ -2751,7 +2760,7 @@ public class WalletApi {
     }
 
     if (transactionExtention == null || !transactionExtention.getResult().getResult()) {
-      System.out.println("RPC create call trx failed!");
+      System.out.println("RPC create call trx" + failedHighlight() + "!");
       System.out.println("Code = " + transactionExtention.getResult().getCode());
       System.out
           .println("Message = " + transactionExtention.getResult().getMessage().toStringUtf8());
@@ -2811,12 +2820,12 @@ public class WalletApi {
     EstimateEnergyMessage estimateEnergyMessage = rpcCli.estimateEnergy(triggerContract);
 
     if (estimateEnergyMessage == null) {
-      System.out.println("RPC create call trx failed!");
+      System.out.println("RPC create call trx " + failedHighlight() + "!");
       return false;
     }
 
     if (!estimateEnergyMessage.getResult().getResult()) {
-      System.out.println("RPC estimate energy failed!");
+      System.out.println("RPC estimate energy " + failedHighlight() + "!");
       System.out.println("Code = " + estimateEnergyMessage.getResult().getCode());
       System.out
           .println("Message = " + estimateEnergyMessage.getResult().getMessage().toStringUtf8());
@@ -2926,19 +2935,19 @@ public class WalletApi {
     transaction = TransactionUtils.setPermissionId(transaction, tipsString);
 
     System.out.println("Please choose your key for sign.");
-    WalletFile wf = ArrayUtils.isEmpty(getUnifiedPassword()) ?
-        selectWalletFileE() : selectWalletFileByUnifiedPassword();
-    System.out.println("Please input your password.");
-    char[] password = Utils.inputPassword(false);
-    byte[] passwd = char2Byte(password);
-    org.tron.keystore.StringUtils.clear(password);
-
+    WalletFile wf = selectWalletFileE();
+    byte[] passwd;
+    if (lockAccount && Arrays.equals(decodeFromBase58Check(wf.getAddress()), getAddress())) {
+      passwd = getUnifiedPassword();
+    } else {
+      System.out.println("Please input your password.");
+      passwd = char2Byte(inputPassword(false));
+    }
     if (isEckey) {
       transaction = TransactionUtils.sign(transaction, this.getEcKey(wf, passwd));
     } else {
       transaction = TransactionUtils.sign(transaction, this.getSM2(wf, passwd));
     }
-    org.tron.keystore.StringUtils.clear(passwd);
     return transaction;
   }
 
@@ -3195,7 +3204,7 @@ public class WalletApi {
     TransactionExtention transactionExtention =
         rpcCli.updateBrokerage(updateBrokerageContract.build());
     if (transactionExtention == null || !transactionExtention.getResult().getResult()) {
-      System.out.println("RPC create trx failed!");
+      System.out.println("RPC create trx " + failedHighlight() + "!");
       if (transactionExtention != null) {
         System.out.println("Code = " + transactionExtention.getResult().getCode());
         System.out.println(
@@ -3260,7 +3269,7 @@ public class WalletApi {
     TransactionExtention transactionExtention = rpcCli.triggerConstantContract(triggerContract);
 
     if (transactionExtention == null || !transactionExtention.getResult().getResult()) {
-      System.out.println("Get " + functionName + " failed!");
+      System.out.println("Get " + functionName + failedHighlight() + "!");
       System.out.println("Code = " + transactionExtention.getResult().getCode());
       System.out.println(
           "Message = " + transactionExtention.getResult().getMessage().toStringUtf8());
@@ -3296,13 +3305,13 @@ public class WalletApi {
       parameters = rpcCli.createShieldedContractParametersWithoutAsk(privateParameters);
     } catch (Exception e) {
       Status status = Status.fromThrowable(e);
-      System.out.println("createShieldedContractParametersWithoutAsk failed,error "
+      System.out.println("createShieldedContractParametersWithoutAsk " + failedHighlight() + ",error "
           + status.getDescription());
       parameters = null;
     }
 
     if (parameters == null) {
-      System.out.println("createShieldedContractParametersWithoutAsk failed!");
+      System.out.println("createShieldedContractParametersWithoutAsk " + failedHighlight() + "!");
       return null;
     }
 
@@ -3481,7 +3490,10 @@ public class WalletApi {
   }
 
   public boolean isUnlocked() {
-    return credentials != null;
+    if (lockAccount) {
+      return credentials != null;
+    }
+    return true;
   }
 
   private void scheduleAutoLock(long durationSeconds) {
