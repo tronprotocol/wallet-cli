@@ -18,6 +18,7 @@
 
 package org.tron.common.utils;
 
+import static org.apache.commons.lang3.StringUtils.EMPTY;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.tron.ledger.console.ConsoleColor.ANSI_BLUE;
 import static org.tron.ledger.console.ConsoleColor.ANSI_BOLD;
@@ -254,12 +255,13 @@ public class Utils {
     return JsonFormatUtil.formatJson(jsonObject.toJSONString());
   }
 
-  public static char[] inputPassword2Twice() throws IOException {
+  public static char[] inputPassword2Twice(boolean isNew) throws IOException {
     char[] password0;
+    String newStr = isNew ? "new" : EMPTY;
     while (true) {
-      System.out.println("Please input password.");
+      System.out.println("Please input " + newStr + "password.");
       password0 = Utils.inputPassword(true);
-      System.out.println("Please input password again.");
+      System.out.println("Please input " + newStr + "password again.");
       char[] password1 = Utils.inputPassword(true);
       boolean flag = Arrays.equals(password0, password1);
       StringUtils.clear(password1);
@@ -742,7 +744,7 @@ public class Utils {
     return ANSI_BOLD + ANSI_GREEN + i + ANSI_RESET;
   }
 
-  public static String blueHighlight(String str) {
+  public static String blueBoldHighlight(String str) {
     return ANSI_BOLD + ANSI_BLUE + str + ANSI_RESET;
   }
 
@@ -751,16 +753,16 @@ public class Utils {
   }
 
   public static String successfulHighlight() {
-    return ANSI_BOLD + ANSI_GREEN + "successful" + ANSI_RESET;
+    return ANSI_BOLD + ANSI_GREEN + " successful" + ANSI_RESET;
   }
 
   public static String failedHighlight() {
-    return ANSI_BOLD + ANSI_RED + "failed" + ANSI_RESET;
+    return ANSI_BOLD + ANSI_RED + " failed" + ANSI_RESET;
   }
 
   public static long getLong(String str) {
     if (isEmpty(str)) {
-      return 0;
+      return 300;
     }
     try {
       return Long.parseLong(str);

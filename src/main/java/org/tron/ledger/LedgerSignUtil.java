@@ -14,6 +14,7 @@ import org.tron.protos.Protocol;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static org.tron.common.utils.Utils.failedHighlight;
 import static org.tron.ledger.console.ConsoleColor.ANSI_RED;
 import static org.tron.ledger.console.ConsoleColor.ANSI_RESET;
 
@@ -45,7 +46,7 @@ public class LedgerSignUtil {
           if (hidDevice == null) {
             LedgerUserHelper.showHidDeviceConnectionError();
             System.out.println("Please check your Ledger and try again");
-            System.out.println("Sign with Ledger failed");
+            System.out.println("Sign with Ledger " + failedHighlight() + "!");
             return false;
           }
           if (DebugConfig.isDebugEnabled()) {
@@ -88,7 +89,7 @@ public class LedgerSignUtil {
           if (hidDevice != null) {
             hidDevice.close();
           }
-          System.out.println("Sign with Ledger failed");
+          System.out.println("Sign with Ledger " + failedHighlight() + "!");
           System.out.println("Please check your Ledger and try again");
           return false;
         }

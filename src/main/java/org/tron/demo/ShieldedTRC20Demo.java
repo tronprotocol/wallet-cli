@@ -1,5 +1,7 @@
 package org.tron.demo;
 
+import static org.tron.common.utils.Utils.failedHighlight;
+
 import com.google.protobuf.ByteString;
 import java.math.BigInteger;
 import java.security.SecureRandom;
@@ -328,7 +330,7 @@ public class ShieldedTRC20Demo {
 
     TransactionExtention transactionExtention = grpcClient.triggerContract(triggerContract);
     if (transactionExtention == null || !transactionExtention.getResult().getResult()) {
-      System.out.println("RPC create call trx failed!");
+      System.out.println("RPC create call trx " + failedHighlight() + "!");
       System.out.println("Code = " + transactionExtention.getResult().getCode());
       System.out
           .println("Message = " + transactionExtention.getResult().getMessage().toStringUtf8());

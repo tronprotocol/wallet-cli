@@ -2,8 +2,10 @@ package org.tron.keystore;
 
 import static org.apache.commons.lang3.StringUtils.EMPTY;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
+import static org.tron.common.utils.Utils.failedHighlight;
 import static org.tron.common.utils.Utils.greenBoldHighlight;
 import static org.tron.common.utils.Utils.redBoldHighlight;
+import static org.tron.common.utils.Utils.successfulHighlight;
 
 import org.jline.reader.LineReader;
 import org.jline.reader.LineReaderBuilder;
@@ -32,7 +34,13 @@ public class ClearWalletUtils {
 
       int attempts = 0;
       while (attempts < MAX_ATTEMPTS) {
-        String confirm = lineReader.readLine("Continue? (" + greenBoldHighlight("y/Y") + " to proceed): ").trim();
+        System.out.println("Continue? (" + greenBoldHighlight("y/Y")
+            + " to proceed, " + greenBoldHighlight("c/C") + " to cancel): ");
+        String confirm = lineReader.readLine("").trim();
+        if ("c".equalsIgnoreCase(confirm)) {
+          System.out.println("Your operation has been canceled.");
+          return false;
+        }
         if (isConfirmed(confirm)) {
           break;
         }
@@ -190,12 +198,12 @@ public class ClearWalletUtils {
   }
 
   private static void printSuccess(List<PathPair> pairs) {
-    System.out.println("\nFile deleted successfully:");
+    System.out.println("\nDelete File " + successfulHighlight() + ":");
     pairs.forEach(pair -> System.out.println("- " + pair.original));
   }
 
   private static void printBackupLocations(List<PathPair> pairs) {
-    System.err.println("\nRecovery failed, backup file is located at:");
+    System.err.println("\nRecovery " + failedHighlight() + ", backup file is located at:");
     pairs.forEach(pair -> {
       if (pair.backupCreated) {
         System.err.println("- " + pair.backup);
