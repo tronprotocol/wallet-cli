@@ -52,7 +52,7 @@ public class ClearWalletUtils {
       }
 
       System.out.println("\nFinal confirmation:");
-      System.out.println("Please enter: '" + redBoldHighlight(CONFIRMATION_WORD) + "' To confirm the delete operation:");
+      System.out.println("Please enter: '" + redBoldHighlight(CONFIRMATION_WORD) + "' to confirm the delete operation:");
 
       attempts = 0;
       while (attempts < MAX_ATTEMPTS) {
@@ -82,10 +82,8 @@ public class ClearWalletUtils {
 
   public static boolean deleteFiles(Collection<String> filePaths) {
     if (filePaths == null || filePaths.isEmpty()) {
-      System.err.println("No files specified for deletion");
-      return false;
+      return true;
     }
-
     List<PathPair> pathPairs = new ArrayList<>();
     for (String path : filePaths) {
       pathPairs.add(new PathPair(path));

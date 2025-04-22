@@ -524,7 +524,7 @@ public class WalletApi {
       }
     } else {
       wallet = wallets[0];
-      System.out.println("The keystore file " + wallet.getName() + "is loaded.");
+      System.out.println("The keystore file " + blueBoldHighlight(wallet.getName()) + " is loaded.");
     }
 
     return wallet;
@@ -755,7 +755,7 @@ public class WalletApi {
       WalletFile wf = selectWalletFileE();
       boolean isLedgerFile = wf.getName().contains("Ledger");
       byte[] passwd;
-      if (lockAccount && Arrays.equals(decodeFromBase58Check(wf.getAddress()), getAddress())) {
+      if (lockAccount && isUnifiedExist() && Arrays.equals(decodeFromBase58Check(wf.getAddress()), getAddress())) {
         passwd = getUnifiedPassword();
       } else {
         System.out.println("Please input your password.");
@@ -830,7 +830,7 @@ public class WalletApi {
       System.out.println("Please choose your key for sign.");
       WalletFile wf = selectWalletFileE();
       byte[] passwd;
-      if (lockAccount && Arrays.equals(decodeFromBase58Check(wf.getAddress()), getAddress())) {
+      if (lockAccount && isUnifiedExist() && Arrays.equals(decodeFromBase58Check(wf.getAddress()), getAddress())) {
         passwd = getUnifiedPassword();
       } else {
         System.out.println("Please input your password.");
@@ -2632,10 +2632,6 @@ public class WalletApi {
         System.err.println("Error retrieving wallet file names: " + e.getMessage());
         return false;
     }
-    if (walletPath==null || walletPath.isEmpty()) {
-      System.err.println("Wallet Keystore file not found. Address: "  + ownerAddress);
-      return false;
-    }
     List<String> filePaths = new ArrayList<>(walletPath);
 
     List<String> mnemonicPath = WalletUtils.getStoreFileNames(ownerAddress, "Mnemonic");
@@ -2937,7 +2933,7 @@ public class WalletApi {
     System.out.println("Please choose your key for sign.");
     WalletFile wf = selectWalletFileE();
     byte[] passwd;
-    if (lockAccount && Arrays.equals(decodeFromBase58Check(wf.getAddress()), getAddress())) {
+    if (lockAccount && isUnifiedExist() && Arrays.equals(decodeFromBase58Check(wf.getAddress()), getAddress())) {
       passwd = getUnifiedPassword();
     } else {
       System.out.println("Please input your password.");
@@ -3461,6 +3457,9 @@ public class WalletApi {
     return rpcCli.getBlock(idOrNum, detail);
   }
 
+  public boolean isLockAccount() {
+    return lockAccount;
+  }
 
   public boolean unlock(byte[] password, long durationSeconds) throws IOException {
     File keyStoreFile = getWalletFile().getSourceFile();
@@ -3473,10 +3472,6 @@ public class WalletApi {
     }
     try {
       credentials = WalletUtils.loadCredentials(password, keyStoreFile);
-//      if (!Arrays.equals(address, decodeFromBase58Check(credentials.getAddress()))) {
-//        System.out.println("The account you want to unlock does not match the currently logged in account!");
-//        return false;
-//      }
     } catch (Exception e) {
       return false;
     }
