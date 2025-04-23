@@ -32,6 +32,7 @@ import static org.tron.common.utils.Utils.blueBoldHighlight;
 import static org.tron.common.utils.Utils.failedHighlight;
 import static org.tron.common.utils.Utils.greenBoldHighlight;
 import static org.tron.common.utils.Utils.successfulHighlight;
+import static org.tron.common.utils.Utils.yellowBoldHighlight;
 import static org.tron.ledger.console.ConsoleColor.ANSI_BOLD;
 import static org.tron.ledger.console.ConsoleColor.ANSI_RED;
 import static org.tron.ledger.console.ConsoleColor.ANSI_RESET;
@@ -408,8 +409,7 @@ public class SubAccount {
   }
 
   private void generateSubAccountByCustomPath(String path, WalletApi wallet) throws CipherException, IOException {
-    WalletAddress walletAddress = this.generateWalletAddressByCustomPath(
-        mnemonic, path);
+    WalletAddress walletAddress = this.generateWalletAddressByCustomPath(mnemonic, path);
     if (walletAddress == null) {
       System.out.println(getStringByType(getType()) + " by Custom Path " + failedHighlight() + "!");
       return;
@@ -430,7 +430,7 @@ public class SubAccount {
     String response = reader.readLine("").trim().toLowerCase();
     if (!response.equalsIgnoreCase("y")
         && !response.equalsIgnoreCase("Y")) {
-      return;
+      throw new IllegalArgumentException(getStringByType(getType()) + " by custom path has been " + yellowBoldHighlight("canceled") + ".");
     }
     WalletFile walletFile = WalletApi.CreateWalletFile(password
         , walletAddress.privateKey

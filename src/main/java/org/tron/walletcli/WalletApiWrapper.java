@@ -2,6 +2,7 @@ package org.tron.walletcli;
 
 import static com.google.common.collect.Lists.newArrayList;
 import static org.apache.commons.lang3.StringUtils.EMPTY;
+import static org.tron.common.utils.Utils.blueBoldHighlight;
 import static org.tron.common.utils.Utils.failedHighlight;
 import static org.tron.common.utils.Utils.greenBoldHighlight;
 import static org.tron.common.utils.Utils.inputPassword;
@@ -353,7 +354,7 @@ public class WalletApiWrapper {
     return true;
   }
 
-  public boolean loginAll() throws IOException, CipherException {
+  public boolean loginAll() throws IOException {
     logout();
 
     System.out.println("Please input your password.");
@@ -445,7 +446,9 @@ public class WalletApiWrapper {
         break;
       }
     } else {
-      wallet = new WalletApi(walletFileList.get(0));
+      WalletFile wf = walletFileList.get(0);
+      wallet = new WalletApi(wf);
+      System.out.println("The keystore file " + blueBoldHighlight(wf.getName()) + " is loaded.");
     }
   }
 
@@ -2480,6 +2483,9 @@ public class WalletApiWrapper {
       System.out.println("Warning: updateSetting " + failedHighlight() + ",  Please login first !!");
       return false;
     }
+    if (!wallet.isLockAccount()) {
+      throw new IllegalStateException("The account locking and unlocking functions are not available. Please configure and try again");
+    }
     wallet.lock();
     return true;
   }
@@ -2488,6 +2494,9 @@ public class WalletApiWrapper {
     if (wallet == null || !wallet.isLoginState()) {
       System.out.println("Warning: updateSetting " + failedHighlight() + ",  Please login first !!");
       return false;
+    }
+    if (!wallet.isLockAccount()) {
+      throw new IllegalStateException("The account locking and unlocking functions are not available. Please configure and try again");
     }
     System.out.println("Please input your password.");
     char[] password = inputPassword(false);

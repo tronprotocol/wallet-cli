@@ -728,8 +728,8 @@ public class Utils {
     return bRet;
   }
 
-  public static String yellowHighlight(String str) {
-    return ANSI_YELLOW + str + ANSI_RESET;
+  public static String yellowBoldHighlight(String str) {
+    return ANSI_BOLD + ANSI_YELLOW + str + ANSI_RESET;
   }
 
   public static String greenHighlight(String str) {

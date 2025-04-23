@@ -744,7 +744,7 @@ public class Client {
     }
   }
 
-  private void loginAll() throws IOException, CipherException {
+  private void loginAll() throws IOException {
     boolean result = walletApiWrapper.loginAll();
     if (result) {
       System.out.println("LoginAll " + successfulHighlight() + " !!!");
@@ -753,20 +753,21 @@ public class Client {
     }
   }
 
-  private void switchWallet() throws IOException, CipherException {
+  private void switchWallet() {
     boolean result = walletApiWrapper.switchWallet();
     if (result) {
-      System.out.println("switchWallet " + successfulHighlight() + " !!!");
+      System.out.println("SwitchWallet " + successfulHighlight() + " !!!");
     } else {
-      System.out.println("switchWallet " + failedHighlight() + " !!!");
+      System.out.println("SwitchWallet " + failedHighlight() + " !!!");
     }
   }
 
   private void resetWallet() {
     boolean result = walletApiWrapper.resetWallet();
     if (result) {
+      walletApiWrapper.logout();
       System.out.println("resetWallet " + successfulHighlight() + " !!!");
-      System.out.println("Now, you can re " + greenBoldHighlight("RegisterWallet") + " or " + greenBoldHighlight("ImportWallet") + ".");
+      System.out.println("Now, you can " + greenBoldHighlight("RegisterWallet") + " or " + greenBoldHighlight("ImportWallet") + " again. Or import the wallet through other means.");
     } else {
       System.out.println("resetWallet " + failedHighlight() + " !!!");
     }
@@ -4615,7 +4616,7 @@ public class Client {
     amountString = parameters[parameterIndex++];
     if (!StringUtil.isNullOrEmpty(amountString)) {
       try {
-        shieldedOutputNum = Integer.valueOf(amountString);
+        shieldedOutputNum = Integer.parseInt(amountString);
       } catch (NumberFormatException e) {
         System.out.println("Invalid shieldedOutputNum!");
         return false;
@@ -4814,7 +4815,7 @@ public class Client {
     System.out.println("Please type one of the following commands to proceed.");
     System.out.println(greenBoldHighlight("Login") + ", " + greenBoldHighlight("LoginAll")
         + ", " + greenBoldHighlight("RegisterWallet")
-        + " or " + greenBoldHighlight("ImportWallet"));
+        + " or " + greenBoldHighlight("ImportWallet") + ", etc.");
     System.out.println(" ");
     System.out.println(
         "You may also use the " + greenBoldHighlight("Help") + " command at anytime to display a "
