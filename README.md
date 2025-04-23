@@ -201,10 +201,10 @@ Update the ratio of brokerage, this command is usually used by a witness account
     > updateBrokerage OwnerAddress brokerage
 
 OwnerAddress
-> The address of the witness's account, it is a base58check type address.
+> The witness's account address is a base58check type address.
 
 brokerage
-> The ratio of brokerage you want to update to, the limit of it: 0-100.
+> The ratio of brokerage you want to update, from 0 to 100. If the input is 10, it means 10% of the total reward would be distributed to the SR and the rest would be rewarded to all the voters, which is 90% in this case
 
 For example:
 
