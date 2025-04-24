@@ -695,6 +695,7 @@ public class Client {
 
       System.out.println("You are now logged in, and you can perform operations using this account.");
     }  catch (Exception e) {
+      System.out.println(e.getMessage());
       System.out.println("Import wallet by Ledger " + failedHighlight());
     } finally {
       StringUtils.clear(password);

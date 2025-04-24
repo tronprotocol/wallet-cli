@@ -178,7 +178,7 @@ public class WalletApiWrapper {
           System.out.println(option);
         }
 
-        choice = lineReader.readLine("Select an option: ").trim();
+        choice = lineReader.readLine("Please select an option, other inputs will exit this operation: ").trim();
         switch (choice) {
           case "1":
             walletFileName = doImportAccount(password
@@ -563,7 +563,7 @@ public class WalletApiWrapper {
       subAccount = new SubAccount(passwd, new String(mnemonic), 0);
       subAccount.start(wallet);
     } catch (Exception e) {
-      System.out.println("Warning: GenerateSubAccount " + failedHighlight() + ", e :" + e.getMessage());
+      System.out.println("Warning: GenerateSubAccount " + failedHighlight() + ", " + e.getMessage());
       return false;
     } finally {
       if (subAccount != null) {
@@ -2484,7 +2484,7 @@ public class WalletApiWrapper {
       return false;
     }
     if (!wallet.isLockAccount()) {
-      throw new IllegalStateException("The account locking and unlocking functions are not available. Please configure and try again");
+      throw new IllegalStateException("The account locking and unlocking functions are not available. Please configure " + greenBoldHighlight("lockAccount = true") + " in " + blueBoldHighlight("config.conf") + " and try again.");
     }
     wallet.lock();
     return true;
@@ -2496,7 +2496,7 @@ public class WalletApiWrapper {
       return false;
     }
     if (!wallet.isLockAccount()) {
-      throw new IllegalStateException("The account locking and unlocking functions are not available. Please configure and try again");
+      throw new IllegalStateException("The account locking and unlocking functions are not available. Please configure " + greenBoldHighlight("lockAccount = true") + " in " + blueBoldHighlight("config.conf") + " and try again.");
     }
     System.out.println("Please input your password.");
     char[] password = inputPassword(false);
