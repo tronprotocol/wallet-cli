@@ -73,6 +73,7 @@ public class LedgerUserHelper {
     System.out.println("\t2.The Ledger device is unlocked (PIN code entered).");
     System.out.println("\t3.The Tron app is installed in your Ledger device.");
     System.out.println("\t4.The Tron app is open in your Ledger device. Usually, 'Application is ready' will be displayed on your ledger device.");
+    System.out.println("\t5.Ledger may have hardware response timeout, please try again.");
     System.out.println("\tIf it still doesn't work after above steps are OK, please Quit&Reopen Tron app in Ledger to ensure the connection is OK." + ANSI_RESET);
   }
 

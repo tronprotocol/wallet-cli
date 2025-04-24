@@ -3,6 +3,8 @@ package org.tron.ledger;
 import static org.apache.commons.lang3.StringUtils.EMPTY;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.tron.common.utils.Utils.failedHighlight;
+import static org.tron.ledger.LedgerConst.READ_TIMEOUT_MILLIS;
+import static org.tron.ledger.LedgerConst.TOTAL_WAIT_TIMEOUT_MILLIS;
 import static org.tron.ledger.console.ConsoleColor.ANSI_RED;
 import static org.tron.ledger.console.ConsoleColor.ANSI_RESET;
 
@@ -72,14 +74,12 @@ public class LedgerAddressUtil {
   }
 
   public static String getTronAddress(String path, HidDevice hidDevice) {
-    int readTimeoutMillis = 5000;
-    int totalWaitTimeoutMillis = 5000;
     try {
       byte[] apdu = ApduMessageBuilder.buildTronAddressApduMessage(path);
       if (DebugConfig.isDebugEnabled()) {
         System.out.println("Get Address Request: " + path);
       }
-      byte[] result = ApduExchangeHandler.exchangeApdu(hidDevice, apdu, readTimeoutMillis, totalWaitTimeoutMillis);
+      byte[] result = ApduExchangeHandler.exchangeApdu(hidDevice, apdu, READ_TIMEOUT_MILLIS, TOTAL_WAIT_TIMEOUT_MILLIS);
       if (DebugConfig.isDebugEnabled()) {
         System.out.println("Get Address Response: " + CommonUtil.bytesToHex(result));
       }
