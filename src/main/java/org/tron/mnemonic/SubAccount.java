@@ -377,7 +377,7 @@ public class SubAccount {
             break;
           case "Q":
             currentPage = 0;
-            return;
+            throw new IllegalArgumentException(getStringByType(getType()) + " change account has been " + yellowBoldHighlight("canceled") + ".");
           default:
             showError("Invalid command!");
             break;

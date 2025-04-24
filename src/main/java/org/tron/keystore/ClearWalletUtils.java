@@ -64,7 +64,7 @@ public class ClearWalletUtils {
           System.out.println("Maximum retry attempts reached, operation canceled.");
           return false;
         }
-        System.out.println("Input does not match, Please enter: '" + redBoldHighlight(CONFIRMATION_WORD) + "' To confirm the delete operation.");
+        System.out.println("Input does not match, Please enter: '" + redBoldHighlight(CONFIRMATION_WORD) + "' to confirm the delete operation.");
       }
 
       return deleteFiles(filePaths);

@@ -67,7 +67,7 @@ For more information on a specific command, just type the command on terminal wh
 |   [AddTransactionSign](#How-to-use-the-multi-signature-feature-of-wallet-cli)    |                [ApproveProposal](#Approve--disapprove-a-proposal)                 |                          [AssetIssue](#Issue-trc10-tokens)                          |
 |:--------------------------------------------------------------------------------:|:---------------------------------------------------------------------------------:|:-----------------------------------------------------------------------------------:|
 |        [BackupShieldedTRC20Wallet](#How-to-transfer-shielded-TRC20-token)        |                     [BackupWallet](#Wallet-related-commands)                      |                   [BackupWallet2Base64](#Wallet-related-commands)                   |
-|                       [BroadcastTransaction](#Some-others)                       |                    [ChangePassword](#Wallet-related-commands)                     |                       [CreateProposal](#Initiate-a-proposal)                        
+|                       [BroadcastTransaction](#Some-others)                       |                    [ChangePassword](#Wallet-related-commands)                     |                       [CreateProposal](#Initiate-a-proposal)                        |
 |                  [DeleteProposal](#Delete-an-existed-proposal)                   |                   [DeployContract](#How-to-use-smart-contract)                    |                   [ExchangeCreate](#How-to-trade-on-the-exchange)                   |
 |                 [ExchangeInject](#How-to-trade-on-the-exchange)                  |               [ExchangeTransaction](#How-to-trade-on-the-exchange)                |                  [ExchangeWithdraw](#How-to-trade-on-the-exchange)                  |
 |                       [FreezeBalance](#Delegate-resource)                        |                   [GenerateAddress](#Account-related-commands)                    |        [GenerateShieldedTRC20Address](#How-to-transfer-shielded-TRC20-token)        |
@@ -1578,7 +1578,7 @@ Warning: The private key and mnemonic words will be permanently lost and cannot 
 Continue? (y/Y to proceed):y
 
 Final confirmation:
-Please enter: 'DELETE' To confirm the delete operation:
+Please enter: 'DELETE' to confirm the delete operation:
 Confirm: (DELETE): DELETE
 
 File deleted successfully:
@@ -1660,7 +1660,8 @@ LoginAll  successful !!!
 
 ## lock
     > Lock
->The current login account is locked, which means that signatures and transactions are not allowed
+>To use the lock function of the login account, it is necessary to configure **lockAccount = true** in the **config.conf**.
+The current login account is locked, which means that signatures and transactions are not allowed.
 
 Example:
 ```console
@@ -1670,7 +1671,8 @@ lock  successful !!!
 
 ## unlock
     > Unlock
->After the current login account is locked, it can be unlocked. By default, it will be unlocked again after 300 seconds. Unlocking can specify parameters in seconds
+>To use the unlock function of the login account, it is necessary to configure **lockAccount = true** in the **config.conf**.
+After the current login account is locked, it can be unlocked. By default, it will be unlocked again after 300 seconds. Unlocking can specify parameters in seconds.
 
 Example:
 ```console
