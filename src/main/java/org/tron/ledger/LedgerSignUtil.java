@@ -1,5 +1,11 @@
 package org.tron.ledger;
 
+import static org.tron.common.utils.Utils.failedHighlight;
+import static org.tron.ledger.console.ConsoleColor.ANSI_RED;
+import static org.tron.ledger.console.ConsoleColor.ANSI_RESET;
+
+import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.hid4java.HidDevice;
 import org.tron.ledger.listener.LedgerEventListener;
 import org.tron.ledger.listener.TransactionSignManager;
@@ -8,15 +14,7 @@ import org.tron.ledger.wrapper.DebugConfig;
 import org.tron.ledger.wrapper.HidServicesWrapper;
 import org.tron.ledger.wrapper.LedgerSignResult;
 import org.tron.ledger.wrapper.LedgerUserHelper;
-import org.tron.ledger.wrapper.TransOwnerChecker;
 import org.tron.protos.Protocol;
-
-import java.util.Optional;
-import java.util.concurrent.atomic.AtomicBoolean;
-
-import static org.tron.common.utils.Utils.failedHighlight;
-import static org.tron.ledger.console.ConsoleColor.ANSI_RED;
-import static org.tron.ledger.console.ConsoleColor.ANSI_RESET;
 
 public class LedgerSignUtil {
 

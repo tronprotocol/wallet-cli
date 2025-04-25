@@ -3346,7 +3346,7 @@ public class Client {
       throws CipherException, IOException, CancelException {
     if (parameters == null || parameters.length != 2) {
       System.out.println(
-          "Using updateAccountPermission needs 2 parameters, like UpdateAccountPermission ownerAddress permissions, permissions is json format");
+          "Using updateAccountPermission needs 2 parameters, like UpdateAccountPermission ownerAddress permissions, permissions is a JSON formatted string.");
       return;
     }
 
@@ -4848,10 +4848,6 @@ public class Client {
           if (LedgerUserHelper.ledgerUserForbid(walletApiWrapper, cmdLowerCase)) {
             continue;
           }
-          if (!LedgerUserHelper.checkLedgerConnection(walletApiWrapper, cmdLowerCase)) {
-            continue;
-          }
-
           switch (cmdLowerCase) {
             case "help": {
               help();

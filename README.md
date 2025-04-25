@@ -700,49 +700,7 @@ three types of accesses:
 The rest of the users will be granted
 
 ```console
-> Updateaccountpermission TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ \
-{
-  "owner_permission": {
-    "type": 0,
-    "permission_name": "owner",
-    "threshold": 1,
-    "keys": [
-      {
-        "address": "TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ",
-        "weight": 1
-      }
-    ]
-  },
-  "witness_permission": {
-    "type": 1,
-    "permission_name": "owner",
-    "threshold": 1,
-    "keys": [
-      {
-        "address": "TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ",
-        "weight": 1
-      }
-    ]
-  },
-  "active_permissions": [
-    {
-      "type": 2,
-      "permission_name": "active12323",
-      "threshold": 2,
-      "operations": "7fff1fc0033e0000000000000000000000000000000000000000000000000000",
-      "keys": [
-        {
-          "address": "TNhXo1GbRNCuorvYu5JFWN3m2NYr9QQpVR",
-          "weight": 1
-        },
-        {
-          "address": "TKwhcDup8L2PH5r6hxp5CQvQzZqJLmKvZP",
-          "weight": 1
-        }
-      ]
-    }
-  ]
-}
+> Updateaccountpermission TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ {"owner_permission":{"type":0,"permission_name":"owner","threshold":1,"keys":[{"address":"TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ","weight":1}]},"witness_permission":{"type":1,"permission_name":"owner","threshold":1,"keys":[{"address":"TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ","weight":1}]},"active_permissions":[{"type":2,"permission_name":"active12323","threshold":2,"operations":"7fff1fc0033e0000000000000000000000000000000000000000000000000000","keys":[{"address":"TNhXo1GbRNCuorvYu5JFWN3m2NYr9QQpVR","weight":1},{"address":"TKwhcDup8L2PH5r6hxp5CQvQzZqJLmKvZP","weight":1}]}]}
 ```
 
 The account TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ gives the owner access to itself, active access to

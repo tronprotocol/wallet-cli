@@ -586,7 +586,7 @@ public class WalletApiWrapper {
       subAccount = new SubAccount(passwd, String.join(" ", mnemonicWords), 1);
       subAccount.start(wallet);
     } catch (Exception e) {
-      System.out.println("Warning: importWalletByMnemonic " + failedHighlight() + ", e :" + e.getMessage());
+      System.out.println("Warning: importWalletByMnemonic " + failedHighlight() + ", " + e.getMessage());
       return false;
     } finally {
       if (subAccount != null) {
