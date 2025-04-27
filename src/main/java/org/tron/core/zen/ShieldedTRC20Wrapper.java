@@ -1,5 +1,8 @@
 package org.tron.core.zen;
 
+import static org.tron.common.utils.Utils.failedHighlight;
+import static org.tron.common.utils.Utils.greenBoldHighlight;
+
 import com.google.protobuf.ByteString;
 import com.typesafe.config.Config;
 import io.netty.util.internal.StringUtil;
@@ -695,7 +698,7 @@ public class ShieldedTRC20Wrapper {
       }
     }
     if (passwd == null) {
-      System.out.println("Load skey failed, you can not use operation for shieldedTRC20 "
+      System.out.println("Load skey " + failedHighlight() + ", you can not use operation for shieldedTRC20 "
           + "transaction.");
       return null;
     }
@@ -708,7 +711,7 @@ public class ShieldedTRC20Wrapper {
     new SecureRandom().nextBytes(skey);
 
     System.out.println("ShieldedTRC20 wallet does not exist, will build it.");
-    char[] password = Utils.inputPassword2Twice();
+    char[] password = Utils.inputPassword2Twice(false);
     byte[] passwd = StringUtils.char2Byte(password);
 
     SKeyCapsule sKeyCapsule = SKeyEncryptor.createStandard(passwd, skey);
@@ -765,7 +768,8 @@ public class ShieldedTRC20Wrapper {
     if (shieldedAddressInfoList.size() == 1) {
       return shieldedAddressInfoList.get(0);
     } else {
-      System.out.println("Please choose between 1 and " + shieldedAddressInfoList.size());
+      System.out.println("Please choose between " + greenBoldHighlight(1) + " and "
+          + greenBoldHighlight(shieldedAddressInfoList.size()));
       Scanner in = new Scanner(System.in);
       while (true) {
         String input = in.nextLine().trim();

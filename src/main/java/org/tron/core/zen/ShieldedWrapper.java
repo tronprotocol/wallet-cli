@@ -1,5 +1,8 @@
 package org.tron.core.zen;
 
+import static org.tron.common.utils.Utils.failedHighlight;
+import static org.tron.common.utils.Utils.greenBoldHighlight;
+
 import com.google.protobuf.ByteString;
 import io.netty.util.internal.StringUtil;
 import lombok.Getter;
@@ -556,7 +559,7 @@ public class ShieldedWrapper {
       }
     }
     if (passwd == null) {
-      System.out.println("Load skey failed, you can not use operation for shileded transaction.");
+      System.out.println("Load skey " + failedHighlight() + ", you can not use operation for shileded transaction.");
       return null;
     }
     return SKeyEncryptor.decrypt2PrivateBytes(passwd, skey);
@@ -568,7 +571,7 @@ public class ShieldedWrapper {
     new SecureRandom().nextBytes(skey);
 
     System.out.println("Shielded wallet does not exist, will build it.");
-    char[] password = Utils.inputPassword2Twice();
+    char[] password = Utils.inputPassword2Twice(false);
     byte[] passwd = StringUtils.char2Byte(password);
 
     SKeyCapsule sKeyCapsule = SKeyEncryptor.createStandard(passwd, skey);
@@ -625,7 +628,8 @@ public class ShieldedWrapper {
     if (shieldedAddressInfoList.size() == 1) {
       return shieldedAddressInfoList.get(0);
     } else {
-      System.out.println("Please choose between 1 and " + shieldedAddressInfoList.size());
+      System.out.println("Please choose between " + greenBoldHighlight(1) + " and "
+          + greenBoldHighlight(shieldedAddressInfoList.size()));
       Scanner in = new Scanner(System.in);
       while (true) {
         String input = in.nextLine().trim();

@@ -6,6 +6,7 @@ import org.tron.walletcli.WalletApiWrapper;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
+import org.tron.walletserver.WalletApi;
 
 import static org.tron.ledger.console.ConsoleColor.ANSI_RED;
 import static org.tron.ledger.console.ConsoleColor.ANSI_RESET;
@@ -72,6 +73,7 @@ public class LedgerUserHelper {
     System.out.println("\t2.The Ledger device is unlocked (PIN code entered).");
     System.out.println("\t3.The Tron app is installed in your Ledger device.");
     System.out.println("\t4.The Tron app is open in your Ledger device. Usually, 'Application is ready' will be displayed on your ledger device.");
+    System.out.println("\t5.Ledger may have hardware response timeout, please try again.");
     System.out.println("\tIf it still doesn't work after above steps are OK, please Quit&Reopen Tron app in Ledger to ensure the connection is OK." + ANSI_RESET);
   }
 
@@ -83,7 +85,10 @@ public class LedgerUserHelper {
       if (LEDGER_CMD_CHECK_CONNECTION_SET.contains(cmdLowerCase)) {
         HidDevice hidDevice = null;
         try {
-          hidDevice = HidServicesWrapper.getInstance().getHidDevice();
+          WalletApi walletApi = walletApiWrapper.getWallet();
+          String address = walletApi.getWalletFile().getAddress();
+          String path = walletApi.getPath();
+          hidDevice = HidServicesWrapper.getInstance().getHidDevice(address, path);
         } catch (Exception e) {
           if (DebugConfig.isDebugEnabled()) {
             e.printStackTrace();
