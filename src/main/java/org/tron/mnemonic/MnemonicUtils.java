@@ -1,5 +1,7 @@
 package org.tron.mnemonic;
 
+import static org.tron.common.utils.Utils.failedHighlight;
+
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -65,7 +67,7 @@ public class MnemonicUtils {
 
   public static String store2Keystore(MnemonicFile mnemonicFile) throws IOException {
     if (mnemonicFile == null) {
-      System.out.println("Warning: Store mnemonic failed, mnemonicFile is null !!");
+      System.out.println("Warning: Store mnemonic " + failedHighlight() + ", mnemonicFile is null !!");
       return null;
     }
     File file = new File(FilePath);

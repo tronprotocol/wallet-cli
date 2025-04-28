@@ -1,5 +1,12 @@
 package org.tron.keystore;
 
+import static org.apache.commons.lang3.StringUtils.EMPTY;
+import static org.apache.commons.lang3.StringUtils.isEmpty;
+import static org.tron.common.utils.Utils.failedHighlight;
+import static org.tron.common.utils.Utils.greenBoldHighlight;
+import static org.tron.common.utils.Utils.redBoldHighlight;
+import static org.tron.common.utils.Utils.successfulHighlight;
+
 import org.jline.reader.LineReader;
 import org.jline.reader.LineReaderBuilder;
 import org.jline.terminal.Terminal;
@@ -22,12 +29,18 @@ public class ClearWalletUtils {
       LineReader lineReader = LineReaderBuilder.builder().terminal(terminal).build();
 
       System.out.println("\n\u001B[31mWarning: Dangerous operation!\u001B[0m");
-      System.out.println("This operation will permanently delete the Wallet&Mnemonic files of the Address: " + address);
+      System.out.println("This operation will permanently delete the Wallet&Mnemonic files "+ (isEmpty(address) ? EMPTY : "of the Address: " + address));
       System.out.println("\u001B[31mWarning: The private key and mnemonic words will be permanently lost and cannot be recovered!\u001B[0m");
 
       int attempts = 0;
       while (attempts < MAX_ATTEMPTS) {
-        String confirm = lineReader.readLine("Continue? (Y/Yes to proceed): ").trim();
+        System.out.println("Continue? (" + greenBoldHighlight("y/Y")
+            + " to proceed, " + greenBoldHighlight("c/C") + " to cancel): ");
+        String confirm = lineReader.readLine("").trim();
+        if ("c".equalsIgnoreCase(confirm)) {
+          System.out.println("Your operation has been canceled.");
+          return false;
+        }
         if (isConfirmed(confirm)) {
           break;
         }
@@ -35,11 +48,11 @@ public class ClearWalletUtils {
           System.out.println("Maximum retry attempts reached, operation canceled.");
           return false;
         }
-        System.out.println("Invalid input, please enter Y or Yes to confirm.");
+        System.out.println("Invalid input, please enter " + greenBoldHighlight("y/Y") + " to confirm.");
       }
 
       System.out.println("\nFinal confirmation:");
-      System.out.println("Please enter: '" + CONFIRMATION_WORD + "' To confirm the delete operation:");
+      System.out.println("Please enter: '" + redBoldHighlight(CONFIRMATION_WORD) + "' to confirm the delete operation:");
 
       attempts = 0;
       while (attempts < MAX_ATTEMPTS) {
@@ -51,7 +64,7 @@ public class ClearWalletUtils {
           System.out.println("Maximum retry attempts reached, operation canceled.");
           return false;
         }
-        System.out.println("Input does not match, Please enter: 'DELETE' To confirm the delete operation.");
+        System.out.println("Input does not match, Please enter: '" + redBoldHighlight(CONFIRMATION_WORD) + "' to confirm the delete operation.");
       }
 
       return deleteFiles(filePaths);
@@ -62,17 +75,15 @@ public class ClearWalletUtils {
   }
 
   private static boolean isConfirmed(String input) {
-    return input.equalsIgnoreCase("Y") || input.equalsIgnoreCase("YES");
+    return input.equalsIgnoreCase("y") || input.equalsIgnoreCase("Y");
   }
 
   private static final String BACKUP_SUFFIX = ".bak";
 
   public static boolean deleteFiles(Collection<String> filePaths) {
     if (filePaths == null || filePaths.isEmpty()) {
-      System.err.println("No files specified for deletion");
-      return false;
+      return true;
     }
-
     List<PathPair> pathPairs = new ArrayList<>();
     for (String path : filePaths) {
       pathPairs.add(new PathPair(path));
@@ -185,12 +196,12 @@ public class ClearWalletUtils {
   }
 
   private static void printSuccess(List<PathPair> pairs) {
-    System.out.println("\nFile deleted successfully:");
+    System.out.println("\nDelete File " + successfulHighlight() + ":");
     pairs.forEach(pair -> System.out.println("- " + pair.original));
   }
 
   private static void printBackupLocations(List<PathPair> pairs) {
-    System.err.println("\nRecovery failed, backup file is located at:");
+    System.err.println("\nRecovery " + failedHighlight() + ", backup file is located at:");
     pairs.forEach(pair -> {
       if (pair.backupCreated) {
         System.err.println("- " + pair.backup);

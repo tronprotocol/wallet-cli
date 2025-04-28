@@ -1,17 +1,20 @@
 package org.tron.ledger.wrapper;
 
+import static org.tron.ledger.LedgerAddressUtil.getTronAddress;
 import static org.tron.ledger.console.ConsoleColor.ANSI_RED;
 import static org.tron.ledger.console.ConsoleColor.ANSI_RESET;
 import static org.tron.ledger.console.ConsoleColor.ANSI_YELLOW;
+import static org.tron.ledger.sdk.LedgerConstant.LEDGER_VENDOR_ID;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
+import org.apache.commons.lang3.StringUtils;
 import org.hid4java.HidDevice;
 import org.hid4java.HidManager;
 import org.hid4java.HidServices;
 import org.hid4java.HidServicesSpecification;
 import org.tron.ledger.listener.LedgerEventListener;
-import org.tron.ledger.sdk.LedgerConstant;
 
 public class HidServicesWrapper {
   private HidServices hidServices;
@@ -37,11 +40,8 @@ public class HidServicesWrapper {
   }
 
 
-  public HidDevice getHidDevice() {
-    if (hidDevice!=null) {
-      return hidDevice;
-    }
-    hidDevice =  getLedgerHidDevice(getHidServices());
+  public HidDevice getHidDevice(String address, String path) {
+    hidDevice =  getLedgerHidDevice(getHidServices(), address, path);
     return hidDevice;
   }
 
@@ -62,22 +62,24 @@ public class HidServicesWrapper {
     return hs;
   }
 
-
-  public static HidDevice getLedgerHidDevice(HidServices hidServices) {
+  public static HidDevice getLedgerHidDevice(HidServices hidServices, String address, String path) {
     List<HidDevice> hidDeviceList = new ArrayList<>();
     HidDevice fidoDevice = null;
+    List<HidDevice> attachedLedgerHidDevices = hidServices.getAttachedHidDevices().stream()
+        .filter(hidDevice -> hidDevice.getVendorId() == LEDGER_VENDOR_ID).collect(Collectors.toList());
     try {
-      for (HidDevice hidDevice : hidServices.getAttachedHidDevices()) {
-        if (hidDevice.getVendorId() == LedgerConstant.LEDGER_VENDOR_ID) {
+      for (HidDevice hidDevice : attachedLedgerHidDevices) {
+        if (hidDevice.open()) {
           hidDeviceList.add(hidDevice);
         }
       }
-
       if (hidDeviceList.size() > 1) {
-        System.out.println(ANSI_RED + "Only one Ledger device is supported"+ ANSI_RESET);
-        System.out.println(ANSI_RED + "Please check your Ledger connection"+ ANSI_RESET);
-        return null;
-      } else if (hidDeviceList.size()==1) {
+        fidoDevice = hidDeviceList.stream()
+            .filter(hidDevice -> StringUtils.equals(address, getTronAddress(path, hidDevice)))
+            .findFirst()
+            .orElse(null);
+        System.out.println("fidoDevice is not null:" + (fidoDevice != null));
+      } else if (hidDeviceList.size() == 1) {
         fidoDevice = hidDeviceList.get(0);
       }
 
@@ -87,15 +89,16 @@ public class HidServicesWrapper {
         }
       } else {
         if (fidoDevice.isClosed()) {
-          if (!fidoDevice.open()) {
-            throw new IllegalStateException("Unable to open device");
-          }
+          fidoDevice.open();
         }
       }
     } catch (Exception e) {
+      System.out.println(ANSI_RED + e.getMessage() + ANSI_RESET);
       if (DebugConfig.isDebugEnabled()) {
         e.printStackTrace();
       }
+    } finally {
+      attachedLedgerHidDevices.forEach(HidDevice::close);
     }
 
     return fidoDevice;

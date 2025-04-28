@@ -2,6 +2,8 @@ package org.tron.ledger.sdk;
 
 import static org.tron.ledger.sdk.CommonUtil.hexStringToByteArray;
 
+import org.tron.ledger.wrapper.DebugConfig;
+
 public class ApduMessageBuilder {
 
   public static byte[] buildTronAddressApduMessage(String path) {
@@ -26,7 +28,9 @@ public class ApduMessageBuilder {
     String totalLength = String.format("%02x", pathByteLength + 1 + transactionByteLength);
     String pathSegments = String.format("%02x", donglePath.length() / 8);
     String apduMessage = "E0" + ins + p1 + p2 + totalLength + pathSegments + donglePath + transactionRaw;
-    System.out.println("apduMessage:" + apduMessage);
+    if (DebugConfig.isDebugEnabled()) {
+      System.out.println("apduMessage:" + apduMessage);
+    }
     return hexStringToByteArray(apduMessage);
   }
 }

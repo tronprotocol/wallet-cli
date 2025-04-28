@@ -47,23 +47,6 @@ public abstract class BaseListener implements HidServicesListener {
     if (event.getHidDevice().getVendorId() != LedgerConstant.LEDGER_VENDOR_ID) {
       return;
     }
-
-    // if a device is in using, print multi device is not suppored
-    HidDevice hidDevice = HidServicesWrapper.getInstance().getHidDevice();
-    if (hidDevice != null && !getUIDByDevice(hidDevice).equals(getUIDByDevice(event.getHidDevice()))) {
-      System.out.println(ANSI_RED + "Only one Ledger device is supported"+ ANSI_RESET);
-      System.out.println(ANSI_RED + "Please check your Ledger connection"+ ANSI_RESET);
-      System.out.println(ANSI_RED + "Please disconnect any unnecessary Ledger devices from your computer's USB ports."+ ANSI_RESET);
-      return;
-    }
-    hidDevice = TransactionSignManager.getInstance().getHidDevice();
-    if (hidDevice != null && !getUIDByDevice(hidDevice).equals(getUIDByDevice(event.getHidDevice()))) {
-      System.out.println(ANSI_RED + "Only one Ledger device is supported"+ ANSI_RESET);
-      System.out.println(ANSI_RED + "Please check your Ledger connection"+ ANSI_RESET);
-      System.out.println(ANSI_RED + "Please disconnect any unnecessary Ledger devices from your computer's USB ports."+ ANSI_RESET);
-      return;
-    }
-
     if (DebugConfig.isDebugEnabled()) {
       String product = event.getHidDevice().getProduct();
       System.out.println(ANSI_GREEN + "Device " + product + " found: " + event + ANSI_RESET);
@@ -82,7 +65,7 @@ public abstract class BaseListener implements HidServicesListener {
     }
 
     // if the detached device is not in use, do nothing
-    HidDevice hidDevice = HidServicesWrapper.getInstance().getHidDevice();
+    HidDevice hidDevice = TransactionSignManager.getInstance().getHidDevice();
     if (hidDevice != null && !getUIDByDevice(hidDevice).equals(getUIDByDevice(event.getHidDevice()))) {
       return;
     }
@@ -101,13 +84,13 @@ public abstract class BaseListener implements HidServicesListener {
       TransactionSignManager.getInstance().getHidDevice().close();
       TransactionSignManager.getInstance().setHidDevice(null);
     }
-    if (HidServicesWrapper.getInstance().getHidDevice() != null) {
-      if (DebugConfig.isDebugEnabled()) {
-        System.out.println(HidServicesWrapper.getInstance().getHidDevice());
-      }
-      HidServicesWrapper.getInstance().getHidDevice().close();
-      HidServicesWrapper.getInstance().setHidDevice(null);
-    }
+//    if (HidServicesWrapper.getInstance().getHidDevice() != null) {
+//      if (DebugConfig.isDebugEnabled()) {
+//        System.out.println(HidServicesWrapper.getInstance().getHidDevice());
+//      }
+//      HidServicesWrapper.getInstance().getHidDevice().close();
+//      HidServicesWrapper.getInstance().setHidDevice(null);
+//    }
   }
 
   @Override
