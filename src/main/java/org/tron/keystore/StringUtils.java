@@ -57,11 +57,10 @@ public class StringUtils {
     if (ArrayUtils.isEmpty(a) || ArrayUtils.isEmpty(b)) {
       return false;
     }
+
     int alen = a.length;
     int blen = b.length;
-    if (alen < blen) {
-      return false;
-    }
+
     for (int i = 0; i < alen; i++) {
       if (alen - i < blen) {
         return false;
