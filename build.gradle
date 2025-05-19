@@ -92,7 +92,11 @@ dependencies {
         exclude group: 'org.bouncycastle', module: 'bcprov-jdk15on'
     }
     implementation group: 'org.hid4java', name: 'hid4java', version: '0.8.0'
-    //implementation 'javax.annotation:javax.annotation-api:1.3.2'
+    implementation("io.github.tronprotocol:trident:0.10.0") {
+        exclude group: "com.google.guava", module: "guava"
+    }
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+//    implementation("org.web3j:core:4.9.8")
 }
 
 protobuf {

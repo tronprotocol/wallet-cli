@@ -1,9 +1,9 @@
 package org.tron.keystore;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import org.junit.Assert;
 import org.junit.Test;
-
-import static java.nio.charset.StandardCharsets.UTF_8;
 
 public class StringUtilsTest {
 

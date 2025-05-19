@@ -24,6 +24,7 @@ import org.tron.ledger.wrapper.HidServicesWrapper;
 import org.tron.ledger.wrapper.LedgerSignResult;
 import org.tron.protos.Protocol;
 import org.tron.protos.Protocol.Transaction;
+import org.tron.trident.proto.Chain;
 
 public class LedgerEventListener extends BaseListener {
   private static final int TRANSACTION_SIGN_TIMEOUT = 60;
@@ -77,7 +78,7 @@ public class LedgerEventListener extends BaseListener {
   }
 
 
-  public boolean executeSignListen(HidDevice hidDevice, Transaction transaction, String path) {
+  public boolean executeSignListen(HidDevice hidDevice, Chain.Transaction transaction, String path) {
     boolean ret = false;
     try {
       byte[] sendResult = handleTransSign(hidDevice, transaction, path);
@@ -103,7 +104,7 @@ public class LedgerEventListener extends BaseListener {
   /**
    * @param path example "m/44'/195'/0'/0/0"
    */
-  public byte[] handleTransSign(HidDevice hidDevice, Transaction transaction, String path) {
+  public byte[] handleTransSign(HidDevice hidDevice, Chain.Transaction transaction, String path) {
     final int TIMEOUT_MILLIS = 1000;
     final int MAX_WAIT_TIME_MILLIS = 1000; // 1.5 seconds
     final int BYTE_LENGTH_THRESHOLD = 255;
@@ -168,7 +169,7 @@ public class LedgerEventListener extends BaseListener {
       doLedgerSignEnd();
       hidDevice.close();
     } else {
-      Protocol.Transaction transaction = TransactionSignManager.getInstance().getTransaction();
+      Chain.Transaction transaction = TransactionSignManager.getInstance().getTransaction();
       if (transaction == null) {
         if (DebugConfig.isDebugEnabled()) {
           System.out.println("Transaction is null");

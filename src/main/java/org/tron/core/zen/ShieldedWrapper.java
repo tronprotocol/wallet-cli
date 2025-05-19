@@ -19,6 +19,8 @@ import org.tron.keystore.SKeyEncryptor;
 import org.tron.keystore.StringUtils;
 import org.tron.keystore.WalletUtils;
 import org.tron.protos.Protocol.Block;
+import org.tron.trident.core.exceptions.IllegalException;
+import org.tron.trident.proto.Chain;
 import org.tron.walletcli.Client;
 import org.tron.walletserver.WalletApi;
 import java.io.File;
@@ -162,8 +164,8 @@ public class ShieldedWrapper {
     updateIvkAndBlockNumFile();
   }
 
-  private void scanBlockByIvk() throws CipherException {
-    Block block = WalletApi.getBlock(-1);
+  private void scanBlockByIvk() throws CipherException, IllegalException {
+    Chain.Block block = WalletApi.getBlock(-1);
     if (block != null) {
       long blockNum = block.getBlockHeader().toBuilder().getRawData().getNumber();
       for (Entry<String, Long> entry : ivkMapScanBlockNum.entrySet()) {
@@ -264,7 +266,7 @@ public class ShieldedWrapper {
     long blockNum = 0;
     if (newAddress) {
       try {
-        Block block = WalletApi.getBlock(-1);
+        Chain.Block block = WalletApi.getBlock(-1);
         if (block != null) {
           blockNum = block.getBlockHeader().toBuilder().getRawData().getNumber();
         }

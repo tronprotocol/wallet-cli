@@ -3,10 +3,10 @@ package org.tron.demo;
 import static org.tron.common.utils.Utils.failedHighlight;
 
 import com.google.protobuf.ByteString;
+import com.google.protobuf.InvalidProtocolBufferException;
 import java.math.BigInteger;
 import java.security.SecureRandom;
 import java.util.List;
-import java.util.Optional;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -34,12 +34,12 @@ import org.tron.core.zen.address.ExpandedSpendingKey;
 import org.tron.core.zen.address.IncomingViewingKey;
 import org.tron.core.zen.address.KeyIo;
 import org.tron.core.zen.address.SpendingKey;
-import org.tron.protos.Protocol;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.Transaction.Result;
-import org.tron.protos.Protocol.TransactionInfo;
 import org.tron.protos.contract.SmartContractOuterClass;
 import org.tron.protos.contract.SmartContractOuterClass.TriggerSmartContract;
+import org.tron.trident.core.exceptions.IllegalException;
+import org.tron.trident.proto.Response;
 import org.tron.walletserver.GrpcClient;
 import org.tron.walletserver.WalletApi;
 
@@ -64,7 +64,7 @@ public class ShieldedTRC20Demo {
   public ShieldedTRC20Demo() throws ZksnarkException {
   }
 
-  public static void main(String[] args) throws ZksnarkException, InterruptedException {
+  public static void main(String[] args) throws ZksnarkException, InterruptedException, InvalidProtocolBufferException, IllegalException {
     ShieldedTRC20Demo demo = new ShieldedTRC20Demo();
     demo.mintDemo(demo.privateKey, 1, demo.shieldedKey.getKioAddress());
     demo.transferDemo(demo.privateKey, 5, demo.shieldedKey.getKioAddress(),
@@ -167,7 +167,7 @@ public class ShieldedTRC20Demo {
   }
 
   public String mintDemo(String fromPrivate, long fromAmount, String toShieldedAddress)
-      throws InterruptedException {
+      throws InterruptedException, InvalidProtocolBufferException {
     setAllowance(fromPrivate, fromAmount);
     Thread.sleep(2000);
     PrivateShieldedTRC20Parameters.Builder paramBuilder =
@@ -186,15 +186,15 @@ public class ShieldedTRC20Demo {
   }
 
   public void transferDemo(String fromPrivate, long fromAmount, String toShieldedAddress,
-      long toAmount1, long toAmount2) throws InterruptedException {
+      long toAmount1, long toAmount2) throws InterruptedException, InvalidProtocolBufferException, IllegalException {
     String hash = mintDemo(fromPrivate, fromAmount, toShieldedAddress);
-    Optional<TransactionInfo> infoById = waitToGetTransactionInfo(hash);
+    Response.TransactionInfo infoById = waitToGetTransactionInfo(hash);
 
     PrivateShieldedTRC20Parameters.Builder privateTRC20Builder =
         PrivateShieldedTRC20Parameters.newBuilder();
     //set spend note
     Note note = buildNote(5, toShieldedAddress, ByteArray.fromHexString(rcm), new byte[512]);
-    privateTRC20Builder.addShieldedSpends(getSpendNote(infoById.get(), note, shieldedTRC20));
+    privateTRC20Builder.addShieldedSpends(getSpendNote(infoById, note, shieldedTRC20));
     //set receive note 1
     addReceiveShieldedNote(privateTRC20Builder, toShieldedAddress, toAmount1);
     //set receive note 2
@@ -212,9 +212,9 @@ public class ShieldedTRC20Demo {
 
   public void burnDemo(String fromPrivate, long fromAmount, String toShieldedAddress,
       long toShieldedAmount,  byte[] toTransparentAddress, long toTransparentAmount)
-      throws InterruptedException {
+      throws InterruptedException, InvalidProtocolBufferException, IllegalException {
     String hash = mintDemo(fromPrivate, fromAmount, toShieldedAddress);
-    Optional<TransactionInfo> infoById = waitToGetTransactionInfo(hash);
+    Response.TransactionInfo infoById = waitToGetTransactionInfo(hash);
     Note note = buildNote(fromAmount, toShieldedAddress,
         ByteArray.fromHexString(rcm), new byte[512]);
 
@@ -225,7 +225,7 @@ public class ShieldedTRC20Demo {
     //set transparent
     setTransparent(privateTRC20Builder, 0, toTransparentAddress, toTransparentAmount);
     //set spend note
-    privateTRC20Builder.addShieldedSpends(getSpendNote(infoById.get(), note, shieldedTRC20));
+    privateTRC20Builder.addShieldedSpends(getSpendNote(infoById, note, shieldedTRC20));
     //set receive note
     addReceiveShieldedNote(privateTRC20Builder, toShieldedAddress, toShieldedAmount);
     //set contract address
@@ -246,7 +246,7 @@ public class ShieldedTRC20Demo {
     return noteBuilder.build();
   }
 
-  public SpendNoteTRC20 getSpendNote(TransactionInfo txInfo, Note note, byte[] contractAddress) {
+  public SpendNoteTRC20 getSpendNote(Response.TransactionInfo txInfo, Note note, byte[] contractAddress) {
     byte[] txData = txInfo.getLog(1).getData().toByteArray();
     long pos = bytes32ToLong(ByteArray.subArray(txData, 0, 32));
     byte[] contractResult = triggerGetPath(contractAddress, pos);
@@ -261,7 +261,7 @@ public class ShieldedTRC20Demo {
     return noteBuilder.build();
   }
 
-  private String triggerMint(String privateKey, String input) {
+  private String triggerMint(String privateKey, String input) throws InvalidProtocolBufferException {
     String methodSign = "mint(uint256,bytes32[9],bytes32[2],bytes32[21])";
     byte[] selector = new byte[4];
     System.arraycopy(Hash.sha3(methodSign.getBytes()), 0, selector, 0, 4);
@@ -274,7 +274,7 @@ public class ShieldedTRC20Demo {
         privateKey);
   }
 
-  private String triggerTransfer(byte[] contractAddress, String privateKey, String input) {
+  private String triggerTransfer(byte[] contractAddress, String privateKey, String input) throws InvalidProtocolBufferException, IllegalException {
     String txid = triggerContract(contractAddress,
         "transfer(bytes32[10][],bytes32[2][],bytes32[9][],bytes32[2],bytes32[21][])",
         input,
@@ -287,7 +287,7 @@ public class ShieldedTRC20Demo {
     return txid;
   }
 
-  private String triggerBurn(byte[] contractAddress, String privateKey, String input) {
+  private String triggerBurn(byte[] contractAddress, String privateKey, String input) throws InvalidProtocolBufferException {
     return triggerContract(contractAddress,
         "burn(bytes32[10],bytes32[2],uint256,bytes32[2],address,bytes32[3],bytes32[9][],"
             + "bytes32[21][])",
@@ -302,7 +302,7 @@ public class ShieldedTRC20Demo {
 
   private String triggerContract(byte[] contractAddress, String method, String argsStr,
       Boolean isHex, long callValue, long feeLimit, String tokenId, long tokenValue,
-      String priKey) {
+      String priKey) throws InvalidProtocolBufferException {
     WalletApi.setAddressPreFixByte(CommonConstant.ADD_PRE_FIX_BYTE_MAINNET);
     ECKey temKey = null;
     try {
@@ -390,7 +390,7 @@ public class ShieldedTRC20Demo {
     return txid;
   }
 
-  public static Protocol.Transaction signTransaction(ECKey ecKey, Transaction transaction) {
+  public static Transaction signTransaction(ECKey ecKey, Transaction transaction) {
     WalletApi.setAddressPreFixByte(CommonConstant.ADD_PRE_FIX_BYTE_MAINNET);
     if (ecKey == null || ecKey.getPrivKey() == null) {
       //logger.warn("Warning: Can't sign,there is no private key !!");
@@ -431,7 +431,7 @@ public class ShieldedTRC20Demo {
     return result.toString();
   }
 
-  public void setAllowance(String privateKey, long amount) {
+  public void setAllowance(String privateKey, long amount) throws InvalidProtocolBufferException {
     byte[] shieldedContractAddressPadding = new byte[32];
     System.arraycopy(shieldedTRC20, 0,
         shieldedContractAddressPadding, 11, 21);
@@ -459,11 +459,11 @@ public class ShieldedTRC20Demo {
     return result;
   }
 
-  private Optional<TransactionInfo> waitToGetTransactionInfo(String txid)
-      throws InterruptedException {
+  private Response.TransactionInfo waitToGetTransactionInfo(String txid)
+      throws InterruptedException, IllegalException {
     logger.info("mint txid: " + txid);
-    Optional<TransactionInfo> infoById = WalletApi.getTransactionInfoById(txid);
-    while (infoById.get().getLogList().size() < 2) {
+    Response.TransactionInfo infoById = WalletApi.getTransactionInfoById(txid);
+    while (infoById.getLogList().size() < 2) {
       logger.info("Can not get transaction info, please wait....");
       Thread.sleep(5000);
       infoById = WalletApi.getTransactionInfoById(txid);

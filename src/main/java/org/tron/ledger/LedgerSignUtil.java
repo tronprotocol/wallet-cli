@@ -15,10 +15,11 @@ import org.tron.ledger.wrapper.HidServicesWrapper;
 import org.tron.ledger.wrapper.LedgerSignResult;
 import org.tron.ledger.wrapper.LedgerUserHelper;
 import org.tron.protos.Protocol;
+import org.tron.trident.proto.Chain;
 
 public class LedgerSignUtil {
 
-  public static boolean requestLedgerSignLogic(Protocol.Transaction transaction, String path, String address) {
+  public static boolean requestLedgerSignLogic(Chain.Transaction transaction, String path, String address) {
     try {
       if (!ContractTypeChecker.canUseLedgerSign(
           transaction.getRawData().getContract(0).getType().toString())) {
