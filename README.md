@@ -104,7 +104,9 @@ For more information on a specific command, just type the command on terminal wh
 |                   [GenerateSubAccount](#generate-sub-account)                    |                   [ClearWalletKeystore](#clear-wallet-keystore)                   |               [ExportWalletKeystore](#export-import-wallet-keystore)                |
 |             [ImportWalletByKeystore](#export-import-wallet-keystore)             |                 [ImportWalletByLedger](#import-wallet-by-ledger)                  |                               [LoginAll](#login-all)                                |
 |                                  [Lock](#lock)                                   |                                 [Unlock](#unlock)                                 |                            [ResetWallet](#reset-wallet)                             |
-|                         [CreateAccount](#create-account)                         |                          [SwitchWallet](#switch-wallet)                           |
+|                         [CreateAccount](#create-account)                         |                          [SwitchWallet](#switch-wallet)                           |                          [SwitchNetwork](#switch-network)                           |
+|                        [CurrentNetwork](#current-network)                        |                        [GasFreeAddress](#gas-free-address)                        |                        [GasFreeTransfer](#gas-free-transfer)                        |
+|                         [GasFreeTrace](#gas-free-trace)                          |                                                                                   |                                                                                     |
 
 
 Type any one of the listed commands, to display how-to tips.
@@ -1638,6 +1640,118 @@ wallet> unlock 60
 Please input your password.
 password: 
 unlock  successful !!!
+```
+
+## switch network
+    > SwitchNetwork
+>This command allows for flexible network switching at any time. Unlocking can specify parameters in seconds.
+
+Example:
+```console
+wallet> switchnetwork
+Please select network：
+1. MAIN
+2. NILE
+3. SHASTA
+Enter numbers to select a network (1-3):1
+SwitchNetwork  successful !!!
+```
+```console
+wallet> switchnetwork main
+SwitchNetwork  successful !!!
+```
+
+## current network
+    > CurrentNetwork
+>View current network.
+
+Example:
+```console
+wallet> currentnetwork
+currentNetwork: NILE
+```
+
+## gas free address
+    > GasFreeAddress
+>Get the gas-free address of the current address.
+
+Example:
+```console
+wallet> gasfreeaddress TUUSMd58eC3fKx3fn7whxJyr1FR56tgaP8
+gas free address : TNER12mMVWruqopsW9FQtKxCGfZcEtb3ER
+```
+
+## gas free transfer
+    > GasFreeTransfer
+>Transfer funds through gas-free.
+
+Example:
+```console
+wallet> gasfreetransfer TEkj3ndMVEmFLYaFrATMwMjBRZ1EAZkucT 100000
+
+GasFreeTransfer result: {
+	"code":200,
+	"data":{
+		"amount":100000,
+		"providerAddress":"TKtWbdzEq5ss9vTS9kwRhBp5mXmBfBns3E",
+		"apiKey":"a754e398-6f90-4199-b4b0-9ab7597e7425",
+		"accountAddress":"TUUSMd58eC3fKx3fn7whxJyr1FR56tgaP8",
+		"signature":"90d5c9d7dd4489ef0f36b8a9b46400fb90a8e86e153fd0d64a5a909fb869e7061042a2319e1dfbc02e7e2c7b6fd152ac91269c02fdc0a12657fe324eec649b9f1b",
+		"targetAddress":"TEkj3ndMVEmFLYaFrATMwMjBRZ1EAZkucT",
+		"maxFee":2000000,
+		"version":1,
+		"nonce":8,
+		"tokenAddress":"TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf",
+		"createdAt":1747909635678,
+		"expiredAt":1747909695000,
+		"estimatedTransferFee":2000,
+		"id":"6c3ff67e-0bf4-4c09-91ca-0c7c254b01a0",
+		"state":"WAITING",
+		"estimatedActivateFee":0,
+		"gasFreeAddress":"TNER12mMVWruqopsW9FQtKxCGfZcEtb3ER",
+		"updatedAt":1747909635678
+	}
+}
+GasFreeTransfer  successful !!!
+```
+
+## gas free trace
+    > GasFreeTrace
+>Query GasFreeTrace to obtain transfer details by using the transaction ID returned by GasFreeTransfer as the traceId.
+
+Example:
+```console
+wallet> gasfreetrace 6c3ff67e-0bf4-4c09-91ca-0c7c254b01a0
+GasFreeTrace result: {
+	"code":200,
+	"data":{
+		"amount":100000,
+		"providerAddress":"TKtWbdzEq5ss9vTS9kwRhBp5mXmBfBns3E",
+		"txnTotalCost":102000,
+		"accountAddress":"TUUSMd58eC3fKx3fn7whxJyr1FR56tgaP8",
+		"txnActivateFee":0,
+		"estimatedTotalCost":102000,
+		"targetAddress":"TEkj3ndMVEmFLYaFrATMwMjBRZ1EAZkucT",
+		"txnBlockTimestamp":1747909638000,
+		"txnTotalFee":2000,
+		"nonce":8,
+		"estimatedTotalFee":2000,
+		"tokenAddress":"TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf",
+		"txnHash":"858f9a00776163b1f8a34467b9c5727657f8971a9f4e9d492f0a247fac0384f9",
+		"txnBlockNum":57175988,
+		"createdAt":1747909635678,
+		"expiredAt":1747909695000,
+		"estimatedTransferFee":2000,
+		"txnState":"ON_CHAIN",
+		"id":"6c3ff67e-0bf4-4c09-91ca-0c7c254b01a0",
+		"state":"CONFIRMING",
+		"estimatedActivateFee":0,
+		"gasFreeAddress":"TNER12mMVWruqopsW9FQtKxCGfZcEtb3ER",
+		"txnTransferFee":2000,
+		"txnAmount":100000
+	}
+}
+GasFreeTrace:  successful!!
 ```
 
 ## switch wallet

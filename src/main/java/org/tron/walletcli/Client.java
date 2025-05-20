@@ -1,5 +1,6 @@
 package org.tron.walletcli;
 
+import static org.apache.commons.lang3.StringUtils.EMPTY;
 import static org.tron.common.utils.Utils.blueBoldHighlight;
 import static org.tron.common.utils.Utils.failedHighlight;
 import static org.tron.common.utils.Utils.getLong;
@@ -20,6 +21,8 @@ import java.io.File;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.file.Paths;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -73,6 +76,7 @@ import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.crypto.Hash;
 import org.tron.common.crypto.SignInterface;
 import org.tron.common.crypto.SignUtils;
+import org.tron.common.enums.NetType;
 import org.tron.common.utils.AbiUtil;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.ByteUtil;
@@ -155,6 +159,8 @@ public class Client {
       "ExchangeWithdraw",
       "FreezeBalance",
       "FreezeBalanceV2",
+      "GasFreeTrace",
+      "GasFreeTransfer",
       "GenerateAddress",
       // "GenerateShieldedAddress",
       "GenerateShieldedTRC20Address",
@@ -178,6 +184,7 @@ public class Client {
       "GetChainParameters",
       "GetContract contractAddress",
       "GetContractInfo contractAddress",
+      "CurrentNetwork",
       "GetDelegatedResource",
       "GetDelegatedResourceV2",
       "GetDelegatedResourceAccountIndex",
@@ -189,6 +196,7 @@ public class Client {
       "GetEnergyPrices",
       "GetExchange",
       "GetExpandedSpendingKey",
+      "GasFreeAddress",
       "GetIncomingViewingKey",
       "GetMarketOrderByAccount",
       "GetMarketOrderById",
@@ -261,6 +269,7 @@ public class Client {
       "SetShieldedTRC20ContractAddress",
       // "ShowShieldedAddressInfo",
       "ShowShieldedTRC20AddressInfo",
+      "SwitchNetwork",
       "SwitchWallet",
       "TransferAsset",
       "TriggerConstantContract contractAddress method args isHex",
@@ -314,6 +323,8 @@ public class Client {
       "ExchangeWithdraw",
       "FreezeBalance",
       "FreezeBalanceV2",
+      "GasFreeTrace",
+      "GasFreeTransfer",
       "GenerateAddress",
       // "GenerateShieldedAddress",
       "GenerateShieldedTRC20Address",
@@ -337,6 +348,7 @@ public class Client {
       "GetChainParameters",
       "GetContract",
       "GetContractInfo",
+      "CurrentNetwork",
       "GetDelegatedResource",
       "GetDelegatedResourceV2",
       "GetDelegatedResourceAccountIndex",
@@ -348,6 +360,7 @@ public class Client {
       "GetEnergyPrices",
       "GetExchange",
       "GetExpandedSpendingKey",
+      "GasFreeAddress",
       "GetIncomingViewingKey",
       "GetMarketOrderByAccount",
       "GetMarketOrderById",
@@ -420,6 +433,7 @@ public class Client {
       "SetShieldedTRC20ContractAddress",
       // "ShowShieldedAddressInfo",
       "ShowShieldedTRC20AddressInfo",
+      "SwitchNetwork",
       "SwitchWallet",
       "TransferAsset",
       "TriggerConstantContract",
@@ -763,6 +777,32 @@ public class Client {
     }
   }
 
+  private void switchNetwork(String[] parameters) throws InterruptedException {
+    String netWorkSymbol = EMPTY;
+    String fullNode = EMPTY;
+    String solidityNode = EMPTY;
+    if (ArrayUtils.isNotEmpty(parameters)){
+      if (parameters.length == 1) {
+        netWorkSymbol = parameters[0];
+      } else if (parameters.length == 2) {
+        fullNode = parameters[0];
+        solidityNode = parameters[1];
+      } else {
+        System.out.println("SwitchNetwork needs 1 parameter or 2 parameters like the following: ");
+        System.out.println("SwitchNetwork nile");
+        System.out.println("or");
+        System.out.println("SwitchNetwork localhost:50051 localhost:50052");
+        return;
+      }
+    }
+    boolean result = walletApiWrapper.switchNetwork(netWorkSymbol, fullNode, solidityNode);
+    if (result) {
+      System.out.println("SwitchNetwork " + successfulHighlight() + " !!!");
+    } else {
+      System.out.println("SwitchNetwork " + failedHighlight() + " !!!");
+    }
+  }
+
   private void resetWallet() {
     boolean result = walletApiWrapper.resetWallet();
     if (result) {
@@ -966,7 +1006,7 @@ public class Client {
       System.out.println("GetBalance " + failedHighlight() + " !!!!");
     } else {
       long balance = account.getBalance();
-      System.out.println("Balance = " + balance);
+      System.out.println("Balance = " + balance + " SUN = " + balance / 1000 + " TRX");
     }
   }
 
@@ -2216,7 +2256,7 @@ public class Client {
         return;
       }
 
-      ownerAddress = this.getLoginAddreess();
+      ownerAddress = this.getLoginAddress();
       if (ownerAddress == null) {
         System.out.println("getcanwithdrawunfreezeamount ownerAddress is invalid");
         return ;
@@ -2277,7 +2317,7 @@ public class Client {
         return;
       }
 
-      ownerAddress = this.getLoginAddreess();
+      ownerAddress = this.getLoginAddress();
       if (ownerAddress == null) {
         System.out.println("getcandelegatedmaxsize ownerAddress is invalid");
         return ;
@@ -2329,7 +2369,7 @@ public class Client {
           return;
         }
     } else {
-      ownerAddress = this.getLoginAddreess();
+      ownerAddress = this.getLoginAddress();
       if (ownerAddress == null) {
         this.outputGetAvailableUnfreezeCountTip();
         return;
@@ -4917,6 +4957,10 @@ public class Client {
               switchWallet();
               break;
             }
+            case "switchnetwork": {
+              switchNetwork(parameters);
+              break;
+            }
             case "resetwallet": {
               resetWallet();
               break;
@@ -5093,6 +5137,10 @@ public class Client {
               getProposal(parameters);
               break;
             }
+            case "currentnetwork": {
+              currentNetwork();
+              break;
+            }
             case "getdelegatedresource": {
               getDelegatedResource(parameters);
               break;
@@ -5143,6 +5191,10 @@ public class Client {
             }
             case "listexchangespaginated": {
               getExchangesListPaginated(parameters);
+              break;
+            }
+            case "gasfreetrace": {
+              gasFreeTrace(parameters);
               break;
             }
             case "getexchange": {
@@ -5221,6 +5273,10 @@ public class Client {
               getExpandedSpendingKey(parameters);
               break;
             }
+            case "gasfreeaddress": {
+              gasFreeAddress(parameters);
+              break;
+            }
             case "getakfromask": {
               getAkFromAsk(parameters);
               break;
@@ -5267,6 +5323,10 @@ public class Client {
             }
             case "estimateenergy": {
               estimateEnergy(parameters);
+              break;
+            }
+            case "gasfreetransfer": {
+              gasFreeTransfer(parameters);
               break;
             }
             case "getcontract": {
@@ -5498,6 +5558,63 @@ public class Client {
     }
   }
 
+  private void gasFreeTransfer(String[] parameters) throws NoSuchAlgorithmException, IOException,
+      InvalidKeyException, CipherException {
+    System.out.println("Gas free currently only supports " + blueBoldHighlight("USDT") + " transfers, and more token types will be enriched in the future.");
+    if (ArrayUtils.isEmpty(parameters) || parameters.length != 2) {
+      System.out.println("GasFreeTransfer needs 2 parameters like the following: ");
+      System.out.println("GasFreeTransfer receiverAddress amount");
+      return;
+    }
+    String receiver = parameters[0];
+    long value = Long.parseLong(parameters[1]);
+    boolean success = walletApiWrapper.gasFreeTransfer(receiver, value);
+    if (success) {
+      System.out.println("GasFreeTransfer " + successfulHighlight() + " !!!");
+    } else {
+      System.out.println("GasFreeTransfer " + failedHighlight() + " !!!");
+    }
+
+  }
+
+  private void gasFreeAddress(String[] parameters) throws NoSuchAlgorithmException, IOException, InvalidKeyException {
+    if (parameters.length > 1) {
+      System.out.println("GasFreeAddress needs no parameter or 1 parameter like the following: ");
+      System.out.println("GasFreeAddress Address ");
+      return;
+    }
+    String address = EMPTY;
+    if (ArrayUtils.isNotEmpty(parameters)) {
+      address = parameters[0];
+    }
+    String gasFreeAddress = walletApiWrapper.getGasFreeAddress(address);
+    if (org.apache.commons.lang3.StringUtils.isNotEmpty(gasFreeAddress)) {
+      System.out.println("GasFreeAddress: " + blueBoldHighlight(gasFreeAddress));
+    } else {
+      System.out.println("GasFreeAddress " + failedHighlight() + " !!");
+    }
+  }
+
+  private void gasFreeTrace(String[] parameters) throws IOException, NoSuchAlgorithmException, InvalidKeyException {
+    if (parameters.length > 1 || ArrayUtils.isEmpty(parameters)) {
+      System.out.println("GasFreeTrace needs 1 parameter like the following: ");
+      System.out.println("GasFreeTrace id ");
+      return;
+    }
+    String traceId = parameters[0];
+    boolean success = walletApiWrapper.gasFreeTrace(traceId);
+    if (success) {
+      System.out.println("GasFreeTrace: " + successfulHighlight() + "!!");
+    } else {
+      System.out.println("GasFreeTrace " + failedHighlight() + " !!");
+    }
+  }
+
+  private void currentNetwork() {
+    NetType currentNet = WalletApi.getCurrentNetwork();
+    System.out.println("current network: " + blueBoldHighlight(currentNet.name()));
+  }
+
   private void getChainParameters() {
     Optional<ChainParameters> result = walletApiWrapper.getChainParameters();
     if (result.isPresent()) {
@@ -5508,7 +5625,7 @@ public class Client {
     }
   }
 
-  private byte[] getLoginAddreess() {
+  private byte[] getLoginAddress() {
     if (walletApiWrapper.isLoginState()) {
       String ownerAddressStr = walletApiWrapper.getAddress();
       return WalletApi.decodeFromBase58Check(ownerAddressStr);

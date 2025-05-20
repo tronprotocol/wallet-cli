@@ -775,7 +775,7 @@ public class Utils {
     try (InputStream inputStream = Client.class.getResourceAsStream("/banner.txt")) {
       if (inputStream != null) {
         String banner = new String(readAllBytes(inputStream), StandardCharsets.UTF_8);
-        System.out.println(banner);
+        System.out.println(blueBoldHighlight(banner));
       } else {
         System.out.println("No banner.txt found!");
       }

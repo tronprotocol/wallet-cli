@@ -1,6 +1,10 @@
 package org.tron.walletserver;
 
 import static com.google.common.collect.Lists.newArrayList;
+import static org.tron.common.enums.NetType.CUSTOM;
+import static org.tron.common.enums.NetType.MAIN;
+import static org.tron.common.enums.NetType.NILE;
+import static org.tron.common.enums.NetType.SHASTA;
 import static org.tron.common.utils.Base58.encode;
 import static org.tron.common.utils.Utils.LOCK_WARNING;
 import static org.tron.common.utils.Utils.blueBoldHighlight;
@@ -107,6 +111,7 @@ import org.tron.common.crypto.Hash;
 import org.tron.common.crypto.Sha256Sm3Hash;
 import org.tron.common.crypto.SignInterface;
 import org.tron.common.crypto.sm2.SM2;
+import org.tron.common.enums.NetType;
 import org.tron.common.utils.Base58;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.TransactionUtils;
@@ -221,9 +226,17 @@ public class WalletApi {
   private List<WalletFile> walletList = new ArrayList<>();
 
   private static GrpcClient rpcCli = init();
+  @Getter
+  @Setter
+  private static NetType currentNetwork;
 
   private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
   private ScheduledFuture<?> autoLockFuture;
+
+  public static void updateRpcCli(GrpcClient client) throws InterruptedException {
+    rpcCli.shutdown();
+    rpcCli = client;
+  }
 
   public static GrpcClient init() {
     Config config = Configuration.getByPath("config.conf");
@@ -253,6 +266,18 @@ public class WalletApi {
       lockAccount = config.getBoolean("lockAccount");
       System.out.println("WalletApi lockAccount : " + lockAccount);
     }
+    if (StringUtils.isNotEmpty(fullNode) || StringUtils.isNotEmpty(solidityNode)) {
+      if (fullNode.equals(NILE.getGrpc().getFullNode()) || solidityNode.equals(NILE.getGrpc().getSolidityNode())){
+        currentNetwork = NILE;
+      } else if (fullNode.equals(SHASTA.getGrpc().getFullNode()) || solidityNode.equals(SHASTA.getGrpc().getSolidityNode())) {
+        currentNetwork = SHASTA;
+      } else if (fullNode.equals(MAIN.getGrpc().getFullNode()) || solidityNode.equals(MAIN.getGrpc().getSolidityNode())) {
+        currentNetwork = MAIN;
+      } else {
+        currentNetwork = CUSTOM;
+      }
+    }
+
     return new GrpcClient(fullNode, solidityNode);
   }
 
