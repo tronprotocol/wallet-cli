@@ -1,34 +1,61 @@
 package org.tron.walletcli;
 
 import static com.google.common.collect.Lists.newArrayList;
+import static java.net.HttpURLConnection.HTTP_OK;
 import static org.apache.commons.lang3.StringUtils.EMPTY;
+import static org.tron.common.enums.NetType.CUSTOM;
+import static org.tron.common.enums.NetType.MAIN;
+import static org.tron.common.enums.NetType.NILE;
+import static org.tron.common.enums.NetType.SHASTA;
+import static org.tron.common.utils.Utils.LOCK_WARNING;
 import static org.tron.common.utils.Utils.blueBoldHighlight;
 import static org.tron.common.utils.Utils.failedHighlight;
 import static org.tron.common.utils.Utils.greenBoldHighlight;
 import static org.tron.common.utils.Utils.inputPassword;
+import static org.tron.gasfree.GasFreeApi.concat;
+import static org.tron.gasfree.GasFreeApi.gasFreeSubmit;
+import static org.tron.gasfree.GasFreeApi.getDomainSeparator;
+import static org.tron.gasfree.GasFreeApi.getMessage;
+import static org.tron.gasfree.GasFreeApi.keccak256;
+import static org.tron.gasfree.GasFreeApi.signOffChain;
+import static org.tron.gasfree.GasFreeApi.validateSignOffChain;
 import static org.tron.keystore.StringUtils.byte2Char;
 import static org.tron.keystore.StringUtils.char2Byte;
+import static org.tron.keystore.StringUtils.clear;
 import static org.tron.keystore.Wallet.validPassword;
+import static org.tron.keystore.WalletUtils.loadCredentials;
 import static org.tron.keystore.WalletUtils.show;
 import static org.tron.ledger.LedgerFileUtil.LEDGER_DIR_NAME;
 import static org.tron.ledger.console.ConsoleColor.ANSI_RED;
 import static org.tron.ledger.console.ConsoleColor.ANSI_RESET;
 import static org.tron.walletserver.WalletApi.getAllWalletFile;
 
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
 import com.google.protobuf.ByteString;
+import com.typesafe.config.Config;
 import io.netty.util.internal.StringUtil;
-
 import java.io.File;
+import java.io.IOException;
 import java.math.BigInteger;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Optional;
 import java.util.Scanner;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.ArrayUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.bouncycastle.util.encoders.Hex;
 import org.hid4java.HidDevice;
 import org.jline.reader.EndOfFileException;
@@ -38,11 +65,45 @@ import org.jline.reader.UserInterruptException;
 import org.jline.terminal.Terminal;
 import org.jline.terminal.TerminalBuilder;
 import org.tron.api.GrpcAPI;
-import org.tron.api.GrpcAPI.*;
+import org.tron.api.GrpcAPI.AssetIssueList;
+import org.tron.api.GrpcAPI.BlockExtention;
+import org.tron.api.GrpcAPI.BytesMessage;
+import org.tron.api.GrpcAPI.DecryptNotes;
+import org.tron.api.GrpcAPI.DecryptNotesMarked;
+import org.tron.api.GrpcAPI.DecryptNotesTRC20;
+import org.tron.api.GrpcAPI.DiversifierMessage;
+import org.tron.api.GrpcAPI.ExchangeList;
+import org.tron.api.GrpcAPI.ExpandedSpendingKeyMessage;
+import org.tron.api.GrpcAPI.IncomingViewingKeyDiversifierMessage;
+import org.tron.api.GrpcAPI.IncomingViewingKeyMessage;
+import org.tron.api.GrpcAPI.IvkDecryptAndMarkParameters;
+import org.tron.api.GrpcAPI.IvkDecryptParameters;
+import org.tron.api.GrpcAPI.IvkDecryptTRC20Parameters;
+import org.tron.api.GrpcAPI.NfParameters;
+import org.tron.api.GrpcAPI.NodeList;
+import org.tron.api.GrpcAPI.Note;
+import org.tron.api.GrpcAPI.OvkDecryptParameters;
+import org.tron.api.GrpcAPI.OvkDecryptTRC20Parameters;
+import org.tron.api.GrpcAPI.PaymentAddressMessage;
+import org.tron.api.GrpcAPI.PricesResponseMessage;
+import org.tron.api.GrpcAPI.PrivateParameters;
+import org.tron.api.GrpcAPI.PrivateParametersWithoutAsk;
+import org.tron.api.GrpcAPI.PrivateShieldedTRC20Parameters;
+import org.tron.api.GrpcAPI.PrivateShieldedTRC20ParametersWithoutAsk;
+import org.tron.api.GrpcAPI.ProposalList;
+import org.tron.api.GrpcAPI.ReceiveNote;
+import org.tron.api.GrpcAPI.ShieldedTRC20Parameters;
+import org.tron.api.GrpcAPI.SpendNote;
+import org.tron.api.GrpcAPI.SpendNoteTRC20;
+import org.tron.api.GrpcAPI.TransactionInfoList;
+import org.tron.api.GrpcAPI.ViewingKeyMessage;
+import org.tron.api.GrpcAPI.WitnessList;
+import org.tron.common.enums.NetType;
 import org.tron.common.utils.AbiUtil;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.ByteUtil;
 import org.tron.common.utils.Utils;
+import org.tron.core.config.Configuration;
 import org.tron.core.exception.CancelException;
 import org.tron.core.exception.CipherException;
 import org.tron.core.exception.ZksnarkException;
@@ -56,8 +117,10 @@ import org.tron.core.zen.address.DiversifierT;
 import org.tron.core.zen.address.ExpandedSpendingKey;
 import org.tron.core.zen.address.FullViewingKey;
 import org.tron.core.zen.address.SpendingKey;
+import org.tron.gasfree.GasFreeApi;
+import org.tron.gasfree.request.GasFreeSubmitRequest;
 import org.tron.keystore.ClearWalletUtils;
-import org.tron.keystore.StringUtils;
+import org.tron.keystore.Credentials;
 import org.tron.keystore.Wallet;
 import org.tron.keystore.WalletFile;
 import org.tron.keystore.WalletUtils;
@@ -83,12 +146,9 @@ import org.tron.protos.contract.AssetIssueContractOuterClass.AssetIssueContract;
 import org.tron.protos.contract.ShieldContract.IncrementalMerkleVoucherInfo;
 import org.tron.protos.contract.ShieldContract.OutputPoint;
 import org.tron.protos.contract.ShieldContract.OutputPointInfo;
+import org.tron.walletserver.GrpcClient;
 import org.tron.walletserver.WalletApi;
-
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Optional;
+import org.web3j.utils.Numeric;
 
 @Slf4j
 public class WalletApiWrapper {
@@ -106,7 +166,7 @@ public class WalletApiWrapper {
     byte[] passwd = char2Byte(password);
 
     WalletFile walletFile = WalletApi.CreateWalletFile(passwd, wordsNumber);
-    StringUtils.clear(passwd);
+    clear(passwd);
 
     String keystoreName = WalletApi.store2Keystore(walletFile);
     logout();
@@ -124,7 +184,7 @@ public class WalletApiWrapper {
     byte[] passwd = char2Byte(password);
 
     WalletFile walletFile = WalletApi.CreateWalletFile(passwd, priKey, mnemonic);
-    StringUtils.clear(passwd);
+    clear(passwd);
 
     String keystoreName = WalletApi.store2Keystore(walletFile);
     if (mnemonic == null && WalletUtils.hasStoreFile(walletFile.getAddress(), MnemonicFilePath)) {
@@ -288,7 +348,7 @@ public class WalletApiWrapper {
       System.out.println("Import account " + failedHighlight() + "!");
       return EMPTY;
     } finally {
-      StringUtils.clear(passwdByte);
+      clear(passwdByte);
     }
   }
 
@@ -304,8 +364,8 @@ public class WalletApiWrapper {
     byte[] newPasswd = char2Byte(newPassword);
 
     boolean result = WalletApi.changeKeystorePassword(oldPasswd, newPasswd);
-    StringUtils.clear(oldPasswd);
-    StringUtils.clear(newPasswd);
+    clear(oldPasswd);
+    clear(newPasswd);
 
     return result;
   }
@@ -459,7 +519,7 @@ public class WalletApiWrapper {
     System.out.println("Please input your password.");
     char[] password = inputPassword(false);
     byte[] passwd = char2Byte(password);
-    StringUtils.clear(password);
+    clear(password);
     wallet.checkPassword(passwd);
 
     WalletFile walletFile = wallet.getWalletFile();
@@ -545,7 +605,7 @@ public class WalletApiWrapper {
 
     System.out.println("Please input your password.");
     char[] password = Utils.inputPassword(false);
-    byte[] passwd = StringUtils.char2Byte(password);
+    byte[] passwd = char2Byte(password);
     try {
       wallet.checkPassword(passwd);
     } catch (CipherException e) {
@@ -569,9 +629,9 @@ public class WalletApiWrapper {
       if (subAccount != null) {
         subAccount.clearSensitiveData();
       }
-      StringUtils.clear(mnemonic);
-      StringUtils.clear(password);
-      StringUtils.clear(passwd);
+      clear(mnemonic);
+      clear(password);
+      clear(passwd);
     }
 
     return true;
@@ -592,7 +652,7 @@ public class WalletApiWrapper {
       if (subAccount != null) {
         subAccount.clearSensitiveData();
       }
-      StringUtils.clear(passwd);
+      clear(passwd);
     }
     return true;
   }
@@ -609,10 +669,10 @@ public class WalletApiWrapper {
 
     System.out.println("Please input your password.");
     char[] password = Utils.inputPassword(false);
-    byte[] passwd = StringUtils.char2Byte(password);
-    StringUtils.clear(password);
+    byte[] passwd = char2Byte(password);
+    clear(password);
     byte[] privateKey = wallet.getPrivateBytes(passwd);
-    StringUtils.clear(passwd);
+    clear(passwd);
 
     return privateKey;
   }
@@ -626,9 +686,9 @@ public class WalletApiWrapper {
     //1.input password
     System.out.println("Please input your password.");
     char[] password = Utils.inputPassword(false);
-    byte[] passwd = StringUtils.char2Byte(password);
+    byte[] passwd = char2Byte(password);
     wallet.checkPassword(passwd);
-    StringUtils.clear(password);
+    clear(password);
 
     //2.export mnemonic words
     return MnemonicUtils.exportMnemonic(passwd, getAddress());
@@ -644,15 +704,15 @@ public class WalletApiWrapper {
     //1.input password
     System.out.println("Please input your password.");
     char[] password = Utils.inputPassword(false);
-    byte[] passwd = StringUtils.char2Byte(password);
+    byte[] passwd = char2Byte(password);
     try {
       wallet.checkPassword(passwd);
     } catch (CipherException e) {
       System.out.println("Password check " + failedHighlight() + "!");
       return null;
     } finally {
-      StringUtils.clear(password);
-      StringUtils.clear(passwd);
+      clear(password);
+      clear(passwd);
     }
 
     return wallet.exportKeystore(walletChannel, exportFullDir);
@@ -680,7 +740,7 @@ public class WalletApiWrapper {
       } catch (Exception e) {
         System.out.println(e.getMessage());
       } finally {
-        StringUtils.clear(password);
+        clear(password);
       }
     }
     return EMPTY;
@@ -688,6 +748,7 @@ public class WalletApiWrapper {
 
   public String getAddress() {
     if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: GetAddress " + failedHighlight() + ",  Please login first !!");
       return null;
     }
 
@@ -2550,5 +2611,250 @@ public class WalletApiWrapper {
       }
     }
     return deleteAll;
+  }
+
+  public boolean switchNetwork(String netWorkSymbol, String fulNode, String solidityNode)
+      throws InterruptedException {
+    if (StringUtils.isEmpty(netWorkSymbol) && StringUtils.isEmpty(fulNode) && StringUtils.isEmpty(solidityNode)) {
+      System.out.println("Please select network：");
+      NetType[] values = NetType.values();
+      for (int i = 0; i < values.length; i++) {
+        if (values[i] != CUSTOM) {
+          System.out.println(i + 1 + ". " + values[i].name());
+        }
+      }
+      System.out.print("Enter numbers to select a network (" + greenBoldHighlight("1-3") + "):");
+
+      Scanner scanner = new Scanner(System.in);
+      String choice = scanner.nextLine();
+
+      switch (choice) {
+        case "1":
+          netWorkSymbol = "MAIN";
+          break;
+        case "2":
+          netWorkSymbol = "NILE";
+          break;
+        case "3":
+          netWorkSymbol = "SHASTA";
+          break;
+        default:
+          System.out.println("Invalid selection!");
+          return false;
+      }
+    }
+    Pair<GrpcClient, NetType> pair = getGrpcClientAndNetType(netWorkSymbol, fulNode, solidityNode);
+    WalletApi.updateRpcCli(pair.getLeft());
+    WalletApi.setCurrentNetwork(pair.getRight());
+    System.out.println("Now, current network is : " + blueBoldHighlight(WalletApi.getCurrentNetwork().toString()));
+    return true;
+  }
+
+  private static boolean isValid(String address1, String address2) {
+    String regex = "^([a-zA-Z0-9.-]+):(\\d{1,5})$";
+    Pattern pattern = Pattern.compile(regex);
+
+    Matcher matcher1 = pattern.matcher(address1);
+    Matcher matcher2 = pattern.matcher(address2);
+
+    if (!matcher1.matches()) {
+      System.out.println("host:port format is illegal: " + address1);
+      return false;
+    }
+    if (!matcher2.matches()) {
+      System.out.println("host:port format is illegal: " + address2);
+      return false;
+    }
+
+    String host1 = matcher1.group(1);
+    int port1 = Integer.parseInt(matcher1.group(2));
+
+    String host2 = matcher2.group(1);
+    int port2 = Integer.parseInt(matcher2.group(2));
+
+    if (port1 < 1 || port1 > 65535) {
+      System.out.println("The port number is invalid: " + port1 + " in " + address1);
+    }
+
+    if (port2 < 1 || port2 > 65535) {
+      System.out.println("The port number is invalid: " + port2 + " in " + address2);
+      return false;
+    }
+
+    if (host1.equalsIgnoreCase(host2) && port1 == port2) {
+      System.out.println("The same host cannot use the same port: " + address1 + " & " + address2);
+      return false;
+    }
+    return true;
+  }
+
+  private Pair<GrpcClient, NetType> getGrpcClientAndNetType(String netWorkSymbol, String fullNode,
+    String solidityNode) {
+    GrpcClient client;
+    NetType currentNet;
+    if (StringUtils.isEmpty(netWorkSymbol) &&
+        (StringUtils.isNotEmpty(fullNode) || StringUtils.isNotEmpty(solidityNode))) {
+      if (!isValid(fullNode, solidityNode)) {
+        throw new IllegalArgumentException("host:port format is illegal.");
+      }
+      if (NILE.getGrpc().getFullNode().equals(fullNode) && NILE.getGrpc().getSolidityNode().equals(solidityNode)){
+        currentNet = NILE;
+        client = new GrpcClient(
+            NILE.getGrpc().getFullNode(),
+            NILE.getGrpc().getSolidityNode()
+        );
+      } else if (SHASTA.getGrpc().getFullNode().equals(fullNode) && SHASTA.getGrpc().getSolidityNode().equals(solidityNode)) {
+        currentNet = SHASTA;
+        client = new GrpcClient(
+            SHASTA.getGrpc().getFullNode(),
+            SHASTA.getGrpc().getSolidityNode()
+        );
+      } else if (MAIN.getGrpc().getFullNode().equals(fullNode) && MAIN.getGrpc().getSolidityNode().equals(solidityNode)) {
+        currentNet = MAIN;
+        client = new GrpcClient(
+            MAIN.getGrpc().getFullNode(),
+            MAIN.getGrpc().getSolidityNode()
+        );
+      } else {
+        currentNet = CUSTOM;
+        client = new GrpcClient(fullNode, solidityNode);
+      }
+    } else {
+      if (NILE.name().equalsIgnoreCase(netWorkSymbol)) {
+        client = new GrpcClient(
+            NILE.getGrpc().getFullNode(),
+            NILE.getGrpc().getSolidityNode()
+        );
+        currentNet = NILE;
+      } else if (MAIN.name().equalsIgnoreCase(netWorkSymbol)) {
+        client = new GrpcClient(
+            MAIN.getGrpc().getFullNode(),
+            MAIN.getGrpc().getSolidityNode()
+        );
+        currentNet = MAIN;
+      } else if (SHASTA.name().equalsIgnoreCase(netWorkSymbol)) {
+        client = new GrpcClient(
+            SHASTA.getGrpc().getFullNode(),
+            SHASTA.getGrpc().getSolidityNode()
+        );
+        currentNet = SHASTA;
+      } else if ("LOCAL".equalsIgnoreCase(netWorkSymbol)) {
+        Config config = Configuration.getByPath("config.conf");
+        fullNode = config.getStringList("fullnode.ip.list").get(0);
+        solidityNode = config.getStringList("soliditynode.ip.list").get(0);
+        if (StringUtils.isEmpty(fullNode) && StringUtils.isEmpty(solidityNode)) {
+          throw new IllegalArgumentException("The configuration of fullnode.ip.list or " +
+              "soliditynode.ip.list in config. conf is incorrect.");
+        }
+        if (NILE.getGrpc().getFullNode().equals(fullNode) && NILE.getGrpc().getSolidityNode().equals(solidityNode)){
+          currentNet = NILE;
+          client = new GrpcClient(
+              NILE.getGrpc().getFullNode(),
+              NILE.getGrpc().getSolidityNode()
+          );
+        } else if (SHASTA.getGrpc().getFullNode().equals(fullNode) && SHASTA.getGrpc().getSolidityNode().equals(solidityNode)) {
+          currentNet = SHASTA;
+          client = new GrpcClient(
+              SHASTA.getGrpc().getFullNode(),
+              SHASTA.getGrpc().getSolidityNode()
+          );
+        } else if (MAIN.getGrpc().getFullNode().equals(fullNode) && MAIN.getGrpc().getSolidityNode().equals(solidityNode)) {
+          currentNet = MAIN;
+          client = new GrpcClient(
+              MAIN.getGrpc().getFullNode(),
+              MAIN.getGrpc().getSolidityNode()
+          );
+        } else {
+          currentNet = CUSTOM;
+          client = new GrpcClient(fullNode, solidityNode);
+        }
+      } else {
+        throw new IllegalArgumentException("The network symbol you entered cannot be recognized.");
+      }
+    }
+    return Pair.of(client, currentNet);
+  }
+
+  public String getGasFreeAddress(String address) throws NoSuchAlgorithmException, IOException, InvalidKeyException {
+    if (StringUtils.isEmpty(address)) {
+      address = getAddress();
+      if (StringUtils.isEmpty(address)) {
+        return EMPTY;
+      }
+    }
+    String resp = GasFreeApi.address(WalletApi.getCurrentNetwork(), address);
+    if (StringUtils.isEmpty(resp)) {
+      return EMPTY;
+    }
+    JSONObject root = JSON.parseObject(resp);
+    JSONObject data = root.getJSONObject("data");
+    return data.getString("gasFreeAddress");
+  }
+
+  public boolean gasFreeTransfer(String receiver, long value) throws NoSuchAlgorithmException, IOException, InvalidKeyException, CipherException {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: GasFreeTransfer " + failedHighlight() + ",  Please login first !!");
+      return false;
+    }
+    if (!wallet.isUnlocked()) {
+      throw new IllegalStateException(LOCK_WARNING);
+    }
+    String address = getAddress();
+    GasFreeSubmitRequest gasFreeSubmitRequest = new GasFreeSubmitRequest();
+    gasFreeSubmitRequest.setUser(address);
+    gasFreeSubmitRequest.setReceiver(receiver);
+    gasFreeSubmitRequest.setValue(value);
+    gasFreeSubmitRequest.setVersion(1);
+    NetType currentNet = WalletApi.getCurrentNetwork();
+    byte[] domainSeparator = getDomainSeparator(currentNet);
+    byte[] message = getMessage(currentNet, gasFreeSubmitRequest);
+    // permitTransferMessageHash
+    byte[] concat = concat(
+        Numeric.hexStringToByteArray("0x1901"),
+        domainSeparator,
+        message
+    );
+    Credentials credentials = wallet.getCredentials();
+    if (credentials == null) {
+      System.out.println("Please input your password.");
+      byte[] password = char2Byte(inputPassword(false));
+      credentials = loadCredentials(password, wallet.getWalletFile());
+    }
+    String privateKey = Hex.toHexString(credentials.getPair().getPrivateKey());
+    String signature = signOffChain(keccak256(concat), privateKey);
+    gasFreeSubmitRequest.setSig(signature);
+    boolean validated = validateSignOffChain(keccak256(concat), signature, address);
+    if (validated) {
+      String result = gasFreeSubmit(currentNet, gasFreeSubmitRequest);
+      if (StringUtils.isNotEmpty(result)) {
+        Object o = JSON.parse(result);
+        System.out.println("GasFreeTransfer result: \n" + JSON.toJSONString(o, true));
+        JSONObject root = (JSONObject) o;
+        int respCode = root.getIntValue("code");
+        return HTTP_OK == respCode;
+      } else {
+        return false;
+      }
+    } else {
+      System.out.println("Signature verification failed!");
+      return false;
+    }
+  }
+
+  public boolean gasFreeTrace(String traceId) throws NoSuchAlgorithmException, IOException, InvalidKeyException {
+    String result = GasFreeApi.gasFreeTrace(WalletApi.getCurrentNetwork(), traceId);
+    if (StringUtils.isNotEmpty(result)) {
+      Object o = JSON.parse(result);
+      System.out.println("GasFreeTrace result: \n" + JSON.toJSONString(o, true));
+      JSONObject root = (JSONObject) o;
+      int respCode = root.getIntValue("code");
+      if (HTTP_OK == respCode) {
+        return true;
+      } else {
+        System.out.println(root.getString("message"));
+        return false;
+      }
+    }
+    return false;
   }
 }

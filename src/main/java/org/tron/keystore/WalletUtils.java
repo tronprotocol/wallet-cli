@@ -183,6 +183,14 @@ public class WalletUtils {
     return CredentialsSM2.create(Wallet.decryptSM2(password, walletFile));
   }
 
+  public static Credentials loadCredentials(byte[] password, WalletFile walletFile)
+      throws CipherException {
+    if (isEckey) {
+      return CredentialsEckey.create(Wallet.decrypt(password, walletFile));
+    }
+    return CredentialsSM2.create(Wallet.decryptSM2(password, walletFile));
+  }
+
   public static WalletFile loadWalletFile(File source) throws IOException {
     return objectMapper.readValue(source, WalletFile.class);
   }
