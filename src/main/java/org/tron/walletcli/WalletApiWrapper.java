@@ -12,6 +12,7 @@ import static org.tron.common.utils.Utils.blueBoldHighlight;
 import static org.tron.common.utils.Utils.failedHighlight;
 import static org.tron.common.utils.Utils.greenBoldHighlight;
 import static org.tron.common.utils.Utils.inputPassword;
+import static org.tron.common.utils.Utils.isValid;
 import static org.tron.gasfree.GasFreeApi.concat;
 import static org.tron.gasfree.GasFreeApi.gasFreeSubmit;
 import static org.tron.gasfree.GasFreeApi.getDomainSeparator;
@@ -28,9 +29,12 @@ import static org.tron.keystore.WalletUtils.show;
 import static org.tron.ledger.LedgerFileUtil.LEDGER_DIR_NAME;
 import static org.tron.ledger.console.ConsoleColor.ANSI_RED;
 import static org.tron.ledger.console.ConsoleColor.ANSI_RESET;
+import static org.tron.walletserver.WalletApi.addressValid;
+import static org.tron.walletserver.WalletApi.decodeFromBase58Check;
 import static org.tron.walletserver.WalletApi.getAllWalletFile;
 
 import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.google.protobuf.ByteString;
 import com.typesafe.config.Config;
@@ -45,10 +49,9 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Scanner;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -119,6 +122,7 @@ import org.tron.core.zen.address.FullViewingKey;
 import org.tron.core.zen.address.SpendingKey;
 import org.tron.gasfree.GasFreeApi;
 import org.tron.gasfree.request.GasFreeSubmitRequest;
+import org.tron.gasfree.response.GasFreeAddressResponse;
 import org.tron.keystore.ClearWalletUtils;
 import org.tron.keystore.Credentials;
 import org.tron.keystore.Wallet;
@@ -1373,7 +1377,7 @@ public class WalletApiWrapper {
     return wallet
         .triggerContract(ownerAddress, contractAddress, callValue, data, feeLimit, tokenValue,
             tokenId,
-            isConstant);
+            isConstant, false).getLeft();
   }
 
   public boolean estimateEnergy(byte[] ownerAddress, byte[] contractAddress, long callValue,
@@ -2650,44 +2654,6 @@ public class WalletApiWrapper {
     return true;
   }
 
-  private static boolean isValid(String address1, String address2) {
-    String regex = "^([a-zA-Z0-9.-]+):(\\d{1,5})$";
-    Pattern pattern = Pattern.compile(regex);
-
-    Matcher matcher1 = pattern.matcher(address1);
-    Matcher matcher2 = pattern.matcher(address2);
-
-    if (!matcher1.matches()) {
-      System.out.println("host:port format is illegal: " + address1);
-      return false;
-    }
-    if (!matcher2.matches()) {
-      System.out.println("host:port format is illegal: " + address2);
-      return false;
-    }
-
-    String host1 = matcher1.group(1);
-    int port1 = Integer.parseInt(matcher1.group(2));
-
-    String host2 = matcher2.group(1);
-    int port2 = Integer.parseInt(matcher2.group(2));
-
-    if (port1 < 1 || port1 > 65535) {
-      System.out.println("The port number is invalid: " + port1 + " in " + address1);
-    }
-
-    if (port2 < 1 || port2 > 65535) {
-      System.out.println("The port number is invalid: " + port2 + " in " + address2);
-      return false;
-    }
-
-    if (host1.equalsIgnoreCase(host2) && port1 == port2) {
-      System.out.println("The same host cannot use the same port: " + address1 + " & " + address2);
-      return false;
-    }
-    return true;
-  }
-
   private Pair<GrpcClient, NetType> getGrpcClientAndNetType(String netWorkSymbol, String fullNode,
     String solidityNode) {
     GrpcClient client;
@@ -2775,20 +2741,57 @@ public class WalletApiWrapper {
     return Pair.of(client, currentNet);
   }
 
-  public String getGasFreeAddress(String address) throws NoSuchAlgorithmException, IOException, InvalidKeyException {
+  public boolean getGasFreeInfo(String address) throws NoSuchAlgorithmException, IOException, InvalidKeyException, CipherException, CancelException {
     if (StringUtils.isEmpty(address)) {
       address = getAddress();
       if (StringUtils.isEmpty(address)) {
-        return EMPTY;
+        return false;
       }
+    }
+    if (!addressValid(address)) {
+      System.out.println("The receiverAddress you entered is invalid.");
     }
     String resp = GasFreeApi.address(WalletApi.getCurrentNetwork(), address);
     if (StringUtils.isEmpty(resp)) {
-      return EMPTY;
+      return false;
     }
     JSONObject root = JSON.parseObject(resp);
+    int respCode = root.getIntValue("code");
     JSONObject data = root.getJSONObject("data");
-    return data.getString("gasFreeAddress");
+    if (HTTP_OK == respCode) {
+      if (Objects.nonNull(data)) {
+        String gasFreeAddress = data.getString("gasFreeAddress");
+        boolean active = data.getBooleanValue("active");
+        JSONArray assets = data.getJSONArray("assets");
+        if (Objects.nonNull(assets)) {
+          JSONObject asset = assets.getJSONObject(0);
+          String tokenAddress = asset.getString("tokenAddress");
+          // Query token balance based on gas free address
+          byte[] d = Hex.decode(AbiUtil.parseMethod("balanceOf(address)",
+              "\"" + gasFreeAddress + "\"", false));
+          long activateFee = asset.getLongValue("activateFee");
+          long transferFee = asset.getLongValue("transferFee");
+          Long tokenBalance = wallet.triggerContract(null, decodeFromBase58Check(tokenAddress),
+              0, d, 0, 0, EMPTY, true, true).getRight();
+          long maxTransferValue = tokenBalance - activateFee - transferFee;
+          GasFreeAddressResponse gasFreeAddressResponse = new GasFreeAddressResponse();
+          gasFreeAddressResponse.setGasFreeAddress(gasFreeAddress);
+          gasFreeAddressResponse.setActive(active);
+          gasFreeAddressResponse.setActivateFee(active ? 0 : activateFee);
+          gasFreeAddressResponse.setTransferFee(transferFee);
+          gasFreeAddressResponse.setTokenBalance(tokenBalance);
+          gasFreeAddressResponse.setMaxTransferValue((maxTransferValue > 0 ? maxTransferValue : 0));
+          System.out.println(JSON.toJSONString(gasFreeAddressResponse, true));
+        }
+        return true;
+      } else {
+        System.out.println("gas free address does not exist.");
+        return false;
+      }
+    } else {
+      System.out.println(root.getString("message"));
+      return false;
+    }
   }
 
   public boolean gasFreeTransfer(String receiver, long value) throws NoSuchAlgorithmException, IOException, InvalidKeyException, CipherException {
@@ -2798,6 +2801,9 @@ public class WalletApiWrapper {
     }
     if (!wallet.isUnlocked()) {
       throw new IllegalStateException(LOCK_WARNING);
+    }
+    if (!addressValid(receiver)) {
+      System.out.println("The receiverAddress you entered is invalid.");
     }
     String address = getAddress();
     GasFreeSubmitRequest gasFreeSubmitRequest = new GasFreeSubmitRequest();
@@ -2849,6 +2855,10 @@ public class WalletApiWrapper {
       JSONObject root = (JSONObject) o;
       int respCode = root.getIntValue("code");
       if (HTTP_OK == respCode) {
+        if (Objects.isNull(root.get("data"))) {
+          System.out.println("This id " + blueBoldHighlight(traceId) + " does not have a trace.");
+          return false;
+        }
         return true;
       } else {
         System.out.println(root.getString("message"));

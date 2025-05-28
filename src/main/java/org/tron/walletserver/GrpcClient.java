@@ -1,5 +1,9 @@
 package org.tron.walletserver;
 
+import static org.tron.common.enums.NetType.MAIN;
+import static org.tron.common.enums.NetType.NILE;
+import static org.tron.common.enums.NetType.SHASTA;
+
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
@@ -93,15 +97,21 @@ public class GrpcClient {
 //    blockingStub = WalletGrpc.newBlockingStub(channel);
 //  }
 
-  public GrpcClient(String fullnode, String soliditynode) {
-    if (!StringUtils.isEmpty(fullnode)) {
-      channelFull = ManagedChannelBuilder.forTarget(fullnode)
+  public GrpcClient(String fullNode, String solidityNode) {
+    boolean nonMain = !(MAIN.getGrpc().getFullNode().equals(fullNode) && MAIN.getGrpc().getSolidityNode().equals(solidityNode));
+    boolean nonNile = !(NILE.getGrpc().getFullNode().equals(fullNode) && NILE.getGrpc().getSolidityNode().equals(solidityNode));
+    boolean nonShasta = !(SHASTA.getGrpc().getFullNode().equals(fullNode) && SHASTA.getGrpc().getSolidityNode().equals(solidityNode));
+    if (nonMain && nonNile && nonShasta) {
+      System.out.println("fullNode: " + fullNode + ", solidityNode: " + solidityNode);
+    }
+    if (!StringUtils.isEmpty(fullNode)) {
+      channelFull = ManagedChannelBuilder.forTarget(fullNode)
           .usePlaintext()
           .build();
       blockingStubFull = WalletGrpc.newBlockingStub(channelFull);
     }
-    if (!StringUtils.isEmpty(soliditynode)) {
-      channelSolidity = ManagedChannelBuilder.forTarget(soliditynode)
+    if (!StringUtils.isEmpty(solidityNode)) {
+      channelSolidity = ManagedChannelBuilder.forTarget(solidityNode)
           .usePlaintext()
           .build();
       blockingStubSolidity = WalletSolidityGrpc.newBlockingStub(channelSolidity);

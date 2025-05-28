@@ -1,10 +1,12 @@
 package org.tron.walletcli;
 
 import static org.apache.commons.lang3.StringUtils.EMPTY;
+import static org.tron.common.utils.Utils.EMPTY_STR;
 import static org.tron.common.utils.Utils.blueBoldHighlight;
 import static org.tron.common.utils.Utils.failedHighlight;
 import static org.tron.common.utils.Utils.getLong;
 import static org.tron.common.utils.Utils.greenBoldHighlight;
+import static org.tron.common.utils.Utils.isValid;
 import static org.tron.common.utils.Utils.printBanner;
 import static org.tron.common.utils.Utils.successfulHighlight;
 import static org.tron.keystore.StringUtils.byte2Char;
@@ -196,7 +198,7 @@ public class Client {
       "GetEnergyPrices",
       "GetExchange",
       "GetExpandedSpendingKey",
-      "GasFreeAddress",
+      "GasFreeInfo",
       "GetIncomingViewingKey",
       "GetMarketOrderByAccount",
       "GetMarketOrderById",
@@ -360,7 +362,7 @@ public class Client {
       "GetEnergyPrices",
       "GetExchange",
       "GetExpandedSpendingKey",
-      "GasFreeAddress",
+      "GasFreeInfo",
       "GetIncomingViewingKey",
       "GetMarketOrderByAccount",
       "GetMarketOrderById",
@@ -783,10 +785,20 @@ public class Client {
     String solidityNode = EMPTY;
     if (ArrayUtils.isNotEmpty(parameters)){
       if (parameters.length == 1) {
-        netWorkSymbol = parameters[0];
+        if (isValid(parameters[0])) {
+          fullNode = parameters[0];
+        } else {
+          netWorkSymbol = parameters[0];
+        }
       } else if (parameters.length == 2) {
         fullNode = parameters[0];
         solidityNode = parameters[1];
+        if (EMPTY_STR.equalsIgnoreCase(fullNode)) {
+          fullNode = EMPTY;
+        }
+        if (EMPTY_STR.equalsIgnoreCase(solidityNode)) {
+          solidityNode = EMPTY;
+        }
       } else {
         System.out.println("SwitchNetwork needs 1 parameter or 2 parameters like the following: ");
         System.out.println("SwitchNetwork nile");
@@ -5273,8 +5285,8 @@ public class Client {
               getExpandedSpendingKey(parameters);
               break;
             }
-            case "gasfreeaddress": {
-              gasFreeAddress(parameters);
+            case "gasfreeinfo": {
+              gasFreeInfo(parameters);
               break;
             }
             case "getakfromask": {
@@ -5577,21 +5589,21 @@ public class Client {
 
   }
 
-  private void gasFreeAddress(String[] parameters) throws NoSuchAlgorithmException, IOException, InvalidKeyException {
+  private void gasFreeInfo(String[] parameters) throws NoSuchAlgorithmException, IOException, InvalidKeyException, CipherException, CancelException {
     if (parameters.length > 1) {
-      System.out.println("GasFreeAddress needs no parameter or 1 parameter like the following: ");
-      System.out.println("GasFreeAddress Address ");
+      System.out.println("gasFreeInfo needs no parameter or 1 parameter like the following: ");
+      System.out.println("gasFreeInfo Address ");
       return;
     }
     String address = EMPTY;
     if (ArrayUtils.isNotEmpty(parameters)) {
       address = parameters[0];
     }
-    String gasFreeAddress = walletApiWrapper.getGasFreeAddress(address);
-    if (org.apache.commons.lang3.StringUtils.isNotEmpty(gasFreeAddress)) {
-      System.out.println("GasFreeAddress: " + blueBoldHighlight(gasFreeAddress));
+    boolean success = walletApiWrapper.getGasFreeInfo(address);
+    if (success) {
+      System.out.println("gasFreeInfo: " + successfulHighlight() + " !!");
     } else {
-      System.out.println("GasFreeAddress " + failedHighlight() + " !!");
+      System.out.println("gasFreeInfo " + failedHighlight() + " !!");
     }
   }
 

@@ -3,6 +3,7 @@ package org.tron.gasfree;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.commons.lang3.StringUtils.EMPTY;
 import static org.tron.common.enums.NetType.MAIN;
+import static org.tron.common.utils.Utils.greenBoldHighlight;
 import static org.tron.walletserver.WalletApi.decodeFromBase58Check;
 
 import com.alibaba.fastjson.JSON;
@@ -52,6 +53,7 @@ public class GasFreeApi {
   private static final String API_PATH_GAS_FREE_TRACE_ID = "/api/v1/gasfree/";
   private static final String GET = "GET";
   private static final String POST = "POST";
+  private static final String API_KEY_AND_API_SECRET_APPLY_URL = "https://docs.google.com/forms/d/e/1FAIpQLSc5EB1X8JN7LA4SAVAG99VziXEY6Kv6JxmlBry9rUBlwI-GaQ/viewform";
 
   public static byte[] keccak256(byte[] input) {
     return Hash.sha3(input);
@@ -141,9 +143,9 @@ public class GasFreeApi {
     String signature = generateSignature(netType, message);
     String apiKey = getPair(netType).getLeft();
     if (StringUtils.isEmpty(apiKey)) {
-      throw new IllegalArgumentException("To use the gasfree feature, please first apply for an " +
-          "apikey and apiSecret. For details, please refer to " +
-          "https://docs.google.com/forms/d/e/1FAIpQLSc5EB1X8JN7LA4SAVAG99VziXEY6Kv6JxmlBry9rUBlwI-GaQ/viewform");
+      throw new IllegalArgumentException("To use the gasfree feature, please first apply for an "
+          + greenBoldHighlight("apikey") + " and " + greenBoldHighlight("apiSecret") + ". "
+          + "For details, please refer to " + API_KEY_AND_API_SECRET_APPLY_URL);
     }
     return ImmutableMap.of(
         "Timestamp", String.valueOf(timestamp),
@@ -155,9 +157,9 @@ public class GasFreeApi {
     Mac sha256HMAC = Mac.getInstance("HmacSHA256");
     String apiSecret = getPair(netType).getRight();
     if (StringUtils.isEmpty(apiSecret)) {
-      throw new IllegalArgumentException("To use the gasfree feature, please first apply for an " +
-          "apikey and apiSecret. For details, please refer to " +
-          "https://docs.google.com/forms/d/e/1FAIpQLSc5EB1X8JN7LA4SAVAG99VziXEY6Kv6JxmlBry9rUBlwI-GaQ/viewform");
+      throw new IllegalArgumentException("To use the gasfree feature, please first apply for an "
+          + greenBoldHighlight("apikey") + " and " + greenBoldHighlight("apiSecret") + ". "
+          + "For details, please refer to " + API_KEY_AND_API_SECRET_APPLY_URL);
     }
     SecretKeySpec secretKey = new SecretKeySpec(apiSecret.getBytes(UTF_8), "HmacSHA256");
     sha256HMAC.init(secretKey);
@@ -280,6 +282,8 @@ public class GasFreeApi {
       long activateFee = token.getLongValue("activateFee");
       long transferFee = token.getLongValue("transferFee");
       maxFee = activateFee + transferFee;
+      System.out.println("Activate Fee: " + activateFee);
+      System.out.println("Transfer Fee: " + transferFee);
     }
     gasFreeSubmitRequest.setToken(tokenAddress);
     gasFreeSubmitRequest.setMaxFee(maxFee);
