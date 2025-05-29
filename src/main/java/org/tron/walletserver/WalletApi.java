@@ -31,6 +31,7 @@ import io.grpc.Status;
 import java.io.File;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.math.BigInteger;
 import java.nio.file.Paths;
 import java.security.SecureRandom;
 import java.util.ArrayList;
@@ -55,6 +56,7 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.bouncycastle.util.encoders.Hex;
 import org.hid4java.HidDevice;
 import org.tron.api.GrpcAPI;
@@ -2754,7 +2756,7 @@ public class WalletApi {
     return processTransactionExtention(transactionExtention);
   }
 
-  public boolean triggerContract(
+  public Pair<Boolean, Long> triggerContract(
       byte[] owner,
       byte[] contractAddress,
       long callValue,
@@ -2762,7 +2764,8 @@ public class WalletApi {
       long feeLimit,
       long tokenValue,
       String tokenId,
-      boolean isConstant)
+      boolean isConstant,
+      boolean isGasfree)
       throws IOException, CipherException, CancelException {
     if (!isUnlocked()) {
       throw new IllegalStateException(LOCK_WARNING);
@@ -2785,7 +2788,7 @@ public class WalletApi {
       System.out.println("Code = " + transactionExtention.getResult().getCode());
       System.out
           .println("Message = " + transactionExtention.getResult().getMessage().toStringUtf8());
-      return false;
+      return Pair.of(false, 0L);
     }
 
     Transaction transaction = transactionExtention
@@ -2797,8 +2800,15 @@ public class WalletApi {
       if (transaction.getRet(0).getRet() == Result.code.FAILED) {
         builder.setResult(builder.getResult().toBuilder().setResult(false));
       }
-      System.out.println("Execution result = " + Utils.formatMessageString(builder.build()));
-      return true;
+      if (!isGasfree) {
+        System.out.println("Execution result = " + Utils.formatMessageString(builder.build()));
+      }
+      BigInteger bigInteger = BigInteger.valueOf(0L);
+      if (builder.getConstantResultCount() == 1) {
+        ByteString constantResult = builder.getConstantResult(0);
+        bigInteger = new BigInteger(1, constantResult.toByteArray());
+      }
+      return Pair.of(true, bigInteger.longValue());
     }
 
     TransactionExtention.Builder texBuilder = TransactionExtention.newBuilder();
@@ -2820,7 +2830,7 @@ public class WalletApi {
     texBuilder.setTxid(transactionExtention.getTxid());
     transactionExtention = texBuilder.build();
 
-    return processTransactionExtention(transactionExtention);
+    return Pair.of(processTransactionExtention(transactionExtention), 0L);
   }
 
   public boolean estimateEnergy(

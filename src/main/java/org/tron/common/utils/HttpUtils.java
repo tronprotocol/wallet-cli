@@ -1,9 +1,11 @@
 package org.tron.common.utils;
 
 import static org.apache.commons.lang3.StringUtils.EMPTY;
+import static org.tron.common.utils.Utils.greenBoldHighlight;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import okhttp3.FormBody;
 import okhttp3.MediaType;
@@ -12,6 +14,7 @@ import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
+import org.apache.commons.lang3.StringUtils;
 
 public class HttpUtils {
 
@@ -74,7 +77,20 @@ public class HttpUtils {
 
   private static String responseBodyToString(Response response) throws IOException {
     if (!response.isSuccessful()) {
-      throw new IOException("Unexpected HTTP code " + response.code() + ": " + response.message());
+      String msg = response.message();
+      if (StringUtils.isEmpty(msg) ) {
+        msg = Optional.ofNullable(response.body()).map(body -> {
+              try {
+                return body.string();
+              } catch (Exception e) {
+                return EMPTY;
+              }
+        }).orElse(EMPTY);
+      }
+      throw new IOException(
+          "Unexpected HTTP code " + response.code() + ": " + msg + "\nAPI authentication failed, "
+              + "please check the " + greenBoldHighlight("apikey") + " and "
+              + greenBoldHighlight("apiSecret") + " configured in config.conf.");
     }
     ResponseBody body = response.body();
     return body != null ? body.string() : EMPTY;
