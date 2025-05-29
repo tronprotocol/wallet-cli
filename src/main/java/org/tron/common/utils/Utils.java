@@ -20,6 +20,7 @@ package org.tron.common.utils;
 
 import static org.apache.commons.lang3.StringUtils.EMPTY;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
+import static org.tron.common.utils.DomainValidator.isDomainOrIP;
 import static org.tron.ledger.console.ConsoleColor.ANSI_BLUE;
 import static org.tron.ledger.console.ConsoleColor.ANSI_BOLD;
 import static org.tron.ledger.console.ConsoleColor.ANSI_GREEN;
@@ -834,10 +835,14 @@ public class Utils {
     if (address != null && !address.trim().isEmpty()) {
       Matcher matcher = pattern.matcher(address.trim());
       if (!matcher.matches()) {
-        System.out.println("host:port format is illegal: " + address);
+        System.out.println("host:port format is invalid: " + address);
         return null;
       }
       host = matcher.group(1);
+      if (!isDomainOrIP(host)) {
+        System.out.println("The domain name or IP format is invalid.");
+        return null;
+      }
       port = Integer.parseInt(matcher.group(2));
       if (port < 1 || port > 65535) {
         System.out.println("The port number is invalid: " + port + " in " + address);

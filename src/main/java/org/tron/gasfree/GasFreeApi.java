@@ -276,14 +276,14 @@ public class GasFreeApi {
     JSONArray tokens = data.getJSONArray("tokens");
     String tokenAddress = EMPTY;
     long maxFee = 0;
+    long activateFee = 0;
+    long transferFee = 0;
     if (tokens != null && !tokens.isEmpty()) {
       JSONObject token = tokens.getJSONObject(0);
       tokenAddress = token.getString("tokenAddress");
-      long activateFee = token.getLongValue("activateFee");
-      long transferFee = token.getLongValue("transferFee");
+      activateFee = token.getLongValue("activateFee");
+      transferFee = token.getLongValue("transferFee");
       maxFee = activateFee + transferFee;
-      System.out.println("Activate Fee: " + activateFee);
-      System.out.println("Transfer Fee: " + transferFee);
     }
     gasFreeSubmitRequest.setToken(tokenAddress);
     gasFreeSubmitRequest.setMaxFee(maxFee);
@@ -303,6 +303,9 @@ public class GasFreeApi {
     JSONObject root2 = JSON.parseObject(addressResp);
     JSONObject data2 = root2.getJSONObject("data");
     int nonce = data2.getIntValue("nonce");
+    boolean active = data2.getBooleanValue("active");
+    System.out.println("Activate Fee: " + (active ? 0 : activateFee));
+    System.out.println("Transfer Fee: " + transferFee);
     gasFreeSubmitRequest.setNonce(nonce);
     gasFreeSubmitRequest.setDeadline((System.currentTimeMillis() / 1000) + 300);
 

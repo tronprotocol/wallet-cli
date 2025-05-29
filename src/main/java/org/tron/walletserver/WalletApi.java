@@ -231,6 +231,9 @@ public class WalletApi {
   @Getter
   @Setter
   private static NetType currentNetwork;
+  @Getter
+  @Setter
+  private static Pair<String, String> customNodes;
 
   private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
   private ScheduledFuture<?> autoLockFuture;
@@ -245,11 +248,17 @@ public class WalletApi {
 
     String fullNode = "";
     String solidityNode = "";
-    if (config.hasPath("soliditynode.ip.list")) {
-      solidityNode = config.getStringList("soliditynode.ip.list").get(0);
-    }
     if (config.hasPath("fullnode.ip.list")) {
-      fullNode = config.getStringList("fullnode.ip.list").get(0);
+      List<String> fullNodeList = config.getStringList("fullnode.ip.list");
+      if (!fullNodeList.isEmpty()) {
+        fullNode = fullNodeList.get(0);
+      }
+    }
+    if (config.hasPath("soliditynode.ip.list")) {
+      List<String> solidityNodeList = config.getStringList("soliditynode.ip.list");
+      if (!solidityNodeList.isEmpty()) {
+        solidityNode = solidityNodeList.get(0);
+      }
     }
     if (config.hasPath("net.type") && "mainnet".equalsIgnoreCase(config.getString("net.type"))) {
       WalletApi.setAddressPreFixByte(CommonConstant.ADD_PRE_FIX_BYTE_MAINNET);
@@ -1381,7 +1390,7 @@ public class WalletApi {
 
   public static boolean addressValid(String addressBase58) {
     byte[] address = decode58Check(addressBase58);
-    return addressValid(address);
+    return ArrayUtils.isNotEmpty(address);
   }
 
   public static boolean addressValid(byte[] address) {
