@@ -29,6 +29,7 @@ import static org.tron.keystore.WalletUtils.show;
 import static org.tron.ledger.LedgerFileUtil.LEDGER_DIR_NAME;
 import static org.tron.ledger.console.ConsoleColor.ANSI_RED;
 import static org.tron.ledger.console.ConsoleColor.ANSI_RESET;
+import static org.tron.walletserver.WalletApi.addressValid;
 import static org.tron.walletserver.WalletApi.decodeFromBase58Check;
 import static org.tron.walletserver.WalletApi.getAllWalletFile;
 
@@ -2747,6 +2748,9 @@ public class WalletApiWrapper {
         return false;
       }
     }
+    if (!addressValid(address)) {
+      System.out.println("The receiverAddress you entered is invalid.");
+    }
     String resp = GasFreeApi.address(WalletApi.getCurrentNetwork(), address);
     if (StringUtils.isEmpty(resp)) {
       return false;
@@ -2773,7 +2777,7 @@ public class WalletApiWrapper {
           GasFreeAddressResponse gasFreeAddressResponse = new GasFreeAddressResponse();
           gasFreeAddressResponse.setGasFreeAddress(gasFreeAddress);
           gasFreeAddressResponse.setActive(active);
-          gasFreeAddressResponse.setActivateFee(activateFee);
+          gasFreeAddressResponse.setActivateFee(active ? 0 : activateFee);
           gasFreeAddressResponse.setTransferFee(transferFee);
           gasFreeAddressResponse.setTokenBalance(tokenBalance);
           gasFreeAddressResponse.setMaxTransferValue((maxTransferValue > 0 ? maxTransferValue : 0));
@@ -2797,6 +2801,9 @@ public class WalletApiWrapper {
     }
     if (!wallet.isUnlocked()) {
       throw new IllegalStateException(LOCK_WARNING);
+    }
+    if (!addressValid(receiver)) {
+      System.out.println("The receiverAddress you entered is invalid.");
     }
     String address = getAddress();
     GasFreeSubmitRequest gasFreeSubmitRequest = new GasFreeSubmitRequest();

@@ -1379,6 +1379,11 @@ public class WalletApi {
     return true;
   }
 
+  public static boolean addressValid(String addressBase58) {
+    byte[] address = decode58Check(addressBase58);
+    return addressValid(address);
+  }
+
   public static boolean addressValid(byte[] address) {
     if (ArrayUtils.isEmpty(address)) {
       System.out.println("Warning: Address is empty !!");
