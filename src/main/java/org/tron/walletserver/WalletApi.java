@@ -287,8 +287,10 @@ public class WalletApi {
       } else {
         currentNetwork = CUSTOM;
       }
+    } else {
+      System.out.println("The config.conf configuration is invalid. fullnode.ip.lit and soliditynode.ip.list cannot both be empty at the same time.");
     }
-
+    WalletApi.setCustomNodes(Pair.of(fullNode, solidityNode));
     return new GrpcClient(fullNode, solidityNode);
   }
 
@@ -799,7 +801,7 @@ public class WalletApi {
       }
       String ledgerPath = getLedgerPath(passwd, wf);
       if (isLedgerFile) {
-        boolean result = LedgerSignUtil.requestLedgerSignLogic(transaction, ledgerPath, wf.getAddress());
+        boolean result = LedgerSignUtil.requestLedgerSignLogic(transaction, ledgerPath, wf.getAddress(), false);
         if (result) {
           transaction = TransactionSignManager.getInstance().getTransaction();
           TransactionSignWeight weight = getTransactionSignWeight(transaction);
@@ -3506,7 +3508,7 @@ public class WalletApi {
     return rpcCli.getBlock(idOrNum, detail);
   }
 
-  public boolean isLockAccount() {
+  public static boolean isLockAccount() {
     return lockAccount;
   }
 

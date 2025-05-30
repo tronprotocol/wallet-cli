@@ -36,6 +36,6 @@ public class DomainValidator {
   public static boolean isDomainOrIP(String input) {
     if (input == null || input.isEmpty()) return false;
     if ("localhost".equalsIgnoreCase(input)) return true;
-    return isIPv4(input) || isIPv6(input) || isDomain(input);
+    return isIPv4(input) || isDomain(input);
   }
 }
