@@ -1,0 +1,1 @@
+echo "{markdown content}" >> $GITHUB_STEP_SUMMARY
