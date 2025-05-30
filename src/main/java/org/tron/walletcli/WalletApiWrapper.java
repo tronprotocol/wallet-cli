@@ -161,6 +161,7 @@ public class WalletApiWrapper {
   @Setter
   private WalletApi wallet;
   private static final String MnemonicFilePath = "Mnemonic";
+  private static final String GAS_FREE_SUPPORT_NETWORK_TIP = "Gas free currently only supports the " + blueBoldHighlight("MAIN") + " network and " + blueBoldHighlight("NILE") + " test network, and does not support other networks at the moment.";
 
   public String registerWallet(char[] password, int wordsNumber) throws CipherException, IOException {
     if (!WalletApi.passwordValid(password)) {
@@ -2661,7 +2662,7 @@ public class WalletApiWrapper {
     if (StringUtils.isEmpty(netWorkSymbol) &&
         (StringUtils.isNotEmpty(fullNode) || StringUtils.isNotEmpty(solidityNode))) {
       if (!isValid(fullNode, solidityNode)) {
-        throw new IllegalArgumentException("host:port format is illegal.");
+        throw new IllegalArgumentException("host:port format is invalid.");
       }
       if (NILE.getGrpc().getFullNode().equals(fullNode) && NILE.getGrpc().getSolidityNode().equals(solidityNode)){
         currentNet = NILE;
@@ -2684,6 +2685,7 @@ public class WalletApiWrapper {
       } else {
         currentNet = CUSTOM;
         client = new GrpcClient(fullNode, solidityNode);
+        WalletApi.setCustomNodes(Pair.of(fullNode, solidityNode));
       }
     } else {
       if (NILE.name().equalsIgnoreCase(netWorkSymbol)) {
@@ -2706,8 +2708,18 @@ public class WalletApiWrapper {
         currentNet = SHASTA;
       } else if ("LOCAL".equalsIgnoreCase(netWorkSymbol)) {
         Config config = Configuration.getByPath("config.conf");
-        fullNode = config.getStringList("fullnode.ip.list").get(0);
-        solidityNode = config.getStringList("soliditynode.ip.list").get(0);
+        if (config.hasPath("fullnode.ip.list")) {
+          List<String> fullNodeList = config.getStringList("fullnode.ip.list");
+          if (!fullNodeList.isEmpty()) {
+            fullNode = fullNodeList.get(0);
+          }
+        }
+        if (config.hasPath("soliditynode.ip.list")) {
+          List<String> solidityNodeList = config.getStringList("soliditynode.ip.list");
+          if (!solidityNodeList.isEmpty()) {
+            solidityNode = solidityNodeList.get(0);
+          }
+        }
         if (StringUtils.isEmpty(fullNode) && StringUtils.isEmpty(solidityNode)) {
           throw new IllegalArgumentException("The configuration of fullnode.ip.list or " +
               "soliditynode.ip.list in config. conf is incorrect.");
@@ -2733,6 +2745,7 @@ public class WalletApiWrapper {
         } else {
           currentNet = CUSTOM;
           client = new GrpcClient(fullNode, solidityNode);
+          WalletApi.setCustomNodes(Pair.of(fullNode, solidityNode));
         }
       } else {
         throw new IllegalArgumentException("The network symbol you entered cannot be recognized.");
@@ -2742,6 +2755,10 @@ public class WalletApiWrapper {
   }
 
   public boolean getGasFreeInfo(String address) throws NoSuchAlgorithmException, IOException, InvalidKeyException, CipherException, CancelException {
+    if (WalletApi.getCurrentNetwork() != MAIN && WalletApi.getCurrentNetwork() != NILE) {
+      System.out.println(GAS_FREE_SUPPORT_NETWORK_TIP);
+      return false;
+    }
     if (StringUtils.isEmpty(address)) {
       address = getAddress();
       if (StringUtils.isEmpty(address)) {
@@ -2750,6 +2767,7 @@ public class WalletApiWrapper {
     }
     if (!addressValid(address)) {
       System.out.println("The receiverAddress you entered is invalid.");
+      return false;
     }
     String resp = GasFreeApi.address(WalletApi.getCurrentNetwork(), address);
     if (StringUtils.isEmpty(resp)) {
@@ -2773,13 +2791,13 @@ public class WalletApiWrapper {
           long transferFee = asset.getLongValue("transferFee");
           Long tokenBalance = wallet.triggerContract(null, decodeFromBase58Check(tokenAddress),
               0, d, 0, 0, EMPTY, true, true).getRight();
-          long maxTransferValue = tokenBalance - activateFee - transferFee;
           GasFreeAddressResponse gasFreeAddressResponse = new GasFreeAddressResponse();
           gasFreeAddressResponse.setGasFreeAddress(gasFreeAddress);
           gasFreeAddressResponse.setActive(active);
           gasFreeAddressResponse.setActivateFee(active ? 0 : activateFee);
           gasFreeAddressResponse.setTransferFee(transferFee);
           gasFreeAddressResponse.setTokenBalance(tokenBalance);
+          long maxTransferValue = tokenBalance - gasFreeAddressResponse.getActivateFee() - transferFee;
           gasFreeAddressResponse.setMaxTransferValue((maxTransferValue > 0 ? maxTransferValue : 0));
           System.out.println(JSON.toJSONString(gasFreeAddressResponse, true));
         }
@@ -2795,6 +2813,10 @@ public class WalletApiWrapper {
   }
 
   public boolean gasFreeTransfer(String receiver, long value) throws NoSuchAlgorithmException, IOException, InvalidKeyException, CipherException {
+    if (WalletApi.getCurrentNetwork() != MAIN && WalletApi.getCurrentNetwork() != NILE) {
+      System.out.println(GAS_FREE_SUPPORT_NETWORK_TIP);
+      return false;
+    }
     if (wallet == null || !wallet.isLoginState()) {
       System.out.println("Warning: GasFreeTransfer " + failedHighlight() + ",  Please login first !!");
       return false;
@@ -2804,6 +2826,7 @@ public class WalletApiWrapper {
     }
     if (!addressValid(receiver)) {
       System.out.println("The receiverAddress you entered is invalid.");
+      return false;
     }
     String address = getAddress();
     GasFreeSubmitRequest gasFreeSubmitRequest = new GasFreeSubmitRequest();
@@ -2848,6 +2871,10 @@ public class WalletApiWrapper {
   }
 
   public boolean gasFreeTrace(String traceId) throws NoSuchAlgorithmException, IOException, InvalidKeyException {
+    if (WalletApi.getCurrentNetwork() != MAIN && WalletApi.getCurrentNetwork() != NILE) {
+      System.out.println(GAS_FREE_SUPPORT_NETWORK_TIP);
+      return false;
+    }
     String result = GasFreeApi.gasFreeTrace(WalletApi.getCurrentNetwork(), traceId);
     if (StringUtils.isNotEmpty(result)) {
       Object o = JSON.parse(result);

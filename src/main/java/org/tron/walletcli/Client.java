@@ -1,6 +1,7 @@
 package org.tron.walletcli;
 
 import static org.apache.commons.lang3.StringUtils.EMPTY;
+import static org.tron.common.enums.NetType.CUSTOM;
 import static org.tron.common.utils.Utils.EMPTY_STR;
 import static org.tron.common.utils.Utils.blueBoldHighlight;
 import static org.tron.common.utils.Utils.failedHighlight;
@@ -42,6 +43,7 @@ import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.apache.commons.lang3.ArrayUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.bouncycastle.util.encoders.Hex;
 import org.hid4java.HidDevice;
 import org.jline.reader.Completer;
@@ -5624,7 +5626,15 @@ public class Client {
 
   private void currentNetwork() {
     NetType currentNet = WalletApi.getCurrentNetwork();
+    Pair<String, String> customNodes = WalletApi.getCustomNodes();
+    String fullNode = customNodes.getLeft();
+    String solidityNode = customNodes.getRight();
     System.out.println("current network: " + blueBoldHighlight(currentNet.name()));
+    if (CUSTOM == currentNet) {
+      System.out.println("fullNode: " + (org.apache.commons.lang3.StringUtils.isEmpty(fullNode)
+          ? EMPTY_STR : fullNode) + ", solidityNode: " +
+          (org.apache.commons.lang3.StringUtils.isEmpty(solidityNode) ? EMPTY_STR : solidityNode));
+    }
   }
 
   private void getChainParameters() {
