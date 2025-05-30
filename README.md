@@ -105,7 +105,7 @@ For more information on a specific command, just type the command on terminal wh
 |             [ImportWalletByKeystore](#export-import-wallet-keystore)             |                 [ImportWalletByLedger](#import-wallet-by-ledger)                  |                               [LoginAll](#login-all)                                |
 |                                  [Lock](#lock)                                   |                                 [Unlock](#unlock)                                 |                            [ResetWallet](#reset-wallet)                             |
 |                         [CreateAccount](#create-account)                         |                          [SwitchWallet](#switch-wallet)                           |                          [SwitchNetwork](#switch-network)                           |
-|                        [CurrentNetwork](#current-network)                        |                        [GasFreeAddress](#gas-free-address)                        |                        [GasFreeTransfer](#gas-free-transfer)                        |
+|                        [CurrentNetwork](#current-network)                        |                           [GasFreeInfo](#gas-free-info)                           |                        [GasFreeTransfer](#gas-free-transfer)                        |
 |                         [GasFreeTrace](#gas-free-trace)                          |                                                                                   |                                                                                     |
 
 
@@ -1645,6 +1645,7 @@ unlock  successful !!!
 ## switch network
     > SwitchNetwork
 >This command allows for flexible network switching at any time. Unlocking can specify parameters in seconds.
+>`switchnetwork local` will switch to the network configured in local config.conf.
 
 Example:
 ```console
@@ -1654,10 +1655,18 @@ Please select network：
 2. NILE
 3. SHASTA
 Enter numbers to select a network (1-3):1
+Now, current network is : MAIN
 SwitchNetwork  successful !!!
 ```
 ```console
 wallet> switchnetwork main
+Now, current network is : MAIN
+SwitchNetwork  successful !!!
+```
+
+```console
+wallet> switchnetwork empty localhost:50052
+Now, current network is : CUSTOM
 SwitchNetwork  successful !!!
 ```
 
@@ -1671,14 +1680,43 @@ wallet> currentnetwork
 currentNetwork: NILE
 ```
 
-## gas free address
-    > GasFreeAddress
->Get the gas-free address of the current address.
+```console
+wallet> currentnetwork
+current network: CUSTOM
+fullNode: EMPTY, solidityNode: localhost:50052
+```
+
+## gas free info
+    > GasFreeInfo
+>Get gasfree info of the current address.
 
 Example:
 ```console
-wallet> gasfreeaddress TUUSMd58eC3fKx3fn7whxJyr1FR56tgaP8
-gas free address : TNER12mMVWruqopsW9FQtKxCGfZcEtb3ER
+wallet> gasfreeinfo
+balanceOf(address):70a08231
+{
+	"gasFreeAddress":"TCtSt8fCkZcVdrGpaVHUr6P8EmdjysswMF",
+	"active":true,
+	"tokenBalance":998696000,
+	"activateFee":0,
+	"transferFee":2000,
+	"maxTransferValue":998694000
+}
+gasFreeInfo:  successful !!
+```
+
+```console
+wallet> gasfreeinfo TRvVXgqddDGYRMx3FWf2tpVxXQQXDZxJQe
+balanceOf(address):70a08231
+{
+	"gasFreeAddress":"TCtSt8fCkZcVdrGpaVHUr6P8EmdjysswMF",
+	"active":true,
+	"tokenBalance":998696000,
+	"activateFee":0,
+	"transferFee":2000,
+	"maxTransferValue":998694000
+}
+gasFreeInfo:  successful !!
 ```
 
 ## gas free transfer

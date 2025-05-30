@@ -5627,6 +5627,11 @@ public class Client {
   private void currentNetwork() {
     NetType currentNet = WalletApi.getCurrentNetwork();
     Pair<String, String> customNodes = WalletApi.getCustomNodes();
+    if (customNodes == null || (org.apache.commons.lang3.StringUtils.isEmpty(customNodes.getLeft())
+        && org.apache.commons.lang3.StringUtils.isEmpty(customNodes.getRight()))) {
+      System.out.println("The configuration of both fullnode and solidity cannot be empty at the same time.");
+      return;
+    }
     String fullNode = customNodes.getLeft();
     String solidityNode = customNodes.getRight();
     System.out.println("current network: " + blueBoldHighlight(currentNet.name()));

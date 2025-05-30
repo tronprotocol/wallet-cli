@@ -77,10 +77,10 @@ public class LedgerEventListener extends BaseListener {
   }
 
 
-  public boolean executeSignListen(HidDevice hidDevice, Transaction transaction, String path) {
+  public boolean executeSignListen(HidDevice hidDevice, Transaction transaction, String path, boolean gasfree) {
     boolean ret = false;
     try {
-      byte[] sendResult = handleTransSign(hidDevice, transaction, path);
+      byte[] sendResult = handleTransSign(hidDevice, transaction, path, gasfree);
       if (sendResult == null) {
         System.out.println("Transaction sign request is sent to Ledger");
         TransactionSignManager.getInstance().setHidDevice(hidDevice);
@@ -103,7 +103,7 @@ public class LedgerEventListener extends BaseListener {
   /**
    * @param path example "m/44'/195'/0'/0/0"
    */
-  public byte[] handleTransSign(HidDevice hidDevice, Transaction transaction, String path) {
+  public byte[] handleTransSign(HidDevice hidDevice, Transaction transaction, String path, boolean gasfree) {
     final int TIMEOUT_MILLIS = 1000;
     final int MAX_WAIT_TIME_MILLIS = 1000; // 1.5 seconds
     final int BYTE_LENGTH_THRESHOLD = 255;
@@ -115,12 +115,15 @@ public class LedgerEventListener extends BaseListener {
     String ins;
     String p1;
     String p2 = "00";
-    if (rawBytes.length < BYTE_LENGTH_THRESHOLD) {
+    if (rawBytes.length < BYTE_LENGTH_THRESHOLD && !gasfree) {
       transactionRaw = bytesToHex(rawBytes);
       ins = "04";
       p1 = "10";
     } else {
       transactionRaw = bytesToHex(getTransactionId(transaction).getBytes());
+      if (gasfree) {
+        transactionRaw = bytesToHex(transaction.getRawData().getData().toByteArray());
+      }
       ins = "05";
       p1 = "00";
     }
@@ -190,6 +193,7 @@ public class LedgerEventListener extends BaseListener {
           if (DebugConfig.isDebugEnabled()) {
             System.out.println("Signature: " + CommonUtil.bytesToHex(signature));
           }
+          TransactionSignManager.getInstance().generateGasFreeSignature(signature);
           TransactionSignManager.getInstance().addTransactionSign(signature);
           LedgerSignResult.updateState(
               TransactionSignManager.getInstance().getHidDevice().getPath()

@@ -130,9 +130,11 @@ import org.tron.keystore.WalletFile;
 import org.tron.keystore.WalletUtils;
 import org.tron.ledger.LedgerAddressUtil;
 import org.tron.ledger.LedgerFileUtil;
+import org.tron.ledger.LedgerSignUtil;
 import org.tron.ledger.console.ConsoleColor;
 import org.tron.ledger.console.ImportAccount;
 import org.tron.ledger.console.TronLedgerImportAccount;
+import org.tron.ledger.listener.TransactionSignManager;
 import org.tron.ledger.wrapper.DebugConfig;
 import org.tron.mnemonic.MnemonicUtils;
 import org.tron.mnemonic.SubAccount;
@@ -2549,7 +2551,7 @@ public class WalletApiWrapper {
       System.out.println("Warning: updateSetting " + failedHighlight() + ",  Please login first !!");
       return false;
     }
-    if (!wallet.isLockAccount()) {
+    if (!WalletApi.isLockAccount()) {
       throw new IllegalStateException("The account locking and unlocking functions are not available. Please configure " + greenBoldHighlight("lockAccount = true") + " in " + blueBoldHighlight("config.conf") + " and try again.");
     }
     wallet.lock();
@@ -2561,7 +2563,7 @@ public class WalletApiWrapper {
       System.out.println("Warning: updateSetting " + failedHighlight() + ",  Please login first !!");
       return false;
     }
-    if (!wallet.isLockAccount()) {
+    if (!WalletApi.isLockAccount()) {
       throw new IllegalStateException("The account locking and unlocking functions are not available. Please configure " + greenBoldHighlight("lockAccount = true") + " in " + blueBoldHighlight("config.conf") + " and try again.");
     }
     System.out.println("Please input your password.");
@@ -2766,7 +2768,7 @@ public class WalletApiWrapper {
       }
     }
     if (!addressValid(address)) {
-      System.out.println("The receiverAddress you entered is invalid.");
+      System.out.println("The address you entered is invalid.");
       return false;
     }
     String resp = GasFreeApi.address(WalletApi.getCurrentNetwork(), address);
@@ -2789,8 +2791,12 @@ public class WalletApiWrapper {
               "\"" + gasFreeAddress + "\"", false));
           long activateFee = asset.getLongValue("activateFee");
           long transferFee = asset.getLongValue("transferFee");
-          Long tokenBalance = wallet.triggerContract(null, decodeFromBase58Check(tokenAddress),
-              0, d, 0, 0, EMPTY, true, true).getRight();
+          Pair<Boolean, Long> triggerContractPair = wallet.triggerContract(null, decodeFromBase58Check(tokenAddress),
+              0, d, 0, 0, EMPTY, true, true);
+          if (Boolean.FALSE.equals(triggerContractPair.getLeft())) {
+            return false;
+          }
+          Long tokenBalance = triggerContractPair.getRight();
           GasFreeAddressResponse gasFreeAddressResponse = new GasFreeAddressResponse();
           gasFreeAddressResponse.setGasFreeAddress(gasFreeAddress);
           gasFreeAddressResponse.setActive(active);
@@ -2837,20 +2843,49 @@ public class WalletApiWrapper {
     NetType currentNet = WalletApi.getCurrentNetwork();
     byte[] domainSeparator = getDomainSeparator(currentNet);
     byte[] message = getMessage(currentNet, gasFreeSubmitRequest);
+    if (ArrayUtils.isEmpty(message)) {
+      return false;
+    }
     // permitTransferMessageHash
     byte[] concat = concat(
         Numeric.hexStringToByteArray("0x1901"),
         domainSeparator,
         message
     );
+
+    WalletFile wf = wallet.getWalletFile();
+    byte[] passwd;
+    if (WalletApi.isLockAccount() && isUnifiedExist() && Arrays.equals(decodeFromBase58Check(wf.getAddress()), wallet.getAddress())) {
+      passwd = wallet.getUnifiedPassword();
+    } else {
+      System.out.println("Please input your password.");
+      passwd = char2Byte(inputPassword(false));
+    }
+
     Credentials credentials = wallet.getCredentials();
     if (credentials == null) {
-      System.out.println("Please input your password.");
-      byte[] password = char2Byte(inputPassword(false));
-      credentials = loadCredentials(password, wallet.getWalletFile());
+      credentials = loadCredentials(passwd, wf);
     }
+
     String privateKey = Hex.toHexString(credentials.getPair().getPrivateKey());
-    String signature = signOffChain(keccak256(concat), privateKey);
+    String ledgerPath = getLedgerPath(passwd, wf);
+    boolean isLedgerFile = wf.getName().contains("Ledger");
+    String signature = null;
+    if (isLedgerFile) {
+      Transaction transaction = Transaction.newBuilder().setRawData(Transaction.raw.newBuilder().setData(ByteString.copyFrom(keccak256(concat)))).build();
+      boolean ledgerResult = LedgerSignUtil.requestLedgerSignLogic(transaction, ledgerPath, wf.getAddress(), true);
+      if (ledgerResult) {
+        signature = TransactionSignManager.getInstance().getGasfreeSignature();
+        if (Objects.isNull(signature)) {
+          System.out.println("Listening ledger did not obtain signature.");
+          return false;
+        }
+        TransactionSignManager.getInstance().setTransaction(null);
+        TransactionSignManager.getInstance().setGasfreeSignature(null);
+      }
+    } else {
+      signature = signOffChain(keccak256(concat), privateKey);
+    }
     gasFreeSubmitRequest.setSig(signature);
     boolean validated = validateSignOffChain(keccak256(concat), signature, address);
     if (validated) {
