@@ -810,6 +810,10 @@ public class WalletApi {
             return transaction;
           }
           HidDevice hidDevice = HidServicesWrapper.getInstance().getHidDevice(wf.getAddress(), getPath());
+          if (hidDevice == null) {
+            TransactionSignManager.getInstance().setTransaction(null);
+            return null;
+          }
           Optional<String> state = LedgerSignResult.getLastTransactionState(hidDevice.getPath());
           boolean confirmed = state.isPresent() && LedgerSignResult.SIGN_RESULT_SUCCESS.equals(state.get());
           if (weight.getResult().getCode() == response_code.NOT_ENOUGH_PERMISSION && confirmed) {
