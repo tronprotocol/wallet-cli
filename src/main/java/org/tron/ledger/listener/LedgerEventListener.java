@@ -1,6 +1,7 @@
 package org.tron.ledger.listener;
 
 import static org.tron.common.utils.TransactionUtils.getTransactionId;
+import static org.tron.common.utils.Utils.greenBoldHighlight;
 import static org.tron.ledger.console.ConsoleColor.ANSI_RED;
 import static org.tron.ledger.console.ConsoleColor.ANSI_RESET;
 import static org.tron.ledger.console.ConsoleColor.ANSI_YELLOW;
@@ -209,6 +210,7 @@ public class LedgerEventListener extends BaseListener {
         doLedgerSignEnd();
       }
     }
+    System.out.println(greenBoldHighlight("Enter") + " to continue...");
   }
 
   private void doLedgerSignEnd() {
