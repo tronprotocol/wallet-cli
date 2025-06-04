@@ -795,6 +795,11 @@ public class Client {
       } else if (parameters.length == 2) {
         fullNode = parameters[0];
         solidityNode = parameters[1];
+        if (EMPTY_STR.equalsIgnoreCase(fullNode) && EMPTY_STR.equalsIgnoreCase(solidityNode)) {
+          System.out.println("Both fullnode and solidity cannot be empty at the same time.");
+          System.out.println("SwitchNetwork " + failedHighlight() + " !!!");
+          return;
+        }
         if (EMPTY_STR.equalsIgnoreCase(fullNode)) {
           fullNode = EMPTY;
         }
@@ -5627,10 +5632,10 @@ public class Client {
   private void currentNetwork() {
     NetType currentNet = WalletApi.getCurrentNetwork();
     Pair<String, String> customNodes = WalletApi.getCustomNodes();
-    if (customNodes == null || (org.apache.commons.lang3.StringUtils.isEmpty(customNodes.getLeft())
-        && org.apache.commons.lang3.StringUtils.isEmpty(customNodes.getRight()))) {
-      System.out.println("The configuration of both fullnode and solidity cannot be empty at the same time.");
-      return;
+    if (currentNet == CUSTOM && (customNodes == null || (org.apache.commons.lang3.StringUtils.isEmpty(customNodes.getLeft())
+          && org.apache.commons.lang3.StringUtils.isEmpty(customNodes.getRight())))) {
+        System.out.println("The configuration of both fullnode and solidity cannot be empty at the same time.");
+        return;
     }
     String fullNode = customNodes.getLeft();
     String solidityNode = customNodes.getRight();

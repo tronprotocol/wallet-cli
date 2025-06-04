@@ -64,6 +64,9 @@ public class HttpUtils {
               }
         }).orElse(EMPTY);
       }
+      if (response.code() == 502) {
+        throw new IOException("Unexpected HTTP code " + response.code() + ": Bad Gateway.");
+      }
       throw new IOException(
           "Unexpected HTTP code " + response.code() + ": " + msg + "\nAPI authentication failed, "
               + "please check the " + greenBoldHighlight("apikey") + " and "

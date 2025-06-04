@@ -20,7 +20,6 @@ import org.tron.ledger.sdk.CommonUtil;
 import org.tron.ledger.sdk.LedgerConstant;
 import org.tron.ledger.sdk.LedgerProtocol;
 import org.tron.ledger.wrapper.DebugConfig;
-import org.tron.ledger.wrapper.HidServicesWrapper;
 import org.tron.ledger.wrapper.LedgerSignResult;
 import org.tron.protos.Protocol;
 import org.tron.protos.Protocol.Transaction;
