@@ -210,7 +210,6 @@ public class LedgerEventListener extends BaseListener {
         doLedgerSignEnd();
       }
     }
-    System.out.println(greenBoldHighlight("Enter") + " to continue...");
   }
 
   private void doLedgerSignEnd() {
@@ -220,5 +219,4 @@ public class LedgerEventListener extends BaseListener {
       TransactionSignManager.getInstance().setHidDevice(null);
     }
   }
-
 }
