@@ -2724,7 +2724,7 @@ public class WalletApiWrapper {
         }
         if (StringUtils.isEmpty(fullNode) && StringUtils.isEmpty(solidityNode)) {
           throw new IllegalArgumentException("The configuration of fullnode.ip.list or " +
-              "soliditynode.ip.list in config. conf is incorrect.");
+              "soliditynode.ip.list in config.conf is incorrect.");
         }
         if (NILE.getGrpc().getFullNode().equals(fullNode) && NILE.getGrpc().getSolidityNode().equals(solidityNode)){
           currentNet = NILE;
@@ -2876,13 +2876,15 @@ public class WalletApiWrapper {
       boolean ledgerResult = LedgerSignUtil.requestLedgerSignLogic(transaction, ledgerPath, wf.getAddress(), true);
       if (ledgerResult) {
         signature = TransactionSignManager.getInstance().getGasfreeSignature();
-        if (Objects.isNull(signature)) {
-          System.out.println("Listening ledger did not obtain signature.");
-          return false;
-        }
+      }
+      if (Objects.isNull(signature)) {
+        System.out.println("Listening ledger did not obtain signature.");
         TransactionSignManager.getInstance().setTransaction(null);
         TransactionSignManager.getInstance().setGasfreeSignature(null);
+        return false;
       }
+      TransactionSignManager.getInstance().setTransaction(null);
+      TransactionSignManager.getInstance().setGasfreeSignature(null);
     } else {
       signature = signOffChain(keccak256(concat), privateKey);
     }
