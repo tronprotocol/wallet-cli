@@ -20,6 +20,7 @@ package org.tron.common.utils;
 
 import static org.apache.commons.lang3.StringUtils.EMPTY;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
+import static org.tron.common.utils.DomainValidator.isDomainOrIP;
 import static org.tron.ledger.console.ConsoleColor.ANSI_BLUE;
 import static org.tron.ledger.console.ConsoleColor.ANSI_BOLD;
 import static org.tron.ledger.console.ConsoleColor.ANSI_GREEN;
@@ -50,6 +51,9 @@ import java.util.Date;
 import java.util.List;
 import java.util.Scanner;
 
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import org.jetbrains.annotations.Nullable;
 import org.tron.api.GrpcAPI.*;
 import org.tron.common.crypto.Hash;
 import org.tron.common.crypto.Sha256Sm3Hash;
@@ -100,6 +104,8 @@ public class Utils {
   public static final String VISIBLE = "visible";
   public static final String TRANSACTION = "transaction";
   public static final String VALUE = "value";
+  public static final String EMPTY_STR = "EMPTY";
+  public static final String HOST_REGEX = "^([a-zA-Z0-9.-]+):(\\d{1,5})$";
   public static final String LOCK_WARNING = "⚠️" + ANSI_YELLOW
       + " Wallet is locked. Transaction not allowed. Please use " + greenBoldHighlight("unlock")
       + ANSI_YELLOW + " to retry" + ANSI_RESET;
@@ -775,7 +781,7 @@ public class Utils {
     try (InputStream inputStream = Client.class.getResourceAsStream("/banner.txt")) {
       if (inputStream != null) {
         String banner = new String(readAllBytes(inputStream), StandardCharsets.UTF_8);
-        System.out.println(banner);
+        System.out.println(blueBoldHighlight(banner));
       } else {
         System.out.println("No banner.txt found!");
       }
@@ -792,5 +798,80 @@ public class Utils {
       buffer.write(data, 0, bytesRead);
     }
     return buffer.toByteArray();
+  }
+
+  public static boolean isValid(String address1, String address2) {
+    if ((address1 == null || address1.trim().isEmpty()) &&
+        (address2 == null || address2.trim().isEmpty())) {
+      System.out.println("Both addresses cannot be empty!");
+      return false;
+    }
+
+    Pattern pattern = Pattern.compile(HOST_REGEX);
+
+    Result result1 = getResult(address1, pattern);
+    if (result1 == null) {
+      return false;
+    }
+
+    Result result2 = getResult(address2, pattern);
+    if (result2 == null) {
+      return false;
+    }
+
+    if (result1.host != null && result2.host != null &&
+        result1.host.equalsIgnoreCase(result2.host) && result1.port == result2.port) {
+      System.out.println("The same host cannot use the same port: " + address1 + " & " + address2);
+      return false;
+    }
+
+    return true;
+  }
+
+  @Nullable
+  private static Result getResult(String address, Pattern pattern) {
+    String host = null;
+    int port = -1;
+    if (address != null && !address.trim().isEmpty()) {
+      Matcher matcher = pattern.matcher(address.trim());
+      if (!matcher.matches()) {
+        System.out.println("host:port format is invalid: " + address);
+        return null;
+      }
+      host = matcher.group(1);
+      if (!isDomainOrIP(host)) {
+        System.out.println("The domain name or IP format is invalid.");
+        return null;
+      }
+      port = Integer.parseInt(matcher.group(2));
+      if (port < 1 || port > 65535) {
+        System.out.println("The port number is invalid: " + port + " in " + address);
+        return null;
+      }
+    }
+    return new Result(host, port);
+  }
+
+  private static class Result {
+    public final String host;
+    public final int port;
+
+    public Result(String host, int port) {
+      this.host = host;
+      this.port = port;
+    }
+  }
+
+  public static boolean isValid(String address) {
+    Pattern pattern = Pattern.compile(HOST_REGEX);
+
+    Matcher matcher = pattern.matcher(address);
+
+    if (!matcher.matches()) {
+      return false;
+    }
+
+    int port = Integer.parseInt(matcher.group(2));
+    return port >= 1 && port <= 65535;
   }
 }

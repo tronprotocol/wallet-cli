@@ -1,34 +1,64 @@
 package org.tron.walletcli;
 
 import static com.google.common.collect.Lists.newArrayList;
+import static java.net.HttpURLConnection.HTTP_OK;
 import static org.apache.commons.lang3.StringUtils.EMPTY;
+import static org.tron.common.enums.NetType.CUSTOM;
+import static org.tron.common.enums.NetType.MAIN;
+import static org.tron.common.enums.NetType.NILE;
+import static org.tron.common.enums.NetType.SHASTA;
+import static org.tron.common.utils.Utils.LOCK_WARNING;
 import static org.tron.common.utils.Utils.blueBoldHighlight;
 import static org.tron.common.utils.Utils.failedHighlight;
 import static org.tron.common.utils.Utils.greenBoldHighlight;
 import static org.tron.common.utils.Utils.inputPassword;
+import static org.tron.common.utils.Utils.isValid;
+import static org.tron.gasfree.GasFreeApi.concat;
+import static org.tron.gasfree.GasFreeApi.gasFreeSubmit;
+import static org.tron.gasfree.GasFreeApi.getDomainSeparator;
+import static org.tron.gasfree.GasFreeApi.getMessage;
+import static org.tron.gasfree.GasFreeApi.keccak256;
+import static org.tron.gasfree.GasFreeApi.signOffChain;
+import static org.tron.gasfree.GasFreeApi.validateSignOffChain;
 import static org.tron.keystore.StringUtils.byte2Char;
 import static org.tron.keystore.StringUtils.char2Byte;
+import static org.tron.keystore.StringUtils.clear;
 import static org.tron.keystore.Wallet.validPassword;
+import static org.tron.keystore.WalletUtils.loadCredentials;
 import static org.tron.keystore.WalletUtils.show;
 import static org.tron.ledger.LedgerFileUtil.LEDGER_DIR_NAME;
 import static org.tron.ledger.console.ConsoleColor.ANSI_RED;
 import static org.tron.ledger.console.ConsoleColor.ANSI_RESET;
+import static org.tron.walletserver.WalletApi.addressValid;
+import static org.tron.walletserver.WalletApi.decodeFromBase58Check;
 import static org.tron.walletserver.WalletApi.getAllWalletFile;
 
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
 import com.google.protobuf.ByteString;
+import com.typesafe.config.Config;
 import io.netty.util.internal.StringUtil;
-
 import java.io.File;
+import java.io.IOException;
 import java.math.BigInteger;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.Scanner;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.ArrayUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.bouncycastle.util.encoders.Hex;
 import org.hid4java.HidDevice;
 import org.jline.reader.EndOfFileException;
@@ -38,11 +68,45 @@ import org.jline.reader.UserInterruptException;
 import org.jline.terminal.Terminal;
 import org.jline.terminal.TerminalBuilder;
 import org.tron.api.GrpcAPI;
-import org.tron.api.GrpcAPI.*;
+import org.tron.api.GrpcAPI.AssetIssueList;
+import org.tron.api.GrpcAPI.BlockExtention;
+import org.tron.api.GrpcAPI.BytesMessage;
+import org.tron.api.GrpcAPI.DecryptNotes;
+import org.tron.api.GrpcAPI.DecryptNotesMarked;
+import org.tron.api.GrpcAPI.DecryptNotesTRC20;
+import org.tron.api.GrpcAPI.DiversifierMessage;
+import org.tron.api.GrpcAPI.ExchangeList;
+import org.tron.api.GrpcAPI.ExpandedSpendingKeyMessage;
+import org.tron.api.GrpcAPI.IncomingViewingKeyDiversifierMessage;
+import org.tron.api.GrpcAPI.IncomingViewingKeyMessage;
+import org.tron.api.GrpcAPI.IvkDecryptAndMarkParameters;
+import org.tron.api.GrpcAPI.IvkDecryptParameters;
+import org.tron.api.GrpcAPI.IvkDecryptTRC20Parameters;
+import org.tron.api.GrpcAPI.NfParameters;
+import org.tron.api.GrpcAPI.NodeList;
+import org.tron.api.GrpcAPI.Note;
+import org.tron.api.GrpcAPI.OvkDecryptParameters;
+import org.tron.api.GrpcAPI.OvkDecryptTRC20Parameters;
+import org.tron.api.GrpcAPI.PaymentAddressMessage;
+import org.tron.api.GrpcAPI.PricesResponseMessage;
+import org.tron.api.GrpcAPI.PrivateParameters;
+import org.tron.api.GrpcAPI.PrivateParametersWithoutAsk;
+import org.tron.api.GrpcAPI.PrivateShieldedTRC20Parameters;
+import org.tron.api.GrpcAPI.PrivateShieldedTRC20ParametersWithoutAsk;
+import org.tron.api.GrpcAPI.ProposalList;
+import org.tron.api.GrpcAPI.ReceiveNote;
+import org.tron.api.GrpcAPI.ShieldedTRC20Parameters;
+import org.tron.api.GrpcAPI.SpendNote;
+import org.tron.api.GrpcAPI.SpendNoteTRC20;
+import org.tron.api.GrpcAPI.TransactionInfoList;
+import org.tron.api.GrpcAPI.ViewingKeyMessage;
+import org.tron.api.GrpcAPI.WitnessList;
+import org.tron.common.enums.NetType;
 import org.tron.common.utils.AbiUtil;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.ByteUtil;
 import org.tron.common.utils.Utils;
+import org.tron.core.config.Configuration;
 import org.tron.core.exception.CancelException;
 import org.tron.core.exception.CipherException;
 import org.tron.core.exception.ZksnarkException;
@@ -56,16 +120,21 @@ import org.tron.core.zen.address.DiversifierT;
 import org.tron.core.zen.address.ExpandedSpendingKey;
 import org.tron.core.zen.address.FullViewingKey;
 import org.tron.core.zen.address.SpendingKey;
+import org.tron.gasfree.GasFreeApi;
+import org.tron.gasfree.request.GasFreeSubmitRequest;
+import org.tron.gasfree.response.GasFreeAddressResponse;
 import org.tron.keystore.ClearWalletUtils;
-import org.tron.keystore.StringUtils;
+import org.tron.keystore.Credentials;
 import org.tron.keystore.Wallet;
 import org.tron.keystore.WalletFile;
 import org.tron.keystore.WalletUtils;
 import org.tron.ledger.LedgerAddressUtil;
 import org.tron.ledger.LedgerFileUtil;
+import org.tron.ledger.LedgerSignUtil;
 import org.tron.ledger.console.ConsoleColor;
 import org.tron.ledger.console.ImportAccount;
 import org.tron.ledger.console.TronLedgerImportAccount;
+import org.tron.ledger.listener.TransactionSignManager;
 import org.tron.ledger.wrapper.DebugConfig;
 import org.tron.mnemonic.MnemonicUtils;
 import org.tron.mnemonic.SubAccount;
@@ -83,12 +152,9 @@ import org.tron.protos.contract.AssetIssueContractOuterClass.AssetIssueContract;
 import org.tron.protos.contract.ShieldContract.IncrementalMerkleVoucherInfo;
 import org.tron.protos.contract.ShieldContract.OutputPoint;
 import org.tron.protos.contract.ShieldContract.OutputPointInfo;
+import org.tron.walletserver.GrpcClient;
 import org.tron.walletserver.WalletApi;
-
-import java.io.IOException;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Optional;
+import org.web3j.utils.Numeric;
 
 @Slf4j
 public class WalletApiWrapper {
@@ -97,6 +163,7 @@ public class WalletApiWrapper {
   @Setter
   private WalletApi wallet;
   private static final String MnemonicFilePath = "Mnemonic";
+  private static final String GAS_FREE_SUPPORT_NETWORK_TIP = "Gas free currently only supports the " + blueBoldHighlight("MAIN") + " network and " + blueBoldHighlight("NILE") + " test network, and does not support other networks at the moment.";
 
   public String registerWallet(char[] password, int wordsNumber) throws CipherException, IOException {
     if (!WalletApi.passwordValid(password)) {
@@ -106,7 +173,7 @@ public class WalletApiWrapper {
     byte[] passwd = char2Byte(password);
 
     WalletFile walletFile = WalletApi.CreateWalletFile(passwd, wordsNumber);
-    StringUtils.clear(passwd);
+    clear(passwd);
 
     String keystoreName = WalletApi.store2Keystore(walletFile);
     logout();
@@ -124,7 +191,7 @@ public class WalletApiWrapper {
     byte[] passwd = char2Byte(password);
 
     WalletFile walletFile = WalletApi.CreateWalletFile(passwd, priKey, mnemonic);
-    StringUtils.clear(passwd);
+    clear(passwd);
 
     String keystoreName = WalletApi.store2Keystore(walletFile);
     if (mnemonic == null && WalletUtils.hasStoreFile(walletFile.getAddress(), MnemonicFilePath)) {
@@ -288,7 +355,7 @@ public class WalletApiWrapper {
       System.out.println("Import account " + failedHighlight() + "!");
       return EMPTY;
     } finally {
-      StringUtils.clear(passwdByte);
+      clear(passwdByte);
     }
   }
 
@@ -304,8 +371,8 @@ public class WalletApiWrapper {
     byte[] newPasswd = char2Byte(newPassword);
 
     boolean result = WalletApi.changeKeystorePassword(oldPasswd, newPasswd);
-    StringUtils.clear(oldPasswd);
-    StringUtils.clear(newPasswd);
+    clear(oldPasswd);
+    clear(newPasswd);
 
     return result;
   }
@@ -459,7 +526,7 @@ public class WalletApiWrapper {
     System.out.println("Please input your password.");
     char[] password = inputPassword(false);
     byte[] passwd = char2Byte(password);
-    StringUtils.clear(password);
+    clear(password);
     wallet.checkPassword(passwd);
 
     WalletFile walletFile = wallet.getWalletFile();
@@ -545,7 +612,7 @@ public class WalletApiWrapper {
 
     System.out.println("Please input your password.");
     char[] password = Utils.inputPassword(false);
-    byte[] passwd = StringUtils.char2Byte(password);
+    byte[] passwd = char2Byte(password);
     try {
       wallet.checkPassword(passwd);
     } catch (CipherException e) {
@@ -569,9 +636,9 @@ public class WalletApiWrapper {
       if (subAccount != null) {
         subAccount.clearSensitiveData();
       }
-      StringUtils.clear(mnemonic);
-      StringUtils.clear(password);
-      StringUtils.clear(passwd);
+      clear(mnemonic);
+      clear(password);
+      clear(passwd);
     }
 
     return true;
@@ -592,7 +659,7 @@ public class WalletApiWrapper {
       if (subAccount != null) {
         subAccount.clearSensitiveData();
       }
-      StringUtils.clear(passwd);
+      clear(passwd);
     }
     return true;
   }
@@ -609,10 +676,10 @@ public class WalletApiWrapper {
 
     System.out.println("Please input your password.");
     char[] password = Utils.inputPassword(false);
-    byte[] passwd = StringUtils.char2Byte(password);
-    StringUtils.clear(password);
+    byte[] passwd = char2Byte(password);
+    clear(password);
     byte[] privateKey = wallet.getPrivateBytes(passwd);
-    StringUtils.clear(passwd);
+    clear(passwd);
 
     return privateKey;
   }
@@ -626,9 +693,9 @@ public class WalletApiWrapper {
     //1.input password
     System.out.println("Please input your password.");
     char[] password = Utils.inputPassword(false);
-    byte[] passwd = StringUtils.char2Byte(password);
+    byte[] passwd = char2Byte(password);
     wallet.checkPassword(passwd);
-    StringUtils.clear(password);
+    clear(password);
 
     //2.export mnemonic words
     return MnemonicUtils.exportMnemonic(passwd, getAddress());
@@ -644,15 +711,15 @@ public class WalletApiWrapper {
     //1.input password
     System.out.println("Please input your password.");
     char[] password = Utils.inputPassword(false);
-    byte[] passwd = StringUtils.char2Byte(password);
+    byte[] passwd = char2Byte(password);
     try {
       wallet.checkPassword(passwd);
     } catch (CipherException e) {
       System.out.println("Password check " + failedHighlight() + "!");
       return null;
     } finally {
-      StringUtils.clear(password);
-      StringUtils.clear(passwd);
+      clear(password);
+      clear(passwd);
     }
 
     return wallet.exportKeystore(walletChannel, exportFullDir);
@@ -680,7 +747,7 @@ public class WalletApiWrapper {
       } catch (Exception e) {
         System.out.println(e.getMessage());
       } finally {
-        StringUtils.clear(password);
+        clear(password);
       }
     }
     return EMPTY;
@@ -688,6 +755,7 @@ public class WalletApiWrapper {
 
   public String getAddress() {
     if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: GetAddress " + failedHighlight() + ",  Please login first !!");
       return null;
     }
 
@@ -1312,7 +1380,7 @@ public class WalletApiWrapper {
     return wallet
         .triggerContract(ownerAddress, contractAddress, callValue, data, feeLimit, tokenValue,
             tokenId,
-            isConstant);
+            isConstant, false).getLeft();
   }
 
   public boolean estimateEnergy(byte[] ownerAddress, byte[] contractAddress, long callValue,
@@ -2483,7 +2551,7 @@ public class WalletApiWrapper {
       System.out.println("Warning: updateSetting " + failedHighlight() + ",  Please login first !!");
       return false;
     }
-    if (!wallet.isLockAccount()) {
+    if (!WalletApi.isLockAccount()) {
       throw new IllegalStateException("The account locking and unlocking functions are not available. Please configure " + greenBoldHighlight("lockAccount = true") + " in " + blueBoldHighlight("config.conf") + " and try again.");
     }
     wallet.lock();
@@ -2495,7 +2563,7 @@ public class WalletApiWrapper {
       System.out.println("Warning: updateSetting " + failedHighlight() + ",  Please login first !!");
       return false;
     }
-    if (!wallet.isLockAccount()) {
+    if (!WalletApi.isLockAccount()) {
       throw new IllegalStateException("The account locking and unlocking functions are not available. Please configure " + greenBoldHighlight("lockAccount = true") + " in " + blueBoldHighlight("config.conf") + " and try again.");
     }
     System.out.println("Please input your password.");
@@ -2550,5 +2618,317 @@ public class WalletApiWrapper {
       }
     }
     return deleteAll;
+  }
+
+  public boolean switchNetwork(String netWorkSymbol, String fulNode, String solidityNode)
+      throws InterruptedException {
+    if (StringUtils.isEmpty(netWorkSymbol) && StringUtils.isEmpty(fulNode) && StringUtils.isEmpty(solidityNode)) {
+      System.out.println("Please select network：");
+      NetType[] values = NetType.values();
+      for (int i = 0; i < values.length; i++) {
+        if (values[i] != CUSTOM) {
+          System.out.println(i + 1 + ". " + values[i].name());
+        }
+      }
+      System.out.print("Enter numbers to select a network (" + greenBoldHighlight("1-3") + "):");
+
+      Scanner scanner = new Scanner(System.in);
+      String choice = scanner.nextLine();
+
+      switch (choice) {
+        case "1":
+          netWorkSymbol = "MAIN";
+          break;
+        case "2":
+          netWorkSymbol = "NILE";
+          break;
+        case "3":
+          netWorkSymbol = "SHASTA";
+          break;
+        default:
+          System.out.println("Invalid selection!");
+          return false;
+      }
+    }
+    Pair<GrpcClient, NetType> pair = getGrpcClientAndNetType(netWorkSymbol, fulNode, solidityNode);
+    WalletApi.updateRpcCli(pair.getLeft());
+    WalletApi.setCurrentNetwork(pair.getRight());
+    System.out.println("Now, current network is : " + blueBoldHighlight(WalletApi.getCurrentNetwork().toString()));
+    return true;
+  }
+
+  private Pair<GrpcClient, NetType> getGrpcClientAndNetType(String netWorkSymbol, String fullNode,
+    String solidityNode) {
+    GrpcClient client;
+    NetType currentNet;
+    if (StringUtils.isEmpty(netWorkSymbol) &&
+        (StringUtils.isNotEmpty(fullNode) || StringUtils.isNotEmpty(solidityNode))) {
+      if (!isValid(fullNode, solidityNode)) {
+        throw new IllegalArgumentException("host:port format is invalid.");
+      }
+      if (NILE.getGrpc().getFullNode().equals(fullNode) && NILE.getGrpc().getSolidityNode().equals(solidityNode)){
+        currentNet = NILE;
+        client = new GrpcClient(
+            NILE.getGrpc().getFullNode(),
+            NILE.getGrpc().getSolidityNode()
+        );
+      } else if (SHASTA.getGrpc().getFullNode().equals(fullNode) && SHASTA.getGrpc().getSolidityNode().equals(solidityNode)) {
+        currentNet = SHASTA;
+        client = new GrpcClient(
+            SHASTA.getGrpc().getFullNode(),
+            SHASTA.getGrpc().getSolidityNode()
+        );
+      } else if (MAIN.getGrpc().getFullNode().equals(fullNode) && MAIN.getGrpc().getSolidityNode().equals(solidityNode)) {
+        currentNet = MAIN;
+        client = new GrpcClient(
+            MAIN.getGrpc().getFullNode(),
+            MAIN.getGrpc().getSolidityNode()
+        );
+      } else {
+        currentNet = CUSTOM;
+        client = new GrpcClient(fullNode, solidityNode);
+        WalletApi.setCustomNodes(Pair.of(fullNode, solidityNode));
+      }
+    } else {
+      if (NILE.name().equalsIgnoreCase(netWorkSymbol)) {
+        client = new GrpcClient(
+            NILE.getGrpc().getFullNode(),
+            NILE.getGrpc().getSolidityNode()
+        );
+        currentNet = NILE;
+      } else if (MAIN.name().equalsIgnoreCase(netWorkSymbol)) {
+        client = new GrpcClient(
+            MAIN.getGrpc().getFullNode(),
+            MAIN.getGrpc().getSolidityNode()
+        );
+        currentNet = MAIN;
+      } else if (SHASTA.name().equalsIgnoreCase(netWorkSymbol)) {
+        client = new GrpcClient(
+            SHASTA.getGrpc().getFullNode(),
+            SHASTA.getGrpc().getSolidityNode()
+        );
+        currentNet = SHASTA;
+      } else if ("LOCAL".equalsIgnoreCase(netWorkSymbol)) {
+        Config config = Configuration.getByPath("config.conf");
+        if (config.hasPath("fullnode.ip.list")) {
+          List<String> fullNodeList = config.getStringList("fullnode.ip.list");
+          if (!fullNodeList.isEmpty()) {
+            fullNode = fullNodeList.get(0);
+          }
+        }
+        if (config.hasPath("soliditynode.ip.list")) {
+          List<String> solidityNodeList = config.getStringList("soliditynode.ip.list");
+          if (!solidityNodeList.isEmpty()) {
+            solidityNode = solidityNodeList.get(0);
+          }
+        }
+        if (StringUtils.isEmpty(fullNode) && StringUtils.isEmpty(solidityNode)) {
+          throw new IllegalArgumentException("The configuration of fullnode.ip.list or " +
+              "soliditynode.ip.list in config.conf is incorrect.");
+        }
+        if (NILE.getGrpc().getFullNode().equals(fullNode) && NILE.getGrpc().getSolidityNode().equals(solidityNode)){
+          currentNet = NILE;
+          client = new GrpcClient(
+              NILE.getGrpc().getFullNode(),
+              NILE.getGrpc().getSolidityNode()
+          );
+        } else if (SHASTA.getGrpc().getFullNode().equals(fullNode) && SHASTA.getGrpc().getSolidityNode().equals(solidityNode)) {
+          currentNet = SHASTA;
+          client = new GrpcClient(
+              SHASTA.getGrpc().getFullNode(),
+              SHASTA.getGrpc().getSolidityNode()
+          );
+        } else if (MAIN.getGrpc().getFullNode().equals(fullNode) && MAIN.getGrpc().getSolidityNode().equals(solidityNode)) {
+          currentNet = MAIN;
+          client = new GrpcClient(
+              MAIN.getGrpc().getFullNode(),
+              MAIN.getGrpc().getSolidityNode()
+          );
+        } else {
+          currentNet = CUSTOM;
+          client = new GrpcClient(fullNode, solidityNode);
+          WalletApi.setCustomNodes(Pair.of(fullNode, solidityNode));
+        }
+      } else {
+        throw new IllegalArgumentException("The network symbol you entered cannot be recognized.");
+      }
+    }
+    return Pair.of(client, currentNet);
+  }
+
+  public boolean getGasFreeInfo(String address) throws NoSuchAlgorithmException, IOException, InvalidKeyException, CipherException, CancelException {
+    if (WalletApi.getCurrentNetwork() != MAIN && WalletApi.getCurrentNetwork() != NILE) {
+      System.out.println(GAS_FREE_SUPPORT_NETWORK_TIP);
+      return false;
+    }
+    if (StringUtils.isEmpty(address)) {
+      address = getAddress();
+      if (StringUtils.isEmpty(address)) {
+        return false;
+      }
+    }
+    if (!addressValid(address)) {
+      System.out.println("The address you entered is invalid.");
+      return false;
+    }
+    String resp = GasFreeApi.address(WalletApi.getCurrentNetwork(), address);
+    if (StringUtils.isEmpty(resp)) {
+      return false;
+    }
+    JSONObject root = JSON.parseObject(resp);
+    int respCode = root.getIntValue("code");
+    JSONObject data = root.getJSONObject("data");
+    if (HTTP_OK == respCode) {
+      if (Objects.nonNull(data)) {
+        String gasFreeAddress = data.getString("gasFreeAddress");
+        boolean active = data.getBooleanValue("active");
+        JSONArray assets = data.getJSONArray("assets");
+        if (Objects.nonNull(assets)) {
+          JSONObject asset = assets.getJSONObject(0);
+          String tokenAddress = asset.getString("tokenAddress");
+          // Query token balance based on gas free address
+          byte[] d = Hex.decode(AbiUtil.parseMethod("balanceOf(address)",
+              "\"" + gasFreeAddress + "\"", false));
+          long activateFee = asset.getLongValue("activateFee");
+          long transferFee = asset.getLongValue("transferFee");
+          Pair<Boolean, Long> triggerContractPair = wallet.triggerContract(null, decodeFromBase58Check(tokenAddress),
+              0, d, 0, 0, EMPTY, true, true);
+          if (Boolean.FALSE.equals(triggerContractPair.getLeft())) {
+            return false;
+          }
+          Long tokenBalance = triggerContractPair.getRight();
+          GasFreeAddressResponse gasFreeAddressResponse = new GasFreeAddressResponse();
+          gasFreeAddressResponse.setGasFreeAddress(gasFreeAddress);
+          gasFreeAddressResponse.setActive(active);
+          gasFreeAddressResponse.setActivateFee(active ? 0 : activateFee);
+          gasFreeAddressResponse.setTransferFee(transferFee);
+          gasFreeAddressResponse.setTokenBalance(tokenBalance);
+          long maxTransferValue = tokenBalance - gasFreeAddressResponse.getActivateFee() - transferFee;
+          gasFreeAddressResponse.setMaxTransferValue((maxTransferValue > 0 ? maxTransferValue : 0));
+          System.out.println(JSON.toJSONString(gasFreeAddressResponse, true));
+        }
+        return true;
+      } else {
+        System.out.println("gas free address does not exist.");
+        return false;
+      }
+    } else {
+      System.out.println(root.getString("message"));
+      return false;
+    }
+  }
+
+  public boolean gasFreeTransfer(String receiver, long value) throws NoSuchAlgorithmException, IOException, InvalidKeyException, CipherException {
+    if (WalletApi.getCurrentNetwork() != MAIN && WalletApi.getCurrentNetwork() != NILE) {
+      System.out.println(GAS_FREE_SUPPORT_NETWORK_TIP);
+      return false;
+    }
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: GasFreeTransfer " + failedHighlight() + ",  Please login first !!");
+      return false;
+    }
+    if (!wallet.isUnlocked()) {
+      throw new IllegalStateException(LOCK_WARNING);
+    }
+    if (!addressValid(receiver)) {
+      System.out.println("The receiverAddress you entered is invalid.");
+      return false;
+    }
+    String address = getAddress();
+    GasFreeSubmitRequest gasFreeSubmitRequest = new GasFreeSubmitRequest();
+    gasFreeSubmitRequest.setUser(address);
+    gasFreeSubmitRequest.setReceiver(receiver);
+    gasFreeSubmitRequest.setValue(value);
+    gasFreeSubmitRequest.setVersion(1);
+    NetType currentNet = WalletApi.getCurrentNetwork();
+    byte[] domainSeparator = getDomainSeparator(currentNet);
+    byte[] message = getMessage(currentNet, gasFreeSubmitRequest);
+    if (ArrayUtils.isEmpty(message)) {
+      return false;
+    }
+    // permitTransferMessageHash
+    byte[] concat = concat(
+        Numeric.hexStringToByteArray("0x1901"),
+        domainSeparator,
+        message
+    );
+
+    WalletFile wf = wallet.getWalletFile();
+    byte[] passwd;
+    if (WalletApi.isLockAccount() && isUnifiedExist() && Arrays.equals(decodeFromBase58Check(wf.getAddress()), wallet.getAddress())) {
+      passwd = wallet.getUnifiedPassword();
+    } else {
+      System.out.println("Please input your password.");
+      passwd = char2Byte(inputPassword(false));
+    }
+
+    Credentials credentials = wallet.getCredentials();
+    if (credentials == null) {
+      credentials = loadCredentials(passwd, wf);
+    }
+
+    String privateKey = Hex.toHexString(credentials.getPair().getPrivateKey());
+    String ledgerPath = getLedgerPath(passwd, wf);
+    boolean isLedgerFile = wf.getName().contains("Ledger");
+    String signature = null;
+    if (isLedgerFile) {
+      Transaction transaction = Transaction.newBuilder().setRawData(Transaction.raw.newBuilder().setData(ByteString.copyFrom(keccak256(concat)))).build();
+      boolean ledgerResult = LedgerSignUtil.requestLedgerSignLogic(transaction, ledgerPath, wf.getAddress(), true);
+      if (ledgerResult) {
+        signature = TransactionSignManager.getInstance().getGasfreeSignature();
+      }
+      if (Objects.isNull(signature)) {
+        System.out.println("Listening ledger did not obtain signature.");
+        TransactionSignManager.getInstance().setTransaction(null);
+        TransactionSignManager.getInstance().setGasfreeSignature(null);
+        return false;
+      }
+      TransactionSignManager.getInstance().setTransaction(null);
+      TransactionSignManager.getInstance().setGasfreeSignature(null);
+    } else {
+      signature = signOffChain(keccak256(concat), privateKey);
+    }
+    gasFreeSubmitRequest.setSig(signature);
+    boolean validated = validateSignOffChain(keccak256(concat), signature, address);
+    if (validated) {
+      String result = gasFreeSubmit(currentNet, gasFreeSubmitRequest);
+      if (StringUtils.isNotEmpty(result)) {
+        Object o = JSON.parse(result);
+        System.out.println("GasFreeTransfer result: \n" + JSON.toJSONString(o, true));
+        JSONObject root = (JSONObject) o;
+        int respCode = root.getIntValue("code");
+        return HTTP_OK == respCode;
+      } else {
+        return false;
+      }
+    } else {
+      System.out.println("Signature verification failed!");
+      return false;
+    }
+  }
+
+  public boolean gasFreeTrace(String traceId) throws NoSuchAlgorithmException, IOException, InvalidKeyException {
+    if (WalletApi.getCurrentNetwork() != MAIN && WalletApi.getCurrentNetwork() != NILE) {
+      System.out.println(GAS_FREE_SUPPORT_NETWORK_TIP);
+      return false;
+    }
+    String result = GasFreeApi.gasFreeTrace(WalletApi.getCurrentNetwork(), traceId);
+    if (StringUtils.isNotEmpty(result)) {
+      Object o = JSON.parse(result);
+      System.out.println("GasFreeTrace result: \n" + JSON.toJSONString(o, true));
+      JSONObject root = (JSONObject) o;
+      int respCode = root.getIntValue("code");
+      if (HTTP_OK == respCode) {
+        if (Objects.isNull(root.get("data"))) {
+          System.out.println("This id " + blueBoldHighlight(traceId) + " does not have a trace.");
+          return false;
+        }
+        return true;
+      } else {
+        System.out.println(root.getString("message"));
+        return false;
+      }
+    }
+    return false;
   }
 }
