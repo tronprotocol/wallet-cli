@@ -104,7 +104,9 @@ For more information on a specific command, just type the command on terminal wh
 |                   [GenerateSubAccount](#generate-sub-account)                    |                   [ClearWalletKeystore](#clear-wallet-keystore)                   |               [ExportWalletKeystore](#export-import-wallet-keystore)                |
 |             [ImportWalletByKeystore](#export-import-wallet-keystore)             |                 [ImportWalletByLedger](#import-wallet-by-ledger)                  |                               [LoginAll](#login-all)                                |
 |                                  [Lock](#lock)                                   |                                 [Unlock](#unlock)                                 |                            [ResetWallet](#reset-wallet)                             |
-|                         [CreateAccount](#create-account)                         |                          [SwitchWallet](#switch-wallet)                           |
+|                         [CreateAccount](#create-account)                         |                          [SwitchWallet](#switch-wallet)                           |                          [SwitchNetwork](#switch-network)                           |
+|                        [CurrentNetwork](#current-network)                        |                           [GasFreeInfo](#gas-free-info)                           |                        [GasFreeTransfer](#gas-free-transfer)                        |
+|                         [GasFreeTrace](#gas-free-trace)                          |                                                                                   |                                                                                     |
 
 
 Type any one of the listed commands, to display how-to tips.
@@ -204,10 +206,10 @@ Update the ratio of brokerage, this command is usually used by a witness account
     > updateBrokerage OwnerAddress brokerage
 
 OwnerAddress
-> The address of the witness's account, it is a base58check type address.
+> The witness's account address is a base58check type address.
 
 brokerage
-> The ratio of brokerage you want to update to, the limit of it: 0-100.
+> The ratio of brokerage you want to update, from 0 to 100. If the input is 10, it means 10% of the total reward would be distributed to the SR and the rest would be rewarded to all the voters, which is 90% in this case
 
 For example:
 
@@ -1638,6 +1640,156 @@ wallet> unlock 60
 Please input your password.
 password: 
 unlock  successful !!!
+```
+
+## switch network
+    > SwitchNetwork
+>This command allows for flexible network switching at any time. Unlocking can specify parameters in seconds.
+>`switchnetwork local` will switch to the network configured in local config.conf.
+
+Example:
+```console
+wallet> switchnetwork
+Please select network：
+1. MAIN
+2. NILE
+3. SHASTA
+Enter numbers to select a network (1-3):1
+Now, current network is : MAIN
+SwitchNetwork  successful !!!
+```
+```console
+wallet> switchnetwork main
+Now, current network is : MAIN
+SwitchNetwork  successful !!!
+```
+
+```console
+wallet> switchnetwork empty localhost:50052
+Now, current network is : CUSTOM
+SwitchNetwork  successful !!!
+```
+
+## current network
+    > CurrentNetwork
+>View current network.
+
+Example:
+```console
+wallet> currentnetwork
+currentNetwork: NILE
+```
+
+```console
+wallet> currentnetwork
+current network: CUSTOM
+fullNode: EMPTY, solidityNode: localhost:50052
+```
+
+## gas free info
+    > GasFreeInfo
+>Get gasfree info of the current address.
+
+Example:
+```console
+wallet> gasfreeinfo
+balanceOf(address):70a08231
+{
+	"gasFreeAddress":"TCtSt8fCkZcVdrGpaVHUr6P8EmdjysswMF",
+	"active":true,
+	"tokenBalance":998696000,
+	"activateFee":0,
+	"transferFee":2000,
+	"maxTransferValue":998694000
+}
+gasFreeInfo:  successful !!
+```
+
+```console
+wallet> gasfreeinfo TRvVXgqddDGYRMx3FWf2tpVxXQQXDZxJQe
+balanceOf(address):70a08231
+{
+	"gasFreeAddress":"TCtSt8fCkZcVdrGpaVHUr6P8EmdjysswMF",
+	"active":true,
+	"tokenBalance":998696000,
+	"activateFee":0,
+	"transferFee":2000,
+	"maxTransferValue":998694000
+}
+gasFreeInfo:  successful !!
+```
+
+## gas free transfer
+    > GasFreeTransfer
+>Transfer funds through gas-free.
+
+Example:
+```console
+wallet> gasfreetransfer TEkj3ndMVEmFLYaFrATMwMjBRZ1EAZkucT 100000
+
+GasFreeTransfer result: {
+	"code":200,
+	"data":{
+		"amount":100000,
+		"providerAddress":"TKtWbdzEq5ss9vTS9kwRhBp5mXmBfBns3E",
+		"apiKey":"",
+		"accountAddress":"TUUSMd58eC3fKx3fn7whxJyr1FR56tgaP8",
+		"signature":"",
+		"targetAddress":"TEkj3ndMVEmFLYaFrATMwMjBRZ1EAZkucT",
+		"maxFee":2000000,
+		"version":1,
+		"nonce":8,
+		"tokenAddress":"TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf",
+		"createdAt":1747909635678,
+		"expiredAt":1747909695000,
+		"estimatedTransferFee":2000,
+		"id":"6c3ff67e-0bf4-4c09-91ca-0c7c254b01a0",
+		"state":"WAITING",
+		"estimatedActivateFee":0,
+		"gasFreeAddress":"TNER12mMVWruqopsW9FQtKxCGfZcEtb3ER",
+		"updatedAt":1747909635678
+	}
+}
+GasFreeTransfer  successful !!!
+```
+
+## gas free trace
+    > GasFreeTrace
+>Query GasFreeTrace to obtain transfer details by using the transaction ID returned by GasFreeTransfer as the traceId.
+
+Example:
+```console
+wallet> gasfreetrace 6c3ff67e-0bf4-4c09-91ca-0c7c254b01a0
+GasFreeTrace result: {
+	"code":200,
+	"data":{
+		"amount":100000,
+		"providerAddress":"TKtWbdzEq5ss9vTS9kwRhBp5mXmBfBns3E",
+		"txnTotalCost":102000,
+		"accountAddress":"TUUSMd58eC3fKx3fn7whxJyr1FR56tgaP8",
+		"txnActivateFee":0,
+		"estimatedTotalCost":102000,
+		"targetAddress":"TEkj3ndMVEmFLYaFrATMwMjBRZ1EAZkucT",
+		"txnBlockTimestamp":1747909638000,
+		"txnTotalFee":2000,
+		"nonce":8,
+		"estimatedTotalFee":2000,
+		"tokenAddress":"TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf",
+		"txnHash":"858f9a00776163b1f8a34467b9c5727657f8971a9f4e9d492f0a247fac0384f9",
+		"txnBlockNum":57175988,
+		"createdAt":1747909635678,
+		"expiredAt":1747909695000,
+		"estimatedTransferFee":2000,
+		"txnState":"ON_CHAIN",
+		"id":"6c3ff67e-0bf4-4c09-91ca-0c7c254b01a0",
+		"state":"CONFIRMING",
+		"estimatedActivateFee":0,
+		"gasFreeAddress":"TNER12mMVWruqopsW9FQtKxCGfZcEtb3ER",
+		"txnTransferFee":2000,
+		"txnAmount":100000
+	}
+}
+GasFreeTrace:  successful!!
 ```
 
 ## switch wallet

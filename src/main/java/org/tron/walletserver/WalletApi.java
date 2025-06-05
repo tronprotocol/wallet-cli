@@ -1,6 +1,10 @@
 package org.tron.walletserver;
 
 import static com.google.common.collect.Lists.newArrayList;
+import static org.tron.common.enums.NetType.CUSTOM;
+import static org.tron.common.enums.NetType.MAIN;
+import static org.tron.common.enums.NetType.NILE;
+import static org.tron.common.enums.NetType.SHASTA;
 import static org.tron.common.utils.Base58.encode;
 import static org.tron.common.utils.Utils.LOCK_WARNING;
 import static org.tron.common.utils.Utils.blueBoldHighlight;
@@ -27,6 +31,7 @@ import io.grpc.Status;
 import java.io.File;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.math.BigInteger;
 import java.nio.file.Paths;
 import java.security.SecureRandom;
 import java.util.ArrayList;
@@ -51,6 +56,7 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.bouncycastle.util.encoders.Hex;
 import org.hid4java.HidDevice;
 import org.tron.api.GrpcAPI;
@@ -107,6 +113,7 @@ import org.tron.common.crypto.Hash;
 import org.tron.common.crypto.Sha256Sm3Hash;
 import org.tron.common.crypto.SignInterface;
 import org.tron.common.crypto.sm2.SM2;
+import org.tron.common.enums.NetType;
 import org.tron.common.utils.Base58;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.TransactionUtils;
@@ -221,20 +228,37 @@ public class WalletApi {
   private List<WalletFile> walletList = new ArrayList<>();
 
   private static GrpcClient rpcCli = init();
+  @Getter
+  @Setter
+  private static NetType currentNetwork;
+  @Getter
+  @Setter
+  private static Pair<String, String> customNodes;
 
   private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
   private ScheduledFuture<?> autoLockFuture;
+
+  public static void updateRpcCli(GrpcClient client) throws InterruptedException {
+    rpcCli.shutdown();
+    rpcCli = client;
+  }
 
   public static GrpcClient init() {
     Config config = Configuration.getByPath("config.conf");
 
     String fullNode = "";
     String solidityNode = "";
-    if (config.hasPath("soliditynode.ip.list")) {
-      solidityNode = config.getStringList("soliditynode.ip.list").get(0);
-    }
     if (config.hasPath("fullnode.ip.list")) {
-      fullNode = config.getStringList("fullnode.ip.list").get(0);
+      List<String> fullNodeList = config.getStringList("fullnode.ip.list");
+      if (!fullNodeList.isEmpty()) {
+        fullNode = fullNodeList.get(0);
+      }
+    }
+    if (config.hasPath("soliditynode.ip.list")) {
+      List<String> solidityNodeList = config.getStringList("soliditynode.ip.list");
+      if (!solidityNodeList.isEmpty()) {
+        solidityNode = solidityNodeList.get(0);
+      }
     }
     if (config.hasPath("net.type") && "mainnet".equalsIgnoreCase(config.getString("net.type"))) {
       WalletApi.setAddressPreFixByte(CommonConstant.ADD_PRE_FIX_BYTE_MAINNET);
@@ -253,6 +277,20 @@ public class WalletApi {
       lockAccount = config.getBoolean("lockAccount");
       System.out.println("WalletApi lockAccount : " + lockAccount);
     }
+    if (StringUtils.isNotEmpty(fullNode) || StringUtils.isNotEmpty(solidityNode)) {
+      if (fullNode.equals(NILE.getGrpc().getFullNode()) && solidityNode.equals(NILE.getGrpc().getSolidityNode())){
+        currentNetwork = NILE;
+      } else if (fullNode.equals(SHASTA.getGrpc().getFullNode()) && solidityNode.equals(SHASTA.getGrpc().getSolidityNode())) {
+        currentNetwork = SHASTA;
+      } else if (fullNode.equals(MAIN.getGrpc().getFullNode()) && solidityNode.equals(MAIN.getGrpc().getSolidityNode())) {
+        currentNetwork = MAIN;
+      } else {
+        currentNetwork = CUSTOM;
+      }
+    } else {
+      System.out.println("The config.conf configuration is invalid. fullnode.ip.lit and soliditynode.ip.list cannot both be empty at the same time.");
+    }
+    WalletApi.setCustomNodes(Pair.of(fullNode, solidityNode));
     return new GrpcClient(fullNode, solidityNode);
   }
 
@@ -763,7 +801,7 @@ public class WalletApi {
       }
       String ledgerPath = getLedgerPath(passwd, wf);
       if (isLedgerFile) {
-        boolean result = LedgerSignUtil.requestLedgerSignLogic(transaction, ledgerPath, wf.getAddress());
+        boolean result = LedgerSignUtil.requestLedgerSignLogic(transaction, ledgerPath, wf.getAddress(), false);
         if (result) {
           transaction = TransactionSignManager.getInstance().getTransaction();
           TransactionSignWeight weight = getTransactionSignWeight(transaction);
@@ -772,6 +810,10 @@ public class WalletApi {
             return transaction;
           }
           HidDevice hidDevice = HidServicesWrapper.getInstance().getHidDevice(wf.getAddress(), getPath());
+          if (hidDevice == null) {
+            TransactionSignManager.getInstance().setTransaction(null);
+            return null;
+          }
           Optional<String> state = LedgerSignResult.getLastTransactionState(hidDevice.getPath());
           boolean confirmed = state.isPresent() && LedgerSignResult.SIGN_RESULT_SUCCESS.equals(state.get());
           if (weight.getResult().getCode() == response_code.NOT_ENOUGH_PERMISSION && confirmed) {
@@ -1350,6 +1392,11 @@ public class WalletApi {
       return false;
     }
     return true;
+  }
+
+  public static boolean addressValid(String addressBase58) {
+    byte[] address = decode58Check(addressBase58);
+    return ArrayUtils.isNotEmpty(address);
   }
 
   public static boolean addressValid(byte[] address) {
@@ -2729,7 +2776,7 @@ public class WalletApi {
     return processTransactionExtention(transactionExtention);
   }
 
-  public boolean triggerContract(
+  public Pair<Boolean, Long> triggerContract(
       byte[] owner,
       byte[] contractAddress,
       long callValue,
@@ -2737,7 +2784,8 @@ public class WalletApi {
       long feeLimit,
       long tokenValue,
       String tokenId,
-      boolean isConstant)
+      boolean isConstant,
+      boolean isGasfree)
       throws IOException, CipherException, CancelException {
     if (!isUnlocked()) {
       throw new IllegalStateException(LOCK_WARNING);
@@ -2760,7 +2808,7 @@ public class WalletApi {
       System.out.println("Code = " + transactionExtention.getResult().getCode());
       System.out
           .println("Message = " + transactionExtention.getResult().getMessage().toStringUtf8());
-      return false;
+      return Pair.of(false, 0L);
     }
 
     Transaction transaction = transactionExtention
@@ -2772,8 +2820,15 @@ public class WalletApi {
       if (transaction.getRet(0).getRet() == Result.code.FAILED) {
         builder.setResult(builder.getResult().toBuilder().setResult(false));
       }
-      System.out.println("Execution result = " + Utils.formatMessageString(builder.build()));
-      return true;
+      if (!isGasfree) {
+        System.out.println("Execution result = " + Utils.formatMessageString(builder.build()));
+      }
+      BigInteger bigInteger = BigInteger.valueOf(0L);
+      if (builder.getConstantResultCount() == 1) {
+        ByteString constantResult = builder.getConstantResult(0);
+        bigInteger = new BigInteger(1, constantResult.toByteArray());
+      }
+      return Pair.of(true, bigInteger.longValue());
     }
 
     TransactionExtention.Builder texBuilder = TransactionExtention.newBuilder();
@@ -2795,7 +2850,7 @@ public class WalletApi {
     texBuilder.setTxid(transactionExtention.getTxid());
     transactionExtention = texBuilder.build();
 
-    return processTransactionExtention(transactionExtention);
+    return Pair.of(processTransactionExtention(transactionExtention), 0L);
   }
 
   public boolean estimateEnergy(
@@ -3457,7 +3512,7 @@ public class WalletApi {
     return rpcCli.getBlock(idOrNum, detail);
   }
 
-  public boolean isLockAccount() {
+  public static boolean isLockAccount() {
     return lockAccount;
   }
 
