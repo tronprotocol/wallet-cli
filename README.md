@@ -1,8 +1,8 @@
-# wallet-cli [![Build Status](https://travis-ci.org/tronprotocol/wallet-cli.svg?branch=master)](https://travis-ci.org/tronprotocol/wallet-cli)
+# wallet-cli
 
 Welcome to use the Wallet-CLI.  
 
-If you need any help, please join the [Telegram](https://t.me/troncoredevscommunity)
+If you need any help, please join the [Telegram](https://t.me/TronOfficialDevelopersGroupEn)
 
 ## Get started
 
