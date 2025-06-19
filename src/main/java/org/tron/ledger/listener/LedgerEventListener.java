@@ -1,7 +1,6 @@
 package org.tron.ledger.listener;
 
 import static org.tron.common.utils.TransactionUtils.getTransactionId;
-import static org.tron.common.utils.Utils.greenBoldHighlight;
 import static org.tron.ledger.console.ConsoleColor.ANSI_RED;
 import static org.tron.ledger.console.ConsoleColor.ANSI_RESET;
 import static org.tron.ledger.console.ConsoleColor.ANSI_YELLOW;
@@ -22,8 +21,6 @@ import org.tron.ledger.sdk.LedgerConstant;
 import org.tron.ledger.sdk.LedgerProtocol;
 import org.tron.ledger.wrapper.DebugConfig;
 import org.tron.ledger.wrapper.LedgerSignResult;
-import org.tron.protos.Protocol;
-import org.tron.protos.Protocol.Transaction;
 import org.tron.trident.proto.Chain;
 
 public class LedgerEventListener extends BaseListener {
@@ -78,7 +75,7 @@ public class LedgerEventListener extends BaseListener {
   }
 
 
-  public boolean executeSignListen(HidDevice hidDevice, Transaction transaction, String path, boolean gasfree) {
+  public boolean executeSignListen(HidDevice hidDevice, Chain.Transaction transaction, String path, boolean gasfree) {
     boolean ret = false;
     try {
       byte[] sendResult = handleTransSign(hidDevice, transaction, path, gasfree);
@@ -104,7 +101,7 @@ public class LedgerEventListener extends BaseListener {
   /**
    * @param path example "m/44'/195'/0'/0/0"
    */
-  public byte[] handleTransSign(HidDevice hidDevice, Transaction transaction, String path, boolean gasfree) {
+  public byte[] handleTransSign(HidDevice hidDevice, Chain.Transaction transaction, String path, boolean gasfree) {
     final int TIMEOUT_MILLIS = 1000;
     final int MAX_WAIT_TIME_MILLIS = 1000; // 1.5 seconds
     final int BYTE_LENGTH_THRESHOLD = 255;

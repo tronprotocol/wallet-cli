@@ -54,29 +54,11 @@ import org.jline.reader.LineReaderBuilder;
 import org.jline.reader.impl.completer.StringsCompleter;
 import org.jline.terminal.Terminal;
 import org.jline.terminal.TerminalBuilder;
-import org.tron.api.GrpcAPI.AccountNetMessage;
-import org.tron.api.GrpcAPI.AccountResourceMessage;
 import org.tron.api.GrpcAPI.AddressPrKeyPairMessage;
-import org.tron.api.GrpcAPI.AssetIssueList;
-import org.tron.api.GrpcAPI.BlockExtention;
-import org.tron.api.GrpcAPI.BlockList;
-import org.tron.api.GrpcAPI.BlockListExtention;
-import org.tron.api.GrpcAPI.CanDelegatedMaxSizeResponseMessage;
-import org.tron.api.GrpcAPI.CanWithdrawUnfreezeAmountResponseMessage;
-import org.tron.api.GrpcAPI.DelegatedResourceList;
-import org.tron.api.GrpcAPI.ExchangeList;
-import org.tron.api.GrpcAPI.GetAvailableUnfreezeCountResponseMessage;
-import org.tron.api.GrpcAPI.Node;
 import org.tron.api.GrpcAPI.Note;
 import org.tron.api.GrpcAPI.NumberMessage;
-import org.tron.api.GrpcAPI.PricesResponseMessage;
-import org.tron.api.GrpcAPI.ProposalList;
-import org.tron.api.GrpcAPI.TransactionApprovedList;
-import org.tron.api.GrpcAPI.TransactionInfoList;
 import org.tron.api.GrpcAPI.TransactionList;
 import org.tron.api.GrpcAPI.TransactionListExtention;
-import org.tron.api.GrpcAPI.TransactionSignWeight;
-import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.crypto.Hash;
 import org.tron.common.crypto.SignInterface;
 import org.tron.common.crypto.SignUtils;
@@ -106,26 +88,10 @@ import org.tron.core.zen.address.SpendingKey;
 import org.tron.keystore.StringUtils;
 import org.tron.ledger.TronLedgerGetAddress;
 import org.tron.ledger.listener.TransactionSignManager;
-import org.tron.ledger.wrapper.DebugConfig;
 import org.tron.ledger.wrapper.LedgerUserHelper;
 import org.tron.mnemonic.MnemonicUtils;
 import org.tron.protos.Protocol;
-import org.tron.protos.Protocol.Account;
-import org.tron.protos.Protocol.Block;
-import org.tron.protos.Protocol.ChainParameters;
-import org.tron.protos.Protocol.DelegatedResourceAccountIndex;
-import org.tron.protos.Protocol.Exchange;
-import org.tron.protos.Protocol.MarketOrder;
-import org.tron.protos.Protocol.MarketOrderList;
-import org.tron.protos.Protocol.MarketOrderPairList;
-import org.tron.protos.Protocol.MarketPriceList;
-import org.tron.protos.Protocol.Proposal;
-import org.tron.protos.Protocol.Transaction;
-import org.tron.protos.Protocol.TransactionInfo;
-import org.tron.protos.contract.AssetIssueContractOuterClass.AssetIssueContract;
 import org.tron.protos.contract.Common.ResourceCode;
-import org.tron.protos.contract.SmartContractOuterClass.SmartContract;
-import org.tron.protos.contract.SmartContractOuterClass.SmartContractDataWrapper;
 import org.tron.trident.api.GrpcAPI;
 import org.tron.trident.core.exceptions.IllegalException;
 import org.tron.trident.proto.Chain;
@@ -133,7 +99,6 @@ import org.tron.trident.proto.Common;
 import org.tron.trident.proto.Contract;
 import org.tron.trident.proto.Response;
 import org.tron.walletserver.WalletApi;
-
 
 public class Client {
 
@@ -145,8 +110,6 @@ public class Client {
       "AddTransactionSign",
       "ApproveProposal",
       "AssetIssue",
-      // "BackupShieldedWallet",
-      "BackupShieldedTRC20Wallet",
       "BackupWallet",
       "BackupWallet2Base64",
       "ExportWalletMnemonic",
@@ -161,6 +124,7 @@ public class Client {
       "CreateAccount",
       "CreateProposal",
       "CreateWitness",
+      "CurrentNetwork",
       "DelegateResource",
       "DeleteProposal",
       "DeployContract contractName ABI byteCode constructor params isHex fee_limit consume_user_resource_percent origin_energy_limit value token_value token_id <library:address,library:address,...> <lib_compiler_version(e.g:v5)>",
@@ -174,8 +138,7 @@ public class Client {
       "GasFreeTrace",
       "GasFreeTransfer",
       "GenerateAddress",
-      // "GenerateShieldedAddress",
-      "GenerateShieldedTRC20Address",
+      "GenerateSubAccount",
       "GetAccount",
       "GetAccountNet",
       "GetAccountResource",
@@ -196,7 +159,6 @@ public class Client {
       "GetChainParameters",
       "GetContract contractAddress",
       "GetContractInfo contractAddress",
-      "CurrentNetwork",
       "GetDelegatedResource",
       "GetDelegatedResourceV2",
       "GetDelegatedResourceAccountIndex",
@@ -207,7 +169,6 @@ public class Client {
       "GetDiversifier",
       "GetEnergyPrices",
       "GetExchange",
-      "GetExpandedSpendingKey",
       "GasFreeInfo",
       "GetIncomingViewingKey",
       "GetMarketOrderByAccount",
@@ -220,20 +181,13 @@ public class Client {
       "GetNkFromNsk",
       "GetProposal",
       "GetReward",
-      // "GetShieldedNullifier",
-      "GetShieldedPaymentAddress",
-      "GetSpendingKey",
-      "GetTotalTransaction",
       "GetTransactionApprovedList",
       "GetTransactionById",
       "GetTransactionCountByBlockNum",
       "GetTransactionInfoByBlockNum",
       "GetTransactionInfoById",
       "GetTransactionSignWeight",
-      "GetTransactionsFromThis",
-      "GetTransactionsToThis",
-      "ImportShieldedTRC20Wallet",
-      // "ImportShieldedWallet",
+      "Help",
       "ImportWallet",
       "ImportWalletByMnemonic",
       "ImportWalletByLedger",
@@ -243,44 +197,20 @@ public class Client {
       "ListExchanges",
       "ListExchangesPaginated",
       "ListNodes",
-      // "ListShieldedAddress",
-      // "ListShieldedNote",
-      "ListShieldedTRC20Address",
-      "ListShieldedTRC20Note",
       "ListProposals",
       "ListProposalsPaginated",
-      // "ListShieldedAddress",
-      // "ListShieldedNote",
       "ListWitnesses",
-      // "LoadShieldedWallet",
       "Lock",
       "Login",
-      "Logout",
       "LoginAll",
-      "LoadShieldedTRC20Wallet",
-      // "LoadShieldedWallet",
+      "Logout",
       "MarketCancelOrder",
       "MarketSellAsset",
       "ParticipateAssetIssue",
       "RegisterWallet",
-      "GenerateSubAccount",
-      // "ResetShieldedNote",
-      "ResetShieldedTRC20Note",
       "ResetWallet",
-      // "ScanAndMarkNotebyAddress",
-      // "ScanNotebyIvk",
-      // "ScanNotebyOvk",
-      "ScanShieldedTRC20NoteByIvk",
-      "ScanShieldedTRC20NoteByOvk",
       "SendCoin",
-      // "SendShieldedCoin",
-      // "SendShieldedCoinWithoutAsk",
-      "SendShieldedTRC20Coin",
-      "SendShieldedTRC20CoinWithoutAsk",
       "SetAccountId",
-      "SetShieldedTRC20ContractAddress",
-      // "ShowShieldedAddressInfo",
-      "ShowShieldedTRC20AddressInfo",
       "SwitchNetwork",
       "SwitchWallet",
       "TransferAsset",
@@ -301,7 +231,6 @@ public class Client {
       "VoteWitness",
       "WithdrawBalance",
       "WithdrawExpireUnfreeze",
-      "WithdrawExpireUnfreeze",
   };
 
   // note: this is sorted by alpha
@@ -309,8 +238,6 @@ public class Client {
       "AddTransactionSign",
       "ApproveProposal",
       "AssetIssue",
-      // "BackupShieldedWallet",
-      "BackupShieldedTRC20Wallet",
       "BackupWallet",
       "BackupWallet2Base64",
       "ExportWalletMnemonic",
@@ -325,6 +252,7 @@ public class Client {
       "CreateAccount",
       "CreateProposal",
       "CreateWitness",
+      "CurrentNetwork",
       "DelegateResource",
       "DeleteProposal",
       "DeployContract",
@@ -338,8 +266,7 @@ public class Client {
       "GasFreeTrace",
       "GasFreeTransfer",
       "GenerateAddress",
-      // "GenerateShieldedAddress",
-      "GenerateShieldedTRC20Address",
+      "GenerateSubAccount",
       "GetAccount",
       "GetAccountNet",
       "GetAccountResource",
@@ -360,7 +287,6 @@ public class Client {
       "GetChainParameters",
       "GetContract",
       "GetContractInfo",
-      "CurrentNetwork",
       "GetDelegatedResource",
       "GetDelegatedResourceV2",
       "GetDelegatedResourceAccountIndex",
@@ -371,7 +297,6 @@ public class Client {
       "GetDiversifier",
       "GetEnergyPrices",
       "GetExchange",
-      "GetExpandedSpendingKey",
       "GasFreeInfo",
       "GetIncomingViewingKey",
       "GetMarketOrderByAccount",
@@ -384,21 +309,13 @@ public class Client {
       "GetNkFromNsk",
       "GetProposal",
       "GetReward",
-      // "GetShieldedNullifier",
-      "GetShieldedPaymentAddress",
-      "GetSpendingKey",
-      "GetTotalTransaction",
       "GetTransactionApprovedList",
       "GetTransactionById",
       "GetTransactionCountByBlockNum",
       "GetTransactionInfoByBlockNum",
       "GetTransactionInfoById",
       "GetTransactionSignWeight",
-      "GetTransactionsFromThis",
-      "GetTransactionsToThis",
       "Help",
-      "ImportShieldedTRC20Wallet",
-      // "ImportShieldedWallet",
       "ImportWallet",
       "ImportWalletByMnemonic",
       "ImportWalletByLedger",
@@ -408,43 +325,20 @@ public class Client {
       "ListExchanges",
       "ListExchangesPaginated",
       "ListNodes",
-      // "ListShieldedAddress",
-      // "ListShieldedNote",
-      "ListShieldedTRC20Address",
-      "ListShieldedTRC20Note",
       "ListProposals",
       "ListProposalsPaginated",
-      // "ListShieldedAddress",
-      // "ListShieldedNote",
       "ListWitnesses",
       "Lock",
       "Login",
       "LoginAll",
       "Logout",
-      "LoadShieldedTRC20Wallet",
-      // "LoadShieldedWallet",
       "MarketCancelOrder",
       "MarketSellAsset",
       "ParticipateAssetIssue",
       "RegisterWallet",
-      "GenerateSubAccount",
-      // "ResetShieldedNote",
-      "ResetShieldedTRC20Note",
       "ResetWallet",
-      // "ScanAndMarkNotebyAddress",
-      // "ScanNotebyIvk",
-      // "ScanNotebyOvk",
-      "ScanShieldedTRC20NoteByIvk",
-      "ScanShieldedTRC20NoteByOvk",
       "SendCoin",
-      // "SendShieldedCoin",
-      // "SendShieldedCoinWithoutAsk",
-      "SendShieldedTRC20Coin",
-      "SendShieldedTRC20CoinWithoutAsk",
       "SetAccountId",
-      "SetShieldedTRC20ContractAddress",
-      // "ShowShieldedAddressInfo",
-      "ShowShieldedTRC20AddressInfo",
       "SwitchNetwork",
       "SwitchWallet",
       "TransferAsset",
@@ -1638,21 +1532,21 @@ public class Client {
       blockNum = Long.parseLong(parameters[0]);
     }
 
-    if (WalletApi.getRpcVersion() == 2) {
-      Response.BlockExtention blockExtention = walletApiWrapper.getBlock2(blockNum);
-      if (blockExtention == null) {
-        System.out.println("No block for num : " + blockNum);
-        return;
-      }
-      System.out.println(Utils.printBlockExtention(blockExtention));
-    } else {
-      Chain.Block block = walletApiWrapper.getBlock(blockNum);
-      if (block == null) {
-        System.out.println("No block for num : " + blockNum);
-        return;
-      }
-      System.out.println(Utils.printBlock(block));
+//    if (WalletApi.getRpcVersion() == 2) {
+    Response.BlockExtention blockExtention = walletApiWrapper.getBlock2(blockNum);
+    if (blockExtention == null) {
+      System.out.println("No block for num : " + blockNum);
+      return;
     }
+    System.out.println(Utils.printBlockExtention(blockExtention));
+//    } else {
+//      Chain.Block block = walletApiWrapper.getBlock(blockNum);
+//      if (block == null) {
+//        System.out.println("No block for num : " + blockNum);
+//        return;
+//      }
+//      System.out.println(Utils.printBlock(block));
+//    }
   }
 
   private void getTransactionCountByBlockNum(String[] parameters) {
@@ -2601,7 +2495,7 @@ public class Client {
       txid = parameters[0];
     }
     Response.TransactionInfo transactionInfo = WalletApi.getTransactionInfoById(txid);
-    if (transactionInfo != null && transactionInfo.equals(Response.TransactionInfo.getDefaultInstance())) {
+    if (transactionInfo != null && !transactionInfo.equals(Response.TransactionInfo.getDefaultInstance())) {
       System.out.println(Utils.formatMessageString(transactionInfo));
     } else {
       System.out.println("GetTransactionInfoById " + failedHighlight() + " !!!");
@@ -2764,30 +2658,30 @@ public class Client {
     } else {
       num = Long.parseLong(parameters[0]);
     }
-    if (WalletApi.getRpcVersion() == 2 || WalletApi.getRpcVersion() == 3) {
-      Response.BlockListExtention blockList = WalletApi.getBlockByLatestNum2(num);
-      if (blockList != null) {
-        if (blockList.getBlockCount() == 0) {
-          System.out.println("No block");
-          return;
-        }
-        System.out.println(Utils.printBlockList(blockList));
-      } else {
-        System.out.println("GetBlockByLimitNext " + failedHighlight() + " !!");
+//    if (WalletApi.getRpcVersion() == 2 || WalletApi.getRpcVersion() == 3) {
+    Response.BlockListExtention blockList = WalletApi.getBlockByLatestNum2(num);
+    if (blockList != null) {
+      if (blockList.getBlockCount() == 0) {
+        System.out.println("No block");
+        return;
       }
+      System.out.println(Utils.printBlockList(blockList));
     } else {
-      Optional<BlockList> result = WalletApi.getBlockByLatestNum(num);
-      if (result.isPresent()) {
-        BlockList blockList = result.get();
-        if (blockList.getBlockCount() == 0) {
-          System.out.println("No block");
-          return;
-        }
-        System.out.println(Utils.printBlockList(blockList));
-      } else {
-        System.out.println("GetBlockByLimitNext " + failedHighlight() + " !!");
-      }
+      System.out.println("GetBlockByLimitNext " + failedHighlight() + " !!");
     }
+//    } else {
+//      Optional<BlockList> result = WalletApi.getBlockByLatestNum(num);
+//      if (result.isPresent()) {
+//        BlockList blockList = result.get();
+//        if (blockList.getBlockCount() == 0) {
+//          System.out.println("No block");
+//          return;
+//        }
+//        System.out.println(Utils.printBlockList(blockList));
+//      } else {
+//        System.out.println("GetBlockByLimitNext " + failedHighlight() + " !!");
+//      }
+//    }
   }
 
   private void updateSetting(String[] parameters)
@@ -2937,7 +2831,7 @@ public class Client {
 
   private void getReward(String[] parameters) {
     int index = 0;
-    byte[] ownerAddress = null;
+    byte[] ownerAddress;
     if (parameters.length == 1) {
       ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
       if (ownerAddress == null) {
@@ -3072,8 +2966,8 @@ public class Client {
     value = Long.parseLong(parameters[idx++]);
     long tokenValue = Long.parseLong(parameters[idx++]);
     String tokenId = parameters[idx++];
-    if (tokenId == "#") {
-      tokenId = "";
+    if ("#".equals(tokenId)) {
+      tokenId = EMPTY;
     }
     String libraryAddressPair = null;
     if (parameters.length > idx) {
@@ -4795,7 +4689,7 @@ public class Client {
     System.out.println("Help: List of Tron Wallet-cli commands");
     System.out.println(
         "For more information on a specific command, type the command and it will display tips");
-    System.out.println("");
+    System.out.println();
 
     for (String commandItem : commandHelp) {
       System.out.println(commandItem);
@@ -4963,10 +4857,6 @@ public class Client {
               resetWallet();
               break;
             }
-            // case "loadshieldedwallet": {
-            //   loadShieldedWallet();
-            //   break;
-            // }
             case "backupwallet": {
               backupWallet();
               break;
@@ -5227,20 +5117,8 @@ public class Client {
               getTransactionCountByBlockNum(parameters);
               break;
             }
-            case "gettotaltransaction": {
-              getTotalTransaction();
-              break;
-            }
             case "getnextmaintenancetime": {
               getNextMaintenanceTime();
-              break;
-            }
-            case "gettransactionsfromthis": {
-              getTransactionsFromThis(parameters);
-              break;
-            }
-            case "gettransactionstothis": {
-              getTransactionsToThis(parameters);
               break;
             }
             case "gettransactionbyid": {
@@ -5261,14 +5139,6 @@ public class Client {
             }
             case "getblockbylatestnum": {
               getBlockByLatestNum(parameters);
-              break;
-            }
-            case "getspendingkey": {
-              getSpendingKey();
-              break;
-            }
-            case "getexpandedspendingkey": {
-              getExpandedSpendingKey(parameters);
               break;
             }
             case "gasfreeinfo": {
@@ -5417,58 +5287,58 @@ public class Client {
               create2(parameters);
               break;
             }
-            case "setshieldedtrc20contractaddress": {
-              setShieldedTRC20ContractAddress(parameters);
-              break;
-            }
-            case "backupshieldedtrc20wallet": {
-              backupShieldedTRC20Wallet();
-              break;
-            }
-            case "generateshieldedtrc20address": {
-              generateShieldedTRC20Address(parameters);
-              break;
-            }
-            case "importshieldedtrc20wallet": {
-              importShieldedTRC20Wallet();
-              break;
-            }
-            case "listshieldedtrc20address": {
-              listShieldedTRC20Address();
-              break;
-            }
-            case "listshieldedtrc20note": {
-              listShieldedTRC20Note(parameters);
-              break;
-            }
-            case "loadshieldedtrc20wallet": {
-              loadShieldedTRC20Wallet();
-              break;
-            }
-            case "resetshieldedtrc20note": {
-              resetShieldedTRC20Note();
-              break;
-            }
-            case "scanshieldedtrc20notebyivk": {
-              scanShieldedTRC20NoteByIvk(parameters);
-              break;
-            }
-            case "scanshieldedtrc20notebyovk": {
-              scanShieldedTRC20NoteByOvk(parameters);
-              break;
-            }
-            case "sendshieldedtrc20coin": {
-              sendShieldedTRC20Coin(parameters);
-              break;
-            }
-            case "sendshieldedtrc20coinwithoutask": {
-              sendShieldedTRC20CoinWithoutAsk(parameters);
-              break;
-            }
-            case "showshieldedtrc20addressinfo": {
-              showShieldedTRC20AddressInfo(parameters);
-              break;
-            }
+//            case "setshieldedtrc20contractaddress": {
+//              setShieldedTRC20ContractAddress(parameters);
+//              break;
+//            }
+//            case "backupshieldedtrc20wallet": {
+//              backupShieldedTRC20Wallet();
+//              break;
+//            }
+//            case "generateshieldedtrc20address": {
+//              generateShieldedTRC20Address(parameters);
+//              break;
+//            }
+//            case "importshieldedtrc20wallet": {
+//              importShieldedTRC20Wallet();
+//              break;
+//            }
+//            case "listshieldedtrc20address": {
+//              listShieldedTRC20Address();
+//              break;
+//            }
+//            case "listshieldedtrc20note": {
+//              listShieldedTRC20Note(parameters);
+//              break;
+//            }
+//            case "loadshieldedtrc20wallet": {
+//              loadShieldedTRC20Wallet();
+//              break;
+//            }
+//            case "resetshieldedtrc20note": {
+//              resetShieldedTRC20Note();
+//              break;
+//            }
+//            case "scanshieldedtrc20notebyivk": {
+//              scanShieldedTRC20NoteByIvk(parameters);
+//              break;
+//            }
+//            case "scanshieldedtrc20notebyovk": {
+//              scanShieldedTRC20NoteByOvk(parameters);
+//              break;
+//            }
+//            case "sendshieldedtrc20coin": {
+//              sendShieldedTRC20Coin(parameters);
+//              break;
+//            }
+//            case "sendshieldedtrc20coinwithoutask": {
+//              sendShieldedTRC20CoinWithoutAsk(parameters);
+//              break;
+//            }
+//            case "showshieldedtrc20addressinfo": {
+//              showShieldedTRC20AddressInfo(parameters);
+//              break;
+//            }
             case "gettransactioninfobyblocknum": {
               getTransactionInfoByBlockNum(parameters);
               break;
@@ -5574,7 +5444,7 @@ public class Client {
 
   }
 
-  private void gasFreeInfo(String[] parameters) throws NoSuchAlgorithmException, IOException, InvalidKeyException, CipherException, CancelException {
+  private void gasFreeInfo(String[] parameters) throws Exception {
     if (parameters.length > 1) {
       System.out.println("gasFreeInfo needs no parameter or 1 parameter like the following: ");
       System.out.println("gasFreeInfo Address ");
@@ -5609,19 +5479,21 @@ public class Client {
 
   private void currentNetwork() {
     NetType currentNet = WalletApi.getCurrentNetwork();
-    Pair<String, String> customNodes = WalletApi.getCustomNodes();
-    if (currentNet == CUSTOM && (customNodes == null || (org.apache.commons.lang3.StringUtils.isEmpty(customNodes.getLeft())
-          && org.apache.commons.lang3.StringUtils.isEmpty(customNodes.getRight())))) {
+    Pair<Pair<String, Boolean>, Pair<String, Boolean>> customNodes = WalletApi.getCustomNodes();
+    if (currentNet == CUSTOM && (customNodes == null || (org.apache.commons.lang3.StringUtils.isEmpty(customNodes.getLeft().getLeft())
+          && org.apache.commons.lang3.StringUtils.isEmpty(customNodes.getRight().getLeft())))) {
         System.out.println("The configuration of both fullnode and solidity cannot be empty at the same time.");
         return;
     }
-    String fullNode = customNodes.getLeft();
-    String solidityNode = customNodes.getRight();
+    String fullNode = customNodes.getLeft().getLeft();
+    String solidityNode = customNodes.getRight().getLeft();
     System.out.println("current network: " + blueBoldHighlight(currentNet.name()));
     if (CUSTOM == currentNet) {
-      System.out.println("fullNode: " + (org.apache.commons.lang3.StringUtils.isEmpty(fullNode)
+      Boolean isFullnodeEmpty = customNodes.getLeft().getRight();
+      Boolean isSoliditynodeEmpty = customNodes.getRight().getRight();
+      System.out.println("fullNode: " + (org.apache.commons.lang3.StringUtils.isEmpty(fullNode) || Boolean.TRUE.equals(isFullnodeEmpty)
           ? EMPTY_STR : fullNode) + ", solidityNode: " +
-          (org.apache.commons.lang3.StringUtils.isEmpty(solidityNode) ? EMPTY_STR : solidityNode));
+          (org.apache.commons.lang3.StringUtils.isEmpty(solidityNode) || Boolean.TRUE.equals(isSoliditynodeEmpty) ? EMPTY_STR : solidityNode));
     }
   }
 

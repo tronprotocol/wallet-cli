@@ -35,6 +35,7 @@ import com.google.protobuf.Any;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
 
+import com.typesafe.config.Config;
 import java.io.ByteArrayOutputStream;
 import java.io.Console;
 import java.io.IOException;
@@ -905,4 +906,15 @@ public class Utils {
       e.printStackTrace();
     }
   }
+
+  public static String getNode(Config config, String path) {
+    if (config.hasPath(path)) {
+      List<String> nodeList = config.getStringList(path);
+      if (!nodeList.isEmpty()) {
+        return nodeList.get(0);
+      }
+    }
+    return EMPTY;
+  }
+
 }

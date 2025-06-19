@@ -1,23 +1,32 @@
 package org.tron.walletcli;
 
-import org.tron.common.NetType;
+import static org.apache.commons.lang3.StringUtils.isEmpty;
+import static org.tron.common.utils.Utils.greenBoldHighlight;
+
+import com.typesafe.config.Config;
+import org.tron.common.enums.NetType;
+import org.tron.core.config.Configuration;
 import org.tron.trident.core.ApiWrapper;
 
 public class ApiClientFactory {
+  private static String apiKey = null;
+
+  static {
+    Config config = Configuration.getByPath("config.conf");
+    if (config.hasPath("grpc.mainnet.apiKey") && "mainnet".equalsIgnoreCase(config.getString("net.type"))) {
+      apiKey = config.getString("grpc.mainnet.apiKey");
+    }
+  }
 
   public static ApiWrapper createClient(NetType type, String privateKey) {
-    return createClient(type, privateKey, null, null, null);
+    return createClient(type, privateKey, null, null);
   }
 
-  public static ApiWrapper createClient(NetType type, String privateKey, String apiKey) {
-    return createClient(type, privateKey, apiKey, null, null);
-  }
-
-  public static ApiWrapper createClient(NetType type, String privateKey, String apiKey, String grpcEndpoint, String solidityGrpcEndpoint) {
+  public static ApiWrapper createClient(NetType type, String privateKey, String grpcEndpoint, String solidityGrpcEndpoint) {
     switch (type) {
       case MAIN:
-        if (apiKey == null) {
-          throw new IllegalArgumentException("API Key required for MAIN network");
+        if (isEmpty(apiKey)) {
+          throw new IllegalArgumentException("The MAIN network requires an " + greenBoldHighlight("apikey") + " to access. Please apply and configure it in the config.conf.");
         }
         return ApiWrapper.ofMainnet(privateKey, apiKey);
       case NILE:

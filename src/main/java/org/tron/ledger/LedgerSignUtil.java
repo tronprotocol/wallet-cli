@@ -14,12 +14,11 @@ import org.tron.ledger.wrapper.DebugConfig;
 import org.tron.ledger.wrapper.HidServicesWrapper;
 import org.tron.ledger.wrapper.LedgerSignResult;
 import org.tron.ledger.wrapper.LedgerUserHelper;
-import org.tron.protos.Protocol;
 import org.tron.trident.proto.Chain;
 
 public class LedgerSignUtil {
 
-  public static boolean requestLedgerSignLogic(Protocol.Transaction transaction, String path, String address, boolean gasfree) {
+  public static boolean requestLedgerSignLogic(Chain.Transaction transaction, String path, String address, boolean gasfree) {
     try {
       if (!gasfree && !ContractTypeChecker.canUseLedgerSign(
           transaction.getRawData().getContract(0).getType().toString())) {
