@@ -179,7 +179,7 @@ public class ECKey implements Serializable, SignInterface {
    * <p>All private key operations will use the provider.
    */
 
-  // isPrivateKey true 私钥 其他公钥
+  // isPrivateKey true
   public ECKey(byte[] key, boolean isPrivateKey) {
     if (isPrivateKey) {
       BigInteger pk = new BigInteger(1, key);

@@ -1,17 +1,19 @@
 package org.tron.common.utils;
 
 import static org.apache.commons.lang3.StringUtils.EMPTY;
+import static org.tron.common.utils.Utils.greenBoldHighlight;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
-import okhttp3.FormBody;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
+import org.apache.commons.lang3.StringUtils;
 
 public class HttpUtils {
 
@@ -22,9 +24,7 @@ public class HttpUtils {
       .build();
 
   private static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
-  private static final MediaType FORM = MediaType.parse("application/x-www-form-urlencoded; charset=utf-8");
 
-  // GET 请求
   public static String get(String url, Map<String, String> headers) throws IOException {
     Request.Builder builder = new Request.Builder().url(url).get();
     if (headers != null) {
@@ -36,7 +36,6 @@ public class HttpUtils {
     }
   }
 
-  // POST 请求 - JSON 格式
   public static String postJson(String url, String jsonBody, Map<String, String> headers) throws IOException {
     RequestBody body = RequestBody.create(jsonBody, JSON);
     Request.Builder builder = new Request.Builder().url(url).post(body);
@@ -53,33 +52,29 @@ public class HttpUtils {
     return postJson(url, jsonBody, null);
   }
 
-  // POST 请求 - 表单格式
-  public static String postForm(String url, Map<String, String> formParams, Map<String, String> headers) throws IOException {
-    FormBody.Builder formBuilder = new FormBody.Builder();
-    if (formParams != null) {
-      formParams.forEach(formBuilder::add);
-    }
-
-    Request.Builder builder = new Request.Builder()
-        .url(url)
-        .post(formBuilder.build());
-
-    if (headers != null) {
-      headers.forEach(builder::addHeader);
-    }
-
-    Request request = builder.build();
-    try (Response response = client.newCall(request).execute()) {
-      return responseBodyToString(response);
-    }
-  }
-
   private static String responseBodyToString(Response response) throws IOException {
     if (!response.isSuccessful()) {
-      throw new IOException("Unexpected HTTP code " + response.code() + ": " + response.message());
+      String msg = response.message();
+      if (StringUtils.isEmpty(msg) ) {
+        msg = Optional.ofNullable(response.body()).map(body -> {
+              try {
+                return body.string();
+              } catch (Exception e) {
+                return EMPTY;
+              }
+        }).orElse(EMPTY);
+      }
+      if (response.code() == 502) {
+        throw new IOException("Unexpected HTTP code " + response.code() + ": Bad Gateway.");
+      }
+      throw new IOException(
+          "Unexpected HTTP code " + response.code() + ": " + msg + "\nAPI authentication failed, "
+              + "please check the " + greenBoldHighlight("apikey") + " and "
+              + greenBoldHighlight("apiSecret") + " configured in config.conf.");
     }
     ResponseBody body = response.body();
     return body != null ? body.string() : EMPTY;
   }
 }
+
 

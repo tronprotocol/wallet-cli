@@ -19,9 +19,9 @@ import org.tron.trident.proto.Chain;
 
 public class LedgerSignUtil {
 
-  public static boolean requestLedgerSignLogic(Chain.Transaction transaction, String path, String address) {
+  public static boolean requestLedgerSignLogic(Protocol.Transaction transaction, String path, String address, boolean gasfree) {
     try {
-      if (!ContractTypeChecker.canUseLedgerSign(
+      if (!gasfree && !ContractTypeChecker.canUseLedgerSign(
           transaction.getRawData().getContract(0).getType().toString())) {
         return false;
       }
@@ -71,7 +71,7 @@ public class LedgerSignUtil {
           if (hidDevice.isClosed()) {
             hidDevice.open();
           }
-          ret = LedgerEventListener.getInstance().executeSignListen(hidDevice, transaction, path);
+          ret = LedgerEventListener.getInstance().executeSignListen(hidDevice, transaction, path, gasfree);
         } catch (IllegalStateException e) {
           System.out.println(ANSI_RED + e.getMessage() + ANSI_RESET);
           if (DebugConfig.isDebugEnabled()) {
