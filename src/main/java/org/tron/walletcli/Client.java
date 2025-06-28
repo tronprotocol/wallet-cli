@@ -2,6 +2,7 @@ package org.tron.walletcli;
 
 import static org.apache.commons.lang3.StringUtils.EMPTY;
 import static org.tron.common.enums.NetType.CUSTOM;
+import static org.tron.common.utils.CommandHelpUtil.getCommandHelp;
 import static org.tron.common.utils.Utils.EMPTY_STR;
 import static org.tron.common.utils.Utils.blueBoldHighlight;
 import static org.tron.common.utils.Utils.failedHighlight;
@@ -2608,6 +2609,7 @@ public class Client {
     String blockID = "";
     if (parameters == null || parameters.length != 1) {
       System.out.println("Using getBlockById command needs 1 parameter like: ");
+      System.out.println("getBlockById block_id");
       return;
     } else {
       blockID = parameters[0];
@@ -4685,19 +4687,29 @@ public class Client {
     }
   }
 
-  private void help() {
-    System.out.println("Help: List of Tron Wallet-cli commands");
-    System.out.println(
-        "For more information on a specific command, type the command and it will display tips");
-    System.out.println();
-
-    for (String commandItem : commandHelp) {
-      System.out.println(commandItem);
+  private void help(String[] parameters) {
+    if (parameters.length != 0 && parameters.length != 1) {
+      System.out.println("help needs no or 1 parameter like the following: ");
+      System.out.println("help [cmd] ");
+      return;
     }
 
-    System.out.println("Exit or Quit");
+    if (parameters.length == 0) {
+      System.out.println("Help: List of Tron Wallet-cli commands");
+      System.out.println("For more information on a specific command, type the command and it will display tips");
+      System.out.println();
+      for (String commandItem : commandHelp) {
+        System.out.println(commandItem);
+      }
+      System.out.println("Exit or Quit");
+      System.out.println("Input any one of the listed commands, to display how-to tips.");
+    }
 
-    System.out.println("Input any one of the listed commands, to display how-to tips.");
+    if (parameters.length == 1) {
+      String cmd = parameters[0];
+      String commandExample = getCommandHelp(cmd.toLowerCase());
+      System.out.println(commandExample);
+    }
   }
 
   public static String[] getCmd(String cmdLine) {
@@ -4753,7 +4765,8 @@ public class Client {
     System.out.println(
         "You may also use the " + greenBoldHighlight("Help") + " command at anytime to display a "
             + "full list of commands.");
-    System.out.println(" ");
+    System.out.println("You can add any command supported by wallet-cli after the help command to view its usage help.");
+    System.out.println();
 
     try {
       Terminal terminal = TerminalBuilder.builder().system(true).dumb(true).build();
@@ -4782,7 +4795,7 @@ public class Client {
           }
           switch (cmdLowerCase) {
             case "help": {
-              help();
+              help(parameters);
               break;
             }
             case "registerwallet": {
@@ -5403,7 +5416,7 @@ public class Client {
             }
             default: {
               System.out.println("Invalid cmd: " + cmd);
-              help();
+              help(parameters);
             }
           }
         } catch (CipherException | CancelException | IOException | IllegalException e) {

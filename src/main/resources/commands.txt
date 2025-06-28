@@ -1,0 +1,644 @@
+Syntax:
+AddTransactionSign transaction_hex_string
+Summary:
+Add signature to hex format transaction.
+Usage example:
+wallet> AddTransactionSign 0a83010a02d37f2208390169b95824b981409891f085fa325a65080112610a2d747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e5472616e73666572436f6e747261637412300a15419d9c2bb5ee381a4396dd49ce42292e756b2e5e4b121541d2ff06bcde19428aaf516b6c2fe368f37f2dd5ce186470babfec85fa32
+Syntax:
+ApproveProposal owner_address proposal_id if_or_not_add_approval
+Summary:
+Approve / Disapprove a proposal.
+Usage example:
+wallet> ApproveProposal TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp 80 true
+wallet> ApproveProposal TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp 80 false
+Syntax:
+AssetIssue [owner_address] asset_name abbr_name total_supply trx_num asset_num precision start_date end_date description url free_netLimit_per_account public_free_net_limit frozen_amount0 frozen_days0 ... frozen_amountN frozen_daysN
+Summary:
+Issue an asset
+Usage example:
+wallet> AssetIssue trident-assert101 trident-abbr101 10000000000000000 1 1 6 2025-06-26 2025-06-30 description url 1000 2000 1 1 2 2 3 3
+Syntax:
+BackupWallet
+Summary:
+Backup the current wallet and provide it in the form of a private key.
+Usage example:
+wallet> BackupWallet
+Syntax:
+BackupWallet2Base64
+Summary:
+Backup the current wallet and provide it in base64 format.
+Usage example:
+wallet> BackupWallet2Base64
+Syntax:
+BroadcastTransaction transaction_hex_string
+Summary:
+This command can broadcast transactions in hex string format.
+Usage example:
+wallet> BroadcastTransaction 0a83010a02d37f2208390169b95824b981409891f085fa325a65080112610a2d747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e5472616e73666572436f6e747261637412300a15419d9c2bb5ee381a4396dd49ce42292e756b2e5e4b121541d2ff06bcde19428aaf516b6c2fe368f37f2dd5ce186470babfec85fa32
+Syntax:
+ChangePassword
+Summary:
+Change the keystore password of the Current Wallet.
+Usage example:
+wallet> ChangePassword
+Syntax:
+CreateProposal [OwnerAddress] id0 value0 id1 value1 ... idN valueN
+Summary:
+Initiate and create proposals, multiple proposals can be created simultaneously, and appended in the format of 'ProposalNumber ProposalValue'.
+Usage example:
+wallet> CreateProposal 80 1 90 1
+wallet> CreateProposal TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp 80 1 90 1
+Syntax:
+DeleteProposal [owner_address] proposal_id
+Summary:
+Delete a proposal.
+Usage example:
+wallet> DeleteProposal 80
+wallet> DeleteProposal TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp 80
+Syntax:
+DeployContract [owner_address] contractName ABI byteCode constructor params isHex fee_limit consume_user_resource_percent origin_energy_limit value token_value token_id(e.g: TRXTOKEN, use # if don't provided) <library:address,library:address,...> <lib_compiler_version(e.g:v5)>
+Summary:
+Deploy a smart contract.
+Usage example:
+wallet> DeployContract testContract [{"inputs":[],"stateMutability":"nonpayable","type":"constructor"},{"inputs":[{"internalType":"uint256","name":"_value","type":"uint256"}],"name":"addToDynamicArray","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"addr","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"balances","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"boolean","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"dynamicArray","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"dynamicString","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"x","type":"uint256"}],"name":"exampleFunction","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"pure","type":"function"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"fixedArray","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"fixedBytes","outputs":[{"internalType":"bytes32","name":"","type":"bytes32"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"payableAddr","outputs":[{"internalType":"address payable","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"person","outputs":[{"internalType":"string","name":"name","type":"string"},{"internalType":"uint256","name":"age","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"bool","name":"_boolean","type":"bool"}],"name":"setBoolean","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"enum AllTypesExample.State","name":"_state","type":"uint8"}],"name":"setState","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"signedInteger","outputs":[{"internalType":"int256","name":"","type":"int256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"state","outputs":[{"internalType":"enum AllTypesExample.State","name":"","type":"uint8"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"unsignedInteger","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"_addr","type":"address"},{"internalType":"uint256","name":"_amount","type":"uint256"}],"name":"updateBalance","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"string","name":"_name","type":"string"},{"internalType":"uint256","name":"_age","type":"uint256"}],"name":"updatePerson","outputs":[],"stateMutability":"nonpayable","type":"function"}] 5f805460ff1916600190811790915560649055606319600255600380546001600160a01b0319908116735b38da6a701c568545dcfcb03fcb875f56beddc490811790925560048054909116909117905564199a5e195960da1b60055560c0604052600760809081526664796e616d696360c81b60a052600690620000849082620002a5565b506007805460ff1916905560408051608081018252600591810191825264416c69636560d81b6060820152818152601e602082015290600e908190620000cb9082620002a5565b50602082015181600101555050348015620000e4575f80fd5b50d38015620000f1575f80fd5b50d28015620000fe575f80fd5b5060088054600181810183555f8390527ff3f7a9fe364faab93b216da50a3214154f22a0a2b415b23a84c8169e8b636ee391820181905582548082019093556002929091018290556040805160a0810182529182526020820192909252600391810191909152600460608201526005608082018190526200018291600991620001a7565b506003546001600160a01b03165f9081526010602052604090206103e890556200036d565b8260058101928215620001dd579160200282015b82811115620001dd578251829060ff16905591602001919060010190620001bb565b50620001eb929150620001ef565b5090565b5b80821115620001eb575f8155600101620001f0565b634e487b7160e01b5f52604160045260245ffd5b600181811c908216806200022e57607f821691505b6020821081036200024d57634e487b7160e01b5f52602260045260245ffd5b50919050565b601f821115620002a0575f81815260208120601f850160051c810160208610156200027b5750805b601f850160051c820191505b818110156200029c5782815560010162000287565b5050505b505050565b81516001600160401b03811115620002c157620002c162000205565b620002d981620002d2845462000219565b8462000253565b602080601f8311600181146200030f575f8415620002f75750858301515b5f19600386901b1c1916600185901b1785556200029c565b5f85815260208120601f198616915b828110156200033f578886015182559484019460019091019084016200031e565b50858210156200035d57878501515f19600388901b60f8161c191681555b5050505050600190811b01905550565b610849806200037b5f395ff3fe608060405234801561000f575f80fd5b50d3801561001b575f80fd5b50d28015610027575f80fd5b50600436106100fc575f3560e01c80632537f3551461010057806327e235e31461013057806356de96db1461015d5780635a0aa04f14610172578063767800de1461018757806377ec2b551461019a578063934bc29d146101b05780639a5009ac146101c35780639a9bdca7146101d6578063a883ba14146101e9578063c19d93fb146101fc578063c5b57bdb14610216578063c5c85fe314610232578063cef7e0de1461023b578063da5e1cfd14610244578063e0b1cccb14610286578063f8462a0f146102af578063f8d0de92146102cf575b5f80fd5b600454610113906001600160a01b031681565b6040516001600160a01b0390911681526020015b60405180910390f35b61014f61013e3660046104a1565b60106020525f908152604090205481565b604051908152602001610127565b61017061016b3660046104c1565b6102d8565b005b61017a6102ff565b6040516101279190610522565b600354610113906001600160a01b031681565b6101a261038b565b604051610127929190610534565b61014f6101be366004610555565b610421565b61014f6101d1366004610555565b610433565b61014f6101e4366004610555565b610449565b6101706101f7366004610580565b610468565b6007546102099060ff1681565b6040516101279190610642565b5f546102229060ff1681565b6040519015158152602001610127565b61014f60025481565b61014f60055481565b610170610252366004610555565b600880546001810182555f919091527ff3f7a9fe364faab93b216da50a3214154f22a0a2b415b23a84c8169e8b636ee30155565b610170610294366004610668565b6001600160a01b039091165f90815260106020526040902055565b6101706102bd366004610690565b5f805460ff1916911515919091179055565b61014f60015481565b6007805482919060ff191660018360028111156102f7576102f761062e565b021790555050565b6006805461030c906106af565b80601f0160208091040260200160405190810160405280929190818152602001828054610338906106af565b80156103835780601f1061035a57610100808354040283529160200191610383565b820191905f5260205f20905b81548152906001019060200180831161036657829003601f168201915b505050505081565b600e8054819061039a906106af565b80601f01602080910402602001604051908101604052809291908181526020018280546103c6906106af565b80156104115780601f106103e857610100808354040283529160200191610411565b820191905f5260205f20905b8154815290600101906020018083116103f457829003601f168201915b5050505050908060010154905082565b5f61042d8260026106e7565b92915050565b60098160058110610442575f80fd5b0154905081565b60088181548110610458575f80fd5b5f91825260209091200154905081565b600e6104748382610758565b50600f5550565b5f81356001600160a81b0381168114610492575f80fd5b6001600160a01b031692915050565b5f602082840312156104b1575f80fd5b6104ba8261047b565b9392505050565b5f602082840312156104d1575f80fd5b8135600381106104ba575f80fd5b5f81518084525f5b81811015610503576020818501810151868301820152016104e7565b505f602082860101526020601f19601f83011685010191505092915050565b602081525f6104ba60208301846104df565b604081525f61054660408301856104df565b90508260208301529392505050565b5f60208284031215610565575f80fd5b5035919050565b634e487b7160e01b5f52604160045260245ffd5b5f8060408385031215610591575f80fd5b82356001600160401b03808211156105a7575f80fd5b818501915085601f8301126105ba575f80fd5b8135818111156105cc576105cc61056c565b604051601f8201601f19908116603f011681019083821181831017156105f4576105f461056c565b8160405282815288602084870101111561060c575f80fd5b826020860160208301375f602093820184015298969091013596505050505050565b634e487b7160e01b5f52602160045260245ffd5b602081016003831061066257634e487b7160e01b5f52602160045260245ffd5b91905290565b5f8060408385031215610679575f80fd5b6106828361047b565b946020939093013593505050565b5f602082840312156106a0575f80fd5b813580151581146104ba575f80fd5b600181811c908216806106c357607f821691505b6020821081036106e157634e487b7160e01b5f52602260045260245ffd5b50919050565b808202811582820484141761042d57634e487b7160e01b5f52601160045260245ffd5b601f821115610753575f81815260208120601f850160051c810160208610156107305750805b601f850160051c820191505b8181101561074f5782815560010161073c565b5050505b505050565b81516001600160401b038111156107715761077161056c565b6107858161077f84546106af565b8461070a565b602080601f8311600181146107b8575f84156107a15750858301515b5f19600386901b1c1916600185901b17855561074f565b5f85815260208120601f198616915b828110156107e6578886015182559484019460019091019084016107c7565b508582101561080357878501515f19600388901b60f8161c191681555b5050505050600190811b0190555056fea26474726f6e582212201d929ead8f8e871bc0fd0bfb021a9288b515e1ba90b48a9deb7a4f99388d724b64736f6c63430008140033 # # false 1000000000 100 1000000000 0 0 #
+wallet> DeployContract TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp testContract [{"inputs":[],"stateMutability":"nonpayable","type":"constructor"},{"inputs":[{"internalType":"uint256","name":"_value","type":"uint256"}],"name":"addToDynamicArray","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"addr","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"balances","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"boolean","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"dynamicArray","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"dynamicString","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"x","type":"uint256"}],"name":"exampleFunction","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"pure","type":"function"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"fixedArray","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"fixedBytes","outputs":[{"internalType":"bytes32","name":"","type":"bytes32"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"payableAddr","outputs":[{"internalType":"address payable","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"person","outputs":[{"internalType":"string","name":"name","type":"string"},{"internalType":"uint256","name":"age","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"bool","name":"_boolean","type":"bool"}],"name":"setBoolean","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"enum AllTypesExample.State","name":"_state","type":"uint8"}],"name":"setState","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"signedInteger","outputs":[{"internalType":"int256","name":"","type":"int256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"state","outputs":[{"internalType":"enum AllTypesExample.State","name":"","type":"uint8"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"unsignedInteger","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"_addr","type":"address"},{"internalType":"uint256","name":"_amount","type":"uint256"}],"name":"updateBalance","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"string","name":"_name","type":"string"},{"internalType":"uint256","name":"_age","type":"uint256"}],"name":"updatePerson","outputs":[],"stateMutability":"nonpayable","type":"function"}] 5f805460ff1916600190811790915560649055606319600255600380546001600160a01b0319908116735b38da6a701c568545dcfcb03fcb875f56beddc490811790925560048054909116909117905564199a5e195960da1b60055560c0604052600760809081526664796e616d696360c81b60a052600690620000849082620002a5565b506007805460ff1916905560408051608081018252600591810191825264416c69636560d81b6060820152818152601e602082015290600e908190620000cb9082620002a5565b50602082015181600101555050348015620000e4575f80fd5b50d38015620000f1575f80fd5b50d28015620000fe575f80fd5b5060088054600181810183555f8390527ff3f7a9fe364faab93b216da50a3214154f22a0a2b415b23a84c8169e8b636ee391820181905582548082019093556002929091018290556040805160a0810182529182526020820192909252600391810191909152600460608201526005608082018190526200018291600991620001a7565b506003546001600160a01b03165f9081526010602052604090206103e890556200036d565b8260058101928215620001dd579160200282015b82811115620001dd578251829060ff16905591602001919060010190620001bb565b50620001eb929150620001ef565b5090565b5b80821115620001eb575f8155600101620001f0565b634e487b7160e01b5f52604160045260245ffd5b600181811c908216806200022e57607f821691505b6020821081036200024d57634e487b7160e01b5f52602260045260245ffd5b50919050565b601f821115620002a0575f81815260208120601f850160051c810160208610156200027b5750805b601f850160051c820191505b818110156200029c5782815560010162000287565b5050505b505050565b81516001600160401b03811115620002c157620002c162000205565b620002d981620002d2845462000219565b8462000253565b602080601f8311600181146200030f575f8415620002f75750858301515b5f19600386901b1c1916600185901b1785556200029c565b5f85815260208120601f198616915b828110156200033f578886015182559484019460019091019084016200031e565b50858210156200035d57878501515f19600388901b60f8161c191681555b5050505050600190811b01905550565b610849806200037b5f395ff3fe608060405234801561000f575f80fd5b50d3801561001b575f80fd5b50d28015610027575f80fd5b50600436106100fc575f3560e01c80632537f3551461010057806327e235e31461013057806356de96db1461015d5780635a0aa04f14610172578063767800de1461018757806377ec2b551461019a578063934bc29d146101b05780639a5009ac146101c35780639a9bdca7146101d6578063a883ba14146101e9578063c19d93fb146101fc578063c5b57bdb14610216578063c5c85fe314610232578063cef7e0de1461023b578063da5e1cfd14610244578063e0b1cccb14610286578063f8462a0f146102af578063f8d0de92146102cf575b5f80fd5b600454610113906001600160a01b031681565b6040516001600160a01b0390911681526020015b60405180910390f35b61014f61013e3660046104a1565b60106020525f908152604090205481565b604051908152602001610127565b61017061016b3660046104c1565b6102d8565b005b61017a6102ff565b6040516101279190610522565b600354610113906001600160a01b031681565b6101a261038b565b604051610127929190610534565b61014f6101be366004610555565b610421565b61014f6101d1366004610555565b610433565b61014f6101e4366004610555565b610449565b6101706101f7366004610580565b610468565b6007546102099060ff1681565b6040516101279190610642565b5f546102229060ff1681565b6040519015158152602001610127565b61014f60025481565b61014f60055481565b610170610252366004610555565b600880546001810182555f919091527ff3f7a9fe364faab93b216da50a3214154f22a0a2b415b23a84c8169e8b636ee30155565b610170610294366004610668565b6001600160a01b039091165f90815260106020526040902055565b6101706102bd366004610690565b5f805460ff1916911515919091179055565b61014f60015481565b6007805482919060ff191660018360028111156102f7576102f761062e565b021790555050565b6006805461030c906106af565b80601f0160208091040260200160405190810160405280929190818152602001828054610338906106af565b80156103835780601f1061035a57610100808354040283529160200191610383565b820191905f5260205f20905b81548152906001019060200180831161036657829003601f168201915b505050505081565b600e8054819061039a906106af565b80601f01602080910402602001604051908101604052809291908181526020018280546103c6906106af565b80156104115780601f106103e857610100808354040283529160200191610411565b820191905f5260205f20905b8154815290600101906020018083116103f457829003601f168201915b5050505050908060010154905082565b5f61042d8260026106e7565b92915050565b60098160058110610442575f80fd5b0154905081565b60088181548110610458575f80fd5b5f91825260209091200154905081565b600e6104748382610758565b50600f5550565b5f81356001600160a81b0381168114610492575f80fd5b6001600160a01b031692915050565b5f602082840312156104b1575f80fd5b6104ba8261047b565b9392505050565b5f602082840312156104d1575f80fd5b8135600381106104ba575f80fd5b5f81518084525f5b81811015610503576020818501810151868301820152016104e7565b505f602082860101526020601f19601f83011685010191505092915050565b602081525f6104ba60208301846104df565b604081525f61054660408301856104df565b90508260208301529392505050565b5f60208284031215610565575f80fd5b5035919050565b634e487b7160e01b5f52604160045260245ffd5b5f8060408385031215610591575f80fd5b82356001600160401b03808211156105a7575f80fd5b818501915085601f8301126105ba575f80fd5b8135818111156105cc576105cc61056c565b604051601f8201601f19908116603f011681019083821181831017156105f4576105f461056c565b8160405282815288602084870101111561060c575f80fd5b826020860160208301375f602093820184015298969091013596505050505050565b634e487b7160e01b5f52602160045260245ffd5b602081016003831061066257634e487b7160e01b5f52602160045260245ffd5b91905290565b5f8060408385031215610679575f80fd5b6106828361047b565b946020939093013593505050565b5f602082840312156106a0575f80fd5b813580151581146104ba575f80fd5b600181811c908216806106c357607f821691505b6020821081036106e157634e487b7160e01b5f52602260045260245ffd5b50919050565b808202811582820484141761042d57634e487b7160e01b5f52601160045260245ffd5b601f821115610753575f81815260208120601f850160051c810160208610156107305750805b601f850160051c820191505b8181101561074f5782815560010161073c565b5050505b505050565b81516001600160401b038111156107715761077161056c565b6107858161077f84546106af565b8461070a565b602080601f8311600181146107b8575f84156107a15750858301515b5f19600386901b1c1916600185901b17855561074f565b5f85815260208120601f198616915b828110156107e6578886015182559484019460019091019084016107c7565b508582101561080357878501515f19600388901b60f8161c191681555b5050505050600190811b0190555056fea26474726f6e582212201d929ead8f8e871bc0fd0bfb021a9288b515e1ba90b48a9deb7a4f99388d724b64736f6c63430008140033 # # false 1000000000 100 1000000000 0 0 #
+Syntax:
+ExchangeCreate [owner_address] first_token_id first_token_balance second_token_id second_token_balance
+Summary:
+Exchange create.
+Usage example:
+wallet> ExchangeCreate 1005057 20 1005416 8
+wallet> ExchangeCreate TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp 1005057 20 1005416 8
+Syntax:
+ExchangeInject [owner_address] exchange_id token_id quantity
+Summary:
+Exchange inject.
+Usage example:
+wallet> ExchangeInject 66 1005416 3
+wallet> ExchangeInject TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp 66 1005416 3
+Syntax:
+ExchangeTransaction [owner_address] exchange_id token_id quantity expected
+Summary:
+Exchange transaction.
+Usage example:
+wallet> ExchangeTransaction 68 1005057 1 3
+wallet> ExchangeTransaction TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp 68 1005057 1 3
+Syntax:
+ExchangeWithdraw [owner_address] exchange_id token_id quantity
+Summary:
+Exchange withdraw.
+Usage example:
+wallet> ExchangeWithdraw 66 1005416 3
+wallet> ExchangeWithdraw TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp 66 1005416 3
+Syntax:
+FreezeBalance [owner_address] frozen_balance frozen_duration [resource_code:0 BANDWIDTH,1 ENERGY,2 TRON_POWER] [receiver_address]
+Summary:
+Stake TRX to obtain resources(BANDWIDTH/ENERGY).
+Usage example:
+wallet> FreezeBalance 1000000 3 0
+wallet> FreezeBalance 1000000 3 1 TH48niZfbwHMyqZwEB8wmHfzcvR8ZzJKC6
+Syntax:
+GenerateAddress
+Summary:
+Randomly generate a tron address.
+Usage example:
+wallet> GenerateAddress
+Syntax:
+GetAccount address
+Summary:
+Get account details information.
+Usage example:
+wallet> GetAccount TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp
+Syntax:
+GetAccountNet address
+Summary:
+Get the bandwidth usage of the account.
+Usage example:
+wallet> GetAccountNet TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp
+Syntax:
+GetAccountResource address
+Summary:
+Get the bandwidth and energy usage of the account.
+Usage example:
+wallet> GetAccountResource TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp
+Syntax:
+GetAddress
+Summary:
+Get the address of the current account.
+Usage example:
+wallet> GetAddress
+Syntax:
+GetAssetIssueByAccount address
+Summary:
+Get its issued assets through the current account address.
+Usage example:
+wallet> GetAssetIssueByAccount TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp
+Syntax:
+GetAssetIssueById asset_id
+Summary:
+Obtain issued assets through asset ID.
+Usage example:
+wallet> GetAssetIssueById 1005470
+Syntax:
+GetAssetIssueByName asset_name
+Summary:
+Obtain issued assets through asset name.
+Usage example:
+wallet> GetAssetIssueByName trident-101
+Syntax:
+GetAssetIssueListByName asset_name
+Summary:
+Obtain the list of issued assets by asset name
+Usage example:
+wallet> GetAssetIssueListByName trident-101
+Syntax:
+GetBalance
+Summary:
+Get the current TRX balance of the account.
+Usage example:
+wallet> GetBalance
+Syntax:
+GetBlock [block_num]
+Summary:
+Get the latest block or specify the block height to obtain the block.
+Usage example:
+wallet> GetBlock
+wallet> GetBlock 58203270
+Syntax:
+GetBlockById block_id
+Summary:
+Obtain block through block hashing.
+Usage example:
+wallet> GetBlockById 0000000003781c86da06c18193d961cff84c7ecf0e8a365e2b9e8ca964b828bc
+Syntax:
+GetBlockByLatestNum number_of_latest_blocks
+Summary:
+Get the latest blocks with parameter ranges of [1,99].
+Usage example:
+wallet> GetBlockByLatestNum 1
+wallet> GetBlockByLatestNum 99
+Syntax:
+GetBlockByLimitNext start_block_number end_block_number
+Summary:
+Get the blocks between the starting and ending block numbers.
+Usage example:
+wallet> GetBlockByLimitNext 58203270 58203280
+Syntax:
+GetBrokerage address
+Summary:
+Get the brokerage ratio of a certain super representative.
+Usage example:
+wallet> GetBrokerage TEp1ru7opCexkbFM9ChK6DFfL2XFSfUo2N
+Syntax:
+GetContract contract_address
+Summary:
+Get contract details information based on the contract address.
+Usage example:
+wallet> GetContract TH8nedtU7LQcexsqDwVJqzPizX4HPejuaB
+Syntax:
+GetDelegatedResource from_address to_address
+Summary:
+Get the delegated resource relationship between two addresses.
+Usage example:
+wallet> GetDelegatedResource TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp TEp1ru7opCexkbFM9ChK6DFfL2XFSfUo2N
+Syntax:
+GetDelegatedResourceAccountIndex address
+Summary:
+Get the delegated resource account index for the address.
+Usage example:
+wallet> GetDelegatedResourceAccountIndex TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp
+Syntax:
+GetMarketOrderByAccount address
+Summary:
+Get market order through account address.
+Usage example:
+wallet> GetMarketOrderByAccount TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp
+Syntax:
+getMarketOrderById order_id
+Summary:
+Obtain market order through order id.
+Usage example:
+wallet> getMarketOrderById d8b4edbe89e07ad8b3dc0b7580a2d2e6cd564538d83f7568a315783d5e789ee3
+Syntax:
+GetMarketOrderListByPair sell_tokenId buy_tokenId
+Summary:
+Get market order through sell-tokenId and buy-tokenId.
+Usage example:
+wallet> GetMarketOrderListByPair 1000598 1000349
+Syntax:
+GetMarketPairList
+Summary:
+Get Market Pair list, sell-tokenId and buy-tokenId are a pair.
+Usage example:
+GetMarketPairList
+Syntax:
+getMarketPriceByPair sell_tokenId buy_tokenId
+Summary:
+Get market price through sell-tokenId and buy-tokenId.
+Usage example:
+wallet> getMarketPriceByPair 1000598 1000349
+wallet> getMarketPriceByPair 1000598 _
+wallet> getMarketPriceByPair _ 1000349
+Syntax:
+GetNextMaintenanceTime
+Summary:
+Get the time for the next maintenance period.
+Usage example:
+wallet> GetNextMaintenanceTime
+Syntax:
+GetProposal proposal_id
+Summary:
+Get proposal details for the specified ID.
+Usage example:
+wallet> GetProposal 80
+Syntax:
+GetReward address
+Summary:
+Get reward information for the specified address.
+Usage example:
+wallet> GetReward TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp
+Syntax:
+GetTransactionApprovedList transaction_hex_string
+Summary:
+Get the transaction approval list in hex string format.
+Usage example:
+wallet> GetTransactionApprovedList 0a83010a02d37f2208390169b95824b981409891f085fa325a65080112610a2d747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e5472616e73666572436f6e747261637412300a15419d9c2bb5ee381a4396dd49ce42292e756b2e5e4b121541d2ff06bcde19428aaf516b6c2fe368f37f2dd5ce186470babfec85fa32
+Syntax:
+GetTransactionById transaction_id
+Summary:
+Get transaction through transaction ID.
+Usage example:
+wallet> GetTransactionById b1d23d9655a5d3a0d144e774093cfc3b10c0c7d4dc95323a6e79a4f5b0723526
+Syntax:
+GetTransactionCountByBlockNum block_num
+Summary:
+Get the number of transactions through block height.
+Usage example:
+wallet> GetTransactionCountByBlockNum 58119042
+Syntax:
+GetTransactionInfoByBlockNum block_num
+Summary:
+Get transaction information through block number.
+Usage example:
+wallet> GetTransactionInfoByBlockNum 58119042
+Syntax:
+GetTransactionInfoById transaction_id
+Summary:
+Get transaction information through transaction ID.
+Usage example:
+wallet> GetTransactionInfoById b1d23d9655a5d3a0d144e774093cfc3b10c0c7d4dc95323a6e79a4f5b0723526
+Syntax:
+GetTransactionSignWeight transaction_hex_string
+Summary:
+Get transaction sign weight through hex format transaction.
+Usage example:
+wallet> GetTransactionSignWeight 0a83010a02d37f2208390169b95824b981409891f085fa325a65080112610a2d747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e5472616e73666572436f6e747261637412300a15419d9c2bb5ee381a4396dd49ce42292e756b2e5e4b121541d2ff06bcde19428aaf516b6c2fe368f37f2dd5ce186470babfec85fa32
+Syntax:
+ImportWallet
+Summary:
+Import a wallet through a private key.
+Usage example:
+wallet> ImportWallet
+Syntax:
+ImportWalletByBase64
+Summary:
+Import a wallet through base64
+Usage example:
+wallet> ImportWalletByBase64
+Syntax:
+ListAssetIssue
+Summary:
+Display a list of all issued assets.
+Usage example:
+wallet> ListAssetIssue
+Syntax:
+ListExchanges
+Summary:
+Show all exchanges.
+Usage example:
+wallet> ListExchanges
+Syntax:
+ListExchangesPaginated offset limit
+Summary:
+Display all exchanges in pagination.
+Usage example:
+wallet> ListExchangesPaginated 0 5
+Syntax:
+ListNodes
+Summary:
+Show all nodes.
+Usage example:
+wallet> ListNodes
+Syntax:
+ListProposals
+Summary:
+Display all proposals.
+Usage example:
+wallet> ListProposals
+Syntax:
+ListProposalsPaginated offset limit
+Summary:
+Display all proposals through pagination.
+Usage example:
+wallet> ListProposalsPaginated 0 5
+Syntax:
+ListWitnesses
+Summary:
+Show all witnesses.
+Usage example:
+wallet> ListWitnesses
+Syntax:
+Login
+Summary:
+Login to use wallet.
+Usage example:
+wallet> Login
+Syntax:
+MarketCancelOrder owner_address order_id
+Summary:
+Cancel market order.
+Usage example:
+wallet> MarketCancelOrder TQpb6SWxCLChged64W1MUxi2aNRjvdHbBZ d8b4edbe89e07ad8b3dc0b7580a2d2e6cd564538d83f7568a315783d5e789ee3
+Syntax:
+MarketSellAsset address sell_token_id sell_token_quantity buy_token_id buy_token_quantity
+Summary:
+Market sell asset.
+Usage example:
+wallet> MarketSellAsset TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp 1005057 20 1005416 10
+Syntax:
+ParticipateAssetIssue [owner_address] to_address asset_id amount
+Summary:
+Participate in the issuance of assets.
+Usage example:
+wallet> ParticipateAssetIssue TP4ZaSZJ3Zu8eHYPo6iJUWKf1xzHrZQpzL 1005057 1
+Syntax:
+RegisterWallet
+Summary:
+Register a new wallet.
+Usage example:
+wallet> RegisterWallet
+Syntax:
+SendCoin [owner_address] to_address amount
+Summary:
+Make a TRX transfer.
+Usage example:
+wallet> SendCoin TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp 1000000
+wallet> SendCoin TEp1ru7opCexkbFM9ChK6DFfL2XFSfUo2N TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp 1000000
+Syntax:
+TransferAsset [owner_address] to_address assert_id amount
+Summary:
+Make an asset transfer.
+Usage example:
+wallet> TransferAsset TH48niZfbwHMyqZwEB8wmHfzcvR8ZzJKC6 1005057 1
+wallet> TransferAsset TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp TH48niZfbwHMyqZwEB8wmHfzcvR8ZzJKC6 1005057 1
+Syntax:
+UnfreezeAsset [owner_address]
+Summary:
+Unfreeze asset.
+Usage example:
+wallet> UnfreezeAsset
+wallet> UnfreezeAsset TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp
+Syntax:
+UnfreezeBalance [owner_address] resource_code(0 BANDWIDTH,1 ENERGY,2 TRON_POWER) [receiver_address]
+Summary:
+Unstake TRX by Stake 1.0.
+Usage example:
+wallet> UnfreezeBalance 0
+wallet> UnfreezeBalance 0 TH48niZfbwHMyqZwEB8wmHfzcvR8ZzJKC6
+wallet> UnfreezeBalance TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp 0
+wallet> UnfreezeBalance TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp 0 TH48niZfbwHMyqZwEB8wmHfzcvR8ZzJKC6
+Syntax:
+UpdateAsset [owner_address] new_limit new_public_limit description url
+Summary:
+Update asset.
+Usage example:
+wallet> UpdateAsset 20 1 trident https://www.trident.com
+wallet> UpdateAsset TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp 20 1 trident https://www.trident.com
+Syntax:
+UpdateBrokerage [owner_address] brokerage
+Summary:
+Update SR's brokerage ratio.
+Usage example:
+wallet> UpdateBrokerage TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp 99
+Syntax:
+UpdateEnergyLimit [owner_address] contract_address energy_limit
+Summary:
+Update energy limit.
+Usage example:
+wallet> UpdateEnergyLimit TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf 10000
+wallet> UpdateEnergyLimit TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf 10000
+Syntax:
+UpdateSetting [owner_address] contract_address consume_user_resource_percent
+Summary:
+Update setting.
+Usage example:
+wallet> UpdateSetting TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf 80
+wallet> UpdateSetting TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf 80
+Syntax:
+VoteWitness [owner_address] address0 count0 ... addressN countN
+Summary:
+Vote for Witness.
+Usage example:
+wallet> VoteWitness TEp1ru7opCexkbFM9ChK6DFfL2XFSfUo2N 1 TFFLWM7tmKiwGtbh2mcz2rBssoFjHjSShG 2
+wallet> VoteWitness TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp TEp1ru7opCexkbFM9ChK6DFfL2XFSfUo2N 1 TFFLWM7tmKiwGtbh2mcz2rBssoFjHjSShG 2
+Syntax:
+FreezeBalanceV2 [owner_address] frozen_balance [resource_code:0 BANDWIDTH,1 ENERGY,2 TRON_POWER]
+Summary:
+Stake TRX with Stake 2.0 to obtain resources.
+Usage example:
+wallet> FreezeBalanceV2 1000000 0
+wallet> FreezeBalanceV2 TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp 1000000 0
+Syntax:
+UnfreezeBalanceV2 [owner_address] unfreeze_balance resource_code(0 BANDWIDTH,1 ENERGY,2 TRON_POWER)
+Summary:
+Unstake TRX with Stake 2.0 .
+Usage example:
+wallet> UnfreezeBalanceV2 1000000 0
+wallet> UnfreezeBalanceV2 TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp 1000000 0
+Syntax:
+DelegateResource [owner_address] balance resource_code(0 BANDWIDTH,1 ENERGY), receiver_address [lock] [lock_period]
+Summary:
+Delegate resources through Stake 1.0 .
+Usage example:
+wallet> DelegateResource 1000000 0 TEp1ru7opCexkbFM9ChK6DFfL2XFSfUo2N
+wallet> DelegateResource 1000000 0 TEp1ru7opCexkbFM9ChK6DFfL2XFSfUo2N true 86400
+wallet> DelegateResource TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp 1000000 0 TEp1ru7opCexkbFM9ChK6DFfL2XFSfUo2N
+wallet> DelegateResource TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp 1000000 0 TEp1ru7opCexkbFM9ChK6DFfL2XFSfUo2N true 86400
+Syntax:
+UnDelegateResource [owner_address] balance resource_code(0 BANDWIDTH,1 ENERGY) receiver_address
+Summary:
+Undelegate resources through Stake 1.0 .
+Usage example:
+wallet> UnDelegateResource 1000000 0 TEp1ru7opCexkbFM9ChK6DFfL2XFSfUo2N
+wallet> UnDelegateResource TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp 1000000 0 TEp1ru7opCexkbFM9ChK6DFfL2XFSfUo2N
+Syntax:
+WithdrawExpireUnfreeze
+Summary:
+Withdraw the balance of expired unstaking.
+Usage example:
+wallet> WithdrawExpireUnfreeze
+Syntax:
+CancelAllUnfreezeV2
+Summary:
+Cancel all unstaking operations.
+Usage example:
+wallet> CancelAllUnfreezeV2
+Syntax:
+GetDelegatedResourceV2 from_address to_address
+Summary:
+Get the delegated resource relationship between two addresses in Stake 2.0 .
+Usage example:
+wallet> GetDelegatedResourceV2 TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp TEp1ru7opCexkbFM9ChK6DFfL2XFSfUo2N
+Syntax:
+GetDelegatedResourceAccountIndexV2 owner_address
+Summary:
+Get the delegated resource account index for the address in Stake 2.0 .
+Usage example:
+GetDelegatedResourceAccountIndexV2 TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp
+Syntax:
+GetCanDelegatedMaxSize owner_address resource_code(0 BANDWIDTH,1 ENERGY)
+Summary:
+Get the maximum amount of resources that can be delegated.
+Usage example:
+wallet> GetCanDelegatedMaxSize TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp 0
+Syntax:
+GetAvailableUnfreezeCount owner_address
+Summary:
+Get the available number of unstaking times.
+Usage example:
+wallet> GetAvailableUnfreezeCount TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp
+Syntax:
+GetCanWithdrawUnfreezeAmount owner_address timestamp
+Summary:
+Get the withdrawable unstaking amount.
+Usage example:
+wallet> GetCanWithdrawUnfreezeAmount TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp 1751008980405
+Syntax:
+GetBandwidthPrices
+Summary:
+Get on chain bandwidth prices.
+Usage example:
+wallet> GetBandwidthPrices
+Syntax:
+GetEnergyPrices
+Summary:
+Get on chain energy prices.
+Usage example:
+wallet> GetEnergyPrices
+Syntax:
+GetMemoFee
+Summary:
+Get memo fee.
+Usage example:
+wallet> GetMemoFee
+Syntax:
+ImportWalletByMnemonic
+Summary:
+Import wallet through mnemonic words.
+Usage example:
+wallet> ImportWalletByMnemonic
+Syntax:
+ExportWalletMnemonic
+Summary:
+Export wallet mnemonic words.
+Usage example:
+wallet> ExportWalletMnemonic
+Syntax:
+GenerateSubAccount
+Summary:
+Generate sub accounts through mnemonic words, note: Ledger does not support this operation.
+Usage example:
+wallet> GenerateSubAccount
+Syntax:
+ClearWalletKeystore
+Summary:
+Delete the keystore and mnemonic words for the current login wallet address.
+Usage example:
+wallet> ClearWalletKeystore
+Syntax:
+ExportWalletKeystore tronlink file_path
+Summary:
+Export the Keystore file in Tronlink format.
+Usage example:
+wallet> ExportWalletKeystore tronlink /tmp
+Syntax:
+ImportWalletByKeystore tronlink keystore_path
+Summary:
+Import wallet through Tronlink formatted Keystore file.
+Usage example:
+wallet> ImportWalletByKeystore tronlink tronlink-export-keystore.json
+Syntax:
+ImportWalletByLedger
+Summary:
+Import wallet through Ledger.
+Usage example:
+wallet> ImportWalletByLedger
+Syntax:
+LoginAll
+Summary:
+Use this command to manage multiple wallets with one password.
+Usage example:
+wallet> LoginAll
+Syntax:
+Lock
+Summary:
+Lock the current wallet account.Transactions and signatures are not available in locked state.
+Usage example:
+wallet> Lock
+Syntax:
+Unlock
+Summary:
+Unlock the current account wallet.
+Usage example:
+wallet> Unlock
+Syntax:
+ResetWallet
+Summary:
+Delete all keystone files and mnemonics, i.e. reset the wallet.
+Usage example:
+wallet> ResetWallet
+Syntax:
+CreateAccount address
+Summary:
+Creating an account, which means activating the wallet address.
+Usage example:
+wallet> CreateAccount TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp
+Syntax:
+SwitchWallet
+Summary:
+Used in conjunction with loginall, you can switch wallet accounts at any time after logging in.
+Usage example:
+wallet> SwitchWallet
+Syntax:
+SwitchNetwork [netType / fullnode_end_point soliditynode_end_point]
+Summary:
+You can choose or input the network type or fullnode_ded_point soliditynode_ded_point for network switching.
+Usage example:
+wallet> SwitchNetwork
+wallet> SwitchNetwork nile
+wallet> SwitchNetwork grpc.nile.trongrid.io:50051 grpc.nile.trongrid.io:50061
+Syntax:
+CurrentNetwork
+Summary:
+Check what network is currently in use.
+Usage example:
+wallet> CurrentNetwork
+Syntax:
+GasFreeInfo [owner_address]
+Summary:
+Get gasfree information for the specified address.
+Usage example:
+wallet> GasFreeInfo
+wallet> GasFreeInfo TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp
+Syntax:
+GasFreeTransfer to_address amount
+Summary:
+Make a gasfree transfer.
+Usage example:
+wallet> GasFreeTransfer TEkj3ndMVEmFLYaFrATMwMjBRZ1EAZkucT 100000
+Syntax:
+GasFreeTrace trace_id
+Summary:
+View gasfree transfer information through trace ID.
+Usage example:
+wallet> GasFreeTrace 6c3ff67e-0bf4-4c09-91ca-0c7c254b01a0

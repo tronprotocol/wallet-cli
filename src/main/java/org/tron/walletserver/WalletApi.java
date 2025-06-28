@@ -1500,6 +1500,9 @@ public class WalletApi {
   }
 
   public static String encode58Check(byte[] input) {
+    if (ArrayUtils.isEmpty(input)) {
+      return EMPTY;
+    }
     byte[] hash0 = Sha256Sm3Hash.hash(input);
     byte[] hash1 = Sha256Sm3Hash.hash(hash0);
     byte[] inputCheck = new byte[input.length + 4];

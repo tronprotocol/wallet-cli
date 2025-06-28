@@ -6,7 +6,7 @@ import static org.tron.common.utils.ByteArray.toHexString;
 import static org.tron.keystore.StringUtils.byte2String;
 import static org.tron.trident.core.NodeType.FULL_NODE;
 import static org.tron.trident.core.NodeType.SOLIDITY_NODE;
-import static org.tron.trident.core.utils.Utils.encode58Check;
+import static org.tron.walletserver.WalletApi.encode58Check;
 
 import java.util.HashMap;
 import java.util.List;

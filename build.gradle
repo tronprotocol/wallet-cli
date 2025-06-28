@@ -1,3 +1,23 @@
+buildscript {
+    repositories {
+        mavenLocal()
+        maven {
+            url "https://cdn.lfrs.sl/repository.liferay.com/nexus/content/groups/public"
+        }
+        mavenCentral()
+    }
+
+    dependencies {
+//        classpath 'com.github.jengelman.gradle.plugins:shadow:6.1.0'
+        classpath 'com.google.protobuf:protobuf-gradle-plugin:0.8.18'
+        classpath "com.github.node-gradle:gradle-node-plugin:7.1.0"
+    }
+}
+
+plugins {
+    id 'com.github.johnrengelman.shadow' version '7.1.2'
+}
+
 group 'Tron'
 version '1.0-SNAPSHOT'
 
@@ -37,23 +57,6 @@ sourceSets {
         }
     }
 }
-
-buildscript {
-    repositories {
-        mavenLocal()
-        maven {
-            url "https://cdn.lfrs.sl/repository.liferay.com/nexus/content/groups/public"
-        }
-        mavenCentral()
-    }
-
-    dependencies {
-        classpath 'com.github.jengelman.gradle.plugins:shadow:5.2.0'
-        classpath 'com.google.protobuf:protobuf-gradle-plugin:0.8.12'
-        classpath "gradle.plugin.com.liferay:gradle-plugins-node:7.0.2"
-    }
-}
-
 
 dependencies {
     implementation group: 'junit', name: 'junit', version: '4.13.2'
