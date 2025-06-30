@@ -16,6 +16,7 @@
 package org.tron.common.utils;
 
 import com.google.protobuf.ByteString;
+import com.google.protobuf.InvalidProtocolBufferException;
 import java.security.SignatureException;
 import java.util.Arrays;
 import java.util.List;
@@ -47,6 +48,7 @@ import org.tron.protos.contract.SmartContractOuterClass.TriggerSmartContract;
 import org.tron.protos.contract.VoteAssetContractOuterClass.VoteAssetContract;
 import org.tron.protos.contract.WitnessContract.VoteWitnessContract;
 import org.tron.protos.contract.WitnessContract.WitnessCreateContract;
+import org.tron.trident.proto.Chain;
 
 public class TransactionUtils {
 
@@ -63,7 +65,7 @@ public class TransactionUtils {
     return Sha256Sm3Hash.hash(tmp.build().toByteArray());
   }
 
-  public static Sha256Hash getTransactionId(Transaction transaction) {
+  public static Sha256Hash getTransactionId(Chain.Transaction transaction) {
     return Sha256Hash.of(true, transaction.getRawData().toByteArray());
   }
 
@@ -326,6 +328,12 @@ public class TransactionUtils {
     return true;
   }
 
+  public static Chain.Transaction sign(Chain.Transaction transaction, SignInterface myKey)
+      throws InvalidProtocolBufferException {
+    return Chain.Transaction.parseFrom(
+        sign(Transaction.parseFrom(transaction.toByteArray()), myKey).toByteArray());
+  }
+
   public static Transaction sign(Transaction transaction, SignInterface myKey) {
     Transaction.Builder transactionBuilderSigned = transaction.toBuilder();
     byte[] hash = Sha256Sm3Hash.hash(transaction.getRawData().toByteArray());
@@ -339,24 +347,40 @@ public class TransactionUtils {
   public static Transaction setTimestamp(Transaction transaction) {
     long currentTime = System.currentTimeMillis(); // *1000000 + System.nanoTime()%1000000;
     Transaction.Builder builder = transaction.toBuilder();
-    org.tron.protos.Protocol.Transaction.raw.Builder rowBuilder =
+    Transaction.raw.Builder rowBuilder =
         transaction.getRawData().toBuilder();
     rowBuilder.setTimestamp(currentTime);
     builder.setRawData(rowBuilder.build());
     return builder.build();
   }
 
-  public static Transaction setExpirationTime(Transaction transaction) {
+  public static Chain.Transaction setTimestamp(Chain.Transaction transaction) {
+    long currentTime = System.currentTimeMillis(); // *1000000 + System.nanoTime()%1000000;
+    Chain.Transaction.Builder builder = transaction.toBuilder();
+    Chain.Transaction.raw.Builder rowBuilder =
+        transaction.getRawData().toBuilder();
+    rowBuilder.setTimestamp(currentTime);
+    builder.setRawData(rowBuilder.build());
+    return builder.build();
+  }
+
+  public static Chain.Transaction setExpirationTime(Chain.Transaction transaction) {
     if (transaction.getSignatureCount() == 0) {
       long expirationTime = System.currentTimeMillis() + 6 * 60 * 60 * 1000;
-      Transaction.Builder builder = transaction.toBuilder();
-      org.tron.protos.Protocol.Transaction.raw.Builder rowBuilder =
+      Chain.Transaction.Builder builder = transaction.toBuilder();
+      Chain.Transaction.raw.Builder rowBuilder =
           transaction.getRawData().toBuilder();
       rowBuilder.setExpiration(expirationTime);
       builder.setRawData(rowBuilder.build());
       return builder.build();
     }
     return transaction;
+  }
+
+  public static Chain.Transaction setPermissionId(Chain.Transaction transaction, String tipString)
+      throws CancelException, InvalidProtocolBufferException {
+    return Chain.Transaction.parseFrom(
+        setPermissionId(Transaction.parseFrom(transaction.toByteArray()), tipString).toByteArray());
   }
 
   public static Transaction setPermissionId(Transaction transaction, String tipString)

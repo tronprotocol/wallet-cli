@@ -1,6 +1,8 @@
 package org.tron.walletserver;
 
 import static com.google.common.collect.Lists.newArrayList;
+import static org.apache.commons.lang3.StringUtils.EMPTY;
+import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.tron.common.enums.NetType.CUSTOM;
 import static org.tron.common.enums.NetType.MAIN;
 import static org.tron.common.enums.NetType.NILE;
@@ -9,13 +11,19 @@ import static org.tron.common.utils.Base58.encode;
 import static org.tron.common.utils.Utils.LOCK_WARNING;
 import static org.tron.common.utils.Utils.blueBoldHighlight;
 import static org.tron.common.utils.Utils.failedHighlight;
+import static org.tron.common.utils.Utils.getNode;
 import static org.tron.common.utils.Utils.greenBoldHighlight;
 import static org.tron.common.utils.Utils.inputPassword;
+import static org.tron.common.utils.Utils.redBoldHighlight;
+import static org.tron.core.config.Parameter.CommonConstant.ADD_PRE_FIX_BYTE_MAINNET;
+import static org.tron.core.config.Parameter.CommonConstant.ADD_PRE_FIX_BYTE_TESTNET;
 import static org.tron.keystore.StringUtils.char2Byte;
+import static org.tron.keystore.Wallet.decrypt2PrivateBytes;
 import static org.tron.keystore.Wallet.validPassword;
 import static org.tron.keystore.WalletUtils.show;
 import static org.tron.walletcli.WalletApiWrapper.getLedgerPath;
 
+import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.google.gson.JsonArray;
@@ -27,7 +35,6 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigObject;
 import io.grpc.Status;
-
 import java.io.File;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
@@ -36,7 +43,7 @@ import java.nio.file.Paths;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Comparator;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -49,10 +56,8 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
 import lombok.Getter;
 import lombok.Setter;
-
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -60,20 +65,12 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.bouncycastle.util.encoders.Hex;
 import org.hid4java.HidDevice;
 import org.tron.api.GrpcAPI;
-import org.tron.api.GrpcAPI.AccountNetMessage;
-import org.tron.api.GrpcAPI.AccountResourceMessage;
-import org.tron.api.GrpcAPI.AssetIssueList;
-import org.tron.api.GrpcAPI.BlockExtention;
 import org.tron.api.GrpcAPI.BlockList;
-import org.tron.api.GrpcAPI.BlockListExtention;
 import org.tron.api.GrpcAPI.BytesMessage;
 import org.tron.api.GrpcAPI.DecryptNotes;
 import org.tron.api.GrpcAPI.DecryptNotesMarked;
 import org.tron.api.GrpcAPI.DecryptNotesTRC20;
-import org.tron.api.GrpcAPI.DelegatedResourceList;
 import org.tron.api.GrpcAPI.DiversifierMessage;
-import org.tron.api.GrpcAPI.EstimateEnergyMessage;
-import org.tron.api.GrpcAPI.ExchangeList;
 import org.tron.api.GrpcAPI.ExpandedSpendingKeyMessage;
 import org.tron.api.GrpcAPI.IncomingViewingKeyDiversifierMessage;
 import org.tron.api.GrpcAPI.IncomingViewingKeyMessage;
@@ -82,32 +79,25 @@ import org.tron.api.GrpcAPI.IvkDecryptParameters;
 import org.tron.api.GrpcAPI.IvkDecryptTRC20Parameters;
 import org.tron.api.GrpcAPI.NfParameters;
 import org.tron.api.GrpcAPI.NfTRC20Parameters;
-import org.tron.api.GrpcAPI.NodeList;
 import org.tron.api.GrpcAPI.NoteParameters;
 import org.tron.api.GrpcAPI.NullifierResult;
 import org.tron.api.GrpcAPI.OvkDecryptParameters;
 import org.tron.api.GrpcAPI.OvkDecryptTRC20Parameters;
 import org.tron.api.GrpcAPI.PaymentAddressMessage;
-import org.tron.api.GrpcAPI.PricesResponseMessage;
 import org.tron.api.GrpcAPI.PrivateParameters;
 import org.tron.api.GrpcAPI.PrivateParametersWithoutAsk;
 import org.tron.api.GrpcAPI.PrivateShieldedTRC20Parameters;
 import org.tron.api.GrpcAPI.PrivateShieldedTRC20ParametersWithoutAsk;
-import org.tron.api.GrpcAPI.ProposalList;
 import org.tron.api.GrpcAPI.Return;
 import org.tron.api.GrpcAPI.ShieldedTRC20Parameters;
 import org.tron.api.GrpcAPI.ShieldedTRC20TriggerContractParameters;
 import org.tron.api.GrpcAPI.SpendAuthSigParameters;
 import org.tron.api.GrpcAPI.SpendResult;
-import org.tron.api.GrpcAPI.TransactionApprovedList;
-import org.tron.api.GrpcAPI.TransactionExtention;
-import org.tron.api.GrpcAPI.TransactionInfoList;
 import org.tron.api.GrpcAPI.TransactionList;
 import org.tron.api.GrpcAPI.TransactionListExtention;
 import org.tron.api.GrpcAPI.TransactionSignWeight;
 import org.tron.api.GrpcAPI.TransactionSignWeight.Result.response_code;
 import org.tron.api.GrpcAPI.ViewingKeyMessage;
-import org.tron.api.GrpcAPI.WitnessList;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.Hash;
 import org.tron.common.crypto.Sha256Sm3Hash;
@@ -127,6 +117,9 @@ import org.tron.core.exception.CipherException;
 import org.tron.keystore.CheckStrength;
 import org.tron.keystore.ClearWalletUtils;
 import org.tron.keystore.Credentials;
+import org.tron.keystore.Wallet;
+import org.tron.keystore.WalletFile;
+import org.tron.keystore.WalletUtils;
 import org.tron.ledger.LedgerFileUtil;
 import org.tron.ledger.LedgerSignUtil;
 import org.tron.ledger.TronLedgerGetAddress;
@@ -136,31 +129,12 @@ import org.tron.ledger.wrapper.LedgerSignResult;
 import org.tron.mnemonic.Mnemonic;
 import org.tron.mnemonic.MnemonicFile;
 import org.tron.mnemonic.MnemonicUtils;
-import org.tron.keystore.Wallet;
-import org.tron.keystore.WalletFile;
-import org.tron.keystore.WalletUtils;
 import org.tron.protos.Protocol;
-import org.tron.protos.Protocol.Account;
-import org.tron.protos.Protocol.Block;
-import org.tron.protos.Protocol.ChainParameters;
-import org.tron.protos.Protocol.Exchange;
-import org.tron.protos.Protocol.Key;
-import org.tron.protos.Protocol.MarketOrder;
-import org.tron.protos.Protocol.MarketOrderList;
-import org.tron.protos.Protocol.MarketOrderPairList;
-import org.tron.protos.Protocol.MarketPriceList;
-import org.tron.protos.Protocol.Permission;
-import org.tron.protos.Protocol.Proposal;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.Transaction.Contract.ContractType;
-import org.tron.protos.Protocol.Transaction.Result;
-import org.tron.protos.Protocol.TransactionInfo;
-import org.tron.protos.Protocol.Witness;
 import org.tron.protos.contract.AccountContract.AccountCreateContract;
-import org.tron.protos.contract.AccountContract.AccountPermissionUpdateContract;
 import org.tron.protos.contract.AccountContract.AccountUpdateContract;
 import org.tron.protos.contract.AccountContract.SetAccountIdContract;
-import org.tron.protos.contract.AssetIssueContractOuterClass.AssetIssueContract;
 import org.tron.protos.contract.AssetIssueContractOuterClass.ParticipateAssetIssueContract;
 import org.tron.protos.contract.AssetIssueContractOuterClass.TransferAssetContract;
 import org.tron.protos.contract.AssetIssueContractOuterClass.UnfreezeAssetContract;
@@ -175,8 +149,6 @@ import org.tron.protos.contract.ExchangeContract.ExchangeCreateContract;
 import org.tron.protos.contract.ExchangeContract.ExchangeInjectContract;
 import org.tron.protos.contract.ExchangeContract.ExchangeTransactionContract;
 import org.tron.protos.contract.ExchangeContract.ExchangeWithdrawContract;
-import org.tron.protos.contract.MarketContract.MarketCancelOrderContract;
-import org.tron.protos.contract.MarketContract.MarketSellAssetContract;
 import org.tron.protos.contract.ProposalContract.ProposalApproveContract;
 import org.tron.protos.contract.ProposalContract.ProposalCreateContract;
 import org.tron.protos.contract.ProposalContract.ProposalDeleteContract;
@@ -187,7 +159,6 @@ import org.tron.protos.contract.ShieldContract.SpendDescription;
 import org.tron.protos.contract.SmartContractOuterClass.ClearABIContract;
 import org.tron.protos.contract.SmartContractOuterClass.CreateSmartContract;
 import org.tron.protos.contract.SmartContractOuterClass.SmartContract;
-import org.tron.protos.contract.SmartContractOuterClass.SmartContractDataWrapper;
 import org.tron.protos.contract.SmartContractOuterClass.TriggerSmartContract;
 import org.tron.protos.contract.SmartContractOuterClass.UpdateEnergyLimitContract;
 import org.tron.protos.contract.SmartContractOuterClass.UpdateSettingContract;
@@ -198,6 +169,11 @@ import org.tron.protos.contract.StorageContract.UpdateBrokerageContract;
 import org.tron.protos.contract.WitnessContract.VoteWitnessContract;
 import org.tron.protos.contract.WitnessContract.WitnessCreateContract;
 import org.tron.protos.contract.WitnessContract.WitnessUpdateContract;
+import org.tron.trident.core.exceptions.IllegalException;
+import org.tron.trident.proto.Chain;
+import org.tron.trident.proto.Common;
+import org.tron.trident.proto.Contract;
+import org.tron.trident.proto.Response;
 
 @Slf4j
 public class WalletApi {
@@ -207,7 +183,7 @@ public class WalletApi {
   private List<WalletFile> walletFile = new ArrayList<>();
   private boolean loginState = false;
   private byte[] address;
-  private static byte addressPreFixByte = CommonConstant.ADD_PRE_FIX_BYTE_TESTNET;
+  private static byte addressPreFixByte = ADD_PRE_FIX_BYTE_TESTNET;
   private static int rpcVersion = 0;
   private static boolean lockAccount;
   private static boolean isEckey = true;
@@ -225,22 +201,76 @@ public class WalletApi {
   private byte[] unifiedPassword;
   @Getter
   @Setter
+  private byte[] pwdForDeploy;
+  @Getter
+  @Setter
   private List<WalletFile> walletList = new ArrayList<>();
-
   private static GrpcClient rpcCli = init();
+  @Getter
+  @Setter
+  private static ApiClient apiCli = initApiCli();
   @Getter
   @Setter
   private static NetType currentNetwork;
   @Getter
   @Setter
-  private static Pair<String, String> customNodes;
+  private static Pair<Pair<String, Boolean>, Pair<String, Boolean>> customNodes;
 
   private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
   private ScheduledFuture<?> autoLockFuture;
 
-  public static void updateRpcCli(GrpcClient client) throws InterruptedException {
-    rpcCli.shutdown();
-    rpcCli = client;
+  public static void updateRpcCli(ApiClient client) throws InterruptedException {
+//    rpcCli.shutdown();
+//    rpcCli = client;
+    apiCli.close();
+    apiCli = client;
+  }
+
+  public static ApiClient initApiCli() {
+    Config config = Configuration.getByPath("config.conf");
+
+    String fullNode = getNode(config, "fullnode.ip.list");
+    String solidityNode = getNode(config, "soliditynode.ip.list");
+    if (isEmpty(fullNode) && isEmpty(solidityNode)) {
+      throw new IllegalArgumentException(redBoldHighlight("fullnode.ip.lit") + " and " + redBoldHighlight("fullnode.ip.lit") + " cannot both be empty in config.conf.");
+    }
+    boolean isFullnodeEmpty = false;
+    boolean isSoliditynodeEmpty = false;
+    if (isEmpty(fullNode) && !isEmpty(solidityNode)) {
+      fullNode = solidityNode;
+      isFullnodeEmpty = true;
+    } else if (!isEmpty(fullNode) && isEmpty(solidityNode)) {
+      solidityNode = fullNode;
+      isSoliditynodeEmpty = true;
+    }
+    if (config.hasPath("net.type") && "mainnet".equalsIgnoreCase(config.getString("net.type"))) {
+      WalletApi.setAddressPreFixByte(ADD_PRE_FIX_BYTE_MAINNET);
+    } else {
+      WalletApi.setAddressPreFixByte(ADD_PRE_FIX_BYTE_TESTNET);
+    }
+    if (config.hasPath("crypto.engine")) {
+      isEckey = config.getString("crypto.engine").equalsIgnoreCase("eckey");
+      System.out.println("WalletApi getConfig isEckey: " + isEckey);
+    }
+    if (config.hasPath("lockAccount")) {
+      lockAccount = config.getBoolean("lockAccount");
+      System.out.println("WalletApi lockAccount : " + lockAccount);
+    }
+    if (StringUtils.isNotEmpty(fullNode) || StringUtils.isNotEmpty(solidityNode)) {
+      if (fullNode.equals(NILE.getGrpc().getFullNode()) && solidityNode.equals(NILE.getGrpc().getSolidityNode())) {
+        currentNetwork = NILE;
+      } else if (fullNode.equals(SHASTA.getGrpc().getFullNode()) && solidityNode.equals(SHASTA.getGrpc().getSolidityNode())) {
+        currentNetwork = SHASTA;
+      } else if (fullNode.equals(MAIN.getGrpc().getFullNode()) && solidityNode.equals(MAIN.getGrpc().getSolidityNode())) {
+        currentNetwork = MAIN;
+      } else {
+        currentNetwork = CUSTOM;
+      }
+    } else {
+      System.out.println("The config.conf configuration is invalid. " + greenBoldHighlight("fullnode.ip.lit") + " and " + greenBoldHighlight("fullnode.ip.lit") + " cannot both be empty at the same time.");
+    }
+    WalletApi.setCustomNodes(Pair.of(Pair.of(fullNode, isFullnodeEmpty), Pair.of(solidityNode, isSoliditynodeEmpty)));
+    return new ApiClient(fullNode, solidityNode, isFullnodeEmpty, isSoliditynodeEmpty);
   }
 
   public static GrpcClient init() {
@@ -278,7 +308,7 @@ public class WalletApi {
       System.out.println("WalletApi lockAccount : " + lockAccount);
     }
     if (StringUtils.isNotEmpty(fullNode) || StringUtils.isNotEmpty(solidityNode)) {
-      if (fullNode.equals(NILE.getGrpc().getFullNode()) && solidityNode.equals(NILE.getGrpc().getSolidityNode())){
+      if (fullNode.equals(NILE.getGrpc().getFullNode()) && solidityNode.equals(NILE.getGrpc().getSolidityNode())) {
         currentNetwork = NILE;
       } else if (fullNode.equals(SHASTA.getGrpc().getFullNode()) && solidityNode.equals(SHASTA.getGrpc().getSolidityNode())) {
         currentNetwork = SHASTA;
@@ -288,9 +318,9 @@ public class WalletApi {
         currentNetwork = CUSTOM;
       }
     } else {
-      System.out.println("The config.conf configuration is invalid. fullnode.ip.lit and soliditynode.ip.list cannot both be empty at the same time.");
+      System.out.println("The config.conf configuration is invalid. " + redBoldHighlight("fullnode.ip.lit") + " and " + redBoldHighlight("fullnode.ip.lit") + " cannot both be empty at the same time.");
     }
-    WalletApi.setCustomNodes(Pair.of(fullNode, solidityNode));
+    WalletApi.setCustomNodes(Pair.of(Pair.of(fullNode, null), Pair.of(solidityNode, null)));
     return new GrpcClient(fullNode, solidityNode);
   }
 
@@ -298,19 +328,20 @@ public class WalletApi {
     Map<String, String> witnessMap = new HashMap<>();
     Config config = Configuration.getByPath("config.conf");
     List list = config.getObjectList("witnesses.witnessList");
-    for (int i = 0; i < list.size(); i++) {
-      ConfigObject obj = (ConfigObject) list.get(i);
+    for (Object o : list) {
+      ConfigObject obj = (ConfigObject) o;
       String ip = obj.get("ip").unwrapped().toString();
       String url = obj.get("url").unwrapped().toString();
       witnessMap.put(url, ip);
     }
 
-    Optional<WitnessList> result = rpcCli.listWitnesses();
+//    Optional<WitnessList> result = rpcCli.listWitnesses();
+    Response.WitnessList witnesses = apiCli.listWitnesses();
     long minMissedNum = 100000000L;
     String minMissedWitness = "";
-    if (result.isPresent()) {
-      List<Witness> witnessList = result.get().getWitnessesList();
-      for (Witness witness : witnessList) {
+    if (witnesses != null) {
+      List<Response.Witness> witnessList = witnesses.getWitnessesList();
+      for (Response.Witness witness : witnessList) {
         String url = witness.getUrl();
         long missedBlocks = witness.getTotalMissed();
         if (missedBlocks < minMissedNum) {
@@ -319,11 +350,7 @@ public class WalletApi {
         }
       }
     }
-    if (witnessMap.containsKey(minMissedWitness)) {
-      return witnessMap.get(minMissedWitness);
-    } else {
-      return "";
-    }
+    return witnessMap.getOrDefault(minMissedWitness, "");
   }
 
   public static byte getAddressPreFixByte() {
@@ -370,7 +397,7 @@ public class WalletApi {
 
   public static WalletFile CreateLedgerWalletFile(byte[] password, String address, String path)
       throws CipherException {
-      return Wallet.createStandardLedger(password, address, path);
+    return Wallet.createStandardLedger(password, address, path);
   }
 
   public static void storeMnemonicWords(byte[] password, SignInterface ecKeySm2Pair, List<String> mnemonicWords) throws CipherException, IOException {
@@ -446,7 +473,7 @@ public class WalletApi {
   }
 
   public byte[] getPrivateBytes(byte[] password) throws CipherException, IOException {
-    return Wallet.decrypt2PrivateBytes(password, loadWalletFile());
+    return decrypt2PrivateBytes(password, loadWalletFile());
   }
 
   public String exportKeystore(String walletChannel, File exportFullDir) throws IOException {
@@ -696,7 +723,7 @@ public class WalletApi {
         break;
       }
     } else {
-      wf =  walletFileList.get(0);
+      wf = walletFileList.get(0);
     }
     return wf;
   }
@@ -746,16 +773,16 @@ public class WalletApi {
     return new WalletApi(walletFile);
   }
 
-  public Account queryAccount() {
+  public Response.Account queryAccount() {
     return queryAccount(getAddress());
   }
 
-  public static Account queryAccount(byte[] address) {
-    return rpcCli.queryAccount(address); // call rpc
+  public static Response.Account queryAccount(byte[] address) {
+    return apiCli.queryAccount(address); // call rpc
   }
 
-  public static Account queryAccountById(String accountId) {
-    return rpcCli.queryAccountById(accountId);
+  public static Response.Account queryAccountById(String accountId) {
+    return apiCli.queryAccountById(accountId);
   }
 
   private boolean confirm() {
@@ -770,11 +797,12 @@ public class WalletApi {
       }
     }
   }
+
   public boolean isUnifiedExist() {
-    return isLoginState() && ArrayUtils.isNotEmpty(getUnifiedPassword()) ;
+    return isLoginState() && ArrayUtils.isNotEmpty(getUnifiedPassword());
   }
 
-  private Transaction signTransaction(Transaction transaction)
+  private Chain.Transaction signTransaction(Chain.Transaction transaction)
       throws CipherException, IOException, CancelException {
     if (!isUnlocked()) {
       throw new IllegalStateException(LOCK_WARNING);
@@ -804,8 +832,8 @@ public class WalletApi {
         boolean result = LedgerSignUtil.requestLedgerSignLogic(transaction, ledgerPath, wf.getAddress(), false);
         if (result) {
           transaction = TransactionSignManager.getInstance().getTransaction();
-          TransactionSignWeight weight = getTransactionSignWeight(transaction);
-          if (weight.getResult().getCode() == response_code.ENOUGH_PERMISSION) {
+          Response.TransactionSignWeight weight = getTransactionSignWeight(transaction);
+          if (weight.getResult().getCode() == Response.TransactionSignWeight.Result.response_code.ENOUGH_PERMISSION) {
             TransactionSignManager.getInstance().setTransaction(null);
             return transaction;
           }
@@ -816,7 +844,7 @@ public class WalletApi {
           }
           Optional<String> state = LedgerSignResult.getLastTransactionState(hidDevice.getPath());
           boolean confirmed = state.isPresent() && LedgerSignResult.SIGN_RESULT_SUCCESS.equals(state.get());
-          if (weight.getResult().getCode() == response_code.NOT_ENOUGH_PERMISSION && confirmed) {
+          if (weight.getResult().getCode() == Response.TransactionSignWeight.Result.response_code.NOT_ENOUGH_PERMISSION && confirmed) {
             System.out.println("Current signWeight is:");
             System.out.println(Utils.printTransactionSignWeight(weight));
             System.out.println("Please confirm if continue add signature enter " + greenBoldHighlight("y/Y") + ", else any other");
@@ -839,11 +867,11 @@ public class WalletApi {
         } else {
           transaction = TransactionUtils.sign(transaction, this.getSM2(wf, passwd));
         }
-        TransactionSignWeight weight = getTransactionSignWeight(transaction);
-        if (weight.getResult().getCode() == response_code.ENOUGH_PERMISSION) {
+        Response.TransactionSignWeight weight = getTransactionSignWeight(transaction);
+        if (weight.getResult().getCode() == Response.TransactionSignWeight.Result.response_code.ENOUGH_PERMISSION) {
           break;
         }
-        if (weight.getResult().getCode() == response_code.NOT_ENOUGH_PERMISSION) {
+        if (weight.getResult().getCode() == Response.TransactionSignWeight.Result.response_code.NOT_ENOUGH_PERMISSION) {
           System.out.println("Current signWeight is:");
           System.out.println(Utils.printTransactionSignWeight(weight));
           System.out.println("Please confirm if continue add signature enter " + greenBoldHighlight("y/Y") + ", else any other");
@@ -859,7 +887,7 @@ public class WalletApi {
     return transaction;
   }
 
-  private Transaction signOnlyForShieldedTransaction(Transaction transaction)
+  private Transaction signOnlyForShieldedTransaction(Protocol.Transaction transaction)
       throws CipherException, IOException, CancelException {
     if (!isUnlocked()) {
       throw new IllegalStateException(LOCK_WARNING);
@@ -903,25 +931,29 @@ public class WalletApi {
     return transaction;
   }
 
-  private boolean processTransactionExtention(TransactionExtention transactionExtention)
+  private boolean processTransactionExtention(GrpcAPI.TransactionExtention transactionExtention)
+      throws IOException, CipherException, CancelException {
+    return processTransactionExtention(Response.TransactionExtention.parseFrom(transactionExtention.toByteArray()));
+  }
+
+  private boolean processTransactionExtention(Response.TransactionExtention transactionExtention)
       throws IOException, CipherException, CancelException {
     if (transactionExtention == null) {
       return false;
     }
-    Return ret = transactionExtention.getResult();
+    Response.TransactionReturn ret = transactionExtention.getResult();
     if (!ret.getResult()) {
       System.out.println("Code = " + ret.getCode());
       System.out.println("Message = " + ret.getMessage().toStringUtf8());
       return false;
     }
-    Transaction transaction = transactionExtention.getTransaction();
-    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
+    Chain.Transaction transaction = transactionExtention.getTransaction();
+    if (transaction.getRawData().getContractCount() == 0) {
       System.out.println("Transaction is empty");
       return false;
     }
-
     if (transaction.getRawData().getContract(0).getType()
-        == ContractType.ShieldedTransferContract) {
+        == Chain.Transaction.Contract.ContractType.ShieldedTransferContract) {
       return false;
     }
 
@@ -933,17 +965,17 @@ public class WalletApi {
       return false;
     }
     showTransactionAfterSign(transaction);
-    return rpcCli.broadcastTransaction(transaction);
+    return apiCli.broadcastTransaction(transaction);
   }
 
-  private void showTransactionAfterSign(Transaction transaction)
+  private void showTransactionAfterSign(Chain.Transaction transaction)
       throws InvalidProtocolBufferException {
     System.out.println("After sign transaction hex string is " +
         ByteArray.toHexString(transaction.toByteArray()));
     System.out.println("TxId is " + blueBoldHighlight(ByteArray.toHexString(
         Sha256Sm3Hash.hash(transaction.getRawData().toByteArray()))));
 
-    if (transaction.getRawData().getContract(0).getType() == ContractType.CreateSmartContract) {
+    if (transaction.getRawData().getContract(0).getType() == Chain.Transaction.Contract.ContractType.CreateSmartContract) {
       CreateSmartContract createSmartContract = transaction.getRawData().getContract(0)
           .getParameter().unpack(CreateSmartContract.class);
       byte[] contractAddress = generateContractAddress(
@@ -953,7 +985,7 @@ public class WalletApi {
     }
   }
 
-  private static boolean processShieldedTransaction(TransactionExtention transactionExtention,
+  private static boolean processShieldedTransaction(GrpcAPI.TransactionExtention transactionExtention,
                                                     WalletApi wallet)
       throws IOException, CipherException, CancelException {
     if (transactionExtention == null) {
@@ -993,10 +1025,10 @@ public class WalletApi {
         "txid is "
             + ByteArray.toHexString(Sha256Sm3Hash.hash(transaction.getRawData().toByteArray())));
 
-    return rpcCli.broadcastTransaction(transaction);
+    return rpcCli.broadcastTransaction(transaction);// trident no this api
   }
 
-  private boolean processTransaction(Transaction transaction)
+  private boolean processTransaction(Chain.Transaction transaction)
       throws IOException, CipherException, CancelException {
     if (transaction == null || transaction.getRawData().getContractCount() == 0) {
       return false;
@@ -1012,38 +1044,47 @@ public class WalletApi {
       return false;
     }
     showTransactionAfterSign(transaction);
-    return rpcCli.broadcastTransaction(transaction);
+    return apiCli.broadcastTransaction(transaction);
   }
 
-  public static TransactionSignWeight getTransactionSignWeight(Transaction transaction) {
-    return rpcCli.getTransactionSignWeight(transaction);
+  public static TransactionSignWeight getTransactionSignWeight(Transaction transaction)
+      throws InvalidProtocolBufferException {
+    return TransactionSignWeight.parseFrom(
+        getTransactionSignWeight(Chain.Transaction.parseFrom(transaction.toByteArray())).toByteArray());
   }
 
-  public static TransactionApprovedList getTransactionApprovedList(Transaction transaction) {
-    return rpcCli.getTransactionApprovedList(transaction);
+  public static Response.TransactionSignWeight getTransactionSignWeight(Chain.Transaction transaction) {
+    return apiCli.getTransactionSignWeight(transaction);
+  }
+
+  public static Response.TransactionApprovedList getTransactionApprovedList(Chain.Transaction transaction) {
+//    return rpcCli.getTransactionApprovedList(transaction);
+    return apiCli.getTransactionApprovedList(transaction);
   }
 
   public boolean sendCoin(byte[] owner, byte[] to, long amount)
-      throws CipherException, IOException, CancelException {
+      throws CipherException, IOException, CancelException, IllegalException {
     if (!isUnlocked()) {
       throw new IllegalStateException(LOCK_WARNING);
     }
     if (owner == null) {
       owner = getAddress();
     }
+    Response.TransactionExtention transactionExtention = apiCli.transfer(owner, to, amount);
+    return processTransactionExtention(transactionExtention);
 
-    TransferContract contract = createTransferContract(to, owner, amount);
-    if (rpcVersion == 2) {
-      TransactionExtention transactionExtention = rpcCli.createTransaction2(contract);
-      return processTransactionExtention(transactionExtention);
-    } else {
-      Transaction transaction = rpcCli.createTransaction(contract);
-      return processTransaction(transaction);
-    }
+//    TransferContract contract = createTransferContract(to, owner, amount);
+//    if (rpcVersion == 2) {
+//      TransactionExtention transactionExtention = rpcCli.createTransaction2(contract);
+//      return processTransactionExtention(transactionExtention);
+//    } else {
+//      Transaction transaction = rpcCli.createTransaction(contract);
+//      return processTransaction(transaction);
+//    }
   }
 
   public boolean updateAccount(byte[] owner, byte[] accountNameBytes)
-      throws CipherException, IOException, CancelException {
+      throws CipherException, IOException, CancelException, IllegalException {
     if (!isUnlocked()) {
       throw new IllegalStateException(LOCK_WARNING);
     }
@@ -1051,18 +1092,20 @@ public class WalletApi {
       owner = getAddress();
     }
 
-    AccountUpdateContract contract = createAccountUpdateContract(accountNameBytes, owner);
-    if (rpcVersion == 2) {
-      TransactionExtention transactionExtention = rpcCli.createTransaction2(contract);
-      return processTransactionExtention(transactionExtention);
-    } else {
-      Transaction transaction = rpcCli.createTransaction(contract);
-      return processTransaction(transaction);
-    }
+//    AccountUpdateContract contract = createAccountUpdateContract(accountNameBytes, owner);
+//    if (rpcVersion == 2) {
+//      Response.TransactionExtention transactionExtention = rpcCli.createTransaction2(contract);
+//      return processTransactionExtention(transactionExtention);
+//    } else {
+//      Chain.Transaction transaction = rpcCli.createTransaction(contract);
+//      return processTransaction(transaction);
+//    }
+    Response.TransactionExtention transactionExtention = apiCli.updateAccount(owner, accountNameBytes);
+    return processTransactionExtention(transactionExtention);
   }
 
   public boolean setAccountId(byte[] owner, byte[] accountIdBytes)
-      throws CipherException, IOException, CancelException {
+      throws CipherException, IOException, CancelException, IllegalException {
     if (!isUnlocked()) {
       throw new IllegalStateException(LOCK_WARNING);
     }
@@ -1070,8 +1113,9 @@ public class WalletApi {
       owner = getAddress();
     }
 
-    SetAccountIdContract contract = createSetAccountIdContract(accountIdBytes, owner);
-    Transaction transaction = rpcCli.createTransaction(contract);
+//    SetAccountIdContract contract = createSetAccountIdContract(accountIdBytes, owner);
+//    Chain.Transaction transaction = rpcCli.createTransaction(contract);
+    Chain.Transaction transaction = apiCli.setAccountId(accountIdBytes, owner);
     if (transaction == null || transaction.getRawData().getContractCount() == 0) {
       return false;
     }
@@ -1081,7 +1125,7 @@ public class WalletApi {
 
   public boolean updateAsset(
       byte[] owner, byte[] description, byte[] url, long newLimit, long newPublicLimit)
-      throws CipherException, IOException, CancelException {
+      throws CipherException, IOException, CancelException, IllegalException {
     if (!isUnlocked()) {
       throw new IllegalStateException(LOCK_WARNING);
     }
@@ -1089,38 +1133,41 @@ public class WalletApi {
       owner = getAddress();
     }
 
-    UpdateAssetContract contract =
-        createUpdateAssetContract(owner, description, url, newLimit, newPublicLimit);
-    if (rpcVersion == 2) {
-      TransactionExtention transactionExtention = rpcCli.createTransaction2(contract);
-      return processTransactionExtention(transactionExtention);
-    } else {
-      Transaction transaction = rpcCli.createTransaction(contract);
-      return processTransaction(transaction);
-    }
+//    UpdateAssetContract contract =
+//        createUpdateAssetContract(owner, description, url, newLimit, newPublicLimit);
+//    if (rpcVersion == 2) {
+//      Response.TransactionExtention transactionExtention = rpcCli.createTransaction2(contract);
+//      return processTransactionExtention(transactionExtention);
+//    } else {
+//      Chain.Transaction transaction = rpcCli.createTransaction(contract);
+//      return processTransaction(transaction);
+//    }
+    Response.TransactionExtention transactionExtention = apiCli.updateAsset(owner, description, url, newLimit, newPublicLimit);
+    return processTransactionExtention(transactionExtention);
   }
 
   public boolean transferAsset(byte[] owner, byte[] to, byte[] assertName, long amount)
-      throws CipherException, IOException, CancelException {
+      throws CipherException, IOException, CancelException, IllegalException {
     if (!isUnlocked()) {
       throw new IllegalStateException(LOCK_WARNING);
     }
     if (owner == null) {
       owner = getAddress();
     }
-
-    TransferAssetContract contract = createTransferAssetContract(to, assertName, owner, amount);
-    if (rpcVersion == 2) {
-      TransactionExtention transactionExtention = rpcCli.createTransferAssetTransaction2(contract);
-      return processTransactionExtention(transactionExtention);
-    } else {
-      Transaction transaction = rpcCli.createTransferAssetTransaction(contract);
-      return processTransaction(transaction);
-    }
+    Response.TransactionExtention transactionExtention = apiCli.transferTrc10(owner, to, assertName, amount);
+//    TransferAssetContract contract = createTransferAssetContract(to, assertName, owner, amount);
+//    if (rpcVersion == 2) {
+//      Response.TransactionExtention transactionExtention = rpcCli.createTransferAssetTransaction2(contract);
+//      return processTransactionExtention(transactionExtention);
+//    } else {
+//      Chain.Transaction transaction = rpcCli.createTransferAssetTransaction(contract);
+//      return processTransaction(transaction);
+//    }
+    return processTransactionExtention(transactionExtention);
   }
 
   public boolean participateAssetIssue(byte[] owner, byte[] to, byte[] assertName, long amount)
-      throws CipherException, IOException, CancelException {
+      throws CipherException, IOException, CancelException, IllegalException {
     if (!isUnlocked()) {
       throw new IllegalStateException(LOCK_WARNING);
     }
@@ -1128,44 +1175,58 @@ public class WalletApi {
       owner = getAddress();
     }
 
-    ParticipateAssetIssueContract contract =
-        participateAssetIssueContract(to, assertName, owner, amount);
-    if (rpcVersion == 2) {
-      TransactionExtention transactionExtention =
-          rpcCli.createParticipateAssetIssueTransaction2(contract);
-      return processTransactionExtention(transactionExtention);
-    } else {
-      Transaction transaction = rpcCli.createParticipateAssetIssueTransaction(contract);
-      return processTransaction(transaction);
-    }
+//    ParticipateAssetIssueContract contract =
+//        participateAssetIssueContract(to, assertName, owner, amount);
+//    if (rpcVersion == 2) {
+//      Response.TransactionExtention transactionExtention =
+//          rpcCli.createParticipateAssetIssueTransaction2(contract);
+//      return processTransactionExtention(transactionExtention);
+//    } else {
+//      Chain.Transaction transaction = rpcCli.createParticipateAssetIssueTransaction(contract);
+//      return processTransaction(transaction);
+//    }
+    Response.TransactionExtention transactionExtention = apiCli.participateAssetIssueTransaction(owner, to, assertName, amount);
+    return processTransactionExtention(transactionExtention);
   }
 
   public static boolean broadcastTransaction(byte[] transactionBytes)
       throws InvalidProtocolBufferException {
-    Transaction transaction = Transaction.parseFrom(transactionBytes);
-    return rpcCli.broadcastTransaction(transaction);
+    Chain.Transaction transaction = Chain.Transaction.parseFrom(transactionBytes);
+    return apiCli.broadcastTransaction(transaction);
   }
 
-  public static boolean broadcastTransaction(Transaction transaction) {
-    return rpcCli.broadcastTransaction(transaction);
+  public static boolean broadcastTransaction(Transaction transaction) throws InvalidProtocolBufferException {
+    return apiCli.broadcastTransaction(Chain.Transaction.parseFrom(transaction.toByteArray()));
   }
 
-  public boolean createAssetIssue(AssetIssueContract contract)
-      throws CipherException, IOException, CancelException {
+  public static boolean broadcastTransaction(Chain.Transaction transaction) {
+    return apiCli.broadcastTransaction(transaction);
+  }
+
+  public boolean createAssetIssue(byte[] ownerAddress, String name, String abbrName,
+                                  long totalSupply, int trxNum, int icoNum, int precision,
+                                  long startTime, long endTime, int voteScore, String description,
+                                  String url, long freeNetLimit, long publicFreeNetLimit,
+                                  HashMap<String, String> frozenSupply)
+      throws CipherException, IOException, CancelException, IllegalException {
     if (!isUnlocked()) {
       throw new IllegalStateException(LOCK_WARNING);
     }
-    if (rpcVersion == 2) {
-      TransactionExtention transactionExtention = rpcCli.createAssetIssue2(contract);
-      return processTransactionExtention(transactionExtention);
-    } else {
-      Transaction transaction = rpcCli.createAssetIssue(contract);
-      return processTransaction(transaction);
-    }
+//    if (rpcVersion == 2) {
+//      Response.TransactionExtention transactionExtention = rpcCli.createAssetIssue2(contract);
+//      return processTransactionExtention(transactionExtention);
+//    } else {
+//      Chain.Transaction transaction = rpcCli.createAssetIssue(contract);
+//      return processTransaction(transaction);
+//    }
+    Response.TransactionExtention transactionExtention = apiCli.createAssetIssue(ownerAddress, name,
+        abbrName, totalSupply, trxNum, icoNum, startTime, endTime, url, freeNetLimit,
+        publicFreeNetLimit, precision, frozenSupply, description);
+    return processTransactionExtention(transactionExtention);
   }
 
   public boolean createAccount(byte[] owner, byte[] address)
-      throws CipherException, IOException, CancelException {
+      throws CipherException, IOException, CancelException, IllegalException {
     if (!isUnlocked()) {
       throw new IllegalStateException(LOCK_WARNING);
     }
@@ -1173,18 +1234,20 @@ public class WalletApi {
       owner = getAddress();
     }
 
-    AccountCreateContract contract = createAccountCreateContract(owner, address);
-    if (rpcVersion == 2) {
-      TransactionExtention transactionExtention = rpcCli.createAccount2(contract);
-      return processTransactionExtention(transactionExtention);
-    } else {
-      Transaction transaction = rpcCli.createAccount(contract);
-      return processTransaction(transaction);
-    }
+//    AccountCreateContract contract = createAccountCreateContract(owner, address);
+//    if (rpcVersion == 2) {
+//      Response.TransactionExtention transactionExtention = rpcCli.createAccount2(contract);
+//      return processTransactionExtention(transactionExtention);
+//    } else {
+//      Chain.Transaction transaction = rpcCli.createAccount(contract);
+//      return processTransaction(transaction);
+//    }
+    Response.TransactionExtention transactionExtention = apiCli.createAccount(owner, address);
+    return processTransactionExtention(transactionExtention);
   }
 
   public boolean createWitness(byte[] owner, byte[] url)
-      throws CipherException, IOException, CancelException {
+      throws CipherException, IOException, CancelException, IllegalException {
     if (!isUnlocked()) {
       throw new IllegalStateException(LOCK_WARNING);
     }
@@ -1192,18 +1255,20 @@ public class WalletApi {
       owner = getAddress();
     }
 
-    WitnessCreateContract contract = createWitnessCreateContract(owner, url);
-    if (rpcVersion == 2) {
-      TransactionExtention transactionExtention = rpcCli.createWitness2(contract);
-      return processTransactionExtention(transactionExtention);
-    } else {
-      Transaction transaction = rpcCli.createWitness(contract);
-      return processTransaction(transaction);
-    }
+//    WitnessCreateContract contract = createWitnessCreateContract(owner, url);
+//    if (rpcVersion == 2) {
+//      Response.TransactionExtention transactionExtention = rpcCli.createWitness2(contract);
+//      return processTransactionExtention(transactionExtention);
+//    } else {
+//      Chain.Transaction transaction = rpcCli.createWitness(contract);
+//      return processTransaction(transaction);
+//    }
+    Response.TransactionExtention transactionExtention = apiCli.createWitness(owner, url);
+    return processTransactionExtention(transactionExtention);
   }
 
   public boolean updateWitness(byte[] owner, byte[] url)
-      throws CipherException, IOException, CancelException {
+      throws CipherException, IOException, CancelException, IllegalException {
     if (!isUnlocked()) {
       throw new IllegalStateException(LOCK_WARNING);
     }
@@ -1211,30 +1276,35 @@ public class WalletApi {
       owner = getAddress();
     }
 
-    WitnessUpdateContract contract = createWitnessUpdateContract(owner, url);
-    if (rpcVersion == 2) {
-      TransactionExtention transactionExtention = rpcCli.updateWitness2(contract);
-      return processTransactionExtention(transactionExtention);
-    } else {
-      Transaction transaction = rpcCli.updateWitness(contract);
-      return processTransaction(transaction);
-    }
+//    WitnessUpdateContract contract = createWitnessUpdateContract(owner, url);
+//    if (rpcVersion == 2) {
+//      Response.TransactionExtention transactionExtention = rpcCli.updateWitness2(contract);
+//      return processTransactionExtention(transactionExtention);
+//    } else {
+//      Chain.Transaction transaction = rpcCli.updateWitness(contract);
+//      return processTransaction(transaction);
+//    }
+    Response.TransactionExtention transactionExtention = apiCli.updateWitness(owner, url);
+    return processTransactionExtention(transactionExtention);
   }
 
-  public static Block getBlock(long blockNum) {
-    return rpcCli.getBlock(blockNum);
+  public static Chain.Block getBlock(long blockNum) throws IllegalException {
+//    return rpcCli.getBlock(blockNum);
+    return apiCli.getBlock(blockNum);
   }
 
-  public static BlockExtention getBlock2(long blockNum) {
-    return rpcCli.getBlock2(blockNum);
+  public static Response.BlockExtention getBlock2(long blockNum) throws IllegalException {
+//    return rpcCli.getBlock2(blockNum);
+    return apiCli.getBlock2(blockNum);
   }
 
   public static long getTransactionCountByBlockNum(long blockNum) {
-    return rpcCli.getTransactionCountByBlockNum(blockNum);
+//    return rpcCli.getTransactionCountByBlockNum(blockNum);
+    return apiCli.getTransactionCountByBlockNum(blockNum);
   }
 
   public boolean voteWitness(byte[] owner, HashMap<String, String> witness)
-      throws CipherException, IOException, CancelException {
+      throws CipherException, IOException, CancelException, IllegalException {
     if (!isUnlocked()) {
       throw new IllegalStateException(LOCK_WARNING);
     }
@@ -1242,14 +1312,16 @@ public class WalletApi {
       owner = getAddress();
     }
 
-    VoteWitnessContract contract = createVoteWitnessContract(owner, witness);
-    if (rpcVersion == 2) {
-      TransactionExtention transactionExtention = rpcCli.voteWitnessAccount2(contract);
-      return processTransactionExtention(transactionExtention);
-    } else {
-      Transaction transaction = rpcCli.voteWitnessAccount(contract);
-      return processTransaction(transaction);
-    }
+//    VoteWitnessContract contract = createVoteWitnessContract(owner, witness);
+//    if (rpcVersion == 2) {
+//      Response.TransactionExtention transactionExtention = rpcCli.voteWitnessAccount2(contract);
+//      return processTransactionExtention(transactionExtention);
+//    } else {
+//      Chain.Transaction transaction = rpcCli.voteWitnessAccount(contract);
+//      return processTransaction(transaction);
+//    }
+    Response.TransactionExtention transactionExtention = apiCli.voteWitness(owner, witness);
+    return processTransactionExtention(transactionExtention);
   }
 
   public static TransferContract createTransferContract(byte[] to, byte[] owner, long amount) {
@@ -1428,6 +1500,9 @@ public class WalletApi {
   }
 
   public static String encode58Check(byte[] input) {
+    if (ArrayUtils.isEmpty(input)) {
+      return EMPTY;
+    }
     byte[] hash0 = Sha256Sm3Hash.hash(input);
     byte[] hash1 = Sha256Sm3Hash.hash(hash0);
     byte[] inputCheck = new byte[input.length + 4];
@@ -1455,7 +1530,7 @@ public class WalletApi {
   }
 
   public static byte[] decodeFromBase58Check(String addressBase58) {
-    if (StringUtils.isEmpty(addressBase58)) {
+    if (isEmpty(addressBase58)) {
       System.out.println("Warning: Address is empty !!");
       return null;
     }
@@ -1504,25 +1579,19 @@ public class WalletApi {
   //    return result;
   //  }
 
-  public static Optional<WitnessList> listWitnesses() {
-    Optional<WitnessList> result = rpcCli.listWitnesses();
-    if (result.isPresent()) {
-      WitnessList witnessList = result.get();
-      List<Witness> list = witnessList.getWitnessesList();
-      List<Witness> newList = new ArrayList<>();
+  public static Response.WitnessList listWitnesses() {
+//    Optional<WitnessList> result = rpcCli.listWitnesses();
+    Response.WitnessList witnessList = apiCli.listWitnesses();
+    if (witnessList != null) {
+      List<Response.Witness> list = witnessList.getWitnessesList();
+      List<Response.Witness> newList = new ArrayList<>();
       newList.addAll(list);
-      newList.sort(
-          new Comparator<Witness>() {
-            @Override
-            public int compare(Witness o1, Witness o2) {
-              return Long.compare(o2.getVoteCount(), o1.getVoteCount());
-            }
-          });
-      WitnessList.Builder builder = WitnessList.newBuilder();
-      newList.forEach(witness -> builder.addWitnesses(witness));
-      result = Optional.of(builder.build());
+      newList.sort((o1, o2) -> Long.compare(o2.getVoteCount(), o1.getVoteCount()));
+      Response.WitnessList.Builder builder = Response.WitnessList.newBuilder();
+      newList.forEach(builder::addWitnesses);
+      witnessList = builder.build();
     }
-    return result;
+    return witnessList;
   }
 
   //  public static Optional<AssetIssueList> getAssetIssueListByTimestamp(long timestamp) {
@@ -1538,90 +1607,97 @@ public class WalletApi {
   //    return rpcCli.getTransactionsByTimestampCount(start, end);
   //  }
 
-  public static Optional<AssetIssueList> getAssetIssueList() {
-    return rpcCli.getAssetIssueList();
+  public static Response.AssetIssueList getAssetIssueList() {
+//    return rpcCli.getAssetIssueList();
+    return apiCli.getAssetIssueList();
   }
 
-  public static Optional<AssetIssueList> getAssetIssueList(long offset, long limit) {
-    return rpcCli.getAssetIssueList(offset, limit);
+  public static Response.AssetIssueList getPaginatedAssetIssueList(long offset, long limit) {
+//    return rpcCli.getAssetIssueList(offset, limit);
+    return apiCli.getPaginatedAssetIssueList(offset, limit);
   }
 
-  public static Optional<ProposalList> getProposalListPaginated(long offset, long limit) {
-    return rpcCli.getProposalListPaginated(offset, limit);
+  public static Response.ProposalList getProposalListPaginated(long offset, long limit) {
+//    return rpcCli.getProposalListPaginated(offset, limit);
+    return apiCli.getPaginatedProposalList(offset, limit);
   }
 
-  public static Optional<ExchangeList> getExchangeListPaginated(long offset, long limit) {
-    return rpcCli.getExchangeListPaginated(offset, limit);
+  public static Response.ExchangeList getExchangeListPaginated(long offset, long limit) {
+//    return rpcCli.getExchangeListPaginated(offset, limit);
+    return apiCli.getPaginatedExchangeList(offset, limit);
   }
 
-  public static Optional<NodeList> listNodes() {
-    return rpcCli.listNodes();
+  public static Response.NodeList listNodes() throws IllegalException {
+//    return rpcCli.listNodes();
+    return apiCli.listNodes();
   }
 
-  public static Optional<AssetIssueList> getAssetIssueByAccount(byte[] address) {
-    return rpcCli.getAssetIssueByAccount(address);
+  public static Response.AssetIssueList getAssetIssueByAccount(byte[] address) {
+//    return rpcCli.getAssetIssueByAccount(address);
+    return apiCli.getAssetIssueByAccount(address);
   }
 
-  public static AccountNetMessage getAccountNet(byte[] address) {
-    return rpcCli.getAccountNet(address);
+  public static Response.AccountNetMessage getAccountNet(byte[] address) {
+//    return rpcCli.getAccountNet(address);
+    return apiCli.getAccountNet(address);
   }
 
-  public static AccountResourceMessage getAccountResource(byte[] address) {
-    return rpcCli.getAccountResource(address);
+  public static Response.AccountResourceMessage getAccountResource(byte[] address) {
+//    return rpcCli.getAccountResource(address);
+    return apiCli.getAccountResource(address);
   }
 
-  public static AssetIssueContract getAssetIssueByName(String assetName) {
-    return rpcCli.getAssetIssueByName(assetName);
+  public static Contract.AssetIssueContract getAssetIssueByName(String assetName) {
+//    return rpcCli.getAssetIssueByName(assetName);
+    return apiCli.getAssetIssueByName(assetName);
   }
 
-  public static Optional<AssetIssueList> getAssetIssueListByName(String assetName) {
-    return rpcCli.getAssetIssueListByName(assetName);
+  public static Response.AssetIssueList getAssetIssueListByName(String assetName) {
+//    return rpcCli.getAssetIssueListByName(assetName);
+    return apiCli.getAssetIssueListByName(assetName);
   }
 
-  public static AssetIssueContract getAssetIssueById(String assetId) {
-    return rpcCli.getAssetIssueById(assetId);
+  public static Contract.AssetIssueContract getAssetIssueById(String assetId) {
+//    return rpcCli.getAssetIssueById(assetId);
+    return apiCli.getAssetIssueById(assetId);
   }
 
   public static GrpcAPI.NumberMessage getTotalTransaction() {
-    return rpcCli.getTotalTransaction();
+    return rpcCli.getTotalTransaction();// trident no this api
   }
 
-  public static GrpcAPI.NumberMessage getNextMaintenanceTime() {
-    return rpcCli.getNextMaintenanceTime();
+  public static long getNextMaintenanceTime() {
+//    return rpcCli.getNextMaintenanceTime();
+    return apiCli.getNextMaintenanceTime();
   }
 
   public static Optional<TransactionList> getTransactionsFromThis(
       byte[] address, int offset, int limit) {
-    return rpcCli.getTransactionsFromThis(address, offset, limit);
+    return rpcCli.getTransactionsFromThis(address, offset, limit);// trident no this api
   }
 
   public static Optional<TransactionListExtention> getTransactionsFromThis2(
       byte[] address, int offset, int limit) {
-    return rpcCli.getTransactionsFromThis2(address, offset, limit);
+    return rpcCli.getTransactionsFromThis2(address, offset, limit);// trident no this api
   }
-  //  public static GrpcAPI.NumberMessage getTransactionsFromThisCount(byte[] address) {
-  //    return rpcCli.getTransactionsFromThisCount(address);
-  //  }
 
   public static Optional<TransactionList> getTransactionsToThis(
       byte[] address, int offset, int limit) {
-    return rpcCli.getTransactionsToThis(address, offset, limit);
+    return rpcCli.getTransactionsToThis(address, offset, limit);// trident no this api
   }
 
   public static Optional<TransactionListExtention> getTransactionsToThis2(
       byte[] address, int offset, int limit) {
-    return rpcCli.getTransactionsToThis2(address, offset, limit);
-  }
-  //  public static GrpcAPI.NumberMessage getTransactionsToThisCount(byte[] address) {
-  //    return rpcCli.getTransactionsToThisCount(address);
-  //  }
-
-  public static Optional<Transaction> getTransactionById(String txID) {
-    return rpcCli.getTransactionById(txID);
+    return rpcCli.getTransactionsToThis2(address, offset, limit);// trident no this api
   }
 
-  public static Optional<TransactionInfo> getTransactionInfoById(String txID) {
-    return rpcCli.getTransactionInfoById(txID);
+  public static Chain.Transaction getTransactionById(String txId) throws IllegalException {
+    return apiCli.getTransactionById(txId);
+  }
+
+  public static Response.TransactionInfo getTransactionInfoById(String txId) throws IllegalException {
+//    return rpcCli.getTransactionInfoById(txId);
+    return apiCli.getTransactionInfoById(txId);
   }
 
   public boolean freezeBalance(
@@ -1630,38 +1706,46 @@ public class WalletApi {
       long frozenDuration,
       int resourceCode,
       byte[] receiverAddress)
-      throws CipherException, IOException, CancelException {
+      throws CipherException, IOException, CancelException, IllegalException {
     if (!isUnlocked()) {
       throw new IllegalStateException(LOCK_WARNING);
     }
-    FreezeBalanceContract contract =
-        createFreezeBalanceContract(
-            ownerAddress, frozenBalance, frozenDuration, resourceCode, receiverAddress);
-    if (rpcVersion == 2) {
-      TransactionExtention transactionExtention = rpcCli.createTransaction2(contract);
-      return processTransactionExtention(transactionExtention);
-    } else {
-      Transaction transaction = rpcCli.createTransaction(contract);
-      return processTransaction(transaction);
+//    FreezeBalanceContract contract =
+//        createFreezeBalanceContract(
+//            ownerAddress, frozenBalance, frozenDuration, resourceCode, receiverAddress);
+//    if (rpcVersion == 2) {
+//      GrpcAPI.TransactionExtention transactionExtention = rpcCli.createTransaction2(contract);
+//      return processTransactionExtention(transactionExtention);
+//    } else {
+//      Transaction transaction = rpcCli.createTransaction(contract);
+//      return processTransaction(transaction);
+//    }
+    if (ownerAddress == null) {
+      ownerAddress = getAddress();
     }
+    Response.TransactionExtention transactionExtention = apiCli.freezeBalance(ownerAddress, frozenBalance, (int) frozenDuration, resourceCode, receiverAddress);
+    return processTransactionExtention(transactionExtention);
   }
 
   public boolean freezeBalanceV2(
       byte[] ownerAddress,
       long frozenBalance,
       int resourceCode)
-      throws CipherException, IOException, CancelException {
+      throws CipherException, IOException, CancelException, IllegalException {
     if (!isUnlocked()) {
       throw new IllegalStateException(LOCK_WARNING);
     }
-    BalanceContract.FreezeBalanceV2Contract contract =
-        createFreezeBalanceContractV2(
-            ownerAddress, frozenBalance, resourceCode);
-
-    TransactionExtention transactionExtention = rpcCli.createTransaction2(contract);
+//    BalanceContract.FreezeBalanceV2Contract contract =
+//        createFreezeBalanceContractV2(
+//            ownerAddress, frozenBalance, resourceCode);
+//
+//    TransactionExtention transactionExtention = rpcCli.createTransaction2(contract);
+    if (ownerAddress == null) {
+      ownerAddress = getAddress();
+    }
+    Response.TransactionExtention transactionExtention = apiCli.freezeBalanceV2(ownerAddress, frozenBalance, resourceCode);
     return processTransactionExtention(transactionExtention);
   }
-
 
   public boolean buyStorage(byte[] ownerAddress, long quantity)
       throws CipherException, IOException, CancelException {
@@ -1669,7 +1753,7 @@ public class WalletApi {
       throw new IllegalStateException(LOCK_WARNING);
     }
     BuyStorageContract contract = createBuyStorageContract(ownerAddress, quantity);
-    TransactionExtention transactionExtention = rpcCli.createTransaction(contract);
+    GrpcAPI.TransactionExtention transactionExtention = rpcCli.createTransaction(contract);// trident no this api
     return processTransactionExtention(transactionExtention);
   }
 
@@ -1679,7 +1763,7 @@ public class WalletApi {
       throw new IllegalStateException(LOCK_WARNING);
     }
     BuyStorageBytesContract contract = createBuyStorageBytesContract(ownerAddress, bytes);
-    TransactionExtention transactionExtention = rpcCli.createTransaction(contract);
+    GrpcAPI.TransactionExtention transactionExtention = rpcCli.createTransaction(contract);// trident no this api
     return processTransactionExtention(transactionExtention);
   }
 
@@ -1689,7 +1773,7 @@ public class WalletApi {
       throw new IllegalStateException(LOCK_WARNING);
     }
     SellStorageContract contract = createSellStorageContract(ownerAddress, storageBytes);
-    TransactionExtention transactionExtention = rpcCli.createTransaction(contract);
+    GrpcAPI.TransactionExtention transactionExtention = rpcCli.createTransaction(contract);// trident no this api
     return processTransactionExtention(transactionExtention);
   }
 
@@ -1773,75 +1857,97 @@ public class WalletApi {
   }
 
   public boolean unfreezeBalance(byte[] ownerAddress, int resourceCode, byte[] receiverAddress)
-      throws CipherException, IOException, CancelException {
+      throws CipherException, IOException, CancelException, IllegalException {
     if (!isUnlocked()) {
       throw new IllegalStateException(LOCK_WARNING);
     }
-    UnfreezeBalanceContract contract =
-        createUnfreezeBalanceContract(ownerAddress, resourceCode, receiverAddress);
-    if (rpcVersion == 2) {
-      TransactionExtention transactionExtention = rpcCli.createTransaction2(contract);
-      return processTransactionExtention(transactionExtention);
-    } else {
-      Transaction transaction = rpcCli.createTransaction(contract);
-      return processTransaction(transaction);
+//    UnfreezeBalanceContract contract =
+//        createUnfreezeBalanceContract(ownerAddress, resourceCode, receiverAddress);
+//    if (rpcVersion == 2) {
+//      TransactionExtention transactionExtention = rpcCli.createTransaction2(contract);
+//      return processTransactionExtention(transactionExtention);
+//    } else {
+//      Transaction transaction = rpcCli.createTransaction(contract);
+//      return processTransaction(transaction);
+//    }
+    if (ownerAddress == null) {
+      ownerAddress = getAddress();
     }
+    Response.TransactionExtention transactionExtention = apiCli.unfreezeBalance(ownerAddress, resourceCode, receiverAddress);
+    return processTransactionExtention(transactionExtention);
   }
 
   public boolean unfreezeBalanceV2(byte[] ownerAddress, long unfreezeBalance
       , int resourceCode)
-      throws CipherException, IOException, CancelException {
+      throws CipherException, IOException, CancelException, IllegalException {
     if (!isUnlocked()) {
       throw new IllegalStateException(LOCK_WARNING);
     }
-    BalanceContract.UnfreezeBalanceV2Contract contract =
-        createUnfreezeBalanceContractV2(ownerAddress, unfreezeBalance, resourceCode);
-    TransactionExtention transactionExtention = rpcCli.createTransactionV2(contract);
+//    BalanceContract.UnfreezeBalanceV2Contract contract =
+//        createUnfreezeBalanceContractV2(ownerAddress, unfreezeBalance, resourceCode);
+//    TransactionExtention transactionExtention = rpcCli.createTransactionV2(contract);
+    if (ownerAddress == null) {
+      ownerAddress = getAddress();
+    }
+    Response.TransactionExtention transactionExtention = apiCli.unfreezeBalanceV2(ownerAddress, unfreezeBalance, resourceCode);
     return processTransactionExtention(transactionExtention);
   }
 
   public boolean withdrawExpireUnfreeze(byte[] ownerAddress)
-      throws CipherException, IOException, CancelException {
+      throws CipherException, IOException, CancelException, IllegalException {
     if (!isUnlocked()) {
       throw new IllegalStateException(LOCK_WARNING);
     }
-    BalanceContract.WithdrawExpireUnfreezeContract contract =
-        createWithdrawExpireUnfreezeContract(ownerAddress);
-    TransactionExtention transactionExtention = rpcCli.createTransactionV2(contract);
+//    BalanceContract.WithdrawExpireUnfreezeContract contract =
+//        createWithdrawExpireUnfreezeContract(ownerAddress);
+//    GrpcAPI.TransactionExtention transactionExtention = rpcCli.createTransactionV2(contract);
+    if (ownerAddress == null) {
+      ownerAddress = getAddress();
+    }
+    Response.TransactionExtention transactionExtention = apiCli.withdrawExpireUnfreeze(ownerAddress);
     return processTransactionExtention(transactionExtention);
   }
 
   public boolean delegateResource(byte[] ownerAddress, long balance
       , int resourceCode, byte[] receiverAddress, boolean lock, long lockPeriod)
-      throws CipherException, IOException, CancelException {
+      throws CipherException, IOException, CancelException, IllegalException {
     if (!isUnlocked()) {
       throw new IllegalStateException(LOCK_WARNING);
     }
-    BalanceContract.DelegateResourceContract contract = createDelegateResourceContract(
-        ownerAddress, balance, resourceCode, receiverAddress, lock, lockPeriod);
-    TransactionExtention transactionExtention = rpcCli.createTransactionV2(contract);
+//    BalanceContract.DelegateResourceContract contract = createDelegateResourceContract(
+//        ownerAddress, balance, resourceCode, receiverAddress, lock, lockPeriod);
+//    TransactionExtention transactionExtention = rpcCli.createTransactionV2(contract);
+    if (ownerAddress == null) {
+      ownerAddress = getAddress();
+    }
+    Response.TransactionExtention transactionExtention = apiCli.delegateResource(ownerAddress, balance, resourceCode, receiverAddress, lock, lockPeriod);
     return processTransactionExtention(transactionExtention);
   }
 
   public boolean unDelegateResource(byte[] ownerAddress, long balance
       , int resourceCode, byte[] receiverAddress)
-      throws CipherException, IOException, CancelException {
+      throws CipherException, IOException, CancelException, IllegalException {
     if (!isUnlocked()) {
       throw new IllegalStateException(LOCK_WARNING);
     }
-    BalanceContract.UnDelegateResourceContract contract =
-        createUnDelegateResourceContract(ownerAddress, balance, resourceCode, receiverAddress);
-    TransactionExtention transactionExtention = rpcCli.createTransactionV2(contract);
+//    BalanceContract.UnDelegateResourceContract contract =
+//        createUnDelegateResourceContract(ownerAddress, balance, resourceCode, receiverAddress);
+//    TransactionExtention transactionExtention = rpcCli.createTransactionV2(contract);
+    if (ownerAddress == null) {
+      ownerAddress = getAddress();
+    }
+    Response.TransactionExtention transactionExtention = apiCli.unDelegateResource(ownerAddress, balance, resourceCode, receiverAddress);
     return processTransactionExtention(transactionExtention);
   }
 
   public boolean cancelAllUnfreezeV2()
-      throws CipherException, IOException, CancelException {
+      throws CipherException, IOException, CancelException, IllegalException {
     if (!isUnlocked()) {
       throw new IllegalStateException(LOCK_WARNING);
     }
-    CancelAllUnfreezeV2Contract contract = createCancelAllUnfreezeV2Contract();
-    TransactionExtention transactionExtention = rpcCli.createTransactionV2(contract);
+//    CancelAllUnfreezeV2Contract contract = createCancelAllUnfreezeV2Contract();
+//    TransactionExtention transactionExtention = rpcCli.createTransactionV2(contract);
+    Response.TransactionExtention transactionExtention = apiCli.cancelAllUnfreezeV2(getAddress());
     return processTransactionExtention(transactionExtention);
   }
 
@@ -1940,18 +2046,23 @@ public class WalletApi {
   }
 
   public boolean unfreezeAsset(byte[] ownerAddress)
-      throws CipherException, IOException, CancelException {
+      throws CipherException, IOException, CancelException, IllegalException {
     if (!isUnlocked()) {
       throw new IllegalStateException(LOCK_WARNING);
     }
-    UnfreezeAssetContract contract = createUnfreezeAssetContract(ownerAddress);
-    if (rpcVersion == 2) {
-      TransactionExtention transactionExtention = rpcCli.createTransaction2(contract);
-      return processTransactionExtention(transactionExtention);
-    } else {
-      Transaction transaction = rpcCli.createTransaction(contract);
-      return processTransaction(transaction);
+//    UnfreezeAssetContract contract = createUnfreezeAssetContract(ownerAddress);
+//    if (rpcVersion == 2) {
+//      TransactionExtention transactionExtention = rpcCli.createTransaction2(contract);
+//      return processTransactionExtention(transactionExtention);
+//    } else {
+//      Transaction transaction = rpcCli.createTransaction(contract);
+//      return processTransaction(transaction);
+//    }
+    if (ownerAddress == null) {
+      ownerAddress = getAddress();
     }
+    Response.TransactionExtention transactionExtention = apiCli.unfreezeAsset(ownerAddress);
+    return processTransactionExtention(transactionExtention);
   }
 
   private UnfreezeAssetContract createUnfreezeAssetContract(byte[] address) {
@@ -1967,20 +2078,25 @@ public class WalletApi {
   }
 
   public boolean withdrawBalance(byte[] ownerAddress)
-      throws CipherException, IOException, CancelException {
+      throws CipherException, IOException, CancelException, IllegalException {
     if (!isUnlocked()) {
       throw new IllegalStateException(LOCK_WARNING);
     }
-    WithdrawBalanceContract contract = createWithdrawBalanceContract(
-        ownerAddress);
-    if (rpcVersion == 2) {
-      TransactionExtention transactionExtention = rpcCli
-          .createTransaction2(contract);
-      return processTransactionExtention(transactionExtention);
-    } else {
-      Transaction transaction = rpcCli.createTransaction(contract);
-      return processTransaction(transaction);
+//    WithdrawBalanceContract contract = createWithdrawBalanceContract(
+//        ownerAddress);
+//    if (rpcVersion == 2) {
+//      TransactionExtention transactionExtention = rpcCli
+//          .createTransaction2(contract);
+//      return processTransactionExtention(transactionExtention);
+//    } else {
+//      Transaction transaction = rpcCli.createTransaction(contract);
+//      return processTransaction(transaction);
+//    }
+    if (ownerAddress == null) {
+      ownerAddress = getAddress();
     }
+    Response.TransactionExtention transactionExtention = apiCli.withdrawBalance(ownerAddress);
+    return processTransactionExtention(transactionExtention);
   }
 
   private WithdrawBalanceContract createWithdrawBalanceContract(byte[] address) {
@@ -1996,92 +2112,107 @@ public class WalletApi {
     return builder.build();
   }
 
-  public static Optional<Block> getBlockById(String blockID) {
-    return rpcCli.getBlockById(blockID);
+  public static Chain.Block getBlockById(String blockID) {
+//    return rpcCli.getBlockById(blockID);
+    return apiCli.getBlockById(blockID);
   }
 
-  public static Optional<BlockList> getBlockByLimitNext(long start, long end) {
-    return rpcCli.getBlockByLimitNext(start, end);
+  public static Response.BlockListExtention getBlockByLimitNext(long start, long end) throws IllegalException {
+//    return rpcCli.getBlockByLimitNext(start, end);
+    return apiCli.getBlockByLimitNext(start, end);
   }
 
-  public static Optional<BlockListExtention> getBlockByLimitNext2(long start,
-                                                                  long end) {
-    return rpcCli.getBlockByLimitNext2(start, end);
+  public static Response.BlockListExtention getBlockByLimitNext2(long start, long end)
+      throws IllegalException {
+//    return rpcCli.getBlockByLimitNext2(start, end);
+    return apiCli.getBlockByLimitNext(start, end);
   }
 
   public static Optional<BlockList> getBlockByLatestNum(long num) {
-    return rpcCli.getBlockByLatestNum(num);
+    return rpcCli.getBlockByLatestNum(num); // trident no this api
   }
 
-  public static Optional<BlockListExtention> getBlockByLatestNum2(long num) {
-    return rpcCli.getBlockByLatestNum2(num);
+  public static Response.BlockListExtention getBlockByLatestNum2(long num) throws IllegalException {
+//    return rpcCli.getBlockByLatestNum2(num);
+    return apiCli.getBlockByLatestNum2(num);
   }
 
   public boolean createProposal(byte[] owner, HashMap<Long, Long> parametersMap)
-      throws CipherException, IOException, CancelException {
+      throws CipherException, IOException, CancelException, IllegalException {
     if (owner == null) {
       owner = getAddress();
     }
 
-    ProposalCreateContract contract = createProposalCreateContract(owner,
-        parametersMap);
-    TransactionExtention transactionExtention = rpcCli.proposalCreate(contract);
+//    ProposalCreateContract contract = createProposalCreateContract(owner,
+//        parametersMap);
+//    TransactionExtention transactionExtention = rpcCli.proposalCreate(contract);
+    Response.TransactionExtention transactionExtention = apiCli.proposalCreate(owner, parametersMap);
     return processTransactionExtention(transactionExtention);
   }
 
-  public static Optional<ProposalList> listProposals() {
-    return rpcCli.listProposals();
+  public static Response.ProposalList listProposals() {
+//    return rpcCli.listProposals();
+    return apiCli.listProposals();
   }
 
-  public static Optional<Proposal> getProposal(String id) {
-    return rpcCli.getProposal(id);
+  public static Response.Proposal getProposal(String id) {
+//    return rpcCli.getProposal(id);
+    return apiCli.getProposal(id);
   }
 
-  public static Optional<DelegatedResourceList> getDelegatedResource(
+  public static Response.DelegatedResourceList getDelegatedResource(
       String fromAddress, String toAddress) {
-    return rpcCli.getDelegatedResource(fromAddress, toAddress);
+//    return rpcCli.getDelegatedResource(fromAddress, toAddress);
+    return apiCli.getDelegatedResource(fromAddress, toAddress);
   }
 
-  public static Optional<Protocol.DelegatedResourceAccountIndex> getDelegatedResourceAccountIndex(
+  public static Response.DelegatedResourceAccountIndex getDelegatedResourceAccountIndex(
       String ownerAddress) {
-    return rpcCli.getDelegatedResourceAccountIndex(ownerAddress);
+//    return rpcCli.getDelegatedResourceAccountIndex(ownerAddress);
+    return apiCli.getDelegatedResourceAccountIndex(ownerAddress);
   }
 
-  public static Optional<DelegatedResourceList> getDelegatedResourceV2(
+  public static Response.DelegatedResourceList getDelegatedResourceV2(
       String fromAddress, String toAddress) {
-    return rpcCli.getDelegatedResourceV2(fromAddress, toAddress);
+//    return rpcCli.getDelegatedResourceV2(fromAddress, toAddress);
+    return apiCli.getDelegatedResourceV2(fromAddress, toAddress);
   }
 
-  public static Optional<Protocol.DelegatedResourceAccountIndex> getDelegatedResourceAccountIndexV2(
-      String ownerAddress) {
-    return rpcCli.getDelegatedResourceAccountIndexV2(ownerAddress);
+  public static Response.DelegatedResourceAccountIndex getDelegatedResourceAccountIndexV2(
+      String ownerAddress) throws IllegalException {
+//    return rpcCli.getDelegatedResourceAccountIndexV2(ownerAddress);
+    return apiCli.getDelegatedResourceAccountIndexV2(ownerAddress);
   }
 
-  public static Optional<GrpcAPI.CanWithdrawUnfreezeAmountResponseMessage> getCanWithdrawUnfreezeAmount(
+  public static long getCanWithdrawUnfreezeAmount(
       byte[] ownerAddress, long timestamp) {
-    return rpcCli.getCanWithdrawUnfreezeAmount(ownerAddress, timestamp);
+//    return rpcCli.getCanWithdrawUnfreezeAmount(ownerAddress, timestamp);
+    return apiCli.getCanWithdrawUnfreezeAmount(ownerAddress, timestamp);
   }
 
-  public static Optional<GrpcAPI.CanDelegatedMaxSizeResponseMessage> getCanDelegatedMaxSize(
-      byte[] ownerAddress, int type) {
-    return rpcCli.getCanDelegatedMaxSize(ownerAddress, type);
+  public static long getCanDelegatedMaxSize(byte[] ownerAddress, int type) {
+//    return rpcCli.getCanDelegatedMaxSize(ownerAddress, type);
+    return apiCli.getCanDelegatedMaxSize(ownerAddress, type);
   }
 
-  public static Optional<GrpcAPI.GetAvailableUnfreezeCountResponseMessage> getAvailableUnfreezeCount(
-      byte[] ownerAddress) {
-    return rpcCli.getAvailableUnfreezeCount(ownerAddress);
+  public static long getAvailableUnfreezeCount(byte[] ownerAddress) {
+//    return rpcCli.getAvailableUnfreezeCount(ownerAddress);
+    return apiCli.getAvailableUnfreezeCount(ownerAddress);
   }
 
-  public static Optional<ExchangeList> listExchanges() {
-    return rpcCli.listExchanges();
+  public static Response.ExchangeList listExchanges() {
+//    return rpcCli.listExchanges();
+    return apiCli.listExchanges();
   }
 
-  public static Optional<Exchange> getExchange(String id) {
-    return rpcCli.getExchange(id);
+  public static Response.Exchange getExchange(String id) throws IllegalException {
+//    return rpcCli.getExchange(id);
+    return apiCli.getExchange(id);
   }
 
-  public static Optional<ChainParameters> getChainParameters() {
-    return rpcCli.getChainParameters();
+  public static Response.ChainParameters getChainParameters() throws IllegalException {
+//    return rpcCli.getChainParameters();
+    return apiCli.getChainParameters();
   }
 
   public static ProposalCreateContract createProposalCreateContract(
@@ -2094,7 +2225,7 @@ public class WalletApi {
 
   public boolean approveProposal(byte[] owner, long id,
                                  boolean isAddApproval)
-      throws CipherException, IOException, CancelException {
+      throws CipherException, IOException, CancelException, IllegalException {
     if (!isUnlocked()) {
       throw new IllegalStateException(LOCK_WARNING);
     }
@@ -2102,10 +2233,11 @@ public class WalletApi {
       owner = getAddress();
     }
 
-    ProposalApproveContract contract =
-        createProposalApproveContract(owner, id, isAddApproval);
-    TransactionExtention transactionExtention = rpcCli
-        .proposalApprove(contract);
+//    ProposalApproveContract contract =
+//        createProposalApproveContract(owner, id, isAddApproval);
+//    TransactionExtention transactionExtention = rpcCli
+//        .proposalApprove(contract);
+    Response.TransactionExtention transactionExtention = apiCli.approveProposal(owner, id, isAddApproval);
     return processTransactionExtention(transactionExtention);
   }
 
@@ -2120,7 +2252,7 @@ public class WalletApi {
   }
 
   public boolean deleteProposal(byte[] owner, long id)
-      throws CipherException, IOException, CancelException {
+      throws CipherException, IOException, CancelException, IllegalException {
     if (!isUnlocked()) {
       throw new IllegalStateException(LOCK_WARNING);
     }
@@ -2128,9 +2260,10 @@ public class WalletApi {
       owner = getAddress();
     }
 
-    ProposalDeleteContract contract = createProposalDeleteContract(owner, id);
-    TransactionExtention transactionExtention = rpcCli
-        .proposalDelete(contract);
+//    ProposalDeleteContract contract = createProposalDeleteContract(owner, id);
+//    TransactionExtention transactionExtention = rpcCli
+//        .proposalDelete(contract);
+    Response.TransactionExtention transactionExtention = apiCli.deleteProposal(owner, id);
     return processTransactionExtention(transactionExtention);
   }
 
@@ -2148,7 +2281,7 @@ public class WalletApi {
       long firstTokenBalance,
       byte[] secondTokenId,
       long secondTokenBalance)
-      throws CipherException, IOException, CancelException {
+      throws CipherException, IOException, CancelException, IllegalException {
     if (!isUnlocked()) {
       throw new IllegalStateException(LOCK_WARNING);
     }
@@ -2156,12 +2289,13 @@ public class WalletApi {
       owner = getAddress();
     }
 
-    ExchangeCreateContract contract =
-        createExchangeCreateContract(
-            owner, firstTokenId, firstTokenBalance, secondTokenId,
-            secondTokenBalance);
-    TransactionExtention transactionExtention = rpcCli
-        .exchangeCreate(contract);
+//    ExchangeCreateContract contract =
+//        createExchangeCreateContract(
+//            owner, firstTokenId, firstTokenBalance, secondTokenId,
+//            secondTokenBalance);
+//    TransactionExtention transactionExtention = rpcCli
+//        .exchangeCreate(contract);
+    Response.TransactionExtention transactionExtention = apiCli.exchangeCreate(owner, firstTokenId, firstTokenBalance, secondTokenId, secondTokenBalance);
     return processTransactionExtention(transactionExtention);
   }
 
@@ -2185,7 +2319,7 @@ public class WalletApi {
 
   public boolean exchangeInject(byte[] owner, long exchangeId,
                                 byte[] tokenId, long quant)
-      throws CipherException, IOException, CancelException {
+      throws CipherException, IOException, CancelException, IllegalException {
     if (!isUnlocked()) {
       throw new IllegalStateException(LOCK_WARNING);
     }
@@ -2193,10 +2327,11 @@ public class WalletApi {
       owner = getAddress();
     }
 
-    ExchangeInjectContract contract =
-        createExchangeInjectContract(owner, exchangeId, tokenId, quant);
-    TransactionExtention transactionExtention = rpcCli
-        .exchangeInject(contract);
+//    ExchangeInjectContract contract =
+//        createExchangeInjectContract(owner, exchangeId, tokenId, quant);
+//    TransactionExtention transactionExtention = rpcCli
+//        .exchangeInject(contract);
+    Response.TransactionExtention transactionExtention = apiCli.exchangeInject(owner, exchangeId, tokenId, quant);
     return processTransactionExtention(transactionExtention);
   }
 
@@ -2214,7 +2349,7 @@ public class WalletApi {
 
   public boolean exchangeWithdraw(byte[] owner, long exchangeId,
                                   byte[] tokenId, long quant)
-      throws CipherException, IOException, CancelException {
+      throws CipherException, IOException, CancelException, IllegalException {
     if (!isUnlocked()) {
       throw new IllegalStateException(LOCK_WARNING);
     }
@@ -2222,9 +2357,10 @@ public class WalletApi {
       owner = getAddress();
     }
 
-    ExchangeWithdrawContract contract =
-        createExchangeWithdrawContract(owner, exchangeId, tokenId, quant);
-    TransactionExtention transactionExtention = rpcCli.exchangeWithdraw(contract);
+//    ExchangeWithdrawContract contract =
+//        createExchangeWithdrawContract(owner, exchangeId, tokenId, quant);
+//    TransactionExtention transactionExtention = rpcCli.exchangeWithdraw(contract);
+    Response.TransactionExtention transactionExtention = apiCli.exchangeWithdraw(owner, exchangeId, tokenId, quant);
     return processTransactionExtention(transactionExtention);
   }
 
@@ -2241,7 +2377,7 @@ public class WalletApi {
   }
 
   public boolean exchangeTransaction(byte[] owner, long exchangeId, byte[] tokenId, long quant,
-                                     long expected) throws CipherException, IOException, CancelException {
+                                     long expected) throws CipherException, IOException, CancelException, IllegalException {
     if (!isUnlocked()) {
       throw new IllegalStateException(LOCK_WARNING);
     }
@@ -2249,9 +2385,10 @@ public class WalletApi {
       owner = getAddress();
     }
 
-    ExchangeTransactionContract contract =
-        createExchangeTransactionContract(owner, exchangeId, tokenId, quant, expected);
-    TransactionExtention transactionExtention = rpcCli.exchangeTransaction(contract);
+//    ExchangeTransactionContract contract =
+//        createExchangeTransactionContract(owner, exchangeId, tokenId, quant, expected);
+//    TransactionExtention transactionExtention = rpcCli.exchangeTransaction(contract);
+    Response.TransactionExtention transactionExtention = apiCli.exchangeTransaction(owner, exchangeId, tokenId, quant, expected);
     return processTransactionExtention(transactionExtention);
   }
 
@@ -2544,7 +2681,7 @@ public class WalletApi {
         // 0.5.4 version
         String libraryNameKeccak256 =
             ByteArray.toHexString(
-                Hash.sha3(ByteArray.fromString(libraryName)))
+                    Hash.sha3(ByteArray.fromString(libraryName)))
                 .substring(0, 34);
         beReplaced = "__\\$" + libraryNameKeccak256 + "\\$__";
       } else {
@@ -2579,7 +2716,7 @@ public class WalletApi {
     return builder.build();
   }
 
-  public byte[] generateContractAddress(byte[] ownerAddress, Transaction trx) {
+  public byte[] generateContractAddress(byte[] ownerAddress, Chain.Transaction trx) {
     // get tx hash
     byte[] txRawDataHash = Sha256Sm3Hash.of(trx.getRawData().toByteArray()).getBytes();
 
@@ -2592,7 +2729,7 @@ public class WalletApi {
   }
 
   public boolean updateSetting(byte[] owner, byte[] contractAddress,
-                               long consumeUserResourcePercent) throws IOException, CipherException, CancelException {
+                               long consumeUserResourcePercent) throws IOException, CipherException, CancelException, IllegalException {
     if (!isUnlocked()) {
       throw new IllegalStateException(LOCK_WARNING);
     }
@@ -2600,10 +2737,11 @@ public class WalletApi {
       owner = getAddress();
     }
 
-    UpdateSettingContract updateSettingContract = createUpdateSettingContract(owner,
-        contractAddress, consumeUserResourcePercent);
-
-    TransactionExtention transactionExtention = rpcCli.updateSetting(updateSettingContract);
+//    UpdateSettingContract updateSettingContract = createUpdateSettingContract(owner,
+//        contractAddress, consumeUserResourcePercent);
+//
+//    TransactionExtention transactionExtention = rpcCli.updateSetting(updateSettingContract);
+    Response.TransactionExtention transactionExtention = apiCli.updateSetting(owner, contractAddress, consumeUserResourcePercent);
     if (transactionExtention == null || !transactionExtention.getResult().getResult()) {
       System.out.println("RPC create trx " + failedHighlight() + "!");
       if (transactionExtention != null) {
@@ -2619,7 +2757,7 @@ public class WalletApi {
   }
 
   public boolean updateEnergyLimit(byte[] owner, byte[] contractAddress, long originEnergyLimit)
-      throws IOException, CipherException, CancelException {
+      throws IOException, CipherException, CancelException, IllegalException {
     if (!isUnlocked()) {
       throw new IllegalStateException(LOCK_WARNING);
     }
@@ -2627,26 +2765,25 @@ public class WalletApi {
       owner = getAddress();
     }
 
-    UpdateEnergyLimitContract updateEnergyLimitContract = createUpdateEnergyLimitContract(owner,
-        contractAddress, originEnergyLimit);
-
-    TransactionExtention transactionExtention = rpcCli.updateEnergyLimit(updateEnergyLimitContract);
+//    UpdateEnergyLimitContract updateEnergyLimitContract = createUpdateEnergyLimitContract(owner,
+//        contractAddress, originEnergyLimit);
+//
+//    TransactionExtention transactionExtention = rpcCli.updateEnergyLimit(updateEnergyLimitContract);
+    Response.TransactionExtention transactionExtention = apiCli.updateEnergyLimit(owner, contractAddress, originEnergyLimit);
     if (transactionExtention == null || !transactionExtention.getResult().getResult()) {
       System.out.println("RPC create trx " + failedHighlight() + "!");
       if (transactionExtention != null) {
         System.out.println("Code = " + transactionExtention.getResult().getCode());
-        System.out
-            .println("Message = " + transactionExtention.getResult().getMessage().toStringUtf8());
+        System.out.println("Message = " + transactionExtention.getResult().getMessage()
+            .toStringUtf8());
       }
       return false;
     }
-
-    return processTransactionExtention(
-        transactionExtention);
+    return processTransactionExtention(transactionExtention);
   }
 
   public boolean clearContractABI(byte[] owner, byte[] contractAddress)
-      throws IOException, CipherException, CancelException {
+      throws IOException, CipherException, CancelException, IllegalException {
     if (!isUnlocked()) {
       throw new IllegalStateException(LOCK_WARNING);
     }
@@ -2654,8 +2791,9 @@ public class WalletApi {
       owner = getAddress();
     }
 
-    ClearABIContract clearABIContract = createClearABIContract(owner, contractAddress);
-    TransactionExtention transactionExtention = rpcCli.clearContractABI(clearABIContract);
+//    ClearABIContract clearABIContract = createClearABIContract(owner, contractAddress);
+//    GrpcAPI.TransactionExtention transactionExtention = rpcCli.clearContractABI(clearABIContract);
+    Response.TransactionExtention transactionExtention = apiCli.clearContractABI(owner, contractAddress);
     if (transactionExtention == null || !transactionExtention.getResult().getResult()) {
       System.out.println("RPC create trx " + failedHighlight() + "!");
       if (transactionExtention != null) {
@@ -2674,10 +2812,10 @@ public class WalletApi {
 
     List<String> walletPath;
     try {
-        walletPath = WalletUtils.getStoreFileNames(ownerAddress, "Wallet");
+      walletPath = WalletUtils.getStoreFileNames(ownerAddress, "Wallet");
     } catch (Exception e) {
-        System.err.println("Error retrieving wallet file names: " + e.getMessage());
-        return false;
+      System.err.println("Error retrieving wallet file names: " + e.getMessage());
+      return false;
     }
     List<String> filePaths = new ArrayList<>(walletPath);
 
@@ -2697,10 +2835,10 @@ public class WalletApi {
     }
 
     try {
-        return ClearWalletUtils.confirmAndDeleteWallet(ownerAddress, filePaths);
+      return ClearWalletUtils.confirmAndDeleteWallet(ownerAddress, filePaths);
     } catch (Exception e) {
-        System.err.println("Error confirming and deleting wallet: " + e.getMessage());
-        return false;
+      System.err.println("Error confirming and deleting wallet: " + e.getMessage());
+      return false;
     }
   }
 
@@ -2718,7 +2856,7 @@ public class WalletApi {
       String tokenId,
       String libraryAddressPair,
       String compilerVersion)
-      throws IOException, CipherException, CancelException {
+      throws Exception {
     if (!isUnlocked()) {
       throw new IllegalStateException(LOCK_WARNING);
     }
@@ -2726,21 +2864,36 @@ public class WalletApi {
       owner = getAddress();
     }
 
-    CreateSmartContract contractDeployContract =
-        createContractDeployContract(
-            contractName,
-            owner,
-            ABI,
-            code,
-            value,
-            consumeUserResourcePercent,
-            originEnergyLimit,
-            tokenValue,
-            tokenId,
-            libraryAddressPair,
-            compilerVersion);
+//    CreateSmartContract contractDeployContract =
+//        createContractDeployContract(
+//            contractName,
+//            owner,
+//            ABI,
+//            code,
+//            value,
+//            consumeUserResourcePercent,
+//            originEnergyLimit,
+//            tokenValue,
+//            tokenId,
+//            libraryAddressPair,
+//            compilerVersion);
 
-    TransactionExtention transactionExtention = rpcCli.deployContract(contractDeployContract);
+//    TransactionExtention transactionExtention = rpcCli.deployContract(contractDeployContract);
+    if (null != libraryAddressPair) {
+      code = Hex.toHexString(replaceLibraryAddress(code, libraryAddressPair, compilerVersion));
+    }
+    ApiClient tmpApiCli;
+    NetType netType = getCurrentNetwork();
+    String privateKey = ByteArray.toHexString(credentials == null ? decrypt2PrivateBytes(getPwdForDeploy(), getWalletFile()) : credentials.getPair().getPrivateKey());
+    if (netType == CUSTOM) {
+      tmpApiCli = new ApiClient(customNodes.getLeft().getLeft(), customNodes.getRight().getLeft(),
+          customNodes.getLeft().getRight(), customNodes.getRight().getRight(), privateKey);
+    } else {
+      tmpApiCli = new ApiClient(netType, privateKey);
+    }
+    Response.TransactionExtention transactionExtention = tmpApiCli.deployContract(contractName, ABI,
+        code, Collections.emptyList(), feeLimit, consumeUserResourcePercent, originEnergyLimit,
+        value, tokenId, tokenValue);
     if (transactionExtention == null || !transactionExtention.getResult().getResult()) {
       System.out.println("RPC create trx " + failedHighlight() + "!");
       if (transactionExtention != null) {
@@ -2751,9 +2904,9 @@ public class WalletApi {
       return false;
     }
 
-    TransactionExtention.Builder texBuilder = TransactionExtention.newBuilder();
-    Transaction.Builder transBuilder = Transaction.newBuilder();
-    Transaction.raw.Builder rawBuilder = transactionExtention.getTransaction().getRawData()
+    Response.TransactionExtention.Builder texBuilder = Response.TransactionExtention.newBuilder();
+    Chain.Transaction.Builder transBuilder = Chain.Transaction.newBuilder();
+    Chain.Transaction.raw.Builder rawBuilder = transactionExtention.getTransaction().getRawData()
         .toBuilder();
     rawBuilder.setFeeLimit(feeLimit);
     transBuilder.setRawData(rawBuilder);
@@ -2762,7 +2915,7 @@ public class WalletApi {
       transBuilder.setSignature(i, s);
     }
     for (int i = 0; i < transactionExtention.getTransaction().getRetCount(); i++) {
-      Result r = transactionExtention.getTransaction().getRet(i);
+      Chain.Transaction.Result r = transactionExtention.getTransaction().getRet(i);
       transBuilder.setRet(i, r);
     }
     texBuilder.setTransaction(transBuilder);
@@ -2786,7 +2939,7 @@ public class WalletApi {
       String tokenId,
       boolean isConstant,
       boolean isGasfree)
-      throws IOException, CipherException, CancelException {
+      throws Exception {
     if (!isUnlocked()) {
       throw new IllegalStateException(LOCK_WARNING);
     }
@@ -2794,13 +2947,15 @@ public class WalletApi {
       owner = getAddress();
     }
 
-    TriggerSmartContract triggerContract = triggerCallContract(owner, contractAddress, callValue,
-        data, tokenValue, tokenId);
-    TransactionExtention transactionExtention;
+//    TriggerSmartContract triggerContract = triggerCallContract(owner, contractAddress, callValue,
+//        data, tokenValue, tokenId);
+    Response.TransactionExtention transactionExtention;
     if (isConstant) {
-      transactionExtention = rpcCli.triggerConstantContract(triggerContract);
+//      transactionExtention = rpcCli.triggerConstantContract(triggerContract);
+      transactionExtention = apiCli.triggerConstantContract(owner, contractAddress, data, callValue, tokenValue, tokenId);
     } else {
-      transactionExtention = rpcCli.triggerContract(triggerContract);
+//      transactionExtention = rpcCli.triggerContract(triggerContract);
+      transactionExtention = apiCli.triggerContract(owner, contractAddress, data, callValue, tokenValue, tokenId, feeLimit);
     }
 
     if (transactionExtention == null || !transactionExtention.getResult().getResult()) {
@@ -2811,13 +2966,13 @@ public class WalletApi {
       return Pair.of(false, 0L);
     }
 
-    Transaction transaction = transactionExtention
+    Chain.Transaction transaction = transactionExtention
         .getTransaction();
     // for constant
     if (transaction.getRetCount() != 0) {
-      TransactionExtention.Builder builder =
+      Response.TransactionExtention.Builder builder =
           transactionExtention.toBuilder().clearTransaction().clearTxid();
-      if (transaction.getRet(0).getRet() == Result.code.FAILED) {
+      if (transaction.getRet(0).getRet() == Chain.Transaction.Result.code.FAILED) {
         builder.setResult(builder.getResult().toBuilder().setResult(false));
       }
       if (!isGasfree) {
@@ -2831,9 +2986,9 @@ public class WalletApi {
       return Pair.of(true, bigInteger.longValue());
     }
 
-    TransactionExtention.Builder texBuilder = TransactionExtention.newBuilder();
-    Transaction.Builder transBuilder = Transaction.newBuilder();
-    Transaction.raw.Builder rawBuilder = transactionExtention.getTransaction().getRawData()
+    Response.TransactionExtention.Builder texBuilder = Response.TransactionExtention.newBuilder();
+    Chain.Transaction.Builder transBuilder = Chain.Transaction.newBuilder();
+    Chain.Transaction.raw.Builder rawBuilder = transactionExtention.getTransaction().getRawData()
         .toBuilder();
     rawBuilder.setFeeLimit(feeLimit);
     transBuilder.setRawData(rawBuilder);
@@ -2842,7 +2997,7 @@ public class WalletApi {
       transBuilder.setSignature(i, s);
     }
     for (int i = 0; i < transactionExtention.getTransaction().getRetCount(); i++) {
-      Result r = transactionExtention.getTransaction().getRet(i);
+      Chain.Transaction.Result r = transactionExtention.getTransaction().getRet(i);
       transBuilder.setRet(i, r);
     }
     texBuilder.setTransaction(transBuilder);
@@ -2865,10 +3020,12 @@ public class WalletApi {
       owner = getAddress();
     }
 
-    TriggerSmartContract triggerContract = triggerCallContract(owner, contractAddress, callValue,
-        data, tokenValue, tokenId);
+//    TriggerSmartContract triggerContract = triggerCallContract(owner, contractAddress, callValue,
+//        data, tokenValue, tokenId);
 
-    EstimateEnergyMessage estimateEnergyMessage = rpcCli.estimateEnergy(triggerContract);
+//    EstimateEnergyMessage estimateEnergyMessage = rpcCli.estimateEnergy(triggerContract);
+    Response.EstimateEnergyMessage estimateEnergyMessage = apiCli.estimateEnergy(owner,
+        contractAddress, callValue, data, tokenValue, tokenId);
 
     if (estimateEnergyMessage == null) {
       System.out.println("RPC create call trx " + failedHighlight() + "!");
@@ -2886,27 +3043,30 @@ public class WalletApi {
     return true;
   }
 
-  public static SmartContract getContract(byte[] address) {
-    return rpcCli.getContract(address);
+  public static Common.SmartContract getContract(byte[] address) {
+//    return rpcCli.getContract(address);
+    return apiCli.getContract(address);
   }
 
-  public static SmartContractDataWrapper getContractInfo(byte[] address) {
-    return rpcCli.getContractInfo(address);
+  public static Response.SmartContractDataWrapper getContractInfo(byte[] address) {
+//    return rpcCli.getContractInfo(address);
+    return apiCli.getContractInfo(address);
   }
 
   public boolean accountPermissionUpdate(byte[] owner, String permissionJson)
-      throws CipherException, IOException, CancelException {
+      throws CipherException, IOException, CancelException, IllegalException {
     if (!isUnlocked()) {
       throw new IllegalStateException(LOCK_WARNING);
     }
-    AccountPermissionUpdateContract contract =
+    Contract.AccountPermissionUpdateContract contract =
         createAccountPermissionContract(owner, permissionJson);
-    TransactionExtention transactionExtention = rpcCli.accountPermissionUpdate(contract);
+//    TransactionExtention transactionExtention = rpcCli.accountPermissionUpdate(contract);
+    Response.TransactionExtention transactionExtention = apiCli.accountPermissionUpdate(contract);
     return processTransactionExtention(transactionExtention);
   }
 
-  private Permission json2Permission(JSONObject json) {
-    Permission.Builder permissionBuilder = Permission.newBuilder();
+  private Common.Permission json2Permission(JSONObject json) {
+    Common.Permission.Builder permissionBuilder = Common.Permission.newBuilder();
     if (json.containsKey("type")) {
       int type = json.getInteger("type");
       permissionBuilder.setTypeValue(type);
@@ -2929,9 +3089,9 @@ public class WalletApi {
     }
     if (json.containsKey("keys")) {
       JSONArray keys = json.getJSONArray("keys");
-      List<Key> keyList = new ArrayList<>();
+      List<Common.Key> keyList = new ArrayList<>();
       for (int i = 0; i < keys.size(); i++) {
-        Key.Builder keyBuilder = Key.newBuilder();
+        Common.Key.Builder keyBuilder = Common.Key.newBuilder();
         JSONObject key = keys.getJSONObject(i);
         String address = key.getString("address");
         long weight = key.getLong("weight");
@@ -2944,27 +3104,27 @@ public class WalletApi {
     return permissionBuilder.build();
   }
 
-  public AccountPermissionUpdateContract createAccountPermissionContract(byte[] owner,
-                                                                         String permissionJson) {
-    AccountPermissionUpdateContract.Builder builder = AccountPermissionUpdateContract.newBuilder();
+  public Contract.AccountPermissionUpdateContract createAccountPermissionContract(byte[] owner,
+                                                                                  String permissionJson) {
+    Contract.AccountPermissionUpdateContract.Builder builder = Contract.AccountPermissionUpdateContract.newBuilder();
 
-    JSONObject permissions = JSONObject.parseObject(permissionJson);
-    JSONObject owner_permission = permissions.getJSONObject("owner_permission");
-    JSONObject witness_permission = permissions.getJSONObject("witness_permission");
-    JSONArray active_permissions = permissions.getJSONArray("active_permissions");
+    JSONObject permissions = JSON.parseObject(permissionJson);
+    JSONObject op = permissions.getJSONObject("owner_permission");
+    JSONObject wp = permissions.getJSONObject("witness_permission");
+    JSONArray ap = permissions.getJSONArray("active_permissions");
 
-    if (owner_permission != null) {
-      Permission ownerPermission = json2Permission(owner_permission);
+    if (op != null) {
+      Common.Permission ownerPermission = json2Permission(op);
       builder.setOwner(ownerPermission);
     }
-    if (witness_permission != null) {
-      Permission witnessPermission = json2Permission(witness_permission);
+    if (wp != null) {
+      Common.Permission witnessPermission = json2Permission(wp);
       builder.setWitness(witnessPermission);
     }
-    if (active_permissions != null) {
-      List<Permission> activePermissionList = new ArrayList<>();
-      for (int j = 0; j < active_permissions.size(); j++) {
-        JSONObject permission = active_permissions.getJSONObject(j);
+    if (ap != null) {
+      List<Common.Permission> activePermissionList = new ArrayList<>();
+      for (int j = 0; j < ap.size(); j++) {
+        JSONObject permission = ap.getJSONObject(j);
         activePermissionList.add(json2Permission(permission));
       }
       builder.addAllActives(activePermissionList);
@@ -2973,7 +3133,7 @@ public class WalletApi {
     return builder.build();
   }
 
-  public Transaction addTransactionSign(Transaction transaction)
+  public Chain.Transaction addTransactionSign(Chain.Transaction transaction)
       throws CipherException, IOException, CancelException {
     if (!isUnlocked()) {
       throw new IllegalStateException(LOCK_WARNING);
@@ -3006,7 +3166,7 @@ public class WalletApi {
       OutputPointInfo info, boolean showErrorMsg) {
     if (showErrorMsg) {
       try {
-        return Optional.of(rpcCli.GetMerkleTreeVoucherInfo(info));
+        return Optional.of(rpcCli.GetMerkleTreeVoucherInfo(info));// trident no this api
       } catch (Exception e) {
         if (showErrorMsg) {
           Status status = Status.fromThrowable(e);
@@ -3014,7 +3174,7 @@ public class WalletApi {
         }
       }
     } else {
-      return Optional.of(rpcCli.GetMerkleTreeVoucherInfo(info));
+      return Optional.of(rpcCli.GetMerkleTreeVoucherInfo(info));// trident no this api
     }
     return Optional.empty();
   }
@@ -3023,7 +3183,7 @@ public class WalletApi {
                                                      boolean showErrorMsg) {
     if (showErrorMsg) {
       try {
-        return Optional.of(rpcCli.scanNoteByIvk(ivkDecryptParameters));
+        return Optional.of(rpcCli.scanNoteByIvk(ivkDecryptParameters));// trident no this api
       } catch (Exception e) {
         if (showErrorMsg) {
           Status status = Status.fromThrowable(e);
@@ -3031,7 +3191,7 @@ public class WalletApi {
         }
       }
     } else {
-      return Optional.of(rpcCli.scanNoteByIvk(ivkDecryptParameters));
+      return Optional.of(rpcCli.scanNoteByIvk(ivkDecryptParameters));// trident no this api
     }
     return Optional.empty();
   }
@@ -3040,7 +3200,7 @@ public class WalletApi {
                                                      boolean showErrorMsg) {
     if (showErrorMsg) {
       try {
-        return Optional.of(rpcCli.scanNoteByOvk(ovkDecryptParameters));
+        return Optional.of(rpcCli.scanNoteByOvk(ovkDecryptParameters));// trident no this api
       } catch (Exception e) {
         if (showErrorMsg) {
           Status status = Status.fromThrowable(e);
@@ -3048,14 +3208,14 @@ public class WalletApi {
         }
       }
     } else {
-      return Optional.of(rpcCli.scanNoteByOvk(ovkDecryptParameters));
+      return Optional.of(rpcCli.scanNoteByOvk(ovkDecryptParameters));// trident no this api
     }
     return Optional.empty();
   }
 
   public static Optional<BytesMessage> getSpendingKey() {
     try {
-      return Optional.of(rpcCli.getSpendingKey());
+      return Optional.of(rpcCli.getSpendingKey());// trident no this api
     } catch (Exception e) {
       Status status = Status.fromThrowable(e);
       System.out.println("getSpendingKey failed,error " + status.getDescription());
@@ -3066,7 +3226,7 @@ public class WalletApi {
   public static Optional<ExpandedSpendingKeyMessage> getExpandedSpendingKey(
       BytesMessage spendingKey) {
     try {
-      return Optional.of(rpcCli.getExpandedSpendingKey(spendingKey));
+      return Optional.of(rpcCli.getExpandedSpendingKey(spendingKey));// trident no this api
     } catch (Exception e) {
       Status status = Status.fromThrowable(e);
       System.out.println("getExpandedSpendingKey failed,error " + status.getDescription());
@@ -3076,7 +3236,7 @@ public class WalletApi {
 
   public static Optional<BytesMessage> getAkFromAsk(BytesMessage ask) {
     try {
-      return Optional.of(rpcCli.getAkFromAsk(ask));
+      return Optional.of(rpcCli.getAkFromAsk(ask));// trident no this api
     } catch (Exception e) {
       Status status = Status.fromThrowable(e);
       System.out.println("getAkFromAsk failed,error " + status.getDescription());
@@ -3086,7 +3246,7 @@ public class WalletApi {
 
   public static Optional<BytesMessage> getNkFromNsk(BytesMessage nsk) {
     try {
-      return Optional.of(rpcCli.getNkFromNsk(nsk));
+      return Optional.of(rpcCli.getNkFromNsk(nsk));// trident no this api
     } catch (Exception e) {
       Status status = Status.fromThrowable(e);
       System.out.println("getNkFromNsk failed,error " + status.getDescription());
@@ -3097,7 +3257,7 @@ public class WalletApi {
   public static Optional<IncomingViewingKeyMessage> getIncomingViewingKey(
       ViewingKeyMessage viewingKeyMessage) {
     try {
-      return Optional.of(rpcCli.getIncomingViewingKey(viewingKeyMessage));
+      return Optional.of(rpcCli.getIncomingViewingKey(viewingKeyMessage));// trident no this api
     } catch (Exception e) {
       Status status = Status.fromThrowable(e);
       System.out.println("getIncomingViewingKey failed,error " + status.getDescription());
@@ -3107,7 +3267,7 @@ public class WalletApi {
 
   public static Optional<DiversifierMessage> getDiversifier() {
     try {
-      return Optional.of(rpcCli.getDiversifier());
+      return Optional.of(rpcCli.getDiversifier());// trident no this api
     } catch (Exception e) {
       Status status = Status.fromThrowable(e);
       System.out.println("getDiversifier failed,error " + status.getDescription());
@@ -3117,20 +3277,20 @@ public class WalletApi {
 
   public static boolean sendShieldedCoin(PrivateParameters privateParameters, WalletApi wallet)
       throws CipherException, IOException, CancelException {
-    TransactionExtention transactionExtention = rpcCli.createShieldedTransaction(privateParameters);
+    GrpcAPI.TransactionExtention transactionExtention = rpcCli.createShieldedTransaction(privateParameters); // trident no this api
     return processShieldedTransaction(transactionExtention, wallet);
   }
 
   public static boolean sendShieldedCoinWithoutAsk(PrivateParametersWithoutAsk privateParameters,
                                                    byte[] ask, WalletApi wallet) throws CipherException, IOException, CancelException {
-    TransactionExtention transactionExtention =
-        rpcCli.createShieldedTransactionWithoutSpendAuthSig(privateParameters);
+    GrpcAPI.TransactionExtention transactionExtention =
+        rpcCli.createShieldedTransactionWithoutSpendAuthSig(privateParameters);// trident no this api
     if (transactionExtention == null) {
       System.out.println("sendShieldedCoinWithoutAsk failure.");
       return false;
     }
 
-    BytesMessage trxHash = rpcCli.getShieldedTransactionHash(transactionExtention.getTransaction());
+    BytesMessage trxHash = rpcCli.getShieldedTransactionHash(transactionExtention.getTransaction());// trident no this api
     if (trxHash == null || trxHash.getValue().toByteArray().length != 32) {
       System.out.println("sendShieldedCoinWithoutAsk get transaction hash failure.");
       return false;
@@ -3155,7 +3315,7 @@ public class WalletApi {
       builder.setTxHash(ByteString.copyFrom(trxHash.getValue().toByteArray()));
       builder.setAlpha(privateParameters.getShieldedSpends(i).getAlpha());
 
-      BytesMessage authSig = rpcCli.createSpendAuthSig(builder.build());
+      BytesMessage authSig = rpcCli.createSpendAuthSig(builder.build());// trident no this api
       spendDescription.setSpendAuthoritySignature(
           ByteString.copyFrom(authSig.getValue().toByteArray()));
 
@@ -3184,7 +3344,7 @@ public class WalletApi {
       NoteParameters noteParameters, boolean showErrorMsg) {
     if (showErrorMsg) {
       try {
-        return Optional.of(rpcCli.isNoteSpend(noteParameters));
+        return Optional.of(rpcCli.isNoteSpend(noteParameters));// trident no this api
       } catch (Exception e) {
         if (showErrorMsg) {
           Status status = Status.fromThrowable(e);
@@ -3192,14 +3352,14 @@ public class WalletApi {
         }
       }
     } else {
-      return Optional.of(rpcCli.isNoteSpend(noteParameters));
+      return Optional.of(rpcCli.isNoteSpend(noteParameters));// trident no this api
     }
     return Optional.empty();
   }
 
   public static Optional<BytesMessage> getRcm() {
     try {
-      return Optional.of(rpcCli.getRcm());
+      return Optional.of(rpcCli.getRcm());// trident no this api
     } catch (Exception e) {
       Status status = Status.fromThrowable(e);
       System.out.println("getRcm failed,error " + status.getDescription());
@@ -3209,7 +3369,7 @@ public class WalletApi {
 
   public static Optional<BytesMessage> createShieldedNullifier(NfParameters parameters) {
     try {
-      return Optional.of(rpcCli.createShieldedNullifier(parameters));
+      return Optional.of(rpcCli.createShieldedNullifier(parameters));// trident no this api
     } catch (Exception e) {
       Status status = Status.fromThrowable(e);
       System.out.println("createShieldedNullifier failed,error " + status.getDescription());
@@ -3220,7 +3380,7 @@ public class WalletApi {
   public static Optional<PaymentAddressMessage> getZenPaymentAddress(
       IncomingViewingKeyDiversifierMessage msg) {
     try {
-      return Optional.of(rpcCli.getZenPaymentAddress(msg));
+      return Optional.of(rpcCli.getZenPaymentAddress(msg));// trident no this api
     } catch (Exception e) {
       Status status = Status.fromThrowable(e);
       System.out.println("getZenPaymentAddress failed,error " + status.getDescription());
@@ -3231,7 +3391,7 @@ public class WalletApi {
   public static Optional<DecryptNotesMarked> scanAndMarkNoteByIvk(
       IvkDecryptAndMarkParameters parameters) {
     try {
-      return Optional.of(rpcCli.scanAndMarkNoteByIvk(parameters));
+      return Optional.of(rpcCli.scanAndMarkNoteByIvk(parameters));// trident no this api
     } catch (Exception e) {
       Status status = Status.fromThrowable(e);
       System.out.println("scanAndMarkNoteByIvk failed,error " + status.getDescription());
@@ -3240,7 +3400,7 @@ public class WalletApi {
   }
 
   public boolean updateBrokerage(byte[] owner, int brokerage)
-      throws IOException, CipherException, CancelException {
+      throws IOException, CipherException, CancelException, IllegalException {
     if (!isUnlocked()) {
       throw new IllegalStateException("Wallet is locked. Cannot sign or send transaction.");
     }
@@ -3248,12 +3408,13 @@ public class WalletApi {
       owner = getAddress();
     }
 
-    UpdateBrokerageContract.Builder updateBrokerageContract = UpdateBrokerageContract.newBuilder();
-    updateBrokerageContract
-        .setOwnerAddress(ByteString.copyFrom(owner))
-        .setBrokerage(brokerage);
-    TransactionExtention transactionExtention =
-        rpcCli.updateBrokerage(updateBrokerageContract.build());
+//    UpdateBrokerageContract.Builder updateBrokerageContract = UpdateBrokerageContract.newBuilder();
+//    updateBrokerageContract
+//        .setOwnerAddress(ByteString.copyFrom(owner))
+//        .setBrokerage(brokerage);
+//    TransactionExtention transactionExtention =
+//        rpcCli.updateBrokerage(updateBrokerageContract.build());
+    Response.TransactionExtention transactionExtention = apiCli.updateBrokerage(owner, brokerage);
     if (transactionExtention == null || !transactionExtention.getResult().getResult()) {
       System.out.println("RPC create trx " + failedHighlight() + "!");
       if (transactionExtention != null) {
@@ -3267,30 +3428,34 @@ public class WalletApi {
     return processTransactionExtention(transactionExtention);
   }
 
-  public static GrpcAPI.NumberMessage getReward(byte[] owner) {
-    return rpcCli.getReward(owner);
+  public static org.tron.trident.api.GrpcAPI.NumberMessage getReward(byte[] owner) {
+    return apiCli.getReward(owner);
   }
 
-  public static GrpcAPI.NumberMessage getBrokerage(byte[] owner) {
-    return rpcCli.getBrokerage(owner);
+  public static long getBrokerage(byte[] owner) {
+//    return rpcCli.getBrokerage(owner);
+    return apiCli.getBrokerage(owner);
   }
 
-  public static PricesResponseMessage getBandwidthPrices() {
-    return rpcCli.getBandwidthPrices();
+  public static Response.PricesResponseMessage getBandwidthPrices() {
+//    return rpcCli.getBandwidthPrices();
+    return apiCli.getBandwidthPrices();
   }
 
-  public static PricesResponseMessage getEnergyPrices() {
-    return rpcCli.getEnergyPrices();
+  public static Response.PricesResponseMessage getEnergyPrices() {
+//    return rpcCli.getEnergyPrices();
+    return apiCli.getEnergyPrices();
   }
 
-  public static PricesResponseMessage getMemoFee() {
-    return rpcCli.getMemoFee();
+  public static Response.PricesResponseMessage getMemoFee() {
+//    return rpcCli.getMemoFee();
+    return apiCli.getMemoFee();
   }
 
   public static Optional<DecryptNotesTRC20> scanShieldedTRC20NoteByIvk(
       IvkDecryptTRC20Parameters parameters, boolean showErrorMsg) {
     try {
-      return Optional.of(rpcCli.scanShieldedTRC20NoteByIvk(parameters));
+      return Optional.of(rpcCli.scanShieldedTRC20NoteByIvk(parameters));// trident no this api
     } catch (Exception e) {
       if (showErrorMsg) {
         Status status = Status.fromThrowable(e);
@@ -3303,7 +3468,7 @@ public class WalletApi {
   public static Optional<DecryptNotesTRC20> scanShieldedTRC20NoteByOvk(
       OvkDecryptTRC20Parameters parameters, boolean showErrorMsg) {
     try {
-      return Optional.of(rpcCli.scanShieldedTRC20NoteByOvk(parameters));
+      return Optional.of(rpcCli.scanShieldedTRC20NoteByOvk(parameters));// trident no this api
     } catch (Exception e) {
       if (showErrorMsg) {
         Status status = Status.fromThrowable(e);
@@ -3315,10 +3480,10 @@ public class WalletApi {
 
   public String constantCallShieldedContract(byte[] contractAddress, byte[] data, String functionName) {
     byte[] address = getAddress();
-    TriggerSmartContract triggerContract =
-        triggerCallContract(address, contractAddress, 0, data, 0, "");
-    TransactionExtention transactionExtention = rpcCli.triggerConstantContract(triggerContract);
-
+//    TriggerSmartContract triggerContract =
+//        triggerCallContract(address, contractAddress, 0, data, 0, "");
+//    GrpcAPI.TransactionExtention transactionExtention = rpcCli.triggerConstantContract(triggerContract);// trident no this api
+    Response.TransactionExtention transactionExtention = apiCli.triggerConstantContract(address, contractAddress, data);
     if (transactionExtention == null || !transactionExtention.getResult().getResult()) {
       System.out.println("Get " + functionName + failedHighlight() + "!");
       System.out.println("Code = " + transactionExtention.getResult().getCode());
@@ -3327,7 +3492,7 @@ public class WalletApi {
       return null;
     }
 
-    Transaction transaction = transactionExtention.getTransaction();
+    Chain.Transaction transaction = transactionExtention.getTransaction();
     if (transaction.getRetCount() != 0
         && transactionExtention.getConstantResult(0) != null
         && transactionExtention.getResult() != null) {
@@ -3341,7 +3506,7 @@ public class WalletApi {
   public static ShieldedTRC20Parameters createShieldedContractParameters(
       PrivateShieldedTRC20Parameters privateParameters) {
     try {
-      return rpcCli.createShieldedContractParameters(privateParameters);
+      return rpcCli.createShieldedContractParameters(privateParameters);// trident no this api
     } catch (Exception e) {
       Status status = Status.fromThrowable(e);
       System.out.println("createShieldedContractParameters failed,error " + status.getDescription());
@@ -3353,7 +3518,7 @@ public class WalletApi {
       PrivateShieldedTRC20ParametersWithoutAsk privateParameters, byte[] ask) {
     ShieldedTRC20Parameters parameters;
     try {
-      parameters = rpcCli.createShieldedContractParametersWithoutAsk(privateParameters);
+      parameters = rpcCli.createShieldedContractParametersWithoutAsk(privateParameters);// trident no this api
     } catch (Exception e) {
       Status status = Status.fromThrowable(e);
       System.out.println("createShieldedContractParametersWithoutAsk " + failedHighlight() + ",error "
@@ -3409,7 +3574,7 @@ public class WalletApi {
     }
     BytesMessage triggerInputData;
     try {
-      triggerInputData = rpcCli.getTriggerInputForShieldedTRC20Contract(stBuilder.build());
+      triggerInputData = rpcCli.getTriggerInputForShieldedTRC20Contract(stBuilder.build());// trident no this api
     } catch (Exception e) {
       triggerInputData = null;
       System.out.println("getTriggerInputForShieldedTRC20Contract error, please retry!");
@@ -3426,7 +3591,7 @@ public class WalletApi {
       NfTRC20Parameters parameters, boolean showErrorMsg) {
     if (showErrorMsg) {
       try {
-        return Optional.of(rpcCli.isShieldedTRC20ContractNoteSpent(parameters));
+        return Optional.of(rpcCli.isShieldedTRC20ContractNoteSpent(parameters));// trident no this api
       } catch (Exception e) {
         if (showErrorMsg) {
           Status status = Status.fromThrowable(e);
@@ -3435,13 +3600,14 @@ public class WalletApi {
         }
       }
     } else {
-      return Optional.of(rpcCli.isShieldedTRC20ContractNoteSpent(parameters));
+      return Optional.of(rpcCli.isShieldedTRC20ContractNoteSpent(parameters));// trident no this api
     }
     return Optional.empty();
   }
 
-  public static Optional<TransactionInfoList> getTransactionInfoByBlockNum(long blockNum) {
-    return rpcCli.getTransactionInfoByBlockNum(blockNum);
+  public static Response.TransactionInfoList getTransactionInfoByBlockNum(long blockNum) throws IllegalException {
+//    return rpcCli.getTransactionInfoByBlockNum(blockNum);
+    return apiCli.getTransactionInfoByBlockNum(blockNum);
   }
 
   public boolean marketSellAsset(
@@ -3450,7 +3616,7 @@ public class WalletApi {
       long sellTokenQuantity,
       byte[] buyTokenId,
       long buyTokenQuantity)
-      throws IOException, CipherException, CancelException {
+      throws IOException, CipherException, CancelException, IllegalException {
     if (!isUnlocked()) {
       throw new IllegalStateException("Wallet is locked. Cannot sign or send transaction.");
     }
@@ -3458,20 +3624,22 @@ public class WalletApi {
       owner = getAddress();
     }
 
-    MarketSellAssetContract.Builder builder = MarketSellAssetContract.newBuilder();
-    builder
-        .setOwnerAddress(ByteString.copyFrom(owner))
-        .setSellTokenId(ByteString.copyFrom(sellTokenId))
-        .setSellTokenQuantity(sellTokenQuantity)
-        .setBuyTokenId(ByteString.copyFrom(buyTokenId))
-        .setBuyTokenQuantity(buyTokenQuantity);
+//    MarketSellAssetContract.Builder builder = MarketSellAssetContract.newBuilder();
+//    builder
+//        .setOwnerAddress(ByteString.copyFrom(owner))
+//        .setSellTokenId(ByteString.copyFrom(sellTokenId))
+//        .setSellTokenQuantity(sellTokenQuantity)
+//        .setBuyTokenId(ByteString.copyFrom(buyTokenId))
+//        .setBuyTokenQuantity(buyTokenQuantity);
 
-    TransactionExtention transactionExtention = rpcCli.marketSellAsset(builder.build());
+//    TransactionExtention transactionExtention = rpcCli.marketSellAsset(builder.build());
+    Response.TransactionExtention transactionExtention = apiCli.marketSellAsset(owner, sellTokenId,
+        sellTokenQuantity, buyTokenId, buyTokenQuantity);
     return processTransactionExtention(transactionExtention);
   }
 
   public boolean marketCancelOrder(byte[] owner, byte[] orderId)
-      throws IOException, CipherException, CancelException {
+      throws IOException, CipherException, CancelException, IllegalException {
     if (!isUnlocked()) {
       throw new IllegalStateException("Wallet is locked. Cannot sign or send transaction.");
     }
@@ -3479,37 +3647,47 @@ public class WalletApi {
       owner = getAddress();
     }
 
-    MarketCancelOrderContract.Builder builder = MarketCancelOrderContract.newBuilder();
-    builder.setOwnerAddress(ByteString.copyFrom(owner)).setOrderId(ByteString.copyFrom(orderId));
-
-    TransactionExtention transactionExtention = rpcCli.marketCancelOrder(builder.build());
+//    MarketCancelOrderContract.Builder builder = MarketCancelOrderContract.newBuilder();
+//    builder.setOwnerAddress(ByteString.copyFrom(owner)).setOrderId(ByteString.copyFrom(orderId));
+//
+//    TransactionExtention transactionExtention = rpcCli.marketCancelOrder(builder.build());
+    Response.TransactionExtention transactionExtention = apiCli.marketCancelOrder(owner, orderId);
     return processTransactionExtention(transactionExtention);
   }
 
-  public static Optional<MarketOrderList> getMarketOrderByAccount(byte[] address) {
-    return rpcCli.getMarketOrderByAccount(address);
+  public static Response.MarketOrderList getMarketOrderByAccount(byte[] address) {
+//    return rpcCli.getMarketOrderByAccount(address);
+    return apiCli.getMarketOrderByAccount(address);
   }
 
-  public static Optional<MarketPriceList> getMarketPriceByPair(
+  public static Response.MarketPriceList getMarketPriceByPair(
       byte[] sellTokenId, byte[] buyTokenId) {
-    return rpcCli.getMarketPriceByPair(sellTokenId, buyTokenId);
+//    return rpcCli.getMarketPriceByPair(sellTokenId, buyTokenId);
+    return apiCli.getMarketPriceByPair(sellTokenId, buyTokenId);
   }
 
-  public static Optional<MarketOrderList> getMarketOrderListByPair(
+  public static Response.MarketOrderList getMarketOrderListByPair(
       byte[] sellTokenId, byte[] buyTokenId) {
-    return rpcCli.getMarketOrderListByPair(sellTokenId, buyTokenId);
+//    return rpcCli.getMarketOrderListByPair(sellTokenId, buyTokenId);
+    return apiCli.getMarketOrderListByPair(sellTokenId, buyTokenId);
   }
 
-  public static Optional<MarketOrderPairList> getMarketPairList() {
-    return rpcCli.getMarketPairList();
+  public static Response.MarketOrderPairList getMarketPairList() {
+//    return rpcCli.getMarketPairList();
+    return apiCli.getMarketPairList();
   }
 
-  public static Optional<MarketOrder> getMarketOrderById(byte[] order) {
-    return rpcCli.getMarketOrderById(order);
+  public static Response.MarketOrder getMarketOrderById(byte[] order) {
+//    return rpcCli.getMarketOrderById(order);
+    return apiCli.getMarketOrderById(order);
   }
 
-  public static BlockExtention getBlock(String idOrNum, boolean detail) {
-    return rpcCli.getBlock(idOrNum, detail);
+  public static Response.BlockExtention getBlock(String idOrNum, boolean detail) {
+//    return rpcCli.getBlock(idOrNum, detail);
+    if (idOrNum == null) {
+      idOrNum = EMPTY;
+    }
+    return apiCli.getBlock(idOrNum, detail);
   }
 
   public static boolean isLockAccount() {
