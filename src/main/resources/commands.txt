@@ -60,8 +60,8 @@ DeployContract [owner_address] contractName ABI byteCode constructor params isHe
 Summary:
 Deploy a smart contract.
 Usage example:
-wallet> DeployContract testContract [{"inputs":[],"stateMutability":"nonpayable","type":"constructor"},{"inputs":[{"internalType":"uint256","name":"_value","type":"uint256"}],"name":"addToDynamicArray","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"addr","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"balances","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"boolean","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"dynamicArray","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"dynamicString","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"x","type":"uint256"}],"name":"exampleFunction","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"pure","type":"function"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"fixedArray","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"fixedBytes","outputs":[{"internalType":"bytes32","name":"","type":"bytes32"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"payableAddr","outputs":[{"internalType":"address payable","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"person","outputs":[{"internalType":"string","name":"name","type":"string"},{"internalType":"uint256","name":"age","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"bool","name":"_boolean","type":"bool"}],"name":"setBoolean","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"enum AllTypesExample.State","name":"_state","type":"uint8"}],"name":"setState","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"signedInteger","outputs":[{"internalType":"int256","name":"","type":"int256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"state","outputs":[{"internalType":"enum AllTypesExample.State","name":"","type":"uint8"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"unsignedInteger","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"_addr","type":"address"},{"internalType":"uint256","name":"_amount","type":"uint256"}],"name":"updateBalance","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"string","name":"_name","type":"string"},{"internalType":"uint256","name":"_age","type":"uint256"}],"name":"updatePerson","outputs":[],"stateMutability":"nonpayable","type":"function"}] 5f805460ff1916600190811790915560649055606319600255600380546001600160a01b0319908116735b38da6a701c568545dcfcb03fcb875f56beddc490811790925560048054909116909117905564199a5e195960da1b60055560c0604052600760809081526664796e616d696360c81b60a052600690620000849082620002a5565b506007805460ff1916905560408051608081018252600591810191825264416c69636560d81b6060820152818152601e602082015290600e908190620000cb9082620002a5565b50602082015181600101555050348015620000e4575f80fd5b50d38015620000f1575f80fd5b50d28015620000fe575f80fd5b5060088054600181810183555f8390527ff3f7a9fe364faab93b216da50a3214154f22a0a2b415b23a84c8169e8b636ee391820181905582548082019093556002929091018290556040805160a0810182529182526020820192909252600391810191909152600460608201526005608082018190526200018291600991620001a7565b506003546001600160a01b03165f9081526010602052604090206103e890556200036d565b8260058101928215620001dd579160200282015b82811115620001dd578251829060ff16905591602001919060010190620001bb565b50620001eb929150620001ef565b5090565b5b80821115620001eb575f8155600101620001f0565b634e487b7160e01b5f52604160045260245ffd5b600181811c908216806200022e57607f821691505b6020821081036200024d57634e487b7160e01b5f52602260045260245ffd5b50919050565b601f821115620002a0575f81815260208120601f850160051c810160208610156200027b5750805b601f850160051c820191505b818110156200029c5782815560010162000287565b5050505b505050565b81516001600160401b03811115620002c157620002c162000205565b620002d981620002d2845462000219565b8462000253565b602080601f8311600181146200030f575f8415620002f75750858301515b5f19600386901b1c1916600185901b1785556200029c565b5f85815260208120601f198616915b828110156200033f578886015182559484019460019091019084016200031e565b50858210156200035d57878501515f19600388901b60f8161c191681555b5050505050600190811b01905550565b610849806200037b5f395ff3fe608060405234801561000f575f80fd5b50d3801561001b575f80fd5b50d28015610027575f80fd5b50600436106100fc575f3560e01c80632537f3551461010057806327e235e31461013057806356de96db1461015d5780635a0aa04f14610172578063767800de1461018757806377ec2b551461019a578063934bc29d146101b05780639a5009ac146101c35780639a9bdca7146101d6578063a883ba14146101e9578063c19d93fb146101fc578063c5b57bdb14610216578063c5c85fe314610232578063cef7e0de1461023b578063da5e1cfd14610244578063e0b1cccb14610286578063f8462a0f146102af578063f8d0de92146102cf575b5f80fd5b600454610113906001600160a01b031681565b6040516001600160a01b0390911681526020015b60405180910390f35b61014f61013e3660046104a1565b60106020525f908152604090205481565b604051908152602001610127565b61017061016b3660046104c1565b6102d8565b005b61017a6102ff565b6040516101279190610522565b600354610113906001600160a01b031681565b6101a261038b565b604051610127929190610534565b61014f6101be366004610555565b610421565b61014f6101d1366004610555565b610433565b61014f6101e4366004610555565b610449565b6101706101f7366004610580565b610468565b6007546102099060ff1681565b6040516101279190610642565b5f546102229060ff1681565b6040519015158152602001610127565b61014f60025481565b61014f60055481565b610170610252366004610555565b600880546001810182555f919091527ff3f7a9fe364faab93b216da50a3214154f22a0a2b415b23a84c8169e8b636ee30155565b610170610294366004610668565b6001600160a01b039091165f90815260106020526040902055565b6101706102bd366004610690565b5f805460ff1916911515919091179055565b61014f60015481565b6007805482919060ff191660018360028111156102f7576102f761062e565b021790555050565b6006805461030c906106af565b80601f0160208091040260200160405190810160405280929190818152602001828054610338906106af565b80156103835780601f1061035a57610100808354040283529160200191610383565b820191905f5260205f20905b81548152906001019060200180831161036657829003601f168201915b505050505081565b600e8054819061039a906106af565b80601f01602080910402602001604051908101604052809291908181526020018280546103c6906106af565b80156104115780601f106103e857610100808354040283529160200191610411565b820191905f5260205f20905b8154815290600101906020018083116103f457829003601f168201915b5050505050908060010154905082565b5f61042d8260026106e7565b92915050565b60098160058110610442575f80fd5b0154905081565b60088181548110610458575f80fd5b5f91825260209091200154905081565b600e6104748382610758565b50600f5550565b5f81356001600160a81b0381168114610492575f80fd5b6001600160a01b031692915050565b5f602082840312156104b1575f80fd5b6104ba8261047b565b9392505050565b5f602082840312156104d1575f80fd5b8135600381106104ba575f80fd5b5f81518084525f5b81811015610503576020818501810151868301820152016104e7565b505f602082860101526020601f19601f83011685010191505092915050565b602081525f6104ba60208301846104df565b604081525f61054660408301856104df565b90508260208301529392505050565b5f60208284031215610565575f80fd5b5035919050565b634e487b7160e01b5f52604160045260245ffd5b5f8060408385031215610591575f80fd5b82356001600160401b03808211156105a7575f80fd5b818501915085601f8301126105ba575f80fd5b8135818111156105cc576105cc61056c565b604051601f8201601f19908116603f011681019083821181831017156105f4576105f461056c565b8160405282815288602084870101111561060c575f80fd5b826020860160208301375f602093820184015298969091013596505050505050565b634e487b7160e01b5f52602160045260245ffd5b602081016003831061066257634e487b7160e01b5f52602160045260245ffd5b91905290565b5f8060408385031215610679575f80fd5b6106828361047b565b946020939093013593505050565b5f602082840312156106a0575f80fd5b813580151581146104ba575f80fd5b600181811c908216806106c357607f821691505b6020821081036106e157634e487b7160e01b5f52602260045260245ffd5b50919050565b808202811582820484141761042d57634e487b7160e01b5f52601160045260245ffd5b601f821115610753575f81815260208120601f850160051c810160208610156107305750805b601f850160051c820191505b8181101561074f5782815560010161073c565b5050505b505050565b81516001600160401b038111156107715761077161056c565b6107858161077f84546106af565b8461070a565b602080601f8311600181146107b8575f84156107a15750858301515b5f19600386901b1c1916600185901b17855561074f565b5f85815260208120601f198616915b828110156107e6578886015182559484019460019091019084016107c7565b508582101561080357878501515f19600388901b60f8161c191681555b5050505050600190811b0190555056fea26474726f6e582212201d929ead8f8e871bc0fd0bfb021a9288b515e1ba90b48a9deb7a4f99388d724b64736f6c63430008140033 # # false 1000000000 100 1000000000 0 0 #
-wallet> DeployContract TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp testContract [{"inputs":[],"stateMutability":"nonpayable","type":"constructor"},{"inputs":[{"internalType":"uint256","name":"_value","type":"uint256"}],"name":"addToDynamicArray","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"addr","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"balances","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"boolean","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"dynamicArray","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"dynamicString","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"x","type":"uint256"}],"name":"exampleFunction","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"pure","type":"function"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"fixedArray","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"fixedBytes","outputs":[{"internalType":"bytes32","name":"","type":"bytes32"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"payableAddr","outputs":[{"internalType":"address payable","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"person","outputs":[{"internalType":"string","name":"name","type":"string"},{"internalType":"uint256","name":"age","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"bool","name":"_boolean","type":"bool"}],"name":"setBoolean","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"enum AllTypesExample.State","name":"_state","type":"uint8"}],"name":"setState","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"signedInteger","outputs":[{"internalType":"int256","name":"","type":"int256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"state","outputs":[{"internalType":"enum AllTypesExample.State","name":"","type":"uint8"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"unsignedInteger","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"_addr","type":"address"},{"internalType":"uint256","name":"_amount","type":"uint256"}],"name":"updateBalance","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"string","name":"_name","type":"string"},{"internalType":"uint256","name":"_age","type":"uint256"}],"name":"updatePerson","outputs":[],"stateMutability":"nonpayable","type":"function"}] 5f805460ff1916600190811790915560649055606319600255600380546001600160a01b0319908116735b38da6a701c568545dcfcb03fcb875f56beddc490811790925560048054909116909117905564199a5e195960da1b60055560c0604052600760809081526664796e616d696360c81b60a052600690620000849082620002a5565b506007805460ff1916905560408051608081018252600591810191825264416c69636560d81b6060820152818152601e602082015290600e908190620000cb9082620002a5565b50602082015181600101555050348015620000e4575f80fd5b50d38015620000f1575f80fd5b50d28015620000fe575f80fd5b5060088054600181810183555f8390527ff3f7a9fe364faab93b216da50a3214154f22a0a2b415b23a84c8169e8b636ee391820181905582548082019093556002929091018290556040805160a0810182529182526020820192909252600391810191909152600460608201526005608082018190526200018291600991620001a7565b506003546001600160a01b03165f9081526010602052604090206103e890556200036d565b8260058101928215620001dd579160200282015b82811115620001dd578251829060ff16905591602001919060010190620001bb565b50620001eb929150620001ef565b5090565b5b80821115620001eb575f8155600101620001f0565b634e487b7160e01b5f52604160045260245ffd5b600181811c908216806200022e57607f821691505b6020821081036200024d57634e487b7160e01b5f52602260045260245ffd5b50919050565b601f821115620002a0575f81815260208120601f850160051c810160208610156200027b5750805b601f850160051c820191505b818110156200029c5782815560010162000287565b5050505b505050565b81516001600160401b03811115620002c157620002c162000205565b620002d981620002d2845462000219565b8462000253565b602080601f8311600181146200030f575f8415620002f75750858301515b5f19600386901b1c1916600185901b1785556200029c565b5f85815260208120601f198616915b828110156200033f578886015182559484019460019091019084016200031e565b50858210156200035d57878501515f19600388901b60f8161c191681555b5050505050600190811b01905550565b610849806200037b5f395ff3fe608060405234801561000f575f80fd5b50d3801561001b575f80fd5b50d28015610027575f80fd5b50600436106100fc575f3560e01c80632537f3551461010057806327e235e31461013057806356de96db1461015d5780635a0aa04f14610172578063767800de1461018757806377ec2b551461019a578063934bc29d146101b05780639a5009ac146101c35780639a9bdca7146101d6578063a883ba14146101e9578063c19d93fb146101fc578063c5b57bdb14610216578063c5c85fe314610232578063cef7e0de1461023b578063da5e1cfd14610244578063e0b1cccb14610286578063f8462a0f146102af578063f8d0de92146102cf575b5f80fd5b600454610113906001600160a01b031681565b6040516001600160a01b0390911681526020015b60405180910390f35b61014f61013e3660046104a1565b60106020525f908152604090205481565b604051908152602001610127565b61017061016b3660046104c1565b6102d8565b005b61017a6102ff565b6040516101279190610522565b600354610113906001600160a01b031681565b6101a261038b565b604051610127929190610534565b61014f6101be366004610555565b610421565b61014f6101d1366004610555565b610433565b61014f6101e4366004610555565b610449565b6101706101f7366004610580565b610468565b6007546102099060ff1681565b6040516101279190610642565b5f546102229060ff1681565b6040519015158152602001610127565b61014f60025481565b61014f60055481565b610170610252366004610555565b600880546001810182555f919091527ff3f7a9fe364faab93b216da50a3214154f22a0a2b415b23a84c8169e8b636ee30155565b610170610294366004610668565b6001600160a01b039091165f90815260106020526040902055565b6101706102bd366004610690565b5f805460ff1916911515919091179055565b61014f60015481565b6007805482919060ff191660018360028111156102f7576102f761062e565b021790555050565b6006805461030c906106af565b80601f0160208091040260200160405190810160405280929190818152602001828054610338906106af565b80156103835780601f1061035a57610100808354040283529160200191610383565b820191905f5260205f20905b81548152906001019060200180831161036657829003601f168201915b505050505081565b600e8054819061039a906106af565b80601f01602080910402602001604051908101604052809291908181526020018280546103c6906106af565b80156104115780601f106103e857610100808354040283529160200191610411565b820191905f5260205f20905b8154815290600101906020018083116103f457829003601f168201915b5050505050908060010154905082565b5f61042d8260026106e7565b92915050565b60098160058110610442575f80fd5b0154905081565b60088181548110610458575f80fd5b5f91825260209091200154905081565b600e6104748382610758565b50600f5550565b5f81356001600160a81b0381168114610492575f80fd5b6001600160a01b031692915050565b5f602082840312156104b1575f80fd5b6104ba8261047b565b9392505050565b5f602082840312156104d1575f80fd5b8135600381106104ba575f80fd5b5f81518084525f5b81811015610503576020818501810151868301820152016104e7565b505f602082860101526020601f19601f83011685010191505092915050565b602081525f6104ba60208301846104df565b604081525f61054660408301856104df565b90508260208301529392505050565b5f60208284031215610565575f80fd5b5035919050565b634e487b7160e01b5f52604160045260245ffd5b5f8060408385031215610591575f80fd5b82356001600160401b03808211156105a7575f80fd5b818501915085601f8301126105ba575f80fd5b8135818111156105cc576105cc61056c565b604051601f8201601f19908116603f011681019083821181831017156105f4576105f461056c565b8160405282815288602084870101111561060c575f80fd5b826020860160208301375f602093820184015298969091013596505050505050565b634e487b7160e01b5f52602160045260245ffd5b602081016003831061066257634e487b7160e01b5f52602160045260245ffd5b91905290565b5f8060408385031215610679575f80fd5b6106828361047b565b946020939093013593505050565b5f602082840312156106a0575f80fd5b813580151581146104ba575f80fd5b600181811c908216806106c357607f821691505b6020821081036106e157634e487b7160e01b5f52602260045260245ffd5b50919050565b808202811582820484141761042d57634e487b7160e01b5f52601160045260245ffd5b601f821115610753575f81815260208120601f850160051c810160208610156107305750805b601f850160051c820191505b8181101561074f5782815560010161073c565b5050505b505050565b81516001600160401b038111156107715761077161056c565b6107858161077f84546106af565b8461070a565b602080601f8311600181146107b8575f84156107a15750858301515b5f19600386901b1c1916600185901b17855561074f565b5f85815260208120601f198616915b828110156107e6578886015182559484019460019091019084016107c7565b508582101561080357878501515f19600388901b60f8161c191681555b5050505050600190811b0190555056fea26474726f6e582212201d929ead8f8e871bc0fd0bfb021a9288b515e1ba90b48a9deb7a4f99388d724b64736f6c63430008140033 # # false 1000000000 100 1000000000 0 0 #
+wallet> DeployContract testContract [{"inputs":[],"stateMutability":"nonpayable","type":"constructor"},...] 5f805460ff1916600190811790915560649055606319600255600380546001600160a01b0319908116735b38da6a701... # # false 1000000000 100 1000000000 0 0 #
+wallet> DeployContract TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp testContract [{"inputs":[],"stateMutability":"nonpayable","type":"constructor"},...] 5f805460ff1916600190811790915560649055606319600255600380546001600160a01b0319908116735b38da6a701... # # false 1000000000 100 1000000000 0 0 #
 Syntax:
 ExchangeCreate [owner_address] first_token_id first_token_balance second_token_id second_token_balance
 Summary:
@@ -230,7 +230,7 @@ GetMarketPairList
 Summary:
 Get Market Pair list, sell-tokenId and buy-tokenId are a pair.
 Usage example:
-GetMarketPairList
+wallet> GetMarketPairList
 Syntax:
 getMarketPriceByPair sell_tokenId buy_tokenId
 Summary:
@@ -458,7 +458,7 @@ wallet> UnfreezeBalanceV2 TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp 1000000 0
 Syntax:
 DelegateResource [owner_address] balance resource_code(0 BANDWIDTH,1 ENERGY), receiver_address [lock] [lock_period]
 Summary:
-Delegate resources through Stake 1.0 .
+Delegate resources through Stake 2.0 .
 Usage example:
 wallet> DelegateResource 1000000 0 TEp1ru7opCexkbFM9ChK6DFfL2XFSfUo2N
 wallet> DelegateResource 1000000 0 TEp1ru7opCexkbFM9ChK6DFfL2XFSfUo2N true 86400
@@ -494,7 +494,7 @@ GetDelegatedResourceAccountIndexV2 owner_address
 Summary:
 Get the delegated resource account index for the address in Stake 2.0 .
 Usage example:
-GetDelegatedResourceAccountIndexV2 TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp
+wallet> GetDelegatedResourceAccountIndexV2 TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp
 Syntax:
 GetCanDelegatedMaxSize owner_address resource_code(0 BANDWIDTH,1 ENERGY)
 Summary:
@@ -642,3 +642,114 @@ Summary:
 View gasfree transfer information through trace ID.
 Usage example:
 wallet> GasFreeTrace 6c3ff67e-0bf4-4c09-91ca-0c7c254b01a0
+Syntax:
+ClearContractABI [owner_address] contract_address
+Summary:
+Clear contract's ABI.
+Usage example:
+wallet> ClearContractABI TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf
+wallet> ClearContractABI TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf
+Syntax:
+Create2 address code salt
+Summary:
+Predict the contract address generated after deploying a contract. Among them, address is the contract address for executing the create 2 instruction, code is the bytecode of the contract to be deployed, and salt is a random salt value.
+Usage example:
+wallet> Create2 TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp 5f805460ff1916600190811790915560649055606319600255 2132
+Syntax:
+WithdrawBalance [owner_address]
+Summary:
+Withdraw voting or block rewards.
+Usage example:
+wallet> WithdrawBalance
+wallet> WithdrawBalance TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp
+Syntax:
+CreateWitness [owner_address] url
+Summary:
+Apply to become a super representative candidate.
+Usage example:
+wallet> CreateWitness 007570646174654e616d6531353330363038383733343633
+wallet> CreateWitness TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp 007570646174654e616d6531353330363038383733343633
+Syntax:
+UpdateWitness [owner_address] url
+Summary:
+Edit the URL of the SR's official website.
+Usage example:
+wallet> UpdateWitness 007570646174654e616d6531353330363038383733343633
+wallet> UpdateWitness TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp 007570646174654e616d6531353330363038383733343633
+Syntax:
+EstimateEnergy owner_address(use # if you own) contract_address method args isHex [value token_value token_id(e.g: TRXTOKEN, use # if don't provided)]
+Summary:
+Estimate the energy required for the successful execution of smart contract transactions. (Confirmed state)
+Usage example:
+wallet> EstimateEnergy TSNEe5Tf4rnc9zPMNXfaTF5fZfHDDH8oyW TG3XXyExBkPp9nzdajDZsozEu4BkaSJozs "balanceOf(address)" 000000000000000000000000a614f803b6fd780986a42c78ec9c7f77e6ded13c true
+wallet> EstimateEnergy # TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf balanceOf(address) "TAB1TVw5N8g1FLcKxPD17h2A3eEpSXvMQd" false 0 0 #
+Syntax:
+GetChainParameters
+Summary:
+Show all parameters that the blockchain committee can set.
+Usage example:
+wallet> GetChainParameters
+Syntax:
+GetContractInfo contract_address
+Summary:
+Queries a contract's information from the blockchain. The difference from the wallet/getcontract interface is that this interface returns not only the bytecode but also the runtime bytecode of the contract. Compared with bytecode, runtime bytecode does not contain constructor and constructor parameter information.
+Usage example:
+wallet> GetContractInfo TG3XXyExBkPp9nzdajDZsozEu4BkaSJozs
+Syntax:
+GetExchange exchange_id
+Summary:
+Query exchange pair based on id (Confirmed state).
+Usage example:
+wallet> GetExchange 1
+Syntax:
+ListAssetIssuePaginated
+Summary:
+Query the list of all the tokens by pagination.Returns a list of Tokens that succeed the Token located at offset.
+Usage example:
+wallet> ListAssetIssuePaginated 0 1
+Syntax:
+Logout
+Summary:
+Log out of the current wallet account.
+Usage example:
+wallet> Logout
+Syntax:
+SetAccountId [owner_address] account_id
+Summary:
+Sets a custom unique identifier (Account ID) for an account.
+Usage example:
+wallet> SetAccountId 100
+wallet> SetAccountId TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp 100
+Syntax:
+TriggerContract [owner_address] contract_address method args isHex fee_limit value token_value token_id(e.g: TRXTOKEN, use # if don't provided)
+Summary:
+Call the function of the contract (modified by views or pure modifiers) to execute the contract.
+Usage example:
+wallet> TriggerContract TAB1TVw5N8g1FLcKxPD17h2A3eEpSXvMQd TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf transfer(address,uint256) "TT4MHXVApKfbcq7cDLKnes9h9wLSD4eMJi",1 false 1000000000  0 0 #
+Syntax:
+TriggerConstantContract owner_address(use # if you own) contract_address method args isHex [value token_value token_id(e.g: TRXTOKEN, use # if don't provided)]
+Summary:
+Invoke the readonly function (modified by the view or pure modifier) of a contract for contract data query; or Invoke the non-readonly function of a contract for predicting whether the transaction can be successfully executed or estimating the energy consumption. (Confirmed state)
+Usage example:
+wallet> TriggerConstantContract TSNEe5Tf4rnc9zPMNXfaTF5fZfHDDH8oyW TG3XXyExBkPp9nzdajDZsozEu4BkaSJozs "balanceOf(address)" 000000000000000000000000a614f803b6fd780986a42c78ec9c7f77e6ded13c true
+Syntax:
+GetBlockByIdOrNum [block_id / block_num]
+Summary:
+Get blocks based on their ID or block height. If no parameters are passed, Get the header block.
+Usage example:
+wallet> GetBlockByIdOrNum
+wallet> GetBlockByIdOrNum 0000000003781c86da06c18193d961cff84c7ecf0e8a365e2b9e8ca964b828bc
+wallet> GetBlockByIdOrNum 58203270
+Syntax:
+UpdateAccount [owner_address] account_name
+Summary:
+Modify account name.
+Usage example:
+wallet> UpdateAccount testname
+wallet> UpdateAccount TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp testname
+Syntax:
+UpdateAccountPermission owner_address permissions
+Summary:
+Update the account's permission.
+Usage example:
+wallet> UpdateAccountPermission TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ {"owner_permission":{"type":0,"permission_name":"owner","threshold":1,"keys":[{"address":"TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ","weight":1}]},"witness_permission":{"type":1,"permission_name":"owner","threshold":1,"keys":[{"address":"TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ","weight":1}]},"active_permissions":[{"type":2,"permission_name":"active12323","threshold":2,"operations":"7fff1fc0033e0000000000000000000000000000000000000000000000000000","keys":[{"address":"TNhXo1GbRNCuorvYu5JFWN3m2NYr9QQpVR","weight":1},{"address":"TKwhcDup8L2PH5r6hxp5CQvQzZqJLmKvZP","weight":1}]}]}
