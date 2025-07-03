@@ -64,42 +64,47 @@ We can configure java-tron node IP and port in ``src/main/resources/config.conf`
 Following is a list of Tron Wallet-cli commands:
 For more information on a specific command, just type the command on terminal when you start your Wallet.
 
-| [AddTransactionSign](#How-to-use-the-multi-signature-feature-of-wallet-cli)  |                [ApproveProposal](#Approve--disapprove-a-proposal)                 |                          [AssetIssue](#Issue-trc10-tokens)                          |
-|:----------------------------------------------------------------------------:|:---------------------------------------------------------------------------------:|:-----------------------------------------------------------------------------------:|
-|                   [BackupWallet](#Wallet-related-commands)                   |                  [BackupWallet2Base64](#Wallet-related-commands)                  |                        [BroadcastTransaction](#Some-others)                         |
-|                  [ChangePassword](#Wallet-related-commands)                  |                      [CreateProposal](#Initiate-a-proposal)                       |                    [DeleteProposal](#Delete-an-existed-proposal)                    |
-|                 [DeployContract](#How-to-use-smart-contract)                 |                  [ExchangeCreate](#How-to-trade-on-the-exchange)                  |                   [ExchangeInject](#How-to-trade-on-the-exchange)                   |
-|             [ExchangeTransaction](#How-to-trade-on-the-exchange)             |                 [ExchangeWithdraw](#How-to-trade-on-the-exchange)                 |                         [FreezeBalance](#Delegate-resource)                         |
-|                 [GenerateAddress](#Account-related-commands)                 |                      [GetAccount](#Account-related-commands)                      |                     [GetAccountNet](#Account-related-commands)                      |
-|               [GetAccountResource](#Account-related-commands)                |                      [GetAddress](#Account-related-commands)                      |          [GetAssetIssueByAccount](#How-to-obtain-trc10-token-information)           |
-|         [GetAssetIssueById](#How-to-obtain-trc10-token-information)          |           [GetAssetIssueByName](#How-to-obtain-trc10-token-information)           |          [GetAssetIssueListByName](#How-to-obtain-trc10-token-information)          |
-|                   [GetBalance](#Account-related-commands)                    |                     [GetBlock](#How-to-get-block-information)                     |                    [GetBlockById](#How-to-get-block-information)                    |
-|             [GetBlockByLatestNum](#How-to-get-block-information)             |               [GetBlockByLimitNext](#How-to-get-block-information)                |                             [GetBrokerage](#Brokerage)                              |
-|               [GetContract](#Get-details-of-a-smart-contract)                |                 [GetDelegatedResource](#How-to-delegate-resource)                 |            [GetDelegatedResourceAccountIndex](#How-to-delegate-resource)            |
-|        [GetMarketOrderByAccount](#How-to-use-tron-dex-to-sell-asset)         |             [GetMarketOrderById](#How-to-use-tron-dex-to-sell-asset)              |           [GetMarketOrderListByPair](#How-to-use-tron-dex-to-sell-asset)            |
-|           [GetMarketPairList](#How-to-use-tron-dex-to-sell-asset)            |            [GetMarketPriceByPair](#How-to-use-tron-dex-to-sell-asset)             |                       [GetNextMaintenanceTime](#Some-others)                        |
-|                 [GetProposal](#Obtain-proposal-information)                  |                              [GetReward](#Brokerage)                              | [GetTransactionApprovedList](#How-to-use-the-multi-signature-feature-of-wallet-cli) |
-|          [GetTransactionById](#How-to-get-transaction-information)           |       [GetTransactionCountByBlockNum](#How-to-get-transaction-information)        |         [GetTransactionInfoByBlockNum](#How-to-get-transaction-information)         |
-|        [GetTransactionInfoById](#How-to-get-transaction-information)         | [GetTransactionSignWeight](#How-to-use-the-multi-signature-feature-of-wallet-cli) |                      [ImportWallet](#Wallet-related-commands)                       |
-|               [ImportWalletByBase64](#Wallet-related-commands)               |             [ListAssetIssue](#How-to-obtain-trc10-token-information)              |                   [ListExchanges](#How-to-trade-on-the-exchange)                    |
-|           [ListExchangesPaginated](#How-to-trade-on-the-exchange)            |                             [ListNodes](#Some-others)                             |                    [ListProposals](#Obtain-proposal-information)                    |
-|            [ListProposalsPaginated](#Obtain-proposal-information)            |                           [ListWitnesses](#Some-others)                           |                    [Login](#Command-line-operation-flow-example)                    |
-|           [MarketCancelOrder](#How-to-use-tron-dex-to-sell-asset)            |               [MarketSellAsset](#How-to-use-tron-dex-to-sell-asset)               |         [ParticipateAssetIssue](#Participating-in-the-issue-of-trc10-token)         |
-|                  [RegisterWallet](#Wallet-related-commands)                  |         [SendCoin](#How-to-use-the-multi-signature-feature-of-wallet-cli)         |                       [TransferAsset](#Trc10-token-transfer)                        |
-|                  [TriggerContract](#Trigger-smart-contarct)                  |                      [UnfreezeAsset](#Unfreeze-trc10-token)                       |                    [UnfreezeBalance](#How-to-delegate-resource)                     |
-|               [UpdateAsset](#Update-parameters-of-trc10-token)               |                           [UpdateBrokerage](#Brokerage)                           |               [UpdateEnergyLimit](#Update-smart-contract-parameters)                |
-|              [UpdateSetting](#Update-smart-contract-parameters)              | [UpdateAccountPermission](#How-to-use-the-multi-signature-feature-of-wallet-cli)  |                             [VoteWitness](#How-to-vote)                             |
-|                     [FreezeBalanceV2](#How-to-freezev2)                      |                       [UnfreezeBalanceV2](#How-to-freezev2)                       |                        [DelegateResource](#How-to-freezev2)                         |
-|                    [UnDelegateResource](#How-to-freezev2)                    |                    [WithdrawExpireUnfreeze](#How-to-freezev2)                     |                       [CancelAllUnfreezeV2](#How-to-freezev2)                       |
-|                  [GetDelegatedResourceV2](#How-to-freezev2)                  |              [GetDelegatedResourceAccountIndexV2](#How-to-freezev2)               |                     [GetCanDelegatedMaxSize](#How-to-freezev2)                      |
-|                [GetAvailableUnfreezeCount](#How-to-freezev2)                 |                 [GetCanWithdrawUnfreezeAmount](#How-to-freezev2)                  |               [GetBandwidthPrices](#Get-resource-prices-and-memo-fee)               |
-|             [GetEnergyPrices](#Get-resource-prices-and-memo-fee)             |                  [GetMemoFee](#Get-resource-prices-and-memo-fee)                  |                [ImportWalletByMnemonic](#import-and-export-mnemonic)                |
-|             [ExportWalletMnemonic](#import-and-export-mnemonic)              |                    [GenerateSubAccount](#generate-sub-account)                    |                    [ClearWalletKeystore](#clear-wallet-keystore)                    |
-|            [ExportWalletKeystore](#export-import-wallet-keystore)            |             [ImportWalletByKeystore](#export-import-wallet-keystore)              |                  [ImportWalletByLedger](#import-wallet-by-ledger)                   |
-|                            [LoginAll](#login-all)                            |                                   [Lock](#lock)                                   |                                  [Unlock](#unlock)                                  |
-|                         [ResetWallet](#reset-wallet)                         |                         [CreateAccount](#create-account)                          |                           [SwitchWallet](#switch-wallet)                            |
-|                       [SwitchNetwork](#switch-network)                       |                        [CurrentNetwork](#current-network)                         |                            [GasFreeInfo](#gas-free-info)                            |
-|                    [GasFreeTransfer](#gas-free-transfer)                     |                          [GasFreeTrace](#gas-free-trace)                          |                                                                                     |
+|     [AddTransactionSign](#How-to-use-the-multi-signature-feature-of-wallet-cli)     |                [ApproveProposal](#Approve--disapprove-a-proposal)                |                         [AssetIssue](#Issue-trc10-tokens)                         |
+|:-----------------------------------------------------------------------------------:|:--------------------------------------------------------------------------------:|:---------------------------------------------------------------------------------:|
+|                      [BackupWallet](#Wallet-related-commands)                       |                 [BackupWallet2Base64](#Wallet-related-commands)                  |                       [BroadcastTransaction](#Some-others)                        |
+|                       [CancelAllUnfreezeV2](#How-to-freezev2)                       |                    [ChangePassword](#Wallet-related-commands)                    |                      [ClearContractABI](#clear-contract-abi)                      |
+|                    [ClearWalletKeystore](#clear-wallet-keystore)                    |                         [CreateAccount](#create-account)                         |                      [CreateProposal](#Initiate-a-proposal)                       |
+|                          [CreateWitness](#create-witness)                           |                               [Create2](#create2)                                |                        [CurrentNetwork](#current-network)                         |
+|                        [DelegateResource](#How-to-freezev2)                         |                  [DeleteProposal](#Delete-an-existed-proposal)                   |                   [DeployContract](#How-to-use-smart-contract)                    |
+|                         [EstimateEnergy](#estimate-energy)                          |                 [ExchangeCreate](#How-to-trade-on-the-exchange)                  |                  [ExchangeInject](#How-to-trade-on-the-exchange)                  |
+|                [ExchangeTransaction](#How-to-trade-on-the-exchange)                 |                [ExchangeWithdraw](#How-to-trade-on-the-exchange)                 |              [ExportWalletKeystore](#export-import-wallet-keystore)               |
+|                 [ExportWalletMnemonic](#import-and-export-mnemonic)                 |                       [FreezeBalance](#Delegate-resource)                        |                        [FreezeBalanceV2](#How-to-freezev2)                        |
+|                            [GasFreeInfo](#gas-free-info)                            |                         [GasFreeTrace](#gas-free-trace)                          |                       [GasFreeTransfer](#gas-free-transfer)                       |
+|                    [GenerateAddress](#Account-related-commands)                     |                   [GenerateSubAccount](#generate-sub-account)                    |                      [GetAccount](#Account-related-commands)                      |
+|                     [GetAccountNet](#Account-related-commands)                      |                 [GetAccountResource](#Account-related-commands)                  |                      [GetAddress](#Account-related-commands)                      |
+|          [GetAssetIssueByAccount](#How-to-obtain-trc10-token-information)           |           [GetAssetIssueById](#How-to-obtain-trc10-token-information)            |           [GetAssetIssueByName](#How-to-obtain-trc10-token-information)           |
+|          [GetAssetIssueListByName](#How-to-obtain-trc10-token-information)          |                  [GetAvailableUnfreezeCount](#How-to-freezev2)                   |                      [GetBalance](#Account-related-commands)                      |
+|               [GetBandwidthPrices](#Get-resource-prices-and-memo-fee)               |                    [GetBlock](#How-to-get-block-information)                     |                   [GetBlockById](#How-to-get-block-information)                   |
+|                 [GetBlockByIdOrNum](#How-to-get-block-information)                  |               [GetBlockByLatestNum](#How-to-get-block-information)               |               [GetBlockByLimitNext](#How-to-get-block-information)                |
+|                             [GetBrokerage](#Brokerage)                              |                    [GetCanDelegatedMaxSize](#How-to-freezev2)                    |                 [GetCanWithdrawUnfreezeAmount](#How-to-freezev2)                  |
+|                     [GetChainParameters](#get-chain-parameters)                     |                 [GetContract](#Get-details-of-a-smart-contract)                  |                 [GetContractInfo](#get-info-of-a-smart-contract)                  |
+|                  [GetDelegatedResource](#How-to-delegate-resource)                  |          [GetDelegatedResourceAccountIndex](#How-to-delegate-resource)           |              [GetDelegatedResourceAccountIndexV2](#How-to-freezev2)               |
+|                     [GetDelegatedResourceV2](#How-to-freezev2)                      |               [GetEnergyPrices](#Get-resource-prices-and-memo-fee)               |                        [GetExchange](#get-exchange-by-id)                         |
+|            [GetMarketOrderByAccount](#How-to-use-tron-dex-to-sell-asset)            |             [GetMarketOrderById](#How-to-use-tron-dex-to-sell-asset)             |          [GetMarketOrderListByPair](#How-to-use-tron-dex-to-sell-asset)           |
+|               [GetMarketPairList](#How-to-use-tron-dex-to-sell-asset)               |            [GetMarketPriceByPair](#How-to-use-tron-dex-to-sell-asset)            |                  [GetMemoFee](#Get-resource-prices-and-memo-fee)                  |
+|                       [GetNextMaintenanceTime](#Some-others)                        |                   [GetProposal](#Obtain-proposal-information)                    |                              [GetReward](#Brokerage)                              |
+| [GetTransactionApprovedList](#How-to-use-the-multi-signature-feature-of-wallet-cli) |            [GetTransactionById](#How-to-get-transaction-information)             |       [GetTransactionCountByBlockNum](#How-to-get-transaction-information)        |
+|         [GetTransactionInfoByBlockNum](#How-to-get-transaction-information)         |          [GetTransactionInfoById](#How-to-get-transaction-information)           | [GetTransactionSignWeight](#How-to-use-the-multi-signature-feature-of-wallet-cli) |
+|                      [ImportWallet](#Wallet-related-commands)                       |                 [ImportWalletByBase64](#Wallet-related-commands)                 |             [ImportWalletByKeystore](#export-import-wallet-keystore)              |
+|                  [ImportWalletByLedger](#import-wallet-by-ledger)                   |              [ImportWalletByMnemonic](#import-and-export-mnemonic)               |             [ListAssetIssue](#How-to-obtain-trc10-token-information)              |
+|               [ListAssetIssuePaginated](#list-asset-issue-paginated)                |                  [ListExchanges](#How-to-trade-on-the-exchange)                  |              [ListExchangesPaginated](#How-to-trade-on-the-exchange)              |
+|                              [ListNodes](#Some-others)                              |                  [ListProposals](#Obtain-proposal-information)                   |              [ListProposalsPaginated](#Obtain-proposal-information)               |
+|                            [ListWitnesses](#Some-others)                            |                  [Login](#Command-line-operation-flow-example)                   |                              [LoginAll](#login-all)                               |
+|                                  [Logout](#logout)                                  |                                  [Lock](#lock)                                   |              [MarketCancelOrder](#How-to-use-tron-dex-to-sell-asset)              |
+|                [MarketSellAsset](#How-to-use-tron-dex-to-sell-asset)                |       [ParticipateAssetIssue](#Participating-in-the-issue-of-trc10-token)        |                    [RegisterWallet](#Wallet-related-commands)                     |
+|                            [ResetWallet](#reset-wallet)                             |        [SendCoin](#How-to-use-the-multi-signature-feature-of-wallet-cli)         |                          [SetAccountId](#set-account-id)                          |
+|                          [SwitchNetwork](#switch-network)                           |                          [SwitchWallet](#switch-wallet)                          |                      [TransferAsset](#Trc10-token-transfer)                       |
+|                [TriggerConstantContract](#trigger-constant-contract)                |                    [TriggerContract](#trigger-smart-contract)                    |                      [UnDelegateResource](#How-to-freezev2)                       |
+|                       [UnfreezeAsset](#Unfreeze-trc10-token)                        |                   [UnfreezeBalance](#How-to-delegate-resource)                   |                       [UnfreezeBalanceV2](#How-to-freezev2)                       |
+|                                  [Unlock](#unlock)                                  | [UpdateAccountPermission](#How-to-use-the-multi-signature-feature-of-wallet-cli) |                 [UpdateAsset](#Update-parameters-of-trc10-token)                  |
+|                            [UpdateBrokerage](#Brokerage)                            |              [UpdateEnergyLimit](#Update-smart-contract-parameters)              |                [UpdateSetting](#Update-smart-contract-parameters)                 |
+|                          [UpdateWitness](#update-witness)                           |                           [VoteWitness](#How-to-vote)                            |                       [WithdrawBalance](#withdraw-balance)                        |
+|                 [WithdrawExpireUnfreeze](#withdraw-expire-unfreeze)                 |                                                                                  |                                                                                   |
 
 
 Type any one of the listed commands, to display how-to tips.
@@ -214,6 +219,18 @@ For example:
 > updateBrokerage TZ7U1WVBRLZ2umjizxqz3XfearEHhXKX7h 30
 ```
 
+### withdraw balance
+
+> WithdrawBalance [owner_address]
+
+Withdraw voting or block rewards.
+
+Example:
+
+```console
+> WithdrawBalance TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp
+```
+
 ## How to calculate bandwidth
 
 The bandwidth calculation rule is:
@@ -241,6 +258,24 @@ The funds in allowance cannot be locked or traded.
 Applying to become a witness account needs to consume **100_000TRX**.
 This part of the funds will be burned directly.
 
+### create witness
+> CreateWitness [owner_address] url
+Apply to become a super representative candidate.
+
+Example:
+```console
+> CreateWitness TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp 007570646174654e616d6531353330363038383733343633
+```
+
+### update witness
+> UpdateWitness
+Edit the URL of the SR's official website.
+
+Example:
+```console
+> UpdateWitness TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp 007570646174654e616d6531353330363038383733343633
+```
+
 ## How to create account
 
 You can create accounts by transferring funds to non-existing accounts or initiating a transaction to create an account using the **CreateAccount** command.
@@ -259,7 +294,7 @@ $ ./gradlew run
 > getAddress
 address = TRfwwLDpr4excH4V4QzghLEsdYwkapTxnm'  # backup it!
 > BackupWallet 123456
-priKey = 075725cf903fc1f6d6267b8076fc2c6adece0cfd18626c33427d9b2504ea3cef'  # backup it!!! (BackupWallet2Base64 option)
+priKey = 1234567890123456789012345678901234567890123456789012345678901234  # backup it!!! (BackupWallet2Base64 option)
 > getbalance
 Balance = 0
 > AssetIssue TestTRX TRX 75000000000000000 1 1 2 "2019-10-02 15:10:00" "2020-07-11" "just for test121212" www.test.com 100 100000 10000 10 10000 1
@@ -282,7 +317,7 @@ Each account can only issue **ONE** TRC10 token.
 
 ### Issue TRC10 tokens
 
-    > AssetIssue [OwnerAddress] AssetName AbbrName TotalSupply TrxNum AssetNum Precision StartDate EndDate Description Url FreeNetLimitPerAccount PublicFreeNetLimit FrozenAmount0 FrozenDays0 [...] FrozenAmountN FrozenDaysN
+> AssetIssue [OwnerAddress] AssetName AbbrName TotalSupply TrxNum AssetNum Precision StartDate EndDate Description Url FreeNetLimitPerAccount PublicFreeNetLimit FrozenAmount0 FrozenDays0 [...] FrozenAmountN FrozenDaysN
 
 OwnerAddress (optional)
 > The address of the account which initiated the transaction. 
@@ -362,7 +397,7 @@ Example:
 
 ### Update parameters of TRC10 token
 
-    > UpdateAsset [OwnerAddress] newLimit newPublicLimit description url
+> UpdateAsset [OwnerAddress] newLimit newPublicLimit description url
 
 Specific meaning of the parameters is the same as that of AssetIssue.
 
@@ -405,7 +440,7 @@ Example:
 
 ### TRC10 token transfer
 
-    > TransferAsset [OwnerAddress] ToAddress AssertID Amount
+> TransferAsset [OwnerAddress] ToAddress AssertID Amount
 
 OwnerAddress (optional)
 > The address of the account which initiated the transaction. 
@@ -469,6 +504,17 @@ assetV2
     latest_asset_operation_timeV2: null
     free_asset_net_usageV2: 0
     }
+```
+### list asset issue paginated
+
+> ListAssetIssuePaginated address code salt
+
+Query the list of all the tokens by pagination.Returns a list of Tokens that succeed the Token located at offset.
+
+Example:
+
+```console
+> ListAssetIssuePaginated 0 1
 ```
 
 ### Unfreeze TRC10 token
@@ -591,7 +637,7 @@ which can be found in TRON's [related documents](https://tronprotocol.github.io/
 
 ### Create a trading pair
 
-    > exchangeCreate [OwnerAddress] first_token_id first_token_balance second_token_id second_token_balance
+> exchangeCreate [OwnerAddress] first_token_id first_token_balance second_token_id second_token_balance
 
 OwnerAddress (optional)
 > The address of the account which initiated the transaction.
@@ -609,12 +655,22 @@ second_token_id, second_token_balance
 
 Example:
 
-    > exchangeCreate 1000001 10000 _ 10000
+> exchangeCreate 1000001 10000 _ 10000
     # Create trading pairs with the IDs of 1000001 and TRX, with amount 10000 for both.
+
+### get exchange by id
+> getExchange
+Query exchange pair based on id (Confirmed state).
+
+Example:
+
+```console
+> getExchange 1
+```
 
 ### Capital injection
 
-    > exchangeInject [OwnerAddress] exchange_id token_id quant
+> exchangeInject [OwnerAddress] exchange_id token_id quant
 
 OwnerAddress (optional)
 > The address of the account which initiated the transaction.
@@ -633,7 +689,7 @@ the same token would vary.
 
 ### Transactions
 
-    > exchangeTransaction [OwnerAddress] exchange_id token_id quant expected
+> exchangeTransaction [OwnerAddress] exchange_id token_id quant expected
 
 OwnerAddress (optional)
 > The address of the account which initiated the transaction.
@@ -652,13 +708,13 @@ expected must be less than quant, or an error will be reported.
 
 Example：
 
-    > ExchangeTransaction 1 1000001 100 80
+> ExchangeTransaction 1 1000001 100 80
 
 It is expected to acquire the 80 TRX by exchanging 1000001 from the trading pair ID of 1, and the amount is 100.(Equivalent to selling an amount of 100 tokenID - 1000001, at a price of 80 TRX, in trading pair ID - 1).
 
 ### Capital Withdrawal
 
-    > exchangeWithdraw [OwnerAddress] exchange_id token_id quant
+> exchangeWithdraw [OwnerAddress] exchange_id token_id quant
 
 OwnerAddress (optional)
 > The address of the account which initiated the transaction.
@@ -706,7 +762,7 @@ If the account is not a witness, it's not necessary to set witness_permission, o
 
 ### Signed transaction
 
-    > SendCoin TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW 10000000000000000
+> SendCoin TJCnKsPa7y5okkXvQAidZBzqx3QyQ6sxMW 10000000000000000
 
 Will show "Please confirm and input your permission id, if input y or Y means default 0, other
 non-numeric characters will cancel transaction."
@@ -846,7 +902,7 @@ The information displays as follows:
 
 ### deploy smart contracts
 
-    > DeployContract [ownerAddress] contractName ABI byteCode constructor params isHex fee_limit consume_user_resource_percent origin_energy_limit value token_value token_id(e.g: TRXTOKEN, use # if don't provided) <library:address,library:address,...> <lib_compiler_version(e.g:v5)> library:address,...>
+> DeployContract [ownerAddress] contractName ABI byteCode constructor params isHex fee_limit consume_user_resource_percent origin_energy_limit value token_value token_id(e.g: TRXTOKEN, use # if don't provided) <library:address,library:address,...> <lib_compiler_version(e.g:v5)> library:address,...>
 
 OwnerAddress
 > The address of the account that initiated the transaction, optional, default is the address of the login account.
@@ -912,7 +968,7 @@ Get the result of the contract execution with the getTransactionInfoById command
 
 ### trigger smart contract
 
-    > TriggerContract [ownerAddress] contractAddress method args isHex fee_limit value token_value token_id
+> TriggerContract [ownerAddress] contractAddress method args isHex fee_limit value token_value token_id
 
 OwnerAddress
 > The address of the account that initiated the transaction, optional, default is the address of the login account.
@@ -965,9 +1021,59 @@ Example:
 }
 ```
 
+### trigger constant contract
+
+> TriggerConstantContract [ownerAddress] contractAddress method args isHex fee_limit value token_value token_id
+
+OwnerAddress
+> The address of the account that initiated the transaction, optional, default is the address of the login account.
+
+contractAddress
+> Smart contract address
+
+method
+> The name of function and parameters, please refer to the example
+
+args
+> Parameter value, if you want to call `receive`, pass '#' instead
+
+isHex
+> The format of the parameters method and args, is hex string or not
+
+fee_limit
+> The most amount of trx allows for the consumption
+
+token_value
+> Number of TRX10
+
+token_id
+> TRC10 id, If not, use ‘#’ instead
+
+Example:
+
+```console
+> TriggerConstantContract TSNEe5Tf4rnc9zPMNXfaTF5fZfHDDH8oyW TG3XXyExBkPp9nzdajDZsozEu4BkaSJozs "balanceOf(address)" 000000000000000000000000a614f803b6fd780986a42c78ec9c7f77e6ded13c true
+```
+
+### clear contract abi
+
+> ClearContractABI  [ownerAddress] contractAddress
+
+OwnerAddress
+> The address of the account that initiated the transaction, optional, default is the address of the login account.
+
+contractAddress
+> Contract address
+
+Example:
+
+```console
+> ClearContractABI TSNEe5Tf4rnc9zPMNXfaTF5fZfHDDH8oyW TG3XXyExBkPp9nzdajDZsozEu4BkaSJozs
+```
+
 ### get details of a smart contract
 
-    > GetContract contractAddress
+> GetContract contractAddress
 
 contractAddress
 > smart contract address
@@ -1007,11 +1113,47 @@ Example:
     "code_hash": "23423cece3b4866263c15357b358e5ac261c218693b862bcdb90fa792d5714e6"
 }
 ```
+### get info of a smart contract
+
+> GetContractInfo contractAddress
+
+contractAddress
+> smart contract address
+
+Example:
+
+```console
+> GetContractInfo TGdtALTPZ1FWQcc5MW7aK3o1ASaookkJxG
+```
 
 ### update smart contract parameters
 
-    > UpdateEnergyLimit [ownerAddress] contract_address energy_limit  # Update parameter energy_limit
-    > UpdateSetting [ownerAddress] contract_address consume_user_resource_percent  # Update parameter consume_user_resource_percent
+> UpdateEnergyLimit [ownerAddress] contract_address energy_limit  # Update parameter energy_limit
+> UpdateSetting [ownerAddress] contract_address consume_user_resource_percent  # Update parameter consume_user_resource_percent
+
+### create2
+
+> Create2 address code salt
+
+Predict the contract address generated after deploying a contract. Among them, address is the contract address for executing the create 2 instruction, code is the bytecode of the contract to be deployed, and salt is a random salt value.
+
+Example:
+
+```console
+> Create2 TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp 5f805460ff1916600190811790915560649055606319600255 2132
+```
+
+### estimate-energy
+
+> EstimateEnergy owner_address(use # if you own) contract_address method args isHex [value token_value token_id(e.g: TRXTOKEN, use # if don't provided)]
+
+Estimate the energy required for the successful execution of smart contract transactions. (Confirmed state).
+
+Example:
+
+```console
+> EstimateEnergy TSNEe5Tf4rnc9zPMNXfaTF5fZfHDDH8oyW TG3XXyExBkPp9nzdajDZsozEu4BkaSJozs "balanceOf(address)" 000000000000000000000000a614f803b6fd780986a42c78ec9c7f77e6ded13c true
+```
 
 ## How to delegate resource
 
@@ -1263,8 +1405,8 @@ wallet> GetTransactionById  feb334794cf361fd351728026ccf7319e6ae90eba622b9eb53c6
     "raw_data_hex":"0a020000220819b59068c6058ff4408b9aa3b4d1305a71083a126d0a37747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e556e44656c65676174655265736f75726365436f6e747261637412320a154159e3741a68ec3e1ebba80ad809d5ccd31674236e18c0843d2215419a9afe56e155ef0ff3f680d00ecf19deff60bdca7088ecfca9d130"
 }
 ```
-
-    > withdrawExpireUnfreeze [OwnerAddress]
+### withdraw expire unfreeze
+> withdrawExpireUnfreeze [OwnerAddress]
 
 OwnerAddress
 > The address of the account that initiated the transaction, optional, default is the address of the login account.
@@ -1466,6 +1608,18 @@ wallet> getMemoFee
     "prices": "0:0,1675492680000:1000000"
 }
 ```
+
+### get chain parameters
+
+> GetChainParameters
+
+Show all parameters that the blockchain committee can set.
+Example:
+
+```console
+> GetChainParameters
+```
+
 ## import and export mnemonic
     >ImportWalletByMnemonic
 >Import wallet, you need to set a password, mnemonic
@@ -1480,7 +1634,7 @@ password:
 Please enter 12 words (separated by spaces) [Attempt 1/3]:
 ```
 
-    >ExportWalletMnemonic
+> ExportWalletMnemonic
 >export mnemonic of the address in the wallet
 
 Example:
@@ -1590,7 +1744,7 @@ Import a wallet by Ledger successful, keystore file : ./Wallet/Ledger-TAT1dA8F9H
 You are now logged in, and you can perform operations using this account.
 ```
 ## login all
-    > LoginAll
+> LoginAll
 >Multiple Keystore accounts can be logged in with a unified password
 
 Example:
@@ -1611,8 +1765,18 @@ Please choose between 1 and 5
 LoginAll  successful !!!
 ```
 
+## logout
+> Logout
+> Log out of the current wallet account.
+
+Example:
+```console
+wallet> Logout
+Logout  successful !!!
+```
+
 ## lock
-    > Lock
+> Lock
 >To use the lock function of the login account, it is necessary to configure **lockAccount = true** in the **config.conf**.
 The current login account is locked, which means that signatures and transactions are not allowed.
 
@@ -1623,7 +1787,7 @@ lock  successful !!!
 ```
 
 ## unlock
-    > Unlock
+> Unlock
 >To use the unlock function of the login account, it is necessary to configure **lockAccount = true** in the **config.conf**.
 After the current login account is locked, it can be unlocked. By default, it will be unlocked again after 300 seconds. Unlocking can specify parameters in seconds.
 
@@ -1825,7 +1989,7 @@ Now, you can RegisterWallet or ImportWallet again. Or import the wallet through 
 ```
 
 ## create account
-    > CreateAccount
+> CreateAccount
 >This command can create a new account with an inactive address and burn a 1-trx handling fee for it
 
 Example:
@@ -1868,6 +2032,18 @@ TxId is 26d6fcdfdc0018097ec4166eb140e19ebd597bea2212579d2f6d921b0ad6e56f
 CreateAccount  successful !!
 ```
 
+### set account id
+
+> SetAccountId [owner_address] account_id
+
+Sets a custom unique identifier (Account ID) for an account.
+
+Example:
+
+```console
+> SetAccountId TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp 100
+```
+
 
 ## Wallet related commands
 
@@ -1876,7 +2052,7 @@ CreateAccount  successful !!
 
 **BackupWallet**
 > Back up your wallet, you need to enter your wallet password and export the private key.hex string format, such
-as: 721d63b074f18d41c147e04c952ec93467777a30b6f16745bc47a8eae5076545
+as: 1234567890123456789012345678901234567890123456789012345678901234
 
 **BackupWallet2Base64**
 > Back up your wallet, you need to enter your wallet password and export the private key.base64 format, such as: ch1jsHTxjUHBR+BMlS7JNGd3ejC28WdFvEeo6uUHZUU=
@@ -1931,6 +2107,9 @@ as: 721d63b074f18d41c147e04c952ec93467777a30b6f16745bc47a8eae5076545
 
 **GetBlockById**
 > Get block based on blockID
+
+**GetBlockByIdOrNum**
+> Get blocks based on their ID or block height. If no parameters are passed, Get the header block.
 
 **GetBlockByLatestNum n**
 > Get the latest n blocks, where 0 < n < 100

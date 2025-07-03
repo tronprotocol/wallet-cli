@@ -18,6 +18,7 @@ import static org.tron.ledger.console.ConsoleColor.ANSI_RED;
 import static org.tron.ledger.console.ConsoleColor.ANSI_RESET;
 
 import com.beust.jcommander.JCommander;
+import com.beust.jcommander.Parameter;
 import com.google.common.primitives.Longs;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -144,7 +145,6 @@ public class Client {
       "GetAccountNet",
       "GetAccountResource",
       "GetAddress",
-      "GetAkFromAsk",
       "GetAssetIssueByAccount",
       "GetAssetIssueById",
       "GetAssetIssueByName",
@@ -167,11 +167,9 @@ public class Client {
       "GetCanDelegatedMaxSize",
       "GetAvailableUnfreezeCount",
       "GetCanWithdrawUnfreezeAmount",
-      "GetDiversifier",
       "GetEnergyPrices",
       "GetExchange",
       "GasFreeInfo",
-      "GetIncomingViewingKey",
       "GetMarketOrderByAccount",
       "GetMarketOrderById",
       "GetMarketOrderListByPair",
@@ -179,7 +177,6 @@ public class Client {
       "GetMarketPriceByPair",
       "GetMemoFee",
       "GetNextMaintenanceTime",
-      "GetNkFromNsk",
       "GetProposal",
       "GetReward",
       "GetTransactionApprovedList",
@@ -272,7 +269,6 @@ public class Client {
       "GetAccountNet",
       "GetAccountResource",
       "GetAddress",
-      "GetAkFromAsk",
       "GetAssetIssueByAccount",
       "GetAssetIssueById",
       "GetAssetIssueByName",
@@ -295,11 +291,9 @@ public class Client {
       "GetCanDelegatedMaxSize",
       "GetAvailableUnfreezeCount",
       "GetCanWithdrawUnfreezeAmount",
-      "GetDiversifier",
       "GetEnergyPrices",
       "GetExchange",
       "GasFreeInfo",
-      "GetIncomingViewingKey",
       "GetMarketOrderByAccount",
       "GetMarketOrderById",
       "GetMarketOrderListByPair",
@@ -307,7 +301,6 @@ public class Client {
       "GetMarketPriceByPair",
       "GetMemoFee",
       "GetNextMaintenanceTime",
-      "GetNkFromNsk",
       "GetProposal",
       "GetReward",
       "GetTransactionApprovedList",
@@ -361,6 +354,9 @@ public class Client {
       "WithdrawBalance",
       "WithdrawExpireUnfreeze",
   };
+
+  @Parameter(names = {"-v", "--version"}, description = "Display version information", help = true)
+  private boolean version;
 
   private byte[] inputPrivateKey() throws IOException {
     byte[] temp = new byte[128];
@@ -4108,11 +4104,7 @@ public class Client {
     System.arraycopy(temp, 0, salt, 24, 8);
 
     byte[] mergedData = ByteUtil.merge(address, salt, Hash.sha3(code));
-    String Address = WalletApi.encode58Check(Hash.sha3omit12(mergedData));
-
-    System.out.println("Create2 Address: " + Address);
-
-    return;
+    System.out.println("Create2 Address: " + WalletApi.encode58Check(Hash.sha3omit12(mergedData)));
   }
 
   private void setShieldedTRC20ContractAddress(String[] parameters) {
@@ -4703,6 +4695,9 @@ public class Client {
       }
       System.out.println("Exit or Quit");
       System.out.println("Input any one of the listed commands, to display how-to tips.");
+      System.out.println();
+      System.out.println("For example, if you want help with make a TRX transfer, you can enter '"
+          + greenBoldHighlight("help SendCoin") + "'.");
     }
 
     if (parameters.length == 1) {
@@ -4754,6 +4749,10 @@ public class Client {
   }
 
   private void run() {
+    if (version) {
+      System.out.println("Version 4.9.0");
+      System.exit(0);
+    }
     System.out.println(" ");
     System.out.println("Welcome to Tron " + blueBoldHighlight("Wallet-Cli"));
     printBanner();
@@ -5156,26 +5155,6 @@ public class Client {
             }
             case "gasfreeinfo": {
               gasFreeInfo(parameters);
-              break;
-            }
-            case "getakfromask": {
-              getAkFromAsk(parameters);
-              break;
-            }
-            case "getnkfromnsk": {
-              getNkFromNsk(parameters);
-              break;
-            }
-            case "getincomingviewingkey": {
-              getIncomingViewingKey(parameters);
-              break;
-            }
-            case "getdiversifier": {
-              getDiversifier();
-              break;
-            }
-            case "getshieldedpaymentaddress": {
-              getShieldedPaymentAddress(parameters);
               break;
             }
             case "updatesetting": {

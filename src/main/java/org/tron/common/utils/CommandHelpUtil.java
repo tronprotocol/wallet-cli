@@ -66,7 +66,6 @@ public class CommandHelpUtil {
             commandHelps.put(command.toLowerCase(), currentHelp);
           }
         } else if (currentHelp != null && currentSection != null) {
-          // 填充当前部分的文本
           switch (currentSection) {
             case "syntax":
               currentHelp.syntax = (currentHelp.syntax == null ? "" : currentHelp.syntax + "\n") + line;

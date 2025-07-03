@@ -26,7 +26,10 @@ public class ApiClientFactory {
     switch (type) {
       case MAIN:
         if (isEmpty(apiKey)) {
-          throw new IllegalArgumentException("The MAIN network requires an " + greenBoldHighlight("apikey") + " to access. Please apply and configure it in the config.conf.");
+          System.out.println("Detected in config.conf that " + greenBoldHighlight("grpc.mainnet.apiKey")
+              + " is not configured, API calls may be limited in speed. If you want a better "
+              + "experience, please apply for a main network's apiKey and configure it in the config.conf.");
+          return new ApiWrapper(type.getGrpc().getFullNode(), type.getGrpc().getSolidityNode(), privateKey);
         }
         return ApiWrapper.ofMainnet(privateKey, apiKey);
       case NILE:
