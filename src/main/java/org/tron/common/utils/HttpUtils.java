@@ -4,6 +4,8 @@ import static org.apache.commons.lang3.StringUtils.EMPTY;
 import static org.tron.common.utils.Utils.greenBoldHighlight;
 
 import java.io.IOException;
+import java.security.Provider;
+import java.security.Security;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
@@ -16,6 +18,14 @@ import okhttp3.ResponseBody;
 import org.apache.commons.lang3.StringUtils;
 
 public class HttpUtils {
+
+  static {
+    Provider sunEc = Security.getProvider("SunEC");
+    if (sunEc != null) {
+      Security.removeProvider("SunEC");
+      Security.insertProviderAt(sunEc, 1);
+    }
+  }
 
   private static final OkHttpClient client = new OkHttpClient.Builder()
       .connectTimeout(10, TimeUnit.SECONDS)
