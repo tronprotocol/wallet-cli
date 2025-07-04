@@ -1,6 +1,7 @@
 package org.tron.walletcli;
 
 import static org.apache.commons.lang3.StringUtils.isEmpty;
+import static org.tron.common.utils.Utils.blueBoldHighlight;
 import static org.tron.common.utils.Utils.greenBoldHighlight;
 
 import com.typesafe.config.Config;
@@ -28,7 +29,8 @@ public class ApiClientFactory {
         if (isEmpty(apiKey)) {
           System.out.println("Detected in config.conf that " + greenBoldHighlight("grpc.mainnet.apiKey")
               + " is not configured, API calls may be limited in speed. If you want a better "
-              + "experience, please apply for a main network's apiKey and configure it in the config.conf.");
+              + "experience, please apply for the apiKey of the main network of " + blueBoldHighlight("Trongrid") +
+              " and configure it in the config.conf.");
           return new ApiWrapper(type.getGrpc().getFullNode(), type.getGrpc().getSolidityNode(), privateKey);
         }
         return ApiWrapper.ofMainnet(privateKey, apiKey);

@@ -816,6 +816,19 @@ public class Utils {
     }
   }
 
+  public static void printHelp() {
+    try (InputStream inputStream = Client.class.getResourceAsStream("/help_summary.txt")) {
+      if (inputStream != null) {
+        String banner = new String(readAllBytes(inputStream), StandardCharsets.UTF_8);
+        System.out.println(blueBoldHighlight(banner));
+      } else {
+        System.out.println("No help_summary.txt found!");
+      }
+    } catch (IOException e) {
+      System.err.println("Failed to load help summary: " + e.getMessage());
+    }
+  }
+
   private static byte[] readAllBytes(InputStream inputStream) throws IOException {
     ByteArrayOutputStream buffer = new ByteArrayOutputStream();
     byte[] data = new byte[4096];

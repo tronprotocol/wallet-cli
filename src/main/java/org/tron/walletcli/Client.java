@@ -10,6 +10,7 @@ import static org.tron.common.utils.Utils.getLong;
 import static org.tron.common.utils.Utils.greenBoldHighlight;
 import static org.tron.common.utils.Utils.isValid;
 import static org.tron.common.utils.Utils.printBanner;
+import static org.tron.common.utils.Utils.printHelp;
 import static org.tron.common.utils.Utils.printStackTrace;
 import static org.tron.common.utils.Utils.successfulHighlight;
 import static org.tron.keystore.StringUtils.byte2Char;
@@ -4687,14 +4688,11 @@ public class Client {
     }
 
     if (parameters.length == 0) {
-      System.out.println("Help: List of Tron Wallet-cli commands");
-      System.out.println("For more information on a specific command, type the command and it will display tips");
-      System.out.println();
-      for (String commandItem : commandHelp) {
-        System.out.println(commandItem);
-      }
+      System.out.println("Help: Table of Tron Wallet-cli commands");
+      System.out.println("For detailed information about a specific command, please add the command after 'help' as it will display tips.");
+      printHelp();
       System.out.println("Exit or Quit");
-      System.out.println("Input any one of the listed commands, to display how-to tips.");
+      System.out.println("Enter any of the commands listed in the table to display operation prompts.");
       System.out.println();
       System.out.println("For example, if you want help with make a TRX transfer, you can enter '"
           + greenBoldHighlight("help SendCoin") + "'.");
