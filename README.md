@@ -64,47 +64,47 @@ We can configure java-tron node IP and port in ``src/main/resources/config.conf`
 Following is a list of Tron Wallet-cli commands:
 For more information on a specific command, just type the command on terminal when you start your Wallet.
 
-|     [AddTransactionSign](#How-to-use-the-multi-signature-feature-of-wallet-cli)     |                [ApproveProposal](#Approve--disapprove-a-proposal)                |                         [AssetIssue](#Issue-trc10-tokens)                         |
-|:-----------------------------------------------------------------------------------:|:--------------------------------------------------------------------------------:|:---------------------------------------------------------------------------------:|
-|                      [BackupWallet](#Wallet-related-commands)                       |                 [BackupWallet2Base64](#Wallet-related-commands)                  |                       [BroadcastTransaction](#Some-others)                        |
-|                       [CancelAllUnfreezeV2](#How-to-freezev2)                       |                    [ChangePassword](#Wallet-related-commands)                    |                      [ClearContractABI](#clear-contract-abi)                      |
-|                    [ClearWalletKeystore](#clear-wallet-keystore)                    |                         [CreateAccount](#create-account)                         |                      [CreateProposal](#Initiate-a-proposal)                       |
-|                          [CreateWitness](#create-witness)                           |                               [Create2](#create2)                                |                        [CurrentNetwork](#current-network)                         |
-|                        [DelegateResource](#How-to-freezev2)                         |                  [DeleteProposal](#Delete-an-existed-proposal)                   |                   [DeployContract](#How-to-use-smart-contract)                    |
-|                         [EstimateEnergy](#estimate-energy)                          |                 [ExchangeCreate](#How-to-trade-on-the-exchange)                  |                  [ExchangeInject](#How-to-trade-on-the-exchange)                  |
-|                [ExchangeTransaction](#How-to-trade-on-the-exchange)                 |                [ExchangeWithdraw](#How-to-trade-on-the-exchange)                 |              [ExportWalletKeystore](#export-import-wallet-keystore)               |
-|                 [ExportWalletMnemonic](#import-and-export-mnemonic)                 |                       [FreezeBalance](#Delegate-resource)                        |                        [FreezeBalanceV2](#How-to-freezev2)                        |
-|                            [GasFreeInfo](#gas-free-info)                            |                         [GasFreeTrace](#gas-free-trace)                          |                       [GasFreeTransfer](#gas-free-transfer)                       |
-|                    [GenerateAddress](#Account-related-commands)                     |                   [GenerateSubAccount](#generate-sub-account)                    |                      [GetAccount](#Account-related-commands)                      |
-|                     [GetAccountNet](#Account-related-commands)                      |                 [GetAccountResource](#Account-related-commands)                  |                      [GetAddress](#Account-related-commands)                      |
-|          [GetAssetIssueByAccount](#How-to-obtain-trc10-token-information)           |           [GetAssetIssueById](#How-to-obtain-trc10-token-information)            |           [GetAssetIssueByName](#How-to-obtain-trc10-token-information)           |
-|          [GetAssetIssueListByName](#How-to-obtain-trc10-token-information)          |                  [GetAvailableUnfreezeCount](#How-to-freezev2)                   |                      [GetBalance](#Account-related-commands)                      |
-|               [GetBandwidthPrices](#Get-resource-prices-and-memo-fee)               |                    [GetBlock](#How-to-get-block-information)                     |                   [GetBlockById](#How-to-get-block-information)                   |
-|                 [GetBlockByIdOrNum](#How-to-get-block-information)                  |               [GetBlockByLatestNum](#How-to-get-block-information)               |               [GetBlockByLimitNext](#How-to-get-block-information)                |
-|                             [GetBrokerage](#Brokerage)                              |                    [GetCanDelegatedMaxSize](#How-to-freezev2)                    |                 [GetCanWithdrawUnfreezeAmount](#How-to-freezev2)                  |
-|                     [GetChainParameters](#get-chain-parameters)                     |                 [GetContract](#Get-details-of-a-smart-contract)                  |                 [GetContractInfo](#get-info-of-a-smart-contract)                  |
-|                  [GetDelegatedResource](#How-to-delegate-resource)                  |          [GetDelegatedResourceAccountIndex](#How-to-delegate-resource)           |              [GetDelegatedResourceAccountIndexV2](#How-to-freezev2)               |
-|                     [GetDelegatedResourceV2](#How-to-freezev2)                      |               [GetEnergyPrices](#Get-resource-prices-and-memo-fee)               |                        [GetExchange](#get-exchange-by-id)                         |
-|            [GetMarketOrderByAccount](#How-to-use-tron-dex-to-sell-asset)            |             [GetMarketOrderById](#How-to-use-tron-dex-to-sell-asset)             |          [GetMarketOrderListByPair](#How-to-use-tron-dex-to-sell-asset)           |
-|               [GetMarketPairList](#How-to-use-tron-dex-to-sell-asset)               |            [GetMarketPriceByPair](#How-to-use-tron-dex-to-sell-asset)            |                  [GetMemoFee](#Get-resource-prices-and-memo-fee)                  |
-|                       [GetNextMaintenanceTime](#Some-others)                        |                   [GetProposal](#Obtain-proposal-information)                    |                              [GetReward](#Brokerage)                              |
-| [GetTransactionApprovedList](#How-to-use-the-multi-signature-feature-of-wallet-cli) |            [GetTransactionById](#How-to-get-transaction-information)             |       [GetTransactionCountByBlockNum](#How-to-get-transaction-information)        |
-|         [GetTransactionInfoByBlockNum](#How-to-get-transaction-information)         |          [GetTransactionInfoById](#How-to-get-transaction-information)           | [GetTransactionSignWeight](#How-to-use-the-multi-signature-feature-of-wallet-cli) |
-|                      [ImportWallet](#Wallet-related-commands)                       |                 [ImportWalletByBase64](#Wallet-related-commands)                 |             [ImportWalletByKeystore](#export-import-wallet-keystore)              |
-|                  [ImportWalletByLedger](#import-wallet-by-ledger)                   |              [ImportWalletByMnemonic](#import-and-export-mnemonic)               |             [ListAssetIssue](#How-to-obtain-trc10-token-information)              |
-|               [ListAssetIssuePaginated](#list-asset-issue-paginated)                |                  [ListExchanges](#How-to-trade-on-the-exchange)                  |              [ListExchangesPaginated](#How-to-trade-on-the-exchange)              |
-|                              [ListNodes](#Some-others)                              |                  [ListProposals](#Obtain-proposal-information)                   |              [ListProposalsPaginated](#Obtain-proposal-information)               |
-|                            [ListWitnesses](#Some-others)                            |                  [Login](#Command-line-operation-flow-example)                   |                              [LoginAll](#login-all)                               |
-|                                  [Logout](#logout)                                  |                                  [Lock](#lock)                                   |              [MarketCancelOrder](#How-to-use-tron-dex-to-sell-asset)              |
-|                [MarketSellAsset](#How-to-use-tron-dex-to-sell-asset)                |       [ParticipateAssetIssue](#Participating-in-the-issue-of-trc10-token)        |                    [RegisterWallet](#Wallet-related-commands)                     |
-|                            [ResetWallet](#reset-wallet)                             |        [SendCoin](#How-to-use-the-multi-signature-feature-of-wallet-cli)         |                          [SetAccountId](#set-account-id)                          |
-|                          [SwitchNetwork](#switch-network)                           |                          [SwitchWallet](#switch-wallet)                          |                      [TransferAsset](#Trc10-token-transfer)                       |
-|                [TriggerConstantContract](#trigger-constant-contract)                |                    [TriggerContract](#trigger-smart-contract)                    |                      [UnDelegateResource](#How-to-freezev2)                       |
-|                       [UnfreezeAsset](#Unfreeze-trc10-token)                        |                   [UnfreezeBalance](#How-to-delegate-resource)                   |                       [UnfreezeBalanceV2](#How-to-freezev2)                       |
-|                                  [Unlock](#unlock)                                  | [UpdateAccountPermission](#How-to-use-the-multi-signature-feature-of-wallet-cli) |                 [UpdateAsset](#Update-parameters-of-trc10-token)                  |
-|                            [UpdateBrokerage](#Brokerage)                            |              [UpdateEnergyLimit](#Update-smart-contract-parameters)              |                [UpdateSetting](#Update-smart-contract-parameters)                 |
-|                          [UpdateWitness](#update-witness)                           |                           [VoteWitness](#How-to-vote)                            |                       [WithdrawBalance](#withdraw-balance)                        |
-|                 [WithdrawExpireUnfreeze](#withdraw-expire-unfreeze)                 |                                                                                  |                                                                                   |
+|     [AddTransactionSign](#How-to-use-the-multi-signature-feature-of-wallet-cli)     |         [ApproveProposal](#Approve--disapprove-a-proposal)          |                         [AssetIssue](#Issue-trc10-tokens)                         |
+|:-----------------------------------------------------------------------------------:|:-------------------------------------------------------------------:|:---------------------------------------------------------------------------------:|
+|                      [BackupWallet](#Wallet-related-commands)                       |           [BackupWallet2Base64](#Wallet-related-commands)           |                       [BroadcastTransaction](#Some-others)                        |
+|                       [CancelAllUnfreezeV2](#How-to-freezev2)                       |             [ChangePassword](#Wallet-related-commands)              |                      [ClearContractABI](#clear-contract-abi)                      |
+|                    [ClearWalletKeystore](#clear-wallet-keystore)                    |                  [CreateAccount](#create-account)                   |                      [CreateProposal](#Initiate-a-proposal)                       |
+|                          [CreateWitness](#create-witness)                           |                         [Create2](#create2)                         |                        [CurrentNetwork](#current-network)                         |
+|                        [DelegateResource](#How-to-freezev2)                         |            [DeleteProposal](#Delete-an-existed-proposal)            |                   [DeployContract](#How-to-use-smart-contract)                    |
+|                         [EstimateEnergy](#estimate-energy)                          |           [ExchangeCreate](#How-to-trade-on-the-exchange)           |                  [ExchangeInject](#How-to-trade-on-the-exchange)                  |
+|                [ExchangeTransaction](#How-to-trade-on-the-exchange)                 |          [ExchangeWithdraw](#How-to-trade-on-the-exchange)          |              [ExportWalletKeystore](#export-import-wallet-keystore)               |
+|                 [ExportWalletMnemonic](#import-and-export-mnemonic)                 |                 [FreezeBalance](#Delegate-resource)                 |                        [FreezeBalanceV2](#How-to-freezev2)                        |
+|                            [GasFreeInfo](#gas-free-info)                            |                   [GasFreeTrace](#gas-free-trace)                   |                       [GasFreeTransfer](#gas-free-transfer)                       |
+|                    [GenerateAddress](#Account-related-commands)                     |             [GenerateSubAccount](#generate-sub-account)             |                      [GetAccount](#Account-related-commands)                      |
+|                     [GetAccountNet](#Account-related-commands)                      |           [GetAccountResource](#Account-related-commands)           |                      [GetAddress](#Account-related-commands)                      |
+|          [GetAssetIssueByAccount](#How-to-obtain-trc10-token-information)           |     [GetAssetIssueById](#How-to-obtain-trc10-token-information)     |           [GetAssetIssueByName](#How-to-obtain-trc10-token-information)           |
+|          [GetAssetIssueListByName](#How-to-obtain-trc10-token-information)          |            [GetAvailableUnfreezeCount](#How-to-freezev2)            |                      [GetBalance](#Account-related-commands)                      |
+|               [GetBandwidthPrices](#Get-resource-prices-and-memo-fee)               |              [GetBlock](#How-to-get-block-information)              |                   [GetBlockById](#How-to-get-block-information)                   |
+|                 [GetBlockByIdOrNum](#How-to-get-block-information)                  |        [GetBlockByLatestNum](#How-to-get-block-information)         |               [GetBlockByLimitNext](#How-to-get-block-information)                |
+|                             [GetBrokerage](#Brokerage)                              |             [GetCanDelegatedMaxSize](#How-to-freezev2)              |                 [GetCanWithdrawUnfreezeAmount](#How-to-freezev2)                  |
+|                     [GetChainParameters](#get-chain-parameters)                     |           [GetContract](#Get-details-of-a-smart-contract)           |                 [GetContractInfo](#get-info-of-a-smart-contract)                  |
+|                  [GetDelegatedResource](#How-to-delegate-resource)                  |    [GetDelegatedResourceAccountIndex](#How-to-delegate-resource)    |              [GetDelegatedResourceAccountIndexV2](#How-to-freezev2)               |
+|                     [GetDelegatedResourceV2](#How-to-freezev2)                      |        [GetEnergyPrices](#Get-resource-prices-and-memo-fee)         |                        [GetExchange](#get-exchange-by-id)                         |
+|            [GetMarketOrderByAccount](#How-to-use-tron-dex-to-sell-asset)            |      [GetMarketOrderById](#How-to-use-tron-dex-to-sell-asset)       |          [GetMarketOrderListByPair](#How-to-use-tron-dex-to-sell-asset)           |
+|               [GetMarketPairList](#How-to-use-tron-dex-to-sell-asset)               |     [GetMarketPriceByPair](#How-to-use-tron-dex-to-sell-asset)      |                  [GetMemoFee](#Get-resource-prices-and-memo-fee)                  |
+|                       [GetNextMaintenanceTime](#Some-others)                        |             [GetProposal](#Obtain-proposal-information)             |                              [GetReward](#Brokerage)                              |
+| [GetTransactionApprovedList](#How-to-use-the-multi-signature-feature-of-wallet-cli) |      [GetTransactionById](#How-to-get-transaction-information)      |       [GetTransactionCountByBlockNum](#How-to-get-transaction-information)        |
+|         [GetTransactionInfoByBlockNum](#How-to-get-transaction-information)         |    [GetTransactionInfoById](#How-to-get-transaction-information)    | [GetTransactionSignWeight](#How-to-use-the-multi-signature-feature-of-wallet-cli) |
+|                      [ImportWallet](#Wallet-related-commands)                       |          [ImportWalletByBase64](#Wallet-related-commands)           |             [ImportWalletByKeystore](#export-import-wallet-keystore)              |
+|                  [ImportWalletByLedger](#import-wallet-by-ledger)                   |        [ImportWalletByMnemonic](#import-and-export-mnemonic)        |             [ListAssetIssue](#How-to-obtain-trc10-token-information)              |
+|               [ListAssetIssuePaginated](#list-asset-issue-paginated)                |           [ListExchanges](#How-to-trade-on-the-exchange)            |              [ListExchangesPaginated](#How-to-trade-on-the-exchange)              |
+|                              [ListNodes](#Some-others)                              |            [ListProposals](#Obtain-proposal-information)            |              [ListProposalsPaginated](#Obtain-proposal-information)               |
+|                            [ListWitnesses](#Some-others)                            |            [Login](#Command-line-operation-flow-example)            |                              [LoginAll](#login-all)                               |
+|                                  [Logout](#logout)                                  |                            [Lock](#lock)                            |              [MarketCancelOrder](#How-to-use-tron-dex-to-sell-asset)              |
+|                [MarketSellAsset](#How-to-use-tron-dex-to-sell-asset)                | [ParticipateAssetIssue](#Participating-in-the-issue-of-trc10-token) |                    [RegisterWallet](#Wallet-related-commands)                     |
+|                            [ResetWallet](#reset-wallet)                             |  [SendCoin](#How-to-use-the-multi-signature-feature-of-wallet-cli)  |                          [SetAccountId](#set-account-id)                          |
+|                          [SwitchNetwork](#switch-network)                           |                   [SwitchWallet](#switch-wallet)                    |                      [TransferAsset](#Trc10-token-transfer)                       |
+|                [TriggerConstantContract](#trigger-constant-contract)                |             [TriggerContract](#trigger-smart-contract)              |                      [UnDelegateResource](#How-to-freezev2)                       |
+|                       [UnfreezeAsset](#Unfreeze-trc10-token)                        |            [UnfreezeBalance](#How-to-delegate-resource)             |                       [UnfreezeBalanceV2](#How-to-freezev2)                       |
+|                                  [Unlock](#unlock)                                  |                  [UpdateAccount](#update-account)                   | [UpdateAccountPermission](#How-to-use-the-multi-signature-feature-of-wallet-cli)  |
+|                  [UpdateAsset](#Update-parameters-of-trc10-token)                   |                    [UpdateBrokerage](#Brokerage)                    |              [UpdateEnergyLimit](#Update-smart-contract-parameters)               |
+|                 [UpdateSetting](#Update-smart-contract-parameters)                  |                  [UpdateWitness](#update-witness)                   |                            [VoteWitness](#How-to-vote)                            |
+|                        [WithdrawBalance](#withdraw-balance)                         |         [WithdrawExpireUnfreeze](#withdraw-expire-unfreeze)         |                                                                                   |
 
 
 Type any one of the listed commands, to display how-to tips.
@@ -2042,6 +2042,18 @@ Example:
 
 ```console
 > SetAccountId TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp 100
+```
+
+### update account
+
+> UpdateAccount [owner_address] account_name
+
+Modify account name.
+
+Example:
+
+```console
+> UpdateAccount test-name
 ```
 
 

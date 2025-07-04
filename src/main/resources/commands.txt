@@ -617,6 +617,7 @@ Usage example:
 wallet> SwitchNetwork
 wallet> SwitchNetwork nile
 wallet> SwitchNetwork grpc.nile.trongrid.io:50051 grpc.nile.trongrid.io:50061
+wallet> SwitchNetwork 127.0.0.1:50051 127.0.0.1:50052
 Syntax:
 CurrentNetwork
 Summary:
@@ -674,8 +675,8 @@ UpdateWitness [owner_address] url
 Summary:
 Edit the URL of the SR's official website.
 Usage example:
-wallet> UpdateWitness 007570646174654e616d6531353330363038383733343633
-wallet> UpdateWitness TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp 007570646174654e616d6531353330363038383733343633
+wallet> UpdateWitness https://www.example.com
+wallet> UpdateWitness TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp https://www.example.com
 Syntax:
 EstimateEnergy owner_address(use # if you own) contract_address method args isHex [value token_value token_id(e.g: TRXTOKEN, use # if don't provided)]
 Summary:
@@ -745,8 +746,8 @@ UpdateAccount [owner_address] account_name
 Summary:
 Modify account name.
 Usage example:
-wallet> UpdateAccount testname
-wallet> UpdateAccount TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp testname
+wallet> UpdateAccount test-name
+wallet> UpdateAccount TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp test-name
 Syntax:
 UpdateAccountPermission owner_address permissions
 Summary:
