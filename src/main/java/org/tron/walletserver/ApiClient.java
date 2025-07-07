@@ -4,6 +4,7 @@ import static org.tron.common.enums.NetType.CUSTOM;
 import static org.tron.common.utils.AbiUtil.generateOccupationConstantPrivateKey;
 import static org.tron.common.utils.ByteArray.toHexString;
 import static org.tron.keystore.StringUtils.byte2String;
+import static org.tron.trident.core.Constant.TRANSACTION_DEFAULT_EXPIRATION_TIME;
 import static org.tron.trident.core.NodeType.FULL_NODE;
 import static org.tron.trident.core.NodeType.SOLIDITY_NODE;
 import static org.tron.walletserver.WalletApi.encode58Check;
@@ -16,7 +17,10 @@ import org.tron.common.enums.NetType;
 import org.tron.trident.abi.datatypes.Type;
 import org.tron.trident.api.GrpcAPI;
 import org.tron.trident.core.ApiWrapper;
+import org.tron.trident.core.NodeType;
 import org.tron.trident.core.exceptions.IllegalException;
+import org.tron.trident.core.transaction.BlockId;
+import org.tron.trident.core.utils.Utils;
 import org.tron.trident.proto.Chain;
 import org.tron.trident.proto.Common;
 import org.tron.trident.proto.Contract;
@@ -46,6 +50,20 @@ public class ApiClient {
     client = ApiClientFactory.createClient(CUSTOM, privateKey, fullnode, solidityNode);
     this.emptyFullNode = emptyFullNode;
     this.emptySolidityNode = emptySolidityNode;
+    if (!emptyFullNode && emptySolidityNode) {
+      enableLocalCreate(FULL_NODE);
+    }
+    if (!emptySolidityNode && emptyFullNode) {
+      enableLocalCreate(SOLIDITY_NODE);
+    }
+  }
+
+  private void enableLocalCreate(NodeType nodeType) {
+    Response.BlockExtention blockExtention = client.getBlock(false, nodeType);
+    BlockId blockId = Utils.getBlockId(blockExtention);
+    long expire = blockExtention.getBlockHeader().getRawData().getTimestamp()
+        + TRANSACTION_DEFAULT_EXPIRATION_TIME;
+    client.enableLocalCreate(blockId, expire);
   }
 
   public ApiClient(String fullnode, String solidityNode) {
