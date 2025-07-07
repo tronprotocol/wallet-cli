@@ -576,10 +576,6 @@ public class ApiClient {
     return client.clearContractABI(encode58Check(owner), encode58Check(contractAddress));
   }
 
-  public Response.TransactionExtention triggerConstantContract(byte[] address, byte[] contractAddress, byte[] data) {// Shielded
-    return client.triggerConstantContract(encode58Check(address), encode58Check(contractAddress), Hex.toHexString(data), FULL_NODE);
-  }
-
   public Response.TransactionExtention triggerConstantContract(byte[] owner, byte[] contractAddress, byte[] data, long callValue, long tokenValue, String tokenId) {// pass
     if (!emptySolidityNode) {
       return client.triggerConstantContract(encode58Check(owner), encode58Check(contractAddress), Hex.toHexString(data), callValue, tokenValue, tokenId, SOLIDITY_NODE);
