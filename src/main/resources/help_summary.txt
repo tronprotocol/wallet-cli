@@ -1,110 +1,104 @@
 +---------------------------------------------------+-------------------------------------------------------------------------+
 |                   COMMAND                         |                       SUMMARY                                           |
 +---------------------------------------------------+-------------------------------------------------------------------------+
-|                ACCOUNT MANAGEMENT (8)             |                                                                         |
+|                ACCOUNT MANAGEMENT (11)            |                                                                         |
 +---------------------------------------------------+-------------------------------------------------------------------------+
-| GenerateAddress                                   | Randomly generate a tron address                                        |
+| GenerateAddress                                   | Generate an address and print out the address and private key           |
 | GetAccount                                        | Get account details information                                         |
 | GetAddress                                        | Get the address of the current account                                  |
 | GetBalance                                        | Get the current TRX balance of the account                              |
-| CreateAccount                                     | Creating an account, which means activating the wallet                  |
-| UpdateAccount                                     | Modify account name                                                     |
-| UpdateAccountPermission                           | Update the account's permission                                         |
+| CreateAccount                                     | Activating an account                                                   |
+| UpdateAccount                                     | Update account name                                                     |
+| UpdateAccountPermission                           | Update account permissions                                              |
 | SetAccountId                                      | Sets a custom unique identifier for an account                          |
+| GetReward                                         | Get the rewards that a SR or a user has not yet withdrawn               |
+| WithdrawBalance                                   | Withdraw rewards                                                        |
+| SendCoin                                          | Create a TRX transfer transaction                                       |
 |---------------------------------------------------+-------------------------------------------------------------------------+
-|                RESOURCE MANAGEMENT (20)           |                                                                         |
+|                RESOURCE MANAGEMENT (19)           |                                                                         |
 +---------------------------------------------------+-------------------------------------------------------------------------+
-| FreezeBalance                                     | Stake TRX to obtain resources(BANDWIDTH/ENERGY)                         |
-| FreezeBalanceV2                                   | Stake TRX with Stake 2.0 to obtain resources                            |
-| UnfreezeBalance                                   | Unstake TRX by Stake 1.0                                                |
+| FreezeBalance                                     | Stake TRX to obtain resources(BANDWIDTH/ENERGY)  with Stake 1.0         |
+| FreezeBalanceV2                                   | Stake TRX to obtain resources(BANDWIDTH/ENERGY)  with Stake 2.0         |
+| UnfreezeBalance                                   | Unstake TRX with Stake 1.0                                              |
 | UnfreezeBalanceV2                                 | Unstake TRX with Stake 2.0                                              |
-| GetAccountNet                                     | Get the bandwidth usage of the account                                  |
-| GetAccountResource                                | Get the bandwidth and energy usage of the account                       |
-| DelegateResource                                  | Delegate resources through Stake 2.0                                    |
-| UnDelegateResource                                | Undelegate resources through Stake 1.0                                  |
-| GetDelegatedResource                              | Get the delegated resource relationship between addresses               |
+| GetAccountNet                                     | Get account bandwidth information                                       |
+| GetAccountResource                                | Get account resource information                                        |
+| DelegateResource                                  | Delegate resources with Stake 2.0                                       |
+| UnDelegateResource                                | Undelegate resources with Stake 2.0                                     |
+| GetDelegatedResource                              | Get the delegated resource relationship in Stake 1.0                    |
 | GetDelegatedResourceV2                            | Get the delegated resource relationship in Stake 2.0                    |
-| GetDelegatedResourceAccountIndex                  | Get the delegated resource account index                                |
+| GetDelegatedResourceAccountIndex                  | Get the delegated resource account index in Stake 1.0                   |
 | GetDelegatedResourceAccountIndexV2                | Get the delegated resource account index in Stake 2.0                   |
 | GetCanDelegatedMaxSize                            | Get the maximum amount of resources that can be delegated               |
-| WithdrawExpireUnfreeze                            | Withdraw the balance of expired unstaking                               |
-| CancelAllUnfreezeV2                               | Cancel all unstaking operations                                         |
-| GetAvailableUnfreezeCount                         | Get the available number of unstaking times                             |
-| GetCanWithdrawUnfreezeAmount                      | Get the withdrawable unstaking amount                                   |
-| GetBandwidthPrices                                | Get on chain bandwidth prices                                           |
-| GetEnergyPrices                                   | Get on chain energy prices                                              |
-| UpdateEnergyLimit                                 | Update energy limit                                                     |
+| WithdrawExpireUnfreeze                            | Withdraw the amount of expired unstaking in Stake 2.0                   |
+| CancelAllUnfreezeV2                               | Cancel all unstaking operations in Stake 2.0                            |
+| GetAvailableUnfreezeCount                         | Get the available unstaking times in Stake 2.0                          |
+| GetCanWithdrawUnfreezeAmount                      | Get the withdrawable unstaking amount in Stake 2.0                      |
+| GetBandwidthPrices                                | Get historical bandwidth unit price                                     |
+| GetEnergyPrices                                   | Get historical energy unit price                                        |
 |---------------------------------------------------+-------------------------------------------------------------------------+
-|                TRANSACTIONS (10)                  |                                                                         |
+|                TRANSACTIONS (8)                   |                                                                         |
 +---------------------------------------------------+-------------------------------------------------------------------------+
-| SendCoin                                          | Make a TRX transfer                                                     |
 | AddTransactionSign                                | Add signature to hex format transaction                                 |
 | BroadcastTransaction                              | Broadcast transactions in hex string format                             |
-| GetMemoFee                                        | Get memo fee                                                            |
 | GetTransactionSignWeight                          | Get transaction sign weight through hex format transaction              |
-| GetTransactionApprovedList                        | Get the transaction approval list in hex string format                  |
+| GetTransactionApprovedList                        | Get the transaction signature list in hex string format                 |
 | GetTransactionById                                | Get transaction through transaction ID                                  |
 | GetTransactionInfoById                            | Get transaction information through transaction ID                      |
-| GetTransactionInfoByBlockNum                      | Get transaction information through block number                        |
-| GetTransactionCountByBlockNum                     | Get the number of transactions through block height                     |
+| GetTransactionInfoByBlockNum                      | Get all transaction information through block number                    |
+| GetTransactionCountByBlockNum                     | Get the number of transactions through block number                     |
 |---------------------------------------------------+-------------------------------------------------------------------------+
 |                SMART CONTRACTS (10)               |                                                                         |
 +---------------------------------------------------+-------------------------------------------------------------------------+
 | DeployContract                                    | Deploy a smart contract                                                 |
-| TriggerContract                                   | Call the function of the contract                                       |
-| TriggerConstantContract                           | Invoke the readonly function of a contract                              |
-| EstimateEnergy                                    | Estimate the energy required for contract execution                     |
-| ClearContractABI                                  | Clear contract's ABI                                                    |
-| Create2                                           | Predict the contract address after deployment                           |
-| GetContract                                       | Get contract details information                                        |
-| GetContractInfo                                   | Queries a contract's information from the blockchain                    |
+| TriggerContract                                   | Create a smart contract transaction                                     |
+| TriggerConstantContract                           | Dry-run a smart contract function                                       |
+| EstimateEnergy                                    | Estimate the energy of a smart contract transaction                     |
+| ClearContractABI                                  | Clear smart contract's ABI                                              |
+| Create2                                           | Predict the contract address generated after deploying a contract       |
+| GetContract                                       | Get contract information                                                |
+| GetContractInfo                                   | Get contract details information                                        |
 | UpdateSetting                                     | Update the consume_user_resource_percent parameter of a smart contract  |
-| UpdateEnergyLimit                                 | Update energy limit                                                     |
+| UpdateEnergyLimit                                 | Update the origin_energy_limit parameter of a smart contract            |
 |---------------------------------------------------+-------------------------------------------------------------------------+
-|                PROPOSALS (7)                      |                                                                         |
+|                PROPOSALS (6)                      |                                                                         |
 +---------------------------------------------------+-------------------------------------------------------------------------+
-| CreateProposal                                    | Initiate and create proposals                                           |
+| CreateProposal                                    | Initiate and create a proposal                                          |
 | ApproveProposal                                   | Approve / Disapprove a proposal                                         |
 | DeleteProposal                                    | Delete a proposal                                                       |
-| GetProposal                                       | Get proposal details for the specified ID                               |
+| GetProposal                                       | Get proposal details through proposal ID                                |
 | ListProposals                                     | Display all proposals                                                   |
 | ListProposalsPaginated                            | Display all proposals through pagination                                |
-| GetChainParameters                                | Show all parameters that the blockchain committee can set               |
 |---------------------------------------------------+-------------------------------------------------------------------------+
-|                WITNESS (8)                        |                                                                         |
+|                WITNESS (6)                        |                                                                         |
 +---------------------------------------------------+-------------------------------------------------------------------------+
 | CreateWitness                                     | Apply to become a super representative candidate                        |
 | UpdateWitness                                     | Edit the URL of the SR's official website                               |
 | ListWitnesses                                     | Show all witnesses                                                      |
-| VoteWitness                                       | Vote for Witness                                                        |
+| VoteWitness                                       | Vote for witnesses                                                      |
 | GetBrokerage                                      | Get the brokerage ratio of a super representative                       |
 | UpdateBrokerage                                   | Update SR's brokerage ratio                                             |
-| WithdrawBalance                                   | Withdraw voting or block rewards                                        |
-| GetReward                                         | Get reward information for the specified address                        |
 +---------------------------------------------------+-------------------------------------------------------------------------+
-|                ASSET ISSUANCE (18)                |                                                                         |
+|                TRC10 (25)                         |                                                                         |
 +---------------------------------------------------+-------------------------------------------------------------------------+
-| AssetIssue                                        | Issue an asset                                                          |
-| UpdateAsset                                       | Update asset                                                            |
-| ListAssetIssue                                    | Display a list of all issued assets                                     |
-| ListAssetIssuePaginated                           | Query the list of all the tokens by pagination                          |
-| GetAssetIssueById                                 | Obtain issued assets through asset ID                                   |
-| GetAssetIssueByName                               | Obtain issued assets through asset name                                 |
-| GetAssetIssueListByName                           | Obtain the list of issued assets by asset name                          |
-| GetAssetIssueByAccount                            | Get its issued assets through the account address                       |
-| UnfreezeAsset                                     | Unfreeze asset                                                          |
-| TransferAsset                                     | Make an asset transfer                                                  |
-| ParticipateAssetIssue                             | Participate in the issuance of assets                                   |
+| AssetIssue                                        | Issue a TRC10 token                                                     |
+| UpdateAsset                                       | Update basic TRC10 token information                                    |
+| ListAssetIssue                                    | Display a list of all TRC10 token                                       |
+| ListAssetIssuePaginated                           | Display a list of all TRC10 token by pagination                         |
+| GetAssetIssueById                                 | Get a token by token id                                                 |
+| GetAssetIssueByName                               | Get a token by token name                                               |
+| GetAssetIssueListByName                           | Get the list of token by same name                                      |
+| GetAssetIssueByAccount                            | Get a token by account address                                          |
+| UnfreezeAsset                                     | Unstake a token that has passed the minimum freeze duration             |
+| TransferAsset                                     | Transfer TRC10 token                                                    |
+| ParticipateAssetIssue                             | Participate in an asset issue                                           |
 | MarketSellAsset                                   | Market sell asset                                                       |
 | MarketCancelOrder                                 | Cancel market order                                                     |
-| GetMarketOrderById                                | Obtain market order through order id                                    |
+| GetMarketOrderById                                | Get market order through order id                                       |
 | GetMarketOrderByAccount                           | Get market order through account address                                |
 | GetMarketOrderListByPair                          | Get market order through sell-tokenId and buy-tokenId                   |
 | GetMarketPairList                                 | Get Market Pair list                                                    |
 | GetMarketPriceByPair                              | Get market price through sell-tokenId and buy-tokenId                   |
-|---------------------------------------------------+-------------------------------------------------------------------------+
-|                EXCHANGE (7)                       |                                                                         |
-+---------------------------------------------------+-------------------------------------------------------------------------+
 | ExchangeCreate                                    | Exchange create                                                         |
 | ExchangeInject                                    | Exchange inject                                                         |
 | ExchangeTransaction                               | Exchange transaction                                                    |
@@ -115,26 +109,26 @@
 |---------------------------------------------------+-------------------------------------------------------------------------+
 |                BLOCKCHAIN DATA (9)                |                                                                         |
 +---------------------------------------------------+-------------------------------------------------------------------------+
-| GetBlockById                                      | Obtain block through block hashing                                      |
-| GetBlockByLatestNum                               | Get the latest blocks                                                   |
-| GetBlock                                          | Get the latest block or specify the block height                        |
+| GetBlockById                                      | Get block through block id                                              |
+| GetBlockByLatestNum                               | Get the latest N blocks                                                 |
+| GetBlock                                          | Get the latest block or specify the block number                        |
 | GetBlockByLimitNext                               | Get the blocks between start and end block numbers                      |
-| GetBlockByIdOrNum                                 | Get blocks based on their ID or block height                            |
-| CurrentNetwork                                    | Check what network is currently in use                                  |
-| SwitchNetwork                                     | Switch network connection                                               |
+| GetBlockByIdOrNum                                 | Get block header or block through block ID or block number              |
+| GetChainParameters                                | Show all parameters that the blockchain committee can set               |
+| GetNextMaintenanceTime                            | Returns the timestamp of the next voting time in milliseconds           |
+| GetMemoFee                                        | Get memo fee                                                            |
 | ListNodes                                         | Query the list of nodes connected to the API node                       |
-| GetNextMaintenanceTime                            | Get the time for the next maintenance period                            |
 |---------------------------------------------------+-------------------------------------------------------------------------+
-|                WALLET OPERATIONS (19)             |                                                                         |
+|                WALLET OPERATIONS (21)             |                                                                         |
 +---------------------------------------------------+-------------------------------------------------------------------------+
 | Lock                                              | Lock the current wallet account                                         |
-| Unlock                                            | Unlock the current account wallet                                       |
+| Unlock                                            | Unlock the current wallet account                                       |
 | Login                                             | Login to use wallet                                                     |
 | Logout                                            | Log out of the current wallet account                                   |
-| LoginAll                                          | Manage multiple wallets with one password                               |
-| SwitchWallet                                      | Switch wallet accounts after logging in                                 |
+| LoginAll                                          | Manage multiple wallets with same password                              |
+| SwitchWallet                                      | Switch wallet accounts after 'LoginAll'                                 |
 | RegisterWallet                                    | Register a new wallet                                                   |
-| ImportWallet                                      | Import a wallet through a private key                                   |
+| ImportWallet                                      | Import wallet through a private key                                     |
 | ImportWalletByMnemonic                            | Import wallet through mnemonic words                                    |
 | ImportWalletByLedger                              | Import wallet through Ledger                                            |
 | ImportWalletByKeystore                            | Import wallet through Keystore file                                     |
@@ -144,12 +138,14 @@
 | ExportWalletMnemonic                              | Export wallet mnemonic words                                            |
 | BackupWallet                                      | Backup the current wallet as private key                                |
 | BackupWallet2Base64                               | Backup wallet in base64 format                                          |
-| ClearWalletKeystore                               | Delete the keystore and mnemonic words                                  |
-| ResetWallet                                       | Delete all keystone files and mnemonics                                 |
+| ClearWalletKeystore                               | Delete the keystore file and mnemonic words file                        |
+| ResetWallet                                       | Delete all keystore files and mnemonic words files                      |
+| CurrentNetwork                                    | Display current network                                                 |
+| SwitchNetwork                                     | Switch network connection                                               |
 +---------------------------------------------------+-------------------------------------------------------------------------+
 |                GAS FREE (3)                       |                                                                         |
 +---------------------------------------------------+-------------------------------------------------------------------------+
 | GasFreeInfo                                       | Get gasfree information for the specified address                       |
-| GasFreeTransfer                                   | Make a gasfree transfer                                                 |
+| GasFreeTransfer                                   | Initiate a GasFree transfer authorization                               |
 | GasFreeTrace                                      | View gasfree transfer information through trace ID                      |
 +---------------------------------------------------+-------------------------------------------------------------------------+

@@ -2081,7 +2081,7 @@ as: 1234567890123456789012345678901234567890123456789012345678901234
 ## Account related commands
 
 **GenerateAddress**
-> Generate an address and print out the public and private keys
+> Generate an address and print out the address and private key
 
 **GetAccount**
 > Get account information based on address

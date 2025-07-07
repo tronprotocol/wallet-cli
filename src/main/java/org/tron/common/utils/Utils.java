@@ -716,7 +716,9 @@ public class Utils {
                 // System.out.println("InvalidProtocolBufferException: {}", e.getMessage());
               }
             });
-
+    if (jsonTransaction.get("raw_data") == null) {
+      return jsonTransaction;
+    }
     JSONObject rawData = JSON.parseObject(jsonTransaction.get("raw_data").toString());
     rawData.put("contract", contracts);
     jsonTransaction.put("raw_data", rawData);
