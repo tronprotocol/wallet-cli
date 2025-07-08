@@ -4031,7 +4031,7 @@ public class Client {
             }
             default: {
               System.out.println("Invalid cmd: " + cmd);
-              help(parameters);
+              help(new String[]{});
             }
           }
         } catch (CipherException | CancelException | IOException | IllegalException e) {

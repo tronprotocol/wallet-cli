@@ -16,6 +16,7 @@ import static org.tron.common.utils.Utils.greenBoldHighlight;
 import static org.tron.common.utils.Utils.inputPassword;
 import static org.tron.common.utils.Utils.isValid;
 import static org.tron.common.utils.Utils.redBoldHighlight;
+import static org.tron.common.utils.Utils.yellowBoldHighlight;
 import static org.tron.gasfree.GasFreeApi.concat;
 import static org.tron.gasfree.GasFreeApi.gasFreeSubmit;
 import static org.tron.gasfree.GasFreeApi.getDomainSeparator;
@@ -44,7 +45,6 @@ import com.google.protobuf.ByteString;
 import com.typesafe.config.Config;
 import java.io.File;
 import java.io.IOException;
-import java.math.BigInteger;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
@@ -71,8 +71,6 @@ import org.jline.terminal.Terminal;
 import org.jline.terminal.TerminalBuilder;
 import org.tron.common.enums.NetType;
 import org.tron.common.utils.AbiUtil;
-import org.tron.common.utils.ByteArray;
-import org.tron.common.utils.ByteUtil;
 import org.tron.common.utils.Utils;
 import org.tron.core.config.Configuration;
 import org.tron.core.exception.CancelException;
@@ -1569,7 +1567,7 @@ public class WalletApiWrapper {
       if (isEmpty(fullNode) && !isEmpty(solidityNode)) {
         fullNode = solidityNode;
         isFullnodeEmpty = true;
-        System.out.println("If only soliditynode.ip.list is configured, transactions and other operations will not be available.");
+        System.out.println(yellowBoldHighlight("If only soliditynode.ip.list is configured, transactions and other operations will not be available."));
       } else if (!isEmpty(fullNode) && isEmpty(solidityNode)) {
         solidityNode = fullNode;
         isSoliditynodeEmpty = true;
@@ -1619,7 +1617,7 @@ public class WalletApiWrapper {
         if (isEmpty(fullNode) && !isEmpty(solidityNode)) {
           fullNode = solidityNode;
           isFullnodeEmpty = true;
-          System.out.println("If only soliditynode.ip.list is configured, transactions and other operations will not be available.");
+          System.out.println(yellowBoldHighlight("If only soliditynode.ip.list is configured, transactions and other operations will not be available."));
         } else if (!isEmpty(fullNode) && isEmpty(solidityNode)) {
           solidityNode = fullNode;
           isSoliditynodeEmpty = true;
@@ -1754,6 +1752,10 @@ public class WalletApiWrapper {
 //  }
 
   public boolean getGasFreeInfo(String address) throws Exception {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: getGasFreeInfo " + failedHighlight() + ",  Please login first !!");
+      return false;
+    }
     if (WalletApi.getCurrentNetwork() != MAIN && WalletApi.getCurrentNetwork() != NILE) {
       System.out.println(GAS_FREE_SUPPORT_NETWORK_TIP);
       return false;

@@ -15,6 +15,7 @@ import static org.tron.common.utils.Utils.getNode;
 import static org.tron.common.utils.Utils.greenBoldHighlight;
 import static org.tron.common.utils.Utils.inputPassword;
 import static org.tron.common.utils.Utils.redBoldHighlight;
+import static org.tron.common.utils.Utils.yellowBoldHighlight;
 import static org.tron.core.config.Parameter.CommonConstant.ADD_PRE_FIX_BYTE_MAINNET;
 import static org.tron.core.config.Parameter.CommonConstant.ADD_PRE_FIX_BYTE_TESTNET;
 import static org.tron.keystore.StringUtils.char2Byte;
@@ -62,9 +63,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.bouncycastle.util.encoders.Hex;
 import org.hid4java.HidDevice;
-import org.tron.api.GrpcAPI;
 import org.tron.api.GrpcAPI.TransactionSignWeight;
-import org.tron.api.GrpcAPI.TransactionSignWeight.Result.response_code;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.Hash;
 import org.tron.common.crypto.Sha256Sm3Hash;
@@ -94,7 +93,6 @@ import org.tron.ledger.wrapper.LedgerSignResult;
 import org.tron.mnemonic.Mnemonic;
 import org.tron.mnemonic.MnemonicFile;
 import org.tron.mnemonic.MnemonicUtils;
-import org.tron.protos.Protocol;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.contract.AccountContract.AccountCreateContract;
 import org.tron.protos.contract.AccountContract.AccountUpdateContract;
@@ -191,7 +189,7 @@ public class WalletApi {
     if (isEmpty(fullNode) && !isEmpty(solidityNode)) {
       fullNode = solidityNode;
       isFullnodeEmpty = true;
-      System.out.println("If only soliditynode.ip.list is configured, transactions and other operations will not be available.");
+      System.out.println(yellowBoldHighlight("If only soliditynode.ip.list is configured, transactions and other operations will not be available."));
     } else if (!isEmpty(fullNode) && isEmpty(solidityNode)) {
       solidityNode = fullNode;
       isSoliditynodeEmpty = true;
