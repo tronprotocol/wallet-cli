@@ -2441,7 +2441,7 @@ public class Client {
       txid = parameters[0];
     }
     Response.TransactionInfo transactionInfo = WalletApi.getTransactionInfoById(txid);
-    if (transactionInfo != null && !transactionInfo.equals(Response.TransactionInfo.getDefaultInstance())) {
+    if (transactionInfo != null) {
       System.out.println(Utils.formatMessageString(transactionInfo));
     } else {
       System.out.println("GetTransactionInfoById " + failedHighlight() + " !!!");
@@ -2478,20 +2478,11 @@ public class Client {
       end = Long.parseLong(parameters[1]);
     }
 
-    if (WalletApi.getRpcVersion() == 2) {
-      Response.BlockListExtention blockList = WalletApi.getBlockByLimitNext2(start, end);
-      if (blockList != null) {
-        System.out.println(Utils.printBlockList(blockList));
-      } else {
-        System.out.println("GetBlockByLimitNext " + failedHighlight() + " !!");
-      }
+    Response.BlockListExtention blockList = WalletApi.getBlockByLimitNext(start, end);
+    if (blockList != null) {
+      System.out.println(Utils.printBlockList(blockList));
     } else {
-      Response.BlockListExtention blockList = WalletApi.getBlockByLimitNext(start, end);
-      if (blockList != null) {
-        System.out.println(Utils.printBlockList(blockList));
-      } else {
-        System.out.println("GetBlockByLimitNext " + failedHighlight() + " !!");
-      }
+      System.out.println("GetBlockByLimitNext " + failedHighlight() + " !!");
     }
   }
 
@@ -2503,7 +2494,6 @@ public class Client {
     } else {
       num = Long.parseLong(parameters[0]);
     }
-//    if (WalletApi.getRpcVersion() == 2 || WalletApi.getRpcVersion() == 3) {
     Response.BlockListExtention blockList = WalletApi.getBlockByLatestNum2(num);
     if (blockList != null) {
       if (blockList.getBlockCount() == 0) {
@@ -2514,19 +2504,6 @@ public class Client {
     } else {
       System.out.println("GetBlockByLimitNext " + failedHighlight() + " !!");
     }
-//    } else {
-//      Optional<BlockList> result = WalletApi.getBlockByLatestNum(num);
-//      if (result.isPresent()) {
-//        BlockList blockList = result.get();
-//        if (blockList.getBlockCount() == 0) {
-//          System.out.println("No block");
-//          return;
-//        }
-//        System.out.println(Utils.printBlockList(blockList));
-//      } else {
-//        System.out.println("GetBlockByLimitNext " + failedHighlight() + " !!");
-//      }
-//    }
   }
 
   private void updateSetting(String[] parameters)

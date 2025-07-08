@@ -191,6 +191,7 @@ public class WalletApi {
     if (isEmpty(fullNode) && !isEmpty(solidityNode)) {
       fullNode = solidityNode;
       isFullnodeEmpty = true;
+      System.out.println("If only soliditynode.ip.list is configured, transactions and other operations will not be available.");
     } else if (!isEmpty(fullNode) && isEmpty(solidityNode)) {
       solidityNode = fullNode;
       isSoliditynodeEmpty = true;
@@ -1020,7 +1021,11 @@ public class WalletApi {
   }
 
   public static Response.BlockExtention getBlock2(long blockNum) throws IllegalException {
-    return apiCli.getBlock2(blockNum);
+    try {
+      return apiCli.getBlock2(blockNum);
+    } catch (IllegalException e) {
+      return Response.BlockExtention.getDefaultInstance();
+    }
   }
 
   public static long getTransactionCountByBlockNum(long blockNum) {
@@ -1343,11 +1348,19 @@ public class WalletApi {
   }
 
   public static Chain.Transaction getTransactionById(String txId) throws IllegalException {
-    return apiCli.getTransactionById(txId);
+    try {
+      return apiCli.getTransactionById(txId);
+    } catch (IllegalException e) {
+      return Chain.Transaction.getDefaultInstance();
+    }
   }
 
   public static Response.TransactionInfo getTransactionInfoById(String txId) throws IllegalException {
-    return apiCli.getTransactionInfoById(txId);
+    try {
+      return apiCli.getTransactionInfoById(txId);
+    } catch (IllegalException e) {
+      return Response.TransactionInfo.getDefaultInstance();
+    }
   }
 
   public boolean freezeBalance(
@@ -1602,12 +1615,20 @@ public class WalletApi {
   }
 
   public static Response.BlockListExtention getBlockByLimitNext(long start, long end) throws IllegalException {
-    return apiCli.getBlockByLimitNext(start, end);
+    try {
+      return apiCli.getBlockByLimitNext(start, end);
+    } catch (IllegalException e) {
+      return Response.BlockListExtention.getDefaultInstance();
+    }
   }
 
   public static Response.BlockListExtention getBlockByLimitNext2(long start, long end)
       throws IllegalException {
-    return apiCli.getBlockByLimitNext(start, end);
+    try {
+      return apiCli.getBlockByLimitNext(start, end);
+    } catch (IllegalException e) {
+      return Response.BlockListExtention.getDefaultInstance();
+    }
   }
 
   public static Response.BlockListExtention getBlockByLatestNum2(long num) throws IllegalException {

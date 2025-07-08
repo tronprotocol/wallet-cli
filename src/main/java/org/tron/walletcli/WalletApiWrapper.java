@@ -1128,9 +1128,8 @@ public class WalletApiWrapper {
   public Response.Exchange getExchange(String id) {
     try {
       return WalletApi.getExchange(id);
-    } catch (Exception ex) {
-      ex.printStackTrace();
-      return null;
+    } catch (IllegalException e) {
+      return Response.Exchange.getDefaultInstance();
     }
   }
 
@@ -1570,6 +1569,7 @@ public class WalletApiWrapper {
       if (isEmpty(fullNode) && !isEmpty(solidityNode)) {
         fullNode = solidityNode;
         isFullnodeEmpty = true;
+        System.out.println("If only soliditynode.ip.list is configured, transactions and other operations will not be available.");
       } else if (!isEmpty(fullNode) && isEmpty(solidityNode)) {
         solidityNode = fullNode;
         isSoliditynodeEmpty = true;
@@ -1619,6 +1619,7 @@ public class WalletApiWrapper {
         if (isEmpty(fullNode) && !isEmpty(solidityNode)) {
           fullNode = solidityNode;
           isFullnodeEmpty = true;
+          System.out.println("If only soliditynode.ip.list is configured, transactions and other operations will not be available.");
         } else if (!isEmpty(fullNode) && isEmpty(solidityNode)) {
           solidityNode = fullNode;
           isSoliditynodeEmpty = true;
