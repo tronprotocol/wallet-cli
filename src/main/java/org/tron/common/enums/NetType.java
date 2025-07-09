@@ -1,5 +1,12 @@
 package org.tron.common.enums;
 
+import static org.tron.trident.core.Constant.FULLNODE_NILE;
+import static org.tron.trident.core.Constant.FULLNODE_NILE_SOLIDITY;
+import static org.tron.trident.core.Constant.TRONGRID_MAIN_NET;
+import static org.tron.trident.core.Constant.TRONGRID_MAIN_NET_SOLIDITY;
+import static org.tron.trident.core.Constant.TRONGRID_SHASTA;
+import static org.tron.trident.core.Constant.TRONGRID_SHASTA_SOLIDITY;
+
 import lombok.Getter;
 import lombok.Setter;
 
@@ -7,7 +14,7 @@ import lombok.Setter;
 public enum NetType {
   MAIN(
       "https://api.trongrid.io",
-      new Grpc("grpc.trongrid.io:50051", "grpc.trongrid.io:50052"),
+      new Grpc(TRONGRID_MAIN_NET, TRONGRID_MAIN_NET_SOLIDITY),
       new GasFree(
           728126428L,
           "TFFAMQLZybALaLb4uxHA9RBE7pxhUAjF3U",
@@ -15,7 +22,7 @@ public enum NetType {
           "/tron")
   ),
   NILE("https://nile.trongrid.io",
-      new Grpc("grpc.nile.trongrid.io:50051", "grpc.nile.trongrid.io:50061"),
+      new Grpc(FULLNODE_NILE, FULLNODE_NILE_SOLIDITY),
       new GasFree(
           3448148188L,
           "THQGuFzL87ZqhxkgqYEryRAd7gqFqL5rdc",
@@ -24,7 +31,7 @@ public enum NetType {
   ),
   SHASTA(
       "https://api.shasta.trongrid.io",
-      new Grpc("grpc.shasta.trongrid.io:50051", "grpc.shasta.trongrid.io:50052"),
+      new Grpc(TRONGRID_SHASTA, TRONGRID_SHASTA_SOLIDITY),
       new GasFree(
           2494104990L,
           "TSwCtDum13k1PodgNgTWx5be7k1c6eWaNP",

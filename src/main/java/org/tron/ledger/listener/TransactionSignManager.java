@@ -4,9 +4,10 @@ import com.google.protobuf.ByteString;
 import org.bouncycastle.util.encoders.Hex;
 import org.hid4java.HidDevice;
 import org.tron.protos.Protocol;
+import org.tron.trident.proto.Chain;
 
 public class TransactionSignManager {
-  private Protocol.Transaction transaction;
+  private Chain.Transaction transaction;
   private HidDevice hidDevice;
   private String gasfreeSignature;
 
@@ -22,7 +23,7 @@ public class TransactionSignManager {
     return Holder.INSTANCE;
   }
 
-  public synchronized void setTransaction(Protocol.Transaction newTransaction) {
+  public synchronized void setTransaction(Chain.Transaction newTransaction) {
     this.transaction = newTransaction;
   }
 
@@ -35,7 +36,7 @@ public class TransactionSignManager {
   }
 
 
-  public synchronized Protocol.Transaction getTransaction() {
+  public synchronized Chain.Transaction getTransaction() {
     return this.transaction;
   }
 
@@ -48,7 +49,7 @@ public class TransactionSignManager {
   }
 
   public synchronized void addTransactionSign(byte[] signByteArr) {
-    Protocol.Transaction.Builder transactionBuilderSigned = transaction.toBuilder();
+    Chain.Transaction.Builder transactionBuilderSigned = transaction.toBuilder();
     ByteString bsSign = ByteString.copyFrom(signByteArr);
     transactionBuilderSigned.addSignature(bsSign);
     transaction = transactionBuilderSigned.build();

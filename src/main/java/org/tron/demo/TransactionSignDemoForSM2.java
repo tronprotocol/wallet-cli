@@ -10,11 +10,13 @@ import org.tron.core.exception.CancelException;
 import org.tron.protos.Protocol.Block;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.contract.BalanceContract.TransferContract;
+import org.tron.trident.core.exceptions.IllegalException;
+import org.tron.trident.proto.Chain;
 import org.tron.walletserver.WalletApi;
 
 public class TransactionSignDemoForSM2 {
 
-  public static Transaction setReference(Transaction transaction, Block newestBlock) {
+  public static Transaction setReference(Transaction transaction, Chain.Block newestBlock) {
     long blockHeight = newestBlock.getBlockHeader().getRawData().getNumber();
     byte[] blockHash = getBlockHash(newestBlock).getBytes();
     byte[] refBlockNum = ByteArray.fromLong(blockHeight);
@@ -25,7 +27,7 @@ public class TransactionSignDemoForSM2 {
     return transaction.toBuilder().setRawData(rawData).build();
   }
 
-  public static Sha256Sm3Hash getBlockHash(Block block) {
+  public static Sha256Sm3Hash getBlockHash(Chain.Block block) {
     return Sha256Sm3Hash.of(block.getBlockHeader().getRawData().toByteArray());
   }
 
@@ -34,9 +36,9 @@ public class TransactionSignDemoForSM2 {
     return txid;
   }
 
-  public static Transaction createTransaction(byte[] from, byte[] to, long amount) {
+  public static Transaction createTransaction(byte[] from, byte[] to, long amount) throws IllegalException {
     Transaction.Builder transactionBuilder = Transaction.newBuilder();
-    Block newestBlock = WalletApi.getBlock(-1);
+    Chain.Block newestBlock = WalletApi.getBlock(-1);
 
     Transaction.Contract.Builder contractBuilder = Transaction.Contract.newBuilder();
     TransferContract.Builder transferContractBuilder =
@@ -97,7 +99,7 @@ public class TransactionSignDemoForSM2 {
     System.out.println(base58check);
   }
 
-  public static void main(String[] args) throws InvalidProtocolBufferException, CancelException {
+  public static void main(String[] args) throws InvalidProtocolBufferException, CancelException, IllegalException {
     String privateStr = "D95611A9AF2A2A45359106222ED1AFED48853D9A44DEFF8DC7913F5CBA727366";
     byte[] privateBytes = ByteArray.fromHexString(privateStr);
     SM2 sm2 = SM2.fromPrivate(privateBytes);

@@ -16,7 +16,6 @@ public class LedgerUserHelper {
 
   private static final String[] LEDGER_FORBID_OP_ARR = {
       "addtransactionsign",
-      "backupshieldedtrc20wallet",
       "backupwallet",
       "backupwallet2base64",
       "exportwalletmnemonic",

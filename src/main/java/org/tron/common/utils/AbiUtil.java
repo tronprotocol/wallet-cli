@@ -347,9 +347,9 @@ public class AbiUtil {
     if (isHex) {
       return Hex.toHexString(selector) + input;
     }
-    byte[] encodedParms = encodeInput(methodSign, input);
+    byte[] encodedParams = encodeInput(methodSign, input);
 
-    return Hex.toHexString(selector) + Hex.toHexString(encodedParms);
+    return Hex.toHexString(selector) + Hex.toHexString(encodedParams);
   }
 
   public static byte[] encodeInput(String methodSign, String input) {
