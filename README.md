@@ -2,7 +2,11 @@
 
 Welcome to use the Wallet-CLI.  
 
-If you need any help, please join the [Telegram](https://t.me/TronOfficialDevelopersGroupEn)
+Wallet-cli now supports GasFree features, allowing users to perform token transfers without paying gas fees directly. For more detail, please check the [GasFree](#GasFree-Support) section below.
+
+The underlying implementation of all Wallet-cli gRPC APIs has all migrated to the [Trident APIs](https://github.com/tronprotocol/trident). The migration represents a significant architectural shift. This strategic move consolidates the underlying implementation of the Wallet-cli's remote procedure calls, standardizing them under the robust and optimized Trident API framework. This unification not only streamlines development and maintenance efforts but also enhances the overall reliability, performance, and scalability of the Wallet-cli. The Trident APIs, known for their efficiency and comprehensive capabilities, now serve as the sole foundation for all gRPC interactions within the Wallet-cli, ensuring a consistent and high-quality experience for users and developers alike.
+
+If you need any help, please join the [Telegram](https://t.me/TronOfficialDevelopersGroupEn).
 
 ## Get started
 
@@ -14,37 +18,65 @@ If you need any help, please join the [Telegram](https://t.me/TronOfficialDevelo
 
 ```
 net {
-  type = mainnet
-  # type = testnet
+ type = mainnet
+ # type = testnet
 }
 
 fullnode = {
   ip.list = [
-    "fullnode ip : port"
+    "127.0.0.1:50051"
   ]
 }
 
-soliditynode = {
-  // the IPs in this list can only be totally set to solidity or pBFT.
-  ip.list = [
-    "ip : solidity port" // default solidity
-  ]
+#soliditynode = {
+#  // the IPs in this list can only be totally set to solidity.
 #  ip.list = [
-#    "ip : pBFT port" // or pBFT
+#    "127.0.0.1:50052" // default solidity
 #  ]
-} // NOTE: solidity node is optional
+#  // NOTE: solidity node is optional
+#}
 
-blockNumberStartToScan = 22690588 // NOTE: this field is optional
+# open ledger debug
+# ledger_debug = true
+
+# To use the lock and unlock function of the login account, it is necessary to configure
+# lockAccount = true in the config.conf. The current login account is locked, which means that
+# signatures and transactions are not allowed. After the current login account is locked, it can be
+# unlocked. By default, it will be unlocked again after 300 seconds. Unlocking can specify
+# parameters in seconds.
+
+# lockAccount = true
+
+# To use the gasfree feature, please first apply for an apikey and apiSecret.
+# For details, please refer to
+# https://docs.google.com/forms/d/e/1FAIpQLSc5EB1X8JN7LA4SAVAG99VziXEY6Kv6JxmlBry9rUBlwI-GaQ/viewform
+gasfree = {
+  mainnet = {
+     apiKey = ""
+     apiSecret = ""
+  }
+  testnet = {
+     apiKey = ""
+     apiSecret = ""
+  }
+}
+
+# If gRPC requests on the main network are limited in speed, you can apply for a apiKey of trongrid to improve the user experience
+grpc = {
+  mainnet = {
+    apiKey = ""
+  }
+}
+
 ```
 
 ### Run a web wallet
 
-- connect to fullNode and solidityNode
+- connect to fullNode
 
     Take a look at: [java-tron deployment](https://tronprotocol.github.io/documentation-en/developers/deployment/)
-    Run both fullNode and solidity node in either your local PC or remote server.
+    Run fullNode in either your local PC or remote server.
 
-    NOTE: These nodes would consume a lot of memory and CPU. Please be aware if you do not use wallet, just kill them.
 - compile and run web wallet
 
     ```console
@@ -58,6 +90,7 @@ blockNumberStartToScan = 22690588 // NOTE: this field is optional
 
 Wallet-cli connect to java-tron via gRPC protocol, which can be deployed locally or remotely. Check **Run a web Wallet** section.
 We can configure java-tron node IP and port in ``src/main/resources/config.conf``, so that wallet-cli server can successfully talk to java-tron nodes.
+Besides that, you can simply use `SwitchNetwork` command to switch among the mainnet, testnets(Nile and Shasta) and custom networks. Please refer to the Switch Network section.
 
 ## Wallet-cli supported command list
 
@@ -1842,10 +1875,22 @@ wallet> currentnetwork
 current network: CUSTOM
 fullNode: EMPTY, solidityNode: localhost:50052
 ```
+## Gas Free Support
 
-## gas free info
-    > GasFreeInfo
->Get gasfree info of the current address.
+Wallet-cli now supports GasFree integration. This guide explains the new commands and provides instructions on how to use them.
+
+For more details, please refer to  [GasFree Documentation](https://gasfree.io/specification) and [TronLink User Guide For GasFree](https://support.tronlink.org/hc/en-us/articles/38903684778393-GasFree-User-Guide).
+
+Prerequisites
+API Credentials: Users must obtain the API Key and API Secret from GasFree for authentication. Please refer to the official [application form](https://docs.google.com/forms/d/e/1FAIpQLSc5EB1X8JN7LA4SAVAG99VziXEY6Kv6JxmlBry9rUBlwI-GaQ/viewform) for instructions on setting up API authentication.
+
+New Commands:
+
+### Gas Free info
+> GasFreeInfo
+Query GasFree Information
+Function: Retrieve the basic info, including the GasFree address associated with your current wallet address.
+Note: The GasFree address is automatically activated upon the first transfer, which may incur an activation fee.
 
 Example:
 ```console
@@ -1875,10 +1920,10 @@ balanceOf(address):70a08231
 }
 gasFreeInfo:  successful !!
 ```
-
-## gas free transfer
-    > GasFreeTransfer
->Transfer funds through gas-free.
+### Gas Free transfer
+> GasFreeTransfer
+Submit GasFree Transfer
+Function: Submit a gas-free token transfer request.
 
 Example:
 ```console
@@ -1910,9 +1955,10 @@ GasFreeTransfer result: {
 GasFreeTransfer  successful !!!
 ```
 
-## gas free trace
-    > GasFreeTrace
->Query GasFreeTrace to obtain transfer details by using the transaction ID returned by GasFreeTransfer as the traceId.
+### Gas Free trace
+> GasFreeTrace
+Track Transfer Status
+Function: Check the progress of a GasFree transfer using the traceId obtained from GasFreeTransfer.
 
 Example:
 ```console
