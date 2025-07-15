@@ -19,7 +19,6 @@ If you need any help, please join the [Telegram](https://t.me/TronOfficialDevelo
 ```
 net {
  type = mainnet
- # type = testnet
 }
 
 fullnode = {
