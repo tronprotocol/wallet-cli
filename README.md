@@ -1,16 +1,16 @@
-# wallet-cli
+# Wallet-cli
 
-Welcome to use the Wallet-CLI.  
+Welcome to use the Wallet-cli.  
 
-Wallet-cli now supports GasFree features, allowing users to perform token transfers without paying gas fees directly. For more detail, please check the [GasFree](#GasFree-Support) section below.
+Wallet-cli now supports GasFree features, enabling users to perform token transfers without incurring direct gas fees. For more details, please check the [GasFree](#GasFree-Support) section below.
 
-The underlying implementation of all Wallet-cli gRPC APIs has all migrated to the [Trident APIs](https://github.com/tronprotocol/trident). The migration represents a significant architectural shift. This strategic move consolidates the underlying implementation of the Wallet-cli's remote procedure calls, standardizing them under the robust and optimized Trident API framework. This unification not only streamlines development and maintenance efforts but also enhances the overall reliability, performance, and scalability of the Wallet-cli. The Trident APIs, known for their efficiency and comprehensive capabilities, now serve as the sole foundation for all gRPC interactions within the Wallet-cli, ensuring a consistent and high-quality experience for users and developers alike.
+The underlying implementation of all Wallet-cli gRPC APIs has all migrated to the [Trident SDK](https://github.com/tronprotocol/trident). This strategic move consolidates the underlying implementation of the Wallet-cli's remote procedure calls, standardizing them under the robust and optimized Trident framework. 
 
 If you need any help, please join the [Telegram](https://t.me/TronOfficialDevelopersGroupEn).
 
 ## Get started
 
-### Download wallet-cli
+### Download Wallet-cli
 
     git clone https://github.com/tronprotocol/wallet-cli.git
 
@@ -23,14 +23,14 @@ net {
 
 fullnode = {
   ip.list = [
-    "127.0.0.1:50051"
+    "fullnode ip : port"
   ]
 }
 
 #soliditynode = {
-#  // the IPs in this list can only be totally set to solidity.
+#  //The IPs in this list can only be totally set to solidity.
 #  ip.list = [
-#    "127.0.0.1:50052" // default solidity
+#     "ip : solidity port" // default solidity
 #  ]
 #  // NOTE: solidity node is optional
 #}
@@ -46,7 +46,7 @@ fullnode = {
 
 # lockAccount = true
 
-# To use the gasfree feature, please first apply for an apikey and apiSecret.
+# To use the gasfree feature, please first apply for an APIkey and apiSecret.
 # For details, please refer to
 # https://docs.google.com/forms/d/e/1FAIpQLSc5EB1X8JN7LA4SAVAG99VziXEY6Kv6JxmlBry9rUBlwI-GaQ/viewform
 gasfree = {
@@ -60,7 +60,7 @@ gasfree = {
   }
 }
 
-# If gRPC requests on the main network are limited in speed, you can apply for a apiKey of trongrid to improve the user experience
+# If gRPC requests on the main network are limited in speed, you can apply for an apiKey of Trongrid to improve the user experience
 grpc = {
   mainnet = {
     apiKey = ""
@@ -74,7 +74,7 @@ grpc = {
 - connect to fullNode
 
     Take a look at: [java-tron deployment](https://tronprotocol.github.io/documentation-en/developers/deployment/)
-    Run fullNode in either your local PC or remote server.
+    Run fullNode on either your local PC or a remote server.
 
 - compile and run web wallet
 
@@ -85,16 +85,16 @@ grpc = {
     $ java -jar wallet-cli.jar
     ```
 
-### Connect to java-tron
+### Connect to Java-tron
 
-Wallet-cli connect to java-tron via gRPC protocol, which can be deployed locally or remotely. Check **Run a web Wallet** section.
-We can configure java-tron node IP and port in ``src/main/resources/config.conf``, so that wallet-cli server can successfully talk to java-tron nodes.
+Wallet-cli connects to Java-tron via the gRPC protocol, which can be deployed locally or remotely. Check **Run a web Wallet** section.
+We can configure Java-tron node IP and port in ``src/main/resources/config.conf``, so that wallet-cli server can successfully talk to java-tron nodes.
 Besides that, you can simply use `SwitchNetwork` command to switch among the mainnet, testnets(Nile and Shasta) and custom networks. Please refer to the Switch Network section.
 
 ## Wallet-cli supported command list
 
 Following is a list of Tron Wallet-cli commands:
-For more information on a specific command, just type the command on terminal when you start your Wallet.
+For more information on a specific command, just type the command in the terminal when you start your Wallet.
 
 |     [AddTransactionSign](#How-to-use-the-multi-signature-feature-of-wallet-cli)     |         [ApproveProposal](#Approve--disapprove-a-proposal)          |                         [AssetIssue](#Issue-trc10-tokens)                         |
 |:-----------------------------------------------------------------------------------:|:-------------------------------------------------------------------:|:---------------------------------------------------------------------------------:|
