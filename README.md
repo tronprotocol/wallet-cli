@@ -4,7 +4,7 @@ Welcome to use the Wallet-cli.
 
 Wallet-cli now supports GasFree features, enabling users to perform token transfers without incurring direct gas fees. For more details, please check the [GasFree](#GasFree-Support) section below.
 
-The underlying implementation of all Wallet-cli gRPC APIs has all migrated to the [Trident APIs](https://github.com/tronprotocol/trident). This strategic move consolidates the underlying implementation of the Wallet-cli's remote procedure calls, standardizing them under the robust and optimized Trident framework. 
+The underlying implementation of all Wallet-cli gRPC APIs has all migrated to the [Trident SDK](https://github.com/tronprotocol/trident). This strategic move consolidates the underlying implementation of the Wallet-cli's remote procedure calls, standardizing them under the robust and optimized Trident framework. 
 
 If you need any help, please join the [Telegram](https://t.me/TronOfficialDevelopersGroupEn).
 
@@ -23,14 +23,14 @@ net {
 
 fullnode = {
   ip.list = [
-    "127.0.0.1:50051"
+    "fullnode ip : port"
   ]
 }
 
 #soliditynode = {
 #  //The IPs in this list can only be totally set to solidity.
 #  ip.list = [
-#    "127.0.0.1:50052" // default solidity
+#     "ip : solidity port" // default solidity
 #  ]
 #  // NOTE: solidity node is optional
 #}
