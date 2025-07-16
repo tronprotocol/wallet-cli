@@ -2,7 +2,7 @@
 
 Welcome to use the Wallet-cli.  
 
-Wallet-cli now supports GasFree features, enabling users to perform token transfers without incurring direct gas fees. For more details, please check the [GasFree](#GasFree-Support) section below.
+Wallet-cli now supports [GasFree](https://gasfree.io) addresses, enable users to transfer tokens without paying gas fees. For more details, please check the [GasFree](#Gas-Free-Support) section below.
 
 The underlying implementation of all Wallet-cli gRPC APIs has all migrated to the [Trident SDK](https://github.com/tronprotocol/trident). This strategic move consolidates the underlying implementation of the Wallet-cli's remote procedure calls, standardizing them under the robust and optimized Trident framework. 
 
