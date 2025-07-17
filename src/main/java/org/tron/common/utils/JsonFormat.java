@@ -1159,7 +1159,7 @@ public class JsonFormat {
    */
   protected static class Tokenizer {
 
-    // We use possesive quantifiers (*+ and ++) because otherwise the Java
+    // We use possessive quantifiers (*+ and ++) because otherwise the Java
     // regex matcher has stack overflows on large inputs.
     private static final Pattern WHITESPACE =
         Pattern.compile("(\\s|(#.*$))++", Pattern.MULTILINE);

@@ -767,7 +767,7 @@ public class Client {
     String channel = parameters[0];
     if (!channel.equalsIgnoreCase("tronlink")) {
       System.out.println("exportWalletKeystore " + failedHighlight() + ", channel error !!");
-      System.out.println("currrently only tronlink is supported!!");
+      System.out.println("currently only tronlink is supported!!");
       return;
     }
     String exportDirPath = parameters[1];
