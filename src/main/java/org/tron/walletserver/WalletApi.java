@@ -532,7 +532,7 @@ public class WalletApi {
         try {
           n = new Integer(num);
         } catch (NumberFormatException e) {
-          System.out.println("Invaild number of " + num);
+          System.out.println("Invalid number of " + num);
           System.out.println("Please choose again between 1 and " + mnemonicFiles.length);
           continue;
         }
@@ -637,7 +637,7 @@ public class WalletApi {
     Credentials credentials = WalletUtils.loadCredentials(oldPassword, wallet);
     WalletUtils.updateWalletFile(newPassowrd, credentials.getPair(), wallet, true);
 
-    // udpate the password of mnemonicFile
+    // update the password of mnemonicFile
     String ownerAddress = credentials.getAddress();
     File mnemonicFile = Paths.get("Mnemonic", ownerAddress + ".json").toFile();
     if (mnemonicFile.exists()) {
