@@ -85,130 +85,6 @@ public class Client {
   private static int retryTime = 3;
 
   // note: this is sorted by alpha
-  private static String[] commandHelp = {
-      "AddTransactionSign",
-      "ApproveProposal",
-      "AssetIssue",
-      "BackupWallet",
-      "BackupWallet2Base64",
-      "ExportWalletMnemonic",
-      "ExportWalletKeystore",
-      "ImportWalletByKeystore",
-      "BroadcastTransaction",
-      "CancelAllUnfreezeV2",
-      "ChangePassword",
-      "ClearContractABI",
-      "ClearWalletKeystore",
-      "Create2",
-      "CreateAccount",
-      "CreateProposal",
-      "CreateWitness",
-      "CurrentNetwork",
-      "DelegateResource",
-      "DeleteProposal",
-      "DeployContract contractName ABI byteCode constructor params isHex fee_limit consume_user_resource_percent origin_energy_limit value token_value token_id <library:address,library:address,...> <lib_compiler_version(e.g:v5)>",
-      "EstimateEnergy",
-      "ExchangeCreate",
-      "ExchangeInject",
-      "ExchangeTransaction",
-      "ExchangeWithdraw",
-      "FreezeBalance",
-      "FreezeBalanceV2",
-      "GasFreeTrace",
-      "GasFreeTransfer",
-      "GenerateAddress",
-      "GenerateSubAccount",
-      "GetAccount",
-      "GetAccountNet",
-      "GetAccountResource",
-      "GetAddress",
-      "GetAssetIssueByAccount",
-      "GetAssetIssueById",
-      "GetAssetIssueByName",
-      "GetAssetIssueListByName",
-      "GetBalance",
-      "GetBandwidthPrices",
-      "GetBlock",
-      "GetBlockById",
-      "GetBlockByIdOrNum",
-      "GetBlockByLatestNum",
-      "GetBlockByLimitNext",
-      "GetBrokerage",
-      "GetChainParameters",
-      "GetContract contractAddress",
-      "GetContractInfo contractAddress",
-      "GetDelegatedResource",
-      "GetDelegatedResourceV2",
-      "GetDelegatedResourceAccountIndex",
-      "GetDelegatedResourceAccountIndexV2",
-      "GetCanDelegatedMaxSize",
-      "GetAvailableUnfreezeCount",
-      "GetCanWithdrawUnfreezeAmount",
-      "GetEnergyPrices",
-      "GetExchange",
-      "GasFreeInfo",
-      "GetMarketOrderByAccount",
-      "GetMarketOrderById",
-      "GetMarketOrderListByPair",
-      "GetMarketPairList",
-      "GetMarketPriceByPair",
-      "GetMemoFee",
-      "GetNextMaintenanceTime",
-      "GetProposal",
-      "GetReward",
-      "GetTransactionApprovedList",
-      "GetTransactionById",
-      "GetTransactionCountByBlockNum",
-      "GetTransactionInfoByBlockNum",
-      "GetTransactionInfoById",
-      "GetTransactionSignWeight",
-      "Help",
-      "ImportWallet",
-      "ImportWalletByMnemonic",
-      "ImportWalletByLedger",
-      "ImportWalletByBase64",
-      "ListAssetIssue",
-      "ListAssetIssuePaginated",
-      "ListExchanges",
-      "ListExchangesPaginated",
-      "ListNodes",
-      "ListProposals",
-      "ListProposalsPaginated",
-      "ListWitnesses",
-      "Lock",
-      "Login",
-      "LoginAll",
-      "Logout",
-      "MarketCancelOrder",
-      "MarketSellAsset",
-      "ParticipateAssetIssue",
-      "RegisterWallet",
-      "ResetWallet",
-      "SendCoin",
-      "SetAccountId",
-      "SwitchNetwork",
-      "SwitchWallet",
-      "TransferAsset",
-      "TriggerConstantContract contractAddress method args isHex",
-      "TriggerContract contractAddress method args isHex fee_limit value",
-      "UnDelegateResource",
-      "UnfreezeAsset",
-      "UnfreezeBalance",
-      "UnfreezeBalanceV2",
-      "Unlock",
-      "UpdateAccount",
-      "UpdateAccountPermission",
-      "UpdateAsset",
-      "UpdateBrokerage",
-      "UpdateEnergyLimit contract_address energy_limit",
-      "UpdateSetting contract_address consume_user_resource_percent",
-      "UpdateWitness",
-      "VoteWitness",
-      "WithdrawBalance",
-      "WithdrawExpireUnfreeze",
-  };
-
-  // note: this is sorted by alpha
   private static String[] commandList = {
       "AddTransactionSign",
       "ApproveProposal",
@@ -305,6 +181,7 @@ public class Client {
       "Logout",
       "MarketCancelOrder",
       "MarketSellAsset",
+      "ModifyWalletName",
       "ParticipateAssetIssue",
       "RegisterWallet",
       "ResetWallet",
@@ -327,6 +204,8 @@ public class Client {
       "UpdateEnergyLimit",
       "UpdateSetting",
       "UpdateWitness",
+      "ViewBackupRecords",
+      "ViewTransactionHistory",
       "VoteWitness",
       "WithdrawBalance",
       "WithdrawExpireUnfreeze",
@@ -715,7 +594,7 @@ public class Client {
   }
 
   private void backupWallet() throws IOException, CipherException {
-    byte[] priKey = walletApiWrapper.backupWallet();
+    byte[] priKey = walletApiWrapper.backupWallet("BackupWallet");
     if (!ArrayUtils.isEmpty(priKey)) {
       System.out.println("BackupWallet " + successfulHighlight() + " !!");
       for (int i = 0; i < priKey.length; i++) {
@@ -727,7 +606,7 @@ public class Client {
   }
 
   private void backupWallet2Base64() throws IOException, CipherException {
-    byte[] priKey = walletApiWrapper.backupWallet();
+    byte[] priKey = walletApiWrapper.backupWallet("BackupWallet2Base64");
 
     if (!ArrayUtils.isEmpty(priKey)) {
       Encoder encoder = Base64.getEncoder();
@@ -881,7 +760,7 @@ public class Client {
       if (addressBytes == null) {
         return;
       }
-      account = walletApiWrapper.queryAccount(addressBytes);
+      account = WalletApi.queryAccount(addressBytes);
     } else {
       System.out.println("GetBalance needs no parameter or 1 parameter like the following: ");
       System.out.println("GetBalance Address ");
@@ -3492,7 +3371,7 @@ public class Client {
 
   private void run() {
     if (version) {
-      System.out.println("Version 4.9.0");
+      System.out.println("Version 4.9.1");
       System.exit(0);
     }
     System.out.println(" ");
@@ -3541,6 +3420,10 @@ public class Client {
             }
             case "registerwallet": {
               registerWallet();
+              break;
+            }
+            case "modifywalletname": {
+              modifyWalletName(parameters);
               break;
             }
             case "generatesubaccount": {
@@ -3709,6 +3592,14 @@ public class Client {
             }
             case "updatewitness": {
               updateWitness(parameters);
+              break;
+            }
+            case "viewbackuprecords": {
+              viewBackupRecords(parameters);
+              break;
+            }
+            case "viewtransactionhistory": {
+              viewTransactionHistory(parameters);
               break;
             }
             case "votewitness": {
@@ -4050,6 +3941,39 @@ public class Client {
       }
     } catch (IOException e) {
       System.out.println("\nBye.");
+    }
+  }
+
+  private void viewBackupRecords(String[] parameters) {
+    if (parameters.length > 0) {
+      System.out.println("viewBackupRecords needs no parameters like the following: ");
+      System.out.println("viewBackupRecords");
+      return;
+    }
+    walletApiWrapper.viewBackupRecords();
+  }
+
+  private void viewTransactionHistory(String[] parameters) {
+    if (parameters.length > 0) {
+      System.out.println("viewTransactionHistory needs no parameters like the following: ");
+      System.out.println("viewTransactionHistory");
+      return;
+    }
+    walletApiWrapper.viewTransactionHistory();
+  }
+
+  private void modifyWalletName(String[] parameters) throws IOException {
+    if (parameters.length != 1) {
+      System.out.println("ModifyWalletName needs 1 parameter like the following: ");
+      System.out.println("ModifyWalletName name ");
+      return;
+    }
+    String newName = parameters[0];
+    boolean success = walletApiWrapper.modifyWalletName(newName);
+    if (success) {
+      System.out.println("Modify Wallet Name " + successfulHighlight() + " !!");
+    } else {
+      System.out.println("Modify Wallet Name " + failedHighlight() + " !!");
     }
   }
 

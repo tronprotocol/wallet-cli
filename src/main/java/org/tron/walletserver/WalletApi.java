@@ -1,6 +1,5 @@
 package org.tron.walletserver;
 
-import static com.google.common.collect.Lists.newArrayList;
 import static org.apache.commons.lang3.StringUtils.EMPTY;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.tron.common.enums.NetType.CUSTOM;
@@ -11,17 +10,16 @@ import static org.tron.common.utils.Base58.encode;
 import static org.tron.common.utils.Utils.LOCK_WARNING;
 import static org.tron.common.utils.Utils.blueBoldHighlight;
 import static org.tron.common.utils.Utils.failedHighlight;
+import static org.tron.common.utils.Utils.formatLine;
 import static org.tron.common.utils.Utils.getNode;
+import static org.tron.common.utils.Utils.getTx;
 import static org.tron.common.utils.Utils.greenBoldHighlight;
 import static org.tron.common.utils.Utils.inputPassword;
-import static org.tron.common.utils.Utils.redBoldHighlight;
 import static org.tron.common.utils.Utils.yellowBoldHighlight;
 import static org.tron.core.config.Parameter.CommonConstant.ADD_PRE_FIX_BYTE_MAINNET;
 import static org.tron.core.config.Parameter.CommonConstant.ADD_PRE_FIX_BYTE_TESTNET;
 import static org.tron.keystore.StringUtils.char2Byte;
 import static org.tron.keystore.Wallet.decrypt2PrivateBytes;
-import static org.tron.keystore.Wallet.validPassword;
-import static org.tron.keystore.WalletUtils.show;
 import static org.tron.walletcli.WalletApiWrapper.getLedgerPath;
 
 import com.alibaba.fastjson.JSON;
@@ -40,6 +38,7 @@ import java.io.UnsupportedEncodingException;
 import java.math.BigInteger;
 import java.nio.file.Paths;
 import java.security.SecureRandom;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -76,8 +75,10 @@ import org.tron.common.utils.TransactionUtils;
 import org.tron.common.utils.Utils;
 import org.tron.core.config.Configuration;
 import org.tron.core.config.Parameter.CommonConstant;
+import org.tron.core.dao.Tx;
 import org.tron.core.exception.CancelException;
 import org.tron.core.exception.CipherException;
+import org.tron.core.manager.TxHistoryManager;
 import org.tron.keystore.CheckStrength;
 import org.tron.keystore.ClearWalletUtils;
 import org.tron.keystore.Credentials;
@@ -182,7 +183,9 @@ public class WalletApi {
     String fullNode = getNode(config, "fullnode.ip.list");
     String solidityNode = getNode(config, "soliditynode.ip.list");
     if (isEmpty(fullNode) && isEmpty(solidityNode)) {
-      throw new IllegalArgumentException(redBoldHighlight("fullnode.ip.lit") + " and " + redBoldHighlight("fullnode.ip.lit") + " cannot both be empty in config.conf.");
+      fullNode = MAIN.getGrpc().getFullNode();
+      solidityNode = MAIN.getGrpc().getSolidityNode();
+      System.out.println("Detected that both the " + greenBoldHighlight("fullnode.ip.list") + " and " + greenBoldHighlight("soliditynode.ip.list") + " configured in the config.conf are empty, and the default " + blueBoldHighlight("MAIN") + " network connection will be used.");
     }
     boolean isFullnodeEmpty = false;
     boolean isSoliditynodeEmpty = false;
@@ -450,7 +453,59 @@ public class WalletApi {
     return WalletUtils.generateLegerWalletFile(walletFile, file);
   }
 
-  public static File selcetWalletFile() {
+  private static void listWallets(File[] wallets) throws IOException {
+    String headerFormat = "%-4s %-15s %-42s";
+    System.out.println("\n" + greenBoldHighlight(String.format(headerFormat, "No.", "Name", "Address")));
+
+    for (int i = 0; i < wallets.length; i++) {
+      File f = wallets[i];
+      WalletFile wf = WalletUtils.loadWalletFile(f);
+      String walletName = StringUtils.isEmpty(wf.getName()) ? f.getName() : wf.getName();
+      System.out.println(formatLine(
+          String.valueOf(i + 1),
+          walletName,
+          wf.getAddress(),
+          4, 15, 42));
+    }
+  }
+
+  private static void searchWallets(File[] wallets, String searchTerm) throws IOException {
+    String headerFormat = "%-4s %-15s %-42s";
+    boolean found = false;
+
+    System.out.println(greenBoldHighlight(String.format(headerFormat, "No.", "Name", "Address")));
+
+    for (int i = 0; i < wallets.length; i++) {
+      File f = wallets[i];
+      WalletFile wf = WalletUtils.loadWalletFile(f);
+
+      if (f.getName().toLowerCase().contains(searchTerm.toLowerCase())
+          || (StringUtils.isNotEmpty(wf.getName()) && wf.getName().toLowerCase().contains(searchTerm.toLowerCase()))
+          || wf.getAddress().toLowerCase().contains(searchTerm.toLowerCase())) {
+
+        printWalletInfo(wallets, i);
+        found = true;
+      }
+    }
+
+    if (!found) {
+      System.out.println("No wallets found matching: " + searchTerm);
+    }
+  }
+
+  private static void printWalletInfo(File[] wallets, int index)
+      throws IOException {
+    File f = wallets[index];
+    WalletFile wf = WalletUtils.loadWalletFile(f);
+    String walletName = StringUtils.isEmpty(wf.getName()) ? f.getName() : wf.getName();
+    System.out.println(formatLine(
+        String.valueOf(index + 1),
+        walletName,
+        wf.getAddress(),
+        4, 15, 42));
+  }
+
+  public static File selcetWalletFile() throws IOException {
     File file = new File(FilePath);
     if (!file.exists() || !file.isDirectory()) {
       return null;
@@ -463,24 +518,32 @@ public class WalletApi {
 
     File wallet;
     if (wallets.length > 1) {
-      for (int i = 0; i < wallets.length; i++) {
-        System.out.println("The " + (i + 1) + "th keystore file name is " + wallets[i].getName());
+      listWallets(wallets);
+      Scanner scanner = new Scanner(System.in);
+      System.out.println("\nEnter search term (Name or Address), or '" + greenBoldHighlight("Enter") + "' to end the search and then choose " + greenBoldHighlight("No.") + " to login.");
+      while (true) {
+        String input = scanner.nextLine().trim();
+        if (input.isEmpty()) {
+          break;
+        }
+        searchWallets(wallets, input);
+        System.out.println("\nEnter another search term or '" + greenBoldHighlight("Enter") + "' to end the search and then choose " + greenBoldHighlight("No.") + " to login.");
       }
-      System.out.println("Please choose between " + greenBoldHighlight(1) + " and " + greenBoldHighlight(wallets.length));
+      System.out.println("Please choose No. between " + greenBoldHighlight(1) + " and " + greenBoldHighlight(wallets.length));
       Scanner in = new Scanner(System.in);
       while (true) {
         String input = in.nextLine().trim();
         String num = input.split("\\s+")[0];
         int n;
         try {
-          n = new Integer(num);
+          n = Integer.parseInt(num);
         } catch (NumberFormatException e) {
           System.out.println("Invalid number of " + num);
-          System.out.println("Please choose again between 1 and " + wallets.length);
+          System.out.println("Please choose No. again between 1 and " + wallets.length);
           continue;
         }
         if (n < 1 || n > wallets.length) {
-          System.out.println("Please choose again between 1 and " + wallets.length);
+          System.out.println("Please choose No. again between 1 and " + wallets.length);
           continue;
         }
         wallet = wallets[n - 1];
@@ -530,7 +593,7 @@ public class WalletApi {
         String num = input.split("\\s+")[0];
         int n;
         try {
-          n = new Integer(num);
+          n = Integer.parseInt(num);
         } catch (NumberFormatException e) {
           System.out.println("Invaild number of " + num);
           System.out.println("Please choose again between 1 and " + mnemonicFiles.length);
@@ -556,75 +619,23 @@ public class WalletApi {
       throw new IOException(
           "No keystore file found, please use " + greenBoldHighlight("RegisterWallet") + " or " + greenBoldHighlight("ImportWallet") + " first!");
     }
-    String name = file.getName();
-    for (WalletFile wallet : this.walletFile) {
-      String walletAddress = wallet.getAddress();
-      if (name.contains(walletAddress)) {
-        wallet.setName(name);
-        return wallet;
+    String fileName = file.getName();
+    for (WalletFile wf : this.walletFile) {
+      String walletAddress = wf.getAddress();
+      if (fileName.contains(walletAddress)) {
+        if (StringUtils.isEmpty(wf.getName())) {
+          wf.setName(fileName);
+        }
+        return wf;
       }
     }
 
     WalletFile wallet = WalletUtils.loadWalletFile(file);
     this.walletFile.add(wallet);
-    wallet.setName(name);
+    if (StringUtils.isEmpty(wallet.getName())) {
+      wallet.setName(fileName);
+    }
     return wallet;
-  }
-
-  public WalletFile selectWalletFileByUnifiedPassword() throws IOException {
-    File[] allWalletFile = getAllWalletFile();
-    List<WalletFile> walletFileList = newArrayList();
-    for (int i = 0; i < allWalletFile.length; i++) {
-      File file = allWalletFile[i];
-      WalletFile wf = WalletUtils.loadWalletFile(file);
-      wf.setName(file.getName());
-      wf.setSourceFile(file);
-      boolean valid;
-      try {
-        valid = validPassword(getUnifiedPassword(), wf);
-      } catch (Exception e) {
-        valid = false;
-      }
-      if (valid) {
-        walletFileList.add(wf);
-      }
-      show(i + 1, allWalletFile.length);
-    }
-    return selectWalletFileByList(walletFileList);
-  }
-
-  private WalletFile selectWalletFileByList(List<WalletFile> walletFileList) {
-    int size = walletFileList.size();
-    WalletFile wf;
-    if (size > 1) {
-      for (int i = 0; i < size; i++) {
-        System.out.println("The " + (i + 1) + "th keystore file name is " + walletFileList.get(i).getName());
-      }
-      System.out.println("Please choose between " + greenBoldHighlight(1) + " and "
-          + greenBoldHighlight(size));
-      Scanner in = new Scanner(System.in);
-      while (true) {
-        String input = in.nextLine().trim();
-        String num = input.split("\\s+")[0];
-        int n;
-        try {
-          n = Integer.parseInt(num);
-        } catch (NumberFormatException e) {
-          System.out.println("Invalid number of " + num);
-          System.out.println("Please choose again between 1 and " + size);
-          continue;
-        }
-        if (n < 1 || n > size) {
-          System.out.println("Please choose again between 1 and " + size);
-          continue;
-        }
-        wf = walletFileList.get(n - 1);
-        break;
-      }
-    } else {
-      wf = walletFileList.get(0);
-    }
-    return wf;
   }
 
   public static boolean changeKeystorePassword(byte[] oldPassword, byte[] newPassowrd)
@@ -660,7 +671,9 @@ public class WalletApi {
     }
     WalletFile wf = WalletUtils.loadWalletFile(wallet);
     wf.setSourceFile(wallet);
-    wf.setName(wallet.getName());
+    if (StringUtils.isEmpty(wf.getName())) {
+      wf.setName(wallet.getName());
+    }
     return wf;
   }
 
@@ -815,7 +828,17 @@ public class WalletApi {
       return false;
     }
     showTransactionAfterSign(transaction);
-    return apiCli.broadcastTransaction(transaction);
+    boolean success = apiCli.broadcastTransaction(transaction);
+    if (success) {
+      TxHistoryManager txHistoryManager = new TxHistoryManager(encode58Check(getAddress()));
+      String id = ByteArray.toHexString(Sha256Sm3Hash.hash(transaction.getRawData().toByteArray()));
+      Tx tx = getTx(transaction);
+      tx.setId(id);
+      tx.setTimestamp(LocalDateTime.now());
+      tx.setStatus("success");
+      txHistoryManager.addTransaction(getCurrentNetwork(), tx);
+    }
+    return success;
   }
 
   private void showTransactionAfterSign(Chain.Transaction transaction)
@@ -851,7 +874,17 @@ public class WalletApi {
       return false;
     }
     showTransactionAfterSign(transaction);
-    return apiCli.broadcastTransaction(transaction);
+    boolean success = apiCli.broadcastTransaction(transaction);
+    if (success) {
+      TxHistoryManager txHistoryManager = new TxHistoryManager(encode58Check(getAddress()));
+      String id = ByteArray.toHexString(Sha256Sm3Hash.hash(transaction.getRawData().toByteArray()));
+      Tx tx = getTx(transaction);
+      tx.setId(id);
+      tx.setTimestamp(LocalDateTime.now());
+      tx.setStatus("success");
+      txHistoryManager.addTransaction(getCurrentNetwork(), tx);
+    }
+    return success;
   }
 
   public static TransactionSignWeight getTransactionSignWeight(Transaction transaction)
@@ -2290,7 +2323,6 @@ public class WalletApi {
     }
   }
 
-
   public boolean deployContract(
       byte[] owner,
       String contractName,
@@ -2317,7 +2349,8 @@ public class WalletApi {
     }
     ApiClient tmpApiCli;
     NetType netType = getCurrentNetwork();
-    String privateKey = ByteArray.toHexString(credentials == null ? decrypt2PrivateBytes(getPwdForDeploy(), getWalletFile()) : credentials.getPair().getPrivateKey());
+    byte[] bytes = isUnifiedExist() ? getUnifiedPassword() : getPwdForDeploy();
+    String privateKey = ByteArray.toHexString(credentials == null ? decrypt2PrivateBytes(bytes, getWalletFile()) : credentials.getPair().getPrivateKey());
     if (netType == CUSTOM) {
       tmpApiCli = new ApiClient(customNodes.getLeft().getLeft(), customNodes.getRight().getLeft(),
           customNodes.getLeft().getRight(), customNodes.getRight().getRight(), privateKey);
@@ -2327,6 +2360,7 @@ public class WalletApi {
     Response.TransactionExtention transactionExtention = tmpApiCli.deployContract(contractName, ABI,
         code, Collections.emptyList(), feeLimit, consumeUserResourcePercent, originEnergyLimit,
         value, tokenId, tokenValue);
+    tmpApiCli.close();
     if (transactionExtention == null || !transactionExtention.getResult().getResult()) {
       System.out.println("RPC create trx " + failedHighlight() + "!");
       if (transactionExtention != null) {
@@ -2356,9 +2390,6 @@ public class WalletApi {
     texBuilder.setTxid(transactionExtention.getTxid());
     transactionExtention = texBuilder.build();
 
-    //    byte[] contractAddress = generateContractAddress(transactionExtention.getTransaction());
-    //    System.out.println(
-    //        "Your smart contract address will be: " + WalletApi.encode58Check(contractAddress));
     return processTransactionExtention(transactionExtention);
   }
 
@@ -2742,5 +2773,12 @@ public class WalletApi {
 
   public void cleanup() {
     scheduler.shutdown();
+  }
+
+  public boolean modifyWalletName(String newName) throws IOException {
+    WalletFile wf = this.walletFile.get(0);
+    wf.setName(newName);
+    String keystoreName = WalletApi.store2Keystore(wf);
+    return StringUtils.isNotEmpty(keystoreName);
   }
 }

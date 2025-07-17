@@ -754,3 +754,21 @@ Summary:
 Update the account's permission.
 Usage example:
 wallet> UpdateAccountPermission TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ {"owner_permission":{"type":0,"permission_name":"owner","threshold":1,"keys":[{"address":"TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ","weight":1}]},"witness_permission":{"type":1,"permission_name":"owner","threshold":1,"keys":[{"address":"TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ","weight":1}]},"active_permissions":[{"type":2,"permission_name":"active12323","threshold":2,"operations":"7fff1fc0033e0000000000000000000000000000000000000000000000000000","keys":[{"address":"TNhXo1GbRNCuorvYu5JFWN3m2NYr9QQpVR","weight":1},{"address":"TKwhcDup8L2PH5r6hxp5CQvQzZqJLmKvZP","weight":1}]}]}
+Syntax:
+ModifyWalletName new_name
+Summary:
+Modify wallet's name.
+Usage example:
+wallet> ModifyWalletName myNewWallet
+Syntax:
+ViewBackupRecords
+Summary:
+View backup records.
+Usage example:
+wallet> ViewBackupRecords
+Syntax:
+ViewTransactionHistory
+Summary:
+View transaction history.
+Usage example:
+wallet> ViewTransactionHistory
