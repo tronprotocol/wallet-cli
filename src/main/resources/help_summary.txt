@@ -37,7 +37,7 @@
 | GetBandwidthPrices                                | Get historical bandwidth unit price                                     |
 | GetEnergyPrices                                   | Get historical energy unit price                                        |
 |---------------------------------------------------+-------------------------------------------------------------------------+
-|                TRANSACTIONS (8)                   |                                                                         |
+|                TRANSACTIONS (9)                   |                                                                         |
 +---------------------------------------------------+-------------------------------------------------------------------------+
 | AddTransactionSign                                | Add signature to hex format transaction                                 |
 | BroadcastTransaction                              | Broadcast transactions in hex string format                             |
@@ -47,6 +47,7 @@
 | GetTransactionInfoById                            | Get transaction information through transaction ID                      |
 | GetTransactionInfoByBlockNum                      | Get all transaction information through block number                    |
 | GetTransactionCountByBlockNum                     | Get the number of transactions through block number                     |
+| ViewTransactionHistory                            | View transaction history                                                |
 |---------------------------------------------------+-------------------------------------------------------------------------+
 |                SMART CONTRACTS (10)               |                                                                         |
 +---------------------------------------------------+-------------------------------------------------------------------------+
@@ -119,7 +120,7 @@
 | GetMemoFee                                        | Get memo fee                                                            |
 | ListNodes                                         | Query the list of nodes connected to the API node                       |
 |---------------------------------------------------+-------------------------------------------------------------------------+
-|                WALLET OPERATIONS (21)             |                                                                         |
+|                WALLET OPERATIONS (23)             |                                                                         |
 +---------------------------------------------------+-------------------------------------------------------------------------+
 | Lock                                              | Lock the current wallet account                                         |
 | Unlock                                            | Unlock the current wallet account                                       |
@@ -128,6 +129,7 @@
 | LoginAll                                          | Manage multiple wallets with same password                              |
 | SwitchWallet                                      | Switch wallet accounts after 'LoginAll'                                 |
 | RegisterWallet                                    | Register a new wallet                                                   |
+| ModifyWalletName                                  | Modify wallet's name                                                    |
 | ImportWallet                                      | Import wallet through a private key                                     |
 | ImportWalletByMnemonic                            | Import wallet through mnemonic words                                    |
 | ImportWalletByLedger                              | Import wallet through Ledger                                            |
@@ -138,6 +140,7 @@
 | ExportWalletMnemonic                              | Export wallet mnemonic words                                            |
 | BackupWallet                                      | Backup the current wallet as private key                                |
 | BackupWallet2Base64                               | Backup wallet in base64 format                                          |
+| ViewBackupRecords                                 | View transaction history                                                |
 | ClearWalletKeystore                               | Delete the keystore file and mnemonic words file                        |
 | ResetWallet                                       | Delete all keystore files and mnemonic words files                      |
 | CurrentNetwork                                    | Display current network                                                 |

@@ -15,8 +15,12 @@ import static org.tron.common.utils.Utils.getNode;
 import static org.tron.common.utils.Utils.greenBoldHighlight;
 import static org.tron.common.utils.Utils.inputPassword;
 import static org.tron.common.utils.Utils.isValid;
+import static org.tron.common.utils.Utils.listWallets;
+import static org.tron.common.utils.Utils.nameWallet;
 import static org.tron.common.utils.Utils.redBoldHighlight;
+import static org.tron.common.utils.Utils.searchWallets;
 import static org.tron.common.utils.Utils.yellowBoldHighlight;
+import static org.tron.core.manager.TxHistoryManager.DASH;
 import static org.tron.gasfree.GasFreeApi.concat;
 import static org.tron.gasfree.GasFreeApi.gasFreeSubmit;
 import static org.tron.gasfree.GasFreeApi.getDomainSeparator;
@@ -36,6 +40,7 @@ import static org.tron.ledger.console.ConsoleColor.ANSI_RED;
 import static org.tron.ledger.console.ConsoleColor.ANSI_RESET;
 import static org.tron.walletserver.WalletApi.addressValid;
 import static org.tron.walletserver.WalletApi.decodeFromBase58Check;
+import static org.tron.walletserver.WalletApi.encode58Check;
 import static org.tron.walletserver.WalletApi.getAllWalletFile;
 
 import com.alibaba.fastjson.JSON;
@@ -47,6 +52,7 @@ import java.io.File;
 import java.io.IOException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -72,9 +78,15 @@ import org.jline.terminal.TerminalBuilder;
 import org.tron.common.enums.NetType;
 import org.tron.common.utils.AbiUtil;
 import org.tron.common.utils.Utils;
+import org.tron.core.dao.BackupRecord;
+import org.tron.core.dao.Tx;
+import org.tron.core.manager.BackupRecordManager;
+import org.tron.core.viewer.BackupRecordsViewer;
+import org.tron.core.viewer.TxHistoryViewer;
 import org.tron.core.config.Configuration;
 import org.tron.core.exception.CancelException;
 import org.tron.core.exception.CipherException;
+import org.tron.core.manager.TxHistoryManager;
 import org.tron.gasfree.GasFreeApi;
 import org.tron.gasfree.request.GasFreeSubmitRequest;
 import org.tron.gasfree.response.GasFreeAddressResponse;
@@ -117,6 +129,7 @@ public class WalletApiWrapper {
     byte[] passwd = char2Byte(password);
 
     WalletFile walletFile = WalletApi.CreateWalletFile(passwd, wordsNumber);
+    nameWallet(walletFile, false);
     clear(passwd);
 
     String keystoreName = WalletApi.store2Keystore(walletFile);
@@ -135,6 +148,7 @@ public class WalletApiWrapper {
     byte[] passwd = char2Byte(password);
 
     WalletFile walletFile = WalletApi.CreateWalletFile(passwd, priKey, mnemonic);
+    nameWallet(walletFile, false);
     clear(passwd);
 
     String keystoreName = WalletApi.store2Keystore(walletFile);
@@ -284,6 +298,7 @@ public class WalletApiWrapper {
     try {
       WalletFile walletLedgerFile = WalletApi.CreateLedgerWalletFile(
           passwdByte, importAddress, path);
+      nameWallet(walletLedgerFile, true);
       boolean result = loginLedger(passwdByte, walletLedgerFile);
       if (!result) {
         System.out.println("Login Ledger " + failedHighlight() + " for address: " + importAddress);
@@ -380,7 +395,9 @@ public class WalletApiWrapper {
     for (int i = 0; i < allWalletFile.length; i++) {
       File file = allWalletFile[i];
       WalletFile walletFile = WalletUtils.loadWalletFile(file);
-      walletFile.setName(file.getName());
+      if (StringUtils.isEmpty(walletFile.getName())) {
+        walletFile.setName(file.getName());
+      }
       walletFile.setSourceFile(file);
       boolean valid;
       try {
@@ -430,9 +447,18 @@ public class WalletApiWrapper {
   private void selectWalletFileByList(List<WalletFile> walletFileList) {
     int size = walletFileList.size();
     if (size > 1) {
-      for (int i = 0; i < size; i++) {
-        System.out.println("The " + (i + 1) + "th keystore file name is " + walletFileList.get(i).getName());
+      listWallets(walletFileList);
+      Scanner scanner = new Scanner(System.in);
+      System.out.println("\nEnter search term (Name or Address), or '" + greenBoldHighlight("Enter") + "' to end the search and then choose " + greenBoldHighlight("No.") + " to login.");
+      while (true) {
+        String input = scanner.nextLine().trim();
+        if (input.isEmpty()) {
+          break;
+        }
+        searchWallets(walletFileList, input);
+        System.out.println("\nEnter another search term or '" + greenBoldHighlight("Enter") + "' to end the search and then choose " + greenBoldHighlight("No.") + " to login.");
       }
+
       System.out.println("Please choose between " + greenBoldHighlight(1) + " and "
           + greenBoldHighlight(size));
       Scanner in = new Scanner(System.in);
@@ -610,7 +636,7 @@ public class WalletApiWrapper {
   }
 
   //password is current, will be enc by password2.
-  public byte[] backupWallet() throws IOException, CipherException {
+  public byte[] backupWallet(String cmdName) throws IOException, CipherException {
     if (wallet == null || !wallet.isLoginState()) {
       wallet = WalletApi.loadWalletFromKeystore();
       if (wallet == null) {
@@ -625,7 +651,13 @@ public class WalletApiWrapper {
     clear(password);
     byte[] privateKey = wallet.getPrivateBytes(passwd);
     clear(passwd);
-
+    if (ArrayUtils.isNotEmpty(privateKey)) {
+      new BackupRecordManager().saveRecord(new BackupRecord(
+          cmdName,
+          wallet.getWalletFile().getSourceFile().getName(),
+          encode58Check(wallet.getAddress()),
+          LocalDateTime.now()));
+    }
     return privateKey;
   }
 
@@ -643,7 +675,15 @@ public class WalletApiWrapper {
     clear(password);
 
     //2.export mnemonic words
-    return MnemonicUtils.exportMnemonic(passwd, getAddress());
+    byte[] exportMnemonic = MnemonicUtils.exportMnemonic(passwd, getAddress());
+    if (ArrayUtils.isNotEmpty(exportMnemonic)) {
+      new BackupRecordManager().saveRecord(new BackupRecord(
+          "exportWalletMnemonic",
+          wallet.getWalletFile().getSourceFile().getName(),
+          encode58Check(wallet.getAddress()),
+          LocalDateTime.now()));
+    }
+    return exportMnemonic;
   }
 
   public String exportKeystore(String walletChannel, File exportFullDir)
@@ -667,7 +707,15 @@ public class WalletApiWrapper {
       clear(passwd);
     }
 
-    return wallet.exportKeystore(walletChannel, exportFullDir);
+    String exportKeystore = wallet.exportKeystore(walletChannel, exportFullDir);
+    if (exportKeystore != null) {
+      new BackupRecordManager().saveRecord(new BackupRecord(
+          "exportWalletKeystore",
+          wallet.getWalletFile().getSourceFile().getName(),
+          encode58Check(wallet.getAddress()),
+          LocalDateTime.now()));
+    }
+    return exportKeystore;
   }
 
   public String importWalletByKeystore(byte[] passwdByte, File importFile)
@@ -1504,8 +1552,7 @@ public class WalletApiWrapper {
     return deleteAll;
   }
 
-  public boolean switchNetwork(String netWorkSymbol, String fulNode, String solidityNode)
-      throws InterruptedException {
+  public boolean switchNetwork(String netWorkSymbol, String fulNode, String solidityNode) {
     if (StringUtils.isEmpty(netWorkSymbol) && StringUtils.isEmpty(fulNode) && StringUtils.isEmpty(solidityNode)) {
       System.out.println("Please select network：");
       NetType[] values = NetType.values();
@@ -1531,20 +1578,6 @@ public class WalletApiWrapper {
         return false;
       }
 
-//      switch (choice) {
-//        case "1":
-//          netWorkSymbol = "MAIN";
-//          break;
-//        case "2":
-//          netWorkSymbol = "NILE";
-//          break;
-//        case "3":
-//          netWorkSymbol = "SHASTA";
-//          break;
-//        default:
-//          System.out.println("Invalid selection!");
-//          return false;
-//      }
     }
     Pair<ApiClient, NetType> pair = getApiClientAndNetType(netWorkSymbol, fulNode, solidityNode);
     WalletApi.updateRpcCli(pair.getLeft());
@@ -1651,105 +1684,6 @@ public class WalletApiWrapper {
     }
     return Pair.of(client, currentNet);
   }
-
-//  private Pair<GrpcClient, NetType> getGrpcClientAndNetType(String netWorkSymbol, String fullNode,
-//    String solidityNode) {
-//    GrpcClient client;
-//    NetType currentNet;
-//    if (StringUtils.isEmpty(netWorkSymbol) &&
-//        (StringUtils.isNotEmpty(fullNode) || StringUtils.isNotEmpty(solidityNode))) {
-//      if (!isValid(fullNode, solidityNode)) {
-//        throw new IllegalArgumentException("host:port format is invalid.");
-//      }
-//      if (NILE.getGrpc().getFullNode().equals(fullNode) && NILE.getGrpc().getSolidityNode().equals(solidityNode)){
-//        currentNet = NILE;
-//        client = new GrpcClient(
-//            NILE.getGrpc().getFullNode(),
-//            NILE.getGrpc().getSolidityNode()
-//        );
-//      } else if (SHASTA.getGrpc().getFullNode().equals(fullNode) && SHASTA.getGrpc().getSolidityNode().equals(solidityNode)) {
-//        currentNet = SHASTA;
-//        client = new GrpcClient(
-//            SHASTA.getGrpc().getFullNode(),
-//            SHASTA.getGrpc().getSolidityNode()
-//        );
-//      } else if (MAIN.getGrpc().getFullNode().equals(fullNode) && MAIN.getGrpc().getSolidityNode().equals(solidityNode)) {
-//        currentNet = MAIN;
-//        client = new GrpcClient(
-//            MAIN.getGrpc().getFullNode(),
-//            MAIN.getGrpc().getSolidityNode()
-//        );
-//      } else {
-//        currentNet = CUSTOM;
-//        client = new GrpcClient(fullNode, solidityNode);
-//        WalletApi.setCustomNodes(Pair.of(fullNode, solidityNode));
-//      }
-//    } else {
-//      if (NILE.name().equalsIgnoreCase(netWorkSymbol)) {
-//        client = new GrpcClient(
-//            NILE.getGrpc().getFullNode(),
-//            NILE.getGrpc().getSolidityNode()
-//        );
-//        currentNet = NILE;
-//      } else if (MAIN.name().equalsIgnoreCase(netWorkSymbol)) {
-//        client = new GrpcClient(
-//            MAIN.getGrpc().getFullNode(),
-//            MAIN.getGrpc().getSolidityNode()
-//        );
-//        currentNet = MAIN;
-//      } else if (SHASTA.name().equalsIgnoreCase(netWorkSymbol)) {
-//        client = new GrpcClient(
-//            SHASTA.getGrpc().getFullNode(),
-//            SHASTA.getGrpc().getSolidityNode()
-//        );
-//        currentNet = SHASTA;
-//      } else if ("LOCAL".equalsIgnoreCase(netWorkSymbol)) {
-//        Config config = Configuration.getByPath("config.conf");
-//        if (config.hasPath("fullnode.ip.list")) {
-//          List<String> fullNodeList = config.getStringList("fullnode.ip.list");
-//          if (!fullNodeList.isEmpty()) {
-//            fullNode = fullNodeList.get(0);
-//          }
-//        }
-//        if (config.hasPath("soliditynode.ip.list")) {
-//          List<String> solidityNodeList = config.getStringList("soliditynode.ip.list");
-//          if (!solidityNodeList.isEmpty()) {
-//            solidityNode = solidityNodeList.get(0);
-//          }
-//        }
-//        if (StringUtils.isEmpty(fullNode) && StringUtils.isEmpty(solidityNode)) {
-//          throw new IllegalArgumentException("The configuration of fullnode.ip.list or " +
-//              "soliditynode.ip.list in config.conf is incorrect.");
-//        }
-//        if (NILE.getGrpc().getFullNode().equals(fullNode) && NILE.getGrpc().getSolidityNode().equals(solidityNode)){
-//          currentNet = NILE;
-//          client = new GrpcClient(
-//              NILE.getGrpc().getFullNode(),
-//              NILE.getGrpc().getSolidityNode()
-//          );
-//        } else if (SHASTA.getGrpc().getFullNode().equals(fullNode) && SHASTA.getGrpc().getSolidityNode().equals(solidityNode)) {
-//          currentNet = SHASTA;
-//          client = new GrpcClient(
-//              SHASTA.getGrpc().getFullNode(),
-//              SHASTA.getGrpc().getSolidityNode()
-//          );
-//        } else if (MAIN.getGrpc().getFullNode().equals(fullNode) && MAIN.getGrpc().getSolidityNode().equals(solidityNode)) {
-//          currentNet = MAIN;
-//          client = new GrpcClient(
-//              MAIN.getGrpc().getFullNode(),
-//              MAIN.getGrpc().getSolidityNode()
-//          );
-//        } else {
-//          currentNet = CUSTOM;
-//          client = new GrpcClient(fullNode, solidityNode);
-//          WalletApi.setCustomNodes(Pair.of(fullNode, solidityNode));
-//        }
-//      } else {
-//        throw new IllegalArgumentException("The network symbol you entered cannot be recognized.");
-//      }
-//    }
-//    return Pair.of(client, currentNet);
-//  }
 
   public boolean getGasFreeInfo(String address) throws Exception {
     if (wallet == null || !wallet.isLoginState()) {
@@ -1896,7 +1830,22 @@ public class WalletApiWrapper {
         System.out.println("GasFreeTransfer result: \n" + JSON.toJSONString(o, true));
         JSONObject root = (JSONObject) o;
         int respCode = root.getIntValue("code");
-        return HTTP_OK == respCode;
+        boolean success = HTTP_OK == respCode;
+        if (success) {
+          TxHistoryManager txHistoryManager = new TxHistoryManager(encode58Check(wallet.getAddress()));
+          JSONObject data = root.getJSONObject("data");
+          String id = data != null ? data.getString("id") : DASH;
+          Tx tx = new Tx();
+          tx.setId(id);
+          tx.setType("GasFreeTransfer");
+          tx.setFrom(encode58Check(wallet.getAddress()));
+          tx.setTo(receiver);
+          tx.setAmount(String.valueOf(value));
+          tx.setTimestamp(LocalDateTime.now());
+          tx.setStatus("success");
+          txHistoryManager.addTransaction(WalletApi.getCurrentNetwork(), tx);
+        }
+        return success;
       } else {
         return false;
       }
@@ -1929,5 +1878,33 @@ public class WalletApiWrapper {
       }
     }
     return false;
+  }
+
+  public boolean modifyWalletName(String newName) throws IOException {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: modifyWalletName " + failedHighlight() + ",  Please login first !!");
+      return false;
+    }
+    return wallet.modifyWalletName(newName);
+  }
+
+  public void viewTransactionHistory() {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: viewTransactionHistory " + failedHighlight() + ",  Please login first !!");
+      return;
+    }
+    TxHistoryManager manager = new TxHistoryManager(encode58Check(wallet.getAddress()));
+    TxHistoryViewer viewer = new TxHistoryViewer(manager);
+    NetType netType = WalletApi.getCurrentNetwork();
+    viewer.startInteractiveViewer(netType);
+  }
+
+  public void viewBackupRecords() {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: viewBackupRecords " + failedHighlight() + ",  Please login first !!");
+      return;
+    }
+    BackupRecordsViewer recordsViewer = new BackupRecordsViewer();
+    recordsViewer.viewBackupRecords();
   }
 }

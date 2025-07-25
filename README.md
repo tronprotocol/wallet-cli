@@ -136,7 +136,8 @@ For more information on a specific command, just type the command in the termina
 |                                  [Unlock](#unlock)                                  |                  [UpdateAccount](#update-account)                   | [UpdateAccountPermission](#How-to-use-the-multi-signature-feature-of-wallet-cli)  |
 |                  [UpdateAsset](#Update-parameters-of-trc10-token)                   |                    [UpdateBrokerage](#Brokerage)                    |              [UpdateEnergyLimit](#Update-smart-contract-parameters)               |
 |                 [UpdateSetting](#Update-smart-contract-parameters)                  |                  [UpdateWitness](#update-witness)                   |                            [VoteWitness](#How-to-vote)                            |
-|                        [WithdrawBalance](#withdraw-balance)                         |         [WithdrawExpireUnfreeze](#withdraw-expire-unfreeze)         |                                                                                   |
+|                        [WithdrawBalance](#withdraw-balance)                         |         [WithdrawExpireUnfreeze](#withdraw-expire-unfreeze)         |                      [ModifyWalletName](#Modify-wallet-name)                      |
+|                      [ViewBackupRecords](#View-backup-records)                      |         [ViewTransactionHistory](#View-transaction-history)         |                                                                                   |
 
 
 Type any one of the listed commands, to display how-to tips.
@@ -1833,7 +1834,7 @@ unlock  successful !!!
 
 ## switch network
     > SwitchNetwork
->This command allows for flexible network switching at any time. Unlocking can specify parameters in seconds.
+>This command allows for flexible network switching at any time.
 >`switchnetwork local` will switch to the network configured in local config.conf.
 
 Example:
@@ -2099,6 +2100,51 @@ Example:
 
 ```console
 > UpdateAccount test-name
+```
+
+### Modify wallet name
+> ModifyWalletName new_wallet_name
+
+Modify wallet's name.
+
+Example:
+```console
+wallet> ModifyWalletName new-name
+Modify Wallet Name  successful !!
+```
+
+### View backup records
+> ViewBackupRecords
+
+View backup records.
+
+Example:
+```console
+wallet> ViewBackupRecords
+
+=== View Backup Records ===
+1. View all records
+2. Filter by time range
+Choose an option (1-2): 1
+```
+### View transaction history
+> ViewTransactionHistory
+
+View transaction history.
+
+Example:
+```console
+wallet> ViewTransactionHistory
+====================================
+   COMPLETE TRANSACTION VIEWER
+====================================
+
+MAIN MENU:
+1. View all transactions
+2. Filter by time range
+3. Help
+4. Exit
+Select option: 1
 ```
 
 

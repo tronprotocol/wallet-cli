@@ -20,13 +20,16 @@ package org.tron.common.utils;
 
 import static org.apache.commons.lang3.StringUtils.EMPTY;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
+import static org.tron.common.utils.ByteArray.toHexString;
 import static org.tron.common.utils.DomainValidator.isDomainOrIP;
+import static org.tron.keystore.StringUtils.byte2String;
 import static org.tron.ledger.console.ConsoleColor.ANSI_BLUE;
 import static org.tron.ledger.console.ConsoleColor.ANSI_BOLD;
 import static org.tron.ledger.console.ConsoleColor.ANSI_GREEN;
 import static org.tron.ledger.console.ConsoleColor.ANSI_RED;
 import static org.tron.ledger.console.ConsoleColor.ANSI_RESET;
 import static org.tron.ledger.console.ConsoleColor.ANSI_YELLOW;
+import static org.tron.walletserver.WalletApi.encode58Check;
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
@@ -34,7 +37,6 @@ import com.alibaba.fastjson.JSONObject;
 import com.google.protobuf.Any;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
-
 import com.typesafe.config.Config;
 import java.io.ByteArrayOutputStream;
 import java.io.Console;
@@ -51,23 +53,27 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.Scanner;
-
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import org.jetbrains.annotations.Nullable;
-import org.tron.api.GrpcAPI.*;
+import org.tron.api.GrpcAPI.BlockExtention;
+import org.tron.api.GrpcAPI.BlockList;
+import org.tron.api.GrpcAPI.BlockListExtention;
+import org.tron.api.GrpcAPI.TransactionExtention;
+import org.tron.api.GrpcAPI.TransactionInfoList;
+import org.tron.api.GrpcAPI.TransactionList;
+import org.tron.api.GrpcAPI.TransactionListExtention;
+import org.tron.api.GrpcAPI.TransactionSignWeight;
 import org.tron.common.crypto.Hash;
 import org.tron.common.crypto.Sha256Sm3Hash;
+import org.tron.core.dao.Tx;
 import org.tron.keystore.StringUtils;
+import org.tron.keystore.WalletFile;
 import org.tron.ledger.wrapper.DebugConfig;
 import org.tron.protos.Protocol;
-import org.tron.protos.contract.BalanceContract;
-import org.tron.trident.proto.Chain;
-import org.tron.trident.proto.Response;
-import org.tron.walletcli.Client;
-import org.tron.walletserver.WalletApi;
 import org.tron.protos.Protocol.Block;
-import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.Protocol.TransactionInfo;
 import org.tron.protos.contract.AccountContract.AccountCreateContract;
 import org.tron.protos.contract.AccountContract.AccountPermissionUpdateContract;
@@ -78,6 +84,7 @@ import org.tron.protos.contract.AssetIssueContractOuterClass.ParticipateAssetIss
 import org.tron.protos.contract.AssetIssueContractOuterClass.TransferAssetContract;
 import org.tron.protos.contract.AssetIssueContractOuterClass.UnfreezeAssetContract;
 import org.tron.protos.contract.AssetIssueContractOuterClass.UpdateAssetContract;
+import org.tron.protos.contract.BalanceContract;
 import org.tron.protos.contract.BalanceContract.CancelAllUnfreezeV2Contract;
 import org.tron.protos.contract.BalanceContract.FreezeBalanceContract;
 import org.tron.protos.contract.BalanceContract.TransferContract;
@@ -87,9 +94,12 @@ import org.tron.protos.contract.ExchangeContract.ExchangeCreateContract;
 import org.tron.protos.contract.ExchangeContract.ExchangeInjectContract;
 import org.tron.protos.contract.ExchangeContract.ExchangeTransactionContract;
 import org.tron.protos.contract.ExchangeContract.ExchangeWithdrawContract;
+import org.tron.protos.contract.MarketContract.MarketCancelOrderContract;
+import org.tron.protos.contract.MarketContract.MarketSellAssetContract;
 import org.tron.protos.contract.ProposalContract.ProposalApproveContract;
 import org.tron.protos.contract.ProposalContract.ProposalCreateContract;
 import org.tron.protos.contract.ProposalContract.ProposalDeleteContract;
+import org.tron.protos.contract.ShieldContract.ShieldedTransferContract;
 import org.tron.protos.contract.SmartContractOuterClass.ClearABIContract;
 import org.tron.protos.contract.SmartContractOuterClass.CreateSmartContract;
 import org.tron.protos.contract.SmartContractOuterClass.TriggerSmartContract;
@@ -100,9 +110,10 @@ import org.tron.protos.contract.VoteAssetContractOuterClass.VoteAssetContract;
 import org.tron.protos.contract.WitnessContract.VoteWitnessContract;
 import org.tron.protos.contract.WitnessContract.WitnessCreateContract;
 import org.tron.protos.contract.WitnessContract.WitnessUpdateContract;
-import org.tron.protos.contract.ShieldContract.ShieldedTransferContract;
-import org.tron.protos.contract.MarketContract.MarketCancelOrderContract;
-import org.tron.protos.contract.MarketContract.MarketSellAssetContract;
+import org.tron.trident.proto.Chain;
+import org.tron.trident.proto.Response;
+import org.tron.walletcli.Client;
+import org.tron.walletserver.WalletApi;
 
 public class Utils {
   public static final String PERMISSION_ID = "Permission_id";
@@ -114,6 +125,9 @@ public class Utils {
   public static final String LOCK_WARNING = "⚠️" + ANSI_YELLOW
       + " Wallet is locked. Transaction not allowed. Please use " + greenBoldHighlight("unlock")
       + ANSI_YELLOW + " to retry" + ANSI_RESET;
+
+  public static final int MIN_LENGTH = 2;
+  public static final int MAX_LENGTH = 14;
 
   private static SecureRandom random = new SecureRandom();
 
@@ -369,6 +383,11 @@ public class Utils {
     return Hash.sha3omit12(combined);
   }
 
+  public static byte[] generateContractAddress(Chain.Transaction trx, byte[] ownerAddress)
+      throws InvalidProtocolBufferException {
+    return generateContractAddress(Protocol.Transaction.parseFrom(trx.toByteArray()), ownerAddress);
+  }
+
   public static JSONObject printBlockExtentionToJSON(BlockExtention blockExtention) {
     JSONObject jsonObject = JSON.parseObject(JsonFormat.printToString(blockExtention, true));
     if (blockExtention.getTransactionsCount() > 0) {
@@ -410,6 +429,353 @@ public class Utils {
   public static JSONObject printTransactionToJSON(Chain.Transaction transaction, boolean selfType)
       throws InvalidProtocolBufferException {
     return printTransactionToJSON(Protocol.Transaction.parseFrom(transaction.toByteArray()), selfType);
+  }
+
+  public static Tx getTx(Chain.Transaction transaction) {
+    Tx tx = new Tx();
+    transaction.getRawData().getContractList().forEach(contract -> {
+      try {
+        Any contractParameter = contract.getParameter();
+        switch (contract.getType()) {
+          case AccountCreateContract:
+            AccountCreateContract accountCreateContract =
+                contractParameter.unpack(AccountCreateContract.class);
+            tx.setType(contract.getType().name());
+            tx.setFrom(encode58Check(accountCreateContract.getOwnerAddress().toByteArray()));
+            tx.setTo(encode58Check(accountCreateContract.getAccountAddress().toByteArray()));
+            break;
+          case TransferContract:
+            TransferContract transferContract =
+                contractParameter.unpack(TransferContract.class);
+            tx.setType(contract.getType().name());
+            tx.setFrom(encode58Check(transferContract.getOwnerAddress().toByteArray()));
+            tx.setTo(encode58Check(transferContract.getToAddress().toByteArray()));
+            tx.setAmount(String.valueOf(transferContract.getAmount()));
+            break;
+          case TransferAssetContract:
+            TransferAssetContract transferAssetContract =
+                contractParameter.unpack(TransferAssetContract.class);
+            tx.setType(contract.getType().name());
+            tx.setFrom(encode58Check(transferAssetContract.getOwnerAddress().toByteArray()));
+            tx.setTo(encode58Check(transferAssetContract.getToAddress().toByteArray()));
+            tx.setAmount(String.valueOf(transferAssetContract.getAmount()));
+            tx.setNote(byte2String(transferAssetContract.getAssetName().toByteArray()));
+            break;
+          case VoteAssetContract:
+            VoteAssetContract voteAssetContract =
+                contractParameter.unpack(VoteAssetContract.class);
+            tx.setType(contract.getType().name());
+            tx.setFrom(encode58Check(voteAssetContract.getOwnerAddress().toByteArray()));
+//            tx.setNote(
+//                "voteAddress: "
+//                    + voteAssetContract.getVoteAddressList().stream()
+//                    .map(o -> encode58Check(o.toByteArray())).collect(Collectors.toList())
+//                    + "; support: " + voteAssetContract.getSupport()
+//                    + "; count: " + voteAssetContract.getCount()
+//            );
+            break;
+          case VoteWitnessContract:
+            VoteWitnessContract voteWitnessContract =
+                contractParameter.unpack(VoteWitnessContract.class);
+            tx.setType(contract.getType().name());
+            tx.setFrom(encode58Check(voteWitnessContract.getOwnerAddress().toByteArray()));
+//            tx.setNote("voteAddress: "
+//                + voteWitnessContract.getVotesList().stream()
+//                .map(o -> encode58Check(o.getVoteAddress().toByteArray())).collect(Collectors.toList())
+//                + "; support: " + voteWitnessContract.getSupport());
+            break;
+          case WitnessCreateContract:
+            WitnessCreateContract witnessCreateContract =
+                contractParameter.unpack(WitnessCreateContract.class);
+            tx.setType(contract.getType().name());
+            tx.setFrom(encode58Check(witnessCreateContract.getOwnerAddress().toByteArray()));
+            tx.setNote(byte2String(witnessCreateContract.getUrl().toByteArray()));
+            break;
+          case AssetIssueContract:
+            AssetIssueContract assetIssueContract =
+                contractParameter.unpack(AssetIssueContract.class);
+            tx.setType(contract.getType().name());
+            tx.setFrom(encode58Check(assetIssueContract.getOwnerAddress().toByteArray()));
+            tx.setNote(byte2String(assetIssueContract.getName().toByteArray()));
+            break;
+          case WitnessUpdateContract:
+            WitnessUpdateContract witnessUpdateContract =
+                contractParameter.unpack(WitnessUpdateContract.class);
+            tx.setType(contract.getType().name());
+            tx.setFrom(encode58Check(witnessUpdateContract.getOwnerAddress().toByteArray()));
+            tx.setNote(byte2String(witnessUpdateContract.getUpdateUrl().toByteArray()));
+            break;
+          case ParticipateAssetIssueContract:
+            ParticipateAssetIssueContract participateAssetIssueContract =
+                contractParameter.unpack(ParticipateAssetIssueContract.class);
+            tx.setType(contract.getType().name());
+            tx.setFrom(encode58Check(participateAssetIssueContract.getOwnerAddress().toByteArray()));
+            tx.setTo(encode58Check(participateAssetIssueContract.getToAddress().toByteArray()));
+            tx.setAmount(String.valueOf(participateAssetIssueContract.getAmount()));
+            tx.setNote(byte2String(participateAssetIssueContract.getAssetName().toByteArray()));
+            break;
+          case AccountUpdateContract:
+            AccountUpdateContract accountUpdateContract =
+                contractParameter.unpack(AccountUpdateContract.class);
+            tx.setType(contract.getType().name());
+            tx.setFrom(encode58Check(accountUpdateContract.getOwnerAddress().toByteArray()));
+            tx.setNote(byte2String(accountUpdateContract.getAccountName().toByteArray()));
+            break;
+          case FreezeBalanceContract:
+            FreezeBalanceContract freezeBalanceContract =
+                contractParameter.unpack(FreezeBalanceContract.class);
+            tx.setType(contract.getType().name());
+            tx.setFrom(encode58Check(freezeBalanceContract.getOwnerAddress().toByteArray()));
+            tx.setTo(encode58Check(freezeBalanceContract.getReceiverAddress().toByteArray()));
+            tx.setAmount(String.valueOf(freezeBalanceContract.getFrozenBalance()));
+            tx.setNote(freezeBalanceContract.getResource().name());
+            break;
+          case UnfreezeBalanceContract:
+            UnfreezeBalanceContract unfreezeBalanceContract =
+                contractParameter.unpack(UnfreezeBalanceContract.class);
+            tx.setType(contract.getType().name());
+            tx.setFrom(encode58Check(unfreezeBalanceContract.getOwnerAddress().toByteArray()));
+            tx.setTo(encode58Check(unfreezeBalanceContract.getReceiverAddress().toByteArray()));
+            tx.setNote(unfreezeBalanceContract.getResource().name());
+            break;
+          case WithdrawBalanceContract:
+            WithdrawBalanceContract withdrawBalanceContract =
+                contractParameter.unpack(WithdrawBalanceContract.class);
+            tx.setType(contract.getType().name());
+            tx.setFrom(encode58Check(withdrawBalanceContract.getOwnerAddress().toByteArray()));
+            break;
+          case UnfreezeAssetContract:
+            UnfreezeAssetContract unfreezeAssetContract =
+                contractParameter.unpack(UnfreezeAssetContract.class);
+            tx.setType(contract.getType().name());
+            tx.setFrom(encode58Check(unfreezeAssetContract.getOwnerAddress().toByteArray()));
+            break;
+          case UpdateAssetContract:
+            UpdateAssetContract updateAssetContract =
+                contractParameter.unpack(UpdateAssetContract.class);
+            tx.setType(contract.getType().name());
+            tx.setFrom(encode58Check(updateAssetContract.getOwnerAddress().toByteArray()));
+            tx.setNote(byte2String(updateAssetContract.getUrl().toByteArray())
+                + "; " + byte2String(updateAssetContract.getDescription().toByteArray()));
+            break;
+          case ProposalCreateContract:
+            ProposalCreateContract proposalCreateContract =
+                contractParameter.unpack(ProposalCreateContract.class);
+            tx.setType(contract.getType().name());
+            tx.setFrom(encode58Check(proposalCreateContract.getOwnerAddress().toByteArray()));
+            tx.setNote(proposalCreateContract.getParametersMap().entrySet().stream()
+                .map(entry -> entry.getKey() + ":" + entry.getValue())
+                .collect(Collectors.joining("; ")));
+            break;
+          case ProposalApproveContract:
+            ProposalApproveContract proposalApproveContract =
+                contractParameter.unpack(ProposalApproveContract.class);
+            tx.setType(contract.getType().name());
+            tx.setFrom(encode58Check(proposalApproveContract.getOwnerAddress().toByteArray()));
+            tx.setNote("proposalId: " + proposalApproveContract.getProposalId()
+                + "; isAddApproval: " + proposalApproveContract.getIsAddApproval());
+            break;
+          case ProposalDeleteContract:
+            ProposalDeleteContract proposalDeleteContract =
+                contractParameter.unpack(ProposalDeleteContract.class);
+            tx.setType(contract.getType().name());
+            tx.setFrom(encode58Check(proposalDeleteContract.getOwnerAddress().toByteArray()));
+            tx.setNote("proposalId: " + proposalDeleteContract.getProposalId());
+            break;
+          case SetAccountIdContract:
+            SetAccountIdContract setAccountIdContract =
+                contractParameter.unpack(
+                    SetAccountIdContract.class);
+            tx.setType(contract.getType().name());
+            tx.setFrom(encode58Check(setAccountIdContract.getOwnerAddress().toByteArray()));
+            tx.setNote(byte2String(setAccountIdContract.getAccountId().toByteArray()));
+            break;
+          case CreateSmartContract:
+            CreateSmartContract deployContract =
+                contractParameter.unpack(CreateSmartContract.class);
+            byte[] ownerAddress = deployContract.getOwnerAddress().toByteArray();
+            byte[] contractAddress = generateContractAddress(transaction, ownerAddress);
+            tx.setType(contract.getType().name());
+            tx.setFrom(encode58Check(deployContract.getOwnerAddress().toByteArray()));
+            tx.setTo(encode58Check(contractAddress));
+            break;
+          case TriggerSmartContract:
+            TriggerSmartContract triggerSmartContract =
+                contractParameter.unpack(TriggerSmartContract.class);
+            tx.setType(contract.getType().name());
+            tx.setFrom(encode58Check(triggerSmartContract.getOwnerAddress().toByteArray()));
+            tx.setTo(encode58Check(triggerSmartContract.getContractAddress().toByteArray()));
+            break;
+          case UpdateSettingContract:
+            UpdateSettingContract updateSettingContract =
+                contractParameter.unpack(UpdateSettingContract.class);
+            tx.setType(contract.getType().name());
+            tx.setFrom(encode58Check(updateSettingContract.getOwnerAddress().toByteArray()));
+            tx.setTo(encode58Check(updateSettingContract.getContractAddress().toByteArray()));
+            tx.setNote("consumeUserResourcePercent: " + updateSettingContract.getConsumeUserResourcePercent());
+            break;
+          case ExchangeCreateContract:
+            ExchangeCreateContract exchangeCreateContract =
+                contractParameter.unpack(ExchangeCreateContract.class);
+            tx.setType(contract.getType().name());
+            tx.setFrom(encode58Check(exchangeCreateContract.getOwnerAddress().toByteArray()));
+            tx.setNote(
+                "firstTokenId: "
+                    + byte2String(exchangeCreateContract.getFirstTokenId().toByteArray())
+                    + "; firstTokenBalance: "
+                    + exchangeCreateContract.getFirstTokenBalance()
+                    + "; secondTokenId: "
+                    + byte2String(exchangeCreateContract.getSecondTokenId().toByteArray())
+                    + "; second_token_balance: "
+                    + exchangeCreateContract.getSecondTokenBalance()
+            );
+            break;
+          case ExchangeInjectContract:
+            ExchangeInjectContract exchangeInjectContract =
+                contractParameter.unpack(ExchangeInjectContract.class);
+            tx.setType(contract.getType().name());
+            tx.setFrom(encode58Check(exchangeInjectContract.getOwnerAddress().toByteArray()));
+            tx.setNote("exchangeId: "
+                + exchangeInjectContract.getExchangeId()
+                + "; tokenId: "
+                + byte2String(exchangeInjectContract.getTokenId().toByteArray())
+                + "; quant: "
+                + exchangeInjectContract.getQuant());
+            break;
+          case ExchangeWithdrawContract:
+            ExchangeWithdrawContract exchangeWithdrawContract =
+                contractParameter.unpack(ExchangeWithdrawContract.class);
+            tx.setType(contract.getType().name());
+            tx.setFrom(encode58Check(exchangeWithdrawContract.getOwnerAddress().toByteArray()));
+            tx.setNote("exchangeId: "
+                + exchangeWithdrawContract.getExchangeId()
+                + "; tokenId: "
+                + byte2String(exchangeWithdrawContract.getTokenId().toByteArray())
+                + "; quant: "
+                + exchangeWithdrawContract.getQuant());
+            break;
+          case ExchangeTransactionContract:
+            ExchangeTransactionContract exchangeTransactionContract =
+                contractParameter.unpack(ExchangeTransactionContract.class);
+            tx.setType(contract.getType().name());
+            tx.setFrom(encode58Check(exchangeTransactionContract.getOwnerAddress().toByteArray()));
+            tx.setNote("exchangeId: "
+                + exchangeTransactionContract.getExchangeId()
+                + "; tokenId: "
+                + byte2String(exchangeTransactionContract.getTokenId().toByteArray())
+                + "; quant: "
+                + exchangeTransactionContract.getQuant()
+                + "; expected: "
+                + exchangeTransactionContract.getExpected());
+            break;
+          case UpdateEnergyLimitContract:
+            UpdateEnergyLimitContract updateEnergyLimitContract =
+                contractParameter.unpack(UpdateEnergyLimitContract.class);
+            tx.setType(contract.getType().name());
+            tx.setFrom(encode58Check(updateEnergyLimitContract.getOwnerAddress().toByteArray()));
+            tx.setTo(encode58Check(updateEnergyLimitContract.getContractAddress().toByteArray()));
+            tx.setNote("originEnergyLimit: " + updateEnergyLimitContract.getOriginEnergyLimit());
+            break;
+          case AccountPermissionUpdateContract:
+            AccountPermissionUpdateContract accountPermissionUpdateContract =
+                contractParameter.unpack(AccountPermissionUpdateContract.class);
+            tx.setType(contract.getType().name());
+            tx.setFrom(encode58Check(accountPermissionUpdateContract.getOwnerAddress().toByteArray()));
+            break;
+          case ClearABIContract:
+            ClearABIContract clearABIContract =
+                contractParameter.unpack(ClearABIContract.class);
+            tx.setType(contract.getType().name());
+            tx.setFrom(encode58Check(clearABIContract.getOwnerAddress().toByteArray()));
+            tx.setTo(encode58Check(clearABIContract.getContractAddress().toByteArray()));
+            break;
+          case UpdateBrokerageContract:
+            UpdateBrokerageContract updateBrokerageContract =
+                contract.getParameter().unpack(UpdateBrokerageContract.class);
+            tx.setType(contract.getType().name());
+            tx.setFrom(encode58Check(updateBrokerageContract.getOwnerAddress().toByteArray()));
+            tx.setNote("brokerage: " + updateBrokerageContract.getBrokerage());
+            break;
+          case MarketSellAssetContract:
+            MarketSellAssetContract marketSellAssetContract = contract.getParameter()
+                .unpack(MarketSellAssetContract.class);
+            tx.setType(contract.getType().name());
+            tx.setFrom(encode58Check(marketSellAssetContract.getOwnerAddress().toByteArray()));
+            tx.setNote("sellTokenId: "
+                + byte2String(marketSellAssetContract.getSellTokenId().toByteArray())
+                + "; sellTokenQuantity: "
+                + marketSellAssetContract.getSellTokenQuantity()
+                + "; buyTokenId: "
+                + byte2String(marketSellAssetContract.getBuyTokenId().toByteArray())
+                + "; buyTokenQuantity: "
+                + marketSellAssetContract.getBuyTokenQuantity());
+            break;
+          case MarketCancelOrderContract:
+            MarketCancelOrderContract marketCancelOrderContract = contract.getParameter()
+                .unpack(MarketCancelOrderContract.class);
+            tx.setType(contract.getType().name());
+            tx.setFrom(encode58Check(marketCancelOrderContract.getOwnerAddress().toByteArray()));
+            tx.setNote("orderId: " + toHexString(marketCancelOrderContract.getOrderId().toByteArray()));
+            break;
+          // new freeze begin
+          case FreezeBalanceV2Contract:
+            BalanceContract.FreezeBalanceV2Contract freezeBalanceV2Contract =
+                contractParameter.unpack(BalanceContract.FreezeBalanceV2Contract.class);
+            tx.setType(contract.getType().name());
+            tx.setFrom(encode58Check(freezeBalanceV2Contract.getOwnerAddress().toByteArray()));
+            tx.setAmount(String.valueOf(freezeBalanceV2Contract.getFrozenBalance()));
+            tx.setNote(freezeBalanceV2Contract.getResource().name());
+            break;
+          case UnfreezeBalanceV2Contract:
+            BalanceContract.UnfreezeBalanceV2Contract unfreezeBalanceV2Contract =
+                contractParameter.unpack(BalanceContract.UnfreezeBalanceV2Contract.class);
+            tx.setType(contract.getType().name());
+            tx.setFrom(encode58Check(unfreezeBalanceV2Contract.getOwnerAddress().toByteArray()));
+            tx.setAmount(String.valueOf(unfreezeBalanceV2Contract.getUnfreezeBalance()));
+            tx.setNote(unfreezeBalanceV2Contract.getResource().name());
+            break;
+          case WithdrawExpireUnfreezeContract:
+            BalanceContract.WithdrawExpireUnfreezeContract withdrawExpireUnfreezeContract =
+                contractParameter.unpack(BalanceContract.WithdrawExpireUnfreezeContract.class);
+            tx.setType(contract.getType().name());
+            tx.setFrom(encode58Check(withdrawExpireUnfreezeContract.getOwnerAddress().toByteArray()));
+            break;
+          case DelegateResourceContract:
+            BalanceContract.DelegateResourceContract delegateResourceContract =
+                contractParameter.unpack(BalanceContract.DelegateResourceContract.class);
+            tx.setType(contract.getType().name());
+            tx.setFrom(encode58Check(delegateResourceContract.getOwnerAddress().toByteArray()));
+            tx.setTo(encode58Check(delegateResourceContract.getReceiverAddress().toByteArray()));
+            tx.setAmount(String.valueOf(delegateResourceContract.getBalance()));
+            tx.setNote("resource: "
+                + delegateResourceContract.getResource().name()
+                + "; lock: "
+                + delegateResourceContract.getLock()
+                + "; lockPeriod: "
+                + delegateResourceContract.getLockPeriod());
+            break;
+          case UnDelegateResourceContract:
+            BalanceContract.UnDelegateResourceContract unDelegateResourceContract =
+                contractParameter.unpack(BalanceContract.UnDelegateResourceContract.class);
+            tx.setType(contract.getType().name());
+            tx.setFrom(encode58Check(unDelegateResourceContract.getOwnerAddress().toByteArray()));
+            tx.setTo(encode58Check(unDelegateResourceContract.getReceiverAddress().toByteArray()));
+            tx.setAmount(String.valueOf(unDelegateResourceContract.getBalance()));
+            tx.setNote(unDelegateResourceContract.getResource().name());
+            break;
+          case CancelAllUnfreezeV2Contract:
+            CancelAllUnfreezeV2Contract cancelAllUnfreezeV2Contract =
+                contractParameter.unpack(CancelAllUnfreezeV2Contract.class);
+            tx.setType(contract.getType().name());
+            tx.setFrom(encode58Check(cancelAllUnfreezeV2Contract.getOwnerAddress().toByteArray()));
+            break;
+          default:
+        }
+      } catch (InvalidProtocolBufferException e) {
+        e.printStackTrace();
+      }
+    });
+    return tx;
   }
 
   public static JSONObject printTransactionToJSON(Protocol.Transaction transaction, boolean selfType) {
@@ -930,6 +1296,168 @@ public class Utils {
       }
     }
     return EMPTY;
+  }
+
+  public static void printWalletInfo(List<WalletFile> walletFileList, int index) {
+    WalletFile wf = walletFileList.get(index);
+    String walletName = org.apache.commons.lang3.StringUtils.isEmpty(wf.getName())
+        ? wf.getSourceFile().getName() : wf.getName();
+
+    System.out.println(formatLine(
+        String.valueOf(index + 1),
+        walletName,
+        wf.getAddress(),
+        4, 15, 42));
+  }
+
+  public static void searchWallets(List<WalletFile> walletFileList, String searchTerm) {
+    String headerFormat = "%-4s %-15s %-42s";
+    boolean found = false;
+
+    System.out.println(greenBoldHighlight(String.format(headerFormat, "No.", "Name", "Address")));
+
+    for (int i = 0; i < walletFileList.size(); i++) {
+      WalletFile wf = walletFileList.get(i);
+
+      if (wf.getName().toLowerCase().contains(searchTerm.toLowerCase()) ||
+          wf.getAddress().toLowerCase().contains(searchTerm.toLowerCase())) {
+
+        printWalletInfo(walletFileList, i);
+        found = true;
+      }
+    }
+
+    if (!found) {
+      System.out.println("No wallets found matching: " + searchTerm);
+    }
+  }
+
+  public static void listWallets(List<WalletFile> walletFileList) {
+    System.out.println("\n" + greenBoldHighlight(formatLine("No.", "Name", "Address", 4, 15, 42)));
+
+    IntStream.range(0, walletFileList.size())
+        .mapToObj(i -> {
+          WalletFile wf = walletFileList.get(i);
+          return formatLine(
+              String.valueOf(i + 1),
+              wf.getName(),
+              wf.getAddress(),
+              4, 15, 42);
+        })
+        .forEach(System.out::println);
+  }
+
+  public static String formatLine(String no, String name, String address,
+                                   int noWidth, int nameWidth, int addrWidth) {
+    String displayName = truncateToWidth(name, nameWidth);
+
+    if (containsChinese(displayName)) {
+      displayName += " ";
+    }
+
+    return padRight(no, noWidth) + " "
+        + padRight(displayName, nameWidth) + " "
+        + padRight(address, addrWidth);
+  }
+
+  public static int getDisplayWidth(String str) {
+    if (str == null) return 0;
+    return str.codePoints()
+        .map(c -> isWideChar(c) ? 2 : 1)
+        .sum();
+  }
+
+  private static boolean isWideChar(int codePoint) {
+    // CJK Unified Ideographs
+    return (codePoint >= 0x1100 && (
+        codePoint <= 0x115F || // Hangul Jamo
+            codePoint == 0x2329 || codePoint == 0x232A ||
+            (codePoint >= 0x2E80 && codePoint <= 0xA4CF && codePoint != 0x303F) ||
+            (codePoint >= 0xAC00 && codePoint <= 0xD7A3) || // Hangul Syllables
+            (codePoint >= 0xF900 && codePoint <= 0xFAFF) || // CJK Compatibility Ideographs
+            (codePoint >= 0xFE10 && codePoint <= 0xFE19) ||
+            (codePoint >= 0xFE30 && codePoint <= 0xFE6F) ||
+            (codePoint >= 0xFF00 && codePoint <= 0xFF60) || // Full-width ASCII variants
+            (codePoint >= 0xFFE0 && codePoint <= 0xFFE6)
+    ));
+  }
+
+  private static String truncateToWidth(String str, int maxWidth) {
+    if (str == null) return "";
+
+    int ellipsisWidth = getDisplayWidth("...");
+    if (getDisplayWidth(str) <= maxWidth) {
+      return str;
+    }
+
+    StringBuilder sb = new StringBuilder();
+    int width = 0;
+    for (int i = 0; i < str.length(); ) {
+      int codePoint = str.codePointAt(i);
+      int charWidth = isWideChar(codePoint) ? 2 : 1;
+
+      if (width + charWidth + ellipsisWidth > maxWidth) {
+        break;
+      }
+
+      sb.appendCodePoint(codePoint);
+      width += charWidth;
+      i += Character.charCount(codePoint);
+    }
+
+    return sb + "...";
+  }
+
+  private static String padRight(String str, int targetWidth) {
+    int currentWidth = getDisplayWidth(str);
+
+    if (containsChinese(str)) {
+      currentWidth--;
+    }
+    if (containsChinese(str) && str.contains("...") ) {
+      currentWidth--;
+    }
+    if (currentWidth >= targetWidth) {
+      return str;
+    }
+    return str + spaces(targetWidth - currentWidth);
+  }
+
+  private static String spaces(int count) {
+    return IntStream.range(0, count)
+        .mapToObj(i -> " ")
+        .collect(Collectors.joining());
+  }
+
+  public static void nameWallet(WalletFile walletFile, boolean isLedger) {
+    Scanner scanner = new Scanner(System.in);
+    System.out.print("Please name your wallet: ");
+    String walletName = scanner.nextLine().trim();
+
+    while(!isValidWalletName(walletName)) {
+      System.out.print("The wallet name cannot be empty and "
+          + String.format("must be between %d and %d characters", MIN_LENGTH, MAX_LENGTH)
+          + " Please re-enter: ");
+      walletName = scanner.nextLine().trim();
+    }
+    if (isLedger) {
+      walletName = "Ledger-" + walletName;
+    }
+    walletFile.setName(walletName);
+  }
+
+  private static boolean isValidWalletName(String name) {
+    if (org.apache.commons.lang3.StringUtils.isEmpty(name)) {
+      return false;
+    }
+    return name.length() >= MIN_LENGTH && name.length() <= MAX_LENGTH;
+  }
+
+  private static boolean containsChinese(String str) {
+    if (str == null) return false;
+    return str.codePoints().anyMatch(
+        c -> (c >= 0x4E00 && c <= 0x9FFF)
+    );
   }
 
 }
