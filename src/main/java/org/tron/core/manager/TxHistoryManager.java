@@ -144,8 +144,8 @@ public class TxHistoryManager {
           .filter(Optional::isPresent)
           .map(Optional::get)
           .filter(tx -> tx.isRelatedTo(currentUserAddress))
-          .filter(tx -> tx.getTimestamp().isBefore(end))
-          .filter(tx -> tx.getTimestamp().isAfter(start))
+          .filter(tx -> !tx.getTimestamp().isBefore(start))
+          .filter(tx -> !tx.getTimestamp().isAfter(end))
           .sorted(Comparator.comparing(Tx::getTimestamp).reversed())
           .skip((page - 1L) * PAGE_SIZE)
           .limit(PAGE_SIZE)
@@ -197,8 +197,8 @@ public class TxHistoryManager {
           .filter(Optional::isPresent)
           .map(Optional::get)
           .filter(tx -> tx.isRelatedTo(currentUserAddress))
-          .filter(tx -> tx.getTimestamp().isBefore(end))
-          .filter(tx -> tx.getTimestamp().isAfter(start))
+          .filter(tx -> !tx.getTimestamp().isBefore(start))
+          .filter(tx -> !tx.getTimestamp().isAfter(end))
           .count();
 
       return (int) Math.ceil((double) count / PAGE_SIZE);

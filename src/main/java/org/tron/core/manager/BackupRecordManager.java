@@ -120,8 +120,8 @@ public class BackupRecordManager {
 
   public List<BackupRecord> getRecordsByTimeRange(LocalDateTime start, LocalDateTime end) {
     return loadAllRecords().stream()
-        .filter(br -> br.getTimestamp().isBefore(end))
-        .filter(br -> br.getTimestamp().isAfter(start))
+        .filter(br -> !br.getTimestamp().isBefore(start))
+        .filter(br -> !br.getTimestamp().isAfter(end))
         .sorted(Comparator.comparing(BackupRecord::getTimestamp).reversed())
         .collect(Collectors.toList());
   }

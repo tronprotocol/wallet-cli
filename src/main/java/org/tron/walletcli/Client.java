@@ -4,6 +4,7 @@ import static org.apache.commons.lang3.StringUtils.EMPTY;
 import static org.tron.common.enums.NetType.CUSTOM;
 import static org.tron.common.utils.CommandHelpUtil.getCommandHelp;
 import static org.tron.common.utils.Utils.EMPTY_STR;
+import static org.tron.common.utils.Utils.VERSION;
 import static org.tron.common.utils.Utils.blueBoldHighlight;
 import static org.tron.common.utils.Utils.failedHighlight;
 import static org.tron.common.utils.Utils.getLong;
@@ -3371,12 +3372,13 @@ public class Client {
 
   private void run() {
     if (version) {
-      System.out.println("Version 4.9.1");
+      System.out.println("Version" + VERSION);
       System.exit(0);
     }
-    System.out.println(" ");
+    System.out.println();
     System.out.println("Welcome to Tron " + blueBoldHighlight("Wallet-Cli"));
     printBanner();
+    System.out.println();
     System.out.println("Please type one of the following commands to proceed.");
     System.out.println(greenBoldHighlight("Login") + ", " + greenBoldHighlight("LoginAll")
         + ", " + greenBoldHighlight("RegisterWallet")

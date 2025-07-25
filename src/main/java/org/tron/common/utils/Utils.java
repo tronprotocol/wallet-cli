@@ -22,6 +22,7 @@ import static org.apache.commons.lang3.StringUtils.EMPTY;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.tron.common.utils.ByteArray.toHexString;
 import static org.tron.common.utils.DomainValidator.isDomainOrIP;
+import static org.tron.core.manager.TxHistoryManager.DASH;
 import static org.tron.keystore.StringUtils.byte2String;
 import static org.tron.ledger.console.ConsoleColor.ANSI_BLUE;
 import static org.tron.ledger.console.ConsoleColor.ANSI_BOLD;
@@ -42,6 +43,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.Console;
 import java.io.IOException;
 import java.io.InputStream;
+import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.Charset;
@@ -57,6 +59,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import org.bouncycastle.util.encoders.Hex;
 import org.jetbrains.annotations.Nullable;
 import org.tron.api.GrpcAPI.BlockExtention;
 import org.tron.api.GrpcAPI.BlockList;
@@ -128,6 +131,8 @@ public class Utils {
 
   public static final int MIN_LENGTH = 2;
   public static final int MAX_LENGTH = 14;
+  public static final String VERSION = " v4.9.1";
+  public static final String TRANSFER_METHOD_ID = "a9059cbb";
 
   private static SecureRandom random = new SecureRandom();
 
@@ -605,6 +610,7 @@ public class Utils {
             tx.setType(contract.getType().name());
             tx.setFrom(encode58Check(triggerSmartContract.getOwnerAddress().toByteArray()));
             tx.setTo(encode58Check(triggerSmartContract.getContractAddress().toByteArray()));
+            setTransferParams(tx, triggerSmartContract);
             break;
           case UpdateSettingContract:
             UpdateSettingContract updateSettingContract =
@@ -776,6 +782,35 @@ public class Utils {
       }
     });
     return tx;
+  }
+
+  private static void setTransferParams(Tx tx, TriggerSmartContract triggerSmartContract) {
+    try {
+      byte[] data = triggerSmartContract.getData().toByteArray();
+      byte[] methodId = Arrays.copyOfRange(data, 0, 4);
+      if (TRANSFER_METHOD_ID.equals(Hex.toHexString(methodId))) {
+        byte[] toBytes = Arrays.copyOfRange(data, 4, 36);
+        byte[] addressBytes = Arrays.copyOfRange(toBytes, 12, 32);
+        byte[] tronAddressBytes = new byte[21];
+        tronAddressBytes[0] = 0x41;
+        System.arraycopy(addressBytes, 0, tronAddressBytes, 1, 20);
+        String to = encode58Check(tronAddressBytes);
+        byte[] amountBytes = Arrays.copyOfRange(data, 36, 68);
+        tx.setTo(to);
+        tx.setAmount(parseAmountToLongStr(amountBytes));
+      }
+    } catch (Exception e) {
+      System.out.println(e.getMessage());
+    }
+  }
+
+  public static String parseAmountToLongStr(byte[] amountBytes) {
+    BigInteger amount = new BigInteger(1, amountBytes);
+    if (amount.compareTo(BigInteger.valueOf(Long.MAX_VALUE)) > 0) {
+      System.out.println("Amount exceeds long capacity: " + amount);
+      return DASH;
+    }
+    return String.valueOf(amount.longValue());
   }
 
   public static JSONObject printTransactionToJSON(Protocol.Transaction transaction, boolean selfType) {
@@ -1175,7 +1210,7 @@ public class Utils {
     try (InputStream inputStream = Client.class.getResourceAsStream("/banner.txt")) {
       if (inputStream != null) {
         String banner = new String(readAllBytes(inputStream), StandardCharsets.UTF_8);
-        System.out.println(blueBoldHighlight(banner));
+        System.out.println(blueBoldHighlight(banner) + blueBoldHighlight(VERSION));
       } else {
         System.out.println("No banner.txt found!");
       }
