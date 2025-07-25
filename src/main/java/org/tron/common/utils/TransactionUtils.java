@@ -16,6 +16,7 @@
 package org.tron.common.utils;
 
 import com.google.protobuf.ByteString;
+import com.google.protobuf.InvalidProtocolBufferException;
 import java.security.SignatureException;
 import java.util.Arrays;
 import java.util.List;
@@ -27,6 +28,7 @@ import org.tron.common.crypto.SignInterface;
 import org.tron.common.crypto.SignatureInterface;
 import org.tron.core.exception.CancelException;
 import org.tron.protos.Protocol.Transaction;
+import org.tron.protos.contract.AccountContract;
 import org.tron.protos.contract.AccountContract.AccountCreateContract;
 import org.tron.protos.contract.AccountContract.AccountPermissionUpdateContract;
 import org.tron.protos.contract.AssetIssueContractOuterClass.AssetIssueContract;
@@ -34,15 +36,19 @@ import org.tron.protos.contract.AssetIssueContractOuterClass.ParticipateAssetIss
 import org.tron.protos.contract.AssetIssueContractOuterClass.TransferAssetContract;
 import org.tron.protos.contract.AssetIssueContractOuterClass.UnfreezeAssetContract;
 import org.tron.protos.contract.AssetIssueContractOuterClass.UpdateAssetContract;
+import org.tron.protos.contract.BalanceContract;
 import org.tron.protos.contract.BalanceContract.FreezeBalanceContract;
 import org.tron.protos.contract.BalanceContract.TransferContract;
 import org.tron.protos.contract.BalanceContract.UnfreezeBalanceContract;
 import org.tron.protos.contract.BalanceContract.WithdrawBalanceContract;
+import org.tron.protos.contract.ExchangeContract;
+import org.tron.protos.contract.ProposalContract;
 import org.tron.protos.contract.SmartContractOuterClass.CreateSmartContract;
 import org.tron.protos.contract.SmartContractOuterClass.TriggerSmartContract;
 import org.tron.protos.contract.VoteAssetContractOuterClass.VoteAssetContract;
 import org.tron.protos.contract.WitnessContract.VoteWitnessContract;
 import org.tron.protos.contract.WitnessContract.WitnessCreateContract;
+import org.tron.trident.proto.Chain;
 
 public class TransactionUtils {
 
@@ -57,6 +63,10 @@ public class TransactionUtils {
     // tmp.clearId();
 
     return Sha256Sm3Hash.hash(tmp.build().toByteArray());
+  }
+
+  public static Sha256Hash getTransactionId(Chain.Transaction transaction) {
+    return Sha256Hash.of(true, transaction.getRawData().toByteArray());
   }
 
   public static byte[] getOwner(Transaction.Contract contract) {
@@ -138,11 +148,25 @@ public class TransactionUtils {
                   .unpack(FreezeBalanceContract.class)
                   .getOwnerAddress();
           break;
+        case FreezeBalanceV2Contract:
+          owner =
+              contract
+                  .getParameter()
+                  .unpack(BalanceContract.FreezeBalanceV2Contract.class)
+                  .getOwnerAddress();
+          break;
         case UnfreezeBalanceContract:
           owner =
               contract
                   .getParameter()
                   .unpack(UnfreezeBalanceContract.class)
+                  .getOwnerAddress();
+          break;
+        case UnfreezeBalanceV2Contract:
+          owner =
+              contract
+                  .getParameter()
+                  .unpack(BalanceContract.UnfreezeBalanceV2Contract.class)
                   .getOwnerAddress();
           break;
         case UnfreezeAssetContract:
@@ -171,6 +195,83 @@ public class TransactionUtils {
               contract
                   .getParameter()
                   .unpack(AccountPermissionUpdateContract.class)
+                  .getOwnerAddress();
+          break;
+        case ProposalCreateContract:
+          owner =
+              contract
+                  .getParameter()
+                  .unpack(ProposalContract.ProposalCreateContract.class)
+                  .getOwnerAddress();
+          break;
+        case ProposalApproveContract:
+          owner =
+              contract
+                  .getParameter()
+                  .unpack(ProposalContract.ProposalApproveContract.class)
+                  .getOwnerAddress();
+          break;
+        case ProposalDeleteContract:
+          owner =
+              contract
+                  .getParameter()
+                  .unpack(ProposalContract.ProposalDeleteContract.class)
+                  .getOwnerAddress();
+          break;
+        case DelegateResourceContract:
+          owner =
+              contract
+                  .getParameter()
+                  .unpack(BalanceContract.DelegateResourceContract.class)
+                  .getOwnerAddress();
+          break;
+        case UnDelegateResourceContract:
+          owner =
+              contract
+                  .getParameter()
+                  .unpack(BalanceContract.UnDelegateResourceContract.class)
+                  .getOwnerAddress();
+          break;
+        case AccountUpdateContract:
+          owner =
+              contract
+                  .getParameter()
+                  .unpack(AccountContract.AccountUpdateContract.class)
+                  .getOwnerAddress();
+          break;
+        case WithdrawExpireUnfreezeContract:
+          owner =
+              contract
+                  .getParameter()
+                  .unpack(BalanceContract.WithdrawExpireUnfreezeContract.class)
+                  .getOwnerAddress();
+          break;
+        case ExchangeCreateContract:
+          owner =
+              contract
+                  .getParameter()
+                  .unpack(ExchangeContract.ExchangeCreateContract.class)
+                  .getOwnerAddress();
+          break;
+        case ExchangeInjectContract:
+          owner =
+              contract
+                  .getParameter()
+                  .unpack(ExchangeContract.ExchangeInjectContract.class)
+                  .getOwnerAddress();
+          break;
+        case ExchangeWithdrawContract:
+          owner =
+              contract
+                  .getParameter()
+                  .unpack(ExchangeContract.ExchangeWithdrawContract.class)
+                  .getOwnerAddress();
+          break;
+        case ExchangeTransactionContract:
+          owner =
+              contract
+                  .getParameter()
+                  .unpack(ExchangeContract.ExchangeTransactionContract.class)
                   .getOwnerAddress();
           break;
         default:
@@ -227,6 +328,12 @@ public class TransactionUtils {
     return true;
   }
 
+  public static Chain.Transaction sign(Chain.Transaction transaction, SignInterface myKey)
+      throws InvalidProtocolBufferException {
+    return Chain.Transaction.parseFrom(
+        sign(Transaction.parseFrom(transaction.toByteArray()), myKey).toByteArray());
+  }
+
   public static Transaction sign(Transaction transaction, SignInterface myKey) {
     Transaction.Builder transactionBuilderSigned = transaction.toBuilder();
     byte[] hash = Sha256Sm3Hash.hash(transaction.getRawData().toByteArray());
@@ -240,24 +347,40 @@ public class TransactionUtils {
   public static Transaction setTimestamp(Transaction transaction) {
     long currentTime = System.currentTimeMillis(); // *1000000 + System.nanoTime()%1000000;
     Transaction.Builder builder = transaction.toBuilder();
-    org.tron.protos.Protocol.Transaction.raw.Builder rowBuilder =
+    Transaction.raw.Builder rowBuilder =
         transaction.getRawData().toBuilder();
     rowBuilder.setTimestamp(currentTime);
     builder.setRawData(rowBuilder.build());
     return builder.build();
   }
 
-  public static Transaction setExpirationTime(Transaction transaction) {
+  public static Chain.Transaction setTimestamp(Chain.Transaction transaction) {
+    long currentTime = System.currentTimeMillis(); // *1000000 + System.nanoTime()%1000000;
+    Chain.Transaction.Builder builder = transaction.toBuilder();
+    Chain.Transaction.raw.Builder rowBuilder =
+        transaction.getRawData().toBuilder();
+    rowBuilder.setTimestamp(currentTime);
+    builder.setRawData(rowBuilder.build());
+    return builder.build();
+  }
+
+  public static Chain.Transaction setExpirationTime(Chain.Transaction transaction) {
     if (transaction.getSignatureCount() == 0) {
       long expirationTime = System.currentTimeMillis() + 6 * 60 * 60 * 1000;
-      Transaction.Builder builder = transaction.toBuilder();
-      org.tron.protos.Protocol.Transaction.raw.Builder rowBuilder =
+      Chain.Transaction.Builder builder = transaction.toBuilder();
+      Chain.Transaction.raw.Builder rowBuilder =
           transaction.getRawData().toBuilder();
       rowBuilder.setExpiration(expirationTime);
       builder.setRawData(rowBuilder.build());
       return builder.build();
     }
     return transaction;
+  }
+
+  public static Chain.Transaction setPermissionId(Chain.Transaction transaction, String tipString)
+      throws CancelException, InvalidProtocolBufferException {
+    return Chain.Transaction.parseFrom(
+        setPermissionId(Transaction.parseFrom(transaction.toByteArray()), tipString).toByteArray());
   }
 
   public static Transaction setPermissionId(Transaction transaction, String tipString)
@@ -268,14 +391,14 @@ public class TransactionUtils {
     }
 
     System.out.println(tipString);
-    int permission_id = inputPermissionId();
-    if (permission_id < 0) {
+    int permissionId = inputPermissionId();
+    if (permissionId < 0) {
       throw new CancelException("User cancelled");
     }
-    if (permission_id != 0) {
+    if (permissionId != 0) {
       Transaction.raw.Builder raw = transaction.getRawData().toBuilder();
       Transaction.Contract.Builder contract =
-          raw.getContract(0).toBuilder().setPermissionId(permission_id);
+          raw.getContract(0).toBuilder().setPermissionId(permissionId);
       raw.clearContract();
       raw.addContract(contract);
       transaction = transaction.toBuilder().setRawData(raw).build();

@@ -347,9 +347,9 @@ public class AbiUtil {
     if (isHex) {
       return Hex.toHexString(selector) + input;
     }
-    byte[] encodedParms = encodeInput(methodSign, input);
+    byte[] encodedParams = encodeInput(methodSign, input);
 
-    return Hex.toHexString(selector) + Hex.toHexString(encodedParms);
+    return Hex.toHexString(selector) + Hex.toHexString(encodedParams);
   }
 
   public static byte[] encodeInput(String methodSign, String input) {
@@ -419,7 +419,15 @@ public class AbiUtil {
     System.out.println(parseMethod(byteMethod1, bytesValue1));
   }
 
-
+  public static String generateOccupationConstantPrivateKey() {
+    StringBuilder privateKey = new StringBuilder();
+    String baseKey = "1234567890";
+    for (int i = 0; i < 6; i++) {
+      privateKey.append(baseKey);
+    }
+    privateKey.append("1234");
+    return privateKey.toString();
+  }
 
 
 }

@@ -1,9 +1,13 @@
 package org.tron.keystore;
 
+import static org.tron.common.utils.Utils.greenHighlight;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.typesafe.config.Config;
+import org.apache.commons.lang3.ArrayUtils;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.SignInterface;
 import org.tron.common.crypto.sm2.SM2;
@@ -13,12 +17,18 @@ import org.tron.core.exception.CipherException;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Utility functions for working with Wallet files.
@@ -32,6 +42,7 @@ public class WalletUtils {
     Config config = Configuration.getByPath("config.conf");//it is needs set to be a constant
     objectMapper.configure(JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES, true);
     objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+    objectMapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
     if (config.hasPath("crypto.engine")) {
       isEckey = config.getString("crypto.engine").equalsIgnoreCase("eckey");
       System.out.println("WalletUtils getConfig isEckey: " + isEckey);
@@ -102,6 +113,29 @@ public class WalletUtils {
       throws IOException {
     String fileName = getWalletFileName(walletFile);
     File destination = new File(destinationDirectory, fileName);
+    objectMapper.writeValue(destination, walletFile);
+    walletFile.setName(fileName);
+    walletFile.setSourceFile(destination);
+    return fileName;
+  }
+
+
+  public static String generateLegerWalletFile(WalletFile walletFile, File destinationDirectory)
+      throws IOException {
+    String fileName = getLegerWalletFileName(walletFile);
+    File destination = new File(destinationDirectory, fileName);
+
+    objectMapper.writeValue(destination, walletFile);
+    walletFile.setName(fileName);
+    walletFile.setSourceFile(destination);
+    return fileName;
+  }
+
+  public static String exportWalletFile(WalletFile walletFile, String walletAddress, File destinationDirectory)
+      throws IOException {
+    String fileName = getExportWalletFileName(walletAddress);
+
+    File destination = new File(destinationDirectory, fileName);
 
     objectMapper.writeValue(destination, walletFile);
     return fileName;
@@ -149,6 +183,14 @@ public class WalletUtils {
     return CredentialsSM2.create(Wallet.decryptSM2(password, walletFile));
   }
 
+  public static Credentials loadCredentials(byte[] password, WalletFile walletFile)
+      throws CipherException {
+    if (isEckey) {
+      return CredentialsEckey.create(Wallet.decrypt(password, walletFile));
+    }
+    return CredentialsSM2.create(Wallet.decryptSM2(password, walletFile));
+  }
+
   public static WalletFile loadWalletFile(File source) throws IOException {
     return objectMapper.readValue(source, WalletFile.class);
   }
@@ -159,11 +201,16 @@ public class WalletUtils {
 //    }
 
   private static String getWalletFileName(WalletFile walletFile) {
-    DateTimeFormatter format = DateTimeFormatter.ofPattern(
-        "'UTC--'yyyy-MM-dd'T'HH-mm-ss.nVV'--'");
-    ZonedDateTime now = ZonedDateTime.now(ZoneOffset.UTC);
+    return walletFile.getAddress() + ".json";
+  }
 
-    return now.format(format) + walletFile.getAddress() + ".json";
+  private static String getLegerWalletFileName(WalletFile walletFile) {
+    return "Ledger-" + walletFile.getAddress() + ".json";
+  }
+
+
+  private static String getExportWalletFileName(String walletAddress) {
+    return walletAddress + ".json";
   }
 
   public static String getDefaultKeyDirectory() {
@@ -218,5 +265,66 @@ public class WalletUtils {
 
   public static SKeyCapsule loadSkeyFile(File source) throws IOException {
     return objectMapper.readValue(source, SKeyCapsule.class);
+  }
+
+  public static boolean hasStoreFile(String address, String destinationDirectory) {
+    File dir = Paths.get(destinationDirectory).toFile();
+    if (!dir.exists() || !dir.isDirectory()) {
+      return false;
+    }
+    File[] files = dir.listFiles((d, name) ->
+        name.endsWith(address + ".json"));
+    return files != null && files.length > 0;
+  }
+
+  public static boolean deleteStoreFile(String address, String destinationDirectory) {
+    Path dir = Paths.get(destinationDirectory);
+    File[] files = dir.toFile().listFiles((d, name) ->
+        name.endsWith(address + ".json"));
+    if (files != null && files.length > 0) {
+      for (File file : files) {
+        file.delete();
+      }
+    }
+    return true;
+  }
+
+  public static File[] getStoreFiles(String address, String destinationDirectory) {
+    File dir = Paths.get(destinationDirectory).toFile();
+    if (!dir.exists() || !dir.isDirectory()) {
+      return new File[0];
+    }
+    return dir.listFiles((d, name) ->
+        name.endsWith(address + ".json"));
+  }
+
+  public static List<String> getStoreFileNames(String address, String destinationDirectory) {
+    File[] walletFiles = WalletUtils.getStoreFiles(address, destinationDirectory);
+    return ArrayUtils.isNotEmpty(walletFiles) ?
+        Arrays.stream(walletFiles)
+            .map(File::getAbsolutePath)
+            .collect(Collectors.toCollection(ArrayList::new))
+        : new ArrayList<>();
+  }
+
+  public static void show(int current, int total) {
+    int percent = (int) ((double) current / total * 100);
+    int barLength = 40;
+    int filledLength = (int) (barLength * percent / 100.0);
+
+    String bar = repeat(greenHighlight("="), filledLength) + repeat(" ", barLength - filledLength);
+    System.out.printf("\r[%s] %3d%%", bar, percent);
+
+    if (current == total) {
+      System.out.println();
+    }
+  }
+
+  public static String repeat(String str, int count) {
+    StringBuilder sb = new StringBuilder();
+    for (int i = 0; i < count; i++) {
+      sb.append(str);
+    }
+    return sb.toString();
   }
 }

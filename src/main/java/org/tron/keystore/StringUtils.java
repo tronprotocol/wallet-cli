@@ -16,6 +16,7 @@
 
 package org.tron.keystore;
 
+import java.nio.charset.StandardCharsets;
 import org.apache.commons.lang3.ArrayUtils;
 
 /**
@@ -224,5 +225,9 @@ public class StringUtils {
       h = l = 0;
     }
     return result;
+  }
+
+  public static String byte2String(byte[] bytes) {
+    return new String(bytes, StandardCharsets.UTF_8);
   }
 }

@@ -7,7 +7,6 @@ import org.bouncycastle.crypto.params.KeyParameter;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.Hash;
 import org.tron.common.crypto.SignInterface;
-import org.tron.common.crypto.SignatureInterface;
 import org.tron.common.crypto.sm2.SM2;
 import org.tron.common.utils.ByteArray;
 import org.tron.core.exception.CipherException;
@@ -82,9 +81,35 @@ public class Wallet {
     return createWalletFile(ecKeySm2Pair, cipherText, iv, salt, mac, n, p);
   }
 
+  public static WalletFile createLedger(byte[] password, int n, int p
+      , String address, String path)
+      throws CipherException {
+
+    byte[] salt = generateRandomBytes(32);
+
+    byte[] derivedKey = generateDerivedScryptKey(password, salt, n, R, p, DKLEN);
+
+    byte[] encryptKey = Arrays.copyOfRange(derivedKey, 0, 16);
+    byte[] iv = generateRandomBytes(16);
+
+    byte[] pathBytes = path.getBytes();
+
+    byte[] cipherText = performCipherOperation(Cipher.ENCRYPT_MODE, iv, encryptKey,
+        pathBytes);
+
+    byte[] mac = generateMac(derivedKey, cipherText);
+
+    return createLedgerWalletFile(address, cipherText, iv, salt, mac, n, p);
+  }
+
   public static WalletFile createStandard(byte[] password, SignInterface ecKeySm2Pair)
       throws CipherException {
     return create(password, ecKeySm2Pair, N_STANDARD, P_STANDARD);
+  }
+  public static WalletFile createStandardLedger(byte[] password
+      , String address, String path)
+      throws CipherException {
+    return createLedger(password, N_STANDARD, P_STANDARD,address, path);
   }
   public static WalletFile createLight(byte[] password, SignInterface ecKeySm2Pair)
       throws CipherException {
@@ -122,7 +147,38 @@ public class Wallet {
 
     return walletFile;
   }
+  private static WalletFile createLedgerWalletFile(
+      String address, byte[] cipherText, byte[] iv, byte[] salt, byte[] mac,
+      int n, int p) {
 
+    WalletFile walletFile = new WalletFile();
+    walletFile.setAddress(address);
+
+    WalletFile.Crypto crypto = new WalletFile.Crypto();
+    crypto.setCipher(CIPHER);
+    crypto.setCiphertext(ByteArray.toHexString(cipherText));
+    walletFile.setCrypto(crypto);
+
+    WalletFile.CipherParams cipherParams = new WalletFile.CipherParams();
+    cipherParams.setIv(ByteArray.toHexString(iv));
+    crypto.setCipherparams(cipherParams);
+
+    crypto.setKdf(SCRYPT);
+    WalletFile.ScryptKdfParams kdfParams = new WalletFile.ScryptKdfParams();
+    kdfParams.setDklen(DKLEN);
+    kdfParams.setN(n);
+    kdfParams.setP(p);
+    kdfParams.setR(R);
+    kdfParams.setSalt(ByteArray.toHexString(salt));
+    crypto.setKdfparams(kdfParams);
+
+    crypto.setMac(ByteArray.toHexString(mac));
+    walletFile.setCrypto(crypto);
+    walletFile.setId(UUID.randomUUID().toString());
+    walletFile.setVersion(CURRENT_VERSION);
+
+    return walletFile;
+  }
   private static byte[] generateDerivedScryptKey(
       byte[] password, byte[] salt, int n, int r, int p, int dkLen) throws CipherException {
     return SCrypt.generate(password, salt, n, r, p, dkLen);

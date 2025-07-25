@@ -8,6 +8,7 @@ import org.bouncycastle.math.ec.ECPoint;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.Hash;
 import org.tron.common.crypto.Sha256Sm3Hash;
+import org.tron.common.utils.AbiUtil;
 import org.tron.common.utils.Base58;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.Utils;
@@ -80,7 +81,7 @@ public class ECKeyDemo {
   }
 
   public static void main(String[] args) throws CipherException {
-    String privateKey = "F43EBCC94E6C257EDBE559183D1A8778B2D5A08040902C0F0A77A3343A1D0EA5";
+    String privateKey = AbiUtil.generateOccupationConstantPrivateKey();
     String address = private2Address(ByteArray.fromHexString(privateKey));
     System.out.println("base58Address: " + address);
 

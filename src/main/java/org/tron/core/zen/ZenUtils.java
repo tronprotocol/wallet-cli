@@ -10,6 +10,7 @@ import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.io.*;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
@@ -131,7 +132,7 @@ public class ZenUtils {
 
     byte[] inputCheck = new byte[index];
     System.arraycopy(memo, 0, inputCheck, 0, index);
-    return new String(inputCheck, Charset.forName("UTF-8"));
+    return new String(inputCheck, StandardCharsets.UTF_8);
   }
 
 
