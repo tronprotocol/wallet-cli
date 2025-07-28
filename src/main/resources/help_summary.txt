@@ -140,7 +140,7 @@
 | ExportWalletMnemonic                              | Export wallet mnemonic words                                            |
 | BackupWallet                                      | Backup the current wallet as private key                                |
 | BackupWallet2Base64                               | Backup wallet in base64 format                                          |
-| ViewBackupRecords                                 | View transaction history                                                |
+| ViewBackupRecords                                 | View backup records                                                     |
 | ClearWalletKeystore                               | Delete the keystore file and mnemonic words file                        |
 | ResetWallet                                       | Delete all keystore files and mnemonic words files                      |
 | CurrentNetwork                                    | Display current network                                                 |

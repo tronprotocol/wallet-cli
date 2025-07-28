@@ -42,7 +42,7 @@ public class TxHistoryViewer {
 
   private void printWelcome() {
     System.out.println("====================================");
-    System.out.println("   COMPLETE TRANSACTION VIEWER");
+    System.out.println("        TRANSACTION VIEWER");
     System.out.println("====================================");
   }
 
@@ -168,10 +168,10 @@ public class TxHistoryViewer {
 
   private void printHelp() {
     System.out.println("\n=== HELP ===");
-    System.out.println("1. View all transactions - Shows complete transaction history");
+    System.out.println("1. View all transactions - Shows transaction history");
     System.out.println("2. Filter by time range - Filters transactions between two timestamps");
     System.out.println("3. Help - Shows this help message");
-    System.out.println("4. Exit - Quits the application");
+    System.out.println("4. Exit - Quits the current view");
     System.out.println("\nWhile browsing pages:");
     System.out.println("n - Next page");
     System.out.println("p - Previous page");
