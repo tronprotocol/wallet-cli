@@ -81,7 +81,7 @@ public class BackupRecordsViewer {
 
   private void printRecords(List<BackupRecord> records) {
     System.out.printf("%-33s %-52s %-47s %-25s%n",
-        greenBoldHighlight("COMMAND"), greenBoldHighlight("FILE NAME"), greenBoldHighlight("LOGIN ADDRESS"), greenBoldHighlight("TIMESTAMP"));
+        greenBoldHighlight("COMMAND"), greenBoldHighlight("FILE NAME"), greenBoldHighlight("ADDRESS"), greenBoldHighlight("TIMESTAMP"));
     System.out.println("-------------------------------------------------------------------------------------------------------------------");
 
     for (BackupRecord br : records) {
