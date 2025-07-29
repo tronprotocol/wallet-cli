@@ -378,10 +378,16 @@ public class WalletApi {
     return decrypt2PrivateBytes(password, loadWalletFile());
   }
 
+  public Pair<byte[], WalletFile> getPair(byte[] password) throws CipherException, IOException {
+    WalletFile wf = loadWalletFile();
+    byte[] bytes = decrypt2PrivateBytes(password, wf);
+    return Pair.of(bytes, wf);
+  }
+
   public String exportKeystore(String walletChannel, File exportFullDir) throws IOException {
     String ret;
     try {
-      WalletFile wf = this.walletFile.get(0);
+      WalletFile wf = getWalletFile();
       String walletAddress = wf.getAddress();
       String walletHexAddress = getHexAddress(wf.getAddress());
       String originalAddress = wf.getAddress();

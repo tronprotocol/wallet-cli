@@ -649,13 +649,15 @@ public class WalletApiWrapper {
     char[] password = Utils.inputPassword(false);
     byte[] passwd = char2Byte(password);
     clear(password);
-    byte[] privateKey = wallet.getPrivateBytes(passwd);
+    Pair<byte[], WalletFile> pair = wallet.getPair(passwd);
     clear(passwd);
+    byte[] privateKey = pair.getLeft();
+    WalletFile wf = pair.getRight();
     if (ArrayUtils.isNotEmpty(privateKey)) {
       new BackupRecordManager().saveRecord(new BackupRecord(
           cmdName,
-          wallet.getWalletFile().getSourceFile().getName(),
-          encode58Check(wallet.getAddress()),
+          wf.getSourceFile().getName(),
+          wf.getAddress(),
           LocalDateTime.now()));
     }
     return privateKey;
