@@ -17,19 +17,20 @@ public class Tx {
   private LocalDateTime timestamp;
   private String status;
   private String note;
+  private String fullNodeEndpoint;
 
   public Tx() {
   }
 
-  public Tx(String id, String type, String from, String to, String amount, LocalDateTime timestamp, String status, String note) {
+  public Tx(String id, String type, String from, String to, String amount, LocalDateTime timestamp, String note, String fullNodeEndpoint) {
     this.id = Objects.requireNonNull(id);
     this.type = Objects.requireNonNull(type);
     this.from = Objects.requireNonNull(from);
     this.to = Objects.requireNonNull(to);
     this.amount = amount;
     this.timestamp = timestamp;
-    this.status = Objects.requireNonNull(status);
     this.note = note;
+    this.fullNodeEndpoint = fullNodeEndpoint;
   }
 
   public boolean isRelatedTo(String address) {
@@ -38,14 +39,15 @@ public class Tx {
 
   @Override
   public String toString() {
-    return String.format("Tx[id=%s, type=%s, from=%s, to=%s, amount=%d, timestamp=%s, status=%s]",
+    return String.format("Tx[id=%s, type=%s, from=%s, to=%s, amount=%s, timestamp=%s, note=%s, fullNodeEndpoint=%s]",
         id,
         type,
         from,
         to,
         amount,
         timestamp.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
-        status);
+        note,
+        fullNodeEndpoint);
   }
 
   private String abbreviate(String address) {

@@ -17,13 +17,15 @@ public class TxHistoryViewer {
   private final Scanner scanner;
   private static final DateTimeFormatter DATE_FORMAT =
       DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+  private static final DateTimeFormatter DATE_FORMAT_WITHOUT_SECOND =
+      DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
   public TxHistoryViewer(TxHistoryManager historyManager) {
     this.historyManager = historyManager;
     this.scanner = new Scanner(System.in);
   }
 
-  public void startInteractiveViewer(NetType netType) {
+  public void startInteractiveViewer(NetType netType, String fullnodeEndpoint) {
     printWelcome();
 
     while (true) {
@@ -31,8 +33,8 @@ public class TxHistoryViewer {
       String command = scanner.nextLine().trim().toLowerCase();
 
       switch (command) {
-        case "1": showTransactionList(netType); break;
-        case "2": showTransactionsByTimeRange(netType); break;
+        case "1": showTransactionList(netType, fullnodeEndpoint); break;
+        case "2": showTransactionsByTimeRange(netType, fullnodeEndpoint); break;
         case "3": printHelp(); break;
         case "4": return;
         default: System.out.println("Invalid command");
@@ -55,9 +57,9 @@ public class TxHistoryViewer {
     System.out.print("Select option: ");
   }
 
-  private void showTransactionList(NetType netType) {
+  private void showTransactionList(NetType netType, String fullnodeEndpoint) {
     int currentPage = 1;
-    int totalPages = historyManager.getUserTotalPages(netType);
+    int totalPages = historyManager.getUserTotalPages(netType, fullnodeEndpoint);
 
     if (totalPages == 0) {
       System.out.println("\nNo transactions found");
@@ -65,7 +67,7 @@ public class TxHistoryViewer {
     }
 
     while (true) {
-      List<Tx> transactions = historyManager.getUserTransactions(netType, currentPage);
+      List<Tx> transactions = historyManager.getUserTransactions(netType, fullnodeEndpoint, currentPage);
       printTransactionPage(transactions, currentPage, totalPages);
 
       System.out.print("\n[" + greenBoldHighlight("n") + "]Next [" + greenBoldHighlight("p") + "]Previous [" + greenBoldHighlight("q") + "]Back: ");
@@ -83,7 +85,7 @@ public class TxHistoryViewer {
     }
   }
 
-  private void showTransactionsByTimeRange(NetType netType) {
+  private void showTransactionsByTimeRange(NetType netType, String fullnodeEndpoint) {
     try {
       System.out.println("\n=== TIME RANGE FILTER ===");
       System.out.println("Format: yyyy-MM-dd HH:mm:ss (e.g. 2023-10-01 14:30:33)");
@@ -93,7 +95,7 @@ public class TxHistoryViewer {
       LocalDateTime end = getLocalDateTime("End time: ");
 
       int currentPage = 1;
-      int totalPages = historyManager.getUserTotalPagesByTimeRange(netType, start, end);
+      int totalPages = historyManager.getUserTotalPagesByTimeRange(netType, fullnodeEndpoint, start, end);
 
       if (totalPages == 0) {
         System.out.println("\nNo transactions found in this time range");
@@ -102,7 +104,7 @@ public class TxHistoryViewer {
 
       while (true) {
         List<Tx> transactions =
-            historyManager.getUserTransactionsByTimeRange(netType, start, end, currentPage);
+            historyManager.getUserTransactionsByTimeRange(netType, fullnodeEndpoint, start, end, currentPage);
         printTransactionPage(transactions, currentPage, totalPages);
 
         System.out.print("\n[" + greenBoldHighlight("n") + "]Next [" + greenBoldHighlight("p") + "]Previous [" + greenBoldHighlight("q") + "]Back: ");
@@ -140,18 +142,18 @@ public class TxHistoryViewer {
   private void printTransactionPage(List<Tx> transactions, int currentPage, int totalPages) {
     // Print table header
     System.out.printf("\n=== TRANSACTIONS (Page %d of %d) ===\n", currentPage, totalPages);
-    System.out.println("-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------");
-    System.out.printf("%-78s %-45s %-48s %-48s %-33s %-21s %-30s " +
+    System.out.println("----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------");
+    System.out.printf("%-78s %-45s %-48s %-48s %-33s %-30s " +
 //            "%-100s" +
             "\n",
-        greenBoldHighlight("ID"), greenBoldHighlight("TYPE"), greenBoldHighlight("OWNER ADDRESS"), greenBoldHighlight("ACTIVE/TO/CONTRACT ADDRESS"), greenBoldHighlight("AMOUNT"), greenBoldHighlight("STATUS"), greenBoldHighlight("TIME")
+        greenBoldHighlight("ID"), greenBoldHighlight("TYPE"), greenBoldHighlight("OWNER ADDRESS"), greenBoldHighlight("ACTIVE/TO/CONTRACT ADDRESS"), greenBoldHighlight("AMOUNT"), greenBoldHighlight("TIME")
 //        , greenBoldHighlight("NOTE")
     );
-    System.out.println("-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------");
+    System.out.println("----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------");
 
     // Print all transaction fields
     for (Tx tx : transactions) {
-      System.out.printf("%-65s %-32s %-35s %-35s %-20s %-8s %-17s" +
+      System.out.printf("%-65s %-32s %-35s %-35s %-20s %-17s" +
 //              " %-100s" +
               "\n",
           tx.getId(),
@@ -159,8 +161,8 @@ public class TxHistoryViewer {
           tx.getFrom(),
           tx.getTo(),
           tx.getAmount(),
-          tx.getStatus(),
-          tx.getTimestamp().format(DATE_FORMAT)
+//          tx.getStatus(),
+          tx.getTimestamp().format(DATE_FORMAT_WITHOUT_SECOND)
 //          , tx.getNote() != null ? tx.getNote() : ""
       );
     }

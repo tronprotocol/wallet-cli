@@ -448,22 +448,26 @@ public class WalletApiWrapper {
     int size = walletFileList.size();
     if (size > 1) {
       listWallets(walletFileList);
-      Scanner scanner = new Scanner(System.in);
-      System.out.println("\nEnter search term (Name or Address), or '" + greenBoldHighlight("Enter") + "' to end the search and then choose " + greenBoldHighlight("No.") + " to login.");
-      while (true) {
-        String input = scanner.nextLine().trim();
-        if (input.isEmpty()) {
-          break;
-        }
-        searchWallets(walletFileList, input);
-        System.out.println("\nEnter another search term or '" + greenBoldHighlight("Enter") + "' to end the search and then choose " + greenBoldHighlight("No.") + " to login.");
-      }
-
-      System.out.println("Please choose between " + greenBoldHighlight(1) + " and "
-          + greenBoldHighlight(size));
       Scanner in = new Scanner(System.in);
+      System.out.println("Please choose No. between " + greenBoldHighlight(1) + " and " + greenBoldHighlight(size)+ ", or enter " + greenBoldHighlight("search") + " to search wallets");
       while (true) {
         String input = in.nextLine().trim();
+        if ("search".equalsIgnoreCase(input)) {
+          System.out.println("Enter search term (Name or Address), or '" +
+              greenBoldHighlight("Enter") + "' to end search");
+          while (true) {
+            String searchInput = in.nextLine().trim();
+            if (searchInput.isEmpty()) {
+              break;
+            }
+            searchWallets(walletFileList, searchInput);
+            System.out.println("\nEnter another search term or '" +
+                greenBoldHighlight("Enter") + "' to end search");
+          }
+          System.out.println("Please choose No. between " + greenBoldHighlight(1) +
+              " and " + greenBoldHighlight(walletFileList.size()));
+          continue;
+        }
         String num = input.split("\\s+")[0];
         int n;
         try {
@@ -1898,7 +1902,7 @@ public class WalletApiWrapper {
     TxHistoryManager manager = new TxHistoryManager(encode58Check(wallet.getAddress()));
     TxHistoryViewer viewer = new TxHistoryViewer(manager);
     NetType netType = WalletApi.getCurrentNetwork();
-    viewer.startInteractiveViewer(netType);
+    viewer.startInteractiveViewer(netType, WalletApi.getCustomNodes().getLeft().getLeft());
   }
 
   public void viewBackupRecords() {
