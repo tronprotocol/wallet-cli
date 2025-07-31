@@ -43,7 +43,7 @@ repositories {
     maven { url 'https://jitpack.io' }
 }
 
-def protobufVersion = "3.25.5"
+def protobufVersion = "3.25.8"
 def grpcVersion = "1.60.0"
 
 sourceSets {
