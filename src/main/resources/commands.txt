@@ -763,12 +763,12 @@ wallet> ModifyWalletName myNewWallet
 Syntax:
 ViewBackupRecords
 Summary:
-View backup records.
+View backup records. You can configure the maximum number of records that `maxRecords` can retain in `config.conf`, excluding the number of buffer records.
 Usage example:
 wallet> ViewBackupRecords
 Syntax:
 ViewTransactionHistory
 Summary:
-View transaction history.
+View transaction history. You can configure the maximum number of records that `maxRecords` can retain in `config.conf`, excluding the number of buffer records.
 Usage example:
 wallet> ViewTransactionHistory

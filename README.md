@@ -2116,7 +2116,7 @@ Modify Wallet Name  successful !!
 ### View backup records
 > ViewBackupRecords
 
-View backup records.
+View backup records. You can configure the maximum number of records that `maxRecords` can retain in `config.conf`, excluding the number of buffer records.
 
 Example:
 ```console
@@ -2130,13 +2130,13 @@ Choose an option (1-2): 1
 ### View transaction history
 > ViewTransactionHistory
 
-View transaction history.
+View transaction history. You can configure the maximum number of records that `maxRecords` can retain in `config.conf`, excluding the number of buffer records.
 
 Example:
 ```console
 wallet> ViewTransactionHistory
 ====================================
-   COMPLETE TRANSACTION VIEWER
+        TRANSACTION VIEWER
 ====================================
 
 MAIN MENU:
