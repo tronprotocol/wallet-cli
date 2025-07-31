@@ -4,12 +4,15 @@ import static org.apache.commons.lang3.StringUtils.EMPTY;
 import static org.tron.common.enums.NetType.CUSTOM;
 import static org.tron.common.utils.CommandHelpUtil.getCommandHelp;
 import static org.tron.common.utils.Utils.EMPTY_STR;
+import static org.tron.common.utils.Utils.MAX_LENGTH;
+import static org.tron.common.utils.Utils.MIN_LENGTH;
 import static org.tron.common.utils.Utils.VERSION;
 import static org.tron.common.utils.Utils.blueBoldHighlight;
 import static org.tron.common.utils.Utils.failedHighlight;
 import static org.tron.common.utils.Utils.getLong;
 import static org.tron.common.utils.Utils.greenBoldHighlight;
 import static org.tron.common.utils.Utils.isValid;
+import static org.tron.common.utils.Utils.isValidWalletName;
 import static org.tron.common.utils.Utils.printBanner;
 import static org.tron.common.utils.Utils.printHelp;
 import static org.tron.common.utils.Utils.printStackTrace;
@@ -3971,6 +3974,11 @@ public class Client {
       return;
     }
     String newName = parameters[0];
+    if(!isValidWalletName(newName)) {
+      System.out.println("The wallet name "
+          + String.format("must be between %d and %d characters", MIN_LENGTH, MAX_LENGTH));
+      return;
+    }
     boolean success = walletApiWrapper.modifyWalletName(newName);
     if (success) {
       System.out.println("Modify Wallet Name " + successfulHighlight() + " !!");

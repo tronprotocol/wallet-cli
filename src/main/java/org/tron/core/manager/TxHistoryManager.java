@@ -1,5 +1,7 @@
 package org.tron.core.manager;
 
+import static org.tron.common.enums.NetType.CUSTOM;
+
 import com.typesafe.config.Config;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -110,7 +112,7 @@ public class TxHistoryManager {
         .collect(Collectors.toList());
   }
 
-  public List<Tx> getUserTransactions(NetType network, int page) {
+  public List<Tx> getUserTransactions(NetType network, String fullnodeEndpoint, int page) {
     Path filePath = getNetworkFilePath(network);
     if (!Files.exists(filePath)) {
       return Collections.emptyList();
@@ -122,6 +124,10 @@ public class TxHistoryManager {
           .filter(Optional::isPresent)
           .map(Optional::get)
           .filter(tx -> tx.isRelatedTo(currentUserAddress))
+          .filter(tx -> network != CUSTOM ||
+              (fullnodeEndpoint != null &&
+                  !fullnodeEndpoint.trim().isEmpty() &&
+                  fullnodeEndpoint.equals(tx.getFullNodeEndpoint())))
           .sorted(Comparator.comparing(Tx::getTimestamp).reversed())
           .skip((page - 1L) * PAGE_SIZE)
           .limit(PAGE_SIZE)
@@ -132,7 +138,7 @@ public class TxHistoryManager {
     }
   }
 
-  public List<Tx> getUserTransactionsByTimeRange(NetType network, LocalDateTime start, LocalDateTime end, int page) {
+  public List<Tx> getUserTransactionsByTimeRange(NetType network, String fullnodeEndpoint, LocalDateTime start, LocalDateTime end, int page) {
     Path filePath = getNetworkFilePath(network);
     if (!Files.exists(filePath)) {
       return Collections.emptyList();
@@ -146,6 +152,10 @@ public class TxHistoryManager {
           .filter(tx -> tx.isRelatedTo(currentUserAddress))
           .filter(tx -> !tx.getTimestamp().isBefore(start))
           .filter(tx -> !tx.getTimestamp().isAfter(end))
+          .filter(tx -> network != CUSTOM ||
+              (fullnodeEndpoint != null &&
+                  !fullnodeEndpoint.trim().isEmpty() &&
+                  fullnodeEndpoint.equals(tx.getFullNodeEndpoint())))
           .sorted(Comparator.comparing(Tx::getTimestamp).reversed())
           .skip((page - 1L) * PAGE_SIZE)
           .limit(PAGE_SIZE)
@@ -164,7 +174,7 @@ public class TxHistoryManager {
     }
   }
 
-  public int getUserTotalPages(NetType network) {
+  public int getUserTotalPages(NetType network, String fullnodeEndpoint) {
     Path filePath = getNetworkFilePath(network);
     if (!Files.exists(filePath)) {
       return 0;
@@ -176,6 +186,10 @@ public class TxHistoryManager {
           .filter(Optional::isPresent)
           .map(Optional::get)
           .filter(tx -> tx.isRelatedTo(currentUserAddress))
+          .filter(tx -> network != CUSTOM ||
+              (fullnodeEndpoint != null &&
+                  !fullnodeEndpoint.trim().isEmpty() &&
+                  fullnodeEndpoint.equals(tx.getFullNodeEndpoint())))
           .count();
 
       return (int) Math.ceil((double) count / PAGE_SIZE);
@@ -185,7 +199,7 @@ public class TxHistoryManager {
     }
   }
 
-  public int getUserTotalPagesByTimeRange(NetType network, LocalDateTime start, LocalDateTime end) {
+  public int getUserTotalPagesByTimeRange(NetType network, String fullnodeEndpoint, LocalDateTime start, LocalDateTime end) {
     Path filePath = getNetworkFilePath(network);
     if (!Files.exists(filePath)) {
       return 0;
@@ -199,6 +213,10 @@ public class TxHistoryManager {
           .filter(tx -> tx.isRelatedTo(currentUserAddress))
           .filter(tx -> !tx.getTimestamp().isBefore(start))
           .filter(tx -> !tx.getTimestamp().isAfter(end))
+          .filter(tx -> network != CUSTOM ||
+              (fullnodeEndpoint != null &&
+                  !fullnodeEndpoint.trim().isEmpty() &&
+                  fullnodeEndpoint.equals(tx.getFullNodeEndpoint())))
           .count();
 
       return (int) Math.ceil((double) count / PAGE_SIZE);
@@ -216,8 +234,9 @@ public class TxHistoryManager {
         StringUtils.isEmpty(tx.getTo()) ? DASH : tx.getTo(),
         StringUtils.isEmpty(tx.getAmount()) ? DASH : tx.getAmount(),
         tx.getTimestamp().format(TIMESTAMP_FORMAT),
-        tx.getStatus(),
-        StringUtils.isEmpty(tx.getNote()) ? DASH : tx.getNote()
+//        tx.getStatus(),
+        StringUtils.isEmpty(tx.getNote()) ? DASH : tx.getNote(),
+        StringUtils.isEmpty(tx.getFullNodeEndpoint()) ? DASH : tx.getFullNodeEndpoint()
     );
   }
 
@@ -233,8 +252,8 @@ public class TxHistoryManager {
           parts[3],                      // to
           parts[4],     // amount
           LocalDateTime.parse(parts[5], TIMESTAMP_FORMAT), // timestamp
-          parts[6],                       // status
-          parts[7]                       // note
+          parts[6],                       // note
+          parts[7]                       // fullNodeEndpoint
       ));
     } catch (Exception e) {
       System.err.println("Failed to parse transaction line: " + line);

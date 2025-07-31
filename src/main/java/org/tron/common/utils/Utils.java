@@ -610,7 +610,7 @@ public class Utils {
             tx.setType(contract.getType().name());
             tx.setFrom(encode58Check(triggerSmartContract.getOwnerAddress().toByteArray()));
             tx.setTo(encode58Check(triggerSmartContract.getContractAddress().toByteArray()));
-            setTransferParams(tx, triggerSmartContract);
+//            setTransferParams(tx, triggerSmartContract);
             break;
           case UpdateSettingContract:
             UpdateSettingContract updateSettingContract =
@@ -1340,16 +1340,16 @@ public class Utils {
 
     System.out.println(formatLine(
         String.valueOf(index + 1),
-        walletName,
         wf.getAddress(),
-        4, 15, 42));
+        walletName,
+        4, 42, 76));
   }
 
   public static void searchWallets(List<WalletFile> walletFileList, String searchTerm) {
-    String headerFormat = "%-4s %-15s %-42s";
+    String headerFormat = "%-4s %-42s %-76s";
     boolean found = false;
 
-    System.out.println(greenBoldHighlight(String.format(headerFormat, "No.", "Name", "Address")));
+    System.out.println(greenBoldHighlight(String.format(headerFormat, "No.", "Address", "Name")));
 
     for (int i = 0; i < walletFileList.size(); i++) {
       WalletFile wf = walletFileList.get(i);
@@ -1368,7 +1368,7 @@ public class Utils {
   }
 
   public static void listWallets(List<WalletFile> walletFileList) {
-    System.out.println("\n" + greenBoldHighlight(formatLine("No.", "Name", "Address", 4, 15, 42)));
+    System.out.println("\n" + greenBoldHighlight(formatLine("No.", "Address", "Name", 4, 42, 76)));
 
     IntStream.range(0, walletFileList.size())
         .mapToObj(i -> {
@@ -1377,13 +1377,13 @@ public class Utils {
               String.valueOf(i + 1),
               wf.getName(),
               wf.getAddress(),
-              4, 15, 42);
+              4, 42, 76);
         })
         .forEach(System.out::println);
   }
 
-  public static String formatLine(String no, String name, String address,
-                                   int noWidth, int nameWidth, int addrWidth) {
+  public static String formatLine(String no, String address, String name,
+                                  int noWidth, int addrWidth, int nameWidth) {
     String displayName = truncateToWidth(name, nameWidth);
 
     if (containsChinese(displayName)) {
@@ -1391,8 +1391,8 @@ public class Utils {
     }
 
     return padRight(no, noWidth) + " "
-        + padRight(displayName, nameWidth) + " "
-        + padRight(address, addrWidth);
+        + padRight(address, addrWidth) + " "
+        + padRight(displayName, nameWidth);
   }
 
   public static int getDisplayWidth(String str) {
@@ -1481,7 +1481,7 @@ public class Utils {
     walletFile.setName(walletName);
   }
 
-  private static boolean isValidWalletName(String name) {
+  public static boolean isValidWalletName(String name) {
     if (org.apache.commons.lang3.StringUtils.isEmpty(name)) {
       return false;
     }

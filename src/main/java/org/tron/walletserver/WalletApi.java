@@ -460,8 +460,8 @@ public class WalletApi {
   }
 
   private static void listWallets(File[] wallets) throws IOException {
-    String headerFormat = "%-4s %-15s %-42s";
-    System.out.println("\n" + greenBoldHighlight(String.format(headerFormat, "No.", "Name", "Address")));
+    String headerFormat = "%-4s %-42s %-76s";
+    System.out.println("\n" + greenBoldHighlight(String.format(headerFormat, "No.", "Address", "Name")));
 
     for (int i = 0; i < wallets.length; i++) {
       File f = wallets[i];
@@ -469,17 +469,17 @@ public class WalletApi {
       String walletName = StringUtils.isEmpty(wf.getName()) ? f.getName() : wf.getName();
       System.out.println(formatLine(
           String.valueOf(i + 1),
-          walletName,
           wf.getAddress(),
-          4, 15, 42));
+          walletName,
+          4, 42, 76));
     }
   }
 
   private static void searchWallets(File[] wallets, String searchTerm) throws IOException {
-    String headerFormat = "%-4s %-15s %-42s";
+    String headerFormat = "%-4s %-42s %-76s";
     boolean found = false;
 
-    System.out.println(greenBoldHighlight(String.format(headerFormat, "No.", "Name", "Address")));
+    System.out.println(greenBoldHighlight(String.format(headerFormat, "No.", "Address", "Name")));
 
     for (int i = 0; i < wallets.length; i++) {
       File f = wallets[i];
@@ -506,9 +506,9 @@ public class WalletApi {
     String walletName = StringUtils.isEmpty(wf.getName()) ? f.getName() : wf.getName();
     System.out.println(formatLine(
         String.valueOf(index + 1),
-        walletName,
         wf.getAddress(),
-        4, 15, 42));
+        walletName,
+        4, 42, 76));
   }
 
   public static File selcetWalletFile() throws IOException {
@@ -526,19 +526,26 @@ public class WalletApi {
     if (wallets.length > 1) {
       listWallets(wallets);
       Scanner scanner = new Scanner(System.in);
-      System.out.println("\nEnter search term (Name or Address), or '" + greenBoldHighlight("Enter") + "' to end the search and then choose " + greenBoldHighlight("No.") + " to login.");
+      System.out.println("Please choose No. between " + greenBoldHighlight(1) +
+          " and " + greenBoldHighlight(wallets.length) + ", or enter " + greenBoldHighlight("search") + " to search wallets");
       while (true) {
         String input = scanner.nextLine().trim();
-        if (input.isEmpty()) {
-          break;
+        if ("search".equalsIgnoreCase(input)) {
+          System.out.println("Enter search term (Name or Address), or '" +
+              greenBoldHighlight("Enter") + "' to end search");
+          while (true) {
+            String searchInput = scanner.nextLine().trim();
+            if (searchInput.isEmpty()) {
+              break;
+            }
+            searchWallets(wallets, searchInput);
+            System.out.println("\nEnter another search term or '" +
+                greenBoldHighlight("Enter") + "' to end search");
+          }
+          System.out.println("Please choose No. between " + greenBoldHighlight(1) +
+              " and " + greenBoldHighlight(wallets.length));
+          continue;
         }
-        searchWallets(wallets, input);
-        System.out.println("\nEnter another search term or '" + greenBoldHighlight("Enter") + "' to end the search and then choose " + greenBoldHighlight("No.") + " to login.");
-      }
-      System.out.println("Please choose No. between " + greenBoldHighlight(1) + " and " + greenBoldHighlight(wallets.length));
-      Scanner in = new Scanner(System.in);
-      while (true) {
-        String input = in.nextLine().trim();
         String num = input.split("\\s+")[0];
         int n;
         try {
@@ -842,6 +849,9 @@ public class WalletApi {
       tx.setId(id);
       tx.setTimestamp(LocalDateTime.now());
       tx.setStatus("success");
+      if (getCurrentNetwork() == CUSTOM && getCustomNodes() != null) {
+        tx.setFullNodeEndpoint(getCustomNodes().getLeft().getLeft());
+      }
       txHistoryManager.addTransaction(getCurrentNetwork(), tx);
     }
     return success;
@@ -888,6 +898,9 @@ public class WalletApi {
       tx.setId(id);
       tx.setTimestamp(LocalDateTime.now());
       tx.setStatus("success");
+      if (getCurrentNetwork() == CUSTOM && getCustomNodes() != null) {
+        tx.setFullNodeEndpoint(getCustomNodes().getLeft().getLeft());
+      }
       txHistoryManager.addTransaction(getCurrentNetwork(), tx);
     }
     return success;
