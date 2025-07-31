@@ -2795,7 +2795,12 @@ public class WalletApi {
   }
 
   public boolean modifyWalletName(String newName) throws IOException {
-    WalletFile wf = this.walletFile.get(0);
+    WalletFile wf = getWalletFile();
+    String originalName = wf.getName();
+    if (originalName != null && originalName.startsWith("Ledger-") &&
+        !newName.startsWith("Ledger-")) {
+      newName = "Ledger-" + newName;
+    }
     wf.setName(newName);
     String keystoreName = WalletApi.store2Keystore(wf);
     return StringUtils.isNotEmpty(keystoreName);

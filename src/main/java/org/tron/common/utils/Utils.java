@@ -1375,8 +1375,8 @@ public class Utils {
           WalletFile wf = walletFileList.get(i);
           return formatLine(
               String.valueOf(i + 1),
-              wf.getName(),
               wf.getAddress(),
+              wf.getName(),
               4, 42, 76);
         })
         .forEach(System.out::println);

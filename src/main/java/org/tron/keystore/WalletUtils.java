@@ -108,7 +108,14 @@ public class WalletUtils {
 
   public static String generateWalletFile(WalletFile walletFile, File destinationDirectory)
       throws IOException {
-    String fileName = getWalletFileName(walletFile);
+    String name = walletFile.getName();
+    String fileName;
+    if (StringUtils.isNotEmpty(name) && name.startsWith("Ledger-")) {
+      fileName = getLegerWalletFileName(walletFile);
+    } else {
+      fileName = getWalletFileName(walletFile);
+    }
+
     File destination = new File(destinationDirectory, fileName);
     objectMapper.writeValue(destination, walletFile);
     if (StringUtils.isEmpty(walletFile.getName())) {
