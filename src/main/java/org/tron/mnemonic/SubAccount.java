@@ -1,6 +1,22 @@
 package org.tron.mnemonic;
 
+import static org.apache.commons.lang3.StringUtils.isNumeric;
+import static org.tron.common.utils.Utils.blueBoldHighlight;
+import static org.tron.common.utils.Utils.failedHighlight;
+import static org.tron.common.utils.Utils.greenBoldHighlight;
+import static org.tron.common.utils.Utils.nameWallet;
+import static org.tron.common.utils.Utils.successfulHighlight;
+import static org.tron.common.utils.Utils.yellowBoldHighlight;
+import static org.tron.ledger.console.ConsoleColor.ANSI_BOLD;
+import static org.tron.ledger.console.ConsoleColor.ANSI_RED;
+import static org.tron.ledger.console.ConsoleColor.ANSI_RESET;
+
 import com.typesafe.config.Config;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Scanner;
 import lombok.Builder;
 import lombok.Data;
 import lombok.Getter;
@@ -20,22 +36,6 @@ import org.tron.core.config.Configuration;
 import org.tron.core.exception.CipherException;
 import org.tron.keystore.WalletFile;
 import org.tron.walletserver.WalletApi;
-
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Scanner;
-
-import static org.apache.commons.lang3.StringUtils.isNumeric;
-import static org.tron.common.utils.Utils.blueBoldHighlight;
-import static org.tron.common.utils.Utils.failedHighlight;
-import static org.tron.common.utils.Utils.greenBoldHighlight;
-import static org.tron.common.utils.Utils.successfulHighlight;
-import static org.tron.common.utils.Utils.yellowBoldHighlight;
-import static org.tron.ledger.console.ConsoleColor.ANSI_BOLD;
-import static org.tron.ledger.console.ConsoleColor.ANSI_RED;
-import static org.tron.ledger.console.ConsoleColor.ANSI_RESET;
 
 public class SubAccount {
   private final Terminal terminal;
@@ -231,6 +231,7 @@ public class SubAccount {
               , selected.privateKey
               , MnemonicUtils.stringToMnemonicWords(mnemonic)
           );
+          nameWallet(walletFile, false);
           String keystoreName = WalletApi.store2Keystore(walletFile);
           System.out.println(getStringByType(getType()) + successfulHighlight()
               + ", keystore file name is " + keystoreName);
@@ -334,6 +335,7 @@ public class SubAccount {
         , walletAddress.privateKey
         , MnemonicUtils.stringToMnemonicWords(mnemonic)
     );
+    nameWallet(walletFile, false);
     String keystoreName = WalletApi.store2Keystore(walletFile);
     System.out.println(getStringByType(getType()) + successfulHighlight() + ", keystore file name is " + keystoreName);
 

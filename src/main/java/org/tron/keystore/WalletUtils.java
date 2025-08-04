@@ -7,14 +7,6 @@ import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.typesafe.config.Config;
-import org.apache.commons.lang3.ArrayUtils;
-import org.tron.common.crypto.ECKey;
-import org.tron.common.crypto.SignInterface;
-import org.tron.common.crypto.sm2.SM2;
-import org.tron.common.utils.Utils;
-import org.tron.core.config.Configuration;
-import org.tron.core.exception.CipherException;
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -22,13 +14,18 @@ import java.nio.file.Paths;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
-import java.time.ZoneOffset;
-import java.time.ZonedDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
+import org.apache.commons.lang3.ArrayUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.tron.common.crypto.ECKey;
+import org.tron.common.crypto.SignInterface;
+import org.tron.common.crypto.sm2.SM2;
+import org.tron.common.utils.Utils;
+import org.tron.core.config.Configuration;
+import org.tron.core.exception.CipherException;
 
 /**
  * Utility functions for working with Wallet files.
@@ -111,10 +108,19 @@ public class WalletUtils {
 
   public static String generateWalletFile(WalletFile walletFile, File destinationDirectory)
       throws IOException {
-    String fileName = getWalletFileName(walletFile);
+    String name = walletFile.getName();
+    String fileName;
+    if (StringUtils.isNotEmpty(name) && name.startsWith("Ledger-")) {
+      fileName = getLegerWalletFileName(walletFile);
+    } else {
+      fileName = getWalletFileName(walletFile);
+    }
+
     File destination = new File(destinationDirectory, fileName);
     objectMapper.writeValue(destination, walletFile);
-    walletFile.setName(fileName);
+    if (StringUtils.isEmpty(walletFile.getName())) {
+      walletFile.setName(fileName);
+    }
     walletFile.setSourceFile(destination);
     return fileName;
   }
@@ -126,7 +132,9 @@ public class WalletUtils {
     File destination = new File(destinationDirectory, fileName);
 
     objectMapper.writeValue(destination, walletFile);
-    walletFile.setName(fileName);
+    if (StringUtils.isEmpty(walletFile.getName())) {
+      walletFile.setName(fileName);
+    }
     walletFile.setSourceFile(destination);
     return fileName;
   }
