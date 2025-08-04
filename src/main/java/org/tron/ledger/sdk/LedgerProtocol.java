@@ -1,5 +1,6 @@
 package org.tron.ledger.sdk;
 
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 
 import static org.tron.common.utils.ByteArray.toHexString;
@@ -65,7 +66,7 @@ public class LedgerProtocol {
     }
 
     byte[] finalResult = new byte[result.position()];
-    result.rewind();
+    ((Buffer) result).rewind();// JDK compatibility settings, cannot remove forced conversion type
     result.get(finalResult);
     return finalResult;
   }

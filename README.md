@@ -1,12 +1,16 @@
-# wallet-cli
+# Wallet-cli
 
-Welcome to use the Wallet-CLI.  
+Welcome to use the Wallet-cli.  
 
-If you need any help, please join the [Telegram](https://t.me/TronOfficialDevelopersGroupEn)
+Wallet-cli now supports [GasFree](https://gasfree.io) addresses, enable users to transfer tokens without paying gas fees. For more details, please check the [GasFree](#Gas-Free-Support) section below.
+
+The underlying implementation of all Wallet-cli gRPC APIs has all migrated to the [Trident SDK](https://github.com/tronprotocol/trident). This strategic move consolidates the underlying implementation of the Wallet-cli's remote procedure calls, standardizing them under the robust and optimized Trident framework. 
+
+If you need any help, please join the [Telegram](https://t.me/TronOfficialDevelopersGroupEn).
 
 ## Get started
 
-### Download wallet-cli
+### Download Wallet-cli
 
     git clone https://github.com/tronprotocol/wallet-cli.git
 
@@ -14,8 +18,7 @@ If you need any help, please join the [Telegram](https://t.me/TronOfficialDevelo
 
 ```
 net {
-  type = mainnet
-  # type = testnet
+ type = mainnet
 }
 
 fullnode = {
@@ -24,27 +27,55 @@ fullnode = {
   ]
 }
 
-soliditynode = {
-  // the IPs in this list can only be totally set to solidity or pBFT.
-  ip.list = [
-    "ip : solidity port" // default solidity
-  ]
+#soliditynode = {
+#  //The IPs in this list can only be totally set to solidity.
 #  ip.list = [
-#    "ip : pBFT port" // or pBFT
+#     "ip : solidity port" // default solidity
 #  ]
-} // NOTE: solidity node is optional
+#  // NOTE: solidity node is optional
+#}
 
-blockNumberStartToScan = 22690588 // NOTE: this field is optional
+# open ledger debug
+# ledger_debug = true
+
+# To use the lock and unlock function of the login account, it is necessary to configure
+# lockAccount = true in the config.conf. The current login account is locked, which means that
+# signatures and transactions are not allowed. After the current login account is locked, it can be
+# unlocked. By default, it will be unlocked again after 300 seconds. Unlocking can specify
+# parameters in seconds.
+
+# lockAccount = true
+
+# To use the gasfree feature, please first apply for an APIkey and apiSecret.
+# For details, please refer to
+# https://docs.google.com/forms/d/e/1FAIpQLSc5EB1X8JN7LA4SAVAG99VziXEY6Kv6JxmlBry9rUBlwI-GaQ/viewform
+gasfree = {
+  mainnet = {
+     apiKey = ""
+     apiSecret = ""
+  }
+  testnet = {
+     apiKey = ""
+     apiSecret = ""
+  }
+}
+
+# If gRPC requests on the main network are limited in speed, you can apply for an apiKey of Trongrid to improve the user experience
+grpc = {
+  mainnet = {
+    apiKey = ""
+  }
+}
+
 ```
 
 ### Run a web wallet
 
-- connect to fullNode and solidityNode
+- connect to fullNode
 
     Take a look at: [java-tron deployment](https://tronprotocol.github.io/documentation-en/developers/deployment/)
-    Run both fullNode and solidity node in either your local PC or remote server.
+    Run fullNode on either your local PC or a remote server.
 
-    NOTE: These nodes would consume a lot of memory and CPU. Please be aware if you do not use wallet, just kill them.
 - compile and run web wallet
 
     ```console
@@ -54,15 +85,16 @@ blockNumberStartToScan = 22690588 // NOTE: this field is optional
     $ java -jar wallet-cli.jar
     ```
 
-### Connect to java-tron
+### Connect to Java-tron
 
-Wallet-cli connect to java-tron via gRPC protocol, which can be deployed locally or remotely. Check **Run a web Wallet** section.
-We can configure java-tron node IP and port in ``src/main/resources/config.conf``, so that wallet-cli server can successfully talk to java-tron nodes.
+Wallet-cli connects to Java-tron via the gRPC protocol, which can be deployed locally or remotely. Check **Run a web Wallet** section.
+We can configure Java-tron node IP and port in ``src/main/resources/config.conf``, so that wallet-cli server can successfully talk to java-tron nodes.
+Besides that, you can simply use `SwitchNetwork` command to switch among the mainnet, testnets(Nile and Shasta) and custom networks. Please refer to the Switch Network section.
 
 ## Wallet-cli supported command list
 
 Following is a list of Tron Wallet-cli commands:
-For more information on a specific command, just type the command on terminal when you start your Wallet.
+For more information on a specific command, just type the command in the terminal when you start your Wallet.
 
 |     [AddTransactionSign](#How-to-use-the-multi-signature-feature-of-wallet-cli)     |         [ApproveProposal](#Approve--disapprove-a-proposal)          |                         [AssetIssue](#Issue-trc10-tokens)                         |
 |:-----------------------------------------------------------------------------------:|:-------------------------------------------------------------------:|:---------------------------------------------------------------------------------:|
@@ -104,7 +136,8 @@ For more information on a specific command, just type the command on terminal wh
 |                                  [Unlock](#unlock)                                  |                  [UpdateAccount](#update-account)                   | [UpdateAccountPermission](#How-to-use-the-multi-signature-feature-of-wallet-cli)  |
 |                  [UpdateAsset](#Update-parameters-of-trc10-token)                   |                    [UpdateBrokerage](#Brokerage)                    |              [UpdateEnergyLimit](#Update-smart-contract-parameters)               |
 |                 [UpdateSetting](#Update-smart-contract-parameters)                  |                  [UpdateWitness](#update-witness)                   |                            [VoteWitness](#How-to-vote)                            |
-|                        [WithdrawBalance](#withdraw-balance)                         |         [WithdrawExpireUnfreeze](#withdraw-expire-unfreeze)         |                                                                                   |
+|                        [WithdrawBalance](#withdraw-balance)                         |         [WithdrawExpireUnfreeze](#withdraw-expire-unfreeze)         |                      [ModifyWalletName](#Modify-wallet-name)                      |
+|                      [ViewBackupRecords](#View-backup-records)                      |         [ViewTransactionHistory](#View-transaction-history)         |                                                                                   |
 
 
 Type any one of the listed commands, to display how-to tips.
@@ -1801,7 +1834,7 @@ unlock  successful !!!
 
 ## switch network
     > SwitchNetwork
->This command allows for flexible network switching at any time. Unlocking can specify parameters in seconds.
+>This command allows for flexible network switching at any time.
 >`switchnetwork local` will switch to the network configured in local config.conf.
 
 Example:
@@ -1842,10 +1875,22 @@ wallet> currentnetwork
 current network: CUSTOM
 fullNode: EMPTY, solidityNode: localhost:50052
 ```
+## Gas Free Support
 
-## gas free info
-    > GasFreeInfo
->Get gasfree info of the current address.
+Wallet-cli now supports GasFree integration. This guide explains the new commands and provides instructions on how to use them.
+
+For more details, please refer to  [GasFree Documentation](https://gasfree.io/specification) and [TronLink User Guide For GasFree](https://support.tronlink.org/hc/en-us/articles/38903684778393-GasFree-User-Guide).
+
+Prerequisites
+API Credentials: Users must obtain the API Key and API Secret from GasFree for authentication. Please refer to the official [application form](https://docs.google.com/forms/d/e/1FAIpQLSc5EB1X8JN7LA4SAVAG99VziXEY6Kv6JxmlBry9rUBlwI-GaQ/viewform) for instructions on setting up API authentication.
+
+New Commands:
+
+### Gas Free info
+> GasFreeInfo
+Query GasFree Information
+Function: Retrieve the basic info, including the GasFree address associated with your current wallet address.
+Note: The GasFree address is automatically activated upon the first transfer, which may incur an activation fee.
 
 Example:
 ```console
@@ -1875,10 +1920,10 @@ balanceOf(address):70a08231
 }
 gasFreeInfo:  successful !!
 ```
-
-## gas free transfer
-    > GasFreeTransfer
->Transfer funds through gas-free.
+### Gas Free transfer
+> GasFreeTransfer
+Submit GasFree Transfer
+Function: Submit a gas-free token transfer request.
 
 Example:
 ```console
@@ -1910,9 +1955,10 @@ GasFreeTransfer result: {
 GasFreeTransfer  successful !!!
 ```
 
-## gas free trace
-    > GasFreeTrace
->Query GasFreeTrace to obtain transfer details by using the transaction ID returned by GasFreeTransfer as the traceId.
+### Gas Free trace
+> GasFreeTrace
+Track Transfer Status
+Function: Check the progress of a GasFree transfer using the traceId obtained from GasFreeTransfer.
 
 Example:
 ```console
@@ -2054,6 +2100,51 @@ Example:
 
 ```console
 > UpdateAccount test-name
+```
+
+### Modify wallet name
+> ModifyWalletName new_wallet_name
+
+Modify wallet's name.
+
+Example:
+```console
+wallet> ModifyWalletName new-name
+Modify Wallet Name  successful !!
+```
+
+### View backup records
+> ViewBackupRecords
+
+View backup records. You can configure the maximum number of records that `maxRecords` can retain in `config.conf`, excluding the number of buffer records.
+
+Example:
+```console
+wallet> ViewBackupRecords
+
+=== View Backup Records ===
+1. View all records
+2. Filter by time range
+Choose an option (1-2): 1
+```
+### View transaction history
+> ViewTransactionHistory
+
+View transaction history. You can configure the maximum number of records that `maxRecords` can retain in `config.conf`, excluding the number of buffer records.
+
+Example:
+```console
+wallet> ViewTransactionHistory
+====================================
+        TRANSACTION VIEWER
+====================================
+
+MAIN MENU:
+1. View all transactions
+2. Filter by time range
+3. Help
+4. Exit
+Select option: 1
 ```
 
 
