@@ -1,0 +1,49 @@
+net {
+ type = mainnet
+}
+
+fullnode = {
+  ip.list = [
+    "fullnode ip : port"
+  ]
+}
+
+#soliditynode = {
+#  //The IPs in this list can only be totally set to solidity.
+#  ip.list = [
+#     "ip : solidity port" // default solidity
+#  ]
+#  // NOTE: solidity node is optional
+#}
+
+# open ledger debug
+# ledger_debug = true
+
+# To use the lock and unlock function of the login account, it is necessary to configure
+# lockAccount = true in the config.conf. The current login account is locked, which means that
+# signatures and transactions are not allowed. After the current login account is locked, it can be
+# unlocked. By default, it will be unlocked again after 300 seconds. Unlocking can specify
+# parameters in seconds.
+
+# lockAccount = true
+
+# To use the gasfree feature, please first apply for an APIkey and apiSecret.
+# For details, please refer to
+# https://docs.google.com/forms/d/e/1FAIpQLSc5EB1X8JN7LA4SAVAG99VziXEY6Kv6JxmlBry9rUBlwI-GaQ/viewform
+gasfree = {
+  mainnet = {
+     apiKey = ""
+     apiSecret = ""
+  }
+  testnet = {
+     apiKey = ""
+     apiSecret = ""
+  }
+}
+
+# If gRPC requests on the main network are limited in speed, you can apply for an apiKey of Trongrid to improve the user experience
+grpc = {
+  mainnet = {
+    apiKey = "51dce97d-da14-40c1-b1f8-8f7d43f00de9"
+  }
+}
