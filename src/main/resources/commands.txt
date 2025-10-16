@@ -110,6 +110,12 @@ Get account details information.
 Usage example:
 wallet> GetAccount TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp
 Syntax:
+GetAccountById account_id
+Summary:
+Get account details information through account id.
+Usage example:
+wallet> GetAccountById 100
+Syntax:
 GetAccountNet address
 Summary:
 Get the bandwidth usage of the account.

@@ -194,6 +194,7 @@ public class Client {
       "SwitchNetwork",
       "SwitchWallet",
       "TransferAsset",
+      "TransferUSDT",
       "TriggerConstantContract",
       "TriggerContract",
       "UnDelegateResource",
@@ -3423,6 +3424,10 @@ public class Client {
               help(parameters);
               break;
             }
+            case "addressbook": {
+              addressBook();
+              break;
+            }
             case "registerwallet": {
               registerWallet();
               break;
@@ -3573,6 +3578,10 @@ public class Client {
             }
             case "sendcoin": {
               sendCoin(parameters);
+              break;
+            }
+            case "transferUSDT": {
+              transferUSDT(parameters);
               break;
             }
             case "transferasset": {
@@ -3949,6 +3958,41 @@ public class Client {
     }
   }
 
+  private void transferUSDT(String[] parameters) {
+    if (parameters == null || (parameters.length != 2 && parameters.length != 3)) {
+      System.out.println("TransferUSDT needs 2 parameters like following: ");
+      System.out.println("TransferUSDT [OwnerAddress] ToAddress Amount");
+      return;
+    }
+
+    int index = 0;
+    byte[] ownerAddress = null;
+    if (parameters.length == 3) {
+      ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
+      if (ownerAddress == null) {
+        System.out.println("Invalid OwnerAddress.");
+        return;
+      }
+    }
+
+    String base58ToAddress = parameters[index++];
+    byte[] toAddress = WalletApi.decodeFromBase58Check(base58ToAddress);
+    if (toAddress == null) {
+      System.out.println("Invalid toAddress.");
+      return;
+    }
+
+    String amountStr = parameters[index++];
+    long amount = Long.parseLong(amountStr);
+
+//    boolean result = walletApiWrapper.transferUSDT(ownerAddress, toAddress, amount);
+//    if (result) {
+//      System.out.println("Transfer " + amount + " to " + base58ToAddress + " " + successfulHighlight() + " !!");
+//    } else {
+//      System.out.println("Transfer " + amount + " to " + base58ToAddress + " " + failedHighlight() + " !!");
+//    }
+  }
+
   private void viewBackupRecords(String[] parameters) {
     if (parameters.length > 0) {
       System.out.println("viewBackupRecords needs no parameters like the following: ");
@@ -3965,6 +4009,11 @@ public class Client {
       return;
     }
     walletApiWrapper.viewTransactionHistory();
+  }
+
+
+  private void addressBook() {
+    walletApiWrapper.addressBook();
   }
 
   private void modifyWalletName(String[] parameters) throws IOException {

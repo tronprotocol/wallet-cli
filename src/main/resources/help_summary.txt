@@ -1,10 +1,11 @@
 +---------------------------------------------------+-------------------------------------------------------------------------+
 |                   COMMAND                         |                       SUMMARY                                           |
 +---------------------------------------------------+-------------------------------------------------------------------------+
-|                ACCOUNT MANAGEMENT (11)            |                                                                         |
+|                ACCOUNT MANAGEMENT (12)            |                                                                         |
 +---------------------------------------------------+-------------------------------------------------------------------------+
 | GenerateAddress                                   | Generate an address and print out the address and private key           |
 | GetAccount                                        | Get account details information                                         |
+| GetAccountById                                    | Get account details information through account id                      |
 | GetAddress                                        | Get the address of the current account                                  |
 | GetBalance                                        | Get the current TRX balance of the account                              |
 | CreateAccount                                     | Activating an account                                                   |

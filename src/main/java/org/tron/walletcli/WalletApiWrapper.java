@@ -81,6 +81,7 @@ import org.tron.common.utils.Utils;
 import org.tron.core.dao.BackupRecord;
 import org.tron.core.dao.Tx;
 import org.tron.core.manager.BackupRecordManager;
+import org.tron.core.viewer.AddressBookView;
 import org.tron.core.viewer.BackupRecordsViewer;
 import org.tron.core.viewer.TxHistoryViewer;
 import org.tron.core.config.Configuration;
@@ -1912,5 +1913,10 @@ public class WalletApiWrapper {
     }
     BackupRecordsViewer recordsViewer = new BackupRecordsViewer();
     recordsViewer.viewBackupRecords();
+  }
+
+  public void addressBook() {
+    AddressBookView addressBookView = new AddressBookView();
+    addressBookView.viewAddressBook();
   }
 }
