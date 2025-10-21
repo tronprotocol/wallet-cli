@@ -1,0 +1,564 @@
+package org.tron.core.manager;
+
+import static org.tron.common.utils.ByteUtil.hexStringToIntegerList;
+import static org.tron.common.utils.ByteUtil.integerListToHexString;
+import static org.tron.walletserver.WalletApi.addressValid;
+
+import com.alibaba.fastjson.JSON;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Scanner;
+import java.util.Set;
+import java.util.stream.Collectors;
+import lombok.Getter;
+import lombok.Setter;
+import org.bouncycastle.util.encoders.Hex;
+import org.tron.trident.proto.Chain.Transaction.Contract.ContractType;
+import org.tron.trident.proto.Common;
+import org.tron.trident.proto.Response;
+import org.tron.walletserver.WalletApi;
+
+public class UpdateAccountPermissionInteractive {
+  private final Scanner scanner = new Scanner(System.in);
+  private final PermissionData data = new PermissionData();
+//  private static final List<Integer> ALL_OPERATIONS = Arrays.asList(
+//      0, 1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 13,
+//      14, 15, 16, 17, 18, 19, 20, 30, 31, 32, 33,
+//      41, 42, 43, 44, 45, 46, 48, 49, 52, 53, 54,
+//      55, 56, 57, 58, 59
+//  );
+  private static final List<Integer> ALL_OPERATIONS = Arrays.asList(
+      0, 1, 2, 4, 5, 6, 8, 9, 10, 11, 12, 13,
+      14, 15, 16, 17, 18, 30, 31, 33,
+      41, 42, 43, 44, 45, 46, 48, 49, 54,
+      55, 56, 57, 58, 59
+  );
+  private static final Map<String, String> operationsMap = new HashMap<>();
+
+  static {
+    operationsMap.put("0", "Activate Account");
+    operationsMap.put("1", "Transfer TRX");
+    operationsMap.put("2", "Transfer TRC10");
+    operationsMap.put("4", "Vote");
+    operationsMap.put("5", "Apply to Become a SR Candidate");
+    operationsMap.put("6", "Issue TRC10");
+    operationsMap.put("8", "Update SR Info");
+    operationsMap.put("9", "Participate in TRC10 Issuance");
+    operationsMap.put("10", "Update Account Name");
+    operationsMap.put("11", "TRX Stake (1.0)");
+    operationsMap.put("12", "TRX Unstake (1.0)");
+    operationsMap.put("13", "Claim Voting Rewards");
+    operationsMap.put("14", "Unstake TRC10");
+    operationsMap.put("15", "Update TRC10 Parameters");
+    operationsMap.put("16", "Create Proposal");
+    operationsMap.put("17", "Approve Proposal");
+    operationsMap.put("18", "Cancel Proposal");
+    operationsMap.put("30", "Create Smart Contract");
+    operationsMap.put("31", "Trigger Smart Contract");
+    operationsMap.put("33", "Update Contract Parameters");
+    operationsMap.put("41", "Create Bancor Transaction");
+    operationsMap.put("42", "Inject Assets into Bancor Transaction");
+    operationsMap.put("43", "Withdraw Assets from Bancor Transaction");
+    operationsMap.put("44", "Execute Bancor Transaction");
+    operationsMap.put("45", "Update Contract Energy Limit");
+    operationsMap.put("46", "Update Account Permissions");
+    operationsMap.put("48", "Clear Contract ABI");
+    operationsMap.put("49", "Update SR Commission Ratio");
+    operationsMap.put("54", "TRX Stake (2.0)");
+    operationsMap.put("55", "TRX Unstake (2.0)");
+    operationsMap.put("56", "Withdraw Unstaked TRX");
+    operationsMap.put("57", "Delegate Resources");
+    operationsMap.put("58", "Reclaim Resources");
+    operationsMap.put("59", "Cancel Unstake");
+  }
+
+  public String start(String address) {
+    System.out.println("=== UpdateAccountPermission Interactive Mode ===");
+    Response.Account account = WalletApi.queryAccount(WalletApi.decodeFromBase58Check(address));
+    if (account == null || Response.Account.getDefaultInstance().equals(account)) {
+      throw new IllegalArgumentException("The account to which this address " + address + " belongs "
+          + "does not exist in the current network. Please check.");
+    }
+    data.setOwnerAddress(address);
+
+    data.setOwnerPermission(convert2PermissionProto(account.getOwnerPermission()));
+    data.setWitnessPermission(convert2PermissionProto(account.getWitnessPermission()));
+    List<Permission> activePermissions = account.getActivePermissionList().stream()
+        .map(this::convert2PermissionProto).collect(Collectors.toList());
+    data.setActivePermissions(activePermissions);
+    while (true) {
+      System.out.println("\nSelect permission to modify:");
+      System.out.println("1. owner_permission");
+      System.out.println("2. witness_permission");
+      System.out.println("3. active_permissions");
+      System.out.println("4. Add new active_permission");
+      System.out.println("5. Delete active_permission");
+      System.out.println("6. Show JSON and Confirm");
+      System.out.println("7. Exit");
+      System.out.print("> ");
+      String choice = scanner.nextLine().trim();
+
+      switch (choice) {
+        case "1":
+          editPermission(data.getOwnerPermission(), "owner_permission");
+          break;
+        case "2":
+          editPermission(data.getWitnessPermission(), "witness_permission");
+          break;
+        case "3":
+          editActivePermissions();
+          break;
+        case "4":
+          addActivePermission();
+          break;
+        case "5":
+          deleteActivePermission();
+          break;
+        case "6":
+          return showFinalSummary();
+        case "7":
+          System.out.println("Exiting interactive mode.");
+          throw new IllegalArgumentException("Already exited interactive mode.");
+        default:
+          System.out.println("Invalid option.");
+      }
+    }
+  }
+
+  private Permission convert2PermissionProto(Common.Permission protoPermission) {
+    if (protoPermission == null || Common.Permission.getDefaultInstance().equals(protoPermission)) {
+      return null;
+    }
+    Permission permission = new Permission();
+    permission.setPermissionName(protoPermission.getPermissionName());
+    permission.setThreshold(protoPermission.getThreshold());
+    permission.setType(protoPermission.getTypeValue());
+    List<Key> keys = protoPermission.getKeysList().stream().map(o -> new Key(WalletApi.encode58Check(o.getAddress().toByteArray()), o.getWeight())).collect(Collectors.toList());
+    if (protoPermission.getType() == Common.Permission.PermissionType.Active) {
+      permission.setOperations(Hex.toHexString(protoPermission.getOperations().toByteArray()));
+    }
+    permission.setKeys(keys);
+    return permission;
+  }
+
+  private void editPermission(Permission permission, String name) {
+    System.out.println("\nEditing " + name + "...");
+    System.out.print("Enter permission_name (current: " + permission.getPermissionName() + "): ");
+    String pname = scanner.nextLine().trim();
+    if (!pname.isEmpty()) permission.setPermissionName(pname);
+
+    System.out.print("Enter threshold (current: " + permission.getThreshold() + "): ");
+    String th = scanner.nextLine().trim();
+    if (!th.isEmpty()) permission.setThreshold(Integer.parseInt(th));
+
+    editKeys(permission);
+  }
+
+  private void editKeys(Permission permission) {
+    while (true) {
+      System.out.println("\nKeys(Authorized To) for " + permission.getPermissionName() + ":");
+      for (int i = 0; i < permission.getKeys().size(); i++) {
+        Key key = permission.getKeys().get(i);
+        System.out.println((i + 1) + ". " + key.getAddress() + " (weight=" + key.getWeight() + ")");
+      }
+      System.out.println();
+      System.out.println("1. Add key(Authorized To)");
+      System.out.println("2. Modify key(Authorized To)");
+      if (permission.getKeys().size() > 1) {
+        System.out.println("3. Delete key(Authorized To)");
+      }
+      System.out.println("4. Back");
+      System.out.print("> ");
+      String choice = scanner.nextLine().trim();
+
+      switch (choice.toLowerCase()) {
+        case "1":
+          System.out.print("Enter key(Authorized To) address: ");
+          String addr = scanner.nextLine().trim();
+          if (addr.isEmpty()) {
+            System.out.println("Address cannot be empty.");
+            break;
+          }
+          if (!addressValid(addr)) {
+            System.out.println("Invalid address format. Please enter a valid Base58 address.");
+            break;
+          }
+
+          System.out.print("Enter key(Authorized To) weight: ");
+          String weightInput = scanner.nextLine().trim();
+          int weight;
+          try {
+            weight = Integer.parseInt(weightInput);
+            if (weight <= 0) {
+              System.out.println("Weight must be greater than 0.");
+              break;
+            }
+          } catch (NumberFormatException e) {
+            System.out.println("Invalid weight. Please enter an integer number.");
+            break;
+          }
+
+          permission.getKeys().add(new Key(addr, weight));
+          break;
+
+        case "2":
+          if (permission.getKeys().isEmpty()) {
+            System.out.println("No keys(Authorized To) to modify.");
+            break;
+          }
+          System.out.print("Enter key(Authorized To) index to modify: ");
+          int midx = Integer.parseInt(scanner.nextLine().trim()) - 1;
+          if (midx >= 0 && midx < permission.getKeys().size()) {
+            Key keyToEdit = permission.getKeys().get(midx);
+            System.out.println("Editing key(Authorized To) #" + (midx + 1));
+            System.out.print("New address (blank to keep current: " + keyToEdit.getAddress() + "): ");
+            String newAddr = scanner.nextLine().trim();
+            if (!newAddr.isEmpty()) keyToEdit.address = newAddr;
+
+            System.out.print("New weight (blank to keep current: " + keyToEdit.getWeight() + "): ");
+            String newWeight = scanner.nextLine().trim();
+            if (!newWeight.isEmpty()) keyToEdit.weight = Integer.parseInt(newWeight);
+
+            System.out.println("Key(Authorized To) updated.");
+          } else {
+            System.out.println("Invalid index.");
+          }
+          break;
+
+        case "3":
+          if (permission.getKeys().isEmpty()) {
+            System.out.println("No keys(Authorized To) to delete.");
+            break;
+          }
+          System.out.print("Enter key(Authorized To) index to delete: ");
+          int idx = Integer.parseInt(scanner.nextLine().trim()) - 1;
+          if (idx >= 0 && idx < permission.getKeys().size()) {
+            permission.getKeys().remove(idx);
+            System.out.println("Key(Authorized To) removed.");
+          } else {
+            System.out.println("Invalid index.");
+          }
+          break;
+        case "4":
+          return;
+        default:
+          System.out.println("Invalid input.");
+      }
+    }
+  }
+
+  private void editActivePermissions() {
+    List<Permission> actives = data.getActivePermissions();
+    if (actives.isEmpty()) {
+      System.out.println("No active permissions. You can add one first.");
+      return;
+    }
+
+    System.out.println("\nActive permissions:");
+    for (int i = 0; i < actives.size(); i++) {
+      Permission p = actives.get(i);
+      System.out.println((i + 1) + ". " + p.getPermissionName());
+    }
+
+    System.out.print("Enter index to edit: ");
+    int idx = Integer.parseInt(scanner.nextLine().trim()) - 1;
+    if (idx < 0 || idx >= actives.size()) {
+      System.out.println("Invalid index.");
+      return;
+    }
+
+    Permission p = actives.get(idx);
+
+    System.out.print("Enter new permission_name (current: " + p.getPermissionName() + "): ");
+    String pname = scanner.nextLine().trim();
+    if (!pname.isEmpty()) p.setPermissionName(pname);
+
+    System.out.print("Enter new threshold (current: " + p.getThreshold() + "): ");
+    String th = scanner.nextLine().trim();
+    if (!th.isEmpty()) p.setThreshold(Integer.parseInt(th));
+
+    List<Integer> currentOps = hexStringToIntegerList(p.getOperations());
+    Collections.sort(currentOps);
+
+    while (true) {
+      System.out.println("\nCurrent allowed operations:");
+      for (int i = 0; i < currentOps.size(); i++) {
+        int code = currentOps.get(i);
+        System.out.println((i + 1) + ". " + operationsMap.get(String.valueOf(code))
+            + " -> " + ContractType.forNumber(code).name() + "(" + code + ")");
+      }
+
+      System.out.println("\nOperations editing:");
+      System.out.println("1. Delete existing operation(s)");
+      System.out.println("2. Add new operation(s)");
+      System.out.println("3. Back");
+      System.out.print("> ");
+      String choice = scanner.nextLine().trim();
+
+      if ("1".equals(choice)) {
+        if (currentOps.isEmpty()) {
+          System.out.println("No operations to delete.");
+          continue;
+        }
+
+        System.out.println("Current operations can be deleted:");
+        for (int i = 0; i < currentOps.size(); i++) {
+          int code = currentOps.get(i);
+          System.out.println((i + 1) + ". " + operationsMap.get(String.valueOf(code))
+              + " -> " + ContractType.forNumber(code).name() + "(" + code + ")");
+        }
+
+        System.out.print("Enter indexes to delete (comma separated): ");
+        String delInput = scanner.nextLine().trim();
+        if (!delInput.matches("^[0-9]+(,[0-9]+)*$")) {
+          System.out.println("Invalid format.");
+          continue;
+        }
+
+        String[] parts = delInput.split(",");
+        Set<Integer> toDelete = new HashSet<>();
+        for (String part : parts) {
+          int delIdx = Integer.parseInt(part.trim()) - 1;
+          if (delIdx >= 0 && delIdx < currentOps.size()) {
+            toDelete.add(currentOps.get(delIdx));
+          } else {
+            System.out.println("Ignored invalid index: " + (delIdx + 1));
+          }
+        }
+
+        currentOps.removeAll(toDelete);
+        System.out.println("Deleted selected operations.");
+
+      } else if ("2".equals(choice)) {
+        List<Integer> available = new ArrayList<>();
+        for (Integer op : ALL_OPERATIONS) {
+          if (!currentOps.contains(op)) available.add(op);
+        }
+        if (available.isEmpty()) {
+          System.out.println("No more operations to add.");
+          continue;
+        }
+
+        System.out.println("Available operations to add:");
+        for (int i = 0; i < available.size(); i++) {
+          int code = available.get(i);
+          System.out.println((i + 1) + ". " + operationsMap.get(String.valueOf(code))
+              + " -> " + ContractType.forNumber(code).name() + "(" + code + ")");
+        }
+
+        System.out.print("Enter indexes to add (comma separated): ");
+        String addInput = scanner.nextLine().trim();
+        if (!addInput.matches("^[0-9]+(,[0-9]+)*$")) {
+          System.out.println("Invalid format.");
+          continue;
+        }
+
+        String[] parts = addInput.split(",");
+        for (String part : parts) {
+          int addIdx = Integer.parseInt(part.trim()) - 1;
+          if (addIdx >= 0 && addIdx < available.size()) {
+            currentOps.add(available.get(addIdx));
+          } else {
+            System.out.println("Ignored invalid index: " + (addIdx + 1));
+          }
+        }
+
+      } else if ("3".equals(choice)) {
+        break;
+      } else {
+        System.out.println("Invalid input.");
+      }
+    }
+
+    Set<Integer> uniqueOps = new LinkedHashSet<>(currentOps);
+    currentOps = new ArrayList<>(uniqueOps);
+    Collections.sort(currentOps);
+    p.setOperations(integerListToHexString(currentOps));
+
+    editKeys(p);
+  }
+
+  private void addActivePermission() {
+    Permission p = new Permission();
+    p.setType(2);
+
+    System.out.print("Enter permission_name: ");
+    p.setPermissionName(scanner.nextLine().trim());
+
+    System.out.print("Enter threshold: ");
+    p.setThreshold(Integer.parseInt(scanner.nextLine().trim()));
+
+    System.out.println("Available operations:");
+    for (int i = 0; i < ALL_OPERATIONS.size(); i++) {
+      int op = ALL_OPERATIONS.get(i);
+      System.out.println((i + 1) + ". " + operationsMap.get(String.valueOf(op)) + " -> "
+          + ContractType.forNumber(op).name() + "(" + op + ")");
+    }
+
+    List<Integer> selectedOps = new ArrayList<>();
+    String opsInput;
+
+    while (true) {
+      System.out.print("Enter indexes to allow (comma separated, e.g. 1,3,5): ");
+      opsInput = scanner.nextLine().trim();
+
+      if (opsInput.isEmpty()) {
+        System.out.println("Operations cannot be empty. Please select at least one operation.");
+        continue;
+      }
+
+      if (!opsInput.matches("^[0-9]+(,[0-9]+)*$")) {
+        System.out.println("Invalid format. Please enter comma-separated numbers like: 1,2,3");
+        continue;
+      }
+
+      String[] parts = opsInput.split(",");
+      boolean valid = true;
+      for (String part : parts) {
+        int idx = Integer.parseInt(part.trim());
+        if (idx < 1 || idx > ALL_OPERATIONS.size()) {
+          System.out.println("Invalid index: " + idx + " (valid range: 1–" + ALL_OPERATIONS.size() + ")");
+          valid = false;
+          break;
+        }
+        selectedOps.add(ALL_OPERATIONS.get(idx - 1));
+      }
+
+      if (valid) break;
+      else selectedOps.clear();
+    }
+
+    Set<Integer> uniqueOps = new LinkedHashSet<>(selectedOps);
+    selectedOps = new ArrayList<>(uniqueOps);
+
+    Collections.sort(selectedOps);
+    p.setOperations(integerListToHexString(selectedOps));
+
+    editKeys(p);
+
+    data.getActivePermissions().add(p);
+    System.out.println("Added new active permission: " + p.getPermissionName());
+  }
+
+  private void deleteActivePermission() {
+    List<Permission> actives = data.getActivePermissions();
+    if (actives.isEmpty()) {
+      System.out.println("No active permissions to delete.");
+      return;
+    }
+
+    for (int i = 0; i < actives.size(); i++) {
+      System.out.println((i + 1) + ". " + actives.get(i).getPermissionName());
+    }
+    System.out.print("Enter index to delete: ");
+    int idx = Integer.parseInt(scanner.nextLine().trim()) - 1;
+    if (idx >= 0 && idx < actives.size()) {
+      actives.remove(idx);
+      System.out.println("Deleted.");
+    } else {
+      System.out.println("Invalid index.");
+    }
+  }
+
+  private String showFinalSummary() {
+    System.out.println("The preview of your updated account permissions is as follows:");
+    System.out.println(JSON.toJSONString(data.toTronJson(), true));
+    return JSON.toJSONString(data.toTronJson());
+  }
+
+  @Getter
+  @Setter
+  static class PermissionData {
+    private String ownerAddress;
+    private Permission ownerPermission = Permission.defaultOwner();
+    private Permission witnessPermission = Permission.defaultWitness();
+    private List<Permission> activePermissions = new ArrayList<>();
+
+    public Map<String, Object> toTronJson() {
+      Map<String, Object> json = new LinkedHashMap<>();
+      json.put("owner_permission", ownerPermission.toJson());
+      if (witnessPermission != null) {
+        json.put("witness_permission", witnessPermission.toJson());
+      }
+      List<Map<String, Object>> list = new ArrayList<>();
+      for (Permission p : activePermissions) list.add(p.toJson());
+      json.put("active_permissions", list);
+      return json;
+    }
+  }
+
+  @Getter
+  @Setter
+  static class Permission {
+    private int type;
+    private String permissionName;
+    private long threshold;
+    private String operations;
+    private List<Key> keys = new ArrayList<>();
+
+    static Permission defaultOwner() {
+      Permission p = new Permission();
+      p.type = 0;
+      p.permissionName = "owner";
+      p.threshold = 1;
+      p.keys.add(new Key("your_owner_address", 1));
+      return p;
+    }
+
+    static Permission defaultWitness() {
+      Permission p = new Permission();
+      p.type = 1;
+      p.permissionName = "witness";
+      p.threshold = 1;
+      p.keys.add(new Key("your_witness_address", 1));
+      return p;
+    }
+
+    public Map<String, Object> toJson() {
+      Map<String, Object> m = new LinkedHashMap<>();
+      m.put("type", type);
+      m.put("permission_name", permissionName);
+      m.put("threshold", threshold);
+      if (type == 2) m.put("operations", operations);
+      List<Map<String, Object>> keyList = new ArrayList<>();
+      for (Key k : keys) keyList.add(k.toJson());
+      m.put("keys", keyList);
+      return m;
+    }
+  }
+
+  static class Key {
+    private String address;
+    private long weight;
+
+    Key(String address, long weight) {
+      this.address = address;
+      this.weight = weight;
+    }
+
+    public Map<String, Object> toJson() {
+      Map<String, Object> m = new LinkedHashMap<>();
+      m.put("address", address);
+      m.put("weight", weight);
+      return m;
+    }
+
+    public String getAddress() {
+      return address;
+    }
+
+    public long getWeight() {
+      return weight;
+    }
+  }
+
+}
+
+

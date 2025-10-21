@@ -68,6 +68,7 @@ import org.tron.common.utils.PathUtil;
 import org.tron.common.utils.Utils;
 import org.tron.core.exception.CancelException;
 import org.tron.core.exception.CipherException;
+import org.tron.core.manager.UpdateAccountPermissionInteractive;
 import org.tron.keystore.StringUtils;
 import org.tron.ledger.TronLedgerGetAddress;
 import org.tron.ledger.listener.TransactionSignManager;
@@ -2986,19 +2987,36 @@ public class Client {
 
   private void updateAccountPermission(String[] parameters)
       throws CipherException, IOException, CancelException, IllegalException {
-    if (parameters == null || parameters.length != 2) {
+    if (parameters.length > 2) {
       System.out.println(
-          "Using updateAccountPermission needs 2 parameters, like UpdateAccountPermission ownerAddress permissions, permissions is a JSON formatted string.");
+          "Using updateAccountPermission needs 2 parameters or no parameters, like UpdateAccountPermission or UpdateAccountPermission ownerAddress permissions, permissions is a JSON formatted string.");
       return;
     }
+    String ownerAddressStr = EMPTY;
+    String permissionJsonStr = EMPTY;
+    if (parameters.length == 0) {
+      String address = walletApiWrapper.getAddress();
+      String permissionData = new UpdateAccountPermissionInteractive().start(address);
+      ownerAddressStr = address;
+      permissionJsonStr = permissionData;
+    }
+    if (parameters.length == 1) {
+      String permissionData = new UpdateAccountPermissionInteractive().start(parameters[0]);
+      ownerAddressStr = parameters[0];
+      permissionJsonStr = permissionData;
+    }
+    if (parameters.length == 2) {
+      ownerAddressStr = parameters[0];
+      permissionJsonStr = parameters[1];
+    }
 
-    byte[] ownerAddress = WalletApi.decodeFromBase58Check(parameters[0]);
+    byte[] ownerAddress = WalletApi.decodeFromBase58Check(ownerAddressStr);
     if (ownerAddress == null) {
       System.out.println("GetContract: invalid address!");
       return;
     }
 
-    boolean ret = walletApiWrapper.accountPermissionUpdate(ownerAddress, parameters[1]);
+    boolean ret = walletApiWrapper.accountPermissionUpdate(ownerAddress, permissionJsonStr);
     if (ret) {
       System.out.println("UpdateAccountPermission " + successfulHighlight() + " !!!");
     } else {
