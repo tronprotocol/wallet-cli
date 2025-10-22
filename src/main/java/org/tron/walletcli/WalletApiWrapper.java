@@ -1333,6 +1333,24 @@ public class WalletApiWrapper {
             isConstant, false).getLeft();
   }
 
+  public Pair<Boolean, Long> getUsdtBalance(byte[] ownerAddress)
+      throws Exception {
+    if (wallet == null || !wallet.isLoginState()) {
+      // Reference Gasfree balance, login is required to query, as historical methods are reused
+      System.out.println("Warning: getUsdtBalance " + failedHighlight() + ",  Please login first !!");
+      return Pair.of(false, 0L);
+    }
+    if (ArrayUtils.isEmpty(ownerAddress)) {
+      ownerAddress = wallet.getAddress();
+    }
+    byte[] d = Hex.decode(AbiUtil.parseMethod("balanceOf(address)",
+        "\"" + encode58Check(ownerAddress) + "\"", false));
+    NetType netType = WalletApi.getCurrentNetwork();
+    byte[] contractAddress = WalletApi.decodeFromBase58Check(netType.getUsdtAddress());
+    return wallet.triggerContract(ownerAddress, contractAddress,
+        0, d, 0, 0, EMPTY, true, false);
+  }
+
   public boolean estimateEnergy(byte[] ownerAddress, byte[] contractAddress, long callValue,
                                 byte[] data, long tokenValue, String tokenId)
       throws CipherException, IOException, CancelException {

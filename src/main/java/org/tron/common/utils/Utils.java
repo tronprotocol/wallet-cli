@@ -71,6 +71,7 @@ import org.tron.api.GrpcAPI.TransactionListExtention;
 import org.tron.api.GrpcAPI.TransactionSignWeight;
 import org.tron.common.crypto.Hash;
 import org.tron.common.crypto.Sha256Sm3Hash;
+import org.tron.common.enums.NetType;
 import org.tron.core.dao.Tx;
 import org.tron.keystore.StringUtils;
 import org.tron.keystore.WalletFile;
@@ -610,7 +611,11 @@ public class Utils {
             tx.setType(contract.getType().name());
             tx.setFrom(encode58Check(triggerSmartContract.getOwnerAddress().toByteArray()));
             tx.setTo(encode58Check(triggerSmartContract.getContractAddress().toByteArray()));
-//            setTransferParams(tx, triggerSmartContract);
+            NetType netType = WalletApi.getCurrentNetwork();
+            if (netType.getUsdtAddress().equals(encode58Check(triggerSmartContract.getContractAddress().toByteArray()))) {
+              setTransferParams(tx, triggerSmartContract);
+              tx.setType(contract.getType().name() + "(transferUSDT)");
+            }
             break;
           case UpdateSettingContract:
             UpdateSettingContract updateSettingContract =

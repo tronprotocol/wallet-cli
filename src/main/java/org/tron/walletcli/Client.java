@@ -2,6 +2,9 @@ package org.tron.walletcli;
 
 import static org.apache.commons.lang3.StringUtils.EMPTY;
 import static org.tron.common.enums.NetType.CUSTOM;
+import static org.tron.common.enums.NetType.MAIN;
+import static org.tron.common.enums.NetType.NILE;
+import static org.tron.common.enums.NetType.SHASTA;
 import static org.tron.common.utils.CommandHelpUtil.getCommandHelp;
 import static org.tron.common.utils.Utils.EMPTY_STR;
 import static org.tron.common.utils.Utils.MAX_LENGTH;
@@ -22,6 +25,8 @@ import static org.tron.keystore.StringUtils.char2Byte;
 import static org.tron.ledger.console.ConsoleColor.ANSI_RED;
 import static org.tron.ledger.console.ConsoleColor.ANSI_RESET;
 
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.google.common.primitives.Longs;
@@ -29,6 +34,8 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.File;
 import java.io.IOException;
 import java.math.BigInteger;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
@@ -43,8 +50,11 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.bouncycastle.util.encoders.Hex;
@@ -66,8 +76,10 @@ import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.ByteUtil;
 import org.tron.common.utils.PathUtil;
 import org.tron.common.utils.Utils;
+import org.tron.core.dao.Tx;
 import org.tron.core.exception.CancelException;
 import org.tron.core.exception.CipherException;
+import org.tron.core.manager.TxHistoryManager;
 import org.tron.core.manager.UpdateAccountPermissionInteractive;
 import org.tron.keystore.StringUtils;
 import org.tron.ledger.TronLedgerGetAddress;
@@ -167,6 +179,7 @@ public class Client {
       "GetTransactionInfoByBlockNum",
       "GetTransactionInfoById",
       "GetTransactionSignWeight",
+      "GetUsdtBalance",
       "Help",
       "ImportWallet",
       "ImportWalletByMnemonic",
@@ -3598,8 +3611,16 @@ public class Client {
               sendCoin(parameters);
               break;
             }
-            case "transferUSDT": {
+            case "transferusdt": {
               transferUSDT(parameters);
+              break;
+            }
+            case "getusdttransferbyid": {
+              getUsdtTransferById(parameters);
+              break;
+            }
+            case "getusdtbalance": {
+              getUsdtBalance(parameters);
               break;
             }
             case "transferasset": {
@@ -3976,9 +3997,87 @@ public class Client {
     }
   }
 
-  private void transferUSDT(String[] parameters) {
+  private void getUsdtTransferById(String[] parameters) throws IOException {
+    NetType netType = WalletApi.getCurrentNetwork();
+    if (netType != MAIN && netType != NILE && netType != SHASTA) {
+      System.out.println("This command does not support the current network.");
+      return;
+    }
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("GetUsdtTransferById needs 1 parameter like the following: ");
+      System.out.println("GetUsdtTransferById txId ");
+      return;
+    }
+    String txId = parameters[0];
+    TxHistoryManager txHistoryManager = new TxHistoryManager();
+    Path filePath = txHistoryManager.getNetworkFilePath(netType);
+    txHistoryManager.ensureNetworkDirectoryExists(netType);
+    List<Tx> txs = new ArrayList<>();
+    try (Stream<String> lines = Files.lines(filePath)) {
+      txs = Files.exists(filePath) ? lines
+          .filter(line -> !line.trim().isEmpty()).map(txHistoryManager::lineToTx)
+          .filter(Optional::isPresent)
+          .map(Optional::get).collect(Collectors.toList()) : new ArrayList<>();
+    } catch (IOException e) {
+      System.err.println("Failed to count transactions: " + e.getMessage());
+    }
+    Optional<Tx> foundTx = txs.stream()
+        .filter(tx -> tx.getId().equals(txId))
+        .findFirst();
+
+    if (foundTx.isPresent()) {
+      Tx tx = foundTx.get();
+      JSONObject json = new JSONObject(true);
+      json.put("id", tx.getId());
+      json.put("type", tx.getType());
+      json.put("from", tx.getFrom());
+      json.put("to", tx.getTo());
+      json.put("amount", Long.parseLong(tx.getAmount()));
+      String prefix = netType == MAIN ? EMPTY : (netType.name().toLowerCase() + ".");
+      json.put("tronscanQueryUrl", String.format("https://%stronscan.org/#/transaction/%s", prefix, txId));
+      System.out.println(JSON.toJSONString(json, true));
+    } else {
+      System.out.println("The USDT transfer you inquired about does not exist.");
+    }
+  }
+
+  private void getUsdtBalance(String[] parameters) throws Exception {
+    NetType netType = WalletApi.getCurrentNetwork();
+    if (netType != MAIN && netType != NILE && netType != SHASTA) {
+      System.out.println("This command does not support the current network.");
+      return;
+    }
+    byte[] ownerAddress;
+    if (ArrayUtils.isEmpty(parameters)) {
+      ownerAddress = null;
+    } else if (parameters.length == 1) {
+      ownerAddress = WalletApi.decodeFromBase58Check(parameters[0]);
+      if (ownerAddress == null) {
+        System.out.println("The address you entered is invalid.");
+        return;
+      }
+    } else {
+      System.out.println("GetUsdtBalance needs no parameter or 1 parameter like the following: ");
+      System.out.println("GetUsdtBalance Address ");
+      return;
+    }
+    Pair<Boolean, Long> pair = walletApiWrapper.getUsdtBalance(ownerAddress);
+    if (Boolean.TRUE.equals(pair.getLeft())) {
+      long balance = pair.getRight();
+      System.out.println("USDT balance = " + balance);
+    } else {
+      System.out.println("GetUsdtBalance " + failedHighlight() + " !!!!");
+    }
+  }
+
+  private void transferUSDT(String[] parameters) throws Exception {
+    NetType netType = WalletApi.getCurrentNetwork();
+    if (netType != MAIN && netType != NILE && netType != SHASTA) {
+      System.out.println("This command does not support the current network.");
+      return;
+    }
     if (parameters == null || (parameters.length != 2 && parameters.length != 3)) {
-      System.out.println("TransferUSDT needs 2 parameters like following: ");
+      System.out.println("TransferUSDT needs at least 2 parameters like following: ");
       System.out.println("TransferUSDT [OwnerAddress] ToAddress Amount");
       return;
     }
@@ -3992,23 +4091,20 @@ public class Client {
         return;
       }
     }
-
     String base58ToAddress = parameters[index++];
-    byte[] toAddress = WalletApi.decodeFromBase58Check(base58ToAddress);
-    if (toAddress == null) {
-      System.out.println("Invalid toAddress.");
-      return;
+    String amountStr = parameters[index];
+    String inputStr = String.format("\"%s\",%s", base58ToAddress, amountStr);
+    final String methodStr = "transfer(address,uint256)";
+    byte[] input = Hex.decode(AbiUtil.parseMethod(methodStr, inputStr, false));
+    byte[] contractAddress = WalletApi.decodeFromBase58Check(netType.getUsdtAddress());
+    boolean result = walletApiWrapper.callContract(
+        ownerAddress, contractAddress, 0, input, 1000000000, 0, "", false);
+    if (result) {
+      System.out.println("Transfer " + amountStr + " to " + base58ToAddress + " " + successfulHighlight() + ".\n"
+          + "Please check the given transaction id to get the result on blockchain using getTransactionInfoById command");
+    } else {
+      System.out.println("Transfer " + amountStr + " to " + base58ToAddress + " " + failedHighlight() + ".");
     }
-
-    String amountStr = parameters[index++];
-    long amount = Long.parseLong(amountStr);
-
-//    boolean result = walletApiWrapper.transferUSDT(ownerAddress, toAddress, amount);
-//    if (result) {
-//      System.out.println("Transfer " + amount + " to " + base58ToAddress + " " + successfulHighlight() + " !!");
-//    } else {
-//      System.out.println("Transfer " + amount + " to " + base58ToAddress + " " + failedHighlight() + " !!");
-//    }
   }
 
   private void viewBackupRecords(String[] parameters) {

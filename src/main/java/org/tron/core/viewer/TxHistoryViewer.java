@@ -142,18 +142,18 @@ public class TxHistoryViewer {
   private void printTransactionPage(List<Tx> transactions, int currentPage, int totalPages) {
     // Print table header
     System.out.printf("\n=== TRANSACTIONS (Page %d of %d) ===\n", currentPage, totalPages);
-    System.out.println("----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------");
-    System.out.printf("%-78s %-45s %-48s %-48s %-33s %-30s " +
+    System.out.println("-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------");
+    System.out.printf("%-78s %-48s %-48s %-48s %-33s %-30s " +
 //            "%-100s" +
             "\n",
         greenBoldHighlight("ID"), greenBoldHighlight("TYPE"), greenBoldHighlight("OWNER ADDRESS"), greenBoldHighlight("ACTIVE/TO/CONTRACT ADDRESS"), greenBoldHighlight("AMOUNT"), greenBoldHighlight("TIME")
 //        , greenBoldHighlight("NOTE")
     );
-    System.out.println("----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------");
+    System.out.println("-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------");
 
     // Print all transaction fields
     for (Tx tx : transactions) {
-      System.out.printf("%-65s %-32s %-35s %-35s %-20s %-17s" +
+      System.out.printf("%-65s %-35s %-35s %-35s %-20s %-17s" +
 //              " %-100s" +
               "\n",
           tx.getId(),
