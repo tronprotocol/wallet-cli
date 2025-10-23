@@ -19,6 +19,7 @@ import static org.tron.common.utils.Utils.isValidWalletName;
 import static org.tron.common.utils.Utils.printBanner;
 import static org.tron.common.utils.Utils.printHelp;
 import static org.tron.common.utils.Utils.printStackTrace;
+import static org.tron.common.utils.Utils.redBoldHighlight;
 import static org.tron.common.utils.Utils.successfulHighlight;
 import static org.tron.keystore.StringUtils.byte2Char;
 import static org.tron.keystore.StringUtils.char2Byte;
@@ -31,8 +32,10 @@ import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.google.common.primitives.Longs;
 import com.google.protobuf.InvalidProtocolBufferException;
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.math.BigInteger;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -103,6 +106,7 @@ public class Client {
 
   // note: this is sorted by alpha
   private static String[] commandList = {
+      "AddressBook",
       "AddTransactionSign",
       "ApproveProposal",
       "AssetIssue",
@@ -180,6 +184,7 @@ public class Client {
       "GetTransactionInfoById",
       "GetTransactionSignWeight",
       "GetUsdtBalance",
+      "GetUsdtTransferById",
       "Help",
       "ImportWallet",
       "ImportWalletByMnemonic",
@@ -205,6 +210,7 @@ public class Client {
       "ResetWallet",
       "SendCoin",
       "SetAccountId",
+      "ShowReceivingQrCode",
       "SwitchNetwork",
       "SwitchWallet",
       "TransferAsset",
@@ -3973,6 +3979,10 @@ public class Client {
               unlock(parameters);
               break;
             }
+            case "showreceivingqrcode": {
+              showReceivingQrCode();
+              break;
+            }
             default: {
               System.out.println("Invalid cmd: " + cmd);
               help(new String[]{});
@@ -3994,6 +4004,45 @@ public class Client {
       }
     } catch (IOException e) {
       System.out.println("\nBye.");
+    }
+  }
+
+  private void showReceivingQrCode() {
+    String address = walletApiWrapper.getAddress();
+    if (address == null) {
+      return;
+    }
+
+    ProcessBuilder pb = new ProcessBuilder("qrencode", "-t", "ANSIUTF8", address);
+    pb.redirectErrorStream(true);
+    try {
+      Process process = pb.start();
+
+      try (BufferedReader reader = new BufferedReader(
+          new InputStreamReader(process.getInputStream()))) {
+        String line;
+        while ((line = reader.readLine()) != null) {
+          System.out.println(line);
+        }
+      }
+
+      int exitCode = process.waitFor();
+      if (exitCode != 0) {
+        System.err.println("Warning: qrencode exited with code " + exitCode);
+      }
+    } catch (IOException | InterruptedException e) {
+      System.out.println(redBoldHighlight("Failed to generate QR code: " + e.getMessage()));
+      System.out.println(redBoldHighlight("Error: 'qrencode' command not found. Please install it first."));
+      System.out.println("Qrencode terminal installation command:");
+      System.out.println(greenBoldHighlight("Debian/Ubuntu:"));
+      System.out.println("sudo apt update && sudo apt install qrencode");
+      System.out.println(greenBoldHighlight("RHEL/CentOS:"));
+      System.out.println("sudo yum install epel-release && sudo yum install qrencode");
+      System.out.println(greenBoldHighlight("Fedora:"));
+      System.out.println("sudo dnf install qrencode");
+      System.out.println(greenBoldHighlight("macOS:"));
+      System.out.println("brew install qrencode");
+      Thread.currentThread().interrupt();
     }
   }
 
