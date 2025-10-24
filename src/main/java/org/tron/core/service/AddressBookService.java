@@ -1,5 +1,7 @@
 package org.tron.core.service;
 
+import static org.tron.common.utils.Utils.greenBoldHighlight;
+
 import java.io.*;
 import java.util.*;
 import org.tron.core.dao.AddressEntry;
@@ -23,7 +25,7 @@ public class AddressBookService {
       String line;
       while ((line = br.readLine()) != null) {
         if (line.trim().isEmpty()) continue;
-        String[] parts = line.split(",", 3); // 最多分3段
+        String[] parts = line.split(",", 3);
         String name = parts.length > 0 ? parts[0].trim() : "";
         String address = parts.length > 1 ? parts[1].trim() : "";
         String note = parts.length > 2 ? parts[2].trim() : "";
@@ -85,8 +87,8 @@ public class AddressBookService {
       System.out.println("The address book is empty.");
       return;
     }
-    System.out.printf("%-15s %-35s %s%n", "Name", "Address", "Note");
-    System.out.println("--------------------------------------------------------------------------");
+    System.out.printf("%-28s %-48s %s%n", greenBoldHighlight("Name"), greenBoldHighlight("Address"), greenBoldHighlight("Note"));
+    System.out.println("-------------------------------------------------------------------------");
     entries.forEach(System.out::println);
   }
 

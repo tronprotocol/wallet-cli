@@ -1,7 +1,6 @@
 package org.tron.core.viewer;
 
 import java.util.Scanner;
-import org.tron.core.manager.TxHistoryManager;
 import org.tron.core.service.AddressBookInteractive;
 import org.tron.core.service.AddressBookService;
 
@@ -34,7 +33,7 @@ public class AddressBookView {
     System.out.println("1. addAddress");
     System.out.println("2. editAddress");
     System.out.println("3. delAddress");
-    System.out.println("4. getAddressBook");
+    System.out.println("4. getAddressBook & exit");
     System.out.print("Select option: ");
   }
 }

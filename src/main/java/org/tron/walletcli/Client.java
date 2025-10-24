@@ -62,10 +62,14 @@ import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.bouncycastle.util.encoders.Hex;
 import org.hid4java.HidDevice;
+import org.jline.reader.Candidate;
 import org.jline.reader.Completer;
 import org.jline.reader.EndOfFileException;
 import org.jline.reader.LineReader;
 import org.jline.reader.LineReaderBuilder;
+import org.jline.reader.impl.DefaultParser;
+import org.jline.reader.impl.completer.ArgumentCompleter;
+import org.jline.reader.impl.completer.NullCompleter;
 import org.jline.reader.impl.completer.StringsCompleter;
 import org.jline.terminal.Terminal;
 import org.jline.terminal.TerminalBuilder;
@@ -79,11 +83,13 @@ import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.ByteUtil;
 import org.tron.common.utils.PathUtil;
 import org.tron.common.utils.Utils;
+import org.tron.core.dao.AddressEntry;
 import org.tron.core.dao.Tx;
 import org.tron.core.exception.CancelException;
 import org.tron.core.exception.CipherException;
 import org.tron.core.manager.TxHistoryManager;
 import org.tron.core.manager.UpdateAccountPermissionInteractive;
+import org.tron.core.service.AddressBookService;
 import org.tron.keystore.StringUtils;
 import org.tron.ledger.TronLedgerGetAddress;
 import org.tron.ledger.listener.TransactionSignManager;
@@ -3432,11 +3438,40 @@ public class Client {
     System.out.println();
 
     try {
-      Terminal terminal = TerminalBuilder.builder().system(true).dumb(true).build();
+      Terminal terminal = TerminalBuilder.builder().system(true)
+          .dumb(true)
+          .nativeSignals(true).build();
+      DefaultParser parser = new DefaultParser();
       Completer commandCompleter = new StringsCompleter(commandList);
+      Completer addressCompleter = (reader, line, candidates) -> {
+        List<AddressEntry> addressEntries = new AddressBookService().getEntries();
+        for (int i = 0; i < addressEntries.size(); i++) {
+          AddressEntry entry = addressEntries.get(i);
+          candidates.add(new Candidate(
+              entry.getAddress(),
+              entry.getAddress(),
+              null,
+              entry.getDisplayString(i + 1),
+              null,
+              null,
+              false
+          ));
+        }
+      };
+      Completer completer = new ArgumentCompleter(
+          commandCompleter,
+          addressCompleter,
+          addressCompleter,
+          NullCompleter.INSTANCE
+      );
+
       LineReader lineReader = LineReaderBuilder.builder()
           .terminal(terminal)
-          .completer(commandCompleter)
+          .parser(parser)
+          .completer(completer)
+          .variable(LineReader.SECONDARY_PROMPT_PATTERN, "%M%P > ")
+          .variable(LineReader.INDENTATION, 2)
+          .option(LineReader.Option.AUTO_FRESH_LINE, true)
           .option(LineReader.Option.CASE_INSENSITIVE, true)
           .build();
       String prompt = "wallet> ";

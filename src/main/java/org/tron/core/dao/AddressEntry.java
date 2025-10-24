@@ -24,4 +24,8 @@ public class AddressEntry {
   public String toFileString() {
     return String.join(",", name, address, note == null ? "" : note);
   }
+
+  public String getDisplayString(int index) {
+    return String.format("%d. %s (%s) - %s", index, name, address, note);
+  }
 }
