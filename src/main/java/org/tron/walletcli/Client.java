@@ -25,6 +25,7 @@ import static org.tron.keystore.StringUtils.byte2Char;
 import static org.tron.keystore.StringUtils.char2Byte;
 import static org.tron.ledger.console.ConsoleColor.ANSI_RED;
 import static org.tron.ledger.console.ConsoleColor.ANSI_RESET;
+import static org.tron.walletserver.WalletApi.addressValid;
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
@@ -36,7 +37,9 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.math.RoundingMode;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -54,6 +57,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
+import java.util.Scanner;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -89,6 +93,7 @@ import org.tron.core.exception.CancelException;
 import org.tron.core.exception.CipherException;
 import org.tron.core.manager.TxHistoryManager;
 import org.tron.core.manager.UpdateAccountPermissionInteractive;
+import org.tron.core.service.AddressBookInteractive;
 import org.tron.core.service.AddressBookService;
 import org.tron.keystore.StringUtils;
 import org.tron.ledger.TronLedgerGetAddress;
@@ -802,7 +807,9 @@ public class Client {
       System.out.println("GetBalance " + failedHighlight() + " !!!!");
     } else {
       long balance = account.getBalance();
-      System.out.println("Balance = " + balance + " SUN = " + balance / 1000000 + " TRX");
+      BigDecimal trx = BigDecimal.valueOf(balance)
+          .divide(BigDecimal.valueOf(1_000_000), 6, RoundingMode.DOWN);
+      System.out.println("Balance = " + balance + " SUN = " + trx.toPlainString() + " TRX");
     }
   }
 
@@ -1078,6 +1085,56 @@ public class Client {
     } else {
       System.out.println("Send " + amount + " Sun to " + base58ToAddress + " " + failedHighlight() + " !!");
     }
+    askToSaveAddress(base58ToAddress);
+  }
+
+  private void askToSaveAddress(String toAddress) {
+    Scanner scanner = new Scanner(System.in);
+    AddressBookService addressBook = new AddressBookService();
+
+    // Check for existing entry
+    boolean exists = addressBook.getEntries().stream()
+        .anyMatch(e -> e.getAddress().equalsIgnoreCase(toAddress));
+    if (exists) {
+      System.out.println("This address already exists in your address book.");
+      return;
+    }
+
+    // Ask user if they want to save
+    System.out.printf("Would you like to save this address (%s) to your address book? (y/N): ", toAddress);
+    String confirm = scanner.nextLine().trim();
+    if (!confirm.equalsIgnoreCase("y")) {
+      System.out.println("Skipped saving address.");
+      return;
+    }
+
+    // Required name input
+    String name;
+    while (true) {
+        System.out.print("Enter a name for this address (required, must be unique): ");
+        name = scanner.nextLine().trim();
+        if (name.isEmpty()) {
+          System.out.println(redBoldHighlight(name) + " cannot be empty. Please enter again.");
+            continue;
+        }
+
+      String finalName = name;
+      boolean nameExists = addressBook.getEntries().stream()
+            .anyMatch(e -> e.getName().equalsIgnoreCase(finalName));
+        if (nameExists) {
+            System.out.printf("The name '%s' already exists. Please use another name.%n", redBoldHighlight(finalName));
+            continue;
+        }
+        break;
+    }
+
+    // Optional note
+    System.out.print("Enter a note (optional): ");
+    String note = scanner.nextLine().trim();
+
+    // Save
+    addressBook.add(name, toAddress, note);
+    System.out.println("Address saved " + greenBoldHighlight("successfully") + ".");
   }
 
   private void transferAsset(String[] parameters)
@@ -2775,7 +2832,7 @@ public class Client {
     }
 
     walletApiWrapper.callContract(
-        ownerAddress, null, callValue, Hex.decode(codeStr), 0, tokenValue, tokenId, true);
+        ownerAddress, null, callValue, Hex.decode(codeStr), 0, tokenValue, tokenId, true, false);
   }
 
   private void triggerContract(String[] parameters)
@@ -2822,7 +2879,7 @@ public class Client {
     byte[] contractAddress = WalletApi.decodeFromBase58Check(contractAddrStr);
 
     boolean result = walletApiWrapper.callContract(
-        ownerAddress, contractAddress, callValue, input, feeLimit, tokenValue, tokenId, false);
+        ownerAddress, contractAddress, callValue, input, feeLimit, tokenValue, tokenId, false, false);
     if (result) {
       System.out.println("Broadcast the TriggerContract " + successfulHighlight() + ".\n"
           + "Please check the given transaction id to get the result on blockchain using getTransactionInfoById command");
@@ -2886,7 +2943,7 @@ public class Client {
     }
 
     walletApiWrapper.callContract(
-        ownerAddress, contractAddress, callValue, input, 0, tokenValue, tokenId, true);
+        ownerAddress, contractAddress, callValue, input, 0, tokenValue, tokenId, true, false);
   }
 
   private void estimateEnergy(String[] parameters)
@@ -3474,6 +3531,12 @@ public class Client {
           .option(LineReader.Option.AUTO_FRESH_LINE, true)
           .option(LineReader.Option.CASE_INSENSITIVE, true)
           .build();
+//      KeyMap<Binding> keyMap = lineReader.getKeyMaps().get(LineReader.MAIN);
+//
+//      Binding tabBinding = keyMap.getBound("\t");
+//      if (tabBinding != null) {
+//        keyMap.bind(tabBinding, " ");
+//      }
       String prompt = "wallet> ";
 
       while (true) {
@@ -4176,19 +4239,47 @@ public class Client {
       }
     }
     String base58ToAddress = parameters[index++];
+    if (!addressValid(base58ToAddress)) {
+      System.out.println(redBoldHighlight("Invalid") + " address format. Please enter a valid Base58 address.");
+      return;
+    }
     String amountStr = parameters[index];
+    long amount = 0;
+    try {
+      amount = Long.parseLong(amountStr);
+    } catch (NumberFormatException e) {
+      System.out.println("Incorrect amount format, please check.");
+    }
+    // valid amount
+    Pair<Boolean, Long> pair = walletApiWrapper.getUsdtBalance(ownerAddress);
+    if (Boolean.TRUE.equals(pair.getLeft())) {
+      long balance = pair.getRight();
+      if (amount > balance) {
+        System.out.println("The usdt balance(" + balance + ") is insufficient.");
+        return;
+      }
+      System.out.println("USDT balance = " + balance);
+    } else {
+      System.out.println("GetUsdtBalance " + failedHighlight() + " !!!!");
+      return;
+    }
     String inputStr = String.format("\"%s\",%s", base58ToAddress, amountStr);
     final String methodStr = "transfer(address,uint256)";
     byte[] input = Hex.decode(AbiUtil.parseMethod(methodStr, inputStr, false));
     byte[] contractAddress = WalletApi.decodeFromBase58Check(netType.getUsdtAddress());
+    //  Estimate bandwidth and energy
+    walletApiWrapper.callContract(
+        ownerAddress, contractAddress, 0, input, 0, 0, "", true, true);
+
     boolean result = walletApiWrapper.callContract(
-        ownerAddress, contractAddress, 0, input, 1000000000, 0, "", false);
+        ownerAddress, contractAddress, 0, input, 1000000000, 0, "", false, false);
     if (result) {
-      System.out.println("Transfer " + amountStr + " to " + base58ToAddress + " " + successfulHighlight() + ".\n"
-          + "Please check the given transaction id to get the result on blockchain using getTransactionInfoById command");
+      System.out.println("Transfer " + amountStr + " to " + base58ToAddress + " broadcast " + successfulHighlight() + ".\n"
+          + "Please check the given transaction id to get the result on blockchain using getTransactionInfoById command.");
     } else {
       System.out.println("Transfer " + amountStr + " to " + base58ToAddress + " " + failedHighlight() + ".");
     }
+    askToSaveAddress(base58ToAddress);
   }
 
   private void viewBackupRecords(String[] parameters) {

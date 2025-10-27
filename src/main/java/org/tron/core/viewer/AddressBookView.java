@@ -15,14 +15,15 @@ public class AddressBookView {
 
   public void viewAddressBook() {
     while (true) {
+      addressBook.list();
       printMainMenu();
       String command = scanner.nextLine().trim().toLowerCase();
 
       switch (command) {
-        case "1": interactive.addAddress(); break;
+        case "1": interactive.addAddress(null); break;
         case "2": interactive.editAddress(); break;
         case "3": interactive.deleteAddress(); break;
-        case "4": addressBook.list(); return;
+        case "4": return;
         default: System.out.println("Invalid command");
       }
     }
@@ -33,7 +34,7 @@ public class AddressBookView {
     System.out.println("1. addAddress");
     System.out.println("2. editAddress");
     System.out.println("3. delAddress");
-    System.out.println("4. getAddressBook & exit");
+    System.out.println("4. exit");
     System.out.print("Select option: ");
   }
 }

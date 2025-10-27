@@ -28,13 +28,13 @@ import org.tron.walletserver.WalletApi;
 public class UpdateAccountPermissionInteractive {
   private final Scanner scanner = new Scanner(System.in);
   private final PermissionData data = new PermissionData();
-//  private static final List<Integer> ALL_OPERATIONS = Arrays.asList(
-//      0, 1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 13,
-//      14, 15, 16, 17, 18, 19, 20, 30, 31, 32, 33,
-//      41, 42, 43, 44, 45, 46, 48, 49, 52, 53, 54,
-//      55, 56, 57, 58, 59
-//  );
   private static final List<Integer> ALL_OPERATIONS = Arrays.asList(
+      0, 1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 13,
+      14, 15, 16, 17, 18, 19, 20, 30, 31, 32, 33,
+      41, 42, 43, 44, 45, 46, 48, 49, 52, 53, 54,
+      55, 56, 57, 58, 59
+  );
+  private static final List<Integer> AVAILABLE_OPERATIONS = Arrays.asList(
       0, 1, 2, 4, 5, 6, 8, 9, 10, 11, 12, 13,
       14, 15, 16, 17, 18, 30, 31, 33,
       41, 42, 43, 44, 45, 46, 48, 49, 54,
@@ -100,7 +100,7 @@ public class UpdateAccountPermissionInteractive {
       System.out.println("3. active_permissions");
       System.out.println("4. Add new active_permission");
       System.out.println("5. Delete active_permission");
-      System.out.println("6. Show JSON and Confirm");
+      System.out.println("6. Show preview and Confirm");
       System.out.println("7. Exit");
       System.out.print("> ");
       String choice = scanner.nextLine().trim();
@@ -164,14 +164,15 @@ public class UpdateAccountPermissionInteractive {
   private void editKeys(Permission permission) {
     while (true) {
       System.out.println("\nKeys(Authorized To) for " + permission.getPermissionName() + ":");
-      for (int i = 0; i < permission.getKeys().size(); i++) {
+      int size = permission.getKeys().size();
+      for (int i = 0; i < size; i++) {
         Key key = permission.getKeys().get(i);
         System.out.println((i + 1) + ". " + key.getAddress() + " (weight=" + key.getWeight() + ")");
       }
       System.out.println();
       System.out.println("1. Add key(Authorized To)");
       System.out.println("2. Modify key(Authorized To)");
-      if (permission.getKeys().size() > 1) {
+      if (size > 1) {
         System.out.println("3. Delete key(Authorized To)");
       }
       System.out.println("4. Back");
@@ -180,6 +181,10 @@ public class UpdateAccountPermissionInteractive {
 
       switch (choice.toLowerCase()) {
         case "1":
+          if (size >= 5) {
+            System.out.println("Each active permission can only add 5 addresses at most.");
+            break;
+          }
           System.out.print("Enter key(Authorized To) address: ");
           String addr = scanner.nextLine().trim();
           if (addr.isEmpty()) {
@@ -196,8 +201,9 @@ public class UpdateAccountPermissionInteractive {
           int weight;
           try {
             weight = Integer.parseInt(weightInput);
-            if (weight <= 0) {
-              System.out.println("Weight must be greater than 0.");
+            long threshold = permission.getThreshold();
+            if (weight <= 0 || weight > threshold) {
+              System.out.println("Weight must be greater than 0 and less than or equal to threshold(" + threshold + ").");
               break;
             }
           } catch (NumberFormatException e) {
@@ -215,7 +221,7 @@ public class UpdateAccountPermissionInteractive {
           }
           System.out.print("Enter key(Authorized To) index to modify: ");
           int midx = Integer.parseInt(scanner.nextLine().trim()) - 1;
-          if (midx >= 0 && midx < permission.getKeys().size()) {
+          if (midx >= 0 && midx < size) {
             Key keyToEdit = permission.getKeys().get(midx);
             System.out.println("Editing key(Authorized To) #" + (midx + 1));
             System.out.print("New address (blank to keep current: " + keyToEdit.getAddress() + "): ");
@@ -239,7 +245,7 @@ public class UpdateAccountPermissionInteractive {
           }
           System.out.print("Enter key(Authorized To) index to delete: ");
           int idx = Integer.parseInt(scanner.nextLine().trim()) - 1;
-          if (idx >= 0 && idx < permission.getKeys().size()) {
+          if (idx >= 0 && idx < size) {
             permission.getKeys().remove(idx);
             System.out.println("Key(Authorized To) removed.");
           } else {
@@ -288,9 +294,12 @@ public class UpdateAccountPermissionInteractive {
     Collections.sort(currentOps);
 
     while (true) {
+      List<Integer> allowedOps = currentOps.stream()
+          .filter(i -> operationsMap.get(String.valueOf(i)) != null).collect(Collectors.toList());
+      Collections.sort(allowedOps);
       System.out.println("\nCurrent allowed operations:");
-      for (int i = 0; i < currentOps.size(); i++) {
-        int code = currentOps.get(i);
+      for (int i = 0; i < allowedOps.size(); i++) {
+        int code = allowedOps.get(i);
         System.out.println((i + 1) + ". " + operationsMap.get(String.valueOf(code))
             + " -> " + ContractType.forNumber(code).name() + "(" + code + ")");
       }
@@ -303,14 +312,14 @@ public class UpdateAccountPermissionInteractive {
       String choice = scanner.nextLine().trim();
 
       if ("1".equals(choice)) {
-        if (currentOps.isEmpty()) {
+        if (allowedOps.isEmpty()) {
           System.out.println("No operations to delete.");
           continue;
         }
 
         System.out.println("Current operations can be deleted:");
-        for (int i = 0; i < currentOps.size(); i++) {
-          int code = currentOps.get(i);
+        for (int i = 0; i < allowedOps.size(); i++) {
+          int code = allowedOps.get(i);
           System.out.println((i + 1) + ". " + operationsMap.get(String.valueOf(code))
               + " -> " + ContractType.forNumber(code).name() + "(" + code + ")");
         }
@@ -326,8 +335,8 @@ public class UpdateAccountPermissionInteractive {
         Set<Integer> toDelete = new HashSet<>();
         for (String part : parts) {
           int delIdx = Integer.parseInt(part.trim()) - 1;
-          if (delIdx >= 0 && delIdx < currentOps.size()) {
-            toDelete.add(currentOps.get(delIdx));
+          if (delIdx >= 0 && delIdx < allowedOps.size()) {
+            toDelete.add(allowedOps.get(delIdx));
           } else {
             System.out.println("Ignored invalid index: " + (delIdx + 1));
           }
@@ -338,7 +347,7 @@ public class UpdateAccountPermissionInteractive {
 
       } else if ("2".equals(choice)) {
         List<Integer> available = new ArrayList<>();
-        for (Integer op : ALL_OPERATIONS) {
+        for (Integer op : AVAILABLE_OPERATIONS) {
           if (!currentOps.contains(op)) available.add(op);
         }
         if (available.isEmpty()) {
@@ -386,6 +395,11 @@ public class UpdateAccountPermissionInteractive {
   }
 
   private void addActivePermission() {
+    int size = data.getActivePermissions().size();
+    if (size >= 8) {
+      System.out.println("Each account can add up to 8 active permissions");
+      return;
+    }
     Permission p = new Permission();
     p.setType(2);
 
@@ -396,8 +410,8 @@ public class UpdateAccountPermissionInteractive {
     p.setThreshold(Integer.parseInt(scanner.nextLine().trim()));
 
     System.out.println("Available operations:");
-    for (int i = 0; i < ALL_OPERATIONS.size(); i++) {
-      int op = ALL_OPERATIONS.get(i);
+    for (int i = 0; i < AVAILABLE_OPERATIONS.size(); i++) {
+      int op = AVAILABLE_OPERATIONS.get(i);
       System.out.println((i + 1) + ". " + operationsMap.get(String.valueOf(op)) + " -> "
           + ContractType.forNumber(op).name() + "(" + op + ")");
     }
@@ -423,18 +437,17 @@ public class UpdateAccountPermissionInteractive {
       boolean valid = true;
       for (String part : parts) {
         int idx = Integer.parseInt(part.trim());
-        if (idx < 1 || idx > ALL_OPERATIONS.size()) {
-          System.out.println("Invalid index: " + idx + " (valid range: 1–" + ALL_OPERATIONS.size() + ")");
+        if (idx < 1 || idx > AVAILABLE_OPERATIONS.size()) {
+          System.out.println("Invalid index: " + idx + " (valid range: 1–" + AVAILABLE_OPERATIONS.size() + ")");
           valid = false;
           break;
         }
-        selectedOps.add(ALL_OPERATIONS.get(idx - 1));
+        selectedOps.add(AVAILABLE_OPERATIONS.get(idx - 1));
       }
 
       if (valid) break;
       else selectedOps.clear();
     }
-
     Set<Integer> uniqueOps = new LinkedHashSet<>(selectedOps);
     selectedOps = new ArrayList<>(uniqueOps);
 
@@ -469,9 +482,77 @@ public class UpdateAccountPermissionInteractive {
 
   private String showFinalSummary() {
     System.out.println("The preview of your updated account permissions is as follows:");
-    System.out.println(JSON.toJSONString(data.toTronJson(), true));
+    printPermissionData(data);
     return JSON.toJSONString(data.toTronJson());
   }
+
+  private void printPermissionData(PermissionData data) {
+    System.out.println("\n================ Account Permission Info ================");
+
+    // --- Owner Permission ---
+    Permission owner = data.getOwnerPermission();
+    System.out.println("Owner Permission:");
+    if (owner != null) {
+      printPermissionDetail(owner);
+    } else {
+      System.out.println("  (none)");
+    }
+
+    // --- Witness Permission ---
+    Permission witness = data.getWitnessPermission();
+    System.out.println("\nWitness Permission:");
+    if (witness != null) {
+      printPermissionDetail(witness);
+    } else {
+      System.out.println("  (none)");
+    }
+
+    // --- Active Permissions ---
+    List<Permission> actives = data.getActivePermissions();
+    System.out.println("\nActive Permissions:");
+    if (actives == null || actives.isEmpty()) {
+      System.out.println("  (none)");
+    } else {
+      for (int i = 0; i < actives.size(); i++) {
+        System.out.println("  #" + (i + 1));
+        printPermissionDetail(actives.get(i));
+      }
+    }
+    System.out.println("=========================================================");
+  }
+
+  private void printPermissionDetail(Permission p) {
+    System.out.println("  Name       : " + p.getPermissionName());
+    System.out.println("  Threshold  : " + p.getThreshold());
+
+    // === Operations ===
+    List<Integer> ops = hexStringToIntegerList(p.getOperations());
+    if (ops.isEmpty()) {
+      System.out.println("  Operations : (none)");
+    } else {
+      System.out.println("  Operations :");
+      for (Integer code : ops) {
+        String name = operationsMap.get(String.valueOf(code));
+        if (name == null) {
+          continue;
+        }
+        System.out.printf("      - %-3d (%s)%n", code, name);
+      }
+    }
+
+    // === Authorized To ===
+    List<Key> keys = p.getKeys();
+    if (keys == null || keys.isEmpty()) {
+      System.out.println("  Authorized To : (none)");
+    } else {
+      System.out.println("  Authorized To :");
+      for (Key k : keys) {
+        System.out.printf("      - Address: %-40s  Weight: %d%n",
+            k.getAddress(), k.getWeight());
+      }
+    }
+  }
+
 
   @Getter
   @Setter

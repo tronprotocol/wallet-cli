@@ -2,6 +2,7 @@ package org.tron.core.service;
 
 import java.util.List;
 import java.util.Scanner;
+import org.apache.commons.lang3.StringUtils;
 import org.tron.core.dao.AddressEntry;
 
 public class AddressBookInteractive {
@@ -13,19 +14,20 @@ public class AddressBookInteractive {
   }
 
   /** Interactive add **/
-  public void addAddress() {
+  public void addAddress(String address) {
     System.out.print("Enter name: ");
     String name = scanner.nextLine().trim();
     if (name.isEmpty()) {
       System.out.println("Error: Name cannot be empty");
       return;
     }
-
-    System.out.print("Enter address: ");
-    String address = scanner.nextLine().trim();
-    if (address.isEmpty()) {
-      System.out.println("Error: Address cannot be empty");
-      return;
+    if (StringUtils.isEmpty(address)) {
+      System.out.print("Enter address: ");
+      address = scanner.nextLine().trim();
+      if (address.isEmpty()) {
+        System.out.println("Error: Address cannot be empty");
+        return;
+      }
     }
 
     System.out.print("Enter note (optional): ");
@@ -86,7 +88,7 @@ public class AddressBookInteractive {
     addressBook.delete(entry.getName());
     addressBook.add(newName, newAddress, newNote);
 
-    System.out.println("✅ Address updated: " + newName);
+    System.out.println("Address updated: " + newName);
   }
 
   /** Interactive delete **/
@@ -132,7 +134,7 @@ public class AddressBookInteractive {
     }
 
     addressBook.delete(entry.getName());
-    System.out.println("🗑️ Deleted: " + entry.getName());
+    System.out.println("Deleted: " + entry.getName());
   }
 }
 

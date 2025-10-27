@@ -788,6 +788,21 @@ The rest of the users will be granted
 ```console
 > Updateaccountpermission TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ {"owner_permission":{"type":0,"permission_name":"owner","threshold":1,"keys":[{"address":"TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ","weight":1}]},"witness_permission":{"type":1,"permission_name":"owner","threshold":1,"keys":[{"address":"TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ","weight":1}]},"active_permissions":[{"type":2,"permission_name":"active12323","threshold":2,"operations":"7fff1fc0033e0000000000000000000000000000000000000000000000000000","keys":[{"address":"TNhXo1GbRNCuorvYu5JFWN3m2NYr9QQpVR","weight":1},{"address":"TKwhcDup8L2PH5r6hxp5CQvQzZqJLmKvZP","weight":1}]}]}
 ```
+or
+```console
+wallet> updateAccountPermission
+=== UpdateAccountPermission Interactive Mode ===
+
+Select permission to modify:
+1. owner_permission
+2. witness_permission
+3. active_permissions
+4. Add new active_permission
+5. Delete active_permission
+6. Show preview and Confirm
+7. Exit
+> 
+```
 
 The account TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ gives the owner access to itself, active access to
 TNhXo1GbRNCuorvYu5JFWN3m2NYr9QQpVR and TKwhcDup8L2PH5r6hxp5CQvQzZqJLmKvZP. Active access will
@@ -2533,44 +2548,76 @@ Make a USDT transfer.
 
 Example:
 ```console
-wallet> TransferUSDT TGDjv2KKD4UqEmFTnZgLzup5WWjTex4Mvq 1
-transfer(address,uint256):a9059cbb
-{
-        "raw_data":{
-                "contract":[
-                        {
-                                "parameter":{
-                                        "value":{
-                                                "data":"a9059cbb00000000000000000000004144906218dac49fbff3a1245aed4b8df68359d2360000000000000000000000000000000000000000000000000000000000000001",
-                                                "owner_address":"TUUSMd58eC3fKx3fn7whxJyr1FR56tgaP8",
-                                                "contract_address":"TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf"
-                                        },
-                                        "type_url":"type.googleapis.com/protocol.TriggerSmartContract"
-                                },
-                                "type":"TriggerSmartContract"
-                        }
-                ],
-                "ref_block_bytes":"9147",
-                "ref_block_hash":"f8a6545ca048d745",
-                "expiration":1761547422000,
-                "fee_limit":1000000000,
-                "timestamp":1761547364794
-        },
-        "raw_data_hex":"0a0291472208f8a6545ca048d74540b092a2a3a2335aae01081f12a9010a31747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e54726967676572536d617274436f6e747261637412740a1541caf9798d70a3c609b600f163e53cfe8f586e1b9f121541eca9bc828a3005b9a3b909f2cc5c2a54794de05f2244a9059cbb00000000000000000000004144906218dac49fbff3a1245aed4b8df68359d236000000000000000000000000000000000000000000000000000000000000000170bad39ea3a23390018094ebdc03"
+wallet> transferusdt TR311sD6KasRnofj5RnFiFBA2rH8RH2kYk 1
+balanceOf(address):70a08231
+Execution result = {
+	"constant_result": [
+		"000000000000000000000000000000000000000000000000000000006544ae57"
+	],
+	"result": {
+		"result": true
+	},
+	"energy_used": 935
 }
-Before sign transaction hex string is 0ad4010a0291472208f8a6545ca048d74540b092a2a3a2335aae01081f12a9010a31747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e54726967676572536d617274436f6e747261637412740a1541caf9798d70a3c609b600f163e53cfe8f586e1b9f121541eca9bc828a3005b9a3b909f2cc5c2a54794de05f2244a9059cbb00000000000000000000004144906218dac49fbff3a1245aed4b8df68359d236000000000000000000000000000000000000000000000000000000000000000170bad39ea3a23390018094ebdc03
+USDT balance = 1698999895
+transfer(address,uint256):a9059cbb
+It is estimated that 345 bandwidth and 29650 energy will be consumed.
+Execution result = {
+	"constant_result": [
+		"0000000000000000000000000000000000000000000000000000000000000000"
+	],
+	"result": {
+		"result": true
+	},
+	"energy_used": 29650,
+	"logs": [
+		{
+			"address": "NaMomAhUzuFzMNFzzQHVNsR8xbmP3A5LT",
+			"topics": [
+				"ddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+				"000000000000000000000000caf9798d70a3c609b600f163e53cfe8f586e1b9f",
+				"000000000000000000000000a5418b8da12e73075abb46375e7a15c758ea21fc"
+			],
+			"data": "0000000000000000000000000000000000000000000000000000000000000001"
+		}
+	]
+}
+{
+	"raw_data":{
+		"contract":[
+			{
+				"parameter":{
+					"value":{
+						"data":"a9059cbb000000000000000000000041a5418b8da12e73075abb46375e7a15c758ea21fc0000000000000000000000000000000000000000000000000000000000000001",
+						"owner_address":"TUUSMd58eC3fKx3fn7whxJyr1FR56tgaP8",
+						"contract_address":"TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf"
+					},
+					"type_url":"type.googleapis.com/protocol.TriggerSmartContract"
+				},
+				"type":"TriggerSmartContract"
+			}
+		],
+		"ref_block_bytes":"08c7",
+		"ref_block_hash":"c02252c2ae3b92e1",
+		"expiration":1761639507000,
+		"fee_limit":1000000000,
+		"timestamp":1761639448851
+	},
+	"raw_data_hex":"0a0208c72208c02252c2ae3b92e140b8c896cfa2335aae01081f12a9010a31747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e54726967676572536d617274436f6e747261637412740a1541caf9798d70a3c609b600f163e53cfe8f586e1b9f121541eca9bc828a3005b9a3b909f2cc5c2a54794de05f2244a9059cbb000000000000000000000041a5418b8da12e73075abb46375e7a15c758ea21fc000000000000000000000000000000000000000000000000000000000000000170938293cfa23390018094ebdc03"
+}
+Before sign transaction hex string is 0ad4010a0208c72208c02252c2ae3b92e140b8c896cfa2335aae01081f12a9010a31747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e54726967676572536d617274436f6e747261637412740a1541caf9798d70a3c609b600f163e53cfe8f586e1b9f121541eca9bc828a3005b9a3b909f2cc5c2a54794de05f2244a9059cbb000000000000000000000041a5418b8da12e73075abb46375e7a15c758ea21fc000000000000000000000000000000000000000000000000000000000000000170938293cfa23390018094ebdc03
 Please confirm and input your permission id, if input y/Y means default 0, other non-numeric characters will cancel transaction.
 y
 Please choose your key for sign.
 
 No.  Address                                    Name                                                                        
-1    TUUSMd58eC3fKx3fn7whxJyr1FR56tgaP8         22                                                                                                                                    
-Please choose No. between 1 and 4, or enter search to search wallets
+1    TUUSMd58eC3fKx3fn7whxJyr1FR56tgaP8         test                                                                                                                                          
+Please choose No. between 1 and 1, or enter search to search wallets
 1
 Please input your password.
-password: 
-After sign transaction hex string is 0ad4010a0291472208f8a6545ca048d74540e781c5ada2335aae01081f12a9010a31747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e54726967676572536d617274436f6e747261637412740a1541caf9798d70a3c609b600f163e53cfe8f586e1b9f121541eca9bc828a3005b9a3b909f2cc5c2a54794de05f2244a9059cbb00000000000000000000004144906218dac49fbff3a1245aed4b8df68359d236000000000000000000000000000000000000000000000000000000000000000170bad39ea3a23390018094ebdc031241544a4e8bf10f0c03ef77e31ea9ba905a35b9d3f4ae6ebe5d0e2760adff3d44305617a1386f62b93501239d208e12edfd2095c5fd2d420fe8b2ff34b05b98bf2901
-TxId is f16dd75e1b07fbcd089a2403349de8eed82ad070ad479e36711f222ec822724f
-Transfer 1 to TGDjv2KKD4UqEmFTnZgLzup5WWjTex4Mvq  successful.
-Please check the given transaction id to get the result on blockchain using getTransactionInfoById command
+Lxc1992117
+After sign transaction hex string is 0ad4010a0208c72208c02252c2ae3b92e1409fb0b9d9a2335aae01081f12a9010a31747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e54726967676572536d617274436f6e747261637412740a1541caf9798d70a3c609b600f163e53cfe8f586e1b9f121541eca9bc828a3005b9a3b909f2cc5c2a54794de05f2244a9059cbb000000000000000000000041a5418b8da12e73075abb46375e7a15c758ea21fc000000000000000000000000000000000000000000000000000000000000000170938293cfa23390018094ebdc031241a776830e5cd054c6a94631b6d62704e249e7587ab3f036e5e4fac15cbf49e671262532e094e1a32ad858272da3e101958102df61b0f72f26756a94b608883a6f01
+TxId is 9c8d4b84e9a71ccaad86b0a96f790067d3fc7ea85c26b425e5d748b81d31a8b8
+Transfer 1 to TR311sD6KasRnofj5RnFiFBA2rH8RH2kYk broadcast  successful.
+Please check the given transaction id to get the result on blockchain using getTransactionInfoById command.
 ```

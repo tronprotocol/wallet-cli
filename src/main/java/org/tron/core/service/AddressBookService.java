@@ -55,6 +55,10 @@ public class AddressBookService {
       System.out.println("Name already exists：" + name);
       return;
     }
+    if (findByAddress(address) != null) {
+      System.out.println("address already exists：" + name);
+      return;
+    }
     entries.add(new AddressEntry(name, address, note));
     save();
     System.out.println("Address added:" + name);
@@ -95,6 +99,13 @@ public class AddressBookService {
   public AddressEntry findByName(String name) {
     return entries.stream()
         .filter(e -> e.getName().equalsIgnoreCase(name))
+        .findFirst()
+        .orElse(null);
+  }
+
+  public AddressEntry findByAddress(String address) {
+    return entries.stream()
+        .filter(e -> e.getAddress().equalsIgnoreCase(address))
         .findFirst()
         .orElse(null);
   }

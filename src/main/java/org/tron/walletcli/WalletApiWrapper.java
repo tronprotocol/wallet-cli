@@ -1320,7 +1320,8 @@ public class WalletApiWrapper {
 
   public boolean callContract(byte[] ownerAddress, byte[] contractAddress, long callValue,
                               byte[] data, long feeLimit,
-                              long tokenValue, String tokenId, boolean isConstant)
+                              long tokenValue, String tokenId, boolean isConstant,
+                              boolean display)
       throws Exception {
     if (wallet == null || !wallet.isLoginState()) {
       System.out.println("Warning: callContract " + failedHighlight() + ",  Please login first !!");
@@ -1330,7 +1331,7 @@ public class WalletApiWrapper {
     return wallet
         .triggerContract(ownerAddress, contractAddress, callValue, data, feeLimit, tokenValue,
             tokenId,
-            isConstant, false).getLeft();
+            isConstant, false, display).getLeft();
   }
 
   public Pair<Boolean, Long> getUsdtBalance(byte[] ownerAddress)
@@ -1348,7 +1349,7 @@ public class WalletApiWrapper {
     NetType netType = WalletApi.getCurrentNetwork();
     byte[] contractAddress = WalletApi.decodeFromBase58Check(netType.getUsdtAddress());
     return wallet.triggerContract(ownerAddress, contractAddress,
-        0, d, 0, 0, EMPTY, true, false);
+        0, d, 0, 0, EMPTY, true, false, false);
   }
 
   public boolean estimateEnergy(byte[] ownerAddress, byte[] contractAddress, long callValue,
@@ -1750,7 +1751,7 @@ public class WalletApiWrapper {
           long activateFee = asset.getLongValue("activateFee");
           long transferFee = asset.getLongValue("transferFee");
           Pair<Boolean, Long> triggerContractPair = wallet.triggerContract(null, decodeFromBase58Check(tokenAddress),
-              0, d, 0, 0, EMPTY, true, true);
+              0, d, 0, 0, EMPTY, true, true, false);
           if (Boolean.FALSE.equals(triggerContractPair.getLeft())) {
             return false;
           }

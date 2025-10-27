@@ -1184,6 +1184,10 @@ public class Utils {
     return ANSI_BOLD + ANSI_GREEN + i + ANSI_RESET;
   }
 
+  public static String greenBoldHighlight(long i) {
+    return ANSI_BOLD + ANSI_GREEN + i + ANSI_RESET;
+  }
+
   public static String blueBoldHighlight(String str) {
     return ANSI_BOLD + ANSI_BLUE + str + ANSI_RESET;
   }
