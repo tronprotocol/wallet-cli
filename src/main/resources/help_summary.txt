@@ -1,12 +1,14 @@
 +---------------------------------------------------+-------------------------------------------------------------------------+
 |                   COMMAND                         |                       SUMMARY                                           |
 +---------------------------------------------------+-------------------------------------------------------------------------+
-|                ACCOUNT MANAGEMENT (11)            |                                                                         |
+|                ACCOUNT MANAGEMENT (15)            |                                                                         |
 +---------------------------------------------------+-------------------------------------------------------------------------+
 | GenerateAddress                                   | Generate an address and print out the address and private key           |
 | GetAccount                                        | Get account details information                                         |
+| GetAccountById                                    | Get account details information through account id                      |
 | GetAddress                                        | Get the address of the current account                                  |
 | GetBalance                                        | Get the current TRX balance of the account                              |
+| GetUsdtBalance                                    | Get the current USDT balance of the account                             |
 | CreateAccount                                     | Activating an account                                                   |
 | UpdateAccount                                     | Update account name                                                     |
 | UpdateAccountPermission                           | Update account permissions                                              |
@@ -14,6 +16,8 @@
 | GetReward                                         | Get the rewards that a SR or a user has not yet withdrawn               |
 | WithdrawBalance                                   | Withdraw rewards                                                        |
 | SendCoin                                          | Create a TRX transfer transaction                                       |
+| AddressBook                                       | Addition, deletion, modification, and search of address book            |
+| ShowReceivingQrCode                               | Display Receive Payment QR Code for the current address                 |
 |---------------------------------------------------+-------------------------------------------------------------------------+
 |                RESOURCE MANAGEMENT (19)           |                                                                         |
 +---------------------------------------------------+-------------------------------------------------------------------------+
@@ -37,7 +41,7 @@
 | GetBandwidthPrices                                | Get historical bandwidth unit price                                     |
 | GetEnergyPrices                                   | Get historical energy unit price                                        |
 |---------------------------------------------------+-------------------------------------------------------------------------+
-|                TRANSACTIONS (9)                   |                                                                         |
+|                TRANSACTIONS (10)                   |                                                                        |
 +---------------------------------------------------+-------------------------------------------------------------------------+
 | AddTransactionSign                                | Add signature to hex format transaction                                 |
 | BroadcastTransaction                              | Broadcast transactions in hex string format                             |
@@ -47,11 +51,13 @@
 | GetTransactionInfoById                            | Get transaction information through transaction ID                      |
 | GetTransactionInfoByBlockNum                      | Get all transaction information through block number                    |
 | GetTransactionCountByBlockNum                     | Get the number of transactions through block number                     |
+| GetUsdtTransferById                               | Get USDT transfer transaction summary based on transaction ID           |
 | ViewTransactionHistory                            | View transaction history                                                |
 |---------------------------------------------------+-------------------------------------------------------------------------+
-|                SMART CONTRACTS (10)               |                                                                         |
+|                SMART CONTRACTS (11)               |                                                                         |
 +---------------------------------------------------+-------------------------------------------------------------------------+
 | DeployContract                                    | Deploy a smart contract                                                 |
+| TransferUSDT                                      | Make a USDT transfer                                                    |
 | TriggerContract                                   | Create a smart contract transaction                                     |
 | TriggerConstantContract                           | Dry-run a smart contract function                                       |
 | EstimateEnergy                                    | Estimate the energy of a smart contract transaction                     |

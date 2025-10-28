@@ -110,6 +110,12 @@ Get account details information.
 Usage example:
 wallet> GetAccount TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp
 Syntax:
+GetAccountById account_id
+Summary:
+Get account details information through account id.
+Usage example:
+wallet> GetAccountById 100
+Syntax:
 GetAccountNet address
 Summary:
 Get the bandwidth usage of the account.
@@ -772,3 +778,42 @@ Summary:
 View transaction history. You can configure the maximum number of records that `maxRecords` can retain in `config.conf`, excluding the number of buffer records.
 Usage example:
 wallet> ViewTransactionHistory
+Syntax:
+AddressBook
+Summary:
+Addition, deletion, modification, and search of address book.
+Usage example:
+wallet> AddressBook
+Syntax:
+GetUsdtBalance [owner_address]
+Summary:
+Get the USDT balance of the current address.
+Usage example:
+wallet> GetUsdtBalance
+Syntax:
+GetUsdtTransferById txId
+Summary:
+Get USDT transfer transaction summary based on transaction ID.
+Usage example:
+wallet> GetUsdtTransferById a9e24b117ee0fa8007693dbd3741a9168a8d79d366828e667421c965cc8300a5
+Syntax:
+TransferUSDT [owner_address] to_address amount
+Summary:
+Make a USDT transfer.
+Usage example:
+wallet> TransferUSDT TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp 1000000
+Syntax:
+ShowReceivingQrCode
+Summary:
+Display Receive Payment QR Code for the current address.
+Executing this command requires installing 'qrencode' on the terminal in advance.
+Debian/Ubuntu:
+sudo apt update && sudo apt install qrencode
+RHEL/CentOS:
+sudo yum install epel-release && sudo yum install qrencode
+Fedora:
+sudo dnf install qrencode
+macOS:
+brew install qrencode
+Usage example:
+wallet> ShowReceivingQrCode

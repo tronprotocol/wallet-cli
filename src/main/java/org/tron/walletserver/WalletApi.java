@@ -608,7 +608,7 @@ public class WalletApi {
         try {
           n = Integer.parseInt(num);
         } catch (NumberFormatException e) {
-          System.out.println("Invaild number of " + num);
+          System.out.println("Invalid number of " + num);
           System.out.println("Please choose again between 1 and " + mnemonicFiles.length);
           continue;
         }
@@ -661,7 +661,7 @@ public class WalletApi {
     Credentials credentials = WalletUtils.loadCredentials(oldPassword, wallet);
     WalletUtils.updateWalletFile(newPassowrd, credentials.getPair(), wallet, true);
 
-    // udpate the password of mnemonicFile
+    // update the password of mnemonicFile
     String ownerAddress = credentials.getAddress();
     File mnemonicFile = Paths.get("Mnemonic", ownerAddress + ".json").toFile();
     if (mnemonicFile.exists()) {
@@ -2421,7 +2421,8 @@ public class WalletApi {
       long tokenValue,
       String tokenId,
       boolean isConstant,
-      boolean isGasfree)
+      boolean isGasfree,
+      boolean display)
       throws Exception {
     if (!isUnlocked()) {
       throw new IllegalStateException(LOCK_WARNING);
@@ -2455,6 +2456,11 @@ public class WalletApi {
         builder.setResult(builder.getResult().toBuilder().setResult(false));
       }
       if (!isGasfree) {
+        if (display) {
+          long energyUsed = builder.build().getEnergyUsed();
+          long calculateBandwidth = calculateBandwidth(transaction);
+          System.out.println("It is estimated that " + greenBoldHighlight(calculateBandwidth) + " bandwidth and " + greenBoldHighlight(energyUsed) + " energy will be consumed.");
+        }
         System.out.println("Execution result = " + Utils.formatMessageString(builder.build()));
       }
       BigInteger bigInteger = BigInteger.valueOf(0L);
@@ -2485,6 +2491,19 @@ public class WalletApi {
     transactionExtention = texBuilder.build();
 
     return Pair.of(processTransactionExtention(transactionExtention), 0L);
+  }
+
+  public static long calculateBandwidth(Chain.Transaction transaction) {
+    String hexString = Hex.toHexString(transaction.getRawData().toByteArray());
+    final long DATA_HEX_PROTOBUF_EXTRA = 9;
+    final long SIGNATURE_PER_BANDWIDTH = 67;
+    final long MAX_RESULT_SIZE_IN_TX = 64;
+    long byteLength = (long) Math.ceil(hexString.length() / 2.0);
+    long bandwidthBuffer = DATA_HEX_PROTOBUF_EXTRA
+        + SIGNATURE_PER_BANDWIDTH * (transaction.getSignatureCount() + 1)
+        + MAX_RESULT_SIZE_IN_TX;
+
+    return byteLength + bandwidthBuffer;
   }
 
   public boolean estimateEnergy(
