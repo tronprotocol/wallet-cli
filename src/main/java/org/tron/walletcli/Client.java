@@ -93,7 +93,6 @@ import org.tron.core.exception.CancelException;
 import org.tron.core.exception.CipherException;
 import org.tron.core.manager.TxHistoryManager;
 import org.tron.core.manager.UpdateAccountPermissionInteractive;
-import org.tron.core.service.AddressBookInteractive;
 import org.tron.core.service.AddressBookService;
 import org.tron.keystore.StringUtils;
 import org.tron.ledger.TronLedgerGetAddress;
@@ -1096,7 +1095,6 @@ public class Client {
     boolean exists = addressBook.getEntries().stream()
         .anyMatch(e -> e.getAddress().equalsIgnoreCase(toAddress));
     if (exists) {
-      System.out.println("This address already exists in your address book.");
       return;
     }
 
@@ -4122,6 +4120,7 @@ public class Client {
         while ((line = reader.readLine()) != null) {
           System.out.println(line);
         }
+        System.out.println(address);
       }
 
       int exitCode = process.waitFor();

@@ -51,17 +51,9 @@ public class AddressBookService {
   }
 
   public void add(String name, String address, String note) {
-    if (findByName(name) != null) {
-      System.out.println("Name already exists：" + name);
-      return;
-    }
-    if (findByAddress(address) != null) {
-      System.out.println("address already exists：" + name);
-      return;
-    }
     entries.add(new AddressEntry(name, address, note));
     save();
-    System.out.println("Address added:" + name);
+    System.out.println(greenBoldHighlight("Address added:" + name));
   }
 
   public void edit(String name, String newAddress, String newNote) {

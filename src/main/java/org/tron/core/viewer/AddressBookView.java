@@ -33,7 +33,7 @@ public class AddressBookView {
     System.out.println("\nMAIN MENU:");
     System.out.println("1. addAddress");
     System.out.println("2. editAddress");
-    System.out.println("3. delAddress");
+    System.out.println("3. deleteAddress");
     System.out.println("4. exit");
     System.out.print("Select option: ");
   }
