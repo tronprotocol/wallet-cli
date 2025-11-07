@@ -1,5 +1,8 @@
 package org.tron.core.service;
 
+import static org.tron.common.utils.Utils.redBoldHighlight;
+import static org.tron.walletserver.WalletApi.addressValid;
+
 import java.util.List;
 import java.util.Scanner;
 import org.apache.commons.lang3.StringUtils;
@@ -18,14 +21,30 @@ public class AddressBookInteractive {
     System.out.print("Enter name: ");
     String name = scanner.nextLine().trim();
     if (name.isEmpty()) {
-      System.out.println("Error: Name cannot be empty");
+      System.out.println(redBoldHighlight("Error: Name cannot be empty"));
+      return;
+    }
+    if (name.length() > 20) {
+      System.out.println(redBoldHighlight("Error: The number of name characters cannot exceed 20"));
+      return;
+    }
+    if (addressBook.findByName(name) != null) {
+      System.out.println("Name already exists：" + redBoldHighlight(name));
       return;
     }
     if (StringUtils.isEmpty(address)) {
       System.out.print("Enter address: ");
       address = scanner.nextLine().trim();
       if (address.isEmpty()) {
-        System.out.println("Error: Address cannot be empty");
+        System.out.println(redBoldHighlight("Error: Address cannot be empty"));
+        return;
+      }
+      if (addressBook.findByAddress(address) != null) {
+        System.out.println("address already exists：" + redBoldHighlight(address));
+        return;
+      }
+      if (!addressValid(address)) {
+        System.out.println(redBoldHighlight("Error: Address format is invalid."));
         return;
       }
     }
@@ -75,10 +94,30 @@ public class AddressBookInteractive {
     System.out.printf("Current name: %s%nNew name (press Enter to keep): ", entry.getName());
     String newName = scanner.nextLine().trim();
     if (newName.isEmpty()) newName = entry.getName();
+    if (!newName.equalsIgnoreCase(entry.getName())) {
+      if (newName.length() > 20) {
+        System.out.println(redBoldHighlight("Error: The number of name characters cannot exceed 20"));
+        return;
+      }
+      if (addressBook.findByName(newName) != null) {
+        System.out.println("Name already exists：" + redBoldHighlight(newName));
+        return;
+      }
+    }
 
     System.out.printf("Current address: %s%nNew address (press Enter to keep): ", entry.getAddress());
     String newAddress = scanner.nextLine().trim();
     if (newAddress.isEmpty()) newAddress = entry.getAddress();
+    if (!newAddress.equalsIgnoreCase(entry.getAddress())) {
+      if (addressBook.findByAddress(newAddress) != null) {
+        System.out.println("address already exists：" + redBoldHighlight(newAddress));
+        return;
+      }
+      if (!addressValid(newAddress)) {
+        System.out.println(redBoldHighlight("Error: Address format is invalid."));
+        return;
+      }
+    }
 
     System.out.printf("Current note: %s%nNew note (press Enter to keep): ", entry.getNote());
     String newNote = scanner.nextLine().trim();

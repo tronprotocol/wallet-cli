@@ -2,6 +2,8 @@ package org.tron.core.manager;
 
 import static org.tron.common.utils.ByteUtil.hexStringToIntegerList;
 import static org.tron.common.utils.ByteUtil.integerListToHexString;
+import static org.tron.common.utils.Utils.greenBoldHighlight;
+import static org.tron.common.utils.Utils.redBoldHighlight;
 import static org.tron.walletserver.WalletApi.addressValid;
 
 import com.alibaba.fastjson.JSON;
@@ -80,11 +82,11 @@ public class UpdateAccountPermissionInteractive {
   }
 
   public String start(String address) {
-    System.out.println("=== UpdateAccountPermission Interactive Mode ===");
+    System.out.println("\n=== UpdateAccountPermission Interactive Mode ===");
     Response.Account account = WalletApi.queryAccount(WalletApi.decodeFromBase58Check(address));
     if (account == null || Response.Account.getDefaultInstance().equals(account)) {
-      throw new IllegalArgumentException("The account to which this address " + address + " belongs "
-          + "does not exist in the current network. Please check.");
+      throw new IllegalArgumentException(redBoldHighlight("The account to which this address " + address + " belongs "
+          + "does not exist in the current network. Please check."));
     }
     data.setOwnerAddress(address);
 
@@ -94,7 +96,7 @@ public class UpdateAccountPermissionInteractive {
         .map(this::convert2PermissionProto).collect(Collectors.toList());
     data.setActivePermissions(activePermissions);
     while (true) {
-      System.out.println("\nSelect permission to modify:");
+      System.out.println("\nPlease enter the index(" + greenBoldHighlight("1-7") + ") to operate:");
       System.out.println("1. owner_permission");
       System.out.println("2. witness_permission");
       System.out.println("3. active_permissions");
@@ -148,20 +150,53 @@ public class UpdateAccountPermissionInteractive {
     return permission;
   }
 
+  /**
+   * editPermission
+   */
   private void editPermission(Permission permission, String name) {
-    System.out.println("\nEditing " + name + "...");
+    if (permission == null) {
+      System.out.println("Permission is null, cannot edit.");
+      return;
+    }
+    System.out.println("\nEditing " + name + " (enter 'q' to cancel anytime)...");
     System.out.print("Enter permission_name (current: " + permission.getPermissionName() + "): ");
     String pname = scanner.nextLine().trim();
+    if ("q".equalsIgnoreCase(pname)) {
+      System.out.println("Cancelled editing " + name + ".");
+      return;
+    }
     if (!pname.isEmpty()) permission.setPermissionName(pname);
 
-    System.out.print("Enter threshold (current: " + permission.getThreshold() + "): ");
-    String th = scanner.nextLine().trim();
-    if (!th.isEmpty()) permission.setThreshold(Integer.parseInt(th));
+    while (true) {
+      System.out.print("Enter threshold (current: " + permission.getThreshold() + "): ");
+      String th = scanner.nextLine().trim();
+      if ("q".equalsIgnoreCase(th)) {
+        System.out.println("Cancelled editing " + name + ".");
+        return;
+      }
+      if (th.isEmpty()) break;
+      try {
+        long val = Long.parseLong(th);
+        if (val <= 0) {
+          System.out.println("Threshold must be positive.");
+          continue;
+        }
+        permission.setThreshold(val);
+        break;
+      } catch (NumberFormatException e) {
+        System.out.println("Invalid number, please try again or input 'q' to cancel.");
+      }
+    }
 
     editKeys(permission);
   }
 
+  /**
+   * editKeys: 支持 add/modify/delete，包含 addressValid 与 weight 校验，
+   * 修改和添加时都可用 'q' 退出回上一层。
+   */
   private void editKeys(Permission permission) {
+    if (permission == null) return;
     while (true) {
       System.out.println("\nKeys(Authorized To) for " + permission.getPermissionName() + ":");
       int size = permission.getKeys().size();
@@ -179,102 +214,154 @@ public class UpdateAccountPermissionInteractive {
       System.out.print("> ");
       String choice = scanner.nextLine().trim();
 
-      switch (choice.toLowerCase()) {
+      switch (choice) {
         case "1":
           if (size >= 5) {
             System.out.println("Each active permission can only add 5 addresses at most.");
-            break;
+            continue;
           }
-          System.out.print("Enter key(Authorized To) address: ");
+          System.out.print("Enter key(Authorized To) address (or 'q' to cancel): ");
           String addr = scanner.nextLine().trim();
+          if ("q".equalsIgnoreCase(addr)) continue;
           if (addr.isEmpty()) {
             System.out.println("Address cannot be empty.");
-            break;
+            continue;
           }
           if (!addressValid(addr)) {
             System.out.println("Invalid address format. Please enter a valid Base58 address.");
-            break;
+            continue;
           }
 
-          System.out.print("Enter key(Authorized To) weight: ");
+          System.out.print("Enter key(Authorized To) weight (or 'q' to cancel): ");
           String weightInput = scanner.nextLine().trim();
+          if ("q".equalsIgnoreCase(weightInput)) continue;
           int weight;
           try {
             weight = Integer.parseInt(weightInput);
             long threshold = permission.getThreshold();
             if (weight <= 0 || weight > threshold) {
               System.out.println("Weight must be greater than 0 and less than or equal to threshold(" + threshold + ").");
-              break;
+              continue;
             }
           } catch (NumberFormatException e) {
             System.out.println("Invalid weight. Please enter an integer number.");
-            break;
+            continue;
           }
 
           permission.getKeys().add(new Key(addr, weight));
-          break;
+          System.out.println("Added key: " + addr + " (weight=" + weight + ")");
 
+          break;
         case "2":
           if (permission.getKeys().isEmpty()) {
             System.out.println("No keys(Authorized To) to modify.");
-            break;
+            continue;
           }
-          System.out.print("Enter key(Authorized To) index to modify: ");
-          int midx = Integer.parseInt(scanner.nextLine().trim()) - 1;
+          System.out.print("Enter key(Authorized To) index to modify (or 'q' to cancel): ");
+          String midxStr = scanner.nextLine().trim();
+          if ("q".equalsIgnoreCase(midxStr)) continue;
+          int midx;
+          try {
+            midx = Integer.parseInt(midxStr) - 1;
+          } catch (NumberFormatException e) {
+            System.out.println("Invalid index.");
+            continue;
+          }
           if (midx >= 0 && midx < size) {
             Key keyToEdit = permission.getKeys().get(midx);
             System.out.println("Editing key(Authorized To) #" + (midx + 1));
-            System.out.print("New address (blank to keep current: " + keyToEdit.getAddress() + "): ");
+            System.out.print("New address (blank to keep current: " + keyToEdit.getAddress() + ", 'q' to cancel): ");
             String newAddr = scanner.nextLine().trim();
-            if (!newAddr.isEmpty()) keyToEdit.address = newAddr;
+            if ("q".equalsIgnoreCase(newAddr)) continue;
+            if (!newAddr.isEmpty()) {
+              if (!addressValid(newAddr)) {
+                System.out.println("Invalid address format. Skip changing address.");
+              } else {
+                keyToEdit.address = newAddr;
+              }
+            }
 
-            System.out.print("New weight (blank to keep current: " + keyToEdit.getWeight() + "): ");
+            System.out.print("New weight (blank to keep current: " + keyToEdit.getWeight() + ", 'q' to cancel): ");
             String newWeight = scanner.nextLine().trim();
-            if (!newWeight.isEmpty()) keyToEdit.weight = Integer.parseInt(newWeight);
+            if ("q".equalsIgnoreCase(newWeight)) continue;
+            if (!newWeight.isEmpty()) {
+              try {
+                long w = Long.parseLong(newWeight);
+                long threshold = permission.getThreshold();
+                if (w <= 0 || w > threshold) {
+                  System.out.println("Weight must be >0 and <= threshold(" + threshold + "). Skip changing weight.");
+                } else {
+                  keyToEdit.weight = w;
+                }
+              } catch (NumberFormatException e) {
+                System.out.println("Invalid number. Skip changing weight.");
+              }
+            }
 
             System.out.println("Key(Authorized To) updated.");
           } else {
             System.out.println("Invalid index.");
           }
-          break;
 
+          break;
         case "3":
           if (permission.getKeys().isEmpty()) {
             System.out.println("No keys(Authorized To) to delete.");
-            break;
+            continue;
           }
-          System.out.print("Enter key(Authorized To) index to delete: ");
-          int idx = Integer.parseInt(scanner.nextLine().trim()) - 1;
+          System.out.print("Enter key(Authorized To) index to delete (or 'q' to cancel): ");
+          String idxStr = scanner.nextLine().trim();
+          if ("q".equalsIgnoreCase(idxStr)) continue;
+          int idx;
+          try {
+            idx = Integer.parseInt(idxStr) - 1;
+          } catch (NumberFormatException e) {
+            System.out.println("Invalid index.");
+            continue;
+          }
           if (idx >= 0 && idx < size) {
             permission.getKeys().remove(idx);
             System.out.println("Key(Authorized To) removed.");
           } else {
             System.out.println("Invalid index.");
           }
+
           break;
         case "4":
           return;
         default:
           System.out.println("Invalid input.");
+          break;
       }
     }
   }
 
   private void editActivePermissions() {
     List<Permission> actives = data.getActivePermissions();
-    if (actives.isEmpty()) {
+    if (actives == null || actives.isEmpty()) {
       System.out.println("No active permissions. You can add one first.");
       return;
     }
 
     System.out.println("\nActive permissions:");
     for (int i = 0; i < actives.size(); i++) {
-      Permission p = actives.get(i);
-      System.out.println((i + 1) + ". " + p.getPermissionName());
+      printPermissionSummary(actives.get(i), i + 1);
+      System.out.println("---------------------------------------------------");
     }
 
-    System.out.print("Enter index to edit: ");
-    int idx = Integer.parseInt(scanner.nextLine().trim()) - 1;
+    System.out.print("Enter index to edit (or 'q' to cancel): ");
+    String idxStr = scanner.nextLine().trim();
+    if ("q".equalsIgnoreCase(idxStr)) {
+      System.out.println("Cancelled.");
+      return;
+    }
+    int idx;
+    try {
+      idx = Integer.parseInt(idxStr) - 1;
+    } catch (NumberFormatException e) {
+      System.out.println("Invalid index.");
+      return;
+    }
     if (idx < 0 || idx >= actives.size()) {
       System.out.println("Invalid index.");
       return;
@@ -282,21 +369,41 @@ public class UpdateAccountPermissionInteractive {
 
     Permission p = actives.get(idx);
 
-    System.out.print("Enter new permission_name (current: " + p.getPermissionName() + "): ");
+    System.out.print("Enter new permission_name (current: " + p.getPermissionName() + ", 'q' to cancel): ");
     String pname = scanner.nextLine().trim();
+    if ("q".equalsIgnoreCase(pname)) {
+      System.out.println("Cancelled editing.");
+      return;
+    }
     if (!pname.isEmpty()) p.setPermissionName(pname);
 
-    System.out.print("Enter new threshold (current: " + p.getThreshold() + "): ");
-    String th = scanner.nextLine().trim();
-    if (!th.isEmpty()) p.setThreshold(Integer.parseInt(th));
+    while (true) {
+      System.out.print("Enter new threshold (current: " + p.getThreshold() + ", 'q' to cancel): ");
+      String th = scanner.nextLine().trim();
+      if ("q".equalsIgnoreCase(th)) {
+        System.out.println("Cancelled editing.");
+        return;
+      }
+      if (th.isEmpty()) break;
+      try {
+        long val = Long.parseLong(th);
+        if (val <= 0) {
+          System.out.println("Threshold must be positive.");
+          continue;
+        }
+        p.setThreshold(val);
+        break;
+      } catch (NumberFormatException e) {
+        System.out.println("Invalid number.");
+      }
+    }
 
     List<Integer> currentOps = hexStringToIntegerList(p.getOperations());
     Collections.sort(currentOps);
 
     while (true) {
       List<Integer> allowedOps = currentOps.stream()
-          .filter(i -> operationsMap.get(String.valueOf(i)) != null).collect(Collectors.toList());
-      Collections.sort(allowedOps);
+          .filter(i -> operationsMap.get(String.valueOf(i)) != null).sorted().collect(Collectors.toList());
       System.out.println("\nCurrent allowed operations:");
       for (int i = 0; i < allowedOps.size(); i++) {
         int code = allowedOps.get(i);
@@ -304,12 +411,15 @@ public class UpdateAccountPermissionInteractive {
             + " -> " + ContractType.forNumber(code).name() + "(" + code + ")");
       }
 
-      System.out.println("\nOperations editing:");
+      System.out.println("\nOperations editing (enter 'q' to finish editing operations):");
       System.out.println("1. Delete existing operation(s)");
       System.out.println("2. Add new operation(s)");
-      System.out.println("3. Back");
+      System.out.println("3. Done");
       System.out.print("> ");
       String choice = scanner.nextLine().trim();
+      if ("q".equalsIgnoreCase(choice) || "3".equals(choice)) {
+        break;
+      }
 
       if ("1".equals(choice)) {
         if (allowedOps.isEmpty()) {
@@ -317,15 +427,16 @@ public class UpdateAccountPermissionInteractive {
           continue;
         }
 
-        System.out.println("Current operations can be deleted:");
+        System.out.println("Current operations that can be deleted:");
         for (int i = 0; i < allowedOps.size(); i++) {
           int code = allowedOps.get(i);
           System.out.println((i + 1) + ". " + operationsMap.get(String.valueOf(code))
               + " -> " + ContractType.forNumber(code).name() + "(" + code + ")");
         }
 
-        System.out.print("Enter indexes to delete (comma separated): ");
+        System.out.print("Enter indexes to delete (comma separated), or 'q' to cancel: ");
         String delInput = scanner.nextLine().trim();
+        if ("q".equalsIgnoreCase(delInput)) continue;
         if (!delInput.matches("^[0-9]+(,[0-9]+)*$")) {
           System.out.println("Invalid format.");
           continue;
@@ -334,16 +445,24 @@ public class UpdateAccountPermissionInteractive {
         String[] parts = delInput.split(",");
         Set<Integer> toDelete = new HashSet<>();
         for (String part : parts) {
-          int delIdx = Integer.parseInt(part.trim()) - 1;
-          if (delIdx >= 0 && delIdx < allowedOps.size()) {
-            toDelete.add(allowedOps.get(delIdx));
-          } else {
-            System.out.println("Ignored invalid index: " + (delIdx + 1));
+          try {
+            int delIdx = Integer.parseInt(part.trim()) - 1;
+            if (delIdx >= 0 && delIdx < allowedOps.size()) {
+              toDelete.add(allowedOps.get(delIdx));
+            } else {
+              System.out.println("Ignored invalid index: " + (delIdx + 1));
+            }
+          } catch (NumberFormatException e) {
+            System.out.println("Ignored invalid input: " + part);
           }
         }
 
-        currentOps.removeAll(toDelete);
-        System.out.println("Deleted selected operations.");
+        if (!toDelete.isEmpty()) {
+          currentOps.removeAll(toDelete);
+          System.out.println("Deleted selected operations.");
+        } else {
+          System.out.println("No valid operations selected for deletion.");
+        }
 
       } else if ("2".equals(choice)) {
         List<Integer> available = new ArrayList<>();
@@ -362,25 +481,36 @@ public class UpdateAccountPermissionInteractive {
               + " -> " + ContractType.forNumber(code).name() + "(" + code + ")");
         }
 
-        System.out.print("Enter indexes to add (comma separated): ");
+        System.out.print("Enter indexes to add (comma separated), or 'q' to cancel: ");
         String addInput = scanner.nextLine().trim();
+        if ("q".equalsIgnoreCase(addInput)) continue;
         if (!addInput.matches("^[0-9]+(,[0-9]+)*$")) {
           System.out.println("Invalid format.");
           continue;
         }
 
         String[] parts = addInput.split(",");
+        Set<Integer> toAdd = new LinkedHashSet<>();
         for (String part : parts) {
-          int addIdx = Integer.parseInt(part.trim()) - 1;
-          if (addIdx >= 0 && addIdx < available.size()) {
-            currentOps.add(available.get(addIdx));
-          } else {
-            System.out.println("Ignored invalid index: " + (addIdx + 1));
+          try {
+            int addIdx = Integer.parseInt(part.trim()) - 1;
+            if (addIdx >= 0 && addIdx < available.size()) {
+              toAdd.add(available.get(addIdx));
+            } else {
+              System.out.println("Ignored invalid index: " + (addIdx + 1));
+            }
+          } catch (NumberFormatException e) {
+            System.out.println("Ignored invalid input: " + part);
           }
         }
 
-      } else if ("3".equals(choice)) {
-        break;
+        if (!toAdd.isEmpty()) {
+          currentOps.addAll(toAdd);
+          System.out.println("Added selected operations.");
+        } else {
+          System.out.println("No valid operations selected for addition.");
+        }
+
       } else {
         System.out.println("Invalid input.");
       }
@@ -403,11 +533,33 @@ public class UpdateAccountPermissionInteractive {
     Permission p = new Permission();
     p.setType(2);
 
-    System.out.print("Enter permission_name: ");
-    p.setPermissionName(scanner.nextLine().trim());
+    System.out.print("Enter permission_name (or 'q' to cancel): ");
+    String name = scanner.nextLine().trim();
+    if ("q".equalsIgnoreCase(name)) {
+      System.out.println("Cancelled adding active permission.");
+      return;
+    }
+    p.setPermissionName(name);
 
-    System.out.print("Enter threshold: ");
-    p.setThreshold(Integer.parseInt(scanner.nextLine().trim()));
+    while (true) {
+      System.out.print("Enter threshold (or 'q' to cancel): ");
+      String th = scanner.nextLine().trim();
+      if ("q".equalsIgnoreCase(th)) {
+        System.out.println("Cancelled adding active permission.");
+        return;
+      }
+      try {
+        long t = Long.parseLong(th);
+        if (t <= 0) {
+          System.out.println("Threshold must be positive.");
+        } else {
+          p.setThreshold(t);
+          break;
+        }
+      } catch (NumberFormatException e) {
+        System.out.println("Invalid number.");
+      }
+    }
 
     System.out.println("Available operations:");
     for (int i = 0; i < AVAILABLE_OPERATIONS.size(); i++) {
@@ -420,8 +572,12 @@ public class UpdateAccountPermissionInteractive {
     String opsInput;
 
     while (true) {
-      System.out.print("Enter indexes to allow (comma separated, e.g. 1,3,5): ");
+      System.out.print("Enter indexes to allow (comma separated, e.g. 1,3,5) or 'q' to cancel: ");
       opsInput = scanner.nextLine().trim();
+      if ("q".equalsIgnoreCase(opsInput)) {
+        System.out.println("Cancelled adding active permission.");
+        return;
+      }
 
       if (opsInput.isEmpty()) {
         System.out.println("Operations cannot be empty. Please select at least one operation.");
@@ -468,15 +624,52 @@ public class UpdateAccountPermissionInteractive {
     }
 
     for (int i = 0; i < actives.size(); i++) {
-      System.out.println((i + 1) + ". " + actives.get(i).getPermissionName());
+      printPermissionSummary(actives.get(i), i + 1);
+      System.out.println("---------------------------------------------------");
     }
-    System.out.print("Enter index to delete: ");
-    int idx = Integer.parseInt(scanner.nextLine().trim()) - 1;
-    if (idx >= 0 && idx < actives.size()) {
-      actives.remove(idx);
-      System.out.println("Deleted.");
+    System.out.print("Enter index to delete, Enter " + greenBoldHighlight("b") + " to back: ");
+    String idxStr = scanner.nextLine().trim();
+    if ("b".equalsIgnoreCase(idxStr) || "q".equalsIgnoreCase(idxStr)) {
+      return;
+    }
+    try {
+      int idx = Integer.parseInt(idxStr) - 1;
+      if (idx >= 0 && idx < actives.size()) {
+        Permission removed = actives.remove(idx);
+        System.out.println("Deleted active permission: " + removed.getPermissionName());
+      } else {
+        System.out.println("Invalid index.");
+      }
+    } catch (NumberFormatException e) {
+      System.out.println("Invalid number.");
+    }
+  }
+
+  private void printPermissionSummary(Permission p, int index) {
+    System.out.println(greenBoldHighlight("#" + index) + "  " + p.getPermissionName());
+    // === Operations ===
+    List<Integer> ops = hexStringToIntegerList(p.getOperations());
+    if (ops.isEmpty()) {
+      System.out.println("  Operations : (none)");
     } else {
-      System.out.println("Invalid index.");
+      String opsDisplay = ops.stream()
+          .map(String::valueOf)
+          .filter(operationsMap::containsKey)
+          .map(operationsMap::get)
+          .collect(Collectors.joining(", "));
+      System.out.println("  Operations : " + opsDisplay);
+    }
+    System.out.println("  Threshold  : " + p.getThreshold());
+    // === Authorized To ===
+    List<Key> keys = p.getKeys();
+    if (keys == null || keys.isEmpty()) {
+      System.out.println("  Authorized To : (none)");
+    } else {
+      System.out.println("  Authorized To :");
+      for (Key k : keys) {
+        System.out.printf("      - Address: %-40s  Weight: %d%n",
+            k.getAddress(), k.getWeight());
+      }
     }
   }
 
@@ -514,7 +707,7 @@ public class UpdateAccountPermissionInteractive {
       System.out.println("  (none)");
     } else {
       for (int i = 0; i < actives.size(); i++) {
-        System.out.println("  #" + (i + 1));
+        System.out.println(greenBoldHighlight("  #" + (i + 1)));
         printPermissionDetail(actives.get(i));
       }
     }
@@ -523,8 +716,6 @@ public class UpdateAccountPermissionInteractive {
 
   private void printPermissionDetail(Permission p) {
     System.out.println("  Name       : " + p.getPermissionName());
-    System.out.println("  Threshold  : " + p.getThreshold());
-
     // === Operations ===
     List<Integer> ops = hexStringToIntegerList(p.getOperations());
     if (ops.isEmpty()) {
@@ -539,7 +730,7 @@ public class UpdateAccountPermissionInteractive {
         System.out.printf("      - %-3d (%s)%n", code, name);
       }
     }
-
+    System.out.println("  Threshold  : " + p.getThreshold());
     // === Authorized To ===
     List<Key> keys = p.getKeys();
     if (keys == null || keys.isEmpty()) {
@@ -641,5 +832,3 @@ public class UpdateAccountPermissionInteractive {
   }
 
 }
-
-
