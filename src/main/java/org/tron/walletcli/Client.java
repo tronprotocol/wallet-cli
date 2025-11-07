@@ -1448,7 +1448,7 @@ public class Client {
         || parameters.length == 4 || parameters.length == 5)) {
       System.out.println("Use freezeBalance command with below syntax: ");
       System.out.println("freezeBalance [OwnerAddress] frozen_balance frozen_duration "
-          + "[ResourceCode:0 BANDWIDTH,1 ENERGY,2 TRON_POWER] [receiverAddress]");
+          + "[ResourceCode:0 BANDWIDTH,1 ENERGY] [receiverAddress]");
       return;
     }
 
@@ -1491,7 +1491,7 @@ public class Client {
     if (parameters == null || !(parameters.length == 2 || parameters.length == 3)) {
       System.out.println("Use freezeBalanceV2 command with below syntax: ");
       System.out.println("freezeBalanceV2 [OwnerAddress] frozen_balance "
-              + "[ResourceCode:0 BANDWIDTH,1 ENERGY,2 TRON_POWER]");
+              + "[ResourceCode:0 BANDWIDTH,1 ENERGY]");
       return;
     }
 
@@ -1511,7 +1511,7 @@ public class Client {
       try {
         resourceCode = Integer.parseInt(parameters[index]);
       } catch (NumberFormatException e) {
-        System.out.println("freezeBalanceV2  [ResourceCode:0 BANDWIDTH,1 ENERGY,2 TRON_POWER]");
+        System.out.println("freezeBalanceV2  [ResourceCode:0 BANDWIDTH,1 ENERGY]");
         return;
       }
     }
@@ -1530,7 +1530,7 @@ public class Client {
     if (parameters == null || parameters.length < 1 || parameters.length > 3) {
       System.out.println("Use unfreezeBalance command with below syntax: ");
       System.out.println(
-          "unfreezeBalance [OwnerAddress] ResourceCode(0 BANDWIDTH,1 ENERGY,2 TRON_POWER) [receiverAddress]");
+          "unfreezeBalance [OwnerAddress] ResourceCode(0 BANDWIDTH,1 ENERGY) [receiverAddress]");
       return;
     }
 
@@ -1568,7 +1568,7 @@ public class Client {
     if (parameters == null || !(parameters.length == 2 || parameters.length == 3)) {
       System.out.println("Use unfreezeBalanceV2 command with below syntax: ");
       System.out.println(
-              "unfreezeBalanceV2 [OwnerAddress] unfreezeBalance ResourceCode(0 BANDWIDTH,1 ENERGY,2 TRON_POWER)");
+              "unfreezeBalanceV2 [OwnerAddress] unfreezeBalance ResourceCode(0 BANDWIDTH,1 ENERGY)");
       return;
     }
 

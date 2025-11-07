@@ -1232,7 +1232,7 @@ getDelegatedResourceAccountIndex address
 
 ### freezev2/unfreezev2 resource
 
-    > freezeBalanceV2 [OwnerAddress] frozen_balance [ResourceCode:0 BANDWIDTH,1 ENERGY,2 TRON_POWER]
+    > freezeBalanceV2 [OwnerAddress] frozen_balance [ResourceCode:0 BANDWIDTH,1 ENERGY]
 
 OwnerAddress
 > The address of the account that initiated the transaction, optional, default is the address of the login account.
@@ -1280,7 +1280,7 @@ wallet> GetTransactionById  82244829971b4235d98a9f09ba67ddb09690ac2f879ad93e09ba
 }
 ```
 
-    > unfreezeBalanceV2 [OwnerAddress] unfreezeBalance ResourceCode(0 BANDWIDTH,1 ENERGY,2 TRON_POWER)
+    > unfreezeBalanceV2 [OwnerAddress] unfreezeBalance ResourceCode(0 BANDWIDTH,1 ENERGY)
 
 OwnerAddress
 > The address of the account that initiated the transaction, optional, default is the address of the login account.
