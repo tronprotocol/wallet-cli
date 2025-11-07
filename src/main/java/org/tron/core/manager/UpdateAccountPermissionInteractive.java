@@ -1,5 +1,6 @@
 package org.tron.core.manager;
 
+import static org.apache.commons.lang3.StringUtils.EMPTY;
 import static org.tron.common.utils.ByteUtil.hexStringToIntegerList;
 import static org.tron.common.utils.ByteUtil.integerListToHexString;
 import static org.tron.common.utils.Utils.greenBoldHighlight;
@@ -19,6 +20,7 @@ import java.util.Map;
 import java.util.Scanner;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import lombok.Getter;
 import lombok.Setter;
 import org.bouncycastle.util.encoders.Hex;
@@ -38,8 +40,8 @@ public class UpdateAccountPermissionInteractive {
   );
   private static final List<Integer> AVAILABLE_OPERATIONS = Arrays.asList(
       0, 1, 2, 4, 5, 6, 8, 9, 10, 11, 12, 13,
-      14, 15, 16, 17, 18, 30, 31, 33,
-      41, 42, 43, 44, 45, 46, 48, 49, 54,
+      14, 15, 16, 17, 18, 19, 30, 31, 33,
+      41, 42, 43, 44, 45, 46, 48, 49, 52, 53, 54,
       55, 56, 57, 58, 59
   );
   private static final Map<String, String> operationsMap = new HashMap<>();
@@ -62,6 +64,7 @@ public class UpdateAccountPermissionInteractive {
     operationsMap.put("16", "Create Proposal");
     operationsMap.put("17", "Approve Proposal");
     operationsMap.put("18", "Cancel Proposal");
+    operationsMap.put("19", "Set Account Id");
     operationsMap.put("30", "Create Smart Contract");
     operationsMap.put("31", "Trigger Smart Contract");
     operationsMap.put("33", "Update Contract Parameters");
@@ -73,6 +76,8 @@ public class UpdateAccountPermissionInteractive {
     operationsMap.put("46", "Update Account Permissions");
     operationsMap.put("48", "Clear Contract ABI");
     operationsMap.put("49", "Update SR Commission Ratio");
+    operationsMap.put("52", "Market Sell Asset");
+    operationsMap.put("53", "Market Cancel Order");
     operationsMap.put("54", "TRX Stake (2.0)");
     operationsMap.put("55", "TRX Unstake (2.0)");
     operationsMap.put("56", "Withdraw Unstaked TRX");
@@ -124,7 +129,11 @@ public class UpdateAccountPermissionInteractive {
           deleteActivePermission();
           break;
         case "6":
-          return showFinalSummary();
+          String result = showFinalSummary();
+          if (!result.isEmpty()) {
+            return result;
+          }
+          break;
         case "7":
           System.out.println("Exiting interactive mode.");
           throw new IllegalArgumentException("Already exited interactive mode.");
@@ -220,6 +229,10 @@ public class UpdateAccountPermissionInteractive {
             System.out.println("Each active permission can only add 5 addresses at most.");
             continue;
           }
+          if (permission.getType() == 1) {
+            System.out.println("Witness permission's key count should be 1, adding keys is not allowed");
+            continue;
+          }
           System.out.print("Enter key(Authorized To) address (or 'q' to cancel): ");
           String addr = scanner.nextLine().trim();
           if ("q".equalsIgnoreCase(addr)) continue;
@@ -248,7 +261,16 @@ public class UpdateAccountPermissionInteractive {
             continue;
           }
 
+          long totalWeight = permission.getKeys().stream()
+              .mapToLong(Key::getWeight)
+              .sum();
+          if (totalWeight + weight < permission.getThreshold()) {
+            System.out.println(redBoldHighlight("The sum of address weights must be greater than or equal to the threshold"));
+            continue;
+          }
+
           permission.getKeys().add(new Key(addr, weight));
+
           System.out.println("Added key: " + addr + " (weight=" + weight + ")");
 
           break;
@@ -288,8 +310,17 @@ public class UpdateAccountPermissionInteractive {
               try {
                 long w = Long.parseLong(newWeight);
                 long threshold = permission.getThreshold();
+                List<Key> keys = permission.getKeys();
+                long remainWeight = IntStream.range(0, keys.size())
+                    .filter(i -> i != midx)
+                    .mapToLong(i -> keys.get(i).getWeight())
+                    .sum();
+                if (remainWeight + w < permission.getThreshold()) {
+                  System.out.println(redBoldHighlight("The sum of address weights must be greater than or equal to the threshold"));
+                  continue;
+                }
                 if (w <= 0 || w > threshold) {
-                  System.out.println("Weight must be >0 and <= threshold(" + threshold + "). Skip changing weight.");
+                  System.out.println("Weight must be > 0 and <= threshold(" + threshold + "). Skip changing weight.");
                 } else {
                   keyToEdit.weight = w;
                 }
@@ -305,6 +336,10 @@ public class UpdateAccountPermissionInteractive {
 
           break;
         case "3":
+          if (permission.getType() == 1) {
+            System.out.println("Witness permission's key count should be 1, deleting keys is not allowed");
+            continue;
+          }
           if (permission.getKeys().isEmpty()) {
             System.out.println("No keys(Authorized To) to delete.");
             continue;
@@ -627,6 +662,10 @@ public class UpdateAccountPermissionInteractive {
       printPermissionSummary(actives.get(i), i + 1);
       System.out.println("---------------------------------------------------");
     }
+    if (actives.size() == 1) {
+      System.out.println(redBoldHighlight("Currently, there is only one active permission, and deletion is not allowed."));
+      return;
+    }
     System.out.print("Enter index to delete, Enter " + greenBoldHighlight("b") + " to back: ");
     String idxStr = scanner.nextLine().trim();
     if ("b".equalsIgnoreCase(idxStr) || "q".equalsIgnoreCase(idxStr)) {
@@ -674,13 +713,27 @@ public class UpdateAccountPermissionInteractive {
   }
 
   private String showFinalSummary() {
-    System.out.println("The preview of your updated account permissions is as follows:");
-    printPermissionData(data);
-    return JSON.toJSONString(data.toTronJson());
+    while (true) {
+      printPermissionData(data);
+
+      System.out.print("\nDo you want to proceed with these changes? (Enter " + greenBoldHighlight("y/n") + ", n = return to edit): ");
+      String input = scanner.nextLine().trim().toLowerCase();
+
+      switch (input) {
+        case "y":
+          System.out.println("Confirmed. Preparing final JSON...");
+          return JSON.toJSONString(data.toTronJson());
+        case "n":
+          System.out.println("Returning to main menu for further edits...");
+          return EMPTY;
+        default:
+          System.out.println("Invalid input. Please enter" + greenBoldHighlight("y/n"));
+      }
+    }
   }
 
   private void printPermissionData(PermissionData data) {
-    System.out.println("\n================ Account Permission Info ================");
+    System.out.println("\n=============== Preview of Updated Account Permissions ===============\n");
 
     // --- Owner Permission ---
     Permission owner = data.getOwnerPermission();
@@ -711,7 +764,7 @@ public class UpdateAccountPermissionInteractive {
         printPermissionDetail(actives.get(i));
       }
     }
-    System.out.println("=========================================================");
+    System.out.println("=======================================================================");
   }
 
   private void printPermissionDetail(Permission p) {

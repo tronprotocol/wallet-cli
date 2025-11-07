@@ -67,6 +67,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.commons.lang3.tuple.Triple;
 import org.bouncycastle.util.encoders.Hex;
 import org.hid4java.HidDevice;
 import org.jline.reader.EndOfFileException;
@@ -1318,28 +1319,28 @@ public class WalletApiWrapper {
             libraryAddressPair, compilerVersion);
   }
 
-  public boolean callContract(byte[] ownerAddress, byte[] contractAddress, long callValue,
+  public Triple<Boolean, Long, Long> callContract(byte[] ownerAddress, byte[] contractAddress, long callValue,
                               byte[] data, long feeLimit,
                               long tokenValue, String tokenId, boolean isConstant,
                               boolean display)
       throws Exception {
     if (wallet == null || !wallet.isLoginState()) {
       System.out.println("Warning: callContract " + failedHighlight() + ",  Please login first !!");
-      return false;
+      return Triple.of(false, 0L, 0L);
     }
 
     return wallet
         .triggerContract(ownerAddress, contractAddress, callValue, data, feeLimit, tokenValue,
             tokenId,
-            isConstant, false, display).getLeft();
+            isConstant, false, display);
   }
 
-  public Pair<Boolean, Long> getUsdtBalance(byte[] ownerAddress)
+  public Triple<Boolean, Long, Long> getUSDTBalance(byte[] ownerAddress)
       throws Exception {
     if (wallet == null || !wallet.isLoginState()) {
       // Reference Gasfree balance, login is required to query, as historical methods are reused
-      System.out.println("Warning: getUsdtBalance " + failedHighlight() + ",  Please login first !!");
-      return Pair.of(false, 0L);
+      System.out.println("Warning: getUSDTBalance " + failedHighlight() + ",  Please login first !!");
+      return Triple.of(false, 0L, 0L);
     }
     if (ArrayUtils.isEmpty(ownerAddress)) {
       ownerAddress = wallet.getAddress();
@@ -1349,7 +1350,7 @@ public class WalletApiWrapper {
     NetType netType = WalletApi.getCurrentNetwork();
     byte[] contractAddress = WalletApi.decodeFromBase58Check(netType.getUsdtAddress());
     return wallet.triggerContract(ownerAddress, contractAddress,
-        0, d, 0, 0, EMPTY, true, false, false);
+        0, d, 0, 0, EMPTY, true, true, false);
   }
 
   public boolean estimateEnergy(byte[] ownerAddress, byte[] contractAddress, long callValue,
@@ -1750,7 +1751,7 @@ public class WalletApiWrapper {
               "\"" + gasFreeAddress + "\"", false));
           long activateFee = asset.getLongValue("activateFee");
           long transferFee = asset.getLongValue("transferFee");
-          Pair<Boolean, Long> triggerContractPair = wallet.triggerContract(null, decodeFromBase58Check(tokenAddress),
+          Triple<Boolean, Long, Long> triggerContractPair = wallet.triggerContract(null, decodeFromBase58Check(tokenAddress),
               0, d, 0, 0, EMPTY, true, true, false);
           if (Boolean.FALSE.equals(triggerContractPair.getLeft())) {
             return false;

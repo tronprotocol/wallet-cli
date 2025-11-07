@@ -1,14 +1,13 @@
 +---------------------------------------------------+-------------------------------------------------------------------------+
 |                   COMMAND                         |                       SUMMARY                                           |
 +---------------------------------------------------+-------------------------------------------------------------------------+
-|                ACCOUNT MANAGEMENT (15)            |                                                                         |
+|                ACCOUNT MANAGEMENT (14)            |                                                                         |
 +---------------------------------------------------+-------------------------------------------------------------------------+
 | GenerateAddress                                   | Generate an address and print out the address and private key           |
 | GetAccount                                        | Get account details information                                         |
 | GetAccountById                                    | Get account details information through account id                      |
 | GetAddress                                        | Get the address of the current account                                  |
 | GetBalance                                        | Get the current TRX balance of the account                              |
-| GetUsdtBalance                                    | Get the current USDT balance of the account                             |
 | CreateAccount                                     | Activating an account                                                   |
 | UpdateAccount                                     | Update account name                                                     |
 | UpdateAccountPermission                           | Update account permissions                                              |
@@ -41,6 +40,14 @@
 | GetBandwidthPrices                                | Get historical bandwidth unit price                                     |
 | GetEnergyPrices                                   | Get historical energy unit price                                        |
 |---------------------------------------------------+-------------------------------------------------------------------------+
+|                ASSET MANAGEMENT (5)               |                                                                         |
++---------------------------------------------------+-------------------------------------------------------------------------+
+| SendCoin                                          | Create a TRX transfer transaction                                       |
+| GetBalance                                        | Get the current TRX balance of the account                              |
+| TransferUSDT                                      | Make a USDT transfer                                                    |
+| GetUSDTBalance                                    | Get the current USDT balance of the account                             |
+| TransferAsset                                     | Transfer TRC10 token                                                    |
+|---------------------------------------------------+-------------------------------------------------------------------------+
 |                TRANSACTIONS (10)                   |                                                                        |
 +---------------------------------------------------+-------------------------------------------------------------------------+
 | AddTransactionSign                                | Add signature to hex format transaction                                 |
@@ -54,10 +61,9 @@
 | GetUsdtTransferById                               | Get USDT transfer transaction summary based on transaction ID           |
 | ViewTransactionHistory                            | View transaction history                                                |
 |---------------------------------------------------+-------------------------------------------------------------------------+
-|                SMART CONTRACTS (11)               |                                                                         |
+|                SMART CONTRACTS (10)               |                                                                         |
 +---------------------------------------------------+-------------------------------------------------------------------------+
 | DeployContract                                    | Deploy a smart contract                                                 |
-| TransferUSDT                                      | Make a USDT transfer                                                    |
 | TriggerContract                                   | Create a smart contract transaction                                     |
 | TriggerConstantContract                           | Dry-run a smart contract function                                       |
 | EstimateEnergy                                    | Estimate the energy of a smart contract transaction                     |
@@ -86,7 +92,7 @@
 | GetBrokerage                                      | Get the brokerage ratio of a super representative                       |
 | UpdateBrokerage                                   | Update SR's brokerage ratio                                             |
 +---------------------------------------------------+-------------------------------------------------------------------------+
-|                TRC10 (25)                         |                                                                         |
+|                TRC10 (24)                         |                                                                         |
 +---------------------------------------------------+-------------------------------------------------------------------------+
 | AssetIssue                                        | Issue a TRC10 token                                                     |
 | UpdateAsset                                       | Update basic TRC10 token information                                    |
@@ -97,7 +103,6 @@
 | GetAssetIssueListByName                           | Get the list of token by same name                                      |
 | GetAssetIssueByAccount                            | Get a token by account address                                          |
 | UnfreezeAsset                                     | Unstake a token that has passed the minimum freeze duration             |
-| TransferAsset                                     | Transfer TRC10 token                                                    |
 | ParticipateAssetIssue                             | Participate in an asset issue                                           |
 | MarketSellAsset                                   | Market sell asset                                                       |
 | MarketCancelOrder                                 | Cancel market order                                                     |
