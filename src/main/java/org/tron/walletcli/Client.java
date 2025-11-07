@@ -1468,12 +1468,20 @@ public class Client {
         (hasOwnerAddressPara && (parameters.length == 4))) {
       try {
         resourceCode = Integer.parseInt(parameters[index]);
+        if (ResourceCode.BANDWIDTH.ordinal() != resourceCode && ResourceCode.ENERGY.ordinal() != resourceCode) {
+          System.out.println("freezeBalance ResourceCode must be: 0 (BANDWIDTH) or 1 (ENERGY)");
+          return;
+        }
       } catch (NumberFormatException e) {
         receiverAddress = WalletApi.decodeFromBase58Check(parameters[index]);
       }
     } else if ((!hasOwnerAddressPara && (parameters.length == 4)) ||
         (hasOwnerAddressPara && (parameters.length == 5))) {
       resourceCode = Integer.parseInt(parameters[index++]);
+      if (ResourceCode.BANDWIDTH.ordinal() != resourceCode && ResourceCode.ENERGY.ordinal() != resourceCode) {
+        System.out.println("freezeBalance ResourceCode must be: 0 (BANDWIDTH) or 1 (ENERGY)");
+        return;
+      }
       receiverAddress = WalletApi.decodeFromBase58Check(parameters[index]);
     }
 
@@ -1510,6 +1518,10 @@ public class Client {
             (hasOwnerAddressPara && (parameters.length == 3))) {
       try {
         resourceCode = Integer.parseInt(parameters[index]);
+        if (ResourceCode.BANDWIDTH.ordinal() != resourceCode && ResourceCode.ENERGY.ordinal() != resourceCode) {
+          System.out.println("freezeBalanceV2 ResourceCode must be: 0 (BANDWIDTH) or 1 (ENERGY)");
+          return;
+        }
       } catch (NumberFormatException e) {
         System.out.println("freezeBalanceV2  [ResourceCode:0 BANDWIDTH,1 ENERGY]");
         return;
@@ -1540,18 +1552,34 @@ public class Client {
     byte[] receiverAddress = null;
     if (parameters.length == 1) {
       resourceCode = Integer.parseInt(parameters[index++]);
+      if (ResourceCode.BANDWIDTH.ordinal() != resourceCode && ResourceCode.ENERGY.ordinal() != resourceCode) {
+        System.out.println("unfreezeBalance ResourceCode must be: 0 (BANDWIDTH) or 1 (ENERGY)");
+        return;
+      }
     } else if (parameters.length == 2) {
       ownerAddress = getAddressBytes(parameters[index]);
       if (ownerAddress != null) {
         index++;
         resourceCode = Integer.parseInt(parameters[index++]);
+        if (ResourceCode.BANDWIDTH.ordinal() != resourceCode && ResourceCode.ENERGY.ordinal() != resourceCode) {
+          System.out.println("unfreezeBalance ResourceCode must be: 0 (BANDWIDTH) or 1 (ENERGY)");
+          return;
+        }
       } else {
         resourceCode = Integer.parseInt(parameters[index++]);
+        if (ResourceCode.BANDWIDTH.ordinal() != resourceCode && ResourceCode.ENERGY.ordinal() != resourceCode) {
+          System.out.println("unfreezeBalance ResourceCode must be: 0 (BANDWIDTH) or 1 (ENERGY)");
+          return;
+        }
         receiverAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
       }
     } else if (parameters.length == 3) {
       ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
       resourceCode = Integer.parseInt(parameters[index++]);
+      if (ResourceCode.BANDWIDTH.ordinal() != resourceCode && ResourceCode.ENERGY.ordinal() != resourceCode) {
+        System.out.println("unfreezeBalance ResourceCode must be: 0 (BANDWIDTH) or 1 (ENERGY)");
+        return;
+      }
       receiverAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
     }
 
@@ -1579,12 +1607,20 @@ public class Client {
     if (parameters.length == 2) {
       unfreezeBalance = Long.parseLong(parameters[index++]);
       resourceCode = Integer.parseInt(parameters[index++]);
+      if (ResourceCode.BANDWIDTH.ordinal() != resourceCode && ResourceCode.ENERGY.ordinal() != resourceCode) {
+        System.out.println("unfreezeBalanceV2 ResourceCode must be: 0 (BANDWIDTH) or 1 (ENERGY)");
+        return;
+      }
     } else if (parameters.length == 3) {
       ownerAddress = getAddressBytes(parameters[index]);
       if (ownerAddress != null) {
         index++;
         unfreezeBalance = Long.parseLong(parameters[index++]);
         resourceCode = Integer.parseInt(parameters[index++]);
+        if (ResourceCode.BANDWIDTH.ordinal() != resourceCode && ResourceCode.ENERGY.ordinal() != resourceCode) {
+          System.out.println("unfreezeBalanceV2 ResourceCode must be: 0 (BANDWIDTH) or 1 (ENERGY)");
+          return;
+        }
       } else {
         System.out.println(
                 "unfreezeBalanceV2 OwnerAddress is invalid");
@@ -1648,6 +1684,10 @@ public class Client {
     if (parameters.length == 3) {
       balance = Long.parseLong(parameters[index++]);
       resourceCode = Integer.parseInt(parameters[index++]);
+      if (ResourceCode.BANDWIDTH.ordinal() != resourceCode && ResourceCode.ENERGY.ordinal() != resourceCode) {
+        System.out.println("delegateResource ResourceCode must be: 0 (BANDWIDTH) or 1 (ENERGY)");
+        return;
+      }
       receiverAddress = getAddressBytes(parameters[index]);
       if (receiverAddress == null) {
         System.out.println(
@@ -1661,6 +1701,10 @@ public class Client {
       }
       balance = Long.parseLong(parameters[index++]);
       resourceCode = Integer.parseInt(parameters[index++]);
+      if (ResourceCode.BANDWIDTH.ordinal() != resourceCode && ResourceCode.ENERGY.ordinal() != resourceCode) {
+        System.out.println("delegateResource ResourceCode must be: 0 (BANDWIDTH) or 1 (ENERGY)");
+        return;
+      }
       receiverAddress = getAddressBytes(parameters[index++]);
       if (receiverAddress == null) {
         System.out.println(
@@ -1703,6 +1747,10 @@ public class Client {
     if (parameters.length == 3) {
       balance = Long.parseLong(parameters[index++]);
       resourceCode = Integer.parseInt(parameters[index++]);
+      if (ResourceCode.BANDWIDTH.ordinal() != resourceCode && ResourceCode.ENERGY.ordinal() != resourceCode) {
+        System.out.println("unDelegateResource ResourceCode must be: 0 (BANDWIDTH) or 1 (ENERGY)");
+        return;
+      }
       receiverAddress = getAddressBytes(parameters[index++]);
       if (receiverAddress == null) {
         System.out.println(
@@ -1714,6 +1762,10 @@ public class Client {
       if (ownerAddress != null) {
         balance = Long.parseLong(parameters[index++]);
         resourceCode = Integer.parseInt(parameters[index++]);
+        if (ResourceCode.BANDWIDTH.ordinal() != resourceCode && ResourceCode.ENERGY.ordinal() != resourceCode) {
+          System.out.println("unDelegateResource ResourceCode must be: 0 (BANDWIDTH) or 1 (ENERGY)");
+          return;
+        }
         receiverAddress = getAddressBytes(parameters[index++]);
         if (receiverAddress == null) {
           System.out.println(
