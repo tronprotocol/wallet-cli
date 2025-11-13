@@ -122,7 +122,7 @@ For more information on a specific command, just type the command in the termina
 |            [GetMarketPriceByPair](#How-to-use-tron-dex-to-sell-asset)            |                  [GetMemoFee](#Get-resource-prices-and-memo-fee)                  |                       [GetNextMaintenanceTime](#Some-others)                        |
 |                   [GetProposal](#Obtain-proposal-information)                    |                              [GetReward](#Brokerage)                              | [GetTransactionApprovedList](#How-to-use-the-multi-signature-feature-of-wallet-cli) |
 |            [GetTransactionById](#How-to-get-transaction-information)             |       [GetTransactionCountByBlockNum](#How-to-get-transaction-information)        |         [GetTransactionInfoByBlockNum](#How-to-get-transaction-information)         |
-|          [GetTransactionInfoById](#How-to-get-transaction-information)           | [GetTransactionSignWeight](#How-to-use-the-multi-signature-feature-of-wallet-cli) |                         [GetUsdtBalance](#get-usdt-balance)                         |
+|          [GetTransactionInfoById](#How-to-get-transaction-information)           | [GetTransactionSignWeight](#How-to-use-the-multi-signature-feature-of-wallet-cli) |                         [GetUSDTBalance](#get-usdt-balance)                         |
 |                 [GetUsdtTransferById](#get-usdt-transfer-by-id)                  |                     [ImportWallet](#Wallet-related-commands)                      |                  [ImportWalletByBase64](#Wallet-related-commands)                   |
 |             [ImportWalletByKeystore](#export-import-wallet-keystore)             |                 [ImportWalletByLedger](#import-wallet-by-ledger)                  |                [ImportWalletByMnemonic](#import-and-export-mnemonic)                |
 |             [ListAssetIssue](#How-to-obtain-trc10-token-information)             |              [ListAssetIssuePaginated](#list-asset-issue-paginated)               |                   [ListExchanges](#How-to-trade-on-the-exchange)                    |
@@ -786,7 +786,7 @@ three types of accesses:
 The rest of the users will be granted
 
 ```console
-> Updateaccountpermission TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ {"owner_permission":{"type":0,"permission_name":"owner","threshold":1,"keys":[{"address":"TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ","weight":1}]},"witness_permission":{"type":1,"permission_name":"owner","threshold":1,"keys":[{"address":"TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ","weight":1}]},"active_permissions":[{"type":2,"permission_name":"active12323","threshold":2,"operations":"7fff1fc0033e0000000000000000000000000000000000000000000000000000","keys":[{"address":"TNhXo1GbRNCuorvYu5JFWN3m2NYr9QQpVR","weight":1},{"address":"TKwhcDup8L2PH5r6hxp5CQvQzZqJLmKvZP","weight":1}]}]}
+> Updateaccountpermission TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ {"owner_permission":{"type":0,"permission_name":"owner","threshold":1,"keys":[{"address":"TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ","weight":1}]},"witness_permission":{"type":1,"permission_name":"witness","threshold":1,"keys":[{"address":"TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ","weight":1}]},"active_permissions":[{"type":2,"permission_name":"active12323","threshold":2,"operations":"7fff1fc0033e0000000000000000000000000000000000000000000000000000","keys":[{"address":"TNhXo1GbRNCuorvYu5JFWN3m2NYr9QQpVR","weight":1},{"address":"TKwhcDup8L2PH5r6hxp5CQvQzZqJLmKvZP","weight":1}]}]}
 ```
 or
 ```console
@@ -2502,9 +2502,10 @@ wallet> ShowReceivingQrCode
 ████ █▄▄▄█ █ ▀█▀█▄█▄▀▀█▄ ▄█  ██▀▄████
 ████▄▄▄▄▄▄▄█▄▄██▄██ ▀▀▄▄▄▄█   ▀  ████
 █████████████████████████████████████
+TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp
 ```
 ### get usdt balance
-> GetUsdtBalance
+> GetUSDTBalance
 
 Get the current USDT balance of the account.
 

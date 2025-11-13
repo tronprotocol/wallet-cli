@@ -64,6 +64,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.commons.lang3.tuple.Triple;
 import org.bouncycastle.util.encoders.Hex;
 import org.hid4java.HidDevice;
 import org.jline.reader.Candidate;
@@ -85,6 +86,7 @@ import org.tron.common.enums.NetType;
 import org.tron.common.utils.AbiUtil;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.ByteUtil;
+import org.tron.common.utils.CaseInsensitiveCommandCompleter;
 import org.tron.common.utils.PathUtil;
 import org.tron.common.utils.Utils;
 import org.tron.core.dao.AddressEntry;
@@ -193,7 +195,7 @@ public class Client {
       "GetTransactionInfoByBlockNum",
       "GetTransactionInfoById",
       "GetTransactionSignWeight",
-      "GetUsdtBalance",
+      "GetUSDTBalance",
       "GetUsdtTransferById",
       "Help",
       "ImportWallet",
@@ -2877,7 +2879,7 @@ public class Client {
     byte[] contractAddress = WalletApi.decodeFromBase58Check(contractAddrStr);
 
     boolean result = walletApiWrapper.callContract(
-        ownerAddress, contractAddress, callValue, input, feeLimit, tokenValue, tokenId, false, false);
+        ownerAddress, contractAddress, callValue, input, feeLimit, tokenValue, tokenId, false, false).getLeft();
     if (result) {
       System.out.println("Broadcast the TriggerContract " + successfulHighlight() + ".\n"
           + "Please check the given transaction id to get the result on blockchain using getTransactionInfoById command");
@@ -3477,6 +3479,7 @@ public class Client {
       System.out.println("Version" + VERSION);
       System.exit(0);
     }
+//    Security.addProvider(TronCastleProvider.getInstance());
     System.out.println();
     System.out.println("Welcome to Tron " + blueBoldHighlight("Wallet-Cli"));
     printBanner();
@@ -3497,7 +3500,7 @@ public class Client {
           .dumb(true)
           .nativeSignals(true).build();
       DefaultParser parser = new DefaultParser();
-      Completer commandCompleter = new StringsCompleter(commandList);
+      Completer commandCompleter = new CaseInsensitiveCommandCompleter(commandList);
       Completer addressCompleter = (reader, line, candidates) -> {
         List<AddressEntry> addressEntries = new AddressBookService().getEntries();
         for (int i = 0; i < addressEntries.size(); i++) {
@@ -3513,13 +3516,13 @@ public class Client {
           ));
         }
       };
-      Completer completer = new ArgumentCompleter(
+      ArgumentCompleter completer = new ArgumentCompleter(
           commandCompleter,
           addressCompleter,
           addressCompleter,
           NullCompleter.INSTANCE
       );
-
+      completer.setStrict(false);
       LineReader lineReader = LineReaderBuilder.builder()
           .terminal(terminal)
           .parser(parser)
@@ -3722,7 +3725,7 @@ public class Client {
               break;
             }
             case "getusdtbalance": {
-              getUsdtBalance(parameters);
+              getUSDTBalance(parameters);
               break;
             }
             case "transferasset": {
@@ -4187,7 +4190,7 @@ public class Client {
     }
   }
 
-  private void getUsdtBalance(String[] parameters) throws Exception {
+  private void getUSDTBalance(String[] parameters) throws Exception {
     NetType netType = WalletApi.getCurrentNetwork();
     if (netType != MAIN && netType != NILE && netType != SHASTA) {
       System.out.println("This command does not support the current network.");
@@ -4203,16 +4206,16 @@ public class Client {
         return;
       }
     } else {
-      System.out.println("GetUsdtBalance needs no parameter or 1 parameter like the following: ");
-      System.out.println("GetUsdtBalance Address ");
+      System.out.println("GetUSDTBalance needs no parameter or 1 parameter like the following: ");
+      System.out.println("GetUSDTBalance Address ");
       return;
     }
-    Pair<Boolean, Long> pair = walletApiWrapper.getUsdtBalance(ownerAddress);
+    Triple<Boolean, Long, Long> pair = walletApiWrapper.getUSDTBalance(ownerAddress);
     if (Boolean.TRUE.equals(pair.getLeft())) {
       long balance = pair.getRight();
       System.out.println("USDT balance = " + balance);
     } else {
-      System.out.println("GetUsdtBalance " + failedHighlight() + " !!!!");
+      System.out.println("GetUSDTBalance " + failedHighlight() + " !!!!");
     }
   }
 
@@ -4250,16 +4253,16 @@ public class Client {
       System.out.println("Incorrect amount format, please check.");
     }
     // valid amount
-    Pair<Boolean, Long> pair = walletApiWrapper.getUsdtBalance(ownerAddress);
-    if (Boolean.TRUE.equals(pair.getLeft())) {
-      long balance = pair.getRight();
+    Triple<Boolean, Long, Long> triple = walletApiWrapper.getUSDTBalance(ownerAddress);
+    if (Boolean.TRUE.equals(triple.getLeft())) {
+      long balance = triple.getRight();
       if (amount > balance) {
         System.out.println("The usdt balance(" + balance + ") is insufficient.");
         return;
       }
       System.out.println("USDT balance = " + balance);
     } else {
-      System.out.println("GetUsdtBalance " + failedHighlight() + " !!!!");
+      System.out.println("GetUSDTBalance " + failedHighlight() + " !!!!");
       return;
     }
     String inputStr = String.format("\"%s\",%s", base58ToAddress, amountStr);
@@ -4267,11 +4270,14 @@ public class Client {
     byte[] input = Hex.decode(AbiUtil.parseMethod(methodStr, inputStr, false));
     byte[] contractAddress = WalletApi.decodeFromBase58Check(netType.getUsdtAddress());
     //  Estimate bandwidth and energy
-    walletApiWrapper.callContract(
+    long energyFee = getChainParamValue(walletApiWrapper.getChainParameters(), "getEnergyFee");
+    Triple<Boolean, Long, Long> estimateTtriple = walletApiWrapper.callContract(
         ownerAddress, contractAddress, 0, input, 0, 0, "", true, true);
-
+    long energyUsed = estimateTtriple.getMiddle();
+    // The fee limit rises by 20% in the total energy price
+    long feeLimit = (long) (energyFee * energyUsed * 1.2);
     boolean result = walletApiWrapper.callContract(
-        ownerAddress, contractAddress, 0, input, 1000000000, 0, "", false, false);
+        ownerAddress, contractAddress, 0, input, feeLimit, 0, "", false, false).getLeft();
     if (result) {
       System.out.println("Transfer " + amountStr + " to " + base58ToAddress + " broadcast " + successfulHighlight() + ".\n"
           + "Please check the given transaction id to get the result on blockchain using getTransactionInfoById command.");
@@ -4279,6 +4285,14 @@ public class Client {
       System.out.println("Transfer " + amountStr + " to " + base58ToAddress + " " + failedHighlight() + ".");
     }
     askToSaveAddress(base58ToAddress);
+  }
+
+  public static long getChainParamValue(Response.ChainParameters params, String key) {
+    return params.getChainParameterList().stream()
+        .filter(p -> key.equals(p.getKey()))
+        .mapToLong(Response.ChainParameters.ChainParameter::getValue)
+        .findFirst()
+        .orElseThrow(() -> new IllegalArgumentException("Parameter not found: " + key));
   }
 
   private void viewBackupRecords(String[] parameters) {
