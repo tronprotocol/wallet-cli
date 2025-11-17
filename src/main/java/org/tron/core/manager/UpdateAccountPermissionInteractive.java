@@ -200,10 +200,6 @@ public class UpdateAccountPermissionInteractive {
     editKeys(permission);
   }
 
-  /**
-   * editKeys: 支持 add/modify/delete，包含 addressValid 与 weight 校验，
-   * 修改和添加时都可用 'q' 退出回上一层。
-   */
   private void editKeys(Permission permission) {
     if (permission == null) return;
     while (true) {
@@ -261,16 +257,7 @@ public class UpdateAccountPermissionInteractive {
             continue;
           }
 
-          long totalWeight = permission.getKeys().stream()
-              .mapToLong(Key::getWeight)
-              .sum();
-          if (totalWeight + weight < permission.getThreshold()) {
-            System.out.println(redBoldHighlight("The sum of address weights must be greater than or equal to the threshold"));
-            continue;
-          }
-
           permission.getKeys().add(new Key(addr, weight));
-
           System.out.println("Added key: " + addr + " (weight=" + weight + ")");
 
           break;
@@ -310,15 +297,6 @@ public class UpdateAccountPermissionInteractive {
               try {
                 long w = Long.parseLong(newWeight);
                 long threshold = permission.getThreshold();
-                List<Key> keys = permission.getKeys();
-                long remainWeight = IntStream.range(0, keys.size())
-                    .filter(i -> i != midx)
-                    .mapToLong(i -> keys.get(i).getWeight())
-                    .sum();
-                if (remainWeight + w < permission.getThreshold()) {
-                  System.out.println(redBoldHighlight("The sum of address weights must be greater than or equal to the threshold"));
-                  continue;
-                }
                 if (w <= 0 || w > threshold) {
                   System.out.println("Weight must be > 0 and <= threshold(" + threshold + "). Skip changing weight.");
                 } else {
@@ -721,6 +699,9 @@ public class UpdateAccountPermissionInteractive {
 
       switch (input) {
         case "y":
+          if (!validateAllPermissionWeights(data)) {
+            return EMPTY;
+          }
           System.out.println("Confirmed. Preparing final JSON...");
           return JSON.toJSONString(data.toTronJson());
         case "n":
@@ -731,6 +712,35 @@ public class UpdateAccountPermissionInteractive {
       }
     }
   }
+
+  private boolean validateAllPermissionWeights(PermissionData data) {
+    // valid owner permission
+    if (!validateSinglePermission(data.getOwnerPermission())) {
+      System.out.println(redBoldHighlight("Owner permission key weight sum must >= threshold!"));
+      return false;
+    }
+
+    // valid active permissions
+    for (Permission p : data.getActivePermissions()) {
+      if (!validateSinglePermission(p)) {
+        System.out.println(redBoldHighlight("Active permission '" + p.getPermissionName()
+            + "' key weight sum must >= threshold!"));
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  private boolean validateSinglePermission(Permission p) {
+    if (p == null) return false;
+    int totalWeight = 0;
+    for (Key k : p.getKeys()) {
+      totalWeight += k.getWeight();
+    }
+    return totalWeight >= p.getThreshold();
+  }
+
 
   private void printPermissionData(PermissionData data) {
     System.out.println("\n=============== Preview of Updated Account Permissions ===============\n");

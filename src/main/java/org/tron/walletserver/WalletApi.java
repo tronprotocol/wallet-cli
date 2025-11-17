@@ -2464,7 +2464,7 @@ public class WalletApi {
           long calculateBandwidth = calculateBandwidth(transaction);
           String s = new String(builder.build().getResult().getMessage().toByteArray(), StandardCharsets.UTF_8);
           if ("REVERT opcode executed".equals(s)) {
-            System.out.println(redBoldHighlight("The transaction may be reversed."));
+            System.out.println(redBoldHighlight("The transaction may be reverted."));
           }
           System.out.println("It is estimated that " + greenBoldHighlight(calculateBandwidth) + " bandwidth and " + greenBoldHighlight(energyUsed) + " energy will be consumed.");
         } else {
