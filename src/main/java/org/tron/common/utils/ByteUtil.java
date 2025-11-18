@@ -18,6 +18,8 @@
 
 package org.tron.common.utils;
 
+import static org.tron.trident.utils.Numeric.hexStringToByteArray;
+
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.UnsignedBytes;
 import java.math.BigInteger;
@@ -25,6 +27,7 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import org.apache.commons.lang3.StringUtils;
 import org.bouncycastle.util.encoders.Hex;
 
 public class ByteUtil {
@@ -413,6 +416,33 @@ public class ByteUtil {
     }
 
     return ret;
+  }
+
+  public static List<Integer> hexStringToIntegerList(String hexString) {
+    List<Integer> result = new ArrayList<>();
+    if (StringUtils.isEmpty(hexString)) {
+      return result;
+    }
+    byte[] bytes = hexStringToByteArray(hexString);
+
+    for (int byteIndex = 0; byteIndex < bytes.length; byteIndex++) {
+      byte currentByte = bytes[byteIndex];
+
+      for (int bitIndex = 0; bitIndex < 8; bitIndex++) {
+        if ((currentByte & (1 << bitIndex)) != 0) {
+          int value = byteIndex * 8 + bitIndex;
+          result.add(value);
+        }
+      }
+    }
+
+    return result;
+  }
+
+  public static String integerListToHexString(List<Integer> currentOps) {
+    byte[] operations = new byte[32];
+    currentOps.forEach(e -> operations[e / 8] |= (1 << e % 8));
+    return  Hex.toHexString(operations);
   }
 
 }

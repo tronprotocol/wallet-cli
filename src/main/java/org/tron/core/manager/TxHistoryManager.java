@@ -51,16 +51,20 @@ public class TxHistoryManager {
     }
   }
 
+  public TxHistoryManager() {
+    this.currentUserAddress = null;
+  }
+
   public TxHistoryManager(String currentUserAddress) {
     this.currentUserAddress = Objects.requireNonNull(currentUserAddress);
     ensureBaseDirectoryExists();
   }
 
-  private Path getNetworkFilePath(NetType network) {
+  public Path getNetworkFilePath(NetType network) {
     return Paths.get(BASE_DIR, network.name(), HISTORY_FILE);
   }
 
-  private void ensureNetworkDirectoryExists(NetType network) {
+  public void ensureNetworkDirectoryExists(NetType network) {
     try {
       Files.createDirectories(Paths.get(BASE_DIR, network.name()));
     } catch (IOException e) {
@@ -240,7 +244,7 @@ public class TxHistoryManager {
     );
   }
 
-  private Optional<Tx> lineToTx(String line) {
+  public Optional<Tx> lineToTx(String line) {
     try {
       String[] parts = line.split(",");
       if (parts.length != 8) return Optional.empty();

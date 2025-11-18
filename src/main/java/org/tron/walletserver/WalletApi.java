@@ -15,6 +15,7 @@ import static org.tron.common.utils.Utils.getNode;
 import static org.tron.common.utils.Utils.getTx;
 import static org.tron.common.utils.Utils.greenBoldHighlight;
 import static org.tron.common.utils.Utils.inputPassword;
+import static org.tron.common.utils.Utils.redBoldHighlight;
 import static org.tron.common.utils.Utils.yellowBoldHighlight;
 import static org.tron.core.config.Parameter.CommonConstant.ADD_PRE_FIX_BYTE_MAINNET;
 import static org.tron.core.config.Parameter.CommonConstant.ADD_PRE_FIX_BYTE_TESTNET;
@@ -36,6 +37,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
@@ -60,6 +62,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.commons.lang3.tuple.Triple;
 import org.bouncycastle.util.encoders.Hex;
 import org.hid4java.HidDevice;
 import org.tron.api.GrpcAPI.TransactionSignWeight;
@@ -608,7 +611,7 @@ public class WalletApi {
         try {
           n = Integer.parseInt(num);
         } catch (NumberFormatException e) {
-          System.out.println("Invaild number of " + num);
+          System.out.println("Invalid number of " + num);
           System.out.println("Please choose again between 1 and " + mnemonicFiles.length);
           continue;
         }
@@ -661,7 +664,7 @@ public class WalletApi {
     Credentials credentials = WalletUtils.loadCredentials(oldPassword, wallet);
     WalletUtils.updateWalletFile(newPassowrd, credentials.getPair(), wallet, true);
 
-    // udpate the password of mnemonicFile
+    // update the password of mnemonicFile
     String ownerAddress = credentials.getAddress();
     File mnemonicFile = Paths.get("Mnemonic", ownerAddress + ".json").toFile();
     if (mnemonicFile.exists()) {
@@ -2412,7 +2415,7 @@ public class WalletApi {
     return processTransactionExtention(transactionExtention);
   }
 
-  public Pair<Boolean, Long> triggerContract(
+  public Triple<Boolean, Long, Long> triggerContract(
       byte[] owner,
       byte[] contractAddress,
       long callValue,
@@ -2421,7 +2424,8 @@ public class WalletApi {
       long tokenValue,
       String tokenId,
       boolean isConstant,
-      boolean isGasfree)
+      boolean noExe,
+      boolean display)
       throws Exception {
     if (!isUnlocked()) {
       throw new IllegalStateException(LOCK_WARNING);
@@ -2442,7 +2446,7 @@ public class WalletApi {
       System.out.println("Code = " + transactionExtention.getResult().getCode());
       System.out
           .println("Message = " + transactionExtention.getResult().getMessage().toStringUtf8());
-      return Pair.of(false, 0L);
+      return Triple.of(false, 0L, 0L);
     }
 
     Chain.Transaction transaction = transactionExtention
@@ -2454,15 +2458,25 @@ public class WalletApi {
       if (transaction.getRet(0).getRet() == Chain.Transaction.Result.code.FAILED) {
         builder.setResult(builder.getResult().toBuilder().setResult(false));
       }
-      if (!isGasfree) {
-        System.out.println("Execution result = " + Utils.formatMessageString(builder.build()));
+      long energyUsed = builder.build().getEnergyUsed();
+      if (!noExe) {
+        if (display) {
+          long calculateBandwidth = calculateBandwidth(transaction);
+          String s = new String(builder.build().getResult().getMessage().toByteArray(), StandardCharsets.UTF_8);
+          if ("REVERT opcode executed".equals(s)) {
+            System.out.println(redBoldHighlight("The transaction may be reverted."));
+          }
+          System.out.println("It is estimated that " + greenBoldHighlight(calculateBandwidth) + " bandwidth and " + greenBoldHighlight(energyUsed) + " energy will be consumed.");
+        } else {
+          System.out.println("Execution result = " + Utils.formatMessageString(builder.build()));
+        }
       }
       BigInteger bigInteger = BigInteger.valueOf(0L);
       if (builder.getConstantResultCount() == 1) {
         ByteString constantResult = builder.getConstantResult(0);
         bigInteger = new BigInteger(1, constantResult.toByteArray());
       }
-      return Pair.of(true, bigInteger.longValue());
+      return Triple.of(true, energyUsed, bigInteger.longValue());
     }
 
     Response.TransactionExtention.Builder texBuilder = Response.TransactionExtention.newBuilder();
@@ -2484,7 +2498,20 @@ public class WalletApi {
     texBuilder.setTxid(transactionExtention.getTxid());
     transactionExtention = texBuilder.build();
 
-    return Pair.of(processTransactionExtention(transactionExtention), 0L);
+    return Triple.of(processTransactionExtention(transactionExtention), 0L, 0L);
+  }
+
+  public static long calculateBandwidth(Chain.Transaction transaction) {
+    String hexString = Hex.toHexString(transaction.getRawData().toByteArray());
+    final long DATA_HEX_PROTOBUF_EXTRA = 9;
+    final long SIGNATURE_PER_BANDWIDTH = 67;
+    final long MAX_RESULT_SIZE_IN_TX = 64;
+    long byteLength = (long) Math.ceil(hexString.length() / 2.0);
+    long bandwidthBuffer = DATA_HEX_PROTOBUF_EXTRA
+        + SIGNATURE_PER_BANDWIDTH * (transaction.getSignatureCount() + 1)
+        + MAX_RESULT_SIZE_IN_TX;
+
+    return byteLength + bandwidthBuffer;
   }
 
   public boolean estimateEnergy(
