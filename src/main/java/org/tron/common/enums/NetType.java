@@ -19,7 +19,8 @@ public enum NetType {
           728126428L,
           "TFFAMQLZybALaLb4uxHA9RBE7pxhUAjF3U",
           "https://open.gasfree.io",
-          "/tron")
+          "/tron"),
+      "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
   ),
   NILE("https://nile.trongrid.io",
       new Grpc(FULLNODE_NILE, FULLNODE_NILE_SOLIDITY),
@@ -27,7 +28,8 @@ public enum NetType {
           3448148188L,
           "THQGuFzL87ZqhxkgqYEryRAd7gqFqL5rdc",
           "https://open-test.gasfree.io",
-          "/nile")
+          "/nile"),
+      "TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf"
   ),
   SHASTA(
       "https://api.shasta.trongrid.io",
@@ -36,18 +38,21 @@ public enum NetType {
           2494104990L,
           "TSwCtDum13k1PodgNgTWx5be7k1c6eWaNP",
           "https://open-test.gasfree.io",
-          "/shasta")
+          "/shasta"),
+      "TG3XXyExBkPp9nzdajDZsozEu4BkaSJozs"
   ),
-  CUSTOM(null, null, null);
+  CUSTOM(null, null, null, null);
 
   private final String http;
   private final Grpc grpc;
   private final GasFree gasFree;
+  private final String usdtAddress;
 
-  NetType(String http, Grpc grpc, GasFree gasFree) {
+  NetType(String http, Grpc grpc, GasFree gasFree, String usdtAddress) {
     this.http = http;
     this.grpc = grpc;
     this.gasFree = gasFree;
+    this.usdtAddress = usdtAddress;
   }
 
   @Setter

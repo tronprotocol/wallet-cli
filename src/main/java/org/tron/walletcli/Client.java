@@ -2,6 +2,9 @@ package org.tron.walletcli;
 
 import static org.apache.commons.lang3.StringUtils.EMPTY;
 import static org.tron.common.enums.NetType.CUSTOM;
+import static org.tron.common.enums.NetType.MAIN;
+import static org.tron.common.enums.NetType.NILE;
+import static org.tron.common.enums.NetType.SHASTA;
 import static org.tron.common.utils.CommandHelpUtil.getCommandHelp;
 import static org.tron.common.utils.Utils.EMPTY_STR;
 import static org.tron.common.utils.Utils.MAX_LENGTH;
@@ -16,19 +19,29 @@ import static org.tron.common.utils.Utils.isValidWalletName;
 import static org.tron.common.utils.Utils.printBanner;
 import static org.tron.common.utils.Utils.printHelp;
 import static org.tron.common.utils.Utils.printStackTrace;
+import static org.tron.common.utils.Utils.redBoldHighlight;
 import static org.tron.common.utils.Utils.successfulHighlight;
 import static org.tron.keystore.StringUtils.byte2Char;
 import static org.tron.keystore.StringUtils.char2Byte;
 import static org.tron.ledger.console.ConsoleColor.ANSI_RED;
 import static org.tron.ledger.console.ConsoleColor.ANSI_RESET;
+import static org.tron.walletserver.WalletApi.addressValid;
 
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONObject;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.google.common.primitives.Longs;
 import com.google.protobuf.InvalidProtocolBufferException;
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.math.RoundingMode;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
@@ -43,17 +56,25 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
+import java.util.Scanner;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.commons.lang3.tuple.Triple;
 import org.bouncycastle.util.encoders.Hex;
 import org.hid4java.HidDevice;
+import org.jline.reader.Candidate;
 import org.jline.reader.Completer;
 import org.jline.reader.EndOfFileException;
 import org.jline.reader.LineReader;
 import org.jline.reader.LineReaderBuilder;
-import org.jline.reader.impl.completer.StringsCompleter;
+import org.jline.reader.impl.DefaultParser;
+import org.jline.reader.impl.completer.ArgumentCompleter;
+import org.jline.reader.impl.completer.NullCompleter;
 import org.jline.terminal.Terminal;
 import org.jline.terminal.TerminalBuilder;
 import org.tron.api.GrpcAPI.AddressPrKeyPairMessage;
@@ -64,10 +85,16 @@ import org.tron.common.enums.NetType;
 import org.tron.common.utils.AbiUtil;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.ByteUtil;
+import org.tron.common.utils.CaseInsensitiveCommandCompleter;
 import org.tron.common.utils.PathUtil;
 import org.tron.common.utils.Utils;
+import org.tron.core.dao.AddressEntry;
+import org.tron.core.dao.Tx;
 import org.tron.core.exception.CancelException;
 import org.tron.core.exception.CipherException;
+import org.tron.core.manager.TxHistoryManager;
+import org.tron.core.manager.UpdateAccountPermissionInteractive;
+import org.tron.core.service.AddressBookService;
 import org.tron.keystore.StringUtils;
 import org.tron.ledger.TronLedgerGetAddress;
 import org.tron.ledger.listener.TransactionSignManager;
@@ -90,6 +117,7 @@ public class Client {
 
   // note: this is sorted by alpha
   private static String[] commandList = {
+      "AddressBook",
       "AddTransactionSign",
       "ApproveProposal",
       "AssetIssue",
@@ -166,6 +194,8 @@ public class Client {
       "GetTransactionInfoByBlockNum",
       "GetTransactionInfoById",
       "GetTransactionSignWeight",
+      "GetUSDTBalance",
+      "GetUsdtTransferById",
       "Help",
       "ImportWallet",
       "ImportWalletByMnemonic",
@@ -191,9 +221,11 @@ public class Client {
       "ResetWallet",
       "SendCoin",
       "SetAccountId",
+      "ShowReceivingQrCode",
       "SwitchNetwork",
       "SwitchWallet",
       "TransferAsset",
+      "TransferUSDT",
       "TriggerConstantContract",
       "TriggerContract",
       "UnDelegateResource",
@@ -775,7 +807,9 @@ public class Client {
       System.out.println("GetBalance " + failedHighlight() + " !!!!");
     } else {
       long balance = account.getBalance();
-      System.out.println("Balance = " + balance + " SUN = " + balance / 1000000 + " TRX");
+      BigDecimal trx = BigDecimal.valueOf(balance)
+          .divide(BigDecimal.valueOf(1_000_000), 6, RoundingMode.DOWN);
+      System.out.println("Balance = " + balance + " SUN = " + trx.toPlainString() + " TRX");
     }
   }
 
@@ -1051,6 +1085,55 @@ public class Client {
     } else {
       System.out.println("Send " + amount + " Sun to " + base58ToAddress + " " + failedHighlight() + " !!");
     }
+    askToSaveAddress(base58ToAddress);
+  }
+
+  private void askToSaveAddress(String toAddress) {
+    Scanner scanner = new Scanner(System.in);
+    AddressBookService addressBook = new AddressBookService();
+
+    // Check for existing entry
+    boolean exists = addressBook.getEntries().stream()
+        .anyMatch(e -> e.getAddress().equalsIgnoreCase(toAddress));
+    if (exists) {
+      return;
+    }
+
+    // Ask user if they want to save
+    System.out.printf("Would you like to save this address (%s) to your address book? (y/N): ", toAddress);
+    String confirm = scanner.nextLine().trim();
+    if (!confirm.equalsIgnoreCase("y")) {
+      System.out.println("Skipped saving address.");
+      return;
+    }
+
+    // Required name input
+    String name;
+    while (true) {
+        System.out.print("Enter a name for this address (required, must be unique): ");
+        name = scanner.nextLine().trim();
+        if (name.isEmpty()) {
+          System.out.println(redBoldHighlight(name) + " cannot be empty. Please enter again.");
+            continue;
+        }
+
+      String finalName = name;
+      boolean nameExists = addressBook.getEntries().stream()
+            .anyMatch(e -> e.getName().equalsIgnoreCase(finalName));
+        if (nameExists) {
+            System.out.printf("The name '%s' already exists. Please use another name.%n", redBoldHighlight(finalName));
+            continue;
+        }
+        break;
+    }
+
+    // Optional note
+    System.out.print("Enter a note (optional): ");
+    String note = scanner.nextLine().trim();
+
+    // Save
+    addressBook.add(name, toAddress, note);
+    System.out.println("Address saved " + greenBoldHighlight("successfully") + ".");
   }
 
   private void transferAsset(String[] parameters)
@@ -2748,7 +2831,7 @@ public class Client {
     }
 
     walletApiWrapper.callContract(
-        ownerAddress, null, callValue, Hex.decode(codeStr), 0, tokenValue, tokenId, true);
+        ownerAddress, null, callValue, Hex.decode(codeStr), 0, tokenValue, tokenId, true, false);
   }
 
   private void triggerContract(String[] parameters)
@@ -2795,7 +2878,7 @@ public class Client {
     byte[] contractAddress = WalletApi.decodeFromBase58Check(contractAddrStr);
 
     boolean result = walletApiWrapper.callContract(
-        ownerAddress, contractAddress, callValue, input, feeLimit, tokenValue, tokenId, false);
+        ownerAddress, contractAddress, callValue, input, feeLimit, tokenValue, tokenId, false, false).getLeft();
     if (result) {
       System.out.println("Broadcast the TriggerContract " + successfulHighlight() + ".\n"
           + "Please check the given transaction id to get the result on blockchain using getTransactionInfoById command");
@@ -2859,7 +2942,7 @@ public class Client {
     }
 
     walletApiWrapper.callContract(
-        ownerAddress, contractAddress, callValue, input, 0, tokenValue, tokenId, true);
+        ownerAddress, contractAddress, callValue, input, 0, tokenValue, tokenId, true, false);
   }
 
   private void estimateEnergy(String[] parameters)
@@ -2985,19 +3068,36 @@ public class Client {
 
   private void updateAccountPermission(String[] parameters)
       throws CipherException, IOException, CancelException, IllegalException {
-    if (parameters == null || parameters.length != 2) {
+    if (parameters.length > 2) {
       System.out.println(
-          "Using updateAccountPermission needs 2 parameters, like UpdateAccountPermission ownerAddress permissions, permissions is a JSON formatted string.");
+          "Using updateAccountPermission needs 2 parameters or no parameters, like UpdateAccountPermission or UpdateAccountPermission ownerAddress permissions, permissions is a JSON formatted string.");
       return;
     }
+    String ownerAddressStr = EMPTY;
+    String permissionJsonStr = EMPTY;
+    if (parameters.length == 0) {
+      String address = walletApiWrapper.getAddress();
+      String permissionData = new UpdateAccountPermissionInteractive().start(address);
+      ownerAddressStr = address;
+      permissionJsonStr = permissionData;
+    }
+    if (parameters.length == 1) {
+      String permissionData = new UpdateAccountPermissionInteractive().start(parameters[0]);
+      ownerAddressStr = parameters[0];
+      permissionJsonStr = permissionData;
+    }
+    if (parameters.length == 2) {
+      ownerAddressStr = parameters[0];
+      permissionJsonStr = parameters[1];
+    }
 
-    byte[] ownerAddress = WalletApi.decodeFromBase58Check(parameters[0]);
+    byte[] ownerAddress = WalletApi.decodeFromBase58Check(ownerAddressStr);
     if (ownerAddress == null) {
       System.out.println("GetContract: invalid address!");
       return;
     }
 
-    boolean ret = walletApiWrapper.accountPermissionUpdate(ownerAddress, parameters[1]);
+    boolean ret = walletApiWrapper.accountPermissionUpdate(ownerAddress, permissionJsonStr);
     if (ret) {
       System.out.println("UpdateAccountPermission " + successfulHighlight() + " !!!");
     } else {
@@ -3378,6 +3478,7 @@ public class Client {
       System.out.println("Version" + VERSION);
       System.exit(0);
     }
+//    Security.addProvider(TronCastleProvider.getInstance());
     System.out.println();
     System.out.println("Welcome to Tron " + blueBoldHighlight("Wallet-Cli"));
     printBanner();
@@ -3394,13 +3495,48 @@ public class Client {
     System.out.println();
 
     try {
-      Terminal terminal = TerminalBuilder.builder().system(true).dumb(true).build();
-      Completer commandCompleter = new StringsCompleter(commandList);
+      Terminal terminal = TerminalBuilder.builder().system(true)
+          .dumb(true)
+          .nativeSignals(true).build();
+      DefaultParser parser = new DefaultParser();
+      Completer commandCompleter = new CaseInsensitiveCommandCompleter(commandList);
+      Completer addressCompleter = (reader, line, candidates) -> {
+        List<AddressEntry> addressEntries = new AddressBookService().getEntries();
+        for (int i = 0; i < addressEntries.size(); i++) {
+          AddressEntry entry = addressEntries.get(i);
+          candidates.add(new Candidate(
+              entry.getAddress(),
+              entry.getAddress(),
+              null,
+              entry.getDisplayString(i + 1),
+              null,
+              null,
+              false
+          ));
+        }
+      };
+      ArgumentCompleter completer = new ArgumentCompleter(
+          commandCompleter,
+          addressCompleter,
+          addressCompleter,
+          NullCompleter.INSTANCE
+      );
+      completer.setStrict(false);
       LineReader lineReader = LineReaderBuilder.builder()
           .terminal(terminal)
-          .completer(commandCompleter)
+          .parser(parser)
+          .completer(completer)
+          .variable(LineReader.SECONDARY_PROMPT_PATTERN, "%M%P > ")
+          .variable(LineReader.INDENTATION, 2)
+          .option(LineReader.Option.AUTO_FRESH_LINE, true)
           .option(LineReader.Option.CASE_INSENSITIVE, true)
           .build();
+//      KeyMap<Binding> keyMap = lineReader.getKeyMaps().get(LineReader.MAIN);
+//
+//      Binding tabBinding = keyMap.getBound("\t");
+//      if (tabBinding != null) {
+//        keyMap.bind(tabBinding, " ");
+//      }
       String prompt = "wallet> ";
 
       while (true) {
@@ -3421,6 +3557,10 @@ public class Client {
           switch (cmdLowerCase) {
             case "help": {
               help(parameters);
+              break;
+            }
+            case "addressbook": {
+              addressBook();
               break;
             }
             case "registerwallet": {
@@ -3573,6 +3713,18 @@ public class Client {
             }
             case "sendcoin": {
               sendCoin(parameters);
+              break;
+            }
+            case "transferusdt": {
+              transferUSDT(parameters);
+              break;
+            }
+            case "getusdttransferbyid": {
+              getUsdtTransferById(parameters);
+              break;
+            }
+            case "getusdtbalance": {
+              getUSDTBalance(parameters);
               break;
             }
             case "transferasset": {
@@ -3925,6 +4077,10 @@ public class Client {
               unlock(parameters);
               break;
             }
+            case "showreceivingqrcode": {
+              showReceivingQrCode();
+              break;
+            }
             default: {
               System.out.println("Invalid cmd: " + cmd);
               help(new String[]{});
@@ -3949,6 +4105,195 @@ public class Client {
     }
   }
 
+  private void showReceivingQrCode() {
+    String address = walletApiWrapper.getAddress();
+    if (address == null) {
+      return;
+    }
+
+    ProcessBuilder pb = new ProcessBuilder("qrencode", "-t", "ANSIUTF8", address);
+    pb.redirectErrorStream(true);
+    try {
+      Process process = pb.start();
+
+      try (BufferedReader reader = new BufferedReader(
+          new InputStreamReader(process.getInputStream()))) {
+        String line;
+        while ((line = reader.readLine()) != null) {
+          System.out.println(line);
+        }
+        System.out.println(address);
+      }
+
+      int exitCode = process.waitFor();
+      if (exitCode != 0) {
+        System.err.println("Warning: qrencode exited with code " + exitCode);
+      }
+    } catch (IOException | InterruptedException e) {
+      System.out.println(redBoldHighlight("Failed to generate QR code: " + e.getMessage()));
+      System.out.println(redBoldHighlight("Error: 'qrencode' command not found. Please install it first."));
+      System.out.println("Qrencode terminal installation command:");
+      System.out.println(greenBoldHighlight("Debian/Ubuntu:"));
+      System.out.println("sudo apt install qrencode");
+      System.out.println(greenBoldHighlight("CentOS:"));
+      System.out.println("sudo yum install qrencode");
+      System.out.println(greenBoldHighlight("RHEL/Fedora:"));
+      System.out.println("sudo dnf install qrencode");
+      System.out.println(greenBoldHighlight("macOS:"));
+      System.out.println("brew install qrencode");
+      Thread.currentThread().interrupt();
+    }
+  }
+
+  private void getUsdtTransferById(String[] parameters) throws IOException {
+    NetType netType = WalletApi.getCurrentNetwork();
+    if (netType != MAIN && netType != NILE && netType != SHASTA) {
+      System.out.println("This command does not support the current network.");
+      return;
+    }
+    if (parameters == null || parameters.length != 1) {
+      System.out.println("GetUsdtTransferById needs 1 parameter like the following: ");
+      System.out.println("GetUsdtTransferById txId ");
+      return;
+    }
+    String txId = parameters[0];
+    TxHistoryManager txHistoryManager = new TxHistoryManager();
+    Path filePath = txHistoryManager.getNetworkFilePath(netType);
+    txHistoryManager.ensureNetworkDirectoryExists(netType);
+    List<Tx> txs = new ArrayList<>();
+    try (Stream<String> lines = Files.lines(filePath)) {
+      txs = Files.exists(filePath) ? lines
+          .filter(line -> !line.trim().isEmpty()).map(txHistoryManager::lineToTx)
+          .filter(Optional::isPresent)
+          .map(Optional::get).collect(Collectors.toList()) : new ArrayList<>();
+    } catch (IOException e) {
+      System.err.println("Failed to count transactions: " + e.getMessage());
+    }
+    Optional<Tx> foundTx = txs.stream()
+        .filter(tx -> tx.getId().equals(txId))
+        .findFirst();
+
+    if (foundTx.isPresent()) {
+      Tx tx = foundTx.get();
+      JSONObject json = new JSONObject(true);
+      json.put("id", tx.getId());
+      json.put("type", tx.getType());
+      json.put("from", tx.getFrom());
+      json.put("to", tx.getTo());
+      json.put("amount", Long.parseLong(tx.getAmount()));
+      String prefix = netType == MAIN ? EMPTY : (netType.name().toLowerCase() + ".");
+      json.put("tronscanQueryUrl", String.format("https://%stronscan.org/#/transaction/%s", prefix, txId));
+      System.out.println(JSON.toJSONString(json, true));
+    } else {
+      System.out.println("The USDT transfer you inquired about does not exist.");
+    }
+  }
+
+  private void getUSDTBalance(String[] parameters) throws Exception {
+    NetType netType = WalletApi.getCurrentNetwork();
+    if (netType != MAIN && netType != NILE && netType != SHASTA) {
+      System.out.println("This command does not support the current network.");
+      return;
+    }
+    byte[] ownerAddress;
+    if (ArrayUtils.isEmpty(parameters)) {
+      ownerAddress = null;
+    } else if (parameters.length == 1) {
+      ownerAddress = WalletApi.decodeFromBase58Check(parameters[0]);
+      if (ownerAddress == null) {
+        System.out.println("The address you entered is invalid.");
+        return;
+      }
+    } else {
+      System.out.println("GetUSDTBalance needs no parameter or 1 parameter like the following: ");
+      System.out.println("GetUSDTBalance Address ");
+      return;
+    }
+    Triple<Boolean, Long, Long> pair = walletApiWrapper.getUSDTBalance(ownerAddress);
+    if (Boolean.TRUE.equals(pair.getLeft())) {
+      long balance = pair.getRight();
+      System.out.println("USDT balance = " + balance);
+    } else {
+      System.out.println("GetUSDTBalance " + failedHighlight() + " !!!!");
+    }
+  }
+
+  private void transferUSDT(String[] parameters) throws Exception {
+    NetType netType = WalletApi.getCurrentNetwork();
+    if (netType != MAIN && netType != NILE && netType != SHASTA) {
+      System.out.println("This command does not support the current network.");
+      return;
+    }
+    if (parameters == null || (parameters.length != 2 && parameters.length != 3)) {
+      System.out.println("TransferUSDT needs at least 2 parameters like following: ");
+      System.out.println("TransferUSDT [OwnerAddress] ToAddress Amount");
+      return;
+    }
+
+    int index = 0;
+    byte[] ownerAddress = null;
+    if (parameters.length == 3) {
+      ownerAddress = WalletApi.decodeFromBase58Check(parameters[index++]);
+      if (ownerAddress == null) {
+        System.out.println("Invalid OwnerAddress.");
+        return;
+      }
+    }
+    String base58ToAddress = parameters[index++];
+    if (!addressValid(base58ToAddress)) {
+      System.out.println(redBoldHighlight("Invalid") + " address format. Please enter a valid Base58 address.");
+      return;
+    }
+    String amountStr = parameters[index];
+    long amount = 0;
+    try {
+      amount = Long.parseLong(amountStr);
+    } catch (NumberFormatException e) {
+      System.out.println("Incorrect amount format, please check.");
+    }
+    // valid amount
+    Triple<Boolean, Long, Long> triple = walletApiWrapper.getUSDTBalance(ownerAddress);
+    if (Boolean.TRUE.equals(triple.getLeft())) {
+      long balance = triple.getRight();
+      if (amount > balance) {
+        System.out.println("The usdt balance(" + balance + ") is insufficient.");
+        return;
+      }
+      System.out.println("USDT balance = " + balance);
+    } else {
+      System.out.println("GetUSDTBalance " + failedHighlight() + " !!!!");
+      return;
+    }
+    String inputStr = String.format("\"%s\",%s", base58ToAddress, amountStr);
+    final String methodStr = "transfer(address,uint256)";
+    byte[] input = Hex.decode(AbiUtil.parseMethod(methodStr, inputStr, false));
+    byte[] contractAddress = WalletApi.decodeFromBase58Check(netType.getUsdtAddress());
+    //  Estimate bandwidth and energy
+    long energyFee = getChainParamValue(walletApiWrapper.getChainParameters(), "getEnergyFee");
+    Triple<Boolean, Long, Long> estimateTtriple = walletApiWrapper.callContract(
+        ownerAddress, contractAddress, 0, input, 0, 0, "", true, true);
+    long energyUsed = estimateTtriple.getMiddle();
+    // The fee limit rises by 20% in the total energy price
+    long feeLimit = (long) (energyFee * energyUsed * 1.2);
+    boolean result = walletApiWrapper.callContract(
+        ownerAddress, contractAddress, 0, input, feeLimit, 0, "", false, false).getLeft();
+    if (result) {
+      System.out.println("Transfer " + amountStr + " to " + base58ToAddress + " broadcast " + successfulHighlight() + ".\n"
+          + "Please check the given transaction id to get the result on blockchain using getTransactionInfoById command.");
+    } else {
+      System.out.println("Transfer " + amountStr + " to " + base58ToAddress + " " + failedHighlight() + ".");
+    }
+    askToSaveAddress(base58ToAddress);
+  }
+
+  public static long getChainParamValue(Response.ChainParameters params, String key) {
+    return params.getChainParameterList().stream()
+        .filter(p -> key.equals(p.getKey()))
+        .mapToLong(Response.ChainParameters.ChainParameter::getValue)
+        .findFirst()
+        .orElseThrow(() -> new IllegalArgumentException("Parameter not found: " + key));
+  }
+
   private void viewBackupRecords(String[] parameters) {
     if (parameters.length > 0) {
       System.out.println("viewBackupRecords needs no parameters like the following: ");
@@ -3965,6 +4310,11 @@ public class Client {
       return;
     }
     walletApiWrapper.viewTransactionHistory();
+  }
+
+
+  private void addressBook() {
+    walletApiWrapper.addressBook();
   }
 
   private void modifyWalletName(String[] parameters) throws IOException {

@@ -62,6 +62,7 @@ Deploy a smart contract.
 Usage example:
 wallet> DeployContract testContract [{"inputs":[],"stateMutability":"nonpayable","type":"constructor"},...] 5f805460ff1916600190811790915560649055606319600255600380546001600160a01b0319908116735b38da6a701... # # false 1000000000 100 1000000000 0 0 #
 wallet> DeployContract TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp testContract [{"inputs":[],"stateMutability":"nonpayable","type":"constructor"},...] 5f805460ff1916600190811790915560649055606319600255600380546001600160a01b0319908116735b38da6a701... # # false 1000000000 100 1000000000 0 0 #
+wallet> DeployContract TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp testContract [{"inputs":[],"stateMutability":"nonpayable","type":"constructor"},...] 5f805460ff1916600190811790915560649055606319600255600380546001600160a01b0319908116735b38da6a701... constructor(address,uint256) "TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp",1000 false 1000000000 100 1000000000 0 0 #
 Syntax:
 ExchangeCreate [owner_address] first_token_id first_token_balance second_token_id second_token_balance
 Summary:
@@ -109,6 +110,12 @@ Summary:
 Get account details information.
 Usage example:
 wallet> GetAccount TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp
+Syntax:
+GetAccountById account_id
+Summary:
+Get account details information through account id.
+Usage example:
+wallet> GetAccountById 100
 Syntax:
 GetAccountNet address
 Summary:
@@ -380,7 +387,7 @@ wallet> RegisterWallet
 Syntax:
 SendCoin [owner_address] to_address amount
 Summary:
-Make a TRX transfer.
+Make a TRX transfer. When entering address parameters, press the 'tab' key to call up the address book for selection.
 Usage example:
 wallet> SendCoin TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp 1000000
 wallet> SendCoin TEp1ru7opCexkbFM9ChK6DFfL2XFSfUo2N TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp 1000000
@@ -753,7 +760,17 @@ UpdateAccountPermission owner_address permissions
 Summary:
 Update the account's permission.
 Usage example:
-wallet> UpdateAccountPermission TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ {"owner_permission":{"type":0,"permission_name":"owner","threshold":1,"keys":[{"address":"TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ","weight":1}]},"witness_permission":{"type":1,"permission_name":"owner","threshold":1,"keys":[{"address":"TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ","weight":1}]},"active_permissions":[{"type":2,"permission_name":"active12323","threshold":2,"operations":"7fff1fc0033e0000000000000000000000000000000000000000000000000000","keys":[{"address":"TNhXo1GbRNCuorvYu5JFWN3m2NYr9QQpVR","weight":1},{"address":"TKwhcDup8L2PH5r6hxp5CQvQzZqJLmKvZP","weight":1}]}]}
+wallet> UpdateAccountPermission TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ {"owner_permission":{"type":0,"permission_name":"owner","threshold":1,"keys":[{"address":"TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ","weight":1}]},"witness_permission":{"type":1,"permission_name":"witness","threshold":1,"keys":[{"address":"TRGhNNfnmgLegT4zHNjEqDSADjgmnHvubJ","weight":1}]},"active_permissions":[{"type":2,"permission_name":"active12323","threshold":2,"operations":"7fff1fc0033e0000000000000000000000000000000000000000000000000000","keys":[{"address":"TNhXo1GbRNCuorvYu5JFWN3m2NYr9QQpVR","weight":1},{"address":"TKwhcDup8L2PH5r6hxp5CQvQzZqJLmKvZP","weight":1}]}]}
+wallet> UpdateAccountPermission
+wallet> === UpdateAccountPermission Interactive Mode ===
+wallet> Please enter the index(1-7) to operate:
+wallet> 1. owner_permission
+wallet> 2. witness_permission
+wallet> 3. active_permissions
+wallet> 4. Add new active_permission
+wallet> 5. Delete active_permission
+wallet> 6. Show preview and Confirm
+wallet> 7. Exit
 Syntax:
 ModifyWalletName new_name
 Summary:
@@ -772,3 +789,42 @@ Summary:
 View transaction history. You can configure the maximum number of records that `maxRecords` can retain in `config.conf`, excluding the number of buffer records.
 Usage example:
 wallet> ViewTransactionHistory
+Syntax:
+AddressBook
+Summary:
+Addition, deletion, modification, and search of address book.
+Usage example:
+wallet> AddressBook
+Syntax:
+GetUSDTBalance [owner_address]
+Summary:
+Get the USDT balance of the current address.
+Usage example:
+wallet> GetUSDTBalance
+Syntax:
+GetUsdtTransferById txId
+Summary:
+Get USDT transfer transaction summary based on transaction ID.
+Usage example:
+wallet> GetUsdtTransferById a9e24b117ee0fa8007693dbd3741a9168a8d79d366828e667421c965cc8300a5
+Syntax:
+TransferUSDT [owner_address] to_address amount
+Summary:
+Make a USDT transfer. When entering address parameters, press the 'tab' key to call up the address book for selection.
+Usage example:
+wallet> TransferUSDT TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp 1000000
+Syntax:
+ShowReceivingQrCode
+Summary:
+Display Receive Payment QR Code for the current address.
+Executing this command requires installing 'qrencode' on the terminal in advance.
+Debian/Ubuntu:
+sudo apt install qrencode
+CentOS:
+sudo yum install qrencode
+RHEL/Fedora:
+sudo dnf install qrencode
+macOS:
+brew install qrencode
+Usage example:
+wallet> ShowReceivingQrCode

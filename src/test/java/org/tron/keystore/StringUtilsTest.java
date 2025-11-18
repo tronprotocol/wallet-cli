@@ -1,6 +1,7 @@
 package org.tron.keystore;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.tron.common.utils.ByteUtil.hexStringToIntegerList;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -97,5 +98,10 @@ public class StringUtilsTest {
     Assert.assertArrayEquals(asc1, asc2);
     char[] ascChars = StringUtils.byte2Char(asc1);
     Assert.assertArrayEquals(asc.toCharArray(), ascChars);
+  }
+
+  @Test
+  public void test() {
+    System.out.println(hexStringToIntegerList("0c00000000000000000000000000000000000000000000000000000000000000"));
   }
 }
