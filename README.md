@@ -2474,10 +2474,10 @@ Select option: 1
 Display Receive Payment QR Code for the current address.
 Executing this command requires installing 'qrencode' on the terminal in advance.
 Debian/Ubuntu:
-sudo apt update && sudo apt install qrencode
-RHEL/CentOS:
-sudo yum install epel-release && sudo yum install qrencode
-Fedora:
+sudo apt install qrencode
+CentOS:
+sudo yum install qrencode
+RHEL/Fedora:
 sudo dnf install qrencode
 macOS:
 brew install qrencode

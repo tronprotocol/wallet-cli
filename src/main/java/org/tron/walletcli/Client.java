@@ -4134,10 +4134,10 @@ public class Client {
       System.out.println(redBoldHighlight("Error: 'qrencode' command not found. Please install it first."));
       System.out.println("Qrencode terminal installation command:");
       System.out.println(greenBoldHighlight("Debian/Ubuntu:"));
-      System.out.println("sudo apt update && sudo apt install qrencode");
-      System.out.println(greenBoldHighlight("RHEL/CentOS:"));
-      System.out.println("sudo yum install epel-release && sudo yum install qrencode");
-      System.out.println(greenBoldHighlight("Fedora:"));
+      System.out.println("sudo apt install qrencode");
+      System.out.println(greenBoldHighlight("CentOS:"));
+      System.out.println("sudo yum install qrencode");
+      System.out.println(greenBoldHighlight("RHEL/Fedora:"));
       System.out.println("sudo dnf install qrencode");
       System.out.println(greenBoldHighlight("macOS:"));
       System.out.println("brew install qrencode");
