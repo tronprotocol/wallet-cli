@@ -156,6 +156,7 @@
 | ResetWallet                                       | Delete all keystore files and mnemonic words files                      |
 | CurrentNetwork                                    | Display current network                                                 |
 | SwitchNetwork                                     | Switch network connection                                               |
+| GetPrivateKeyByMnemonic                           | Get the private key through mnemonics                                   |
 +---------------------------------------------------+-------------------------------------------------------------------------+
 |                GAS FREE (3)                       |                                                                         |
 +---------------------------------------------------+-------------------------------------------------------------------------+

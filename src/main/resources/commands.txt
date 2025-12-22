@@ -828,3 +828,9 @@ macOS:
 brew install qrencode
 Usage example:
 wallet> ShowReceivingQrCode
+Syntax:
+GetPrivateKeyByMnemonic
+Summary:
+Get the private key through mnemonics.
+Usage example:
+wallet> GetPrivateKeyByMnemonic

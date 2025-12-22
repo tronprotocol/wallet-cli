@@ -25,6 +25,7 @@ import static org.tron.keystore.StringUtils.byte2Char;
 import static org.tron.keystore.StringUtils.char2Byte;
 import static org.tron.ledger.console.ConsoleColor.ANSI_RED;
 import static org.tron.ledger.console.ConsoleColor.ANSI_RESET;
+import static org.tron.mnemonic.MnemonicUtils.getPrivateKeyFromMnemonic;
 import static org.tron.walletserver.WalletApi.addressValid;
 
 import com.alibaba.fastjson.JSON;
@@ -186,6 +187,7 @@ public class Client {
       "GetMarketPriceByPair",
       "GetMemoFee",
       "GetNextMaintenanceTime",
+      "GetPrivateKeyByMnemonic",
       "GetProposal",
       "GetReward",
       "GetTransactionApprovedList",
@@ -4081,6 +4083,10 @@ public class Client {
               showReceivingQrCode();
               break;
             }
+            case "getprivatekeybymnemonic": {
+              getPrivateKeyByMnemonic();
+              break;
+            }
             default: {
               System.out.println("Invalid cmd: " + cmd);
               help(new String[]{});
@@ -4103,6 +4109,12 @@ public class Client {
     } catch (IOException e) {
       System.out.println("\nBye.");
     }
+  }
+
+  private void getPrivateKeyByMnemonic() {
+    List<String> mnemonicWords = inputMnemonicWords();
+    byte[] privateKeyFromMnemonic = getPrivateKeyFromMnemonic(mnemonicWords);
+    System.out.println("Private key: " + Hex.toHexString(privateKeyFromMnemonic));
   }
 
   private void showReceivingQrCode() {
