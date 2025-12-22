@@ -2,9 +2,27 @@ package org.tron.keystore;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.tron.common.utils.ByteUtil.hexStringToIntegerList;
+import static org.tron.multi.MultiTxSummaryParser.parse;
+import static org.tron.multi.MultiTxSummaryParser.printTable;
+import static org.tron.walletserver.WalletApi.encode58Check;
+import static org.tron.walletserver.WalletApi.getHexAddress;
 
+import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 import org.junit.Assert;
 import org.junit.Test;
+import org.tron.common.utils.HttpUtils;
+import org.tron.common.utils.MultiTxWebSocketClient;
+import org.tron.core.handler.MultiTxMessageHandler;
+import org.tron.core.processor.MultiTxProcessor;
+import org.tron.multi.MultiConfig;
+import org.tron.multi.MultiSignService;
+import org.tron.multi.MultiTxSummaryParser;
 
 public class StringUtilsTest {
 
@@ -103,5 +121,64 @@ public class StringUtilsTest {
   @Test
   public void test() {
     System.out.println(hexStringToIntegerList("0c00000000000000000000000000000000000000000000000000000000000000"));
+  }
+
+  @Test
+  public void testAuth() throws IOException {
+    String s = HttpUtils.get("https://testlist.tronlink.org/openapi/multi/auth?address=TFdACej5gjKqSmwNNESzAbfTmBBCx55G4G&secret_id=AE68A487AA919CAE&uuid=2ddfd7d1-e0c3-442a-9f42-588c54688c01&sign=x8N9g9wShp3%3DM4un6rQscf1jg28o%3D&channel=chrome-extension&sign_version=v1&ts=1747203007411", null);
+    System.out.println(s);
+  }
+
+  @Test
+  public void testTransaction() {
+
+  }
+
+  @Test
+  public void testList() {
+
+  }
+
+  @Test
+  public void testSocket() throws InterruptedException, URISyntaxException {
+//    String wsUrl = "wss://testlist.tronlink.org/openapi/multi/socket";
+//    String wsUrl = "wss://niletest.tronlink.org/openapi/multi/socket";
+//
+//    Map<String, String> headers = new HashMap<>();
+//    headers.put("sign", "x8N9g9wShp3=M4un6rQscf1jg28o=");
+//
+//    MultiTxMessageHandler handler = new MultiTxProcessor();
+//
+//    MultiTxWebSocketClient client =
+//        new MultiTxWebSocketClient(new URI(wsUrl), headers, handler);
+//
+//    client.connectBlocking(); // 阻塞直到连接成功
+//    System.out.println("WebSocket connected. Waiting for messages...");
+//    new CountDownLatch(1).await();   // 主线程永不退出
+  }
+
+  @Test
+  public void testMultiList() throws IOException {
+    MultiConfig config = new MultiConfig(
+        "https://testlist.tronlink.org",
+        "AE68A487AA919CAE", // secretId
+        "xxxxxxxxxxxxxxxx", // secretKey
+        "wallet-cli"
+    );
+
+    MultiSignService multiSign = new MultiSignService(config);
+    String pendingList = multiSign.list("TEHcUS1jdmA9yCtfh1bdrPgSk5ukRddbPr", MultiSignService.ListType.ALL, null, 0, 20);
+    System.out.println(pendingList);
+    List<MultiTxSummaryParser.MultiTxSummary> summaries = parse(pendingList);
+    printTable(summaries);
+  }
+
+  @Test
+  public void testEncodingConverter() {
+    String encode58Check = encode58Check("412E988A386A799F506693793C6A5AF6B54DFAABFB".getBytes());
+    System.out.println(encode58Check);
+
+    String hex = getHexAddress("TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp").toUpperCase();
+    System.out.println(hex);
   }
 }

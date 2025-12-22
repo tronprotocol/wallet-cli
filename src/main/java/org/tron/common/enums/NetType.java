@@ -20,8 +20,8 @@ public enum NetType {
           "TFFAMQLZybALaLb4uxHA9RBE7pxhUAjF3U",
           "https://open.gasfree.io",
           "/tron"),
-      "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
-  ),
+      "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
+      "https://list.tronlink.org"),
   NILE("https://nile.trongrid.io",
       new Grpc(FULLNODE_NILE, FULLNODE_NILE_SOLIDITY),
       new GasFree(
@@ -29,8 +29,8 @@ public enum NetType {
           "THQGuFzL87ZqhxkgqYEryRAd7gqFqL5rdc",
           "https://open-test.gasfree.io",
           "/nile"),
-      "TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf"
-  ),
+      "TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf",
+      "https://niletest.tronlink.org"),
   SHASTA(
       "https://api.shasta.trongrid.io",
       new Grpc(TRONGRID_SHASTA, TRONGRID_SHASTA_SOLIDITY),
@@ -39,20 +39,22 @@ public enum NetType {
           "TSwCtDum13k1PodgNgTWx5be7k1c6eWaNP",
           "https://open-test.gasfree.io",
           "/shasta"),
-      "TG3XXyExBkPp9nzdajDZsozEu4BkaSJozs"
-  ),
-  CUSTOM(null, null, null, null);
+      "TG3XXyExBkPp9nzdajDZsozEu4BkaSJozs",
+      "https://shastalist.tronlink.org"),
+  CUSTOM(null, null, null, null, null);
 
   private final String http;
   private final Grpc grpc;
   private final GasFree gasFree;
   private final String usdtAddress;
+  private final String tronlinkUrl;
 
-  NetType(String http, Grpc grpc, GasFree gasFree, String usdtAddress) {
+  NetType(String http, Grpc grpc, GasFree gasFree, String usdtAddress, String tronlinkUrl) {
     this.http = http;
     this.grpc = grpc;
     this.gasFree = gasFree;
     this.usdtAddress = usdtAddress;
+    this.tronlinkUrl = tronlinkUrl;
   }
 
   @Setter

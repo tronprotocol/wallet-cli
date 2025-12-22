@@ -60,6 +60,7 @@
 | GetTransactionCountByBlockNum                     | Get the number of transactions through block number                     |
 | GetUsdtTransferById                               | Get USDT transfer transaction summary based on transaction ID           |
 | ViewTransactionHistory                            | View transaction history                                                |
+| TronlinkMultiSign                                 | Create multi-sign transactions and view the multi-sign transaction list |
 |---------------------------------------------------+-------------------------------------------------------------------------+
 |                SMART CONTRACTS (10)               |                                                                         |
 +---------------------------------------------------+-------------------------------------------------------------------------+
@@ -156,6 +157,8 @@
 | ResetWallet                                       | Delete all keystore files and mnemonic words files                      |
 | CurrentNetwork                                    | Display current network                                                 |
 | SwitchNetwork                                     | Switch network connection                                               |
+| GetPrivateKeyByMnemonic                           | Get the private key through mnemonics                                   |
+| EncodingConverter                                 | A Useful Encoding Converter                                             |
 +---------------------------------------------------+-------------------------------------------------------------------------+
 |                GAS FREE (3)                       |                                                                         |
 +---------------------------------------------------+-------------------------------------------------------------------------+
