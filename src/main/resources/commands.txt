@@ -829,6 +829,12 @@ brew install qrencode
 Usage example:
 wallet> ShowReceivingQrCode
 Syntax:
+EncodingConverter
+Summary:
+A Useful Encoding Converter.
+Usage example:
+wallet> EncodingConverter
+Syntax:
 GetPrivateKeyByMnemonic
 Summary:
 Get the private key through mnemonics.
