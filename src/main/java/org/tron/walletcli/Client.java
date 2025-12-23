@@ -88,6 +88,7 @@ import org.tron.common.utils.ByteUtil;
 import org.tron.common.utils.CaseInsensitiveCommandCompleter;
 import org.tron.common.utils.PathUtil;
 import org.tron.common.utils.Utils;
+import org.tron.core.converter.EncodingConverter;
 import org.tron.core.dao.AddressEntry;
 import org.tron.core.dao.Tx;
 import org.tron.core.exception.CancelException;
@@ -139,6 +140,7 @@ public class Client {
       "DelegateResource",
       "DeleteProposal",
       "DeployContract",
+      "EncodingConverter",
       "EstimateEnergy",
       "ExchangeCreate",
       "ExchangeInject",
@@ -4081,6 +4083,10 @@ public class Client {
               showReceivingQrCode();
               break;
             }
+            case "encodingconverter": {
+              encodingConverter();
+              break;
+            }
             default: {
               System.out.println("Invalid cmd: " + cmd);
               help(new String[]{});
@@ -4103,6 +4109,10 @@ public class Client {
     } catch (IOException e) {
       System.out.println("\nBye.");
     }
+  }
+
+  private void encodingConverter() {
+    EncodingConverter.runCLI();
   }
 
   private void showReceivingQrCode() {

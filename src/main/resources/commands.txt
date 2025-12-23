@@ -828,3 +828,9 @@ macOS:
 brew install qrencode
 Usage example:
 wallet> ShowReceivingQrCode
+Syntax:
+EncodingConverter
+Summary:
+A Useful Encoding Converter.
+Usage example:
+wallet> EncodingConverter
