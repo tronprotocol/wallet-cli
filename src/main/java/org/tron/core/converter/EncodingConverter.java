@@ -4,6 +4,7 @@ import static org.tron.common.crypto.ECKey.fromPrivate;
 import static org.tron.common.crypto.ECKey.fromPublicOnly;
 import static org.tron.trident.core.utils.Utils.decodeFromBase58Check;
 import static org.tron.trident.core.utils.Utils.encode58Check;
+import static org.tron.walletserver.WalletApi.decode58Check;
 
 import java.util.Arrays;
 import java.util.Base64;
@@ -120,7 +121,8 @@ public class EncodingConverter {
   }
 
   public static String base58ToHex(String base64) {
-    byte[] bytes = decodeFromBase58Check(base64);
+    byte[] bytes = decode58Check(base64);
+    assert bytes != null;
     return Hex.toHexString(bytes);
   }
 

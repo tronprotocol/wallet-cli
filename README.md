@@ -67,6 +67,22 @@ grpc = {
   }
 }
 
+# Set the maximum number of transactions and backup records that can be retained
+maxRecords = 1000
+
+# To use the tronlink multi-sign feature, please first apply for an secretId and secretKey.
+# For details, please refer to
+# https://docs.google.com/forms/d/e/1FAIpQLSc5EB1X8JN7LA4SAVAG99VziXEY6Kv6JxmlBry9rUBlwI-GaQ/viewform
+tronlink = {
+  mainnet = {
+    secretId = ""
+    secretKey = ""
+  }
+  testnet = {
+    secretId = ""
+    secretKey = ""
+  }
+}
 ```
 
 ### Run a web wallet
@@ -139,7 +155,8 @@ For more information on a specific command, just type the command in the termina
 | [UpdateAccountPermission](#How-to-use-the-multi-signature-feature-of-wallet-cli) |                 [UpdateAsset](#Update-parameters-of-trc10-token)                  |                            [UpdateBrokerage](#Brokerage)                            |
 |              [UpdateEnergyLimit](#Update-smart-contract-parameters)              |                [UpdateSetting](#Update-smart-contract-parameters)                 |                          [UpdateWitness](#update-witness)                           |
 |                    [ViewBackupRecords](#View-backup-records)                     |                [ViewTransactionHistory](#View-transaction-history)                |                             [VoteWitness](#How-to-vote)                             |
-|                       [WithdrawBalance](#withdraw-balance)                       |                [WithdrawExpireUnfreeze](#withdraw-expire-unfreeze)                |                                                                                     |                                                 
+|                       [WithdrawBalance](#withdraw-balance)                       |                [WithdrawExpireUnfreeze](#withdraw-expire-unfreeze)                |                      [TronlinkMultiSign](#tronlink-multi-sign)                      |                                                 
+|                     [EncodingConverter](#encoding-converter)                     |        [GetPrivateKeyByMnemonic](#How-to-get-privateKey-through-mnemonic)         |                                                                                     |                                                 
 
 
 Type any one of the listed commands, to display how-to tips.
@@ -1803,7 +1820,6 @@ wallet> loginall
 Please input your password.
 password: 
 Use user defined config file in current dir
-WalletApi getRpcVsersion: 2
 [========================================] 100%
 The 1th keystore file name is TJEEKTmaVTYSpJAxahtyuofnDSpe2seajB.json
 The 2th keystore file name is TX1L9xonuUo1AHsjUZ3QzH8wCRmKm56Xew.json
@@ -2621,4 +2637,51 @@ After sign transaction hex string is 0ad4010a0208c72208c02252c2ae3b92e1409fb0b9d
 TxId is 9c8d4b84e9a71ccaad86b0a96f790067d3fc7ea85c26b425e5d748b81d31a8b8
 Transfer 1 to TR311sD6KasRnofj5RnFiFBA2rH8RH2kYk broadcast  successful.
 Please check the given transaction id to get the result on blockchain using getTransactionInfoById command.
+```
+### tronlink multi sign
+> TronlinkMultiSign
+
+Create multi sign transactions and view the multi sign transaction list through the tronlink service.
+
+Example:
+```console
+wallet> tronlinkmultisign
+
+=== Multi-Sign Manager ===
+1. Multi-sign transaction list
+0. Exit
+Please enter the number to operate:
+```
+
+### encoding converter
+> EncodingConverter
+
+A Useful Encoding Converter.
+
+Example:
+```console
+wallet> EncodingConverter
+
+==============================
+  Encoding Converter (CLI)
+==============================
+1) TRON - EVM Address
+2) Base64 Encode / Decode
+3) Base58Check Encode / Decode
+4) Public Key -> Address
+5) Private Key -> Public Key & Address
+0) Exit
+> 
+```
+
+### How to get privateKey through mnemonic
+> GetPrivateKeyByMnemonic
+
+Get the private key through mnemonics.
+
+Example:
+```console
+wallet> GetPrivateKeyByMnemonic
+
+Please enter 12 or 24 words (separated by spaces) [Attempt 1/3]:
 ```

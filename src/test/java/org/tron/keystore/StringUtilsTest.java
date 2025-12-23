@@ -3,8 +3,10 @@ package org.tron.keystore;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.tron.common.utils.ByteUtil.hexStringToIntegerList;
 
+import java.io.IOException;
 import org.junit.Assert;
 import org.junit.Test;
+import org.tron.common.utils.HttpUtils;
 
 public class StringUtilsTest {
 
@@ -103,5 +105,11 @@ public class StringUtilsTest {
   @Test
   public void test() {
     System.out.println(hexStringToIntegerList("0c00000000000000000000000000000000000000000000000000000000000000"));
+  }
+
+  @Test
+  public void testAuth() throws IOException {
+    String s = HttpUtils.get("https://testlist.tronlink.org/openapi/multi/auth?address=TFdACej5gjKqSmwNNESzAbfTmBBCx55G4G&secret_id=AE68A487AA919CAE&uuid=2ddfd7d1-e0c3-442a-9f42-588c54688c01&sign=x8N9g9wShp3%3DM4un6rQscf1jg28o%3D&channel=chrome-extension&sign_version=v1&ts=1747203007411", null);
+    System.out.println(s);
   }
 }

@@ -21,6 +21,7 @@ import java.security.SignatureException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Scanner;
+import org.bouncycastle.util.encoders.Hex;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.ECKey.ECDSASignature;
 import org.tron.common.crypto.Sha256Sm3Hash;
@@ -67,6 +68,11 @@ public class TransactionUtils {
 
   public static Sha256Hash getTransactionId(Chain.Transaction transaction) {
     return Sha256Hash.of(true, transaction.getRawData().toByteArray());
+  }
+
+  public static Sha256Hash getTransactionId(String rawDataHex) {
+    byte[] raw = Hex.decode(rawDataHex);
+    return Sha256Hash.of(true, raw);
   }
 
   public static byte[] getOwner(Transaction.Contract contract) {
@@ -364,9 +370,9 @@ public class TransactionUtils {
     return builder.build();
   }
 
-  public static Chain.Transaction setExpirationTime(Chain.Transaction transaction) {
+  public static Chain.Transaction setExpirationTime(Chain.Transaction transaction, boolean multi) {
     if (transaction.getSignatureCount() == 0) {
-      long expirationTime = System.currentTimeMillis() + 6 * 60 * 60 * 1000;
+      long expirationTime = System.currentTimeMillis() + (multi ? 24L * 3600 * 1000 : 6 * 60 * 60 * 1000);
       Chain.Transaction.Builder builder = transaction.toBuilder();
       Chain.Transaction.raw.Builder rowBuilder =
           transaction.getRawData().toBuilder();

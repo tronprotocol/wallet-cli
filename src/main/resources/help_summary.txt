@@ -48,7 +48,7 @@
 | GetUSDTBalance                                    | Get the current USDT balance of the account                             |
 | TransferAsset                                     | Transfer TRC10 token                                                    |
 |---------------------------------------------------+-------------------------------------------------------------------------+
-|                TRANSACTIONS (10)                   |                                                                        |
+|                TRANSACTIONS (11)                   |                                                                        |
 +---------------------------------------------------+-------------------------------------------------------------------------+
 | AddTransactionSign                                | Add signature to hex format transaction                                 |
 | BroadcastTransaction                              | Broadcast transactions in hex string format                             |
@@ -60,6 +60,7 @@
 | GetTransactionCountByBlockNum                     | Get the number of transactions through block number                     |
 | GetUsdtTransferById                               | Get USDT transfer transaction summary based on transaction ID           |
 | ViewTransactionHistory                            | View transaction history                                                |
+| TronlinkMultiSign                                 | Create multi-sign transactions and view the multi-sign transaction list |
 |---------------------------------------------------+-------------------------------------------------------------------------+
 |                SMART CONTRACTS (10)               |                                                                         |
 +---------------------------------------------------+-------------------------------------------------------------------------+

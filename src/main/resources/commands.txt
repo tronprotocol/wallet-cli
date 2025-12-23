@@ -385,9 +385,9 @@ Register a new wallet.
 Usage example:
 wallet> RegisterWallet
 Syntax:
-SendCoin [owner_address] to_address amount
+SendCoin [owner_address] to_address amount [-m]
 Summary:
-Make a TRX transfer. When entering address parameters, press the 'tab' key to call up the address book for selection.
+Make a TRX transfer. When entering address parameters, press the 'tab' key to call up the address book for selection. The parameter '-m' means that multi sign operation can be performed through the tronlink service.
 Usage example:
 wallet> SendCoin TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp 1000000
 wallet> SendCoin TEp1ru7opCexkbFM9ChK6DFfL2XFSfUo2N TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp 1000000
@@ -442,52 +442,52 @@ Usage example:
 wallet> UpdateSetting TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf 80
 wallet> UpdateSetting TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf 80
 Syntax:
-VoteWitness [owner_address] address0 count0 ... addressN countN
+VoteWitness [owner_address] address0 count0 ... addressN countN [-m]
 Summary:
-Vote for Witness.
+Vote for Witness. The parameter '-m' means that multi sign operation can be performed through the tronlink service.
 Usage example:
 wallet> VoteWitness TEp1ru7opCexkbFM9ChK6DFfL2XFSfUo2N 1 TFFLWM7tmKiwGtbh2mcz2rBssoFjHjSShG 2
 wallet> VoteWitness TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp TEp1ru7opCexkbFM9ChK6DFfL2XFSfUo2N 1 TFFLWM7tmKiwGtbh2mcz2rBssoFjHjSShG 2
 Syntax:
-FreezeBalanceV2 [owner_address] frozen_balance [resource_code:0 BANDWIDTH,1 ENERGY,2 TRON_POWER]
+FreezeBalanceV2 [owner_address] frozen_balance [resource_code:0 BANDWIDTH,1 ENERGY,2 TRON_POWER] [-m]
 Summary:
-Stake TRX with Stake 2.0 to obtain resources.
+Stake TRX with Stake 2.0 to obtain resources.The parameter '-m' means that multi sign operation can be performed through the tronlink service.
 Usage example:
 wallet> FreezeBalanceV2 1000000 0
 wallet> FreezeBalanceV2 TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp 1000000 0
 Syntax:
-UnfreezeBalanceV2 [owner_address] unfreeze_balance resource_code(0 BANDWIDTH,1 ENERGY,2 TRON_POWER)
+UnfreezeBalanceV2 [owner_address] unfreeze_balance resource_code(0 BANDWIDTH,1 ENERGY,2 TRON_POWER) [-m]
 Summary:
-Unstake TRX with Stake 2.0 .
+Unstake TRX with Stake 2.0 .The parameter '-m' means that multi sign operation can be performed through the tronlink service.
 Usage example:
 wallet> UnfreezeBalanceV2 1000000 0
 wallet> UnfreezeBalanceV2 TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp 1000000 0
 Syntax:
-DelegateResource [owner_address] balance resource_code(0 BANDWIDTH,1 ENERGY), receiver_address [lock] [lock_period]
+DelegateResource [owner_address] balance resource_code(0 BANDWIDTH,1 ENERGY), receiver_address [lock] [lock_period] [-m]
 Summary:
-Delegate resources through Stake 2.0 .
+Delegate resources through Stake 2.0 .The parameter '-m' means that multi sign operation can be performed through the tronlink service.
 Usage example:
 wallet> DelegateResource 1000000 0 TEp1ru7opCexkbFM9ChK6DFfL2XFSfUo2N
 wallet> DelegateResource 1000000 0 TEp1ru7opCexkbFM9ChK6DFfL2XFSfUo2N true 86400
 wallet> DelegateResource TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp 1000000 0 TEp1ru7opCexkbFM9ChK6DFfL2XFSfUo2N
 wallet> DelegateResource TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp 1000000 0 TEp1ru7opCexkbFM9ChK6DFfL2XFSfUo2N true 86400
 Syntax:
-UnDelegateResource [owner_address] balance resource_code(0 BANDWIDTH,1 ENERGY) receiver_address
+UnDelegateResource [owner_address] balance resource_code(0 BANDWIDTH,1 ENERGY) receiver_address [-m]
 Summary:
-Undelegate resources through Stake 1.0 .
+Undelegate resources through Stake 2.0 .The parameter '-m' means that multi sign operation can be performed through the tronlink service.
 Usage example:
 wallet> UnDelegateResource 1000000 0 TEp1ru7opCexkbFM9ChK6DFfL2XFSfUo2N
 wallet> UnDelegateResource TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp 1000000 0 TEp1ru7opCexkbFM9ChK6DFfL2XFSfUo2N
 Syntax:
-WithdrawExpireUnfreeze
+WithdrawExpireUnfreeze [-m]
 Summary:
-Withdraw the balance of expired unstaking.
+Withdraw the balance of expired unstaking.The parameter '-m' means that multi sign operation can be performed through the tronlink service.
 Usage example:
 wallet> WithdrawExpireUnfreeze
 Syntax:
-CancelAllUnfreezeV2
+CancelAllUnfreezeV2 [-m]
 Summary:
-Cancel all unstaking operations.
+Cancel all unstaking operations.The parameter '-m' means that multi sign operation can be performed through the tronlink service.
 Usage example:
 wallet> CancelAllUnfreezeV2
 Syntax:
@@ -664,9 +664,9 @@ Predict the contract address generated after deploying a contract. Among them, a
 Usage example:
 wallet> Create2 TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp 5f805460ff1916600190811790915560649055606319600255 2132
 Syntax:
-WithdrawBalance [owner_address]
+WithdrawBalance [owner_address] [-m]
 Summary:
-Withdraw voting or block rewards.
+Withdraw voting or block rewards.The parameter '-m' means that multi sign operation can be performed through the tronlink service.
 Usage example:
 wallet> WithdrawBalance
 wallet> WithdrawBalance TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp
@@ -808,9 +808,9 @@ Get USDT transfer transaction summary based on transaction ID.
 Usage example:
 wallet> GetUsdtTransferById a9e24b117ee0fa8007693dbd3741a9168a8d79d366828e667421c965cc8300a5
 Syntax:
-TransferUSDT [owner_address] to_address amount
+TransferUSDT [owner_address] to_address amount [-m]
 Summary:
-Make a USDT transfer. When entering address parameters, press the 'tab' key to call up the address book for selection.
+Make a USDT transfer. When entering address parameters, press the 'tab' key to call up the address book for selection.The parameter '-m' means that multi sign operation can be performed through the tronlink service.
 Usage example:
 wallet> TransferUSDT TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp 1000000
 Syntax:
@@ -828,6 +828,12 @@ macOS:
 brew install qrencode
 Usage example:
 wallet> ShowReceivingQrCode
+Syntax:
+TronlinkMultiSign
+Summary:
+Create multi sign transactions and view the multi sign transaction list through the tronlink service.
+Usage example:
+wallet> TronlinkMultiSign
 Syntax:
 EncodingConverter
 Summary:
