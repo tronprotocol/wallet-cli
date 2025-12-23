@@ -1858,6 +1858,10 @@ public class WalletApi {
       Response.Account account = queryAccount(address);
       if (account.getUnfrozenV2List().isEmpty()) {
         System.out.println("No unfreezeV2 list to cancel");
+        return false;
+      }
+      if (!isControlled(address)) {
+        return false;
       }
     }
     Response.TransactionExtention transactionExtention = apiCli.cancelAllUnfreezeV2(getAddress());
