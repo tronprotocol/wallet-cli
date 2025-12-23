@@ -188,6 +188,7 @@ public class WalletApi {
 
   private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
   private ScheduledFuture<?> autoLockFuture;
+  private MultiTxWebSocketClient wsClient;
 
   public static void updateRpcCli(ApiClient client) {
     apiCli.close();
@@ -418,9 +419,9 @@ public class WalletApi {
       Map<String, String> headers = new HashMap<>();
       headers.put("address", address);
       headers.put("sign", multiSignService.signWebsocket(uri.getPath(), headers));
-      MultiTxWebSocketClient wsClient = new MultiTxWebSocketClient(uri, headers, lineReader, address);
+      wsClient = new MultiTxWebSocketClient(uri, headers, lineReader, address);
 
-      wsClient.setConnectionLostTimeout(30);
+      wsClient.setConnectionLostTimeout(60);
       wsClient.connect();
 
     } catch (Exception e) {

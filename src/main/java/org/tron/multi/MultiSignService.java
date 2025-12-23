@@ -135,9 +135,7 @@ public class MultiSignService {
             Map.Entry::getValue
         ));
 
-
     params.put("sign", sign("GET", path, newMap));
-//    params.put("sign", "x8N9g9wShp3=M4un6rQscf1jg28o=");
 
     StringBuilder url = new StringBuilder(config.getBaseUrl()).append(path).append("?");
 
@@ -217,8 +215,6 @@ public class MultiSignService {
     params.put("ts", ts());
     params.put("uuid", uuid());
 
-//    params.put("sign", sign("POST", "/openapi/multi/transaction", params));
-//    params.put("sign", "x8N9g9wShp3=M4un6rQscf1jg28o=");
     params.put("sign", sign("POST", "/openapi/multi/transaction", params));
 
     StringBuilder url = new StringBuilder(config.getBaseUrl()).append("/openapi/multi/transaction").append("?");
@@ -272,76 +268,6 @@ public class MultiSignService {
     CONTRACT_TYPE_SET.forEach(contractType -> System.out.println(greenBoldHighlight(contractType.name())));
   }
 
-//  private void createMultiSignTransaction(Scanner scanner, String address, WalletApi wallet) {
-//    System.out.println("\n=== Create Multi-Sign Transaction ===");
-//    System.out.println("Select transaction type:");
-//    System.out.println("1. Transfer");
-//    System.out.println("2. Stake");
-//    System.out.println("3. UnStake");
-//    System.out.println("4. Cancel UnStake");
-//    System.out.println("5. Withdraw Expire UnStake");
-//    System.out.println("6. Delegate Resource");
-//    System.out.println("7. UnDelegate Resource");
-//    System.out.println("8. Vote Witness");
-//    System.out.println("9. Withdraw Balance");
-//    System.out.println("0. Cancel");
-//    System.out.print(NUMBER_TO_OPERATE);
-//
-//    String choice = scanner.nextLine().trim();
-//    if ("0".equals(choice)) {
-//      return;
-//    }
-//    if (!"1".equals(choice)) {
-//      System.out.println("Unsupported type.");
-//      return;
-//    }
-//
-//    // ---- TRX Transfer ----
-//    System.out.print("Control (from) address: ");
-//    String from = scanner.nextLine().trim();
-//    if (StringUtils.isEmpty(from)) {
-//      from = address;
-//    }
-//    System.out.print("Receiver (to) address: ");
-//    String to = scanner.nextLine().trim();
-//
-//    System.out.print("Amount (SUN): ");
-//    long amount = Long.parseLong(scanner.nextLine().trim());
-//
-//    System.out.println("Permission type:");
-//    System.out.println("1. owner");
-//    System.out.println("2. active");
-//    System.out.print(NUMBER_TO_OPERATE);
-//    String p = scanner.nextLine().trim();
-//
-//    int permissionId = "1".equals(p) ? 0 : 2;
-//    String permissionName = permissionId == 0 ? "owner" : "active";
-//
-//    // ---- Confirm ----
-//    System.out.println("\nConfirm transaction:");
-//    System.out.println("From      : " + from);
-//    System.out.println("To        : " + to);
-//    System.out.println("Amount    : " + amount + " SUN");
-//    System.out.println("Permission: " + permissionName);
-//
-//    System.out.println("\n1. Confirm and submit");
-//    System.out.println("0. Cancel");
-//    System.out.print(NUMBER_TO_OPERATE);
-//
-//    if (!"1".equals(scanner.nextLine().trim())) {
-//      return;
-//    }
-//
-//    try {
-//      JSONObject tx = buildAndSignTransferTx(from, to, amount, wallet);
-//      String resp = submitMultiSignTx(from, tx);
-//      System.out.println("\nCreate result:");
-//      System.out.println(resp);
-//    } catch (Exception e) {
-//      System.out.println("Create failed: " + e.getMessage());
-//    }
-//  }
-
   public String submitMultiSignTx(String address, JSONObject transaction)
       throws IOException {
 
@@ -353,7 +279,6 @@ public class MultiSignService {
     params.put("uuid", uuid());
     params.put("address", address);
 
-//    params.put("sign", "x8N9g9wShp3=M4un6rQscf1jg28o=");
     params.put("sign", sign("POST", "/openapi/multi/transaction", params));
 
     String url = config.getBaseUrl()
@@ -383,27 +308,6 @@ public class MultiSignService {
         .setRawData(rawBuilder.build())
         .build();
   }
-
-
-//  private JSONObject buildAndSignTransferTx(
-//      String from,
-//      String to,
-//      long amount,
-//      WalletApi wallet) throws IllegalException, IOException, CipherException {
-//    Response.TransactionExtention transactionExtention = wallet.transferTE(from, to, amount);
-//    Chain.Transaction transaction = transactionExtention.getTransaction();
-//    Chain.Transaction.raw raw = transaction.getRawData();
-//    transaction = updateExpiration(transaction, raw.getExpiration() - TRANSACTION_DEFAULT_EXPIRATION_TIME + (24L * 3600 * 1000));
-//    String printTransaction = Utils.printTransaction(transaction);
-//    JSONObject transactionJO = JSON.parseObject(printTransaction);
-//    transactionJO.put("visible", true);
-//    JSONArray signatures = new JSONArray();
-//    byte[] hash = Sha256Sm3Hash.hash(transaction.getRawData().toByteArray());
-//    String signature = wallet.signTransaction(hash);
-//    signatures.add(signature);
-//    transactionJO.put("signature", signatures);
-//    return transactionJO;
-//  }
 
   private void showTransactionMenu(Scanner scanner, String address, WalletApi wallet) {
     ListType currentType = ListType.ALL;
@@ -558,7 +462,6 @@ public class MultiSignService {
     params.put("address", address);
 
     // real sign should be generated here
-//    params.put("sign", "x8N9g9wShp3=M4un6rQscf1jg28o=");
     params.put("sign", sign("POST", "/openapi/multi/transaction", params));
     String url = config.getBaseUrl()
         + "/openapi/multi/transaction?"
@@ -649,38 +552,6 @@ public class MultiSignService {
       return result;
     } catch (Exception e) {
       throw new RuntimeException("queryMultiAuth error", e);
-    }
-  }
-
-  private String buildSignedUrl(String path, String address) {
-    try {
-      Map<String, String> params = new HashMap<>();
-      params.put("sign_version", "v1");
-      params.put("channel", config.getChannel());
-      params.put("secret_id", config.getSecretId());
-      params.put("ts", ts());
-      params.put("uuid", uuid());
-      params.put("address", address);
-
-      // sign text: METHOD + path + ?sorted_params
-      String sign = sign("GET", path, params);
-      params.put("sign", sign);
-
-      StringBuilder url = new StringBuilder();
-      url.append(config.getBaseUrl()).append(path).append("?");
-
-      for (Map.Entry<String, String> e : params.entrySet()) {
-        url.append(URLEncoder.encode(e.getKey(), "UTF-8"))
-            .append("=")
-            .append(URLEncoder.encode(e.getValue(), "UTF-8"))
-            .append("&");
-      }
-
-      url.deleteCharAt(url.length() - 1);
-      return url.toString();
-
-    } catch (Exception e) {
-      throw new RuntimeException("buildSignedUrl error", e);
     }
   }
 
