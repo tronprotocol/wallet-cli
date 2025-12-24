@@ -77,10 +77,12 @@ tronlink = {
   mainnet = {
     secretId = ""
     secretKey = ""
+    channel = ""
   }
   testnet = {
     secretId = ""
     secretKey = ""
+    channel = ""
   }
 }
 ```
