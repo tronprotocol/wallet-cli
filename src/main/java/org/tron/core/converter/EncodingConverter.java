@@ -11,6 +11,7 @@ import java.util.Base64;
 import java.util.Scanner;
 import org.bouncycastle.util.encoders.Hex;
 import org.tron.common.crypto.ECKey;
+import org.web3j.crypto.Keys;
 
 public class EncodingConverter {
   private static final Scanner scanner = new Scanner(System.in);
@@ -127,7 +128,7 @@ public class EncodingConverter {
   }
 
   public static String tronByteToEvm(byte[] tronAddress) {
-    return "0x" + Hex.toHexString(Arrays.copyOfRange(tronAddress, 1, tronAddress.length));
+    return Keys.toChecksumAddress(Hex.toHexString(Arrays.copyOfRange(tronAddress, 1, tronAddress.length)));
   }
 
   public static String evmToTron(String evmAddress) {

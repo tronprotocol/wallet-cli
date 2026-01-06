@@ -4632,6 +4632,7 @@ public class Client {
   }
 
   public static void main(String[] args) {
+    Hash.sha3(new byte[]{1});
     Client cli = new Client();
     JCommander.newBuilder()
         .addObject(cli)
