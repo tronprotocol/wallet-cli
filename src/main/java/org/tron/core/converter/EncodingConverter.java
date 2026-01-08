@@ -11,12 +11,14 @@ import java.util.Base64;
 import java.util.Scanner;
 import org.bouncycastle.util.encoders.Hex;
 import org.tron.common.crypto.ECKey;
+import org.tron.common.crypto.Hash;
 import org.web3j.crypto.Keys;
 
 public class EncodingConverter {
   private static final Scanner scanner = new Scanner(System.in);
 
   public static void runCLI() {
+    Hash.sha3(new byte[]{1});
     while (true) {
       printMenu();
       String cmd = scanner.nextLine().trim();

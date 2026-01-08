@@ -73,6 +73,8 @@ maxRecords = 1000
 # To use the tronlink multi-sign feature, please first apply for an secretId and secretKey.
 # For details, please refer to
 # https://docs.google.com/forms/d/e/1FAIpQLSc5EB1X8JN7LA4SAVAG99VziXEY6Kv6JxmlBry9rUBlwI-GaQ/viewform
+# If you prefer not to apply, a speed-limited secretId and secretKey will be provided for use: 
+# secretId = "TEST", secretKey = "TESTTESTTEST", channel = "test".
 tronlink = {
   mainnet = {
     secretId = ""
@@ -2651,6 +2653,7 @@ wallet> tronlinkmultisign
 
 === Multi-Sign Manager ===
 1. Multi-sign transaction list
+2. Create multi-sign transaction
 0. Exit
 Please enter the number to operate:
 ```

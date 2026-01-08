@@ -485,11 +485,12 @@ Withdraw the balance of expired unstaking.The parameter '-m' means that multi si
 Usage example:
 wallet> WithdrawExpireUnfreeze
 Syntax:
-CancelAllUnfreezeV2 [-m]
+CancelAllUnfreezeV2 [owner_address] [-m]
 Summary:
 Cancel all unstaking operations.The parameter '-m' means that multi sign operation can be performed through the tronlink service.
 Usage example:
 wallet> CancelAllUnfreezeV2
+wallet> CancelAllUnfreezeV2 TEDapYSVvAZ3aYH7w8N9tMEEFKaNKUD5Bp
 Syntax:
 GetDelegatedResourceV2 from_address to_address
 Summary:
@@ -831,7 +832,7 @@ wallet> ShowReceivingQrCode
 Syntax:
 TronlinkMultiSign
 Summary:
-Create multi sign transactions and view the multi sign transaction list through the tronlink service.
+Create multi sign transactions and view the multi sign transaction list through the tronlink service.To use the tronlink multi-sign feature, please first apply for an secretId and secretKey.For details, please refer to https://docs.google.com/forms/d/e/1FAIpQLSc5EB1X8JN7LA4SAVAG99VziXEY6Kv6JxmlBry9rUBlwI-GaQ/viewform. If you prefer not to apply, a speed-limited secretId and secretKey will be provided for use:  secretId = "TEST", secretKey = "TESTTESTTEST", channel = "test".
 Usage example:
 wallet> TronlinkMultiSign
 Syntax:

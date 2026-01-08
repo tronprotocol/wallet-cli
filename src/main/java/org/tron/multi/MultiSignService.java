@@ -4,6 +4,8 @@ import static org.apache.commons.lang3.StringUtils.EMPTY;
 import static org.tron.common.utils.TransactionUtils.getTransactionId;
 import static org.tron.common.utils.Utils.greenBoldHighlight;
 import static org.tron.common.utils.Utils.intToBooleanString;
+import static org.tron.common.utils.Utils.redBoldHighlight;
+import static org.tron.trident.core.ApiWrapper.parseAddress;
 import static org.tron.trident.proto.Chain.Transaction.Contract.ContractType.CancelAllUnfreezeV2Contract;
 import static org.tron.trident.proto.Chain.Transaction.Contract.ContractType.DelegateResourceContract;
 import static org.tron.trident.proto.Chain.Transaction.Contract.ContractType.FreezeBalanceV2Contract;
@@ -20,8 +22,14 @@ import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.google.common.collect.Sets;
 import com.google.gson.JsonObject;
+import com.google.protobuf.Any;
+import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.net.URLEncoder;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
@@ -35,18 +43,20 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.bouncycastle.util.encoders.Hex;
 import org.tron.common.crypto.Sha256Sm3Hash;
+import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.HttpUtils;
 import org.tron.core.exception.CipherException;
-import org.tron.trident.proto.Chain;
+import org.tron.protos.Protocol;
 import org.tron.trident.proto.Chain.Transaction.Contract.ContractType;
+import org.tron.trident.proto.Contract;
 import org.tron.walletserver.WalletApi;
 
 public class MultiSignService {
-
   private static final String NUMBER_TO_OPERATE = "Please enter to operate: ";
-
   private final MultiConfig config;
   public static final Set<ContractType> CONTRACT_TYPE_SET = EnumSet.of(
       TransferContract,
@@ -60,6 +70,8 @@ public class MultiSignService {
       VoteWitnessContract,
       WithdrawBalanceContract
   );
+  private static final DateTimeFormatter FORMATTER =
+      DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
   public MultiSignService(MultiConfig config) {
     this.config = config;
@@ -152,7 +164,7 @@ public class MultiSignService {
 
   public enum ListType {
     ALL(255, null),
-    TO_BE_SIGNED(0, 0),
+    PENDING(0, 0),
     SIGNED(0, 1),
     SUCCESS(1, null),
     FAILED(2, null);
@@ -292,37 +304,22 @@ public class MultiSignService {
     return HttpUtils.postJson(url, body.toJSONString());
   }
 
-  public static Chain.Transaction updateExpiration(
-      Chain.Transaction tx,
-      long newExpirationMillis) {
-    if (tx == null) {
-      throw new IllegalArgumentException("transaction is null");
-    }
-
-    Chain.Transaction.raw raw = tx.getRawData();
-
-    Chain.Transaction.raw.Builder rawBuilder = raw.toBuilder();
-    rawBuilder.setExpiration(newExpirationMillis);
-
-    return tx.toBuilder()
-        .setRawData(rawBuilder.build())
-        .build();
-  }
-
   private void showTransactionMenu(Scanner scanner, String address, WalletApi wallet) {
     ListType currentType = ListType.ALL;
     Integer isSign = null;
     int pageSize = 20;
     int currentPage = 0;
     while (true) {
-      List<MultiTxSummaryParser.MultiTxSummary> txList =
+      Pair<List<MultiTxSummaryParser.MultiTxSummary>, Integer> pair =
           fetchTransactions(address, currentType, isSign, currentPage * pageSize, pageSize);
+      List<MultiTxSummaryParser.MultiTxSummary> txList = pair.getLeft();
       MultiTxSummaryParser.printTable(txList);
+      printPageInfo(pageSize, currentPage, pair);
       System.out.println("\nTip: input " + greenBoldHighlight("p/P") + " for previous page, " + greenBoldHighlight("n/N") + " for next page");
       System.out.println("\nFilter options:");
       System.out.println("1. All transactions");
-      System.out.println("2. To be signed transactions");
-      System.out.println("3. Signed transactions");
+      System.out.println("2. Pending transactions");
+      System.out.println("3. Signed(To Be Executed) transactions");
       System.out.println("4. Success transactions");
       System.out.println("5. Failed transactions");
       System.out.println("6. Select transaction to view/sign");
@@ -337,7 +334,7 @@ public class MultiSignService {
           currentPage = 0;
           break;
         case "2":
-          currentType = ListType.TO_BE_SIGNED;
+          currentType = ListType.PENDING;
           isSign = 0;
           currentPage = 0;
           break;
@@ -395,33 +392,67 @@ public class MultiSignService {
     }
   }
 
-  private List<MultiTxSummaryParser.MultiTxSummary> fetchTransactions(String address, ListType type, Integer isSign, int start,
-                                                                      int limit) {
+  private static void printPageInfo(int pageSize, int currentPage, Pair<List<MultiTxSummaryParser.MultiTxSummary>, Integer> pair) {
+    int total = pair.getRight();
+    int totalPages = (total + pageSize - 1) / pageSize;
+    int currentPageNo = currentPage + 1;
+
+    System.out.printf(
+        "%nPage %d / %d , Total Records: %d%n",
+        currentPageNo,
+        totalPages == 0 ? 1 : totalPages,
+        total
+    );
+  }
+
+  private Pair<List<MultiTxSummaryParser.MultiTxSummary>, Integer> fetchTransactions(String address, ListType type, Integer isSign, int start,
+                                                                                     int limit) {
     try {
       String resp = list(address, type, isSign, start, limit);
       return MultiTxSummaryParser.parse(resp);
     } catch (Exception e) {
-      System.err.println("\nError fetching transactions: " + e.getMessage() + ", Please check the secretId, secretKey and channel in config.conf.");
-      return Collections.emptyList();
+      System.err.println(redBoldHighlight("\nError fetching transactions: " + e.getMessage() + ", Please check the secretId, secretKey and channel in config.conf."));
+      return Pair.of(Collections.emptyList(), 0);
     }
   }
 
   private void showTransactionDetail(String address, Scanner scanner, MultiTxSummaryParser.MultiTxSummary tx, WalletApi wallet) {
     System.out.println("\n--- Transaction Detail ---");
-    System.out.println("State: " + tx.getState());
+    System.out.println("Tx Id: " + tx.getHash());
+    System.out.println("State: " +     MultiSignService.ListType.from(tx.getState(), tx.getIsSign()).name().toLowerCase());
     System.out.println("Contract Type: " + tx.getContractType());
     System.out.println("Owner Address: " + tx.getOwnerAddress());
     System.out.println("Sign Progress: " + tx.getSignProgress());
+    JSONArray signatureProgress = tx.getSignatureProgress();
+    for (int i = 0; i < signatureProgress.size(); i++) {
+      JSONObject obj = signatureProgress.getJSONObject(i);
+      String signTimeStr = "sign_time";
+      long signTime = obj.getLongValue(signTimeStr);
+
+      if (signTime > 0) {
+        String formattedTime = LocalDateTime.ofInstant(
+            Instant.ofEpochSecond(signTime),
+            ZoneId.systemDefault()
+        ).format(FORMATTER);
+        obj.put(signTimeStr, formattedTime);
+      } else {
+        obj.put(signTimeStr, EMPTY);
+      }
+    }
+    System.out.println(JSON.toJSONString(signatureProgress, true));
     System.out.println("Create Time: " + MultiTxSummaryParser.formatTimestamp(tx.getTimestamp()));
+    System.out.println("Transaction: " + JSON.toJSONString(tx.getCurrentTransaction(), true));
 
     System.out.println("\nActions:");
-    System.out.println("1. Sign transaction");
+    if (tx.getState() == 0) {
+      System.out.println("1. Sign transaction");
+    }
     System.out.println("0. Back");
     System.out.print(NUMBER_TO_OPERATE);
     String choice = scanner.nextLine().trim();
     switch (choice) {
       case "1":
-        doSignTransaction(address, tx.getCurrentTransaction(), wallet);
+        doSignTransaction(address, tx, wallet);
         break;
       case "0":
         return;
@@ -431,19 +462,22 @@ public class MultiSignService {
     }
   }
 
-  private void doSignTransaction(String address, JSONObject currentTransaction, WalletApi wallet) {
+  private void doSignTransaction(String address, MultiTxSummaryParser.MultiTxSummary tx, WalletApi wallet) {
+    if (tx.getState() != 0) {
+      return;
+    }
     try {
       System.out.println("\nSigning transaction...");
       String resp = signTransaction(
           address,
-          currentTransaction,
+          tx.getCurrentTransaction(),
           wallet
       );
       JSONObject root = JSON.parseObject(resp);
       if (root.getIntValue("code") != 0) {
-        throw new RuntimeException("sign failed: " + root.getString("message"));
+        throw new RuntimeException(redBoldHighlight(root.getString("original_message")));
       } else {
-        System.out.println("Sign successful:");
+        System.out.println("Sign successful!");
       }
     } catch (Exception e) {
       System.out.println("Sign failed: " + e.getMessage());
@@ -472,9 +506,16 @@ public class MultiSignService {
     body.put("address", address);
 
     // transaction is an object, not string
+    Protocol.Transaction.raw.Builder raw = getRawBuilder(currentTransaction);
+
     JSONArray signatureArray = currentTransaction.getJSONArray("signature");
     String rawDataHex = currentTransaction.getString("raw_data_hex");
-    byte[] rawData = Hex.decode(rawDataHex);
+    byte[] rawData;
+    if (StringUtils.isEmpty(rawDataHex)) {
+      rawData = raw.build().toByteArray();
+    } else {
+      rawData = Hex.decode(rawDataHex);
+    }
     byte[] hash = Sha256Sm3Hash.hash(rawData);
 
     String signature = wallet.signTransaction(hash);
@@ -486,6 +527,188 @@ public class MultiSignService {
 
     return HttpUtils.postJson(url, body.toJSONString());
   }
+
+  private static Protocol.Transaction.raw.Builder getRawBuilder(JSONObject currentTransaction) {
+    JSONObject rawDataJO = currentTransaction.getJSONObject("raw_data");
+
+    long expiration = rawDataJO.getLongValue("expiration");
+    long timestamp = rawDataJO.getLongValue("timestamp");
+    long feeLimit = rawDataJO.getLongValue("fee_limit");
+    String refBlockBytes = rawDataJO.getString("ref_block_bytes");
+    String refBlockHash = rawDataJO.getString("ref_block_hash");
+    JSONArray contracts = rawDataJO.getJSONArray("contract");
+    JSONObject contract0 = contracts.getJSONObject(0);
+
+    String type = contract0.getString("type");
+    int permissionId = contract0.getIntValue("Permission_id");
+
+    JSONObject value = contract0.getJSONObject("parameter").getJSONObject("value");
+
+    Protocol.Transaction.raw.Builder raw = Protocol.Transaction.raw.newBuilder();
+    Protocol.Transaction.Contract.Builder contract = buildContractByType(type, value);
+    contract.setPermissionId(permissionId);
+    raw.setExpiration(expiration);
+    raw.setFeeLimit(feeLimit);
+    raw.setTimestamp(timestamp);
+    raw.setRefBlockBytes(ByteString.copyFrom(ByteArray.fromHexString(refBlockBytes)));
+    raw.setRefBlockHash(ByteString.copyFrom(ByteArray.fromHexString(refBlockHash)));
+    raw.addContract(contract.build());
+    return raw;
+  }
+
+  private static Protocol.Transaction.Contract.Builder buildContractByType(
+      String type, JSONObject value) {
+    ByteString owner = null;
+    String ownerAddress = "owner_address";
+    if (StringUtils.isNotEmpty(value.getString(ownerAddress))) {
+      owner = parseAddress(value.getString(ownerAddress));
+    }
+    ByteString to = null;
+    String toAddress = "to_address";
+    if (StringUtils.isNotEmpty(value.getString(toAddress))) {
+      to = parseAddress(value.getString(toAddress));
+    }
+    ByteString receiver = null;
+    String receiverAddress = "receiver_address";
+    if (StringUtils.isNotEmpty(value.getString(receiverAddress))) {
+      receiver = parseAddress(value.getString(receiverAddress));
+    }
+    ByteString contractAddress = null;
+    String contractAddr = "contract_address";
+    if (StringUtils.isNotEmpty(value.getString(contractAddr))) {
+      contractAddress = parseAddress(value.getString(contractAddr));
+    }
+    int resource = value.getIntValue("resource");
+    switch (type) {
+      case "TransferContract":
+        long amount = value.getLongValue("amount");
+        if (owner == null || to == null) {
+          throw new IllegalArgumentException(redBoldHighlight("owner address or to address is invalid"));
+        }
+        Contract.TransferContract contract =
+            Contract.TransferContract.newBuilder()
+                .setOwnerAddress(owner)
+                .setToAddress(to)
+                .setAmount(amount)
+                .build();
+        return Protocol.Transaction.Contract.newBuilder()
+            .setType(Protocol.Transaction.Contract.ContractType.TransferContract)
+            .setParameter(Any.pack(contract));
+      case "TriggerSmartContract":
+        String data = value.getString("data");
+        long tokenId = value.getLongValue("token_id");
+        long callTokenValue = value.getLongValue("call_token_value");
+        long callValue = value.getLongValue("call_value");
+        if (owner == null || contractAddress == null) {
+          throw new IllegalArgumentException(redBoldHighlight("owner address or contract address is invalid"));
+        }
+        Contract.TriggerSmartContract triggerSmartContract = Contract.TriggerSmartContract
+            .newBuilder().setData(ByteString.copyFrom(ByteArray.fromHexString(data)))
+            .setTokenId(tokenId).setCallTokenValue(callTokenValue).setCallValue(callValue)
+            .setContractAddress(contractAddress).setOwnerAddress(owner).build();
+        return Protocol.Transaction.Contract.newBuilder()
+            .setType(Protocol.Transaction.Contract.ContractType.TriggerSmartContract)
+            .setParameter(Any.pack(triggerSmartContract));
+      case "FreezeBalanceV2Contract":
+        long frozenBalance = value.getLongValue("frozen_balance");
+        if (owner == null) {
+          throw new IllegalArgumentException(redBoldHighlight("owner address is invalid"));
+        }
+        Contract.FreezeBalanceV2Contract freezeBalanceV2Contract = Contract.FreezeBalanceV2Contract
+            .newBuilder().setOwnerAddress(owner).setFrozenBalance(frozenBalance)
+            .setResourceValue(resource).build();
+        return Protocol.Transaction.Contract.newBuilder()
+            .setType(Protocol.Transaction.Contract.ContractType.FreezeBalanceV2Contract)
+            .setParameter(Any.pack(freezeBalanceV2Contract));
+      case "UnfreezeBalanceV2Contract":
+        long unfrozenBalance = value.getLongValue("unfreeze_balance");
+        if (owner == null) {
+          throw new IllegalArgumentException(redBoldHighlight("owner address is invalid"));
+        }
+        Contract.UnfreezeBalanceV2Contract unfreezeBalanceV2Contract = Contract.UnfreezeBalanceV2Contract
+            .newBuilder().setOwnerAddress(owner).setUnfreezeBalance(unfrozenBalance)
+            .setResourceValue(resource).build();
+        return Protocol.Transaction.Contract.newBuilder()
+            .setType(Protocol.Transaction.Contract.ContractType.UnfreezeBalanceV2Contract)
+            .setParameter(Any.pack(unfreezeBalanceV2Contract));
+      case "CancelAllUnfreezeV2Contract":
+        if (owner == null) {
+          throw new IllegalArgumentException(redBoldHighlight("owner address is invalid"));
+        }
+        Contract.CancelAllUnfreezeV2Contract cancelAllUnfreezeV2Contract = Contract.CancelAllUnfreezeV2Contract
+            .newBuilder().setOwnerAddress(owner).build();
+        return Protocol.Transaction.Contract.newBuilder()
+            .setType(Protocol.Transaction.Contract.ContractType.CancelAllUnfreezeV2Contract)
+            .setParameter(Any.pack(cancelAllUnfreezeV2Contract));
+      case "WithdrawExpireUnfreezeContract":
+        if (owner == null) {
+          throw new IllegalArgumentException(redBoldHighlight("owner address is invalid"));
+        }
+        Contract.WithdrawExpireUnfreezeContract withdrawExpireUnfreezeContract = Contract.WithdrawExpireUnfreezeContract
+            .newBuilder().setOwnerAddress(owner).build();
+        return Protocol.Transaction.Contract.newBuilder()
+            .setType(Protocol.Transaction.Contract.ContractType.WithdrawExpireUnfreezeContract)
+            .setParameter(Any.pack(withdrawExpireUnfreezeContract));
+      case "DelegateResourceContract":
+        if (owner == null || receiver == null) {
+          throw new IllegalArgumentException(redBoldHighlight("owner address or receiver address is invalid"));
+        }
+        long balance = value.getLongValue("balance");
+        long lockPeriod = value.getLongValue("lock_period");
+        boolean lock = value.getBooleanValue("lock");
+        Contract.DelegateResourceContract delegateResourceContract = Contract.DelegateResourceContract
+            .newBuilder().setOwnerAddress(owner).setReceiverAddress(receiver).setResourceValue(resource)
+            .setBalance(balance).setLock(lock).setLockPeriod(lockPeriod).build();
+        return Protocol.Transaction.Contract.newBuilder()
+            .setType(Protocol.Transaction.Contract.ContractType.DelegateResourceContract)
+            .setParameter(Any.pack(delegateResourceContract));
+      case "UnDelegateResourceContract":
+        if (owner == null || receiver == null) {
+          throw new IllegalArgumentException(redBoldHighlight("owner address or receiver address is invalid"));
+        }
+        long unbalance = value.getLongValue("balance");
+        Contract.UnDelegateResourceContract unDelegateResourceContract = Contract.UnDelegateResourceContract
+            .newBuilder().setOwnerAddress(owner).setReceiverAddress(receiver).setResourceValue(resource)
+            .setBalance(unbalance).build();
+        return Protocol.Transaction.Contract.newBuilder()
+            .setType(Protocol.Transaction.Contract.ContractType.UnDelegateResourceContract)
+            .setParameter(Any.pack(unDelegateResourceContract));
+      case "VoteWitnessContract":
+        if (owner == null) {
+          throw new IllegalArgumentException(redBoldHighlight("owner address is invalid"));
+        }
+        JSONArray votesJA = value.getJSONArray("votes");
+        boolean support = value.getBooleanValue("support");
+        Contract.VoteWitnessContract.Builder builder = Contract.VoteWitnessContract.newBuilder();
+        builder.setOwnerAddress(owner);
+        builder.setSupport(support);
+        votesJA.forEach(o -> {
+          JSONObject vote = (JSONObject) o;
+          String voteAddress = vote.getString("vote_address");
+          long voteCount = vote.getLongValue("vote_count");
+          Contract.VoteWitnessContract.Vote.Builder voteBuilder = Contract.VoteWitnessContract.Vote.newBuilder();
+          ByteString address = parseAddress(voteAddress);
+          voteBuilder.setVoteAddress(address);
+          voteBuilder.setVoteCount(voteCount);
+          builder.addVotes(voteBuilder.build());
+        });
+        return Protocol.Transaction.Contract.newBuilder()
+            .setType(Protocol.Transaction.Contract.ContractType.VoteWitnessContract)
+            .setParameter(Any.pack(builder.build()));
+      case "WithdrawBalanceContract":
+        if (owner == null) {
+          throw new IllegalArgumentException(redBoldHighlight("owner address is invalid"));
+        }
+        Contract.WithdrawBalanceContract withdrawBalanceContract = Contract.WithdrawBalanceContract
+            .newBuilder().setOwnerAddress(owner).build();
+        return Protocol.Transaction.Contract.newBuilder()
+            .setType(Protocol.Transaction.Contract.ContractType.WithdrawBalanceContract)
+            .setParameter(Any.pack(withdrawBalanceContract));
+      default:
+        throw new UnsupportedOperationException("Unsupported contract type: " + type);
+    }
+  }
+
 
   private String buildQuery(Map<String, String> params) throws IOException {
     StringBuilder sb = new StringBuilder();
