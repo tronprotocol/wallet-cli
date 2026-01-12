@@ -424,7 +424,7 @@ public class WalletApi {
       wsClient = new MultiTxWebSocketClient(uri, headers, lineReader, address);
 
       wsClient.setConnectionLostTimeout(60);
-      wsClient.connect();
+      wsClient.connectBlocking();
 
     } catch (Exception e) {
       lineReader.printAbove("❌ WS init failed: " + e.getMessage());
@@ -1314,8 +1314,7 @@ public class WalletApi {
         sum = LongMath.checkedAdd(sum, voteCount);
       }
       Response.Account account = queryAccount(owner);
-      long tronPower = getTronPower(account);
-      sum = LongMath.checkedMultiply(sum, TRX_PRECISION);
+      long tronPower = getTronPower(account) / TRX_PRECISION;
       if (sum > tronPower) {
         System.out.println("The total number of votes[" + sum + "] is greater than the tronPower["
             + tronPower + "]");

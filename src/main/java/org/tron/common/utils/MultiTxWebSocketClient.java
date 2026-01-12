@@ -4,6 +4,8 @@ import static org.tron.common.utils.Utils.greenBoldHighlight;
 import static org.tron.common.utils.Utils.yellowBoldHighlight;
 
 import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
 import java.net.URI;
 import java.util.Map;
 import org.java_websocket.client.WebSocketClient;
@@ -55,10 +57,15 @@ public class MultiTxWebSocketClient extends WebSocketClient {
     if (!isJsonArray(message)) {
       return;
     }
-    int size = JSON.parseArray(message).size();
-    if (size > 0) {
+    JSONArray jsonArray = JSON.parseArray(message);
+    long count = jsonArray.stream()
+        .map(o -> (JSONObject) o)
+        .filter(obj -> obj.getIntValue("is_sign") == 0
+            && obj.getIntValue("state") == 0)
+        .count();
+    if (count > 0) {
       lineReader.printAbove(
-          yellowBoldHighlight("🔔 New message: ") + "You have " + size + " transaction(s) to be signed, please view it through the " + greenBoldHighlight("TronlinkMultiSign") + " command."
+          yellowBoldHighlight("🔔 New message: ") + "You have " + count + " transaction(s) to be signed, please view it through the " + greenBoldHighlight("TronlinkMultiSign") + " command."
       );
     }
   }

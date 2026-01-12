@@ -68,12 +68,12 @@ public class MultiTxSummaryParser {
   }
 
   public static void printTable(List<MultiTxSummary> list) {
-    System.out.printf("%-5s %-20s %-31s %-35s %-10s %-5s%n",
+    System.out.printf("%-5s %-20s %-31s %-35s %-15s %-5s%n",
         "No.", "Create Time", "Contract Type", "Owner Address", "Sign Progress", "State");
     System.out.println("-------------------------------------------------------------------------------------------------------------------------");
     int index = 1;
     for (MultiTxSummary s : list) {
-      System.out.printf("%-5d %-20s %-31s %-35s %-13s %-5s%n",
+      System.out.printf("%-5d %-20s %-31s %-35s %-15s %-5s%n",
           index++,
           formatTimestamp(s.getTimestamp()),
           s.getContractType(),
