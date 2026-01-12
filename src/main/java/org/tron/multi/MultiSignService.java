@@ -2,8 +2,10 @@ package org.tron.multi;
 
 import static org.apache.commons.lang3.StringUtils.EMPTY;
 import static org.tron.common.utils.TransactionUtils.getTransactionId;
+import static org.tron.common.utils.Utils.TRANSFER_METHOD_ID;
 import static org.tron.common.utils.Utils.greenBoldHighlight;
 import static org.tron.common.utils.Utils.intToBooleanString;
+import static org.tron.common.utils.Utils.parseAmountToLongStr;
 import static org.tron.common.utils.Utils.redBoldHighlight;
 import static org.tron.trident.core.ApiWrapper.parseAddress;
 import static org.tron.trident.proto.Chain.Transaction.Contract.ContractType.CancelAllUnfreezeV2Contract;
@@ -16,6 +18,7 @@ import static org.tron.trident.proto.Chain.Transaction.Contract.ContractType.Unf
 import static org.tron.trident.proto.Chain.Transaction.Contract.ContractType.VoteWitnessContract;
 import static org.tron.trident.proto.Chain.Transaction.Contract.ContractType.WithdrawBalanceContract;
 import static org.tron.trident.proto.Chain.Transaction.Contract.ContractType.WithdrawExpireUnfreezeContract;
+import static org.tron.walletserver.WalletApi.encode58Check;
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
@@ -24,6 +27,7 @@ import com.google.common.collect.Sets;
 import com.google.gson.JsonObject;
 import com.google.protobuf.Any;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.time.Instant;
@@ -31,6 +35,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -416,35 +421,53 @@ public class MultiSignService {
     }
   }
 
+  public static void printSignatureProgress(JSONArray signatureProgress) {
+
+    String headerFormat = "%-36s  %-10s  %-20s%n";
+    String rowFormat    = "%-36s  %-10s  %-20s%n";
+
+    System.out.printf(headerFormat, "Address", "Weight", "Signed At");
+    System.out.println("--------------------------------------------------------------------------");
+
+    for (int i = 0; i < signatureProgress.size(); i++) {
+      JSONObject obj = signatureProgress.getJSONObject(i);
+
+      String address = obj.getString("address");
+      int weight = obj.getIntValue("weight");
+      int isSign = obj.getIntValue("is_sign");
+      long signTime = obj.getLongValue("sign_time");
+
+      String weightWithSign = formatWeightWithSign(weight, isSign);
+      String formattedTime = formatSignTime(signTime);
+
+      System.out.printf(rowFormat, address, weightWithSign, formattedTime);
+    }
+  }
+
+  private static String formatWeightWithSign(int weight, int isSign) {
+    return weight + (isSign == 1 ? " ✓" : "  ");
+  }
+
+  private static String formatSignTime(long signTime) {
+    if (signTime <= 0) {
+      return "-";
+    }
+    return LocalDateTime.ofInstant(
+        Instant.ofEpochSecond(signTime),
+        ZoneId.systemDefault()
+    ).format(FORMATTER);
+  }
+
   private void showTransactionDetail(String address, Scanner scanner, MultiTxSummaryParser.MultiTxSummary tx, WalletApi wallet) {
     System.out.println("\n--- Transaction Detail ---");
     System.out.println("Tx Id: " + tx.getHash());
-    System.out.println("State: " +     MultiSignService.ListType.from(tx.getState(), tx.getIsSign()).name().toLowerCase());
-    System.out.println("Contract Type: " + tx.getContractType());
-    System.out.println("Owner Address: " + tx.getOwnerAddress());
+    System.out.println("State: " + MultiSignService.ListType.from(tx.getState(), tx.getIsSign()).name().toLowerCase());
+    printTransactionInfo(tx);
     System.out.println("Sign Progress: " + tx.getSignProgress());
-    JSONArray signatureProgress = tx.getSignatureProgress();
-    for (int i = 0; i < signatureProgress.size(); i++) {
-      JSONObject obj = signatureProgress.getJSONObject(i);
-      String signTimeStr = "sign_time";
-      long signTime = obj.getLongValue(signTimeStr);
-
-      if (signTime > 0) {
-        String formattedTime = LocalDateTime.ofInstant(
-            Instant.ofEpochSecond(signTime),
-            ZoneId.systemDefault()
-        ).format(FORMATTER);
-        obj.put(signTimeStr, formattedTime);
-      } else {
-        obj.put(signTimeStr, EMPTY);
-      }
-    }
-    System.out.println(JSON.toJSONString(signatureProgress, true));
-    System.out.println("Create Time: " + MultiTxSummaryParser.formatTimestamp(tx.getTimestamp()));
-    System.out.println("Transaction: " + JSON.toJSONString(tx.getCurrentTransaction(), true));
-
+    printSignatureProgress(tx.getSignatureProgress());
+    System.out.println("\nCreate Time: " + MultiTxSummaryParser.formatTimestamp(tx.getTimestamp()));
     System.out.println("\nActions:");
-    if (tx.getState() == 0) {
+    if (tx.getState() == 0 && tx.getIsSign() == 0) {
       System.out.println("1. Sign transaction");
     }
     System.out.println("0. Back");
@@ -462,6 +485,119 @@ public class MultiSignService {
     }
   }
 
+  private static void printTransactionInfo(MultiTxSummaryParser.MultiTxSummary tx) {
+    Protocol.Transaction.raw raw = getRawBuilder(tx.getCurrentTransaction()).build();
+    Protocol.Transaction.Contract contract = raw.getContract(0);
+    Protocol.Transaction.Contract.ContractType contractType = contract.getType();
+    System.out.println("Contract Type: " + tx.getContractType());
+    Any contractParameter = contract.getParameter();
+    try {
+      String ownerAddressStr = "Owner Address: ";
+      String receiverAddressStr = "Receiver Address: ";
+      String resourceStr = "Resource: ";
+      switch (contractType) {
+        case TransferContract:
+          Contract.TransferContract transferContract =
+              contractParameter.unpack(Contract.TransferContract.class);
+          System.out.println(ownerAddressStr + encode58Check(transferContract.getOwnerAddress().toByteArray()));
+          System.out.println("To Address: " + encode58Check(transferContract.getToAddress().toByteArray()));
+          System.out.println("Amount: " + transferContract.getAmount());
+          break;
+        case TriggerSmartContract:
+          Contract.TriggerSmartContract triggerSmartContract =
+              contractParameter.unpack(Contract.TriggerSmartContract.class);
+          System.out.println(ownerAddressStr + encode58Check(triggerSmartContract.getOwnerAddress().toByteArray()));
+          System.out.println("Contract Address: " + encode58Check(triggerSmartContract.getContractAddress().toByteArray()));
+          Pair<String, String> transferUsdtParams = getTransferUsdtParams(triggerSmartContract);
+          System.out.println(receiverAddressStr + transferUsdtParams.getLeft());
+          System.out.println("Amount: " + transferUsdtParams.getRight());
+          System.out.println("Token: USDT");
+          break;
+        case FreezeBalanceV2Contract:
+          Contract.FreezeBalanceV2Contract freezeBalanceV2Contract =
+              contractParameter.unpack(Contract.FreezeBalanceV2Contract.class);
+          System.out.println(ownerAddressStr + encode58Check(freezeBalanceV2Contract.getOwnerAddress().toByteArray()));
+          System.out.println("Frozen Balance: " + freezeBalanceV2Contract.getFrozenBalance());
+          System.out.println(resourceStr + freezeBalanceV2Contract.getResource().name());
+          break;
+        case UnfreezeBalanceV2Contract:
+          Contract.UnfreezeBalanceV2Contract unfreezeBalanceV2Contract =
+              contractParameter.unpack(Contract.UnfreezeBalanceV2Contract.class);
+          System.out.println(ownerAddressStr + encode58Check(unfreezeBalanceV2Contract.getOwnerAddress().toByteArray()));
+          System.out.println("UnFreeze Balance: " + unfreezeBalanceV2Contract.getUnfreezeBalance());
+          System.out.println(resourceStr + unfreezeBalanceV2Contract.getResource().name());
+          break;
+        case CancelAllUnfreezeV2Contract:
+          Contract.CancelAllUnfreezeV2Contract cancelAllUnfreezeV2Contract =
+              contractParameter.unpack(Contract.CancelAllUnfreezeV2Contract.class);
+          System.out.println(ownerAddressStr + encode58Check(cancelAllUnfreezeV2Contract.getOwnerAddress().toByteArray()));
+          break;
+        case WithdrawExpireUnfreezeContract:
+          Contract.WithdrawExpireUnfreezeContract withdrawExpireUnfreezeContract =
+              contractParameter.unpack(Contract.WithdrawExpireUnfreezeContract.class);
+          System.out.println(ownerAddressStr + encode58Check(withdrawExpireUnfreezeContract.getOwnerAddress().toByteArray()));
+          break;
+        case DelegateResourceContract:
+          Contract.DelegateResourceContract delegateResourceContract =
+              contractParameter.unpack(Contract.DelegateResourceContract.class);
+          System.out.println(ownerAddressStr + encode58Check(delegateResourceContract.getOwnerAddress().toByteArray()));
+          System.out.println(receiverAddressStr + encode58Check(delegateResourceContract.getReceiverAddress().toByteArray()));
+          System.out.println(resourceStr + delegateResourceContract.getResource().name());
+          System.out.println("Delegate Balance: " + delegateResourceContract.getBalance());
+          System.out.println("Lock: " + delegateResourceContract.getLock());
+          System.out.println("Lock Period: " + delegateResourceContract.getLockPeriod());
+          break;
+        case UnDelegateResourceContract:
+          Contract.UnDelegateResourceContract unDelegateResourceContract =
+              contractParameter.unpack(Contract.UnDelegateResourceContract.class);
+          System.out.println(ownerAddressStr + encode58Check(unDelegateResourceContract.getOwnerAddress().toByteArray()));
+          System.out.println(receiverAddressStr + encode58Check(unDelegateResourceContract.getReceiverAddress().toByteArray()));
+          System.out.println(resourceStr + unDelegateResourceContract.getResource().name());
+          System.out.println("UnDelegate Balance: " + unDelegateResourceContract.getBalance());
+          break;
+        case VoteWitnessContract:
+          Contract.VoteWitnessContract voteWitnessContract =
+              contractParameter.unpack(Contract.VoteWitnessContract.class);
+          System.out.println(ownerAddressStr + encode58Check(voteWitnessContract.getOwnerAddress().toByteArray()));
+          System.out.println("Vote Info:");
+          voteWitnessContract.getVotesList().forEach(vote -> {
+            System.out.println("  Address: " + encode58Check(vote.getVoteAddress().toByteArray()));
+            System.out.println("  Count: " + vote.getVoteCount());
+          });
+          System.out.println("Support: " + voteWitnessContract.getSupport());
+          break;
+        case WithdrawBalanceContract:
+          Contract.WithdrawBalanceContract withdrawBalanceContract =
+              contractParameter.unpack(Contract.WithdrawBalanceContract.class);
+          System.out.println(ownerAddressStr + encode58Check(withdrawBalanceContract.getOwnerAddress().toByteArray()));
+          break;
+        default:
+      }
+    } catch (InvalidProtocolBufferException e) {
+      System.out.println("InvalidProtocolBufferException" + e);
+    }
+  }
+
+  private static Pair<String, String> getTransferUsdtParams(Contract.TriggerSmartContract triggerSmartContract) {
+    try {
+      byte[] data = triggerSmartContract.getData().toByteArray();
+      byte[] methodId = Arrays.copyOfRange(data, 0, 4);
+      if (TRANSFER_METHOD_ID.equals(Hex.toHexString(methodId))) {
+        byte[] toBytes = Arrays.copyOfRange(data, 4, 36);
+        byte[] addressBytes = Arrays.copyOfRange(toBytes, 12, 32);
+        byte[] tronAddressBytes = new byte[21];
+        tronAddressBytes[0] = 0x41;
+        System.arraycopy(addressBytes, 0, tronAddressBytes, 1, 20);
+        String to = encode58Check(tronAddressBytes);
+        byte[] amountBytes = Arrays.copyOfRange(data, 36, 68);
+        return Pair.of(to, parseAmountToLongStr(amountBytes));
+      }
+    } catch (Exception e) {
+      System.out.println(e.getMessage());
+    }
+    return Pair.of(EMPTY, EMPTY);
+  }
+
   private void doSignTransaction(String address, MultiTxSummaryParser.MultiTxSummary tx, WalletApi wallet) {
     if (tx.getState() != 0) {
       return;
@@ -477,7 +613,7 @@ public class MultiSignService {
       if (root.getIntValue("code") != 0) {
         throw new RuntimeException(redBoldHighlight(root.getString("original_message")));
       } else {
-        System.out.println("Sign successful!");
+        System.out.println(greenBoldHighlight("Sign successful!"));
       }
     } catch (Exception e) {
       System.out.println("Sign failed: " + e.getMessage());
