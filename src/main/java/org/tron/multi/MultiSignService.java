@@ -410,7 +410,7 @@ public class MultiSignService {
     );
   }
 
-  private Pair<List<MultiTxSummaryParser.MultiTxSummary>, Integer> fetchTransactions(String address, ListType type, Integer isSign, int start,
+  public Pair<List<MultiTxSummaryParser.MultiTxSummary>, Integer> fetchTransactions(String address, ListType type, Integer isSign, int start,
                                                                                      int limit) {
     try {
       String resp = list(address, type, isSign, start, limit);

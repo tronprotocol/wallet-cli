@@ -23,6 +23,7 @@ import static org.tron.core.config.Parameter.CommonConstant.ADD_PRE_FIX_BYTE_TES
 import static org.tron.keystore.StringUtils.char2Byte;
 import static org.tron.keystore.Wallet.decrypt2PrivateBytes;
 import static org.tron.multi.MultiSignService.CONTRACT_TYPE_SET;
+import static org.tron.multi.MultiSignService.ListType.PENDING;
 import static org.tron.trident.proto.Common.ResourceCode.TRON_POWER;
 import static org.tron.walletcli.WalletApiWrapper.getLedgerPath;
 
@@ -55,6 +56,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Scanner;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -398,37 +400,27 @@ public class WalletApi {
     if (lineReader == null || !allNotBlank(getTronlinkTriple(currentNetwork))) {
       return;
     }
-    startWebSocket(lineReader, encode58Check(address));
-  }
+    CompletableFuture.runAsync(() -> {
+      try {
+        Integer count = multiSignService.fetchTransactions(
+            encode58Check(address),
+            PENDING,
+            0,
+            0,
+            1
+        ).getRight();
 
-  private void startWebSocket(LineReader lineReader, String address) {
-    try {
-      String baseUrl = currentNetwork.getTronlinkUrl();
-      if (StringUtils.isEmpty(baseUrl)) {
-        return;
+        if (count > 0) {
+          lineReader.printAbove(
+              yellowBoldHighlight("🔔 New message: ") +
+                  "You have " + count + " transaction(s) to be signed, please view it through the " +
+                  greenBoldHighlight("TronlinkMultiSign") + " command."
+          );
+        }
+      } catch (Exception e) {
+        System.out.println("Failed to asynchronously query the number of pending transactions." + e.getMessage());
       }
-      URI baseUri = URI.create(baseUrl);
-      String scheme = "https".equalsIgnoreCase(baseUri.getScheme()) ? "wss" : "ws";
-      URI uri = new URI(
-          scheme,
-          baseUri.getUserInfo(),
-          baseUri.getHost(),
-          baseUri.getPort(),
-          "/openapi/multi/socket",
-          null,
-          null
-      );
-      Map<String, String> headers = new HashMap<>();
-      headers.put("address", address);
-      headers.put("sign", multiSignService.signWebsocket(uri.getPath(), headers));
-      wsClient = new MultiTxWebSocketClient(uri, headers, lineReader, address);
-
-      wsClient.setConnectionLostTimeout(60);
-      wsClient.connectBlocking();
-
-    } catch (Exception e) {
-      lineReader.printAbove("❌ WS init failed: " + e.getMessage());
-    }
+    });
   }
 
   public boolean checkPassword(byte[] passwd) throws CipherException {
