@@ -23,11 +23,13 @@ import static org.tron.core.config.Parameter.CommonConstant.ADD_PRE_FIX_BYTE_TES
 import static org.tron.keystore.StringUtils.char2Byte;
 import static org.tron.keystore.Wallet.decrypt2PrivateBytes;
 import static org.tron.multi.MultiSignService.CONTRACT_TYPE_SET;
+import static org.tron.trident.proto.Common.ResourceCode.TRON_POWER;
 import static org.tron.walletcli.WalletApiWrapper.getLedgerPath;
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
+import com.google.common.math.LongMath;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
@@ -1078,8 +1080,13 @@ public class WalletApi {
         System.out.println("Amount must be greater than 0.");
         return false;
       }
-      if (queryAccount(owner).getBalance() < amount) {
+      long balance = queryAccount(owner).getBalance();
+      if (balance < amount) {
         System.out.println("balance is not sufficient.");
+        return false;
+      }
+      if (balance - amount < 200_0000L) {
+        System.out.println("You need to have at least 2 TRX to pay the fee.");
         return false;
       }
       if (!isControlled(owner)) {
@@ -1292,6 +1299,7 @@ public class WalletApi {
         System.out.println("VoteNumber more than maxVoteNumber 30");
         return false;
       }
+      long sum = 0L;
       for (Map.Entry<String, String> entry : witness.entrySet()) {
         String voteAddress = entry.getKey();
         long voteCount = Long.parseLong(entry.getValue());
@@ -1303,6 +1311,15 @@ public class WalletApi {
           System.out.println("vote count must be greater than 0");
           return false;
         }
+        sum = LongMath.checkedAdd(sum, voteCount);
+      }
+      Response.Account account = queryAccount(owner);
+      long tronPower = getTronPower(account);
+      sum = LongMath.checkedMultiply(sum, TRX_PRECISION);
+      if (sum > tronPower) {
+        System.out.println("The total number of votes[" + sum + "] is greater than the tronPower["
+            + tronPower + "]");
+        return false;
       }
       if (!isControlled(owner)) {
         return false;
@@ -1310,6 +1327,23 @@ public class WalletApi {
     }
     Response.TransactionExtention transactionExtention = apiCli.voteWitness(owner, witness);
     return processTransactionExtention(transactionExtention, multi);
+  }
+
+  public long getTronPower(Response.Account account) {
+    long tp = 0;
+    for (int i = 0; i < account.getFrozenCount(); ++i) {
+      tp += account.getFrozen(i).getFrozenBalance();
+    }
+
+    tp += account.getAccountResource().getFrozenBalanceForEnergy().getFrozenBalance();
+    tp += account.getDelegatedFrozenBalanceForBandwidth();
+    tp += account.getAccountResource().getDelegatedFrozenBalanceForEnergy();
+
+    tp += account.getFrozenV2List().stream().filter(o -> o.getType() != TRON_POWER)
+        .mapToLong(Response.Account.FreezeV2::getAmount).sum();
+    tp += account.getDelegatedFrozenV2BalanceForBandwidth();
+    tp += account.getAccountResource().getDelegatedFrozenV2BalanceForEnergy();
+    return tp;
   }
 
   public static TransferContract createTransferContract(byte[] to, byte[] owner, long amount) {
@@ -1832,6 +1866,43 @@ public class WalletApi {
         System.out.println("delegated Resource does not exist");
         return false;
       }
+      Response.DelegatedResource unlockDelegatedResource = null;
+      Response.DelegatedResource lockDelegatedResource = null;
+      if (!delegatedResourceList.isEmpty()) {
+        unlockDelegatedResource = delegatedResourceList.get(0);
+        if (delegatedResourceList.size() > 1) {
+          lockDelegatedResource = delegatedResourceList.get(1);
+        }
+      }
+      long delegateBalance = 0;
+      boolean isBandwidth = resourceCode == 0;
+      long now = System.currentTimeMillis();
+      if (!emptyResource(unlockDelegatedResource)) {
+        if (isBandwidth) {
+          delegateBalance += unlockDelegatedResource.getFrozenBalanceForBandwidth();
+        } else {
+          delegateBalance += unlockDelegatedResource.getFrozenBalanceForEnergy();
+        }
+      }
+      if (!emptyResource(lockDelegatedResource)) {
+        boolean expired;
+        if (isBandwidth) {
+          expired = lockDelegatedResource.getExpireTimeForBandwidth() < now;
+        } else {
+          expired = lockDelegatedResource.getExpireTimeForEnergy() < now;
+        }
+        if (expired) {
+          delegateBalance += isBandwidth
+              ? lockDelegatedResource.getFrozenBalanceForBandwidth()
+              : lockDelegatedResource.getFrozenBalanceForEnergy();
+        }
+      }
+      if (delegateBalance < balance) {
+        System.out.println(
+            "insufficient delegatedFrozenBalance(" + (isBandwidth ? "BANDWIDTH" : "ENERGY")
+                + "), request=" + balance + ", unlock_balance=" + delegateBalance);
+        return false;
+      }
       if (balance <= 0) {
         System.out.println("unDelegateBalance must be more than 0 TRX");
         return false;
@@ -1849,22 +1920,25 @@ public class WalletApi {
         && resource.getFrozenBalanceForBandwidth() == 0
         && resource.getFrozenBalanceForEnergy() == 0);
   }
-  public boolean cancelAllUnfreezeV2(boolean multi)
+  public boolean cancelAllUnfreezeV2(byte[] ownerAddress, boolean multi)
       throws CipherException, IOException, CancelException, IllegalException {
     if (!isUnlocked()) {
       throw new IllegalStateException(LOCK_WARNING);
     }
+    if (ownerAddress == null) {
+      ownerAddress = getAddress();
+    }
     if (multi) {
-      Response.Account account = queryAccount(address);
+      Response.Account account = queryAccount(ownerAddress);
       if (account.getUnfrozenV2List().isEmpty()) {
         System.out.println("No unfreezeV2 list to cancel");
         return false;
       }
-      if (!isControlled(address)) {
+      if (!isControlled(ownerAddress)) {
         return false;
       }
     }
-    Response.TransactionExtention transactionExtention = apiCli.cancelAllUnfreezeV2(getAddress());
+    Response.TransactionExtention transactionExtention = apiCli.cancelAllUnfreezeV2(ownerAddress);
     return processTransactionExtention(transactionExtention, multi);
   }
 

@@ -79,6 +79,7 @@ import org.jline.terminal.TerminalBuilder;
 import org.tron.common.enums.NetType;
 import org.tron.common.utils.AbiUtil;
 import org.tron.common.utils.Utils;
+import org.tron.core.converter.EncodingConverter;
 import org.tron.core.dao.BackupRecord;
 import org.tron.core.dao.Tx;
 import org.tron.core.manager.BackupRecordManager;
@@ -1112,13 +1113,13 @@ public class WalletApiWrapper {
     return wallet.unDelegateResource(ownerAddress, balance, resourceCode, receiverAddress, multi);
   }
 
-  public boolean cancelAllUnfreezeV2(boolean multi)
+  public boolean cancelAllUnfreezeV2(byte[] ownerAddress, boolean multi)
       throws CipherException, IOException, CancelException, IllegalException {
     if (wallet == null || !wallet.isLoginState()) {
       System.out.println("Warning: cancelAllUnfreezeV2 " + failedHighlight() + ", Please login first !!");
       return false;
     }
-    return wallet.cancelAllUnfreezeV2(multi);
+    return wallet.cancelAllUnfreezeV2(ownerAddress, multi);
   }
 
   public boolean unfreezeAsset(byte[] ownerAddress, boolean multi)
@@ -1946,5 +1947,9 @@ public class WalletApiWrapper {
       return;
     }
     wallet.tronlinkMultiSign();
+  }
+
+  public void encodingConverter() {
+    EncodingConverter.runCLI();
   }
 }

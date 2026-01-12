@@ -1,7 +1,6 @@
 package org.tron.common.utils;
 
 import static org.tron.common.utils.Utils.greenBoldHighlight;
-import static org.tron.common.utils.Utils.redBoldHighlight;
 import static org.tron.common.utils.Utils.yellowBoldHighlight;
 
 import com.alibaba.fastjson.JSON;
@@ -30,9 +29,9 @@ public class MultiTxWebSocketClient extends WebSocketClient {
   public void onOpen(ServerHandshake handshake) {
     send(subscribeJson);
 
-    lineReader.printAbove(
-        greenBoldHighlight("🔗 WebSocket connected, subscribed address")
-    );
+//    lineReader.printAbove(
+//        greenBoldHighlight("🔗 WebSocket connected, subscribed address")
+//    );
   }
 
   public static boolean isJsonArray(String str) {

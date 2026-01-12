@@ -92,7 +92,6 @@ import org.tron.common.utils.CaseInsensitiveCommandCompleter;
 import org.tron.common.utils.DecodeUtil;
 import org.tron.common.utils.PathUtil;
 import org.tron.common.utils.Utils;
-import org.tron.core.converter.EncodingConverter;
 import org.tron.core.dao.AddressEntry;
 import org.tron.core.dao.Tx;
 import org.tron.core.exception.CancelException;
@@ -1553,10 +1552,14 @@ public class Client {
     }
 
     boolean result = walletApiWrapper.voteWitness(ownerAddress, witness, multi);
-    if (result) {
-      System.out.println("VoteWitness " + successfulHighlight() + " !!!");
+    if (multi) {
+      createMultiSignResult(result);
     } else {
-      System.out.println("VoteWitness " + failedHighlight() + " !!!");
+      if (result) {
+        System.out.println("VoteWitness " + successfulHighlight() + " !!!");
+      } else {
+        System.out.println("VoteWitness " + failedHighlight() + " !!!");
+      }
     }
   }
 
@@ -1875,10 +1878,14 @@ public class Client {
       }
     }
     boolean result = walletApiWrapper.undelegateresource(ownerAddress, balance, resourceCode, receiverAddress, multi);
-    if (result) {
-      System.out.println("unDelegateResource " + successfulHighlight() + " !!!");
+    if (multi) {
+      createMultiSignResult(result);
     } else {
-      System.out.println("unDelegateResource " + failedHighlight() + " !!!");
+      if (result) {
+        System.out.println("unDelegateResource " + successfulHighlight() + " !!!");
+      } else {
+        System.out.println("unDelegateResource " + failedHighlight() + " !!!");
+      }
     }
   }
 
@@ -1886,12 +1893,20 @@ public class Client {
       throws IOException, CipherException, CancelException, IllegalException {
     boolean multi = isMulti(parameters);
     parameters = initParameters(parameters, multi);
-    if (parameters.length > 0) {
+    if (parameters.length > 1) {
       System.out.println("Use CancelAllUnfreezeV2 command with below syntax: ");
-      System.out.println("CancelAllUnfreezeV2");
+      System.out.println("CancelAllUnfreezeV2 [owner_address]");
       return;
     }
-    boolean result = walletApiWrapper.cancelAllUnfreezeV2(multi);
+    byte[] ownerAddress = null;
+    if (parameters.length == 1) {
+      ownerAddress = WalletApi.decodeFromBase58Check(parameters[0]);
+      if (ownerAddress == null) {
+        System.out.println("Invalid OwnerAddress.");
+        return;
+      }
+    }
+    boolean result = walletApiWrapper.cancelAllUnfreezeV2(ownerAddress, multi);
     if (multi) {
       createMultiSignResult(result);
     } else {
@@ -2458,10 +2473,14 @@ public class Client {
     }
 
     boolean result = walletApiWrapper.withdrawBalance(ownerAddress, multi);
-    if (result) {
-      System.out.println("WithdrawBalance " + successfulHighlight() + " !!!");
+    if (multi) {
+      createMultiSignResult(result);
     } else {
-      System.out.println("WithdrawBalance " + failedHighlight() + " !!!");
+      if (result) {
+        System.out.println("WithdrawBalance " + successfulHighlight() + " !!!");
+      } else {
+        System.out.println("WithdrawBalance " + failedHighlight() + " !!!");
+      }
     }
   }
 
@@ -4224,7 +4243,7 @@ public class Client {
   }
 
   private void encodingConverter() {
-    EncodingConverter.runCLI();
+    walletApiWrapper.encodingConverter();
   }
 
   private void tronlinkMultiSign() {
@@ -4632,7 +4651,6 @@ public class Client {
   }
 
   public static void main(String[] args) {
-    Hash.sha3(new byte[]{1});
     Client cli = new Client();
     JCommander.newBuilder()
         .addObject(cli)
