@@ -20,7 +20,6 @@ import java.util.Map;
 import java.util.Scanner;
 import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 import lombok.Getter;
 import lombok.Setter;
 import org.bouncycastle.util.encoders.Hex;
@@ -94,9 +93,10 @@ public class UpdateAccountPermissionInteractive {
           + "does not exist in the current network. Please check."));
     }
     data.setOwnerAddress(address);
-
-    data.setOwnerPermission(convert2PermissionProto(account.getOwnerPermission()));
-    data.setWitnessPermission(convert2PermissionProto(account.getWitnessPermission()));
+    boolean nullOwner = Common.Permission.getDefaultInstance().equals(account.getOwnerPermission());
+    boolean nullWitness = Common.Permission.getDefaultInstance().equals(account.getWitnessPermission());
+    data.setOwnerPermission(nullOwner ? getDefaultOwnerPermission(address) : convert2PermissionProto(account.getOwnerPermission()));
+    data.setWitnessPermission((nullWitness && account.getIsWitness()) ? getDefaultWitnessPermission(address) : convert2PermissionProto(account.getWitnessPermission()));
     List<Permission> activePermissions = account.getActivePermissionList().stream()
         .map(this::convert2PermissionProto).collect(Collectors.toList());
     data.setActivePermissions(activePermissions);
@@ -141,6 +141,24 @@ public class UpdateAccountPermissionInteractive {
           System.out.println("Invalid option.");
       }
     }
+  }
+
+  private Permission getDefaultOwnerPermission(String address) {
+    Permission p = new Permission();
+    p.type = 0;
+    p.permissionName = "owner";
+    p.threshold = 1;
+    p.keys.add(new Key(address, 1));
+    return p;
+  }
+
+  private Permission getDefaultWitnessPermission(String address) {
+    Permission p = new Permission();
+    p.type = 1;
+    p.permissionName = "witness";
+    p.threshold = 1;
+    p.keys.add(new Key(address, 1));
+    return p;
   }
 
   private Permission convert2PermissionProto(Common.Permission protoPermission) {
