@@ -21,6 +21,7 @@ import static org.tron.common.utils.Utils.printHelp;
 import static org.tron.common.utils.Utils.printStackTrace;
 import static org.tron.common.utils.Utils.redBoldHighlight;
 import static org.tron.common.utils.Utils.successfulHighlight;
+import static org.tron.common.utils.Utils.yellowBoldHighlight;
 import static org.tron.keystore.StringUtils.byte2Char;
 import static org.tron.keystore.StringUtils.char2Byte;
 import static org.tron.keystore.StringUtils.printOneByte;
@@ -4239,6 +4240,7 @@ public class Client {
   private void getPrivateKeyByMnemonic() {
     List<String> mnemonicWords = inputMnemonicWords();
     byte[] privateKeyFromMnemonic = getPrivateKeyFromMnemonic(mnemonicWords);
+    System.out.println(yellowBoldHighlight("Note: This will generate the private key through the default path(m/44'/195'/0'/0/0). In addition, the private key generated through the leader mnemonic is unavailable"));
     System.out.println("Private key: " + Hex.toHexString(privateKeyFromMnemonic));
   }
 
