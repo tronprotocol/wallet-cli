@@ -3215,10 +3215,14 @@ public class Client {
     }
 
     boolean ret = walletApiWrapper.accountPermissionUpdate(ownerAddress, permissionJsonStr, multi);
-    if (ret) {
-      System.out.println("UpdateAccountPermission " + successfulHighlight() + " !!!");
+    if (multi) {
+      createMultiSignResult(ret);
     } else {
-      System.out.println("UpdateAccountPermission " + failedHighlight() + " !!!");
+      if (ret) {
+        System.out.println("UpdateAccountPermission " + successfulHighlight() + " !!!");
+      } else {
+        System.out.println("UpdateAccountPermission " + failedHighlight() + " !!!");
+      }
     }
   }
 
@@ -4249,6 +4253,11 @@ public class Client {
   }
 
   private void tronlinkMultiSign() {
+    NetType netType = WalletApi.getCurrentNetwork();
+    if (netType != MAIN && netType != NILE && netType != SHASTA) {
+      System.out.println("This command does not support the current network: " + netType.name());
+      return;
+    }
     walletApiWrapper.tronlinkMultiSign();
   }
 

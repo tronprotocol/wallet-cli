@@ -1,5 +1,7 @@
 package org.tron.walletserver;
 
+import static java.lang.StrictMath.addExact;
+import static java.util.stream.Collectors.toList;
 import static org.apache.commons.lang3.StringUtils.EMPTY;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
 import static org.tron.common.enums.NetType.CUSTOM;
@@ -2998,8 +3000,138 @@ public class WalletApi {
     }
     Contract.AccountPermissionUpdateContract contract =
         createAccountPermissionContract(owner, permissionJson);
+    if (multi) {
+      Response.Account account = queryAccount(owner);
+      if (!contract.hasOwner()) {
+        System.out.println("owner permission is missed");
+        return false;
+      }
+      if (account.getIsWitness()) {
+        if (!contract.hasWitness()) {
+          System.out.println("witness permission is missed");
+          return false;
+        }
+      } else {
+        if (contract.hasWitness()) {
+          System.out.println("account isn't witness can't set witness permission");
+          return false;
+        }
+      }
+      if (contract.getActivesCount() == 0) {
+        System.out.println("active permission is missed");
+        return false;
+      }
+      if (contract.getActivesCount() > 8) {
+        System.out.println("active permission is too many");
+        return false;
+      }
+      Common.Permission ownerPermission = contract.getOwner();
+      Common.Permission witness = contract.getWitness();
+      List<Common.Permission> actives = contract.getActivesList();
+      if (ownerPermission.getType() != Common.Permission.PermissionType.Owner) {
+        System.out.println("ownerPermission permission type is error");
+        return false;
+      }
+      if (!checkPermission(ownerPermission)) {
+        return false;
+      }
+      if (account.getIsWitness()) {
+        if (witness.getType() != Common.Permission.PermissionType.Witness) {
+          System.out.println("witness permission type is error");
+          return false;
+        }
+        if (!checkPermission(witness)) {
+          return false;
+        }
+      }
+      for (Common.Permission permission : actives) {
+        if (permission.getType() != Common.Permission.PermissionType.Active) {
+          System.out.println("active permission type is error");
+          return false;
+        }
+        if (!checkPermission(permission)) {
+          return false;
+        }
+      }
+    }
     Response.TransactionExtention transactionExtention = apiCli.accountPermissionUpdate(contract);
     return processTransactionExtention(transactionExtention, multi);
+  }
+
+  private boolean checkPermission(Common.Permission permission) {
+    if (permission.getKeysCount() > 5) {
+      System.out.println("number of keys in permission should not be greater than 5");
+      return false;
+    }
+    if (permission.getKeysCount() == 0) {
+      System.out.println("key's count should be greater than 0");
+      return false;
+    }
+    if (permission.getType() == Common.Permission.PermissionType.Witness && permission.getKeysCount() != 1) {
+      System.out.println("Witness permission's key count should be 1");
+      return false;
+    }
+    if (permission.getThreshold() <= 0) {
+      System.out.println("permission's threshold should be greater than 0");
+      return false;
+    }
+    String name = permission.getPermissionName();
+    if (!StringUtils.isEmpty(name) && name.length() > 32) {
+      System.out.println("permission's name is too long");
+      return false;
+    }
+    //check owner name ?
+    if (permission.getParentId() != 0) {
+      System.out.println("permission's parent should be owner");
+      return false;
+    }
+
+    long weightSum = 0;
+    List<ByteString> addressList = permission.getKeysList()
+        .stream()
+        .map(Common.Key::getAddress)
+        .distinct()
+        .collect(toList());
+    if (addressList.size() != permission.getKeysList().size()) {
+      System.out.println("address should be distinct in permission " + permission.getType());
+      return false;
+    }
+    for (Common.Key key : permission.getKeysList()) {
+      if (!DecodeUtil.addressValid(key.getAddress().toByteArray())) {
+        System.out.println("key is not a validate address");
+        return false;
+      }
+      if (key.getWeight() <= 0) {
+        System.out.println("key's weight should be greater than 0");
+        return false;
+      }
+      try {
+        weightSum = addExact(weightSum, key.getWeight());
+      } catch (ArithmeticException e) {
+        System.out.println(e.getMessage());
+        return false;
+      }
+    }
+    if (weightSum < permission.getThreshold()) {
+      System.out.println(
+          "sum of all key's weight should not be less than threshold in permission " + permission
+              .getType());
+      return false;
+    }
+    ByteString operations = permission.getOperations();
+    if (permission.getType() != Common.Permission.PermissionType.Active) {
+      if (!operations.isEmpty()) {
+        System.out.println(permission.getType() + " permission needn't operations");
+        return false;
+      }
+      return true;
+    }
+    //check operations
+    if (operations.isEmpty() || operations.size() != 32) {
+      System.out.println("operations size must 32");
+      return false;
+    }
+    return true;
   }
 
   private Common.Permission json2Permission(JSONObject json) {
