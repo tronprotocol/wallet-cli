@@ -30,6 +30,7 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.IOException;
 import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -576,6 +577,10 @@ public class MultiSignService {
     } catch (InvalidProtocolBufferException e) {
       System.out.println("InvalidProtocolBufferException" + e);
     }
+    String note = raw.getData().toString(StandardCharsets.UTF_8);
+    if (StringUtils.isNotEmpty(note)) {
+      System.out.println("Note: " + note);
+    }
   }
 
   private static Pair<String, String> getTransferUsdtParams(Contract.TriggerSmartContract triggerSmartContract) {
@@ -611,12 +616,12 @@ public class MultiSignService {
       );
       JSONObject root = JSON.parseObject(resp);
       if (root.getIntValue("code") != 0) {
-        throw new RuntimeException(redBoldHighlight(root.getString("original_message")));
+        throw new RuntimeException(root.getString("original_message"));
       } else {
         System.out.println(greenBoldHighlight("Sign successful!"));
       }
     } catch (Exception e) {
-      System.out.println("Sign failed: " + e.getMessage());
+      System.out.println(redBoldHighlight("Sign failed: " + e.getMessage()));
     }
   }
 
@@ -672,6 +677,7 @@ public class MultiSignService {
     long feeLimit = rawDataJO.getLongValue("fee_limit");
     String refBlockBytes = rawDataJO.getString("ref_block_bytes");
     String refBlockHash = rawDataJO.getString("ref_block_hash");
+    String dataJOString = rawDataJO.getString("data");
     JSONArray contracts = rawDataJO.getJSONArray("contract");
     JSONObject contract0 = contracts.getJSONObject(0);
 
@@ -688,6 +694,7 @@ public class MultiSignService {
     raw.setTimestamp(timestamp);
     raw.setRefBlockBytes(ByteString.copyFrom(ByteArray.fromHexString(refBlockBytes)));
     raw.setRefBlockHash(ByteString.copyFrom(ByteArray.fromHexString(refBlockHash)));
+    raw.setData(ByteString.copyFrom(ByteArray.fromHexString(dataJOString)));
     raw.addContract(contract.build());
     return raw;
   }

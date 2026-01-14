@@ -800,7 +800,7 @@ public class UpdateAccountPermissionInteractive {
     // === Operations ===
     List<Integer> ops = hexStringToIntegerList(p.getOperations());
     if (ops.isEmpty()) {
-      System.out.println("  Operations : (none)");
+      System.out.println();
     } else {
       System.out.println("  Operations :");
       for (Integer code : ops) {
