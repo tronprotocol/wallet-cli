@@ -1,13 +1,16 @@
 package org.tron.multi;
 
 import static org.apache.commons.lang3.StringUtils.EMPTY;
+import static org.tron.common.utils.ByteUtil.bytesToIntegerList;
 import static org.tron.common.utils.TransactionUtils.getTransactionId;
 import static org.tron.common.utils.Utils.TRANSFER_METHOD_ID;
 import static org.tron.common.utils.Utils.greenBoldHighlight;
 import static org.tron.common.utils.Utils.intToBooleanString;
 import static org.tron.common.utils.Utils.parseAmountToLongStr;
 import static org.tron.common.utils.Utils.redBoldHighlight;
+import static org.tron.core.manager.UpdateAccountPermissionInteractive.operationsMap;
 import static org.tron.trident.core.ApiWrapper.parseAddress;
+import static org.tron.trident.proto.Chain.Transaction.Contract.ContractType.AccountPermissionUpdateContract;
 import static org.tron.trident.proto.Chain.Transaction.Contract.ContractType.CancelAllUnfreezeV2Contract;
 import static org.tron.trident.proto.Chain.Transaction.Contract.ContractType.DelegateResourceContract;
 import static org.tron.trident.proto.Chain.Transaction.Contract.ContractType.FreezeBalanceV2Contract;
@@ -43,6 +46,7 @@ import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Scanner;
 import java.util.Set;
 import java.util.UUID;
@@ -58,6 +62,7 @@ import org.tron.common.utils.HttpUtils;
 import org.tron.core.exception.CipherException;
 import org.tron.protos.Protocol;
 import org.tron.trident.proto.Chain.Transaction.Contract.ContractType;
+import org.tron.trident.proto.Common;
 import org.tron.trident.proto.Contract;
 import org.tron.walletserver.WalletApi;
 
@@ -74,7 +79,8 @@ public class MultiSignService {
       DelegateResourceContract,
       UnDelegateResourceContract,
       VoteWitnessContract,
-      WithdrawBalanceContract
+      WithdrawBalanceContract,
+      AccountPermissionUpdateContract
   );
   private static final DateTimeFormatter FORMATTER =
       DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
@@ -572,6 +578,12 @@ public class MultiSignService {
               contractParameter.unpack(Contract.WithdrawBalanceContract.class);
           System.out.println(ownerAddressStr + encode58Check(withdrawBalanceContract.getOwnerAddress().toByteArray()));
           break;
+        case AccountPermissionUpdateContract:
+          Contract.AccountPermissionUpdateContract accountPermissionUpdateContract =
+              contractParameter.unpack(Contract.AccountPermissionUpdateContract.class);
+          System.out.println(ownerAddressStr + encode58Check(accountPermissionUpdateContract.getOwnerAddress().toByteArray()));
+          printAccountPermissionUpdate(accountPermissionUpdateContract);
+          break;
         default:
       }
     } catch (InvalidProtocolBufferException e) {
@@ -581,6 +593,45 @@ public class MultiSignService {
     if (StringUtils.isNotEmpty(note)) {
       System.out.println("Note: " + note);
     }
+  }
+
+  public static void printAccountPermissionUpdate(Contract.AccountPermissionUpdateContract apu) {
+    System.out.println();
+    System.out.println("Owner Permission:");
+    printPermission(apu.getOwner(), "  ");
+    System.out.println();
+
+    System.out.println("Active Permissions:");
+    System.out.println("--------------------------------------------------");
+
+    apu.getActivesList().forEach(p -> {
+      System.out.println("[id=" + p.getId() + "] " + p.getPermissionName());
+      printPermission(p, "  ");
+      System.out.println();
+    });
+  }
+
+  public static void printPermission(Common.Permission p, String indent) {
+    System.out.println(indent + "name      : " + p.getPermissionName());
+    if (!p.getOperations().isEmpty()) {
+      System.out.println(indent + "operations: "
+          + String.join(", ", parseOperations(p.getOperations())));
+    }
+    System.out.println(indent + "threshold : " + p.getThreshold());
+    System.out.println(indent + "keys:");
+    for (Common.Key k : p.getKeysList()) {
+      System.out.println(indent + "  - "
+          + encode58Check(k.getAddress().toByteArray())
+          + " (weight=" + k.getWeight() + ")");
+    }
+  }
+
+  public static List<String> parseOperations(ByteString operations) {
+    List<Integer> ops = bytesToIntegerList(operations.toByteArray());
+    return ops.stream()
+        .map(code -> operationsMap.get(String.valueOf(code)))
+        .filter(Objects::nonNull)
+        .collect(Collectors.toList());
   }
 
   private static Pair<String, String> getTransferUsdtParams(Contract.TriggerSmartContract triggerSmartContract) {
@@ -847,11 +898,68 @@ public class MultiSignService {
         return Protocol.Transaction.Contract.newBuilder()
             .setType(Protocol.Transaction.Contract.ContractType.WithdrawBalanceContract)
             .setParameter(Any.pack(withdrawBalanceContract));
+      case "AccountPermissionUpdateContract":
+        if (owner == null) {
+          throw new IllegalArgumentException(redBoldHighlight("owner address is invalid"));
+        }
+        Contract.AccountPermissionUpdateContract.Builder apuBuilder =
+            Contract.AccountPermissionUpdateContract.newBuilder();
+        // owner_address
+        apuBuilder.setOwnerAddress(parseAddress(value.getString("owner_address")));
+        // owner permission
+        JSONObject ownerObj = value.getJSONObject("owner");
+        Common.Permission ownerPermission = parsePermission(ownerObj, Common.Permission.PermissionType.Owner);
+        if (Objects.nonNull(ownerPermission)) {
+          apuBuilder.setOwner(ownerPermission);
+        }
+        // witness permission
+        JSONObject witnessObj = value.getJSONObject("witness");
+        Common.Permission witnessPermission = parsePermission(witnessObj, Common.Permission.PermissionType.Witness);
+        if (Objects.nonNull(witnessPermission)) {
+          apuBuilder.setWitness(witnessPermission);
+        }
+        // actives
+        value.getJSONArray("actives").forEach(o -> {
+          JSONObject activeObj = (JSONObject) o;
+          apuBuilder.addActives(parsePermission(activeObj, Common.Permission.PermissionType.Active));
+        });
+        return Protocol.Transaction.Contract.newBuilder()
+            .setType(Protocol.Transaction.Contract.ContractType.AccountPermissionUpdateContract)
+            .setParameter(Any.pack(apuBuilder.build()));
       default:
         throw new UnsupportedOperationException("Unsupported contract type: " + type);
     }
   }
 
+  public static Common.Permission parsePermission(JSONObject obj, Common.Permission.PermissionType type) {
+    if (Objects.isNull(obj)) {
+      return null;
+    }
+    Common.Permission.Builder permissionBuilder = Common.Permission.newBuilder();
+    permissionBuilder.setType(type);
+    permissionBuilder.setId(obj.getIntValue("id"));
+    permissionBuilder.setPermissionName(obj.getString("permission_name"));
+    permissionBuilder.setThreshold(obj.getLongValue("threshold"));
+
+    if (obj.containsKey("operations")) {
+      permissionBuilder.setOperations(
+          ByteString.copyFrom(ByteArray.fromHexString(obj.getString("operations"))));
+    }
+
+    JSONArray keys = obj.getJSONArray("keys");
+    for (int i = 0; i < keys.size(); i++) {
+      JSONObject keyObj = keys.getJSONObject(i);
+
+      Common.Key key = Common.Key.newBuilder()
+          .setAddress(parseAddress(keyObj.getString("address")))
+          .setWeight(keyObj.getLongValue("weight"))
+          .build();
+
+      permissionBuilder.addKeys(key);
+    }
+
+    return permissionBuilder.build();
+  }
 
   private String buildQuery(Map<String, String> params) throws IOException {
     StringBuilder sb = new StringBuilder();

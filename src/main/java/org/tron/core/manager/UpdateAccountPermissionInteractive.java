@@ -8,6 +8,7 @@ import static org.tron.common.utils.Utils.redBoldHighlight;
 import static org.tron.walletserver.WalletApi.addressValid;
 
 import com.alibaba.fastjson.JSON;
+import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -43,7 +44,7 @@ public class UpdateAccountPermissionInteractive {
       41, 42, 43, 44, 45, 46, 48, 49, 52, 53, 54,
       55, 56, 57, 58, 59
   );
-  private static final Map<String, String> operationsMap = new HashMap<>();
+  public static final Map<String, String> operationsMap = new HashMap<>();
 
   static {
     operationsMap.put("0", "Activate Account");
@@ -99,6 +100,15 @@ public class UpdateAccountPermissionInteractive {
     data.setWitnessPermission((nullWitness && account.getIsWitness()) ? getDefaultWitnessPermission(address) : convert2PermissionProto(account.getWitnessPermission()));
     List<Permission> activePermissions = account.getActivePermissionList().stream()
         .map(this::convert2PermissionProto).collect(Collectors.toList());
+    if (activePermissions.isEmpty()) {
+      Permission active = new Permission();
+      active.setType(2);
+      active.setPermissionName("active");
+      active.setThreshold(1L);
+      active.setOperations("7fff1fc0033efb0f000000000000000000000000000000000000000000000000");
+      active.setKeys(Lists.newArrayList(new Key(address, 1L)));
+      activePermissions = Lists.newArrayList(active);
+    }
     data.setActivePermissions(activePermissions);
     while (true) {
       System.out.println("\nPlease enter the index(" + greenBoldHighlight("1-7") + ") to operate:");
