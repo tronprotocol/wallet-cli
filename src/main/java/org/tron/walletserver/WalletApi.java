@@ -190,7 +190,7 @@ public class WalletApi {
   @Getter
   @Setter
   private static Pair<Pair<String, Boolean>, Pair<String, Boolean>> customNodes;
-  private final MultiSignService multiSignService = initMultiSignService();
+  public MultiSignService multiSignService = initMultiSignService();
 
   private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
   private ScheduledFuture<?> autoLockFuture;
@@ -201,7 +201,7 @@ public class WalletApi {
     apiCli = client;
   }
 
-  private MultiSignService initMultiSignService() {
+  public MultiSignService initMultiSignService() {
     Triple<String, String, String> tronlinkPair = getTronlinkTriple(currentNetwork);
     MultiConfig multiConfig = new MultiConfig(
         currentNetwork.getTronlinkUrl(),
