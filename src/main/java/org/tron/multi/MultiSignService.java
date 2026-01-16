@@ -8,6 +8,7 @@ import static org.tron.common.utils.Utils.greenBoldHighlight;
 import static org.tron.common.utils.Utils.intToBooleanString;
 import static org.tron.common.utils.Utils.parseAmountToLongStr;
 import static org.tron.common.utils.Utils.redBoldHighlight;
+import static org.tron.common.utils.Utils.yellowBoldHighlight;
 import static org.tron.core.manager.UpdateAccountPermissionInteractive.operationsMap;
 import static org.tron.trident.core.ApiWrapper.parseAddress;
 import static org.tron.trident.proto.Chain.Transaction.Contract.ContractType.AccountPermissionUpdateContract;
@@ -56,11 +57,11 @@ import javax.crypto.spec.SecretKeySpec;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.bouncycastle.util.encoders.Hex;
-import org.tron.common.crypto.Sha256Sm3Hash;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.HttpUtils;
 import org.tron.core.exception.CipherException;
 import org.tron.protos.Protocol;
+import org.tron.trident.proto.Chain;
 import org.tron.trident.proto.Chain.Transaction.Contract.ContractType;
 import org.tron.trident.proto.Common;
 import org.tron.trident.proto.Contract;
@@ -423,7 +424,7 @@ public class MultiSignService {
       String resp = list(address, type, isSign, start, limit);
       return MultiTxSummaryParser.parse(resp);
     } catch (Exception e) {
-      System.err.println(redBoldHighlight("\nError fetching transactions: " + e.getMessage() + ", Please check the secretId, secretKey and channel in config.conf."));
+      System.out.println(yellowBoldHighlight("\nFailed to fetch transactions: " + e.getMessage()));
       return Pair.of(Collections.emptyList(), 0);
     }
   }
@@ -497,6 +498,7 @@ public class MultiSignService {
     Protocol.Transaction.Contract contract = raw.getContract(0);
     Protocol.Transaction.Contract.ContractType contractType = contract.getType();
     System.out.println("Contract Type: " + tx.getContractType());
+    System.out.println("Originator Address: " + tx.getOriginatorAddress());
     Any contractParameter = contract.getParameter();
     try {
       String ownerAddressStr = "Owner Address: ";
@@ -571,7 +573,6 @@ public class MultiSignService {
             System.out.println("  Address: " + encode58Check(vote.getVoteAddress().toByteArray()));
             System.out.println("  Count: " + vote.getVoteCount());
           });
-          System.out.println("Support: " + voteWitnessContract.getSupport());
           break;
         case WithdrawBalanceContract:
           Contract.WithdrawBalanceContract withdrawBalanceContract =
@@ -701,18 +702,20 @@ public class MultiSignService {
     Protocol.Transaction.raw.Builder raw = getRawBuilder(currentTransaction);
 
     JSONArray signatureArray = currentTransaction.getJSONArray("signature");
-    String rawDataHex = currentTransaction.getString("raw_data_hex");
-    byte[] rawData;
-    if (StringUtils.isEmpty(rawDataHex)) {
-      rawData = raw.build().toByteArray();
-    } else {
-      rawData = Hex.decode(rawDataHex);
+    String rawDataHex = Hex.toHexString(raw.build().toByteArray());
+    Chain.Transaction.raw raw1 = Chain.Transaction.raw.parseFrom(raw.build().toByteArray());
+    Chain.Transaction.Builder txBuilder = Chain.Transaction.newBuilder().setRawData(raw1);
+    for (int i = 0; i < signatureArray.size(); i++) {
+      String sig = signatureArray.getString(i);
+      txBuilder.addSignature(ByteString.copyFrom(ByteArray.fromHexString(sig)));
     }
-    byte[] hash = Sha256Sm3Hash.hash(rawData);
-
-    String signature = wallet.signTransaction(hash);
-
-    signatureArray.add(signature);
+    Chain.Transaction transaction = wallet.signTransaction(txBuilder.build());
+    List<String> signatureHexList = transaction.getSignatureList().stream()
+        .map(ByteString::toByteArray)
+        .map(Hex::toHexString)
+        .collect(Collectors.toList());
+    signatureArray.clear();
+    signatureArray.addAll(signatureHexList);
     String txId = getTransactionId(rawDataHex).toString();
     currentTransaction.put("txID", txId);
     body.put("transaction", currentTransaction);

@@ -20,6 +20,7 @@ public class MultiTxSummaryParser {
     private long timestamp;
     private String hash;
     private String contractType;
+    private String originatorAddress;
     private String ownerAddress;
     private JSONObject currentTransaction;
     private JSONArray signatureProgress;
@@ -35,6 +36,17 @@ public class MultiTxSummaryParser {
 
   public static Pair<List<MultiTxSummary>, Integer> parse(String jsonStr) {
     JSONObject root = JSON.parseObject(jsonStr);
+    int code = root.getIntValue("code");
+    if (code != 0) {
+      String message = root.getString("message");
+      if (message == null) {
+        message = root.getString("original_message");
+      }
+      if (code == 4002) {
+        message = "Please check the secretId, secretKey and channel in config.conf.";
+      }
+      throw new IllegalStateException(message);
+    }
     JSONObject data = root.getJSONObject("data");
     int rangeTotal = data.getIntValue("range_total");
     JSONArray dataArray = data.getJSONArray("data");
@@ -50,6 +62,7 @@ public class MultiTxSummaryParser {
       summary.setCurrentWeight(item.getIntValue("current_weight"));
       summary.setThreshold(item.getIntValue("threshold"));
       summary.setOwnerAddress(item.getJSONObject("contract_data").getString("owner_address"));
+      summary.setOriginatorAddress(item.getString("originator_address"));
       summary.setTimestamp(item.getJSONObject("current_transaction")
           .getJSONObject("raw_data")
           .getLongValue("timestamp"));
@@ -69,7 +82,7 @@ public class MultiTxSummaryParser {
 
   public static void printTable(List<MultiTxSummary> list) {
     System.out.printf("%-5s %-20s %-31s %-35s %-15s %-5s%n",
-        "No.", "Create Time", "Contract Type", "Owner Address", "Sign Progress", "State");
+        "No.", "Create Time", "Contract Type", "Originator Address", "Sign Progress", "State");
     System.out.println("-------------------------------------------------------------------------------------------------------------------------");
     int index = 1;
     for (MultiTxSummary s : list) {
@@ -77,7 +90,7 @@ public class MultiTxSummaryParser {
           index++,
           formatTimestamp(s.getTimestamp()),
           s.getContractType(),
-          s.getOwnerAddress(),
+          s.getOriginatorAddress(),
           s.getSignProgress(),
           MultiSignService.ListType.from(s.getState(), s.getIsSign()).name().toLowerCase());
     }

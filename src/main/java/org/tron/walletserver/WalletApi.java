@@ -402,6 +402,10 @@ public class WalletApi {
     if (lineReader == null || !allNotBlank(getTronlinkTriple(currentNetwork))) {
       return;
     }
+    NetType netType = getCurrentNetwork();
+    if (netType != MAIN && netType != NILE && netType != SHASTA) {
+      return;
+    }
     CompletableFuture.runAsync(() -> {
       try {
         Integer count = multiSignService.fetchTransactions(
@@ -806,7 +810,7 @@ public class WalletApi {
     return isLoginState() && ArrayUtils.isNotEmpty(getUnifiedPassword());
   }
 
-  public String signTransaction(byte[] hash) throws IOException, CipherException {
+  public Chain.Transaction signTransaction(Chain.Transaction transaction) throws IOException, CipherException {
     if (!isUnlocked()) {
       throw new IllegalStateException(LOCK_WARNING);
     }
@@ -822,29 +826,38 @@ public class WalletApi {
     }
     String ledgerPath = getLedgerPath(passwd, wf);
     if (isLedgerFile) {
-      Chain.Transaction transaction = Chain.Transaction.newBuilder().setRawData(Chain.Transaction.raw.newBuilder().setData(ByteString.copyFrom(hash))).build();
-      boolean ledgerResult = LedgerSignUtil.requestLedgerSignLogic(transaction, ledgerPath, wf.getAddress(), true);
-      String signature = null;
-      if (ledgerResult) {
-        signature = TransactionSignManager.getInstance().getGasfreeSignature();
-      }
-      if (Objects.isNull(signature)) {
-        TransactionSignManager.getInstance().setTransaction(null);
-        TransactionSignManager.getInstance().setGasfreeSignature(null);
-        throw new IllegalArgumentException("Listening ledger did not obtain signature.");
-      }
-      TransactionSignManager.getInstance().setTransaction(null);
-      TransactionSignManager.getInstance().setGasfreeSignature(null);
-      return signature;
-    } else {
-      SignatureInterface signature;
-      if (isEckey) {
-        signature = this.getEcKey(wf, passwd).sign(hash);
+      boolean result = LedgerSignUtil.requestLedgerSignLogic(transaction, ledgerPath, wf.getAddress(), false);
+      if (result) {
+        transaction = TransactionSignManager.getInstance().getTransaction();
+        Response.TransactionSignWeight weight = getTransactionSignWeight(transaction);
+        if (weight.getResult().getCode() == Response.TransactionSignWeight.Result.response_code.ENOUGH_PERMISSION) {
+          TransactionSignManager.getInstance().setTransaction(null);
+          return transaction;
+        }
+        HidDevice hidDevice = HidServicesWrapper.getInstance().getHidDevice(wf.getAddress(), getPath());
+        if (hidDevice == null) {
+          TransactionSignManager.getInstance().setTransaction(null);
+          return null;
+        }
+        Optional<String> state = LedgerSignResult.getLastTransactionState(hidDevice.getPath());
+        boolean confirmed = state.isPresent() && LedgerSignResult.SIGN_RESULT_SUCCESS.equals(state.get());
+        if (weight.getResult().getCode() == Response.TransactionSignWeight.Result.response_code.NOT_ENOUGH_PERMISSION && confirmed) {
+          System.out.println("Current signWeight is:");
+          System.out.println(Utils.printTransactionSignWeight(weight));
+          TransactionSignManager.getInstance().setTransaction(null);
+          return transaction;
+        }
       } else {
-        signature = this.getSM2(wf, passwd).sign(hash);
+        return null;
       }
-      return Hex.toHexString(signature.toByteArray());
+    } else {
+      if (isEckey) {
+        transaction = TransactionUtils.sign(transaction, this.getEcKey(wf, passwd));
+      } else {
+        transaction = TransactionUtils.sign(transaction, this.getSM2(wf, passwd));
+      }
     }
+    return transaction;
   }
 
   private Chain.Transaction signTransaction(Chain.Transaction transaction, boolean multi)
@@ -893,6 +906,7 @@ public class WalletApi {
             System.out.println("Current signWeight is:");
             System.out.println(Utils.printTransactionSignWeight(weight));
             if (multi) {
+              TransactionSignManager.getInstance().setTransaction(null);
               return transaction;
             }
             System.out.println("Please confirm if continue add signature enter " + greenBoldHighlight("y/Y") + ", else any other");
