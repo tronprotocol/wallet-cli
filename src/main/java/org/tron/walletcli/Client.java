@@ -4244,7 +4244,7 @@ public class Client {
   private void getPrivateKeyByMnemonic() {
     List<String> mnemonicWords = inputMnemonicWords();
     byte[] privateKeyFromMnemonic = getPrivateKeyFromMnemonic(mnemonicWords);
-    System.out.println(yellowBoldHighlight("Note: This will generate the private key through the default path(m/44'/195'/0'/0/0). In addition, the private key generated through the leader mnemonic is unavailable"));
+    System.out.println(yellowBoldHighlight("Note: This will generate the private key through the default path(m/44'/195'/0'/0/0)."));
     System.out.println("Private key: " + Hex.toHexString(privateKeyFromMnemonic));
   }
 
