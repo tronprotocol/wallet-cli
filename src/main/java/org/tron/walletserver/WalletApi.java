@@ -810,7 +810,7 @@ public class WalletApi {
     return isLoginState() && ArrayUtils.isNotEmpty(getUnifiedPassword());
   }
 
-  public Chain.Transaction signTransaction(Chain.Transaction transaction) throws IOException, CipherException {
+  public Chain.Transaction signTransaction(Chain.Transaction transaction) throws IOException, CipherException, CancelException {
     if (!isUnlocked()) {
       throw new IllegalStateException(LOCK_WARNING);
     }
@@ -847,6 +847,8 @@ public class WalletApi {
           TransactionSignManager.getInstance().setTransaction(null);
           return transaction;
         }
+        TransactionSignManager.getInstance().setTransaction(null);
+        throw new CancelException(weight.getResult().getMessage());
       } else {
         return null;
       }

@@ -38,12 +38,13 @@ public class MultiTxSummaryParser {
     JSONObject root = JSON.parseObject(jsonStr);
     int code = root.getIntValue("code");
     if (code != 0) {
+      String checkMsg = " Please check the secretId, secretKey and channel in config.conf.";
       String message = root.getString("message");
       if (message == null) {
         message = root.getString("original_message");
       }
-      if (code == 4002) {
-        message = "Please check the secretId, secretKey and channel in config.conf.";
+      if (code == 4002 || code == 4000) {
+        message += checkMsg;
       }
       throw new IllegalStateException(message);
     }
