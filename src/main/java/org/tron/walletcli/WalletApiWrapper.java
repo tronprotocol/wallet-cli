@@ -79,6 +79,7 @@ import org.jline.terminal.TerminalBuilder;
 import org.tron.common.enums.NetType;
 import org.tron.common.utils.AbiUtil;
 import org.tron.common.utils.Utils;
+import org.tron.core.converter.EncodingConverter;
 import org.tron.core.dao.BackupRecord;
 import org.tron.core.dao.Tx;
 import org.tron.core.manager.BackupRecordManager;
@@ -346,7 +347,7 @@ public class WalletApiWrapper {
     return isLoginState() && ArrayUtils.isNotEmpty(wallet.getUnifiedPassword());
   }
 
-  public boolean switchWallet() {
+  public boolean switchWallet(LineReader lineReader) {
     if (!isUnifiedExist()) {
       System.out.println("Please log in with a unified password and try again.");
       return false;
@@ -355,7 +356,7 @@ public class WalletApiWrapper {
     List<WalletFile> walletList = wallet.getWalletList();
     selectWalletFileByList(walletList);
     // switch to another wallet
-    wallet.setLogin();
+    wallet.setLogin(lineReader);
     wallet.setUnifiedPassword(password);
     wallet.setWalletList(walletList);
     WalletFile walletFile = wallet.getWalletFile();
@@ -378,11 +379,11 @@ public class WalletApiWrapper {
       }
       return false;
     }
-    wallet.setLogin();
+    wallet.setLogin(lineReader);
     return true;
   }
 
-  public boolean loginAll() throws IOException {
+  public boolean loginAll(LineReader lineReader) throws IOException {
     logout();
 
     System.out.println("Please input your password.");
@@ -418,7 +419,7 @@ public class WalletApiWrapper {
     }
     selectWalletFileByList(walletFileList);
 
-    wallet.setLogin();
+    wallet.setLogin(lineReader);
     wallet.setUnifiedPassword(password);
     wallet.setWalletList(walletFileList);
     WalletFile walletFile = wallet.getWalletFile();
@@ -442,7 +443,7 @@ public class WalletApiWrapper {
       return false;
     }
 
-    wallet.setLogin();
+    wallet.setLogin(lineReader);
     return true;
   }
 
@@ -495,7 +496,7 @@ public class WalletApiWrapper {
     }
   }
 
-  public boolean login() throws IOException, CipherException {
+  public boolean login(LineReader lineReader) throws IOException, CipherException {
     logout();
     wallet = WalletApi.loadWalletFromKeystore();
 
@@ -526,7 +527,7 @@ public class WalletApiWrapper {
       return false;
     }
 
-    wallet.setLogin();
+    wallet.setLogin(lineReader);
     wallet.setCredentials(null);
     wallet.setPwdForDeploy(passwd);
     return true;
@@ -555,7 +556,7 @@ public class WalletApiWrapper {
         wallet.setPath(decryptStr);
         wallet.setLedgerUser(true);
       }
-      wallet.setLogin();
+      wallet.setLogin(null);
     } catch (Exception e) {
       if (DebugConfig.isDebugEnabled()) {
         e.printStackTrace();
@@ -781,41 +782,41 @@ public class WalletApiWrapper {
     return wallet.queryAccount();
   }
 
-  public boolean sendCoin(byte[] ownerAddress, byte[] toAddress, long amount)
+  public boolean sendCoin(byte[] ownerAddress, byte[] toAddress, long amount, boolean multi)
       throws CipherException, IOException, CancelException, IllegalException {
     if (wallet == null || !wallet.isLoginState()) {
       System.out.println("Warning: SendCoin " + failedHighlight() + ",  Please login first !!");
       return false;
     }
 
-    return wallet.sendCoin(ownerAddress, toAddress, amount);
+    return wallet.sendCoin(ownerAddress, toAddress, amount, multi);
   }
 
   public boolean transferAsset(byte[] ownerAddress, byte[] toAddress, String assertName,
-                               long amount)
+                               long amount, boolean multi)
       throws IOException, CipherException, CancelException, IllegalException {
     if (wallet == null || !wallet.isLoginState()) {
       System.out.println("Warning: TransferAsset " + failedHighlight() + ",  Please login first !!");
       return false;
     }
 
-    return wallet.transferAsset(ownerAddress, toAddress, assertName.getBytes(), amount);
+    return wallet.transferAsset(ownerAddress, toAddress, assertName.getBytes(), amount, multi);
   }
 
   public boolean participateAssetIssue(byte[] ownerAddress, byte[] toAddress, String assertName,
-                                       long amount) throws CipherException, IOException, CancelException, IllegalException {
+                                       long amount, boolean multi) throws CipherException, IOException, CancelException, IllegalException {
     if (wallet == null || !wallet.isLoginState()) {
       System.out.println("Warning: TransferAsset " + failedHighlight() + ",  Please login first !!");
       return false;
     }
 
-    return wallet.participateAssetIssue(ownerAddress, toAddress, assertName.getBytes(), amount);
+    return wallet.participateAssetIssue(ownerAddress, toAddress, assertName.getBytes(), amount, multi);
   }
 
   public boolean assetIssue(byte[] ownerAddress, String name, String abbrName, long totalSupply,
                             int trxNum, int icoNum,
                             int precision, long startTime, long endTime, int voteScore, String description, String url,
-                            long freeNetLimit, long publicFreeNetLimit, HashMap<String, String> frozenSupply)
+                            long freeNetLimit, long publicFreeNetLimit, HashMap<String, String> frozenSupply, boolean multi)
       throws CipherException, IOException, CancelException, IllegalException {
     if (wallet == null || !wallet.isLoginState()) {
       System.out.println("Warning: assetIssue " + failedHighlight() + ",  Please login first !!");
@@ -864,38 +865,38 @@ public class WalletApiWrapper {
     }
     return wallet.createAssetIssue(ownerAddress, name, abbrName, totalSupply,
         trxNum, icoNum, precision, startTime, endTime, 0,
-        description, url, freeNetLimit, publicFreeNetLimit, frozenSupply);
+        description, url, freeNetLimit, publicFreeNetLimit, frozenSupply, multi);
   }
 
-  public boolean createAccount(byte[] ownerAddress, byte[] address)
+  public boolean createAccount(byte[] ownerAddress, byte[] address, boolean multi)
       throws CipherException, IOException, CancelException, IllegalException {
     if (wallet == null || !wallet.isLoginState()) {
       System.out.println("Warning: createAccount " + failedHighlight() + ",  Please login first !!");
       return false;
     }
 
-    return wallet.createAccount(ownerAddress, address);
+    return wallet.createAccount(ownerAddress, address, multi);
   }
 
 
-  public boolean createWitness(byte[] ownerAddress, String url)
+  public boolean createWitness(byte[] ownerAddress, String url, boolean multi)
       throws CipherException, IOException, CancelException, IllegalException {
     if (wallet == null || !wallet.isLoginState()) {
       System.out.println("Warning: createWitness " + failedHighlight() + ",  Please login first !!");
       return false;
     }
 
-    return wallet.createWitness(ownerAddress, url.getBytes());
+    return wallet.createWitness(ownerAddress, url.getBytes(), multi);
   }
 
-  public boolean updateWitness(byte[] ownerAddress, String url)
+  public boolean updateWitness(byte[] ownerAddress, String url, boolean multi)
       throws CipherException, IOException, CancelException, IllegalException {
     if (wallet == null || !wallet.isLoginState()) {
       System.out.println("Warning: updateWitness " + failedHighlight() + ",  Please login first !!");
       return false;
     }
 
-    return wallet.updateWitness(ownerAddress, url.getBytes());
+    return wallet.updateWitness(ownerAddress, url.getBytes(), multi);
   }
 
   public Chain.Block getBlock(long blockNum) throws IllegalException {
@@ -910,14 +911,14 @@ public class WalletApiWrapper {
     return WalletApi.getBlock2(blockNum);
   }
 
-  public boolean voteWitness(byte[] ownerAddress, HashMap<String, String> witness)
+  public boolean voteWitness(byte[] ownerAddress, HashMap<String, String> witness, boolean multi)
       throws CipherException, IOException, CancelException, IllegalException {
     if (wallet == null || !wallet.isLoginState()) {
       System.out.println("Warning: VoteWitness " + failedHighlight() + ",  Please login first !!");
       return false;
     }
 
-    return wallet.voteWitness(ownerAddress, witness);
+    return wallet.voteWitness(ownerAddress, witness, multi);
   }
 
   public Response.WitnessList listWitnesses() {
@@ -1005,14 +1006,14 @@ public class WalletApiWrapper {
     return WalletApi.getNextMaintenanceTime();
   }
 
-  public boolean updateAccount(byte[] ownerAddress, byte[] accountNameBytes)
+  public boolean updateAccount(byte[] ownerAddress, byte[] accountNameBytes, boolean multi)
       throws CipherException, IOException, CancelException, IllegalException {
     if (wallet == null || !wallet.isLoginState()) {
       System.out.println("Warning: updateAccount " + failedHighlight() + ", Please login first !!");
       return false;
     }
 
-    return wallet.updateAccount(ownerAddress, accountNameBytes);
+    return wallet.updateAccount(ownerAddress, accountNameBytes, multi);
   }
 
   public boolean setAccountId(byte[] ownerAddress, byte[] accountIdBytes)
@@ -1027,17 +1028,17 @@ public class WalletApiWrapper {
 
 
   public boolean updateAsset(byte[] ownerAddress, byte[] description, byte[] url, long newLimit,
-                             long newPublicLimit) throws CipherException, IOException, CancelException, IllegalException {
+                             long newPublicLimit, boolean multi) throws CipherException, IOException, CancelException, IllegalException {
     if (wallet == null || !wallet.isLoginState()) {
       System.out.println("Warning: updateAsset " + failedHighlight() + ", Please login first !!");
       return false;
     }
 
-    return wallet.updateAsset(ownerAddress, description, url, newLimit, newPublicLimit);
+    return wallet.updateAsset(ownerAddress, description, url, newLimit, newPublicLimit, multi);
   }
 
   public boolean freezeBalance(byte[] ownerAddress, long frozen_balance, long frozen_duration,
-                               int resourceCode, byte[] receiverAddress)
+                               int resourceCode, byte[] receiverAddress, boolean multi)
       throws CipherException, IOException, CancelException, IllegalException {
     if (wallet == null || !wallet.isLoginState()) {
       System.out.println("Warning: freezeBalance " + failedHighlight() + ", Please login first !!");
@@ -1045,110 +1046,110 @@ public class WalletApiWrapper {
     }
 
     return wallet.freezeBalance(ownerAddress, frozen_balance, frozen_duration, resourceCode,
-        receiverAddress);
+        receiverAddress, multi);
   }
 
   public boolean freezeBalanceV2(byte[] ownerAddress, long frozenBalance,
-                                 int resourceCode)
+                                 int resourceCode, boolean multi)
       throws CipherException, IOException, CancelException, IllegalException {
     if (wallet == null || !wallet.isLoginState()) {
       System.out.println("Warning: freezeBalanceV2 " + failedHighlight() + ", Please login first !!");
       return false;
     }
-    return wallet.freezeBalanceV2(ownerAddress, frozenBalance, resourceCode);
+    return wallet.freezeBalanceV2(ownerAddress, frozenBalance, resourceCode, multi);
   }
 
-  public boolean unfreezeBalance(byte[] ownerAddress, int resourceCode, byte[] receiverAddress)
+  public boolean unfreezeBalance(byte[] ownerAddress, int resourceCode, byte[] receiverAddress, boolean multi)
       throws CipherException, IOException, CancelException, IllegalException {
     if (wallet == null || !wallet.isLoginState()) {
       System.out.println("Warning: unfreezeBalance " + failedHighlight() + ", Please login first !!");
       return false;
     }
 
-    return wallet.unfreezeBalance(ownerAddress, resourceCode, receiverAddress);
+    return wallet.unfreezeBalance(ownerAddress, resourceCode, receiverAddress, multi);
   }
 
   public boolean unfreezeBalanceV2(byte[] ownerAddress, long unfreezeBalance
-      , int resourceCode)
+      , int resourceCode, boolean multi)
       throws CipherException, IOException, CancelException, IllegalException {
     if (wallet == null || !wallet.isLoginState()) {
       System.out.println("Warning: unfreezeBalanceV2 " + failedHighlight() + ", Please login first !!");
       return false;
     }
 
-    return wallet.unfreezeBalanceV2(ownerAddress, unfreezeBalance, resourceCode);
+    return wallet.unfreezeBalanceV2(ownerAddress, unfreezeBalance, resourceCode, multi);
   }
 
-  public boolean withdrawExpireUnfreeze(byte[] ownerAddress)
+  public boolean withdrawExpireUnfreeze(byte[] ownerAddress, boolean multi)
       throws CipherException, IOException, CancelException, IllegalException {
     if (wallet == null || !wallet.isLoginState()) {
       System.out.println("Warning: withdrawExpireUnfreeze " + failedHighlight() + ", Please login first !!");
       return false;
     }
 
-    return wallet.withdrawExpireUnfreeze(ownerAddress);
+    return wallet.withdrawExpireUnfreeze(ownerAddress, multi);
   }
 
   public boolean delegateresource(byte[] ownerAddress, long balance
-      , int resourceCode, byte[] receiverAddress, boolean lock, long lockPeriod)
+      , int resourceCode, byte[] receiverAddress, boolean lock, long lockPeriod, boolean multi)
       throws CipherException, IOException, CancelException, IllegalException {
     if (wallet == null || !wallet.isLoginState()) {
       System.out.println("Warning: delegateresource " + failedHighlight() + ", Please login first !!");
       return false;
     }
 
-    return wallet.delegateResource(ownerAddress, balance
-        , resourceCode, receiverAddress, lock, lockPeriod);
+    return wallet.delegateResource(ownerAddress, balance, resourceCode,
+        receiverAddress, lock, lockPeriod, multi);
   }
 
   public boolean undelegateresource(byte[] ownerAddress, long balance
-      , int resourceCode, byte[] receiverAddress)
+      , int resourceCode, byte[] receiverAddress, boolean multi)
       throws CipherException, IOException, CancelException, IllegalException {
     if (wallet == null || !wallet.isLoginState()) {
       System.out.println("Warning: undelegateresource " + failedHighlight() + ", Please login first !!");
       return false;
     }
 
-    return wallet.unDelegateResource(ownerAddress, balance, resourceCode, receiverAddress);
+    return wallet.unDelegateResource(ownerAddress, balance, resourceCode, receiverAddress, multi);
   }
 
-  public boolean cancelAllUnfreezeV2()
+  public boolean cancelAllUnfreezeV2(byte[] ownerAddress, boolean multi)
       throws CipherException, IOException, CancelException, IllegalException {
     if (wallet == null || !wallet.isLoginState()) {
       System.out.println("Warning: cancelAllUnfreezeV2 " + failedHighlight() + ", Please login first !!");
       return false;
     }
-    return wallet.cancelAllUnfreezeV2();
+    return wallet.cancelAllUnfreezeV2(ownerAddress, multi);
   }
 
-  public boolean unfreezeAsset(byte[] ownerAddress)
+  public boolean unfreezeAsset(byte[] ownerAddress, boolean multi)
       throws CipherException, IOException, CancelException, IllegalException {
     if (wallet == null || !wallet.isLoginState()) {
       System.out.println("Warning: unfreezeAsset " + failedHighlight() + ", Please login first !!");
       return false;
     }
 
-    return wallet.unfreezeAsset(ownerAddress);
+    return wallet.unfreezeAsset(ownerAddress, multi);
   }
 
-  public boolean withdrawBalance(byte[] ownerAddress)
+  public boolean withdrawBalance(byte[] ownerAddress, boolean multi)
       throws CipherException, IOException, CancelException, IllegalException {
     if (wallet == null || !wallet.isLoginState()) {
       System.out.println("Warning: withdrawBalance " + failedHighlight() + ", Please login first !!");
       return false;
     }
 
-    return wallet.withdrawBalance(ownerAddress);
+    return wallet.withdrawBalance(ownerAddress, multi);
   }
 
-  public boolean createProposal(byte[] ownerAddress, HashMap<Long, Long> parametersMap)
+  public boolean createProposal(byte[] ownerAddress, HashMap<Long, Long> parametersMap, boolean multi)
       throws CipherException, IOException, CancelException, IllegalException {
     if (wallet == null || !wallet.isLoginState()) {
       System.out.println("Warning: createProposal " + failedHighlight() + ", Please login first !!");
       return false;
     }
 
-    return wallet.createProposal(ownerAddress, parametersMap);
+    return wallet.createProposal(ownerAddress, parametersMap, multi);
   }
 
 
@@ -1197,28 +1198,28 @@ public class WalletApiWrapper {
   }
 
 
-  public boolean approveProposal(byte[] ownerAddress, long id, boolean is_add_approval)
+  public boolean approveProposal(byte[] ownerAddress, long id, boolean is_add_approval, boolean multi)
       throws CipherException, IOException, CancelException, IllegalException {
     if (wallet == null || !wallet.isLoginState()) {
       System.out.println("Warning: approveProposal " + failedHighlight() + ", Please login first !!");
       return false;
     }
 
-    return wallet.approveProposal(ownerAddress, id, is_add_approval);
+    return wallet.approveProposal(ownerAddress, id, is_add_approval, multi);
   }
 
-  public boolean deleteProposal(byte[] ownerAddress, long id)
+  public boolean deleteProposal(byte[] ownerAddress, long id, boolean multi)
       throws CipherException, IOException, CancelException, IllegalException {
     if (wallet == null || !wallet.isLoginState()) {
       System.out.println("Warning: deleteProposal " + failedHighlight() + ", Please login first !!");
       return false;
     }
 
-    return wallet.deleteProposal(ownerAddress, id);
+    return wallet.deleteProposal(ownerAddress, id, multi);
   }
 
   public boolean exchangeCreate(byte[] ownerAddress, byte[] firstTokenId, long firstTokenBalance,
-                                byte[] secondTokenId, long secondTokenBalance)
+                                byte[] secondTokenId, long secondTokenBalance, boolean multi)
       throws CipherException, IOException, CancelException, IllegalException {
     if (wallet == null || !wallet.isLoginState()) {
       System.out.println("Warning: exchangeCreate " + failedHighlight() + ", Please login first !!");
@@ -1226,69 +1227,69 @@ public class WalletApiWrapper {
     }
 
     return wallet.exchangeCreate(ownerAddress, firstTokenId, firstTokenBalance,
-        secondTokenId, secondTokenBalance);
+        secondTokenId, secondTokenBalance, multi);
   }
 
-  public boolean exchangeInject(byte[] ownerAddress, long exchangeId, byte[] tokenId, long quant)
+  public boolean exchangeInject(byte[] ownerAddress, long exchangeId, byte[] tokenId, long quant, boolean multi)
       throws CipherException, IOException, CancelException, IllegalException {
     if (wallet == null || !wallet.isLoginState()) {
       System.out.println("Warning: exchangeInject " + failedHighlight() + ", Please login first !!");
       return false;
     }
 
-    return wallet.exchangeInject(ownerAddress, exchangeId, tokenId, quant);
+    return wallet.exchangeInject(ownerAddress, exchangeId, tokenId, quant, multi);
   }
 
-  public boolean exchangeWithdraw(byte[] ownerAddress, long exchangeId, byte[] tokenId, long quant)
+  public boolean exchangeWithdraw(byte[] ownerAddress, long exchangeId, byte[] tokenId, long quant, boolean multi)
       throws CipherException, IOException, CancelException, IllegalException {
     if (wallet == null || !wallet.isLoginState()) {
       System.out.println("Warning: exchangeWithdraw " + failedHighlight() + ", Please login first !!");
       return false;
     }
 
-    return wallet.exchangeWithdraw(ownerAddress, exchangeId, tokenId, quant);
+    return wallet.exchangeWithdraw(ownerAddress, exchangeId, tokenId, quant, multi);
   }
 
   public boolean exchangeTransaction(byte[] ownerAddress, long exchangeId, byte[] tokenId,
-                                     long quant, long expected)
+                                     long quant, long expected, boolean multi)
       throws CipherException, IOException, CancelException, IllegalException {
     if (wallet == null || !wallet.isLoginState()) {
       System.out.println("Warning: exchangeTransaction " + failedHighlight() + ", Please login first !!");
       return false;
     }
 
-    return wallet.exchangeTransaction(ownerAddress, exchangeId, tokenId, quant, expected);
+    return wallet.exchangeTransaction(ownerAddress, exchangeId, tokenId, quant, expected, multi);
   }
 
   public boolean updateSetting(byte[] ownerAddress, byte[] contractAddress,
-                               long consumeUserResourcePercent)
+                               long consumeUserResourcePercent, boolean multi)
       throws CipherException, IOException, CancelException, IllegalException {
     if (wallet == null || !wallet.isLoginState()) {
       System.out.println("Warning: updateSetting " + failedHighlight() + ",  Please login first !!");
       return false;
     }
-    return wallet.updateSetting(ownerAddress, contractAddress, consumeUserResourcePercent);
+    return wallet.updateSetting(ownerAddress, contractAddress, consumeUserResourcePercent, multi);
 
   }
 
   public boolean updateEnergyLimit(byte[] ownerAddress, byte[] contractAddress,
-                                   long originEnergyLimit)
+                                   long originEnergyLimit, boolean multi)
       throws CipherException, IOException, CancelException, IllegalException {
     if (wallet == null || !wallet.isLoginState()) {
       System.out.println("Warning: updateSetting " + failedHighlight() + ",  Please login first !!");
       return false;
     }
 
-    return wallet.updateEnergyLimit(ownerAddress, contractAddress, originEnergyLimit);
+    return wallet.updateEnergyLimit(ownerAddress, contractAddress, originEnergyLimit, multi);
   }
 
-  public boolean clearContractABI(byte[] ownerAddress, byte[] contractAddress)
+  public boolean clearContractABI(byte[] ownerAddress, byte[] contractAddress, boolean multi)
       throws CipherException, IOException, CancelException, IllegalException {
     if (wallet == null || !wallet.isLoginState()) {
       System.out.println("Warning: updateSetting " + failedHighlight() + ",  Please login first !!");
       return false;
     }
-    return wallet.clearContractABI(ownerAddress, contractAddress);
+    return wallet.clearContractABI(ownerAddress, contractAddress, multi);
   }
 
   public boolean clearWalletKeystore() {
@@ -1306,7 +1307,7 @@ public class WalletApiWrapper {
 
   public boolean deployContract(byte[] ownerAddress, String name, String abiStr, String codeStr,
                                 long feeLimit, long value, long consumeUserResourcePercent, long originEnergyLimit,
-                                long tokenValue, String tokenId, String libraryAddressPair, String compilerVersion)
+                                long tokenValue, String tokenId, String libraryAddressPair, String compilerVersion, boolean multi)
       throws Exception {
     if (wallet == null || !wallet.isLoginState()) {
       System.out.println("Warning: createContract " + failedHighlight() + ",  Please login first !!");
@@ -1316,13 +1317,13 @@ public class WalletApiWrapper {
         .deployContract(ownerAddress, name, abiStr, codeStr, feeLimit, value,
             consumeUserResourcePercent,
             originEnergyLimit, tokenValue, tokenId,
-            libraryAddressPair, compilerVersion);
+            libraryAddressPair, compilerVersion, multi);
   }
 
   public Triple<Boolean, Long, Long> callContract(byte[] ownerAddress, byte[] contractAddress, long callValue,
                               byte[] data, long feeLimit,
                               long tokenValue, String tokenId, boolean isConstant,
-                              boolean display)
+                              boolean display, boolean multi)
       throws Exception {
     if (wallet == null || !wallet.isLoginState()) {
       System.out.println("Warning: callContract " + failedHighlight() + ",  Please login first !!");
@@ -1332,7 +1333,7 @@ public class WalletApiWrapper {
     return wallet
         .triggerContract(ownerAddress, contractAddress, callValue, data, feeLimit, tokenValue,
             tokenId,
-            isConstant, false, display);
+            isConstant, false, display, multi);
   }
 
   public Triple<Boolean, Long, Long> getUSDTBalance(byte[] ownerAddress)
@@ -1350,7 +1351,7 @@ public class WalletApiWrapper {
     NetType netType = WalletApi.getCurrentNetwork();
     byte[] contractAddress = WalletApi.decodeFromBase58Check(netType.getUsdtAddress());
     return wallet.triggerContract(ownerAddress, contractAddress,
-        0, d, 0, 0, EMPTY, true, true, false);
+        0, d, 0, 0, EMPTY, true, true, false, false);
   }
 
   public boolean estimateEnergy(byte[] ownerAddress, byte[] contractAddress, long callValue,
@@ -1365,13 +1366,13 @@ public class WalletApiWrapper {
         .estimateEnergy(ownerAddress, contractAddress, callValue, data, tokenValue, tokenId);
   }
 
-  public boolean accountPermissionUpdate(byte[] ownerAddress, String permission)
+  public boolean accountPermissionUpdate(byte[] ownerAddress, String permission, boolean multi)
       throws IOException, CipherException, CancelException, IllegalException {
     if (wallet == null || !wallet.isLoginState()) {
       System.out.println("Warning: accountPermissionUpdate " + failedHighlight() + ",  Please login first !!");
       return false;
     }
-    return wallet.accountPermissionUpdate(ownerAddress, permission);
+    return wallet.accountPermissionUpdate(ownerAddress, permission, multi);
   }
 
 
@@ -1384,13 +1385,13 @@ public class WalletApiWrapper {
     return wallet.addTransactionSign(transaction);
   }
 
-  public boolean updateBrokerage(byte[] ownerAddress, int brokerage)
+  public boolean updateBrokerage(byte[] ownerAddress, int brokerage, boolean multi)
       throws CipherException, IOException, CancelException, IllegalException {
     if (wallet == null || !wallet.isLoginState()) {
       System.out.println("Warning: updateSetting " + failedHighlight() + ",  Please login first !!");
       return false;
     }
-    return wallet.updateBrokerage(ownerAddress, brokerage);
+    return wallet.updateBrokerage(ownerAddress, brokerage, multi);
   }
 
   public org.tron.trident.api.GrpcAPI.NumberMessage getReward(byte[] ownerAddress) {
@@ -1426,23 +1427,23 @@ public class WalletApiWrapper {
       byte[] sellTokenId,
       long sellTokenQuantity,
       byte[] buyTokenId,
-      long buyTokenQuantity)
+      long buyTokenQuantity, boolean multi)
       throws CipherException, IOException, CancelException, IllegalException {
     if (wallet == null || !wallet.isLoginState()) {
       System.out.println("Warning: updateSetting " + failedHighlight() + ",  Please login first !!");
       return false;
     }
     return wallet.marketSellAsset(owner, sellTokenId, sellTokenQuantity,
-        buyTokenId, buyTokenQuantity);
+        buyTokenId, buyTokenQuantity, multi);
   }
 
-  public boolean marketCancelOrder(byte[] owner, byte[] orderId)
+  public boolean marketCancelOrder(byte[] owner, byte[] orderId, boolean multi)
       throws IOException, CipherException, CancelException, IllegalException {
     if (wallet == null || !wallet.isLoginState()) {
       System.out.println("Warning: updateSetting " + failedHighlight() + ",  Please login first !!");
       return false;
     }
-    return wallet.marketCancelOrder(owner, orderId);
+    return wallet.marketCancelOrder(owner, orderId, multi);
   }
 
   public boolean getLedgerUser() {
@@ -1609,6 +1610,9 @@ public class WalletApiWrapper {
     Pair<ApiClient, NetType> pair = getApiClientAndNetType(netWorkSymbol, fulNode, solidityNode);
     WalletApi.updateRpcCli(pair.getLeft());
     WalletApi.setCurrentNetwork(pair.getRight());
+    if (wallet != null) {
+      wallet.multiSignService = wallet.initMultiSignService();
+    }
     System.out.println("Now, current network is : " + blueBoldHighlight(WalletApi.getCurrentNetwork().toString()));
     return true;
   }
@@ -1752,7 +1756,7 @@ public class WalletApiWrapper {
           long activateFee = asset.getLongValue("activateFee");
           long transferFee = asset.getLongValue("transferFee");
           Triple<Boolean, Long, Long> triggerContractPair = wallet.triggerContract(null, decodeFromBase58Check(tokenAddress),
-              0, d, 0, 0, EMPTY, true, true, false);
+              0, d, 0, 0, EMPTY, true, true, false, false);
           if (Boolean.FALSE.equals(triggerContractPair.getLeft())) {
             return false;
           }
@@ -1938,5 +1942,17 @@ public class WalletApiWrapper {
   public void addressBook() {
     AddressBookView addressBookView = new AddressBookView();
     addressBookView.viewAddressBook();
+  }
+
+  public void tronlinkMultiSign() {
+    if (wallet == null || !wallet.isLoginState()) {
+      System.out.println("Warning: tronlinkMultiSign " + failedHighlight() + ",  Please login first !!");
+      return;
+    }
+    wallet.tronlinkMultiSign();
+  }
+
+  public void encodingConverter() {
+    EncodingConverter.runCLI();
   }
 }

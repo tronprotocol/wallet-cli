@@ -8,6 +8,7 @@ import static org.tron.common.utils.Utils.redBoldHighlight;
 import static org.tron.walletserver.WalletApi.addressValid;
 
 import com.alibaba.fastjson.JSON;
+import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -20,7 +21,6 @@ import java.util.Map;
 import java.util.Scanner;
 import java.util.Set;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 import lombok.Getter;
 import lombok.Setter;
 import org.bouncycastle.util.encoders.Hex;
@@ -44,7 +44,7 @@ public class UpdateAccountPermissionInteractive {
       41, 42, 43, 44, 45, 46, 48, 49, 52, 53, 54,
       55, 56, 57, 58, 59
   );
-  private static final Map<String, String> operationsMap = new HashMap<>();
+  public static final Map<String, String> operationsMap = new HashMap<>();
 
   static {
     operationsMap.put("0", "Activate Account");
@@ -94,11 +94,21 @@ public class UpdateAccountPermissionInteractive {
           + "does not exist in the current network. Please check."));
     }
     data.setOwnerAddress(address);
-
-    data.setOwnerPermission(convert2PermissionProto(account.getOwnerPermission()));
-    data.setWitnessPermission(convert2PermissionProto(account.getWitnessPermission()));
+    boolean nullOwner = Common.Permission.getDefaultInstance().equals(account.getOwnerPermission());
+    boolean nullWitness = Common.Permission.getDefaultInstance().equals(account.getWitnessPermission());
+    data.setOwnerPermission(nullOwner ? getDefaultOwnerPermission(address) : convert2PermissionProto(account.getOwnerPermission()));
+    data.setWitnessPermission((nullWitness && account.getIsWitness()) ? getDefaultWitnessPermission(address) : convert2PermissionProto(account.getWitnessPermission()));
     List<Permission> activePermissions = account.getActivePermissionList().stream()
         .map(this::convert2PermissionProto).collect(Collectors.toList());
+    if (activePermissions.isEmpty()) {
+      Permission active = new Permission();
+      active.setType(2);
+      active.setPermissionName("active");
+      active.setThreshold(1L);
+      active.setOperations("7fff1fc0033efb0f000000000000000000000000000000000000000000000000");
+      active.setKeys(Lists.newArrayList(new Key(address, 1L)));
+      activePermissions = Lists.newArrayList(active);
+    }
     data.setActivePermissions(activePermissions);
     while (true) {
       System.out.println("\nPlease enter the index(" + greenBoldHighlight("1-7") + ") to operate:");
@@ -141,6 +151,24 @@ public class UpdateAccountPermissionInteractive {
           System.out.println("Invalid option.");
       }
     }
+  }
+
+  private Permission getDefaultOwnerPermission(String address) {
+    Permission p = new Permission();
+    p.type = 0;
+    p.permissionName = "owner";
+    p.threshold = 1;
+    p.keys.add(new Key(address, 1));
+    return p;
+  }
+
+  private Permission getDefaultWitnessPermission(String address) {
+    Permission p = new Permission();
+    p.type = 1;
+    p.permissionName = "witness";
+    p.threshold = 1;
+    p.keys.add(new Key(address, 1));
+    return p;
   }
 
   private Permission convert2PermissionProto(Common.Permission protoPermission) {
@@ -782,7 +810,7 @@ public class UpdateAccountPermissionInteractive {
     // === Operations ===
     List<Integer> ops = hexStringToIntegerList(p.getOperations());
     if (ops.isEmpty()) {
-      System.out.println("  Operations : (none)");
+      System.out.println();
     } else {
       System.out.println("  Operations :");
       for (Integer code : ops) {

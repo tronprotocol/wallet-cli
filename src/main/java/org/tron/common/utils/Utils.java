@@ -20,6 +20,7 @@ package org.tron.common.utils;
 
 import static org.apache.commons.lang3.StringUtils.EMPTY;
 import static org.apache.commons.lang3.StringUtils.isEmpty;
+import static org.apache.commons.lang3.StringUtils.isNoneBlank;
 import static org.tron.common.utils.ByteArray.toHexString;
 import static org.tron.common.utils.DomainValidator.isDomainOrIP;
 import static org.tron.core.manager.TxHistoryManager.DASH;
@@ -59,6 +60,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import org.apache.commons.lang3.tuple.Triple;
 import org.bouncycastle.util.encoders.Hex;
 import org.jetbrains.annotations.Nullable;
 import org.tron.api.GrpcAPI.BlockExtention;
@@ -132,7 +134,7 @@ public class Utils {
 
   public static final int MIN_LENGTH = 2;
   public static final int MAX_LENGTH = 14;
-  public static final String VERSION = " v4.9.2";
+  public static final String VERSION = " v4.9.3";
   public static final String TRANSFER_METHOD_ID = "a9059cbb";
 
   private static SecureRandom random = new SecureRandom();
@@ -612,7 +614,7 @@ public class Utils {
             tx.setFrom(encode58Check(triggerSmartContract.getOwnerAddress().toByteArray()));
             tx.setTo(encode58Check(triggerSmartContract.getContractAddress().toByteArray()));
             NetType netType = WalletApi.getCurrentNetwork();
-            if (netType.getUsdtAddress().equals(encode58Check(triggerSmartContract.getContractAddress().toByteArray()))) {
+            if (org.apache.commons.lang3.StringUtils.equals(netType.getUsdtAddress(), encode58Check(triggerSmartContract.getContractAddress().toByteArray()))) {
               setTransferParams(tx, triggerSmartContract);
               tx.setType(contract.getType().name() + "(transferUSDT)");
             }
@@ -1501,6 +1503,19 @@ public class Utils {
     if (str == null) return false;
     return str.codePoints().anyMatch(
         c -> (c >= 0x4E00 && c <= 0x9FFF)
+    );
+  }
+
+  public static String intToBooleanString(int value) {
+    return value == 1 ? "true" : "false";
+  }
+
+  public static boolean allNotBlank(Triple<String, String, String> triple) {
+    return triple != null
+        && isNoneBlank(
+        triple.getLeft(),
+        triple.getMiddle(),
+        triple.getRight()
     );
   }
 

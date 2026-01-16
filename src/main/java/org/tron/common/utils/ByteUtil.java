@@ -27,6 +27,7 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.bouncycastle.util.encoders.Hex;
 
@@ -436,6 +437,24 @@ public class ByteUtil {
       }
     }
 
+    return result;
+  }
+
+  public static List<Integer> bytesToIntegerList(byte[] bytes) {
+    List<Integer> result = new ArrayList<>();
+    if (ArrayUtils.isEmpty(bytes)) {
+      return result;
+    }
+    for (int byteIndex = 0; byteIndex < bytes.length; byteIndex++) {
+      byte currentByte = bytes[byteIndex];
+
+      for (int bitIndex = 0; bitIndex < 8; bitIndex++) {
+        if ((currentByte & (1 << bitIndex)) != 0) {
+          int value = byteIndex * 8 + bitIndex;
+          result.add(value);
+        }
+      }
+    }
     return result;
   }
 

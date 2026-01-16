@@ -3,7 +3,6 @@ package org.tron.ledger.listener;
 import com.google.protobuf.ByteString;
 import org.bouncycastle.util.encoders.Hex;
 import org.hid4java.HidDevice;
-import org.tron.protos.Protocol;
 import org.tron.trident.proto.Chain;
 
 public class TransactionSignManager {
