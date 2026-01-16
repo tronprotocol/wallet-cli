@@ -1610,7 +1610,9 @@ public class WalletApiWrapper {
     Pair<ApiClient, NetType> pair = getApiClientAndNetType(netWorkSymbol, fulNode, solidityNode);
     WalletApi.updateRpcCli(pair.getLeft());
     WalletApi.setCurrentNetwork(pair.getRight());
-    wallet.multiSignService = wallet.initMultiSignService();
+    if (wallet != null) {
+      wallet.multiSignService = wallet.initMultiSignService();
+    }
     System.out.println("Now, current network is : " + blueBoldHighlight(WalletApi.getCurrentNetwork().toString()));
     return true;
   }
