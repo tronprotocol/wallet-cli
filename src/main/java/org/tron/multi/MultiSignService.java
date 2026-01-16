@@ -228,7 +228,7 @@ public class MultiSignService {
     if (isSign != null) {
       params.put("is_sign", intToBooleanString(isSign));
     }
-    return signedGet("/openapi/multi/list", params);
+    return signedGet("/multi/list", params);
   }
 
   public String createTransaction(String address,
@@ -248,9 +248,9 @@ public class MultiSignService {
     params.put("ts", ts());
     params.put("uuid", uuid());
 
-    params.put("sign", sign("POST", "/openapi/multi/transaction", params));
+    params.put("sign", sign("POST", "/multi/transaction", params));
 
-    StringBuilder url = new StringBuilder(config.getBaseUrl()).append("/openapi/multi/transaction").append("?");
+    StringBuilder url = new StringBuilder(config.getBaseUrl()).append("/multi/transaction").append("?");
 
     for (Map.Entry<String, String> e : params.entrySet()) {
       url.append(URLEncoder.encode(e.getKey(), "UTF-8"))
@@ -312,10 +312,10 @@ public class MultiSignService {
     params.put("uuid", uuid());
     params.put("address", address);
 
-    params.put("sign", sign("POST", "/openapi/multi/transaction", params));
+    params.put("sign", sign("POST", "/multi/transaction", params));
 
     String url = config.getBaseUrl()
-        + "/openapi/multi/transaction?"
+        + "/multi/transaction?"
         + buildQuery(params);
 
     JSONObject body = new JSONObject();
@@ -697,9 +697,9 @@ public class MultiSignService {
     params.put("address", address);
 
     // real sign should be generated here
-    params.put("sign", sign("POST", "/openapi/multi/transaction", params));
+    params.put("sign", sign("POST", "/multi/transaction", params));
     String url = config.getBaseUrl()
-        + "/openapi/multi/transaction?"
+        + "/multi/transaction?"
         + buildQuery(params);
 
     // ===== fastjson only =====
@@ -987,7 +987,7 @@ public class MultiSignService {
   public String getAuth(String address) throws IOException {
     Map<String, String> params = new HashMap<>();
     params.put("address", address);
-    return signedGet("/openapi/multi/auth", params);
+    return signedGet("/multi/auth", params);
   }
 
   public List<AuthInfo> queryMultiAuth(String address) {

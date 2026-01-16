@@ -21,7 +21,7 @@ public enum NetType {
           "https://open.gasfree.io",
           "/tron"),
       "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
-      "https://list.tronlink.org"),
+      "https://api.walletadapter.org"),
   NILE("https://nile.trongrid.io",
       new Grpc(FULLNODE_NILE, FULLNODE_NILE_SOLIDITY),
       new GasFree(
@@ -30,7 +30,7 @@ public enum NetType {
           "https://open-test.gasfree.io",
           "/nile"),
       "TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf",
-      "https://niletest.tronlink.org"),
+      "https://apinile.walletadapter.org"),
   SHASTA(
       "https://api.shasta.trongrid.io",
       new Grpc(TRONGRID_SHASTA, TRONGRID_SHASTA_SOLIDITY),
@@ -40,7 +40,7 @@ public enum NetType {
           "https://open-test.gasfree.io",
           "/shasta"),
       "TG3XXyExBkPp9nzdajDZsozEu4BkaSJozs",
-      "https://shastalist.tronlink.org"),
+      "https://apishasta.walletadapter.org"),
   CUSTOM(null, null, null, null, null);
 
   private final String http;
