@@ -59,6 +59,7 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.bouncycastle.util.encoders.Hex;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.HttpUtils;
+import org.tron.core.exception.CancelException;
 import org.tron.core.exception.CipherException;
 import org.tron.protos.Protocol;
 import org.tron.trident.proto.Chain;
@@ -99,6 +100,9 @@ public class MultiSignService {
   }
 
   public static String hmacSHA256(String text, String key) {
+    if (StringUtils.isEmpty(key)) {
+      throw new IllegalArgumentException("Please check the secretId, secretKey and channel in config.conf.");
+    }
     try {
       Mac mac = Mac.getInstance("HmacSHA256");
       mac.init(new SecretKeySpec(key.getBytes(), "HmacSHA256"));
@@ -162,7 +166,11 @@ public class MultiSignService {
 
     params.put("sign", sign("GET", path, newMap));
 
-    StringBuilder url = new StringBuilder(config.getBaseUrl()).append(path).append("?");
+    String baseUrl = config.getBaseUrl();
+    if (StringUtils.isEmpty(baseUrl)) {
+      throw new IllegalArgumentException(redBoldHighlight("Unsupported network"));
+    }
+    StringBuilder url = new StringBuilder(baseUrl).append(path).append("?");
 
     for (Map.Entry<String, String> e : params.entrySet()) {
       url.append(URLEncoder.encode(e.getKey(), "UTF-8"))
@@ -424,7 +432,7 @@ public class MultiSignService {
       String resp = list(address, type, isSign, start, limit);
       return MultiTxSummaryParser.parse(resp);
     } catch (Exception e) {
-      System.out.println(yellowBoldHighlight("\nFailed to fetch transactions: " + e.getMessage()));
+      System.out.println(yellowBoldHighlight("\nFailed to fetch transactions from tronlink multi-sign server: " + e.getMessage()));
       return Pair.of(Collections.emptyList(), 0);
     }
   }
@@ -678,7 +686,7 @@ public class MultiSignService {
   }
 
 
-  public String signTransaction(String address, JSONObject currentTransaction, WalletApi wallet) throws IOException, CipherException {
+  public String signTransaction(String address, JSONObject currentTransaction, WalletApi wallet) throws IOException, CipherException, CancelException {
 
     Map<String, String> params = new HashMap<>();
     params.put("sign_version", "v1");
