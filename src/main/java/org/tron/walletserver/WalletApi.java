@@ -3422,4 +3422,8 @@ public class WalletApi {
   public void tronlinkMultiSign() {
     multiSignService.runCLI(encode58Check(getAddress()), this);
   }
+
+  public static Response.WitnessList getPaginatedNowWitnessList(int offset, int limit) {
+    return apiCli.getPaginatedNowWitnessList(offset, limit);
+  }
 }
