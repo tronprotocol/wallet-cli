@@ -599,4 +599,13 @@ public class ApiClient {
   public Response.TransactionExtention deployContract(String contractName, String abi, String code, List<Type<?>> constructorParams, long feeLimit, long consumeUserResourcePercent, long originEnergyLimit, long value, String tokenId, long tokenValue) throws Exception {// pass
     return client.deployContract(contractName, abi, code, constructorParams, feeLimit, consumeUserResourcePercent, originEnergyLimit, value, tokenId, tokenValue);
   }
+
+  public Response.WitnessList getPaginatedNowWitnessList(int offset, int limit) {
+    if (!emptySolidityNode) {
+      return client.getPaginatedNowWitnessList(offset, limit, SOLIDITY_NODE);
+    } else {
+      return client.getPaginatedNowWitnessList(offset, limit, FULL_NODE);
+    }
+  }
+
 }
