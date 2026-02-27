@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with the ethereumJ library. If not, see <http://www.gnu.org/licenses/>.
  */
-package org.tron.common.utils;
+package org.tron.common.utils
 
 import java.io.*;
 import java.nio.file.*;
@@ -120,13 +120,13 @@ public class FileUtil {
     } catch (FileNotFoundException e) {
       e.printStackTrace();
     } catch (IOException e) {
-      e.printStackTrace();
+      e.printStackTrace()
     } finally {
       if (fi != null) {
         try {
           fi.close();
         } catch (IOException e) {
-          e.printStackTrace();
+          e.printStackTrace()
         }
       }
     }
