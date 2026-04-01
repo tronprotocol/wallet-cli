@@ -1,0 +1,319 @@
+# Harness Verification System — Project Constitution
+
+**Date:** 2026-04-01  
+**Status:** Enforced  
+**Applies to:** All code changes in wallet-cli  
+**Spec:** Standalone — referenced by `2026-04-01-standard-cli-design.md`
+
+---
+
+## 1. The Rule
+
+> **This is the highest-priority rule for all contributors (human and AI).**
+
+The harness (`./harness/run.sh verify`) is the **single source of truth** for whether the wallet-cli is correct. It is not optional, not advisory — it is mandatory.
+
+**Every code change MUST pass the harness before it can be considered complete.**
+
+This applies to:
+- Bug fixes
+- New features
+- Refactoring
+- Dependency upgrades
+- Configuration changes
+- Any modification to `src/`, `build.gradle`, or `harness/`
+
+### Workflow
+
+```bash
+# Before any code change: verify current state
+./harness/run.sh verify
+
+# After code change: verify nothing regressed
+./harness/run.sh verify
+
+# If any previously-passing test now fails: the change is rejected until fixed
+```
+
+### Environment Variables
+
+```bash
+export TRON_TEST_APIKEY=<nile-private-key>       # required
+export MASTER_PASSWORD=<wallet-password>           # required
+export TRON_TEST_MNEMONIC=<bip39-mnemonic>        # optional, may be a different account
+```
+
+---
+
+## 2. What the Harness Verifies
+
+### Coverage: All 120 Commands, Every Level
+
+Every registered command receives **all applicable verification levels** — not just help. No command is help-only.
+
+| Category | Count | What |
+|----------|-------|------|
+| Help (`--help`) | 120 | Every registered command produces help output |
+| Text output (private key session) | 120 | Every command returns valid text output |
+| JSON output (private key session) | 120 | Every command returns valid JSON output |
+| JSON/text parity (private key session) | 120 | Text and JSON modes produce semantically equivalent output |
+| Text output (mnemonic session) | 53 | All query commands, mnemonic-authenticated |
+| JSON output (mnemonic session) | 53 | All query commands, mnemonic-authenticated |
+| JSON/text parity (mnemonic session) | 53 | All query commands, mnemonic-authenticated |
+| On-chain transactions | 18 | Real Nile testnet: send, freeze, unfreeze, vote, contract calls |
+| Wallet/misc functional | 16 | generate-address, version, global help, did-you-mean, lock/unlock, etc. |
+| REPL parity | 11 | Interactive CLI output matches standard CLI output |
+| Cross-login | 1 | Private key and mnemonic sessions both functional |
+| **Target total** | **~705** | See breakdown below |
+
+### Target Test Count Breakdown
+
+```
+Phase 1: Setup                                           =   0 (infrastructure, not counted)
+Phase 2: Query × private key (53 × 4 levels)            = 212
+Phase 3: Query × mnemonic    (53 × 4 levels)            = 212
+Phase 4: Cross-login                                     =   1
+Phase 5: Mutation × private key (44 × 4 levels + 18 on-chain) = 194
+Phase 6: Wallet/misc × private key (23 × 4 levels + 16 functional) = 108
+Phase 7: REPL parity                                     =  11
+                                                   Total ≈ 738
+```
+
+> Current baseline: 270 tests. The gap (~468 tests) is primarily help-only commands that need full text+JSON+parity tests added.
+
+**No command may be tested at help-level only.** If a command exists in the registry, it must have text output, JSON output, and JSON/text parity tests. The only exception is commands that require interactive input (e.g., `register-wallet`) — these are tested via execution-level verification (no crash, correct exit code).
+
+### Three-Way Comparison
+
+All tests compare three output modes of the **same build** — no separate baseline JAR needed:
+
+```
+┌────────────────────────┬──────────────┬──────────────┬──────────────┐
+│                        │ Interactive  │ Standard     │ Standard     │
+│                        │ (REPL)       │ --output text│ --output json│
+├────────────────────────┼──────────────┼──────────────┼──────────────┤
+│ Interactive (REPL)     │      —       │      ✓       │      ✓       │
+│ Standard text          │      ✓       │      —       │      ✓       │
+│ Standard json          │      ✓       │      ✓       │      —       │
+└────────────────────────┴──────────────┴──────────────┴──────────────┘
+```
+
+### Verification Levels Per Command
+
+Every command MUST pass levels 1–4. Levels 5–6 apply to applicable subsets.
+
+1. **Help parity** — every command has `--help` output listing all options
+2. **Text output** — standard CLI text mode produces valid, non-empty output
+3. **JSON output** — standard CLI JSON mode produces valid JSON
+4. **JSON/text semantic consistency** — both modes express the same data
+5. **Interactive parity** — feeding the same command to the REPL produces equivalent output (11 representative commands)
+6. **On-chain behavioral parity** (mutation commands) — execute via standard CLI, verify on-chain result
+
+### Command Test Requirements by Type
+
+| Command type | Level 1 (help) | Level 2 (text) | Level 3 (JSON) | Level 4 (parity) | Level 5 (REPL) | Level 6 (on-chain) |
+|---|---|---|---|---|---|---|
+| Query (read-only, no auth) | Required | Required | Required | Required | Sample | N/A |
+| Query (read-only, auth required) | Required | Required | Required | Required | Sample | N/A |
+| Mutation (on-chain) | Required | Required | Required | Required | N/A | Where feasible |
+| Wallet management | Required | Required | Required | Required | N/A | N/A |
+| Interactive-only (register, change-password) | Required | Execution-level¹ | Execution-level¹ | N/A | N/A | N/A |
+
+¹ Execution-level: verify the command runs without crash and returns correct exit code. These commands require interactive input that cannot be fully automated via CLI flags.
+
+### Test Parameterization
+
+Commands that require arguments must be tested with representative parameters:
+
+| Parameter type | Test value source |
+|---|---|
+| Address | Test account address derived from `TRON_TEST_APIKEY` |
+| Block number | Latest block number or block 1 |
+| Block ID | Fetched dynamically from latest block |
+| Transaction ID | Fetched dynamically from a recent block with transactions |
+| Contract address | USDT contract on Nile: `TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf` |
+| Asset/token ID | Fetched dynamically or well-known Nile asset |
+| Witness address | Fetched from `list-witnesses` output |
+| Proposal ID | Fetched from `list-proposals` output |
+| Exchange ID | Fetched from `list-exchanges` output |
+| Market pair | Fetched from `get-market-pair-list` output |
+
+### JSON/Text Semantic Consistency
+
+For the standard CLI, `--output json` and `--output text` must express the same semantic data:
+
+- Every data point in text output must exist in JSON output with the same value
+- JSON may contain additional fields (structured data is naturally richer)
+- Numerical equivalence is checked semantically (e.g., `1000000 SUN` == `1.000000 TRX`)
+- Error scenarios must be consistent: text error → JSON error, same error semantics
+
+---
+
+## 3. Non-Negotiable Constraints
+
+1. **No regressions** — A test that passed before your change must still pass after.
+2. **No help-only commands** — Every registered command must have text output, JSON output, and JSON/text parity tests. Help-only testing is insufficient.
+3. **New commands must have full tests** — Add help + text + JSON + parity tests for any new command. On-chain tests required for mutation commands where feasible.
+4. **Harness itself is code** — Changes to `harness/` scripts must not reduce coverage.
+5. **Known failures are documented** — Current known failures (JSON format issues for commands that bypass OutputFormatter) are tracked. Do not mask them — fix them or leave them.
+6. **The harness runs against Nile testnet** — Requires `TRON_TEST_APIKEY` and `MASTER_PASSWORD` environment variables. CI/CD must provide these.
+7. **Error scenarios count as verification** — For mutation commands that cannot be safely executed, verifying correct error output (text and JSON) counts as full verification. The key requirement is that both output modes produce valid, consistent output — even if that output is an error message.
+
+---
+
+## 4. Test Execution Phases
+
+`TRON_TEST_APIKEY` and `TRON_TEST_MNEMONIC` **may correspond to different accounts**. The harness verifies each session independently. Transaction tests use the other account as the transfer target when addresses differ.
+
+```
+Phase 1: Setup
+  → Verify connectivity to Nile network
+  → Validate TRON_TEST_APIKEY (prompt if not set)
+  → Count registered standard CLI commands
+
+Phase 2: Private key session — ALL query commands (53)
+  → For EACH query command: help, text output, JSON output, JSON/text parity
+  → Parameterized queries use test account address
+  → Dynamic parameter fetching: block IDs, transaction IDs, witness addresses,
+    proposal IDs, exchange IDs, market pairs fetched from live Nile data
+  → No command is help-only
+
+Phase 3: Mnemonic session — ALL query commands (if TRON_TEST_MNEMONIC set)
+  → Same as Phase 2 but authenticated via mnemonic
+  → Same full verification: help + text + JSON + parity for every command
+
+Phase 4: Cross-login comparison
+  → Both sessions valid (same or different accounts)
+
+Phase 5: Transaction commands — ALL mutation commands (44)
+  → For EACH mutation command: help, text output, JSON output, JSON/text parity
+  → Text/JSON tests use dry-run or read-only invocations where possible
+    (e.g., trigger-constant-contract for read-only calls, estimate-energy)
+  → On-chain execution for safe subset: send-coin, freeze/unfreeze-v2,
+    vote-witness, trigger-constant-contract, estimate-energy, withdraw,
+    cancel-unfreeze
+  → Commands requiring specific on-chain state (create-witness, exchange-create,
+    etc.) are tested with expected-error verification: correct error message
+    in text mode, correct error JSON in JSON mode
+  → No command is help-only
+
+Phase 6: Wallet & misc commands — ALL wallet/misc commands (23)
+  → For EACH command: help, text output, JSON output, JSON/text parity
+  → Interactive-only commands (register-wallet, change-password):
+    execution-level verification (no crash, correct exit code)
+  → Functional tests: generate-address, get-private-key-by-mnemonic,
+    switch-network, version, global help, did-you-mean, lock/unlock, etc.
+  → No command is help-only
+
+Phase 7: Interactive REPL parity
+  → Feed commands to REPL programmatically via stdin
+  → Compare REPL output vs standard CLI text output
+  → 11 representative commands: GetChainParameters, ListWitnesses,
+    GetNextMaintenanceTime, ListNodes, GetBandwidthPrices, GetEnergyPrices,
+    GetMemoFee, ListProposals, ListExchanges, GetMarketPairList, ListAssetIssue
+```
+
+---
+
+## 5. Architecture
+
+```
+harness/
+├── run.sh                          # Orchestrator: verify, list
+├── config.sh                       # Env var loading, network config
+├── commands/
+│   ├── query_commands.sh           # All read-only command tests (help + text + JSON + parity)
+│   ├── transaction_commands.sh     # All mutation command tests (help + text + JSON + parity + on-chain)
+│   └── wallet_commands.sh          # Wallet management & misc tests (help + text + JSON + parity + functional)
+├── lib/
+│   ├── compare.sh                  # Output normalization and diff
+│   ├── semantic.sh                 # JSON/text semantic equivalence
+│   └── report.sh                   # Report generation
+└── (Java side)
+    src/main/java/org/tron/harness/
+    ├── HarnessRunner.java          # Java entry point (list, verify)
+    ├── InteractiveSession.java     # Drives REPL methods via reflection
+    ├── CommandCapture.java         # Captures stdout/stderr
+    └── TextSemanticParser.java     # Parses text output for JSON/text parity comparison
+```
+
+---
+
+## 6. Current Baseline (2026-04-01)
+
+```
+Total: 270  Passed: 248  Failed: 14  Skipped: 8
+```
+
+> **This baseline reflects the CURRENT state, not the TARGET state.** Many commands currently only receive help-level testing. The target is full verification (help + text + JSON + parity) for all 120 commands. The test count will increase significantly as full coverage is implemented.
+
+### Known Failures (14) — JSON Output Format
+
+These commands delegate directly to `WalletApiWrapper`/`WalletApi` printing methods instead of going through `OutputFormatter`, so their JSON mode output is not valid JSON:
+
+| Command | Issue |
+|---------|-------|
+| `get-usdt-balance` | triggerContract raw output, not JSON |
+| `get-bandwidth-prices` | PricesResponseMessage.toString(), not JSON |
+| `get-energy-prices` | PricesResponseMessage.toString(), not JSON |
+| `get-memo-fee` | PricesResponseMessage.toString(), not JSON |
+| `get-asset-issue-by-id` | Contract.AssetIssueContract.toString(), not JSON |
+| `list-asset-issue` | Binary protobuf data confuses grep |
+| `gas-free-info` | Direct wrapper print, not OutputFormatter |
+
+Each appears twice (private key session + mnemonic session) = 14 total (7 commands × 2 sessions).
+
+**Resolution path:** Route these commands through `OutputFormatter.protobuf()` for JSON mode.
+
+### Known Skips (8) — Nile Testnet State
+
+| Command | Issue |
+|---------|-------|
+| `get-block-by-id` | Requires dynamic block ID fetching (not hardcoded block 1) |
+| `get-transaction-by-id` | Requires dynamic transaction ID fetching from recent blocks |
+| `get-transaction-info-by-id` | Same as above |
+| `get-asset-issue-by-name` | Returns empty on Nile (no TRC10 named "TRX"), not a code issue |
+
+Each appears twice (private key + mnemonic) = 8 total.
+
+**Resolution path:** Fetch IDs dynamically from live Nile data during Phase 1 setup instead of relying on static/empty values.
+
+### Coverage Status: Full Verification Implemented
+
+All 120 commands now have full text+JSON+parity tests. No command is help-only.
+
+| Category | Commands | Help tests | Full text+JSON tests | Method |
+|----------|----------|------------|---------------------|--------|
+| Query (53) | 53 | 53 | 53 | Direct execution with representative params |
+| Transaction (44) | 44 | 44 | 44 | On-chain (9) + expected-error verification (35) |
+| Wallet/misc (23) | 23 | 23 | 23 | Functional (10) + auth-full (10) + expected-error (3) |
+| **Total** | **120** | **120** | **120** | |
+
+**Expected-error verification:** For mutation commands that cannot be safely executed on-chain (e.g., `create-witness`, `exchange-create`), the harness invokes them with valid syntax but insufficient state, then verifies both text and JSON error output are non-empty and JSON is valid. This exercises `OutputFormatter` on all code paths.
+
+---
+
+## 7. Mismatch Resolution Workflow
+
+1. Harness detects mismatch (new failure or regression)
+2. Check `harness/results/<command>_text.out` and `<command>_json.out` for actual output
+3. Check `harness/results/<command>.result` for the failure reason
+4. Fix the corresponding command handler in `src/main/java/org/tron/walletcli/cli/commands/`
+5. Re-run `./harness/run.sh verify`
+6. Confirm failure count did not increase
+
+---
+
+## 8. Adding Tests for New Commands
+
+When adding a new command to the standard CLI:
+
+1. Register the command in the appropriate `src/main/java/org/tron/walletcli/cli/commands/*.java` file
+2. Add to `query_commands.sh`, `transaction_commands.sh`, or `wallet_commands.sh`:
+   - `_test_help "new-command"` — verify --help works
+   - `_test_noauth_full` or `_test_auth_full` — verify text + JSON output + JSON/text parity
+   - For mutation commands that can be safely executed: add on-chain execution test with small amounts
+   - For mutation commands that cannot be safely executed: add expected-error verification — invoke with valid syntax, verify correct error output in both text and JSON modes
+3. Run `./harness/run.sh verify`
+4. Confirm total test count increased and no regressions
+5. Verify every new command has at least 4 tests (help + text + JSON + parity). Help-only is not acceptable.

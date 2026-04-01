@@ -12,3 +12,15 @@ tools
 src/main/resources/static/js/tronjs/tron-protoc.js
 logs
 FileTest
+
+# Wallet keystore files created at runtime
+Wallet/
+Mnemonic/
+wallet_data/
+
+# Harness runtime output
+harness/results/
+harness/report.txt
+
+# Temp/scratch files
+1.md

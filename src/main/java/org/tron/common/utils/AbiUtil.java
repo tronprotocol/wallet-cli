@@ -340,7 +340,6 @@ public class AbiUtil {
   public static String parseMethod(String methodSign, String input, boolean isHex) {
     byte[] selector = new byte[4];
     System.arraycopy(Hash.sha3(methodSign.getBytes()), 0, selector,0, 4);
-    System.out.println(methodSign + ":" + Hex.toHexString(selector));
     if (input.length() == 0) {
       return Hex.toHexString(selector);
     }

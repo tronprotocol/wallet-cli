@@ -1,0 +1,218 @@
+package org.tron.walletcli.cli.commands;
+
+import org.tron.common.utils.AbiUtil;
+import org.tron.common.utils.ByteArray;
+import org.tron.walletcli.cli.CommandDefinition;
+import org.tron.walletcli.cli.CommandRegistry;
+import org.tron.walletcli.cli.OptionDef;
+
+public class ContractCommands {
+
+    public static void register(CommandRegistry registry) {
+        registerDeployContract(registry);
+        registerTriggerContract(registry);
+        registerTriggerConstantContract(registry);
+        registerEstimateEnergy(registry);
+        registerClearContractABI(registry);
+        registerUpdateSetting(registry);
+        registerUpdateEnergyLimit(registry);
+    }
+
+    private static void registerDeployContract(CommandRegistry registry) {
+        registry.add(CommandDefinition.builder()
+                .name("deploy-contract")
+                .aliases("deploycontract")
+                .description("Deploy a smart contract")
+                .option("name", "Contract name", true)
+                .option("abi", "Contract ABI JSON string", true)
+                .option("bytecode", "Contract bytecode hex", true)
+                .option("constructor", "Constructor signature (optional)", false)
+                .option("params", "Constructor parameters (optional)", false)
+                .option("fee-limit", "Fee limit in SUN", true, OptionDef.Type.LONG)
+                .option("consume-user-resource-percent", "Consume user resource percent (0-100)", false, OptionDef.Type.LONG)
+                .option("origin-energy-limit", "Origin energy limit", false, OptionDef.Type.LONG)
+                .option("value", "Call value in SUN (default: 0)", false, OptionDef.Type.LONG)
+                .option("token-value", "Token value (default: 0)", false, OptionDef.Type.LONG)
+                .option("token-id", "Token ID (default: #)", false)
+                .option("library", "Library address pair (libName:address)", false)
+                .option("compiler-version", "Compiler version", false)
+                .option("owner", "Owner address", false)
+                .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
+                .handler((opts, wrapper, out) -> {
+                    byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
+                    String name = opts.getString("name");
+                    String abi = opts.getString("abi");
+                    String bytecode = opts.getString("bytecode");
+                    long feeLimit = opts.getLong("fee-limit");
+                    long value = opts.has("value") ? opts.getLong("value") : 0;
+                    long consumePercent = opts.has("consume-user-resource-percent")
+                            ? opts.getLong("consume-user-resource-percent") : 0;
+                    long originEnergyLimit = opts.has("origin-energy-limit")
+                            ? opts.getLong("origin-energy-limit") : 0;
+                    long tokenValue = opts.has("token-value") ? opts.getLong("token-value") : 0;
+                    String tokenId = opts.has("token-id") ? opts.getString("token-id") : "#";
+                    String library = opts.has("library") ? opts.getString("library") : null;
+                    String compilerVersion = opts.has("compiler-version")
+                            ? opts.getString("compiler-version") : null;
+                    boolean multi = opts.getBoolean("multi");
+
+                    // If constructor + params provided, append encoded params to bytecode
+                    String codeStr = bytecode;
+                    if (opts.has("constructor") && opts.has("params")) {
+                        String encodedParams = AbiUtil.parseMethod(
+                                opts.getString("constructor"), opts.getString("params"), true);
+                        // parseMethod with isHex=true returns just the encoded params without selector
+                        codeStr = bytecode + encodedParams;
+                    }
+
+                    boolean result = wrapper.deployContract(owner, name, abi, codeStr,
+                            feeLimit, value, consumePercent, originEnergyLimit,
+                            tokenValue, tokenId, library, compilerVersion, multi);
+                    out.result(result, "DeployContract successful !!", "DeployContract failed !!");
+                })
+                .build());
+    }
+
+    private static void registerTriggerContract(CommandRegistry registry) {
+        registry.add(CommandDefinition.builder()
+                .name("trigger-contract")
+                .aliases("triggercontract")
+                .description("Trigger a smart contract function")
+                .option("contract", "Contract address", true)
+                .option("method", "Method signature (e.g. transfer(address,uint256))", true)
+                .option("params", "Method parameters", false)
+                .option("fee-limit", "Fee limit in SUN", true, OptionDef.Type.LONG)
+                .option("value", "Call value in SUN (default: 0)", false, OptionDef.Type.LONG)
+                .option("token-value", "Token value (default: 0)", false, OptionDef.Type.LONG)
+                .option("token-id", "Token ID", false)
+                .option("owner", "Caller address", false)
+                .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
+                .handler((opts, wrapper, out) -> {
+                    byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
+                    byte[] contractAddress = opts.getAddress("contract");
+                    String method = opts.getString("method");
+                    String params = opts.has("params") ? opts.getString("params") : "";
+                    long feeLimit = opts.getLong("fee-limit");
+                    long callValue = opts.has("value") ? opts.getLong("value") : 0;
+                    long tokenValue = opts.has("token-value") ? opts.getLong("token-value") : 0;
+                    String tokenId = opts.has("token-id") ? opts.getString("token-id") : "";
+                    boolean multi = opts.getBoolean("multi");
+
+                    byte[] data = ByteArray.fromHexString(AbiUtil.parseMethod(method, params, false));
+                    org.apache.commons.lang3.tuple.Triple<Boolean, Long, Long> result =
+                            wrapper.callContract(owner, contractAddress, callValue, data,
+                            feeLimit, tokenValue, tokenId, false, true, multi);
+                    out.result(Boolean.TRUE.equals(result.getLeft()),
+                            "TriggerContract successful !!", "TriggerContract failed !!");
+                })
+                .build());
+    }
+
+    private static void registerTriggerConstantContract(CommandRegistry registry) {
+        registry.add(CommandDefinition.builder()
+                .name("trigger-constant-contract")
+                .aliases("triggerconstantcontract")
+                .description("Call a constant (view/pure) contract function")
+                .option("contract", "Contract address", true)
+                .option("method", "Method signature", true)
+                .option("params", "Method parameters", false)
+                .option("owner", "Caller address", false)
+                .handler((opts, wrapper, out) -> {
+                    byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
+                    byte[] contractAddress = opts.getAddress("contract");
+                    String method = opts.getString("method");
+                    String params = opts.has("params") ? opts.getString("params") : "";
+
+                    byte[] data = ByteArray.fromHexString(AbiUtil.parseMethod(method, params, false));
+                    wrapper.callContract(owner, contractAddress, 0, data, 0, 0, "", true, true, false);
+                })
+                .build());
+    }
+
+    private static void registerEstimateEnergy(CommandRegistry registry) {
+        registry.add(CommandDefinition.builder()
+                .name("estimate-energy")
+                .aliases("estimateenergy")
+                .description("Estimate energy for a contract call")
+                .option("contract", "Contract address", true)
+                .option("method", "Method signature", true)
+                .option("params", "Method parameters", false)
+                .option("value", "Call value (default: 0)", false, OptionDef.Type.LONG)
+                .option("token-value", "Token value (default: 0)", false, OptionDef.Type.LONG)
+                .option("token-id", "Token ID", false)
+                .option("owner", "Caller address", false)
+                .handler((opts, wrapper, out) -> {
+                    byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
+                    byte[] contractAddress = opts.getAddress("contract");
+                    String method = opts.getString("method");
+                    String params = opts.has("params") ? opts.getString("params") : "";
+                    long callValue = opts.has("value") ? opts.getLong("value") : 0;
+                    long tokenValue = opts.has("token-value") ? opts.getLong("token-value") : 0;
+                    String tokenId = opts.has("token-id") ? opts.getString("token-id") : "";
+
+                    byte[] data = ByteArray.fromHexString(AbiUtil.parseMethod(method, params, false));
+                    boolean result = wrapper.estimateEnergy(owner, contractAddress, callValue,
+                            data, tokenValue, tokenId);
+                    out.result(result, "EstimateEnergy successful !!", "EstimateEnergy failed !!");
+                })
+                .build());
+    }
+
+    private static void registerClearContractABI(CommandRegistry registry) {
+        registry.add(CommandDefinition.builder()
+                .name("clear-contract-abi")
+                .aliases("clearcontractabi")
+                .description("Clear a contract's ABI")
+                .option("contract", "Contract address", true)
+                .option("owner", "Owner address", false)
+                .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
+                .handler((opts, wrapper, out) -> {
+                    byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
+                    byte[] contractAddress = opts.getAddress("contract");
+                    boolean multi = opts.getBoolean("multi");
+                    boolean result = wrapper.clearContractABI(owner, contractAddress, multi);
+                    out.result(result, "ClearContractABI successful !!", "ClearContractABI failed !!");
+                })
+                .build());
+    }
+
+    private static void registerUpdateSetting(CommandRegistry registry) {
+        registry.add(CommandDefinition.builder()
+                .name("update-setting")
+                .aliases("updatesetting")
+                .description("Update contract consume_user_resource_percent")
+                .option("contract", "Contract address", true)
+                .option("consume-user-resource-percent", "New percentage (0-100)", true, OptionDef.Type.LONG)
+                .option("owner", "Owner address", false)
+                .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
+                .handler((opts, wrapper, out) -> {
+                    byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
+                    byte[] contractAddress = opts.getAddress("contract");
+                    long percent = opts.getLong("consume-user-resource-percent");
+                    boolean multi = opts.getBoolean("multi");
+                    boolean result = wrapper.updateSetting(owner, contractAddress, percent, multi);
+                    out.result(result, "UpdateSetting successful !!", "UpdateSetting failed !!");
+                })
+                .build());
+    }
+
+    private static void registerUpdateEnergyLimit(CommandRegistry registry) {
+        registry.add(CommandDefinition.builder()
+                .name("update-energy-limit")
+                .aliases("updateenergylimit")
+                .description("Update contract origin_energy_limit")
+                .option("contract", "Contract address", true)
+                .option("origin-energy-limit", "New origin energy limit", true, OptionDef.Type.LONG)
+                .option("owner", "Owner address", false)
+                .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
+                .handler((opts, wrapper, out) -> {
+                    byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
+                    byte[] contractAddress = opts.getAddress("contract");
+                    long limit = opts.getLong("origin-energy-limit");
+                    boolean multi = opts.getBoolean("multi");
+                    boolean result = wrapper.updateEnergyLimit(owner, contractAddress, limit, multi);
+                    out.result(result, "UpdateEnergyLimit successful !!", "UpdateEnergyLimit failed !!");
+                })
+                .build());
+    }
+}

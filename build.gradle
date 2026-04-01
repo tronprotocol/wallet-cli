@@ -146,3 +146,10 @@ shadowJar {
     version = null
     mergeServiceFiles() //  https://github.com/grpc/grpc-java/issues/10853
 }
+
+task harnessRun(type: JavaExec) {
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'org.tron.harness.HarnessRunner'
+    args = project.hasProperty('harnessArgs') ? project.property('harnessArgs').split(' ') : ['list']
+    standardInput = System.in
+}

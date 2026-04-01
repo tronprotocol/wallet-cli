@@ -31,6 +31,10 @@ import static org.tron.mnemonic.MnemonicUtils.getPrivateKeyFromMnemonic;
 import static org.tron.walletserver.WalletApi.addressValid;
 import static org.tron.walletserver.WalletApi.decodeFromBase58Check;
 
+import org.tron.walletcli.cli.GlobalOptions;
+import org.tron.walletcli.cli.CommandRegistry;
+import org.tron.walletcli.cli.StandardCliRunner;
+
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import com.beust.jcommander.JCommander;
@@ -4662,12 +4666,58 @@ public class Client {
   }
 
   public static void main(String[] args) {
-    Client cli = new Client();
-    JCommander.newBuilder()
-        .addObject(cli)
-        .build()
-        .parse(args);
+    if (args.length == 0) {
+      CommandRegistry registry = initRegistry();
+      System.out.println(registry.formatGlobalHelp(VERSION));
+      System.exit(0);
+    }
 
-    cli.run();
+    GlobalOptions globalOpts = GlobalOptions.parse(args);
+
+    if (globalOpts.isVersion()) {
+      System.out.println("wallet-cli" + VERSION);
+      System.exit(0);
+    }
+
+    if (globalOpts.isInteractive()) {
+      Client cli = new Client();
+      JCommander.newBuilder()
+          .addObject(cli)
+          .build()
+          .parse(new String[0]);
+      cli.run();
+      return;
+    }
+
+    if (globalOpts.isHelp() && globalOpts.getCommand() == null) {
+      CommandRegistry registry = initRegistry();
+      System.out.println(registry.formatGlobalHelp(VERSION));
+      System.exit(0);
+    }
+
+    if (globalOpts.getCommand() == null) {
+      CommandRegistry registry = initRegistry();
+      System.out.println(registry.formatGlobalHelp(VERSION));
+      System.exit(0);
+    }
+
+    // Standard CLI mode
+    CommandRegistry registry = initRegistry();
+    StandardCliRunner runner = new StandardCliRunner(registry, globalOpts);
+    System.exit(runner.execute());
+  }
+
+  private static CommandRegistry initRegistry() {
+    CommandRegistry registry = new CommandRegistry();
+    org.tron.walletcli.cli.commands.QueryCommands.register(registry);
+    org.tron.walletcli.cli.commands.TransactionCommands.register(registry);
+    org.tron.walletcli.cli.commands.ContractCommands.register(registry);
+    org.tron.walletcli.cli.commands.StakingCommands.register(registry);
+    org.tron.walletcli.cli.commands.WitnessCommands.register(registry);
+    org.tron.walletcli.cli.commands.ProposalCommands.register(registry);
+    org.tron.walletcli.cli.commands.ExchangeCommands.register(registry);
+    org.tron.walletcli.cli.commands.WalletCommands.register(registry);
+    org.tron.walletcli.cli.commands.MiscCommands.register(registry);
+    return registry;
   }
 }

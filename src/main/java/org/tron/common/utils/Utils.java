@@ -327,6 +327,12 @@ public class Utils {
   }
 
   public static char[] inputPassword(boolean checkStrength) throws IOException {
+    // Check MASTER_PASSWORD environment variable first
+    String envPassword = System.getenv("MASTER_PASSWORD");
+    if (envPassword != null && !envPassword.isEmpty()) {
+      return envPassword.toCharArray();
+    }
+
     char[] password;
     Console cons = System.console();
     while (true) {

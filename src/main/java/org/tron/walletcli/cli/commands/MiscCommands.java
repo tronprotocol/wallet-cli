@@ -1,0 +1,132 @@
+package org.tron.walletcli.cli.commands;
+
+import org.tron.common.crypto.ECKey;
+import org.tron.common.utils.ByteArray;
+import org.tron.mnemonic.MnemonicUtils;
+import org.tron.walletcli.cli.CommandDefinition;
+import org.tron.walletcli.cli.CommandRegistry;
+import org.tron.walletserver.WalletApi;
+
+import java.security.SecureRandom;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+public class MiscCommands {
+
+    public static void register(CommandRegistry registry) {
+        registerGenerateAddress(registry);
+        registerGetPrivateKeyByMnemonic(registry);
+        registerEncodingConverter(registry);
+        registerAddressBook(registry);
+        registerViewTransactionHistory(registry);
+        registerViewBackupRecords(registry);
+        registerHelp(registry);
+    }
+
+    private static void registerGenerateAddress(CommandRegistry registry) {
+        registry.add(CommandDefinition.builder()
+                .name("generate-address")
+                .aliases("generateaddress")
+                .description("Generate a new address offline")
+                .handler((opts, wrapper, out) -> {
+                    ECKey ecKey = new ECKey(new SecureRandom());
+                    byte[] priKey = ecKey.getPrivKeyBytes();
+                    byte[] address = ecKey.getAddress();
+                    String addressStr = WalletApi.encode58Check(address);
+                    String priKeyHex = ByteArray.toHexString(priKey);
+                    Map<String, Object> json = new LinkedHashMap<String, Object>();
+                    json.put("address", addressStr);
+                    json.put("private_key", priKeyHex);
+                    out.success("Address: " + addressStr + "\nPrivate Key: " + priKeyHex, json);
+                })
+                .build());
+    }
+
+    private static void registerGetPrivateKeyByMnemonic(CommandRegistry registry) {
+        registry.add(CommandDefinition.builder()
+                .name("get-private-key-by-mnemonic")
+                .aliases("getprivatekeybymnemonic")
+                .description("Derive private key from mnemonic phrase")
+                .option("mnemonic", "Mnemonic words (space-separated)", true)
+                .handler((opts, wrapper, out) -> {
+                    String mnemonicStr = opts.getString("mnemonic");
+                    List<String> words = Arrays.asList(mnemonicStr.split("\\s+"));
+                    byte[] priKey = MnemonicUtils.getPrivateKeyFromMnemonic(words);
+                    String priKeyHex = ByteArray.toHexString(priKey);
+                    ECKey ecKey = ECKey.fromPrivate(priKey);
+                    String address = WalletApi.encode58Check(ecKey.getAddress());
+                    Map<String, Object> json = new LinkedHashMap<String, Object>();
+                    json.put("private_key", priKeyHex);
+                    json.put("address", address);
+                    out.success("Private Key: " + priKeyHex + "\nAddress: " + address, json);
+                    Arrays.fill(priKey, (byte) 0);
+                })
+                .build());
+    }
+
+    private static void registerEncodingConverter(CommandRegistry registry) {
+        registry.add(CommandDefinition.builder()
+                .name("encoding-converter")
+                .aliases("encodingconverter")
+                .description("Convert between encoding formats")
+                .handler((opts, wrapper, out) -> {
+                    wrapper.encodingConverter();
+                    out.result(true, "Encoding converter completed", "Encoding converter failed");
+                })
+                .build());
+    }
+
+    private static void registerAddressBook(CommandRegistry registry) {
+        registry.add(CommandDefinition.builder()
+                .name("address-book")
+                .aliases("addressbook")
+                .description("Manage address book")
+                .handler((opts, wrapper, out) -> {
+                    wrapper.addressBook();
+                    out.result(true, "Address book completed", "Address book failed");
+                })
+                .build());
+    }
+
+    private static void registerViewTransactionHistory(CommandRegistry registry) {
+        registry.add(CommandDefinition.builder()
+                .name("view-transaction-history")
+                .aliases("viewtransactionhistory")
+                .description("View transaction history")
+                .handler((opts, wrapper, out) -> {
+                    wrapper.viewTransactionHistory();
+                    out.result(true, "Transaction history completed", "Transaction history failed");
+                })
+                .build());
+    }
+
+    private static void registerViewBackupRecords(CommandRegistry registry) {
+        registry.add(CommandDefinition.builder()
+                .name("view-backup-records")
+                .aliases("viewbackuprecords")
+                .description("View backup records")
+                .handler((opts, wrapper, out) -> {
+                    wrapper.viewBackupRecords();
+                    out.result(true, "Backup records completed", "Backup records failed");
+                })
+                .build());
+    }
+
+    private static void registerHelp(CommandRegistry registry) {
+        registry.add(CommandDefinition.builder()
+                .name("help")
+                .aliases("help")
+                .description("Show help information")
+                .option("command", "Command to show help for", false)
+                .handler((opts, wrapper, out) -> {
+                    // Help is handled by the runner level --help flag
+                    // This registers the command so it appears in the command list
+                    out.result(true,
+                            "Use 'wallet-cli --help' for global help or 'wallet-cli <command> --help' for command help.",
+                            "Help failed");
+                })
+                .build());
+    }
+}
