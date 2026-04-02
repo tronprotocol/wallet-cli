@@ -1,8 +1,13 @@
 package org.tron.walletcli.cli.commands;
 
+import org.apache.commons.lang3.tuple.Triple;
+import org.bouncycastle.util.encoders.Hex;
+import org.tron.common.enums.NetType;
+import org.tron.common.utils.AbiUtil;
 import org.tron.walletcli.cli.CommandDefinition;
 import org.tron.walletcli.cli.CommandRegistry;
 import org.tron.walletcli.cli.OptionDef;
+import org.tron.walletserver.WalletApi;
 
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -84,14 +89,45 @@ public class TransactionCommands {
                 .aliases("transferusdt")
                 .description("Transfer USDT (TRC20)")
                 .option("to", "Recipient address", true)
-                .option("amount", "Amount", true)
+                .option("amount", "Amount in smallest unit", true, OptionDef.Type.LONG)
                 .option("owner", "Sender address", false)
+                .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
                 .handler((opts, wrapper, out) -> {
+                    NetType netType = WalletApi.getCurrentNetwork();
+                    if (netType.getUsdtAddress() == null) {
+                        out.error("unsupported_network",
+                                "transfer-usdt does not support the current network.");
+                        return;
+                    }
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
-                    // TransferUSDT uses callContract internally
-                    // For now delegate to wrapper methods
-                    out.error("not_implemented",
-                            "transfer-usdt via standard CLI is not yet implemented. Use --interactive mode.");
+                    byte[] toAddress = opts.getAddress("to");
+                    long amount = opts.getLong("amount");
+                    boolean multi = opts.getBoolean("multi");
+
+                    String toBase58 = WalletApi.encode58Check(toAddress);
+                    String inputStr = String.format("\"%s\",%d", toBase58, amount);
+                    String methodStr = "transfer(address,uint256)";
+                    byte[] data = Hex.decode(AbiUtil.parseMethod(methodStr, inputStr, false));
+                    byte[] contractAddress = WalletApi.decodeFromBase58Check(netType.getUsdtAddress());
+
+                    // Estimate energy to calculate fee limit
+                    Triple<Boolean, Long, Long> estimate = wrapper.callContract(
+                            owner, contractAddress, 0, data, 0, 0, "", true, true, false);
+                    long energyUsed = estimate.getMiddle();
+                    // Get energy price from chain parameters and add 20% buffer
+                    long energyFee = wrapper.getChainParameters().getChainParameterList().stream()
+                            .filter(p -> "getEnergyFee".equals(p.getKey()))
+                            .mapToLong(org.tron.trident.proto.Response.ChainParameters.ChainParameter::getValue)
+                            .findFirst()
+                            .orElse(420L);
+                    long feeLimit = (long) (energyFee * energyUsed * 1.2);
+
+                    boolean result = wrapper.callContract(
+                            owner, contractAddress, 0, data, feeLimit, 0, "", false, false, multi)
+                            .getLeft();
+                    out.result(result,
+                            "TransferUSDT successful !!",
+                            "TransferUSDT failed !!");
                 })
                 .build());
     }

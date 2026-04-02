@@ -258,6 +258,36 @@ run_transaction_tests() {
     echo "FAIL" > "$RESULTS_DIR/trigger-constant-contract.result"; echo "FAIL"
   fi
 
+  # --- transfer-usdt (send 1 USDT unit to target) ---
+  _test_tx_text "transfer-usdt" transfer-usdt --to "$target_addr" --amount 1
+  _test_tx_json "transfer-usdt" transfer-usdt --to "$target_addr" --amount 1
+  sleep 4
+
+  # --- trigger-contract (USDT approve, real on-chain write) ---
+  _test_tx_text "trigger-contract" trigger-contract \
+    --contract "$usdt_nile" \
+    --method "approve(address,uint256)" \
+    --params "\"$target_addr\",0" \
+    --fee-limit 100000000
+  _test_tx_json "trigger-contract" trigger-contract \
+    --contract "$usdt_nile" \
+    --method "approve(address,uint256)" \
+    --params "\"$target_addr\",0" \
+    --fee-limit 100000000
+  sleep 4
+
+  # --- deploy-contract (minimal storage contract on Nile) ---
+  # Solidity: contract Store { uint256 public val; constructor() { val = 42; } }
+  local store_abi='[{"inputs":[],"stateMutability":"nonpayable","type":"constructor"},{"inputs":[],"name":"val","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"}]'
+  local store_bytecode="6080604052602a60005534801561001557600080fd5b50607b8061002360003960006000f3fe6080604052348015600f57600080fd5b506004361060285760003560e01c80633c6bb43614602d575b600080fd5b60336047565b604051603e91906059565b60405180910390f35b60005481565b6053816072565b82525050565b6000602082019050606c6000830184604d565b92915050565b600081905091905056fea264697066735822"
+  _test_tx_text "deploy-contract" deploy-contract \
+    --name "StoreTest" --abi "$store_abi" --bytecode "$store_bytecode" \
+    --fee-limit 1000000000
+  _test_tx_json "deploy-contract" deploy-contract \
+    --name "StoreTest" --abi "$store_abi" --bytecode "$store_bytecode" \
+    --fee-limit 1000000000
+  sleep 4
+
   # --- estimate-energy (USDT transfer estimate) ---
   echo -n "  estimate-energy (USDT transfer)... "
   local ee_out
@@ -331,8 +361,8 @@ run_transaction_tests() {
     --url "http://test.example.com" \
     --free-net-limit 0 --public-free-net-limit 0
   _test_tx_error_full "create-account" --address "$fake_addr"
-  _test_tx_error_full "update-account" --name "harness-test"
-  _test_tx_error_full "set-account-id" --id "harness-test-id"
+  _test_tx_error_full "update-account" --name "qa-test"
+  _test_tx_error_full "set-account-id" --id "qa-test-id"
   _test_tx_error_full "update-asset" \
     --description "test" --url "http://test.example.com" \
     --new-limit 1000 --new-public-limit 1000

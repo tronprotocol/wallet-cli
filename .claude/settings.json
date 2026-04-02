@@ -1,6 +1,6 @@
 {
   "hooks": {
-    "PostToolUse": [
+    "Stop": [
       {
         "matcher": "Edit|Write",
         "hooks": [

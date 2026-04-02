@@ -2,6 +2,8 @@ package org.tron.walletcli.cli;
 
 import org.tron.common.enums.NetType;
 import org.tron.keystore.StringUtils;
+import org.tron.keystore.WalletFile;
+import org.tron.keystore.WalletUtils;
 import org.tron.walletcli.WalletApiWrapper;
 import org.tron.walletserver.WalletApi;
 
@@ -112,7 +114,8 @@ public class StandardCliRunner {
     }
 
     /**
-     * Auto-login from keystore if a wallet file exists and MASTER_PASSWORD is set.
+     * Auto-login from keystore using the active wallet config.
+     * Falls back to the first wallet if no active wallet is set.
      * Users must first run import-wallet or register-wallet to create a keystore.
      */
     private void authenticate(WalletApiWrapper wrapper) throws Exception {
@@ -130,14 +133,32 @@ public class StandardCliRunner {
             return; // No password — can't auto-login
         }
 
-        // Load wallet from keystore and verify password
+        // Find the wallet file to load: active wallet or fallback to first
+        File targetFile = null;
+        String activeAddress = ActiveWalletConfig.getActiveAddress();
+        if (activeAddress != null) {
+            targetFile = ActiveWalletConfig.findWalletFileByAddress(activeAddress);
+        }
+        if (targetFile == null && files.length > 0) {
+            targetFile = files[0]; // Fallback to first wallet
+        }
+        if (targetFile == null) {
+            return;
+        }
+
+        // Load specific wallet file and authenticate
         byte[] password = StringUtils.char2Byte(envPwd.toCharArray());
-        WalletApi walletApi = WalletApi.loadWalletFromKeystore();
+        WalletFile wf = WalletUtils.loadWalletFile(targetFile);
+        wf.setSourceFile(targetFile);
+        if (wf.getName() == null || wf.getName().isEmpty()) {
+            wf.setName(targetFile.getName());
+        }
+        WalletApi walletApi = new WalletApi(wf);
         walletApi.checkPassword(password);
         walletApi.setLogin(null);
         walletApi.setUnifiedPassword(password);
         wrapper.setWallet(walletApi);
-        formatter.info("Authenticated with wallet keystore.");
+        formatter.info("Authenticated with wallet: " + wf.getAddress());
     }
 
     private void applyNetwork(String network) {

@@ -4,12 +4,16 @@ import org.tron.common.crypto.ECKey;
 import org.tron.common.utils.ByteArray;
 import org.tron.keystore.Wallet;
 import org.tron.keystore.WalletFile;
+import org.tron.keystore.WalletUtils;
 import org.tron.mnemonic.MnemonicUtils;
+import org.tron.walletcli.cli.ActiveWalletConfig;
 import org.tron.walletcli.cli.CommandDefinition;
 import org.tron.walletcli.cli.CommandRegistry;
 import org.tron.walletcli.cli.OptionDef;
 import org.tron.walletserver.WalletApi;
 
+import java.io.File;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -18,15 +22,12 @@ import java.util.Map;
 public class WalletCommands {
 
     public static void register(CommandRegistry registry) {
-        registerLogin(registry);
-        registerLogout(registry);
         registerRegisterWallet(registry);
         registerImportWallet(registry);
         registerImportWalletByMnemonic(registry);
-        registerChangePassword(registry);
-        registerBackupWallet(registry);
-        registerBackupWallet2Base64(registry);
-        registerExportWalletMnemonic(registry);
+        registerListWallet(registry);
+        registerSetActiveWallet(registry);
+        registerGetActiveWallet(registry);
         registerClearWalletKeystore(registry);
         registerResetWallet(registry);
         registerModifyWalletName(registry);
@@ -34,30 +35,6 @@ public class WalletCommands {
         registerLock(registry);
         registerUnlock(registry);
         registerGenerateSubAccount(registry);
-    }
-
-    private static void registerLogin(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
-                .name("login")
-                .aliases("login")
-                .description("Login to a wallet (uses MASTER_PASSWORD env var in non-interactive mode)")
-                .handler((opts, wrapper, out) -> {
-                    boolean result = wrapper.login(null);
-                    out.result(result, "Login successful !!", "Login failed !!");
-                })
-                .build());
-    }
-
-    private static void registerLogout(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
-                .name("logout")
-                .aliases("logout")
-                .description("Logout from current wallet")
-                .handler((opts, wrapper, out) -> {
-                    wrapper.logout();
-                    out.result(true, "Logout successful !!", "Logout failed !!");
-                })
-                .build());
     }
 
     private static void registerRegisterWallet(CommandRegistry registry) {
@@ -68,7 +45,6 @@ public class WalletCommands {
                 .option("words", "Mnemonic word count (12 or 24, default: 12)", false, OptionDef.Type.LONG)
                 .handler((opts, wrapper, out) -> {
                     int wordCount = opts.has("words") ? (int) opts.getLong("words") : 12;
-                    // RegisterWallet requires password via MASTER_PASSWORD or interactive
                     String envPassword = System.getenv("MASTER_PASSWORD");
                     if (envPassword == null || envPassword.isEmpty()) {
                         out.error("auth_required",
@@ -78,6 +54,9 @@ public class WalletCommands {
                     char[] password = envPassword.toCharArray();
                     String keystoreName = wrapper.registerWallet(password, wordCount);
                     if (keystoreName != null) {
+                        // Auto-set as active wallet
+                        String address = keystoreName.replace(".json", "");
+                        ActiveWalletConfig.setActiveAddress(address);
                         out.raw("Register a wallet successful, keystore file name is " + keystoreName);
                     } else {
                         out.error("register_failed", "Register wallet failed");
@@ -110,6 +89,9 @@ public class WalletCommands {
                     walletFile.setName(walletName);
                     String keystoreName = WalletApi.store2Keystore(walletFile);
                     String address = WalletApi.encode58Check(ecKey.getAddress());
+
+                    // Auto-set as active wallet
+                    ActiveWalletConfig.setActiveAddress(walletFile.getAddress());
 
                     Map<String, Object> json = new LinkedHashMap<String, Object>();
                     json.put("keystore", keystoreName);
@@ -147,6 +129,9 @@ public class WalletCommands {
                     String address = WalletApi.encode58Check(ecKey.getAddress());
                     Arrays.fill(priKey, (byte) 0);
 
+                    // Auto-set as active wallet
+                    ActiveWalletConfig.setActiveAddress(walletFile.getAddress());
+
                     Map<String, Object> json = new LinkedHashMap<String, Object>();
                     json.put("keystore", keystoreName);
                     json.put("address", address);
@@ -155,57 +140,146 @@ public class WalletCommands {
                 .build());
     }
 
-    private static void registerChangePassword(CommandRegistry registry) {
+    private static void registerListWallet(CommandRegistry registry) {
         registry.add(CommandDefinition.builder()
-                .name("change-password")
-                .aliases("changepassword")
-                .description("Change wallet password")
-                .option("old-password", "Current password", true)
-                .option("new-password", "New password", true)
+                .name("list-wallet")
+                .aliases("listwallet")
+                .description("List all wallets with active status")
                 .handler((opts, wrapper, out) -> {
-                    char[] oldPwd = opts.getString("old-password").toCharArray();
-                    char[] newPwd = opts.getString("new-password").toCharArray();
-                    boolean result = wrapper.changePassword(oldPwd, newPwd);
-                    out.result(result,
-                            "ChangePassword successful !!",
-                            "ChangePassword failed !!");
+                    File dir = new File("Wallet");
+                    if (!dir.exists() || !dir.isDirectory()) {
+                        out.error("no_wallets", "No wallet directory found");
+                        return;
+                    }
+                    File[] files = dir.listFiles((d, name) -> name.endsWith(".json"));
+                    if (files == null || files.length == 0) {
+                        out.error("no_wallets", "No wallet files found");
+                        return;
+                    }
+
+                    String activeAddress = ActiveWalletConfig.getActiveAddress();
+                    List<Map<String, Object>> wallets = new ArrayList<Map<String, Object>>();
+
+                    for (File f : files) {
+                        WalletFile wf = WalletUtils.loadWalletFile(f);
+                        String walletName = wf.getName();
+                        if (walletName == null || walletName.isEmpty()) {
+                            walletName = f.getName();
+                        }
+                        String address = wf.getAddress();
+                        boolean isActive = address != null && address.equals(activeAddress);
+
+                        Map<String, Object> entry = new LinkedHashMap<String, Object>();
+                        entry.put("wallet-name", walletName);
+                        entry.put("wallet-address", address);
+                        entry.put("is-active", isActive);
+                        wallets.add(entry);
+                    }
+
+                    // Text output
+                    StringBuilder text = new StringBuilder();
+                    text.append(String.format("%-30s %-42s %-8s", "Name", "Address", "Active"));
+                    text.append("\n");
+                    for (Map<String, Object> w : wallets) {
+                        text.append(String.format("%-30s %-42s %-8s",
+                                w.get("wallet-name"),
+                                w.get("wallet-address"),
+                                (Boolean) w.get("is-active") ? "*" : ""));
+                        text.append("\n");
+                    }
+
+                    Map<String, Object> json = new LinkedHashMap<String, Object>();
+                    json.put("wallets", wallets);
+                    out.success(text.toString().trim(), json);
                 })
                 .build());
     }
 
-    private static void registerBackupWallet(CommandRegistry registry) {
+    private static void registerSetActiveWallet(CommandRegistry registry) {
         registry.add(CommandDefinition.builder()
-                .name("backup-wallet")
-                .aliases("backupwallet")
-                .description("Backup wallet (export private key)")
+                .name("set-active-wallet")
+                .aliases("setactivewallet")
+                .description("Set the active wallet by address or name")
+                .option("address", "Wallet address (Base58Check)", false)
+                .option("name", "Wallet name", false)
                 .handler((opts, wrapper, out) -> {
-                    // BackupWallet requires interactive password - delegates to MASTER_PASSWORD
-                    out.error("not_implemented",
-                            "backup-wallet via standard CLI: use --interactive mode or use --private-key for auth");
+                    boolean hasAddress = opts.has("address");
+                    boolean hasName = opts.has("name");
+
+                    if (!hasAddress && !hasName) {
+                        out.error("missing_option",
+                                "Provide --address or --name to identify the wallet");
+                        return;
+                    }
+                    if (hasAddress && hasName) {
+                        out.error("invalid_options",
+                                "Provide either --address or --name, not both");
+                        return;
+                    }
+
+                    File walletFile;
+                    if (hasAddress) {
+                        walletFile = ActiveWalletConfig.findWalletFileByAddress(
+                                opts.getString("address"));
+                        if (walletFile == null) {
+                            out.error("not_found",
+                                    "No wallet found with address: " + opts.getString("address"));
+                            return;
+                        }
+                    } else {
+                        try {
+                            walletFile = ActiveWalletConfig.findWalletFileByName(
+                                    opts.getString("name"));
+                        } catch (IllegalArgumentException e) {
+                            out.error("ambiguous_name", e.getMessage());
+                            return;
+                        }
+                        if (walletFile == null) {
+                            out.error("not_found",
+                                    "No wallet found with name: " + opts.getString("name"));
+                            return;
+                        }
+                    }
+
+                    WalletFile wf = WalletUtils.loadWalletFile(walletFile);
+                    ActiveWalletConfig.setActiveAddress(wf.getAddress());
+
+                    Map<String, Object> json = new LinkedHashMap<String, Object>();
+                    json.put("wallet-address", wf.getAddress());
+                    out.success("Active wallet set to: " + wf.getAddress(), json);
                 })
                 .build());
     }
 
-    private static void registerBackupWallet2Base64(CommandRegistry registry) {
+    private static void registerGetActiveWallet(CommandRegistry registry) {
         registry.add(CommandDefinition.builder()
-                .name("backup-wallet-to-base64")
-                .aliases("backupwallet2base64")
-                .description("Backup wallet to Base64 string")
+                .name("get-active-wallet")
+                .aliases("getactivewallet")
+                .description("Get the current active wallet")
                 .handler((opts, wrapper, out) -> {
-                    out.error("not_implemented",
-                            "backup-wallet-to-base64 via standard CLI: use --interactive mode");
-                })
-                .build());
-    }
+                    String activeAddress = ActiveWalletConfig.getActiveAddress();
+                    if (activeAddress == null) {
+                        out.error("no_active_wallet", "No active wallet set");
+                        return;
+                    }
 
-    private static void registerExportWalletMnemonic(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
-                .name("export-wallet-mnemonic")
-                .aliases("exportwalletmnemonic")
-                .description("Export wallet mnemonic phrase")
-                .handler((opts, wrapper, out) -> {
-                    out.error("not_implemented",
-                            "export-wallet-mnemonic via standard CLI: use --interactive mode");
+                    File walletFile = ActiveWalletConfig.findWalletFileByAddress(activeAddress);
+                    if (walletFile == null) {
+                        out.error("wallet_not_found",
+                                "Active wallet keystore not found for address: " + activeAddress);
+                        return;
+                    }
+
+                    WalletFile wf = WalletUtils.loadWalletFile(walletFile);
+                    String walletName = wf.getName();
+                    if (walletName == null || walletName.isEmpty()) {
+                        walletName = walletFile.getName();
+                    }
+
+                    Map<String, Object> json = new LinkedHashMap<String, Object>();
+                    json.put("wallet-name", walletName);
+                    json.put("wallet-address", wf.getAddress());
+                    out.success("Active wallet: " + walletName + " (" + wf.getAddress() + ")", json);
                 })
                 .build());
     }
@@ -216,6 +290,7 @@ public class WalletCommands {
                 .aliases("clearwalletkeystore")
                 .description("Clear wallet keystore files")
                 .handler((opts, wrapper, out) -> {
+                    ActiveWalletConfig.clear();
                     boolean result = wrapper.clearWalletKeystore();
                     out.result(result,
                             "ClearWalletKeystore successful !!",
@@ -230,6 +305,7 @@ public class WalletCommands {
                 .aliases("resetwallet")
                 .description("Reset wallet to initial state")
                 .handler((opts, wrapper, out) -> {
+                    ActiveWalletConfig.clear();
                     boolean result = wrapper.resetWallet();
                     out.result(result, "ResetWallet successful !!", "ResetWallet failed !!");
                 })

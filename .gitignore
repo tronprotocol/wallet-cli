@@ -12,6 +12,7 @@ src/gen
 tools
 src/main/resources/static/js/tronjs/tron-protoc.js
 logs
+docs
 FileTest
 
 # Wallet keystore files created at runtime
