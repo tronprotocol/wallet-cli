@@ -6,6 +6,17 @@
         "hooks": [
           {
             "type": "command",
+            "command": "./gradlew test 2>&1 || true",
+            "timeout": 300,
+            "statusMessage": "Running unit tests..."
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
             "command": "./qa/run.sh verify"
           }
         ]
