@@ -1,3 +1,4 @@
+.claude/settings.local.json 
 .DS_Store
 build
 out
@@ -18,9 +19,7 @@ Wallet/
 Mnemonic/
 wallet_data/
 
-# Harness runtime output
-harness/results/
-harness/report.txt
+# QA runtime output
+qa/results/
+qa/report.txt
 
-# Temp/scratch files
-1.md

@@ -7,23 +7,30 @@ _tx_filter() {
 }
 
 _tx_run() {
-  java -jar "$WALLET_JAR" --network "$NETWORK" --private-key "$PRIVATE_KEY" "$@" 2>/dev/null | _tx_filter
+  # Wallet is pre-imported; auto-login uses MASTER_PASSWORD
+  java -jar "$WALLET_JAR" --network "$NETWORK" "$@" 2>/dev/null | _tx_filter
 }
 
 _tx_run_json() {
-  java -jar "$WALLET_JAR" --network "$NETWORK" --private-key "$PRIVATE_KEY" --output json "$@" 2>/dev/null | _tx_filter
+  java -jar "$WALLET_JAR" --network "$NETWORK" --output json "$@" 2>/dev/null | _tx_filter
 }
 
 _tx_run_mnemonic() {
-  java -jar "$WALLET_JAR" --network "$NETWORK" --mnemonic "$MNEMONIC" "$@" 2>/dev/null | _tx_filter
+  _import_wallet "mnemonic" > /dev/null 2>&1
+  java -jar "$WALLET_JAR" --network "$NETWORK" "$@" 2>/dev/null | _tx_filter
+  _import_wallet "private-key" > /dev/null 2>&1
 }
 
 _get_address() {
   local method="$1"
-  if [ "$method" = "private-key" ]; then
-    _tx_run get-address | grep "address = " | awk '{print $NF}'
+  if [ "$method" = "mnemonic" ] && [ -n "${MNEMONIC:-}" ]; then
+    _import_wallet "mnemonic" > /dev/null 2>&1
+    local addr
+    addr=$(java -jar "$WALLET_JAR" --network "$NETWORK" get-address 2>/dev/null | _tx_filter | grep "address = " | awk '{print $NF}')
+    _import_wallet "private-key" > /dev/null 2>&1
+    echo "$addr"
   else
-    _tx_run_mnemonic get-address | grep "address = " | awk '{print $NF}'
+    java -jar "$WALLET_JAR" --network "$NETWORK" get-address 2>/dev/null | _tx_filter | grep "address = " | awk '{print $NF}'
   fi
 }
 
@@ -268,7 +275,7 @@ run_transaction_tests() {
   # --- vote-witness (vote for a known Nile SR) ---
   # Get first witness address
   local witness_addr
-  witness_addr=$(_tx_run list-witnesses | grep -o 'T[A-Za-z0-9]\{33\}' | head -1) || true
+  witness_addr=$(_tx_run list-witnesses | grep -v "keystore" | grep -o 'T[A-Za-z0-9]\{33\}' | head -1) || true
   if [ -n "$witness_addr" ]; then
     # First need to freeze some TRX to get voting power
     _tx_run freeze-balance-v2 --amount 2000000 --resource 0 > /dev/null 2>&1 || true

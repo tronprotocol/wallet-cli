@@ -10,8 +10,6 @@ public class GlobalOptions {
     private boolean version = false;
     private String output = "text";
     private String network = null;
-    private String privateKey = null;
-    private String mnemonic = null;
     private String wallet = null;
     private String grpcEndpoint = null;
     private boolean quiet = false;
@@ -24,8 +22,6 @@ public class GlobalOptions {
     public boolean isVersion() { return version; }
     public String getOutput() { return output; }
     public String getNetwork() { return network; }
-    public String getPrivateKey() { return privateKey; }
-    public String getMnemonic() { return mnemonic; }
     public String getWallet() { return wallet; }
     public String getGrpcEndpoint() { return grpcEndpoint; }
     public boolean isQuiet() { return quiet; }
@@ -65,12 +61,6 @@ public class GlobalOptions {
                     break;
                 case "--network":
                     if (i + 1 < args.length) opts.network = args[++i];
-                    break;
-                case "--private-key":
-                    if (i + 1 < args.length) opts.privateKey = args[++i];
-                    break;
-                case "--mnemonic":
-                    if (i + 1 < args.length) opts.mnemonic = args[++i];
                     break;
                 case "--wallet":
                     if (i + 1 < args.length) opts.wallet = args[++i];

@@ -2,24 +2,24 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Harness — MANDATORY
+## QA — MANDATORY
 
-**Every code change must pass the harness. No exceptions.**
+**Every code change must pass the QA. No exceptions.**
 
 ```bash
 # Run before AND after any code change:
-./harness/run.sh verify
+./qa/run.sh verify
 
 # Current baseline: 321 tests, 315 passed, 0 failed (JSON format), 6 skipped
 # Any increase in failures = regression = must fix before done
 ```
 
-The harness verifies all 120 commands across help, text output, JSON output, on-chain transactions, REPL parity, and wallet management. It runs against Nile testnet and requires:
+The QA verifies all 120 commands across help, text output, JSON output, on-chain transactions, REPL parity, and wallet management. It runs against Nile testnet and requires:
 - `TRON_TEST_APIKEY` — Nile private key
 - `MASTER_PASSWORD` — wallet password
 - `TRON_TEST_MNEMONIC` — (optional) BIP39 mnemonic, may be a different account
 
-Full harness spec: `docs/superpowers/specs/2026-04-01-harness-spec.md`
+Full QA spec: `docs/superpowers/specs/2026-04-01-qa-spec.md`
 
 ## Build & Run
 

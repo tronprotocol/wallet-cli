@@ -10,7 +10,8 @@ _w_run() {
 }
 
 _w_run_auth() {
-  java -jar "$WALLET_JAR" --network "$NETWORK" --private-key "$PRIVATE_KEY" "$@" 2>/dev/null | _wf
+  # Wallet is pre-imported; auto-login uses MASTER_PASSWORD
+  java -jar "$WALLET_JAR" --network "$NETWORK" "$@" 2>/dev/null | _wf
 }
 
 _test_w_help() {
@@ -45,7 +46,7 @@ _test_w_auth_full() {
   echo -n "  $cmd (auth-full)... "
   local text_out json_out result
   text_out=$(_w_run_auth "$cmd" "$@") || true
-  json_out=$(java -jar "$WALLET_JAR" --network "$NETWORK" --private-key "$PRIVATE_KEY" --output json "$cmd" "$@" 2>/dev/null | _wf) || true
+  json_out=$(java -jar "$WALLET_JAR" --network "$NETWORK" --output json "$cmd" "$@" 2>/dev/null | _wf) || true
   echo "$text_out" > "$RESULTS_DIR/${cmd}_text.out"
   echo "$json_out" > "$RESULTS_DIR/${cmd}_json.out"
   result=$(check_json_text_parity "$cmd" "$text_out" "$json_out")
@@ -73,7 +74,7 @@ _test_w_auth_error_full() {
   echo -n "  $cmd (auth-error-verify)... "
   local text_out json_out result
   text_out=$(_w_run_auth "$cmd" "$@" 2>&1) || true
-  json_out=$(java -jar "$WALLET_JAR" --network "$NETWORK" --private-key "$PRIVATE_KEY" --output json "$cmd" "$@" 2>&1 | _wf) || true
+  json_out=$(java -jar "$WALLET_JAR" --network "$NETWORK" --output json "$cmd" "$@" 2>&1 | _wf) || true
   echo "$text_out" > "$RESULTS_DIR/${cmd}_text.out"
   echo "$json_out" > "$RESULTS_DIR/${cmd}_json.out"
   result=$(check_json_text_parity "$cmd" "$text_out" "$json_out")

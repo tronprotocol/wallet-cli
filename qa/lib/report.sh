@@ -9,7 +9,7 @@ generate_report() {
 
   cat > "$report_file" << 'HEADER'
 ═══════════════════════════════════════════════════════════════
-  Wallet CLI Harness — Full Parity Report
+  Wallet CLI QA — Full Parity Report
 ═══════════════════════════════════════════════════════════════
 
 HEADER

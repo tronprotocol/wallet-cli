@@ -1,4 +1,4 @@
-package org.tron.harness;
+package org.tron.qa;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
@@ -14,9 +14,9 @@ import java.util.Map;
  * Parses text output into key-value pairs and compares with JSON output
  * for semantic parity verification.
  *
- * <p>This is the Java equivalent of harness/lib/semantic.sh's
+ * <p>This is the Java equivalent of qa/lib/semantic.sh's
  * check_json_text_parity and filter_noise functions, used by
- * HarnessRunner for Java-side verification.
+ * QARunner for Java-side verification.
  */
 public class TextSemanticParser {
 
@@ -51,7 +51,7 @@ public class TextSemanticParser {
 
     /**
      * Filters known noise lines from command output.
-     * Mirrors harness/lib/semantic.sh filter_noise().
+     * Mirrors qa/lib/semantic.sh filter_noise().
      */
     public static String filterNoise(String output) {
         if (output == null || output.isEmpty()) {
@@ -78,7 +78,7 @@ public class TextSemanticParser {
 
     /**
      * Checks parity between text and JSON outputs.
-     * Mirrors harness/lib/semantic.sh check_json_text_parity().
+     * Mirrors qa/lib/semantic.sh check_json_text_parity().
      *
      * Verifies:
      * 1. JSON output is not empty (after noise filtering)
@@ -139,7 +139,7 @@ public class TextSemanticParser {
 
     /**
      * Checks if a JSON string contains a specific field with expected value.
-     * Mirrors harness/lib/semantic.sh check_json_field().
+     * Mirrors qa/lib/semantic.sh check_json_field().
      */
     public static boolean checkJsonField(String jsonOutput, String field, String expected) {
         try {

@@ -1,4 +1,4 @@
-# Standard CLI Support & Harness Verification System
+# Standard CLI Support & QA Verification System
 
 **Date:** 2026-04-01  
 **Status:** Approved  
@@ -7,14 +7,14 @@
 
 ---
 
-## 0. Harness — Project Constitution
+## 0. QA — Project Constitution
 
-> **See [`2026-04-01-harness-spec.md`](2026-04-01-harness-spec.md) for the full harness specification.**
+> **See [`2026-04-01-qa-spec.md`](2026-04-01-qa-spec.md) for the full QA specification.**
 >
-> Every code change MUST pass `./harness/run.sh verify`. No exceptions.
+> Every code change MUST pass `./qa/run.sh verify`. No exceptions.
 > Every command must be fully verified (help + text + JSON + parity). No help-only commands.
 > Current baseline: 270 tests, 248 passed, 14 failed (JSON format), 8 skipped.
-> Target: ~738 tests (see harness spec for full breakdown).
+> Target: ~738 tests (see qa spec for full breakdown).
 
 ---
 
@@ -26,7 +26,7 @@
 4. Master password via `MASTER_PASSWORD` environment variable
 5. Minimal code changes, high extensibility
 6. All existing interactive commands available in standard CLI
-7. Harness system to verify full behavioral parity across all modes and versions
+7. QA system to verify full behavioral parity across all modes and versions
 
 ---
 
@@ -78,8 +78,8 @@ wallet-cli send-coin --help         → command-specific help
 
 Environment variables:
 - `MASTER_PASSWORD` — wallet password, bypasses interactive prompt
-- `TRON_TEST_APIKEY` — Nile testnet private key for harness testing (harness prompts if not set)
-- `TRON_TEST_MNEMONIC` — BIP39 mnemonic phrase for harness mnemonic-based testing (harness prompts if not set). May correspond to a different account than `TRON_TEST_APIKEY`; the harness supports both same-account and different-account configurations.
+- `TRON_TEST_APIKEY` — Nile testnet private key for qa testing (qa prompts if not set)
+- `TRON_TEST_MNEMONIC` — BIP39 mnemonic phrase for qa mnemonic-based testing (qa prompts if not set). May correspond to a different account than `TRON_TEST_APIKEY`; the qa supports both same-account and different-account configurations.
 
 ---
 
@@ -154,7 +154,7 @@ Text mode errors go to stderr as plain text. JSON mode errors go to stderr as JS
 
 Error code naming convention: `snake_case`, descriptive (e.g., `insufficient_balance`, `invalid_address`, `command_not_found`, `network_error`, `authentication_required`, `transaction_failed`). The `message` field is human-readable and may vary; the `error` field is machine-stable and used for programmatic handling.
 
-**The harness verifies error output in both modes.** For mutation commands that cannot be executed on-chain (e.g., `create-witness` without SR status), the harness invokes them and verifies the error response is valid text/JSON with consistent semantics.
+**The qa verifies error output in both modes.** For mutation commands that cannot be executed on-chain (e.g., `create-witness` without SR status), the qa invokes them and verifies the error response is valid text/JSON with consistent semantics.
 
 ---
 
@@ -246,13 +246,13 @@ public static char[] inputPassword(boolean checkStrength) {
 
 ---
 
-## 8. Harness System
+## 8. QA System
 
-> **Full harness specification: [`2026-04-01-harness-spec.md`](2026-04-01-harness-spec.md)**
+> **Full QA specification: [`2026-04-01-qa-spec.md`](2026-04-01-qa-spec.md)**
 >
-> The harness verifies three-way parity (interactive REPL / standard CLI text / standard CLI JSON) across all 120 commands. **Every command receives full verification** — help, text output, JSON output, and JSON/text semantic parity. No command is tested at help-level only.
+> The qa verifies three-way parity (interactive REPL / standard CLI text / standard CLI JSON) across all 120 commands. **Every command receives full verification** — help, text output, JSON output, and JSON/text semantic parity. No command is tested at help-level only.
 >
-> For mutation commands that cannot be safely executed on-chain, the harness verifies correct error output in both text and JSON modes (expected-error verification). This ensures `OutputFormatter` is exercised for every code path.
+> For mutation commands that cannot be safely executed on-chain, the qa verifies correct error output in both text and JSON modes (expected-error verification). This ensures `OutputFormatter` is exercised for every code path.
 
 ---
 
@@ -270,7 +270,7 @@ public static char[] inputPassword(boolean checkStrength) {
 - `Client.java` — new `main()` router, existing methods untouched
 - `Utils.java` — `MASTER_PASSWORD` env var check in `inputPassword()`
 
-### Harness files (~8 files)
+### QA files (~8 files)
 - Shell scripts: `run.sh`, `config.sh`, `compare.sh`, `semantic.sh`, `report.sh`
 - Command definitions: 3 shell files
-- Java harness: `HarnessRunner.java`, `InteractiveSession.java`, `CommandCapture.java`, `TextSemanticParser.java`
+- Java qa: `QARunner.java`, `InteractiveSession.java`, `CommandCapture.java`, `TextSemanticParser.java`

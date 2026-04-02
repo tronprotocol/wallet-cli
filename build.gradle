@@ -147,9 +147,9 @@ shadowJar {
     mergeServiceFiles() //  https://github.com/grpc/grpc-java/issues/10853
 }
 
-task harnessRun(type: JavaExec) {
+task qaRun(type: JavaExec) {
     classpath = sourceSets.main.runtimeClasspath
-    mainClass = 'org.tron.harness.HarnessRunner'
-    args = project.hasProperty('harnessArgs') ? project.property('harnessArgs').split(' ') : ['list']
+    mainClass = 'org.tron.qa.QARunner'
+    args = project.hasProperty('qaArgs') ? project.property('qaArgs').split(' ') : ['list']
     standardInput = System.in
 }

@@ -1,4 +1,4 @@
-package org.tron.harness;
+package org.tron.qa;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;

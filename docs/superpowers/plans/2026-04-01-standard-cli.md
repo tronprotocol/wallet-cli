@@ -46,7 +46,7 @@
 |------|--------|
 | `Client.java` | `main()` rewritten as router (existing `run()` and all commands untouched) |
 | `Utils.java` | `inputPassword()` checks `MASTER_PASSWORD` env var before prompting |
-| `build.gradle` | Added `harnessRun` task |
+| `build.gradle` | Added `qaRun` task |
 
 ---
 

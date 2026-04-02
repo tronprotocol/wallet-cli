@@ -1,4 +1,4 @@
-package org.tron.harness;
+package org.tron.qa;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -15,22 +15,22 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Harness entry point for capturing command outputs and verifying parity.
+ * QA entry point for capturing command outputs and verifying parity.
  *
  * <p>Usage:
  * <pre>
- *   java -cp wallet-cli.jar org.tron.harness.HarnessRunner baseline harness/baseline
- *   java -cp wallet-cli.jar org.tron.harness.HarnessRunner verify harness/results
- *   java -cp wallet-cli.jar org.tron.harness.HarnessRunner list
+ *   java -cp wallet-cli.jar org.tron.qa.QARunner baseline qa/baseline
+ *   java -cp wallet-cli.jar org.tron.qa.QARunner verify qa/results
+ *   java -cp wallet-cli.jar org.tron.qa.QARunner list
  * </pre>
  */
-public class HarnessRunner {
+public class QARunner {
 
     private static final Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
     public static void main(String[] args) throws Exception {
         String mode = args.length > 0 ? args[0] : "list";
-        String outputDir = args.length > 1 ? args[1] : "harness/baseline";
+        String outputDir = args.length > 1 ? args[1] : "qa/baseline";
 
         switch (mode) {
             case "list":
@@ -44,7 +44,7 @@ public class HarnessRunner {
                 break;
             default:
                 System.err.println("Unknown mode: " + mode);
-                System.err.println("Usage: HarnessRunner <list|baseline|verify> [outputDir]");
+                System.err.println("Usage: QARunner <list|baseline|verify> [outputDir]");
                 System.exit(1);
         }
     }
@@ -95,7 +95,7 @@ public class HarnessRunner {
         CommandRegistry registry = buildRegistry();
         List<CommandDefinition> commands = registry.getAllCommands();
 
-        System.out.println("=== Harness Baseline Capture ===");
+        System.out.println("=== QA Baseline Capture ===");
         System.out.println("Network: " + network);
         System.out.println("Output dir: " + outputDir);
         System.out.println("Commands: " + commands.size());
@@ -190,7 +190,7 @@ public class HarnessRunner {
 
         CommandRegistry registry = buildRegistry();
 
-        System.out.println("=== Harness Verification ===");
+        System.out.println("=== QA Verification ===");
         System.out.println("Network: " + network);
         System.out.println("Output dir: " + outputDir);
         System.out.println("Total commands: " + registry.size());
@@ -320,7 +320,7 @@ public class HarnessRunner {
         // Report
         System.out.println();
         System.out.println("═══════════════════════════════════════════════════════════════");
-        System.out.println("  Harness Verification Report (" + network + ")");
+        System.out.println("  QA Verification Report (" + network + ")");
         System.out.println("═══════════════════════════════════════════════════════════════");
         System.out.println("  Total commands registered: " + registry.size());
         System.out.println("  Commands tested:           " + (passed + failed));

@@ -12,11 +12,8 @@ _run() {
 
 _run_auth() {
   local method="$1"; shift
-  if [ "$method" = "private-key" ]; then
-    java -jar "$WALLET_JAR" --network "$NETWORK" --private-key "$PRIVATE_KEY" "$@" 2>/dev/null | _filter
-  else
-    java -jar "$WALLET_JAR" --network "$NETWORK" --mnemonic "$MNEMONIC" "$@" 2>/dev/null | _filter
-  fi
+  # Wallet is pre-imported via _import_wallet; auto-login uses MASTER_PASSWORD
+  java -jar "$WALLET_JAR" --network "$NETWORK" "$@" 2>/dev/null | _filter
 }
 
 # Test --help for a command

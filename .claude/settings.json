@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "Notification": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "./qa/run.sh  verify"
+          }
+        ]
+      }
+    ]
+  }
+}

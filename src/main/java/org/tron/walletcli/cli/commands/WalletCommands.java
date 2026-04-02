@@ -1,11 +1,19 @@
 package org.tron.walletcli.cli.commands;
 
+import org.tron.common.crypto.ECKey;
+import org.tron.common.utils.ByteArray;
+import org.tron.keystore.Wallet;
+import org.tron.keystore.WalletFile;
+import org.tron.mnemonic.MnemonicUtils;
 import org.tron.walletcli.cli.CommandDefinition;
 import org.tron.walletcli.cli.CommandRegistry;
 import org.tron.walletcli.cli.OptionDef;
+import org.tron.walletserver.WalletApi;
 
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 public class WalletCommands {
 
@@ -82,23 +90,31 @@ public class WalletCommands {
         registry.add(CommandDefinition.builder()
                 .name("import-wallet")
                 .aliases("importwallet")
-                .description("Import a wallet by private key")
+                .description("Import a wallet by private key (uses MASTER_PASSWORD env for encryption)")
                 .option("private-key", "Private key hex string", true)
+                .option("name", "Wallet name (default: mywallet)", false)
                 .handler((opts, wrapper, out) -> {
                     String envPassword = System.getenv("MASTER_PASSWORD");
                     if (envPassword == null || envPassword.isEmpty()) {
                         out.error("auth_required",
-                                "Set MASTER_PASSWORD environment variable for non-interactive import");
+                                "Set MASTER_PASSWORD environment variable");
                         return;
                     }
-                    char[] password = envPassword.toCharArray();
-                    byte[] priKey = org.tron.common.utils.ByteArray.fromHexString(opts.getString("private-key"));
-                    String keystoreName = wrapper.importWallet(password, priKey, null);
-                    if (keystoreName != null) {
-                        out.raw("Import a wallet successful, keystore file name is " + keystoreName);
-                    } else {
-                        out.error("import_failed", "Import wallet failed");
-                    }
+                    byte[] passwd = org.tron.keystore.StringUtils.char2Byte(
+                            envPassword.toCharArray());
+                    byte[] priKey = ByteArray.fromHexString(opts.getString("private-key"));
+                    String walletName = opts.has("name") ? opts.getString("name") : "mywallet";
+
+                    ECKey ecKey = ECKey.fromPrivate(priKey);
+                    WalletFile walletFile = Wallet.createStandard(passwd, ecKey);
+                    walletFile.setName(walletName);
+                    String keystoreName = WalletApi.store2Keystore(walletFile);
+                    String address = WalletApi.encode58Check(ecKey.getAddress());
+
+                    Map<String, Object> json = new LinkedHashMap<String, Object>();
+                    json.put("keystore", keystoreName);
+                    json.put("address", address);
+                    out.success("Import wallet successful, keystore: " + keystoreName, json);
                 })
                 .build());
     }
@@ -107,22 +123,34 @@ public class WalletCommands {
         registry.add(CommandDefinition.builder()
                 .name("import-wallet-by-mnemonic")
                 .aliases("importwalletbymnemonic")
-                .description("Import a wallet by mnemonic phrase")
+                .description("Import a wallet by mnemonic phrase (uses MASTER_PASSWORD env for encryption)")
                 .option("mnemonic", "Mnemonic words (space-separated)", true)
+                .option("name", "Wallet name (default: mywallet)", false)
                 .handler((opts, wrapper, out) -> {
                     String envPassword = System.getenv("MASTER_PASSWORD");
                     if (envPassword == null || envPassword.isEmpty()) {
                         out.error("auth_required",
-                                "Set MASTER_PASSWORD environment variable for non-interactive import");
+                                "Set MASTER_PASSWORD environment variable");
                         return;
                     }
-                    byte[] passwd = org.tron.keystore.StringUtils.char2Byte(envPassword.toCharArray());
-                    String mnemonicStr = opts.getString("mnemonic");
-                    List<String> words = Arrays.asList(mnemonicStr.split("\\s+"));
-                    boolean result = wrapper.importWalletByMnemonic(words, passwd);
-                    out.result(result,
-                            "ImportWalletByMnemonic successful !!",
-                            "ImportWalletByMnemonic failed !!");
+                    byte[] passwd = org.tron.keystore.StringUtils.char2Byte(
+                            envPassword.toCharArray());
+                    List<String> words = Arrays.asList(
+                            opts.getString("mnemonic").split("\\s+"));
+                    String walletName = opts.has("name") ? opts.getString("name") : "mywallet";
+
+                    byte[] priKey = MnemonicUtils.getPrivateKeyFromMnemonic(words);
+                    ECKey ecKey = ECKey.fromPrivate(priKey);
+                    WalletFile walletFile = Wallet.createStandard(passwd, ecKey);
+                    walletFile.setName(walletName);
+                    String keystoreName = WalletApi.store2Keystore(walletFile);
+                    String address = WalletApi.encode58Check(ecKey.getAddress());
+                    Arrays.fill(priKey, (byte) 0);
+
+                    Map<String, Object> json = new LinkedHashMap<String, Object>();
+                    json.put("keystore", keystoreName);
+                    json.put("address", address);
+                    out.success("Import wallet by mnemonic successful, keystore: " + keystoreName, json);
                 })
                 .build());
     }

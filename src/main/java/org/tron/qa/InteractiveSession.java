@@ -1,10 +1,10 @@
-package org.tron.harness;
+package org.tron.qa;
 
 import java.lang.reflect.Method;
 
 /**
  * Drives the interactive CLI's methods programmatically via reflection.
- * Used by the harness to capture baseline output from the old interactive mode.
+ * Used by the QA system to capture baseline output from the old interactive mode.
  */
 public class InteractiveSession {
 

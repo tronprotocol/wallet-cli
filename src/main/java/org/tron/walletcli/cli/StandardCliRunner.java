@@ -1,11 +1,7 @@
 package org.tron.walletcli.cli;
 
-import org.tron.common.crypto.ECKey;
 import org.tron.common.enums.NetType;
-import org.tron.common.utils.ByteArray;
-import org.tron.keystore.Wallet;
-import org.tron.keystore.WalletFile;
-import org.tron.mnemonic.MnemonicUtils;
+import org.tron.keystore.StringUtils;
 import org.tron.walletcli.WalletApiWrapper;
 import org.tron.walletserver.WalletApi;
 
@@ -14,8 +10,6 @@ import java.io.File;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
-import java.util.Arrays;
-import java.util.List;
 
 public class StandardCliRunner {
 
@@ -116,58 +110,33 @@ public class StandardCliRunner {
         }
     }
 
-    private void authenticate(WalletApiWrapper wrapper) throws Exception {
-        if (globalOpts.getPrivateKey() != null) {
-            authenticateWithKey(ByteArray.fromHexString(globalOpts.getPrivateKey()), wrapper);
-            formatter.info("Authenticated with private key.");
-        } else if (globalOpts.getMnemonic() != null) {
-            String mnemonicStr = globalOpts.getMnemonic();
-            List<String> words = Arrays.asList(mnemonicStr.split("\\s+"));
-            byte[] privateKeyBytes = MnemonicUtils.getPrivateKeyFromMnemonic(words);
-            authenticateWithKey(privateKeyBytes, wrapper);
-            Arrays.fill(privateKeyBytes, (byte) 0);
-            formatter.info("Authenticated with mnemonic.");
-        } else if (globalOpts.getWallet() != null) {
-            formatter.info("Loading wallet: " + globalOpts.getWallet());
-            wrapper.login(null);
-        }
-        // No auth specified — some commands (queries with address param) may work without login
-    }
-
     /**
-     * Creates a WalletApi from a raw private key, stores a keystore file so that
-     * the signing flow can locate it, and sets the unified password so the signing
-     * flow doesn't prompt interactively.
+     * Auto-login from keystore if a wallet file exists and MASTER_PASSWORD is set.
+     * Users must first run import-wallet or register-wallet to create a keystore.
      */
-    private void authenticateWithKey(byte[] privateKeyBytes, WalletApiWrapper wrapper) throws Exception {
-        // Use MASTER_PASSWORD if available, otherwise a default
-        String envPwd = System.getenv("MASTER_PASSWORD");
-        byte[] password = (envPwd != null && !envPwd.isEmpty())
-                ? envPwd.getBytes() : "cli-temp-password1A".getBytes();
-
-        ECKey ecKey = ECKey.fromPrivate(privateKeyBytes);
-        WalletFile walletFile = Wallet.createStandard(password, ecKey);
-
-        // Clean Wallet/ directory so only this keystore exists.
-        // This ensures selectWalletFileE() picks it automatically without interactive prompt.
+    private void authenticate(WalletApiWrapper wrapper) throws Exception {
         File walletDir = new File("Wallet");
-        if (walletDir.exists() && walletDir.isDirectory()) {
-            File[] existing = walletDir.listFiles();
-            if (existing != null) {
-                for (File f : existing) {
-                    f.delete();
-                }
-            }
+        if (!walletDir.exists() || !walletDir.isDirectory()) {
+            return; // No wallet — commands that need auth will fail gracefully
+        }
+        File[] files = walletDir.listFiles((dir, name) -> name.endsWith(".json"));
+        if (files == null || files.length == 0) {
+            return; // No keystore files
         }
 
-        // Store keystore file to disk so signTransaction -> selectWalletFileE() can find it
-        WalletApi.store2Keystore(walletFile);
+        String envPwd = System.getenv("MASTER_PASSWORD");
+        if (envPwd == null || envPwd.isEmpty()) {
+            return; // No password — can't auto-login
+        }
 
-        WalletApi walletApi = new WalletApi(walletFile);
+        // Load wallet from keystore and verify password
+        byte[] password = StringUtils.char2Byte(envPwd.toCharArray());
+        WalletApi walletApi = WalletApi.loadWalletFromKeystore();
+        walletApi.checkPassword(password);
         walletApi.setLogin(null);
-        // Set unified password so signing uses it directly without interactive prompt
         walletApi.setUnifiedPassword(password);
         wrapper.setWallet(walletApi);
+        formatter.info("Authenticated with wallet keystore.");
     }
 
     private void applyNetwork(String network) {

@@ -23,7 +23,7 @@ compare_outputs() {
     return 0
   else
     echo "MISMATCH"
-    diff <(echo "$norm_expected") <(echo "$norm_actual") > "/tmp/harness_diff_${label}.txt" 2>&1
+    diff <(echo "$norm_expected") <(echo "$norm_actual") > "/tmp/qa_diff_${label}.txt" 2>&1
     return 1
   fi
 }

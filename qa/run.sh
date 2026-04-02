@@ -1,5 +1,5 @@
 #!/bin/bash
-# Wallet CLI Harness — Three-way parity verification
+# Wallet CLI QA — Three-way parity verification
 # Compares: interactive REPL vs standard CLI (text) vs standard CLI (json)
 # All using the same wallet-cli.jar build.
 
@@ -14,7 +14,7 @@ source "$SCRIPT_DIR/lib/report.sh"
 
 MODE="${1:-verify}"
 
-echo "=== Wallet CLI Harness — Mode: $MODE, Network: $NETWORK ==="
+echo "=== Wallet CLI QA — Mode: $MODE, Network: $NETWORK ==="
 echo ""
 
 # Build the JAR
@@ -42,6 +42,8 @@ if [ "$MODE" = "verify" ]; then
   # Phase 2: Private key session
   echo ""
   echo "Phase 2: Private key session — all query commands..."
+  echo "  Importing wallet from private key..."
+  _import_wallet "private-key"
   source "$SCRIPT_DIR/commands/query_commands.sh"
   run_query_tests "private-key"
 
@@ -49,6 +51,8 @@ if [ "$MODE" = "verify" ]; then
   if [ -n "${MNEMONIC:-}" ]; then
     echo ""
     echo "Phase 3: Mnemonic session — all query commands..."
+    echo "  Importing wallet from mnemonic..."
+    _import_wallet "mnemonic"
     run_query_tests "mnemonic"
   else
     echo ""
@@ -80,12 +84,16 @@ if [ "$MODE" = "verify" ]; then
   # Phase 5: Transaction commands
   echo ""
   echo "Phase 5: Transaction commands (help + on-chain)..."
+  echo "  Re-importing wallet from private key..."
+  _import_wallet "private-key"
   source "$SCRIPT_DIR/commands/transaction_commands.sh"
   run_transaction_tests
 
   # Phase 6: Wallet & misc commands
   echo ""
   echo "Phase 6: Wallet & misc commands..."
+  echo "  Re-importing wallet from private key..."
+  _import_wallet "private-key"
   source "$SCRIPT_DIR/commands/wallet_commands.sh"
   run_wallet_tests
 
@@ -110,7 +118,7 @@ if [ "$MODE" = "verify" ]; then
   }
 
   _run_std() {
-    java -jar "$WALLET_JAR" --network "$NETWORK" --private-key "$PRIVATE_KEY" "$@" 2>/dev/null \
+    java -jar "$WALLET_JAR" --network "$NETWORK" "$@" 2>/dev/null \
     | grep -v "^User defined config file" | grep -v "^Authenticated" || true
   }
 
@@ -158,11 +166,11 @@ if [ "$MODE" = "verify" ]; then
   cat "$REPORT_FILE"
 
 elif [ "$MODE" = "list" ]; then
-  java -cp "$WALLET_JAR" org.tron.harness.HarnessRunner list
+  java -cp "$WALLET_JAR" org.tron.qa.QARunner list
 
 elif [ "$MODE" = "java-verify" ]; then
   echo "Running Java-side verification..."
-  java -cp "$WALLET_JAR" org.tron.harness.HarnessRunner verify "${RESULTS_DIR:-harness/results}"
+  java -cp "$WALLET_JAR" org.tron.qa.QARunner verify "${RESULTS_DIR:-qa/results}"
 
 else
   echo "Unknown mode: $MODE"
