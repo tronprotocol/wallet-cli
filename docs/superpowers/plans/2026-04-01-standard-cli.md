@@ -21,7 +21,7 @@
 | `cli/ParsedOptions.java` | Parsed option values with typed getters |
 | `cli/CommandHandler.java` | Functional interface for command execution |
 | `cli/CommandDefinition.java` | Command metadata: name, aliases, description, options, handler, arg parsing |
-| `cli/OutputFormatter.java` | JSON/text output formatting, error formatting, exit codes |
+| `cli/OutputFormatter.java` | JSON/text output formatting, error formatting, exit codes. JSON mode: strictly JSON-only stdout (info messages suppressed) |
 | `cli/GlobalOptions.java` | Parse global flags (`--output`, `--network`, `--wallet`, `--grpc-endpoint`, etc.) |
 | `cli/CommandRegistry.java` | Register all commands, resolve names/aliases, generate help, did-you-mean |
 | `cli/StandardCliRunner.java` | Orchestrates: parse globals → network → authenticate → lookup → execute |

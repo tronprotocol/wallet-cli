@@ -3,7 +3,6 @@ package org.tron.walletcli.cli;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.protobuf.Message;
-import com.google.protobuf.util.JsonFormat;
 
 import java.io.PrintStream;
 import java.util.LinkedHashMap;
@@ -64,22 +63,14 @@ public class OutputFormatter {
         }
     }
 
-    /** Print a protobuf message. */
+    /** Print a protobuf message. Uses Utils.formatMessageString which decodes
+     *  addresses to Base58 and bytes to readable strings for both modes. */
     public void protobuf(Message message, String failMsg) {
         if (message == null) {
             error("not_found", failMsg);
             return;
         }
-        if (mode == OutputMode.JSON) {
-            try {
-                String json = JsonFormat.printer().print(message);
-                out.println(json);
-            } catch (Exception e) {
-                error("format_error", "Failed to format response: " + e.getMessage());
-            }
-        } else {
-            out.println(org.tron.common.utils.Utils.formatMessageString(message));
-        }
+        out.println(org.tron.common.utils.Utils.formatMessageString(message));
     }
 
     /** Print a message object (trident Response types or pre-formatted strings). */
@@ -137,9 +128,9 @@ public class OutputFormatter {
         System.exit(2);
     }
 
-    /** Print info to stderr (suppressed in quiet mode). */
+    /** Print info to stderr (suppressed in quiet mode and JSON mode). */
     public void info(String message) {
-        if (!quiet) {
+        if (!quiet && mode != OutputMode.JSON) {
             err.println(message);
         }
     }

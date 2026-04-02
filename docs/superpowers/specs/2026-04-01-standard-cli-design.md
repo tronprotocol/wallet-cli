@@ -125,12 +125,12 @@ wallet-cli deploy-contract \
 ### Output Modes
 
 - `--output text` (default): Human-readable, same style as interactive CLI
-- `--output json`: Structured JSON for AI agents
+- `--output json`: **Strictly JSON only** — stdout contains exactly one JSON object, no other text. All non-JSON output (info messages, library prints, ANSI codes) is suppressed. This guarantees `json.loads(stdout)` always succeeds.
 
 ### Stream Separation
 
-- **stdout** — command results only
-- **stderr** — errors, warnings, progress messages
+- **stdout** — command results only (text mode: human-readable; JSON mode: single JSON object)
+- **stderr** — text mode only: errors, warnings, progress messages. JSON mode: suppressed entirely.
 
 ### Exit Codes
 
