@@ -3,7 +3,7 @@
 **Status:** Completed (2026-04-01)  
 **Spec:** `docs/superpowers/specs/2026-04-01-standard-cli-design.md`
 
-**Goal:** Add non-interactive standard CLI mode to the TRON wallet-cli with named options, JSON/text output, supporting both private key and mnemonic login.
+**Goal:** Add non-interactive standard CLI mode to the TRON wallet-cli with named options, JSON/text output, authenticating via keystore + `MASTER_PASSWORD` env var.
 
 **Architecture:** A thin CLI layer (`cli/` package) sits on top of the existing `WalletApiWrapper`/`WalletApi` stack. `Client.main()` is a router: `--interactive` launches the existing REPL, otherwise `CommandRegistry` dispatches to command handlers that call the same `WalletApiWrapper` methods. `OutputFormatter` handles JSON/text output.
 
@@ -22,7 +22,7 @@
 | `cli/CommandHandler.java` | Functional interface for command execution |
 | `cli/CommandDefinition.java` | Command metadata: name, aliases, description, options, handler, arg parsing |
 | `cli/OutputFormatter.java` | JSON/text output formatting, error formatting, exit codes |
-| `cli/GlobalOptions.java` | Parse global flags (`--output`, `--network`, `--private-key`, `--mnemonic`, etc.) |
+| `cli/GlobalOptions.java` | Parse global flags (`--output`, `--network`, `--wallet`, `--grpc-endpoint`, etc.) |
 | `cli/CommandRegistry.java` | Register all commands, resolve names/aliases, generate help, did-you-mean |
 | `cli/StandardCliRunner.java` | Orchestrates: parse globals → network → authenticate → lookup → execute |
 
@@ -74,5 +74,5 @@ wallet-cli --version                 → "wallet-cli v4.9.3" ✓
 wallet-cli send-coin --help          → usage with --to, --amount, --owner, --multi ✓
 wallet-cli sendkon                   → "Did you mean: sendcoin?" exit 2 ✓
 wallet-cli --network nile get-chain-parameters → JSON chain params from Nile ✓
-wallet-cli --network nile --private-key $KEY send-coin --to $ADDR --amount 1 → successful ✓
+wallet-cli --network nile send-coin --to $ADDR --amount 1 → successful (auth via MASTER_PASSWORD) ✓
 ```

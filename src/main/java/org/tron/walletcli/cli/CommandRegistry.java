@@ -48,8 +48,6 @@ public class CommandRegistry {
         sb.append("Global Options:\n");
         sb.append("  --output <text|json>         Output format (default: text)\n");
         sb.append("  --network <main|nile|shasta> Network selection\n");
-        sb.append("  --private-key <hex>          Direct private key\n");
-        sb.append("  --mnemonic <words>           BIP39 mnemonic phrase\n");
         sb.append("  --wallet <name|path>         Select wallet file\n");
         sb.append("  --grpc-endpoint <host:port>  Custom gRPC endpoint\n");
         sb.append("  --quiet                      Suppress non-essential output\n");

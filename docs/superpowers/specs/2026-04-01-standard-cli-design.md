@@ -67,8 +67,6 @@ wallet-cli send-coin --help         → command-specific help
 | `--interactive` | false | Launch interactive REPL |
 | `--output <text\|json>` | text | Output format |
 | `--network <main\|nile\|shasta\|custom>` | from config.conf | Network selection |
-| `--private-key <hex>` | none | Direct private key, skip keystore |
-| `--mnemonic <words>` | none | BIP39 mnemonic phrase, derive key via m/44'/195'/0'/0/0 (index 0 only, no `--mnemonic-index` support) |
 | `--wallet <name\|path>` | none | Select keystore file |
 | `--grpc-endpoint <host:port>` | none | Custom node endpoint |
 | `--quiet` | false | Suppress non-essential output |

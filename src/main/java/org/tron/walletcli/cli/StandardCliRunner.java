@@ -34,6 +34,22 @@ public class StandardCliRunner {
         InputStream originalIn = System.in;
         System.setIn(new ByteArrayInputStream(autoInput.getBytes()));
 
+        // In JSON mode, suppress all stray System.out/err prints from the entire
+        // execution (network init, authentication, command execution) so only
+        // OutputFormatter JSON output appears.
+        boolean jsonMode = globalOpts.getOutputMode() == OutputFormatter.OutputMode.JSON;
+        PrintStream realOut = System.out;
+        PrintStream realErr = System.err;
+        if (jsonMode) {
+            formatter.captureStreams();
+            PrintStream nullStream = new PrintStream(new OutputStream() {
+                @Override public void write(int b) { }
+                @Override public void write(byte[] b, int off, int len) { }
+            });
+            System.setOut(nullStream);
+            System.setErr(nullStream);
+        }
+
         try {
             // Apply network setting
             if (globalOpts.getNetwork() != null) {
@@ -53,11 +69,11 @@ public class StandardCliRunner {
                 return 2;
             }
 
-            // Check for per-command --help
+            // Check for per-command --help (always print to real stdout)
             String[] cmdArgs = globalOpts.getCommandArgs();
             for (String arg : cmdArgs) {
                 if ("--help".equals(arg) || "-h".equals(arg)) {
-                    System.out.println(cmd.formatHelp());
+                    realOut.println(cmd.formatHelp());
                     return 0;
                 }
             }
@@ -75,27 +91,8 @@ public class StandardCliRunner {
             WalletApiWrapper wrapper = new WalletApiWrapper();
             authenticate(wrapper);
 
-            // Execute command — in JSON mode, suppress stray System.out/err prints
-            // from WalletApi/WalletApiWrapper so only OutputFormatter output appears
-            if (globalOpts.getOutputMode() == OutputFormatter.OutputMode.JSON) {
-                formatter.captureStreams();
-                PrintStream realOut = System.out;
-                PrintStream realErr = System.err;
-                PrintStream nullStream = new PrintStream(new OutputStream() {
-                    @Override public void write(int b) { }
-                    @Override public void write(byte[] b, int off, int len) { }
-                });
-                System.setOut(nullStream);
-                System.setErr(nullStream);
-                try {
-                    cmd.getHandler().execute(opts, wrapper, formatter);
-                } finally {
-                    System.setOut(realOut);
-                    System.setErr(realErr);
-                }
-            } else {
-                cmd.getHandler().execute(opts, wrapper, formatter);
-            }
+            // Execute command
+            cmd.getHandler().execute(opts, wrapper, formatter);
             return 0;
 
         } catch (IllegalArgumentException e) {
@@ -107,6 +104,10 @@ public class StandardCliRunner {
             return 1;
         } finally {
             System.setIn(originalIn);
+            if (jsonMode) {
+                System.setOut(realOut);
+                System.setErr(realErr);
+            }
         }
     }
 

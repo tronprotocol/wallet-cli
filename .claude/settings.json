@@ -1,12 +1,12 @@
 {
   "hooks": {
-    "Notification": [
+    "PostToolUse": [
       {
-        "matcher": "",
+        "matcher": "Edit|Write",
         "hooks": [
           {
             "type": "command",
-            "command": "./qa/run.sh  verify"
+            "command": "./qa/run.sh verify"
           }
         ]
       }
