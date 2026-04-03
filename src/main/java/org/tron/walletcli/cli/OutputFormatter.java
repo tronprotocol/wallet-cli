@@ -3,6 +3,7 @@ package org.tron.walletcli.cli;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.protobuf.Message;
+import org.tron.common.utils.JsonFormat;
 
 import java.io.PrintStream;
 import java.util.LinkedHashMap;
@@ -38,11 +39,10 @@ public class OutputFormatter {
     /** Print a successful result with a text message and optional JSON data. */
     public void success(String textMessage, Map<String, Object> jsonData) {
         if (mode == OutputMode.JSON) {
-            if (jsonData == null) {
-                jsonData = new LinkedHashMap<String, Object>();
-            }
-            jsonData.put("success", true);
-            out.println(gson.toJson(jsonData));
+            Map<String, Object> envelope = new LinkedHashMap<String, Object>();
+            envelope.put("success", true);
+            envelope.put("data", jsonData != null ? jsonData : new LinkedHashMap<String, Object>());
+            out.println(gson.toJson(envelope));
         } else {
             out.println(textMessage);
         }
@@ -70,7 +70,12 @@ public class OutputFormatter {
             error("not_found", failMsg);
             return;
         }
-        out.println(org.tron.common.utils.Utils.formatMessageString(message));
+        if (mode == OutputMode.JSON) {
+            // Single-line valid JSON from protobuf
+            out.println(JsonFormat.printToString(message, true));
+        } else {
+            out.println(org.tron.common.utils.Utils.formatMessageString(message));
+        }
     }
 
     /** Print a message object (trident Response types or pre-formatted strings). */

@@ -33,7 +33,7 @@ public class ContractCommands {
                 .option("origin-energy-limit", "Origin energy limit", false, OptionDef.Type.LONG)
                 .option("value", "Call value in SUN (default: 0)", false, OptionDef.Type.LONG)
                 .option("token-value", "Token value (default: 0)", false, OptionDef.Type.LONG)
-                .option("token-id", "Token ID (default: #)", false)
+                .option("token-id", "Token ID", false)
                 .option("library", "Library address pair (libName:address)", false)
                 .option("compiler-version", "Compiler version", false)
                 .option("owner", "Owner address", false)
@@ -48,9 +48,9 @@ public class ContractCommands {
                     long consumePercent = opts.has("consume-user-resource-percent")
                             ? opts.getLong("consume-user-resource-percent") : 0;
                     long originEnergyLimit = opts.has("origin-energy-limit")
-                            ? opts.getLong("origin-energy-limit") : 0;
+                            ? opts.getLong("origin-energy-limit") : 1;
                     long tokenValue = opts.has("token-value") ? opts.getLong("token-value") : 0;
-                    String tokenId = opts.has("token-id") ? opts.getString("token-id") : "#";
+                    String tokenId = opts.has("token-id") ? opts.getString("token-id") : "";
                     String library = opts.has("library") ? opts.getString("library") : null;
                     String compilerVersion = opts.has("compiler-version")
                             ? opts.getString("compiler-version") : null;
