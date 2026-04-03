@@ -102,6 +102,7 @@ public class OutputFormatter {
     public void error(String code, String message) {
         if (mode == OutputMode.JSON) {
             Map<String, Object> data = new LinkedHashMap<String, Object>();
+            data.put("success", false);
             data.put("error", code);
             data.put("message", message);
             out.println(gson.toJson(data));
@@ -115,6 +116,7 @@ public class OutputFormatter {
     public void usageError(String message, CommandDefinition cmd) {
         if (mode == OutputMode.JSON) {
             Map<String, Object> data = new LinkedHashMap<String, Object>();
+            data.put("success", false);
             data.put("error", "usage_error");
             data.put("message", message);
             out.println(gson.toJson(data));
