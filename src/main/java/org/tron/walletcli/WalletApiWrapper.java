@@ -323,6 +323,11 @@ public class WalletApiWrapper {
 
   public boolean changePassword(char[] oldPassword, char[] newPassword)
       throws IOException, CipherException {
+    return changePassword(oldPassword, newPassword, null);
+  }
+
+  public boolean changePassword(char[] oldPassword, char[] newPassword, File walletFile)
+      throws IOException, CipherException {
     logout();
     if (!WalletApi.passwordValid(newPassword)) {
       System.out.println("Warning: ChangePassword " + failedHighlight() + ", NewPassword is invalid !!");
@@ -332,7 +337,9 @@ public class WalletApiWrapper {
     byte[] oldPasswd = char2Byte(oldPassword);
     byte[] newPasswd = char2Byte(newPassword);
 
-    boolean result = WalletApi.changeKeystorePassword(oldPasswd, newPasswd);
+    boolean result = walletFile == null
+        ? WalletApi.changeKeystorePassword(oldPasswd, newPasswd)
+        : WalletApi.changeKeystorePassword(oldPasswd, newPasswd, walletFile);
     clear(oldPasswd);
     clear(newPasswd);
 
@@ -1292,12 +1299,12 @@ public class WalletApiWrapper {
     return wallet.clearContractABI(ownerAddress, contractAddress, multi);
   }
 
-  public boolean clearWalletKeystore() {
+  public boolean clearWalletKeystore(boolean force) {
     if (wallet == null || !wallet.isLoginState()) {
       System.out.println("Warning: clearWalletKeystore " + failedHighlight() + ",  Please login first !!");
       return false;
     }
-    boolean clearWalletKeystoreRet = wallet.clearWalletKeystore();
+    boolean clearWalletKeystoreRet = wallet.clearWalletKeystore(force);
     if (clearWalletKeystoreRet) {
       logout();
     }
@@ -1544,7 +1551,7 @@ public class WalletApiWrapper {
     }
   }
 
-  public boolean resetWallet() {
+  public boolean resetWallet(boolean force) {
     String ownerAddress = EMPTY;
     List<String> walletPath;
     try {
@@ -1561,7 +1568,9 @@ public class WalletApiWrapper {
     }
     boolean deleteAll;
     try {
-      deleteAll = ClearWalletUtils.confirmAndDeleteWallet(ownerAddress, filePaths);
+      deleteAll = force
+          ? ClearWalletUtils.forceDeleteWallet(ownerAddress, filePaths)
+          : ClearWalletUtils.confirmAndDeleteWallet(ownerAddress, filePaths);
     } catch (Exception e) {
       System.err.println("Error confirming and deleting wallet: " + e.getMessage());
       return false;

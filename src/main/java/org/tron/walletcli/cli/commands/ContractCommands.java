@@ -2,6 +2,7 @@ package org.tron.walletcli.cli.commands;
 
 import org.tron.common.utils.AbiUtil;
 import org.tron.common.utils.ByteArray;
+import org.tron.common.utils.TransactionUtils;
 import org.tron.walletcli.cli.CommandDefinition;
 import org.tron.walletcli.cli.CommandRegistry;
 import org.tron.walletcli.cli.OptionDef;
@@ -51,6 +52,9 @@ public class ContractCommands {
                             ? opts.getLong("origin-energy-limit") : 1;
                     long tokenValue = opts.has("token-value") ? opts.getLong("token-value") : 0;
                     String tokenId = opts.has("token-id") ? opts.getString("token-id") : "";
+                    if ("#".equals(tokenId)) {
+                        tokenId = "";
+                    }
                     String library = opts.has("library") ? opts.getString("library") : null;
                     String compilerVersion = opts.has("compiler-version")
                             ? opts.getString("compiler-version") : null;
@@ -86,6 +90,7 @@ public class ContractCommands {
                 .option("token-value", "Token value (default: 0)", false, OptionDef.Type.LONG)
                 .option("token-id", "Token ID", false)
                 .option("owner", "Caller address", false)
+                .option("permission-id", "Permission ID for signing (default: 0)", false, OptionDef.Type.LONG)
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
                 .handler((opts, wrapper, out) -> {
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
@@ -96,12 +101,18 @@ public class ContractCommands {
                     long callValue = opts.has("value") ? opts.getLong("value") : 0;
                     long tokenValue = opts.has("token-value") ? opts.getLong("token-value") : 0;
                     String tokenId = opts.has("token-id") ? opts.getString("token-id") : "";
+                    int permissionId = opts.has("permission-id") ? (int) opts.getLong("permission-id") : 0;
                     boolean multi = opts.getBoolean("multi");
 
                     byte[] data = ByteArray.fromHexString(AbiUtil.parseMethod(method, params, false));
-                    org.apache.commons.lang3.tuple.Triple<Boolean, Long, Long> result =
-                            wrapper.callContract(owner, contractAddress, callValue, data,
-                            feeLimit, tokenValue, tokenId, false, true, multi);
+                    TransactionUtils.setPermissionIdOverride(permissionId);
+                    org.apache.commons.lang3.tuple.Triple<Boolean, Long, Long> result;
+                    try {
+                        result = wrapper.callContract(owner, contractAddress, callValue, data,
+                                feeLimit, tokenValue, tokenId, false, true, multi);
+                    } finally {
+                        TransactionUtils.clearPermissionIdOverride();
+                    }
                     out.result(Boolean.TRUE.equals(result.getLeft()),
                             "TriggerContract successful !!", "TriggerContract failed !!");
                 })

@@ -19,6 +19,9 @@ _run_auth() {
 # Test --help for a command
 _test_help() {
   local cmd="$1"
+  if ! _qa_case_enabled "${cmd}-help"; then
+    return
+  fi
   echo -n "  $cmd --help... "
   local out
   out=$(java -jar "$WALLET_JAR" "$cmd" --help 2>/dev/null) || true
@@ -32,6 +35,9 @@ _test_help() {
 # Test command with auth: text + json + parity
 _test_auth_full() {
   local method="$1" prefix="$2" cmd="$3"; shift 3
+  if ! _qa_case_enabled "${prefix}_${cmd}"; then
+    return
+  fi
   echo -n "  $cmd ($prefix)... "
   local text_out json_out result
   text_out=$(_run_auth "$method" "$cmd" "$@") || true
@@ -46,6 +52,9 @@ _test_auth_full() {
 # Test command without auth: text + json + parity
 _test_noauth_full() {
   local prefix="$1" cmd="$2"; shift 2
+  if ! _qa_case_enabled "${prefix}_${cmd}"; then
+    return
+  fi
   echo -n "  $cmd ($prefix)... "
   local text_out json_out result
   text_out=$(_run "$cmd" "$@") || true
@@ -60,6 +69,9 @@ _test_noauth_full() {
 # Test command without auth: text only (for commands whose JSON mode is not meaningful)
 _test_noauth_text() {
   local prefix="$1" cmd="$2"; shift 2
+  if ! _qa_case_enabled "${prefix}_${cmd}"; then
+    return
+  fi
   echo -n "  $cmd ($prefix, text)... "
   local text_out
   text_out=$(_run "$cmd" "$@") || true
@@ -74,6 +86,9 @@ _test_noauth_text() {
 # Test no-crash: command may return empty but should not error
 _test_no_crash() {
   local prefix="$1" cmd="$2"; shift 2
+  if ! _qa_case_enabled "${prefix}_${cmd}"; then
+    return
+  fi
   echo -n "  $cmd ($prefix)... "
   local out
   out=$(_run "$cmd" "$@" 2>&1) || true
@@ -202,6 +217,7 @@ run_query_tests() {
   _test_noauth_full "$prefix" "get-block-by-id-or-num" --value 1
 
   # get-block-by-id: need a block hash
+  if _qa_case_enabled "${prefix}_get-block-by-id"; then
   echo -n "  get-block-by-id ($prefix)... "
   local block1_out block1_id
   block1_out=$(_run get-block --number 1) || true
@@ -218,10 +234,13 @@ run_query_tests() {
       echo "FAIL" > "$RESULTS_DIR/${prefix}_get-block-by-id.result"; echo "FAIL"
     fi
   else
-    echo "SKIP" > "$RESULTS_DIR/${prefix}_get-block-by-id.result"; echo "SKIP"
+    echo "SKIP: no blockID available from get-block --number 1" > "$RESULTS_DIR/${prefix}_get-block-by-id.result"
+    echo "SKIP"
+  fi
   fi
 
   # get-transaction-by-id / get-transaction-info-by-id
+  if _qa_case_enabled "${prefix}_get-transaction-by-id" || _qa_case_enabled "${prefix}_get-transaction-info-by-id"; then
   echo -n "  get-transaction-by-id ($prefix)... "
   local recent_block tx_id
   recent_block=$(_run get-block) || true
@@ -250,8 +269,14 @@ run_query_tests() {
       echo "FAIL" > "$RESULTS_DIR/${prefix}_get-transaction-info-by-id.result"; echo "FAIL"
     fi
   else
-    echo "SKIP" > "$RESULTS_DIR/${prefix}_get-transaction-by-id.result"; echo "SKIP"
-    echo "SKIP" > "$RESULTS_DIR/${prefix}_get-transaction-info-by-id.result"
+    if _qa_case_enabled "${prefix}_get-transaction-by-id"; then
+      echo "SKIP: latest block had no txID to query" > "$RESULTS_DIR/${prefix}_get-transaction-by-id.result"
+    fi
+    if _qa_case_enabled "${prefix}_get-transaction-info-by-id"; then
+      echo "SKIP: latest block had no txID to query" > "$RESULTS_DIR/${prefix}_get-transaction-info-by-id.result"
+    fi
+    echo "SKIP"
+  fi
   fi
 
   # ===========================================================

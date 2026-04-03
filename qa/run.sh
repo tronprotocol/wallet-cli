@@ -12,9 +12,33 @@ source "$SCRIPT_DIR/lib/compare.sh"
 source "$SCRIPT_DIR/lib/semantic.sh"
 source "$SCRIPT_DIR/lib/report.sh"
 
-MODE="${1:-verify}"
+MODE="verify"
+if [ $# -gt 0 ] && [[ "$1" != --* ]]; then
+  MODE="$1"
+  shift
+fi
 
-echo "=== Wallet CLI QA — Mode: $MODE, Network: $NETWORK ==="
+CASE_FILTER=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --case)
+      CASE_FILTER="$2"
+      shift 2
+      ;;
+    *)
+      echo "Unknown option: $1"
+      exit 1
+      ;;
+  esac
+done
+
+export QA_CASE_FILTER="$CASE_FILTER"
+_qa_case_enabled() {
+  local label="$1"
+  [ -z "$QA_CASE_FILTER" ] || [ "$label" = "$QA_CASE_FILTER" ]
+}
+
+echo "=== Wallet CLI QA — Mode: $MODE, Network: $NETWORK${QA_CASE_FILTER:+, Case: $QA_CASE_FILTER} ==="
 echo ""
 
 # Build the JAR
@@ -25,6 +49,7 @@ echo ""
 
 if [ "$MODE" = "verify" ]; then
   mkdir -p "$RESULTS_DIR"
+  rm -f "$RESULTS_DIR"/*.result "$RESULTS_DIR"/*.out 2>/dev/null || true
 
   # Phase 1: Setup
   echo "Phase 1: Setup & connectivity check..."
@@ -36,7 +61,11 @@ if [ "$MODE" = "verify" ]; then
     exit 1
   fi
 
-  CMD_COUNT=$(java -jar "$WALLET_JAR" --help 2>/dev/null | grep -c "^  [a-z]" || true)
+  CMD_COUNT=$(java -cp "$WALLET_JAR" org.tron.qa.QARunner list 2>/dev/null \
+    | sed -n '1s/.*: //p')
+  if [ -z "$CMD_COUNT" ]; then
+    CMD_COUNT="unknown"
+  fi
   echo "  Standard CLI commands: $CMD_COUNT"
 
   # Phase 2: Private key session
@@ -137,6 +166,9 @@ if [ "$MODE" = "verify" ]; then
     "ListAssetIssue:list-asset-issue"; do
     repl_cmd="${repl_pair%%:*}"
     std_cmd="${repl_pair##*:}"
+    if ! _qa_case_enabled "repl-vs-std_${std_cmd}"; then
+      continue
+    fi
     echo -n "  $repl_cmd vs $std_cmd... "
 
     repl_out=$(_run_repl "$repl_cmd") || true
@@ -180,5 +212,6 @@ else
   echo "  verify      — Run full three-way parity verification"
   echo "  list        — List all registered standard CLI commands"
   echo "  java-verify — Run Java-side verification"
+  echo "  --case X    — Run only a single QA case label"
   exit 1
 fi

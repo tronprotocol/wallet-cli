@@ -24,7 +24,11 @@ HEADER
       echo "  ✓ $cmd" >> "$report_file"
     elif echo "$status" | grep -q "^SKIP"; then
       skipped=$((skipped + 1))
-      echo "  - $cmd (skipped)" >> "$report_file"
+      if [ "$status" = "SKIP" ]; then
+        echo "  - $cmd (skipped)" >> "$report_file"
+      else
+        echo "  - $cmd ($status)" >> "$report_file"
+      fi
     else
       failed=$((failed + 1))
       echo "  ✗ $cmd — $status" >> "$report_file"

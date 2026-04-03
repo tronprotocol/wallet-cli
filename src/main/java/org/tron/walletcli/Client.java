@@ -627,7 +627,7 @@ public class Client {
   }
 
   private void resetWallet() {
-    boolean result = walletApiWrapper.resetWallet();
+    boolean result = walletApiWrapper.resetWallet(false);
     if (result) {
       walletApiWrapper.logout();
       System.out.println("resetWallet " + successfulHighlight() + " !!!");
@@ -2696,7 +2696,7 @@ public class Client {
   }
 
   private void clearWalletKeystoreIfExists() {
-    if (walletApiWrapper.clearWalletKeystore()) {
+    if (walletApiWrapper.clearWalletKeystore(false)) {
       System.out.println("ClearWalletKeystore " + successfulHighlight() + " !!!");
     } else {
       System.out.println("ClearWalletKeystore " + failedHighlight() + " !!!");

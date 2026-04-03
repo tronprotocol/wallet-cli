@@ -4,6 +4,7 @@ import org.apache.commons.lang3.tuple.Triple;
 import org.bouncycastle.util.encoders.Hex;
 import org.tron.common.enums.NetType;
 import org.tron.common.utils.AbiUtil;
+import org.tron.common.utils.TransactionUtils;
 import org.tron.walletcli.cli.CommandDefinition;
 import org.tron.walletcli.cli.CommandRegistry;
 import org.tron.walletcli.cli.OptionDef;
@@ -40,22 +41,41 @@ public class TransactionCommands {
                 .option("to", "Recipient address", true)
                 .option("amount", "Amount in SUN", true, OptionDef.Type.LONG)
                 .option("owner", "Sender address (default: current wallet)", false)
+                .option("permission-id", "Permission ID for signing (default: 0)", false, OptionDef.Type.LONG)
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
                 .handler((opts, wrapper, out) -> {
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     byte[] to = opts.getAddress("to");
                     long amount = opts.getLong("amount");
+                    int permissionId = opts.has("permission-id") ? (int) opts.getLong("permission-id") : 0;
                     boolean multi = opts.getBoolean("multi");
-                    boolean result = wrapper.sendCoin(owner, to, amount, multi);
+                    TransactionUtils.setPermissionIdOverride(permissionId);
+                    boolean result;
+                    try {
+                        result = wrapper.sendCoin(owner, to, amount, multi);
+                    } finally {
+                        TransactionUtils.clearPermissionIdOverride();
+                    }
                     String toStr = opts.getString("to");
                     if (multi) {
                         out.result(result,
                                 "create multi-sign transaction successful !!",
                                 "create multi-sign transaction failed !!");
                     } else {
-                        out.result(result,
-                                "Send " + amount + " Sun to " + toStr + " successful !!",
-                                "Send " + amount + " Sun to " + toStr + " failed !!");
+                        String successMessage = "Send " + amount + " Sun to " + toStr + " successful !!";
+                        if (!result) {
+                            out.result(false, successMessage, "Send " + amount + " Sun to " + toStr + " failed !!");
+                            return;
+                        }
+                        Map<String, Object> json = new LinkedHashMap<String, Object>();
+                        json.put("message", successMessage);
+                        json.put("to", toStr);
+                        json.put("amount", amount);
+                        String txid = WalletApi.getLastBroadcastTxId();
+                        if (txid != null && !txid.isEmpty()) {
+                            json.put("txid", txid);
+                        }
+                        out.success(successMessage, json);
                     }
                 })
                 .build());
@@ -91,6 +111,7 @@ public class TransactionCommands {
                 .option("to", "Recipient address", true)
                 .option("amount", "Amount in smallest unit", true, OptionDef.Type.LONG)
                 .option("owner", "Sender address", false)
+                .option("permission-id", "Permission ID for signing (default: 0)", false, OptionDef.Type.LONG)
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
                 .handler((opts, wrapper, out) -> {
                     NetType netType = WalletApi.getCurrentNetwork();
@@ -102,6 +123,7 @@ public class TransactionCommands {
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     byte[] toAddress = opts.getAddress("to");
                     long amount = opts.getLong("amount");
+                    int permissionId = opts.has("permission-id") ? (int) opts.getLong("permission-id") : 0;
                     boolean multi = opts.getBoolean("multi");
 
                     String toBase58 = WalletApi.encode58Check(toAddress);
@@ -111,8 +133,14 @@ public class TransactionCommands {
                     byte[] contractAddress = WalletApi.decodeFromBase58Check(netType.getUsdtAddress());
 
                     // Estimate energy to calculate fee limit
-                    Triple<Boolean, Long, Long> estimate = wrapper.callContract(
-                            owner, contractAddress, 0, data, 0, 0, "", true, true, false);
+                    TransactionUtils.setPermissionIdOverride(permissionId);
+                    Triple<Boolean, Long, Long> estimate;
+                    try {
+                        estimate = wrapper.callContract(
+                                owner, contractAddress, 0, data, 0, 0, "", true, true, false);
+                    } finally {
+                        TransactionUtils.clearPermissionIdOverride();
+                    }
                     long energyUsed = estimate.getMiddle();
                     // Get energy price from chain parameters and add 20% buffer
                     long energyFee = wrapper.getChainParameters().getChainParameterList().stream()
@@ -122,9 +150,15 @@ public class TransactionCommands {
                             .orElse(420L);
                     long feeLimit = (long) (energyFee * energyUsed * 1.2);
 
-                    boolean result = wrapper.callContract(
-                            owner, contractAddress, 0, data, feeLimit, 0, "", false, false, multi)
-                            .getLeft();
+                    TransactionUtils.setPermissionIdOverride(permissionId);
+                    boolean result;
+                    try {
+                        result = wrapper.callContract(
+                                owner, contractAddress, 0, data, feeLimit, 0, "", false, false, multi)
+                                .getLeft();
+                    } finally {
+                        TransactionUtils.clearPermissionIdOverride();
+                    }
                     out.result(result,
                             "TransferUSDT successful !!",
                             "TransferUSDT failed !!");

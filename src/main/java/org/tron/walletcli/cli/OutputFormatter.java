@@ -2,8 +2,9 @@ package org.tron.walletcli.cli;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParser;
 import com.google.protobuf.Message;
-import org.tron.common.utils.JsonFormat;
 
 import java.io.PrintStream;
 import java.util.LinkedHashMap;
@@ -70,11 +71,19 @@ public class OutputFormatter {
             error("not_found", failMsg);
             return;
         }
+        String formatted = org.tron.common.utils.Utils.formatMessageString(message);
         if (mode == OutputMode.JSON) {
-            // Single-line valid JSON from protobuf
-            out.println(JsonFormat.printToString(message, true));
+            Map<String, Object> data = new LinkedHashMap<String, Object>();
+            data.put("success", true);
+            try {
+                JsonElement parsed = JsonParser.parseString(formatted);
+                data.put("data", parsed);
+            } catch (Exception e) {
+                data.put("data", formatted);
+            }
+            out.println(gson.toJson(data));
         } else {
-            out.println(org.tron.common.utils.Utils.formatMessageString(message));
+            out.println(formatted);
         }
     }
 

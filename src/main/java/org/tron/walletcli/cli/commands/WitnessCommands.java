@@ -1,5 +1,6 @@
 package org.tron.walletcli.cli.commands;
 
+import org.tron.common.utils.TransactionUtils;
 import org.tron.walletcli.cli.CommandDefinition;
 import org.tron.walletcli.cli.CommandRegistry;
 import org.tron.walletcli.cli.OptionDef;
@@ -58,10 +59,12 @@ public class WitnessCommands {
                 .description("Vote for witnesses (format: address1 count1 address2 count2 ...)")
                 .option("votes", "Votes as 'address1 count1 address2 count2 ...'", true)
                 .option("owner", "Voter address", false)
+                .option("permission-id", "Permission ID for signing (default: 0)", false, OptionDef.Type.LONG)
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
                 .handler((opts, wrapper, out) -> {
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     String votesStr = opts.getString("votes");
+                    int permissionId = opts.has("permission-id") ? (int) opts.getLong("permission-id") : 0;
                     String[] parts = votesStr.trim().split("\\s+");
                     if (parts.length % 2 != 0) {
                         out.usageError("Votes must be pairs of 'address count'", null);
@@ -72,7 +75,13 @@ public class WitnessCommands {
                         witness.put(parts[i], parts[i + 1]);
                     }
                     boolean multi = opts.getBoolean("multi");
-                    boolean result = wrapper.voteWitness(owner, witness, multi);
+                    TransactionUtils.setPermissionIdOverride(permissionId);
+                    boolean result;
+                    try {
+                        result = wrapper.voteWitness(owner, witness, multi);
+                    } finally {
+                        TransactionUtils.clearPermissionIdOverride();
+                    }
                     out.result(result, "VoteWitness successful !!", "VoteWitness failed !!");
                 })
                 .build());

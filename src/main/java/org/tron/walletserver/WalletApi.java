@@ -152,6 +152,7 @@ import org.tron.trident.proto.Response;
 
 @Slf4j
 public class WalletApi {
+  private static final ThreadLocal<String> LAST_BROADCAST_TX_ID = new ThreadLocal<String>();
   public static final long TRX_PRECISION = 1000_000L;
   private static final String FilePath = "Wallet";
   private static final String MnemonicFilePath = "Mnemonic";
@@ -741,6 +742,15 @@ public class WalletApi {
       throw new IOException(
           "No keystore file found, please use " + greenBoldHighlight("RegisterWallet") + " or " + greenBoldHighlight("ImportWallet") + " first!");
     }
+    return changeKeystorePassword(oldPassword, newPassowrd, wallet);
+  }
+
+  public static boolean changeKeystorePassword(byte[] oldPassword, byte[] newPassowrd, File wallet)
+      throws IOException, CipherException {
+    if (wallet == null) {
+      throw new IOException(
+          "No keystore file found, please use " + greenBoldHighlight("RegisterWallet") + " or " + greenBoldHighlight("ImportWallet") + " first!");
+    }
     Credentials credentials = WalletUtils.loadCredentials(oldPassword, wallet);
     WalletUtils.updateWalletFile(newPassowrd, credentials.getPair(), wallet, true);
 
@@ -806,6 +816,25 @@ public class WalletApi {
     }
   }
 
+  private WalletFile resolveSigningWalletFile() throws IOException {
+    if (isUnifiedExist()) {
+      return getWalletFile();
+    }
+    System.out.println("Please choose your key for sign.");
+    return selectWalletFileE();
+  }
+
+  private byte[] resolveSigningPassword(WalletFile wf) throws IOException {
+    if (isUnifiedExist()) {
+      return getUnifiedPassword();
+    }
+    if (lockAccount && Arrays.equals(decodeFromBase58Check(wf.getAddress()), getAddress())) {
+      return getUnifiedPassword();
+    }
+    System.out.println("Please input your password.");
+    return char2Byte(inputPassword(false));
+  }
+
   public boolean isUnifiedExist() {
     return isLoginState() && ArrayUtils.isNotEmpty(getUnifiedPassword());
   }
@@ -814,16 +843,9 @@ public class WalletApi {
     if (!isUnlocked()) {
       throw new IllegalStateException(LOCK_WARNING);
     }
-    System.out.println("Please choose your key for sign.");
-    WalletFile wf = selectWalletFileE();
+    WalletFile wf = resolveSigningWalletFile();
     boolean isLedgerFile = wf.getName().contains("Ledger");
-    byte[] passwd;
-    if (lockAccount && isUnifiedExist() && Arrays.equals(decodeFromBase58Check(wf.getAddress()), getAddress())) {
-      passwd = getUnifiedPassword();
-    } else {
-      System.out.println("Please input your password.");
-      passwd = char2Byte(inputPassword(false));
-    }
+    byte[] passwd = resolveSigningPassword(wf);
     String ledgerPath = getLedgerPath(passwd, wf);
     if (isLedgerFile) {
       boolean result = LedgerSignUtil.requestLedgerSignLogic(transaction, ledgerPath, wf.getAddress(), false);
@@ -877,16 +899,9 @@ public class WalletApi {
         + "default 0, other non-numeric characters will cancel transaction.";
     transaction = TransactionUtils.setPermissionId(transaction, tipsString);
     while (true) {
-      System.out.println("Please choose your key for sign.");
-      WalletFile wf = selectWalletFileE();
+      WalletFile wf = resolveSigningWalletFile();
       boolean isLedgerFile = wf.getName().contains("Ledger");
-      byte[] passwd;
-      if (lockAccount && isUnifiedExist() && Arrays.equals(decodeFromBase58Check(wf.getAddress()), getAddress())) {
-        passwd = getUnifiedPassword();
-      } else {
-        System.out.println("Please input your password.");
-        passwd = char2Byte(inputPassword(false));
-      }
+      byte[] passwd = resolveSigningPassword(wf);
       String ledgerPath = getLedgerPath(passwd, wf);
       if (isLedgerFile) {
         boolean result = LedgerSignUtil.requestLedgerSignLogic(transaction, ledgerPath, wf.getAddress(), false);
@@ -956,6 +971,7 @@ public class WalletApi {
 
   private boolean processTransactionExtention(Response.TransactionExtention transactionExtention, boolean multi)
       throws IOException, CipherException, CancelException {
+    LAST_BROADCAST_TX_ID.remove();
     if (transactionExtention == null) {
       return false;
     }
@@ -994,6 +1010,7 @@ public class WalletApi {
     if (success) {
       TxHistoryManager txHistoryManager = new TxHistoryManager(encode58Check(getAddress()));
       String id = ByteArray.toHexString(Sha256Sm3Hash.hash(transaction.getRawData().toByteArray()));
+      LAST_BROADCAST_TX_ID.set(id);
       Tx tx = getTx(transaction);
       tx.setId(id);
       tx.setTimestamp(LocalDateTime.now());
@@ -1025,6 +1042,7 @@ public class WalletApi {
 
   private boolean processTransaction(Chain.Transaction transaction)
       throws IOException, CipherException, CancelException {
+    LAST_BROADCAST_TX_ID.remove();
     if (transaction == null || transaction.getRawData().getContractCount() == 0) {
       return false;
     }
@@ -1043,6 +1061,7 @@ public class WalletApi {
     if (success) {
       TxHistoryManager txHistoryManager = new TxHistoryManager(encode58Check(getAddress()));
       String id = ByteArray.toHexString(Sha256Sm3Hash.hash(transaction.getRawData().toByteArray()));
+      LAST_BROADCAST_TX_ID.set(id);
       Tx tx = getTx(transaction);
       tx.setId(id);
       tx.setTimestamp(LocalDateTime.now());
@@ -1053,6 +1072,10 @@ public class WalletApi {
       txHistoryManager.addTransaction(getCurrentNetwork(), tx);
     }
     return success;
+  }
+
+  public static String getLastBroadcastTxId() {
+    return LAST_BROADCAST_TX_ID.get();
   }
 
   public static TransactionSignWeight getTransactionSignWeight(Transaction transaction)
@@ -2758,7 +2781,7 @@ public class WalletApi {
     return processTransactionExtention(transactionExtention, multi);
   }
 
-  public boolean clearWalletKeystore() {
+  public boolean clearWalletKeystore(boolean force) {
     String ownerAddress = WalletApi.encode58Check(getAddress());
 
     List<String> walletPath;
@@ -2786,7 +2809,9 @@ public class WalletApi {
     }
 
     try {
-      return ClearWalletUtils.confirmAndDeleteWallet(ownerAddress, filePaths);
+      return force
+          ? ClearWalletUtils.forceDeleteWallet(ownerAddress, filePaths)
+          : ClearWalletUtils.confirmAndDeleteWallet(ownerAddress, filePaths);
     } catch (Exception e) {
       System.err.println("Error confirming and deleting wallet: " + e.getMessage());
       return false;
@@ -3230,15 +3255,8 @@ public class WalletApi {
     String tipsString = "Please input permission id.";
     transaction = TransactionUtils.setPermissionId(transaction, tipsString);
 
-    System.out.println("Please choose your key for sign.");
-    WalletFile wf = selectWalletFileE();
-    byte[] passwd;
-    if (lockAccount && isUnifiedExist() && Arrays.equals(decodeFromBase58Check(wf.getAddress()), getAddress())) {
-      passwd = getUnifiedPassword();
-    } else {
-      System.out.println("Please input your password.");
-      passwd = char2Byte(inputPassword(false));
-    }
+    WalletFile wf = resolveSigningWalletFile();
+    byte[] passwd = resolveSigningPassword(wf);
     if (isEckey) {
       transaction = TransactionUtils.sign(transaction, this.getEcKey(wf, passwd));
     } else {

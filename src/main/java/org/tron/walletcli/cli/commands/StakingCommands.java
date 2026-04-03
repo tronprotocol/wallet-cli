@@ -1,5 +1,6 @@
 package org.tron.walletcli.cli.commands;
 
+import org.tron.common.utils.TransactionUtils;
 import org.tron.walletcli.cli.CommandDefinition;
 import org.tron.walletcli.cli.CommandRegistry;
 import org.tron.walletcli.cli.OptionDef;
@@ -51,13 +52,21 @@ public class StakingCommands {
                 .option("amount", "Amount to freeze in SUN", true, OptionDef.Type.LONG)
                 .option("resource", "Resource type (0=BANDWIDTH, 1=ENERGY)", false, OptionDef.Type.LONG)
                 .option("owner", "Owner address", false)
+                .option("permission-id", "Permission ID for signing (default: 0)", false, OptionDef.Type.LONG)
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
                 .handler((opts, wrapper, out) -> {
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     long amount = opts.getLong("amount");
                     int resource = opts.has("resource") ? (int) opts.getLong("resource") : 0;
+                    int permissionId = opts.has("permission-id") ? (int) opts.getLong("permission-id") : 0;
                     boolean multi = opts.getBoolean("multi");
-                    boolean result = wrapper.freezeBalanceV2(owner, amount, resource, multi);
+                    TransactionUtils.setPermissionIdOverride(permissionId);
+                    boolean result;
+                    try {
+                        result = wrapper.freezeBalanceV2(owner, amount, resource, multi);
+                    } finally {
+                        TransactionUtils.clearPermissionIdOverride();
+                    }
                     out.result(result, "FreezeBalanceV2 successful !!", "FreezeBalanceV2 failed !!");
                 })
                 .build());
@@ -91,13 +100,21 @@ public class StakingCommands {
                 .option("amount", "Amount to unfreeze in SUN", true, OptionDef.Type.LONG)
                 .option("resource", "Resource type (0=BANDWIDTH, 1=ENERGY)", false, OptionDef.Type.LONG)
                 .option("owner", "Owner address", false)
+                .option("permission-id", "Permission ID for signing (default: 0)", false, OptionDef.Type.LONG)
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
                 .handler((opts, wrapper, out) -> {
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     long amount = opts.getLong("amount");
                     int resource = opts.has("resource") ? (int) opts.getLong("resource") : 0;
+                    int permissionId = opts.has("permission-id") ? (int) opts.getLong("permission-id") : 0;
                     boolean multi = opts.getBoolean("multi");
-                    boolean result = wrapper.unfreezeBalanceV2(owner, amount, resource, multi);
+                    TransactionUtils.setPermissionIdOverride(permissionId);
+                    boolean result;
+                    try {
+                        result = wrapper.unfreezeBalanceV2(owner, amount, resource, multi);
+                    } finally {
+                        TransactionUtils.clearPermissionIdOverride();
+                    }
                     out.result(result, "UnfreezeBalanceV2 successful !!", "UnfreezeBalanceV2 failed !!");
                 })
                 .build());

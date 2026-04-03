@@ -21,9 +21,10 @@ import java.util.List;
 
 public class ClearWalletUtils {
 
+  private static final String CONFIRMATION_WORD = "DELETE";
+  private static final int MAX_ATTEMPTS = 3;
+
   public static boolean confirmAndDeleteWallet(String address, Collection<String> filePaths) {
-    final String CONFIRMATION_WORD = "DELETE";
-    final int MAX_ATTEMPTS = 3;
     try {
       Terminal terminal = TerminalBuilder.builder().system(true).dumb(true).build();
       LineReader lineReader = LineReaderBuilder.builder().terminal(terminal).build();
@@ -67,6 +68,19 @@ public class ClearWalletUtils {
         System.out.println("Input does not match, Please enter: '" + redBoldHighlight(CONFIRMATION_WORD) + "' to confirm the delete operation.");
       }
 
+      return deleteFiles(filePaths);
+    } catch (Exception e) {
+      System.err.println("Operation failed:" + e.getMessage());
+      return false;
+    }
+  }
+
+  public static boolean forceDeleteWallet(String address, Collection<String> filePaths) {
+    try {
+      System.out.println("\n\u001B[31mWarning: Dangerous operation!\u001B[0m");
+      System.out.println("Force deletion enabled. Permanently deleting the Wallet&Mnemonic files "
+          + (isEmpty(address) ? EMPTY : "of the Address: " + address));
+      System.out.println("\u001B[31mWarning: The private key and mnemonic words will be permanently lost and cannot be recovered!\u001B[0m");
       return deleteFiles(filePaths);
     } catch (Exception e) {
       System.err.println("Operation failed:" + e.getMessage());

@@ -38,41 +38,122 @@ _get_balance_sun() {
   _tx_run get-balance | grep "Balance = " | awk '{print $3}'
 }
 
+_wait_for_balance_decrease() {
+  local before_balance="$1"
+  local attempts="${2:-5}"
+  local sleep_secs="${3:-3}"
+  local current_balance=""
+  local i
+
+  for ((i=1; i<=attempts; i++)); do
+    current_balance=$(_get_balance_sun)
+    if [ -n "$before_balance" ] && [ -n "$current_balance" ] && [ "$current_balance" -lt "$before_balance" ]; then
+      echo "$current_balance"
+      return 0
+    fi
+    if [ "$i" -lt "$attempts" ]; then
+      sleep "$sleep_secs"
+    fi
+  done
+
+  echo "$current_balance"
+  return 1
+}
+
+_get_account_resource() {
+  local address="$1"
+  _tx_run get-account-resource --address "$address"
+}
+
+_json_success_true() {
+  local json_input="$1"
+  echo "$json_input" | python3 -c "import sys, json; d=json.load(sys.stdin); assert d.get('success') is True" 2>/dev/null
+}
+
+_json_field() {
+  local json_input="$1"
+  local field_path="$2"
+  echo "$json_input" | python3 -c "import sys, json; d=json.load(sys.stdin); v=d; path=sys.argv[1].split('.'); 
+for p in path:
+    v=v.get(p) if isinstance(v, dict) else None
+    if v is None:
+        break
+print(v if v is not None else '')" "$field_path" 2>/dev/null
+}
+
+_wait_for_transaction_info() {
+  local txid="$1"
+  local attempts="${2:-5}"
+  local sleep_secs="${3:-3}"
+  local out=""
+  local i
+
+  if [ -z "$txid" ]; then
+    return 1
+  fi
+
+  for ((i=1; i<=attempts; i++)); do
+    out=$(_tx_run get-transaction-info-by-id --id "$txid") || true
+    if [ -n "$out" ] && ! echo "$out" | grep -qi "^Error:"; then
+      echo "$out"
+      return 0
+    fi
+    if [ "$i" -lt "$attempts" ]; then
+      sleep "$sleep_secs"
+    fi
+  done
+
+  return 1
+}
+
 # Test on-chain tx: text mode, check for "successful"
 _test_tx_text() {
   local label="$1"; shift
+  if ! _qa_case_enabled "${label}-text"; then
+    return 2
+  fi
   echo -n "  $label (text)... "
   local out
   out=$(_tx_run "$@") || true
   echo "$out" > "$RESULTS_DIR/${label}-text.out"
   if echo "$out" | grep -qi "successful"; then
     echo "PASS" > "$RESULTS_DIR/${label}-text.result"; echo "PASS"
+    return 0
   else
     local short_err
     short_err=$(echo "$out" | grep -iE "failed|error|Warning" | head -1)
     echo "FAIL: ${short_err:-no successful msg}" > "$RESULTS_DIR/${label}-text.result"; echo "FAIL"
+    return 1
   fi
 }
 
 # Test on-chain tx: json mode, check for "success"
 _test_tx_json() {
   local label="$1"; shift
+  if ! _qa_case_enabled "${label}-json"; then
+    return 2
+  fi
   echo -n "  $label (json)... "
   local out
   out=$(_tx_run_json "$@") || true
   echo "$out" > "$RESULTS_DIR/${label}-json.out"
-  if echo "$out" | grep -q '"success"'; then
+  if _json_success_true "$out"; then
     echo "PASS" > "$RESULTS_DIR/${label}-json.result"; echo "PASS"
+    return 0
   else
     local short_err
     short_err=$(echo "$out" | grep -iE "failed|error" | head -1)
     echo "FAIL: ${short_err:-no success field}" > "$RESULTS_DIR/${label}-json.result"; echo "FAIL"
+    return 1
   fi
 }
 
 # Test --help for a command
 _test_help() {
   local cmd="$1"
+  if ! _qa_case_enabled "${cmd}-help"; then
+    return
+  fi
   echo -n "  $cmd --help... "
   local out
   out=$(java -jar "$WALLET_JAR" "$cmd" --help 2>/dev/null) || true
@@ -87,6 +168,9 @@ _test_help() {
 # Passes if both text and JSON produce non-empty output and JSON is valid
 _test_tx_error_full() {
   local cmd="$1"; shift
+  if ! _qa_case_enabled "$cmd"; then
+    return
+  fi
   echo -n "  $cmd (error-verify)... "
   local text_out json_out
   text_out=$(_tx_run "$cmd" "$@" 2>&1) || true
@@ -176,18 +260,53 @@ run_transaction_tests() {
 
   # --- send-coin ---
   local balance_before
+  local send_coin_text_ok=1 send_coin_json_ok=1
+  local send_coin_txid=""
   balance_before=$(_get_balance_sun)
-  _test_tx_text "send-coin" send-coin --to "$target_addr" --amount 1
-  _test_tx_json "send-coin" send-coin --to "$target_addr" --amount 1
+  if _qa_case_enabled "send-coin-balance" && ! _qa_case_enabled "send-coin-text" && ! _qa_case_enabled "send-coin-json"; then
+    local send_coin_side_effect_out
+    send_coin_side_effect_out=$(_tx_run_json send-coin --to "$target_addr" --amount 1) || true
+    echo "$send_coin_side_effect_out" > "$RESULTS_DIR/send-coin-balance_tx_json.out"
+    if _json_success_true "$send_coin_side_effect_out"; then
+      send_coin_text_ok=1
+      send_coin_json_ok=1
+      send_coin_txid=$(_json_field "$send_coin_side_effect_out" "data.txid")
+    else
+      send_coin_text_ok=0
+      send_coin_json_ok=0
+    fi
+  else
+    _test_tx_text "send-coin" send-coin --to "$target_addr" --amount 1 || send_coin_text_ok=0
+    _test_tx_json "send-coin" send-coin --to "$target_addr" --amount 1 || send_coin_json_ok=0
+    if [ -f "$RESULTS_DIR/send-coin-json.out" ]; then
+      send_coin_txid=$(_json_field "$(cat "$RESULTS_DIR/send-coin-json.out")" "data.txid")
+    fi
+  fi
   sleep 4
-  echo -n "  send-coin balance check... "
-  local balance_after
-  balance_after=$(_get_balance_sun)
-  echo "PASS (before=${balance_before}, after=${balance_after})" > "$RESULTS_DIR/send-coin-balance.result"
-  echo "PASS (before=${balance_before}, after=${balance_after})"
+  if _qa_case_enabled "send-coin-balance"; then
+    echo -n "  send-coin balance check... "
+    if [ "$send_coin_text_ok" -eq 0 ] && [ "$send_coin_json_ok" -eq 0 ]; then
+      echo "SKIP: send-coin transaction did not succeed, side-effect not checked" > "$RESULTS_DIR/send-coin-balance.result"
+      echo "SKIP"
+    else
+      local balance_after
+      balance_after=$(_wait_for_balance_decrease "$balance_before" 5 3)
+      if [ -n "$balance_before" ] && [ -n "$balance_after" ] && [ "$balance_after" -lt "$balance_before" ]; then
+        echo "PASS (side-effect verified: before=${balance_before}, after=${balance_after})" > "$RESULTS_DIR/send-coin-balance.result"
+        echo "PASS (side-effect verified)"
+      elif _wait_for_transaction_info "$send_coin_txid" 5 3 > "$RESULTS_DIR/send-coin-balance_tx_info.out"; then
+        echo "PASS (txid verified: ${send_coin_txid})" > "$RESULTS_DIR/send-coin-balance.result"
+        echo "PASS (txid verified)"
+      else
+        echo "FAIL: balance did not decrease and tx receipt was not observed after successful send-coin (txid=${send_coin_txid:-none}, before=${balance_before}, after=${balance_after})" > "$RESULTS_DIR/send-coin-balance.result"
+        echo "FAIL"
+      fi
+    fi
+  fi
 
   # --- send-coin with mnemonic ---
   if [ -n "${MNEMONIC:-}" ] && [ -n "$target_addr" ]; then
+    if _qa_case_enabled "send-coin-mnemonic"; then
     echo -n "  send-coin (mnemonic)... "
     local mn_out
     mn_out=$(_tx_run_mnemonic send-coin --to "$my_addr" --amount 1) || true
@@ -198,26 +317,46 @@ run_transaction_tests() {
       echo "FAIL" > "$RESULTS_DIR/send-coin-mnemonic.result"; echo "FAIL"
     fi
     sleep 3
+    fi
   fi
 
   # --- freeze-balance-v2 (1 TRX for ENERGY) ---
+  local resource_before
+  resource_before=$(_get_account_resource "$my_addr")
   _test_tx_text "freeze-v2-energy" freeze-balance-v2 --amount 1000000 --resource 1
   _test_tx_json "freeze-v2-energy" freeze-balance-v2 --amount 1000000 --resource 1
   sleep 4
 
   # --- get-account-resource after freeze ---
-  echo -n "  get-account-resource (post-freeze)... "
   local res_out
-  res_out=$(_tx_run get-account-resource --address "$my_addr") || true
-  if [ -n "$res_out" ]; then
-    echo "PASS" > "$RESULTS_DIR/post-freeze-resource.result"; echo "PASS"
+  if _qa_case_enabled "post-freeze-resource"; then
+    echo -n "  get-account-resource (post-freeze)... "
+    res_out=$(_tx_run get-account-resource --address "$my_addr") || true
+    echo "$res_out" > "$RESULTS_DIR/post-freeze-resource.out"
+    if [ -n "$resource_before" ] && [ -n "$res_out" ] && [ "$resource_before" != "$res_out" ]; then
+      echo "PASS (side-effect verified)" > "$RESULTS_DIR/post-freeze-resource.result"; echo "PASS"
+    else
+      echo "FAIL: account resource output did not change" > "$RESULTS_DIR/post-freeze-resource.result"; echo "FAIL"
+    fi
   else
-    echo "FAIL" > "$RESULTS_DIR/post-freeze-resource.result"; echo "FAIL"
+    res_out=$(_tx_run get-account-resource --address "$my_addr") || true
   fi
 
   # --- unfreeze-balance-v2 (1 TRX ENERGY) ---
   _test_tx_text "unfreeze-v2-energy" unfreeze-balance-v2 --amount 1000000 --resource 1
   _test_tx_json "unfreeze-v2-energy" unfreeze-balance-v2 --amount 1000000 --resource 1
+  sleep 4
+  if _qa_case_enabled "post-unfreeze-resource"; then
+    echo -n "  get-account-resource (post-unfreeze)... "
+    local res_after_unfreeze
+    res_after_unfreeze=$(_tx_run get-account-resource --address "$my_addr") || true
+    echo "$res_after_unfreeze" > "$RESULTS_DIR/post-unfreeze-resource.out"
+    if [ -n "$res_out" ] && [ -n "$res_after_unfreeze" ] && [ "$res_out" != "$res_after_unfreeze" ]; then
+      echo "PASS (side-effect verified)" > "$RESULTS_DIR/post-unfreeze-resource.result"; echo "PASS"
+    else
+      echo "FAIL: account resource output did not change after unfreeze" > "$RESULTS_DIR/post-unfreeze-resource.result"; echo "FAIL"
+    fi
+  fi
   sleep 4
 
   # --- freeze-balance-v2 (1 TRX for BANDWIDTH) ---
@@ -229,33 +368,38 @@ run_transaction_tests() {
   sleep 4
 
   # --- withdraw-expire-unfreeze ---
-  echo -n "  withdraw-expire-unfreeze... "
-  local weu_out
-  weu_out=$(_tx_run withdraw-expire-unfreeze) || true
-  echo "$weu_out" > "$RESULTS_DIR/withdraw-expire-unfreeze.out"
-  # May fail if nothing to withdraw — that's OK, just verify no crash
-  echo "PASS (executed)" > "$RESULTS_DIR/withdraw-expire-unfreeze.result"; echo "PASS (executed)"
+  if _qa_case_enabled "withdraw-expire-unfreeze"; then
+    echo -n "  withdraw-expire-unfreeze... "
+    local weu_out
+    weu_out=$(_tx_run withdraw-expire-unfreeze) || true
+    echo "$weu_out" > "$RESULTS_DIR/withdraw-expire-unfreeze.out"
+    echo "PASS (smoke)" > "$RESULTS_DIR/withdraw-expire-unfreeze.result"; echo "PASS (smoke)"
+  fi
 
   # --- cancel-all-unfreeze-v2 ---
-  echo -n "  cancel-all-unfreeze-v2... "
-  local cau_out
-  cau_out=$(_tx_run cancel-all-unfreeze-v2) || true
-  echo "$cau_out" > "$RESULTS_DIR/cancel-all-unfreeze-v2.out"
-  echo "PASS (executed)" > "$RESULTS_DIR/cancel-all-unfreeze-v2.result"; echo "PASS (executed)"
+  if _qa_case_enabled "cancel-all-unfreeze-v2"; then
+    echo -n "  cancel-all-unfreeze-v2... "
+    local cau_out
+    cau_out=$(_tx_run cancel-all-unfreeze-v2) || true
+    echo "$cau_out" > "$RESULTS_DIR/cancel-all-unfreeze-v2.out"
+    echo "PASS (smoke)" > "$RESULTS_DIR/cancel-all-unfreeze-v2.result"; echo "PASS (smoke)"
+  fi
 
   # --- trigger-constant-contract (USDT balanceOf, read-only) ---
   local usdt_nile="TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf"
-  echo -n "  trigger-constant-contract (USDT balanceOf)... "
-  local tcc_out
-  tcc_out=$(_tx_run trigger-constant-contract \
-    --contract "$usdt_nile" \
-    --method "balanceOf(address)" \
-    --params "\"$my_addr\"") || true
-  echo "$tcc_out" > "$RESULTS_DIR/trigger-constant-contract.out"
-  if [ -n "$tcc_out" ]; then
-    echo "PASS" > "$RESULTS_DIR/trigger-constant-contract.result"; echo "PASS"
-  else
-    echo "FAIL" > "$RESULTS_DIR/trigger-constant-contract.result"; echo "FAIL"
+  if _qa_case_enabled "trigger-constant-contract"; then
+    echo -n "  trigger-constant-contract (USDT balanceOf)... "
+    local tcc_out
+    tcc_out=$(_tx_run trigger-constant-contract \
+      --contract "$usdt_nile" \
+      --method "balanceOf(address)" \
+      --params "\"$my_addr\"") || true
+    echo "$tcc_out" > "$RESULTS_DIR/trigger-constant-contract.out"
+    if [ -n "$tcc_out" ]; then
+      echo "PASS" > "$RESULTS_DIR/trigger-constant-contract.result"; echo "PASS"
+    else
+      echo "FAIL" > "$RESULTS_DIR/trigger-constant-contract.result"; echo "FAIL"
+    fi
   fi
 
   # --- transfer-usdt (send 1 USDT unit to target) ---
@@ -289,24 +433,26 @@ run_transaction_tests() {
   sleep 4
 
   # --- estimate-energy (USDT transfer estimate) ---
-  echo -n "  estimate-energy (USDT transfer)... "
-  local ee_out
-  ee_out=$(_tx_run estimate-energy \
-    --contract "$usdt_nile" \
-    --method "transfer(address,uint256)" \
-    --params "\"$target_addr\",1") || true
-  echo "$ee_out" > "$RESULTS_DIR/estimate-energy.out"
-  if [ -n "$ee_out" ]; then
-    echo "PASS" > "$RESULTS_DIR/estimate-energy.result"; echo "PASS"
-  else
-    echo "FAIL" > "$RESULTS_DIR/estimate-energy.result"; echo "FAIL"
+  if _qa_case_enabled "estimate-energy"; then
+    echo -n "  estimate-energy (USDT transfer)... "
+    local ee_out
+    ee_out=$(_tx_run estimate-energy \
+      --contract "$usdt_nile" \
+      --method "transfer(address,uint256)" \
+      --params "\"$target_addr\",1") || true
+    echo "$ee_out" > "$RESULTS_DIR/estimate-energy.out"
+    if [ -n "$ee_out" ]; then
+      echo "PASS (smoke)" > "$RESULTS_DIR/estimate-energy.result"; echo "PASS (smoke)"
+    else
+      echo "FAIL" > "$RESULTS_DIR/estimate-energy.result"; echo "FAIL"
+    fi
   fi
 
   # --- vote-witness (vote for a known Nile SR) ---
   # Get first witness address
   local witness_addr
   witness_addr=$(_tx_run list-witnesses | grep -v "keystore" | grep -o 'T[A-Za-z0-9]\{33\}' | head -1) || true
-  if [ -n "$witness_addr" ]; then
+  if [ -n "$witness_addr" ] && _qa_case_enabled "vote-witness-tx"; then
     # First need to freeze some TRX to get voting power
     _tx_run freeze-balance-v2 --amount 2000000 --resource 0 > /dev/null 2>&1 || true
     sleep 4
@@ -322,22 +468,26 @@ run_transaction_tests() {
     # Unfreeze what we froze
     _tx_run unfreeze-balance-v2 --amount 2000000 --resource 0 > /dev/null 2>&1 || true
     sleep 3
-  else
+  elif _qa_case_enabled "vote-witness-tx"; then
     echo -n "  vote-witness... "
     echo "SKIP: no witness found" > "$RESULTS_DIR/vote-witness-tx.result"; echo "SKIP"
   fi
 
   # --- Commands that need special conditions (verify no crash) ---
 
-  echo -n "  withdraw-balance... "
-  local wb_out
-  wb_out=$(_tx_run withdraw-balance) || true
-  echo "PASS (executed)" > "$RESULTS_DIR/withdraw-balance.result"; echo "PASS (executed)"
+  if _qa_case_enabled "withdraw-balance"; then
+    echo -n "  withdraw-balance... "
+    local wb_out
+    wb_out=$(_tx_run withdraw-balance) || true
+    echo "PASS (executed)" > "$RESULTS_DIR/withdraw-balance.result"; echo "PASS (executed)"
+  fi
 
-  echo -n "  unfreeze-asset... "
-  local ua_out
-  ua_out=$(_tx_run unfreeze-asset) || true
-  echo "PASS (executed)" > "$RESULTS_DIR/unfreeze-asset.result"; echo "PASS (executed)"
+  if _qa_case_enabled "unfreeze-asset"; then
+    echo -n "  unfreeze-asset... "
+    local ua_out
+    ua_out=$(_tx_run unfreeze-asset) || true
+    echo "PASS (executed)" > "$RESULTS_DIR/unfreeze-asset.result"; echo "PASS (executed)"
+  fi
 
   # ============================================================
   # Expected-error verification for commands that can't safely execute

@@ -28,6 +28,7 @@ public class WalletCommands {
         registerListWallet(registry);
         registerSetActiveWallet(registry);
         registerGetActiveWallet(registry);
+        registerChangePassword(registry);
         registerClearWalletKeystore(registry);
         registerResetWallet(registry);
         registerModifyWalletName(registry);
@@ -284,14 +285,59 @@ public class WalletCommands {
                 .build());
     }
 
+    private static void registerChangePassword(CommandRegistry registry) {
+        registry.add(CommandDefinition.builder()
+                .name("change-password")
+                .aliases("changepassword")
+                .description("Change the password of a wallet keystore")
+                .option("old-password", "Current keystore password", true)
+                .option("new-password", "New keystore password", true)
+                .option("address", "Wallet address (Base58Check)", false)
+                .option("name", "Wallet name", false)
+                .handler((opts, wrapper, out) -> {
+                    boolean hasAddress = opts.has("address");
+                    boolean hasName = opts.has("name");
+                    if (hasAddress && hasName) {
+                        out.error("invalid_options",
+                                "Provide either --address or --name, not both");
+                        return;
+                    }
+
+                    File targetWalletFile;
+                    try {
+                        targetWalletFile = resolveWalletFileForNonInteractiveCommand(
+                                hasAddress ? opts.getString("address") : null,
+                                hasName ? opts.getString("name") : null);
+                    } catch (IllegalArgumentException e) {
+                        out.error("ambiguous_name", e.getMessage());
+                        return;
+                    }
+
+                    if (targetWalletFile == null) {
+                        out.error("not_found", "No wallet found to change password");
+                        return;
+                    }
+
+                    boolean result = wrapper.changePassword(
+                            opts.getString("old-password").toCharArray(),
+                            opts.getString("new-password").toCharArray(),
+                            targetWalletFile);
+                    out.result(result,
+                            "ChangePassword successful !!",
+                            "ChangePassword failed !!");
+                })
+                .build());
+    }
+
     private static void registerClearWalletKeystore(CommandRegistry registry) {
         registry.add(CommandDefinition.builder()
                 .name("clear-wallet-keystore")
                 .aliases("clearwalletkeystore")
                 .description("Clear wallet keystore files")
+                .option("force", "Skip interactive confirmation", false, OptionDef.Type.BOOLEAN)
                 .handler((opts, wrapper, out) -> {
                     ActiveWalletConfig.clear();
-                    boolean result = wrapper.clearWalletKeystore();
+                    boolean result = wrapper.clearWalletKeystore(opts.getBoolean("force"));
                     out.result(result,
                             "ClearWalletKeystore successful !!",
                             "ClearWalletKeystore failed !!");
@@ -304,9 +350,10 @@ public class WalletCommands {
                 .name("reset-wallet")
                 .aliases("resetwallet")
                 .description("Reset wallet to initial state")
+                .option("force", "Skip interactive confirmation", false, OptionDef.Type.BOOLEAN)
                 .handler((opts, wrapper, out) -> {
                     ActiveWalletConfig.clear();
-                    boolean result = wrapper.resetWallet();
+                    boolean result = wrapper.resetWallet(opts.getBoolean("force"));
                     out.result(result, "ResetWallet successful !!", "ResetWallet failed !!");
                 })
                 .build());
@@ -385,5 +432,33 @@ public class WalletCommands {
                             "GenerateSubAccount failed !!");
                 })
                 .build());
+    }
+
+    private static File resolveWalletFileForNonInteractiveCommand(String address, String name)
+            throws Exception {
+        if (address != null) {
+            return ActiveWalletConfig.findWalletFileByAddress(address);
+        }
+        if (name != null) {
+            return ActiveWalletConfig.findWalletFileByName(name);
+        }
+
+        String activeAddress = ActiveWalletConfig.getActiveAddress();
+        if (activeAddress != null) {
+            File activeFile = ActiveWalletConfig.findWalletFileByAddress(activeAddress);
+            if (activeFile != null) {
+                return activeFile;
+            }
+        }
+
+        File dir = new File("Wallet");
+        if (!dir.exists() || !dir.isDirectory()) {
+            return null;
+        }
+        File[] files = dir.listFiles((d, fileName) -> fileName.endsWith(".json"));
+        if (files == null || files.length == 0) {
+            return null;
+        }
+        return files[0];
     }
 }
