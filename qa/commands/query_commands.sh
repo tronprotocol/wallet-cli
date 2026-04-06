@@ -16,6 +16,20 @@ _run_auth() {
   java -jar "$WALLET_JAR" --network "$NETWORK" "$@" 2>/dev/null | _filter
 }
 
+_recent_blocks_json() {
+  _run --output json get-block-by-latest-num --count 10
+}
+
+_extract_recent_blockid() {
+  local recent_json="$1"
+  echo "$recent_json" | grep -o '"blockid": "[^"]*"' | head -1 | awk -F'"' '{print $4}' || true
+}
+
+_extract_recent_txid() {
+  local recent_json="$1"
+  echo "$recent_json" | grep -o '"txid": "[^"]*"' | head -1 | awk -F'"' '{print $4}' || true
+}
+
 # Test --help for a command
 _test_help() {
   local cmd="$1"
@@ -219,13 +233,13 @@ run_query_tests() {
   # get-block-by-id: need a block hash
   if _qa_case_enabled "${prefix}_get-block-by-id"; then
   echo -n "  get-block-by-id ($prefix)... "
-  local block1_out block1_id
-  block1_out=$(_run get-block --number 1) || true
-  block1_id=$(echo "$block1_out" | grep -o '"blockID": "[^"]*"' | head -1 | awk -F'"' '{print $4}') || true
-  if [ -n "$block1_id" ]; then
+  local recent_blocks_json block_id
+  recent_blocks_json=$(_recent_blocks_json) || true
+  block_id=$(_extract_recent_blockid "$recent_blocks_json")
+  if [ -n "$block_id" ]; then
     local bid_text bid_json
-    bid_text=$(_run get-block-by-id --id "$block1_id") || true
-    bid_json=$(_run --output json get-block-by-id --id "$block1_id") || true
+    bid_text=$(_run get-block-by-id --id "$block_id") || true
+    bid_json=$(_run --output json get-block-by-id --id "$block_id") || true
     echo "$bid_text" > "$RESULTS_DIR/${prefix}_get-block-by-id_text.out"
     echo "$bid_json" > "$RESULTS_DIR/${prefix}_get-block-by-id_json.out"
     if [ -n "$bid_text" ]; then
@@ -234,7 +248,7 @@ run_query_tests() {
       echo "FAIL" > "$RESULTS_DIR/${prefix}_get-block-by-id.result"; echo "FAIL"
     fi
   else
-    echo "SKIP: no blockID available from get-block --number 1" > "$RESULTS_DIR/${prefix}_get-block-by-id.result"
+    echo "SKIP: no blockid available from get-block-by-latest-num --count 10" > "$RESULTS_DIR/${prefix}_get-block-by-id.result"
     echo "SKIP"
   fi
   fi
@@ -242,9 +256,9 @@ run_query_tests() {
   # get-transaction-by-id / get-transaction-info-by-id
   if _qa_case_enabled "${prefix}_get-transaction-by-id" || _qa_case_enabled "${prefix}_get-transaction-info-by-id"; then
   echo -n "  get-transaction-by-id ($prefix)... "
-  local recent_block tx_id
-  recent_block=$(_run get-block) || true
-  tx_id=$(echo "$recent_block" | grep -o '"txID": "[^"]*"' | head -1 | awk -F'"' '{print $4}') || true
+  local recent_blocks_json tx_id
+  recent_blocks_json=$(_recent_blocks_json) || true
+  tx_id=$(_extract_recent_txid "$recent_blocks_json")
   if [ -n "$tx_id" ]; then
     local tx_text tx_json
     tx_text=$(_run get-transaction-by-id --id "$tx_id") || true
@@ -270,10 +284,10 @@ run_query_tests() {
     fi
   else
     if _qa_case_enabled "${prefix}_get-transaction-by-id"; then
-      echo "SKIP: latest block had no txID to query" > "$RESULTS_DIR/${prefix}_get-transaction-by-id.result"
+      echo "SKIP: no txid available from get-block-by-latest-num --count 10" > "$RESULTS_DIR/${prefix}_get-transaction-by-id.result"
     fi
     if _qa_case_enabled "${prefix}_get-transaction-info-by-id"; then
-      echo "SKIP: latest block had no txID to query" > "$RESULTS_DIR/${prefix}_get-transaction-info-by-id.result"
+      echo "SKIP: no txid available from get-block-by-latest-num --count 10" > "$RESULTS_DIR/${prefix}_get-transaction-info-by-id.result"
     fi
     echo "SKIP"
   fi
