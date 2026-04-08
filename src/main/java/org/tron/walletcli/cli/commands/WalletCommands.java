@@ -163,7 +163,7 @@ public class WalletCommands {
                         return;
                     }
 
-                    String activeAddress = ActiveWalletConfig.getActiveAddress();
+                    String activeAddress = ActiveWalletConfig.getActiveAddressStrict();
                     List<Map<String, Object>> wallets = new ArrayList<Map<String, Object>>();
 
                     for (File f : files) {
@@ -263,7 +263,7 @@ public class WalletCommands {
                 .aliases("getactivewallet")
                 .description("Get the current active wallet")
                 .handler((opts, wrapper, out) -> {
-                    String activeAddress = ActiveWalletConfig.getActiveAddress();
+                    String activeAddress = ActiveWalletConfig.getActiveAddressStrict();
                     if (activeAddress == null) {
                         out.error("no_active_wallet", "No active wallet set");
                         return;
@@ -448,22 +448,16 @@ public class WalletCommands {
             return ActiveWalletConfig.findWalletFileByName(name);
         }
 
-        String activeAddress = ActiveWalletConfig.getActiveAddress();
+        String activeAddress = ActiveWalletConfig.getActiveAddressStrict();
         if (activeAddress != null) {
             File activeFile = ActiveWalletConfig.findWalletFileByAddress(activeAddress);
             if (activeFile != null) {
                 return activeFile;
             }
+            throw new IllegalStateException(
+                    "Active wallet keystore not found for address: " + activeAddress
+                            + ". Use --address, --name, or set-active-wallet.");
         }
-
-        File dir = new File("Wallet");
-        if (!dir.exists() || !dir.isDirectory()) {
-            return null;
-        }
-        File[] files = dir.listFiles((d, fileName) -> fileName.endsWith(".json"));
-        if (files == null || files.length == 0) {
-            return null;
-        }
-        return files[0];
+        return null;
     }
 }

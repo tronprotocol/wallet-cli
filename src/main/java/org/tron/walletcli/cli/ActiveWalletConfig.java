@@ -29,15 +29,24 @@ public class ActiveWalletConfig {
         if (!configFile.exists()) {
             return null;
         }
-        try (FileReader reader = new FileReader(configFile)) {
-            Map map = gson.fromJson(reader, Map.class);
-            if (map != null && map.containsKey("address")) {
-                return (String) map.get("address");
-            }
+        try {
+            return readActiveAddressFromFile(configFile);
         } catch (Exception e) {
             // Corrupted config — treat as unset
         }
         return null;
+    }
+
+    /**
+     * Get the active wallet address, or null if not set.
+     * Throws if the config exists but cannot be read or validated.
+     */
+    public static String getActiveAddressStrict() throws IOException {
+        File configFile = new File(WALLET_DIR, CONFIG_FILE);
+        if (!configFile.exists()) {
+            return null;
+        }
+        return readActiveAddressFromFile(configFile);
     }
 
     /**
@@ -119,5 +128,23 @@ public class ActiveWalletConfig {
                     "Multiple wallets found with name '" + name + "'. Use --address instead.");
         }
         return match;
+    }
+
+    static String readActiveAddressFromFile(File configFile) throws IOException {
+        try (FileReader reader = new FileReader(configFile)) {
+            Map<String, Object> map = gson.fromJson(reader, Map.class);
+            if (map == null || !map.containsKey("address")) {
+                throw new IOException("Active wallet config is missing the address field");
+            }
+            Object address = map.get("address");
+            if (!(address instanceof String) || ((String) address).trim().isEmpty()) {
+                throw new IOException("Active wallet config contains an invalid address value");
+            }
+            return (String) address;
+        } catch (IOException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new IOException("Could not read active wallet config: " + e.getMessage(), e);
+        }
     }
 }

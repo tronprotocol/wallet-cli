@@ -328,9 +328,9 @@ public class Utils {
 
   public static char[] inputPassword(boolean checkStrength) throws IOException {
     // Check MASTER_PASSWORD environment variable first
-    String envPassword = System.getenv("MASTER_PASSWORD");
-    if (envPassword != null && !envPassword.isEmpty()) {
-      return envPassword.toCharArray();
+    char[] envPassword = resolveEnvPassword(System.getenv("MASTER_PASSWORD"), checkStrength);
+    if (envPassword != null) {
+      return envPassword;
     }
 
     char[] password;
@@ -361,6 +361,19 @@ public class Utils {
       StringUtils.clear(password);
       System.out.println("Invalid password, please input again.");
     }
+  }
+
+  static char[] resolveEnvPassword(String envPassword, boolean checkStrength) {
+    if (envPassword == null || envPassword.isEmpty()) {
+      return null;
+    }
+
+    char[] password = envPassword.toCharArray();
+    if (!checkStrength || WalletApi.passwordValid(password)) {
+      return password;
+    }
+    StringUtils.clear(password);
+    throw new IllegalArgumentException("MASTER_PASSWORD does not meet password strength requirements");
   }
 
   public static char[] inputPasswordWithoutCheck() throws IOException {

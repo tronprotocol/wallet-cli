@@ -1,6 +1,7 @@
 package org.tron.walletcli.cli;
 
 import org.tron.common.enums.NetType;
+import org.tron.common.utils.TransactionUtils;
 import org.tron.keystore.StringUtils;
 import org.tron.keystore.WalletFile;
 import org.tron.keystore.WalletUtils;
@@ -59,6 +60,7 @@ public class StandardCliRunner {
             return e.getKind() == CliAbortException.Kind.USAGE ? 2 : 1;
         } finally {
             System.setIn(originalIn);
+            TransactionUtils.clearPermissionIdOverride();
             if (jsonMode) {
                 System.setOut(realOut);
                 System.setErr(realErr);
@@ -94,7 +96,6 @@ public class StandardCliRunner {
                     return 0;
                 }
             }
-
             // Parse command options
             ParsedOptions opts;
             try {
@@ -103,6 +104,8 @@ public class StandardCliRunner {
                 formatter.usageError(e.getMessage(), cmd);
                 return 2; // unreachable after usageError()
             }
+
+            applyPermissionIdOverride(cmd, opts);
 
             // Create wrapper and authenticate
             WalletApiWrapper wrapper = new WalletApiWrapper();
@@ -145,16 +148,15 @@ public class StandardCliRunner {
         }
 
         // Find the wallet file to load: active wallet or fallback to first
-        File targetFile = null;
-        String activeAddress = ActiveWalletConfig.getActiveAddress();
-        if (activeAddress != null) {
-            targetFile = ActiveWalletConfig.findWalletFileByAddress(activeAddress);
-        }
-        if (targetFile == null && files.length > 0) {
-            targetFile = files[0]; // Fallback to first wallet
-        }
-        if (targetFile == null) {
+        String activeAddress = ActiveWalletConfig.getActiveAddressStrict();
+        if (activeAddress == null) {
             return;
+        }
+        File targetFile = ActiveWalletConfig.findWalletFileByAddress(activeAddress);
+        if (targetFile == null) {
+            throw new IllegalStateException(
+                    "Active wallet keystore not found for address: " + activeAddress
+                            + ". Use set-active-wallet to select a valid wallet.");
         }
 
         // Load specific wallet file and authenticate
@@ -168,7 +170,9 @@ public class StandardCliRunner {
             WalletApi walletApi = new WalletApi(wf);
             walletApi.checkPassword(password);
             walletApi.setLogin(null);
-            walletApi.setUnifiedPassword(password);
+            // WalletApi stores the provided array by reference, so keep an internal
+            // copy there and only clear this temporary buffer locally.
+            walletApi.setUnifiedPassword(Arrays.copyOf(password, password.length));
             wrapper.setWallet(walletApi);
             formatter.info("Authenticated with wallet: " + wf.getAddress());
         } finally {
@@ -198,5 +202,16 @@ public class StandardCliRunner {
                 formatter.usageError("Unknown network: " + network
                         + ". Use: main, nile, shasta, custom", null);
         }
+    }
+
+    private void applyPermissionIdOverride(CommandDefinition cmd, ParsedOptions opts) {
+        for (OptionDef option : cmd.getOptions()) {
+            if ("permission-id".equals(option.getName())) {
+                int permissionId = opts.has("permission-id") ? (int) opts.getLong("permission-id") : 0;
+                TransactionUtils.setPermissionIdOverride(permissionId);
+                return;
+            }
+        }
+        TransactionUtils.clearPermissionIdOverride();
     }
 }
