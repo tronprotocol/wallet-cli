@@ -37,13 +37,47 @@ public class OutputFormatter {
         return mode;
     }
 
+    private void emitJsonSuccess(Object data) {
+        Map<String, Object> envelope = new LinkedHashMap<String, Object>();
+        envelope.put("success", true);
+        envelope.put("data", data != null ? data : new LinkedHashMap<String, Object>());
+        out.println(gson.toJson(envelope));
+    }
+
+    private void emitJsonError(String code, String message) {
+        Map<String, Object> envelope = new LinkedHashMap<String, Object>();
+        envelope.put("success", false);
+        envelope.put("error", code);
+        envelope.put("message", message);
+        out.println(gson.toJson(envelope));
+    }
+
+    private Map<String, Object> wrapMessage(String text) {
+        Map<String, Object> data = new LinkedHashMap<String, Object>();
+        data.put("message", text);
+        return data;
+    }
+
+    private Object normalizeJsonData(Object payload) {
+        if (payload == null) {
+            return new LinkedHashMap<String, Object>();
+        }
+        if (payload instanceof JsonElement || payload instanceof Map) {
+            return payload;
+        }
+
+        String text = String.valueOf(payload);
+        try {
+            return JsonParser.parseString(text);
+        } catch (Exception e) {
+            return wrapMessage(text);
+        }
+    }
+
     /** Print a successful result with a text message and optional JSON data. */
     public void success(String textMessage, Map<String, Object> jsonData) {
         if (mode == OutputMode.JSON) {
-            Map<String, Object> envelope = new LinkedHashMap<String, Object>();
-            envelope.put("success", true);
-            envelope.put("data", jsonData != null ? jsonData : new LinkedHashMap<String, Object>());
-            out.println(gson.toJson(envelope));
+            emitJsonSuccess(jsonData != null ? jsonData : new LinkedHashMap<String, Object>());
         } else {
             out.println(textMessage);
         }
@@ -52,10 +86,11 @@ public class OutputFormatter {
     /** Print a simple success/failure result. */
     public void result(boolean success, String successMsg, String failMsg) {
         if (mode == OutputMode.JSON) {
-            Map<String, Object> data = new LinkedHashMap<String, Object>();
-            data.put("success", success);
-            data.put("message", success ? successMsg : failMsg);
-            out.println(gson.toJson(data));
+            if (success) {
+                emitJsonSuccess(wrapMessage(successMsg));
+            } else {
+                emitJsonError("operation_failed", failMsg);
+            }
         } else {
             out.println(success ? successMsg : failMsg);
         }
@@ -73,15 +108,7 @@ public class OutputFormatter {
         }
         String formatted = org.tron.common.utils.Utils.formatMessageString(message);
         if (mode == OutputMode.JSON) {
-            Map<String, Object> data = new LinkedHashMap<String, Object>();
-            data.put("success", true);
-            try {
-                JsonElement parsed = JsonParser.parseString(formatted);
-                data.put("data", parsed);
-            } catch (Exception e) {
-                data.put("data", formatted);
-            }
-            out.println(gson.toJson(data));
+            emitJsonSuccess(normalizeJsonData(formatted));
         } else {
             out.println(formatted);
         }
@@ -93,12 +120,20 @@ public class OutputFormatter {
             error("not_found", failMsg);
             return;
         }
-        out.println(message);
+        if (mode == OutputMode.JSON) {
+            emitJsonSuccess(normalizeJsonData(message));
+        } else {
+            out.println(message);
+        }
     }
 
     /** Print raw text. */
     public void raw(String text) {
-        out.println(text);
+        if (mode == OutputMode.JSON) {
+            emitJsonSuccess(wrapMessage(text));
+        } else {
+            out.println(text);
+        }
     }
 
     /** Print a key-value pair. */
@@ -106,7 +141,7 @@ public class OutputFormatter {
         if (mode == OutputMode.JSON) {
             Map<String, Object> data = new LinkedHashMap<String, Object>();
             data.put(key, value);
-            out.println(gson.toJson(data));
+            emitJsonSuccess(data);
         } else {
             out.println(key + " = " + value);
         }
@@ -115,11 +150,7 @@ public class OutputFormatter {
     /** Print an error and exit with code 1. */
     public void error(String code, String message) {
         if (mode == OutputMode.JSON) {
-            Map<String, Object> data = new LinkedHashMap<String, Object>();
-            data.put("success", false);
-            data.put("error", code);
-            data.put("message", message);
-            out.println(gson.toJson(data));
+            emitJsonError(code, message);
         } else {
             out.println("Error: " + message);
         }
@@ -129,11 +160,7 @@ public class OutputFormatter {
     /** Print an error for usage mistakes and exit with code 2. */
     public void usageError(String message, CommandDefinition cmd) {
         if (mode == OutputMode.JSON) {
-            Map<String, Object> data = new LinkedHashMap<String, Object>();
-            data.put("success", false);
-            data.put("error", "usage_error");
-            data.put("message", message);
-            out.println(gson.toJson(data));
+            emitJsonError("usage_error", message);
         } else {
             out.println("Error: " + message);
             if (cmd != null) {

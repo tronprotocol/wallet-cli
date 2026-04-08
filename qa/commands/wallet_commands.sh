@@ -167,7 +167,7 @@ run_wallet_tests() {
   echo -n "  generate-address (json)... "
   ga_json=$(_w_run --output json generate-address) || true
   echo "$ga_json" > "$RESULTS_DIR/generate-address_json.out"
-  if echo "$ga_json" | grep -q '"address"'; then
+  if echo "$ga_json" | python3 -c "import sys,json; d=json.load(sys.stdin); assert d['success']; assert d['data']['address']" 2>/dev/null; then
     echo "PASS" > "$RESULTS_DIR/generate-address-json.result"; echo "PASS"
   else
     echo "FAIL" > "$RESULTS_DIR/generate-address-json.result"; echo "FAIL"
@@ -193,7 +193,7 @@ run_wallet_tests() {
     local gpk_json
     gpk_json=$(_w_run --output json get-private-key-by-mnemonic --mnemonic "$MNEMONIC") || true
     echo "$gpk_json" > "$RESULTS_DIR/get-private-key-by-mnemonic_json.out"
-    if echo "$gpk_json" | grep -q '"private_key"'; then
+    if echo "$gpk_json" | python3 -c "import sys,json; d=json.load(sys.stdin); assert d['success']; assert d['data']['private_key']" 2>/dev/null; then
       echo "PASS" > "$RESULTS_DIR/get-private-key-by-mnemonic-json.result"; echo "PASS"
     else
       echo "FAIL" > "$RESULTS_DIR/get-private-key-by-mnemonic-json.result"; echo "FAIL"

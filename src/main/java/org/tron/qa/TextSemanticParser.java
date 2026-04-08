@@ -97,6 +97,10 @@ public class TextSemanticParser {
             return ParityResult.fail("Invalid JSON output for " + command);
         }
 
+        if (!hasValidEnvelope(filteredJson)) {
+            return ParityResult.fail("Invalid JSON envelope for " + command);
+        }
+
         if (filteredText.isEmpty()) {
             return ParityResult.fail("Empty text output for " + command);
         }
@@ -144,9 +148,34 @@ public class TextSemanticParser {
     public static boolean checkJsonField(String jsonOutput, String field, String expected) {
         try {
             JsonObject obj = gson.fromJson(filterNoise(jsonOutput), JsonObject.class);
-            if (obj == null || !obj.has(field)) return false;
-            JsonElement elem = obj.get(field);
+            if (obj == null) return false;
+            JsonElement elem = obj;
+            for (String key : field.split("\\.")) {
+                if (!elem.isJsonObject() || !elem.getAsJsonObject().has(key)) {
+                    return false;
+                }
+                elem = elem.getAsJsonObject().get(key);
+            }
             return expected.equals(elem.getAsString());
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private static boolean hasValidEnvelope(String jsonOutput) {
+        try {
+            JsonObject obj = gson.fromJson(jsonOutput, JsonObject.class);
+            if (obj == null || !obj.has("success")) {
+                return false;
+            }
+            JsonElement success = obj.get("success");
+            if (!success.isJsonPrimitive() || !success.getAsJsonPrimitive().isBoolean()) {
+                return false;
+            }
+            if (success.getAsBoolean()) {
+                return obj.has("data");
+            }
+            return obj.has("error") && obj.has("message");
         } catch (Exception e) {
             return false;
         }

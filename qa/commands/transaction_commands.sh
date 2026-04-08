@@ -67,7 +67,7 @@ _get_account_resource() {
 
 _json_success_true() {
   local json_input="$1"
-  echo "$json_input" | python3 -c "import sys, json; d=json.load(sys.stdin); assert d.get('success') is True" 2>/dev/null
+  echo "$json_input" | python3 -c "import sys, json; d=json.load(sys.stdin); assert d.get('success') is True; assert 'data' in d" 2>/dev/null
 }
 
 _json_field() {

@@ -10,6 +10,27 @@ filter_noise() {
                  | grep -v "^$" || true
 }
 
+validate_json_envelope() {
+  local json_output="$1"
+
+  if ! command -v python3 &> /dev/null; then
+    return 0
+  fi
+
+  echo "$json_output" | python3 -c "
+import sys, json
+d = json.load(sys.stdin)
+assert isinstance(d, dict), 'top-level JSON must be an object'
+assert 'success' in d, 'missing success field'
+assert isinstance(d['success'], bool), 'success must be boolean'
+if d['success']:
+    assert 'data' in d, 'missing data field on success'
+else:
+    assert 'error' in d, 'missing error field on failure'
+    assert 'message' in d, 'missing message field on failure'
+" > /dev/null 2>&1
+}
+
 # Verify JSON is valid and matches text semantically
 check_json_text_parity() {
   local cmd="$1"
@@ -53,6 +74,11 @@ else:
     fi
   fi
 
+  if ! validate_json_envelope "$json_output"; then
+    echo "FAIL: Invalid JSON envelope for $cmd"
+    return 1
+  fi
+
   # Check text output is not empty
   if [ -z "$text_output" ]; then
     echo "FAIL: Empty text output for $cmd"
@@ -72,7 +98,14 @@ check_json_field() {
 
   if command -v python3 &> /dev/null; then
     local actual
-    actual=$(echo "$json" | python3 -c "import sys, json; data=json.load(sys.stdin); print(data.get('$field', 'MISSING'))" 2>/dev/null)
+    actual=$(echo "$json" | python3 -c "import sys, json; data=json.load(sys.stdin); value=data
+for key in sys.argv[1].split('.'):
+    if isinstance(value, dict) and key in value:
+        value = value[key]
+    else:
+        value = 'MISSING'
+        break
+print(value)" "$field" 2>/dev/null)
     if [ "$actual" = "$expected" ]; then
       return 0
     else
