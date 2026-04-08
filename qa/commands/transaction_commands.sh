@@ -65,6 +65,12 @@ _get_account_resource() {
   _tx_run get-account-resource --address "$address"
 }
 
+_get_usdt_balance() {
+  local out
+  out=$(_tx_run get-usdt-balance) || true
+  echo "$out" | grep -o 'USDT balance = [0-9]\+' | awk '{print $4}' | head -1
+}
+
 _json_success_true() {
   local json_input="$1"
   echo "$json_input" | python3 -c "import sys, json; d=json.load(sys.stdin); assert d.get('success') is True; assert 'data' in d" 2>/dev/null
@@ -103,6 +109,46 @@ _wait_for_transaction_info() {
     fi
   done
 
+  return 1
+}
+
+_wait_for_tx_receipt_by_label() {
+  local label="$1"
+  local attempts="${2:-5}"
+  local sleep_secs="${3:-1}"
+  local txid=""
+
+  if [ -f "$RESULTS_DIR/${label}-json.out" ]; then
+    txid=$(_json_field "$(cat "$RESULTS_DIR/${label}-json.out")" "data.txid")
+  fi
+
+  if [ -z "$txid" ]; then
+    return 1
+  fi
+
+  _wait_for_transaction_info "$txid" "$attempts" "$sleep_secs" > /dev/null 2>&1
+}
+
+_wait_for_resource_change() {
+  local before="$1"
+  local address="$2"
+  local attempts="${3:-5}"
+  local sleep_secs="${4:-1}"
+  local current=""
+  local i
+
+  for ((i=1; i<=attempts; i++)); do
+    current=$(_get_account_resource "$address")
+    if [ -n "$before" ] && [ -n "$current" ] && [ "$current" != "$before" ]; then
+      echo "$current"
+      return 0
+    fi
+    if [ "$i" -lt "$attempts" ]; then
+      sleep "$sleep_secs"
+    fi
+  done
+
+  echo "$current"
   return 1
 }
 
@@ -183,7 +229,7 @@ _test_tx_error_full() {
 }
 
 run_transaction_tests() {
-  local my_addr target_addr
+  local my_addr target_addr mnemonic_addr
   my_addr=$(_get_address "private-key")
 
   if [ -z "$my_addr" ]; then
@@ -191,9 +237,14 @@ run_transaction_tests() {
     return
   fi
 
-  # Determine target address for transfers
+  # Determine target address for transfers.
+  # If mnemonic resolves to the same address as the private-key wallet, fall back
+  # to the fixed external test address to avoid self-transfer failures.
   if [ -n "${MNEMONIC:-}" ]; then
-    target_addr=$(_get_address "mnemonic")
+    mnemonic_addr=$(_get_address "mnemonic")
+    if [ -n "$mnemonic_addr" ] && [ "$mnemonic_addr" != "$my_addr" ]; then
+      target_addr="$mnemonic_addr"
+    fi
   fi
   if [ -z "$target_addr" ]; then
     target_addr="TNPeeaaFB7K9cmo4uQpcU32zGK8G1NYqeL"
@@ -282,7 +333,6 @@ run_transaction_tests() {
       send_coin_txid=$(_json_field "$(cat "$RESULTS_DIR/send-coin-json.out")" "data.txid")
     fi
   fi
-  sleep 4
   if _qa_case_enabled "send-coin-balance"; then
     echo -n "  send-coin balance check... "
     if [ "$send_coin_text_ok" -eq 0 ] && [ "$send_coin_json_ok" -eq 0 ]; then
@@ -309,14 +359,17 @@ run_transaction_tests() {
     if _qa_case_enabled "send-coin-mnemonic"; then
     echo -n "  send-coin (mnemonic)... "
     local mn_out
-    mn_out=$(_tx_run_mnemonic send-coin --to "$my_addr" --amount 1) || true
+    local mnemonic_target="$my_addr"
+    if [ -n "$mnemonic_addr" ] && [ "$mnemonic_addr" = "$my_addr" ]; then
+      mnemonic_target="TNPeeaaFB7K9cmo4uQpcU32zGK8G1NYqeL"
+    fi
+    mn_out=$(_tx_run_mnemonic send-coin --to "$mnemonic_target" --amount 1) || true
     echo "$mn_out" > "$RESULTS_DIR/send-coin-mnemonic.out"
     if echo "$mn_out" | grep -qi "successful"; then
       echo "PASS" > "$RESULTS_DIR/send-coin-mnemonic.result"; echo "PASS"
     else
       echo "FAIL" > "$RESULTS_DIR/send-coin-mnemonic.result"; echo "FAIL"
     fi
-    sleep 3
     fi
   fi
 
@@ -325,13 +378,13 @@ run_transaction_tests() {
   resource_before=$(_get_account_resource "$my_addr")
   _test_tx_text "freeze-v2-energy" freeze-balance-v2 --amount 1000000 --resource 1
   _test_tx_json "freeze-v2-energy" freeze-balance-v2 --amount 1000000 --resource 1
-  sleep 4
+  _wait_for_tx_receipt_by_label "freeze-v2-energy" 5 1 || true
 
   # --- get-account-resource after freeze ---
   local res_out
   if _qa_case_enabled "post-freeze-resource"; then
     echo -n "  get-account-resource (post-freeze)... "
-    res_out=$(_tx_run get-account-resource --address "$my_addr") || true
+    res_out=$(_wait_for_resource_change "$resource_before" "$my_addr" 5 1) || true
     echo "$res_out" > "$RESULTS_DIR/post-freeze-resource.out"
     if [ -n "$resource_before" ] && [ -n "$res_out" ] && [ "$resource_before" != "$res_out" ]; then
       echo "PASS (side-effect verified)" > "$RESULTS_DIR/post-freeze-resource.result"; echo "PASS"
@@ -343,13 +396,14 @@ run_transaction_tests() {
   fi
 
   # --- unfreeze-balance-v2 (1 TRX ENERGY) ---
+  sleep 3
   _test_tx_text "unfreeze-v2-energy" unfreeze-balance-v2 --amount 1000000 --resource 1
   _test_tx_json "unfreeze-v2-energy" unfreeze-balance-v2 --amount 1000000 --resource 1
-  sleep 4
+  _wait_for_tx_receipt_by_label "unfreeze-v2-energy" 5 1 || true
   if _qa_case_enabled "post-unfreeze-resource"; then
     echo -n "  get-account-resource (post-unfreeze)... "
     local res_after_unfreeze
-    res_after_unfreeze=$(_tx_run get-account-resource --address "$my_addr") || true
+    res_after_unfreeze=$(_wait_for_resource_change "$res_out" "$my_addr" 5 1) || true
     echo "$res_after_unfreeze" > "$RESULTS_DIR/post-unfreeze-resource.out"
     if [ -n "$res_out" ] && [ -n "$res_after_unfreeze" ] && [ "$res_out" != "$res_after_unfreeze" ]; then
       echo "PASS (side-effect verified)" > "$RESULTS_DIR/post-unfreeze-resource.result"; echo "PASS"
@@ -357,9 +411,9 @@ run_transaction_tests() {
       echo "FAIL: account resource output did not change after unfreeze" > "$RESULTS_DIR/post-unfreeze-resource.result"; echo "FAIL"
     fi
   fi
-  sleep 4
 
   # --- freeze-balance-v2 (1 TRX for BANDWIDTH) ---
+  sleep 3
   _test_tx_text "freeze-v2-bandwidth" freeze-balance-v2 --amount 1000000 --resource 0
   sleep 4
 
@@ -403,9 +457,23 @@ run_transaction_tests() {
   fi
 
   # --- transfer-usdt (send 1 USDT unit to target) ---
-  _test_tx_text "transfer-usdt" transfer-usdt --to "$target_addr" --amount 1
-  _test_tx_json "transfer-usdt" transfer-usdt --to "$target_addr" --amount 1
-  sleep 4
+  local usdt_balance
+  usdt_balance=$(_get_usdt_balance)
+  if [ -n "$usdt_balance" ] && [ "$usdt_balance" -gt 0 ]; then
+    _test_tx_text "transfer-usdt" transfer-usdt --to "$target_addr" --amount 1
+    _test_tx_json "transfer-usdt" transfer-usdt --to "$target_addr" --amount 1
+    _wait_for_tx_receipt_by_label "transfer-usdt" 5 1 || true
+  else
+    if _qa_case_enabled "transfer-usdt-text"; then
+      echo "SKIP: no USDT balance available for transfer test" > "$RESULTS_DIR/transfer-usdt-text.result"
+      : > "$RESULTS_DIR/transfer-usdt-text.out"
+    fi
+    if _qa_case_enabled "transfer-usdt-json"; then
+      echo "SKIP: no USDT balance available for transfer test" > "$RESULTS_DIR/transfer-usdt-json.result"
+      : > "$RESULTS_DIR/transfer-usdt-json.out"
+    fi
+    echo "  transfer-usdt... SKIP"
+  fi
 
   # --- trigger-contract (USDT approve, real on-chain write) ---
   _test_tx_text "trigger-contract" trigger-contract \
@@ -418,19 +486,20 @@ run_transaction_tests() {
     --method "approve(address,uint256)" \
     --params "\"$target_addr\",0" \
     --fee-limit 100000000
-  sleep 4
+  _wait_for_tx_receipt_by_label "trigger-contract" 5 1 || true
 
   # --- deploy-contract (minimal storage contract on Nile) ---
   # Solidity: contract Store { uint256 public val; constructor() { val = 42; } }
   local store_abi='[{"inputs":[],"stateMutability":"nonpayable","type":"constructor"},{"inputs":[],"name":"val","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"}]'
   local store_bytecode="6080604052602a60005534801561001557600080fd5b50607b8061002360003960006000f3fe6080604052348015600f57600080fd5b506004361060285760003560e01c80633c6bb43614602d575b600080fd5b60336047565b604051603e91906059565b60405180910390f35b60005481565b6053816072565b82525050565b6000602082019050606c6000830184604d565b92915050565b600081905091905056fea264697066735822"
+  local store_name="StoreTest$(date +%s)"
   _test_tx_text "deploy-contract" deploy-contract \
-    --name "StoreTest" --abi "$store_abi" --bytecode "$store_bytecode" \
+    --name "$store_name" --abi "$store_abi" --bytecode "$store_bytecode" \
     --fee-limit 1000000000
   _test_tx_json "deploy-contract" deploy-contract \
-    --name "StoreTest" --abi "$store_abi" --bytecode "$store_bytecode" \
+    --name "$store_name" --abi "$store_abi" --bytecode "$store_bytecode" \
     --fee-limit 1000000000
-  sleep 4
+  _wait_for_tx_receipt_by_label "deploy-contract" 5 1 || true
 
   # --- estimate-energy (USDT transfer estimate) ---
   if _qa_case_enabled "estimate-energy"; then
@@ -451,7 +520,7 @@ run_transaction_tests() {
   # --- vote-witness (vote for a known Nile SR) ---
   # Get first witness address
   local witness_addr
-  witness_addr=$(_tx_run list-witnesses | grep -v "keystore" | grep -o 'T[A-Za-z0-9]\{33\}' | head -1) || true
+  witness_addr=$(_tx_run_json list-witnesses | grep -o 'T[A-Za-z0-9]\{33\}' | head -1) || true
   if [ -n "$witness_addr" ] && _qa_case_enabled "vote-witness-tx"; then
     # First need to freeze some TRX to get voting power
     _tx_run freeze-balance-v2 --amount 2000000 --resource 0 > /dev/null 2>&1 || true

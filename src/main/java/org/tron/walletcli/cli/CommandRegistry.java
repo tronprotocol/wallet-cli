@@ -12,7 +12,7 @@ public class CommandRegistry {
 
     public void add(CommandDefinition cmd) {
         commands.put(cmd.getName(), cmd);
-        aliasToName.put(cmd.getName(), cmd.getName());
+        aliasToName.put(cmd.getName().toLowerCase(), cmd.getName());
         for (String alias : cmd.getAliases()) {
             aliasToName.put(alias.toLowerCase(), cmd.getName());
         }

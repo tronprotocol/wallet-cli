@@ -7,6 +7,10 @@ filter_noise() {
   echo "$input" | grep -v "^User defined config file" \
                  | grep -v "^Authenticated with" \
                  | grep -v "^User defined config" \
+                 | grep -v "^No wallet directory found — skipping auto-login" \
+                 | grep -v "^No keystore files found — skipping auto-login" \
+                 | grep -v "^MASTER_PASSWORD not set — skipping auto-login" \
+                 | grep -v "^No active wallet selected — skipping auto-login" \
                  | grep -v "^$" || true
 }
 

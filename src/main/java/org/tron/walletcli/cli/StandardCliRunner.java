@@ -135,21 +135,25 @@ public class StandardCliRunner {
     private void authenticate(WalletApiWrapper wrapper) throws Exception {
         File walletDir = new File("Wallet");
         if (!walletDir.exists() || !walletDir.isDirectory()) {
+            formatter.info("No wallet directory found — skipping auto-login");
             return; // No wallet — commands that need auth will fail gracefully
         }
         File[] files = walletDir.listFiles((dir, name) -> name.endsWith(".json"));
         if (files == null || files.length == 0) {
+            formatter.info("No keystore files found — skipping auto-login");
             return; // No keystore files
         }
 
         String envPwd = System.getenv("MASTER_PASSWORD");
         if (envPwd == null || envPwd.isEmpty()) {
+            formatter.info("MASTER_PASSWORD not set — skipping auto-login");
             return; // No password — can't auto-login
         }
 
         // Find the wallet file to load: active wallet or fallback to first
         String activeAddress = ActiveWalletConfig.getActiveAddressStrict();
         if (activeAddress == null) {
+            formatter.info("No active wallet selected — skipping auto-login");
             return;
         }
         File targetFile = ActiveWalletConfig.findWalletFileByAddress(activeAddress);

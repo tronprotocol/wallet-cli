@@ -38,6 +38,18 @@ public class GlobalOptionsTest {
     }
   }
 
+  @Test
+  public void getCommandArgsReturnsDefensiveCopy() {
+    GlobalOptions opts = GlobalOptions.parse(new String[]{"send-coin", "--to", "TXYZ"});
+
+    String[] first = opts.getCommandArgs();
+    first[0] = "mutated";
+
+    String[] second = opts.getCommandArgs();
+    Assert.assertEquals("--to", second[0]);
+    Assert.assertEquals("TXYZ", second[1]);
+  }
+
   private void assertMissingValue(String option) {
     try {
       GlobalOptions.parse(new String[]{option});

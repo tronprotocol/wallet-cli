@@ -27,7 +27,7 @@ public class GlobalOptions {
     public boolean isQuiet() { return quiet; }
     public boolean isVerbose() { return verbose; }
     public String getCommand() { return command; }
-    public String[] getCommandArgs() { return commandArgs; }
+    public String[] getCommandArgs() { return java.util.Arrays.copyOf(commandArgs, commandArgs.length); }
 
     public OutputFormatter.OutputMode getOutputMode() {
         return "json".equalsIgnoreCase(output)

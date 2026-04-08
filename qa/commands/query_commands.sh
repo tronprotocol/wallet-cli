@@ -30,6 +30,32 @@ _extract_recent_txid() {
   echo "$recent_json" | grep -o '"txid": "[^"]*"' | head -1 | awk -F'"' '{print $4}' || true
 }
 
+_batch_result_file() {
+  local label="$1"
+  echo "$RESULTS_DIR/${label}.result"
+}
+
+_batch_has_skip_result() {
+  local label="$1"
+  local result_file
+  result_file=$(_batch_result_file "$label")
+  [ -f "$result_file" ] && grep -q '^SKIP:' "$result_file"
+}
+
+_run_query_batch() {
+  local auth_method="$1"
+  local cmd=(java -cp "$WALLET_JAR" org.tron.qa.QABatchRunner
+    --network "$NETWORK"
+    --auth "$auth_method"
+    --results-dir "$RESULTS_DIR")
+
+  if [ -n "$QA_CASE_FILTER" ]; then
+    cmd+=(--case "$QA_CASE_FILTER")
+  fi
+
+  "${cmd[@]}"
+}
+
 # Test --help for a command
 _test_help() {
   local cmd="$1"
@@ -54,10 +80,15 @@ _test_auth_full() {
   fi
   echo -n "  $cmd ($prefix)... "
   local text_out json_out result
-  text_out=$(_run_auth "$method" "$cmd" "$@") || true
-  json_out=$(_run_auth "$method" --output json "$cmd" "$@") || true
-  echo "$text_out" > "$RESULTS_DIR/${prefix}_${cmd}_text.out"
-  echo "$json_out" > "$RESULTS_DIR/${prefix}_${cmd}_json.out"
+  if [ "${QA_QUERY_BATCH:-0}" = "1" ]; then
+    text_out=$(cat "$RESULTS_DIR/${prefix}_${cmd}_text.out" 2>/dev/null) || true
+    json_out=$(cat "$RESULTS_DIR/${prefix}_${cmd}_json.out" 2>/dev/null) || true
+  else
+    text_out=$(_run_auth "$method" "$cmd" "$@") || true
+    json_out=$(_run_auth "$method" --output json "$cmd" "$@") || true
+    echo "$text_out" > "$RESULTS_DIR/${prefix}_${cmd}_text.out"
+    echo "$json_out" > "$RESULTS_DIR/${prefix}_${cmd}_json.out"
+  fi
   result=$(check_json_text_parity "$cmd" "$text_out" "$json_out")
   echo "$result" > "$RESULTS_DIR/${prefix}_${cmd}.result"
   echo "$result"
@@ -71,10 +102,15 @@ _test_noauth_full() {
   fi
   echo -n "  $cmd ($prefix)... "
   local text_out json_out result
-  text_out=$(_run "$cmd" "$@") || true
-  json_out=$(_run --output json "$cmd" "$@") || true
-  echo "$text_out" > "$RESULTS_DIR/${prefix}_${cmd}_text.out"
-  echo "$json_out" > "$RESULTS_DIR/${prefix}_${cmd}_json.out"
+  if [ "${QA_QUERY_BATCH:-0}" = "1" ]; then
+    text_out=$(cat "$RESULTS_DIR/${prefix}_${cmd}_text.out" 2>/dev/null) || true
+    json_out=$(cat "$RESULTS_DIR/${prefix}_${cmd}_json.out" 2>/dev/null) || true
+  else
+    text_out=$(_run "$cmd" "$@") || true
+    json_out=$(_run --output json "$cmd" "$@") || true
+    echo "$text_out" > "$RESULTS_DIR/${prefix}_${cmd}_text.out"
+    echo "$json_out" > "$RESULTS_DIR/${prefix}_${cmd}_json.out"
+  fi
   result=$(check_json_text_parity "$cmd" "$text_out" "$json_out")
   echo "$result" > "$RESULTS_DIR/${prefix}_${cmd}.result"
   echo "$result"
@@ -115,7 +151,12 @@ run_query_tests() {
 
   # Get own address for parameterized queries
   local my_addr
-  my_addr=$(_run_auth "$auth_method" get-address | grep "address = " | awk '{print $NF}')
+  if [ "${QA_QUERY_BATCH:-0}" = "1" ]; then
+    _run_query_batch "$auth_method"
+    my_addr=$(_run_auth "$auth_method" get-address | grep "address = " | awk '{print $NF}')
+  else
+    my_addr=$(_run_auth "$auth_method" get-address | grep "address = " | awk '{print $NF}')
+  fi
 
   # ===========================================================
   # Help verification for ALL query commands
@@ -233,63 +274,105 @@ run_query_tests() {
   # get-block-by-id: need a block hash
   if _qa_case_enabled "${prefix}_get-block-by-id"; then
   echo -n "  get-block-by-id ($prefix)... "
-  local recent_blocks_json block_id
-  recent_blocks_json=$(_recent_blocks_json) || true
-  block_id=$(_extract_recent_blockid "$recent_blocks_json")
-  if [ -n "$block_id" ]; then
-    local bid_text bid_json
-    bid_text=$(_run get-block-by-id --id "$block_id") || true
-    bid_json=$(_run --output json get-block-by-id --id "$block_id") || true
-    echo "$bid_text" > "$RESULTS_DIR/${prefix}_get-block-by-id_text.out"
-    echo "$bid_json" > "$RESULTS_DIR/${prefix}_get-block-by-id_json.out"
-    if [ -n "$bid_text" ]; then
-      echo "PASS" > "$RESULTS_DIR/${prefix}_get-block-by-id.result"; echo "PASS"
-    else
-      echo "FAIL" > "$RESULTS_DIR/${prefix}_get-block-by-id.result"; echo "FAIL"
-    fi
-  else
-    echo "SKIP: no blockid available from get-block-by-latest-num --count 10" > "$RESULTS_DIR/${prefix}_get-block-by-id.result"
+  if [ "${QA_QUERY_BATCH:-0}" = "1" ] && _batch_has_skip_result "${prefix}_get-block-by-id"; then
     echo "SKIP"
+  else
+    local recent_blocks_json block_id
+    if [ "${QA_QUERY_BATCH:-0}" = "1" ]; then
+      local bid_text
+      bid_text=$(cat "$RESULTS_DIR/${prefix}_get-block-by-id_text.out" 2>/dev/null) || true
+      if [ -n "$bid_text" ]; then
+        echo "PASS" > "$RESULTS_DIR/${prefix}_get-block-by-id.result"; echo "PASS"
+      else
+        echo "FAIL" > "$RESULTS_DIR/${prefix}_get-block-by-id.result"; echo "FAIL"
+      fi
+    else
+      recent_blocks_json=$(_recent_blocks_json) || true
+      block_id=$(_extract_recent_blockid "$recent_blocks_json")
+      if [ -n "$block_id" ]; then
+        local bid_text bid_json
+        bid_text=$(_run get-block-by-id --id "$block_id") || true
+        bid_json=$(_run --output json get-block-by-id --id "$block_id") || true
+        echo "$bid_text" > "$RESULTS_DIR/${prefix}_get-block-by-id_text.out"
+        echo "$bid_json" > "$RESULTS_DIR/${prefix}_get-block-by-id_json.out"
+        if [ -n "$bid_text" ]; then
+          echo "PASS" > "$RESULTS_DIR/${prefix}_get-block-by-id.result"; echo "PASS"
+        else
+          echo "FAIL" > "$RESULTS_DIR/${prefix}_get-block-by-id.result"; echo "FAIL"
+        fi
+      else
+        echo "SKIP: no blockid available from get-block-by-latest-num --count 10" > "$RESULTS_DIR/${prefix}_get-block-by-id.result"
+        echo "SKIP"
+      fi
+    fi
   fi
   fi
 
   # get-transaction-by-id / get-transaction-info-by-id
   if _qa_case_enabled "${prefix}_get-transaction-by-id" || _qa_case_enabled "${prefix}_get-transaction-info-by-id"; then
   echo -n "  get-transaction-by-id ($prefix)... "
-  local recent_blocks_json tx_id
-  recent_blocks_json=$(_recent_blocks_json) || true
-  tx_id=$(_extract_recent_txid "$recent_blocks_json")
-  if [ -n "$tx_id" ]; then
-    local tx_text tx_json
-    tx_text=$(_run get-transaction-by-id --id "$tx_id") || true
-    tx_json=$(_run --output json get-transaction-by-id --id "$tx_id") || true
-    echo "$tx_text" > "$RESULTS_DIR/${prefix}_get-transaction-by-id_text.out"
-    echo "$tx_json" > "$RESULTS_DIR/${prefix}_get-transaction-by-id_json.out"
-    if [ -n "$tx_text" ]; then
-      echo "PASS" > "$RESULTS_DIR/${prefix}_get-transaction-by-id.result"; echo "PASS"
-    else
-      echo "FAIL" > "$RESULTS_DIR/${prefix}_get-transaction-by-id.result"; echo "FAIL"
-    fi
-
-    echo -n "  get-transaction-info-by-id ($prefix)... "
-    local txi_text txi_json
-    txi_text=$(_run get-transaction-info-by-id --id "$tx_id") || true
-    txi_json=$(_run --output json get-transaction-info-by-id --id "$tx_id") || true
-    echo "$txi_text" > "$RESULTS_DIR/${prefix}_get-transaction-info-by-id_text.out"
-    echo "$txi_json" > "$RESULTS_DIR/${prefix}_get-transaction-info-by-id_json.out"
-    if [ -n "$txi_text" ]; then
-      echo "PASS" > "$RESULTS_DIR/${prefix}_get-transaction-info-by-id.result"; echo "PASS"
-    else
-      echo "FAIL" > "$RESULTS_DIR/${prefix}_get-transaction-info-by-id.result"; echo "FAIL"
-    fi
-  else
-    if _qa_case_enabled "${prefix}_get-transaction-by-id"; then
-      echo "SKIP: no txid available from get-block-by-latest-num --count 10" > "$RESULTS_DIR/${prefix}_get-transaction-by-id.result"
-    fi
+  if [ "${QA_QUERY_BATCH:-0}" = "1" ] && _batch_has_skip_result "${prefix}_get-transaction-by-id"; then
     if _qa_case_enabled "${prefix}_get-transaction-info-by-id"; then
       echo "SKIP: no txid available from get-block-by-latest-num --count 10" > "$RESULTS_DIR/${prefix}_get-transaction-info-by-id.result"
     fi
     echo "SKIP"
+  else
+    local recent_blocks_json tx_id
+    if [ "${QA_QUERY_BATCH:-0}" = "1" ]; then
+      local tx_text tx_json
+      tx_text=$(cat "$RESULTS_DIR/${prefix}_get-transaction-by-id_text.out" 2>/dev/null) || true
+      tx_json=$(cat "$RESULTS_DIR/${prefix}_get-transaction-by-id_json.out" 2>/dev/null) || true
+      if [ -n "$tx_text" ]; then
+        echo "PASS" > "$RESULTS_DIR/${prefix}_get-transaction-by-id.result"; echo "PASS"
+      else
+        echo "FAIL" > "$RESULTS_DIR/${prefix}_get-transaction-by-id.result"; echo "FAIL"
+      fi
+
+      echo -n "  get-transaction-info-by-id ($prefix)... "
+      local txi_text txi_json
+      txi_text=$(cat "$RESULTS_DIR/${prefix}_get-transaction-info-by-id_text.out" 2>/dev/null) || true
+      txi_json=$(cat "$RESULTS_DIR/${prefix}_get-transaction-info-by-id_json.out" 2>/dev/null) || true
+      if [ -n "$txi_text" ]; then
+        echo "PASS" > "$RESULTS_DIR/${prefix}_get-transaction-info-by-id.result"; echo "PASS"
+      else
+        echo "FAIL" > "$RESULTS_DIR/${prefix}_get-transaction-info-by-id.result"; echo "FAIL"
+      fi
+    else
+      recent_blocks_json=$(_recent_blocks_json) || true
+      tx_id=$(_extract_recent_txid "$recent_blocks_json")
+      if [ -n "$tx_id" ]; then
+        local tx_text tx_json
+        tx_text=$(_run get-transaction-by-id --id "$tx_id") || true
+        tx_json=$(_run --output json get-transaction-by-id --id "$tx_id") || true
+        echo "$tx_text" > "$RESULTS_DIR/${prefix}_get-transaction-by-id_text.out"
+        echo "$tx_json" > "$RESULTS_DIR/${prefix}_get-transaction-by-id_json.out"
+        if [ -n "$tx_text" ]; then
+          echo "PASS" > "$RESULTS_DIR/${prefix}_get-transaction-by-id.result"; echo "PASS"
+        else
+          echo "FAIL" > "$RESULTS_DIR/${prefix}_get-transaction-by-id.result"; echo "FAIL"
+        fi
+
+        echo -n "  get-transaction-info-by-id ($prefix)... "
+        local txi_text txi_json
+        txi_text=$(_run get-transaction-info-by-id --id "$tx_id") || true
+        txi_json=$(_run --output json get-transaction-info-by-id --id "$tx_id") || true
+        echo "$txi_text" > "$RESULTS_DIR/${prefix}_get-transaction-info-by-id_text.out"
+        echo "$txi_json" > "$RESULTS_DIR/${prefix}_get-transaction-info-by-id_json.out"
+        if [ -n "$txi_text" ]; then
+          echo "PASS" > "$RESULTS_DIR/${prefix}_get-transaction-info-by-id.result"; echo "PASS"
+        else
+          echo "FAIL" > "$RESULTS_DIR/${prefix}_get-transaction-info-by-id.result"; echo "FAIL"
+        fi
+      else
+        if _qa_case_enabled "${prefix}_get-transaction-by-id"; then
+          echo "SKIP: no txid available from get-block-by-latest-num --count 10" > "$RESULTS_DIR/${prefix}_get-transaction-by-id.result"
+        fi
+        if _qa_case_enabled "${prefix}_get-transaction-info-by-id"; then
+          echo "SKIP: no txid available from get-block-by-latest-num --count 10" > "$RESULTS_DIR/${prefix}_get-transaction-info-by-id.result"
+        fi
+        echo "SKIP"
+      fi
+    fi
   fi
   fi
 

@@ -69,10 +69,7 @@ public class ActiveWalletConfig {
      * Clear the active wallet config.
      */
     public static void clear() {
-        File configFile = new File(WALLET_DIR, CONFIG_FILE);
-        if (configFile.exists()) {
-            configFile.delete();
-        }
+        clearConfigFile(new File(WALLET_DIR, CONFIG_FILE));
     }
 
     /**
@@ -145,6 +142,13 @@ public class ActiveWalletConfig {
             throw e;
         } catch (Exception e) {
             throw new IOException("Could not read active wallet config: " + e.getMessage(), e);
+        }
+    }
+
+    static void clearConfigFile(File configFile) {
+        if (configFile.exists() && !configFile.delete()) {
+            System.err.println("Warning: Failed to delete active wallet config: "
+                    + configFile.getPath());
         }
     }
 }

@@ -31,11 +31,13 @@ _import_wallet() {
   rm -rf Wallet/ 2>/dev/null
   if [ "$method" = "private-key" ]; then
     MASTER_PASSWORD="$MASTER_PASSWORD" \
-      java -jar "$WALLET_JAR" --network "$NETWORK" import-wallet --private-key "$PRIVATE_KEY" 2>/dev/null \
+      TRON_TEST_APIKEY="$PRIVATE_KEY" \
+      java -cp "$WALLET_JAR" org.tron.qa.QASecretImporter private-key 2>/dev/null \
       | grep -v "^User defined" || true
   elif [ "$method" = "mnemonic" ] && [ -n "$MNEMONIC" ]; then
     MASTER_PASSWORD="$MASTER_PASSWORD" \
-      java -jar "$WALLET_JAR" --network "$NETWORK" import-wallet-by-mnemonic --mnemonic "$MNEMONIC" 2>/dev/null \
+      TRON_TEST_MNEMONIC="$MNEMONIC" \
+      java -cp "$WALLET_JAR" org.tron.qa.QASecretImporter mnemonic 2>/dev/null \
       | grep -v "^User defined" || true
   fi
 }

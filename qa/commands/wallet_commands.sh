@@ -29,6 +29,60 @@ _test_w_help() {
   fi
 }
 
+_skip_case() {
+  local label="$1"
+  local reason="$2"
+  if ! _qa_case_enabled "$label"; then
+    return
+  fi
+  echo -n "  $label... "
+  echo "SKIP: $reason" > "$RESULTS_DIR/${label}.result"
+  echo "SKIP"
+}
+
+_extract_first_wallet_address() {
+  local json_input="$1"
+  local text_input="$2"
+  local addr=""
+
+  if [ -n "$json_input" ] && command -v python3 &>/dev/null; then
+    addr=$(echo "$json_input" | python3 -c "
+import sys, json
+try:
+    d = json.load(sys.stdin)
+    wallets = d.get('data', {}).get('wallets', [])
+    if wallets and isinstance(wallets[0], dict):
+        print(wallets[0].get('wallet-address', ''))
+except Exception:
+    pass
+" 2>/dev/null) || true
+  fi
+
+  if [ -z "$addr" ] && [ -n "$text_input" ]; then
+    addr=$(echo "$text_input" | grep -o 'T[A-Za-z0-9]\{33\}' | head -1) || true
+  fi
+
+  echo "$addr"
+}
+
+_test_w_text_entrypoint() {
+  local label="$1"; shift
+  local marker1="$1"; shift
+  local marker2="$1"; shift
+  if ! _qa_case_enabled "$label"; then
+    return
+  fi
+  echo -n "  $label (interactive)... "
+  local out
+  out=$(_w_run "$@" 2>&1) || true
+  echo "$out" > "$RESULTS_DIR/${label}_text.out"
+  if echo "$out" | grep -q "$marker1" || echo "$out" | grep -q "$marker2"; then
+    echo "PASS" > "$RESULTS_DIR/${label}.result"; echo "PASS"
+  else
+    echo "FAIL" > "$RESULTS_DIR/${label}.result"; echo "FAIL"
+  fi
+}
+
 # Full text+JSON parity test (no auth)
 _test_w_full() {
   local cmd="$1"; shift
@@ -201,6 +255,13 @@ run_wallet_tests() {
     fi
   fi
 
+  # Interactive / legacy-prompt commands should be smoke-tested as entrypoints,
+  # not validated through generic text/json parity.
+  _test_w_text_entrypoint "encoding-converter" "Encoding Converter" "TRON - EVM" encoding-converter
+  _test_w_text_entrypoint "address-book" "MAIN MENU:" "The address book is empty." address-book
+  _skip_case "register-wallet" "interactive wallet-name prompt; covered separately from standard CLI parity"
+  _skip_case "generate-sub-account" "interactive mnemonic flow; not covered by generic standard CLI parity"
+
   # switch-network (verify switching works)
   if _qa_case_enabled "switch-network"; then
   echo -n "  switch-network (to nile)... "
@@ -303,7 +364,7 @@ run_wallet_tests() {
 
   if _qa_case_enabled "list-wallet-json"; then
   echo -n "  list-wallet (json)... "
-  lw_json=$(java -jar "$WALLET_JAR" --network "$NETWORK" --output json list-wallet 2>/dev/null | _wf) || true
+  lw_json=$(_w_run_auth --output json list-wallet) || true
   echo "$lw_json" > "$RESULTS_DIR/list-wallet_json.out"
   if echo "$lw_json" | python3 -c "import sys,json; d=json.load(sys.stdin); assert d['success']; assert len(d['data']['wallets'])>0" 2>/dev/null; then
     echo "PASS" > "$RESULTS_DIR/list-wallet-json.result"; echo "PASS"
@@ -311,7 +372,7 @@ run_wallet_tests() {
     echo "FAIL" > "$RESULTS_DIR/list-wallet-json.result"; echo "FAIL"
   fi
   else
-    lw_json=$(java -jar "$WALLET_JAR" --network "$NETWORK" --output json list-wallet 2>/dev/null | _wf) || true
+    lw_json=$(_w_run_auth --output json list-wallet) || true
   fi
 
   if _qa_case_enabled "list-wallet-json-fields"; then
@@ -345,7 +406,7 @@ assert isinstance(w['wallet-address'], str) and len(w['wallet-address']) > 0, 'e
   # ---- set-active-wallet (by address) ----
   # Extract the first wallet address from list-wallet JSON
   local first_addr
-  first_addr=$(echo "$lw_json" | python3 -c "import sys,json; print(json.load(sys.stdin)['data']['wallets'][0]['wallet-address'])" 2>/dev/null) || true
+  first_addr=$(_extract_first_wallet_address "$lw_json" "$lw_text")
 
   if [ -n "$first_addr" ]; then
     if _qa_case_enabled "set-active-wallet-addr-text"; then
@@ -513,29 +574,20 @@ assert isinstance(w['wallet-address'], str) and len(w['wallet-address']) > 0, 'e
   echo "  --- Full text+JSON verification (remaining commands) ---"
 
   # Commands that work without auth and produce output
-  _test_w_full "encoding-converter"
-  _test_w_full "address-book"
   _test_w_full "help"
 
-  # Auth-required commands — text+JSON parity
-  _test_w_auth_full "list-wallet"
-  _test_w_auth_full "get-active-wallet"
-  _test_w_auth_full "lock"
-  _test_w_auth_full "unlock" --duration 60
-  _test_w_auth_full "generate-sub-account"
-  _test_w_auth_full "view-transaction-history"
-  _test_w_auth_full "view-backup-records"
+  # Auth-required commands with stable non-interactive output.
+  # list-wallet / get-active-wallet / lock / unlock / view-* already have
+  # dedicated assertions above, so do not overwrite those results here.
 
   # Expected-error verification — commands that need specific state
-  _test_w_error_full "register-wallet"
-  _test_w_error_full "import-wallet" --private-key "0000000000000000000000000000000000000000000000000000000000000001"
-  _test_w_error_full "import-wallet-by-mnemonic" --mnemonic "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about"
   _test_w_error_case "change-password-wrong-old" "change-password" --old-password "wrongpass" --new-password "newpass123A"
   _test_w_error_case "change-password-invalid-new" "change-password" --old-password "$MASTER_PASSWORD" --new-password "short"
-  _test_w_error_full "set-active-wallet"
-  _test_w_auth_error_full "clear-wallet-keystore" --force
-  _test_w_auth_error_full "reset-wallet" --force
-  _test_w_auth_error_full "modify-wallet-name" --name "qa-test-wallet"
+  _skip_case "import-wallet" "covered by QA wallet setup helper rather than generic expected-error parity"
+  _skip_case "import-wallet-by-mnemonic" "covered by QA wallet setup helper rather than generic expected-error parity"
+  _skip_case "clear-wallet-keystore" "destructive command; not validated through generic auth-error parity"
+  _skip_case "reset-wallet" "destructive command; not validated through generic auth-error parity"
+  _skip_case "modify-wallet-name" "stateful wallet mutation; not validated through generic auth-error parity"
 
   echo ""
   echo "  --- Wallet & Misc tests complete ---"

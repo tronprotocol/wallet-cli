@@ -59,7 +59,7 @@ public class CommandDefinition {
      * <p>Rules:
      * <ul>
      *   <li>{@code --key value} sets key to value</li>
-     *   <li>{@code -m} is a shorthand that maps to key {@code "multi"}</li>
+     *   <li>{@code -m} is accepted only for commands that declare a {@code multi} option</li>
      *   <li>Boolean flags: if the next token starts with {@code --} (or is absent),
      *       the flag value is {@code "true"}</li>
      * </ul>
@@ -84,6 +84,9 @@ public class CommandDefinition {
             String token = args[i];
 
             if ("-m".equals(token)) {
+                if (!optionsByName.containsKey("multi")) {
+                    throw new IllegalArgumentException("Unexpected argument: " + token);
+                }
                 values.put("multi", "true");
                 i++;
                 continue;

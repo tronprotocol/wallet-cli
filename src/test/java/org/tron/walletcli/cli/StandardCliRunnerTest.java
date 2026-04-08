@@ -4,9 +4,11 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.InputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -121,6 +123,44 @@ public class StandardCliRunnerTest {
       System.setOut(originalOut);
       System.setErr(originalErr);
       System.setIn(originalIn);
+    }
+  }
+
+  @Test
+  public void missingWalletDirectoryPrintsAutoLoginSkipInfoInTextMode() throws Exception {
+    CommandRegistry registry = new CommandRegistry();
+    registry.add(CommandDefinition.builder()
+        .name("ok")
+        .description("Simple success command")
+        .handler((opts, wrapper, out) -> out.raw("ok"))
+        .build());
+
+    String originalUserDir = System.getProperty("user.dir");
+    PrintStream originalOut = System.out;
+    PrintStream originalErr = System.err;
+    InputStream originalIn = System.in;
+    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+    ByteArrayOutputStream stderr = new ByteArrayOutputStream();
+    File tempDir = Files.createTempDirectory("runner-no-wallet").toFile();
+
+    System.setProperty("user.dir", tempDir.getAbsolutePath());
+    System.setOut(new PrintStream(stdout));
+    System.setErr(new PrintStream(stderr));
+    try {
+      GlobalOptions opts = GlobalOptions.parse(new String[]{"ok"});
+      int exitCode = new StandardCliRunner(registry, opts).execute();
+
+      Assert.assertEquals(0, exitCode);
+      Assert.assertEquals("ok\n", stdout.toString("UTF-8"));
+      Assert.assertTrue(stderr.toString("UTF-8")
+          .contains("No wallet directory found — skipping auto-login"));
+      Assert.assertSame(originalIn, System.in);
+    } finally {
+      System.setOut(originalOut);
+      System.setErr(originalErr);
+      System.setIn(originalIn);
+      System.setProperty("user.dir", originalUserDir);
+      tempDir.delete();
     }
   }
 }

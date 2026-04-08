@@ -6,6 +6,8 @@ import org.junit.Test;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
 import java.nio.file.Files;
 
 public class ActiveWalletConfigTest {
@@ -39,6 +41,32 @@ public class ActiveWalletConfigTest {
     } catch (IOException e) {
       Assert.assertEquals("Active wallet config is missing the address field", e.getMessage());
     }
+  }
+
+  @Test
+  public void clearWarnsWhenDeleteFails() throws Exception {
+    PrintStream originalErr = System.err;
+    File tempDir = Files.createTempDirectory("active-wallet-clear-test").toFile();
+    File configDir = new File(tempDir, ".active-wallet");
+    File nestedFile = new File(configDir, "stale");
+    ByteArrayOutputStream errBuffer = new ByteArrayOutputStream();
+
+    Assert.assertTrue(configDir.mkdirs());
+    Assert.assertTrue(nestedFile.createNewFile());
+
+    System.setErr(new PrintStream(errBuffer));
+    try {
+      ActiveWalletConfig.clearConfigFile(configDir);
+    } finally {
+      System.setErr(originalErr);
+      nestedFile.delete();
+      configDir.delete();
+      tempDir.delete();
+    }
+
+    String warning = errBuffer.toString("UTF-8");
+    Assert.assertTrue(warning.contains("Warning: Failed to delete active wallet config"));
+    Assert.assertTrue(warning.contains(".active-wallet"));
   }
 
   private File writeConfig(String json) throws Exception {
