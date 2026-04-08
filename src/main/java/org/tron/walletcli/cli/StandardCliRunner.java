@@ -12,6 +12,7 @@ import java.io.File;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.util.Arrays;
 
 public class StandardCliRunner {
 
@@ -53,6 +54,20 @@ public class StandardCliRunner {
         }
 
         try {
+            return executeInternal(realOut);
+        } catch (CliAbortException e) {
+            return e.getKind() == CliAbortException.Kind.USAGE ? 2 : 1;
+        } finally {
+            System.setIn(originalIn);
+            if (jsonMode) {
+                System.setOut(realOut);
+                System.setErr(realErr);
+            }
+        }
+    }
+
+    private int executeInternal(PrintStream realOut) {
+        try {
             // Apply network setting
             if (globalOpts.getNetwork() != null) {
                 applyNetwork(globalOpts.getNetwork());
@@ -68,7 +83,7 @@ public class StandardCliRunner {
                     msg += ". Did you mean: " + suggestion + "?";
                 }
                 formatter.usageError(msg, null);
-                return 2;
+                return 2; // unreachable after usageError()
             }
 
             // Check for per-command --help (always print to real stdout)
@@ -86,7 +101,7 @@ public class StandardCliRunner {
                 opts = cmd.parseArgs(cmdArgs);
             } catch (IllegalArgumentException e) {
                 formatter.usageError(e.getMessage(), cmd);
-                return 2;
+                return 2; // unreachable after usageError()
             }
 
             // Create wrapper and authenticate
@@ -97,19 +112,15 @@ public class StandardCliRunner {
             cmd.getHandler().execute(opts, wrapper, formatter);
             return 0;
 
+        } catch (CliAbortException e) {
+            throw e;
         } catch (IllegalArgumentException e) {
             formatter.usageError(e.getMessage(), null);
-            return 2;
+            return 2; // unreachable after usageError()
         } catch (Exception e) {
             formatter.error("execution_error",
                     e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName());
-            return 1;
-        } finally {
-            System.setIn(originalIn);
-            if (jsonMode) {
-                System.setOut(realOut);
-                System.setErr(realErr);
-            }
+            return 1; // unreachable after error()
         }
     }
 
@@ -148,17 +159,21 @@ public class StandardCliRunner {
 
         // Load specific wallet file and authenticate
         byte[] password = StringUtils.char2Byte(envPwd.toCharArray());
-        WalletFile wf = WalletUtils.loadWalletFile(targetFile);
-        wf.setSourceFile(targetFile);
-        if (wf.getName() == null || wf.getName().isEmpty()) {
-            wf.setName(targetFile.getName());
+        try {
+            WalletFile wf = WalletUtils.loadWalletFile(targetFile);
+            wf.setSourceFile(targetFile);
+            if (wf.getName() == null || wf.getName().isEmpty()) {
+                wf.setName(targetFile.getName());
+            }
+            WalletApi walletApi = new WalletApi(wf);
+            walletApi.checkPassword(password);
+            walletApi.setLogin(null);
+            walletApi.setUnifiedPassword(password);
+            wrapper.setWallet(walletApi);
+            formatter.info("Authenticated with wallet: " + wf.getAddress());
+        } finally {
+            Arrays.fill(password, (byte) 0);
         }
-        WalletApi walletApi = new WalletApi(wf);
-        walletApi.checkPassword(password);
-        walletApi.setLogin(null);
-        walletApi.setUnifiedPassword(password);
-        wrapper.setWallet(walletApi);
-        formatter.info("Authenticated with wallet: " + wf.getAddress());
     }
 
     private void applyNetwork(String network) {

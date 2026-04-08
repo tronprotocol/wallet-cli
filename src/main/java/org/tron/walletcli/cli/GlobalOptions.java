@@ -57,16 +57,16 @@ public class GlobalOptions {
                     opts.version = true;
                     break;
                 case "--output":
-                    if (i + 1 < args.length) opts.output = args[++i];
+                    opts.output = requireOneOf(args, ++i, "--output", "text", "json");
                     break;
                 case "--network":
-                    if (i + 1 < args.length) opts.network = args[++i];
+                    opts.network = requireOneOf(args, ++i, "--network", "main", "nile", "shasta", "custom");
                     break;
                 case "--wallet":
-                    if (i + 1 < args.length) opts.wallet = args[++i];
+                    opts.wallet = requireValue(args, ++i, "--wallet");
                     break;
                 case "--grpc-endpoint":
-                    if (i + 1 < args.length) opts.grpcEndpoint = args[++i];
+                    opts.grpcEndpoint = requireValue(args, ++i, "--grpc-endpoint");
                     break;
                 case "--quiet":
                     opts.quiet = true;
@@ -88,5 +88,23 @@ public class GlobalOptions {
         }
         opts.commandArgs = remaining.toArray(new String[0]);
         return opts;
+    }
+
+    private static String requireValue(String[] args, int valueIndex, String optionName) {
+        if (valueIndex >= args.length || args[valueIndex].startsWith("--")) {
+            throw new IllegalArgumentException("Missing value for " + optionName);
+        }
+        return args[valueIndex];
+    }
+
+    private static String requireOneOf(String[] args, int valueIndex, String optionName,
+                                       String... allowedValues) {
+        String value = requireValue(args, valueIndex, optionName);
+        for (String allowedValue : allowedValues) {
+            if (allowedValue.equalsIgnoreCase(value)) {
+                return allowedValue;
+            }
+        }
+        throw new IllegalArgumentException("Invalid value for " + optionName + ": " + value);
     }
 }

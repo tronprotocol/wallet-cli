@@ -47,7 +47,7 @@ public class CommandRegistry {
         sb.append("  wallet-cli <command> --help  Show command help\n\n");
         sb.append("Global Options:\n");
         sb.append("  --output <text|json>         Output format (default: text)\n");
-        sb.append("  --network <main|nile|shasta> Network selection\n");
+        sb.append("  --network <main|nile|shasta|custom> Network selection\n");
         sb.append("  --wallet <name|path>         Select wallet file\n");
         sb.append("  --grpc-endpoint <host:port>  Custom gRPC endpoint\n");
         sb.append("  --quiet                      Suppress non-essential output\n");

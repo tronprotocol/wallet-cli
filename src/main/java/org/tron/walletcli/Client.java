@@ -4672,7 +4672,14 @@ public class Client {
       System.exit(0);
     }
 
-    GlobalOptions globalOpts = GlobalOptions.parse(args);
+    GlobalOptions globalOpts;
+    try {
+      globalOpts = GlobalOptions.parse(args);
+    } catch (IllegalArgumentException e) {
+      System.out.println("Error: " + e.getMessage());
+      System.exit(2);
+      return;
+    }
 
     if (globalOpts.isVersion()) {
       System.out.println("wallet-cli" + VERSION);

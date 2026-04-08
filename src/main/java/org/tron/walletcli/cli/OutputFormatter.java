@@ -37,6 +37,14 @@ public class OutputFormatter {
         return mode;
     }
 
+    private void abortExecution() {
+        throw new CliAbortException(CliAbortException.Kind.EXECUTION);
+    }
+
+    private void abortUsage() {
+        throw new CliAbortException(CliAbortException.Kind.USAGE);
+    }
+
     private void emitJsonSuccess(Object data) {
         Map<String, Object> envelope = new LinkedHashMap<String, Object>();
         envelope.put("success", true);
@@ -95,7 +103,7 @@ public class OutputFormatter {
             out.println(success ? successMsg : failMsg);
         }
         if (!success) {
-            System.exit(1);
+            abortExecution();
         }
     }
 
@@ -147,17 +155,17 @@ public class OutputFormatter {
         }
     }
 
-    /** Print an error and exit with code 1. */
+    /** Print an error and signal exit code 1. */
     public void error(String code, String message) {
         if (mode == OutputMode.JSON) {
             emitJsonError(code, message);
         } else {
             out.println("Error: " + message);
         }
-        System.exit(1);
+        abortExecution();
     }
 
-    /** Print an error for usage mistakes and exit with code 2. */
+    /** Print an error for usage mistakes and signal exit code 2. */
     public void usageError(String message, CommandDefinition cmd) {
         if (mode == OutputMode.JSON) {
             emitJsonError("usage_error", message);
@@ -168,7 +176,7 @@ public class OutputFormatter {
                 out.println(cmd.formatHelp());
             }
         }
-        System.exit(2);
+        abortUsage();
     }
 
     /** Print info to stderr (suppressed in quiet mode and JSON mode). */
