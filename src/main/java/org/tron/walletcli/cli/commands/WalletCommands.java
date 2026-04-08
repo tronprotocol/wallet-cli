@@ -83,21 +83,26 @@ public class WalletCommands {
                     byte[] passwd = org.tron.keystore.StringUtils.char2Byte(
                             envPassword.toCharArray());
                     byte[] priKey = ByteArray.fromHexString(opts.getString("private-key"));
-                    String walletName = opts.has("name") ? opts.getString("name") : "mywallet";
+                    try {
+                        String walletName = opts.has("name") ? opts.getString("name") : "mywallet";
 
-                    ECKey ecKey = ECKey.fromPrivate(priKey);
-                    WalletFile walletFile = Wallet.createStandard(passwd, ecKey);
-                    walletFile.setName(walletName);
-                    String keystoreName = WalletApi.store2Keystore(walletFile);
-                    String address = WalletApi.encode58Check(ecKey.getAddress());
+                        ECKey ecKey = ECKey.fromPrivate(priKey);
+                        WalletFile walletFile = Wallet.createStandard(passwd, ecKey);
+                        walletFile.setName(walletName);
+                        String keystoreName = WalletApi.store2Keystore(walletFile);
+                        String address = WalletApi.encode58Check(ecKey.getAddress());
 
-                    // Auto-set as active wallet
-                    ActiveWalletConfig.setActiveAddress(walletFile.getAddress());
+                        // Auto-set as active wallet
+                        ActiveWalletConfig.setActiveAddress(walletFile.getAddress());
 
-                    Map<String, Object> json = new LinkedHashMap<String, Object>();
-                    json.put("keystore", keystoreName);
-                    json.put("address", address);
-                    out.success("Import wallet successful, keystore: " + keystoreName, json);
+                        Map<String, Object> json = new LinkedHashMap<String, Object>();
+                        json.put("keystore", keystoreName);
+                        json.put("address", address);
+                        out.success("Import wallet successful, keystore: " + keystoreName, json);
+                    } finally {
+                        Arrays.fill(priKey, (byte) 0);
+                        Arrays.fill(passwd, (byte) 0);
+                    }
                 })
                 .build());
     }
