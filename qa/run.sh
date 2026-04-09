@@ -135,6 +135,12 @@ _build_required() {
   return 1
 }
 
+_ensure_query_commands_loaded() {
+  if ! declare -F run_query_tests >/dev/null 2>&1; then
+    source "$SCRIPT_DIR/commands/query_commands.sh"
+  fi
+}
+
 echo "=== Wallet CLI QA — Mode: $MODE, Network: $NETWORK${QA_CASE_FILTER:+, Case: $QA_CASE_FILTER} ==="
 echo ""
 
@@ -184,7 +190,7 @@ if [ "$MODE" = "verify" ]; then
     echo "Phase 2: Private key session — all query commands..."
     echo "  Importing wallet from private key..."
     _import_wallet "private-key"
-    source "$SCRIPT_DIR/commands/query_commands.sh"
+    _ensure_query_commands_loaded
     run_query_tests "private-key"
   fi
 
@@ -195,6 +201,7 @@ if [ "$MODE" = "verify" ]; then
       echo "Phase 3: Mnemonic session — all query commands..."
       echo "  Importing wallet from mnemonic..."
       _import_wallet "mnemonic"
+      _ensure_query_commands_loaded
       run_query_tests "mnemonic"
     else
       echo ""

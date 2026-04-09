@@ -60,8 +60,8 @@ public class CommandDefinition {
      * <ul>
      *   <li>{@code --key value} sets key to value</li>
      *   <li>{@code -m} is accepted only for commands that declare a {@code multi} option</li>
-     *   <li>Boolean flags: if the next token starts with {@code --} (or is absent),
-     *       the flag value is {@code "true"}</li>
+     *   <li>Boolean flags: {@code --flag} implies {@code true}; explicit values must be
+     *       one of {@code true}, {@code false}, {@code 1}, {@code 0}, {@code yes}, or {@code no}</li>
      * </ul>
      *
      * <p>After parsing, all required options are validated.
@@ -98,26 +98,31 @@ public class CommandDefinition {
                     throw new IllegalArgumentException("Empty option name: --");
                 }
 
-                // Determine whether this is a boolean flag (no following value)
-                boolean isBooleanFlag = false;
-                if (i + 1 >= args.length || args[i + 1].startsWith("--")) {
-                    isBooleanFlag = true;
-                }
-                // Also treat it as boolean if the option def says BOOLEAN
                 OptionDef def = optionsByName.get(key);
                 if (def != null && def.getType() == OptionDef.Type.BOOLEAN) {
-                    // If next arg doesn't look like a flag value, treat as boolean flag
-                    if (i + 1 >= args.length || args[i + 1].startsWith("--") || args[i + 1].startsWith("-")) {
-                        isBooleanFlag = true;
+                    if (i + 1 >= args.length || args[i + 1].startsWith("--")) {
+                        values.put(key, "true");
+                        i++;
+                        continue;
                     }
-                }
-
-                if (isBooleanFlag) {
-                    values.put(key, "true");
-                    i++;
-                } else {
-                    values.put(key, args[i + 1]);
+                    String rawValue = args[i + 1];
+                    if (!isSupportedBooleanValue(rawValue)) {
+                        throw new IllegalArgumentException(
+                                "Option --" + key + " requires a boolean value (true/false/1/0/yes/no), got: "
+                                        + rawValue);
+                    }
+                    values.put(key, rawValue);
                     i += 2;
+                } else {
+                    // Determine whether this is a boolean flag (no following value)
+                    boolean isBooleanFlag = i + 1 >= args.length || args[i + 1].startsWith("--");
+                    if (isBooleanFlag) {
+                        values.put(key, "true");
+                        i++;
+                    } else {
+                        values.put(key, args[i + 1]);
+                        i += 2;
+                    }
                 }
             } else {
                 throw new IllegalArgumentException("Unexpected argument: " + token);
@@ -143,6 +148,15 @@ public class CommandDefinition {
         }
 
         return new ParsedOptions(values);
+    }
+
+    private static boolean isSupportedBooleanValue(String rawValue) {
+        return "true".equalsIgnoreCase(rawValue)
+                || "false".equalsIgnoreCase(rawValue)
+                || "1".equals(rawValue)
+                || "0".equals(rawValue)
+                || "yes".equalsIgnoreCase(rawValue)
+                || "no".equalsIgnoreCase(rawValue);
     }
 
     // ---- Help formatting ----------------------------------------------------

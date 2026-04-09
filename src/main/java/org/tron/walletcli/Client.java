@@ -4435,7 +4435,13 @@ public class Client {
         ownerAddress, contractAddress, 0, input, 0, 0, "", true, true, false);
     long energyUsed = estimateTtriple.getMiddle();
     // The fee limit rises by 20% in the total energy price
-    long feeLimit = (long) (energyFee * energyUsed * 1.2);
+    long feeLimit;
+    try {
+      feeLimit = WalletApiWrapper.computeBufferedFeeLimit(energyFee, energyUsed);
+    } catch (ArithmeticException e) {
+      System.out.println("Estimated fee limit is too large.");
+      return;
+    }
     if (multi) {
       if (!DecodeUtil.addressValid(decodeFromBase58Check(base58ToAddress))) {
         System.out.println("Invalid toAddress!");

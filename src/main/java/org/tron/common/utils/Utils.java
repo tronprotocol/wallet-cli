@@ -122,6 +122,8 @@ import org.tron.walletcli.Client;
 import org.tron.walletserver.WalletApi;
 
 public class Utils {
+  private static final ThreadLocal<Boolean> ENV_PASSWORD_INPUT_ENABLED =
+      new ThreadLocal<Boolean>();
   public static final String PERMISSION_ID = "Permission_id";
   public static final String VISIBLE = "visible";
   public static final String TRANSACTION = "transaction";
@@ -327,10 +329,11 @@ public class Utils {
   }
 
   public static char[] inputPassword(boolean checkStrength) throws IOException {
-    // Check MASTER_PASSWORD environment variable first
-    char[] envPassword = resolveEnvPassword(System.getenv("MASTER_PASSWORD"), checkStrength);
-    if (envPassword != null) {
-      return envPassword;
+    if (isEnvPasswordInputEnabled()) {
+      char[] envPassword = resolveEnvPassword(System.getenv("MASTER_PASSWORD"), checkStrength);
+      if (envPassword != null) {
+        return envPassword;
+      }
     }
 
     char[] password;
@@ -374,6 +377,18 @@ public class Utils {
     }
     StringUtils.clear(password);
     throw new IllegalArgumentException("MASTER_PASSWORD does not meet password strength requirements");
+  }
+
+  public static void setEnvPasswordInputEnabled(boolean enabled) {
+    if (enabled) {
+      ENV_PASSWORD_INPUT_ENABLED.set(Boolean.TRUE);
+    } else {
+      ENV_PASSWORD_INPUT_ENABLED.remove();
+    }
+  }
+
+  public static boolean isEnvPasswordInputEnabled() {
+    return Boolean.TRUE.equals(ENV_PASSWORD_INPUT_ENABLED.get());
   }
 
   public static char[] inputPasswordWithoutCheck() throws IOException {

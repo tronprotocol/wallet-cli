@@ -53,14 +53,18 @@ public class WalletCommands {
                         return;
                     }
                     char[] password = envPassword.toCharArray();
-                    String keystoreName = wrapper.registerWallet(password, wordCount);
-                    if (keystoreName != null) {
-                        // Auto-set as active wallet
-                        String address = keystoreName.replace(".json", "");
-                        ActiveWalletConfig.setActiveAddress(address);
-                        out.raw("Register a wallet successful, keystore file name is " + keystoreName);
-                    } else {
-                        out.error("register_failed", "Register wallet failed");
+                    try {
+                        String keystoreName = wrapper.registerWallet(password, wordCount);
+                        if (keystoreName != null) {
+                            // Auto-set as active wallet
+                            String address = keystoreName.replace(".json", "");
+                            ActiveWalletConfig.setActiveAddress(address);
+                            out.raw("Register a wallet successful, keystore file name is " + keystoreName);
+                        } else {
+                            out.error("register_failed", "Register wallet failed");
+                        }
+                    } finally {
+                        org.tron.keystore.StringUtils.clear(password);
                     }
                 })
                 .build());
@@ -126,22 +130,28 @@ public class WalletCommands {
                     List<String> words = Arrays.asList(
                             opts.getString("mnemonic").split("\\s+"));
                     String walletName = opts.has("name") ? opts.getString("name") : "mywallet";
+                    byte[] priKey = null;
+                    try {
+                        priKey = MnemonicUtils.getPrivateKeyFromMnemonic(words);
+                        ECKey ecKey = ECKey.fromPrivate(priKey);
+                        WalletFile walletFile = Wallet.createStandard(passwd, ecKey);
+                        walletFile.setName(walletName);
+                        String keystoreName = WalletApi.store2Keystore(walletFile);
+                        String address = WalletApi.encode58Check(ecKey.getAddress());
 
-                    byte[] priKey = MnemonicUtils.getPrivateKeyFromMnemonic(words);
-                    ECKey ecKey = ECKey.fromPrivate(priKey);
-                    WalletFile walletFile = Wallet.createStandard(passwd, ecKey);
-                    walletFile.setName(walletName);
-                    String keystoreName = WalletApi.store2Keystore(walletFile);
-                    String address = WalletApi.encode58Check(ecKey.getAddress());
-                    Arrays.fill(priKey, (byte) 0);
+                        // Auto-set as active wallet
+                        ActiveWalletConfig.setActiveAddress(walletFile.getAddress());
 
-                    // Auto-set as active wallet
-                    ActiveWalletConfig.setActiveAddress(walletFile.getAddress());
-
-                    Map<String, Object> json = new LinkedHashMap<String, Object>();
-                    json.put("keystore", keystoreName);
-                    json.put("address", address);
-                    out.success("Import wallet by mnemonic successful, keystore: " + keystoreName, json);
+                        Map<String, Object> json = new LinkedHashMap<String, Object>();
+                        json.put("keystore", keystoreName);
+                        json.put("address", address);
+                        out.success("Import wallet by mnemonic successful, keystore: " + keystoreName, json);
+                    } finally {
+                        if (priKey != null) {
+                            Arrays.fill(priKey, (byte) 0);
+                        }
+                        Arrays.fill(passwd, (byte) 0);
+                    }
                 })
                 .build());
     }

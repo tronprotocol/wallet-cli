@@ -5,6 +5,7 @@ import org.bouncycastle.util.encoders.Hex;
 import org.tron.common.enums.NetType;
 import org.tron.common.utils.AbiUtil;
 import org.tron.common.utils.TransactionUtils;
+import org.tron.walletcli.WalletApiWrapper;
 import org.tron.walletcli.cli.CommandDefinition;
 import org.tron.walletcli.cli.CommandRegistry;
 import org.tron.walletcli.cli.OptionDef;
@@ -148,7 +149,14 @@ public class TransactionCommands {
                             .mapToLong(org.tron.trident.proto.Response.ChainParameters.ChainParameter::getValue)
                             .findFirst()
                             .orElse(420L);
-                    long feeLimit = (long) (energyFee * energyUsed * 1.2);
+                    long feeLimit;
+                    try {
+                        feeLimit = WalletApiWrapper.computeBufferedFeeLimit(energyFee, energyUsed);
+                    } catch (ArithmeticException e) {
+                        out.error("fee_limit_overflow",
+                                "Estimated fee limit exceeds supported range.");
+                        return;
+                    }
 
                     TransactionUtils.setPermissionIdOverride(permissionId);
                     boolean result;

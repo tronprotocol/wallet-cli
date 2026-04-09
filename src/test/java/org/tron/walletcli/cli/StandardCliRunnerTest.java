@@ -3,6 +3,7 @@ package org.tron.walletcli.cli;
 import org.junit.Assert;
 import org.junit.Test;
 import org.bouncycastle.util.encoders.Hex;
+import org.tron.common.utils.Utils;
 import org.tron.keystore.WalletFile;
 import org.tron.keystore.WalletUtils;
 import org.tron.walletcli.cli.commands.QueryCommands;
@@ -131,6 +132,30 @@ public class StandardCliRunnerTest {
       System.setOut(originalOut);
       System.setErr(originalErr);
       System.setIn(originalIn);
+    }
+  }
+
+  @Test
+  public void standardCliTemporarilyEnablesEnvPasswordInput() {
+    CommandRegistry registry = new CommandRegistry();
+    registry.add(CommandDefinition.builder()
+        .name("check-env-password-input")
+        .description("Checks env-password input scope")
+        .handler((opts, wrapper, out) -> {
+          Assert.assertTrue(Utils.isEnvPasswordInputEnabled());
+          out.raw("ok");
+        })
+        .build());
+
+    Utils.setEnvPasswordInputEnabled(false);
+    try {
+      GlobalOptions opts = GlobalOptions.parse(new String[]{"check-env-password-input"});
+      int exitCode = new StandardCliRunner(registry, opts).execute();
+
+      Assert.assertEquals(0, exitCode);
+      Assert.assertFalse(Utils.isEnvPasswordInputEnabled());
+    } finally {
+      Utils.setEnvPasswordInputEnabled(false);
     }
   }
 

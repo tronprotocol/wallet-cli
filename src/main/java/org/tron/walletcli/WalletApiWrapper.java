@@ -125,6 +125,11 @@ public class WalletApiWrapper {
   private static final String MnemonicFilePath = "Mnemonic";
   private static final String GAS_FREE_SUPPORT_NETWORK_TIP = "Gas free currently only supports the " + blueBoldHighlight("MAIN") + " network and " + blueBoldHighlight("NILE") + " test network, and does not support other networks at the moment.";
 
+  public static long computeBufferedFeeLimit(long energyFee, long energyUsed) {
+    long base = Math.multiplyExact(energyFee, energyUsed);
+    return Math.addExact(base, Math.floorDiv(base, 5));
+  }
+
   public String registerWallet(char[] password, int wordsNumber) throws CipherException, IOException {
     if (!WalletApi.passwordValid(password)) {
       return null;

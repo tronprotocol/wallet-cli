@@ -1,6 +1,7 @@
 package org.tron.walletcli.cli;
 
 import org.tron.common.enums.NetType;
+import org.tron.common.utils.Utils;
 import org.tron.common.utils.TransactionUtils;
 import org.tron.keystore.StringUtils;
 import org.tron.keystore.WalletFile;
@@ -109,6 +110,8 @@ public class StandardCliRunner {
         String autoInput = "y\n1\ny\ny\n1\ny\ny\n1\ny\ny\n";
         InputStream originalIn = System.in;
         System.setIn(new ByteArrayInputStream(autoInput.getBytes()));
+        boolean envPasswordInputEnabled = Utils.isEnvPasswordInputEnabled();
+        Utils.setEnvPasswordInputEnabled(true);
 
         // In JSON mode, suppress all stray System.out/err prints from the entire
         // execution (network init, authentication, command execution) so only
@@ -131,6 +134,7 @@ public class StandardCliRunner {
         } catch (CliAbortException e) {
             return e.getKind() == CliAbortException.Kind.USAGE ? 2 : 1;
         } finally {
+            Utils.setEnvPasswordInputEnabled(envPasswordInputEnabled);
             System.setIn(originalIn);
             TransactionUtils.clearPermissionIdOverride();
             if (jsonMode) {

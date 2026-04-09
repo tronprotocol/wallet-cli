@@ -36,4 +36,18 @@ public class UtilsPasswordTest {
       StringUtils.clear(password);
     }
   }
+
+  @Test
+  public void envPasswordInputIsDisabledByDefault() {
+    Utils.setEnvPasswordInputEnabled(false);
+    Assert.assertFalse(Utils.isEnvPasswordInputEnabled());
+  }
+
+  @Test
+  public void envPasswordInputFlagCanBeEnabledAndReset() {
+    Utils.setEnvPasswordInputEnabled(true);
+    Assert.assertTrue(Utils.isEnvPasswordInputEnabled());
+    Utils.setEnvPasswordInputEnabled(false);
+    Assert.assertFalse(Utils.isEnvPasswordInputEnabled());
+  }
 }

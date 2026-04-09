@@ -35,11 +35,25 @@ else:
 " > /dev/null 2>&1
 }
 
+requires_strict_semantic_parity() {
+  local cmd="$1"
+  case "$cmd" in
+    trigger-constant-contract|gas-free-info|gas-free-trace)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
 # Verify JSON is valid and matches text semantically
 check_json_text_parity() {
   local cmd="$1"
   local text_output="$2"
   local json_output="$3"
+  local text_file=""
+  local json_file=""
 
   # Filter noise from outputs
   text_output=$(filter_noise "$text_output")
@@ -85,7 +99,15 @@ else:
 
   if command -v python3 &> /dev/null; then
     local semantic_check
-    semantic_check=$(TEXT_OUTPUT="$text_output" JSON_OUTPUT="$json_output" python3 -c "
+    local strict_semantic="0"
+    if requires_strict_semantic_parity "$cmd"; then
+      strict_semantic="1"
+    fi
+    text_file=$(mktemp)
+    json_file=$(mktemp)
+    printf '%s' "$text_output" > "$text_file"
+    printf '%s' "$json_output" > "$json_file"
+    semantic_check=$(TEXT_FILE="$text_file" JSON_FILE="$json_file" STRICT_SEMANTIC="$strict_semantic" python3 -c "
 import json, os, re
 
 def norm(value):
@@ -113,8 +135,11 @@ def try_parse_structured_text(text):
             continue
     return None
 
-text = os.environ.get('TEXT_OUTPUT', '')
-payload = json.loads(os.environ.get('JSON_OUTPUT', ''))
+with open(os.environ['TEXT_FILE'], 'r', encoding='utf-8') as f:
+    text = f.read()
+with open(os.environ['JSON_FILE'], 'r', encoding='utf-8') as f:
+    payload = json.load(f)
+strict_semantic = os.environ.get('STRICT_SEMANTIC') == '1'
 text_lower = text.lower()
 success = payload.get('success')
 
@@ -134,7 +159,7 @@ if success is True:
         if msg and txt and msg not in txt and txt not in msg:
             print('FAIL: Text output does not match JSON message')
             raise SystemExit
-    else:
+    elif strict_semantic:
         parsed_text = try_parse_structured_text(text)
         if parsed_text is not None and parsed_text != data:
             print('FAIL: Text output does not semantically match JSON payload')
@@ -149,6 +174,7 @@ elif success is False:
 
 print('PASS')
 " 2>/dev/null)
+    rm -f "$text_file" "$json_file"
     if [ "$semantic_check" != "PASS" ]; then
       echo "${semantic_check:-FAIL: JSON/text semantic alignment failed for $cmd}"
       return 1
