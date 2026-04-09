@@ -5,6 +5,7 @@ import org.tron.common.utils.TransactionUtils;
 import org.tron.keystore.StringUtils;
 import org.tron.keystore.WalletFile;
 import org.tron.keystore.WalletUtils;
+import org.tron.walletserver.ApiClient;
 import org.tron.walletcli.WalletApiWrapper;
 import org.tron.walletserver.WalletApi;
 
@@ -14,8 +15,79 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
 
 public class StandardCliRunner {
+
+    private enum AutoAuthPolicy {
+        NEVER,
+        REQUIRE
+    }
+
+    private static final Set<String> NEVER_AUTO_AUTH_COMMANDS = new HashSet<String>(Arrays.asList(
+            "register-wallet",
+            "import-wallet",
+            "import-wallet-by-mnemonic",
+            "list-wallet",
+            "set-active-wallet",
+            "get-active-wallet",
+            "switch-network",
+            "current-network",
+            "get-block",
+            "get-block-by-id",
+            "get-block-by-id-or-num",
+            "get-block-by-latest-num",
+            "get-block-by-limit-next",
+            "get-transaction-by-id",
+            "get-transaction-info-by-id",
+            "get-transaction-count-by-block-num",
+            "get-account",
+            "get-account-by-id",
+            "get-account-net",
+            "get-account-resource",
+            "get-asset-issue-by-account",
+            "get-asset-issue-by-id",
+            "get-asset-issue-by-name",
+            "get-asset-issue-list-by-name",
+            "get-chain-parameters",
+            "get-bandwidth-prices",
+            "get-energy-prices",
+            "get-memo-fee",
+            "get-next-maintenance-time",
+            "get-contract",
+            "get-contract-info",
+            "get-delegated-resource",
+            "get-delegated-resource-v2",
+            "get-delegated-resource-account-index",
+            "get-delegated-resource-account-index-v2",
+            "get-can-delegated-max-size",
+            "get-available-unfreeze-count",
+            "get-can-withdraw-unfreeze-amount",
+            "get-brokerage",
+            "get-reward",
+            "list-nodes",
+            "list-witnesses",
+            "list-asset-issue",
+            "list-asset-issue-paginated",
+            "list-proposals",
+            "list-proposals-paginated",
+            "get-proposal",
+            "list-exchanges",
+            "list-exchanges-paginated",
+            "get-exchange",
+            "get-market-order-by-account",
+            "get-market-order-by-id",
+            "get-market-order-list-by-pair",
+            "get-market-pair-list",
+            "get-market-price-by-pair",
+            "gas-free-trace",
+            "generate-address",
+            "get-private-key-by-mnemonic",
+            "encoding-converter",
+            "address-book",
+            "help"
+    ));
 
     private final CommandRegistry registry;
     private final GlobalOptions globalOpts;
@@ -74,6 +146,7 @@ public class StandardCliRunner {
             if (globalOpts.getNetwork() != null) {
                 applyNetwork(globalOpts.getNetwork());
             }
+            applyGrpcEndpointOverride();
 
             // Lookup command
             String cmdName = globalOpts.getCommand();
@@ -109,7 +182,9 @@ public class StandardCliRunner {
 
             // Create wrapper and authenticate
             WalletApiWrapper wrapper = new WalletApiWrapper();
-            authenticate(wrapper);
+            if (requiresAutoAuth(cmd, opts)) {
+                authenticate(wrapper);
+            }
 
             // Execute command
             cmd.getHandler().execute(opts, wrapper, formatter);
@@ -127,13 +202,34 @@ public class StandardCliRunner {
         }
     }
 
+    static boolean requiresAutoAuth(CommandDefinition cmd, ParsedOptions opts) {
+        return determineAutoAuthPolicy(cmd, opts) == AutoAuthPolicy.REQUIRE;
+    }
+
+    private static AutoAuthPolicy determineAutoAuthPolicy(CommandDefinition cmd, ParsedOptions opts) {
+        String commandName = cmd.getName();
+        if (NEVER_AUTO_AUTH_COMMANDS.contains(commandName)) {
+            return AutoAuthPolicy.NEVER;
+        }
+
+        if ("get-balance".equals(commandName)) {
+            return opts.has("address") ? AutoAuthPolicy.NEVER : AutoAuthPolicy.REQUIRE;
+        }
+
+        if ("get-address".equals(commandName)) {
+            return AutoAuthPolicy.REQUIRE;
+        }
+
+        return AutoAuthPolicy.REQUIRE;
+    }
+
     /**
      * Auto-login from keystore using the active wallet config.
      * Falls back to the first wallet if no active wallet is set.
      * Users must first run import-wallet or register-wallet to create a keystore.
      */
     private void authenticate(WalletApiWrapper wrapper) throws Exception {
-        File walletDir = new File("Wallet");
+        File walletDir = resolveWalletDir();
         if (!walletDir.exists() || !walletDir.isDirectory()) {
             formatter.info("No wallet directory found — skipping auto-login");
             return; // No wallet — commands that need auth will fail gracefully
@@ -150,17 +246,10 @@ public class StandardCliRunner {
             return; // No password — can't auto-login
         }
 
-        // Find the wallet file to load: active wallet or fallback to first
-        String activeAddress = ActiveWalletConfig.getActiveAddressStrict();
-        if (activeAddress == null) {
+        File targetFile = resolveAuthenticationWalletFile(walletDir);
+        if (targetFile == null) {
             formatter.info("No active wallet selected — skipping auto-login");
             return;
-        }
-        File targetFile = ActiveWalletConfig.findWalletFileByAddress(activeAddress);
-        if (targetFile == null) {
-            throw new IllegalStateException(
-                    "Active wallet keystore not found for address: " + activeAddress
-                            + ". Use set-active-wallet to select a valid wallet.");
         }
 
         // Load specific wallet file and authenticate
@@ -182,6 +271,97 @@ public class StandardCliRunner {
         } finally {
             Arrays.fill(password, (byte) 0);
         }
+    }
+
+    private File resolveWalletDir() {
+        return new File(System.getProperty("user.dir"), "Wallet");
+    }
+
+    private void applyGrpcEndpointOverride() {
+        String grpcEndpoint = globalOpts.getGrpcEndpoint();
+        if (grpcEndpoint != null && !grpcEndpoint.isEmpty()) {
+            WalletApi.updateRpcCli(new ApiClient(grpcEndpoint, grpcEndpoint));
+        }
+    }
+
+    private File resolveAuthenticationWalletFile(File walletDir) throws Exception {
+        String walletOverride = globalOpts.getWallet();
+        if (walletOverride != null && !walletOverride.isEmpty()) {
+            return resolveWalletOverride(walletDir, walletOverride);
+        }
+
+        String activeAddress = ActiveWalletConfig.getActiveAddressStrict();
+        if (activeAddress == null) {
+            return null;
+        }
+
+        File targetFile = findWalletFileByAddress(walletDir, activeAddress);
+        if (targetFile == null) {
+            throw new IllegalStateException(
+                    "Active wallet keystore not found for address: " + activeAddress
+                            + ". Use --wallet or set-active-wallet to select a valid wallet.");
+        }
+        return targetFile;
+    }
+
+    static File resolveWalletOverride(File walletDir, String walletSelection) throws Exception {
+        File explicitPath = new File(walletSelection);
+        if (explicitPath.isFile()) {
+            return explicitPath;
+        }
+
+        File walletDirEntry = new File(walletDir, walletSelection);
+        if (walletDirEntry.isFile()) {
+            return walletDirEntry;
+        }
+
+        File byName = findWalletFileByName(walletDir, walletSelection);
+        if (byName != null) {
+            return byName;
+        }
+
+        throw new IllegalStateException("No wallet found for --wallet: " + walletSelection);
+    }
+
+    static File findWalletFileByAddress(File walletDir, String address) throws Exception {
+        File[] files = walletDir.listFiles((dir, name) -> name.endsWith(".json"));
+        if (files == null) {
+            return null;
+        }
+        for (File file : files) {
+            WalletFile walletFile = WalletUtils.loadWalletFile(file);
+            if (address.equals(walletFile.getAddress())) {
+                return file;
+            }
+        }
+        return null;
+    }
+
+    static File findWalletFileByName(File walletDir, String walletName) throws Exception {
+        File[] files = walletDir.listFiles((dir, name) -> name.endsWith(".json"));
+        if (files == null) {
+            return null;
+        }
+
+        File match = null;
+        int count = 0;
+        for (File file : files) {
+            WalletFile walletFile = WalletUtils.loadWalletFile(file);
+            String currentName = walletFile.getName();
+            if (currentName == null || currentName.isEmpty()) {
+                currentName = file.getName();
+            }
+            if (walletName.equals(currentName)) {
+                match = file;
+                count++;
+            }
+        }
+
+        if (count > 1) {
+            throw new IllegalArgumentException(
+                    "Multiple wallets found with name '" + walletName + "'. Use a wallet path instead.");
+        }
+        return match;
     }
 
     private void applyNetwork(String network) {

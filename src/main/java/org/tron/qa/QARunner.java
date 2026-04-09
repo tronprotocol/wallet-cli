@@ -1,50 +1,38 @@
 package org.tron.qa;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import org.tron.walletcli.cli.CommandDefinition;
 import org.tron.walletcli.cli.CommandRegistry;
-import org.tron.walletcli.cli.GlobalOptions;
-import org.tron.walletcli.cli.OutputFormatter;
-import org.tron.walletcli.cli.StandardCliRunner;
 
-import java.io.File;
-import java.io.FileWriter;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
- * QA entry point for capturing command outputs and verifying parity.
+ * QA helper entry point for listing the registered standard CLI commands.
  *
  * <p>Usage:
  * <pre>
- *   java -cp wallet-cli.jar org.tron.qa.QARunner baseline qa/baseline
- *   java -cp wallet-cli.jar org.tron.qa.QARunner verify qa/results
  *   java -cp wallet-cli.jar org.tron.qa.QARunner list
  * </pre>
  */
 public class QARunner {
-
-    private static final Gson gson = new GsonBuilder().setPrettyPrinting().create();
+    private static final String RETIRED_MODE_MESSAGE =
+            "QARunner baseline/verify modes are no longer supported. "
+                    + "Use 'bash qa/run.sh verify' (optionally with --query-batch) for QA verification.";
 
     public static void main(String[] args) throws Exception {
         String mode = args.length > 0 ? args[0] : "list";
-        String outputDir = args.length > 1 ? args[1] : "qa/baseline";
 
         switch (mode) {
             case "list":
                 listCommands();
                 break;
             case "baseline":
-                captureBaseline(outputDir);
-                break;
             case "verify":
-                runVerification(outputDir);
+                System.err.println(RETIRED_MODE_MESSAGE);
+                System.exit(1);
                 break;
             default:
                 System.err.println("Unknown mode: " + mode);
-                System.err.println("Usage: QARunner <list|baseline|verify> [outputDir]");
+                System.err.println("Usage: QARunner <list>");
                 System.exit(1);
         }
     }
@@ -73,263 +61,6 @@ public class QARunner {
     }
 
     /**
-     * Captures baseline output for read-only commands by running them via the standard CLI.
-     * Saves each command's text and JSON output to files in the output directory.
-     */
-    private static void captureBaseline(String outputDir) throws Exception {
-        String privateKey = System.getenv("TRON_TEST_APIKEY");
-        String network = System.getenv("TRON_NETWORK");
-        if (network == null || network.isEmpty()) {
-            network = "nile";
-        }
-
-        if (privateKey == null || privateKey.isEmpty()) {
-            System.err.println("ERROR: TRON_TEST_APIKEY environment variable not set.");
-            System.err.println("Please set it to a Nile testnet private key.");
-            System.exit(1);
-        }
-
-        File dir = new File(outputDir);
-        dir.mkdirs();
-
-        CommandRegistry registry = buildRegistry();
-        List<CommandDefinition> commands = registry.getAllCommands();
-
-        System.out.println("=== QA Baseline Capture ===");
-        System.out.println("Network: " + network);
-        System.out.println("Output dir: " + outputDir);
-        System.out.println("Commands: " + commands.size());
-        System.out.println();
-
-        // Read-only commands that are safe to run without parameters
-        String[] safeNoArgCommands = {
-                "get-address", "get-balance", "current-network",
-                "get-block", "get-chain-parameters", "get-bandwidth-prices",
-                "get-energy-prices", "get-memo-fee", "get-next-maintenance-time",
-                "list-nodes", "list-witnesses", "list-asset-issue",
-                "list-proposals", "list-exchanges", "get-market-pair-list"
-        };
-
-        int captured = 0;
-        int skipped = 0;
-
-        for (String cmdName : safeNoArgCommands) {
-            CommandDefinition cmd = registry.lookup(cmdName);
-            if (cmd == null) {
-                System.out.println("  SKIP (not found): " + cmdName);
-                skipped++;
-                continue;
-            }
-
-            System.out.print("  Capturing: " + cmdName + "... ");
-
-            // Capture text output
-            CommandCapture textCapture = new CommandCapture();
-            textCapture.startCapture();
-            try {
-                String[] cliArgs = {"--network", network, "--private-key", privateKey, cmdName};
-                GlobalOptions globalOpts = GlobalOptions.parse(cliArgs);
-                StandardCliRunner runner = new StandardCliRunner(registry, globalOpts);
-                runner.execute();
-            } catch (Exception e) {
-                // Ignore — some commands may call System.exit
-            } finally {
-                textCapture.stopCapture();
-            }
-
-            // Capture JSON output
-            CommandCapture jsonCapture = new CommandCapture();
-            jsonCapture.startCapture();
-            try {
-                String[] cliArgs = {"--network", network, "--private-key", privateKey,
-                        "--output", "json", cmdName};
-                GlobalOptions globalOpts = GlobalOptions.parse(cliArgs);
-                StandardCliRunner runner = new StandardCliRunner(registry, globalOpts);
-                runner.execute();
-            } catch (Exception e) {
-                // Ignore
-            } finally {
-                jsonCapture.stopCapture();
-            }
-
-            // Save results
-            Map<String, Object> result = new LinkedHashMap<String, Object>();
-            result.put("command", cmdName);
-            result.put("text_stdout", textCapture.getStdout());
-            result.put("text_stderr", textCapture.getStderr());
-            result.put("json_stdout", jsonCapture.getStdout());
-            result.put("json_stderr", jsonCapture.getStderr());
-
-            saveResult(outputDir, cmdName, result);
-            captured++;
-            System.out.println("OK");
-        }
-
-        System.out.println();
-        System.out.println("Baseline capture complete: " + captured + " captured, " + skipped + " skipped");
-    }
-
-    /**
-     * Runs verification by comparing current output against baseline.
-     */
-    private static void runVerification(String outputDir) throws Exception {
-        String privateKey = System.getenv("TRON_TEST_APIKEY");
-        String mnemonic = System.getenv("TRON_TEST_MNEMONIC");
-        String network = System.getenv("TRON_NETWORK");
-        if (network == null || network.isEmpty()) {
-            network = "nile";
-        }
-
-        if (privateKey == null || privateKey.isEmpty()) {
-            System.err.println("ERROR: TRON_TEST_APIKEY environment variable not set.");
-            System.exit(1);
-        }
-
-        File dir = new File(outputDir);
-        dir.mkdirs();
-
-        CommandRegistry registry = buildRegistry();
-
-        System.out.println("=== QA Verification ===");
-        System.out.println("Network: " + network);
-        System.out.println("Output dir: " + outputDir);
-        System.out.println("Total commands: " + registry.size());
-        System.out.println();
-
-        // Phase 1: Connectivity
-        System.out.println("Phase 1: Connectivity check...");
-        CommandCapture connCheck = new CommandCapture();
-        connCheck.startCapture();
-        try {
-            String[] cliArgs = {"--network", network, "get-chain-parameters"};
-            GlobalOptions globalOpts = GlobalOptions.parse(cliArgs);
-            StandardCliRunner runner = new StandardCliRunner(registry, globalOpts);
-            runner.execute();
-        } catch (Exception e) {
-            // ignore System.exit
-        } finally {
-            connCheck.stopCapture();
-        }
-        boolean connected = !connCheck.getStdout().isEmpty();
-        System.out.println("  " + (connected ? "OK — connected to " + network : "FAILED"));
-        if (!connected) {
-            System.err.println("Cannot connect to network. Aborting.");
-            System.exit(1);
-        }
-
-        // Phase 2: Completeness check
-        System.out.println();
-        System.out.println("Phase 2: Completeness check...");
-        System.out.println("  Standard CLI commands: " + registry.size());
-
-        // Phase 3: Private key session
-        System.out.println();
-        System.out.println("Phase 3: Private key session — safe query commands...");
-        int passed = 0;
-        int failed = 0;
-
-        String[] safeNoArgCommands = {
-                "current-network", "get-chain-parameters", "get-bandwidth-prices",
-                "get-energy-prices", "get-memo-fee", "get-next-maintenance-time",
-                "list-witnesses", "get-market-pair-list"
-        };
-
-        for (String cmdName : safeNoArgCommands) {
-            System.out.print("  " + cmdName + ": ");
-
-            // Run text mode
-            CommandCapture textCapture = new CommandCapture();
-            textCapture.startCapture();
-            try {
-                String[] cliArgs = {"--network", network, cmdName};
-                GlobalOptions globalOpts = GlobalOptions.parse(cliArgs);
-                StandardCliRunner runner = new StandardCliRunner(registry, globalOpts);
-                runner.execute();
-            } catch (Exception e) {
-                // ignore
-            } finally {
-                textCapture.stopCapture();
-            }
-
-            // Run JSON mode
-            CommandCapture jsonCapture = new CommandCapture();
-            jsonCapture.startCapture();
-            try {
-                String[] cliArgs = {"--network", network, "--output", "json", cmdName};
-                GlobalOptions globalOpts = GlobalOptions.parse(cliArgs);
-                StandardCliRunner runner = new StandardCliRunner(registry, globalOpts);
-                runner.execute();
-            } catch (Exception e) {
-                // ignore
-            } finally {
-                jsonCapture.stopCapture();
-            }
-
-            boolean textOk = !textCapture.getStdout().trim().isEmpty();
-            boolean jsonOk = !jsonCapture.getStdout().trim().isEmpty();
-
-            Map<String, Object> result = new LinkedHashMap<String, Object>();
-            result.put("command", cmdName);
-            result.put("text_stdout", textCapture.getStdout());
-            result.put("json_stdout", jsonCapture.getStdout());
-            result.put("text_ok", textOk);
-            result.put("json_ok", jsonOk);
-            saveResult(outputDir, cmdName, result);
-
-            if (textOk && jsonOk) {
-                System.out.println("PASS (text + json)");
-                passed++;
-            } else if (textOk) {
-                System.out.println("PARTIAL (text ok, json empty)");
-                failed++;
-            } else {
-                System.out.println("FAIL");
-                failed++;
-            }
-        }
-
-        // Phase 4: Mnemonic session (if available)
-        if (mnemonic != null && !mnemonic.isEmpty()) {
-            System.out.println();
-            System.out.println("Phase 4: Mnemonic session...");
-
-            for (String cmdName : new String[]{"get-address", "get-balance"}) {
-                System.out.print("  " + cmdName + " (mnemonic): ");
-                CommandCapture cap = new CommandCapture();
-                cap.startCapture();
-                try {
-                    String[] cliArgs = {"--network", network, "--mnemonic", mnemonic, cmdName};
-                    GlobalOptions globalOpts = GlobalOptions.parse(cliArgs);
-                    StandardCliRunner runner = new StandardCliRunner(registry, globalOpts);
-                    runner.execute();
-                } catch (Exception e) {
-                    // ignore
-                } finally {
-                    cap.stopCapture();
-                }
-                boolean ok = !cap.getStdout().trim().isEmpty();
-                System.out.println(ok ? "PASS" : "FAIL");
-                if (ok) passed++;
-                else failed++;
-            }
-        } else {
-            System.out.println();
-            System.out.println("Phase 4: SKIPPED (TRON_TEST_MNEMONIC not set)");
-        }
-
-        // Report
-        System.out.println();
-        System.out.println("═══════════════════════════════════════════════════════════════");
-        System.out.println("  QA Verification Report (" + network + ")");
-        System.out.println("═══════════════════════════════════════════════════════════════");
-        System.out.println("  Total commands registered: " + registry.size());
-        System.out.println("  Commands tested:           " + (passed + failed));
-        System.out.println("  Passed:                    " + passed);
-        System.out.println("  Failed:                    " + failed);
-        System.out.println("═══════════════════════════════════════════════════════════════");
-    }
-
-    /**
      * Builds the full command registry (same as Client.initRegistry()).
      */
     private static CommandRegistry buildRegistry() {
@@ -344,13 +75,5 @@ public class QARunner {
         org.tron.walletcli.cli.commands.WalletCommands.register(registry);
         org.tron.walletcli.cli.commands.MiscCommands.register(registry);
         return registry;
-    }
-
-    private static void saveResult(String outputDir, String command, Map<String, Object> data)
-            throws Exception {
-        File file = new File(outputDir, command + ".json");
-        try (FileWriter writer = new FileWriter(file)) {
-            gson.toJson(data, writer);
-        }
     }
 }

@@ -163,7 +163,7 @@ public class WalletCommands {
                         return;
                     }
 
-                    String activeAddress = ActiveWalletConfig.getActiveAddressStrict();
+                    String activeAddress = ActiveWalletConfig.getActiveAddress();
                     List<Map<String, Object>> wallets = new ArrayList<Map<String, Object>>();
 
                     for (File f : files) {

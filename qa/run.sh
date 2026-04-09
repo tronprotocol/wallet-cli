@@ -7,11 +7,6 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$PROJECT_DIR"
 
-source "$SCRIPT_DIR/config.sh"
-source "$SCRIPT_DIR/lib/compare.sh"
-source "$SCRIPT_DIR/lib/semantic.sh"
-source "$SCRIPT_DIR/lib/report.sh"
-
 MODE="verify"
 NO_BUILD=0
 QUERY_BATCH=0
@@ -41,6 +36,17 @@ while [ $# -gt 0 ]; do
       ;;
   esac
 done
+
+if [ "$MODE" = "java-verify" ]; then
+  echo "java-verify is no longer supported." >&2
+  echo "Use 'bash qa/run.sh verify' (optionally with --query-batch) instead." >&2
+  exit 1
+fi
+
+source "$SCRIPT_DIR/config.sh"
+source "$SCRIPT_DIR/lib/compare.sh"
+source "$SCRIPT_DIR/lib/semantic.sh"
+source "$SCRIPT_DIR/lib/report.sh"
 
 export QA_CASE_FILTER="$CASE_FILTER"
 export QA_QUERY_BATCH="$QUERY_BATCH"
@@ -316,10 +322,6 @@ if [ "$MODE" = "verify" ]; then
 elif [ "$MODE" = "list" ]; then
   java -cp "$WALLET_JAR" org.tron.qa.QARunner list
 
-elif [ "$MODE" = "java-verify" ]; then
-  echo "Running Java-side verification..."
-  java -cp "$WALLET_JAR" org.tron.qa.QARunner verify "${RESULTS_DIR:-qa/results}"
-
 else
   echo "Unknown mode: $MODE"
   echo ""
@@ -327,7 +329,7 @@ else
   echo ""
   echo "  verify      — Run full three-way parity verification"
   echo "  list        — List all registered standard CLI commands"
-  echo "  java-verify — Run Java-side verification"
+  echo "  java-verify — Deprecated / unsupported"
   echo "  --case X    — Run only a single QA case label"
   echo "  --no-build  — Skip rebuilding wallet-cli.jar"
   echo "  --query-batch — Run query phases via in-process batch runner"
