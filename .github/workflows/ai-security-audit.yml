@@ -145,6 +145,15 @@ jobs:
           # Post new comment
           gh pr comment "$PR_NUMBER" --body-file comment_body.md
 
+      - name: Fail if critical issues found
+        if: steps.check.outputs.skip != 'true'
+        run: |
+          if grep -qi '\[CRITICAL\]' audit_result.md; then
+            CRITICAL_COUNT=$(grep -ci '\[CRITICAL\]' audit_result.md)
+            echo "::error::AI security audit found ${CRITICAL_COUNT} CRITICAL issue(s). Please fix them before merging."
+            exit 1
+          fi
+
       - name: Post skip comment
         if: steps.check.outputs.skip == 'true'
         env:
