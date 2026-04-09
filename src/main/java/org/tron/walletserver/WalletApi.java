@@ -2934,27 +2934,23 @@ public class WalletApi {
         .getTransaction();
     // for constant
     if (transaction.getRetCount() != 0) {
-      Response.TransactionExtention.Builder builder =
-          transactionExtention.toBuilder().clearTransaction().clearTxid();
-      if (transaction.getRet(0).getRet() == Chain.Transaction.Result.code.FAILED) {
-        builder.setResult(builder.getResult().toBuilder().setResult(false));
-      }
-      long energyUsed = builder.build().getEnergyUsed();
+      Response.TransactionExtention normalized = normalizeConstantContractExtention(transactionExtention);
+      long energyUsed = normalized.getEnergyUsed();
       if (!noExe) {
         if (display) {
           long calculateBandwidth = calculateBandwidth(transaction);
-          String s = new String(builder.build().getResult().getMessage().toByteArray(), StandardCharsets.UTF_8);
+          String s = new String(normalized.getResult().getMessage().toByteArray(), StandardCharsets.UTF_8);
           if ("REVERT opcode executed".equals(s)) {
             System.out.println(redBoldHighlight("The transaction may be reverted."));
           }
           System.out.println("It is estimated that " + greenBoldHighlight(calculateBandwidth) + " bandwidth and " + greenBoldHighlight(energyUsed) + " energy will be consumed.");
         } else {
-          System.out.println("Execution result = " + Utils.formatMessageString(builder.build()));
+          System.out.println("Execution result = " + Utils.formatMessageString(normalized));
         }
       }
       BigInteger bigInteger = BigInteger.valueOf(0L);
-      if (builder.getConstantResultCount() == 1) {
-        ByteString constantResult = builder.getConstantResult(0);
+      if (normalized.getConstantResultCount() == 1) {
+        ByteString constantResult = normalized.getConstantResult(0);
         bigInteger = new BigInteger(1, constantResult.toByteArray());
       }
       return Triple.of(true, energyUsed, bigInteger.longValue());
@@ -2980,6 +2976,40 @@ public class WalletApi {
     transactionExtention = texBuilder.build();
 
     return Triple.of(processTransactionExtention(transactionExtention, multi), 0L, 0L);
+  }
+
+  public Response.TransactionExtention triggerConstantContractExtention(
+      byte[] owner,
+      byte[] contractAddress,
+      long callValue,
+      byte[] data,
+      long tokenValue,
+      String tokenId) {
+    if (!isUnlocked()) {
+      throw new IllegalStateException(LOCK_WARNING);
+    }
+    if (owner == null) {
+      owner = getAddress();
+    }
+    return normalizeConstantContractExtention(
+        apiCli.triggerConstantContract(owner, contractAddress, data, callValue, tokenValue, tokenId));
+  }
+
+  private Response.TransactionExtention normalizeConstantContractExtention(
+      Response.TransactionExtention transactionExtention) {
+    if (transactionExtention == null) {
+      return null;
+    }
+    Chain.Transaction transaction = transactionExtention.getTransaction();
+    if (transaction.getRetCount() == 0) {
+      return transactionExtention;
+    }
+    Response.TransactionExtention.Builder builder =
+        transactionExtention.toBuilder().clearTransaction().clearTxid();
+    if (transaction.getRet(0).getRet() == Chain.Transaction.Result.code.FAILED) {
+      builder.setResult(builder.getResult().toBuilder().setResult(false));
+    }
+    return builder.build();
   }
 
   public static long calculateBandwidth(Chain.Transaction transaction) {

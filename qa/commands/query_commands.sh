@@ -405,7 +405,8 @@ run_query_tests() {
 
   # GasFree queries
   if [ -n "$my_addr" ]; then
+    local gas_free_trace_id="0000000000000000000000000000000000000000000000000000000000000001"
     _test_auth_full "$auth_method" "$prefix" "gas-free-info" --address "$my_addr"
-    _test_auth_full "$auth_method" "$prefix" "gas-free-trace" --address "$my_addr"
+    _test_auth_full "$auth_method" "$prefix" "gas-free-trace" --id "$gas_free_trace_id"
   fi
 }

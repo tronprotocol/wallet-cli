@@ -443,16 +443,24 @@ run_transaction_tests() {
   local usdt_nile="TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf"
   if _qa_case_enabled "trigger-constant-contract"; then
     echo -n "  trigger-constant-contract (USDT balanceOf)... "
-    local tcc_out
-    tcc_out=$(_tx_run trigger-constant-contract \
+    local tcc_text tcc_json tcc_result
+    tcc_text=$(_tx_run trigger-constant-contract \
       --contract "$usdt_nile" \
       --method "balanceOf(address)" \
       --params "\"$my_addr\"") || true
-    echo "$tcc_out" > "$RESULTS_DIR/trigger-constant-contract.out"
-    if [ -n "$tcc_out" ]; then
-      echo "PASS" > "$RESULTS_DIR/trigger-constant-contract.result"; echo "PASS"
+    tcc_json=$(_tx_run_json trigger-constant-contract \
+      --contract "$usdt_nile" \
+      --method "balanceOf(address)" \
+      --params "\"$my_addr\"") || true
+    echo "$tcc_text" > "$RESULTS_DIR/trigger-constant-contract_text.out"
+    echo "$tcc_json" > "$RESULTS_DIR/trigger-constant-contract_json.out"
+    if _json_success_true "$tcc_json"; then
+      tcc_result=$(check_json_text_parity "trigger-constant-contract" "$tcc_text" "$tcc_json")
+      echo "$tcc_result" > "$RESULTS_DIR/trigger-constant-contract.result"
+      echo "$tcc_result"
     else
-      echo "FAIL" > "$RESULTS_DIR/trigger-constant-contract.result"; echo "FAIL"
+      echo "FAIL: no success field" > "$RESULTS_DIR/trigger-constant-contract.result"
+      echo "FAIL"
     fi
   fi
 

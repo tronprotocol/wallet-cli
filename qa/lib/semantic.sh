@@ -83,6 +83,78 @@ else:
     return 1
   fi
 
+  if command -v python3 &> /dev/null; then
+    local semantic_check
+    semantic_check=$(TEXT_OUTPUT="$text_output" JSON_OUTPUT="$json_output" python3 -c "
+import json, os, re
+
+def norm(value):
+    return re.sub(r'[^a-z0-9]+', ' ', value.lower()).strip()
+
+def try_parse_structured_text(text):
+    text = text.strip()
+    if not text:
+        return None
+    candidates = [text]
+    for marker in ('Execution result =', 'GasFreeTrace result:', 'GasFreeTransfer result:'):
+        if marker in text:
+            candidates.append(text.split(marker, 1)[1].strip())
+    for candidate in candidates:
+        candidate = candidate.strip()
+        if not candidate:
+            continue
+        start = min([i for i in (candidate.find('{'), candidate.find('[')) if i != -1], default=-1)
+        if start == -1:
+            continue
+        candidate = candidate[start:]
+        try:
+            return json.loads(candidate)
+        except Exception:
+            continue
+    return None
+
+text = os.environ.get('TEXT_OUTPUT', '')
+payload = json.loads(os.environ.get('JSON_OUTPUT', ''))
+text_lower = text.lower()
+success = payload.get('success')
+
+if 'usage:' in text_lower and success:
+    print('FAIL: Text output shows usage while JSON reports success')
+    raise SystemExit
+
+if text_lower.lstrip().startswith('error:') and success:
+    print('FAIL: Text output shows error while JSON reports success')
+    raise SystemExit
+
+if success is True:
+    data = payload.get('data')
+    if isinstance(data, dict) and set(data.keys()) == {'message'} and isinstance(data.get('message'), str):
+        msg = norm(data['message'])
+        txt = norm(text)
+        if msg and txt and msg not in txt and txt not in msg:
+            print('FAIL: Text output does not match JSON message')
+            raise SystemExit
+    else:
+        parsed_text = try_parse_structured_text(text)
+        if parsed_text is not None and parsed_text != data:
+            print('FAIL: Text output does not semantically match JSON payload')
+            raise SystemExit
+elif success is False:
+    msg = payload.get('message')
+    txt = norm(text)
+    msg_norm = norm(msg) if isinstance(msg, str) else ''
+    if msg_norm and txt and msg_norm not in txt and 'error:' not in text_lower and 'usage:' not in text_lower:
+        print('FAIL: Text error output does not match JSON error message')
+        raise SystemExit
+
+print('PASS')
+" 2>/dev/null)
+    if [ "$semantic_check" != "PASS" ]; then
+      echo "${semantic_check:-FAIL: JSON/text semantic alignment failed for $cmd}"
+      return 1
+    fi
+  fi
+
   # Check text output is not empty
   if [ -z "$text_output" ]; then
     echo "FAIL: Empty text output for $cmd"

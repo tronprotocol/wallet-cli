@@ -1,8 +1,11 @@
 package org.tron.walletcli.cli.commands;
 
+import com.alibaba.fastjson.JSON;
+import org.tron.walletcli.cli.CommandErrorException;
 import org.tron.walletcli.cli.CommandDefinition;
 import org.tron.walletcli.cli.CommandRegistry;
 import org.tron.walletcli.cli.OptionDef;
+import org.tron.walletcli.cli.OutputFormatter;
 import org.tron.walletserver.WalletApi;
 import org.tron.trident.proto.Chain;
 import org.tron.trident.proto.Common;
@@ -964,8 +967,20 @@ public class QueryCommands {
                 .description("Get GasFree service info")
                 .option("address", "Address to query (default: current wallet)", false)
                 .handler((opts, wrapper, out) -> {
-                    String address = opts.has("address") ? opts.getString("address") : null;
-                    wrapper.getGasFreeInfo(address);
+                    try {
+                        String address = opts.has("address") ? opts.getString("address") : null;
+                        String rendered = JSON.toJSONString(wrapper.getGasFreeInfoData(address), true);
+                        if (out.getMode() == OutputFormatter.OutputMode.JSON) {
+                            out.printMessage(rendered, "GetGasFreeInfo failed");
+                        } else {
+                            out.raw(rendered);
+                        }
+                    } catch (CommandErrorException e) {
+                        out.error(e.getCode(), e.getMessage());
+                    } catch (Exception e) {
+                        out.error("query_failed",
+                                e.getMessage() != null ? e.getMessage() : "GetGasFreeInfo failed");
+                    }
                 })
                 .build());
     }
@@ -977,7 +992,19 @@ public class QueryCommands {
                 .description("Trace a GasFree transaction")
                 .option("id", "Transaction ID", true)
                 .handler((opts, wrapper, out) -> {
-                    wrapper.gasFreeTrace(opts.getString("id"));
+                    try {
+                        String rendered = JSON.toJSONString(wrapper.gasFreeTraceData(opts.getString("id")), true);
+                        if (out.getMode() == OutputFormatter.OutputMode.JSON) {
+                            out.printMessage(rendered, "GasFreeTrace failed");
+                        } else {
+                            out.raw(rendered);
+                        }
+                    } catch (CommandErrorException e) {
+                        out.error(e.getCode(), e.getMessage());
+                    } catch (Exception e) {
+                        out.error("query_failed",
+                                e.getMessage() != null ? e.getMessage() : "GasFreeTrace failed");
+                    }
                 })
                 .build());
     }

@@ -3,9 +3,13 @@ package org.tron.walletcli.cli.commands;
 import org.tron.common.utils.AbiUtil;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.TransactionUtils;
+import org.tron.common.utils.Utils;
+import org.tron.walletcli.cli.CommandErrorException;
 import org.tron.walletcli.cli.CommandDefinition;
 import org.tron.walletcli.cli.CommandRegistry;
 import org.tron.walletcli.cli.OptionDef;
+import org.tron.walletcli.cli.OutputFormatter;
+import org.tron.trident.proto.Response;
 
 public class ContractCommands {
 
@@ -129,15 +133,45 @@ public class ContractCommands {
                 .option("params", "Method parameters", false)
                 .option("owner", "Caller address", false)
                 .handler((opts, wrapper, out) -> {
-                    byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
-                    byte[] contractAddress = opts.getAddress("contract");
-                    String method = opts.getString("method");
-                    String params = opts.has("params") ? opts.getString("params") : "";
+                    try {
+                        byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
+                        byte[] contractAddress = opts.getAddress("contract");
+                        String method = opts.getString("method");
+                        String params = opts.has("params") ? opts.getString("params") : "";
 
-                    byte[] data = ByteArray.fromHexString(AbiUtil.parseMethod(method, params, false));
-                    wrapper.callContract(owner, contractAddress, 0, data, 0, 0, "", true, true, false);
+                        byte[] data = ByteArray.fromHexString(AbiUtil.parseMethod(method, params, false));
+                        Response.TransactionExtention result =
+                                wrapper.triggerConstantContractExtention(owner, contractAddress, 0, data, 0, "");
+                        if (result == null) {
+                            out.error("query_failed", "TriggerConstantContract failed");
+                            return;
+                        }
+                        if (!result.getResult().getResult()) {
+                            out.error("query_failed", constantContractMessage(result, "TriggerConstantContract failed"));
+                            return;
+                        }
+                        String formatted = Utils.formatMessageString(result);
+                        if (out.getMode() == OutputFormatter.OutputMode.JSON) {
+                            out.printMessage(formatted, "TriggerConstantContract failed");
+                        } else {
+                            out.raw("Execution result = " + formatted);
+                        }
+                    } catch (CommandErrorException e) {
+                        out.error(e.getCode(), e.getMessage());
+                    } catch (Exception e) {
+                        out.error("query_failed",
+                                e.getMessage() != null ? e.getMessage() : "TriggerConstantContract failed");
+                    }
                 })
                 .build());
+    }
+
+    private static String constantContractMessage(Response.TransactionExtention result, String fallback) {
+        if (result == null || result.getResult() == null) {
+            return fallback;
+        }
+        String message = result.getResult().getMessage().toStringUtf8();
+        return message != null && !message.isEmpty() ? message : fallback;
     }
 
     private static void registerEstimateEnergy(CommandRegistry registry) {

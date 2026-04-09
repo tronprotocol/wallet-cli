@@ -366,6 +366,10 @@ public class TransactionCommands {
                 .aliases("tronlinkmultisign")
                 .description("TronLink multi-sign transaction")
                 .handler((opts, wrapper, out) -> {
+                    if (!wrapper.isLoginState()) {
+                        out.error("auth_required", "tronlink-multi-sign requires a logged-in wallet.");
+                        return;
+                    }
                     wrapper.tronlinkMultiSign();
                     out.result(true, "TronlinkMultiSign successful !!", "TronlinkMultiSign failed !!");
                 })

@@ -72,6 +72,7 @@ public class QABatchRunner {
         runFullCase(registry, args, prefix + "_get-market-pair-list", "get-market-pair-list");
 
         if (myAddr != null && !myAddr.isEmpty()) {
+            String gasFreeTraceId = "0000000000000000000000000000000000000000000000000000000000000001";
             runFullCase(registry, args, prefix + "_get-account", "get-account", "--address", myAddr);
             runFullCase(registry, args, prefix + "_get-account-net", "get-account-net", "--address", myAddr);
             runFullCase(registry, args, prefix + "_get-account-resource", "get-account-resource", "--address", myAddr);
@@ -96,7 +97,7 @@ public class QABatchRunner {
             runFullCase(registry, args, prefix + "_get-delegated-resource-v2",
                     "get-delegated-resource-v2", "--from", myAddr, "--to", myAddr);
             runFullCase(registry, args, prefix + "_gas-free-info", "gas-free-info", "--address", myAddr);
-            runFullCase(registry, args, prefix + "_gas-free-trace", "gas-free-trace", "--address", myAddr);
+            runFullCase(registry, args, prefix + "_gas-free-trace", "gas-free-trace", "--id", gasFreeTraceId);
         }
 
         runFullCase(registry, args, prefix + "_get-block-by-latest-num",

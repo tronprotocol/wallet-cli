@@ -113,6 +113,7 @@ import org.tron.trident.proto.Contract;
 import org.tron.trident.proto.Response;
 import org.tron.walletserver.ApiClient;
 import org.tron.walletserver.WalletApi;
+import org.tron.walletcli.cli.CommandErrorException;
 import org.web3j.utils.Numeric;
 
 @Slf4j
@@ -1343,6 +1344,25 @@ public class WalletApiWrapper {
             isConstant, false, display, multi);
   }
 
+  public Response.TransactionExtention triggerConstantContractExtention(
+      byte[] ownerAddress,
+      byte[] contractAddress,
+      long callValue,
+      byte[] data,
+      long tokenValue,
+      String tokenId) {
+    if (wallet == null || !wallet.isLoginState()) {
+      throw new CommandErrorException("auth_required", "Please login first !!");
+    }
+    try {
+      return wallet.triggerConstantContractExtention(
+          ownerAddress, contractAddress, callValue, data, tokenValue, tokenId);
+    } catch (IllegalStateException e) {
+      throw new CommandErrorException("auth_required",
+          StringUtils.isNotEmpty(e.getMessage()) ? e.getMessage() : "Please login first !!");
+    }
+  }
+
   public Triple<Boolean, Long, Long> getUSDTBalance(byte[] ownerAddress)
       throws Exception {
     if (wallet == null || !wallet.isLoginState()) {
@@ -1791,6 +1811,84 @@ public class WalletApiWrapper {
     }
   }
 
+  public GasFreeAddressResponse getGasFreeInfoData(String address) throws Exception {
+    if (wallet == null || !wallet.isLoginState()) {
+      throw new CommandErrorException("auth_required", "Please login first !!");
+    }
+    if (WalletApi.getCurrentNetwork() != MAIN && WalletApi.getCurrentNetwork() != NILE) {
+      throw new CommandErrorException("unsupported_network", GAS_FREE_SUPPORT_NETWORK_TIP);
+    }
+    if (StringUtils.isEmpty(address)) {
+      address = getAddress();
+      if (StringUtils.isEmpty(address)) {
+        throw new CommandErrorException("query_failed", "Unable to determine current wallet address.");
+      }
+    }
+    if (!addressValid(address)) {
+      throw new CommandErrorException("invalid_input", "The address you entered is invalid.");
+    }
+    String resp = GasFreeApi.address(WalletApi.getCurrentNetwork(), address);
+    if (StringUtils.isEmpty(resp)) {
+      throw new CommandErrorException("query_failed", "GasFreeInfo failed");
+    }
+    JSONObject root = JSON.parseObject(resp);
+    int respCode = root.getIntValue("code");
+    JSONObject data = root.getJSONObject("data");
+    if (HTTP_OK != respCode) {
+      throw new CommandErrorException("query_failed", root.getString("message"));
+    }
+    if (Objects.isNull(data)) {
+      throw new CommandErrorException("not_found", "gas free address does not exist.");
+    }
+
+    String gasFreeAddress = data.getString("gasFreeAddress");
+    boolean active = data.getBooleanValue("active");
+    JSONArray assets = data.getJSONArray("assets");
+    if (Objects.isNull(assets) || assets.isEmpty()) {
+      throw new CommandErrorException("query_failed",
+          "GasFreeInfo response does not contain asset metadata.");
+    }
+
+    JSONObject asset = assets.getJSONObject(0);
+    String tokenAddress = asset.getString("tokenAddress");
+    byte[] d = Hex.decode(AbiUtil.parseMethod("balanceOf(address)",
+        "\"" + gasFreeAddress + "\"", false));
+    long activateFee = asset.getLongValue("activateFee");
+    long transferFee = asset.getLongValue("transferFee");
+    Triple<Boolean, Long, Long> triggerContractPair;
+    try {
+      triggerContractPair = wallet.triggerContract(
+          null,
+          decodeFromBase58Check(tokenAddress),
+          0,
+          d,
+          0,
+          0,
+          EMPTY,
+          true,
+          true,
+          false,
+          false);
+    } catch (IllegalStateException e) {
+      throw new CommandErrorException("auth_required",
+          StringUtils.isNotEmpty(e.getMessage()) ? e.getMessage() : "Please login first !!");
+    }
+    if (Boolean.FALSE.equals(triggerContractPair.getLeft())) {
+      throw new CommandErrorException("query_failed", "Failed to query GasFree token balance.");
+    }
+
+    Long tokenBalance = triggerContractPair.getRight();
+    GasFreeAddressResponse response = new GasFreeAddressResponse();
+    response.setGasFreeAddress(gasFreeAddress);
+    response.setActive(active);
+    response.setActivateFee(active ? 0 : activateFee);
+    response.setTransferFee(transferFee);
+    response.setTokenBalance(tokenBalance);
+    long maxTransferValue = tokenBalance - response.getActivateFee() - transferFee;
+    response.setMaxTransferValue(maxTransferValue > 0 ? maxTransferValue : 0);
+    return response;
+  }
+
   public boolean gasFreeTransfer(String receiver, long value) throws NoSuchAlgorithmException, IOException, InvalidKeyException, CipherException {
     if (WalletApi.getCurrentNetwork() != MAIN && WalletApi.getCurrentNetwork() != NILE) {
       System.out.println(GAS_FREE_SUPPORT_NETWORK_TIP);
@@ -1918,6 +2016,27 @@ public class WalletApiWrapper {
       }
     }
     return false;
+  }
+
+  public JSONObject gasFreeTraceData(String traceId)
+      throws NoSuchAlgorithmException, IOException, InvalidKeyException {
+    if (WalletApi.getCurrentNetwork() != MAIN && WalletApi.getCurrentNetwork() != NILE) {
+      throw new CommandErrorException("unsupported_network", GAS_FREE_SUPPORT_NETWORK_TIP);
+    }
+    String result = GasFreeApi.gasFreeTrace(WalletApi.getCurrentNetwork(), traceId);
+    if (StringUtils.isEmpty(result)) {
+      throw new CommandErrorException("query_failed", "GasFreeTrace failed");
+    }
+
+    JSONObject root = JSON.parseObject(result);
+    int respCode = root.getIntValue("code");
+    if (HTTP_OK != respCode) {
+      throw new CommandErrorException("query_failed", root.getString("message"));
+    }
+    if (Objects.isNull(root.get("data"))) {
+      throw new CommandErrorException("not_found", "This id " + traceId + " does not have a trace.");
+    }
+    return root;
   }
 
   public boolean modifyWalletName(String newName) throws IOException {
