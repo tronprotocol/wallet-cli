@@ -1,118 +1,44 @@
 package org.tron.walletcli.cli;
 
 import org.tron.common.enums.NetType;
-import org.tron.common.utils.Utils;
 import org.tron.common.utils.TransactionUtils;
 import org.tron.keystore.StringUtils;
 import org.tron.keystore.WalletFile;
-import org.tron.keystore.WalletUtils;
 import org.tron.walletserver.ApiClient;
 import org.tron.walletcli.WalletApiWrapper;
 import org.tron.walletserver.WalletApi;
 
-import java.io.ByteArrayInputStream;
 import java.io.File;
-import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 public class StandardCliRunner {
 
-    private enum AutoAuthPolicy {
-        NEVER,
-        REQUIRE
+    interface MasterPasswordProvider {
+        String get();
     }
-
-    private static final Set<String> NEVER_AUTO_AUTH_COMMANDS = new HashSet<String>(Arrays.asList(
-            "register-wallet",
-            "import-wallet",
-            "import-wallet-by-mnemonic",
-            "list-wallet",
-            "set-active-wallet",
-            "get-active-wallet",
-            "switch-network",
-            "current-network",
-            "get-block",
-            "get-block-by-id",
-            "get-block-by-id-or-num",
-            "get-block-by-latest-num",
-            "get-block-by-limit-next",
-            "get-transaction-by-id",
-            "get-transaction-info-by-id",
-            "get-transaction-count-by-block-num",
-            "get-account",
-            "get-account-by-id",
-            "get-account-net",
-            "get-account-resource",
-            "get-asset-issue-by-account",
-            "get-asset-issue-by-id",
-            "get-asset-issue-by-name",
-            "get-asset-issue-list-by-name",
-            "get-chain-parameters",
-            "get-bandwidth-prices",
-            "get-energy-prices",
-            "get-memo-fee",
-            "get-next-maintenance-time",
-            "get-contract",
-            "get-contract-info",
-            "get-delegated-resource",
-            "get-delegated-resource-v2",
-            "get-delegated-resource-account-index",
-            "get-delegated-resource-account-index-v2",
-            "get-can-delegated-max-size",
-            "get-available-unfreeze-count",
-            "get-can-withdraw-unfreeze-amount",
-            "get-brokerage",
-            "get-reward",
-            "list-nodes",
-            "list-witnesses",
-            "list-asset-issue",
-            "list-asset-issue-paginated",
-            "list-proposals",
-            "list-proposals-paginated",
-            "get-proposal",
-            "list-exchanges",
-            "list-exchanges-paginated",
-            "get-exchange",
-            "get-market-order-by-account",
-            "get-market-order-by-id",
-            "get-market-order-list-by-pair",
-            "get-market-pair-list",
-            "get-market-price-by-pair",
-            "gas-free-trace",
-            "generate-address",
-            "get-private-key-by-mnemonic",
-            "encoding-converter",
-            "address-book",
-            "help"
-    ));
 
     private final CommandRegistry registry;
     private final GlobalOptions globalOpts;
     private final OutputFormatter formatter;
+    private final MasterPasswordProvider masterPasswordProvider;
 
     public StandardCliRunner(CommandRegistry registry, GlobalOptions globalOpts) {
+        this(registry, globalOpts, () -> System.getenv("MASTER_PASSWORD"));
+    }
+
+    StandardCliRunner(CommandRegistry registry, GlobalOptions globalOpts,
+                      MasterPasswordProvider masterPasswordProvider) {
         this.registry = registry;
         this.globalOpts = globalOpts;
         this.formatter = new OutputFormatter(globalOpts.getOutputMode(), globalOpts.isQuiet());
+        this.masterPasswordProvider = masterPasswordProvider;
     }
 
     public int execute() {
-        // In standard CLI mode, auto-confirm interactive prompts by feeding
-        // answers into System.in:
-        //   "y\n"  — permission id confirmation (default 0)
-        //   "1\n"  — wallet file selection (choose first)
-        //   "y\n"  — additional signing confirmations
-        // Repeated to cover multiple rounds of signing prompts.
-        String autoInput = "y\n1\ny\ny\n1\ny\ny\n1\ny\ny\n";
-        InputStream originalIn = System.in;
-        System.setIn(new ByteArrayInputStream(autoInput.getBytes()));
-        boolean envPasswordInputEnabled = Utils.isEnvPasswordInputEnabled();
-        Utils.setEnvPasswordInputEnabled(true);
-
         // In JSON mode, suppress all stray System.out/err prints from the entire
         // execution (network init, authentication, command execution) so only
         // OutputFormatter JSON output appears.
@@ -132,10 +58,9 @@ public class StandardCliRunner {
         try {
             return executeInternal(realOut);
         } catch (CliAbortException e) {
+            formatter.flush();
             return e.getKind() == CliAbortException.Kind.USAGE ? 2 : 1;
         } finally {
-            Utils.setEnvPasswordInputEnabled(envPasswordInputEnabled);
-            System.setIn(originalIn);
             TransactionUtils.clearPermissionIdOverride();
             if (jsonMode) {
                 System.setOut(realOut);
@@ -165,13 +90,12 @@ public class StandardCliRunner {
                 return 2; // unreachable after usageError()
             }
 
-            // Check for per-command --help (always print to real stdout)
+            // Check for per-command --help
             String[] cmdArgs = globalOpts.getCommandArgs();
-            for (String arg : cmdArgs) {
-                if ("--help".equals(arg) || "-h".equals(arg)) {
-                    realOut.println(cmd.formatHelp());
-                    return 0;
-                }
+            if (hasStandaloneCommandHelpToken(cmd, cmdArgs)) {
+                formatter.help(cmd.formatHelp());
+                formatter.flush();
+                return 0;
             }
             // Parse command options
             ParsedOptions opts;
@@ -192,10 +116,22 @@ public class StandardCliRunner {
 
             // Execute command
             cmd.getHandler().execute(opts, wrapper, formatter);
+            if (!formatter.hasOutcome()) {
+                formatter.error("execution_error",
+                        "Command completed without emitting an outcome");
+            }
+            formatter.flush();
             return 0;
 
         } catch (CliAbortException e) {
+            formatter.flush();
             throw e;
+        } catch (CommandErrorException e) {
+            formatter.error(e.getCode(), e.getMessage());
+            return 1; // unreachable after error()
+        } catch (CliUsageException e) {
+            formatter.usageError(e.getMessage(), null);
+            return 2; // unreachable after usageError()
         } catch (IllegalArgumentException e) {
             formatter.usageError(e.getMessage(), null);
             return 2; // unreachable after usageError()
@@ -207,65 +143,41 @@ public class StandardCliRunner {
     }
 
     static boolean requiresAutoAuth(CommandDefinition cmd, ParsedOptions opts) {
-        return determineAutoAuthPolicy(cmd, opts) == AutoAuthPolicy.REQUIRE;
+        return cmd.resolveAuthPolicy(opts) == CommandDefinition.AuthPolicy.REQUIRE;
     }
 
-    private static AutoAuthPolicy determineAutoAuthPolicy(CommandDefinition cmd, ParsedOptions opts) {
-        String commandName = cmd.getName();
-        if (NEVER_AUTO_AUTH_COMMANDS.contains(commandName)) {
-            return AutoAuthPolicy.NEVER;
-        }
-
-        if ("get-balance".equals(commandName)) {
-            return opts.has("address") ? AutoAuthPolicy.NEVER : AutoAuthPolicy.REQUIRE;
-        }
-
-        if ("get-address".equals(commandName)) {
-            return AutoAuthPolicy.REQUIRE;
-        }
-
-        return AutoAuthPolicy.REQUIRE;
+    private boolean jsonMode() {
+        return globalOpts.getOutputMode() == OutputFormatter.OutputMode.JSON;
     }
 
     /**
-     * Auto-login from keystore using the active wallet config.
-     * Falls back to the first wallet if no active wallet is set.
-     * Users must first run import-wallet or register-wallet to create a keystore.
+     * Auto-login from the resolved keystore target for wallet-authenticated standard CLI commands.
      */
     private void authenticate(WalletApiWrapper wrapper) throws Exception {
-        File walletDir = resolveWalletDir();
-        if (!walletDir.exists() || !walletDir.isDirectory()) {
-            formatter.info("No wallet directory found — skipping auto-login");
-            return; // No wallet — commands that need auth will fail gracefully
-        }
-        File[] files = walletDir.listFiles((dir, name) -> name.endsWith(".json"));
-        if (files == null || files.length == 0) {
-            formatter.info("No keystore files found — skipping auto-login");
-            return; // No keystore files
-        }
-
-        String envPwd = System.getenv("MASTER_PASSWORD");
+        File targetFile = resolveAuthenticationWalletFile();
+        String envPwd = masterPasswordProvider.get();
         if (envPwd == null || envPwd.isEmpty()) {
-            formatter.info("MASTER_PASSWORD not set — skipping auto-login");
-            return; // No password — can't auto-login
-        }
-
-        File targetFile = resolveAuthenticationWalletFile(walletDir);
-        if (targetFile == null) {
-            formatter.info("No active wallet selected — skipping auto-login");
-            return;
+            throw new IllegalStateException("MASTER_PASSWORD is required for wallet-authenticated commands");
         }
 
         // Load specific wallet file and authenticate
         byte[] password = StringUtils.char2Byte(envPwd.toCharArray());
         try {
-            WalletFile wf = WalletUtils.loadWalletFile(targetFile);
+            WalletFile wf = org.tron.keystore.WalletUtils.loadWalletFile(targetFile);
             wf.setSourceFile(targetFile);
             if (wf.getName() == null || wf.getName().isEmpty()) {
                 wf.setName(targetFile.getName());
             }
             WalletApi walletApi = new WalletApi(wf);
-            walletApi.checkPassword(password);
+            boolean passwordValid;
+            try {
+                passwordValid = walletApi.checkPassword(password);
+            } catch (Exception e) {
+                throw new IllegalStateException("Invalid MASTER_PASSWORD for wallet: " + wf.getAddress(), e);
+            }
+            if (!passwordValid) {
+                throw new IllegalStateException("Invalid MASTER_PASSWORD for wallet: " + wf.getAddress());
+            }
             walletApi.setLogin(null);
             // WalletApi stores the provided array by reference, so keep an internal
             // copy there and only clear this temporary buffer locally.
@@ -277,10 +189,6 @@ public class StandardCliRunner {
         }
     }
 
-    private File resolveWalletDir() {
-        return new File(System.getProperty("user.dir"), "Wallet");
-    }
-
     private void applyGrpcEndpointOverride() {
         String grpcEndpoint = globalOpts.getGrpcEndpoint();
         if (grpcEndpoint != null && !grpcEndpoint.isEmpty()) {
@@ -288,84 +196,23 @@ public class StandardCliRunner {
         }
     }
 
-    private File resolveAuthenticationWalletFile(File walletDir) throws Exception {
+    private File resolveAuthenticationWalletFile() throws Exception {
+        File walletDir = ActiveWalletConfig.getWalletDir();
         String walletOverride = globalOpts.getWallet();
         if (walletOverride != null && !walletOverride.isEmpty()) {
-            return resolveWalletOverride(walletDir, walletOverride);
+            return ActiveWalletConfig.resolveWalletOverrideStrict(walletDir, walletOverride);
         }
 
-        String activeAddress = ActiveWalletConfig.getActiveAddressStrict();
-        if (activeAddress == null) {
-            return null;
-        }
-
-        File targetFile = findWalletFileByAddress(walletDir, activeAddress);
+        File targetFile = ActiveWalletConfig.resolveActiveWalletFileStrict(walletDir);
         if (targetFile == null) {
             throw new IllegalStateException(
-                    "Active wallet keystore not found for address: " + activeAddress
-                            + ". Use --wallet or set-active-wallet to select a valid wallet.");
+                    "No active wallet selected. Use --wallet or set-active-wallet to choose a wallet.");
         }
         return targetFile;
     }
 
     static File resolveWalletOverride(File walletDir, String walletSelection) throws Exception {
-        File explicitPath = new File(walletSelection);
-        if (explicitPath.isFile()) {
-            return explicitPath;
-        }
-
-        File walletDirEntry = new File(walletDir, walletSelection);
-        if (walletDirEntry.isFile()) {
-            return walletDirEntry;
-        }
-
-        File byName = findWalletFileByName(walletDir, walletSelection);
-        if (byName != null) {
-            return byName;
-        }
-
-        throw new IllegalStateException("No wallet found for --wallet: " + walletSelection);
-    }
-
-    static File findWalletFileByAddress(File walletDir, String address) throws Exception {
-        File[] files = walletDir.listFiles((dir, name) -> name.endsWith(".json"));
-        if (files == null) {
-            return null;
-        }
-        for (File file : files) {
-            WalletFile walletFile = WalletUtils.loadWalletFile(file);
-            if (address.equals(walletFile.getAddress())) {
-                return file;
-            }
-        }
-        return null;
-    }
-
-    static File findWalletFileByName(File walletDir, String walletName) throws Exception {
-        File[] files = walletDir.listFiles((dir, name) -> name.endsWith(".json"));
-        if (files == null) {
-            return null;
-        }
-
-        File match = null;
-        int count = 0;
-        for (File file : files) {
-            WalletFile walletFile = WalletUtils.loadWalletFile(file);
-            String currentName = walletFile.getName();
-            if (currentName == null || currentName.isEmpty()) {
-                currentName = file.getName();
-            }
-            if (walletName.equals(currentName)) {
-                match = file;
-                count++;
-            }
-        }
-
-        if (count > 1) {
-            throw new IllegalArgumentException(
-                    "Multiple wallets found with name '" + walletName + "'. Use a wallet path instead.");
-        }
-        return match;
+        return ActiveWalletConfig.resolveWalletOverrideStrict(walletDir, walletSelection);
     }
 
     private void applyNetwork(String network) {
@@ -401,5 +248,39 @@ public class StandardCliRunner {
             }
         }
         TransactionUtils.clearPermissionIdOverride();
+    }
+
+    private static boolean hasStandaloneCommandHelpToken(CommandDefinition cmd, String[] cmdArgs) {
+        Map<String, OptionDef> optionsByName = new LinkedHashMap<String, OptionDef>();
+        for (OptionDef option : cmd.getOptions()) {
+            optionsByName.put(option.getName(), option);
+        }
+
+        for (int i = 0; i < cmdArgs.length; i++) {
+            String token = cmdArgs[i];
+            if ("--help".equals(token) || "-h".equals(token)) {
+                return true;
+            }
+
+            if ("-m".equals(token)) {
+                continue;
+            }
+
+            if (!token.startsWith("--")) {
+                continue;
+            }
+
+            String optionName = parseLongOptionName(token);
+            OptionDef option = optionsByName.get(optionName);
+            if (option != null && option.getType() != OptionDef.Type.BOOLEAN && !token.contains("=")) {
+                i++;
+            }
+        }
+        return false;
+    }
+
+    private static String parseLongOptionName(String token) {
+        int equalsIndex = token.indexOf('=');
+        return equalsIndex >= 0 ? token.substring(2, equalsIndex) : token.substring(2);
     }
 }
