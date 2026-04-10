@@ -4701,7 +4701,7 @@ public class Client {
       return 0;
     }
 
-    if (globalOpts.isInteractive()) {
+    if (globalOpts.isInteractive() || shouldLaunchInteractiveByDefault(args, globalOpts)) {
       Client cli = new Client();
       JCommander.newBuilder()
           .addObject(cli)
@@ -4748,6 +4748,14 @@ public class Client {
     CommandRegistry registry = initRegistry();
     StandardCliRunner runner = new StandardCliRunner(registry, globalOpts);
     return runner.execute();
+  }
+
+  static boolean shouldLaunchInteractiveByDefault(String[] args, GlobalOptions globalOpts) {
+    return args.length == 0
+        && globalOpts.getOutputMode() == OutputFormatter.OutputMode.TEXT
+        && globalOpts.getCommand() == null
+        && !globalOpts.isHelp()
+        && !globalOpts.isVersion();
   }
 
   private static boolean requestsJsonOutput(String[] args) {

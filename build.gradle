@@ -130,6 +130,10 @@ protobuf {
     }
 }
 
+tasks.named("processResources") {
+    dependsOn tasks.named("generateProto")
+}
+
 clean.doFirst {
     delete "src/main/gen"
 }

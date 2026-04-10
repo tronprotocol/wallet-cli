@@ -5,6 +5,7 @@ import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import org.junit.Assert;
 import org.junit.Test;
+import org.tron.walletcli.cli.GlobalOptions;
 
 public class ClientMainTest {
 
@@ -76,6 +77,13 @@ public class ClientMainTest {
     } finally {
       System.setOut(originalOut);
     }
+  }
+
+  @Test
+  public void noArgsDefaultsToInteractiveTextMode() {
+    GlobalOptions opts = GlobalOptions.parse(new String[0]);
+
+    Assert.assertTrue(Client.shouldLaunchInteractiveByDefault(new String[0], opts));
   }
 
   @Test
