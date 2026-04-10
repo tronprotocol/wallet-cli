@@ -1,7 +1,6 @@
 package org.tron.walletcli.cli;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Arrays;
 
 public class GlobalOptions {
 
@@ -37,74 +36,167 @@ public class GlobalOptions {
 
     public static GlobalOptions parse(String[] args) {
         GlobalOptions opts = new GlobalOptions();
-        List<String> remaining = new ArrayList<String>();
-        boolean commandFound = false;
-
+        boolean outputSeen = false;
+        boolean networkSeen = false;
+        boolean walletSeen = false;
+        boolean grpcEndpointSeen = false;
         for (int i = 0; i < args.length; i++) {
-            if (commandFound) {
-                remaining.add(args[i]);
+            String token = args[i];
+
+            if (!token.startsWith("-")) {
+                opts.command = token.toLowerCase();
+                opts.commandArgs = Arrays.copyOfRange(args, i + 1, args.length);
+                return opts;
+            }
+
+            if ("-h".equals(token)) {
+                opts.help = true;
                 continue;
             }
-            switch (args[i]) {
-                case "--interactive":
+
+            if (token.startsWith("-h=")) {
+                throw new CliUsageException("Option -h does not take a value");
+            }
+
+            if (!token.startsWith("--")) {
+                throw new CliUsageException("Unknown global option: " + token);
+            }
+
+            ParsedLongOption parsed = parseLongOptionToken(token);
+            switch (parsed.name) {
+                case "interactive":
+                    ensureNoInlineValue(parsed, "--interactive");
                     opts.interactive = true;
                     break;
-                case "--help":
-                case "-h":
+                case "help":
+                    ensureNoInlineValue(parsed, "--help");
                     opts.help = true;
                     break;
-                case "--version":
+                case "version":
+                    ensureNoInlineValue(parsed, "--version");
                     opts.version = true;
                     break;
-                case "--output":
-                    opts.output = requireOneOf(args, ++i, "--output", "text", "json");
-                    break;
-                case "--network":
-                    opts.network = requireOneOf(args, ++i, "--network", "main", "nile", "shasta", "custom");
-                    break;
-                case "--wallet":
-                    opts.wallet = requireValue(args, ++i, "--wallet");
-                    break;
-                case "--grpc-endpoint":
-                    opts.grpcEndpoint = requireValue(args, ++i, "--grpc-endpoint");
-                    break;
-                case "--quiet":
+                case "quiet":
+                    ensureNoInlineValue(parsed, "--quiet");
+                    if (opts.verbose) {
+                        throw new CliUsageException("Conflicting global options: --quiet and --verbose");
+                    }
                     opts.quiet = true;
                     break;
-                case "--verbose":
+                case "verbose":
+                    ensureNoInlineValue(parsed, "--verbose");
+                    if (opts.quiet) {
+                        throw new CliUsageException("Conflicting global options: --quiet and --verbose");
+                    }
                     opts.verbose = true;
                     break;
-                default:
-                    if (!args[i].startsWith("--")) {
-                        opts.command = args[i].toLowerCase();
-                        commandFound = true;
-                    } else {
-                        // Unknown global flag — treat as start of command args
-                        remaining.add(args[i]);
-                        commandFound = true;
+                case "output":
+                    ensureNotRepeated(outputSeen, "--output");
+                    outputSeen = true;
+                    opts.output = requireOneOf(args, i, parsed, "--output", "text", "json");
+                    if (!parsed.hasInlineValue()) {
+                        i++;
                     }
                     break;
+                case "network":
+                    ensureNotRepeated(networkSeen, "--network");
+                    networkSeen = true;
+                    opts.network = requireOneOf(args, i, parsed, "--network", "main", "nile", "shasta", "custom");
+                    if (!parsed.hasInlineValue()) {
+                        i++;
+                    }
+                    break;
+                case "wallet":
+                    ensureNotRepeated(walletSeen, "--wallet");
+                    walletSeen = true;
+                    opts.wallet = requireValue(args, i, parsed, "--wallet");
+                    if (!parsed.hasInlineValue()) {
+                        i++;
+                    }
+                    break;
+                case "grpc-endpoint":
+                    ensureNotRepeated(grpcEndpointSeen, "--grpc-endpoint");
+                    grpcEndpointSeen = true;
+                    opts.grpcEndpoint = requireValue(args, i, parsed, "--grpc-endpoint");
+                    if (!parsed.hasInlineValue()) {
+                        i++;
+                    }
+                    break;
+                default:
+                    throw new CliUsageException("Unknown global option: --" + parsed.name);
             }
         }
-        opts.commandArgs = remaining.toArray(new String[0]);
         return opts;
     }
 
-    private static String requireValue(String[] args, int valueIndex, String optionName) {
-        if (valueIndex >= args.length || args[valueIndex].startsWith("--")) {
-            throw new IllegalArgumentException("Missing value for " + optionName);
+    private static void ensureNoInlineValue(ParsedLongOption option, String optionName) {
+        if (option.hasInlineValue()) {
+            throw new CliUsageException("Option " + optionName + " does not take a value");
+        }
+    }
+
+    private static void ensureNotRepeated(boolean alreadySeen, String optionName) {
+        if (alreadySeen) {
+            throw new CliUsageException("Repeated global option: " + optionName);
+        }
+    }
+
+    private static String requireValue(String[] args, int optionIndex, ParsedLongOption option, String optionName) {
+        if (option.hasInlineValue()) {
+            if (option.inlineValue.isEmpty()) {
+                throw new CliUsageException("Missing or empty value for " + optionName);
+            }
+            return option.inlineValue;
+        }
+
+        int valueIndex = optionIndex + 1;
+        if (valueIndex >= args.length || args[valueIndex].startsWith("-")) {
+            throw new CliUsageException("Missing value for " + optionName);
         }
         return args[valueIndex];
     }
 
-    private static String requireOneOf(String[] args, int valueIndex, String optionName,
+    private static String requireOneOf(String[] args, int optionIndex, ParsedLongOption option, String optionName,
                                        String... allowedValues) {
-        String value = requireValue(args, valueIndex, optionName);
+        String value = requireValue(args, optionIndex, option, optionName);
         for (String allowedValue : allowedValues) {
             if (allowedValue.equalsIgnoreCase(value)) {
                 return allowedValue;
             }
         }
-        throw new IllegalArgumentException("Invalid value for " + optionName + ": " + value);
+        throw new CliUsageException("Invalid value for " + optionName + ": " + value);
+    }
+
+    private static ParsedLongOption parseLongOptionToken(String token) {
+        int equalsIndex = token.indexOf('=');
+        if (equalsIndex < 0) {
+            String name = token.substring(2);
+            if (name.isEmpty()) {
+                throw new CliUsageException("Empty option name: --");
+            }
+            return new ParsedLongOption(name, null, false);
+        }
+
+        String name = token.substring(2, equalsIndex);
+        if (name.isEmpty()) {
+            throw new CliUsageException("Empty option name: --");
+        }
+        return new ParsedLongOption(name, token.substring(equalsIndex + 1), true);
+    }
+
+    private static final class ParsedLongOption {
+        private final String name;
+        private final String inlineValue;
+        private final boolean hasInlineValue;
+
+        private ParsedLongOption(String name, String inlineValue, boolean hasInlineValue) {
+            this.name = name;
+            this.inlineValue = inlineValue;
+            this.hasInlineValue = hasInlineValue;
+        }
+
+        private boolean hasInlineValue() {
+            return hasInlineValue;
+        }
     }
 }

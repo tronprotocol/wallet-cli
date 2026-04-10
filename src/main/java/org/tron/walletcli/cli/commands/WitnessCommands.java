@@ -82,7 +82,18 @@ public class WitnessCommands {
                     }
                     HashMap<String, String> witness = new HashMap<String, String>();
                     for (int i = 0; i < parts.length; i += 2) {
-                        witness.put(parts[i], parts[i + 1]);
+                        String countToken = parts[i + 1];
+                        try {
+                            long count = Long.parseLong(countToken);
+                            if (count <= 0) {
+                                out.usageError("Vote count must be a positive integer: " + countToken, null);
+                                return;
+                            }
+                        } catch (NumberFormatException e) {
+                            out.usageError("Vote count must be a positive integer: " + countToken, null);
+                            return;
+                        }
+                        witness.put(parts[i], countToken);
                     }
                     boolean multi = opts.getBoolean("multi");
                     TransactionUtils.setPermissionIdOverride(permissionId);

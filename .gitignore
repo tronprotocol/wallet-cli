@@ -13,7 +13,10 @@ tools
 src/main/resources/static/js/tronjs/tron-protoc.js
 logs
 docs
+!docs/
+!docs/standard-cli-contract-spec.md
 FileTest
+bin
 
 # Wallet keystore files created at runtime
 Wallet/
@@ -24,3 +27,5 @@ wallet_data/
 qa/results/
 qa/report.txt
 
+# claude
+.claude/

@@ -3056,6 +3056,20 @@ public class WalletApi {
     return true;
   }
 
+  public Response.EstimateEnergyMessage estimateEnergyMessage(
+      byte[] owner,
+      byte[] contractAddress,
+      long callValue,
+      byte[] data,
+      long tokenValue,
+      String tokenId)
+      throws IOException {
+    if (owner == null) {
+      owner = getAddress();
+    }
+    return apiCli.estimateEnergy(owner, contractAddress, callValue, data, tokenValue, tokenId);
+  }
+
   public static Common.SmartContract getContract(byte[] address) {
     return apiCli.getContract(address);
   }

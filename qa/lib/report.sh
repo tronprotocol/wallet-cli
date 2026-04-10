@@ -1,42 +1,63 @@
 #!/bin/bash
-# Report generation
 
-generate_report() {
-  local results_dir="$1"
-  local report_file="$2"
+qa_generate_report() {
+  local registered_count="$1"
+  local covered_count="$2"
+  local excluded_count="$3"
+  local missing_count="$4"
+  local stale_count="$5"
 
   local total=0 passed=0 failed=0 skipped=0
+  local help_total=0 help_passed=0 help_failed=0 help_skipped=0
 
-  cat > "$report_file" << 'HEADER'
-═══════════════════════════════════════════════════════════════
-  Wallet CLI QA — Full Parity Report
-═══════════════════════════════════════════════════════════════
+  {
+    echo "==============================================================="
+    echo "  Standard CLI Contract Report"
+    echo "==============================================================="
+    echo
+    echo "Registered commands: $registered_count"
+    echo "Manifest-covered commands: $covered_count"
+    echo "Excluded interactive commands: $excluded_count"
+    echo "Compliant covered commands: $((covered_count - excluded_count))"
+    echo "Missing manifest entries: $missing_count"
+    echo "Stale manifest entries: $stale_count"
+    echo
+  } > "$REPORT_FILE"
 
-HEADER
-
-  for result_file in "$results_dir"/*.result; do
+  for result_file in "$RESULTS_DIR"/*.result; do
     [ -f "$result_file" ] || continue
-    total=$((total + 1))
-    status=$(cat "$result_file")
-    cmd=$(basename "$result_file" .result)
-    if echo "$status" | grep -q "^PASS"; then
-      passed=$((passed + 1))
-      echo "  ✓ $cmd" >> "$report_file"
-    elif echo "$status" | grep -q "^SKIP"; then
-      skipped=$((skipped + 1))
-      if [ "$status" = "SKIP" ]; then
-        echo "  - $cmd (skipped)" >> "$report_file"
+    local cmd status
+    cmd="$(basename "$result_file" .result)"
+    status="$(cat "$result_file")"
+    if [[ "$cmd" == help__* ]]; then
+      help_total=$((help_total + 1))
+      if [[ "$status" == PASS* ]]; then
+        help_passed=$((help_passed + 1))
+      elif [[ "$status" == SKIP* ]]; then
+        help_skipped=$((help_skipped + 1))
       else
-        echo "  - $cmd ($status)" >> "$report_file"
+        help_failed=$((help_failed + 1))
       fi
+      continue
+    fi
+    total=$((total + 1))
+    if [[ "$status" == PASS* ]]; then
+      passed=$((passed + 1))
+      echo "  ✓ $cmd" >> "$REPORT_FILE"
+    elif [[ "$status" == SKIP* ]]; then
+      skipped=$((skipped + 1))
+      echo "  - $cmd ($status)" >> "$REPORT_FILE"
     else
       failed=$((failed + 1))
-      echo "  ✗ $cmd — $status" >> "$report_file"
+      echo "  ✗ $cmd — $status" >> "$REPORT_FILE"
     fi
   done
 
-  echo "" >> "$report_file"
-  echo "───────────────────────────────────────────────────────────────" >> "$report_file"
-  echo "  Total: $total  Passed: $passed  Failed: $failed  Skipped: $skipped" >> "$report_file"
-  echo "═══════════════════════════════════════════════════════════════" >> "$report_file"
+  {
+    echo
+    echo "---------------------------------------------------------------"
+    echo "Main Cases: total=$total passed=$passed failed=$failed skipped=$skipped"
+    echo "Help Cases: total=$help_total passed=$help_passed failed=$help_failed skipped=$help_skipped"
+    echo "==============================================================="
+  } >> "$REPORT_FILE"
 }

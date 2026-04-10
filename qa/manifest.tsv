@@ -1,0 +1,118 @@
+get-address|auth-success|auth|private_key|
+get-balance|auth-success|auth|private_key|
+get-account|noauth-success|auth|private_key|--address {{MY_ADDR}}
+get-account-by-id|expected-usage-error|auth|private_key|
+get-account-net|noauth-success|auth|private_key|--address {{MY_ADDR}}
+get-account-resource|noauth-success|auth|private_key|--address {{MY_ADDR}}
+get-usdt-balance|auth-success|auth|private_key|
+current-network|noauth-success|empty|none|
+get-block|noauth-success|empty|none|
+get-block-by-id|noauth-success|empty|none|--id {{BLOCK_ID}}
+get-block-by-id-or-num|noauth-success|empty|none|--value 1
+get-block-by-latest-num|noauth-success|empty|none|--count 2
+get-block-by-limit-next|noauth-success|empty|none|--start 1 --end 3
+get-transaction-by-id|noauth-success|empty|none|--id {{TX_ID}}
+get-transaction-info-by-id|noauth-success|empty|none|--id {{TX_ID}}
+get-transaction-count-by-block-num|noauth-success|empty|none|--number 1
+get-asset-issue-by-account|noauth-success|auth|private_key|--address {{MY_ADDR}}
+get-asset-issue-by-id|noauth-success|empty|none|--id 1000001
+get-asset-issue-by-name|noauth-success|empty|none|--name TRX
+get-asset-issue-list-by-name|noauth-success|empty|none|--name TRX
+get-chain-parameters|noauth-success|empty|none|
+get-bandwidth-prices|noauth-success|empty|none|
+get-energy-prices|noauth-success|empty|none|
+get-memo-fee|noauth-success|empty|none|
+get-next-maintenance-time|noauth-success|empty|none|
+get-contract|noauth-success|empty|none|--address {{USDT_NILE}}
+get-contract-info|noauth-success|empty|none|--address {{USDT_NILE}}
+get-delegated-resource|noauth-success|auth|private_key|--from {{MY_ADDR}} --to {{MY_ADDR}}
+get-delegated-resource-v2|noauth-success|auth|private_key|--from {{MY_ADDR}} --to {{MY_ADDR}}
+get-delegated-resource-account-index|noauth-success|auth|private_key|--address {{MY_ADDR}}
+get-delegated-resource-account-index-v2|noauth-success|auth|private_key|--address {{MY_ADDR}}
+get-can-delegated-max-size|noauth-success|auth|private_key|--owner {{MY_ADDR}} --type 0
+get-available-unfreeze-count|noauth-success|auth|private_key|--address {{MY_ADDR}}
+get-can-withdraw-unfreeze-amount|noauth-success|auth|private_key|--address {{MY_ADDR}}
+get-brokerage|noauth-success|auth|private_key|--address {{MY_ADDR}}
+get-reward|noauth-success|auth|private_key|--address {{MY_ADDR}}
+list-nodes|noauth-success|empty|none|
+list-witnesses|noauth-success|empty|none|
+list-asset-issue|noauth-success|empty|none|
+list-asset-issue-paginated|noauth-success|empty|none|--offset 0 --limit 5
+list-proposals|noauth-success|empty|none|
+list-proposals-paginated|noauth-success|empty|none|--offset 0 --limit 5
+get-proposal|noauth-success|empty|none|--id 1
+list-exchanges|noauth-success|empty|none|
+list-exchanges-paginated|noauth-success|empty|none|--offset 0 --limit 5
+get-exchange|noauth-success|empty|none|--id 1
+get-market-order-by-account|noauth-success|auth|private_key|--address {{MY_ADDR}}
+get-market-order-by-id|expected-execution-error|empty|none|--id {{FAKE_ID_64}}
+get-market-order-list-by-pair|noauth-success|empty|none|--sell-token _ --buy-token 1000001
+get-market-pair-list|noauth-success|empty|none|
+get-market-price-by-pair|noauth-success|empty|none|--sell-token _ --buy-token 1000001
+gas-free-info|expected-execution-error|auth|private_key|--address {{MY_ADDR}}
+gas-free-trace|expected-execution-error|empty|none|--id {{FAKE_ID_64}}
+send-coin|stateful-success|auth|private_key|--to {{TARGET_ADDR}} --amount 1
+transfer-asset|expected-execution-error|auth|private_key|--to {{TARGET_ADDR}} --asset 1000001 --amount 1
+transfer-usdt|stateful-success|auth|private_key|--to {{TARGET_ADDR}} --amount 1
+participate-asset-issue|expected-execution-error|auth|private_key|--to {{TARGET_ADDR}} --asset 1000001 --amount 1
+asset-issue|expected-usage-error|auth|private_key|--name TESTTOKEN --abbr TT --total-supply 1000000 --trx-num 1 --ico-num 1 --start-time 2099-01-01 --end-time 2099-01-02 --url http://test.example.com --free-net-limit 0 --public-free-net-limit 0
+create-account|expected-usage-error|auth|private_key|--address TINVALIDADDRESS
+update-account|expected-execution-error|auth|private_key|--name qa-test
+set-account-id|expected-execution-error|auth|private_key|--id qa-test-id
+update-asset|expected-execution-error|auth|private_key|--description test --url http://test.example.com --new-limit 1000 --new-public-limit 1000
+broadcast-transaction|expected-execution-error|empty|none|--transaction 0a0200
+add-transaction-sign|expected-execution-error|empty|none|--transaction 0a0200
+update-account-permission|expected-execution-error|auth|private_key|--owner {{MY_ADDR}} --permissions '{"owner_permission":{"type":0,"permission_name":"owner","threshold":1,"keys":[{"address":"{{MY_ADDR}}","weight":1}]}}'
+tronlink-multi-sign|excluded-interactive|auth|private_key|
+gas-free-transfer|expected-execution-error|auth|private_key|--to {{TARGET_ADDR}} --amount 1
+deploy-contract|expected-execution-error|auth|private_key|--name TestContract --abi '[]' --bytecode 6080 --fee-limit 1000000000
+trigger-contract|stateful-success|auth|private_key|--contract {{USDT_NILE}} --method 'transfer(address,uint256)' --params '"{{TARGET_ADDR}}",1' --fee-limit 100000000
+trigger-constant-contract|noauth-success|auth|private_key|--contract {{USDT_NILE}} --method 'balanceOf(address)' --params '"{{MY_ADDR}}"'
+estimate-energy|auth-success|auth|private_key|--contract {{USDT_NILE}} --method 'transfer(address,uint256)' --params '"{{TARGET_ADDR}}",1'
+clear-contract-abi|expected-execution-error|auth|private_key|--contract {{USDT_NILE}}
+update-setting|expected-execution-error|auth|private_key|--contract {{USDT_NILE}} --consume-user-resource-percent 0
+update-energy-limit|expected-execution-error|auth|private_key|--contract {{USDT_NILE}} --origin-energy-limit 10000000
+freeze-balance|expected-execution-error|auth|private_key|--amount 1000000 --duration 3
+freeze-balance-v2|stateful-success|auth|private_key|--amount 1000000 --resource 1
+unfreeze-balance|expected-execution-error|auth|private_key|
+unfreeze-balance-v2|stateful-success|auth|private_key|--amount 1000000 --resource 1
+withdraw-expire-unfreeze|expected-execution-error|auth|private_key|
+delegate-resource|expected-execution-error|auth|private_key|--amount 1000000 --resource 0 --receiver {{TARGET_ADDR}}
+undelegate-resource|expected-execution-error|auth|private_key|--amount 1000000 --resource 0 --receiver {{TARGET_ADDR}}
+cancel-all-unfreeze-v2|expected-execution-error|auth|private_key|
+withdraw-balance|expected-execution-error|auth|private_key|
+unfreeze-asset|expected-execution-error|auth|private_key|
+create-witness|expected-execution-error|auth|private_key|--url http://test.example.com
+update-witness|expected-execution-error|auth|private_key|--url http://test.example.com
+vote-witness|expected-usage-error|auth|private_key|--votes {{TARGET_ADDR}}
+update-brokerage|expected-execution-error|auth|private_key|--brokerage 10
+create-proposal|expected-execution-error|auth|private_key|--parameters '0 1'
+approve-proposal|expected-execution-error|auth|private_key|--id 1 --approve=true
+delete-proposal|expected-execution-error|auth|private_key|--id 1
+exchange-create|expected-execution-error|auth|private_key|--first-token _ --first-balance 1000000 --second-token 1000001 --second-balance 1
+exchange-inject|expected-execution-error|auth|private_key|--exchange-id 1 --token-id _ --quant 1000000
+exchange-withdraw|expected-execution-error|auth|private_key|--exchange-id 1 --token-id _ --quant 1000000
+exchange-transaction|expected-execution-error|auth|private_key|--exchange-id 1 --token-id _ --quant 1000000 --expected 1
+market-sell-asset|expected-execution-error|auth|private_key|--sell-token _ --sell-quantity 1000000 --buy-token 1000001 --buy-quantity 1
+market-cancel-order|expected-execution-error|auth|private_key|--order-id {{FAKE_ID_64}}
+register-wallet|excluded-interactive|empty|none|--words 12
+import-wallet|offline-success|empty|private_key|--private-key {{PRIVATE_KEY}} --name qaimport
+import-wallet-by-mnemonic|offline-success|empty|mnemonic|--mnemonic '{{MNEMONIC}}' --name qamnemonic
+list-wallet|auth-success|auth|private_key|
+set-active-wallet|auth-success|auth|private_key|--address {{FIRST_WALLET_ADDRESS}}
+get-active-wallet|auth-success|auth|private_key|
+change-password|offline-success|auth|private_key|--old-password {{MASTER_PASSWORD}} --new-password {{ALT_PASSWORD}}
+clear-wallet-keystore|offline-success|auth|private_key|--force
+reset-wallet|offline-success|auth|private_key|--force
+modify-wallet-name|auth-success|auth|private_key|--name renamed-wallet
+switch-network|offline-success|auth|private_key|--network nile
+lock|expected-execution-error|auth|private_key|
+unlock|expected-execution-error|auth|private_key|--duration 60
+generate-sub-account|excluded-interactive|auth|private_key|
+generate-address|offline-success|empty|none|
+get-private-key-by-mnemonic|offline-success|empty|mnemonic|--mnemonic '{{MNEMONIC}}'
+encoding-converter|excluded-interactive|empty|none|
+address-book|excluded-interactive|empty|none|
+view-transaction-history|excluded-interactive|auth|private_key|
+view-backup-records|excluded-interactive|auth|private_key|
+help|offline-success|empty|none|

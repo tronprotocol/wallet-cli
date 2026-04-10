@@ -21,6 +21,10 @@ import java.util.Map;
 
 public class WalletCommands {
 
+    private static CommandDefinition.Builder noAuthCommand() {
+        return CommandDefinition.builder().authPolicy(CommandDefinition.AuthPolicy.NEVER);
+    }
+
     public static void register(CommandRegistry registry) {
         registerRegisterWallet(registry);
         registerImportWallet(registry);
@@ -39,7 +43,7 @@ public class WalletCommands {
     }
 
     private static void registerRegisterWallet(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("register-wallet")
                 .aliases("registerwallet")
                 .description("Create a new wallet")
@@ -59,7 +63,10 @@ public class WalletCommands {
                             // Auto-set as active wallet
                             String address = keystoreName.replace(".json", "");
                             ActiveWalletConfig.setActiveAddress(address);
-                            out.raw("Register a wallet successful, keystore file name is " + keystoreName);
+                            Map<String, Object> json = new LinkedHashMap<String, Object>();
+                            json.put("keystore", keystoreName);
+                            json.put("address", address);
+                            out.success("Register a wallet successful, keystore file name is " + keystoreName, json);
                         } else {
                             out.error("register_failed", "Register wallet failed");
                         }
@@ -71,7 +78,7 @@ public class WalletCommands {
     }
 
     private static void registerImportWallet(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("import-wallet")
                 .aliases("importwallet")
                 .description("Import a wallet by private key (uses MASTER_PASSWORD env for encryption)")
@@ -112,7 +119,7 @@ public class WalletCommands {
     }
 
     private static void registerImportWalletByMnemonic(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("import-wallet-by-mnemonic")
                 .aliases("importwalletbymnemonic")
                 .description("Import a wallet by mnemonic phrase (uses MASTER_PASSWORD env for encryption)")
@@ -157,12 +164,12 @@ public class WalletCommands {
     }
 
     private static void registerListWallet(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("list-wallet")
                 .aliases("listwallet")
                 .description("List all wallets with active status")
                 .handler((opts, wrapper, out) -> {
-                    File dir = new File("Wallet");
+                    File dir = ActiveWalletConfig.getWalletDir();
                     if (!dir.exists() || !dir.isDirectory()) {
                         out.error("no_wallets", "No wallet directory found");
                         return;
@@ -173,7 +180,7 @@ public class WalletCommands {
                         return;
                     }
 
-                    String activeAddress = ActiveWalletConfig.getActiveAddress();
+                    String activeAddress = ActiveWalletConfig.getActiveAddressLenient();
                     List<Map<String, Object>> wallets = new ArrayList<Map<String, Object>>();
 
                     for (File f : files) {
@@ -212,7 +219,7 @@ public class WalletCommands {
     }
 
     private static void registerSetActiveWallet(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("set-active-wallet")
                 .aliases("setactivewallet")
                 .description("Set the active wallet by address or name")
@@ -223,13 +230,13 @@ public class WalletCommands {
                     boolean hasName = opts.has("name");
 
                     if (!hasAddress && !hasName) {
-                        out.error("missing_option",
-                                "Provide --address or --name to identify the wallet");
+                        out.usageError(
+                                "Provide --address or --name to identify the wallet", null);
                         return;
                     }
                     if (hasAddress && hasName) {
-                        out.error("invalid_options",
-                                "Provide either --address or --name, not both");
+                        out.usageError(
+                                "Provide either --address or --name, not both", null);
                         return;
                     }
 
@@ -268,7 +275,7 @@ public class WalletCommands {
     }
 
     private static void registerGetActiveWallet(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("get-active-wallet")
                 .aliases("getactivewallet")
                 .description("Get the current active wallet")
@@ -301,7 +308,7 @@ public class WalletCommands {
     }
 
     private static void registerChangePassword(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("change-password")
                 .aliases("changepassword")
                 .description("Change the password of a wallet keystore")
@@ -313,8 +320,8 @@ public class WalletCommands {
                     boolean hasAddress = opts.has("address");
                     boolean hasName = opts.has("name");
                     if (hasAddress && hasName) {
-                        out.error("invalid_options",
-                                "Provide either --address or --name, not both");
+                        out.usageError(
+                                "Provide either --address or --name, not both", null);
                         return;
                     }
 
@@ -337,7 +344,7 @@ public class WalletCommands {
                             opts.getString("old-password").toCharArray(),
                             opts.getString("new-password").toCharArray(),
                             targetWalletFile);
-                    out.result(result,
+                    CommandSupport.emitBooleanResult(out, result,
                             "ChangePassword successful !!",
                             "ChangePassword failed !!");
                 })
@@ -346,14 +353,18 @@ public class WalletCommands {
 
     private static void registerClearWalletKeystore(CommandRegistry registry) {
         registry.add(CommandDefinition.builder()
+                .authPolicy(CommandDefinition.AuthPolicy.REQUIRE)
                 .name("clear-wallet-keystore")
                 .aliases("clearwalletkeystore")
                 .description("Clear wallet keystore files")
                 .option("force", "Skip interactive confirmation", false, OptionDef.Type.BOOLEAN)
                 .handler((opts, wrapper, out) -> {
+                    boolean force = opts.getBoolean("force");
+                    CommandSupport.requireForce(out, "clear-wallet-keystore", force);
+
                     ActiveWalletConfig.clear();
-                    boolean result = wrapper.clearWalletKeystore(opts.getBoolean("force"));
-                    out.result(result,
+                    boolean result = wrapper.clearWalletKeystore(force);
+                    CommandSupport.emitBooleanResult(out, result,
                             "ClearWalletKeystore successful !!",
                             "ClearWalletKeystore failed !!");
                 })
@@ -361,28 +372,33 @@ public class WalletCommands {
     }
 
     private static void registerResetWallet(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("reset-wallet")
                 .aliases("resetwallet")
                 .description("Reset wallet to initial state")
                 .option("force", "Skip interactive confirmation", false, OptionDef.Type.BOOLEAN)
                 .handler((opts, wrapper, out) -> {
+                    boolean force = opts.getBoolean("force");
+                    CommandSupport.requireForce(out, "reset-wallet", force);
                     ActiveWalletConfig.clear();
-                    boolean result = wrapper.resetWallet(opts.getBoolean("force"));
-                    out.result(result, "ResetWallet successful !!", "ResetWallet failed !!");
+                    boolean result = wrapper.resetWallet(force);
+                    CommandSupport.emitBooleanResult(out, result,
+                            "ResetWallet successful !!", "ResetWallet failed !!");
                 })
                 .build());
     }
 
     private static void registerModifyWalletName(CommandRegistry registry) {
         registry.add(CommandDefinition.builder()
+                .authPolicy(CommandDefinition.AuthPolicy.REQUIRE)
                 .name("modify-wallet-name")
                 .aliases("modifywalletname")
                 .description("Modify wallet display name")
                 .option("name", "New wallet name", true)
                 .handler((opts, wrapper, out) -> {
+
                     boolean result = wrapper.modifyWalletName(opts.getString("name"));
-                    out.result(result,
+                    CommandSupport.emitBooleanResult(out, result,
                             "ModifyWalletName successful !!",
                             "ModifyWalletName failed !!");
                 })
@@ -390,7 +406,7 @@ public class WalletCommands {
     }
 
     private static void registerSwitchNetwork(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("switch-network")
                 .aliases("switchnetwork")
                 .description("Switch to a different network")
@@ -402,7 +418,7 @@ public class WalletCommands {
                     String fullNode = opts.has("full-node") ? opts.getString("full-node") : null;
                     String solidityNode = opts.has("solidity-node") ? opts.getString("solidity-node") : null;
                     boolean result = wrapper.switchNetwork(network, fullNode, solidityNode);
-                    out.result(result,
+                    CommandSupport.emitBooleanResult(out, result,
                             "SwitchNetwork successful !!",
                             "SwitchNetwork failed !!");
                 })
@@ -411,40 +427,43 @@ public class WalletCommands {
 
     private static void registerLock(CommandRegistry registry) {
         registry.add(CommandDefinition.builder()
+                .authPolicy(CommandDefinition.AuthPolicy.REQUIRE)
                 .name("lock")
                 .aliases("lock")
                 .description("Lock the wallet")
                 .handler((opts, wrapper, out) -> {
+
                     boolean result = wrapper.lock();
-                    out.result(result, "Lock successful !!", "Lock failed !!");
+                    CommandSupport.emitBooleanResult(out, result,
+                            "Lock successful !!", "Lock failed !!");
                 })
                 .build());
     }
 
     private static void registerUnlock(CommandRegistry registry) {
         registry.add(CommandDefinition.builder()
+                .authPolicy(CommandDefinition.AuthPolicy.REQUIRE)
                 .name("unlock")
                 .aliases("unlock")
                 .description("Unlock the wallet for a duration")
                 .option("duration", "Duration in seconds", true, OptionDef.Type.LONG)
                 .handler((opts, wrapper, out) -> {
                     long duration = opts.getLong("duration");
-                    boolean result = wrapper.unlock(duration);
-                    out.result(result, "Unlock successful !!", "Unlock failed !!");
+                    wrapper.unlockOrThrow(duration);
+                    out.successMessage("Unlock successful !!");
                 })
                 .build());
     }
 
     private static void registerGenerateSubAccount(CommandRegistry registry) {
         registry.add(CommandDefinition.builder()
+                .authPolicy(CommandDefinition.AuthPolicy.REQUIRE)
                 .name("generate-sub-account")
                 .aliases("generatesubaccount")
                 .description("Generate a sub-account from mnemonic")
                 .handler((opts, wrapper, out) -> {
-                    boolean result = wrapper.generateSubAccount();
-                    out.result(result,
-                            "GenerateSubAccount successful !!",
-                            "GenerateSubAccount failed !!");
+                    wrapper.generateSubAccountOrThrow();
+                    out.successMessage("GenerateSubAccount successful !!");
                 })
                 .build());
     }

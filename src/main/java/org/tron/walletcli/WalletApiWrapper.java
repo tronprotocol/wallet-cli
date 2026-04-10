@@ -137,14 +137,16 @@ public class WalletApiWrapper {
     }
 
     byte[] passwd = char2Byte(password);
+    try {
+      WalletFile walletFile = WalletApi.CreateWalletFile(passwd, wordsNumber);
+      nameWallet(walletFile, false);
 
-    WalletFile walletFile = WalletApi.CreateWalletFile(passwd, wordsNumber);
-    nameWallet(walletFile, false);
-    clear(passwd);
-
-    String keystoreName = WalletApi.store2Keystore(walletFile);
-    logout();
-    return keystoreName;
+      String keystoreName = WalletApi.store2Keystore(walletFile);
+      logout();
+      return keystoreName;
+    } finally {
+      clear(passwd);
+    }
   }
 
   public String importWallet(char[] password, byte[] priKey, List<String> mnemonic) throws CipherException, IOException {
@@ -156,22 +158,24 @@ public class WalletApiWrapper {
     }
 
     byte[] passwd = char2Byte(password);
+    try {
+      WalletFile walletFile = WalletApi.CreateWalletFile(passwd, priKey, mnemonic);
+      nameWallet(walletFile, false);
 
-    WalletFile walletFile = WalletApi.CreateWalletFile(passwd, priKey, mnemonic);
-    nameWallet(walletFile, false);
-    clear(passwd);
-
-    String keystoreName = WalletApi.store2Keystore(walletFile);
-    if (mnemonic == null && WalletUtils.hasStoreFile(walletFile.getAddress(), MnemonicFilePath)) {
-      WalletUtils.deleteStoreFile(walletFile.getAddress(), MnemonicFilePath);
+      String keystoreName = WalletApi.store2Keystore(walletFile);
+      if (mnemonic == null && WalletUtils.hasStoreFile(walletFile.getAddress(), MnemonicFilePath)) {
+        WalletUtils.deleteStoreFile(walletFile.getAddress(), MnemonicFilePath);
+      }
+      if (isUnifiedExist()) {
+        wallet.getWalletList().add(walletFile);
+      }
+      if (!isUnifiedExist()) {
+        logout();
+      }
+      return keystoreName;
+    } finally {
+      clear(passwd);
     }
-    if (isUnifiedExist()) {
-      wallet.getWalletList().add(walletFile);
-    }
-    if (!isUnifiedExist()) {
-      logout();
-    }
-    return keystoreName;
   }
 
   public String importWalletByLedger(char[] password, HidDevice device) {
@@ -1452,6 +1456,28 @@ public class WalletApiWrapper {
         .estimateEnergy(ownerAddress, contractAddress, callValue, data, tokenValue, tokenId);
   }
 
+  public Response.EstimateEnergyMessage estimateEnergyMessage(
+      byte[] ownerAddress,
+      byte[] contractAddress,
+      long callValue,
+      byte[] data,
+      long tokenValue,
+      String tokenId) {
+    if (wallet == null || !wallet.isLoginState()) {
+      throw new CommandErrorException("auth_required", "Please login first !!");
+    }
+    try {
+      return wallet.estimateEnergyMessage(
+          ownerAddress, contractAddress, callValue, data, tokenValue, tokenId);
+    } catch (IllegalStateException e) {
+      throw new CommandErrorException("auth_required",
+          StringUtils.isNotEmpty(e.getMessage()) ? e.getMessage() : "Please login first !!");
+    } catch (IOException e) {
+      throw new CommandErrorException("query_failed",
+          StringUtils.isNotEmpty(e.getMessage()) ? e.getMessage() : "EstimateEnergy failed");
+    }
+  }
+
   public boolean accountPermissionUpdate(byte[] ownerAddress, String permission, boolean multi)
       throws IOException, CipherException, CancelException, IllegalException {
     if (wallet == null || !wallet.isLoginState()) {
@@ -1907,7 +1933,12 @@ public class WalletApiWrapper {
     if (!addressValid(address)) {
       throw new CommandErrorException("invalid_input", "The address you entered is invalid.");
     }
-    String resp = GasFreeApi.address(WalletApi.getCurrentNetwork(), address);
+    String resp;
+    try {
+      resp = GasFreeApi.address(WalletApi.getCurrentNetwork(), address);
+    } catch (IllegalArgumentException e) {
+      throw new CommandErrorException("missing_config", e.getMessage());
+    }
     if (StringUtils.isEmpty(resp)) {
       throw new CommandErrorException("query_failed", "GasFreeInfo failed");
     }
@@ -2015,7 +2046,16 @@ public class WalletApiWrapper {
     gasFreeSubmitRequest.setVersion(1);
     NetType currentNet = WalletApi.getCurrentNetwork();
     byte[] domainSeparator = getDomainSeparator(currentNet);
-    byte[] message = getMessage(currentNet, gasFreeSubmitRequest);
+    byte[] message;
+    try {
+      message = getMessage(currentNet, gasFreeSubmitRequest);
+    } catch (IllegalArgumentException e) {
+      if (standardCli) {
+        throw new CommandErrorException("missing_config", e.getMessage());
+      }
+      System.out.println(e.getMessage());
+      return false;
+    }
     if (ArrayUtils.isEmpty(message)) {
       return false;
     }
@@ -2076,7 +2116,16 @@ public class WalletApiWrapper {
       gasFreeSubmitRequest.setSig(signature);
       boolean validated = validateSignOffChain(keccak256(concat), signature, address);
       if (validated) {
-        String result = gasFreeSubmit(currentNet, gasFreeSubmitRequest);
+        String result;
+        try {
+          result = gasFreeSubmit(currentNet, gasFreeSubmitRequest);
+        } catch (IllegalArgumentException e) {
+          if (standardCli) {
+            throw new CommandErrorException("missing_config", e.getMessage());
+          }
+          System.out.println(e.getMessage());
+          return false;
+        }
         if (StringUtils.isNotEmpty(result)) {
           Object o = JSON.parse(result);
           JSONObject root = (JSONObject) o;
@@ -2153,7 +2202,12 @@ public class WalletApiWrapper {
     if (WalletApi.getCurrentNetwork() != MAIN && WalletApi.getCurrentNetwork() != NILE) {
       throw new CommandErrorException("unsupported_network", GAS_FREE_SUPPORT_NETWORK_TIP);
     }
-    String result = GasFreeApi.gasFreeTrace(WalletApi.getCurrentNetwork(), traceId);
+    String result;
+    try {
+      result = GasFreeApi.gasFreeTrace(WalletApi.getCurrentNetwork(), traceId);
+    } catch (IllegalArgumentException e) {
+      throw new CommandErrorException("missing_config", e.getMessage());
+    }
     if (StringUtils.isEmpty(result)) {
       throw new CommandErrorException("query_failed", "GasFreeTrace failed");
     }

@@ -15,11 +15,21 @@ import java.util.Map;
  */
 public class CommandDefinition {
 
+    public enum AuthPolicy {
+        NEVER,
+        REQUIRE
+    }
+
+    public interface AuthPolicyResolver {
+        AuthPolicy resolve(ParsedOptions opts);
+    }
+
     private final String name;
     private final List<String> aliases;
     private final String description;
     private final List<OptionDef> options;
     private final CommandHandler handler;
+    private final AuthPolicyResolver authPolicyResolver;
 
     private CommandDefinition(Builder b) {
         this.name = b.name;
@@ -27,6 +37,7 @@ public class CommandDefinition {
         this.description = b.description;
         this.options = Collections.unmodifiableList(new ArrayList<OptionDef>(b.options));
         this.handler = b.handler;
+        this.authPolicyResolver = b.authPolicyResolver;
     }
 
     // ---- Accessors ----------------------------------------------------------
@@ -51,14 +62,22 @@ public class CommandDefinition {
         return handler;
     }
 
+    public AuthPolicy resolveAuthPolicy(ParsedOptions opts) {
+        AuthPolicy policy = authPolicyResolver.resolve(opts);
+        if (policy == null) {
+            throw new IllegalStateException("Auth policy resolver returned null for command: " + name);
+        }
+        return policy;
+    }
+
     // ---- Argument parsing ---------------------------------------------------
 
     /**
-     * Parses a {@code --key value} argument array into {@link ParsedOptions}.
+     * Parses command-local option tokens into {@link ParsedOptions}.
      *
      * <p>Rules:
      * <ul>
-     *   <li>{@code --key value} sets key to value</li>
+     *   <li>{@code --key value} or {@code --key=value} sets key to value</li>
      *   <li>{@code -m} is accepted only for commands that declare a {@code multi} option</li>
      *   <li>Boolean flags: {@code --flag} implies {@code true}; explicit values must be
      *       one of {@code true}, {@code false}, {@code 1}, {@code 0}, {@code yes}, or {@code no}</li>
@@ -73,7 +92,6 @@ public class CommandDefinition {
     public ParsedOptions parseArgs(String[] args) {
         Map<String, String> values = new LinkedHashMap<String, String>();
 
-        // Build a lookup of known option names for boolean-flag detection
         Map<String, OptionDef> optionsByName = new LinkedHashMap<String, OptionDef>();
         for (OptionDef opt : options) {
             optionsByName.put(opt.getName(), opt);
@@ -84,52 +102,58 @@ public class CommandDefinition {
             String token = args[i];
 
             if ("-m".equals(token)) {
-                if (!optionsByName.containsKey("multi")) {
-                    throw new IllegalArgumentException("Unexpected argument: " + token);
+                OptionDef multiOption = optionsByName.get("multi");
+                if (multiOption == null || multiOption.getType() != OptionDef.Type.BOOLEAN) {
+                    throw new CliUsageException("Option -m is only supported for commands with --multi");
                 }
-                values.put("multi", "true");
+                putBooleanValue(values, "multi", "true");
                 i++;
                 continue;
             }
 
             if (token.startsWith("--")) {
-                String key = token.substring(2);
-                if (key.isEmpty()) {
-                    throw new IllegalArgumentException("Empty option name: --");
+                ParsedOptionToken optionToken = parseLongOptionToken(token);
+                OptionDef def = optionsByName.get(optionToken.name);
+                if (def == null) {
+                    throw new CliUsageException("Unknown option: --" + optionToken.name);
                 }
 
-                OptionDef def = optionsByName.get(key);
-                if (def != null && def.getType() == OptionDef.Type.BOOLEAN) {
-                    if (i + 1 >= args.length || args[i + 1].startsWith("--")) {
-                        values.put(key, "true");
+                if (def.getType() == OptionDef.Type.BOOLEAN) {
+                    if (optionToken.hasInlineValue()) {
+                        putBooleanValue(values, optionToken.name,
+                                normalizeBooleanValue(optionToken.name, optionToken.inlineValue));
                         i++;
                         continue;
                     }
-                    String rawValue = args[i + 1];
-                    if (!isSupportedBooleanValue(rawValue)) {
-                        throw new IllegalArgumentException(
-                                "Option --" + key + " requires a boolean value (true/false/1/0/yes/no), got: "
-                                        + rawValue);
-                    }
-                    values.put(key, rawValue);
-                    i += 2;
+
+                    putBooleanValue(values, optionToken.name, "true");
+                    i++;
                 } else {
-                    // Determine whether this is a boolean flag (no following value)
-                    boolean isBooleanFlag = i + 1 >= args.length || args[i + 1].startsWith("--");
-                    if (isBooleanFlag) {
-                        values.put(key, "true");
+                    if (values.containsKey(optionToken.name)) {
+                        throw new CliUsageException("Repeated option: --" + optionToken.name);
+                    }
+
+                    if (optionToken.hasInlineValue()) {
+                        values.put(optionToken.name,
+                                requireNonEmptyValue(optionToken.name, optionToken.inlineValue));
                         i++;
                     } else {
-                        values.put(key, args[i + 1]);
+                        if (i + 1 >= args.length || args[i + 1].startsWith("--")) {
+                            throw new CliUsageException("Missing value for --" + optionToken.name);
+                        }
+                        values.put(optionToken.name,
+                                requireNonEmptyValue(optionToken.name, args[i + 1]));
                         i += 2;
                     }
                 }
             } else {
-                throw new IllegalArgumentException("Unexpected argument: " + token);
+                if (token.startsWith("-")) {
+                    throw new CliUsageException("Unknown option: " + token);
+                }
+                throw new CliUsageException("Unexpected argument: " + token);
             }
         }
 
-        // Validate required options
         List<String> missing = new ArrayList<String>();
         for (OptionDef opt : options) {
             if (opt.isRequired() && !values.containsKey(opt.getName())) {
@@ -144,19 +168,79 @@ public class CommandDefinition {
                 }
                 sb.append("--").append(missing.get(j));
             }
-            throw new IllegalArgumentException(sb.toString());
+            throw new CliUsageException(sb.toString());
         }
 
         return new ParsedOptions(values);
     }
 
-    private static boolean isSupportedBooleanValue(String rawValue) {
+    private static String requireNonEmptyValue(String optionName, String rawValue) {
+        if (rawValue == null || rawValue.isEmpty()) {
+            throw new CliUsageException("Missing or empty value for --" + optionName);
+        }
+        return rawValue;
+    }
+
+    private static String normalizeBooleanValue(String optionName, String rawValue) {
         return "true".equalsIgnoreCase(rawValue)
-                || "false".equalsIgnoreCase(rawValue)
                 || "1".equals(rawValue)
-                || "0".equals(rawValue)
                 || "yes".equalsIgnoreCase(rawValue)
-                || "no".equalsIgnoreCase(rawValue);
+                ? "true"
+                : "false".equalsIgnoreCase(rawValue)
+                || "0".equals(rawValue)
+                || "no".equalsIgnoreCase(rawValue)
+                ? "false"
+                : invalidBooleanValue(optionName, rawValue);
+    }
+
+    private static String invalidBooleanValue(String optionName, String rawValue) {
+        throw new CliUsageException(
+                "Option --" + optionName + " requires a boolean value (true/false/1/0/yes/no), got: "
+                        + rawValue);
+    }
+
+    private static void putBooleanValue(Map<String, String> values, String optionName, String normalizedValue) {
+        String existing = values.get(optionName);
+        if (existing == null) {
+            values.put(optionName, normalizedValue);
+            return;
+        }
+        if (!existing.equals(normalizedValue)) {
+            throw new CliUsageException("Conflicting values for option: --" + optionName);
+        }
+    }
+
+    private static ParsedOptionToken parseLongOptionToken(String token) {
+        int equalsIndex = token.indexOf('=');
+        if (equalsIndex < 0) {
+            String name = token.substring(2);
+            if (name.isEmpty()) {
+                throw new CliUsageException("Empty option name: --");
+            }
+            return new ParsedOptionToken(name, null, false);
+        }
+
+        String name = token.substring(2, equalsIndex);
+        if (name.isEmpty()) {
+            throw new CliUsageException("Empty option name: --");
+        }
+        return new ParsedOptionToken(name, token.substring(equalsIndex + 1), true);
+    }
+
+    private static final class ParsedOptionToken {
+        private final String name;
+        private final String inlineValue;
+        private final boolean hasInlineValue;
+
+        private ParsedOptionToken(String name, String inlineValue, boolean hasInlineValue) {
+            this.name = name;
+            this.inlineValue = inlineValue;
+            this.hasInlineValue = hasInlineValue;
+        }
+
+        private boolean hasInlineValue() {
+            return hasInlineValue;
+        }
     }
 
     // ---- Help formatting ----------------------------------------------------
@@ -215,6 +299,7 @@ public class CommandDefinition {
         private String description = "";
         private List<OptionDef> options = new ArrayList<OptionDef>();
         private CommandHandler handler;
+        private AuthPolicyResolver authPolicyResolver = opts -> AuthPolicy.REQUIRE;
 
         private Builder() {
         }
@@ -246,6 +331,19 @@ public class CommandDefinition {
 
         public Builder handler(CommandHandler handler) {
             this.handler = handler;
+            return this;
+        }
+
+        public Builder authPolicy(AuthPolicy authPolicy) {
+            this.authPolicyResolver = opts -> authPolicy;
+            return this;
+        }
+
+        public Builder authPolicyResolver(AuthPolicyResolver authPolicyResolver) {
+            if (authPolicyResolver == null) {
+                throw new IllegalArgumentException("authPolicyResolver cannot be null");
+            }
+            this.authPolicyResolver = authPolicyResolver;
             return this;
         }
 

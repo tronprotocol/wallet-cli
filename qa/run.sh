@@ -1,21 +1,25 @@
 #!/bin/bash
-# Wallet CLI QA — Three-way parity verification
-# Compares: interactive REPL vs standard CLI (text) vs standard CLI (json)
-# All using the same wallet-cli.jar build.
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-cd "$PROJECT_DIR"
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/config.sh"
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/lib/cli.sh"
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/lib/report.sh"
 
 MODE="verify"
 NO_BUILD=0
-QUERY_BATCH=0
+CASE_FILTER=""
+MAX_JOBS="${QA_MAX_JOBS:-4}"
+LOCK_DIR="$PROJECT_DIR/qa/.verify.lock"
+
 if [ $# -gt 0 ] && [[ "$1" != --* ]]; then
   MODE="$1"
   shift
 fi
 
-CASE_FILTER=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --case)
@@ -26,10 +30,6 @@ while [ $# -gt 0 ]; do
       NO_BUILD=1
       shift
       ;;
-    --query-batch)
-      QUERY_BATCH=1
-      shift
-      ;;
     *)
       echo "Unknown option: $1"
       exit 1
@@ -37,308 +37,195 @@ while [ $# -gt 0 ]; do
   esac
 done
 
-if [ "$MODE" = "java-verify" ]; then
-  echo "java-verify is no longer supported." >&2
-  echo "Use 'bash qa/run.sh verify' (optionally with --query-batch) instead." >&2
-  exit 1
-fi
-
-source "$SCRIPT_DIR/config.sh"
-source "$SCRIPT_DIR/lib/compare.sh"
-source "$SCRIPT_DIR/lib/semantic.sh"
-source "$SCRIPT_DIR/lib/report.sh"
-
-export QA_CASE_FILTER="$CASE_FILTER"
-export QA_QUERY_BATCH="$QUERY_BATCH"
-_qa_case_enabled() {
-  local label="$1"
-  [ -z "$QA_CASE_FILTER" ] || [ "$label" = "$QA_CASE_FILTER" ]
-}
-
-_case_bucket() {
-  local label="$1"
-  case "$label" in
-    repl-vs-std_*)
-      echo "repl"
-      ;;
-    cross-login-address)
-      echo "cross-login"
-      ;;
-    mnemonic_*)
-      echo "mnemonic-query"
-      ;;
-    send-coin*|transfer-asset*|transfer-usdt*|participate-asset-issue*|asset-issue*|create-account*|update-account*|set-account-id*|update-asset*|broadcast-transaction*|add-transaction-sign*|update-account-permission*|tronlink-multi-sign*|gas-free-transfer*|deploy-contract*|trigger-contract*|trigger-constant-contract*|estimate-energy*|clear-contract-abi*|update-setting*|update-energy-limit*|freeze-balance*|freeze-v2-*|unfreeze-balance*|unfreeze-v2-*|withdraw-expire-unfreeze*|delegate-resource*|undelegate-resource*|cancel-all-unfreeze-v2*|withdraw-balance*|unfreeze-asset*|create-witness*|update-witness*|vote-witness*|update-brokerage*|create-proposal*|approve-proposal*|delete-proposal*|exchange-*|market-*|post-freeze-resource|post-unfreeze-resource)
-      echo "transaction"
-      ;;
-    register-wallet*|import-wallet*|list-wallet*|set-active-wallet*|get-active-wallet*|change-password*|clear-wallet-keystore*|reset-wallet*|modify-wallet-name*|switch-network*|lock*|unlock*|generate-sub-account*|generate-address*|get-private-key-by-mnemonic*|encoding-converter*|address-book*|view-transaction-history*|view-backup-records*|help|help-*|global-help|unknown-command|did-you-mean|version-flag|current-network-wallet)
-      echo "wallet"
-      ;;
-    *)
-      echo "query"
-      ;;
-  esac
-}
-
-_needs_phase() {
-  local phase="$1"
-  if [ -z "$QA_CASE_FILTER" ]; then
-    return 0
-  fi
-
-  local bucket
-  bucket=$(_case_bucket "$QA_CASE_FILTER")
-
-  case "$phase:$bucket" in
-    1:query|1:mnemonic-query|1:cross-login|1:transaction)
-      return 0
-      ;;
-    2:query|2:cross-login)
-      return 0
-      ;;
-    3:mnemonic-query|3:cross-login)
-      return 0
-      ;;
-    4:cross-login)
-      return 0
-      ;;
-    5:transaction)
-      return 0
-      ;;
-    6:wallet)
-      return 0
-      ;;
-    7:repl)
-      return 0
-      ;;
-    *)
-      return 1
-      ;;
-  esac
-}
-
-_build_required() {
+build_required() {
   if [ ! -f "$WALLET_JAR" ]; then
     return 0
   fi
-
-  find src/main/java src/main/gen src/main/protos -type f -newer "$WALLET_JAR" -print -quit 2>/dev/null | grep -q .
-  if [ $? -eq 0 ]; then
-    return 0
-  fi
-
+  find src/main/java src/main/gen src/main/protos -type f -newer "$WALLET_JAR" -print -quit 2>/dev/null | grep -q . && return 0
   for f in build.gradle settings.gradle; do
-    if [ -f "$f" ] && [ "$f" -nt "$WALLET_JAR" ]; then
-      return 0
-    fi
+    [ -f "$f" ] && [ "$f" -nt "$WALLET_JAR" ] && return 0
   done
-
   return 1
 }
 
-_ensure_query_commands_loaded() {
-  if ! declare -F run_query_tests >/dev/null 2>&1; then
-    source "$SCRIPT_DIR/commands/query_commands.sh"
+load_registered_commands() {
+  java -cp "$WALLET_JAR" org.tron.qa.QARunner list \
+    | sed -n 's/^  \([^ ]*\).*/\1/p'
+}
+
+load_manifest_commands() {
+  awk -F'|' 'NF >= 4 && $1 !~ /^#/ { print $1 }' "$MANIFEST_FILE"
+}
+
+manifest_count() {
+  load_manifest_commands | wc -l | tr -d ' '
+}
+
+manifest_excluded_count() {
+  awk -F'|' '$2 == "excluded-interactive" { count++ } END { print count + 0 }' "$MANIFEST_FILE"
+}
+
+audit_manifest() {
+  local registered_file manifest_file missing_file stale_file duplicates_file
+  registered_file="$RUNTIME_DIR/registered.txt"
+  manifest_file="$RUNTIME_DIR/manifest.txt"
+  missing_file="$RUNTIME_DIR/missing.txt"
+  stale_file="$RUNTIME_DIR/stale.txt"
+  duplicates_file="$RUNTIME_DIR/duplicates.txt"
+
+  load_registered_commands | sort > "$registered_file"
+  load_manifest_commands | sort > "$manifest_file"
+  awk -F'|' 'NF >= 4 && $1 !~ /^#/ { count[$1]++ } END { for (cmd in count) if (count[cmd] > 1) print cmd }' \
+    "$MANIFEST_FILE" | sort > "$duplicates_file"
+  comm -23 "$registered_file" "$manifest_file" > "$missing_file"
+  comm -13 "$registered_file" "$manifest_file" > "$stale_file"
+
+  if [ -s "$duplicates_file" ] || [ -s "$missing_file" ] || [ -s "$stale_file" ]; then
+    echo "Manifest audit failed."
+    [ -s "$duplicates_file" ] && { echo "Duplicate manifest entries:"; cat "$duplicates_file"; }
+    [ -s "$missing_file" ] && { echo "Missing manifest entries:"; cat "$missing_file"; }
+    [ -s "$stale_file" ] && { echo "Stale manifest entries:"; cat "$stale_file"; }
+    exit 1
   fi
 }
 
-echo "=== Wallet CLI QA — Mode: $MODE, Network: $NETWORK${QA_CASE_FILTER:+, Case: $QA_CASE_FILTER} ==="
-echo ""
+enqueue_task() {
+  printf '%s|%s\n' "$1" "$2"
+}
 
-if [ "$NO_BUILD" -eq 1 ]; then
+run_task_file_parallel() {
+  local task_file="$1"
+  local jobs="$2"
+  [ -s "$task_file" ] || return 0
+  xargs -P "$jobs" -n 2 bash "$SCRIPT_DIR/task_runner.sh" < <(tr '|' '\n' < "$task_file")
+}
+
+run_task_file_serial() {
+  local task_file="$1"
+  [ -s "$task_file" ] || return 0
+  while IFS='|' read -r kind name; do
+    bash "$SCRIPT_DIR/task_runner.sh" "$kind" "$name"
+  done < "$task_file"
+}
+
+prepare_task_files() {
+  local help_tasks regular_tasks stateful_tasks global_tasks
+  help_tasks="$RUNTIME_DIR/help.tasks"
+  regular_tasks="$RUNTIME_DIR/regular.tasks"
+  stateful_tasks="$RUNTIME_DIR/stateful.tasks"
+  global_tasks="$RUNTIME_DIR/global.tasks"
+  : > "$help_tasks"
+  : > "$regular_tasks"
+  : > "$stateful_tasks"
+  : > "$global_tasks"
+
+  if [ -n "$CASE_FILTER" ]; then
+    if grep -qx "$CASE_FILTER" "$RUNTIME_DIR/registered.txt"; then
+      enqueue_task help "$CASE_FILTER" >> "$help_tasks"
+      case "$(qa_case_type "$CASE_FILTER")" in
+        stateful-success)
+          enqueue_task main "$CASE_FILTER" >> "$stateful_tasks"
+          ;;
+        *)
+          enqueue_task main "$CASE_FILTER" >> "$regular_tasks"
+          ;;
+      esac
+      return 0
+    fi
+    enqueue_task global "$CASE_FILTER" >> "$global_tasks"
+    return 0
+  fi
+
+  while IFS= read -r command; do
+    enqueue_task help "$command" >> "$help_tasks"
+    case "$(qa_case_type "$command")" in
+      stateful-success)
+        enqueue_task main "$command" >> "$stateful_tasks"
+        ;;
+      *)
+        enqueue_task main "$command" >> "$regular_tasks"
+        ;;
+    esac
+  done < "$RUNTIME_DIR/registered.txt"
+
+  for global_case in global-help version-flag missing-command unknown-global-option unknown-command; do
+    enqueue_task global "$global_case" >> "$global_tasks"
+  done
+}
+
+task_count() {
+  local task_file="$1"
+  [ -f "$task_file" ] || { echo 0; return; }
+  wc -l < "$task_file" | tr -d ' '
+}
+
+if [ "$MODE" = "list" ]; then
   if [ ! -f "$WALLET_JAR" ]; then
-    echo "Cannot skip build: $WALLET_JAR does not exist"
+    echo "wallet-cli.jar not found: $WALLET_JAR"
     exit 1
   fi
-  echo "Skipping build (--no-build)."
-  echo ""
-elif _build_required; then
-  echo "Building wallet-cli..."
-  ./gradlew shadowJar -q 2>/dev/null
-  echo "Build complete."
-  echo ""
-else
-  echo "Build skipped (wallet-cli.jar is up to date)."
-  echo ""
+  java -cp "$WALLET_JAR" org.tron.qa.QARunner list
+  exit 0
 fi
 
-if [ "$MODE" = "verify" ]; then
-  mkdir -p "$RESULTS_DIR"
-  rm -f "$RESULTS_DIR"/*.result "$RESULTS_DIR"/*.out 2>/dev/null || true
-
-  # Phase 1: Setup
-  if _needs_phase 1; then
-    echo "Phase 1: Setup & connectivity check..."
-    conn_out=$(java -jar "$WALLET_JAR" --network "$NETWORK" get-chain-parameters 2>/dev/null | head -1) || true
-    if [ -n "$conn_out" ]; then
-      echo "  ✓ $NETWORK connectivity OK"
-    else
-      echo "  ✗ $NETWORK connectivity FAILED"
-      exit 1
-    fi
-
-    CMD_COUNT=$(java -cp "$WALLET_JAR" org.tron.qa.QARunner list 2>/dev/null \
-      | sed -n '1s/.*: //p')
-    if [ -z "$CMD_COUNT" ]; then
-      CMD_COUNT="unknown"
-    fi
-    echo "  Standard CLI commands: $CMD_COUNT"
-  fi
-
-  # Phase 2: Private key session
-  if _needs_phase 2; then
-    echo ""
-    echo "Phase 2: Private key session — all query commands..."
-    echo "  Importing wallet from private key..."
-    _import_wallet "private-key"
-    _ensure_query_commands_loaded
-    run_query_tests "private-key"
-  fi
-
-  # Phase 3: Mnemonic session
-  if _needs_phase 3; then
-    if [ -n "${MNEMONIC:-}" ]; then
-      echo ""
-      echo "Phase 3: Mnemonic session — all query commands..."
-      echo "  Importing wallet from mnemonic..."
-      _import_wallet "mnemonic"
-      _ensure_query_commands_loaded
-      run_query_tests "mnemonic"
-    else
-      echo ""
-      echo "Phase 3: SKIPPED (TRON_TEST_MNEMONIC not set)"
-    fi
-  fi
-
-  # Phase 4: Cross-login comparison
-  if _needs_phase 4; then
-    echo ""
-    echo "Phase 4: Cross-login comparison..."
-    if [ -n "${MNEMONIC:-}" ]; then
-      pk_addr=""
-      mn_addr=""
-      [ -f "$RESULTS_DIR/private-key_get-address_text.out" ] && pk_addr=$(cat "$RESULTS_DIR/private-key_get-address_text.out")
-      [ -f "$RESULTS_DIR/mnemonic_get-address_text.out" ] && mn_addr=$(cat "$RESULTS_DIR/mnemonic_get-address_text.out")
-      if [ -n "$pk_addr" ] && [ -n "$mn_addr" ]; then
-        if [ "$pk_addr" = "$mn_addr" ]; then
-          echo "  ✓ Private key and mnemonic produce same address"
-        else
-          echo "  ✓ Private key and mnemonic produce different addresses (both valid)"
-        fi
-        echo "PASS" > "$RESULTS_DIR/cross-login-address.result"
-      else
-        echo "  - Skipped (missing address data)"
-      fi
-    else
-      echo "  - Skipped (no mnemonic)"
-    fi
-  fi
-
-  # Phase 5: Transaction commands
-  if _needs_phase 5; then
-    echo ""
-    echo "Phase 5: Transaction commands (help + on-chain)..."
-    echo "  Re-importing wallet from private key..."
-    _import_wallet "private-key"
-    source "$SCRIPT_DIR/commands/transaction_commands.sh"
-    run_transaction_tests
-  fi
-
-  # Phase 6: Wallet & misc commands
-  if _needs_phase 6; then
-    echo ""
-    echo "Phase 6: Wallet & misc commands..."
-    echo "  Re-importing wallet from private key..."
-    _import_wallet "private-key"
-    source "$SCRIPT_DIR/commands/wallet_commands.sh"
-    run_wallet_tests
-  fi
-
-  # Phase 7: Interactive REPL parity
-  if _needs_phase 7; then
-    echo ""
-    echo "Phase 7: Interactive REPL parity..."
-    _repl_filter() {
-      grep -v "^User defined config file" \
-      | grep -v "^Authenticated" \
-      | grep -v "^wallet>" \
-      | grep -v "^Welcome to Tron" \
-      | grep -v "^Please type" \
-      | grep -v "^For more information" \
-      | grep -v "^Type 'help'" \
-      | grep -v "^$" || true
-    }
-
-    _run_repl() {
-      # Feed command + exit to interactive REPL via stdin
-      printf "Login\n%s\n%s\nexit\n" "$PRIVATE_KEY" "$1" | \
-        MASTER_PASSWORD="$MASTER_PASSWORD" java -jar "$WALLET_JAR" --interactive 2>/dev/null | _repl_filter
-    }
-
-    _run_std() {
-      java -jar "$WALLET_JAR" --network "$NETWORK" "$@" 2>/dev/null \
-      | grep -v "^User defined config file" | grep -v "^Authenticated" || true
-    }
-
-    # Test representative commands across all categories via REPL vs standard CLI
-    for repl_pair in \
-      "GetChainParameters:get-chain-parameters" \
-      "ListWitnesses:list-witnesses" \
-      "GetNextMaintenanceTime:get-next-maintenance-time" \
-      "ListNodes:list-nodes" \
-      "GetBandwidthPrices:get-bandwidth-prices" \
-      "GetEnergyPrices:get-energy-prices" \
-      "GetMemoFee:get-memo-fee" \
-      "ListProposals:list-proposals" \
-      "ListExchanges:list-exchanges" \
-      "GetMarketPairList:get-market-pair-list" \
-      "ListAssetIssue:list-asset-issue"; do
-      repl_cmd="${repl_pair%%:*}"
-      std_cmd="${repl_pair##*:}"
-      if ! _qa_case_enabled "repl-vs-std_${std_cmd}"; then
-        continue
-      fi
-      echo -n "  $repl_cmd vs $std_cmd... "
-
-      repl_out=$(_run_repl "$repl_cmd") || true
-      std_out=$(_run_std "$std_cmd") || true
-
-      echo "$repl_out" > "$RESULTS_DIR/repl_${std_cmd}.out"
-      echo "$std_out" > "$RESULTS_DIR/std_${std_cmd}.out"
-
-      # Both should produce non-empty output
-      if [ -n "$repl_out" ] && [ -n "$std_out" ]; then
-        echo "PASS" > "$RESULTS_DIR/repl-vs-std_${std_cmd}.result"
-        echo "PASS (both produced output)"
-      elif [ -z "$repl_out" ] && [ -n "$std_out" ]; then
-        echo "PASS" > "$RESULTS_DIR/repl-vs-std_${std_cmd}.result"
-        echo "PASS (repl needs login, std ok)"
-      else
-        echo "FAIL" > "$RESULTS_DIR/repl-vs-std_${std_cmd}.result"
-        echo "FAIL"
-      fi
-    done
-  fi
-
-  # Report
-  echo ""
-  echo "Generating report..."
-  generate_report "$RESULTS_DIR" "$REPORT_FILE"
-  echo ""
-  cat "$REPORT_FILE"
-
-elif [ "$MODE" = "list" ]; then
-  java -cp "$WALLET_JAR" org.tron.qa.QARunner list
-
-else
+if [ "$MODE" != "verify" ]; then
   echo "Unknown mode: $MODE"
-  echo ""
-  echo "Usage: $0 <verify|list|java-verify>"
-  echo ""
-  echo "  verify      — Run full three-way parity verification"
-  echo "  list        — List all registered standard CLI commands"
-  echo "  java-verify — Deprecated / unsupported"
-  echo "  --case X    — Run only a single QA case label"
-  echo "  --no-build  — Skip rebuilding wallet-cli.jar"
-  echo "  --query-batch — Run query phases via in-process batch runner"
+  echo "Usage: $0 <verify|list> [--case X] [--no-build]"
   exit 1
 fi
+
+echo "=== Standard CLI Contract Verification — Network: $NETWORK${CASE_FILTER:+, Case: $CASE_FILTER} ==="
+echo
+
+if ! mkdir "$LOCK_DIR" 2>/dev/null; then
+  echo "Another qa/run.sh verify is already in progress: $LOCK_DIR"
+  exit 1
+fi
+trap 'rm -rf "$LOCK_DIR"' EXIT
+
+if [ "$NO_BUILD" -eq 1 ]; then
+  [ -f "$WALLET_JAR" ] || { echo "Cannot skip build: $WALLET_JAR does not exist"; exit 1; }
+  echo "Skipping build (--no-build)."
+elif build_required; then
+  echo "Building wallet-cli..."
+  ./gradlew shadowJar -q
+  echo "Build complete."
+else
+  echo "Build skipped (wallet-cli.jar is up to date)."
+fi
+echo
+
+qa_clean_runtime
+echo "Auditing manifest coverage..."
+audit_manifest
+echo "Preparing workspace templates..."
+qa_prepare_templates
+echo "Seeding shared runtime data..."
+qa_prepare_seeds
+echo "Building task queues..."
+prepare_task_files
+
+echo "Help cases: $(task_count "$RUNTIME_DIR/help.tasks")"
+echo "Global cases: $(task_count "$RUNTIME_DIR/global.tasks")"
+echo "Parallel main cases: $(task_count "$RUNTIME_DIR/regular.tasks")"
+echo "Serial stateful cases: $(task_count "$RUNTIME_DIR/stateful.tasks")"
+echo
+
+echo "Running help cases..."
+run_task_file_parallel "$RUNTIME_DIR/help.tasks" "$MAX_JOBS"
+echo "Running global cases..."
+run_task_file_parallel "$RUNTIME_DIR/global.tasks" "$MAX_JOBS"
+echo "Running parallel main cases..."
+run_task_file_parallel "$RUNTIME_DIR/regular.tasks" "$MAX_JOBS"
+echo "Running serial stateful cases..."
+run_task_file_serial "$RUNTIME_DIR/stateful.tasks"
+echo "Generating report..."
+
+registered_count="$(wc -l < "$RUNTIME_DIR/registered.txt" | tr -d ' ')"
+covered_count="$(manifest_count)"
+excluded_count="$(manifest_excluded_count)"
+missing_count="$(wc -l < "$RUNTIME_DIR/missing.txt" | tr -d ' ')"
+stale_count="$(wc -l < "$RUNTIME_DIR/stale.txt" | tr -d ' ')"
+
+qa_generate_report "$registered_count" "$covered_count" "$excluded_count" "$missing_count" "$stale_count"
+cat "$REPORT_FILE"

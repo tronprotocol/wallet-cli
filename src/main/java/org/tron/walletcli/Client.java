@@ -33,6 +33,7 @@ import static org.tron.walletserver.WalletApi.decodeFromBase58Check;
 
 import org.tron.walletcli.cli.GlobalOptions;
 import org.tron.walletcli.cli.CommandRegistry;
+import org.tron.walletcli.cli.OutputFormatter;
 import org.tron.walletcli.cli.StandardCliRunner;
 
 import com.alibaba.fastjson.JSON;
@@ -4672,24 +4673,31 @@ public class Client {
   }
 
   public static void main(String[] args) {
-    if (args.length == 0) {
-      CommandRegistry registry = initRegistry();
-      System.out.println(registry.formatGlobalHelp(VERSION));
-      System.exit(0);
-    }
+    System.exit(runMain(args));
+  }
 
+  static int runMain(String[] args) {
     GlobalOptions globalOpts;
     try {
       globalOpts = GlobalOptions.parse(args);
     } catch (IllegalArgumentException e) {
-      System.out.println("Error: " + e.getMessage());
-      System.exit(2);
-      return;
+      if (requestsJsonOutput(args)) {
+        OutputFormatter formatter = new OutputFormatter(OutputFormatter.OutputMode.JSON, false);
+        try {
+          formatter.usageError(e.getMessage(), null);
+        } catch (RuntimeException ignored) {
+          // usageError intentionally aborts normal control flow after recording the outcome
+        }
+        formatter.flush();
+      } else {
+        System.out.println("Error: " + e.getMessage());
+      }
+      return 2;
     }
 
     if (globalOpts.isVersion()) {
       System.out.println("wallet-cli" + VERSION);
-      System.exit(0);
+      return 0;
     }
 
     if (globalOpts.isInteractive()) {
@@ -4699,25 +4707,43 @@ public class Client {
           .build()
           .parse(new String[0]);
       cli.run();
-      return;
+      return 0;
     }
 
-    if (globalOpts.isHelp() && globalOpts.getCommand() == null) {
+    if (globalOpts.isHelp()) {
       CommandRegistry registry = initRegistry();
       System.out.println(registry.formatGlobalHelp(VERSION));
-      System.exit(0);
+      return 0;
     }
 
     if (globalOpts.getCommand() == null) {
       CommandRegistry registry = initRegistry();
+      System.out.println("Error: Missing command.");
+      System.out.println();
       System.out.println(registry.formatGlobalHelp(VERSION));
-      System.exit(0);
+      return 2;
     }
 
     // Standard CLI mode
     CommandRegistry registry = initRegistry();
     StandardCliRunner runner = new StandardCliRunner(registry, globalOpts);
-    System.exit(runner.execute());
+    return runner.execute();
+  }
+
+  private static boolean requestsJsonOutput(String[] args) {
+    for (int i = 0; i < args.length; i++) {
+      String token = args[i];
+      if (!token.startsWith("-")) {
+        return false;
+      }
+      if ("--output".equals(token)) {
+        return i + 1 < args.length && "json".equalsIgnoreCase(args[i + 1]);
+      }
+      if (token.startsWith("--output=")) {
+        return "json".equalsIgnoreCase(token.substring("--output=".length()));
+      }
+    }
+    return false;
   }
 
   private static CommandRegistry initRegistry() {

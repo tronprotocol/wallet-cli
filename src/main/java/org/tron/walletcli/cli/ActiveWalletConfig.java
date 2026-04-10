@@ -21,11 +21,18 @@ public class ActiveWalletConfig {
     private static final String CONFIG_FILE = ".active-wallet";
     private static final Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
+    public static File getWalletDir() {
+        return new File(System.getProperty("user.dir"), WALLET_DIR);
+    }
+
     /**
-     * Get the active wallet address, or null if not set.
+     * Get the active wallet address for inspection/recovery style commands.
+     *
+     * <p>This method is intentionally lenient: malformed or unreadable config is
+     * treated as "unset". Standard CLI auth paths must use the strict APIs.
      */
-    public static String getActiveAddress() {
-        File configFile = new File(WALLET_DIR, CONFIG_FILE);
+    public static String getActiveAddressLenient() {
+        File configFile = new File(getWalletDir(), CONFIG_FILE);
         if (!configFile.exists()) {
             return null;
         }
@@ -42,7 +49,7 @@ public class ActiveWalletConfig {
      * Throws if the config exists but cannot be read or validated.
      */
     public static String getActiveAddressStrict() throws IOException {
-        File configFile = new File(WALLET_DIR, CONFIG_FILE);
+        File configFile = new File(getWalletDir(), CONFIG_FILE);
         if (!configFile.exists()) {
             return null;
         }
@@ -53,11 +60,11 @@ public class ActiveWalletConfig {
      * Set the active wallet address.
      */
     public static void setActiveAddress(String address) throws IOException {
-        File dir = new File(WALLET_DIR);
+        File dir = getWalletDir();
         if (!dir.exists()) {
             dir.mkdirs();
         }
-        File configFile = new File(WALLET_DIR, CONFIG_FILE);
+        File configFile = new File(dir, CONFIG_FILE);
         Map<String, String> data = new LinkedHashMap<String, String>();
         data.put("address", address);
         try (FileWriter writer = new FileWriter(configFile)) {
@@ -69,7 +76,7 @@ public class ActiveWalletConfig {
      * Clear the active wallet config.
      */
     public static void clear() {
-        clearConfigFile(new File(WALLET_DIR, CONFIG_FILE));
+        clearConfigFile(new File(getWalletDir(), CONFIG_FILE));
     }
 
     /**
@@ -77,7 +84,11 @@ public class ActiveWalletConfig {
      * Returns null if not found.
      */
     public static File findWalletFileByAddress(String address) throws IOException {
-        File dir = new File(WALLET_DIR);
+        File dir = getWalletDir();
+        return findWalletFileByAddress(dir, address);
+    }
+
+    static File findWalletFileByAddress(File dir, String address) throws IOException {
         if (!dir.exists() || !dir.isDirectory()) {
             return null;
         }
@@ -99,7 +110,11 @@ public class ActiveWalletConfig {
      * Returns null if not found, throws if multiple matches.
      */
     public static File findWalletFileByName(String name) throws IOException {
-        File dir = new File(WALLET_DIR);
+        File dir = getWalletDir();
+        return findWalletFileByName(dir, name);
+    }
+
+    static File findWalletFileByName(File dir, String name) throws IOException {
         if (!dir.exists() || !dir.isDirectory()) {
             return null;
         }
@@ -125,6 +140,77 @@ public class ActiveWalletConfig {
                     "Multiple wallets found with name '" + name + "'. Use --address instead.");
         }
         return match;
+    }
+
+    public static File resolveWalletOverrideStrict(String walletSelection) throws IOException {
+        return resolveWalletOverrideStrict(getWalletDir(), walletSelection);
+    }
+
+    static File resolveWalletOverrideStrict(File walletDir, String walletSelection) throws IOException {
+        if (walletSelection == null || walletSelection.trim().isEmpty()) {
+            throw new IOException("Wallet selection must not be empty");
+        }
+
+        File explicitPath = new File(walletSelection);
+        if (explicitPath.isFile()) {
+            return explicitPath;
+        }
+
+        // If input looks like a filesystem path, it was an explicit path attempt —
+        // fail immediately instead of falling through to Wallet/ directory lookup.
+        // (Contract 3: --wallet Override Rules)
+        boolean looksLikePath = explicitPath.isAbsolute()
+                || walletSelection.contains("/")
+                || walletSelection.contains("\\")
+                || walletSelection.startsWith("./")
+                || walletSelection.startsWith("../")
+                || walletSelection.equals(".")
+                || walletSelection.equals("..");
+        if (looksLikePath) {
+            throw new IOException("Wallet file not found: " + walletSelection);
+        }
+
+        if (!walletDir.exists() || !walletDir.isDirectory()) {
+            throw new IOException("Wallet directory not found: " + walletDir.getPath());
+        }
+
+        File walletDirEntry = new File(walletDir, walletSelection);
+        if (walletDirEntry.isFile()) {
+            return walletDirEntry;
+        }
+
+        File byName = findWalletFileByName(walletDir, walletSelection);
+        if (byName != null) {
+            return byName;
+        }
+
+        throw new IOException("No wallet found for --wallet: " + walletSelection);
+    }
+
+    public static File resolveActiveWalletFileStrict() throws IOException {
+        return resolveActiveWalletFileStrict(getWalletDir());
+    }
+
+    static File resolveActiveWalletFileStrict(File walletDir) throws IOException {
+        if (!walletDir.exists() || !walletDir.isDirectory()) {
+            throw new IOException("Wallet directory not found: " + walletDir.getPath());
+        }
+        File configFile = new File(walletDir, CONFIG_FILE);
+        if (!configFile.exists()) {
+            return null;
+        }
+        String activeAddress = readActiveAddressFromFile(configFile);
+        if (activeAddress == null) {
+            return null;
+        }
+
+        File targetFile = findWalletFileByAddress(walletDir, activeAddress);
+        if (targetFile == null) {
+            throw new IOException(
+                    "Active wallet keystore not found for address: " + activeAddress
+                            + ". Use --wallet or set-active-wallet to select a valid wallet.");
+        }
+        return targetFile;
     }
 
     static String readActiveAddressFromFile(File configFile) throws IOException {

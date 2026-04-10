@@ -1,11 +1,9 @@
 package org.tron.walletcli.cli.commands;
 
 import com.alibaba.fastjson.JSON;
-import org.tron.walletcli.cli.CommandErrorException;
 import org.tron.walletcli.cli.CommandDefinition;
 import org.tron.walletcli.cli.CommandRegistry;
 import org.tron.walletcli.cli.OptionDef;
-import org.tron.walletcli.cli.OutputFormatter;
 import org.tron.walletserver.WalletApi;
 import org.tron.trident.proto.Chain;
 import org.tron.trident.proto.Common;
@@ -19,6 +17,10 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 public class QueryCommands {
+
+    private static CommandDefinition.Builder noAuthCommand() {
+        return CommandDefinition.builder().authPolicy(CommandDefinition.AuthPolicy.NEVER);
+    }
 
     public static void register(CommandRegistry registry) {
         registerGetAddress(registry);
@@ -78,6 +80,7 @@ public class QueryCommands {
 
     private static void registerGetAddress(CommandRegistry registry) {
         registry.add(CommandDefinition.builder()
+                .authPolicy(CommandDefinition.AuthPolicy.REQUIRE)
                 .name("get-address")
                 .aliases("getaddress")
                 .description("Get the address of the current logged-in wallet")
@@ -96,6 +99,9 @@ public class QueryCommands {
 
     private static void registerGetBalance(CommandRegistry registry) {
         registry.add(CommandDefinition.builder()
+                .authPolicyResolver(opts -> opts.has("address")
+                        ? CommandDefinition.AuthPolicy.NEVER
+                        : CommandDefinition.AuthPolicy.REQUIRE)
                 .name("get-balance")
                 .aliases("getbalance")
                 .description("Get the balance of an address")
@@ -124,7 +130,7 @@ public class QueryCommands {
     }
 
     private static void registerGetAccount(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("get-account")
                 .aliases("getaccount")
                 .description("Get account information by address")
@@ -142,7 +148,7 @@ public class QueryCommands {
     }
 
     private static void registerGetAccountById(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("get-account-by-id")
                 .aliases("getaccountbyid")
                 .description("Get account information by account ID")
@@ -159,7 +165,7 @@ public class QueryCommands {
     }
 
     private static void registerGetAccountNet(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("get-account-net")
                 .aliases("getaccountnet")
                 .description("Get account net (bandwidth) information")
@@ -177,7 +183,7 @@ public class QueryCommands {
     }
 
     private static void registerGetAccountResource(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("get-account-resource")
                 .aliases("getaccountresource")
                 .description("Get account resource information")
@@ -196,6 +202,9 @@ public class QueryCommands {
 
     private static void registerGetUsdtBalance(CommandRegistry registry) {
         registry.add(CommandDefinition.builder()
+                .authPolicyResolver(opts -> opts.has("address")
+                        ? CommandDefinition.AuthPolicy.NEVER
+                        : CommandDefinition.AuthPolicy.REQUIRE)
                 .name("get-usdt-balance")
                 .aliases("getusdtbalance")
                 .description("Get USDT balance of an address")
@@ -217,7 +226,7 @@ public class QueryCommands {
     }
 
     private static void registerCurrentNetwork(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("current-network")
                 .aliases("currentnetwork")
                 .description("Display the current network")
@@ -232,7 +241,7 @@ public class QueryCommands {
     }
 
     private static void registerGetBlock(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("get-block")
                 .aliases("getblock")
                 .description("Get block by number or latest")
@@ -250,7 +259,7 @@ public class QueryCommands {
     }
 
     private static void registerGetBlockById(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("get-block-by-id")
                 .aliases("getblockbyid")
                 .description("Get block by block ID (hash)")
@@ -267,7 +276,7 @@ public class QueryCommands {
     }
 
     private static void registerGetBlockByIdOrNum(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("get-block-by-id-or-num")
                 .aliases("getblockbyidornum")
                 .description("Get block by ID or number")
@@ -295,7 +304,7 @@ public class QueryCommands {
     }
 
     private static void registerGetBlockByLatestNum(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("get-block-by-latest-num")
                 .aliases("getblockbylatestnum")
                 .description("Get the latest N blocks")
@@ -313,7 +322,7 @@ public class QueryCommands {
     }
 
     private static void registerGetBlockByLimitNext(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("get-block-by-limit-next")
                 .aliases("getblockbylimitnext")
                 .description("Get blocks in range [start, end)")
@@ -333,7 +342,7 @@ public class QueryCommands {
     }
 
     private static void registerGetTransactionById(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("get-transaction-by-id")
                 .aliases("gettransactionbyid")
                 .description("Get transaction by ID")
@@ -350,7 +359,7 @@ public class QueryCommands {
     }
 
     private static void registerGetTransactionInfoById(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("get-transaction-info-by-id")
                 .aliases("gettransactioninfobyid")
                 .description("Get transaction info by ID")
@@ -367,7 +376,7 @@ public class QueryCommands {
     }
 
     private static void registerGetTransactionCountByBlockNum(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("get-transaction-count-by-block-num")
                 .aliases("gettransactioncountbyblocknum")
                 .description("Get transaction count in a block")
@@ -382,7 +391,7 @@ public class QueryCommands {
     }
 
     private static void registerGetAssetIssueByAccount(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("get-asset-issue-by-account")
                 .aliases("getassetissuebyaccount")
                 .description("Get asset issues by account address")
@@ -399,7 +408,7 @@ public class QueryCommands {
     }
 
     private static void registerGetAssetIssueById(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("get-asset-issue-by-id")
                 .aliases("getassetissuebyid")
                 .description("Get asset issue by ID")
@@ -412,7 +421,7 @@ public class QueryCommands {
     }
 
     private static void registerGetAssetIssueByName(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("get-asset-issue-by-name")
                 .aliases("getassetissuebyname")
                 .description("Get asset issue by name")
@@ -425,7 +434,7 @@ public class QueryCommands {
     }
 
     private static void registerGetAssetIssueListByName(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("get-asset-issue-list-by-name")
                 .aliases("getassetissuelistbyname")
                 .description("Get asset issue list by name")
@@ -442,7 +451,7 @@ public class QueryCommands {
     }
 
     private static void registerGetChainParameters(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("get-chain-parameters")
                 .aliases("getchainparameters")
                 .description("Get chain parameters")
@@ -458,7 +467,7 @@ public class QueryCommands {
     }
 
     private static void registerGetBandwidthPrices(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("get-bandwidth-prices")
                 .aliases("getbandwidthprices")
                 .description("Get bandwidth prices history")
@@ -470,7 +479,7 @@ public class QueryCommands {
     }
 
     private static void registerGetEnergyPrices(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("get-energy-prices")
                 .aliases("getenergyprices")
                 .description("Get energy prices history")
@@ -482,7 +491,7 @@ public class QueryCommands {
     }
 
     private static void registerGetMemoFee(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("get-memo-fee")
                 .aliases("getmemofee")
                 .description("Get memo fee")
@@ -494,7 +503,7 @@ public class QueryCommands {
     }
 
     private static void registerGetNextMaintenanceTime(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("get-next-maintenance-time")
                 .aliases("getnextmaintenancetime")
                 .description("Get next maintenance time")
@@ -508,7 +517,7 @@ public class QueryCommands {
     }
 
     private static void registerGetContract(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("get-contract")
                 .aliases("getcontract")
                 .description("Get smart contract by address")
@@ -525,7 +534,7 @@ public class QueryCommands {
     }
 
     private static void registerGetContractInfo(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("get-contract-info")
                 .aliases("getcontractinfo")
                 .description("Get smart contract info by address")
@@ -542,7 +551,7 @@ public class QueryCommands {
     }
 
     private static void registerGetDelegatedResource(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("get-delegated-resource")
                 .aliases("getdelegatedresource")
                 .description("Get delegated resource between two addresses")
@@ -561,7 +570,7 @@ public class QueryCommands {
     }
 
     private static void registerGetDelegatedResourceV2(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("get-delegated-resource-v2")
                 .aliases("getdelegatedresourcev2")
                 .description("Get delegated resource V2 between two addresses")
@@ -580,7 +589,7 @@ public class QueryCommands {
     }
 
     private static void registerGetDelegatedResourceAccountIndex(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("get-delegated-resource-account-index")
                 .aliases("getdelegatedresourceaccountindex")
                 .description("Get delegated resource account index")
@@ -599,7 +608,7 @@ public class QueryCommands {
     }
 
     private static void registerGetDelegatedResourceAccountIndexV2(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("get-delegated-resource-account-index-v2")
                 .aliases("getdelegatedresourceaccountindexv2")
                 .description("Get delegated resource account index V2")
@@ -618,7 +627,7 @@ public class QueryCommands {
     }
 
     private static void registerGetCanDelegatedMaxSize(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("get-can-delegated-max-size")
                 .aliases("getcandelegatedmaxsize")
                 .description("Get max delegatable size for a resource type")
@@ -635,7 +644,7 @@ public class QueryCommands {
     }
 
     private static void registerGetAvailableUnfreezeCount(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("get-available-unfreeze-count")
                 .aliases("getavailableunfreezecount")
                 .description("Get available unfreeze count")
@@ -650,7 +659,7 @@ public class QueryCommands {
     }
 
     private static void registerGetCanWithdrawUnfreezeAmount(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("get-can-withdraw-unfreeze-amount")
                 .aliases("getcanwithdrawunfreezeamount")
                 .description("Get withdrawable unfreeze amount")
@@ -667,7 +676,7 @@ public class QueryCommands {
     }
 
     private static void registerGetBrokerage(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("get-brokerage")
                 .aliases("getbrokerage")
                 .description("Get witness brokerage ratio")
@@ -682,7 +691,7 @@ public class QueryCommands {
     }
 
     private static void registerGetReward(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("get-reward")
                 .aliases("getreward")
                 .description("Get unclaimed reward")
@@ -703,7 +712,7 @@ public class QueryCommands {
     }
 
     private static void registerListNodes(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("list-nodes")
                 .aliases("listnodes")
                 .description("List connected nodes")
@@ -719,7 +728,7 @@ public class QueryCommands {
     }
 
     private static void registerListWitnesses(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("list-witnesses")
                 .aliases("listwitnesses")
                 .description("List all witnesses")
@@ -735,7 +744,7 @@ public class QueryCommands {
     }
 
     private static void registerListAssetIssue(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("list-asset-issue")
                 .aliases("listassetissue")
                 .description("List all asset issues")
@@ -747,7 +756,7 @@ public class QueryCommands {
     }
 
     private static void registerListAssetIssuePaginated(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("list-asset-issue-paginated")
                 .aliases("listassetissuepaginated")
                 .description("List asset issues with pagination")
@@ -766,7 +775,7 @@ public class QueryCommands {
     }
 
     private static void registerListProposals(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("list-proposals")
                 .aliases("listproposals")
                 .description("List all proposals")
@@ -782,7 +791,7 @@ public class QueryCommands {
     }
 
     private static void registerListProposalsPaginated(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("list-proposals-paginated")
                 .aliases("listproposalspaginated")
                 .description("List proposals with pagination")
@@ -801,7 +810,7 @@ public class QueryCommands {
     }
 
     private static void registerGetProposal(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("get-proposal")
                 .aliases("getproposal")
                 .description("Get proposal by ID")
@@ -818,7 +827,7 @@ public class QueryCommands {
     }
 
     private static void registerListExchanges(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("list-exchanges")
                 .aliases("listexchanges")
                 .description("List all exchanges")
@@ -834,7 +843,7 @@ public class QueryCommands {
     }
 
     private static void registerListExchangesPaginated(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("list-exchanges-paginated")
                 .aliases("listexchangespaginated")
                 .description("List exchanges with pagination")
@@ -853,7 +862,7 @@ public class QueryCommands {
     }
 
     private static void registerGetExchange(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("get-exchange")
                 .aliases("getexchange")
                 .description("Get exchange by ID")
@@ -870,7 +879,7 @@ public class QueryCommands {
     }
 
     private static void registerGetMarketOrderByAccount(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("get-market-order-by-account")
                 .aliases("getmarketorderbyaccount")
                 .description("Get market orders by account")
@@ -887,14 +896,21 @@ public class QueryCommands {
     }
 
     private static void registerGetMarketOrderById(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("get-market-order-by-id")
                 .aliases("getmarketorderbyid")
                 .description("Get market order by ID")
                 .option("id", "Order ID hex", true)
                 .handler((opts, wrapper, out) -> {
                     byte[] orderId = org.tron.common.utils.ByteArray.fromHexString(opts.getString("id"));
-                    Response.MarketOrder result = WalletApi.getMarketOrderById(orderId);
+                    Response.MarketOrder result;
+                    try {
+                        result = WalletApi.getMarketOrderById(orderId);
+                    } catch (Exception e) {
+                        out.error("query_failed",
+                                e.getMessage() != null ? e.getMessage() : "GetMarketOrderById failed");
+                        return;
+                    }
                     if (result == null) {
                         out.error("query_failed", "GetMarketOrderById failed");
                     } else {
@@ -905,7 +921,7 @@ public class QueryCommands {
     }
 
     private static void registerGetMarketOrderListByPair(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("get-market-order-list-by-pair")
                 .aliases("getmarketorderlistbypair")
                 .description("Get market order list by token pair")
@@ -925,7 +941,7 @@ public class QueryCommands {
     }
 
     private static void registerGetMarketPairList(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("get-market-pair-list")
                 .aliases("getmarketpairlist")
                 .description("Get all market trading pairs")
@@ -941,7 +957,7 @@ public class QueryCommands {
     }
 
     private static void registerGetMarketPriceByPair(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("get-market-price-by-pair")
                 .aliases("getmarketpricebypair")
                 .description("Get market price by token pair")
@@ -962,49 +978,28 @@ public class QueryCommands {
 
     private static void registerGasFreeInfo(CommandRegistry registry) {
         registry.add(CommandDefinition.builder()
+                .authPolicy(CommandDefinition.AuthPolicy.REQUIRE)
                 .name("gas-free-info")
                 .aliases("gasfreeinfo")
                 .description("Get GasFree service info")
                 .option("address", "Address to query (default: current wallet)", false)
                 .handler((opts, wrapper, out) -> {
-                    try {
-                        String address = opts.has("address") ? opts.getString("address") : null;
-                        String rendered = JSON.toJSONString(wrapper.getGasFreeInfoData(address), true);
-                        if (out.getMode() == OutputFormatter.OutputMode.JSON) {
-                            out.printMessage(rendered, "GetGasFreeInfo failed");
-                        } else {
-                            out.raw(rendered);
-                        }
-                    } catch (CommandErrorException e) {
-                        out.error(e.getCode(), e.getMessage());
-                    } catch (Exception e) {
-                        out.error("query_failed",
-                                e.getMessage() != null ? e.getMessage() : "GetGasFreeInfo failed");
-                    }
+                    String address = opts.has("address") ? opts.getString("address") : null;
+                    String rendered = JSON.toJSONString(wrapper.getGasFreeInfoData(address), true);
+                    out.printMessage(rendered, "GetGasFreeInfo failed");
                 })
                 .build());
     }
 
     private static void registerGasFreeTrace(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("gas-free-trace")
                 .aliases("gasfreetrace")
                 .description("Trace a GasFree transaction")
                 .option("id", "Transaction ID", true)
                 .handler((opts, wrapper, out) -> {
-                    try {
-                        String rendered = JSON.toJSONString(wrapper.gasFreeTraceData(opts.getString("id")), true);
-                        if (out.getMode() == OutputFormatter.OutputMode.JSON) {
-                            out.printMessage(rendered, "GasFreeTrace failed");
-                        } else {
-                            out.raw(rendered);
-                        }
-                    } catch (CommandErrorException e) {
-                        out.error(e.getCode(), e.getMessage());
-                    } catch (Exception e) {
-                        out.error("query_failed",
-                                e.getMessage() != null ? e.getMessage() : "GasFreeTrace failed");
-                    }
+                    String rendered = JSON.toJSONString(wrapper.gasFreeTraceData(opts.getString("id")), true);
+                    out.printMessage(rendered, "GasFreeTrace failed");
                 })
                 .build());
     }

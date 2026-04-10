@@ -1,43 +1,49 @@
 #!/bin/bash
-# QA configuration — loads from environment variables
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 NETWORK="${TRON_NETWORK:-nile}"
-PRIVATE_KEY="${TRON_TEST_APIKEY}"
+PRIVATE_KEY="${TRON_TEST_APIKEY:-}"
 MNEMONIC="${TRON_TEST_MNEMONIC:-}"
 MASTER_PASSWORD="${MASTER_PASSWORD:-testpassword123A}"
-WALLET_JAR="build/libs/wallet-cli.jar"
-RESULTS_DIR="qa/results"
-REPORT_FILE="qa/report.txt"
+ALT_PASSWORD="${QA_ALT_PASSWORD:-TempPass123!B}"
 
-if [ -z "$PRIVATE_KEY" ]; then
-  echo "TRON_TEST_APIKEY not set. Please enter your Nile testnet private key:"
-  read -r PRIVATE_KEY
-fi
+WALLET_JAR="$PROJECT_DIR/build/libs/wallet-cli.jar"
+RESULTS_DIR="$PROJECT_DIR/qa/results"
+RUNTIME_DIR="$PROJECT_DIR/qa/runtime"
+REPORT_FILE="$PROJECT_DIR/qa/report.txt"
+MANIFEST_FILE="$PROJECT_DIR/qa/manifest.tsv"
 
-if [ -z "$MNEMONIC" ]; then
-  echo "TRON_TEST_MNEMONIC not set (optional). Mnemonic tests will be skipped."
-fi
+TARGET_ADDR="${TRON_QA_TARGET_ADDR:-TNPeeaaFB7K9cmo4uQpcU32zGK8G1NYqeL}"
+USDT_NILE="${TRON_QA_USDT_NILE:-TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf}"
+FAKE_ID_64="0000000000000000000000000000000000000000000000000000000000000001"
 
-export MASTER_PASSWORD
-export TRON_TEST_APIKEY="$PRIVATE_KEY"
-export TRON_TEST_MNEMONIC="$MNEMONIC"
-export TRON_PRIVATE_KEY="$PRIVATE_KEY"
-export TRON_MNEMONIC="$MNEMONIC"
+export NETWORK PRIVATE_KEY MNEMONIC MASTER_PASSWORD ALT_PASSWORD
+export WALLET_JAR RESULTS_DIR RUNTIME_DIR REPORT_FILE MANIFEST_FILE
+export TARGET_ADDR USDT_NILE FAKE_ID_64 PROJECT_DIR
 
-# Import wallet from private key so standard CLI can auto-login from keystore
-_import_wallet() {
-  local method="$1"
-  # Clean existing wallet
-  rm -rf Wallet/ 2>/dev/null
-  if [ "$method" = "private-key" ]; then
-    MASTER_PASSWORD="$MASTER_PASSWORD" \
-      TRON_TEST_APIKEY="$PRIVATE_KEY" \
-      java -cp "$WALLET_JAR" org.tron.qa.QASecretImporter private-key 2>/dev/null \
-      | grep -v "^User defined" || true
-  elif [ "$method" = "mnemonic" ] && [ -n "$MNEMONIC" ]; then
-    MASTER_PASSWORD="$MASTER_PASSWORD" \
-      TRON_TEST_MNEMONIC="$MNEMONIC" \
-      java -cp "$WALLET_JAR" org.tron.qa.QASecretImporter mnemonic 2>/dev/null \
-      | grep -v "^User defined" || true
-  fi
+qa_has_private_key() {
+  [ -n "$PRIVATE_KEY" ]
+}
+
+qa_has_mnemonic() {
+  [ -n "$MNEMONIC" ]
+}
+
+qa_requires_available() {
+  case "$1" in
+    none|"")
+      return 0
+      ;;
+    private_key)
+      qa_has_private_key
+      ;;
+    mnemonic)
+      qa_has_mnemonic
+      ;;
+    *)
+      return 1
+      ;;
+  esac
 }

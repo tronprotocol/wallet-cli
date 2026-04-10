@@ -15,6 +15,10 @@ import java.util.Map;
 
 public class MiscCommands {
 
+    private static CommandDefinition.Builder noAuthCommand() {
+        return CommandDefinition.builder().authPolicy(CommandDefinition.AuthPolicy.NEVER);
+    }
+
     public static void register(CommandRegistry registry) {
         registerGenerateAddress(registry);
         registerGetPrivateKeyByMnemonic(registry);
@@ -26,7 +30,7 @@ public class MiscCommands {
     }
 
     private static void registerGenerateAddress(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("generate-address")
                 .aliases("generateaddress")
                 .description("Generate a new address offline")
@@ -45,7 +49,7 @@ public class MiscCommands {
     }
 
     private static void registerGetPrivateKeyByMnemonic(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("get-private-key-by-mnemonic")
                 .aliases("getprivatekeybymnemonic")
                 .description("Derive private key from mnemonic phrase")
@@ -67,55 +71,51 @@ public class MiscCommands {
     }
 
     private static void registerEncodingConverter(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("encoding-converter")
                 .aliases("encodingconverter")
                 .description("Convert between encoding formats")
                 .handler((opts, wrapper, out) -> {
-                    wrapper.encodingConverter();
-                    out.result(true, "Encoding converter completed", "Encoding converter failed");
+                    CommandSupport.rejectUnsupportedStandardCliCommand(out, "encoding-converter");
                 })
                 .build());
     }
 
     private static void registerAddressBook(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("address-book")
                 .aliases("addressbook")
                 .description("Manage address book")
                 .handler((opts, wrapper, out) -> {
-                    wrapper.addressBook();
-                    out.result(true, "Address book completed", "Address book failed");
+                    CommandSupport.rejectUnsupportedStandardCliCommand(out, "address-book");
                 })
                 .build());
     }
 
     private static void registerViewTransactionHistory(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("view-transaction-history")
                 .aliases("viewtransactionhistory")
                 .description("View transaction history")
                 .handler((opts, wrapper, out) -> {
-                    wrapper.viewTransactionHistory();
-                    out.result(true, "Transaction history completed", "Transaction history failed");
+                    CommandSupport.rejectUnsupportedStandardCliCommand(out, "view-transaction-history");
                 })
                 .build());
     }
 
     private static void registerViewBackupRecords(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("view-backup-records")
                 .aliases("viewbackuprecords")
                 .description("View backup records")
                 .handler((opts, wrapper, out) -> {
-                    wrapper.viewBackupRecords();
-                    out.result(true, "Backup records completed", "Backup records failed");
+                    CommandSupport.rejectUnsupportedStandardCliCommand(out, "view-backup-records");
                 })
                 .build());
     }
 
     private static void registerHelp(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
+        registry.add(noAuthCommand()
                 .name("help")
                 .aliases("help")
                 .description("Show help information")
@@ -123,9 +123,8 @@ public class MiscCommands {
                 .handler((opts, wrapper, out) -> {
                     // Help is handled by the runner level --help flag
                     // This registers the command so it appears in the command list
-                    out.result(true,
-                            "Use 'wallet-cli --help' for global help or 'wallet-cli <command> --help' for command help.",
-                            "Help failed");
+                    out.successMessage(
+                            "Use 'wallet-cli --help' for global help or 'wallet-cli <command> --help' for command help.");
                 })
                 .build());
     }

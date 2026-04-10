@@ -54,6 +54,16 @@ This is a **TRON blockchain CLI wallet** built on the [Trident SDK](https://gith
 
 The standard CLI suppresses all stray stdout/stderr in JSON mode to ensure machine-parseable output. Authentication is automatic via `MASTER_PASSWORD` env var + keystore files in `Wallet/`.
 
+### Standard CLI Contract
+
+Before changing parser behavior, auth flow, JSON output, command success/failure semantics, or `qa/` expectations for
+the standard CLI, read:
+
+- `docs/standard-cli-contract-spec.md`
+
+Treat that file as the source of truth for the standard CLI contract unless the repository owner explicitly decides to
+revise it.
+
 ### Request Flow
 
 ```

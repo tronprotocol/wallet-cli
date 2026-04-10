@@ -175,6 +175,14 @@ public class ContractCommands {
         return message != null && !message.isEmpty() ? message : fallback;
     }
 
+    private static String estimateEnergyMessage(Response.EstimateEnergyMessage result, String fallback) {
+        if (result == null || result.getResult() == null) {
+            return fallback;
+        }
+        String message = result.getResult().getMessage().toStringUtf8();
+        return message != null && !message.isEmpty() ? message : fallback;
+    }
+
     private static void registerEstimateEnergy(CommandRegistry registry) {
         registry.add(CommandDefinition.builder()
                 .authPolicyResolver(opts -> opts.has("owner")
@@ -200,10 +208,18 @@ public class ContractCommands {
                     String tokenId = opts.has("token-id") ? opts.getString("token-id") : "";
 
                     byte[] data = ByteArray.fromHexString(AbiUtil.parseMethod(method, params, false));
-                    boolean result = wrapper.estimateEnergy(owner, contractAddress, callValue,
-                            data, tokenValue, tokenId);
-                    CommandSupport.emitBooleanResult(out, result,
-                            "EstimateEnergy successful !!", "EstimateEnergy failed !!");
+                    Response.EstimateEnergyMessage result = wrapper.estimateEnergyMessage(
+                            owner, contractAddress, callValue, data, tokenValue, tokenId);
+                    if (result == null) {
+                        out.error("query_failed", "EstimateEnergy failed");
+                        return;
+                    }
+                    if (!result.getResult().getResult()) {
+                        out.error("query_failed", estimateEnergyMessage(result, "EstimateEnergy failed"));
+                        return;
+                    }
+                    String formatted = Utils.formatMessageString(result);
+                    out.success("Estimate energy result = " + formatted, formatted);
                 })
                 .build());
     }

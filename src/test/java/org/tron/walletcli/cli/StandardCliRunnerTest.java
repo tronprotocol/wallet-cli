@@ -1,13 +1,19 @@
 package org.tron.walletcli.cli;
 
+import org.bouncycastle.util.encoders.Hex;
 import org.junit.Assert;
 import org.junit.Test;
-import org.bouncycastle.util.encoders.Hex;
 import org.tron.common.utils.Utils;
 import org.tron.keystore.WalletFile;
 import org.tron.keystore.WalletUtils;
+import org.tron.trident.proto.Response;
+import org.tron.walletcli.WalletApiWrapper;
+import org.tron.walletcli.cli.commands.ContractCommands;
+import org.tron.walletcli.cli.commands.MiscCommands;
 import org.tron.walletcli.cli.commands.QueryCommands;
+import org.tron.walletcli.cli.commands.TransactionCommands;
 import org.tron.walletcli.cli.commands.WalletCommands;
+import org.tron.walletcli.cli.commands.WitnessCommands;
 import org.tron.walletserver.ApiClient;
 import org.tron.walletserver.WalletApi;
 
@@ -28,6 +34,7 @@ public class StandardCliRunnerTest {
   public void usageErrorDoesNotTerminateJvmAndRestoresStreams() {
     CommandRegistry registry = new CommandRegistry();
     registry.add(CommandDefinition.builder()
+        .authPolicy(CommandDefinition.AuthPolicy.NEVER)
         .name("needs-arg")
         .description("Command with a required option")
         .option("value", "Required value", true)
@@ -38,6 +45,7 @@ public class StandardCliRunnerTest {
         })
         .build());
     registry.add(CommandDefinition.builder()
+        .authPolicy(CommandDefinition.AuthPolicy.NEVER)
         .name("ok")
         .description("Simple success command")
         .handler((opts, wrapper, out) -> {
@@ -102,6 +110,7 @@ public class StandardCliRunnerTest {
   public void executionErrorDoesNotTerminateJvmAndReturnsExitCodeOne() {
     CommandRegistry registry = new CommandRegistry();
     registry.add(CommandDefinition.builder()
+        .authPolicy(CommandDefinition.AuthPolicy.NEVER)
         .name("boom")
         .description("Command that fails")
         .handler((opts, wrapper, out) -> out.error("boom", "simulated failure"))
@@ -136,13 +145,125 @@ public class StandardCliRunnerTest {
   }
 
   @Test
-  public void standardCliTemporarilyEnablesEnvPasswordInput() {
+  public void commandErrorExceptionIsRenderedByRunnerAsExecutionError() {
     CommandRegistry registry = new CommandRegistry();
     registry.add(CommandDefinition.builder()
+        .authPolicy(CommandDefinition.AuthPolicy.NEVER)
+        .name("structured-boom")
+        .description("Command that throws structured errors")
+        .handler((opts, wrapper, out) -> {
+          throw new CommandErrorException("query_failed", "structured failure");
+        })
+        .build());
+
+    PrintStream originalOut = System.out;
+    PrintStream originalErr = System.err;
+    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+    ByteArrayOutputStream stderr = new ByteArrayOutputStream();
+    System.setOut(new PrintStream(stdout));
+    System.setErr(new PrintStream(stderr));
+    try {
+      GlobalOptions opts = GlobalOptions.parse(new String[]{"--output", "json", "structured-boom"});
+      int exitCode = new StandardCliRunner(registry, opts).execute();
+
+      Assert.assertEquals(1, exitCode);
+      String json = stdout.toString(StandardCharsets.UTF_8.name());
+      Assert.assertTrue(json.contains("\"success\": false"));
+      Assert.assertTrue(json.contains("\"error\": \"query_failed\""));
+      Assert.assertTrue(json.contains("structured failure"));
+      Assert.assertEquals("", stderr.toString(StandardCharsets.UTF_8.name()));
+    } catch (Exception e) {
+      Assert.fail("Unexpected exception: " + e.getMessage());
+    } finally {
+      System.setOut(originalOut);
+      System.setErr(originalErr);
+    }
+  }
+
+  @Test
+  public void missingOutcomeBecomesExecutionError() {
+    CommandRegistry registry = new CommandRegistry();
+    registry.add(CommandDefinition.builder()
+        .authPolicy(CommandDefinition.AuthPolicy.NEVER)
+        .name("silent")
+        .description("Command that does not emit an outcome")
+        .handler((opts, wrapper, out) -> {
+        })
+        .build());
+
+    PrintStream originalOut = System.out;
+    PrintStream originalErr = System.err;
+    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+    ByteArrayOutputStream stderr = new ByteArrayOutputStream();
+    System.setOut(new PrintStream(stdout));
+    System.setErr(new PrintStream(stderr));
+    try {
+      GlobalOptions opts = GlobalOptions.parse(new String[]{"--output", "json", "silent"});
+      int exitCode = new StandardCliRunner(registry, opts).execute();
+
+      Assert.assertEquals(1, exitCode);
+      String json = stdout.toString(StandardCharsets.UTF_8.name());
+      Assert.assertTrue(json.contains("\"success\": false"));
+      Assert.assertTrue(json.contains("\"error\": \"execution_error\""));
+      Assert.assertTrue(json.contains("Command completed without emitting an outcome"));
+      Assert.assertEquals("", stderr.toString(StandardCharsets.UTF_8.name()));
+    } catch (Exception e) {
+      Assert.fail("Unexpected exception: " + e.getMessage());
+    } finally {
+      System.setOut(originalOut);
+      System.setErr(originalErr);
+    }
+  }
+
+  @Test
+  public void commandParserSyntaxFailuresMapToUsageErrorExitCodeTwo() {
+    CommandRegistry registry = new CommandRegistry();
+    registry.add(CommandDefinition.builder()
+        .authPolicy(CommandDefinition.AuthPolicy.NEVER)
+        .name("value")
+        .description("Command with required value")
+        .option("amount", "Amount", true, OptionDef.Type.LONG)
+        .handler((opts, wrapper, out) -> out.raw("ok"))
+        .build());
+
+    PrintStream originalOut = System.out;
+    PrintStream originalErr = System.err;
+    InputStream originalIn = System.in;
+    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+    ByteArrayOutputStream stderr = new ByteArrayOutputStream();
+    PrintStream testOut = new PrintStream(stdout);
+    PrintStream testErr = new PrintStream(stderr);
+    System.setOut(testOut);
+    System.setErr(testErr);
+    try {
+      GlobalOptions opts = GlobalOptions.parse(new String[]{"--output", "json", "value", "--amount="});
+      int exitCode = new StandardCliRunner(registry, opts).execute();
+
+      Assert.assertEquals(2, exitCode);
+      String json = new String(stdout.toByteArray(), StandardCharsets.UTF_8);
+      Assert.assertTrue(json.contains("\"success\": false"));
+      Assert.assertTrue(json.contains("\"error\": \"usage_error\""));
+      Assert.assertTrue(json.contains("Missing or empty value for --amount"));
+      Assert.assertEquals("", new String(stderr.toByteArray(), StandardCharsets.UTF_8));
+      Assert.assertSame(testOut, System.out);
+      Assert.assertSame(testErr, System.err);
+      Assert.assertSame(originalIn, System.in);
+    } finally {
+      System.setOut(originalOut);
+      System.setErr(originalErr);
+      System.setIn(originalIn);
+    }
+  }
+
+  @Test
+  public void standardCliDoesNotEnableEnvPasswordInputFallback() {
+    CommandRegistry registry = new CommandRegistry();
+    registry.add(CommandDefinition.builder()
+        .authPolicy(CommandDefinition.AuthPolicy.NEVER)
         .name("check-env-password-input")
         .description("Checks env-password input scope")
         .handler((opts, wrapper, out) -> {
-          Assert.assertTrue(Utils.isEnvPasswordInputEnabled());
+          Assert.assertFalse(Utils.isEnvPasswordInputEnabled());
           out.raw("ok");
         })
         .build());
@@ -160,9 +281,49 @@ public class StandardCliRunnerTest {
   }
 
   @Test
-  public void missingWalletDirectoryPrintsAutoLoginSkipInfoInTextMode() throws Exception {
+  public void requireCommandFailsWhenWalletDirectoryIsMissing() throws Exception {
+    CommandRegistry registry = new CommandRegistry();
+    boolean[] handlerCalled = {false};
+    registry.add(CommandDefinition.builder()
+        .name("needs-wallet")
+        .description("Command requiring auth")
+        .handler((opts, wrapper, out) -> {
+          handlerCalled[0] = true;
+          out.raw("ok");
+        })
+        .build());
+
+    String originalUserDir = System.getProperty("user.dir");
+    PrintStream originalOut = System.out;
+    PrintStream originalErr = System.err;
+    File tempDir = Files.createTempDirectory("runner-no-wallet").toFile();
+    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+    ByteArrayOutputStream stderr = new ByteArrayOutputStream();
+
+    System.setProperty("user.dir", tempDir.getAbsolutePath());
+    System.setOut(new PrintStream(stdout));
+    System.setErr(new PrintStream(stderr));
+    try {
+      GlobalOptions opts = GlobalOptions.parse(new String[]{"needs-wallet"});
+      int exitCode = new StandardCliRunner(registry, opts, () -> "TempPass123!A").execute();
+
+      Assert.assertEquals(1, exitCode);
+      Assert.assertFalse(handlerCalled[0]);
+      Assert.assertTrue(stdout.toString("UTF-8").contains("Wallet directory not found"));
+      Assert.assertEquals("", stderr.toString("UTF-8"));
+    } finally {
+      System.setOut(originalOut);
+      System.setErr(originalErr);
+      System.setProperty("user.dir", originalUserDir);
+      tempDir.delete();
+    }
+  }
+
+  @Test
+  public void neverAuthCommandIgnoresMissingWalletDirectory() throws Exception {
     CommandRegistry registry = new CommandRegistry();
     registry.add(CommandDefinition.builder()
+        .authPolicy(CommandDefinition.AuthPolicy.NEVER)
         .name("ok")
         .description("Simple success command")
         .handler((opts, wrapper, out) -> out.raw("ok"))
@@ -171,10 +332,9 @@ public class StandardCliRunnerTest {
     String originalUserDir = System.getProperty("user.dir");
     PrintStream originalOut = System.out;
     PrintStream originalErr = System.err;
-    InputStream originalIn = System.in;
+    File tempDir = Files.createTempDirectory("runner-no-wallet-never").toFile();
     ByteArrayOutputStream stdout = new ByteArrayOutputStream();
     ByteArrayOutputStream stderr = new ByteArrayOutputStream();
-    File tempDir = Files.createTempDirectory("runner-no-wallet").toFile();
 
     System.setProperty("user.dir", tempDir.getAbsolutePath());
     System.setOut(new PrintStream(stdout));
@@ -185,13 +345,10 @@ public class StandardCliRunnerTest {
 
       Assert.assertEquals(0, exitCode);
       Assert.assertEquals("ok\n", stdout.toString("UTF-8"));
-      Assert.assertTrue(stderr.toString("UTF-8")
-          .contains("No wallet directory found — skipping auto-login"));
-      Assert.assertSame(originalIn, System.in);
+      Assert.assertEquals("", stderr.toString("UTF-8"));
     } finally {
       System.setOut(originalOut);
       System.setErr(originalErr);
-      System.setIn(originalIn);
       System.setProperty("user.dir", originalUserDir);
       tempDir.delete();
     }
@@ -225,9 +382,134 @@ public class StandardCliRunnerTest {
   }
 
   @Test
+  public void requireCommandUsesExplicitWalletPathWithoutWalletDirectory() throws Exception {
+    CommandRegistry registry = new CommandRegistry();
+    registry.add(CommandDefinition.builder()
+        .name("needs-wallet")
+        .description("Command requiring auth")
+        .handler((opts, wrapper, out) -> {
+          Assert.assertTrue(wrapper.isLoginState());
+          out.raw("ok");
+        })
+        .build());
+
+    String originalUserDir = System.getProperty("user.dir");
+    PrintStream originalOut = System.out;
+    PrintStream originalErr = System.err;
+    File tempDir = Files.createTempDirectory("runner-wallet-explicit").toFile();
+    File externalDir = Files.createTempDirectory("runner-wallet-explicit-file").toFile();
+    File walletFile = createWalletFile(externalDir, "alpha", "0000000000000000000000000000000000000000000000000000000000000001");
+    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+    ByteArrayOutputStream stderr = new ByteArrayOutputStream();
+
+    System.setProperty("user.dir", tempDir.getAbsolutePath());
+    System.setOut(new PrintStream(stdout));
+    System.setErr(new PrintStream(stderr));
+    try {
+      GlobalOptions opts = GlobalOptions.parse(new String[]{
+          "--wallet", walletFile.getAbsolutePath(), "needs-wallet"
+      });
+      int exitCode = new StandardCliRunner(registry, opts, () -> "TempPass123!A").execute();
+
+      Assert.assertEquals(0, exitCode);
+      Assert.assertTrue(stdout.toString("UTF-8").contains("ok"));
+      Assert.assertTrue(stderr.toString("UTF-8").contains("Authenticated with wallet"));
+    } finally {
+      System.setOut(originalOut);
+      System.setErr(originalErr);
+      System.setProperty("user.dir", originalUserDir);
+    }
+  }
+
+  @Test
+  public void requireCommandFailsWhenMasterPasswordIsMissing() throws Exception {
+    CommandRegistry registry = new CommandRegistry();
+    boolean[] handlerCalled = {false};
+    registry.add(CommandDefinition.builder()
+        .name("needs-wallet")
+        .description("Command requiring auth")
+        .handler((opts, wrapper, out) -> {
+          handlerCalled[0] = true;
+          out.raw("ok");
+        })
+        .build());
+
+    String originalUserDir = System.getProperty("user.dir");
+    PrintStream originalOut = System.out;
+    PrintStream originalErr = System.err;
+    File tempDir = Files.createTempDirectory("runner-wallet-missing-password").toFile();
+    File walletDir = new File(tempDir, "Wallet");
+    Assert.assertTrue(walletDir.mkdirs());
+    File walletFile = createWalletFile(walletDir, "alpha", "0000000000000000000000000000000000000000000000000000000000000001");
+    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+    ByteArrayOutputStream stderr = new ByteArrayOutputStream();
+
+    System.setProperty("user.dir", tempDir.getAbsolutePath());
+    System.setOut(new PrintStream(stdout));
+    System.setErr(new PrintStream(stderr));
+    try {
+      ActiveWalletConfig.setActiveAddress(readWalletAddress(walletFile));
+      GlobalOptions opts = GlobalOptions.parse(new String[]{"needs-wallet"});
+      int exitCode = new StandardCliRunner(registry, opts, () -> null).execute();
+
+      Assert.assertEquals(1, exitCode);
+      Assert.assertFalse(handlerCalled[0]);
+      Assert.assertTrue(stdout.toString("UTF-8").contains("MASTER_PASSWORD is required"));
+      Assert.assertEquals("", stderr.toString("UTF-8"));
+    } finally {
+      System.setOut(originalOut);
+      System.setErr(originalErr);
+      System.setProperty("user.dir", originalUserDir);
+    }
+  }
+
+  @Test
+  public void requireCommandFailsWhenMasterPasswordIsInvalid() throws Exception {
+    CommandRegistry registry = new CommandRegistry();
+    boolean[] handlerCalled = {false};
+    registry.add(CommandDefinition.builder()
+        .name("needs-wallet")
+        .description("Command requiring auth")
+        .handler((opts, wrapper, out) -> {
+          handlerCalled[0] = true;
+          out.raw("ok");
+        })
+        .build());
+
+    String originalUserDir = System.getProperty("user.dir");
+    PrintStream originalOut = System.out;
+    PrintStream originalErr = System.err;
+    File tempDir = Files.createTempDirectory("runner-wallet-invalid-password").toFile();
+    File walletDir = new File(tempDir, "Wallet");
+    Assert.assertTrue(walletDir.mkdirs());
+    File walletFile = createWalletFile(walletDir, "alpha", "0000000000000000000000000000000000000000000000000000000000000001");
+    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+    ByteArrayOutputStream stderr = new ByteArrayOutputStream();
+
+    System.setProperty("user.dir", tempDir.getAbsolutePath());
+    System.setOut(new PrintStream(stdout));
+    System.setErr(new PrintStream(stderr));
+    try {
+      ActiveWalletConfig.setActiveAddress(readWalletAddress(walletFile));
+      GlobalOptions opts = GlobalOptions.parse(new String[]{"needs-wallet"});
+      int exitCode = new StandardCliRunner(registry, opts, () -> "WrongPass123!B").execute();
+
+      Assert.assertEquals(1, exitCode);
+      Assert.assertFalse(handlerCalled[0]);
+      Assert.assertTrue(stdout.toString("UTF-8").contains("Invalid MASTER_PASSWORD"));
+      Assert.assertEquals("", stderr.toString("UTF-8"));
+    } finally {
+      System.setOut(originalOut);
+      System.setErr(originalErr);
+      System.setProperty("user.dir", originalUserDir);
+    }
+  }
+
+  @Test
   public void grpcEndpointOverrideReplacesApiClientForCurrentRun() throws Exception {
     CommandRegistry registry = new CommandRegistry();
     registry.add(CommandDefinition.builder()
+        .authPolicy(CommandDefinition.AuthPolicy.NEVER)
         .name("ok")
         .description("Simple success command")
         .handler((opts, wrapper, out) -> out.raw("ok"))
@@ -253,11 +535,10 @@ public class StandardCliRunnerTest {
   }
 
   @Test
-  public void currentNetworkSkipsBrokenActiveWalletAutoAuth() throws Exception {
+  public void neverAuthCommandIgnoresBrokenActiveWalletConfig() throws Exception {
     String originalUserDir = System.getProperty("user.dir");
     PrintStream originalOut = System.out;
     PrintStream originalErr = System.err;
-    InputStream originalIn = System.in;
     File tempDir = Files.createTempDirectory("runner-broken-active-wallet").toFile();
     File walletDir = new File(tempDir, "Wallet");
     File activeConfig = new File(walletDir, ".active-wallet");
@@ -275,7 +556,7 @@ public class StandardCliRunnerTest {
     System.setErr(new PrintStream(stderr));
     try {
       GlobalOptions opts = GlobalOptions.parse(new String[]{"--output", "json", "current-network"});
-      int exitCode = new StandardCliRunner(registry, opts).execute();
+      int exitCode = new StandardCliRunner(registry, opts, () -> "ShouldNotBeUsed").execute();
 
       Assert.assertEquals(0, exitCode);
       String json = stdout.toString("UTF-8");
@@ -285,68 +566,256 @@ public class StandardCliRunnerTest {
     } finally {
       System.setOut(originalOut);
       System.setErr(originalErr);
-      System.setIn(originalIn);
       System.setProperty("user.dir", originalUserDir);
     }
   }
 
   @Test
-  public void autoAuthPolicyStillRequiresWalletForChangePassword() {
-    CommandDefinition changePassword = CommandDefinition.builder()
-        .name("change-password")
-        .description("Change password")
-        .option("old-password", "Current password", true)
-        .option("new-password", "New password", true)
-        .handler((opts, wrapper, out) -> out.raw("ok"))
-        .build();
-    ParsedOptions opts = changePassword.parseArgs(new String[]{
+  public void autoAuthPolicyFollowsRegisteredCommandMetadata() {
+    CommandRegistry queryRegistry = new CommandRegistry();
+    QueryCommands.register(queryRegistry);
+
+    CommandDefinition getBalance = queryRegistry.lookup("get-balance");
+    Assert.assertFalse(StandardCliRunner.requiresAutoAuth(getBalance, getBalance.parseArgs(new String[]{
+        "--address", "TNPeeaaFB7K9cmo4uQpcU32zGK8G1NYqeL"
+    })));
+    Assert.assertTrue(StandardCliRunner.requiresAutoAuth(getBalance, getBalance.parseArgs(new String[0])));
+
+    CommandDefinition getUsdtBalance = queryRegistry.lookup("get-usdt-balance");
+    Assert.assertFalse(StandardCliRunner.requiresAutoAuth(getUsdtBalance, getUsdtBalance.parseArgs(new String[]{
+        "--address", "TNPeeaaFB7K9cmo4uQpcU32zGK8G1NYqeL"
+    })));
+    Assert.assertTrue(StandardCliRunner.requiresAutoAuth(getUsdtBalance, getUsdtBalance.parseArgs(new String[0])));
+
+    CommandDefinition gasFreeInfo = queryRegistry.lookup("gas-free-info");
+    Assert.assertTrue(StandardCliRunner.requiresAutoAuth(gasFreeInfo, gasFreeInfo.parseArgs(new String[]{
+        "--address", "TNPeeaaFB7K9cmo4uQpcU32zGK8G1NYqeL"
+    })));
+
+    CommandRegistry contractRegistry = new CommandRegistry();
+    ContractCommands.register(contractRegistry);
+
+    CommandDefinition triggerConstant = contractRegistry.lookup("trigger-constant-contract");
+    Assert.assertFalse(StandardCliRunner.requiresAutoAuth(triggerConstant, triggerConstant.parseArgs(new String[]{
+        "--owner", "TNPeeaaFB7K9cmo4uQpcU32zGK8G1NYqeL",
+        "--contract", "TNPeeaaFB7K9cmo4uQpcU32zGK8G1NYqeL",
+        "--method", "balanceOf(address)"
+    })));
+    Assert.assertTrue(StandardCliRunner.requiresAutoAuth(triggerConstant, triggerConstant.parseArgs(new String[]{
+        "--contract", "TNPeeaaFB7K9cmo4uQpcU32zGK8G1NYqeL",
+        "--method", "balanceOf(address)"
+    })));
+
+    CommandDefinition estimateEnergy = contractRegistry.lookup("estimate-energy");
+    Assert.assertFalse(StandardCliRunner.requiresAutoAuth(estimateEnergy, estimateEnergy.parseArgs(new String[]{
+        "--owner", "TNPeeaaFB7K9cmo4uQpcU32zGK8G1NYqeL",
+        "--contract", "TNPeeaaFB7K9cmo4uQpcU32zGK8G1NYqeL",
+        "--method", "balanceOf(address)"
+    })));
+    Assert.assertTrue(StandardCliRunner.requiresAutoAuth(estimateEnergy, estimateEnergy.parseArgs(new String[]{
+        "--contract", "TNPeeaaFB7K9cmo4uQpcU32zGK8G1NYqeL",
+        "--method", "balanceOf(address)"
+    })));
+
+    CommandRegistry walletRegistry = new CommandRegistry();
+    WalletCommands.register(walletRegistry);
+
+    CommandDefinition changePassword = walletRegistry.lookup("change-password");
+    Assert.assertFalse(StandardCliRunner.requiresAutoAuth(changePassword, changePassword.parseArgs(new String[]{
         "--old-password", "OldPass123!A",
         "--new-password", "NewPass123!B"
-    });
+    })));
 
-    Assert.assertTrue(StandardCliRunner.requiresAutoAuth(changePassword, opts));
+    CommandDefinition resetWallet = walletRegistry.lookup("reset-wallet");
+    Assert.assertFalse(StandardCliRunner.requiresAutoAuth(resetWallet, resetWallet.parseArgs(new String[0])));
+
+    CommandRegistry miscRegistry = new CommandRegistry();
+    MiscCommands.register(miscRegistry);
+    CommandDefinition transactionHistory = miscRegistry.lookup("view-transaction-history");
+    Assert.assertFalse(StandardCliRunner.requiresAutoAuth(transactionHistory, transactionHistory.parseArgs(new String[0])));
   }
 
   @Test
-  public void autoAuthPolicyStillRequiresWalletForUsdtBalanceEvenWithAddress() {
-    CommandDefinition getUsdtBalance = CommandDefinition.builder()
-        .name("get-usdt-balance")
-        .description("Get USDT balance")
-        .option("address", "Address", false)
-        .handler((opts, wrapper, out) -> out.raw("ok"))
-        .build();
-    ParsedOptions opts = getUsdtBalance.parseArgs(new String[]{
-        "--address", "TNPeeaaFB7K9cmo4uQpcU32zGK8G1NYqeL"
-    });
+  public void estimateEnergyEmitsStructuredJsonPayload() throws Exception {
+    PrintStream originalOut = System.out;
+    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+    System.setOut(new PrintStream(stdout));
+    try {
+      CommandRegistry registry = new CommandRegistry();
+      ContractCommands.register(registry);
+      CommandDefinition command = registry.lookup("estimate-energy");
+      ParsedOptions opts = command.parseArgs(new String[]{
+          "--owner", "TNPeeaaFB7K9cmo4uQpcU32zGK8G1NYqeL",
+          "--contract", "TNPeeaaFB7K9cmo4uQpcU32zGK8G1NYqeL",
+          "--method", "balanceOf(address)"
+      });
+      OutputFormatter formatter = new OutputFormatter(OutputFormatter.OutputMode.JSON, false);
 
-    Assert.assertTrue(StandardCliRunner.requiresAutoAuth(getUsdtBalance, opts));
+      command.getHandler().execute(opts, new WalletApiWrapper() {
+        @Override
+        public Response.EstimateEnergyMessage estimateEnergyMessage(
+            byte[] ownerAddress,
+            byte[] contractAddress,
+            long callValue,
+            byte[] data,
+            long tokenValue,
+            String tokenId) {
+          Response.EstimateEnergyMessage.Builder builder = Response.EstimateEnergyMessage.newBuilder();
+          builder.getResultBuilder().setResult(true);
+          builder.setEnergyRequired(321L);
+          return builder.build();
+        }
+      }, formatter);
+      formatter.flush();
+
+      String json = stdout.toString(StandardCharsets.UTF_8.name());
+      Assert.assertTrue(json.contains("\"success\": true"));
+      Assert.assertTrue(json.contains("\"data\": {"));
+      Assert.assertTrue(json.contains("\"result\": {"));
+      Assert.assertFalse(json.contains("\"message\": \"Estimate energy result ="));
+    } finally {
+      System.setOut(originalOut);
+    }
   }
 
   @Test
-  public void autoAuthPolicyStillRequiresWalletForGasFreeInfoEvenWithAddress() {
-    CommandDefinition gasFreeInfo = CommandDefinition.builder()
-        .name("gas-free-info")
-        .description("GasFree info")
-        .option("address", "Address", false)
-        .handler((opts, wrapper, out) -> out.raw("ok"))
-        .build();
-    ParsedOptions opts = gasFreeInfo.parseArgs(new String[]{
-        "--address", "TNPeeaaFB7K9cmo4uQpcU32zGK8G1NYqeL"
-    });
+  public void commandHelpUsesJsonEnvelopeInJsonMode() throws Exception {
+    PrintStream originalOut = System.out;
+    PrintStream originalErr = System.err;
+    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+    ByteArrayOutputStream stderr = new ByteArrayOutputStream();
 
-    Assert.assertTrue(StandardCliRunner.requiresAutoAuth(gasFreeInfo, opts));
+    CommandRegistry registry = new CommandRegistry();
+    QueryCommands.register(registry);
+
+    System.setOut(new PrintStream(stdout));
+    System.setErr(new PrintStream(stderr));
+    try {
+      GlobalOptions opts = GlobalOptions.parse(new String[]{"--output", "json", "get-balance", "--help"});
+      int exitCode = new StandardCliRunner(registry, opts).execute();
+
+      Assert.assertEquals(0, exitCode);
+      String json = stdout.toString("UTF-8");
+      Assert.assertTrue(json.contains("\"success\": true"));
+      Assert.assertTrue(json.contains("\"data\": {"));
+      Assert.assertTrue(json.contains("\"help\":"));
+      Assert.assertTrue(json.contains("Get the balance of an address"));
+      Assert.assertEquals("", stderr.toString("UTF-8"));
+    } finally {
+      System.setOut(originalOut);
+      System.setErr(originalErr);
+    }
   }
 
   @Test
-  public void autoAuthPolicyStillRequiresWalletForTransactionHistoryViewer() {
-    CommandDefinition transactionHistory = CommandDefinition.builder()
-        .name("view-transaction-history")
-        .description("View tx history")
-        .handler((opts, wrapper, out) -> out.raw("ok"))
-        .build();
-    ParsedOptions opts = transactionHistory.parseArgs(new String[0]);
+  public void commandHelpRemainsPlainTextInTextMode() throws Exception {
+    PrintStream originalOut = System.out;
+    PrintStream originalErr = System.err;
+    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+    ByteArrayOutputStream stderr = new ByteArrayOutputStream();
 
-    Assert.assertTrue(StandardCliRunner.requiresAutoAuth(transactionHistory, opts));
+    CommandRegistry registry = new CommandRegistry();
+    QueryCommands.register(registry);
+
+    System.setOut(new PrintStream(stdout));
+    System.setErr(new PrintStream(stderr));
+    try {
+      GlobalOptions opts = GlobalOptions.parse(new String[]{"get-balance", "--help"});
+      int exitCode = new StandardCliRunner(registry, opts).execute();
+
+      Assert.assertEquals(0, exitCode);
+      String text = stdout.toString("UTF-8");
+      Assert.assertTrue(text.contains("Get the balance of an address"));
+      Assert.assertFalse(text.contains("\"success\""));
+      Assert.assertEquals("", stderr.toString("UTF-8"));
+    } finally {
+      System.setOut(originalOut);
+      System.setErr(originalErr);
+    }
+  }
+
+  @Test
+  public void booleanFlagBeforeHelpDoesNotConsumeHelpToken() throws Exception {
+    PrintStream originalOut = System.out;
+    PrintStream originalErr = System.err;
+    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+    ByteArrayOutputStream stderr = new ByteArrayOutputStream();
+
+    CommandRegistry registry = new CommandRegistry();
+    registry.add(CommandDefinition.builder()
+        .authPolicy(CommandDefinition.AuthPolicy.NEVER)
+        .name("bool-help")
+        .description("Boolean help command")
+        .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
+        .handler((opts, wrapper, out) -> out.raw("ok"))
+        .build());
+
+    System.setOut(new PrintStream(stdout));
+    System.setErr(new PrintStream(stderr));
+    try {
+      GlobalOptions opts = GlobalOptions.parse(new String[]{"bool-help", "--multi", "-h"});
+      int exitCode = new StandardCliRunner(registry, opts).execute();
+
+      Assert.assertEquals(0, exitCode);
+      String text = stdout.toString("UTF-8");
+      Assert.assertTrue(text.contains("Boolean help command"));
+      Assert.assertFalse(text.contains("Unexpected argument"));
+      Assert.assertEquals("", stderr.toString("UTF-8"));
+    } finally {
+      System.setOut(originalOut);
+      System.setErr(originalErr);
+    }
+  }
+
+  @Test
+  public void helpTokenUsedAsOptionValueDoesNotTriggerCommandHelp() throws Exception {
+    PrintStream originalOut = System.out;
+    PrintStream originalErr = System.err;
+    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+    ByteArrayOutputStream stderr = new ByteArrayOutputStream();
+
+    CommandRegistry registry = new CommandRegistry();
+    registry.add(CommandDefinition.builder()
+        .authPolicy(CommandDefinition.AuthPolicy.NEVER)
+        .name("value-help")
+        .description("Value help command")
+        .option("note", "Note text", true)
+        .handler((opts, wrapper, out) -> out.raw(opts.getString("note")))
+        .build());
+
+    System.setOut(new PrintStream(stdout));
+    System.setErr(new PrintStream(stderr));
+    try {
+      GlobalOptions opts = GlobalOptions.parse(new String[]{"value-help", "--note", "-h"});
+      int exitCode = new StandardCliRunner(registry, opts).execute();
+
+      Assert.assertEquals(0, exitCode);
+      String text = stdout.toString("UTF-8");
+      Assert.assertEquals("-h\n", text);
+      Assert.assertFalse(text.contains("Value help command"));
+      Assert.assertEquals("", stderr.toString("UTF-8"));
+    } finally {
+      System.setOut(originalOut);
+      System.setErr(originalErr);
+    }
+  }
+
+  @Test
+  public void legacyInteractiveCommandsAreRejectedInJsonMode() throws Exception {
+    assertUnsupportedStandardCliJson("encoding-converter", true);
+    assertUnsupportedStandardCliJson("address-book", true);
+    assertUnsupportedStandardCliJson("view-transaction-history", true);
+    assertUnsupportedStandardCliJson("view-backup-records", true);
+    assertUnsupportedStandardCliJson("tronlink-multi-sign", false);
+  }
+
+  @Test
+  public void legacyInteractiveCommandsAreRejectedInTextMode() throws Exception {
+    assertUnsupportedStandardCliText("encoding-converter", true);
+    assertUnsupportedStandardCliText("address-book", true);
+    assertUnsupportedStandardCliText("view-transaction-history", true);
+    assertUnsupportedStandardCliText("view-backup-records", true);
+    assertUnsupportedStandardCliText("tronlink-multi-sign", false);
   }
 
   @Test
@@ -354,7 +823,6 @@ public class StandardCliRunnerTest {
     String originalUserDir = System.getProperty("user.dir");
     PrintStream originalOut = System.out;
     PrintStream originalErr = System.err;
-    InputStream originalIn = System.in;
     File tempDir = Files.createTempDirectory("runner-list-wallet").toFile();
     File walletDir = new File(tempDir, "Wallet");
     File activeConfig = new File(walletDir, ".active-wallet");
@@ -384,9 +852,79 @@ public class StandardCliRunnerTest {
     } finally {
       System.setOut(originalOut);
       System.setErr(originalErr);
-      System.setIn(originalIn);
       System.setProperty("user.dir", originalUserDir);
     }
+  }
+
+  @Test
+  public void voteWitnessRejectsNonNumericVoteCountAsUsageError() throws Exception {
+    PrintStream originalOut = System.out;
+    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+    System.setOut(new PrintStream(stdout));
+    try {
+      CommandRegistry registry = new CommandRegistry();
+      WitnessCommands.register(registry);
+      CommandDefinition command = registry.lookup("vote-witness");
+      ParsedOptions opts = command.parseArgs(new String[]{
+          "--votes", "TNPeeaaFB7K9cmo4uQpcU32zGK8G1NYqeL abc"
+      });
+      OutputFormatter formatter = new OutputFormatter(OutputFormatter.OutputMode.JSON, false);
+
+      try {
+        command.getHandler().execute(opts, new WalletApiWrapper(), formatter);
+        Assert.fail("Expected vote validation to abort with usage error");
+      } catch (CliAbortException e) {
+        Assert.assertEquals(CliAbortException.Kind.USAGE, e.getKind());
+      }
+      formatter.flush();
+
+      String json = stdout.toString(StandardCharsets.UTF_8.name());
+      Assert.assertTrue(json.contains("\"success\": false"));
+      Assert.assertTrue(json.contains("\"error\": \"usage_error\""));
+      Assert.assertTrue(json.contains("Vote count must be a positive integer: abc"));
+    } finally {
+      System.setOut(originalOut);
+    }
+  }
+
+  @Test
+  public void voteWitnessRejectsNonPositiveVoteCountAsUsageError() throws Exception {
+    PrintStream originalOut = System.out;
+    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+    System.setOut(new PrintStream(stdout));
+    try {
+      CommandRegistry registry = new CommandRegistry();
+      WitnessCommands.register(registry);
+      CommandDefinition command = registry.lookup("vote-witness");
+      ParsedOptions opts = command.parseArgs(new String[]{
+          "--votes", "TNPeeaaFB7K9cmo4uQpcU32zGK8G1NYqeL 0"
+      });
+      OutputFormatter formatter = new OutputFormatter(OutputFormatter.OutputMode.JSON, false);
+
+      try {
+        command.getHandler().execute(opts, new WalletApiWrapper(), formatter);
+        Assert.fail("Expected vote validation to abort with usage error");
+      } catch (CliAbortException e) {
+        Assert.assertEquals(CliAbortException.Kind.USAGE, e.getKind());
+      }
+      formatter.flush();
+
+      String json = stdout.toString(StandardCharsets.UTF_8.name());
+      Assert.assertTrue(json.contains("\"success\": false"));
+      Assert.assertTrue(json.contains("\"error\": \"usage_error\""));
+      Assert.assertTrue(json.contains("Vote count must be a positive integer: 0"));
+    } finally {
+      System.setOut(originalOut);
+    }
+  }
+
+  @Test
+  public void commandErrorExceptionDoesNotCaptureStackTrace() {
+    CommandErrorException exception = new CommandErrorException("boom", "simulated failure");
+
+    Assert.assertEquals("boom", exception.getCode());
+    Assert.assertEquals("simulated failure", exception.getMessage());
+    Assert.assertEquals(0, exception.getStackTrace().length);
   }
 
   private File createWalletFile(File walletDir, String walletName, String privateKeyHex) throws Exception {
@@ -400,6 +938,68 @@ public class StandardCliRunnerTest {
     } finally {
       Arrays.fill(password, (byte) 0);
       Arrays.fill(privateKey, (byte) 0);
+    }
+  }
+
+  private String readWalletAddress(File walletFile) throws Exception {
+    return WalletUtils.loadWalletFile(walletFile).getAddress();
+  }
+
+  private void assertUnsupportedStandardCliJson(String commandName, boolean miscCommand) throws Exception {
+    PrintStream originalOut = System.out;
+    PrintStream originalErr = System.err;
+    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+    ByteArrayOutputStream stderr = new ByteArrayOutputStream();
+    CommandRegistry registry = new CommandRegistry();
+    if (miscCommand) {
+      MiscCommands.register(registry);
+    } else {
+      TransactionCommands.register(registry);
+    }
+
+    System.setOut(new PrintStream(stdout));
+    System.setErr(new PrintStream(stderr));
+    try {
+      GlobalOptions opts = GlobalOptions.parse(new String[]{"--output", "json", commandName});
+      int exitCode = new StandardCliRunner(registry, opts).execute();
+
+      Assert.assertEquals(1, exitCode);
+      String json = stdout.toString("UTF-8");
+      Assert.assertTrue(json.contains("\"success\": false"));
+      Assert.assertTrue(json.contains("\"error\": \"unsupported_in_standard_cli\""));
+      Assert.assertTrue(json.contains(commandName + " is not available in standard CLI mode"));
+      Assert.assertEquals("", stderr.toString("UTF-8"));
+    } finally {
+      System.setOut(originalOut);
+      System.setErr(originalErr);
+    }
+  }
+
+  private void assertUnsupportedStandardCliText(String commandName, boolean miscCommand) throws Exception {
+    PrintStream originalOut = System.out;
+    PrintStream originalErr = System.err;
+    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+    ByteArrayOutputStream stderr = new ByteArrayOutputStream();
+    CommandRegistry registry = new CommandRegistry();
+    if (miscCommand) {
+      MiscCommands.register(registry);
+    } else {
+      TransactionCommands.register(registry);
+    }
+
+    System.setOut(new PrintStream(stdout));
+    System.setErr(new PrintStream(stderr));
+    try {
+      GlobalOptions opts = GlobalOptions.parse(new String[]{commandName});
+      int exitCode = new StandardCliRunner(registry, opts).execute();
+
+      Assert.assertEquals(1, exitCode);
+      String text = stdout.toString("UTF-8");
+      Assert.assertTrue(text.contains("Error: " + commandName + " is not available in standard CLI mode"));
+      Assert.assertEquals("", stderr.toString("UTF-8"));
+    } finally {
+      System.setOut(originalOut);
+      System.setErr(originalErr);
     }
   }
 }

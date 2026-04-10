@@ -14,26 +14,15 @@ import java.util.List;
  * </pre>
  */
 public class QARunner {
-    private static final String RETIRED_MODE_MESSAGE =
-            "QARunner baseline/verify modes are no longer supported. "
-                    + "Use 'bash qa/run.sh verify' (optionally with --query-batch) for QA verification.";
-
     public static void main(String[] args) throws Exception {
         String mode = args.length > 0 ? args[0] : "list";
 
-        switch (mode) {
-            case "list":
-                listCommands();
-                break;
-            case "baseline":
-            case "verify":
-                System.err.println(RETIRED_MODE_MESSAGE);
-                System.exit(1);
-                break;
-            default:
-                System.err.println("Unknown mode: " + mode);
-                System.err.println("Usage: QARunner <list>");
-                System.exit(1);
+        if ("list".equals(mode)) {
+            listCommands();
+        } else {
+            System.err.println("Unknown mode: " + mode);
+            System.err.println("Usage: QARunner <list>");
+            System.exit(1);
         }
     }
 
