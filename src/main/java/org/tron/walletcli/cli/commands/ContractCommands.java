@@ -125,7 +125,9 @@ public class ContractCommands {
                         out.error("execution_error", "TriggerContract failed !!");
                         return;
                     }
-                    out.successMessage("TriggerContract successful !!");
+                    CommandSupport.emitBooleanResult(out, true,
+                            "TriggerContract successful !!", "TriggerContract failed !!",
+                            CommandSupport.lastBroadcastTxResultData());
                 })
                 .build());
     }
