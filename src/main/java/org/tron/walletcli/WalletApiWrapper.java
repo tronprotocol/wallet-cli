@@ -50,6 +50,7 @@ import com.google.protobuf.ByteString;
 import com.typesafe.config.Config;
 import java.io.File;
 import java.io.IOException;
+import java.math.BigInteger;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
@@ -1415,7 +1416,11 @@ public class WalletApiWrapper {
       long tokenValue,
       String tokenId) {
     if (wallet == null || !wallet.isLoginState()) {
-      throw new CommandErrorException("auth_required", "Please login first !!");
+      if (ArrayUtils.isEmpty(ownerAddress)) {
+        throw new CommandErrorException("auth_required", "Please login first !!");
+      }
+      return WalletApi.triggerConstantContractExtentionDirect(
+          ownerAddress, contractAddress, callValue, data, tokenValue, tokenId);
     }
     try {
       return wallet.triggerConstantContractExtention(
@@ -1429,9 +1434,21 @@ public class WalletApiWrapper {
   public Triple<Boolean, Long, Long> getUSDTBalance(byte[] ownerAddress)
       throws Exception {
     if (wallet == null || !wallet.isLoginState()) {
-      // Reference Gasfree balance, login is required to query, as historical methods are reused
-      System.out.println("Warning: getUSDTBalance " + failedHighlight() + ",  Please login first !!");
-      return Triple.of(false, 0L, 0L);
+      if (ArrayUtils.isEmpty(ownerAddress)) {
+        throw new CommandErrorException("auth_required", "Please login first !!");
+      }
+      byte[] d = Hex.decode(AbiUtil.parseMethod("balanceOf(address)",
+          "\"" + encode58Check(ownerAddress) + "\"", false));
+      NetType netType = WalletApi.getCurrentNetwork();
+      byte[] contractAddress = WalletApi.decodeFromBase58Check(netType.getUsdtAddress());
+      Response.TransactionExtention result = WalletApi.triggerConstantContractExtentionDirect(
+          ownerAddress, contractAddress, 0, d, 0, EMPTY);
+      if (result == null || result.getResult() == null || !result.getResult().getResult()
+          || result.getConstantResultCount() == 0) {
+        return Triple.of(false, 0L, 0L);
+      }
+      BigInteger value = new BigInteger(1, result.getConstantResult(0).toByteArray());
+      return Triple.of(true, 0L, value.longValue());
     }
     if (ArrayUtils.isEmpty(ownerAddress)) {
       ownerAddress = wallet.getAddress();
@@ -1464,7 +1481,11 @@ public class WalletApiWrapper {
       long tokenValue,
       String tokenId) {
     if (wallet == null || !wallet.isLoginState()) {
-      throw new CommandErrorException("auth_required", "Please login first !!");
+      if (ArrayUtils.isEmpty(ownerAddress)) {
+        throw new CommandErrorException("auth_required", "Please login first !!");
+      }
+      return WalletApi.estimateEnergyMessageDirect(
+          ownerAddress, contractAddress, callValue, data, tokenValue, tokenId);
     }
     try {
       return wallet.estimateEnergyMessage(

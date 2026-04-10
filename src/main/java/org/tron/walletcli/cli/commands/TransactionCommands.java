@@ -151,6 +151,10 @@ public class TransactionCommands {
                     } finally {
                         TransactionUtils.clearPermissionIdOverride();
                     }
+                    if (!Boolean.TRUE.equals(estimate.getLeft())) {
+                        out.error("execution_error", "TransferUSDT failed: energy estimation failed.");
+                        return;
+                    }
                     long energyUsed = estimate.getMiddle();
                     // Get energy price from chain parameters and add 20% buffer
                     long energyFee = wrapper.getChainParameters().getChainParameterList().stream()
@@ -362,7 +366,8 @@ public class TransactionCommands {
                     boolean result = org.tron.walletserver.WalletApi.broadcastTransaction(txBytes);
                     CommandSupport.emitBooleanResult(out, result,
                             "BroadcastTransaction successful !!",
-                            "BroadcastTransaction failed !!");
+                            "BroadcastTransaction failed !!",
+                            CommandSupport.lastBroadcastTxResultData());
                 })
                 .build());
     }

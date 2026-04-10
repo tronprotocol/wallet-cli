@@ -1233,15 +1233,21 @@ public class WalletApi {
   public static boolean broadcastTransaction(byte[] transactionBytes)
       throws InvalidProtocolBufferException {
     Chain.Transaction transaction = Chain.Transaction.parseFrom(transactionBytes);
-    return apiCli.broadcastTransaction(transaction);
+    return broadcastTransaction(transaction);
   }
 
   public static boolean broadcastTransaction(Transaction transaction) throws InvalidProtocolBufferException {
-    return apiCli.broadcastTransaction(Chain.Transaction.parseFrom(transaction.toByteArray()));
+    return broadcastTransaction(Chain.Transaction.parseFrom(transaction.toByteArray()));
   }
 
   public static boolean broadcastTransaction(Chain.Transaction transaction) {
-    return apiCli.broadcastTransaction(transaction);
+    LAST_BROADCAST_TX_ID.remove();
+    boolean success = apiCli.broadcastTransaction(transaction);
+    if (success) {
+      LAST_BROADCAST_TX_ID.set(ByteArray.toHexString(
+          Sha256Sm3Hash.hash(transaction.getRawData().toByteArray())));
+    }
+    return success;
   }
 
   public boolean createAssetIssue(byte[] ownerAddress, String name, String abbrName,
@@ -2991,11 +2997,22 @@ public class WalletApi {
     if (owner == null) {
       owner = getAddress();
     }
+    return triggerConstantContractExtentionDirect(
+        owner, contractAddress, callValue, data, tokenValue, tokenId);
+  }
+
+  public static Response.TransactionExtention triggerConstantContractExtentionDirect(
+      byte[] owner,
+      byte[] contractAddress,
+      long callValue,
+      byte[] data,
+      long tokenValue,
+      String tokenId) {
     return normalizeConstantContractExtention(
         apiCli.triggerConstantContract(owner, contractAddress, data, callValue, tokenValue, tokenId));
   }
 
-  private Response.TransactionExtention normalizeConstantContractExtention(
+  private static Response.TransactionExtention normalizeConstantContractExtention(
       Response.TransactionExtention transactionExtention) {
     if (transactionExtention == null) {
       return null;
@@ -3067,6 +3084,16 @@ public class WalletApi {
     if (owner == null) {
       owner = getAddress();
     }
+    return estimateEnergyMessageDirect(owner, contractAddress, callValue, data, tokenValue, tokenId);
+  }
+
+  public static Response.EstimateEnergyMessage estimateEnergyMessageDirect(
+      byte[] owner,
+      byte[] contractAddress,
+      long callValue,
+      byte[] data,
+      long tokenValue,
+      String tokenId) {
     return apiCli.estimateEnergy(owner, contractAddress, callValue, data, tokenValue, tokenId);
   }
 
