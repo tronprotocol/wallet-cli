@@ -14,6 +14,10 @@ NO_BUILD=0
 CASE_FILTER=""
 MAX_JOBS="${QA_MAX_JOBS:-4}"
 LOCK_DIR="$PROJECT_DIR/qa/.verify.lock"
+LOCK_PID_FILE="$LOCK_DIR/pid"
+LOCK_CASE_FILE="$LOCK_DIR/case"
+LOCK_STARTED_FILE="$LOCK_DIR/started_at"
+LOCK_CMD_FILE="$LOCK_DIR/cmd"
 
 if [ $# -gt 0 ] && [[ "$1" != --* ]]; then
   MODE="$1"
@@ -55,6 +59,10 @@ load_registered_commands() {
 
 load_manifest_commands() {
   awk -F'|' 'NF >= 4 && $1 !~ /^#/ { print $1 }' "$MANIFEST_FILE"
+}
+
+load_contract_labels() {
+  awk -F'|' 'NF >= 6 && $1 !~ /^#/ { print $1 }' "$CONTRACTS_FILE"
 }
 
 manifest_count() {
@@ -109,54 +117,111 @@ run_task_file_serial() {
 }
 
 prepare_task_files() {
-  local help_tasks regular_tasks stateful_tasks global_tasks
+  local help_tasks regular_tasks stateful_tasks contract_tasks
   help_tasks="$RUNTIME_DIR/help.tasks"
   regular_tasks="$RUNTIME_DIR/regular.tasks"
   stateful_tasks="$RUNTIME_DIR/stateful.tasks"
-  global_tasks="$RUNTIME_DIR/global.tasks"
+  contract_tasks="$RUNTIME_DIR/contract.tasks"
   : > "$help_tasks"
   : > "$regular_tasks"
   : > "$stateful_tasks"
-  : > "$global_tasks"
+  : > "$contract_tasks"
 
   if [ -n "$CASE_FILTER" ]; then
     if grep -qx "$CASE_FILTER" "$RUNTIME_DIR/registered.txt"; then
       enqueue_task help "$CASE_FILTER" >> "$help_tasks"
       case "$(qa_case_type "$CASE_FILTER")" in
         stateful-success)
-          enqueue_task main "$CASE_FILTER" >> "$stateful_tasks"
+          enqueue_task smoke "$CASE_FILTER" >> "$stateful_tasks"
           ;;
         *)
-          enqueue_task main "$CASE_FILTER" >> "$regular_tasks"
+          enqueue_task smoke "$CASE_FILTER" >> "$regular_tasks"
           ;;
       esac
       return 0
     fi
-    enqueue_task global "$CASE_FILTER" >> "$global_tasks"
-    return 0
+    if load_contract_labels | grep -qx "$CASE_FILTER"; then
+      enqueue_task contract "$CASE_FILTER" >> "$contract_tasks"
+      return 0
+    fi
+    echo "Unknown case: $CASE_FILTER"
+    exit 1
   fi
 
   while IFS= read -r command; do
     enqueue_task help "$command" >> "$help_tasks"
     case "$(qa_case_type "$command")" in
       stateful-success)
-        enqueue_task main "$command" >> "$stateful_tasks"
+        enqueue_task smoke "$command" >> "$stateful_tasks"
         ;;
       *)
-        enqueue_task main "$command" >> "$regular_tasks"
+        enqueue_task smoke "$command" >> "$regular_tasks"
         ;;
     esac
   done < "$RUNTIME_DIR/registered.txt"
 
-  for global_case in global-help version-flag missing-command unknown-global-option unknown-command; do
-    enqueue_task global "$global_case" >> "$global_tasks"
-  done
+  while IFS= read -r contract_case; do
+    enqueue_task contract "$contract_case" >> "$contract_tasks"
+  done < <(load_contract_labels)
 }
 
 task_count() {
   local task_file="$1"
   [ -f "$task_file" ] || { echo 0; return; }
   wc -l < "$task_file" | tr -d ' '
+}
+
+lock_case_label() {
+  if [ -n "$CASE_FILTER" ]; then
+    printf '%s' "$CASE_FILTER"
+  else
+    printf '%s' "<all>"
+  fi
+}
+
+lock_cmdline() {
+  local cmd="$0 $MODE"
+  if [ -n "$CASE_FILTER" ]; then
+    cmd="$cmd --case $CASE_FILTER"
+  fi
+  if [ "$NO_BUILD" -eq 1 ]; then
+    cmd="$cmd --no-build"
+  fi
+  printf '%s' "$cmd"
+}
+
+write_lock_metadata() {
+  printf '%s\n' "$$" > "$LOCK_PID_FILE"
+  printf '%s\n' "$(lock_case_label)" > "$LOCK_CASE_FILE"
+  date '+%Y-%m-%d %H:%M:%S %z' > "$LOCK_STARTED_FILE"
+  lock_cmdline > "$LOCK_CMD_FILE"
+}
+
+print_existing_lock_info() {
+  local pid case_label started_at cmd
+  pid="$(cat "$LOCK_PID_FILE" 2>/dev/null || true)"
+  case_label="$(cat "$LOCK_CASE_FILE" 2>/dev/null || true)"
+  started_at="$(cat "$LOCK_STARTED_FILE" 2>/dev/null || true)"
+  cmd="$(cat "$LOCK_CMD_FILE" 2>/dev/null || true)"
+
+  if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+    echo "Another qa/run.sh verify is already in progress."
+    echo "  pid: $pid"
+    [ -n "$case_label" ] && echo "  case: $case_label"
+    [ -n "$started_at" ] && echo "  started: $started_at"
+    [ -n "$cmd" ] && echo "  command: $cmd"
+    echo "  lock: $LOCK_DIR"
+    return 0
+  fi
+
+  echo "Found a stale qa verify lock."
+  [ -n "$pid" ] && echo "  stale pid: $pid"
+  [ -n "$case_label" ] && echo "  case: $case_label"
+  [ -n "$started_at" ] && echo "  started: $started_at"
+  [ -n "$cmd" ] && echo "  command: $cmd"
+  echo "  lock: $LOCK_DIR"
+  echo "Remove it with: rm -rf $LOCK_DIR"
+  return 0
 }
 
 if [ "$MODE" = "list" ]; then
@@ -178,10 +243,11 @@ echo "=== Standard CLI Contract Verification — Network: $NETWORK${CASE_FILTER:
 echo
 
 if ! mkdir "$LOCK_DIR" 2>/dev/null; then
-  echo "Another qa/run.sh verify is already in progress: $LOCK_DIR"
+  print_existing_lock_info
   exit 1
 fi
 trap 'rm -rf "$LOCK_DIR"' EXIT
+write_lock_metadata
 
 if [ "$NO_BUILD" -eq 1 ]; then
   [ -f "$WALLET_JAR" ] || { echo "Cannot skip build: $WALLET_JAR does not exist"; exit 1; }
@@ -206,19 +272,19 @@ echo "Building task queues..."
 prepare_task_files
 
 echo "Help cases: $(task_count "$RUNTIME_DIR/help.tasks")"
-echo "Global cases: $(task_count "$RUNTIME_DIR/global.tasks")"
 echo "Parallel main cases: $(task_count "$RUNTIME_DIR/regular.tasks")"
 echo "Serial stateful cases: $(task_count "$RUNTIME_DIR/stateful.tasks")"
+echo "Contract cases: $(task_count "$RUNTIME_DIR/contract.tasks")"
 echo
 
 echo "Running help cases..."
 run_task_file_parallel "$RUNTIME_DIR/help.tasks" "$MAX_JOBS"
-echo "Running global cases..."
-run_task_file_parallel "$RUNTIME_DIR/global.tasks" "$MAX_JOBS"
 echo "Running parallel main cases..."
 run_task_file_parallel "$RUNTIME_DIR/regular.tasks" "$MAX_JOBS"
 echo "Running serial stateful cases..."
 run_task_file_serial "$RUNTIME_DIR/stateful.tasks"
+echo "Running contract cases..."
+run_task_file_parallel "$RUNTIME_DIR/contract.tasks" "$MAX_JOBS"
 echo "Generating report..."
 
 registered_count="$(wc -l < "$RUNTIME_DIR/registered.txt" | tr -d ' ')"
@@ -226,6 +292,7 @@ covered_count="$(manifest_count)"
 excluded_count="$(manifest_excluded_count)"
 missing_count="$(wc -l < "$RUNTIME_DIR/missing.txt" | tr -d ' ')"
 stale_count="$(wc -l < "$RUNTIME_DIR/stale.txt" | tr -d ' ')"
+contract_count="$(load_contract_labels | wc -l | tr -d ' ')"
 
-qa_generate_report "$registered_count" "$covered_count" "$excluded_count" "$missing_count" "$stale_count"
+qa_generate_report "$registered_count" "$covered_count" "$excluded_count" "$missing_count" "$stale_count" "$contract_count"
 cat "$REPORT_FILE"

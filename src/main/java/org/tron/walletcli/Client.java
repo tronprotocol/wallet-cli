@@ -4712,15 +4712,32 @@ public class Client {
 
     if (globalOpts.isHelp()) {
       CommandRegistry registry = initRegistry();
-      System.out.println(registry.formatGlobalHelp(VERSION));
+      String helpText = registry.formatGlobalHelp(VERSION);
+      if (globalOpts.getOutputMode() == OutputFormatter.OutputMode.JSON) {
+        OutputFormatter formatter = new OutputFormatter(OutputFormatter.OutputMode.JSON, false);
+        formatter.help(helpText);
+        formatter.flush();
+      } else {
+        System.out.println(helpText);
+      }
       return 0;
     }
 
     if (globalOpts.getCommand() == null) {
       CommandRegistry registry = initRegistry();
-      System.out.println("Error: Missing command.");
-      System.out.println();
-      System.out.println(registry.formatGlobalHelp(VERSION));
+      if (globalOpts.getOutputMode() == OutputFormatter.OutputMode.JSON) {
+        OutputFormatter formatter = new OutputFormatter(OutputFormatter.OutputMode.JSON, false);
+        try {
+          formatter.usageError("Missing command.", null);
+        } catch (RuntimeException ignored) {
+          // usageError intentionally aborts normal control flow after recording the outcome
+        }
+        formatter.flush();
+      } else {
+        System.out.println("Error: Missing command.");
+        System.out.println();
+        System.out.println(registry.formatGlobalHelp(VERSION));
+      }
       return 2;
     }
 

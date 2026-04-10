@@ -12,150 +12,107 @@ source "$SCRIPT_DIR/lib/semantic.sh"
 task_kind="${1:?task kind required}"
 task_name="${2:?task name required}"
 
-run_help_case() {
-  local command="$1"
-  local label="help__${command}"
-  local workspace
+run_case() {
+  local kind="$1"
+  local label="$2"
+  local resolved_json argv_text_file argv_json_file
+  local resolved_label suite template requires env_mode expectation error_code
+  local json_path_exists json_path_absent text_contains text_absent preflight excluded
+  local workspace_text workspace_json unresolved mode
+  local -a argv_text=()
+  local -a argv_json=()
+  local -a preflight_argv=()
+  local line preflight_reason
 
-  workspace="$(qa_reset_workspace "$label" "empty")"
-  qa_run_raw_capture "$workspace" "$label" "$command" --help
-  if qa_expect_help_success "$label"; then
-    qa_write_result "$label" "PASS"
-  else
-    qa_write_result "$label" "FAIL: command help contract violated"
-  fi
-}
+  resolved_json="$(mktemp "$RUNTIME_DIR/case.XXXXXX")"
+  argv_text_file="$(mktemp "$RUNTIME_DIR/argvtext.XXXXXX")"
+  argv_json_file="$(mktemp "$RUNTIME_DIR/argvjson.XXXXXX")"
+  trap 'rm -f "$resolved_json" "$argv_text_file" "$argv_json_file"' RETURN
 
-run_global_case() {
-  local name="$1"
-  local workspace label
-  label="$name"
-  workspace="$(qa_reset_workspace "$label" "empty")"
+  qa_export_seeds
+  qa_resolve_case_to_file "$kind" "$label" "$resolved_json"
 
-  case "$name" in
-    global-help)
-      qa_run_raw_capture "$workspace" "$label" --help
-      if qa_expect_help_success "$label"; then
-        qa_write_result "$label" "PASS"
-      else
-        qa_write_result "$label" "FAIL: global help contract violated"
-      fi
-      ;;
-    version-flag)
-      qa_run_raw_capture "$workspace" "$label" --version
-      if [ "$(cat "$RESULTS_DIR/${label}_text.exit")" = "0" ] && grep -q 'wallet-cli' "$RESULTS_DIR/${label}_text.out"; then
-        qa_write_result "$label" "PASS"
-      else
-        qa_write_result "$label" "FAIL: version flag contract violated"
-      fi
-      ;;
-    missing-command)
-      qa_run_raw_capture "$workspace" "$label" --output json
-      if [ "$(cat "$RESULTS_DIR/${label}_text.exit")" = "2" ] && grep -q 'Missing command' "$RESULTS_DIR/${label}_text.out"; then
-        qa_write_result "$label" "PASS"
-      else
-        qa_write_result "$label" "FAIL: missing command contract violated"
-      fi
-      ;;
-    unknown-global-option)
-      qa_run_raw_capture "$workspace" "$label" --outputt json get-balance
-      if [ "$(cat "$RESULTS_DIR/${label}_text.exit")" = "2" ] && grep -q 'Unknown global option' "$RESULTS_DIR/${label}_text.out"; then
-        qa_write_result "$label" "PASS"
-      else
-        qa_write_result "$label" "FAIL: unknown global option contract violated"
-      fi
-      ;;
-    unknown-command)
-      qa_run_raw_capture "$workspace" "$label" sendkon
-      if [ "$(cat "$RESULTS_DIR/${label}_text.exit")" = "2" ] && grep -qi 'Did you mean' "$RESULTS_DIR/${label}_text.out"; then
-        qa_write_result "$label" "PASS"
-      else
-        qa_write_result "$label" "FAIL: unknown command contract violated"
-      fi
-      ;;
-    *)
-      qa_write_result "$label" "FAIL: unsupported global case"
-      ;;
-  esac
-}
+  resolved_label="$(qa_case_json_get "$resolved_json" "label")"
+  suite="$(qa_case_json_get "$resolved_json" "suite")"
+  template="$(qa_case_json_get "$resolved_json" "template")"
+  requires="$(qa_case_json_get "$resolved_json" "requires")"
+  env_mode="$(qa_case_json_get "$resolved_json" "env_mode")"
+  expectation="$(qa_case_json_get "$resolved_json" "expectation")"
+  error_code="$(qa_case_json_get "$resolved_json" "error_code")"
+  json_path_exists="$(qa_case_json_get "$resolved_json" "json_path_exists")"
+  json_path_absent="$(qa_case_json_get "$resolved_json" "json_path_absent")"
+  text_contains="$(qa_case_json_get "$resolved_json" "text_contains")"
+  text_absent="$(qa_case_json_get "$resolved_json" "text_absent")"
+  preflight="$(qa_case_json_get "$resolved_json" "preflight")"
+  excluded="$(qa_case_json_bool "$resolved_json" "excluded")"
+  unresolved="$(qa_case_json_get "$resolved_json" "unresolved_placeholders")"
 
-run_main_case() {
-  local command="$1"
-  local type template requires args label text_workspace json_workspace resolved_args unresolved
-
-  type="$(qa_case_type "$command")"
-  template="$(qa_case_template "$command")"
-  requires="$(qa_case_requires "$command")"
-  args="$(qa_case_args "$command")"
-  label="$command"
-
-  if [ "$type" = "excluded-interactive" ]; then
-    qa_write_result "$label" "SKIP: not standard-cli-compliant interactive flow"
+  if [ "$excluded" = "true" ]; then
+    qa_write_result "$resolved_label" "SKIP: unsupported/excluded from standard CLI smoke coverage"
     return 0
   fi
 
   if ! qa_requires_available "$requires"; then
-    qa_write_result "$label" "SKIP: missing required secret ($requires)"
+    qa_write_result "$resolved_label" "SKIP: missing required secret ($requires)"
     return 0
   fi
 
-  resolved_args="$(qa_substitute_placeholders "$args")"
-  unresolved="$(qa_unresolved_placeholders "$resolved_args")"
   if [ -n "$unresolved" ]; then
-    qa_write_result "$label" "SKIP: missing runtime seed(s): $unresolved"
+    qa_write_result "$resolved_label" "SKIP: missing runtime seed(s): $unresolved"
     return 0
   fi
 
-  if [ -n "$resolved_args" ]; then
-    # shellcheck disable=SC2086
-    eval "set -- $resolved_args"
-  else
-    set --
+  qa_case_json_write_lines "$resolved_json" "text_argv" "$argv_text_file"
+  qa_case_json_write_lines "$resolved_json" "json_argv" "$argv_json_file"
+
+  while IFS= read -r line || [ -n "$line" ]; do
+    argv_text+=("$line")
+  done < "$argv_text_file"
+  while IFS= read -r line || [ -n "$line" ]; do
+    argv_json+=("$line")
+  done < "$argv_json_file"
+
+  mode="dual"
+  if [ ${#argv_text[@]} -eq 0 ]; then
+    mode="json"
+  elif [ ${#argv_json[@]} -eq 0 ]; then
+    mode="text"
   fi
 
-  text_workspace="$(qa_reset_workspace "${label}__text" "$template")"
-  json_workspace="$(qa_reset_workspace "${label}__json" "$template")"
+  if [ "$mode" = "json" ]; then
+    preflight_argv=("${argv_json[@]}")
+  else
+    preflight_argv=("${argv_text[@]}")
+  fi
 
-  qa_run_cli_capture "$text_workspace" "$label" text "$command" "$@"
-  qa_run_cli_capture "$json_workspace" "$label" json "$command" "$@"
+  if [ -n "$preflight" ]; then
+    if ! preflight_reason="$(qa_preflight_check "$preflight" "$label" "${preflight_argv[@]}" 2>/dev/null)"; then
+      qa_write_result "$resolved_label" "SKIP: unmet chain precondition ($preflight_reason)"
+      return 0
+    fi
+  fi
 
-  case "$type" in
-    offline-success|noauth-success|auth-success|stateful-success)
-      if qa_expect_success "$label"; then
-        qa_write_result "$label" "PASS"
-      else
-        qa_write_result "$label" "FAIL: success contract violated"
-      fi
-      ;;
-    expected-usage-error)
-      if qa_expect_usage_error "$label"; then
-        qa_write_result "$label" "PASS"
-      else
-        qa_write_result "$label" "FAIL: usage error contract violated"
-      fi
-      ;;
-    expected-execution-error)
-      if qa_expect_execution_error "$label"; then
-        qa_write_result "$label" "PASS"
-      else
-        qa_write_result "$label" "FAIL: execution error contract violated"
-      fi
-      ;;
-    *)
-      qa_write_result "$label" "FAIL: unsupported case type $type"
-      ;;
-  esac
+  if [ ${#argv_text[@]} -gt 0 ]; then
+    workspace_text="$(qa_reset_workspace "${resolved_label}__text" "$template")"
+    qa_run_raw_capture "$workspace_text" "$resolved_label" text "$env_mode" "${argv_text[@]}"
+  fi
+
+  if [ ${#argv_json[@]} -gt 0 ]; then
+    workspace_json="$(qa_reset_workspace "${resolved_label}__json" "$template")"
+    qa_run_raw_capture "$workspace_json" "$resolved_label" json "$env_mode" "${argv_json[@]}"
+  fi
+
+  if qa_assert_case_files "$resolved_label" "$expectation" "$mode" \
+    "$json_path_exists" "$json_path_absent" "$error_code" "$text_contains" "$text_absent"; then
+    qa_write_result "$resolved_label" "PASS"
+  else
+    qa_write_result "$resolved_label" "FAIL: ${suite} contract violated"
+  fi
 }
 
 case "$task_kind" in
-  help)
-    run_help_case "$task_name"
-    ;;
-  global)
-    run_global_case "$task_name"
-    ;;
-  main)
-    run_main_case "$task_name"
+  help|smoke|contract)
+    run_case "$task_kind" "$task_name"
     ;;
   *)
     echo "Unknown task kind: $task_kind" >&2

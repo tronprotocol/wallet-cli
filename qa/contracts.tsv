@@ -1,0 +1,43 @@
+# label|template|requires|env_mode|stream_mode|expectation|args_json|json_path_exists|json_path_absent|error_code|text_contains|text_absent|preflight
+global-help|empty|none|default|dual|help_dual|["--help"]|data.help|||Usage:,TRON Wallet CLI|Error:|
+version-flag|empty|none|default|text|success|["--version"]||||wallet-cli|| 
+missing-command|empty|none|default|json|usage|["--output","json"]|||usage_error|||
+unknown-global-option|empty|none|default|json|usage|["--output","json","--outputt","json","get-balance"]|||usage_error|||
+unknown-command|empty|none|default|text|usage|["sendkon"]||||Did you mean||
+contract__global_network_separate|empty|none|default|text|success|["--network","nile","current-network"]||||Current network:||
+contract__global_network_inline_json|empty|none|default|json|success|["--output","json","--network=nile","current-network"]||||||
+contract__global_missing_network_value_json|empty|none|default|json|usage|["--output","json","--network"]|||usage_error|||
+contract__global_empty_output_value_json|empty|none|default|text|usage|["--output="]||||Missing or empty value for --output||
+contract__global_invalid_network_value_json|empty|none|default|json|usage|["--output","json","--network=beta","current-network"]|||usage_error|||
+contract__global_flag_with_value_json|empty|none|default|json|usage|["--output","json","--quiet=true","current-network"]|||usage_error|||
+contract__global_repeated_network_json|empty|none|default|json|usage|["--output","json","--network","nile","--network","main","current-network"]|||usage_error|||
+contract__global_quiet_verbose_conflict_json|empty|none|default|json|usage|["--output","json","--quiet","--verbose","current-network"]|||usage_error|||
+contract__post_command_global_like_token_text|empty|none|default|text|usage|["current-network","--network","nile"]||||Unknown option: --network||
+contract__command_missing_required_value_text|empty|none|default|text|usage|["get-block-by-latest-num","--count"]||||Missing value for --count||
+contract__command_empty_required_value_json|empty|none|default|json|usage|["--output","json","get-block-by-latest-num","--count="]|||usage_error|||
+contract__command_boolean_flag_exec|empty|none|default|text|execution|["freeze-balance-v2","--amount","1","--multi"]|||execution_error|Error:||
+contract__command_boolean_true_exec|empty|none|default|json|execution|["--output","json","freeze-balance-v2","--amount","1","--multi=true"]|||execution_error|||
+contract__command_boolean_false_exec|empty|none|default|json|execution|["--output","json","freeze-balance-v2","--amount","1","--multi=false"]|||execution_error|||
+contract__command_boolean_invalid_text|empty|none|default|text|usage|["freeze-balance-v2","--amount","1","--multi=maybe"]||||requires a boolean value||
+contract__command_repeated_value_text|empty|none|default|text|usage|["freeze-balance-v2","--amount","1","--amount","2"]||||Repeated option: --amount||
+contract__command_repeated_boolean_same_exec|empty|none|default|json|execution|["--output","json","freeze-balance-v2","--amount","1","--multi","--multi"]|||execution_error|||
+contract__command_repeated_boolean_conflict_text|empty|none|default|text|usage|["freeze-balance-v2","--amount","1","--multi=true","--multi=false"]||||Conflicting values for option: --multi||
+contract__command_unknown_option_text|empty|none|default|text|usage|["get-block","--wat"]||||Unknown option: --wat||
+contract__command_unexpected_argument_text|empty|none|default|text|usage|["get-block","oops"]||||Unexpected argument: oops||
+contract__command_help_short_text|empty|none|default|text|help_text|["get-balance","-h"]||||Usage:,wallet-cli get-balance|Error:|
+contract__command_help_short_json|empty|none|default|json|help_json|["--output","json","get-balance","-h"]|data.help|||||
+contract__command_help_not_option_value_text|empty|none|default|text|usage|["get-balance","--address","--help"]||||Missing value for --address||
+contract__auth_never_without_wallet_text|empty|none|default|text|success|["current-network"]||||Current network:||
+contract__auth_require_without_wallet_json|empty|none|default|json|execution|["--output","json","get-address"]|||execution_error|||
+contract__auth_require_no_password_text|auth|private_key|no-password|text|execution|["get-address"]||||MASTER_PASSWORD is required||
+contract__auth_wallet_override_without_active_text|auth-no-active|private_key|default|text|success|["--network","nile","--wallet","mywallet","get-address"]||||GetAddress successful,address =||
+contract__auth_wallet_override_missing_text|auth-no-active|private_key|default|text|execution|["--network","nile","--wallet","missing-wallet","get-address"]||||No wallet found for --wallet||
+contract__auth_wallet_bad_active_text|auth-bad-active|private_key|default|text|execution|["--network","nile","get-address"]||||Could not read active wallet config||
+contract__auth_get_usdt_balance_with_address_json|empty|none|default|json|success|["--output","json","--network","nile","get-usdt-balance","--address","{{MY_ADDR}}"]||||||
+contract__auth_get_usdt_balance_without_address_json|empty|none|default|json|execution|["--output","json","--network","nile","get-usdt-balance"]|||execution_error|||
+contract__auth_trigger_constant_with_owner_json|empty|none|default|json|success|["--output","json","--network","nile","trigger-constant-contract","--contract","{{USDT_NILE}}","--method","balanceOf(address)","--params","\"{{MY_ADDR}}\"","--owner","{{MY_ADDR}}"]||||||
+contract__auth_trigger_constant_without_owner_json|empty|none|default|json|execution|["--output","json","--network","nile","trigger-constant-contract","--contract","{{USDT_NILE}}","--method","balanceOf(address)","--params","\"{{MY_ADDR}}\""]|||execution_error|||
+contract__auth_estimate_energy_with_owner_json|empty|none|default|json|success|["--output","json","--network","nile","estimate-energy","--contract","{{USDT_NILE}}","--method","transfer(address,uint256)","--params","\"{{TARGET_ADDR}}\",1","--owner","{{MY_ADDR}}"]||||||
+contract__auth_estimate_energy_without_owner_json|empty|none|default|json|execution|["--output","json","--network","nile","estimate-energy","--contract","{{USDT_NILE}}","--method","transfer(address,uint256)","--params","\"{{TARGET_ADDR}}\",1"]|||execution_error|||
+contract__unsupported_encoding_converter_json|empty|none|default|json|execution|["--output","json","encoding-converter"]|||unsupported_in_standard_cli|||
+contract__unsupported_tronlink_multisign_json|empty|none|default|json|execution|["--output","json","tronlink-multi-sign"]|||unsupported_in_standard_cli|||
