@@ -165,6 +165,16 @@ qa_assert_case_files() {
         qa_assert_json_paths "$RESULTS_DIR/${label}_json.out" "$json_path_exists" "$json_path_absent" || return 1
       fi
       ;;
+    stateful_replay_execution)
+      qa_assert_exit_code "$RESULTS_DIR/${label}_text.exit" 0 || return 1
+      qa_assert_text_not_error_like "$RESULTS_DIR/${label}_text.out" || return 1
+      qa_assert_text_contains "$RESULTS_DIR/${label}_text.out" "$text_contains" || return 1
+      qa_assert_text_absent "$RESULTS_DIR/${label}_text.out" "$text_absent" || return 1
+      qa_assert_exit_code "$RESULTS_DIR/${label}_json.exit" 1 || return 1
+      qa_assert_json_error "$RESULTS_DIR/${label}_json.out" execution "$error_code" >/dev/null 2>&1 || return 1
+      qa_assert_json_stderr_clean "$RESULTS_DIR/${label}_json.err" || return 1
+      qa_assert_json_paths "$RESULTS_DIR/${label}_json.out" "$json_path_exists" "$json_path_absent" || return 1
+      ;;
     usage)
       if [ "$mode" = "dual" ] || [ "$mode" = "text" ]; then
         qa_assert_exit_code "$RESULTS_DIR/${label}_text.exit" 2 || return 1

@@ -55,7 +55,7 @@ public class TransactionCommandsTest {
       try {
         command.getHandler().execute(opts, new WalletApiWrapper() {
           @Override
-          public Triple<Boolean, Long, Long> callContract(
+          public Triple<Boolean, Long, Long> callContractForCli(
               byte[] ownerAddress,
               byte[] contractAddress,
               long callValue,
@@ -73,7 +73,7 @@ public class TransactionCommandsTest {
           }
   
           @Override
-          public Response.ChainParameters getChainParameters() {
+          public Response.ChainParameters getChainParametersForCli() {
             Assert.fail("fee calculation should not run after estimation failure");
             return null;
           }

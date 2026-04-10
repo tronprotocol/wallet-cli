@@ -40,8 +40,8 @@ public class StakingCommands {
                     int resource = opts.has("resource") ? (int) opts.getLong("resource") : 0;
                     byte[] receiver = opts.has("receiver") ? opts.getAddress("receiver") : null;
                     boolean multi = opts.getBoolean("multi");
-                    boolean result = wrapper.freezeBalance(owner, amount, duration, resource, receiver, multi);
-                    CommandSupport.emitBooleanResult(out, result,
+                    wrapper.freezeBalanceForCli(owner, amount, duration, resource, receiver, multi);
+                    CommandSupport.emitBooleanResult(out, true,
                             "FreezeBalance successful !!", "FreezeBalance failed !!",
                             CommandSupport.lastBroadcastTxResultData());
                 })
@@ -96,8 +96,8 @@ public class StakingCommands {
                     int resource = opts.has("resource") ? (int) opts.getLong("resource") : 0;
                     byte[] receiver = opts.has("receiver") ? opts.getAddress("receiver") : null;
                     boolean multi = opts.getBoolean("multi");
-                    boolean result = wrapper.unfreezeBalance(owner, resource, receiver, multi);
-                    CommandSupport.emitBooleanResult(out, result,
+                    wrapper.unfreezeBalanceForCli(owner, resource, receiver, multi);
+                    CommandSupport.emitBooleanResult(out, true,
                             "UnfreezeBalance successful !!", "UnfreezeBalance failed !!",
                             CommandSupport.lastBroadcastTxResultData());
                 })
@@ -148,8 +148,8 @@ public class StakingCommands {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     boolean multi = opts.getBoolean("multi");
-                    boolean result = wrapper.withdrawExpireUnfreeze(owner, multi);
-                    CommandSupport.emitBooleanResult(out, result,
+                    wrapper.withdrawExpireUnfreezeForCli(owner, multi);
+                    CommandSupport.emitBooleanResult(out, true,
                             "WithdrawExpireUnfreeze successful !!",
                             "WithdrawExpireUnfreeze failed !!",
                             CommandSupport.lastBroadcastTxResultData());
@@ -179,9 +179,9 @@ public class StakingCommands {
                     boolean lock = opts.getBoolean("lock");
                     long lockPeriod = opts.has("lock-period") ? opts.getLong("lock-period") : 0;
                     boolean multi = opts.getBoolean("multi");
-                    boolean result = wrapper.delegateresource(owner, amount, resource, receiver,
+                    wrapper.delegateResourceForCli(owner, amount, resource, receiver,
                             lock, lockPeriod, multi);
-                    CommandSupport.emitBooleanResult(out, result,
+                    CommandSupport.emitBooleanResult(out, true,
                             "DelegateResource successful !!", "DelegateResource failed !!",
                             CommandSupport.lastBroadcastTxResultData());
                 })
@@ -206,8 +206,8 @@ public class StakingCommands {
                     int resource = (int) opts.getLong("resource");
                     byte[] receiver = opts.getAddress("receiver");
                     boolean multi = opts.getBoolean("multi");
-                    boolean result = wrapper.undelegateresource(owner, amount, resource, receiver, multi);
-                    CommandSupport.emitBooleanResult(out, result,
+                    wrapper.undelegateResourceForCli(owner, amount, resource, receiver, multi);
+                    CommandSupport.emitBooleanResult(out, true,
                             "UndelegateResource successful !!",
                             "UndelegateResource failed !!",
                             CommandSupport.lastBroadcastTxResultData());
@@ -227,8 +227,8 @@ public class StakingCommands {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     boolean multi = opts.getBoolean("multi");
-                    boolean result = wrapper.cancelAllUnfreezeV2(owner, multi);
-                    CommandSupport.emitBooleanResult(out, result,
+                    wrapper.cancelAllUnfreezeV2ForCli(owner, multi);
+                    CommandSupport.emitBooleanResult(out, true,
                             "CancelAllUnfreezeV2 successful !!",
                             "CancelAllUnfreezeV2 failed !!",
                             CommandSupport.lastBroadcastTxResultData());
@@ -248,8 +248,8 @@ public class StakingCommands {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     boolean multi = opts.getBoolean("multi");
-                    boolean result = wrapper.withdrawBalance(owner, multi);
-                    CommandSupport.emitBooleanResult(out, result,
+                    wrapper.withdrawBalanceForCli(owner, multi);
+                    CommandSupport.emitBooleanResult(out, true,
                             "WithdrawBalance successful !!", "WithdrawBalance failed !!",
                             CommandSupport.lastBroadcastTxResultData());
                 })
@@ -268,8 +268,8 @@ public class StakingCommands {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     boolean multi = opts.getBoolean("multi");
-                    boolean result = wrapper.unfreezeAsset(owner, multi);
-                    CommandSupport.emitBooleanResult(out, result,
+                    wrapper.unfreezeAssetForCli(owner, multi);
+                    CommandSupport.emitBooleanResult(out, true,
                             "UnfreezeAsset successful !!", "UnfreezeAsset failed !!",
                             CommandSupport.lastBroadcastTxResultData());
                 })

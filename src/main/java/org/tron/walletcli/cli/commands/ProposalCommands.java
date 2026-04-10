@@ -37,8 +37,8 @@ public class ProposalCommands {
                         parametersMap.put(Long.parseLong(parts[i]), Long.parseLong(parts[i + 1]));
                     }
                     boolean multi = opts.getBoolean("multi");
-                    boolean result = wrapper.createProposal(owner, parametersMap, multi);
-                    CommandSupport.emitBooleanResult(out, result,
+                    wrapper.createProposalForCli(owner, parametersMap, multi);
+                    CommandSupport.emitBooleanResult(out, true,
                             "CreateProposal successful !!", "CreateProposal failed !!",
                             CommandSupport.lastBroadcastTxResultData());
                 })
@@ -61,8 +61,8 @@ public class ProposalCommands {
                     long id = opts.getLong("id");
                     boolean approve = opts.getBoolean("approve");
                     boolean multi = opts.getBoolean("multi");
-                    boolean result = wrapper.approveProposal(owner, id, approve, multi);
-                    CommandSupport.emitBooleanResult(out, result,
+                    wrapper.approveProposalForCli(owner, id, approve, multi);
+                    CommandSupport.emitBooleanResult(out, true,
                             "ApproveProposal successful !!",
                             "ApproveProposal failed !!",
                             CommandSupport.lastBroadcastTxResultData());
@@ -84,8 +84,8 @@ public class ProposalCommands {
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     long id = opts.getLong("id");
                     boolean multi = opts.getBoolean("multi");
-                    boolean result = wrapper.deleteProposal(owner, id, multi);
-                    CommandSupport.emitBooleanResult(out, result,
+                    wrapper.deleteProposalForCli(owner, id, multi);
+                    CommandSupport.emitBooleanResult(out, true,
                             "DeleteProposal successful !!", "DeleteProposal failed !!",
                             CommandSupport.lastBroadcastTxResultData());
                 })

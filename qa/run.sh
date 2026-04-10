@@ -11,6 +11,7 @@ source "$SCRIPT_DIR/lib/report.sh"
 
 MODE="verify"
 NO_BUILD=0
+SKIP_HELP=0
 CASE_FILTER=""
 MAX_JOBS="${QA_MAX_JOBS:-4}"
 LOCK_DIR="$PROJECT_DIR/qa/.verify.lock"
@@ -32,6 +33,10 @@ while [ $# -gt 0 ]; do
       ;;
     --no-build)
       NO_BUILD=1
+      shift
+      ;;
+    --skip-help)
+      SKIP_HELP=1
       shift
       ;;
     *)
@@ -129,7 +134,9 @@ prepare_task_files() {
 
   if [ -n "$CASE_FILTER" ]; then
     if grep -qx "$CASE_FILTER" "$RUNTIME_DIR/registered.txt"; then
-      enqueue_task help "$CASE_FILTER" >> "$help_tasks"
+      if [ "$SKIP_HELP" -ne 1 ]; then
+        enqueue_task help "$CASE_FILTER" >> "$help_tasks"
+      fi
       case "$(qa_case_type "$CASE_FILTER")" in
         stateful-success)
           enqueue_task smoke "$CASE_FILTER" >> "$stateful_tasks"
@@ -149,7 +156,9 @@ prepare_task_files() {
   fi
 
   while IFS= read -r command; do
-    enqueue_task help "$command" >> "$help_tasks"
+    if [ "$SKIP_HELP" -ne 1 ]; then
+      enqueue_task help "$command" >> "$help_tasks"
+    fi
     case "$(qa_case_type "$command")" in
       stateful-success)
         enqueue_task smoke "$command" >> "$stateful_tasks"
@@ -186,6 +195,9 @@ lock_cmdline() {
   fi
   if [ "$NO_BUILD" -eq 1 ]; then
     cmd="$cmd --no-build"
+  fi
+  if [ "$SKIP_HELP" -eq 1 ]; then
+    cmd="$cmd --skip-help"
   fi
   printf '%s' "$cmd"
 }
@@ -235,7 +247,7 @@ fi
 
 if [ "$MODE" != "verify" ]; then
   echo "Unknown mode: $MODE"
-  echo "Usage: $0 <verify|list> [--case X] [--no-build]"
+  echo "Usage: $0 <verify|list> [--case X] [--no-build] [--skip-help]"
   exit 1
 fi
 
@@ -271,14 +283,22 @@ qa_prepare_seeds
 echo "Building task queues..."
 prepare_task_files
 
-echo "Help cases: $(task_count "$RUNTIME_DIR/help.tasks")"
+if [ "$SKIP_HELP" -eq 1 ]; then
+  echo "Help cases: $(task_count "$RUNTIME_DIR/help.tasks") (skipped)"
+else
+  echo "Help cases: $(task_count "$RUNTIME_DIR/help.tasks")"
+fi
 echo "Parallel main cases: $(task_count "$RUNTIME_DIR/regular.tasks")"
 echo "Serial stateful cases: $(task_count "$RUNTIME_DIR/stateful.tasks")"
 echo "Contract cases: $(task_count "$RUNTIME_DIR/contract.tasks")"
 echo
 
-echo "Running help cases..."
-run_task_file_parallel "$RUNTIME_DIR/help.tasks" "$MAX_JOBS"
+if [ "$SKIP_HELP" -eq 1 ]; then
+  echo "Skipping help cases (--skip-help)..."
+else
+  echo "Running help cases..."
+  run_task_file_parallel "$RUNTIME_DIR/help.tasks" "$MAX_JOBS"
+fi
 echo "Running parallel main cases..."
 run_task_file_parallel "$RUNTIME_DIR/regular.tasks" "$MAX_JOBS"
 echo "Running serial stateful cases..."

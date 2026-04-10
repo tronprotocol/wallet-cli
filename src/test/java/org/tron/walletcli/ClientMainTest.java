@@ -42,6 +42,25 @@ public class ClientMainTest {
   }
 
   @Test
+  public void runMainEmitsCleanJsonForGlobalHelp() throws Exception {
+    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+    PrintStream originalOut = System.out;
+    System.setOut(new PrintStream(stdout));
+    try {
+      int exitCode = Client.runMain(new String[]{"--output", "json", "--help"});
+
+      Assert.assertEquals(0, exitCode);
+      String output = stdout.toString(StandardCharsets.UTF_8.name()).trim();
+      Assert.assertTrue(output.startsWith("{"));
+      Assert.assertTrue(output.contains("\"success\": true"));
+      Assert.assertTrue(output.contains("\"help\":"));
+      Assert.assertFalse(output.contains("User defined config file"));
+    } finally {
+      System.setOut(originalOut);
+    }
+  }
+
+  @Test
   public void runMainReturnsUsageErrorForMissingCommand() throws Exception {
     ByteArrayOutputStream stdout = new ByteArrayOutputStream();
     PrintStream originalOut = System.out;

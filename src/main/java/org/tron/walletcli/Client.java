@@ -4682,7 +4682,8 @@ public class Client {
       globalOpts = GlobalOptions.parse(args);
     } catch (IllegalArgumentException e) {
       if (requestsJsonOutput(args)) {
-        OutputFormatter formatter = new OutputFormatter(OutputFormatter.OutputMode.JSON, false);
+        OutputFormatter formatter = new OutputFormatter(
+            OutputFormatter.OutputMode.JSON, false, System.out, System.err);
         try {
           formatter.usageError(e.getMessage(), null);
         } catch (RuntimeException ignored) {
@@ -4714,7 +4715,8 @@ public class Client {
       CommandRegistry registry = initRegistry();
       String helpText = registry.formatGlobalHelp(VERSION);
       if (globalOpts.getOutputMode() == OutputFormatter.OutputMode.JSON) {
-        OutputFormatter formatter = new OutputFormatter(OutputFormatter.OutputMode.JSON, false);
+        OutputFormatter formatter = new OutputFormatter(
+            OutputFormatter.OutputMode.JSON, false, System.out, System.err);
         formatter.help(helpText);
         formatter.flush();
       } else {
@@ -4726,7 +4728,8 @@ public class Client {
     if (globalOpts.getCommand() == null) {
       CommandRegistry registry = initRegistry();
       if (globalOpts.getOutputMode() == OutputFormatter.OutputMode.JSON) {
-        OutputFormatter formatter = new OutputFormatter(OutputFormatter.OutputMode.JSON, false);
+        OutputFormatter formatter = new OutputFormatter(
+            OutputFormatter.OutputMode.JSON, false, System.out, System.err);
         try {
           formatter.usageError("Missing command.", null);
         } catch (RuntimeException ignored) {

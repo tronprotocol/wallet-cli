@@ -9,7 +9,6 @@ import org.tron.walletcli.WalletApiWrapper;
 import org.tron.walletserver.WalletApi;
 
 import java.io.File;
-import java.io.OutputStream;
 import java.io.PrintStream;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -27,49 +26,40 @@ public class StandardCliRunner {
     private final MasterPasswordProvider masterPasswordProvider;
 
     public StandardCliRunner(CommandRegistry registry, GlobalOptions globalOpts) {
-        this(registry, globalOpts, () -> System.getenv("MASTER_PASSWORD"));
+        this(registry, globalOpts, System.out, System.err);
+    }
+
+    StandardCliRunner(CommandRegistry registry, GlobalOptions globalOpts,
+                      PrintStream out, PrintStream err) {
+        this(registry, globalOpts, out, err, () -> System.getenv("MASTER_PASSWORD"));
     }
 
     StandardCliRunner(CommandRegistry registry, GlobalOptions globalOpts,
                       MasterPasswordProvider masterPasswordProvider) {
+        this(registry, globalOpts, System.out, System.err, masterPasswordProvider);
+    }
+
+    StandardCliRunner(CommandRegistry registry, GlobalOptions globalOpts,
+                      PrintStream out, PrintStream err,
+                      MasterPasswordProvider masterPasswordProvider) {
         this.registry = registry;
         this.globalOpts = globalOpts;
-        this.formatter = new OutputFormatter(globalOpts.getOutputMode(), globalOpts.isQuiet());
+        this.formatter = new OutputFormatter(globalOpts.getOutputMode(), globalOpts.isQuiet(), out, err);
         this.masterPasswordProvider = masterPasswordProvider;
     }
 
     public int execute() {
-        // In JSON mode, suppress all stray System.out/err prints from the entire
-        // execution (network init, authentication, command execution) so only
-        // OutputFormatter JSON output appears.
-        boolean jsonMode = globalOpts.getOutputMode() == OutputFormatter.OutputMode.JSON;
-        PrintStream realOut = System.out;
-        PrintStream realErr = System.err;
-        if (jsonMode) {
-            formatter.captureStreams();
-            PrintStream nullStream = new PrintStream(new OutputStream() {
-                @Override public void write(int b) { }
-                @Override public void write(byte[] b, int off, int len) { }
-            });
-            System.setOut(nullStream);
-            System.setErr(nullStream);
-        }
-
         try {
-            return executeInternal(realOut);
+            return executeInternal();
         } catch (CliAbortException e) {
             formatter.flush();
             return e.getKind() == CliAbortException.Kind.USAGE ? 2 : 1;
         } finally {
             TransactionUtils.clearPermissionIdOverride();
-            if (jsonMode) {
-                System.setOut(realOut);
-                System.setErr(realErr);
-            }
         }
     }
 
-    private int executeInternal(PrintStream realOut) {
+    private int executeInternal() {
         try {
             // Apply network setting
             if (globalOpts.getNetwork() != null) {
@@ -144,10 +134,6 @@ public class StandardCliRunner {
 
     static boolean requiresAutoAuth(CommandDefinition cmd, ParsedOptions opts) {
         return cmd.resolveAuthPolicy(opts) == CommandDefinition.AuthPolicy.REQUIRE;
-    }
-
-    private boolean jsonMode() {
-        return globalOpts.getOutputMode() == OutputFormatter.OutputMode.JSON;
     }
 
     /**

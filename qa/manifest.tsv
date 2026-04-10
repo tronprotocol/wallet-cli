@@ -65,7 +65,7 @@ add-transaction-sign|expected-execution-error|empty|none|--transaction 0a0200
 update-account-permission|expected-execution-error|auth|private_key|--owner {{MY_ADDR}} --permissions '{"owner_permission":{"type":0,"permission_name":"owner","threshold":1,"keys":[{"address":"{{MY_ADDR}}","weight":1}]}}'
 tronlink-multi-sign|excluded-interactive|auth|private_key|
 gas-free-transfer|expected-execution-error|auth|private_key|--to {{TARGET_ADDR}} --amount 1
-deploy-contract|expected-execution-error|auth|private_key|--name TestContract --abi '[]' --bytecode 6080 --fee-limit 1000000000
+deploy-contract|auth-success|auth|private_key|--name TestContract --abi '[]' --bytecode 6080 --fee-limit 1000000000|data.txid|||DeployContract successful !!|needs_auth_wallet,needs_positive_trx_balance
 trigger-contract|stateful-success|auth|private_key|--contract {{USDT_NILE}} --method 'transfer(address,uint256)' --params '"{{TARGET_ADDR}}",1' --fee-limit 100000000|data.txid|||TriggerContract successful !!|needs_auth_wallet,needs_target_addr,needs_positive_trx_balance
 trigger-constant-contract|noauth-success|auth|private_key|--contract {{USDT_NILE}} --method 'balanceOf(address)' --params '"{{MY_ADDR}}"'
 estimate-energy|auth-success|auth|private_key|--contract {{USDT_NILE}} --method 'transfer(address,uint256)' --params '"{{TARGET_ADDR}}",1'
@@ -77,15 +77,15 @@ freeze-balance-v2|stateful-success|auth|private_key|--amount 1000000 --resource 
 unfreeze-balance|expected-execution-error|auth|private_key|
 unfreeze-balance-v2|stateful-success|auth|private_key|--amount 1000000 --resource 1|data.txid|||UnfreezeBalanceV2 successful !!|needs_auth_wallet,needs_positive_trx_balance
 withdraw-expire-unfreeze|expected-execution-error|auth|private_key|
-delegate-resource|expected-execution-error|auth|private_key|--amount 1000000 --resource 0 --receiver {{TARGET_ADDR}}
-undelegate-resource|expected-execution-error|auth|private_key|--amount 1000000 --resource 0 --receiver {{TARGET_ADDR}}
-cancel-all-unfreeze-v2|expected-execution-error|auth|private_key|
+delegate-resource|auth-success|auth|private_key|--amount 1000000 --resource 0 --receiver {{TARGET_ADDR}}|data.txid|||DelegateResource successful !!|needs_auth_wallet,needs_target_addr,needs_delegatable_resource
+undelegate-resource|auth-success|auth|private_key|--amount 1000000 --resource 0 --receiver {{TARGET_ADDR}}|data.txid|||UndelegateResource successful !!|needs_auth_wallet,needs_target_addr,needs_undelegatable_resource
+cancel-all-unfreeze-v2|stateful-replay-execution|auth|private_key|||||CancelAllUnfreezeV2 successful !!|needs_auth_wallet,needs_available_unfreeze_v2
 withdraw-balance|expected-execution-error|auth|private_key|
 unfreeze-asset|expected-execution-error|auth|private_key|
 create-witness|expected-execution-error|auth|private_key|--url http://test.example.com
-update-witness|expected-execution-error|auth|private_key|--url http://test.example.com
+update-witness|auth-success|auth|private_key|--url http://test.example.com|data.txid|||UpdateWitness successful !!|needs_auth_wallet,needs_witness_wallet
 vote-witness|expected-usage-error|auth|private_key|--votes {{TARGET_ADDR}}
-update-brokerage|expected-execution-error|auth|private_key|--brokerage 10
+update-brokerage|auth-success|auth|private_key|--brokerage 10|data.txid|||UpdateBrokerage successful !!|needs_auth_wallet,needs_witness_wallet
 create-proposal|expected-execution-error|auth|private_key|--parameters '0 1'
 approve-proposal|expected-execution-error|auth|private_key|--id 1 --approve=true
 delete-proposal|expected-execution-error|auth|private_key|--id 1

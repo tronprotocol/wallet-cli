@@ -30,8 +30,8 @@ public class WitnessCommands {
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     String url = opts.getString("url");
                     boolean multi = opts.getBoolean("multi");
-                    boolean result = wrapper.createWitness(owner, url, multi);
-                    CommandSupport.emitBooleanResult(out, result,
+                    wrapper.createWitnessForCli(owner, url, multi);
+                    CommandSupport.emitBooleanResult(out, true,
                             "CreateWitness successful !!", "CreateWitness failed !!",
                             CommandSupport.lastBroadcastTxResultData());
                 })
@@ -52,8 +52,8 @@ public class WitnessCommands {
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     String url = opts.getString("url");
                     boolean multi = opts.getBoolean("multi");
-                    boolean result = wrapper.updateWitness(owner, url, multi);
-                    CommandSupport.emitBooleanResult(out, result,
+                    wrapper.updateWitnessForCli(owner, url, multi);
+                    CommandSupport.emitBooleanResult(out, true,
                             "UpdateWitness successful !!", "UpdateWitness failed !!",
                             CommandSupport.lastBroadcastTxResultData());
                 })
@@ -124,8 +124,8 @@ public class WitnessCommands {
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     int brokerage = (int) opts.getLong("brokerage");
                     boolean multi = opts.getBoolean("multi");
-                    boolean result = wrapper.updateBrokerage(owner, brokerage, multi);
-                    CommandSupport.emitBooleanResult(out, result,
+                    wrapper.updateBrokerageForCli(owner, brokerage, multi);
+                    CommandSupport.emitBooleanResult(out, true,
                             "UpdateBrokerage successful !!", "UpdateBrokerage failed !!",
                             CommandSupport.lastBroadcastTxResultData());
                 })

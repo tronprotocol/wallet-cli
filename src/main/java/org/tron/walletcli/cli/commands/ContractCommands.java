@@ -64,6 +64,19 @@ public class ContractCommands {
                             ? opts.getString("compiler-version") : null;
                     boolean multi = opts.getBoolean("multi");
 
+                    if (consumePercent < 0 || consumePercent > 100) {
+                        out.usageError("consume-user-resource-percent should be between 0 and 100", null);
+                        return;
+                    }
+                    if (originEnergyLimit <= 0) {
+                        out.usageError("origin-energy-limit must be greater than 0", null);
+                        return;
+                    }
+                    if (opts.has("constructor") != opts.has("params")) {
+                        out.usageError("Provide both --constructor and --params together", null);
+                        return;
+                    }
+
                     // If constructor + params provided, append encoded params to bytecode
                     String codeStr = bytecode;
                     if (opts.has("constructor") && opts.has("params")) {
@@ -73,10 +86,10 @@ public class ContractCommands {
                         codeStr = bytecode + encodedParams;
                     }
 
-                    boolean result = wrapper.deployContract(owner, name, abi, codeStr,
+                    wrapper.deployContractForCli(owner, name, abi, codeStr,
                             feeLimit, value, consumePercent, originEnergyLimit,
                             tokenValue, tokenId, library, compilerVersion, multi);
-                    CommandSupport.emitBooleanResult(out, result,
+                    CommandSupport.emitBooleanResult(out, true,
                             "DeployContract successful !!", "DeployContract failed !!",
                             CommandSupport.lastBroadcastTxResultData());
                 })
@@ -116,7 +129,7 @@ public class ContractCommands {
                     TransactionUtils.setPermissionIdOverride(permissionId);
                     org.apache.commons.lang3.tuple.Triple<Boolean, Long, Long> result;
                     try {
-                        result = wrapper.callContract(owner, contractAddress, callValue, data,
+                        result = wrapper.callContractForCli(owner, contractAddress, callValue, data,
                                 feeLimit, tokenValue, tokenId, false, true, multi);
                     } finally {
                         TransactionUtils.clearPermissionIdOverride();
@@ -238,8 +251,8 @@ public class ContractCommands {
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     byte[] contractAddress = opts.getAddress("contract");
                     boolean multi = opts.getBoolean("multi");
-                    boolean result = wrapper.clearContractABI(owner, contractAddress, multi);
-                    CommandSupport.emitBooleanResult(out, result,
+                    wrapper.clearContractAbiForCli(owner, contractAddress, multi);
+                    CommandSupport.emitBooleanResult(out, true,
                             "ClearContractABI successful !!", "ClearContractABI failed !!",
                             CommandSupport.lastBroadcastTxResultData());
                 })
@@ -262,8 +275,8 @@ public class ContractCommands {
                     byte[] contractAddress = opts.getAddress("contract");
                     long percent = opts.getLong("consume-user-resource-percent");
                     boolean multi = opts.getBoolean("multi");
-                    boolean result = wrapper.updateSetting(owner, contractAddress, percent, multi);
-                    CommandSupport.emitBooleanResult(out, result,
+                    wrapper.updateSettingForCli(owner, contractAddress, percent, multi);
+                    CommandSupport.emitBooleanResult(out, true,
                             "UpdateSetting successful !!", "UpdateSetting failed !!",
                             CommandSupport.lastBroadcastTxResultData());
                 })
@@ -286,8 +299,8 @@ public class ContractCommands {
                     byte[] contractAddress = opts.getAddress("contract");
                     long limit = opts.getLong("origin-energy-limit");
                     boolean multi = opts.getBoolean("multi");
-                    boolean result = wrapper.updateEnergyLimit(owner, contractAddress, limit, multi);
-                    CommandSupport.emitBooleanResult(out, result,
+                    wrapper.updateEnergyLimitForCli(owner, contractAddress, limit, multi);
+                    CommandSupport.emitBooleanResult(out, true,
                             "UpdateEnergyLimit successful !!", "UpdateEnergyLimit failed !!",
                             CommandSupport.lastBroadcastTxResultData());
                 })

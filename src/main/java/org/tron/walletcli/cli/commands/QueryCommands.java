@@ -172,12 +172,8 @@ public class QueryCommands {
                 .option("address", "Address to query", true)
                 .handler((opts, wrapper, out) -> {
                     byte[] addressBytes = opts.getAddress("address");
-                    Response.AccountNetMessage accountNet = WalletApi.getAccountNet(addressBytes);
-                    if (accountNet == null) {
-                        out.error("query_failed", "GetAccountNet failed");
-                    } else {
-                        out.printMessage(Utils.formatMessageString(accountNet), "GetAccountNet failed");
-                    }
+                    Response.AccountNetMessage accountNet = wrapper.getAccountNetForCli(addressBytes);
+                    out.printMessage(Utils.formatMessageString(accountNet), "GetAccountNet failed");
                 })
                 .build());
     }
@@ -190,12 +186,8 @@ public class QueryCommands {
                 .option("address", "Address to query", true)
                 .handler((opts, wrapper, out) -> {
                     byte[] addressBytes = opts.getAddress("address");
-                    Response.AccountResourceMessage accountResource = WalletApi.getAccountResource(addressBytes);
-                    if (accountResource == null) {
-                        out.error("query_failed", "GetAccountResource failed");
-                    } else {
-                        out.printMessage(Utils.formatMessageString(accountResource), "GetAccountResource failed");
-                    }
+                    Response.AccountResourceMessage accountResource = wrapper.getAccountResourceForCli(addressBytes);
+                    out.printMessage(Utils.formatMessageString(accountResource), "GetAccountResource failed");
                 })
                 .build());
     }
@@ -348,12 +340,8 @@ public class QueryCommands {
                 .description("Get transaction by ID")
                 .option("id", "Transaction ID", true)
                 .handler((opts, wrapper, out) -> {
-                    Chain.Transaction tx = WalletApi.getTransactionById(opts.getString("id"));
-                    if (tx == null) {
-                        out.error("query_failed", "GetTransactionById failed");
-                    } else {
-                        out.printMessage(Utils.formatMessageString(tx), "GetTransactionById failed");
-                    }
+                    Chain.Transaction tx = wrapper.getTransactionByIdForCli(opts.getString("id"));
+                    out.printMessage(Utils.formatMessageString(tx), "GetTransactionById failed");
                 })
                 .build());
     }
@@ -365,12 +353,8 @@ public class QueryCommands {
                 .description("Get transaction info by ID")
                 .option("id", "Transaction ID", true)
                 .handler((opts, wrapper, out) -> {
-                    Response.TransactionInfo txInfo = WalletApi.getTransactionInfoById(opts.getString("id"));
-                    if (txInfo == null) {
-                        out.error("query_failed", "GetTransactionInfoById failed");
-                    } else {
-                        out.printMessage(Utils.formatMessageString(txInfo), "GetTransactionInfoById failed");
-                    }
+                    Response.TransactionInfo txInfo = wrapper.getTransactionInfoByIdForCli(opts.getString("id"));
+                    out.printMessage(Utils.formatMessageString(txInfo), "GetTransactionInfoById failed");
                 })
                 .build());
     }
@@ -456,12 +440,8 @@ public class QueryCommands {
                 .aliases("getchainparameters")
                 .description("Get chain parameters")
                 .handler((opts, wrapper, out) -> {
-                    Response.ChainParameters result = WalletApi.getChainParameters();
-                    if (result == null) {
-                        out.error("query_failed", "GetChainParameters failed");
-                    } else {
-                        out.printMessage(Utils.formatMessageString(result), "GetChainParameters failed");
-                    }
+                    Response.ChainParameters result = wrapper.getChainParametersForCli();
+                    out.printMessage(Utils.formatMessageString(result), "GetChainParameters failed");
                 })
                 .build());
     }
@@ -733,12 +713,8 @@ public class QueryCommands {
                 .aliases("listwitnesses")
                 .description("List all witnesses")
                 .handler((opts, wrapper, out) -> {
-                    Response.WitnessList witnessList = WalletApi.listWitnesses();
-                    if (witnessList == null) {
-                        out.error("query_failed", "ListWitnesses failed");
-                    } else {
-                        out.printMessage(Utils.formatMessageString(witnessList), "ListWitnesses failed");
-                    }
+                    Response.WitnessList witnessList = wrapper.listWitnessesForCli();
+                    out.printMessage(Utils.formatMessageString(witnessList), "ListWitnesses failed");
                 })
                 .build());
     }
@@ -946,12 +922,8 @@ public class QueryCommands {
                 .aliases("getmarketpairlist")
                 .description("Get all market trading pairs")
                 .handler((opts, wrapper, out) -> {
-                    Response.MarketOrderPairList result = WalletApi.getMarketPairList();
-                    if (result == null) {
-                        out.error("query_failed", "GetMarketPairList failed");
-                    } else {
-                        out.printMessage(Utils.formatMessageString(result), "GetMarketPairList failed");
-                    }
+                    Response.MarketOrderPairList result = wrapper.getMarketPairListForCli();
+                    out.printMessage(Utils.formatMessageString(result), "GetMarketPairList failed");
                 })
                 .build());
     }

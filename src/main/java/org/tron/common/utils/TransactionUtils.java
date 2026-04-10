@@ -413,6 +413,10 @@ public class TransactionUtils {
       return transaction;
     }
 
+    if (tipString == null) {
+      return transaction;
+    }
+
     System.out.println(tipString);
     int permissionId = inputPermissionId();
     if (permissionId < 0) {

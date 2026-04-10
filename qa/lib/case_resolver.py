@@ -78,6 +78,7 @@ def smoke_expectation(case_type):
         "noauth-success": "success",
         "auth-success": "success",
         "stateful-success": "success",
+        "stateful-replay-execution": "stateful_replay_execution",
         "expected-usage-error": "usage",
         "expected-execution-error": "execution",
         "excluded-interactive": "skip",
@@ -103,7 +104,7 @@ def build_smoke_case(label, row, values):
     command_tokens = [label] + resolved_tokens
     return {
         "label": label,
-        "suite": "stateful" if case_type == "stateful-success" else "smoke",
+        "suite": "stateful" if case_type.startswith("stateful-") else "smoke",
         "template": template or "empty",
         "requires": requires or "none",
         "env_mode": "default",

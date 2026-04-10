@@ -53,24 +53,19 @@ public class TransactionCommands {
                     int permissionId = opts.has("permission-id") ? (int) opts.getLong("permission-id") : 0;
                     boolean multi = opts.getBoolean("multi");
                     TransactionUtils.setPermissionIdOverride(permissionId);
-                    boolean result;
                     try {
-                        result = wrapper.sendCoin(owner, to, amount, multi);
+                        wrapper.sendCoinForCli(owner, to, amount, multi);
                     } finally {
                         TransactionUtils.clearPermissionIdOverride();
                     }
                     String toStr = opts.getString("to");
                     if (multi) {
-                        CommandSupport.emitBooleanResult(out, result,
+                        CommandSupport.emitBooleanResult(out, true,
                                 "create multi-sign transaction successful !!",
-                                "create multi-sign transaction failed !!");
+                                "create multi-sign transaction failed !!",
+                                CommandSupport.lastBroadcastTxResultData());
                     } else {
                         String successMessage = "Send " + amount + " Sun to " + toStr + " successful !!";
-                        if (!result) {
-                            out.error("execution_error",
-                                    "Send " + amount + " Sun to " + toStr + " failed !!");
-                            return;
-                        }
                         Map<String, Object> json = new LinkedHashMap<String, Object>();
                         json.put("message", successMessage);
                         json.put("to", toStr);
@@ -103,8 +98,8 @@ public class TransactionCommands {
                     String asset = opts.getString("asset");
                     long amount = opts.getLong("amount");
                     boolean multi = opts.getBoolean("multi");
-                    boolean result = wrapper.transferAsset(owner, to, asset, amount, multi);
-                    CommandSupport.emitBooleanResult(out, result,
+                    wrapper.transferAssetForCli(owner, to, asset, amount, multi);
+                    CommandSupport.emitBooleanResult(out, true,
                             "TransferAsset successful !!", "TransferAsset failed !!",
                             CommandSupport.lastBroadcastTxResultData());
                 })
@@ -146,7 +141,7 @@ public class TransactionCommands {
                     TransactionUtils.setPermissionIdOverride(permissionId);
                     Triple<Boolean, Long, Long> estimate;
                     try {
-                        estimate = wrapper.callContract(
+                        estimate = wrapper.callContractForCli(
                                 owner, contractAddress, 0, data, 0, 0, "", true, true, false);
                     } finally {
                         TransactionUtils.clearPermissionIdOverride();
@@ -157,7 +152,7 @@ public class TransactionCommands {
                     }
                     long energyUsed = estimate.getMiddle();
                     // Get energy price from chain parameters and add 20% buffer
-                    long energyFee = wrapper.getChainParameters().getChainParameterList().stream()
+                    long energyFee = wrapper.getChainParametersForCli().getChainParameterList().stream()
                             .filter(p -> "getEnergyFee".equals(p.getKey()))
                             .mapToLong(org.tron.trident.proto.Response.ChainParameters.ChainParameter::getValue)
                             .findFirst()
@@ -174,7 +169,7 @@ public class TransactionCommands {
                     TransactionUtils.setPermissionIdOverride(permissionId);
                     boolean result;
                     try {
-                        result = wrapper.callContract(
+                        result = wrapper.callContractForCli(
                                 owner, contractAddress, 0, data, feeLimit, 0, "", false, false, multi)
                                 .getLeft();
                     } finally {
@@ -206,8 +201,8 @@ public class TransactionCommands {
                     String asset = opts.getString("asset");
                     long amount = opts.getLong("amount");
                     boolean multi = opts.getBoolean("multi");
-                    boolean result = wrapper.participateAssetIssue(owner, to, asset, amount, multi);
-                    CommandSupport.emitBooleanResult(out, result,
+                    wrapper.participateAssetIssueForCli(owner, to, asset, amount, multi);
+                    CommandSupport.emitBooleanResult(out, true,
                             "ParticipateAssetIssue successful !!",
                             "ParticipateAssetIssue failed !!",
                             CommandSupport.lastBroadcastTxResultData());
@@ -298,8 +293,8 @@ public class TransactionCommands {
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     byte[] nameBytes = opts.getString("name").getBytes();
                     boolean multi = opts.getBoolean("multi");
-                    boolean result = wrapper.updateAccount(owner, nameBytes, multi);
-                    CommandSupport.emitBooleanResult(out, result,
+                    wrapper.updateAccountForCli(owner, nameBytes, multi);
+                    CommandSupport.emitBooleanResult(out, true,
                             "Update Account successful !!", "Update Account failed !!",
                             CommandSupport.lastBroadcastTxResultData());
                 })
@@ -318,8 +313,8 @@ public class TransactionCommands {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     byte[] id = opts.getString("id").getBytes();
-                    boolean result = wrapper.setAccountId(owner, id);
-                    CommandSupport.emitBooleanResult(out, result,
+                    wrapper.setAccountIdForCli(owner, id);
+                    CommandSupport.emitBooleanResult(out, true,
                             "Set AccountId successful !!", "Set AccountId failed !!",
                             CommandSupport.lastBroadcastTxResultData());
                 })
@@ -346,8 +341,8 @@ public class TransactionCommands {
                     long newLimit = opts.getLong("new-limit");
                     long newPublicLimit = opts.getLong("new-public-limit");
                     boolean multi = opts.getBoolean("multi");
-                    boolean result = wrapper.updateAsset(owner, desc, url, newLimit, newPublicLimit, multi);
-                    CommandSupport.emitBooleanResult(out, result,
+                    wrapper.updateAssetForCli(owner, desc, url, newLimit, newPublicLimit, multi);
+                    CommandSupport.emitBooleanResult(out, true,
                             "UpdateAsset successful !!", "UpdateAsset failed !!",
                             CommandSupport.lastBroadcastTxResultData());
                 })
@@ -402,8 +397,8 @@ public class TransactionCommands {
                     byte[] owner = opts.getAddress("owner");
                     String permissions = opts.getString("permissions");
                     boolean multi = opts.getBoolean("multi");
-                    boolean result = wrapper.accountPermissionUpdate(owner, permissions, multi);
-                    CommandSupport.emitBooleanResult(out, result,
+                    wrapper.accountPermissionUpdateForCli(owner, permissions, multi);
+                    CommandSupport.emitBooleanResult(out, true,
                             "UpdateAccountPermission successful !!",
                             "UpdateAccountPermission failed !!",
                             CommandSupport.lastBroadcastTxResultData());

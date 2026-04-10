@@ -460,10 +460,37 @@ qa_auth_wallet_available() {
 }
 
 qa_is_stateful_command() {
-  [ "$(qa_case_type "$1")" = "stateful-success" ]
+  case "$(qa_case_type "$1")" in
+    stateful-*)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
 }
 
 qa_parse_named_long() {
+  local option_name="$1"
+  shift
+  python3 - <<'PY' "$option_name" "$@"
+import sys
+
+name = sys.argv[1]
+args = sys.argv[2:]
+for i, token in enumerate(args):
+    if token == name:
+        if i + 1 < len(args):
+            print(args[i + 1])
+        sys.exit(0)
+    if token.startswith(name + "="):
+        print(token.split("=", 1)[1])
+        sys.exit(0)
+sys.exit(1)
+PY
+}
+
+qa_parse_named_value() {
   local option_name="$1"
   shift
   python3 - <<'PY' "$option_name" "$@"
@@ -518,6 +545,157 @@ qa_preflight_stateful_case() {
   return 0
 }
 
+qa_run_preflight_json_query() {
+  local field_path="$1"
+  shift
+  local token label workspace out_file value
+  token="$(mktemp "$RUNTIME_DIR/preflight.XXXXXX")"
+  rm -f "$token"
+  label="$(basename "$token")"
+  workspace="$(qa_reset_workspace "$label" "empty")"
+  qa_run_cli_capture "$workspace" "$label" json default "$@" >/dev/null 2>&1 || true
+  out_file="$RESULTS_DIR/${label}_json.out"
+  value="$(qa_extract_json_field "$out_file" "$field_path" 2>/dev/null)" || {
+    rm -rf "$workspace"
+    rm -f "$RESULTS_DIR/${label}_json.out" "$RESULTS_DIR/${label}_json.err" "$RESULTS_DIR/${label}_json.exit"
+    return 1
+  }
+  rm -rf "$workspace"
+  rm -f "$RESULTS_DIR/${label}_json.out" "$RESULTS_DIR/${label}_json.err" "$RESULTS_DIR/${label}_json.exit"
+  printf '%s\n' "$value"
+}
+
+qa_preflight_needs_witness_wallet() {
+  qa_load_seeds
+  [ -n "${MY_ADDR:-}" ] || return 1
+  [ -n "${WITNESS_ADDR:-}" ] || return 1
+  [ "$MY_ADDR" = "$WITNESS_ADDR" ]
+}
+
+qa_preflight_can_delegate_requested_amount() {
+  local owner amount resource max_size
+  owner="$(qa_parse_named_value --owner "$@" 2>/dev/null || true)"
+  [ -n "$owner" ] || owner="${MY_ADDR:-}"
+  amount="$(qa_parse_named_long --amount "$@" 2>/dev/null || true)"
+  resource="$(qa_parse_named_long --resource "$@" 2>/dev/null || true)"
+  [ -n "$owner" ] || return 1
+  [ -n "$amount" ] || return 1
+  [ -n "$resource" ] || return 1
+  max_size="$(qa_run_preflight_json_query "data.max_size" get-can-delegated-max-size --owner "$owner" --type "$resource" 2>/dev/null)" || return 1
+  [ "${max_size:-0}" -ge "$amount" ]
+}
+
+qa_preflight_has_undelegatable_requested_amount() {
+  local owner receiver amount resource
+  owner="$(qa_parse_named_value --owner "$@" 2>/dev/null || true)"
+  receiver="$(qa_parse_named_value --receiver "$@" 2>/dev/null || true)"
+  amount="$(qa_parse_named_long --amount "$@" 2>/dev/null || true)"
+  resource="$(qa_parse_named_long --resource "$@" 2>/dev/null || true)"
+  [ -n "$owner" ] || owner="${MY_ADDR:-}"
+  [ -n "$owner" ] || return 1
+  [ -n "$receiver" ] || return 1
+  [ -n "$amount" ] || return 1
+  [ -n "$resource" ] || return 1
+
+  local token label workspace out_file available
+  token="$(mktemp "$RUNTIME_DIR/preflight.XXXXXX")"
+  rm -f "$token"
+  label="$(basename "$token")"
+  workspace="$(qa_reset_workspace "$label" "empty")"
+  qa_run_cli_capture "$workspace" "$label" json default \
+    get-delegated-resource-v2 --from "$owner" --to "$receiver" >/dev/null 2>&1 || true
+  out_file="$RESULTS_DIR/${label}_json.out"
+  available="$(python3 - <<'PY' "$out_file" "$resource"
+import json, sys, time
+
+path = sys.argv[1]
+resource = int(sys.argv[2])
+now = int(time.time() * 1000)
+
+try:
+    payload = json.load(open(path, "r", encoding="utf-8"))
+except Exception:
+    print(0)
+    raise SystemExit(0)
+
+data = payload.get("data", {})
+
+def walk(node):
+    total = 0
+    if isinstance(node, dict):
+        bw = int(node.get("frozenBalanceForBandwidth", 0) or 0)
+        en = int(node.get("frozenBalanceForEnergy", 0) or 0)
+        bw_expire = int(node.get("expireTimeForBandwidth", 0) or 0)
+        en_expire = int(node.get("expireTimeForEnergy", 0) or 0)
+        if resource == 0 and bw:
+            if bw_expire == 0 or bw_expire < now:
+                total += bw
+        if resource == 1 and en:
+            if en_expire == 0 or en_expire < now:
+                total += en
+        for value in node.values():
+            total += walk(value)
+    elif isinstance(node, list):
+        for item in node:
+            total += walk(item)
+    return total
+
+print(walk(data))
+PY
+)" || available=0
+  rm -rf "$workspace"
+  rm -f "$RESULTS_DIR/${label}_json.out" "$RESULTS_DIR/${label}_json.err" "$RESULTS_DIR/${label}_json.exit"
+  [ "${available:-0}" -ge "$amount" ]
+}
+
+qa_preflight_has_available_unfreeze_v2_entry() {
+  local owner
+  owner="$(qa_parse_named_value --owner "$@" 2>/dev/null || true)"
+  [ -n "$owner" ] || owner="${MY_ADDR:-}"
+  [ -n "$owner" ] || return 1
+
+  local token label workspace out_file has_entry
+  token="$(mktemp "$RUNTIME_DIR/preflight.XXXXXX")"
+  rm -f "$token"
+  label="$(basename "$token")"
+  workspace="$(qa_reset_workspace "$label" "empty")"
+  qa_run_cli_capture "$workspace" "$label" json default \
+    get-account --address "$owner" >/dev/null 2>&1 || true
+  out_file="$RESULTS_DIR/${label}_json.out"
+  has_entry="$(python3 - <<'PY' "$out_file"
+import json, sys
+
+try:
+    payload = json.load(open(sys.argv[1], "r", encoding="utf-8"))
+except Exception:
+    print("false")
+    raise SystemExit(0)
+
+data = payload.get("data")
+
+def walk(node):
+    if isinstance(node, dict):
+        for key, value in node.items():
+            lowered = str(key).lower()
+            if lowered in ("unfrozenv2", "unfrozenv2list"):
+                if isinstance(value, list) and value:
+                    return True
+            if walk(value):
+                return True
+    elif isinstance(node, list):
+        for item in node:
+            if walk(item):
+                return True
+    return False
+
+print("true" if walk(data) else "false")
+PY
+)" || has_entry=false
+  rm -rf "$workspace"
+  rm -f "$RESULTS_DIR/${label}_json.out" "$RESULTS_DIR/${label}_json.err" "$RESULTS_DIR/${label}_json.exit"
+  [ "$has_entry" = "true" ]
+}
+
 qa_preflight_check() {
   local spec_csv="$1"
   shift
@@ -546,6 +724,21 @@ qa_preflight_check() {
         ;;
       needs_positive_trx_balance)
         [ "${MY_TRX_BALANCE:-0}" -gt 0 ] || { echo "missing TRX balance"; return 1; }
+        ;;
+      needs_witness_wallet)
+        qa_preflight_needs_witness_wallet || { echo "auth wallet is not a witness"; return 1; }
+        ;;
+      needs_delegatable_resource)
+        qa_preflight_can_delegate_requested_amount "${argv[@]}" \
+          || { echo "delegatable resource below requested amount"; return 1; }
+        ;;
+      needs_undelegatable_resource)
+        qa_preflight_has_undelegatable_requested_amount "${argv[@]}" \
+          || { echo "undelegatable resource below requested amount"; return 1; }
+        ;;
+      needs_available_unfreeze_v2)
+        qa_preflight_has_available_unfreeze_v2_entry "${argv[@]}" \
+          || { echo "no cancelable unfreezeV2 entries available"; return 1; }
         ;;
       needs_trx_balance_at_least:*)
         threshold="${item#needs_trx_balance_at_least:}"
@@ -602,7 +795,10 @@ PY
 import json, sys
 try:
     data = json.load(open(sys.argv[1], 'r', encoding='utf-8'))
-    balance = data.get('data', {}).get('balance')
+    payload = data.get('data', {})
+    balance = payload.get('balance_sun')
+    if balance is None:
+        balance = payload.get('balance')
     print(int(balance) if balance is not None else 0)
 except Exception:
     print(0)

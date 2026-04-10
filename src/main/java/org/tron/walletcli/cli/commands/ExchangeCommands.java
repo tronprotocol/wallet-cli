@@ -35,9 +35,9 @@ public class ExchangeCommands {
                     byte[] secondToken = opts.getString("second-token").getBytes();
                     long secondBalance = opts.getLong("second-balance");
                     boolean multi = opts.getBoolean("multi");
-                    boolean result = wrapper.exchangeCreate(owner, firstToken, firstBalance,
+                    wrapper.exchangeCreateForCli(owner, firstToken, firstBalance,
                             secondToken, secondBalance, multi);
-                    CommandSupport.emitBooleanResult(out, result,
+                    CommandSupport.emitBooleanResult(out, true,
                             "ExchangeCreate successful !!", "ExchangeCreate failed !!",
                             CommandSupport.lastBroadcastTxResultData());
                 })
@@ -62,8 +62,8 @@ public class ExchangeCommands {
                     byte[] tokenId = opts.getString("token-id").getBytes();
                     long quant = opts.getLong("quant");
                     boolean multi = opts.getBoolean("multi");
-                    boolean result = wrapper.exchangeInject(owner, exchangeId, tokenId, quant, multi);
-                    CommandSupport.emitBooleanResult(out, result,
+                    wrapper.exchangeInjectForCli(owner, exchangeId, tokenId, quant, multi);
+                    CommandSupport.emitBooleanResult(out, true,
                             "ExchangeInject successful !!", "ExchangeInject failed !!",
                             CommandSupport.lastBroadcastTxResultData());
                 })
@@ -88,8 +88,8 @@ public class ExchangeCommands {
                     byte[] tokenId = opts.getString("token-id").getBytes();
                     long quant = opts.getLong("quant");
                     boolean multi = opts.getBoolean("multi");
-                    boolean result = wrapper.exchangeWithdraw(owner, exchangeId, tokenId, quant, multi);
-                    CommandSupport.emitBooleanResult(out, result,
+                    wrapper.exchangeWithdrawForCli(owner, exchangeId, tokenId, quant, multi);
+                    CommandSupport.emitBooleanResult(out, true,
                             "ExchangeWithdraw successful !!", "ExchangeWithdraw failed !!",
                             CommandSupport.lastBroadcastTxResultData());
                 })
@@ -116,9 +116,9 @@ public class ExchangeCommands {
                     long quant = opts.getLong("quant");
                     long expected = opts.getLong("expected");
                     boolean multi = opts.getBoolean("multi");
-                    boolean result = wrapper.exchangeTransaction(owner, exchangeId, tokenId,
+                    wrapper.exchangeTransactionForCli(owner, exchangeId, tokenId,
                             quant, expected, multi);
-                    CommandSupport.emitBooleanResult(out, result,
+                    CommandSupport.emitBooleanResult(out, true,
                             "ExchangeTransaction successful !!",
                             "ExchangeTransaction failed !!",
                             CommandSupport.lastBroadcastTxResultData());
@@ -146,9 +146,9 @@ public class ExchangeCommands {
                     byte[] buyToken = opts.getString("buy-token").getBytes();
                     long buyQuantity = opts.getLong("buy-quantity");
                     boolean multi = opts.getBoolean("multi");
-                    boolean result = wrapper.marketSellAsset(owner, sellToken, sellQuantity,
+                    wrapper.marketSellAssetForCli(owner, sellToken, sellQuantity,
                             buyToken, buyQuantity, multi);
-                    CommandSupport.emitBooleanResult(out, result,
+                    CommandSupport.emitBooleanResult(out, true,
                             "MarketSellAsset successful !!", "MarketSellAsset failed !!",
                             CommandSupport.lastBroadcastTxResultData());
                 })
@@ -169,8 +169,8 @@ public class ExchangeCommands {
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     byte[] orderId = org.tron.common.utils.ByteArray.fromHexString(opts.getString("order-id"));
                     boolean multi = opts.getBoolean("multi");
-                    boolean result = wrapper.marketCancelOrder(owner, orderId, multi);
-                    CommandSupport.emitBooleanResult(out, result,
+                    wrapper.marketCancelOrderForCli(owner, orderId, multi);
+                    CommandSupport.emitBooleanResult(out, true,
                             "MarketCancelOrder successful !!",
                             "MarketCancelOrder failed !!",
                             CommandSupport.lastBroadcastTxResultData());

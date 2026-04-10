@@ -5,6 +5,7 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.tron.common.enums.NetType;
 import org.tron.trident.proto.Response;
+import org.tron.walletcli.cli.CommandErrorException;
 import org.tron.walletserver.ApiClient;
 import org.tron.walletserver.WalletApi;
 
@@ -135,6 +136,44 @@ public class WalletApiWrapperTest {
       Assert.assertArrayEquals(CONTRACT, stub.lastContract);
     } finally {
       WalletApi.setApiCli(originalApiCli);
+    }
+  }
+
+  @Test
+  public void throwIfCliOperationFailedUsesCapturedCliErrorDetail() {
+    WalletApiWrapper wrapper = new WalletApiWrapper() {
+      @Override
+      protected String consumeLastCliOperationError() {
+        return "CONTRACT_VALIDATE_ERROR, Contract validate error : Proposal[1] expired";
+      }
+    };
+
+    try {
+      wrapper.throwIfCliOperationFailed(false, "ApproveProposal failed !!");
+      Assert.fail("Expected CLI failure");
+    } catch (CommandErrorException e) {
+      Assert.assertEquals("execution_error", e.getCode());
+      Assert.assertEquals(
+          "CONTRACT_VALIDATE_ERROR, Contract validate error : Proposal[1] expired",
+          e.getMessage());
+    }
+  }
+
+  @Test
+  public void throwIfCliOperationFailedFallsBackWhenNoCliErrorDetailExists() {
+    WalletApiWrapper wrapper = new WalletApiWrapper() {
+      @Override
+      protected String consumeLastCliOperationError() {
+        return null;
+      }
+    };
+
+    try {
+      wrapper.throwIfCliOperationFailed(false, "ApproveProposal failed !!");
+      Assert.fail("Expected CLI failure");
+    } catch (CommandErrorException e) {
+      Assert.assertEquals("execution_error", e.getCode());
+      Assert.assertEquals("ApproveProposal failed !!", e.getMessage());
     }
   }
 }

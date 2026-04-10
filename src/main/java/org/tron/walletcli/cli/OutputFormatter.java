@@ -17,22 +17,20 @@ public class OutputFormatter {
 
     private final OutputMode mode;
     private final boolean quiet;
-    private PrintStream out;
-    private PrintStream err;
+    private final PrintStream out;
+    private final PrintStream err;
     private Outcome outcome;
     private static final Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
     public OutputFormatter(OutputMode mode, boolean quiet) {
-        this.mode = mode;
-        this.quiet = quiet;
-        this.out = System.out;
-        this.err = System.err;
+        this(mode, quiet, System.out, System.err);
     }
 
-    /** Capture the real stdout/stderr before System.out is redirected. */
-    public void captureStreams() {
-        this.out = System.out;
-        this.err = System.err;
+    public OutputFormatter(OutputMode mode, boolean quiet, PrintStream out, PrintStream err) {
+        this.mode = mode;
+        this.quiet = quiet;
+        this.out = out;
+        this.err = err;
     }
 
     OutputMode getMode() {

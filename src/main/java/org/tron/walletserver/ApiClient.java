@@ -113,6 +113,15 @@ public class ApiClient {
     return true;
   }
 
+  public String broadcastTransactionForCli(Chain.Transaction signaturedTransaction) {
+    try {
+      client.broadcastTransaction(signaturedTransaction);
+      return null;
+    } catch (RuntimeException e) {
+      return e.getMessage();
+    }
+  }
+
   public Response.TransactionSignWeight getTransactionSignWeight(Chain.Transaction transaction) {// pass
     return client.getTransactionSignWeight(transaction);
   }

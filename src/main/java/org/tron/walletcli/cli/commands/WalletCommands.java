@@ -362,9 +362,9 @@ public class WalletCommands {
                     boolean force = opts.getBoolean("force");
                     CommandSupport.requireForce(out, "clear-wallet-keystore", force);
 
+                    wrapper.clearWalletKeystoreForCli(force);
                     ActiveWalletConfig.clear();
-                    boolean result = wrapper.clearWalletKeystore(force);
-                    CommandSupport.emitBooleanResult(out, result,
+                    CommandSupport.emitBooleanResult(out, true,
                             "ClearWalletKeystore successful !!",
                             "ClearWalletKeystore failed !!");
                 })
@@ -380,9 +380,9 @@ public class WalletCommands {
                 .handler((opts, wrapper, out) -> {
                     boolean force = opts.getBoolean("force");
                     CommandSupport.requireForce(out, "reset-wallet", force);
+                    wrapper.resetWalletForCli(force);
                     ActiveWalletConfig.clear();
-                    boolean result = wrapper.resetWallet(force);
-                    CommandSupport.emitBooleanResult(out, result,
+                    CommandSupport.emitBooleanResult(out, true,
                             "ResetWallet successful !!", "ResetWallet failed !!");
                 })
                 .build());
@@ -417,8 +417,8 @@ public class WalletCommands {
                     String network = opts.getString("network");
                     String fullNode = opts.has("full-node") ? opts.getString("full-node") : null;
                     String solidityNode = opts.has("solidity-node") ? opts.getString("solidity-node") : null;
-                    boolean result = wrapper.switchNetwork(network, fullNode, solidityNode);
-                    CommandSupport.emitBooleanResult(out, result,
+                    wrapper.switchNetworkForCli(network, fullNode, solidityNode);
+                    CommandSupport.emitBooleanResult(out, true,
                             "SwitchNetwork successful !!",
                             "SwitchNetwork failed !!");
                 })

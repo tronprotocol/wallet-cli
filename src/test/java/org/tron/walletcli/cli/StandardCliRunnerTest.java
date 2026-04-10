@@ -54,56 +54,39 @@ public class StandardCliRunnerTest {
         })
         .build());
 
-    PrintStream originalOut = System.out;
-    PrintStream originalErr = System.err;
-    InputStream originalIn = System.in;
-
     ByteArrayOutputStream firstStdout = new ByteArrayOutputStream();
     ByteArrayOutputStream firstStderr = new ByteArrayOutputStream();
     PrintStream firstOut = new PrintStream(firstStdout);
     PrintStream firstErr = new PrintStream(firstStderr);
-    System.setOut(firstOut);
-    System.setErr(firstErr);
-    try {
-      GlobalOptions badOpts = GlobalOptions.parse(new String[]{"--output", "json", "needs-arg"});
-      int exitCode = new StandardCliRunner(registry, badOpts).execute();
+    PrintStream originalOut = System.out;
+    PrintStream originalErr = System.err;
+    InputStream originalIn = System.in;
+    GlobalOptions badOpts = GlobalOptions.parse(new String[]{"--output", "json", "needs-arg"});
+    int exitCode = new StandardCliRunner(registry, badOpts, firstOut, firstErr).execute();
 
-      Assert.assertEquals(2, exitCode);
-      String json = new String(firstStdout.toByteArray(), StandardCharsets.UTF_8);
-      Assert.assertTrue(json.contains("\"success\": false"));
-      Assert.assertTrue(json.contains("\"error\": \"usage_error\""));
-      Assert.assertSame(firstOut, System.out);
-      Assert.assertSame(firstErr, System.err);
-      Assert.assertSame(originalIn, System.in);
-    } finally {
-      System.setOut(originalOut);
-      System.setErr(originalErr);
-      System.setIn(originalIn);
-    }
+    Assert.assertEquals(2, exitCode);
+    String json = new String(firstStdout.toByteArray(), StandardCharsets.UTF_8);
+    Assert.assertTrue(json.contains("\"success\": false"));
+    Assert.assertTrue(json.contains("\"error\": \"usage_error\""));
+    Assert.assertSame(originalOut, System.out);
+    Assert.assertSame(originalErr, System.err);
+    Assert.assertSame(originalIn, System.in);
 
     ByteArrayOutputStream secondStdout = new ByteArrayOutputStream();
     ByteArrayOutputStream secondStderr = new ByteArrayOutputStream();
     PrintStream secondOut = new PrintStream(secondStdout);
     PrintStream secondErr = new PrintStream(secondStderr);
-    System.setOut(secondOut);
-    System.setErr(secondErr);
-    try {
-      GlobalOptions okOpts = GlobalOptions.parse(new String[]{"--output", "json", "ok"});
-      int exitCode = new StandardCliRunner(registry, okOpts).execute();
+    GlobalOptions okOpts = GlobalOptions.parse(new String[]{"--output", "json", "ok"});
+    exitCode = new StandardCliRunner(registry, okOpts, secondOut, secondErr).execute();
 
-      Assert.assertEquals(0, exitCode);
-      String json = new String(secondStdout.toByteArray(), StandardCharsets.UTF_8);
-      Assert.assertTrue(json.contains("\"success\": true"));
-      Assert.assertTrue(json.contains("\"status\": \"ok\""));
-      Assert.assertEquals("", new String(secondStderr.toByteArray(), StandardCharsets.UTF_8));
-      Assert.assertSame(secondOut, System.out);
-      Assert.assertSame(secondErr, System.err);
-      Assert.assertSame(originalIn, System.in);
-    } finally {
-      System.setOut(originalOut);
-      System.setErr(originalErr);
-      System.setIn(originalIn);
-    }
+    Assert.assertEquals(0, exitCode);
+    json = new String(secondStdout.toByteArray(), StandardCharsets.UTF_8);
+    Assert.assertTrue(json.contains("\"success\": true"));
+    Assert.assertTrue(json.contains("\"status\": \"ok\""));
+    Assert.assertEquals("", new String(secondStderr.toByteArray(), StandardCharsets.UTF_8));
+    Assert.assertSame(originalOut, System.out);
+    Assert.assertSame(originalErr, System.err);
+    Assert.assertSame(originalIn, System.in);
   }
 
   @Test
@@ -116,32 +99,24 @@ public class StandardCliRunnerTest {
         .handler((opts, wrapper, out) -> out.error("boom", "simulated failure"))
         .build());
 
-    PrintStream originalOut = System.out;
-    PrintStream originalErr = System.err;
-    InputStream originalIn = System.in;
     ByteArrayOutputStream stdout = new ByteArrayOutputStream();
     ByteArrayOutputStream stderr = new ByteArrayOutputStream();
     PrintStream testOut = new PrintStream(stdout);
     PrintStream testErr = new PrintStream(stderr);
-    System.setOut(testOut);
-    System.setErr(testErr);
-    try {
-      GlobalOptions opts = GlobalOptions.parse(new String[]{"--output", "json", "boom"});
-      int exitCode = new StandardCliRunner(registry, opts).execute();
+    PrintStream originalOut = System.out;
+    PrintStream originalErr = System.err;
+    InputStream originalIn = System.in;
+    GlobalOptions opts = GlobalOptions.parse(new String[]{"--output", "json", "boom"});
+    int exitCode = new StandardCliRunner(registry, opts, testOut, testErr).execute();
 
-      Assert.assertEquals(1, exitCode);
-      String json = new String(stdout.toByteArray(), StandardCharsets.UTF_8);
-      Assert.assertTrue(json.contains("\"success\": false"));
-      Assert.assertTrue(json.contains("\"error\": \"boom\""));
-      Assert.assertEquals("", new String(stderr.toByteArray(), StandardCharsets.UTF_8));
-      Assert.assertSame(testOut, System.out);
-      Assert.assertSame(testErr, System.err);
-      Assert.assertSame(originalIn, System.in);
-    } finally {
-      System.setOut(originalOut);
-      System.setErr(originalErr);
-      System.setIn(originalIn);
-    }
+    Assert.assertEquals(1, exitCode);
+    String json = new String(stdout.toByteArray(), StandardCharsets.UTF_8);
+    Assert.assertTrue(json.contains("\"success\": false"));
+    Assert.assertTrue(json.contains("\"error\": \"boom\""));
+    Assert.assertEquals("", new String(stderr.toByteArray(), StandardCharsets.UTF_8));
+    Assert.assertSame(originalOut, System.out);
+    Assert.assertSame(originalErr, System.err);
+    Assert.assertSame(originalIn, System.in);
   }
 
   @Test
@@ -156,15 +131,14 @@ public class StandardCliRunnerTest {
         })
         .build());
 
-    PrintStream originalOut = System.out;
-    PrintStream originalErr = System.err;
     ByteArrayOutputStream stdout = new ByteArrayOutputStream();
     ByteArrayOutputStream stderr = new ByteArrayOutputStream();
-    System.setOut(new PrintStream(stdout));
-    System.setErr(new PrintStream(stderr));
+    PrintStream originalOut = System.out;
+    PrintStream originalErr = System.err;
     try {
       GlobalOptions opts = GlobalOptions.parse(new String[]{"--output", "json", "structured-boom"});
-      int exitCode = new StandardCliRunner(registry, opts).execute();
+      int exitCode = new StandardCliRunner(
+          registry, opts, new PrintStream(stdout), new PrintStream(stderr)).execute();
 
       Assert.assertEquals(1, exitCode);
       String json = stdout.toString(StandardCharsets.UTF_8.name());
@@ -175,8 +149,8 @@ public class StandardCliRunnerTest {
     } catch (Exception e) {
       Assert.fail("Unexpected exception: " + e.getMessage());
     } finally {
-      System.setOut(originalOut);
-      System.setErr(originalErr);
+      Assert.assertSame(originalOut, System.out);
+      Assert.assertSame(originalErr, System.err);
     }
   }
 
@@ -191,15 +165,14 @@ public class StandardCliRunnerTest {
         })
         .build());
 
-    PrintStream originalOut = System.out;
-    PrintStream originalErr = System.err;
     ByteArrayOutputStream stdout = new ByteArrayOutputStream();
     ByteArrayOutputStream stderr = new ByteArrayOutputStream();
-    System.setOut(new PrintStream(stdout));
-    System.setErr(new PrintStream(stderr));
+    PrintStream originalOut = System.out;
+    PrintStream originalErr = System.err;
     try {
       GlobalOptions opts = GlobalOptions.parse(new String[]{"--output", "json", "silent"});
-      int exitCode = new StandardCliRunner(registry, opts).execute();
+      int exitCode = new StandardCliRunner(
+          registry, opts, new PrintStream(stdout), new PrintStream(stderr)).execute();
 
       Assert.assertEquals(1, exitCode);
       String json = stdout.toString(StandardCharsets.UTF_8.name());
@@ -210,8 +183,8 @@ public class StandardCliRunnerTest {
     } catch (Exception e) {
       Assert.fail("Unexpected exception: " + e.getMessage());
     } finally {
-      System.setOut(originalOut);
-      System.setErr(originalErr);
+      Assert.assertSame(originalOut, System.out);
+      Assert.assertSame(originalErr, System.err);
     }
   }
 
@@ -226,33 +199,61 @@ public class StandardCliRunnerTest {
         .handler((opts, wrapper, out) -> out.raw("ok"))
         .build());
 
-    PrintStream originalOut = System.out;
-    PrintStream originalErr = System.err;
-    InputStream originalIn = System.in;
     ByteArrayOutputStream stdout = new ByteArrayOutputStream();
     ByteArrayOutputStream stderr = new ByteArrayOutputStream();
     PrintStream testOut = new PrintStream(stdout);
     PrintStream testErr = new PrintStream(stderr);
-    System.setOut(testOut);
-    System.setErr(testErr);
-    try {
-      GlobalOptions opts = GlobalOptions.parse(new String[]{"--output", "json", "value", "--amount="});
-      int exitCode = new StandardCliRunner(registry, opts).execute();
+    PrintStream originalOut = System.out;
+    PrintStream originalErr = System.err;
+    InputStream originalIn = System.in;
+    GlobalOptions opts = GlobalOptions.parse(new String[]{"--output", "json", "value", "--amount="});
+    int exitCode = new StandardCliRunner(registry, opts, testOut, testErr).execute();
 
-      Assert.assertEquals(2, exitCode);
-      String json = new String(stdout.toByteArray(), StandardCharsets.UTF_8);
-      Assert.assertTrue(json.contains("\"success\": false"));
-      Assert.assertTrue(json.contains("\"error\": \"usage_error\""));
-      Assert.assertTrue(json.contains("Missing or empty value for --amount"));
-      Assert.assertEquals("", new String(stderr.toByteArray(), StandardCharsets.UTF_8));
-      Assert.assertSame(testOut, System.out);
-      Assert.assertSame(testErr, System.err);
-      Assert.assertSame(originalIn, System.in);
-    } finally {
-      System.setOut(originalOut);
-      System.setErr(originalErr);
-      System.setIn(originalIn);
-    }
+    Assert.assertEquals(2, exitCode);
+    String json = new String(stdout.toByteArray(), StandardCharsets.UTF_8);
+    Assert.assertTrue(json.contains("\"success\": false"));
+    Assert.assertTrue(json.contains("\"error\": \"usage_error\""));
+    Assert.assertTrue(json.contains("Missing or empty value for --amount"));
+    Assert.assertEquals("", new String(stderr.toByteArray(), StandardCharsets.UTF_8));
+    Assert.assertSame(originalOut, System.out);
+    Assert.assertSame(originalErr, System.err);
+    Assert.assertSame(originalIn, System.in);
+  }
+
+  @Test
+  public void sequentialJsonRunsUseProvidedStreamsWithoutGlobalMutation() {
+    CommandRegistry registry = new CommandRegistry();
+    registry.add(CommandDefinition.builder()
+        .authPolicy(CommandDefinition.AuthPolicy.NEVER)
+        .name("ok")
+        .description("Simple success command")
+        .handler((opts, wrapper, out) -> out.success("ok",
+            Collections.<String, Object>singletonMap("status", "ok")))
+        .build());
+
+    PrintStream originalOut = System.out;
+    PrintStream originalErr = System.err;
+
+    ByteArrayOutputStream firstStdout = new ByteArrayOutputStream();
+    ByteArrayOutputStream firstStderr = new ByteArrayOutputStream();
+    GlobalOptions firstOpts = GlobalOptions.parse(new String[]{"--output", "json", "ok"});
+    int firstExitCode = new StandardCliRunner(
+        registry, firstOpts, new PrintStream(firstStdout), new PrintStream(firstStderr)).execute();
+
+    ByteArrayOutputStream secondStdout = new ByteArrayOutputStream();
+    ByteArrayOutputStream secondStderr = new ByteArrayOutputStream();
+    GlobalOptions secondOpts = GlobalOptions.parse(new String[]{"--output", "json", "ok"});
+    int secondExitCode = new StandardCliRunner(
+        registry, secondOpts, new PrintStream(secondStdout), new PrintStream(secondStderr)).execute();
+
+    Assert.assertEquals(0, firstExitCode);
+    Assert.assertEquals(0, secondExitCode);
+    Assert.assertTrue(firstStdout.toString().contains("\"success\": true"));
+    Assert.assertTrue(secondStdout.toString().contains("\"success\": true"));
+    Assert.assertEquals("", firstStderr.toString());
+    Assert.assertEquals("", secondStderr.toString());
+    Assert.assertSame(originalOut, System.out);
+    Assert.assertSame(originalErr, System.err);
   }
 
   @Test
