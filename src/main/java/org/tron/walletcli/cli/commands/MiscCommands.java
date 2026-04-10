@@ -15,6 +15,8 @@ import java.util.Map;
 
 public class MiscCommands {
 
+    private static final String MNEMONIC_ENV = "TRON_MNEMONIC";
+
     private static CommandDefinition.Builder noAuthCommand() {
         return CommandDefinition.builder().authPolicy(CommandDefinition.AuthPolicy.NEVER);
     }
@@ -34,16 +36,20 @@ public class MiscCommands {
                 .name("generate-address")
                 .aliases("generateaddress")
                 .description("Generate a new address offline")
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     ECKey ecKey = new ECKey(new SecureRandom());
                     byte[] priKey = ecKey.getPrivKeyBytes();
-                    byte[] address = ecKey.getAddress();
-                    String addressStr = WalletApi.encode58Check(address);
-                    String priKeyHex = ByteArray.toHexString(priKey);
-                    Map<String, Object> json = new LinkedHashMap<String, Object>();
-                    json.put("address", addressStr);
-                    json.put("private_key", priKeyHex);
-                    out.success("Address: " + addressStr + "\nPrivate Key: " + priKeyHex, json);
+                    try {
+                        byte[] address = ecKey.getAddress();
+                        String addressStr = WalletApi.encode58Check(address);
+                        String priKeyHex = ByteArray.toHexString(priKey);
+                        Map<String, Object> json = new LinkedHashMap<String, Object>();
+                        json.put("address", addressStr);
+                        json.put("private_key", priKeyHex);
+                        out.success("Address: " + addressStr + "\nPrivate Key: " + priKeyHex, json);
+                    } finally {
+                        Arrays.fill(priKey, (byte) 0);
+                    }
                 })
                 .build());
     }
@@ -52,20 +58,26 @@ public class MiscCommands {
         registry.add(noAuthCommand()
                 .name("get-private-key-by-mnemonic")
                 .aliases("getprivatekeybymnemonic")
-                .description("Derive private key from mnemonic phrase")
-                .option("mnemonic", "Mnemonic words (space-separated)", true)
-                .handler((opts, wrapper, out) -> {
-                    String mnemonicStr = opts.getString("mnemonic");
-                    List<String> words = Arrays.asList(mnemonicStr.split("\\s+"));
+                .description("Derive private key from mnemonic phrase in " + MNEMONIC_ENV)
+                .handler((ctx, opts, wrapper, out) -> {
+                    String mnemonicStr = System.getenv(MNEMONIC_ENV);
+                    if (mnemonicStr == null || mnemonicStr.trim().isEmpty()) {
+                        out.usageError("get-private-key-by-mnemonic requires " + MNEMONIC_ENV
+                                + " in standard CLI mode.", null);
+                    }
+                    List<String> words = Arrays.asList(mnemonicStr.trim().split("\\s+"));
                     byte[] priKey = MnemonicUtils.getPrivateKeyFromMnemonic(words);
-                    String priKeyHex = ByteArray.toHexString(priKey);
-                    ECKey ecKey = ECKey.fromPrivate(priKey);
-                    String address = WalletApi.encode58Check(ecKey.getAddress());
-                    Map<String, Object> json = new LinkedHashMap<String, Object>();
-                    json.put("private_key", priKeyHex);
-                    json.put("address", address);
-                    out.success("Private Key: " + priKeyHex + "\nAddress: " + address, json);
-                    Arrays.fill(priKey, (byte) 0);
+                    try {
+                        String priKeyHex = ByteArray.toHexString(priKey);
+                        ECKey ecKey = ECKey.fromPrivate(priKey);
+                        String address = WalletApi.encode58Check(ecKey.getAddress());
+                        Map<String, Object> json = new LinkedHashMap<String, Object>();
+                        json.put("private_key", priKeyHex);
+                        json.put("address", address);
+                        out.success("Private Key: " + priKeyHex + "\nAddress: " + address, json);
+                    } finally {
+                        Arrays.fill(priKey, (byte) 0);
+                    }
                 })
                 .build());
     }
@@ -75,7 +87,7 @@ public class MiscCommands {
                 .name("encoding-converter")
                 .aliases("encodingconverter")
                 .description("Convert between encoding formats")
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     CommandSupport.rejectUnsupportedStandardCliCommand(out, "encoding-converter");
                 })
                 .build());
@@ -86,7 +98,7 @@ public class MiscCommands {
                 .name("address-book")
                 .aliases("addressbook")
                 .description("Manage address book")
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     CommandSupport.rejectUnsupportedStandardCliCommand(out, "address-book");
                 })
                 .build());
@@ -97,7 +109,7 @@ public class MiscCommands {
                 .name("view-transaction-history")
                 .aliases("viewtransactionhistory")
                 .description("View transaction history")
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     CommandSupport.rejectUnsupportedStandardCliCommand(out, "view-transaction-history");
                 })
                 .build());
@@ -108,7 +120,7 @@ public class MiscCommands {
                 .name("view-backup-records")
                 .aliases("viewbackuprecords")
                 .description("View backup records")
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     CommandSupport.rejectUnsupportedStandardCliCommand(out, "view-backup-records");
                 })
                 .build());
@@ -120,7 +132,7 @@ public class MiscCommands {
                 .aliases("help")
                 .description("Show help information")
                 .option("command", "Command to show help for", false)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     // Help is handled by the runner level --help flag
                     // This registers the command so it appears in the command list
                     out.successMessage(

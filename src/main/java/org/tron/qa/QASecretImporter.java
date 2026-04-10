@@ -46,9 +46,9 @@ public class QASecretImporter {
   }
 
   private static void importPrivateKey(byte[] password) throws Exception {
-    String privateKeyHex = System.getenv("TRON_TEST_APIKEY");
+    String privateKeyHex = System.getenv("TRON_TEST_PRIVATE_KEY");
     if (privateKeyHex == null || privateKeyHex.isEmpty()) {
-      System.err.println("TRON_TEST_APIKEY is required for private-key import");
+      System.err.println("TRON_TEST_PRIVATE_KEY is required for private-key import");
       System.exit(1);
     }
 

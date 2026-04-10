@@ -53,7 +53,7 @@ public class TransactionCommandsTest {
       OutputFormatter formatter = new OutputFormatter(OutputFormatter.OutputMode.JSON, false);
 
       try {
-        command.getHandler().execute(opts, new WalletApiWrapper() {
+        command.getHandler().execute(org.tron.walletcli.cli.CommandContext.empty(), opts, new WalletApiWrapper() {
           @Override
           public Triple<Boolean, Long, Long> callContractForCli(
               byte[] ownerAddress,
@@ -116,7 +116,7 @@ public class TransactionCommandsTest {
       });
       OutputFormatter formatter = new OutputFormatter(OutputFormatter.OutputMode.JSON, false);
 
-      command.getHandler().execute(opts, new WalletApiWrapper(), formatter);
+      command.getHandler().execute(org.tron.walletcli.cli.CommandContext.empty(), opts, new WalletApiWrapper(), formatter);
       formatter.flush();
 
       String json = stdout.toString(StandardCharsets.UTF_8.name());
@@ -124,6 +124,42 @@ public class TransactionCommandsTest {
       Assert.assertTrue(json.contains("\"txid\": \"" + expectedTxid + "\""));
     } finally {
       WalletApi.setApiCli(originalApiCli);
+      System.setOut(originalOut);
+    }
+  }
+
+  @Test
+  public void sendCoinUsesStableSuccessMessageInJsonOutput() throws Exception {
+    PrintStream originalOut = System.out;
+    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+    System.setOut(new PrintStream(stdout));
+
+    try {
+      CommandRegistry registry = new CommandRegistry();
+      TransactionCommands.register(registry);
+      CommandDefinition command = registry.lookup("send-coin");
+      ParsedOptions opts = command.parseArgs(new String[]{
+          "--to", "TNPeeaaFB7K9cmo4uQpcU32zGK8G1NYqeL",
+          "--amount", "1"
+      });
+      OutputFormatter formatter = new OutputFormatter(OutputFormatter.OutputMode.JSON, false);
+
+      command.getHandler().execute(org.tron.walletcli.cli.CommandContext.empty(), opts, new WalletApiWrapper() {
+        @Override
+        public void sendCoinForCli(byte[] ownerAddress, byte[] toAddress, long amount, boolean multi) {
+          Assert.assertNull(ownerAddress);
+          Assert.assertEquals(1L, amount);
+          Assert.assertFalse(multi);
+        }
+      }, formatter);
+      formatter.flush();
+
+      String json = stdout.toString(StandardCharsets.UTF_8.name());
+      Assert.assertTrue(json.contains("\"success\": true"));
+      Assert.assertTrue(json.contains("\"message\": \"SendCoin successful !!\""));
+      Assert.assertTrue(json.contains("\"amount\": 1"));
+      Assert.assertTrue(json.contains("TNPeeaaFB7K9cmo4uQpcU32zGK8G1NYqeL"));
+    } finally {
       System.setOut(originalOut);
     }
   }

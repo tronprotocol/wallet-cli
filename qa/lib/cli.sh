@@ -125,7 +125,7 @@ qa_import_template_wallet() {
     rm -rf Wallet Mnemonic
     case "$mode" in
       private-key)
-        MASTER_PASSWORD="$MASTER_PASSWORD" TRON_TEST_APIKEY="$PRIVATE_KEY" \
+        MASTER_PASSWORD="$MASTER_PASSWORD" TRON_TEST_PRIVATE_KEY="$PRIVATE_KEY" \
           java -cp "$WALLET_JAR" org.tron.qa.QASecretImporter private-key >/dev/null
         ;;
       mnemonic)
@@ -153,6 +153,14 @@ qa_prepare_templates() {
   mkdir -p "$RUNTIME_DIR/templates/empty"
   if qa_has_private_key; then
     qa_import_template_wallet "$RUNTIME_DIR/templates/auth" private-key
+
+    qa_clone_template "$RUNTIME_DIR/templates/auth" "$RUNTIME_DIR/templates/auth-external-wallet"
+    mkdir -p "$RUNTIME_DIR/templates/auth-external-wallet/External"
+    if ls "$RUNTIME_DIR/templates/auth-external-wallet/Wallet/"*.json >/dev/null 2>&1; then
+      cp "$RUNTIME_DIR/templates/auth-external-wallet/Wallet/"*.json \
+        "$RUNTIME_DIR/templates/auth-external-wallet/External/" 2>/dev/null || true
+    fi
+
     qa_clone_template "$RUNTIME_DIR/templates/auth" "$RUNTIME_DIR/templates/auth-no-active"
     rm -f "$RUNTIME_DIR/templates/auth-no-active/Wallet/.active-wallet"
 
@@ -326,17 +334,6 @@ with open(sys.argv[3], "w", encoding="utf-8") as out:
 PY
 }
 
-qa_load_lines_into_array() {
-  local file="$1"
-  local array_name="$2"
-  local line
-  eval "$array_name=()"
-  [ -f "$file" ] || return 0
-  while IFS= read -r line || [ -n "$line" ]; do
-    eval "$array_name+=(\"\$line\")"
-  done < "$file"
-}
-
 qa_filtered_text_stdout() {
   local file="$1"
   sed '/^User defined config file/d;/^$/d' "$file"
@@ -365,7 +362,10 @@ qa_run_capture() {
     cd "$workspace" || exit 98
     case "$env_mode" in
       ""|default)
-        MASTER_PASSWORD="$MASTER_PASSWORD" "${cmd[@]}" >"$stdout_file" 2>"$stderr_file"
+        MASTER_PASSWORD="$MASTER_PASSWORD" \
+          TRON_PRIVATE_KEY="$TRON_PRIVATE_KEY" \
+          TRON_MNEMONIC="$TRON_MNEMONIC" \
+          "${cmd[@]}" >"$stdout_file" 2>"$stderr_file"
         ;;
       no-password)
         env -u MASTER_PASSWORD "${cmd[@]}" >"$stdout_file" 2>"$stderr_file"

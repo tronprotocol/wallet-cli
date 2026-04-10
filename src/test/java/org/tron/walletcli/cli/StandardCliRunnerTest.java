@@ -38,7 +38,7 @@ public class StandardCliRunnerTest {
         .name("needs-arg")
         .description("Command with a required option")
         .option("value", "Required value", true)
-        .handler((opts, wrapper, out) -> {
+        .handler((ctx, opts, wrapper, out) -> {
           Map<String, Object> json = new LinkedHashMap<String, Object>();
           json.put("value", opts.getString("value"));
           out.success("ok", json);
@@ -48,7 +48,7 @@ public class StandardCliRunnerTest {
         .authPolicy(CommandDefinition.AuthPolicy.NEVER)
         .name("ok")
         .description("Simple success command")
-        .handler((opts, wrapper, out) -> {
+        .handler((ctx, opts, wrapper, out) -> {
           Map<String, Object> json = Collections.<String, Object>singletonMap("status", "ok");
           out.success("ok", json);
         })
@@ -96,7 +96,7 @@ public class StandardCliRunnerTest {
         .authPolicy(CommandDefinition.AuthPolicy.NEVER)
         .name("boom")
         .description("Command that fails")
-        .handler((opts, wrapper, out) -> out.error("boom", "simulated failure"))
+        .handler((ctx, opts, wrapper, out) -> out.error("boom", "simulated failure"))
         .build());
 
     ByteArrayOutputStream stdout = new ByteArrayOutputStream();
@@ -126,7 +126,7 @@ public class StandardCliRunnerTest {
         .authPolicy(CommandDefinition.AuthPolicy.NEVER)
         .name("structured-boom")
         .description("Command that throws structured errors")
-        .handler((opts, wrapper, out) -> {
+        .handler((ctx, opts, wrapper, out) -> {
           throw new CommandErrorException("query_failed", "structured failure");
         })
         .build());
@@ -161,7 +161,7 @@ public class StandardCliRunnerTest {
         .authPolicy(CommandDefinition.AuthPolicy.NEVER)
         .name("silent")
         .description("Command that does not emit an outcome")
-        .handler((opts, wrapper, out) -> {
+        .handler((ctx, opts, wrapper, out) -> {
         })
         .build());
 
@@ -196,7 +196,7 @@ public class StandardCliRunnerTest {
         .name("value")
         .description("Command with required value")
         .option("amount", "Amount", true, OptionDef.Type.LONG)
-        .handler((opts, wrapper, out) -> out.raw("ok"))
+        .handler((ctx, opts, wrapper, out) -> out.raw("ok"))
         .build());
 
     ByteArrayOutputStream stdout = new ByteArrayOutputStream();
@@ -227,7 +227,7 @@ public class StandardCliRunnerTest {
         .authPolicy(CommandDefinition.AuthPolicy.NEVER)
         .name("ok")
         .description("Simple success command")
-        .handler((opts, wrapper, out) -> out.success("ok",
+        .handler((ctx, opts, wrapper, out) -> out.success("ok",
             Collections.<String, Object>singletonMap("status", "ok")))
         .build());
 
@@ -263,7 +263,7 @@ public class StandardCliRunnerTest {
         .authPolicy(CommandDefinition.AuthPolicy.NEVER)
         .name("check-env-password-input")
         .description("Checks env-password input scope")
-        .handler((opts, wrapper, out) -> {
+        .handler((ctx, opts, wrapper, out) -> {
           Assert.assertFalse(Utils.isEnvPasswordInputEnabled());
           out.raw("ok");
         })
@@ -288,7 +288,7 @@ public class StandardCliRunnerTest {
     registry.add(CommandDefinition.builder()
         .name("needs-wallet")
         .description("Command requiring auth")
-        .handler((opts, wrapper, out) -> {
+        .handler((ctx, opts, wrapper, out) -> {
           handlerCalled[0] = true;
           out.raw("ok");
         })
@@ -327,7 +327,7 @@ public class StandardCliRunnerTest {
         .authPolicy(CommandDefinition.AuthPolicy.NEVER)
         .name("ok")
         .description("Simple success command")
-        .handler((opts, wrapper, out) -> out.raw("ok"))
+        .handler((ctx, opts, wrapper, out) -> out.raw("ok"))
         .build());
 
     String originalUserDir = System.getProperty("user.dir");
@@ -369,6 +369,26 @@ public class StandardCliRunnerTest {
   }
 
   @Test
+  public void globalWalletOverrideIsExposedViaCommandContext() {
+    CommandRegistry registry = new CommandRegistry();
+    registry.add(CommandDefinition.builder()
+        .authPolicy(CommandDefinition.AuthPolicy.NEVER)
+        .name("inspect")
+        .description("Expose command context to the handler")
+        .handler((ctx, opts, wrapper, out) -> {
+          Assert.assertEquals("/tmp/example-wallet.json", ctx.getWalletOverride());
+          out.raw("ok");
+        })
+        .build());
+
+    GlobalOptions opts = GlobalOptions.parse(
+        new String[]{"--wallet", "/tmp/example-wallet.json", "inspect"});
+    int exitCode = new StandardCliRunner(registry, opts).execute();
+
+    Assert.assertEquals(0, exitCode);
+  }
+
+  @Test
   public void walletOverrideRejectsAmbiguousWalletNames() throws Exception {
     File walletDir = Files.createTempDirectory("runner-wallet-ambiguous").toFile();
     createWalletFile(walletDir, "duplicate", "0000000000000000000000000000000000000000000000000000000000000001");
@@ -388,8 +408,10 @@ public class StandardCliRunnerTest {
     registry.add(CommandDefinition.builder()
         .name("needs-wallet")
         .description("Command requiring auth")
-        .handler((opts, wrapper, out) -> {
+        .handler((ctx, opts, wrapper, out) -> {
           Assert.assertTrue(wrapper.isLoginState());
+          Assert.assertNotNull(ctx.getResolvedAuthWalletFile());
+          Assert.assertTrue(ctx.getResolvedAuthWalletFile().isFile());
           out.raw("ok");
         })
         .build());
@@ -429,7 +451,7 @@ public class StandardCliRunnerTest {
     registry.add(CommandDefinition.builder()
         .name("needs-wallet")
         .description("Command requiring auth")
-        .handler((opts, wrapper, out) -> {
+        .handler((ctx, opts, wrapper, out) -> {
           handlerCalled[0] = true;
           out.raw("ok");
         })
@@ -471,7 +493,7 @@ public class StandardCliRunnerTest {
     registry.add(CommandDefinition.builder()
         .name("needs-wallet")
         .description("Command requiring auth")
-        .handler((opts, wrapper, out) -> {
+        .handler((ctx, opts, wrapper, out) -> {
           handlerCalled[0] = true;
           out.raw("ok");
         })
@@ -513,7 +535,7 @@ public class StandardCliRunnerTest {
         .authPolicy(CommandDefinition.AuthPolicy.NEVER)
         .name("ok")
         .description("Simple success command")
-        .handler((opts, wrapper, out) -> out.raw("ok"))
+        .handler((ctx, opts, wrapper, out) -> out.raw("ok"))
         .build());
 
     ApiClient originalApiCli = WalletApi.getApiCli();
@@ -652,7 +674,7 @@ public class StandardCliRunnerTest {
       });
       OutputFormatter formatter = new OutputFormatter(OutputFormatter.OutputMode.JSON, false);
 
-      command.getHandler().execute(opts, new WalletApiWrapper() {
+      command.getHandler().execute(CommandContext.empty(), opts, new WalletApiWrapper() {
         @Override
         public Response.EstimateEnergyMessage estimateEnergyMessage(
             byte[] ownerAddress,
@@ -748,7 +770,7 @@ public class StandardCliRunnerTest {
         .name("bool-help")
         .description("Boolean help command")
         .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
-        .handler((opts, wrapper, out) -> out.raw("ok"))
+        .handler((ctx, opts, wrapper, out) -> out.raw("ok"))
         .build());
 
     System.setOut(new PrintStream(stdout));
@@ -781,7 +803,7 @@ public class StandardCliRunnerTest {
         .name("value-help")
         .description("Value help command")
         .option("note", "Note text", true)
-        .handler((opts, wrapper, out) -> out.raw(opts.getString("note")))
+        .handler((ctx, opts, wrapper, out) -> out.raw(opts.getString("note")))
         .build());
 
     System.setOut(new PrintStream(stdout));
@@ -872,7 +894,7 @@ public class StandardCliRunnerTest {
       OutputFormatter formatter = new OutputFormatter(OutputFormatter.OutputMode.JSON, false);
 
       try {
-        command.getHandler().execute(opts, new WalletApiWrapper(), formatter);
+        command.getHandler().execute(CommandContext.empty(), opts, new WalletApiWrapper(), formatter);
         Assert.fail("Expected vote validation to abort with usage error");
       } catch (CliAbortException e) {
         Assert.assertEquals(CliAbortException.Kind.USAGE, e.getKind());
@@ -903,7 +925,7 @@ public class StandardCliRunnerTest {
       OutputFormatter formatter = new OutputFormatter(OutputFormatter.OutputMode.JSON, false);
 
       try {
-        command.getHandler().execute(opts, new WalletApiWrapper(), formatter);
+        command.getHandler().execute(CommandContext.empty(), opts, new WalletApiWrapper(), formatter);
         Assert.fail("Expected vote validation to abort with usage error");
       } catch (CliAbortException e) {
         Assert.assertEquals(CliAbortException.Kind.USAGE, e.getKind());

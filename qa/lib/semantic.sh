@@ -140,6 +140,28 @@ qa_assert_json_paths() {
   return 0
 }
 
+qa_assert_workspace_paths() {
+  local workspace="$1"
+  local exists_csv="${2:-}"
+  local absent_csv="${3:-}"
+  local path
+  local -a exists_paths=()
+  local -a absent_paths=()
+  IFS=',' read -r -a exists_paths <<< "$exists_csv"
+  IFS=',' read -r -a absent_paths <<< "$absent_csv"
+  for path in "${exists_paths[@]-}"; do
+    path="$(printf '%s' "$path" | xargs)"
+    [ -z "$path" ] && continue
+    [ -e "$workspace/$path" ] || return 1
+  done
+  for path in "${absent_paths[@]-}"; do
+    path="$(printf '%s' "$path" | xargs)"
+    [ -z "$path" ] && continue
+    [ ! -e "$workspace/$path" ] || return 1
+  done
+  return 0
+}
+
 qa_assert_case_files() {
   local label="$1"
   local expectation="$2"
@@ -149,6 +171,9 @@ qa_assert_case_files() {
   local error_code="${6:-}"
   local text_contains="${7:-}"
   local text_absent="${8:-}"
+  local workspace="${9:-}"
+  local workspace_path_exists="${10:-}"
+  local workspace_path_absent="${11:-}"
 
   case "$expectation" in
     success)
@@ -225,5 +250,8 @@ qa_assert_case_files() {
       return 1
       ;;
   esac
+  if [ -n "$workspace" ]; then
+    qa_assert_workspace_paths "$workspace" "$workspace_path_exists" "$workspace_path_absent" || return 1
+  fi
   return 0
 }

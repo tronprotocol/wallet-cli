@@ -10,7 +10,7 @@ public class CommandDefinitionTest {
         .name("bool-cmd")
         .description("Boolean parsing test")
         .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
-        .handler((opts, wrapper, out) -> out.raw("ok"))
+        .handler((ctx, opts, wrapper, out) -> out.raw("ok"))
         .build();
   }
 
@@ -21,7 +21,7 @@ public class CommandDefinitionTest {
         .option("amount", "Amount", true, OptionDef.Type.LONG)
         .option("offset", "Offset", false, OptionDef.Type.LONG)
         .option("note", "Note", false)
-        .handler((opts, wrapper, out) -> out.raw("ok"))
+        .handler((ctx, opts, wrapper, out) -> out.raw("ok"))
         .build();
   }
 
@@ -30,7 +30,7 @@ public class CommandDefinitionTest {
         .name("approve-cmd")
         .description("Required boolean parsing test")
         .option("approve", "Approve", true, OptionDef.Type.BOOLEAN)
-        .handler((opts, wrapper, out) -> out.raw("ok"))
+        .handler((ctx, opts, wrapper, out) -> out.raw("ok"))
         .build();
   }
 
@@ -184,7 +184,7 @@ public class CommandDefinitionTest {
         .description("Contract parsing test")
         .option("contract", "Contract", true)
         .option("method", "Method", true)
-        .handler((opts, wrapper, out) -> out.raw("ok"))
+        .handler((ctx, opts, wrapper, out) -> out.raw("ok"))
         .build();
 
     assertUsageError(command, new String[]{"--contract", "--method", "balanceOf(address)"},
@@ -216,7 +216,7 @@ public class CommandDefinitionTest {
         .authPolicyResolver(opts -> opts.has("address")
             ? CommandDefinition.AuthPolicy.NEVER
             : CommandDefinition.AuthPolicy.REQUIRE)
-        .handler((opts, wrapper, out) -> out.raw("ok"))
+        .handler((ctx, opts, wrapper, out) -> out.raw("ok"))
         .build();
 
     Assert.assertEquals(CommandDefinition.AuthPolicy.NEVER,

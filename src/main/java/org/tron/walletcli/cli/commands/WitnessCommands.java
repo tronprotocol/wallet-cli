@@ -25,7 +25,7 @@ public class WitnessCommands {
                 .option("url", "Witness URL", true)
                 .option("owner", "Owner address", false)
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     String url = opts.getString("url");
@@ -47,7 +47,7 @@ public class WitnessCommands {
                 .option("url", "New witness URL", true)
                 .option("owner", "Owner address", false)
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     String url = opts.getString("url");
@@ -70,7 +70,7 @@ public class WitnessCommands {
                 .option("owner", "Voter address", false)
                 .option("permission-id", "Permission ID for signing (default: 0)", false, OptionDef.Type.LONG)
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     String votesStr = opts.getString("votes");
@@ -119,7 +119,7 @@ public class WitnessCommands {
                 .option("brokerage", "Brokerage ratio (0-100)", true, OptionDef.Type.LONG)
                 .option("owner", "Owner address", false)
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     int brokerage = (int) opts.getLong("brokerage");

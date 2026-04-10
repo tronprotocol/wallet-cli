@@ -23,7 +23,7 @@ public class ProposalCommands {
                 .option("parameters", "Parameters as 'id1 value1 id2 value2 ...'", true)
                 .option("owner", "Owner address", false)
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     String paramsStr = opts.getString("parameters");
@@ -55,7 +55,7 @@ public class ProposalCommands {
                 .option("approve", "true to approve, false to disapprove", true, OptionDef.Type.BOOLEAN)
                 .option("owner", "Owner address", false)
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     long id = opts.getLong("id");
@@ -79,7 +79,7 @@ public class ProposalCommands {
                 .option("id", "Proposal ID", true, OptionDef.Type.LONG)
                 .option("owner", "Owner address", false)
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     long id = opts.getLong("id");

@@ -36,8 +36,8 @@ Java 8 source/target compatibility. Protobuf sources are in `src/main/protos/` a
 The `qa/` directory contains shell-based parity tests that compare interactive REPL output vs standard CLI (text and JSON modes). Requires a funded Nile testnet account.
 
 ```bash
-# Run QA verification (needs TRON_TEST_APIKEY env var for private key)
-TRON_TEST_APIKEY=<nile-private-key> bash qa/run.sh verify
+# Run QA verification (needs TRON_TEST_PRIVATE_KEY env var for private key)
+TRON_TEST_PRIVATE_KEY=<nile-private-key> bash qa/run.sh verify
 
 # QA config is in qa/config.sh; test commands are in qa/commands/*.sh
 # MASTER_PASSWORD env var is used for keystore auto-login (default: testpassword123A)

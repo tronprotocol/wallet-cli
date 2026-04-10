@@ -96,8 +96,8 @@ exchange-transaction|expected-execution-error|auth|private_key|--exchange-id 1 -
 market-sell-asset|expected-execution-error|auth|private_key|--sell-token _ --sell-quantity 1000000 --buy-token 1000001 --buy-quantity 1
 market-cancel-order|expected-execution-error|auth|private_key|--order-id {{FAKE_ID_64}}
 register-wallet|excluded-interactive|empty|none|--words 12
-import-wallet|offline-success|empty|private_key|--private-key {{PRIVATE_KEY}} --name qaimport
-import-wallet-by-mnemonic|offline-success|empty|mnemonic|--mnemonic '{{MNEMONIC}}' --name qamnemonic
+import-wallet|offline-success|empty|private_key|--name qaimport
+import-wallet-by-mnemonic|offline-success|empty|mnemonic|--name qamnemonic
 list-wallet|auth-success|auth|private_key|
 set-active-wallet|auth-success|auth|private_key|--address {{FIRST_WALLET_ADDRESS}}
 get-active-wallet|auth-success|auth|private_key|
@@ -110,7 +110,7 @@ lock|expected-execution-error|auth|private_key|
 unlock|expected-execution-error|auth|private_key|--duration 60
 generate-sub-account|excluded-interactive|auth|private_key|
 generate-address|offline-success|empty|none|
-get-private-key-by-mnemonic|offline-success|empty|mnemonic|--mnemonic '{{MNEMONIC}}'
+get-private-key-by-mnemonic|offline-success|empty|mnemonic|
 encoding-converter|excluded-interactive|empty|none|
 address-book|excluded-interactive|empty|none|
 view-transaction-history|excluded-interactive|auth|private_key|

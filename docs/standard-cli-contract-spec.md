@@ -525,6 +525,8 @@ For invocations whose resolved auth policy is `NEVER`:
 - auth may be skipped without error
 - text-mode info messages may explain why auth was skipped
 - JSON mode does not need to surface skip info as a top-level result
+- the runner may still pass through the already-parsed global `--wallet` value as an explicit target selector for
+  command-specific business logic, as long as that does not trigger runner-managed authentication semantics
 
 For invocations whose resolved auth policy is `REQUIRE`:
 
@@ -544,6 +546,9 @@ For invocations whose resolved auth policy is `REQUIRE`:
   operation
 - handlers must be able to rely on the runner guarantee that `REQUIRE` commands either start authenticated or do not
   start at all
+- when a `NEVER` command intentionally uses global `--wallet` as a business-level target selector, that behavior
+  must be explicit in command design and must not implicitly fall back into runner-style auth or `MASTER_PASSWORD`
+  requirements
 
 ### Standard CLI vs REPL
 

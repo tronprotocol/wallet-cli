@@ -27,7 +27,7 @@ public class ExchangeCommands {
                 .option("second-balance", "Second token balance", true, OptionDef.Type.LONG)
                 .option("owner", "Owner address", false)
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     byte[] firstToken = opts.getString("first-token").getBytes();
@@ -55,7 +55,7 @@ public class ExchangeCommands {
                 .option("quant", "Token quantity", true, OptionDef.Type.LONG)
                 .option("owner", "Owner address", false)
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     long exchangeId = opts.getLong("exchange-id");
@@ -81,7 +81,7 @@ public class ExchangeCommands {
                 .option("quant", "Token quantity", true, OptionDef.Type.LONG)
                 .option("owner", "Owner address", false)
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     long exchangeId = opts.getLong("exchange-id");
@@ -108,7 +108,7 @@ public class ExchangeCommands {
                 .option("expected", "Minimum expected tokens to receive", true, OptionDef.Type.LONG)
                 .option("owner", "Owner address", false)
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     long exchangeId = opts.getLong("exchange-id");
@@ -138,7 +138,7 @@ public class ExchangeCommands {
                 .option("buy-quantity", "Expected buy quantity", true, OptionDef.Type.LONG)
                 .option("owner", "Owner address", false)
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     byte[] sellToken = opts.getString("sell-token").getBytes();
@@ -164,7 +164,7 @@ public class ExchangeCommands {
                 .option("order-id", "Order ID hex", true)
                 .option("owner", "Owner address", false)
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     byte[] orderId = org.tron.common.utils.ByteArray.fromHexString(opts.getString("order-id"));

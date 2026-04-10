@@ -84,7 +84,7 @@ public class QueryCommands {
                 .name("get-address")
                 .aliases("getaddress")
                 .description("Get the address of the current logged-in wallet")
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     String address = wrapper.getAddress();
                     if (address != null) {
                         Map<String, Object> json = new LinkedHashMap<String, Object>();
@@ -106,7 +106,7 @@ public class QueryCommands {
                 .aliases("getbalance")
                 .description("Get the balance of an address")
                 .option("address", "Address to query (default: current wallet)", false)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     Response.Account account;
                     if (opts.has("address")) {
                         byte[] addressBytes = opts.getAddress("address");
@@ -135,7 +135,7 @@ public class QueryCommands {
                 .aliases("getaccount")
                 .description("Get account information by address")
                 .option("address", "Address to query", true)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     byte[] addressBytes = opts.getAddress("address");
                     Response.Account account = WalletApi.queryAccount(addressBytes);
                     if (account == null) {
@@ -153,7 +153,7 @@ public class QueryCommands {
                 .aliases("getaccountbyid")
                 .description("Get account information by account ID")
                 .option("id", "Account ID", true)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     Response.Account account = WalletApi.queryAccountById(opts.getString("id"));
                     if (account == null) {
                         out.error("query_failed", "GetAccountById failed");
@@ -170,7 +170,7 @@ public class QueryCommands {
                 .aliases("getaccountnet")
                 .description("Get account net (bandwidth) information")
                 .option("address", "Address to query", true)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     byte[] addressBytes = opts.getAddress("address");
                     Response.AccountNetMessage accountNet = wrapper.getAccountNetForCli(addressBytes);
                     out.printMessage(Utils.formatMessageString(accountNet), "GetAccountNet failed");
@@ -184,7 +184,7 @@ public class QueryCommands {
                 .aliases("getaccountresource")
                 .description("Get account resource information")
                 .option("address", "Address to query", true)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     byte[] addressBytes = opts.getAddress("address");
                     Response.AccountResourceMessage accountResource = wrapper.getAccountResourceForCli(addressBytes);
                     out.printMessage(Utils.formatMessageString(accountResource), "GetAccountResource failed");
@@ -201,7 +201,7 @@ public class QueryCommands {
                 .aliases("getusdtbalance")
                 .description("Get USDT balance of an address")
                 .option("address", "Address to query (default: current wallet)", false)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     byte[] ownerAddress = opts.has("address") ? opts.getAddress("address") : null;
                     org.apache.commons.lang3.tuple.Triple<Boolean, Long, Long> pair =
                             wrapper.getUSDTBalance(ownerAddress);
@@ -222,7 +222,7 @@ public class QueryCommands {
                 .name("current-network")
                 .aliases("currentnetwork")
                 .description("Display the current network")
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     String network = WalletApi.getCurrentNetwork() != null
                             ? WalletApi.getCurrentNetwork().name() : "unknown";
                     Map<String, Object> json = new LinkedHashMap<String, Object>();
@@ -238,7 +238,7 @@ public class QueryCommands {
                 .aliases("getblock")
                 .description("Get block by number or latest")
                 .option("number", "Block number (default: latest)", false, OptionDef.Type.LONG)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     long blockNum = opts.has("number") ? opts.getLong("number") : -1;
                     Chain.Block block = WalletApi.getBlock(blockNum);
                     if (block == null) {
@@ -256,7 +256,7 @@ public class QueryCommands {
                 .aliases("getblockbyid")
                 .description("Get block by block ID (hash)")
                 .option("id", "Block ID / hash", true)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     Chain.Block block = WalletApi.getBlockById(opts.getString("id"));
                     if (block == null) {
                         out.error("query_failed", "GetBlockById failed");
@@ -273,7 +273,7 @@ public class QueryCommands {
                 .aliases("getblockbyidornum")
                 .description("Get block by ID or number")
                 .option("value", "Block ID or number", true)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     String value = opts.getString("value");
                     try {
                         long blockNum = Long.parseLong(value);
@@ -301,7 +301,7 @@ public class QueryCommands {
                 .aliases("getblockbylatestnum")
                 .description("Get the latest N blocks")
                 .option("count", "Number of blocks", true, OptionDef.Type.LONG)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     long count = opts.getLong("count");
                     Response.BlockListExtention blocks = WalletApi.getBlockByLatestNum2(count);
                     if (blocks == null) {
@@ -320,7 +320,7 @@ public class QueryCommands {
                 .description("Get blocks in range [start, end)")
                 .option("start", "Start block number", true, OptionDef.Type.LONG)
                 .option("end", "End block number", true, OptionDef.Type.LONG)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     long start = opts.getLong("start");
                     long end = opts.getLong("end");
                     Response.BlockListExtention blocks = WalletApi.getBlockByLimitNext(start, end);
@@ -339,7 +339,7 @@ public class QueryCommands {
                 .aliases("gettransactionbyid")
                 .description("Get transaction by ID")
                 .option("id", "Transaction ID", true)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     Chain.Transaction tx = wrapper.getTransactionByIdForCli(opts.getString("id"));
                     out.printMessage(Utils.formatMessageString(tx), "GetTransactionById failed");
                 })
@@ -352,7 +352,7 @@ public class QueryCommands {
                 .aliases("gettransactioninfobyid")
                 .description("Get transaction info by ID")
                 .option("id", "Transaction ID", true)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     Response.TransactionInfo txInfo = wrapper.getTransactionInfoByIdForCli(opts.getString("id"));
                     out.printMessage(Utils.formatMessageString(txInfo), "GetTransactionInfoById failed");
                 })
@@ -365,7 +365,7 @@ public class QueryCommands {
                 .aliases("gettransactioncountbyblocknum")
                 .description("Get transaction count in a block")
                 .option("number", "Block number", true, OptionDef.Type.LONG)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     long count = wrapper.getTransactionCountByBlockNum(opts.getLong("number"));
                     Map<String, Object> json = new LinkedHashMap<String, Object>();
                     json.put("count", count);
@@ -380,7 +380,7 @@ public class QueryCommands {
                 .aliases("getassetissuebyaccount")
                 .description("Get asset issues by account address")
                 .option("address", "Account address", true)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     Response.AssetIssueList result = WalletApi.getAssetIssueByAccount(opts.getAddress("address"));
                     if (result == null) {
                         out.error("query_failed", "GetAssetIssueByAccount failed");
@@ -397,7 +397,7 @@ public class QueryCommands {
                 .aliases("getassetissuebyid")
                 .description("Get asset issue by ID")
                 .option("id", "Asset ID", true)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     Contract.AssetIssueContract result = WalletApi.getAssetIssueById(opts.getString("id"));
                     out.protobuf(result, "GetAssetIssueById failed");
                 })
@@ -410,7 +410,7 @@ public class QueryCommands {
                 .aliases("getassetissuebyname")
                 .description("Get asset issue by name")
                 .option("name", "Asset name", true)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     Contract.AssetIssueContract result = WalletApi.getAssetIssueByName(opts.getString("name"));
                     out.protobuf(result, "GetAssetIssueByName failed");
                 })
@@ -423,7 +423,7 @@ public class QueryCommands {
                 .aliases("getassetissuelistbyname")
                 .description("Get asset issue list by name")
                 .option("name", "Asset name", true)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     Response.AssetIssueList result = WalletApi.getAssetIssueListByName(opts.getString("name"));
                     if (result == null) {
                         out.error("query_failed", "GetAssetIssueListByName failed");
@@ -439,7 +439,7 @@ public class QueryCommands {
                 .name("get-chain-parameters")
                 .aliases("getchainparameters")
                 .description("Get chain parameters")
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     Response.ChainParameters result = wrapper.getChainParametersForCli();
                     out.printMessage(Utils.formatMessageString(result), "GetChainParameters failed");
                 })
@@ -451,7 +451,7 @@ public class QueryCommands {
                 .name("get-bandwidth-prices")
                 .aliases("getbandwidthprices")
                 .description("Get bandwidth prices history")
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     Response.PricesResponseMessage result = WalletApi.getBandwidthPrices();
                     out.protobuf(result, "GetBandwidthPrices failed");
                 })
@@ -463,7 +463,7 @@ public class QueryCommands {
                 .name("get-energy-prices")
                 .aliases("getenergyprices")
                 .description("Get energy prices history")
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     Response.PricesResponseMessage result = WalletApi.getEnergyPrices();
                     out.protobuf(result, "GetEnergyPrices failed");
                 })
@@ -475,7 +475,7 @@ public class QueryCommands {
                 .name("get-memo-fee")
                 .aliases("getmemofee")
                 .description("Get memo fee")
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     Response.PricesResponseMessage result = WalletApi.getMemoFee();
                     out.protobuf(result, "GetMemoFee failed");
                 })
@@ -487,7 +487,7 @@ public class QueryCommands {
                 .name("get-next-maintenance-time")
                 .aliases("getnextmaintenancetime")
                 .description("Get next maintenance time")
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     long time = wrapper.getNextMaintenanceTime();
                     Map<String, Object> json = new LinkedHashMap<String, Object>();
                     json.put("next_maintenance_time", time);
@@ -502,7 +502,7 @@ public class QueryCommands {
                 .aliases("getcontract")
                 .description("Get smart contract by address")
                 .option("address", "Contract address", true)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     Common.SmartContract contract = WalletApi.getContract(opts.getAddress("address"));
                     if (contract == null) {
                         out.error("query_failed", "GetContract failed");
@@ -519,7 +519,7 @@ public class QueryCommands {
                 .aliases("getcontractinfo")
                 .description("Get smart contract info by address")
                 .option("address", "Contract address", true)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     Response.SmartContractDataWrapper contractInfo = WalletApi.getContractInfo(opts.getAddress("address"));
                     if (contractInfo == null) {
                         out.error("query_failed", "GetContractInfo failed");
@@ -537,7 +537,7 @@ public class QueryCommands {
                 .description("Get delegated resource between two addresses")
                 .option("from", "From address", true)
                 .option("to", "To address", true)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     Response.DelegatedResourceList result = WalletApi.getDelegatedResource(
                             opts.getString("from"), opts.getString("to"));
                     if (result == null) {
@@ -556,7 +556,7 @@ public class QueryCommands {
                 .description("Get delegated resource V2 between two addresses")
                 .option("from", "From address", true)
                 .option("to", "To address", true)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     Response.DelegatedResourceList result = WalletApi.getDelegatedResourceV2(
                             opts.getString("from"), opts.getString("to"));
                     if (result == null) {
@@ -574,7 +574,7 @@ public class QueryCommands {
                 .aliases("getdelegatedresourceaccountindex")
                 .description("Get delegated resource account index")
                 .option("address", "Address", true)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     Response.DelegatedResourceAccountIndex result =
                             WalletApi.getDelegatedResourceAccountIndex(opts.getString("address"));
                     if (result == null) {
@@ -593,7 +593,7 @@ public class QueryCommands {
                 .aliases("getdelegatedresourceaccountindexv2")
                 .description("Get delegated resource account index V2")
                 .option("address", "Address", true)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     Response.DelegatedResourceAccountIndex result =
                             WalletApi.getDelegatedResourceAccountIndexV2(opts.getString("address"));
                     if (result == null) {
@@ -613,7 +613,7 @@ public class QueryCommands {
                 .description("Get max delegatable size for a resource type")
                 .option("owner", "Owner address", true)
                 .option("type", "Resource type (0=BANDWIDTH, 1=ENERGY)", true, OptionDef.Type.LONG)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     long maxSize = WalletApi.getCanDelegatedMaxSize(
                             opts.getAddress("owner"), (int) opts.getLong("type"));
                     Map<String, Object> json = new LinkedHashMap<String, Object>();
@@ -629,7 +629,7 @@ public class QueryCommands {
                 .aliases("getavailableunfreezecount")
                 .description("Get available unfreeze count")
                 .option("address", "Address", true)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     long count = WalletApi.getAvailableUnfreezeCount(opts.getAddress("address"));
                     Map<String, Object> json = new LinkedHashMap<String, Object>();
                     json.put("count", count);
@@ -645,7 +645,7 @@ public class QueryCommands {
                 .description("Get withdrawable unfreeze amount")
                 .option("address", "Address", true)
                 .option("timestamp", "Timestamp in milliseconds (default: now)", false, OptionDef.Type.LONG)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     long ts = opts.has("timestamp") ? opts.getLong("timestamp") : System.currentTimeMillis();
                     long amount = WalletApi.getCanWithdrawUnfreezeAmount(opts.getAddress("address"), ts);
                     Map<String, Object> json = new LinkedHashMap<String, Object>();
@@ -661,7 +661,7 @@ public class QueryCommands {
                 .aliases("getbrokerage")
                 .description("Get witness brokerage ratio")
                 .option("address", "Witness address", true)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     long brokerage = wrapper.getBrokerage(opts.getAddress("address"));
                     Map<String, Object> json = new LinkedHashMap<String, Object>();
                     json.put("brokerage", brokerage);
@@ -676,7 +676,7 @@ public class QueryCommands {
                 .aliases("getreward")
                 .description("Get unclaimed reward")
                 .option("address", "Address", true)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     org.tron.trident.api.GrpcAPI.NumberMessage result =
                             wrapper.getReward(opts.getAddress("address"));
                     if (result == null) {
@@ -696,7 +696,7 @@ public class QueryCommands {
                 .name("list-nodes")
                 .aliases("listnodes")
                 .description("List connected nodes")
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     Response.NodeList nodeList = WalletApi.listNodes();
                     if (nodeList == null) {
                         out.error("query_failed", "ListNodes failed");
@@ -712,7 +712,7 @@ public class QueryCommands {
                 .name("list-witnesses")
                 .aliases("listwitnesses")
                 .description("List all witnesses")
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     Response.WitnessList witnessList = wrapper.listWitnessesForCli();
                     out.printMessage(Utils.formatMessageString(witnessList), "ListWitnesses failed");
                 })
@@ -724,7 +724,7 @@ public class QueryCommands {
                 .name("list-asset-issue")
                 .aliases("listassetissue")
                 .description("List all asset issues")
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     Response.AssetIssueList result = WalletApi.getAssetIssueList();
                     out.protobuf(result, "ListAssetIssue failed");
                 })
@@ -738,7 +738,7 @@ public class QueryCommands {
                 .description("List asset issues with pagination")
                 .option("offset", "Start offset", true, OptionDef.Type.LONG)
                 .option("limit", "Page size", true, OptionDef.Type.LONG)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     Response.AssetIssueList result = WalletApi.getPaginatedAssetIssueList(
                             opts.getLong("offset"), opts.getLong("limit"));
                     if (result == null) {
@@ -755,7 +755,7 @@ public class QueryCommands {
                 .name("list-proposals")
                 .aliases("listproposals")
                 .description("List all proposals")
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     Response.ProposalList result = WalletApi.getProposalListPaginated(-1, -1);
                     if (result == null) {
                         out.error("query_failed", "ListProposals failed");
@@ -773,7 +773,7 @@ public class QueryCommands {
                 .description("List proposals with pagination")
                 .option("offset", "Start offset", true, OptionDef.Type.LONG)
                 .option("limit", "Page size", true, OptionDef.Type.LONG)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     Response.ProposalList result = WalletApi.getProposalListPaginated(
                             opts.getLong("offset"), opts.getLong("limit"));
                     if (result == null) {
@@ -791,7 +791,7 @@ public class QueryCommands {
                 .aliases("getproposal")
                 .description("Get proposal by ID")
                 .option("id", "Proposal ID", true)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     Response.Proposal result = WalletApi.getProposal(opts.getString("id"));
                     if (result == null) {
                         out.error("query_failed", "GetProposal failed");
@@ -807,7 +807,7 @@ public class QueryCommands {
                 .name("list-exchanges")
                 .aliases("listexchanges")
                 .description("List all exchanges")
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     Response.ExchangeList result = WalletApi.getExchangeListPaginated(-1, -1);
                     if (result == null) {
                         out.error("query_failed", "ListExchanges failed");
@@ -825,7 +825,7 @@ public class QueryCommands {
                 .description("List exchanges with pagination")
                 .option("offset", "Start offset", true, OptionDef.Type.LONG)
                 .option("limit", "Page size", true, OptionDef.Type.LONG)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     Response.ExchangeList result = WalletApi.getExchangeListPaginated(
                             opts.getLong("offset"), opts.getLong("limit"));
                     if (result == null) {
@@ -843,7 +843,7 @@ public class QueryCommands {
                 .aliases("getexchange")
                 .description("Get exchange by ID")
                 .option("id", "Exchange ID", true)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     Response.Exchange result = WalletApi.getExchange(opts.getString("id"));
                     if (result == null) {
                         out.error("query_failed", "GetExchange failed");
@@ -860,7 +860,7 @@ public class QueryCommands {
                 .aliases("getmarketorderbyaccount")
                 .description("Get market orders by account")
                 .option("address", "Account address", true)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     Response.MarketOrderList result = WalletApi.getMarketOrderByAccount(opts.getAddress("address"));
                     if (result == null) {
                         out.error("query_failed", "GetMarketOrderByAccount failed");
@@ -877,7 +877,7 @@ public class QueryCommands {
                 .aliases("getmarketorderbyid")
                 .description("Get market order by ID")
                 .option("id", "Order ID hex", true)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     byte[] orderId = org.tron.common.utils.ByteArray.fromHexString(opts.getString("id"));
                     Response.MarketOrder result;
                     try {
@@ -903,7 +903,7 @@ public class QueryCommands {
                 .description("Get market order list by token pair")
                 .option("sell-token", "Sell token name", true)
                 .option("buy-token", "Buy token name", true)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     Response.MarketOrderList result = WalletApi.getMarketOrderListByPair(
                             opts.getString("sell-token").getBytes(),
                             opts.getString("buy-token").getBytes());
@@ -921,7 +921,7 @@ public class QueryCommands {
                 .name("get-market-pair-list")
                 .aliases("getmarketpairlist")
                 .description("Get all market trading pairs")
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     Response.MarketOrderPairList result = wrapper.getMarketPairListForCli();
                     out.printMessage(Utils.formatMessageString(result), "GetMarketPairList failed");
                 })
@@ -935,7 +935,7 @@ public class QueryCommands {
                 .description("Get market price by token pair")
                 .option("sell-token", "Sell token name", true)
                 .option("buy-token", "Buy token name", true)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     Response.MarketPriceList result = WalletApi.getMarketPriceByPair(
                             opts.getString("sell-token").getBytes(),
                             opts.getString("buy-token").getBytes());
@@ -955,7 +955,7 @@ public class QueryCommands {
                 .aliases("gasfreeinfo")
                 .description("Get GasFree service info")
                 .option("address", "Address to query (default: current wallet)", false)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     String address = opts.has("address") ? opts.getString("address") : null;
                     String rendered = JSON.toJSONString(wrapper.getGasFreeInfoData(address), true);
                     out.printMessage(rendered, "GetGasFreeInfo failed");
@@ -969,7 +969,7 @@ public class QueryCommands {
                 .aliases("gasfreetrace")
                 .description("Trace a GasFree transaction")
                 .option("id", "Transaction ID", true)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     String rendered = JSON.toJSONString(wrapper.gasFreeTraceData(opts.getString("id")), true);
                     out.printMessage(rendered, "GasFreeTrace failed");
                 })

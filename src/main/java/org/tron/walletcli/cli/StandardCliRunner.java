@@ -97,15 +97,16 @@ public class StandardCliRunner {
             }
 
             applyPermissionIdOverride(cmd, opts);
+            CommandContext ctx = CommandContext.fromGlobalOptions(globalOpts);
 
             // Create wrapper and authenticate
             WalletApiWrapper wrapper = new WalletApiWrapper();
             if (requiresAutoAuth(cmd, opts)) {
-                authenticate(wrapper);
+                ctx = ctx.withResolvedAuthWalletFile(authenticate(wrapper));
             }
 
             // Execute command
-            cmd.getHandler().execute(opts, wrapper, formatter);
+            cmd.getHandler().execute(ctx, opts, wrapper, formatter);
             if (!formatter.hasOutcome()) {
                 formatter.error("execution_error",
                         "Command completed without emitting an outcome");
@@ -139,7 +140,7 @@ public class StandardCliRunner {
     /**
      * Auto-login from the resolved keystore target for wallet-authenticated standard CLI commands.
      */
-    private void authenticate(WalletApiWrapper wrapper) throws Exception {
+    private File authenticate(WalletApiWrapper wrapper) throws Exception {
         File targetFile = resolveAuthenticationWalletFile();
         String envPwd = masterPasswordProvider.get();
         if (envPwd == null || envPwd.isEmpty()) {
@@ -170,6 +171,7 @@ public class StandardCliRunner {
             walletApi.setUnifiedPassword(Arrays.copyOf(password, password.length));
             wrapper.setWallet(walletApi);
             formatter.info("Authenticated with wallet: " + wf.getAddress());
+            return targetFile;
         } finally {
             Arrays.fill(password, (byte) 0);
         }

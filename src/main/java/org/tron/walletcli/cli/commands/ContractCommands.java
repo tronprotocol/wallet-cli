@@ -42,7 +42,7 @@ public class ContractCommands {
                 .option("compiler-version", "Compiler version", false)
                 .option("owner", "Owner address", false)
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     String name = opts.getString("name");
@@ -112,7 +112,7 @@ public class ContractCommands {
                 .option("owner", "Caller address", false)
                 .option("permission-id", "Permission ID for signing (default: 0)", false, OptionDef.Type.LONG)
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     byte[] contractAddress = opts.getAddress("contract");
@@ -157,7 +157,7 @@ public class ContractCommands {
                 .option("method", "Method signature", true)
                 .option("params", "Method parameters", false)
                 .option("owner", "Caller address", false)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     byte[] contractAddress = opts.getAddress("contract");
                     String method = opts.getString("method");
@@ -211,7 +211,7 @@ public class ContractCommands {
                 .option("token-value", "Token value (default: 0)", false, OptionDef.Type.LONG)
                 .option("token-id", "Token ID", false)
                 .option("owner", "Caller address", false)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     byte[] contractAddress = opts.getAddress("contract");
                     String method = opts.getString("method");
@@ -246,7 +246,7 @@ public class ContractCommands {
                 .option("contract", "Contract address", true)
                 .option("owner", "Owner address", false)
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     byte[] contractAddress = opts.getAddress("contract");
@@ -269,7 +269,7 @@ public class ContractCommands {
                 .option("consume-user-resource-percent", "New percentage (0-100)", true, OptionDef.Type.LONG)
                 .option("owner", "Owner address", false)
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     byte[] contractAddress = opts.getAddress("contract");
@@ -293,7 +293,7 @@ public class ContractCommands {
                 .option("origin-energy-limit", "New origin energy limit", true, OptionDef.Type.LONG)
                 .option("owner", "Owner address", false)
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     byte[] contractAddress = opts.getAddress("contract");

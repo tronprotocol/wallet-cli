@@ -21,6 +21,9 @@ import java.util.Map;
 
 public class WalletCommands {
 
+    private static final String PRIVATE_KEY_ENV = "TRON_PRIVATE_KEY";
+    private static final String MNEMONIC_ENV = "TRON_MNEMONIC";
+
     private static CommandDefinition.Builder noAuthCommand() {
         return CommandDefinition.builder().authPolicy(CommandDefinition.AuthPolicy.NEVER);
     }
@@ -48,7 +51,7 @@ public class WalletCommands {
                 .aliases("registerwallet")
                 .description("Create a new wallet")
                 .option("words", "Mnemonic word count (12 or 24, default: 12)", false, OptionDef.Type.LONG)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     int wordCount = opts.has("words") ? (int) opts.getLong("words") : 12;
                     String envPassword = System.getenv("MASTER_PASSWORD");
                     if (envPassword == null || envPassword.isEmpty()) {
@@ -81,19 +84,23 @@ public class WalletCommands {
         registry.add(noAuthCommand()
                 .name("import-wallet")
                 .aliases("importwallet")
-                .description("Import a wallet by private key (uses MASTER_PASSWORD env for encryption)")
-                .option("private-key", "Private key hex string", true)
+                .description("Import a wallet by private key from " + PRIVATE_KEY_ENV
+                        + " (uses MASTER_PASSWORD env for encryption)")
                 .option("name", "Wallet name (default: mywallet)", false)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     String envPassword = System.getenv("MASTER_PASSWORD");
                     if (envPassword == null || envPassword.isEmpty()) {
                         out.error("auth_required",
                                 "Set MASTER_PASSWORD environment variable");
                         return;
                     }
+                    String privateKeyHex = System.getenv(PRIVATE_KEY_ENV);
+                    if (privateKeyHex == null || privateKeyHex.isEmpty()) {
+                        out.usageError("import-wallet requires " + PRIVATE_KEY_ENV + " in standard CLI mode.", null);
+                    }
                     byte[] passwd = org.tron.keystore.StringUtils.char2Byte(
                             envPassword.toCharArray());
-                    byte[] priKey = ByteArray.fromHexString(opts.getString("private-key"));
+                    byte[] priKey = ByteArray.fromHexString(privateKeyHex);
                     try {
                         String walletName = opts.has("name") ? opts.getString("name") : "mywallet";
 
@@ -122,20 +129,25 @@ public class WalletCommands {
         registry.add(noAuthCommand()
                 .name("import-wallet-by-mnemonic")
                 .aliases("importwalletbymnemonic")
-                .description("Import a wallet by mnemonic phrase (uses MASTER_PASSWORD env for encryption)")
-                .option("mnemonic", "Mnemonic words (space-separated)", true)
+                .description("Import a wallet by mnemonic phrase from " + MNEMONIC_ENV
+                        + " (uses MASTER_PASSWORD env for encryption)")
                 .option("name", "Wallet name (default: mywallet)", false)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     String envPassword = System.getenv("MASTER_PASSWORD");
                     if (envPassword == null || envPassword.isEmpty()) {
                         out.error("auth_required",
                                 "Set MASTER_PASSWORD environment variable");
                         return;
                     }
+                    String mnemonic = System.getenv(MNEMONIC_ENV);
+                    if (mnemonic == null || mnemonic.trim().isEmpty()) {
+                        out.usageError("import-wallet-by-mnemonic requires " + MNEMONIC_ENV
+                                + " in standard CLI mode.", null);
+                    }
                     byte[] passwd = org.tron.keystore.StringUtils.char2Byte(
                             envPassword.toCharArray());
                     List<String> words = Arrays.asList(
-                            opts.getString("mnemonic").split("\\s+"));
+                            mnemonic.trim().split("\\s+"));
                     String walletName = opts.has("name") ? opts.getString("name") : "mywallet";
                     byte[] priKey = null;
                     try {
@@ -168,7 +180,7 @@ public class WalletCommands {
                 .name("list-wallet")
                 .aliases("listwallet")
                 .description("List all wallets with active status")
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     File dir = ActiveWalletConfig.getWalletDir();
                     if (!dir.exists() || !dir.isDirectory()) {
                         out.error("no_wallets", "No wallet directory found");
@@ -225,7 +237,7 @@ public class WalletCommands {
                 .description("Set the active wallet by address or name")
                 .option("address", "Wallet address (Base58Check)", false)
                 .option("name", "Wallet name", false)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     boolean hasAddress = opts.has("address");
                     boolean hasName = opts.has("name");
 
@@ -279,7 +291,7 @@ public class WalletCommands {
                 .name("get-active-wallet")
                 .aliases("getactivewallet")
                 .description("Get the current active wallet")
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     String activeAddress = ActiveWalletConfig.getActiveAddressStrict();
                     if (activeAddress == null) {
                         out.error("no_active_wallet", "No active wallet set");
@@ -316,9 +328,15 @@ public class WalletCommands {
                 .option("new-password", "New keystore password", true)
                 .option("address", "Wallet address (Base58Check)", false)
                 .option("name", "Wallet name", false)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
+                    String walletOverride = ctx.getWalletOverride();
                     boolean hasAddress = opts.has("address");
                     boolean hasName = opts.has("name");
+                    if (walletOverride != null && (hasAddress || hasName)) {
+                        out.usageError(
+                                "Provide either global --wallet or command-local --address/--name, not both", null);
+                        return;
+                    }
                     if (hasAddress && hasName) {
                         out.usageError(
                                 "Provide either --address or --name, not both", null);
@@ -328,6 +346,7 @@ public class WalletCommands {
                     File targetWalletFile;
                     try {
                         targetWalletFile = resolveWalletFileForNonInteractiveCommand(
+                                walletOverride,
                                 hasAddress ? opts.getString("address") : null,
                                 hasName ? opts.getString("name") : null);
                     } catch (IllegalArgumentException e) {
@@ -358,12 +377,15 @@ public class WalletCommands {
                 .aliases("clearwalletkeystore")
                 .description("Clear wallet keystore files")
                 .option("force", "Skip interactive confirmation", false, OptionDef.Type.BOOLEAN)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     boolean force = opts.getBoolean("force");
                     CommandSupport.requireForce(out, "clear-wallet-keystore", force);
 
-                    wrapper.clearWalletKeystoreForCli(force);
-                    ActiveWalletConfig.clear();
+                    File targetWalletFile = ctx.getResolvedAuthWalletFile();
+                    wrapper.clearWalletKeystoreForCli(force, targetWalletFile);
+                    if (shouldClearActiveWalletForDeletedTarget(targetWalletFile)) {
+                        ActiveWalletConfig.clear();
+                    }
                     CommandSupport.emitBooleanResult(out, true,
                             "ClearWalletKeystore successful !!",
                             "ClearWalletKeystore failed !!");
@@ -377,7 +399,7 @@ public class WalletCommands {
                 .aliases("resetwallet")
                 .description("Reset wallet to initial state")
                 .option("force", "Skip interactive confirmation", false, OptionDef.Type.BOOLEAN)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     boolean force = opts.getBoolean("force");
                     CommandSupport.requireForce(out, "reset-wallet", force);
                     wrapper.resetWalletForCli(force);
@@ -395,7 +417,7 @@ public class WalletCommands {
                 .aliases("modifywalletname")
                 .description("Modify wallet display name")
                 .option("name", "New wallet name", true)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
 
                     boolean result = wrapper.modifyWalletName(opts.getString("name"));
                     CommandSupport.emitBooleanResult(out, result,
@@ -413,7 +435,7 @@ public class WalletCommands {
                 .option("network", "Network (main/nile/shasta/custom)", true)
                 .option("full-node", "Custom full node endpoint", false)
                 .option("solidity-node", "Custom solidity node endpoint", false)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     String network = opts.getString("network");
                     String fullNode = opts.has("full-node") ? opts.getString("full-node") : null;
                     String solidityNode = opts.has("solidity-node") ? opts.getString("solidity-node") : null;
@@ -431,7 +453,7 @@ public class WalletCommands {
                 .name("lock")
                 .aliases("lock")
                 .description("Lock the wallet")
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
 
                     boolean result = wrapper.lock();
                     CommandSupport.emitBooleanResult(out, result,
@@ -447,7 +469,7 @@ public class WalletCommands {
                 .aliases("unlock")
                 .description("Unlock the wallet for a duration")
                 .option("duration", "Duration in seconds", true, OptionDef.Type.LONG)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     long duration = opts.getLong("duration");
                     wrapper.unlockOrThrow(duration);
                     out.successMessage("Unlock successful !!");
@@ -461,15 +483,19 @@ public class WalletCommands {
                 .name("generate-sub-account")
                 .aliases("generatesubaccount")
                 .description("Generate a sub-account from mnemonic")
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     wrapper.generateSubAccountOrThrow();
                     out.successMessage("GenerateSubAccount successful !!");
                 })
                 .build());
     }
 
-    private static File resolveWalletFileForNonInteractiveCommand(String address, String name)
+    private static File resolveWalletFileForNonInteractiveCommand(
+            String walletOverride, String address, String name)
             throws Exception {
+        if (walletOverride != null) {
+            return ActiveWalletConfig.resolveWalletOverrideStrict(walletOverride);
+        }
         if (address != null) {
             return ActiveWalletConfig.findWalletFileByAddress(address);
         }
@@ -488,5 +514,20 @@ public class WalletCommands {
                             + ". Use --address, --name, or set-active-wallet.");
         }
         return null;
+    }
+
+    private static boolean shouldClearActiveWalletForDeletedTarget(File targetWalletFile) {
+        if (targetWalletFile == null) {
+            return false;
+        }
+        try {
+            File activeWalletFile = ActiveWalletConfig.resolveActiveWalletFileStrict();
+            if (activeWalletFile == null) {
+                return false;
+            }
+            return activeWalletFile.getCanonicalFile().equals(targetWalletFile.getCanonicalFile());
+        } catch (Exception e) {
+            return false;
+        }
     }
 }

@@ -45,7 +45,7 @@ public class TransactionCommands {
                 .option("owner", "Sender address (default: current wallet)", false)
                 .option("permission-id", "Permission ID for signing (default: 0)", false, OptionDef.Type.LONG)
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     byte[] to = opts.getAddress("to");
@@ -65,7 +65,7 @@ public class TransactionCommands {
                                 "create multi-sign transaction failed !!",
                                 CommandSupport.lastBroadcastTxResultData());
                     } else {
-                        String successMessage = "Send " + amount + " Sun to " + toStr + " successful !!";
+                        String successMessage = "SendCoin successful !!";
                         Map<String, Object> json = new LinkedHashMap<String, Object>();
                         json.put("message", successMessage);
                         json.put("to", toStr);
@@ -91,7 +91,7 @@ public class TransactionCommands {
                 .option("amount", "Amount", true, OptionDef.Type.LONG)
                 .option("owner", "Sender address", false)
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     byte[] to = opts.getAddress("to");
@@ -117,7 +117,7 @@ public class TransactionCommands {
                 .option("owner", "Sender address", false)
                 .option("permission-id", "Permission ID for signing (default: 0)", false, OptionDef.Type.LONG)
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
 
                     NetType netType = WalletApi.getCurrentNetwork();
                     if (netType.getUsdtAddress() == null) {
@@ -194,7 +194,7 @@ public class TransactionCommands {
                 .option("amount", "Amount", true, OptionDef.Type.LONG)
                 .option("owner", "Participant address", false)
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     byte[] to = opts.getAddress("to");
@@ -230,7 +230,7 @@ public class TransactionCommands {
                 .option("public-free-net-limit", "Public free net limit", true, OptionDef.Type.LONG)
                 .option("owner", "Owner address", false)
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     String name = opts.getString("name");
@@ -266,7 +266,7 @@ public class TransactionCommands {
                 .option("address", "New account address", true)
                 .option("owner", "Creator address", false)
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     byte[] address = opts.getAddress("address");
@@ -288,7 +288,7 @@ public class TransactionCommands {
                 .option("name", "Account name", true)
                 .option("owner", "Owner address", false)
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     byte[] nameBytes = opts.getString("name").getBytes();
@@ -309,7 +309,7 @@ public class TransactionCommands {
                 .description("Set account ID")
                 .option("id", "Account ID", true)
                 .option("owner", "Owner address", false)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     byte[] id = opts.getString("id").getBytes();
@@ -333,7 +333,7 @@ public class TransactionCommands {
                 .option("new-public-limit", "New public free net limit", true, OptionDef.Type.LONG)
                 .option("owner", "Owner address", false)
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     byte[] desc = opts.getString("description").getBytes();
@@ -356,7 +356,7 @@ public class TransactionCommands {
                 .aliases("broadcasttransaction")
                 .description("Broadcast a signed transaction")
                 .option("transaction", "Transaction hex string", true)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     byte[] txBytes = org.tron.common.utils.ByteArray.fromHexString(opts.getString("transaction"));
                     boolean result = org.tron.walletserver.WalletApi.broadcastTransaction(txBytes);
                     CommandSupport.emitBooleanResult(out, result,
@@ -374,7 +374,7 @@ public class TransactionCommands {
                 .aliases("addtransactionsign")
                 .description("Add a signature to a transaction")
                 .option("transaction", "Transaction hex string", true)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     // addTransactionSign requires interactive password prompt
                     // Delegates to the wrapper which handles signing
                     out.error("not_implemented",
@@ -392,7 +392,7 @@ public class TransactionCommands {
                 .option("owner", "Owner address", true)
                 .option("permissions", "Permissions JSON string", true)
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
 
                     byte[] owner = opts.getAddress("owner");
                     String permissions = opts.getString("permissions");
@@ -412,7 +412,7 @@ public class TransactionCommands {
                 .name("tronlink-multi-sign")
                 .aliases("tronlinkmultisign")
                 .description("TronLink multi-sign transaction")
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     CommandSupport.rejectUnsupportedStandardCliCommand(out, "tronlink-multi-sign");
                 })
                 .build());
@@ -426,7 +426,7 @@ public class TransactionCommands {
                 .description("Transfer tokens via GasFree service")
                 .option("to", "Recipient address", true)
                 .option("amount", "Amount", true, OptionDef.Type.LONG)
-                .handler((opts, wrapper, out) -> {
+                .handler((ctx, opts, wrapper, out) -> {
                     String to = opts.getString("to");
                     long amount = opts.getLong("amount");
                     String gasFreeId = wrapper.gasFreeTransferOrThrow(to, amount);

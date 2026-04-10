@@ -18,7 +18,8 @@ run_case() {
   local resolved_json argv_text_file argv_json_file
   local resolved_label suite template requires env_mode expectation error_code
   local json_path_exists json_path_absent text_contains text_absent preflight excluded
-  local workspace_text workspace_json unresolved mode
+  local workspace_path_exists workspace_path_absent
+  local workspace_text workspace_json assertion_workspace unresolved mode
   local -a argv_text=()
   local -a argv_json=()
   local -a preflight_argv=()
@@ -44,6 +45,8 @@ run_case() {
   text_contains="$(qa_case_json_get "$resolved_json" "text_contains")"
   text_absent="$(qa_case_json_get "$resolved_json" "text_absent")"
   preflight="$(qa_case_json_get "$resolved_json" "preflight")"
+  workspace_path_exists="$(qa_case_json_get "$resolved_json" "workspace_path_exists")"
+  workspace_path_absent="$(qa_case_json_get "$resolved_json" "workspace_path_absent")"
   excluded="$(qa_case_json_bool "$resolved_json" "excluded")"
   unresolved="$(qa_case_json_get "$resolved_json" "unresolved_placeholders")"
 
@@ -102,8 +105,11 @@ run_case() {
     qa_run_raw_capture "$workspace_json" "$resolved_label" json "$env_mode" "${argv_json[@]}"
   fi
 
+  assertion_workspace="${workspace_text:-$workspace_json}"
+
   if qa_assert_case_files "$resolved_label" "$expectation" "$mode" \
-    "$json_path_exists" "$json_path_absent" "$error_code" "$text_contains" "$text_absent"; then
+    "$json_path_exists" "$json_path_absent" "$error_code" "$text_contains" "$text_absent" \
+    "$assertion_workspace" "$workspace_path_exists" "$workspace_path_absent"; then
     qa_write_result "$resolved_label" "PASS"
   else
     qa_write_result "$resolved_label" "FAIL: ${suite} contract violated"

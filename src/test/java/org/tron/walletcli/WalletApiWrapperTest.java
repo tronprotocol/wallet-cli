@@ -4,6 +4,7 @@ import com.google.protobuf.ByteString;
 import org.junit.Assert;
 import org.junit.Test;
 import org.tron.common.enums.NetType;
+import org.tron.keystore.WalletFile;
 import org.tron.trident.proto.Response;
 import org.tron.walletcli.cli.CommandErrorException;
 import org.tron.walletserver.ApiClient;
@@ -19,9 +20,11 @@ public class WalletApiWrapperTest {
   private static class StubApiClient extends ApiClient {
     private Response.TransactionExtention constantContractResult;
     private Response.EstimateEnergyMessage estimateEnergyResult;
+    private Response.Account queryAccountResult;
     private byte[] lastOwner;
     private byte[] lastContract;
     private byte[] lastData;
+    private byte[] lastQueryAddress;
 
     StubApiClient() {
       super(NetType.NILE);
@@ -53,6 +56,12 @@ public class WalletApiWrapperTest {
       lastContract = contractAddress;
       lastData = data;
       return estimateEnergyResult;
+    }
+
+    @Override
+    public Response.Account queryAccount(byte[] address) {
+      lastQueryAddress = address;
+      return queryAccountResult;
     }
   }
 
@@ -134,6 +143,31 @@ public class WalletApiWrapperTest {
       Assert.assertEquals(321L, result.getEnergyRequired());
       Assert.assertArrayEquals(OWNER, stub.lastOwner);
       Assert.assertArrayEquals(CONTRACT, stub.lastContract);
+    } finally {
+      WalletApi.setApiCli(originalApiCli);
+    }
+  }
+
+  @Test
+  public void queryAccountUsesProvidedAddressWhenLoggedIn() {
+    ApiClient originalApiCli = WalletApi.getApiCli();
+    StubApiClient stub = new StubApiClient();
+    stub.queryAccountResult = Response.Account.newBuilder().build();
+    WalletApi.setApiCli(stub);
+
+    try {
+      WalletFile walletFile = new WalletFile();
+      walletFile.setAddress("TQsVqVAnvbFdLcbk29N4npwjW6VG84KS2A");
+      WalletApi walletApi = new WalletApi(walletFile);
+      walletApi.setLogin(null);
+
+      WalletApiWrapper wrapper = new WalletApiWrapper();
+      wrapper.setWallet(walletApi);
+
+      Response.Account result = wrapper.queryAccount(OWNER);
+
+      Assert.assertNotNull(result);
+      Assert.assertArrayEquals(OWNER, stub.lastQueryAddress);
     } finally {
       WalletApi.setApiCli(originalApiCli);
     }

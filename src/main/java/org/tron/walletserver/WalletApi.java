@@ -392,7 +392,6 @@ public class WalletApi {
   public void logout() {
     loginState = false;
     walletFile.clear();
-    this.walletFile = null;
     setLedgerUser(false);
     setCredentials(null);
     setUnifiedPassword(null);
@@ -431,7 +430,7 @@ public class WalletApi {
   }
 
   public boolean checkPassword(byte[] passwd) throws CipherException {
-    return Wallet.validPassword(passwd, this.walletFile.get(0));
+    return Wallet.validPassword(passwd, requireLoadedWalletFile());
   }
 
   /**
@@ -447,6 +446,13 @@ public class WalletApi {
   }
 
   public WalletFile getWalletFile() {
+    return requireLoadedWalletFile();
+  }
+
+  private WalletFile requireLoadedWalletFile() {
+    if (walletFile == null || walletFile.isEmpty() || walletFile.get(0) == null) {
+      throw new IllegalStateException("Wallet not loaded.");
+    }
     return walletFile.get(0);
   }
 
@@ -1421,6 +1427,7 @@ public class WalletApi {
 
   public boolean sendCoinForCli(byte[] owner, byte[] to, long amount, boolean multi)
       throws CipherException, IOException, CancelException, IllegalException {
+    clearLastCliOperationError();
     if (!isUnlocked()) {
       throw new IllegalStateException(LOCK_WARNING);
     }
@@ -1437,7 +1444,12 @@ public class WalletApi {
       if (amount <= 0) {
         return false;
       }
-      long balance = queryAccount(owner).getBalance();
+      Response.Account account = queryAccount(owner);
+      if (account == null) {
+        recordLastCliOperationError("Failed to query account.");
+        return false;
+      }
+      long balance = account.getBalance();
       if (balance < amount) {
         return false;
       }
@@ -2087,6 +2099,40 @@ public class WalletApi {
     return processTransactionExtention(transactionExtention, multi);
   }
 
+  public boolean freezeBalanceV2ForCli(
+      byte[] ownerAddress,
+      long frozenBalance,
+      int resourceCode, boolean multi)
+      throws CipherException, IOException, CancelException, IllegalException {
+    if (!isUnlocked()) {
+      throw new IllegalStateException(LOCK_WARNING);
+    }
+    if (ownerAddress == null) {
+      ownerAddress = getAddress();
+    }
+    if (multi) {
+      if (!DecodeUtil.addressValid(ownerAddress)) {
+        recordLastCliOperationError("Invalid ownerAddress!");
+        return false;
+      }
+      if (frozenBalance < TRX_PRECISION) {
+        recordLastCliOperationError("frozenBalance must be greater than or equal to 1 TRX");
+        return false;
+      }
+      Response.Account account = queryAccount(ownerAddress);
+      if (frozenBalance > account.getBalance()) {
+        recordLastCliOperationError("frozenBalance must be less than or equal to accountBalance");
+        return false;
+      }
+      if (!isControlled(ownerAddress)) {
+        return false;
+      }
+    }
+    Response.TransactionExtention transactionExtention =
+        apiCli.freezeBalanceV2(ownerAddress, frozenBalance, resourceCode);
+    return processTransactionExtentionForCli(transactionExtention, multi);
+  }
+
   public boolean unfreezeBalance(byte[] ownerAddress, int resourceCode, byte[] receiverAddress, boolean multi)
       throws CipherException, IOException, CancelException, IllegalException {
     if (!isUnlocked()) {
@@ -2147,6 +2193,43 @@ public class WalletApi {
     }
     Response.TransactionExtention transactionExtention = apiCli.unfreezeBalanceV2(ownerAddress, unfreezeBalance, resourceCode);
     return processTransactionExtention(transactionExtention, multi);
+  }
+
+  public boolean unfreezeBalanceV2ForCli(byte[] ownerAddress, long unfreezeBalance,
+      int resourceCode, boolean multi)
+      throws CipherException, IOException, CancelException, IllegalException {
+    if (!isUnlocked()) {
+      throw new IllegalStateException(LOCK_WARNING);
+    }
+    if (ownerAddress == null) {
+      ownerAddress = getAddress();
+    }
+    if (multi) {
+      if (!DecodeUtil.addressValid(ownerAddress)) {
+        recordLastCliOperationError("Invalid ownerAddress!");
+        return false;
+      }
+      Response.Account account = queryAccount(ownerAddress);
+      long frozenAmount = account.getFrozenV2List().stream()
+          .filter(f -> f.getType().getNumber() == resourceCode)
+          .mapToLong(Response.Account.FreezeV2::getAmount)
+          .findFirst()
+          .orElse(0L);
+      if (frozenAmount <= 0) {
+        recordLastCliOperationError("No amount can be unfrozen.");
+        return false;
+      }
+      if (unfreezeBalance > frozenAmount) {
+        recordLastCliOperationError("Exceeds the current maximum unfreeze amount");
+        return false;
+      }
+      if (!isControlled(ownerAddress)) {
+        return false;
+      }
+    }
+    Response.TransactionExtention transactionExtention =
+        apiCli.unfreezeBalanceV2(ownerAddress, unfreezeBalance, resourceCode);
+    return processTransactionExtentionForCli(transactionExtention, multi);
   }
 
   public boolean withdrawExpireUnfreeze(byte[] ownerAddress, boolean multi)

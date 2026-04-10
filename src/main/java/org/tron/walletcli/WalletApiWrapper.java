@@ -868,7 +868,7 @@ public class WalletApiWrapper {
       return null;
     }
 
-    return wallet.queryAccount();
+    return WalletApi.queryAccount(address);
   }
 
   public boolean sendCoin(byte[] ownerAddress, byte[] toAddress, long amount, boolean multi)
@@ -1345,6 +1345,20 @@ public class WalletApiWrapper {
     return wallet.freezeBalanceV2(ownerAddress, frozenBalance, resourceCode, multi);
   }
 
+  public void freezeBalanceV2ForCli(byte[] ownerAddress, long frozenBalance,
+      int resourceCode, boolean multi) {
+    requireLoggedInWalletForCli();
+    try {
+      throwIfCliOperationFailed(
+          wallet.freezeBalanceV2ForCli(ownerAddress, frozenBalance, resourceCode, multi),
+          "FreezeBalanceV2 failed !!");
+    } catch (IllegalStateException e) {
+      throwCliError("execution_error", "FreezeBalanceV2 failed !!", e);
+    } catch (Exception e) {
+      throwCliError("execution_error", "FreezeBalanceV2 failed !!", e);
+    }
+  }
+
   public boolean unfreezeBalance(byte[] ownerAddress, int resourceCode, byte[] receiverAddress, boolean multi)
       throws CipherException, IOException, CancelException, IllegalException {
     if (wallet == null || !wallet.isLoginState()) {
@@ -1378,6 +1392,20 @@ public class WalletApiWrapper {
     }
 
     return wallet.unfreezeBalanceV2(ownerAddress, unfreezeBalance, resourceCode, multi);
+  }
+
+  public void unfreezeBalanceV2ForCli(byte[] ownerAddress, long unfreezeBalance,
+      int resourceCode, boolean multi) {
+    requireLoggedInWalletForCli();
+    try {
+      throwIfCliOperationFailed(
+          wallet.unfreezeBalanceV2ForCli(ownerAddress, unfreezeBalance, resourceCode, multi),
+          "UnfreezeBalanceV2 failed !!");
+    } catch (IllegalStateException e) {
+      throwCliError("execution_error", "UnfreezeBalanceV2 failed !!", e);
+    } catch (Exception e) {
+      throwCliError("execution_error", "UnfreezeBalanceV2 failed !!", e);
+    }
   }
 
   public boolean withdrawExpireUnfreeze(byte[] ownerAddress, boolean multi)
@@ -1839,9 +1867,14 @@ public class WalletApiWrapper {
     return clearWalletKeystoreRet;
   }
 
-  public void clearWalletKeystoreForCli(boolean force) {
+  public void clearWalletKeystoreForCli(boolean force, File targetWalletFile) {
     requireLoggedInWalletForCli();
-    throwIfCliOperationFailed(resetOrClearWalletForCli(force, true), "ClearWalletKeystore failed !!");
+    if (targetWalletFile == null) {
+      throw new CommandErrorException("execution_error",
+          "ClearWalletKeystore failed: authenticated wallet target is unavailable.");
+    }
+    throwIfCliOperationFailed(clearWalletKeystoreTargetForCli(force, targetWalletFile),
+        "ClearWalletKeystore failed !!");
     logout();
   }
 
@@ -2322,6 +2355,38 @@ public class WalletApiWrapper {
 
   public void resetWalletForCli(boolean force) {
     throwIfCliOperationFailed(resetOrClearWalletForCli(force, false), "ResetWallet failed !!");
+  }
+
+  private boolean clearWalletKeystoreTargetForCli(boolean force, File targetWalletFile) {
+    String ownerAddress = WalletApi.encode58Check(wallet.getAddress());
+    List<String> filePaths = new ArrayList<String>();
+    filePaths.add(targetWalletFile.getPath());
+
+    List<String> mnemonicPath = WalletUtils.getStoreFileNames(ownerAddress, "Mnemonic");
+    if (mnemonicPath != null && !mnemonicPath.isEmpty()) {
+      filePaths.addAll(mnemonicPath);
+    }
+
+    boolean deleteAll;
+    try {
+      deleteAll = force
+          ? ClearWalletUtils.deleteFilesQuiet(filePaths)
+          : ClearWalletUtils.confirmAndDeleteWallet(ownerAddress, filePaths);
+    } catch (Exception e) {
+      throwCliError("execution_error", "ClearWalletKeystore failed !!", e);
+      return false;
+    }
+    if (deleteAll) {
+      File ledgerDir = new File(LEDGER_DIR_NAME);
+      if (ledgerDir.exists()) {
+        try {
+          FileUtils.cleanDirectory(ledgerDir);
+        } catch (IOException e) {
+          throwCliError("execution_error", "ClearWalletKeystore failed !!", e);
+        }
+      }
+    }
+    return deleteAll;
   }
 
   private boolean resetOrClearWalletForCli(boolean force, boolean currentWalletOnly) {

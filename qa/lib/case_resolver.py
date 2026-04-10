@@ -156,6 +156,8 @@ def build_contract_case(label, row, values):
     text_contains = split_csv(row[10] if len(row) > 10 else "")
     text_absent = split_csv(row[11] if len(row) > 11 else "")
     preflight = split_csv(row[12] if len(row) > 12 else "")
+    workspace_path_exists = split_csv(row[13] if len(row) > 13 else "")
+    workspace_path_absent = split_csv(row[14] if len(row) > 14 else "")
 
     raw_tokens = json.loads(args_json)
     if not isinstance(raw_tokens, list) or not all(isinstance(item, str) for item in raw_tokens):
@@ -189,6 +191,8 @@ def build_contract_case(label, row, values):
         "text_contains": text_contains,
         "text_absent": text_absent,
         "preflight": preflight,
+        "workspace_path_exists": workspace_path_exists,
+        "workspace_path_absent": workspace_path_absent,
         "unresolved_placeholders": unresolved,
         "excluded": False,
     }
