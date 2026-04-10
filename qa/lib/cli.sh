@@ -196,7 +196,8 @@ qa_load_seeds() {
 
 qa_seed_value() {
   qa_load_seeds
-  eval "printf '%s' \"\${$1:-}\""
+  local key="$1"
+  printf '%s' "${!key:-}"
 }
 
 qa_substitute_placeholders() {

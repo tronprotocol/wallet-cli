@@ -51,9 +51,9 @@ public class ClientMainTest {
 
       Assert.assertEquals(2, exitCode);
       String output = stdout.toString(StandardCharsets.UTF_8.name());
-      Assert.assertTrue(output.contains("Error: Missing command."));
-      Assert.assertTrue(output.contains("TRON Wallet CLI"));
-      Assert.assertFalse(output.contains("\"success\""));
+      Assert.assertTrue(output.contains("\"success\": false"));
+      Assert.assertTrue(output.contains("\"error\": \"usage_error\""));
+      Assert.assertTrue(output.contains("Missing command."));
     } finally {
       System.setOut(originalOut);
     }
