@@ -16,6 +16,7 @@ public class ProposalCommands {
 
     private static void registerCreateProposal(CommandRegistry registry) {
         registry.add(CommandDefinition.builder()
+                .authPolicy(CommandDefinition.AuthPolicy.REQUIRE)
                 .name("create-proposal")
                 .aliases("createproposal")
                 .description("Create a proposal")
@@ -23,6 +24,7 @@ public class ProposalCommands {
                 .option("owner", "Owner address", false)
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
                 .handler((opts, wrapper, out) -> {
+
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     String paramsStr = opts.getString("parameters");
                     String[] parts = paramsStr.trim().split("\\s+");
@@ -36,13 +38,16 @@ public class ProposalCommands {
                     }
                     boolean multi = opts.getBoolean("multi");
                     boolean result = wrapper.createProposal(owner, parametersMap, multi);
-                    out.result(result, "CreateProposal successful !!", "CreateProposal failed !!");
+                    CommandSupport.emitBooleanResult(out, result,
+                            "CreateProposal successful !!", "CreateProposal failed !!",
+                            CommandSupport.lastBroadcastTxResultData());
                 })
                 .build());
     }
 
     private static void registerApproveProposal(CommandRegistry registry) {
         registry.add(CommandDefinition.builder()
+                .authPolicy(CommandDefinition.AuthPolicy.REQUIRE)
                 .name("approve-proposal")
                 .aliases("approveproposal")
                 .description("Approve or disapprove a proposal")
@@ -51,20 +56,23 @@ public class ProposalCommands {
                 .option("owner", "Owner address", false)
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
                 .handler((opts, wrapper, out) -> {
+
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     long id = opts.getLong("id");
                     boolean approve = opts.getBoolean("approve");
                     boolean multi = opts.getBoolean("multi");
                     boolean result = wrapper.approveProposal(owner, id, approve, multi);
-                    out.result(result,
+                    CommandSupport.emitBooleanResult(out, result,
                             "ApproveProposal successful !!",
-                            "ApproveProposal failed !!");
+                            "ApproveProposal failed !!",
+                            CommandSupport.lastBroadcastTxResultData());
                 })
                 .build());
     }
 
     private static void registerDeleteProposal(CommandRegistry registry) {
         registry.add(CommandDefinition.builder()
+                .authPolicy(CommandDefinition.AuthPolicy.REQUIRE)
                 .name("delete-proposal")
                 .aliases("deleteproposal")
                 .description("Delete a proposal")
@@ -72,11 +80,14 @@ public class ProposalCommands {
                 .option("owner", "Owner address", false)
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
                 .handler((opts, wrapper, out) -> {
+
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     long id = opts.getLong("id");
                     boolean multi = opts.getBoolean("multi");
                     boolean result = wrapper.deleteProposal(owner, id, multi);
-                    out.result(result, "DeleteProposal successful !!", "DeleteProposal failed !!");
+                    CommandSupport.emitBooleanResult(out, result,
+                            "DeleteProposal successful !!", "DeleteProposal failed !!",
+                            CommandSupport.lastBroadcastTxResultData());
                 })
                 .build());
     }

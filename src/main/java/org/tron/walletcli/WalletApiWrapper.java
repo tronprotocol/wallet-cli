@@ -122,6 +122,7 @@ public class WalletApiWrapper {
   @Getter
   @Setter
   private WalletApi wallet;
+  private String lastGasFreeId;
   private static final String MnemonicFilePath = "Mnemonic";
   private static final String GAS_FREE_SUPPORT_NETWORK_TIP = "Gas free currently only supports the " + blueBoldHighlight("MAIN") + " network and " + blueBoldHighlight("NILE") + " test network, and does not support other networks at the moment.";
 
@@ -354,6 +355,27 @@ public class WalletApiWrapper {
 
   public boolean isLoginState() {
     return wallet != null && wallet.isLoginState();
+  }
+
+  public void requireLoggedInWalletForCli() {
+    if (!isLoginState()) {
+      throw new CommandErrorException("auth_required", "Please login first !!");
+    }
+  }
+
+  public void throwIfCliOperationFailed(boolean success, String failureMessage) {
+    if (!success) {
+      throw new CommandErrorException("execution_error", failureMessage);
+    }
+  }
+
+  private byte[] getUnifiedPasswordCopyForCli(String commandName) {
+    requireLoggedInWalletForCli();
+    if (!isUnifiedExist()) {
+      throw new CommandErrorException("auth_required",
+          "MASTER_PASSWORD is required for " + commandName + " in standard CLI mode.");
+    }
+    return Arrays.copyOf(wallet.getUnifiedPassword(), wallet.getUnifiedPassword().length);
   }
 
   public boolean isUnifiedExist() {
@@ -633,6 +655,38 @@ public class WalletApiWrapper {
     }
 
     return true;
+  }
+
+  public void generateSubAccountOrThrow() throws IOException {
+    requireLoggedInWalletForCli();
+
+    byte[] passwd = getUnifiedPasswordCopyForCli("generate-sub-account");
+    byte[] mnemonic = null;
+    SubAccount subAccount = null;
+    try {
+      wallet.checkPassword(passwd);
+      String ownerAddress = WalletApi.encode58Check(wallet.getAddress());
+      mnemonic = MnemonicUtils.exportMnemonic(passwd, ownerAddress);
+      if (mnemonic == null || mnemonic.length == 0) {
+        throw new CommandErrorException("execution_error", "GenerateSubAccount failed !!");
+      }
+      subAccount = new SubAccount(passwd, new String(mnemonic), 0);
+      subAccount.start(wallet);
+    } catch (CipherException e) {
+      throw new CommandErrorException("auth_required",
+          "MASTER_PASSWORD verification failed for generate-sub-account.");
+    } catch (CommandErrorException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new CommandErrorException("execution_error",
+          StringUtils.isNotEmpty(e.getMessage()) ? e.getMessage() : "GenerateSubAccount failed !!");
+    } finally {
+      if (subAccount != null) {
+        subAccount.clearSensitiveData();
+      }
+      clear(mnemonic);
+      clear(passwd);
+    }
   }
 
   public boolean importWalletByMnemonic(List<String> mnemonicWords, byte[] passwd) {
@@ -1570,6 +1624,27 @@ public class WalletApiWrapper {
     return wallet.unlock(passwd, durationSeconds);
   }
 
+  public void unlockOrThrow(long durationSeconds) throws IOException {
+    requireLoggedInWalletForCli();
+    if (!WalletApi.isLockAccount()) {
+      throw new CommandErrorException("execution_error",
+          "The account locking and unlocking functions are not available. Please configure "
+              + greenBoldHighlight("lockAccount = true") + " in " + blueBoldHighlight("config.conf")
+              + " and try again.");
+    }
+
+    byte[] passwd = getUnifiedPasswordCopyForCli("unlock");
+    try {
+      wallet.checkPassword(passwd);
+      throwIfCliOperationFailed(wallet.unlock(passwd, durationSeconds), "Unlock failed !!");
+    } catch (CipherException e) {
+      throw new CommandErrorException("auth_required",
+          "MASTER_PASSWORD verification failed for unlock.");
+    } finally {
+      clear(passwd);
+    }
+  }
+
   public void cleanup() {
     if (wallet != null && wallet.isLoginState()) {
       wallet.cleanup();
@@ -1895,11 +1970,30 @@ public class WalletApiWrapper {
   }
 
   public boolean gasFreeTransfer(String receiver, long value) throws NoSuchAlgorithmException, IOException, InvalidKeyException, CipherException {
+    return gasFreeTransferInternal(receiver, value, false);
+  }
+
+  public String gasFreeTransferOrThrow(String receiver, long value)
+      throws NoSuchAlgorithmException, IOException, InvalidKeyException, CipherException {
+    lastGasFreeId = null;
+    throwIfCliOperationFailed(gasFreeTransferInternal(receiver, value, true),
+        "GasFreeTransfer failed !!");
+    return lastGasFreeId;
+  }
+
+  private boolean gasFreeTransferInternal(String receiver, long value, boolean standardCli)
+      throws NoSuchAlgorithmException, IOException, InvalidKeyException, CipherException {
     if (WalletApi.getCurrentNetwork() != MAIN && WalletApi.getCurrentNetwork() != NILE) {
+      if (standardCli) {
+        throw new CommandErrorException("unsupported_network", GAS_FREE_SUPPORT_NETWORK_TIP);
+      }
       System.out.println(GAS_FREE_SUPPORT_NETWORK_TIP);
       return false;
     }
     if (wallet == null || !wallet.isLoginState()) {
+      if (standardCli) {
+        throw new CommandErrorException("auth_required", "Please login first !!");
+      }
       System.out.println("Warning: GasFreeTransfer " + failedHighlight() + ",  Please login first !!");
       return false;
     }
@@ -1907,6 +2001,9 @@ public class WalletApiWrapper {
       throw new IllegalStateException(LOCK_WARNING);
     }
     if (!addressValid(receiver)) {
+      if (standardCli) {
+        throw new CommandErrorException("invalid_input", "The receiverAddress you entered is invalid.");
+      }
       System.out.println("The receiverAddress you entered is invalid.");
       return false;
     }
@@ -1931,70 +2028,98 @@ public class WalletApiWrapper {
 
     WalletFile wf = wallet.getWalletFile();
     byte[] passwd;
-    if (WalletApi.isLockAccount() && isUnifiedExist() && Arrays.equals(decodeFromBase58Check(wf.getAddress()), wallet.getAddress())) {
+    boolean clearPassword = false;
+    if (standardCli) {
+      passwd = getUnifiedPasswordCopyForCli("gas-free-transfer");
+      clearPassword = true;
+    } else if (WalletApi.isLockAccount() && isUnifiedExist()
+        && Arrays.equals(decodeFromBase58Check(wf.getAddress()), wallet.getAddress())) {
       passwd = wallet.getUnifiedPassword();
     } else {
       System.out.println("Please input your password.");
       passwd = char2Byte(inputPassword(false));
+      clearPassword = true;
     }
 
-    Credentials credentials = wallet.getCredentials();
-    if (credentials == null) {
-      credentials = loadCredentials(passwd, wf);
-    }
-
-    String privateKey = Hex.toHexString(credentials.getPair().getPrivateKey());
-    String ledgerPath = getLedgerPath(passwd, wf);
-    boolean isLedgerFile = wf.getName().contains("Ledger");
-    String signature = null;
-    if (isLedgerFile) {
-      Chain.Transaction transaction = Chain.Transaction.newBuilder().setRawData(Chain.Transaction.raw.newBuilder().setData(ByteString.copyFrom(keccak256(concat)))).build();
-      boolean ledgerResult = LedgerSignUtil.requestLedgerSignLogic(transaction, ledgerPath, wf.getAddress(), true);
-      if (ledgerResult) {
-        signature = TransactionSignManager.getInstance().getGasfreeSignature();
+    try {
+      Credentials credentials = wallet.getCredentials();
+      if (credentials == null) {
+        credentials = loadCredentials(passwd, wf);
       }
-      if (Objects.isNull(signature)) {
-        System.out.println("Listening ledger did not obtain signature.");
+
+      String privateKey = Hex.toHexString(credentials.getPair().getPrivateKey());
+      String ledgerPath = getLedgerPath(passwd, wf);
+      boolean isLedgerFile = wf.getName().contains("Ledger");
+      String signature = null;
+      if (isLedgerFile) {
+        Chain.Transaction transaction = Chain.Transaction.newBuilder().setRawData(
+            Chain.Transaction.raw.newBuilder().setData(ByteString.copyFrom(keccak256(concat)))).build();
+        boolean ledgerResult = LedgerSignUtil.requestLedgerSignLogic(transaction, ledgerPath, wf.getAddress(), true);
+        if (ledgerResult) {
+          signature = TransactionSignManager.getInstance().getGasfreeSignature();
+        }
+        if (Objects.isNull(signature)) {
+          TransactionSignManager.getInstance().setTransaction(null);
+          TransactionSignManager.getInstance().setGasfreeSignature(null);
+          if (standardCli) {
+            throw new CommandErrorException("execution_error",
+                "Listening ledger did not obtain signature.");
+          }
+          System.out.println("Listening ledger did not obtain signature.");
+          return false;
+        }
         TransactionSignManager.getInstance().setTransaction(null);
         TransactionSignManager.getInstance().setGasfreeSignature(null);
-        return false;
-      }
-      TransactionSignManager.getInstance().setTransaction(null);
-      TransactionSignManager.getInstance().setGasfreeSignature(null);
-    } else {
-      signature = signOffChain(keccak256(concat), privateKey);
-    }
-    gasFreeSubmitRequest.setSig(signature);
-    boolean validated = validateSignOffChain(keccak256(concat), signature, address);
-    if (validated) {
-      String result = gasFreeSubmit(currentNet, gasFreeSubmitRequest);
-      if (StringUtils.isNotEmpty(result)) {
-        Object o = JSON.parse(result);
-        System.out.println("GasFreeTransfer result: \n" + JSON.toJSONString(o, true));
-        JSONObject root = (JSONObject) o;
-        int respCode = root.getIntValue("code");
-        boolean success = HTTP_OK == respCode;
-        if (success) {
-          TxHistoryManager txHistoryManager = new TxHistoryManager(encode58Check(wallet.getAddress()));
-          JSONObject data = root.getJSONObject("data");
-          String id = data != null ? data.getString("id") : DASH;
-          Tx tx = new Tx();
-          tx.setId(id);
-          tx.setType("GasFreeTransfer");
-          tx.setFrom(encode58Check(wallet.getAddress()));
-          tx.setTo(receiver);
-          tx.setAmount(String.valueOf(value));
-          tx.setTimestamp(LocalDateTime.now());
-          tx.setStatus("success");
-          txHistoryManager.addTransaction(WalletApi.getCurrentNetwork(), tx);
-        }
-        return success;
       } else {
+        signature = signOffChain(keccak256(concat), privateKey);
+      }
+      gasFreeSubmitRequest.setSig(signature);
+      boolean validated = validateSignOffChain(keccak256(concat), signature, address);
+      if (validated) {
+        String result = gasFreeSubmit(currentNet, gasFreeSubmitRequest);
+        if (StringUtils.isNotEmpty(result)) {
+          Object o = JSON.parse(result);
+          JSONObject root = (JSONObject) o;
+          int respCode = root.getIntValue("code");
+          boolean success = HTTP_OK == respCode;
+          if (!standardCli) {
+            System.out.println("GasFreeTransfer result: \n" + JSON.toJSONString(o, true));
+          }
+          if (success) {
+            TxHistoryManager txHistoryManager = new TxHistoryManager(encode58Check(wallet.getAddress()));
+            JSONObject data = root.getJSONObject("data");
+            String id = data != null ? data.getString("id") : DASH;
+            lastGasFreeId = id;
+            Tx tx = new Tx();
+            tx.setId(id);
+            tx.setType("GasFreeTransfer");
+            tx.setFrom(encode58Check(wallet.getAddress()));
+            tx.setTo(receiver);
+            tx.setAmount(String.valueOf(value));
+            tx.setTimestamp(LocalDateTime.now());
+            tx.setStatus("success");
+            txHistoryManager.addTransaction(WalletApi.getCurrentNetwork(), tx);
+          } else if (standardCli) {
+            String messageText = root.getString("message");
+            throw new CommandErrorException("execution_error",
+                StringUtils.isNotEmpty(messageText) ? messageText : "GasFreeTransfer failed !!");
+          }
+          return success;
+        }
+        if (standardCli) {
+          throw new CommandErrorException("execution_error", "GasFreeTransfer failed !!");
+        }
         return false;
       }
-    } else {
+      if (standardCli) {
+        throw new CommandErrorException("execution_error", "Signature verification failed!");
+      }
       System.out.println("Signature verification failed!");
       return false;
+    } finally {
+      if (clearPassword) {
+        clear(passwd);
+      }
     }
   }
 

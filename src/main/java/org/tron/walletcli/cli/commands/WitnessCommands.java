@@ -18,6 +18,7 @@ public class WitnessCommands {
 
     private static void registerCreateWitness(CommandRegistry registry) {
         registry.add(CommandDefinition.builder()
+                .authPolicy(CommandDefinition.AuthPolicy.REQUIRE)
                 .name("create-witness")
                 .aliases("createwitness")
                 .description("Create a witness (super representative)")
@@ -25,17 +26,21 @@ public class WitnessCommands {
                 .option("owner", "Owner address", false)
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
                 .handler((opts, wrapper, out) -> {
+
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     String url = opts.getString("url");
                     boolean multi = opts.getBoolean("multi");
                     boolean result = wrapper.createWitness(owner, url, multi);
-                    out.result(result, "CreateWitness successful !!", "CreateWitness failed !!");
+                    CommandSupport.emitBooleanResult(out, result,
+                            "CreateWitness successful !!", "CreateWitness failed !!",
+                            CommandSupport.lastBroadcastTxResultData());
                 })
                 .build());
     }
 
     private static void registerUpdateWitness(CommandRegistry registry) {
         registry.add(CommandDefinition.builder()
+                .authPolicy(CommandDefinition.AuthPolicy.REQUIRE)
                 .name("update-witness")
                 .aliases("updatewitness")
                 .description("Update witness URL")
@@ -43,17 +48,21 @@ public class WitnessCommands {
                 .option("owner", "Owner address", false)
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
                 .handler((opts, wrapper, out) -> {
+
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     String url = opts.getString("url");
                     boolean multi = opts.getBoolean("multi");
                     boolean result = wrapper.updateWitness(owner, url, multi);
-                    out.result(result, "UpdateWitness successful !!", "UpdateWitness failed !!");
+                    CommandSupport.emitBooleanResult(out, result,
+                            "UpdateWitness successful !!", "UpdateWitness failed !!",
+                            CommandSupport.lastBroadcastTxResultData());
                 })
                 .build());
     }
 
     private static void registerVoteWitness(CommandRegistry registry) {
         registry.add(CommandDefinition.builder()
+                .authPolicy(CommandDefinition.AuthPolicy.REQUIRE)
                 .name("vote-witness")
                 .aliases("votewitness")
                 .description("Vote for witnesses (format: address1 count1 address2 count2 ...)")
@@ -62,6 +71,7 @@ public class WitnessCommands {
                 .option("permission-id", "Permission ID for signing (default: 0)", false, OptionDef.Type.LONG)
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
                 .handler((opts, wrapper, out) -> {
+
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     String votesStr = opts.getString("votes");
                     int permissionId = opts.has("permission-id") ? (int) opts.getLong("permission-id") : 0;
@@ -82,13 +92,16 @@ public class WitnessCommands {
                     } finally {
                         TransactionUtils.clearPermissionIdOverride();
                     }
-                    out.result(result, "VoteWitness successful !!", "VoteWitness failed !!");
+                    CommandSupport.emitBooleanResult(out, result,
+                            "VoteWitness successful !!", "VoteWitness failed !!",
+                            CommandSupport.lastBroadcastTxResultData());
                 })
                 .build());
     }
 
     private static void registerUpdateBrokerage(CommandRegistry registry) {
         registry.add(CommandDefinition.builder()
+                .authPolicy(CommandDefinition.AuthPolicy.REQUIRE)
                 .name("update-brokerage")
                 .aliases("updatebrokerage")
                 .description("Update witness brokerage ratio")
@@ -96,11 +109,14 @@ public class WitnessCommands {
                 .option("owner", "Owner address", false)
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
                 .handler((opts, wrapper, out) -> {
+
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     int brokerage = (int) opts.getLong("brokerage");
                     boolean multi = opts.getBoolean("multi");
                     boolean result = wrapper.updateBrokerage(owner, brokerage, multi);
-                    out.result(result, "UpdateBrokerage successful !!", "UpdateBrokerage failed !!");
+                    CommandSupport.emitBooleanResult(out, result,
+                            "UpdateBrokerage successful !!", "UpdateBrokerage failed !!",
+                            CommandSupport.lastBroadcastTxResultData());
                 })
                 .build());
     }

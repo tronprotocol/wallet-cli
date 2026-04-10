@@ -36,6 +36,7 @@ public class TransactionCommands {
 
     private static void registerSendCoin(CommandRegistry registry) {
         registry.add(CommandDefinition.builder()
+                .authPolicy(CommandDefinition.AuthPolicy.REQUIRE)
                 .name("send-coin")
                 .aliases("sendcoin")
                 .description("Send TRX to an address")
@@ -45,6 +46,7 @@ public class TransactionCommands {
                 .option("permission-id", "Permission ID for signing (default: 0)", false, OptionDef.Type.LONG)
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
                 .handler((opts, wrapper, out) -> {
+
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     byte[] to = opts.getAddress("to");
                     long amount = opts.getLong("amount");
@@ -59,13 +61,14 @@ public class TransactionCommands {
                     }
                     String toStr = opts.getString("to");
                     if (multi) {
-                        out.result(result,
+                        CommandSupport.emitBooleanResult(out, result,
                                 "create multi-sign transaction successful !!",
                                 "create multi-sign transaction failed !!");
                     } else {
                         String successMessage = "Send " + amount + " Sun to " + toStr + " successful !!";
                         if (!result) {
-                            out.result(false, successMessage, "Send " + amount + " Sun to " + toStr + " failed !!");
+                            out.error("execution_error",
+                                    "Send " + amount + " Sun to " + toStr + " failed !!");
                             return;
                         }
                         Map<String, Object> json = new LinkedHashMap<String, Object>();
@@ -84,6 +87,7 @@ public class TransactionCommands {
 
     private static void registerTransferAsset(CommandRegistry registry) {
         registry.add(CommandDefinition.builder()
+                .authPolicy(CommandDefinition.AuthPolicy.REQUIRE)
                 .name("transfer-asset")
                 .aliases("transferasset")
                 .description("Transfer a TRC10 asset")
@@ -93,19 +97,23 @@ public class TransactionCommands {
                 .option("owner", "Sender address", false)
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
                 .handler((opts, wrapper, out) -> {
+
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     byte[] to = opts.getAddress("to");
                     String asset = opts.getString("asset");
                     long amount = opts.getLong("amount");
                     boolean multi = opts.getBoolean("multi");
                     boolean result = wrapper.transferAsset(owner, to, asset, amount, multi);
-                    out.result(result, "TransferAsset successful !!", "TransferAsset failed !!");
+                    CommandSupport.emitBooleanResult(out, result,
+                            "TransferAsset successful !!", "TransferAsset failed !!",
+                            CommandSupport.lastBroadcastTxResultData());
                 })
                 .build());
     }
 
     private static void registerTransferUsdt(CommandRegistry registry) {
         registry.add(CommandDefinition.builder()
+                .authPolicy(CommandDefinition.AuthPolicy.REQUIRE)
                 .name("transfer-usdt")
                 .aliases("transferusdt")
                 .description("Transfer USDT (TRC20)")
@@ -115,6 +123,7 @@ public class TransactionCommands {
                 .option("permission-id", "Permission ID for signing (default: 0)", false, OptionDef.Type.LONG)
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
                 .handler((opts, wrapper, out) -> {
+
                     NetType netType = WalletApi.getCurrentNetwork();
                     if (netType.getUsdtAddress() == null) {
                         out.error("unsupported_network",
@@ -167,15 +176,17 @@ public class TransactionCommands {
                     } finally {
                         TransactionUtils.clearPermissionIdOverride();
                     }
-                    out.result(result,
+                    CommandSupport.emitBooleanResult(out, result,
                             "TransferUSDT successful !!",
-                            "TransferUSDT failed !!");
+                            "TransferUSDT failed !!",
+                            CommandSupport.lastBroadcastTxResultData());
                 })
                 .build());
     }
 
     private static void registerParticipateAssetIssue(CommandRegistry registry) {
         registry.add(CommandDefinition.builder()
+                .authPolicy(CommandDefinition.AuthPolicy.REQUIRE)
                 .name("participate-asset-issue")
                 .aliases("participateassetissue")
                 .description("Participate in an asset issue")
@@ -185,21 +196,24 @@ public class TransactionCommands {
                 .option("owner", "Participant address", false)
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
                 .handler((opts, wrapper, out) -> {
+
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     byte[] to = opts.getAddress("to");
                     String asset = opts.getString("asset");
                     long amount = opts.getLong("amount");
                     boolean multi = opts.getBoolean("multi");
                     boolean result = wrapper.participateAssetIssue(owner, to, asset, amount, multi);
-                    out.result(result,
+                    CommandSupport.emitBooleanResult(out, result,
                             "ParticipateAssetIssue successful !!",
-                            "ParticipateAssetIssue failed !!");
+                            "ParticipateAssetIssue failed !!",
+                            CommandSupport.lastBroadcastTxResultData());
                 })
                 .build());
     }
 
     private static void registerAssetIssue(CommandRegistry registry) {
         registry.add(CommandDefinition.builder()
+                .authPolicy(CommandDefinition.AuthPolicy.REQUIRE)
                 .name("asset-issue")
                 .aliases("assetissue")
                 .description("Create a TRC10 asset")
@@ -218,6 +232,7 @@ public class TransactionCommands {
                 .option("owner", "Owner address", false)
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
                 .handler((opts, wrapper, out) -> {
+
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     String name = opts.getString("name");
                     String abbr = opts.getString("abbr");
@@ -236,13 +251,16 @@ public class TransactionCommands {
                     boolean result = wrapper.assetIssue(owner, name, abbr, totalSupply,
                             trxNum, icoNum, precision, startTime, endTime, 0, desc, url,
                             freeNetLimit, publicFreeNetLimit, frozenSupply, multi);
-                    out.result(result, "AssetIssue successful !!", "AssetIssue failed !!");
+                    CommandSupport.emitBooleanResult(out, result,
+                            "AssetIssue successful !!", "AssetIssue failed !!",
+                            CommandSupport.lastBroadcastTxResultData());
                 })
                 .build());
     }
 
     private static void registerCreateAccount(CommandRegistry registry) {
         registry.add(CommandDefinition.builder()
+                .authPolicy(CommandDefinition.AuthPolicy.REQUIRE)
                 .name("create-account")
                 .aliases("createaccount")
                 .description("Create a new account on chain")
@@ -250,17 +268,21 @@ public class TransactionCommands {
                 .option("owner", "Creator address", false)
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
                 .handler((opts, wrapper, out) -> {
+
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     byte[] address = opts.getAddress("address");
                     boolean multi = opts.getBoolean("multi");
                     boolean result = wrapper.createAccount(owner, address, multi);
-                    out.result(result, "CreateAccount successful !!", "CreateAccount failed !!");
+                    CommandSupport.emitBooleanResult(out, result,
+                            "CreateAccount successful !!", "CreateAccount failed !!",
+                            CommandSupport.lastBroadcastTxResultData());
                 })
                 .build());
     }
 
     private static void registerUpdateAccount(CommandRegistry registry) {
         registry.add(CommandDefinition.builder()
+                .authPolicy(CommandDefinition.AuthPolicy.REQUIRE)
                 .name("update-account")
                 .aliases("updateaccount")
                 .description("Update account name")
@@ -268,33 +290,41 @@ public class TransactionCommands {
                 .option("owner", "Owner address", false)
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
                 .handler((opts, wrapper, out) -> {
+
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     byte[] nameBytes = opts.getString("name").getBytes();
                     boolean multi = opts.getBoolean("multi");
                     boolean result = wrapper.updateAccount(owner, nameBytes, multi);
-                    out.result(result, "Update Account successful !!", "Update Account failed !!");
+                    CommandSupport.emitBooleanResult(out, result,
+                            "Update Account successful !!", "Update Account failed !!",
+                            CommandSupport.lastBroadcastTxResultData());
                 })
                 .build());
     }
 
     private static void registerSetAccountId(CommandRegistry registry) {
         registry.add(CommandDefinition.builder()
+                .authPolicy(CommandDefinition.AuthPolicy.REQUIRE)
                 .name("set-account-id")
                 .aliases("setaccountid")
                 .description("Set account ID")
                 .option("id", "Account ID", true)
                 .option("owner", "Owner address", false)
                 .handler((opts, wrapper, out) -> {
+
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     byte[] id = opts.getString("id").getBytes();
                     boolean result = wrapper.setAccountId(owner, id);
-                    out.result(result, "Set AccountId successful !!", "Set AccountId failed !!");
+                    CommandSupport.emitBooleanResult(out, result,
+                            "Set AccountId successful !!", "Set AccountId failed !!",
+                            CommandSupport.lastBroadcastTxResultData());
                 })
                 .build());
     }
 
     private static void registerUpdateAsset(CommandRegistry registry) {
         registry.add(CommandDefinition.builder()
+                .authPolicy(CommandDefinition.AuthPolicy.REQUIRE)
                 .name("update-asset")
                 .aliases("updateasset")
                 .description("Update asset parameters")
@@ -305,6 +335,7 @@ public class TransactionCommands {
                 .option("owner", "Owner address", false)
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
                 .handler((opts, wrapper, out) -> {
+
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     byte[] desc = opts.getString("description").getBytes();
                     byte[] url = opts.getString("url").getBytes();
@@ -312,13 +343,16 @@ public class TransactionCommands {
                     long newPublicLimit = opts.getLong("new-public-limit");
                     boolean multi = opts.getBoolean("multi");
                     boolean result = wrapper.updateAsset(owner, desc, url, newLimit, newPublicLimit, multi);
-                    out.result(result, "UpdateAsset successful !!", "UpdateAsset failed !!");
+                    CommandSupport.emitBooleanResult(out, result,
+                            "UpdateAsset successful !!", "UpdateAsset failed !!",
+                            CommandSupport.lastBroadcastTxResultData());
                 })
                 .build());
     }
 
     private static void registerBroadcastTransaction(CommandRegistry registry) {
         registry.add(CommandDefinition.builder()
+                .authPolicy(CommandDefinition.AuthPolicy.NEVER)
                 .name("broadcast-transaction")
                 .aliases("broadcasttransaction")
                 .description("Broadcast a signed transaction")
@@ -326,7 +360,7 @@ public class TransactionCommands {
                 .handler((opts, wrapper, out) -> {
                     byte[] txBytes = org.tron.common.utils.ByteArray.fromHexString(opts.getString("transaction"));
                     boolean result = org.tron.walletserver.WalletApi.broadcastTransaction(txBytes);
-                    out.result(result,
+                    CommandSupport.emitBooleanResult(out, result,
                             "BroadcastTransaction successful !!",
                             "BroadcastTransaction failed !!");
                 })
@@ -335,6 +369,7 @@ public class TransactionCommands {
 
     private static void registerAddTransactionSign(CommandRegistry registry) {
         registry.add(CommandDefinition.builder()
+                .authPolicy(CommandDefinition.AuthPolicy.NEVER)
                 .name("add-transaction-sign")
                 .aliases("addtransactionsign")
                 .description("Add a signature to a transaction")
@@ -350,6 +385,7 @@ public class TransactionCommands {
 
     private static void registerUpdateAccountPermission(CommandRegistry registry) {
         registry.add(CommandDefinition.builder()
+                .authPolicy(CommandDefinition.AuthPolicy.REQUIRE)
                 .name("update-account-permission")
                 .aliases("updateaccountpermission")
                 .description("Update account permissions (multi-sign setup)")
@@ -357,35 +393,34 @@ public class TransactionCommands {
                 .option("permissions", "Permissions JSON string", true)
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
                 .handler((opts, wrapper, out) -> {
+
                     byte[] owner = opts.getAddress("owner");
                     String permissions = opts.getString("permissions");
                     boolean multi = opts.getBoolean("multi");
                     boolean result = wrapper.accountPermissionUpdate(owner, permissions, multi);
-                    out.result(result,
+                    CommandSupport.emitBooleanResult(out, result,
                             "UpdateAccountPermission successful !!",
-                            "UpdateAccountPermission failed !!");
+                            "UpdateAccountPermission failed !!",
+                            CommandSupport.lastBroadcastTxResultData());
                 })
                 .build());
     }
 
     private static void registerTronlinkMultiSign(CommandRegistry registry) {
         registry.add(CommandDefinition.builder()
+                .authPolicy(CommandDefinition.AuthPolicy.NEVER)
                 .name("tronlink-multi-sign")
                 .aliases("tronlinkmultisign")
                 .description("TronLink multi-sign transaction")
                 .handler((opts, wrapper, out) -> {
-                    if (!wrapper.isLoginState()) {
-                        out.error("auth_required", "tronlink-multi-sign requires a logged-in wallet.");
-                        return;
-                    }
-                    wrapper.tronlinkMultiSign();
-                    out.result(true, "TronlinkMultiSign successful !!", "TronlinkMultiSign failed !!");
+                    CommandSupport.rejectUnsupportedStandardCliCommand(out, "tronlink-multi-sign");
                 })
                 .build());
     }
 
     private static void registerGasFreeTransfer(CommandRegistry registry) {
         registry.add(CommandDefinition.builder()
+                .authPolicy(CommandDefinition.AuthPolicy.REQUIRE)
                 .name("gas-free-transfer")
                 .aliases("gasfreetransfer")
                 .description("Transfer tokens via GasFree service")
@@ -394,10 +429,13 @@ public class TransactionCommands {
                 .handler((opts, wrapper, out) -> {
                     String to = opts.getString("to");
                     long amount = opts.getLong("amount");
-                    boolean result = wrapper.gasFreeTransfer(to, amount);
-                    out.result(result,
-                            "GasFreeTransfer successful !!",
-                            "GasFreeTransfer failed !!");
+                    String gasFreeId = wrapper.gasFreeTransferOrThrow(to, amount);
+                    Map<String, Object> data = new LinkedHashMap<String, Object>();
+                    data.put("message", "GasFreeTransfer successful !!");
+                    if (gasFreeId != null && !"-".equals(gasFreeId)) {
+                        data.put("gas_free_id", gasFreeId);
+                    }
+                    out.success("GasFreeTransfer successful !!", data);
                 })
                 .build());
     }
