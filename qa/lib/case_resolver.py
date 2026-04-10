@@ -201,6 +201,7 @@ def main():
     seed_values = load_seeds(os.environ.get("QA_SEED_FILE", ""))
     values = {
         "NETWORK": os.environ.get("NETWORK", ""),
+        "MY_ADDR": os.environ.get("MY_ADDR", ""),
         "TARGET_ADDR": os.environ.get("TARGET_ADDR", ""),
         "USDT_NILE": os.environ.get("USDT_NILE", ""),
         "FAKE_ID_64": os.environ.get("FAKE_ID_64", ""),
