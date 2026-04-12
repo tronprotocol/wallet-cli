@@ -11,8 +11,22 @@ public class CommandRegistry {
     private final Map<String, String> aliasToName = new LinkedHashMap<String, String>();
 
     public void add(CommandDefinition cmd) {
+        String nameLower = cmd.getName().toLowerCase();
+        if (aliasToName.containsKey(nameLower)) {
+            throw new IllegalStateException(
+                "Command name '" + cmd.getName() + "' conflicts with existing command '"
+                + aliasToName.get(nameLower) + "'");
+        }
+        for (String alias : cmd.getAliases()) {
+            String aliasLower = alias.toLowerCase();
+            if (aliasToName.containsKey(aliasLower)) {
+                throw new IllegalStateException(
+                    "Alias '" + alias + "' of command '" + cmd.getName()
+                    + "' conflicts with existing command '" + aliasToName.get(aliasLower) + "'");
+            }
+        }
         commands.put(cmd.getName(), cmd);
-        aliasToName.put(cmd.getName().toLowerCase(), cmd.getName());
+        aliasToName.put(nameLower, cmd.getName());
         for (String alias : cmd.getAliases()) {
             aliasToName.put(alias.toLowerCase(), cmd.getName());
         }

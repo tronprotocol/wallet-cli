@@ -31,3 +31,5 @@ qa/.verify.lock/
 
 # claude
 .claude/
+
+.private/

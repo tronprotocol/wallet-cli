@@ -310,8 +310,8 @@ public class StandardCliRunnerTest {
 
       Assert.assertEquals(1, exitCode);
       Assert.assertFalse(handlerCalled[0]);
-      Assert.assertTrue(stdout.toString("UTF-8").contains("Wallet directory not found"));
-      Assert.assertEquals("", stderr.toString("UTF-8"));
+      Assert.assertEquals("", stdout.toString("UTF-8"));
+      Assert.assertTrue(stderr.toString("UTF-8").contains("Wallet directory not found"));
     } finally {
       System.setOut(originalOut);
       System.setErr(originalErr);
@@ -477,8 +477,8 @@ public class StandardCliRunnerTest {
 
       Assert.assertEquals(1, exitCode);
       Assert.assertFalse(handlerCalled[0]);
-      Assert.assertTrue(stdout.toString("UTF-8").contains("MASTER_PASSWORD is required"));
-      Assert.assertEquals("", stderr.toString("UTF-8"));
+      Assert.assertEquals("", stdout.toString("UTF-8"));
+      Assert.assertTrue(stderr.toString("UTF-8").contains("MASTER_PASSWORD is required"));
     } finally {
       System.setOut(originalOut);
       System.setErr(originalErr);
@@ -519,8 +519,8 @@ public class StandardCliRunnerTest {
 
       Assert.assertEquals(1, exitCode);
       Assert.assertFalse(handlerCalled[0]);
-      Assert.assertTrue(stdout.toString("UTF-8").contains("Invalid MASTER_PASSWORD"));
-      Assert.assertEquals("", stderr.toString("UTF-8"));
+      Assert.assertEquals("", stdout.toString("UTF-8"));
+      Assert.assertTrue(stderr.toString("UTF-8").contains("Invalid MASTER_PASSWORD"));
     } finally {
       System.setOut(originalOut);
       System.setErr(originalErr);
@@ -611,9 +611,10 @@ public class StandardCliRunnerTest {
     Assert.assertTrue(StandardCliRunner.requiresAutoAuth(getUsdtBalance, getUsdtBalance.parseArgs(new String[0])));
 
     CommandDefinition gasFreeInfo = queryRegistry.lookup("gas-free-info");
-    Assert.assertTrue(StandardCliRunner.requiresAutoAuth(gasFreeInfo, gasFreeInfo.parseArgs(new String[]{
+    Assert.assertFalse(StandardCliRunner.requiresAutoAuth(gasFreeInfo, gasFreeInfo.parseArgs(new String[]{
         "--address", "TNPeeaaFB7K9cmo4uQpcU32zGK8G1NYqeL"
     })));
+    Assert.assertTrue(StandardCliRunner.requiresAutoAuth(gasFreeInfo, gasFreeInfo.parseArgs(new String[0])));
 
     CommandRegistry contractRegistry = new CommandRegistry();
     ContractCommands.register(contractRegistry);
@@ -644,10 +645,7 @@ public class StandardCliRunnerTest {
     WalletCommands.register(walletRegistry);
 
     CommandDefinition changePassword = walletRegistry.lookup("change-password");
-    Assert.assertFalse(StandardCliRunner.requiresAutoAuth(changePassword, changePassword.parseArgs(new String[]{
-        "--old-password", "OldPass123!A",
-        "--new-password", "NewPass123!B"
-    })));
+    Assert.assertFalse(StandardCliRunner.requiresAutoAuth(changePassword, changePassword.parseArgs(new String[0])));
 
     CommandDefinition resetWallet = walletRegistry.lookup("reset-wallet");
     Assert.assertFalse(StandardCliRunner.requiresAutoAuth(resetWallet, resetWallet.parseArgs(new String[0])));
@@ -1017,9 +1015,9 @@ public class StandardCliRunnerTest {
       int exitCode = new StandardCliRunner(registry, opts).execute();
 
       Assert.assertEquals(1, exitCode);
-      String text = stdout.toString("UTF-8");
+      Assert.assertEquals("", stdout.toString("UTF-8"));
+      String text = stderr.toString("UTF-8");
       Assert.assertTrue(text.contains("Error: " + commandName + " is not available in standard CLI mode"));
-      Assert.assertEquals("", stderr.toString("UTF-8"));
     } finally {
       System.setOut(originalOut);
       System.setErr(originalErr);

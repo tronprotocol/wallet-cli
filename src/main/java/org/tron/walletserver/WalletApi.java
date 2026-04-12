@@ -87,6 +87,7 @@ import org.tron.common.enums.NetType;
 import org.tron.common.utils.Base58;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.DecodeUtil;
+import org.tron.common.utils.FilePermissionUtils;
 import org.tron.common.utils.MultiTxWebSocketClient;
 import org.tron.common.utils.TransactionUtils;
 import org.tron.common.utils.Utils;
@@ -394,7 +395,14 @@ public class WalletApi {
     walletFile.clear();
     setLedgerUser(false);
     setCredentials(null);
+    if (unifiedPassword != null) {
+      Arrays.fill(unifiedPassword, (byte) 0);
+    }
     setUnifiedPassword(null);
+    if (pwdForDeploy != null) {
+      Arrays.fill(pwdForDeploy, (byte) 0);
+    }
+    pwdForDeploy = null;
   }
 
   public void setLogin(LineReader lineReader) {
@@ -522,6 +530,7 @@ public class WalletApi {
         }
       }
     }
+    FilePermissionUtils.setOwnerOnlyDirectory(file.toPath());
     return WalletUtils.generateWalletFile(walletFile, file);
   }
 
@@ -546,6 +555,7 @@ public class WalletApi {
         }
       }
     }
+    FilePermissionUtils.setOwnerOnlyDirectory(file.toPath());
     return WalletUtils.generateLegerWalletFile(walletFile, file);
   }
 
@@ -1239,6 +1249,12 @@ public class WalletApi {
     return LAST_BROADCAST_TX_ID.get();
   }
 
+  public static String consumeLastBroadcastTxId() {
+    String txid = LAST_BROADCAST_TX_ID.get();
+    LAST_BROADCAST_TX_ID.remove();
+    return txid;
+  }
+
   public static TransactionSignWeight getTransactionSignWeight(Transaction transaction)
       throws InvalidProtocolBufferException {
     return TransactionSignWeight.parseFrom(
@@ -1436,12 +1452,15 @@ public class WalletApi {
     }
     if (multi) {
       if (!DecodeUtil.addressValid(owner) || !DecodeUtil.addressValid(to)) {
+        recordLastCliOperationError("Invalid owner or recipient address");
         return false;
       }
       if (Arrays.equals(to, owner)) {
+        recordLastCliOperationError("Cannot send to self");
         return false;
       }
       if (amount <= 0) {
+        recordLastCliOperationError("Amount must be positive");
         return false;
       }
       Response.Account account = queryAccount(owner);
@@ -1451,12 +1470,15 @@ public class WalletApi {
       }
       long balance = account.getBalance();
       if (balance < amount) {
+        recordLastCliOperationError("Insufficient balance: " + balance + " < " + amount);
         return false;
       }
       if (balance - amount < 200_0000L) {
+        recordLastCliOperationError("Remaining balance would be below minimum (2 TRX)");
         return false;
       }
       if (!isControlledForCli(owner)) {
+        recordLastCliOperationError("Owner address is not controlled by this wallet");
         return false;
       }
     }
@@ -2120,11 +2142,16 @@ public class WalletApi {
         return false;
       }
       Response.Account account = queryAccount(ownerAddress);
+      if (account == null) {
+        recordLastCliOperationError("Account not found: " + WalletApi.encode58Check(ownerAddress));
+        return false;
+      }
       if (frozenBalance > account.getBalance()) {
         recordLastCliOperationError("frozenBalance must be less than or equal to accountBalance");
         return false;
       }
-      if (!isControlled(ownerAddress)) {
+      if (!isControlledForCli(ownerAddress)) {
+        recordLastCliOperationError("Owner address is not controlled by this wallet");
         return false;
       }
     }
@@ -3695,7 +3722,11 @@ public class WalletApi {
         ByteString constantResult = normalized.getConstantResult(0);
         bigInteger = new BigInteger(1, constantResult.toByteArray());
       }
-      return Triple.of(true, energyUsed, bigInteger.longValue());
+      try {
+        return Triple.of(true, energyUsed, bigInteger.longValueExact());
+      } catch (ArithmeticException e) {
+        return Triple.of(false, energyUsed, 0L);
+      }
     }
 
     Response.TransactionExtention.Builder texBuilder = Response.TransactionExtention.newBuilder();
@@ -3769,7 +3800,12 @@ public class WalletApi {
         ByteString constantResult = normalized.getConstantResult(0);
         bigInteger = new BigInteger(1, constantResult.toByteArray());
       }
-      return Triple.of(true, energyUsed, bigInteger.longValue());
+      try {
+        return Triple.of(true, energyUsed, bigInteger.longValueExact());
+      } catch (ArithmeticException e) {
+        recordLastCliOperationError("Constant result exceeds long range: " + bigInteger.toString());
+        return Triple.of(false, energyUsed, 0L);
+      }
     }
 
     Response.TransactionExtention.Builder texBuilder = Response.TransactionExtention.newBuilder();

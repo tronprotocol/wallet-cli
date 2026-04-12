@@ -1,5 +1,31 @@
 #!/bin/bash
 
+# ---- Per-case timeout support ----
+QA_CASE_TIMEOUT="${QA_CASE_TIMEOUT:-120}"
+
+if command -v timeout >/dev/null 2>&1; then
+  _qa_timeout_cmd="timeout"
+elif command -v gtimeout >/dev/null 2>&1; then
+  _qa_timeout_cmd="gtimeout"
+else
+  _qa_timeout_cmd=""
+fi
+
+_qa_run_with_timeout() {
+  local secs="$1"; shift
+  if [ -n "$_qa_timeout_cmd" ]; then
+    "$_qa_timeout_cmd" "$secs" "$@"
+  else
+    "$@" &
+    local pid=$!
+    ( sleep "$secs"; kill "$pid" 2>/dev/null ) &
+    local watchdog=$!
+    wait "$pid" 2>/dev/null; local rc=$?
+    kill "$watchdog" 2>/dev/null; wait "$watchdog" 2>/dev/null
+    return $rc
+  fi
+}
+
 qa_manifest_line() {
   local command="$1"
   awk -F'|' -v cmd="$command" '$1 == cmd { print; exit }' "$MANIFEST_FILE"
@@ -365,10 +391,13 @@ qa_run_capture() {
         MASTER_PASSWORD="$MASTER_PASSWORD" \
           TRON_PRIVATE_KEY="$TRON_PRIVATE_KEY" \
           TRON_MNEMONIC="$TRON_MNEMONIC" \
-          "${cmd[@]}" >"$stdout_file" 2>"$stderr_file"
+          TRON_OLD_PASSWORD="$MASTER_PASSWORD" \
+          TRON_NEW_PASSWORD="$ALT_PASSWORD" \
+          _qa_run_with_timeout "$QA_CASE_TIMEOUT" "${cmd[@]}" >"$stdout_file" 2>"$stderr_file"
         ;;
       no-password)
-        env -u MASTER_PASSWORD "${cmd[@]}" >"$stdout_file" 2>"$stderr_file"
+        unset MASTER_PASSWORD
+        _qa_run_with_timeout "$QA_CASE_TIMEOUT" "${cmd[@]}" >"$stdout_file" 2>"$stderr_file"
         ;;
       *)
         echo "Unknown env mode: $env_mode" >&2
@@ -696,6 +725,46 @@ PY
   [ "$has_entry" = "true" ]
 }
 
+qa_preflight_can_withdraw_witness_balance() {
+  local owner
+  owner="$(qa_parse_named_value --owner "$@" 2>/dev/null || true)"
+  [ -n "$owner" ] || owner="${MY_ADDR:-}"
+  [ -n "$owner" ] || return 1
+
+  local token label workspace out_file can_withdraw
+  token="$(mktemp "$RUNTIME_DIR/preflight.XXXXXX")"
+  rm -f "$token"
+  label="$(basename "$token")"
+  workspace="$(qa_reset_workspace "$label" "empty")"
+  qa_run_cli_capture "$workspace" "$label" json default \
+    get-account --address "$owner" >/dev/null 2>&1 || true
+  out_file="$RESULTS_DIR/${label}_json.out"
+  can_withdraw="$(python3 - <<'PY' "$out_file"
+import json, sys, time
+
+try:
+    payload = json.load(open(sys.argv[1], "r", encoding="utf-8"))
+except Exception:
+    print("false")
+    raise SystemExit(0)
+
+data = payload.get("data") if isinstance(payload, dict) else {}
+if not isinstance(data, dict):
+    print("false")
+    raise SystemExit(0)
+
+allowance = int(data.get("allowance", 0) or 0)
+latest_withdraw_time = int(data.get("latest_withdraw_time", 0) or 0)
+now = int(time.time() * 1000)
+eligible_time = latest_withdraw_time <= 0 or now - latest_withdraw_time >= 24 * 60 * 60 * 1000
+print("true" if data.get("is_witness") is True and allowance > 0 and eligible_time else "false")
+PY
+)" || can_withdraw=false
+  rm -rf "$workspace"
+  rm -f "$RESULTS_DIR/${label}_json.out" "$RESULTS_DIR/${label}_json.err" "$RESULTS_DIR/${label}_json.exit"
+  [ "$can_withdraw" = "true" ]
+}
+
 qa_preflight_check() {
   local spec_csv="$1"
   shift
@@ -739,6 +808,10 @@ qa_preflight_check() {
       needs_available_unfreeze_v2)
         qa_preflight_has_available_unfreeze_v2_entry "${argv[@]}" \
           || { echo "no cancelable unfreezeV2 entries available"; return 1; }
+        ;;
+      needs_withdrawable_witness_balance)
+        qa_preflight_can_withdraw_witness_balance "${argv[@]}" \
+          || { echo "no currently withdrawable witness balance"; return 1; }
         ;;
       needs_trx_balance_at_least:*)
         threshold="${item#needs_trx_balance_at_least:}"
@@ -804,7 +877,7 @@ except Exception:
     print(0)
 PY
 )"
-    first_wallet_file="$(find "$RUNTIME_DIR/templates/auth/Wallet" -maxdepth 1 -type f -name '*.json' | sort | head -1 | sed "s|$RUNTIME_DIR/templates/auth/||" || true)"
+    first_wallet_file="$(find "$RUNTIME_DIR/templates/auth/Wallet" -maxdepth 1 -type f -name '*.json' | sort | head -1 | sed "s|$RUNTIME_DIR/templates/auth/Wallet/||" || true)"
   fi
 
   seed_workspace="$(qa_reset_workspace "_seed_public" "empty")"

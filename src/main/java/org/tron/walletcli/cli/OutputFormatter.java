@@ -140,10 +140,10 @@ public class OutputFormatter {
         if (mode == OutputMode.JSON) {
             emitJsonError(current.errorCode, current.errorMessage);
         } else {
-            out.println("Error: " + current.errorMessage);
+            err.println("Error: " + current.errorMessage);
             if (current.usageHelp != null) {
-                out.println();
-                out.println(current.usageHelp);
+                err.println();
+                err.println(current.usageHelp);
             }
         }
     }

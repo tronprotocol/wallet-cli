@@ -70,7 +70,7 @@ public class TransactionCommands {
                         json.put("message", successMessage);
                         json.put("to", toStr);
                         json.put("amount", amount);
-                        String txid = WalletApi.getLastBroadcastTxId();
+                        String txid = WalletApi.consumeLastBroadcastTxId();
                         if (txid != null && !txid.isEmpty()) {
                             json.put("txid", txid);
                         }

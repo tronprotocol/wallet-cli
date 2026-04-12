@@ -9,6 +9,14 @@ source "$SCRIPT_DIR/lib/cli.sh"
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/lib/report.sh"
 
+# ---- Prerequisite checks ----
+for prereq in python3 java; do
+  if ! command -v "$prereq" >/dev/null 2>&1; then
+    echo "ERROR: Required command '$prereq' not found in PATH." >&2
+    exit 1
+  fi
+done
+
 MODE="verify"
 NO_BUILD=0
 SKIP_HELP=0
@@ -138,7 +146,7 @@ prepare_task_files() {
         enqueue_task help "$CASE_FILTER" >> "$help_tasks"
       fi
       case "$(qa_case_type "$CASE_FILTER")" in
-        stateful-success)
+        stateful-*)
           enqueue_task smoke "$CASE_FILTER" >> "$stateful_tasks"
           ;;
         *)
@@ -160,7 +168,7 @@ prepare_task_files() {
       enqueue_task help "$command" >> "$help_tasks"
     fi
     case "$(qa_case_type "$command")" in
-      stateful-success)
+      stateful-*)
         enqueue_task smoke "$command" >> "$stateful_tasks"
         ;;
       *)

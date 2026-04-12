@@ -4681,18 +4681,16 @@ public class Client {
     try {
       globalOpts = GlobalOptions.parse(args);
     } catch (IllegalArgumentException e) {
-      if (requestsJsonOutput(args)) {
-        OutputFormatter formatter = new OutputFormatter(
-            OutputFormatter.OutputMode.JSON, false, System.out, System.err);
-        try {
-          formatter.usageError(e.getMessage(), null);
-        } catch (RuntimeException ignored) {
-          // usageError intentionally aborts normal control flow after recording the outcome
-        }
-        formatter.flush();
-      } else {
-        System.out.println("Error: " + e.getMessage());
+      OutputFormatter.OutputMode mode = requestsJsonOutput(args)
+          ? OutputFormatter.OutputMode.JSON
+          : OutputFormatter.OutputMode.TEXT;
+      OutputFormatter formatter = new OutputFormatter(mode, false, System.out, System.err);
+      try {
+        formatter.usageError(e.getMessage(), null);
+      } catch (RuntimeException ignored) {
+        // usageError intentionally aborts normal control flow after recording the outcome
       }
+      formatter.flush();
       return 2;
     }
 
@@ -4737,9 +4735,16 @@ public class Client {
         }
         formatter.flush();
       } else {
-        System.out.println("Error: Missing command.");
-        System.out.println();
-        System.out.println(registry.formatGlobalHelp(VERSION));
+        OutputFormatter formatter = new OutputFormatter(
+            OutputFormatter.OutputMode.TEXT, false, System.out, System.err);
+        try {
+          formatter.usageError("Missing command.", null);
+        } catch (RuntimeException ignored) {
+          // usageError intentionally aborts normal control flow after recording the outcome
+        }
+        formatter.flush();
+        System.err.println();
+        System.err.println(registry.formatGlobalHelp(VERSION));
       }
       return 2;
     }

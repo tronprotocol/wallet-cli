@@ -12,6 +12,8 @@ import org.tron.walletcli.cli.CommandRegistry;
 import org.tron.walletcli.cli.OptionDef;
 import org.tron.walletserver.WalletApi;
 
+import lombok.extern.slf4j.Slf4j;
+
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -19,6 +21,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+@Slf4j
 public class WalletCommands {
 
     private static final String PRIVATE_KEY_ENV = "TRON_PRIVATE_KEY";
@@ -55,7 +58,7 @@ public class WalletCommands {
                     int wordCount = opts.has("words") ? (int) opts.getLong("words") : 12;
                     String envPassword = System.getenv("MASTER_PASSWORD");
                     if (envPassword == null || envPassword.isEmpty()) {
-                        out.error("auth_required",
+                        out.error("missing_env",
                                 "Set MASTER_PASSWORD environment variable for non-interactive wallet creation");
                         return;
                     }
@@ -90,13 +93,14 @@ public class WalletCommands {
                 .handler((ctx, opts, wrapper, out) -> {
                     String envPassword = System.getenv("MASTER_PASSWORD");
                     if (envPassword == null || envPassword.isEmpty()) {
-                        out.error("auth_required",
+                        out.error("missing_env",
                                 "Set MASTER_PASSWORD environment variable");
                         return;
                     }
                     String privateKeyHex = System.getenv(PRIVATE_KEY_ENV);
                     if (privateKeyHex == null || privateKeyHex.isEmpty()) {
                         out.usageError("import-wallet requires " + PRIVATE_KEY_ENV + " in standard CLI mode.", null);
+                        return;
                     }
                     byte[] passwd = org.tron.keystore.StringUtils.char2Byte(
                             envPassword.toCharArray());
@@ -135,7 +139,7 @@ public class WalletCommands {
                 .handler((ctx, opts, wrapper, out) -> {
                     String envPassword = System.getenv("MASTER_PASSWORD");
                     if (envPassword == null || envPassword.isEmpty()) {
-                        out.error("auth_required",
+                        out.error("missing_env",
                                 "Set MASTER_PASSWORD environment variable");
                         return;
                     }
@@ -143,6 +147,7 @@ public class WalletCommands {
                     if (mnemonic == null || mnemonic.trim().isEmpty()) {
                         out.usageError("import-wallet-by-mnemonic requires " + MNEMONIC_ENV
                                 + " in standard CLI mode.", null);
+                        return;
                     }
                     byte[] passwd = org.tron.keystore.StringUtils.char2Byte(
                             envPassword.toCharArray());
@@ -319,16 +324,31 @@ public class WalletCommands {
                 .build());
     }
 
+    private static final String OLD_PASSWORD_ENV = "TRON_OLD_PASSWORD";
+    private static final String NEW_PASSWORD_ENV = "TRON_NEW_PASSWORD";
+
     private static void registerChangePassword(CommandRegistry registry) {
         registry.add(noAuthCommand()
                 .name("change-password")
                 .aliases("changepassword")
-                .description("Change the password of a wallet keystore")
-                .option("old-password", "Current keystore password", true)
-                .option("new-password", "New keystore password", true)
+                .description("Change the password of a wallet keystore"
+                        + " (uses " + OLD_PASSWORD_ENV + " and " + NEW_PASSWORD_ENV + " env vars)")
                 .option("address", "Wallet address (Base58Check)", false)
                 .option("name", "Wallet name", false)
                 .handler((ctx, opts, wrapper, out) -> {
+                    String oldPwd = System.getenv(OLD_PASSWORD_ENV);
+                    if (oldPwd == null || oldPwd.isEmpty()) {
+                        out.error("missing_env",
+                                "Set " + OLD_PASSWORD_ENV + " environment variable");
+                        return;
+                    }
+                    String newPwd = System.getenv(NEW_PASSWORD_ENV);
+                    if (newPwd == null || newPwd.isEmpty()) {
+                        out.error("missing_env",
+                                "Set " + NEW_PASSWORD_ENV + " environment variable");
+                        return;
+                    }
+
                     String walletOverride = ctx.getWalletOverride();
                     boolean hasAddress = opts.has("address");
                     boolean hasName = opts.has("name");
@@ -360,8 +380,8 @@ public class WalletCommands {
                     }
 
                     boolean result = wrapper.changePassword(
-                            opts.getString("old-password").toCharArray(),
-                            opts.getString("new-password").toCharArray(),
+                            oldPwd.toCharArray(),
+                            newPwd.toCharArray(),
                             targetWalletFile);
                     CommandSupport.emitBooleanResult(out, result,
                             "ChangePassword successful !!",
@@ -382,8 +402,9 @@ public class WalletCommands {
                     CommandSupport.requireForce(out, "clear-wallet-keystore", force);
 
                     File targetWalletFile = ctx.getResolvedAuthWalletFile();
+                    boolean clearActive = shouldClearActiveWalletForDeletedTarget(targetWalletFile);
                     wrapper.clearWalletKeystoreForCli(force, targetWalletFile);
-                    if (shouldClearActiveWalletForDeletedTarget(targetWalletFile)) {
+                    if (clearActive) {
                         ActiveWalletConfig.clear();
                     }
                     CommandSupport.emitBooleanResult(out, true,
@@ -393,16 +414,38 @@ public class WalletCommands {
                 .build());
     }
 
+    private static final String RESET_CONFIRM_TOKEN = "delete-all-wallets";
+
     private static void registerResetWallet(CommandRegistry registry) {
         registry.add(noAuthCommand()
                 .name("reset-wallet")
                 .aliases("resetwallet")
-                .description("Reset wallet to initial state")
-                .option("force", "Skip interactive confirmation", false, OptionDef.Type.BOOLEAN)
+                .description("Reset wallet to initial state (requires --confirm " + RESET_CONFIRM_TOKEN + ")")
+                .option("confirm", "Confirmation token: " + RESET_CONFIRM_TOKEN, false)
                 .handler((ctx, opts, wrapper, out) -> {
-                    boolean force = opts.getBoolean("force");
-                    CommandSupport.requireForce(out, "reset-wallet", force);
-                    wrapper.resetWalletForCli(force);
+                    String confirm = opts.has("confirm") ? opts.getString("confirm") : null;
+                    if (confirm == null) {
+                        // Dry-run: list files that would be deleted
+                        List<String> walletFiles = WalletUtils.getStoreFileNames("", "Wallet");
+                        List<String> mnemonicFiles = WalletUtils.getStoreFileNames("", "Mnemonic");
+                        List<String> allFiles = new ArrayList<>(walletFiles);
+                        if (mnemonicFiles != null && !mnemonicFiles.isEmpty()) {
+                            allFiles.addAll(mnemonicFiles);
+                        }
+                        Map<String, Object> json = new LinkedHashMap<String, Object>();
+                        json.put("mode", "dry-run");
+                        json.put("required_confirm", RESET_CONFIRM_TOKEN);
+                        json.put("files", allFiles);
+                        out.success("Dry-run: " + allFiles.size() + " file(s) would be deleted."
+                                + " Re-run with --confirm " + RESET_CONFIRM_TOKEN + " to proceed.", json);
+                        return;
+                    }
+                    if (!RESET_CONFIRM_TOKEN.equals(confirm)) {
+                        out.usageError("reset-wallet --confirm value must be exactly: "
+                                + RESET_CONFIRM_TOKEN, null);
+                        return;
+                    }
+                    wrapper.resetWalletForCli(true);
                     ActiveWalletConfig.clear();
                     CommandSupport.emitBooleanResult(out, true,
                             "ResetWallet successful !!", "ResetWallet failed !!");
@@ -527,6 +570,7 @@ public class WalletCommands {
             }
             return activeWalletFile.getCanonicalFile().equals(targetWalletFile.getCanonicalFile());
         } catch (Exception e) {
+            logger.warn("Could not read active wallet config after wallet deletion: {}", e.getMessage());
             return false;
         }
     }

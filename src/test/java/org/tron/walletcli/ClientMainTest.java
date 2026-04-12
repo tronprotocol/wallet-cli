@@ -89,17 +89,22 @@ public class ClientMainTest {
   @Test
   public void runMainMapsGlobalParseFailuresToExitCodeTwo() throws Exception {
     ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+    ByteArrayOutputStream stderr = new ByteArrayOutputStream();
     PrintStream originalOut = System.out;
+    PrintStream originalErr = System.err;
     System.setOut(new PrintStream(stdout));
+    System.setErr(new PrintStream(stderr));
     try {
       int exitCode = Client.runMain(new String[]{"--outputt", "json", "get-balance"});
 
       Assert.assertEquals(2, exitCode);
-      String output = stdout.toString(StandardCharsets.UTF_8.name());
+      String output = stderr.toString(StandardCharsets.UTF_8.name());
       Assert.assertTrue(output.contains("Error: Unknown global option: --outputt"));
       Assert.assertFalse(output.contains("Unknown command"));
+      Assert.assertEquals("", stdout.toString(StandardCharsets.UTF_8.name()));
     } finally {
       System.setOut(originalOut);
+      System.setErr(originalErr);
     }
   }
 

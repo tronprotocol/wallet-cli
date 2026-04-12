@@ -393,11 +393,12 @@ public class WalletApiWrapper {
 
   private byte[] getUnifiedPasswordCopyForCli(String commandName) {
     requireLoggedInWalletForCli();
-    if (!isUnifiedExist()) {
+    byte[] pwd = wallet.getUnifiedPassword();
+    if (ArrayUtils.isEmpty(pwd)) {
       throw new CommandErrorException("auth_required",
           "MASTER_PASSWORD is required for " + commandName + " in standard CLI mode.");
     }
-    return Arrays.copyOf(wallet.getUnifiedPassword(), wallet.getUnifiedPassword().length);
+    return Arrays.copyOf(pwd, pwd.length);
   }
 
   public boolean isUnifiedExist() {
@@ -1812,7 +1813,7 @@ public class WalletApiWrapper {
                                    long originEnergyLimit, boolean multi)
       throws CipherException, IOException, CancelException, IllegalException {
     if (wallet == null || !wallet.isLoginState()) {
-      System.out.println("Warning: updateSetting " + failedHighlight() + ",  Please login first !!");
+      System.out.println("Warning: updateEnergyLimit " + failedHighlight() + ",  Please login first !!");
       return false;
     }
 
@@ -1836,7 +1837,7 @@ public class WalletApiWrapper {
   public boolean clearContractABI(byte[] ownerAddress, byte[] contractAddress, boolean multi)
       throws CipherException, IOException, CancelException, IllegalException {
     if (wallet == null || !wallet.isLoginState()) {
-      System.out.println("Warning: updateSetting " + failedHighlight() + ",  Please login first !!");
+      System.out.println("Warning: clearContractABI " + failedHighlight() + ",  Please login first !!");
       return false;
     }
     return wallet.clearContractABI(ownerAddress, contractAddress, multi);
@@ -1937,7 +1938,7 @@ public class WalletApiWrapper {
           contractAddress, callValue, data, feeLimit, tokenValue, tokenId, isConstant, false,
           display, multi);
       if (!Boolean.TRUE.equals(result.getLeft())) {
-        throw new CommandErrorException("execution_error", "CallContract failed !!");
+        throwIfCliOperationFailed(false, "CallContract failed !!");
       }
       return result;
     } catch (CommandErrorException e) {
@@ -1991,7 +1992,12 @@ public class WalletApiWrapper {
         return Triple.of(false, 0L, 0L);
       }
       BigInteger value = new BigInteger(1, result.getConstantResult(0).toByteArray());
-      return Triple.of(true, 0L, value.longValue());
+      try {
+        return Triple.of(true, 0L, value.longValueExact());
+      } catch (ArithmeticException e) {
+        throw new CommandErrorException("value_overflow",
+            "USDT balance exceeds representable range: " + value.toString());
+      }
     }
     if (ArrayUtils.isEmpty(ownerAddress)) {
       ownerAddress = wallet.getAddress();
@@ -2002,6 +2008,29 @@ public class WalletApiWrapper {
     byte[] contractAddress = WalletApi.decodeFromBase58Check(netType.getUsdtAddress());
     return wallet.triggerContract(ownerAddress, contractAddress,
         0, d, 0, 0, EMPTY, true, true, false, false);
+  }
+
+  public String getUSDTBalanceExact(byte[] ownerAddress) throws Exception {
+    if (wallet == null || !wallet.isLoginState()) {
+      if (ArrayUtils.isEmpty(ownerAddress)) {
+        throw new CommandErrorException("auth_required", "Please login first !!");
+      }
+    } else if (ArrayUtils.isEmpty(ownerAddress)) {
+      ownerAddress = wallet.getAddress();
+    }
+
+    byte[] d = Hex.decode(AbiUtil.parseMethod("balanceOf(address)",
+        "\"" + encode58Check(ownerAddress) + "\"", false));
+    NetType netType = WalletApi.getCurrentNetwork();
+    byte[] contractAddress = WalletApi.decodeFromBase58Check(netType.getUsdtAddress());
+    Response.TransactionExtention result = triggerConstantContractExtention(
+        ownerAddress, contractAddress, 0, d, 0, EMPTY);
+    if (result == null || result.getResult() == null || !result.getResult().getResult()
+        || result.getConstantResultCount() == 0) {
+      return null;
+    }
+    BigInteger value = new BigInteger(1, result.getConstantResult(0).toByteArray());
+    return value.toString();
   }
 
   public boolean estimateEnergy(byte[] ownerAddress, byte[] contractAddress, long callValue,
@@ -2078,7 +2107,7 @@ public class WalletApiWrapper {
   public boolean updateBrokerage(byte[] ownerAddress, int brokerage, boolean multi)
       throws CipherException, IOException, CancelException, IllegalException {
     if (wallet == null || !wallet.isLoginState()) {
-      System.out.println("Warning: updateSetting " + failedHighlight() + ",  Please login first !!");
+      System.out.println("Warning: updateBrokerage " + failedHighlight() + ",  Please login first !!");
       return false;
     }
     return wallet.updateBrokerage(ownerAddress, brokerage, multi);
@@ -2133,7 +2162,7 @@ public class WalletApiWrapper {
       long buyTokenQuantity, boolean multi)
       throws CipherException, IOException, CancelException, IllegalException {
     if (wallet == null || !wallet.isLoginState()) {
-      System.out.println("Warning: updateSetting " + failedHighlight() + ",  Please login first !!");
+      System.out.println("Warning: marketSellAsset " + failedHighlight() + ",  Please login first !!");
       return false;
     }
     return wallet.marketSellAsset(owner, sellTokenId, sellTokenQuantity,
@@ -2162,7 +2191,7 @@ public class WalletApiWrapper {
   public boolean marketCancelOrder(byte[] owner, byte[] orderId, boolean multi)
       throws IOException, CipherException, CancelException, IllegalException {
     if (wallet == null || !wallet.isLoginState()) {
-      System.out.println("Warning: updateSetting " + failedHighlight() + ",  Please login first !!");
+      System.out.println("Warning: marketCancelOrder " + failedHighlight() + ",  Please login first !!");
       return false;
     }
     return wallet.marketCancelOrder(owner, orderId, multi);
@@ -2258,7 +2287,7 @@ public class WalletApiWrapper {
 
   public boolean lock() {
     if (wallet == null || !wallet.isLoginState()) {
-      System.out.println("Warning: updateSetting " + failedHighlight() + ",  Please login first !!");
+      System.out.println("Warning: lock " + failedHighlight() + ",  Please login first !!");
       return false;
     }
     if (!WalletApi.isLockAccount()) {
@@ -2270,7 +2299,7 @@ public class WalletApiWrapper {
 
   public boolean unlock(long durationSeconds) throws IOException {
     if (wallet == null || !wallet.isLoginState()) {
-      System.out.println("Warning: updateSetting " + failedHighlight() + ",  Please login first !!");
+      System.out.println("Warning: unlock " + failedHighlight() + ",  Please login first !!");
       return false;
     }
     if (!WalletApi.isLockAccount()) {
@@ -2653,13 +2682,13 @@ public class WalletApiWrapper {
   }
 
   public GasFreeAddressResponse getGasFreeInfoData(String address) throws Exception {
-    if (wallet == null || !wallet.isLoginState()) {
-      throw new CommandErrorException("auth_required", "Please login first !!");
-    }
     if (WalletApi.getCurrentNetwork() != MAIN && WalletApi.getCurrentNetwork() != NILE) {
       throw new CommandErrorException("unsupported_network", GAS_FREE_SUPPORT_NETWORK_TIP);
     }
     if (StringUtils.isEmpty(address)) {
+      if (wallet == null || !wallet.isLoginState()) {
+        throw new CommandErrorException("auth_required", "Please login first !!");
+      }
       address = getAddress();
       if (StringUtils.isEmpty(address)) {
         throw new CommandErrorException("query_failed", "Unable to determine current wallet address.");
@@ -2816,13 +2845,13 @@ public class WalletApiWrapper {
       clearPassword = true;
     }
 
+    byte[] privateKeyBytes = null;
     try {
       Credentials credentials = wallet.getCredentials();
       if (credentials == null) {
         credentials = loadCredentials(passwd, wf);
       }
 
-      String privateKey = Hex.toHexString(credentials.getPair().getPrivateKey());
       String ledgerPath = getLedgerPath(passwd, wf);
       boolean isLedgerFile = wf.getName().contains("Ledger");
       String signature = null;
@@ -2846,7 +2875,8 @@ public class WalletApiWrapper {
         TransactionSignManager.getInstance().setTransaction(null);
         TransactionSignManager.getInstance().setGasfreeSignature(null);
       } else {
-        signature = signOffChain(keccak256(concat), privateKey);
+        privateKeyBytes = credentials.getPair().getPrivKeyBytes();
+        signature = signOffChain(keccak256(concat), privateKeyBytes);
       }
       gasFreeSubmitRequest.setSig(signature);
       boolean validated = validateSignOffChain(keccak256(concat), signature, address);
@@ -2901,6 +2931,9 @@ public class WalletApiWrapper {
       System.out.println("Signature verification failed!");
       return false;
     } finally {
+      if (privateKeyBytes != null) {
+        Arrays.fill(privateKeyBytes, (byte) 0);
+      }
       if (clearPassword) {
         clear(passwd);
       }

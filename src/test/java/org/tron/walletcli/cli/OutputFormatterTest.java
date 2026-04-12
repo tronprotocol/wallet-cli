@@ -1,5 +1,7 @@
 package org.tron.walletcli.cli;
 
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
@@ -18,9 +20,10 @@ public class OutputFormatterTest {
       formatter.flush();
 
       String json = stdout.toString(StandardCharsets.UTF_8.name());
-      Assert.assertTrue(json.contains("\"success\": true"));
-      Assert.assertTrue(json.contains("\"data\": {"));
-      Assert.assertTrue(json.contains("\"message\": \"hello\""));
+      JsonObject root = JsonParser.parseString(json).getAsJsonObject();
+      Assert.assertTrue(root.get("success").getAsBoolean());
+      Assert.assertTrue(root.has("data") && root.get("data").isJsonObject());
+      Assert.assertEquals("hello", root.getAsJsonObject("data").get("message").getAsString());
     } catch (Exception e) {
       Assert.fail("Unexpected exception: " + e.getMessage());
     }
@@ -35,12 +38,11 @@ public class OutputFormatterTest {
     formatter.flush();
 
     String json = stdout.toString(StandardCharsets.UTF_8.name());
-    Assert.assertTrue(json.contains("\"success\": true"));
-    Assert.assertTrue(json.contains("\"data\": {"));
-    Assert.assertTrue(json.contains("\"result\": ["));
-    Assert.assertTrue(json.contains("1"));
-    Assert.assertTrue(json.contains("2"));
-    Assert.assertTrue(json.contains("3"));
+    JsonObject root = JsonParser.parseString(json).getAsJsonObject();
+    Assert.assertTrue(root.get("success").getAsBoolean());
+    Assert.assertTrue(root.has("data") && root.get("data").isJsonObject());
+    Assert.assertTrue(root.getAsJsonObject("data").has("result"));
+    Assert.assertTrue(root.getAsJsonObject("data").get("result").isJsonArray());
   }
 
   @Test
@@ -58,8 +60,9 @@ public class OutputFormatterTest {
 
     formatter.flush();
     String json = stdout.toString(StandardCharsets.UTF_8.name());
-    Assert.assertTrue(json.contains("\"success\": false"));
-    Assert.assertTrue(json.contains("\"error\": \"execution_error\""));
+    JsonObject root = JsonParser.parseString(json).getAsJsonObject();
+    Assert.assertFalse(root.get("success").getAsBoolean());
+    Assert.assertEquals("execution_error", root.get("error").getAsString());
     Assert.assertTrue(json.contains("Multiple terminal outcomes emitted"));
   }
 }

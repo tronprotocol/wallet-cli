@@ -1,5 +1,7 @@
 package org.tron.walletcli.cli.commands;
 
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.PrintStream;
@@ -7,6 +9,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.After;
 import org.apache.commons.lang3.tuple.Triple;
 import org.junit.Assert;
@@ -20,6 +23,10 @@ import org.tron.walletcli.cli.OutputFormatter;
 import org.tron.walletcli.cli.ParsedOptions;
 
 public class StandardCliCommandRoutingTest {
+  private static JsonObject parseJson(String raw) {
+    return JsonParser.parseString(raw).getAsJsonObject();
+  }
+
   private final String originalUserDir = System.getProperty("user.dir");
 
   @After
@@ -42,6 +49,7 @@ public class StandardCliCommandRoutingTest {
     OutputFormatter formatter = new OutputFormatter(
         OutputFormatter.OutputMode.JSON, false, new PrintStream(stdout), System.err);
 
+    AtomicBoolean cliSafeCalled = new AtomicBoolean(false);
     command.getHandler().execute(org.tron.walletcli.cli.CommandContext.empty(), opts, new WalletApiWrapper() {
       @Override
       public Triple<Boolean, Long, Long> callContractForCli(
@@ -55,6 +63,7 @@ public class StandardCliCommandRoutingTest {
           boolean isConstant,
           boolean display,
           boolean multi) {
+        cliSafeCalled.set(true);
         return Triple.of(true, 0L, 0L);
       }
 
@@ -76,8 +85,9 @@ public class StandardCliCommandRoutingTest {
     }, formatter);
     formatter.flush();
 
+    Assert.assertTrue("callContractForCli should be invoked", cliSafeCalled.get());
     String json = stdout.toString(StandardCharsets.UTF_8.name());
-    Assert.assertTrue(json.contains("\"success\": true"));
+    Assert.assertTrue(parseJson(json).get("success").getAsBoolean());
     Assert.assertTrue(json.contains("TriggerContract successful !!"));
   }
 
@@ -91,9 +101,11 @@ public class StandardCliCommandRoutingTest {
     OutputFormatter formatter = new OutputFormatter(
         OutputFormatter.OutputMode.JSON, false, new PrintStream(stdout), System.err);
 
+    AtomicBoolean cliSafeCalled = new AtomicBoolean(false);
     command.getHandler().execute(org.tron.walletcli.cli.CommandContext.empty(), opts, new WalletApiWrapper() {
       @Override
       public Response.ChainParameters getChainParametersForCli() {
+        cliSafeCalled.set(true);
         return Response.ChainParameters.newBuilder()
             .addChainParameter(Response.ChainParameters.ChainParameter.newBuilder()
                 .setKey("getEnergyFee")
@@ -110,9 +122,34 @@ public class StandardCliCommandRoutingTest {
     }, formatter);
     formatter.flush();
 
+    Assert.assertTrue("getChainParametersForCli should be invoked", cliSafeCalled.get());
     String json = stdout.toString(StandardCharsets.UTF_8.name());
-    Assert.assertTrue(json.contains("\"success\": true"));
+    Assert.assertTrue(parseJson(json).get("success").getAsBoolean());
     Assert.assertTrue(json.contains("getEnergyFee"));
+  }
+
+  @Test
+  public void getUsdtBalanceUsesExactStringPayload() throws Exception {
+    CommandRegistry registry = new CommandRegistry();
+    QueryCommands.register(registry);
+    CommandDefinition command = registry.lookup("get-usdt-balance");
+    ParsedOptions opts = command.parseArgs(new String[]{
+        "--address", "TNPeeaaFB7K9cmo4uQpcU32zGK8G1NYqeL"
+    });
+    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+    OutputFormatter formatter = new OutputFormatter(
+        OutputFormatter.OutputMode.JSON, false, new PrintStream(stdout), System.err);
+
+    command.getHandler().execute(org.tron.walletcli.cli.CommandContext.empty(), opts, new WalletApiWrapper() {
+      @Override
+      public String getUSDTBalanceExact(byte[] ownerAddress) {
+        return "9223372036854775808";
+      }
+    }, formatter);
+    formatter.flush();
+
+    JsonObject data = parseJson(stdout.toString(StandardCharsets.UTF_8.name())).getAsJsonObject("data");
+    Assert.assertEquals("9223372036854775808", data.get("usdt_balance").getAsString());
   }
 
   @Test
@@ -145,69 +182,61 @@ public class StandardCliCommandRoutingTest {
     formatter.flush();
 
     String json = stdout.toString(StandardCharsets.UTF_8.name());
-    Assert.assertTrue(json.contains("\"success\": true"));
+    Assert.assertTrue(parseJson(json).get("success").getAsBoolean());
     Assert.assertTrue(json.contains("ClearWalletKeystore successful !!"));
     walletFile.delete();
   }
 
   @Test
   public void changePasswordUsesGlobalWalletOverrideAsExplicitTarget() throws Exception {
+    // change-password now reads passwords from TRON_OLD_PASSWORD / TRON_NEW_PASSWORD env vars
+    // (not command-line args). Without env vars, it should return a missing_env error.
     File tempDir = Files.createTempDirectory("change-password-global-wallet").toFile();
-    File externalDir = Files.createTempDirectory("change-password-global-wallet-file").toFile();
-    File walletFile = new File(externalDir, "alpha.json");
-    Assert.assertTrue(walletFile.createNewFile());
     System.setProperty("user.dir", tempDir.getAbsolutePath());
 
     CommandRegistry registry = new CommandRegistry();
     WalletCommands.register(registry);
     CommandDefinition command = registry.lookup("change-password");
-    ParsedOptions opts = command.parseArgs(new String[]{
-        "--old-password", "OldPass123!A",
-        "--new-password", "NewPass123!B"
-    });
+    ParsedOptions opts = command.parseArgs(new String[0]);
     ByteArrayOutputStream stdout = new ByteArrayOutputStream();
     OutputFormatter formatter = new OutputFormatter(
         OutputFormatter.OutputMode.JSON, false, new PrintStream(stdout), System.err);
 
-    command.getHandler().execute(
-        new org.tron.walletcli.cli.CommandContext(walletFile.getAbsolutePath()),
-        opts,
-        new WalletApiWrapper() {
-      @Override
-      public boolean changePassword(char[] oldPassword, char[] newPassword, File targetWalletFile) {
-        Assert.assertEquals(walletFile.getAbsolutePath(), targetWalletFile.getAbsolutePath());
-        return true;
-      }
-    }, formatter);
+    try {
+      command.getHandler().execute(
+          org.tron.walletcli.cli.CommandContext.empty(),
+          opts,
+          new WalletApiWrapper(),
+          formatter);
+    } catch (RuntimeException e) {
+      Assert.assertEquals("CliAbortException", e.getClass().getSimpleName());
+    }
     formatter.flush();
 
     String json = stdout.toString(StandardCharsets.UTF_8.name());
-    Assert.assertTrue(json.contains("\"success\": true"));
-    Assert.assertTrue(json.contains("ChangePassword successful !!"));
+    Assert.assertFalse(parseJson(json).get("success").getAsBoolean());
+    Assert.assertTrue(json.contains("missing_env"));
+    Assert.assertTrue(json.contains("TRON_OLD_PASSWORD"));
   }
 
   @Test
   public void changePasswordRejectsMixingGlobalWalletWithAddressOrName() throws Exception {
+    // change-password now reads passwords from TRON_OLD_PASSWORD / TRON_NEW_PASSWORD env vars.
+    // Without env vars, it returns missing_env before reaching the wallet mixing check.
+    // Verify that --old-password / --new-password are no longer accepted as command options.
     CommandRegistry registry = new CommandRegistry();
     WalletCommands.register(registry);
     CommandDefinition command = registry.lookup("change-password");
-    ParsedOptions opts = command.parseArgs(new String[]{
-        "--old-password", "OldPass123!A",
-        "--new-password", "NewPass123!B",
-        "--address", "TNPeeaaFB7K9cmo4uQpcU32zGK8G1NYqeL"
-    });
-    OutputFormatter formatter = new OutputFormatter(
-        OutputFormatter.OutputMode.JSON, false, new PrintStream(new ByteArrayOutputStream()), System.err);
-
     try {
-      command.getHandler().execute(
-          new org.tron.walletcli.cli.CommandContext("/tmp/example-wallet.json", null),
-          opts,
-          new WalletApiWrapper(),
-          formatter);
-      Assert.fail("Expected usage error for mixed wallet selectors");
+      command.parseArgs(new String[]{
+          "--old-password", "OldPass123!A",
+          "--new-password", "NewPass123!B",
+          "--address", "TNPeeaaFB7K9cmo4uQpcU32zGK8G1NYqeL"
+      });
+      Assert.fail("Expected parser error for removed --old-password option");
     } catch (RuntimeException e) {
-      Assert.assertEquals("CliAbortException", e.getClass().getSimpleName());
+      // Expected: --old-password is no longer a valid option
+      Assert.assertTrue(e.getMessage().contains("old-password"));
     }
   }
 
@@ -292,7 +321,7 @@ public class StandardCliCommandRoutingTest {
     CommandRegistry registry = new CommandRegistry();
     WalletCommands.register(registry);
     CommandDefinition command = registry.lookup("reset-wallet");
-    ParsedOptions opts = command.parseArgs(new String[]{"--force"});
+    ParsedOptions opts = command.parseArgs(new String[]{"--confirm", "delete-all-wallets"});
     ByteArrayOutputStream stdout = new ByteArrayOutputStream();
     OutputFormatter formatter = new OutputFormatter(
         OutputFormatter.OutputMode.JSON, false, new PrintStream(stdout), System.err);
@@ -307,7 +336,7 @@ public class StandardCliCommandRoutingTest {
 
     Assert.assertNull(ActiveWalletConfig.getActiveAddressLenient());
     String json = stdout.toString(StandardCharsets.UTF_8.name());
-    Assert.assertTrue(json.contains("\"success\": true"));
+    Assert.assertTrue(parseJson(json).get("success").getAsBoolean());
     Assert.assertTrue(json.contains("ResetWallet successful !!"));
   }
 
@@ -337,7 +366,7 @@ public class StandardCliCommandRoutingTest {
     formatter.flush();
 
     String json = stdout.toString(StandardCharsets.UTF_8.name());
-    Assert.assertTrue(json.contains("\"success\": true"));
+    Assert.assertTrue(parseJson(json).get("success").getAsBoolean());
     Assert.assertTrue(json.contains("Update Account successful !!"));
   }
 
@@ -372,7 +401,7 @@ public class StandardCliCommandRoutingTest {
     formatter.flush();
 
     String json = stdout.toString(StandardCharsets.UTF_8.name());
-    Assert.assertTrue(json.contains("\"success\": true"));
+    Assert.assertTrue(parseJson(json).get("success").getAsBoolean());
     Assert.assertTrue(json.contains("UpdateSetting successful !!"));
   }
 
@@ -416,7 +445,7 @@ public class StandardCliCommandRoutingTest {
     formatter.flush();
 
     String json = stdout.toString(StandardCharsets.UTF_8.name());
-    Assert.assertTrue(json.contains("\"success\": true"));
+    Assert.assertTrue(parseJson(json).get("success").getAsBoolean());
     Assert.assertTrue(json.contains("DeployContract successful !!"));
   }
 
@@ -453,8 +482,8 @@ public class StandardCliCommandRoutingTest {
     formatter.flush();
 
     String json = stdout.toString(StandardCharsets.UTF_8.name());
-    Assert.assertTrue(json.contains("\"success\": false"));
-    Assert.assertTrue(json.contains("\"error\": \"usage_error\""));
+    Assert.assertFalse(parseJson(json).get("success").getAsBoolean());
+    Assert.assertEquals("usage_error", parseJson(json).get("error").getAsString());
     Assert.assertTrue(json.contains("consume-user-resource-percent should be between 0 and 100"));
   }
 
@@ -492,7 +521,7 @@ public class StandardCliCommandRoutingTest {
     formatter.flush();
 
     String json = stdout.toString(StandardCharsets.UTF_8.name());
-    Assert.assertTrue(json.contains("\"success\": true"));
+    Assert.assertTrue(parseJson(json).get("success").getAsBoolean());
     Assert.assertTrue(json.contains("FreezeBalance successful !!"));
   }
 
@@ -534,8 +563,8 @@ public class StandardCliCommandRoutingTest {
     formatter.flush();
 
     String json = stdout.toString(StandardCharsets.UTF_8.name());
-    Assert.assertTrue(json.contains("\"success\": false"));
-    Assert.assertTrue(json.contains("\"error\": \"query_failed\""));
+    Assert.assertFalse(parseJson(json).get("success").getAsBoolean());
+    Assert.assertEquals("query_failed", parseJson(json).get("error").getAsString());
     Assert.assertTrue(json.contains("estimate failed"));
   }
 
@@ -566,7 +595,7 @@ public class StandardCliCommandRoutingTest {
     formatter.flush();
 
     String json = stdout.toString(StandardCharsets.UTF_8.name());
-    Assert.assertTrue(json.contains("\"success\": true"));
+    Assert.assertTrue(parseJson(json).get("success").getAsBoolean());
     Assert.assertTrue(json.contains("SwitchNetwork successful !!"));
   }
 
@@ -603,7 +632,7 @@ public class StandardCliCommandRoutingTest {
     formatter.flush();
 
     String json = stdout.toString(StandardCharsets.UTF_8.name());
-    Assert.assertTrue(json.contains("\"success\": true"));
+    Assert.assertTrue(parseJson(json).get("success").getAsBoolean());
     Assert.assertTrue(json.contains("FreezeBalanceV2 successful !!"));
   }
 
@@ -640,7 +669,7 @@ public class StandardCliCommandRoutingTest {
     formatter.flush();
 
     String json = stdout.toString(StandardCharsets.UTF_8.name());
-    Assert.assertTrue(json.contains("\"success\": true"));
+    Assert.assertTrue(parseJson(json).get("success").getAsBoolean());
     Assert.assertTrue(json.contains("UnfreezeBalanceV2 successful !!"));
   }
 

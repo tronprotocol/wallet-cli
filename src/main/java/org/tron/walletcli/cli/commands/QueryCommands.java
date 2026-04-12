@@ -203,10 +203,8 @@ public class QueryCommands {
                 .option("address", "Address to query (default: current wallet)", false)
                 .handler((ctx, opts, wrapper, out) -> {
                     byte[] ownerAddress = opts.has("address") ? opts.getAddress("address") : null;
-                    org.apache.commons.lang3.tuple.Triple<Boolean, Long, Long> pair =
-                            wrapper.getUSDTBalance(ownerAddress);
-                    if (Boolean.TRUE.equals(pair.getLeft())) {
-                        long balance = pair.getRight();
+                    String balance = wrapper.getUSDTBalanceExact(ownerAddress);
+                    if (balance != null) {
                         Map<String, Object> json = new LinkedHashMap<String, Object>();
                         json.put("usdt_balance", balance);
                         out.success("USDT balance = " + balance, json);
@@ -950,7 +948,9 @@ public class QueryCommands {
 
     private static void registerGasFreeInfo(CommandRegistry registry) {
         registry.add(CommandDefinition.builder()
-                .authPolicy(CommandDefinition.AuthPolicy.REQUIRE)
+                .authPolicyResolver(opts -> opts.has("address")
+                        ? CommandDefinition.AuthPolicy.NEVER
+                        : CommandDefinition.AuthPolicy.REQUIRE)
                 .name("gas-free-info")
                 .aliases("gasfreeinfo")
                 .description("Get GasFree service info")

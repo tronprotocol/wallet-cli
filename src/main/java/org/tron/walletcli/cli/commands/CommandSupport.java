@@ -38,7 +38,7 @@ final class CommandSupport {
 
     static Map<String, Object> lastBroadcastTxResultData() {
         Map<String, Object> data = new LinkedHashMap<String, Object>();
-        String txid = org.tron.walletserver.WalletApi.getLastBroadcastTxId();
+        String txid = org.tron.walletserver.WalletApi.consumeLastBroadcastTxId();
         if (txid != null && !txid.isEmpty()) {
             data.put("txid", txid);
         }

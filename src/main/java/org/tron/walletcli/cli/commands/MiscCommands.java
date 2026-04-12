@@ -35,7 +35,7 @@ public class MiscCommands {
         registry.add(noAuthCommand()
                 .name("generate-address")
                 .aliases("generateaddress")
-                .description("Generate a new address offline")
+                .description("Generate a new address offline (WARNING: output includes plaintext private key)")
                 .handler((ctx, opts, wrapper, out) -> {
                     ECKey ecKey = new ECKey(new SecureRandom());
                     byte[] priKey = ecKey.getPrivKeyBytes();
@@ -43,9 +43,11 @@ public class MiscCommands {
                         byte[] address = ecKey.getAddress();
                         String addressStr = WalletApi.encode58Check(address);
                         String priKeyHex = ByteArray.toHexString(priKey);
+                        out.info("WARNING: The following output contains a plaintext private key. Do not log or share.");
                         Map<String, Object> json = new LinkedHashMap<String, Object>();
                         json.put("address", addressStr);
                         json.put("private_key", priKeyHex);
+                        json.put("warning", "plaintext_private_key");
                         out.success("Address: " + addressStr + "\nPrivate Key: " + priKeyHex, json);
                     } finally {
                         Arrays.fill(priKey, (byte) 0);
@@ -64,6 +66,7 @@ public class MiscCommands {
                     if (mnemonicStr == null || mnemonicStr.trim().isEmpty()) {
                         out.usageError("get-private-key-by-mnemonic requires " + MNEMONIC_ENV
                                 + " in standard CLI mode.", null);
+                        return;
                     }
                     List<String> words = Arrays.asList(mnemonicStr.trim().split("\\s+"));
                     byte[] priKey = MnemonicUtils.getPrivateKeyFromMnemonic(words);

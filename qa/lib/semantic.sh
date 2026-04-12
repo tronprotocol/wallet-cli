@@ -203,8 +203,9 @@ qa_assert_case_files() {
     usage)
       if [ "$mode" = "dual" ] || [ "$mode" = "text" ]; then
         qa_assert_exit_code "$RESULTS_DIR/${label}_text.exit" 2 || return 1
-        qa_assert_text_contains "$RESULTS_DIR/${label}_text.out" "$text_contains" || return 1
-        qa_assert_text_absent "$RESULTS_DIR/${label}_text.out" "$text_absent" || return 1
+        qa_assert_text_contains "$RESULTS_DIR/${label}_text.err" "$text_contains" || return 1
+        qa_assert_text_absent "$RESULTS_DIR/${label}_text.err" "$text_absent" || return 1
+        qa_assert_text_absent "$RESULTS_DIR/${label}_text.out" "Error:" || return 1
       fi
       if [ "$mode" = "dual" ] || [ "$mode" = "json" ]; then
         qa_assert_exit_code "$RESULTS_DIR/${label}_json.exit" 2 || return 1
@@ -216,8 +217,9 @@ qa_assert_case_files() {
     execution)
       if [ "$mode" = "dual" ] || [ "$mode" = "text" ]; then
         qa_assert_exit_code "$RESULTS_DIR/${label}_text.exit" 1 || return 1
-        qa_assert_text_contains "$RESULTS_DIR/${label}_text.out" "$text_contains" || return 1
-        qa_assert_text_absent "$RESULTS_DIR/${label}_text.out" "$text_absent" || return 1
+        qa_assert_text_contains "$RESULTS_DIR/${label}_text.err" "$text_contains" || return 1
+        qa_assert_text_absent "$RESULTS_DIR/${label}_text.err" "$text_absent" || return 1
+        qa_assert_text_absent "$RESULTS_DIR/${label}_text.out" "Error:" || return 1
       fi
       if [ "$mode" = "dual" ] || [ "$mode" = "json" ]; then
         qa_assert_exit_code "$RESULTS_DIR/${label}_json.exit" 1 || return 1

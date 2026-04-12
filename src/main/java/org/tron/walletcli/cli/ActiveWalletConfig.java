@@ -2,6 +2,7 @@ package org.tron.walletcli.cli;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import org.tron.common.utils.FilePermissionUtils;
 import org.tron.keystore.WalletFile;
 import org.tron.keystore.WalletUtils;
 
@@ -64,12 +65,14 @@ public class ActiveWalletConfig {
         if (!dir.exists()) {
             dir.mkdirs();
         }
+        FilePermissionUtils.setOwnerOnlyDirectory(dir.toPath());
         File configFile = new File(dir, CONFIG_FILE);
         Map<String, String> data = new LinkedHashMap<String, String>();
         data.put("address", address);
         try (FileWriter writer = new FileWriter(configFile)) {
             gson.toJson(data, writer);
         }
+        FilePermissionUtils.setOwnerOnlyFile(configFile.toPath());
     }
 
     /**

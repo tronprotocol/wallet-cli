@@ -1,5 +1,7 @@
 package org.tron.walletcli.cli.commands;
 
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
@@ -84,8 +86,9 @@ public class TransactionCommandsTest {
       formatter.flush();
 
       String json = stdout.toString(StandardCharsets.UTF_8.name());
-      Assert.assertTrue(json.contains("\"success\": false"));
-      Assert.assertTrue(json.contains("\"error\": \"execution_error\""));
+      JsonObject root = JsonParser.parseString(json).getAsJsonObject();
+      Assert.assertFalse(root.get("success").getAsBoolean());
+      Assert.assertEquals("execution_error", root.get("error").getAsString());
       Assert.assertTrue(json.contains("TransferUSDT failed: energy estimation failed."));
     } finally {
       WalletApi.setCurrentNetwork(originalNetwork);
@@ -120,8 +123,9 @@ public class TransactionCommandsTest {
       formatter.flush();
 
       String json = stdout.toString(StandardCharsets.UTF_8.name());
-      Assert.assertTrue(json.contains("\"success\": true"));
-      Assert.assertTrue(json.contains("\"txid\": \"" + expectedTxid + "\""));
+      JsonObject root = JsonParser.parseString(json).getAsJsonObject();
+      Assert.assertTrue(root.get("success").getAsBoolean());
+      Assert.assertEquals(expectedTxid, root.getAsJsonObject("data").get("txid").getAsString());
     } finally {
       WalletApi.setApiCli(originalApiCli);
       System.setOut(originalOut);
@@ -155,9 +159,11 @@ public class TransactionCommandsTest {
       formatter.flush();
 
       String json = stdout.toString(StandardCharsets.UTF_8.name());
-      Assert.assertTrue(json.contains("\"success\": true"));
-      Assert.assertTrue(json.contains("\"message\": \"SendCoin successful !!\""));
-      Assert.assertTrue(json.contains("\"amount\": 1"));
+      JsonObject root = JsonParser.parseString(json).getAsJsonObject();
+      Assert.assertTrue(root.get("success").getAsBoolean());
+      JsonObject data = root.getAsJsonObject("data");
+      Assert.assertEquals("SendCoin successful !!", data.get("message").getAsString());
+      Assert.assertEquals(1L, data.get("amount").getAsLong());
       Assert.assertTrue(json.contains("TNPeeaaFB7K9cmo4uQpcU32zGK8G1NYqeL"));
     } finally {
       System.setOut(originalOut);

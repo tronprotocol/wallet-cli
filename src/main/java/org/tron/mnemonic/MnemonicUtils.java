@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import org.tron.common.utils.FilePermissionUtils;
 import java.io.InputStreamReader;
 import java.nio.file.Paths;
 import java.security.SecureRandom;
@@ -86,6 +87,7 @@ public class MnemonicUtils {
         }
       }
     }
+    FilePermissionUtils.setOwnerOnlyDirectory(file.toPath());
     return generateWalletFile(mnemonicFile, file);
   }
 
@@ -95,6 +97,7 @@ public class MnemonicUtils {
     File destination = new File(destinationDirectory, fileName);
 
     objectMapper.writeValue(destination, walletFile);
+    FilePermissionUtils.setOwnerOnlyFile(destination.toPath());
     return fileName;
   }
 
@@ -148,6 +151,7 @@ public class MnemonicUtils {
     }
 
     objectMapper.writeValue(source, mnemonicFile);
+    FilePermissionUtils.setOwnerOnlyFile(source.toPath());
   }
 
   public static int inputMnemonicWordsNumber() {

@@ -203,6 +203,13 @@ public class GasFreeApi {
     return Hex.toHexString(signBytes);
   }
 
+  public static String signOffChain(byte[] hash, byte[] privateKey) {
+    ECKeyPair keypair = ECKeyPair.create(new BigInteger(1, privateKey));
+    Sign.SignatureData signature = Sign.signMessage(hash, keypair, false);
+    byte[] signBytes = abiEncodePacked(signature.getR(), signature.getS(), signature.getV());
+    return Hex.toHexString(signBytes);
+  }
+
   public static boolean validateSignOffChain(byte[] hash, String signature, String publicAddress) {
     // parse signatureData
     byte[] signatureBytes = Numeric.hexStringToByteArray(signature);

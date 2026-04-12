@@ -225,6 +225,62 @@ public class CommandDefinitionTest {
         command.resolveAuthPolicy(command.parseArgs(new String[0])));
   }
 
+  @Test
+  public void registryRejectsCommandNameConflict() {
+    CommandRegistry registry = new CommandRegistry();
+    registry.add(buildBooleanCommand());
+    try {
+      registry.add(buildBooleanCommand());
+      Assert.fail("Expected IllegalStateException for duplicate command name");
+    } catch (IllegalStateException e) {
+      Assert.assertTrue(e.getMessage().contains("bool-cmd"));
+    }
+  }
+
+  @Test
+  public void registryRejectsAliasConflictWithExistingCommandName() {
+    CommandRegistry registry = new CommandRegistry();
+    registry.add(CommandDefinition.builder()
+        .name("first-cmd")
+        .description("First")
+        .handler((ctx, opts, wrapper, out) -> out.raw("ok"))
+        .build());
+    try {
+      registry.add(CommandDefinition.builder()
+          .name("second-cmd")
+          .aliases("first-cmd")
+          .description("Second")
+          .handler((ctx, opts, wrapper, out) -> out.raw("ok"))
+          .build());
+      Assert.fail("Expected IllegalStateException for alias conflicting with existing command name");
+    } catch (IllegalStateException e) {
+      Assert.assertTrue(e.getMessage().contains("first-cmd"));
+      Assert.assertTrue(e.getMessage().contains("second-cmd"));
+    }
+  }
+
+  @Test
+  public void registryRejectsAliasConflictWithExistingAlias() {
+    CommandRegistry registry = new CommandRegistry();
+    registry.add(CommandDefinition.builder()
+        .name("first-cmd")
+        .aliases("shared-alias")
+        .description("First")
+        .handler((ctx, opts, wrapper, out) -> out.raw("ok"))
+        .build());
+    try {
+      registry.add(CommandDefinition.builder()
+          .name("second-cmd")
+          .aliases("shared-alias")
+          .description("Second")
+          .handler((ctx, opts, wrapper, out) -> out.raw("ok"))
+          .build());
+      Assert.fail("Expected IllegalStateException for alias conflicting with existing alias");
+    } catch (IllegalStateException e) {
+      Assert.assertTrue(e.getMessage().contains("shared-alias"));
+    }
+  }
+
   private void assertUsageError(CommandDefinition command, String[] args, String expectedMessage) {
     try {
       command.parseArgs(args);

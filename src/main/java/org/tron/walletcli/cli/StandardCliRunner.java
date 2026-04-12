@@ -96,23 +96,26 @@ public class StandardCliRunner {
                 return 2; // unreachable after usageError()
             }
 
-            applyPermissionIdOverride(cmd, opts);
             CommandContext ctx = CommandContext.fromGlobalOptions(globalOpts);
 
             // Create wrapper and authenticate
             WalletApiWrapper wrapper = new WalletApiWrapper();
-            if (requiresAutoAuth(cmd, opts)) {
-                ctx = ctx.withResolvedAuthWalletFile(authenticate(wrapper));
-            }
+            try {
+                if (requiresAutoAuth(cmd, opts)) {
+                    ctx = ctx.withResolvedAuthWalletFile(authenticate(wrapper));
+                }
 
-            // Execute command
-            cmd.getHandler().execute(ctx, opts, wrapper, formatter);
-            if (!formatter.hasOutcome()) {
-                formatter.error("execution_error",
-                        "Command completed without emitting an outcome");
+                // Execute command
+                cmd.getHandler().execute(ctx, opts, wrapper, formatter);
+                if (!formatter.hasOutcome()) {
+                    formatter.error("execution_error",
+                            "Command completed without emitting an outcome");
+                }
+                formatter.flush();
+                return 0;
+            } finally {
+                wrapper.cleanup();
             }
-            formatter.flush();
-            return 0;
 
         } catch (CliAbortException e) {
             formatter.flush();
@@ -207,35 +210,24 @@ public class StandardCliRunner {
         switch (network.toLowerCase()) {
             case "main":
                 WalletApi.setCurrentNetwork(NetType.MAIN);
-                WalletApi.setApiCli(WalletApi.initApiCli());
+                WalletApi.updateRpcCli(WalletApi.initApiCli());
                 break;
             case "nile":
                 WalletApi.setCurrentNetwork(NetType.NILE);
-                WalletApi.setApiCli(WalletApi.initApiCli());
+                WalletApi.updateRpcCli(WalletApi.initApiCli());
                 break;
             case "shasta":
                 WalletApi.setCurrentNetwork(NetType.SHASTA);
-                WalletApi.setApiCli(WalletApi.initApiCli());
+                WalletApi.updateRpcCli(WalletApi.initApiCli());
                 break;
             case "custom":
                 WalletApi.setCurrentNetwork(NetType.CUSTOM);
-                WalletApi.setApiCli(WalletApi.initApiCli());
+                WalletApi.updateRpcCli(WalletApi.initApiCli());
                 break;
             default:
                 formatter.usageError("Unknown network: " + network
                         + ". Use: main, nile, shasta, custom", null);
         }
-    }
-
-    private void applyPermissionIdOverride(CommandDefinition cmd, ParsedOptions opts) {
-        for (OptionDef option : cmd.getOptions()) {
-            if ("permission-id".equals(option.getName())) {
-                int permissionId = opts.has("permission-id") ? (int) opts.getLong("permission-id") : 0;
-                TransactionUtils.setPermissionIdOverride(permissionId);
-                return;
-            }
-        }
-        TransactionUtils.clearPermissionIdOverride();
     }
 
     private static boolean hasStandaloneCommandHelpToken(CommandDefinition cmd, String[] cmdArgs) {

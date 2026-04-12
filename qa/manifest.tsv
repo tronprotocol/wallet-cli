@@ -49,7 +49,7 @@ get-market-order-by-id|expected-execution-error|empty|none|--id {{FAKE_ID_64}}
 get-market-order-list-by-pair|noauth-success|empty|none|--sell-token _ --buy-token 1000001
 get-market-pair-list|noauth-success|empty|none|
 get-market-price-by-pair|noauth-success|empty|none|--sell-token _ --buy-token 1000001
-gas-free-info|expected-execution-error|auth|private_key|--address {{MY_ADDR}}
+gas-free-info|expected-execution-error|empty|none|--address {{TARGET_ADDR}}
 gas-free-trace|expected-execution-error|empty|none|--id {{FAKE_ID_64}}
 send-coin|stateful-success|auth|private_key|--to {{TARGET_ADDR}} --amount 1|data.txid|||SendCoin successful !!|needs_auth_wallet,needs_target_addr,needs_trx_balance_at_least:1
 transfer-asset|expected-execution-error|auth|private_key|--to {{TARGET_ADDR}} --asset 1000001 --amount 1
@@ -80,7 +80,7 @@ withdraw-expire-unfreeze|expected-execution-error|auth|private_key|
 delegate-resource|auth-success|auth|private_key|--amount 1000000 --resource 0 --receiver {{TARGET_ADDR}}|data.txid|||DelegateResource successful !!|needs_auth_wallet,needs_target_addr,needs_delegatable_resource
 undelegate-resource|auth-success|auth|private_key|--amount 1000000 --resource 0 --receiver {{TARGET_ADDR}}|data.txid|||UndelegateResource successful !!|needs_auth_wallet,needs_target_addr,needs_undelegatable_resource
 cancel-all-unfreeze-v2|stateful-replay-execution|auth|private_key|||||CancelAllUnfreezeV2 successful !!|needs_auth_wallet,needs_available_unfreeze_v2
-withdraw-balance|expected-execution-error|auth|private_key|
+withdraw-balance|stateful-replay-execution|auth|private_key|||||WithdrawBalance successful !!|needs_auth_wallet,needs_withdrawable_witness_balance
 unfreeze-asset|expected-execution-error|auth|private_key|
 create-witness|expected-execution-error|auth|private_key|--url http://test.example.com
 update-witness|auth-success|auth|private_key|--url http://test.example.com|data.txid|||UpdateWitness successful !!|needs_auth_wallet,needs_witness_wallet
@@ -101,9 +101,9 @@ import-wallet-by-mnemonic|offline-success|empty|mnemonic|--name qamnemonic
 list-wallet|auth-success|auth|private_key|
 set-active-wallet|auth-success|auth|private_key|--address {{FIRST_WALLET_ADDRESS}}
 get-active-wallet|auth-success|auth|private_key|
-change-password|offline-success|auth|private_key|--old-password {{MASTER_PASSWORD}} --new-password {{ALT_PASSWORD}}
+change-password|offline-success|auth|private_key|
 clear-wallet-keystore|offline-success|auth|private_key|--force
-reset-wallet|offline-success|auth|private_key|--force
+reset-wallet|offline-success|auth|private_key|--confirm delete-all-wallets
 modify-wallet-name|auth-success|auth|private_key|--name renamed-wallet
 switch-network|offline-success|auth|private_key|--network nile
 lock|expected-execution-error|auth|private_key|
