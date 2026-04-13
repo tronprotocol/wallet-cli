@@ -2467,6 +2467,7 @@ public class WalletApiWrapper {
 
   public void cleanup() {
     if (wallet != null && wallet.isLoginState()) {
+      wallet.logout();
       wallet.cleanup();
     }
   }

@@ -39,6 +39,7 @@ public class StakingCommands {
                     CommandSupport.requirePositive(out, "amount", amount);
                     long duration = opts.getLong("duration");
                     int resource = opts.has("resource") ? opts.getInt("resource") : 0;
+                    CommandSupport.requireResourceCode(out, "resource", resource);
                     byte[] receiver = opts.has("receiver") ? opts.getAddress("receiver") : null;
                     boolean multi = opts.getBoolean("multi");
                     wrapper.freezeBalanceForCli(owner, amount, duration, resource, receiver, multi);
@@ -66,6 +67,7 @@ public class StakingCommands {
                     long amount = opts.getLong("amount");
                     CommandSupport.requirePositive(out, "amount", amount);
                     int resource = opts.has("resource") ? opts.getInt("resource") : 0;
+                    CommandSupport.requireResourceCode(out, "resource", resource);
                     int permissionId = opts.has("permission-id") ? opts.getInt("permission-id") : 0;
                     boolean multi = opts.getBoolean("multi");
                     TransactionUtils.setPermissionIdOverride(permissionId);
@@ -95,6 +97,7 @@ public class StakingCommands {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     int resource = opts.has("resource") ? opts.getInt("resource") : 0;
+                    CommandSupport.requireResourceCode(out, "resource", resource);
                     byte[] receiver = opts.has("receiver") ? opts.getAddress("receiver") : null;
                     boolean multi = opts.getBoolean("multi");
                     wrapper.unfreezeBalanceForCli(owner, resource, receiver, multi);
@@ -122,6 +125,7 @@ public class StakingCommands {
                     long amount = opts.getLong("amount");
                     CommandSupport.requirePositive(out, "amount", amount);
                     int resource = opts.has("resource") ? opts.getInt("resource") : 0;
+                    CommandSupport.requireResourceCode(out, "resource", resource);
                     int permissionId = opts.has("permission-id") ? opts.getInt("permission-id") : 0;
                     boolean multi = opts.getBoolean("multi");
                     TransactionUtils.setPermissionIdOverride(permissionId);
@@ -177,6 +181,7 @@ public class StakingCommands {
                     long amount = opts.getLong("amount");
                     CommandSupport.requirePositive(out, "amount", amount);
                     int resource = opts.getInt("resource");
+                    CommandSupport.requireResourceCode(out, "resource", resource);
                     byte[] receiver = opts.getAddress("receiver");
                     boolean lock = opts.getBoolean("lock");
                     long lockPeriod = opts.has("lock-period") ? opts.getLong("lock-period") : 0;
@@ -207,6 +212,7 @@ public class StakingCommands {
                     long amount = opts.getLong("amount");
                     CommandSupport.requirePositive(out, "amount", amount);
                     int resource = opts.getInt("resource");
+                    CommandSupport.requireResourceCode(out, "resource", resource);
                     byte[] receiver = opts.getAddress("receiver");
                     boolean multi = opts.getBoolean("multi");
                     wrapper.undelegateResourceForCli(owner, amount, resource, receiver, multi);

@@ -536,6 +536,8 @@ public class QueryCommands {
                 .option("from", "From address", true)
                 .option("to", "To address", true)
                 .handler((ctx, opts, wrapper, out) -> {
+                    opts.getAddress("from");
+                    opts.getAddress("to");
                     Response.DelegatedResourceList result = WalletApi.getDelegatedResource(
                             opts.getString("from"), opts.getString("to"));
                     if (result == null) {
@@ -555,6 +557,8 @@ public class QueryCommands {
                 .option("from", "From address", true)
                 .option("to", "To address", true)
                 .handler((ctx, opts, wrapper, out) -> {
+                    opts.getAddress("from");
+                    opts.getAddress("to");
                     Response.DelegatedResourceList result = WalletApi.getDelegatedResourceV2(
                             opts.getString("from"), opts.getString("to"));
                     if (result == null) {
@@ -573,6 +577,7 @@ public class QueryCommands {
                 .description("Get delegated resource account index")
                 .option("address", "Address", true)
                 .handler((ctx, opts, wrapper, out) -> {
+                    opts.getAddress("address");
                     Response.DelegatedResourceAccountIndex result =
                             WalletApi.getDelegatedResourceAccountIndex(opts.getString("address"));
                     if (result == null) {
@@ -592,6 +597,7 @@ public class QueryCommands {
                 .description("Get delegated resource account index V2")
                 .option("address", "Address", true)
                 .handler((ctx, opts, wrapper, out) -> {
+                    opts.getAddress("address");
                     Response.DelegatedResourceAccountIndex result =
                             WalletApi.getDelegatedResourceAccountIndexV2(opts.getString("address"));
                     if (result == null) {
@@ -788,9 +794,10 @@ public class QueryCommands {
                 .name("get-proposal")
                 .aliases("getproposal")
                 .description("Get proposal by ID")
-                .option("id", "Proposal ID", true)
+                .option("id", "Proposal ID", true, OptionDef.Type.LONG)
                 .handler((ctx, opts, wrapper, out) -> {
-                    Response.Proposal result = WalletApi.getProposal(opts.getString("id"));
+                    long id = opts.getLong("id");
+                    Response.Proposal result = WalletApi.getProposal(String.valueOf(id));
                     if (result == null) {
                         out.error("query_failed", "GetProposal failed");
                     } else {

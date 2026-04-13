@@ -133,6 +133,19 @@ public class OutputFormatter {
                 emitJsonSuccess(current.jsonData);
             } else {
                 out.println(current.textMessage);
+                Map<?, ?> kvPairs = null;
+                if (current.jsonData instanceof Map) {
+                    kvPairs = (Map<?, ?>) current.jsonData;
+                } else if (current.jsonData instanceof JsonElement
+                        && ((JsonElement) current.jsonData).isJsonObject()) {
+                    kvPairs = ((JsonElement) current.jsonData).getAsJsonObject().asMap();
+                }
+                if (kvPairs != null) {
+                    for (Map.Entry<?, ?> e : kvPairs.entrySet()) {
+                        if ("message".equals(e.getKey())) continue;
+                        out.println(e.getKey() + ": " + e.getValue());
+                    }
+                }
             }
             return;
         }

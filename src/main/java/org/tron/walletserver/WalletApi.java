@@ -1167,6 +1167,7 @@ public class WalletApi {
     LAST_BROADCAST_TX_ID.remove();
     clearLastCliOperationError();
     if (transactionExtention == null) {
+      recordLastCliOperationError("Transaction request returned null");
       return false;
     }
     Response.TransactionReturn ret = transactionExtention.getResult();
@@ -1176,18 +1177,22 @@ public class WalletApi {
     }
     Chain.Transaction transaction = transactionExtention.getTransaction();
     if (transaction.getRawData().getContractCount() == 0) {
+      recordLastCliOperationError("Transaction contains no contract");
       return false;
     }
     if (transaction.getRawData().getContract(0).getType()
         == Chain.Transaction.Contract.ContractType.ShieldedTransferContract) {
+      recordLastCliOperationError("ShieldedTransferContract is not supported in standard CLI mode");
       return false;
     }
     Chain.Transaction.Contract.ContractType type = transaction.getRawData().getContract(0).getType();
     if (multi && !CONTRACT_TYPE_SET.contains(type)) {
+      recordLastCliOperationError("Contract type " + type + " is not supported for multi-sign");
       return false;
     }
     transaction = signTransactionForCli(transaction, multi);
     if (transaction == null) {
+      recordLastCliOperationError("Transaction signing failed");
       return false;
     }
     if (multi) {
@@ -1219,18 +1224,22 @@ public class WalletApi {
     LAST_BROADCAST_TX_ID.remove();
     clearLastCliOperationError();
     if (transaction == null || transaction.getRawData().getContractCount() == 0) {
+      recordLastCliOperationError("Transaction is null or contains no contract");
       return false;
     }
     if (transaction.getRawData().getContract(0).getType()
         == Chain.Transaction.Contract.ContractType.ShieldedTransferContract) {
+      recordLastCliOperationError("ShieldedTransferContract is not supported in standard CLI mode");
       return false;
     }
     Chain.Transaction.Contract.ContractType type = transaction.getRawData().getContract(0).getType();
     if (multi && !CONTRACT_TYPE_SET.contains(type)) {
+      recordLastCliOperationError("Contract type " + type + " is not supported for multi-sign");
       return false;
     }
     transaction = signTransactionForCli(transaction, multi);
     if (transaction == null) {
+      recordLastCliOperationError("Transaction signing failed");
       return false;
     }
     if (multi) {
@@ -2328,7 +2337,8 @@ public class WalletApi {
         recordLastCliOperationError("Exceeds the current maximum unfreeze amount");
         return false;
       }
-      if (!isControlled(ownerAddress)) {
+      if (!isControlledForCli(ownerAddress)) {
+        recordLastCliOperationError("Owner address is not controlled by this wallet");
         return false;
       }
     }

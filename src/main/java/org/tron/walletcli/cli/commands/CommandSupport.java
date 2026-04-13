@@ -51,6 +51,12 @@ final class CommandSupport {
         }
     }
 
+    static void requireResourceCode(OutputFormatter out, String name, int value) {
+        if (value != 0 && value != 1) {
+            out.usageError(name + " must be 0 (BANDWIDTH) or 1 (ENERGY), got: " + value, null);
+        }
+    }
+
     static void requireForce(OutputFormatter out, String commandName, boolean force) {
         if (!force) {
             out.usageError(commandName + " requires --force in standard CLI mode.", null);
