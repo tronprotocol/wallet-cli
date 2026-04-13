@@ -51,8 +51,4 @@ final class CommandSupport {
         }
     }
 
-    static void rejectUnsupportedStandardCliCommand(OutputFormatter out, String commandName) {
-        out.error("unsupported_in_standard_cli",
-                commandName + " is not available in standard CLI mode. Use --interactive mode.");
-    }
 }

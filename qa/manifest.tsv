@@ -61,9 +61,7 @@ update-account|expected-execution-error|auth|private_key|--name qa-test
 set-account-id|expected-execution-error|auth|private_key|--id qa-test-id
 update-asset|expected-execution-error|auth|private_key|--description test --url http://test.example.com --new-limit 1000 --new-public-limit 1000
 broadcast-transaction|expected-execution-error|empty|none|--transaction 0a0200
-add-transaction-sign|expected-execution-error|empty|none|--transaction 0a0200
 update-account-permission|expected-execution-error|auth|private_key|--owner {{MY_ADDR}} --permissions '{"owner_permission":{"type":0,"permission_name":"owner","threshold":1,"keys":[{"address":"{{MY_ADDR}}","weight":1}]}}'
-tronlink-multi-sign|excluded-interactive|auth|private_key|
 gas-free-transfer|expected-execution-error|auth|private_key|--to {{TARGET_ADDR}} --amount 1
 deploy-contract|auth-success|auth|private_key|--name TestContract --abi '[]' --bytecode 6080 --fee-limit 1000000000|data.txid|||DeployContract successful !!|needs_auth_wallet,needs_positive_trx_balance
 trigger-contract|stateful-success|auth|private_key|--contract {{USDT_NILE}} --method 'transfer(address,uint256)' --params '"{{TARGET_ADDR}}",1' --fee-limit 100000000|data.txid|||TriggerContract successful !!|needs_auth_wallet,needs_target_addr,needs_positive_trx_balance
@@ -95,24 +93,14 @@ exchange-withdraw|expected-execution-error|auth|private_key|--exchange-id 1 --to
 exchange-transaction|expected-execution-error|auth|private_key|--exchange-id 1 --token-id _ --quant 1000000 --expected 1
 market-sell-asset|expected-execution-error|auth|private_key|--sell-token _ --sell-quantity 1000000 --buy-token 1000001 --buy-quantity 1
 market-cancel-order|expected-execution-error|auth|private_key|--order-id {{FAKE_ID_64}}
-register-wallet|excluded-interactive|empty|none|--words 12
-import-wallet|offline-success|empty|private_key|--name qaimport
-import-wallet-by-mnemonic|offline-success|empty|mnemonic|--name qamnemonic
+register-wallet|offline-success|empty|none|--name qaregister --words 12
 list-wallet|auth-success|auth|private_key|
 set-active-wallet|auth-success|auth|private_key|--address {{FIRST_WALLET_ADDRESS}}
 get-active-wallet|auth-success|auth|private_key|
-change-password|offline-success|auth|private_key|
 clear-wallet-keystore|offline-success|auth|private_key|--force
 reset-wallet|offline-success|auth|private_key|--confirm delete-all-wallets
 modify-wallet-name|auth-success|auth|private_key|--name renamed-wallet
 switch-network|offline-success|auth|private_key|--network nile
-lock|expected-execution-error|auth|private_key|
-unlock|expected-execution-error|auth|private_key|--duration 60
-generate-sub-account|excluded-interactive|auth|private_key|
+generate-sub-account|offline-success|auth-mnemonic|mnemonic|--index 1 --name qasubaccount
 generate-address|offline-success|empty|none|
-get-private-key-by-mnemonic|offline-success|empty|mnemonic|
-encoding-converter|excluded-interactive|empty|none|
-address-book|excluded-interactive|empty|none|
-view-transaction-history|excluded-interactive|auth|private_key|
-view-backup-records|excluded-interactive|auth|private_key|
 help|offline-success|empty|none|

@@ -53,6 +53,7 @@ import java.io.IOException;
 import java.math.BigInteger;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -127,9 +128,74 @@ public class WalletApiWrapper {
   private static final String MnemonicFilePath = "Mnemonic";
   private static final String GAS_FREE_SUPPORT_NETWORK_TIP = "Gas free currently only supports the " + blueBoldHighlight("MAIN") + " network and " + blueBoldHighlight("NILE") + " test network, and does not support other networks at the moment.";
 
+  public static final class CliWalletCreationResult {
+    private final String keystoreName;
+    private final String mnemonicKeystoreName;
+    private final String address;
+    private final String walletName;
+    private final String path;
+
+    public CliWalletCreationResult(
+        String keystoreName, String mnemonicKeystoreName, String address, String walletName, String path) {
+      this.keystoreName = keystoreName;
+      this.mnemonicKeystoreName = mnemonicKeystoreName;
+      this.address = address;
+      this.walletName = walletName;
+      this.path = path;
+    }
+
+    public String getKeystoreName() {
+      return keystoreName;
+    }
+
+    public String getMnemonicKeystoreName() {
+      return mnemonicKeystoreName;
+    }
+
+    public String getAddress() {
+      return address;
+    }
+
+    public String getWalletName() {
+      return walletName;
+    }
+
+    public String getPath() {
+      return path;
+    }
+  }
+
   public static long computeBufferedFeeLimit(long energyFee, long energyUsed) {
     long base = Math.multiplyExact(energyFee, energyUsed);
     return Math.addExact(base, Math.floorDiv(base, 5));
+  }
+
+  public CliWalletCreationResult registerWalletForCli(char[] password, int wordsNumber, String walletName)
+      throws CipherException, IOException {
+    validateCliWalletName(walletName);
+    if (!MnemonicUtils.inputMnemonicWordsNumberCheck(wordsNumber)) {
+      throw new CommandErrorException("usage_error", "register-wallet --words must be 12 or 24.");
+    }
+    if (!WalletApi.passwordValid(password)) {
+      throw new CommandErrorException("usage_error", "MASTER_PASSWORD does not meet password requirements.");
+    }
+
+    byte[] passwd = char2Byte(password);
+    try {
+      WalletApi.WalletCreationResult result = WalletApi.CreateWalletFileForCli(passwd, wordsNumber);
+      WalletFile walletFile = result.getWalletFile();
+      walletFile.setName(walletName);
+      String keystoreName = WalletApi.store2Keystore(walletFile);
+      logout();
+      return new CliWalletCreationResult(
+          keystoreName,
+          result.getMnemonicKeystoreName(),
+          walletFile.getAddress(),
+          walletName,
+          null);
+    } finally {
+      clear(passwd);
+    }
   }
 
   public String registerWallet(char[] password, int wordsNumber) throws CipherException, IOException {
@@ -709,6 +775,67 @@ public class WalletApiWrapper {
       }
       clear(mnemonic);
       clear(passwd);
+    }
+  }
+
+  public CliWalletCreationResult generateSubAccountForCli(int index, String walletName)
+      throws IOException, CipherException {
+    validateCliWalletName(walletName);
+    if (index < 0 || index > 99) {
+      throw new CommandErrorException("usage_error", "generate-sub-account --index must be between 0 and 99.");
+    }
+    requireLoggedInWalletForCli();
+
+    byte[] passwd = getUnifiedPasswordCopyForCli("generate-sub-account");
+    byte[] mnemonic = null;
+    byte[] priKey = null;
+    try {
+      wallet.checkPassword(passwd);
+      String ownerAddress = WalletApi.encode58Check(wallet.getAddress());
+      mnemonic = MnemonicUtils.exportMnemonic(passwd, ownerAddress, false);
+      if (mnemonic == null || mnemonic.length == 0) {
+        throw new CommandErrorException("execution_error",
+            "GenerateSubAccount failed: mnemonic file not found for active wallet.");
+      }
+      List<String> words = MnemonicUtils.stringToMnemonicWords(new String(mnemonic, StandardCharsets.UTF_8));
+      priKey = MnemonicUtils.getPrivateKeyFromMnemonicByPath(words, index);
+      String address = WalletApi.getAddressFromPrivateKeyForCli(priKey);
+      if (MnemonicUtils.generatedAddress(address)) {
+        throw new CommandErrorException("already_exists",
+            "Sub-account already exists for path " + MnemonicUtils.formatPathIndex2Path(index)
+                + " (" + address + ").");
+      }
+
+      WalletApi.WalletCreationResult result = WalletApi.CreateWalletFileForCli(passwd, priKey, words);
+      WalletFile walletFile = result.getWalletFile();
+      walletFile.setName(walletName);
+      String keystoreName = WalletApi.store2Keystore(walletFile);
+      if (wallet != null && wallet.isLoginState() && ArrayUtils.isNotEmpty(wallet.getUnifiedPassword())) {
+        wallet.getWalletList().add(walletFile);
+      }
+      return new CliWalletCreationResult(
+          keystoreName,
+          result.getMnemonicKeystoreName(),
+          walletFile.getAddress(),
+          walletName,
+          MnemonicUtils.formatPathIndex2Path(index));
+    } catch (CommandErrorException e) {
+      throw e;
+    } catch (CipherException e) {
+      throw new CommandErrorException("auth_required",
+          "MASTER_PASSWORD verification failed for generate-sub-account.");
+    } finally {
+      clear(mnemonic);
+      clear(priKey);
+      clear(passwd);
+    }
+  }
+
+  private static void validateCliWalletName(String walletName) {
+    if (!Utils.isValidWalletName(walletName)) {
+      throw new CommandErrorException("usage_error",
+          "Wallet name cannot be empty and must be between "
+              + Utils.MIN_LENGTH + " and " + Utils.MAX_LENGTH + " characters.");
     }
   }
 

@@ -7,6 +7,7 @@ import java.io.File;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -16,11 +17,15 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.tron.trident.proto.Response;
 import org.tron.walletcli.WalletApiWrapper;
+import org.tron.walletcli.WalletApiWrapper.CliWalletCreationResult;
 import org.tron.walletcli.cli.ActiveWalletConfig;
 import org.tron.walletcli.cli.CommandDefinition;
 import org.tron.walletcli.cli.CommandRegistry;
 import org.tron.walletcli.cli.OutputFormatter;
 import org.tron.walletcli.cli.ParsedOptions;
+import org.tron.walletserver.WalletApi;
+import org.tron.keystore.WalletFile;
+import org.tron.keystore.WalletUtils;
 
 public class StandardCliCommandRoutingTest {
   private static JsonObject parseJson(String raw) {
@@ -185,59 +190,6 @@ public class StandardCliCommandRoutingTest {
     Assert.assertTrue(parseJson(json).get("success").getAsBoolean());
     Assert.assertTrue(json.contains("ClearWalletKeystore successful !!"));
     walletFile.delete();
-  }
-
-  @Test
-  public void changePasswordUsesGlobalWalletOverrideAsExplicitTarget() throws Exception {
-    // change-password now reads passwords from TRON_OLD_PASSWORD / TRON_NEW_PASSWORD env vars
-    // (not command-line args). Without env vars, it should return a missing_env error.
-    File tempDir = Files.createTempDirectory("change-password-global-wallet").toFile();
-    System.setProperty("user.dir", tempDir.getAbsolutePath());
-
-    CommandRegistry registry = new CommandRegistry();
-    WalletCommands.register(registry);
-    CommandDefinition command = registry.lookup("change-password");
-    ParsedOptions opts = command.parseArgs(new String[0]);
-    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
-    OutputFormatter formatter = new OutputFormatter(
-        OutputFormatter.OutputMode.JSON, false, new PrintStream(stdout), System.err);
-
-    try {
-      command.getHandler().execute(
-          org.tron.walletcli.cli.CommandContext.empty(),
-          opts,
-          new WalletApiWrapper(),
-          formatter);
-    } catch (RuntimeException e) {
-      Assert.assertEquals("CliAbortException", e.getClass().getSimpleName());
-    }
-    formatter.flush();
-
-    String json = stdout.toString(StandardCharsets.UTF_8.name());
-    Assert.assertFalse(parseJson(json).get("success").getAsBoolean());
-    Assert.assertTrue(json.contains("missing_env"));
-    Assert.assertTrue(json.contains("TRON_OLD_PASSWORD"));
-  }
-
-  @Test
-  public void changePasswordRejectsMixingGlobalWalletWithAddressOrName() throws Exception {
-    // change-password now reads passwords from TRON_OLD_PASSWORD / TRON_NEW_PASSWORD env vars.
-    // Without env vars, it returns missing_env before reaching the wallet mixing check.
-    // Verify that --old-password / --new-password are no longer accepted as command options.
-    CommandRegistry registry = new CommandRegistry();
-    WalletCommands.register(registry);
-    CommandDefinition command = registry.lookup("change-password");
-    try {
-      command.parseArgs(new String[]{
-          "--old-password", "OldPass123!A",
-          "--new-password", "NewPass123!B",
-          "--address", "TNPeeaaFB7K9cmo4uQpcU32zGK8G1NYqeL"
-      });
-      Assert.fail("Expected parser error for removed --old-password option");
-    } catch (RuntimeException e) {
-      // Expected: --old-password is no longer a valid option
-      Assert.assertTrue(e.getMessage().contains("old-password"));
-    }
   }
 
   @Test
@@ -674,44 +626,203 @@ public class StandardCliCommandRoutingTest {
   }
 
   @Test
-  public void importWalletRejectsLegacyPrivateKeyArgvOption() {
+  public void retiredCommandsAreNotRegisteredInStandardCli() {
+    CommandRegistry walletRegistry = new CommandRegistry();
+    WalletCommands.register(walletRegistry);
+    Assert.assertNull(walletRegistry.lookup("import-wallet"));
+    Assert.assertNull(walletRegistry.lookup("importwallet"));
+    Assert.assertNull(walletRegistry.lookup("import-wallet-by-mnemonic"));
+    Assert.assertNull(walletRegistry.lookup("importwalletbymnemonic"));
+    Assert.assertNull(walletRegistry.lookup("change-password"));
+    Assert.assertNull(walletRegistry.lookup("changepassword"));
+    Assert.assertNull(walletRegistry.lookup("lock"));
+    Assert.assertNull(walletRegistry.lookup("unlock"));
+
+    CommandRegistry miscRegistry = new CommandRegistry();
+    MiscCommands.register(miscRegistry);
+    Assert.assertNull(miscRegistry.lookup("get-private-key-by-mnemonic"));
+    Assert.assertNull(miscRegistry.lookup("getprivatekeybymnemonic"));
+    Assert.assertNull(miscRegistry.lookup("encoding-converter"));
+    Assert.assertNull(miscRegistry.lookup("encodingconverter"));
+    Assert.assertNull(miscRegistry.lookup("address-book"));
+    Assert.assertNull(miscRegistry.lookup("addressbook"));
+    Assert.assertNull(miscRegistry.lookup("view-transaction-history"));
+    Assert.assertNull(miscRegistry.lookup("viewtransactionhistory"));
+    Assert.assertNull(miscRegistry.lookup("view-backup-records"));
+    Assert.assertNull(miscRegistry.lookup("viewbackuprecords"));
+
+    CommandRegistry transactionRegistry = new CommandRegistry();
+    TransactionCommands.register(transactionRegistry);
+    Assert.assertNull(transactionRegistry.lookup("add-transaction-sign"));
+    Assert.assertNull(transactionRegistry.lookup("addtransactionsign"));
+    Assert.assertNull(transactionRegistry.lookup("tronlink-multi-sign"));
+    Assert.assertNull(transactionRegistry.lookup("tronlinkmultisign"));
+  }
+
+  @Test
+  public void registerWalletRequiresName() throws Exception {
     CommandRegistry registry = new CommandRegistry();
     WalletCommands.register(registry);
-    CommandDefinition command = registry.lookup("import-wallet");
+    CommandDefinition command = registry.lookup("register-wallet");
 
     try {
-      command.parseArgs(new String[]{"--private-key", "abcd"});
-      Assert.fail("Expected usage error for legacy argv secret option");
+      command.parseArgs(new String[]{"--words", "12"});
+      Assert.fail("Expected missing --name usage error");
     } catch (IllegalArgumentException e) {
-      Assert.assertEquals("Unknown option: --private-key", e.getMessage());
+      Assert.assertEquals("Missing required option(s): --name", e.getMessage());
     }
   }
 
   @Test
-  public void importWalletByMnemonicRejectsLegacyMnemonicArgvOption() {
-    CommandRegistry registry = new CommandRegistry();
-    WalletCommands.register(registry);
-    CommandDefinition command = registry.lookup("import-wallet-by-mnemonic");
-
+  public void registerWalletForCliDoesNotPrintMnemonicPromptText() throws Exception {
+    PrintStream originalOut = System.out;
+    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+    char[] password = "TempPass123!A".toCharArray();
+    WalletApiWrapper.CliWalletCreationResult result = null;
     try {
-      command.parseArgs(new String[]{"--mnemonic", "word1 word2"});
-      Assert.fail("Expected usage error for legacy argv secret option");
-    } catch (IllegalArgumentException e) {
-      Assert.assertEquals("Unknown option: --mnemonic", e.getMessage());
+      System.setOut(new PrintStream(stdout));
+      result = new WalletApiWrapper().registerWalletForCli(password, 12, "qa");
+
+      Assert.assertNotNull(result.getKeystoreName());
+      Assert.assertNotNull(result.getMnemonicKeystoreName());
+      Assert.assertEquals("qa", result.getWalletName());
+      Assert.assertTrue(new File("Wallet", result.getKeystoreName()).isFile());
+      Assert.assertTrue(new File("Mnemonic", result.getMnemonicKeystoreName()).isFile());
+      String text = stdout.toString(StandardCharsets.UTF_8.name());
+      Assert.assertFalse(text.contains("Please name your wallet"));
+      Assert.assertFalse(text.contains("mnemonic file :"));
+    } finally {
+      System.setOut(originalOut);
+      deleteCreatedWalletFiles(result);
+      org.tron.keystore.StringUtils.clear(password);
     }
   }
 
   @Test
-  public void getPrivateKeyByMnemonicRejectsLegacyMnemonicArgvOption() {
+  public void registerWalletForCliRejectsInvalidWords() throws Exception {
+    char[] password = "TempPass123!A".toCharArray();
+    try {
+      new WalletApiWrapper().registerWalletForCli(password, 13, "qa");
+      Assert.fail("Expected invalid word count to be rejected");
+    } catch (org.tron.walletcli.cli.CommandErrorException e) {
+      Assert.assertEquals("usage_error", e.getCode());
+      Assert.assertTrue(e.getMessage().contains("--words must be 12 or 24"));
+    } finally {
+      org.tron.keystore.StringUtils.clear(password);
+    }
+  }
+
+  @Test
+  public void generateSubAccountRequiresParametersAndUsesCliSafeAdapter() throws Exception {
     CommandRegistry registry = new CommandRegistry();
-    MiscCommands.register(registry);
-    CommandDefinition command = registry.lookup("get-private-key-by-mnemonic");
+    WalletCommands.register(registry);
+    CommandDefinition command = registry.lookup("generate-sub-account");
 
     try {
-      command.parseArgs(new String[]{"--mnemonic", "word1 word2"});
-      Assert.fail("Expected usage error for legacy argv secret option");
+      command.parseArgs(new String[]{"--index", "1"});
+      Assert.fail("Expected missing --name usage error");
     } catch (IllegalArgumentException e) {
-      Assert.assertEquals("Unknown option: --mnemonic", e.getMessage());
+      Assert.assertEquals("Missing required option(s): --name", e.getMessage());
+    }
+
+    ParsedOptions opts = command.parseArgs(new String[]{"--index", "1", "--name", "sub"});
+    AtomicBoolean cliSafeCalled = new AtomicBoolean(false);
+    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+    OutputFormatter formatter = new OutputFormatter(
+        OutputFormatter.OutputMode.JSON, false, new PrintStream(stdout), System.err);
+
+    command.getHandler().execute(org.tron.walletcli.cli.CommandContext.empty(), opts, new WalletApiWrapper() {
+      @Override
+      public CliWalletCreationResult generateSubAccountForCli(int index, String walletName) {
+        cliSafeCalled.set(true);
+        Assert.assertEquals(1, index);
+        Assert.assertEquals("sub", walletName);
+        return new CliWalletCreationResult("TSUB.json", "TSUB.json", "TSUB", "sub",
+            "m/44'/195'/0'/0/1");
+      }
+
+      @Override
+      public void generateSubAccountOrThrow() {
+        Assert.fail("legacy generateSubAccountOrThrow() should not be used by standard CLI");
+      }
+    }, formatter);
+    formatter.flush();
+
+    Assert.assertTrue(cliSafeCalled.get());
+    String json = stdout.toString(StandardCharsets.UTF_8.name());
+    JsonObject data = parseJson(json).getAsJsonObject("data");
+    Assert.assertTrue(parseJson(json).get("success").getAsBoolean());
+    Assert.assertEquals("sub", data.get("wallet_name").getAsString());
+    Assert.assertEquals("m/44'/195'/0'/0/1", data.get("path").getAsString());
+  }
+
+  @Test
+  public void generateSubAccountForCliIsNonInteractiveAndRejectsDuplicateIndex() throws Exception {
+    PrintStream originalOut = System.out;
+    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+    char[] passwordChars = "TempPass123!A".toCharArray();
+    byte[] passwordBytes = "TempPass123!A".getBytes(StandardCharsets.UTF_8);
+    WalletApiWrapper.CliWalletCreationResult parent = null;
+    WalletApiWrapper.CliWalletCreationResult subAccount = null;
+    try {
+      System.setOut(new PrintStream(stdout));
+      WalletApiWrapper wrapper = new WalletApiWrapper();
+      parent = wrapper.registerWalletForCli(passwordChars, 12, "qa");
+      File walletFile = new File("Wallet", parent.getKeystoreName());
+      WalletFile wf = WalletUtils.loadWalletFile(walletFile);
+      wf.setSourceFile(walletFile);
+      WalletApi walletApi = new WalletApi(wf);
+      walletApi.setLogin(null);
+      walletApi.setUnifiedPassword(Arrays.copyOf(passwordBytes, passwordBytes.length));
+      wrapper.setWallet(walletApi);
+
+      subAccount = wrapper.generateSubAccountForCli(1, "sub");
+
+      Assert.assertEquals("sub", subAccount.getWalletName());
+      Assert.assertEquals("m/44'/195'/0'/0/1", subAccount.getPath());
+      Assert.assertTrue(new File("Wallet", subAccount.getKeystoreName()).isFile());
+      Assert.assertTrue(new File("Mnemonic", subAccount.getMnemonicKeystoreName()).isFile());
+
+      try {
+        wrapper.generateSubAccountForCli(1, "dupe");
+        Assert.fail("Expected duplicate sub-account path to be rejected");
+      } catch (org.tron.walletcli.cli.CommandErrorException e) {
+        Assert.assertEquals("already_exists", e.getCode());
+      }
+
+      String text = stdout.toString(StandardCharsets.UTF_8.name());
+      Assert.assertFalse(text.contains("Enter your choice"));
+      Assert.assertFalse(text.contains("Please name your wallet"));
+      Assert.assertFalse(text.contains("mnemonic file :"));
+    } finally {
+      System.setOut(originalOut);
+      deleteCreatedWalletFiles(subAccount);
+      deleteCreatedWalletFiles(parent);
+      org.tron.keystore.StringUtils.clear(passwordChars);
+      org.tron.keystore.StringUtils.clear(passwordBytes);
+    }
+  }
+
+  @Test
+  public void generateSubAccountForCliRejectsOutOfRangeIndexBeforeAuth() throws Exception {
+    try {
+      new WalletApiWrapper().generateSubAccountForCli(100, "sub");
+      Assert.fail("Expected invalid sub-account index to be rejected");
+    } catch (org.tron.walletcli.cli.CommandErrorException e) {
+      Assert.assertEquals("usage_error", e.getCode());
+      Assert.assertTrue(e.getMessage().contains("--index must be between 0 and 99"));
+    }
+  }
+
+  private static void deleteCreatedWalletFiles(WalletApiWrapper.CliWalletCreationResult result) {
+    if (result == null) {
+      return;
+    }
+    if (result.getKeystoreName() != null) {
+      new File("Wallet", result.getKeystoreName()).delete();
+    }
+    if (result.getMnemonicKeystoreName() != null) {
+      new File("Mnemonic", result.getMnemonicKeystoreName()).delete();
     }
   }
 }

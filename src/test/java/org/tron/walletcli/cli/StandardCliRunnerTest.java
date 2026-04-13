@@ -9,9 +9,7 @@ import org.tron.keystore.WalletUtils;
 import org.tron.trident.proto.Response;
 import org.tron.walletcli.WalletApiWrapper;
 import org.tron.walletcli.cli.commands.ContractCommands;
-import org.tron.walletcli.cli.commands.MiscCommands;
 import org.tron.walletcli.cli.commands.QueryCommands;
-import org.tron.walletcli.cli.commands.TransactionCommands;
 import org.tron.walletcli.cli.commands.WalletCommands;
 import org.tron.walletcli.cli.commands.WitnessCommands;
 import org.tron.walletserver.ApiClient;
@@ -644,16 +642,8 @@ public class StandardCliRunnerTest {
     CommandRegistry walletRegistry = new CommandRegistry();
     WalletCommands.register(walletRegistry);
 
-    CommandDefinition changePassword = walletRegistry.lookup("change-password");
-    Assert.assertFalse(StandardCliRunner.requiresAutoAuth(changePassword, changePassword.parseArgs(new String[0])));
-
     CommandDefinition resetWallet = walletRegistry.lookup("reset-wallet");
     Assert.assertFalse(StandardCliRunner.requiresAutoAuth(resetWallet, resetWallet.parseArgs(new String[0])));
-
-    CommandRegistry miscRegistry = new CommandRegistry();
-    MiscCommands.register(miscRegistry);
-    CommandDefinition transactionHistory = miscRegistry.lookup("view-transaction-history");
-    Assert.assertFalse(StandardCliRunner.requiresAutoAuth(transactionHistory, transactionHistory.parseArgs(new String[0])));
   }
 
   @Test
@@ -822,24 +812,6 @@ public class StandardCliRunnerTest {
   }
 
   @Test
-  public void legacyInteractiveCommandsAreRejectedInJsonMode() throws Exception {
-    assertUnsupportedStandardCliJson("encoding-converter", true);
-    assertUnsupportedStandardCliJson("address-book", true);
-    assertUnsupportedStandardCliJson("view-transaction-history", true);
-    assertUnsupportedStandardCliJson("view-backup-records", true);
-    assertUnsupportedStandardCliJson("tronlink-multi-sign", false);
-  }
-
-  @Test
-  public void legacyInteractiveCommandsAreRejectedInTextMode() throws Exception {
-    assertUnsupportedStandardCliText("encoding-converter", true);
-    assertUnsupportedStandardCliText("address-book", true);
-    assertUnsupportedStandardCliText("view-transaction-history", true);
-    assertUnsupportedStandardCliText("view-backup-records", true);
-    assertUnsupportedStandardCliText("tronlink-multi-sign", false);
-  }
-
-  @Test
   public void listWalletIgnoresMalformedActiveWalletConfig() throws Exception {
     String originalUserDir = System.getProperty("user.dir");
     PrintStream originalOut = System.out;
@@ -966,61 +938,4 @@ public class StandardCliRunnerTest {
     return WalletUtils.loadWalletFile(walletFile).getAddress();
   }
 
-  private void assertUnsupportedStandardCliJson(String commandName, boolean miscCommand) throws Exception {
-    PrintStream originalOut = System.out;
-    PrintStream originalErr = System.err;
-    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
-    ByteArrayOutputStream stderr = new ByteArrayOutputStream();
-    CommandRegistry registry = new CommandRegistry();
-    if (miscCommand) {
-      MiscCommands.register(registry);
-    } else {
-      TransactionCommands.register(registry);
-    }
-
-    System.setOut(new PrintStream(stdout));
-    System.setErr(new PrintStream(stderr));
-    try {
-      GlobalOptions opts = GlobalOptions.parse(new String[]{"--output", "json", commandName});
-      int exitCode = new StandardCliRunner(registry, opts).execute();
-
-      Assert.assertEquals(1, exitCode);
-      String json = stdout.toString("UTF-8");
-      Assert.assertTrue(json.contains("\"success\": false"));
-      Assert.assertTrue(json.contains("\"error\": \"unsupported_in_standard_cli\""));
-      Assert.assertTrue(json.contains(commandName + " is not available in standard CLI mode"));
-      Assert.assertEquals("", stderr.toString("UTF-8"));
-    } finally {
-      System.setOut(originalOut);
-      System.setErr(originalErr);
-    }
-  }
-
-  private void assertUnsupportedStandardCliText(String commandName, boolean miscCommand) throws Exception {
-    PrintStream originalOut = System.out;
-    PrintStream originalErr = System.err;
-    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
-    ByteArrayOutputStream stderr = new ByteArrayOutputStream();
-    CommandRegistry registry = new CommandRegistry();
-    if (miscCommand) {
-      MiscCommands.register(registry);
-    } else {
-      TransactionCommands.register(registry);
-    }
-
-    System.setOut(new PrintStream(stdout));
-    System.setErr(new PrintStream(stderr));
-    try {
-      GlobalOptions opts = GlobalOptions.parse(new String[]{commandName});
-      int exitCode = new StandardCliRunner(registry, opts).execute();
-
-      Assert.assertEquals(1, exitCode);
-      Assert.assertEquals("", stdout.toString("UTF-8"));
-      String text = stderr.toString("UTF-8");
-      Assert.assertTrue(text.contains("Error: " + commandName + " is not available in standard CLI mode"));
-    } finally {
-      System.setOut(originalOut);
-      System.setErr(originalErr);
-    }
-  }
 }

@@ -72,8 +72,11 @@ public class QASecretImporter {
     List<String> words = Arrays.asList(mnemonic.trim().split("\\s+"));
     byte[] privateKey = MnemonicUtils.getPrivateKeyFromMnemonic(words);
     try {
-      ECKey ecKey = ECKey.fromPrivate(privateKey);
-      storeWallet(password, ecKey);
+      WalletApi.WalletCreationResult result = WalletApi.CreateWalletFileForCli(password, privateKey, words);
+      WalletFile walletFile = result.getWalletFile();
+      walletFile.setName("mywallet");
+      WalletApi.store2Keystore(walletFile);
+      ActiveWalletConfig.setActiveAddress(walletFile.getAddress());
       System.out.println("Import wallet by mnemonic successful, keystore created");
     } finally {
       Arrays.fill(privateKey, (byte) 0);

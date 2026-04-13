@@ -2,7 +2,6 @@ package org.tron.walletcli.cli.commands;
 
 import org.tron.common.crypto.ECKey;
 import org.tron.common.utils.ByteArray;
-import org.tron.mnemonic.MnemonicUtils;
 import org.tron.walletcli.cli.CommandDefinition;
 import org.tron.walletcli.cli.CommandRegistry;
 import org.tron.walletserver.WalletApi;
@@ -10,12 +9,9 @@ import org.tron.walletserver.WalletApi;
 import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 
 public class MiscCommands {
-
-    private static final String MNEMONIC_ENV = "TRON_MNEMONIC";
 
     private static CommandDefinition.Builder noAuthCommand() {
         return CommandDefinition.builder().authPolicy(CommandDefinition.AuthPolicy.NEVER);
@@ -23,11 +19,6 @@ public class MiscCommands {
 
     public static void register(CommandRegistry registry) {
         registerGenerateAddress(registry);
-        registerGetPrivateKeyByMnemonic(registry);
-        registerEncodingConverter(registry);
-        registerAddressBook(registry);
-        registerViewTransactionHistory(registry);
-        registerViewBackupRecords(registry);
         registerHelp(registry);
     }
 
@@ -52,79 +43,6 @@ public class MiscCommands {
                     } finally {
                         Arrays.fill(priKey, (byte) 0);
                     }
-                })
-                .build());
-    }
-
-    private static void registerGetPrivateKeyByMnemonic(CommandRegistry registry) {
-        registry.add(noAuthCommand()
-                .name("get-private-key-by-mnemonic")
-                .aliases("getprivatekeybymnemonic")
-                .description("Derive private key from mnemonic phrase in " + MNEMONIC_ENV)
-                .handler((ctx, opts, wrapper, out) -> {
-                    String mnemonicStr = System.getenv(MNEMONIC_ENV);
-                    if (mnemonicStr == null || mnemonicStr.trim().isEmpty()) {
-                        out.usageError("get-private-key-by-mnemonic requires " + MNEMONIC_ENV
-                                + " in standard CLI mode.", null);
-                        return;
-                    }
-                    List<String> words = Arrays.asList(mnemonicStr.trim().split("\\s+"));
-                    byte[] priKey = MnemonicUtils.getPrivateKeyFromMnemonic(words);
-                    try {
-                        String priKeyHex = ByteArray.toHexString(priKey);
-                        ECKey ecKey = ECKey.fromPrivate(priKey);
-                        String address = WalletApi.encode58Check(ecKey.getAddress());
-                        Map<String, Object> json = new LinkedHashMap<String, Object>();
-                        json.put("private_key", priKeyHex);
-                        json.put("address", address);
-                        out.success("Private Key: " + priKeyHex + "\nAddress: " + address, json);
-                    } finally {
-                        Arrays.fill(priKey, (byte) 0);
-                    }
-                })
-                .build());
-    }
-
-    private static void registerEncodingConverter(CommandRegistry registry) {
-        registry.add(noAuthCommand()
-                .name("encoding-converter")
-                .aliases("encodingconverter")
-                .description("Convert between encoding formats")
-                .handler((ctx, opts, wrapper, out) -> {
-                    CommandSupport.rejectUnsupportedStandardCliCommand(out, "encoding-converter");
-                })
-                .build());
-    }
-
-    private static void registerAddressBook(CommandRegistry registry) {
-        registry.add(noAuthCommand()
-                .name("address-book")
-                .aliases("addressbook")
-                .description("Manage address book")
-                .handler((ctx, opts, wrapper, out) -> {
-                    CommandSupport.rejectUnsupportedStandardCliCommand(out, "address-book");
-                })
-                .build());
-    }
-
-    private static void registerViewTransactionHistory(CommandRegistry registry) {
-        registry.add(noAuthCommand()
-                .name("view-transaction-history")
-                .aliases("viewtransactionhistory")
-                .description("View transaction history")
-                .handler((ctx, opts, wrapper, out) -> {
-                    CommandSupport.rejectUnsupportedStandardCliCommand(out, "view-transaction-history");
-                })
-                .build());
-    }
-
-    private static void registerViewBackupRecords(CommandRegistry registry) {
-        registry.add(noAuthCommand()
-                .name("view-backup-records")
-                .aliases("viewbackuprecords")
-                .description("View backup records")
-                .handler((ctx, opts, wrapper, out) -> {
-                    CommandSupport.rejectUnsupportedStandardCliCommand(out, "view-backup-records");
                 })
                 .build());
     }

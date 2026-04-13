@@ -28,9 +28,7 @@ public class TransactionCommands {
         registerSetAccountId(registry);
         registerUpdateAsset(registry);
         registerBroadcastTransaction(registry);
-        registerAddTransactionSign(registry);
         registerUpdateAccountPermission(registry);
-        registerTronlinkMultiSign(registry);
         registerGasFreeTransfer(registry);
     }
 
@@ -367,22 +365,6 @@ public class TransactionCommands {
                 .build());
     }
 
-    private static void registerAddTransactionSign(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
-                .authPolicy(CommandDefinition.AuthPolicy.NEVER)
-                .name("add-transaction-sign")
-                .aliases("addtransactionsign")
-                .description("Add a signature to a transaction")
-                .option("transaction", "Transaction hex string", true)
-                .handler((ctx, opts, wrapper, out) -> {
-                    // addTransactionSign requires interactive password prompt
-                    // Delegates to the wrapper which handles signing
-                    out.error("not_implemented",
-                            "add-transaction-sign via standard CLI is not yet implemented. Use --interactive mode.");
-                })
-                .build());
-    }
-
     private static void registerUpdateAccountPermission(CommandRegistry registry) {
         registry.add(CommandDefinition.builder()
                 .authPolicy(CommandDefinition.AuthPolicy.REQUIRE)
@@ -402,18 +384,6 @@ public class TransactionCommands {
                             "UpdateAccountPermission successful !!",
                             "UpdateAccountPermission failed !!",
                             CommandSupport.lastBroadcastTxResultData());
-                })
-                .build());
-    }
-
-    private static void registerTronlinkMultiSign(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
-                .authPolicy(CommandDefinition.AuthPolicy.NEVER)
-                .name("tronlink-multi-sign")
-                .aliases("tronlinkmultisign")
-                .description("TronLink multi-sign transaction")
-                .handler((ctx, opts, wrapper, out) -> {
-                    CommandSupport.rejectUnsupportedStandardCliCommand(out, "tronlink-multi-sign");
                 })
                 .build());
     }

@@ -194,6 +194,9 @@ qa_prepare_templates() {
     mkdir -p "$RUNTIME_DIR/templates/auth-bad-active/Wallet"
     printf '{bad json\n' > "$RUNTIME_DIR/templates/auth-bad-active/Wallet/.active-wallet"
   fi
+  if qa_has_mnemonic; then
+    qa_import_template_wallet "$RUNTIME_DIR/templates/auth-mnemonic" mnemonic
+  fi
 }
 
 qa_reset_workspace() {
@@ -391,8 +394,6 @@ qa_run_capture() {
         MASTER_PASSWORD="$MASTER_PASSWORD" \
           TRON_PRIVATE_KEY="$TRON_PRIVATE_KEY" \
           TRON_MNEMONIC="$TRON_MNEMONIC" \
-          TRON_OLD_PASSWORD="$MASTER_PASSWORD" \
-          TRON_NEW_PASSWORD="$ALT_PASSWORD" \
           _qa_run_with_timeout "$QA_CASE_TIMEOUT" "${cmd[@]}" >"$stdout_file" 2>"$stderr_file"
         ;;
       no-password)

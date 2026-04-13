@@ -195,6 +195,24 @@ public class WalletApi {
   private static Pair<Pair<String, Boolean>, Pair<String, Boolean>> customNodes;
   public MultiSignService multiSignService = initMultiSignService();
 
+  public static final class WalletCreationResult {
+    private final WalletFile walletFile;
+    private final String mnemonicKeystoreName;
+
+    private WalletCreationResult(WalletFile walletFile, String mnemonicKeystoreName) {
+      this.walletFile = walletFile;
+      this.mnemonicKeystoreName = mnemonicKeystoreName;
+    }
+
+    public WalletFile getWalletFile() {
+      return walletFile;
+    }
+
+    public String getMnemonicKeystoreName() {
+      return mnemonicKeystoreName;
+    }
+  }
+
   private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
   private ScheduledFuture<?> autoLockFuture;
   private MultiTxWebSocketClient wsClient;
@@ -328,30 +346,48 @@ public class WalletApi {
    * Creates a new WalletApi with a random ECKey or no ECKey.
    */
   public static WalletFile CreateWalletFile(byte[] password, int wordsNumber) throws CipherException, IOException {
+    return createWalletFile(password, wordsNumber, true).getWalletFile();
+  }
+
+  public static WalletCreationResult CreateWalletFileForCli(byte[] password, int wordsNumber)
+      throws CipherException, IOException {
+    return createWalletFile(password, wordsNumber, false);
+  }
+
+  private static WalletCreationResult createWalletFile(byte[] password, int wordsNumber, boolean printMnemonicPath)
+      throws CipherException, IOException {
     WalletFile walletFile = null;
+    String mnemonicKeystoreName = null;
     SecureRandom secureRandom = Utils.getRandom();
+    byte[] priKey = null;
+    List<String> mnemonicWords = null;
     try {
-      List<String> mnemonicWords = MnemonicUtils.generateMnemonic(secureRandom, wordsNumber);
-      byte[] priKey = MnemonicUtils.getPrivateKeyFromMnemonic(mnemonicWords);
+      mnemonicWords = MnemonicUtils.generateMnemonic(secureRandom, wordsNumber);
+      priKey = MnemonicUtils.getPrivateKeyFromMnemonic(mnemonicWords);
 
       if (isEckey) {
         ECKey ecKey = new ECKey(priKey, true);
         walletFile = Wallet.createStandard(password, ecKey);
-        storeMnemonicWords(password, ecKey, mnemonicWords);
+        mnemonicKeystoreName = storeMnemonicWords(password, ecKey, mnemonicWords, printMnemonicPath);
       } else {
         SM2 sm2 = new SM2(priKey, true);
         walletFile = Wallet.createStandard(password, sm2);
-        storeMnemonicWords(password, sm2, mnemonicWords);
-      }
-      Arrays.fill(priKey, (byte) 0);
-      for (int i = 0; i < mnemonicWords.size(); i++) {
-        mnemonicWords.set(i, null);
+        mnemonicKeystoreName = storeMnemonicWords(password, sm2, mnemonicWords, printMnemonicPath);
       }
     } catch (Exception e) {
       throw new IOException("Mnemonic generation failed", e);
+    } finally {
+      if (priKey != null) {
+        Arrays.fill(priKey, (byte) 0);
+      }
+      if (mnemonicWords != null) {
+        for (int i = 0; i < mnemonicWords.size(); i++) {
+          mnemonicWords.set(i, null);
+        }
+      }
     }
 
-    return walletFile;
+    return new WalletCreationResult(walletFile, mnemonicKeystoreName);
   }
 
   public static WalletFile CreateLedgerWalletFile(byte[] password, String address, String path)
@@ -360,30 +396,57 @@ public class WalletApi {
   }
 
   public static void storeMnemonicWords(byte[] password, SignInterface ecKeySm2Pair, List<String> mnemonicWords) throws CipherException, IOException {
+    storeMnemonicWords(password, ecKeySm2Pair, mnemonicWords, true);
+  }
+
+  private static String storeMnemonicWords(byte[] password, SignInterface ecKeySm2Pair,
+      List<String> mnemonicWords, boolean printMnemonicPath) throws CipherException, IOException {
     MnemonicFile mnemonicFile = Mnemonic.createStandard(password, ecKeySm2Pair, mnemonicWords);
     String keystoreName = MnemonicUtils.store2Keystore(mnemonicFile);
-    System.out.println("mnemonic file : ."
-        + File.separator + "Mnemonic" + File.separator
-        + keystoreName);
+    if (printMnemonicPath) {
+      System.out.println("mnemonic file : ."
+          + File.separator + "Mnemonic" + File.separator
+          + keystoreName);
+    }
+    return keystoreName;
   }
 
   //  Create Wallet with a pritKey
   public static WalletFile CreateWalletFile(byte[] password, byte[] priKey, List<String> mnemonicWords) throws CipherException, IOException {
+    return createWalletFile(password, priKey, mnemonicWords, true).getWalletFile();
+  }
+
+  public static WalletCreationResult CreateWalletFileForCli(
+      byte[] password, byte[] priKey, List<String> mnemonicWords) throws CipherException, IOException {
+    return createWalletFile(password, priKey, mnemonicWords, false);
+  }
+
+  public static String getAddressFromPrivateKeyForCli(byte[] priKey) {
+    if (isEckey) {
+      return encode58Check(ECKey.fromPrivate(priKey).getAddress());
+    }
+    return encode58Check(SM2.fromPrivate(priKey).getAddress());
+  }
+
+  private static WalletCreationResult createWalletFile(
+      byte[] password, byte[] priKey, List<String> mnemonicWords, boolean printMnemonicPath)
+      throws CipherException, IOException {
     WalletFile walletFile = null;
+    String mnemonicKeystoreName = null;
     if (isEckey) {
       ECKey ecKey = ECKey.fromPrivate(priKey);
       walletFile = Wallet.createStandard(password, ecKey);
       if (mnemonicWords != null && !mnemonicWords.isEmpty()) {
-        storeMnemonicWords(password, ecKey, mnemonicWords);
+        mnemonicKeystoreName = storeMnemonicWords(password, ecKey, mnemonicWords, printMnemonicPath);
       }
     } else {
       SM2 sm2 = SM2.fromPrivate(priKey);
       walletFile = Wallet.createStandard(password, sm2);
       if (mnemonicWords != null && !mnemonicWords.isEmpty()) {
-        storeMnemonicWords(password, sm2, mnemonicWords);
+        mnemonicKeystoreName = storeMnemonicWords(password, sm2, mnemonicWords, printMnemonicPath);
       }
     }
-    return walletFile;
+    return new WalletCreationResult(walletFile, mnemonicKeystoreName);
   }
 
   public boolean isLoginState() {

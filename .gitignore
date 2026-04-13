@@ -33,3 +33,6 @@ qa/.verify.lock/
 .claude/
 
 .private/
+
+# graphify 
+graphify-out/
