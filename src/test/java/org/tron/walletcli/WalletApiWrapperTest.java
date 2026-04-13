@@ -10,6 +10,9 @@ import org.tron.walletcli.cli.CommandErrorException;
 import org.tron.walletserver.ApiClient;
 import org.tron.walletserver.WalletApi;
 
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
+
 public class WalletApiWrapperTest {
 
   private static final byte[] OWNER =
@@ -171,6 +174,55 @@ public class WalletApiWrapperTest {
     } finally {
       WalletApi.setApiCli(originalApiCli);
     }
+  }
+
+  @Test
+  public void registerWalletForCliWeakPasswordDoesNotPolluteStdout() {
+    PrintStream originalOut = System.out;
+    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+    System.setOut(new PrintStream(stdout));
+
+    try {
+      WalletApiWrapper wrapper = new WalletApiWrapper();
+      wrapper.registerWalletForCli("a".toCharArray(), 12, "test-wallet");
+      Assert.fail("Expected CommandErrorException for weak password");
+    } catch (CommandErrorException e) {
+      Assert.assertEquals("usage_error", e.getCode());
+      Assert.assertTrue(e.getMessage().contains("password"));
+    } catch (Exception e) {
+      Assert.fail("Unexpected exception: " + e.getClass().getName() + ": " + e.getMessage());
+    } finally {
+      System.setOut(originalOut);
+    }
+
+    String captured = stdout.toString();
+    Assert.assertTrue(
+        "Weak password should not print to stdout in CLI path, but got: " + captured,
+        captured.isEmpty());
+  }
+
+  @Test
+  public void registerWalletForCliWeakStrengthPasswordDoesNotPolluteStdout() {
+    PrintStream originalOut = System.out;
+    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+    System.setOut(new PrintStream(stdout));
+
+    try {
+      WalletApiWrapper wrapper = new WalletApiWrapper();
+      wrapper.registerWalletForCli("aaaaaa".toCharArray(), 12, "test-wallet");
+      Assert.fail("Expected CommandErrorException for weak-strength password");
+    } catch (CommandErrorException e) {
+      Assert.assertEquals("usage_error", e.getCode());
+    } catch (Exception e) {
+      Assert.fail("Unexpected exception: " + e.getClass().getName() + ": " + e.getMessage());
+    } finally {
+      System.setOut(originalOut);
+    }
+
+    String captured = stdout.toString();
+    Assert.assertTrue(
+        "Weak-strength password should not print to stdout in CLI path, but got: " + captured,
+        captured.isEmpty());
   }
 
   @Test

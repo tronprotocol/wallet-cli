@@ -876,7 +876,7 @@ public class QueryCommands {
                 .description("Get market order by ID")
                 .option("id", "Order ID hex", true)
                 .handler((ctx, opts, wrapper, out) -> {
-                    byte[] orderId = org.tron.common.utils.ByteArray.fromHexString(opts.getString("id"));
+                    byte[] orderId = CommandSupport.requireHex(out, "id", opts.getString("id"));
                     Response.MarketOrder result;
                     try {
                         result = WalletApi.getMarketOrderById(orderId);

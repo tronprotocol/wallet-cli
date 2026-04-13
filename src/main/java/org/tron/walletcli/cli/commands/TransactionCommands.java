@@ -372,7 +372,7 @@ public class TransactionCommands {
                 .description("Broadcast a signed transaction")
                 .option("transaction", "Transaction hex string", true)
                 .handler((ctx, opts, wrapper, out) -> {
-                    byte[] txBytes = org.tron.common.utils.ByteArray.fromHexString(opts.getString("transaction"));
+                    byte[] txBytes = CommandSupport.requireHex(out, "transaction", opts.getString("transaction"));
                     boolean result = org.tron.walletserver.WalletApi.broadcastTransaction(txBytes);
                     CommandSupport.emitBooleanResult(out, result,
                             "BroadcastTransaction successful !!",

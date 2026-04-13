@@ -167,7 +167,7 @@ public class ExchangeCommands {
                 .handler((ctx, opts, wrapper, out) -> {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
-                    byte[] orderId = org.tron.common.utils.ByteArray.fromHexString(opts.getString("order-id"));
+                    byte[] orderId = CommandSupport.requireHex(out, "order-id", opts.getString("order-id"));
                     boolean multi = opts.getBoolean("multi");
                     wrapper.marketCancelOrderForCli(owner, orderId, multi);
                     CommandSupport.emitBooleanResult(out, true,

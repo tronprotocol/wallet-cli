@@ -57,4 +57,17 @@ final class CommandSupport {
         }
     }
 
+    static byte[] requireHex(OutputFormatter out, String optionName, String value) {
+        if (value == null || value.isEmpty()) {
+            out.usageError("Missing required hex value for --" + optionName, null);
+            return null; // unreachable: usageError() always throws CliAbortException
+        }
+        try {
+            return org.tron.common.utils.ByteArray.fromHexString(value);
+        } catch (Exception e) {
+            out.usageError("Invalid hex value for --" + optionName + ": " + value, null);
+            return null; // unreachable: usageError() always throws CliAbortException
+        }
+    }
+
 }

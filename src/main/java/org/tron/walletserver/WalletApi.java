@@ -1940,6 +1940,21 @@ public class WalletApi {
     return true;
   }
 
+  /**
+   * CLI-safe password validation — same rules as {@link #passwordValid(char[])} but
+   * without System.out.println side effects. Callers handle messaging.
+   */
+  public static boolean passwordValidQuiet(char[] password) {
+    if (ArrayUtils.isEmpty(password)) {
+      return false;
+    }
+    if (password.length < 6) {
+      return false;
+    }
+    int level = CheckStrength.checkPasswordStrength(password);
+    return level > 4;
+  }
+
   public static boolean addressValid(String addressBase58) {
     byte[] address = decode58Check(addressBase58);
     return ArrayUtils.isNotEmpty(address);

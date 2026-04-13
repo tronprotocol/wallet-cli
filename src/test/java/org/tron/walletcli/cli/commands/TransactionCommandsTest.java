@@ -97,6 +97,38 @@ public class TransactionCommandsTest {
   }
 
   @Test
+  public void broadcastTransactionRejectsInvalidHexWithUsageError() throws Exception {
+    PrintStream originalOut = System.out;
+    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+    System.setOut(new PrintStream(stdout));
+
+    try {
+      CommandRegistry registry = new CommandRegistry();
+      TransactionCommands.register(registry);
+      CommandDefinition command = registry.lookup("broadcast-transaction");
+      ParsedOptions opts = command.parseArgs(new String[]{"--transaction", "not-valid-hex!!"});
+      OutputFormatter formatter = new OutputFormatter(OutputFormatter.OutputMode.JSON, false);
+
+      try {
+        command.getHandler().execute(
+            org.tron.walletcli.cli.CommandContext.empty(), opts, new WalletApiWrapper(), formatter);
+        Assert.fail("Expected abort on invalid hex");
+      } catch (RuntimeException e) {
+        // CliAbortException expected
+      }
+      formatter.flush();
+
+      String json = stdout.toString(StandardCharsets.UTF_8.name());
+      JsonObject root = JsonParser.parseString(json).getAsJsonObject();
+      Assert.assertFalse(root.get("success").getAsBoolean());
+      Assert.assertEquals("usage_error", root.get("error").getAsString());
+      Assert.assertTrue(root.get("message").getAsString().contains("Invalid hex value"));
+    } finally {
+      System.setOut(originalOut);
+    }
+  }
+
+  @Test
   public void broadcastTransactionIncludesTxidInJsonOutput() throws Exception {
     ApiClient originalApiCli = WalletApi.getApiCli();
     PrintStream originalOut = System.out;

@@ -176,7 +176,7 @@ public class WalletApiWrapper {
     if (!MnemonicUtils.inputMnemonicWordsNumberCheck(wordsNumber)) {
       throw new CommandErrorException("usage_error", "register-wallet --words must be 12 or 24.");
     }
-    if (!WalletApi.passwordValid(password)) {
+    if (!WalletApi.passwordValidQuiet(password)) {
       throw new CommandErrorException("usage_error", "MASTER_PASSWORD does not meet password requirements.");
     }
 
