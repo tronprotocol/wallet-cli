@@ -34,7 +34,23 @@ public class ProposalCommands {
                     }
                     HashMap<Long, Long> parametersMap = new HashMap<Long, Long>();
                     for (int i = 0; i < parts.length; i += 2) {
-                        parametersMap.put(Long.parseLong(parts[i]), Long.parseLong(parts[i + 1]));
+                        long paramId;
+                        long paramValue;
+                        try {
+                            paramId = Long.parseLong(parts[i]);
+                        } catch (NumberFormatException e) {
+                            out.usageError("Invalid proposal parameter ID (expected integer): "
+                                    + parts[i], null);
+                            return;
+                        }
+                        try {
+                            paramValue = Long.parseLong(parts[i + 1]);
+                        } catch (NumberFormatException e) {
+                            out.usageError("Invalid proposal parameter value (expected integer): "
+                                    + parts[i + 1], null);
+                            return;
+                        }
+                        parametersMap.put(paramId, paramValue);
                     }
                     boolean multi = opts.getBoolean("multi");
                     wrapper.createProposalForCli(owner, parametersMap, multi);

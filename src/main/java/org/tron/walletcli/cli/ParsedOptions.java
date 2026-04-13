@@ -49,6 +49,23 @@ public class ParsedOptions {
     }
 
     /**
+     * Returns the value parsed as an {@code int}.
+     * Delegates to {@link #getLong(String)} and rejects values outside the
+     * {@code int} range to prevent silent truncation.
+     *
+     * @throws IllegalArgumentException if the key is absent, not numeric,
+     *         or outside [{@code Integer.MIN_VALUE}, {@code Integer.MAX_VALUE}]
+     */
+    public int getInt(String key) {
+        long value = getLong(key);
+        if (value > Integer.MAX_VALUE || value < Integer.MIN_VALUE) {
+            throw new IllegalArgumentException(
+                    "Option --" + key + " value " + value + " is outside valid int range");
+        }
+        return (int) value;
+    }
+
+    /**
      * Returns the value parsed as a boolean.  Absent keys default to {@code false}.
      */
     public boolean getBoolean(String key) {

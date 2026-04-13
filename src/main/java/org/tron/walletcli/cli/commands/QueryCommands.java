@@ -613,7 +613,7 @@ public class QueryCommands {
                 .option("type", "Resource type (0=BANDWIDTH, 1=ENERGY)", true, OptionDef.Type.LONG)
                 .handler((ctx, opts, wrapper, out) -> {
                     long maxSize = WalletApi.getCanDelegatedMaxSize(
-                            opts.getAddress("owner"), (int) opts.getLong("type"));
+                            opts.getAddress("owner"), opts.getInt("type"));
                     Map<String, Object> json = new LinkedHashMap<String, Object>();
                     json.put("max_size", maxSize);
                     out.success("Max delegatable size: " + maxSize, json);

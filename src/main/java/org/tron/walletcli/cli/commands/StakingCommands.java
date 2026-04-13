@@ -36,8 +36,9 @@ public class StakingCommands {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     long amount = opts.getLong("amount");
+                    CommandSupport.requirePositive(out, "amount", amount);
                     long duration = opts.getLong("duration");
-                    int resource = opts.has("resource") ? (int) opts.getLong("resource") : 0;
+                    int resource = opts.has("resource") ? opts.getInt("resource") : 0;
                     byte[] receiver = opts.has("receiver") ? opts.getAddress("receiver") : null;
                     boolean multi = opts.getBoolean("multi");
                     wrapper.freezeBalanceForCli(owner, amount, duration, resource, receiver, multi);
@@ -63,8 +64,9 @@ public class StakingCommands {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     long amount = opts.getLong("amount");
-                    int resource = opts.has("resource") ? (int) opts.getLong("resource") : 0;
-                    int permissionId = opts.has("permission-id") ? (int) opts.getLong("permission-id") : 0;
+                    CommandSupport.requirePositive(out, "amount", amount);
+                    int resource = opts.has("resource") ? opts.getInt("resource") : 0;
+                    int permissionId = opts.has("permission-id") ? opts.getInt("permission-id") : 0;
                     boolean multi = opts.getBoolean("multi");
                     TransactionUtils.setPermissionIdOverride(permissionId);
                     try {
@@ -92,7 +94,7 @@ public class StakingCommands {
                 .handler((ctx, opts, wrapper, out) -> {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
-                    int resource = opts.has("resource") ? (int) opts.getLong("resource") : 0;
+                    int resource = opts.has("resource") ? opts.getInt("resource") : 0;
                     byte[] receiver = opts.has("receiver") ? opts.getAddress("receiver") : null;
                     boolean multi = opts.getBoolean("multi");
                     wrapper.unfreezeBalanceForCli(owner, resource, receiver, multi);
@@ -118,8 +120,9 @@ public class StakingCommands {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     long amount = opts.getLong("amount");
-                    int resource = opts.has("resource") ? (int) opts.getLong("resource") : 0;
-                    int permissionId = opts.has("permission-id") ? (int) opts.getLong("permission-id") : 0;
+                    CommandSupport.requirePositive(out, "amount", amount);
+                    int resource = opts.has("resource") ? opts.getInt("resource") : 0;
+                    int permissionId = opts.has("permission-id") ? opts.getInt("permission-id") : 0;
                     boolean multi = opts.getBoolean("multi");
                     TransactionUtils.setPermissionIdOverride(permissionId);
                     try {
@@ -172,7 +175,8 @@ public class StakingCommands {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     long amount = opts.getLong("amount");
-                    int resource = (int) opts.getLong("resource");
+                    CommandSupport.requirePositive(out, "amount", amount);
+                    int resource = opts.getInt("resource");
                     byte[] receiver = opts.getAddress("receiver");
                     boolean lock = opts.getBoolean("lock");
                     long lockPeriod = opts.has("lock-period") ? opts.getLong("lock-period") : 0;
@@ -201,7 +205,8 @@ public class StakingCommands {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     long amount = opts.getLong("amount");
-                    int resource = (int) opts.getLong("resource");
+                    CommandSupport.requirePositive(out, "amount", amount);
+                    int resource = opts.getInt("resource");
                     byte[] receiver = opts.getAddress("receiver");
                     boolean multi = opts.getBoolean("multi");
                     wrapper.undelegateResourceForCli(owner, amount, resource, receiver, multi);

@@ -74,7 +74,7 @@ public class WitnessCommands {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     String votesStr = opts.getString("votes");
-                    int permissionId = opts.has("permission-id") ? (int) opts.getLong("permission-id") : 0;
+                    int permissionId = opts.has("permission-id") ? opts.getInt("permission-id") : 0;
                     String[] parts = votesStr.trim().split("\\s+");
                     if (parts.length % 2 != 0) {
                         out.usageError("Votes must be pairs of 'address count'", null);
@@ -122,7 +122,7 @@ public class WitnessCommands {
                 .handler((ctx, opts, wrapper, out) -> {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
-                    int brokerage = (int) opts.getLong("brokerage");
+                    int brokerage = opts.getInt("brokerage");
                     boolean multi = opts.getBoolean("multi");
                     wrapper.updateBrokerageForCli(owner, brokerage, multi);
                     CommandSupport.emitBooleanResult(out, true,

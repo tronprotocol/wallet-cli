@@ -43,7 +43,7 @@ public class WalletCommands {
                 .option("name", "Wallet name", true)
                 .option("words", "Mnemonic word count (12 or 24, default: 12)", false, OptionDef.Type.LONG)
                 .handler((ctx, opts, wrapper, out) -> {
-                    int wordCount = opts.has("words") ? (int) opts.getLong("words") : 12;
+                    int wordCount = opts.has("words") ? opts.getInt("words") : 12;
                     String envPassword = System.getenv("MASTER_PASSWORD");
                     if (envPassword == null || envPassword.isEmpty()) {
                         out.error("missing_env",
@@ -322,7 +322,7 @@ public class WalletCommands {
                 .option("index", "Derivation path index (0-99)", true, OptionDef.Type.LONG)
                 .option("name", "Wallet name", true)
                 .handler((ctx, opts, wrapper, out) -> {
-                    int index = (int) opts.getLong("index");
+                    int index = opts.getInt("index");
                     CliWalletCreationResult result = wrapper.generateSubAccountForCli(
                             index, opts.getString("name"));
                     Map<String, Object> json = new LinkedHashMap<String, Object>();

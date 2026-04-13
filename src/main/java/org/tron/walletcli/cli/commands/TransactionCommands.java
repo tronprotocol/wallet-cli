@@ -48,7 +48,8 @@ public class TransactionCommands {
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     byte[] to = opts.getAddress("to");
                     long amount = opts.getLong("amount");
-                    int permissionId = opts.has("permission-id") ? (int) opts.getLong("permission-id") : 0;
+                    CommandSupport.requirePositive(out, "amount", amount);
+                    int permissionId = opts.has("permission-id") ? opts.getInt("permission-id") : 0;
                     boolean multi = opts.getBoolean("multi");
                     TransactionUtils.setPermissionIdOverride(permissionId);
                     try {
@@ -95,6 +96,7 @@ public class TransactionCommands {
                     byte[] to = opts.getAddress("to");
                     String asset = opts.getString("asset");
                     long amount = opts.getLong("amount");
+                    CommandSupport.requirePositive(out, "amount", amount);
                     boolean multi = opts.getBoolean("multi");
                     wrapper.transferAssetForCli(owner, to, asset, amount, multi);
                     CommandSupport.emitBooleanResult(out, true,
@@ -126,7 +128,8 @@ public class TransactionCommands {
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     byte[] toAddress = opts.getAddress("to");
                     long amount = opts.getLong("amount");
-                    int permissionId = opts.has("permission-id") ? (int) opts.getLong("permission-id") : 0;
+                    CommandSupport.requirePositive(out, "amount", amount);
+                    int permissionId = opts.has("permission-id") ? opts.getInt("permission-id") : 0;
                     boolean multi = opts.getBoolean("multi");
 
                     String toBase58 = WalletApi.encode58Check(toAddress);
@@ -198,6 +201,7 @@ public class TransactionCommands {
                     byte[] to = opts.getAddress("to");
                     String asset = opts.getString("asset");
                     long amount = opts.getLong("amount");
+                    CommandSupport.requirePositive(out, "amount", amount);
                     boolean multi = opts.getBoolean("multi");
                     wrapper.participateAssetIssueForCli(owner, to, asset, amount, multi);
                     CommandSupport.emitBooleanResult(out, true,
@@ -234,9 +238,9 @@ public class TransactionCommands {
                     String name = opts.getString("name");
                     String abbr = opts.getString("abbr");
                     long totalSupply = opts.getLong("total-supply");
-                    int trxNum = (int) opts.getLong("trx-num");
-                    int icoNum = (int) opts.getLong("ico-num");
-                    int precision = opts.has("precision") ? (int) opts.getLong("precision") : 0;
+                    int trxNum = opts.getInt("trx-num");
+                    int icoNum = opts.getInt("ico-num");
+                    int precision = opts.has("precision") ? opts.getInt("precision") : 0;
                     long startTime = opts.getLong("start-time");
                     long endTime = opts.getLong("end-time");
                     String desc = opts.has("description") ? opts.getString("description") : "";
@@ -244,6 +248,19 @@ public class TransactionCommands {
                     long freeNetLimit = opts.getLong("free-net-limit");
                     long publicFreeNetLimit = opts.getLong("public-free-net-limit");
                     boolean multi = opts.getBoolean("multi");
+
+                    // Pre-validation: catch domain errors before calling legacy wrapper
+                    // to prevent System.out.println pollution in JSON mode
+                    CommandSupport.requirePositive(out, "total-supply", totalSupply);
+                    CommandSupport.requirePositive(out, "trx-num", trxNum);
+                    CommandSupport.requirePositive(out, "ico-num", icoNum);
+                    if (precision < 0) {
+                        out.usageError("precision must be >= 0, got: " + precision, null);
+                    }
+                    if (endTime <= startTime) {
+                        out.usageError("end-time must be after start-time", null);
+                    }
+
                     HashMap<String, String> frozenSupply = new HashMap<String, String>();
                     boolean result = wrapper.assetIssue(owner, name, abbr, totalSupply,
                             trxNum, icoNum, precision, startTime, endTime, 0, desc, url,
@@ -399,6 +416,7 @@ public class TransactionCommands {
                 .handler((ctx, opts, wrapper, out) -> {
                     String to = opts.getString("to");
                     long amount = opts.getLong("amount");
+                    CommandSupport.requirePositive(out, "amount", amount);
                     String gasFreeId = wrapper.gasFreeTransferOrThrow(to, amount);
                     Map<String, Object> data = new LinkedHashMap<String, Object>();
                     data.put("message", "GasFreeTransfer successful !!");

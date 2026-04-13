@@ -45,6 +45,12 @@ final class CommandSupport {
         return data;
     }
 
+    static void requirePositive(OutputFormatter out, String name, long value) {
+        if (value <= 0) {
+            out.usageError(name + " must be a positive integer, got: " + value, null);
+        }
+    }
+
     static void requireForce(OutputFormatter out, String commandName, boolean force) {
         if (!force) {
             out.usageError(commandName + " requires --force in standard CLI mode.", null);
