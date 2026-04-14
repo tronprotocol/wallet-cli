@@ -84,7 +84,7 @@
 | ListProposals                                     | Display all proposals                                                   |
 | ListProposalsPaginated                            | Display all proposals through pagination                                |
 |---------------------------------------------------+-------------------------------------------------------------------------+
-|                WITNESS (6)                        |                                                                         |
+|                WITNESS (7)                        |                                                                         |
 +---------------------------------------------------+-------------------------------------------------------------------------+
 | CreateWitness                                     | Apply to become a super representative candidate                        |
 | UpdateWitness                                     | Edit the URL of the SR's official website                               |
@@ -92,6 +92,7 @@
 | VoteWitness                                       | Vote for witnesses                                                      |
 | GetBrokerage                                      | Get the brokerage ratio of a super representative                       |
 | UpdateBrokerage                                   | Update SR's brokerage ratio                                             |
+| GetPaginatedNowWitnessList                        | Get witnesses voting information in pages                               |
 +---------------------------------------------------+-------------------------------------------------------------------------+
 |                TRC10 (24)                         |                                                                         |
 +---------------------------------------------------+-------------------------------------------------------------------------+

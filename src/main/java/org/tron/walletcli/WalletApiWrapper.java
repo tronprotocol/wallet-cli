@@ -1955,4 +1955,13 @@ public class WalletApiWrapper {
   public void encodingConverter() {
     EncodingConverter.runCLI();
   }
+
+  public Response.WitnessList getPaginatedNowWitnessList(int offset, int limit) {
+    try {
+      return WalletApi.getPaginatedNowWitnessList(offset, limit);
+    } catch (Exception ex) {
+      ex.printStackTrace();
+      return null;
+    }
+  }
 }

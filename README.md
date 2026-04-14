@@ -160,7 +160,7 @@ For more information on a specific command, just type the command in the termina
 |              [UpdateEnergyLimit](#Update-smart-contract-parameters)              |                [UpdateSetting](#Update-smart-contract-parameters)                 |                          [UpdateWitness](#update-witness)                           |
 |                    [ViewBackupRecords](#View-backup-records)                     |                [ViewTransactionHistory](#View-transaction-history)                |                             [VoteWitness](#How-to-vote)                             |
 |                       [WithdrawBalance](#withdraw-balance)                       |                [WithdrawExpireUnfreeze](#withdraw-expire-unfreeze)                |                      [TronlinkMultiSign](#tronlink-multi-sign)                      |                                                 
-|                     [EncodingConverter](#encoding-converter)                     |        [GetPrivateKeyByMnemonic](#How-to-get-privateKey-through-mnemonic)         |                                                                                     |                                                 
+|                     [EncodingConverter](#encoding-converter)                     |        [GetPrivateKeyByMnemonic](#How-to-get-privateKey-through-mnemonic)         |            [GetPaginatedNowWitnessList](#Get-paginated-now-witness-list)            |                                                 
 
 
 Type any one of the listed commands, to display how-to tips.
@@ -2689,4 +2689,37 @@ Example:
 wallet> GetPrivateKeyByMnemonic
 
 Please enter 12 or 24 words (separated by spaces) [Attempt 1/3]:
+```
+### Get paginated now witness list
+> GetPaginatedNowWitnessList
+
+Get paginated now witness list.
+
+Example:
+```console
+wallet> getPaginatedNowWitnessList 0 2
+{
+	"witnesses": [
+		{
+			"address": "TJmka325yjJKeFpQDwKSQAoNwEyNGhsaEV",
+			"voteCount": 5405926918,
+			"url": "http://sr-8.com",
+			"totalProduced": 1801675,
+			"totalMissed": 456,
+			"latestBlockNum": 64577529,
+			"latestSlotNum": 590063589,
+			"isJobs": true
+		},
+		{
+			"address": "TFFLWM7tmKiwGtbh2mcz2rBssoFjHjSShG",
+			"voteCount": 2322244615,
+			"url": "http://sr-27.com",
+			"totalProduced": 1807756,
+			"totalMissed": 619,
+			"latestBlockNum": 64577530,
+			"latestSlotNum": 590063590,
+			"isJobs": true
+		}
+	]
+}
 ```

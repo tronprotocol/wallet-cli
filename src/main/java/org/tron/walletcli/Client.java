@@ -193,6 +193,7 @@ public class Client {
       "GetMarketPriceByPair",
       "GetMemoFee",
       "GetNextMaintenanceTime",
+      "GetPaginatedNowWitnessList",
       "GetPrivateKeyByMnemonic",
       "GetProposal",
       "GetReward",
@@ -4217,6 +4218,10 @@ public class Client {
               getPrivateKeyByMnemonic();
               break;
             }
+            case "getpaginatednowwitnesslist": {
+              getPaginatedNowWitnessList(parameters);
+              break;
+            }
             default: {
               System.out.println("Invalid cmd: " + cmd);
               help(new String[]{});
@@ -4238,6 +4243,22 @@ public class Client {
       }
     } catch (IOException e) {
       System.out.println("\nBye.");
+    }
+  }
+
+  private void getPaginatedNowWitnessList(String[] parameters) {
+    if (ArrayUtils.isEmpty(parameters) || parameters.length != 2) {
+      System.out.println("getPaginatedNowWitnessList needs 2 parameters using the following syntax: ");
+      System.out.println("getPaginatedNowWitnessList offset limit ");
+      return;
+    }
+    int offset = Integer.parseInt(parameters[0]);
+    int limit = Integer.parseInt(parameters[1]);
+    Response.WitnessList witnessList = walletApiWrapper.getPaginatedNowWitnessList(offset, limit);
+    if (witnessList != null) {
+      System.out.println(Utils.formatMessageString(witnessList));
+    } else {
+      System.out.println("getPaginatedNowWitnessList " + failedHighlight() + " !!!");
     }
   }
 
