@@ -656,13 +656,20 @@ except Exception:
 
 data = payload.get("data", {})
 
+def g(d, *keys):
+    for k in keys:
+        v = d.get(k)
+        if v is not None:
+            return v
+    return 0
+
 def walk(node):
     total = 0
     if isinstance(node, dict):
-        bw = int(node.get("frozenBalanceForBandwidth", 0) or 0)
-        en = int(node.get("frozenBalanceForEnergy", 0) or 0)
-        bw_expire = int(node.get("expireTimeForBandwidth", 0) or 0)
-        en_expire = int(node.get("expireTimeForEnergy", 0) or 0)
+        bw = int(g(node, "frozen_balance_for_bandwidth", "frozenBalanceForBandwidth") or 0)
+        en = int(g(node, "frozen_balance_for_energy", "frozenBalanceForEnergy") or 0)
+        bw_expire = int(g(node, "expire_time_for_bandwidth", "expireTimeForBandwidth") or 0)
+        en_expire = int(g(node, "expire_time_for_energy", "expireTimeForEnergy") or 0)
         if resource == 0 and bw:
             if bw_expire == 0 or bw_expire < now:
                 total += bw
@@ -870,7 +877,11 @@ except Exception:
     print('')
 PY
 )"
-    witness_addr="$(grep -o 'T[A-Za-z0-9]\{33\}' "$RESULTS_DIR/_seed_list_witnesses_json.out" | head -1 || true)"
+    if [ -n "$my_addr" ] && grep -q "$my_addr" "$RESULTS_DIR/_seed_list_witnesses_json.out"; then
+      witness_addr="$my_addr"
+    else
+      witness_addr=""
+    fi
     my_trx_balance="$(python3 - <<'PY' "$RESULTS_DIR/_seed_get_balance_json.out"
 import json, sys
 try:
@@ -885,6 +896,72 @@ except Exception:
 PY
 )"
     first_wallet_file="$(find "$RUNTIME_DIR/templates/auth/Wallet" -maxdepth 1 -type f -name '*.json' | sort | head -1 | sed "s|$RUNTIME_DIR/templates/auth/Wallet/||" || true)"
+
+    # Auto-create witness if not already one and balance is sufficient (9999 TRX = 9999000000 SUN)
+    if [ -z "$witness_addr" ] && [ -n "$my_addr" ] && [ "$my_trx_balance" -ge 9999000000 ]; then
+      echo "  Creating witness for test account $my_addr ..."
+      qa_run_cli_capture "$auth_workspace" "_seed_create_witness" json default \
+        create-witness --url "http://qa-witness.example.com"
+      local cw_success
+      cw_success="$(qa_extract_json_field "$RESULTS_DIR/_seed_create_witness_json.out" "success" 2>/dev/null || true)"
+      if [ "$cw_success" = "true" ] || [ "$cw_success" = "True" ]; then
+        echo "  Witness created successfully."
+        witness_addr="$my_addr"
+        # Re-query balance after spending 9999 TRX
+        qa_run_cli_capture "$auth_workspace" "_seed_get_balance" json default get-balance
+        my_trx_balance="$(python3 - <<'PY' "$RESULTS_DIR/_seed_get_balance_json.out"
+import json, sys
+try:
+    data = json.load(open(sys.argv[1], 'r', encoding='utf-8'))
+    payload = data.get('data', {})
+    balance = payload.get('balance_sun')
+    if balance is None:
+        balance = payload.get('balance')
+    print(int(balance) if balance is not None else 0)
+except Exception:
+    print(0)
+PY
+)"
+      else
+        echo "  WARNING: create-witness failed (account may lack funds or chain rejected it)." >&2
+      fi
+    elif [ -z "$witness_addr" ] && [ -n "$my_addr" ]; then
+      echo "  Skipping witness creation: TRX balance ($my_trx_balance SUN) < 9999000000 SUN required."
+    fi
+
+    # Auto-freeze bandwidth (resource 0) so delegate-resource test can pass
+    if [ -n "$my_addr" ] && [ "$my_trx_balance" -ge 2000000 ]; then
+      local bw_max_size
+      bw_max_size="$(qa_run_preflight_json_query "data.max_size" \
+        get-can-delegated-max-size --owner "$my_addr" --type 0 2>/dev/null)" || bw_max_size=0
+      if [ "${bw_max_size:-0}" -lt 1000000 ]; then
+        echo "  Freezing 2 TRX for bandwidth (delegatable bandwidth: ${bw_max_size:-0} < 1000000) ..."
+        qa_run_cli_capture "$auth_workspace" "_seed_freeze_bw" json default \
+          freeze-balance-v2 --amount 2000000 --resource 0
+        local fb_success
+        fb_success="$(qa_extract_json_field "$RESULTS_DIR/_seed_freeze_bw_json.out" "success" 2>/dev/null || true)"
+        if [ "$fb_success" = "true" ] || [ "$fb_success" = "True" ]; then
+          echo "  Bandwidth frozen successfully."
+          # Re-query balance after freezing
+          qa_run_cli_capture "$auth_workspace" "_seed_get_balance" json default get-balance
+          my_trx_balance="$(python3 - <<'PY' "$RESULTS_DIR/_seed_get_balance_json.out"
+import json, sys
+try:
+    data = json.load(open(sys.argv[1], 'r', encoding='utf-8'))
+    payload = data.get('data', {})
+    balance = payload.get('balance_sun')
+    if balance is None:
+        balance = payload.get('balance')
+    print(int(balance) if balance is not None else 0)
+except Exception:
+    print(0)
+PY
+)"
+        else
+          echo "  WARNING: freeze-balance-v2 for bandwidth failed." >&2
+        fi
+      fi
+    fi
   fi
 
   seed_workspace="$(qa_reset_workspace "_seed_public" "empty")"
