@@ -1664,6 +1664,24 @@ public class WalletApi {
     return processTransactionExtention(transactionExtention, multi);
   }
 
+  public boolean createAssetIssueForCli(byte[] ownerAddress, String name, String abbrName,
+                                  long totalSupply, int trxNum, int icoNum, int precision,
+                                  long startTime, long endTime, int voteScore, String description,
+                                  String url, long freeNetLimit, long publicFreeNetLimit,
+                                  HashMap<String, String> frozenSupply, boolean multi)
+      throws CipherException, IOException, CancelException, IllegalException {
+    if (!isUnlocked()) {
+      throw new IllegalStateException(LOCK_WARNING);
+    }
+    if (ownerAddress == null) {
+      ownerAddress = getAddress();
+    }
+    Response.TransactionExtention transactionExtention = apiCli.createAssetIssue(ownerAddress, name,
+        abbrName, totalSupply, trxNum, icoNum, startTime, endTime, url, freeNetLimit,
+        publicFreeNetLimit, precision, frozenSupply, description);
+    return processTransactionExtentionForCli(transactionExtention, multi);
+  }
+
   public boolean createAccount(byte[] owner, byte[] address, boolean multi)
       throws CipherException, IOException, CancelException, IllegalException {
     if (!isUnlocked()) {
@@ -1674,6 +1692,18 @@ public class WalletApi {
     }
     Response.TransactionExtention transactionExtention = apiCli.createAccount(owner, address);
     return processTransactionExtention(transactionExtention, multi);
+  }
+
+  public boolean createAccountForCli(byte[] owner, byte[] address, boolean multi)
+      throws CipherException, IOException, CancelException, IllegalException {
+    if (!isUnlocked()) {
+      throw new IllegalStateException(LOCK_WARNING);
+    }
+    if (owner == null) {
+      owner = getAddress();
+    }
+    Response.TransactionExtention transactionExtention = apiCli.createAccount(owner, address);
+    return processTransactionExtentionForCli(transactionExtention, multi);
   }
 
   public boolean createWitness(byte[] owner, byte[] url, boolean multi)
@@ -1788,6 +1818,58 @@ public class WalletApi {
     }
     Response.TransactionExtention transactionExtention = apiCli.voteWitness(owner, witness);
     return processTransactionExtention(transactionExtention, multi);
+  }
+
+  public boolean voteWitnessForCli(byte[] owner, HashMap<String, String> witness, boolean multi)
+      throws CipherException, IOException, CancelException, IllegalException {
+    clearLastCliOperationError();
+    if (!isUnlocked()) {
+      throw new IllegalStateException(LOCK_WARNING);
+    }
+    if (owner == null) {
+      owner = getAddress();
+    }
+    if (multi) {
+      if (!DecodeUtil.addressValid(owner)) {
+        recordLastCliOperationError("Invalid ownerAddress!");
+        return false;
+      }
+      if (witness.size() == 0) {
+        recordLastCliOperationError("VoteNumber must more than 0");
+        return false;
+      }
+      if (witness.size() > 30) {
+        recordLastCliOperationError("VoteNumber more than maxVoteNumber 30");
+        return false;
+      }
+      long sum = 0L;
+      for (Map.Entry<String, String> entry : witness.entrySet()) {
+        String voteAddress = entry.getKey();
+        long voteCount = Long.parseLong(entry.getValue());
+        if (!DecodeUtil.addressValid(decodeFromBase58Check(voteAddress))) {
+          recordLastCliOperationError("Invalid vote address!");
+          return false;
+        }
+        if (voteCount <= 0) {
+          recordLastCliOperationError("vote count must be greater than 0");
+          return false;
+        }
+        sum = LongMath.checkedAdd(sum, voteCount);
+      }
+      Response.Account account = queryAccount(owner);
+      long tronPower = getTronPower(account) / TRX_PRECISION;
+      if (sum > tronPower) {
+        recordLastCliOperationError("The total number of votes[" + sum
+            + "] is greater than the tronPower[" + tronPower + "]");
+        return false;
+      }
+      if (!isControlledForCli(owner)) {
+        recordLastCliOperationError("Owner address is not controlled by this wallet");
+        return false;
+      }
+    }
+    Response.TransactionExtention transactionExtention = apiCli.voteWitness(owner, witness);
+    return processTransactionExtentionForCli(transactionExtention, multi);
   }
 
   public long getTronPower(Response.Account account) {

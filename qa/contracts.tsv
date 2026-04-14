@@ -40,3 +40,7 @@ contract__auth_trigger_constant_with_owner_json|empty|none|default|json|success|
 contract__auth_trigger_constant_without_owner_json|empty|none|default|json|execution|["--output","json","--network","nile","trigger-constant-contract","--contract","{{USDT_NILE}}","--method","balanceOf(address)","--params","\"{{TARGET_ADDR}}\""]|||execution_error|||
 contract__auth_estimate_energy_with_owner_json|empty|none|default|json|success|["--output","json","--network","nile","estimate-energy","--contract","{{USDT_NILE}}","--method","transfer(address,uint256)","--params","\"{{TARGET_ADDR}}\",1","--owner","{{TARGET_ADDR}}"]||||||
 contract__auth_estimate_energy_without_owner_json|empty|none|default|json|execution|["--output","json","--network","nile","estimate-energy","--contract","{{USDT_NILE}}","--method","transfer(address,uint256)","--params","\"{{TARGET_ADDR}}\",1"]|||execution_error|||
+# ForCli migration: verify create-account, vote-witness reach chain via ForCli path and return proper execution_error
+# asset-issue is omitted: valid params can succeed on a fresh account (non-idempotent), making it unreliable as expected-execution-error
+contract__create_account_forcli_exec|auth|private_key|default|dual|execution|["--network","{{NETWORK}}","create-account","--address","{{TARGET_ADDR}}"]|||execution_error|Error:||
+contract__vote_witness_forcli_exec|auth|private_key|default|dual|execution|["--network","{{NETWORK}}","vote-witness","--votes","{{TARGET_ADDR}} 1"]|||execution_error|Error:||

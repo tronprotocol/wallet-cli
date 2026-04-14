@@ -285,8 +285,8 @@ public class WalletCommands {
                 .option("name", "New wallet name", true)
                 .handler((ctx, opts, wrapper, out) -> {
 
-                    boolean result = wrapper.modifyWalletName(opts.getString("name"));
-                    CommandSupport.emitBooleanResult(out, result,
+                    wrapper.modifyWalletNameForCli(opts.getString("name"));
+                    CommandSupport.emitBooleanResult(out, true,
                             "ModifyWalletName successful !!",
                             "ModifyWalletName failed !!");
                 })

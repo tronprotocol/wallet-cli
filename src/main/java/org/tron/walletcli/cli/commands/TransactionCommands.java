@@ -257,15 +257,24 @@ public class TransactionCommands {
                     if (precision < 0) {
                         out.usageError("precision must be >= 0, got: " + precision, null);
                     }
+                    if (startTime <= System.currentTimeMillis()) {
+                        out.usageError("start-time must be in the future", null);
+                    }
                     if (endTime <= startTime) {
                         out.usageError("end-time must be after start-time", null);
                     }
+                    if (freeNetLimit < 0) {
+                        out.usageError("free-net-limit must be >= 0, got: " + freeNetLimit, null);
+                    }
+                    if (publicFreeNetLimit < 0) {
+                        out.usageError("public-free-net-limit must be >= 0, got: " + publicFreeNetLimit, null);
+                    }
 
                     HashMap<String, String> frozenSupply = new HashMap<String, String>();
-                    boolean result = wrapper.assetIssue(owner, name, abbr, totalSupply,
+                    wrapper.assetIssueForCli(owner, name, abbr, totalSupply,
                             trxNum, icoNum, precision, startTime, endTime, 0, desc, url,
                             freeNetLimit, publicFreeNetLimit, frozenSupply, multi);
-                    CommandSupport.emitBooleanResult(out, result,
+                    CommandSupport.emitBooleanResult(out, true,
                             "AssetIssue successful !!", "AssetIssue failed !!",
                             CommandSupport.lastBroadcastTxResultData());
                 })
@@ -286,8 +295,8 @@ public class TransactionCommands {
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     byte[] address = opts.getAddress("address");
                     boolean multi = opts.getBoolean("multi");
-                    boolean result = wrapper.createAccount(owner, address, multi);
-                    CommandSupport.emitBooleanResult(out, result,
+                    wrapper.createAccountForCli(owner, address, multi);
+                    CommandSupport.emitBooleanResult(out, true,
                             "CreateAccount successful !!", "CreateAccount failed !!",
                             CommandSupport.lastBroadcastTxResultData());
                 })

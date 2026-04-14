@@ -97,13 +97,12 @@ public class WitnessCommands {
                     }
                     boolean multi = opts.getBoolean("multi");
                     TransactionUtils.setPermissionIdOverride(permissionId);
-                    boolean result;
                     try {
-                        result = wrapper.voteWitness(owner, witness, multi);
+                        wrapper.voteWitnessForCli(owner, witness, multi);
                     } finally {
                         TransactionUtils.clearPermissionIdOverride();
                     }
-                    CommandSupport.emitBooleanResult(out, result,
+                    CommandSupport.emitBooleanResult(out, true,
                             "VoteWitness successful !!", "VoteWitness failed !!",
                             CommandSupport.lastBroadcastTxResultData());
                 })

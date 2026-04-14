@@ -1127,6 +1127,25 @@ public class WalletApiWrapper {
         description, url, freeNetLimit, publicFreeNetLimit, frozenSupply, multi);
   }
 
+  public void assetIssueForCli(byte[] ownerAddress, String name, String abbrName, long totalSupply,
+                               int trxNum, int icoNum, int precision, long startTime, long endTime,
+                               int voteScore, String description, String url,
+                               long freeNetLimit, long publicFreeNetLimit,
+                               HashMap<String, String> frozenSupply, boolean multi) {
+    requireLoggedInWalletForCli();
+    try {
+      throwIfCliOperationFailed(
+          wallet.createAssetIssueForCli(ownerAddress, name, abbrName, totalSupply,
+              trxNum, icoNum, precision, startTime, endTime, voteScore, description,
+              url, freeNetLimit, publicFreeNetLimit, frozenSupply, multi),
+          "AssetIssue failed !!");
+    } catch (IllegalStateException e) {
+      throwCliError("execution_error", "AssetIssue failed !!", e);
+    } catch (Exception e) {
+      throwCliError("execution_error", "AssetIssue failed !!", e);
+    }
+  }
+
   public boolean createAccount(byte[] ownerAddress, byte[] address, boolean multi)
       throws CipherException, IOException, CancelException, IllegalException {
     if (wallet == null || !wallet.isLoginState()) {
@@ -1137,6 +1156,18 @@ public class WalletApiWrapper {
     return wallet.createAccount(ownerAddress, address, multi);
   }
 
+  public void createAccountForCli(byte[] ownerAddress, byte[] address, boolean multi) {
+    requireLoggedInWalletForCli();
+    try {
+      throwIfCliOperationFailed(
+          wallet.createAccountForCli(ownerAddress, address, multi),
+          "CreateAccount failed !!");
+    } catch (IllegalStateException e) {
+      throwCliError("execution_error", "CreateAccount failed !!", e);
+    } catch (Exception e) {
+      throwCliError("execution_error", "CreateAccount failed !!", e);
+    }
+  }
 
   public boolean createWitness(byte[] ownerAddress, String url, boolean multi)
       throws CipherException, IOException, CancelException, IllegalException {
@@ -1264,6 +1295,19 @@ public class WalletApiWrapper {
     }
 
     return wallet.voteWitness(ownerAddress, witness, multi);
+  }
+
+  public void voteWitnessForCli(byte[] ownerAddress, HashMap<String, String> witness, boolean multi) {
+    requireLoggedInWalletForCli();
+    try {
+      throwIfCliOperationFailed(
+          wallet.voteWitnessForCli(ownerAddress, witness, multi),
+          "VoteWitness failed !!");
+    } catch (IllegalStateException e) {
+      throwCliError("execution_error", "VoteWitness failed !!", e);
+    } catch (Exception e) {
+      throwCliError("execution_error", "VoteWitness failed !!", e);
+    }
   }
 
   public Response.WitnessList listWitnesses() {
@@ -3125,6 +3169,20 @@ public class WalletApiWrapper {
       return false;
     }
     return wallet.modifyWalletName(newName);
+  }
+
+  public void modifyWalletNameForCli(String newName) {
+    requireLoggedInWalletForCli();
+    try {
+      boolean result = wallet.modifyWalletName(newName);
+      if (!result) {
+        throw new CommandErrorException("execution_error", "ModifyWalletName failed !!");
+      }
+    } catch (CommandErrorException e) {
+      throw e;
+    } catch (Exception e) {
+      throwCliError("execution_error", "ModifyWalletName failed !!", e);
+    }
   }
 
   public void viewTransactionHistory() {

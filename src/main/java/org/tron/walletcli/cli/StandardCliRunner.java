@@ -191,10 +191,11 @@ public class StandardCliRunner {
 
         WalletApi.updateRpcCli(new ApiClient(grpcEndpoint, grpcEndpoint));
 
-        // Detect network from known endpoints
+        // Detect network from known endpoints (match both fullNode and solidityNode)
         NetType detected = null;
         for (NetType net : new NetType[]{NetType.MAIN, NetType.NILE, NetType.SHASTA}) {
-            if (grpcEndpoint.equals(net.getGrpc().getFullNode())) {
+            if (grpcEndpoint.equals(net.getGrpc().getFullNode())
+                    || grpcEndpoint.equals(net.getGrpc().getSolidityNode())) {
                 detected = net;
                 break;
             }
