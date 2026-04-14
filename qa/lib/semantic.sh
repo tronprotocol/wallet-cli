@@ -83,6 +83,11 @@ qa_assert_json_stderr_clean() {
   [ -z "$(qa_filtered_stderr "$file")" ]
 }
 
+qa_assert_text_stderr_clean() {
+  local file="$1"
+  [ -z "$(qa_filtered_stderr "$file")" ]
+}
+
 qa_assert_text_contains() {
   local file="$1"
   local csv="${2:-}"
@@ -179,6 +184,7 @@ qa_assert_case_files() {
     success)
       if [ "$mode" = "dual" ] || [ "$mode" = "text" ]; then
         qa_assert_exit_code "$RESULTS_DIR/${label}_text.exit" 0 || return 1
+        qa_assert_text_stderr_clean "$RESULTS_DIR/${label}_text.err" || return 1
         qa_assert_text_not_error_like "$RESULTS_DIR/${label}_text.out" || return 1
         qa_assert_text_contains "$RESULTS_DIR/${label}_text.out" "$text_contains" || return 1
         qa_assert_text_absent "$RESULTS_DIR/${label}_text.out" "$text_absent" || return 1
@@ -192,6 +198,7 @@ qa_assert_case_files() {
       ;;
     stateful_replay_execution)
       qa_assert_exit_code "$RESULTS_DIR/${label}_text.exit" 0 || return 1
+      qa_assert_text_stderr_clean "$RESULTS_DIR/${label}_text.err" || return 1
       qa_assert_text_not_error_like "$RESULTS_DIR/${label}_text.out" || return 1
       qa_assert_text_contains "$RESULTS_DIR/${label}_text.out" "$text_contains" || return 1
       qa_assert_text_absent "$RESULTS_DIR/${label}_text.out" "$text_absent" || return 1
@@ -230,6 +237,7 @@ qa_assert_case_files() {
       ;;
     help_dual)
       qa_assert_exit_code "$RESULTS_DIR/${label}_text.exit" 0 || return 1
+      qa_assert_text_stderr_clean "$RESULTS_DIR/${label}_text.err" || return 1
       qa_assert_exit_code "$RESULTS_DIR/${label}_json.exit" 0 || return 1
       qa_assert_text_contains "$RESULTS_DIR/${label}_text.out" "${text_contains:-Usage:,wallet-cli}" || return 1
       qa_assert_text_absent "$RESULTS_DIR/${label}_text.out" "${text_absent:-Error:}" || return 1
@@ -239,6 +247,7 @@ qa_assert_case_files() {
       ;;
     help_text)
       qa_assert_exit_code "$RESULTS_DIR/${label}_text.exit" 0 || return 1
+      qa_assert_text_stderr_clean "$RESULTS_DIR/${label}_text.err" || return 1
       qa_assert_text_contains "$RESULTS_DIR/${label}_text.out" "${text_contains:-Usage:,wallet-cli}" || return 1
       qa_assert_text_absent "$RESULTS_DIR/${label}_text.out" "${text_absent:-Error:}" || return 1
       ;;

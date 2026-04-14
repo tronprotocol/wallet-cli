@@ -368,9 +368,15 @@ qa_filtered_text_stdout() {
   sed '/^User defined config file/d;/^$/d' "$file"
 }
 
+# Filter known non-error noise from stderr before assertions.
+# "Authenticated with wallet:" is an info-level message that formatter.info()
+# intentionally prints to stderr (Unix convention: stderr = diagnostic channel,
+# not just errors). It is suppressed in JSON and quiet modes but present in
+# normal text mode, so we filter it here to keep qa_assert_text_stderr_clean
+# focused on unexpected warnings/errors.
 qa_filtered_stderr() {
   local file="$1"
-  sed '/^$/d' "$file"
+  sed '/^$/d;/^Authenticated with wallet:/d' "$file"
 }
 
 qa_run_capture() {
