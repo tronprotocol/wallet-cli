@@ -922,9 +922,16 @@ public class WalletApi {
     if (!isUnlocked()) {
       throw new IllegalStateException(LOCK_WARNING);
     }
-    WalletFile wf = resolveSigningWalletFile();
+    System.out.println("Please choose your key for sign.");
+    WalletFile wf = selectWalletFileE();
     boolean isLedgerFile = wf.getName().contains("Ledger");
-    byte[] passwd = resolveSigningPassword(wf);
+    byte[] passwd;
+    if (lockAccount && isUnifiedExist() && Arrays.equals(decodeFromBase58Check(wf.getAddress()), getAddress())) {
+      passwd = getUnifiedPassword();
+    } else {
+      System.out.println("Please input your password.");
+      passwd = char2Byte(inputPassword(false));
+    }
     String ledgerPath = getLedgerPath(passwd, wf);
     if (isLedgerFile) {
       boolean result = LedgerSignUtil.requestLedgerSignLogic(transaction, ledgerPath, wf.getAddress(), false);
@@ -978,9 +985,16 @@ public class WalletApi {
         + "default 0, other non-numeric characters will cancel transaction.";
     transaction = TransactionUtils.setPermissionId(transaction, tipsString);
     while (true) {
-      WalletFile wf = resolveSigningWalletFile();
+      System.out.println("Please choose your key for sign.");
+      WalletFile wf = selectWalletFileE();
       boolean isLedgerFile = wf.getName().contains("Ledger");
-      byte[] passwd = resolveSigningPassword(wf);
+      byte[] passwd;
+      if (lockAccount && isUnifiedExist() && Arrays.equals(decodeFromBase58Check(wf.getAddress()), getAddress())) {
+        passwd = getUnifiedPassword();
+      } else {
+        System.out.println("Please input your password.");
+        passwd = char2Byte(inputPassword(false));
+      }
       String ledgerPath = getLedgerPath(passwd, wf);
       if (isLedgerFile) {
         boolean result = LedgerSignUtil.requestLedgerSignLogic(transaction, ledgerPath, wf.getAddress(), false);
@@ -4353,8 +4367,15 @@ public class WalletApi {
     String tipsString = "Please input permission id.";
     transaction = TransactionUtils.setPermissionId(transaction, tipsString);
 
-    WalletFile wf = resolveSigningWalletFile();
-    byte[] passwd = resolveSigningPassword(wf);
+    System.out.println("Please choose your key for sign.");
+    WalletFile wf = selectWalletFileE();
+    byte[] passwd;
+    if (lockAccount && isUnifiedExist() && Arrays.equals(decodeFromBase58Check(wf.getAddress()), getAddress())) {
+      passwd = getUnifiedPassword();
+    } else {
+      System.out.println("Please input your password.");
+      passwd = char2Byte(inputPassword(false));
+    }
     if (isEckey) {
       transaction = TransactionUtils.sign(transaction, this.getEcKey(wf, passwd));
     } else {
