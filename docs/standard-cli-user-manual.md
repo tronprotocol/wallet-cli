@@ -27,7 +27,7 @@
 18. [Smart Contracts](#18-smart-contracts) (9 commands)
 19. [Witnesses & Voting](#19-witnesses--voting) (4 commands)
 20. [Proposals](#20-proposals) (3 commands)
-21. [DEX & Exchanges](#21-dex--exchanges) (6 commands)
+21. [DEX & Exchanges](#21-dex--exchanges) (5 commands)
 22. [Help](#22-help) (1 command)
 23. [Common Scenarios](#23-common-scenarios)
 24. [Exit Codes & Error Handling](#24-exit-codes--error-handling)
@@ -2502,34 +2502,6 @@ wallet-cli --network nile exchange-withdraw --exchange-id 1 --token-id _ --quant
 
 ---
 
-### `exchange-transaction`
-
-Execute a trade on a Bancor exchange.
-
-| | |
-|---|---|
-| **Alias** | `exchangetransaction` |
-| **Auth** | Required |
-
-| Option | Required | Type | Description |
-|--------|----------|------|-------------|
-| `--exchange-id` | Yes | number | Exchange ID |
-| `--token-id` | Yes | string | Token you are selling |
-| `--quant` | Yes | number | Amount you are selling |
-| `--expected` | Yes | number | Minimum amount you expect to receive |
-| `--owner` | No | address | Trader address |
-| `--multi` | No | boolean | Multi-signature mode |
-
-```bash
-wallet-cli --network nile exchange-transaction \
-  --exchange-id 1 \
-  --token-id _ \
-  --quant 1000000 \
-  --expected 100
-```
-
----
-
 ### `market-sell-asset`
 
 Place a limit sell order on the decentralized market.
@@ -2920,10 +2892,9 @@ To set up multi-sig, use `update-account-permission` to configure the account's 
 | 99 | `exchange-create` | Exchange | Yes |
 | 100 | `exchange-inject` | Exchange | Yes |
 | 101 | `exchange-withdraw` | Exchange | Yes |
-| 102 | `exchange-transaction` | Exchange | Yes |
-| 103 | `market-sell-asset` | Exchange | Yes |
-| 104 | `market-cancel-order` | Exchange | Yes |
-| 105 | `help` | Misc | No |
+| 102 | `market-sell-asset` | Exchange | Yes |
+| 103 | `market-cancel-order` | Exchange | Yes |
+| 104 | `help` | Misc | No |
 
 \* `register-wallet` requires `MASTER_PASSWORD` to be set (for keystore encryption) but does not authenticate against an existing wallet.
 

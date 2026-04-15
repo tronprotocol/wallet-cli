@@ -10,7 +10,6 @@ public class ExchangeCommands {
         registerExchangeCreate(registry);
         registerExchangeInject(registry);
         registerExchangeWithdraw(registry);
-        registerExchangeTransaction(registry);
         registerMarketSellAsset(registry);
         registerMarketCancelOrder(registry);
     }
@@ -91,36 +90,6 @@ public class ExchangeCommands {
                     wrapper.exchangeWithdrawForCli(owner, exchangeId, tokenId, quant, multi);
                     CommandSupport.emitBooleanResult(out, true,
                             "ExchangeWithdraw successful !!", "ExchangeWithdraw failed !!",
-                            CommandSupport.lastBroadcastTxResultData());
-                })
-                .build());
-    }
-
-    private static void registerExchangeTransaction(CommandRegistry registry) {
-        registry.add(CommandDefinition.builder()
-                .authPolicy(CommandDefinition.AuthPolicy.REQUIRE)
-                .name("exchange-transaction")
-                .aliases("exchangetransaction")
-                .description("Trade on a Bancor exchange")
-                .option("exchange-id", "Exchange ID", true, OptionDef.Type.LONG)
-                .option("token-id", "Token ID to sell", true)
-                .option("quant", "Token quantity to sell", true, OptionDef.Type.LONG)
-                .option("expected", "Minimum expected tokens to receive", true, OptionDef.Type.LONG)
-                .option("owner", "Owner address", false)
-                .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
-                .handler((ctx, opts, wrapper, out) -> {
-
-                    byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
-                    long exchangeId = opts.getLong("exchange-id");
-                    byte[] tokenId = opts.getString("token-id").getBytes();
-                    long quant = opts.getLong("quant");
-                    long expected = opts.getLong("expected");
-                    boolean multi = opts.getBoolean("multi");
-                    wrapper.exchangeTransactionForCli(owner, exchangeId, tokenId,
-                            quant, expected, multi);
-                    CommandSupport.emitBooleanResult(out, true,
-                            "ExchangeTransaction successful !!",
-                            "ExchangeTransaction failed !!",
                             CommandSupport.lastBroadcastTxResultData());
                 })
                 .build());

@@ -261,7 +261,28 @@ public class GasFreeApi {
     return keccak256(domainSeparatorAbiEncode);
   }
 
+  // REPL-facing entry point: preserves legacy behavior — prints failure reasons and fee info to
+  // stdout, and swallows recoverable failures by returning an empty byte array. Do not call from
+  // the standard CLI path; use getMessageOrThrow instead.
   public static byte[] getMessage(NetType netType, GasFreeSubmitRequest gasFreeSubmitRequest)
+      throws NoSuchAlgorithmException, IOException, InvalidKeyException {
+    try {
+      return buildMessage(netType, gasFreeSubmitRequest, true);
+    } catch (IllegalStateException e) {
+      System.out.println(e.getMessage());
+      return new byte[0];
+    }
+  }
+
+  // Standard-CLI-facing entry point: never prints to stdout and propagates an IllegalStateException
+  // on recoverable failures so handlers can map them to a CommandErrorException envelope.
+  public static byte[] getMessageOrThrow(NetType netType, GasFreeSubmitRequest gasFreeSubmitRequest)
+      throws NoSuchAlgorithmException, IOException, InvalidKeyException {
+    return buildMessage(netType, gasFreeSubmitRequest, false);
+  }
+
+  private static byte[] buildMessage(NetType netType, GasFreeSubmitRequest gasFreeSubmitRequest,
+      boolean verbose)
       throws NoSuchAlgorithmException, IOException, InvalidKeyException {
     byte[] permitTransferTypeHash = Hash.sha3(PERMIT_TRANSFER_TYPE_STRING.getBytes());
 
@@ -270,8 +291,7 @@ public class GasFreeApi {
     JSONObject data = root.getJSONObject("data");
     JSONArray tokens = data.getJSONArray("tokens");
     if (tokens == null || tokens.isEmpty()) {
-      System.out.println("Failed to get tokens information.");
-      return new byte[0];
+      throw new IllegalStateException("Failed to get tokens information.");
     }
     String tokenAddress;
     long maxFee;
@@ -290,8 +310,7 @@ public class GasFreeApi {
     JSONObject data1 = root1.getJSONObject("data");
     JSONArray providers = data1.getJSONArray("providers");
     if (providers == null || providers.isEmpty()) {
-      System.out.println("Failed to get providers information.");
-      return new byte[0];
+      throw new IllegalStateException("Failed to get providers information.");
     }
     String providerAddress;
     long defaultDeadlineDuration;
@@ -299,7 +318,7 @@ public class GasFreeApi {
     providerAddress = provider.getString("address");
     JSONObject config = provider.getJSONObject("config");
     if (config == null) {
-      return new byte[0];
+      throw new IllegalStateException("Failed to get provider config information.");
     }
     defaultDeadlineDuration = config.getLongValue("defaultDeadlineDuration");
     gasFreeSubmitRequest.setServiceProvider(providerAddress);
@@ -309,8 +328,10 @@ public class GasFreeApi {
     JSONObject data2 = root2.getJSONObject("data");
     int nonce = data2.getIntValue("nonce");
     boolean active = data2.getBooleanValue("active");
-    System.out.println("Activate Fee: " + (active ? 0 : activateFee));
-    System.out.println("Transfer Fee: " + transferFee);
+    if (verbose) {
+      System.out.println("Activate Fee: " + (active ? 0 : activateFee));
+      System.out.println("Transfer Fee: " + transferFee);
+    }
     gasFreeSubmitRequest.setNonce(nonce);
     gasFreeSubmitRequest.setDeadline((System.currentTimeMillis() / 1000) + defaultDeadlineDuration);
 

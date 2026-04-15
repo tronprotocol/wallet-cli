@@ -50,19 +50,37 @@ def substitute_token(token, values):
     return updated
 
 
+def placeholder_tokens(token):
+    found = []
+    start = 0
+    while True:
+        open_idx = token.find("{{", start)
+        if open_idx < 0:
+            break
+        close_idx = token.find("}}", open_idx + 2)
+        if close_idx < 0:
+            break
+        found.append(token[open_idx:close_idx + 2])
+        start = close_idx + 2
+    return found
+
+
 def unresolved_tokens(tokens):
     missing = []
     for token in tokens:
-        start = 0
-        while True:
-            open_idx = token.find("{{", start)
-            if open_idx < 0:
-                break
-            close_idx = token.find("}}", open_idx + 2)
-            if close_idx < 0:
-                break
-            missing.append(token[open_idx:close_idx + 2])
-            start = close_idx + 2
+        missing.extend(placeholder_tokens(token))
+    return missing
+
+
+def missing_placeholders(tokens, values):
+    missing = []
+    seen = set()
+    for token in tokens:
+        for placeholder in placeholder_tokens(token):
+            key = placeholder[2:-2]
+            if values.get(key, "") == "" and placeholder not in seen:
+                missing.append(placeholder)
+                seen.add(placeholder)
     return missing
 
 
@@ -96,12 +114,22 @@ def build_smoke_case(label, row, values):
     error_code = row[7] if len(row) > 7 else ""
     text_contains = split_csv(row[8] if len(row) > 8 else "")
     preflight = split_csv(row[9] if len(row) > 9 else "")
+    stream_mode = row[10] if len(row) > 10 and row[10] else "dual"
+    if stream_mode not in ("text", "json", "dual"):
+        raise SystemExit("Invalid stream mode for manifest case %s: %s" % (label, stream_mode))
 
     raw_tokens = shlex.split(args_string) if args_string else []
+    unresolved = missing_placeholders(raw_tokens, values)
     resolved_tokens = [substitute_token(token, values) for token in raw_tokens]
-    unresolved = unresolved_tokens(resolved_tokens)
+    unresolved.extend(token for token in unresolved_tokens(resolved_tokens) if token not in unresolved)
 
     command_tokens = [label] + resolved_tokens
+    text_argv = []
+    json_argv = []
+    if stream_mode in ("text", "dual"):
+        text_argv = ["--network", values["NETWORK"]] + command_tokens
+    if stream_mode in ("json", "dual"):
+        json_argv = ["--output", "json", "--network", values["NETWORK"]] + command_tokens
     return {
         "label": label,
         "suite": "stateful" if case_type.startswith("stateful-") else "smoke",
@@ -109,8 +137,8 @@ def build_smoke_case(label, row, values):
         "requires": requires or "none",
         "env_mode": "default",
         "expectation": smoke_expectation(case_type),
-        "text_argv": ["--network", values["NETWORK"]] + command_tokens,
-        "json_argv": ["--output", "json", "--network", values["NETWORK"]] + command_tokens,
+        "text_argv": text_argv,
+        "json_argv": json_argv,
         "json_path_exists": json_path_exists,
         "json_path_absent": json_path_absent,
         "error_code": error_code,
@@ -162,8 +190,9 @@ def build_contract_case(label, row, values):
     raw_tokens = json.loads(args_json)
     if not isinstance(raw_tokens, list) or not all(isinstance(item, str) for item in raw_tokens):
         raise SystemExit("Contract args_json must be an array of strings: %s" % label)
+    unresolved = missing_placeholders(raw_tokens, values)
     resolved_tokens = [substitute_token(token, values) for token in raw_tokens]
-    unresolved = unresolved_tokens(resolved_tokens)
+    unresolved.extend(token for token in unresolved_tokens(resolved_tokens) if token not in unresolved)
 
     text_argv = None
     json_argv = None
@@ -214,6 +243,12 @@ def main():
         "MNEMONIC": os.environ.get("MNEMONIC", ""),
         "MASTER_PASSWORD": os.environ.get("MASTER_PASSWORD", ""),
         "ALT_PASSWORD": os.environ.get("ALT_PASSWORD", ""),
+        "DEPLOYED_CONTRACT_ADDR": os.environ.get("DEPLOYED_CONTRACT_ADDR", ""),
+        "QA_ASSET_ID": os.environ.get("QA_ASSET_ID", ""),
+        "QA_EXCHANGE_ID": os.environ.get("QA_EXCHANGE_ID", ""),
+        "QA_PROPOSAL_ID": os.environ.get("QA_PROPOSAL_ID", ""),
+        "QA_MARKET_ORDER_ID": os.environ.get("QA_MARKET_ORDER_ID", ""),
+        "QA_GASFREE_ID": os.environ.get("QA_GASFREE_ID", ""),
     }
     values.update(seed_values)
 

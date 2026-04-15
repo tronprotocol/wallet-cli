@@ -1,0 +1,58 @@
+name: Build QA Artifact
+
+on:
+  push:
+    branches:
+      - "release_*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build wallet-cli QA artifact
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "8"
+          cache: gradle
+
+      - name: Build
+        run: ./gradlew clean build shadowJar shadowDistZip
+
+      - name: Package QA artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          version="${GITHUB_REF_NAME#release_}"
+          if [ "$version" = "$GITHUB_REF_NAME" ]; then
+            version="dev"
+          fi
+
+          artifact_dir="qa-artifacts"
+          artifact_base="wallet-cli-${version}-rc.${GITHUB_RUN_NUMBER}"
+
+          mkdir -p "$artifact_dir"
+          cp build/libs/wallet-cli.jar "$artifact_dir/${artifact_base}.jar"
+          cp build/distributions/*shadow*.zip "$artifact_dir/${artifact_base}.zip"
+          git rev-parse HEAD > "$artifact_dir/git-sha.txt"
+
+          (
+            cd "$artifact_dir"
+            shasum -a 256 "${artifact_base}.jar" "${artifact_base}.zip" git-sha.txt > checksums.txt
+          )
+
+      - name: Upload QA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wallet-cli-qa-artifact
+          path: qa-artifacts/*

@@ -25,6 +25,7 @@ import static org.tron.gasfree.GasFreeApi.concat;
 import static org.tron.gasfree.GasFreeApi.gasFreeSubmit;
 import static org.tron.gasfree.GasFreeApi.getDomainSeparator;
 import static org.tron.gasfree.GasFreeApi.getMessage;
+import static org.tron.gasfree.GasFreeApi.getMessageOrThrow;
 import static org.tron.gasfree.GasFreeApi.keccak256;
 import static org.tron.gasfree.GasFreeApi.signOffChain;
 import static org.tron.gasfree.GasFreeApi.validateSignOffChain;
@@ -2857,10 +2858,13 @@ public class WalletApiWrapper {
     if (WalletApi.getCurrentNetwork() != MAIN && WalletApi.getCurrentNetwork() != NILE) {
       throw new CommandErrorException("unsupported_network", GAS_FREE_SUPPORT_NETWORK_TIP);
     }
+    // getGasFreeInfoData always needs a logged-in wallet: even when --address targets an
+    // arbitrary account, the downstream wallet.triggerContract(...) call below requires
+    // a non-null wallet instance.
+    if (wallet == null || !wallet.isLoginState()) {
+      throw new CommandErrorException("auth_required", "Please login first !!");
+    }
     if (StringUtils.isEmpty(address)) {
-      if (wallet == null || !wallet.isLoginState()) {
-        throw new CommandErrorException("auth_required", "Please login first !!");
-      }
       address = getAddress();
       if (StringUtils.isEmpty(address)) {
         throw new CommandErrorException("query_failed", "Unable to determine current wallet address.");
@@ -2984,13 +2988,18 @@ public class WalletApiWrapper {
     byte[] domainSeparator = getDomainSeparator(currentNet);
     byte[] message;
     try {
-      message = getMessage(currentNet, gasFreeSubmitRequest);
+      message = standardCli
+          ? getMessageOrThrow(currentNet, gasFreeSubmitRequest)
+          : getMessage(currentNet, gasFreeSubmitRequest);
     } catch (IllegalArgumentException e) {
       if (standardCli) {
         throw new CommandErrorException("missing_config", e.getMessage());
       }
       System.out.println(e.getMessage());
       return false;
+    } catch (IllegalStateException e) {
+      // Only reachable via getMessageOrThrow (standard CLI); REPL's getMessage swallows internally.
+      throw new CommandErrorException("query_failed", e.getMessage());
     }
     if (ArrayUtils.isEmpty(message)) {
       return false;

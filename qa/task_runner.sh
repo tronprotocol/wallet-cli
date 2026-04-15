@@ -95,6 +95,10 @@ run_case() {
     fi
   fi
 
+  if [ "$suite" = "stateful" ]; then
+    qa_run_prehook "$label" "$resolved_label" "${preflight_argv[@]}"
+  fi
+
   if [ ${#argv_text[@]} -gt 0 ]; then
     workspace_text="$(qa_reset_workspace "${resolved_label}__text" "$template")"
     qa_run_raw_capture "$workspace_text" "$resolved_label" text "$env_mode" "${argv_text[@]}"
@@ -111,6 +115,10 @@ run_case() {
     "$json_path_exists" "$json_path_absent" "$error_code" "$text_contains" "$text_absent" \
     "$assertion_workspace" "$workspace_path_exists" "$workspace_path_absent"; then
     qa_write_result "$resolved_label" "PASS"
+    # Run post-hook for stateful cases (extract seed values for next serial case)
+    if [ "$suite" = "stateful" ]; then
+      qa_run_posthook "$label" "$resolved_label"
+    fi
   else
     qa_write_result "$resolved_label" "FAIL: ${suite} contract violated"
   fi

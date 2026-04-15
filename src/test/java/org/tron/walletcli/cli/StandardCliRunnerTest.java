@@ -608,8 +608,10 @@ public class StandardCliRunnerTest {
     })));
     Assert.assertTrue(StandardCliRunner.requiresAutoAuth(getUsdtBalance, getUsdtBalance.parseArgs(new String[0])));
 
+    // gas-free-info unconditionally requires auto-auth: even when --address targets another
+    // account, the handler calls wallet.triggerContract(...) which needs a logged-in wallet.
     CommandDefinition gasFreeInfo = queryRegistry.lookup("gas-free-info");
-    Assert.assertFalse(StandardCliRunner.requiresAutoAuth(gasFreeInfo, gasFreeInfo.parseArgs(new String[]{
+    Assert.assertTrue(StandardCliRunner.requiresAutoAuth(gasFreeInfo, gasFreeInfo.parseArgs(new String[]{
         "--address", "TNPeeaaFB7K9cmo4uQpcU32zGK8G1NYqeL"
     })));
     Assert.assertTrue(StandardCliRunner.requiresAutoAuth(gasFreeInfo, gasFreeInfo.parseArgs(new String[0])));

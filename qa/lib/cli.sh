@@ -197,6 +197,24 @@ qa_prepare_templates() {
   if qa_has_mnemonic; then
     qa_import_template_wallet "$RUNTIME_DIR/templates/auth-mnemonic" mnemonic
   fi
+
+  # Inject GasFree credentials into every template's config.conf when both env vars are set.
+  # Configuration.java loads workspace-local config.conf via ConfigFactory.parseReader, which
+  # REPLACES the classpath config entirely — so we must copy the full default config first and
+  # then append gasfree overrides (HOCON dot-path, later wins).
+  if [ -n "${GASFREE_API_KEY:-}" ] && [ -n "${GASFREE_API_SECRET:-}" ]; then
+    local tmpl_dir
+    for tmpl_dir in "$RUNTIME_DIR/templates"/*/; do
+      [ -d "$tmpl_dir" ] || continue
+      cp "$PROJECT_DIR/src/main/resources/config.conf" "$tmpl_dir/config.conf"
+      cat >> "$tmpl_dir/config.conf" <<CONF
+
+# QA GasFree credential overrides
+gasfree.testnet.apiKey = "$GASFREE_API_KEY"
+gasfree.testnet.apiSecret = "$GASFREE_API_SECRET"
+CONF
+    done
+  fi
 }
 
 qa_reset_workspace() {
@@ -220,6 +238,8 @@ qa_export_seeds() {
   qa_load_seeds
   export MY_ADDR FIRST_WALLET_ADDRESS FIRST_WALLET_NAME FIRST_WALLET_FILE
   export BLOCK_ID TX_ID WITNESS_ADDR MY_TRX_BALANCE
+  export DEPLOYED_CONTRACT_ADDR QA_ASSET_ID QA_EXCHANGE_ID QA_PROPOSAL_ID QA_MARKET_ORDER_ID
+  export QA_GASFREE_ID
 }
 
 qa_load_seeds() {
@@ -228,6 +248,320 @@ qa_load_seeds() {
   if [ -f "$seed_file" ]; then
     # shellcheck disable=SC1090
     source "$seed_file"
+  fi
+}
+
+qa_append_seed() {
+  local key="$1" value="$2"
+  printf '%s=%q\n' "$key" "$value" >> "$(qa_seed_file)"
+  # Also set in current process so subsequent calls see it
+  eval "$key=$(printf '%q' "$value")"
+}
+
+qa_run_posthook() {
+  local command="$1" label="$2"
+  local func="qa_posthook_${command//-/_}"
+  if type "$func" &>/dev/null 2>&1; then
+    "$func" "$label"
+  fi
+}
+
+qa_run_prehook() {
+  local command="$1" label="$2"
+  shift 2
+  local func="qa_prehook_${command//-/_}"
+  if type "$func" &>/dev/null 2>&1; then
+    "$func" "$label" "$@"
+  fi
+}
+
+qa_posthook_deploy_contract() {
+  local label="$1"
+  local txid
+  txid="$(qa_extract_json_field "$RESULTS_DIR/${label}_json.out" "data.txid" 2>/dev/null || true)"
+  [ -n "$txid" ] || return 0
+  echo "  [posthook] Waiting for contract address from tx $txid ..."
+  local addr
+  addr="$(qa_wait_for_tx_info "$txid" "data.contract_address" 20 || true)"
+  if [ -n "$addr" ]; then
+    echo "  [posthook] Contract deployed at $addr"
+    qa_append_seed "DEPLOYED_CONTRACT_ADDR" "$addr"
+  else
+    echo "  [posthook] WARNING: could not retrieve contract address from tx $txid" >&2
+  fi
+}
+
+qa_wait_for_stateful_tx_confirmation() {
+  local label="$1" description="$2" max_retries="${3:-10}"
+  local txid
+  txid="$(qa_extract_json_field "$RESULTS_DIR/${label}_json.out" "data.txid" 2>/dev/null || true)"
+  [ -n "$txid" ] || return 0
+  echo "  [posthook] Waiting for $description confirmation ..."
+  if ! qa_wait_for_tx_info "$txid" "data.id" "$max_retries" >/dev/null; then
+    echo "  [posthook] WARNING: could not confirm $description tx $txid" >&2
+  fi
+}
+
+qa_get_exchange_state_value() {
+  local exchange_id="$1" field="$2" label_suffix="${3:-state}"
+  local token label workspace out_file err_file exit_file value
+  token="$(mktemp "$RUNTIME_DIR/exchange-${label_suffix}.XXXXXX")"
+  rm -f "$token"
+  label="$(basename "$token")"
+  workspace="$(qa_reset_workspace "$label" "empty")"
+  qa_run_cli_capture "$workspace" "$label" json default \
+    get-exchange --id "$exchange_id" >/dev/null 2>&1 || true
+  out_file="$RESULTS_DIR/${label}_json.out"
+  err_file="$RESULTS_DIR/${label}_json.err"
+  exit_file="$RESULTS_DIR/${label}_json.exit"
+  value="$(qa_extract_json_field "$out_file" "data.$field" 2>/dev/null || true)"
+  if [ -z "$value" ]; then
+    echo "    [exstate] could not read data.$field for exchange $exchange_id (exit: $(cat "$exit_file" 2>/dev/null || echo missing), out: $(head -c 200 "$out_file" 2>/dev/null), err: $(head -c 200 "$err_file" 2>/dev/null))" >&2
+  fi
+  rm -rf "$workspace"
+  rm -f "$RESULTS_DIR/${label}_json.out" "$RESULTS_DIR/${label}_json.err" "$RESULTS_DIR/${label}_json.exit"
+  printf '%s\n' "$value"
+}
+
+qa_exchange_state_file() {
+  local label="$1"
+  printf '%s/%s.exchange-state.env\n' "$RUNTIME_DIR" "$label"
+}
+
+qa_record_exchange_balance_before() {
+  local label="$1"
+  shift
+  qa_load_seeds
+  local exchange_id token_id field before state_file
+  exchange_id="$(qa_parse_named_value --exchange-id "$@" 2>/dev/null || true)"
+  [ -n "$exchange_id" ] || exchange_id="${QA_EXCHANGE_ID:-}"
+  [ -n "$exchange_id" ] || return 0
+  token_id="$(qa_parse_named_value --token-id "$@" 2>/dev/null || true)"
+  [ -n "$token_id" ] || token_id="_"
+
+  field="first_token_balance"
+  if [ "$token_id" != "_" ]; then
+    field="second_token_balance"
+  fi
+
+  before="$(qa_get_exchange_state_value "$exchange_id" "$field" "${label}-before")"
+  state_file="$(qa_exchange_state_file "$label")"
+  {
+    printf 'exchange_id=%q\n' "$exchange_id"
+    printf 'field=%q\n' "$field"
+    printf 'before=%q\n' "$before"
+  } > "$state_file"
+}
+
+qa_wait_for_exchange_balance_change() {
+  local label="$1" description="$2" max_retries="${3:-10}"
+  local state_file exchange_id field before after i
+  state_file="$(qa_exchange_state_file "$label")"
+  if [ ! -f "$state_file" ]; then
+    echo "  [posthook] WARNING: missing exchange pre-state for $description" >&2
+    return 1
+  fi
+  # shellcheck disable=SC1090
+  source "$state_file"
+  [ -n "${exchange_id:-}" ] && [ -n "${field:-}" ] && [ -n "${before:-}" ] || {
+    echo "  [posthook] WARNING: incomplete exchange pre-state for $description" >&2
+    return 1
+  }
+  echo "  [posthook] Waiting for $description exchange state update ..."
+  for i in $(seq 1 "$max_retries"); do
+    sleep 3
+    after="$(qa_get_exchange_state_value "$exchange_id" "$field" "${label}-after")"
+    if [ -n "$before" ] && [ -n "$after" ] && [ "$before" != "$after" ]; then
+      echo "  [posthook] Exchange $exchange_id $field: $before -> $after"
+      return 0
+    fi
+    echo "    [exwait $i/$max_retries] $field unchanged (${after:-unavailable})" >&2
+  done
+  echo "  [posthook] WARNING: exchange $exchange_id $field did not change after $description" >&2
+  return 1
+}
+
+qa_prehook_exchange_inject() {
+  qa_record_exchange_balance_before "$@"
+}
+
+qa_prehook_exchange_withdraw() {
+  qa_record_exchange_balance_before "$@"
+}
+
+qa_posthook_exchange_inject() {
+  qa_wait_for_exchange_balance_change "$1" "exchange inject" 10 || true
+}
+
+qa_posthook_exchange_withdraw() {
+  qa_wait_for_exchange_balance_change "$1" "exchange withdraw" 10 || true
+}
+
+qa_posthook_create_proposal() {
+  local label="$1"
+  qa_load_seeds
+  local my_addr="${MY_ADDR:-}"
+  [ -n "$my_addr" ] || return 0
+  echo "  [posthook] Waiting for proposal confirmation ..."
+  local token plabel workspace out_file proposal_id created_after_ms txid i
+  created_after_ms="$(python3 - <<'PY' "$RESULTS_DIR/${label}_json.out"
+import os, sys, time
+
+try:
+    mtime_ms = int(os.path.getmtime(sys.argv[1]) * 1000)
+except Exception:
+    mtime_ms = int(time.time() * 1000)
+
+# The chain create_time can be a little earlier than the local file write time,
+# but it should not be tens of minutes older than this create-proposal run.
+print(mtime_ms - 600000)
+PY
+)"
+  txid="$(qa_extract_json_field "$RESULTS_DIR/${label}_json.out" "data.txid" 2>/dev/null || true)"
+  if [ -n "$txid" ]; then
+    if ! qa_wait_for_tx_info "$txid" "data.id" 20 >/dev/null 2>&1; then
+      echo "  [posthook] WARNING: could not confirm proposal tx $txid" >&2
+    fi
+  fi
+  token="$(mktemp "$RUNTIME_DIR/posthook.XXXXXX")"
+  rm -f "$token"
+  plabel="$(basename "$token")"
+  proposal_id=""
+  for i in $(seq 1 10); do
+    sleep 3
+    workspace="$(qa_reset_workspace "$plabel" "empty")"
+    qa_run_cli_capture "$workspace" "$plabel" json default list-proposals >/dev/null 2>&1 || true
+    out_file="$RESULTS_DIR/${plabel}_json.out"
+    proposal_id="$(python3 - <<'PY' "$out_file" "$my_addr" "$created_after_ms"
+import json, sys, time
+try:
+    data = json.load(open(sys.argv[1], 'r', encoding='utf-8'))
+    my_addr = sys.argv[2]
+    created_after_ms = int(sys.argv[3])
+    now_ms = int(time.time() * 1000)
+    proposals = data.get('data', {}).get('proposals', [])
+    best_id = ""
+    for p in proposals:
+        proposer = p.get('proposerAddress', '') or p.get('proposer_address', '')
+        state = p.get('state', '')
+        pid = str(p.get('proposalId', '') or p.get('proposal_id', ''))
+        create_time = int(p.get('createTime', 0) or p.get('create_time', 0) or 0)
+        expiration_time = int(p.get('expirationTime', 0) or p.get('expiration_time', 0) or 0)
+        # Nile may omit state for an active proposal, or expose it as
+        # DISAPPROVED until enough approvals are added. These are valid seeds
+        # for approve/delete as long as the proposal is fresh and unexpired.
+        if (proposer == my_addr and state in ('', 'PENDING', 'DISAPPROVED') and pid
+                and create_time >= created_after_ms
+                and (expiration_time == 0 or expiration_time > now_ms)):
+            if not best_id or int(pid) > int(best_id):
+                best_id = pid
+    print(best_id)
+except Exception:
+    print('')
+PY
+)"
+    rm -rf "$workspace"
+    rm -f "$RESULTS_DIR/${plabel}_json.out" "$RESULTS_DIR/${plabel}_json.err" "$RESULTS_DIR/${plabel}_json.exit"
+    [ -n "$proposal_id" ] && break
+  done
+  if [ -n "$proposal_id" ]; then
+    echo "  [posthook] Proposal ID: $proposal_id"
+    qa_append_seed "QA_PROPOSAL_ID" "$proposal_id"
+  else
+    echo "  [posthook] WARNING: could not find proposal ID from list-proposals" >&2
+  fi
+}
+
+qa_posthook_exchange_create() {
+  local label="$1"
+  qa_load_seeds
+  local my_addr="${MY_ADDR:-}"
+  [ -n "$my_addr" ] || return 0
+  echo "  [posthook] Waiting for exchange confirmation ..."
+  sleep 6
+  local token plabel workspace out_file exchange_id
+  token="$(mktemp "$RUNTIME_DIR/posthook.XXXXXX")"
+  rm -f "$token"
+  plabel="$(basename "$token")"
+  workspace="$(qa_reset_workspace "$plabel" "empty")"
+  qa_run_cli_capture "$workspace" "$plabel" json default list-exchanges >/dev/null 2>&1 || true
+  out_file="$RESULTS_DIR/${plabel}_json.out"
+  exchange_id="$(python3 - <<'PY' "$out_file" "$my_addr"
+import json, sys
+try:
+    data = json.load(open(sys.argv[1], 'r', encoding='utf-8'))
+    my_addr = sys.argv[2]
+    exchanges = data.get('data', {}).get('exchanges', [])
+    best_id = ""
+    for ex in exchanges:
+        creator = ex.get('creatorAddress', '') or ex.get('creator_address', '')
+        eid = str(ex.get('exchangeId', '') or ex.get('exchange_id', ''))
+        if creator == my_addr and eid:
+            if not best_id or int(eid) > int(best_id):
+                best_id = eid
+    print(best_id)
+except Exception:
+    print('')
+PY
+)"
+  rm -rf "$workspace"
+  rm -f "$RESULTS_DIR/${plabel}_json.out" "$RESULTS_DIR/${plabel}_json.err" "$RESULTS_DIR/${plabel}_json.exit"
+  if [ -n "$exchange_id" ]; then
+    echo "  [posthook] Exchange ID: $exchange_id"
+    qa_append_seed "QA_EXCHANGE_ID" "$exchange_id"
+  else
+    echo "  [posthook] WARNING: could not find exchange ID from list-exchanges" >&2
+  fi
+}
+
+qa_posthook_market_sell_asset() {
+  local label="$1"
+  qa_load_seeds
+  local my_addr="${MY_ADDR:-}"
+  [ -n "$my_addr" ] || return 0
+  echo "  [posthook] Waiting for market order confirmation ..."
+  sleep 6
+  local token plabel workspace out_file order_id
+  token="$(mktemp "$RUNTIME_DIR/posthook.XXXXXX")"
+  rm -f "$token"
+  plabel="$(basename "$token")"
+  workspace="$(qa_reset_workspace "$plabel" "empty")"
+  qa_run_cli_capture "$workspace" "$plabel" json default \
+    get-market-order-by-account --address "$my_addr" >/dev/null 2>&1 || true
+  out_file="$RESULTS_DIR/${plabel}_json.out"
+  order_id="$(python3 - <<'PY' "$out_file"
+import json, sys
+try:
+    data = json.load(open(sys.argv[1], 'r', encoding='utf-8'))
+    orders = data.get('data', {}).get('orders', [])
+    if orders and isinstance(orders, list):
+        oid = orders[0].get('orderId', '') or orders[0].get('order_id', '')
+        print(oid if oid else '')
+    else:
+        print('')
+except Exception:
+    print('')
+PY
+)"
+  rm -rf "$workspace"
+  rm -f "$RESULTS_DIR/${plabel}_json.out" "$RESULTS_DIR/${plabel}_json.err" "$RESULTS_DIR/${plabel}_json.exit"
+  if [ -n "$order_id" ]; then
+    echo "  [posthook] Market order ID: $order_id"
+    qa_append_seed "QA_MARKET_ORDER_ID" "$order_id"
+  else
+    echo "  [posthook] WARNING: could not find market order ID" >&2
+  fi
+}
+
+qa_posthook_gas_free_transfer() {
+  local label="$1"
+  local gas_free_id
+  gas_free_id="$(qa_extract_json_field "$RESULTS_DIR/${label}_json.out" "data.gas_free_id" 2>/dev/null || true)"
+  if [ -n "$gas_free_id" ] && [ "$gas_free_id" != "-" ]; then
+    echo "  [posthook] GasFree ID: $gas_free_id"
+    qa_append_seed "QA_GASFREE_ID" "$gas_free_id"
+  else
+    echo "  [posthook] WARNING: no data.gas_free_id in gas-free-transfer output" >&2
   fi
 }
 
@@ -257,6 +591,12 @@ qa_substitute_placeholders() {
   text="${text//\{\{FIRST_WALLET_NAME\}\}/${FIRST_WALLET_NAME:-}}"
   text="${text//\{\{FIRST_WALLET_FILE\}\}/${FIRST_WALLET_FILE:-}}"
   text="${text//\{\{MY_TRX_BALANCE\}\}/${MY_TRX_BALANCE:-}}"
+  text="${text//\{\{DEPLOYED_CONTRACT_ADDR\}\}/${DEPLOYED_CONTRACT_ADDR:-}}"
+  text="${text//\{\{QA_ASSET_ID\}\}/${QA_ASSET_ID:-}}"
+  text="${text//\{\{QA_EXCHANGE_ID\}\}/${QA_EXCHANGE_ID:-}}"
+  text="${text//\{\{QA_PROPOSAL_ID\}\}/${QA_PROPOSAL_ID:-}}"
+  text="${text//\{\{QA_MARKET_ORDER_ID\}\}/${QA_MARKET_ORDER_ID:-}}"
+  text="${text//\{\{QA_GASFREE_ID\}\}/${QA_GASFREE_ID:-}}"
 
   printf '%s' "$text"
 }
@@ -489,6 +829,36 @@ qa_json_field_equals() {
   local actual
   actual="$(qa_extract_json_field "$file" "$path" 2>/dev/null)" || return 1
   [ "$actual" = "$expected" ]
+}
+
+qa_wait_for_tx_info() {
+  local txid="$1" field="$2" max_retries="${3:-10}"
+  local token label workspace out_file value i
+  token="$(mktemp "$RUNTIME_DIR/txwait.XXXXXX")"
+  rm -f "$token"
+  label="$(basename "$token")"
+  for i in $(seq 1 "$max_retries"); do
+    workspace="$(qa_reset_workspace "$label" "empty")"
+    qa_run_cli_capture "$workspace" "$label" json default \
+      get-transaction-info-by-id --id "$txid" >/dev/null 2>&1 || true
+    out_file="$RESULTS_DIR/${label}_json.out"
+    if [ ! -f "$out_file" ]; then
+      echo "    [txwait $i/$max_retries] no output file" >&2
+    else
+      value="$(qa_extract_json_field "$out_file" "$field" 2>/dev/null || true)"
+      if [ -n "$value" ] && [ "$value" != "null" ]; then
+        rm -rf "$workspace"
+        rm -f "$RESULTS_DIR/${label}_json.out" "$RESULTS_DIR/${label}_json.err" "$RESULTS_DIR/${label}_json.exit"
+        printf '%s\n' "$value"
+        return 0
+      fi
+      echo "    [txwait $i/$max_retries] field '$field' not found yet (content: $(head -c 200 "$out_file" 2>/dev/null))" >&2
+    fi
+    rm -rf "$workspace"
+    rm -f "$RESULTS_DIR/${label}_json.out" "$RESULTS_DIR/${label}_json.err" "$RESULTS_DIR/${label}_json.exit"
+    sleep 3
+  done
+  return 1
 }
 
 qa_auth_wallet_available() {
@@ -779,6 +1149,114 @@ PY
   [ "$can_withdraw" = "true" ]
 }
 
+qa_preflight_has_deployed_contract() { [ -n "${DEPLOYED_CONTRACT_ADDR:-}" ]; }
+qa_preflight_has_qa_asset() { [ -n "${QA_ASSET_ID:-}" ]; }
+qa_preflight_has_qa_exchange() { [ -n "${QA_EXCHANGE_ID:-}" ]; }
+qa_preflight_has_qa_proposal() { [ -n "${QA_PROPOSAL_ID:-}" ]; }
+qa_preflight_has_qa_market_order() { [ -n "${QA_MARKET_ORDER_ID:-}" ]; }
+qa_preflight_has_qa_gasfree_id() { [ -n "${QA_GASFREE_ID:-}" ]; }
+qa_preflight_has_gasfree_config() { [ -n "${GASFREE_API_KEY:-}" ] && [ -n "${GASFREE_API_SECRET:-}" ]; }
+
+qa_preflight_allows_market_transaction() {
+  local token label workspace out_file allow
+  token="$(mktemp "$RUNTIME_DIR/preflight.XXXXXX")"
+  rm -f "$token"
+  label="$(basename "$token")"
+  workspace="$(qa_reset_workspace "$label" "empty")"
+  qa_run_cli_capture "$workspace" "$label" json default get-chain-parameters >/dev/null 2>&1 || true
+  out_file="$RESULTS_DIR/${label}_json.out"
+  allow="$(python3 - <<'PY' "$out_file"
+import json, sys
+
+try:
+    payload = json.load(open(sys.argv[1], "r", encoding="utf-8"))
+except Exception:
+    print(0)
+    raise SystemExit(0)
+
+params = payload.get("data", {}).get("chainParameter", [])
+for item in params if isinstance(params, list) else []:
+    if item.get("key") == "getAllowMarketTransaction":
+        print(int(item.get("value", 0) or 0))
+        raise SystemExit(0)
+print(0)
+PY
+)" || allow=0
+  rm -rf "$workspace"
+  rm -f "$RESULTS_DIR/${label}_json.out" "$RESULTS_DIR/${label}_json.err" "$RESULTS_DIR/${label}_json.exit"
+  [ "${allow:-0}" -eq 1 ]
+}
+
+qa_preflight_has_gasfree_balance() {
+  qa_preflight_has_gasfree_config || return 1
+  local my_addr="${MY_ADDR:-}"
+  [ -n "$my_addr" ] || return 1
+  local token label workspace out_file max_transfer
+  token="$(mktemp "$RUNTIME_DIR/preflight.XXXXXX")"
+  rm -f "$token"
+  label="$(basename "$token")"
+  workspace="$(qa_reset_workspace "$label" "auth")"
+  qa_run_cli_capture "$workspace" "$label" json default \
+    gas-free-info --address "$my_addr" >/dev/null 2>&1 || true
+  out_file="$RESULTS_DIR/${label}_json.out"
+  max_transfer="$(qa_extract_json_field "$out_file" "data.maxTransferValue" 2>/dev/null || true)"
+  rm -rf "$workspace"
+  rm -f "$RESULTS_DIR/${label}_json.out" "$RESULTS_DIR/${label}_json.err" "$RESULTS_DIR/${label}_json.exit"
+  [ -n "$max_transfer" ] && [ "$max_transfer" -gt 0 ] 2>/dev/null
+}
+
+qa_preflight_has_expired_unfreeze_v2_entry() {
+  local owner
+  owner="$(qa_parse_named_value --owner "$@" 2>/dev/null || true)"
+  [ -n "$owner" ] || owner="${MY_ADDR:-}"
+  [ -n "$owner" ] || return 1
+
+  local token label workspace out_file has_entry
+  token="$(mktemp "$RUNTIME_DIR/preflight.XXXXXX")"
+  rm -f "$token"
+  label="$(basename "$token")"
+  workspace="$(qa_reset_workspace "$label" "empty")"
+  qa_run_cli_capture "$workspace" "$label" json default \
+    get-account --address "$owner" >/dev/null 2>&1 || true
+  out_file="$RESULTS_DIR/${label}_json.out"
+  has_entry="$(python3 - <<'PY' "$out_file"
+import json, sys, time
+
+try:
+    payload = json.load(open(sys.argv[1], "r", encoding="utf-8"))
+except Exception:
+    print("false")
+    raise SystemExit(0)
+
+data = payload.get("data")
+now_ms = int(time.time() * 1000)
+
+def walk(node):
+    if isinstance(node, dict):
+        for key, value in node.items():
+            lowered = str(key).lower()
+            if lowered in ("unfrozenv2", "unfrozenv2list"):
+                if isinstance(value, list):
+                    for entry in value:
+                        expire = int(entry.get("unfreezeExpireTime", 0) or entry.get("unfreeze_expire_time", 0) or 0)
+                        if expire > 0 and expire <= now_ms:
+                            return True
+            if walk(value):
+                return True
+    elif isinstance(node, list):
+        for item in node:
+            if walk(item):
+                return True
+    return False
+
+print("true" if walk(data) else "false")
+PY
+)" || has_entry=false
+  rm -rf "$workspace"
+  rm -f "$RESULTS_DIR/${label}_json.out" "$RESULTS_DIR/${label}_json.err" "$RESULTS_DIR/${label}_json.exit"
+  [ "$has_entry" = "true" ]
+}
+
 qa_preflight_check() {
   local spec_csv="$1"
   shift
@@ -834,6 +1312,37 @@ qa_preflight_check() {
       legacy_stateful)
         qa_preflight_stateful_case "${argv[@]}" || return 1
         ;;
+      needs_deployed_contract)
+        qa_preflight_has_deployed_contract || { echo "no deployed contract seed"; return 1; }
+        ;;
+      needs_qa_asset)
+        qa_preflight_has_qa_asset || { echo "no TRC10 asset seed"; return 1; }
+        ;;
+      needs_qa_exchange)
+        qa_preflight_has_qa_exchange || { echo "no exchange seed"; return 1; }
+        ;;
+      needs_qa_proposal)
+        qa_preflight_has_qa_proposal || { echo "no proposal seed"; return 1; }
+        ;;
+      needs_qa_market_order)
+        qa_preflight_has_qa_market_order || { echo "no market order seed"; return 1; }
+        ;;
+      needs_market_transaction_enabled)
+        qa_preflight_allows_market_transaction || { echo "market transactions are disabled by chain parameters"; return 1; }
+        ;;
+      needs_gasfree_config)
+        qa_preflight_has_gasfree_config || { echo "missing GASFREE_API_KEY/GASFREE_API_SECRET env vars"; return 1; }
+        ;;
+      needs_gasfree_balance)
+        qa_preflight_has_gasfree_balance || { echo "gasfree subaddress has no transferable USDT balance"; return 1; }
+        ;;
+      needs_qa_gasfree_id)
+        qa_preflight_has_qa_gasfree_id || { echo "no gasfree id seed"; return 1; }
+        ;;
+      needs_expired_unfreeze_v2)
+        qa_preflight_has_expired_unfreeze_v2_entry "${argv[@]}" \
+          || { echo "no expired unfreezeV2 entries"; return 1; }
+        ;;
       *)
         echo "unknown preflight $item"
         return 1
@@ -849,6 +1358,7 @@ qa_prepare_seeds() {
   : > "$seed_file"
 
   local my_addr="" first_wallet="" first_wallet_name="" first_wallet_file="" witness_addr="" my_trx_balance="0"
+  local qa_asset_id=""
   if qa_has_private_key; then
     auth_workspace="$(qa_reset_workspace "_seed_auth" "auth")"
     qa_run_cli_capture "$auth_workspace" "_seed_get_address" text default get-address
@@ -887,7 +1397,9 @@ import json, sys
 try:
     data = json.load(open(sys.argv[1], 'r', encoding='utf-8'))
     payload = data.get('data', {})
-    balance = payload.get('balance_sun')
+    balance = payload.get('balanceSun')
+    if balance is None:
+        balance = payload.get('balance_sun')
     if balance is None:
         balance = payload.get('balance')
     print(int(balance) if balance is not None else 0)
@@ -914,7 +1426,9 @@ import json, sys
 try:
     data = json.load(open(sys.argv[1], 'r', encoding='utf-8'))
     payload = data.get('data', {})
-    balance = payload.get('balance_sun')
+    balance = payload.get('balanceSun')
+    if balance is None:
+        balance = payload.get('balance_sun')
     if balance is None:
         balance = payload.get('balance')
     print(int(balance) if balance is not None else 0)
@@ -932,7 +1446,7 @@ PY
     # Auto-freeze bandwidth (resource 0) so delegate-resource test can pass
     if [ -n "$my_addr" ] && [ "$my_trx_balance" -ge 2000000 ]; then
       local bw_max_size
-      bw_max_size="$(qa_run_preflight_json_query "data.max_size" \
+      bw_max_size="$(qa_run_preflight_json_query "data.maxSize" \
         get-can-delegated-max-size --owner "$my_addr" --type 0 2>/dev/null)" || bw_max_size=0
       if [ "${bw_max_size:-0}" -lt 1000000 ]; then
         echo "  Freezing 2 TRX for bandwidth (delegatable bandwidth: ${bw_max_size:-0} < 1000000) ..."
@@ -949,7 +1463,9 @@ import json, sys
 try:
     data = json.load(open(sys.argv[1], 'r', encoding='utf-8'))
     payload = data.get('data', {})
-    balance = payload.get('balance_sun')
+    balance = payload.get('balanceSun')
+    if balance is None:
+        balance = payload.get('balance_sun')
     if balance is None:
         balance = payload.get('balance')
     print(int(balance) if balance is not None else 0)
@@ -962,6 +1478,139 @@ PY
         fi
       fi
     fi
+
+    # --- Seed step: Select an active TRC10 asset held by the account. ---
+    # Exchange transactions reject assets outside their start/end time window,
+    # so prefer a currently active asset from assetV2 balances. Fall back to the
+    # account-issued asset only when no active held asset is found.
+    if [ -n "$my_addr" ]; then
+      qa_run_cli_capture "$auth_workspace" "_seed_get_account" json default \
+        get-account --address "$my_addr"
+      local candidate_asset_id candidate_file candidate_label candidate_workspace
+      while IFS= read -r candidate_asset_id || [ -n "$candidate_asset_id" ]; do
+        [ -n "$candidate_asset_id" ] || continue
+        candidate_label="_seed_asset_${candidate_asset_id}"
+        candidate_workspace="$(qa_reset_workspace "$candidate_label" "empty")"
+        qa_run_cli_capture "$candidate_workspace" "$candidate_label" json default \
+          get-asset-issue-by-id --id "$candidate_asset_id" >/dev/null 2>&1 || true
+        candidate_file="$RESULTS_DIR/${candidate_label}_json.out"
+        if python3 - <<'PY' "$candidate_file"
+import json, sys, time
+
+try:
+    payload = json.load(open(sys.argv[1], "r", encoding="utf-8"))
+except Exception:
+    raise SystemExit(1)
+
+data = payload.get("data", {})
+now_ms = int(time.time() * 1000)
+start = int(data.get("start_time", 0) or data.get("startTime", 0) or 0)
+end = int(data.get("end_time", 0) or data.get("endTime", 0) or 0)
+raise SystemExit(0 if start <= now_ms and (end == 0 or now_ms <= end) else 1)
+PY
+        then
+          qa_asset_id="$candidate_asset_id"
+          echo "  Active TRC10 asset found: $qa_asset_id"
+          rm -rf "$candidate_workspace"
+          rm -f "$RESULTS_DIR/${candidate_label}_json.out" "$RESULTS_DIR/${candidate_label}_json.err" "$RESULTS_DIR/${candidate_label}_json.exit"
+          break
+        fi
+        rm -rf "$candidate_workspace"
+        rm -f "$RESULTS_DIR/${candidate_label}_json.out" "$RESULTS_DIR/${candidate_label}_json.err" "$RESULTS_DIR/${candidate_label}_json.exit"
+      done < <(python3 - <<'PY' "$RESULTS_DIR/_seed_get_account_json.out"
+import json, sys
+
+try:
+    payload = json.load(open(sys.argv[1], "r", encoding="utf-8"))
+except Exception:
+    raise SystemExit(0)
+
+assets = payload.get("data", {}).get("assetV2", [])
+for asset in assets if isinstance(assets, list) else []:
+    key = str(asset.get("key", "") or "")
+    value = int(asset.get("value", 0) or 0)
+    if key and value > 0:
+        print(key)
+PY
+)
+
+      # Check if account already issued a TRC10 asset. This may be outside the
+      # active trading window, so it is only a fallback seed.
+      qa_run_cli_capture "$auth_workspace" "_seed_get_asset" json default \
+        get-asset-issue-by-account --address "$my_addr"
+      local issued_asset_id
+      issued_asset_id="$(python3 - <<'PY' "$RESULTS_DIR/_seed_get_asset_json.out"
+import json, sys
+try:
+    data = json.load(open(sys.argv[1], 'r', encoding='utf-8'))
+    assets = data.get('data', {}).get('assets', [])
+    if assets and isinstance(assets, list):
+        aid = assets[0].get('id', '')
+        print(aid if aid else '')
+    else:
+        print('')
+except Exception:
+    print('')
+PY
+)"
+      if [ -z "$qa_asset_id" ] && [ -n "$issued_asset_id" ]; then
+        qa_asset_id="$issued_asset_id"
+        echo "  Existing TRC10 issued asset found: $qa_asset_id"
+        echo "  WARNING: no active held TRC10 asset found; exchange transaction may be skipped or rejected if the issued asset is not active." >&2
+      fi
+
+      if [ -n "$qa_asset_id" ]; then
+        :
+      elif [ "$my_trx_balance" -ge 1024000000 ]; then
+        echo "  Issuing TRC10 asset ..."
+        local now_ms start_ms end_ms
+        now_ms="$(python3 -c 'import time; print(int(time.time()*1000))')"
+        start_ms=$((now_ms + 60000))
+        end_ms=$((now_ms + 86400000))
+        qa_run_cli_capture "$auth_workspace" "_seed_asset_issue" json default \
+          asset-issue --name QATRC10 --abbr QA --total-supply 1000000000000 \
+          --trx-num 1 --ico-num 1 \
+          --start-time "$start_ms" --end-time "$end_ms" \
+          --url "http://qa.example.com" --free-net-limit 0 --public-free-net-limit 0
+        local ai_success
+        ai_success="$(qa_extract_json_field "$RESULTS_DIR/_seed_asset_issue_json.out" "success" 2>/dev/null || true)"
+        if [ "$ai_success" = "true" ] || [ "$ai_success" = "True" ]; then
+          echo "  Asset issued, waiting for confirmation ..."
+          sleep 6
+          qa_run_cli_capture "$auth_workspace" "_seed_get_asset" json default \
+            get-asset-issue-by-account --address "$my_addr"
+          qa_asset_id="$(python3 - <<'PY' "$RESULTS_DIR/_seed_get_asset_json.out"
+import json, sys
+try:
+    data = json.load(open(sys.argv[1], 'r', encoding='utf-8'))
+    assets = data.get('data', {}).get('assets', [])
+    if assets and isinstance(assets, list):
+        aid = assets[0].get('id', '')
+        print(aid if aid else '')
+    else:
+        print('')
+except Exception:
+    print('')
+PY
+)"
+          if [ -n "$qa_asset_id" ]; then
+            echo "  TRC10 asset ID: $qa_asset_id"
+          else
+            echo "  WARNING: could not retrieve asset ID after issue." >&2
+          fi
+          qa_run_cli_capture "$auth_workspace" "_seed_get_balance" json default get-balance
+          my_trx_balance="$(qa_extract_json_field "$RESULTS_DIR/_seed_get_balance_json.out" "data.balanceSun" 2>/dev/null \
+            || qa_extract_json_field "$RESULTS_DIR/_seed_get_balance_json.out" "data.balance_sun" 2>/dev/null \
+            || qa_extract_json_field "$RESULTS_DIR/_seed_get_balance_json.out" "data.balance" 2>/dev/null \
+            || echo 0)"
+        else
+          echo "  WARNING: asset-issue failed." >&2
+        fi
+      else
+        echo "  Skipping TRC10 issue: balance ($my_trx_balance SUN) < 1024000000 SUN required."
+      fi
+    fi
+
   fi
 
   seed_workspace="$(qa_reset_workspace "_seed_public" "empty")"
@@ -994,5 +1643,8 @@ PY
     printf 'BLOCK_ID=%q\n' "$block_id"
     printf 'TX_ID=%q\n' "$tx_id"
     printf 'MY_TRX_BALANCE=%q\n' "$my_trx_balance"
+    printf 'QA_ASSET_ID=%q\n' "$qa_asset_id"
+    # DEPLOYED_CONTRACT_ADDR / QA_PROPOSAL_ID / QA_EXCHANGE_ID / QA_MARKET_ORDER_ID
+    # are appended by serial post-hooks (qa_posthook_*) after their creation case runs.
   } >> "$seed_file"
 }

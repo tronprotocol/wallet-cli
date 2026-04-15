@@ -163,6 +163,8 @@ prepare_task_files() {
     exit 1
   fi
 
+  # Use manifest order (not alphabetical registered.txt) so serial stateful
+  # cases run in dependency order (e.g. deploy-contract before clear-contract-abi).
   while IFS= read -r command; do
     if [ "$SKIP_HELP" -ne 1 ]; then
       enqueue_task help "$command" >> "$help_tasks"
@@ -175,7 +177,7 @@ prepare_task_files() {
         enqueue_task smoke "$command" >> "$regular_tasks"
         ;;
     esac
-  done < "$RUNTIME_DIR/registered.txt"
+  done < <(load_manifest_commands)
 
   while IFS= read -r contract_case; do
     enqueue_task contract "$contract_case" >> "$contract_tasks"

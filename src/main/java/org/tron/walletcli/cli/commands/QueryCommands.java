@@ -760,7 +760,7 @@ public class QueryCommands {
                 .aliases("listproposals")
                 .description("List all proposals")
                 .handler((ctx, opts, wrapper, out) -> {
-                    Response.ProposalList result = WalletApi.getProposalListPaginated(-1, -1);
+                    Response.ProposalList result = WalletApi.listProposals();
                     if (result == null) {
                         out.error("query_failed", "ListProposals failed");
                     } else {
@@ -813,7 +813,7 @@ public class QueryCommands {
                 .aliases("listexchanges")
                 .description("List all exchanges")
                 .handler((ctx, opts, wrapper, out) -> {
-                    Response.ExchangeList result = WalletApi.getExchangeListPaginated(-1, -1);
+                    Response.ExchangeList result = WalletApi.listExchanges();
                     if (result == null) {
                         out.error("query_failed", "ListExchanges failed");
                     } else {
@@ -955,9 +955,7 @@ public class QueryCommands {
 
     private static void registerGasFreeInfo(CommandRegistry registry) {
         registry.add(CommandDefinition.builder()
-                .authPolicyResolver(opts -> opts.has("address")
-                        ? CommandDefinition.AuthPolicy.NEVER
-                        : CommandDefinition.AuthPolicy.REQUIRE)
+                .authPolicy(CommandDefinition.AuthPolicy.REQUIRE)
                 .name("gas-free-info")
                 .aliases("gasfreeinfo")
                 .description("Get GasFree service info")
