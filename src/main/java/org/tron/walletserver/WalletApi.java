@@ -895,25 +895,6 @@ public class WalletApi {
     }
   }
 
-  private WalletFile resolveSigningWalletFile() throws IOException {
-    if (isUnifiedExist()) {
-      return getWalletFile();
-    }
-    System.out.println("Please choose your key for sign.");
-    return selectWalletFileE();
-  }
-
-  private byte[] resolveSigningPassword(WalletFile wf) throws IOException {
-    if (isUnifiedExist()) {
-      return getUnifiedPassword();
-    }
-    if (lockAccount && Arrays.equals(decodeFromBase58Check(wf.getAddress()), getAddress())) {
-      return getUnifiedPassword();
-    }
-    System.out.println("Please input your password.");
-    return char2Byte(inputPassword(false));
-  }
-
   public boolean isUnifiedExist() {
     return isLoginState() && ArrayUtils.isNotEmpty(getUnifiedPassword());
   }
@@ -1067,15 +1048,19 @@ public class WalletApi {
     if (!isUnlocked()) {
       throw new IllegalStateException(LOCK_WARNING);
     }
+    if (!isUnifiedExist()) {
+      throw new IllegalStateException(
+          "Signing requires authenticated session. Unified password not set.");
+    }
     if (transaction.getRawData().getTimestamp() == 0) {
       transaction = TransactionUtils.setTimestamp(transaction);
     }
     transaction = TransactionUtils.setExpirationTime(transaction, multi);
     transaction = TransactionUtils.setPermissionId(transaction, null);
     while (true) {
-      WalletFile wf = resolveSigningWalletFile();
+      WalletFile wf = getWalletFile();
       boolean isLedgerFile = wf.getName().contains("Ledger");
-      byte[] passwd = resolveSigningPassword(wf);
+      byte[] passwd = getUnifiedPassword();
       String ledgerPath = getLedgerPath(passwd, wf);
       if (isLedgerFile) {
         boolean result = LedgerSignUtil.requestLedgerSignLogic(transaction, ledgerPath, wf.getAddress(), false);
@@ -1871,6 +1856,10 @@ public class WalletApi {
         sum = LongMath.checkedAdd(sum, voteCount);
       }
       Response.Account account = queryAccount(owner);
+      if (account == null) {
+        recordLastCliOperationError("Failed to query account.");
+        return false;
+      }
       long tronPower = getTronPower(account) / TRX_PRECISION;
       if (sum > tronPower) {
         recordLastCliOperationError("The total number of votes[" + sum
@@ -2420,6 +2409,10 @@ public class WalletApi {
         return false;
       }
       Response.Account account = queryAccount(ownerAddress);
+      if (account == null) {
+        recordLastCliOperationError("Failed to query account.");
+        return false;
+      }
       long frozenAmount = account.getFrozenV2List().stream()
           .filter(f -> f.getType().getNumber() == resourceCode)
           .mapToLong(Response.Account.FreezeV2::getAmount)
@@ -3721,7 +3714,10 @@ public class WalletApi {
     ApiClient tmpApiCli;
     NetType netType = getCurrentNetwork();
     byte[] bytes = isUnifiedExist() ? getUnifiedPassword() : getPwdForDeploy();
-    String privateKey = ByteArray.toHexString(credentials == null ? decrypt2PrivateBytes(bytes, getWalletFile()) : credentials.getPair().getPrivateKey());
+    byte[] rawKey = credentials == null ? decrypt2PrivateBytes(bytes, getWalletFile()) : credentials.getPair().getPrivateKey();
+    byte[] privateKeyBytes = Arrays.copyOf(rawKey, rawKey.length);
+    String privateKey = ByteArray.toHexString(privateKeyBytes);
+    Arrays.fill(privateKeyBytes, (byte) 0);
     if (netType == CUSTOM) {
       tmpApiCli = new ApiClient(customNodes.getLeft().getLeft(), customNodes.getRight().getLeft(),
           customNodes.getLeft().getRight(), customNodes.getRight().getRight(), privateKey);
@@ -3796,9 +3792,12 @@ public class WalletApi {
     ApiClient tmpApiCli;
     NetType netType = getCurrentNetwork();
     byte[] bytes = isUnifiedExist() ? getUnifiedPassword() : getPwdForDeploy();
-    String privateKey = ByteArray.toHexString(credentials == null
+    byte[] rawKey = credentials == null
         ? decrypt2PrivateBytes(bytes, getWalletFile())
-        : credentials.getPair().getPrivateKey());
+        : credentials.getPair().getPrivateKey();
+    byte[] privateKeyBytes = Arrays.copyOf(rawKey, rawKey.length);
+    String privateKey = ByteArray.toHexString(privateKeyBytes);
+    Arrays.fill(privateKeyBytes, (byte) 0);
     if (netType == CUSTOM) {
       tmpApiCli = new ApiClient(customNodes.getLeft().getLeft(), customNodes.getRight().getLeft(),
           customNodes.getLeft().getRight(), customNodes.getRight().getRight(), privateKey);
@@ -3877,9 +3876,11 @@ public class WalletApi {
 
     if (transactionExtention == null || !transactionExtention.getResult().getResult()) {
       System.out.println("RPC create call trx" + failedHighlight() + "!");
-      System.out.println("Code = " + transactionExtention.getResult().getCode());
-      System.out
-          .println("Message = " + transactionExtention.getResult().getMessage().toStringUtf8());
+      if (transactionExtention != null) {
+        System.out.println("Code = " + transactionExtention.getResult().getCode());
+        System.out
+            .println("Message = " + transactionExtention.getResult().getMessage().toStringUtf8());
+      }
       return Triple.of(false, 0L, 0L);
     }
 

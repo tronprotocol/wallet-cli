@@ -2,6 +2,7 @@ package org.tron.walletcli.cli.commands;
 
 import org.tron.keystore.WalletFile;
 import org.tron.keystore.WalletUtils;
+import org.tron.ledger.LedgerFileUtil;
 import org.tron.walletcli.WalletApiWrapper.CliWalletCreationResult;
 import org.tron.walletcli.cli.ActiveWalletConfig;
 import org.tron.walletcli.cli.CommandDefinition;
@@ -31,7 +32,6 @@ public class WalletCommands {
         registerClearWalletKeystore(registry);
         registerResetWallet(registry);
         registerModifyWalletName(registry);
-        registerSwitchNetwork(registry);
         registerGenerateSubAccount(registry);
     }
 
@@ -90,18 +90,24 @@ public class WalletCommands {
                     List<Map<String, Object>> wallets = new ArrayList<Map<String, Object>>();
 
                     for (File f : files) {
-                        WalletFile wf = WalletUtils.loadWalletFile(f);
-                        String walletName = wf.getName();
-                        if (walletName == null || walletName.isEmpty()) {
-                            walletName = f.getName();
-                        }
-                        String address = wf.getAddress();
-                        boolean isActive = address != null && address.equals(activeAddress);
-
                         Map<String, Object> entry = new LinkedHashMap<String, Object>();
-                        entry.put("wallet-name", walletName);
-                        entry.put("wallet-address", address);
-                        entry.put("is-active", isActive);
+                        try {
+                            WalletFile wf = WalletUtils.loadWalletFile(f);
+                            String walletName = wf.getName();
+                            if (walletName == null || walletName.isEmpty()) {
+                                walletName = f.getName();
+                            }
+                            String address = wf.getAddress();
+                            boolean isActive = address != null && address.equals(activeAddress);
+                            entry.put("wallet-name", walletName);
+                            entry.put("wallet-address", address);
+                            entry.put("is-active", isActive);
+                        } catch (Exception e) {
+                            entry.put("wallet-name", f.getName());
+                            entry.put("wallet-address", null);
+                            entry.put("is-active", false);
+                            entry.put("error", "corrupt keystore: " + e.getMessage());
+                        }
                         wallets.add(entry);
                     }
 
@@ -110,10 +116,15 @@ public class WalletCommands {
                     text.append(String.format("%-30s %-42s %-8s", "Name", "Address", "Active"));
                     text.append("\n");
                     for (Map<String, Object> w : wallets) {
-                        text.append(String.format("%-30s %-42s %-8s",
-                                w.get("wallet-name"),
-                                w.get("wallet-address"),
-                                (Boolean) w.get("is-active") ? "*" : ""));
+                        if (w.containsKey("error")) {
+                            text.append(String.format("%-30s %-42s %-8s",
+                                    w.get("wallet-name"), "[ERROR]", w.get("error")));
+                        } else {
+                            text.append(String.format("%-30s %-42s %-8s",
+                                    w.get("wallet-name"),
+                                    w.get("wallet-address"),
+                                    (Boolean) w.get("is-active") ? "*" : ""));
+                        }
                         text.append("\n");
                     }
 
@@ -255,11 +266,32 @@ public class WalletCommands {
                         if (mnemonicFiles != null && !mnemonicFiles.isEmpty()) {
                             allFiles.addAll(mnemonicFiles);
                         }
+
+                        List<String> ledgerFiles = new ArrayList<>();
+                        File ledgerDir = new File(LedgerFileUtil.LEDGER_DIR_NAME);
+                        if (ledgerDir.exists() && ledgerDir.isDirectory()) {
+                            File[] entries = ledgerDir.listFiles();
+                            if (entries != null) {
+                                for (File entry : entries) {
+                                    ledgerFiles.add(entry.getPath());
+                                }
+                            }
+                        }
+
+                        List<String> configFiles = new ArrayList<>();
+                        File activeConfig = new File(ActiveWalletConfig.getWalletDir(), ".active-wallet");
+                        if (activeConfig.exists()) {
+                            configFiles.add(activeConfig.getPath());
+                        }
+
+                        int totalCount = allFiles.size() + ledgerFiles.size() + configFiles.size();
                         Map<String, Object> json = new LinkedHashMap<String, Object>();
                         json.put("mode", "dry-run");
                         json.put("required_confirm", RESET_CONFIRM_TOKEN);
                         json.put("files", allFiles);
-                        out.success("Dry-run: " + allFiles.size() + " file(s) would be deleted."
+                        json.put("ledger_files", ledgerFiles);
+                        json.put("config_files", configFiles);
+                        out.success("Dry-run: " + totalCount + " file(s) would be deleted."
                                 + " Re-run with --confirm " + RESET_CONFIRM_TOKEN + " to proceed.", json);
                         return;
                     }
@@ -289,26 +321,6 @@ public class WalletCommands {
                     CommandSupport.emitBooleanResult(out, true,
                             "ModifyWalletName successful !!",
                             "ModifyWalletName failed !!");
-                })
-                .build());
-    }
-
-    private static void registerSwitchNetwork(CommandRegistry registry) {
-        registry.add(noAuthCommand()
-                .name("switch-network")
-                .aliases("switchnetwork")
-                .description("Switch to a different network")
-                .option("network", "Network (main/nile/shasta/custom)", true)
-                .option("full-node", "Custom full node endpoint", false)
-                .option("solidity-node", "Custom solidity node endpoint", false)
-                .handler((ctx, opts, wrapper, out) -> {
-                    String network = opts.getString("network");
-                    String fullNode = opts.has("full-node") ? opts.getString("full-node") : null;
-                    String solidityNode = opts.has("solidity-node") ? opts.getString("solidity-node") : null;
-                    wrapper.switchNetworkForCli(network, fullNode, solidityNode);
-                    CommandSupport.emitBooleanResult(out, true,
-                            "SwitchNetwork successful !!",
-                            "SwitchNetwork failed !!");
                 })
                 .build());
     }
@@ -347,7 +359,8 @@ public class WalletCommands {
             }
             return activeWalletFile.getCanonicalFile().equals(targetWalletFile.getCanonicalFile());
         } catch (Exception e) {
-            logger.warn("Could not read active wallet config after wallet deletion: {}", e.getMessage());
+            System.err.println("Warning: could not read active wallet config after wallet deletion: "
+                    + e.getMessage());
             return false;
         }
     }

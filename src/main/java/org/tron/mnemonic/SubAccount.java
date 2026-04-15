@@ -579,17 +579,19 @@ public class SubAccount {
   }
 
   public void clearSensitiveData() {
-    // Clear mnemonic
     this.mnemonic = null;
 
-    // Clear password
     if (this.password != null) {
         Arrays.fill(this.password, (byte) 0);
         this.password = null;
     }
 
-    // Clear addresses
     if (this.addresses != null) {
+        for (WalletAddress addr : this.addresses) {
+            if (addr.getPrivateKey() != null) {
+                Arrays.fill(addr.getPrivateKey(), (byte) 0);
+            }
+        }
         this.addresses.clear();
     }
   }

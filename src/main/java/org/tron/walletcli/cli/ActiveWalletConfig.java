@@ -100,9 +100,15 @@ public class ActiveWalletConfig {
             return null;
         }
         for (File f : files) {
-            WalletFile wf = WalletUtils.loadWalletFile(f);
-            if (address.equals(wf.getAddress())) {
-                return f;
+            try {
+                WalletFile wf = WalletUtils.loadWalletFile(f);
+                if (address.equals(wf.getAddress())) {
+                    return f;
+                }
+            } catch (Exception e) {
+                // Broad catch: Gson/BouncyCastle throw assorted unchecked exceptions for malformed content
+                System.err.println("Warning: skipping unreadable keystore: "
+                        + f.getName() + " (" + e.getMessage() + ")");
             }
         }
         return null;
@@ -128,14 +134,20 @@ public class ActiveWalletConfig {
         File match = null;
         int count = 0;
         for (File f : files) {
-            WalletFile wf = WalletUtils.loadWalletFile(f);
-            String walletName = wf.getName();
-            if (walletName == null) {
-                walletName = f.getName();
-            }
-            if (name.equals(walletName)) {
-                match = f;
-                count++;
+            try {
+                WalletFile wf = WalletUtils.loadWalletFile(f);
+                String walletName = wf.getName();
+                if (walletName == null) {
+                    walletName = f.getName();
+                }
+                if (name.equals(walletName)) {
+                    match = f;
+                    count++;
+                }
+            } catch (Exception e) {
+                // Broad catch: Gson/BouncyCastle throw assorted unchecked exceptions for malformed content
+                System.err.println("Warning: skipping unreadable keystore: "
+                        + f.getName() + " (" + e.getMessage() + ")");
             }
         }
         if (count > 1) {

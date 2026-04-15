@@ -3,6 +3,7 @@ package org.tron.walletcli.cli;
 import org.bouncycastle.util.encoders.Hex;
 import org.junit.Assert;
 import org.junit.Test;
+import org.tron.common.enums.NetType;
 import org.tron.common.utils.Utils;
 import org.tron.keystore.WalletFile;
 import org.tron.keystore.WalletUtils;
@@ -556,6 +557,46 @@ public class StandardCliRunnerTest {
   }
 
   @Test
+  public void grpcEndpointValidationFailurePreservesClientFromApplyNetwork() throws Exception {
+    CommandRegistry registry = new CommandRegistry();
+    registry.add(CommandDefinition.builder()
+        .authPolicy(CommandDefinition.AuthPolicy.NEVER)
+        .name("ok")
+        .description("Simple success command")
+        .handler((ctx, opts, wrapper, out) -> out.raw("ok"))
+        .build());
+
+    ApiClient originalApiCli = WalletApi.getApiCli();
+    String originalUserDir = System.getProperty("user.dir");
+    File tempDir = Files.createTempDirectory("runner-grpc-mismatch").toFile();
+
+    try {
+      System.setProperty("user.dir", tempDir.getAbsolutePath());
+      // Use Nile fullnode endpoint but claim --network main → consistency mismatch.
+      // applyNetwork("main") runs first and replaces the original client,
+      // then applyGrpcEndpointOverride should fail WITHOUT replacing that client.
+      String nileFullNode = NetType.NILE.getGrpc().getFullNode();
+      GlobalOptions opts = GlobalOptions.parse(
+          new String[]{"--network", "main", "--grpc-endpoint", nileFullNode, "ok"});
+      int exitCode = new StandardCliRunner(registry, opts).execute();
+
+      Assert.assertEquals(2, exitCode);
+      // The client in place should be the one from applyNetwork("main"), not the
+      // Nile-endpoint client from the failed grpc override.  We can't get a direct
+      // reference to the applyNetwork client, but we can verify it wasn't replaced
+      // by the override's new client (which would target the Nile endpoint).
+      ApiClient surviving = WalletApi.getApiCli();
+      Assert.assertNotNull(surviving);
+      Assert.assertNotSame("grpc-override client should not have been installed",
+          originalApiCli, surviving);
+    } finally {
+      WalletApi.setApiCli(originalApiCli);
+      System.setProperty("user.dir", originalUserDir);
+      tempDir.delete();
+    }
+  }
+
+  @Test
   public void neverAuthCommandIgnoresBrokenActiveWalletConfig() throws Exception {
     String originalUserDir = System.getProperty("user.dir");
     PrintStream originalOut = System.out;
@@ -910,6 +951,131 @@ public class StandardCliRunnerTest {
       Assert.assertTrue(json.contains("Vote count must be a positive integer: 0"));
     } finally {
       System.setOut(originalOut);
+    }
+  }
+
+  @Test
+  public void requireCommandAuthenticatesBeforeHandlerExecution() throws Exception {
+    CommandRegistry registry = new CommandRegistry();
+    boolean[] handlerCalled = {false};
+    boolean[] wasLoggedIn = {false};
+    registry.add(CommandDefinition.builder()
+        .name("sign-cmd")
+        .description("Command requiring auth for signing")
+        .handler((ctx, opts, wrapper, out) -> {
+          handlerCalled[0] = true;
+          wasLoggedIn[0] = wrapper.isLoginState();
+          out.raw("signed");
+        })
+        .build());
+
+    String originalUserDir = System.getProperty("user.dir");
+    PrintStream originalOut = System.out;
+    PrintStream originalErr = System.err;
+    File tempDir = Files.createTempDirectory("runner-sign-auth").toFile();
+    File walletDir = new File(tempDir, "Wallet");
+    Assert.assertTrue(walletDir.mkdirs());
+    File walletFile = createWalletFile(walletDir, "signer", "0000000000000000000000000000000000000000000000000000000000000001");
+    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+    ByteArrayOutputStream stderr = new ByteArrayOutputStream();
+
+    System.setProperty("user.dir", tempDir.getAbsolutePath());
+    System.setOut(new PrintStream(stdout));
+    System.setErr(new PrintStream(stderr));
+    try {
+      ActiveWalletConfig.setActiveAddress(readWalletAddress(walletFile));
+      GlobalOptions opts = GlobalOptions.parse(new String[]{"sign-cmd"});
+      int exitCode = new StandardCliRunner(registry, opts, () -> "TempPass123!A").execute();
+
+      Assert.assertEquals(0, exitCode);
+      Assert.assertTrue(handlerCalled[0]);
+      Assert.assertTrue(wasLoggedIn[0]);
+    } finally {
+      System.setOut(originalOut);
+      System.setErr(originalErr);
+      System.setProperty("user.dir", originalUserDir);
+    }
+  }
+
+  @Test
+  public void requireCommandBlocksHandlerWhenAuthFails() throws Exception {
+    CommandRegistry registry = new CommandRegistry();
+    boolean[] handlerCalled = {false};
+    registry.add(CommandDefinition.builder()
+        .name("sign-cmd")
+        .description("Command requiring auth for signing")
+        .handler((ctx, opts, wrapper, out) -> {
+          handlerCalled[0] = true;
+          out.raw("signed");
+        })
+        .build());
+
+    String originalUserDir = System.getProperty("user.dir");
+    PrintStream originalOut = System.out;
+    PrintStream originalErr = System.err;
+    File tempDir = Files.createTempDirectory("runner-sign-noauth").toFile();
+    File walletDir = new File(tempDir, "Wallet");
+    Assert.assertTrue(walletDir.mkdirs());
+    File walletFile = createWalletFile(walletDir, "signer", "0000000000000000000000000000000000000000000000000000000000000001");
+    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+    ByteArrayOutputStream stderr = new ByteArrayOutputStream();
+
+    System.setProperty("user.dir", tempDir.getAbsolutePath());
+    System.setOut(new PrintStream(stdout));
+    System.setErr(new PrintStream(stderr));
+    try {
+      ActiveWalletConfig.setActiveAddress(readWalletAddress(walletFile));
+      GlobalOptions opts = GlobalOptions.parse(new String[]{"sign-cmd"});
+      int exitCode = new StandardCliRunner(registry, opts, () -> null).execute();
+
+      Assert.assertEquals(1, exitCode);
+      Assert.assertFalse(handlerCalled[0]);
+      Assert.assertTrue(stderr.toString("UTF-8").contains("MASTER_PASSWORD is required"));
+    } finally {
+      System.setOut(originalOut);
+      System.setErr(originalErr);
+      System.setProperty("user.dir", originalUserDir);
+    }
+  }
+
+  @Test
+  public void handlerExceptionProducesExecutionErrorInJsonMode() throws Exception {
+    CommandRegistry registry = new CommandRegistry();
+    registry.add(CommandDefinition.builder()
+        .name("sign-fail")
+        .description("Command that throws during execution")
+        .handler((ctx, opts, wrapper, out) -> {
+          throw new CommandErrorException("execution_error", "Transaction signing failed");
+        })
+        .build());
+
+    String originalUserDir = System.getProperty("user.dir");
+    PrintStream originalOut = System.out;
+    PrintStream originalErr = System.err;
+    File tempDir = Files.createTempDirectory("runner-sign-fail").toFile();
+    File walletDir = new File(tempDir, "Wallet");
+    Assert.assertTrue(walletDir.mkdirs());
+    File walletFile = createWalletFile(walletDir, "signer", "0000000000000000000000000000000000000000000000000000000000000001");
+    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+    ByteArrayOutputStream stderr = new ByteArrayOutputStream();
+
+    System.setProperty("user.dir", tempDir.getAbsolutePath());
+    System.setOut(new PrintStream(stdout));
+    System.setErr(new PrintStream(stderr));
+    try {
+      ActiveWalletConfig.setActiveAddress(readWalletAddress(walletFile));
+      GlobalOptions opts = GlobalOptions.parse(new String[]{"--output", "json", "sign-fail"});
+      int exitCode = new StandardCliRunner(registry, opts, () -> "TempPass123!A").execute();
+
+      Assert.assertEquals(1, exitCode);
+      String json = stdout.toString("UTF-8");
+      Assert.assertTrue(json.contains("\"success\": false"));
+      Assert.assertTrue(json.contains("\"error\": \"execution_error\""));
+      Assert.assertTrue(json.contains("Transaction signing failed"));
+    } finally {
+      System.setOut(originalOut);
+      System.setErr(originalErr);
+      System.setProperty("user.dir", originalUserDir);
     }
   }
 

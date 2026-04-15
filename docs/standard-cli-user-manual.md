@@ -169,7 +169,7 @@ These flags apply to **all commands** and must appear **before** the command nam
 | `--output` | `text` or `json` | `text` | Output format. Use `json` for machine-parseable output. |
 | `--network` | `main`, `nile`, `shasta`, `custom` | (from config) | Select which TRON network to connect to. |
 | `--wallet` | name or file path | (active wallet) | Choose which wallet file to authenticate with. |
-| `--grpc-endpoint` | `host:port` | (from network) | Override the gRPC endpoint for node communication. |
+| `--grpc-endpoint` | `host:port` | (from network) | Override the gRPC endpoint for both fullnode and soliditynode communication. |
 | `--quiet` | (none) | off | Suppress informational messages on stderr. |
 | `--verbose` | (none) | off | Enable debug-level logging. |
 | `-h`, `--help` | (none) | off | Show help information. |
@@ -297,6 +297,8 @@ my-main-wallet                 TXyz...abc                                 *
 trading-wallet                 TAbc...xyz
 ```
 
+> **Note:** If a keystore file in `Wallet/` is corrupt or unreadable, it still appears in the list with an `error` field in JSON mode (and `[ERROR]` placeholder in text mode) rather than failing the entire command.
+
 ---
 
 ### `set-active-wallet`
@@ -376,28 +378,6 @@ wallet-cli generate-sub-account --index 0 --name "sub-wallet-0"
 
 ---
 
-### `switch-network`
-
-Switch to a different TRON network.
-
-| | |
-|---|---|
-| **Alias** | `switchnetwork` |
-| **Auth** | Not required |
-
-| Option | Required | Type | Description |
-|--------|----------|------|-------------|
-| `--network` | Yes | string | Target network: `main`, `nile`, `shasta`, `custom` |
-| `--full-node` | No | string | Custom full node endpoint (for `custom` network) |
-| `--solidity-node` | No | string | Custom solidity node endpoint (for `custom` network) |
-
-```bash
-wallet-cli switch-network --network nile
-wallet-cli switch-network --network custom --full-node 192.168.1.100:50051
-```
-
----
-
 ### `clear-wallet-keystore`
 
 Delete the keystore file of the currently authenticated wallet.
@@ -440,7 +420,9 @@ wallet-cli reset-wallet
 wallet-cli reset-wallet --confirm delete-all-wallets
 ```
 
-> **Warning:** This permanently deletes ALL wallet and mnemonic files. There is no undo.
+> **Note:** Without `--confirm`, this command performs a dry run. The dry-run output includes `files` (wallet/mnemonic keystores), `ledger_files` (Ledger device metadata), and `config_files` (e.g., `.active-wallet`) — showing everything that would be deleted.
+
+> **Warning:** This permanently deletes ALL wallet and mnemonic files, Ledger metadata, and active wallet configuration. There is no undo.
 
 ---
 
@@ -2797,104 +2779,103 @@ To set up multi-sig, use `update-account-permission` to configure the account's 
 | 4 | `get-active-wallet` | Wallet | No |
 | 5 | `modify-wallet-name` | Wallet | Yes |
 | 6 | `generate-sub-account` | Wallet | Yes |
-| 7 | `switch-network` | Wallet | No |
-| 8 | `clear-wallet-keystore` | Wallet | Yes |
-| 9 | `reset-wallet` | Wallet | No |
-| 10 | `send-coin` | Transaction | Yes |
-| 11 | `transfer-usdt` | Transaction | Yes |
-| 12 | `transfer-asset` | Transaction | Yes |
-| 13 | `create-account` | Transaction | Yes |
-| 14 | `update-account` | Transaction | Yes |
-| 15 | `set-account-id` | Transaction | Yes |
-| 16 | `asset-issue` | Transaction | Yes |
-| 17 | `update-asset` | Transaction | Yes |
-| 18 | `participate-asset-issue` | Transaction | Yes |
-| 19 | `update-account-permission` | Transaction | Yes |
-| 20 | `broadcast-transaction` | Transaction | No |
-| 21 | `gas-free-transfer` | Transaction | Yes |
-| 22 | `freeze-balance-v2` | Staking | Yes |
-| 23 | `unfreeze-balance-v2` | Staking | Yes |
-| 24 | `withdraw-expire-unfreeze` | Staking | Yes |
-| 25 | `cancel-all-unfreeze-v2` | Staking | Yes |
-| 26 | `delegate-resource` | Staking | Yes |
-| 27 | `undelegate-resource` | Staking | Yes |
-| 28 | `withdraw-balance` | Staking | Yes |
-| 29 | `freeze-balance` | Staking | Yes |
-| 30 | `unfreeze-balance` | Staking | Yes |
-| 31 | `unfreeze-asset` | Staking | Yes |
-| 32 | `get-address` | Query | Yes |
-| 33 | `get-balance` | Query | Conditional |
-| 34 | `get-usdt-balance` | Query | Conditional |
-| 35 | `get-account` | Query | No |
-| 36 | `get-account-by-id` | Query | No |
-| 37 | `get-account-net` | Query | No |
-| 38 | `get-account-resource` | Query | No |
-| 39 | `current-network` | Query | No |
-| 40 | `get-block` | Query | No |
-| 41 | `get-block-by-id` | Query | No |
-| 42 | `get-block-by-id-or-num` | Query | No |
-| 43 | `get-block-by-latest-num` | Query | No |
-| 44 | `get-block-by-limit-next` | Query | No |
-| 45 | `get-transaction-by-id` | Query | No |
-| 46 | `get-transaction-info-by-id` | Query | No |
-| 47 | `get-transaction-count-by-block-num` | Query | No |
-| 48 | `get-asset-issue-by-account` | Query | No |
-| 49 | `get-asset-issue-by-id` | Query | No |
-| 50 | `get-asset-issue-by-name` | Query | No |
-| 51 | `get-asset-issue-list-by-name` | Query | No |
-| 52 | `list-asset-issue` | Query | No |
-| 53 | `list-asset-issue-paginated` | Query | No |
-| 54 | `get-chain-parameters` | Query | No |
-| 55 | `get-bandwidth-prices` | Query | No |
-| 56 | `get-energy-prices` | Query | No |
-| 57 | `get-memo-fee` | Query | No |
-| 58 | `get-next-maintenance-time` | Query | No |
-| 59 | `get-contract` | Contract | No |
-| 60 | `get-contract-info` | Contract | No |
-| 61 | `get-delegated-resource` | Query | No |
-| 62 | `get-delegated-resource-v2` | Query | No |
-| 63 | `get-delegated-resource-account-index` | Query | No |
-| 64 | `get-delegated-resource-account-index-v2` | Query | No |
-| 65 | `get-can-delegated-max-size` | Query | No |
-| 66 | `get-available-unfreeze-count` | Query | No |
-| 67 | `get-can-withdraw-unfreeze-amount` | Query | No |
-| 68 | `get-brokerage` | Query | No |
-| 69 | `get-reward` | Query | No |
-| 70 | `list-nodes` | Query | No |
-| 71 | `list-witnesses` | Query | No |
-| 72 | `list-proposals` | Query | No |
-| 73 | `list-proposals-paginated` | Query | No |
-| 74 | `get-proposal` | Query | No |
-| 75 | `list-exchanges` | Query | No |
-| 76 | `list-exchanges-paginated` | Query | No |
-| 77 | `get-exchange` | Query | No |
-| 78 | `get-market-order-by-account` | Query | No |
-| 79 | `get-market-order-by-id` | Query | No |
-| 80 | `get-market-order-list-by-pair` | Query | No |
-| 81 | `get-market-pair-list` | Query | No |
-| 82 | `get-market-price-by-pair` | Query | No |
-| 83 | `gas-free-info` | Query | Conditional |
-| 84 | `gas-free-trace` | Query | No |
-| 85 | `deploy-contract` | Contract | Yes |
-| 86 | `trigger-contract` | Contract | Yes |
-| 87 | `trigger-constant-contract` | Contract | Conditional |
-| 88 | `estimate-energy` | Contract | Conditional |
-| 89 | `clear-contract-abi` | Contract | Yes |
-| 90 | `update-setting` | Contract | Yes |
-| 91 | `update-energy-limit` | Contract | Yes |
-| 92 | `create-witness` | Witness | Yes |
-| 93 | `update-witness` | Witness | Yes |
-| 94 | `vote-witness` | Witness | Yes |
-| 95 | `update-brokerage` | Witness | Yes |
-| 96 | `create-proposal` | Proposal | Yes |
-| 97 | `approve-proposal` | Proposal | Yes |
-| 98 | `delete-proposal` | Proposal | Yes |
-| 99 | `exchange-create` | Exchange | Yes |
-| 100 | `exchange-inject` | Exchange | Yes |
-| 101 | `exchange-withdraw` | Exchange | Yes |
-| 102 | `market-sell-asset` | Exchange | Yes |
-| 103 | `market-cancel-order` | Exchange | Yes |
-| 104 | `help` | Misc | No |
+| 7 | `clear-wallet-keystore` | Wallet | Yes |
+| 8 | `reset-wallet` | Wallet | No |
+| 9 | `send-coin` | Transaction | Yes |
+| 10 | `transfer-usdt` | Transaction | Yes |
+| 11 | `transfer-asset` | Transaction | Yes |
+| 12 | `create-account` | Transaction | Yes |
+| 13 | `update-account` | Transaction | Yes |
+| 14 | `set-account-id` | Transaction | Yes |
+| 15 | `asset-issue` | Transaction | Yes |
+| 16 | `update-asset` | Transaction | Yes |
+| 17 | `participate-asset-issue` | Transaction | Yes |
+| 18 | `update-account-permission` | Transaction | Yes |
+| 19 | `broadcast-transaction` | Transaction | No |
+| 20 | `gas-free-transfer` | Transaction | Yes |
+| 21 | `freeze-balance-v2` | Staking | Yes |
+| 22 | `unfreeze-balance-v2` | Staking | Yes |
+| 23 | `withdraw-expire-unfreeze` | Staking | Yes |
+| 24 | `cancel-all-unfreeze-v2` | Staking | Yes |
+| 25 | `delegate-resource` | Staking | Yes |
+| 26 | `undelegate-resource` | Staking | Yes |
+| 27 | `withdraw-balance` | Staking | Yes |
+| 28 | `freeze-balance` | Staking | Yes |
+| 29 | `unfreeze-balance` | Staking | Yes |
+| 30 | `unfreeze-asset` | Staking | Yes |
+| 31 | `get-address` | Query | Yes |
+| 32 | `get-balance` | Query | Conditional |
+| 33 | `get-usdt-balance` | Query | Conditional |
+| 34 | `get-account` | Query | No |
+| 35 | `get-account-by-id` | Query | No |
+| 36 | `get-account-net` | Query | No |
+| 37 | `get-account-resource` | Query | No |
+| 38 | `current-network` | Query | No |
+| 39 | `get-block` | Query | No |
+| 40 | `get-block-by-id` | Query | No |
+| 41 | `get-block-by-id-or-num` | Query | No |
+| 42 | `get-block-by-latest-num` | Query | No |
+| 43 | `get-block-by-limit-next` | Query | No |
+| 44 | `get-transaction-by-id` | Query | No |
+| 45 | `get-transaction-info-by-id` | Query | No |
+| 46 | `get-transaction-count-by-block-num` | Query | No |
+| 47 | `get-asset-issue-by-account` | Query | No |
+| 48 | `get-asset-issue-by-id` | Query | No |
+| 49 | `get-asset-issue-by-name` | Query | No |
+| 50 | `get-asset-issue-list-by-name` | Query | No |
+| 51 | `list-asset-issue` | Query | No |
+| 52 | `list-asset-issue-paginated` | Query | No |
+| 53 | `get-chain-parameters` | Query | No |
+| 54 | `get-bandwidth-prices` | Query | No |
+| 55 | `get-energy-prices` | Query | No |
+| 56 | `get-memo-fee` | Query | No |
+| 57 | `get-next-maintenance-time` | Query | No |
+| 58 | `get-contract` | Contract | No |
+| 59 | `get-contract-info` | Contract | No |
+| 60 | `get-delegated-resource` | Query | No |
+| 61 | `get-delegated-resource-v2` | Query | No |
+| 62 | `get-delegated-resource-account-index` | Query | No |
+| 63 | `get-delegated-resource-account-index-v2` | Query | No |
+| 64 | `get-can-delegated-max-size` | Query | No |
+| 65 | `get-available-unfreeze-count` | Query | No |
+| 66 | `get-can-withdraw-unfreeze-amount` | Query | No |
+| 67 | `get-brokerage` | Query | No |
+| 68 | `get-reward` | Query | No |
+| 69 | `list-nodes` | Query | No |
+| 70 | `list-witnesses` | Query | No |
+| 71 | `list-proposals` | Query | No |
+| 72 | `list-proposals-paginated` | Query | No |
+| 73 | `get-proposal` | Query | No |
+| 74 | `list-exchanges` | Query | No |
+| 75 | `list-exchanges-paginated` | Query | No |
+| 76 | `get-exchange` | Query | No |
+| 77 | `get-market-order-by-account` | Query | No |
+| 78 | `get-market-order-by-id` | Query | No |
+| 79 | `get-market-order-list-by-pair` | Query | No |
+| 80 | `get-market-pair-list` | Query | No |
+| 81 | `get-market-price-by-pair` | Query | No |
+| 82 | `gas-free-info` | Query | Conditional |
+| 83 | `gas-free-trace` | Query | No |
+| 84 | `deploy-contract` | Contract | Yes |
+| 85 | `trigger-contract` | Contract | Yes |
+| 86 | `trigger-constant-contract` | Contract | Conditional |
+| 87 | `estimate-energy` | Contract | Conditional |
+| 88 | `clear-contract-abi` | Contract | Yes |
+| 89 | `update-setting` | Contract | Yes |
+| 90 | `update-energy-limit` | Contract | Yes |
+| 91 | `create-witness` | Witness | Yes |
+| 92 | `update-witness` | Witness | Yes |
+| 93 | `vote-witness` | Witness | Yes |
+| 94 | `update-brokerage` | Witness | Yes |
+| 95 | `create-proposal` | Proposal | Yes |
+| 96 | `approve-proposal` | Proposal | Yes |
+| 97 | `delete-proposal` | Proposal | Yes |
+| 98 | `exchange-create` | Exchange | Yes |
+| 99 | `exchange-inject` | Exchange | Yes |
+| 100 | `exchange-withdraw` | Exchange | Yes |
+| 101 | `market-sell-asset` | Exchange | Yes |
+| 102 | `market-cancel-order` | Exchange | Yes |
+| 103 | `help` | Misc | No |
 
 \* `register-wallet` requires `MASTER_PASSWORD` to be set (for keystore encryption) but does not authenticate against an existing wallet.
 

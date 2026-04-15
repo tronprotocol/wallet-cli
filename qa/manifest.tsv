@@ -99,6 +99,5 @@ get-active-wallet|auth-success|auth|private_key|
 clear-wallet-keystore|offline-success|auth|private_key|--force
 reset-wallet|offline-success|auth|private_key|--confirm delete-all-wallets
 modify-wallet-name|auth-success|auth|private_key|--name renamed-wallet
-switch-network|offline-success|auth|private_key|--network nile
 generate-sub-account|offline-success|auth-mnemonic|mnemonic|--index 1 --name qasubaccount
 help|offline-success|empty|none|

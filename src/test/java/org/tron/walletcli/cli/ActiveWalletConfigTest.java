@@ -176,6 +176,44 @@ public class ActiveWalletConfigTest {
     }
   }
 
+  @Test
+  public void findWalletFileByAddressSkipsCorruptFile() throws Exception {
+    File walletDir = Files.createTempDirectory("active-wallet-corrupt-addr").toFile();
+    File validFile = createWalletFile(walletDir, "good",
+        "0000000000000000000000000000000000000000000000000000000000000001");
+    String validAddress = WalletUtils.loadWalletFile(validFile).getAddress();
+
+    File corruptFile = new File(walletDir, "corrupt.json");
+    Files.write(corruptFile.toPath(), "not valid json".getBytes(StandardCharsets.UTF_8));
+
+    File result = ActiveWalletConfig.findWalletFileByAddress(walletDir, validAddress);
+    Assert.assertNotNull(result);
+    Assert.assertEquals(validFile.getName(), result.getName());
+  }
+
+  @Test
+  public void findWalletFileByNameSkipsCorruptFile() throws Exception {
+    File walletDir = Files.createTempDirectory("active-wallet-corrupt-name").toFile();
+    createWalletFile(walletDir, "good",
+        "0000000000000000000000000000000000000000000000000000000000000001");
+
+    File corruptFile = new File(walletDir, "corrupt.json");
+    Files.write(corruptFile.toPath(), "not valid json".getBytes(StandardCharsets.UTF_8));
+
+    File result = ActiveWalletConfig.findWalletFileByName(walletDir, "good");
+    Assert.assertNotNull(result);
+  }
+
+  @Test
+  public void findWalletFileByAddressReturnsNullWhenAllCorrupt() throws Exception {
+    File walletDir = Files.createTempDirectory("active-wallet-all-corrupt").toFile();
+    File corruptFile = new File(walletDir, "corrupt.json");
+    Files.write(corruptFile.toPath(), "not valid json".getBytes(StandardCharsets.UTF_8));
+
+    File result = ActiveWalletConfig.findWalletFileByAddress(walletDir, "TSomeAddress");
+    Assert.assertNull(result);
+  }
+
   private File writeConfig(String json) throws Exception {
     File dir = Files.createTempDirectory("active-wallet-config-test").toFile();
     File configFile = new File(dir, ".active-wallet");

@@ -293,6 +293,42 @@ public class StandardCliCommandRoutingTest {
   }
 
   @Test
+  public void resetWalletDryRunIncludesLedgerAndConfigFields() throws Exception {
+    String originalUserDir = System.getProperty("user.dir");
+    File tempDir = Files.createTempDirectory("reset-dryrun-scope").toFile();
+    File walletDir = new File(tempDir, "Wallet");
+    Assert.assertTrue(walletDir.mkdirs());
+    System.setProperty("user.dir", tempDir.getAbsolutePath());
+    try {
+      ActiveWalletConfig.setActiveAddress("TDryRunTestAddress");
+
+      CommandRegistry registry = new CommandRegistry();
+      WalletCommands.register(registry);
+      CommandDefinition command = registry.lookup("reset-wallet");
+      ParsedOptions opts = command.parseArgs(new String[]{});
+      ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+      OutputFormatter formatter = new OutputFormatter(
+          OutputFormatter.OutputMode.JSON, false, new PrintStream(stdout), System.err);
+
+      command.getHandler().execute(
+          org.tron.walletcli.cli.CommandContext.empty(), opts, new WalletApiWrapper(), formatter);
+      formatter.flush();
+
+      String json = stdout.toString(StandardCharsets.UTF_8.name());
+      JsonObject data = parseJson(json).getAsJsonObject("data");
+      Assert.assertEquals("dry-run", data.get("mode").getAsString());
+      Assert.assertNotNull("dry-run must include ledger_files field",
+          data.getAsJsonArray("ledger_files"));
+      Assert.assertNotNull("dry-run must include config_files field",
+          data.getAsJsonArray("config_files"));
+      // .active-wallet was created above, so config_files should list it
+      Assert.assertTrue(data.getAsJsonArray("config_files").size() > 0);
+    } finally {
+      System.setProperty("user.dir", originalUserDir);
+    }
+  }
+
+  @Test
   public void updateAccountUsesCliSafeAdapter() throws Exception {
     CommandRegistry registry = new CommandRegistry();
     TransactionCommands.register(registry);
@@ -518,37 +554,6 @@ public class StandardCliCommandRoutingTest {
     Assert.assertFalse(parseJson(json).get("success").getAsBoolean());
     Assert.assertEquals("query_failed", parseJson(json).get("error").getAsString());
     Assert.assertTrue(json.contains("estimate failed"));
-  }
-
-  @Test
-  public void switchNetworkUsesCliSafeAdapter() throws Exception {
-    CommandRegistry registry = new CommandRegistry();
-    WalletCommands.register(registry);
-    CommandDefinition command = registry.lookup("switch-network");
-    ParsedOptions opts = command.parseArgs(new String[]{"--network", "nile"});
-    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
-    OutputFormatter formatter = new OutputFormatter(
-        OutputFormatter.OutputMode.JSON, false, new PrintStream(stdout), System.err);
-
-    command.getHandler().execute(org.tron.walletcli.cli.CommandContext.empty(), opts, new WalletApiWrapper() {
-      @Override
-      public void switchNetworkForCli(String netWorkSymbol, String fullNode, String solidityNode) {
-        Assert.assertEquals("nile", netWorkSymbol);
-        Assert.assertNull(fullNode);
-        Assert.assertNull(solidityNode);
-      }
-
-      @Override
-      public boolean switchNetwork(String netWorkSymbol, String fulNode, String solidityNode) {
-        Assert.fail("legacy switchNetwork() should not be used by standard CLI");
-        return false;
-      }
-    }, formatter);
-    formatter.flush();
-
-    String json = stdout.toString(StandardCharsets.UTF_8.name());
-    Assert.assertTrue(parseJson(json).get("success").getAsBoolean());
-    Assert.assertTrue(json.contains("SwitchNetwork successful !!"));
   }
 
   @Test

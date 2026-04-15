@@ -2578,16 +2578,6 @@ public class WalletApiWrapper {
       throwCliError("execution_error", "ClearWalletKeystore failed !!", e);
       return false;
     }
-    if (deleteAll) {
-      File ledgerDir = new File(LEDGER_DIR_NAME);
-      if (ledgerDir.exists()) {
-        try {
-          FileUtils.cleanDirectory(ledgerDir);
-        } catch (IOException e) {
-          throwCliError("execution_error", "ClearWalletKeystore failed !!", e);
-        }
-      }
-    }
     return deleteAll;
   }
 
@@ -2666,27 +2656,6 @@ public class WalletApiWrapper {
     }
     System.out.println("Now, current network is : " + blueBoldHighlight(WalletApi.getCurrentNetwork().toString()));
     return true;
-  }
-
-  public void switchNetworkForCli(String netWorkSymbol, String fullNode, String solidityNode) {
-    if (StringUtils.isEmpty(netWorkSymbol) && StringUtils.isEmpty(fullNode)
-        && StringUtils.isEmpty(solidityNode)) {
-      throw new CommandErrorException("usage_error", "switch-network requires --network or custom node options");
-    }
-    try {
-      Pair<ApiClient, NetType> pair = getApiClientAndNetType(netWorkSymbol, fullNode, solidityNode);
-      WalletApi.updateRpcCli(pair.getLeft());
-      WalletApi.setCurrentNetwork(pair.getRight());
-      if (wallet != null) {
-        wallet.multiSignService = wallet.initMultiSignService();
-      }
-    } catch (CommandErrorException e) {
-      throw e;
-    } catch (IllegalArgumentException e) {
-      throw new CommandErrorException("usage_error", e.getMessage());
-    } catch (Exception e) {
-      throwCliError("execution_error", "SwitchNetwork failed !!", e);
-    }
   }
 
   private Pair<ApiClient, NetType> getApiClientAndNetType(String netWorkSymbol, String fullNode,
