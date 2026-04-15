@@ -63,6 +63,8 @@ import java.util.Base64.Encoder;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
@@ -4716,7 +4718,17 @@ public class Client {
     }
 
     if (globalOpts.isVersion()) {
-      System.out.println("wallet-cli" + VERSION);
+      String version = "wallet-cli" + VERSION;
+      if (globalOpts.getOutputMode() == OutputFormatter.OutputMode.JSON) {
+        OutputFormatter fmt = new OutputFormatter(
+            OutputFormatter.OutputMode.JSON, false, System.out, System.err);
+        Map<String, Object> data = new LinkedHashMap<String, Object>();
+        data.put("version", version);
+        fmt.success(version, data);
+        fmt.flush();
+      } else {
+        System.out.println(version);
+      }
       return 0;
     }
 

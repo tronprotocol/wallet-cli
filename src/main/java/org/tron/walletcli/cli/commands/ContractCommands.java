@@ -90,8 +90,8 @@ public class ContractCommands {
                     wrapper.deployContractForCli(owner, name, abi, codeStr,
                             feeLimit, value, consumePercent, originEnergyLimit,
                             tokenValue, tokenId, library, compilerVersion, multi);
-                    CommandSupport.emitBooleanResult(out, true,
-                            "DeployContract successful !!", "DeployContract failed !!",
+                    CommandSupport.emitSuccess(out,
+                            "DeployContract successful !!",
                             CommandSupport.lastBroadcastTxResultData());
                 })
                 .build());
@@ -140,8 +140,8 @@ public class ContractCommands {
                         out.error("execution_error", "TriggerContract failed !!");
                         return;
                     }
-                    CommandSupport.emitBooleanResult(out, true,
-                            "TriggerContract successful !!", "TriggerContract failed !!",
+                    CommandSupport.emitSuccess(out,
+                            "TriggerContract successful !!",
                             CommandSupport.lastBroadcastTxResultData());
                 })
                 .build());
@@ -254,8 +254,8 @@ public class ContractCommands {
                     byte[] contractAddress = opts.getAddress("contract");
                     boolean multi = opts.getBoolean("multi");
                     wrapper.clearContractAbiForCli(owner, contractAddress, multi);
-                    CommandSupport.emitBooleanResult(out, true,
-                            "ClearContractABI successful !!", "ClearContractABI failed !!",
+                    CommandSupport.emitSuccess(out,
+                            "ClearContractABI successful !!",
                             CommandSupport.lastBroadcastTxResultData());
                 })
                 .build());
@@ -282,8 +282,8 @@ public class ContractCommands {
                     }
                     boolean multi = opts.getBoolean("multi");
                     wrapper.updateSettingForCli(owner, contractAddress, percent, multi);
-                    CommandSupport.emitBooleanResult(out, true,
-                            "UpdateSetting successful !!", "UpdateSetting failed !!",
+                    CommandSupport.emitSuccess(out,
+                            "UpdateSetting successful !!",
                             CommandSupport.lastBroadcastTxResultData());
                 })
                 .build());
@@ -306,8 +306,8 @@ public class ContractCommands {
                     long limit = opts.getLong("origin-energy-limit");
                     boolean multi = opts.getBoolean("multi");
                     wrapper.updateEnergyLimitForCli(owner, contractAddress, limit, multi);
-                    CommandSupport.emitBooleanResult(out, true,
-                            "UpdateEnergyLimit successful !!", "UpdateEnergyLimit failed !!",
+                    CommandSupport.emitSuccess(out,
+                            "UpdateEnergyLimit successful !!",
                             CommandSupport.lastBroadcastTxResultData());
                 })
                 .build());

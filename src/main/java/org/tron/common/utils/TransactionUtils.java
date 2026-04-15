@@ -438,6 +438,10 @@ public class TransactionUtils {
       PERMISSION_ID_OVERRIDE.remove();
       return;
     }
+    if (permissionId < 0 || permissionId > 2) {
+      throw new IllegalArgumentException(
+          "permissionId must be 0 (Owner), 1 (Witness), or 2 (Active), got: " + permissionId);
+    }
     PERMISSION_ID_OVERRIDE.set(permissionId);
   }
 
@@ -454,7 +458,12 @@ public class TransactionUtils {
         return 0;
       }
       try {
-        return Integer.parseInt(str);
+        int id = Integer.parseInt(str);
+        if (id < 0 || id > 2) {
+          System.out.println("permissionId must be 0 (Owner), 1 (Witness), or 2 (Active). Please re-enter:");
+          continue;
+        }
+        return id;
       } catch (Exception e) {
         return -1;
       }

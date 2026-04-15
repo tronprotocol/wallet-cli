@@ -31,8 +31,8 @@ public class WitnessCommands {
                     String url = opts.getString("url");
                     boolean multi = opts.getBoolean("multi");
                     wrapper.createWitnessForCli(owner, url, multi);
-                    CommandSupport.emitBooleanResult(out, true,
-                            "CreateWitness successful !!", "CreateWitness failed !!",
+                    CommandSupport.emitSuccess(out,
+                            "CreateWitness successful !!",
                             CommandSupport.lastBroadcastTxResultData());
                 })
                 .build());
@@ -53,8 +53,8 @@ public class WitnessCommands {
                     String url = opts.getString("url");
                     boolean multi = opts.getBoolean("multi");
                     wrapper.updateWitnessForCli(owner, url, multi);
-                    CommandSupport.emitBooleanResult(out, true,
-                            "UpdateWitness successful !!", "UpdateWitness failed !!",
+                    CommandSupport.emitSuccess(out,
+                            "UpdateWitness successful !!",
                             CommandSupport.lastBroadcastTxResultData());
                 })
                 .build());
@@ -102,8 +102,8 @@ public class WitnessCommands {
                     } finally {
                         TransactionUtils.clearPermissionIdOverride();
                     }
-                    CommandSupport.emitBooleanResult(out, true,
-                            "VoteWitness successful !!", "VoteWitness failed !!",
+                    CommandSupport.emitSuccess(out,
+                            "VoteWitness successful !!",
                             CommandSupport.lastBroadcastTxResultData());
                 })
                 .build());
@@ -124,8 +124,8 @@ public class WitnessCommands {
                     int brokerage = opts.getInt("brokerage");
                     boolean multi = opts.getBoolean("multi");
                     wrapper.updateBrokerageForCli(owner, brokerage, multi);
-                    CommandSupport.emitBooleanResult(out, true,
-                            "UpdateBrokerage successful !!", "UpdateBrokerage failed !!",
+                    CommandSupport.emitSuccess(out,
+                            "UpdateBrokerage successful !!",
                             CommandSupport.lastBroadcastTxResultData());
                 })
                 .build());

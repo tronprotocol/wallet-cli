@@ -54,8 +54,8 @@ public class ProposalCommands {
                     }
                     boolean multi = opts.getBoolean("multi");
                     wrapper.createProposalForCli(owner, parametersMap, multi);
-                    CommandSupport.emitBooleanResult(out, true,
-                            "CreateProposal successful !!", "CreateProposal failed !!",
+                    CommandSupport.emitSuccess(out,
+                            "CreateProposal successful !!",
                             CommandSupport.lastBroadcastTxResultData());
                 })
                 .build());
@@ -78,9 +78,8 @@ public class ProposalCommands {
                     boolean approve = opts.getBoolean("approve");
                     boolean multi = opts.getBoolean("multi");
                     wrapper.approveProposalForCli(owner, id, approve, multi);
-                    CommandSupport.emitBooleanResult(out, true,
+                    CommandSupport.emitSuccess(out,
                             "ApproveProposal successful !!",
-                            "ApproveProposal failed !!",
                             CommandSupport.lastBroadcastTxResultData());
                 })
                 .build());
@@ -101,8 +100,8 @@ public class ProposalCommands {
                     long id = opts.getLong("id");
                     boolean multi = opts.getBoolean("multi");
                     wrapper.deleteProposalForCli(owner, id, multi);
-                    CommandSupport.emitBooleanResult(out, true,
-                            "DeleteProposal successful !!", "DeleteProposal failed !!",
+                    CommandSupport.emitSuccess(out,
+                            "DeleteProposal successful !!",
                             CommandSupport.lastBroadcastTxResultData());
                 })
                 .build());

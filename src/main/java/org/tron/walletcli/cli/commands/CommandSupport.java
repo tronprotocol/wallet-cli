@@ -36,6 +36,22 @@ final class CommandSupport {
         out.success(successMessage, jsonData);
     }
 
+    static void emitSuccess(OutputFormatter out, String message) {
+        out.successMessage(message);
+    }
+
+    static void emitSuccess(OutputFormatter out, String message,
+                            Map<String, Object> jsonData) {
+        if (jsonData == null || jsonData.isEmpty()) {
+            out.successMessage(message);
+            return;
+        }
+        if (!jsonData.containsKey("message")) {
+            jsonData.put("message", message);
+        }
+        out.success(message, jsonData);
+    }
+
     static Map<String, Object> lastBroadcastTxResultData() {
         Map<String, Object> data = new LinkedHashMap<String, Object>();
         String txid = org.tron.walletserver.WalletApi.consumeLastBroadcastTxId();

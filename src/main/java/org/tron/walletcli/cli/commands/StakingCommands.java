@@ -43,8 +43,8 @@ public class StakingCommands {
                     byte[] receiver = opts.has("receiver") ? opts.getAddress("receiver") : null;
                     boolean multi = opts.getBoolean("multi");
                     wrapper.freezeBalanceForCli(owner, amount, duration, resource, receiver, multi);
-                    CommandSupport.emitBooleanResult(out, true,
-                            "FreezeBalance successful !!", "FreezeBalance failed !!",
+                    CommandSupport.emitSuccess(out,
+                            "FreezeBalance successful !!",
                             CommandSupport.lastBroadcastTxResultData());
                 })
                 .build());
@@ -76,8 +76,8 @@ public class StakingCommands {
                     } finally {
                         TransactionUtils.clearPermissionIdOverride();
                     }
-                    CommandSupport.emitBooleanResult(out, true,
-                            "FreezeBalanceV2 successful !!", "FreezeBalanceV2 failed !!",
+                    CommandSupport.emitSuccess(out,
+                            "FreezeBalanceV2 successful !!",
                             CommandSupport.lastBroadcastTxResultData());
                 })
                 .build());
@@ -101,8 +101,8 @@ public class StakingCommands {
                     byte[] receiver = opts.has("receiver") ? opts.getAddress("receiver") : null;
                     boolean multi = opts.getBoolean("multi");
                     wrapper.unfreezeBalanceForCli(owner, resource, receiver, multi);
-                    CommandSupport.emitBooleanResult(out, true,
-                            "UnfreezeBalance successful !!", "UnfreezeBalance failed !!",
+                    CommandSupport.emitSuccess(out,
+                            "UnfreezeBalance successful !!",
                             CommandSupport.lastBroadcastTxResultData());
                 })
                 .build());
@@ -134,8 +134,8 @@ public class StakingCommands {
                     } finally {
                         TransactionUtils.clearPermissionIdOverride();
                     }
-                    CommandSupport.emitBooleanResult(out, true,
-                            "UnfreezeBalanceV2 successful !!", "UnfreezeBalanceV2 failed !!",
+                    CommandSupport.emitSuccess(out,
+                            "UnfreezeBalanceV2 successful !!",
                             CommandSupport.lastBroadcastTxResultData());
                 })
                 .build());
@@ -154,9 +154,8 @@ public class StakingCommands {
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     boolean multi = opts.getBoolean("multi");
                     wrapper.withdrawExpireUnfreezeForCli(owner, multi);
-                    CommandSupport.emitBooleanResult(out, true,
+                    CommandSupport.emitSuccess(out,
                             "WithdrawExpireUnfreeze successful !!",
-                            "WithdrawExpireUnfreeze failed !!",
                             CommandSupport.lastBroadcastTxResultData());
                 })
                 .build());
@@ -188,8 +187,8 @@ public class StakingCommands {
                     boolean multi = opts.getBoolean("multi");
                     wrapper.delegateResourceForCli(owner, amount, resource, receiver,
                             lock, lockPeriod, multi);
-                    CommandSupport.emitBooleanResult(out, true,
-                            "DelegateResource successful !!", "DelegateResource failed !!",
+                    CommandSupport.emitSuccess(out,
+                            "DelegateResource successful !!",
                             CommandSupport.lastBroadcastTxResultData());
                 })
                 .build());
@@ -216,9 +215,8 @@ public class StakingCommands {
                     byte[] receiver = opts.getAddress("receiver");
                     boolean multi = opts.getBoolean("multi");
                     wrapper.undelegateResourceForCli(owner, amount, resource, receiver, multi);
-                    CommandSupport.emitBooleanResult(out, true,
+                    CommandSupport.emitSuccess(out,
                             "UndelegateResource successful !!",
-                            "UndelegateResource failed !!",
                             CommandSupport.lastBroadcastTxResultData());
                 })
                 .build());
@@ -237,9 +235,8 @@ public class StakingCommands {
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     boolean multi = opts.getBoolean("multi");
                     wrapper.cancelAllUnfreezeV2ForCli(owner, multi);
-                    CommandSupport.emitBooleanResult(out, true,
+                    CommandSupport.emitSuccess(out,
                             "CancelAllUnfreezeV2 successful !!",
-                            "CancelAllUnfreezeV2 failed !!",
                             CommandSupport.lastBroadcastTxResultData());
                 })
                 .build());
@@ -258,8 +255,8 @@ public class StakingCommands {
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     boolean multi = opts.getBoolean("multi");
                     wrapper.withdrawBalanceForCli(owner, multi);
-                    CommandSupport.emitBooleanResult(out, true,
-                            "WithdrawBalance successful !!", "WithdrawBalance failed !!",
+                    CommandSupport.emitSuccess(out,
+                            "WithdrawBalance successful !!",
                             CommandSupport.lastBroadcastTxResultData());
                 })
                 .build());
@@ -278,8 +275,8 @@ public class StakingCommands {
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     boolean multi = opts.getBoolean("multi");
                     wrapper.unfreezeAssetForCli(owner, multi);
-                    CommandSupport.emitBooleanResult(out, true,
-                            "UnfreezeAsset successful !!", "UnfreezeAsset failed !!",
+                    CommandSupport.emitSuccess(out,
+                            "UnfreezeAsset successful !!",
                             CommandSupport.lastBroadcastTxResultData());
                 })
                 .build());

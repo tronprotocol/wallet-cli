@@ -59,9 +59,8 @@ public class TransactionCommands {
                     }
                     String toStr = opts.getString("to");
                     if (multi) {
-                        CommandSupport.emitBooleanResult(out, true,
+                        CommandSupport.emitSuccess(out,
                                 "create multi-sign transaction successful !!",
-                                "create multi-sign transaction failed !!",
                                 CommandSupport.lastBroadcastTxResultData());
                     } else {
                         String successMessage = "SendCoin successful !!";
@@ -99,8 +98,8 @@ public class TransactionCommands {
                     CommandSupport.requirePositive(out, "amount", amount);
                     boolean multi = opts.getBoolean("multi");
                     wrapper.transferAssetForCli(owner, to, asset, amount, multi);
-                    CommandSupport.emitBooleanResult(out, true,
-                            "TransferAsset successful !!", "TransferAsset failed !!",
+                    CommandSupport.emitSuccess(out,
+                            "TransferAsset successful !!",
                             CommandSupport.lastBroadcastTxResultData());
                 })
                 .build());
@@ -204,9 +203,8 @@ public class TransactionCommands {
                     CommandSupport.requirePositive(out, "amount", amount);
                     boolean multi = opts.getBoolean("multi");
                     wrapper.participateAssetIssueForCli(owner, to, asset, amount, multi);
-                    CommandSupport.emitBooleanResult(out, true,
+                    CommandSupport.emitSuccess(out,
                             "ParticipateAssetIssue successful !!",
-                            "ParticipateAssetIssue failed !!",
                             CommandSupport.lastBroadcastTxResultData());
                 })
                 .build());
@@ -274,8 +272,8 @@ public class TransactionCommands {
                     wrapper.assetIssueForCli(owner, name, abbr, totalSupply,
                             trxNum, icoNum, precision, startTime, endTime, 0, desc, url,
                             freeNetLimit, publicFreeNetLimit, frozenSupply, multi);
-                    CommandSupport.emitBooleanResult(out, true,
-                            "AssetIssue successful !!", "AssetIssue failed !!",
+                    CommandSupport.emitSuccess(out,
+                            "AssetIssue successful !!",
                             CommandSupport.lastBroadcastTxResultData());
                 })
                 .build());
@@ -296,8 +294,8 @@ public class TransactionCommands {
                     byte[] address = opts.getAddress("address");
                     boolean multi = opts.getBoolean("multi");
                     wrapper.createAccountForCli(owner, address, multi);
-                    CommandSupport.emitBooleanResult(out, true,
-                            "CreateAccount successful !!", "CreateAccount failed !!",
+                    CommandSupport.emitSuccess(out,
+                            "CreateAccount successful !!",
                             CommandSupport.lastBroadcastTxResultData());
                 })
                 .build());
@@ -318,8 +316,8 @@ public class TransactionCommands {
                     byte[] nameBytes = opts.getString("name").getBytes();
                     boolean multi = opts.getBoolean("multi");
                     wrapper.updateAccountForCli(owner, nameBytes, multi);
-                    CommandSupport.emitBooleanResult(out, true,
-                            "Update Account successful !!", "Update Account failed !!",
+                    CommandSupport.emitSuccess(out,
+                            "Update Account successful !!",
                             CommandSupport.lastBroadcastTxResultData());
                 })
                 .build());
@@ -338,8 +336,8 @@ public class TransactionCommands {
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     byte[] id = opts.getString("id").getBytes();
                     wrapper.setAccountIdForCli(owner, id);
-                    CommandSupport.emitBooleanResult(out, true,
-                            "Set AccountId successful !!", "Set AccountId failed !!",
+                    CommandSupport.emitSuccess(out,
+                            "Set AccountId successful !!",
                             CommandSupport.lastBroadcastTxResultData());
                 })
                 .build());
@@ -366,8 +364,8 @@ public class TransactionCommands {
                     long newPublicLimit = opts.getLong("new-public-limit");
                     boolean multi = opts.getBoolean("multi");
                     wrapper.updateAssetForCli(owner, desc, url, newLimit, newPublicLimit, multi);
-                    CommandSupport.emitBooleanResult(out, true,
-                            "UpdateAsset successful !!", "UpdateAsset failed !!",
+                    CommandSupport.emitSuccess(out,
+                            "UpdateAsset successful !!",
                             CommandSupport.lastBroadcastTxResultData());
                 })
                 .build());
@@ -406,9 +404,8 @@ public class TransactionCommands {
                     String permissions = opts.getString("permissions");
                     boolean multi = opts.getBoolean("multi");
                     wrapper.accountPermissionUpdateForCli(owner, permissions, multi);
-                    CommandSupport.emitBooleanResult(out, true,
+                    CommandSupport.emitSuccess(out,
                             "UpdateAccountPermission successful !!",
-                            "UpdateAccountPermission failed !!",
                             CommandSupport.lastBroadcastTxResultData());
                 })
                 .build());

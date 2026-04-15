@@ -62,11 +62,7 @@ public class StandardCliRunner {
 
     private int executeInternal() {
         try {
-            // Apply network setting
-            if (globalOpts.getNetwork() != null) {
-                applyNetwork(globalOpts.getNetwork());
-            }
-            applyGrpcEndpointOverride();
+            resolveConnection(globalOpts.getNetwork(), globalOpts.getGrpcEndpoint());
 
             // Lookup command
             String cmdName = globalOpts.getCommand();
@@ -97,7 +93,7 @@ public class StandardCliRunner {
                 return 2; // unreachable after usageError()
             }
 
-            CommandContext ctx = CommandContext.fromGlobalOptions(globalOpts);
+            CommandContext ctx = CommandContext.fromGlobalOptions(globalOpts, masterPasswordProvider);
 
             // Create wrapper and authenticate
             WalletApiWrapper wrapper = new WalletApiWrapper();
@@ -183,62 +179,64 @@ public class StandardCliRunner {
         }
     }
 
-    private void applyGrpcEndpointOverride() {
-        String grpcEndpoint = globalOpts.getGrpcEndpoint();
-        if (grpcEndpoint == null || grpcEndpoint.isEmpty()) {
+    private void resolveConnection(String networkFlag, String grpcEndpoint) {
+        if (networkFlag == null && grpcEndpoint == null) {
             return;
         }
 
-        // Validate before replacing — old client must survive if validation fails
-        ApiClient newClient = new ApiClient(grpcEndpoint, grpcEndpoint);
-        boolean installed = false;
-        try {
-            // Detect network from known endpoints (match both fullNode and solidityNode)
-            NetType detected = null;
-            for (NetType net : new NetType[]{NetType.MAIN, NetType.NILE, NetType.SHASTA}) {
-                if (grpcEndpoint.equals(net.getGrpc().getFullNode())
-                        || grpcEndpoint.equals(net.getGrpc().getSolidityNode())) {
-                    detected = net;
-                    break;
-                }
-            }
+        if (networkFlag != null && grpcEndpoint == null
+                && "custom".equalsIgnoreCase(networkFlag)) {
+            formatter.usageError(
+                    "--network custom requires --grpc-endpoint", null);
+        }
 
-            String networkFlag = globalOpts.getNetwork();
-            boolean hasNetworkFlag = networkFlag != null && !networkFlag.isEmpty();
+        // --network only (main/nile/shasta)
+        if (networkFlag != null && grpcEndpoint == null) {
+            NetType net = parseNetType(networkFlag);
+            String fn = net.getGrpc().getFullNode();
+            String sn = net.getGrpc().getSolidityNode();
+            WalletApi.updateRpcCli(new ApiClient(fn, sn, false, false));
+            WalletApi.setCurrentNetwork(net);
+            WalletApi.setCustomNodes(Pair.of(Pair.of(fn, false), Pair.of(sn, false)));
+            return;
+        }
 
-            if (detected != null && hasNetworkFlag) {
-                // Both provided — check consistency
-                NetType flagNet = WalletApi.getCurrentNetwork();
-                if (flagNet != detected) {
-                    formatter.usageError(
-                            "--grpc-endpoint " + grpcEndpoint + " belongs to "
-                                    + detected.name() + " but --network is " + flagNet.name(), null);
-                }
-            } else if (detected != null) {
-                // Auto-detect succeeded
-                WalletApi.setCurrentNetwork(detected);
-            } else if (hasNetworkFlag) {
-                // Unknown endpoint, trust --network flag (private node)
-                if (WalletApi.getCurrentNetwork() == NetType.CUSTOM) {
-                    WalletApi.setCustomNodes(Pair.of(
-                            Pair.of(grpcEndpoint, false),
-                            Pair.of(grpcEndpoint, false)));
-                }
-            } else {
-                // Unknown endpoint, no --network → CUSTOM
-                WalletApi.setCurrentNetwork(NetType.CUSTOM);
-                WalletApi.setCustomNodes(Pair.of(
-                        Pair.of(grpcEndpoint, false),
-                        Pair.of(grpcEndpoint, false)));
-            }
+        // --grpc-endpoint present (with or without --network)
+        NetType detected = detectNetworkFromEndpoint(grpcEndpoint);
 
-            WalletApi.updateRpcCli(newClient);
-            installed = true;
-        } finally {
-            if (!installed) {
-                newClient.close();
+        if (networkFlag != null && detected != null) {
+            NetType flagNet = parseNetType(networkFlag);
+            if (flagNet != detected) {
+                formatter.usageError(
+                        "--grpc-endpoint " + grpcEndpoint + " belongs to "
+                                + detected.name() + " but --network is " + flagNet.name(), null);
             }
         }
+
+        NetType resolved;
+        if (detected != null) {
+            resolved = detected;
+        } else if (networkFlag != null) {
+            resolved = parseNetType(networkFlag);
+        } else {
+            resolved = NetType.CUSTOM;
+        }
+
+        String solidityNode;
+        boolean emptySolidity;
+        if (resolved != NetType.CUSTOM) {
+            solidityNode = resolved.getGrpc().getSolidityNode();
+            emptySolidity = false;
+        } else {
+            solidityNode = grpcEndpoint;
+            emptySolidity = true;
+        }
+
+        WalletApi.updateRpcCli(new ApiClient(grpcEndpoint, solidityNode, false, emptySolidity));
+        WalletApi.setCurrentNetwork(resolved);
+        WalletApi.setCustomNodes(Pair.of(
+                Pair.of(grpcEndpoint, false),
+                Pair.of(solidityNode, emptySolidity)));
     }
 
     private File resolveAuthenticationWalletFile() throws Exception {
@@ -260,22 +258,27 @@ public class StandardCliRunner {
         return ActiveWalletConfig.resolveWalletOverrideStrict(walletDir, walletSelection);
     }
 
-    private void applyNetwork(String network) {
-        NetType netType;
+    private NetType parseNetType(String network) {
         switch (network.toLowerCase()) {
-            case "main":   netType = NetType.MAIN;   break;
-            case "nile":   netType = NetType.NILE;   break;
-            case "shasta": netType = NetType.SHASTA; break;
-            case "custom": netType = NetType.CUSTOM; break;
+            case "main":   return NetType.MAIN;
+            case "nile":   return NetType.NILE;
+            case "shasta": return NetType.SHASTA;
+            case "custom": return NetType.CUSTOM;
             default:
                 formatter.usageError("Unknown network: " + network
                         + ". Use: main, nile, shasta, custom", null);
-                return;
+                return null; // unreachable after usageError()
         }
-        // initApiCli() reads config.conf and may overwrite currentNetwork as a side effect.
-        // Set the user's explicit --network choice AFTER init so it takes precedence.
-        WalletApi.updateRpcCli(WalletApi.initApiCli());
-        WalletApi.setCurrentNetwork(netType);
+    }
+
+    private static NetType detectNetworkFromEndpoint(String endpoint) {
+        for (NetType net : new NetType[]{NetType.MAIN, NetType.NILE, NetType.SHASTA}) {
+            if (endpoint.equals(net.getGrpc().getFullNode())
+                    || endpoint.equals(net.getGrpc().getSolidityNode())) {
+                return net;
+            }
+        }
+        return null;
     }
 
     private static boolean hasStandaloneCommandHelpToken(CommandDefinition cmd, String[] cmdArgs) {

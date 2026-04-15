@@ -44,7 +44,7 @@ public class WalletCommands {
                 .option("words", "Mnemonic word count (12 or 24, default: 12)", false, OptionDef.Type.LONG)
                 .handler((ctx, opts, wrapper, out) -> {
                     int wordCount = opts.has("words") ? opts.getInt("words") : 12;
-                    String envPassword = System.getenv("MASTER_PASSWORD");
+                    String envPassword = ctx.getMasterPassword();
                     if (envPassword == null || envPassword.isEmpty()) {
                         out.error("missing_env",
                                 "Set MASTER_PASSWORD environment variable for non-interactive wallet creation");
@@ -241,9 +241,8 @@ public class WalletCommands {
                     if (clearActive) {
                         ActiveWalletConfig.clear();
                     }
-                    CommandSupport.emitBooleanResult(out, true,
-                            "ClearWalletKeystore successful !!",
-                            "ClearWalletKeystore failed !!");
+                    CommandSupport.emitSuccess(out,
+                            "ClearWalletKeystore successful !!");
                 })
                 .build());
     }
@@ -302,8 +301,8 @@ public class WalletCommands {
                     }
                     wrapper.resetWalletForCli(true);
                     ActiveWalletConfig.clear();
-                    CommandSupport.emitBooleanResult(out, true,
-                            "ResetWallet successful !!", "ResetWallet failed !!");
+                    CommandSupport.emitSuccess(out,
+                            "ResetWallet successful !!");
                 })
                 .build());
     }
@@ -318,9 +317,8 @@ public class WalletCommands {
                 .handler((ctx, opts, wrapper, out) -> {
 
                     wrapper.modifyWalletNameForCli(opts.getString("name"));
-                    CommandSupport.emitBooleanResult(out, true,
-                            "ModifyWalletName successful !!",
-                            "ModifyWalletName failed !!");
+                    CommandSupport.emitSuccess(out,
+                            "ModifyWalletName successful !!");
                 })
                 .build());
     }

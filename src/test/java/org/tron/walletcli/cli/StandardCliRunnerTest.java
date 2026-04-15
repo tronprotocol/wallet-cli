@@ -573,21 +573,17 @@ public class StandardCliRunnerTest {
     try {
       System.setProperty("user.dir", tempDir.getAbsolutePath());
       // Use Nile fullnode endpoint but claim --network main → consistency mismatch.
-      // applyNetwork("main") runs first and replaces the original client,
-      // then applyGrpcEndpointOverride should fail WITHOUT replacing that client.
+      // The mismatch is detected before any client is created, so the original
+      // default client survives unchanged.
       String nileFullNode = NetType.NILE.getGrpc().getFullNode();
       GlobalOptions opts = GlobalOptions.parse(
           new String[]{"--network", "main", "--grpc-endpoint", nileFullNode, "ok"});
       int exitCode = new StandardCliRunner(registry, opts).execute();
 
       Assert.assertEquals(2, exitCode);
-      // The client in place should be the one from applyNetwork("main"), not the
-      // Nile-endpoint client from the failed grpc override.  We can't get a direct
-      // reference to the applyNetwork client, but we can verify it wasn't replaced
-      // by the override's new client (which would target the Nile endpoint).
+      // No client replacement should have occurred — the mismatch fails early.
       ApiClient surviving = WalletApi.getApiCli();
-      Assert.assertNotNull(surviving);
-      Assert.assertNotSame("grpc-override client should not have been installed",
+      Assert.assertSame("original client should survive a mismatch failure",
           originalApiCli, surviving);
     } finally {
       WalletApi.setApiCli(originalApiCli);

@@ -3716,6 +3716,7 @@ public class WalletApi {
     byte[] bytes = isUnifiedExist() ? getUnifiedPassword() : getPwdForDeploy();
     byte[] rawKey = credentials == null ? decrypt2PrivateBytes(bytes, getWalletFile()) : credentials.getPair().getPrivateKey();
     byte[] privateKeyBytes = Arrays.copyOf(rawKey, rawKey.length);
+    Arrays.fill(rawKey, (byte) 0);
     String privateKey = ByteArray.toHexString(privateKeyBytes);
     Arrays.fill(privateKeyBytes, (byte) 0);
     if (netType == CUSTOM) {
@@ -3796,6 +3797,7 @@ public class WalletApi {
         ? decrypt2PrivateBytes(bytes, getWalletFile())
         : credentials.getPair().getPrivateKey();
     byte[] privateKeyBytes = Arrays.copyOf(rawKey, rawKey.length);
+    Arrays.fill(rawKey, (byte) 0);
     String privateKey = ByteArray.toHexString(privateKeyBytes);
     Arrays.fill(privateKeyBytes, (byte) 0);
     if (netType == CUSTOM) {
@@ -3957,9 +3959,11 @@ public class WalletApi {
     }
     if (multi) {
       if (!DecodeUtil.addressValid(owner)) {
+        recordLastCliOperationError("Invalid owner address for multi-sign trigger");
         return Triple.of(false, 0L, 0L);
       }
       if (!isControlledForCli(owner)) {
+        recordLastCliOperationError("Owner address is not controlled by this wallet");
         return Triple.of(false, 0L, 0L);
       }
     }
@@ -3973,6 +3977,11 @@ public class WalletApi {
     }
 
     if (transactionExtention == null || !transactionExtention.getResult().getResult()) {
+      if (transactionExtention == null) {
+        recordLastCliOperationError("TriggerContract request returned null");
+      } else {
+        recordLastCliOperationError(extractTransactionReturnMessage(transactionExtention.getResult()));
+      }
       return Triple.of(false, 0L, 0L);
     }
 
