@@ -53,7 +53,7 @@ public class CommandRegistry {
 
     public String formatGlobalHelp(String version) {
         StringBuilder sb = new StringBuilder();
-        sb.append("TRON Wallet CLI").append(version).append("\n\n");
+        sb.append("TRON Wallet CLI ").append(version).append("\n\n");
         sb.append("Usage:\n");
         sb.append("  wallet-cli [global options] <command> [command options]\n");
         sb.append("  wallet-cli --interactive    Launch interactive REPL\n");

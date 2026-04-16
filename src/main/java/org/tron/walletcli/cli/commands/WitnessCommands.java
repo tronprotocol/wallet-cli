@@ -122,6 +122,10 @@ public class WitnessCommands {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     int brokerage = opts.getInt("brokerage");
+                    if (brokerage < 0 || brokerage > 100) {
+                        out.usageError("brokerage must be between 0 and 100, got: " + brokerage, null);
+                        return;
+                    }
                     boolean multi = opts.getBoolean("multi");
                     wrapper.updateBrokerageForCli(owner, brokerage, multi);
                     CommandSupport.emitSuccess(out,

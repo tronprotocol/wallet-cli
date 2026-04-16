@@ -60,6 +60,7 @@ public class ExchangeCommands {
                     long exchangeId = opts.getLong("exchange-id");
                     byte[] tokenId = opts.getString("token-id").getBytes();
                     long quant = opts.getLong("quant");
+                    CommandSupport.requirePositive(out, "quant", quant);
                     boolean multi = opts.getBoolean("multi");
                     wrapper.exchangeInjectForCli(owner, exchangeId, tokenId, quant, multi);
                     CommandSupport.emitSuccess(out,
@@ -86,6 +87,7 @@ public class ExchangeCommands {
                     long exchangeId = opts.getLong("exchange-id");
                     byte[] tokenId = opts.getString("token-id").getBytes();
                     long quant = opts.getLong("quant");
+                    CommandSupport.requirePositive(out, "quant", quant);
                     boolean multi = opts.getBoolean("multi");
                     wrapper.exchangeWithdrawForCli(owner, exchangeId, tokenId, quant, multi);
                     CommandSupport.emitSuccess(out,
@@ -112,8 +114,10 @@ public class ExchangeCommands {
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     byte[] sellToken = opts.getString("sell-token").getBytes();
                     long sellQuantity = opts.getLong("sell-quantity");
+                    CommandSupport.requirePositive(out, "sell-quantity", sellQuantity);
                     byte[] buyToken = opts.getString("buy-token").getBytes();
                     long buyQuantity = opts.getLong("buy-quantity");
+                    CommandSupport.requirePositive(out, "buy-quantity", buyQuantity);
                     boolean multi = opts.getBoolean("multi");
                     wrapper.marketSellAssetForCli(owner, sellToken, sellQuantity,
                             buyToken, buyQuantity, multi);

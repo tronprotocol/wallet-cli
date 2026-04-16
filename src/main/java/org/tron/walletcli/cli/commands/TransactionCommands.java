@@ -63,16 +63,10 @@ public class TransactionCommands {
                                 "create multi-sign transaction successful !!",
                                 CommandSupport.lastBroadcastTxResultData());
                     } else {
-                        String successMessage = "SendCoin successful !!";
-                        Map<String, Object> json = new LinkedHashMap<String, Object>();
-                        json.put("message", successMessage);
+                        Map<String, Object> json = CommandSupport.lastBroadcastTxResultData();
                         json.put("to", toStr);
                         json.put("amount", amount);
-                        String txid = WalletApi.consumeLastBroadcastTxId();
-                        if (txid != null && !txid.isEmpty()) {
-                            json.put("txid", txid);
-                        }
-                        out.success(successMessage, json);
+                        CommandSupport.emitSuccess(out, "SendCoin successful !!", json);
                     }
                 })
                 .build());
@@ -152,11 +146,17 @@ public class TransactionCommands {
                     }
                     long energyUsed = estimate.getMiddle();
                     // Get energy price from chain parameters and add 20% buffer
-                    long energyFee = wrapper.getChainParametersForCli().getChainParameterList().stream()
+                    java.util.OptionalLong energyFeeOpt = wrapper.getChainParametersForCli()
+                            .getChainParameterList().stream()
                             .filter(p -> "getEnergyFee".equals(p.getKey()))
                             .mapToLong(org.tron.trident.proto.Response.ChainParameters.ChainParameter::getValue)
-                            .findFirst()
-                            .orElse(420L);
+                            .findFirst();
+                    if (!energyFeeOpt.isPresent()) {
+                        out.error("chain_parameter_error",
+                                "Unable to determine energy price from chain parameters.");
+                        return;
+                    }
+                    long energyFee = energyFeeOpt.getAsLong();
                     long feeLimit;
                     try {
                         feeLimit = WalletApiWrapper.computeBufferedFeeLimit(energyFee, energyUsed);
