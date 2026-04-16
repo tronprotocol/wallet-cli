@@ -849,6 +849,40 @@ public class StandardCliRunnerTest {
   }
 
   @Test
+  public void listWalletReturnsSuccessForEmptyWalletDirectory() throws Exception {
+    String originalUserDir = System.getProperty("user.dir");
+    PrintStream originalOut = System.out;
+    PrintStream originalErr = System.err;
+    File tempDir = Files.createTempDirectory("runner-list-wallet-empty").toFile();
+    File walletDir = new File(tempDir, "Wallet");
+    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+    ByteArrayOutputStream stderr = new ByteArrayOutputStream();
+
+    Assert.assertTrue(walletDir.mkdirs());
+
+    CommandRegistry registry = new CommandRegistry();
+    WalletCommands.register(registry);
+
+    System.setProperty("user.dir", tempDir.getAbsolutePath());
+    System.setOut(new PrintStream(stdout));
+    System.setErr(new PrintStream(stderr));
+    try {
+      GlobalOptions opts = GlobalOptions.parse(new String[]{"--output", "json", "list-wallet"});
+      int exitCode = new StandardCliRunner(registry, opts).execute();
+
+      Assert.assertEquals(0, exitCode);
+      String json = stdout.toString("UTF-8");
+      Assert.assertTrue(json.contains("\"success\": true"));
+      Assert.assertTrue(json.contains("[]"));
+      Assert.assertEquals("", stderr.toString("UTF-8"));
+    } finally {
+      System.setOut(originalOut);
+      System.setErr(originalErr);
+      System.setProperty("user.dir", originalUserDir);
+    }
+  }
+
+  @Test
   public void listWalletIgnoresMalformedActiveWalletConfig() throws Exception {
     String originalUserDir = System.getProperty("user.dir");
     PrintStream originalOut = System.out;

@@ -54,7 +54,7 @@ public class ContractCommands {
                     long consumePercent = opts.has("consume-user-resource-percent")
                             ? opts.getLong("consume-user-resource-percent") : 0;
                     long originEnergyLimit = opts.has("origin-energy-limit")
-                            ? opts.getLong("origin-energy-limit") : 1;
+                            ? opts.getLong("origin-energy-limit") : 10_000_000;
                     long tokenValue = opts.has("token-value") ? opts.getLong("token-value") : 0;
                     String tokenId = opts.has("token-id") ? opts.getString("token-id") : "";
                     if ("#".equals(tokenId)) {

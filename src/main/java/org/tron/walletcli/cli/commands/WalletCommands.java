@@ -13,6 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -77,12 +78,12 @@ public class WalletCommands {
                 .handler((ctx, opts, wrapper, out) -> {
                     File dir = ActiveWalletConfig.getWalletDir();
                     if (!dir.exists() || !dir.isDirectory()) {
-                        out.error("no_wallets", "No wallet directory found");
+                        out.success("No wallets found.", Collections.emptyList());
                         return;
                     }
                     File[] files = dir.listFiles((d, name) -> name.endsWith(".json"));
                     if (files == null || files.length == 0) {
-                        out.error("no_wallets", "No wallet files found");
+                        out.success("No wallets found.", Collections.emptyList());
                         return;
                     }
 
