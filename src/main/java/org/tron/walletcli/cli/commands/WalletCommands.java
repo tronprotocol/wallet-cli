@@ -245,7 +245,9 @@ public class WalletCommands {
                     boolean clearActive = shouldClearActiveWalletForDeletedTarget(targetWalletFile);
                     wrapper.clearWalletKeystoreForCli(force, targetWalletFile);
                     if (clearActive) {
-                        ActiveWalletConfig.clear();
+                        if (!ActiveWalletConfig.clear()) {
+                            out.info("Warning: Failed to delete active wallet config");
+                        }
                     }
                     CommandSupport.emitSuccess(out,
                             "ClearWalletKeystore successful !!");
@@ -306,7 +308,9 @@ public class WalletCommands {
                         return;
                     }
                     wrapper.resetWalletForCli(true);
-                    ActiveWalletConfig.clear();
+                    if (!ActiveWalletConfig.clear()) {
+                        out.info("Warning: Failed to delete active wallet config");
+                    }
                     CommandSupport.emitSuccess(out,
                             "ResetWallet successful !!");
                 })

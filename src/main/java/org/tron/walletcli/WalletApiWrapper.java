@@ -3133,12 +3133,11 @@ public class WalletApiWrapper {
           return false;
         }
         if (StringUtils.isNotEmpty(result)) {
-          Object o = JSON.parse(result);
-          JSONObject root = (JSONObject) o;
+          JSONObject root = JSON.parseObject(result);
           int respCode = root.getIntValue("code");
           boolean success = HTTP_OK == respCode;
           if (!standardCli) {
-            System.out.println("GasFreeTransfer result: \n" + JSON.toJSONString(o, true));
+            System.out.println("GasFreeTransfer result: \n" + JSON.toJSONString(root, true));
           }
           if (success) {
             TxHistoryManager txHistoryManager = new TxHistoryManager(encode58Check(wallet.getAddress()));
@@ -3188,9 +3187,8 @@ public class WalletApiWrapper {
     }
     String result = GasFreeApi.gasFreeTrace(WalletApi.getCurrentNetwork(), traceId);
     if (StringUtils.isNotEmpty(result)) {
-      Object o = JSON.parse(result);
-      System.out.println("GasFreeTrace result: \n" + JSON.toJSONString(o, true));
-      JSONObject root = (JSONObject) o;
+      JSONObject root = JSON.parseObject(result);
+      System.out.println("GasFreeTrace result: \n" + JSON.toJSONString(root, true));
       int respCode = root.getIntValue("code");
       if (HTTP_OK == respCode) {
         if (Objects.isNull(root.get("data"))) {

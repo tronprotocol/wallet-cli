@@ -151,8 +151,17 @@ shadowJar {
     mergeServiceFiles() //  https://github.com/grpc/grpc-java/issues/10853
 }
 
+task qaJar(type: Jar, dependsOn: [shadowJar, testClasses]) {
+    from zipTree(shadowJar.archiveFile)
+    from sourceSets.test.output
+    archiveBaseName.set('wallet-cli-qa')
+    archiveClassifier.set('')
+    archiveVersion.set('')
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
 task qaRun(type: JavaExec) {
-    classpath = sourceSets.main.runtimeClasspath
+    classpath = sourceSets.test.runtimeClasspath
     mainClass = 'org.tron.qa.QARunner'
     args = project.hasProperty('qaArgs') ? project.property('qaArgs').split(' ') : ['list']
     standardInput = System.in

@@ -7,11 +7,9 @@ import org.tron.keystore.WalletFile;
 import org.tron.keystore.WalletUtils;
 import org.tron.walletserver.WalletApi;
 
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.Arrays;
@@ -67,41 +65,37 @@ public class ActiveWalletConfigTest {
   }
 
   @Test
-  public void clearWarnsWhenDeleteFails() throws Exception {
-    PrintStream originalErr = System.err;
+  public void clearConfigFileReturnsFalseWhenDeleteFails() throws Exception {
     File tempDir = Files.createTempDirectory("active-wallet-clear-test").toFile();
     File configDir = new File(tempDir, ".active-wallet");
     File nestedFile = new File(configDir, "stale");
-    ByteArrayOutputStream errBuffer = new ByteArrayOutputStream();
 
     Assert.assertTrue(configDir.mkdirs());
     Assert.assertTrue(nestedFile.createNewFile());
 
-    System.setErr(new PrintStream(errBuffer));
     try {
-      ActiveWalletConfig.clearConfigFile(configDir);
+      boolean result = ActiveWalletConfig.clearConfigFile(configDir);
+      Assert.assertFalse("expected clearConfigFile to return false when delete fails", result);
     } finally {
-      System.setErr(originalErr);
       nestedFile.delete();
       configDir.delete();
       tempDir.delete();
     }
-
-    String warning = errBuffer.toString("UTF-8");
-    Assert.assertTrue(warning.contains("Warning: Failed to delete active wallet config"));
-    Assert.assertTrue(warning.contains(".active-wallet"));
   }
 
   @Test
-  public void resolveWalletOverrideStrictAllowsExplicitPathWithoutWalletDirectory() throws Exception {
+  public void resolveWalletOverrideStrictRejectsAbsolutePath() throws Exception {
     File tempDir = Files.createTempDirectory("active-wallet-explicit").toFile();
     File walletFile = createWalletFile(tempDir, "alpha",
         "0000000000000000000000000000000000000000000000000000000000000001");
     File missingWalletDir = new File(tempDir, "MissingWallet");
 
-    Assert.assertEquals(walletFile.getAbsolutePath(),
-        ActiveWalletConfig.resolveWalletOverrideStrict(missingWalletDir, walletFile.getAbsolutePath())
-            .getAbsolutePath());
+    try {
+      ActiveWalletConfig.resolveWalletOverrideStrict(missingWalletDir, walletFile.getAbsolutePath());
+      Assert.fail("Expected IOException for absolute path");
+    } catch (IOException e) {
+      Assert.assertTrue(e.getMessage().contains("Wallet file not found"));
+    }
   }
 
   @Test

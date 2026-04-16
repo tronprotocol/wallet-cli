@@ -78,8 +78,8 @@ public class ActiveWalletConfig {
     /**
      * Clear the active wallet config.
      */
-    public static void clear() {
-        clearConfigFile(new File(getWalletDir(), CONFIG_FILE));
+    public static boolean clear() {
+        return clearConfigFile(new File(getWalletDir(), CONFIG_FILE));
     }
 
     /**
@@ -107,8 +107,7 @@ public class ActiveWalletConfig {
                 }
             } catch (Exception e) {
                 // Broad catch: Gson/BouncyCastle throw assorted unchecked exceptions for malformed content
-                System.err.println("Warning: skipping unreadable keystore: "
-                        + f.getName() + " (" + e.getMessage() + ")");
+                // Silently skip — callers get a clear error from strict resolution if wallet not found
             }
         }
         return null;
@@ -146,8 +145,7 @@ public class ActiveWalletConfig {
                 }
             } catch (Exception e) {
                 // Broad catch: Gson/BouncyCastle throw assorted unchecked exceptions for malformed content
-                System.err.println("Warning: skipping unreadable keystore: "
-                        + f.getName() + " (" + e.getMessage() + ")");
+                // Silently skip — callers get a clear error from strict resolution if wallet not found
             }
         }
         if (count > 1) {
@@ -166,15 +164,9 @@ public class ActiveWalletConfig {
             throw new IOException("Wallet selection must not be empty");
         }
 
-        File explicitPath = new File(walletSelection);
-        if (explicitPath.isFile()) {
-            return explicitPath;
-        }
-
-        // If input looks like a filesystem path, it was an explicit path attempt —
-        // fail immediately instead of falling through to Wallet/ directory lookup.
-        // (Contract 3: --wallet Override Rules)
-        boolean looksLikePath = explicitPath.isAbsolute()
+        // Guard: reject anything that looks like a filesystem path to prevent
+        // path traversal — must run BEFORE any file-existence check.
+        boolean looksLikePath = new File(walletSelection).isAbsolute()
                 || walletSelection.contains("/")
                 || walletSelection.contains("\\")
                 || walletSelection.startsWith("./")
@@ -246,10 +238,10 @@ public class ActiveWalletConfig {
         }
     }
 
-    static void clearConfigFile(File configFile) {
+    static boolean clearConfigFile(File configFile) {
         if (configFile.exists() && !configFile.delete()) {
-            System.err.println("Warning: Failed to delete active wallet config: "
-                    + configFile.getPath());
+            return false;
         }
+        return true;
     }
 }

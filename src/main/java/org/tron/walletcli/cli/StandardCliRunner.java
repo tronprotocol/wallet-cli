@@ -12,8 +12,6 @@ import org.apache.commons.lang3.tuple.Pair;
 import java.io.File;
 import java.io.PrintStream;
 import java.util.Arrays;
-import java.util.LinkedHashMap;
-import java.util.Map;
 
 public class StandardCliRunner {
 
@@ -79,7 +77,7 @@ public class StandardCliRunner {
 
             // Check for per-command --help
             String[] cmdArgs = globalOpts.getCommandArgs();
-            if (hasStandaloneCommandHelpToken(cmd, cmdArgs)) {
+            if (hasStandaloneCommandHelpToken(cmdArgs)) {
                 formatter.help(cmd.formatHelp());
                 formatter.flush();
                 return 0;
@@ -276,37 +274,12 @@ public class StandardCliRunner {
         return null;
     }
 
-    private static boolean hasStandaloneCommandHelpToken(CommandDefinition cmd, String[] cmdArgs) {
-        Map<String, OptionDef> optionsByName = new LinkedHashMap<String, OptionDef>();
-        for (OptionDef option : cmd.getOptions()) {
-            optionsByName.put(option.getName(), option);
-        }
-
-        for (int i = 0; i < cmdArgs.length; i++) {
-            String token = cmdArgs[i];
+    private static boolean hasStandaloneCommandHelpToken(String[] cmdArgs) {
+        for (String token : cmdArgs) {
             if ("--help".equals(token) || "-h".equals(token)) {
                 return true;
             }
-
-            if ("-m".equals(token)) {
-                continue;
-            }
-
-            if (!token.startsWith("--")) {
-                continue;
-            }
-
-            String optionName = parseLongOptionName(token);
-            OptionDef option = optionsByName.get(optionName);
-            if (option != null && option.getType() != OptionDef.Type.BOOLEAN && !token.contains("=")) {
-                i++;
-            }
         }
         return false;
-    }
-
-    private static String parseLongOptionName(String token) {
-        int equalsIndex = token.indexOf('=');
-        return equalsIndex >= 0 ? token.substring(2, equalsIndex) : token.substring(2);
     }
 }

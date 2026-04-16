@@ -35,6 +35,7 @@ import com.alibaba.fastjson.JSONObject;
 import com.google.common.math.LongMath;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -1646,7 +1647,7 @@ public class WalletApi {
 
   private static String extractTransactionReturnMessage(Response.TransactionReturn ret) {
     if (ret == null) {
-      return null;
+      return "Transaction rejected by node (no details available)";
     }
     String message = ret.getMessage().toStringUtf8();
     if (StringUtils.isNotBlank(message)) {
@@ -1655,7 +1656,10 @@ public class WalletApi {
       }
       return ret.getCode() + ", " + message;
     }
-    return ret.getCode() == null ? null : ret.getCode().name();
+    if (ret.getCode() != null) {
+      return ret.getCode().name();
+    }
+    return "Transaction rejected by node (no details available)";
   }
 
   public boolean createAssetIssue(byte[] ownerAddress, String name, String abbrName,
@@ -4354,11 +4358,40 @@ public class WalletApi {
     return permissionBuilder.build();
   }
 
+  static String sanitizePermissionJson(String permissionJson) {
+    JsonElement parsed;
+    try {
+      parsed = JsonParser.parseString(permissionJson);
+    } catch (Exception e) {
+      throw new IllegalArgumentException("Invalid permissions JSON: " + e.getMessage());
+    }
+    if (!parsed.isJsonObject()) {
+      throw new IllegalArgumentException("Permissions JSON must be an object");
+    }
+    stripAutoType(parsed);
+    return parsed.toString();
+  }
+
+  private static void stripAutoType(JsonElement element) {
+    if (element.isJsonObject()) {
+      JsonObject obj = element.getAsJsonObject();
+      obj.remove("@type");
+      for (Map.Entry<String, JsonElement> entry : obj.entrySet()) {
+        stripAutoType(entry.getValue());
+      }
+    } else if (element.isJsonArray()) {
+      for (JsonElement item : element.getAsJsonArray()) {
+        stripAutoType(item);
+      }
+    }
+  }
+
   public Contract.AccountPermissionUpdateContract createAccountPermissionContract(byte[] owner,
                                                                                   String permissionJson) {
     Contract.AccountPermissionUpdateContract.Builder builder = Contract.AccountPermissionUpdateContract.newBuilder();
 
-    JSONObject permissions = JSON.parseObject(permissionJson);
+    String sanitizedJson = sanitizePermissionJson(permissionJson);
+    JSONObject permissions = JSON.parseObject(sanitizedJson);
     JSONObject op = permissions.getJSONObject("owner_permission");
     JSONObject wp = permissions.getJSONObject("witness_permission");
     JSONArray ap = permissions.getJSONArray("active_permissions");

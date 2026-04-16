@@ -819,6 +819,299 @@ public class StandardCliCommandRoutingTest {
     }
   }
 
+  // ── M1: update-energy-limit rejects zero origin-energy-limit ────────────────
+
+  @Test
+  public void updateEnergyLimitRejectsZeroOriginEnergyLimit() throws Exception {
+    CommandRegistry registry = new CommandRegistry();
+    ContractCommands.register(registry);
+    CommandDefinition command = registry.lookup("update-energy-limit");
+    ParsedOptions opts = command.parseArgs(new String[]{
+        "--contract", "TNPeeaaFB7K9cmo4uQpcU32zGK8G1NYqeL",
+        "--origin-energy-limit", "0"
+    });
+    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+    OutputFormatter formatter = new OutputFormatter(
+        OutputFormatter.OutputMode.JSON, false, new PrintStream(stdout), System.err);
+
+    try {
+      command.getHandler().execute(org.tron.walletcli.cli.CommandContext.empty(), opts,
+          new WalletApiWrapper() {
+            @Override
+            public void updateEnergyLimitForCli(byte[] ownerAddress, byte[] contractAddress,
+                long originEnergyLimit, boolean multi) {
+              Assert.fail("updateEnergyLimitForCli should not run for invalid usage");
+            }
+          }, formatter);
+      Assert.fail("Expected usage failure");
+    } catch (RuntimeException e) {
+      Assert.assertTrue(formatter.hasOutcome());
+    }
+    formatter.flush();
+
+    String json = stdout.toString(StandardCharsets.UTF_8.name());
+    Assert.assertFalse(parseJson(json).get("success").getAsBoolean());
+    Assert.assertEquals("usage_error", parseJson(json).get("error").getAsString());
+    Assert.assertTrue(json.contains("origin-energy-limit must be a positive integer"));
+  }
+
+  // ── M2a: deploy-contract rejects negative value ──────────────────────────
+
+  @Test
+  public void deployContractRejectsNegativeValue() throws Exception {
+    CommandRegistry registry = new CommandRegistry();
+    ContractCommands.register(registry);
+    CommandDefinition command = registry.lookup("deploy-contract");
+    ParsedOptions opts = command.parseArgs(new String[]{
+        "--name", "TestContract",
+        "--abi", "[]",
+        "--bytecode", "6080",
+        "--fee-limit", "1000000",
+        "--value", "-1"
+    });
+    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+    OutputFormatter formatter = new OutputFormatter(
+        OutputFormatter.OutputMode.JSON, false, new PrintStream(stdout), System.err);
+
+    try {
+      command.getHandler().execute(org.tron.walletcli.cli.CommandContext.empty(), opts,
+          new WalletApiWrapper() {
+            @Override
+            public void deployContractForCli(byte[] ownerAddress, String name, String abiStr,
+                String codeStr, long feeLimit, long value, long consumeUserResourcePercent,
+                long originEnergyLimit, long tokenValue, String tokenId,
+                String libraryAddressPair, String compilerVersion, boolean multi) {
+              Assert.fail("deployContractForCli should not run for invalid usage");
+            }
+          }, formatter);
+      Assert.fail("Expected usage failure");
+    } catch (RuntimeException e) {
+      Assert.assertTrue(formatter.hasOutcome());
+    }
+    formatter.flush();
+
+    String json = stdout.toString(StandardCharsets.UTF_8.name());
+    Assert.assertFalse(parseJson(json).get("success").getAsBoolean());
+    Assert.assertEquals("usage_error", parseJson(json).get("error").getAsString());
+    Assert.assertTrue(json.contains("value must not be negative"));
+  }
+
+  // ── M2b: trigger-contract rejects negative token-value ───────────────────
+
+  @Test
+  public void triggerContractRejectsNegativeTokenValue() throws Exception {
+    CommandRegistry registry = new CommandRegistry();
+    ContractCommands.register(registry);
+    CommandDefinition command = registry.lookup("trigger-contract");
+    ParsedOptions opts = command.parseArgs(new String[]{
+        "--contract", "TNPeeaaFB7K9cmo4uQpcU32zGK8G1NYqeL",
+        "--method", "transfer(address,uint256)",
+        "--fee-limit", "1000000",
+        "--token-value", "-1"
+    });
+    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+    OutputFormatter formatter = new OutputFormatter(
+        OutputFormatter.OutputMode.JSON, false, new PrintStream(stdout), System.err);
+
+    try {
+      command.getHandler().execute(org.tron.walletcli.cli.CommandContext.empty(), opts,
+          new WalletApiWrapper() {
+            @Override
+            public Triple<Boolean, Long, Long> callContractForCli(
+                byte[] ownerAddress, byte[] contractAddress, long callValue, byte[] data,
+                long feeLimit, long tokenValue, String tokenId,
+                boolean isConstant, boolean display, boolean multi) {
+              Assert.fail("callContractForCli should not run for invalid usage");
+              return Triple.of(false, 0L, 0L);
+            }
+          }, formatter);
+      Assert.fail("Expected usage failure");
+    } catch (RuntimeException e) {
+      Assert.assertTrue(formatter.hasOutcome());
+    }
+    formatter.flush();
+
+    String json = stdout.toString(StandardCharsets.UTF_8.name());
+    Assert.assertFalse(parseJson(json).get("success").getAsBoolean());
+    Assert.assertEquals("usage_error", parseJson(json).get("error").getAsString());
+    Assert.assertTrue(json.contains("token-value must not be negative"));
+  }
+
+  // ── M3: freeze-balance rejects zero duration ─────────────────────────────
+
+  @Test
+  public void freezeBalanceRejectsZeroDuration() throws Exception {
+    CommandRegistry registry = new CommandRegistry();
+    StakingCommands.register(registry);
+    CommandDefinition command = registry.lookup("freeze-balance");
+    ParsedOptions opts = command.parseArgs(new String[]{
+        "--amount", "1000000",
+        "--duration", "0"
+    });
+    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+    OutputFormatter formatter = new OutputFormatter(
+        OutputFormatter.OutputMode.JSON, false, new PrintStream(stdout), System.err);
+
+    try {
+      command.getHandler().execute(org.tron.walletcli.cli.CommandContext.empty(), opts,
+          new WalletApiWrapper() {
+            @Override
+            public void freezeBalanceForCli(byte[] ownerAddress, long frozenBalance,
+                long frozenDuration, int resourceCode, byte[] receiverAddress, boolean multi) {
+              Assert.fail("freezeBalanceForCli should not run for invalid usage");
+            }
+          }, formatter);
+      Assert.fail("Expected usage failure");
+    } catch (RuntimeException e) {
+      Assert.assertTrue(formatter.hasOutcome());
+    }
+    formatter.flush();
+
+    String json = stdout.toString(StandardCharsets.UTF_8.name());
+    Assert.assertFalse(parseJson(json).get("success").getAsBoolean());
+    Assert.assertEquals("usage_error", parseJson(json).get("error").getAsString());
+    Assert.assertTrue(json.contains("duration must be a positive integer"));
+  }
+
+  // ── M4: delegate-resource rejects negative lock-period ───────────────────
+
+  @Test
+  public void delegateResourceRejectsNegativeLockPeriod() throws Exception {
+    CommandRegistry registry = new CommandRegistry();
+    StakingCommands.register(registry);
+    CommandDefinition command = registry.lookup("delegate-resource");
+    ParsedOptions opts = command.parseArgs(new String[]{
+        "--amount", "1000000",
+        "--resource", "0",
+        "--receiver", "TNPeeaaFB7K9cmo4uQpcU32zGK8G1NYqeL",
+        "--lock-period", "-1"
+    });
+    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+    OutputFormatter formatter = new OutputFormatter(
+        OutputFormatter.OutputMode.JSON, false, new PrintStream(stdout), System.err);
+
+    try {
+      command.getHandler().execute(org.tron.walletcli.cli.CommandContext.empty(), opts,
+          new WalletApiWrapper() {
+            @Override
+            public void delegateResourceForCli(byte[] ownerAddress, long amount,
+                int resourceCode, byte[] receiverAddress,
+                boolean lock, long lockPeriod, boolean multi) {
+              Assert.fail("delegateResourceForCli should not run for invalid usage");
+            }
+          }, formatter);
+      Assert.fail("Expected usage failure");
+    } catch (RuntimeException e) {
+      Assert.assertTrue(formatter.hasOutcome());
+    }
+    formatter.flush();
+
+    String json = stdout.toString(StandardCharsets.UTF_8.name());
+    Assert.assertFalse(parseJson(json).get("success").getAsBoolean());
+    Assert.assertEquals("usage_error", parseJson(json).get("error").getAsString());
+    Assert.assertTrue(json.contains("lock-period must not be negative"));
+  }
+
+  // ── M5a: approve-proposal rejects zero id ────────────────────────────────
+
+  @Test
+  public void approveProposalRejectsZeroId() throws Exception {
+    CommandRegistry registry = new CommandRegistry();
+    ProposalCommands.register(registry);
+    CommandDefinition command = registry.lookup("approve-proposal");
+    ParsedOptions opts = command.parseArgs(new String[]{
+        "--id", "0",
+        "--approve"
+    });
+    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+    OutputFormatter formatter = new OutputFormatter(
+        OutputFormatter.OutputMode.JSON, false, new PrintStream(stdout), System.err);
+
+    try {
+      command.getHandler().execute(org.tron.walletcli.cli.CommandContext.empty(), opts,
+          new WalletApiWrapper() {
+            @Override
+            public void approveProposalForCli(byte[] ownerAddress, long id,
+                boolean isAddApproval, boolean multi) {
+              Assert.fail("approveProposalForCli should not run for invalid usage");
+            }
+          }, formatter);
+      Assert.fail("Expected usage failure");
+    } catch (RuntimeException e) {
+      Assert.assertTrue(formatter.hasOutcome());
+    }
+    formatter.flush();
+
+    String json = stdout.toString(StandardCharsets.UTF_8.name());
+    Assert.assertFalse(parseJson(json).get("success").getAsBoolean());
+    Assert.assertEquals("usage_error", parseJson(json).get("error").getAsString());
+    Assert.assertTrue(json.contains("id must be a positive integer"));
+  }
+
+  // ── M5b: delete-proposal rejects negative id ─────────────────────────────
+
+  @Test
+  public void deleteProposalRejectsNegativeId() throws Exception {
+    CommandRegistry registry = new CommandRegistry();
+    ProposalCommands.register(registry);
+    CommandDefinition command = registry.lookup("delete-proposal");
+    ParsedOptions opts = command.parseArgs(new String[]{
+        "--id", "-1"
+    });
+    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+    OutputFormatter formatter = new OutputFormatter(
+        OutputFormatter.OutputMode.JSON, false, new PrintStream(stdout), System.err);
+
+    try {
+      command.getHandler().execute(org.tron.walletcli.cli.CommandContext.empty(), opts,
+          new WalletApiWrapper() {
+            @Override
+            public void deleteProposalForCli(byte[] ownerAddress, long id, boolean multi) {
+              Assert.fail("deleteProposalForCli should not run for invalid usage");
+            }
+          }, formatter);
+      Assert.fail("Expected usage failure");
+    } catch (RuntimeException e) {
+      Assert.assertTrue(formatter.hasOutcome());
+    }
+    formatter.flush();
+
+    String json = stdout.toString(StandardCharsets.UTF_8.name());
+    Assert.assertFalse(parseJson(json).get("success").getAsBoolean());
+    Assert.assertEquals("usage_error", parseJson(json).get("error").getAsString());
+    Assert.assertTrue(json.contains("id must be a positive integer"));
+  }
+
+  // ── M6: get-can-delegated-max-size rejects invalid resource type ──────────
+
+  @Test
+  public void getCanDelegatedMaxSizeRejectsInvalidResourceType() throws Exception {
+    CommandRegistry registry = new CommandRegistry();
+    QueryCommands.register(registry);
+    CommandDefinition command = registry.lookup("get-can-delegated-max-size");
+    ParsedOptions opts = command.parseArgs(new String[]{
+        "--owner", "TNPeeaaFB7K9cmo4uQpcU32zGK8G1NYqeL",
+        "--type", "2"
+    });
+    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+    OutputFormatter formatter = new OutputFormatter(
+        OutputFormatter.OutputMode.JSON, false, new PrintStream(stdout), System.err);
+
+    try {
+      command.getHandler().execute(org.tron.walletcli.cli.CommandContext.empty(), opts,
+          new WalletApiWrapper(), formatter);
+      Assert.fail("Expected usage failure");
+    } catch (RuntimeException e) {
+      Assert.assertTrue(formatter.hasOutcome());
+    }
+    formatter.flush();
+
+    String json = stdout.toString(StandardCharsets.UTF_8.name());
+    Assert.assertFalse(parseJson(json).get("success").getAsBoolean());
+    Assert.assertEquals("usage_error", parseJson(json).get("error").getAsString());
+    Assert.assertTrue(json.contains("type must be 0 (BANDWIDTH) or 1 (ENERGY)"));
+  }
+
   private static void deleteCreatedWalletFiles(WalletApiWrapper.CliWalletCreationResult result) {
     if (result == null) {
       return;

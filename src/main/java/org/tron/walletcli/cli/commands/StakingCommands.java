@@ -38,6 +38,7 @@ public class StakingCommands {
                     long amount = opts.getLong("amount");
                     CommandSupport.requirePositive(out, "amount", amount);
                     long duration = opts.getLong("duration");
+                    CommandSupport.requirePositive(out, "duration", duration);
                     int resource = opts.has("resource") ? opts.getInt("resource") : 0;
                     CommandSupport.requireResourceCode(out, "resource", resource);
                     byte[] receiver = opts.has("receiver") ? opts.getAddress("receiver") : null;
@@ -186,6 +187,7 @@ public class StakingCommands {
                     byte[] receiver = opts.getAddress("receiver");
                     boolean lock = opts.getBoolean("lock");
                     long lockPeriod = opts.has("lock-period") ? opts.getLong("lock-period") : 0;
+                    if (opts.has("lock-period")) CommandSupport.requireNonNegative(out, "lock-period", lockPeriod);
                     boolean multi = opts.getBoolean("multi");
                     wrapper.delegateResourceForCli(owner, amount, resource, receiver,
                             lock, lockPeriod, multi);

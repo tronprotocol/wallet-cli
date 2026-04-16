@@ -152,11 +152,11 @@ qa_import_template_wallet() {
     case "$mode" in
       private-key)
         MASTER_PASSWORD="$MASTER_PASSWORD" TRON_TEST_PRIVATE_KEY="$PRIVATE_KEY" \
-          java -cp "$WALLET_JAR" org.tron.qa.QASecretImporter private-key >/dev/null
+          java -cp "$QA_JAR" org.tron.qa.QASecretImporter private-key >/dev/null
         ;;
       mnemonic)
         MASTER_PASSWORD="$MASTER_PASSWORD" TRON_TEST_MNEMONIC="$MNEMONIC" \
-          java -cp "$WALLET_JAR" org.tron.qa.QASecretImporter mnemonic >/dev/null
+          java -cp "$QA_JAR" org.tron.qa.QASecretImporter mnemonic >/dev/null
         ;;
       *)
         return 1

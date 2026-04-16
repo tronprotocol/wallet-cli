@@ -18,6 +18,7 @@ import org.tron.walletserver.WalletApi;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
@@ -355,16 +356,21 @@ public class StandardCliRunnerTest {
   }
 
   @Test
-  public void walletOverrideResolvesPathFileNameAndWalletName() throws Exception {
+  public void walletOverrideResolvesFileNameAndWalletName() throws Exception {
     File walletDir = Files.createTempDirectory("runner-wallet-override").toFile();
     File walletFile = createWalletFile(walletDir, "alpha", "0000000000000000000000000000000000000000000000000000000000000001");
 
     Assert.assertEquals(walletFile.getAbsolutePath(),
-        StandardCliRunner.resolveWalletOverride(walletDir, walletFile.getAbsolutePath()).getAbsolutePath());
-    Assert.assertEquals(walletFile.getAbsolutePath(),
         StandardCliRunner.resolveWalletOverride(walletDir, walletFile.getName()).getAbsolutePath());
     Assert.assertEquals(walletFile.getAbsolutePath(),
         StandardCliRunner.resolveWalletOverride(walletDir, "alpha").getAbsolutePath());
+
+    try {
+      StandardCliRunner.resolveWalletOverride(walletDir, walletFile.getAbsolutePath());
+      Assert.fail("Expected absolute path to be rejected");
+    } catch (IOException e) {
+      Assert.assertTrue(e.getMessage().contains("Wallet file not found"));
+    }
   }
 
   @Test
@@ -402,15 +408,12 @@ public class StandardCliRunnerTest {
   }
 
   @Test
-  public void requireCommandUsesExplicitWalletPathWithoutWalletDirectory() throws Exception {
+  public void requireCommandRejectsExplicitWalletPathOutsideWalletDirectory() throws Exception {
     CommandRegistry registry = new CommandRegistry();
     registry.add(CommandDefinition.builder()
         .name("needs-wallet")
         .description("Command requiring auth")
         .handler((ctx, opts, wrapper, out) -> {
-          Assert.assertTrue(wrapper.isLoginState());
-          Assert.assertNotNull(ctx.getResolvedAuthWalletFile());
-          Assert.assertTrue(ctx.getResolvedAuthWalletFile().isFile());
           out.raw("ok");
         })
         .build());
@@ -433,9 +436,7 @@ public class StandardCliRunnerTest {
       });
       int exitCode = new StandardCliRunner(registry, opts, () -> "TempPass123!A").execute();
 
-      Assert.assertEquals(0, exitCode);
-      Assert.assertTrue(stdout.toString("UTF-8").contains("ok"));
-      Assert.assertTrue(stderr.toString("UTF-8").contains("Authenticated with wallet"));
+      Assert.assertNotEquals("Absolute wallet path should be rejected", 0, exitCode);
     } finally {
       System.setOut(originalOut);
       System.setErr(originalErr);
@@ -816,7 +817,7 @@ public class StandardCliRunnerTest {
   }
 
   @Test
-  public void helpTokenUsedAsOptionValueDoesNotTriggerCommandHelp() throws Exception {
+  public void helpFlagAnywhereInArgsTriggersCommandHelp() throws Exception {
     PrintStream originalOut = System.out;
     PrintStream originalErr = System.err;
     ByteArrayOutputStream stdout = new ByteArrayOutputStream();
@@ -834,14 +835,44 @@ public class StandardCliRunnerTest {
     System.setOut(new PrintStream(stdout));
     System.setErr(new PrintStream(stderr));
     try {
+      // -h after a non-boolean option should trigger help, not be consumed as its value
       GlobalOptions opts = GlobalOptions.parse(new String[]{"value-help", "--note", "-h"});
       int exitCode = new StandardCliRunner(registry, opts).execute();
 
       Assert.assertEquals(0, exitCode);
       String text = stdout.toString("UTF-8");
-      Assert.assertEquals("-h\n", text);
-      Assert.assertFalse(text.contains("Value help command"));
-      Assert.assertEquals("", stderr.toString("UTF-8"));
+      Assert.assertTrue("expected help text", text.contains("Value help command"));
+    } finally {
+      System.setOut(originalOut);
+      System.setErr(originalErr);
+    }
+  }
+
+  @Test
+  public void helpFlagAfterNonBooleanOptionTriggersHelp() throws Exception {
+    PrintStream originalOut = System.out;
+    PrintStream originalErr = System.err;
+    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+    ByteArrayOutputStream stderr = new ByteArrayOutputStream();
+
+    CommandRegistry registry = new CommandRegistry();
+    registry.add(CommandDefinition.builder()
+        .authPolicy(CommandDefinition.AuthPolicy.NEVER)
+        .name("get-balance")
+        .description("Get account balance")
+        .option("address", "Wallet address", false)
+        .handler((ctx, opts, wrapper, out) -> out.raw("balance"))
+        .build());
+
+    System.setOut(new PrintStream(stdout));
+    System.setErr(new PrintStream(stderr));
+    try {
+      // Bug: --address --help used to silently swallow --help
+      GlobalOptions opts = GlobalOptions.parse(new String[]{"get-balance", "--address", "--help"});
+      int exitCode = new StandardCliRunner(registry, opts).execute();
+
+      Assert.assertEquals(0, exitCode);
+      Assert.assertTrue("expected help text", stdout.toString("UTF-8").contains("Get account balance"));
     } finally {
       System.setOut(originalOut);
       System.setErr(originalErr);

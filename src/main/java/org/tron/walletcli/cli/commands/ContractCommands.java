@@ -51,11 +51,13 @@ public class ContractCommands {
                     long feeLimit = opts.getLong("fee-limit");
                     CommandSupport.requirePositive(out, "fee-limit", feeLimit);
                     long value = opts.has("value") ? opts.getLong("value") : 0;
+                    if (opts.has("value")) CommandSupport.requireNonNegative(out, "value", value);
                     long consumePercent = opts.has("consume-user-resource-percent")
                             ? opts.getLong("consume-user-resource-percent") : 0;
                     long originEnergyLimit = opts.has("origin-energy-limit")
                             ? opts.getLong("origin-energy-limit") : 10_000_000;
                     long tokenValue = opts.has("token-value") ? opts.getLong("token-value") : 0;
+                    if (opts.has("token-value")) CommandSupport.requireNonNegative(out, "token-value", tokenValue);
                     String tokenId = opts.has("token-id") ? opts.getString("token-id") : "";
                     if ("#".equals(tokenId)) {
                         tokenId = "";
@@ -122,7 +124,9 @@ public class ContractCommands {
                     long feeLimit = opts.getLong("fee-limit");
                     CommandSupport.requirePositive(out, "fee-limit", feeLimit);
                     long callValue = opts.has("value") ? opts.getLong("value") : 0;
+                    if (opts.has("value")) CommandSupport.requireNonNegative(out, "value", callValue);
                     long tokenValue = opts.has("token-value") ? opts.getLong("token-value") : 0;
+                    if (opts.has("token-value")) CommandSupport.requireNonNegative(out, "token-value", tokenValue);
                     String tokenId = opts.has("token-id") ? opts.getString("token-id") : "";
                     int permissionId = opts.has("permission-id") ? opts.getInt("permission-id") : 0;
                     CommandSupport.requireNonNegative(out, "permission-id", permissionId);
@@ -305,6 +309,7 @@ public class ContractCommands {
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     byte[] contractAddress = opts.getAddress("contract");
                     long limit = opts.getLong("origin-energy-limit");
+                    CommandSupport.requirePositive(out, "origin-energy-limit", limit);
                     boolean multi = opts.getBoolean("multi");
                     wrapper.updateEnergyLimitForCli(owner, contractAddress, limit, multi);
                     CommandSupport.emitSuccess(out,

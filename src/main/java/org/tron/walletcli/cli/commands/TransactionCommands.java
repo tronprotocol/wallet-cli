@@ -425,7 +425,8 @@ public class TransactionCommands {
                 .option("to", "Recipient address", true)
                 .option("amount", "Amount", true, OptionDef.Type.LONG)
                 .handler((ctx, opts, wrapper, out) -> {
-                    String to = opts.getString("to");
+                    byte[] toBytes = opts.getAddress("to");
+                    String to = WalletApi.encode58Check(toBytes);
                     long amount = opts.getLong("amount");
                     CommandSupport.requirePositive(out, "amount", amount);
                     String gasFreeId = wrapper.gasFreeTransferOrThrow(to, amount);

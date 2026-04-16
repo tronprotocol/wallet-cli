@@ -66,7 +66,7 @@ build_required() {
 }
 
 load_registered_commands() {
-  java -cp "$WALLET_JAR" org.tron.qa.QARunner list \
+  java -cp "$QA_JAR" org.tron.qa.QARunner list \
     | sed -n 's/^  \([^ ]*\).*/\1/p'
 }
 
@@ -247,11 +247,11 @@ print_existing_lock_info() {
 }
 
 if [ "$MODE" = "list" ]; then
-  if [ ! -f "$WALLET_JAR" ]; then
-    echo "wallet-cli.jar not found: $WALLET_JAR"
+  if [ ! -f "$QA_JAR" ]; then
+    echo "wallet-cli-qa.jar not found: $QA_JAR (build with: ./gradlew qaJar)"
     exit 1
   fi
-  java -cp "$WALLET_JAR" org.tron.qa.QARunner list
+  java -cp "$QA_JAR" org.tron.qa.QARunner list
   exit 0
 fi
 
@@ -273,10 +273,11 @@ write_lock_metadata
 
 if [ "$NO_BUILD" -eq 1 ]; then
   [ -f "$WALLET_JAR" ] || { echo "Cannot skip build: $WALLET_JAR does not exist"; exit 1; }
+  [ -f "$QA_JAR" ] || { echo "Cannot skip build: $QA_JAR does not exist (build with: ./gradlew qaJar)"; exit 1; }
   echo "Skipping build (--no-build)."
 elif build_required; then
   echo "Building wallet-cli..."
-  ./gradlew shadowJar -q
+  ./gradlew shadowJar qaJar -q
   echo "Build complete."
 else
   echo "Build skipped (wallet-cli.jar is up to date)."

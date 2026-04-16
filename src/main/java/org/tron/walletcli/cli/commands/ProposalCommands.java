@@ -75,6 +75,7 @@ public class ProposalCommands {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     long id = opts.getLong("id");
+                    CommandSupport.requirePositive(out, "id", id);
                     boolean approve = opts.getBoolean("approve");
                     boolean multi = opts.getBoolean("multi");
                     wrapper.approveProposalForCli(owner, id, approve, multi);
@@ -98,6 +99,7 @@ public class ProposalCommands {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     long id = opts.getLong("id");
+                    CommandSupport.requirePositive(out, "id", id);
                     boolean multi = opts.getBoolean("multi");
                     wrapper.deleteProposalForCli(owner, id, multi);
                     CommandSupport.emitSuccess(out,
