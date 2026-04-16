@@ -270,7 +270,7 @@ public class TransactionCommands {
 
                     HashMap<String, String> frozenSupply = new HashMap<String, String>();
                     wrapper.assetIssueForCli(owner, name, abbr, totalSupply,
-                            trxNum, icoNum, precision, startTime, endTime, 0, desc, url,
+                            trxNum, icoNum, precision, startTime, endTime, desc, url,
                             freeNetLimit, publicFreeNetLimit, frozenSupply, multi);
                     CommandSupport.emitSuccess(out,
                             "AssetIssue successful !!",

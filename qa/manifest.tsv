@@ -48,7 +48,7 @@ get-market-order-by-account|noauth-success|auth|private_key|--address {{MY_ADDR}
 get-market-order-list-by-pair|noauth-success|empty|none|--sell-token _ --buy-token 1000001
 get-market-pair-list|noauth-success|empty|none|
 get-market-price-by-pair|noauth-success|empty|none|--sell-token _ --buy-token 1000001
-gas-free-info|auth-success|auth|private_key|--address {{TARGET_ADDR}}|data.gasFreeAddress||||needs_auth_wallet,needs_gasfree_config
+gas-free-info|noauth-success|empty|none|--address {{TARGET_ADDR}}|data.gasFreeAddress||||needs_gasfree_config
 gas-free-transfer|stateful-success|auth|private_key|--to {{TARGET_ADDR}} --amount 1|data.gas_free_id|||GasFreeTransfer successful !!|needs_auth_wallet,needs_target_addr,needs_gasfree_config,needs_gasfree_balance|json
 gas-free-trace|stateful-success|empty|none|--id {{QA_GASFREE_ID}}|||||needs_gasfree_config,needs_qa_gasfree_id
 send-coin|stateful-success|auth|private_key|--to {{TARGET_ADDR}} --amount 1|data.txid|||SendCoin successful !!|needs_auth_wallet,needs_target_addr,needs_trx_balance_at_least:1

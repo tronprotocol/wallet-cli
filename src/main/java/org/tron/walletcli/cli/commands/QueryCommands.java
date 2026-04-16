@@ -955,14 +955,16 @@ public class QueryCommands {
 
     private static void registerGasFreeInfo(CommandRegistry registry) {
         registry.add(CommandDefinition.builder()
-                .authPolicy(CommandDefinition.AuthPolicy.REQUIRE)
+                .authPolicyResolver(opts -> opts.has("address")
+                        ? CommandDefinition.AuthPolicy.NEVER
+                        : CommandDefinition.AuthPolicy.REQUIRE)
                 .name("gas-free-info")
                 .aliases("gasfreeinfo")
                 .description("Get GasFree service info")
                 .option("address", "Address to query (default: current wallet)", false)
                 .handler((ctx, opts, wrapper, out) -> {
                     String address = opts.has("address") ? opts.getString("address") : null;
-                    String rendered = JSON.toJSONString(wrapper.getGasFreeInfoData(address), true);
+                    String rendered = JSON.toJSONString(wrapper.getGasFreeInfoDataForCli(address), true);
                     out.printMessage(rendered, "GetGasFreeInfo failed");
                 })
                 .build());

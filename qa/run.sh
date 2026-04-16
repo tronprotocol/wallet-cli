@@ -326,3 +326,5 @@ contract_count="$(load_contract_labels | wc -l | tr -d ' ')"
 
 qa_generate_report "$registered_count" "$covered_count" "$excluded_count" "$missing_count" "$stale_count" "$contract_count"
 cat "$REPORT_FILE"
+
+grep -q "Overall Compliance: PASS" "$REPORT_FILE"

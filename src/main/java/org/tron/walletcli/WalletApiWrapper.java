@@ -1130,14 +1130,14 @@ public class WalletApiWrapper {
 
   public void assetIssueForCli(byte[] ownerAddress, String name, String abbrName, long totalSupply,
                                int trxNum, int icoNum, int precision, long startTime, long endTime,
-                               int voteScore, String description, String url,
+                               String description, String url,
                                long freeNetLimit, long publicFreeNetLimit,
                                HashMap<String, String> frozenSupply, boolean multi) {
     requireLoggedInWalletForCli();
     try {
       throwIfCliOperationFailed(
           wallet.createAssetIssueForCli(ownerAddress, name, abbrName, totalSupply,
-              trxNum, icoNum, precision, startTime, endTime, voteScore, description,
+              trxNum, icoNum, precision, startTime, endTime, description,
               url, freeNetLimit, publicFreeNetLimit, frozenSupply, multi),
           "AssetIssue failed !!");
     } catch (IllegalStateException e) {
@@ -2898,6 +2898,86 @@ public class WalletApiWrapper {
     }
 
     Long tokenBalance = triggerContractPair.getRight();
+    GasFreeAddressResponse response = new GasFreeAddressResponse();
+    response.setGasFreeAddress(gasFreeAddress);
+    response.setActive(active);
+    response.setActivateFee(active ? 0 : activateFee);
+    response.setTransferFee(transferFee);
+    response.setTokenBalance(tokenBalance);
+    long maxTransferValue = tokenBalance - response.getActivateFee() - transferFee;
+    response.setMaxTransferValue(maxTransferValue > 0 ? maxTransferValue : 0);
+    return response;
+  }
+
+  public GasFreeAddressResponse getGasFreeInfoDataForCli(String address) throws Exception {
+    if (WalletApi.getCurrentNetwork() != MAIN && WalletApi.getCurrentNetwork() != NILE) {
+      throw new CommandErrorException("unsupported_network", GAS_FREE_SUPPORT_NETWORK_TIP);
+    }
+    if (StringUtils.isEmpty(address)) {
+      if (wallet == null || !wallet.isLoginState()) {
+        throw new CommandErrorException("auth_required", "Please login first !!");
+      }
+      address = getAddress();
+      if (StringUtils.isEmpty(address)) {
+        throw new CommandErrorException("query_failed", "Unable to determine current wallet address.");
+      }
+    }
+    if (!addressValid(address)) {
+      throw new CommandErrorException("invalid_input", "The address you entered is invalid.");
+    }
+    String resp;
+    try {
+      resp = GasFreeApi.address(WalletApi.getCurrentNetwork(), address);
+    } catch (IllegalArgumentException e) {
+      throw new CommandErrorException("missing_config", e.getMessage());
+    }
+    if (StringUtils.isEmpty(resp)) {
+      throw new CommandErrorException("query_failed", "GasFreeInfo failed");
+    }
+    JSONObject root = JSON.parseObject(resp);
+    int respCode = root.getIntValue("code");
+    JSONObject data = root.getJSONObject("data");
+    if (HTTP_OK != respCode) {
+      throw new CommandErrorException("query_failed", root.getString("message"));
+    }
+    if (Objects.isNull(data)) {
+      throw new CommandErrorException("not_found", "gas free address does not exist.");
+    }
+
+    String gasFreeAddress = data.getString("gasFreeAddress");
+    boolean active = data.getBooleanValue("active");
+    JSONArray assets = data.getJSONArray("assets");
+    if (Objects.isNull(assets) || assets.isEmpty()) {
+      throw new CommandErrorException("query_failed",
+          "GasFreeInfo response does not contain asset metadata.");
+    }
+
+    JSONObject asset = assets.getJSONObject(0);
+    String tokenAddress = asset.getString("tokenAddress");
+    byte[] callData = Hex.decode(AbiUtil.parseMethod("balanceOf(address)",
+        "\"" + gasFreeAddress + "\"", false));
+    long activateFee = asset.getLongValue("activateFee");
+    long transferFee = asset.getLongValue("transferFee");
+
+    byte[] ownerBytes = decodeFromBase58Check(address);
+    byte[] contractBytes = decodeFromBase58Check(tokenAddress);
+    Response.TransactionExtention ext =
+        WalletApi.triggerConstantContractExtentionDirect(
+            ownerBytes, contractBytes, 0, callData, 0, "");
+    if (ext == null || !ext.getResult().getResult()) {
+      throw new CommandErrorException("query_failed", "Failed to query GasFree token balance.");
+    }
+    long tokenBalance = 0L;
+    if (ext.getConstantResultCount() == 1) {
+      try {
+        tokenBalance = new java.math.BigInteger(1,
+            ext.getConstantResult(0).toByteArray()).longValueExact();
+      } catch (ArithmeticException e) {
+        throw new CommandErrorException("query_failed",
+            "GasFree token balance exceeds representable range.");
+      }
+    }
+
     GasFreeAddressResponse response = new GasFreeAddressResponse();
     response.setGasFreeAddress(gasFreeAddress);
     response.setActive(active);

@@ -1665,7 +1665,7 @@ public class WalletApi {
 
   public boolean createAssetIssueForCli(byte[] ownerAddress, String name, String abbrName,
                                   long totalSupply, int trxNum, int icoNum, int precision,
-                                  long startTime, long endTime, int voteScore, String description,
+                                  long startTime, long endTime, String description,
                                   String url, long freeNetLimit, long publicFreeNetLimit,
                                   HashMap<String, String> frozenSupply, boolean multi)
       throws CipherException, IOException, CancelException, IllegalException {
@@ -1844,7 +1844,13 @@ public class WalletApi {
       long sum = 0L;
       for (Map.Entry<String, String> entry : witness.entrySet()) {
         String voteAddress = entry.getKey();
-        long voteCount = Long.parseLong(entry.getValue());
+        long voteCount;
+        try {
+          voteCount = Long.parseLong(entry.getValue());
+        } catch (NumberFormatException e) {
+          recordLastCliOperationError("Invalid vote count: " + entry.getValue());
+          return false;
+        }
         if (!DecodeUtil.addressValid(decodeFromBase58Check(voteAddress))) {
           recordLastCliOperationError("Invalid vote address!");
           return false;
@@ -3644,6 +3650,8 @@ public class WalletApi {
 
     Response.TransactionExtention transactionExtention = apiCli.clearContractABI(owner, contractAddress);
     if (transactionExtention == null || !transactionExtention.getResult().getResult()) {
+      recordLastCliOperationError(extractTransactionReturnMessage(
+          transactionExtention == null ? null : transactionExtention.getResult()));
       return false;
     }
 
@@ -4428,6 +4436,8 @@ public class WalletApi {
 
     Response.TransactionExtention transactionExtention = apiCli.updateBrokerage(owner, brokerage);
     if (transactionExtention == null || !transactionExtention.getResult().getResult()) {
+      recordLastCliOperationError(extractTransactionReturnMessage(
+          transactionExtention == null ? null : transactionExtention.getResult()));
       return false;
     }
 
