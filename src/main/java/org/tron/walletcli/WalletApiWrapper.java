@@ -2945,6 +2945,10 @@ public class WalletApiWrapper {
     }
 
     String gasFreeAddress = data.getString("gasFreeAddress");
+    if (gasFreeAddress == null || gasFreeAddress.isEmpty()) {
+      throw new CommandErrorException("query_failed",
+          "GasFreeInfo response does not contain gasFreeAddress.");
+    }
     boolean active = data.getBooleanValue("active");
     JSONArray assets = data.getJSONArray("assets");
     if (Objects.isNull(assets) || assets.isEmpty()) {
@@ -2954,6 +2958,10 @@ public class WalletApiWrapper {
 
     JSONObject asset = assets.getJSONObject(0);
     String tokenAddress = asset.getString("tokenAddress");
+    if (tokenAddress == null || tokenAddress.isEmpty()) {
+      throw new CommandErrorException("query_failed",
+          "GasFreeInfo response does not contain tokenAddress.");
+    }
     byte[] callData = Hex.decode(AbiUtil.parseMethod("balanceOf(address)",
         "\"" + gasFreeAddress + "\"", false));
     long activateFee = asset.getLongValue("activateFee");
@@ -2964,18 +2972,21 @@ public class WalletApiWrapper {
     Response.TransactionExtention ext =
         WalletApi.triggerConstantContractExtentionDirect(
             ownerBytes, contractBytes, 0, callData, 0, "");
-    if (ext == null || !ext.getResult().getResult()) {
+    if (ext == null || ext.getResult() == null || !ext.getResult().getResult()) {
       throw new CommandErrorException("query_failed", "Failed to query GasFree token balance.");
     }
-    long tokenBalance = 0L;
-    if (ext.getConstantResultCount() == 1) {
-      try {
-        tokenBalance = new java.math.BigInteger(1,
-            ext.getConstantResult(0).toByteArray()).longValueExact();
-      } catch (ArithmeticException e) {
-        throw new CommandErrorException("query_failed",
-            "GasFree token balance exceeds representable range.");
-      }
+    if (ext.getConstantResultCount() != 1) {
+      throw new CommandErrorException("query_failed",
+          "Unexpected result count from GasFree token balance query: "
+              + ext.getConstantResultCount());
+    }
+    long tokenBalance;
+    try {
+      tokenBalance = new java.math.BigInteger(1,
+          ext.getConstantResult(0).toByteArray()).longValueExact();
+    } catch (ArithmeticException e) {
+      throw new CommandErrorException("query_failed",
+          "GasFree token balance exceeds representable range.");
     }
 
     GasFreeAddressResponse response = new GasFreeAddressResponse();
