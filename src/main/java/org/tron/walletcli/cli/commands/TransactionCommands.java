@@ -385,10 +385,19 @@ public class TransactionCommands {
                 .option("transaction", "Transaction hex string", true)
                 .handler((ctx, opts, wrapper, out) -> {
                     byte[] txBytes = CommandSupport.requireHex(out, "transaction", opts.getString("transaction"));
-                    boolean result = org.tron.walletserver.WalletApi.broadcastTransaction(txBytes);
-                    CommandSupport.emitBooleanResult(out, result,
+                    String error;
+                    try {
+                        error = org.tron.walletserver.WalletApi.broadcastTransactionForCli(txBytes);
+                    } catch (com.google.protobuf.InvalidProtocolBufferException e) {
+                        out.usageError("Invalid transaction bytes: " + e.getMessage(), null);
+                        return;
+                    }
+                    if (error != null) {
+                        out.error("execution_error", error);
+                        return;
+                    }
+                    CommandSupport.emitSuccess(out,
                             "BroadcastTransaction successful !!",
-                            "BroadcastTransaction failed !!",
                             CommandSupport.lastBroadcastTxResultData());
                 })
                 .build());

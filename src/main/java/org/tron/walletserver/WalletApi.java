@@ -1623,6 +1623,18 @@ public class WalletApi {
     return success;
   }
 
+  public static String broadcastTransactionForCli(byte[] transactionBytes)
+      throws InvalidProtocolBufferException {
+    Chain.Transaction transaction = Chain.Transaction.parseFrom(transactionBytes);
+    LAST_BROADCAST_TX_ID.remove();
+    String error = apiCli.broadcastTransactionForCli(transaction);
+    if (error == null) {
+      LAST_BROADCAST_TX_ID.set(ByteArray.toHexString(
+          Sha256Sm3Hash.hash(transaction.getRawData().toByteArray())));
+    }
+    return error;
+  }
+
   public static String consumeLastCliOperationError() {
     String error = LAST_CLI_OPERATION_ERROR.get();
     LAST_CLI_OPERATION_ERROR.remove();
@@ -2076,29 +2088,15 @@ public class WalletApi {
 
   public static boolean addressValid(byte[] address) {
     if (ArrayUtils.isEmpty(address)) {
-      System.out.println("Warning: Address is empty !!");
       return false;
     }
     if (address.length != CommonConstant.ADDRESS_SIZE) {
-      System.out.println(
-          "Warning: Address length need "
-              + CommonConstant.ADDRESS_SIZE
-              + " but "
-              + address.length
-              + " !!");
       return false;
     }
     byte preFixbyte = address[0];
     if (preFixbyte != WalletApi.getAddressPreFixByte()) {
-      System.out.println(
-          "Warning: Address need prefix with "
-              + WalletApi.getAddressPreFixByte()
-              + " but "
-              + preFixbyte
-              + " !!");
       return false;
     }
-    // Other rule;
     return true;
   }
 
@@ -2134,7 +2132,6 @@ public class WalletApi {
 
   public static byte[] decodeFromBase58Check(String addressBase58) {
     if (isEmpty(addressBase58)) {
-      System.out.println("Warning: Address is empty !!");
       return null;
     }
     byte[] address = decode58Check(addressBase58);
@@ -3468,7 +3465,11 @@ public class WalletApi {
         .setOwnerAddress(ByteString.copyFrom(address))
         .setNewContract(builder.build());
     if (tokenId != null && !tokenId.equalsIgnoreCase("") && !tokenId.equalsIgnoreCase("#")) {
-      createSmartContractBuilder.setCallTokenValue(tokenValue).setTokenId(Long.parseLong(tokenId));
+      try {
+        createSmartContractBuilder.setCallTokenValue(tokenValue).setTokenId(Long.parseLong(tokenId));
+      } catch (NumberFormatException e) {
+        throw new IllegalArgumentException("token-id must be numeric: " + tokenId, e);
+      }
     }
     return createSmartContractBuilder.build();
   }
@@ -3534,9 +3535,13 @@ public class WalletApi {
     }
     builder.setData(ByteString.copyFrom(data));
     builder.setCallValue(callValue);
-    if (tokenId != null && tokenId != "") {
+    if (tokenId != null && !tokenId.isEmpty()) {
       builder.setCallTokenValue(tokenValue);
-      builder.setTokenId(Long.parseLong(tokenId));
+      try {
+        builder.setTokenId(Long.parseLong(tokenId));
+      } catch (NumberFormatException e) {
+        throw new IllegalArgumentException("token-id must be numeric: " + tokenId, e);
+      }
     }
     return builder.build();
   }

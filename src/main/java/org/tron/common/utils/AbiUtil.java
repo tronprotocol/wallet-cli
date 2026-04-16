@@ -92,8 +92,7 @@ public class AbiUtil {
         ObjectMapper mapper = new ObjectMapper();
         strings = mapper.readValue(arrayValues, List.class);
       } catch (IOException e) {
-        e.printStackTrace();
-        return null;
+        throw new IllegalArgumentException("Invalid array param JSON: " + e.getMessage(), e);
       }
 
       List<Coder> coders = new ArrayList<>();
@@ -359,8 +358,7 @@ public class AbiUtil {
     try {
       items = mapper.readValue(input, List.class);
     } catch (IOException e) {
-      e.printStackTrace();
-      return null;
+      throw new IllegalArgumentException("Invalid params JSON: " + e.getMessage(), e);
     }
 
     List<Coder> coders = new ArrayList<>();

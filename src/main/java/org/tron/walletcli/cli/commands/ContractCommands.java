@@ -62,6 +62,14 @@ public class ContractCommands {
                     if ("#".equals(tokenId)) {
                         tokenId = "";
                     }
+                    if (!tokenId.isEmpty()) {
+                        try {
+                            Long.parseLong(tokenId);
+                        } catch (NumberFormatException e) {
+                            out.usageError("token-id must be numeric: " + tokenId, null);
+                            return;
+                        }
+                    }
                     String library = opts.has("library") ? opts.getString("library") : null;
                     String compilerVersion = opts.has("compiler-version")
                             ? opts.getString("compiler-version") : null;
@@ -83,8 +91,14 @@ public class ContractCommands {
                     // If constructor + params provided, append encoded params to bytecode
                     String codeStr = bytecode;
                     if (opts.has("constructor") && opts.has("params")) {
-                        String encodedParams = AbiUtil.parseMethod(
-                                opts.getString("constructor"), opts.getString("params"), true);
+                        String encodedParams;
+                        try {
+                            encodedParams = AbiUtil.parseMethod(
+                                    opts.getString("constructor"), opts.getString("params"), true);
+                        } catch (RuntimeException e) {
+                            out.usageError("Invalid constructor signature or params: " + e.getMessage(), null);
+                            return;
+                        }
                         // parseMethod with isHex=true returns just the encoded params without selector
                         codeStr = bytecode + encodedParams;
                     }
@@ -128,11 +142,25 @@ public class ContractCommands {
                     long tokenValue = opts.has("token-value") ? opts.getLong("token-value") : 0;
                     if (opts.has("token-value")) CommandSupport.requireNonNegative(out, "token-value", tokenValue);
                     String tokenId = opts.has("token-id") ? opts.getString("token-id") : "";
+                    if (!tokenId.isEmpty()) {
+                        try {
+                            Long.parseLong(tokenId);
+                        } catch (NumberFormatException e) {
+                            out.usageError("token-id must be numeric: " + tokenId, null);
+                            return;
+                        }
+                    }
                     int permissionId = opts.has("permission-id") ? opts.getInt("permission-id") : 0;
                     CommandSupport.requireNonNegative(out, "permission-id", permissionId);
                     boolean multi = opts.getBoolean("multi");
 
-                    byte[] data = ByteArray.fromHexString(AbiUtil.parseMethod(method, params, false));
+                    byte[] data;
+                    try {
+                        data = ByteArray.fromHexString(AbiUtil.parseMethod(method, params, false));
+                    } catch (RuntimeException e) {
+                        out.usageError("Invalid method signature or params: " + e.getMessage(), null);
+                        return;
+                    }
                     TransactionUtils.setPermissionIdOverride(permissionId);
                     org.apache.commons.lang3.tuple.Triple<Boolean, Long, Long> result;
                     try {
@@ -170,7 +198,13 @@ public class ContractCommands {
                     String method = opts.getString("method");
                     String params = opts.has("params") ? opts.getString("params") : "";
 
-                    byte[] data = ByteArray.fromHexString(AbiUtil.parseMethod(method, params, false));
+                    byte[] data;
+                    try {
+                        data = ByteArray.fromHexString(AbiUtil.parseMethod(method, params, false));
+                    } catch (RuntimeException e) {
+                        out.usageError("Invalid method signature or params: " + e.getMessage(), null);
+                        return;
+                    }
                     Response.TransactionExtention result =
                             wrapper.triggerConstantContractExtention(owner, contractAddress, 0, data, 0, "");
                     if (result == null) {
@@ -226,8 +260,22 @@ public class ContractCommands {
                     long callValue = opts.has("value") ? opts.getLong("value") : 0;
                     long tokenValue = opts.has("token-value") ? opts.getLong("token-value") : 0;
                     String tokenId = opts.has("token-id") ? opts.getString("token-id") : "";
+                    if (!tokenId.isEmpty()) {
+                        try {
+                            Long.parseLong(tokenId);
+                        } catch (NumberFormatException e) {
+                            out.usageError("token-id must be numeric: " + tokenId, null);
+                            return;
+                        }
+                    }
 
-                    byte[] data = ByteArray.fromHexString(AbiUtil.parseMethod(method, params, false));
+                    byte[] data;
+                    try {
+                        data = ByteArray.fromHexString(AbiUtil.parseMethod(method, params, false));
+                    } catch (RuntimeException e) {
+                        out.usageError("Invalid method signature or params: " + e.getMessage(), null);
+                        return;
+                    }
                     Response.EstimateEnergyMessage result = wrapper.estimateEnergyMessage(
                             owner, contractAddress, callValue, data, tokenValue, tokenId);
                     if (result == null) {

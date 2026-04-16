@@ -964,7 +964,8 @@ public class QueryCommands {
                 .description("Get GasFree service info")
                 .option("address", "Address to query (default: current wallet)", false)
                 .handler((ctx, opts, wrapper, out) -> {
-                    String address = opts.has("address") ? opts.getString("address") : null;
+                    String address = opts.has("address")
+                            ? WalletApi.encode58Check(opts.getAddress("address")) : null;
                     String rendered = JSON.toJSONString(wrapper.getGasFreeInfoDataForCli(address), true);
                     out.printMessage(rendered, "GetGasFreeInfo failed");
                 })

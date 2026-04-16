@@ -34,6 +34,11 @@ public class TransactionCommandsTest {
     public boolean broadcastTransaction(Chain.Transaction signaturedTransaction) {
       return broadcastResult;
     }
+
+    @Override
+    public String broadcastTransactionForCli(Chain.Transaction signaturedTransaction) {
+      return broadcastResult ? null : "broadcast failed";
+    }
   }
 
   @Test
