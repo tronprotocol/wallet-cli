@@ -246,12 +246,7 @@ public class StandardCliRunner {
             return ActiveWalletConfig.resolveWalletOverrideStrict(walletDir, walletOverride);
         }
 
-        File targetFile = ActiveWalletConfig.resolveActiveWalletFileStrict(walletDir);
-        if (targetFile == null) {
-            throw new IllegalStateException(
-                    "No active wallet selected. Use --wallet or set-active-wallet to choose a wallet.");
-        }
-        return targetFile;
+        return ActiveWalletConfig.resolveActiveWalletFileStrict(walletDir);
     }
 
     static File resolveWalletOverride(File walletDir, String walletSelection) throws Exception {

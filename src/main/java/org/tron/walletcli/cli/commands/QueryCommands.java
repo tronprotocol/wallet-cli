@@ -11,6 +11,7 @@ import org.tron.trident.proto.Contract;
 import org.tron.trident.proto.Response;
 import org.tron.common.utils.Utils;
 
+import java.nio.charset.StandardCharsets;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.LinkedHashMap;
@@ -536,10 +537,9 @@ public class QueryCommands {
                 .option("from", "From address", true)
                 .option("to", "To address", true)
                 .handler((ctx, opts, wrapper, out) -> {
-                    opts.getAddress("from");
-                    opts.getAddress("to");
-                    Response.DelegatedResourceList result = WalletApi.getDelegatedResource(
-                            opts.getString("from"), opts.getString("to"));
+                    String from = WalletApi.encode58Check(opts.getAddress("from"));
+                    String to = WalletApi.encode58Check(opts.getAddress("to"));
+                    Response.DelegatedResourceList result = WalletApi.getDelegatedResource(from, to);
                     if (result == null) {
                         out.error("query_failed", "GetDelegatedResource failed");
                     } else {
@@ -557,10 +557,9 @@ public class QueryCommands {
                 .option("from", "From address", true)
                 .option("to", "To address", true)
                 .handler((ctx, opts, wrapper, out) -> {
-                    opts.getAddress("from");
-                    opts.getAddress("to");
-                    Response.DelegatedResourceList result = WalletApi.getDelegatedResourceV2(
-                            opts.getString("from"), opts.getString("to"));
+                    String from = WalletApi.encode58Check(opts.getAddress("from"));
+                    String to = WalletApi.encode58Check(opts.getAddress("to"));
+                    Response.DelegatedResourceList result = WalletApi.getDelegatedResourceV2(from, to);
                     if (result == null) {
                         out.error("query_failed", "GetDelegatedResourceV2 failed");
                     } else {
@@ -577,9 +576,9 @@ public class QueryCommands {
                 .description("Get delegated resource account index")
                 .option("address", "Address", true)
                 .handler((ctx, opts, wrapper, out) -> {
-                    opts.getAddress("address");
+                    String address = WalletApi.encode58Check(opts.getAddress("address"));
                     Response.DelegatedResourceAccountIndex result =
-                            WalletApi.getDelegatedResourceAccountIndex(opts.getString("address"));
+                            WalletApi.getDelegatedResourceAccountIndex(address);
                     if (result == null) {
                         out.error("query_failed", "GetDelegatedResourceAccountIndex failed");
                     } else {
@@ -597,9 +596,9 @@ public class QueryCommands {
                 .description("Get delegated resource account index V2")
                 .option("address", "Address", true)
                 .handler((ctx, opts, wrapper, out) -> {
-                    opts.getAddress("address");
+                    String address = WalletApi.encode58Check(opts.getAddress("address"));
                     Response.DelegatedResourceAccountIndex result =
-                            WalletApi.getDelegatedResourceAccountIndexV2(opts.getString("address"));
+                            WalletApi.getDelegatedResourceAccountIndexV2(address);
                     if (result == null) {
                         out.error("query_failed", "GetDelegatedResourceAccountIndexV2 failed");
                     } else {
@@ -910,8 +909,8 @@ public class QueryCommands {
                 .option("buy-token", "Buy token name", true)
                 .handler((ctx, opts, wrapper, out) -> {
                     Response.MarketOrderList result = WalletApi.getMarketOrderListByPair(
-                            opts.getString("sell-token").getBytes(),
-                            opts.getString("buy-token").getBytes());
+                            opts.getString("sell-token").getBytes(StandardCharsets.UTF_8),
+                            opts.getString("buy-token").getBytes(StandardCharsets.UTF_8));
                     if (result == null) {
                         out.error("query_failed", "GetMarketOrderListByPair failed");
                     } else {
@@ -942,8 +941,8 @@ public class QueryCommands {
                 .option("buy-token", "Buy token name", true)
                 .handler((ctx, opts, wrapper, out) -> {
                     Response.MarketPriceList result = WalletApi.getMarketPriceByPair(
-                            opts.getString("sell-token").getBytes(),
-                            opts.getString("buy-token").getBytes());
+                            opts.getString("sell-token").getBytes(StandardCharsets.UTF_8),
+                            opts.getString("buy-token").getBytes(StandardCharsets.UTF_8));
                     if (result == null) {
                         out.error("query_failed", "GetMarketPriceByPair failed");
                     } else {

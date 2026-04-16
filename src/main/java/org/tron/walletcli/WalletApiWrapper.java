@@ -1031,7 +1031,7 @@ public class WalletApiWrapper {
       return false;
     }
 
-    return wallet.transferAsset(ownerAddress, toAddress, assertName.getBytes(), amount, multi);
+    return wallet.transferAsset(ownerAddress, toAddress, assertName.getBytes(StandardCharsets.UTF_8), amount, multi);
   }
 
   public void transferAssetForCli(byte[] ownerAddress, byte[] toAddress, String assetName,
@@ -1039,7 +1039,7 @@ public class WalletApiWrapper {
     requireLoggedInWalletForCli();
     try {
       throwIfCliOperationFailed(
-          wallet.transferAssetForCli(ownerAddress, toAddress, assetName.getBytes(), amount, multi),
+          wallet.transferAssetForCli(ownerAddress, toAddress, assetName.getBytes(StandardCharsets.UTF_8), amount, multi),
           "TransferAsset failed !!");
     } catch (IllegalStateException e) {
       throwCliError("execution_error", "TransferAsset failed !!", e);
@@ -1055,7 +1055,7 @@ public class WalletApiWrapper {
       return false;
     }
 
-    return wallet.participateAssetIssue(ownerAddress, toAddress, assertName.getBytes(), amount, multi);
+    return wallet.participateAssetIssue(ownerAddress, toAddress, assertName.getBytes(StandardCharsets.UTF_8), amount, multi);
   }
 
   public void participateAssetIssueForCli(byte[] ownerAddress, byte[] toAddress, String assetName,
@@ -1063,7 +1063,7 @@ public class WalletApiWrapper {
     requireLoggedInWalletForCli();
     try {
       throwIfCliOperationFailed(
-          wallet.participateAssetIssueForCli(ownerAddress, toAddress, assetName.getBytes(), amount,
+          wallet.participateAssetIssueForCli(ownerAddress, toAddress, assetName.getBytes(StandardCharsets.UTF_8), amount,
               multi),
           "ParticipateAssetIssue failed !!");
     } catch (IllegalStateException e) {
@@ -1177,14 +1177,14 @@ public class WalletApiWrapper {
       return false;
     }
 
-    return wallet.createWitness(ownerAddress, url.getBytes(), multi);
+    return wallet.createWitness(ownerAddress, url.getBytes(StandardCharsets.UTF_8), multi);
   }
 
   public void createWitnessForCli(byte[] ownerAddress, String url, boolean multi) {
     requireLoggedInWalletForCli();
     try {
       throwIfCliOperationFailed(
-          wallet.createWitnessForCli(ownerAddress, url.getBytes(), multi),
+          wallet.createWitnessForCli(ownerAddress, url.getBytes(StandardCharsets.UTF_8), multi),
           "CreateWitness failed !!");
     } catch (IllegalStateException e) {
       throwCliError("execution_error", "CreateWitness failed !!", e);
@@ -1200,14 +1200,14 @@ public class WalletApiWrapper {
       return false;
     }
 
-    return wallet.updateWitness(ownerAddress, url.getBytes(), multi);
+    return wallet.updateWitness(ownerAddress, url.getBytes(StandardCharsets.UTF_8), multi);
   }
 
   public void updateWitnessForCli(byte[] ownerAddress, String url, boolean multi) {
     requireLoggedInWalletForCli();
     try {
       throwIfCliOperationFailed(
-          wallet.updateWitnessForCli(ownerAddress, url.getBytes(), multi),
+          wallet.updateWitnessForCli(ownerAddress, url.getBytes(StandardCharsets.UTF_8), multi),
           "UpdateWitness failed !!");
     } catch (IllegalStateException e) {
       throwCliError("execution_error", "UpdateWitness failed !!", e);

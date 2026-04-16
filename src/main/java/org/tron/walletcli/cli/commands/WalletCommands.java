@@ -1,6 +1,7 @@
 package org.tron.walletcli.cli.commands;
 
 import org.tron.keystore.WalletFile;
+import org.tron.mnemonic.MnemonicUtils;
 import org.tron.keystore.WalletUtils;
 import org.tron.ledger.LedgerFileUtil;
 import org.tron.walletcli.WalletApiWrapper.CliWalletCreationResult;
@@ -45,6 +46,10 @@ public class WalletCommands {
                 .option("words", "Mnemonic word count (12 or 24, default: 12)", false, OptionDef.Type.LONG)
                 .handler((ctx, opts, wrapper, out) -> {
                     int wordCount = opts.has("words") ? opts.getInt("words") : 12;
+                    if (!MnemonicUtils.inputMnemonicWordsNumberCheck(wordCount)) {
+                        out.usageError("Mnemonic word count must be 12 or 24, got: " + wordCount, null);
+                        return;
+                    }
                     String envPassword = ctx.getMasterPassword();
                     if (envPassword == null || envPassword.isEmpty()) {
                         out.error("missing_env",

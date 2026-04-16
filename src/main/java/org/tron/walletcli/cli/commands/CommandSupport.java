@@ -67,6 +67,12 @@ final class CommandSupport {
         }
     }
 
+    static void requireNonNegative(OutputFormatter out, String name, long value) {
+        if (value < 0) {
+            out.usageError(name + " must not be negative, got: " + value, null);
+        }
+    }
+
     static void requireResourceCode(OutputFormatter out, String name, int value) {
         if (value != 0 && value != 1) {
             out.usageError(name + " must be 0 (BANDWIDTH) or 1 (ENERGY), got: " + value, null);

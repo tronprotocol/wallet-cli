@@ -11,6 +11,7 @@ import org.tron.walletcli.cli.CommandRegistry;
 import org.tron.walletcli.cli.OptionDef;
 import org.tron.walletserver.WalletApi;
 
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -50,6 +51,7 @@ public class TransactionCommands {
                     long amount = opts.getLong("amount");
                     CommandSupport.requirePositive(out, "amount", amount);
                     int permissionId = opts.has("permission-id") ? opts.getInt("permission-id") : 0;
+                    CommandSupport.requireNonNegative(out, "permission-id", permissionId);
                     boolean multi = opts.getBoolean("multi");
                     TransactionUtils.setPermissionIdOverride(permissionId);
                     try {
@@ -123,6 +125,7 @@ public class TransactionCommands {
                     long amount = opts.getLong("amount");
                     CommandSupport.requirePositive(out, "amount", amount);
                     int permissionId = opts.has("permission-id") ? opts.getInt("permission-id") : 0;
+                    CommandSupport.requireNonNegative(out, "permission-id", permissionId);
                     boolean multi = opts.getBoolean("multi");
 
                     String toBase58 = WalletApi.encode58Check(toAddress);
@@ -313,7 +316,7 @@ public class TransactionCommands {
                 .handler((ctx, opts, wrapper, out) -> {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
-                    byte[] nameBytes = opts.getString("name").getBytes();
+                    byte[] nameBytes = opts.getString("name").getBytes(StandardCharsets.UTF_8);
                     boolean multi = opts.getBoolean("multi");
                     wrapper.updateAccountForCli(owner, nameBytes, multi);
                     CommandSupport.emitSuccess(out,
@@ -334,7 +337,7 @@ public class TransactionCommands {
                 .handler((ctx, opts, wrapper, out) -> {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
-                    byte[] id = opts.getString("id").getBytes();
+                    byte[] id = opts.getString("id").getBytes(StandardCharsets.UTF_8);
                     wrapper.setAccountIdForCli(owner, id);
                     CommandSupport.emitSuccess(out,
                             "Set AccountId successful !!",
@@ -358,10 +361,12 @@ public class TransactionCommands {
                 .handler((ctx, opts, wrapper, out) -> {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
-                    byte[] desc = opts.getString("description").getBytes();
-                    byte[] url = opts.getString("url").getBytes();
+                    byte[] desc = opts.getString("description").getBytes(StandardCharsets.UTF_8);
+                    byte[] url = opts.getString("url").getBytes(StandardCharsets.UTF_8);
                     long newLimit = opts.getLong("new-limit");
+                    CommandSupport.requireNonNegative(out, "new-limit", newLimit);
                     long newPublicLimit = opts.getLong("new-public-limit");
+                    CommandSupport.requireNonNegative(out, "new-public-limit", newPublicLimit);
                     boolean multi = opts.getBoolean("multi");
                     wrapper.updateAssetForCli(owner, desc, url, newLimit, newPublicLimit, multi);
                     CommandSupport.emitSuccess(out,

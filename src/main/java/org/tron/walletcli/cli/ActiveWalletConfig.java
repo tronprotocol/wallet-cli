@@ -212,11 +212,11 @@ public class ActiveWalletConfig {
         }
         File configFile = new File(walletDir, CONFIG_FILE);
         if (!configFile.exists()) {
-            return null;
+            throw new IOException("No active wallet configured. Use set-active-wallet first.");
         }
         String activeAddress = readActiveAddressFromFile(configFile);
         if (activeAddress == null) {
-            return null;
+            throw new IOException("No active wallet configured. Use set-active-wallet first.");
         }
 
         File targetFile = findWalletFileByAddress(walletDir, activeAddress);

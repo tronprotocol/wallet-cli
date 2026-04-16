@@ -1065,6 +1065,7 @@ public class WalletApi {
       if (isLedgerFile) {
         boolean result = LedgerSignUtil.requestLedgerSignLogic(transaction, ledgerPath, wf.getAddress(), false);
         if (!result) {
+          recordLastCliOperationError("Ledger signing was rejected or failed");
           return null;
         }
         transaction = TransactionSignManager.getInstance().getTransaction();
@@ -1076,6 +1077,7 @@ public class WalletApi {
         HidDevice hidDevice = HidServicesWrapper.getInstance().getHidDevice(wf.getAddress(), getPath());
         if (hidDevice == null) {
           TransactionSignManager.getInstance().setTransaction(null);
+          recordLastCliOperationError("Ledger device not found or disconnected");
           return null;
         }
         Optional<String> state = LedgerSignResult.getLastTransactionState(hidDevice.getPath());
@@ -1191,7 +1193,9 @@ public class WalletApi {
     }
     transaction = signTransactionForCli(transaction, multi);
     if (transaction == null) {
-      recordLastCliOperationError("Transaction signing failed");
+      if (!hasLastCliOperationError()) {
+        recordLastCliOperationError("Transaction signing failed");
+      }
       return false;
     }
     if (multi) {
@@ -1238,7 +1242,9 @@ public class WalletApi {
     }
     transaction = signTransactionForCli(transaction, multi);
     if (transaction == null) {
-      recordLastCliOperationError("Transaction signing failed");
+      if (!hasLastCliOperationError()) {
+        recordLastCliOperationError("Transaction signing failed");
+      }
       return false;
     }
     if (multi) {
@@ -1620,6 +1626,10 @@ public class WalletApi {
     String error = LAST_CLI_OPERATION_ERROR.get();
     LAST_CLI_OPERATION_ERROR.remove();
     return error;
+  }
+
+  private static boolean hasLastCliOperationError() {
+    return LAST_CLI_OPERATION_ERROR.get() != null;
   }
 
   private static void clearLastCliOperationError() {

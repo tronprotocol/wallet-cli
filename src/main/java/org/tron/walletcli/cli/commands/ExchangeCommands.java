@@ -4,6 +4,8 @@ import org.tron.walletcli.cli.CommandDefinition;
 import org.tron.walletcli.cli.CommandRegistry;
 import org.tron.walletcli.cli.OptionDef;
 
+import java.nio.charset.StandardCharsets;
+
 public class ExchangeCommands {
 
     public static void register(CommandRegistry registry) {
@@ -29,10 +31,12 @@ public class ExchangeCommands {
                 .handler((ctx, opts, wrapper, out) -> {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
-                    byte[] firstToken = opts.getString("first-token").getBytes();
+                    byte[] firstToken = opts.getString("first-token").getBytes(StandardCharsets.UTF_8);
                     long firstBalance = opts.getLong("first-balance");
-                    byte[] secondToken = opts.getString("second-token").getBytes();
+                    CommandSupport.requirePositive(out, "first-balance", firstBalance);
+                    byte[] secondToken = opts.getString("second-token").getBytes(StandardCharsets.UTF_8);
                     long secondBalance = opts.getLong("second-balance");
+                    CommandSupport.requirePositive(out, "second-balance", secondBalance);
                     boolean multi = opts.getBoolean("multi");
                     wrapper.exchangeCreateForCli(owner, firstToken, firstBalance,
                             secondToken, secondBalance, multi);
@@ -58,7 +62,7 @@ public class ExchangeCommands {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     long exchangeId = opts.getLong("exchange-id");
-                    byte[] tokenId = opts.getString("token-id").getBytes();
+                    byte[] tokenId = opts.getString("token-id").getBytes(StandardCharsets.UTF_8);
                     long quant = opts.getLong("quant");
                     CommandSupport.requirePositive(out, "quant", quant);
                     boolean multi = opts.getBoolean("multi");
@@ -85,7 +89,7 @@ public class ExchangeCommands {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     long exchangeId = opts.getLong("exchange-id");
-                    byte[] tokenId = opts.getString("token-id").getBytes();
+                    byte[] tokenId = opts.getString("token-id").getBytes(StandardCharsets.UTF_8);
                     long quant = opts.getLong("quant");
                     CommandSupport.requirePositive(out, "quant", quant);
                     boolean multi = opts.getBoolean("multi");
@@ -112,10 +116,10 @@ public class ExchangeCommands {
                 .handler((ctx, opts, wrapper, out) -> {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
-                    byte[] sellToken = opts.getString("sell-token").getBytes();
+                    byte[] sellToken = opts.getString("sell-token").getBytes(StandardCharsets.UTF_8);
                     long sellQuantity = opts.getLong("sell-quantity");
                     CommandSupport.requirePositive(out, "sell-quantity", sellQuantity);
-                    byte[] buyToken = opts.getString("buy-token").getBytes();
+                    byte[] buyToken = opts.getString("buy-token").getBytes(StandardCharsets.UTF_8);
                     long buyQuantity = opts.getLong("buy-quantity");
                     CommandSupport.requirePositive(out, "buy-quantity", buyQuantity);
                     boolean multi = opts.getBoolean("multi");

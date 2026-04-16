@@ -49,6 +49,7 @@ import java.io.InputStreamReader;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.RoundingMode;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -2332,9 +2333,9 @@ public class Client {
       }
     }
 
-    byte[] firstTokenId = parameters[index++].getBytes();
+    byte[] firstTokenId = parameters[index++].getBytes(StandardCharsets.UTF_8);
     long firstTokenBalance = Long.parseLong(parameters[index++]);
-    byte[] secondTokenId = parameters[index++].getBytes();
+    byte[] secondTokenId = parameters[index++].getBytes(StandardCharsets.UTF_8);
     long secondTokenBalance = Long.parseLong(parameters[index++]);
     boolean result = walletApiWrapper.exchangeCreate(ownerAddress, firstTokenId, firstTokenBalance,
         secondTokenId, secondTokenBalance, multi);
@@ -2366,7 +2367,7 @@ public class Client {
     }
 
     long exchangeId = Long.parseLong(parameters[index++]);
-    byte[] tokenId = parameters[index++].getBytes();
+    byte[] tokenId = parameters[index++].getBytes(StandardCharsets.UTF_8);
     long quant = Long.parseLong(parameters[index++]);
     boolean result = walletApiWrapper.exchangeInject(ownerAddress, exchangeId, tokenId, quant, multi);
     if (result) {
@@ -2397,7 +2398,7 @@ public class Client {
     }
 
     long exchangeId = Long.parseLong(parameters[index++]);
-    byte[] tokenId = parameters[index++].getBytes();
+    byte[] tokenId = parameters[index++].getBytes(StandardCharsets.UTF_8);
     long quant = Long.parseLong(parameters[index++]);
     boolean result = walletApiWrapper.exchangeWithdraw(ownerAddress, exchangeId, tokenId, quant, multi);
     if (result) {
@@ -2429,7 +2430,7 @@ public class Client {
     }
 
     long exchangeId = Long.parseLong(parameters[index++]);
-    byte[] tokenId = parameters[index++].getBytes();
+    byte[] tokenId = parameters[index++].getBytes(StandardCharsets.UTF_8);
     long quant = Long.parseLong(parameters[index++]);
     long expected = Long.parseLong(parameters[index++]);
     boolean result = walletApiWrapper
@@ -3351,9 +3352,9 @@ public class Client {
       return;
     }
 
-    byte[] sellTokenId = parameters[index++].getBytes();
+    byte[] sellTokenId = parameters[index++].getBytes(StandardCharsets.UTF_8);
     long sellTokenQuantity = Long.parseLong(parameters[index++]);
-    byte[] buyTokenId = parameters[index++].getBytes();
+    byte[] buyTokenId = parameters[index++].getBytes(StandardCharsets.UTF_8);
     long buyTokenQuantity = Long.parseLong(parameters[index++]);
 
     boolean result = walletApiWrapper
@@ -3428,8 +3429,8 @@ public class Client {
     }
 
     int index = 0;
-    byte[] sellTokenId = parameters[index++].getBytes();
-    byte[] buyTokenId = parameters[index++].getBytes();
+    byte[] sellTokenId = parameters[index++].getBytes(StandardCharsets.UTF_8);
+    byte[] buyTokenId = parameters[index++].getBytes(StandardCharsets.UTF_8);
 
     Response.MarketPriceList marketPriceList = walletApiWrapper
         .getMarketPriceByPair(sellTokenId, buyTokenId);
@@ -3450,8 +3451,8 @@ public class Client {
     }
 
     int index = 0;
-    byte[] sellTokenId = parameters[index++].getBytes();
-    byte[] buyTokenId = parameters[index++].getBytes();
+    byte[] sellTokenId = parameters[index++].getBytes(StandardCharsets.UTF_8);
+    byte[] buyTokenId = parameters[index++].getBytes(StandardCharsets.UTF_8);
 
     Response.MarketOrderList orderListByPair = walletApiWrapper
         .getMarketOrderListByPair(sellTokenId, buyTokenId);

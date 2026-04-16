@@ -1,6 +1,7 @@
 package org.tron.walletcli.cli.commands;
 
 import org.tron.common.utils.TransactionUtils;
+import org.tron.walletserver.WalletApi;
 import org.tron.walletcli.cli.CommandDefinition;
 import org.tron.walletcli.cli.CommandRegistry;
 import org.tron.walletcli.cli.OptionDef;
@@ -75,6 +76,7 @@ public class WitnessCommands {
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     String votesStr = opts.getString("votes");
                     int permissionId = opts.has("permission-id") ? opts.getInt("permission-id") : 0;
+                    CommandSupport.requireNonNegative(out, "permission-id", permissionId);
                     String[] parts = votesStr.trim().split("\\s+");
                     if (parts.length % 2 != 0) {
                         out.usageError("Votes must be pairs of 'address count'", null);
@@ -82,6 +84,11 @@ public class WitnessCommands {
                     }
                     HashMap<String, String> witness = new HashMap<String, String>();
                     for (int i = 0; i < parts.length; i += 2) {
+                        String addr = parts[i];
+                        if (WalletApi.decodeFromBase58Check(addr) == null) {
+                            out.usageError("Invalid witness address: " + addr, null);
+                            return;
+                        }
                         String countToken = parts[i + 1];
                         try {
                             long count = Long.parseLong(countToken);
@@ -93,7 +100,7 @@ public class WitnessCommands {
                             out.usageError("Vote count must be a positive integer: " + countToken, null);
                             return;
                         }
-                        witness.put(parts[i], countToken);
+                        witness.put(addr, countToken);
                     }
                     boolean multi = opts.getBoolean("multi");
                     TransactionUtils.setPermissionIdOverride(permissionId);

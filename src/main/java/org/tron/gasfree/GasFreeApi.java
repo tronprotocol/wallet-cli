@@ -244,9 +244,9 @@ public class GasFreeApi {
   }
 
   public static byte[] getDomainSeparator(NetType netType) {
-    byte[] domainTypeHash = Hash.sha3(DOMAIN_TYPE_STRING.getBytes());
-    byte[] nameHash = Hash.sha3("GasFreeController".getBytes());
-    byte[] versionHash = Hash.sha3("V1.0.0".getBytes());
+    byte[] domainTypeHash = Hash.sha3(DOMAIN_TYPE_STRING.getBytes(UTF_8));
+    byte[] nameHash = Hash.sha3("GasFreeController".getBytes(UTF_8));
+    byte[] versionHash = Hash.sha3("V1.0.0".getBytes(UTF_8));
     long chainId = netType.getGasFree().getChainId();
     Uint256 chainIdUint = new Uint256(BigInteger.valueOf(chainId));
     Address address = new Address(Numeric.toHexString(tronBase58ToBytes32(netType.getGasFree().getVerifyingContract())));
@@ -284,7 +284,7 @@ public class GasFreeApi {
   private static byte[] buildMessage(NetType netType, GasFreeSubmitRequest gasFreeSubmitRequest,
       boolean verbose)
       throws NoSuchAlgorithmException, IOException, InvalidKeyException {
-    byte[] permitTransferTypeHash = Hash.sha3(PERMIT_TRANSFER_TYPE_STRING.getBytes());
+    byte[] permitTransferTypeHash = Hash.sha3(PERMIT_TRANSFER_TYPE_STRING.getBytes(UTF_8));
 
     String resp = tokenAll(netType);
     JSONObject root = JSON.parseObject(resp);

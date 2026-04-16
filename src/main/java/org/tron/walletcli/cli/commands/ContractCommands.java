@@ -125,6 +125,7 @@ public class ContractCommands {
                     long tokenValue = opts.has("token-value") ? opts.getLong("token-value") : 0;
                     String tokenId = opts.has("token-id") ? opts.getString("token-id") : "";
                     int permissionId = opts.has("permission-id") ? opts.getInt("permission-id") : 0;
+                    CommandSupport.requireNonNegative(out, "permission-id", permissionId);
                     boolean multi = opts.getBoolean("multi");
 
                     byte[] data = ByteArray.fromHexString(AbiUtil.parseMethod(method, params, false));

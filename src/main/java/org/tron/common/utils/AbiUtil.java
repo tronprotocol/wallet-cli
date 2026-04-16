@@ -2,6 +2,7 @@ package org.tron.common.utils;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
@@ -239,7 +240,7 @@ public class AbiUtil {
       }
       data = Hex.decode(value);
     } else {
-      data = value.getBytes();
+      data = value.getBytes(StandardCharsets.UTF_8);
     }
     return encodeDynamicBytes(data);
   }
@@ -271,7 +272,7 @@ public class AbiUtil {
   }
 
   private static byte[] encodeDynamicBytes(String value) {
-    byte[] data = value.getBytes();
+    byte[] data = value.getBytes(StandardCharsets.UTF_8);
     List<DataWord> ret = new ArrayList<>();
     ret.add(new DataWord(data.length));
     return encodeDynamicBytes(data);
@@ -339,7 +340,7 @@ public class AbiUtil {
 
   public static String parseMethod(String methodSign, String input, boolean isHex) {
     byte[] selector = new byte[4];
-    System.arraycopy(Hash.sha3(methodSign.getBytes()), 0, selector,0, 4);
+    System.arraycopy(Hash.sha3(methodSign.getBytes(StandardCharsets.UTF_8)), 0, selector,0, 4);
     if (input.length() == 0) {
       return Hex.toHexString(selector);
     }
