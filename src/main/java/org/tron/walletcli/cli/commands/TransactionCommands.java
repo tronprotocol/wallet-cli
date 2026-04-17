@@ -169,17 +169,14 @@ public class TransactionCommands {
                     }
 
                     TransactionUtils.setPermissionIdOverride(permissionId);
-                    boolean result;
                     try {
-                        result = wrapper.callContractForCli(
-                                owner, contractAddress, 0, data, feeLimit, 0, "", false, false, multi)
-                                .getLeft();
+                        wrapper.callContractForCli(
+                                owner, contractAddress, 0, data, feeLimit, 0, "", false, false, multi);
                     } finally {
                         TransactionUtils.clearPermissionIdOverride();
                     }
-                    CommandSupport.emitBooleanResult(out, result,
+                    CommandSupport.emitSuccess(out,
                             "TransferUSDT successful !!",
-                            "TransferUSDT failed !!",
                             CommandSupport.lastBroadcastTxResultData());
                 })
                 .build());

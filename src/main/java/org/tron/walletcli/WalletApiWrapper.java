@@ -2080,21 +2080,25 @@ public class WalletApiWrapper {
             libraryAddressPair, compilerVersion, multi);
   }
 
-  public void deployContractForCli(byte[] ownerAddress, String name, String abiStr, String codeStr,
+  public String deployContractForCli(byte[] ownerAddress, String name, String abiStr, String codeStr,
       long feeLimit, long value, long consumeUserResourcePercent, long originEnergyLimit,
       long tokenValue, String tokenId, String libraryAddressPair, String compilerVersion,
       boolean multi) {
     requireLoggedInWalletForCli();
     try {
-      throwIfCliOperationFailed(
-          wallet.deployContractForCli(ownerAddress, name, abiStr, codeStr, feeLimit, value,
-              consumeUserResourcePercent, originEnergyLimit, tokenValue, tokenId,
-              libraryAddressPair, compilerVersion, multi),
-          "DeployContract failed !!");
+      String addr = wallet.deployContractForCli(ownerAddress, name, abiStr, codeStr, feeLimit,
+              value, consumeUserResourcePercent, originEnergyLimit, tokenValue, tokenId,
+              libraryAddressPair, compilerVersion, multi);
+      throwIfCliOperationFailed(addr != null, "DeployContract failed !!");
+      return addr;
+    } catch (CommandErrorException e) {
+      throw e;
     } catch (IllegalStateException e) {
       throwCliError("execution_error", "DeployContract failed !!", e);
+      return null;
     } catch (Exception e) {
       throwCliError("execution_error", "DeployContract failed !!", e);
+      return null;
     }
   }
 

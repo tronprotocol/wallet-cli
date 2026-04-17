@@ -65,7 +65,7 @@ update-account-permission|expected-execution-error|auth|private_key|--owner {{MY
 deploy-contract|stateful-success|auth|private_key|--name TestContract --abi '[]' --bytecode 6080 --fee-limit 1000000000|data.txid|||DeployContract successful !!|needs_auth_wallet,needs_positive_trx_balance
 trigger-contract|stateful-success|auth|private_key|--contract {{USDT_NILE}} --method 'transfer(address,uint256)' --params '"{{TARGET_ADDR}}",1' --fee-limit 100000000|data.txid|||TriggerContract successful !!|needs_auth_wallet,needs_target_addr,needs_positive_trx_balance
 trigger-constant-contract|noauth-success|auth|private_key|--contract {{USDT_NILE}} --method 'balanceOf(address)' --params '"{{MY_ADDR}}"'
-estimate-energy|auth-success|auth|private_key|--contract {{USDT_NILE}} --method 'transfer(address,uint256)' --params '"{{TARGET_ADDR}}",1'
+estimate-energy|noauth-success|auth|private_key|--owner {{MY_ADDR}} --contract {{USDT_NILE}} --method 'transfer(address,uint256)' --params '"{{TARGET_ADDR}}",1'
 clear-contract-abi|stateful-success|auth|private_key|--contract {{DEPLOYED_CONTRACT_ADDR}}|data.txid|||ClearContractABI successful !!|needs_auth_wallet,needs_deployed_contract
 update-setting|stateful-success|auth|private_key|--contract {{DEPLOYED_CONTRACT_ADDR}} --consume-user-resource-percent 0|data.txid|||UpdateSetting successful !!|needs_auth_wallet,needs_deployed_contract
 update-energy-limit|stateful-success|auth|private_key|--contract {{DEPLOYED_CONTRACT_ADDR}} --origin-energy-limit 10000000|data.txid|||UpdateEnergyLimit successful !!|needs_auth_wallet,needs_deployed_contract
@@ -100,4 +100,4 @@ clear-wallet-keystore|offline-success|auth|private_key|--force
 reset-wallet|offline-success|auth|private_key|--confirm delete-all-wallets
 modify-wallet-name|auth-success|auth|private_key|--name renamed-wallet
 generate-sub-account|offline-success|auth-mnemonic|mnemonic|--index 1 --name qasubaccount
-help|offline-success|empty|none|
+help|help_dual|empty|none|

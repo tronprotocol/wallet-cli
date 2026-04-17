@@ -2023,7 +2023,7 @@ Deploy a new smart contract to the blockchain.
 | `--constructor` | No | string | Constructor signature (e.g., `constructor(uint256,address)`) |
 | `--params` | No | string | Constructor parameters (provide with `--constructor`) |
 | `--consume-user-resource-percent` | No | number | Caller's resource share percent, 0-100 (default: 0) |
-| `--origin-energy-limit` | No | number | Max energy the deployer will provide (default: 1) |
+| `--origin-energy-limit` | No | number | Max energy the deployer will provide (default: 10,000,000) |
 | `--value` | No | number | TRX sent with deployment in SUN (default: 0) |
 | `--token-value` | No | number | TRC10 token value (default: 0) |
 | `--token-id` | No | string | TRC10 token ID |
@@ -2086,7 +2086,7 @@ Call a read-only (view/pure) smart contract function. Does not create a transact
 | | |
 |---|---|
 | **Alias** | `triggerconstantcontract` |
-| **Auth** | Required if `--owner` is omitted; not required if `--owner` is provided |
+| **Auth** | Not required |
 
 | Option | Required | Type | Description |
 |--------|----------|------|-------------|
@@ -2113,7 +2113,7 @@ Estimate how much energy a contract call would consume, without actually executi
 | | |
 |---|---|
 | **Alias** | `estimateenergy` |
-| **Auth** | Required if `--owner` is omitted; not required if `--owner` is provided |
+| **Auth** | Not required |
 
 | Option | Required | Type | Description |
 |--------|----------|------|-------------|
@@ -2650,7 +2650,7 @@ wallet-cli --network nile get-reward --address TYourAddress...
 ### Scenario 7: Call a Read-Only Smart Contract (No Fee)
 
 ```bash
-# Check USDT balance -- no wallet auth needed with --owner
+# Check USDT balance -- no wallet auth needed (read-only, no fee)
 wallet-cli --network nile trigger-constant-contract \
   --contract TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf \
   --method "balanceOf(address)" \
@@ -2858,8 +2858,8 @@ To set up multi-sig, use `update-account-permission` to configure the account's 
 | 83 | `gas-free-trace` | Query | No |
 | 84 | `deploy-contract` | Contract | Yes |
 | 85 | `trigger-contract` | Contract | Yes |
-| 86 | `trigger-constant-contract` | Contract | Conditional |
-| 87 | `estimate-energy` | Contract | Conditional |
+| 86 | `trigger-constant-contract` | Contract | No |
+| 87 | `estimate-energy` | Contract | No |
 | 88 | `clear-contract-abi` | Contract | Yes |
 | 89 | `update-setting` | Contract | Yes |
 | 90 | `update-energy-limit` | Contract | Yes |

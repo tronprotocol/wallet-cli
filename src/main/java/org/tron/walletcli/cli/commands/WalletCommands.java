@@ -49,6 +49,8 @@ public class WalletCommands {
                         out.usageError("Mnemonic word count must be 12 or 24, got: " + wordCount, null);
                         return;
                     }
+                    // MASTER_PASSWORD is for wallet creation (keystore encryption), not session auth.
+                    // Auth policy is NEVER because no pre-existing wallet is required.
                     String envPassword = ctx.getMasterPassword();
                     if (envPassword == null || envPassword.isEmpty()) {
                         out.error("execution_error",

@@ -3801,7 +3801,7 @@ public class WalletApi {
     return processTransactionExtention(transactionExtention, multi);
   }
 
-  public boolean deployContractForCli(
+  public String deployContractForCli(
       byte[] owner,
       String contractName,
       String ABI,
@@ -3854,7 +3854,7 @@ public class WalletApi {
     if (transactionExtention == null || !transactionExtention.getResult().getResult()) {
       recordLastCliOperationError(extractTransactionReturnMessage(
           transactionExtention == null ? null : transactionExtention.getResult()));
-      return false;
+      return null;
     }
 
     Response.TransactionExtention.Builder texBuilder = Response.TransactionExtention.newBuilder();
@@ -3876,7 +3876,11 @@ public class WalletApi {
     texBuilder.setTxid(transactionExtention.getTxid());
     transactionExtention = texBuilder.build();
 
-    return processTransactionExtentionForCli(transactionExtention, multi);
+    byte[] contractAddr = generateContractAddress(owner, transactionExtention.getTransaction());
+    if (!processTransactionExtentionForCli(transactionExtention, multi)) {
+      return null;
+    }
+    return encode58Check(contractAddr);
   }
 
   public Triple<Boolean, Long, Long> triggerContract(

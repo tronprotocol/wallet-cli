@@ -415,7 +415,7 @@ public class StandardCliCommandRoutingTest {
 
     command.getHandler().execute(org.tron.walletcli.cli.CommandContext.empty(), opts, new WalletApiWrapper() {
       @Override
-      public void deployContractForCli(byte[] ownerAddress, String name, String abiStr,
+      public String deployContractForCli(byte[] ownerAddress, String name, String abiStr,
           String codeStr, long feeLimit, long value, long consumeUserResourcePercent,
           long originEnergyLimit, long tokenValue, String tokenId, String libraryAddressPair,
           String compilerVersion, boolean multi) {
@@ -424,6 +424,7 @@ public class StandardCliCommandRoutingTest {
         Assert.assertEquals("6080", codeStr);
         Assert.assertEquals(1000000L, feeLimit);
         Assert.assertFalse(multi);
+        return "TFakeContractAddress";
       }
 
       @Override
@@ -461,11 +462,12 @@ public class StandardCliCommandRoutingTest {
     try {
       command.getHandler().execute(org.tron.walletcli.cli.CommandContext.empty(), opts, new WalletApiWrapper() {
         @Override
-        public void deployContractForCli(byte[] ownerAddress, String name, String abiStr,
+        public String deployContractForCli(byte[] ownerAddress, String name, String abiStr,
             String codeStr, long feeLimit, long value, long consumeUserResourcePercent,
             long originEnergyLimit, long tokenValue, String tokenId, String libraryAddressPair,
             String compilerVersion, boolean multi) {
           Assert.fail("deployContractForCli should not run for invalid usage");
+          return null;
         }
       }, formatter);
       Assert.fail("Expected usage failure");
@@ -884,11 +886,12 @@ public class StandardCliCommandRoutingTest {
       command.getHandler().execute(org.tron.walletcli.cli.CommandContext.empty(), opts,
           new WalletApiWrapper() {
             @Override
-            public void deployContractForCli(byte[] ownerAddress, String name, String abiStr,
+            public String deployContractForCli(byte[] ownerAddress, String name, String abiStr,
                 String codeStr, long feeLimit, long value, long consumeUserResourcePercent,
                 long originEnergyLimit, long tokenValue, String tokenId,
                 String libraryAddressPair, String compilerVersion, boolean multi) {
               Assert.fail("deployContractForCli should not run for invalid usage");
+              return null;
             }
           }, formatter);
       Assert.fail("Expected usage failure");

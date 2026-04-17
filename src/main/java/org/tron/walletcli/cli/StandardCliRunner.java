@@ -199,10 +199,9 @@ public class StandardCliRunner {
             return;
         }
 
-        // --grpc-endpoint present (with or without --network)
-        // grpcEndpoint format is not validated here; malformed values (empty, non-host:port)
-        // produce a gRPC-level error. No validation until a canonical format is decided
-        // (grpc:// vs bare host:port vs ip:port).
+        // --grpc-endpoint is passed to Trident/gRPC as-is — no format validation here.
+        // gRPC accepts host:port, IPv6 [::1]:port, and DNS targets; validating would
+        // reject legitimate inputs or duplicate what the transport already enforces.
         NetType detected = detectNetworkFromEndpoint(grpcEndpoint);
 
         if (networkFlag != null && detected != null) {

@@ -1,5 +1,7 @@
 package org.tron.walletcli.cli.commands;
 
+import java.util.Map;
+
 import org.tron.common.utils.AbiUtil;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.TransactionUtils;
@@ -112,14 +114,16 @@ public class ContractCommands {
                         }
                     }
 
-                    wrapper.deployContractForCli(owner, name, abi, codeStr,
+                    String contractAddress = wrapper.deployContractForCli(owner, name, abi, codeStr,
                             feeLimit, value, consumePercent, originEnergyLimit,
                             tokenValue, tokenId, library, compilerVersion, multi);
-                    // TODO: include contract_address in JSON data (derive via
-                    //  WalletApi.generateContractAddress + LAST_CONTRACT_ADDRESS ThreadLocal)
+                    Map<String, Object> data = CommandSupport.lastBroadcastTxResultData();
+                    if (contractAddress != null) {
+                        data.put("contract_address", contractAddress);
+                    }
                     CommandSupport.emitSuccess(out,
                             "DeployContract successful !!",
-                            CommandSupport.lastBroadcastTxResultData());
+                            data);
                 })
                 .build());
     }
