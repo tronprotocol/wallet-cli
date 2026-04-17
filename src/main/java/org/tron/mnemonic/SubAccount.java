@@ -13,6 +13,7 @@ import static org.tron.ledger.console.ConsoleColor.ANSI_RESET;
 
 import com.typesafe.config.Config;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -106,7 +107,7 @@ public class SubAccount {
       result.add(WalletAddress.builder()
           .pathIndex(i)
           .address("")
-          .privateKey("".getBytes())
+          .privateKey("".getBytes(StandardCharsets.UTF_8))
           .generated(false)
           .build());
     }
@@ -579,17 +580,19 @@ public class SubAccount {
   }
 
   public void clearSensitiveData() {
-    // Clear mnemonic
     this.mnemonic = null;
 
-    // Clear password
     if (this.password != null) {
         Arrays.fill(this.password, (byte) 0);
         this.password = null;
     }
 
-    // Clear addresses
     if (this.addresses != null) {
+        for (WalletAddress addr : this.addresses) {
+            if (addr.getPrivateKey() != null) {
+                Arrays.fill(addr.getPrivateKey(), (byte) 0);
+            }
+        }
         this.addresses.clear();
     }
   }

@@ -10,6 +10,7 @@ import com.typesafe.config.Config;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
+import org.tron.common.utils.FilePermissionUtils;
 import java.nio.file.Paths;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.NoSuchAlgorithmException;
@@ -88,6 +89,7 @@ public class WalletUtils {
     File destination = new File(destinationDirectory, fileName);
 
     objectMapper.writeValue(destination, walletFile);
+    FilePermissionUtils.setOwnerOnlyFile(destination.toPath());
 
     return fileName;
   }
@@ -104,6 +106,7 @@ public class WalletUtils {
     }
 
     objectMapper.writeValue(source, walletFile);
+    FilePermissionUtils.setOwnerOnlyFile(source.toPath());
   }
 
   public static String generateWalletFile(WalletFile walletFile, File destinationDirectory)
@@ -118,6 +121,7 @@ public class WalletUtils {
 
     File destination = new File(destinationDirectory, fileName);
     objectMapper.writeValue(destination, walletFile);
+    FilePermissionUtils.setOwnerOnlyFile(destination.toPath());
     if (StringUtils.isEmpty(walletFile.getName())) {
       walletFile.setName(fileName);
     }
@@ -132,6 +136,7 @@ public class WalletUtils {
     File destination = new File(destinationDirectory, fileName);
 
     objectMapper.writeValue(destination, walletFile);
+    FilePermissionUtils.setOwnerOnlyFile(destination.toPath());
     if (StringUtils.isEmpty(walletFile.getName())) {
       walletFile.setName(fileName);
     }
@@ -146,6 +151,7 @@ public class WalletUtils {
     File destination = new File(destinationDirectory, fileName);
 
     objectMapper.writeValue(destination, walletFile);
+    FilePermissionUtils.setOwnerOnlyFile(destination.toPath());
     return fileName;
   }
 
@@ -269,6 +275,7 @@ public class WalletUtils {
   public static void generateSkeyFile(SKeyCapsule skey, File file)
       throws IOException {
     objectMapper.writeValue(file, skey);
+    FilePermissionUtils.setOwnerOnlyFile(file.toPath());
   }
 
   public static SKeyCapsule loadSkeyFile(File source) throws IOException {

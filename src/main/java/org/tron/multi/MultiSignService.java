@@ -105,8 +105,8 @@ public class MultiSignService {
     }
     try {
       Mac mac = Mac.getInstance("HmacSHA256");
-      mac.init(new SecretKeySpec(key.getBytes(), "HmacSHA256"));
-      return encode(mac.doFinal(text.getBytes()));
+      mac.init(new SecretKeySpec(key.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+      return encode(mac.doFinal(text.getBytes(StandardCharsets.UTF_8)));
     } catch (Exception e) {
       throw new RuntimeException("Error while calculating HMAC SHA256", e);
     }
