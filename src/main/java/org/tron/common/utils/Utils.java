@@ -36,6 +36,8 @@ import static org.tron.walletserver.WalletApi.encode58Check;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonParser;
 import com.google.protobuf.Any;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
@@ -184,7 +186,8 @@ public class Utils {
 
   public static String formatMessageString(Message message) {
     String result = JsonFormat.printToString(message, true);
-    return JsonFormatUtil.formatJson(result);
+    return new GsonBuilder().setPrettyPrinting().create()
+        .toJson(JsonParser.parseString(result));
   }
 
   public static String printTransactionExceptId(Chain.Transaction transaction)

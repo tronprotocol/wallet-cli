@@ -70,7 +70,7 @@ public class StakingCommands {
                     int resource = opts.has("resource") ? opts.getInt("resource") : 0;
                     CommandSupport.requireResourceCode(out, "resource", resource);
                     int permissionId = opts.has("permission-id") ? opts.getInt("permission-id") : 0;
-                    CommandSupport.requireNonNegative(out, "permission-id", permissionId);
+                    CommandSupport.requirePermissionId(out, "permission-id", permissionId);
                     boolean multi = opts.getBoolean("multi");
                     TransactionUtils.setPermissionIdOverride(permissionId);
                     try {
@@ -129,7 +129,7 @@ public class StakingCommands {
                     int resource = opts.has("resource") ? opts.getInt("resource") : 0;
                     CommandSupport.requireResourceCode(out, "resource", resource);
                     int permissionId = opts.has("permission-id") ? opts.getInt("permission-id") : 0;
-                    CommandSupport.requireNonNegative(out, "permission-id", permissionId);
+                    CommandSupport.requirePermissionId(out, "permission-id", permissionId);
                     boolean multi = opts.getBoolean("multi");
                     TransactionUtils.setPermissionIdOverride(permissionId);
                     try {

@@ -7,6 +7,7 @@ import org.tron.common.utils.AbiUtil;
 import org.tron.common.utils.TransactionUtils;
 import org.tron.walletcli.WalletApiWrapper;
 import org.tron.walletcli.cli.CommandDefinition;
+import org.tron.walletcli.cli.CommandErrorException;
 import org.tron.walletcli.cli.CommandRegistry;
 import org.tron.walletcli.cli.OptionDef;
 import org.tron.walletserver.WalletApi;
@@ -51,7 +52,7 @@ public class TransactionCommands {
                     long amount = opts.getLong("amount");
                     CommandSupport.requirePositive(out, "amount", amount);
                     int permissionId = opts.has("permission-id") ? opts.getInt("permission-id") : 0;
-                    CommandSupport.requireNonNegative(out, "permission-id", permissionId);
+                    CommandSupport.requirePermissionId(out, "permission-id", permissionId);
                     boolean multi = opts.getBoolean("multi");
                     TransactionUtils.setPermissionIdOverride(permissionId);
                     try {
@@ -124,7 +125,7 @@ public class TransactionCommands {
                     long amount = opts.getLong("amount");
                     CommandSupport.requirePositive(out, "amount", amount);
                     int permissionId = opts.has("permission-id") ? opts.getInt("permission-id") : 0;
-                    CommandSupport.requireNonNegative(out, "permission-id", permissionId);
+                    CommandSupport.requirePermissionId(out, "permission-id", permissionId);
                     boolean multi = opts.getBoolean("multi");
 
                     String toBase58 = WalletApi.encode58Check(toAddress);
@@ -139,12 +140,11 @@ public class TransactionCommands {
                     try {
                         estimate = wrapper.callContractForCli(
                                 owner, contractAddress, 0, data, 0, 0, "", true, true, false);
+                    } catch (CommandErrorException e) {
+                        throw new CommandErrorException("execution_error",
+                                "TransferUSDT failed: energy estimation failed.");
                     } finally {
                         TransactionUtils.clearPermissionIdOverride();
-                    }
-                    if (!Boolean.TRUE.equals(estimate.getLeft())) {
-                        out.error("execution_error", "TransferUSDT failed: energy estimation failed.");
-                        return;
                     }
                     long energyUsed = estimate.getMiddle();
                     // Get energy price from chain parameters and add 20% buffer
@@ -316,8 +316,8 @@ public class TransactionCommands {
                 .handler((ctx, opts, wrapper, out) -> {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
-                    // TODO: validate name length (node enforces max 200 bytes)
                     byte[] nameBytes = opts.getString("name").getBytes(StandardCharsets.UTF_8);
+                    CommandSupport.requireMaxBytes(out, "name", nameBytes, 200);
                     boolean multi = opts.getBoolean("multi");
                     wrapper.updateAccountForCli(owner, nameBytes, multi);
                     CommandSupport.emitSuccess(out,
@@ -338,8 +338,8 @@ public class TransactionCommands {
                 .handler((ctx, opts, wrapper, out) -> {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
-                    // TODO: validate id length (node enforces 8–32 bytes)
                     byte[] id = opts.getString("id").getBytes(StandardCharsets.UTF_8);
+                    CommandSupport.requireByteRange(out, "id", id, 8, 32);
                     wrapper.setAccountIdForCli(owner, id);
                     CommandSupport.emitSuccess(out,
                             "Set AccountId successful !!",
@@ -363,9 +363,10 @@ public class TransactionCommands {
                 .handler((ctx, opts, wrapper, out) -> {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
-                    // TODO: validate description (max 200 bytes) and url (max 256 bytes) per node limits
                     byte[] desc = opts.getString("description").getBytes(StandardCharsets.UTF_8);
+                    CommandSupport.requireMaxBytes(out, "description", desc, 200);
                     byte[] url = opts.getString("url").getBytes(StandardCharsets.UTF_8);
+                    CommandSupport.requireMaxBytes(out, "url", url, 256);
                     long newLimit = opts.getLong("new-limit");
                     CommandSupport.requireNonNegative(out, "new-limit", newLimit);
                     long newPublicLimit = opts.getLong("new-public-limit");

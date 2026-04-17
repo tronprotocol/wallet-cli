@@ -92,7 +92,7 @@ public class WitnessCommands {
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     String votesStr = opts.getString("votes");
                     int permissionId = opts.has("permission-id") ? opts.getInt("permission-id") : 0;
-                    CommandSupport.requireNonNegative(out, "permission-id", permissionId);
+                    CommandSupport.requirePermissionId(out, "permission-id", permissionId);
                     String[] parts = votesStr.trim().split("\\s+");
                     if (parts.length % 2 != 0) {
                         out.usageError("Votes must be pairs of 'address count'", null);

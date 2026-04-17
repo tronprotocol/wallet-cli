@@ -5,6 +5,7 @@ import com.google.gson.GsonBuilder;
 import org.tron.common.utils.FilePermissionUtils;
 import org.tron.keystore.WalletFile;
 import org.tron.keystore.WalletUtils;
+import org.tron.walletserver.WalletApi;
 
 import java.io.File;
 import java.io.FileReader;
@@ -61,6 +62,9 @@ public class ActiveWalletConfig {
      * Set the active wallet address.
      */
     public static void setActiveAddress(String address) throws IOException {
+        if (address == null || WalletApi.decodeFromBase58Check(address) == null) {
+            throw new IllegalArgumentException("Invalid Base58Check address: " + address);
+        }
         File dir = getWalletDir();
         if (!dir.exists()) {
             dir.mkdirs();
@@ -184,6 +188,9 @@ public class ActiveWalletConfig {
 
         File walletDirEntry = new File(walletDir, walletSelection);
         if (walletDirEntry.isFile()) {
+            if (!walletDirEntry.getName().endsWith(".json")) {
+                throw new IOException("Wallet file must be a .json keystore: " + walletSelection);
+            }
             return walletDirEntry;
         }
 

@@ -75,6 +75,12 @@ final class CommandSupport {
         }
     }
 
+    static void requirePermissionId(OutputFormatter out, String name, int value) {
+        if (value < 0 || value > 2) {
+            out.usageError(name + " must be 0 (Owner), 1 (Witness), or 2 (Active), got: " + value, null);
+        }
+    }
+
     static void requireResourceCode(OutputFormatter out, String name, int value) {
         if (value != 0 && value != 1) {
             out.usageError(name + " must be 0 (BANDWIDTH) or 1 (ENERGY), got: " + value, null);
@@ -103,6 +109,18 @@ final class CommandSupport {
     static void requireNonBlank(OutputFormatter out, String name, String value) {
         if (value == null || value.trim().isEmpty()) {
             out.usageError(name + " must not be blank", null);
+        }
+    }
+
+    static void requireMaxBytes(OutputFormatter out, String name, byte[] value, int max) {
+        if (value.length > max) {
+            out.usageError(name + " exceeds max length of " + max + " bytes, got: " + value.length, null);
+        }
+    }
+
+    static void requireByteRange(OutputFormatter out, String name, byte[] value, int min, int max) {
+        if (value.length < min || value.length > max) {
+            out.usageError(name + " must be " + min + "–" + max + " bytes, got: " + value.length, null);
         }
     }
 

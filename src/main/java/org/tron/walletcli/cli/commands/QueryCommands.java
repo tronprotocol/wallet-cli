@@ -279,6 +279,7 @@ public class QueryCommands {
                     String value = opts.getString("value");
                     try {
                         long blockNum = Long.parseLong(value);
+                        CommandSupport.requireNonNegative(out, "value", blockNum);
                         Chain.Block block = WalletApi.getBlock(blockNum);
                         if (block == null) {
                             out.error("query_failed", "GetBlock failed");

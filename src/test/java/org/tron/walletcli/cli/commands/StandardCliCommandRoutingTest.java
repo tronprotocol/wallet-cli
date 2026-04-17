@@ -12,6 +12,8 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.After;
+import org.junit.Rule;
+import org.junit.rules.TemporaryFolder;
 import org.apache.commons.lang3.tuple.Triple;
 import org.junit.Assert;
 import org.junit.Test;
@@ -31,6 +33,9 @@ public class StandardCliCommandRoutingTest {
   private static JsonObject parseJson(String raw) {
     return JsonParser.parseString(raw).getAsJsonObject();
   }
+
+  @Rule
+  public TemporaryFolder tempFolder = new TemporaryFolder();
 
   private final String originalUserDir = System.getProperty("user.dir");
 
@@ -300,7 +305,7 @@ public class StandardCliCommandRoutingTest {
     Assert.assertTrue(walletDir.mkdirs());
     System.setProperty("user.dir", tempDir.getAbsolutePath());
     try {
-      ActiveWalletConfig.setActiveAddress("TDryRunTestAddress");
+      ActiveWalletConfig.setActiveAddress("TNPeeaaFB7K9cmo4uQpcU32zGK8G1NYqeL");
 
       CommandRegistry registry = new CommandRegistry();
       WalletCommands.register(registry);
@@ -680,6 +685,7 @@ public class StandardCliCommandRoutingTest {
 
   @Test
   public void registerWalletForCliDoesNotPrintMnemonicPromptText() throws Exception {
+    System.setProperty("user.dir", tempFolder.getRoot().getAbsolutePath());
     PrintStream originalOut = System.out;
     ByteArrayOutputStream stdout = new ByteArrayOutputStream();
     char[] password = "TempPass123!A".toCharArray();
@@ -763,6 +769,7 @@ public class StandardCliCommandRoutingTest {
 
   @Test
   public void generateSubAccountForCliIsNonInteractiveAndRejectsDuplicateIndex() throws Exception {
+    System.setProperty("user.dir", tempFolder.getRoot().getAbsolutePath());
     PrintStream originalOut = System.out;
     ByteArrayOutputStream stdout = new ByteArrayOutputStream();
     char[] passwordChars = "TempPass123!A".toCharArray();

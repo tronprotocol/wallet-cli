@@ -168,7 +168,7 @@ public class WalletApiWrapper {
 
   public static long computeBufferedFeeLimit(long energyFee, long energyUsed) {
     long base = Math.multiplyExact(energyFee, energyUsed);
-    return Math.addExact(base, Math.floorDiv(base, 5));
+    return Math.addExact(base, Math.max(1, Math.floorDiv(base, 5)));
   }
 
   public CliWalletCreationResult registerWalletForCli(char[] password, int wordsNumber, String walletName)

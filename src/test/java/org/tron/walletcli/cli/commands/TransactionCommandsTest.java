@@ -76,17 +76,22 @@ public class TransactionCommandsTest {
             if (!isConstant) {
               Assert.fail("broadcast path should not run after estimation failure");
             }
-            return Triple.of(false, 0L, 0L);
+            throw new org.tron.walletcli.cli.CommandErrorException("execution_error",
+                "energy estimation failed");
           }
-  
+
           @Override
           public Response.ChainParameters getChainParametersForCli() {
             Assert.fail("fee calculation should not run after estimation failure");
             return null;
           }
         }, formatter);
-      } catch (RuntimeException e) {
-        Assert.assertTrue(formatter.hasOutcome());
+      } catch (org.tron.walletcli.cli.CommandErrorException e) {
+        try {
+          formatter.error(e.getCode(), e.getMessage());
+        } catch (RuntimeException ignored) {
+          // formatter.error() throws CliAbortException after recording the outcome
+        }
       }
       formatter.flush();
 

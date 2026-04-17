@@ -1,6 +1,7 @@
 package org.tron.walletcli.cli;
 
 import java.util.Arrays;
+import java.util.Locale;
 
 public class GlobalOptions {
 
@@ -44,7 +45,7 @@ public class GlobalOptions {
             String token = args[i];
 
             if (!token.startsWith("-")) {
-                opts.command = token.toLowerCase();
+                opts.command = token.toLowerCase(Locale.ROOT);
                 opts.commandArgs = Arrays.copyOfRange(args, i + 1, args.length);
                 return opts;
             }

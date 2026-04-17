@@ -154,7 +154,7 @@ public class ActiveWalletConfigTest {
     Assert.assertTrue(walletDir.mkdirs());
     System.setProperty("user.dir", tempDir.getAbsolutePath());
     try {
-      ActiveWalletConfig.setActiveAddress("TMissingWalletAddress");
+      ActiveWalletConfig.setActiveAddress("TNPeeaaFB7K9cmo4uQpcU32zGK8G1NYqeL");
       try {
         ActiveWalletConfig.resolveActiveWalletFileStrict(walletDir);
         Assert.fail("Expected missing keystore to fail");

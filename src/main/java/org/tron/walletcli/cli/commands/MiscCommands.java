@@ -16,7 +16,6 @@ public class MiscCommands {
     private static void registerHelp(CommandRegistry registry) {
         registry.add(noAuthCommand()
                 .name("help")
-                .aliases("help")
                 .description("Show help information")
                 .option("command", "Command to show help for", false)
                 .handler((ctx, opts, wrapper, out) -> {
