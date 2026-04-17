@@ -2,6 +2,8 @@ package org.tron.walletcli.cli.commands;
 
 import java.util.Map;
 
+import org.apache.commons.lang3.tuple.Pair;
+import org.apache.commons.lang3.tuple.Triple;
 import org.tron.common.utils.AbiUtil;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.TransactionUtils;
@@ -114,13 +116,11 @@ public class ContractCommands {
                         }
                     }
 
-                    String contractAddress = wrapper.deployContractForCli(owner, name, abi, codeStr,
+                    Pair<String, String> deployResult = wrapper.deployContractForCli(owner, name, abi, codeStr,
                             feeLimit, value, consumePercent, originEnergyLimit,
                             tokenValue, tokenId, library, compilerVersion, multi);
-                    Map<String, Object> data = CommandSupport.lastBroadcastTxResultData();
-                    if (contractAddress != null) {
-                        data.put("contract_address", contractAddress);
-                    }
+                    Map<String, Object> data = CommandSupport.txResultData(deployResult.getRight());
+                    data.put("contract_address", deployResult.getLeft());
                     CommandSupport.emitSuccess(out,
                             "DeployContract successful !!",
                             data);
@@ -180,20 +180,20 @@ public class ContractCommands {
                     TransactionUtils.setPermissionIdOverride(permissionId);
                     // No catch block — exception propagates after finally, so result is
                     // always assigned before use. Java definite-assignment enforces this.
-                    org.apache.commons.lang3.tuple.Triple<Boolean, Long, Long> result;
+                    Triple<String, Long, Long> triggerResult;
                     try {
-                        result = wrapper.callContractForCli(owner, contractAddress, callValue, data,
+                        triggerResult = wrapper.callContractForCli(owner, contractAddress, callValue, data,
                                 feeLimit, tokenValue, tokenId, false, true, multi);
                     } finally {
                         TransactionUtils.clearPermissionIdOverride();
                     }
-                    if (!Boolean.TRUE.equals(result.getLeft())) {
+                    if (triggerResult.getLeft() == null) {
                         out.error("execution_error", "TriggerContract failed !!");
                         return;
                     }
                     CommandSupport.emitSuccess(out,
                             "TriggerContract successful !!",
-                            CommandSupport.lastBroadcastTxResultData());
+                            CommandSupport.txResultData(triggerResult.getLeft()));
                 })
                 .build());
     }
@@ -324,10 +324,10 @@ public class ContractCommands {
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     byte[] contractAddress = opts.getAddress("contract");
                     boolean multi = opts.getBoolean("multi");
-                    wrapper.clearContractAbiForCli(owner, contractAddress, multi);
+                    String txid = wrapper.clearContractAbiForCli(owner, contractAddress, multi);
                     CommandSupport.emitSuccess(out,
                             "ClearContractABI successful !!",
-                            CommandSupport.lastBroadcastTxResultData());
+                            CommandSupport.txResultData(txid));
                 })
                 .build());
     }
@@ -352,10 +352,10 @@ public class ContractCommands {
                         return;
                     }
                     boolean multi = opts.getBoolean("multi");
-                    wrapper.updateSettingForCli(owner, contractAddress, percent, multi);
+                    String txid = wrapper.updateSettingForCli(owner, contractAddress, percent, multi);
                     CommandSupport.emitSuccess(out,
                             "UpdateSetting successful !!",
-                            CommandSupport.lastBroadcastTxResultData());
+                            CommandSupport.txResultData(txid));
                 })
                 .build());
     }
@@ -377,10 +377,10 @@ public class ContractCommands {
                     long limit = opts.getLong("origin-energy-limit");
                     CommandSupport.requirePositive(out, "origin-energy-limit", limit);
                     boolean multi = opts.getBoolean("multi");
-                    wrapper.updateEnergyLimitForCli(owner, contractAddress, limit, multi);
+                    String txid = wrapper.updateEnergyLimitForCli(owner, contractAddress, limit, multi);
                     CommandSupport.emitSuccess(out,
                             "UpdateEnergyLimit successful !!",
-                            CommandSupport.lastBroadcastTxResultData());
+                            CommandSupport.txResultData(txid));
                 })
                 .build());
     }

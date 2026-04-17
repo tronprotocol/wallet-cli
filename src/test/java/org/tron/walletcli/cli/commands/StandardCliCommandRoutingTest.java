@@ -14,6 +14,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.After;
 import org.junit.Rule;
 import org.junit.rules.TemporaryFolder;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.lang3.tuple.Triple;
 import org.junit.Assert;
 import org.junit.Test;
@@ -62,7 +63,7 @@ public class StandardCliCommandRoutingTest {
     AtomicBoolean cliSafeCalled = new AtomicBoolean(false);
     command.getHandler().execute(org.tron.walletcli.cli.CommandContext.empty(), opts, new WalletApiWrapper() {
       @Override
-      public Triple<Boolean, Long, Long> callContractForCli(
+      public Triple<String, Long, Long> callContractForCli(
           byte[] ownerAddress,
           byte[] contractAddress,
           long callValue,
@@ -74,7 +75,7 @@ public class StandardCliCommandRoutingTest {
           boolean display,
           boolean multi) {
         cliSafeCalled.set(true);
-        return Triple.of(true, 0L, 0L);
+        return Triple.of("", 0L, 0L);
       }
 
       @Override
@@ -345,9 +346,10 @@ public class StandardCliCommandRoutingTest {
 
     command.getHandler().execute(org.tron.walletcli.cli.CommandContext.empty(), opts, new WalletApiWrapper() {
       @Override
-      public void updateAccountForCli(byte[] ownerAddress, byte[] accountNameBytes, boolean multi) {
+      public String updateAccountForCli(byte[] ownerAddress, byte[] accountNameBytes, boolean multi) {
         Assert.assertEquals("qa-test", new String(accountNameBytes, StandardCharsets.UTF_8));
         Assert.assertFalse(multi);
+        return "";
       }
 
       @Override
@@ -378,10 +380,11 @@ public class StandardCliCommandRoutingTest {
 
     command.getHandler().execute(org.tron.walletcli.cli.CommandContext.empty(), opts, new WalletApiWrapper() {
       @Override
-      public void updateSettingForCli(byte[] ownerAddress, byte[] contractAddress,
+      public String updateSettingForCli(byte[] ownerAddress, byte[] contractAddress,
           long consumeUserResourcePercent, boolean multi) {
         Assert.assertEquals(0L, consumeUserResourcePercent);
         Assert.assertFalse(multi);
+        return "";
       }
 
       @Override
@@ -415,7 +418,7 @@ public class StandardCliCommandRoutingTest {
 
     command.getHandler().execute(org.tron.walletcli.cli.CommandContext.empty(), opts, new WalletApiWrapper() {
       @Override
-      public String deployContractForCli(byte[] ownerAddress, String name, String abiStr,
+      public Pair<String, String> deployContractForCli(byte[] ownerAddress, String name, String abiStr,
           String codeStr, long feeLimit, long value, long consumeUserResourcePercent,
           long originEnergyLimit, long tokenValue, String tokenId, String libraryAddressPair,
           String compilerVersion, boolean multi) {
@@ -424,7 +427,7 @@ public class StandardCliCommandRoutingTest {
         Assert.assertEquals("6080", codeStr);
         Assert.assertEquals(1000000L, feeLimit);
         Assert.assertFalse(multi);
-        return "TFakeContractAddress";
+        return Pair.of("TFakeContractAddress", "");
       }
 
       @Override
@@ -462,7 +465,7 @@ public class StandardCliCommandRoutingTest {
     try {
       command.getHandler().execute(org.tron.walletcli.cli.CommandContext.empty(), opts, new WalletApiWrapper() {
         @Override
-        public String deployContractForCli(byte[] ownerAddress, String name, String abiStr,
+        public Pair<String, String> deployContractForCli(byte[] ownerAddress, String name, String abiStr,
             String codeStr, long feeLimit, long value, long consumeUserResourcePercent,
             long originEnergyLimit, long tokenValue, String tokenId, String libraryAddressPair,
             String compilerVersion, boolean multi) {
@@ -497,13 +500,14 @@ public class StandardCliCommandRoutingTest {
 
     command.getHandler().execute(org.tron.walletcli.cli.CommandContext.empty(), opts, new WalletApiWrapper() {
       @Override
-      public void freezeBalanceForCli(byte[] ownerAddress, long frozenBalance, long frozenDuration,
+      public String freezeBalanceForCli(byte[] ownerAddress, long frozenBalance, long frozenDuration,
           int resourceCode, byte[] receiverAddress, boolean multi) {
         Assert.assertEquals(1000000L, frozenBalance);
         Assert.assertEquals(3L, frozenDuration);
         Assert.assertEquals(0, resourceCode);
         Assert.assertNull(receiverAddress);
         Assert.assertFalse(multi);
+        return "";
       }
 
       @Override
@@ -578,12 +582,13 @@ public class StandardCliCommandRoutingTest {
 
     command.getHandler().execute(org.tron.walletcli.cli.CommandContext.empty(), opts, new WalletApiWrapper() {
       @Override
-      public void freezeBalanceV2ForCli(byte[] ownerAddress, long frozenBalance,
+      public String freezeBalanceV2ForCli(byte[] ownerAddress, long frozenBalance,
           int resourceCode, boolean multi) {
         Assert.assertNull(ownerAddress);
         Assert.assertEquals(1000000L, frozenBalance);
         Assert.assertEquals(1, resourceCode);
         Assert.assertFalse(multi);
+        return "";
       }
 
       @Override
@@ -615,12 +620,13 @@ public class StandardCliCommandRoutingTest {
 
     command.getHandler().execute(org.tron.walletcli.cli.CommandContext.empty(), opts, new WalletApiWrapper() {
       @Override
-      public void unfreezeBalanceV2ForCli(byte[] ownerAddress, long unfreezeBalance,
+      public String unfreezeBalanceV2ForCli(byte[] ownerAddress, long unfreezeBalance,
           int resourceCode, boolean multi) {
         Assert.assertNull(ownerAddress);
         Assert.assertEquals(1000000L, unfreezeBalance);
         Assert.assertEquals(1, resourceCode);
         Assert.assertFalse(multi);
+        return "";
       }
 
       @Override
@@ -847,9 +853,10 @@ public class StandardCliCommandRoutingTest {
       command.getHandler().execute(org.tron.walletcli.cli.CommandContext.empty(), opts,
           new WalletApiWrapper() {
             @Override
-            public void updateEnergyLimitForCli(byte[] ownerAddress, byte[] contractAddress,
+            public String updateEnergyLimitForCli(byte[] ownerAddress, byte[] contractAddress,
                 long originEnergyLimit, boolean multi) {
               Assert.fail("updateEnergyLimitForCli should not run for invalid usage");
+              return null;
             }
           }, formatter);
       Assert.fail("Expected usage failure");
@@ -886,7 +893,7 @@ public class StandardCliCommandRoutingTest {
       command.getHandler().execute(org.tron.walletcli.cli.CommandContext.empty(), opts,
           new WalletApiWrapper() {
             @Override
-            public String deployContractForCli(byte[] ownerAddress, String name, String abiStr,
+            public Pair<String, String> deployContractForCli(byte[] ownerAddress, String name, String abiStr,
                 String codeStr, long feeLimit, long value, long consumeUserResourcePercent,
                 long originEnergyLimit, long tokenValue, String tokenId,
                 String libraryAddressPair, String compilerVersion, boolean multi) {
@@ -927,12 +934,12 @@ public class StandardCliCommandRoutingTest {
       command.getHandler().execute(org.tron.walletcli.cli.CommandContext.empty(), opts,
           new WalletApiWrapper() {
             @Override
-            public Triple<Boolean, Long, Long> callContractForCli(
+            public Triple<String, Long, Long> callContractForCli(
                 byte[] ownerAddress, byte[] contractAddress, long callValue, byte[] data,
                 long feeLimit, long tokenValue, String tokenId,
                 boolean isConstant, boolean display, boolean multi) {
               Assert.fail("callContractForCli should not run for invalid usage");
-              return Triple.of(false, 0L, 0L);
+              return Triple.of(null, 0L, 0L);
             }
           }, formatter);
       Assert.fail("Expected usage failure");
@@ -966,9 +973,10 @@ public class StandardCliCommandRoutingTest {
       command.getHandler().execute(org.tron.walletcli.cli.CommandContext.empty(), opts,
           new WalletApiWrapper() {
             @Override
-            public void freezeBalanceForCli(byte[] ownerAddress, long frozenBalance,
+            public String freezeBalanceForCli(byte[] ownerAddress, long frozenBalance,
                 long frozenDuration, int resourceCode, byte[] receiverAddress, boolean multi) {
               Assert.fail("freezeBalanceForCli should not run for invalid usage");
+              return null;
             }
           }, formatter);
       Assert.fail("Expected usage failure");
@@ -1004,10 +1012,11 @@ public class StandardCliCommandRoutingTest {
       command.getHandler().execute(org.tron.walletcli.cli.CommandContext.empty(), opts,
           new WalletApiWrapper() {
             @Override
-            public void delegateResourceForCli(byte[] ownerAddress, long amount,
+            public String delegateResourceForCli(byte[] ownerAddress, long amount,
                 int resourceCode, byte[] receiverAddress,
                 boolean lock, long lockPeriod, boolean multi) {
               Assert.fail("delegateResourceForCli should not run for invalid usage");
+              return null;
             }
           }, formatter);
       Assert.fail("Expected usage failure");
@@ -1041,9 +1050,10 @@ public class StandardCliCommandRoutingTest {
       command.getHandler().execute(org.tron.walletcli.cli.CommandContext.empty(), opts,
           new WalletApiWrapper() {
             @Override
-            public void approveProposalForCli(byte[] ownerAddress, long id,
+            public String approveProposalForCli(byte[] ownerAddress, long id,
                 boolean isAddApproval, boolean multi) {
               Assert.fail("approveProposalForCli should not run for invalid usage");
+              return null;
             }
           }, formatter);
       Assert.fail("Expected usage failure");
@@ -1076,8 +1086,9 @@ public class StandardCliCommandRoutingTest {
       command.getHandler().execute(org.tron.walletcli.cli.CommandContext.empty(), opts,
           new WalletApiWrapper() {
             @Override
-            public void deleteProposalForCli(byte[] ownerAddress, long id, boolean multi) {
+            public String deleteProposalForCli(byte[] ownerAddress, long id, boolean multi) {
               Assert.fail("deleteProposalForCli should not run for invalid usage");
+              return null;
             }
           }, formatter);
       Assert.fail("Expected usage failure");

@@ -186,8 +186,15 @@ public class Utils {
 
   public static String formatMessageString(Message message) {
     String result = JsonFormat.printToString(message, true);
-    return new GsonBuilder().setPrettyPrinting().create()
-        .toJson(JsonParser.parseString(result));
+    try {
+      com.google.gson.stream.JsonReader reader =
+          new com.google.gson.stream.JsonReader(new java.io.StringReader(result));
+      reader.setLenient(true);
+      return new GsonBuilder().setPrettyPrinting().create()
+          .toJson(JsonParser.parseReader(reader));
+    } catch (com.google.gson.JsonSyntaxException e) {
+      return result;
+    }
   }
 
   public static String printTransactionExceptId(Chain.Transaction transaction)

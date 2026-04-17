@@ -38,11 +38,11 @@ public class ExchangeCommands {
                     long secondBalance = opts.getLong("second-balance");
                     CommandSupport.requirePositive(out, "second-balance", secondBalance);
                     boolean multi = opts.getBoolean("multi");
-                    wrapper.exchangeCreateForCli(owner, firstToken, firstBalance,
+                    String txid = wrapper.exchangeCreateForCli(owner, firstToken, firstBalance,
                             secondToken, secondBalance, multi);
                     CommandSupport.emitSuccess(out,
                             "ExchangeCreate successful !!",
-                            CommandSupport.lastBroadcastTxResultData());
+                            CommandSupport.txResultData(txid));
                 })
                 .build());
     }
@@ -69,10 +69,10 @@ public class ExchangeCommands {
                     long quant = opts.getLong("quant");
                     CommandSupport.requirePositive(out, "quant", quant);
                     boolean multi = opts.getBoolean("multi");
-                    wrapper.exchangeInjectForCli(owner, exchangeId, tokenId, quant, multi);
+                    String txid = wrapper.exchangeInjectForCli(owner, exchangeId, tokenId, quant, multi);
                     CommandSupport.emitSuccess(out,
                             "ExchangeInject successful !!",
-                            CommandSupport.lastBroadcastTxResultData());
+                            CommandSupport.txResultData(txid));
                 })
                 .build());
     }
@@ -99,10 +99,10 @@ public class ExchangeCommands {
                     long quant = opts.getLong("quant");
                     CommandSupport.requirePositive(out, "quant", quant);
                     boolean multi = opts.getBoolean("multi");
-                    wrapper.exchangeWithdrawForCli(owner, exchangeId, tokenId, quant, multi);
+                    String txid = wrapper.exchangeWithdrawForCli(owner, exchangeId, tokenId, quant, multi);
                     CommandSupport.emitSuccess(out,
                             "ExchangeWithdraw successful !!",
-                            CommandSupport.lastBroadcastTxResultData());
+                            CommandSupport.txResultData(txid));
                 })
                 .build());
     }
@@ -129,11 +129,11 @@ public class ExchangeCommands {
                     long buyQuantity = opts.getLong("buy-quantity");
                     CommandSupport.requirePositive(out, "buy-quantity", buyQuantity);
                     boolean multi = opts.getBoolean("multi");
-                    wrapper.marketSellAssetForCli(owner, sellToken, sellQuantity,
+                    String txid = wrapper.marketSellAssetForCli(owner, sellToken, sellQuantity,
                             buyToken, buyQuantity, multi);
                     CommandSupport.emitSuccess(out,
                             "MarketSellAsset successful !!",
-                            CommandSupport.lastBroadcastTxResultData());
+                            CommandSupport.txResultData(txid));
                 })
                 .build());
     }
@@ -152,10 +152,10 @@ public class ExchangeCommands {
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     byte[] orderId = CommandSupport.requireHex(out, "order-id", opts.getString("order-id"));
                     boolean multi = opts.getBoolean("multi");
-                    wrapper.marketCancelOrderForCli(owner, orderId, multi);
+                    String txid = wrapper.marketCancelOrderForCli(owner, orderId, multi);
                     CommandSupport.emitSuccess(out,
                             "MarketCancelOrder successful !!",
-                            CommandSupport.lastBroadcastTxResultData());
+                            CommandSupport.txResultData(txid));
                 })
                 .build());
     }

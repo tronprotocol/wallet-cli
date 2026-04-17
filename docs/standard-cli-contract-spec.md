@@ -752,6 +752,22 @@ Rules:
 - future command output expansion should prefer additive changes inside `data` rather than changing the top-level
   envelope shape
 
+### Broadcast Command Payload
+
+On-chain broadcast commands (send-coin, transfer-asset, trigger-contract, deploy-contract,
+freeze-balance, vote-witness, etc.) include transaction-specific fields under `data` when the
+broadcast succeeds.
+
+Rules:
+
+- a successful single-sign broadcast must include `"txid"` under `data`
+- a successful multi-sign submission must not include `"txid"` under `data` because multi-sign
+  submits a partially-signed transaction to a coordinator, not directly to the network; no txid
+  is generated at broadcast time
+- deploy-contract must additionally include `"contract_address"` (base58Check) under `data`
+- callers that require a txid must check that `data.txid` is present; its absence means the
+  transaction was submitted for multi-sign coordination
+
 ### Text and JSON Consistency
 
 Text mode and JSON mode are two renderings of the same command outcome.

@@ -1,5 +1,6 @@
 package org.tron.walletcli.cli.commands;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.lang3.tuple.Triple;
 import org.bouncycastle.util.encoders.Hex;
 import org.tron.common.enums.NetType;
@@ -55,12 +56,13 @@ public class TransactionCommands {
                     CommandSupport.requirePermissionId(out, "permission-id", permissionId);
                     boolean multi = opts.getBoolean("multi");
                     TransactionUtils.setPermissionIdOverride(permissionId);
+                    String txid;
                     try {
-                        wrapper.sendCoinForCli(owner, to, amount, multi);
+                        txid = wrapper.sendCoinForCli(owner, to, amount, multi);
                     } finally {
                         TransactionUtils.clearPermissionIdOverride();
                     }
-                    Map<String, Object> json = CommandSupport.lastBroadcastTxResultData();
+                    Map<String, Object> json = CommandSupport.txResultData(txid);
                     json.put("to", opts.getString("to"));
                     json.put("amount", amount);
                     if (multi) {
@@ -93,10 +95,10 @@ public class TransactionCommands {
                     long amount = opts.getLong("amount");
                     CommandSupport.requirePositive(out, "amount", amount);
                     boolean multi = opts.getBoolean("multi");
-                    wrapper.transferAssetForCli(owner, to, asset, amount, multi);
+                    String txid = wrapper.transferAssetForCli(owner, to, asset, amount, multi);
                     CommandSupport.emitSuccess(out,
                             "TransferAsset successful !!",
-                            CommandSupport.lastBroadcastTxResultData());
+                            CommandSupport.txResultData(txid));
                 })
                 .build());
     }
@@ -136,7 +138,7 @@ public class TransactionCommands {
 
                     // Estimate energy to calculate fee limit
                     TransactionUtils.setPermissionIdOverride(permissionId);
-                    Triple<Boolean, Long, Long> estimate;
+                    Triple<String, Long, Long> estimate;
                     try {
                         estimate = wrapper.callContractForCli(
                                 owner, contractAddress, 0, data, 0, 0, "", true, true, false);
@@ -169,15 +171,16 @@ public class TransactionCommands {
                     }
 
                     TransactionUtils.setPermissionIdOverride(permissionId);
+                    Triple<String, Long, Long> result;
                     try {
-                        wrapper.callContractForCli(
+                        result = wrapper.callContractForCli(
                                 owner, contractAddress, 0, data, feeLimit, 0, "", false, false, multi);
                     } finally {
                         TransactionUtils.clearPermissionIdOverride();
                     }
                     CommandSupport.emitSuccess(out,
                             "TransferUSDT successful !!",
-                            CommandSupport.lastBroadcastTxResultData());
+                            CommandSupport.txResultData(result.getLeft()));
                 })
                 .build());
     }
@@ -202,10 +205,10 @@ public class TransactionCommands {
                     long amount = opts.getLong("amount");
                     CommandSupport.requirePositive(out, "amount", amount);
                     boolean multi = opts.getBoolean("multi");
-                    wrapper.participateAssetIssueForCli(owner, to, asset, amount, multi);
+                    String txid = wrapper.participateAssetIssueForCli(owner, to, asset, amount, multi);
                     CommandSupport.emitSuccess(out,
                             "ParticipateAssetIssue successful !!",
-                            CommandSupport.lastBroadcastTxResultData());
+                            CommandSupport.txResultData(txid));
                 })
                 .build());
     }
@@ -269,12 +272,12 @@ public class TransactionCommands {
                     }
 
                     HashMap<String, String> frozenSupply = new HashMap<String, String>();
-                    wrapper.assetIssueForCli(owner, name, abbr, totalSupply,
+                    String txid = wrapper.assetIssueForCli(owner, name, abbr, totalSupply,
                             trxNum, icoNum, precision, startTime, endTime, desc, url,
                             freeNetLimit, publicFreeNetLimit, frozenSupply, multi);
                     CommandSupport.emitSuccess(out,
                             "AssetIssue successful !!",
-                            CommandSupport.lastBroadcastTxResultData());
+                            CommandSupport.txResultData(txid));
                 })
                 .build());
     }
@@ -293,10 +296,10 @@ public class TransactionCommands {
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     byte[] address = opts.getAddress("address");
                     boolean multi = opts.getBoolean("multi");
-                    wrapper.createAccountForCli(owner, address, multi);
+                    String txid = wrapper.createAccountForCli(owner, address, multi);
                     CommandSupport.emitSuccess(out,
                             "CreateAccount successful !!",
-                            CommandSupport.lastBroadcastTxResultData());
+                            CommandSupport.txResultData(txid));
                 })
                 .build());
     }
@@ -316,10 +319,10 @@ public class TransactionCommands {
                     byte[] nameBytes = opts.getString("name").getBytes(StandardCharsets.UTF_8);
                     CommandSupport.requireMaxBytes(out, "name", nameBytes, 200);
                     boolean multi = opts.getBoolean("multi");
-                    wrapper.updateAccountForCli(owner, nameBytes, multi);
+                    String txid = wrapper.updateAccountForCli(owner, nameBytes, multi);
                     CommandSupport.emitSuccess(out,
                             "Update Account successful !!",
-                            CommandSupport.lastBroadcastTxResultData());
+                            CommandSupport.txResultData(txid));
                 })
                 .build());
     }
@@ -337,10 +340,10 @@ public class TransactionCommands {
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     byte[] id = opts.getString("id").getBytes(StandardCharsets.UTF_8);
                     CommandSupport.requireByteRange(out, "id", id, 8, 32);
-                    wrapper.setAccountIdForCli(owner, id);
+                    String txid = wrapper.setAccountIdForCli(owner, id);
                     CommandSupport.emitSuccess(out,
                             "Set AccountId successful !!",
-                            CommandSupport.lastBroadcastTxResultData());
+                            CommandSupport.txResultData(txid));
                 })
                 .build());
     }
@@ -369,10 +372,10 @@ public class TransactionCommands {
                     long newPublicLimit = opts.getLong("new-public-limit");
                     CommandSupport.requireNonNegative(out, "new-public-limit", newPublicLimit);
                     boolean multi = opts.getBoolean("multi");
-                    wrapper.updateAssetForCli(owner, desc, url, newLimit, newPublicLimit, multi);
+                    String txid = wrapper.updateAssetForCli(owner, desc, url, newLimit, newPublicLimit, multi);
                     CommandSupport.emitSuccess(out,
                             "UpdateAsset successful !!",
-                            CommandSupport.lastBroadcastTxResultData());
+                            CommandSupport.txResultData(txid));
                 })
                 .build());
     }
@@ -386,20 +389,20 @@ public class TransactionCommands {
                 .option("transaction", "Transaction hex string", true)
                 .handler((ctx, opts, wrapper, out) -> {
                     byte[] txBytes = CommandSupport.requireHex(out, "transaction", opts.getString("transaction"));
-                    String error;
+                    Pair<String, String> broadcastResult;
                     try {
-                        error = org.tron.walletserver.WalletApi.broadcastTransactionForCli(txBytes);
+                        broadcastResult = org.tron.walletserver.WalletApi.broadcastTransactionForCli(txBytes);
                     } catch (com.google.protobuf.InvalidProtocolBufferException e) {
                         out.usageError("Invalid transaction bytes: " + e.getMessage(), null);
                         return;
                     }
-                    if (error != null) {
-                        out.error("execution_error", error);
+                    if (broadcastResult.getLeft() != null) {
+                        out.error("execution_error", broadcastResult.getLeft());
                         return;
                     }
                     CommandSupport.emitSuccess(out,
                             "BroadcastTransaction successful !!",
-                            CommandSupport.lastBroadcastTxResultData());
+                            CommandSupport.txResultData(broadcastResult.getRight()));
                 })
                 .build());
     }
@@ -418,10 +421,10 @@ public class TransactionCommands {
                     byte[] owner = opts.getAddress("owner");
                     String permissions = opts.getString("permissions");
                     boolean multi = opts.getBoolean("multi");
-                    wrapper.accountPermissionUpdateForCli(owner, permissions, multi);
+                    String txid = wrapper.accountPermissionUpdateForCli(owner, permissions, multi);
                     CommandSupport.emitSuccess(out,
                             "UpdateAccountPermission successful !!",
-                            CommandSupport.lastBroadcastTxResultData());
+                            CommandSupport.txResultData(txid));
                 })
                 .build());
     }

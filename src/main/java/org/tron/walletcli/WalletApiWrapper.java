@@ -443,6 +443,14 @@ public class WalletApiWrapper {
     }
   }
 
+  void throwIfCliOperationFailed(String txid, String failureMessage) {
+    if (txid == null) {
+      String detailedMessage = consumeLastCliOperationError();
+      throw new CommandErrorException("execution_error",
+          StringUtils.isNotBlank(detailedMessage) ? detailedMessage : failureMessage);
+    }
+  }
+
   protected String consumeLastCliOperationError() {
     return WalletApi.consumeLastCliOperationError();
   }
@@ -1010,16 +1018,20 @@ public class WalletApiWrapper {
     return wallet.sendCoin(ownerAddress, toAddress, amount, multi);
   }
 
-  public void sendCoinForCli(byte[] ownerAddress, byte[] toAddress, long amount, boolean multi) {
+  public String sendCoinForCli(byte[] ownerAddress, byte[] toAddress, long amount, boolean multi) {
     requireLoggedInWalletForCli();
     try {
-      throwIfCliOperationFailed(
-          wallet.sendCoinForCli(ownerAddress, toAddress, amount, multi),
-          "SendCoin failed !!");
+      String txid = wallet.sendCoinForCli(ownerAddress, toAddress, amount, multi);
+      throwIfCliOperationFailed(txid, "SendCoin failed !!");
+      return txid;
+    } catch (CommandErrorException e) {
+      throw e;
     } catch (IllegalStateException e) {
       throwCliError("execution_error", "SendCoin failed !!", e);
+      return null;
     } catch (Exception e) {
       throwCliError("execution_error", "SendCoin failed !!", e);
+      return null;
     }
   }
 
@@ -1034,17 +1046,21 @@ public class WalletApiWrapper {
     return wallet.transferAsset(ownerAddress, toAddress, assertName.getBytes(StandardCharsets.UTF_8), amount, multi);
   }
 
-  public void transferAssetForCli(byte[] ownerAddress, byte[] toAddress, String assetName,
+  public String transferAssetForCli(byte[] ownerAddress, byte[] toAddress, String assetName,
       long amount, boolean multi) {
     requireLoggedInWalletForCli();
     try {
-      throwIfCliOperationFailed(
-          wallet.transferAssetForCli(ownerAddress, toAddress, assetName.getBytes(StandardCharsets.UTF_8), amount, multi),
-          "TransferAsset failed !!");
+      String txid = wallet.transferAssetForCli(ownerAddress, toAddress, assetName.getBytes(StandardCharsets.UTF_8), amount, multi);
+      throwIfCliOperationFailed(txid, "TransferAsset failed !!");
+      return txid;
+    } catch (CommandErrorException e) {
+      throw e;
     } catch (IllegalStateException e) {
       throwCliError("execution_error", "TransferAsset failed !!", e);
+      return null;
     } catch (Exception e) {
       throwCliError("execution_error", "TransferAsset failed !!", e);
+      return null;
     }
   }
 
@@ -1058,18 +1074,22 @@ public class WalletApiWrapper {
     return wallet.participateAssetIssue(ownerAddress, toAddress, assertName.getBytes(StandardCharsets.UTF_8), amount, multi);
   }
 
-  public void participateAssetIssueForCli(byte[] ownerAddress, byte[] toAddress, String assetName,
+  public String participateAssetIssueForCli(byte[] ownerAddress, byte[] toAddress, String assetName,
       long amount, boolean multi) {
     requireLoggedInWalletForCli();
     try {
-      throwIfCliOperationFailed(
-          wallet.participateAssetIssueForCli(ownerAddress, toAddress, assetName.getBytes(StandardCharsets.UTF_8), amount,
-              multi),
-          "ParticipateAssetIssue failed !!");
+      String txid = wallet.participateAssetIssueForCli(ownerAddress, toAddress, assetName.getBytes(StandardCharsets.UTF_8), amount,
+              multi);
+      throwIfCliOperationFailed(txid, "ParticipateAssetIssue failed !!");
+      return txid;
+    } catch (CommandErrorException e) {
+      throw e;
     } catch (IllegalStateException e) {
       throwCliError("execution_error", "ParticipateAssetIssue failed !!", e);
+      return null;
     } catch (Exception e) {
       throwCliError("execution_error", "ParticipateAssetIssue failed !!", e);
+      return null;
     }
   }
 
@@ -1128,7 +1148,7 @@ public class WalletApiWrapper {
         description, url, freeNetLimit, publicFreeNetLimit, frozenSupply, multi);
   }
 
-  public void assetIssueForCli(byte[] ownerAddress, String name, String abbrName, long totalSupply,
+  public String assetIssueForCli(byte[] ownerAddress, String name, String abbrName, long totalSupply,
                                int trxNum, int icoNum, int precision, long startTime, long endTime,
                                String description, String url,
                                long freeNetLimit, long publicFreeNetLimit,
@@ -1139,15 +1159,19 @@ public class WalletApiWrapper {
     // before adding local guards.
     requireLoggedInWalletForCli();
     try {
-      throwIfCliOperationFailed(
-          wallet.createAssetIssueForCli(ownerAddress, name, abbrName, totalSupply,
+      String txid = wallet.createAssetIssueForCli(ownerAddress, name, abbrName, totalSupply,
               trxNum, icoNum, precision, startTime, endTime, description,
-              url, freeNetLimit, publicFreeNetLimit, frozenSupply, multi),
-          "AssetIssue failed !!");
+              url, freeNetLimit, publicFreeNetLimit, frozenSupply, multi);
+      throwIfCliOperationFailed(txid, "AssetIssue failed !!");
+      return txid;
+    } catch (CommandErrorException e) {
+      throw e;
     } catch (IllegalStateException e) {
       throwCliError("execution_error", "AssetIssue failed !!", e);
+      return null;
     } catch (Exception e) {
       throwCliError("execution_error", "AssetIssue failed !!", e);
+      return null;
     }
   }
 
@@ -1161,16 +1185,20 @@ public class WalletApiWrapper {
     return wallet.createAccount(ownerAddress, address, multi);
   }
 
-  public void createAccountForCli(byte[] ownerAddress, byte[] address, boolean multi) {
+  public String createAccountForCli(byte[] ownerAddress, byte[] address, boolean multi) {
     requireLoggedInWalletForCli();
     try {
-      throwIfCliOperationFailed(
-          wallet.createAccountForCli(ownerAddress, address, multi),
-          "CreateAccount failed !!");
+      String txid = wallet.createAccountForCli(ownerAddress, address, multi);
+      throwIfCliOperationFailed(txid, "CreateAccount failed !!");
+      return txid;
+    } catch (CommandErrorException e) {
+      throw e;
     } catch (IllegalStateException e) {
       throwCliError("execution_error", "CreateAccount failed !!", e);
+      return null;
     } catch (Exception e) {
       throwCliError("execution_error", "CreateAccount failed !!", e);
+      return null;
     }
   }
 
@@ -1184,16 +1212,20 @@ public class WalletApiWrapper {
     return wallet.createWitness(ownerAddress, url.getBytes(StandardCharsets.UTF_8), multi);
   }
 
-  public void createWitnessForCli(byte[] ownerAddress, String url, boolean multi) {
+  public String createWitnessForCli(byte[] ownerAddress, String url, boolean multi) {
     requireLoggedInWalletForCli();
     try {
-      throwIfCliOperationFailed(
-          wallet.createWitnessForCli(ownerAddress, url.getBytes(StandardCharsets.UTF_8), multi),
-          "CreateWitness failed !!");
+      String txid = wallet.createWitnessForCli(ownerAddress, url.getBytes(StandardCharsets.UTF_8), multi);
+      throwIfCliOperationFailed(txid, "CreateWitness failed !!");
+      return txid;
+    } catch (CommandErrorException e) {
+      throw e;
     } catch (IllegalStateException e) {
       throwCliError("execution_error", "CreateWitness failed !!", e);
+      return null;
     } catch (Exception e) {
       throwCliError("execution_error", "CreateWitness failed !!", e);
+      return null;
     }
   }
 
@@ -1207,16 +1239,20 @@ public class WalletApiWrapper {
     return wallet.updateWitness(ownerAddress, url.getBytes(StandardCharsets.UTF_8), multi);
   }
 
-  public void updateWitnessForCli(byte[] ownerAddress, String url, boolean multi) {
+  public String updateWitnessForCli(byte[] ownerAddress, String url, boolean multi) {
     requireLoggedInWalletForCli();
     try {
-      throwIfCliOperationFailed(
-          wallet.updateWitnessForCli(ownerAddress, url.getBytes(StandardCharsets.UTF_8), multi),
-          "UpdateWitness failed !!");
+      String txid = wallet.updateWitnessForCli(ownerAddress, url.getBytes(StandardCharsets.UTF_8), multi);
+      throwIfCliOperationFailed(txid, "UpdateWitness failed !!");
+      return txid;
+    } catch (CommandErrorException e) {
+      throw e;
     } catch (IllegalStateException e) {
       throwCliError("execution_error", "UpdateWitness failed !!", e);
+      return null;
     } catch (Exception e) {
       throwCliError("execution_error", "UpdateWitness failed !!", e);
+      return null;
     }
   }
 
@@ -1311,16 +1347,20 @@ public class WalletApiWrapper {
     return wallet.voteWitness(ownerAddress, witness, multi);
   }
 
-  public void voteWitnessForCli(byte[] ownerAddress, HashMap<String, String> witness, boolean multi) {
+  public String voteWitnessForCli(byte[] ownerAddress, HashMap<String, String> witness, boolean multi) {
     requireLoggedInWalletForCli();
     try {
-      throwIfCliOperationFailed(
-          wallet.voteWitnessForCli(ownerAddress, witness, multi),
-          "VoteWitness failed !!");
+      String txid = wallet.voteWitnessForCli(ownerAddress, witness, multi);
+      throwIfCliOperationFailed(txid, "VoteWitness failed !!");
+      return txid;
+    } catch (CommandErrorException e) {
+      throw e;
     } catch (IllegalStateException e) {
       throwCliError("execution_error", "VoteWitness failed !!", e);
+      return null;
     } catch (Exception e) {
       throwCliError("execution_error", "VoteWitness failed !!", e);
+      return null;
     }
   }
 
@@ -1433,16 +1473,20 @@ public class WalletApiWrapper {
     return wallet.updateAccount(ownerAddress, accountNameBytes, multi);
   }
 
-  public void updateAccountForCli(byte[] ownerAddress, byte[] accountNameBytes, boolean multi) {
+  public String updateAccountForCli(byte[] ownerAddress, byte[] accountNameBytes, boolean multi) {
     requireLoggedInWalletForCli();
     try {
-      throwIfCliOperationFailed(
-          wallet.updateAccountForCli(ownerAddress, accountNameBytes, multi),
-          "Update Account failed !!");
+      String txid = wallet.updateAccountForCli(ownerAddress, accountNameBytes, multi);
+      throwIfCliOperationFailed(txid, "Update Account failed !!");
+      return txid;
+    } catch (CommandErrorException e) {
+      throw e;
     } catch (IllegalStateException e) {
       throwCliError("execution_error", "Update Account failed !!", e);
+      return null;
     } catch (Exception e) {
       throwCliError("execution_error", "Update Account failed !!", e);
+      return null;
     }
   }
 
@@ -1456,16 +1500,20 @@ public class WalletApiWrapper {
     return wallet.setAccountId(ownerAddress, accountIdBytes);
   }
 
-  public void setAccountIdForCli(byte[] ownerAddress, byte[] accountIdBytes) {
+  public String setAccountIdForCli(byte[] ownerAddress, byte[] accountIdBytes) {
     requireLoggedInWalletForCli();
     try {
-      throwIfCliOperationFailed(
-          wallet.setAccountIdForCli(ownerAddress, accountIdBytes),
-          "Set AccountId failed !!");
+      String txid = wallet.setAccountIdForCli(ownerAddress, accountIdBytes);
+      throwIfCliOperationFailed(txid, "Set AccountId failed !!");
+      return txid;
+    } catch (CommandErrorException e) {
+      throw e;
     } catch (IllegalStateException e) {
       throwCliError("execution_error", "Set AccountId failed !!", e);
+      return null;
     } catch (Exception e) {
       throwCliError("execution_error", "Set AccountId failed !!", e);
+      return null;
     }
   }
 
@@ -1480,17 +1528,21 @@ public class WalletApiWrapper {
     return wallet.updateAsset(ownerAddress, description, url, newLimit, newPublicLimit, multi);
   }
 
-  public void updateAssetForCli(byte[] ownerAddress, byte[] description, byte[] url, long newLimit,
+  public String updateAssetForCli(byte[] ownerAddress, byte[] description, byte[] url, long newLimit,
       long newPublicLimit, boolean multi) {
     requireLoggedInWalletForCli();
     try {
-      throwIfCliOperationFailed(
-          wallet.updateAssetForCli(ownerAddress, description, url, newLimit, newPublicLimit, multi),
-          "UpdateAsset failed !!");
+      String txid = wallet.updateAssetForCli(ownerAddress, description, url, newLimit, newPublicLimit, multi);
+      throwIfCliOperationFailed(txid, "UpdateAsset failed !!");
+      return txid;
+    } catch (CommandErrorException e) {
+      throw e;
     } catch (IllegalStateException e) {
       throwCliError("execution_error", "UpdateAsset failed !!", e);
+      return null;
     } catch (Exception e) {
       throwCliError("execution_error", "UpdateAsset failed !!", e);
+      return null;
     }
   }
 
@@ -1506,18 +1558,22 @@ public class WalletApiWrapper {
         receiverAddress, multi);
   }
 
-  public void freezeBalanceForCli(byte[] ownerAddress, long frozenBalance, long frozenDuration,
+  public String freezeBalanceForCli(byte[] ownerAddress, long frozenBalance, long frozenDuration,
       int resourceCode, byte[] receiverAddress, boolean multi) {
     requireLoggedInWalletForCli();
     try {
-      throwIfCliOperationFailed(
-          wallet.freezeBalanceForCli(ownerAddress, frozenBalance, frozenDuration, resourceCode,
-              receiverAddress, multi),
-          "FreezeBalance failed !!");
+      String txid = wallet.freezeBalanceForCli(ownerAddress, frozenBalance, frozenDuration, resourceCode,
+              receiverAddress, multi);
+      throwIfCliOperationFailed(txid, "FreezeBalance failed !!");
+      return txid;
+    } catch (CommandErrorException e) {
+      throw e;
     } catch (IllegalStateException e) {
       throwCliError("execution_error", "FreezeBalance failed !!", e);
+      return null;
     } catch (Exception e) {
       throwCliError("execution_error", "FreezeBalance failed !!", e);
+      return null;
     }
   }
 
@@ -1531,17 +1587,21 @@ public class WalletApiWrapper {
     return wallet.freezeBalanceV2(ownerAddress, frozenBalance, resourceCode, multi);
   }
 
-  public void freezeBalanceV2ForCli(byte[] ownerAddress, long frozenBalance,
+  public String freezeBalanceV2ForCli(byte[] ownerAddress, long frozenBalance,
       int resourceCode, boolean multi) {
     requireLoggedInWalletForCli();
     try {
-      throwIfCliOperationFailed(
-          wallet.freezeBalanceV2ForCli(ownerAddress, frozenBalance, resourceCode, multi),
-          "FreezeBalanceV2 failed !!");
+      String txid = wallet.freezeBalanceV2ForCli(ownerAddress, frozenBalance, resourceCode, multi);
+      throwIfCliOperationFailed(txid, "FreezeBalanceV2 failed !!");
+      return txid;
+    } catch (CommandErrorException e) {
+      throw e;
     } catch (IllegalStateException e) {
       throwCliError("execution_error", "FreezeBalanceV2 failed !!", e);
+      return null;
     } catch (Exception e) {
       throwCliError("execution_error", "FreezeBalanceV2 failed !!", e);
+      return null;
     }
   }
 
@@ -1555,17 +1615,21 @@ public class WalletApiWrapper {
     return wallet.unfreezeBalance(ownerAddress, resourceCode, receiverAddress, multi);
   }
 
-  public void unfreezeBalanceForCli(byte[] ownerAddress, int resourceCode, byte[] receiverAddress,
+  public String unfreezeBalanceForCli(byte[] ownerAddress, int resourceCode, byte[] receiverAddress,
       boolean multi) {
     requireLoggedInWalletForCli();
     try {
-      throwIfCliOperationFailed(
-          wallet.unfreezeBalanceForCli(ownerAddress, resourceCode, receiverAddress, multi),
-          "UnfreezeBalance failed !!");
+      String txid = wallet.unfreezeBalanceForCli(ownerAddress, resourceCode, receiverAddress, multi);
+      throwIfCliOperationFailed(txid, "UnfreezeBalance failed !!");
+      return txid;
+    } catch (CommandErrorException e) {
+      throw e;
     } catch (IllegalStateException e) {
       throwCliError("execution_error", "UnfreezeBalance failed !!", e);
+      return null;
     } catch (Exception e) {
       throwCliError("execution_error", "UnfreezeBalance failed !!", e);
+      return null;
     }
   }
 
@@ -1580,17 +1644,21 @@ public class WalletApiWrapper {
     return wallet.unfreezeBalanceV2(ownerAddress, unfreezeBalance, resourceCode, multi);
   }
 
-  public void unfreezeBalanceV2ForCli(byte[] ownerAddress, long unfreezeBalance,
+  public String unfreezeBalanceV2ForCli(byte[] ownerAddress, long unfreezeBalance,
       int resourceCode, boolean multi) {
     requireLoggedInWalletForCli();
     try {
-      throwIfCliOperationFailed(
-          wallet.unfreezeBalanceV2ForCli(ownerAddress, unfreezeBalance, resourceCode, multi),
-          "UnfreezeBalanceV2 failed !!");
+      String txid = wallet.unfreezeBalanceV2ForCli(ownerAddress, unfreezeBalance, resourceCode, multi);
+      throwIfCliOperationFailed(txid, "UnfreezeBalanceV2 failed !!");
+      return txid;
+    } catch (CommandErrorException e) {
+      throw e;
     } catch (IllegalStateException e) {
       throwCliError("execution_error", "UnfreezeBalanceV2 failed !!", e);
+      return null;
     } catch (Exception e) {
       throwCliError("execution_error", "UnfreezeBalanceV2 failed !!", e);
+      return null;
     }
   }
 
@@ -1604,16 +1672,20 @@ public class WalletApiWrapper {
     return wallet.withdrawExpireUnfreeze(ownerAddress, multi);
   }
 
-  public void withdrawExpireUnfreezeForCli(byte[] ownerAddress, boolean multi) {
+  public String withdrawExpireUnfreezeForCli(byte[] ownerAddress, boolean multi) {
     requireLoggedInWalletForCli();
     try {
-      throwIfCliOperationFailed(
-          wallet.withdrawExpireUnfreezeForCli(ownerAddress, multi),
-          "WithdrawExpireUnfreeze failed !!");
+      String txid = wallet.withdrawExpireUnfreezeForCli(ownerAddress, multi);
+      throwIfCliOperationFailed(txid, "WithdrawExpireUnfreeze failed !!");
+      return txid;
+    } catch (CommandErrorException e) {
+      throw e;
     } catch (IllegalStateException e) {
       throwCliError("execution_error", "WithdrawExpireUnfreeze failed !!", e);
+      return null;
     } catch (Exception e) {
       throwCliError("execution_error", "WithdrawExpireUnfreeze failed !!", e);
+      return null;
     }
   }
 
@@ -1629,18 +1701,22 @@ public class WalletApiWrapper {
         receiverAddress, lock, lockPeriod, multi);
   }
 
-  public void delegateResourceForCli(byte[] ownerAddress, long balance, int resourceCode,
+  public String delegateResourceForCli(byte[] ownerAddress, long balance, int resourceCode,
       byte[] receiverAddress, boolean lock, long lockPeriod, boolean multi) {
     requireLoggedInWalletForCli();
     try {
-      throwIfCliOperationFailed(
-          wallet.delegateResourceForCli(ownerAddress, balance, resourceCode, receiverAddress, lock,
-              lockPeriod, multi),
-          "DelegateResource failed !!");
+      String txid = wallet.delegateResourceForCli(ownerAddress, balance, resourceCode, receiverAddress, lock,
+              lockPeriod, multi);
+      throwIfCliOperationFailed(txid, "DelegateResource failed !!");
+      return txid;
+    } catch (CommandErrorException e) {
+      throw e;
     } catch (IllegalStateException e) {
       throwCliError("execution_error", "DelegateResource failed !!", e);
+      return null;
     } catch (Exception e) {
       throwCliError("execution_error", "DelegateResource failed !!", e);
+      return null;
     }
   }
 
@@ -1655,18 +1731,22 @@ public class WalletApiWrapper {
     return wallet.unDelegateResource(ownerAddress, balance, resourceCode, receiverAddress, multi);
   }
 
-  public void undelegateResourceForCli(byte[] ownerAddress, long balance, int resourceCode,
+  public String undelegateResourceForCli(byte[] ownerAddress, long balance, int resourceCode,
       byte[] receiverAddress, boolean multi) {
     requireLoggedInWalletForCli();
     try {
-      throwIfCliOperationFailed(
-          wallet.unDelegateResourceForCli(ownerAddress, balance, resourceCode, receiverAddress,
-              multi),
-          "UndelegateResource failed !!");
+      String txid = wallet.unDelegateResourceForCli(ownerAddress, balance, resourceCode, receiverAddress,
+              multi);
+      throwIfCliOperationFailed(txid, "UndelegateResource failed !!");
+      return txid;
+    } catch (CommandErrorException e) {
+      throw e;
     } catch (IllegalStateException e) {
       throwCliError("execution_error", "UndelegateResource failed !!", e);
+      return null;
     } catch (Exception e) {
       throwCliError("execution_error", "UndelegateResource failed !!", e);
+      return null;
     }
   }
 
@@ -1679,16 +1759,20 @@ public class WalletApiWrapper {
     return wallet.cancelAllUnfreezeV2(ownerAddress, multi);
   }
 
-  public void cancelAllUnfreezeV2ForCli(byte[] ownerAddress, boolean multi) {
+  public String cancelAllUnfreezeV2ForCli(byte[] ownerAddress, boolean multi) {
     requireLoggedInWalletForCli();
     try {
-      throwIfCliOperationFailed(
-          wallet.cancelAllUnfreezeV2ForCli(ownerAddress, multi),
-          "CancelAllUnfreezeV2 failed !!");
+      String txid = wallet.cancelAllUnfreezeV2ForCli(ownerAddress, multi);
+      throwIfCliOperationFailed(txid, "CancelAllUnfreezeV2 failed !!");
+      return txid;
+    } catch (CommandErrorException e) {
+      throw e;
     } catch (IllegalStateException e) {
       throwCliError("execution_error", "CancelAllUnfreezeV2 failed !!", e);
+      return null;
     } catch (Exception e) {
       throwCliError("execution_error", "CancelAllUnfreezeV2 failed !!", e);
+      return null;
     }
   }
 
@@ -1702,16 +1786,20 @@ public class WalletApiWrapper {
     return wallet.unfreezeAsset(ownerAddress, multi);
   }
 
-  public void unfreezeAssetForCli(byte[] ownerAddress, boolean multi) {
+  public String unfreezeAssetForCli(byte[] ownerAddress, boolean multi) {
     requireLoggedInWalletForCli();
     try {
-      throwIfCliOperationFailed(
-          wallet.unfreezeAssetForCli(ownerAddress, multi),
-          "UnfreezeAsset failed !!");
+      String txid = wallet.unfreezeAssetForCli(ownerAddress, multi);
+      throwIfCliOperationFailed(txid, "UnfreezeAsset failed !!");
+      return txid;
+    } catch (CommandErrorException e) {
+      throw e;
     } catch (IllegalStateException e) {
       throwCliError("execution_error", "UnfreezeAsset failed !!", e);
+      return null;
     } catch (Exception e) {
       throwCliError("execution_error", "UnfreezeAsset failed !!", e);
+      return null;
     }
   }
 
@@ -1725,16 +1813,20 @@ public class WalletApiWrapper {
     return wallet.withdrawBalance(ownerAddress, multi);
   }
 
-  public void withdrawBalanceForCli(byte[] ownerAddress, boolean multi) {
+  public String withdrawBalanceForCli(byte[] ownerAddress, boolean multi) {
     requireLoggedInWalletForCli();
     try {
-      throwIfCliOperationFailed(
-          wallet.withdrawBalanceForCli(ownerAddress, multi),
-          "WithdrawBalance failed !!");
+      String txid = wallet.withdrawBalanceForCli(ownerAddress, multi);
+      throwIfCliOperationFailed(txid, "WithdrawBalance failed !!");
+      return txid;
+    } catch (CommandErrorException e) {
+      throw e;
     } catch (IllegalStateException e) {
       throwCliError("execution_error", "WithdrawBalance failed !!", e);
+      return null;
     } catch (Exception e) {
       throwCliError("execution_error", "WithdrawBalance failed !!", e);
+      return null;
     }
   }
 
@@ -1748,17 +1840,21 @@ public class WalletApiWrapper {
     return wallet.createProposal(ownerAddress, parametersMap, multi);
   }
 
-  public void createProposalForCli(byte[] ownerAddress, HashMap<Long, Long> parametersMap,
+  public String createProposalForCli(byte[] ownerAddress, HashMap<Long, Long> parametersMap,
       boolean multi) {
     requireLoggedInWalletForCli();
     try {
-      throwIfCliOperationFailed(
-          wallet.createProposalForCli(ownerAddress, parametersMap, multi),
-          "CreateProposal failed !!");
+      String txid = wallet.createProposalForCli(ownerAddress, parametersMap, multi);
+      throwIfCliOperationFailed(txid, "CreateProposal failed !!");
+      return txid;
+    } catch (CommandErrorException e) {
+      throw e;
     } catch (IllegalStateException e) {
       throwCliError("execution_error", "CreateProposal failed !!", e);
+      return null;
     } catch (Exception e) {
       throwCliError("execution_error", "CreateProposal failed !!", e);
+      return null;
     }
   }
 
@@ -1832,17 +1928,21 @@ public class WalletApiWrapper {
     return wallet.approveProposal(ownerAddress, id, is_add_approval, multi);
   }
 
-  public void approveProposalForCli(byte[] ownerAddress, long id, boolean isAddApproval,
+  public String approveProposalForCli(byte[] ownerAddress, long id, boolean isAddApproval,
       boolean multi) {
     requireLoggedInWalletForCli();
     try {
-      throwIfCliOperationFailed(
-          wallet.approveProposalForCli(ownerAddress, id, isAddApproval, multi),
-          "ApproveProposal failed !!");
+      String txid = wallet.approveProposalForCli(ownerAddress, id, isAddApproval, multi);
+      throwIfCliOperationFailed(txid, "ApproveProposal failed !!");
+      return txid;
+    } catch (CommandErrorException e) {
+      throw e;
     } catch (IllegalStateException e) {
       throwCliError("execution_error", "ApproveProposal failed !!", e);
+      return null;
     } catch (Exception e) {
       throwCliError("execution_error", "ApproveProposal failed !!", e);
+      return null;
     }
   }
 
@@ -1856,16 +1956,20 @@ public class WalletApiWrapper {
     return wallet.deleteProposal(ownerAddress, id, multi);
   }
 
-  public void deleteProposalForCli(byte[] ownerAddress, long id, boolean multi) {
+  public String deleteProposalForCli(byte[] ownerAddress, long id, boolean multi) {
     requireLoggedInWalletForCli();
     try {
-      throwIfCliOperationFailed(
-          wallet.deleteProposalForCli(ownerAddress, id, multi),
-          "DeleteProposal failed !!");
+      String txid = wallet.deleteProposalForCli(ownerAddress, id, multi);
+      throwIfCliOperationFailed(txid, "DeleteProposal failed !!");
+      return txid;
+    } catch (CommandErrorException e) {
+      throw e;
     } catch (IllegalStateException e) {
       throwCliError("execution_error", "DeleteProposal failed !!", e);
+      return null;
     } catch (Exception e) {
       throwCliError("execution_error", "DeleteProposal failed !!", e);
+      return null;
     }
   }
 
@@ -1881,18 +1985,22 @@ public class WalletApiWrapper {
         secondTokenId, secondTokenBalance, multi);
   }
 
-  public void exchangeCreateForCli(byte[] ownerAddress, byte[] firstTokenId, long firstTokenBalance,
+  public String exchangeCreateForCli(byte[] ownerAddress, byte[] firstTokenId, long firstTokenBalance,
       byte[] secondTokenId, long secondTokenBalance, boolean multi) {
     requireLoggedInWalletForCli();
     try {
-      throwIfCliOperationFailed(
-          wallet.exchangeCreateForCli(ownerAddress, firstTokenId, firstTokenBalance,
-              secondTokenId, secondTokenBalance, multi),
-          "ExchangeCreate failed !!");
+      String txid = wallet.exchangeCreateForCli(ownerAddress, firstTokenId, firstTokenBalance,
+              secondTokenId, secondTokenBalance, multi);
+      throwIfCliOperationFailed(txid, "ExchangeCreate failed !!");
+      return txid;
+    } catch (CommandErrorException e) {
+      throw e;
     } catch (IllegalStateException e) {
       throwCliError("execution_error", "ExchangeCreate failed !!", e);
+      return null;
     } catch (Exception e) {
       throwCliError("execution_error", "ExchangeCreate failed !!", e);
+      return null;
     }
   }
 
@@ -1906,17 +2014,21 @@ public class WalletApiWrapper {
     return wallet.exchangeInject(ownerAddress, exchangeId, tokenId, quant, multi);
   }
 
-  public void exchangeInjectForCli(byte[] ownerAddress, long exchangeId, byte[] tokenId, long quant,
+  public String exchangeInjectForCli(byte[] ownerAddress, long exchangeId, byte[] tokenId, long quant,
       boolean multi) {
     requireLoggedInWalletForCli();
     try {
-      throwIfCliOperationFailed(
-          wallet.exchangeInjectForCli(ownerAddress, exchangeId, tokenId, quant, multi),
-          "ExchangeInject failed !!");
+      String txid = wallet.exchangeInjectForCli(ownerAddress, exchangeId, tokenId, quant, multi);
+      throwIfCliOperationFailed(txid, "ExchangeInject failed !!");
+      return txid;
+    } catch (CommandErrorException e) {
+      throw e;
     } catch (IllegalStateException e) {
       throwCliError("execution_error", "ExchangeInject failed !!", e);
+      return null;
     } catch (Exception e) {
       throwCliError("execution_error", "ExchangeInject failed !!", e);
+      return null;
     }
   }
 
@@ -1930,17 +2042,21 @@ public class WalletApiWrapper {
     return wallet.exchangeWithdraw(ownerAddress, exchangeId, tokenId, quant, multi);
   }
 
-  public void exchangeWithdrawForCli(byte[] ownerAddress, long exchangeId, byte[] tokenId, long quant,
+  public String exchangeWithdrawForCli(byte[] ownerAddress, long exchangeId, byte[] tokenId, long quant,
       boolean multi) {
     requireLoggedInWalletForCli();
     try {
-      throwIfCliOperationFailed(
-          wallet.exchangeWithdrawForCli(ownerAddress, exchangeId, tokenId, quant, multi),
-          "ExchangeWithdraw failed !!");
+      String txid = wallet.exchangeWithdrawForCli(ownerAddress, exchangeId, tokenId, quant, multi);
+      throwIfCliOperationFailed(txid, "ExchangeWithdraw failed !!");
+      return txid;
+    } catch (CommandErrorException e) {
+      throw e;
     } catch (IllegalStateException e) {
       throwCliError("execution_error", "ExchangeWithdraw failed !!", e);
+      return null;
     } catch (Exception e) {
       throwCliError("execution_error", "ExchangeWithdraw failed !!", e);
+      return null;
     }
   }
 
@@ -1955,17 +2071,21 @@ public class WalletApiWrapper {
     return wallet.exchangeTransaction(ownerAddress, exchangeId, tokenId, quant, expected, multi);
   }
 
-  public void exchangeTransactionForCli(byte[] ownerAddress, long exchangeId, byte[] tokenId,
+  public String exchangeTransactionForCli(byte[] ownerAddress, long exchangeId, byte[] tokenId,
       long quant, long expected, boolean multi) {
     requireLoggedInWalletForCli();
     try {
-      throwIfCliOperationFailed(
-          wallet.exchangeTransactionForCli(ownerAddress, exchangeId, tokenId, quant, expected, multi),
-          "ExchangeTransaction failed !!");
+      String txid = wallet.exchangeTransactionForCli(ownerAddress, exchangeId, tokenId, quant, expected, multi);
+      throwIfCliOperationFailed(txid, "ExchangeTransaction failed !!");
+      return txid;
+    } catch (CommandErrorException e) {
+      throw e;
     } catch (IllegalStateException e) {
       throwCliError("execution_error", "ExchangeTransaction failed !!", e);
+      return null;
     } catch (Exception e) {
       throwCliError("execution_error", "ExchangeTransaction failed !!", e);
+      return null;
     }
   }
 
@@ -1980,17 +2100,21 @@ public class WalletApiWrapper {
 
   }
 
-  public void updateSettingForCli(byte[] ownerAddress, byte[] contractAddress,
+  public String updateSettingForCli(byte[] ownerAddress, byte[] contractAddress,
       long consumeUserResourcePercent, boolean multi) {
     requireLoggedInWalletForCli();
     try {
-      throwIfCliOperationFailed(
-          wallet.updateSettingForCli(ownerAddress, contractAddress, consumeUserResourcePercent, multi),
-          "UpdateSetting failed !!");
+      String txid = wallet.updateSettingForCli(ownerAddress, contractAddress, consumeUserResourcePercent, multi);
+      throwIfCliOperationFailed(txid, "UpdateSetting failed !!");
+      return txid;
+    } catch (CommandErrorException e) {
+      throw e;
     } catch (IllegalStateException e) {
       throwCliError("execution_error", "UpdateSetting failed !!", e);
+      return null;
     } catch (Exception e) {
       throwCliError("execution_error", "UpdateSetting failed !!", e);
+      return null;
     }
   }
 
@@ -2005,17 +2129,21 @@ public class WalletApiWrapper {
     return wallet.updateEnergyLimit(ownerAddress, contractAddress, originEnergyLimit, multi);
   }
 
-  public void updateEnergyLimitForCli(byte[] ownerAddress, byte[] contractAddress,
+  public String updateEnergyLimitForCli(byte[] ownerAddress, byte[] contractAddress,
       long originEnergyLimit, boolean multi) {
     requireLoggedInWalletForCli();
     try {
-      throwIfCliOperationFailed(
-          wallet.updateEnergyLimitForCli(ownerAddress, contractAddress, originEnergyLimit, multi),
-          "UpdateEnergyLimit failed !!");
+      String txid = wallet.updateEnergyLimitForCli(ownerAddress, contractAddress, originEnergyLimit, multi);
+      throwIfCliOperationFailed(txid, "UpdateEnergyLimit failed !!");
+      return txid;
+    } catch (CommandErrorException e) {
+      throw e;
     } catch (IllegalStateException e) {
       throwCliError("execution_error", "UpdateEnergyLimit failed !!", e);
+      return null;
     } catch (Exception e) {
       throwCliError("execution_error", "UpdateEnergyLimit failed !!", e);
+      return null;
     }
   }
 
@@ -2028,16 +2156,20 @@ public class WalletApiWrapper {
     return wallet.clearContractABI(ownerAddress, contractAddress, multi);
   }
 
-  public void clearContractAbiForCli(byte[] ownerAddress, byte[] contractAddress, boolean multi) {
+  public String clearContractAbiForCli(byte[] ownerAddress, byte[] contractAddress, boolean multi) {
     requireLoggedInWalletForCli();
     try {
-      throwIfCliOperationFailed(
-          wallet.clearContractAbiForCli(ownerAddress, contractAddress, multi),
-          "ClearContractABI failed !!");
+      String txid = wallet.clearContractAbiForCli(ownerAddress, contractAddress, multi);
+      throwIfCliOperationFailed(txid, "ClearContractABI failed !!");
+      return txid;
+    } catch (CommandErrorException e) {
+      throw e;
     } catch (IllegalStateException e) {
       throwCliError("execution_error", "ClearContractABI failed !!", e);
+      return null;
     } catch (Exception e) {
       throwCliError("execution_error", "ClearContractABI failed !!", e);
+      return null;
     }
   }
 
@@ -2080,17 +2212,19 @@ public class WalletApiWrapper {
             libraryAddressPair, compilerVersion, multi);
   }
 
-  public String deployContractForCli(byte[] ownerAddress, String name, String abiStr, String codeStr,
+  public Pair<String, String> deployContractForCli(byte[] ownerAddress, String name, String abiStr, String codeStr,
       long feeLimit, long value, long consumeUserResourcePercent, long originEnergyLimit,
       long tokenValue, String tokenId, String libraryAddressPair, String compilerVersion,
       boolean multi) {
     requireLoggedInWalletForCli();
     try {
-      String addr = wallet.deployContractForCli(ownerAddress, name, abiStr, codeStr, feeLimit,
+      Pair<String, String> result = wallet.deployContractForCli(ownerAddress, name, abiStr, codeStr, feeLimit,
               value, consumeUserResourcePercent, originEnergyLimit, tokenValue, tokenId,
               libraryAddressPair, compilerVersion, multi);
-      throwIfCliOperationFailed(addr != null, "DeployContract failed !!");
-      return addr;
+      if (result == null) {
+        throwIfCliOperationFailed((String) null, "DeployContract failed !!");
+      }
+      return result;
     } catch (CommandErrorException e) {
       throw e;
     } catch (IllegalStateException e) {
@@ -2118,26 +2252,24 @@ public class WalletApiWrapper {
             isConstant, false, display, multi);
   }
 
-  public Triple<Boolean, Long, Long> callContractForCli(byte[] ownerAddress,
+  public Triple<String, Long, Long> callContractForCli(byte[] ownerAddress,
       byte[] contractAddress, long callValue, byte[] data, long feeLimit, long tokenValue,
       String tokenId, boolean isConstant, boolean display, boolean multi) {
     requireLoggedInWalletForCli();
     try {
-      Triple<Boolean, Long, Long> result = wallet.triggerContractForCli(ownerAddress,
+      Triple<String, Long, Long> result = wallet.triggerContractForCli(ownerAddress,
           contractAddress, callValue, data, feeLimit, tokenValue, tokenId, isConstant, false,
           display, multi);
-      if (!Boolean.TRUE.equals(result.getLeft())) {
-        throwIfCliOperationFailed(false, "CallContract failed !!");
-      }
+      throwIfCliOperationFailed(result.getLeft(), "CallContract failed !!");
       return result;
     } catch (CommandErrorException e) {
       throw e;
     } catch (IllegalStateException e) {
       throwCliError("execution_error", "CallContract failed !!", e);
-      return Triple.of(false, 0L, 0L);
+      return Triple.of(null, 0L, 0L);
     } catch (Exception e) {
       throwCliError("execution_error", "CallContract failed !!", e);
-      return Triple.of(false, 0L, 0L);
+      return Triple.of(null, 0L, 0L);
     }
   }
 
@@ -2263,13 +2395,15 @@ public class WalletApiWrapper {
     return wallet.accountPermissionUpdate(ownerAddress, permission, multi);
   }
 
-  public void accountPermissionUpdateForCli(byte[] ownerAddress, String permission,
+  public String accountPermissionUpdateForCli(byte[] ownerAddress, String permission,
       boolean multi) {
     requireLoggedInWalletForCli();
     try {
-      throwIfCliOperationFailed(
-          wallet.accountPermissionUpdateForCli(ownerAddress, permission, multi),
-          "UpdateAccountPermission failed !!");
+      String txid = wallet.accountPermissionUpdateForCli(ownerAddress, permission, multi);
+      throwIfCliOperationFailed(txid, "UpdateAccountPermission failed !!");
+      return txid;
+    } catch (CommandErrorException e) {
+      throw e;
     } catch (IllegalArgumentException e) {
       // IllegalArgumentException originates from two places in the call chain:
       // 1. sanitizePermissionJson (WalletApi:4373) — invalid JSON syntax or non-object top-level
@@ -2279,8 +2413,10 @@ public class WalletApiWrapper {
           "Invalid --permissions JSON: " + e.getMessage());
     } catch (IllegalStateException e) {
       throwCliError("execution_error", "UpdateAccountPermission failed !!", e);
+      return null;
     } catch (Exception e) {
       throwCliError("execution_error", "UpdateAccountPermission failed !!", e);
+      return null;
     }
   }
 
@@ -2303,16 +2439,20 @@ public class WalletApiWrapper {
     return wallet.updateBrokerage(ownerAddress, brokerage, multi);
   }
 
-  public void updateBrokerageForCli(byte[] ownerAddress, int brokerage, boolean multi) {
+  public String updateBrokerageForCli(byte[] ownerAddress, int brokerage, boolean multi) {
     requireLoggedInWalletForCli();
     try {
-      throwIfCliOperationFailed(
-          wallet.updateBrokerageForCli(ownerAddress, brokerage, multi),
-          "UpdateBrokerage failed !!");
+      String txid = wallet.updateBrokerageForCli(ownerAddress, brokerage, multi);
+      throwIfCliOperationFailed(txid, "UpdateBrokerage failed !!");
+      return txid;
+    } catch (CommandErrorException e) {
+      throw e;
     } catch (IllegalStateException e) {
       throwCliError("execution_error", "UpdateBrokerage failed !!", e);
+      return null;
     } catch (Exception e) {
       throwCliError("execution_error", "UpdateBrokerage failed !!", e);
+      return null;
     }
   }
 
@@ -2359,7 +2499,7 @@ public class WalletApiWrapper {
         buyTokenId, buyTokenQuantity, multi);
   }
 
-  public void marketSellAssetForCli(
+  public String marketSellAssetForCli(
       byte[] owner,
       byte[] sellTokenId,
       long sellTokenQuantity,
@@ -2367,14 +2507,18 @@ public class WalletApiWrapper {
       long buyTokenQuantity, boolean multi) {
     requireLoggedInWalletForCli();
     try {
-      throwIfCliOperationFailed(
-          wallet.marketSellAssetForCli(owner, sellTokenId, sellTokenQuantity, buyTokenId,
-              buyTokenQuantity, multi),
-          "MarketSellAsset failed !!");
+      String txid = wallet.marketSellAssetForCli(owner, sellTokenId, sellTokenQuantity, buyTokenId,
+              buyTokenQuantity, multi);
+      throwIfCliOperationFailed(txid, "MarketSellAsset failed !!");
+      return txid;
+    } catch (CommandErrorException e) {
+      throw e;
     } catch (IllegalStateException e) {
       throwCliError("execution_error", "MarketSellAsset failed !!", e);
+      return null;
     } catch (Exception e) {
       throwCliError("execution_error", "MarketSellAsset failed !!", e);
+      return null;
     }
   }
 
@@ -2387,16 +2531,20 @@ public class WalletApiWrapper {
     return wallet.marketCancelOrder(owner, orderId, multi);
   }
 
-  public void marketCancelOrderForCli(byte[] owner, byte[] orderId, boolean multi) {
+  public String marketCancelOrderForCli(byte[] owner, byte[] orderId, boolean multi) {
     requireLoggedInWalletForCli();
     try {
-      throwIfCliOperationFailed(
-          wallet.marketCancelOrderForCli(owner, orderId, multi),
-          "MarketCancelOrder failed !!");
+      String txid = wallet.marketCancelOrderForCli(owner, orderId, multi);
+      throwIfCliOperationFailed(txid, "MarketCancelOrder failed !!");
+      return txid;
+    } catch (CommandErrorException e) {
+      throw e;
     } catch (IllegalStateException e) {
       throwCliError("execution_error", "MarketCancelOrder failed !!", e);
+      return null;
     } catch (Exception e) {
       throwCliError("execution_error", "MarketCancelOrder failed !!", e);
+      return null;
     }
   }
 

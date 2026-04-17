@@ -53,10 +53,10 @@ public class ProposalCommands {
                         parametersMap.put(paramId, paramValue);
                     }
                     boolean multi = opts.getBoolean("multi");
-                    wrapper.createProposalForCli(owner, parametersMap, multi);
+                    String txid = wrapper.createProposalForCli(owner, parametersMap, multi);
                     CommandSupport.emitSuccess(out,
                             "CreateProposal successful !!",
-                            CommandSupport.lastBroadcastTxResultData());
+                            CommandSupport.txResultData(txid));
                 })
                 .build());
     }
@@ -78,10 +78,10 @@ public class ProposalCommands {
                     CommandSupport.requirePositive(out, "id", id);
                     boolean approve = opts.getBoolean("approve");
                     boolean multi = opts.getBoolean("multi");
-                    wrapper.approveProposalForCli(owner, id, approve, multi);
+                    String txid = wrapper.approveProposalForCli(owner, id, approve, multi);
                     CommandSupport.emitSuccess(out,
                             "ApproveProposal successful !!",
-                            CommandSupport.lastBroadcastTxResultData());
+                            CommandSupport.txResultData(txid));
                 })
                 .build());
     }
@@ -101,10 +101,10 @@ public class ProposalCommands {
                     long id = opts.getLong("id");
                     CommandSupport.requirePositive(out, "id", id);
                     boolean multi = opts.getBoolean("multi");
-                    wrapper.deleteProposalForCli(owner, id, multi);
+                    String txid = wrapper.deleteProposalForCli(owner, id, multi);
                     CommandSupport.emitSuccess(out,
                             "DeleteProposal successful !!",
-                            CommandSupport.lastBroadcastTxResultData());
+                            CommandSupport.txResultData(txid));
                 })
                 .build());
     }

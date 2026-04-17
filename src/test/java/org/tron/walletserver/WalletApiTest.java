@@ -109,7 +109,7 @@ public class WalletApiTest {
   }
 
   @Test
-  public void sendCoinForCliReturnsFalseWhenAccountQueryFails() throws Exception {
+  public void sendCoinForCliReturnsNullWhenAccountQueryFails() throws Exception {
     ApiClient originalApiCli = WalletApi.getApiCli();
     StubApiClient stub = new StubApiClient();
     stub.queryAccountResult = null;
@@ -121,9 +121,9 @@ public class WalletApiTest {
       WalletApi walletApi = new WalletApi(walletFile);
       walletApi.setLogin(null);
 
-      boolean result = walletApi.sendCoinForCli(OWNER, TO, 1L, true);
+      String result = walletApi.sendCoinForCli(OWNER, TO, 1L, true);
 
-      Assert.assertFalse(result);
+      Assert.assertNull(result);
       Assert.assertEquals("Failed to query account.", WalletApi.consumeLastCliOperationError());
     } finally {
       WalletApi.setApiCli(originalApiCli);

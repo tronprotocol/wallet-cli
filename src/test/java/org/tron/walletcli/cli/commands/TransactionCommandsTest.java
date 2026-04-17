@@ -62,7 +62,7 @@ public class TransactionCommandsTest {
       try {
         command.getHandler().execute(org.tron.walletcli.cli.CommandContext.empty(), opts, new WalletApiWrapper() {
           @Override
-          public Triple<Boolean, Long, Long> callContractForCli(
+          public Triple<String, Long, Long> callContractForCli(
               byte[] ownerAddress,
               byte[] contractAddress,
               long callValue,
@@ -192,10 +192,11 @@ public class TransactionCommandsTest {
 
       command.getHandler().execute(org.tron.walletcli.cli.CommandContext.empty(), opts, new WalletApiWrapper() {
         @Override
-        public void sendCoinForCli(byte[] ownerAddress, byte[] toAddress, long amount, boolean multi) {
+        public String sendCoinForCli(byte[] ownerAddress, byte[] toAddress, long amount, boolean multi) {
           Assert.assertNull(ownerAddress);
           Assert.assertEquals(1L, amount);
           Assert.assertFalse(multi);
+          return "";
         }
       }, formatter);
       formatter.flush();

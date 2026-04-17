@@ -94,6 +94,7 @@ def smoke_expectation(case_type):
     mapping = {
         "offline-success": "success",
         "noauth-success": "success",
+        "noauth-help": "help_dual",
         "auth-success": "success",
         "stateful-success": "success",
         "stateful-replay-execution": "stateful_replay_execution",
@@ -143,7 +144,8 @@ def build_smoke_case(label, row, values):
         "json_path_absent": json_path_absent,
         "error_code": error_code,
         "text_contains": text_contains,
-        "text_absent": ["Error:", "Usage:"] if smoke_expectation(case_type) == "success" else [],
+        "text_absent": ["Error:", "Usage:"] if smoke_expectation(case_type) == "success"
+                       else ["Error:"] if smoke_expectation(case_type) == "help_dual" else [],
         "preflight": preflight,
         "unresolved_placeholders": unresolved,
         "excluded": case_type == "excluded-interactive",

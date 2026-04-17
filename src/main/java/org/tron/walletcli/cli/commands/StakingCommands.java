@@ -43,10 +43,10 @@ public class StakingCommands {
                     CommandSupport.requireResourceCode(out, "resource", resource);
                     byte[] receiver = opts.has("receiver") ? opts.getAddress("receiver") : null;
                     boolean multi = opts.getBoolean("multi");
-                    wrapper.freezeBalanceForCli(owner, amount, duration, resource, receiver, multi);
+                    String txid = wrapper.freezeBalanceForCli(owner, amount, duration, resource, receiver, multi);
                     CommandSupport.emitSuccess(out,
                             "FreezeBalance successful !!",
-                            CommandSupport.lastBroadcastTxResultData());
+                            CommandSupport.txResultData(txid));
                 })
                 .build());
     }
@@ -72,15 +72,16 @@ public class StakingCommands {
                     int permissionId = opts.has("permission-id") ? opts.getInt("permission-id") : 0;
                     CommandSupport.requirePermissionId(out, "permission-id", permissionId);
                     boolean multi = opts.getBoolean("multi");
+                    String txid;
                     TransactionUtils.setPermissionIdOverride(permissionId);
                     try {
-                        wrapper.freezeBalanceV2ForCli(owner, amount, resource, multi);
+                        txid = wrapper.freezeBalanceV2ForCli(owner, amount, resource, multi);
                     } finally {
                         TransactionUtils.clearPermissionIdOverride();
                     }
                     CommandSupport.emitSuccess(out,
                             "FreezeBalanceV2 successful !!",
-                            CommandSupport.lastBroadcastTxResultData());
+                            CommandSupport.txResultData(txid));
                 })
                 .build());
     }
@@ -102,10 +103,10 @@ public class StakingCommands {
                     CommandSupport.requireResourceCode(out, "resource", resource);
                     byte[] receiver = opts.has("receiver") ? opts.getAddress("receiver") : null;
                     boolean multi = opts.getBoolean("multi");
-                    wrapper.unfreezeBalanceForCli(owner, resource, receiver, multi);
+                    String txid = wrapper.unfreezeBalanceForCli(owner, resource, receiver, multi);
                     CommandSupport.emitSuccess(out,
                             "UnfreezeBalance successful !!",
-                            CommandSupport.lastBroadcastTxResultData());
+                            CommandSupport.txResultData(txid));
                 })
                 .build());
     }
@@ -131,15 +132,16 @@ public class StakingCommands {
                     int permissionId = opts.has("permission-id") ? opts.getInt("permission-id") : 0;
                     CommandSupport.requirePermissionId(out, "permission-id", permissionId);
                     boolean multi = opts.getBoolean("multi");
+                    String txid;
                     TransactionUtils.setPermissionIdOverride(permissionId);
                     try {
-                        wrapper.unfreezeBalanceV2ForCli(owner, amount, resource, multi);
+                        txid = wrapper.unfreezeBalanceV2ForCli(owner, amount, resource, multi);
                     } finally {
                         TransactionUtils.clearPermissionIdOverride();
                     }
                     CommandSupport.emitSuccess(out,
                             "UnfreezeBalanceV2 successful !!",
-                            CommandSupport.lastBroadcastTxResultData());
+                            CommandSupport.txResultData(txid));
                 })
                 .build());
     }
@@ -156,10 +158,10 @@ public class StakingCommands {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     boolean multi = opts.getBoolean("multi");
-                    wrapper.withdrawExpireUnfreezeForCli(owner, multi);
+                    String txid = wrapper.withdrawExpireUnfreezeForCli(owner, multi);
                     CommandSupport.emitSuccess(out,
                             "WithdrawExpireUnfreeze successful !!",
-                            CommandSupport.lastBroadcastTxResultData());
+                            CommandSupport.txResultData(txid));
                 })
                 .build());
     }
@@ -189,11 +191,11 @@ public class StakingCommands {
                     long lockPeriod = opts.has("lock-period") ? opts.getLong("lock-period") : 0;
                     if (opts.has("lock-period")) CommandSupport.requireNonNegative(out, "lock-period", lockPeriod);
                     boolean multi = opts.getBoolean("multi");
-                    wrapper.delegateResourceForCli(owner, amount, resource, receiver,
+                    String txid = wrapper.delegateResourceForCli(owner, amount, resource, receiver,
                             lock, lockPeriod, multi);
                     CommandSupport.emitSuccess(out,
                             "DelegateResource successful !!",
-                            CommandSupport.lastBroadcastTxResultData());
+                            CommandSupport.txResultData(txid));
                 })
                 .build());
     }
@@ -218,10 +220,10 @@ public class StakingCommands {
                     CommandSupport.requireResourceCode(out, "resource", resource);
                     byte[] receiver = opts.getAddress("receiver");
                     boolean multi = opts.getBoolean("multi");
-                    wrapper.undelegateResourceForCli(owner, amount, resource, receiver, multi);
+                    String txid = wrapper.undelegateResourceForCli(owner, amount, resource, receiver, multi);
                     CommandSupport.emitSuccess(out,
                             "UndelegateResource successful !!",
-                            CommandSupport.lastBroadcastTxResultData());
+                            CommandSupport.txResultData(txid));
                 })
                 .build());
     }
@@ -238,10 +240,10 @@ public class StakingCommands {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     boolean multi = opts.getBoolean("multi");
-                    wrapper.cancelAllUnfreezeV2ForCli(owner, multi);
+                    String txid = wrapper.cancelAllUnfreezeV2ForCli(owner, multi);
                     CommandSupport.emitSuccess(out,
                             "CancelAllUnfreezeV2 successful !!",
-                            CommandSupport.lastBroadcastTxResultData());
+                            CommandSupport.txResultData(txid));
                 })
                 .build());
     }
@@ -258,10 +260,10 @@ public class StakingCommands {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     boolean multi = opts.getBoolean("multi");
-                    wrapper.withdrawBalanceForCli(owner, multi);
+                    String txid = wrapper.withdrawBalanceForCli(owner, multi);
                     CommandSupport.emitSuccess(out,
                             "WithdrawBalance successful !!",
-                            CommandSupport.lastBroadcastTxResultData());
+                            CommandSupport.txResultData(txid));
                 })
                 .build());
     }
@@ -278,10 +280,10 @@ public class StakingCommands {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     boolean multi = opts.getBoolean("multi");
-                    wrapper.unfreezeAssetForCli(owner, multi);
+                    String txid = wrapper.unfreezeAssetForCli(owner, multi);
                     CommandSupport.emitSuccess(out,
                             "UnfreezeAsset successful !!",
-                            CommandSupport.lastBroadcastTxResultData());
+                            CommandSupport.txResultData(txid));
                 })
                 .build());
     }

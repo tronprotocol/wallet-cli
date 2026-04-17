@@ -39,10 +39,10 @@ public class WitnessCommands {
                         return;
                     }
                     boolean multi = opts.getBoolean("multi");
-                    wrapper.createWitnessForCli(owner, url, multi);
+                    String txid = wrapper.createWitnessForCli(owner, url, multi);
                     CommandSupport.emitSuccess(out,
                             "CreateWitness successful !!",
-                            CommandSupport.lastBroadcastTxResultData());
+                            CommandSupport.txResultData(txid));
                 })
                 .build());
     }
@@ -69,10 +69,10 @@ public class WitnessCommands {
                         return;
                     }
                     boolean multi = opts.getBoolean("multi");
-                    wrapper.updateWitnessForCli(owner, url, multi);
+                    String txid = wrapper.updateWitnessForCli(owner, url, multi);
                     CommandSupport.emitSuccess(out,
                             "UpdateWitness successful !!",
-                            CommandSupport.lastBroadcastTxResultData());
+                            CommandSupport.txResultData(txid));
                 })
                 .build());
     }
@@ -123,15 +123,16 @@ public class WitnessCommands {
                         witness.put(addr, countToken);
                     }
                     boolean multi = opts.getBoolean("multi");
+                    String txid;
                     TransactionUtils.setPermissionIdOverride(permissionId);
                     try {
-                        wrapper.voteWitnessForCli(owner, witness, multi);
+                        txid = wrapper.voteWitnessForCli(owner, witness, multi);
                     } finally {
                         TransactionUtils.clearPermissionIdOverride();
                     }
                     CommandSupport.emitSuccess(out,
                             "VoteWitness successful !!",
-                            CommandSupport.lastBroadcastTxResultData());
+                            CommandSupport.txResultData(txid));
                 })
                 .build());
     }
@@ -154,10 +155,10 @@ public class WitnessCommands {
                         return;
                     }
                     boolean multi = opts.getBoolean("multi");
-                    wrapper.updateBrokerageForCli(owner, brokerage, multi);
+                    String txid = wrapper.updateBrokerageForCli(owner, brokerage, multi);
                     CommandSupport.emitSuccess(out,
                             "UpdateBrokerage successful !!",
-                            CommandSupport.lastBroadcastTxResultData());
+                            CommandSupport.txResultData(txid));
                 })
                 .build());
     }
