@@ -47,7 +47,15 @@ public class ContractCommands {
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     String name = opts.getString("name");
                     String abi = opts.getString("abi");
+                    try {
+                        com.google.gson.JsonParser.parseString(abi);
+                    } catch (com.google.gson.JsonSyntaxException e) {
+                        String msg = e.getMessage() != null ? e.getMessage() : e.toString();
+                        out.usageError("--abi is not valid JSON: " + msg, null);
+                        return;
+                    }
                     String bytecode = opts.getString("bytecode");
+                    CommandSupport.requireHex(out, "bytecode", bytecode);
                     long feeLimit = opts.getLong("fee-limit");
                     CommandSupport.requirePositive(out, "fee-limit", feeLimit);
                     long value = opts.has("value") ? opts.getLong("value") : 0;
@@ -88,24 +96,27 @@ public class ContractCommands {
                         return;
                     }
 
-                    // If constructor + params provided, append encoded params to bytecode
+                    // If constructor + params provided, append ABI-encoded params to bytecode.
+                    // Constructors have no 4-byte selector — use encodeInput, not parseMethod.
                     String codeStr = bytecode;
                     if (opts.has("constructor") && opts.has("params")) {
-                        String encodedParams;
                         try {
-                            encodedParams = AbiUtil.parseMethod(
-                                    opts.getString("constructor"), opts.getString("params"), true);
+                            String encodedParams = ByteArray.toHexString(
+                                    AbiUtil.encodeInput(
+                                            opts.getString("constructor"), opts.getString("params")));
+                            codeStr = bytecode + encodedParams;
                         } catch (RuntimeException e) {
-                            out.usageError("Invalid constructor signature or params: " + e.getMessage(), null);
+                            String msg = e.getMessage() != null ? e.getMessage() : e.toString();
+                            out.usageError("Invalid constructor signature or params: " + msg, null);
                             return;
                         }
-                        // parseMethod with isHex=true returns just the encoded params without selector
-                        codeStr = bytecode + encodedParams;
                     }
 
                     wrapper.deployContractForCli(owner, name, abi, codeStr,
                             feeLimit, value, consumePercent, originEnergyLimit,
                             tokenValue, tokenId, library, compilerVersion, multi);
+                    // TODO: include contract_address in JSON data (derive via
+                    //  WalletApi.generateContractAddress + LAST_CONTRACT_ADDRESS ThreadLocal)
                     CommandSupport.emitSuccess(out,
                             "DeployContract successful !!",
                             CommandSupport.lastBroadcastTxResultData());
@@ -158,10 +169,13 @@ public class ContractCommands {
                     try {
                         data = ByteArray.fromHexString(AbiUtil.parseMethod(method, params, false));
                     } catch (RuntimeException e) {
-                        out.usageError("Invalid method signature or params: " + e.getMessage(), null);
+                        String msg = e.getMessage() != null ? e.getMessage() : e.toString();
+                        out.usageError("Invalid method signature or params: " + msg, null);
                         return;
                     }
                     TransactionUtils.setPermissionIdOverride(permissionId);
+                    // No catch block — exception propagates after finally, so result is
+                    // always assigned before use. Java definite-assignment enforces this.
                     org.apache.commons.lang3.tuple.Triple<Boolean, Long, Long> result;
                     try {
                         result = wrapper.callContractForCli(owner, contractAddress, callValue, data,
@@ -202,7 +216,8 @@ public class ContractCommands {
                     try {
                         data = ByteArray.fromHexString(AbiUtil.parseMethod(method, params, false));
                     } catch (RuntimeException e) {
-                        out.usageError("Invalid method signature or params: " + e.getMessage(), null);
+                        String msg = e.getMessage() != null ? e.getMessage() : e.toString();
+                        out.usageError("Invalid method signature or params: " + msg, null);
                         return;
                     }
                     Response.TransactionExtention result =
@@ -258,7 +273,9 @@ public class ContractCommands {
                     String method = opts.getString("method");
                     String params = opts.has("params") ? opts.getString("params") : "";
                     long callValue = opts.has("value") ? opts.getLong("value") : 0;
+                    if (opts.has("value")) CommandSupport.requireNonNegative(out, "value", callValue);
                     long tokenValue = opts.has("token-value") ? opts.getLong("token-value") : 0;
+                    if (opts.has("token-value")) CommandSupport.requireNonNegative(out, "token-value", tokenValue);
                     String tokenId = opts.has("token-id") ? opts.getString("token-id") : "";
                     if (!tokenId.isEmpty()) {
                         try {
@@ -273,7 +290,8 @@ public class ContractCommands {
                     try {
                         data = ByteArray.fromHexString(AbiUtil.parseMethod(method, params, false));
                     } catch (RuntimeException e) {
-                        out.usageError("Invalid method signature or params: " + e.getMessage(), null);
+                        String msg = e.getMessage() != null ? e.getMessage() : e.toString();
+                        out.usageError("Invalid method signature or params: " + msg, null);
                         return;
                     }
                     Response.EstimateEnergyMessage result = wrapper.estimateEnergyMessage(

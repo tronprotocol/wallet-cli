@@ -239,6 +239,7 @@ public class QueryCommands {
                 .option("number", "Block number (default: latest)", false, OptionDef.Type.LONG)
                 .handler((ctx, opts, wrapper, out) -> {
                     long blockNum = opts.has("number") ? opts.getLong("number") : -1;
+                    if (opts.has("number")) CommandSupport.requireNonNegative(out, "number", blockNum);
                     Chain.Block block = WalletApi.getBlock(blockNum);
                     if (block == null) {
                         out.error("query_failed", "GetBlock failed");
@@ -256,7 +257,9 @@ public class QueryCommands {
                 .description("Get block by block ID (hash)")
                 .option("id", "Block ID / hash", true)
                 .handler((ctx, opts, wrapper, out) -> {
-                    Chain.Block block = WalletApi.getBlockById(opts.getString("id"));
+                    String id = opts.getString("id");
+                    CommandSupport.requireHexHash(out, "id", id);
+                    Chain.Block block = WalletApi.getBlockById(id);
                     if (block == null) {
                         out.error("query_failed", "GetBlockById failed");
                     } else {
@@ -302,6 +305,7 @@ public class QueryCommands {
                 .option("count", "Number of blocks", true, OptionDef.Type.LONG)
                 .handler((ctx, opts, wrapper, out) -> {
                     long count = opts.getLong("count");
+                    CommandSupport.requirePositive(out, "count", count);
                     Response.BlockListExtention blocks = WalletApi.getBlockByLatestNum2(count);
                     if (blocks == null) {
                         out.error("query_failed", "GetBlockByLatestNum failed");
@@ -322,6 +326,12 @@ public class QueryCommands {
                 .handler((ctx, opts, wrapper, out) -> {
                     long start = opts.getLong("start");
                     long end = opts.getLong("end");
+                    CommandSupport.requireNonNegative(out, "start", start);
+                    CommandSupport.requireNonNegative(out, "end", end);
+                    if (end <= start) {
+                        out.usageError("end must be greater than start", null);
+                        return;
+                    }
                     Response.BlockListExtention blocks = WalletApi.getBlockByLimitNext(start, end);
                     if (blocks == null) {
                         out.error("query_failed", "GetBlockByLimitNext failed");
@@ -339,7 +349,9 @@ public class QueryCommands {
                 .description("Get transaction by ID")
                 .option("id", "Transaction ID", true)
                 .handler((ctx, opts, wrapper, out) -> {
-                    Chain.Transaction tx = wrapper.getTransactionByIdForCli(opts.getString("id"));
+                    String id = opts.getString("id");
+                    CommandSupport.requireHexHash(out, "id", id);
+                    Chain.Transaction tx = wrapper.getTransactionByIdForCli(id);
                     out.printMessage(Utils.formatMessageString(tx), "GetTransactionById failed");
                 })
                 .build());
@@ -352,7 +364,9 @@ public class QueryCommands {
                 .description("Get transaction info by ID")
                 .option("id", "Transaction ID", true)
                 .handler((ctx, opts, wrapper, out) -> {
-                    Response.TransactionInfo txInfo = wrapper.getTransactionInfoByIdForCli(opts.getString("id"));
+                    String id = opts.getString("id");
+                    CommandSupport.requireHexHash(out, "id", id);
+                    Response.TransactionInfo txInfo = wrapper.getTransactionInfoByIdForCli(id);
                     out.printMessage(Utils.formatMessageString(txInfo), "GetTransactionInfoById failed");
                 })
                 .build());
@@ -365,7 +379,9 @@ public class QueryCommands {
                 .description("Get transaction count in a block")
                 .option("number", "Block number", true, OptionDef.Type.LONG)
                 .handler((ctx, opts, wrapper, out) -> {
-                    long count = wrapper.getTransactionCountByBlockNum(opts.getLong("number"));
+                    long blockNum = opts.getLong("number");
+                    CommandSupport.requireNonNegative(out, "number", blockNum);
+                    long count = wrapper.getTransactionCountByBlockNumForCli(blockNum);
                     Map<String, Object> json = new LinkedHashMap<String, Object>();
                     json.put("count", count);
                     out.success("The block contains " + count + " transactions", json);
@@ -744,8 +760,11 @@ public class QueryCommands {
                 .option("offset", "Start offset", true, OptionDef.Type.LONG)
                 .option("limit", "Page size", true, OptionDef.Type.LONG)
                 .handler((ctx, opts, wrapper, out) -> {
-                    Response.AssetIssueList result = WalletApi.getPaginatedAssetIssueList(
-                            opts.getLong("offset"), opts.getLong("limit"));
+                    long offset = opts.getLong("offset");
+                    long limit = opts.getLong("limit");
+                    CommandSupport.requireNonNegative(out, "offset", offset);
+                    CommandSupport.requirePositive(out, "limit", limit);
+                    Response.AssetIssueList result = WalletApi.getPaginatedAssetIssueList(offset, limit);
                     if (result == null) {
                         out.error("query_failed", "ListAssetIssuePaginated failed");
                     } else {
@@ -779,8 +798,11 @@ public class QueryCommands {
                 .option("offset", "Start offset", true, OptionDef.Type.LONG)
                 .option("limit", "Page size", true, OptionDef.Type.LONG)
                 .handler((ctx, opts, wrapper, out) -> {
-                    Response.ProposalList result = WalletApi.getProposalListPaginated(
-                            opts.getLong("offset"), opts.getLong("limit"));
+                    long offset = opts.getLong("offset");
+                    long limit = opts.getLong("limit");
+                    CommandSupport.requireNonNegative(out, "offset", offset);
+                    CommandSupport.requirePositive(out, "limit", limit);
+                    Response.ProposalList result = WalletApi.getProposalListPaginated(offset, limit);
                     if (result == null) {
                         out.error("query_failed", "ListProposalsPaginated failed");
                     } else {
@@ -832,8 +854,11 @@ public class QueryCommands {
                 .option("offset", "Start offset", true, OptionDef.Type.LONG)
                 .option("limit", "Page size", true, OptionDef.Type.LONG)
                 .handler((ctx, opts, wrapper, out) -> {
-                    Response.ExchangeList result = WalletApi.getExchangeListPaginated(
-                            opts.getLong("offset"), opts.getLong("limit"));
+                    long offset = opts.getLong("offset");
+                    long limit = opts.getLong("limit");
+                    CommandSupport.requireNonNegative(out, "offset", offset);
+                    CommandSupport.requirePositive(out, "limit", limit);
+                    Response.ExchangeList result = WalletApi.getExchangeListPaginated(offset, limit);
                     if (result == null) {
                         out.error("query_failed", "ListExchangesPaginated failed");
                     } else {

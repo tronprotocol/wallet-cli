@@ -60,7 +60,7 @@ create-account|expected-usage-error|auth|private_key|--address TINVALIDADDRESS
 update-account|expected-execution-error|auth|private_key|--name qa-test
 set-account-id|expected-execution-error|auth|private_key|--id qa-test-id
 update-asset|auth-success|auth|private_key|--description test --url http://test.example.com --new-limit 1000 --new-public-limit 1000|data.txid|||UpdateAsset successful !!
-broadcast-transaction|expected-execution-error|empty|none|--transaction 0a0200
+broadcast-transaction|expected-usage-error|empty|none|--transaction 0a0200
 update-account-permission|expected-execution-error|auth|private_key|--owner {{MY_ADDR}} --permissions '{"owner_permission":{"type":0,"permission_name":"owner","threshold":1,"keys":[{"address":"{{MY_ADDR}}","weight":1}]}}'
 deploy-contract|stateful-success|auth|private_key|--name TestContract --abi '[]' --bytecode 6080 --fee-limit 1000000000|data.txid|||DeployContract successful !!|needs_auth_wallet,needs_positive_trx_balance
 trigger-contract|stateful-success|auth|private_key|--contract {{USDT_NILE}} --method 'transfer(address,uint256)' --params '"{{TARGET_ADDR}}",1' --fee-limit 100000000|data.txid|||TriggerContract successful !!|needs_auth_wallet,needs_target_addr,needs_positive_trx_balance

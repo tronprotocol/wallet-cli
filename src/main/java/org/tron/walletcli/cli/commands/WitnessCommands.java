@@ -30,6 +30,14 @@ public class WitnessCommands {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     String url = opts.getString("url");
+                    if (url.trim().isEmpty()) {
+                        out.usageError("--url cannot be empty", null);
+                        return;
+                    }
+                    if (url.getBytes(java.nio.charset.StandardCharsets.UTF_8).length > 256) {
+                        out.usageError("--url exceeds 256-byte TRON protocol limit", null);
+                        return;
+                    }
                     boolean multi = opts.getBoolean("multi");
                     wrapper.createWitnessForCli(owner, url, multi);
                     CommandSupport.emitSuccess(out,
@@ -52,6 +60,14 @@ public class WitnessCommands {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     String url = opts.getString("url");
+                    if (url.trim().isEmpty()) {
+                        out.usageError("--url cannot be empty", null);
+                        return;
+                    }
+                    if (url.getBytes(java.nio.charset.StandardCharsets.UTF_8).length > 256) {
+                        out.usageError("--url exceeds 256-byte TRON protocol limit", null);
+                        return;
+                    }
                     boolean multi = opts.getBoolean("multi");
                     wrapper.updateWitnessForCli(owner, url, multi);
                     CommandSupport.emitSuccess(out,

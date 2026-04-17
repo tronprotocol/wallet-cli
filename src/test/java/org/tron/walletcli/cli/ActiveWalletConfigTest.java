@@ -84,18 +84,14 @@ public class ActiveWalletConfigTest {
   }
 
   @Test
-  public void resolveWalletOverrideStrictRejectsAbsolutePath() throws Exception {
+  public void resolveWalletOverrideStrictAcceptsAbsolutePathWhenFileExists() throws Exception {
     File tempDir = Files.createTempDirectory("active-wallet-explicit").toFile();
     File walletFile = createWalletFile(tempDir, "alpha",
         "0000000000000000000000000000000000000000000000000000000000000001");
     File missingWalletDir = new File(tempDir, "MissingWallet");
 
-    try {
-      ActiveWalletConfig.resolveWalletOverrideStrict(missingWalletDir, walletFile.getAbsolutePath());
-      Assert.fail("Expected IOException for absolute path");
-    } catch (IOException e) {
-      Assert.assertTrue(e.getMessage().contains("Wallet file not found"));
-    }
+    File resolved = ActiveWalletConfig.resolveWalletOverrideStrict(missingWalletDir, walletFile.getAbsolutePath());
+    Assert.assertEquals(walletFile.getCanonicalPath(), resolved.getCanonicalPath());
   }
 
   @Test

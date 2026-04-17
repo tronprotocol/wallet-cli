@@ -360,17 +360,13 @@ public class StandardCliRunnerTest {
     File walletDir = Files.createTempDirectory("runner-wallet-override").toFile();
     File walletFile = createWalletFile(walletDir, "alpha", "0000000000000000000000000000000000000000000000000000000000000001");
 
-    Assert.assertEquals(walletFile.getAbsolutePath(),
-        StandardCliRunner.resolveWalletOverride(walletDir, walletFile.getName()).getAbsolutePath());
-    Assert.assertEquals(walletFile.getAbsolutePath(),
-        StandardCliRunner.resolveWalletOverride(walletDir, "alpha").getAbsolutePath());
+    Assert.assertEquals(walletFile.getCanonicalPath(),
+        StandardCliRunner.resolveWalletOverride(walletDir, walletFile.getName()).getCanonicalPath());
+    Assert.assertEquals(walletFile.getCanonicalPath(),
+        StandardCliRunner.resolveWalletOverride(walletDir, "alpha").getCanonicalPath());
 
-    try {
-      StandardCliRunner.resolveWalletOverride(walletDir, walletFile.getAbsolutePath());
-      Assert.fail("Expected absolute path to be rejected");
-    } catch (IOException e) {
-      Assert.assertTrue(e.getMessage().contains("Wallet file not found"));
-    }
+    Assert.assertEquals(walletFile.getCanonicalPath(),
+        StandardCliRunner.resolveWalletOverride(walletDir, walletFile.getAbsolutePath()).getCanonicalPath());
   }
 
   @Test
@@ -436,7 +432,7 @@ public class StandardCliRunnerTest {
       });
       int exitCode = new StandardCliRunner(registry, opts, () -> "TempPass123!A").execute();
 
-      Assert.assertNotEquals("Absolute wallet path should be rejected", 0, exitCode);
+      Assert.assertEquals("Absolute wallet path to existing file should be accepted", 0, exitCode);
     } finally {
       System.setOut(originalOut);
       System.setErr(originalErr);

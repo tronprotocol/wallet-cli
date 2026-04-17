@@ -164,17 +164,18 @@ public class ActiveWalletConfig {
             throw new IOException("Wallet selection must not be empty");
         }
 
-        // Guard: reject anything that looks like a filesystem path to prevent
-        // path traversal — must run BEFORE any file-existence check.
         boolean looksLikePath = new File(walletSelection).isAbsolute()
                 || walletSelection.contains("/")
-                || walletSelection.contains("\\")
-                || walletSelection.startsWith("./")
-                || walletSelection.startsWith("../")
-                || walletSelection.equals(".")
-                || walletSelection.equals("..");
+                || walletSelection.contains("\\");
         if (looksLikePath) {
-            throw new IOException("Wallet file not found: " + walletSelection);
+            File canonical = new File(walletSelection).getCanonicalFile();
+            if (!canonical.isFile()) {
+                throw new IOException("Wallet file not found: " + walletSelection);
+            }
+            if (!canonical.getName().endsWith(".json")) {
+                throw new IOException("Wallet file must be a .json keystore: " + walletSelection);
+            }
+            return canonical;
         }
 
         if (!walletDir.exists() || !walletDir.isDirectory()) {

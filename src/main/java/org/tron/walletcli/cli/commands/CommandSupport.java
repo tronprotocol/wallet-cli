@@ -61,6 +61,8 @@ final class CommandSupport {
         return data;
     }
 
+    // These guards rely on usageError() always throwing CliAbortException — that is
+    // OutputFormatter's contract and is enforced by its single-outcome rule.
     static void requirePositive(OutputFormatter out, String name, long value) {
         if (value <= 0) {
             out.usageError(name + " must be a positive integer, got: " + value, null);
@@ -95,6 +97,21 @@ final class CommandSupport {
         } catch (Exception e) {
             out.usageError("Invalid hex value for --" + optionName + ": " + value, null);
             return null; // unreachable: usageError() always throws CliAbortException
+        }
+    }
+
+    static void requireNonBlank(OutputFormatter out, String name, String value) {
+        if (value == null || value.trim().isEmpty()) {
+            out.usageError(name + " must not be blank", null);
+        }
+    }
+
+    static void requireHexHash(OutputFormatter out, String name, String value) {
+        if (value == null || value.isEmpty()) {
+            out.usageError(name + " must not be empty", null);
+        }
+        if (!value.matches("[0-9a-fA-F]+")) {
+            out.usageError(name + " must be a hex string, got: " + value, null);
         }
     }
 

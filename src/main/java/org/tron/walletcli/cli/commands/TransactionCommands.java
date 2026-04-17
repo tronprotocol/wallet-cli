@@ -59,15 +59,13 @@ public class TransactionCommands {
                     } finally {
                         TransactionUtils.clearPermissionIdOverride();
                     }
-                    String toStr = opts.getString("to");
+                    Map<String, Object> json = CommandSupport.lastBroadcastTxResultData();
+                    json.put("to", opts.getString("to"));
+                    json.put("amount", amount);
                     if (multi) {
                         CommandSupport.emitSuccess(out,
-                                "create multi-sign transaction successful !!",
-                                CommandSupport.lastBroadcastTxResultData());
+                                "create multi-sign transaction successful !!", json);
                     } else {
-                        Map<String, Object> json = CommandSupport.lastBroadcastTxResultData();
-                        json.put("to", toStr);
-                        json.put("amount", amount);
                         CommandSupport.emitSuccess(out, "SendCoin successful !!", json);
                     }
                 })
@@ -90,6 +88,7 @@ public class TransactionCommands {
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     byte[] to = opts.getAddress("to");
                     String asset = opts.getString("asset");
+                    CommandSupport.requireNonBlank(out, "asset", asset);
                     long amount = opts.getLong("amount");
                     CommandSupport.requirePositive(out, "amount", amount);
                     boolean multi = opts.getBoolean("multi");
@@ -202,6 +201,7 @@ public class TransactionCommands {
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     byte[] to = opts.getAddress("to");
                     String asset = opts.getString("asset");
+                    CommandSupport.requireNonBlank(out, "asset", asset);
                     long amount = opts.getLong("amount");
                     CommandSupport.requirePositive(out, "amount", amount);
                     boolean multi = opts.getBoolean("multi");
@@ -316,6 +316,7 @@ public class TransactionCommands {
                 .handler((ctx, opts, wrapper, out) -> {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
+                    // TODO: validate name length (node enforces max 200 bytes)
                     byte[] nameBytes = opts.getString("name").getBytes(StandardCharsets.UTF_8);
                     boolean multi = opts.getBoolean("multi");
                     wrapper.updateAccountForCli(owner, nameBytes, multi);
@@ -337,6 +338,7 @@ public class TransactionCommands {
                 .handler((ctx, opts, wrapper, out) -> {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
+                    // TODO: validate id length (node enforces 8–32 bytes)
                     byte[] id = opts.getString("id").getBytes(StandardCharsets.UTF_8);
                     wrapper.setAccountIdForCli(owner, id);
                     CommandSupport.emitSuccess(out,
@@ -361,6 +363,7 @@ public class TransactionCommands {
                 .handler((ctx, opts, wrapper, out) -> {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
+                    // TODO: validate description (max 200 bytes) and url (max 256 bytes) per node limits
                     byte[] desc = opts.getString("description").getBytes(StandardCharsets.UTF_8);
                     byte[] url = opts.getString("url").getBytes(StandardCharsets.UTF_8);
                     long newLimit = opts.getLong("new-limit");

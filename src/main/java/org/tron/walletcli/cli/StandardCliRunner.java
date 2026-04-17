@@ -200,6 +200,9 @@ public class StandardCliRunner {
         }
 
         // --grpc-endpoint present (with or without --network)
+        // grpcEndpoint format is not validated here; malformed values (empty, non-host:port)
+        // produce a gRPC-level error. No validation until a canonical format is decided
+        // (grpc:// vs bare host:port vs ip:port).
         NetType detected = detectNetworkFromEndpoint(grpcEndpoint);
 
         if (networkFlag != null && detected != null) {

@@ -26,7 +26,7 @@ contract__command_unknown_option_text|empty|none|default|text|usage|["get-block"
 contract__command_unexpected_argument_text|empty|none|default|text|usage|["get-block","oops"]||||Unexpected argument: oops||
 contract__command_help_short_text|empty|none|default|text|help_text|["get-balance","-h"]||||Usage:,wallet-cli get-balance|Error:|
 contract__command_help_short_json|empty|none|default|json|help_json|["--output","json","get-balance","-h"]|data.help|||||
-contract__command_help_not_option_value_text|empty|none|default|text|usage|["get-balance","--address","--help"]||||Missing value for --address||
+contract__command_help_not_option_value_text|empty|none|default|text|help_text|["get-balance","--address","--help"]||||Usage:,wallet-cli get-balance|Error:|
 contract__auth_never_without_wallet_text|empty|none|default|text|success|["current-network"]||||Current network:||
 contract__auth_require_without_wallet_json|empty|none|default|json|execution|["--output","json","get-address"]|||execution_error|||
 contract__auth_require_no_password_text|auth|private_key|no-password|text|execution|["get-address"]||||MASTER_PASSWORD is required||

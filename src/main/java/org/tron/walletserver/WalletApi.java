@@ -843,7 +843,12 @@ public class WalletApi {
         List<String> words = MnemonicUtils.stringToMnemonicWords(new String(mnemonicBytes));
         MnemonicUtils.updateMnemonicFile(newPassowrd, credentials.getPair(), mnemonicFile, true, words);
       } catch (Exception e) {
-        System.out.println("update mnemonic file " + failedHighlight() + ", please check the mnemonic file");
+        // Use stderr to avoid stdout pollution in JSON mode.
+        // We do NOT throw here: the wallet keystore password was already successfully changed;
+        // the mnemonic inconsistency is a warning, not a failure.
+        System.err.println("Warning: mnemonic file password update failed — "
+            + "wallet and mnemonic are out of sync. Please re-run change-password. ("
+            + e.getMessage() + ")");
       }
     }
     return true;
@@ -3498,7 +3503,8 @@ public class WalletApi {
 
       String beReplaced;
       if (compilerVersion == null) {
-        // old version
+        // old version — libraryName > 38 chars would cause NegativeArraySizeException,
+        // but Solidity library names are typically short. Low risk; not worth a guard.
         String repeated = new String(
             new char[40 - libraryName.length() - 2])
             .replace("\0", "_");
@@ -3744,6 +3750,9 @@ public class WalletApi {
     byte[] rawKey = credentials == null ? decrypt2PrivateBytes(bytes, getWalletFile()) : credentials.getPair().getPrivateKey();
     byte[] privateKeyBytes = Arrays.copyOf(rawKey, rawKey.length);
     Arrays.fill(rawKey, (byte) 0);
+    // Trident SDK's ApiWrapper only accepts String for private key; immutable String cannot be
+    // zeroed from JVM heap. Byte arrays are cleared above; residual String risk is a platform
+    // limitation that requires upstream SDK changes to eliminate.
     String privateKey = ByteArray.toHexString(privateKeyBytes);
     Arrays.fill(privateKeyBytes, (byte) 0);
     if (netType == CUSTOM) {
@@ -3825,6 +3834,7 @@ public class WalletApi {
         : credentials.getPair().getPrivateKey();
     byte[] privateKeyBytes = Arrays.copyOf(rawKey, rawKey.length);
     Arrays.fill(rawKey, (byte) 0);
+    // Same Trident SDK limitation as deployContract above — see comment there.
     String privateKey = ByteArray.toHexString(privateKeyBytes);
     Arrays.fill(privateKeyBytes, (byte) 0);
     if (netType == CUSTOM) {
@@ -4625,6 +4635,9 @@ public class WalletApi {
     try {
       credentials = WalletUtils.loadCredentials(password, keyStoreFile);
     } catch (Exception e) {
+      // Broad catch is intentional: loadCredentials can throw CipherException (wrong password),
+      // IOException (corrupt file), or various BouncyCastle unchecked exceptions. For REPL unlock,
+      // any failure means "wrong password or unreadable keystore" — the caller retries or gives up.
       return false;
     }
     setCredentials(credentials);

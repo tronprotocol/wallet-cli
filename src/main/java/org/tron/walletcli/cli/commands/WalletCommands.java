@@ -9,8 +9,8 @@ import org.tron.walletcli.cli.ActiveWalletConfig;
 import org.tron.walletcli.cli.CommandDefinition;
 import org.tron.walletcli.cli.CommandRegistry;
 import org.tron.walletcli.cli.OptionDef;
+import org.tron.walletserver.WalletApi;
 
-import lombok.extern.slf4j.Slf4j;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -19,7 +19,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-@Slf4j
 public class WalletCommands {
 
     private static CommandDefinition.Builder noAuthCommand() {
@@ -165,11 +164,21 @@ public class WalletCommands {
 
                     File walletFile;
                     if (hasAddress) {
-                        walletFile = ActiveWalletConfig.findWalletFileByAddress(
-                                opts.getString("address"));
+                        String addr = opts.getString("address");
+                        byte[] decoded;
+                        try {
+                            decoded = WalletApi.decodeFromBase58Check(addr);
+                        } catch (IllegalArgumentException e) {
+                            out.usageError("Invalid TRON address for --address: " + addr, null);
+                            return;
+                        }
+                        if (decoded == null) {
+                            out.usageError("Invalid TRON address for --address: " + addr, null);
+                            return;
+                        }
+                        walletFile = ActiveWalletConfig.findWalletFileByAddress(addr);
                         if (walletFile == null) {
-                            out.error("not_found",
-                                    "No wallet found with address: " + opts.getString("address"));
+                            out.error("not_found", "No wallet found with address: " + addr);
                             return;
                         }
                     } else {
@@ -187,7 +196,13 @@ public class WalletCommands {
                         }
                     }
 
-                    WalletFile wf = WalletUtils.loadWalletFile(walletFile);
+                    WalletFile wf;
+                    try {
+                        wf = WalletUtils.loadWalletFile(walletFile);
+                    } catch (Exception e) {
+                        out.error("keystore_read_error", "Could not read keystore: " + e.getMessage());
+                        return;
+                    }
                     ActiveWalletConfig.setActiveAddress(wf.getAddress());
 
                     Map<String, Object> json = new LinkedHashMap<String, Object>();
@@ -216,7 +231,13 @@ public class WalletCommands {
                         return;
                     }
 
-                    WalletFile wf = WalletUtils.loadWalletFile(walletFile);
+                    WalletFile wf;
+                    try {
+                        wf = WalletUtils.loadWalletFile(walletFile);
+                    } catch (Exception e) {
+                        out.error("keystore_read_error", "Could not read keystore: " + e.getMessage());
+                        return;
+                    }
                     String walletName = wf.getName();
                     if (walletName == null || walletName.isEmpty()) {
                         walletName = walletFile.getName();
@@ -367,8 +388,9 @@ public class WalletCommands {
             }
             return activeWalletFile.getCanonicalFile().equals(targetWalletFile.getCanonicalFile());
         } catch (Exception e) {
-            System.err.println("Warning: could not read active wallet config after wallet deletion: "
-                    + e.getMessage());
+            // resolveActiveWalletFileStrict throws IOException for the normal case of
+            // "no active wallet configured", not just genuine I/O errors. Returning false
+            // here is correct: if we cannot determine the active wallet, assume no cleanup needed.
             return false;
         }
     }

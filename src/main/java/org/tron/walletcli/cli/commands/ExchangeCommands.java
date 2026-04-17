@@ -62,7 +62,10 @@ public class ExchangeCommands {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     long exchangeId = opts.getLong("exchange-id");
-                    byte[] tokenId = opts.getString("token-id").getBytes(StandardCharsets.UTF_8);
+                    CommandSupport.requirePositive(out, "exchange-id", exchangeId);
+                    String tokenIdStr = opts.getString("token-id");
+                    CommandSupport.requireNonBlank(out, "token-id", tokenIdStr);
+                    byte[] tokenId = tokenIdStr.getBytes(StandardCharsets.UTF_8);
                     long quant = opts.getLong("quant");
                     CommandSupport.requirePositive(out, "quant", quant);
                     boolean multi = opts.getBoolean("multi");
@@ -89,7 +92,10 @@ public class ExchangeCommands {
 
                     byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
                     long exchangeId = opts.getLong("exchange-id");
-                    byte[] tokenId = opts.getString("token-id").getBytes(StandardCharsets.UTF_8);
+                    CommandSupport.requirePositive(out, "exchange-id", exchangeId);
+                    String tokenIdStr = opts.getString("token-id");
+                    CommandSupport.requireNonBlank(out, "token-id", tokenIdStr);
+                    byte[] tokenId = tokenIdStr.getBytes(StandardCharsets.UTF_8);
                     long quant = opts.getLong("quant");
                     CommandSupport.requirePositive(out, "quant", quant);
                     boolean multi = opts.getBoolean("multi");

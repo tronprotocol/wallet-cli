@@ -1133,6 +1133,10 @@ public class WalletApiWrapper {
                                String description, String url,
                                long freeNetLimit, long publicFreeNetLimit,
                                HashMap<String, String> frozenSupply, boolean multi) {
+    // String fields (name, abbrName, url, description) are not validated for length here.
+    // TRON protocol limits (name ≤ 32, abbrName ≤ 6, url ≤ 256, description ≤ 200 bytes)
+    // are enforced at the node level. Byte vs. char limit semantics need to be confirmed
+    // before adding local guards.
     requireLoggedInWalletForCli();
     try {
       throwIfCliOperationFailed(
@@ -1282,6 +1286,15 @@ public class WalletApiWrapper {
 
   public long getTransactionCountByBlockNum(long blockNum) {
     return WalletApi.getTransactionCountByBlockNum(blockNum);
+  }
+
+  public long getTransactionCountByBlockNumForCli(long blockNum) {
+    try {
+      return WalletApi.getTransactionCountByBlockNum(blockNum);
+    } catch (Exception e) {
+      throw new CommandErrorException("query_failed",
+              e.getMessage() != null ? e.getMessage() : "GetTransactionCountByBlockNum failed");
+    }
   }
 
   public Response.BlockExtention getBlock2(long blockNum) throws IllegalException {
@@ -2259,6 +2272,13 @@ public class WalletApiWrapper {
       throwIfCliOperationFailed(
           wallet.accountPermissionUpdateForCli(ownerAddress, permission, multi),
           "UpdateAccountPermission failed !!");
+    } catch (IllegalArgumentException e) {
+      // IllegalArgumentException originates from two places in the call chain:
+      // 1. sanitizePermissionJson (WalletApi:4373) — invalid JSON syntax or non-object top-level
+      // 2. json2Permission (WalletApi:4318) → Base58.decode — non-Base58 character in a key address
+      // Both cases represent malformed user input, so classify as usage_error.
+      throw new CommandErrorException("usage_error",
+          "Invalid --permissions JSON: " + e.getMessage());
     } catch (IllegalStateException e) {
       throwCliError("execution_error", "UpdateAccountPermission failed !!", e);
     } catch (Exception e) {
@@ -3004,6 +3024,9 @@ public class WalletApiWrapper {
     return gasFreeTransferInternal(receiver, value, false);
   }
 
+  // Checked exceptions (NoSuchAlgorithmException, IOException, InvalidKeyException, CipherException)
+  // propagate to StandardCliRunner's generic catch and are formatted as execution_error.
+  // NoSuchAlgorithmException does not occur on standard JVMs; the others carry readable messages.
   public String gasFreeTransferOrThrow(String receiver, long value)
       throws NoSuchAlgorithmException, IOException, InvalidKeyException, CipherException {
     lastGasFreeId = null;
@@ -3239,6 +3262,7 @@ public class WalletApiWrapper {
   }
 
   public void modifyWalletNameForCli(String newName) {
+    validateCliWalletName(newName);
     requireLoggedInWalletForCli();
     try {
       boolean result = wallet.modifyWalletName(newName);
