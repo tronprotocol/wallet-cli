@@ -657,7 +657,7 @@ public class StandardCliRunnerTest {
         "--contract", "TNPeeaaFB7K9cmo4uQpcU32zGK8G1NYqeL",
         "--method", "balanceOf(address)"
     })));
-    Assert.assertTrue(StandardCliRunner.requiresAutoAuth(triggerConstant, triggerConstant.parseArgs(new String[]{
+    Assert.assertFalse(StandardCliRunner.requiresAutoAuth(triggerConstant, triggerConstant.parseArgs(new String[]{
         "--contract", "TNPeeaaFB7K9cmo4uQpcU32zGK8G1NYqeL",
         "--method", "balanceOf(address)"
     })));
@@ -668,7 +668,7 @@ public class StandardCliRunnerTest {
         "--contract", "TNPeeaaFB7K9cmo4uQpcU32zGK8G1NYqeL",
         "--method", "balanceOf(address)"
     })));
-    Assert.assertTrue(StandardCliRunner.requiresAutoAuth(estimateEnergy, estimateEnergy.parseArgs(new String[]{
+    Assert.assertFalse(StandardCliRunner.requiresAutoAuth(estimateEnergy, estimateEnergy.parseArgs(new String[]{
         "--contract", "TNPeeaaFB7K9cmo4uQpcU32zGK8G1NYqeL",
         "--method", "balanceOf(address)"
     })));

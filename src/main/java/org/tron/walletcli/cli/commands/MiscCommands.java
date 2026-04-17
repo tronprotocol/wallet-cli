@@ -19,10 +19,21 @@ public class MiscCommands {
                 .description("Show help information")
                 .option("command", "Command to show help for", false)
                 .handler((ctx, opts, wrapper, out) -> {
-                    // Help is handled by the runner level --help flag
-                    // This registers the command so it appears in the command list
-                    out.successMessage(
-                            "Use 'wallet-cli --help' for global help or 'wallet-cli <command> --help' for command help.");
+                    if (opts.has("command")) {
+                        CommandDefinition cmd = registry.lookup(opts.getString("command"));
+                        if (cmd == null) {
+                            String suggestion = registry.suggest(opts.getString("command"));
+                            String msg = "Unknown command: " + opts.getString("command");
+                            if (suggestion != null) {
+                                msg += ". Did you mean: " + suggestion + "?";
+                            }
+                            out.error("usage_error", msg);
+                            return;
+                        }
+                        out.help(cmd.formatHelp());
+                    } else {
+                        out.help(registry.formatGlobalHelp(org.tron.common.utils.Utils.VERSION));
+                    }
                 })
                 .build());
     }

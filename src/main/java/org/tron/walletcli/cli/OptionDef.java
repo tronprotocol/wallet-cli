@@ -9,8 +9,7 @@ public class OptionDef {
     public enum Type {
         STRING,
         LONG,
-        BOOLEAN,
-        ADDRESS
+        BOOLEAN
     }
 
     private final String name;

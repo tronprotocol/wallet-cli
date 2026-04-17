@@ -335,6 +335,9 @@ public class CommandDefinition {
         }
 
         public Builder authPolicy(AuthPolicy authPolicy) {
+            if (authPolicy == null) {
+                throw new IllegalArgumentException("authPolicy cannot be null");
+            }
             this.authPolicyResolver = opts -> authPolicy;
             return this;
         }

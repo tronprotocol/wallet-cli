@@ -196,9 +196,7 @@ public class ContractCommands {
 
     private static void registerTriggerConstantContract(CommandRegistry registry) {
         registry.add(CommandDefinition.builder()
-                .authPolicyResolver(opts -> opts.has("owner")
-                        ? CommandDefinition.AuthPolicy.NEVER
-                        : CommandDefinition.AuthPolicy.REQUIRE)
+                .authPolicy(CommandDefinition.AuthPolicy.NEVER)
                 .name("trigger-constant-contract")
                 .aliases("triggerconstantcontract")
                 .description("Call a constant (view/pure) contract function")
@@ -254,9 +252,7 @@ public class ContractCommands {
 
     private static void registerEstimateEnergy(CommandRegistry registry) {
         registry.add(CommandDefinition.builder()
-                .authPolicyResolver(opts -> opts.has("owner")
-                        ? CommandDefinition.AuthPolicy.NEVER
-                        : CommandDefinition.AuthPolicy.REQUIRE)
+                .authPolicy(CommandDefinition.AuthPolicy.NEVER)
                 .name("estimate-energy")
                 .aliases("estimateenergy")
                 .description("Estimate energy for a contract call")

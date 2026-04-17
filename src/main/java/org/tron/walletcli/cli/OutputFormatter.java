@@ -7,7 +7,9 @@ import com.google.gson.JsonParser;
 import com.google.protobuf.Message;
 
 import java.io.PrintStream;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 public class OutputFormatter {
@@ -140,10 +142,23 @@ public class OutputFormatter {
                         && ((JsonElement) current.jsonData).isJsonObject()) {
                     kvPairs = ((JsonElement) current.jsonData).getAsJsonObject().asMap();
                 }
+                // Intentional: text mode surfaces structured data as an aligned metadata table,
+                // giving human users richer context without requiring --output json.
                 if (kvPairs != null) {
+                    List<Map.Entry<?, ?>> details = new ArrayList<>();
+                    int maxKeyLen = 0;
                     for (Map.Entry<?, ?> e : kvPairs.entrySet()) {
                         if ("message".equals(e.getKey())) continue;
-                        out.println(e.getKey() + ": " + e.getValue());
+                        details.add(e);
+                        maxKeyLen = Math.max(maxKeyLen, String.valueOf(e.getKey()).length());
+                    }
+                    if (!details.isEmpty()) {
+                        out.println();
+                        out.println("  Metadata:");
+                        String fmt = "    %-" + maxKeyLen + "s : %s%n";
+                        for (Map.Entry<?, ?> e : details) {
+                            out.printf(fmt, e.getKey(), e.getValue());
+                        }
                     }
                 }
             }

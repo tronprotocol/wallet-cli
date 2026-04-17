@@ -81,8 +81,9 @@ public class OutputFormatterTest {
 
     String output = stdout.toString(StandardCharsets.UTF_8.name());
     Assert.assertTrue(output.contains("Success !!"));
-    Assert.assertTrue(output.contains("txid: abc123"));
-    Assert.assertFalse(output.contains("message:"));
+    Assert.assertTrue(output.contains("Metadata:"));
+    Assert.assertTrue(output.contains("txid : abc123"));
+    Assert.assertFalse(output.contains("message :"));
   }
 
   @Test

@@ -2145,9 +2145,6 @@ public class WalletApiWrapper {
       long tokenValue,
       String tokenId) {
     if (wallet == null || !wallet.isLoginState()) {
-      if (ArrayUtils.isEmpty(ownerAddress)) {
-        throw new CommandErrorException("auth_required", "Please login first !!");
-      }
       return WalletApi.triggerConstantContractExtentionDirect(
           ownerAddress, contractAddress, callValue, data, tokenValue, tokenId);
     }
@@ -2238,9 +2235,6 @@ public class WalletApiWrapper {
       long tokenValue,
       String tokenId) {
     if (wallet == null || !wallet.isLoginState()) {
-      if (ArrayUtils.isEmpty(ownerAddress)) {
-        throw new CommandErrorException("auth_required", "Please login first !!");
-      }
       return WalletApi.estimateEnergyMessageDirect(
           ownerAddress, contractAddress, callValue, data, tokenValue, tokenId);
     }

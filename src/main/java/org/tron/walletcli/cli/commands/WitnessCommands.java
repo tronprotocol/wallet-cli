@@ -105,6 +105,10 @@ public class WitnessCommands {
                             out.usageError("Invalid witness address: " + addr, null);
                             return;
                         }
+                        if (witness.containsKey(addr)) {
+                            out.usageError("Duplicate witness address: " + addr, null);
+                            return;
+                        }
                         String countToken = parts[i + 1];
                         try {
                             long count = Long.parseLong(countToken);

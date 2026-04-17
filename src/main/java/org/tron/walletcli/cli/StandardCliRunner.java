@@ -277,6 +277,8 @@ public class StandardCliRunner {
         return null;
     }
 
+    // Intentional: --help anywhere in args triggers help, matching curl/kubectl/docker conventions.
+    // The command parser already rejects --help as an option value (--prefix heuristic), so it's always user intent.
     private static boolean hasStandaloneCommandHelpToken(String[] cmdArgs) {
         for (String token : cmdArgs) {
             if ("--help".equals(token) || "-h".equals(token)) {

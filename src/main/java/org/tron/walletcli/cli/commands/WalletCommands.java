@@ -51,7 +51,7 @@ public class WalletCommands {
                     }
                     String envPassword = ctx.getMasterPassword();
                     if (envPassword == null || envPassword.isEmpty()) {
-                        out.error("missing_env",
+                        out.error("execution_error",
                                 "Set MASTER_PASSWORD environment variable for non-interactive wallet creation");
                         return;
                     }
@@ -388,9 +388,10 @@ public class WalletCommands {
             }
             return activeWalletFile.getCanonicalFile().equals(targetWalletFile.getCanonicalFile());
         } catch (Exception e) {
-            // resolveActiveWalletFileStrict throws IOException for the normal case of
-            // "no active wallet configured", not just genuine I/O errors. Returning false
-            // here is correct: if we cannot determine the active wallet, assume no cleanup needed.
+            // Acceptable: resolveActiveWalletFileStrict throws IOException for both "no active
+            // wallet configured" and genuine I/O errors. Catching broadly is safe here — this is
+            // a best-effort cleanup check, and returning false simply skips the cleanup, which is
+            // the conservative default. A narrower catch would add complexity with no practical gain.
             return false;
         }
     }
