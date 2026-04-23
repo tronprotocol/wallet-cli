@@ -20,8 +20,7 @@ import static org.tron.common.utils.Utils.greenBoldHighlight;
 import static org.tron.common.utils.Utils.inputPassword;
 import static org.tron.common.utils.Utils.redBoldHighlight;
 import static org.tron.common.utils.Utils.yellowBoldHighlight;
-import static org.tron.core.config.Parameter.CommonConstant.ADD_PRE_FIX_BYTE_MAINNET;
-import static org.tron.core.config.Parameter.CommonConstant.ADD_PRE_FIX_BYTE_TESTNET;
+import static org.tron.core.config.Parameter.CommonConstant.ADD_PRE_FIX_BYTE_DEFAULT;
 import static org.tron.keystore.StringUtils.char2Byte;
 import static org.tron.keystore.Wallet.decrypt2PrivateBytes;
 import static org.tron.multi.MultiSignService.CONTRACT_TYPE_SET;
@@ -162,7 +161,7 @@ public class WalletApi {
   private List<WalletFile> walletFile = new ArrayList<>();
   private boolean loginState = false;
   private byte[] address;
-  private static byte addressPreFixByte = ADD_PRE_FIX_BYTE_TESTNET;
+  private static byte addressPreFixByte = ADD_PRE_FIX_BYTE_DEFAULT;
   private static int rpcVersion = 0;
   private static boolean lockAccount;
   private static boolean isEckey = true;
@@ -271,11 +270,9 @@ public class WalletApi {
       solidityNode = fullNode;
       isSoliditynodeEmpty = true;
     }
-    if (config.hasPath("net.type") && "mainnet".equalsIgnoreCase(config.getString("net.type"))) {
-      WalletApi.setAddressPreFixByte(ADD_PRE_FIX_BYTE_MAINNET);
-    } else {
-      WalletApi.setAddressPreFixByte(ADD_PRE_FIX_BYTE_TESTNET);
-    }
+  
+    WalletApi.setAddressPreFixByte(ADD_PRE_FIX_BYTE_DEFAULT);
+
     if (config.hasPath("crypto.engine")) {
       isEckey = config.getString("crypto.engine").equalsIgnoreCase("eckey");
     }
