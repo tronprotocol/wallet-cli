@@ -125,4 +125,24 @@ public class ClientMainTest {
       System.setOut(originalOut);
     }
   }
+
+  @Test
+  public void runMainEmitsJsonForPostCommandGlobalParseFailureWhenJsonWasRequested() throws Exception {
+    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+    PrintStream originalOut = System.out;
+    System.setOut(new PrintStream(stdout));
+    try {
+      int exitCode = Client.runMain(new String[]{
+          "get-balance", "--output", "json", "--network", "beta"
+      });
+
+      Assert.assertEquals(2, exitCode);
+      String output = stdout.toString(StandardCharsets.UTF_8.name());
+      Assert.assertTrue(output.contains("\"success\": false"));
+      Assert.assertTrue(output.contains("\"error\": \"usage_error\""));
+      Assert.assertTrue(output.contains("Invalid value for --network: beta"));
+    } finally {
+      System.setOut(originalOut);
+    }
+  }
 }

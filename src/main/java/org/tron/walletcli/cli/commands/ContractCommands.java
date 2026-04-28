@@ -232,8 +232,7 @@ public class ContractCommands {
                         out.error("query_failed", constantContractMessage(result, "TriggerConstantContract failed"));
                         return;
                     }
-                    String formatted = Utils.formatMessageString(result);
-                    out.success("Execution result = " + formatted, formatted);
+                    out.queryResult("TriggerConstantContract successful !!", Utils.formatMessageString(result));
                 })
                 .build());
     }
@@ -304,8 +303,7 @@ public class ContractCommands {
                         out.error("query_failed", estimateEnergyMessage(result, "EstimateEnergy failed"));
                         return;
                     }
-                    String formatted = Utils.formatMessageString(result);
-                    out.success("Estimate energy result = " + formatted, formatted);
+                    out.queryResult("EstimateEnergy successful !!", Utils.formatMessageString(result));
                 })
                 .build());
     }

@@ -142,7 +142,7 @@ public class QueryCommands {
                     if (account == null) {
                         out.error("query_failed", "GetAccount failed");
                     } else {
-                        out.printMessage(Utils.formatMessageString(account), "GetAccount failed");
+                        out.queryResult("GetAccount successful !!", Utils.formatMessageString(account));
                     }
                 })
                 .build());
@@ -159,7 +159,7 @@ public class QueryCommands {
                     if (account == null) {
                         out.error("query_failed", "GetAccountById failed");
                     } else {
-                        out.printMessage(Utils.formatMessageString(account), "GetAccountById failed");
+                        out.queryResult("GetAccountById successful !!", Utils.formatMessageString(account));
                     }
                 })
                 .build());
@@ -174,7 +174,7 @@ public class QueryCommands {
                 .handler((ctx, opts, wrapper, out) -> {
                     byte[] addressBytes = opts.getAddress("address");
                     Response.AccountNetMessage accountNet = wrapper.getAccountNetForCli(addressBytes);
-                    out.printMessage(Utils.formatMessageString(accountNet), "GetAccountNet failed");
+                    out.queryResult("GetAccountNet successful !!", Utils.formatMessageString(accountNet));
                 })
                 .build());
     }
@@ -188,7 +188,7 @@ public class QueryCommands {
                 .handler((ctx, opts, wrapper, out) -> {
                     byte[] addressBytes = opts.getAddress("address");
                     Response.AccountResourceMessage accountResource = wrapper.getAccountResourceForCli(addressBytes);
-                    out.printMessage(Utils.formatMessageString(accountResource), "GetAccountResource failed");
+                    out.queryResult("GetAccountResource successful !!", Utils.formatMessageString(accountResource));
                 })
                 .build());
     }
@@ -244,7 +244,7 @@ public class QueryCommands {
                     if (block == null) {
                         out.error("query_failed", "GetBlock failed");
                     } else {
-                        out.printMessage(Utils.printBlock(block), "GetBlock failed");
+                        out.queryResult("GetBlock successful !!", Utils.printBlock(block));
                     }
                 })
                 .build());
@@ -263,7 +263,7 @@ public class QueryCommands {
                     if (block == null) {
                         out.error("query_failed", "GetBlockById failed");
                     } else {
-                        out.printMessage(Utils.printBlock(block), "GetBlockById failed");
+                        out.queryResult("GetBlockById successful !!", Utils.printBlock(block));
                     }
                 })
                 .build());
@@ -284,14 +284,14 @@ public class QueryCommands {
                         if (block == null) {
                             out.error("query_failed", "GetBlock failed");
                         } else {
-                            out.printMessage(Utils.printBlock(block), "GetBlock failed");
+                            out.queryResult("GetBlockByIdOrNum successful !!", Utils.printBlock(block));
                         }
                     } catch (NumberFormatException e) {
                         Chain.Block block = WalletApi.getBlockById(value);
                         if (block == null) {
                             out.error("query_failed", "GetBlockById failed");
                         } else {
-                            out.printMessage(Utils.printBlock(block), "GetBlockById failed");
+                            out.queryResult("GetBlockByIdOrNum successful !!", Utils.printBlock(block));
                         }
                     }
                 })
@@ -311,7 +311,7 @@ public class QueryCommands {
                     if (blocks == null) {
                         out.error("query_failed", "GetBlockByLatestNum failed");
                     } else {
-                        out.printMessage(Utils.formatMessageString(blocks), "GetBlockByLatestNum failed");
+                        out.queryResult("GetBlockByLatestNum successful !!", Utils.formatMessageString(blocks));
                     }
                 })
                 .build());
@@ -337,7 +337,7 @@ public class QueryCommands {
                     if (blocks == null) {
                         out.error("query_failed", "GetBlockByLimitNext failed");
                     } else {
-                        out.printMessage(Utils.formatMessageString(blocks), "GetBlockByLimitNext failed");
+                        out.queryResult("GetBlockByLimitNext successful !!", Utils.formatMessageString(blocks));
                     }
                 })
                 .build());
@@ -353,7 +353,7 @@ public class QueryCommands {
                     String id = opts.getString("id");
                     CommandSupport.requireHexHash(out, "id", id);
                     Chain.Transaction tx = wrapper.getTransactionByIdForCli(id);
-                    out.printMessage(Utils.formatMessageString(tx), "GetTransactionById failed");
+                    out.queryResult("GetTransactionById successful !!", Utils.formatMessageString(tx));
                 })
                 .build());
     }
@@ -368,7 +368,7 @@ public class QueryCommands {
                     String id = opts.getString("id");
                     CommandSupport.requireHexHash(out, "id", id);
                     Response.TransactionInfo txInfo = wrapper.getTransactionInfoByIdForCli(id);
-                    out.printMessage(Utils.formatMessageString(txInfo), "GetTransactionInfoById failed");
+                    out.queryResult("GetTransactionInfoById successful !!", Utils.formatMessageString(txInfo));
                 })
                 .build());
     }
@@ -401,7 +401,7 @@ public class QueryCommands {
                     if (result == null) {
                         out.error("query_failed", "GetAssetIssueByAccount failed");
                     } else {
-                        out.printMessage(Utils.formatMessageString(result), "GetAssetIssueByAccount failed");
+                        out.queryResult("GetAssetIssueByAccount successful !!", Utils.formatMessageString(result));
                     }
                 })
                 .build());
@@ -415,7 +415,11 @@ public class QueryCommands {
                 .option("id", "Asset ID", true)
                 .handler((ctx, opts, wrapper, out) -> {
                     Contract.AssetIssueContract result = WalletApi.getAssetIssueById(opts.getString("id"));
-                    out.protobuf(result, "GetAssetIssueById failed");
+                    if (result == null) {
+                        out.error("not_found", "GetAssetIssueById failed");
+                    } else {
+                        out.queryResult("GetAssetIssueById successful !!", Utils.formatMessageString(result));
+                    }
                 })
                 .build());
     }
@@ -428,7 +432,11 @@ public class QueryCommands {
                 .option("name", "Asset name", true)
                 .handler((ctx, opts, wrapper, out) -> {
                     Contract.AssetIssueContract result = WalletApi.getAssetIssueByName(opts.getString("name"));
-                    out.protobuf(result, "GetAssetIssueByName failed");
+                    if (result == null) {
+                        out.error("not_found", "GetAssetIssueByName failed");
+                    } else {
+                        out.queryResult("GetAssetIssueByName successful !!", Utils.formatMessageString(result));
+                    }
                 })
                 .build());
     }
@@ -444,7 +452,7 @@ public class QueryCommands {
                     if (result == null) {
                         out.error("query_failed", "GetAssetIssueListByName failed");
                     } else {
-                        out.printMessage(Utils.formatMessageString(result), "GetAssetIssueListByName failed");
+                        out.queryResult("GetAssetIssueListByName successful !!", Utils.formatMessageString(result));
                     }
                 })
                 .build());
@@ -457,7 +465,7 @@ public class QueryCommands {
                 .description("Get chain parameters")
                 .handler((ctx, opts, wrapper, out) -> {
                     Response.ChainParameters result = wrapper.getChainParametersForCli();
-                    out.printMessage(Utils.formatMessageString(result), "GetChainParameters failed");
+                    out.queryResult("GetChainParameters successful !!", Utils.formatMessageString(result));
                 })
                 .build());
     }
@@ -469,7 +477,11 @@ public class QueryCommands {
                 .description("Get bandwidth prices history")
                 .handler((ctx, opts, wrapper, out) -> {
                     Response.PricesResponseMessage result = WalletApi.getBandwidthPrices();
-                    out.protobuf(result, "GetBandwidthPrices failed");
+                    if (result == null) {
+                        out.error("not_found", "GetBandwidthPrices failed");
+                    } else {
+                        out.queryResult("GetBandwidthPrices successful !!", Utils.formatMessageString(result));
+                    }
                 })
                 .build());
     }
@@ -481,7 +493,11 @@ public class QueryCommands {
                 .description("Get energy prices history")
                 .handler((ctx, opts, wrapper, out) -> {
                     Response.PricesResponseMessage result = WalletApi.getEnergyPrices();
-                    out.protobuf(result, "GetEnergyPrices failed");
+                    if (result == null) {
+                        out.error("not_found", "GetEnergyPrices failed");
+                    } else {
+                        out.queryResult("GetEnergyPrices successful !!", Utils.formatMessageString(result));
+                    }
                 })
                 .build());
     }
@@ -493,7 +509,11 @@ public class QueryCommands {
                 .description("Get memo fee")
                 .handler((ctx, opts, wrapper, out) -> {
                     Response.PricesResponseMessage result = WalletApi.getMemoFee();
-                    out.protobuf(result, "GetMemoFee failed");
+                    if (result == null) {
+                        out.error("not_found", "GetMemoFee failed");
+                    } else {
+                        out.queryResult("GetMemoFee successful !!", Utils.formatMessageString(result));
+                    }
                 })
                 .build());
     }
@@ -523,7 +543,7 @@ public class QueryCommands {
                     if (contract == null) {
                         out.error("query_failed", "GetContract failed");
                     } else {
-                        out.printMessage(Utils.formatMessageString(contract), "GetContract failed");
+                        out.queryResult("GetContract successful !!", Utils.formatMessageString(contract));
                     }
                 })
                 .build());
@@ -540,7 +560,7 @@ public class QueryCommands {
                     if (contractInfo == null) {
                         out.error("query_failed", "GetContractInfo failed");
                     } else {
-                        out.printMessage(Utils.formatMessageString(contractInfo), "GetContractInfo failed");
+                        out.queryResult("GetContractInfo successful !!", Utils.formatMessageString(contractInfo));
                     }
                 })
                 .build());
@@ -560,7 +580,7 @@ public class QueryCommands {
                     if (result == null) {
                         out.error("query_failed", "GetDelegatedResource failed");
                     } else {
-                        out.printMessage(Utils.formatMessageString(result), "GetDelegatedResource failed");
+                        out.queryResult("GetDelegatedResource successful !!", Utils.formatMessageString(result));
                     }
                 })
                 .build());
@@ -580,7 +600,7 @@ public class QueryCommands {
                     if (result == null) {
                         out.error("query_failed", "GetDelegatedResourceV2 failed");
                     } else {
-                        out.printMessage(Utils.formatMessageString(result), "GetDelegatedResourceV2 failed");
+                        out.queryResult("GetDelegatedResourceV2 successful !!", Utils.formatMessageString(result));
                     }
                 })
                 .build());
@@ -599,8 +619,8 @@ public class QueryCommands {
                     if (result == null) {
                         out.error("query_failed", "GetDelegatedResourceAccountIndex failed");
                     } else {
-                        out.printMessage(Utils.formatMessageString(result),
-                                "GetDelegatedResourceAccountIndex failed");
+                        out.queryResult("GetDelegatedResourceAccountIndex successful !!",
+                                Utils.formatMessageString(result));
                     }
                 })
                 .build());
@@ -619,8 +639,8 @@ public class QueryCommands {
                     if (result == null) {
                         out.error("query_failed", "GetDelegatedResourceAccountIndexV2 failed");
                     } else {
-                        out.printMessage(Utils.formatMessageString(result),
-                                "GetDelegatedResourceAccountIndexV2 failed");
+                        out.queryResult("GetDelegatedResourceAccountIndexV2 successful !!",
+                                Utils.formatMessageString(result));
                     }
                 })
                 .build());
@@ -723,7 +743,7 @@ public class QueryCommands {
                     if (nodeList == null) {
                         out.error("query_failed", "ListNodes failed");
                     } else {
-                        out.printMessage(Utils.formatMessageString(nodeList), "ListNodes failed");
+                        out.queryResult("ListNodes successful !!", Utils.formatMessageString(nodeList));
                     }
                 })
                 .build());
@@ -736,7 +756,7 @@ public class QueryCommands {
                 .description("List all witnesses")
                 .handler((ctx, opts, wrapper, out) -> {
                     Response.WitnessList witnessList = wrapper.listWitnessesForCli();
-                    out.printMessage(Utils.formatMessageString(witnessList), "ListWitnesses failed");
+                    out.queryResult("ListWitnesses successful !!", Utils.formatMessageString(witnessList));
                 })
                 .build());
     }
@@ -748,7 +768,11 @@ public class QueryCommands {
                 .description("List all asset issues")
                 .handler((ctx, opts, wrapper, out) -> {
                     Response.AssetIssueList result = WalletApi.getAssetIssueList();
-                    out.protobuf(result, "ListAssetIssue failed");
+                    if (result == null) {
+                        out.error("not_found", "ListAssetIssue failed");
+                    } else {
+                        out.queryResult("ListAssetIssue successful !!", Utils.formatMessageString(result));
+                    }
                 })
                 .build());
     }
@@ -769,7 +793,7 @@ public class QueryCommands {
                     if (result == null) {
                         out.error("query_failed", "ListAssetIssuePaginated failed");
                     } else {
-                        out.printMessage(Utils.formatMessageString(result), "ListAssetIssuePaginated failed");
+                        out.queryResult("ListAssetIssuePaginated successful !!", Utils.formatMessageString(result));
                     }
                 })
                 .build());
@@ -785,7 +809,7 @@ public class QueryCommands {
                     if (result == null) {
                         out.error("query_failed", "ListProposals failed");
                     } else {
-                        out.printMessage(Utils.formatMessageString(result), "ListProposals failed");
+                        out.queryResult("ListProposals successful !!", Utils.formatMessageString(result));
                     }
                 })
                 .build());
@@ -807,7 +831,7 @@ public class QueryCommands {
                     if (result == null) {
                         out.error("query_failed", "ListProposalsPaginated failed");
                     } else {
-                        out.printMessage(Utils.formatMessageString(result), "ListProposalsPaginated failed");
+                        out.queryResult("ListProposalsPaginated successful !!", Utils.formatMessageString(result));
                     }
                 })
                 .build());
@@ -825,7 +849,7 @@ public class QueryCommands {
                     if (result == null) {
                         out.error("query_failed", "GetProposal failed");
                     } else {
-                        out.printMessage(Utils.formatMessageString(result), "GetProposal failed");
+                        out.queryResult("GetProposal successful !!", Utils.formatMessageString(result));
                     }
                 })
                 .build());
@@ -841,7 +865,7 @@ public class QueryCommands {
                     if (result == null) {
                         out.error("query_failed", "ListExchanges failed");
                     } else {
-                        out.printMessage(Utils.formatMessageString(result), "ListExchanges failed");
+                        out.queryResult("ListExchanges successful !!", Utils.formatMessageString(result));
                     }
                 })
                 .build());
@@ -863,7 +887,7 @@ public class QueryCommands {
                     if (result == null) {
                         out.error("query_failed", "ListExchangesPaginated failed");
                     } else {
-                        out.printMessage(Utils.formatMessageString(result), "ListExchangesPaginated failed");
+                        out.queryResult("ListExchangesPaginated successful !!", Utils.formatMessageString(result));
                     }
                 })
                 .build());
@@ -880,7 +904,7 @@ public class QueryCommands {
                     if (result == null) {
                         out.error("query_failed", "GetExchange failed");
                     } else {
-                        out.printMessage(Utils.formatMessageString(result), "GetExchange failed");
+                        out.queryResult("GetExchange successful !!", Utils.formatMessageString(result));
                     }
                 })
                 .build());
@@ -897,7 +921,7 @@ public class QueryCommands {
                     if (result == null) {
                         out.error("query_failed", "GetMarketOrderByAccount failed");
                     } else {
-                        out.printMessage(Utils.formatMessageString(result), "GetMarketOrderByAccount failed");
+                        out.queryResult("GetMarketOrderByAccount successful !!", Utils.formatMessageString(result));
                     }
                 })
                 .build());
@@ -922,7 +946,7 @@ public class QueryCommands {
                     if (result == null) {
                         out.error("query_failed", "GetMarketOrderById failed");
                     } else {
-                        out.printMessage(Utils.formatMessageString(result), "GetMarketOrderById failed");
+                        out.queryResult("GetMarketOrderById successful !!", Utils.formatMessageString(result));
                     }
                 })
                 .build());
@@ -942,7 +966,8 @@ public class QueryCommands {
                     if (result == null) {
                         out.error("query_failed", "GetMarketOrderListByPair failed");
                     } else {
-                        out.printMessage(Utils.formatMessageString(result), "GetMarketOrderListByPair failed");
+                        out.queryResult("GetMarketOrderListByPair successful !!",
+                                Utils.formatMessageString(result));
                     }
                 })
                 .build());
@@ -955,7 +980,7 @@ public class QueryCommands {
                 .description("Get all market trading pairs")
                 .handler((ctx, opts, wrapper, out) -> {
                     Response.MarketOrderPairList result = wrapper.getMarketPairListForCli();
-                    out.printMessage(Utils.formatMessageString(result), "GetMarketPairList failed");
+                    out.queryResult("GetMarketPairList successful !!", Utils.formatMessageString(result));
                 })
                 .build());
     }
@@ -974,7 +999,7 @@ public class QueryCommands {
                     if (result == null) {
                         out.error("query_failed", "GetMarketPriceByPair failed");
                     } else {
-                        out.printMessage(Utils.formatMessageString(result), "GetMarketPriceByPair failed");
+                        out.queryResult("GetMarketPriceByPair successful !!", Utils.formatMessageString(result));
                     }
                 })
                 .build());
@@ -993,7 +1018,7 @@ public class QueryCommands {
                     String address = opts.has("address")
                             ? WalletApi.encode58Check(opts.getAddress("address")) : null;
                     String rendered = JSON.toJSONString(wrapper.getGasFreeInfoDataForCli(address), true);
-                    out.printMessage(rendered, "GetGasFreeInfo failed");
+                    out.queryResult("GetGasFreeInfo successful !!", rendered);
                 })
                 .build());
     }
@@ -1006,7 +1031,7 @@ public class QueryCommands {
                 .option("id", "Transaction ID", true)
                 .handler((ctx, opts, wrapper, out) -> {
                     String rendered = JSON.toJSONString(wrapper.gasFreeTraceData(opts.getString("id")), true);
-                    out.printMessage(rendered, "GasFreeTrace failed");
+                    out.queryResult("GasFreeTrace successful !!", rendered);
                 })
                 .build());
     }

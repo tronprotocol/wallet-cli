@@ -60,7 +60,7 @@ public class GlobalOptionsTest {
   }
 
   @Test
-  public void parseNormalizesCommandAndPreservesPostCommandTokens() {
+  public void parseNormalizesCommandAndExtractsPostCommandGlobalOptions() {
     GlobalOptions opts = GlobalOptions.parse(new String[]{
         "--output", "json",
         "Get-Balance",
@@ -70,7 +70,121 @@ public class GlobalOptionsTest {
     });
 
     Assert.assertEquals("get-balance", opts.getCommand());
-    Assert.assertArrayEquals(new String[]{"--network=nile", "-h", "value"}, opts.getCommandArgs());
+    Assert.assertEquals("nile", opts.getNetwork());
+    Assert.assertArrayEquals(new String[]{"-h", "value"}, opts.getCommandArgs());
+  }
+
+  @Test
+  public void parseAllowsNetworkAfterCommand() {
+    GlobalOptions opts = GlobalOptions.parse(new String[]{
+        "gas-free-info",
+        "--network", "nile",
+        "--address", "TXYZ"
+    });
+
+    Assert.assertEquals("nile", opts.getNetwork());
+    Assert.assertEquals("gas-free-info", opts.getCommand());
+    Assert.assertArrayEquals(new String[]{"--address", "TXYZ"}, opts.getCommandArgs());
+  }
+
+  @Test
+  public void parseAllowsNetworkInlineAfterCommand() {
+    GlobalOptions opts = GlobalOptions.parse(new String[]{
+        "gas-free-info",
+        "--network=nile",
+        "--address", "TXYZ"
+    });
+
+    Assert.assertEquals("nile", opts.getNetwork());
+    Assert.assertEquals("gas-free-info", opts.getCommand());
+    Assert.assertArrayEquals(new String[]{"--address", "TXYZ"}, opts.getCommandArgs());
+  }
+
+  @Test
+  public void parseAllowsOutputAfterCommand() {
+    GlobalOptions opts = GlobalOptions.parse(new String[]{
+        "get-balance",
+        "--output", "json",
+        "--address", "TXYZ"
+    });
+
+    Assert.assertEquals("json", opts.getOutput());
+    Assert.assertEquals("get-balance", opts.getCommand());
+    Assert.assertArrayEquals(new String[]{"--address", "TXYZ"}, opts.getCommandArgs());
+  }
+
+  @Test
+  public void parseAllowsWalletAfterCommand() {
+    GlobalOptions opts = GlobalOptions.parse(new String[]{
+        "get-address",
+        "--wallet", "alpha"
+    });
+
+    Assert.assertEquals("alpha", opts.getWallet());
+    Assert.assertEquals("get-address", opts.getCommand());
+    Assert.assertArrayEquals(new String[0], opts.getCommandArgs());
+  }
+
+  @Test
+  public void parseAllowsGrpcEndpointAfterCommand() {
+    GlobalOptions opts = GlobalOptions.parse(new String[]{
+        "current-network",
+        "--grpc-endpoint", "127.0.0.1:50051"
+    });
+
+    Assert.assertEquals("127.0.0.1:50051", opts.getGrpcEndpoint());
+    Assert.assertEquals("current-network", opts.getCommand());
+    Assert.assertArrayEquals(new String[0], opts.getCommandArgs());
+  }
+
+  @Test
+  public void parseAllowsMixedGlobalOptionsBeforeAndAfterCommand() {
+    GlobalOptions opts = GlobalOptions.parse(new String[]{
+        "--output", "json",
+        "gas-free-info",
+        "--network", "nile",
+        "--address", "TXYZ",
+        "--wallet=alpha",
+        "--grpc-endpoint=127.0.0.1:50051",
+        "--verbose"
+    });
+
+    Assert.assertEquals("json", opts.getOutput());
+    Assert.assertEquals("nile", opts.getNetwork());
+    Assert.assertEquals("alpha", opts.getWallet());
+    Assert.assertEquals("127.0.0.1:50051", opts.getGrpcEndpoint());
+    Assert.assertTrue(opts.isVerbose());
+    Assert.assertEquals("gas-free-info", opts.getCommand());
+    Assert.assertArrayEquals(new String[]{"--address", "TXYZ"}, opts.getCommandArgs());
+  }
+
+  @Test
+  public void parseKeepsPostCommandHelpAsCommandArg() {
+    GlobalOptions opts = GlobalOptions.parse(new String[]{
+        "gas-free-info",
+        "--help"
+    });
+
+    Assert.assertFalse(opts.isHelp());
+    Assert.assertEquals("gas-free-info", opts.getCommand());
+    Assert.assertArrayEquals(new String[]{"--help"}, opts.getCommandArgs());
+  }
+
+  @Test
+  public void parseRejectsRepeatedGlobalOptionAcrossCommandBoundary() {
+    assertUsageError(new String[]{"--network", "nile", "get-balance", "--network", "main"},
+        "Repeated global option: --network");
+  }
+
+  @Test
+  public void parseLeavesUnknownPostCommandOptionForCommandParser() {
+    GlobalOptions opts = GlobalOptions.parse(new String[]{
+        "gas-free-info",
+        "--unknown", "value"
+    });
+
+    Assert.assertEquals("gas-free-info", opts.getCommand());
+    Assert.assertArrayEquals(new String[]{"--unknown", "value"}, opts.getCommandArgs());
   }
 
   @Test

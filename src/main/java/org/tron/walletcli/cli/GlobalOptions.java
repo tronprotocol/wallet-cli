@@ -1,6 +1,7 @@
 package org.tron.walletcli.cli;
 
-import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 
 public class GlobalOptions {
@@ -41,26 +42,36 @@ public class GlobalOptions {
         boolean networkSeen = false;
         boolean walletSeen = false;
         boolean grpcEndpointSeen = false;
+        List<String> commandArgs = new ArrayList<String>();
         for (int i = 0; i < args.length; i++) {
             String token = args[i];
+            boolean commandSeen = opts.command != null;
 
-            if (!token.startsWith("-")) {
+            if (!commandSeen && !token.startsWith("-")) {
                 opts.command = token.toLowerCase(Locale.ROOT);
-                opts.commandArgs = Arrays.copyOfRange(args, i + 1, args.length);
-                return opts;
-            }
-
-            if ("-h".equals(token)) {
-                opts.help = true;
                 continue;
             }
 
-            if (token.startsWith("-h=")) {
+            if ("-h".equals(token)) {
+                if (commandSeen) {
+                    commandArgs.add(token);
+                } else {
+                    opts.help = true;
+                }
+                continue;
+            }
+
+            if (!commandSeen && token.startsWith("-h=")) {
                 throw new CliUsageException("Option -h does not take a value");
             }
 
             if (!token.startsWith("--")) {
-                throw new CliUsageException("Unknown global option: " + token);
+                if (commandSeen) {
+                    commandArgs.add(token);
+                } else {
+                    throw new CliUsageException("Unknown global option: " + token);
+                }
+                continue;
             }
 
             ParsedLongOption parsed = parseLongOptionToken(token);
@@ -70,6 +81,10 @@ public class GlobalOptions {
                     opts.interactive = true;
                     break;
                 case "help":
+                    if (commandSeen) {
+                        commandArgs.add(token);
+                        break;
+                    }
                     ensureNoInlineValue(parsed, "--help");
                     opts.help = true;
                     break;
@@ -124,9 +139,14 @@ public class GlobalOptions {
                     }
                     break;
                 default:
-                    throw new CliUsageException("Unknown global option: --" + parsed.name);
+                    if (commandSeen) {
+                        commandArgs.add(token);
+                    } else {
+                        throw new CliUsageException("Unknown global option: --" + parsed.name);
+                    }
             }
         }
+        opts.commandArgs = commandArgs.toArray(new String[0]);
         return opts;
     }
 

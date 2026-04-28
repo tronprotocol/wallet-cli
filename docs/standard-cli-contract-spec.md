@@ -50,7 +50,7 @@ The standard CLI has two distinct option layers:
 
 ### Global Options
 
-Global options affect the overall execution environment before the command is known.
+Global options affect the overall execution environment for the whole command run.
 
 Examples:
 
@@ -61,7 +61,8 @@ Examples:
 - quiet / verbose behavior
 - global help / version handling
 
-Global options are parsed by `GlobalOptions.parse(String[] args)`.
+Global options are parsed by `GlobalOptions.parse(String[] args)`. Known global options may appear either before or
+after the command token, except for command-help handling described below.
 
 ### Command-Local Options
 
@@ -79,26 +80,25 @@ Command-local options are parsed by `CommandDefinition.parseArgs(String[] args)`
 
 - global options configure how the CLI run is executed
 - command-local options configure what the chosen command does
-- global parsing happens first
+- global parsing happens first and extracts known global options from the full argument list
 - command-local parsing happens only after the command token is known
 - a token must not be interpreted as both a global option and a command-local option in the same pass
 
 ## Contract 1: Global Option Parsing
 
-`GlobalOptions.parse(String[] args)` is responsible only for parsing options that affect the whole run before
-the command is known.
+`GlobalOptions.parse(String[] args)` is responsible only for parsing known options that affect the whole run.
 
 ### Parsing Model
 
-Global option parsing is a left-to-right first-pass scan.
+Global option parsing is a left-to-right first-pass scan across the full argument list.
 
 The parser consumes tokens until one of these happens:
 
-1. it reaches the first command token
-2. it reaches the end of input
-3. it encounters a malformed global option and fails with a usage error
+1. it reaches the end of input
+2. it encounters a malformed known global option and fails with a usage error
 
-This pass is intentionally narrow. It must not inspect or reinterpret command-local options.
+This pass is intentionally narrow. It extracts only known global options and must not reinterpret unknown
+post-command options that belong to command-local parsing.
 
 ### Supported Syntax
 
@@ -126,11 +126,13 @@ For Contract 1, this applies to valued global options only.
 
 ### Boundary Rules
 
-- Global options are only recognized before the command token.
+- Known global options are recognized before and after the command token.
 - The first token before command resolution that does not begin with `-` is the command token.
 - The command token is normalized to lowercase for registry lookup.
-- After the command token is found, all remaining tokens are passed through unchanged as command arguments.
-- Tokens after the command token are never reinterpreted as global options, even if they look like global flags.
+- After the command token is found, known global options are extracted and all other tokens are passed through
+  unchanged as command arguments.
+- Unknown options after the command token are never reinterpreted as global options.
+- Post-command `--help` and `-h` are reserved for command help and are passed through as command arguments.
 
 Examples:
 
@@ -143,13 +145,21 @@ Examples:
   - command: `get-balance`
   - command args: `--address T...`
 - `wallet-cli get-balance --network nile`
+  - global options: `--network nile`
   - command: `get-balance`
-  - command args: `--network nile`
-  - `--network` is not treated as a global option because it appears after the command token
+  - command args: none
 - `wallet-cli get-balance --network=nile`
+  - global options: `--network=nile`
   - command: `get-balance`
-  - command args: `--network=nile`
-  - `--network=nile` is not treated as a global option because it appears after the command token
+  - command args: none
+- `wallet-cli get-balance --address T... --network nile`
+  - global options: `--network nile`
+  - command: `get-balance`
+  - command args: `--address T...`
+- `wallet-cli get-balance --help`
+  - command: `get-balance`
+  - command args: `--help`
+  - `--help` is not treated as global help because it appears after the command token
 
 ### No-Command Cases
 
@@ -196,7 +206,7 @@ The following are usage errors at the global parsing layer:
 - unknown global option before the command token
 - missing value for a valued global option
 - invalid value for a constrained global option
-- malformed global syntax before the command token
+- malformed syntax for a known global option
 
 Specific expectations:
 
@@ -216,6 +226,10 @@ Specific expectations:
   - usage error: missing or empty value for `--output`
 - `--quiet=true`
   - usage error: option `--quiet` does not take a value
+- `get-balance --network beta`
+  - usage error: invalid value for `--network`
+- `get-balance --unknown value`
+  - not a global parsing error; `--unknown value` remains command-local input
 
 Error classification for valued global options:
 
