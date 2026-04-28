@@ -4798,11 +4798,9 @@ public class Client {
   }
 
   private static boolean requestsJsonOutput(String[] args) {
+    // Fallback scan for parse errors assumes --output is a standard-CLI global-only option.
     for (int i = 0; i < args.length; i++) {
       String token = args[i];
-      if (!token.startsWith("-")) {
-        return false;
-      }
       if ("--output".equals(token)) {
         return i + 1 < args.length && "json".equalsIgnoreCase(args[i + 1]);
       }

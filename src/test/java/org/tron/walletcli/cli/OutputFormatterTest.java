@@ -32,11 +32,11 @@ public class OutputFormatterTest {
   }
 
   @Test
-  public void jsonArraysAreWrappedUnderResultField() throws Exception {
+  public void queryResultJsonArraysAreWrappedUnderResultField() throws Exception {
     ByteArrayOutputStream stdout = new ByteArrayOutputStream();
     OutputFormatter formatter = new OutputFormatter(
         OutputFormatter.OutputMode.JSON, false, new PrintStream(stdout), System.err);
-    formatter.printMessage("[1,2,3]", "failed");
+    formatter.queryResult("Query successful !!", "[1,2,3]");
     formatter.flush();
 
     String json = stdout.toString(StandardCharsets.UTF_8.name());
@@ -45,6 +45,20 @@ public class OutputFormatterTest {
     Assert.assertTrue(root.has("data") && root.get("data").isJsonObject());
     Assert.assertTrue(root.getAsJsonObject("data").has("result"));
     Assert.assertTrue(root.getAsJsonObject("data").get("result").isJsonArray());
+  }
+
+  @Test
+  public void queryResultJsonObjectUsesParsedDataInJsonMode() throws Exception {
+    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+    OutputFormatter formatter = new OutputFormatter(
+        OutputFormatter.OutputMode.JSON, false, new PrintStream(stdout), System.err);
+    formatter.queryResult("Query successful !!", "{\"a\":1}");
+    formatter.flush();
+
+    String json = stdout.toString(StandardCharsets.UTF_8.name());
+    JsonObject root = JsonParser.parseString(json).getAsJsonObject();
+    Assert.assertTrue(root.get("success").getAsBoolean());
+    Assert.assertEquals(1, root.getAsJsonObject("data").get("a").getAsInt());
   }
 
   @Test
@@ -84,6 +98,97 @@ public class OutputFormatterTest {
     Assert.assertTrue(output.contains("Metadata:"));
     Assert.assertTrue(output.contains("txid : abc123"));
     Assert.assertFalse(output.contains("message :"));
+  }
+
+  @Test
+  public void textModeQueryResultFlatJsonObjectRendersMetadata() throws Exception {
+    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+    OutputFormatter formatter = new OutputFormatter(
+        OutputFormatter.OutputMode.TEXT, false, new PrintStream(stdout), System.err);
+    formatter.queryResult("Query successful !!", "{\"a\":1,\"active\":true}");
+    formatter.flush();
+
+    String output = stdout.toString(StandardCharsets.UTF_8.name());
+    Assert.assertTrue(output.contains("Query successful !!"));
+    Assert.assertTrue(output.contains("Metadata:"));
+    Assert.assertTrue(output.contains("a      : 1"));
+    Assert.assertTrue(output.contains("active : true"));
+    Assert.assertFalse(output.contains("Result:"));
+  }
+
+  @Test
+  public void textModeQueryResultNestedJsonObjectRendersResult() throws Exception {
+    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+    OutputFormatter formatter = new OutputFormatter(
+        OutputFormatter.OutputMode.TEXT, false, new PrintStream(stdout), System.err);
+    formatter.queryResult("Query successful !!", "{\"a\":1,\"nested\":{\"b\":2}}");
+    formatter.flush();
+
+    String output = stdout.toString(StandardCharsets.UTF_8.name());
+    Assert.assertTrue(output.contains("Query successful !!"));
+    Assert.assertTrue(output.contains("Result:"));
+    Assert.assertTrue(output.contains("\"nested\""));
+    Assert.assertFalse(output.contains("Metadata:"));
+  }
+
+  @Test
+  public void textModeQueryResultArrayRendersResult() throws Exception {
+    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+    OutputFormatter formatter = new OutputFormatter(
+        OutputFormatter.OutputMode.TEXT, false, new PrintStream(stdout), System.err);
+    formatter.queryResult("Query successful !!", "[1,2,3]");
+    formatter.flush();
+
+    String output = stdout.toString(StandardCharsets.UTF_8.name());
+    Assert.assertTrue(output.contains("Query successful !!"));
+    Assert.assertTrue(output.contains("Result:"));
+    Assert.assertTrue(output.contains("\"result\""));
+    Assert.assertFalse(output.contains("Metadata:"));
+  }
+
+  @Test
+  public void textModeQueryResultMessageOnlyRendersResult() throws Exception {
+    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+    OutputFormatter formatter = new OutputFormatter(
+        OutputFormatter.OutputMode.TEXT, false, new PrintStream(stdout), System.err);
+    formatter.queryResult("Query successful !!", "plain text");
+    formatter.flush();
+
+    String output = stdout.toString(StandardCharsets.UTF_8.name());
+    Assert.assertTrue(output.contains("Query successful !!"));
+    Assert.assertTrue(output.contains("Result:"));
+    Assert.assertTrue(output.contains("\"message\""));
+    Assert.assertTrue(output.contains("plain text"));
+    Assert.assertFalse(output.contains("Metadata:"));
+  }
+
+  @Test
+  public void textModeQueryResultEmptyObjectRendersResult() throws Exception {
+    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+    OutputFormatter formatter = new OutputFormatter(
+        OutputFormatter.OutputMode.TEXT, false, new PrintStream(stdout), System.err);
+    formatter.queryResult("Query successful !!", "{}");
+    formatter.flush();
+
+    String output = stdout.toString(StandardCharsets.UTF_8.name());
+    Assert.assertTrue(output.contains("Query successful !!"));
+    Assert.assertTrue(output.contains("Result:"));
+    Assert.assertTrue(output.contains("{}"));
+    Assert.assertFalse(output.contains("Metadata:"));
+  }
+
+  @Test
+  public void textModeQueryResultIndentsPrettyPrintedJsonLineFeeds() throws Exception {
+    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+    OutputFormatter formatter = new OutputFormatter(
+        OutputFormatter.OutputMode.TEXT, false, new PrintStream(stdout), System.err);
+    formatter.queryResult("Query successful !!", "{\"a\":1,\"nested\":{\"b\":2}}");
+    formatter.flush();
+
+    String output = stdout.toString(StandardCharsets.UTF_8.name());
+    Assert.assertTrue(output.contains("  Result:"));
+    Assert.assertTrue(output.contains("\n  {"));
+    Assert.assertTrue(output.contains("\n    \"nested\""));
   }
 
   @Test
