@@ -236,7 +236,7 @@ public class OutputFormatter {
     }
 
     private String indentResult(String text) {
-        return "  " + text.replace(System.lineSeparator(), System.lineSeparator() + "  ");
+        return "  " + text.replace("\n", "\n  ");
     }
 
     private void renderMetadata(Object jsonData) {
@@ -277,6 +277,7 @@ public class OutputFormatter {
         if (kvPairs == null || kvPairs.size() > MAX_METADATA_KEYS) {
             return false;
         }
+        boolean hasPrintableMetadata = false;
         for (Map.Entry<?, ?> e : kvPairs.entrySet()) {
             if ("message".equals(e.getKey())) {
                 continue;
@@ -287,8 +288,9 @@ public class OutputFormatter {
             if (String.valueOf(e.getValue()).length() > MAX_METADATA_VALUE_LENGTH) {
                 return false;
             }
+            hasPrintableMetadata = true;
         }
-        return true;
+        return hasPrintableMetadata;
     }
 
     private boolean isMetadataValue(Object value) {

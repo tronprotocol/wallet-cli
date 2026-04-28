@@ -171,6 +171,44 @@ public class GlobalOptionsTest {
   }
 
   @Test
+  public void parseKeepsPostCommandVersionAsCommandArg() {
+    GlobalOptions opts = GlobalOptions.parse(new String[]{
+        "get-balance",
+        "--version"
+    });
+
+    Assert.assertFalse(opts.isVersion());
+    Assert.assertEquals("get-balance", opts.getCommand());
+    Assert.assertArrayEquals(new String[]{"--version"}, opts.getCommandArgs());
+  }
+
+  @Test
+  public void parseKeepsPostCommandInteractiveAsCommandArg() {
+    GlobalOptions opts = GlobalOptions.parse(new String[]{
+        "get-balance",
+        "--interactive"
+    });
+
+    Assert.assertFalse(opts.isInteractive());
+    Assert.assertEquals("get-balance", opts.getCommand());
+    Assert.assertArrayEquals(new String[]{"--interactive"}, opts.getCommandArgs());
+  }
+
+  @Test
+  public void parseTreatsPreCommandVersionAndInteractiveAsGlobalModes() {
+    GlobalOptions opts = GlobalOptions.parse(new String[]{
+        "--version",
+        "--interactive",
+        "get-balance"
+    });
+
+    Assert.assertTrue(opts.isVersion());
+    Assert.assertTrue(opts.isInteractive());
+    Assert.assertEquals("get-balance", opts.getCommand());
+    Assert.assertArrayEquals(new String[0], opts.getCommandArgs());
+  }
+
+  @Test
   public void parseRejectsRepeatedGlobalOptionAcrossCommandBoundary() {
     assertUsageError(new String[]{"--network", "nile", "get-balance", "--network", "main"},
         "Repeated global option: --network");

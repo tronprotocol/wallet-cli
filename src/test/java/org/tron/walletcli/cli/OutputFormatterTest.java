@@ -147,6 +147,51 @@ public class OutputFormatterTest {
   }
 
   @Test
+  public void textModeQueryResultMessageOnlyRendersResult() throws Exception {
+    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+    OutputFormatter formatter = new OutputFormatter(
+        OutputFormatter.OutputMode.TEXT, false, new PrintStream(stdout), System.err);
+    formatter.queryResult("Query successful !!", "plain text");
+    formatter.flush();
+
+    String output = stdout.toString(StandardCharsets.UTF_8.name());
+    Assert.assertTrue(output.contains("Query successful !!"));
+    Assert.assertTrue(output.contains("Result:"));
+    Assert.assertTrue(output.contains("\"message\""));
+    Assert.assertTrue(output.contains("plain text"));
+    Assert.assertFalse(output.contains("Metadata:"));
+  }
+
+  @Test
+  public void textModeQueryResultEmptyObjectRendersResult() throws Exception {
+    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+    OutputFormatter formatter = new OutputFormatter(
+        OutputFormatter.OutputMode.TEXT, false, new PrintStream(stdout), System.err);
+    formatter.queryResult("Query successful !!", "{}");
+    formatter.flush();
+
+    String output = stdout.toString(StandardCharsets.UTF_8.name());
+    Assert.assertTrue(output.contains("Query successful !!"));
+    Assert.assertTrue(output.contains("Result:"));
+    Assert.assertTrue(output.contains("{}"));
+    Assert.assertFalse(output.contains("Metadata:"));
+  }
+
+  @Test
+  public void textModeQueryResultIndentsPrettyPrintedJsonLineFeeds() throws Exception {
+    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+    OutputFormatter formatter = new OutputFormatter(
+        OutputFormatter.OutputMode.TEXT, false, new PrintStream(stdout), System.err);
+    formatter.queryResult("Query successful !!", "{\"a\":1,\"nested\":{\"b\":2}}");
+    formatter.flush();
+
+    String output = stdout.toString(StandardCharsets.UTF_8.name());
+    Assert.assertTrue(output.contains("  Result:"));
+    Assert.assertTrue(output.contains("\n  {"));
+    Assert.assertTrue(output.contains("\n    \"nested\""));
+  }
+
+  @Test
   public void textModeSuccessMessageOnlyPrintsMessage() throws Exception {
     ByteArrayOutputStream stdout = new ByteArrayOutputStream();
     OutputFormatter formatter = new OutputFormatter(

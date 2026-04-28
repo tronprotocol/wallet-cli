@@ -61,8 +61,9 @@ Examples:
 - quiet / verbose behavior
 - global help / version handling
 
-Global options are parsed by `GlobalOptions.parse(String[] args)`. Known global options may appear either before or
-after the command token, except for command-help handling described below.
+Global options are parsed by `GlobalOptions.parse(String[] args)`. Execution modifiers may appear either before or
+after the command token. Top-level mode selectors are pre-command only, except for command-help handling described
+below.
 
 ### Command-Local Options
 
@@ -78,7 +79,8 @@ Command-local options are parsed by `CommandDefinition.parseArgs(String[] args)`
 
 ### Layer Boundary
 
-- global options configure how the CLI run is executed
+- global execution modifiers configure how the CLI run is executed
+- top-level mode selectors choose an alternate program mode before command execution
 - command-local options configure what the chosen command does
 - global parsing happens first and extracts known global options from the full argument list
 - command-local parsing happens only after the command token is known
@@ -126,13 +128,15 @@ For Contract 1, this applies to valued global options only.
 
 ### Boundary Rules
 
-- Known global options are recognized before and after the command token.
+- Execution modifier global options are recognized before and after the command token.
+- Top-level mode selectors `--version` and `--interactive` are recognized only before the command token.
 - The first token before command resolution that does not begin with `-` is the command token.
 - The command token is normalized to lowercase for registry lookup.
-- After the command token is found, known global options are extracted and all other tokens are passed through
-  unchanged as command arguments.
+- After the command token is found, execution modifier global options are extracted and all other tokens are passed
+  through unchanged as command arguments.
 - Unknown options after the command token are never reinterpreted as global options.
 - Post-command `--help` and `-h` are reserved for command help and are passed through as command arguments.
+- Post-command `--version` and `--interactive` are command-local tokens and are passed through as command arguments.
 
 Examples:
 
@@ -160,6 +164,14 @@ Examples:
   - command: `get-balance`
   - command args: `--help`
   - `--help` is not treated as global help because it appears after the command token
+- `wallet-cli get-balance --version`
+  - command: `get-balance`
+  - command args: `--version`
+  - `--version` is not treated as global version because it appears after the command token
+- `wallet-cli get-balance --interactive`
+  - command: `get-balance`
+  - command args: `--interactive`
+  - `--interactive` is not treated as global interactive mode because it appears after the command token
 
 ### No-Command Cases
 

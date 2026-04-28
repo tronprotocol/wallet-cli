@@ -77,6 +77,10 @@ public class GlobalOptions {
             ParsedLongOption parsed = parseLongOptionToken(token);
             switch (parsed.name) {
                 case "interactive":
+                    if (commandSeen) {
+                        commandArgs.add(token);
+                        break;
+                    }
                     ensureNoInlineValue(parsed, "--interactive");
                     opts.interactive = true;
                     break;
@@ -89,6 +93,10 @@ public class GlobalOptions {
                     opts.help = true;
                     break;
                 case "version":
+                    if (commandSeen) {
+                        commandArgs.add(token);
+                        break;
+                    }
                     ensureNoInlineValue(parsed, "--version");
                     opts.version = true;
                     break;
@@ -174,6 +182,7 @@ public class GlobalOptions {
         if (valueIndex >= args.length || args[valueIndex].startsWith("-")) {
             throw new CliUsageException("Missing value for " + optionName);
         }
+        // Valued globals intentionally consume the next non-flag token greedily; command names are not special here.
         return args[valueIndex];
     }
 

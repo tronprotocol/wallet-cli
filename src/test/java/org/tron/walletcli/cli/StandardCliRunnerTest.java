@@ -18,7 +18,6 @@ import org.tron.walletserver.WalletApi;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
@@ -117,6 +116,37 @@ public class StandardCliRunnerTest {
     Assert.assertSame(originalOut, System.out);
     Assert.assertSame(originalErr, System.err);
     Assert.assertSame(originalIn, System.in);
+  }
+
+  @Test
+  public void postCommandVersionAndInteractiveAreCommandUsageErrors() {
+    assertPostCommandModeFlagIsUsageError("--version");
+    assertPostCommandModeFlagIsUsageError("--interactive");
+  }
+
+  private void assertPostCommandModeFlagIsUsageError(String flag) {
+    CommandRegistry registry = new CommandRegistry();
+    registry.add(CommandDefinition.builder()
+        .authPolicy(CommandDefinition.AuthPolicy.NEVER)
+        .name("ok")
+        .description("Simple success command")
+        .handler((ctx, opts, wrapper, out) -> {
+          Map<String, Object> json = Collections.<String, Object>singletonMap("status", "ok");
+          out.success("ok", json);
+        })
+        .build());
+
+    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+    ByteArrayOutputStream stderr = new ByteArrayOutputStream();
+    GlobalOptions opts = GlobalOptions.parse(new String[]{"ok", flag});
+    int exitCode = new StandardCliRunner(
+        registry, opts, new PrintStream(stdout), new PrintStream(stderr)).execute();
+
+    Assert.assertEquals(2, exitCode);
+    Assert.assertEquals("", new String(stdout.toByteArray(), StandardCharsets.UTF_8));
+    String error = new String(stderr.toByteArray(), StandardCharsets.UTF_8);
+    Assert.assertTrue(error.contains("Error: Unknown option: " + flag));
+    Assert.assertTrue(error.contains("Usage:"));
   }
 
   @Test

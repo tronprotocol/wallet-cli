@@ -14,6 +14,8 @@ contract__global_repeated_network_json|empty|none|default|json|usage|["--output"
 contract__global_quiet_verbose_conflict_json|empty|none|default|json|usage|["--output","json","--quiet","--verbose","current-network"]|||usage_error|||
 contract__post_command_global_network_text|empty|none|default|text|success|["current-network","--network","nile"]||||Current network:||
 contract__post_command_unknown_option_text|empty|none|default|text|usage|["current-network","--unknown","value"]||||Unknown option: --unknown||
+contract__post_command_version_text|empty|none|default|text|usage|["current-network","--version"]||||Unknown option: --version||
+contract__post_command_interactive_text|empty|none|default|text|usage|["current-network","--interactive"]||||Unknown option: --interactive||
 contract__command_missing_required_value_text|empty|none|default|text|usage|["get-block-by-latest-num","--count"]||||Missing value for --count||
 contract__command_empty_required_value_json|empty|none|default|json|usage|["--output","json","get-block-by-latest-num","--count="]|||usage_error|||
 contract__command_boolean_flag_exec|empty|none|default|text|execution|["freeze-balance-v2","--amount","1","--multi"]|||execution_error|Error:||
