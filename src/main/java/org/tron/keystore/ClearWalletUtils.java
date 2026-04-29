@@ -21,9 +21,10 @@ import java.util.List;
 
 public class ClearWalletUtils {
 
+  private static final String CONFIRMATION_WORD = "DELETE";
+  private static final int MAX_ATTEMPTS = 3;
+
   public static boolean confirmAndDeleteWallet(String address, Collection<String> filePaths) {
-    final String CONFIRMATION_WORD = "DELETE";
-    final int MAX_ATTEMPTS = 3;
     try {
       Terminal terminal = TerminalBuilder.builder().system(true).dumb(true).build();
       LineReader lineReader = LineReaderBuilder.builder().terminal(terminal).build();
@@ -74,6 +75,19 @@ public class ClearWalletUtils {
     }
   }
 
+  public static boolean forceDeleteWallet(String address, Collection<String> filePaths) {
+    try {
+      System.out.println("\n\u001B[31mWarning: Dangerous operation!\u001B[0m");
+      System.out.println("Force deletion enabled. Permanently deleting the Wallet&Mnemonic files "
+          + (isEmpty(address) ? EMPTY : "of the Address: " + address));
+      System.out.println("\u001B[31mWarning: The private key and mnemonic words will be permanently lost and cannot be recovered!\u001B[0m");
+      return deleteFiles(filePaths);
+    } catch (Exception e) {
+      System.err.println("Operation failed:" + e.getMessage());
+      return false;
+    }
+  }
+
   private static boolean isConfirmed(String input) {
     return input.equalsIgnoreCase("y") || input.equalsIgnoreCase("Y");
   }
@@ -81,6 +95,14 @@ public class ClearWalletUtils {
   private static final String BACKUP_SUFFIX = ".bak";
 
   public static boolean deleteFiles(Collection<String> filePaths) {
+    return deleteFiles(filePaths, true);
+  }
+
+  public static boolean deleteFilesQuiet(Collection<String> filePaths) {
+    return deleteFiles(filePaths, false);
+  }
+
+  private static boolean deleteFiles(Collection<String> filePaths, boolean verbose) {
     if (filePaths == null || filePaths.isEmpty()) {
       return true;
     }
@@ -90,30 +112,36 @@ public class ClearWalletUtils {
     }
 
     try {
-      if (!validateFiles(pathPairs)) {
+      if (!validateFiles(pathPairs, verbose)) {
         return false;
       }
 
-      if (!createBackups(pathPairs)) {
-        cleanupBackups(pathPairs);
+      if (!createBackups(pathPairs, verbose)) {
+        cleanupBackups(pathPairs, verbose);
         return false;
       }
 
-      if (!deleteOriginals(pathPairs)) {
-        rollback(pathPairs);
+      if (!deleteOriginals(pathPairs, verbose)) {
+        rollback(pathPairs, verbose);
         return false;
       }
 
-      cleanupBackups(pathPairs);
-      printSuccess(pathPairs);
+      cleanupBackups(pathPairs, verbose);
+      if (verbose) {
+        printSuccess(pathPairs);
+      }
       return true;
     } catch (Exception e) {
-      System.err.println("An error occurred during operation: " + e.getMessage());
+      if (verbose) {
+        System.err.println("An error occurred during operation: " + e.getMessage());
+      }
       try {
-        rollback(pathPairs);
+        rollback(pathPairs, verbose);
       } catch (Exception rollbackEx) {
-        System.err.println("Rollback failed: " + rollbackEx.getMessage());
-        printBackupLocations(pathPairs);
+        if (verbose) {
+          System.err.println("Rollback failed: " + rollbackEx.getMessage());
+          printBackupLocations(pathPairs);
+        }
       }
       return false;
     }
@@ -131,40 +159,46 @@ public class ClearWalletUtils {
     }
   }
 
-  private static boolean validateFiles(List<PathPair> pairs) {
+  private static boolean validateFiles(List<PathPair> pairs, boolean verbose) {
     boolean allValid = true;
     for (PathPair pair : pairs) {
       if (!Files.exists(pair.original)) {
-        System.err.println("File not found: " + pair.original);
+        if (verbose) {
+          System.err.println("File not found: " + pair.original);
+        }
         allValid = false;
       }
     }
     return allValid;
   }
 
-  private static boolean createBackups(List<PathPair> pairs) {
+  private static boolean createBackups(List<PathPair> pairs, boolean verbose) {
     for (PathPair pair : pairs) {
       try {
         Files.copy(pair.original, pair.backup);
         pair.backupCreated = true;
       } catch (Exception e) {
-        System.err.println("Failed to create backup: " + pair.original);
-        System.err.println("Error message: " + e.getMessage());
+        if (verbose) {
+          System.err.println("Failed to create backup: " + pair.original);
+          System.err.println("Error message: " + e.getMessage());
+        }
         return false;
       }
     }
     return true;
   }
 
-  private static boolean deleteOriginals(List<PathPair> pairs) {
+  private static boolean deleteOriginals(List<PathPair> pairs, boolean verbose) {
     boolean allDeleted = true;
     for (PathPair pair : pairs) {
       try {
         Files.deleteIfExists(pair.original);
         pair.originalDeleted = true;
       } catch (Exception e) {
-        System.err.println("Failed to delete the file: " + pair.original);
-        System.err.println("Error message: " + e.getMessage());
+        if (verbose) {
+          System.err.println("Failed to delete the file: " + pair.original);
+          System.err.println("Error message: " + e.getMessage());
+        }
         allDeleted = false;
         break;
       }
@@ -172,20 +206,22 @@ public class ClearWalletUtils {
     return allDeleted;
   }
 
-  private static void cleanupBackups(List<PathPair> pairs) {
+  private static void cleanupBackups(List<PathPair> pairs, boolean verbose) {
     for (PathPair pair : pairs) {
       if (pair.backupCreated) {
         try {
           Files.deleteIfExists(pair.backup);
         } catch (Exception e) {
-          System.err.println("Warning: Unable to delete backup file: " + pair.backup);
-          System.err.println("Error message: " + e.getMessage());
+          if (verbose) {
+            System.err.println("Warning: Unable to delete backup file: " + pair.backup);
+            System.err.println("Error message: " + e.getMessage());
+          }
         }
       }
     }
   }
 
-  private static void rollback(List<PathPair> pairs) throws Exception {
+  private static void rollback(List<PathPair> pairs, boolean verbose) throws Exception {
     for (PathPair pair : pairs) {
       if (pair.backupCreated && pair.originalDeleted) {
         if (Files.exists(pair.backup)) {

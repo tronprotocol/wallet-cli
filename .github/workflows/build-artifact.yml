@@ -1,0 +1,60 @@
+name: Build Artifact
+
+on:
+  push:
+    branches:
+      - "release_*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build wallet-cli artifact
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "8"
+          cache: gradle
+
+      - name: Build
+        run: ./gradlew clean build shadowJar shadowDistZip
+
+      - name: Package artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          version="${GITHUB_REF_NAME#release_}"
+          if [ "$version" = "$GITHUB_REF_NAME" ]; then
+            version="dev"
+          fi
+
+          artifact_dir="artifacts"
+          artifact_base="wallet-cli-${version}-rc.${GITHUB_RUN_NUMBER}"
+          artifact_name="wallet-cli-artifact-${GITHUB_REF_NAME}"
+
+          mkdir -p "$artifact_dir"
+          cp build/libs/wallet-cli.jar "$artifact_dir/${artifact_base}.jar"
+          cp build/distributions/*shadow*.zip "$artifact_dir/${artifact_base}.zip"
+          git rev-parse HEAD > "$artifact_dir/git-sha.txt"
+          echo "ARTIFACT_NAME=${artifact_name}" >> "$GITHUB_ENV"
+
+          (
+            cd "$artifact_dir"
+            shasum -a 256 "${artifact_base}.jar" "${artifact_base}.zip" git-sha.txt > checksums.txt
+          )
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: artifacts/*

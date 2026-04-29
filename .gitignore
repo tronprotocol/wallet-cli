@@ -1,3 +1,4 @@
+.claude/settings.local.json 
 .DS_Store
 build
 out
@@ -11,4 +12,27 @@ src/gen
 tools
 src/main/resources/static/js/tronjs/tron-protoc.js
 logs
+docs
+!docs/
+!docs/standard-cli-contract-spec.md
 FileTest
+bin
+
+# Wallet keystore files created at runtime
+Wallet/
+Mnemonic/
+wallet_data/
+
+# QA runtime output
+qa/results/
+qa/runtime/
+qa/report.txt
+qa/.verify.lock/
+
+# claude
+.claude/
+
+.private/
+
+# graphify 
+graphify-out/

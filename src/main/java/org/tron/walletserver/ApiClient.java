@@ -3,11 +3,11 @@ package org.tron.walletserver;
 import static org.tron.common.enums.NetType.CUSTOM;
 import static org.tron.common.utils.AbiUtil.generateOccupationConstantPrivateKey;
 import static org.tron.common.utils.ByteArray.toHexString;
-import static org.tron.common.utils.Utils.redBoldHighlight;
 import static org.tron.keystore.StringUtils.byte2String;
 import static org.tron.trident.core.Constant.TRANSACTION_DEFAULT_EXPIRATION_TIME;
 import static org.tron.trident.core.NodeType.FULL_NODE;
 import static org.tron.trident.core.NodeType.SOLIDITY_NODE;
+import static org.tron.common.utils.Utils.redBoldHighlight;
 import static org.tron.walletserver.WalletApi.encode58Check;
 
 import java.util.HashMap;
@@ -65,7 +65,7 @@ public class ApiClient {
       blockExtention = client.getBlock(false, nodeType);
     } catch (Exception e) {
       String node = nodeType == FULL_NODE ? "fullnode" : "soliditynode";
-      System.out.println(redBoldHighlight("The " + node + ".ip.list you configured in the config.conf file is invalid."));
+      System.err.println(redBoldHighlight("The " + node + ".ip.list you configured in the config.conf file is invalid."));
       return;
     }
     BlockId blockId = Utils.getBlockId(blockExtention);
@@ -111,6 +111,15 @@ public class ApiClient {
       return false;
     }
     return true;
+  }
+
+  public String broadcastTransactionForCli(Chain.Transaction signaturedTransaction) {
+    try {
+      client.broadcastTransaction(signaturedTransaction);
+      return null;
+    } catch (RuntimeException e) {
+      return e.getMessage();
+    }
   }
 
   public Response.TransactionSignWeight getTransactionSignWeight(Chain.Transaction transaction) {// pass

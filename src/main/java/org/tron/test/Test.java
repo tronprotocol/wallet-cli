@@ -23,6 +23,7 @@ import org.tron.protos.contract.BalanceContract.TransferContract;
 import org.tron.walletserver.WalletApi;
 
 import java.io.File;
+import java.nio.charset.StandardCharsets;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.math.BigInteger;
@@ -72,7 +73,7 @@ public class Test {
 
   public static void test64() throws UnsupportedEncodingException {
     Encoder encoder = Base64.getEncoder();
-    byte[] encode = encoder.encode("test string ".getBytes());
+    byte[] encode = encoder.encode("test string ".getBytes(StandardCharsets.UTF_8));
     String encodeString = new String(encode, "ISO-8859-1");
     System.out.println("encodeString ::: " + encodeString);
   }
@@ -81,7 +82,7 @@ public class Test {
       throws UnsupportedEncodingException, InvalidProtocolBufferException {
 
     Decoder decoder = Base64.getDecoder();
-    byte[] code64 = "EAEaFGwi77+977+9e++/ve+/ve+/ve+/vXFI77+9J++/vW/vv73vv71P77+9".getBytes();
+    byte[] code64 = "EAEaFGwi77+977+9e++/ve+/ve+/ve+/vXFI77+9J++/vW/vv73vv71P77+9".getBytes(StandardCharsets.UTF_8);
     byte[] decode = decoder.decode(code64);
     Account account = Account.parseFrom(decode);
     System.out.println("address::::" + ByteArray.toHexString(account.getAddress().toByteArray()));
@@ -257,7 +258,7 @@ public class Test {
 
   public static void testSha3() {
     String testData = "tools.jb51.net";
-    byte[] hash = Hash.sha3(testData.getBytes());
+    byte[] hash = Hash.sha3(testData.getBytes(StandardCharsets.UTF_8));
     System.out.println("testData::" + testData);
     System.out.println("hash::" + ByteArray.toHexString(hash));
   }
@@ -268,9 +269,9 @@ public class Test {
     //    ECKey eCkey = ECKey.fromPrivate(ByteArray.fromHexString(priKeyHex));
     SignInterface sm2 = SM2.fromPrivate(ByteArray.fromHexString(priKeyHex));
     File file = new File("out");
-    String fileName = WalletUtils.generateWalletFile(PASSWORD.getBytes(), sm2, file, true);
+    String fileName = WalletUtils.generateWalletFile(PASSWORD.getBytes(StandardCharsets.UTF_8), sm2, file, true);
     Credentials credentials =
-        WalletUtils.loadCredentials(PASSWORD.getBytes(), new File(file, fileName));
+        WalletUtils.loadCredentials(PASSWORD.getBytes(StandardCharsets.UTF_8), new File(file, fileName));
     String address = credentials.getAddress();
     SignInterface pair = credentials.getPair();
     String prikey = ByteArray.toHexString(pair.getPrivKeyBytes());

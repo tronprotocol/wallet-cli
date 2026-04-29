@@ -11,6 +11,7 @@ import org.tron.core.exception.CipherException;
 import org.tron.keystore.StringUtils;
 import org.tron.walletserver.WalletApi;
 
+import java.nio.charset.StandardCharsets;
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
@@ -49,7 +50,7 @@ public class Mnemonic {
     byte[] derivedKey = generateDerivedScryptKey(password, salt, n, R, p, DKLEN);
     byte[] encryptKey = Arrays.copyOfRange(derivedKey, 0, 16);
     byte[] iv = generateRandomBytes(16);
-    byte[] mnemonicWordsBytes = mnemonicWords.getBytes();
+    byte[] mnemonicWordsBytes = mnemonicWords.getBytes(StandardCharsets.UTF_8);
     byte[] cipherText = performCipherOperation(Cipher.ENCRYPT_MODE, iv, encryptKey,
         mnemonicWordsBytes);
     byte[] mac = generateMac(derivedKey, cipherText);

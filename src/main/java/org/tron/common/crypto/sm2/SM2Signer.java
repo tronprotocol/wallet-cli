@@ -1,6 +1,7 @@
 package org.tron.common.crypto.sm2;
 
 import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import javax.annotation.Nullable;
 import org.bouncycastle.crypto.CipherParameters;
@@ -83,7 +84,7 @@ public class SM2Signer implements ECConstants {
    * @return
    */
   public byte[] generateSM3Hash(byte[] message) {
-    // byte[] msg = message.getBytes();
+    // byte[] msg = message.getBytes(StandardCharsets.UTF_8);
 
     SM3Digest digest = new SM3Digest();
     byte[] z = getZ(digest);
@@ -168,7 +169,7 @@ public class SM2Signer implements ECConstants {
     ECPoint q = ((ECPublicKeyParameters) ecKey).getQ();
 
     if (userID != null) {
-      this.userID = userID.getBytes();
+      this.userID = userID.getBytes(StandardCharsets.UTF_8);
     }
     byte[] eHash = generateSM3Hash(message);
 
