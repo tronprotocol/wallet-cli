@@ -1,0 +1,103 @@
+get-address|auth-success|auth|private_key|
+get-balance|auth-success|auth|private_key|
+get-account|noauth-success|auth|private_key|--address {{MY_ADDR}}
+get-account-by-id|expected-usage-error|auth|private_key|
+get-account-net|noauth-success|auth|private_key|--address {{MY_ADDR}}
+get-account-resource|noauth-success|auth|private_key|--address {{MY_ADDR}}
+get-usdt-balance|auth-success|auth|private_key|
+current-network|noauth-success|empty|none|
+get-block|noauth-success|empty|none|
+get-block-by-id|noauth-success|empty|none|--id {{BLOCK_ID}}
+get-block-by-id-or-num|noauth-success|empty|none|--value 1
+get-block-by-latest-num|noauth-success|empty|none|--count 2
+get-block-by-limit-next|noauth-success|empty|none|--start 1 --end 3
+get-transaction-by-id|noauth-success|empty|none|--id {{TX_ID}}
+get-transaction-info-by-id|noauth-success|empty|none|--id {{TX_ID}}
+get-transaction-count-by-block-num|noauth-success|empty|none|--number 1
+get-asset-issue-by-account|noauth-success|auth|private_key|--address {{MY_ADDR}}
+get-asset-issue-by-id|noauth-success|empty|none|--id 1000001
+get-asset-issue-by-name|noauth-success|empty|none|--name TRX
+get-asset-issue-list-by-name|noauth-success|empty|none|--name TRX
+get-chain-parameters|noauth-success|empty|none|
+get-bandwidth-prices|noauth-success|empty|none|
+get-energy-prices|noauth-success|empty|none|
+get-memo-fee|noauth-success|empty|none|
+get-next-maintenance-time|noauth-success|empty|none|
+get-contract|noauth-success|empty|none|--address {{USDT_NILE}}
+get-contract-info|noauth-success|empty|none|--address {{USDT_NILE}}
+get-delegated-resource|noauth-success|auth|private_key|--from {{MY_ADDR}} --to {{MY_ADDR}}
+get-delegated-resource-v2|noauth-success|auth|private_key|--from {{MY_ADDR}} --to {{MY_ADDR}}
+get-delegated-resource-account-index|noauth-success|auth|private_key|--address {{MY_ADDR}}
+get-delegated-resource-account-index-v2|noauth-success|auth|private_key|--address {{MY_ADDR}}
+get-can-delegated-max-size|noauth-success|auth|private_key|--owner {{MY_ADDR}} --type 0
+get-available-unfreeze-count|noauth-success|auth|private_key|--address {{MY_ADDR}}
+get-can-withdraw-unfreeze-amount|noauth-success|auth|private_key|--address {{MY_ADDR}}
+get-brokerage|noauth-success|auth|private_key|--address {{MY_ADDR}}
+get-reward|noauth-success|auth|private_key|--address {{MY_ADDR}}
+list-nodes|noauth-success|empty|none|
+list-witnesses|noauth-success|empty|none|
+list-asset-issue|noauth-success|empty|none|
+list-asset-issue-paginated|noauth-success|empty|none|--offset 0 --limit 5
+list-proposals|noauth-success|empty|none|
+list-proposals-paginated|noauth-success|empty|none|--offset 0 --limit 5
+get-proposal|noauth-success|empty|none|--id 1
+list-exchanges|noauth-success|empty|none|
+list-exchanges-paginated|noauth-success|empty|none|--offset 0 --limit 5
+get-exchange|noauth-success|empty|none|--id 1
+get-market-order-by-account|noauth-success|auth|private_key|--address {{MY_ADDR}}
+get-market-order-list-by-pair|noauth-success|empty|none|--sell-token _ --buy-token 1000001
+get-market-pair-list|noauth-success|empty|none|
+get-market-price-by-pair|noauth-success|empty|none|--sell-token _ --buy-token 1000001
+gas-free-info|noauth-success|empty|none|--address {{TARGET_ADDR}}|data.gasFreeAddress||||needs_gasfree_config
+gas-free-transfer|stateful-success|auth|private_key|--to {{TARGET_ADDR}} --amount 1|data.gas_free_id|||GasFreeTransfer successful !!|needs_auth_wallet,needs_target_addr,needs_gasfree_config,needs_gasfree_balance|json
+gas-free-trace|stateful-success|empty|none|--id {{QA_GASFREE_ID}}|||||needs_gasfree_config,needs_qa_gasfree_id
+send-coin|stateful-success|auth|private_key|--to {{TARGET_ADDR}} --amount 1|data.txid|||SendCoin successful !!|needs_auth_wallet,needs_target_addr,needs_trx_balance_at_least:1
+transfer-asset|auth-success|auth|private_key|--to {{TARGET_ADDR}} --asset {{QA_ASSET_ID}} --amount 1|data.txid|||TransferAsset successful !!|needs_auth_wallet,needs_target_addr,needs_qa_asset
+transfer-usdt|stateful-success|auth|private_key|--to {{TARGET_ADDR}} --amount 1|data.txid|||TransferUSDT successful !!|needs_auth_wallet,needs_target_addr,needs_positive_trx_balance
+participate-asset-issue|expected-execution-error|auth|private_key|--to {{TARGET_ADDR}} --asset 1000001 --amount 1
+asset-issue|expected-usage-error|auth|private_key|--name TESTTOKEN --abbr TT --total-supply 1000000 --trx-num 1 --ico-num 1 --start-time 2099-01-01 --end-time 2099-01-02 --url http://test.example.com --free-net-limit 0 --public-free-net-limit 0
+create-account|expected-usage-error|auth|private_key|--address TINVALIDADDRESS
+update-account|expected-execution-error|auth|private_key|--name qa-test
+set-account-id|expected-execution-error|auth|private_key|--id qa-test-id
+update-asset|auth-success|auth|private_key|--description test --url http://test.example.com --new-limit 1000 --new-public-limit 1000|data.txid|||UpdateAsset successful !!
+broadcast-transaction|expected-usage-error|empty|none|--transaction 0a0200
+update-account-permission|expected-execution-error|auth|private_key|--owner {{MY_ADDR}} --permissions '{"owner_permission":{"type":0,"permission_name":"owner","threshold":1,"keys":[{"address":"{{MY_ADDR}}","weight":1}]}}'
+deploy-contract|stateful-success|auth|private_key|--name TestContract --abi '[]' --bytecode 6080 --fee-limit 1000000000|data.txid|||DeployContract successful !!|needs_auth_wallet,needs_positive_trx_balance
+trigger-contract|stateful-success|auth|private_key|--contract {{USDT_NILE}} --method 'transfer(address,uint256)' --params '"{{TARGET_ADDR}}",1' --fee-limit 100000000|data.txid|||TriggerContract successful !!|needs_auth_wallet,needs_target_addr,needs_positive_trx_balance
+trigger-constant-contract|noauth-success|auth|private_key|--contract {{USDT_NILE}} --method 'balanceOf(address)' --params '"{{MY_ADDR}}"'
+estimate-energy|noauth-success|auth|private_key|--owner {{MY_ADDR}} --contract {{USDT_NILE}} --method 'transfer(address,uint256)' --params '"{{TARGET_ADDR}}",1'
+clear-contract-abi|stateful-success|auth|private_key|--contract {{DEPLOYED_CONTRACT_ADDR}}|data.txid|||ClearContractABI successful !!|needs_auth_wallet,needs_deployed_contract
+update-setting|stateful-success|auth|private_key|--contract {{DEPLOYED_CONTRACT_ADDR}} --consume-user-resource-percent 0|data.txid|||UpdateSetting successful !!|needs_auth_wallet,needs_deployed_contract
+update-energy-limit|stateful-success|auth|private_key|--contract {{DEPLOYED_CONTRACT_ADDR}} --origin-energy-limit 10000000|data.txid|||UpdateEnergyLimit successful !!|needs_auth_wallet,needs_deployed_contract
+freeze-balance|expected-execution-error|auth|private_key|--amount 1000000 --duration 3
+freeze-balance-v2|stateful-success|auth|private_key|--amount 1000000 --resource 1|data.txid|||FreezeBalanceV2 successful !!|needs_auth_wallet,needs_trx_balance_at_least:1000000
+unfreeze-balance|expected-execution-error|auth|private_key|
+unfreeze-balance-v2|stateful-success|auth|private_key|--amount 1000000 --resource 1|data.txid|||UnfreezeBalanceV2 successful !!|needs_auth_wallet,needs_positive_trx_balance
+withdraw-expire-unfreeze|stateful-success|auth|private_key||data.txid|||WithdrawExpireUnfreeze successful !!|needs_auth_wallet,needs_expired_unfreeze_v2
+delegate-resource|auth-success|auth|private_key|--amount 1000000 --resource 0 --receiver {{TARGET_ADDR}}|data.txid|||DelegateResource successful !!|needs_auth_wallet,needs_target_addr,needs_delegatable_resource
+undelegate-resource|auth-success|auth|private_key|--amount 1000000 --resource 0 --receiver {{TARGET_ADDR}}|data.txid|||UndelegateResource successful !!|needs_auth_wallet,needs_target_addr,needs_undelegatable_resource
+cancel-all-unfreeze-v2|stateful-replay-execution|auth|private_key|||||CancelAllUnfreezeV2 successful !!|needs_auth_wallet,needs_available_unfreeze_v2
+withdraw-balance|stateful-replay-execution|auth|private_key|||||WithdrawBalance successful !!|needs_auth_wallet,needs_withdrawable_witness_balance
+unfreeze-asset|expected-execution-error|auth|private_key|
+create-witness|expected-execution-error|auth|private_key|--url http://test.example.com
+update-witness|auth-success|auth|private_key|--url http://test.example.com|data.txid|||UpdateWitness successful !!|needs_auth_wallet,needs_witness_wallet
+vote-witness|expected-usage-error|auth|private_key|--votes {{TARGET_ADDR}}
+update-brokerage|auth-success|auth|private_key|--brokerage 10|data.txid|||UpdateBrokerage successful !!|needs_auth_wallet,needs_witness_wallet
+create-proposal|stateful-success|auth|private_key|--parameters '9 1'|data.txid|||CreateProposal successful !!|needs_auth_wallet,needs_witness_wallet|json
+approve-proposal|stateful-success|auth|private_key|--id {{QA_PROPOSAL_ID}} --approve=true|data.txid|||ApproveProposal successful !!|needs_auth_wallet,needs_witness_wallet,needs_qa_proposal|json
+delete-proposal|stateful-success|auth|private_key|--id {{QA_PROPOSAL_ID}}|data.txid|||DeleteProposal successful !!|needs_auth_wallet,needs_witness_wallet,needs_qa_proposal|json
+exchange-create|stateful-success|auth|private_key|--first-token _ --first-balance 10000000 --second-token {{QA_ASSET_ID}} --second-balance 100000|data.txid|||ExchangeCreate successful !!|needs_auth_wallet,needs_qa_asset,needs_trx_balance_at_least:1024000000|json
+exchange-inject|stateful-success|auth|private_key|--exchange-id {{QA_EXCHANGE_ID}} --token-id _ --quant 1000000|data.txid|||ExchangeInject successful !!|needs_auth_wallet,needs_qa_exchange|json
+exchange-withdraw|stateful-success|auth|private_key|--exchange-id {{QA_EXCHANGE_ID}} --token-id _ --quant 500000|data.txid|||ExchangeWithdraw successful !!|needs_auth_wallet,needs_qa_exchange|json
+market-sell-asset|stateful-success|auth|private_key|--sell-token _ --sell-quantity 1000000 --buy-token {{QA_ASSET_ID}} --buy-quantity 1|data.txid|||MarketSellAsset successful !!|needs_auth_wallet,needs_qa_asset,needs_market_transaction_enabled|json
+get-market-order-by-id|stateful-success|empty|none|--id {{QA_MARKET_ORDER_ID}}|data||||needs_qa_market_order
+market-cancel-order|stateful-success|auth|private_key|--order-id {{QA_MARKET_ORDER_ID}}|data.txid|||MarketCancelOrder successful !!|needs_auth_wallet,needs_qa_market_order
+register-wallet|offline-success|empty|none|--name qaregister --words 12
+list-wallet|auth-success|auth|private_key|
+set-active-wallet|auth-success|auth|private_key|--address {{FIRST_WALLET_ADDRESS}}
+get-active-wallet|auth-success|auth|private_key|
+clear-wallet-keystore|offline-success|auth|private_key|--force
+reset-wallet|offline-success|auth|private_key|--confirm delete-all-wallets
+modify-wallet-name|auth-success|auth|private_key|--name renamed-wallet
+generate-sub-account|offline-success|auth-mnemonic|mnemonic|--index 1 --name qasubaccount
+help|noauth-help|empty|none|
