@@ -11,6 +11,12 @@ src/genjs
 src/gen
 tools
 src/main/resources/static/js/tronjs/tron-protoc.js
+logs/
+FileTest/
+bin/
+*.class
+build/
+
 logs
 docs
 !docs/

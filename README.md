@@ -1,17 +1,22 @@
 # Wallet-cli
 
-Welcome to use the Wallet-cli.  
+[![Build Status](https://travis-ci.org/tronprotocol/wallet-cli.svg?branch=master)](https://travis-ci.org/tronprotocol/wallet-cli)
 
-Wallet-cli now supports [GasFree](https://gasfree.io) addresses, enable users to transfer tokens without paying gas fees. For more details, please check the [GasFree](#Gas-Free-Support) section below.
+Welcome to the TRON Wallet-cli. This tool allows you to interact with the TRON network via the command line.
 
-The underlying implementation of all Wallet-cli gRPC APIs has all migrated to the [Trident SDK](https://github.com/tronprotocol/trident). This strategic move consolidates the underlying implementation of the Wallet-cli's remote procedure calls, standardizing them under the robust and optimized Trident framework. 
+[Gitter Chat](https://gitter.im/tronprotocol/wallet-cli) | [Telegram Support](https://t.me/TronOfficialDevelopersGroupEn)
 
-If you need any help, please join the [Telegram](https://t.me/TronOfficialDevelopersGroupEn).
+---
 
-## Get started
+## Strategic Update
+The underlying implementation of all Wallet-cli gRPC APIs has migrated to the [Trident SDK](https://github.com/tronprotocol/trident). This move standardizes the remote procedure calls under the robust Trident framework.
 
-### Download Wallet-cli
+## Get Started
 
+### 1. Download Wallet-cli
+```bash
+git clone [https://github.com/tronprotocol/wallet-cli.git](https://github.com/tronprotocol/wallet-cli.git)
+cd wallet-cli
     git clone https://github.com/tronprotocol/wallet-cli.git
 
 ### Edit config.conf in src/main/resources
@@ -2172,9 +2177,7 @@ View transaction history. You can configure the maximum number of records that `
 Example:
 ```console
 wallet> ViewTransactionHistory
-====================================
         TRANSACTION VIEWER
-====================================
 
 MAIN MENU:
 1. View all transactions
@@ -2667,9 +2670,7 @@ Example:
 ```console
 wallet> EncodingConverter
 
-==============================
   Encoding Converter (CLI)
-==============================
 1) TRON - EVM Address
 2) Base64 Encode / Decode
 3) Base58Check Encode / Decode
