@@ -3,11 +3,11 @@ package org.tron.walletserver;
 import static org.tron.common.enums.NetType.CUSTOM;
 import static org.tron.common.utils.AbiUtil.generateOccupationConstantPrivateKey;
 import static org.tron.common.utils.ByteArray.toHexString;
-import static org.tron.common.utils.Utils.redBoldHighlight;
 import static org.tron.keystore.StringUtils.byte2String;
 import static org.tron.trident.core.Constant.TRANSACTION_DEFAULT_EXPIRATION_TIME;
 import static org.tron.trident.core.NodeType.FULL_NODE;
 import static org.tron.trident.core.NodeType.SOLIDITY_NODE;
+import static org.tron.common.utils.Utils.redBoldHighlight;
 import static org.tron.walletserver.WalletApi.encode58Check;
 
 import java.util.HashMap;
@@ -65,7 +65,7 @@ public class ApiClient {
       blockExtention = client.getBlock(false, nodeType);
     } catch (Exception e) {
       String node = nodeType == FULL_NODE ? "fullnode" : "soliditynode";
-      System.out.println(redBoldHighlight("The " + node + ".ip.list you configured in the config.conf file is invalid."));
+      System.err.println(redBoldHighlight("The " + node + ".ip.list you configured in the config.conf file is invalid."));
       return;
     }
     BlockId blockId = Utils.getBlockId(blockExtention);
@@ -111,6 +111,15 @@ public class ApiClient {
       return false;
     }
     return true;
+  }
+
+  public String broadcastTransactionForCli(Chain.Transaction signaturedTransaction) {
+    try {
+      client.broadcastTransaction(signaturedTransaction);
+      return null;
+    } catch (RuntimeException e) {
+      return e.getMessage();
+    }
   }
 
   public Response.TransactionSignWeight getTransactionSignWeight(Chain.Transaction transaction) {// pass
@@ -599,4 +608,13 @@ public class ApiClient {
   public Response.TransactionExtention deployContract(String contractName, String abi, String code, List<Type<?>> constructorParams, long feeLimit, long consumeUserResourcePercent, long originEnergyLimit, long value, String tokenId, long tokenValue) throws Exception {// pass
     return client.deployContract(contractName, abi, code, constructorParams, feeLimit, consumeUserResourcePercent, originEnergyLimit, value, tokenId, tokenValue);
   }
+
+  public Response.WitnessList getPaginatedNowWitnessList(int offset, int limit) {
+    if (!emptySolidityNode) {
+      return client.getPaginatedNowWitnessList(offset, limit, SOLIDITY_NODE);
+    } else {
+      return client.getPaginatedNowWitnessList(offset, limit, FULL_NODE);
+    }
+  }
+
 }

@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import org.tron.common.utils.FilePermissionUtils;
 import java.io.InputStreamReader;
 import java.nio.file.Paths;
 import java.security.SecureRandom;
@@ -46,9 +47,13 @@ public class MnemonicUtils {
     int entropyLength =
         (wordsNumber == MNEMONIC_WORDS_LENGTH_12) ? ENTROPY_LENGTH_12_WORDS : ENTROPY_LENGTH_24_WORDS;
     byte[] entropy = new byte[entropyLength];
-    secureRandom.nextBytes(entropy);
-    String mnemonicStr = org.web3j.crypto.MnemonicUtils.generateMnemonic(entropy);
-    return stringToMnemonicWords(mnemonicStr);
+    try {
+      secureRandom.nextBytes(entropy);
+      String mnemonicStr = org.web3j.crypto.MnemonicUtils.generateMnemonic(entropy);
+      return stringToMnemonicWords(mnemonicStr);
+    } finally {
+      Arrays.fill(entropy, (byte) 0);
+    }
   }
 
   public static String mnemonicWordsToString(List<String> mnemonicWords) {
@@ -86,6 +91,7 @@ public class MnemonicUtils {
         }
       }
     }
+    FilePermissionUtils.setOwnerOnlyDirectory(file.toPath());
     return generateWalletFile(mnemonicFile, file);
   }
 
@@ -95,6 +101,7 @@ public class MnemonicUtils {
     File destination = new File(destinationDirectory, fileName);
 
     objectMapper.writeValue(destination, walletFile);
+    FilePermissionUtils.setOwnerOnlyFile(destination.toPath());
     return fileName;
   }
 
@@ -104,11 +111,18 @@ public class MnemonicUtils {
 
   public static byte[] exportMnemonic(byte[] password, String address)
       throws IOException, CipherException {
+    return exportMnemonic(password, address, true);
+  }
+
+  public static byte[] exportMnemonic(byte[] password, String address, boolean printMessages)
+      throws IOException, CipherException {
     File file = Paths.get("Mnemonic", address + ".json").toFile();
     if (!file.exists()) {
-      System.out.println("mnemonic file not exist");
-      System.out.println("Please use ImportWalletByMnemonic to " +
-          "import the wallet or RegisterWallet to create a new wallet.");
+      if (printMessages) {
+        System.out.println("mnemonic file not exist");
+        System.out.println("Please use ImportWalletByMnemonic to " +
+            "import the wallet or RegisterWallet to create a new wallet.");
+      }
       return new byte[0];
     }
     MnemonicFile mnemonicFile = objectMapper.readValue(file, MnemonicFile.class);
@@ -119,14 +133,17 @@ public class MnemonicUtils {
     int HARDENED_BIT = 0x80000000;
     String mnemonic = String.join(" ", mnemonics);
     byte[] seed = org.web3j.crypto.MnemonicUtils.generateSeed(mnemonic, "");
-    Bip32ECKeyPair masterKeypair = Bip32ECKeyPair.generateKeyPair(seed);
-    // m/44'/195'/0'/0/0
-    final int[] path = {44 | HARDENED_BIT, 195 | HARDENED_BIT, 0 | HARDENED_BIT, 0, 0};
-    Bip32ECKeyPair bip44Keypair = Bip32ECKeyPair.deriveKeyPair(masterKeypair, path);
-    Credentials credentials = Credentials.create(bip44Keypair);
-    String privateKey = credentials.getEcKeyPair().getPrivateKey().toString(16);
-
-    return ByteArray.fromHexString(privateKey);
+    try {
+      Bip32ECKeyPair masterKeypair = Bip32ECKeyPair.generateKeyPair(seed);
+      // m/44'/195'/0'/0/0
+      final int[] path = {44 | HARDENED_BIT, 195 | HARDENED_BIT, 0 | HARDENED_BIT, 0, 0};
+      Bip32ECKeyPair bip44Keypair = Bip32ECKeyPair.deriveKeyPair(masterKeypair, path);
+      Credentials credentials = Credentials.create(bip44Keypair);
+      String privateKey = credentials.getEcKeyPair().getPrivateKey().toString(16);
+      return ByteArray.fromHexString(privateKey);
+    } finally {
+      Arrays.fill(seed, (byte) 0);
+    }
   }
 
   public static byte[] getMnemonicBytes(byte[] password, File source)
@@ -148,6 +165,7 @@ public class MnemonicUtils {
     }
 
     objectMapper.writeValue(source, mnemonicFile);
+    FilePermissionUtils.setOwnerOnlyFile(source.toPath());
   }
 
   public static int inputMnemonicWordsNumber() {
@@ -196,18 +214,19 @@ public class MnemonicUtils {
     }
     int HARDENED_BIT = 0x80000000;
     String mnemonic = String.join(" ", mnemonics);
+    byte[] seed = org.web3j.crypto.MnemonicUtils.generateSeed(mnemonic, "");
     try {
-      byte[] seed = org.web3j.crypto.MnemonicUtils.generateSeed(mnemonic, "");
       Bip32ECKeyPair masterKeypair = Bip32ECKeyPair.generateKeyPair(seed);
       // m/44'/195'/0'/0/0
       final int[] path = {44 | HARDENED_BIT, 195 | HARDENED_BIT, 0 | HARDENED_BIT, 0, pathIndex};
       Bip32ECKeyPair bip44Keypair = Bip32ECKeyPair.deriveKeyPair(masterKeypair, path);
       Credentials credentials = Credentials.create(bip44Keypair);
       String privateKey = credentials.getEcKeyPair().getPrivateKey().toString(16);
-
       return ByteArray.fromHexString(privateKey);
     } catch (Exception e) {
       throw new RuntimeException("Failed to derive private key from mnemonic", e);
+    } finally {
+      Arrays.fill(seed, (byte) 0);
     }
   }
 
@@ -245,18 +264,19 @@ public class MnemonicUtils {
 
     int HARDENED_BIT = 0x80000000;
     String mnemonic = String.join(" ", mnemonics);
+    byte[] seed = org.web3j.crypto.MnemonicUtils.generateSeed(mnemonic, "");
     try {
-      byte[] seed = org.web3j.crypto.MnemonicUtils.generateSeed(mnemonic, "");
       Bip32ECKeyPair masterKeypair = Bip32ECKeyPair.generateKeyPair(seed);
       // m/44'/195'/0'/0/0
       final int[] path = {44 | HARDENED_BIT, 195 | HARDENED_BIT, pathNumer[2] | HARDENED_BIT, 0, pathNumer[4]};
       Bip32ECKeyPair bip44Keypair = Bip32ECKeyPair.deriveKeyPair(masterKeypair, path);
       Credentials credentials = Credentials.create(bip44Keypair);
       String privateKey = credentials.getEcKeyPair().getPrivateKey().toString(16);
-
       return ByteArray.fromHexString(privateKey);
     } catch (Exception e) {
       throw new RuntimeException("Failed to derive private key from mnemonic", e);
+    } finally {
+      Arrays.fill(seed, (byte) 0);
     }
   }
 

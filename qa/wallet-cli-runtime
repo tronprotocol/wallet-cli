@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+QA_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_DIR="$(cd "$QA_DIR/.." && pwd)"
+RUNTIME_DIR="${WALLET_CLI_RUNTIME_DIR:-$QA_DIR/runtime/local}"
+WALLET_JAR="${WALLET_CLI_JAR:-$PROJECT_DIR/build/libs/wallet-cli.jar}"
+
+if [ ! -f "$WALLET_JAR" ]; then
+  echo "wallet-cli.jar not found: $WALLET_JAR" >&2
+  echo "Run ./gradlew shadowJar first." >&2
+  exit 1
+fi
+
+mkdir -p "$RUNTIME_DIR"
+cd "$RUNTIME_DIR"
+exec java -jar "$WALLET_JAR" "$@"

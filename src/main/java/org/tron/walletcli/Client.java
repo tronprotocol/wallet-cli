@@ -31,6 +31,11 @@ import static org.tron.mnemonic.MnemonicUtils.getPrivateKeyFromMnemonic;
 import static org.tron.walletserver.WalletApi.addressValid;
 import static org.tron.walletserver.WalletApi.decodeFromBase58Check;
 
+import org.tron.walletcli.cli.GlobalOptions;
+import org.tron.walletcli.cli.CommandRegistry;
+import org.tron.walletcli.cli.OutputFormatter;
+import org.tron.walletcli.cli.StandardCliRunner;
+
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import com.beust.jcommander.JCommander;
@@ -44,6 +49,7 @@ import java.io.InputStreamReader;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.RoundingMode;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -58,6 +64,8 @@ import java.util.Base64.Encoder;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
@@ -193,6 +201,7 @@ public class Client {
       "GetMarketPriceByPair",
       "GetMemoFee",
       "GetNextMaintenanceTime",
+      "GetPaginatedNowWitnessList",
       "GetPrivateKeyByMnemonic",
       "GetProposal",
       "GetReward",
@@ -623,7 +632,7 @@ public class Client {
   }
 
   private void resetWallet() {
-    boolean result = walletApiWrapper.resetWallet();
+    boolean result = walletApiWrapper.resetWallet(false);
     if (result) {
       walletApiWrapper.logout();
       System.out.println("resetWallet " + successfulHighlight() + " !!!");
@@ -2324,9 +2333,9 @@ public class Client {
       }
     }
 
-    byte[] firstTokenId = parameters[index++].getBytes();
+    byte[] firstTokenId = parameters[index++].getBytes(StandardCharsets.UTF_8);
     long firstTokenBalance = Long.parseLong(parameters[index++]);
-    byte[] secondTokenId = parameters[index++].getBytes();
+    byte[] secondTokenId = parameters[index++].getBytes(StandardCharsets.UTF_8);
     long secondTokenBalance = Long.parseLong(parameters[index++]);
     boolean result = walletApiWrapper.exchangeCreate(ownerAddress, firstTokenId, firstTokenBalance,
         secondTokenId, secondTokenBalance, multi);
@@ -2358,7 +2367,7 @@ public class Client {
     }
 
     long exchangeId = Long.parseLong(parameters[index++]);
-    byte[] tokenId = parameters[index++].getBytes();
+    byte[] tokenId = parameters[index++].getBytes(StandardCharsets.UTF_8);
     long quant = Long.parseLong(parameters[index++]);
     boolean result = walletApiWrapper.exchangeInject(ownerAddress, exchangeId, tokenId, quant, multi);
     if (result) {
@@ -2389,7 +2398,7 @@ public class Client {
     }
 
     long exchangeId = Long.parseLong(parameters[index++]);
-    byte[] tokenId = parameters[index++].getBytes();
+    byte[] tokenId = parameters[index++].getBytes(StandardCharsets.UTF_8);
     long quant = Long.parseLong(parameters[index++]);
     boolean result = walletApiWrapper.exchangeWithdraw(ownerAddress, exchangeId, tokenId, quant, multi);
     if (result) {
@@ -2421,7 +2430,7 @@ public class Client {
     }
 
     long exchangeId = Long.parseLong(parameters[index++]);
-    byte[] tokenId = parameters[index++].getBytes();
+    byte[] tokenId = parameters[index++].getBytes(StandardCharsets.UTF_8);
     long quant = Long.parseLong(parameters[index++]);
     long expected = Long.parseLong(parameters[index++]);
     boolean result = walletApiWrapper
@@ -2692,7 +2701,7 @@ public class Client {
   }
 
   private void clearWalletKeystoreIfExists() {
-    if (walletApiWrapper.clearWalletKeystore()) {
+    if (walletApiWrapper.clearWalletKeystore(false)) {
       System.out.println("ClearWalletKeystore " + successfulHighlight() + " !!!");
     } else {
       System.out.println("ClearWalletKeystore " + failedHighlight() + " !!!");
@@ -3343,9 +3352,9 @@ public class Client {
       return;
     }
 
-    byte[] sellTokenId = parameters[index++].getBytes();
+    byte[] sellTokenId = parameters[index++].getBytes(StandardCharsets.UTF_8);
     long sellTokenQuantity = Long.parseLong(parameters[index++]);
-    byte[] buyTokenId = parameters[index++].getBytes();
+    byte[] buyTokenId = parameters[index++].getBytes(StandardCharsets.UTF_8);
     long buyTokenQuantity = Long.parseLong(parameters[index++]);
 
     boolean result = walletApiWrapper
@@ -3420,8 +3429,8 @@ public class Client {
     }
 
     int index = 0;
-    byte[] sellTokenId = parameters[index++].getBytes();
-    byte[] buyTokenId = parameters[index++].getBytes();
+    byte[] sellTokenId = parameters[index++].getBytes(StandardCharsets.UTF_8);
+    byte[] buyTokenId = parameters[index++].getBytes(StandardCharsets.UTF_8);
 
     Response.MarketPriceList marketPriceList = walletApiWrapper
         .getMarketPriceByPair(sellTokenId, buyTokenId);
@@ -3442,8 +3451,8 @@ public class Client {
     }
 
     int index = 0;
-    byte[] sellTokenId = parameters[index++].getBytes();
-    byte[] buyTokenId = parameters[index++].getBytes();
+    byte[] sellTokenId = parameters[index++].getBytes(StandardCharsets.UTF_8);
+    byte[] buyTokenId = parameters[index++].getBytes(StandardCharsets.UTF_8);
 
     Response.MarketOrderList orderListByPair = walletApiWrapper
         .getMarketOrderListByPair(sellTokenId, buyTokenId);
@@ -4217,6 +4226,10 @@ public class Client {
               getPrivateKeyByMnemonic();
               break;
             }
+            case "getpaginatednowwitnesslist": {
+              getPaginatedNowWitnessList(parameters);
+              break;
+            }
             default: {
               System.out.println("Invalid cmd: " + cmd);
               help(new String[]{});
@@ -4238,6 +4251,22 @@ public class Client {
       }
     } catch (IOException e) {
       System.out.println("\nBye.");
+    }
+  }
+
+  private void getPaginatedNowWitnessList(String[] parameters) {
+    if (ArrayUtils.isEmpty(parameters) || parameters.length != 2) {
+      System.out.println("getPaginatedNowWitnessList needs 2 parameters using the following syntax: ");
+      System.out.println("getPaginatedNowWitnessList offset limit ");
+      return;
+    }
+    int offset = Integer.parseInt(parameters[0]);
+    int limit = Integer.parseInt(parameters[1]);
+    Response.WitnessList witnessList = walletApiWrapper.getPaginatedNowWitnessList(offset, limit);
+    if (witnessList != null) {
+      System.out.println(Utils.formatMessageString(witnessList));
+    } else {
+      System.out.println("getPaginatedNowWitnessList " + failedHighlight() + " !!!");
     }
   }
 
@@ -4431,7 +4460,13 @@ public class Client {
         ownerAddress, contractAddress, 0, input, 0, 0, "", true, true, false);
     long energyUsed = estimateTtriple.getMiddle();
     // The fee limit rises by 20% in the total energy price
-    long feeLimit = (long) (energyFee * energyUsed * 1.2);
+    long feeLimit;
+    try {
+      feeLimit = WalletApiWrapper.computeBufferedFeeLimit(energyFee, energyUsed);
+    } catch (ArithmeticException e) {
+      System.out.println("Estimated fee limit is too large.");
+      return;
+    }
     if (multi) {
       if (!DecodeUtil.addressValid(decodeFromBase58Check(base58ToAddress))) {
         System.out.println("Invalid toAddress!");
@@ -4662,12 +4697,131 @@ public class Client {
   }
 
   public static void main(String[] args) {
-    Client cli = new Client();
-    JCommander.newBuilder()
-        .addObject(cli)
-        .build()
-        .parse(args);
+    System.exit(runMain(args));
+  }
 
-    cli.run();
+  static int runMain(String[] args) {
+    GlobalOptions globalOpts;
+    try {
+      globalOpts = GlobalOptions.parse(args);
+    } catch (IllegalArgumentException e) {
+      OutputFormatter.OutputMode mode = requestsJsonOutput(args)
+          ? OutputFormatter.OutputMode.JSON
+          : OutputFormatter.OutputMode.TEXT;
+      OutputFormatter formatter = new OutputFormatter(mode, false, System.out, System.err);
+      try {
+        formatter.usageError(e.getMessage(), null);
+      } catch (RuntimeException ignored) {
+        // usageError intentionally aborts normal control flow after recording the outcome
+      }
+      formatter.flush();
+      return 2;
+    }
+
+    if (globalOpts.isVersion()) {
+      String version = "wallet-cli" + VERSION;
+      if (globalOpts.getOutputMode() == OutputFormatter.OutputMode.JSON) {
+        OutputFormatter fmt = new OutputFormatter(
+            OutputFormatter.OutputMode.JSON, false, System.out, System.err);
+        Map<String, Object> data = new LinkedHashMap<String, Object>();
+        data.put("version", version);
+        fmt.success(version, data);
+        fmt.flush();
+      } else {
+        System.out.println(version);
+      }
+      return 0;
+    }
+
+    if (globalOpts.isInteractive() || shouldLaunchInteractiveByDefault(args, globalOpts)) {
+      Client cli = new Client();
+      JCommander.newBuilder()
+          .addObject(cli)
+          .build()
+          .parse(new String[0]);
+      cli.run();
+      return 0;
+    }
+
+    if (globalOpts.isHelp()) {
+      CommandRegistry registry = initRegistry();
+      String helpText = registry.formatGlobalHelp(VERSION);
+      if (globalOpts.getOutputMode() == OutputFormatter.OutputMode.JSON) {
+        OutputFormatter formatter = new OutputFormatter(
+            OutputFormatter.OutputMode.JSON, false, System.out, System.err);
+        formatter.help(helpText);
+        formatter.flush();
+      } else {
+        System.out.println(helpText);
+      }
+      return 0;
+    }
+
+    if (globalOpts.getCommand() == null) {
+      CommandRegistry registry = initRegistry();
+      if (globalOpts.getOutputMode() == OutputFormatter.OutputMode.JSON) {
+        OutputFormatter formatter = new OutputFormatter(
+            OutputFormatter.OutputMode.JSON, false, System.out, System.err);
+        try {
+          formatter.usageError("Missing command.", null);
+        } catch (RuntimeException ignored) {
+          // usageError intentionally aborts normal control flow after recording the outcome
+        }
+        formatter.flush();
+      } else {
+        OutputFormatter formatter = new OutputFormatter(
+            OutputFormatter.OutputMode.TEXT, false, System.out, System.err);
+        try {
+          formatter.usageError("Missing command.", null);
+        } catch (RuntimeException ignored) {
+          // usageError intentionally aborts normal control flow after recording the outcome
+        }
+        formatter.flush();
+        System.err.println();
+        System.err.println(registry.formatGlobalHelp(VERSION));
+      }
+      return 2;
+    }
+
+    // Standard CLI mode
+    CommandRegistry registry = initRegistry();
+    StandardCliRunner runner = new StandardCliRunner(registry, globalOpts);
+    return runner.execute();
+  }
+
+  static boolean shouldLaunchInteractiveByDefault(String[] args, GlobalOptions globalOpts) {
+    return args.length == 0
+        && globalOpts.getOutputMode() == OutputFormatter.OutputMode.TEXT
+        && globalOpts.getCommand() == null
+        && !globalOpts.isHelp()
+        && !globalOpts.isVersion();
+  }
+
+  private static boolean requestsJsonOutput(String[] args) {
+    // Fallback scan for parse errors assumes --output is a standard-CLI global-only option.
+    for (int i = 0; i < args.length; i++) {
+      String token = args[i];
+      if ("--output".equals(token)) {
+        return i + 1 < args.length && "json".equalsIgnoreCase(args[i + 1]);
+      }
+      if (token.startsWith("--output=")) {
+        return "json".equalsIgnoreCase(token.substring("--output=".length()));
+      }
+    }
+    return false;
+  }
+
+  private static CommandRegistry initRegistry() {
+    CommandRegistry registry = new CommandRegistry();
+    org.tron.walletcli.cli.commands.QueryCommands.register(registry);
+    org.tron.walletcli.cli.commands.TransactionCommands.register(registry);
+    org.tron.walletcli.cli.commands.ContractCommands.register(registry);
+    org.tron.walletcli.cli.commands.StakingCommands.register(registry);
+    org.tron.walletcli.cli.commands.WitnessCommands.register(registry);
+    org.tron.walletcli.cli.commands.ProposalCommands.register(registry);
+    org.tron.walletcli.cli.commands.ExchangeCommands.register(registry);
+    org.tron.walletcli.cli.commands.WalletCommands.register(registry);
+    org.tron.walletcli.cli.commands.MiscCommands.register(registry);
+    return registry;
   }
 }

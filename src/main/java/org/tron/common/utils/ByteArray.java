@@ -19,6 +19,7 @@
 package org.tron.common.utils;
 
 import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
 import java.nio.ByteBuffer;
 import org.bouncycastle.util.encoders.Hex;
 
@@ -54,7 +55,7 @@ public class ByteArray {
             return null;
         }
 
-        return str.getBytes();
+        return str.getBytes(StandardCharsets.UTF_8);
     }
 
     public static String toStr(byte[] byteArray) {

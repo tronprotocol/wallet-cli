@@ -20,8 +20,6 @@ package org.tron.core.config;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
-import lombok.extern.slf4j.Slf4j;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -30,7 +28,6 @@ import java.io.InputStreamReader;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
 
-@Slf4j
 public class Configuration {
 
   private static Config config;
@@ -47,17 +44,16 @@ public class Configuration {
     }
 
     if (config == null) {
-      File configFile = new File(System.getProperty("user.dir")+'/'+configurationPath);
-      if(configFile.exists()){
+      File configFile = new File(System.getProperty("user.dir") + '/' + configurationPath);
+      if (configFile.exists()) {
         try {
-          config = ConfigFactory.parseReader(new InputStreamReader(new FileInputStream(configurationPath)));
-          System.out.println("Use user defined config file in current dir");
+          config = ConfigFactory.parseReader(
+              new InputStreamReader(new FileInputStream(configFile)));
         } catch (FileNotFoundException e) {
-          System.out.println("Load user defined config file exception: " + e.getMessage());
+          config = ConfigFactory.load(configurationPath);
         }
-      }else {
+      } else {
         config = ConfigFactory.load(configurationPath);
-        System.out.println("User defined config file doesn't exists, use default config file in jar");
       }
     }
     return config;

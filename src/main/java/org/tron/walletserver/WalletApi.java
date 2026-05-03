@@ -20,8 +20,7 @@ import static org.tron.common.utils.Utils.greenBoldHighlight;
 import static org.tron.common.utils.Utils.inputPassword;
 import static org.tron.common.utils.Utils.redBoldHighlight;
 import static org.tron.common.utils.Utils.yellowBoldHighlight;
-import static org.tron.core.config.Parameter.CommonConstant.ADD_PRE_FIX_BYTE_MAINNET;
-import static org.tron.core.config.Parameter.CommonConstant.ADD_PRE_FIX_BYTE_TESTNET;
+import static org.tron.core.config.Parameter.CommonConstant.ADD_PRE_FIX_BYTE_DEFAULT;
 import static org.tron.keystore.StringUtils.char2Byte;
 import static org.tron.keystore.Wallet.decrypt2PrivateBytes;
 import static org.tron.multi.MultiSignService.CONTRACT_TYPE_SET;
@@ -35,6 +34,7 @@ import com.alibaba.fastjson.JSONObject;
 import com.google.common.math.LongMath;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -87,6 +87,7 @@ import org.tron.common.enums.NetType;
 import org.tron.common.utils.Base58;
 import org.tron.common.utils.ByteArray;
 import org.tron.common.utils.DecodeUtil;
+import org.tron.common.utils.FilePermissionUtils;
 import org.tron.common.utils.MultiTxWebSocketClient;
 import org.tron.common.utils.TransactionUtils;
 import org.tron.common.utils.Utils;
@@ -152,6 +153,7 @@ import org.tron.trident.proto.Response;
 
 @Slf4j
 public class WalletApi {
+  private static final ThreadLocal<String> LAST_CLI_OPERATION_ERROR = new ThreadLocal<String>();
   public static final long TRX_PRECISION = 1000_000L;
   private static final String FilePath = "Wallet";
   private static final String MnemonicFilePath = "Mnemonic";
@@ -159,7 +161,7 @@ public class WalletApi {
   private List<WalletFile> walletFile = new ArrayList<>();
   private boolean loginState = false;
   private byte[] address;
-  private static byte addressPreFixByte = ADD_PRE_FIX_BYTE_TESTNET;
+  private static byte addressPreFixByte = ADD_PRE_FIX_BYTE_DEFAULT;
   private static int rpcVersion = 0;
   private static boolean lockAccount;
   private static boolean isEckey = true;
@@ -191,6 +193,24 @@ public class WalletApi {
   @Setter
   private static Pair<Pair<String, Boolean>, Pair<String, Boolean>> customNodes;
   public MultiSignService multiSignService = initMultiSignService();
+
+  public static final class WalletCreationResult {
+    private final WalletFile walletFile;
+    private final String mnemonicKeystoreName;
+
+    private WalletCreationResult(WalletFile walletFile, String mnemonicKeystoreName) {
+      this.walletFile = walletFile;
+      this.mnemonicKeystoreName = mnemonicKeystoreName;
+    }
+
+    public WalletFile getWalletFile() {
+      return walletFile;
+    }
+
+    public String getMnemonicKeystoreName() {
+      return mnemonicKeystoreName;
+    }
+  }
 
   private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
   private ScheduledFuture<?> autoLockFuture;
@@ -240,30 +260,24 @@ public class WalletApi {
     if (isEmpty(fullNode) && isEmpty(solidityNode)) {
       fullNode = MAIN.getGrpc().getFullNode();
       solidityNode = MAIN.getGrpc().getSolidityNode();
-      System.out.println("Detected that both the " + greenBoldHighlight("fullnode.ip.list") + " and " + greenBoldHighlight("soliditynode.ip.list") + " configured in the config.conf are empty, and the default " + blueBoldHighlight("MAIN") + " network connection will be used.");
     }
     boolean isFullnodeEmpty = false;
     boolean isSoliditynodeEmpty = false;
     if (isEmpty(fullNode) && !isEmpty(solidityNode)) {
       fullNode = solidityNode;
       isFullnodeEmpty = true;
-      System.out.println(yellowBoldHighlight("If only soliditynode.ip.list is configured, transactions and other operations will not be available."));
     } else if (!isEmpty(fullNode) && isEmpty(solidityNode)) {
       solidityNode = fullNode;
       isSoliditynodeEmpty = true;
     }
-    if (config.hasPath("net.type") && "mainnet".equalsIgnoreCase(config.getString("net.type"))) {
-      WalletApi.setAddressPreFixByte(ADD_PRE_FIX_BYTE_MAINNET);
-    } else {
-      WalletApi.setAddressPreFixByte(ADD_PRE_FIX_BYTE_TESTNET);
-    }
+  
+    WalletApi.setAddressPreFixByte(ADD_PRE_FIX_BYTE_DEFAULT);
+
     if (config.hasPath("crypto.engine")) {
       isEckey = config.getString("crypto.engine").equalsIgnoreCase("eckey");
-      System.out.println("WalletApi getConfig isEckey: " + isEckey);
     }
     if (config.hasPath("lockAccount")) {
       lockAccount = config.getBoolean("lockAccount");
-      System.out.println("WalletApi lockAccount : " + lockAccount);
     }
     if (StringUtils.isNotEmpty(fullNode) || StringUtils.isNotEmpty(solidityNode)) {
       if (fullNode.equals(NILE.getGrpc().getFullNode()) && solidityNode.equals(NILE.getGrpc().getSolidityNode())) {
@@ -276,7 +290,10 @@ public class WalletApi {
         currentNetwork = CUSTOM;
       }
     } else {
-      System.out.println("The config.conf configuration is invalid. " + greenBoldHighlight("fullnode.ip.lit") + " and " + greenBoldHighlight("fullnode.ip.lit") + " cannot both be empty at the same time.");
+      throw new IllegalStateException("The config.conf configuration is invalid. "
+          + greenBoldHighlight("fullnode.ip.lit") + " and "
+          + greenBoldHighlight("fullnode.ip.lit")
+          + " cannot both be empty at the same time.");
     }
     WalletApi.setCustomNodes(Pair.of(Pair.of(fullNode, isFullnodeEmpty), Pair.of(solidityNode, isSoliditynodeEmpty)));
     return new ApiClient(fullNode, solidityNode, isFullnodeEmpty, isSoliditynodeEmpty);
@@ -326,30 +343,48 @@ public class WalletApi {
    * Creates a new WalletApi with a random ECKey or no ECKey.
    */
   public static WalletFile CreateWalletFile(byte[] password, int wordsNumber) throws CipherException, IOException {
+    return createWalletFile(password, wordsNumber, true).getWalletFile();
+  }
+
+  public static WalletCreationResult CreateWalletFileForCli(byte[] password, int wordsNumber)
+      throws CipherException, IOException {
+    return createWalletFile(password, wordsNumber, false);
+  }
+
+  private static WalletCreationResult createWalletFile(byte[] password, int wordsNumber, boolean printMnemonicPath)
+      throws CipherException, IOException {
     WalletFile walletFile = null;
+    String mnemonicKeystoreName = null;
     SecureRandom secureRandom = Utils.getRandom();
+    byte[] priKey = null;
+    List<String> mnemonicWords = null;
     try {
-      List<String> mnemonicWords = MnemonicUtils.generateMnemonic(secureRandom, wordsNumber);
-      byte[] priKey = MnemonicUtils.getPrivateKeyFromMnemonic(mnemonicWords);
+      mnemonicWords = MnemonicUtils.generateMnemonic(secureRandom, wordsNumber);
+      priKey = MnemonicUtils.getPrivateKeyFromMnemonic(mnemonicWords);
 
       if (isEckey) {
         ECKey ecKey = new ECKey(priKey, true);
         walletFile = Wallet.createStandard(password, ecKey);
-        storeMnemonicWords(password, ecKey, mnemonicWords);
+        mnemonicKeystoreName = storeMnemonicWords(password, ecKey, mnemonicWords, printMnemonicPath);
       } else {
         SM2 sm2 = new SM2(priKey, true);
         walletFile = Wallet.createStandard(password, sm2);
-        storeMnemonicWords(password, sm2, mnemonicWords);
-      }
-      Arrays.fill(priKey, (byte) 0);
-      for (int i = 0; i < mnemonicWords.size(); i++) {
-        mnemonicWords.set(i, null);
+        mnemonicKeystoreName = storeMnemonicWords(password, sm2, mnemonicWords, printMnemonicPath);
       }
     } catch (Exception e) {
       throw new IOException("Mnemonic generation failed", e);
+    } finally {
+      if (priKey != null) {
+        Arrays.fill(priKey, (byte) 0);
+      }
+      if (mnemonicWords != null) {
+        for (int i = 0; i < mnemonicWords.size(); i++) {
+          mnemonicWords.set(i, null);
+        }
+      }
     }
 
-    return walletFile;
+    return new WalletCreationResult(walletFile, mnemonicKeystoreName);
   }
 
   public static WalletFile CreateLedgerWalletFile(byte[] password, String address, String path)
@@ -358,30 +393,57 @@ public class WalletApi {
   }
 
   public static void storeMnemonicWords(byte[] password, SignInterface ecKeySm2Pair, List<String> mnemonicWords) throws CipherException, IOException {
+    storeMnemonicWords(password, ecKeySm2Pair, mnemonicWords, true);
+  }
+
+  private static String storeMnemonicWords(byte[] password, SignInterface ecKeySm2Pair,
+      List<String> mnemonicWords, boolean printMnemonicPath) throws CipherException, IOException {
     MnemonicFile mnemonicFile = Mnemonic.createStandard(password, ecKeySm2Pair, mnemonicWords);
     String keystoreName = MnemonicUtils.store2Keystore(mnemonicFile);
-    System.out.println("mnemonic file : ."
-        + File.separator + "Mnemonic" + File.separator
-        + keystoreName);
+    if (printMnemonicPath) {
+      System.out.println("mnemonic file : ."
+          + File.separator + "Mnemonic" + File.separator
+          + keystoreName);
+    }
+    return keystoreName;
   }
 
   //  Create Wallet with a pritKey
   public static WalletFile CreateWalletFile(byte[] password, byte[] priKey, List<String> mnemonicWords) throws CipherException, IOException {
+    return createWalletFile(password, priKey, mnemonicWords, true).getWalletFile();
+  }
+
+  public static WalletCreationResult CreateWalletFileForCli(
+      byte[] password, byte[] priKey, List<String> mnemonicWords) throws CipherException, IOException {
+    return createWalletFile(password, priKey, mnemonicWords, false);
+  }
+
+  public static String getAddressFromPrivateKeyForCli(byte[] priKey) {
+    if (isEckey) {
+      return encode58Check(ECKey.fromPrivate(priKey).getAddress());
+    }
+    return encode58Check(SM2.fromPrivate(priKey).getAddress());
+  }
+
+  private static WalletCreationResult createWalletFile(
+      byte[] password, byte[] priKey, List<String> mnemonicWords, boolean printMnemonicPath)
+      throws CipherException, IOException {
     WalletFile walletFile = null;
+    String mnemonicKeystoreName = null;
     if (isEckey) {
       ECKey ecKey = ECKey.fromPrivate(priKey);
       walletFile = Wallet.createStandard(password, ecKey);
       if (mnemonicWords != null && !mnemonicWords.isEmpty()) {
-        storeMnemonicWords(password, ecKey, mnemonicWords);
+        mnemonicKeystoreName = storeMnemonicWords(password, ecKey, mnemonicWords, printMnemonicPath);
       }
     } else {
       SM2 sm2 = SM2.fromPrivate(priKey);
       walletFile = Wallet.createStandard(password, sm2);
       if (mnemonicWords != null && !mnemonicWords.isEmpty()) {
-        storeMnemonicWords(password, sm2, mnemonicWords);
+        mnemonicKeystoreName = storeMnemonicWords(password, sm2, mnemonicWords, printMnemonicPath);
       }
     }
-    return walletFile;
+    return new WalletCreationResult(walletFile, mnemonicKeystoreName);
   }
 
   public boolean isLoginState() {
@@ -391,10 +453,16 @@ public class WalletApi {
   public void logout() {
     loginState = false;
     walletFile.clear();
-    this.walletFile = null;
     setLedgerUser(false);
     setCredentials(null);
+    if (unifiedPassword != null) {
+      Arrays.fill(unifiedPassword, (byte) 0);
+    }
     setUnifiedPassword(null);
+    if (pwdForDeploy != null) {
+      Arrays.fill(pwdForDeploy, (byte) 0);
+    }
+    pwdForDeploy = null;
   }
 
   public void setLogin(LineReader lineReader) {
@@ -430,7 +498,7 @@ public class WalletApi {
   }
 
   public boolean checkPassword(byte[] passwd) throws CipherException {
-    return Wallet.validPassword(passwd, this.walletFile.get(0));
+    return Wallet.validPassword(passwd, requireLoadedWalletFile());
   }
 
   /**
@@ -446,6 +514,13 @@ public class WalletApi {
   }
 
   public WalletFile getWalletFile() {
+    return requireLoadedWalletFile();
+  }
+
+  private WalletFile requireLoadedWalletFile() {
+    if (walletFile == null || walletFile.isEmpty() || walletFile.get(0) == null) {
+      throw new IllegalStateException("Wallet not loaded.");
+    }
     return walletFile.get(0);
   }
 
@@ -515,6 +590,7 @@ public class WalletApi {
         }
       }
     }
+    FilePermissionUtils.setOwnerOnlyDirectory(file.toPath());
     return WalletUtils.generateWalletFile(walletFile, file);
   }
 
@@ -539,6 +615,7 @@ public class WalletApi {
         }
       }
     }
+    FilePermissionUtils.setOwnerOnlyDirectory(file.toPath());
     return WalletUtils.generateLegerWalletFile(walletFile, file);
   }
 
@@ -600,7 +677,7 @@ public class WalletApi {
       return null;
     }
 
-    File[] wallets = file.listFiles();
+    File[] wallets = file.listFiles((dir, name) -> !name.equals(".active-wallet"));
     if (ArrayUtils.isEmpty(wallets)) {
       return null;
     }
@@ -659,7 +736,7 @@ public class WalletApi {
       return new File[0];
     }
 
-    File[] wallets = file.listFiles();
+    File[] wallets = file.listFiles((dir, name) -> !name.equals(".active-wallet"));
     if (ArrayUtils.isEmpty(wallets)) {
       return new File[0];
     }
@@ -741,6 +818,15 @@ public class WalletApi {
       throw new IOException(
           "No keystore file found, please use " + greenBoldHighlight("RegisterWallet") + " or " + greenBoldHighlight("ImportWallet") + " first!");
     }
+    return changeKeystorePassword(oldPassword, newPassowrd, wallet);
+  }
+
+  public static boolean changeKeystorePassword(byte[] oldPassword, byte[] newPassowrd, File wallet)
+      throws IOException, CipherException {
+    if (wallet == null) {
+      throw new IOException(
+          "No keystore file found, please use " + greenBoldHighlight("RegisterWallet") + " or " + greenBoldHighlight("ImportWallet") + " first!");
+    }
     Credentials credentials = WalletUtils.loadCredentials(oldPassword, wallet);
     WalletUtils.updateWalletFile(newPassowrd, credentials.getPair(), wallet, true);
 
@@ -753,7 +839,12 @@ public class WalletApi {
         List<String> words = MnemonicUtils.stringToMnemonicWords(new String(mnemonicBytes));
         MnemonicUtils.updateMnemonicFile(newPassowrd, credentials.getPair(), mnemonicFile, true, words);
       } catch (Exception e) {
-        System.out.println("update mnemonic file " + failedHighlight() + ", please check the mnemonic file");
+        // Use stderr to avoid stdout pollution in JSON mode.
+        // We do NOT throw here: the wallet keystore password was already successfully changed;
+        // the mnemonic inconsistency is a warning, not a failure.
+        System.err.println("Warning: mnemonic file password update failed — "
+            + "wallet and mnemonic are out of sync. Please re-run change-password. ("
+            + e.getMessage() + ")");
       }
     }
     return true;
@@ -954,6 +1045,71 @@ public class WalletApi {
     return transaction;
   }
 
+  private Chain.Transaction signTransactionForCli(Chain.Transaction transaction, boolean multi)
+      throws CipherException, IOException, CancelException {
+    if (!isUnlocked()) {
+      throw new IllegalStateException(LOCK_WARNING);
+    }
+    if (!isUnifiedExist()) {
+      throw new IllegalStateException(
+          "Signing requires authenticated session. Unified password not set.");
+    }
+    if (transaction.getRawData().getTimestamp() == 0) {
+      transaction = TransactionUtils.setTimestamp(transaction);
+    }
+    transaction = TransactionUtils.setExpirationTime(transaction, multi);
+    transaction = TransactionUtils.setPermissionId(transaction, null);
+    while (true) {
+      WalletFile wf = getWalletFile();
+      boolean isLedgerFile = wf.getName().contains("Ledger");
+      byte[] passwd = getUnifiedPassword();
+      String ledgerPath = getLedgerPath(passwd, wf);
+      if (isLedgerFile) {
+        boolean result = LedgerSignUtil.requestLedgerSignLogic(transaction, ledgerPath, wf.getAddress(), false);
+        if (!result) {
+          recordLastCliOperationError("Ledger signing was rejected or failed");
+          return null;
+        }
+        transaction = TransactionSignManager.getInstance().getTransaction();
+        Response.TransactionSignWeight weight = getTransactionSignWeight(transaction);
+        if (weight.getResult().getCode() == Response.TransactionSignWeight.Result.response_code.ENOUGH_PERMISSION) {
+          TransactionSignManager.getInstance().setTransaction(null);
+          return transaction;
+        }
+        HidDevice hidDevice = HidServicesWrapper.getInstance().getHidDevice(wf.getAddress(), getPath());
+        if (hidDevice == null) {
+          TransactionSignManager.getInstance().setTransaction(null);
+          recordLastCliOperationError("Ledger device not found or disconnected");
+          return null;
+        }
+        Optional<String> state = LedgerSignResult.getLastTransactionState(hidDevice.getPath());
+        boolean confirmed = state.isPresent() && LedgerSignResult.SIGN_RESULT_SUCCESS.equals(state.get());
+        if (weight.getResult().getCode() == Response.TransactionSignWeight.Result.response_code.NOT_ENOUGH_PERMISSION
+            && confirmed && multi) {
+          TransactionSignManager.getInstance().setTransaction(null);
+          return transaction;
+        }
+        TransactionSignManager.getInstance().setTransaction(null);
+        throw new CancelException(weight.getResult().getMessage());
+      }
+      if (isEckey) {
+        transaction = TransactionUtils.sign(transaction, this.getEcKey(wf, passwd));
+      } else {
+        transaction = TransactionUtils.sign(transaction, this.getSM2(wf, passwd));
+      }
+      Response.TransactionSignWeight weight = getTransactionSignWeight(transaction);
+      if (weight.getResult().getCode() == Response.TransactionSignWeight.Result.response_code.ENOUGH_PERMISSION) {
+        break;
+      }
+      if (weight.getResult().getCode() == Response.TransactionSignWeight.Result.response_code.NOT_ENOUGH_PERMISSION
+          && multi) {
+        return transaction;
+      }
+      throw new CancelException(weight.getResult().getMessage());
+    }
+    return transaction;
+  }
+
   private boolean processTransactionExtention(Response.TransactionExtention transactionExtention, boolean multi)
       throws IOException, CipherException, CancelException {
     if (transactionExtention == null) {
@@ -1004,6 +1160,107 @@ public class WalletApi {
       txHistoryManager.addTransaction(getCurrentNetwork(), tx);
     }
     return success;
+  }
+
+  private String processTransactionExtentionForCli(
+      Response.TransactionExtention transactionExtention, boolean multi)
+      throws IOException, CipherException, CancelException {
+    clearLastCliOperationError();
+    if (transactionExtention == null) {
+      recordLastCliOperationError("Transaction request returned null");
+      return null;
+    }
+    Response.TransactionReturn ret = transactionExtention.getResult();
+    if (!ret.getResult()) {
+      recordLastCliOperationError(extractTransactionReturnMessage(ret));
+      return null;
+    }
+    Chain.Transaction transaction = transactionExtention.getTransaction();
+    if (transaction.getRawData().getContractCount() == 0) {
+      recordLastCliOperationError("Transaction contains no contract");
+      return null;
+    }
+    if (transaction.getRawData().getContract(0).getType()
+        == Chain.Transaction.Contract.ContractType.ShieldedTransferContract) {
+      recordLastCliOperationError("ShieldedTransferContract is not supported in standard CLI mode");
+      return null;
+    }
+    Chain.Transaction.Contract.ContractType type = transaction.getRawData().getContract(0).getType();
+    if (multi && !CONTRACT_TYPE_SET.contains(type)) {
+      recordLastCliOperationError("Contract type " + type + " is not supported for multi-sign");
+      return null;
+    }
+    transaction = signTransactionForCli(transaction, multi);
+    if (transaction == null) {
+      if (!hasLastCliOperationError()) {
+        recordLastCliOperationError("Transaction signing failed");
+      }
+      return null;
+    }
+    if (multi) {
+      return isMultiSignSuccess(transaction) ? "" : null;
+    }
+    String broadcastError = apiCli.broadcastTransactionForCli(transaction);
+    if (broadcastError != null) {
+      recordLastCliOperationError(broadcastError);
+      return null;
+    }
+    TxHistoryManager txHistoryManager = new TxHistoryManager(encode58Check(getAddress()));
+    String id = ByteArray.toHexString(Sha256Sm3Hash.hash(transaction.getRawData().toByteArray()));
+    Tx tx = getTx(transaction);
+    tx.setId(id);
+    tx.setTimestamp(LocalDateTime.now());
+    tx.setStatus("success");
+    if (getCurrentNetwork() == CUSTOM && getCustomNodes() != null) {
+      tx.setFullNodeEndpoint(getCustomNodes().getLeft().getLeft());
+    }
+    txHistoryManager.addTransaction(getCurrentNetwork(), tx);
+    return id;
+  }
+
+  private String processTransactionForCli(Chain.Transaction transaction, boolean multi)
+      throws IOException, CipherException, CancelException {
+    clearLastCliOperationError();
+    if (transaction == null || transaction.getRawData().getContractCount() == 0) {
+      recordLastCliOperationError("Transaction is null or contains no contract");
+      return null;
+    }
+    if (transaction.getRawData().getContract(0).getType()
+        == Chain.Transaction.Contract.ContractType.ShieldedTransferContract) {
+      recordLastCliOperationError("ShieldedTransferContract is not supported in standard CLI mode");
+      return null;
+    }
+    Chain.Transaction.Contract.ContractType type = transaction.getRawData().getContract(0).getType();
+    if (multi && !CONTRACT_TYPE_SET.contains(type)) {
+      recordLastCliOperationError("Contract type " + type + " is not supported for multi-sign");
+      return null;
+    }
+    transaction = signTransactionForCli(transaction, multi);
+    if (transaction == null) {
+      if (!hasLastCliOperationError()) {
+        recordLastCliOperationError("Transaction signing failed");
+      }
+      return null;
+    }
+    if (multi) {
+      return isMultiSignSuccess(transaction) ? "" : null;
+    }
+    String broadcastError = apiCli.broadcastTransactionForCli(transaction);
+    if (broadcastError != null) {
+      recordLastCliOperationError(broadcastError);
+      return null;
+    }
+    TxHistoryManager txHistoryManager = new TxHistoryManager(encode58Check(getAddress()));
+    String id = ByteArray.toHexString(Sha256Sm3Hash.hash(transaction.getRawData().toByteArray()));
+    Tx tx = getTx(transaction);
+    tx.setId(id);
+    tx.setTimestamp(LocalDateTime.now());
+    tx.setStatus("success");
+    if (getCurrentNetwork() == CUSTOM && getCustomNodes() != null) {
+      tx.setFullNodeEndpoint(getCustomNodes().getLeft().getLeft());
+    }
+    txHistoryManager.addTransaction(getCurrentNetwork(), tx);
+    return id;
   }
 
   private void showTransactionAfterSign(Chain.Transaction transaction)
@@ -1120,6 +1377,14 @@ public class WalletApi {
     }
   }
 
+  private boolean isControlledForCli(byte[] owner) {
+    List<AuthInfo> authInfoList = multiSignService.queryMultiAuth(encode58Check(getAddress()));
+    List<String> ownerAddressList = authInfoList.stream()
+        .map(AuthInfo::getOwnerAddress)
+        .collect(Collectors.toList());
+    return ownerAddressList.contains(encode58Check(owner));
+  }
+
   private boolean isMultiSignSuccess(Chain.Transaction transaction) throws IOException {
     String printTransaction = Utils.printTransaction(transaction);
     JSONObject transactionJO = JSON.parseObject(printTransaction);
@@ -1151,6 +1416,18 @@ public class WalletApi {
     return processTransactionExtention(transactionExtention, multi);
   }
 
+  public String updateAccountForCli(byte[] owner, byte[] accountNameBytes, boolean multi)
+      throws CipherException, IOException, CancelException, IllegalException {
+    if (!isUnlocked()) {
+      throw new IllegalStateException(LOCK_WARNING);
+    }
+    if (owner == null) {
+      owner = getAddress();
+    }
+    Response.TransactionExtention transactionExtention = apiCli.updateAccount(owner, accountNameBytes);
+    return processTransactionExtentionForCli(transactionExtention, multi);
+  }
+
   public boolean setAccountId(byte[] owner, byte[] accountIdBytes)
       throws CipherException, IOException, CancelException, IllegalException {
     if (!isUnlocked()) {
@@ -1168,6 +1445,19 @@ public class WalletApi {
     return processTransaction(transaction);
   }
 
+  public String setAccountIdForCli(byte[] owner, byte[] accountIdBytes)
+      throws CipherException, IOException, CancelException, IllegalException {
+    if (!isUnlocked()) {
+      throw new IllegalStateException(LOCK_WARNING);
+    }
+    if (owner == null) {
+      owner = getAddress();
+    }
+
+    Chain.Transaction transaction = apiCli.setAccountId(accountIdBytes, owner);
+    return processTransactionForCli(transaction, false);
+  }
+
   public boolean updateAsset(
       byte[] owner, byte[] description, byte[] url, long newLimit, long newPublicLimit, boolean multi)
       throws CipherException, IOException, CancelException, IllegalException {
@@ -1182,6 +1472,20 @@ public class WalletApi {
     return processTransactionExtention(transactionExtention, multi);
   }
 
+  public String updateAssetForCli(
+      byte[] owner, byte[] description, byte[] url, long newLimit, long newPublicLimit,
+      boolean multi) throws CipherException, IOException, CancelException, IllegalException {
+    if (!isUnlocked()) {
+      throw new IllegalStateException(LOCK_WARNING);
+    }
+    if (owner == null) {
+      owner = getAddress();
+    }
+    Response.TransactionExtention transactionExtention =
+        apiCli.updateAsset(owner, description, url, newLimit, newPublicLimit);
+    return processTransactionExtentionForCli(transactionExtention, multi);
+  }
+
   public boolean transferAsset(byte[] owner, byte[] to, byte[] assertName, long amount, boolean multi)
       throws CipherException, IOException, CancelException, IllegalException {
     if (!isUnlocked()) {
@@ -1192,6 +1496,64 @@ public class WalletApi {
     }
     Response.TransactionExtention transactionExtention = apiCli.transferTrc10(owner, to, assertName, amount);
     return processTransactionExtention(transactionExtention, multi);
+  }
+
+  public String sendCoinForCli(byte[] owner, byte[] to, long amount, boolean multi)
+      throws CipherException, IOException, CancelException, IllegalException {
+    clearLastCliOperationError();
+    if (!isUnlocked()) {
+      throw new IllegalStateException(LOCK_WARNING);
+    }
+    if (owner == null) {
+      owner = getAddress();
+    }
+    if (multi) {
+      if (!DecodeUtil.addressValid(owner) || !DecodeUtil.addressValid(to)) {
+        recordLastCliOperationError("Invalid owner or recipient address");
+        return null;
+      }
+      if (Arrays.equals(to, owner)) {
+        recordLastCliOperationError("Cannot send to self");
+        return null;
+      }
+      if (amount <= 0) {
+        recordLastCliOperationError("Amount must be positive");
+        return null;
+      }
+      Response.Account account = queryAccount(owner);
+      if (account == null) {
+        recordLastCliOperationError("Failed to query account.");
+        return null;
+      }
+      long balance = account.getBalance();
+      if (balance < amount) {
+        recordLastCliOperationError("Insufficient balance: " + balance + " < " + amount);
+        return null;
+      }
+      if (balance - amount < 200_0000L) {
+        recordLastCliOperationError("Remaining balance would be below minimum (2 TRX)");
+        return null;
+      }
+      if (!isControlledForCli(owner)) {
+        recordLastCliOperationError("Owner address is not controlled by this wallet");
+        return null;
+      }
+    }
+    Response.TransactionExtention transactionExtention = apiCli.transfer(owner, to, amount);
+    return processTransactionExtentionForCli(transactionExtention, multi);
+  }
+
+  public String transferAssetForCli(byte[] owner, byte[] to, byte[] assertName, long amount,
+      boolean multi) throws CipherException, IOException, CancelException, IllegalException {
+    if (!isUnlocked()) {
+      throw new IllegalStateException(LOCK_WARNING);
+    }
+    if (owner == null) {
+      owner = getAddress();
+    }
+    Response.TransactionExtention transactionExtention =
+        apiCli.transferTrc10(owner, to, assertName, amount);
+    return processTransactionExtentionForCli(transactionExtention, multi);
   }
 
   public boolean participateAssetIssue(byte[] owner, byte[] to, byte[] assertName, long amount, boolean multi)
@@ -1207,18 +1569,81 @@ public class WalletApi {
     return processTransactionExtention(transactionExtention, multi);
   }
 
+  public String participateAssetIssueForCli(byte[] owner, byte[] to, byte[] assertName, long amount,
+      boolean multi) throws CipherException, IOException, CancelException, IllegalException {
+    if (!isUnlocked()) {
+      throw new IllegalStateException(LOCK_WARNING);
+    }
+    if (owner == null) {
+      owner = getAddress();
+    }
+    Response.TransactionExtention transactionExtention =
+        apiCli.participateAssetIssueTransaction(owner, to, assertName, amount);
+    return processTransactionExtentionForCli(transactionExtention, multi);
+  }
+
   public static boolean broadcastTransaction(byte[] transactionBytes)
       throws InvalidProtocolBufferException {
     Chain.Transaction transaction = Chain.Transaction.parseFrom(transactionBytes);
-    return apiCli.broadcastTransaction(transaction);
+    return broadcastTransaction(transaction);
   }
 
   public static boolean broadcastTransaction(Transaction transaction) throws InvalidProtocolBufferException {
-    return apiCli.broadcastTransaction(Chain.Transaction.parseFrom(transaction.toByteArray()));
+    return broadcastTransaction(Chain.Transaction.parseFrom(transaction.toByteArray()));
   }
 
   public static boolean broadcastTransaction(Chain.Transaction transaction) {
     return apiCli.broadcastTransaction(transaction);
+  }
+
+  public static Pair<String, String> broadcastTransactionForCli(byte[] transactionBytes)
+      throws InvalidProtocolBufferException {
+    Chain.Transaction transaction = Chain.Transaction.parseFrom(transactionBytes);
+    String error = apiCli.broadcastTransactionForCli(transaction);
+    if (error != null) {
+      return Pair.of(error, null);
+    }
+    String txid = ByteArray.toHexString(Sha256Sm3Hash.hash(transaction.getRawData().toByteArray()));
+    return Pair.of(null, txid);
+  }
+
+  public static String consumeLastCliOperationError() {
+    String error = LAST_CLI_OPERATION_ERROR.get();
+    LAST_CLI_OPERATION_ERROR.remove();
+    return error;
+  }
+
+  private static boolean hasLastCliOperationError() {
+    return LAST_CLI_OPERATION_ERROR.get() != null;
+  }
+
+  private static void clearLastCliOperationError() {
+    LAST_CLI_OPERATION_ERROR.remove();
+  }
+
+  private static void recordLastCliOperationError(String error) {
+    if (StringUtils.isBlank(error)) {
+      LAST_CLI_OPERATION_ERROR.remove();
+      return;
+    }
+    LAST_CLI_OPERATION_ERROR.set(error);
+  }
+
+  private static String extractTransactionReturnMessage(Response.TransactionReturn ret) {
+    if (ret == null) {
+      return "Transaction rejected by node (no details available)";
+    }
+    String message = ret.getMessage().toStringUtf8();
+    if (StringUtils.isNotBlank(message)) {
+      if (ret.getCode() == null) {
+        return message;
+      }
+      return ret.getCode() + ", " + message;
+    }
+    if (ret.getCode() != null) {
+      return ret.getCode().name();
+    }
+    return "Transaction rejected by node (no details available)";
   }
 
   public boolean createAssetIssue(byte[] ownerAddress, String name, String abbrName,
@@ -1236,6 +1661,24 @@ public class WalletApi {
     return processTransactionExtention(transactionExtention, multi);
   }
 
+  public String createAssetIssueForCli(byte[] ownerAddress, String name, String abbrName,
+                                  long totalSupply, int trxNum, int icoNum, int precision,
+                                  long startTime, long endTime, String description,
+                                  String url, long freeNetLimit, long publicFreeNetLimit,
+                                  HashMap<String, String> frozenSupply, boolean multi)
+      throws CipherException, IOException, CancelException, IllegalException {
+    if (!isUnlocked()) {
+      throw new IllegalStateException(LOCK_WARNING);
+    }
+    if (ownerAddress == null) {
+      ownerAddress = getAddress();
+    }
+    Response.TransactionExtention transactionExtention = apiCli.createAssetIssue(ownerAddress, name,
+        abbrName, totalSupply, trxNum, icoNum, startTime, endTime, url, freeNetLimit,
+        publicFreeNetLimit, precision, frozenSupply, description);
+    return processTransactionExtentionForCli(transactionExtention, multi);
+  }
+
   public boolean createAccount(byte[] owner, byte[] address, boolean multi)
       throws CipherException, IOException, CancelException, IllegalException {
     if (!isUnlocked()) {
@@ -1246,6 +1689,18 @@ public class WalletApi {
     }
     Response.TransactionExtention transactionExtention = apiCli.createAccount(owner, address);
     return processTransactionExtention(transactionExtention, multi);
+  }
+
+  public String createAccountForCli(byte[] owner, byte[] address, boolean multi)
+      throws CipherException, IOException, CancelException, IllegalException {
+    if (!isUnlocked()) {
+      throw new IllegalStateException(LOCK_WARNING);
+    }
+    if (owner == null) {
+      owner = getAddress();
+    }
+    Response.TransactionExtention transactionExtention = apiCli.createAccount(owner, address);
+    return processTransactionExtentionForCli(transactionExtention, multi);
   }
 
   public boolean createWitness(byte[] owner, byte[] url, boolean multi)
@@ -1260,6 +1715,18 @@ public class WalletApi {
     return processTransactionExtention(transactionExtention, multi);
   }
 
+  public String createWitnessForCli(byte[] owner, byte[] url, boolean multi)
+      throws CipherException, IOException, CancelException, IllegalException {
+    if (!isUnlocked()) {
+      throw new IllegalStateException(LOCK_WARNING);
+    }
+    if (owner == null) {
+      owner = getAddress();
+    }
+    Response.TransactionExtention transactionExtention = apiCli.createWitness(owner, url);
+    return processTransactionExtentionForCli(transactionExtention, multi);
+  }
+
   public boolean updateWitness(byte[] owner, byte[] url, boolean multi)
       throws CipherException, IOException, CancelException, IllegalException {
     if (!isUnlocked()) {
@@ -1270,6 +1737,18 @@ public class WalletApi {
     }
     Response.TransactionExtention transactionExtention = apiCli.updateWitness(owner, url);
     return processTransactionExtention(transactionExtention, multi);
+  }
+
+  public String updateWitnessForCli(byte[] owner, byte[] url, boolean multi)
+      throws CipherException, IOException, CancelException, IllegalException {
+    if (!isUnlocked()) {
+      throw new IllegalStateException(LOCK_WARNING);
+    }
+    if (owner == null) {
+      owner = getAddress();
+    }
+    Response.TransactionExtention transactionExtention = apiCli.updateWitness(owner, url);
+    return processTransactionExtentionForCli(transactionExtention, multi);
   }
 
   public static Chain.Block getBlock(long blockNum) throws IllegalException {
@@ -1336,6 +1815,68 @@ public class WalletApi {
     }
     Response.TransactionExtention transactionExtention = apiCli.voteWitness(owner, witness);
     return processTransactionExtention(transactionExtention, multi);
+  }
+
+  public String voteWitnessForCli(byte[] owner, HashMap<String, String> witness, boolean multi)
+      throws CipherException, IOException, CancelException, IllegalException {
+    clearLastCliOperationError();
+    if (!isUnlocked()) {
+      throw new IllegalStateException(LOCK_WARNING);
+    }
+    if (owner == null) {
+      owner = getAddress();
+    }
+    if (multi) {
+      if (!DecodeUtil.addressValid(owner)) {
+        recordLastCliOperationError("Invalid ownerAddress!");
+        return null;
+      }
+      if (witness.size() == 0) {
+        recordLastCliOperationError("VoteNumber must more than 0");
+        return null;
+      }
+      if (witness.size() > 30) {
+        recordLastCliOperationError("VoteNumber more than maxVoteNumber 30");
+        return null;
+      }
+      long sum = 0L;
+      for (Map.Entry<String, String> entry : witness.entrySet()) {
+        String voteAddress = entry.getKey();
+        long voteCount;
+        try {
+          voteCount = Long.parseLong(entry.getValue());
+        } catch (NumberFormatException e) {
+          recordLastCliOperationError("Invalid vote count: " + entry.getValue());
+          return null;
+        }
+        if (!DecodeUtil.addressValid(decodeFromBase58Check(voteAddress))) {
+          recordLastCliOperationError("Invalid vote address!");
+          return null;
+        }
+        if (voteCount <= 0) {
+          recordLastCliOperationError("vote count must be greater than 0");
+          return null;
+        }
+        sum = LongMath.checkedAdd(sum, voteCount);
+      }
+      Response.Account account = queryAccount(owner);
+      if (account == null) {
+        recordLastCliOperationError("Failed to query account.");
+        return null;
+      }
+      long tronPower = getTronPower(account) / TRX_PRECISION;
+      if (sum > tronPower) {
+        recordLastCliOperationError("The total number of votes[" + sum
+            + "] is greater than the tronPower[" + tronPower + "]");
+        return null;
+      }
+      if (!isControlledForCli(owner)) {
+        recordLastCliOperationError("Owner address is not controlled by this wallet");
+        return null;
+      }
+    }
+    Response.TransactionExtention transactionExtention = apiCli.voteWitness(owner, witness);
+    return processTransactionExtentionForCli(transactionExtention, multi);
   }
 
   public long getTronPower(Response.Account account) {
@@ -1497,6 +2038,21 @@ public class WalletApi {
     return true;
   }
 
+  /**
+   * CLI-safe password validation — same rules as {@link #passwordValid(char[])} but
+   * without System.out.println side effects. Callers handle messaging.
+   */
+  public static boolean passwordValidQuiet(char[] password) {
+    if (ArrayUtils.isEmpty(password)) {
+      return false;
+    }
+    if (password.length < 6) {
+      return false;
+    }
+    int level = CheckStrength.checkPasswordStrength(password);
+    return level > 4;
+  }
+
   public static boolean addressValid(String addressBase58) {
     byte[] address = decode58Check(addressBase58);
     return ArrayUtils.isNotEmpty(address);
@@ -1504,29 +2060,15 @@ public class WalletApi {
 
   public static boolean addressValid(byte[] address) {
     if (ArrayUtils.isEmpty(address)) {
-      System.out.println("Warning: Address is empty !!");
       return false;
     }
     if (address.length != CommonConstant.ADDRESS_SIZE) {
-      System.out.println(
-          "Warning: Address length need "
-              + CommonConstant.ADDRESS_SIZE
-              + " but "
-              + address.length
-              + " !!");
       return false;
     }
     byte preFixbyte = address[0];
     if (preFixbyte != WalletApi.getAddressPreFixByte()) {
-      System.out.println(
-          "Warning: Address need prefix with "
-              + WalletApi.getAddressPreFixByte()
-              + " but "
-              + preFixbyte
-              + " !!");
       return false;
     }
-    // Other rule;
     return true;
   }
 
@@ -1562,7 +2104,6 @@ public class WalletApi {
 
   public static byte[] decodeFromBase58Check(String addressBase58) {
     if (isEmpty(addressBase58)) {
-      System.out.println("Warning: Address is empty !!");
       return null;
     }
     byte[] address = decode58Check(addressBase58);
@@ -1690,6 +2231,24 @@ public class WalletApi {
     return processTransactionExtention(transactionExtention, multi);
   }
 
+  public String freezeBalanceForCli(
+      byte[] ownerAddress,
+      long frozenBalance,
+      long frozenDuration,
+      int resourceCode,
+      byte[] receiverAddress, boolean multi)
+      throws CipherException, IOException, CancelException, IllegalException {
+    if (!isUnlocked()) {
+      throw new IllegalStateException(LOCK_WARNING);
+    }
+    if (ownerAddress == null) {
+      ownerAddress = getAddress();
+    }
+    Response.TransactionExtention transactionExtention =
+        apiCli.freezeBalance(ownerAddress, frozenBalance, (int) frozenDuration, resourceCode, receiverAddress);
+    return processTransactionExtentionForCli(transactionExtention, multi);
+  }
+
   public boolean freezeBalanceV2(
       byte[] ownerAddress,
       long frozenBalance,
@@ -1723,6 +2282,45 @@ public class WalletApi {
     return processTransactionExtention(transactionExtention, multi);
   }
 
+  public String freezeBalanceV2ForCli(
+      byte[] ownerAddress,
+      long frozenBalance,
+      int resourceCode, boolean multi)
+      throws CipherException, IOException, CancelException, IllegalException {
+    if (!isUnlocked()) {
+      throw new IllegalStateException(LOCK_WARNING);
+    }
+    if (ownerAddress == null) {
+      ownerAddress = getAddress();
+    }
+    if (multi) {
+      if (!DecodeUtil.addressValid(ownerAddress)) {
+        recordLastCliOperationError("Invalid ownerAddress!");
+        return null;
+      }
+      if (frozenBalance < TRX_PRECISION) {
+        recordLastCliOperationError("frozenBalance must be greater than or equal to 1 TRX");
+        return null;
+      }
+      Response.Account account = queryAccount(ownerAddress);
+      if (account == null) {
+        recordLastCliOperationError("Account not found: " + WalletApi.encode58Check(ownerAddress));
+        return null;
+      }
+      if (frozenBalance > account.getBalance()) {
+        recordLastCliOperationError("frozenBalance must be less than or equal to accountBalance");
+        return null;
+      }
+      if (!isControlledForCli(ownerAddress)) {
+        recordLastCliOperationError("Owner address is not controlled by this wallet");
+        return null;
+      }
+    }
+    Response.TransactionExtention transactionExtention =
+        apiCli.freezeBalanceV2(ownerAddress, frozenBalance, resourceCode);
+    return processTransactionExtentionForCli(transactionExtention, multi);
+  }
+
   public boolean unfreezeBalance(byte[] ownerAddress, int resourceCode, byte[] receiverAddress, boolean multi)
       throws CipherException, IOException, CancelException, IllegalException {
     if (!isUnlocked()) {
@@ -1733,6 +2331,20 @@ public class WalletApi {
     }
     Response.TransactionExtention transactionExtention = apiCli.unfreezeBalance(ownerAddress, resourceCode, receiverAddress);
     return processTransactionExtention(transactionExtention, multi);
+  }
+
+  public String unfreezeBalanceForCli(
+      byte[] ownerAddress, int resourceCode, byte[] receiverAddress, boolean multi)
+      throws CipherException, IOException, CancelException, IllegalException {
+    if (!isUnlocked()) {
+      throw new IllegalStateException(LOCK_WARNING);
+    }
+    if (ownerAddress == null) {
+      ownerAddress = getAddress();
+    }
+    Response.TransactionExtention transactionExtention =
+        apiCli.unfreezeBalance(ownerAddress, resourceCode, receiverAddress);
+    return processTransactionExtentionForCli(transactionExtention, multi);
   }
 
   public boolean unfreezeBalanceV2(byte[] ownerAddress, long unfreezeBalance
@@ -1771,6 +2383,48 @@ public class WalletApi {
     return processTransactionExtention(transactionExtention, multi);
   }
 
+  public String unfreezeBalanceV2ForCli(byte[] ownerAddress, long unfreezeBalance,
+      int resourceCode, boolean multi)
+      throws CipherException, IOException, CancelException, IllegalException {
+    if (!isUnlocked()) {
+      throw new IllegalStateException(LOCK_WARNING);
+    }
+    if (ownerAddress == null) {
+      ownerAddress = getAddress();
+    }
+    if (multi) {
+      if (!DecodeUtil.addressValid(ownerAddress)) {
+        recordLastCliOperationError("Invalid ownerAddress!");
+        return null;
+      }
+      Response.Account account = queryAccount(ownerAddress);
+      if (account == null) {
+        recordLastCliOperationError("Failed to query account.");
+        return null;
+      }
+      long frozenAmount = account.getFrozenV2List().stream()
+          .filter(f -> f.getType().getNumber() == resourceCode)
+          .mapToLong(Response.Account.FreezeV2::getAmount)
+          .findFirst()
+          .orElse(0L);
+      if (frozenAmount <= 0) {
+        recordLastCliOperationError("No amount can be unfrozen.");
+        return null;
+      }
+      if (unfreezeBalance > frozenAmount) {
+        recordLastCliOperationError("Exceeds the current maximum unfreeze amount");
+        return null;
+      }
+      if (!isControlledForCli(ownerAddress)) {
+        recordLastCliOperationError("Owner address is not controlled by this wallet");
+        return null;
+      }
+    }
+    Response.TransactionExtention transactionExtention =
+        apiCli.unfreezeBalanceV2(ownerAddress, unfreezeBalance, resourceCode);
+    return processTransactionExtentionForCli(transactionExtention, multi);
+  }
+
   public boolean withdrawExpireUnfreeze(byte[] ownerAddress, boolean multi)
       throws CipherException, IOException, CancelException, IllegalException {
     if (!isUnlocked()) {
@@ -1795,6 +2449,18 @@ public class WalletApi {
     }
     Response.TransactionExtention transactionExtention = apiCli.withdrawExpireUnfreeze(ownerAddress);
     return processTransactionExtention(transactionExtention, multi);
+  }
+
+  public String withdrawExpireUnfreezeForCli(byte[] ownerAddress, boolean multi)
+      throws CipherException, IOException, CancelException, IllegalException {
+    if (!isUnlocked()) {
+      throw new IllegalStateException(LOCK_WARNING);
+    }
+    if (ownerAddress == null) {
+      ownerAddress = getAddress();
+    }
+    Response.TransactionExtention transactionExtention = apiCli.withdrawExpireUnfreeze(ownerAddress);
+    return processTransactionExtentionForCli(transactionExtention, multi);
   }
 
   public boolean delegateResource(byte[] ownerAddress, long balance
@@ -1846,6 +2512,20 @@ public class WalletApi {
     }
     Response.TransactionExtention transactionExtention = apiCli.delegateResource(ownerAddress, balance, resourceCode, receiverAddress, lock, lockPeriod);
     return processTransactionExtention(transactionExtention, multi);
+  }
+
+  public String delegateResourceForCli(byte[] ownerAddress, long balance
+      , int resourceCode, byte[] receiverAddress, boolean lock, long lockPeriod, boolean multi)
+      throws CipherException, IOException, CancelException, IllegalException {
+    if (!isUnlocked()) {
+      throw new IllegalStateException(LOCK_WARNING);
+    }
+    if (ownerAddress == null) {
+      ownerAddress = getAddress();
+    }
+    Response.TransactionExtention transactionExtention =
+        apiCli.delegateResource(ownerAddress, balance, resourceCode, receiverAddress, lock, lockPeriod);
+    return processTransactionExtentionForCli(transactionExtention, multi);
   }
 
   public boolean unDelegateResource(byte[] ownerAddress, long balance
@@ -1923,6 +2603,20 @@ public class WalletApi {
     Response.TransactionExtention transactionExtention = apiCli.unDelegateResource(ownerAddress, balance, resourceCode, receiverAddress);
     return processTransactionExtention(transactionExtention, multi);
   }
+
+  public String unDelegateResourceForCli(byte[] ownerAddress, long balance
+      , int resourceCode, byte[] receiverAddress, boolean multi)
+      throws CipherException, IOException, CancelException, IllegalException {
+    if (!isUnlocked()) {
+      throw new IllegalStateException(LOCK_WARNING);
+    }
+    if (ownerAddress == null) {
+      ownerAddress = getAddress();
+    }
+    Response.TransactionExtention transactionExtention =
+        apiCli.unDelegateResource(ownerAddress, balance, resourceCode, receiverAddress);
+    return processTransactionExtentionForCli(transactionExtention, multi);
+  }
   private boolean emptyResource(Response.DelegatedResource resource) {
     return Objects.isNull(resource) || (resource.getExpireTimeForBandwidth() == 0
         && resource.getExpireTimeForEnergy() == 0
@@ -1949,6 +2643,18 @@ public class WalletApi {
     }
     Response.TransactionExtention transactionExtention = apiCli.cancelAllUnfreezeV2(ownerAddress);
     return processTransactionExtention(transactionExtention, multi);
+  }
+
+  public String cancelAllUnfreezeV2ForCli(byte[] ownerAddress, boolean multi)
+      throws CipherException, IOException, CancelException, IllegalException {
+    if (!isUnlocked()) {
+      throw new IllegalStateException(LOCK_WARNING);
+    }
+    if (ownerAddress == null) {
+      ownerAddress = getAddress();
+    }
+    Response.TransactionExtention transactionExtention = apiCli.cancelAllUnfreezeV2(ownerAddress);
+    return processTransactionExtentionForCli(transactionExtention, multi);
   }
 
   private UnfreezeBalanceContract createUnfreezeBalanceContract(
@@ -2057,6 +2763,18 @@ public class WalletApi {
     return processTransactionExtention(transactionExtention, multi);
   }
 
+  public String unfreezeAssetForCli(byte[] ownerAddress, boolean multi)
+      throws CipherException, IOException, CancelException, IllegalException {
+    if (!isUnlocked()) {
+      throw new IllegalStateException(LOCK_WARNING);
+    }
+    if (ownerAddress == null) {
+      ownerAddress = getAddress();
+    }
+    Response.TransactionExtention transactionExtention = apiCli.unfreezeAsset(ownerAddress);
+    return processTransactionExtentionForCli(transactionExtention, multi);
+  }
+
   private UnfreezeAssetContract createUnfreezeAssetContract(byte[] address) {
     if (address == null) {
       address = getAddress();
@@ -2094,6 +2812,18 @@ public class WalletApi {
     }
     Response.TransactionExtention transactionExtention = apiCli.withdrawBalance(ownerAddress);
     return processTransactionExtention(transactionExtention, multi);
+  }
+
+  public String withdrawBalanceForCli(byte[] ownerAddress, boolean multi)
+      throws CipherException, IOException, CancelException, IllegalException {
+    if (!isUnlocked()) {
+      throw new IllegalStateException(LOCK_WARNING);
+    }
+    if (ownerAddress == null) {
+      ownerAddress = getAddress();
+    }
+    Response.TransactionExtention transactionExtention = apiCli.withdrawBalance(ownerAddress);
+    return processTransactionExtentionForCli(transactionExtention, multi);
   }
 
   private WithdrawBalanceContract createWithdrawBalanceContract(byte[] address) {
@@ -2136,12 +2866,28 @@ public class WalletApi {
 
   public boolean createProposal(byte[] owner, HashMap<Long, Long> parametersMap, boolean multi)
       throws CipherException, IOException, CancelException, IllegalException {
+    if (!isUnlocked()) {
+      throw new IllegalStateException(LOCK_WARNING);
+    }
     if (owner == null) {
       owner = getAddress();
     }
 
     Response.TransactionExtention transactionExtention = apiCli.proposalCreate(owner, parametersMap);
     return processTransactionExtention(transactionExtention, multi);
+  }
+
+  public String createProposalForCli(byte[] owner, HashMap<Long, Long> parametersMap, boolean multi)
+      throws CipherException, IOException, CancelException, IllegalException {
+    if (!isUnlocked()) {
+      throw new IllegalStateException(LOCK_WARNING);
+    }
+    if (owner == null) {
+      owner = getAddress();
+    }
+
+    Response.TransactionExtention transactionExtention = apiCli.proposalCreate(owner, parametersMap);
+    return processTransactionExtentionForCli(transactionExtention, multi);
   }
 
   public static Response.ProposalList listProposals() {
@@ -2219,6 +2965,20 @@ public class WalletApi {
     return processTransactionExtention(transactionExtention, multi);
   }
 
+  public String approveProposalForCli(byte[] owner, long id,
+                                       boolean isAddApproval, boolean multi)
+      throws CipherException, IOException, CancelException, IllegalException {
+    if (!isUnlocked()) {
+      throw new IllegalStateException(LOCK_WARNING);
+    }
+    if (owner == null) {
+      owner = getAddress();
+    }
+
+    Response.TransactionExtention transactionExtention = apiCli.approveProposal(owner, id, isAddApproval);
+    return processTransactionExtentionForCli(transactionExtention, multi);
+  }
+
   public static ProposalApproveContract createProposalApproveContract(
       byte[] owner, long id, boolean is_add_approval) {
     ProposalApproveContract.Builder builder =
@@ -2240,6 +3000,19 @@ public class WalletApi {
 
     Response.TransactionExtention transactionExtention = apiCli.deleteProposal(owner, id);
     return processTransactionExtention(transactionExtention, multi);
+  }
+
+  public String deleteProposalForCli(byte[] owner, long id, boolean multi)
+      throws CipherException, IOException, CancelException, IllegalException {
+    if (!isUnlocked()) {
+      throw new IllegalStateException(LOCK_WARNING);
+    }
+    if (owner == null) {
+      owner = getAddress();
+    }
+
+    Response.TransactionExtention transactionExtention = apiCli.deleteProposal(owner, id);
+    return processTransactionExtentionForCli(transactionExtention, multi);
   }
 
   public static ProposalDeleteContract createProposalDeleteContract(byte[] owner, long id) {
@@ -2266,6 +3039,25 @@ public class WalletApi {
 
     Response.TransactionExtention transactionExtention = apiCli.exchangeCreate(owner, firstTokenId, firstTokenBalance, secondTokenId, secondTokenBalance);
     return processTransactionExtention(transactionExtention, multi);
+  }
+
+  public String exchangeCreateForCli(
+      byte[] owner,
+      byte[] firstTokenId,
+      long firstTokenBalance,
+      byte[] secondTokenId,
+      long secondTokenBalance, boolean multi)
+      throws CipherException, IOException, CancelException, IllegalException {
+    if (!isUnlocked()) {
+      throw new IllegalStateException(LOCK_WARNING);
+    }
+    if (owner == null) {
+      owner = getAddress();
+    }
+
+    Response.TransactionExtention transactionExtention =
+        apiCli.exchangeCreate(owner, firstTokenId, firstTokenBalance, secondTokenId, secondTokenBalance);
+    return processTransactionExtentionForCli(transactionExtention, multi);
   }
 
 
@@ -2300,6 +3092,20 @@ public class WalletApi {
     return processTransactionExtention(transactionExtention, multi);
   }
 
+  public String exchangeInjectForCli(byte[] owner, long exchangeId,
+                                byte[] tokenId, long quant, boolean multi)
+      throws CipherException, IOException, CancelException, IllegalException {
+    if (!isUnlocked()) {
+      throw new IllegalStateException(LOCK_WARNING);
+    }
+    if (owner == null) {
+      owner = getAddress();
+    }
+
+    Response.TransactionExtention transactionExtention = apiCli.exchangeInject(owner, exchangeId, tokenId, quant);
+    return processTransactionExtentionForCli(transactionExtention, multi);
+  }
+
   public static ExchangeInjectContract createExchangeInjectContract(
       byte[] owner, long exchangeId, byte[] tokenId, long quant) {
     ExchangeInjectContract.Builder builder = ExchangeInjectContract
@@ -2326,6 +3132,20 @@ public class WalletApi {
     return processTransactionExtention(transactionExtention, multi);
   }
 
+  public String exchangeWithdrawForCli(byte[] owner, long exchangeId,
+                                  byte[] tokenId, long quant, boolean multi)
+      throws CipherException, IOException, CancelException, IllegalException {
+    if (!isUnlocked()) {
+      throw new IllegalStateException(LOCK_WARNING);
+    }
+    if (owner == null) {
+      owner = getAddress();
+    }
+
+    Response.TransactionExtention transactionExtention = apiCli.exchangeWithdraw(owner, exchangeId, tokenId, quant);
+    return processTransactionExtentionForCli(transactionExtention, multi);
+  }
+
 
   public static ExchangeWithdrawContract createExchangeWithdrawContract(
       byte[] owner, long exchangeId, byte[] tokenId, long quant) {
@@ -2350,6 +3170,20 @@ public class WalletApi {
 
     Response.TransactionExtention transactionExtention = apiCli.exchangeTransaction(owner, exchangeId, tokenId, quant, expected);
     return processTransactionExtention(transactionExtention, multi);
+  }
+
+  public String exchangeTransactionForCli(byte[] owner, long exchangeId, byte[] tokenId, long quant,
+                                     long expected, boolean multi)
+      throws CipherException, IOException, CancelException, IllegalException {
+    if (!isUnlocked()) {
+      throw new IllegalStateException(LOCK_WARNING);
+    }
+    if (owner == null) {
+      owner = getAddress();
+    }
+
+    Response.TransactionExtention transactionExtention = apiCli.exchangeTransaction(owner, exchangeId, tokenId, quant, expected);
+    return processTransactionExtentionForCli(transactionExtention, multi);
   }
 
   public static ExchangeTransactionContract createExchangeTransactionContract(
@@ -2603,7 +3437,11 @@ public class WalletApi {
         .setOwnerAddress(ByteString.copyFrom(address))
         .setNewContract(builder.build());
     if (tokenId != null && !tokenId.equalsIgnoreCase("") && !tokenId.equalsIgnoreCase("#")) {
-      createSmartContractBuilder.setCallTokenValue(tokenValue).setTokenId(Long.parseLong(tokenId));
+      try {
+        createSmartContractBuilder.setCallTokenValue(tokenValue).setTokenId(Long.parseLong(tokenId));
+      } catch (NumberFormatException e) {
+        throw new IllegalArgumentException("token-id must be numeric: " + tokenId, e);
+      }
     }
     return createSmartContractBuilder.build();
   }
@@ -2632,7 +3470,8 @@ public class WalletApi {
 
       String beReplaced;
       if (compilerVersion == null) {
-        // old version
+        // old version — libraryName > 38 chars would cause NegativeArraySizeException,
+        // but Solidity library names are typically short. Low risk; not worth a guard.
         String repeated = new String(
             new char[40 - libraryName.length() - 2])
             .replace("\0", "_");
@@ -2669,9 +3508,13 @@ public class WalletApi {
     }
     builder.setData(ByteString.copyFrom(data));
     builder.setCallValue(callValue);
-    if (tokenId != null && tokenId != "") {
+    if (tokenId != null && !tokenId.isEmpty()) {
       builder.setCallTokenValue(tokenValue);
-      builder.setTokenId(Long.parseLong(tokenId));
+      try {
+        builder.setTokenId(Long.parseLong(tokenId));
+      } catch (NumberFormatException e) {
+        throw new IllegalArgumentException("token-id must be numeric: " + tokenId, e);
+      }
     }
     return builder.build();
   }
@@ -2713,6 +3556,21 @@ public class WalletApi {
         transactionExtention, multi);
   }
 
+  public String updateSettingForCli(byte[] owner, byte[] contractAddress,
+      long consumeUserResourcePercent, boolean multi)
+      throws IOException, CipherException, CancelException, IllegalException {
+    if (!isUnlocked()) {
+      throw new IllegalStateException(LOCK_WARNING);
+    }
+    if (owner == null) {
+      owner = getAddress();
+    }
+
+    Response.TransactionExtention transactionExtention =
+        apiCli.updateSetting(owner, contractAddress, consumeUserResourcePercent);
+    return processTransactionExtentionForCli(transactionExtention, multi);
+  }
+
   public boolean updateEnergyLimit(byte[] owner, byte[] contractAddress, long originEnergyLimit, boolean multi)
       throws IOException, CipherException, CancelException, IllegalException {
     if (!isUnlocked()) {
@@ -2733,6 +3591,21 @@ public class WalletApi {
       return false;
     }
     return processTransactionExtention(transactionExtention, multi);
+  }
+
+  public String updateEnergyLimitForCli(byte[] owner, byte[] contractAddress,
+      long originEnergyLimit, boolean multi)
+      throws IOException, CipherException, CancelException, IllegalException {
+    if (!isUnlocked()) {
+      throw new IllegalStateException(LOCK_WARNING);
+    }
+    if (owner == null) {
+      owner = getAddress();
+    }
+
+    Response.TransactionExtention transactionExtention =
+        apiCli.updateEnergyLimit(owner, contractAddress, originEnergyLimit);
+    return processTransactionExtentionForCli(transactionExtention, multi);
   }
 
   public boolean clearContractABI(byte[] owner, byte[] contractAddress, boolean multi)
@@ -2758,7 +3631,26 @@ public class WalletApi {
     return processTransactionExtention(transactionExtention, multi);
   }
 
-  public boolean clearWalletKeystore() {
+  public String clearContractAbiForCli(byte[] owner, byte[] contractAddress, boolean multi)
+      throws IOException, CipherException, CancelException, IllegalException {
+    if (!isUnlocked()) {
+      throw new IllegalStateException(LOCK_WARNING);
+    }
+    if (owner == null) {
+      owner = getAddress();
+    }
+
+    Response.TransactionExtention transactionExtention = apiCli.clearContractABI(owner, contractAddress);
+    if (transactionExtention == null || !transactionExtention.getResult().getResult()) {
+      recordLastCliOperationError(extractTransactionReturnMessage(
+          transactionExtention == null ? null : transactionExtention.getResult()));
+      return null;
+    }
+
+    return processTransactionExtentionForCli(transactionExtention, multi);
+  }
+
+  public boolean clearWalletKeystore(boolean force) {
     String ownerAddress = WalletApi.encode58Check(getAddress());
 
     List<String> walletPath;
@@ -2786,7 +3678,9 @@ public class WalletApi {
     }
 
     try {
-      return ClearWalletUtils.confirmAndDeleteWallet(ownerAddress, filePaths);
+      return force
+          ? ClearWalletUtils.forceDeleteWallet(ownerAddress, filePaths)
+          : ClearWalletUtils.confirmAndDeleteWallet(ownerAddress, filePaths);
     } catch (Exception e) {
       System.err.println("Error confirming and deleting wallet: " + e.getMessage());
       return false;
@@ -2820,17 +3714,28 @@ public class WalletApi {
     ApiClient tmpApiCli;
     NetType netType = getCurrentNetwork();
     byte[] bytes = isUnifiedExist() ? getUnifiedPassword() : getPwdForDeploy();
-    String privateKey = ByteArray.toHexString(credentials == null ? decrypt2PrivateBytes(bytes, getWalletFile()) : credentials.getPair().getPrivateKey());
+    byte[] rawKey = credentials == null ? decrypt2PrivateBytes(bytes, getWalletFile()) : credentials.getPair().getPrivateKey();
+    byte[] privateKeyBytes = Arrays.copyOf(rawKey, rawKey.length);
+    Arrays.fill(rawKey, (byte) 0);
+    // Trident SDK's ApiWrapper only accepts String for private key; immutable String cannot be
+    // zeroed from JVM heap. Byte arrays are cleared above; residual String risk is a platform
+    // limitation that requires upstream SDK changes to eliminate.
+    String privateKey = ByteArray.toHexString(privateKeyBytes);
+    Arrays.fill(privateKeyBytes, (byte) 0);
     if (netType == CUSTOM) {
       tmpApiCli = new ApiClient(customNodes.getLeft().getLeft(), customNodes.getRight().getLeft(),
           customNodes.getLeft().getRight(), customNodes.getRight().getRight(), privateKey);
     } else {
       tmpApiCli = new ApiClient(netType, privateKey);
     }
-    Response.TransactionExtention transactionExtention = tmpApiCli.deployContract(contractName, ABI,
-        code, Collections.emptyList(), feeLimit, consumeUserResourcePercent, originEnergyLimit,
-        value, tokenId, tokenValue);
-    tmpApiCli.close();
+    Response.TransactionExtention transactionExtention;
+    try {
+      transactionExtention = tmpApiCli.deployContract(contractName, ABI,
+          code, Collections.emptyList(), feeLimit, consumeUserResourcePercent, originEnergyLimit,
+          value, tokenId, tokenValue);
+    } finally {
+      tmpApiCli.close();
+    }
     if (transactionExtention == null || !transactionExtention.getResult().getResult()) {
       System.out.println("RPC create trx " + failedHighlight() + "!");
       if (transactionExtention != null) {
@@ -2861,6 +3766,89 @@ public class WalletApi {
     transactionExtention = texBuilder.build();
 
     return processTransactionExtention(transactionExtention, multi);
+  }
+
+  public Pair<String, String> deployContractForCli(
+      byte[] owner,
+      String contractName,
+      String ABI,
+      String code,
+      long feeLimit,
+      long value,
+      long consumeUserResourcePercent,
+      long originEnergyLimit,
+      long tokenValue,
+      String tokenId,
+      String libraryAddressPair,
+      String compilerVersion,
+      boolean multi)
+      throws Exception {
+    if (!isUnlocked()) {
+      throw new IllegalStateException(LOCK_WARNING);
+    }
+    if (owner == null) {
+      owner = getAddress();
+    }
+
+    if (null != libraryAddressPair) {
+      code = Hex.toHexString(replaceLibraryAddress(code, libraryAddressPair, compilerVersion));
+    }
+    ApiClient tmpApiCli;
+    NetType netType = getCurrentNetwork();
+    byte[] bytes = isUnifiedExist() ? getUnifiedPassword() : getPwdForDeploy();
+    byte[] rawKey = credentials == null
+        ? decrypt2PrivateBytes(bytes, getWalletFile())
+        : credentials.getPair().getPrivateKey();
+    byte[] privateKeyBytes = Arrays.copyOf(rawKey, rawKey.length);
+    Arrays.fill(rawKey, (byte) 0);
+    // Same Trident SDK limitation as deployContract above — see comment there.
+    String privateKey = ByteArray.toHexString(privateKeyBytes);
+    Arrays.fill(privateKeyBytes, (byte) 0);
+    if (netType == CUSTOM) {
+      tmpApiCli = new ApiClient(customNodes.getLeft().getLeft(), customNodes.getRight().getLeft(),
+          customNodes.getLeft().getRight(), customNodes.getRight().getRight(), privateKey);
+    } else {
+      tmpApiCli = new ApiClient(netType, privateKey);
+    }
+    Response.TransactionExtention transactionExtention;
+    try {
+      transactionExtention = tmpApiCli.deployContract(contractName, ABI,
+          code, Collections.emptyList(), feeLimit, consumeUserResourcePercent, originEnergyLimit,
+          value, tokenId, tokenValue);
+    } finally {
+      tmpApiCli.close();
+    }
+    if (transactionExtention == null || !transactionExtention.getResult().getResult()) {
+      recordLastCliOperationError(extractTransactionReturnMessage(
+          transactionExtention == null ? null : transactionExtention.getResult()));
+      return null;
+    }
+
+    Response.TransactionExtention.Builder texBuilder = Response.TransactionExtention.newBuilder();
+    Chain.Transaction.Builder transBuilder = Chain.Transaction.newBuilder();
+    Chain.Transaction.raw.Builder rawBuilder = transactionExtention.getTransaction().getRawData()
+        .toBuilder();
+    rawBuilder.setFeeLimit(feeLimit);
+    transBuilder.setRawData(rawBuilder);
+    for (int i = 0; i < transactionExtention.getTransaction().getSignatureCount(); i++) {
+      ByteString s = transactionExtention.getTransaction().getSignature(i);
+      transBuilder.setSignature(i, s);
+    }
+    for (int i = 0; i < transactionExtention.getTransaction().getRetCount(); i++) {
+      Chain.Transaction.Result r = transactionExtention.getTransaction().getRet(i);
+      transBuilder.setRet(i, r);
+    }
+    texBuilder.setTransaction(transBuilder);
+    texBuilder.setResult(transactionExtention.getResult());
+    texBuilder.setTxid(transactionExtention.getTxid());
+    transactionExtention = texBuilder.build();
+
+    byte[] contractAddr = generateContractAddress(owner, transactionExtention.getTransaction());
+    String txid = processTransactionExtentionForCli(transactionExtention, multi);
+    if (txid == null) {
+      return null;
+    }
+    return Pair.of(encode58Check(contractAddr), txid);
   }
 
   public Triple<Boolean, Long, Long> triggerContract(
@@ -2899,9 +3887,11 @@ public class WalletApi {
 
     if (transactionExtention == null || !transactionExtention.getResult().getResult()) {
       System.out.println("RPC create call trx" + failedHighlight() + "!");
-      System.out.println("Code = " + transactionExtention.getResult().getCode());
-      System.out
-          .println("Message = " + transactionExtention.getResult().getMessage().toStringUtf8());
+      if (transactionExtention != null) {
+        System.out.println("Code = " + transactionExtention.getResult().getCode());
+        System.out
+            .println("Message = " + transactionExtention.getResult().getMessage().toStringUtf8());
+      }
       return Triple.of(false, 0L, 0L);
     }
 
@@ -2909,30 +3899,30 @@ public class WalletApi {
         .getTransaction();
     // for constant
     if (transaction.getRetCount() != 0) {
-      Response.TransactionExtention.Builder builder =
-          transactionExtention.toBuilder().clearTransaction().clearTxid();
-      if (transaction.getRet(0).getRet() == Chain.Transaction.Result.code.FAILED) {
-        builder.setResult(builder.getResult().toBuilder().setResult(false));
-      }
-      long energyUsed = builder.build().getEnergyUsed();
+      Response.TransactionExtention normalized = normalizeConstantContractExtention(transactionExtention);
+      long energyUsed = normalized.getEnergyUsed();
       if (!noExe) {
         if (display) {
           long calculateBandwidth = calculateBandwidth(transaction);
-          String s = new String(builder.build().getResult().getMessage().toByteArray(), StandardCharsets.UTF_8);
+          String s = new String(normalized.getResult().getMessage().toByteArray(), StandardCharsets.UTF_8);
           if ("REVERT opcode executed".equals(s)) {
             System.out.println(redBoldHighlight("The transaction may be reverted."));
           }
           System.out.println("It is estimated that " + greenBoldHighlight(calculateBandwidth) + " bandwidth and " + greenBoldHighlight(energyUsed) + " energy will be consumed.");
         } else {
-          System.out.println("Execution result = " + Utils.formatMessageString(builder.build()));
+          System.out.println("Execution result = " + Utils.formatMessageString(normalized));
         }
       }
       BigInteger bigInteger = BigInteger.valueOf(0L);
-      if (builder.getConstantResultCount() == 1) {
-        ByteString constantResult = builder.getConstantResult(0);
+      if (normalized.getConstantResultCount() == 1) {
+        ByteString constantResult = normalized.getConstantResult(0);
         bigInteger = new BigInteger(1, constantResult.toByteArray());
       }
-      return Triple.of(true, energyUsed, bigInteger.longValue());
+      try {
+        return Triple.of(true, energyUsed, bigInteger.longValueExact());
+      } catch (ArithmeticException e) {
+        return Triple.of(false, energyUsed, 0L);
+      }
     }
 
     Response.TransactionExtention.Builder texBuilder = Response.TransactionExtention.newBuilder();
@@ -2955,6 +3945,137 @@ public class WalletApi {
     transactionExtention = texBuilder.build();
 
     return Triple.of(processTransactionExtention(transactionExtention, multi), 0L, 0L);
+  }
+
+  public Triple<String, Long, Long> triggerContractForCli(
+      byte[] owner,
+      byte[] contractAddress,
+      long callValue,
+      byte[] data,
+      long feeLimit,
+      long tokenValue,
+      String tokenId,
+      boolean isConstant,
+      boolean noExe,
+      boolean display,
+      boolean multi)
+      throws Exception {
+    if (!isUnlocked()) {
+      throw new IllegalStateException(LOCK_WARNING);
+    }
+    if (owner == null) {
+      owner = getAddress();
+    }
+    if (multi) {
+      if (!DecodeUtil.addressValid(owner)) {
+        recordLastCliOperationError("Invalid owner address for multi-sign trigger");
+        return Triple.of(null, 0L, 0L);
+      }
+      if (!isControlledForCli(owner)) {
+        recordLastCliOperationError("Owner address is not controlled by this wallet");
+        return Triple.of(null, 0L, 0L);
+      }
+    }
+    Response.TransactionExtention transactionExtention;
+    if (isConstant) {
+      transactionExtention = apiCli.triggerConstantContract(owner, contractAddress, data, callValue,
+          tokenValue, tokenId);
+    } else {
+      transactionExtention = apiCli.triggerContract(owner, contractAddress, data, callValue,
+          tokenValue, tokenId, feeLimit);
+    }
+
+    if (transactionExtention == null || !transactionExtention.getResult().getResult()) {
+      if (transactionExtention == null) {
+        recordLastCliOperationError("TriggerContract request returned null");
+      } else {
+        recordLastCliOperationError(extractTransactionReturnMessage(transactionExtention.getResult()));
+      }
+      return Triple.of(null, 0L, 0L);
+    }
+
+    Chain.Transaction transaction = transactionExtention.getTransaction();
+    if (transaction.getRetCount() != 0) {
+      Response.TransactionExtention normalized = normalizeConstantContractExtention(transactionExtention);
+      long energyUsed = normalized.getEnergyUsed();
+      BigInteger bigInteger = BigInteger.valueOf(0L);
+      if (normalized.getConstantResultCount() == 1) {
+        ByteString constantResult = normalized.getConstantResult(0);
+        bigInteger = new BigInteger(1, constantResult.toByteArray());
+      }
+      try {
+        return Triple.of("", energyUsed, bigInteger.longValueExact());
+      } catch (ArithmeticException e) {
+        recordLastCliOperationError("Constant result exceeds long range: " + bigInteger.toString());
+        return Triple.of(null, energyUsed, 0L);
+      }
+    }
+
+    Response.TransactionExtention.Builder texBuilder = Response.TransactionExtention.newBuilder();
+    Chain.Transaction.Builder transBuilder = Chain.Transaction.newBuilder();
+    Chain.Transaction.raw.Builder rawBuilder = transactionExtention.getTransaction().getRawData()
+        .toBuilder();
+    rawBuilder.setFeeLimit(feeLimit);
+    transBuilder.setRawData(rawBuilder);
+    for (int i = 0; i < transactionExtention.getTransaction().getSignatureCount(); i++) {
+      ByteString s = transactionExtention.getTransaction().getSignature(i);
+      transBuilder.setSignature(i, s);
+    }
+    for (int i = 0; i < transactionExtention.getTransaction().getRetCount(); i++) {
+      Chain.Transaction.Result r = transactionExtention.getTransaction().getRet(i);
+      transBuilder.setRet(i, r);
+    }
+    texBuilder.setTransaction(transBuilder);
+    texBuilder.setResult(transactionExtention.getResult());
+    texBuilder.setTxid(transactionExtention.getTxid());
+    transactionExtention = texBuilder.build();
+
+    return Triple.of(processTransactionExtentionForCli(transactionExtention, multi), 0L, 0L);
+  }
+
+  public Response.TransactionExtention triggerConstantContractExtention(
+      byte[] owner,
+      byte[] contractAddress,
+      long callValue,
+      byte[] data,
+      long tokenValue,
+      String tokenId) {
+    if (!isUnlocked()) {
+      throw new IllegalStateException(LOCK_WARNING);
+    }
+    if (owner == null) {
+      owner = getAddress();
+    }
+    return triggerConstantContractExtentionDirect(
+        owner, contractAddress, callValue, data, tokenValue, tokenId);
+  }
+
+  public static Response.TransactionExtention triggerConstantContractExtentionDirect(
+      byte[] owner,
+      byte[] contractAddress,
+      long callValue,
+      byte[] data,
+      long tokenValue,
+      String tokenId) {
+    return normalizeConstantContractExtention(
+        apiCli.triggerConstantContract(owner, contractAddress, data, callValue, tokenValue, tokenId));
+  }
+
+  private static Response.TransactionExtention normalizeConstantContractExtention(
+      Response.TransactionExtention transactionExtention) {
+    if (transactionExtention == null) {
+      return null;
+    }
+    Chain.Transaction transaction = transactionExtention.getTransaction();
+    if (transaction.getRetCount() == 0) {
+      return transactionExtention;
+    }
+    Response.TransactionExtention.Builder builder =
+        transactionExtention.toBuilder().clearTransaction().clearTxid();
+    if (transaction.getRet(0).getRet() == Chain.Transaction.Result.code.FAILED) {
+      builder.setResult(builder.getResult().toBuilder().setResult(false));
+    }
+    return builder.build();
   }
 
   public static long calculateBandwidth(Chain.Transaction transaction) {
@@ -2999,6 +4120,30 @@ public class WalletApi {
     }
     System.out.println("Estimate energy result = " + Utils.formatMessageString(estimateEnergyMessage));
     return true;
+  }
+
+  public Response.EstimateEnergyMessage estimateEnergyMessage(
+      byte[] owner,
+      byte[] contractAddress,
+      long callValue,
+      byte[] data,
+      long tokenValue,
+      String tokenId)
+      throws IOException {
+    if (owner == null) {
+      owner = getAddress();
+    }
+    return estimateEnergyMessageDirect(owner, contractAddress, callValue, data, tokenValue, tokenId);
+  }
+
+  public static Response.EstimateEnergyMessage estimateEnergyMessageDirect(
+      byte[] owner,
+      byte[] contractAddress,
+      long callValue,
+      byte[] data,
+      long tokenValue,
+      String tokenId) {
+    return apiCli.estimateEnergy(owner, contractAddress, callValue, data, tokenValue, tokenId);
   }
 
   public static Common.SmartContract getContract(byte[] address) {
@@ -3072,6 +4217,17 @@ public class WalletApi {
     }
     Response.TransactionExtention transactionExtention = apiCli.accountPermissionUpdate(contract);
     return processTransactionExtention(transactionExtention, multi);
+  }
+
+  public String accountPermissionUpdateForCli(byte[] owner, String permissionJson, boolean multi)
+      throws CipherException, IOException, CancelException, IllegalException {
+    if (!isUnlocked()) {
+      throw new IllegalStateException(LOCK_WARNING);
+    }
+    Contract.AccountPermissionUpdateContract contract =
+        createAccountPermissionContract(owner, permissionJson);
+    Response.TransactionExtention transactionExtention = apiCli.accountPermissionUpdate(contract);
+    return processTransactionExtentionForCli(transactionExtention, multi);
   }
 
   private boolean checkPermission(Common.Permission permission) {
@@ -3189,11 +4345,40 @@ public class WalletApi {
     return permissionBuilder.build();
   }
 
+  static String sanitizePermissionJson(String permissionJson) {
+    JsonElement parsed;
+    try {
+      parsed = JsonParser.parseString(permissionJson);
+    } catch (Exception e) {
+      throw new IllegalArgumentException("Invalid permissions JSON: " + e.getMessage());
+    }
+    if (!parsed.isJsonObject()) {
+      throw new IllegalArgumentException("Permissions JSON must be an object");
+    }
+    stripAutoType(parsed);
+    return parsed.toString();
+  }
+
+  private static void stripAutoType(JsonElement element) {
+    if (element.isJsonObject()) {
+      JsonObject obj = element.getAsJsonObject();
+      obj.remove("@type");
+      for (Map.Entry<String, JsonElement> entry : obj.entrySet()) {
+        stripAutoType(entry.getValue());
+      }
+    } else if (element.isJsonArray()) {
+      for (JsonElement item : element.getAsJsonArray()) {
+        stripAutoType(item);
+      }
+    }
+  }
+
   public Contract.AccountPermissionUpdateContract createAccountPermissionContract(byte[] owner,
                                                                                   String permissionJson) {
     Contract.AccountPermissionUpdateContract.Builder builder = Contract.AccountPermissionUpdateContract.newBuilder();
 
-    JSONObject permissions = JSON.parseObject(permissionJson);
+    String sanitizedJson = sanitizePermissionJson(permissionJson);
+    JSONObject permissions = JSON.parseObject(sanitizedJson);
     JSONObject op = permissions.getJSONObject("owner_permission");
     JSONObject wp = permissions.getJSONObject("witness_permission");
     JSONArray ap = permissions.getJSONArray("active_permissions");
@@ -3270,6 +4455,25 @@ public class WalletApi {
     return processTransactionExtention(transactionExtention, multi);
   }
 
+  public String updateBrokerageForCli(byte[] owner, int brokerage, boolean multi)
+      throws IOException, CipherException, CancelException, IllegalException {
+    if (!isUnlocked()) {
+      throw new IllegalStateException("Wallet is locked. Cannot sign or send transaction.");
+    }
+    if (owner == null) {
+      owner = getAddress();
+    }
+
+    Response.TransactionExtention transactionExtention = apiCli.updateBrokerage(owner, brokerage);
+    if (transactionExtention == null || !transactionExtention.getResult().getResult()) {
+      recordLastCliOperationError(extractTransactionReturnMessage(
+          transactionExtention == null ? null : transactionExtention.getResult()));
+      return null;
+    }
+
+    return processTransactionExtentionForCli(transactionExtention, multi);
+  }
+
   public static org.tron.trident.api.GrpcAPI.NumberMessage getReward(byte[] owner) {
     return apiCli.getReward(owner);
   }
@@ -3313,6 +4517,25 @@ public class WalletApi {
     return processTransactionExtention(transactionExtention, multi);
   }
 
+  public String marketSellAssetForCli(
+      byte[] owner,
+      byte[] sellTokenId,
+      long sellTokenQuantity,
+      byte[] buyTokenId,
+      long buyTokenQuantity, boolean multi)
+      throws IOException, CipherException, CancelException, IllegalException {
+    if (!isUnlocked()) {
+      throw new IllegalStateException("Wallet is locked. Cannot sign or send transaction.");
+    }
+    if (owner == null) {
+      owner = getAddress();
+    }
+
+    Response.TransactionExtention transactionExtention = apiCli.marketSellAsset(owner, sellTokenId,
+        sellTokenQuantity, buyTokenId, buyTokenQuantity);
+    return processTransactionExtentionForCli(transactionExtention, multi);
+  }
+
   public boolean marketCancelOrder(byte[] owner, byte[] orderId, boolean multi)
       throws IOException, CipherException, CancelException, IllegalException {
     if (!isUnlocked()) {
@@ -3324,6 +4547,19 @@ public class WalletApi {
 
     Response.TransactionExtention transactionExtention = apiCli.marketCancelOrder(owner, orderId);
     return processTransactionExtention(transactionExtention, multi);
+  }
+
+  public String marketCancelOrderForCli(byte[] owner, byte[] orderId, boolean multi)
+      throws IOException, CipherException, CancelException, IllegalException {
+    if (!isUnlocked()) {
+      throw new IllegalStateException("Wallet is locked. Cannot sign or send transaction.");
+    }
+    if (owner == null) {
+      owner = getAddress();
+    }
+
+    Response.TransactionExtention transactionExtention = apiCli.marketCancelOrder(owner, orderId);
+    return processTransactionExtentionForCli(transactionExtention, multi);
   }
 
   public static Response.MarketOrderList getMarketOrderByAccount(byte[] address) {
@@ -3371,6 +4607,9 @@ public class WalletApi {
     try {
       credentials = WalletUtils.loadCredentials(password, keyStoreFile);
     } catch (Exception e) {
+      // Broad catch is intentional: loadCredentials can throw CipherException (wrong password),
+      // IOException (corrupt file), or various BouncyCastle unchecked exceptions. For REPL unlock,
+      // any failure means "wrong password or unreadable keystore" — the caller retries or gives up.
       return false;
     }
     setCredentials(credentials);
@@ -3421,5 +4660,9 @@ public class WalletApi {
 
   public void tronlinkMultiSign() {
     multiSignService.runCLI(encode58Check(getAddress()), this);
+  }
+
+  public static Response.WitnessList getPaginatedNowWitnessList(int offset, int limit) {
+    return apiCli.getPaginatedNowWitnessList(offset, limit);
   }
 }

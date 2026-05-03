@@ -847,3 +847,9 @@ Summary:
 Get the private key through mnemonics.
 Usage example:
 wallet> GetPrivateKeyByMnemonic
+Syntax:
+GetPaginatedNowWitnessList offset limit
+Summary:
+Get witnesses voting information in pages.
+Usage example:
+wallet> GetPaginatedNowWitnessList 0 10

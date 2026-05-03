@@ -1,0 +1,57 @@
+#!/bin/bash
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+NETWORK="${TRON_NETWORK:-nile}"
+PRIVATE_KEY="${TRON_TEST_PRIVATE_KEY:-}"
+MNEMONIC="${TRON_TEST_MNEMONIC:-}"
+TRON_PRIVATE_KEY="${TRON_PRIVATE_KEY:-$PRIVATE_KEY}"
+TRON_MNEMONIC="${TRON_MNEMONIC:-$MNEMONIC}"
+MASTER_PASSWORD="${MASTER_PASSWORD:-testpassword123A}"
+ALT_PASSWORD="${QA_ALT_PASSWORD:-TempPass123!B}"
+GASFREE_API_KEY="${GASFREE_API_KEY:-}"
+GASFREE_API_SECRET="${GASFREE_API_SECRET:-}"
+
+WALLET_JAR="$PROJECT_DIR/build/libs/wallet-cli.jar"
+QA_JAR="$PROJECT_DIR/build/libs/wallet-cli-qa.jar"
+RESULTS_DIR="$PROJECT_DIR/qa/results"
+RUNTIME_DIR="$PROJECT_DIR/qa/runtime"
+REPORT_FILE="$PROJECT_DIR/qa/report.txt"
+MANIFEST_FILE="$PROJECT_DIR/qa/manifest.tsv"
+CONTRACTS_FILE="$PROJECT_DIR/qa/contracts.tsv"
+
+TARGET_ADDR="${TRON_QA_TARGET_ADDR:-TNPeeaaFB7K9cmo4uQpcU32zGK8G1NYqeL}"
+USDT_NILE="${TRON_QA_USDT_NILE:-TXYZopYRdj2D9XRtbG411XZZ3kM5VkAeBf}"
+FAKE_ID_64="0000000000000000000000000000000000000000000000000000000000000001"
+
+export NETWORK PRIVATE_KEY MNEMONIC MASTER_PASSWORD ALT_PASSWORD
+export TRON_PRIVATE_KEY TRON_MNEMONIC
+export WALLET_JAR QA_JAR RESULTS_DIR RUNTIME_DIR REPORT_FILE MANIFEST_FILE CONTRACTS_FILE
+export TARGET_ADDR USDT_NILE FAKE_ID_64 PROJECT_DIR
+export GASFREE_API_KEY GASFREE_API_SECRET
+
+qa_has_private_key() {
+  [ -n "$PRIVATE_KEY" ]
+}
+
+qa_has_mnemonic() {
+  [ -n "$MNEMONIC" ]
+}
+
+qa_requires_available() {
+  case "$1" in
+    none|"")
+      return 0
+      ;;
+    private_key)
+      qa_has_private_key
+      ;;
+    mnemonic)
+      qa_has_mnemonic
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
