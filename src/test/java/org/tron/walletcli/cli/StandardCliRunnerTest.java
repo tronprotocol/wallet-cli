@@ -513,6 +513,105 @@ public class StandardCliRunnerTest {
   }
 
   @Test
+  public void defaultProviderUsesStdinWhenPasswordStdinFlagIsSet() {
+    GlobalOptions stdinOpts = GlobalOptions.parse(new String[]{"--password-stdin", "send-coin"});
+    StandardCliRunner.MasterPasswordProvider stdinProv = StandardCliRunner.defaultProvider(
+        stdinOpts, new java.io.ByteArrayInputStream(
+            "FromStdin!1\n".getBytes(StandardCharsets.UTF_8)));
+    Assert.assertEquals("FromStdin!1", stdinProv.get());
+
+    GlobalOptions plainOpts = GlobalOptions.parse(new String[]{"send-coin"});
+    StandardCliRunner.MasterPasswordProvider envProv = StandardCliRunner.defaultProvider(
+        plainOpts, new java.io.ByteArrayInputStream(
+            "ShouldNotBeRead\n".getBytes(StandardCharsets.UTF_8)));
+    // Env-backed provider — value depends on environment; we only assert it does not consult stdin.
+    // Calling get() must not throw and must not return the stdin payload.
+    String envValue = envProv.get();
+    Assert.assertNotEquals("ShouldNotBeRead", envValue);
+  }
+
+  @Test
+  public void requireCommandAuthenticatesUsingPasswordReadFromStdin() throws Exception {
+    CommandRegistry registry = new CommandRegistry();
+    boolean[] handlerCalled = {false};
+    registry.add(CommandDefinition.builder()
+        .name("needs-wallet")
+        .description("Command requiring auth")
+        .handler((ctx, opts, wrapper, out) -> {
+          handlerCalled[0] = true;
+          out.raw("ok");
+        })
+        .build());
+
+    String originalUserDir = System.getProperty("user.dir");
+    PrintStream originalOut = System.out;
+    PrintStream originalErr = System.err;
+    File tempDir = Files.createTempDirectory("runner-stdin-password").toFile();
+    File walletDir = new File(tempDir, "Wallet");
+    Assert.assertTrue(walletDir.mkdirs());
+    File walletFile = createWalletFile(walletDir, "alpha", "0000000000000000000000000000000000000000000000000000000000000001");
+    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+    ByteArrayOutputStream stderr = new ByteArrayOutputStream();
+
+    System.setProperty("user.dir", tempDir.getAbsolutePath());
+    System.setOut(new PrintStream(stdout));
+    System.setErr(new PrintStream(stderr));
+    try {
+      ActiveWalletConfig.setActiveAddress(readWalletAddress(walletFile));
+      GlobalOptions opts = GlobalOptions.parse(new String[]{"--password-stdin", "needs-wallet"});
+      StandardCliRunner.MasterPasswordProvider provider = StandardCliRunner.defaultProvider(
+          opts, new java.io.ByteArrayInputStream(
+              "TempPass123!A\n".getBytes(StandardCharsets.UTF_8)));
+      int exitCode = new StandardCliRunner(registry, opts, provider).execute();
+
+      Assert.assertEquals(0, exitCode);
+      Assert.assertTrue(handlerCalled[0]);
+    } finally {
+      System.setOut(originalOut);
+      System.setErr(originalErr);
+      System.setProperty("user.dir", originalUserDir);
+    }
+  }
+
+  @Test
+  public void passwordStdinFailsExplicitlyWhenStdinIsEmpty() throws Exception {
+    CommandRegistry registry = new CommandRegistry();
+    registry.add(CommandDefinition.builder()
+        .name("needs-wallet")
+        .description("Command requiring auth")
+        .handler((ctx, opts, wrapper, out) -> out.raw("ok"))
+        .build());
+
+    String originalUserDir = System.getProperty("user.dir");
+    PrintStream originalOut = System.out;
+    PrintStream originalErr = System.err;
+    File tempDir = Files.createTempDirectory("runner-stdin-empty").toFile();
+    File walletDir = new File(tempDir, "Wallet");
+    Assert.assertTrue(walletDir.mkdirs());
+    File walletFile = createWalletFile(walletDir, "alpha", "0000000000000000000000000000000000000000000000000000000000000001");
+    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+    ByteArrayOutputStream stderr = new ByteArrayOutputStream();
+
+    System.setProperty("user.dir", tempDir.getAbsolutePath());
+    System.setOut(new PrintStream(stdout));
+    System.setErr(new PrintStream(stderr));
+    try {
+      ActiveWalletConfig.setActiveAddress(readWalletAddress(walletFile));
+      GlobalOptions opts = GlobalOptions.parse(new String[]{"--password-stdin", "needs-wallet"});
+      StandardCliRunner.MasterPasswordProvider provider = StandardCliRunner.defaultProvider(
+          opts, new java.io.ByteArrayInputStream(new byte[0]));
+      int exitCode = new StandardCliRunner(registry, opts, provider).execute();
+
+      Assert.assertEquals(1, exitCode);
+      Assert.assertTrue(stderr.toString("UTF-8").contains("--password-stdin produced no input"));
+    } finally {
+      System.setOut(originalOut);
+      System.setErr(originalErr);
+      System.setProperty("user.dir", originalUserDir);
+    }
+  }
+
+  @Test
   public void requireCommandFailsWhenMasterPasswordIsInvalid() throws Exception {
     CommandRegistry registry = new CommandRegistry();
     boolean[] handlerCalled = {false};

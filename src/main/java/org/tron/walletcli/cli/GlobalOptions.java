@@ -15,6 +15,7 @@ public class GlobalOptions {
     private String grpcEndpoint = null;
     private boolean quiet = false;
     private boolean verbose = false;
+    private boolean passwordStdin = false;
     private String command = null;
     private String[] commandArgs = new String[0];
 
@@ -27,6 +28,7 @@ public class GlobalOptions {
     public String getGrpcEndpoint() { return grpcEndpoint; }
     public boolean isQuiet() { return quiet; }
     public boolean isVerbose() { return verbose; }
+    public boolean isPasswordStdin() { return passwordStdin; }
     public String getCommand() { return command; }
     public String[] getCommandArgs() { return java.util.Arrays.copyOf(commandArgs, commandArgs.length); }
 
@@ -113,6 +115,10 @@ public class GlobalOptions {
                         throw new CliUsageException("Conflicting global options: --quiet and --verbose");
                     }
                     opts.verbose = true;
+                    break;
+                case "password-stdin":
+                    ensureNoInlineValue(parsed, "--password-stdin");
+                    opts.passwordStdin = true;
                     break;
                 case "output":
                     ensureNotRepeated(outputSeen, "--output");

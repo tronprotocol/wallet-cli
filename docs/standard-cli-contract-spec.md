@@ -558,12 +558,41 @@ For invocations whose resolved auth policy is `REQUIRE`:
 
 - missing wallet directory is an execution error unless an explicit `--wallet` path resolves successfully
 - missing keystore is an execution error
-- missing `MASTER_PASSWORD` is an execution error
+- a missing master password (no `MASTER_PASSWORD` env var and no `--password-stdin` input) is an execution error
 - invalid password is an execution error
 - unreadable wallet metadata or keystore content is an execution error
 - the standard CLI must not fall back to interactive password prompts, wallet-selection prompts, permission prompts,
   confirmation prompts, or other interactive auth flows
 - "skip auto-login and let the handler fail later" is not allowed
+
+### Password Source Resolution
+
+The standard CLI accepts the master password from two explicit sources. Both are non-interactive — neither involves
+prompting the user for input.
+
+Sources, in precedence order:
+
+1. `--password-stdin` global flag — the runner reads the entire `System.in` once, strips a single trailing `\r?\n`,
+   and uses the result as the password. Internal whitespace is preserved verbatim.
+2. `MASTER_PASSWORD` environment variable.
+
+Rules:
+
+- when both sources are present, `--password-stdin` wins; the runner may emit a text-mode info notice that the env
+  var was overridden, but JSON mode behavior is unaffected
+- `--password-stdin` reads `System.in` exactly once; the read result is cached so wallet-authenticated commands that
+  consult the password more than once observe a stable value
+- `--password-stdin` with empty input is an execution error with a message that explicitly identifies the empty-stdin
+  cause (distinct from "neither source set")
+- `--password-stdin` invoked when stdin is detected to be an interactive terminal (TTY) is a usage error — reading
+  `System.in` would block on a prompt, which violates the non-interactive contract; this detection is best-effort,
+  may produce false negatives, and must not be relied on by callers as a hard guarantee
+- `--password-stdin` is recognized regardless of position relative to the command token, consistent with other known
+  globals
+- `--password-stdin` must not introduce a third source by way of fallback (e.g. reading `System.in` opportunistically
+  when the flag was not passed); the flag is the only trigger
+- neither source may be substituted by an interactive prompt, a keychain lookup, or any other implicit channel that is
+  not declared by this contract
 
 ### Handler Boundary
 
@@ -831,7 +860,8 @@ The standard CLI is not a thin alias for the legacy REPL path.
 - If a legacy path cannot satisfy the standard CLI contract cleanly, either adapt it explicitly or exclude it from
   the standard CLI guarantees.
 - Hidden stdin scripting, prompt auto-confirmation, or injected prompt answers are not allowed as standard CLI
-  behavior.
+  behavior. Explicit, opt-in stdin consumption that is part of a documented contract (e.g. `--password-stdin`) is
+  not "hidden" and is allowed.
 
 ### Interface Identity
 
@@ -868,7 +898,8 @@ Rules:
 - if a command capability currently depends on interactive legacy flow, it should be adapted explicitly before being
   considered fully standard-CLI-compliant
 - hidden stdin feeding, prompt auto-confirmation, prompt suppression, or interactive fallback are not valid standard
-  CLI implementation techniques
+  CLI implementation techniques; explicit opt-in stdin consumption declared by a contract (e.g. `--password-stdin`)
+  is exempt from this prohibition
 
 ### Adaptation Strategy
 
