@@ -594,6 +594,32 @@ Rules:
 - neither source may be substituted by an interactive prompt, a keychain lookup, or any other implicit channel that is
   not declared by this contract
 
+### Ledger Hardware Wallet Sign Outcomes
+
+When the selected wallet is a Ledger keystore, the standard CLI signs through a connected Ledger device. The keystore
+auth flow above applies unchanged — the password unlocks the BIP44 path metadata stored in the keystore, not the
+device. The device is a separate auth boundary requiring on-device user confirmation; the funds are protected by the
+device, not the password.
+
+Rules:
+
+- a Ledger sign must be non-interactive on the CLI side: no prompts on stdin or stdout, no menus, no `selectDevice`
+  call paths
+- exactly one stderr notice may be emitted before the sign blocks on the device, indicating which address the user
+  must confirm; this notice must not be suppressed by JSON mode (it is the only signal that a human action is
+  required) but may be suppressed by `--quiet`
+- prints from shared Ledger code (listener, HID wrapper) must not reach stdout in standard CLI mode; the runner is
+  responsible for capturing those during the sign
+- the device discovery, sign request, and result polling must all complete without re-prompting the user; the selected
+  device must derive the keystore address at the stored path
+- Ledger-specific failures must surface as execution errors with one of the documented `ledger_*` codes:
+  `ledger_not_connected`, `ledger_app_not_open`, `ledger_sign_by_hash_disabled`,
+  `ledger_unsupported_contract`, `ledger_already_signing`, `ledger_user_rejected`, `ledger_timeout`,
+  `ledger_sign_failed`
+- all Ledger-specific error codes share the `ledger_` prefix for stable programmatic matching by agents
+- the standard CLI must not introduce a Ledger sign path that bypasses keystore auth (e.g. a `--ledger-path` direct
+  mode); if such a path is added in the future it requires its own contract subsection
+
 ### Handler Boundary
 
 - handlers must not re-decide runner auth policy ad hoc

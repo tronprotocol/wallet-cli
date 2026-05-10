@@ -203,6 +203,8 @@ public class StandardCliRunner {
             // copy there and only clear this temporary buffer locally.
             walletApi.setUnifiedPassword(Arrays.copyOf(password, password.length));
             wrapper.setWallet(walletApi);
+            wrapper.setLedgerSigner(
+                org.tron.walletcli.cli.ledger.ProductionLedgerPorts.buildSigner(formatter));
             formatter.info("Authenticated with wallet: " + wf.getAddress());
             return targetFile;
         } finally {

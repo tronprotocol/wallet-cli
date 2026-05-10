@@ -2880,3 +2880,78 @@ To set up multi-sig, use `update-account-permission` to configure the account's 
 \* `register-wallet` requires `MASTER_PASSWORD` to be set (for keystore encryption) but does not authenticate against an existing wallet.
 
 **Auth legend:** Yes = always required | No = never required | Conditional = depends on options provided
+
+## Using a Ledger hardware wallet
+
+Standard CLI signs transactions through a connected Ledger device when the
+selected wallet is a Ledger keystore. Authentication still uses
+`MASTER_PASSWORD` / `--password-stdin` to unlock the keystore; the device
+itself is the funds-protecting boundary.
+
+### One-time pairing (REPL)
+
+Path selection requires a human in the loop, so import is not exposed to
+standard CLI. Pair once via the REPL:
+
+```
+./gradlew run
+> importwalletbyledger
+```
+
+Choose a derivation path, set a local password, and note the resulting
+wallet name (it will be prefixed with `Ledger-`).
+
+### Signing from standard CLI
+
+```
+echo "$LEDGER_KEYSTORE_PASSWORD" | java -jar build/libs/wallet-cli.jar \
+    --password-stdin --output json \
+    --wallet ledger-alpha \
+    send-coin --to TXxx... --amount 1000000
+```
+
+Requirements:
+
+- The Ledger must be connected, unlocked, and have the Tron app open.
+- "Sign By Hash" must be set to **Allowed** in the Tron app's settings.
+
+Behavior:
+
+- One stderr notice appears: `Please confirm transaction on Ledger device for TXxx...`.
+- Press the confirm button on the device.
+- On success, stdout contains a JSON envelope with the transaction id.
+
+The same flow applies to every Ledger-supported signing command in standard CLI
+(`send-coin`, `vote-witness`, `freeze-balance`, `trigger-contract`,
+`gas-free-transfer`, etc.) — there is no Ledger-specific command.
+
+### About the keystore password
+
+The keystore password protects the BIP44 path metadata, not your funds.
+Your private key never leaves the device. A Ledger keystore without the
+device connected cannot sign even with the correct password.
+
+### Error codes
+
+All errors are returned as execution errors (exit code `1`) with one of
+the following codes in the JSON envelope's `error` field:
+
+| Error code | Meaning |
+|------------|---------|
+| `ledger_not_connected` | No matching device found, or HID transport failure |
+| `ledger_app_not_open` | The Tron app is not open on the device |
+| `ledger_sign_by_hash_disabled` | "Sign By Hash" is not enabled in the Tron app's settings |
+| `ledger_unsupported_contract` | The transaction type is not supported by Ledger signing |
+| `ledger_already_signing` | A previous sign operation is still in progress on the device |
+| `ledger_user_rejected` | The user pressed reject on the device |
+| `ledger_timeout` | 60 seconds elapsed without confirmation or rejection |
+| `ledger_sign_failed` | Other failure (unknown APDU, transport exception) |
+
+All Ledger-specific codes share the `ledger_` prefix for programmatic
+matching by agent code.
+
+### Multi-device caveat
+
+The connected Ledger must derive the keystore address at the stored path.
+If no connected device matches, the command returns `ledger_not_connected`.
+This case is rare; a future flag may make multi-device selection explicit.

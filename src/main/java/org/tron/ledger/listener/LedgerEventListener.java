@@ -28,6 +28,17 @@ public class LedgerEventListener extends BaseListener {
 
   @Getter
   private AtomicBoolean isTimeOutShutdown = new AtomicBoolean(false);
+  private volatile byte[] lastSendResult;
+
+  /**
+   * Bytes returned by the most recent {@link #handleTransSign} call. May be {@code null} if no
+   * sign has been attempted yet, or if the call threw before assigning. Standard CLI's
+   * non-interactive Ledger bridge reads this to map APDU error codes (0x6511, 0x6a8c, …) to
+   * structured outcomes. REPL does not consult this field.
+   */
+  public byte[] getLastSendResultBytes() {
+    return lastSendResult;
+  }
   @Getter
   @Setter
   private AtomicBoolean ledgerSignEnd = new AtomicBoolean(false);
@@ -77,8 +88,12 @@ public class LedgerEventListener extends BaseListener {
 
   public boolean executeSignListen(HidDevice hidDevice, Chain.Transaction transaction, String path, boolean gasfree) {
     boolean ret = false;
+    // Reset before each sign so a prior call's APDU bytes never leak into the next sign's
+    // outcome computation if handleTransSign throws on this invocation.
+    this.lastSendResult = null;
     try {
       byte[] sendResult = handleTransSign(hidDevice, transaction, path, gasfree);
+      this.lastSendResult = sendResult;
       if (sendResult == null) {
         System.out.println("Transaction sign request is sent to Ledger");
         TransactionSignManager.getInstance().setHidDevice(hidDevice);

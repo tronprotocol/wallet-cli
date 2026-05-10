@@ -177,6 +177,14 @@ public class WalletApi {
   @Getter
   @Setter
   private byte[] unifiedPassword;
+  /**
+   * Standard CLI's non-interactive Ledger signer. Set by {@code StandardCliRunner} after
+   * authenticate completes. Null in REPL mode — REPL paths continue to call
+   * {@code LedgerSignUtil.requestLedgerSignLogic} directly. See plan-standard-cli-ledger.md.
+   */
+  @Getter
+  @Setter
+  private org.tron.walletcli.cli.ledger.LedgerSigner ledgerSigner;
   @Getter
   @Setter
   private byte[] pwdForDeploy;
@@ -1065,6 +1073,27 @@ public class WalletApi {
       byte[] passwd = getUnifiedPassword();
       String ledgerPath = getLedgerPath(passwd, wf);
       if (isLedgerFile) {
+        // Standard CLI uses a non-interactive signer; REPL never reaches signTransactionForCli,
+        // so the legacy LedgerSignUtil branch below is effectively unreachable. It is retained
+        // only as a safety net for hypothetical future callers.
+        if (this.ledgerSigner != null) {
+          org.tron.walletcli.cli.ledger.LedgerSignOutcome r =
+              this.ledgerSigner.sign(transaction, ledgerPath, wf.getAddress(), false);
+          if (r.getStatus() != org.tron.walletcli.cli.ledger.LedgerSignOutcome.Status.OK) {
+            recordLastCliOperationError(r.errorCode() + ": " + r.getMessage());
+            throw new org.tron.walletcli.cli.CommandErrorException(r.errorCode(), r.getMessage());
+          }
+          transaction = r.getSignedTransaction();
+          Response.TransactionSignWeight weight = getTransactionSignWeight(transaction);
+          if (weight.getResult().getCode() == Response.TransactionSignWeight.Result.response_code.ENOUGH_PERMISSION) {
+            return transaction;
+          }
+          if (weight.getResult().getCode() == Response.TransactionSignWeight.Result.response_code.NOT_ENOUGH_PERMISSION
+              && multi) {
+            return transaction;
+          }
+          throw new CancelException(weight.getResult().getMessage());
+        }
         boolean result = LedgerSignUtil.requestLedgerSignLogic(transaction, ledgerPath, wf.getAddress(), false);
         if (!result) {
           recordLastCliOperationError("Ledger signing was rejected or failed");

@@ -1139,6 +1139,46 @@ public class StandardCliRunnerTest {
   }
 
   @Test
+  public void authenticateInjectsLedgerSignerIntoActiveWallet() throws Exception {
+    CommandRegistry registry = new CommandRegistry();
+    final org.tron.walletcli.cli.ledger.LedgerSigner[] capturedSigner = {null};
+    registry.add(CommandDefinition.builder()
+        .name("inspect-signer")
+        .description("Captures the ledger signer wired into the active wallet")
+        .handler((ctx, opts, wrapper, out) -> {
+          capturedSigner[0] = wrapper.getWallet().getLedgerSigner();
+          out.raw("ok");
+        })
+        .build());
+
+    String originalUserDir = System.getProperty("user.dir");
+    PrintStream originalOut = System.out;
+    PrintStream originalErr = System.err;
+    File tempDir = Files.createTempDirectory("runner-ledger-wiring").toFile();
+    File walletDir = new File(tempDir, "Wallet");
+    Assert.assertTrue(walletDir.mkdirs());
+    File walletFile = createWalletFile(walletDir, "alpha", "0000000000000000000000000000000000000000000000000000000000000001");
+
+    System.setProperty("user.dir", tempDir.getAbsolutePath());
+    System.setOut(new PrintStream(new ByteArrayOutputStream()));
+    System.setErr(new PrintStream(new ByteArrayOutputStream()));
+    try {
+      ActiveWalletConfig.setActiveAddress(readWalletAddress(walletFile));
+      GlobalOptions opts = GlobalOptions.parse(new String[]{"inspect-signer"});
+      int exitCode = new StandardCliRunner(registry, opts, () -> "TempPass123!A").execute();
+
+      Assert.assertEquals(0, exitCode);
+      Assert.assertNotNull("Standard CLI authenticate must inject a LedgerSigner so that any "
+              + "subsequently-signed Ledger transaction routes through the non-interactive path",
+          capturedSigner[0]);
+    } finally {
+      System.setOut(originalOut);
+      System.setErr(originalErr);
+      System.setProperty("user.dir", originalUserDir);
+    }
+  }
+
+  @Test
   public void requireCommandAuthenticatesBeforeHandlerExecution() throws Exception {
     CommandRegistry registry = new CommandRegistry();
     boolean[] handlerCalled = {false};

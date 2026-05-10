@@ -326,6 +326,17 @@ public class OutputFormatter {
         }
     }
 
+    /**
+     * Print a notice to stderr that must reach the user even in JSON mode (e.g. "press the button
+     * on your Ledger now"). Suppressed only by --quiet. Stderr keeps the JSON envelope on stdout
+     * undisturbed, so agents parsing stdout are unaffected.
+     */
+    public void notice(String message) {
+        if (!quiet) {
+            err.println(message);
+        }
+    }
+
     private static final class Outcome {
         private final boolean success;
         private final String textMessage;
