@@ -755,6 +755,42 @@ public class StandardCliRunnerTest {
   }
 
   @Test
+  public void neverAuthCommandIgnoresMalformedUserAliasFile() throws Exception {
+    String originalUserDir = System.getProperty("user.dir");
+    NetType originalNetwork = WalletApi.getCurrentNetwork();
+    PrintStream originalErr = System.err;
+    File tempDir = Files.createTempDirectory("runner-broken-aliases").toFile();
+    File aliasesDir = new File(tempDir, "Wallet/aliases");
+    File mainAliases = new File(aliasesDir, "main.json");
+    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+    ByteArrayOutputStream stderr = new ByteArrayOutputStream();
+
+    Assert.assertTrue(aliasesDir.mkdirs());
+    Files.write(mainAliases.toPath(), "{ broken json".getBytes(StandardCharsets.UTF_8));
+
+    CommandRegistry registry = new CommandRegistry();
+    QueryCommands.register(registry);
+
+    System.setProperty("user.dir", tempDir.getAbsolutePath());
+    System.setErr(new PrintStream(stderr));
+    WalletApi.setCurrentNetwork(NetType.MAIN);
+    try {
+      GlobalOptions opts = GlobalOptions.parse(new String[]{"--output", "json", "current-network"});
+      int exitCode = new StandardCliRunner(registry, opts,
+          new PrintStream(stdout), new PrintStream(stderr)).execute();
+
+      Assert.assertEquals(0, exitCode);
+      String json = stdout.toString("UTF-8");
+      Assert.assertTrue(json.contains("\"success\": true"));
+      Assert.assertTrue(stderr.toString("UTF-8").contains("warn: failed to read user alias file"));
+    } finally {
+      WalletApi.setCurrentNetwork(originalNetwork);
+      System.setErr(originalErr);
+      System.setProperty("user.dir", originalUserDir);
+    }
+  }
+
+  @Test
   public void autoAuthPolicyFollowsRegisteredCommandMetadata() {
     CommandRegistry queryRegistry = new CommandRegistry();
     QueryCommands.register(queryRegistry);

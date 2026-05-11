@@ -1052,6 +1052,29 @@ Review feedback in this area has consistently pushed toward:
 - one reliable success/failure model
 - QA that validates supported behavior instead of historical implementation details
 
+## Unified Address Book
+
+Standard CLI supports a per-network alias book layered over built-in token aliases.
+
+Rules:
+
+- built-in aliases are token-only and are loaded before user aliases
+- user alias files live at `Wallet/aliases/<network>.json`
+- built-in names cannot be overridden or removed by standard CLI commands
+- if a user manually edits a file to collide with a built-in name, the built-in entry remains authoritative
+- account-position options resolve only account aliases
+- contract-position options resolve token aliases, including `--contract` and `get-contract* --address`
+- raw Base58Check and hex TRON addresses are accepted directly and are not recorded as alias resolutions
+- alias hits are auditable: text mode emits a stderr resolution line, JSON mode includes `meta.resolved`
+- aliases are not resolved inside packed string arguments such as `vote-witness --votes "address count ..."`
+
+Commands:
+
+- `alias-add --name <name> --type <ACCOUNT|TOKEN> --address <address> [--decimals n] [--note text]`
+- `alias-remove --name <name>`
+- `alias-list [--type <ACCOUNT|TOKEN>]`
+- `alias-resolve --name <alias-or-address> [--type <ACCOUNT|TOKEN>]`
+
 ## Change Management
 
 When changing behavior covered by this spec:

@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.tron.walletcli.cli.aliases.ResolutionResult;
 
 public class OutputFormatter {
 
@@ -24,6 +25,7 @@ public class OutputFormatter {
     private final PrintStream out;
     private final PrintStream err;
     private Outcome outcome;
+    private final List<Map<String, Object>> resolvedAliases = new ArrayList<Map<String, Object>>();
     private static final Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
     public OutputFormatter(OutputMode mode, boolean quiet) {
@@ -45,6 +47,7 @@ public class OutputFormatter {
         Map<String, Object> envelope = new LinkedHashMap<String, Object>();
         envelope.put("success", true);
         envelope.put("data", data != null ? data : new LinkedHashMap<String, Object>());
+        addResolvedMeta(envelope);
         out.println(gson.toJson(envelope));
     }
 
@@ -53,7 +56,17 @@ public class OutputFormatter {
         envelope.put("success", false);
         envelope.put("error", code);
         envelope.put("message", message);
+        addResolvedMeta(envelope);
         out.println(gson.toJson(envelope));
+    }
+
+    private void addResolvedMeta(Map<String, Object> envelope) {
+        if (resolvedAliases.isEmpty()) {
+            return;
+        }
+        Map<String, Object> meta = new LinkedHashMap<String, Object>();
+        meta.put("resolved", new ArrayList<Map<String, Object>>(resolvedAliases));
+        envelope.put("meta", meta);
     }
 
     private Map<String, Object> wrapMessage(String text) {
@@ -147,6 +160,7 @@ public class OutputFormatter {
                     renderMetadata(current.jsonData);
                 }
             }
+            resolvedAliases.clear();
             return;
         }
 
@@ -158,6 +172,19 @@ public class OutputFormatter {
                 err.println();
                 err.println(current.usageHelp);
             }
+        }
+        resolvedAliases.clear();
+    }
+
+    public void resolved(ResolutionResult result) {
+        if (result == null || !result.isAliasHit()) {
+            return;
+        }
+        resolvedAliases.add(result.toJsonMap());
+        if (!quiet && mode == OutputMode.TEXT) {
+            err.println("Resolved --" + result.getOption() + " "
+                    + result.getInput() + " -> " + result.getAddressBase58()
+                    + " (" + result.getType().name() + ", " + result.getSource() + ")");
         }
     }
 

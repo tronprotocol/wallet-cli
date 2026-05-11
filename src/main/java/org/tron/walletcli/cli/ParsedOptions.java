@@ -1,9 +1,14 @@
 package org.tron.walletcli.cli;
 
 import org.tron.walletserver.WalletApi;
+import org.tron.walletcli.cli.aliases.AliasResolver;
+import org.tron.walletcli.cli.aliases.AliasType;
+import org.tron.walletcli.cli.aliases.ResolutionResult;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -13,11 +18,17 @@ import java.util.Map;
 public class ParsedOptions {
 
     private final Map<String, String> values;
+    private final AliasResolver aliasResolver;
 
     public ParsedOptions(Map<String, String> values) {
+        this(values, null);
+    }
+
+    public ParsedOptions(Map<String, String> values, AliasResolver aliasResolver) {
         this.values = values == null
                 ? Collections.<String, String>emptyMap()
                 : new LinkedHashMap<String, String>(values);
+        this.aliasResolver = aliasResolver;
     }
 
     /** Returns {@code true} if the option was supplied on the command line. */
@@ -83,10 +94,35 @@ public class ParsedOptions {
      * @throws IllegalArgumentException if the key is absent or the address is invalid
      */
     public byte[] getAddress(String key) {
+        String raw = requireValue(key);
+        return decodeBase58Address(key, raw);
+    }
+
+    public byte[] getAccountAddress(String key) {
+        return getResolvedAddress(key, AliasType.ACCOUNT);
+    }
+
+    public byte[] getContractAddress(String key) {
+        return getResolvedAddress(key, AliasType.TOKEN);
+    }
+
+    private byte[] getResolvedAddress(String key, AliasType expectedType) {
+        String raw = requireValue(key);
+        if (aliasResolver != null) {
+            return aliasResolver.resolve(key, raw, expectedType).getAddress();
+        }
+        return decodeBase58Address(key, raw);
+    }
+
+    private String requireValue(String key) {
         String raw = values.get(key);
         if (raw == null) {
             throw new IllegalArgumentException("Missing required option: --" + key);
         }
+        return raw;
+    }
+
+    private byte[] decodeBase58Address(String key, String raw) {
         byte[] decoded = WalletApi.decodeFromBase58Check(raw);
         if (decoded == null) {
             throw new IllegalArgumentException(
@@ -95,6 +131,12 @@ public class ParsedOptions {
         return decoded;
     }
 
+    public List<ResolutionResult> getResolutionLog() {
+        if (aliasResolver == null) {
+            return Collections.unmodifiableList(new ArrayList<ResolutionResult>());
+        }
+        return aliasResolver.getResolved();
+    }
 
     /** Returns an unmodifiable view of all parsed values. */
     public Map<String, String> asMap() {

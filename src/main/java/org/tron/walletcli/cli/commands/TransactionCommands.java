@@ -48,8 +48,8 @@ public class TransactionCommands {
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
                 .handler((ctx, opts, wrapper, out) -> {
 
-                    byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
-                    byte[] to = opts.getAddress("to");
+                    byte[] owner = opts.has("owner") ? opts.getAccountAddress("owner") : null;
+                    byte[] to = opts.getAccountAddress("to");
                     long amount = opts.getLong("amount");
                     CommandSupport.requirePositive(out, "amount", amount);
                     int permissionId = opts.has("permission-id") ? opts.getInt("permission-id") : 0;
@@ -88,8 +88,8 @@ public class TransactionCommands {
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
                 .handler((ctx, opts, wrapper, out) -> {
 
-                    byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
-                    byte[] to = opts.getAddress("to");
+                    byte[] owner = opts.has("owner") ? opts.getAccountAddress("owner") : null;
+                    byte[] to = opts.getAccountAddress("to");
                     String asset = opts.getString("asset");
                     CommandSupport.requireNonBlank(out, "asset", asset);
                     long amount = opts.getLong("amount");
@@ -122,8 +122,8 @@ public class TransactionCommands {
                                 "transfer-usdt does not support the current network.");
                         return;
                     }
-                    byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
-                    byte[] toAddress = opts.getAddress("to");
+                    byte[] owner = opts.has("owner") ? opts.getAccountAddress("owner") : null;
+                    byte[] toAddress = opts.getAccountAddress("to");
                     long amount = opts.getLong("amount");
                     CommandSupport.requirePositive(out, "amount", amount);
                     int permissionId = opts.has("permission-id") ? opts.getInt("permission-id") : 0;
@@ -198,8 +198,8 @@ public class TransactionCommands {
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
                 .handler((ctx, opts, wrapper, out) -> {
 
-                    byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
-                    byte[] to = opts.getAddress("to");
+                    byte[] owner = opts.has("owner") ? opts.getAccountAddress("owner") : null;
+                    byte[] to = opts.getAccountAddress("to");
                     String asset = opts.getString("asset");
                     CommandSupport.requireNonBlank(out, "asset", asset);
                     long amount = opts.getLong("amount");
@@ -235,7 +235,7 @@ public class TransactionCommands {
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
                 .handler((ctx, opts, wrapper, out) -> {
 
-                    byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
+                    byte[] owner = opts.has("owner") ? opts.getAccountAddress("owner") : null;
                     String name = opts.getString("name");
                     String abbr = opts.getString("abbr");
                     long totalSupply = opts.getLong("total-supply");
@@ -293,8 +293,8 @@ public class TransactionCommands {
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
                 .handler((ctx, opts, wrapper, out) -> {
 
-                    byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
-                    byte[] address = opts.getAddress("address");
+                    byte[] owner = opts.has("owner") ? opts.getAccountAddress("owner") : null;
+                    byte[] address = opts.getAccountAddress("address");
                     boolean multi = opts.getBoolean("multi");
                     String txid = wrapper.createAccountForCli(owner, address, multi);
                     CommandSupport.emitSuccess(out,
@@ -315,7 +315,7 @@ public class TransactionCommands {
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
                 .handler((ctx, opts, wrapper, out) -> {
 
-                    byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
+                    byte[] owner = opts.has("owner") ? opts.getAccountAddress("owner") : null;
                     byte[] nameBytes = opts.getString("name").getBytes(StandardCharsets.UTF_8);
                     CommandSupport.requireMaxBytes(out, "name", nameBytes, 200);
                     boolean multi = opts.getBoolean("multi");
@@ -337,7 +337,7 @@ public class TransactionCommands {
                 .option("owner", "Owner address", false)
                 .handler((ctx, opts, wrapper, out) -> {
 
-                    byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
+                    byte[] owner = opts.has("owner") ? opts.getAccountAddress("owner") : null;
                     byte[] id = opts.getString("id").getBytes(StandardCharsets.UTF_8);
                     CommandSupport.requireByteRange(out, "id", id, 8, 32);
                     String txid = wrapper.setAccountIdForCli(owner, id);
@@ -362,7 +362,7 @@ public class TransactionCommands {
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
                 .handler((ctx, opts, wrapper, out) -> {
 
-                    byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
+                    byte[] owner = opts.has("owner") ? opts.getAccountAddress("owner") : null;
                     byte[] desc = opts.getString("description").getBytes(StandardCharsets.UTF_8);
                     CommandSupport.requireMaxBytes(out, "description", desc, 200);
                     byte[] url = opts.getString("url").getBytes(StandardCharsets.UTF_8);
@@ -418,7 +418,7 @@ public class TransactionCommands {
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
                 .handler((ctx, opts, wrapper, out) -> {
 
-                    byte[] owner = opts.getAddress("owner");
+                    byte[] owner = opts.getAccountAddress("owner");
                     String permissions = opts.getString("permissions");
                     boolean multi = opts.getBoolean("multi");
                     String txid = wrapper.accountPermissionUpdateForCli(owner, permissions, multi);
@@ -438,7 +438,7 @@ public class TransactionCommands {
                 .option("to", "Recipient address", true)
                 .option("amount", "Amount", true, OptionDef.Type.LONG)
                 .handler((ctx, opts, wrapper, out) -> {
-                    byte[] toBytes = opts.getAddress("to");
+                    byte[] toBytes = opts.getAccountAddress("to");
                     String to = WalletApi.encode58Check(toBytes);
                     long amount = opts.getLong("amount");
                     CommandSupport.requirePositive(out, "amount", amount);

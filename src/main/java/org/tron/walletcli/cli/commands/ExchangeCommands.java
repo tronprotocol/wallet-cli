@@ -30,7 +30,7 @@ public class ExchangeCommands {
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
                 .handler((ctx, opts, wrapper, out) -> {
 
-                    byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
+                    byte[] owner = opts.has("owner") ? opts.getAccountAddress("owner") : null;
                     byte[] firstToken = opts.getString("first-token").getBytes(StandardCharsets.UTF_8);
                     long firstBalance = opts.getLong("first-balance");
                     CommandSupport.requirePositive(out, "first-balance", firstBalance);
@@ -60,7 +60,7 @@ public class ExchangeCommands {
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
                 .handler((ctx, opts, wrapper, out) -> {
 
-                    byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
+                    byte[] owner = opts.has("owner") ? opts.getAccountAddress("owner") : null;
                     long exchangeId = opts.getLong("exchange-id");
                     CommandSupport.requirePositive(out, "exchange-id", exchangeId);
                     String tokenIdStr = opts.getString("token-id");
@@ -90,7 +90,7 @@ public class ExchangeCommands {
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
                 .handler((ctx, opts, wrapper, out) -> {
 
-                    byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
+                    byte[] owner = opts.has("owner") ? opts.getAccountAddress("owner") : null;
                     long exchangeId = opts.getLong("exchange-id");
                     CommandSupport.requirePositive(out, "exchange-id", exchangeId);
                     String tokenIdStr = opts.getString("token-id");
@@ -121,7 +121,7 @@ public class ExchangeCommands {
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
                 .handler((ctx, opts, wrapper, out) -> {
 
-                    byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
+                    byte[] owner = opts.has("owner") ? opts.getAccountAddress("owner") : null;
                     byte[] sellToken = opts.getString("sell-token").getBytes(StandardCharsets.UTF_8);
                     long sellQuantity = opts.getLong("sell-quantity");
                     CommandSupport.requirePositive(out, "sell-quantity", sellQuantity);
@@ -149,7 +149,7 @@ public class ExchangeCommands {
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
                 .handler((ctx, opts, wrapper, out) -> {
 
-                    byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
+                    byte[] owner = opts.has("owner") ? opts.getAccountAddress("owner") : null;
                     byte[] orderId = CommandSupport.requireHex(out, "order-id", opts.getString("order-id"));
                     boolean multi = opts.getBoolean("multi");
                     String txid = wrapper.marketCancelOrderForCli(owner, orderId, multi);

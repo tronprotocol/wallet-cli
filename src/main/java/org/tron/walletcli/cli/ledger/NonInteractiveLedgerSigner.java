@@ -78,20 +78,23 @@ public final class NonInteractiveLedgerSigner implements LedgerSigner {
                     "No Ledger device matching address " + address + " is connected");
         }
 
-        Optional<String> preState = stateReader.lastState(device.path());
-        if (preState.isPresent() && STATE_SIGNING.equals(preState.get())) {
-            return LedgerSignOutcome.failure(LedgerSignOutcome.Status.ALREADY_SIGNING,
-                    "A previous sign operation is still in progress on the Ledger device");
-        }
-
-        // Defensive reset to avoid contamination from any prior interrupted sign.
-        resultReader.reset();
-        resultReader.prepareTransaction(transaction);
-
-        formatter.notice("Please confirm transaction on Ledger device for " + address);
-        String txid = getTransactionId(transaction).toString();
-
+        boolean prepared = false;
         try {
+            Optional<String> preState = stateReader.lastState(device.path());
+            if (preState.isPresent() && STATE_SIGNING.equals(preState.get())) {
+                return LedgerSignOutcome.failure(LedgerSignOutcome.Status.ALREADY_SIGNING,
+                        "A previous sign operation is still in progress on the Ledger device");
+            }
+
+            // Defensive reset to avoid contamination from any prior interrupted sign.
+            resultReader.reset();
+            resultReader.prepareTransaction(transaction);
+            prepared = true;
+
+            formatter.notice("Please confirm transaction on Ledger device for " + address);
+            String txid = getTransactionId(transaction).toString();
+            stateReader.markSigning(device.path(), txid);
+
             try (SystemOutSuppressor ignored = SystemOutSuppressor.capture()) {
                 executor.executeSignListen(device, transaction, bip44Path, gasfree);
             }
@@ -139,6 +142,7 @@ public final class NonInteractiveLedgerSigner implements LedgerSigner {
                             "Transaction was rejected on the Ledger device");
                 }
                 if (STATE_SIGNING.equals(postState.get())) {
+                    stateReader.markCanceled(device.path(), txid);
                     return LedgerSignOutcome.failure(LedgerSignOutcome.Status.TIMEOUT,
                             "Timed out waiting for confirmation on Ledger device");
                 }
@@ -150,7 +154,9 @@ public final class NonInteractiveLedgerSigner implements LedgerSigner {
             return LedgerSignOutcome.failure(LedgerSignOutcome.Status.SIGN_FAILED,
                     "Unexpected failure during Ledger sign: " + e.getMessage());
         } finally {
-            resultReader.reset();
+            if (prepared) {
+                resultReader.reset();
+            }
             try {
                 if (!device.isClosed()) {
                     device.close();

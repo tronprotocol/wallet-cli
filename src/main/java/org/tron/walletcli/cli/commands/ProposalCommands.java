@@ -25,7 +25,7 @@ public class ProposalCommands {
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
                 .handler((ctx, opts, wrapper, out) -> {
 
-                    byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
+                    byte[] owner = opts.has("owner") ? opts.getAccountAddress("owner") : null;
                     String paramsStr = opts.getString("parameters");
                     String[] parts = paramsStr.trim().split("\\s+");
                     if (parts.length % 2 != 0) {
@@ -73,7 +73,7 @@ public class ProposalCommands {
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
                 .handler((ctx, opts, wrapper, out) -> {
 
-                    byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
+                    byte[] owner = opts.has("owner") ? opts.getAccountAddress("owner") : null;
                     long id = opts.getLong("id");
                     CommandSupport.requirePositive(out, "id", id);
                     boolean approve = opts.getBoolean("approve");
@@ -97,7 +97,7 @@ public class ProposalCommands {
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
                 .handler((ctx, opts, wrapper, out) -> {
 
-                    byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
+                    byte[] owner = opts.has("owner") ? opts.getAccountAddress("owner") : null;
                     long id = opts.getLong("id");
                     CommandSupport.requirePositive(out, "id", id);
                     boolean multi = opts.getBoolean("multi");

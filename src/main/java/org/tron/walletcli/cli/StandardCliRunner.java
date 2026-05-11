@@ -6,6 +6,9 @@ import org.tron.keystore.StringUtils;
 import org.tron.keystore.WalletFile;
 import org.tron.walletserver.ApiClient;
 import org.tron.walletcli.WalletApiWrapper;
+import org.tron.walletcli.cli.aliases.AliasResolver;
+import org.tron.walletcli.cli.aliases.AliasStore;
+import org.tron.walletcli.cli.aliases.AliasStoreLoader;
 import org.tron.walletserver.WalletApi;
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -97,16 +100,18 @@ public class StandardCliRunner {
                 formatter.flush();
                 return 0;
             }
+            AliasResolver aliasResolver = buildAliasResolver();
             // Parse command options
             ParsedOptions opts;
             try {
-                opts = cmd.parseArgs(cmdArgs);
+                opts = cmd.parseArgs(cmdArgs, aliasResolver);
             } catch (IllegalArgumentException e) {
                 formatter.usageError(e.getMessage(), cmd);
                 return 2; // unreachable after usageError()
             }
 
-            CommandContext ctx = CommandContext.fromGlobalOptions(globalOpts, masterPasswordProvider);
+            CommandContext ctx = CommandContext.fromGlobalOptions(
+                    globalOpts, masterPasswordProvider, aliasResolver);
 
             // Create wrapper and authenticate
             WalletApiWrapper wrapper = new WalletApiWrapper();
@@ -148,6 +153,11 @@ public class StandardCliRunner {
 
     static boolean requiresAutoAuth(CommandDefinition cmd, ParsedOptions opts) {
         return cmd.resolveAuthPolicy(opts) == CommandDefinition.AuthPolicy.REQUIRE;
+    }
+
+    private AliasResolver buildAliasResolver() throws Exception {
+        AliasStore store = new AliasStoreLoader().loadLayered(WalletApi.getCurrentNetwork());
+        return new AliasResolver(store, formatter::resolved);
     }
 
     /**

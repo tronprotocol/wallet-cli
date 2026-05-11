@@ -26,15 +26,22 @@ public final class ProductionLedgerPorts {
             if (device == null) {
                 return null;
             }
-            if (device.isClosed()) {
-                device.open();
+            boolean matched = false;
+            try {
+                if (device.isClosed()) {
+                    device.open();
+                }
+                String deviceAddress = LedgerAddressUtil.getTronAddress(path, device);
+                matched = address.equals(deviceAddress);
+                if (!matched) {
+                    return null;
+                }
+                return new HidDeviceAdapter(device);
+            } finally {
+                if (!matched && !device.isClosed()) {
+                    device.close();
+                }
             }
-            String deviceAddress = LedgerAddressUtil.getTronAddress(path, device);
-            if (!address.equals(deviceAddress)) {
-                device.close();
-                return null;
-            }
-            return new HidDeviceAdapter(device);
         };
 
         LedgerPorts.SignStateReader stateReader =
@@ -48,6 +55,18 @@ public final class ProductionLedgerPorts {
                     public Optional<String> stateByTxid(String devicePath, String txid) {
                         return LedgerSignResult.getStateByTxid(devicePath, txid);
                     }
+
+                    @Override
+                    public void markSigning(String devicePath, String txid) {
+                        LedgerSignResult.upsertState(
+                                devicePath, txid, LedgerSignResult.SIGN_RESULT_SIGNING);
+                    }
+
+                    @Override
+                    public void markCanceled(String devicePath, String txid) {
+                        LedgerSignResult.updateState(
+                                devicePath, txid, LedgerSignResult.SIGN_RESULT_CANCEL);
+                    }
                 };
 
         LedgerPorts.SignExecutor executor = new LedgerPorts.SignExecutor() {
@@ -55,11 +74,17 @@ public final class ProductionLedgerPorts {
             public boolean executeSignListen(LedgerPorts.DeviceHandle device, Chain.Transaction tx,
                                              String path, boolean gasfree) {
                 HidDevice raw = ((HidDeviceAdapter) device).delegate;
-                LedgerEventListener.getInstance().setLedgerSignEnd(new AtomicBoolean(false));
+                LedgerEventListener listener = LedgerEventListener.getInstance();
+                listener.setStandardCliQuiet(true);
+                listener.setLedgerSignEnd(new AtomicBoolean(false));
                 if (raw.isClosed()) {
                     raw.open();
                 }
-                return LedgerEventListener.getInstance().executeSignListen(raw, tx, path, gasfree);
+                boolean accepted = listener.executeSignListen(raw, tx, path, gasfree);
+                if (listener.getLastSendResultBytes() != null || !accepted) {
+                    listener.setStandardCliQuiet(false);
+                }
+                return accepted;
             }
 
             @Override

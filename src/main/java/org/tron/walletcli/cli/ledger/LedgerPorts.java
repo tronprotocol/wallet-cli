@@ -42,6 +42,18 @@ public final class LedgerPorts {
          * Reads the state for the current transaction instead of the device's last recorded line.
          */
         Optional<String> stateByTxid(String devicePath, String txid);
+
+        /**
+         * Marks the current transaction as signing before the request is sent, even when the same
+         * txid already exists in the Ledger state file from a previous attempt.
+         */
+        void markSigning(String devicePath, String txid);
+
+        /**
+         * Marks the current transaction as canceled after the standard CLI timeout path has
+         * stopped waiting for confirmation.
+         */
+        void markCanceled(String devicePath, String txid);
     }
 
     /** Drives the actual APDU exchange and waits for the on-device button. */

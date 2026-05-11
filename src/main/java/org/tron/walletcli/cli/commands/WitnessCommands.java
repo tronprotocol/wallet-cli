@@ -28,7 +28,7 @@ public class WitnessCommands {
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
                 .handler((ctx, opts, wrapper, out) -> {
 
-                    byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
+                    byte[] owner = opts.has("owner") ? opts.getAccountAddress("owner") : null;
                     String url = opts.getString("url");
                     if (url.trim().isEmpty()) {
                         out.usageError("--url cannot be empty", null);
@@ -58,7 +58,7 @@ public class WitnessCommands {
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
                 .handler((ctx, opts, wrapper, out) -> {
 
-                    byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
+                    byte[] owner = opts.has("owner") ? opts.getAccountAddress("owner") : null;
                     String url = opts.getString("url");
                     if (url.trim().isEmpty()) {
                         out.usageError("--url cannot be empty", null);
@@ -89,7 +89,7 @@ public class WitnessCommands {
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
                 .handler((ctx, opts, wrapper, out) -> {
 
-                    byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
+                    byte[] owner = opts.has("owner") ? opts.getAccountAddress("owner") : null;
                     String votesStr = opts.getString("votes");
                     int permissionId = opts.has("permission-id") ? opts.getInt("permission-id") : 0;
                     CommandSupport.requirePermissionId(out, "permission-id", permissionId);
@@ -148,7 +148,7 @@ public class WitnessCommands {
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
                 .handler((ctx, opts, wrapper, out) -> {
 
-                    byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
+                    byte[] owner = opts.has("owner") ? opts.getAccountAddress("owner") : null;
                     int brokerage = opts.getInt("brokerage");
                     if (brokerage < 0 || brokerage > 100) {
                         out.usageError("brokerage must be between 0 and 100, got: " + brokerage, null);

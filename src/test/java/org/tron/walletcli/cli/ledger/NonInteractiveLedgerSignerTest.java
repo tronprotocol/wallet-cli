@@ -144,12 +144,14 @@ public class NonInteractiveLedgerSignerTest {
 
   @Test
   public void returnsAlreadySigningWhenPriorStateIsSigning() {
-    finder.next = new FakeDeviceHandle(DEV_PATH);
+    FakeDeviceHandle d = new FakeDeviceHandle(DEV_PATH);
+    finder.next = d;
     stateReader.preState = Optional.of(NonInteractiveLedgerSigner.STATE_SIGNING);
     LedgerSignOutcome r = signNonGasfree();
     Assert.assertEquals(LedgerSignOutcome.Status.ALREADY_SIGNING, r.getStatus());
     Assert.assertFalse("listener should not be invoked when a sign is already in progress",
         executor.executeCalled);
+    Assert.assertTrue("device must be closed on ALREADY_SIGNING early return", d.closed);
   }
 
   // ---------- post-state outcomes ----------
@@ -168,6 +170,27 @@ public class NonInteractiveLedgerSignerTest {
     stateReader.postState = Optional.of(NonInteractiveLedgerSigner.STATE_SIGNING);
     LedgerSignOutcome r = signNonGasfree();
     Assert.assertEquals(LedgerSignOutcome.Status.TIMEOUT, r.getStatus());
+    Assert.assertEquals("timeout must clear the current signing state so the next CLI command "
+            + "is not blocked by a stale signing entry",
+        NonInteractiveLedgerSigner.STATE_CANCEL, stateReader.updatedState);
+    Assert.assertEquals(DEV_PATH, stateReader.updatedDevicePath);
+    Assert.assertNotNull(stateReader.updatedTxid);
+  }
+
+  @Test
+  public void marksCurrentTxSigningBeforeExecutingLedgerRequest() {
+    finder.next = new FakeDeviceHandle(DEV_PATH);
+    stateReader.postState = Optional.of(NonInteractiveLedgerSigner.STATE_CANCEL);
+
+    LedgerSignOutcome r = signNonGasfree();
+
+    Assert.assertEquals(LedgerSignOutcome.Status.USER_REJECTED, r.getStatus());
+    Assert.assertEquals("signer must reset stale state for the current txid before waiting",
+        NonInteractiveLedgerSigner.STATE_SIGNING, stateReader.signingState);
+    Assert.assertEquals(DEV_PATH, stateReader.signingDevicePath);
+    Assert.assertNotNull(stateReader.signingTxid);
+    Assert.assertEquals("state reset must happen before listener execution",
+        stateReader.signingTxid, executor.txidAtExecute);
   }
 
   @Test
@@ -208,13 +231,13 @@ public class NonInteractiveLedgerSignerTest {
   }
 
   @Test
-  public void emitsExactlyOneStderrNoticeIncludingAddress() {
+  public void emitsExactlyOneStderrNoticeIncludingAddress() throws Exception {
     finder.next = new FakeDeviceHandle(DEV_PATH);
     stateReader.postState = Optional.of(NonInteractiveLedgerSigner.STATE_CONFIRMED);
     Chain.Transaction signed = Chain.Transaction.newBuilder().build();
     resultReader.signedTransaction = Optional.of(signed);
     signNonGasfree();
-    String stderr = stderrBuf.toString(StandardCharsets.UTF_8);
+    String stderr = stderrBuf.toString(StandardCharsets.UTF_8.name());
     Assert.assertTrue("notice must include the address", stderr.contains(ADDRESS));
     Assert.assertEquals("notice must be exactly one line", 1,
         stderr.split("\\R").length);
@@ -252,14 +275,32 @@ public class NonInteractiveLedgerSignerTest {
     @Override public Optional<String> stateByTxid(String devicePath, String txid) {
       return postState;
     }
+    String signingDevicePath;
+    String signingTxid;
+    String signingState;
+    @Override public void markSigning(String devicePath, String txid) {
+      signingDevicePath = devicePath;
+      signingTxid = txid;
+      signingState = NonInteractiveLedgerSigner.STATE_SIGNING;
+    }
+    String updatedDevicePath;
+    String updatedTxid;
+    String updatedState;
+    @Override public void markCanceled(String devicePath, String txid) {
+      updatedDevicePath = devicePath;
+      updatedTxid = txid;
+      updatedState = NonInteractiveLedgerSigner.STATE_CANCEL;
+    }
   }
 
   private static final class FakeExecutor implements LedgerPorts.SignExecutor {
     byte[] lastSendResult;
     boolean executeCalled;
+    String txidAtExecute;
     @Override public boolean executeSignListen(LedgerPorts.DeviceHandle device,
                                                Chain.Transaction tx, String path, boolean gasfree) {
       executeCalled = true;
+      txidAtExecute = org.tron.common.utils.TransactionUtils.getTransactionId(tx).toString();
       return true;
     }
     @Override public byte[] lastSendResultBytes() { return lastSendResult; }
