@@ -32,6 +32,9 @@ public final class AliasEntry {
         if (source == null || source.trim().isEmpty()) {
             throw new IllegalArgumentException("source must not be blank");
         }
+        if (type == AliasType.TOKEN && (decimals < 0 || decimals > 18)) {
+            throw new IllegalArgumentException("token decimals must be between 0 and 18");
+        }
         this.name = n;
         this.type = type;
         this.address = address.clone();

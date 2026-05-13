@@ -37,4 +37,14 @@ public class AliasEntryTest {
     public void rejectsWrongAddressLength() {
         AliasEntry.token("USDT", new byte[20], 6, "builtin");
     }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void rejectsNegativeTokenDecimals() {
+        AliasEntry.token("USDT", addr(), -1, "builtin");
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void rejectsTooLargeTokenDecimals() {
+        AliasEntry.token("USDT", addr(), 19, "builtin");
+    }
 }

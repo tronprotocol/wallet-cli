@@ -57,6 +57,22 @@ public final class AliasStoreLoader {
     }
 
     public AliasStore loadUser(NetType network) throws IOException {
+        try {
+            return loadUserOrThrow(network);
+        } catch (IOException e) {
+            warnFailed("read user alias file " + userFile(network).getPath(), e);
+            return AliasStore.empty();
+        } catch (RuntimeException e) {
+            warnFailed("read user alias file " + userFile(network).getPath(), e);
+            return AliasStore.empty();
+        }
+    }
+
+    /**
+     * Loads the user alias file and propagates read/parse failures. Mutating commands use this
+     * path so a malformed existing alias file is never treated as an empty store and overwritten.
+     */
+    public AliasStore loadUserOrThrow(NetType network) throws IOException {
         File file = userFile(network);
         if (!file.exists()) {
             return AliasStore.empty();
@@ -65,12 +81,6 @@ public final class AliasStoreLoader {
         try {
             reader = new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8);
             return readStore(reader, "user");
-        } catch (IOException e) {
-            warnFailed("read user alias file " + file.getPath(), e);
-            return AliasStore.empty();
-        } catch (RuntimeException e) {
-            warnFailed("read user alias file " + file.getPath(), e);
-            return AliasStore.empty();
         } finally {
             if (reader != null) {
                 closeQuietly(reader, "close user alias file " + file.getPath());

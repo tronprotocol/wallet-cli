@@ -68,7 +68,7 @@ public class AliasCommands {
                                 + loader.networkName(network) + " and cannot be overridden", null);
                         return;
                     }
-                    AliasStore user = loader.loadUser(network);
+                    AliasStore user = loader.loadUserOrThrow(network);
                     if (user.containsName(name)) {
                         out.usageError("Alias already exists: " + name
                                 + ". Use alias-remove first to replace it.", null);
@@ -103,7 +103,7 @@ public class AliasCommands {
                         return;
                     }
 
-                    AliasStore user = loader.loadUser(network);
+                    AliasStore user = loader.loadUserOrThrow(network);
                     List<AliasEntry> kept = new ArrayList<AliasEntry>();
                     boolean removed = false;
                     for (AliasEntry entry : user.listAll()) {

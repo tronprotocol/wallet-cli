@@ -220,7 +220,7 @@ public class LedgerEventListener extends BaseListener {
           println("This transaction has expired, please resign and submit again.");
           LedgerSignResult.updateState(
               TransactionSignManager.getInstance().getHidDevice().getPath()
-              , transactionId, LedgerSignResult.SIGN_RESULT_CANCEL
+              , transactionId, LedgerSignResult.SIGN_RESULT_TIMEOUT
           );
         }
         doLedgerSignEnd();

@@ -25,7 +25,8 @@ public final class NonInteractiveLedgerSigner implements LedgerSigner {
      */
     static final String STATE_SIGNING = "signing";    // SIGN_RESULT_SIGNING — in progress
     static final String STATE_CONFIRMED = "confirmed"; // SIGN_RESULT_SUCCESS — user confirmed
-    static final String STATE_CANCEL = "cancel";       // SIGN_RESULT_CANCEL — rejected or late response
+    static final String STATE_CANCEL = "cancel";       // SIGN_RESULT_CANCEL — user rejected/aborted
+    static final String STATE_TIMEOUT = "timeout";     // SIGN_RESULT_TIMEOUT — timed out
 
     /** APDU status word: Tron app is not open on the device. */
     private static final byte[] APDU_APP_IS_OPEN = new byte[] { 0x65, 0x11 };
@@ -102,13 +103,16 @@ public final class NonInteractiveLedgerSigner implements LedgerSigner {
             byte[] apdu = executor.lastSendResultBytes();
             if (apdu != null && apdu.length > 0) {
                 if (matches(apdu, APDU_APP_IS_OPEN)) {
+                    stateReader.markCanceled(device.path(), txid);
                     return LedgerSignOutcome.failure(LedgerSignOutcome.Status.APP_NOT_OPEN,
                             "Open the Tron app on your Ledger device and try again");
                 }
                 if (matches(apdu, APDU_SIGN_BY_HASH)) {
+                    stateReader.markCanceled(device.path(), txid);
                     return LedgerSignOutcome.failure(LedgerSignOutcome.Status.SIGN_BY_HASH_DISABLED,
                             "Enable 'Sign By Hash' in the Ledger Tron app settings and try again");
                 }
+                stateReader.markCanceled(device.path(), txid);
                 return LedgerSignOutcome.failure(LedgerSignOutcome.Status.SIGN_FAILED,
                         "Ledger returned APDU error " + toHex(apdu));
             }
@@ -134,15 +138,16 @@ public final class NonInteractiveLedgerSigner implements LedgerSigner {
                     return LedgerSignOutcome.failure(LedgerSignOutcome.Status.SIGN_FAILED,
                             "Ledger reported confirmation but no signature was recorded");
                 }
-                // STATE_CANCEL covers both the user-pressed-reject case and the rare
-                // "device responded after our 60s window" case. From the user's perspective
-                // both are "the sign did not complete because the user did not confirm in time".
                 if (STATE_CANCEL.equals(postState.get())) {
                     return LedgerSignOutcome.failure(LedgerSignOutcome.Status.USER_REJECTED,
                             "Transaction was rejected on the Ledger device");
                 }
+                if (STATE_TIMEOUT.equals(postState.get())) {
+                    return LedgerSignOutcome.failure(LedgerSignOutcome.Status.TIMEOUT,
+                            "Timed out waiting for confirmation on Ledger device");
+                }
                 if (STATE_SIGNING.equals(postState.get())) {
-                    stateReader.markCanceled(device.path(), txid);
+                    stateReader.markTimedOut(device.path(), txid);
                     return LedgerSignOutcome.failure(LedgerSignOutcome.Status.TIMEOUT,
                             "Timed out waiting for confirmation on Ledger device");
                 }

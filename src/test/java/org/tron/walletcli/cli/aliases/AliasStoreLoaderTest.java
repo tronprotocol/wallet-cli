@@ -13,6 +13,7 @@ import org.tron.common.enums.NetType;
 import org.tron.walletserver.WalletApi;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 
@@ -90,6 +91,18 @@ public class AliasStoreLoaderTest {
         AliasStore store = loader.loadUser(NetType.SHASTA);
 
         assertEquals(0, store.listAll().size());
+    }
+
+    @Test
+    public void malformedUserFileThrowsForStrictLoad() throws Exception {
+        writeUserFile(NetType.SHASTA, "{ broken json");
+
+        try {
+            loader.loadUserOrThrow(NetType.SHASTA);
+            fail("Expected malformed user alias file to fail strict load");
+        } catch (IOException e) {
+            assertNotNull(e.getMessage());
+        }
     }
 
     @Test

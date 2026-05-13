@@ -50,10 +50,15 @@ public final class LedgerPorts {
         void markSigning(String devicePath, String txid);
 
         /**
-         * Marks the current transaction as canceled after the standard CLI timeout path has
-         * stopped waiting for confirmation.
+         * Marks the current transaction as canceled or aborted so it does not remain signing.
          */
         void markCanceled(String devicePath, String txid);
+
+        /**
+         * Marks the current transaction as timed out after the standard CLI stops waiting for
+         * confirmation.
+         */
+        void markTimedOut(String devicePath, String txid);
     }
 
     /** Drives the actual APDU exchange and waits for the on-device button. */

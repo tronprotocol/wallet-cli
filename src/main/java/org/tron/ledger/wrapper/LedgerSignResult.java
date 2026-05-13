@@ -17,6 +17,7 @@ public class LedgerSignResult {
   public static final String SIGN_RESULT_SIGNING = "signing";
   public static final String SIGN_RESULT_SUCCESS = "confirmed";
   public static final String SIGN_RESULT_CANCEL = "cancel";
+  public static final String SIGN_RESULT_TIMEOUT = "timeout";
 
   private static final ReadWriteLock lock = new ReentrantReadWriteLock();
   private static final String DIRECTORY = "Ledger";

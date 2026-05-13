@@ -121,6 +121,8 @@ public class NonInteractiveLedgerSignerTest {
     executor.lastSendResult = new byte[]{0x65, 0x11};
     LedgerSignOutcome r = signNonGasfree();
     Assert.assertEquals(LedgerSignOutcome.Status.APP_NOT_OPEN, r.getStatus());
+    Assert.assertEquals("APDU failures must clear the current signing state",
+        NonInteractiveLedgerSigner.STATE_CANCEL, stateReader.updatedState);
   }
 
   @Test
@@ -129,6 +131,8 @@ public class NonInteractiveLedgerSignerTest {
     executor.lastSendResult = new byte[]{0x6a, (byte) 0x8c};
     LedgerSignOutcome r = signNonGasfree();
     Assert.assertEquals(LedgerSignOutcome.Status.SIGN_BY_HASH_DISABLED, r.getStatus());
+    Assert.assertEquals("APDU failures must clear the current signing state",
+        NonInteractiveLedgerSigner.STATE_CANCEL, stateReader.updatedState);
   }
 
   @Test
@@ -138,6 +142,8 @@ public class NonInteractiveLedgerSignerTest {
     LedgerSignOutcome r = signNonGasfree();
     Assert.assertEquals(LedgerSignOutcome.Status.SIGN_FAILED, r.getStatus());
     Assert.assertTrue(r.getMessage().toLowerCase().contains("0xffff"));
+    Assert.assertEquals("APDU failures must clear the current signing state",
+        NonInteractiveLedgerSigner.STATE_CANCEL, stateReader.updatedState);
   }
 
   // ---------- pre-state ----------
@@ -165,6 +171,14 @@ public class NonInteractiveLedgerSignerTest {
   }
 
   @Test
+  public void returnsTimeoutWhenPostStateIsTimeout() {
+    finder.next = new FakeDeviceHandle(DEV_PATH);
+    stateReader.postState = Optional.of(NonInteractiveLedgerSigner.STATE_TIMEOUT);
+    LedgerSignOutcome r = signNonGasfree();
+    Assert.assertEquals(LedgerSignOutcome.Status.TIMEOUT, r.getStatus());
+  }
+
+  @Test
   public void returnsTimeoutWhenPostStateRemainsSigning() {
     finder.next = new FakeDeviceHandle(DEV_PATH);
     stateReader.postState = Optional.of(NonInteractiveLedgerSigner.STATE_SIGNING);
@@ -172,9 +186,9 @@ public class NonInteractiveLedgerSignerTest {
     Assert.assertEquals(LedgerSignOutcome.Status.TIMEOUT, r.getStatus());
     Assert.assertEquals("timeout must clear the current signing state so the next CLI command "
             + "is not blocked by a stale signing entry",
-        NonInteractiveLedgerSigner.STATE_CANCEL, stateReader.updatedState);
-    Assert.assertEquals(DEV_PATH, stateReader.updatedDevicePath);
-    Assert.assertNotNull(stateReader.updatedTxid);
+        NonInteractiveLedgerSigner.STATE_TIMEOUT, stateReader.timedOutState);
+    Assert.assertEquals(DEV_PATH, stateReader.timedOutDevicePath);
+    Assert.assertNotNull(stateReader.timedOutTxid);
   }
 
   @Test
@@ -290,6 +304,14 @@ public class NonInteractiveLedgerSignerTest {
       updatedDevicePath = devicePath;
       updatedTxid = txid;
       updatedState = NonInteractiveLedgerSigner.STATE_CANCEL;
+    }
+    String timedOutDevicePath;
+    String timedOutTxid;
+    String timedOutState;
+    @Override public void markTimedOut(String devicePath, String txid) {
+      timedOutDevicePath = devicePath;
+      timedOutTxid = txid;
+      timedOutState = NonInteractiveLedgerSigner.STATE_TIMEOUT;
     }
   }
 

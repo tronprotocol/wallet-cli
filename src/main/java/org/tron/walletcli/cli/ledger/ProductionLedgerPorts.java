@@ -67,6 +67,12 @@ public final class ProductionLedgerPorts {
                         LedgerSignResult.updateState(
                                 devicePath, txid, LedgerSignResult.SIGN_RESULT_CANCEL);
                     }
+
+                    @Override
+                    public void markTimedOut(String devicePath, String txid) {
+                        LedgerSignResult.updateState(
+                                devicePath, txid, LedgerSignResult.SIGN_RESULT_TIMEOUT);
+                    }
                 };
 
         LedgerPorts.SignExecutor executor = new LedgerPorts.SignExecutor() {
@@ -76,15 +82,20 @@ public final class ProductionLedgerPorts {
                 HidDevice raw = ((HidDeviceAdapter) device).delegate;
                 LedgerEventListener listener = LedgerEventListener.getInstance();
                 listener.setStandardCliQuiet(true);
-                listener.setLedgerSignEnd(new AtomicBoolean(false));
-                if (raw.isClosed()) {
-                    raw.open();
-                }
-                boolean accepted = listener.executeSignListen(raw, tx, path, gasfree);
-                if (listener.getLastSendResultBytes() != null || !accepted) {
+                try {
+                    listener.setLedgerSignEnd(new AtomicBoolean(false));
+                    if (raw.isClosed()) {
+                        raw.open();
+                    }
+                    boolean accepted = listener.executeSignListen(raw, tx, path, gasfree);
+                    if (listener.getLastSendResultBytes() != null || !accepted) {
+                        listener.setStandardCliQuiet(false);
+                    }
+                    return accepted;
+                } catch (RuntimeException e) {
                     listener.setStandardCliQuiet(false);
+                    throw e;
                 }
-                return accepted;
             }
 
             @Override
