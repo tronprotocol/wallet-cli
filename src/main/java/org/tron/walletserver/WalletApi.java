@@ -395,8 +395,8 @@ public class WalletApi {
   }
 
   public static WalletFile CreatePQWalletFile(byte[] password, PQScheme scheme,
-      byte[] extendedPrivateKey, byte[] publicKey) throws CipherException {
-    return Wallet.createStandardPQ(password, scheme, extendedPrivateKey, publicKey);
+      byte[] extendedPrivateKey, byte[] seed, byte[] publicKey) throws CipherException {
+    return Wallet.createStandardPQ(password, scheme, extendedPrivateKey, seed, publicKey);
   }
 
   public static void storeMnemonicWords(byte[] password, SignInterface ecKeySm2Pair, List<String> mnemonicWords) throws CipherException, IOException {

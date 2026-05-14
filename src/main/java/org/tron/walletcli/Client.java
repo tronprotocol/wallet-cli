@@ -3219,17 +3219,31 @@ public class Client {
       return;
     }
     try {
-      FNDSA512 signer = new FNDSA512();
+      byte[] seed = new byte[FNDSA512.SEED_LENGTH];
+      new java.security.SecureRandom().nextBytes(seed);
+      FNDSA512 signer = new FNDSA512(seed);
       byte[] address = signer.getAddress();
       String addressStr = WalletApi.encode58Check(address);
+      String seedStr = ByteArray.toHexString(seed);
+      byte[] priv = signer.getPrivateKey();
+      byte[] extPriv = signer.getPrivateKeyWithPublicKey();
       String pubKeyStr = ByteArray.toHexString(signer.getPublicKey());
-      String extPrivStr = ByteArray.toHexString(signer.getPrivateKeyWithPublicKey());
+      String privKeyStr = ByteArray.toHexString(priv);
+      String extPrivStr = ByteArray.toHexString(extPriv);
       System.out.println("scheme: " + scheme.name());
       System.out.println("address: " + addressStr);
-      System.out.println("publicKey: " + pubKeyStr);
-      System.out.println("privateKey (extended f||g||F||h): " + extPrivStr);
-      System.out.println("WARNING: store the extended private key securely; "
-          + "the public key cannot be re-derived from f||g||F alone.");
+      System.out.println("seed (" + FNDSA512.SEED_LENGTH + " bytes): " + seedStr);
+      System.out.println("publicKey (" + signer.getPublicKey().length + " bytes): " + pubKeyStr);
+      System.out.println("privateKey (f||g||F, " + priv.length + " bytes): " + privKeyStr);
+      System.out.println("privateKey extended (f||g||F||h, " + extPriv.length + " bytes): "
+          + extPrivStr);
+      System.out.println("WARNING: store either the seed or the extended private key securely. "
+          + "The seed alone is sufficient to re-derive the full keypair; "
+          + "the bare private key f||g||F is NOT sufficient because the public key "
+          + "cannot be re-derived from it.");
+      java.util.Arrays.fill(seed, (byte) 0);
+      java.util.Arrays.fill(priv, (byte) 0);
+      java.util.Arrays.fill(extPriv, (byte) 0);
     } catch (Exception e) {
       System.out.println("GeneratePQKey " + failedHighlight() + " !!! " + e.getMessage());
     }
@@ -3258,22 +3272,36 @@ public class Client {
       System.out.println("Unsupported PQ scheme. Supported: FN_DSA_512");
       return;
     }
-    System.out.println("(Note: This operation will overwrite the old keystore file of the same address)");
-    char[] password = walletApiWrapper.isUnifiedExist() ?
-        byte2Char(walletApiWrapper.getWallet().getUnifiedPassword()) : Utils.inputPassword2Twice(false);
     int expected = PQSchemeRegistry.getPrivateKeyLength(scheme)
         + PQSchemeRegistry.getPublicKeyLength(scheme);
-    System.out.println("Please input the extended private key hex (f||g||F||h, "
-        + expected + " bytes / " + (expected * 2) + " hex chars):");
-    byte[] extPriv = inputPQExtendedPrivateKey(expected);
-    if (extPriv == null) {
-      System.out.println("ImportWalletPQ " + failedHighlight() + " !!");
-      StringUtils.clear(password);
+    String hexOrPathArg = extractPQHexArg(parameters);
+    if (hexOrPathArg == null) {
+      System.out.println("ImportWalletPQ requires the key material as an argument: either a "
+          + FNDSA512.SEED_LENGTH + "-byte / " + (FNDSA512.SEED_LENGTH * 2)
+          + "-hex-char seed, or the " + expected + "-byte / " + (expected * 2)
+          + "-hex-char extended private key (priv||pub).");
+      System.out.println("Usage:");
+      System.out.println("  ImportWalletPQ " + scheme.name() + " <hex>");
+      System.out.println("  ImportWalletPQ " + scheme.name() + " <path-to-file-containing-hex>");
       return;
     }
-    String fileName = walletApiWrapper.importWalletPQ(password, scheme, extPriv);
+    System.out.println("(Note: This operation will overwrite the old keystore file of the same address)");
+    PQKeyMaterial material = readPQKeyMaterialFromArg(hexOrPathArg, expected);
+    if (material == null) {
+      System.out.println("ImportWalletPQ " + failedHighlight() + " !!");
+      return;
+    }
+    char[] password = walletApiWrapper.isUnifiedExist() ?
+        byte2Char(walletApiWrapper.getWallet().getUnifiedPassword()) : Utils.inputPassword2Twice(false);
+    String fileName = walletApiWrapper.importWalletPQ(
+        password, scheme, material.extendedPrivateKey, material.seed);
     StringUtils.clear(password);
-    java.util.Arrays.fill(extPriv, (byte) 0);
+    if (material.extendedPrivateKey != null) {
+      java.util.Arrays.fill(material.extendedPrivateKey, (byte) 0);
+    }
+    if (material.seed != null) {
+      java.util.Arrays.fill(material.seed, (byte) 0);
+    }
     if (fileName == null) {
       System.out.println("ImportWalletPQ " + failedHighlight() + " !!");
       return;
@@ -3282,26 +3310,93 @@ public class Client {
         + File.separator + "Wallet" + File.separator + fileName);
   }
 
-  private byte[] inputPQExtendedPrivateKey(int expectedLen) throws IOException {
-    int hexLen = expectedLen * 2;
-    byte[] temp = new byte[hexLen + 16];
-    int nTime = 0;
-    while (nTime < retryTime) {
-      int len = System.in.read(temp, 0, temp.length);
-      if (len >= hexLen) {
-        byte[] hex = Arrays.copyOfRange(temp, 0, hexLen);
-        byte[] result = StringUtils.hexs2Bytes(hex);
-        StringUtils.clear(hex);
-        if (result != null && result.length == expectedLen) {
-          StringUtils.clear(temp);
-          return result;
-        }
-      }
-      System.out.println("Invalid extended private key hex, please try again.");
-      ++nTime;
+  /** Pair of (seed, extendedPrivateKey) returned by {@link #readPQKeyMaterialFromArg}. */
+  private static final class PQKeyMaterial {
+    final byte[] seed;
+    final byte[] extendedPrivateKey;
+    PQKeyMaterial(byte[] seed, byte[] extendedPrivateKey) {
+      this.seed = seed;
+      this.extendedPrivateKey = extendedPrivateKey;
     }
-    StringUtils.clear(temp);
+  }
+
+  /**
+   * Returns the hex (or file path) argument to ImportWalletPQ, if present.
+   * Accepts forms: {@code ImportWalletPQ <hex|path>} and
+   * {@code ImportWalletPQ <scheme> <hex|path>}. Returns {@code null} when no
+   * such argument was supplied (the caller should fall back to interactive input).
+   */
+  private static String extractPQHexArg(String[] parameters) {
+    if (parameters == null || parameters.length == 0) {
+      return null;
+    }
+    if (parameters.length >= 2 && parameters[1] != null && !parameters[1].isEmpty()) {
+      return parameters[1];
+    }
+    if (parameters.length == 1 && parameters[0] != null && !parameters[0].isEmpty()) {
+      try {
+        PQScheme.valueOf(parameters[0]);
+        return null;
+      } catch (IllegalArgumentException e) {
+        return parameters[0];
+      }
+    }
     return null;
+  }
+
+  /**
+   * Reads Falcon-512 key material from a CLI argument: either the hex string itself
+   * or a path to a file containing the hex. Auto-detects format by length:
+   * a {@link FNDSA512#SEED_LENGTH}-byte seed is expanded into the full extended
+   * private key (priv||pub); an {@code expectedLen}-byte extended private key is
+   * returned verbatim. Returns {@code null} (and prints a user-facing error) on
+   * any I/O failure, hex-decode failure, or length mismatch.
+   */
+  private static PQKeyMaterial readPQKeyMaterialFromArg(String hexOrPath, int expectedLen) {
+    String hex = hexOrPath;
+    java.io.File file = new java.io.File(hexOrPath);
+    if (file.isFile()) {
+      try {
+        hex = new String(java.nio.file.Files.readAllBytes(file.toPath()),
+            java.nio.charset.StandardCharsets.US_ASCII);
+      } catch (IOException e) {
+        System.out.println("Failed to read file: " + e.getMessage());
+        return null;
+      }
+    }
+    hex = hex.replaceAll("\\s+", "");
+    int seedHexLen = FNDSA512.SEED_LENGTH * 2;
+    int extHexLen = expectedLen * 2;
+    if (hex.length() != seedHexLen && hex.length() != extHexLen) {
+      System.out.println("Invalid PQ key length: got " + hex.length() + " hex chars, expected "
+          + seedHexLen + " (seed) or " + extHexLen + " (extended private key priv||pub).");
+      return null;
+    }
+    byte[] decoded = StringUtils.hexs2Bytes(
+        hex.getBytes(java.nio.charset.StandardCharsets.US_ASCII));
+    if (decoded == null) {
+      System.out.println("Invalid PQ key hex (not a valid hex string).");
+      return null;
+    }
+    if (decoded.length == FNDSA512.SEED_LENGTH) {
+      // Validate the seed produces a usable keypair, but pass the seed itself
+      // through so the keystore can persist BOTH segments (and so the bare
+      // seed remains available for future export / re-derivation).
+      try {
+        new FNDSA512(decoded);
+      } catch (RuntimeException e) {
+        java.util.Arrays.fill(decoded, (byte) 0);
+        System.out.println("Failed to derive Falcon-512 keypair from seed: " + e.getMessage());
+        return null;
+      }
+      return new PQKeyMaterial(decoded, null);
+    }
+    if (decoded.length != expectedLen) {
+      System.out.println("Invalid PQ key length after decode: got " + decoded.length
+          + " bytes, expected " + expectedLen + ".");
+      return null;
+    }
+    return new PQKeyMaterial(null, decoded);
   }
 
   private void updateAccountPermission(String[] parameters)

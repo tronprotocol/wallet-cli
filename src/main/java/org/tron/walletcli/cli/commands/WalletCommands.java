@@ -123,32 +123,51 @@ public class WalletCommands {
         registry.add(noAuthCommand()
                 .name("import-wallet-pq")
                 .aliases("importwalletpq")
-                .description("Import a post-quantum wallet from an extended private key (priv||pub hex)")
+                .description("Import a post-quantum wallet from a seed or extended private key")
                 .option("name", "Wallet name", true)
                 .option("scheme", "PQ signature scheme (default: FN_DSA_512)", false)
                 .option("extended-private-key-hex",
-                        "Hex-encoded extended private key (private||public bytes)", true)
+                        "Hex-encoded key material (either the 48-byte seed or the full extended private||public bytes)", true)
                 .handler((ctx, opts, wrapper, out) -> {
                     PQScheme scheme = parsePQSchemeOption(out, opts);
                     if (scheme == null) {
                         return;
                     }
                     String hex = opts.getString("extended-private-key-hex");
-                    byte[] extendedPriv;
+                    byte[] decoded;
                     try {
-                        extendedPriv = Hex.decode(hex);
+                        decoded = Hex.decode(hex);
                     } catch (Exception e) {
                         out.usageError("Invalid hex for --extended-private-key-hex", null);
                         return;
                     }
-                    int expected = PQSchemeRegistry.getPrivateKeyLength(scheme)
+                    int expectedExtLen = PQSchemeRegistry.getPrivateKeyLength(scheme)
                             + PQSchemeRegistry.getPublicKeyLength(scheme);
-                    if (extendedPriv.length != expected) {
-                        out.usageError("extended-private-key-hex must decode to " + expected
-                                + " bytes for " + scheme.name() + " (got "
-                                + extendedPriv.length + ")", null);
+                    int expectedSeedLen = FNDSA512.SEED_LENGTH;
+
+                    byte[] seed = null;
+                    byte[] extendedPriv = null;
+
+                    if (decoded.length == expectedSeedLen) {
+                        seed = decoded;
+                        // Verify the seed derives successfully, but pass the seed verbatim
+                        // to the keystore layer so BOTH segments can be persisted.
+                        try {
+                            new FNDSA512(seed);
+                        } catch (RuntimeException e) {
+                            java.util.Arrays.fill(seed, (byte) 0);
+                            out.error("execution_error", "Failed to derive Falcon-512 keypair from seed: " + e.getMessage());
+                            return;
+                        }
+                    } else if (decoded.length == expectedExtLen) {
+                        extendedPriv = decoded;
+                    } else {
+                        out.usageError("extended-private-key-hex must decode to " + expectedSeedLen
+                                + " bytes (seed) or " + expectedExtLen + " bytes (extended private key) for "
+                                + scheme.name() + " (got " + decoded.length + ")", null);
                         return;
                     }
+
                     String envPassword = ctx.getMasterPassword();
                     if (envPassword == null || envPassword.isEmpty()) {
                         out.error("execution_error",
@@ -158,7 +177,7 @@ public class WalletCommands {
                     char[] password = envPassword.toCharArray();
                     try {
                         CliWalletCreationResult result = wrapper.importWalletPQForCli(
-                                password, scheme, extendedPriv, opts.getString("name"));
+                                password, scheme, extendedPriv, seed, opts.getString("name"));
                         ActiveWalletConfig.setActiveAddress(result.getAddress());
                         Map<String, Object> json = new LinkedHashMap<String, Object>();
                         json.put("keystore", result.getKeystoreName());
@@ -169,6 +188,12 @@ public class WalletCommands {
                                 + result.getKeystoreName(), json);
                     } finally {
                         org.tron.keystore.StringUtils.clear(password);
+                        if (extendedPriv != null) {
+                            java.util.Arrays.fill(extendedPriv, (byte) 0);
+                        }
+                        if (seed != null) {
+                            java.util.Arrays.fill(seed, (byte) 0);
+                        }
                     }
                 })
                 .build());

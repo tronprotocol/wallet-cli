@@ -161,6 +161,7 @@ For more information on a specific command, just type the command in the termina
 |                    [ViewBackupRecords](#View-backup-records)                     |                [ViewTransactionHistory](#View-transaction-history)                |                             [VoteWitness](#How-to-vote)                             |
 |                       [WithdrawBalance](#withdraw-balance)                       |                [WithdrawExpireUnfreeze](#withdraw-expire-unfreeze)                |                      [TronlinkMultiSign](#tronlink-multi-sign)                      |                                                 
 |                     [EncodingConverter](#encoding-converter)                     |        [GetPrivateKeyByMnemonic](#How-to-get-privateKey-through-mnemonic)         |            [GetPaginatedNowWitnessList](#Get-paginated-now-witness-list)            |                                                 
+|     [GeneratePQKey](#post-quantum-signatures-falcon-512--fn-dsa-512)              |   [RegisterWalletPQ](#post-quantum-signatures-falcon-512--fn-dsa-512)             |   [ImportWalletPQ](#post-quantum-signatures-falcon-512--fn-dsa-512)                 |
 
 
 Type any one of the listed commands, to display how-to tips.
@@ -1845,23 +1846,36 @@ password:
 RegisterWalletPQ successful, keystore file: ./Wallet/TXxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.json
 ```
 
-### Import a PQ wallet from an extended private key
+### Import a PQ wallet from a seed or extended private key
 
-    >ImportWalletPQ [scheme]
-> Import an existing Falcon-512 keypair from the 2176-byte extended private key
-(hex-encoded). You will be prompted for the hex string (or pass it as a second argument)
-and for a password to encrypt the resulting keystore.
+    >ImportWalletPQ [scheme] <seed_or_extended_private_key_hex_or_file>
+> Import an existing Falcon-512 keypair. The argument is **required** and may be
+either the hex string itself or a path to a file containing it. The format is
+auto-detected by length:
+>
+> - **48 bytes / 96 hex chars** — a Falcon-512 seed; the full keypair is derived
+>   deterministically (BC `FixedSecureRandom`-driven `FalconKeyPairGenerator`).
+> - **2176 bytes / 4352 hex chars** — the full extended private key (`f‖g‖F‖h`),
+>   used verbatim.
 
-Example:
+> **Why no interactive prompt?** The 4352-hex-char extended form exceeds the
+typical TTY canonical-mode line buffer (~1024 chars on macOS) and gets silently
+truncated by the kernel. The command therefore only accepts the hex (or a file
+path) as a CLI argument.
+
+Examples:
 ```console
-wallet> ImportWalletPQ FN_DSA_512
-Please input the extended private key (priv||pub hex):
-<paste 4352 hex chars>
+# Import from a 96-hex-char seed (short — fine on a single line)
+wallet> ImportWalletPQ FN_DSA_512 0102030405060708...   (96 hex chars)
 Please input password.
 password:
 Please input password again.
 password:
 ImportWalletPQ successful, keystore file: ./Wallet/TXxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.json
+
+# Import from a file containing the seed or extended private key
+wallet> ImportWalletPQ FN_DSA_512 /tmp/my-falcon-seed.hex
+wallet> ImportWalletPQ FN_DSA_512 /tmp/my-falcon-extpriv.hex
 ```
 
 ### Signing transactions with a PQ wallet

@@ -853,3 +853,26 @@ Summary:
 Get witnesses voting information in pages.
 Usage example:
 wallet> GetPaginatedNowWitnessList 0 10
+Syntax:
+GeneratePQKey [scheme]
+Summary:
+Generate a post-quantum keypair (default scheme: FN_DSA_512) and print the address, public key, and extended private key. The key is NOT persisted to a keystore; use RegisterWalletPQ if you want it saved.
+Usage example:
+wallet> GeneratePQKey
+wallet> GeneratePQKey FN_DSA_512
+Syntax:
+RegisterWalletPQ [scheme]
+Summary:
+Register a new post-quantum wallet (default scheme: FN_DSA_512). Generates a fresh Falcon-512 keypair, prompts for a password, and writes an encrypted keystore under Wallet/.
+Usage example:
+wallet> RegisterWalletPQ
+wallet> RegisterWalletPQ FN_DSA_512
+Syntax:
+ImportWalletPQ [scheme] <seed_or_extended_private_key_hex_or_file>
+Summary:
+Import a post-quantum wallet from key material. The argument is required and may be either the hex string itself or a path to a file containing it. The format is auto-detected by length: a 48-byte / 96-hex-char Falcon-512 seed is expanded into the full keypair; a 2176-byte / 4352-hex-char extended private key (priv||pub) is used verbatim. Interactive paste is not supported because most terminals truncate lines longer than ~1024 chars.
+Usage example:
+wallet> ImportWalletPQ FN_DSA_512 0102030405060708...   (96 hex chars = seed)
+wallet> ImportWalletPQ FN_DSA_512 /tmp/my-falcon-seed.hex
+wallet> ImportWalletPQ FN_DSA_512 /tmp/my-falcon-extpriv.hex
+wallet> ImportWalletPQ /tmp/my-falcon-seed.hex
