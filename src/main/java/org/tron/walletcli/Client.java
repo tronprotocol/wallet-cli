@@ -93,6 +93,8 @@ import org.tron.api.GrpcAPI.AddressPrKeyPairMessage;
 import org.tron.common.crypto.Hash;
 import org.tron.common.crypto.SignInterface;
 import org.tron.common.crypto.SignUtils;
+import org.tron.common.crypto.pqc.FNDSA512;
+import org.tron.common.crypto.pqc.PQSchemeRegistry;
 import org.tron.common.enums.NetType;
 import org.tron.common.utils.AbiUtil;
 import org.tron.common.utils.ByteArray;
@@ -114,6 +116,7 @@ import org.tron.ledger.listener.TransactionSignManager;
 import org.tron.ledger.wrapper.LedgerUserHelper;
 import org.tron.mnemonic.MnemonicUtils;
 import org.tron.protos.Protocol;
+import org.tron.protos.Protocol.PQScheme;
 import org.tron.protos.contract.Common.ResourceCode;
 import org.tron.trident.api.GrpcAPI;
 import org.tron.trident.core.exceptions.IllegalException;
@@ -163,6 +166,7 @@ public class Client {
       "GasFreeTrace",
       "GasFreeTransfer",
       "GenerateAddress",
+      "GeneratePQKey",
       "GenerateSubAccount",
       "GetAccount",
       "GetAccountById",
@@ -218,6 +222,7 @@ public class Client {
       "ImportWalletByMnemonic",
       "ImportWalletByLedger",
       "ImportWalletByBase64",
+      "ImportWalletPQ",
       "ListAssetIssue",
       "ListAssetIssuePaginated",
       "ListExchanges",
@@ -236,6 +241,7 @@ public class Client {
       "TronlinkMultiSign",
       "ParticipateAssetIssue",
       "RegisterWallet",
+      "RegisterWalletPQ",
       "ResetWallet",
       "SendCoin",
       "SetAccountId",
@@ -3190,6 +3196,114 @@ public class Client {
     }
   }
 
+  private static PQScheme parsePQScheme(String[] parameters) {
+    if (parameters == null || parameters.length == 0 || parameters[0] == null
+        || parameters[0].isEmpty()) {
+      return PQScheme.FN_DSA_512;
+    }
+    try {
+      PQScheme scheme = PQScheme.valueOf(parameters[0]);
+      if (!PQSchemeRegistry.contains(scheme)) {
+        return null;
+      }
+      return scheme;
+    } catch (IllegalArgumentException e) {
+      return null;
+    }
+  }
+
+  private void generatePQKey(String[] parameters) {
+    PQScheme scheme = parsePQScheme(parameters);
+    if (scheme == null) {
+      System.out.println("Unsupported PQ scheme. Supported: FN_DSA_512");
+      return;
+    }
+    try {
+      FNDSA512 signer = new FNDSA512();
+      byte[] address = signer.getAddress();
+      String addressStr = WalletApi.encode58Check(address);
+      String pubKeyStr = ByteArray.toHexString(signer.getPublicKey());
+      String extPrivStr = ByteArray.toHexString(signer.getPrivateKeyWithPublicKey());
+      System.out.println("scheme: " + scheme.name());
+      System.out.println("address: " + addressStr);
+      System.out.println("publicKey: " + pubKeyStr);
+      System.out.println("privateKey (extended f||g||F||h): " + extPrivStr);
+      System.out.println("WARNING: store the extended private key securely; "
+          + "the public key cannot be re-derived from f||g||F alone.");
+    } catch (Exception e) {
+      System.out.println("GeneratePQKey " + failedHighlight() + " !!! " + e.getMessage());
+    }
+  }
+
+  private void registerWalletPQ(String[] parameters) throws CipherException, IOException {
+    PQScheme scheme = parsePQScheme(parameters);
+    if (scheme == null) {
+      System.out.println("Unsupported PQ scheme. Supported: FN_DSA_512");
+      return;
+    }
+    char[] password = Utils.inputPassword2Twice(false);
+    String fileName = walletApiWrapper.registerWalletPQ(password, scheme);
+    StringUtils.clear(password);
+    if (fileName == null) {
+      System.out.println("RegisterWalletPQ " + failedHighlight() + " !!");
+      return;
+    }
+    System.out.println("Register a PQ wallet " + successfulHighlight() + ", keystore file : ."
+        + File.separator + "Wallet" + File.separator + fileName);
+  }
+
+  private void importWalletPQ(String[] parameters) throws CipherException, IOException {
+    PQScheme scheme = parsePQScheme(parameters);
+    if (scheme == null) {
+      System.out.println("Unsupported PQ scheme. Supported: FN_DSA_512");
+      return;
+    }
+    System.out.println("(Note: This operation will overwrite the old keystore file of the same address)");
+    char[] password = walletApiWrapper.isUnifiedExist() ?
+        byte2Char(walletApiWrapper.getWallet().getUnifiedPassword()) : Utils.inputPassword2Twice(false);
+    int expected = PQSchemeRegistry.getPrivateKeyLength(scheme)
+        + PQSchemeRegistry.getPublicKeyLength(scheme);
+    System.out.println("Please input the extended private key hex (f||g||F||h, "
+        + expected + " bytes / " + (expected * 2) + " hex chars):");
+    byte[] extPriv = inputPQExtendedPrivateKey(expected);
+    if (extPriv == null) {
+      System.out.println("ImportWalletPQ " + failedHighlight() + " !!");
+      StringUtils.clear(password);
+      return;
+    }
+    String fileName = walletApiWrapper.importWalletPQ(password, scheme, extPriv);
+    StringUtils.clear(password);
+    java.util.Arrays.fill(extPriv, (byte) 0);
+    if (fileName == null) {
+      System.out.println("ImportWalletPQ " + failedHighlight() + " !!");
+      return;
+    }
+    System.out.println("Import a PQ wallet " + successfulHighlight() + ", keystore file : ."
+        + File.separator + "Wallet" + File.separator + fileName);
+  }
+
+  private byte[] inputPQExtendedPrivateKey(int expectedLen) throws IOException {
+    int hexLen = expectedLen * 2;
+    byte[] temp = new byte[hexLen + 16];
+    int nTime = 0;
+    while (nTime < retryTime) {
+      int len = System.in.read(temp, 0, temp.length);
+      if (len >= hexLen) {
+        byte[] hex = Arrays.copyOfRange(temp, 0, hexLen);
+        byte[] result = StringUtils.hexs2Bytes(hex);
+        StringUtils.clear(hex);
+        if (result != null && result.length == expectedLen) {
+          StringUtils.clear(temp);
+          return result;
+        }
+      }
+      System.out.println("Invalid extended private key hex, please try again.");
+      ++nTime;
+    }
+    StringUtils.clear(temp);
+    return null;
+  }
+
   private void updateAccountPermission(String[] parameters)
       throws CipherException, IOException, CancelException, IllegalException {
     boolean multi = isMulti(parameters);
@@ -3698,6 +3812,18 @@ public class Client {
             }
             case "registerwallet": {
               registerWallet();
+              break;
+            }
+            case "registerwalletpq": {
+              registerWalletPQ(parameters);
+              break;
+            }
+            case "generatepqkey": {
+              generatePQKey(parameters);
+              break;
+            }
+            case "importwalletpq": {
+              importWalletPQ(parameters);
               break;
             }
             case "modifywalletname": {

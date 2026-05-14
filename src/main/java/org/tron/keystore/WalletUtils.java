@@ -190,15 +190,14 @@ public class WalletUtils {
   public static Credentials loadCredentials(byte[] password, File source)
       throws IOException, CipherException {
     WalletFile walletFile = objectMapper.readValue(source, WalletFile.class);
-
-    if (isEckey) {
-      return CredentialsEckey.create(Wallet.decrypt(password, walletFile));
-    }
-    return CredentialsSM2.create(Wallet.decryptSM2(password, walletFile));
+    return loadCredentials(password, walletFile);
   }
 
   public static Credentials loadCredentials(byte[] password, WalletFile walletFile)
       throws CipherException {
+    if ("FN_DSA_512".equals(walletFile.getScheme())) {
+      return CredentialsFalcon.create(Wallet.decryptPQ(password, walletFile));
+    }
     if (isEckey) {
       return CredentialsEckey.create(Wallet.decrypt(password, walletFile));
     }

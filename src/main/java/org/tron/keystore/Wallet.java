@@ -7,9 +7,12 @@ import org.bouncycastle.crypto.params.KeyParameter;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.Hash;
 import org.tron.common.crypto.SignInterface;
+import org.tron.common.crypto.pqc.FNDSA512;
+import org.tron.common.crypto.pqc.PQSchemeRegistry;
 import org.tron.common.crypto.sm2.SM2;
 import org.tron.common.utils.ByteArray;
 import org.tron.core.exception.CipherException;
+import org.tron.protos.Protocol.PQScheme;
 import org.tron.walletserver.WalletApi;
 
 import javax.crypto.BadPaddingException;
@@ -331,6 +334,82 @@ public class Wallet {
     SM2 sm2 = SM2.fromPrivate(privateKey);
     StringUtils.clear(privateKey);
     return sm2;
+  }
+
+  // Encrypt a PQ extended private key (f ‖ g ‖ F ‖ h) with scrypt+AES-CTR.
+  // Mirrors create() but routes the plaintext bytes directly, because the
+  // 2176-byte Falcon key does not flow through SignInterface.
+  public static WalletFile createPQ(byte[] password, PQScheme scheme,
+      byte[] extendedPrivateKey, byte[] publicKey, int n, int p)
+      throws CipherException {
+    if (scheme == null || !PQSchemeRegistry.contains(scheme)) {
+      throw new CipherException("Unsupported PQ scheme: " + scheme);
+    }
+    byte[] salt = generateRandomBytes(32);
+    byte[] derivedKey = generateDerivedScryptKey(password, salt, n, R, p, DKLEN);
+    byte[] encryptKey = Arrays.copyOfRange(derivedKey, 0, 16);
+    byte[] iv = generateRandomBytes(16);
+    byte[] cipherText = performCipherOperation(Cipher.ENCRYPT_MODE, iv, encryptKey,
+        extendedPrivateKey);
+    byte[] mac = generateMac(derivedKey, cipherText);
+    return createPQWalletFile(scheme, publicKey, cipherText, iv, salt, mac, n, p);
+  }
+
+  public static WalletFile createStandardPQ(byte[] password, PQScheme scheme,
+      byte[] extendedPrivateKey, byte[] publicKey) throws CipherException {
+    return createPQ(password, scheme, extendedPrivateKey, publicKey, N_STANDARD, P_STANDARD);
+  }
+
+  private static WalletFile createPQWalletFile(PQScheme scheme, byte[] publicKey,
+      byte[] cipherText, byte[] iv, byte[] salt, byte[] mac, int n, int p) {
+    WalletFile walletFile = new WalletFile();
+    walletFile.setScheme(scheme.name());
+    walletFile.setAddress(
+        WalletApi.encode58Check(PQSchemeRegistry.computeAddress(scheme, publicKey)));
+
+    WalletFile.Crypto crypto = new WalletFile.Crypto();
+    crypto.setCipher(CIPHER);
+    crypto.setCiphertext(ByteArray.toHexString(cipherText));
+    walletFile.setCrypto(crypto);
+
+    WalletFile.CipherParams cipherParams = new WalletFile.CipherParams();
+    cipherParams.setIv(ByteArray.toHexString(iv));
+    crypto.setCipherparams(cipherParams);
+
+    crypto.setKdf(SCRYPT);
+    WalletFile.ScryptKdfParams kdfParams = new WalletFile.ScryptKdfParams();
+    kdfParams.setDklen(DKLEN);
+    kdfParams.setN(n);
+    kdfParams.setP(p);
+    kdfParams.setR(R);
+    kdfParams.setSalt(ByteArray.toHexString(salt));
+    crypto.setKdfparams(kdfParams);
+
+    crypto.setMac(ByteArray.toHexString(mac));
+    walletFile.setCrypto(crypto);
+    walletFile.setId(UUID.randomUUID().toString());
+    walletFile.setVersion(CURRENT_VERSION);
+    return walletFile;
+  }
+
+  // Returns an FNDSA512 reconstructed from the stored extended private key
+  // (f ‖ g ‖ F ‖ h). Bare-private-key recovery is not possible — BC has no
+  // public API for h = g · f⁻¹ mod q — so the keystore persists h alongside.
+  public static FNDSA512 decryptPQ(byte[] password, WalletFile walletFile)
+      throws CipherException {
+    if (walletFile.getScheme() == null) {
+      throw new CipherException("Wallet has no PQ scheme tag");
+    }
+    PQScheme scheme = PQScheme.valueOf(walletFile.getScheme());
+    if (scheme != PQScheme.FN_DSA_512) {
+      throw new CipherException("Unsupported PQ scheme: " + scheme);
+    }
+    byte[] extended = decrypt2PrivateBytes(password, walletFile);
+    try {
+      return FNDSA512.fromPrivateKeyWithPublicKey(extended);
+    } finally {
+      StringUtils.clear(extended);
+    }
   }
 
   static void validate(WalletFile walletFile) throws CipherException {

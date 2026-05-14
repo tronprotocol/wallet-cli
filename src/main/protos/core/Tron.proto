@@ -17,6 +17,18 @@ enum AccountType {
   Contract = 2;
 }
 
+// Post-quantum signature scheme identifier used by PQAuthSig.
+// UNKNOWN_PQ_SCHEME = 0 is the proto3 default and is reserved per the
+// java-tron API evolution standard (issue #6515) so unset / unrecognized
+// values are detectable by JSON consumers; it MUST never be registered
+// in PQSchemeRegistry. FN_DSA_512 = 1 is the V2 launch scheme.
+// New schemes are reserved for future activation (see PQSchemeRegistry).
+enum PQScheme {
+  UNKNOWN_PQ_SCHEME = 0;
+  FN_DSA_512 = 1;
+  reserved 2 to 15;
+}
+
 // AccountId, (name, address) use name, (null, address) use address, (name, null) use name,
 message AccountId {
   bytes name = 1;
@@ -245,6 +257,16 @@ message Key {
   int64 weight = 2;
 }
 
+// Per-signer post-quantum authentication witness for a transaction or block.
+// The signing public key is carried in-band; node verifies binding via
+//   derived_addr = 0x41 ‖ deriveHash(scheme, public_key)[12..32]
+// and matches against Permission.keys[].address.
+message PQAuthSig {
+  PQScheme scheme     = 1;
+  bytes    public_key = 2;
+  bytes    signature  = 3;
+}
+
 message DelegatedResource {
   bytes from = 1;
   bytes to = 2;
@@ -448,6 +470,10 @@ message Transaction {
   // only support size = 1,  repeated list here for muti-sig extension
   repeated bytes signature = 2;
   repeated Result ret = 5;
+  // Post-quantum authentication entries. ECDSA signatures (`signature` above)
+  // and PQAuthSig entries may co-exist on a multi-sig transaction; the node
+  // matches each entry's derived address against Permission.keys[].address.
+  repeated PQAuthSig pq_auth_sig = 6;
 }
 
 message TransactionInfo {
@@ -514,6 +540,11 @@ message BlockHeader {
   }
   raw raw_data = 1;
   bytes witness_signature = 2;
+  // Exactly one of {witness_signature, pq_auth_sig} SHALL be present per block:
+  // SRs with an ECDSA-only Witness Key produce witness_signature; SRs with a
+  // PQ-derived Key set pq_auth_sig instead. The verifier dispatches by which
+  // field is populated.
+  PQAuthSig pq_auth_sig = 3;
 }
 
 // block
@@ -627,6 +658,9 @@ message HelloMessage {
   int32 nodeType = 9;
   int64 lowestBlockNum = 10;
   bytes codeVersion = 11;
+  // Post-quantum handshake signature. Mutually exclusive with `signature` —
+  // exactly one of the two must be set by an active SR / peer.
+  PQAuthSig pq_auth_sig = 12;
 }
 
 message InternalTransaction {

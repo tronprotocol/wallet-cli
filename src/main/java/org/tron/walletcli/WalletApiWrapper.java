@@ -98,6 +98,9 @@ import org.tron.gasfree.request.GasFreeSubmitRequest;
 import org.tron.gasfree.response.GasFreeAddressResponse;
 import org.tron.keystore.ClearWalletUtils;
 import org.tron.keystore.Credentials;
+import org.tron.common.crypto.pqc.FNDSA512;
+import org.tron.common.crypto.pqc.PQSchemeRegistry;
+import org.tron.protos.Protocol.PQScheme;
 import org.tron.keystore.WalletFile;
 import org.tron.keystore.WalletUtils;
 import org.tron.ledger.LedgerAddressUtil;
@@ -241,6 +244,110 @@ public class WalletApiWrapper {
         logout();
       }
       return keystoreName;
+    } finally {
+      clear(passwd);
+    }
+  }
+
+  public String registerWalletPQ(char[] password, PQScheme scheme)
+      throws CipherException, IOException {
+    if (!WalletApi.passwordValid(password)) {
+      return null;
+    }
+    byte[] passwd = char2Byte(password);
+    try {
+      FNDSA512 signer = new FNDSA512();
+      WalletFile walletFile = WalletApi.CreatePQWalletFile(
+          passwd, scheme, signer.getPrivateKeyWithPublicKey(), signer.getPublicKey());
+      String keystoreName = WalletApi.store2Keystore(walletFile);
+      logout();
+      return keystoreName;
+    } finally {
+      clear(passwd);
+    }
+  }
+
+  public String importWalletPQ(char[] password, PQScheme scheme, byte[] extendedPrivateKey)
+      throws CipherException, IOException {
+    if (!WalletApi.passwordValid(password)) {
+      return null;
+    }
+    int expected = PQSchemeRegistry.getPrivateKeyLength(scheme)
+        + PQSchemeRegistry.getPublicKeyLength(scheme);
+    if (extendedPrivateKey == null || extendedPrivateKey.length != expected) {
+      System.out.println("Invalid extended private key length: expected " + expected
+          + " bytes for " + scheme.name());
+      return null;
+    }
+    byte[] passwd = char2Byte(password);
+    try {
+      FNDSA512 signer = FNDSA512.fromPrivateKeyWithPublicKey(extendedPrivateKey);
+      WalletFile walletFile = WalletApi.CreatePQWalletFile(
+          passwd, scheme, signer.getPrivateKeyWithPublicKey(), signer.getPublicKey());
+      String keystoreName = WalletApi.store2Keystore(walletFile);
+      if (isUnifiedExist()) {
+        wallet.getWalletList().add(walletFile);
+      } else {
+        logout();
+      }
+      return keystoreName;
+    } finally {
+      clear(passwd);
+    }
+  }
+
+  public CliWalletCreationResult registerWalletPQForCli(
+      char[] password, PQScheme scheme, String walletName)
+      throws CipherException, IOException {
+    validateCliWalletName(walletName);
+    if (!WalletApi.passwordValidQuiet(password)) {
+      throw new CommandErrorException("usage_error",
+          "MASTER_PASSWORD does not meet password requirements.");
+    }
+    byte[] passwd = char2Byte(password);
+    try {
+      FNDSA512 signer = new FNDSA512();
+      WalletFile walletFile = WalletApi.CreatePQWalletFile(
+          passwd, scheme, signer.getPrivateKeyWithPublicKey(), signer.getPublicKey());
+      walletFile.setName(walletName);
+      String keystoreName = WalletApi.store2Keystore(walletFile);
+      logout();
+      return new CliWalletCreationResult(
+          keystoreName, null, walletFile.getAddress(), walletName, null);
+    } finally {
+      clear(passwd);
+    }
+  }
+
+  public CliWalletCreationResult importWalletPQForCli(
+      char[] password, PQScheme scheme, byte[] extendedPrivateKey, String walletName)
+      throws CipherException, IOException {
+    validateCliWalletName(walletName);
+    if (!WalletApi.passwordValidQuiet(password)) {
+      throw new CommandErrorException("usage_error",
+          "MASTER_PASSWORD does not meet password requirements.");
+    }
+    int expected = PQSchemeRegistry.getPrivateKeyLength(scheme)
+        + PQSchemeRegistry.getPublicKeyLength(scheme);
+    if (extendedPrivateKey == null || extendedPrivateKey.length != expected) {
+      throw new CommandErrorException("usage_error",
+          "Invalid extended private key length: expected " + expected
+              + " bytes for " + scheme.name());
+    }
+    byte[] passwd = char2Byte(password);
+    try {
+      FNDSA512 signer = FNDSA512.fromPrivateKeyWithPublicKey(extendedPrivateKey);
+      WalletFile walletFile = WalletApi.CreatePQWalletFile(
+          passwd, scheme, signer.getPrivateKeyWithPublicKey(), signer.getPublicKey());
+      walletFile.setName(walletName);
+      String keystoreName = WalletApi.store2Keystore(walletFile);
+      if (isUnifiedExist()) {
+        wallet.getWalletList().add(walletFile);
+      } else {
+        logout();
+      }
+      return new CliWalletCreationResult(
+          keystoreName, null, walletFile.getAddress(), walletName, null);
     } finally {
       clear(passwd);
     }

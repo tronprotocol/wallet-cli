@@ -1789,6 +1789,122 @@ password:
 fileName = TYQq6zp51unQDNELmT4xKMWh5WLcwpCDZJ.json
 importWalletByKeystore successful !!
 ```
+## Post-quantum signatures (Falcon-512 / FN-DSA-512)
+
+Wallet-cli supports post-quantum signatures based on Falcon-512 (scheme tag `FN_DSA_512`),
+the same scheme accepted on-chain when the `ALLOW_FN_DSA_512` proposal is active on the
+target network. PQ wallets are stored in the regular `Wallet/` keystore directory with the
+same scrypt+AES-CTR encryption as ECKey/SM2 wallets; the keystore JSON carries a
+`"scheme":"FN_DSA_512"` discriminator so dispatch is per-wallet, not network-wide.
+
+PQ key sizes (Falcon-512):
+
+- seed: 48 bytes
+- public key: 896 bytes
+- private key (`f‖g‖F`): 1280 bytes
+- extended private key (`f‖g‖F‖h`, what the keystore stores): 2176 bytes
+- signature: up to 752 bytes
+
+The address is derived with the same formula as ECDSA / SM2:
+`0x41 ‖ Keccak-256(public_key)[12..32]`, so a PQ address is indistinguishable from a
+regular T-address until it signs a transaction (PQ signatures land in
+`Transaction.pq_auth_sig` instead of `Transaction.signature`).
+
+### Generate a PQ keypair (no keystore)
+
+    >GeneratePQKey [scheme]
+> Generate a Falcon-512 keypair and print the address, public key and extended private key.
+The scheme defaults to `FN_DSA_512` if omitted. The key is **not** persisted — use this for
+inspection or to seed an `ImportWalletPQ` flow.
+
+Example:
+```console
+wallet> GeneratePQKey
+Scheme:        FN_DSA_512
+Address:       TXxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+PublicKey:     <896 bytes hex (1792 hex chars)>
+PrivateKey:    <2176 bytes hex (4352 hex chars; extended form f||g||F||h)>
+
+WARNING: store the private key securely. It is the only way to spend from this address.
+```
+
+### Register a PQ wallet (creates a keystore)
+
+    >RegisterWalletPQ [scheme]
+> Generate a fresh Falcon-512 keypair, prompt for a password (twice) and write an encrypted
+keystore file under `Wallet/`. After registration you can `Login` with the resulting
+address and password just like any other wallet.
+
+Example:
+```console
+wallet> RegisterWalletPQ
+Please input password.
+password:
+Please input password again.
+password:
+RegisterWalletPQ successful, keystore file: ./Wallet/TXxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.json
+```
+
+### Import a PQ wallet from an extended private key
+
+    >ImportWalletPQ [scheme]
+> Import an existing Falcon-512 keypair from the 2176-byte extended private key
+(hex-encoded). You will be prompted for the hex string (or pass it as a second argument)
+and for a password to encrypt the resulting keystore.
+
+Example:
+```console
+wallet> ImportWalletPQ FN_DSA_512
+Please input the extended private key (priv||pub hex):
+<paste 4352 hex chars>
+Please input password.
+password:
+Please input password again.
+password:
+ImportWalletPQ successful, keystore file: ./Wallet/TXxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.json
+```
+
+### Signing transactions with a PQ wallet
+
+Once you are logged in to a PQ keystore, the normal commands (`SendCoin`,
+`TransferAsset`, `TriggerContract`, `AddTransactionSign`, …) sign with Falcon-512
+transparently and route the signature into `Transaction.pq_auth_sig`. The
+`isEckey` selector is bypassed for the active PQ wallet, so you can mix PQ wallets
+and ECKey/SM2 wallets in the same multi-sign session — each contributor signs with
+the algorithm that matches their own keystore.
+
+> **Note:** transactions signed by a PQ wallet are only accepted on networks where the
+`ALLOW_FN_DSA_512` proposal is active. Against a node that does not understand the
+proposal, the transaction will be rejected even though wallet-cli builds and signs it
+correctly.
+
+### Standard CLI (non-interactive)
+
+The standard CLI exposes the same three operations as scriptable commands. They use the
+same `MASTER_PASSWORD` environment variable for non-interactive password entry as the
+other `*-wallet` commands.
+
+```bash
+# Generate a keypair and print JSON (no keystore is written)
+java -jar build/libs/wallet-cli.jar --output json generate-pq-key
+java -jar build/libs/wallet-cli.jar --output json generate-pq-key --scheme FN_DSA_512
+
+# Create an encrypted PQ keystore
+MASTER_PASSWORD='testpassword123A' \
+  java -jar build/libs/wallet-cli.jar --output json register-wallet-pq --name pqalice
+
+# Import an existing keypair from its extended-private-key hex
+MASTER_PASSWORD='testpassword123A' \
+  java -jar build/libs/wallet-cli.jar --output json import-wallet-pq \
+    --name pqalice \
+    --extended-private-key-hex <4352-hex-char string>
+```
+
+`generate-pq-key` returns a JSON envelope containing `scheme`, `address`,
+`public_key_hex`, and `private_key_hex`. `register-wallet-pq` and
+`import-wallet-pq` return the keystore filename and the derived address, exactly like
+the standard-CLI `register-wallet` / `import-wallet` commands.
+
 ## import wallet by ledger
     >ImportWalletByLedger
 >import the derived account of ledger to wallet-cli

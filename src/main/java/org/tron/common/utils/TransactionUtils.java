@@ -27,7 +27,10 @@ import org.tron.common.crypto.ECKey.ECDSASignature;
 import org.tron.common.crypto.Sha256Sm3Hash;
 import org.tron.common.crypto.SignInterface;
 import org.tron.common.crypto.SignatureInterface;
+import org.tron.common.crypto.pqc.FNDSA512;
 import org.tron.core.exception.CancelException;
+import org.tron.protos.Protocol.PQAuthSig;
+import org.tron.protos.Protocol.PQScheme;
 import org.tron.protos.Protocol.Transaction;
 import org.tron.protos.contract.AccountContract;
 import org.tron.protos.contract.AccountContract.AccountCreateContract;
@@ -349,6 +352,24 @@ public class TransactionUtils {
     transactionBuilderSigned.addSignature(bsSign);
     transaction = transactionBuilderSigned.build();
     return transaction;
+  }
+
+  public static Chain.Transaction signPQ(
+      Chain.Transaction transaction, FNDSA512 signer, PQScheme scheme)
+      throws InvalidProtocolBufferException {
+    return Chain.Transaction.parseFrom(
+        signPQ(Transaction.parseFrom(transaction.toByteArray()), signer, scheme).toByteArray());
+  }
+
+  public static Transaction signPQ(Transaction transaction, FNDSA512 signer, PQScheme scheme) {
+    byte[] hash = Sha256Sm3Hash.hash(transaction.getRawData().toByteArray());
+    byte[] sig = signer.sign(hash);
+    PQAuthSig pqSig = PQAuthSig.newBuilder()
+        .setScheme(scheme)
+        .setPublicKey(ByteString.copyFrom(signer.getPublicKey()))
+        .setSignature(ByteString.copyFrom(sig))
+        .build();
+    return transaction.toBuilder().addPqAuthSig(pqSig).build();
   }
 
   public static Transaction setTimestamp(Transaction transaction) {

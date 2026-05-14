@@ -82,7 +82,9 @@ import org.tron.common.crypto.Hash;
 import org.tron.common.crypto.Sha256Sm3Hash;
 import org.tron.common.crypto.SignInterface;
 import org.tron.common.crypto.SignatureInterface;
+import org.tron.common.crypto.pqc.FNDSA512;
 import org.tron.common.crypto.sm2.SM2;
+import org.tron.protos.Protocol.PQScheme;
 import org.tron.common.enums.NetType;
 import org.tron.common.utils.Base58;
 import org.tron.common.utils.ByteArray;
@@ -392,6 +394,11 @@ public class WalletApi {
     return Wallet.createStandardLedger(password, address, path);
   }
 
+  public static WalletFile CreatePQWalletFile(byte[] password, PQScheme scheme,
+      byte[] extendedPrivateKey, byte[] publicKey) throws CipherException {
+    return Wallet.createStandardPQ(password, scheme, extendedPrivateKey, publicKey);
+  }
+
   public static void storeMnemonicWords(byte[] password, SignInterface ecKeySm2Pair, List<String> mnemonicWords) throws CipherException, IOException {
     storeMnemonicWords(password, ecKeySm2Pair, mnemonicWords, true);
   }
@@ -530,6 +537,14 @@ public class WalletApi {
 
   public SM2 getSM2(WalletFile walletFile, byte[] password) throws CipherException {
     return Wallet.decryptSM2(password, walletFile);
+  }
+
+  public FNDSA512 getFNDSA512(WalletFile walletFile, byte[] password) throws CipherException {
+    return Wallet.decryptPQ(password, walletFile);
+  }
+
+  public static boolean isPQWallet(WalletFile walletFile) {
+    return walletFile != null && "FN_DSA_512".equals(walletFile.getScheme());
   }
 
   public byte[] getPrivateBytes(byte[] password) throws CipherException, IOException {
@@ -944,7 +959,9 @@ public class WalletApi {
         return null;
       }
     } else {
-      if (isEckey) {
+      if (isPQWallet(wf)) {
+        transaction = TransactionUtils.signPQ(transaction, this.getFNDSA512(wf, passwd), PQScheme.FN_DSA_512);
+      } else if (isEckey) {
         transaction = TransactionUtils.sign(transaction, this.getEcKey(wf, passwd));
       } else {
         transaction = TransactionUtils.sign(transaction, this.getSM2(wf, passwd));
@@ -1017,7 +1034,9 @@ public class WalletApi {
           return null;
         }
       } else {
-        if (isEckey) {
+        if (isPQWallet(wf)) {
+          transaction = TransactionUtils.signPQ(transaction, this.getFNDSA512(wf, passwd), PQScheme.FN_DSA_512);
+        } else if (isEckey) {
           transaction = TransactionUtils.sign(transaction, this.getEcKey(wf, passwd));
         } else {
           transaction = TransactionUtils.sign(transaction, this.getSM2(wf, passwd));
@@ -1092,7 +1111,9 @@ public class WalletApi {
         TransactionSignManager.getInstance().setTransaction(null);
         throw new CancelException(weight.getResult().getMessage());
       }
-      if (isEckey) {
+      if (isPQWallet(wf)) {
+        transaction = TransactionUtils.signPQ(transaction, this.getFNDSA512(wf, passwd), PQScheme.FN_DSA_512);
+      } else if (isEckey) {
         transaction = TransactionUtils.sign(transaction, this.getEcKey(wf, passwd));
       } else {
         transaction = TransactionUtils.sign(transaction, this.getSM2(wf, passwd));
@@ -4424,7 +4445,9 @@ public class WalletApi {
       System.out.println("Please input your password.");
       passwd = char2Byte(inputPassword(false));
     }
-    if (isEckey) {
+    if (isPQWallet(wf)) {
+      transaction = TransactionUtils.signPQ(transaction, this.getFNDSA512(wf, passwd), PQScheme.FN_DSA_512);
+    } else if (isEckey) {
       transaction = TransactionUtils.sign(transaction, this.getEcKey(wf, passwd));
     } else {
       transaction = TransactionUtils.sign(transaction, this.getSM2(wf, passwd));

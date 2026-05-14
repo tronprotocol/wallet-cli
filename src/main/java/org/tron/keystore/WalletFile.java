@@ -1,5 +1,6 @@
 package org.tron.keystore;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonSetter;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
@@ -24,6 +25,11 @@ public class WalletFile {
     private Crypto crypto;
     private String id;
     private int version;
+    // Signature scheme discriminator: null/"ECKEY" for legacy ECDSA wallets,
+    // "SM2" for SM2 wallets, "FN_DSA_512" for Falcon-512 PQ wallets. Omitted on
+    // serialization when null so existing keystore files stay byte-identical.
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private String scheme;
     @Getter
     @Setter
     private File sourceFile;
@@ -77,6 +83,14 @@ public class WalletFile {
         this.version = version;
     }
 
+    public String getScheme() {
+        return scheme;
+    }
+
+    public void setScheme(String scheme) {
+        this.scheme = scheme;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -98,19 +112,25 @@ public class WalletFile {
                 : that.getCrypto() != null) {
             return false;
         } 
-        if (getId() != null 
+        if (getId() != null
                 ? !getId().equals(that.getId())
                 : that.getId() != null) {
             return false;
         }
+        if (getScheme() != null
+                ? !getScheme().equals(that.getScheme())
+                : that.getScheme() != null) {
+            return false;
+        }
         return version == that.version;
-    } 
+    }
 
     @Override
     public int hashCode() {
         int result = getAddress() != null ? getAddress().hashCode() : 0;
         result = 31 * result + (getCrypto() != null ? getCrypto().hashCode() : 0);
         result = 31 * result + (getId() != null ? getId().hashCode() : 0);
+        result = 31 * result + (getScheme() != null ? getScheme().hashCode() : 0);
         result = 31 * result + version;
         return result;
     }  

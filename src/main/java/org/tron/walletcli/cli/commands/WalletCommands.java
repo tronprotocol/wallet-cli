@@ -1,9 +1,13 @@
 package org.tron.walletcli.cli.commands;
 
+import org.bouncycastle.util.encoders.Hex;
+import org.tron.common.crypto.pqc.FNDSA512;
+import org.tron.common.crypto.pqc.PQSchemeRegistry;
 import org.tron.keystore.WalletFile;
 import org.tron.mnemonic.MnemonicUtils;
 import org.tron.keystore.WalletUtils;
 import org.tron.ledger.LedgerFileUtil;
+import org.tron.protos.Protocol.PQScheme;
 import org.tron.walletcli.WalletApiWrapper.CliWalletCreationResult;
 import org.tron.walletcli.cli.ActiveWalletConfig;
 import org.tron.walletcli.cli.CommandDefinition;
@@ -34,6 +38,140 @@ public class WalletCommands {
         registerResetWallet(registry);
         registerModifyWalletName(registry);
         registerGenerateSubAccount(registry);
+        registerGeneratePQKey(registry);
+        registerRegisterWalletPQ(registry);
+        registerImportWalletPQ(registry);
+    }
+
+    private static PQScheme parsePQSchemeOption(org.tron.walletcli.cli.OutputFormatter out,
+                                                org.tron.walletcli.cli.ParsedOptions opts) {
+        String schemeName = opts.has("scheme") ? opts.getString("scheme") : "FN_DSA_512";
+        try {
+            PQScheme scheme = PQScheme.valueOf(schemeName);
+            if (scheme == PQScheme.UNKNOWN_PQ_SCHEME) {
+                out.usageError("Unsupported scheme: " + schemeName, null);
+                return null;
+            }
+            return scheme;
+        } catch (IllegalArgumentException e) {
+            out.usageError("Unsupported scheme: " + schemeName, null);
+            return null;
+        }
+    }
+
+    private static void registerGeneratePQKey(CommandRegistry registry) {
+        registry.add(noAuthCommand()
+                .name("generate-pq-key")
+                .aliases("generatepqkey")
+                .description("Generate a new post-quantum keypair (no keystore written)")
+                .option("scheme", "PQ signature scheme (default: FN_DSA_512)", false)
+                .handler((ctx, opts, wrapper, out) -> {
+                    PQScheme scheme = parsePQSchemeOption(out, opts);
+                    if (scheme == null) {
+                        return;
+                    }
+                    FNDSA512 signer = new FNDSA512();
+                    String address = WalletApi.encode58Check(signer.getAddress());
+                    Map<String, Object> json = new LinkedHashMap<String, Object>();
+                    json.put("scheme", scheme.name());
+                    json.put("address", address);
+                    json.put("public_key_hex", Hex.toHexString(signer.getPublicKey()));
+                    json.put("private_key_hex", Hex.toHexString(signer.getPrivateKeyWithPublicKey()));
+                    out.success("Generated PQ key for address: " + address, json);
+                })
+                .build());
+    }
+
+    private static void registerRegisterWalletPQ(CommandRegistry registry) {
+        registry.add(noAuthCommand()
+                .name("register-wallet-pq")
+                .aliases("registerwalletpq")
+                .description("Create a new post-quantum wallet")
+                .option("name", "Wallet name", true)
+                .option("scheme", "PQ signature scheme (default: FN_DSA_512)", false)
+                .handler((ctx, opts, wrapper, out) -> {
+                    PQScheme scheme = parsePQSchemeOption(out, opts);
+                    if (scheme == null) {
+                        return;
+                    }
+                    String envPassword = ctx.getMasterPassword();
+                    if (envPassword == null || envPassword.isEmpty()) {
+                        out.error("execution_error",
+                                "Set MASTER_PASSWORD environment variable for non-interactive wallet creation");
+                        return;
+                    }
+                    char[] password = envPassword.toCharArray();
+                    try {
+                        CliWalletCreationResult result = wrapper.registerWalletPQForCli(
+                                password, scheme, opts.getString("name"));
+                        ActiveWalletConfig.setActiveAddress(result.getAddress());
+                        Map<String, Object> json = new LinkedHashMap<String, Object>();
+                        json.put("keystore", result.getKeystoreName());
+                        json.put("address", result.getAddress());
+                        json.put("wallet_name", result.getWalletName());
+                        json.put("scheme", scheme.name());
+                        out.success("Register a PQ wallet successful, keystore file name is "
+                                + result.getKeystoreName(), json);
+                    } finally {
+                        org.tron.keystore.StringUtils.clear(password);
+                    }
+                })
+                .build());
+    }
+
+    private static void registerImportWalletPQ(CommandRegistry registry) {
+        registry.add(noAuthCommand()
+                .name("import-wallet-pq")
+                .aliases("importwalletpq")
+                .description("Import a post-quantum wallet from an extended private key (priv||pub hex)")
+                .option("name", "Wallet name", true)
+                .option("scheme", "PQ signature scheme (default: FN_DSA_512)", false)
+                .option("extended-private-key-hex",
+                        "Hex-encoded extended private key (private||public bytes)", true)
+                .handler((ctx, opts, wrapper, out) -> {
+                    PQScheme scheme = parsePQSchemeOption(out, opts);
+                    if (scheme == null) {
+                        return;
+                    }
+                    String hex = opts.getString("extended-private-key-hex");
+                    byte[] extendedPriv;
+                    try {
+                        extendedPriv = Hex.decode(hex);
+                    } catch (Exception e) {
+                        out.usageError("Invalid hex for --extended-private-key-hex", null);
+                        return;
+                    }
+                    int expected = PQSchemeRegistry.getPrivateKeyLength(scheme)
+                            + PQSchemeRegistry.getPublicKeyLength(scheme);
+                    if (extendedPriv.length != expected) {
+                        out.usageError("extended-private-key-hex must decode to " + expected
+                                + " bytes for " + scheme.name() + " (got "
+                                + extendedPriv.length + ")", null);
+                        return;
+                    }
+                    String envPassword = ctx.getMasterPassword();
+                    if (envPassword == null || envPassword.isEmpty()) {
+                        out.error("execution_error",
+                                "Set MASTER_PASSWORD environment variable for non-interactive wallet import");
+                        return;
+                    }
+                    char[] password = envPassword.toCharArray();
+                    try {
+                        CliWalletCreationResult result = wrapper.importWalletPQForCli(
+                                password, scheme, extendedPriv, opts.getString("name"));
+                        ActiveWalletConfig.setActiveAddress(result.getAddress());
+                        Map<String, Object> json = new LinkedHashMap<String, Object>();
+                        json.put("keystore", result.getKeystoreName());
+                        json.put("address", result.getAddress());
+                        json.put("wallet_name", result.getWalletName());
+                        json.put("scheme", scheme.name());
+                        out.success("Import a PQ wallet successful, keystore file name is "
+                                + result.getKeystoreName(), json);
+                    } finally {
+                        org.tron.keystore.StringUtils.clear(password);
+                    }
+                })
+                .build());
     }
 
     private static void registerRegisterWallet(CommandRegistry registry) {
