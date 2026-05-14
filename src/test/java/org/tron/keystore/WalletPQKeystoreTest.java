@@ -115,7 +115,8 @@ public class WalletPQKeystoreTest {
         original.getPrivateKeyWithPublicKey(), seed, original.getPublicKey());
 
     String mac = walletFile.getCrypto().getMac();
-    walletFile.getCrypto().setMac(mac.replace('a', 'b').replace('0', '1'));
+    char flipped = mac.charAt(0) == '0' ? '1' : '0';
+    walletFile.getCrypto().setMac(flipped + mac.substring(1));
 
     try {
       Wallet.decryptPQ(password, walletFile);
@@ -135,7 +136,8 @@ public class WalletPQKeystoreTest {
         original.getPrivateKeyWithPublicKey(), seed, original.getPublicKey());
 
     String seedMac = walletFile.getCrypto().getSeedmac();
-    walletFile.getCrypto().setSeedmac(seedMac.replace('a', 'b').replace('0', '1'));
+    char seedFlipped = seedMac.charAt(0) == '0' ? '1' : '0';
+    walletFile.getCrypto().setSeedmac(seedFlipped + seedMac.substring(1));
 
     try {
       Wallet.decryptPQ(password, walletFile);

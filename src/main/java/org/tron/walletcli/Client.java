@@ -3206,7 +3206,7 @@ public class Client {
       if (!PQSchemeRegistry.contains(scheme)) {
         return null;
       }
-      return scheme;
+      return PQSchemeRegistry.resolve(scheme);
     } catch (IllegalArgumentException e) {
       return null;
     }
@@ -3267,14 +3267,21 @@ public class Client {
   }
 
   private void importWalletPQ(String[] parameters) throws CipherException, IOException {
-    PQScheme scheme = parsePQScheme(parameters);
+    String hexOrPathArg = extractPQHexArg(parameters);
+    PQScheme scheme;
+    if (parameters != null && parameters.length >= 2) {
+        scheme = parsePQScheme(new String[] {parameters[0]});
+    } else if (parameters != null && parameters.length == 1 && hexOrPathArg == null) {
+        scheme = parsePQScheme(parameters);
+    } else {
+        scheme = PQScheme.FN_DSA_512;
+    }
     if (scheme == null) {
       System.out.println("Unsupported PQ scheme. Supported: FN_DSA_512");
       return;
     }
     int expected = PQSchemeRegistry.getPrivateKeyLength(scheme)
         + PQSchemeRegistry.getPublicKeyLength(scheme);
-    String hexOrPathArg = extractPQHexArg(parameters);
     if (hexOrPathArg == null) {
       System.out.println("ImportWalletPQ requires the key material as an argument: either a "
           + FNDSA512.SEED_LENGTH + "-byte / " + (FNDSA512.SEED_LENGTH * 2)
@@ -3293,14 +3300,18 @@ public class Client {
     }
     char[] password = walletApiWrapper.isUnifiedExist() ?
         byte2Char(walletApiWrapper.getWallet().getUnifiedPassword()) : Utils.inputPassword2Twice(false);
-    String fileName = walletApiWrapper.importWalletPQ(
-        password, scheme, material.extendedPrivateKey, material.seed);
-    StringUtils.clear(password);
-    if (material.extendedPrivateKey != null) {
-      java.util.Arrays.fill(material.extendedPrivateKey, (byte) 0);
-    }
-    if (material.seed != null) {
-      java.util.Arrays.fill(material.seed, (byte) 0);
+    String fileName;
+    try {
+      fileName = walletApiWrapper.importWalletPQ(
+          password, scheme, material.extendedPrivateKey, material.seed);
+    } finally {
+      StringUtils.clear(password);
+      if (material.extendedPrivateKey != null) {
+        java.util.Arrays.fill(material.extendedPrivateKey, (byte) 0);
+      }
+      if (material.seed != null) {
+        java.util.Arrays.fill(material.seed, (byte) 0);
+      }
     }
     if (fileName == null) {
       System.out.println("ImportWalletPQ " + failedHighlight() + " !!");
@@ -3336,9 +3347,9 @@ public class Client {
     if (parameters.length == 1 && parameters[0] != null && !parameters[0].isEmpty()) {
       try {
         PQScheme.valueOf(parameters[0]);
-        return null;
+        return null; // Scheme provided but no hex
       } catch (IllegalArgumentException e) {
-        return parameters[0];
+        return parameters[0]; // Not a scheme, so it must be hex/path
       }
     }
     return null;

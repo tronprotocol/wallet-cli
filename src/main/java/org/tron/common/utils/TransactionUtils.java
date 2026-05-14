@@ -317,9 +317,13 @@ public class TransactionUtils {
     List<Transaction.Contract> listContract = signedTransaction.getRawData().getContractList();
     byte[] hash = Sha256Sm3Hash.hash(signedTransaction.getRawData().toByteArray());
     int count = signedTransaction.getSignatureCount();
-    if (count == 0) {
+
+    // Accept transactions with at least one PQAuthSig even if there are no normal signatures
+    if (count == 0 && signedTransaction.getPqAuthSigCount() == 0) {
       return false;
     }
+
+    // Check normal signatures
     for (int i = 0; i < count; ++i) {
       try {
         Transaction.Contract contract = listContract.get(i);
@@ -332,6 +336,17 @@ public class TransactionUtils {
         }
       } catch (SignatureException e) {
         e.printStackTrace();
+        return false;
+      }
+    }
+
+    // Check PQ signatures
+    for (int i = 0; i < signedTransaction.getPqAuthSigCount(); ++i) {
+      org.tron.protos.Protocol.PQAuthSig pqAuthSig = signedTransaction.getPqAuthSig(i);
+      if (pqAuthSig.getPublicKey() == null || pqAuthSig.getPublicKey().isEmpty()) {
+        return false;
+      }
+      if (pqAuthSig.getSignature() == null || pqAuthSig.getSignature().isEmpty()) {
         return false;
       }
     }
@@ -362,9 +377,12 @@ public class TransactionUtils {
   }
 
   public static Transaction signPQ(Transaction transaction, FNDSA512 signer, PQScheme scheme) {
+    if (scheme == null || scheme == PQScheme.UNKNOWN_PQ_SCHEME || !org.tron.common.crypto.pqc.PQSchemeRegistry.contains(scheme)) {
+        throw new IllegalArgumentException("Unsupported or unknown PQScheme: " + scheme);
+    }
     byte[] hash = Sha256Sm3Hash.hash(transaction.getRawData().toByteArray());
     byte[] sig = signer.sign(hash);
-    PQAuthSig pqSig = PQAuthSig.newBuilder()
+    org.tron.protos.Protocol.PQAuthSig pqSig = org.tron.protos.Protocol.PQAuthSig.newBuilder()
         .setScheme(scheme)
         .setPublicKey(ByteString.copyFrom(signer.getPublicKey()))
         .setSignature(ByteString.copyFrom(sig))

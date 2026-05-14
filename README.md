@@ -1857,7 +1857,7 @@ auto-detected by length:
 >   deterministically (BC `FixedSecureRandom`-driven `FalconKeyPairGenerator`).
 > - **2176 bytes / 4352 hex chars** — the full extended private key (`f‖g‖F‖h`),
 >   used verbatim.
-
+>
 > **Why no interactive prompt?** The 4352-hex-char extended form exceeds the
 typical TTY canonical-mode line buffer (~1024 chars on macOS) and gets silently
 truncated by the kernel. The command therefore only accepts the hex (or a file

@@ -260,7 +260,8 @@ public class WalletApiWrapper {
       new java.security.SecureRandom().nextBytes(seed);
       FNDSA512 signer = new FNDSA512(seed);
       WalletFile walletFile = WalletApi.CreatePQWalletFile(
-          passwd, scheme, signer.getPrivateKeyWithPublicKey(), seed, signer.getPublicKey());
+          passwd, PQSchemeRegistry.resolve(scheme), signer.getPrivateKeyWithPublicKey(), seed, signer.getPublicKey());
+      nameWallet(walletFile, false);
       String keystoreName = WalletApi.store2Keystore(walletFile);
       logout();
       return keystoreName;
@@ -301,8 +302,18 @@ public class WalletApiWrapper {
       FNDSA512 signer = (extendedPrivateKey != null)
           ? FNDSA512.fromPrivateKeyWithPublicKey(extendedPrivateKey)
           : new FNDSA512(seed);
+      if (extendedPrivateKey != null && seed != null) {
+        byte[] derivedExt = new FNDSA512(seed).getPrivateKeyWithPublicKey();
+        if (!java.util.Arrays.equals(derivedExt, extendedPrivateKey)) {
+          java.util.Arrays.fill(derivedExt, (byte) 0);
+          System.out.println("Provided seed and extended private key describe different keypairs.");
+          return null;
+        }
+        java.util.Arrays.fill(derivedExt, (byte) 0);
+      }
       WalletFile walletFile = WalletApi.CreatePQWalletFile(
-          passwd, scheme, signer.getPrivateKeyWithPublicKey(), seed, signer.getPublicKey());
+          passwd, PQSchemeRegistry.resolve(scheme), signer.getPrivateKeyWithPublicKey(), seed, signer.getPublicKey());
+      nameWallet(walletFile, false);
       String keystoreName = WalletApi.store2Keystore(walletFile);
       if (isUnifiedExist()) {
         wallet.getWalletList().add(walletFile);
@@ -370,6 +381,15 @@ public class WalletApiWrapper {
       FNDSA512 signer = (extendedPrivateKey != null)
           ? FNDSA512.fromPrivateKeyWithPublicKey(extendedPrivateKey)
           : new FNDSA512(seed);
+      if (extendedPrivateKey != null && seed != null) {
+        byte[] derivedExt = new FNDSA512(seed).getPrivateKeyWithPublicKey();
+        if (!java.util.Arrays.equals(derivedExt, extendedPrivateKey)) {
+          java.util.Arrays.fill(derivedExt, (byte) 0);
+          throw new CommandErrorException("usage_error",
+              "Provided seed and extended private key describe different keypairs.");
+        }
+        java.util.Arrays.fill(derivedExt, (byte) 0);
+      }
       WalletFile walletFile = WalletApi.CreatePQWalletFile(
           passwd, scheme, signer.getPrivateKeyWithPublicKey(), seed, signer.getPublicKey());
       walletFile.setName(walletName);

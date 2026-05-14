@@ -543,8 +543,19 @@ public class WalletApi {
     return Wallet.decryptPQ(password, walletFile);
   }
 
+  public static PQScheme getWalletPQScheme(WalletFile walletFile) {
+    if (walletFile == null || StringUtils.isBlank(walletFile.getScheme())) {
+      return null;
+    }
+    try {
+      return PQScheme.valueOf(walletFile.getScheme());
+    } catch (IllegalArgumentException e) {
+      throw new IllegalStateException("Unsupported PQ scheme: " + walletFile.getScheme(), e);
+    }
+  }
+
   public static boolean isPQWallet(WalletFile walletFile) {
-    return walletFile != null && "FN_DSA_512".equals(walletFile.getScheme());
+    return getWalletPQScheme(walletFile) != null;
   }
 
   public byte[] getPrivateBytes(byte[] password) throws CipherException, IOException {
@@ -959,8 +970,9 @@ public class WalletApi {
         return null;
       }
     } else {
-      if (isPQWallet(wf)) {
-        transaction = TransactionUtils.signPQ(transaction, this.getFNDSA512(wf, passwd), PQScheme.FN_DSA_512);
+      PQScheme pqScheme = getWalletPQScheme(wf);
+      if (pqScheme != null) {
+        transaction = TransactionUtils.signPQ(transaction, this.getFNDSA512(wf, passwd), pqScheme);
       } else if (isEckey) {
         transaction = TransactionUtils.sign(transaction, this.getEcKey(wf, passwd));
       } else {
@@ -1111,8 +1123,9 @@ public class WalletApi {
         TransactionSignManager.getInstance().setTransaction(null);
         throw new CancelException(weight.getResult().getMessage());
       }
-      if (isPQWallet(wf)) {
-        transaction = TransactionUtils.signPQ(transaction, this.getFNDSA512(wf, passwd), PQScheme.FN_DSA_512);
+      PQScheme pqScheme = getWalletPQScheme(wf);
+      if (pqScheme != null) {
+        transaction = TransactionUtils.signPQ(transaction, this.getFNDSA512(wf, passwd), pqScheme);
       } else if (isEckey) {
         transaction = TransactionUtils.sign(transaction, this.getEcKey(wf, passwd));
       } else {

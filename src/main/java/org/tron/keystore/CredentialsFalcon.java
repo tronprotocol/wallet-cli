@@ -55,15 +55,58 @@ public class CredentialsFalcon implements Credentials {
     return result;
   }
 
-  /**
-   * PQ credentials are not part of the ECKey/SM2 SignInterface dispatch.
-   * The signing path branches on {@link WalletFile#getScheme()} before
-   * reaching any caller that touches {@code getPair()}.
-   */
   @Override
   public SignInterface getPair() {
-    throw new UnsupportedOperationException(
-        "Falcon (FN_DSA_512) credentials are not exposed via SignInterface; "
-            + "use getFNDSA512() and the PQ signing path.");
+    return new SignInterface() {
+      @Override
+      public byte[] hash(byte[] message) {
+        throw new UnsupportedOperationException("Not supported for PQ credentials");
+      }
+
+      @Override
+      public byte[] getPrivateKey() {
+        return fnDsa512.getPrivateKeyWithPublicKey();
+      }
+
+      @Override
+      public byte[] getPubKey() {
+        return fnDsa512.getPublicKey();
+      }
+
+      @Override
+      public byte[] getAddress() {
+        return fnDsa512.getAddress();
+      }
+
+      @Override
+      public String signHash(byte[] hash) {
+        throw new UnsupportedOperationException("Not supported for PQ credentials");
+      }
+
+      @Override
+      public byte[] signToAddress(byte[] messageHash, String signatureBase64) throws java.security.SignatureException {
+        throw new UnsupportedOperationException("Not supported for PQ credentials");
+      }
+
+      @Override
+      public byte[] getNodeId() {
+        throw new UnsupportedOperationException("Not supported for PQ credentials");
+      }
+
+      @Override
+      public byte[] Base64toBytes(String signature) {
+        throw new UnsupportedOperationException("Not supported for PQ credentials");
+      }
+
+      @Override
+      public byte[] getPrivKeyBytes() {
+        return fnDsa512.getPrivateKeyWithPublicKey();
+      }
+
+      @Override
+      public org.tron.common.crypto.SignatureInterface sign(byte[] hash) {
+        throw new UnsupportedOperationException("Not supported for PQ credentials");
+      }
+    };
   }
 }

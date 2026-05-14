@@ -367,6 +367,19 @@ public class Wallet {
       throw new CipherException("Invalid seed length: expected "
           + FNDSA512.SEED_LENGTH + " bytes");
     }
+    if (extendedPrivateKey != null) {
+      byte[] derivedPublicKey =
+          FNDSA512.fromPrivateKeyWithPublicKey(extendedPrivateKey).getPublicKey();
+      if (!Arrays.equals(derivedPublicKey, publicKey)) {
+        throw new CipherException("Extended private key does not match supplied public key");
+      }
+    }
+    if (seed != null) {
+      byte[] derivedPublicKey = new FNDSA512(seed).getPublicKey();
+      if (!Arrays.equals(derivedPublicKey, publicKey)) {
+        throw new CipherException("Seed does not match supplied public key");
+      }
+    }
 
     byte[] salt = generateRandomBytes(32);
     byte[] derivedKey = generateDerivedScryptKey(password, salt, n, R, p, DKLEN);
@@ -476,7 +489,12 @@ public class Wallet {
     if (walletFile.getScheme() == null) {
       throw new CipherException("Wallet has no PQ scheme tag");
     }
-    PQScheme scheme = PQScheme.valueOf(walletFile.getScheme());
+    final PQScheme scheme;
+    try {
+      scheme = PQScheme.valueOf(walletFile.getScheme());
+    } catch (IllegalArgumentException e) {
+      throw new CipherException("Unsupported PQ scheme: " + walletFile.getScheme(), e);
+    }
     if (scheme != PQScheme.FN_DSA_512) {
       throw new CipherException("Unsupported PQ scheme: " + scheme);
     }
@@ -622,12 +640,8 @@ public class Wallet {
       return generateDerivedScryptKey(password, salt,
           scryptKdfParams.getN(), scryptKdfParams.getR(),
           scryptKdfParams.getP(), scryptKdfParams.getDklen());
-    } else if (kdfParams instanceof WalletFile.Aes128CtrKdfParams) {
-      WalletFile.Aes128CtrKdfParams aesParams = (WalletFile.Aes128CtrKdfParams) kdfParams;
-      byte[] salt = ByteArray.fromHexString(aesParams.getSalt());
-      return generateAes128CtrDerivedKey(password, salt, aesParams.getC(), aesParams.getPrf());
     }
-    throw new CipherException("Unable to deserialize params: " + crypto.getKdf());
+    throw new CipherException("PQ wallets must use scrypt KDF");
   }
 
   static void validate(WalletFile walletFile) throws CipherException {

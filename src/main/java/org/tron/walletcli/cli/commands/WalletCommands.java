@@ -48,11 +48,11 @@ public class WalletCommands {
         String schemeName = opts.has("scheme") ? opts.getString("scheme") : "FN_DSA_512";
         try {
             PQScheme scheme = PQScheme.valueOf(schemeName);
-            if (scheme == PQScheme.UNKNOWN_PQ_SCHEME) {
+            if (scheme == PQScheme.UNKNOWN_PQ_SCHEME || !PQSchemeRegistry.contains(scheme)) {
                 out.usageError("Unsupported scheme: " + schemeName, null);
                 return null;
             }
-            return scheme;
+            return PQSchemeRegistry.resolve(scheme);
         } catch (IllegalArgumentException e) {
             out.usageError("Unsupported scheme: " + schemeName, null);
             return null;
@@ -172,6 +172,7 @@ public class WalletCommands {
                     if (envPassword == null || envPassword.isEmpty()) {
                         out.error("execution_error",
                                 "Set MASTER_PASSWORD environment variable for non-interactive wallet import");
+                        java.util.Arrays.fill(decoded, (byte) 0);
                         return;
                     }
                     char[] password = envPassword.toCharArray();
