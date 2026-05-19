@@ -68,6 +68,9 @@ public final class NonInteractiveLedgerSigner implements LedgerSigner {
         try (SystemOutSuppressor ignored = SystemOutSuppressor.capture()) {
             try {
                 device = finder.find(address, bip44Path);
+            } catch (LedgerPorts.AppNotOpenException e) {
+                return LedgerSignOutcome.failure(LedgerSignOutcome.Status.APP_NOT_OPEN,
+                        e.getMessage());
             } catch (RuntimeException e) {
                 return LedgerSignOutcome.failure(LedgerSignOutcome.Status.NOT_CONNECTED,
                         "HID transport failure: " + e.getMessage());
