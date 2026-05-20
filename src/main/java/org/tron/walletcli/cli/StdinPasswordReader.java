@@ -4,6 +4,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 
 /**
  * Reads MASTER_PASSWORD from an {@link InputStream} (typically {@code System.in}) once and caches
@@ -37,28 +38,34 @@ final class StdinPasswordReader implements StandardCliRunner.MasterPasswordProvi
     private String readAll() {
         ByteArrayOutputStream buf = new ByteArrayOutputStream();
         byte[] chunk = new byte[256];
+        byte[] bytes = null;
         try {
             int n;
             while ((n = in.read(chunk)) != -1) {
                 buf.write(chunk, 0, n);
             }
+            if (buf.size() == 0) {
+                return null;
+            }
+            bytes = buf.toByteArray();
+            int len = bytes.length;
+            if (len > 0 && bytes[len - 1] == '\n') {
+                len--;
+                if (len > 0 && bytes[len - 1] == '\r') {
+                    len--;
+                }
+            }
+            if (len == 0) {
+                return null;
+            }
+            return new String(bytes, 0, len, StandardCharsets.UTF_8);
         } catch (IOException e) {
             throw new IllegalStateException("Failed to read password from stdin: " + e.getMessage(), e);
-        }
-        if (buf.size() == 0) {
-            return null;
-        }
-        byte[] bytes = buf.toByteArray();
-        int len = bytes.length;
-        if (len > 0 && bytes[len - 1] == '\n') {
-            len--;
-            if (len > 0 && bytes[len - 1] == '\r') {
-                len--;
+        } finally {
+            Arrays.fill(chunk, (byte) 0);
+            if (bytes != null) {
+                Arrays.fill(bytes, (byte) 0);
             }
         }
-        if (len == 0) {
-            return null;
-        }
-        return new String(bytes, 0, len, StandardCharsets.UTF_8);
     }
 }

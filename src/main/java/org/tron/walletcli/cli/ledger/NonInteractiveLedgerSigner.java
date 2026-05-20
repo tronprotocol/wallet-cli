@@ -29,7 +29,7 @@ public final class NonInteractiveLedgerSigner implements LedgerSigner {
     static final String STATE_TIMEOUT = "timeout";     // SIGN_RESULT_TIMEOUT — timed out
 
     /** APDU status word: Tron app is not open on the device. */
-    private static final byte[] APDU_APP_IS_OPEN = new byte[] { 0x65, 0x11 };
+    private static final byte[] APDU_APP_NOT_OPEN = new byte[] { 0x65, 0x11 };
     /** APDU status word: "Sign By Hash" setting is not enabled. */
     private static final byte[] APDU_SIGN_BY_HASH = new byte[] { 0x6a, (byte) 0x8c };
 
@@ -105,7 +105,7 @@ public final class NonInteractiveLedgerSigner implements LedgerSigner {
 
             byte[] apdu = executor.lastSendResultBytes();
             if (apdu != null && apdu.length > 0) {
-                if (matches(apdu, APDU_APP_IS_OPEN)) {
+                if (matches(apdu, APDU_APP_NOT_OPEN)) {
                     stateReader.markCanceled(device.path(), txid);
                     return LedgerSignOutcome.failure(LedgerSignOutcome.Status.APP_NOT_OPEN,
                             "Open the Tron app on your Ledger device and try again");
