@@ -93,4 +93,15 @@ public final class LedgerPorts {
     public interface ContractSupport {
         boolean canSign(Chain.Transaction transaction);
     }
+
+    /**
+     * Thrown by {@link HidDeviceFinder#find} when the Ledger device is physically connected
+     * but the Tron app is not open (APDU status word {@code 0x6511}).
+     * Distinct from a plain {@code null} return (device not found / address mismatch).
+     */
+    public static final class AppNotOpenException extends RuntimeException {
+        public AppNotOpenException(String message) {
+            super(message);
+        }
+    }
 }

@@ -24,15 +24,28 @@ public final class ProductionLedgerPorts {
         LedgerPorts.HidDeviceFinder finder = (address, path) -> {
             HidDevice device = HidServicesWrapper.getInstance().getHidDevice(address, path);
             if (device == null) {
+                if (HidServicesWrapper.getInstance().hasAnyLedgerAttached()) {
+                    throw new LedgerPorts.AppNotOpenException(
+                            "Open the Tron app on your Ledger device and try again");
+                }
                 return null;
             }
             boolean matched = false;
             try {
-                if (device.isClosed()) {
-                    device.open();
+                if (device.isClosed() && !device.open()) {
+                    throw new LedgerPorts.AppNotOpenException(
+                            "Open the Tron app on your Ledger device and try again");
                 }
-                String deviceAddress = LedgerAddressUtil.getTronAddress(path, device);
-                matched = address.equals(deviceAddress);
+                byte[] rawResponse = LedgerAddressUtil.getRawAddressResponse(path, device);
+                // 0x6511: Tron app is not open on the device (ISO 7816-4 "conditions not satisfied").
+                // Distinguish from a genuine address mismatch so the caller can surface the right error.
+                if (rawResponse != null && rawResponse.length == 2
+                        && (rawResponse[0] & 0xFF) == 0x65 && (rawResponse[1] & 0xFF) == 0x11) {
+                    throw new LedgerPorts.AppNotOpenException(
+                            "Open the Tron app on your Ledger device and try again");
+                }
+                String deviceAddress = LedgerAddressUtil.parseTronAddress(rawResponse);
+                matched = address.equals(deviceAddress) && !deviceAddress.isEmpty();
                 if (!matched) {
                     return null;
                 }
@@ -87,14 +100,12 @@ public final class ProductionLedgerPorts {
                     if (raw.isClosed()) {
                         raw.open();
                     }
-                    boolean accepted = listener.executeSignListen(raw, tx, path, gasfree);
-                    if (listener.getLastSendResultBytes() != null || !accepted) {
-                        listener.setStandardCliQuiet(false);
-                    }
-                    return accepted;
-                } catch (RuntimeException e) {
+                    return listener.executeSignListen(raw, tx, path, gasfree);
+                } finally {
+                    // Always reset: executeSignListen blocks until the 60-second wait completes,
+                    // so by the time we return, the HID callback has either already reset this flag
+                    // or it never will (silent timeout / device disconnect).
                     listener.setStandardCliQuiet(false);
-                    throw e;
                 }
             }
 

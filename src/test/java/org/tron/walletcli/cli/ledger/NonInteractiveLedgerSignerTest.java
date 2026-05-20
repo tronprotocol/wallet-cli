@@ -104,6 +104,17 @@ public class NonInteractiveLedgerSignerTest {
   }
 
   @Test
+  public void returnsAppNotOpenWhenFinderThrowsAppNotOpenException() {
+    // Simulates ProductionLedgerPorts detecting that a Ledger is physically attached
+    // (hasAnyLedgerAttached = true) but HID open() failed because the Tron app is not running.
+    finder.toThrow = new LedgerPorts.AppNotOpenException(
+        "Open the Tron app on your Ledger device and try again");
+    LedgerSignOutcome r = signNonGasfree();
+    Assert.assertEquals(LedgerSignOutcome.Status.APP_NOT_OPEN, r.getStatus());
+    Assert.assertTrue(r.getMessage().contains("Tron app"));
+  }
+
+  @Test
   public void returnsUnsupportedContractBeforeDeviceLookup() {
     contractSupport.canSign = false;
     finder.next = new FakeDeviceHandle(DEV_PATH);
