@@ -24,12 +24,17 @@ public final class ProductionLedgerPorts {
         LedgerPorts.HidDeviceFinder finder = (address, path) -> {
             HidDevice device = HidServicesWrapper.getInstance().getHidDevice(address, path);
             if (device == null) {
+                if (HidServicesWrapper.getInstance().hasAnyLedgerAttached()) {
+                    throw new LedgerPorts.AppNotOpenException(
+                            "Open the Tron app on your Ledger device and try again");
+                }
                 return null;
             }
             boolean matched = false;
             try {
-                if (device.isClosed()) {
-                    device.open();
+                if (device.isClosed() && !device.open()) {
+                    throw new LedgerPorts.AppNotOpenException(
+                            "Open the Tron app on your Ledger device and try again");
                 }
                 byte[] rawResponse = LedgerAddressUtil.getRawAddressResponse(path, device);
                 // 0x6511: Tron app is not open on the device (ISO 7816-4 "conditions not satisfied").
