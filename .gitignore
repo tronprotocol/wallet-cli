@@ -36,3 +36,5 @@ qa/.verify.lock/
 
 # graphify 
 graphify-out/
+.vscode/
+docs/superpowers
