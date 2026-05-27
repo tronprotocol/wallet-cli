@@ -1790,21 +1790,26 @@ password:
 fileName = TYQq6zp51unQDNELmT4xKMWh5WLcwpCDZJ.json
 importWalletByKeystore successful !!
 ```
-## Post-quantum signatures (Falcon-512 / FN-DSA-512)
+## Post-quantum signatures (FN-DSA-512 / ML-DSA-44)
 
-Wallet-cli supports post-quantum signatures based on Falcon-512 (scheme tag `FN_DSA_512`),
-the same scheme accepted on-chain when the `ALLOW_FN_DSA_512` proposal is active on the
-target network. PQ wallets are stored in the regular `Wallet/` keystore directory with the
-same scrypt+AES-CTR encryption as ECKey/SM2 wallets; the keystore JSON carries a
-`"scheme":"FN_DSA_512"` discriminator so dispatch is per-wallet, not network-wide.
+Wallet-cli supports post-quantum signatures with two NIST-standardised schemes:
 
-PQ key sizes (Falcon-512):
+- **`FN_DSA_512`** — Falcon-512 (FIPS-206 draft). Accepted on-chain when the
+  `ALLOW_FN_DSA_512` proposal is active.
+- **`ML_DSA_44`** — ML-DSA-44 / CRYSTALS-Dilithium-2 (FIPS-204). Accepted on-chain
+  when the `ALLOW_ML_DSA_44` proposal is active.
 
-- seed: 48 bytes
-- public key: 896 bytes
-- private key (`f‖g‖F`): 1280 bytes
-- extended private key (`f‖g‖F‖h`, what the keystore stores): 2176 bytes
-- signature: up to 752 bytes
+PQ wallets are stored in the regular `Wallet/` keystore directory with the same
+scrypt+AES-CTR encryption as ECKey/SM2 wallets; the keystore JSON carries a
+`"scheme"` discriminator (`"FN_DSA_512"` or `"ML_DSA_44"`) so dispatch is per-wallet,
+not network-wide.
+
+PQ key sizes:
+
+| Scheme       | seed | public key | private key (on-disk persisted form)                        | signature                |
+|--------------|------|-----------:|-------------------------------------------------------------|--------------------------|
+| `FN_DSA_512` | 48 B |      896 B | 2176 B — extended `f‖g‖F‖h` (h appended so BC can recover pk) | variable, up to 666 B    |
+| `ML_DSA_44`  | 32 B |     1312 B | 2560 B — encoded `rho‖K‖tr‖s1‖s2‖t0` (pk re-derivable from it) | fixed 2420 B             |
 
 The address is derived with the same formula as ECDSA / SM2:
 `0x41 ‖ Keccak-256(public_key)[12..32]`, so a PQ address is indistinguishable from a
@@ -1814,31 +1819,35 @@ regular T-address until it signs a transaction (PQ signatures land in
 ### Generate a PQ keypair (no keystore)
 
     >GeneratePQKey [scheme]
-> Generate a Falcon-512 keypair and print the address, public key and extended private key.
-The scheme defaults to `FN_DSA_512` if omitted. The key is **not** persisted — use this for
-inspection or to seed an `ImportWalletPQ` flow.
+> Generate a PQ keypair and print the address, public key and persisted private key.
+The scheme defaults to `FN_DSA_512` if omitted; pass `ML_DSA_44` to get a Dilithium-2
+keypair. The key is **not** persisted — use this for inspection or to seed an
+`ImportWalletPQ` flow.
 
 Example:
 ```console
-wallet> GeneratePQKey
-Scheme:        FN_DSA_512
-Address:       TXxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-PublicKey:     <896 bytes hex (1792 hex chars)>
-PrivateKey:    <2176 bytes hex (4352 hex chars; extended form f||g||F||h)>
+wallet> GeneratePQKey ML_DSA_44
+scheme:        ML_DSA_44
+address:       TXxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+seed (32 bytes):                <64 hex chars>
+publicKey (1312 bytes):         <2624 hex chars>
+privateKey (2560 bytes):        <5120 hex chars>
+privateKey persisted form ...:  <5120 hex chars>
 
-WARNING: store the private key securely. It is the only way to spend from this address.
+WARNING: store either the seed or the persisted private key securely.
 ```
 
 ### Register a PQ wallet (creates a keystore)
 
     >RegisterWalletPQ [scheme]
-> Generate a fresh Falcon-512 keypair, prompt for a password (twice) and write an encrypted
+> Generate a fresh PQ keypair, prompt for a password (twice) and write an encrypted
 keystore file under `Wallet/`. After registration you can `Login` with the resulting
 address and password just like any other wallet.
 
-Example:
+Examples:
 ```console
-wallet> RegisterWalletPQ
+wallet> RegisterWalletPQ                # defaults to FN_DSA_512
+wallet> RegisterWalletPQ ML_DSA_44
 Please input password.
 password:
 Please input password again.
@@ -1846,78 +1855,89 @@ password:
 RegisterWalletPQ successful, keystore file: ./Wallet/TXxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.json
 ```
 
-### Import a PQ wallet from a seed or extended private key
+### Import a PQ wallet from a seed or persisted private key
 
-    >ImportWalletPQ [scheme] <seed_or_extended_private_key_hex_or_file>
-> Import an existing Falcon-512 keypair. The argument is **required** and may be
-either the hex string itself or a path to a file containing it. The format is
-auto-detected by length:
+    >ImportWalletPQ [scheme] <seed_or_persisted_private_key_hex_or_file>
+> Import an existing PQ keypair. The argument is **required** and may be either the
+hex string itself or a path to a file containing it. The format is auto-detected by
+length against the chosen scheme:
 >
-> - **48 bytes / 96 hex chars** — a Falcon-512 seed; the full keypair is derived
->   deterministically (BC `FixedSecureRandom`-driven `FalconKeyPairGenerator`).
-> - **2176 bytes / 4352 hex chars** — the full extended private key (`f‖g‖F‖h`),
->   used verbatim.
+> - **FN_DSA_512**: 48-byte / 96-hex-char seed (derives the full keypair
+>   deterministically), or 2176-byte / 4352-hex-char extended private key
+>   (`f‖g‖F‖h`, used verbatim).
+> - **ML_DSA_44**: 32-byte / 64-hex-char seed, or 2560-byte / 5120-hex-char
+>   encoded private key (`rho‖K‖tr‖s1‖s2‖t0`).
 >
-> **Why no interactive prompt?** The 4352-hex-char extended form exceeds the
-typical TTY canonical-mode line buffer (~1024 chars on macOS) and gets silently
-truncated by the kernel. The command therefore only accepts the hex (or a file
-path) as a CLI argument.
+> **Why no interactive prompt?** The persisted-private-key hex exceeds the typical
+TTY canonical-mode line buffer (~1024 chars on macOS) and gets silently truncated
+by the kernel. The command therefore only accepts the hex (or a file path) as a
+CLI argument.
 
 Examples:
 ```console
-# Import from a 96-hex-char seed (short — fine on a single line)
-wallet> ImportWalletPQ FN_DSA_512 0102030405060708...   (96 hex chars)
-Please input password.
-password:
-Please input password again.
-password:
-ImportWalletPQ successful, keystore file: ./Wallet/TXxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.json
+# Falcon-512 seed (96 hex chars — fine on a single line)
+wallet> ImportWalletPQ FN_DSA_512 0102030405060708...
 
-# Import from a file containing the seed or extended private key
+# ML-DSA-44 seed
+wallet> ImportWalletPQ ML_DSA_44 0102030405060708...   (64 hex chars)
+
+# From a file containing the seed or persisted private key
 wallet> ImportWalletPQ FN_DSA_512 /tmp/my-falcon-seed.hex
 wallet> ImportWalletPQ FN_DSA_512 /tmp/my-falcon-extpriv.hex
+wallet> ImportWalletPQ ML_DSA_44  /tmp/my-mldsa-seed.hex
+wallet> ImportWalletPQ ML_DSA_44  /tmp/my-mldsa-priv.hex
 ```
 
 ### Signing transactions with a PQ wallet
 
 Once you are logged in to a PQ keystore, the normal commands (`SendCoin`,
-`TransferAsset`, `TriggerContract`, `AddTransactionSign`, …) sign with Falcon-512
-transparently and route the signature into `Transaction.pq_auth_sig`. The
+`TransferAsset`, `TriggerContract`, `AddTransactionSign`, …) sign with the wallet's
+scheme transparently and route the signature into `Transaction.pq_auth_sig`. The
 `isEckey` selector is bypassed for the active PQ wallet, so you can mix PQ wallets
 and ECKey/SM2 wallets in the same multi-sign session — each contributor signs with
 the algorithm that matches their own keystore.
 
-> **Note:** transactions signed by a PQ wallet are only accepted on networks where the
-`ALLOW_FN_DSA_512` proposal is active. Against a node that does not understand the
-proposal, the transaction will be rejected even though wallet-cli builds and signs it
-correctly.
+> **Note:** transactions signed by a PQ wallet are only accepted on networks where
+the matching proposal is active (`ALLOW_FN_DSA_512` for Falcon-512,
+`ALLOW_ML_DSA_44` for ML-DSA-44). Against a node that does not understand the
+proposal, the transaction will be rejected even though wallet-cli builds and signs
+it correctly.
 
 ### Standard CLI (non-interactive)
 
-The standard CLI exposes the same three operations as scriptable commands. They use the
-same `MASTER_PASSWORD` environment variable for non-interactive password entry as the
-other `*-wallet` commands.
+The standard CLI exposes the same three operations as scriptable commands. They
+use the same `MASTER_PASSWORD` environment variable for non-interactive password
+entry as the other `*-wallet` commands. Pass `--scheme ML_DSA_44` to opt into
+Dilithium-2; the default remains `FN_DSA_512`.
 
 ```bash
 # Generate a keypair and print JSON (no keystore is written)
 java -jar build/libs/wallet-cli.jar --output json generate-pq-key
 java -jar build/libs/wallet-cli.jar --output json generate-pq-key --scheme FN_DSA_512
+java -jar build/libs/wallet-cli.jar --output json generate-pq-key --scheme ML_DSA_44
 
 # Create an encrypted PQ keystore
 MASTER_PASSWORD='testpassword123A' \
   java -jar build/libs/wallet-cli.jar --output json register-wallet-pq --name pqalice
+MASTER_PASSWORD='testpassword123A' \
+  java -jar build/libs/wallet-cli.jar --output json register-wallet-pq \
+    --name pqalice --scheme ML_DSA_44
 
-# Import an existing keypair from its extended-private-key hex
+# Import an existing keypair from its persisted-private-key (or seed) hex
 MASTER_PASSWORD='testpassword123A' \
   java -jar build/libs/wallet-cli.jar --output json import-wallet-pq \
     --name pqalice \
-    --extended-private-key-hex <4352-hex-char string>
+    --extended-private-key-hex <persisted-private-key or seed hex>
+MASTER_PASSWORD='testpassword123A' \
+  java -jar build/libs/wallet-cli.jar --output json import-wallet-pq \
+    --name pqalice --scheme ML_DSA_44 \
+    --extended-private-key-hex <ML-DSA-44 seed or encoded private key hex>
 ```
 
 `generate-pq-key` returns a JSON envelope containing `scheme`, `address`,
 `public_key_hex`, and `private_key_hex`. `register-wallet-pq` and
-`import-wallet-pq` return the keystore filename and the derived address, exactly like
-the standard-CLI `register-wallet` / `import-wallet` commands.
+`import-wallet-pq` return the keystore filename and the derived address, exactly
+like the standard-CLI `register-wallet` / `import-wallet` commands.
 
 ## import wallet by ledger
     >ImportWalletByLedger

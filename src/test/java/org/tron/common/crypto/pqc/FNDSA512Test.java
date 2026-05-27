@@ -39,7 +39,8 @@ public class FNDSA512Test {
         .getBytes(StandardCharsets.UTF_8);
     byte[] signature = signer.sign(message);
     assertNotNull(signature);
-    assertTrue(signature.length > 0 && signature.length <= FNDSA512.SIGNATURE_LENGTH);
+    assertTrue(signature.length >= FNDSA512.SIGNATURE_MIN_LENGTH
+        && signature.length <= FNDSA512.SIGNATURE_LENGTH);
     assertTrue(signer.verify(message, signature));
     assertTrue(FNDSA512.verify(signer.getPublicKey(), message, signature));
   }

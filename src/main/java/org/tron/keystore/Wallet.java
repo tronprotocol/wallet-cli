@@ -7,8 +7,8 @@ import org.bouncycastle.crypto.params.KeyParameter;
 import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.Hash;
 import org.tron.common.crypto.SignInterface;
-import org.tron.common.crypto.pqc.FNDSA512;
 import org.tron.common.crypto.pqc.PQSchemeRegistry;
+import org.tron.common.crypto.pqc.PQSignature;
 import org.tron.common.crypto.sm2.SM2;
 import org.tron.common.utils.ByteArray;
 import org.tron.core.exception.CipherException;
@@ -336,13 +336,13 @@ public class Wallet {
     return sm2;
   }
 
-  // Encrypt a PQ wallet under scrypt + AES-128-CTR. Either segment (the 2176-byte
-  // extended private key f‖g‖F‖h, or the 48-byte FN-DSA seed) may be persisted;
-  // at least one must be supplied. When both are supplied a single scrypt run
-  // produces a derived key DK that is shared by both segments: DK[0..16] keys
-  // AES-CTR, DK[16..32] keys the MAC. Each segment gets an INDEPENDENT random
-  // IV (AES-CTR reuses keystream if IVs collide under a shared key) and its
-  // own Keccak-256 MAC over (DK[16..32] ‖ ciphertext).
+  // Encrypt a PQ wallet under scrypt + AES-128-CTR. Either segment (the
+  // scheme-specific persisted private key, or the scheme-specific keygen seed)
+  // may be persisted; at least one must be supplied. When both are supplied a
+  // single scrypt run produces a derived key DK that is shared by both
+  // segments: DK[0..16] keys AES-CTR, DK[16..32] keys the MAC. Each segment
+  // gets an INDEPENDENT random IV (AES-CTR reuses keystream if IVs collide
+  // under a shared key) and its own Keccak-256 MAC over (DK[16..32] ‖ ciphertext).
   public static WalletFile createPQ(byte[] password, PQScheme scheme,
       byte[] extendedPrivateKey, byte[] seed, byte[] publicKey, int n, int p)
       throws CipherException {
@@ -357,25 +357,25 @@ public class Wallet {
       throw new CipherException(
           "createPQ requires at least one of extendedPrivateKey or seed");
     }
-    int expectedExtLen = PQSchemeRegistry.getPrivateKeyLength(scheme)
-        + PQSchemeRegistry.getPublicKeyLength(scheme);
+    int expectedExtLen = PQSchemeRegistry.getPersistedPrivateKeyLength(scheme);
     if (extendedPrivateKey != null && extendedPrivateKey.length != expectedExtLen) {
       throw new CipherException("Invalid extended private key length: expected "
           + expectedExtLen + " for " + scheme.name());
     }
-    if (seed != null && seed.length != FNDSA512.SEED_LENGTH) {
+    int expectedSeedLen = PQSchemeRegistry.getSeedLength(scheme);
+    if (seed != null && seed.length != expectedSeedLen) {
       throw new CipherException("Invalid seed length: expected "
-          + FNDSA512.SEED_LENGTH + " bytes");
+          + expectedSeedLen + " bytes for " + scheme.name());
     }
     if (extendedPrivateKey != null) {
-      byte[] derivedPublicKey =
-          FNDSA512.fromPrivateKeyWithPublicKey(extendedPrivateKey).getPublicKey();
+      byte[] derivedPublicKey = PQSchemeRegistry
+          .fromPersistedPrivateKey(scheme, extendedPrivateKey).getPublicKey();
       if (!Arrays.equals(derivedPublicKey, publicKey)) {
         throw new CipherException("Extended private key does not match supplied public key");
       }
     }
     if (seed != null) {
-      byte[] derivedPublicKey = new FNDSA512(seed).getPublicKey();
+      byte[] derivedPublicKey = PQSchemeRegistry.fromSeed(scheme, seed).getPublicKey();
       if (!Arrays.equals(derivedPublicKey, publicKey)) {
         throw new CipherException("Seed does not match supplied public key");
       }
@@ -478,13 +478,13 @@ public class Wallet {
     return walletFile;
   }
 
-  // Reconstructs an FNDSA512 from whichever segments are persisted. When both
+  // Reconstructs a PQSignature from whichever segments are persisted. When both
   // are present the seed↔ext consistency check guards against insider tamper
   // (an attacker who knows the password and rewrites only the seed segment to
   // point at a different keypair would still produce the *wrong* derived
   // public key). The address consistency check defends against an attacker who
   // rewrites the cleartext `address` field.
-  public static FNDSA512 decryptPQ(byte[] password, WalletFile walletFile)
+  public static PQSignature decryptPQ(byte[] password, WalletFile walletFile)
       throws CipherException {
     if (walletFile.getScheme() == null) {
       throw new CipherException("Wallet has no PQ scheme tag");
@@ -495,9 +495,10 @@ public class Wallet {
     } catch (IllegalArgumentException e) {
       throw new CipherException("Unsupported PQ scheme: " + walletFile.getScheme(), e);
     }
-    if (scheme != PQScheme.FN_DSA_512) {
+    if (!PQSchemeRegistry.contains(scheme)) {
       throw new CipherException("Unsupported PQ scheme: " + scheme);
     }
+    int expectedSeedLen = PQSchemeRegistry.getSeedLength(scheme);
 
     validate(walletFile);
     WalletFile.Crypto crypto = walletFile.getCrypto();
@@ -544,22 +545,22 @@ public class Wallet {
         throw new CipherException("PQ keystore reuses IV across ext/seed segments");
       }
 
-      FNDSA512 signer;
+      PQSignature signer;
       if (extPresent) {
         extended = performCipherOperation(Cipher.DECRYPT_MODE, extIv, encryptKey,
             extCipherText);
-        signer = FNDSA512.fromPrivateKeyWithPublicKey(extended);
+        signer = PQSchemeRegistry.fromPersistedPrivateKey(scheme, extended);
         if (seedPresent) {
           seedBytes = performCipherOperation(Cipher.DECRYPT_MODE, seedIv, encryptKey,
               seedCipherText);
-          if (seedBytes.length != FNDSA512.SEED_LENGTH) {
+          if (seedBytes.length != expectedSeedLen) {
             throw new CipherException(
                 "Decrypted seed has unexpected length: " + seedBytes.length);
           }
           // Cross-check: re-deriving from the seed must reproduce the same
           // public key. Mismatch means seed and ext disagree (insider tamper
           // or corruption); reject rather than silently preferring one.
-          FNDSA512 seedDerived = new FNDSA512(seedBytes);
+          PQSignature seedDerived = PQSchemeRegistry.fromSeed(scheme, seedBytes);
           if (!Arrays.equals(seedDerived.getPublicKey(), signer.getPublicKey())) {
             throw new CipherException(
                 "PQ keystore seed and extended private key disagree");
@@ -568,11 +569,11 @@ public class Wallet {
       } else {
         seedBytes = performCipherOperation(Cipher.DECRYPT_MODE, seedIv, encryptKey,
             seedCipherText);
-        if (seedBytes.length != FNDSA512.SEED_LENGTH) {
+        if (seedBytes.length != expectedSeedLen) {
           throw new CipherException(
               "Decrypted seed has unexpected length: " + seedBytes.length);
         }
-        signer = new FNDSA512(seedBytes);
+        signer = PQSchemeRegistry.fromSeed(scheme, seedBytes);
       }
 
       // Address consistency: the cleartext `address` field is unauthenticated.

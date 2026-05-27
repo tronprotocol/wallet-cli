@@ -195,8 +195,8 @@ public class WalletUtils {
 
   public static Credentials loadCredentials(byte[] password, WalletFile walletFile)
       throws CipherException {
-    if ("FN_DSA_512".equals(walletFile.getScheme())) {
-      return CredentialsFalcon.create(Wallet.decryptPQ(password, walletFile));
+    if (walletFile.getScheme() != null && !walletFile.getScheme().isEmpty()) {
+      return CredentialsPQ.create(Wallet.decryptPQ(password, walletFile));
     }
     if (isEckey) {
       return CredentialsEckey.create(Wallet.decrypt(password, walletFile));

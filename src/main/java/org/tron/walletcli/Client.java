@@ -31,6 +31,7 @@ import static org.tron.mnemonic.MnemonicUtils.getPrivateKeyFromMnemonic;
 import static org.tron.walletserver.WalletApi.addressValid;
 import static org.tron.walletserver.WalletApi.decodeFromBase58Check;
 
+import java.security.SecureRandom;
 import org.tron.walletcli.cli.GlobalOptions;
 import org.tron.walletcli.cli.CommandRegistry;
 import org.tron.walletcli.cli.OutputFormatter;
@@ -93,7 +94,7 @@ import org.tron.api.GrpcAPI.AddressPrKeyPairMessage;
 import org.tron.common.crypto.Hash;
 import org.tron.common.crypto.SignInterface;
 import org.tron.common.crypto.SignUtils;
-import org.tron.common.crypto.pqc.FNDSA512;
+import org.tron.common.crypto.pqc.PQSignature;
 import org.tron.common.crypto.pqc.PQSchemeRegistry;
 import org.tron.common.enums.NetType;
 import org.tron.common.utils.AbiUtil;
@@ -3206,7 +3207,7 @@ public class Client {
       if (!PQSchemeRegistry.contains(scheme)) {
         return null;
       }
-      return PQSchemeRegistry.resolve(scheme);
+      return scheme;
     } catch (IllegalArgumentException e) {
       return null;
     }
@@ -3215,44 +3216,67 @@ public class Client {
   private void generatePQKey(String[] parameters) {
     PQScheme scheme = parsePQScheme(parameters);
     if (scheme == null) {
-      System.out.println("Unsupported PQ scheme. Supported: FN_DSA_512");
+      System.out.println("Unsupported PQ scheme. Supported: " + supportedPQSchemes());
       return;
     }
+    int seedLength = PQSchemeRegistry.getSeedLength(scheme);
+    byte[] seed = new byte[seedLength];
+    byte[] priv = null;
+    byte[] persisted = null;
     try {
-      byte[] seed = new byte[FNDSA512.SEED_LENGTH];
-      new java.security.SecureRandom().nextBytes(seed);
-      FNDSA512 signer = new FNDSA512(seed);
+      new SecureRandom().nextBytes(seed);
+      PQSignature signer = PQSchemeRegistry.fromSeed(scheme, seed);
       byte[] address = signer.getAddress();
       String addressStr = WalletApi.encode58Check(address);
       String seedStr = ByteArray.toHexString(seed);
-      byte[] priv = signer.getPrivateKey();
-      byte[] extPriv = signer.getPrivateKeyWithPublicKey();
+      priv = signer.getPrivateKey();
+      persisted = signer.getPersistedPrivateKey();
       String pubKeyStr = ByteArray.toHexString(signer.getPublicKey());
       String privKeyStr = ByteArray.toHexString(priv);
-      String extPrivStr = ByteArray.toHexString(extPriv);
+      String persistedStr = ByteArray.toHexString(persisted);
       System.out.println("scheme: " + scheme.name());
-      System.out.println("address: " + addressStr);
-      System.out.println("seed (" + FNDSA512.SEED_LENGTH + " bytes): " + seedStr);
+      System.out.println("seed (" + seedLength + " bytes): " + seedStr);
+      System.out.println("privateKey (" + priv.length + " bytes): " + privKeyStr);
       System.out.println("publicKey (" + signer.getPublicKey().length + " bytes): " + pubKeyStr);
-      System.out.println("privateKey (f||g||F, " + priv.length + " bytes): " + privKeyStr);
-      System.out.println("privateKey extended (f||g||F||h, " + extPriv.length + " bytes): "
-          + extPrivStr);
-      System.out.println("WARNING: store either the seed or the extended private key securely. "
-          + "The seed alone is sufficient to re-derive the full keypair; "
-          + "the bare private key f||g||F is NOT sufficient because the public key "
-          + "cannot be re-derived from it.");
-      java.util.Arrays.fill(seed, (byte) 0);
-      java.util.Arrays.fill(priv, (byte) 0);
-      java.util.Arrays.fill(extPriv, (byte) 0);
+      System.out.println("address: " + addressStr);
+      System.out.println("privateKey persisted form (" + persisted.length + " bytes): "
+          + persistedStr);
+      System.out.println("WARNING: store the seed and the persisted private key securely.");
     } catch (Exception e) {
       System.out.println("GeneratePQKey " + failedHighlight() + " !!! " + e.getMessage());
+    } finally {
+      java.util.Arrays.fill(seed, (byte) 0);
+      if (priv != null) {
+        java.util.Arrays.fill(priv, (byte) 0);
+      }
+      if (persisted != null) {
+        java.util.Arrays.fill(persisted, (byte) 0);
+      }
     }
+  }
+
+  private static String supportedPQSchemes() {
+    StringBuilder sb = new StringBuilder();
+    boolean first = true;
+    for (PQScheme s : PQScheme.values()) {
+      if (s == PQScheme.UNKNOWN_PQ_SCHEME || s == PQScheme.UNRECOGNIZED) {
+        continue;
+      }
+      if (PQSchemeRegistry.contains(s)) {
+        if (!first) {
+          sb.append(", ");
+        }
+        sb.append(s.name());
+        first = false;
+      }
+    }
+    return sb.toString();
   }
 
   private void registerWalletPQ(String[] parameters) throws CipherException, IOException {
     PQScheme scheme = parsePQScheme(parameters);
     if (scheme == null) {
-      System.out.println("Unsupported PQ scheme. Supported: FN_DSA_512");
+      System.out.println("Unsupported PQ scheme. Supported: " + supportedPQSchemes());
       return;
     }
     char[] password = Utils.inputPassword2Twice(false);
@@ -3277,23 +3301,23 @@ public class Client {
         scheme = PQScheme.FN_DSA_512;
     }
     if (scheme == null) {
-      System.out.println("Unsupported PQ scheme. Supported: FN_DSA_512");
+      System.out.println("Unsupported PQ scheme. Supported: " + supportedPQSchemes());
       return;
     }
-    int expected = PQSchemeRegistry.getPrivateKeyLength(scheme)
-        + PQSchemeRegistry.getPublicKeyLength(scheme);
+    int expected = PQSchemeRegistry.getPersistedPrivateKeyLength(scheme);
+    int seedLen = PQSchemeRegistry.getSeedLength(scheme);
     if (hexOrPathArg == null) {
       System.out.println("ImportWalletPQ requires the key material as an argument: either a "
-          + FNDSA512.SEED_LENGTH + "-byte / " + (FNDSA512.SEED_LENGTH * 2)
+          + seedLen + "-byte / " + (seedLen * 2)
           + "-hex-char seed, or the " + expected + "-byte / " + (expected * 2)
-          + "-hex-char extended private key (priv||pub).");
+          + "-hex-char persisted private key.");
       System.out.println("Usage:");
       System.out.println("  ImportWalletPQ " + scheme.name() + " <hex>");
       System.out.println("  ImportWalletPQ " + scheme.name() + " <path-to-file-containing-hex>");
       return;
     }
     System.out.println("(Note: This operation will overwrite the old keystore file of the same address)");
-    PQKeyMaterial material = readPQKeyMaterialFromArg(hexOrPathArg, expected);
+    PQKeyMaterial material = readPQKeyMaterialFromArg(scheme, hexOrPathArg, expected);
     if (material == null) {
       System.out.println("ImportWalletPQ " + failedHighlight() + " !!");
       return;
@@ -3356,14 +3380,14 @@ public class Client {
   }
 
   /**
-   * Reads Falcon-512 key material from a CLI argument: either the hex string itself
-   * or a path to a file containing the hex. Auto-detects format by length:
-   * a {@link FNDSA512#SEED_LENGTH}-byte seed is expanded into the full extended
-   * private key (priv||pub); an {@code expectedLen}-byte extended private key is
-   * returned verbatim. Returns {@code null} (and prints a user-facing error) on
-   * any I/O failure, hex-decode failure, or length mismatch.
+   * Reads PQ key material from a CLI argument: either the hex string itself or
+   * a path to a file containing the hex. Auto-detects format by length: a
+   * scheme-specific seed is validated; a persisted private key is returned
+   * verbatim. Returns {@code null} (and prints a user-facing error) on any I/O
+   * failure, hex-decode failure, or length mismatch.
    */
-  private static PQKeyMaterial readPQKeyMaterialFromArg(String hexOrPath, int expectedLen) {
+  private static PQKeyMaterial readPQKeyMaterialFromArg(
+      PQScheme scheme, String hexOrPath, int expectedLen) {
     String hex = hexOrPath;
     java.io.File file = new java.io.File(hexOrPath);
     if (file.isFile()) {
@@ -3376,11 +3400,12 @@ public class Client {
       }
     }
     hex = hex.replaceAll("\\s+", "");
-    int seedHexLen = FNDSA512.SEED_LENGTH * 2;
+    int seedLen = PQSchemeRegistry.getSeedLength(scheme);
+    int seedHexLen = seedLen * 2;
     int extHexLen = expectedLen * 2;
     if (hex.length() != seedHexLen && hex.length() != extHexLen) {
       System.out.println("Invalid PQ key length: got " + hex.length() + " hex chars, expected "
-          + seedHexLen + " (seed) or " + extHexLen + " (extended private key priv||pub).");
+          + seedHexLen + " (seed) or " + extHexLen + " (persisted private key).");
       return null;
     }
     byte[] decoded = StringUtils.hexs2Bytes(
@@ -3389,15 +3414,13 @@ public class Client {
       System.out.println("Invalid PQ key hex (not a valid hex string).");
       return null;
     }
-    if (decoded.length == FNDSA512.SEED_LENGTH) {
-      // Validate the seed produces a usable keypair, but pass the seed itself
-      // through so the keystore can persist BOTH segments (and so the bare
-      // seed remains available for future export / re-derivation).
+    if (decoded.length == seedLen) {
       try {
-        new FNDSA512(decoded);
+        PQSchemeRegistry.fromSeed(scheme, decoded);
       } catch (RuntimeException e) {
         java.util.Arrays.fill(decoded, (byte) 0);
-        System.out.println("Failed to derive Falcon-512 keypair from seed: " + e.getMessage());
+        System.out.println("Failed to derive " + scheme.name() + " keypair from seed: "
+            + e.getMessage());
         return null;
       }
       return new PQKeyMaterial(decoded, null);

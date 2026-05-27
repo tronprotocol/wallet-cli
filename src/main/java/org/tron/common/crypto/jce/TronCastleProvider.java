@@ -36,15 +36,12 @@ public final class TronCastleProvider {
 
             INSTANCE = (p != null) ? p : new BouncyCastleProvider();
 
-            INSTANCE.put("MessageDigest.TRON-KECCAK-256", "org.tron.common.crypto.cryptohash.Keccak256");
-            INSTANCE.put("MessageDigest.TRON-KECCAK-512", "org.tron.common.crypto.cryptohash.Keccak512");
+            INSTANCE.put("MessageDigest.TRON-KECCAK-256",
+                "org.tron.common.crypto.cryptohash.Keccak256");
+            INSTANCE.put("MessageDigest.TRON-KECCAK-512",
+                "org.tron.common.crypto.cryptohash.Keccak512");
 
-            if (p == null) {
-                Security.addProvider(INSTANCE);
-            } else {
-                Security.removeProvider("BC");
-                Security.addProvider(INSTANCE);
-            }
+            Security.addProvider(INSTANCE);
         }
     }
 }

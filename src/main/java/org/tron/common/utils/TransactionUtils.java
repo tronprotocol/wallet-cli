@@ -17,17 +17,13 @@ package org.tron.common.utils;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
-import java.security.SignatureException;
-import java.util.Arrays;
-import java.util.List;
 import java.util.Scanner;
 import org.bouncycastle.util.encoders.Hex;
-import org.tron.common.crypto.ECKey;
-import org.tron.common.crypto.ECKey.ECDSASignature;
 import org.tron.common.crypto.Sha256Sm3Hash;
 import org.tron.common.crypto.SignInterface;
 import org.tron.common.crypto.SignatureInterface;
-import org.tron.common.crypto.pqc.FNDSA512;
+import org.tron.common.crypto.pqc.PQSchemeRegistry;
+import org.tron.common.crypto.pqc.PQSignature;
 import org.tron.core.exception.CancelException;
 import org.tron.protos.Protocol.PQAuthSig;
 import org.tron.protos.Protocol.PQScheme;
@@ -294,65 +290,6 @@ public class TransactionUtils {
     }
   }
 
-  public static String getBase64FromByteString(ByteString sign) {
-    byte[] r = sign.substring(0, 32).toByteArray();
-    byte[] s = sign.substring(32, 64).toByteArray();
-    byte v = sign.byteAt(64);
-    if (v < 27) {
-      v += 27; // revId -> v
-    }
-    ECDSASignature signature = ECDSASignature.fromComponents(r, s, v);
-    return signature.toBase64();
-  }
-
-  /*
-   * 1. check hash
-   * 2. check double spent
-   * 3. check sign
-   * 4. check balance
-   */
-  public static boolean validTransaction(Transaction signedTransaction) {
-    assert (signedTransaction.getSignatureCount()
-        == signedTransaction.getRawData().getContractCount());
-    List<Transaction.Contract> listContract = signedTransaction.getRawData().getContractList();
-    byte[] hash = Sha256Sm3Hash.hash(signedTransaction.getRawData().toByteArray());
-    int count = signedTransaction.getSignatureCount();
-
-    // Accept transactions with at least one PQAuthSig even if there are no normal signatures
-    if (count == 0 && signedTransaction.getPqAuthSigCount() == 0) {
-      return false;
-    }
-
-    // Check normal signatures
-    for (int i = 0; i < count; ++i) {
-      try {
-        Transaction.Contract contract = listContract.get(i);
-        byte[] owner = getOwner(contract);
-        byte[] address =
-            ECKey.signatureToAddress(
-                hash, getBase64FromByteString(signedTransaction.getSignature(i)));
-        if (!Arrays.equals(owner, address)) {
-          return false;
-        }
-      } catch (SignatureException e) {
-        e.printStackTrace();
-        return false;
-      }
-    }
-
-    // Check PQ signatures
-    for (int i = 0; i < signedTransaction.getPqAuthSigCount(); ++i) {
-      org.tron.protos.Protocol.PQAuthSig pqAuthSig = signedTransaction.getPqAuthSig(i);
-      if (pqAuthSig.getPublicKey() == null || pqAuthSig.getPublicKey().isEmpty()) {
-        return false;
-      }
-      if (pqAuthSig.getSignature() == null || pqAuthSig.getSignature().isEmpty()) {
-        return false;
-      }
-    }
-    return true;
-  }
-
   public static Chain.Transaction sign(Chain.Transaction transaction, SignInterface myKey)
       throws InvalidProtocolBufferException {
     return Chain.Transaction.parseFrom(
@@ -370,19 +307,23 @@ public class TransactionUtils {
   }
 
   public static Chain.Transaction signPQ(
-      Chain.Transaction transaction, FNDSA512 signer, PQScheme scheme)
+      Chain.Transaction transaction, PQSignature signer, PQScheme scheme)
       throws InvalidProtocolBufferException {
     return Chain.Transaction.parseFrom(
         signPQ(Transaction.parseFrom(transaction.toByteArray()), signer, scheme).toByteArray());
   }
 
-  public static Transaction signPQ(Transaction transaction, FNDSA512 signer, PQScheme scheme) {
-    if (scheme == null || scheme == PQScheme.UNKNOWN_PQ_SCHEME || !org.tron.common.crypto.pqc.PQSchemeRegistry.contains(scheme)) {
-        throw new IllegalArgumentException("Unsupported or unknown PQScheme: " + scheme);
+  public static Transaction signPQ(Transaction transaction, PQSignature signer, PQScheme scheme) {
+    if (!PQSchemeRegistry.contains(scheme)) {
+      throw new IllegalArgumentException("Unsupported or unknown PQScheme: " + scheme);
+    }
+    if (signer.getScheme() != scheme) {
+      throw new IllegalArgumentException("Signer scheme " + signer.getScheme()
+          + " does not match requested scheme " + scheme);
     }
     byte[] hash = Sha256Sm3Hash.hash(transaction.getRawData().toByteArray());
     byte[] sig = signer.sign(hash);
-    org.tron.protos.Protocol.PQAuthSig pqSig = org.tron.protos.Protocol.PQAuthSig.newBuilder()
+    PQAuthSig pqSig = PQAuthSig.newBuilder()
         .setScheme(scheme)
         .setPublicKey(ByteString.copyFrom(signer.getPublicKey()))
         .setSignature(ByteString.copyFrom(sig))

@@ -26,7 +26,6 @@ import static org.tron.common.utils.ByteUtil.isSingleZero;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.Provider;
-import java.security.Security;
 import java.util.Arrays;
 import lombok.extern.slf4j.Slf4j;
 import org.bouncycastle.math.ec.ECPoint;
@@ -65,7 +64,6 @@ public class Hash {
   private static final int SIZE_THRESHOLD = 56;
 
   static {
-    Security.addProvider(TronCastleProvider.getInstance());
     CRYPTO_PROVIDER = TronCastleProvider.getInstance();
     HASH_256_ALGORITHM_NAME = "TRON-KECCAK-256";
     HASH_512_ALGORITHM_NAME = "TRON-KECCAK-512";

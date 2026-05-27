@@ -18,9 +18,30 @@ public interface PQSignature {
 
   int getSignatureLength();
 
+  /**
+   * Minimum syntactically well-formed signature length. Defaults to
+   * {@link #getSignatureLength()} for fixed-length schemes; variable-length
+   * schemes (e.g. FN-DSA-512) override.
+   */
+  default int getSignatureMinLength() {
+    return getSignatureLength();
+  }
+
   byte[] getPrivateKey();
 
   byte[] getPublicKey();
+
+  /**
+   * Returns the byte form persisted by the keystore. For schemes whose encoded
+   * private key alone suffices to recover the public key (e.g. ML-DSA-44) this
+   * is just {@link #getPrivateKey()}. For schemes that need the public key
+   * appended to recover the keypair without re-running keygen (e.g. FN-DSA-512
+   * — see {@code bcgit/bc-java#2297}) this returns the extended encoding
+   * {@code privateKey ‖ publicKey}.
+   */
+  default byte[] getPersistedPrivateKey() {
+    return getPrivateKey();
+  }
 
   /**
    * 21-byte TRON address derived from the held public key as
@@ -58,15 +79,18 @@ public interface PQSignature {
   }
 
   /**
-   * Default upper-bound check, sufficient for variable-length schemes (FN_DSA_512).
-   * Fixed-length schemes override this with strict equality.
+   * Default range check, sufficient for variable-length schemes (FN_DSA_512).
+   * Fixed-length schemes override {@link #getSignatureMinLength()} to equal
+   * {@link #getSignatureLength()}, which collapses this to a strict equality.
    */
   default void validateSignature(byte[] signature) {
-    if (signature == null || signature.length == 0 || signature.length > getSignatureLength()) {
+    int min = getSignatureMinLength();
+    int max = getSignatureLength();
+    if (signature == null || signature.length < min || signature.length > max) {
       throw new IllegalArgumentException(
           "invalid " + getScheme() + " signature length: "
               + (signature == null ? "null" : signature.length)
-              + ", expected 1.." + getSignatureLength());
+              + ", expected " + min + ".." + max);
     }
   }
 }

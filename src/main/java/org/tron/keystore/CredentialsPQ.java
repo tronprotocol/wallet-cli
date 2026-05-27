@@ -1,26 +1,26 @@
 package org.tron.keystore;
 
 import org.tron.common.crypto.SignInterface;
-import org.tron.common.crypto.pqc.FNDSA512;
+import org.tron.common.crypto.pqc.PQSignature;
 import org.tron.walletserver.WalletApi;
 
 /**
- * Credentials wrapper for Falcon-512 (FN-DSA-512) post-quantum keys. Kept off
- * the {@link SignInterface} ECKey/SM2 union deliberately — PQ signing is
- * dispatched per-wallet via {@link WalletFile#getScheme()}.
+ * Credentials wrapper for post-quantum signature keys (FN-DSA-512, ML-DSA-44,
+ * ...). Kept off the {@link SignInterface} ECKey/SM2 union deliberately — PQ
+ * signing is dispatched per-wallet via {@link WalletFile#getScheme()}.
  */
-public class CredentialsFalcon implements Credentials {
+public class CredentialsPQ implements Credentials {
 
-  private final FNDSA512 fnDsa512;
+  private final PQSignature signer;
   private final String address;
 
-  private CredentialsFalcon(FNDSA512 fnDsa512, String address) {
-    this.fnDsa512 = fnDsa512;
+  private CredentialsPQ(PQSignature signer, String address) {
+    this.signer = signer;
     this.address = address;
   }
 
-  public FNDSA512 getFNDSA512() {
-    return fnDsa512;
+  public PQSignature getPQSignature() {
+    return signer;
   }
 
   @Override
@@ -28,9 +28,9 @@ public class CredentialsFalcon implements Credentials {
     return address;
   }
 
-  public static CredentialsFalcon create(FNDSA512 fnDsa512) {
-    String address = WalletApi.encode58Check(fnDsa512.getAddress());
-    return new CredentialsFalcon(fnDsa512, address);
+  public static CredentialsPQ create(PQSignature signer) {
+    String address = WalletApi.encode58Check(signer.getAddress());
+    return new CredentialsPQ(signer, address);
   }
 
   @Override
@@ -41,8 +41,8 @@ public class CredentialsFalcon implements Credentials {
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-    CredentialsFalcon that = (CredentialsFalcon) o;
-    if (fnDsa512 != null ? !fnDsa512.equals(that.fnDsa512) : that.fnDsa512 != null) {
+    CredentialsPQ that = (CredentialsPQ) o;
+    if (signer != null ? !signer.equals(that.signer) : that.signer != null) {
       return false;
     }
     return address != null ? address.equals(that.address) : that.address == null;
@@ -50,7 +50,7 @@ public class CredentialsFalcon implements Credentials {
 
   @Override
   public int hashCode() {
-    int result = fnDsa512 != null ? fnDsa512.hashCode() : 0;
+    int result = signer != null ? signer.hashCode() : 0;
     result = 31 * result + (address != null ? address.hashCode() : 0);
     return result;
   }
@@ -65,17 +65,17 @@ public class CredentialsFalcon implements Credentials {
 
       @Override
       public byte[] getPrivateKey() {
-        return fnDsa512.getPrivateKeyWithPublicKey();
+        return signer.getPersistedPrivateKey();
       }
 
       @Override
       public byte[] getPubKey() {
-        return fnDsa512.getPublicKey();
+        return signer.getPublicKey();
       }
 
       @Override
       public byte[] getAddress() {
-        return fnDsa512.getAddress();
+        return signer.getAddress();
       }
 
       @Override
@@ -100,7 +100,7 @@ public class CredentialsFalcon implements Credentials {
 
       @Override
       public byte[] getPrivKeyBytes() {
-        return fnDsa512.getPrivateKeyWithPublicKey();
+        return signer.getPersistedPrivateKey();
       }
 
       @Override

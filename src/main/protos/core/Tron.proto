@@ -19,14 +19,12 @@ enum AccountType {
 
 // Post-quantum signature scheme identifier used by PQAuthSig.
 // UNKNOWN_PQ_SCHEME = 0 is the proto3 default and is reserved per the
-// java-tron API evolution standard (issue #6515) so unset / unrecognized
-// values are detectable by JSON consumers; it MUST never be registered
-// in PQSchemeRegistry. FN_DSA_512 = 1 is the V2 launch scheme.
-// New schemes are reserved for future activation (see PQSchemeRegistry).
+// java-tron API evolution standard so unset / unrecognized values are
+// detectable by JSON consumers; it MUST never be registered in PQSchemeRegistry.
 enum PQScheme {
   UNKNOWN_PQ_SCHEME = 0;
   FN_DSA_512 = 1;
-  reserved 2 to 15;
+  ML_DSA_44 = 2;
 }
 
 // AccountId, (name, address) use name, (null, address) use address, (name, null) use name,

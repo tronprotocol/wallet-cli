@@ -55,6 +55,7 @@ import java.math.BigInteger;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -98,8 +99,8 @@ import org.tron.gasfree.request.GasFreeSubmitRequest;
 import org.tron.gasfree.response.GasFreeAddressResponse;
 import org.tron.keystore.ClearWalletUtils;
 import org.tron.keystore.Credentials;
-import org.tron.common.crypto.pqc.FNDSA512;
 import org.tron.common.crypto.pqc.PQSchemeRegistry;
+import org.tron.common.crypto.pqc.PQSignature;
 import org.tron.protos.Protocol.PQScheme;
 import org.tron.keystore.WalletFile;
 import org.tron.keystore.WalletUtils;
@@ -255,12 +256,13 @@ public class WalletApiWrapper {
       return null;
     }
     byte[] passwd = char2Byte(password);
-    byte[] seed = new byte[FNDSA512.SEED_LENGTH];
+    int seedLen = PQSchemeRegistry.getSeedLength(scheme);
+    byte[] seed = new byte[seedLen];
     try {
-      new java.security.SecureRandom().nextBytes(seed);
-      FNDSA512 signer = new FNDSA512(seed);
+      new SecureRandom().nextBytes(seed);
+      PQSignature signer = PQSchemeRegistry.fromSeed(scheme, seed);
       WalletFile walletFile = WalletApi.CreatePQWalletFile(
-          passwd, PQSchemeRegistry.resolve(scheme), signer.getPrivateKeyWithPublicKey(), seed, signer.getPublicKey());
+          passwd, scheme, signer.getPersistedPrivateKey(), seed, signer.getPublicKey());
       nameWallet(walletFile, false);
       String keystoreName = WalletApi.store2Keystore(walletFile);
       logout();
@@ -271,11 +273,11 @@ public class WalletApiWrapper {
     }
   }
 
-  // Imports a PQ wallet. Callers supply either the 48-byte seed, the
-  // 2176-byte extended private key, or both (when both are present they must
-  // describe the same keypair). When the seed is available the keystore
-  // persists BOTH segments so that future tooling can re-derive a fresh
-  // extended form from the seed alone.
+  // Imports a PQ wallet. Callers supply either the scheme-specific keygen seed,
+  // the scheme-specific persisted private key, or both (when both are present
+  // they must describe the same keypair). When the seed is available the
+  // keystore persists BOTH segments so that future tooling can re-derive a
+  // fresh persisted form from the seed alone.
   public String importWalletPQ(char[] password, PQScheme scheme,
       byte[] extendedPrivateKey, byte[] seed)
       throws CipherException, IOException {
@@ -286,24 +288,25 @@ public class WalletApiWrapper {
       System.out.println("ImportWalletPQ requires either a seed or an extended private key.");
       return null;
     }
-    int expectedExtLen = PQSchemeRegistry.getPrivateKeyLength(scheme)
-        + PQSchemeRegistry.getPublicKeyLength(scheme);
+    int expectedExtLen = PQSchemeRegistry.getPersistedPrivateKeyLength(scheme);
     if (extendedPrivateKey != null && extendedPrivateKey.length != expectedExtLen) {
       System.out.println("Invalid extended private key length: expected " + expectedExtLen
           + " bytes for " + scheme.name());
       return null;
     }
-    if (seed != null && seed.length != FNDSA512.SEED_LENGTH) {
-      System.out.println("Invalid seed length: expected " + FNDSA512.SEED_LENGTH + " bytes");
+    int expectedSeedLen = PQSchemeRegistry.getSeedLength(scheme);
+    if (seed != null && seed.length != expectedSeedLen) {
+      System.out.println("Invalid seed length: expected " + expectedSeedLen
+          + " bytes for " + scheme.name());
       return null;
     }
     byte[] passwd = char2Byte(password);
     try {
-      FNDSA512 signer = (extendedPrivateKey != null)
-          ? FNDSA512.fromPrivateKeyWithPublicKey(extendedPrivateKey)
-          : new FNDSA512(seed);
+      PQSignature signer = (extendedPrivateKey != null)
+          ? PQSchemeRegistry.fromPersistedPrivateKey(scheme, extendedPrivateKey)
+          : PQSchemeRegistry.fromSeed(scheme, seed);
       if (extendedPrivateKey != null && seed != null) {
-        byte[] derivedExt = new FNDSA512(seed).getPrivateKeyWithPublicKey();
+        byte[] derivedExt = PQSchemeRegistry.fromSeed(scheme, seed).getPersistedPrivateKey();
         if (!java.util.Arrays.equals(derivedExt, extendedPrivateKey)) {
           java.util.Arrays.fill(derivedExt, (byte) 0);
           System.out.println("Provided seed and extended private key describe different keypairs.");
@@ -312,7 +315,7 @@ public class WalletApiWrapper {
         java.util.Arrays.fill(derivedExt, (byte) 0);
       }
       WalletFile walletFile = WalletApi.CreatePQWalletFile(
-          passwd, PQSchemeRegistry.resolve(scheme), signer.getPrivateKeyWithPublicKey(), seed, signer.getPublicKey());
+          passwd, scheme, signer.getPersistedPrivateKey(), seed, signer.getPublicKey());
       nameWallet(walletFile, false);
       String keystoreName = WalletApi.store2Keystore(walletFile);
       if (isUnifiedExist()) {
@@ -335,12 +338,13 @@ public class WalletApiWrapper {
           "MASTER_PASSWORD does not meet password requirements.");
     }
     byte[] passwd = char2Byte(password);
-    byte[] seed = new byte[FNDSA512.SEED_LENGTH];
+    int seedLen = PQSchemeRegistry.getSeedLength(scheme);
+    byte[] seed = new byte[seedLen];
     try {
       new java.security.SecureRandom().nextBytes(seed);
-      FNDSA512 signer = new FNDSA512(seed);
+      PQSignature signer = PQSchemeRegistry.fromSeed(scheme, seed);
       WalletFile walletFile = WalletApi.CreatePQWalletFile(
-          passwd, scheme, signer.getPrivateKeyWithPublicKey(), seed, signer.getPublicKey());
+          passwd, scheme, signer.getPersistedPrivateKey(), seed, signer.getPublicKey());
       walletFile.setName(walletName);
       String keystoreName = WalletApi.store2Keystore(walletFile);
       logout();
@@ -365,24 +369,25 @@ public class WalletApiWrapper {
       throw new CommandErrorException("usage_error",
           "import-wallet-pq requires either a seed or an extended private key.");
     }
-    int expectedExtLen = PQSchemeRegistry.getPrivateKeyLength(scheme)
-        + PQSchemeRegistry.getPublicKeyLength(scheme);
+    int expectedExtLen = PQSchemeRegistry.getPersistedPrivateKeyLength(scheme);
     if (extendedPrivateKey != null && extendedPrivateKey.length != expectedExtLen) {
       throw new CommandErrorException("usage_error",
           "Invalid extended private key length: expected " + expectedExtLen
               + " bytes for " + scheme.name());
     }
-    if (seed != null && seed.length != FNDSA512.SEED_LENGTH) {
+    int expectedSeedLen = PQSchemeRegistry.getSeedLength(scheme);
+    if (seed != null && seed.length != expectedSeedLen) {
       throw new CommandErrorException("usage_error",
-          "Invalid seed length: expected " + FNDSA512.SEED_LENGTH + " bytes");
+          "Invalid seed length: expected " + expectedSeedLen
+              + " bytes for " + scheme.name());
     }
     byte[] passwd = char2Byte(password);
     try {
-      FNDSA512 signer = (extendedPrivateKey != null)
-          ? FNDSA512.fromPrivateKeyWithPublicKey(extendedPrivateKey)
-          : new FNDSA512(seed);
+      PQSignature signer = (extendedPrivateKey != null)
+          ? PQSchemeRegistry.fromPersistedPrivateKey(scheme, extendedPrivateKey)
+          : PQSchemeRegistry.fromSeed(scheme, seed);
       if (extendedPrivateKey != null && seed != null) {
-        byte[] derivedExt = new FNDSA512(seed).getPrivateKeyWithPublicKey();
+        byte[] derivedExt = PQSchemeRegistry.fromSeed(scheme, seed).getPersistedPrivateKey();
         if (!java.util.Arrays.equals(derivedExt, extendedPrivateKey)) {
           java.util.Arrays.fill(derivedExt, (byte) 0);
           throw new CommandErrorException("usage_error",
@@ -391,7 +396,7 @@ public class WalletApiWrapper {
         java.util.Arrays.fill(derivedExt, (byte) 0);
       }
       WalletFile walletFile = WalletApi.CreatePQWalletFile(
-          passwd, scheme, signer.getPrivateKeyWithPublicKey(), seed, signer.getPublicKey());
+          passwd, scheme, signer.getPersistedPrivateKey(), seed, signer.getPublicKey());
       walletFile.setName(walletName);
       String keystoreName = WalletApi.store2Keystore(walletFile);
       if (isUnifiedExist()) {
@@ -3365,6 +3370,18 @@ public class WalletApiWrapper {
         throw new CommandErrorException("invalid_input", "The receiverAddress you entered is invalid.");
       }
       System.out.println("The receiverAddress you entered is invalid.");
+      return false;
+    }
+    WalletFile activeWalletFile = wallet.getWalletFile();
+    if (activeWalletFile != null
+        && activeWalletFile.getScheme() != null
+        && !activeWalletFile.getScheme().isEmpty()) {
+      String msg = "GasFreeTransfer is not supported for post-quantum wallets ("
+          + activeWalletFile.getScheme() + "); requires an ECDSA wallet.";
+      if (standardCli) {
+        throw new CommandErrorException("unsupported_wallet_type", msg);
+      }
+      System.out.println(msg);
       return false;
     }
     String address = getAddress();

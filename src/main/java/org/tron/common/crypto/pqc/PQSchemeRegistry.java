@@ -20,10 +20,9 @@ import org.tron.protos.Protocol.PQScheme;
  * specific (see {@link #deriveHash}); {@code FN_DSA_512} uses Keccak-256.
  *
  * <p><b>Wire-format default.</b> {@code UNKNOWN_PQ_SCHEME = 0} is the proto3
- * default (reserved for the {@code UNKNOWN_} API-evolution slot); on the wire
- * it is interpreted as {@code FN_DSA_512} so V2-launch witnesses pay zero
- * bytes for the scheme tag. All public methods normalize via
- * {@link #resolve(PQScheme)} before dispatch.
+ * default (reserved for the {@code UNKNOWN_} API-evolution slot) and is
+ * rejected by {@link #contains(PQScheme)} / {@link #require(PQScheme)} —
+ * callers must specify a concrete scheme.
  */
 public final class PQSchemeRegistry {
 
@@ -36,6 +35,18 @@ public final class PQSchemeRegistry {
     PQSignature fromSeed(byte[] seed);
 
     PQSignature fromKeypair(byte[] privateKey, byte[] publicKey);
+
+    /**
+     * Rebuilds a {@link PQSignature} from the byte form persisted by the
+     * keystore (see {@link PQSignature#getPersistedPrivateKey()}). For schemes
+     * whose encoded private key alone determines the public key this just
+     * derives the public half. For FN-DSA-512 the input is the extended form
+     * {@code f ‖ g ‖ F ‖ h}.
+     */
+    PQSignature fromPersistedPrivateKey(byte[] persistedPrivateKey);
+
+    /** Returns the length in bytes of the form returned by {@link #fromPersistedPrivateKey}. */
+    int persistedPrivateKeyLength();
   }
 
   /**
@@ -55,15 +66,17 @@ public final class PQSchemeRegistry {
     final int privateKeyLength;
     final int publicKeyLength;
     final int signatureLength;
+    final int signatureMinLength;
     final int seedLength;
     final FingerprintHash hash;
     final SignatureOps ops;
 
     SchemeInfo(int privateKeyLength, int publicKeyLength, int signatureLength,
-        int seedLength, FingerprintHash hash, SignatureOps ops) {
+        int signatureMinLength, int seedLength, FingerprintHash hash, SignatureOps ops) {
       this.privateKeyLength = privateKeyLength;
       this.publicKeyLength = publicKeyLength;
       this.signatureLength = signatureLength;
+      this.signatureMinLength = signatureMinLength;
       this.seedLength = seedLength;
       this.hash = hash;
       this.ops = ops;
@@ -76,7 +89,8 @@ public final class PQSchemeRegistry {
     EnumMap<PQScheme, SchemeInfo> m = new EnumMap<>(PQScheme.class);
     m.put(PQScheme.FN_DSA_512, new SchemeInfo(
         FNDSA512.PRIVATE_KEY_LENGTH, FNDSA512.PUBLIC_KEY_LENGTH,
-        FNDSA512.SIGNATURE_LENGTH, FNDSA512.SEED_LENGTH,
+        FNDSA512.SIGNATURE_LENGTH, FNDSA512.SIGNATURE_MIN_LENGTH,
+        FNDSA512.SEED_LENGTH,
         KECCAK_256,
         new SignatureOps() {
           @Override
@@ -98,6 +112,53 @@ public final class PQSchemeRegistry {
           public PQSignature fromKeypair(byte[] privateKey, byte[] publicKey) {
             return new FNDSA512(privateKey, publicKey);
           }
+
+          @Override
+          public PQSignature fromPersistedPrivateKey(byte[] persistedPrivateKey) {
+            return FNDSA512.fromPrivateKeyWithPublicKey(persistedPrivateKey);
+          }
+
+          @Override
+          public int persistedPrivateKeyLength() {
+            return FNDSA512.PRIVATE_KEY_WITH_PUBLIC_KEY_LENGTH;
+          }
+        }));
+    m.put(PQScheme.ML_DSA_44, new SchemeInfo(
+        MLDSA44.PRIVATE_KEY_LENGTH, MLDSA44.PUBLIC_KEY_LENGTH,
+        MLDSA44.SIGNATURE_LENGTH, MLDSA44.SIGNATURE_LENGTH,
+        MLDSA44.SEED_LENGTH,
+        KECCAK_256,
+        new SignatureOps() {
+          @Override
+          public byte[] sign(byte[] privateKey, byte[] message) {
+            return MLDSA44.sign(privateKey, message);
+          }
+
+          @Override
+          public boolean verify(byte[] publicKey, byte[] message, byte[] signature) {
+            return MLDSA44.verify(publicKey, message, signature);
+          }
+
+          @Override
+          public PQSignature fromSeed(byte[] seed) {
+            return new MLDSA44(seed);
+          }
+
+          @Override
+          public PQSignature fromKeypair(byte[] privateKey, byte[] publicKey) {
+            return new MLDSA44(privateKey, publicKey);
+          }
+
+          @Override
+          public PQSignature fromPersistedPrivateKey(byte[] persistedPrivateKey) {
+            byte[] pk = MLDSA44.derivePublicKey(persistedPrivateKey);
+            return new MLDSA44(persistedPrivateKey, pk);
+          }
+
+          @Override
+          public int persistedPrivateKeyLength() {
+            return MLDSA44.PRIVATE_KEY_LENGTH;
+          }
         }));
     SCHEMES = Collections.unmodifiableMap(m);
   }
@@ -105,23 +166,8 @@ public final class PQSchemeRegistry {
   private PQSchemeRegistry() {
   }
 
-  /**
-   * Map a wire-format {@link PQScheme} to its registered scheme. The proto3
-   * default {@code UNKNOWN_PQ_SCHEME} is normalized to {@code FN_DSA_512} so
-   * V2-launch witnesses that omit the scheme tag are decoded as Falcon-512.
-   * {@code null} and {@code UNRECOGNIZED} pass through unchanged so the
-   * caller-side {@code contains}/{@code require} checks reject them.
-   */
-  public static PQScheme resolve(PQScheme scheme) {
-    if (scheme == PQScheme.UNKNOWN_PQ_SCHEME) {
-      return PQScheme.FN_DSA_512;
-    }
-    return scheme;
-  }
-
   public static boolean contains(PQScheme scheme) {
-    PQScheme resolved = resolve(scheme);
-    return resolved != null && SCHEMES.containsKey(resolved);
+    return scheme != null && SCHEMES.containsKey(scheme);
   }
 
   public static int getPrivateKeyLength(PQScheme scheme) {
@@ -141,18 +187,14 @@ public final class PQSchemeRegistry {
   }
 
   /**
-   * Per-scheme signature-length predicate. Fixed-length schemes require exact
-   * equality with {@link #getSignatureLength(PQScheme)}; variable-length
-   * schemes ({@code FN_DSA_512}) treat that value as an upper bound and accept
-   * any {@code 1..max}.
+   * Per-scheme signature-length predicate. Variable-length schemes
+   * ({@code FN_DSA_512}) accept any length in
+   * {@code [getSignatureMinLength, getSignatureLength]}; fixed-length schemes
+   * collapse that range to a single value.
    */
   public static boolean isValidSignatureLength(PQScheme scheme, int length) {
-    PQScheme resolved = resolve(scheme);
-    SchemeInfo info = require(resolved);
-    if (resolved == PQScheme.FN_DSA_512) {
-      return length > 0 && length <= info.signatureLength;
-    }
-    return length == info.signatureLength;
+    SchemeInfo info = require(scheme);
+    return length >= info.signatureMinLength && length <= info.signatureLength;
   }
 
   public static byte[] sign(PQScheme scheme, byte[] privateKey, byte[] message) {
@@ -166,6 +208,15 @@ public final class PQSchemeRegistry {
 
   public static PQSignature fromSeed(PQScheme scheme, byte[] seed) {
     return require(scheme).ops.fromSeed(seed);
+  }
+
+  public static PQSignature fromPersistedPrivateKey(
+      PQScheme scheme, byte[] persistedPrivateKey) {
+    return require(scheme).ops.fromPersistedPrivateKey(persistedPrivateKey);
+  }
+
+  public static int getPersistedPrivateKeyLength(PQScheme scheme) {
+    return require(scheme).ops.persistedPrivateKeyLength();
   }
 
   /**
@@ -212,8 +263,7 @@ public final class PQSchemeRegistry {
     if (scheme == null) {
       throw new IllegalArgumentException("scheme must not be null");
     }
-    PQScheme resolved = resolve(scheme);
-    SchemeInfo info = SCHEMES.get(resolved);
+    SchemeInfo info = SCHEMES.get(scheme);
     if (info == null) {
       throw new IllegalArgumentException(
           "no PQSignature registered for scheme: " + scheme);

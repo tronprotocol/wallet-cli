@@ -51,7 +51,7 @@ public class WalletPQKeystoreTest {
     String seedIv = walletFile.getCrypto().getSeedcipherparams().getIv();
     assertFalse("IVs must be independent", extIv.equals(seedIv));
 
-    FNDSA512 decrypted = Wallet.decryptPQ(password, walletFile);
+    FNDSA512 decrypted = (FNDSA512) Wallet.decryptPQ(password, walletFile);
     assertNotNull(decrypted);
     assertArrayEquals(original.getPublicKey(), decrypted.getPublicKey());
     assertArrayEquals(original.getPrivateKey(), decrypted.getPrivateKey());
@@ -73,7 +73,7 @@ public class WalletPQKeystoreTest {
     assertNotNull(walletFile.getCrypto().getCiphertext());
     assertNull(walletFile.getCrypto().getSeedciphertext());
 
-    FNDSA512 decrypted = Wallet.decryptPQ(password, walletFile);
+    FNDSA512 decrypted = (FNDSA512) Wallet.decryptPQ(password, walletFile);
     assertArrayEquals(original.getPublicKey(), decrypted.getPublicKey());
   }
 
@@ -90,7 +90,7 @@ public class WalletPQKeystoreTest {
     assertNull(walletFile.getCrypto().getCiphertext());
     assertNotNull(walletFile.getCrypto().getSeedciphertext());
 
-    FNDSA512 decrypted = Wallet.decryptPQ(password, walletFile);
+    FNDSA512 decrypted = (FNDSA512) Wallet.decryptPQ(password, walletFile);
     assertArrayEquals(original.getPublicKey(), decrypted.getPublicKey());
   }
 
@@ -198,7 +198,7 @@ public class WalletPQKeystoreTest {
     WalletFile reloaded = mapper.readValue(json, WalletFile.class);
     assertEquals("FN_DSA_512", reloaded.getScheme());
 
-    FNDSA512 decrypted = Wallet.decryptPQ(password, reloaded);
+    FNDSA512 decrypted = (FNDSA512) Wallet.decryptPQ(password, reloaded);
     assertArrayEquals(original.getPublicKey(), decrypted.getPublicKey());
   }
 
