@@ -147,12 +147,16 @@ public final class NonInteractiveLedgerSigner implements LedgerSigner {
                 }
                 if (STATE_TIMEOUT.equals(postState.get())) {
                     return LedgerSignOutcome.failure(LedgerSignOutcome.Status.TIMEOUT,
-                            "Timed out waiting for confirmation on Ledger device");
+                            "Timed out waiting for confirmation on Ledger device."
+                            + " If the device still shows the confirmation screen,"
+                            + " reject it on the device or quit and reopen the Tron app.");
                 }
                 if (STATE_SIGNING.equals(postState.get())) {
                     stateReader.markTimedOut(device.path(), txid);
                     return LedgerSignOutcome.failure(LedgerSignOutcome.Status.TIMEOUT,
-                            "Timed out waiting for confirmation on Ledger device");
+                            "Timed out waiting for confirmation on Ledger device."
+                            + " If the device still shows the confirmation screen,"
+                            + " reject it on the device or quit and reopen the Tron app.");
                 }
             }
             return LedgerSignOutcome.failure(LedgerSignOutcome.Status.SIGN_FAILED,
