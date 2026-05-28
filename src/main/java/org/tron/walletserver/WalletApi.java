@@ -553,6 +553,22 @@ public class WalletApi {
     }
   }
 
+  // The Trident SDK ApiClient takes a hex string private key and assumes it is
+  // a 32-byte ECDSA secp256k1 / SM2 key. A PQ persisted private key (2176 or
+  // 2560 bytes) cannot be used there — silently passing it would produce
+  // invalid signatures or runtime errors deep inside Trident. Operations that
+  // must construct an ApiClient directly should call this before reading the
+  // key out of the keystore, mirroring the pre-flight check in
+  // {@code WalletApiWrapper.gasFreeTransferInternal}.
+  private void rejectPQForEcdsaSigning(String operation) {
+    WalletFile wf = getWalletFile();
+    if (wf != null && wf.getScheme() != null && !wf.getScheme().isEmpty()) {
+      throw new UnsupportedOperationException(
+          operation + " is not supported for post-quantum wallets ("
+              + wf.getScheme() + "); requires an ECDSA wallet.");
+    }
+  }
+
   public byte[] getPrivateBytes(byte[] password) throws CipherException, IOException {
     return decrypt2PrivateBytes(password, loadWalletFile());
   }
@@ -848,7 +864,17 @@ public class WalletApi {
       throw new IOException(
           "No keystore file found, please use " + greenBoldHighlight("RegisterWallet") + " or " + greenBoldHighlight("ImportWallet") + " first!");
     }
-    Credentials credentials = WalletUtils.loadCredentials(oldPassword, wallet);
+    WalletFile existing = WalletUtils.loadWalletFile(wallet);
+    // PQ wallets use a different keystore shape (scheme + ext/seed segments).
+    // The legacy ECDSA/SM2 re-encrypt path would silently rewrite a PQ keystore
+    // as an EC keystore, losing the scheme tag and seed segment.
+    if (existing.getScheme() != null && !existing.getScheme().isEmpty()) {
+      WalletFile reEncrypted = Wallet.reEncryptPQ(oldPassword, newPassowrd, existing);
+      WalletUtils.writeWalletFile(reEncrypted, wallet);
+      // PQ wallets do not currently persist a BIP-39 mnemonic file.
+      return true;
+    }
+    Credentials credentials = WalletUtils.loadCredentials(oldPassword, existing);
     WalletUtils.updateWalletFile(newPassowrd, credentials.getPair(), wallet, true);
 
     // update the password of mnemonicFile
@@ -3734,6 +3760,7 @@ public class WalletApi {
     if (!isUnlocked()) {
       throw new IllegalStateException(LOCK_WARNING);
     }
+    rejectPQForEcdsaSigning("DeployContract");
     if (owner == null) {
       owner = getAddress();
     }
@@ -3816,6 +3843,7 @@ public class WalletApi {
     if (!isUnlocked()) {
       throw new IllegalStateException(LOCK_WARNING);
     }
+    rejectPQForEcdsaSigning("DeployContract");
     if (owner == null) {
       owner = getAddress();
     }

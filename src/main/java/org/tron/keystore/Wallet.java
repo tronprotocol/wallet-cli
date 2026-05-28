@@ -600,6 +600,119 @@ public class Wallet {
     }
   }
 
+  // Re-encrypts a PQ keystore under a new password while preserving the
+  // original segment shape: whichever of {ext, seed} were persisted are
+  // re-encrypted; the other stays absent. Scrypt parameters are re-derived
+  // from the wallet's existing kdf params (so callers cannot inadvertently
+  // downgrade N/p by passing wrong flags). Address and scheme are preserved.
+  // Throws if either MAC mismatches the old password or the persisted segments
+  // disagree on the keypair.
+  public static WalletFile reEncryptPQ(byte[] oldPassword, byte[] newPassword,
+      WalletFile walletFile) throws CipherException {
+    if (walletFile.getScheme() == null) {
+      throw new CipherException("Wallet has no PQ scheme tag");
+    }
+    final PQScheme scheme;
+    try {
+      scheme = PQScheme.valueOf(walletFile.getScheme());
+    } catch (IllegalArgumentException e) {
+      throw new CipherException("Unsupported PQ scheme: " + walletFile.getScheme(), e);
+    }
+    if (!PQSchemeRegistry.contains(scheme)) {
+      throw new CipherException("Unsupported PQ scheme: " + scheme);
+    }
+    int expectedSeedLen = PQSchemeRegistry.getSeedLength(scheme);
+
+    validate(walletFile);
+    WalletFile.Crypto crypto = walletFile.getCrypto();
+    boolean extPresent = isExtSegmentPresent(crypto);
+    boolean seedPresent = isSeedSegmentPresent(crypto);
+    requireSegmentShape(crypto, extPresent, seedPresent);
+    if (!extPresent && !seedPresent) {
+      throw new CipherException(
+          "PQ wallet has neither ciphertext nor seedciphertext");
+    }
+    if (!(crypto.getKdfparams() instanceof WalletFile.ScryptKdfParams)) {
+      throw new CipherException("PQ wallets must use scrypt KDF");
+    }
+    WalletFile.ScryptKdfParams kdf = (WalletFile.ScryptKdfParams) crypto.getKdfparams();
+
+    byte[] derivedKey = deriveScryptKey(oldPassword, crypto);
+    byte[] encryptKey = Arrays.copyOfRange(derivedKey, 0, 16);
+    byte[] extended = null;
+    byte[] seedBytes = null;
+    try {
+      byte[] extCipherText = null;
+      byte[] seedCipherText = null;
+      if (extPresent) {
+        extCipherText = ByteArray.fromHexString(crypto.getCiphertext());
+        byte[] storedMac = ByteArray.fromHexString(crypto.getMac());
+        if (!Arrays.equals(generateMac(derivedKey, extCipherText), storedMac)) {
+          throw new CipherException("Invalid password provided");
+        }
+      }
+      if (seedPresent) {
+        seedCipherText = ByteArray.fromHexString(crypto.getSeedciphertext());
+        byte[] storedMac = ByteArray.fromHexString(crypto.getSeedmac());
+        if (!Arrays.equals(generateMac(derivedKey, seedCipherText), storedMac)) {
+          throw new CipherException("Invalid password provided");
+        }
+      }
+
+      byte[] extIv = extPresent
+          ? ByteArray.fromHexString(crypto.getCipherparams().getIv()) : null;
+      byte[] seedIv = seedPresent
+          ? ByteArray.fromHexString(crypto.getSeedcipherparams().getIv()) : null;
+      if (extIv != null && seedIv != null && Arrays.equals(extIv, seedIv)) {
+        throw new CipherException("PQ keystore reuses IV across ext/seed segments");
+      }
+
+      byte[] publicKey;
+      if (extPresent) {
+        extended = performCipherOperation(Cipher.DECRYPT_MODE, extIv, encryptKey,
+            extCipherText);
+        publicKey = PQSchemeRegistry
+            .fromPersistedPrivateKey(scheme, extended).getPublicKey();
+        if (seedPresent) {
+          seedBytes = performCipherOperation(Cipher.DECRYPT_MODE, seedIv, encryptKey,
+              seedCipherText);
+          if (seedBytes.length != expectedSeedLen) {
+            throw new CipherException(
+                "Decrypted seed has unexpected length: " + seedBytes.length);
+          }
+          byte[] seedDerivedPk = PQSchemeRegistry.fromSeed(scheme, seedBytes).getPublicKey();
+          if (!Arrays.equals(seedDerivedPk, publicKey)) {
+            throw new CipherException(
+                "PQ keystore seed and extended private key disagree");
+          }
+        }
+      } else {
+        seedBytes = performCipherOperation(Cipher.DECRYPT_MODE, seedIv, encryptKey,
+            seedCipherText);
+        if (seedBytes.length != expectedSeedLen) {
+          throw new CipherException(
+              "Decrypted seed has unexpected length: " + seedBytes.length);
+        }
+        publicKey = PQSchemeRegistry.fromSeed(scheme, seedBytes).getPublicKey();
+      }
+
+      WalletFile reEncrypted = createPQ(newPassword, scheme, extended, seedBytes,
+          publicKey, kdf.getN(), kdf.getP());
+      reEncrypted.setId(walletFile.getId());
+      reEncrypted.setName(walletFile.getName());
+      return reEncrypted;
+    } finally {
+      StringUtils.clear(encryptKey);
+      StringUtils.clear(derivedKey);
+      if (extended != null) {
+        StringUtils.clear(extended);
+      }
+      if (seedBytes != null) {
+        StringUtils.clear(seedBytes);
+      }
+    }
+  }
+
   private static boolean isExtSegmentPresent(WalletFile.Crypto crypto) {
     return crypto.getCiphertext() != null
         || crypto.getCipherparams() != null

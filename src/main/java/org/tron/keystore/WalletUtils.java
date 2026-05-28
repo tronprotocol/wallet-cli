@@ -207,6 +207,15 @@ public class WalletUtils {
   public static WalletFile loadWalletFile(File source) throws IOException {
     return objectMapper.readValue(source, WalletFile.class);
   }
+
+  // Persists `walletFile` to `destination`, overwriting any existing content,
+  // and re-applies owner-only permissions. Unlike updateWalletFile this does
+  // NOT regenerate ciphertext — callers are responsible for producing the
+  // already-encrypted WalletFile (e.g. via Wallet.reEncryptPQ).
+  public static void writeWalletFile(WalletFile walletFile, File destination) throws IOException {
+    objectMapper.writeValue(destination, walletFile);
+    FilePermissionUtils.setOwnerOnlyFile(destination.toPath());
+  }
 //
 //    public static Credentials loadBip39Credentials(String password, String mnemonic) {
 //        byte[] seed = MnemonicUtils.generateSeed(mnemonic, password);
