@@ -73,7 +73,12 @@ public class LedgerAddressUtil {
     return addressMap;
   }
 
-  public static String getTronAddress(String path, HidDevice hidDevice) {
+  /**
+   * Sends the "get address" APDU and returns the raw response bytes without parsing.
+   * Returns {@code null} on transport failure. Callers can inspect error status words
+   * (e.g. {@code 0x6511} = Tron app not open) before falling through to address parsing.
+   */
+  public static byte[] getRawAddressResponse(String path, HidDevice hidDevice) {
     try {
       byte[] apdu = ApduMessageBuilder.buildTronAddressApduMessage(path);
       if (DebugConfig.isDebugEnabled()) {
@@ -83,11 +88,25 @@ public class LedgerAddressUtil {
       if (DebugConfig.isDebugEnabled()) {
         System.out.println("Get Address Response: " + CommonUtil.bytesToHex(result));
       }
-      if (LedgerConstant.LEDGER_LOCK.equalsIgnoreCase(CommonUtil.bytesToHex(result))) {
-        System.out.println(ANSI_RED + "Ledger is locked, please unlock it first"+ ANSI_RESET);
-        return EMPTY;
+      return result;
+    } catch (Exception e) {
+      if (DebugConfig.isDebugEnabled()) {
+        e.printStackTrace();
       }
+      return null;
+    }
+  }
 
+  /** Parses a Tron Base58 address from a raw "get address" APDU response. Returns {@code ""} on any parse failure. */
+  public static String parseTronAddress(byte[] result) {
+    if (result == null || result.length < 2) {
+      return EMPTY;
+    }
+    if (LedgerConstant.LEDGER_LOCK.equalsIgnoreCase(CommonUtil.bytesToHex(result))) {
+      System.out.println(ANSI_RED + "Ledger is locked, please unlock it first" + ANSI_RESET);
+      return EMPTY;
+    }
+    try {
       int offset = 0;
       int publicKeyLength = result[offset++] & 0xFF;
       byte[] publicKey = new byte[publicKeyLength];
@@ -98,6 +117,18 @@ public class LedgerAddressUtil {
       byte[] addressBytes = new byte[addressLength];
       System.arraycopy(result, offset, addressBytes, 0, addressLength);
       return new String(addressBytes);
+    } catch (Exception e) {
+      if (DebugConfig.isDebugEnabled()) {
+        e.printStackTrace();
+      }
+      return EMPTY;
+    }
+  }
+
+  public static String getTronAddress(String path, HidDevice hidDevice) {
+    try {
+      byte[] result = getRawAddressResponse(path, hidDevice);
+      return parseTronAddress(result);
     } catch (Exception e) {
       System.err.println("Error: " + e.getMessage());
       if (DebugConfig.isDebugEnabled()) {

@@ -1,0 +1,8 @@
+{
+  "entries": [
+    {"name": "USDT", "type": "TOKEN", "address": "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t", "decimals": 6},
+    {"name": "USDC", "type": "TOKEN", "address": "TEkxiTehnzSmSe2XqrBj4w32RUN966rdz8", "decimals": 6},
+    {"name": "USDD", "type": "TOKEN", "address": "TPYmHEhy5n8TCEfYGqW2rPxsghSfzghPDn", "decimals": 18},
+    {"name": "WTRX", "type": "TOKEN", "address": "TNUC9Qb1rRpS5CbWLmNMxXBjyFoydXjWFR", "decimals": 6}
+  ]
+}

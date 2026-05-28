@@ -34,14 +34,14 @@ public class StakingCommands {
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
                 .handler((ctx, opts, wrapper, out) -> {
 
-                    byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
+                    byte[] owner = opts.has("owner") ? opts.getAccountAddress("owner") : null;
                     long amount = opts.getLong("amount");
                     CommandSupport.requirePositive(out, "amount", amount);
                     long duration = opts.getLong("duration");
                     CommandSupport.requirePositive(out, "duration", duration);
                     int resource = opts.has("resource") ? opts.getInt("resource") : 0;
                     CommandSupport.requireResourceCode(out, "resource", resource);
-                    byte[] receiver = opts.has("receiver") ? opts.getAddress("receiver") : null;
+                    byte[] receiver = opts.has("receiver") ? opts.getAccountAddress("receiver") : null;
                     boolean multi = opts.getBoolean("multi");
                     String txid = wrapper.freezeBalanceForCli(owner, amount, duration, resource, receiver, multi);
                     CommandSupport.emitSuccess(out,
@@ -64,7 +64,7 @@ public class StakingCommands {
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
                 .handler((ctx, opts, wrapper, out) -> {
 
-                    byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
+                    byte[] owner = opts.has("owner") ? opts.getAccountAddress("owner") : null;
                     long amount = opts.getLong("amount");
                     CommandSupport.requirePositive(out, "amount", amount);
                     int resource = opts.has("resource") ? opts.getInt("resource") : 0;
@@ -98,10 +98,10 @@ public class StakingCommands {
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
                 .handler((ctx, opts, wrapper, out) -> {
 
-                    byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
+                    byte[] owner = opts.has("owner") ? opts.getAccountAddress("owner") : null;
                     int resource = opts.has("resource") ? opts.getInt("resource") : 0;
                     CommandSupport.requireResourceCode(out, "resource", resource);
-                    byte[] receiver = opts.has("receiver") ? opts.getAddress("receiver") : null;
+                    byte[] receiver = opts.has("receiver") ? opts.getAccountAddress("receiver") : null;
                     boolean multi = opts.getBoolean("multi");
                     String txid = wrapper.unfreezeBalanceForCli(owner, resource, receiver, multi);
                     CommandSupport.emitSuccess(out,
@@ -124,7 +124,7 @@ public class StakingCommands {
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
                 .handler((ctx, opts, wrapper, out) -> {
 
-                    byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
+                    byte[] owner = opts.has("owner") ? opts.getAccountAddress("owner") : null;
                     long amount = opts.getLong("amount");
                     CommandSupport.requirePositive(out, "amount", amount);
                     int resource = opts.has("resource") ? opts.getInt("resource") : 0;
@@ -156,7 +156,7 @@ public class StakingCommands {
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
                 .handler((ctx, opts, wrapper, out) -> {
 
-                    byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
+                    byte[] owner = opts.has("owner") ? opts.getAccountAddress("owner") : null;
                     boolean multi = opts.getBoolean("multi");
                     String txid = wrapper.withdrawExpireUnfreezeForCli(owner, multi);
                     CommandSupport.emitSuccess(out,
@@ -181,12 +181,12 @@ public class StakingCommands {
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
                 .handler((ctx, opts, wrapper, out) -> {
 
-                    byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
+                    byte[] owner = opts.has("owner") ? opts.getAccountAddress("owner") : null;
                     long amount = opts.getLong("amount");
                     CommandSupport.requirePositive(out, "amount", amount);
                     int resource = opts.getInt("resource");
                     CommandSupport.requireResourceCode(out, "resource", resource);
-                    byte[] receiver = opts.getAddress("receiver");
+                    byte[] receiver = opts.getAccountAddress("receiver");
                     boolean lock = opts.getBoolean("lock");
                     long lockPeriod = opts.has("lock-period") ? opts.getLong("lock-period") : 0;
                     if (opts.has("lock-period")) CommandSupport.requireNonNegative(out, "lock-period", lockPeriod);
@@ -213,12 +213,12 @@ public class StakingCommands {
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
                 .handler((ctx, opts, wrapper, out) -> {
 
-                    byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
+                    byte[] owner = opts.has("owner") ? opts.getAccountAddress("owner") : null;
                     long amount = opts.getLong("amount");
                     CommandSupport.requirePositive(out, "amount", amount);
                     int resource = opts.getInt("resource");
                     CommandSupport.requireResourceCode(out, "resource", resource);
-                    byte[] receiver = opts.getAddress("receiver");
+                    byte[] receiver = opts.getAccountAddress("receiver");
                     boolean multi = opts.getBoolean("multi");
                     String txid = wrapper.undelegateResourceForCli(owner, amount, resource, receiver, multi);
                     CommandSupport.emitSuccess(out,
@@ -238,7 +238,7 @@ public class StakingCommands {
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
                 .handler((ctx, opts, wrapper, out) -> {
 
-                    byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
+                    byte[] owner = opts.has("owner") ? opts.getAccountAddress("owner") : null;
                     boolean multi = opts.getBoolean("multi");
                     String txid = wrapper.cancelAllUnfreezeV2ForCli(owner, multi);
                     CommandSupport.emitSuccess(out,
@@ -258,7 +258,7 @@ public class StakingCommands {
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
                 .handler((ctx, opts, wrapper, out) -> {
 
-                    byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
+                    byte[] owner = opts.has("owner") ? opts.getAccountAddress("owner") : null;
                     boolean multi = opts.getBoolean("multi");
                     String txid = wrapper.withdrawBalanceForCli(owner, multi);
                     CommandSupport.emitSuccess(out,
@@ -278,7 +278,7 @@ public class StakingCommands {
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
                 .handler((ctx, opts, wrapper, out) -> {
 
-                    byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
+                    byte[] owner = opts.has("owner") ? opts.getAccountAddress("owner") : null;
                     boolean multi = opts.getBoolean("multi");
                     String txid = wrapper.unfreezeAssetForCli(owner, multi);
                     CommandSupport.emitSuccess(out,

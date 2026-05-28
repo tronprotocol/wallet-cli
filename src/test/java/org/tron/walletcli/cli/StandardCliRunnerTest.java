@@ -513,6 +513,105 @@ public class StandardCliRunnerTest {
   }
 
   @Test
+  public void defaultProviderUsesStdinWhenPasswordStdinFlagIsSet() {
+    GlobalOptions stdinOpts = GlobalOptions.parse(new String[]{"--password-stdin", "send-coin"});
+    StandardCliRunner.MasterPasswordProvider stdinProv = StandardCliRunner.defaultProvider(
+        stdinOpts, new java.io.ByteArrayInputStream(
+            "FromStdin!1\n".getBytes(StandardCharsets.UTF_8)));
+    Assert.assertEquals("FromStdin!1", stdinProv.get());
+
+    GlobalOptions plainOpts = GlobalOptions.parse(new String[]{"send-coin"});
+    StandardCliRunner.MasterPasswordProvider envProv = StandardCliRunner.defaultProvider(
+        plainOpts, new java.io.ByteArrayInputStream(
+            "ShouldNotBeRead\n".getBytes(StandardCharsets.UTF_8)));
+    // Env-backed provider — value depends on environment; we only assert it does not consult stdin.
+    // Calling get() must not throw and must not return the stdin payload.
+    String envValue = envProv.get();
+    Assert.assertNotEquals("ShouldNotBeRead", envValue);
+  }
+
+  @Test
+  public void requireCommandAuthenticatesUsingPasswordReadFromStdin() throws Exception {
+    CommandRegistry registry = new CommandRegistry();
+    boolean[] handlerCalled = {false};
+    registry.add(CommandDefinition.builder()
+        .name("needs-wallet")
+        .description("Command requiring auth")
+        .handler((ctx, opts, wrapper, out) -> {
+          handlerCalled[0] = true;
+          out.raw("ok");
+        })
+        .build());
+
+    String originalUserDir = System.getProperty("user.dir");
+    PrintStream originalOut = System.out;
+    PrintStream originalErr = System.err;
+    File tempDir = Files.createTempDirectory("runner-stdin-password").toFile();
+    File walletDir = new File(tempDir, "Wallet");
+    Assert.assertTrue(walletDir.mkdirs());
+    File walletFile = createWalletFile(walletDir, "alpha", "0000000000000000000000000000000000000000000000000000000000000001");
+    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+    ByteArrayOutputStream stderr = new ByteArrayOutputStream();
+
+    System.setProperty("user.dir", tempDir.getAbsolutePath());
+    System.setOut(new PrintStream(stdout));
+    System.setErr(new PrintStream(stderr));
+    try {
+      ActiveWalletConfig.setActiveAddress(readWalletAddress(walletFile));
+      GlobalOptions opts = GlobalOptions.parse(new String[]{"--password-stdin", "needs-wallet"});
+      StandardCliRunner.MasterPasswordProvider provider = StandardCliRunner.defaultProvider(
+          opts, new java.io.ByteArrayInputStream(
+              "TempPass123!A\n".getBytes(StandardCharsets.UTF_8)));
+      int exitCode = new StandardCliRunner(registry, opts, provider).execute();
+
+      Assert.assertEquals(0, exitCode);
+      Assert.assertTrue(handlerCalled[0]);
+    } finally {
+      System.setOut(originalOut);
+      System.setErr(originalErr);
+      System.setProperty("user.dir", originalUserDir);
+    }
+  }
+
+  @Test
+  public void passwordStdinFailsExplicitlyWhenStdinIsEmpty() throws Exception {
+    CommandRegistry registry = new CommandRegistry();
+    registry.add(CommandDefinition.builder()
+        .name("needs-wallet")
+        .description("Command requiring auth")
+        .handler((ctx, opts, wrapper, out) -> out.raw("ok"))
+        .build());
+
+    String originalUserDir = System.getProperty("user.dir");
+    PrintStream originalOut = System.out;
+    PrintStream originalErr = System.err;
+    File tempDir = Files.createTempDirectory("runner-stdin-empty").toFile();
+    File walletDir = new File(tempDir, "Wallet");
+    Assert.assertTrue(walletDir.mkdirs());
+    File walletFile = createWalletFile(walletDir, "alpha", "0000000000000000000000000000000000000000000000000000000000000001");
+    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+    ByteArrayOutputStream stderr = new ByteArrayOutputStream();
+
+    System.setProperty("user.dir", tempDir.getAbsolutePath());
+    System.setOut(new PrintStream(stdout));
+    System.setErr(new PrintStream(stderr));
+    try {
+      ActiveWalletConfig.setActiveAddress(readWalletAddress(walletFile));
+      GlobalOptions opts = GlobalOptions.parse(new String[]{"--password-stdin", "needs-wallet"});
+      StandardCliRunner.MasterPasswordProvider provider = StandardCliRunner.defaultProvider(
+          opts, new java.io.ByteArrayInputStream(new byte[0]));
+      int exitCode = new StandardCliRunner(registry, opts, provider).execute();
+
+      Assert.assertEquals(1, exitCode);
+      Assert.assertTrue(stderr.toString("UTF-8").contains("--password-stdin produced no input"));
+    } finally {
+      System.setOut(originalOut);
+      System.setErr(originalErr);
+      System.setProperty("user.dir", originalUserDir);
+    }
+  }
+
+  @Test
   public void requireCommandFailsWhenMasterPasswordIsInvalid() throws Exception {
     CommandRegistry registry = new CommandRegistry();
     boolean[] handlerCalled = {false};
@@ -650,6 +749,42 @@ public class StandardCliRunnerTest {
       Assert.assertEquals("", stderr.toString("UTF-8"));
     } finally {
       System.setOut(originalOut);
+      System.setErr(originalErr);
+      System.setProperty("user.dir", originalUserDir);
+    }
+  }
+
+  @Test
+  public void neverAuthCommandIgnoresMalformedUserAliasFile() throws Exception {
+    String originalUserDir = System.getProperty("user.dir");
+    NetType originalNetwork = WalletApi.getCurrentNetwork();
+    PrintStream originalErr = System.err;
+    File tempDir = Files.createTempDirectory("runner-broken-aliases").toFile();
+    File aliasesDir = new File(tempDir, "Wallet/aliases");
+    File mainAliases = new File(aliasesDir, "main.json");
+    ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+    ByteArrayOutputStream stderr = new ByteArrayOutputStream();
+
+    Assert.assertTrue(aliasesDir.mkdirs());
+    Files.write(mainAliases.toPath(), "{ broken json".getBytes(StandardCharsets.UTF_8));
+
+    CommandRegistry registry = new CommandRegistry();
+    QueryCommands.register(registry);
+
+    System.setProperty("user.dir", tempDir.getAbsolutePath());
+    System.setErr(new PrintStream(stderr));
+    WalletApi.setCurrentNetwork(NetType.MAIN);
+    try {
+      GlobalOptions opts = GlobalOptions.parse(new String[]{"--output", "json", "current-network"});
+      int exitCode = new StandardCliRunner(registry, opts,
+          new PrintStream(stdout), new PrintStream(stderr)).execute();
+
+      Assert.assertEquals(0, exitCode);
+      String json = stdout.toString("UTF-8");
+      Assert.assertTrue(json.contains("\"success\": true"));
+      Assert.assertTrue(stderr.toString("UTF-8").contains("warn: failed to read user alias file"));
+    } finally {
+      WalletApi.setCurrentNetwork(originalNetwork);
       System.setErr(originalErr);
       System.setProperty("user.dir", originalUserDir);
     }
@@ -1036,6 +1171,46 @@ public class StandardCliRunnerTest {
       Assert.assertTrue(json.contains("Vote count must be a positive integer: 0"));
     } finally {
       System.setOut(originalOut);
+    }
+  }
+
+  @Test
+  public void authenticateInjectsLedgerSignerIntoActiveWallet() throws Exception {
+    CommandRegistry registry = new CommandRegistry();
+    final org.tron.walletcli.cli.ledger.LedgerSigner[] capturedSigner = {null};
+    registry.add(CommandDefinition.builder()
+        .name("inspect-signer")
+        .description("Captures the ledger signer wired into the active wallet")
+        .handler((ctx, opts, wrapper, out) -> {
+          capturedSigner[0] = wrapper.getWallet().getLedgerSigner();
+          out.raw("ok");
+        })
+        .build());
+
+    String originalUserDir = System.getProperty("user.dir");
+    PrintStream originalOut = System.out;
+    PrintStream originalErr = System.err;
+    File tempDir = Files.createTempDirectory("runner-ledger-wiring").toFile();
+    File walletDir = new File(tempDir, "Wallet");
+    Assert.assertTrue(walletDir.mkdirs());
+    File walletFile = createWalletFile(walletDir, "alpha", "0000000000000000000000000000000000000000000000000000000000000001");
+
+    System.setProperty("user.dir", tempDir.getAbsolutePath());
+    System.setOut(new PrintStream(new ByteArrayOutputStream()));
+    System.setErr(new PrintStream(new ByteArrayOutputStream()));
+    try {
+      ActiveWalletConfig.setActiveAddress(readWalletAddress(walletFile));
+      GlobalOptions opts = GlobalOptions.parse(new String[]{"inspect-signer"});
+      int exitCode = new StandardCliRunner(registry, opts, () -> "TempPass123!A").execute();
+
+      Assert.assertEquals(0, exitCode);
+      Assert.assertNotNull("Standard CLI authenticate must inject a LedgerSigner so that any "
+              + "subsequently-signed Ledger transaction routes through the non-interactive path",
+          capturedSigner[0]);
+    } finally {
+      System.setOut(originalOut);
+      System.setErr(originalErr);
+      System.setProperty("user.dir", originalUserDir);
     }
   }
 

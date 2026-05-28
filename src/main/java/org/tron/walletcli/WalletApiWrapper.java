@@ -125,6 +125,12 @@ public class WalletApiWrapper {
   @Getter
   @Setter
   private WalletApi wallet;
+
+  public void setLedgerSigner(org.tron.walletcli.cli.ledger.LedgerSigner ledgerSigner) {
+    if (wallet != null) {
+      wallet.setLedgerSigner(ledgerSigner);
+    }
+  }
   private String lastGasFreeId;
   private static final String MnemonicFilePath = "Mnemonic";
   private static final String GAS_FREE_SUPPORT_NETWORK_TIP = "Gas free currently only supports the " + blueBoldHighlight("MAIN") + " network and " + blueBoldHighlight("NILE") + " test network, and does not support other networks at the moment.";
@@ -3268,22 +3274,32 @@ public class WalletApiWrapper {
       if (isLedgerFile) {
         Chain.Transaction transaction = Chain.Transaction.newBuilder().setRawData(
             Chain.Transaction.raw.newBuilder().setData(ByteString.copyFrom(keccak256(concat)))).build();
-        boolean ledgerResult = LedgerSignUtil.requestLedgerSignLogic(transaction, ledgerPath, wf.getAddress(), true);
-        if (ledgerResult) {
-          signature = TransactionSignManager.getInstance().getGasfreeSignature();
-        }
-        if (Objects.isNull(signature)) {
+        if (standardCli) {
+          org.tron.walletcli.cli.ledger.LedgerSigner ledgerSigner = wallet.getLedgerSigner();
+          if (ledgerSigner == null) {
+            throw new CommandErrorException("execution_error",
+                "Standard CLI Ledger signer not initialized");
+          }
+          org.tron.walletcli.cli.ledger.LedgerSignOutcome r =
+              ledgerSigner.sign(transaction, ledgerPath, wf.getAddress(), true);
+          if (r.getStatus() != org.tron.walletcli.cli.ledger.LedgerSignOutcome.Status.OK) {
+            throw new CommandErrorException(r.errorCode(), r.getMessage());
+          }
+          signature = r.getGasfreeSignature();
+        } else {
+          boolean ledgerResult = LedgerSignUtil.requestLedgerSignLogic(transaction, ledgerPath, wf.getAddress(), true);
+          if (ledgerResult) {
+            signature = TransactionSignManager.getInstance().getGasfreeSignature();
+          }
+          if (Objects.isNull(signature)) {
+            TransactionSignManager.getInstance().setTransaction(null);
+            TransactionSignManager.getInstance().setGasfreeSignature(null);
+            System.out.println("Listening ledger did not obtain signature.");
+            return false;
+          }
           TransactionSignManager.getInstance().setTransaction(null);
           TransactionSignManager.getInstance().setGasfreeSignature(null);
-          if (standardCli) {
-            throw new CommandErrorException("execution_error",
-                "Listening ledger did not obtain signature.");
-          }
-          System.out.println("Listening ledger did not obtain signature.");
-          return false;
         }
-        TransactionSignManager.getInstance().setTransaction(null);
-        TransactionSignManager.getInstance().setGasfreeSignature(null);
       } else {
         privateKeyBytes = credentials.getPair().getPrivKeyBytes();
         signature = signOffChain(keccak256(concat), privateKeyBytes);

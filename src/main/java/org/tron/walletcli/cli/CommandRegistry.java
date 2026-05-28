@@ -65,7 +65,8 @@ public class CommandRegistry {
         sb.append("  --wallet <name|path>         Select wallet file\n");
         sb.append("  --grpc-endpoint <host:port>  Custom gRPC endpoint\n");
         sb.append("  --quiet                      Suppress non-essential output\n");
-        sb.append("  --verbose                    Debug logging\n\n");
+        sb.append("  --verbose                    Debug logging\n");
+        sb.append("  --password-stdin             Read MASTER_PASSWORD from stdin (overrides env)\n\n");
         sb.append("Commands:\n");
 
         int maxLen = 0;

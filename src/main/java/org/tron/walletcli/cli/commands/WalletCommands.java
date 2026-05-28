@@ -169,7 +169,7 @@ public class WalletCommands {
                         String addr = opts.getString("address");
                         byte[] decoded;
                         try {
-                            decoded = WalletApi.decodeFromBase58Check(addr);
+                            decoded = opts.getAccountAddress("address");
                         } catch (IllegalArgumentException e) {
                             out.usageError("Invalid TRON address for --address: " + addr, null);
                             return;
@@ -178,6 +178,7 @@ public class WalletCommands {
                             out.usageError("Invalid TRON address for --address: " + addr, null);
                             return;
                         }
+                        addr = WalletApi.encode58Check(decoded);
                         walletFile = ActiveWalletConfig.findWalletFileByAddress(addr);
                         if (walletFile == null) {
                             out.error("not_found", "No wallet found with address: " + addr);

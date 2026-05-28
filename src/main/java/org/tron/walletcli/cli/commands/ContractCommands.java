@@ -48,7 +48,7 @@ public class ContractCommands {
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
                 .handler((ctx, opts, wrapper, out) -> {
 
-                    byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
+                    byte[] owner = opts.has("owner") ? opts.getAccountAddress("owner") : null;
                     String name = opts.getString("name");
                     String abi = opts.getString("abi");
                     try {
@@ -146,8 +146,8 @@ public class ContractCommands {
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
                 .handler((ctx, opts, wrapper, out) -> {
 
-                    byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
-                    byte[] contractAddress = opts.getAddress("contract");
+                    byte[] owner = opts.has("owner") ? opts.getAccountAddress("owner") : null;
+                    byte[] contractAddress = opts.getContractAddress("contract");
                     String method = opts.getString("method");
                     String params = opts.has("params") ? opts.getString("params") : "";
                     long feeLimit = opts.getLong("fee-limit");
@@ -209,8 +209,8 @@ public class ContractCommands {
                 .option("params", "Method parameters", false)
                 .option("owner", "Caller address", false)
                 .handler((ctx, opts, wrapper, out) -> {
-                    byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
-                    byte[] contractAddress = opts.getAddress("contract");
+                    byte[] owner = opts.has("owner") ? opts.getAccountAddress("owner") : null;
+                    byte[] contractAddress = opts.getContractAddress("contract");
                     String method = opts.getString("method");
                     String params = opts.has("params") ? opts.getString("params") : "";
 
@@ -267,8 +267,8 @@ public class ContractCommands {
                 .option("token-id", "Token ID", false)
                 .option("owner", "Caller address", false)
                 .handler((ctx, opts, wrapper, out) -> {
-                    byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
-                    byte[] contractAddress = opts.getAddress("contract");
+                    byte[] owner = opts.has("owner") ? opts.getAccountAddress("owner") : null;
+                    byte[] contractAddress = opts.getContractAddress("contract");
                     String method = opts.getString("method");
                     String params = opts.has("params") ? opts.getString("params") : "";
                     long callValue = opts.has("value") ? opts.getLong("value") : 0;
@@ -319,8 +319,8 @@ public class ContractCommands {
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
                 .handler((ctx, opts, wrapper, out) -> {
 
-                    byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
-                    byte[] contractAddress = opts.getAddress("contract");
+                    byte[] owner = opts.has("owner") ? opts.getAccountAddress("owner") : null;
+                    byte[] contractAddress = opts.getContractAddress("contract");
                     boolean multi = opts.getBoolean("multi");
                     String txid = wrapper.clearContractAbiForCli(owner, contractAddress, multi);
                     CommandSupport.emitSuccess(out,
@@ -342,8 +342,8 @@ public class ContractCommands {
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
                 .handler((ctx, opts, wrapper, out) -> {
 
-                    byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
-                    byte[] contractAddress = opts.getAddress("contract");
+                    byte[] owner = opts.has("owner") ? opts.getAccountAddress("owner") : null;
+                    byte[] contractAddress = opts.getContractAddress("contract");
                     long percent = opts.getLong("consume-user-resource-percent");
                     if (percent < 0 || percent > 100) {
                         out.usageError("consume-user-resource-percent should be between 0 and 100", null);
@@ -370,8 +370,8 @@ public class ContractCommands {
                 .option("multi", "Multi-signature mode", false, OptionDef.Type.BOOLEAN)
                 .handler((ctx, opts, wrapper, out) -> {
 
-                    byte[] owner = opts.has("owner") ? opts.getAddress("owner") : null;
-                    byte[] contractAddress = opts.getAddress("contract");
+                    byte[] owner = opts.has("owner") ? opts.getAccountAddress("owner") : null;
+                    byte[] contractAddress = opts.getContractAddress("contract");
                     long limit = opts.getLong("origin-energy-limit");
                     CommandSupport.requirePositive(out, "origin-energy-limit", limit);
                     boolean multi = opts.getBoolean("multi");

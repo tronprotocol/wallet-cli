@@ -302,6 +302,29 @@ public class GlobalOptionsTest {
     Assert.assertEquals("TXYZ", second[1]);
   }
 
+  @Test
+  public void parsePasswordStdinIsAFlagAndNotPositionDependent() {
+    GlobalOptions before = GlobalOptions.parse(new String[]{"--password-stdin", "send-coin"});
+    Assert.assertTrue(before.isPasswordStdin());
+
+    GlobalOptions after = GlobalOptions.parse(new String[]{"send-coin", "--password-stdin"});
+    Assert.assertTrue(after.isPasswordStdin());
+    Assert.assertEquals(0, after.getCommandArgs().length);
+
+    GlobalOptions absent = GlobalOptions.parse(new String[]{"send-coin"});
+    Assert.assertFalse(absent.isPasswordStdin());
+  }
+
+  @Test
+  public void parsePasswordStdinRejectsInlineValue() {
+    try {
+      GlobalOptions.parse(new String[]{"--password-stdin=true", "send-coin"});
+      Assert.fail("Expected --password-stdin to reject inline value");
+    } catch (CliUsageException e) {
+      Assert.assertEquals("Option --password-stdin does not take a value", e.getMessage());
+    }
+  }
+
   private void assertMissingValue(String option) {
     try {
       GlobalOptions.parse(new String[]{option});

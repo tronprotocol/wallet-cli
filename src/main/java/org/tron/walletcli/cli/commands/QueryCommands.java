@@ -110,7 +110,7 @@ public class QueryCommands {
                 .handler((ctx, opts, wrapper, out) -> {
                     Response.Account account;
                     if (opts.has("address")) {
-                        byte[] addressBytes = opts.getAddress("address");
+                        byte[] addressBytes = opts.getAccountAddress("address");
                         account = WalletApi.queryAccount(addressBytes);
                     } else {
                         account = wrapper.queryAccount();
@@ -137,7 +137,7 @@ public class QueryCommands {
                 .description("Get account information by address")
                 .option("address", "Address to query", true)
                 .handler((ctx, opts, wrapper, out) -> {
-                    byte[] addressBytes = opts.getAddress("address");
+                    byte[] addressBytes = opts.getAccountAddress("address");
                     Response.Account account = WalletApi.queryAccount(addressBytes);
                     if (account == null) {
                         out.error("query_failed", "GetAccount failed");
@@ -172,7 +172,7 @@ public class QueryCommands {
                 .description("Get account net (bandwidth) information")
                 .option("address", "Address to query", true)
                 .handler((ctx, opts, wrapper, out) -> {
-                    byte[] addressBytes = opts.getAddress("address");
+                    byte[] addressBytes = opts.getAccountAddress("address");
                     Response.AccountNetMessage accountNet = wrapper.getAccountNetForCli(addressBytes);
                     out.queryResult("GetAccountNet successful !!", Utils.formatMessageString(accountNet));
                 })
@@ -186,7 +186,7 @@ public class QueryCommands {
                 .description("Get account resource information")
                 .option("address", "Address to query", true)
                 .handler((ctx, opts, wrapper, out) -> {
-                    byte[] addressBytes = opts.getAddress("address");
+                    byte[] addressBytes = opts.getAccountAddress("address");
                     Response.AccountResourceMessage accountResource = wrapper.getAccountResourceForCli(addressBytes);
                     out.queryResult("GetAccountResource successful !!", Utils.formatMessageString(accountResource));
                 })
@@ -203,7 +203,7 @@ public class QueryCommands {
                 .description("Get USDT balance of an address")
                 .option("address", "Address to query (default: current wallet)", false)
                 .handler((ctx, opts, wrapper, out) -> {
-                    byte[] ownerAddress = opts.has("address") ? opts.getAddress("address") : null;
+                    byte[] ownerAddress = opts.has("address") ? opts.getAccountAddress("address") : null;
                     String balance = wrapper.getUSDTBalanceExact(ownerAddress);
                     if (balance != null) {
                         Map<String, Object> json = new LinkedHashMap<String, Object>();
@@ -397,7 +397,7 @@ public class QueryCommands {
                 .description("Get asset issues by account address")
                 .option("address", "Account address", true)
                 .handler((ctx, opts, wrapper, out) -> {
-                    Response.AssetIssueList result = WalletApi.getAssetIssueByAccount(opts.getAddress("address"));
+                    Response.AssetIssueList result = WalletApi.getAssetIssueByAccount(opts.getAccountAddress("address"));
                     if (result == null) {
                         out.error("query_failed", "GetAssetIssueByAccount failed");
                     } else {
@@ -539,7 +539,7 @@ public class QueryCommands {
                 .description("Get smart contract by address")
                 .option("address", "Contract address", true)
                 .handler((ctx, opts, wrapper, out) -> {
-                    Common.SmartContract contract = WalletApi.getContract(opts.getAddress("address"));
+                    Common.SmartContract contract = WalletApi.getContract(opts.getContractAddress("address"));
                     if (contract == null) {
                         out.error("query_failed", "GetContract failed");
                     } else {
@@ -556,7 +556,7 @@ public class QueryCommands {
                 .description("Get smart contract info by address")
                 .option("address", "Contract address", true)
                 .handler((ctx, opts, wrapper, out) -> {
-                    Response.SmartContractDataWrapper contractInfo = WalletApi.getContractInfo(opts.getAddress("address"));
+                    Response.SmartContractDataWrapper contractInfo = WalletApi.getContractInfo(opts.getContractAddress("address"));
                     if (contractInfo == null) {
                         out.error("query_failed", "GetContractInfo failed");
                     } else {
@@ -574,8 +574,8 @@ public class QueryCommands {
                 .option("from", "From address", true)
                 .option("to", "To address", true)
                 .handler((ctx, opts, wrapper, out) -> {
-                    String from = WalletApi.encode58Check(opts.getAddress("from"));
-                    String to = WalletApi.encode58Check(opts.getAddress("to"));
+                    String from = WalletApi.encode58Check(opts.getAccountAddress("from"));
+                    String to = WalletApi.encode58Check(opts.getAccountAddress("to"));
                     Response.DelegatedResourceList result = WalletApi.getDelegatedResource(from, to);
                     if (result == null) {
                         out.error("query_failed", "GetDelegatedResource failed");
@@ -594,8 +594,8 @@ public class QueryCommands {
                 .option("from", "From address", true)
                 .option("to", "To address", true)
                 .handler((ctx, opts, wrapper, out) -> {
-                    String from = WalletApi.encode58Check(opts.getAddress("from"));
-                    String to = WalletApi.encode58Check(opts.getAddress("to"));
+                    String from = WalletApi.encode58Check(opts.getAccountAddress("from"));
+                    String to = WalletApi.encode58Check(opts.getAccountAddress("to"));
                     Response.DelegatedResourceList result = WalletApi.getDelegatedResourceV2(from, to);
                     if (result == null) {
                         out.error("query_failed", "GetDelegatedResourceV2 failed");
@@ -613,7 +613,7 @@ public class QueryCommands {
                 .description("Get delegated resource account index")
                 .option("address", "Address", true)
                 .handler((ctx, opts, wrapper, out) -> {
-                    String address = WalletApi.encode58Check(opts.getAddress("address"));
+                    String address = WalletApi.encode58Check(opts.getAccountAddress("address"));
                     Response.DelegatedResourceAccountIndex result =
                             WalletApi.getDelegatedResourceAccountIndex(address);
                     if (result == null) {
@@ -633,7 +633,7 @@ public class QueryCommands {
                 .description("Get delegated resource account index V2")
                 .option("address", "Address", true)
                 .handler((ctx, opts, wrapper, out) -> {
-                    String address = WalletApi.encode58Check(opts.getAddress("address"));
+                    String address = WalletApi.encode58Check(opts.getAccountAddress("address"));
                     Response.DelegatedResourceAccountIndex result =
                             WalletApi.getDelegatedResourceAccountIndexV2(address);
                     if (result == null) {
@@ -657,7 +657,7 @@ public class QueryCommands {
                     int type = opts.getInt("type");
                     CommandSupport.requireResourceCode(out, "type", type);
                     long maxSize = WalletApi.getCanDelegatedMaxSize(
-                            opts.getAddress("owner"), type);
+                            opts.getAccountAddress("owner"), type);
                     Map<String, Object> json = new LinkedHashMap<String, Object>();
                     json.put("max_size", maxSize);
                     out.success("Max delegatable size: " + maxSize, json);
@@ -672,7 +672,7 @@ public class QueryCommands {
                 .description("Get available unfreeze count")
                 .option("address", "Address", true)
                 .handler((ctx, opts, wrapper, out) -> {
-                    long count = WalletApi.getAvailableUnfreezeCount(opts.getAddress("address"));
+                    long count = WalletApi.getAvailableUnfreezeCount(opts.getAccountAddress("address"));
                     Map<String, Object> json = new LinkedHashMap<String, Object>();
                     json.put("count", count);
                     out.success("Available unfreeze count: " + count, json);
@@ -689,7 +689,7 @@ public class QueryCommands {
                 .option("timestamp", "Timestamp in milliseconds (default: now)", false, OptionDef.Type.LONG)
                 .handler((ctx, opts, wrapper, out) -> {
                     long ts = opts.has("timestamp") ? opts.getLong("timestamp") : System.currentTimeMillis();
-                    long amount = WalletApi.getCanWithdrawUnfreezeAmount(opts.getAddress("address"), ts);
+                    long amount = WalletApi.getCanWithdrawUnfreezeAmount(opts.getAccountAddress("address"), ts);
                     Map<String, Object> json = new LinkedHashMap<String, Object>();
                     json.put("amount", amount);
                     out.success("Can withdraw unfreeze amount: " + amount, json);
@@ -704,7 +704,7 @@ public class QueryCommands {
                 .description("Get witness brokerage ratio")
                 .option("address", "Witness address", true)
                 .handler((ctx, opts, wrapper, out) -> {
-                    long brokerage = wrapper.getBrokerage(opts.getAddress("address"));
+                    long brokerage = wrapper.getBrokerage(opts.getAccountAddress("address"));
                     Map<String, Object> json = new LinkedHashMap<String, Object>();
                     json.put("brokerage", brokerage);
                     out.success("Brokerage: " + brokerage, json);
@@ -720,7 +720,7 @@ public class QueryCommands {
                 .option("address", "Address", true)
                 .handler((ctx, opts, wrapper, out) -> {
                     org.tron.trident.api.GrpcAPI.NumberMessage result =
-                            wrapper.getReward(opts.getAddress("address"));
+                            wrapper.getReward(opts.getAccountAddress("address"));
                     if (result == null) {
                         out.error("query_failed", "GetReward failed");
                     } else {
@@ -917,7 +917,7 @@ public class QueryCommands {
                 .description("Get market orders by account")
                 .option("address", "Account address", true)
                 .handler((ctx, opts, wrapper, out) -> {
-                    Response.MarketOrderList result = WalletApi.getMarketOrderByAccount(opts.getAddress("address"));
+                    Response.MarketOrderList result = WalletApi.getMarketOrderByAccount(opts.getAccountAddress("address"));
                     if (result == null) {
                         out.error("query_failed", "GetMarketOrderByAccount failed");
                     } else {
@@ -1016,7 +1016,7 @@ public class QueryCommands {
                 .option("address", "Address to query (default: current wallet)", false)
                 .handler((ctx, opts, wrapper, out) -> {
                     String address = opts.has("address")
-                            ? WalletApi.encode58Check(opts.getAddress("address")) : null;
+                            ? WalletApi.encode58Check(opts.getAccountAddress("address")) : null;
                     String rendered = JSON.toJSONString(wrapper.getGasFreeInfoDataForCli(address), true);
                     out.queryResult("GetGasFreeInfo successful !!", rendered);
                 })

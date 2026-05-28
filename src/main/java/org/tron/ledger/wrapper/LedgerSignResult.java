@@ -17,6 +17,7 @@ public class LedgerSignResult {
   public static final String SIGN_RESULT_SIGNING = "signing";
   public static final String SIGN_RESULT_SUCCESS = "confirmed";
   public static final String SIGN_RESULT_CANCEL = "cancel";
+  public static final String SIGN_RESULT_TIMEOUT = "timeout";
 
   private static final ReadWriteLock lock = new ReentrantReadWriteLock();
   private static final String DIRECTORY = "Ledger";
@@ -103,6 +104,35 @@ public class LedgerSignResult {
     } catch (IOException e) {
       if (DebugConfig.isDebugEnabled()) {
         System.err.println("Error appending to file: " + e.getMessage());
+      }
+    } finally {
+      lock.writeLock().unlock();
+    }
+  }
+
+  public static void upsertState(String devicePath, String txid, String state) {
+    lock.writeLock().lock();
+    try {
+      List<String> lines = readAllLines(devicePath);
+      List<String> updatedLines = new ArrayList<>();
+      boolean updated = false;
+      for (String line : lines) {
+        if (line.startsWith(txid + ":")) {
+          updatedLines.add(txid + ":" + state);
+          updated = true;
+        } else {
+          updatedLines.add(line);
+        }
+      }
+      if (!updated) {
+        updatedLines.add(txid + ":" + state);
+      }
+      Path path = getFilePath(devicePath);
+      Files.createDirectories(path.getParent());
+      writeAllLines(devicePath, updatedLines);
+    } catch (IOException e) {
+      if (DebugConfig.isDebugEnabled()) {
+        System.err.println("Error upserting sign state: " + e.getMessage());
       }
     } finally {
       lock.writeLock().unlock();

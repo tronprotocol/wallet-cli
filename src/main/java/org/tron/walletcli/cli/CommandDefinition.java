@@ -6,6 +6,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.tron.walletcli.cli.aliases.AliasResolver;
 
 /**
  * Immutable metadata for a single CLI command: name, aliases, description,
@@ -90,6 +91,10 @@ public class CommandDefinition {
      * @throws IllegalArgumentException if required options are missing or args are malformed
      */
     public ParsedOptions parseArgs(String[] args) {
+        return parseArgs(args, null);
+    }
+
+    public ParsedOptions parseArgs(String[] args, AliasResolver aliasResolver) {
         Map<String, String> values = new LinkedHashMap<String, String>();
 
         Map<String, OptionDef> optionsByName = new LinkedHashMap<String, OptionDef>();
@@ -171,7 +176,7 @@ public class CommandDefinition {
             throw new CliUsageException(sb.toString());
         }
 
-        return new ParsedOptions(values);
+        return new ParsedOptions(values, aliasResolver);
     }
 
     private static String requireNonEmptyValue(String optionName, String rawValue) {

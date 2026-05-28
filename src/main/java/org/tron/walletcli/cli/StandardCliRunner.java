@@ -6,10 +6,14 @@ import org.tron.keystore.StringUtils;
 import org.tron.keystore.WalletFile;
 import org.tron.walletserver.ApiClient;
 import org.tron.walletcli.WalletApiWrapper;
+import org.tron.walletcli.cli.aliases.AliasResolver;
+import org.tron.walletcli.cli.aliases.AliasStore;
+import org.tron.walletcli.cli.aliases.AliasStoreLoader;
 import org.tron.walletserver.WalletApi;
 import org.apache.commons.lang3.tuple.Pair;
 
 import java.io.File;
+import java.io.InputStream;
 import java.io.PrintStream;
 import java.util.Arrays;
 
@@ -30,7 +34,7 @@ public class StandardCliRunner {
 
     StandardCliRunner(CommandRegistry registry, GlobalOptions globalOpts,
                       PrintStream out, PrintStream err) {
-        this(registry, globalOpts, out, err, () -> System.getenv("MASTER_PASSWORD"));
+        this(registry, globalOpts, out, err, defaultProvider(globalOpts, System.in));
     }
 
     StandardCliRunner(CommandRegistry registry, GlobalOptions globalOpts,
@@ -45,6 +49,20 @@ public class StandardCliRunner {
         this.globalOpts = globalOpts;
         this.formatter = new OutputFormatter(globalOpts.getOutputMode(), globalOpts.isQuiet(), out, err);
         this.masterPasswordProvider = masterPasswordProvider;
+    }
+
+    /**
+     * Builds the default password provider for the runner. {@code --password-stdin} takes
+     * precedence over the {@code MASTER_PASSWORD} env var (matches the docker convention) so a
+     * caller piping in a fresh credential always wins over a stale exported env. The stdin reader
+     * is memoized — wallet-authenticated commands may consult the password more than once and
+     * stdin can only be drained once.
+     */
+    static MasterPasswordProvider defaultProvider(GlobalOptions globalOpts, InputStream stdin) {
+        if (globalOpts.isPasswordStdin()) {
+            return new StdinPasswordReader(stdin);
+        }
+        return () -> System.getenv("MASTER_PASSWORD");
     }
 
     public int execute() {
@@ -82,16 +100,18 @@ public class StandardCliRunner {
                 formatter.flush();
                 return 0;
             }
+            AliasResolver aliasResolver = buildAliasResolver();
             // Parse command options
             ParsedOptions opts;
             try {
-                opts = cmd.parseArgs(cmdArgs);
+                opts = cmd.parseArgs(cmdArgs, aliasResolver);
             } catch (IllegalArgumentException e) {
                 formatter.usageError(e.getMessage(), cmd);
                 return 2; // unreachable after usageError()
             }
 
-            CommandContext ctx = CommandContext.fromGlobalOptions(globalOpts, masterPasswordProvider);
+            CommandContext ctx = CommandContext.fromGlobalOptions(
+                    globalOpts, masterPasswordProvider, aliasResolver);
 
             // Create wrapper and authenticate
             WalletApiWrapper wrapper = new WalletApiWrapper();
@@ -135,14 +155,37 @@ public class StandardCliRunner {
         return cmd.resolveAuthPolicy(opts) == CommandDefinition.AuthPolicy.REQUIRE;
     }
 
+    private AliasResolver buildAliasResolver() throws Exception {
+        AliasStore store = new AliasStoreLoader().loadLayered(WalletApi.getCurrentNetwork());
+        return new AliasResolver(store, formatter::resolved);
+    }
+
     /**
      * Auto-login from the resolved keystore target for wallet-authenticated standard CLI commands.
      */
     private File authenticate(WalletApiWrapper wrapper) throws Exception {
         File targetFile = resolveAuthenticationWalletFile();
+        if (globalOpts.isPasswordStdin()) {
+            // System.console() is non-null only when both stdin and stdout are TTYs. That's a
+            // strong signal the user forgot to pipe — reading System.in would block on a prompt.
+            // Imperfect (false negative when stdout is redirected), but catches the common
+            // "ran --password-stdin in an interactive shell without `echo pw |` prefix" footgun.
+            if (System.console() != null) {
+                throw new CliUsageException(
+                        "--password-stdin requires piped input on stdin (e.g. `echo \"$pw\" | wallet-cli --password-stdin ...`)");
+            }
+            if (System.getenv("MASTER_PASSWORD") != null
+                    && !System.getenv("MASTER_PASSWORD").isEmpty()) {
+                formatter.info("--password-stdin overrides MASTER_PASSWORD env var");
+            }
+        }
         String envPwd = masterPasswordProvider.get();
         if (envPwd == null || envPwd.isEmpty()) {
-            throw new IllegalStateException("MASTER_PASSWORD is required for wallet-authenticated commands");
+            throw new IllegalStateException(
+                    globalOpts.isPasswordStdin()
+                            ? "MASTER_PASSWORD is required: --password-stdin produced no input"
+                            : "MASTER_PASSWORD is required for wallet-authenticated commands"
+                                    + " (set the env var or pass --password-stdin)");
         }
 
         // Load specific wallet file and authenticate
@@ -170,6 +213,8 @@ public class StandardCliRunner {
             // copy there and only clear this temporary buffer locally.
             walletApi.setUnifiedPassword(Arrays.copyOf(password, password.length));
             wrapper.setWallet(walletApi);
+            wrapper.setLedgerSigner(
+                org.tron.walletcli.cli.ledger.ProductionLedgerPorts.buildSigner(formatter));
             formatter.info("Authenticated with wallet: " + wf.getAddress());
             return targetFile;
         } finally {
