@@ -21,14 +21,14 @@ import org.tron.protos.Protocol.PQScheme;
  *
  * <p>Falcon signatures are <strong>variable-length</strong>: every accepted
  * signature must fall within {@code [}{@link #SIGNATURE_MIN_LENGTH}{@code ,}
- * {@link #SIGNATURE_LENGTH}{@code ]}. {@link #SIGNATURE_LENGTH} (666) matches
- * the java-tron {@code ALLOW_FN_DSA_512} chain cap and the canonical Falcon
- * Round-3 / FIPS-206 draft {@code sbytelen} for Falcon-512;
- * {@link #SIGNATURE_MIN_LENGTH} (41) is the smallest syntactically well-formed
- * encoding. BC's signer does not implement Falcon's rejection step on
- * over-length outputs (its internal buffer permits up to 689 B);
- * {@link #sign(byte[], byte[])} adds that loop so produced signatures always
- * respect the canonical cap.
+ * {@link #SIGNATURE_MAX_LENGTH}{@code ]}. {@link #SIGNATURE_MAX_LENGTH} (667) is
+ * the TRON/EIP-8052 upper bound after re-inserting Falcon's stripped header byte
+ * into a 666-byte headerless slot; {@link #SIGNATURE_MIN_LENGTH} (617) is the
+ * smallest syntactically well-formed compressed encoding (header byte + 40-byte
+ * nonce + 512 minimal {@code compressed_s2} coefficients).
+ * BouncyCastle does not implement Falcon's spec-mandated rejection sampling
+ * (its internal buffer permits up to 689 B); {@link #sign(byte[], byte[])} adds
+ * that loop so produced signatures always respect the canonical cap.
  */
 public final class FNDSA512 implements PQSignature {
 
@@ -55,23 +55,34 @@ public final class FNDSA512 implements PQSignature {
   public static final int PRIVATE_KEY_WITH_PUBLIC_KEY_LENGTH =
       PRIVATE_KEY_LENGTH + PUBLIC_KEY_LENGTH;
   /**
-   * Canonical maximum Falcon-512 signature length per Falcon Round-3 / FIPS-206
-   * draft ({@code sbytelen}). Also the protocol-level upper bound: anything
-   * longer is rejected by the verifier and never produced by
-   * {@link #sign(byte[], byte[])} (which loops with fresh randomness if BC
-   * exceeds it).
+   * TRON/EIP-8052 maximum Falcon-512 signature length after re-inserting the
+   * stripped header byte into a 666-byte headerless signature slot.
    */
-  public static final int SIGNATURE_LENGTH = 666;
+  public static final int SIGNATURE_MAX_LENGTH = 667;
   /**
-   * Smallest syntactically well-formed Falcon-512 encoding: 1-byte header +
-   * 40-byte nonce, with {@code compressed_s2} potentially empty. Real valid
-   * signatures sit well above this — the bound exists to reject obviously
-   * malformed inputs without invoking BC.
+   * Backward-compatible alias for callers that treat the signature length value
+   * as the variable-length upper bound.
    */
-  public static final int SIGNATURE_MIN_LENGTH = 41;
+  public static final int SIGNATURE_LENGTH = SIGNATURE_MAX_LENGTH;
+  /**
+   * Smallest syntactically well-formed Falcon-512 compressed encoding: 1-byte header
+   * + 40-byte nonce + 576-byte {@code compressed_s2}. The compressed form encodes
+   * N=512 coefficients and each coefficient takes at least 9 bits.
+   */
+  public static final int SIGNATURE_MIN_LENGTH = 617;
+  /**
+   * Canonical Falcon-512 header byte ({@code 0x30 + logn}, logn=9): identifies the
+   * compressed encoding. BC's {@code FalconSigner} only ever produces this byte and
+   * rejects any other first byte; {@link #verify} enforces it explicitly so the
+   * "compressed-only" rule is pinned in our own code rather than relying on BC
+   * internals. The padded ({@code 0x49}) and constant-time ({@code 0x59}) encodings
+   * are deliberately not accepted — admitting them would make the same (key, message)
+   * verifiable under multiple distinct byte strings (signature malleability).
+   */
+  public static final byte SIGNATURE_HEADER = 0x39;
   /**
    * Maximum signing retries before {@link #sign(byte[], byte[])} gives up.
-   * Empirically BC produces signatures above {@link #SIGNATURE_LENGTH} with
+   * Empirically BC produces signatures above {@link #SIGNATURE_MAX_LENGTH} with
    * probability ≪ 1/5000, so 16 attempts is comfortably above the
    * spec-targeted rejection rate (~2^-40) — failure probability after 16
    * retries on honest input is astronomically small.
@@ -151,15 +162,15 @@ public final class FNDSA512 implements PQSignature {
     return PUBLIC_KEY_LENGTH;
   }
 
-  /** Returns the protocol-level signature length upper bound (signatures are variable-length). */
+  /** Returns the canonical signature length upper bound (signatures are variable-length). */
   @Override
   public int getSignatureLength() {
-    return SIGNATURE_LENGTH;
+    return SIGNATURE_MAX_LENGTH;
   }
 
   /**
    * FN-DSA signatures are variable-length; the lower bound is the smallest
-   * syntactically well-formed encoding (1-byte header + 40-byte nonce).
+   * syntactically well-formed compressed encoding.
    */
   @Override
   public int getSignatureMinLength() {
@@ -231,13 +242,20 @@ public final class FNDSA512 implements PQSignature {
     }
     if (signature == null
         || signature.length < SIGNATURE_MIN_LENGTH
-        || signature.length > SIGNATURE_LENGTH) {
+        || signature.length > SIGNATURE_MAX_LENGTH) {
       throw new IllegalArgumentException(
           "FN-DSA signature length must be "
-              + SIGNATURE_MIN_LENGTH + ".." + SIGNATURE_LENGTH);
+              + SIGNATURE_MIN_LENGTH + ".." + SIGNATURE_MAX_LENGTH);
     }
     if (message == null) {
       throw new IllegalArgumentException("message must not be null");
+    }
+    // Reject non-canonical encodings (padded 0x49 / constant-time 0x59) so only the
+    // compressed form is verifiable — see SIGNATURE_HEADER. Ordered after the argument
+    // checks above: malformed arguments throw, a non-canonical-but-well-formed
+    // signature is simply an invalid signature (return false).
+    if (signature[0] != SIGNATURE_HEADER) {
+      return false;
     }
     FalconPublicKeyParameters pk = new FalconPublicKeyParameters(PARAMS, publicKey);
     FalconSigner verifier = new FalconSigner();
@@ -258,10 +276,10 @@ public final class FNDSA512 implements PQSignature {
    * <p>Signing is randomized: the same {@code (privateKey, message)} yields different
    * signature bytes on every call. Only keygen is deterministic from the 48-byte seed.
    * Downstream code must not cache or dedup by signature-bytes hash; key on the derived
-   * address instead.
+   * address instead (see the PQ multisig dedup in {@code PrecompiledContracts}).
    *
    * <p>Per Falcon Round-3 / FIPS-206 draft the signature MUST be ≤
-   * {@link #SIGNATURE_LENGTH} bytes; if it exceeds, the signer must resample
+   * {@link #SIGNATURE_MAX_LENGTH} bytes; if it exceeds, the signer must resample
    * with a fresh nonce. BouncyCastle does <strong>not</strong> implement this
    * rejection step — its internal buffer permits up to 689 B and would return
    * those longer signatures. This wrapper enforces the spec cap by discarding
@@ -288,7 +306,7 @@ public final class FNDSA512 implements PQSignature {
     for (int attempt = 0; attempt < SIGN_RETRY_BUDGET; attempt++) {
       try {
         byte[] sig = signer.generateSignature(message);
-        if (sig.length <= SIGNATURE_LENGTH) {
+        if (sig.length <= SIGNATURE_MAX_LENGTH) {
           return sig;
         }
         // BC produced a spec-overlong signature; retry with fresh randomness.
@@ -302,7 +320,7 @@ public final class FNDSA512 implements PQSignature {
     }
     throw new IllegalStateException(
         "FN-DSA signing failed: could not produce a signature ≤ "
-            + SIGNATURE_LENGTH + " bytes after " + SIGN_RETRY_BUDGET + " attempts",
+            + SIGNATURE_MAX_LENGTH + " bytes after " + SIGN_RETRY_BUDGET + " attempts",
         lastFailure);
   }
 
@@ -316,7 +334,10 @@ public final class FNDSA512 implements PQSignature {
    * See bcgit/bc-java#2297.
    */
   public static byte[] derivePublicKey(byte[] privateKey) {
-    if (privateKey != null && privateKey.length == PRIVATE_KEY_WITH_PUBLIC_KEY_LENGTH) {
+    if (privateKey == null) {
+      throw new IllegalArgumentException("privateKey must not be null");
+    }
+    if (privateKey.length == PRIVATE_KEY_WITH_PUBLIC_KEY_LENGTH) {
       byte[] pk = new byte[PUBLIC_KEY_LENGTH];
       System.arraycopy(privateKey, PRIVATE_KEY_LENGTH, pk, 0, PUBLIC_KEY_LENGTH);
       return pk;
