@@ -3787,6 +3787,8 @@ public class WalletApi {
     }
     Response.TransactionExtention transactionExtention;
     try {
+      // TODO: add PQ support — switch to the deployContract overload that takes an explicit
+      //  owner address.
       transactionExtention = tmpApiCli.deployContract(contractName, ABI,
           code, Collections.emptyList(), feeLimit, consumeUserResourcePercent, originEnergyLimit,
           value, tokenId, tokenValue);
@@ -3870,6 +3872,8 @@ public class WalletApi {
     }
     Response.TransactionExtention transactionExtention;
     try {
+      // TODO: add PQ support — switch to the deployContract overload that takes an explicit
+      //  owner address.
       transactionExtention = tmpApiCli.deployContract(contractName, ABI,
           code, Collections.emptyList(), feeLimit, consumeUserResourcePercent, originEnergyLimit,
           value, tokenId, tokenValue);
