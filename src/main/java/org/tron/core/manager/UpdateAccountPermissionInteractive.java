@@ -86,6 +86,16 @@ public class UpdateAccountPermissionInteractive {
     operationsMap.put("59", "Cancel Unstake");
   }
 
+  private static String opLabel(int code) {
+    String name = operationsMap.get(String.valueOf(code));
+    return name != null ? name : "Unsupported/Disabled op " + code;
+  }
+
+  private static String contractTypeName(int code) {
+    ContractType type = ContractType.forNumber(code);
+    return type != null ? type.name() : "UNKNOWN";
+  }
+
   public String start(String address) {
     System.out.println("\n=== UpdateAccountPermission Interactive Mode ===");
     Response.Account account = WalletApi.queryAccount(WalletApi.decodeFromBase58Check(address));
@@ -105,7 +115,7 @@ public class UpdateAccountPermissionInteractive {
       active.setType(2);
       active.setPermissionName("active");
       active.setThreshold(1L);
-      active.setOperations("7fff1fc0033efb0f000000000000000000000000000000000000000000000000");
+      active.setOperations("7fff1fc0033ef30f000000000000000000000000000000000000000000000000");
       active.setKeys(Lists.newArrayList(new Key(address, 1L)));
       activePermissions = Lists.newArrayList(active);
     }
@@ -443,13 +453,12 @@ public class UpdateAccountPermissionInteractive {
     Collections.sort(currentOps);
 
     while (true) {
-      List<Integer> allowedOps = currentOps.stream()
-          .filter(i -> operationsMap.get(String.valueOf(i)) != null).sorted().collect(Collectors.toList());
+      List<Integer> allowedOps = currentOps.stream().sorted().collect(Collectors.toList());
       System.out.println("\nCurrent allowed operations:");
       for (int i = 0; i < allowedOps.size(); i++) {
         int code = allowedOps.get(i);
-        System.out.println((i + 1) + ". " + operationsMap.get(String.valueOf(code))
-            + " -> " + ContractType.forNumber(code).name() + "(" + code + ")");
+        System.out.println((i + 1) + ". " + opLabel(code)
+            + " -> " + contractTypeName(code) + "(" + code + ")");
       }
 
       System.out.println("\nOperations editing (enter 'q' to finish editing operations):");
@@ -471,8 +480,8 @@ public class UpdateAccountPermissionInteractive {
         System.out.println("Current operations that can be deleted:");
         for (int i = 0; i < allowedOps.size(); i++) {
           int code = allowedOps.get(i);
-          System.out.println((i + 1) + ". " + operationsMap.get(String.valueOf(code))
-              + " -> " + ContractType.forNumber(code).name() + "(" + code + ")");
+          System.out.println((i + 1) + ". " + opLabel(code)
+              + " -> " + contractTypeName(code) + "(" + code + ")");
         }
 
         System.out.print("Enter indexes to delete (comma separated), or 'q' to cancel: ");
@@ -698,9 +707,7 @@ public class UpdateAccountPermissionInteractive {
       System.out.println("  Operations : (none)");
     } else {
       String opsDisplay = ops.stream()
-          .map(String::valueOf)
-          .filter(operationsMap::containsKey)
-          .map(operationsMap::get)
+          .map(UpdateAccountPermissionInteractive::opLabel)
           .collect(Collectors.joining(", "));
       System.out.println("  Operations : " + opsDisplay);
     }
@@ -814,11 +821,7 @@ public class UpdateAccountPermissionInteractive {
     } else {
       System.out.println("  Operations :");
       for (Integer code : ops) {
-        String name = operationsMap.get(String.valueOf(code));
-        if (name == null) {
-          continue;
-        }
-        System.out.printf("      - %-3d (%s)%n", code, name);
+        System.out.printf("      - %-3d (%s)%n", code, opLabel(code));
       }
     }
     System.out.println("  Threshold  : " + p.getThreshold());
