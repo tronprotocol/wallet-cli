@@ -39,16 +39,23 @@ export interface Config {
 }
 
 // ── wallet data shapes (persisted in wallets.json) ─────────────────────────────
+/** one secret derives both chains → both slots always present (non-optional). */
+export type ChainAddresses = { tron: string; evm: string };
+
+/**
+ * All address caches live inside `source` next to their secret-ref:
+ * - seed: index("0","1",…) → both-chain addresses (known indices = Object.keys(addresses))
+ * - privateKey: flat both-chain addresses (no index, no "" sentinel)
+ * - ledger: single family + path + watch-only address (no index)
+ */
 export type Source =
-  | { type: "seed"; vaultId: string; accounts: number[] }
-  | { type: "ledger"; deviceId: string; accounts: number[] }
-  | { type: "privateKey"; keyId: string };
+  | { type: "seed"; vaultId: string; addresses: Record<string, ChainAddresses> }
+  | { type: "privateKey"; keyId: string; addresses: ChainAddresses }
+  | { type: "ledger"; family: ChainFamily; path: string; address: string };
 
 export interface Wallet {
   id: string;
   source: Source;
-  /** keyed by account index ("0","1",...) or "" for privateKey. */
-  addresses: Record<string, { tron?: string; evm?: string }>;
 }
 
 export interface WalletsFile {
@@ -132,6 +139,8 @@ export interface StreamManager {
   diagnostic(level: DiagnosticLevel, msg: string): void;
   /** always-on stderr line (errors must show even under --quiet). */
   errorLine(msg: string): void;
+  /** intermediate progress frame → stderr plain line; null is skipped (plan §7.7 / StreamManager 兩段式事件). */
+  event(frame: string | null): void;
   readStdinOnce(): string;
   /** warnings accumulated for the JSON envelope's meta.warnings. */
   warnings(): string[];
@@ -163,6 +172,8 @@ export interface ExecutionContext {
   readonly activeAccount: AccountRef;
   /** cached address of the active account on a given family. */
   resolveAddress(family: ChainFamily): string;
+  /** emit an intermediate progress event (Ledger wait / sign / broadcast) → stderr (plan §7.7). */
+  emit(e: ProgressEvent): void;
 }
 
 export interface Example {
@@ -246,6 +257,18 @@ export interface ErrorEnvelope {
   error: { code: string; message: string; details?: object };
   meta: Meta;
 }
+
+/**
+ * Intermediate progress event for long flows (Ledger wait / sign / broadcast).
+ * Routed via ExecutionContext.emit → formatter.event → StreamManager.event (stderr).
+ * NOT a terminal envelope; carries `type` so json consumers can tell it apart (plan §7.7).
+ */
+export type ProgressEvent =
+  | { type: "awaiting_device"; reason: "sign" | "verify_address" | "open_app" | "unlock" }
+  | { type: "pre-verify-address"; address: string }
+  | { type: "signed" }
+  | { type: "broadcasting" }
+  | { type: "dry-run" };
 
 // ── global runtime flags parsed off argv ───────────────────────────────────────
 export interface Globals {

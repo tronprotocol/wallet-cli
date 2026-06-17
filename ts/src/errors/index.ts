@@ -41,15 +41,37 @@ export class WalletError extends ExecutionError {}
 const YARGS_USAGE = /Not enough non-option arguments|Missing required argument|Unknown argument|Invalid values|Did you mean|Not enough arguments|Too many non-option/i;
 
 /**
- * Coerce any thrown value into a CliError (the single funnel in Runner/CliShell).
- * Unexpected (non-CliError) exceptions are REDACTED to a generic message so a library
- * exception that happens to echo a secret can never reach the result envelope. The raw
- * error is surfaced to stderr under --verbose by the Runner.
+ * Optional hint from the call site (TxPipeline / Ledger / RpcClient) so device/chain throws
+ * can be classified precisely. Reserved for the forthcoming `classifyDeviceError`.
  */
-export function normalizeError(e: unknown): CliError {
+export interface ClassifyContext {
+  command?: string;
+  expected?: string;
+  rejected?: "sign" | "verify_address" | "open_app";
+}
+
+/**
+ * classify — the "classify" half of the classify↔render split (plan §7.8). Coerces any thrown
+ * value from the stack (zod/yargs/viem/tronweb/AbortController) into a canonical CliError whose
+ * `code` is the single source feeding exit code + JSON `error.code` + human message (render half:
+ * CliError.exitCode()/toEnvelope()). Unexpected exceptions are REDACTED to a generic message so a
+ * library exception that happens to echo a secret can never reach the result envelope.
+ *
+ * NOTE: `classifyDeviceError` (Ledger-specific: locked / rejected / wrong-app / not-installed)
+ * lands with the Ledger implementation; until then device aborts surface here as `timeout`.
+ */
+export function classifyError(e: unknown, _ctx?: ClassifyContext): CliError {
   if (e instanceof CliError) return e;
+  if (e instanceof Error && e.name === "AbortError") {
+    return new ChainError("timeout", "operation aborted (timed out waiting for the device or network)");
+  }
   if (e instanceof Error && YARGS_USAGE.test(e.message)) {
     return new UsageError("usage_error", e.message); // yargs usage text contains no secrets
   }
   return new ExecutionError("internal_error", "an unexpected internal error occurred");
+}
+
+/** The single funnel used by Runner/CliShell. Delegates to classifyError (no extra context). */
+export function normalizeError(e: unknown): CliError {
+  return classifyError(e);
 }

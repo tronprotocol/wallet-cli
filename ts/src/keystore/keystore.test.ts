@@ -3,7 +3,7 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { bytesToHex } from "@noble/hashes/utils.js";
-import { Keystore } from "./index.js";
+import { Keystore, walletAddress } from "./index.js";
 import { AtomicFileStore } from "../fs/index.js";
 import { Derivation } from "../derivation/index.js";
 import { EvmAddress } from "../address/index.js";
@@ -42,7 +42,7 @@ describe("Keystore", () => {
     const kp = Derivation.derive(seed, Derivation.path("evm", index));
     // derive address again and compare against the cached one
     expect(bytesToHex(kp.privateKey)).toHaveLength(64);
-    expect(wallet.addresses["0"]!.evm).toBe(EVM0);
+    expect(walletAddress(wallet, "evm", 0)).toBe(EVM0);
   });
 
   it("imports a private key as a non-HD wallet (ref without index)", () => {
@@ -50,9 +50,9 @@ describe("Keystore", () => {
     const ref = ks.import({ secret: pk, type: "privateKey", label: "hot" });
     expect(ref).toMatch(/^wlt_[a-z0-9]+$/);
     expect(ref).not.toContain(".");
-    const { index, key } = ks.resolveAccount(ref);
+    const { wallet, index } = ks.resolveAccount(ref);
     expect(index).toBe(-1);
-    expect(key).toBe("");
+    expect(wallet.source.type).toBe("privateKey");
   });
 
   it("dedupes a repeated import by address", () => {
@@ -60,6 +60,44 @@ describe("Keystore", () => {
     const b = ks.import({ secret: MNEMONIC, type: "seed" });
     expect(b).toBe(a);
     expect(ks.list()).toHaveLength(1);
+  });
+
+  const EVM0_PATH = "m/44'/60'/0'/0/0";
+
+  it("registerLedger does not dedup against a software account with the same address", () => {
+    const seedRef = ks.import({ secret: MNEMONIC, type: "seed" });
+    const ledRef = ks.registerLedger({ family: "evm", path: EVM0_PATH, address: EVM0 });
+    expect(ledRef).not.toBe(seedRef);
+    expect(ks.list()).toHaveLength(2);
+    expect(ks.resolveAccount(ledRef).wallet.source.type).toBe("ledger");
+  });
+
+  it("seed import stays independent of a pre-registered ledger of the same address", () => {
+    ks.registerLedger({ family: "evm", path: EVM0_PATH, address: EVM0 });
+    const seedRef = ks.import({ secret: MNEMONIC, type: "seed" });
+    expect(ks.list()).toHaveLength(2);
+    expect(ks.resolveAccount(seedRef).wallet.source.type).toBe("seed");
+  });
+
+  it("registerLedger dedupes by (family, path)", () => {
+    const a = ks.registerLedger({ family: "evm", path: EVM0_PATH, address: EVM0 });
+    const b = ks.registerLedger({ family: "evm", path: EVM0_PATH, address: EVM0 });
+    expect(b).toBe(a);
+    expect(ks.list()).toHaveLength(1);
+    // same family+path is the dedup key, independent of the supplied address string
+    const c = ks.registerLedger({ family: "evm", path: EVM0_PATH, address: "0xDIFFERENT" });
+    expect(c).toBe(a);
+    expect(ks.list()).toHaveLength(1);
+    // a different path is a distinct entry
+    const d = ks.registerLedger({ family: "evm", path: "m/44'/60'/1'/0/0", address: "0xOTHER" });
+    expect(d).not.toBe(a);
+    expect(ks.list()).toHaveLength(2);
+  });
+
+  it("add-account on a ledger wallet is rejected with a re-import hint", () => {
+    const ledRef = ks.registerLedger({ family: "evm", path: EVM0_PATH, address: EVM0 });
+    const walletId = ledRef.split(".")[0]!;
+    expect(() => ks.addAccount(walletId)).toThrow(/not HD|import/i);
   });
 
   it("addAccount appends the next HD index with fresh addresses", () => {
@@ -100,9 +138,9 @@ describe("Keystore", () => {
     // seed reconstructed from the vault must reproduce the cached (with-passphrase) address
     const seed = ks.decryptSeed(vaultId);
     const kp = Derivation.derive(seed, Derivation.path("evm", index));
-    expect(new EvmAddress().fromPublicKey(kp.publicKey)).toBe(wallet.addresses["0"]!.evm);
+    expect(new EvmAddress().fromPublicKey(kp.publicKey)).toBe(walletAddress(wallet, "evm", 0));
     // and it must NOT equal the no-passphrase derivation
-    expect(wallet.addresses["0"]!.evm).not.toBe(EVM0);
+    expect(walletAddress(wallet, "evm", 0)).not.toBe(EVM0);
   });
 
   it("rejects a malformed account ref", () => {

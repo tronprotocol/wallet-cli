@@ -11,10 +11,12 @@ import type {
   Globals,
   NetworkRegistry,
   OutputMode,
+  ProgressEvent,
   SecretResolver,
   StreamManager,
 } from "../types/index.js";
-import { Keystore, accountRef } from "../keystore/index.js";
+import type { OutputFormatter } from "../output/index.js";
+import { Keystore, accountRef, accountIndices, walletAddress } from "../keystore/index.js";
 import { WalletError } from "../errors/index.js";
 
 export interface RuntimeDeps {
@@ -23,6 +25,7 @@ export interface RuntimeDeps {
   streams: StreamManager;
   secrets: SecretResolver;
   keystore: Keystore;
+  formatter: OutputFormatter;
 }
 
 class ExecutionContextImpl implements ExecutionContext {
@@ -58,11 +61,11 @@ class ExecutionContextImpl implements ExecutionContext {
     const ks = this.deps.keystore;
     let ref: AccountRef | null;
     if (this.globals.account) {
-      const { wallet, index, key } = ks.resolveAccount(this.globals.account);
-      ref = accountRef(wallet.id, key === "" ? null : index);
+      const { wallet, index } = ks.resolveAccount(this.globals.account);
+      ref = accountRef(wallet.id, wallet.source.type === "seed" ? index : null);
     } else if (this.globals.wallet) {
       const wallet = ks.resolveWallet(this.globals.wallet);
-      ref = accountRef(wallet.id, wallet.source.type === "privateKey" ? null : (wallet.source.accounts[0] ?? 0));
+      ref = accountRef(wallet.id, wallet.source.type === "seed" ? (accountIndices(wallet.source)[0] ?? 0) : null);
     } else {
       ref = ks.activeAccount();
     }
@@ -74,10 +77,14 @@ class ExecutionContextImpl implements ExecutionContext {
   }
 
   resolveAddress(family: ChainFamily): string {
-    const { wallet, key } = this.deps.keystore.resolveAccount(this.activeAccount);
-    const address = wallet.addresses[key]?.[family];
+    const { wallet, index } = this.deps.keystore.resolveAccount(this.activeAccount);
+    const address = walletAddress(wallet, family, index);
     if (!address) throw new WalletError("missing_wallet_address", `active account has no ${family} address`);
     return address;
+  }
+
+  emit(e: ProgressEvent): void {
+    this.deps.streams.event(this.deps.formatter.event(e));
   }
 }
 

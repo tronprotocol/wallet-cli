@@ -51,6 +51,29 @@ describe("StreamManager", () => {
     t.sm.diagnostic("warn", "careful");
     expect(t.err).toEqual(["warning: careful\n"]);
   });
+
+  it("event writes an intermediate frame as a plain line to stderr, never stdout", () => {
+    const { sm, out, err } = capture("json");
+    sm.event('{"type":"signed"}');
+    expect(out).toEqual([]); // stdout stays reserved for the single terminal frame
+    expect(err).toEqual(['{"type":"signed"}\n']);
+  });
+
+  it("event skips a null frame and does not count against result()", () => {
+    const { sm, out, err } = capture("json");
+    sm.event(null);
+    expect(err).toEqual([]);
+    sm.event('{"type":"broadcasting"}');
+    sm.result("{}"); // still allowed: events are not terminal frames
+    expect(out).toEqual(["{}\n"]);
+    expect(err).toEqual(['{"type":"broadcasting"}\n']);
+  });
+
+  it("event is not gated by --quiet (device prompts must always surface)", () => {
+    const { sm, err } = capture("text", true);
+    sm.event("⧖ approve on your device");
+    expect(err).toEqual(["⧖ approve on your device\n"]);
+  });
 });
 
 describe("AtomicFileStore", () => {

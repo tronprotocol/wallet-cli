@@ -1,26 +1,23 @@
 # TypeScript Wallet CLI — 模組分層開發計劃(依依賴關係分層)
 
-> 本文件是 `typescript-wallet-cli-architecture-plan-v2.md` 的**模組化重寫版**。
-> v2 以「資料流的九個 layer」描述系統;本文件改以**模組(Object / Class)為單位**,
+> 本文件以**模組(Object / Class)為單位**描述 TypeScript Wallet CLI 的設計,
 > 並依**模組間的依賴關係**做嚴格分層,讓「先開發什麼、什麼能獨立測、加東西動到誰」一目了然。
 >
-> **需求面完全沿用 v2**(Standard CLI only、JSON envelope、0/1/2 exit code、彈性 flag 位置、
-> wallet-centric keystore、strict stream discipline、TRON+EVM、Ledger watch-only…)。本文件只重構**結構與表述**,
-> 並補上幾個會在實作早期咬人的設計缺口(見 [§4 對 v2 的設計修正](#4-對-v2-的設計修正)、[§6 本次 review 的修正](#6-本次-review-的修正))。
+> **需求基線**:Standard CLI only、JSON envelope、0/1/2 exit code、彈性 flag 位置、
+> wallet-centric keystore、strict stream discipline、TRON+EVM、Ledger watch-only。
 >
-> **本文件為唯一開發 source of truth。** v2 中仍有效的具體規格(磁碟結構、`wallets.json`/`config.yaml` 範例與規則、
-> 加密 envelope、輸出契約、error code、capability 鍵、flag 分類、命令清單、多鏈差異、Ledger 套件、函式庫/測試/里程碑)
-> 已整合進 [§7 開發參考資料](#7-開發參考資料具體規格);過時的(九層資料流圖、舊 `splitArgv`/order-independent flags、
-> 舊 `CommandDefinition`/`buildExecutionContext` 偽碼)一律不收。v2 文件僅作歷史/英文對照,不再維護。
+> **本文件為唯一開發 source of truth。** 架構與分層看 §1–§6;磁碟結構、`wallets.json`/`config.yaml`
+> 範例與規則、加密 envelope、輸出契約、error code、capability 鍵、flag 分類、命令清單、多鏈差異、
+> Ledger 套件、函式庫/測試/里程碑等實作規格集中在 [§7 開發參考資料](#7-開發參考資料具體規格)。
 
 ---
 
-## 本版鎖定的決策(讀之前先看)
+## 鎖定的決策(讀之前先看)
 
 | 決策 | 內容 |
 | --- | --- |
 | **命令文法 = B(family-positional)** | 綁鏈命令:`wallet-cli <family> <resource> <action> --network <net> [flags]`;`family` ∈ `{tron, evm}`。命令身分由 positional 決定。 |
-| **flag 位置 = kubectl 式** | global flag 兩邊都收(command 前後皆可);command 專屬 flag 放 command 後。**放寬 v2 的「完全位置無關」**。 |
+| **flag 位置 = kubectl 式** | global flag 兩邊都收(command 前後皆可);command 專屬 flag 放 command 後(**非完全位置無關**)。 |
 | **CLI 框架 = yargs** | **yargs 管殼**(tokenize、路由、help 骨架、completion、interspersed flag);**zod 管契約**(驗證/型別/預設/跨欄/agent JSON-schema);**自寫 Output/Stream/Errors 管輸出與 exit**。必關掉 yargs 自帶 I/O 與 exit。 |
 
 **命令樹(頂層 positional 只有一組固定保留字):**
@@ -192,7 +189,7 @@ async function main(argv: string[]): Promise<ExitCode> {
 
 #### `CliShell (yargs)`
 
-**職責**:把 `CommandRegistry` 的命令樹註冊進 yargs(`tron`/`evm` family 群組 + 中立群組),宣告全域 flag(global-by-default = kubectl 式),**關掉 yargs 自帶 I/O 與 exit**,並提供 `dispatch`:解析具體命令 → 建 ctx → 解析網路(含 family 一致性檢查)→ zod 驗 → 能力閘門 → `cmd.run`。**[取代手刻 ArgvLexer / FlagSpecRegistry]**
+**職責**:把 `CommandRegistry` 的命令樹註冊進 yargs(`tron`/`evm` family 群組 + 中立群組),宣告全域 flag(global-by-default = kubectl 式),**關掉 yargs 自帶 I/O 與 exit**,並提供 `dispatch`:解析具體命令 → 建 ctx → 解析網路(含 family 一致性檢查)→ zod 驗 → 能力閘門 → `cmd.run`。token 切分、flag 收集、help 排版一律交給 yargs。
 **依賴**:`CommandRegistry`、`CapabilityGate`、`ExecutionContext`、`ZodYargsAdapter`、`OutputFormatter`、外部 `yargs`。
 
 ```ts
@@ -222,7 +219,7 @@ async function dispatch(reg: CommandRegistry, ns: string, argv) {
   let net: NetworkDescriptor | undefined
   if (cmd.network === "required") {
     net = ctx.networkRegistry.resolve(argv.network)               // 缺值→missing_network;歧義→ambiguous_network_alias
-    if (family && net.family !== family)                          // ★ 修正:tron --network bsc → 擋
+    if (family && net.family !== family)                          // ★ 守門:tron --network bsc → 擋
       throw new UsageError("network_family_mismatch", `${family} 不支援網路 ${net.id}`)
   }
   const input = cmd.input.parse(argv)                             // ★ zod 才是真正驗證(yargs 只切對 token)
@@ -247,7 +244,7 @@ class HelpService {
 }
 ```
 
-> **[修正② 已被 B 文法消解]** family 在 positional(`tron get-balance --help`),命令身分一看就定,不再有 v2「沒給 `--network` help 無解」的問題。
+> family 在 positional(`tron get-balance --help`),命令身分一看就定:不必先給 `--network` 就能解析 help 與自省。
 
 #### `TronModule` / `EvmModule`
 
@@ -281,10 +278,11 @@ const walletImportLedger: CommandDefinition = {
   id: "wallet.import", path: ["import"], network: "none", wallet: "none", auth: "optional",
   run: async (ctx, _net, input) => {
     if (input.type === "ledger") {
-      ctx.streams.diagnostic("warn", "請在 Ledger 上確認匯出地址…")        // ← 命令印,Ledger 模組不印
-      const tron = await ledger.getAddress("tron", Derivation.path("tron", 0))  // block 在裝置
-      const evm  = await ledger.getAddress("evm",  Derivation.path("evm", 0))
-      return keystore.registerLedger({ addresses: { 0: { tron, evm } }, label: input.label })
+      const family = input.app === "ethereum" ? "evm" : "tron"            // --app tron|ethereum → family
+      const path = await resolveLedgerPath(ledger, family, input)         // --index|--path|--address 三擇一(反查見 §7.14.1)
+      ctx.emit({ type: "awaiting_device", reason: "verify_address" })     // 進度經 ctx.emit → stderr,Ledger 模組不印
+      const address = await ledger.getAddress(family, path, { display: false })
+      return keystore.registerLedger({ family, path, address, label: input.label })
     }
     // privateKey / seed:從 SecretResolver 讀 stdin,passphrase 選填
     return keystore.import({ type: input.type, secret: ctx.secrets.read(input.type),
@@ -299,7 +297,7 @@ const walletImportLedger: CommandDefinition = {
 
 #### `CommandRegistry`
 
-**職責**:持有所有 `CommandDefinition`;`resolveConcrete(ns, path)` → 具體命令(`ns` = family 或中立群組名);提供 metadata 給 `CliShell` 建 yargs 樹、給 `HelpService` 產說明。**[變薄]** 切 token/收 flag/排 help 交給 yargs。
+**職責**:持有所有 `CommandDefinition`;`resolveConcrete(ns, path)` → 具體命令(`ns` = family 或中立群組名);提供 metadata 給 `CliShell` 建 yargs 樹、給 `HelpService` 產說明。切 token/收 flag/排 help 交給 yargs。
 **依賴**:`Contract`、`ChainCore`。
 
 ```ts
@@ -382,20 +380,20 @@ function buildExecutionContext(globals: Globals, deps: RuntimeDeps): ExecutionCo
 // 回傳物件實作 SharedTypes 的 ExecutionContext 介面:
 //   { config, networkRegistry, streams, secrets, output, timeoutMs, noDeviceWait,
 //     get activeAccount(): AccountRef,           // lazy
-//     resolveAddress(family): string }           // = keystore.resolveAccount(activeAccount) 的 addresses[index][family]
+//     resolveAddress(family): string }           // = walletAddress(keystore.resolveAccount(activeAccount).wallet, family, index)
 ```
 
 #### `SignerResolver`
 
-**職責**:把「`AccountRef` + family」變成 `Signer`(含已快取 `address`)。依 `source.type` 決定 software / ledger——v2「active wallet 決定要不要硬體確認」的落點。
+**職責**:把「`AccountRef` + family」變成 `Signer`(含已快取 `address`)。依 `source.type` 決定 software / ledger:active account 是否需要硬體確認在此判定。
 **依賴**:`Keystore`、`Derivation`、`Ledger`。
 
 ```ts
 class SignerResolver {
   resolve(ref: AccountRef, family: ChainFamily): Signer {
-    const { wallet, index, key } = this.keystore.resolveAccount(ref)   // key = "" | index 字串
-    const address = wallet.addresses[key]?.[family]
-    if (!address) throw new WalletError("missing_wallet_address")
+    const { wallet, index } = this.keystore.resolveAccount(ref)        // index 僅 seed 用;privateKey/ledger 無 index
+    const address = walletAddress(wallet, family, index)              // ledger: source.address(family 不符回 undefined)
+    if (!address) throw new WalletError("missing_wallet_address")     // 含 ledger family-match 失敗
     switch (wallet.source.type) {
       case "privateKey":
         return new SoftwareSigner(this.keystore.decryptKey(wallet.source.keyId), address)
@@ -405,7 +403,7 @@ class SignerResolver {
         return new SoftwareSigner(kp.privateKey, address)
       }
       case "ledger":
-        return new LedgerSigner(wallet.source.deviceId, Derivation.path(family, index), address)
+        return new LedgerSigner(this.ledger, wallet.source.family, wallet.source.path, address)  // path+address 自 source;無 deviceId
     }
   }
 }
@@ -424,21 +422,28 @@ class CapabilityRegistry {
 // interface ChainModule 見 SharedTypes:family / networks() / capabilities() / registerCommands(reg)
 ```
 
-#### `OutputFormatter`
+#### `OutputFormatter`(human/json 雙實作 + factory)
 
-**職責**:把 outcome 轉成 result / diagnostic 字串,**不改變行為**。JSON 恰好一個 envelope;空資料 `{}`;大數字串化。**[修正⑥]** 中立命令省略 `chain` 欄位。
+**職責**:把 outcome 轉成終局 frame、把中間事件轉成進度 frame,**不改變行為**。JSON 恰好一個終局 envelope;空資料 `{}`;大數字串化。中立命令省略 `chain` 欄位。
+不在單一類別裡灑 `if (output === "json")`,而是拆成介面 + `HumanOutputFormatter` / `JsonOutputFormatter` 兩實作,由 `createOutputFormatter(output)` 依 `--output` 選一個;`dispatch` / `TxPipeline` / `Runner` 全程只持有介面、永不分支。職責切分:formatter 純算字串,`StreamManager` 管寫入與 stream 選擇——寫入不塞進 formatter。
 **依賴**:`Contract`(envelope 型別,實為 SharedTypes)。
 
 ```ts
-class OutputFormatter {
-  success(cmd: CommandDefinition, net: NetworkDescriptor | undefined, data: unknown): string
-  error(err: CliError): void   // json→stdout envelope;text→stderr 簡訊
+interface OutputFormatter {
+  success(cmd: CommandDefinition, net: NetworkDescriptor | undefined, data: unknown): string  // 終局 frame
+  error(err: CliError): void                    // json→stdout envelope;text→stderr 簡訊(維持原契約)
+  event(e: ProgressEvent): string | null        // ★新增:中間進度 frame;null = 此模式不顯示該事件
 }
+class HumanOutputFormatter implements OutputFormatter {}   // 人讀文字行(無 spinner/TTY)、人讀錯誤
+class JsonOutputFormatter  implements OutputFormatter {}   // success/error envelope、NDJSON 事件物件字串
+function createOutputFormatter(output: "text" | "json"): OutputFormatter   // 由 Runner/ctx 依 --output 建一次
 ```
+
+> 終局資料流不變(handler 回 data → `formatter.success` → `streams.result` 一個 frame)。新增的 `event()` 只服務 `TxPipeline` / Ledger 等待這類長流程的**中間進度**(見 `StreamManager` 兩段式事件 + §7.7)。`ProgressEvent`(discriminated union,如 `awaiting_device`/`signed`/`broadcasting`)型別放 `SharedTypes`。
 
 #### `ZodYargsAdapter`
 
-**職責**:**[取代 FlagSpecRegistry]** 從命令的 zod `fields` 推導 yargs 需要的**最小 arity 提示**(boolean→switch、其餘→吃值),套進 yargs builder。**驗證/型別/預設/跨欄仍只在 zod**,不在 yargs DSL,維持單一事實來源。
+**職責**:從命令的 zod `fields` 推導 yargs 需要的**最小 arity 提示**(boolean→switch、其餘→吃值),套進 yargs builder。**驗證/型別/預設/跨欄仍只在 zod**,不在 yargs DSL,維持單一事實來源。
 **依賴**:`Contract`(+ 外部 `yargs` 型別)。
 
 ```ts
@@ -459,7 +464,7 @@ class ZodYargsAdapter { static applyArity(y: Argv, fields: ZodObject): Argv }
 ```ts
 const Schemas = { evmAddress, base58Address, uintString, amount, feeFields }   // 共用原語(值)
 const OutputEnvelope = {
-  success(cmd, net, data, meta): ResultEnvelope,   // net=undefined → 省略 chain(修正⑥)
+  success(cmd, net, data, meta): ResultEnvelope,   // net=undefined → 省略 chain
   error(err: CliError): ErrorEnvelope,
 }
 ```
@@ -468,16 +473,16 @@ const OutputEnvelope = {
 
 #### `Keystore`
 
-**職責**:wallet-centric 儲存。加密 envelope(scrypt + aes-128-ctr + keccak MAC,每檔自帶 salt)、vault/key 獨立加密檔、`wallets.json` 註冊表、root `labels`、選取解析(`--account`/`--wallet`)。**[修正③]** 寫入經 `AtomicFileStore`(原子替換 + lock)。**[修正⑤]** import 支援 BIP39 passphrase。資料形狀(`Wallet`/`Source`/`WalletsFile`/`AccountRef`)在 `SharedTypes`。
+**職責**:wallet-centric 儲存。加密 envelope(scrypt + aes-128-ctr + keccak MAC,每檔自帶 salt)、vault/key 獨立加密檔、`wallets.json` 註冊表、root `labels`、選取解析(`--account`/`--wallet`)。寫入經 `AtomicFileStore`(原子替換 + lock)。import 支援 BIP39 passphrase。資料形狀(`Wallet`/`Source`/`WalletsFile`/`AccountRef`)在 `SharedTypes`。
 **依賴**:`CryptoEnvelope`、`Derivation`、`AddressCodec`、`AtomicFileStore`、`Errors`、`SharedTypes`。
 
 ```ts
 class Keystore {
   generateId(prefix: "wlt"|"vlt"|"key"): string        // CSPRNG base32,撞庫重生;不含時間、不由秘密推導
   import(p: { secret; type: "seed"|"privateKey"; passphrase?: string; label?: string }): AccountRef
-  registerLedger(p: { addresses; label?: string }): AccountRef   // watch-only,無秘密
-  addAccount(walletId: string): AccountRef             // seed/ledger:append 下一 index
-  resolveAccount(refOrLabel: string): { wallet: Wallet; index: number; key: string }   // key="" | String(index)
+  registerLedger(p: { family: ChainFamily; path: string; address: string; label?: string }): AccountRef  // 單鏈單 path watch-only
+  addAccount(walletId: string): AccountRef             // 僅 seed:append 下一 index;ledger 來源 → WalletError(改用 import)
+  resolveAccount(refOrLabel: string): { wallet: Wallet; index: number }   // index 僅 seed 有意義(privateKey/ledger 無)
   resolveWallet(idOrLabel: string): Wallet
   rename(refOrLabel: string, label: string): void; setActive(ref: AccountRef): void
   list(): WalletView[]                                 // 明文,免解鎖
@@ -530,12 +535,13 @@ class EvmRpcClient  implements RpcClient { constructor(rpcUrl) }
 
 ```ts
 class Ledger {
-  getAddress(family, path, hooks?: { onWait?: () => void }): Promise<string>
+  getAddress(family, path, opts?: { display?: boolean; onWait?: () => void }): Promise<string>  // display:false=靜默(import 反查 / precheck 用)
   signTransaction(family, path, tx, signal?): Promise<Signature>
   appConfig(family): Promise<AppConfig>
 }
 class LedgerSigner implements Signer {           // kind="device";address 建構時帶入
-  precheck(): Promise<void>                        // appConfig 不 ready → auth_required
+  precheck(): Promise<void>                        // ① appConfig 未 ready → auth_required
+                                                   // ② getAddress(display:false) 比對 cache address,不符 → wrong_device_seed
   sign(tx, { signal }): Promise<SignedTx>          // 委派 Ledger;拒絕/abort → signing_rejected
 }
 class SoftwareSigner implements Signer {         // kind="software";constructor(privateKey, address);忽略 signal
@@ -564,10 +570,13 @@ interface CapabilityDescriptor { key: string; summary: string }
 interface Config { defaultOutput: "text"|"json"; timeoutMs: number; networks: Record<NetworkId, NetworkDescriptor> }
 
 // 錢包資料形狀
-type Source = { type:"seed"; vaultId:string; accounts:number[] }
-            | { type:"ledger"; deviceId:string; accounts:number[] }
-            | { type:"privateKey"; keyId:string }
-interface Wallet { id: string; source: Source; addresses: Record<string, { tron?: string; evm?: string }> }
+type ChainAddresses = { tron: string; evm: string }   // 一把秘密兩鏈皆派生 → 兩格恆有(非 optional)
+type Source = { type:"seed";       vaultId:string; addresses: Record<string, ChainAddresses> }  // index(字串)→ 兩鏈;已知 index = Object.keys(addresses)
+            | { type:"privateKey"; keyId:string;   addresses: ChainAddresses }                  // 無 index,兩鏈攤平
+            | { type:"ledger";     family:ChainFamily; path:string; address:string }            // 單鏈單 path;address 同住、無 deviceId
+interface Wallet { id: string; source: Source }   // 所有 address cache 收進 source,無頂層 addresses 欄位
+// 讀地址一律經 helper:walletAddress(wallet, family, index?) — seed→addresses[index][family]、privateKey→addresses[family]、ledger→family 符回 address 否則 undefined
+// 已知 index:accountIndices(source) = seed 取 Object.keys(addresses).map(Number).sort();privateKey/ledger 無 index
 interface WalletsFile { version:number; activeAccount: AccountRef; wallets: Wallet[]; labels: Record<AccountRef,string> }
 type KeystoreBlob = { id:string; type:"bip39-seed"|"raw-privkey"; version:number; crypto: CryptoParams }
 
@@ -593,17 +602,35 @@ interface ChainModule { family: ChainFamily; networks(): NetworkDescriptor[]
 type ResultEnvelope = { schema:string; success:true; command:string; chain?: ChainView; data:unknown; meta: Meta }
 type ErrorEnvelope  = { schema:string; success:false; command:string; chain?: ChainView
   error:{ code:string; message:string; details?:object }; meta: Meta }
+
+// 中間進度事件(長流程:Ledger 等待 / 簽名 / 廣播);走 StreamManager.event,非終局;帶 type 與終局 envelope 區分
+type ProgressEvent =
+  | { type:"awaiting_device"; reason:"sign"|"verify_address"|"open_app"|"unlock" }
+  | { type:"pre-verify-address"; address:string }
+  | { type:"signed" } | { type:"broadcasting" } | { type:"dry-run" }
 ```
 
-#### `Errors`(純)
+#### `Errors`(純)— classify ↔ render 雙層
+
+把「**把任意底層 throw 收斂成 canonical 錯誤**」(classify)與「**canonical 錯誤 → message / exitCode / JSON code**」(render)徹底分開,讓 §7.8 的 error code 表成為**唯一事實**:同一個 `CliError` 同時決定 exit code、JSON `error.code`、human 訊息,三者永不漂移。
+
 ```ts
 abstract class CliError { code:string; message:string; details?:object; abstract kind:"usage"|"execution"
-  exitCode(){ return this.kind==="usage"?2:1 }; toEnvelope(){ return { code:this.code, message:this.message, details:this.details } } }
+  exitCode(){ return this.kind==="usage"?2:1 }                                            // render①:0/1/2
+  toEnvelope(){ return { code:this.code, message:this.message, details:this.details } } } // render②:JSON code/訊息
 class UsageError extends CliError { kind="usage" as const }       // exit 2 (含 network_family_mismatch)
 class ExecutionError extends CliError { kind="execution" as const } // exit 1
 class TransportError extends ExecutionError {}; class ChainError extends ExecutionError {}; class WalletError extends ExecutionError {}
-function normalizeError(e: unknown): CliError
+
+// classify:純函式、零 I/O,把 tronweb / viem / Ledger / RPC 的雜散 throw 比對成 canonical CliError。
+// 只靠 error 形狀(instanceof / 屬性 / SW code)比對,不 import 上層模組 → 維持 L0(外部 lib 依賴可,如 @ledgerhq/errors)。
+type ClassifyContext = { command?: string; expected?: string; rejected?: "sign"|"verify_address"|"open_app" }
+function normalizeError(raw: unknown): CliError                          // 通用入口(已存在)
+function classifyError(raw: unknown, ctx?: ClassifyContext): CliError    // table-driven 擴充版(RPC/鏈錯誤)
+function classifyDeviceError(raw: unknown, ctx?: ClassifyContext): CliError  // Ledger 專屬:鎖機/拒簽/開錯 app/逾時/未安裝
 ```
+
+> 呼叫端(`TxPipeline`、`Ledger`、`RpcClient`)在 catch 時帶 `ctx`(如 `expected:"Tron app"`、`rejected:"sign"`)交給 `classify*`,得到帶正確 `code` 的 `CliError`;`Runner` 只負責 render(`formatter.error` + `exitCode()`)。新增 code 一律**先進 §7.8 表**,再讓 classify 對應、render 自動跟上。
 
 #### `CryptoEnvelope`(純)
 ```ts
@@ -618,7 +645,7 @@ class CryptoEnvelope {
 ```ts
 const COIN_TYPE = { tron: 195, evm: 60 }
 class Derivation {
-  static mnemonicToSeed(mnemonic: string, passphrase?: string): Bytes   // 修正⑤
+  static mnemonicToSeed(mnemonic: string, passphrase?: string): Bytes   // 選填 BIP39 passphrase
   static derive(seed: Bytes, path: string): KeyPair
   static path(family: ChainFamily, account: number): string            // m/44'/{coin}'/{account}'/0/0
 }
@@ -633,36 +660,45 @@ class EvmAddress  implements AddressCodec {}   // EIP-55
 ```
 
 #### `AtomicFileStore`(零內部依賴,有副作用)
-**[修正③]** tmp 檔 + `rename()` 原子替換 + 選擇性 lockfile,避免平行 process 互蓋。
+tmp 檔 + `rename()` 原子替換 + 選擇性 lockfile,避免平行 process 互蓋。
 ```ts
 class AtomicFileStore { readJson<T>(p): T|null; writeJson(p, v): void; withLock<T>(p, fn): T }
 ```
 
-#### `StreamManager`(零內部依賴,有副作用)
+#### `StreamManager`(零內部依賴,有副作用)— 兩段式事件
+
+明確區分**中間事件**(長流程進度:等待裝置、已簽名、廣播中)與**終局 frame**(整個執行唯一一次的 result/error)。中間事件讓監看的 agent 能在最終結果前就 react(例:Ledger 等待簽名)。
+
 ```ts
 class StreamManager {
-  constructor(output:"text"|"json", quiet:boolean, verbose:boolean)
-  result(text: string): void                                   // → stdout,整個執行僅一次
+  constructor(output:"text"|"json", quiet:boolean, verbose:boolean, stream:boolean)
+  result(text: string): void                                   // 終局 → stdout,整個執行僅一次
+  event(frame: string | null): void                            // ★新增:中間事件 frame(plain 逐行);null 跳過
   diagnostic(level:"info"|"debug"|"warn", msg: string): void   // → stderr,受 quiet/verbose gate
   readStdinOnce(): string                                      // 第二次拋錯
 }
 ```
 
+> **stream 政策(定案 A,集中於此)**:中間事件 **`event()` 一律 plain 逐行寫 stderr**(`stderr.write(line + "\n")`),**無 spinner / 無 TTY 偵測**——本專案是 Standard CLI / agent-first,動畫零價值且徒增分支;event 內容由 `formatter.event(e)` 決定(text 回人讀一行、json 回一行 NDJSON 帶 `type`)。
+> - **stdout 永遠恰好一個終局 envelope**(`result()`),保住 §7.7 鎖定不變式;agent 要看即時進度就 streaming 讀 stderr,buffered 抓 stdout 一行 parse 即可。
+> - **逃生門 `--stream`(僅 `--output json` 生效)**:才把中間 NDJSON 事件改寫 **stdout**(末行為終局 envelope),供想單一管線消費的 agent;此時 stdout 放寬為「多行 NDJSON,末行為終局」。`--output text` 下 `--stream` 為 no-op。
+> 命令 / pipeline 只丟 `ProgressEvent` 給 `formatter.event()` → `streams.event()`,選 stream 的政策不外洩。
+
 ---
 
-## 4. 對 v2 的設計修正
+## 4. 關鍵設計決策
 
-| # | v2 的問題 | 處理 | 落點 |
+| # | 設計考量 | 決策 | 落點 |
 | --- | --- | --- | --- |
-| ① | argv 切分需 flag arity(order-independent 硬傷) | yargs + B 文法(身分在 positional);arity 由 `ZodYargsAdapter` 從 zod 餵 | `CliShell`/`ZodYargsAdapter` |
-| ② | 命令身分取決於 `--network`,help/自省無解 | **B 文法自然消解**(family 在 positional) | (文法決策) |
-| ③ | `wallets.json`/`config.yaml` 無並發保護 | `AtomicFileStore`(原子替換+lock) | `AtomicFileStore` |
-| ④ | CapabilityGate 與命令解析職責重疊 | 三分:存在性→`CommandRegistry`;family↔network→`CliShell`;同 family 跨網路能力→`CapabilityGate` | 三者 |
-| ⑤ | 無 BIP39 passphrase | `Derivation`/`Keystore.import` 加 `passphrase?` | `Derivation`/`Keystore` |
-| ⑥ | envelope 永遠帶 `chain` | `chain?` optional,中立命令省略 | `Contract`/`SharedTypes` |
+| ① | argv 切分需要 flag arity 資訊 | yargs + B 文法(身分在 positional);arity 由 `ZodYargsAdapter` 從 zod 餵 | `CliShell`/`ZodYargsAdapter` |
+| ② | 命令身分若取決於 `--network`,help/自省會無解 | B 文法把 family 放 positional 自然消解 | (文法決策) |
+| ③ | `wallets.json`/`config.yaml` 需並發保護 | `AtomicFileStore`(原子替換+lock) | `AtomicFileStore` |
+| ④ | 存在性、family↔network、能力差異須分屬不同關卡 | 三分:存在性→`CommandRegistry`;family↔network→`CliShell`;同 family 跨網路能力→`CapabilityGate` | 三者 |
+| ⑤ | 支援 BIP39 passphrase | `Derivation`/`Keystore.import` 帶 `passphrase?` | `Derivation`/`Keystore` |
+| ⑥ | 中立命令不應帶 `chain` 欄位 | `chain?` optional,中立命令省略 | `Contract`/`SharedTypes` |
 
-> **取捨**:「完全位置無關」放寬為 **kubectl 式**以換取套用 yargs。
-> **未改動**:aes-128-ctr + keccak MAC、clean break、0/1/2、綁鏈命令一律須 `--network`(無預設網路)、per-chain namespace。
+> **取捨**:flag 位置採 **kubectl 式**(非完全位置無關)以換取套用 yargs。
+> **固定約束**:aes-128-ctr + keccak MAC、clean break、0/1/2、綁鏈命令一律須 `--network`(無預設網路)、per-chain namespace。
 
 ---
 
@@ -674,25 +710,28 @@ class StreamManager {
 
 ---
 
-## 6. 本次 review 的修正
+## 6. 分層決策的理由
 
-相對前一版(角色分組),本版改為**嚴格依 runtime 依賴拓樸分層**,並修掉數個錯誤:
+分層嚴格依 runtime 依賴拓樸;以下記錄每個落點的理由:
 
-1. **`TxPipeline` 由 L4 降到 L3**(鏈模組之下)——它被鏈模組呼叫,不能在其上。
-2. **`CliShell` 由 L3 升到 L4(`CommandRegistry`/`CapabilityGate` 留 L3)**——消除 `CliShell → CommandRegistry` 的同層依賴;鏈模組與殼同在 L4 但靠依賴反轉互不 import。
-3. **`SharedTypes` 升格為「全系統型別/介面之家」**——`ExecutionContext`/`Signer`/`RpcClient`/`CommandDefinition`/`ChainModule`/`Wallet` 等介面下放 L0,實作留上層;確立「依賴 = runtime/value 依賴,type-only 不算」。
-4. **`CliShell.dispatch` 加 `network_family_mismatch` 守門**——`tron … --network bsc` 被擋。
-5. **`Runner` 攔 meta flag 短路 HelpService**——補上 `.help(false)` 後的 `--help` 路由。
-6. **`ExecutionContext` 改 account-level**(`activeAccount` + `resolveAddress`)——對齊「簽名是 account 粒度」。
+1. **`TxPipeline` 在 L3**(鏈模組之下)——它被鏈模組呼叫,不能在其上。
+2. **`CliShell` 在 L4、`CommandRegistry`/`CapabilityGate` 在 L3**——避免 `CliShell → CommandRegistry` 的同層依賴;鏈模組與殼同在 L4 但靠依賴反轉互不 import。
+3. **`SharedTypes` 是「全系統型別/介面之家」**——`ExecutionContext`/`Signer`/`RpcClient`/`CommandDefinition`/`ChainModule`/`Wallet` 等介面放 L0,實作留上層;確立「依賴 = runtime/value 依賴,type-only 不算」。
+4. **`CliShell.dispatch` 設 `network_family_mismatch` 守門**——`tron … --network bsc` 被擋。
+5. **`Runner` 攔 meta flag 短路 HelpService**——`.help(false)` 後 `--help` 由此路由。
+6. **`ExecutionContext` 為 account-level**(`activeAccount` + `resolveAddress`)——對齊「簽名是 account 粒度」。
 7. **`Signer.address` 對所有 kind 都帶入**(SignerResolver 從快取取)——build 階段才有地址可用。
 8. **Ledger 註冊的等待提醒由中立命令印、Ledger 模組不印**——與簽名一致的 stream 紀律。
 9. **能力以「每網路」為準**——`CapabilityRegistry` 由各 `NetworkDescriptor.capabilities` 灌入。
+10. **`OutputFormatter` 為 human/json 雙實作 + factory**——避免單一類別內 `if (json)` 分支;formatter 只算字串,寫入留 `StreamManager`。
+11. **`Errors` 拆 classify ↔ render 雙層**——§7.8 error code 表為唯一事實,exit / JSON code / 訊息不漂移;`classifyDeviceError` 收 Ledger 雜散 throw。
+12. **`StreamManager` 採兩段式事件**——中間事件**一律 plain 逐行走 stderr(無 spinner/TTY)**,stdout 永遠一個終局 frame;`--stream`(僅 json)為次要逃生門,放行 stdout NDJSON。
 
 ---
 
 ## 7. 開發參考資料(具體規格)
 
-> 此節為**實作要直接照抄/對照的具體規格**,自 v2 整合而來且仍有效。架構面看 §1–§6,資料/格式面看這裡。
+> 此節為**實作要直接照抄/對照的具體規格**。架構面看 §1–§6,資料/格式面看這裡。
 
 ### 7.1 第一個里程碑(窄而完整)
 
@@ -715,7 +754,7 @@ $WALLET_CLI_HOME/ 或 ~/.wallet-cli/   # 後者為預設;前者覆寫整棵樹
   wallets.json             # 明文註冊表 — 無秘密
   vaults/<vaultId>.json    # 加密的 BIP39 seed/entropy
   keys/<keyId>.json        # 加密的 raw private key
-  ledger/<deviceId>.json   # 唯讀:裝置 + 已註冊路徑(無秘密)
+  # ledger 無獨立檔:watch-only 條目(family/path/address)全存 wallets.json 的 source(無秘密、無 deviceId)
 ```
 
 > 根目錄解析是 bootstrap,**早於** config 分層(必須先知道根在哪才找得到 `config.yaml`)。對應模組:`ConfigLoader.resolveRoot`。
@@ -729,21 +768,25 @@ $WALLET_CLI_HOME/ 或 ~/.wallet-cli/   # 後者為預設;前者覆寫整棵樹
   "wallets": [
     {
       "id": "wlt_x",
-      "source": { "type": "seed", "vaultId": "vlt_9f3a", "accounts": [0, 1] },
-      "addresses": {
-        "0": { "tron": "T...", "evm": "0x..." },
-        "1": { "tron": "T...", "evm": "0x..." }
+      "source": {
+        "type": "seed", "vaultId": "vlt_9f3a",
+        "addresses": {
+          "0": { "tron": "T...", "evm": "0x..." },
+          "1": { "tron": "T...", "evm": "0x..." }
+        }
       }
     },
     {
       "id": "wlt_k",
-      "source": { "type": "privateKey", "keyId": "key_7b2c" },
-      "addresses": { "": { "tron": "T...", "evm": "0x..." } }
+      "source": { "type": "privateKey", "keyId": "key_7b2c", "addresses": { "tron": "T...", "evm": "0x..." } }
     },
     {
-      "id": "wlt_l",
-      "source": { "type": "ledger", "deviceId": "led_a1", "accounts": [0] },
-      "addresses": { "0": { "tron": "T...", "evm": "0x..." } }
+      "id": "wlt_lt",
+      "source": { "type": "ledger", "family": "tron", "path": "m/44'/195'/0'/0/0", "address": "T..." }
+    },
+    {
+      "id": "wlt_le",
+      "source": { "type": "ledger", "family": "evm", "path": "m/44'/60'/0'/0/0", "address": "0x..." }
     }
   ],
   "labels": {
@@ -751,17 +794,18 @@ $WALLET_CLI_HOME/ 或 ~/.wallet-cli/   # 後者為預設;前者覆寫整棵樹
     "wlt_x.0": "main",
     "wlt_x.1": "savings",
     "wlt_k":   "hot",
-    "wlt_l":   "ledger"
+    "wlt_lt":  "ledger-tron",
+    "wlt_le":  "ledger-eth"
   }
 }
 ```
 
 規則:
 
-- **定址單位是 account,不是錢包。** 一個錢包(`wlt_x`)= 一個秘密來源。seed/ledger 為 HD,`accounts` 列出已知 BIP44 index;privateKey 非 HD,無 `accounts`、用 `""` 當 key。
-- **account ref** 貫穿全結構:`wlt_x.<index>`(HD)/ `wlt_k`(privateKey)。同時是 `activeAccount`、`labels` 的 key、`--account` 選的、`addresses` cache 的 key。
-- **路徑不存字串**,由模板 `m/44'/{coinType}'/{account}'/0/0` 算出(coin type tron=195/evm=60,purpose/change/address_index 寫死);只存 `accounts` index。
-- `addresses` 為衍生公開識別的明文 cache(按 index 鍵,privateKey 用 `""`),利秒列 `wallet list`;解鎖或查裝置後可重算。
+- **定址單位是 account,不是錢包。** 一個錢包(`wlt_x`)= 一個秘密來源。seed 為 HD,**已知 index = `source.addresses` 的 keys**(不再另存 `accounts`);privateKey 非 HD,`source.addresses` 兩鏈攤平、無 index;ledger 單鏈單 path(見 §7.14.1)。
+- **account ref** 貫穿全結構:`wlt_x.<index>`(seed HD)/ `wlt_k`(privateKey)/ `wlt_lt`(ledger)。同時是 `activeAccount`、`labels` 的 key、`--account` 選的。
+- **seed/privateKey 路徑不存字串**,由模板 `m/44'/{coinType}'/{account}'/0/0` 算出(coin type tron=195/evm=60,purpose/change/address_index 寫死);已知 index 由 `source.addresses` keys 表示。**ledger 例外:path 字串直接存 `source.path`**(見 §7.14.1)。
+- `source.addresses` 為衍生公開識別的明文 cache(seed 按 index 鍵 `Record<index, {tron,evm}>`、privateKey 兩鏈攤平 `{tron,evm}`、ledger 為單一 `address`),利秒列 `wallet list`;解鎖或查裝置後可重算。
 - `activeAccount` 指 account ref 而非整個錢包(簽名單位是 account)。缺該鏈視圖 → `missing_wallet_address`。
 
 **身分 / 顯示名(`id`、account ref、`labels`)**
@@ -777,6 +821,7 @@ $WALLET_CLI_HOME/ 或 ~/.wallet-cli/   # 後者為預設;前者覆寫整棵樹
 - **為何 label 已唯一仍保留 id/ref**:唯一只在某時刻成立,不跨時間(刪 `main` 再建同名 `main` 是不同私鑰);用 ref 釘死才能「精確命中或報錯」,不靜默改指。
 - **選取解析**:`--account <ref|label>` 為 tx/sign 主選擇器(`wlt_` 開頭當 ref;否則當 label,0=not-found、1=用它、**≥2 歧義硬報錯**,簽名路徑絕不替使用者猜);`--wallet <id|label>` 選整個錢包用其預設 account。
 - **import 分工**:使用者給秘密(`--*-stdin`)+ 選填 `--label`;CLI 自動生 `id`、建 account 0、衍生 `addresses`、寫加密檔回填 `vaultId`/`keyId`、寫 root `labels`;`--label` 省略給預設(`wallet-N`);重複 import 比對 `addresses` 去重。
+- **Ledger(單鏈單 path)**:每個 `(family, path, address)` 為**獨立條目**,ref 同 privateKey 用 `wlt_id`(無 index);address 存 `source`、**不填 `addresses` map**。tron/ethereum、不同 index 一律各自條目;去重以 `(family, path)` 為準。**ledger 失去跨鏈共享身分**(software 維持)。`add-account` 不適用 ledger(用 import 增 path)。選取時命令 family 須等於 `source.family`,否則 `missing_wallet_address`(訊息點明 family 不符)。匯入規則見 [§7.14.1](#7141-ledger-import-模型唯一進入點ledger-無-deriveadd-account)。
 
 ### 7.4 加密 envelope(`vaults/*.json`、`keys/*.json`)
 
@@ -799,7 +844,7 @@ $WALLET_CLI_HOME/ 或 ~/.wallet-cli/   # 後者為預設;前者覆寫整棵樹
 ```
 
 - Master password 由 `MASTER_PASSWORD` env 或 `--password-stdin` 解析;秘密永不記錄、不入任何 JSON envelope。
-- 明文為 BIP39 entropy(vault)或 32-byte private key(key)。**[修正⑤]** seed 衍生時可帶選填 BIP39 passphrase。
+- 明文為 BIP39 entropy(vault)或 32-byte private key(key)。seed 衍生時可帶選填 BIP39 passphrase。
 
 ### 7.5 `config.yaml` — 範例與解析規則
 
@@ -902,8 +947,9 @@ JSON 模式向 `stdout` 恰好輸出一個物件。
 
 - JSON 模式只把最終 envelope 寫 `stdout`;診斷只進 `stderr`。文字模式錯誤寫簡短訊息到 `stderr`。
 - 一次執行恰好一個終端結果。空資料為 `{}` 非 `null`。
+- **中間事件(長流程進度,如 Ledger 等待簽名)**:**plain 逐行走 `stderr`(無 spinner/TTY)**——json 模式為 NDJSON 行(帶 `type` 與終局 envelope 的 `success` 區分),text 模式為人讀一行;**stdout 仍恰好一個終局 envelope**(不破上條)。僅 `--stream`(json)時才把中間事件改寫 stdout(末行為終局 envelope)。見 `StreamManager` 兩段式事件。
 - 金額在可能超出 JS 安全整數時為**字串**(wei/sun 恆為真)。binary 宣告編碼(`hex`/`base64`/鏈原生)。
-- `chain.networkId` 為穩定 canonical 身分;`chain.network` 僅供可讀。**[修正⑥]** 中立命令(`wallet`/`config`/`chains`)省略 `chain` 欄位。
+- `chain.networkId` 為穩定 canonical 身分;`chain.network` 僅供可讀。中立命令(`wallet`/`config`/`chains`)省略 `chain` 欄位。
 - 警告:JSON 下結構化於 `meta.warnings`,文字模式印 `stderr`。
 
 ### 7.8 結束碼與錯誤碼分類
@@ -920,14 +966,15 @@ JSON 模式向 `stdout` 恰好輸出一個物件。
 usage_error  unknown_command  invalid_option  missing_option  invalid_value
 missing_network  unsupported_chain  unsupported_network  ambiguous_network_alias  network_family_mismatch
 unsupported_capability  unsupported_network_capability
-auth_required  auth_failed  secret_source_error
+auth_required  auth_failed  secret_source_error  wrong_device_seed  ledger_address_not_found
 rpc_error  rate_limited  timeout
 insufficient_funds  transaction_rejected  signing_rejected
 invalid_address  missing_wallet_address  invalid_amount  encoding_error
 execution_error  internal_error
 ```
 
-> `network_family_mismatch` 為本設計新增(B 文法下 `tron … --network bsc` 被擋),屬 usage(exit 2)。
+> `network_family_mismatch` 為本設計特有(B 文法下 `tron … --network bsc` 被擋),屬 usage(exit 2)。
+> 此表是 `Errors` 的 **classify ↔ render 雙層唯一事實**:`classifyError`/`classifyDeviceError` 把底層 throw 對到這些 `code`,`CliError.toEnvelope()`/`exitCode()` 由 `code`/`kind` 推出 JSON code 與 0/1/2。新增原因先擴此表。
 
 ### 7.9 能力鍵清單(capability keys)
 
@@ -968,6 +1015,7 @@ fee.eip1559                                   # 僅 EVM
 | `--quiet` / `--verbose` | 抑制 / 增加 diagnostics(不影響 command data)。 |
 | `--timeout <ms>` | 操作逾時(含 Ledger 等待確認)。 |
 | `--no-device-wait` | Ledger 不等待,立即失敗(自動化用)。 |
+| `--stream` | (次要 opt-in,**僅 `--output json` 生效**)把長流程中間事件改寫 stdout(NDJSON,末行為終局 envelope);預設中間事件 plain 逐行走 stderr、stdout 維持一個 frame;`--output text` 下為 no-op。 |
 | `--help` / `-h` / `--version` | 元選項。 |
 
 **Endpoint override**:`--grpc-endpoint <host:port>`(TRON)、`--rpc-url <url>`(EVM)— 單次執行覆寫,非業務輸入。
@@ -983,13 +1031,14 @@ fee.eip1559                                   # 僅 EVM
 | 代幣/合約 | `--token`、`--contract`、`--method`、`--params` | 名稱共享、codec 不同。 |
 | 費用/資源 | `--fee-limit`、`--gas-price`、`--max-fee`、`--max-priority-fee`、`--resource` | schema 管形狀;CapabilityGate 管 fee model 支援。 |
 | 執行模式 | `--dry-run`、`--broadcast` | TxPipeline 控制回 plan / signed / broadcast。 |
-| 錢包管理 | `--type`、`--label` | 中立 `wallet` 命令;路徑由 index + 模板算出,故無 `--path-*`。 |
+| 錢包管理(software) | `--type`、`--label` | seed/privateKey;路徑由 index + 模板算出,故無 `--path-*`。 |
+| Ledger import | `--app tron\|ethereum`、`--index`、`--path`、`--address`、`--scan-limit`(預設 20) | ledger 專屬;`--index`/`--path`/`--address` 三擇一互斥。見 §7.14.1。 |
 
 ### 7.11 命令清單(command inventory)
 
 > B 文法下,綁鏈命令前綴 family:`tron account balance`、`evm tx send-native`;TRON-only 自然只在 `tron`。中立命令無 family、無 `--network`(`capabilities` 例外)。完整命令面待對照 Java CLI inventory + EVM 增補逐一列舉;以下為代表分組。
 
-**中立(無 `--network`)**:`wallet create|import|list|set-active|export-address|rename|add-account`、`config get|set`、`chains list`、`capabilities --network <net>`。
+**中立(無 `--network`)**:`wallet create|import|list|set-active|export-address|rename|add-account`、`config get|set`、`chains list`、`capabilities --network <net>`。`add-account` 僅 seed;ledger 新增 path 走 `import`(`--index`/`--path`/`--address`,見 §7.14.1)。
 
 **Account / Query(綁鏈)**:`account balance|info|resources`(chain-shaped:TRON 含 bandwidth/energy、EVM 含 nonce)、`get-block`、`tx status|receipt`、`token balance|info|allowance`。
 
@@ -1016,7 +1065,7 @@ fee.eip1559                                   # 僅 EVM
 
 - 預設禁用 `stdin` 作業務輸入;僅 `--password-stdin`/`--private-key-stdin`/`--mnemonic-stdin`/`--tx-stdin` 為 opt-in。
 - 任何消費 stdin 的旗標讀一次並 memoize(`SecretResolver` + `StreamManager.readStdinOnce`);命令 handler **不得**直接讀 `process.stdin`。
-- 秘密不得記錄或入 envelope。JSON 模式進度輸出禁用,除非明確送 `stderr`。
+- 秘密不得記錄或入 envelope。JSON 模式中間進度**預設走 `stderr`**(NDJSON 事件);僅 `--stream` 時改寫 stdout(末行為終局 envelope)。見 §7.7 與 `StreamManager` 兩段式事件。
 - 第三方 library(tronweb/viem)輸出不得污染 JSON stdout,經 StreamManager 抑制/轉向。
 
 ### 7.14 Ledger 整合研究(Node CLI)
@@ -1029,8 +1078,19 @@ fee.eip1559                                   # 僅 EVM
 | EVM app | `@ledgerhq/hw-app-eth` | `getAddress`、`signTransaction`、`signPersonalMessage`、`signEIP712Message`。 |
 
 - 保持 transport 與 app 模組版本對齊(版本漂移會導致 `undefined` 回應類 bug)。
-- `deviceId`:HID 無便利穩定序號;建議**使用者提供 label** + 參考路徑位址做健全性檢查(開放設計點)。
+- **不存 `deviceId`**:HID 無穩定序號,且「簽名前 derive + 比對 address」比 deviceId 更強(連 passphrase / 換 seed 都擋)。路由 = 連當下插著的裝置 + address 比對,不符 → `wrong_device_seed`;同時插多台不自動挑(連第一台、比對、錯就報錯)。
 - 前置條件(解鎖、正確 app、blind-signing)經 `getAppConfiguration()` 檢查,回可操作錯誤而非不透明傳輸失敗。
+
+### 7.14.1 Ledger import 模型(唯一進入點;ledger 無 derive/add-account)
+
+- **`--app tron|ethereum`(必帶)**:決定派生模板 / codec。`ethereum → evm` family;EVM 一個地址通用所有 EVM 鏈(secp256k1 同 key、chainId 只在 tx)。裝置上請開對應 app。Ledger 無「EVM」app,evm 即 Ethereum app。
+- **來源三擇一(強制互斥;帶 ≥2 個 → `invalid_option`, exit 2)**,全部解析成 path:
+  - `--path m/44'/{coin}'/{i}'/0/0`:直接用;驗 coin_type 與 `--app` 一致,否則 `invalid_option`。
+  - `--index N`:套 app 預設模板換 index(`m/44'/{coin}'/{N}'/0/0`)。
+  - `--address <addr>`:**有界裝置反查**(見下)。
+- **`--address` 反查(非 gap-limit)**:已知目標地址,做**有界線性搜尋**——先查 index 0(快路)→ 沒中掃 `0..--scan-limit`(**預設 20**)→ 找不到 → `ledger_address_not_found`。每個 index 一次 silent `getAddress`,需正確 app + 正確 seed/passphrase 啟用否則掃不到;**不用 gap-limit**(目標已知,gap-limit 只會更早停、更糟)。**error 訊息必含**:「前 N 個帳戶找不到此地址;可調 `--scan-limit <n>` 擴大範圍,或改用 `--index` / `--path` 直接指定」。
+- **落地**:`registerLedger({ family, path, address, label? })` → 單鏈單 path 條目(address 存 `source`,不填 `addresses` map);dedup by `(family, path)`。
+- **簽名前防呆(所有碰裝置的命令)**:`LedgerSigner.precheck` 先 `getAddress(family, path, display:false)` 比對 cache address,不符 → `wrong_device_seed`(裝置目前 seed/passphrase 與此帳戶不符)。讀類命令(餘額)用 cache、不碰裝置,無需比對。
 
 ### 7.15 建議函式庫 / 測試策略 / 功能里程碑
 
@@ -1073,3 +1133,45 @@ fee.eip1559                                   # 僅 EVM
 9. 擴 TRON-only:resources/staking、governance、TRC10、exchange、GasFree。
 10. 擴 EVM:fee model、message/typed-data sign、deploy、BSC legacy gas 等。
 11. `Ledger`(軟體簽名管線穩定後再加,作為 signer source 而非獨立命令模式)。
+
+### 7.16 互動式輸入(opt-in,**如需要**才做)
+
+> **狀態:可選、預設不做。** 本專案鎖定 Standard CLI / agent-first / 非互動;此節描述「**若日後想讓真人在終端機少打幾個 flag**」時,如何在**不破壞 agent 契約**下加一層互動 prompt。不影響任何既有命令與測試,未做也完全可運作。
+
+**目標**:某些命令在缺 required option 時,於真終端機**逐欄 prompt 使用者輸入**,每輸入一個值就**只對那個 option 做一次契約驗證**(立即回饋),收齊後再走原本的整包驗證。
+
+**架構為何天然支援**:`CommandDefinition` 已把契約拆成 `fields`(逐欄 zod)與 `input`(整包 + 跨欄 `superRefine`)。`fields.shape[key]` 就是單一 option 的契約,直接拿來逐欄驗。
+
+**逐欄 verify 的邊界(重要)**:跨欄規則(如 `--amount` 與 `--amount-sun` 二擇一、`--dry-run` 時 `--broadcast` 無意義)住在 `input` 的 `superRefine`,**逐欄驗不到**。故流程必為:
+
+```text
+逐欄 prompt + fields.shape[key] 驗(即時回饋,缺的 required 才問)
+  → 收齊全部值
+  → 仍跑一次 cmd.input.parse(argv)（整包 + 跨欄,維持現狀不變）
+  → run()
+```
+
+逐欄是「即時回饋層」,**不取代**最後那道整包驗證(`input === fields` 的命令,最後一道等同 no-op)。
+
+**硬性 gating(維持 deterministic agent 契約)**:
+
+| 條件 | 行為 |
+| --- | --- |
+| `output === "text"` 且 `stderr.isTTY` 且 `stdin.isTTY` | 才開 prompt |
+| `--output json` / 非 TTY(pipe、CI、agent) | **一律不 prompt**,維持現狀:缺 required → `missing_option`(exit 2) |
+| prompt 文字去向 | **stderr 或 `/dev/tty`,絕不 stdout**(stdout 仍只留單一終局 frame,§7.7 不破) |
+| stdin 衝突 | 互動讀走 **`/dev/tty`**,不碰 fd0;若 stdin 被 pipe(`SecretResolver.readStdinOnce` 的秘密/資料通道)則**不 prompt** |
+
+只要守住上表,**agent/非 TTY/JSON 行為與現在 100% 相同**;互動只在真人坐在終端機跑 text 模式時浮現。
+
+**落點(如需要時)**:新增 L4 元件 `InteractivePrompter`,插在 `CliShell.dispatch` 的 `resolveConcrete` 之後、`parseInput` 之前:
+
+```ts
+const cmd = registry.resolveConcrete(ns, path)
+// ...
+if (interactiveAllowed(globals, streams))            // gating:text + 雙向 TTY
+  argv = await prompter.fillMissing(cmd, argv)       // 逐欄 prompt + fields.shape[key] 驗,只補缺的 required
+const input = parseInput(cmd, argv)                  // 整包 + 跨欄,完全不變
+```
+
+`parseInput` / `OutputFormatter` / `StreamManager` / 契約全不動;prompt 只是在進入既有驗證前把缺的洞補起來。`InteractivePrompter` 依賴:`Contract`(讀 `fields` introspection,沿用 `ZodYargsAdapter` 既有的逐欄走訪)、`StreamManager`(寫 prompt、判 TTY)。

@@ -17,7 +17,7 @@ import { TxPipeline } from "../pipeline/index.js";
 import { CapabilityRegistry } from "../chain/index.js";
 import { CapabilityGate } from "../capability/index.js";
 import { CommandRegistry } from "../registry/index.js";
-import { OutputFormatter } from "../output/index.js";
+import { createOutputFormatter } from "../output/index.js";
 import { HelpService, hasMeta } from "../help/index.js";
 import { buildCli, type SessionRef } from "../cli/index.js";
 import { EvmRpcClient, TronRpcClient } from "../rpc/index.js";
@@ -96,7 +96,7 @@ export async function main(argv: string[]): Promise<ExitCode> {
   const g = parseGlobals(tokens);
   const output: OutputMode = g.output ?? config.defaultOutput;
   const streams = new StreamManager(output, g.quiet, g.verbose);
-  const formatter = new OutputFormatter(streams, output, startedAt);
+  const formatter = createOutputFormatter(output, streams, startedAt);
 
   // ── compose (all side-effect-free until a command runs) ──
   const root = ConfigLoader.resolveRoot();
@@ -149,7 +149,7 @@ export async function main(argv: string[]): Promise<ExitCode> {
     grpcEndpoint: g.grpcEndpoint,
     rpcUrl: g.rpcUrl,
   };
-  const deps = { config, networkRegistry, streams, secrets, keystore };
+  const deps = { config, networkRegistry, streams, secrets, keystore, formatter };
   const session: SessionRef = {};
   const cli = buildCli({
     registry,

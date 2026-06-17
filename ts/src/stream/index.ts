@@ -44,6 +44,17 @@ export class StreamManager implements IStreamManager {
     this.err(msg.endsWith("\n") ? msg : msg + "\n");
   }
 
+  /**
+   * Intermediate progress frame (long flows: Ledger wait / signed / broadcasting).
+   * Plain line to stderr — keeps stdout reserved for the single terminal frame (定案 A, plan §7.7).
+   * Not a terminal frame: callable many times, never gated by --quiet (device prompts must surface).
+   * `--stream` (json stdout NDJSON) is a deferred secondary opt-in.
+   */
+  event(frame: string | null): void {
+    if (frame === null) return;
+    this.err(frame.endsWith("\n") ? frame : frame + "\n");
+  }
+
   warnings(): string[] {
     return this.#warnings;
   }

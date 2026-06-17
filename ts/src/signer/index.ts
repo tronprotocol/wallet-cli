@@ -4,7 +4,7 @@
  * wallet decides whether hardware confirmation is needed" lands (修正⑦). (plan §3 L2)
  */
 import type { ChainFamily, Signer } from "../types/index.js";
-import { Keystore } from "../keystore/index.js";
+import { Keystore, walletAddress } from "../keystore/index.js";
 import { Ledger, LedgerSigner } from "../ledger/index.js";
 import { SoftwareSigner } from "./software.js";
 import { Derivation } from "../derivation/index.js";
@@ -17,8 +17,8 @@ export class SignerResolver {
   ) {}
 
   resolve(refOrLabel: string, family: ChainFamily): Signer {
-    const { wallet, index, key } = this.keystore.resolveAccount(refOrLabel);
-    const address = wallet.addresses[key]?.[family];
+    const { wallet, index } = this.keystore.resolveAccount(refOrLabel);
+    const address = walletAddress(wallet, family, index);
     if (!address) throw new WalletError("missing_wallet_address", `account has no ${family} address`);
 
     switch (wallet.source.type) {
@@ -30,7 +30,7 @@ export class SignerResolver {
         return new SoftwareSigner(kp.privateKey, address, family);
       }
       case "ledger":
-        return new LedgerSigner(this.ledger, family, Derivation.path(family, index), address);
+        return new LedgerSigner(this.ledger, wallet.source.family, wallet.source.path, address);
     }
   }
 }
