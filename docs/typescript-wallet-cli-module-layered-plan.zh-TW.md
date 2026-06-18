@@ -202,18 +202,18 @@ function buildCli(reg: CommandRegistry) {
     .options(GLOBAL_OPTS)                                  // yargs option 預設 global → kubectl 式
 
   for (const fam of reg.families())                        // ["tron","evm"];加鏈就多一圈
-    cli.command(`${fam} <resource> <action>`, `${fam} commands`,
+    cli.command(`${fam} [group] [verb]`, `${fam} commands`,        // positional 變數名用 group/verb,見 ⚠
       y => ZodYargsAdapter.applyArity(y, reg.flagsOf(fam)),
       argv => dispatch(reg, fam, argv))
 
   for (const ns of ["wallet", "config", "chains", "capabilities"])  // 中立群組
-    cli.command(`${ns} [action]`, `${ns}`, y => y, argv => dispatch(reg, ns, argv))
+    cli.command(`${ns} [verb]`, `${ns}`, y => y, argv => dispatch(reg, ns, argv))
   return cli
 }
 
 async function dispatch(reg: CommandRegistry, ns: string, argv) {
   const family = (ns === "tron" || ns === "evm") ? ns as ChainFamily : undefined
-  const path = [argv.resource, argv.action].filter(Boolean)        // chain:[resource,action] / neutral:[action]
+  const path = [argv.group, argv.verb].filter(Boolean)             // chain:[group,verb] / neutral:[verb]
   const cmd = reg.resolveConcrete(ns, path)
   if (!cmd) throw new UsageError("unknown_command")
 
@@ -236,6 +236,8 @@ async function dispatch(reg: CommandRegistry, ns: string, argv) {
 ```
 
 > 必須 `.exitProcess(false)` + 自訂 `.fail()` + `.help(false)`,否則 yargs 會自己印 help/錯誤到 stdout、自己 exit,破壞 JSON 契約與 0/1/2。
+>
+> ⚠ **positional 變數名不可與任何命令 flag 同名**:文法 B 對使用者仍是 `<family> <resource> <action>`,但 yargs 把 positional 寫進 `argv` 的具名鍵。若 positional 取名 `resource`,會與 `resource freeze/unfreeze` 的 `--resource energy|bandwidth` flag 撞名(positional 值「resource」覆蓋 flag 值,enum 永遠驗不過)。故 yargs 的 positional 一律取中性名 `group`/`verb`,dispatch 由 `argv.group`/`argv.verb` 讀路徑,使 `--resource` 等命令 flag 不被 shadow。另:**命令 flag 名不可用 JS 物件原型保留字**(如 `constructor`——`argv.constructor` 會回 `Object` 建構函式且令 yargs 內部 `conflicting[key].forEach` 崩潰);constructor 簽名 flag 取名 `--constructor-sig`。
 
 #### `HelpService`
 

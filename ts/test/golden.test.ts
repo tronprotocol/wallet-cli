@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -14,11 +14,18 @@ beforeEach(() => {
   HOME = mkdtempSync(join(tmpdir(), "wcli-"));
 });
 
+// Secret model (§7.13.1): master password via a file (--password-file), other secrets via stdin.
+// No MASTER_PASSWORD env. password:null → no source at all (auth_required path).
 function run(args: string[], opts: { input?: string; password?: string | null } = {}) {
   const env: Record<string, string> = { ...process.env, WALLET_CLI_HOME: HOME } as Record<string, string>;
-  if (opts.password === null) delete env.MASTER_PASSWORD;
-  else env.MASTER_PASSWORD = opts.password ?? "testpw123A";
-  const r = spawnSync(TSX, [ENTRY, ...args], { input: opts.input, encoding: "utf8", env });
+  delete env.MASTER_PASSWORD;
+  const finalArgs = [...args];
+  if (opts.password !== null) {
+    const pwFile = join(HOME, "pw.txt");
+    writeFileSync(pwFile, opts.password ?? "testpw123A");
+    finalArgs.push("--password-file", pwFile);
+  }
+  const r = spawnSync(TSX, [ENTRY, ...finalArgs], { input: opts.input, encoding: "utf8", env });
   let json: any;
   try {
     json = JSON.parse(r.stdout);
@@ -29,7 +36,7 @@ function run(args: string[], opts: { input?: string; password?: string | null } 
 }
 
 function importSeed() {
-  return run(["--output", "json", "wallet", "import", "--type", "seed", "--mnemonic-stdin", "--label", "main"], {
+  return run(["--output", "json", "wallet", "import-mnemonic", "--mnemonic-stdin", "--label", "main"], {
     input: MNEMONIC + "\n",
   });
 }
@@ -46,21 +53,47 @@ describe("golden CLI — meta & introspection", () => {
     expect(r.status).toBe(0);
     expect(r.json.success).toBe(true);
     expect(r.json.chain).toBeUndefined();
-    expect(r.json.data.length).toBeGreaterThan(4);
+    // builtin networks: 3 TRON (mainnet/nile/shasta) + 6 EVM (eth/bsc/sepolia/base/optimism/arbitrum)
+    expect(r.json.data).toHaveLength(9);
+    const ids = r.json.data.map((n: { id: string }) => n.id);
+    expect(ids).toContain("evm:42161"); // arbitrum
   });
 
-  it("capabilities includes chain (network-bound), exit 0", () => {
+  it("capabilities includes chain (network-bound) and key+summary descriptors, exit 0", () => {
     const r = run(["--output", "json", "capabilities", "--network", "nile"]);
     expect(r.status).toBe(0);
     expect(r.json.chain.networkId).toBe("tron:nile");
-    expect(r.json.data.capabilities).toContain("tx.native.transfer");
+    const keys = r.json.data.capabilities.map((c: { key: string }) => c.key);
+    expect(keys).toContain("tx.native.transfer");
+    // each descriptor carries a human summary (single source: the chain module)
+    expect(r.json.data.capabilities.every((c: { summary?: string }) => typeof c.summary === "string")).toBe(true);
+    // reconciled: no capability is advertised without a backing command
+    expect(keys).not.toContain("governance.vote");
+    expect(keys).not.toContain("staking.delegate");
   });
 
   it("--json-schema emits an agent schema for a command", () => {
-    const r = run(["evm", "tx", "send-native", "--json-schema"]);
+    const r = run(["evm", "tx", "send-native", "--json-schema"], { password: null });
     expect(r.status).toBe(0);
     expect(r.json.properties.to).toBeDefined();
     expect(r.json.required).toContain("amountWei");
+  });
+
+  it("root --json-schema emits a full command catalog with global flags", () => {
+    const r = run(["--json-schema"], { password: null });
+    expect(r.status).toBe(0);
+    expect(r.json.tool).toBe("wallet-cli");
+    expect(r.json.globalFlags.length).toBeGreaterThan(0);
+    const cmd = r.json.commands.find((c: { id: string }) => c.id === "tron.tx.send-native");
+    expect(cmd.usage).toBe("wallet-cli tron tx send-native [flags]");
+    expect(cmd.requires).toMatchObject({ network: "required", auth: "required", wallet: "required" });
+    expect(cmd.inputSchema.properties.to).toBeDefined();
+  });
+
+  it("namespace --json-schema scopes the catalog to that namespace", () => {
+    const r = run(["evm", "--json-schema"], { password: null });
+    expect(r.status).toBe(0);
+    expect(r.json.commands.every((c: { namespace: string }) => c.namespace === "evm")).toBe(true);
   });
 });
 
@@ -96,6 +129,30 @@ describe("golden CLI — wallet lifecycle (shared identity)", () => {
   });
 });
 
+describe("golden CLI — watch wallet (import, no signer)", () => {
+  it("imports a watch account, auto-detecting the family from the address, exit 0", () => {
+    const r = run(["--output", "json", "wallet", "import-watch", "--address", EVM0, "--label", "obs"]);
+    expect(r.status).toBe(0);
+    expect(r.json.data.addresses.evm).toBe(EVM0);
+    const list = run(["--output", "json", "wallet", "list"]);
+    expect(list.json.data[0].type).toBe("watch");
+    expect(list.json.data[0].active).toBe(true);
+  });
+
+  it("rejects an unrecognised watch address → invalid_option, exit 2 (§7.14.2)", () => {
+    const r = run(["--output", "json", "wallet", "import-watch", "--address", "not-an-address"]);
+    expect(r.status).toBe(2);
+    expect(r.json.error.code).toBe("invalid_option");
+  });
+
+  it("refuses to sign with a watch-only active account → watch_only_no_signer, exit 1", () => {
+    run(["--output", "json", "wallet", "import-watch", "--address", EVM0, "--label", "obs"]);
+    const r = run(["--output", "json", "evm", "message", "sign", "--message", "hi"]);
+    expect(r.status).toBe(1);
+    expect(r.json.error.code).toBe("watch_only_no_signer");
+  });
+});
+
 describe("golden CLI — error contract (exit codes)", () => {
   it("unknown command → exit 2", () => {
     const r = run(["--output", "json", "tron", "bogus", "action", "--network", "nile"]);
@@ -103,8 +160,9 @@ describe("golden CLI — error contract (exit codes)", () => {
     expect(r.json.error.code).toBe("unknown_command");
   });
 
-  it("missing network → exit 2", () => {
-    const r = run(["--output", "json", "tron", "account", "balance"]);
+  it("missing network on a chain-mutating (net=required) command → exit 2", () => {
+    // account balance is now net=optional; use a signing command which stays net=required.
+    const r = run(["--output", "json", "tron", "tx", "send-native"]);
     expect(r.status).toBe(2);
     expect(r.json.error.code).toBe("missing_network");
   });

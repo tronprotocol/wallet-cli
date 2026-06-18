@@ -9,7 +9,7 @@ import { normalizeError } from "../errors/index.js";
 import { ConfigLoader, NetworkRegistry } from "../config/index.js";
 import { AtomicFileStore } from "../fs/index.js";
 import { StreamManager } from "../stream/index.js";
-import { SecretResolver, type SecretFlags } from "../secret/index.js";
+import { SecretResolver, type SecretPaths } from "../secret/index.js";
 import { Keystore } from "../keystore/index.js";
 import { Ledger } from "../ledger/index.js";
 import { SignerResolver } from "../signer/index.js";
@@ -28,28 +28,49 @@ import { EvmModule } from "../modules/evm.js";
 
 export const VERSION = "0.1.0";
 
+/** human summaries for network-specific capability traits (non command-backed). */
+const TRAIT_SUMMARIES: Record<string, string> = {
+  "fee.eip1559": "EIP-1559 fee market",
+};
+
 interface ParsedGlobals {
   output?: OutputMode;
   network?: string;
   account?: string;
-  wallet?: string;
   timeout?: number;
   quiet: boolean;
   verbose: boolean;
   noDeviceWait: boolean;
   grpcEndpoint?: string;
   rpcUrl?: string;
-  secretFlags: SecretFlags;
+  secretPaths: SecretPaths;
 }
 
 const VALUE_FLAGS: Record<string, keyof ParsedGlobals> = {
   "--output": "output", "-o": "output",
-  "--network": "network", "--account": "account", "--wallet": "wallet",
+  "--network": "network", "--account": "account",
   "--timeout": "timeout", "--grpc-endpoint": "grpcEndpoint", "--rpc-url": "rpcUrl",
 };
 
+/** secret/data channels: `--<kind>-file <path>` (path = - | file | /dev/fd/N). */
+const SECRET_FILE_FLAGS: Record<string, keyof SecretPaths> = {
+  "--password-file": "password",
+  "--private-key-file": "privateKey",
+  "--mnemonic-file": "mnemonic",
+  "--tx-file": "tx",
+  "--message-file": "message",
+};
+/** `--<kind>-stdin` = `--<kind>-file -` alias. */
+const SECRET_STDIN_FLAGS: Record<string, keyof SecretPaths> = {
+  "--password-stdin": "password",
+  "--private-key-stdin": "privateKey",
+  "--mnemonic-stdin": "mnemonic",
+  "--tx-stdin": "tx",
+  "--message-stdin": "message",
+};
+
 export function parseGlobals(tokens: string[]): ParsedGlobals {
-  const g: ParsedGlobals = { quiet: false, verbose: false, noDeviceWait: false, secretFlags: {} };
+  const g: ParsedGlobals = { quiet: false, verbose: false, noDeviceWait: false, secretPaths: {} };
   for (let i = 0; i < tokens.length; i++) {
     let tok = tokens[i]!;
     let inlineVal: string | undefined;
@@ -70,14 +91,21 @@ export function parseGlobals(tokens: string[]): ParsedGlobals {
       } else (g as any)[valueKey] = v;
       continue;
     }
+    const fileKind = SECRET_FILE_FLAGS[tok];
+    if (fileKind) {
+      const v = inlineVal ?? tokens[++i];
+      if (v !== undefined) g.secretPaths[fileKind] = v;
+      continue;
+    }
+    const stdinKind = SECRET_STDIN_FLAGS[tok];
+    if (stdinKind) {
+      g.secretPaths[stdinKind] = "-";
+      continue;
+    }
     switch (tok) {
       case "--quiet": g.quiet = true; break;
       case "--verbose": g.verbose = true; break;
       case "--no-device-wait": g.noDeviceWait = true; break;
-      case "--password-stdin": g.secretFlags.passwordStdin = true; break;
-      case "--private-key-stdin": g.secretFlags.privateKeyStdin = true; break;
-      case "--mnemonic-stdin": g.secretFlags.mnemonicStdin = true; break;
-      case "--tx-stdin": g.secretFlags.txStdin = true; break;
     }
   }
   return g;
@@ -102,7 +130,6 @@ export async function main(argv: string[]): Promise<ExitCode> {
   const root = ConfigLoader.resolveRoot();
   const store = new AtomicFileStore();
   const capabilityRegistry = new CapabilityRegistry();
-  for (const n of Object.values(config.networks)) capabilityRegistry.register(n.id, n.capabilities);
 
   const rpcFactory = (d: NetworkDescriptor) =>
     d.family === "tron"
@@ -112,7 +139,7 @@ export async function main(argv: string[]): Promise<ExitCode> {
     rpcUrl: g.rpcUrl,
     grpcEndpoint: g.grpcEndpoint,
   });
-  const secrets = new SecretResolver(streams, g.secretFlags);
+  const secrets = new SecretResolver(streams, g.secretPaths);
   const keystore = new Keystore(root, store, () => secrets.masterPassword());
   const ledger = new Ledger();
   const signerResolver = new SignerResolver(keystore, ledger);
@@ -123,6 +150,15 @@ export async function main(argv: string[]): Promise<ExitCode> {
   registerNeutralCommands(registry, services);
   const chainModules: ChainModule[] = [new TronModule(services), new EvmModule(services)];
   for (const m of chainModules) m.registerCommands(registry);
+
+  // Single source of truth for capabilities: command-backed caps come from each module's
+  // descriptors; network-specific traits (e.g. fee.eip1559) come from the NetworkDescriptor.
+  const capsByFamily = new Map(chainModules.map((m) => [m.family, m.capabilities()]));
+  for (const n of Object.values(config.networks)) {
+    const cmdCaps = capsByFamily.get(n.family) ?? [];
+    const traits = n.capabilities.map((key) => ({ key, summary: TRAIT_SUMMARIES[key] ?? key }));
+    capabilityRegistry.register(n.id, [...cmdCaps, ...traits]);
+  }
 
   // ── meta short-circuit (keeps JSON stdout clean) ──
   if (hasMeta(tokens)) {
@@ -141,7 +177,6 @@ export async function main(argv: string[]): Promise<ExitCode> {
     output,
     network: g.network,
     account: g.account,
-    wallet: g.wallet,
     timeoutMs: g.timeout,
     quiet: g.quiet,
     verbose: g.verbose,

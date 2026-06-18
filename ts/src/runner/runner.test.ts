@@ -19,10 +19,11 @@ describe("parseGlobals", () => {
     expect(parseGlobals(["--output", "json"]).output).toBe("json");
   });
 
-  it("collects secret-bearing stdin flags", () => {
-    const g = parseGlobals(["wallet", "import", "--type", "seed", "--mnemonic-stdin"]);
-    expect(g.secretFlags.mnemonicStdin).toBe(true);
-    expect(g.secretFlags.passwordStdin).toBeUndefined();
+  it("maps --<kind>-stdin to a '-' path and --<kind>-file to its path", () => {
+    const g = parseGlobals(["wallet", "import-mnemonic", "--mnemonic-stdin", "--password-file", "/dev/fd/63"]);
+    expect(g.secretPaths.mnemonic).toBe("-");
+    expect(g.secretPaths.password).toBe("/dev/fd/63");
+    expect(g.secretPaths.privateKey).toBeUndefined();
   });
 
   it("ignores a value flag with no following token at end of argv", () => {

@@ -138,7 +138,7 @@ wallet-cli
 | --- | --- | --- | --- | --- |
 | `contract call` | 唯讀呼叫(triggerConstantContract) | opt · — | `contract.call` | `--contract*`、`--method*`、`[--params]` |
 | `contract send` | 寫入呼叫(triggerSmartContract) | req · req | `contract.call` | `--contract*`、`--method*`、`[--params]`、`[--call-value-sun]`、`[--fee-limit]`、`[--dry-run]`、`[--broadcast]`、`[--sign-only]` |
-| `contract deploy` | 部署合約 | req · req | `contract.deploy` | `--abi*`、`--bytecode*`、`--fee-limit*`、`[--constructor]`、`[--params]`、`[--dry-run]`、`[--broadcast]` |
+| `contract deploy` | 部署合約 | req · req | `contract.deploy` | `--abi*`、`--bytecode*`、`--fee-limit*`、`[--constructor-sig]`、`[--params]`、`[--dry-run]`、`[--broadcast]` |
 | `contract info` | 取合約 ABI/metadata(`get-contract`+`get-contract-info` 合一) | — · — | `contract.call` | `--contract*` |
 
 > `call`/`send` 是 `token`/`resource` 等具名命令的底層能力;`info` 取回的 ABI 可餵 `call`/`send` 省去手填 signature;`send --dry-run` 的 energy 預估走 `estimateEnergy`。
@@ -203,10 +203,10 @@ wallet-cli
 | `--only <native\|token>` | 命令 | 歷史類型過濾 | `account history` |
 | `--method <sig>` | 命令 | 方法簽名,如 `transfer(address,uint256)` | `contract call/send` |
 | `--params <json>` | 命令 | call/send=方法參數;deploy=constructor 參數 | `contract call/send/deploy` |
-| `--call-value-sun <n>` | 命令 | 隨呼叫附帶的 TRX(SUN) | `contract send` |
+| `--call-value-sun <n>` | 命令 | 隨呼叫附帶的 TRX(SUN),預設 0 | `contract send` |
 | `--abi <json>` | 命令 | 合約 ABI(JSON) | `contract deploy` |
 | `--bytecode <hex>` | 命令 | 合約 bytecode | `contract deploy` |
-| `--constructor <sig>` | 命令 | constructor 簽名(與 `--params` 並用) | `contract deploy` |
+| `--constructor-sig <sig>` | 命令 | constructor 簽名(與 `--params` 並用;舊名 `--constructor` 因撞 JS 原型保留字而改名) | `contract deploy` |
 | `--message <text>` | 命令 | 待簽訊息 | `message sign` |
 | `--message-file <path>` | 命令/資料 | 由檔案/stdin 餵待簽訊息;`path` ∈ `-`(stdin)/檔案/`/dev/fd/N`(`--message-stdin` 為 `--message-file -` 別名;與 `--message` 互斥) | `message sign` |
 

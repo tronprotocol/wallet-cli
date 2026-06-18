@@ -40,17 +40,24 @@ const GLOBAL_OPTS = {
   output: { type: "string", choices: ["text", "json"], alias: "o" },
   network: { type: "string" },
   account: { type: "string" },
-  wallet: { type: "string" },
   timeout: { type: "number" },
   quiet: { type: "boolean" },
   verbose: { type: "boolean" },
+  stream: { type: "boolean" },
   "no-device-wait": { type: "boolean" },
   "grpc-endpoint": { type: "string" },
   "rpc-url": { type: "string" },
+  // secret/data channels: `--<kind>-file <path>` (path = - | file | /dev/fd/N), `--<kind>-stdin` alias.
+  "password-file": { type: "string" },
+  "private-key-file": { type: "string" },
+  "mnemonic-file": { type: "string" },
+  "tx-file": { type: "string" },
+  "message-file": { type: "string" },
   "password-stdin": { type: "boolean" },
   "private-key-stdin": { type: "boolean" },
   "mnemonic-stdin": { type: "boolean" },
   "tx-stdin": { type: "boolean" },
+  "message-stdin": { type: "boolean" },
 } as const;
 
 export function buildCli(opts: ShellOptions): Argv {
@@ -70,7 +77,8 @@ export function buildCli(opts: ShellOptions): Argv {
     // optional positionals: a missing resource/action resolves to unknown_command (exit 2)
     // rather than relying on yargs' English "Not enough arguments" message.
     cli.command(
-      `${fam} [resource] [action]`,
+      // positional 變數名用中性的 group/verb,避免與命令 flag(如 `--resource`)撞名 → shadow。
+      `${fam} [group] [verb]`,
       `${fam} commands`,
       (y) => ZodYargsAdapter.applyCommands(y, fieldsOf(fam)),
       (argv) => dispatch(opts, fam, argv),
@@ -78,7 +86,7 @@ export function buildCli(opts: ShellOptions): Argv {
   }
   for (const ns of opts.registry.neutralNamespaces()) {
     cli.command(
-      `${ns} [action]`,
+      `${ns} [verb]`,
       `${ns} commands`,
       (y) => ZodYargsAdapter.applyCommands(y, fieldsOf(ns)),
       (argv) => dispatch(opts, ns, argv),
@@ -91,16 +99,24 @@ async function dispatch(opts: ShellOptions, ns: string, argv: any): Promise<void
   const { registry, globals, deps, capGate, streams, formatter, session } = opts;
   const family = ns === "tron" || ns === "evm" ? (ns as ChainFamily) : undefined;
   const path = family
-    ? [argv.resource, argv.action].filter(Boolean)
-    : [argv.action].filter(Boolean);
+    ? [argv.group, argv.verb].filter(Boolean)
+    : [argv.verb].filter(Boolean);
 
   const cmd = registry.resolveConcrete(ns, path);
   if (!cmd) throw new UsageError("unknown_command", `unknown command: ${[ns, ...path].join(" ")}`);
   session.current = { commandId: cmd.id };
+  assertKnownFlags(cmd, argv);
 
   let net: NetworkDescriptor | undefined;
-  if (cmd.network === "required") {
-    net = deps.networkRegistry.resolve(globals.network);
+  if (cmd.network !== "none") {
+    if (globals.network) {
+      net = deps.networkRegistry.resolve(globals.network);
+    } else if (cmd.network === "required") {
+      throw new UsageError("missing_network", "this command requires --network <id|alias>");
+    } else {
+      // net=optional: fall back to the family default network (§7.5).
+      net = deps.networkRegistry.resolveDefault(family!);
+    }
     if (family && net.family !== family) {
       throw new UsageError("network_family_mismatch", `${family} does not support network ${net.id}`);
     }
@@ -113,12 +129,35 @@ async function dispatch(opts: ShellOptions, ns: string, argv: any): Promise<void
   const ctx = buildExecutionContext(globals, deps);
   // enforce the declared wallet/auth contract up front (deterministic, before run()).
   if (cmd.auth === "required" && !deps.secrets.hasMasterPassword()) {
-    throw new ExecutionError("auth_required", "master password required: set MASTER_PASSWORD or pass --password-stdin");
+    throw new ExecutionError("auth_required", "master password required: pass --password-file <path> (or --password-stdin)");
   }
   if (cmd.wallet === "required") void ctx.activeAccount; // throws missing_wallet_address if none
 
   const data = await cmd.run(ctx, net, input);
   streams.result(formatter.success(cmd, net, data));
+}
+
+const kebabToCamel = (s: string): string => s.replace(/-([a-z0-9])/g, (_m, c) => c.toUpperCase());
+
+/**
+ * Reject unknown/misspelled flags (yargs is non-strict so it would otherwise pass them through
+ * and zod would silently strip them). Allowed = positionals + globals + THIS command's fields
+ * (a sibling command's flag in the same namespace is unknown here). → invalid_option, exit 2.
+ */
+function assertKnownFlags(cmd: CommandDefinition, argv: any): void {
+  const allowed = new Set<string>(["_", "$0", "group", "verb"]);
+  const add = (name: string) => {
+    allowed.add(name);
+    allowed.add(camelToKebab(name));
+    allowed.add(kebabToCamel(name));
+  };
+  for (const k of Object.keys(GLOBAL_OPTS)) add(k);
+  add("o"); // --output alias
+  for (const k of Object.keys(cmd.fields.shape)) add(k);
+  const unknown = Object.keys(argv).filter((k) => !allowed.has(k));
+  if (unknown.length > 0) {
+    throw new UsageError("invalid_option", `unknown option(s): ${unknown.map((u) => `--${camelToKebab(u)}`).join(", ")}`);
+  }
 }
 
 function parseInput(cmd: CommandDefinition, argv: any): unknown {

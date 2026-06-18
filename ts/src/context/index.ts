@@ -16,7 +16,7 @@ import type {
   StreamManager,
 } from "../types/index.js";
 import type { OutputFormatter } from "../output/index.js";
-import { Keystore, accountRef, accountIndices, walletAddress } from "../keystore/index.js";
+import { Keystore, accountRef, walletAddress } from "../keystore/index.js";
 import { WalletError } from "../errors/index.js";
 
 export interface RuntimeDeps {
@@ -63,9 +63,6 @@ class ExecutionContextImpl implements ExecutionContext {
     if (this.globals.account) {
       const { wallet, index } = ks.resolveAccount(this.globals.account);
       ref = accountRef(wallet.id, wallet.source.type === "seed" ? index : null);
-    } else if (this.globals.wallet) {
-      const wallet = ks.resolveWallet(this.globals.wallet);
-      ref = accountRef(wallet.id, wallet.source.type === "seed" ? (accountIndices(wallet.source)[0] ?? 0) : null);
     } else {
       ref = ks.activeAccount();
     }

@@ -94,6 +94,44 @@ describe("Keystore", () => {
     expect(ks.list()).toHaveLength(2);
   });
 
+  it("registerWatch stores a secret-less, index-less watch account", () => {
+    const wRef = ks.registerWatch({ family: "tron", address: "Twatch1", label: "obs" });
+    expect(wRef).toMatch(/^wlt_[a-z0-9]+$/);
+    expect(wRef).not.toContain(".");
+    const { wallet, index } = ks.resolveAccount(wRef);
+    expect(index).toBe(-1);
+    expect(wallet.source.type).toBe("watch");
+    expect(walletAddress(wallet, "tron")).toBe("Twatch1");
+  });
+
+  it("registerWatch dedupes by (family, address)", () => {
+    const a = ks.registerWatch({ family: "tron", address: "Twatch1" });
+    const b = ks.registerWatch({ family: "tron", address: "Twatch1" });
+    expect(b).toBe(a);
+    expect(ks.list()).toHaveLength(1);
+    // different family or address is a distinct entry
+    const c = ks.registerWatch({ family: "evm", address: "Twatch1" });
+    const d = ks.registerWatch({ family: "tron", address: "Twatch2" });
+    expect(c).not.toBe(a);
+    expect(d).not.toBe(a);
+    expect(ks.list()).toHaveLength(3);
+  });
+
+  it("registerWatch stays independent of a software account with the same address", () => {
+    const seedRef = ks.import({ secret: MNEMONIC, type: "seed" });
+    const tronAddr = walletAddress(ks.resolveAccount(seedRef).wallet, "tron")!;
+    const wRef = ks.registerWatch({ family: "tron", address: tronAddr });
+    expect(wRef).not.toBe(seedRef);
+    expect(ks.list()).toHaveLength(2);
+    // and a later seed re-import still dedups to the seed, not the watch
+    expect(ks.import({ secret: MNEMONIC, type: "seed" })).toBe(seedRef);
+  });
+
+  it("add-account on a watch wallet is rejected", () => {
+    const wRef = ks.registerWatch({ family: "tron", address: "Twatch1" });
+    expect(() => ks.addAccount(wRef.split(".")[0]!)).toThrow(/not HD/i);
+  });
+
   it("add-account on a ledger wallet is rejected with a re-import hint", () => {
     const ledRef = ks.registerLedger({ family: "evm", path: EVM0_PATH, address: EVM0 });
     const walletId = ledRef.split(".")[0]!;
@@ -147,6 +185,54 @@ describe("Keystore", () => {
     const ref = ks.import({ secret: MNEMONIC, type: "seed" });
     const walletId = ref.split(".")[0]!;
     expect(() => ks.resolveAccount(`${walletId}.abc`)).toThrow(/invalid account ref/);
+  });
+
+  it("enforces one global master password across the keystore (§7.4.1 sentinel)", () => {
+    const root = mkdtempSync(join(tmpdir(), "ks-"));
+    const pk = "59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d";
+    const alice = new Keystore(root, new AtomicFileStore(), () => "alice-pw-1A");
+    alice.import({ secret: MNEMONIC, type: "seed" });
+    // a second wallet imported under a DIFFERENT password must be rejected, not silently stored
+    const bob = new Keystore(root, new AtomicFileStore(), () => "bob-pw-2B");
+    expect(() => bob.import({ secret: pk, type: "privateKey" })).toThrow(/auth_failed|incorrect|does not match/i);
+    // the original password still works
+    const alice2 = new Keystore(root, new AtomicFileStore(), () => "alice-pw-1A");
+    expect(() => alice2.import({ secret: pk, type: "privateKey" })).not.toThrow();
+  });
+
+  it("multi-account seed: selecting the wallet layer is ambiguous and hard-errors (§7.3)", () => {
+    const ref = ks.import({ secret: MNEMONIC, type: "seed" });
+    const walletId = ref.split(".")[0]!;
+    ks.addAccount(walletId); // now has .0 and .1
+    expect(() => ks.resolveAccount(walletId)).toThrow(/multi-account|specify an account/i);
+    expect(ks.resolveAccount(`${walletId}.1`).index).toBe(1); // explicit ref still resolves
+  });
+
+  it("delete by account ref forgets only that HD account; the vault/secret survives", () => {
+    const ref = ks.import({ secret: MNEMONIC, type: "seed" });
+    const walletId = ref.split(".")[0]!;
+    ks.addAccount(walletId); // .1
+    ks.delete(`${walletId}.1`);
+    const views = ks.list();
+    expect(views).toHaveLength(1);
+    expect(views[0]!.ref).toBe(`${walletId}.0`);
+    const vaultId = (ks.resolveAccount(`${walletId}.0`).wallet.source as any).vaultId;
+    expect(() => ks.decryptSeed(vaultId)).not.toThrow();
+  });
+
+  it("delete by wallet-level ref removes the whole seed wallet and its vault", () => {
+    const ref = ks.import({ secret: MNEMONIC, type: "seed" });
+    const walletId = ref.split(".")[0]!;
+    ks.addAccount(walletId);
+    const vaultId = (ks.resolveAccount(`${walletId}.0`).wallet.source as any).vaultId;
+    ks.delete(walletId);
+    expect(ks.list()).toHaveLength(0);
+    expect(() => ks.decryptSeed(vaultId)).toThrow(/missing vault/);
+  });
+
+  it("resolves an account by its cached address (§7.3 selector)", () => {
+    const ref = ks.import({ secret: MNEMONIC, type: "seed" });
+    expect(ks.resolveAccount(EVM0).wallet.id).toBe(ref.split(".")[0]);
   });
 
   it("rejects a wrong master password on decrypt", () => {

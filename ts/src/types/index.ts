@@ -22,6 +22,8 @@ export interface NetworkDescriptor {
   rpcUrl?: string;
   grpcEndpoint?: string;
   solidityGrpcEndpoint?: string;
+  /** indexer base URL (TronGrid) for `account history`; absent → indexer_not_configured. */
+  tronGridUrl?: string;
   feeModel?: FeeModel;
   capabilities: string[];
   rpc?: RpcClient; // attached lazily by NetworkRegistry.resolve
@@ -35,6 +37,8 @@ export interface CapabilityDescriptor {
 export interface Config {
   defaultOutput: OutputMode;
   timeoutMs: number;
+  /** net=optional fallback network per family (§7.5). Missing → builtin mainnet. */
+  defaults?: { network?: Partial<Record<ChainFamily, string>> };
   networks: Record<NetworkId, NetworkDescriptor>;
 }
 
@@ -47,11 +51,13 @@ export type ChainAddresses = { tron: string; evm: string };
  * - seed: index("0","1",…) → both-chain addresses (known indices = Object.keys(addresses))
  * - privateKey: flat both-chain addresses (no index, no "" sentinel)
  * - ledger: single family + path + watch-only address (no index)
+ * - watch: single family + address; no secret, no path, no file (= ledger minus path)
  */
 export type Source =
   | { type: "seed"; vaultId: string; addresses: Record<string, ChainAddresses> }
   | { type: "privateKey"; keyId: string; addresses: ChainAddresses }
-  | { type: "ledger"; family: ChainFamily; path: string; address: string };
+  | { type: "ledger"; family: ChainFamily; path: string; address: string }
+  | { type: "watch"; family: ChainFamily; address: string };
 
 export interface Wallet {
   id: string;
@@ -75,7 +81,7 @@ export interface WalletView {
   active: boolean;
 }
 
-export type KeystoreType = "bip39-seed" | "raw-privkey";
+export type KeystoreType = "bip39-seed" | "raw-privkey" | "verifier";
 export interface CryptoParams {
   cipher: "aes-128-ctr";
   ciphertext: string;
@@ -146,16 +152,24 @@ export interface StreamManager {
   warnings(): string[];
 }
 
-export type SecretKind = "password" | "privateKey" | "mnemonic" | "tx";
+export type SecretKind = "password" | "privateKey" | "mnemonic" | "tx" | "message";
 export interface SecretResolver {
   masterPassword(): string;
   /** whether a master-password source exists, WITHOUT consuming stdin. */
   hasMasterPassword(): boolean;
+  /** whether a source for `kind` is configured, WITHOUT consuming it. */
+  has(kind: SecretKind): boolean;
   read(kind: SecretKind): string;
+  /** read a required source; missing → missing_option (usage), not secret_source_error. */
+  require(kind: SecretKind): string;
+  /** exactly-one selector: inline value XOR the file/stdin source for `kind`. */
+  pick(inline: string | undefined, kind: SecretKind, inlineFlag: string): string;
 }
 
 export interface NetworkRegistry {
   resolve(idOrAlias: string | undefined): NetworkDescriptor;
+  /** net=optional fallback when --network is omitted: config default → builtin mainnet. */
+  resolveDefault(family: ChainFamily): NetworkDescriptor;
   all(): NetworkDescriptor[];
 }
 
@@ -181,7 +195,7 @@ export interface Example {
   note?: string;
 }
 
-export type NetworkRequirement = "none" | "required";
+export type NetworkRequirement = "none" | "optional" | "required";
 export type WalletRequirement = "none" | "optional" | "required";
 export type AuthRequirement = "none" | "optional" | "required";
 
@@ -275,7 +289,6 @@ export interface Globals {
   output: OutputMode;
   network?: string;
   account?: string;
-  wallet?: string;
   timeoutMs?: number;
   quiet: boolean;
   verbose: boolean;

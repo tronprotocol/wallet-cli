@@ -31,6 +31,8 @@ export class SignerResolver {
       }
       case "ledger":
         return new LedgerSigner(this.ledger, wallet.source.family, wallet.source.path, address);
+      case "watch":
+        throw new WalletError("watch_only_no_signer", "watch-only account cannot sign; import its secret to sign");
     }
   }
 }

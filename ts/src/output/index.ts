@@ -102,14 +102,28 @@ function renderText(command: string, net: NetworkDescriptor | undefined, data: u
   if (net) lines.push(`  network: ${net.aliases[0] ?? net.chainId} (${net.id})`);
   if (data && typeof data === "object" && !Array.isArray(data)) {
     for (const [k, v] of Object.entries(data as Record<string, unknown>)) {
-      lines.push(`  ${k}: ${stringifyValue(v)}`);
+      if (Array.isArray(v) && v.length > 0) {
+        lines.push(`  ${k}:`);
+        for (const item of v) lines.push(`    - ${formatItem(item)}`);
+      } else {
+        lines.push(`  ${k}: ${stringifyValue(v)}`);
+      }
     }
   } else if (data !== undefined && data !== null && !(typeof data === "object")) {
     lines.push(`  ${String(data)}`);
   } else if (Array.isArray(data)) {
-    for (const item of data) lines.push(`  - ${stringifyValue(item)}`);
+    for (const item of data) lines.push(`  - ${formatItem(item)}`);
   }
   return lines.join("\n");
+}
+
+/** an array element: {key, summary} descriptors read as "key — summary"; else fall back to JSON. */
+function formatItem(item: unknown): string {
+  if (item && typeof item === "object" && !Array.isArray(item) && "key" in item) {
+    const o = item as { key: unknown; summary?: unknown };
+    return o.summary ? `${o.key} — ${o.summary}` : String(o.key);
+  }
+  return stringifyValue(item);
 }
 
 function stringifyValue(v: unknown): string {

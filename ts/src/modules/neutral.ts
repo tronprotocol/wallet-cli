@@ -6,6 +6,7 @@
 import { z } from "zod";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 import { existsSync, readFileSync } from "node:fs";
+import { bytesToHex } from "@noble/hashes/utils.js";
 import type { ChainFamily, CommandDefinition, Wallet } from "../types/index.js";
 import { Schemas } from "../contract/index.js";
 import { CommandRegistry } from "../registry/index.js";
@@ -13,57 +14,53 @@ import type { Services } from "./services.js";
 import { Derivation } from "../derivation/index.js";
 import { resolveLedgerPath } from "../ledger/index.js";
 import { walletAddress } from "../keystore/index.js";
-import { camelToKebab } from "../adapter/index.js";
+import { addressCodec } from "../address/index.js";
 import { ConfigLoader } from "../config/index.js";
 import { AtomicFileStore } from "../fs/index.js";
-import { UsageError } from "../errors/index.js";
+import { UsageError, WalletError } from "../errors/index.js";
 
 /** both-chain address projection of an account, for command output. */
 function bothAddresses(wallet: Wallet, index?: number): { tron?: string; evm?: string } {
   return { tron: walletAddress(wallet, "tron", index), evm: walletAddress(wallet, "evm", index) };
 }
 
-// ── wallet import contract ────────────────────────────────────────────────────
-const LEDGER_ONLY = ["app", "index", "path", "address", "scanLimit"] as const;
-const importFields = z.object({
-  type: z.enum(["seed", "privateKey", "ledger"]).describe("secret source"),
+// ── wallet import-ledger contract (module scope so it can be unit-tested) ───────
+export const walletImportLedgerFields = z.object({
+  app: z.enum(["tron", "ethereum"]).describe("ledger app / chain"),
+  index: z.coerce.number().int().nonnegative().optional().describe("account index"),
+  path: z.string().optional().describe("explicit BIP32 path"),
+  address: z.string().optional().describe("known address to locate (bounded scan)"),
+  scanLimit: z.coerce.number().int().positive().optional().describe("--address scan limit (default 20)"),
   label: Schemas.label().optional(),
-  passphrase: z.string().optional().describe("BIP39 passphrase (seed only)"),
-  app: z.enum(["tron", "ethereum"]).optional().describe("ledger app / chain (ledger only)"),
-  index: z.coerce.number().int().nonnegative().optional().describe("ledger account index (ledger only)"),
-  path: z.string().optional().describe("explicit BIP32 path (ledger only)"),
-  address: z.string().optional().describe("known address to locate on the device (ledger only)"),
-  scanLimit: z.coerce.number().int().positive().optional().describe("accounts to scan for --address (default 20)"),
 });
-/** whole-object validation: ledger needs --app + ≤1 locator; non-ledger forbids ledger-only flags. */
-export const walletImportInput = importFields.superRefine((v, ctx) => {
-  if (v.type === "ledger") {
-    if (!v.app) ctx.addIssue({ code: "custom", path: ["app"], message: "--app is required for ledger import (tron|ethereum)" });
-    const locators = [v.index !== undefined, v.path !== undefined, v.address !== undefined].filter(Boolean).length;
-    if (locators > 1) {
-      ctx.addIssue({ code: "custom", path: ["index"], message: "--index, --path and --address are mutually exclusive" });
-    }
-  } else {
-    for (const k of LEDGER_ONLY) {
-      if (v[k] !== undefined) {
-        ctx.addIssue({ code: "custom", path: [k], message: `--${camelToKebab(k)} is only valid for --type ledger` });
-      }
-    }
-  }
+/** --index / --path / --address are mutually exclusive (at most one locator). */
+export const walletImportLedgerInput = walletImportLedgerFields.superRefine((v, c) => {
+  const locators = [v.index !== undefined, v.path !== undefined, v.address !== undefined].filter(Boolean).length;
+  if (locators > 1) c.addIssue({ code: "custom", path: ["index"], message: "--index, --path and --address are mutually exclusive" });
 });
+
+/** infer the chain family of a watch address from its on-chain encoding (T… / 0x…). */
+function detectWatchFamily(address: string): ChainFamily {
+  if (addressCodec("tron").validate(address)) return "tron";
+  if (addressCodec("evm").validate(address)) return "evm";
+  throw new UsageError("invalid_option", `unrecognised address format: ${address}`);
+}
 
 export function registerNeutralCommands(reg: CommandRegistry, services: Services): void {
   const ks = services.keystore;
   const empty = z.object({});
 
   // ── wallet create ────────────────────────────────────────────────────────
-  const createFields = z.object({ label: Schemas.label().optional() });
+  const createFields = z.object({
+    label: Schemas.label().optional(),
+    words: z.coerce.number().refine((v) => v === 12 || v === 24, "must be 12 or 24").default(12).describe("mnemonic word count"),
+  });
   reg.add({
     id: "wallet.create", path: ["create"], network: "none", wallet: "none", auth: "required",
     summary: "create a new HD wallet (BIP39 seed)", fields: createFields, input: createFields,
-    examples: [{ cmd: "wallet-cli wallet create --label main" }],
+    examples: [{ cmd: "wallet-cli wallet create --label main --words 24" }],
     run: async (ctx, _net, input) => {
-      const mnemonic = Derivation.generateMnemonic();
+      const mnemonic = Derivation.generateMnemonic(input.words === 24 ? 256 : 128);
       const ref = ks.import({ secret: mnemonic, type: "seed", label: input.label });
       ctx.streams.diagnostic("info", `SAVE YOUR RECOVERY PHRASE (shown once, not stored in output):\n${mnemonic}`);
       const { wallet, index } = ks.resolveAccount(ref);
@@ -71,26 +68,64 @@ export function registerNeutralCommands(reg: CommandRegistry, services: Services
     },
   } satisfies CommandDefinition);
 
+  // ── wallet import-mnemonic ─────────────────────────────────────────────────
+  // BIP39 passphrase intentionally NOT exposed in phase 1 (§7.14.3); plumbing stays.
+  const importMnemonicFields = z.object({ label: Schemas.label().optional() });
   reg.add({
-    id: "wallet.import", path: ["import"], network: "none", wallet: "none", auth: "optional",
-    summary: "import a seed / private key / register a ledger", fields: importFields, input: walletImportInput,
-    examples: [
-      { cmd: "echo $MNEMONIC | wallet-cli wallet import --type seed --mnemonic-stdin --label main" },
-      { cmd: "wallet-cli wallet import --type ledger --app ethereum --index 0 --label cold" },
-    ],
+    id: "wallet.import-mnemonic", path: ["import-mnemonic"], network: "none", wallet: "none", auth: "required",
+    summary: "import an existing BIP39 mnemonic (encrypted at rest)", fields: importMnemonicFields, input: importMnemonicFields,
+    examples: [{ cmd: "wallet-cli wallet import-mnemonic --mnemonic-stdin --password-file <(security ...) --label main" }],
     run: async (ctx, _net, input) => {
-      if (input.type === "ledger") {
-        const family: ChainFamily = input.app === "ethereum" ? "evm" : "tron";
-        const path = await resolveLedgerPath(services.ledger, family, input);
-        ctx.emit({ type: "awaiting_device", reason: "verify_address" });
-        const address = await services.ledger.getAddress(family, path, { display: false });
-        const ref = ks.registerLedger({ family, path, address, label: input.label });
-        return { account: ref, addresses: { [family]: address } };
-      }
-      const secret = ctx.secrets.read(input.type === "seed" ? "mnemonic" : "privateKey");
-      const ref = ks.import({ secret, type: input.type, passphrase: input.passphrase, label: input.label });
+      const secret = ctx.secrets.require("mnemonic");
+      const ref = ks.import({ secret, type: "seed", label: input.label });
       const { wallet, index } = ks.resolveAccount(ref);
       return { account: ref, addresses: bothAddresses(wallet, index) };
+    },
+  } satisfies CommandDefinition);
+
+  // ── wallet import-private-key ──────────────────────────────────────────────
+  const importPrivateKeyFields = z.object({ label: Schemas.label().optional() });
+  reg.add({
+    id: "wallet.import-private-key", path: ["import-private-key"], network: "none", wallet: "none", auth: "required",
+    summary: "import an existing private key (encrypted at rest)", fields: importPrivateKeyFields, input: importPrivateKeyFields,
+    examples: [{ cmd: "wallet-cli wallet import-private-key --private-key-file <(op read ...) --password-file <(...) --label hot" }],
+    run: async (ctx, _net, input) => {
+      const secret = ctx.secrets.require("privateKey");
+      const ref = ks.import({ secret, type: "privateKey", label: input.label });
+      const { wallet, index } = ks.resolveAccount(ref);
+      return { account: ref, addresses: bothAddresses(wallet, index) };
+    },
+  } satisfies CommandDefinition);
+
+  // ── wallet import-ledger ────────────────────────────────────────────────────
+  reg.add({
+    id: "wallet.import-ledger", path: ["import-ledger"], network: "none", wallet: "none", auth: "none",
+    summary: "register a Ledger account (watch-only; signs on the device)", fields: walletImportLedgerFields, input: walletImportLedgerInput,
+    examples: [{ cmd: "wallet-cli wallet import-ledger --app ethereum --index 0 --label cold" }],
+    run: async (ctx, _net, input) => {
+      const family: ChainFamily = input.app === "ethereum" ? "evm" : "tron";
+      const path = await resolveLedgerPath(services.ledger, family, input);
+      ctx.emit({ type: "awaiting_device", reason: "verify_address" });
+      const address = await services.ledger.getAddress(family, path, { display: false });
+      const ref = ks.registerLedger({ family, path, address, label: input.label });
+      return { account: ref, addresses: { [family]: address } };
+    },
+  } satisfies CommandDefinition);
+
+  // ── wallet import-watch ──────────────────────────────────────────────────────
+  const importWatchFields = z.object({
+    address: z.string().min(1).describe("address to track (family auto-detected: T… / 0x…)"),
+    label: Schemas.label().optional(),
+  });
+  reg.add({
+    id: "wallet.import-watch", path: ["import-watch"], network: "none", wallet: "none", auth: "none",
+    summary: "register a watch-only address (no secret)", fields: importWatchFields, input: importWatchFields,
+    examples: [{ cmd: "wallet-cli wallet import-watch --address T... --label team-vault" }],
+    run: async (_ctx, _net, input) => {
+      const address = input.address.trim();
+      const family = detectWatchFamily(address);
+      const ref = ks.registerWatch({ family, address, label: input.label });
+      return { account: ref, addresses: { [family]: address } };
     },
   } satisfies CommandDefinition);
 
@@ -111,12 +146,23 @@ export function registerNeutralCommands(reg: CommandRegistry, services: Services
     run: async (_ctx, _net, input) => ({ active: ks.setActive(input.account) }),
   } satisfies CommandDefinition);
 
+  // ── wallet active ─────────────────────────────────────────────────────────────
+  reg.add({
+    id: "wallet.active", path: ["active"], network: "none", wallet: "optional", auth: "none",
+    summary: "show the current active account", fields: empty, input: empty,
+    examples: [{ cmd: "wallet-cli wallet active" }],
+    run: async (ctx) => {
+      const { wallet, index } = ks.resolveAccount(ctx.activeAccount);
+      return { account: ctx.activeAccount, type: wallet.source.type, addresses: bothAddresses(wallet, index) };
+    },
+  } satisfies CommandDefinition);
+
   // ── wallet export-address ────────────────────────────────────────────────────
   const exportFields = z.object({ family: z.enum(["tron", "evm"]).optional().describe("limit to one chain") });
   reg.add({
     id: "wallet.export-address", path: ["export-address"], network: "none", wallet: "optional", auth: "none",
-    summary: "show the active account's addresses", fields: exportFields, input: exportFields,
-    examples: [{ cmd: "wallet-cli wallet export-address --family evm" }],
+    summary: "show an account's receive addresses", fields: exportFields, input: exportFields,
+    examples: [{ cmd: "wallet-cli wallet export-address --family evm --account main" }],
     run: async (ctx, _net, input) => {
       const { wallet, index } = ks.resolveAccount(ctx.activeAccount);
       const all = bothAddresses(wallet, index);
@@ -144,14 +190,52 @@ export function registerNeutralCommands(reg: CommandRegistry, services: Services
   } satisfies CommandDefinition);
 
   // ── wallet add-account ────────────────────────────────────────────────────────
-  const addAccountFields = z.object({ wallet: z.string().min(1).describe("wallet id or label") });
+  const addAccountFields = z.object({
+    account: z.string().min(1).describe("seed wallet (ref or label) to derive from"),
+    label: Schemas.label().optional().describe("label for the new sub-account"),
+  });
   reg.add({
     id: "wallet.add-account", path: ["add-account"], network: "none", wallet: "none", auth: "required",
-    summary: "derive the next HD account in a wallet", fields: addAccountFields, input: addAccountFields,
-    examples: [{ cmd: "wallet-cli wallet add-account --wallet main" }],
+    summary: "derive the next HD account in a seed wallet", fields: addAccountFields, input: addAccountFields,
+    examples: [{ cmd: "wallet-cli wallet add-account --account main" }],
     run: async (_ctx, _net, input) => {
-      const w = ks.resolveWallet(input.wallet);
-      return { account: ks.addAccount(w.id) };
+      const { wallet } = ks.resolveAccount(input.account);
+      const ref = ks.addAccount(wallet.id);
+      if (input.label) ks.rename(ref, input.label);
+      return { account: ref, label: input.label };
+    },
+  } satisfies CommandDefinition);
+
+  // ── wallet delete ─────────────────────────────────────────────────────────────
+  const deleteFields = z.object({ account: z.string().min(1).describe("account or wallet (ref or label)") });
+  reg.add({
+    id: "wallet.delete", path: ["delete"], network: "none", wallet: "none", auth: "none",
+    summary: "delete a wallet/account and clean orphan labels", fields: deleteFields, input: deleteFields,
+    examples: [{ cmd: "wallet-cli wallet delete --account old" }],
+    run: async (_ctx, _net, input) => {
+      ks.delete(input.account);
+      return { deleted: input.account };
+    },
+  } satisfies CommandDefinition);
+
+  // ── wallet backup ─────────────────────────────────────────────────────────────
+  // Only command that may write a secret to stdout — gated behind --reveal-secret.
+  const backupFields = z.object({
+    account: z.string().min(1).describe("account or wallet (ref or label)"),
+    revealSecret: z.boolean().default(false).describe("output the mnemonic/private key (default: metadata only)"),
+  });
+  reg.add({
+    id: "wallet.backup", path: ["backup"], network: "none", wallet: "none", auth: "required",
+    summary: "export an account's secret (metadata-only unless --reveal-secret)", fields: backupFields, input: backupFields,
+    examples: [{ cmd: "wallet-cli wallet backup --account main --reveal-secret --password-stdin" }],
+    run: async (_ctx, _net, input) => {
+      const { wallet, index } = ks.resolveAccount(input.account);
+      const src = wallet.source;
+      const meta = { account: input.account, walletId: wallet.id, type: src.type, addresses: bothAddresses(wallet, index) };
+      if (!input.revealSecret) return meta;
+      if (src.type === "seed") return { ...meta, secretType: "mnemonic", mnemonic: ks.revealMnemonic(src.vaultId) };
+      if (src.type === "privateKey") return { ...meta, secretType: "privateKey", privateKey: bytesToHex(ks.decryptKey(src.keyId)) };
+      throw new WalletError("watch_only_no_signer", `${src.type} accounts hold no exportable secret`);
     },
   } satisfies CommandDefinition);
 
@@ -211,6 +295,7 @@ export function registerNeutralCommands(reg: CommandRegistry, services: Services
     id: "capabilities", path: [], network: "required", wallet: "none", auth: "none",
     summary: "list capabilities supported by a network", fields: empty, input: empty,
     examples: [{ cmd: "wallet-cli capabilities --network nile" }],
-    run: async (_ctx, net) => ({ network: net!.id, capabilities: services.capabilityRegistry.list(net!.id) }),
+    // network identity is already in the output envelope's chain field; return key+summary descriptors.
+    run: async (_ctx, net) => ({ capabilities: services.capabilityRegistry.describe(net!.id) }),
   } satisfies CommandDefinition);
 }

@@ -2,3 +2,5 @@ node_modules/
 dist/
 *.log
 .wallet-cli/
+.env
+.private/

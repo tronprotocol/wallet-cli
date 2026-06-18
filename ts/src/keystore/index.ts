@@ -73,6 +73,9 @@ export class Keystore {
         const dup = findByAddress(file, addr0);
         if (dup) return dup;
         const vaultId = this.#freshId("vlt", file);
+        // global master-password invariant (§7.4.1): establish/verify the sentinel inside the
+        // SAME lock as the blob write, so two parallel first-imports can't seed two passwords.
+        this.#assertPassword({ createIfAbsent: true });
         // persist passphrase inside the encrypted vault so decryptSeed reconstructs the SAME
         // seed (otherwise the displayed address and the signing key would diverge).
         this.#writeBlob("vaults", CryptoEnvelope.encrypt(encodeVault(entropy, p.passphrase), password, vaultId, "bip39-seed"));
@@ -84,6 +87,7 @@ export class Keystore {
         const dup = findByAddress(file, addr);
         if (dup) return dup;
         const keyId = this.#freshId("key", file);
+        this.#assertPassword({ createIfAbsent: true }); // §7.4.1 sentinel, inside this lock
         this.#writeBlob("keys", CryptoEnvelope.encrypt(pk, password, keyId, "raw-privkey"));
         source = { type: "privateKey", keyId, addresses: addr };
       }
@@ -110,6 +114,28 @@ export class Keystore {
       const wallet: Wallet = {
         id: walletId,
         source: { type: "ledger", family: p.family, path: p.path, address: p.address },
+      };
+      const ref = accountRefOf(wallet, null);
+      file.wallets.push(wallet);
+      this.#assignLabel(file, ref, p.label);
+      if (!file.activeAccount) file.activeAccount = ref;
+      this.#write(file);
+      return ref;
+    });
+  }
+
+  registerWatch(p: { family: ChainFamily; address: string; label?: string }): AccountRef {
+    return this.store.withLock(this.walletsPath, () => {
+      const file = this.#read();
+      // watch is secret-less; like ledger it stays distinct from a software account with the
+      // same address — the dedup key is (family, address), see findWatchByAddress.
+      const dup = findWatchByAddress(file, p.family, p.address);
+      if (dup) return dup;
+      const walletId = this.#freshId("wlt", file);
+      // no encrypted blob: a watch account holds no secret, only family+address.
+      const wallet: Wallet = {
+        id: walletId,
+        source: { type: "watch", family: p.family, address: p.address },
       };
       const ref = accountRefOf(wallet, null);
       file.wallets.push(wallet);
@@ -149,7 +175,16 @@ export class Keystore {
     if (wallet.source.type !== "seed") return { wallet, index: -1 };
     let index: number;
     if (idxStr === undefined) {
-      index = accountIndices(wallet.source)[0] ?? 0;
+      // wallet-layer selection of a seed: unambiguous only when it has exactly one account.
+      // Multi-account → hard error (the signing path never guesses which account, §7.3).
+      const known = accountIndices(wallet.source);
+      if (known.length > 1) {
+        throw new UsageError(
+          "invalid_value",
+          `'${refOrLabel}' selects a multi-account seed wallet; specify an account ref, e.g. ${wallet.id}.${known[0]}`,
+        );
+      }
+      index = known[0] ?? 0;
     } else {
       index = Number(idxStr);
       if (!Number.isInteger(index) || index < 0) {
@@ -217,9 +252,34 @@ export class Keystore {
     this.store.withLock(this.walletsPath, () => {
       const file = this.#read();
       const ref = this.#toRef(file, refOrWallet);
-      const walletId = ref.split(".")[0]!;
+      const [walletId, idxStr] = ref.split(".");
       const wallet = file.wallets.find((w) => w.id === walletId);
       if (!wallet) throw new WalletError("invalid_value", `unknown wallet ${refOrWallet}`);
+
+      // account-level delete: a single HD sub-account ref (wlt_x.N) forgets just that index
+      // (re-derivable from the seed). The vault/secret survives until the wallet itself is
+      // deleted via a wallet-level ref/label — destroying a secret needs an explicit target.
+      if (wallet.source.type === "seed" && idxStr !== undefined) {
+        if (!(idxStr in wallet.source.addresses)) {
+          throw new WalletError("invalid_value", `unknown account ${refOrWallet}`);
+        }
+        delete wallet.source.addresses[idxStr];
+        delete file.labels[ref];
+        const remaining = accountIndices(wallet.source);
+        if (remaining.length === 0) {
+          // the last known account is gone → drop the now-empty wallet and its vault.
+          file.wallets = file.wallets.filter((w) => w.id !== walletId);
+          delete file.labels[walletId!];
+          this.#removeBlobFiles(wallet.source);
+        }
+        if (file.activeAccount === ref || (remaining.length === 0 && file.activeAccount?.split(".")[0] === walletId)) {
+          file.activeAccount = file.wallets.length ? accountRefOf(file.wallets[0]!, firstIndex(file.wallets[0]!)) : null;
+        }
+        this.#write(file);
+        return;
+      }
+
+      // wallet-level delete: remove the wallet, all its accounts/labels and its secret blob.
       file.wallets = file.wallets.filter((w) => w.id !== walletId);
       for (const k of Object.keys(file.labels)) {
         if (k === walletId || k.startsWith(`${walletId}.`)) delete file.labels[k];
@@ -239,15 +299,62 @@ export class Keystore {
   decryptKey(keyId: string): Bytes {
     const blob = this.store.readJson<KeystoreBlob>(this.#blobPath("keys", keyId));
     if (!blob) throw new WalletError("invalid_value", `missing key ${keyId}`);
-    return CryptoEnvelope.decrypt(blob, this.getPassword());
+    this.#assertPassword({ createIfAbsent: false });
+    const pw = this.getPassword();
+    const out = CryptoEnvelope.decrypt(blob, pw); // MAC mismatch → auth_failed
+    this.#backfillVerifier(pw);
+    return out;
+  }
+  /** recover the BIP39 mnemonic from a seed vault (for `wallet backup --reveal-secret`). */
+  revealMnemonic(vaultId: string): string {
+    const blob = this.store.readJson<KeystoreBlob>(this.#blobPath("vaults", vaultId));
+    if (!blob) throw new WalletError("invalid_value", `missing vault ${vaultId}`);
+    this.#assertPassword({ createIfAbsent: false });
+    const pw = this.getPassword();
+    const { entropy } = decodeVault(CryptoEnvelope.decrypt(blob, pw));
+    this.#backfillVerifier(pw);
+    return Derivation.entropyToMnemonic(entropy);
   }
 
   // ── internals ────────────────────────────────────────────────────────────
   #decryptSeedFromVault(vaultId: string): Bytes {
     const blob = this.store.readJson<KeystoreBlob>(this.#blobPath("vaults", vaultId));
     if (!blob) throw new WalletError("invalid_value", `missing vault ${vaultId}`);
-    const { entropy, passphrase } = decodeVault(CryptoEnvelope.decrypt(blob, this.getPassword()));
+    this.#assertPassword({ createIfAbsent: false });
+    const pw = this.getPassword();
+    const { entropy, passphrase } = decodeVault(CryptoEnvelope.decrypt(blob, pw));
+    this.#backfillVerifier(pw);
     return Derivation.mnemonicToSeed(Derivation.entropyToMnemonic(entropy), passphrase);
+  }
+
+  // ── global master-password sentinel (§7.4.1) ───────────────────────────────
+  #verifierPath(): string {
+    return join(this.root, "verifier.json");
+  }
+  /**
+   * The keystore-wide invariant that every encrypted blob shares ONE master password.
+   * Encrypting writes call with createIfAbsent:true (first write defines the password,
+   * later writes verify); decrypt paths call with false (verify only — a missing sentinel
+   * is backfilled from a real blob AFTER it decrypts successfully, see #backfillVerifier).
+   */
+  #assertPassword(opts: { createIfAbsent: boolean }): void {
+    const password = this.getPassword();
+    const existing = this.store.readJson<KeystoreBlob>(this.#verifierPath());
+    if (existing) {
+      CryptoEnvelope.decrypt(existing, password); // MAC mismatch → auth_failed (wrong master password)
+      return;
+    }
+    if (opts.createIfAbsent) this.#writeVerifier(password);
+  }
+  #writeVerifier(password: string): void {
+    this.store.writeJson(
+      this.#verifierPath(),
+      CryptoEnvelope.encrypt(randomBytes(32), password, "verifier", "verifier"),
+    );
+  }
+  /** one-time backfill: a legacy keystore with blobs but no sentinel gets one after a good decrypt. */
+  #backfillVerifier(password: string): void {
+    if (!this.store.readJson<KeystoreBlob>(this.#verifierPath())) this.#writeVerifier(password);
   }
 
   #blobPath(dir: "vaults" | "keys", id: string): string {
@@ -276,10 +383,24 @@ export class Keystore {
     }
   }
 
-  /** ref|label → canonical account ref (exact ref, or unique label, else hard error). */
+  /** ref|address|label → canonical account ref (exact ref, unique address, or unique label). */
   #toRef(file: WalletsFile, input: string): AccountRef {
     const v = input.trim();
     if (v.startsWith("wlt_")) return v;
+    // address form (T… / 0x…): match the unique account holding it in its cache (§7.3 / §7.10).
+    if (addressCodec("tron").validate(v) || addressCodec("evm").validate(v)) {
+      const hits: AccountRef[] = [];
+      for (const w of file.wallets) {
+        for (const { index, addr } of enumerateAddresses(w)) {
+          if (addr.tron === v || addr.evm === v) hits.push(accountRefOf(w, index));
+        }
+      }
+      if (hits.length === 0) throw new WalletError("invalid_value", `no account with address ${input}`);
+      if (hits.length > 1) {
+        throw new UsageError("invalid_value", `address ${input} matches multiple accounts: ${hits.join(", ")}`);
+      }
+      return hits[0]!;
+    }
     const matches = Object.entries(file.labels).filter(
       ([, label]) => label.trim().toLowerCase() === v.toLowerCase(),
     );
@@ -350,6 +471,7 @@ export function walletAddress(
     case "privateKey":
       return s.addresses[family];
     case "ledger":
+    case "watch":
       return s.family === family ? s.address : undefined;
   }
 }
@@ -400,10 +522,10 @@ function viewAddresses(w: Wallet, index: number | null): Partial<ChainAddresses>
   return enumerateAddresses(w).find((e) => e.index === index)?.addr ?? {};
 }
 
-/** software-account dedup (seed/privateKey only). Ledger dedups by (family,path), see findLedgerByPath. */
+/** software-account dedup (seed/privateKey only). Ledger/watch dedup by their own keys below. */
 function findByAddress(file: WalletsFile, addr: Partial<ChainAddresses>): AccountRef | null {
   for (const w of file.wallets) {
-    if (w.source.type === "ledger") continue;
+    if (w.source.type === "ledger" || w.source.type === "watch") continue;
     for (const { index, addr: a } of enumerateAddresses(w)) {
       if ((addr.evm && a.evm === addr.evm) || (addr.tron && a.tron === addr.tron)) {
         return accountRefOf(w, index);
@@ -417,6 +539,16 @@ function findByAddress(file: WalletsFile, addr: Partial<ChainAddresses>): Accoun
 function findLedgerByPath(file: WalletsFile, family: ChainFamily, path: string): AccountRef | null {
   for (const w of file.wallets) {
     if (w.source.type === "ledger" && w.source.family === family && w.source.path === path) {
+      return accountRefOf(w, null);
+    }
+  }
+  return null;
+}
+
+/** watch dedup key = (family, address); a watch-only account is distinct from a software one. */
+function findWatchByAddress(file: WalletsFile, family: ChainFamily, address: string): AccountRef | null {
+  for (const w of file.wallets) {
+    if (w.source.type === "watch" && w.source.family === family && w.source.address === address) {
       return accountRefOf(w, null);
     }
   }

@@ -7,6 +7,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { parse as parseYaml } from "yaml";
 import type {
+  ChainFamily,
   Config,
   Globals,
   NetworkDescriptor,
@@ -35,19 +36,26 @@ export class ConfigLoader {
 
     let defaultOutput: OutputMode = DEFAULT_CONFIG.defaultOutput;
     let timeoutMs = DEFAULT_CONFIG.timeoutMs;
+    const defaults: Config["defaults"] = { network: { ...DEFAULT_CONFIG.defaults.network } };
 
     const path = ConfigLoader.configPath(env);
     if (existsSync(path)) {
       const raw = parseYaml(readFileSync(path, "utf8")) ?? {};
       if (raw.defaultOutput === "json" || raw.defaultOutput === "text") defaultOutput = raw.defaultOutput;
       if (typeof raw.timeoutMs === "number") timeoutMs = raw.timeoutMs;
+      if (raw.defaults?.network && typeof raw.defaults.network === "object") {
+        for (const fam of ["tron", "evm"] as const) {
+          const v = raw.defaults.network[fam];
+          if (typeof v === "string" && v.trim() !== "") defaults!.network![fam] = v;
+        }
+      }
       if (raw.networks && typeof raw.networks === "object") {
         for (const [id, d] of Object.entries(raw.networks as Record<string, Partial<NetworkDescriptor>>)) {
           networks[id] = { ...(networks[id] ?? {}), ...(d as NetworkDescriptor), id };
         }
       }
     }
-    return { defaultOutput, timeoutMs, networks };
+    return { defaultOutput, timeoutMs, defaults, networks };
   }
 }
 
@@ -94,7 +102,27 @@ export class NetworkRegistry implements INetworkRegistry {
       }
       id = matches[0]!;
     }
-    const base = this.#byId.get(id)!;
+    return this.#attach(this.#byId.get(id)!);
+  }
+
+  /** net=optional fallback: config defaults.network[family] (alias-resolved, family-checked) → builtin mainnet. */
+  resolveDefault(family: ChainFamily): NetworkDescriptor {
+    const configured = this.config.defaults?.network?.[family];
+    if (configured) {
+      const net = this.resolve(configured);
+      if (net.family !== family) {
+        throw new UsageError(
+          "network_family_mismatch",
+          `defaults.network.${family} = '${configured}' is not a ${family} network`,
+        );
+      }
+      return net;
+    }
+    const builtin = family === "tron" ? "tron:mainnet" : "evm:1";
+    return this.resolve(builtin);
+  }
+
+  #attach(base: NetworkDescriptor): NetworkDescriptor {
     // per-run endpoint overrides + attach a live rpc client
     const descriptor: NetworkDescriptor = { ...base };
     if (this.overrides.rpcUrl) descriptor.rpcUrl = this.overrides.rpcUrl;
