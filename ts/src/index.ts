@@ -1,4 +1,4 @@
-import { main } from "./runner/index.js";
+import { main } from "./app/runner/index.js";
 
 main(process.argv)
   .then((code) => {
