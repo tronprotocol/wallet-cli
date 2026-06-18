@@ -22,9 +22,9 @@ import { HelpService, hasMeta } from "../../cli/help/index.js";
 import { buildCli, type SessionRef } from "../../cli/shell/index.js";
 import { EvmRpcClient, TronRpcClient } from "../../infra/rpc/index.js";
 import type { ChainModule } from "../../core/types/index.js";
-import { registerNeutralCommands } from "../../chains/neutral.js";
-import { TronModule } from "../../chains/tron.js";
-import { EvmModule } from "../../chains/evm.js";
+import { registerNeutralCommands } from "../../commands/neutral.js";
+import { TronModule } from "../../commands/tron.js";
+import { EvmModule } from "../../commands/evm.js";
 
 export const VERSION = "0.1.0";
 

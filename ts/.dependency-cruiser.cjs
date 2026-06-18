@@ -1,7 +1,7 @@
 /**
  * Layer rules for the semantic src/ grouping.
- * Dependency order (low -> high): core -> infra -> runtime -> chains -> cli -> app.
- * A group may import lower groups only; importing a higher (or peer chains<->cli) group is forbidden.
+ * Dependency order (low -> high): core -> infra -> runtime -> commands -> cli -> app.
+ * A group may import lower groups only; importing a higher (or peer commands<->cli) group is forbidden.
  */
 module.exports = {
   forbidden: [
@@ -17,35 +17,35 @@ module.exports = {
       severity: "error",
       comment: "core/ is the base layer; it must not import any higher group",
       from: { path: "^src/core/" },
-      to: { path: "^src/(infra|runtime|chains|cli|app)/" },
+      to: { path: "^src/(infra|runtime|commands|cli|app)/" },
     },
     {
       name: "infra-no-upward",
       severity: "error",
       comment: "infra/ may import core/ only",
       from: { path: "^src/infra/" },
-      to: { path: "^src/(runtime|chains|cli|app)/" },
+      to: { path: "^src/(runtime|commands|cli|app)/" },
     },
     {
       name: "runtime-no-upward",
       severity: "error",
       comment: "runtime/ may import core/ and infra/ only",
       from: { path: "^src/runtime/" },
-      to: { path: "^src/(chains|cli|app)/" },
+      to: { path: "^src/(commands|cli|app)/" },
     },
     {
-      name: "chains-no-upward",
+      name: "commands-no-upward",
       severity: "error",
-      comment: "chains/ may import core/infra/runtime; not cli/ or app/",
-      from: { path: "^src/chains/" },
+      comment: "commands/ may import core/infra/runtime; not cli/ or app/",
+      from: { path: "^src/commands/" },
       to: { path: "^src/(cli|app)/" },
     },
     {
-      name: "cli-no-upward-or-chains",
+      name: "cli-no-upward-or-commands",
       severity: "error",
-      comment: "cli/ may import core/infra/runtime; not chains/ (peer) or app/",
+      comment: "cli/ may import core/infra/runtime; not commands/ (peer) or app/",
       from: { path: "^src/cli/" },
-      to: { path: "^src/(chains|app)/" },
+      to: { path: "^src/(commands|app)/" },
     },
   ],
   options: {
