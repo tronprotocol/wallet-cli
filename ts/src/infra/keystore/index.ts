@@ -8,15 +8,16 @@ import { join } from "node:path";
 import { randomBytes, hexToBytes, bytesToHex } from "@noble/hashes/utils.js";
 import { base32crockford } from "@scure/base";
 import type {
+  AccountDescriptor,
   AccountRef,
   Bytes,
   ChainAddresses,
   ChainFamily,
   KeystoreBlob,
+  MutationResult,
   Source,
   Wallet,
   WalletsFile,
-  WalletView,
 } from "../../core/types/index.js";
 import { CryptoEnvelope } from "../../core/crypto/index.js";
 import { Derivation } from "../../core/derivation/index.js";
@@ -54,7 +55,7 @@ export class Keystore {
   }
 
   // ── import ───────────────────────────────────────────────────────────────
-  import(p: ImportParams): AccountRef {
+  import(p: ImportParams): MutationResult {
     return this.store.withLock(this.walletsPath, () => {
       const file = this.#read();
       const password = this.getPassword();
@@ -71,7 +72,7 @@ export class Keystore {
         const seed = Derivation.mnemonicToSeed(mnemonic, p.passphrase);
         const addr0 = deriveSeedAddresses(seed, 0);
         const dup = findByAddress(file, addr0);
-        if (dup) return dup;
+        if (dup) return { ref: dup, created: false };
         const vaultId = this.#freshId("vlt", file);
         // global master-password invariant (§7.4.1): establish/verify the sentinel inside the
         // SAME lock as the blob write, so two parallel first-imports can't seed two passwords.
@@ -85,7 +86,7 @@ export class Keystore {
         if (pk.length !== 32) throw new WalletError("invalid_value", "private key must be 32 bytes");
         const addr = derivePrivAddresses(pk);
         const dup = findByAddress(file, addr);
-        if (dup) return dup;
+        if (dup) return { ref: dup, created: false };
         const keyId = this.#freshId("key", file);
         this.#assertPassword({ createIfAbsent: true }); // §7.4.1 sentinel, inside this lock
         this.#writeBlob("keys", CryptoEnvelope.encrypt(pk, password, keyId, "raw-privkey"));
@@ -98,17 +99,17 @@ export class Keystore {
       this.#assignLabel(file, ref, p.label);
       if (!file.activeAccount) file.activeAccount = ref;
       this.#write(file);
-      return ref;
+      return { ref, created: true };
     });
   }
 
-  registerLedger(p: { family: ChainFamily; path: string; address: string; label?: string }): AccountRef {
+  registerLedger(p: { family: ChainFamily; path: string; address: string; label?: string }): MutationResult {
     return this.store.withLock(this.walletsPath, () => {
       const file = this.#read();
       // ledger is single-chain watch-only; the dedup key is (family, path), not address
       // (a hardware account stays distinct from a software one sharing the same key).
       const dup = findLedgerByPath(file, p.family, p.path);
-      if (dup) return dup;
+      if (dup) return { ref: dup, created: false };
       const walletId = this.#freshId("wlt", file);
       // no encrypted blob: ledger holds no secret locally, only family+path+address.
       const wallet: Wallet = {
@@ -120,17 +121,17 @@ export class Keystore {
       this.#assignLabel(file, ref, p.label);
       if (!file.activeAccount) file.activeAccount = ref;
       this.#write(file);
-      return ref;
+      return { ref, created: true };
     });
   }
 
-  registerWatch(p: { family: ChainFamily; address: string; label?: string }): AccountRef {
+  registerWatch(p: { family: ChainFamily; address: string; label?: string }): MutationResult {
     return this.store.withLock(this.walletsPath, () => {
       const file = this.#read();
       // watch is secret-less; like ledger it stays distinct from a software account with the
       // same address — the dedup key is (family, address), see findWatchByAddress.
       const dup = findWatchByAddress(file, p.family, p.address);
-      if (dup) return dup;
+      if (dup) return { ref: dup, created: false };
       const walletId = this.#freshId("wlt", file);
       // no encrypted blob: a watch account holds no secret, only family+address.
       const wallet: Wallet = {
@@ -142,13 +143,13 @@ export class Keystore {
       this.#assignLabel(file, ref, p.label);
       if (!file.activeAccount) file.activeAccount = ref;
       this.#write(file);
-      return ref;
+      return { ref, created: true };
     });
   }
 
   /** Derive an HD sub-account. `index` picks an explicit slot (idempotent if already derived);
-   *  omitted → the next free index. */
-  addAccount(walletId: string, index?: number): AccountRef {
+   *  omitted → the next free index. `created` is false when the index was already derived. */
+  addAccount(walletId: string, index?: number): MutationResult {
     return this.store.withLock(this.walletsPath, () => {
       const file = this.#read();
       const wallet = file.wallets.find((w) => w.id === walletId);
@@ -160,12 +161,14 @@ export class Keystore {
       }
       const next = index ?? ((Math.max(-1, ...accountIndices(wallet.source)) + 1) | 0);
       const key = String(next);
+      let created = false;
       if (!wallet.source.addresses[key]) {
         const seed = this.#decryptSeedFromVault(wallet.source.vaultId);
         wallet.source.addresses[key] = deriveSeedAddresses(seed, next);
         this.#write(file);
+        created = true;
       }
-      return accountRefOf(wallet, next);
+      return { ref: accountRefOf(wallet, next), created };
     });
   }
 
@@ -208,53 +211,79 @@ export class Keystore {
     return wallet;
   }
 
-  rename(refOrLabel: string, label: string): void {
-    this.store.withLock(this.walletsPath, () => {
-      const file = this.#read();
-      const ref = this.#toRef(file, refOrLabel);
-      this.#assignLabel(file, ref, label, true);
-      this.#write(file);
-    });
-  }
-
-  setActive(refOrLabel: string): AccountRef {
+  rename(refOrLabel: string, label: string): { ref: AccountRef; previousLabel?: string; label: string } {
     return this.store.withLock(this.walletsPath, () => {
       const file = this.#read();
       const ref = this.#toRef(file, refOrLabel);
-      file.activeAccount = ref;
+      const previousLabel = file.labels[ref];
+      this.#assignLabel(file, ref, label, true);
       this.#write(file);
-      return ref;
+      return { ref, previousLabel, label: file.labels[ref]! };
     });
   }
 
-  list(): WalletView[] {
+  setActive(refOrLabel: string): { ref: AccountRef; previous: AccountRef | null } {
+    return this.store.withLock(this.walletsPath, () => {
+      const file = this.#read();
+      const ref = this.#toRef(file, refOrLabel);
+      const previous = file.activeAccount;
+      file.activeAccount = ref;
+      this.#write(file);
+      return { ref, previous };
+    });
+  }
+
+  list(): AccountDescriptor[] {
     const file = this.#read();
-    const views: WalletView[] = [];
+    const views: AccountDescriptor[] = [];
     for (const w of file.wallets) {
       // seed → one view per known index; privateKey/ledger → a single index-less view.
       const indices = w.source.type === "seed" ? accountIndices(w.source) : [null];
-      for (const index of indices) {
-        const ref = accountRefOf(w, index);
-        views.push({
-          id: w.id,
-          ref,
-          label: file.labels[ref],
-          type: w.source.type,
-          index,
-          addresses: viewAddresses(w, index),
-          active: file.activeAccount === ref,
-        });
-      }
+      for (const index of indices) views.push(this.#describe(file, w, index));
     }
     return views;
+  }
+
+  /** the full max-disclosure descriptor of one account (resolves ref/label/address). */
+  describe(refOrLabel: string): AccountDescriptor {
+    const file = this.#read();
+    const { wallet, index } = this.resolveAccount(refOrLabel);
+    return this.#describe(file, wallet, index < 0 ? null : index);
+  }
+
+  /** shared descriptor builder — the single shape `list`/`describe` and every command return. */
+  #describe(file: WalletsFile, w: Wallet, index: number | null): AccountDescriptor {
+    const ref = accountRefOf(w, index);
+    const s = w.source;
+    const d: AccountDescriptor = {
+      ref,
+      walletId: w.id,
+      label: file.labels[ref],
+      type: s.type,
+      index,
+      active: file.activeAccount === ref,
+      addresses: viewAddresses(w, index),
+    };
+    if (s.type === "seed") {
+      const others = accountIndices(s).filter((i) => i !== index);
+      if (others.length) d.siblings = others;
+    } else if (s.type === "ledger") {
+      d.family = s.family;
+      d.path = s.path;
+    } else if (s.type === "watch") {
+      d.family = s.family;
+    }
+    return d;
   }
 
   activeAccount(): AccountRef | null {
     return this.#read().activeAccount;
   }
 
-  delete(refOrWallet: string): void {
-    this.store.withLock(this.walletsPath, () => {
+  /** delete an account/wallet. Reports what scope was removed, whether a secret blob was
+   *  destroyed, and the active account afterwards (re-pointed if the old active is gone). */
+  delete(refOrWallet: string): { ref: AccountRef; scope: "account" | "wallet"; secretRemoved: boolean; newActive: AccountRef | null } {
+    return this.store.withLock(this.walletsPath, () => {
       const file = this.#read();
       const ref = this.#toRef(file, refOrWallet);
       const [walletId, idxStr] = ref.split(".");
@@ -271,17 +300,19 @@ export class Keystore {
         delete wallet.source.addresses[idxStr];
         delete file.labels[ref];
         const remaining = accountIndices(wallet.source);
+        let secretRemoved = false;
         if (remaining.length === 0) {
           // the last known account is gone → drop the now-empty wallet and its vault.
           file.wallets = file.wallets.filter((w) => w.id !== walletId);
           delete file.labels[walletId!];
           this.#removeBlobFiles(wallet.source);
+          secretRemoved = true;
         }
         if (file.activeAccount === ref || (remaining.length === 0 && file.activeAccount?.split(".")[0] === walletId)) {
           file.activeAccount = file.wallets.length ? accountRefOf(file.wallets[0]!, firstIndex(file.wallets[0]!)) : null;
         }
         this.#write(file);
-        return;
+        return { ref, scope: remaining.length === 0 ? "wallet" : "account", secretRemoved, newActive: file.activeAccount };
       }
 
       // wallet-level delete: remove the wallet, all its accounts/labels and its secret blob.
@@ -294,7 +325,25 @@ export class Keystore {
       }
       this.#removeBlobFiles(wallet.source);
       this.#write(file);
+      return { ref: walletId!, scope: "wallet", secretRemoved: wallet.source.type !== "ledger" && wallet.source.type !== "watch", newActive: file.activeAccount };
     });
+  }
+
+  // ── password sentinel queries (read-only; never throw) ──────────────────────
+  /** true once the keystore-wide master password has been established (§7.4.1). */
+  isInitialized(): boolean {
+    return existsSync(this.#verifierPath());
+  }
+  /** true iff `pw` decrypts the sentinel; false when absent or wrong (never throws). */
+  verifyPassword(pw: string): boolean {
+    const blob = this.store.readJson<KeystoreBlob>(this.#verifierPath());
+    if (!blob) return false;
+    try {
+      CryptoEnvelope.decrypt(blob, pw);
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   // ── secrets ────────────────────────────────────────────────────────────────
@@ -308,13 +357,14 @@ export class Keystore {
     const pw = this.getPassword();
     return CryptoEnvelope.decrypt(blob, pw); // MAC mismatch → auth_failed
   }
-  /** recover the BIP39 mnemonic from a seed vault (for `wallet backup`). */
-  revealMnemonic(vaultId: string): string {
+  /** recover the BIP39 mnemonic from a seed vault (for `wallet backup`); also report whether a
+   *  BIP39 passphrase ("25th word") is set, without exposing its value. */
+  revealMnemonic(vaultId: string): { mnemonic: string; passphraseSet: boolean } {
     const blob = this.store.readJson<KeystoreBlob>(this.#blobPath("vaults", vaultId));
     if (!blob) throw new WalletError("invalid_value", `missing vault ${vaultId}`);
     this.#assertPassword({ createIfAbsent: false });
-    const { entropy } = decodeVault(CryptoEnvelope.decrypt(blob, this.getPassword()));
-    return Derivation.entropyToMnemonic(entropy);
+    const { entropy, passphrase } = decodeVault(CryptoEnvelope.decrypt(blob, this.getPassword()));
+    return { mnemonic: Derivation.entropyToMnemonic(entropy), passphraseSet: !!passphrase };
   }
 
   // ── internals ────────────────────────────────────────────────────────────

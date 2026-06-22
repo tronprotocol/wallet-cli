@@ -257,3 +257,15 @@ describe("Keystore", () => {
     expect(() => ks2.decryptSeed(vaultId)).toThrow(/auth_failed|incorrect/);
   });
 });
+
+describe("password sentinel queries", () => {
+  it("isInitialized flips after the first import; verifyPassword checks the sentinel", () => {
+    const root = mkdtempSync(join(tmpdir(), "ks-sentinel-"));
+    const ks = new Keystore(root, new AtomicFileStore(), () => "Abcdef1!");
+    expect(ks.isInitialized()).toBe(false);
+    ks.import({ secret: "a".repeat(64), type: "privateKey" });
+    expect(ks.isInitialized()).toBe(true);
+    expect(ks.verifyPassword("Abcdef1!")).toBe(true);
+    expect(ks.verifyPassword("wrong")).toBe(false);
+  });
+});
