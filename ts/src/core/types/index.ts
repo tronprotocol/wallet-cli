@@ -80,14 +80,28 @@ export interface WalletsFile {
   labels: Record<AccountRef, string>;
 }
 
-export interface WalletView {
-  id: string;
+/**
+ * The one account shape every `wallet` command returns (max-disclosure descriptor).
+ * `walletId` replaces the old `id`; `family`/`path` appear only for ledger/watch (single-chain)
+ * and ledger respectively; `siblings` lists a seed wallet's other known HD indices.
+ */
+export interface AccountDescriptor {
   ref: AccountRef;
+  walletId: string;
   label?: string;
   type: Source["type"];
   index: number | null;
-  addresses: { tron?: string; evm?: string };
   active: boolean;
+  addresses: { tron?: string; evm?: string };
+  family?: ChainFamily;
+  path?: string;
+  siblings?: number[];
+}
+
+/** mutators that may hit an existing account report whether they actually created one. */
+export interface MutationResult {
+  ref: AccountRef;
+  created: boolean;
 }
 
 // ── token address-book (persisted in tokens.json; §7.17) ───────────────────────
@@ -190,6 +204,10 @@ export interface SecretResolver {
   require(kind: SecretKind): string;
   /** exactly-one selector: inline value XOR the file/stdin source for `kind`. */
   pick(inline: string | undefined, kind: SecretKind, inlineFlag: string): string;
+  /** resolve a non-password secret: stdin source → hidden prompt → missing_option. */
+  resolveSecret(kind: "mnemonic" | "privateKey"): Promise<string>;
+  /** establish/verify the master password before synchronous keystore use. */
+  primePassword(plan: { mode: "set" | "verify"; verify?: (pw: string) => boolean }): Promise<void>;
 }
 
 export interface NetworkRegistry {

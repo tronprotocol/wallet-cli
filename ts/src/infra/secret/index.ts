@@ -8,6 +8,8 @@
  */
 import type { SecretKind, SecretResolver as ISecretResolver, StreamManager } from "../../core/types/index.js";
 import { ExecutionError, UsageError } from "../../core/errors/index.js";
+import type { Prompter } from "../prompt/index.js";
+import { passwordPolicyErrors, isValidMnemonic, isValidPrivateKeyHex } from "../prompt/validators.js";
 
 /** path per secret kind; the only source is `--<kind>-stdin`, so the value is always `-` (stdin). */
 export type SecretPaths = Partial<Record<SecretKind, string>>;
@@ -20,18 +22,22 @@ function flagOf(kind: SecretKind): string {
 export class SecretResolver implements ISecretResolver {
   #byPath = new Map<string, string>();
   #stdinUsedBy?: SecretKind;
+  #primed = new Map<SecretKind, string>();
 
   constructor(
     private readonly streams: StreamManager,
     private readonly paths: SecretPaths = {},
+    private readonly prompter?: Prompter,
   ) {}
 
   /** whether a master-password source is configured, WITHOUT consuming it. */
   hasMasterPassword(): boolean {
-    return this.paths.password !== undefined;
+    return this.paths.password !== undefined || this.#primed.has("password") || (this.prompter?.isTTY() ?? false);
   }
 
   masterPassword(): string {
+    const primed = this.#primed.get("password");
+    if (primed !== undefined) return primed;
     if (this.paths.password === undefined) {
       throw new ExecutionError("auth_required", "master password required: pass --password-stdin");
     }
@@ -44,6 +50,8 @@ export class SecretResolver implements ISecretResolver {
   }
 
   read(kind: SecretKind): string {
+    const primed = this.#primed.get(kind);
+    if (primed !== undefined) return primed;
     const path = this.paths[kind];
     if (path === undefined) {
       if (kind === "password")
@@ -77,6 +85,61 @@ export class SecretResolver implements ISecretResolver {
     if (inline !== undefined) return inline;
     if (hasStdin) return this.read(kind);
     throw new UsageError("missing_option", `--${inlineFlag} or --${flagOf(kind)}-stdin is required`);
+  }
+
+  async resolveSecret(kind: "mnemonic" | "privateKey"): Promise<string> {
+    const validate = kind === "mnemonic" ? isValidMnemonic : isValidPrivateKeyHex;
+    if (this.has(kind)) {
+      const v = this.read(kind).trim();
+      if (!validate(v)) throw new UsageError("invalid_secret", `--${flagOf(kind)}-stdin is not a valid ${kind}`);
+      this.streams.diagnostic("info", `${flagOf(kind)} ✓ via pipe`);
+      return v;
+    }
+    if (this.prompter?.isTTY()) {
+      const label = kind === "mnemonic" ? "Recovery phrase" : "Private key";
+      const v = await this.prompter.hidden({
+        label,
+        validate: (s) => (validate(s.trim()) ? null : `invalid ${kind}`),
+      });
+      const trimmed = v.trim();
+      this.#primed.set(kind, trimmed);
+      return trimmed;
+    }
+    throw new UsageError("missing_option", `--${flagOf(kind)}-stdin is required (or run in a terminal)`);
+  }
+
+  async primePassword(plan: { mode: "set" | "verify"; verify?: (pw: string) => boolean }): Promise<void> {
+    if (this.has("password")) {
+      const pw = this.read("password");
+      if (plan.mode === "set") {
+        const errs = passwordPolicyErrors(pw);
+        if (errs.length) throw new UsageError("weak_password", `password too weak: ${errs.join("; ")}`);
+      }
+      this.#primed.set("password", pw);
+      this.streams.diagnostic("info", "password ✓ via pipe");
+      return;
+    }
+    if (this.prompter?.isTTY()) {
+      let pw: string;
+      if (plan.mode === "set") {
+        pw = await this.prompter.hidden({
+          label: "Set master password",
+          confirm: true,
+          validate: (s) => { const e = passwordPolicyErrors(s); return e.length ? e.join("; ") : null; },
+        });
+      } else {
+        pw = "";
+        for (let attempt = 0; attempt < 3; attempt++) {
+          pw = await this.prompter.hidden({ label: "Master password" });
+          if (plan.verify?.(pw)) { this.#primed.set("password", pw); return; }
+          this.streams.diagnostic("warn", "incorrect master password");
+        }
+        throw new ExecutionError("auth_failed", "incorrect master password");
+      }
+      this.#primed.set("password", pw);
+      return;
+    }
+    throw new ExecutionError("auth_required", "master password required: pass --password-stdin");
   }
 
   /** The only source is stdin (fd 0), so `path` is always `-`; at most one secret may use it. */
