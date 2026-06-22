@@ -49,14 +49,8 @@ export class Prompter {
   }
 
   async confirm(o: { label: string; expect?: string }): Promise<boolean> {
-    if (o.expect !== undefined) {
-      for (;;) {
-        const v = await this.be.question(`${o.label}: `, false);
-        if (v.trim() === o.expect) return true;
-        this.be.write(`  ✗ expected "${o.expect}"\n`);
-      }
-    }
     const v = await this.be.question(`${o.label}: `, false);
+    if (o.expect !== undefined) return v.trim() === o.expect;
     return /^y(es)?$/i.test(v.trim());
   }
 

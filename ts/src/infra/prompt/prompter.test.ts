@@ -40,10 +40,11 @@ describe("Prompter.hidden", () => {
 });
 
 describe("Prompter.confirm", () => {
-  it("expect-mode requires the exact ref", async () => {
-    const be = new FakeBackend(["wrong", "wlt_a.0"]);
-    const p = new Prompter(be);
-    expect(await p.confirm({ label: "type ref", expect: "wlt_a.0" })).toBe(true);
+  it("expect-mode returns true only when the exact ref is typed", async () => {
+    const ok = new Prompter(new FakeBackend(["wlt_a.0"]));
+    expect(await ok.confirm({ label: "type ref", expect: "wlt_a.0" })).toBe(true);
+    const no = new Prompter(new FakeBackend(["wrong"]));
+    expect(await no.confirm({ label: "type ref", expect: "wlt_a.0" })).toBe(false);
   });
 });
 
