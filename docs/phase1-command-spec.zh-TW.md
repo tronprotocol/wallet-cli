@@ -50,7 +50,7 @@ wallet-cli
 
 | 命令 | 能力(一句話) | wallet · auth | 主要 flags |
 | --- | --- | --- | --- |
-| `wallet create` | 產生新 HD 錢包(助記詞)並加密存檔 | — · req | `[--label]` `[--words 12\|24]` + `--password-stdin` |
+| `wallet create` | 產生新 HD 錢包(固定 12 字助記詞)並加密存檔(🗣️ 互動式) | — · req | `[--label]`(沒給 `--password-stdin` 時 master password 走互動式設定+確認,見 §6) |
 | `wallet import-mnemonic` | 匯入既有助記詞(BIP39)並加密存檔(🗣️ 互動式) | — · req | `[--label]`(助記詞與 master password 皆互動式隱藏輸入,見 §6) |
 | `wallet import-private-key` | 匯入既有私鑰並加密存檔(🗣️ 互動式) | — · req | `[--label]`(私鑰與 master password 皆互動式隱藏輸入,見 §6) |
 | `wallet import-ledger` | 登記 Ledger(watch-only,簽名走硬體;**無秘密、不需 master password**;🗣️ 互動式僅地址選擇/命名,非秘密輸入) | — · — | `--app*`、`--index\|--path\|--address`(三擇一)、`[--scan-limit]`、`[--label]` |
@@ -62,7 +62,7 @@ wallet-cli
 | `wallet add-account` | seed 衍生子帳戶(僅 seed;預設下一個空 index,可 `--index` 指定) | — · req | `--account*`(指要衍生的 seed 錢包)、`[--index]`、`[--label]` |
 | `wallet export-address` | 輸出帳戶地址(收款用);`--network` 決定哪條鏈(轉成 family),省略=兩條鏈 | opt · — | `[--account]`、`[--network <net>]` |
 | `wallet delete` | 刪除錢包/帳戶並清 labels 孤兒(🗣️ 互動式) | — · — | `--account*`(帳戶或錢包;刪除確認互動式輸入) |
-| `wallet backup` | 匯出帳戶秘密+metadata 到 0600 檔(秘密永不上 stdout;🗣️ 互動式) | — · req | `--account*`、`[--out <path>]`(省略=`<root>/backups/<ref>-<ts>.json`;不覆蓋既有檔)(master password 互動式隱藏輸入,見 §6) |
+| `wallet backup` | 匯出帳戶秘密+metadata 到 0600 檔(秘密永不上 stdout;🗣️ 互動式) | — · req | `--account*`、`[--out <path>]`(省略=`<root>/backups/<accountId>-<ts>.json`;不覆蓋既有檔)(master password 互動式隱藏輸入,見 §6) |
 | `config get` | 讀使用者設定 | — · — | `[--key]` |
 | `config set` | 寫使用者設定 | — · — | `--key*`、`--value*` |
 | `chains list` | 列出已知網路與別名 | — · — | (無) |
@@ -167,26 +167,24 @@ wallet-cli
 | --- | --- | --- | --- |
 | `--output text\|json` | 全域 | 輸出格式;`json` 走固定 envelope | 所有命令 |
 | `--network <id\|alias>` | 全域 | 選網路(canonical 或別名);動鏈命令(`net=req`)必帶,讀類/離線簽名(`net=opt`)選填——省略則用 family 預設(內建 mainnet,config `defaults.network` 可覆寫);family 須與 positional 一致。`wallet export-address` 下作**鏈選擇器**(轉成 family,省略=兩條鏈) | 所有 `tron`/`evm` 命令 + `wallet export-address` |
-| `--account <ref\|label\|address>` | 全域(選擇器) | 指定操作帳戶/錢包,覆寫 active;**所有命令**皆可用。形狀自動判:`wlt_`開頭→ref、`T...`/`0x...`→比對 cache 地址(唯一)、其餘→label。一般命令=簽名/查詢來源;`wallet rename/delete/backup/export-address` 下=**被操作目標**。解析到多帳戶 seed 的 wallet 層 → 報錯要求指定 account(簽名路徑不替你猜);單帳戶錢包(privateKey/ledger/watch)wallet==account 直接用 | tron 簽名/查詢命令、`wallet set-active/rename/add-account/delete/backup/export-address` |
+| `--account <accountId\|label\|address>` | 全域(選擇器) | 指定操作帳戶/錢包,覆寫 active;**所有命令**皆可用。形狀自動判:`wlt_`開頭→accountId、`T...`/`0x...`→比對 cache 地址(唯一)、其餘→label。一般命令=簽名/查詢來源;`wallet rename/delete/backup/export-address` 下=**被操作目標**。解析到多帳戶 seed 的 wallet 層 → 報錯要求指定 account(簽名路徑不替你猜);單帳戶錢包(privateKey/ledger/watch)wallet==account 直接用 | tron 簽名/查詢命令、`wallet set-active/rename/add-account/delete/backup/export-address` |
 | `--quiet` | 全域 | 抑制 stderr 診斷(不影響 data) | 所有命令 |
 | `--verbose` | 全域 | 增加 debug 診斷 | 所有命令 |
-| `--timeout <ms>` | 全域 | 操作逾時(含 Ledger 等待確認) | 所有命令(主要影響簽名類) |
-| `--no-device-wait` | 全域 | Ledger 不等待、立即失敗(自動化用) | 所有簽名命令(Ledger 帳戶) |
+| `--timeout <ms>` | 全域 | 操作逾時(含 Ledger 等待確認;Ledger 等待的唯一上界,無人值守時逾時即 abort) | 所有命令(主要影響簽名類) |
 | `--help` / `-h` | 元 | 顯示命令說明 | 所有命令 |
 | `--version` | 元 | 顯示版本 | 根命令 |
 | `--json-schema` | 元 | 輸出該命令 agent JSON-schema | 所有命令 |
 | `--grpc-endpoint <host:port>` | 端點覆寫 | 單次執行覆寫 TRON gRPC 端點 | `tron` 綁鏈命令 |
 | `--rpc-url <url>` | 端點覆寫 | 單次執行覆寫 EVM RPC 端點 | `evm` 綁鏈命令 |
-| `--password-stdin` | 含秘密 | 餵 master password(讀 fd 0),解鎖/加密 keystore。**無 env 來源**(不支援 `MASTER_PASSWORD`)。`backup`/import 類改互動式,不用此 flag | `wallet create`、所有 software 簽名命令 |
+| `--password-stdin` | 含秘密 | 餵 master password(讀 fd 0),解鎖/加密 keystore。**無 env 來源**(不支援 `MASTER_PASSWORD`)。`backup`/import 類缺漏時走互動式隱藏輸入,亦接受 `--password-stdin` 作為非互動來源 | `wallet create`、所有 software 簽名命令 |
 | `--tx-stdin` | 資料 | 餵預簽交易 hex(= `--transaction` 的 stdin 形式,讀 fd 0,與 `--transaction` 互斥) | `tx broadcast` |
 | `--label <name>` | 命令 | 顯示名。create/import-*=新錢包名;add-account=子帳戶名;rename=新名稱 | `wallet create/import-mnemonic/import-private-key/import-ledger/import-watch/add-account/rename` |
-| `--words <12\|24>` | 命令 | 助記詞字數(預設 12) | `wallet create` |
 | `--address <addr>` | 命令 | import-watch=觀察地址(family 自動判);import-ledger=反查目標地址 | `wallet import-watch`、`wallet import-ledger` |
 | `--app <tron\|ethereum>` | 命令 | Ledger app / 衍生 family | `wallet import-ledger` |
 | `--index <n>` | 命令 | HD 衍生 index。import-ledger:與 `--path`/`--address` 互斥;add-account:指定子帳戶 index(省略=下一個空位,重複=冪等) | `wallet import-ledger`、`wallet add-account` |
 | `--path <m/44'/...>` | 命令 | Ledger 衍生路徑(與 `--index`/`--address` 互斥) | `wallet import-ledger` |
 | `--scan-limit <n>` | 命令 | `--address` 反查掃描上限(預設 20) | `wallet import-ledger` |
-| `--out <path>` | 命令(輸出) | backup 檔輸出位置;省略=`<root>/backups/<ref>-<ts>.json`。檔含明文秘密+metadata,權限 0600,拒絕覆蓋既有檔(`output_exists`) | `wallet backup` |
+| `--out <path>` | 命令(輸出) | backup 檔輸出位置;省略=`<root>/backups/<accountId>-<ts>.json`。檔含明文秘密+metadata,權限 0600,拒絕覆蓋既有檔(`output_exists`) | `wallet backup` |
 | `--key <k>` | 命令 | 設定鍵 | `config get`(選填)、`config set` |
 | `--value <v>` | 命令 | 設定值 | `config set` |
 | `--to <addr>` | 命令 | 收款地址 | `tx send-native/send-token` |
@@ -243,7 +241,7 @@ wallet-cli
 - **執行模式** = **預設即簽名並上鏈**;`--dry-run`(只回 plan+fee、不簽不廣播)與 `--sign-only`(簽名出 hex、不廣播)為兩個互斥的退讓開關,同時帶 → `invalid_option`。Ledger 另有硬體按鍵。stateless CLI 無「自動鎖定」,每次調用獨立認證。
 - **訪問密碼解析**(`SecretResolver` 集中、每來源讀一次):非互動命令(`create`、software 簽名)的 master password **唯一來源 `--password-stdin`**(讀 fd 0)。**不支援 `MASTER_PASSWORD` env**(避免裸放 env / process table / shell history)。
 - **stdin 至多一個輸入,需第二個秘密者改互動式**:fd 0 一次只能餵一個值。需要**兩個秘密**的命令(`import-mnemonic` = 助記詞 + password、`import-private-key` = 私鑰 + password)、以及讀出秘密的 `backup`(password)、刪除確認的 `delete`,**皆改走互動式隱藏輸入**——不經 flag/argv/stdin pipe,秘密在 TTY 直接輸入、不回顯、不入 shell history。
-  > **過渡期**:互動式 prompt 子系統尚未實作;當前 code 暫以 `--*-stdin` 餵這些秘密並標 `TODO:interactive`,待 prompt 層落地後移除這些 flag。
+  > **互動式 prompt 已落地**:`--*-stdin` flags **保留**作為「外部來源 / 非互動逃生口」(agent / CI);缺漏時才走互動式隱藏輸入。不再計畫移除這些 flag。首次建立 master password 套用密碼政策:長度 ≥ 8、含大小寫字母、數字、至少一個特殊字元。
 - 非秘密的第二輸入(如 `message sign` 的訊息)走 inline argv(`--message <text>`),把 fd 0 讓給 `--password-stdin`。已移除 `--*-file` 與 `/dev/fd/N` 多-fd 通道。
 - **觀察錢包**:讀類照常;任何簽名類 → `watch_only_no_signer`。
 - 秘密永不進 argv / log / envelope / **stdout**。`wallet backup` 把秘密+metadata 寫進一個 0600 檔(`--out` 指定或預設 `<root>/backups/...`),stdout 只回 metadata + 寫出路徑;不覆蓋既有檔。秘密只落在該檔,不上螢幕、不入 AI context。
