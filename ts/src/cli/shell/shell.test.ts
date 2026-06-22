@@ -25,14 +25,14 @@ function makeFakePrompter(opts: FakePrompterOpts = {}): PrompterType & {
     isTTY: () => tty,
     textCalls,
     selectCalls,
-    async text(o) {
+    async text(o: { label: string; validate?: (v: string) => string | null }) {
       textCalls.push({ label: o.label });
       return textAnswers.shift() ?? "";
     },
-    async hidden(_o) { return ""; },
-    async confirm(_o) { return false; },
-    async select(o) {
-      selectCalls.push({ label: o.label, choices: o.choices as any });
+    async hidden(_o: { label: string }) { return ""; },
+    async confirm(_o: { label: string }) { return false; },
+    async select(o: { label: string; choices: Array<{ value: string; label: string }> }) {
+      selectCalls.push({ label: o.label, choices: o.choices });
       return (selectAnswers.shift() ?? o.choices[0]?.value ?? "") as any;
     },
   } as any;
@@ -170,10 +170,11 @@ describe("dispatch password-prime wiring", () => {
       network: "none",
       wallet: "none",
       auth: "required",
+      passwordMode: "establish" as const,
       fields: z.object({}),
       input: z.object({}),
       examples: [],
-      async run(_ctx, _net, _input) { ran = true; return {}; },
+      async run(_ctx: any, _net: any, _input: any) { ran = true; return {}; },
     } as unknown as CommandDefinition);
 
     const startedAt = Date.now();
@@ -205,5 +206,72 @@ describe("dispatch password-prime wiring", () => {
     expect(spyPrime).toHaveBeenCalledOnce();
     expect(spyPrime.mock.calls[0]![0].mode).toBe("set");
     expect(ran).toBe(true);
+  });
+
+  it("does NOT call primePassword and throws auth_required for auth=required command WITHOUT passwordMode", async () => {
+    const tmpRoot = mkdtempSync(join(tmpdir(), "wallet-cli-test-"));
+    const store = new AtomicFileStore();
+    const fakeBackend = {
+      isTTY: () => false,
+      async question(_prompt: string, _hidden: boolean) { return ""; },
+      async readKey() { return { name: "return" }; },
+      write(_s: string) {},
+      beginRaw() {},
+      endRaw() {},
+    };
+    const prompter = new Prompter(fakeBackend);
+
+    const streams = new StreamManager("text", true, false);
+    const secrets = new SecretResolver(streams, {}, prompter);
+    const keystore = new Keystore(tmpRoot, store, () => secrets.masterPassword());
+
+    const spyPrime = vi.spyOn(secrets, "primePassword");
+
+    const config = ConfigLoader.load();
+    const networkRegistry = new NetworkRegistry(config, (_d) => { throw new Error("no rpc"); }, {});
+
+    const registry = new CommandRegistry();
+    registry.add({
+      id: "wallet.test-auth-nopw",
+      path: ["test-auth-nopw"],
+      network: "none",
+      wallet: "none",
+      auth: "required",
+      // no passwordMode — lazy guard path
+      fields: z.object({}),
+      input: z.object({}),
+      examples: [],
+      async run(_ctx: any, _net: any, _input: any) { return {}; },
+    } as unknown as CommandDefinition);
+
+    const startedAt = Date.now();
+    const formatter = createOutputFormatter("text", streams, startedAt);
+
+    const session: SessionRef = {};
+    const globals = {
+      output: "text" as const,
+      quiet: true,
+      verbose: false,
+      noDeviceWait: false,
+    };
+    const deps = { config, networkRegistry, streams, secrets, keystore, prompter, formatter };
+    const capabilityRegistry = new CapabilityRegistry();
+    const capGate = new CapabilityGate(capabilityRegistry);
+
+    const shellOpts: ShellOptions = {
+      registry,
+      globals,
+      deps,
+      capGate,
+      streams,
+      formatter,
+      session,
+    };
+
+    await expect(
+      buildCli(shellOpts).parseAsync(["wallet", "test-auth-nopw"])
+    ).rejects.toMatchObject({ code: "auth_required" });
+
+    expect(spyPrime).not.toHaveBeenCalled();
   });
 });

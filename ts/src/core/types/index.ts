@@ -82,12 +82,13 @@ export interface WalletsFile {
 
 /**
  * The one account shape every `wallet` command returns (max-disclosure descriptor).
- * `walletId` replaces the old `id`; `family`/`path` appear only for ledger/watch (single-chain)
- * and ledger respectively; `siblings` lists a seed wallet's other known HD indices.
+ * `accountId` is the canonical ref you pass back to `--account` (seed: `wlt_x.<index>`;
+ * privateKey/ledger/watch: `wlt_x`). `family`/`path` appear only for ledger/watch (single-chain)
+ * and ledger respectively; `siblings` lists a seed wallet's other known HD indices. The wallet
+ * id is intentionally omitted — it is just `accountId` minus the `.index` suffix.
  */
 export interface AccountDescriptor {
-  ref: AccountRef;
-  walletId: string;
+  accountId: AccountRef;
   label?: string;
   type: Source["type"];
   index: number | null;
@@ -100,7 +101,7 @@ export interface AccountDescriptor {
 
 /** mutators that may hit an existing account report whether they actually created one. */
 export interface MutationResult {
-  ref: AccountRef;
+  accountId: AccountRef;
   created: boolean;
 }
 
@@ -258,6 +259,8 @@ export interface CommandDefinition<I = any, O = any> {
   network: NetworkRequirement;
   wallet: WalletRequirement;
   auth: AuthRequirement;
+  /** opt-in interactive master-password handling: "establish" = set on first wallet else verify; "verify" = require existing. Commands without this keep the lazy hasMasterPassword guard. */
+  passwordMode?: "establish" | "verify";
   capability?: string;
   summary?: string;
   /** per-field zod object; feeds ZodYargsAdapter (arity) + HelpService. */

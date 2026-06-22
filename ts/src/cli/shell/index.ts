@@ -19,7 +19,7 @@ import { buildExecutionContext, type RuntimeDeps } from "../../runtime/context/i
 import { OutputFormatter } from "../../runtime/output/index.js";
 import { ZodYargsAdapter, camelToKebab, introspectFields, enumOptions } from "../../runtime/adapter/index.js";
 import { isChainFamily } from "../../core/family/index.js";
-import { UsageError } from "../../core/errors/index.js";
+import { UsageError, ExecutionError } from "../../core/errors/index.js";
 
 export interface SessionRef {
   current?: { commandId: string; net?: NetworkDescriptor };
@@ -140,14 +140,14 @@ async function dispatch(opts: ShellOptions, ns: string, argv: any): Promise<void
   capGate.check(cmd, net);
 
   const ctx = buildExecutionContext(globals, deps);
-  // auth: establish (first time) or verify (existing) the master password up front, so the
-  // synchronous keystore can read it from the primed cache. (spec §3 / §4.4)
-  if (cmd.auth === "required") {
+  // auth: opt-in interactive password priming via passwordMode; fallback lazy guard for
+  // non-interactive callers (spec §3 / §4.4). Ledger/watch commands skip this block entirely.
+  if (cmd.passwordMode) {
     const initialized = deps.keystore.isInitialized();
-    await deps.secrets.primePassword({
-      mode: initialized ? "verify" : "set",
-      verify: (pw) => deps.keystore.verifyPassword(pw),
-    });
+    const mode = cmd.passwordMode === "establish" ? (initialized ? "verify" : "set") : "verify";
+    await deps.secrets.primePassword({ mode, verify: (pw) => deps.keystore.verifyPassword(pw) });
+  } else if (cmd.auth === "required" && !deps.secrets.hasMasterPassword()) {
+    throw new ExecutionError("auth_required", "master password required: pass --password-stdin");
   }
   if (cmd.wallet !== "none") void ctx.activeAccount; // resolve account (default active) up front; throws missing_wallet_address if none exists
 
