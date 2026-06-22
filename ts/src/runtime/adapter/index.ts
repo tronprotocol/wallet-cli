@@ -4,7 +4,22 @@
  * checks stay in zod only — single source of truth (plan §3 L2 / 修正①). [replaces FlagSpecRegistry]
  */
 import type { Argv } from "yargs";
-import type { ZodObject, ZodRawShape, ZodType } from "zod";
+import { z, type ZodObject, type ZodRawShape, type ZodType } from "zod";
+
+// ── account-ref brand ─────────────────────────────────────────────────────────
+// A `string` field that names an existing account (accountId/label/address). Branded so the
+// TTY gap-fill can offer an arrow-select of existing accounts instead of free text. The brand
+// lives on the FINAL schema instance (zod methods clone), so accountRef() applies min+describe
+// itself and must be the terminal call — no further chaining.
+const ACCOUNT_REF = new WeakSet<object>();
+export function accountRef(describe: string): ZodType {
+  const s = z.string().min(1).describe(describe);
+  ACCOUNT_REF.add(s);
+  return s;
+}
+export function isAccountRef(schema: unknown): boolean {
+  return typeof schema === "object" && schema !== null && ACCOUNT_REF.has(schema);
+}
 
 export interface FieldInfo {
   name: string;

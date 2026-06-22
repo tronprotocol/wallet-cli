@@ -9,6 +9,7 @@ import { bytesToHex } from "@noble/hashes/utils.js";
 import type { ChainFamily, CommandDefinition } from "../core/types/index.js";
 import { Schemas } from "../infra/contract/index.js";
 import { CommandRegistry } from "../runtime/registry/index.js";
+import { accountRef } from "../runtime/adapter/index.js";
 import type { Services } from "./services.js";
 import { Derivation } from "../core/derivation/index.js";
 import { resolveLedgerPath, interactiveLedgerSelect } from "../infra/ledger/index.js";
@@ -219,7 +220,7 @@ export function registerWalletCommands(reg: CommandRegistry, services: Services)
 
   // ── wallet delete ─────────────────────────────────────────────────────────────
   const deleteFields = z.object({
-    account: z.string().min(1).describe("account or wallet (accountId, label, or address)"),
+    account: accountRef("account or wallet (accountId, label, or address)"),
     yes: z.boolean().optional().describe("skip the interactive confirmation"),
   });
   reg.add({
@@ -243,7 +244,7 @@ export function registerWalletCommands(reg: CommandRegistry, services: Services)
   // screen, logs and AI context. stdout returns only metadata + the written path.
   // master password via dispatch prime (passwordMode: "verify"); --password-stdin is the non-interactive source.
   const backupFields = z.object({
-    account: z.string().min(1).describe("account or wallet (accountId, label, or address)"),
+    account: accountRef("account or wallet (accountId, label, or address)"),
     out: z.string().optional().describe("output file path (default: <root>/backups/<accountId>-<ts>.json)"),
   });
   reg.add({

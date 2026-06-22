@@ -137,18 +137,30 @@ $ wallet-cli wallet import-ledger --app ethereum --index 0 --label cold
 
 ---
 
-## 5. `wallet delete` — 重打 ref 確認
+## 5. `wallet delete` — 方向鍵選帳號 + 重打 ref 確認
 
-破壞性操作 → 要求**重新輸入要刪除的 ref**(打錯即中止,不刪)。
+未帶 `--account` → **方向鍵選要刪的帳號**(顯示 label / active / 各鏈地址);選定後是破壞性操作 → 要求**重新輸入該帳號的 ref**(打錯即中止,不刪)。
+
+```console
+$ wallet-cli wallet delete
+account (↑/↓, Enter):
+  main (active) — tron:TWer2Ygk5TEheHp3TPuYeqxmB6SsGZmaL6 / evm:0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+› hot — tron:TLEaY8XoqpBmndLsjcfThgdKLN1ssNuUcF / evm:0x70997970C51812dc3A010C7d01b50e0d17dc79C8
+type the ref to delete (wlt_vk2ybr4f): wlt_vk2ybr4f
+✓ wallet.delete
+  accountId: wlt_vk2ybr4f
+  scope: wallet
+  secretRemoved: true
+  newActive: wlt_ebzxme75.0
+```
+
+帶 `--account <ref>` 則跳過選單,直接進確認步驟:
 
 ```console
 $ wallet-cli wallet delete --account wlt_p7waj9jm.0
 type the ref to delete (wlt_p7waj9jm.0): wlt_p7waj9jm.0
 ✓ wallet.delete
-  accountId: wlt_p7waj9jm.0
-  scope: wallet
-  secretRemoved: true
-  newActive:
+  ...
 ```
 
 打錯時:
@@ -164,26 +176,32 @@ error: deletion not confirmed          # exit 1, code: aborted
 
 ---
 
-## 6. `wallet backup` — 驗證既有密碼後寫檔
+## 6. `wallet backup` — 驗證既有密碼 → 選帳號 → 寫檔
+
+密碼**先問**(驗證既有);未帶 `--account` 再**方向鍵選帳號**(顯示地址),`--out` 為 optional(回車用預設路徑)。
 
 ```console
-$ wallet-cli wallet backup --account main
+$ wallet-cli wallet backup
 Master password:
+account (↑/↓, Enter):
+› main (active) — tron:TWer2Ygk5TEheHp3TPuYeqxmB6SsGZmaL6 / evm:0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+  hot — tron:TLEaY8XoqpBmndLsjcfThgdKLN1ssNuUcF / evm:0x70997970C51812dc3A010C7d01b50e0d17dc79C8
+out (optional, Enter to skip):
 ✓ wallet.backup
-  accountId: wlt_p7waj9jm.0
+  accountId: wlt_ebzxme75.0
   label: main
   type: seed
   index: 0
   active: true
-  addresses: {"tron":"TG2G2vEseEJL8fF6sjDLkice514Z3npDKe","evm":"0x5AA6b25f257872356FA89e46692DB2C971D7AA59"}
+  addresses: {"tron":"TWer2Ygk5TEheHp3TPuYeqxmB6SsGZmaL6","evm":"0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"}
   secretType: mnemonic
   passphraseSet: false
-  out: <root>/backups/wlt_p7waj9jm.0-1782112621801.json
+  out: <root>/backups/wlt_ebzxme75.0-1782112621801.json
   fileMode: 0600
   bytes: 330
 ```
 
-- 只問一次密碼(驗證既有),錯誤重試。
+- 密碼在所有欄位之前,只問一次(驗證既有),錯誤重試。
 - 秘密**只寫進 0600 檔**(`out` 路徑),stdout 只回 metadata + 路徑;秘密永不上螢幕。
 - **逃生口**:`--password-stdin`。
 

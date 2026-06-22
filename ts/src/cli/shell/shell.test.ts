@@ -2,6 +2,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { z } from "zod";
 import { gapFillRequiredFields } from "./index.js";
+import { accountRef } from "../../runtime/adapter/index.js";
 import type { CommandDefinition } from "../../core/types/index.js";
 import type { Prompter as PrompterType } from "../../infra/prompt/index.js";
 
@@ -136,6 +137,31 @@ describe("gapFillRequiredFields", () => {
     await gapFillRequiredFields(cmd, argv, prompter);
     expect(argv.count).toBeUndefined();
     expect(prompter.textCalls).toHaveLength(0);
+  });
+
+  it("arrow-selects an existing account for a branded account-ref field", async () => {
+    const cmd = makeCmd({ account: accountRef("account or wallet") });
+    const argv: Record<string, unknown> = {};
+    const prompter = makeFakePrompter({ tty: true, selectAnswers: ["wlt_b.0"] });
+    const choices = () => [
+      { value: "wlt_a.0", label: "main (active) — tron:TA / evm:0xA" },
+      { value: "wlt_b.0", label: "cold — tron:TB / evm:0xB" },
+    ];
+    await gapFillRequiredFields(cmd, argv, prompter, choices);
+    expect(argv.account).toBe("wlt_b.0");
+    expect(prompter.selectCalls).toHaveLength(1);
+    expect(prompter.selectCalls[0]!.choices.map((c) => c.value)).toEqual(["wlt_a.0", "wlt_b.0"]);
+    expect(prompter.textCalls).toHaveLength(0);
+  });
+
+  it("falls back to free text for an account-ref field when no accounts exist", async () => {
+    const cmd = makeCmd({ account: accountRef("account or wallet") });
+    const argv: Record<string, unknown> = {};
+    const prompter = makeFakePrompter({ tty: true, textAnswers: ["main"] });
+    await gapFillRequiredFields(cmd, argv, prompter, () => []);
+    expect(argv.account).toBe("main");
+    expect(prompter.selectCalls).toHaveLength(0);
+    expect(prompter.textCalls).toHaveLength(1);
   });
 
   it("does NOT prompt anything when isTTY() is false", async () => {

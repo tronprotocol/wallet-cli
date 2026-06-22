@@ -7,6 +7,7 @@
 import yargs, { type Argv } from "yargs";
 import { z } from "zod";
 import type {
+  AccountDescriptor,
   ChainFamily,
   CommandDefinition,
   Globals,
@@ -17,7 +18,7 @@ import { CommandRegistry } from "../../runtime/registry/index.js";
 import { CapabilityGate } from "../../runtime/capability/index.js";
 import { buildExecutionContext, type RuntimeDeps } from "../../runtime/context/index.js";
 import { OutputFormatter } from "../../runtime/output/index.js";
-import { ZodYargsAdapter, camelToKebab, introspectFields, enumOptions } from "../../runtime/adapter/index.js";
+import { ZodYargsAdapter, camelToKebab, introspectFields, enumOptions, isAccountRef } from "../../runtime/adapter/index.js";
 import { isChainFamily } from "../../core/family/index.js";
 import { UsageError, ExecutionError } from "../../core/errors/index.js";
 
@@ -148,7 +149,9 @@ async function dispatch(opts: ShellOptions, ns: string, argv: any): Promise<void
     throw new ExecutionError("auth_required", "master password required: pass --password-stdin");
   }
 
-  await gapFillRequiredFields(cmd, argv, deps.prompter);
+  await gapFillRequiredFields(cmd, argv, deps.prompter, () =>
+    deps.keystore.list().map((d) => ({ value: d.accountId, label: accountChoiceLabel(d) })),
+  );
   const input = parseInput(cmd, argv);
 
   const ctx = buildExecutionContext(globals, deps);
@@ -158,23 +161,42 @@ async function dispatch(opts: ShellOptions, ns: string, argv: any): Promise<void
   streams.result(formatter.success(cmd, net, data));
 }
 
+/** select label for an account choice: `main (active) — tron:T… / evm:0x…`, value = accountId. */
+function accountChoiceLabel(d: AccountDescriptor): string {
+  const name = d.label ?? d.accountId;
+  const tag = d.active ? " (active)" : "";
+  const addrs = Object.entries(d.addresses).map(([fam, a]) => `${fam}:${a}`).join(" / ");
+  return addrs ? `${name}${tag} — ${addrs}` : `${name}${tag}`;
+}
+
 /**
  * Fill missing non-secret fields by prompting — only under a TTY (non-TTY leaves argv untouched so
- * parseInput surfaces the usual missing_option). Required fields must be answered (enum → arrow
- * select, else free text); OPTIONAL value fields are still offered but Enter skips them (the
- * command's own default applies, e.g. an auto-generated wallet label). Boolean flags are never
- * prompted (their default is false). Fields with a zod default are filled by zod, so skipped. (spec §4.3)
+ * parseInput surfaces the usual missing_option). An account-ref field (delete/backup --account)
+ * offers an arrow-select of existing accounts (label + addresses); with zero accounts it falls back
+ * to free text so the command can surface its own no-wallet error. Other required fields must be
+ * answered (enum → arrow select, else free text); OPTIONAL value fields are still offered but Enter
+ * skips them (the command's own default applies, e.g. an auto-generated wallet label). Boolean flags
+ * are never prompted (their default is false). Fields with a zod default are filled by zod. (spec §4.3)
  */
 export async function gapFillRequiredFields(
   cmd: CommandDefinition,
   argv: any,
   prompter: Pick<import("../../infra/prompt/index.js").Prompter, "isTTY" | "text" | "select">,
+  accountChoices?: () => Array<{ value: string; label: string }>,
 ): Promise<void> {
   if (!prompter.isTTY()) return;
   for (const f of introspectFields(cmd.fields)) {
     if (f.hasDefault) continue; // zod supplies the value
     if (argv[f.name] !== undefined) continue; // already given on argv
     if (f.baseType === "boolean") continue; // never prompt for flags
+    if (isAccountRef(cmd.fields.shape[f.name])) {
+      const choices = accountChoices?.() ?? [];
+      if (choices.length > 0) {
+        argv[f.name] = await prompter.select({ label: f.kebab, choices });
+        continue;
+      }
+      // no accounts yet → fall through to the text path below (command will error on resolve)
+    }
     if (f.optional) {
       // offered but skippable: empty (Enter) → leave unset so the command's default applies.
       const v = await prompter.text({ label: `${f.kebab} (optional, Enter to skip)` });
