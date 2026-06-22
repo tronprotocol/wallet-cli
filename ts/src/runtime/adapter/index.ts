@@ -12,6 +12,10 @@ export interface FieldInfo {
   baseType: string;
   optional: boolean;
   hasDefault: boolean;
+  /** the default value (when hasDefault) — surfaced verbatim in --help. */
+  defaultValue?: unknown;
+  /** literal options when the field is an enum — surfaced as `<a|b>` in --help. */
+  choices?: string[];
   description?: string;
 }
 
@@ -19,31 +23,37 @@ export function camelToKebab(s: string): string {
   return s.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`);
 }
 
-function unwrap(schema: ZodType): { base: ZodType; optional: boolean; hasDefault: boolean; description?: string } {
+function unwrap(schema: ZodType): { base: ZodType; optional: boolean; hasDefault: boolean; defaultValue?: unknown; description?: string } {
   let s: any = schema;
   let optional = false;
   let hasDefault = false;
+  let defaultValue: unknown;
   let description: string | undefined = s?.description;
   while (s?.def && (s.def.type === "optional" || s.def.type === "default" || s.def.type === "nullable")) {
     if (s.def.type === "optional" || s.def.type === "nullable") optional = true;
-    if (s.def.type === "default") hasDefault = true;
+    if (s.def.type === "default") {
+      hasDefault = true;
+      defaultValue = s.def.defaultValue; // zod v4: plain value
+    }
     description ??= s.description;
     s = s.def.innerType;
   }
   description ??= s?.description;
-  return { base: s, optional, hasDefault, description };
+  return { base: s, optional, hasDefault, defaultValue, description };
 }
 
 export function introspectFields(fields: ZodObject<ZodRawShape>): FieldInfo[] {
   const shape = fields.shape;
   return Object.entries(shape).map(([name, schema]) => {
-    const { base, optional, hasDefault, description } = unwrap(schema as ZodType);
+    const { base, optional, hasDefault, defaultValue, description } = unwrap(schema as ZodType);
     return {
       name,
       kebab: camelToKebab(name),
       baseType: (base as any)?.def?.type ?? "unknown",
       optional,
       hasDefault,
+      defaultValue,
+      choices: enumOptions(schema as ZodType),
       description,
     };
   });

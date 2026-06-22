@@ -14,7 +14,7 @@ const rpcOf = (net: NetworkDescriptor): EvmRpcClient => net.rpc as EvmRpcClient;
 function sendNative(services: Services): CommandDefinition {
   const fields = z.object({
     to: Schemas.evmAddress().describe("recipient EVM address"),
-    amountWei: Schemas.uintString().describe("amount in wei"),
+    amountWei: Schemas.uintString().describe("amount to send, in wei (1 ETH = 1e18 wei)"),
     ...txModeFields,
   });
   return {
@@ -39,7 +39,7 @@ function sendNative(services: Services): CommandDefinition {
 function sendToken(services: Services): CommandDefinition {
   const fields = z.object({
     to: Schemas.evmAddress().describe("recipient EVM address"),
-    amountWei: Schemas.uintString().describe("amount in the token's smallest unit"),
+    amountWei: Schemas.uintString().describe("transfer amount, in the token's smallest unit (raw, undecimalized)"),
     contract: Schemas.evmAddress().describe("ERC-20 contract address"),
     maxFee: Schemas.uintString().optional().describe("EIP-1559 maxFeePerGas (wei)"),
     maxPriorityFee: Schemas.uintString().optional().describe("EIP-1559 maxPriorityFeePerGas (wei)"),

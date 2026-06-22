@@ -74,7 +74,7 @@ function buildTestDeps(opts: FakePromptOpts & { root?: string } = {}): {
 }
 
 function buildGlobals(): Globals {
-  return { output: "text", quiet: true, verbose: false, noDeviceWait: false };
+  return { output: "text", quiet: true, verbose: false };
 }
 
 function buildServices(ks: Keystore) {

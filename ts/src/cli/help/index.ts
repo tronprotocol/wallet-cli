@@ -6,7 +6,7 @@
 import { z } from "zod";
 import type { CommandDefinition, ExitCode, StreamManager } from "../../core/types/index.js";
 import { CommandRegistry } from "../../runtime/registry/index.js";
-import { introspectFields } from "../../runtime/adapter/index.js";
+import { introspectFields, type FieldInfo } from "../../runtime/adapter/index.js";
 import { isChainFamily } from "../../core/family/index.js";
 
 const META = new Set(["--help", "-h", "--version", "--json-schema"]);
@@ -157,7 +157,7 @@ export class HelpService {
     const requires: string[] = [];
     if (cmd.network === "required") requires.push("--network <id|alias>");
     if (cmd.auth === "required") requires.push("master password — --password-stdin (import-*/backup: interactive)");
-    if (cmd.wallet !== "none") requires.push("an account — defaults to active; override with --account <ref|label> (or `wallet set-active`)");
+    if (cmd.wallet !== "none") requires.push("an account — defaults to active; override with --account <accountId|label> (or `wallet set-active`)");
     if (requires.length) {
       lines.push("", "Requires:");
       for (const r of requires) lines.push(`  ${r}`);
@@ -165,12 +165,14 @@ export class HelpService {
 
     const fields = introspectFields(cmd.fields);
     if (fields.length) {
+      const heads = fields.map(flagHead);
+      const width = Math.min(34, Math.max(...heads.map((h) => h.length)));
       lines.push("", "Flags:");
-      for (const f of fields) {
-        const req = f.optional || f.hasDefault ? "" : " (required)";
-        const typ = f.baseType === "boolean" ? "" : ` <${f.baseType}>`;
-        lines.push(`  --${f.kebab}${typ}${req}  ${f.description ?? ""}`);
-      }
+      fields.forEach((f, i) => {
+        const desc = f.description ?? "";
+        const tag = flagTag(f);
+        lines.push(`  ${heads[i]!.padEnd(width)}  ${desc}${desc && tag ? "  " : ""}${tag}`.trimEnd());
+      });
     }
 
     lines.push("", "Global flags:");
@@ -206,6 +208,24 @@ export class HelpService {
       });
     return JSON.stringify({ tool: "wallet-cli", version: this.version, globalFlags: GLOBAL_FLAGS, commands });
   }
+}
+
+/** "--flag <type>" header for a command flag — enum fields list their choices instead of <enum>. */
+function flagHead(f: FieldInfo): string {
+  const typ = f.choices ? ` <${f.choices.join("|")}>` : f.baseType === "boolean" ? "" : ` <${f.baseType}>`;
+  return `--${f.kebab}${typ}`;
+}
+
+/** "[required]" / "[optional, default: X]" / "[optional]" tag derived from the zod schema. */
+function flagTag(f: FieldInfo): string {
+  if (!f.optional && !f.hasDefault) return "[required]";
+  if (f.hasDefault) return `[optional, default: ${formatDefault(f.defaultValue)}]`;
+  return "[optional]";
+}
+
+function formatDefault(v: unknown): string {
+  if (typeof v === "string") return v === "" ? '""' : v;
+  return String(v);
 }
 
 /** "  label   a · b · c" with continuation lines hanging-indented under the first item. */
@@ -250,7 +270,7 @@ interface GlobalFlag {
 const GLOBAL_FLAGS: readonly GlobalFlag[] = [
   { flag: "--output", alias: "-o", type: "string", values: ["text", "json"], description: "output format (default from config)" },
   { flag: "--network", type: "string", description: "target network (id or alias)" },
-  { flag: "--account", type: "string", description: "account to use for this command (ref, label, or one of your addresses)" },
+  { flag: "--account", type: "string", description: "account to use for this command (accountId, label, or one of your addresses)" },
   { flag: "--timeout", type: "number", description: "per-call timeout in ms" },
   { flag: "--quiet", type: "boolean", description: "suppress diagnostics" },
   { flag: "--verbose", type: "boolean", description: "extra diagnostics" },

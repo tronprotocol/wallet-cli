@@ -94,8 +94,8 @@ function accountInfo(): CommandDefinition {
 
 function accountHistory(): CommandDefinition {
   const fields = z.object({
-    limit: z.coerce.number().int().positive().max(200).default(20).describe("max records (default 20)"),
-    only: z.enum(["native", "token"]).optional().describe("filter by transfer type"),
+    limit: z.coerce.number().int().positive().max(200).default(20).describe("max records to return (1–200)"),
+    only: z.enum(["native", "token"]).optional().describe("only show this transfer type (default: all)"),
   });
   return {
     id: "tron.account.history", path: ["account", "history"], family: "tron",
@@ -123,8 +123,8 @@ function accountHistory(): CommandDefinition {
 
 // ── token address-book (§7.17) ────────────────────────────────────────────────
 const tokenBookFields = z.object({
-  contract: Schemas.base58Address().optional().describe("TRC20 contract"),
-  assetId: z.string().regex(/^\d+$/).optional().describe("TRC10 asset id"),
+  contract: Schemas.base58Address().optional().describe("TRC20 contract address (mutually exclusive with --asset-id)"),
+  assetId: z.string().regex(/^\d+$/).optional().describe("TRC10 asset id (mutually exclusive with --contract)"),
 });
 
 /** tronweb returns TRC10 name/abbr either decoded or hex-encoded; decode hex best-effort. */

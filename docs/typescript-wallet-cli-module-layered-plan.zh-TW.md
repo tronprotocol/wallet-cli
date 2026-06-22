@@ -362,7 +362,7 @@ class TxPipeline {
     estimate: (tx: UnsignedTx) => Promise<FeeReport>
     dryRun: boolean; broadcast: boolean
   }): Promise<TxOutcome> {
-    const { streams, timeoutMs, noDeviceWait } = p.ctx
+    const { streams, timeoutMs } = p.ctx
     const signer = this.signers.resolve(p.account, p.net.family)   // 回 Signer(含 kind + address)
     const tx = await p.build(signer.address)                       // build/estimate 完全不碰裝置
     const fee = await p.estimate(tx)
@@ -371,7 +371,6 @@ class TxPipeline {
     let signed: SignedTx
     if (signer.kind === "device") {
       await signer.precheck!()                                     // 沒連/鎖住/開錯 app → auth_required
-      if (noDeviceWait) throw new ChainError("signing_rejected", "--no-device-wait")
       streams.diagnostic("warn", "等待裝置確認簽名…")              // ← stderr / meta.warnings
       const ac = new AbortController()
       signed = await withTimeout(signer.sign(tx, { signal: ac.signal }), timeoutMs, () => ac.abort())
@@ -402,7 +401,7 @@ class TxPipeline {
 function buildExecutionContext(globals: Globals, deps: RuntimeDeps): ExecutionContext
 // deps 提供 resolveAccount(globals) → AccountRef(Keystore 介面),達成依賴反轉
 // 回傳物件實作 SharedTypes 的 ExecutionContext 介面:
-//   { config, networkRegistry, streams, secrets, output, timeoutMs, noDeviceWait,
+//   { config, networkRegistry, streams, secrets, output, timeoutMs,
 //     get activeAccount(): AccountRef,           // lazy
 //     resolveAddress(family): string }           // = walletAddress(keystore.resolveAccount(activeAccount).wallet, family, index)
 ```
@@ -624,7 +623,7 @@ type UnsignedTx = unknown; type SignedTx = unknown; type FeeReport = object; typ
 
 // 執行上下文 / 命令 / 鏈模組介面(實作在上層)
 interface ExecutionContext { config: Config; networkRegistry: NetworkRegistry; streams: StreamManager
-  secrets: SecretResolver; output:"text"|"json"; timeoutMs:number; noDeviceWait:boolean
+  secrets: SecretResolver; output:"text"|"json"; timeoutMs:number
   activeAccount: AccountRef; resolveAddress(family: ChainFamily): string }
 interface CommandDefinition<I=any,O=any> { id:string; path:string[]; family?: ChainFamily
   network:"none"|"optional"|"required"; wallet:"none"|"optional"; auth:"none"|"required"
@@ -886,7 +885,7 @@ $WALLET_CLI_HOME/ 或 ~/.wallet-cli/   # 後者為預設;前者覆寫整棵樹
 - **`id` 生成**:`wlt_` + Crockford base32(CSPRNG,如 `randomBytes(5)`)。**不用時間當 seed**;唯一性靠「生成後比對註冊表、撞到重生」;**絕不由秘密衍生**(免在明文留指紋)。`vaultId`/`keyId` 同原則。
 - **`labels` 唯一性橫跨整張 map**(wallet 層 + account 層同命名空間),`--account main` 才能反查唯一;trim + 大小寫不敏感比對撞名即拒絕;label 不得以 `wlt_` 開頭。刪 account/wallet 要**主動清** `labels[ref]` 孤兒。
 - **為何 label 已唯一仍保留 id/ref**:唯一只在某時刻成立,不跨時間(刪 `main` 再建同名 `main` 是不同私鑰);用 ref 釘死才能「精確命中或報錯」,不靜默改指。
-- **選取解析**:`--account <ref|label|address>` 為**唯一選擇器**(取代舊 `--wallet`),覆寫 active、所有命令可用。形狀自動判:`wlt_` 開頭當 ref;合法地址(`T...`/`0x...`)比對各錢包 `source.addresses` cache(唯一,無歧義);否則當 label(0=not-found、1=用它、**≥2 歧義硬報錯**,簽名路徑絕不替使用者猜)。解析到多帳戶 seed 的 wallet 層 → 報錯要求指定 account;單帳戶錢包(privateKey/ledger/watch)wallet==account 直接用其唯一 account。
+- **選取解析**:`--account <accountId|label|address>` 為**唯一選擇器**(取代舊 `--wallet`),覆寫 active、所有命令可用。形狀自動判:`wlt_` 開頭當 accountId;合法地址(`T...`/`0x...`)比對各錢包 `source.addresses` cache(唯一,無歧義);否則當 label(0=not-found、1=用它、**≥2 歧義硬報錯**,簽名路徑絕不替使用者猜)。解析到多帳戶 seed 的 wallet 層 → 報錯要求指定 account;單帳戶錢包(privateKey/ledger/watch)wallet==account 直接用其唯一 account。
 - **import 分工**:使用者給秘密(助記詞/私鑰類走互動式隱藏輸入,連同 master password;見 §7.13.1)+ 選填 `--label`;CLI 自動生 `id`、建 account 0、衍生 `addresses`、寫加密檔回填 `vaultId`/`keyId`、寫 root `labels`;`--label` 省略給預設(`wallet-N`);重複 import 比對 `addresses` 去重。
 - **Ledger(單鏈單 path)**:每個 `(family, path, address)` 為**獨立條目**,ref 同 privateKey 用 `wlt_id`(無 index);address 存 `source`、**不填 `addresses` map**。tron/ethereum、不同 index 一律各自條目;去重以 `(family, path)` 為準。**ledger 失去跨鏈共享身分**(software 維持)。`add-account` 不適用 ledger(用 import 增 path)。選取時命令 family 須等於 `source.family`,否則 `missing_wallet_address`(訊息點明 family 不符)。匯入規則見 [§7.14.1](#7141-ledger-import-模型唯一進入點ledger-無-deriveadd-account)。
 - **Watch(單鏈單地址)**:與 ledger 同級的 `Source`,差別在**無秘密、無 path、無檔**——`(family, address)` 全存 `wallets.json` 的 `source`。ref 同 privateKey/ledger 用 `wlt_id`(無 index);address 存 `source`、不填 `addresses` map;去重以 `(family, address)` 為準;family 由地址格式自動判(`T...`→tron、`0x...`→evm)。讀類命令(餘額/資源/歷史)照常用 cache address;**簽名類命令 → `SignerResolver` 回 `watch_only_no_signer`**。`add-account` 不適用(用 import 增地址)。匯入規則見 §7.14.2。
@@ -1109,10 +1108,9 @@ fee.eip1559                                   # 僅 EVM
 | --- | --- |
 | `--output text\|json` | 輸出格式;`json` 走固定 envelope。 |
 | `--network <id\|alias>` | 選網路(canonical 或 alias);動鏈命令(`net=required`)必帶、讀類/離線簽名(`net=optional`)省略時用 family 預設(§7.5 `defaults.network`),且 family 須與 positional 一致。 |
-| `--account <ref\|label\|address>` | 唯一選擇器(取代舊 `--wallet`),tx/sign 與查詢精確到 account,覆寫 active、所有命令可用;未指定用 `activeAccount`。形狀自動判:`wlt_`→ref、合法地址→比對 cache(唯一)、其餘→label。解析到多帳戶 seed 的 wallet 層 → 報錯要求指定 account;單帳戶錢包(privateKey/ledger/watch)wallet==account 直接用。 |
+| `--account <accountId\|label\|address>` | 唯一選擇器(取代舊 `--wallet`),tx/sign 與查詢精確到 account,覆寫 active、所有命令可用;未指定用 `activeAccount`。形狀自動判:`wlt_`→accountId、合法地址→比對 cache(唯一)、其餘→label。解析到多帳戶 seed 的 wallet 層 → 報錯要求指定 account;單帳戶錢包(privateKey/ledger/watch)wallet==account 直接用。 |
 | `--quiet` / `--verbose` | 抑制 / 增加 diagnostics(不影響 command data)。 |
-| `--timeout <ms>` | 操作逾時(含 Ledger 等待確認)。 |
-| `--no-device-wait` | Ledger 不等待,立即失敗(自動化用)。 |
+| `--timeout <ms>` | 操作逾時(含 Ledger 等待確認;Ledger 等待的唯一上界,無人值守時逾時即 abort)。 |
 | `--help` / `-h` / `--version` | 元選項。 |
 
 **Endpoint override**:`--grpc-endpoint <host:port>`(TRON)、`--rpc-url <url>`(EVM)— 單次執行覆寫,非業務輸入。

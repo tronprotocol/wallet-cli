@@ -33,7 +33,6 @@ export interface RuntimeDeps {
 class ExecutionContextImpl implements ExecutionContext {
   output: OutputMode;
   timeoutMs: number;
-  noDeviceWait: boolean;
   #activeRef?: AccountRef;
 
   constructor(
@@ -42,7 +41,6 @@ class ExecutionContextImpl implements ExecutionContext {
   ) {
     this.output = globals.output;
     this.timeoutMs = globals.timeoutMs ?? deps.config.timeoutMs;
-    this.noDeviceWait = globals.noDeviceWait;
   }
 
   get config(): Config {

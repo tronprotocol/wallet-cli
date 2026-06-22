@@ -36,8 +36,8 @@ export function registerConfigCommands(reg: CommandRegistry): void {
 
   // ── config set ──────────────────────────────────────────────────────────────────
   const configSetFields = z.object({
-    key: z.enum(["defaultOutput", "timeoutMs"]).describe("config key"),
-    value: z.string().min(1).describe("new value"),
+    key: z.enum(["defaultOutput", "timeoutMs"]).describe("config key to set"),
+    value: z.string().min(1).describe("new value (defaultOutput: text|json; timeoutMs: non-negative ms)"),
   });
   reg.add({
     id: "config.set", path: ["set"], network: "none", wallet: "none", auth: "none",

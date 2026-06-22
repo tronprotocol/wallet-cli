@@ -12,7 +12,7 @@ import { rpcOf, tokenSelector } from "./shared.js";
 function sendNative(services: Services): CommandDefinition {
   const fields = z.object({
     to: Schemas.base58Address().describe("recipient TRON address"),
-    amountSun: Schemas.uintString().describe("amount in SUN"),
+    amountSun: Schemas.uintString().describe("amount to send, in SUN (1 TRX = 1e6 SUN)"),
     ...txModeFields,
   });
   return {
@@ -35,10 +35,10 @@ function sendNative(services: Services): CommandDefinition {
 function sendToken(services: Services): CommandDefinition {
   const fields = z.object({
     to: Schemas.base58Address().describe("recipient TRON address"),
-    amount: Schemas.amount().describe("amount in the token's smallest unit"),
-    contract: Schemas.base58Address().optional().describe("TRC20 contract"),
-    assetId: z.string().regex(/^\d+$/).optional().describe("TRC10 asset id"),
-    feeLimit: z.coerce.number().int().positive().default(100_000_000).describe("energy fee cap (SUN)"),
+    amount: Schemas.amount().describe("transfer amount, in the token's smallest unit (raw, undecimalized)"),
+    contract: Schemas.base58Address().optional().describe("TRC20 contract address (mutually exclusive with --asset-id)"),
+    assetId: z.string().regex(/^\d+$/).optional().describe("TRC10 asset id (mutually exclusive with --contract)"),
+    feeLimit: z.coerce.number().int().positive().default(100_000_000).describe("max energy fee you'll pay, in SUN"),
     ...txModeFields,
   });
   return {

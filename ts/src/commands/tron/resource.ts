@@ -10,7 +10,7 @@ import { txModeFields, txMode, outcomeData } from "../shared.js";
 import { UsageError } from "../../core/errors/index.js";
 import { rpcOf } from "./shared.js";
 
-const resourceEnum = z.enum(["energy", "bandwidth"]).default("bandwidth").describe("resource type");
+const resourceEnum = z.enum(["energy", "bandwidth"]).default("bandwidth").describe("resource to obtain");
 const toResourceCode = (r: string) => (r === "energy" ? "ENERGY" : "BANDWIDTH");
 
 interface StakeOpts {
@@ -66,7 +66,7 @@ export function resourceCommands(services: Services): CommandDefinition[] {
       (rpc, owner, i) => rpc.buildFreezeV2(owner, i.amountSun, i.resource === "energy" ? "ENERGY" : "BANDWIDTH"),
       {
         amountSun: Schemas.uintString().describe("amount to freeze (SUN)"),
-        resource: z.enum(["energy", "bandwidth"]).default("bandwidth").describe("resource type"),
+        resource: z.enum(["energy", "bandwidth"]).default("bandwidth").describe("resource to obtain"),
       },
     ),
     stakeCmd(
@@ -74,7 +74,7 @@ export function resourceCommands(services: Services): CommandDefinition[] {
       (rpc, owner, i) => rpc.buildUnfreezeV2(owner, i.amountSun, i.resource === "energy" ? "ENERGY" : "BANDWIDTH"),
       {
         amountSun: Schemas.uintString().describe("amount to unfreeze (SUN)"),
-        resource: z.enum(["energy", "bandwidth"]).default("bandwidth").describe("resource type"),
+        resource: z.enum(["energy", "bandwidth"]).default("bandwidth").describe("resource to obtain"),
       },
     ),
     stakeCmd(

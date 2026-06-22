@@ -23,7 +23,7 @@ describe("SignerResolver — watch accounts", () => {
   });
 
   it("refuses to sign for a watch-only account (watch_only_no_signer)", () => {
-    const ref = ks.registerWatch({ family: "tron", address: "Twatch1" });
+    const ref = ks.registerWatch({ family: "tron", address: "Twatch1" }).accountId;
     let err: { code?: string } | undefined;
     try {
       resolver.resolve(ref, "tron");
@@ -34,7 +34,7 @@ describe("SignerResolver — watch accounts", () => {
   });
 
   it("reports missing_wallet_address when the requested family doesn't match the watch", () => {
-    const ref = ks.registerWatch({ family: "tron", address: "Twatch1" });
+    const ref = ks.registerWatch({ family: "tron", address: "Twatch1" }).accountId;
     let err: { code?: string } | undefined;
     try {
       resolver.resolve(ref, "evm");

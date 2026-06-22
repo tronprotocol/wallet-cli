@@ -228,7 +228,6 @@ export interface ExecutionContext {
   prompt: import("../../infra/prompt/index.js").Prompter;
   output: OutputMode;
   timeoutMs: number;
-  noDeviceWait: boolean;
   /** lazily resolved active account ref (throws if required but absent). */
   readonly activeAccount: AccountRef;
   /** cached address of the active account on a given family. */
@@ -346,7 +345,6 @@ export interface Globals {
   timeoutMs?: number;
   quiet: boolean;
   verbose: boolean;
-  noDeviceWait: boolean;
   grpcEndpoint?: string;
   rpcUrl?: string;
 }

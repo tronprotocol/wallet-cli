@@ -43,7 +43,7 @@ export class TxPipeline {
   constructor(private readonly signers: SignerResolver) {}
 
   async run(p: TxPipelineParams): Promise<TxOutcome> {
-    const { timeoutMs, noDeviceWait } = p.ctx;
+    const { timeoutMs } = p.ctx;
     const signer = this.signers.resolve(p.account, p.net.family);
 
     // every network/sign step is bounded by --timeout (a hung RPC must not hang the CLI).
@@ -55,7 +55,6 @@ export class TxPipeline {
     let signed: SignedTx;
     if (signer.kind === "device") {
       await signer.precheck?.();
-      if (noDeviceWait) throw new ChainError("signing_rejected", "--no-device-wait set; refusing to wait for device");
       p.ctx.emit({ type: "awaiting_device", reason: "sign" });
       const ac = new AbortController();
       signed = await withTimeout(signer.sign(tx, { signal: ac.signal }), timeoutMs, () => ac.abort());

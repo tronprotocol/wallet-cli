@@ -9,7 +9,7 @@ function ctxWith(output: "text" | "json") {
   const err: string[] = [];
   const sm = new StreamManager(output, false, false, (s) => out.push(s), (s) => err.push(s));
   const formatter = createOutputFormatter(output, sm, 0);
-  const globals = { output, quiet: false, verbose: false, noDeviceWait: false } as Globals;
+  const globals = { output, quiet: false, verbose: false } as Globals;
   // only streams + formatter are exercised by emit(); the rest is lazily used elsewhere.
   const deps = { config: { timeoutMs: 1 }, streams: sm, formatter } as unknown as RuntimeDeps;
   return { ctx: buildExecutionContext(globals, deps), out, err };

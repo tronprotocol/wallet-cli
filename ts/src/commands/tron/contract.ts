@@ -45,8 +45,8 @@ function contractSend(services: Services): CommandDefinition {
     contract: Schemas.base58Address().describe("contract address"),
     method: z.string().min(1).describe("function signature"),
     params: z.string().optional().describe("JSON array of {type,value}"),
-    callValueSun: z.coerce.number().int().nonnegative().default(0).describe("TRX (SUN) sent with the call"),
-    feeLimit: z.coerce.number().int().positive().default(100_000_000).describe("energy fee cap (SUN)"),
+    callValueSun: z.coerce.number().int().nonnegative().default(0).describe("native TRX to attach to the call, in SUN"),
+    feeLimit: z.coerce.number().int().positive().default(100_000_000).describe("max energy fee you'll pay, in SUN"),
     ...txModeFields,
   });
   return {
@@ -72,10 +72,10 @@ function contractDeploy(services: Services): CommandDefinition {
   const fields = z.object({
     abi: z.string().min(1).describe("contract ABI (JSON)"),
     bytecode: z.string().min(1).describe("contract bytecode (hex)"),
-    feeLimit: z.coerce.number().int().positive().describe("energy fee cap (SUN)"),
+    feeLimit: z.coerce.number().int().positive().describe("max energy fee you'll pay, in SUN"),
     // NB: field must NOT be named `constructor` — it collides with Object.prototype.constructor
     // (yargs crashes on the option; argv.constructor reads the Object ctor fn). Flag = --constructor-sig.
-    constructorSig: z.string().optional().describe("constructor signature"),
+    constructorSig: z.string().optional().describe("constructor signature, e.g. constructor(uint256)"),
     params: z.string().optional().describe("constructor params (JSON array)"),
     ...txModeFields,
   });

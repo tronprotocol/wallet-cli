@@ -45,7 +45,7 @@ function run(args: string[], opts: { input?: string; password?: string | null } 
 // tests have a funded identity; the seed is encrypted with DEFAULT_PW, matching run()'s default.
 function seedWallet(label = "main") {
   const ks = new Keystore(HOME, new AtomicFileStore(), () => DEFAULT_PW);
-  return ks.import({ secret: MNEMONIC, type: "seed", label });
+  return ks.import({ secret: MNEMONIC, type: "seed", label }).accountId;
 }
 
 // Write a user-layer token directly (bypassing the live-RPC add-token path) so list/remove
