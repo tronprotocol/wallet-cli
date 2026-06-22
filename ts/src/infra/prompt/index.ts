@@ -119,6 +119,9 @@ export class TtyBackend implements PromptBackend {
   #tty: boolean;
   #fd?: number;
   #input?: ReadStream;
+  #keyQueue: KeyEvent[] = [];
+  #pendingKey?: (key: KeyEvent) => void;
+  #keyListener?: (s: string, key: KeyEvent) => void;
   constructor() {
     // Probe for a controlling terminal without holding the fd; the real stream opens on first prompt.
     try {
@@ -190,18 +193,36 @@ export class TtyBackend implements PromptBackend {
   beginRaw(): void {
     const s = this.#stream();
     readline.emitKeypressEvents(s);
+    if (!this.#keyListener) {
+      this.#keyListener = (_s: string, key: KeyEvent) => {
+        if (this.#pendingKey) {
+          const resolve = this.#pendingKey;
+          this.#pendingKey = undefined;
+          resolve(key ?? {});
+          return;
+        }
+        this.#keyQueue.push(key ?? {});
+      };
+      s.on("keypress", this.#keyListener);
+    }
     s.setRawMode(true);
     s.resume();
   }
   endRaw(): void {
+    if (this.#keyListener) {
+      this.#input?.off("keypress", this.#keyListener);
+      this.#keyListener = undefined;
+    }
+    this.#pendingKey = undefined;
+    this.#keyQueue = [];
     this.#input?.setRawMode(false);
     this.#input?.pause();
   }
   readKey(): Promise<KeyEvent> {
-    const input = this.#stream();
+    const queued = this.#keyQueue.shift();
+    if (queued) return Promise.resolve(queued);
     return new Promise((resolve) => {
-      const onKey = (_s: string, key: KeyEvent) => { input.off("keypress", onKey); resolve(key ?? {}); };
-      input.on("keypress", onKey);
+      this.#pendingKey = resolve;
     });
   }
   /** Release the persistent /dev/tty stream so the event loop drains and the process exits. */

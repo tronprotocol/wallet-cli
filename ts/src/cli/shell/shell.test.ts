@@ -78,7 +78,7 @@ describe("gapFillRequiredFields", () => {
     await gapFillRequiredFields(cmd, argv, prompter);
     expect(argv.address).toBe("TXyz");
     expect(prompter.textCalls).toHaveLength(1);
-    expect(prompter.textCalls[0]!.label).toBe("address");
+    expect(prompter.textCalls[0]!.label).toBe("Address");
     expect(prompter.selectCalls).toHaveLength(0);
   });
 
@@ -89,7 +89,7 @@ describe("gapFillRequiredFields", () => {
     await gapFillRequiredFields(cmd, argv, prompter);
     expect(argv.toAddress).toBe("TAbcd1234");
     expect(prompter.textCalls).toHaveLength(1);
-    expect(prompter.textCalls[0]!.label).toBe("to-address");
+    expect(prompter.textCalls[0]!.label).toBe("To Address");
     expect(prompter.selectCalls).toHaveLength(0);
   });
 
@@ -110,7 +110,7 @@ describe("gapFillRequiredFields", () => {
     await gapFillRequiredFields(cmd, argv, prompter);
     expect(argv.label).toBeUndefined(); // skipped → command default applies
     expect(prompter.textCalls).toHaveLength(1);
-    expect(prompter.textCalls[0]!.label).toBe("label (optional, Enter to skip)");
+    expect(prompter.textCalls[0]!.label).toBe("Label (optional, press Enter to skip)");
   });
 
   it("sets an optional field when the user types a value", async () => {
@@ -119,6 +119,35 @@ describe("gapFillRequiredFields", () => {
     const prompter = makeFakePrompter({ tty: true, textAnswers: ["main"] });
     await gapFillRequiredFields(cmd, argv, prompter);
     expect(argv.label).toBe("main");
+  });
+
+  it("offers a random default label for interactive wallet creation/import commands", async () => {
+    const cmd = makeCmd({ label: z.string().optional() });
+    cmd.id = "wallet.create";
+    const argv: Record<string, unknown> = {};
+    const prompter = makeFakePrompter({ tty: true }); // Enter accepts the generated default
+    await gapFillRequiredFields(cmd, argv, prompter);
+    expect(argv.label).toMatch(/^wallet_[0-9a-f]{6}$/);
+    expect(prompter.textCalls).toHaveLength(1);
+    expect(prompter.textCalls[0]!.label).toMatch(/^Label \(wallet_[0-9a-f]{6}\)$/);
+  });
+
+  it("does not prompt optional Ledger locators; missing locator enters command-level selection", async () => {
+    const cmd = makeCmd({
+      app: z.enum(["tron", "ethereum"]),
+      index: z.number().optional(),
+      path: z.string().optional(),
+      address: z.string().optional(),
+      scanLimit: z.number().optional(),
+      label: z.string().optional(),
+    });
+    cmd.id = "wallet.import-ledger";
+    const argv: Record<string, unknown> = {};
+    const prompter = makeFakePrompter({ tty: true, selectAnswers: ["tron"], textAnswers: ["cold"] });
+    await gapFillRequiredFields(cmd, argv, prompter);
+    expect(argv).toEqual({ app: "tron", label: "cold" });
+    expect(prompter.selectCalls).toHaveLength(1);
+    expect(prompter.textCalls.map((c) => c.label)[0]).toMatch(/^Label \(wallet_[0-9a-f]{6}\)$/);
   });
 
   it("does NOT prompt for an optional boolean flag", async () => {
@@ -144,8 +173,8 @@ describe("gapFillRequiredFields", () => {
     const argv: Record<string, unknown> = {};
     const prompter = makeFakePrompter({ tty: true, selectAnswers: ["wlt_b.0"] });
     const choices = () => [
-      { value: "wlt_a.0", label: "main (active) — tron:TA / evm:0xA" },
-      { value: "wlt_b.0", label: "cold — tron:TB / evm:0xB" },
+      { value: "wlt_a.0", label: "main [active]" },
+      { value: "wlt_b.0", label: "cold" },
     ];
     await gapFillRequiredFields(cmd, argv, prompter, choices);
     expect(argv.account).toBe("wlt_b.0");

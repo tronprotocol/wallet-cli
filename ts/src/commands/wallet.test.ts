@@ -258,6 +258,22 @@ describe("wallet delete", () => {
     expect(ks.list()).toHaveLength(0);
   });
 
+  it("confirms deletion by exact label when a label is available", async () => {
+    const root = mkdtempSync(join(tmpdir(), "wallet-delete-label-test-"));
+    const { ctx, registry, ks, accountId } = await setupAccountForDelete(root, {
+      tty: true,
+      hiddenAnswers: [VALID_PASSWORD, VALID_PASSWORD, VALID_MNEMONIC],
+      confirmAnswer: "wallet-1",
+    });
+
+    expect(ks.describe(accountId).label).toBe("wallet-1");
+
+    const deleteCmd = getCmd(registry, "wallet.delete")!;
+    await deleteCmd.run(ctx, undefined as any, { account: accountId } as any);
+
+    expect(ks.list()).toHaveLength(0);
+  });
+
   it("throws aborted when --yes is false and confirm returns wrong string", async () => {
     const root = mkdtempSync(join(tmpdir(), "wallet-delete-abort-test-"));
     const { ctx, registry, ks, accountId } = await setupAccountForDelete(root, {

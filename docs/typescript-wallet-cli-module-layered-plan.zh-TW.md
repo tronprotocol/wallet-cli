@@ -941,7 +941,7 @@ $WALLET_CLI_HOME/ 或 ~/.wallet-cli/   # 後者為預設;前者覆寫整棵樹
 
 ```yaml
 defaultOutput: text
-timeoutMs: 30000
+timeoutMs: 60000
 defaults:
   network:                 # net=opt 命令(讀類/離線簽名)省略 --network 時的回退;省略此鍵則用內建 mainnet
     tron: nile             # 內建為 tron:mainnet

@@ -96,7 +96,9 @@ export class SecretResolver implements ISecretResolver {
       return v;
     }
     if (this.prompter?.isTTY()) {
-      const label = kind === "mnemonic" ? "Recovery phrase" : "Private key";
+      const label = kind === "mnemonic"
+        ? "Paste recovery phrase (hidden)"
+        : "Paste private key (hidden)";
       const v = await this.prompter.hidden({
         label,
         validate: (s) => (validate(s.trim()) ? null : `invalid ${kind}`),
@@ -126,14 +128,15 @@ export class SecretResolver implements ISecretResolver {
       let pw: string;
       if (plan.mode === "set") {
         pw = await this.prompter.hidden({
-          label: "Set master password",
+          label: "Set master password (hidden)",
+          confirmLabel: "Confirm master password",
           confirm: true,
           validate: (s) => { const e = passwordPolicyErrors(s); return e.length ? e.join("; ") : null; },
         });
       } else {
         pw = "";
         for (let attempt = 0; attempt < 3; attempt++) {
-          pw = await this.prompter.hidden({ label: "Master password" });
+          pw = await this.prompter.hidden({ label: "Master password (hidden)" });
           if (plan.verify?.(pw)) { this.#primed.set("password", pw); return; }
           this.streams.diagnostic("warn", "incorrect master password");
         }

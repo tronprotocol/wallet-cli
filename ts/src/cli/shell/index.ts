@@ -5,6 +5,7 @@
  * (plan §3 L4 / 修正④ / [replaces ArgvLexer/FlagSpecRegistry])
  */
 import yargs, { type Argv } from "yargs";
+import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import type {
   AccountDescriptor,
@@ -56,6 +57,13 @@ const GLOBAL_OPTS = {
   "tx-stdin": { type: "boolean" },
   "message-stdin": { type: "boolean" },
 } as const;
+
+const DEFAULT_LABEL_COMMANDS = new Set([
+  "wallet.create",
+  "wallet.import-mnemonic",
+  "wallet.import-private-key",
+  "wallet.import-ledger",
+]);
 
 export function buildCli(opts: ShellOptions): Argv {
   const cli = yargs()
@@ -161,12 +169,11 @@ async function dispatch(opts: ShellOptions, ns: string, argv: any): Promise<void
   streams.result(formatter.success(cmd, net, data));
 }
 
-/** select label for an account choice: `main (active) — tron:T… / evm:0x…`, value = accountId. */
+/** select label for an account choice: compact controls scan better; receipts carry addresses. */
 function accountChoiceLabel(d: AccountDescriptor): string {
   const name = d.label ?? d.accountId;
-  const tag = d.active ? " (active)" : "";
-  const addrs = Object.entries(d.addresses).map(([fam, a]) => `${fam}:${a}`).join(" / ");
-  return addrs ? `${name}${tag} — ${addrs}` : `${name}${tag}`;
+  const tag = d.active ? " [active]" : "";
+  return `${name}${tag}`;
 }
 
 /**
@@ -175,8 +182,9 @@ function accountChoiceLabel(d: AccountDescriptor): string {
  * offers an arrow-select of existing accounts (label + addresses); with zero accounts it falls back
  * to free text so the command can surface its own no-wallet error. Other required fields must be
  * answered (enum → arrow select, else free text); OPTIONAL value fields are still offered but Enter
- * skips them (the command's own default applies, e.g. an auto-generated wallet label). Boolean flags
- * are never prompted (their default is false). Fields with a zod default are filled by zod. (spec §4.3)
+ * skips them, except wallet creation/import labels where Enter accepts the shown random default.
+ * Boolean flags are never prompted (their default is false). Fields with a zod default are filled by
+ * zod. (spec §4.3)
  */
 export async function gapFillRequiredFields(
   cmd: CommandDefinition,
@@ -192,25 +200,45 @@ export async function gapFillRequiredFields(
     if (isAccountRef(cmd.fields.shape[f.name])) {
       const choices = accountChoices?.() ?? [];
       if (choices.length > 0) {
-        argv[f.name] = await prompter.select({ label: f.kebab, choices });
+        argv[f.name] = await prompter.select({ label: "Select account", choices });
         continue;
       }
       // no accounts yet → fall through to the text path below (command will error on resolve)
     }
     if (f.optional) {
+      if (shouldSkipOptionalPrompt(cmd, f.name)) continue;
+      if (shouldPromptWithDefaultLabel(cmd, f.name)) {
+        const defaultLabel = randomWalletLabel();
+        const v = await prompter.text({ label: `${humanFieldLabel(f.kebab)} (${defaultLabel})` });
+        argv[f.name] = v === "" ? defaultLabel : v;
+        continue;
+      }
       // offered but skippable: empty (Enter) → leave unset so the command's default applies.
-      const v = await prompter.text({ label: `${f.kebab} (optional, Enter to skip)` });
+      const v = await prompter.text({ label: `${humanFieldLabel(f.kebab)} (optional, press Enter to skip)` });
       if (v !== "") argv[f.name] = v;
       continue;
     }
     const options = enumOptions(cmd.fields.shape[f.name] as any);
     argv[f.name] = options
-      ? await prompter.select({ label: f.kebab, choices: options.map((o) => ({ value: o, label: o })) })
-      : await prompter.text({ label: f.kebab, validate: (v: string) => (v.trim() ? null : "required") });
+      ? await prompter.select({ label: humanFieldLabel(f.kebab), choices: options.map((o) => ({ value: o, label: o })) })
+      : await prompter.text({ label: humanFieldLabel(f.kebab), validate: (v: string) => (v.trim() ? null : "required") });
   }
 }
 
 const kebabToCamel = (s: string): string => s.replace(/-([a-z0-9])/g, (_m, c) => c.toUpperCase());
+const humanFieldLabel = (s: string): string => s.split("-").map((p) => p[0] ? p[0].toUpperCase() + p.slice(1) : p).join(" ");
+
+function shouldSkipOptionalPrompt(cmd: CommandDefinition, fieldName: string): boolean {
+  return cmd.id === "wallet.import-ledger" && ["index", "path", "address", "scanLimit"].includes(fieldName);
+}
+
+function shouldPromptWithDefaultLabel(cmd: CommandDefinition, fieldName: string): boolean {
+  return fieldName === "label" && DEFAULT_LABEL_COMMANDS.has(cmd.id);
+}
+
+function randomWalletLabel(): string {
+  return `wallet_${randomBytes(3).toString("hex")}`;
+}
 
 /**
  * Reject unknown/misspelled flags (yargs is non-strict so it would otherwise pass them through

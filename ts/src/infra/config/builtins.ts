@@ -63,7 +63,7 @@ export const BUILTIN_NETWORKS: Record<string, NetworkDescriptor> = {
 
 export const DEFAULT_CONFIG = {
   defaultOutput: "text" as const,
-  timeoutMs: 30000,
+  timeoutMs: 60000,
   // net=optional fallback (§7.5); config.yaml `defaults.network` overrides per family.
   defaults: {
     network: Object.fromEntries(CHAIN_FAMILIES.map((f) => [f, FAMILIES[f].defaultNetwork])) as Record<ChainFamily, string>,

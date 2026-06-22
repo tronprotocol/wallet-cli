@@ -69,4 +69,39 @@ describe("createOutputFormatter (text)", () => {
     expect(frame).not.toBeNull();
     expect(frame).not.toContain("{"); // human text, not NDJSON
   });
+
+  it("renders wallet create as a focused human receipt", () => {
+    const { sm } = capture("text");
+    const f = createOutputFormatter("text", sm, 0);
+    const walletCmd = { id: "wallet.create", path: ["create"] } as unknown as CommandDefinition;
+    const text = f.success(walletCmd, undefined, {
+      status: "created",
+      accountId: "wlt_abc.0",
+      label: "main",
+      type: "seed",
+      active: true,
+      addresses: { tron: "T1234567890abcdef", evm: "0x1234567890abcdef" },
+    });
+    expect(text).toContain("Created wallet");
+    expect(text).toContain("main");
+    expect(text).toContain("Run `wallet backup`");
+  });
+
+  it("renders backup metadata without secret material", () => {
+    const { sm } = capture("text");
+    const f = createOutputFormatter("text", sm, 0);
+    const backupCmd = { id: "wallet.backup", path: ["backup"] } as unknown as CommandDefinition;
+    const text = f.success(backupCmd, undefined, {
+      accountId: "wlt_abc.0",
+      secretType: "mnemonic",
+      out: "/tmp/main-backup.json",
+      fileMode: "0600",
+      bytes: 512,
+      mnemonic: "test test test test test test test test test test test junk",
+      privateKey: "00".repeat(32),
+    });
+    expect(text).toContain("/tmp/main-backup.json");
+    expect(text).not.toContain("test test");
+    expect(text).not.toContain("000000");
+  });
 });

@@ -289,7 +289,7 @@ const GLOBAL_FLAGS: readonly GlobalFlag[] = [
   { flag: "--output", alias: "-o", type: "string", values: ["text", "json"], description: "result format", defaultValue: "config.defaultOutput (built-in: text)" },
   { flag: "--network", type: "string", description: "network id or alias, e.g. tron:mainnet, nile, base; required only when listed in Requires; commands without a network requirement fall back via config.defaults.network.<family>" },
   { flag: "--account", type: "string", description: "accountId, label, or address for wallet-bound commands; falls back to the active account from wallet set-active" },
-  { flag: "--timeout", type: "number", description: "per RPC/device call timeout, in milliseconds", defaultValue: "config.timeoutMs (built-in: 30000)" },
+  { flag: "--timeout", type: "number", description: "per RPC/device call timeout, in milliseconds", defaultValue: "config.timeoutMs (built-in: 60000)" },
   { flag: "--quiet", type: "boolean", description: "suppress diagnostic/progress messages on stderr, without suppressing result output; mutually exclusive with --verbose", defaultValue: false },
   { flag: "--verbose", type: "boolean", description: "show extra diagnostic/debug messages on stderr, without changing result format; mutually exclusive with --quiet", defaultValue: false },
   { flag: "--rpc-url", type: "string", description: "override the selected network RPC URL for this run" },

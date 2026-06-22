@@ -53,24 +53,40 @@ function accountResources(): CommandDefinition {
   };
 }
 
-function accountAssets(): CommandDefinition {
+function accountAssets(services: Services): CommandDefinition {
   const fields = z.object({
-    tokens: z.string().optional().describe("comma-separated token ids to query; each item is a TRC20 contract address or TRC10 numeric asset id; omit to return an empty token list"),
+    tokens: z.string().optional().describe("comma-separated token ids to query; each item is a TRC20 contract address or TRC10 numeric asset id; omit to query every token in the address book"),
   });
   return {
     id: "tron.account.assets", path: ["account", "assets"], family: "tron",
     network: "optional", wallet: "optional", auth: "none", capability: "account.balance.token",
-    summary: "per-token balances (no indexer needed)", fields, input: fields,
-    examples: [{ cmd: "wallet-cli tron account assets --network nile --tokens TR7...,1002000" }],
+    summary: "address-book or selected token balances (no indexer needed)", fields, input: fields,
+    examples: [
+      { cmd: "wallet-cli tron account assets --network nile" },
+      { cmd: "wallet-cli tron account assets --network nile --tokens TR7...,1002000" },
+    ],
     run: async (ctx, net, input) => {
       const address = ctx.resolveAddress("tron");
       const rpc = rpcOf(net!);
-      const ids = (input.tokens ?? "").split(",").map((s: string) => s.trim()).filter(Boolean);
+      const explicitIds = input.tokens?.split(",").map((s: string) => s.trim()).filter(Boolean);
+      const tokenBookAssets = explicitIds === undefined
+        ? services.tokenBook.effective(net!.id, ctx.activeAccount)
+        : undefined;
+      const ids = explicitIds ?? tokenBookAssets!.map((t) => t.id);
       const assets = await Promise.all(
-        ids.map(async (id: string) => {
-          const isTrc10 = /^\d+$/.test(id);
+        ids.map(async (id: string, i: number) => {
+          const bookToken = tokenBookAssets?.[i];
+          const kind = bookToken?.kind ?? (/^\d+$/.test(id) ? "trc10" : "trc20");
+          const isTrc10 = kind === "trc10";
           const balance = isTrc10 ? await rpc.getTrc10Balance(id, address) : await rpc.getTrc20Balance(id, address);
-          return { token: id, kind: isTrc10 ? "trc10" : "trc20", balance };
+          return {
+            token: id,
+            kind,
+            balance,
+            ...(bookToken
+              ? { symbol: bookToken.symbol, decimals: bookToken.decimals, name: bookToken.name, source: bookToken.source }
+              : {}),
+          };
         }),
       );
       return { address, assets };
@@ -270,7 +286,7 @@ function portfolio(services: Services): CommandDefinition {
 
 export function accountCommands(services: Services): CommandDefinition[] {
   return [
-    balanceCommand("tron"), accountResources(), accountAssets(), accountInfo(), accountHistory(),
+    balanceCommand("tron"), accountResources(), accountAssets(services), accountInfo(), accountHistory(),
     addToken(services), listTokens(services), removeToken(services), portfolio(services),
   ];
 }

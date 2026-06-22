@@ -229,7 +229,10 @@ export function registerWalletCommands(reg: CommandRegistry, services: Services)
         if (!ctx.prompt.isTTY()) {
           throw new UsageError("tty_required", "deletion needs confirmation: pass --yes or run in a terminal");
         }
-        const ok = await ctx.prompt.confirm({ label: `type the ref to delete (${input.account})`, expect: input.account });
+        const d = ks.describe(input.account);
+        const expect = d.label ?? d.accountId;
+        const kind = d.label ? "label" : "ref";
+        const ok = await ctx.prompt.confirm({ label: `Delete ${expect}? Type the exact ${kind} to confirm`, expect });
         if (!ok) throw new UsageError("aborted", "deletion not confirmed");
       }
       return ks.delete(input.account);
