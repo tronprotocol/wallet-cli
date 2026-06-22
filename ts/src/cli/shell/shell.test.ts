@@ -81,6 +81,17 @@ describe("gapFillRequiredFields", () => {
     expect(prompter.selectCalls).toHaveLength(0);
   });
 
+  it("uses kebab label for a multi-word required string field under TTY", async () => {
+    const cmd = makeCmd({ toAddress: z.string() });
+    const argv: Record<string, unknown> = {};
+    const prompter = makeFakePrompter({ tty: true, textAnswers: ["TAbcd1234"] });
+    await gapFillRequiredFields(cmd, argv, prompter);
+    expect(argv.toAddress).toBe("TAbcd1234");
+    expect(prompter.textCalls).toHaveLength(1);
+    expect(prompter.textCalls[0]!.label).toBe("to-address");
+    expect(prompter.selectCalls).toHaveLength(0);
+  });
+
   it("does NOT prompt for a field already present in argv", async () => {
     const cmd = makeCmd({ address: z.string() });
     const argv: Record<string, unknown> = { address: "already" };

@@ -172,7 +172,7 @@ export async function gapFillRequiredFields(
     const options = enumOptions(cmd.fields.shape[f.name] as any);
     argv[f.name] = options
       ? await prompter.select({ label: f.kebab, choices: options.map((o) => ({ value: o, label: o })) })
-      : await prompter.text({ label: f.name, validate: (v: string) => (v.trim() ? null : "required") });
+      : await prompter.text({ label: f.kebab, validate: (v: string) => (v.trim() ? null : "required") });
   }
 }
 
