@@ -223,6 +223,8 @@ export interface ExecutionContext {
   networkRegistry: NetworkRegistry;
   streams: StreamManager;
   secrets: SecretResolver;
+  /** interactive TTY prompter (hidden input / selection). */
+  prompt: import("../../infra/prompt/index.js").Prompter;
   output: OutputMode;
   timeoutMs: number;
   noDeviceWait: boolean;

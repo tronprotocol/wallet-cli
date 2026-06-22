@@ -16,6 +16,7 @@ import type {
   StreamManager,
 } from "../../core/types/index.js";
 import type { OutputFormatter } from "../output/index.js";
+import type { Prompter } from "../../infra/prompt/index.js";
 import { Keystore, accountRef, walletAddress } from "../../infra/keystore/index.js";
 import { WalletError } from "../../core/errors/index.js";
 
@@ -25,6 +26,7 @@ export interface RuntimeDeps {
   streams: StreamManager;
   secrets: SecretResolver;
   keystore: Keystore;
+  prompter: Prompter;
   formatter: OutputFormatter;
 }
 
@@ -54,6 +56,9 @@ class ExecutionContextImpl implements ExecutionContext {
   }
   get secrets(): SecretResolver {
     return this.deps.secrets;
+  }
+  get prompt(): Prompter {
+    return this.deps.prompter;
   }
 
   get activeAccount(): AccountRef {

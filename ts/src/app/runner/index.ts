@@ -12,6 +12,7 @@ import { ConfigLoader, NetworkRegistry } from "../../infra/config/index.js";
 import { AtomicFileStore } from "../../core/fs/index.js";
 import { StreamManager } from "../../core/stream/index.js";
 import { SecretResolver, type SecretPaths } from "../../infra/secret/index.js";
+import { createPrompter } from "../../infra/prompt/index.js";
 import { Keystore } from "../../infra/keystore/index.js";
 import { Ledger } from "../../infra/ledger/index.js";
 import { TokenBook } from "../../infra/tokenbook/index.js";
@@ -148,7 +149,8 @@ export async function main(argv: string[]): Promise<ExitCode> {
     rpcUrl: g.rpcUrl,
     grpcEndpoint: g.grpcEndpoint,
   });
-  const secrets = new SecretResolver(streams, g.secretPaths);
+  const prompter = createPrompter();
+  const secrets = new SecretResolver(streams, g.secretPaths, prompter);
   const keystore = new Keystore(root, store, () => secrets.masterPassword());
   const ledger = new Ledger();
   const tokenBook = new TokenBook(root, store);
@@ -197,7 +199,7 @@ export async function main(argv: string[]): Promise<ExitCode> {
     grpcEndpoint: g.grpcEndpoint,
     rpcUrl: g.rpcUrl,
   };
-  const deps = { config, networkRegistry, streams, secrets, keystore, formatter };
+  const deps = { config, networkRegistry, streams, secrets, keystore, prompter, formatter };
   const session: SessionRef = {};
   const cli = buildCli({
     registry,

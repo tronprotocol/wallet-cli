@@ -49,6 +49,14 @@ export function introspectFields(fields: ZodObject<ZodRawShape>): FieldInfo[] {
   });
 }
 
+/** literal options of an enum field (after unwrapping optional/default), else undefined. */
+export function enumOptions(schema: ZodType): string[] | undefined {
+  const { base } = unwrap(schema as ZodType);
+  const def = (base as unknown as { def?: { type?: string; entries?: Record<string, string> } }).def;
+  if (def?.type !== "enum" || !def.entries) return undefined;
+  return Object.values(def.entries);
+}
+
 export class ZodYargsAdapter {
   static applyArity(y: Argv, fields: ZodObject<ZodRawShape>): Argv {
     for (const f of introspectFields(fields)) {
