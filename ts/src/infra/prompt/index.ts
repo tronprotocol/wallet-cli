@@ -3,7 +3,8 @@
  * confirm match, select navigation) is backend-agnostic; the real backend talks to
  * /dev/tty. Prompts/echo never touch stdout. (spec §4.1)
  */
-import { openSync, closeSync, createReadStream } from "node:fs";
+import { openSync, closeSync } from "node:fs";
+import { ReadStream } from "node:tty";
 import * as readline from "node:readline";
 import { ExecutionError } from "../../core/errors/index.js";
 
@@ -87,44 +88,61 @@ export class Prompter {
 
 /** Real backend: reads /dev/tty, writes prompts to /dev/tty (never stdout). */
 export class TtyBackend implements PromptBackend {
-  #fd?: number;
-  #input?: NodeJS.ReadStream;
   #tty: boolean;
+  #raw?: ReadStream; // live only during a select() session (raw mode)
   constructor() {
+    // Probe for a controlling terminal without holding the fd; per-prompt fds are opened on demand.
     try {
-      this.#fd = openSync("/dev/tty", "r");
+      closeSync(openSync("/dev/tty", "r"));
       this.#tty = true;
     } catch {
       this.#tty = false;
     }
   }
   isTTY(): boolean { return this.#tty; }
-  #stream(): NodeJS.ReadStream {
-    if (!this.#input) {
-      this.#input = createReadStream("", { fd: this.#fd!, autoClose: false }) as unknown as NodeJS.ReadStream;
-      readline.emitKeypressEvents(this.#input);
-    }
-    return this.#input;
-  }
   write(s: string): void { process.stderr.write(s); }
+
+  /**
+   * A fresh tty.ReadStream per prompt: a real TTY stream (unlike fs.createReadStream) so readline's
+   * raw mode engages — keystrokes are NOT echoed by the OS when hidden. Destroying it after each
+   * prompt closes the fd and releases the libuv handle, so the process can exit (no hang).
+   */
   question(prompt: string, hidden: boolean): Promise<string> {
-    const rl = readline.createInterface({ input: this.#stream(), output: process.stderr, terminal: true });
+    const fd = openSync("/dev/tty", "r");
+    const input = new ReadStream(fd);
+    const rl = readline.createInterface({ input, output: process.stderr, terminal: true });
     return new Promise((resolve) => {
       if (hidden) (rl as unknown as { _writeToOutput: (s: string) => void })._writeToOutput = () => {};
       process.stderr.write(prompt);
-      rl.question("", (ans) => { rl.close(); process.stderr.write("\n"); resolve(ans); });
+      rl.question("", (ans) => {
+        rl.close();
+        input.destroy(); // closes fd + releases the handle (else the event loop never drains → hang)
+        process.stderr.write("\n");
+        resolve(ans);
+      });
     });
   }
+
+  beginRaw(): void {
+    const fd = openSync("/dev/tty", "r");
+    this.#raw = new ReadStream(fd);
+    readline.emitKeypressEvents(this.#raw);
+    this.#raw.setRawMode(true);
+  }
+  endRaw(): void {
+    if (!this.#raw) return;
+    this.#raw.setRawMode(false);
+    this.#raw.destroy(); // closes fd + releases the handle
+    this.#raw = undefined;
+  }
   readKey(): Promise<KeyEvent> {
-    const input = this.#stream();
+    const input = this.#raw!;
     return new Promise((resolve) => {
       const onKey = (_s: string, key: KeyEvent) => { input.off("keypress", onKey); resolve(key ?? {}); };
       input.on("keypress", onKey);
     });
   }
-  beginRaw(): void { this.#stream(); (this.#input as unknown as { setRawMode?(b: boolean): void })?.setRawMode?.(true); }
-  endRaw(): void { (this.#input as unknown as { setRawMode?(b: boolean): void })?.setRawMode?.(false); }
-  close(): void { if (this.#fd !== undefined) try { closeSync(this.#fd); } catch { /* best-effort */ } }
+  close(): void { /* per-prompt fds are closed on destroy; nothing persistent to release. */ }
 }
 
 export function createPrompter(): Prompter {
