@@ -32,7 +32,7 @@ export class SecretResolver implements ISecretResolver {
 
   /** whether a master-password source is configured, WITHOUT consuming it. */
   hasMasterPassword(): boolean {
-    return this.paths.password !== undefined || this.#primed.has("password") || (this.prompter?.isTTY() ?? false);
+    return this.paths.password !== undefined || this.#primed.has("password");
   }
 
   masterPassword(): string {

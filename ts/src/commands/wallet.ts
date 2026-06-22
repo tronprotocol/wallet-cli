@@ -37,12 +37,12 @@ function writeBackupFile(path: string, data: unknown): number {
 
 // ── wallet import-ledger contract (module scope so it can be unit-tested) ───────
 export const walletImportLedgerFields = z.object({
-  app: z.enum(["tron", "ethereum"]).describe("ledger app / chain"),
-  index: z.coerce.number().int().nonnegative().optional().describe("account index"),
-  path: z.string().optional().describe("explicit BIP32 path"),
-  address: z.string().optional().describe("known address to locate (bounded scan)"),
-  scanLimit: z.coerce.number().int().positive().optional().describe("--address scan limit (default 20)"),
-  label: Schemas.label().optional(),
+  app: z.enum(["tron", "ethereum"]).describe("Ledger app to open on the device (selects the chain)"),
+  index: z.coerce.number().int().nonnegative().optional().describe("HD account index to import (default 0; mutually exclusive with --path/--address)"),
+  path: z.string().optional().describe("explicit BIP32 derivation path (overrides --index)"),
+  address: z.string().optional().describe("known address to locate via bounded scan (mutually exclusive with --index/--path)"),
+  scanLimit: z.coerce.number().int().positive().optional().describe("how many indexes to scan when locating --address (default 20)"),
+  label: Schemas.label().optional().describe("human-friendly account label (unique, ≤64 chars)"),
 });
 /** --index / --path / --address are mutually exclusive (at most one locator). */
 export const walletImportLedgerInput = walletImportLedgerFields.superRefine((v, c) => {
@@ -63,7 +63,7 @@ export function registerWalletCommands(reg: CommandRegistry, services: Services)
 
   // ── wallet create ────────────────────────────────────────────────────────
   const createFields = z.object({
-    label: Schemas.label().optional(),
+    label: Schemas.label().optional().describe("human-friendly account label (unique, ≤64 chars)"),
   });
   reg.add({
     id: "wallet.create", path: ["create"], network: "none", wallet: "none", auth: "required", passwordMode: "establish",
@@ -79,7 +79,7 @@ export function registerWalletCommands(reg: CommandRegistry, services: Services)
 
   // ── wallet import-mnemonic ─────────────────────────────────────────────────
   // BIP39 passphrase intentionally NOT exposed in phase 1 (§7.14.3); plumbing stays.
-  const importMnemonicFields = z.object({ label: Schemas.label().optional() });
+  const importMnemonicFields = z.object({ label: Schemas.label().optional().describe("human-friendly account label (unique, ≤64 chars)") });
   reg.add({
     id: "wallet.import-mnemonic", path: ["import-mnemonic"], network: "none", wallet: "none", auth: "required", passwordMode: "establish",
     summary: "import an existing BIP39 mnemonic (encrypted at rest)", fields: importMnemonicFields, input: importMnemonicFields,
@@ -92,7 +92,7 @@ export function registerWalletCommands(reg: CommandRegistry, services: Services)
   } satisfies CommandDefinition);
 
   // ── wallet import-private-key ──────────────────────────────────────────────
-  const importPrivateKeyFields = z.object({ label: Schemas.label().optional() });
+  const importPrivateKeyFields = z.object({ label: Schemas.label().optional().describe("human-friendly account label (unique, ≤64 chars)") });
   reg.add({
     id: "wallet.import-private-key", path: ["import-private-key"], network: "none", wallet: "none", auth: "required", passwordMode: "establish",
     summary: "import an existing private key (encrypted at rest)", fields: importPrivateKeyFields, input: importPrivateKeyFields,
@@ -125,7 +125,7 @@ export function registerWalletCommands(reg: CommandRegistry, services: Services)
   // ── wallet import-watch ──────────────────────────────────────────────────────
   const importWatchFields = z.object({
     address: z.string().min(1).describe("address to track (family auto-detected: T… / 0x…)"),
-    label: Schemas.label().optional(),
+    label: Schemas.label().optional().describe("human-friendly account label (unique, ≤64 chars)"),
   });
   reg.add({
     id: "wallet.import-watch", path: ["import-watch"], network: "none", wallet: "none", auth: "none",
@@ -241,8 +241,7 @@ export function registerWalletCommands(reg: CommandRegistry, services: Services)
   // ── wallet backup ─────────────────────────────────────────────────────────────
   // Writes the secret + metadata to a 0600 FILE (never stdout/envelope): the secret stays off
   // screen, logs and AI context. stdout returns only metadata + the written path.
-  // TODO:interactive — master password should be read via interactive hidden input
-  // (spec §6 / plan §7.13.1); single secret, so --password-stdin still works meanwhile.
+  // master password via dispatch prime (passwordMode: "verify"); --password-stdin is the non-interactive source.
   const backupFields = z.object({
     account: z.string().min(1).describe("account or wallet (accountId, label, or address)"),
     out: z.string().optional().describe("output file path (default: <root>/backups/<accountId>-<ts>.json)"),

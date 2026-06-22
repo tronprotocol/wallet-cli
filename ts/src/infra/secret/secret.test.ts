@@ -73,3 +73,10 @@ describe("primePassword", () => {
     await expect(r.primePassword({ mode: "verify", verify: () => true })).rejects.toMatchObject({ code: "auth_required" });
   });
 });
+
+describe("hasMasterPassword", () => {
+  it("hasMasterPassword is false with no source/primed even under a TTY (lazy guard must fail fast)", () => {
+    const r = new SecretResolver(streams(), {}, new Prompter(new Backend([], /* tty */ true)));
+    expect(r.hasMasterPassword()).toBe(false);
+  });
+});
