@@ -87,6 +87,23 @@ describe("createOutputFormatter (text)", () => {
     expect(text).toContain("Run `wallet backup`");
   });
 
+  it("renders existing wallet receipts with a warning marker", () => {
+    const { sm } = capture("text");
+    const f = createOutputFormatter("text", sm, 0);
+    const walletCmd = { id: "wallet.import-private-key", path: ["import-private-key"] } as unknown as CommandDefinition;
+    const text = f.success(walletCmd, undefined, {
+      status: "existing",
+      accountId: "wlt_abc.0",
+      label: "main",
+      type: "seed",
+      addresses: { tron: "T1234567890abcdef", evm: "0x1234567890abcdef" },
+    });
+    // icon and label live in separate ANSI spans, so assert on the pieces (not a fused substring).
+    expect(text).toContain("⚠");
+    expect(text).toContain("Existing wallet");
+    expect(text).not.toContain("✓"); // existing wallets must not show the success check
+  });
+
   it("renders backup metadata without secret material", () => {
     const { sm } = capture("text");
     const f = createOutputFormatter("text", sm, 0);

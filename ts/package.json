@@ -19,6 +19,9 @@
   },
   "license": "MIT",
   "dependencies": {
+    "@ledgerhq/hw-app-trx": "^6.36.3",
+    "@ledgerhq/hw-transport-node-hid": "^6.33.4",
+    "@ledgerhq/hw-transport-node-speculos-http": "^6.36.4",
     "@noble/ciphers": "^2.2.0",
     "@noble/curves": "^2.2.0",
     "@noble/hashes": "^2.2.0",

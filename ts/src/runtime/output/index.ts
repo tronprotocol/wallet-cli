@@ -150,9 +150,11 @@ function renderWalletCommand(command: string, data: unknown): string | null {
 
 function renderWalletCreated(verb: "Created" | "Imported", d: Record<string, unknown>, notes: string[]): string {
   const name = displayName(d);
-  const status = d.status === "existing" ? "Existing wallet" : `${verb} wallet`;
+  const existing = d.status === "existing";
+  const status = existing ? "Existing wallet" : `${verb} wallet`;
+  const icon = existing ? yellow("⚠") : green("✓");
   const lines = [
-    `${green("✓")} ${bold(status)} ${quote(name)}`,
+    `${icon} ${bold(status)} ${quote(name)}`,
     detail("Account", String(d.accountId ?? "")),
     detail("Type", typeLabel(d.type)),
     ...addressLines(d),
