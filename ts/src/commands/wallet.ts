@@ -11,7 +11,7 @@ import { Schemas } from "../infra/contract/index.js";
 import { CommandRegistry } from "../runtime/registry/index.js";
 import type { Services } from "./services.js";
 import { Derivation } from "../core/derivation/index.js";
-import { resolveLedgerPath } from "../infra/ledger/index.js";
+import { resolveLedgerPath, interactiveLedgerSelect } from "../infra/ledger/index.js";
 import { ConfigLoader } from "../infra/config/index.js";
 import { familyOf } from "../core/family/index.js";
 import { UsageError, WalletError } from "../core/errors/index.js";
@@ -19,7 +19,7 @@ import { UsageError, WalletError } from "../core/errors/index.js";
 /** dedup/idempotency disclosure: did the mutator create a new account or hit an existing one? */
 const statusOf = (created: boolean): "created" | "existing" => (created ? "created" : "existing");
 
-/** `wallet backup` output path: explicit --out, else <root>/backups/<ref>-<ts>.json. */
+/** `wallet backup` output path: explicit --out, else <root>/backups/<accountId>-<ts>.json. */
 function backupOutPath(out: string | undefined, ref: string): string {
   if (out) return resolve(out);
   return join(ConfigLoader.resolveRoot(), "backups", `${ref}-${Date.now()}.json`);
@@ -111,7 +111,10 @@ export function registerWalletCommands(reg: CommandRegistry, services: Services)
     examples: [{ cmd: "wallet-cli wallet import-ledger --app ethereum --index 0 --label cold" }],
     run: async (ctx, _net, input) => {
       const family: ChainFamily = input.app === "ethereum" ? "evm" : "tron";
-      const path = await resolveLedgerPath(services.ledger, family, input);
+      const hasLocator = input.index !== undefined || input.path !== undefined || input.address !== undefined;
+      const path = hasLocator || !ctx.prompt.isTTY()
+        ? await resolveLedgerPath(services.ledger, family, input)
+        : await interactiveLedgerSelect(services.ledger, family, ctx.prompt);
       ctx.emit({ type: "awaiting_device", reason: "verify_address" });
       const address = await services.ledger.getAddress(family, path, { display: false });
       const { accountId, created } = ks.registerLedger({ family, path, address, label: input.label });
@@ -145,7 +148,7 @@ export function registerWalletCommands(reg: CommandRegistry, services: Services)
   } satisfies CommandDefinition);
 
   // ── wallet set-active ────────────────────────────────────────────────────────
-  const setActiveFields = z.object({ account: z.string().min(1).describe("ref, label, or address to activate") });
+  const setActiveFields = z.object({ account: z.string().min(1).describe("accountId, label, or address to activate") });
   reg.add({
     id: "wallet.set-active", path: ["set-active"], network: "none", wallet: "none", auth: "none",
     summary: "set the active account", fields: setActiveFields, input: setActiveFields,
@@ -183,7 +186,7 @@ export function registerWalletCommands(reg: CommandRegistry, services: Services)
 
   // ── wallet rename ─────────────────────────────────────────────────────────────
   const renameFields = z.object({
-    account: z.string().min(1).describe("ref, current label, or address"),
+    account: z.string().min(1).describe("accountId, current label, or address"),
     label: Schemas.label().describe("new unique label"),
   });
   reg.add({
@@ -198,7 +201,7 @@ export function registerWalletCommands(reg: CommandRegistry, services: Services)
 
   // ── wallet add-account ────────────────────────────────────────────────────────
   const addAccountFields = z.object({
-    account: z.string().min(1).describe("seed wallet (ref, label, or address) to derive from"),
+    account: z.string().min(1).describe("seed wallet (accountId, label, or address) to derive from"),
     index: z.coerce.number().int().nonnegative().optional().describe("explicit HD account index (default: next free)"),
     label: Schemas.label().optional().describe("label for the new sub-account"),
   });
@@ -216,7 +219,7 @@ export function registerWalletCommands(reg: CommandRegistry, services: Services)
 
   // ── wallet delete ─────────────────────────────────────────────────────────────
   const deleteFields = z.object({
-    account: z.string().min(1).describe("account or wallet (ref, label, or address)"),
+    account: z.string().min(1).describe("account or wallet (accountId, label, or address)"),
     yes: z.boolean().optional().describe("skip the interactive confirmation"),
   });
   reg.add({
@@ -241,8 +244,8 @@ export function registerWalletCommands(reg: CommandRegistry, services: Services)
   // TODO:interactive — master password should be read via interactive hidden input
   // (spec §6 / plan §7.13.1); single secret, so --password-stdin still works meanwhile.
   const backupFields = z.object({
-    account: z.string().min(1).describe("account or wallet (ref, label, or address)"),
-    out: z.string().optional().describe("output file path (default: <root>/backups/<ref>-<ts>.json)"),
+    account: z.string().min(1).describe("account or wallet (accountId, label, or address)"),
+    out: z.string().optional().describe("output file path (default: <root>/backups/<accountId>-<ts>.json)"),
   });
   reg.add({
     id: "wallet.backup", path: ["backup"], network: "none", wallet: "none", auth: "required", passwordMode: "verify",

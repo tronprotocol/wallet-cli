@@ -12,6 +12,7 @@ import type { AppConfig, ChainFamily, SignedTx, Signer, SignerSignOpts, Unsigned
 import { ExecutionError, UsageError, WalletError } from "../../core/errors/index.js";
 import { Derivation } from "../../core/derivation/index.js";
 import { FAMILIES } from "../../core/family/index.js";
+import type { Prompter, Choice } from "../prompt/index.js";
 
 export interface GetAddressOpts {
   /** false = silent derive (import scan / precheck); true = show on-device for user confirmation. */
@@ -79,6 +80,28 @@ export async function resolveLedgerPath(ledger: Ledger, family: ChainFamily, loc
   }
   // contract guarantees exactly one of the three; default to account 0 as belt-and-braces.
   return Derivation.path(family, 0);
+}
+
+/** Interactive ledger account picker: derive in pages of `pageSize`, arrow-select a path. */
+export async function interactiveLedgerSelect(
+  ledger: Ledger,
+  family: ChainFamily,
+  prompter: Prompter,
+  pageSize = 5,
+): Promise<string> {
+  const choices: Choice<string>[] = [];
+  let next = 0;
+  const loadPage = async (): Promise<Choice<string>[]> => {
+    const end = next + pageSize;
+    for (; next < end; next++) {
+      const path = Derivation.path(family, next);
+      const address = await ledger.getAddress(family, path, { display: false });
+      choices.push({ value: path, label: `[${next}] ${address}` });
+    }
+    return choices;
+  };
+  await loadPage();
+  return prompter.select({ label: `Select ${family} account`, choices: [...choices], loadMore: loadPage });
 }
 
 export class LedgerSigner implements Signer {
