@@ -67,4 +67,14 @@ describe("Prompter.select", () => {
     expect(loaded).toBe(true);
     expect(v).toBe("x1");
   });
+  it("advances onto the newly loaded item after a single down past the end", async () => {
+    const be = new FakeBackend([], [{ name: "down" }, { name: "return" }]);
+    const p = new Prompter(be);
+    const v = await p.select({
+      label: "pick",
+      choices: [{ value: "x0", label: "0" }],
+      loadMore: async () => [{ value: "x0", label: "0" }, { value: "x1", label: "1" }],
+    });
+    expect(v).toBe("x1");
+  });
 });

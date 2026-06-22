@@ -65,8 +65,12 @@ export class Prompter {
         if (k.ctrl && k.name === "c") throw new ExecutionError("aborted", "cancelled");
         if (k.name === "up") idx = Math.max(0, idx - 1);
         else if (k.name === "down") {
-          if (idx === items.length - 1 && o.loadMore) items = await o.loadMore();
-          else idx = Math.min(items.length - 1, idx + 1);
+          if (idx === items.length - 1 && o.loadMore) {
+            const more = await o.loadMore();
+            if (more.length > items.length) { items = more; idx++; }
+          } else {
+            idx = Math.min(items.length - 1, idx + 1);
+          }
         } else if (k.name === "return") return items[idx]!.value;
         this.#render(o.label, items, idx);
       }
@@ -118,7 +122,7 @@ export class TtyBackend implements PromptBackend {
       input.on("keypress", onKey);
     });
   }
-  beginRaw(): void { this.#stream(); process.stdin.isTTY; (this.#input as unknown as { setRawMode?(b: boolean): void })?.setRawMode?.(true); }
+  beginRaw(): void { this.#stream(); (this.#input as unknown as { setRawMode?(b: boolean): void })?.setRawMode?.(true); }
   endRaw(): void { (this.#input as unknown as { setRawMode?(b: boolean): void })?.setRawMode?.(false); }
   close(): void { if (this.#fd !== undefined) try { closeSync(this.#fd); } catch { /* best-effort */ } }
 }
