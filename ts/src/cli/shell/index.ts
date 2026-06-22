@@ -17,9 +17,9 @@ import { CommandRegistry } from "../../runtime/registry/index.js";
 import { CapabilityGate } from "../../runtime/capability/index.js";
 import { buildExecutionContext, type RuntimeDeps } from "../../runtime/context/index.js";
 import { OutputFormatter } from "../../runtime/output/index.js";
-import { ZodYargsAdapter, camelToKebab } from "../../runtime/adapter/index.js";
+import { ZodYargsAdapter, camelToKebab, introspectFields, enumOptions } from "../../runtime/adapter/index.js";
 import { isChainFamily } from "../../core/family/index.js";
-import { UsageError, ExecutionError } from "../../core/errors/index.js";
+import { UsageError } from "../../core/errors/index.js";
 
 export interface SessionRef {
   current?: { commandId: string; net?: NetworkDescriptor };
@@ -135,18 +135,45 @@ async function dispatch(opts: ShellOptions, ns: string, argv: any): Promise<void
   }
   session.current = { commandId: cmd.id, net };
 
+  await gapFillRequiredFields(cmd, argv, deps.prompter);
   const input = parseInput(cmd, argv);
   capGate.check(cmd, net);
 
   const ctx = buildExecutionContext(globals, deps);
-  // enforce the declared wallet/auth contract up front (deterministic, before run()).
-  if (cmd.auth === "required" && !deps.secrets.hasMasterPassword()) {
-    throw new ExecutionError("auth_required", "master password required: pass --password-stdin");
+  // auth: establish (first time) or verify (existing) the master password up front, so the
+  // synchronous keystore can read it from the primed cache. (spec §3 / §4.4)
+  if (cmd.auth === "required") {
+    const initialized = deps.keystore.isInitialized();
+    await deps.secrets.primePassword({
+      mode: initialized ? "verify" : "set",
+      verify: (pw) => deps.keystore.verifyPassword(pw),
+    });
   }
   if (cmd.wallet !== "none") void ctx.activeAccount; // resolve account (default active) up front; throws missing_wallet_address if none exists
 
   const data = await cmd.run(ctx, net, input);
   streams.result(formatter.success(cmd, net, data));
+}
+
+/**
+ * Fill required, no-default, missing non-secret fields by prompting — only under a TTY.
+ * Enum fields use arrow selection; everything else free text. Non-TTY leaves argv untouched
+ * so parseInput surfaces the usual missing_option. (spec §4.3)
+ */
+export async function gapFillRequiredFields(
+  cmd: CommandDefinition,
+  argv: any,
+  prompter: Pick<import("../../infra/prompt/index.js").Prompter, "isTTY" | "text" | "select">,
+): Promise<void> {
+  if (!prompter.isTTY()) return;
+  for (const f of introspectFields(cmd.fields)) {
+    if (f.optional || f.hasDefault) continue;
+    if (argv[f.name] !== undefined) continue;
+    const options = enumOptions(cmd.fields.shape[f.name] as any);
+    argv[f.name] = options
+      ? await prompter.select({ label: f.kebab, choices: options.map((o) => ({ value: o, label: o })) })
+      : await prompter.text({ label: f.name, validate: (v: string) => (v.trim() ? null : "required") });
+  }
 }
 
 const kebabToCamel = (s: string): string => s.replace(/-([a-z0-9])/g, (_m, c) => c.toUpperCase());
