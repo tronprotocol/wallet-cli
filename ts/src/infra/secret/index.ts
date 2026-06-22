@@ -115,6 +115,9 @@ export class SecretResolver implements ISecretResolver {
         const errs = passwordPolicyErrors(pw);
         if (errs.length) throw new UsageError("weak_password", `password too weak: ${errs.join("; ")}`);
       }
+      if (plan.mode === "verify" && plan.verify && !plan.verify(pw)) {
+        throw new ExecutionError("auth_failed", "incorrect master password");
+      }
       this.#primed.set("password", pw);
       this.streams.diagnostic("info", "password ✓ via pipe");
       return;

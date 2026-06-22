@@ -64,6 +64,10 @@ describe("primePassword", () => {
     await r.primePassword({ mode: "verify", verify: () => true });
     expect(r.masterPassword()).toBe(PW);
   });
+  it("verify mode via --password-stdin rejects a wrong password", async () => {
+    const r = new SecretResolver(streams("wrong\n"), { password: "-" }, new Prompter(new Backend([])));
+    await expect(r.primePassword({ mode: "verify", verify: (pw) => pw === PW })).rejects.toMatchObject({ code: "auth_failed" });
+  });
   it("no source and no TTY → auth_required", async () => {
     const r = new SecretResolver(streams(), {}, new Prompter(new Backend([], false)));
     await expect(r.primePassword({ mode: "verify", verify: () => true })).rejects.toMatchObject({ code: "auth_required" });
