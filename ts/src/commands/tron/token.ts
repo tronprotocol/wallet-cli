@@ -8,8 +8,8 @@ import { rpcOf, tokenSelector } from "./shared.js";
 
 function tokenBalance(): CommandDefinition {
   const fields = z.object({
-    contract: Schemas.base58Address().optional().describe("TRC20 contract address (mutually exclusive with --asset-id)"),
-    assetId: z.string().regex(/^\d+$/).optional().describe("TRC10 asset id (mutually exclusive with --contract)"),
+    contract: Schemas.base58Address().optional().describe("TRC20 contract address; provide exactly one of --contract or --asset-id"),
+    assetId: z.string().regex(/^\d+$/).optional().describe("TRC10 numeric asset id; provide exactly one of --asset-id or --contract"),
   });
   return {
     id: "tron.token.balance", path: ["token", "balance"], family: "tron",
@@ -30,8 +30,8 @@ function tokenBalance(): CommandDefinition {
 
 function tokenInfo(): CommandDefinition {
   const fields = z.object({
-    contract: Schemas.base58Address().optional().describe("TRC20 contract address (mutually exclusive with --asset-id)"),
-    assetId: z.string().regex(/^\d+$/).optional().describe("TRC10 asset id (mutually exclusive with --contract)"),
+    contract: Schemas.base58Address().optional().describe("TRC20 contract address; provide exactly one of --contract or --asset-id"),
+    assetId: z.string().regex(/^\d+$/).optional().describe("TRC10 numeric asset id; provide exactly one of --asset-id or --contract"),
   });
   return {
     id: "tron.token.info", path: ["token", "info"], family: "tron",

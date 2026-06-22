@@ -58,6 +58,9 @@ class ExecutionContextImpl implements ExecutionContext {
   get prompt(): Prompter {
     return this.deps.prompter;
   }
+  get network(): string | undefined {
+    return this.globals.network;
+  }
 
   get activeAccount(): AccountRef {
     if (this.#activeRef) return this.#activeRef;

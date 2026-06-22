@@ -10,7 +10,7 @@ import { txModeFields, txMode, outcomeData } from "../shared.js";
 import { UsageError } from "../../core/errors/index.js";
 import { rpcOf } from "./shared.js";
 
-const resourceEnum = z.enum(["energy", "bandwidth"]).default("bandwidth").describe("resource to obtain");
+const resourceEnum = z.enum(["energy", "bandwidth"]).default("bandwidth").describe("resource type to delegate or reclaim");
 const toResourceCode = (r: string) => (r === "energy" ? "ENERGY" : "BANDWIDTH");
 
 interface StakeOpts {
@@ -65,16 +65,16 @@ export function resourceCommands(services: Services): CommandDefinition[] {
       services, "tron.resource.freeze", "freeze", "stake TRX for energy/bandwidth (FreezeBalanceV2)",
       (rpc, owner, i) => rpc.buildFreezeV2(owner, i.amountSun, i.resource === "energy" ? "ENERGY" : "BANDWIDTH"),
       {
-        amountSun: Schemas.uintString().describe("amount to freeze (SUN)"),
-        resource: z.enum(["energy", "bandwidth"]).default("bandwidth").describe("resource to obtain"),
+        amountSun: Schemas.uintString().describe("amount to freeze as staked TRX, in SUN"),
+        resource: z.enum(["energy", "bandwidth"]).default("bandwidth").describe("resource type to obtain"),
       },
     ),
     stakeCmd(
       services, "tron.resource.unfreeze", "unfreeze", "unstake TRX (UnfreezeBalanceV2)",
       (rpc, owner, i) => rpc.buildUnfreezeV2(owner, i.amountSun, i.resource === "energy" ? "ENERGY" : "BANDWIDTH"),
       {
-        amountSun: Schemas.uintString().describe("amount to unfreeze (SUN)"),
-        resource: z.enum(["energy", "bandwidth"]).default("bandwidth").describe("resource to obtain"),
+        amountSun: Schemas.uintString().describe("amount to unfreeze as staked TRX, in SUN"),
+        resource: z.enum(["energy", "bandwidth"]).default("bandwidth").describe("resource type to release"),
       },
     ),
     stakeCmd(
@@ -92,11 +92,11 @@ export function resourceCommands(services: Services): CommandDefinition[] {
         return rpc.buildDelegateResource(owner, i.amountSun, toResourceCode(i.resource), i.receiver, i.lock, i.lockPeriod);
       },
       {
-        amountSun: Schemas.uintString().describe("staked-TRX worth of resource to delegate (SUN)"),
-        receiver: Schemas.base58Address().describe("address to delegate the resource to"),
+        amountSun: Schemas.uintString().describe("staked-TRX amount backing the delegated resource, in SUN"),
+        receiver: Schemas.base58Address().describe("TRON address receiving the delegated resource"),
         resource: resourceEnum,
-        lock: z.boolean().default(false).describe("lock the delegation (blocks early undelegate)"),
-        lockPeriod: z.coerce.number().int().positive().optional().describe("lock duration in blocks (3s each); requires --lock"),
+        lock: z.boolean().default(false).describe("lock the delegation and prevent early undelegation"),
+        lockPeriod: z.coerce.number().int().positive().optional().describe("lock duration in blocks, approximately 3 seconds per block; requires --lock"),
       },
       {
         capability: "staking.delegate",
@@ -114,8 +114,8 @@ export function resourceCommands(services: Services): CommandDefinition[] {
         return rpc.buildUndelegateResource(owner, i.amountSun, toResourceCode(i.resource), i.receiver);
       },
       {
-        amountSun: Schemas.uintString().describe("staked-TRX worth of resource to reclaim (SUN)"),
-        receiver: Schemas.base58Address().describe("address the resource was delegated to"),
+        amountSun: Schemas.uintString().describe("staked-TRX amount backing the resource to reclaim, in SUN"),
+        receiver: Schemas.base58Address().describe("TRON address that previously received the delegated resource"),
         resource: resourceEnum,
       },
       { capability: "staking.delegate" },

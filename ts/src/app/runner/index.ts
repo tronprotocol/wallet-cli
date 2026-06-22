@@ -7,7 +7,7 @@ import { hideBin } from "yargs/helpers";
 import type { ChainFamily, ExitCode, Globals, NetworkDescriptor, OutputMode } from "../../core/types/index.js";
 import type { FamilyAdapter, SignStrategy } from "../../core/family/index.js";
 import { CHAIN_FAMILIES } from "../../core/family/index.js";
-import { normalizeError } from "../../core/errors/index.js";
+import { normalizeError, UsageError } from "../../core/errors/index.js";
 import { ConfigLoader, NetworkRegistry } from "../../infra/config/index.js";
 import { AtomicFileStore } from "../../core/fs/index.js";
 import { StreamManager } from "../../core/stream/index.js";
@@ -118,6 +118,12 @@ export async function main(argv: string[]): Promise<ExitCode> {
   const output: OutputMode = g.output ?? config.defaultOutput;
   const streams = new StreamManager(output, g.quiet, g.verbose);
   const formatter = createOutputFormatter(output, streams, startedAt);
+
+  if (g.quiet && g.verbose) {
+    const err = normalizeError(new UsageError("invalid_option", "choose at most one of --quiet, --verbose"));
+    formatter.error(err);
+    return err.exitCode();
+  }
 
   // ── compose (all side-effect-free until a command runs) ──
   const root = ConfigLoader.resolveRoot();

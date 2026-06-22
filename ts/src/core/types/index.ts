@@ -228,6 +228,8 @@ export interface ExecutionContext {
   prompt: import("../../infra/prompt/index.js").Prompter;
   output: OutputMode;
   timeoutMs: number;
+  /** raw global --network value, when provided (id or alias). */
+  readonly network?: string;
   /** lazily resolved active account ref (throws if required but absent). */
   readonly activeAccount: AccountRef;
   /** cached address of the active account on a given family. */

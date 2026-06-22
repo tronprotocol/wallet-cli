@@ -11,8 +11,8 @@ import { rpcOf, tokenSelector } from "./shared.js";
 
 function sendNative(services: Services): CommandDefinition {
   const fields = z.object({
-    to: Schemas.base58Address().describe("recipient TRON address"),
-    amountSun: Schemas.uintString().describe("amount to send, in SUN (1 TRX = 1e6 SUN)"),
+    to: Schemas.base58Address().describe("recipient TRON base58 address"),
+    amountSun: Schemas.uintString().describe("amount to send as a non-negative integer string, in SUN (1 TRX = 1,000,000 SUN)"),
     ...txModeFields,
   });
   return {
@@ -34,11 +34,11 @@ function sendNative(services: Services): CommandDefinition {
 
 function sendToken(services: Services): CommandDefinition {
   const fields = z.object({
-    to: Schemas.base58Address().describe("recipient TRON address"),
-    amount: Schemas.amount().describe("transfer amount, in the token's smallest unit (raw, undecimalized)"),
-    contract: Schemas.base58Address().optional().describe("TRC20 contract address (mutually exclusive with --asset-id)"),
-    assetId: z.string().regex(/^\d+$/).optional().describe("TRC10 asset id (mutually exclusive with --contract)"),
-    feeLimit: z.coerce.number().int().positive().default(100_000_000).describe("max energy fee you'll pay, in SUN"),
+    to: Schemas.base58Address().describe("recipient TRON base58 address"),
+    amount: Schemas.amount().describe("token amount as a raw non-negative integer string in the token's smallest unit; no decimal point"),
+    contract: Schemas.base58Address().optional().describe("TRC20 contract address; provide exactly one of --contract or --asset-id"),
+    assetId: z.string().regex(/^\d+$/).optional().describe("TRC10 numeric asset id; provide exactly one of --asset-id or --contract"),
+    feeLimit: z.coerce.number().int().positive().default(100_000_000).describe("maximum TRX energy fee to burn, in SUN"),
     ...txModeFields,
   });
   return {
@@ -71,7 +71,7 @@ function sendToken(services: Services): CommandDefinition {
 
 function broadcast(): CommandDefinition {
   // --transaction <value> OR --tx-stdin (global data channel); auth:none (holds no key).
-  const fields = z.object({ transaction: z.string().optional().describe("presigned tx (or use --tx-stdin)") });
+  const fields = z.object({ transaction: z.string().optional().describe("signed TRON transaction JSON; provide this OR --tx-stdin; exactly one is required") });
   return {
     id: "tron.tx.broadcast", path: ["tx", "broadcast"], family: "tron",
     network: "required", wallet: "none", auth: "none", capability: "tx.broadcast",
@@ -91,7 +91,7 @@ function broadcast(): CommandDefinition {
 }
 
 function txStatus(): CommandDefinition {
-  const fields = z.object({ txid: z.string().min(1).describe("transaction id") });
+  const fields = z.object({ txid: z.string().min(1).describe("TRON transaction id/hash") });
   return {
     id: "tron.tx.status", path: ["tx", "status"], family: "tron",
     network: "optional", wallet: "none", auth: "none",
@@ -106,7 +106,7 @@ function txStatus(): CommandDefinition {
 }
 
 function txInfo(): CommandDefinition {
-  const fields = z.object({ txid: z.string().min(1).describe("transaction id") });
+  const fields = z.object({ txid: z.string().min(1).describe("TRON transaction id/hash") });
   return {
     id: "tron.tx.info", path: ["tx", "info"], family: "tron",
     network: "optional", wallet: "none", auth: "none",

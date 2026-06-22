@@ -25,6 +25,8 @@ export interface PromptBackend {
 }
 
 export class Prompter {
+  #renderedSelectLines = 0;
+
   constructor(private readonly be: PromptBackend) {}
 
   isTTY(): boolean { return this.be.isTTY(); }
@@ -34,28 +36,29 @@ export class Prompter {
 
   async text(o: { label: string; validate?: (v: string) => string | null }): Promise<string> {
     for (;;) {
-      const v = (await this.be.question(`${o.label}: `, false)).trim();
+      const v = (await this.be.question(`${color("cyan", "?")} ${o.label}: `, false)).trim();
       const err = o.validate?.(v);
-      if (err) { this.be.write(`  ✗ ${err}\n`); continue; }
+      if (err) { this.be.write(`${color("red", "  x")} ${err}\n`); continue; }
       return v;
     }
   }
 
-  async hidden(o: { label: string; confirm?: boolean; validate?: (v: string) => string | null }): Promise<string> {
+  async hidden(o: { label: string; confirm?: boolean; confirmLabel?: string; validate?: (v: string) => string | null }): Promise<string> {
     for (;;) {
-      const v = await this.be.question(`${o.label}: `, true);
+      const v = await this.be.question(`${color("cyan", "?")} ${o.label}: `, true);
       const err = o.validate?.(v);
-      if (err) { this.be.write(`  ✗ ${err}\n`); continue; }
+      if (err) { this.be.write(`${color("red", "  x")} ${err}\n`); continue; }
       if (o.confirm) {
-        const again = await this.be.question("Confirm: ", true);
-        if (v !== again) { this.be.write("  ✗ entries do not match\n"); continue; }
+        const again = await this.be.question(`${color("cyan", "?")} ${o.confirmLabel ?? "Confirm"}: `, true);
+        if (v !== again) { this.be.write(`${color("red", "  x")} entries do not match\n`); continue; }
       }
       return v;
     }
   }
 
   async confirm(o: { label: string; expect?: string }): Promise<boolean> {
-    const v = await this.be.question(`${o.label}: `, false);
+    const suffix = o.expect === undefined ? " [y/N]" : "";
+    const v = await this.be.question(`${color("yellow", "?")} ${o.label}${suffix}: `, false);
     if (o.expect !== undefined) return v.trim() === o.expect;
     return /^y(es)?$/i.test(v.trim());
   }
@@ -65,6 +68,7 @@ export class Prompter {
     let idx = 0;
     this.be.beginRaw();
     try {
+      this.#renderedSelectLines = 0;
       this.#render(o.label, items, idx);
       for (;;) {
         const k = await this.be.readKey();
@@ -82,13 +86,32 @@ export class Prompter {
       }
     } finally {
       this.be.endRaw();
+      this.#renderedSelectLines = 0;
     }
   }
 
   #render(label: string, items: Choice<unknown>[], idx: number): void {
-    const lines = items.map((c, i) => `${i === idx ? "›" : " "} ${c.label}`);
-    this.be.write(`${label} (↑/↓, Enter):\n${lines.join("\n")}\n`);
+    if (this.#renderedSelectLines > 0) {
+      this.be.write(`\x1b[${this.#renderedSelectLines}F\x1b[J`);
+    }
+    const lines = items.map((c, i) => `${i === idx ? color("cyan", ">") : " "} ${c.label}`);
+    const frame = [
+      `${color("cyan", "?")} ${label} ${dim("(Up/Down, Enter)")}`,
+      ...lines,
+    ];
+    this.#renderedSelectLines = frame.length;
+    this.be.write(`${frame.join("\n")}\n`);
   }
+}
+
+function color(kind: "cyan" | "red" | "yellow" | "green", s: string): string {
+  if (process.env.NO_COLOR) return s;
+  const code = { cyan: 36, red: 31, yellow: 33, green: 32 }[kind];
+  return `\x1b[${code}m${s}\x1b[0m`;
+}
+
+function dim(s: string): string {
+  return process.env.NO_COLOR ? s : `\x1b[2m${s}\x1b[0m`;
 }
 
 /** Real backend: reads /dev/tty, writes prompts to /dev/tty (never stdout). */

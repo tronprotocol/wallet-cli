@@ -24,9 +24,9 @@ function parseParams(json?: string): any[] {
 
 function contractCall(): CommandDefinition {
   const fields = z.object({
-    contract: Schemas.base58Address().describe("contract address"),
+    contract: Schemas.base58Address().describe("TRON contract address"),
     method: z.string().min(1).describe("function signature, e.g. balanceOf(address)"),
-    params: z.string().optional().describe("JSON array of {type,value}"),
+    params: z.string().optional().describe("JSON array of ABI parameters as {type,value}; omit to pass no parameters"),
   });
   return {
     id: "tron.contract.call", path: ["contract", "call"], family: "tron",
@@ -42,11 +42,11 @@ function contractCall(): CommandDefinition {
 
 function contractSend(services: Services): CommandDefinition {
   const fields = z.object({
-    contract: Schemas.base58Address().describe("contract address"),
-    method: z.string().min(1).describe("function signature"),
-    params: z.string().optional().describe("JSON array of {type,value}"),
-    callValueSun: z.coerce.number().int().nonnegative().default(0).describe("native TRX to attach to the call, in SUN"),
-    feeLimit: z.coerce.number().int().positive().default(100_000_000).describe("max energy fee you'll pay, in SUN"),
+    contract: Schemas.base58Address().describe("TRON contract address"),
+    method: z.string().min(1).describe("function signature, e.g. transfer(address,uint256)"),
+    params: z.string().optional().describe("JSON array of ABI parameters as {type,value}; omit to pass no parameters"),
+    callValueSun: z.coerce.number().int().nonnegative().default(0).describe("native TRX attached to the call, in SUN"),
+    feeLimit: z.coerce.number().int().positive().default(100_000_000).describe("maximum energy fee to burn, in SUN"),
     ...txModeFields,
   });
   return {
@@ -70,13 +70,13 @@ function contractSend(services: Services): CommandDefinition {
 
 function contractDeploy(services: Services): CommandDefinition {
   const fields = z.object({
-    abi: z.string().min(1).describe("contract ABI (JSON)"),
-    bytecode: z.string().min(1).describe("contract bytecode (hex)"),
-    feeLimit: z.coerce.number().int().positive().describe("max energy fee you'll pay, in SUN"),
+    abi: z.string().min(1).describe("contract ABI as a JSON array string"),
+    bytecode: z.string().min(1).describe("compiled contract bytecode as hex, 0x-prefixed or bare"),
+    feeLimit: z.coerce.number().int().positive().describe("maximum energy fee to burn, in SUN"),
     // NB: field must NOT be named `constructor` — it collides with Object.prototype.constructor
     // (yargs crashes on the option; argv.constructor reads the Object ctor fn). Flag = --constructor-sig.
-    constructorSig: z.string().optional().describe("constructor signature, e.g. constructor(uint256)"),
-    params: z.string().optional().describe("constructor params (JSON array)"),
+    constructorSig: z.string().optional().describe("constructor signature, e.g. constructor(uint256); omit when the contract has no constructor args"),
+    params: z.string().optional().describe("constructor args as a JSON array of {type,value}; omit to pass no constructor args"),
     ...txModeFields,
   });
   return {
@@ -104,7 +104,7 @@ function contractDeploy(services: Services): CommandDefinition {
 }
 
 function contractInfo(): CommandDefinition {
-  const fields = z.object({ contract: Schemas.base58Address().describe("contract address") });
+  const fields = z.object({ contract: Schemas.base58Address().describe("TRON contract address") });
   return {
     id: "tron.contract.info", path: ["contract", "info"], family: "tron",
     network: "optional", wallet: "none", auth: "none", capability: "contract.call",

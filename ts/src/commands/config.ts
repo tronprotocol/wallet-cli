@@ -16,7 +16,7 @@ export function registerConfigCommands(reg: CommandRegistry): void {
 
   // ── config get ────────────────────────────────────────────────────────────────
   const configGetFields = z.object({
-    key: z.string().min(1).optional().describe("config key to read (omit = whole config)"),
+    key: z.enum(["defaultOutput", "timeoutMs", "networks"]).optional().describe("config key to read; omit to show the whole effective config"),
   });
   reg.add({
     id: "config.get", path: ["get"], network: "none", wallet: "none", auth: "none",
@@ -37,7 +37,7 @@ export function registerConfigCommands(reg: CommandRegistry): void {
   // ── config set ──────────────────────────────────────────────────────────────────
   const configSetFields = z.object({
     key: z.enum(["defaultOutput", "timeoutMs"]).describe("config key to set"),
-    value: z.string().min(1).describe("new value (defaultOutput: text|json; timeoutMs: non-negative ms)"),
+    value: z.string().min(1).describe("new value; for defaultOutput use text|json; for timeoutMs use a non-negative number in milliseconds"),
   });
   reg.add({
     id: "config.set", path: ["set"], network: "none", wallet: "none", auth: "none",

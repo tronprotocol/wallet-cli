@@ -6,7 +6,7 @@ import type { CommandDefinition } from "../../core/types/index.js";
 import { rpcOf } from "./shared.js";
 
 function blockGet(): CommandDefinition {
-  const fields = z.object({ number: z.coerce.number().int().nonnegative().optional().describe("block number (default: latest)") });
+  const fields = z.object({ number: z.coerce.number().int().nonnegative().optional().describe("block number to fetch, in block height; omit to fetch the latest block") });
   return {
     id: "tron.block.get", path: ["block", "get"], family: "tron",
     network: "optional", wallet: "none", auth: "none",

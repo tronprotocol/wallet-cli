@@ -14,7 +14,7 @@ const rpcOf = (net: NetworkDescriptor): EvmRpcClient => net.rpc as EvmRpcClient;
 function sendNative(services: Services): CommandDefinition {
   const fields = z.object({
     to: Schemas.evmAddress().describe("recipient EVM address"),
-    amountWei: Schemas.uintString().describe("amount to send, in wei (1 ETH = 1e18 wei)"),
+    amountWei: Schemas.uintString().describe("native amount as a non-negative integer string, in wei (1 ETH/BNB/etc = 1e18 wei on standard EVM chains)"),
     ...txModeFields,
   });
   return {
@@ -39,11 +39,11 @@ function sendNative(services: Services): CommandDefinition {
 function sendToken(services: Services): CommandDefinition {
   const fields = z.object({
     to: Schemas.evmAddress().describe("recipient EVM address"),
-    amountWei: Schemas.uintString().describe("transfer amount, in the token's smallest unit (raw, undecimalized)"),
+    amountWei: Schemas.uintString().describe("ERC-20 amount as a raw non-negative integer string in the token's smallest unit; flag name is amount-wei for CLI compatibility"),
     contract: Schemas.evmAddress().describe("ERC-20 contract address"),
-    maxFee: Schemas.uintString().optional().describe("EIP-1559 maxFeePerGas (wei)"),
-    maxPriorityFee: Schemas.uintString().optional().describe("EIP-1559 maxPriorityFeePerGas (wei)"),
-    gasPrice: Schemas.uintString().optional().describe("legacy gas price (wei)"),
+    maxFee: Schemas.uintString().optional().describe("EIP-1559 maxFeePerGas override, in wei; omit to auto-estimate"),
+    maxPriorityFee: Schemas.uintString().optional().describe("EIP-1559 maxPriorityFeePerGas tip override, in wei; omit to auto-estimate"),
+    gasPrice: Schemas.uintString().optional().describe("legacy gas price override, in wei; use on non-EIP-1559 chains instead of --max-fee/--max-priority-fee"),
     ...txModeFields,
   });
   return {
@@ -72,7 +72,7 @@ function sendToken(services: Services): CommandDefinition {
 }
 
 function txStatus(): CommandDefinition {
-  const fields = z.object({ txid: z.string().min(1).describe("transaction hash") });
+  const fields = z.object({ txid: z.string().min(1).describe("EVM transaction hash, 0x-prefixed") });
   return {
     id: "evm.tx.status", path: ["tx", "status"], family: "evm",
     network: "optional", wallet: "none", auth: "none",
@@ -91,7 +91,7 @@ function txStatus(): CommandDefinition {
 }
 
 function txInfo(): CommandDefinition {
-  const fields = z.object({ txid: z.string().min(1).describe("transaction hash") });
+  const fields = z.object({ txid: z.string().min(1).describe("EVM transaction hash, 0x-prefixed") });
   return {
     id: "evm.tx.info", path: ["tx", "info"], family: "evm",
     network: "optional", wallet: "none", auth: "none",

@@ -84,10 +84,20 @@ describe("golden CLI — meta & introspection", () => {
     expect(r.status).toBe(0);
     expect(r.json.tool).toBe("wallet-cli");
     expect(r.json.globalFlags.length).toBeGreaterThan(0);
+    const globalFlags = r.json.globalFlags.map((g: { flag: string }) => g.flag);
+    expect(globalFlags).toContain("--rpc-url");
+    expect(globalFlags).toContain("--password-stdin");
+    expect(globalFlags).not.toContain("--mnemonic-stdin");
     const cmd = r.json.commands.find((c: { id: string }) => c.id === "tron.tx.send-native");
     expect(cmd.usage).toBe("wallet-cli tron tx send-native [flags]");
     expect(cmd.requires).toMatchObject({ network: "required", auth: "required", wallet: "optional" });
     expect(cmd.inputSchema.properties.to).toBeDefined();
+    const importMnemonic = r.json.commands.find((c: { id: string }) => c.id === "wallet.import-mnemonic");
+    expect(importMnemonic.inputFlags.map((g: { flag: string }) => g.flag)).toContain("--mnemonic-stdin");
+    const broadcast = r.json.commands.find((c: { id: string }) => c.id === "tron.tx.broadcast");
+    expect(broadcast.inputFlags.map((g: { flag: string }) => g.flag)).toContain("--tx-stdin");
+    const exportAddress = r.json.commands.find((c: { id: string }) => c.id === "wallet.export-address");
+    expect(exportAddress.inputSchema.properties.network).toBeUndefined();
   });
 
   it("namespace --json-schema scopes the catalog to that namespace", () => {
@@ -187,6 +197,13 @@ describe("golden CLI — error contract (exit codes)", () => {
     const r = run(["--output", "json", "foobar", "list"]);
     expect(r.status).toBe(2);
     expect(r.json.error.code).toBe("unknown_command");
+  });
+
+  it("--quiet and --verbose are mutually exclusive → invalid_option, exit 2", () => {
+    const r = run(["--output", "json", "--quiet", "--verbose", "chains", "list"], { password: null });
+    expect(r.status).toBe(2);
+    expect(r.json.error.code).toBe("invalid_option");
+    expect(r.json.error.message).toContain("--quiet, --verbose");
   });
 
   it("missing network on a chain-mutating (net=required) command → exit 2", () => {

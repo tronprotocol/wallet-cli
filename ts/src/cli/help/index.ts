@@ -156,7 +156,7 @@ export class HelpService {
     ];
     const requires: string[] = [];
     if (cmd.network === "required") requires.push("--network <id|alias>");
-    if (cmd.auth === "required") requires.push("master password — --password-stdin (import-*/backup: interactive)");
+    if (cmd.auth === "required") requires.push("master password — pass --password-stdin for non-interactive use, or enter it interactively in a TTY");
     if (cmd.wallet !== "none") requires.push("an account — defaults to active; override with --account <accountId|label> (or `wallet set-active`)");
     if (requires.length) {
       lines.push("", "Requires:");
@@ -175,8 +175,22 @@ export class HelpService {
       });
     }
 
+    const inputFlags = inputFlagsFor(cmd);
+    if (inputFlags.length) {
+      lines.push("", "Input flags:");
+      for (const f of inputFlags) {
+        const desc = f.description;
+        const tag = globalFlagTag(f);
+        lines.push(`  ${globalFlagHead(f).padEnd(26)} ${desc}${desc && tag ? "  " : ""}${tag}`.trimEnd());
+      }
+    }
+
     lines.push("", "Global flags:");
-    for (const g of GLOBAL_FLAGS) lines.push(`  ${globalFlagHead(g).padEnd(26)} ${g.description}`);
+    for (const g of GLOBAL_FLAGS) {
+      const desc = g.description;
+      const tag = globalFlagTag(g);
+      lines.push(`  ${globalFlagHead(g).padEnd(26)} ${desc}${desc && tag ? "  " : ""}${tag}`.trimEnd());
+    }
 
     if (cmd.examples.length) {
       lines.push("", "Examples:");
@@ -203,6 +217,7 @@ export class HelpService {
           requires: { network: cmd.network, auth: cmd.auth, wallet: cmd.wallet },
           ...(cmd.capability ? { capability: cmd.capability } : {}),
           examples: cmd.examples.map((e) => e.cmd),
+          ...(inputFlagsFor(cmd).length ? { inputFlags: inputFlagsFor(cmd) } : {}),
           inputSchema: toJsonSchema(cmd.input),
         };
       });
@@ -259,27 +274,60 @@ function toJsonSchema(input: CommandDefinition["input"]): unknown {
 
 // Flags accepted on every command (kubectl-style globals + secret channels). Single structured
 // source: rendered as text in command --help AND as `globalFlags` in the root --json-schema catalog.
-// Authoritative arity lives in CliShell's GLOBAL_OPTS; this is the documentation projection.
+// Authoritative arity lives in CliShell's GLOBAL_OPTS; this is the documentation projection for
+// semantically global flags. Command-scoped stdin channels are documented via INPUT_FLAGS below.
 interface GlobalFlag {
   flag: string;
   alias?: string;
   type: "string" | "number" | "boolean";
   values?: string[];
   description: string;
+  optional?: boolean;
+  defaultValue?: string | number | boolean;
 }
 const GLOBAL_FLAGS: readonly GlobalFlag[] = [
-  { flag: "--output", alias: "-o", type: "string", values: ["text", "json"], description: "output format (default from config)" },
-  { flag: "--network", type: "string", description: "target network (id or alias)" },
-  { flag: "--account", type: "string", description: "account to use for this command (accountId, label, or one of your addresses)" },
-  { flag: "--timeout", type: "number", description: "per-call timeout in ms" },
-  { flag: "--quiet", type: "boolean", description: "suppress diagnostics" },
-  { flag: "--verbose", type: "boolean", description: "extra diagnostics" },
-  { flag: "--<kind>-stdin", type: "boolean", description: "secret/data input from stdin (fd 0, one per run); kind = password|tx|message" },
+  { flag: "--output", alias: "-o", type: "string", values: ["text", "json"], description: "result format", defaultValue: "config.defaultOutput (built-in: text)" },
+  { flag: "--network", type: "string", description: "network id or alias, e.g. tron:mainnet, nile, base; required only when listed in Requires; commands without a network requirement fall back via config.defaults.network.<family>" },
+  { flag: "--account", type: "string", description: "accountId, label, or address for wallet-bound commands; falls back to the active account from wallet set-active" },
+  { flag: "--timeout", type: "number", description: "per RPC/device call timeout, in milliseconds", defaultValue: "config.timeoutMs (built-in: 30000)" },
+  { flag: "--quiet", type: "boolean", description: "suppress diagnostic/progress messages on stderr, without suppressing result output; mutually exclusive with --verbose", defaultValue: false },
+  { flag: "--verbose", type: "boolean", description: "show extra diagnostic/debug messages on stderr, without changing result format; mutually exclusive with --quiet", defaultValue: false },
+  { flag: "--rpc-url", type: "string", description: "override the selected network RPC URL for this run" },
+  { flag: "--grpc-endpoint", type: "string", description: "override the selected TRON gRPC endpoint for this run" },
+  { flag: "--password-stdin", type: "boolean", description: "read the master password from stdin (fd 0); only one *-stdin flag can consume stdin per run" },
 ];
+
+const INPUT_FLAGS = {
+  privateKeyStdin: { flag: "--private-key-stdin", type: "boolean", description: "read the private key from stdin (fd 0)" },
+  mnemonicStdin: { flag: "--mnemonic-stdin", type: "boolean", description: "read the BIP39 mnemonic from stdin (fd 0)" },
+  txStdin: { flag: "--tx-stdin", type: "boolean", description: "read the signed transaction JSON from stdin (fd 0)" },
+  messageStdin: { flag: "--message-stdin", type: "boolean", description: "read the message bytes/text from stdin (fd 0)" },
+} as const satisfies Record<string, GlobalFlag>;
+
+function inputFlagsFor(cmd: CommandDefinition): readonly GlobalFlag[] {
+  switch (cmd.id) {
+    case "wallet.import-private-key":
+      return [INPUT_FLAGS.privateKeyStdin];
+    case "wallet.import-mnemonic":
+      return [INPUT_FLAGS.mnemonicStdin];
+    case "tron.tx.broadcast":
+      return [INPUT_FLAGS.txStdin];
+    case "tron.message.sign":
+    case "evm.message.sign":
+      return [INPUT_FLAGS.messageStdin];
+    default:
+      return [];
+  }
+}
 
 /** "--output, -o <text|json>" style header for text help. */
 function globalFlagHead(g: GlobalFlag): string {
   const head = g.alias ? `${g.flag}, ${g.alias}` : g.flag;
   const typ = g.type === "boolean" ? "" : ` <${g.values ? g.values.join("|") : g.type}>`;
   return `${head}${typ}`;
+}
+
+function globalFlagTag(g: GlobalFlag): string {
+  if (g.defaultValue !== undefined) return `[optional, default: ${formatDefault(g.defaultValue)}]`;
+  return "[optional]";
 }

@@ -55,7 +55,7 @@ function accountResources(): CommandDefinition {
 
 function accountAssets(): CommandDefinition {
   const fields = z.object({
-    tokens: z.string().optional().describe("comma-separated TRC20 contracts / TRC10 asset-ids"),
+    tokens: z.string().optional().describe("comma-separated token ids to query; each item is a TRC20 contract address or TRC10 numeric asset id; omit to return an empty token list"),
   });
   return {
     id: "tron.account.assets", path: ["account", "assets"], family: "tron",
@@ -94,8 +94,8 @@ function accountInfo(): CommandDefinition {
 
 function accountHistory(): CommandDefinition {
   const fields = z.object({
-    limit: z.coerce.number().int().positive().max(200).default(20).describe("max records to return (1–200)"),
-    only: z.enum(["native", "token"]).optional().describe("only show this transfer type (default: all)"),
+    limit: z.coerce.number().int().positive().max(200).default(20).describe("maximum records to return, in records; range: 1-200"),
+    only: z.enum(["native", "token"]).optional().describe("filter history by transfer type; omit to show all transfer types"),
   });
   return {
     id: "tron.account.history", path: ["account", "history"], family: "tron",
@@ -123,8 +123,8 @@ function accountHistory(): CommandDefinition {
 
 // ── token address-book (§7.17) ────────────────────────────────────────────────
 const tokenBookFields = z.object({
-  contract: Schemas.base58Address().optional().describe("TRC20 contract address (mutually exclusive with --asset-id)"),
-  assetId: z.string().regex(/^\d+$/).optional().describe("TRC10 asset id (mutually exclusive with --contract)"),
+  contract: Schemas.base58Address().optional().describe("TRC20 contract address; provide exactly one of --contract or --asset-id"),
+  assetId: z.string().regex(/^\d+$/).optional().describe("TRC10 numeric asset id; provide exactly one of --asset-id or --contract"),
 });
 
 /** tronweb returns TRC10 name/abbr either decoded or hex-encoded; decode hex best-effort. */

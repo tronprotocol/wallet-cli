@@ -14,8 +14,8 @@ const unitOf = (f: ChainFamily) => FAMILIES[f].nativeUnit;
 // ── execution-mode flags shared by every signing command ─────────────────────────
 /** dry-run / sign-only fields; default (no flag) = sign AND broadcast on-chain. */
 export const txModeFields = {
-  dryRun: z.boolean().default(false).describe("build + estimate only — no sign, no broadcast"),
-  signOnly: z.boolean().default(false).describe("sign and output the tx, do not broadcast (feed tx broadcast)"),
+  dryRun: z.boolean().default(false).describe("build and estimate only, with no signature and no broadcast; mutually exclusive with --sign-only"),
+  signOnly: z.boolean().default(false).describe("sign and output the transaction without broadcasting; mutually exclusive with --dry-run; broadcast later with tx broadcast"),
 };
 export interface TxModeInput {
   dryRun?: boolean;
@@ -65,7 +65,7 @@ export function balanceCommand(family: ChainFamily): CommandDefinition {
 export function messageSignCommand(family: ChainFamily, services: Services): CommandDefinition {
   // --message OR --message-stdin (the latter is a global data channel via SecretResolver).
   const fields = z.object({
-    message: z.string().min(1).optional().describe("message to sign (or use --message-stdin)"),
+    message: z.string().min(1).optional().describe("message text to sign; provide this OR --message-stdin; exactly one is required"),
   });
   return {
     id: `${family}.message.sign`,

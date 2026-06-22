@@ -38,12 +38,12 @@ function writeBackupFile(path: string, data: unknown): number {
 
 // ── wallet import-ledger contract (module scope so it can be unit-tested) ───────
 export const walletImportLedgerFields = z.object({
-  app: z.enum(["tron", "ethereum"]).describe("Ledger app to open on the device (selects the chain)"),
-  index: z.coerce.number().int().nonnegative().optional().describe("HD account index to import (default 0; mutually exclusive with --path/--address)"),
-  path: z.string().optional().describe("explicit BIP32 derivation path (overrides --index)"),
-  address: z.string().optional().describe("known address to locate via bounded scan (mutually exclusive with --index/--path)"),
-  scanLimit: z.coerce.number().int().positive().optional().describe("how many indexes to scan when locating --address (default 20)"),
-  label: Schemas.label().optional().describe("human-friendly account label (unique, ≤64 chars)"),
+  app: z.enum(["tron", "ethereum"]).describe("Ledger app to open on the device, selecting TRON or EVM address derivation"),
+  index: z.coerce.number().int().nonnegative().optional().describe("HD account index to import; omit with no --path/--address to use index 0; mutually exclusive with --path and --address"),
+  path: z.string().optional().describe("explicit BIP32 derivation path, e.g. m/44'/195'/0'/0/0 for TRON or m/44'/60'/0'/0/0 for Ethereum; mutually exclusive with --index and --address"),
+  address: z.string().optional().describe("known address to locate by bounded scan; mutually exclusive with --index and --path"),
+  scanLimit: z.coerce.number().int().positive().optional().describe("number of account indexes to scan when using --address, in indexes; omit to scan 20 indexes"),
+  label: Schemas.label().optional().describe("human-friendly unique account label, 1-64 chars; omit to auto-generate"),
 });
 /** --index / --path / --address are mutually exclusive (at most one locator). */
 export const walletImportLedgerInput = walletImportLedgerFields.superRefine((v, c) => {
@@ -64,7 +64,7 @@ export function registerWalletCommands(reg: CommandRegistry, services: Services)
 
   // ── wallet create ────────────────────────────────────────────────────────
   const createFields = z.object({
-    label: Schemas.label().optional().describe("human-friendly account label (unique, ≤64 chars)"),
+    label: Schemas.label().optional().describe("human-friendly unique account label, 1-64 chars; omit to auto-generate"),
   });
   reg.add({
     id: "wallet.create", path: ["create"], network: "none", wallet: "none", auth: "required", passwordMode: "establish",
@@ -80,7 +80,7 @@ export function registerWalletCommands(reg: CommandRegistry, services: Services)
 
   // ── wallet import-mnemonic ─────────────────────────────────────────────────
   // BIP39 passphrase intentionally NOT exposed in phase 1 (§7.14.3); plumbing stays.
-  const importMnemonicFields = z.object({ label: Schemas.label().optional().describe("human-friendly account label (unique, ≤64 chars)") });
+  const importMnemonicFields = z.object({ label: Schemas.label().optional().describe("human-friendly unique account label, 1-64 chars; omit to auto-generate; mnemonic comes from --mnemonic-stdin or interactive prompt") });
   reg.add({
     id: "wallet.import-mnemonic", path: ["import-mnemonic"], network: "none", wallet: "none", auth: "required", passwordMode: "establish",
     summary: "import an existing BIP39 mnemonic (encrypted at rest)", fields: importMnemonicFields, input: importMnemonicFields,
@@ -93,7 +93,7 @@ export function registerWalletCommands(reg: CommandRegistry, services: Services)
   } satisfies CommandDefinition);
 
   // ── wallet import-private-key ──────────────────────────────────────────────
-  const importPrivateKeyFields = z.object({ label: Schemas.label().optional().describe("human-friendly account label (unique, ≤64 chars)") });
+  const importPrivateKeyFields = z.object({ label: Schemas.label().optional().describe("human-friendly unique account label, 1-64 chars; omit to auto-generate; private key comes from --private-key-stdin or interactive prompt") });
   reg.add({
     id: "wallet.import-private-key", path: ["import-private-key"], network: "none", wallet: "none", auth: "required", passwordMode: "establish",
     summary: "import an existing private key (encrypted at rest)", fields: importPrivateKeyFields, input: importPrivateKeyFields,
@@ -125,8 +125,8 @@ export function registerWalletCommands(reg: CommandRegistry, services: Services)
 
   // ── wallet import-watch ──────────────────────────────────────────────────────
   const importWatchFields = z.object({
-    address: z.string().min(1).describe("address to track (family auto-detected: T… / 0x…)"),
-    label: Schemas.label().optional().describe("human-friendly account label (unique, ≤64 chars)"),
+    address: z.string().min(1).describe("watch-only address to track; format: TRON base58 T... or EVM 0x...; family is auto-detected"),
+    label: Schemas.label().optional().describe("human-friendly unique account label, 1-64 chars; omit to auto-generate"),
   });
   reg.add({
     id: "wallet.import-watch", path: ["import-watch"], network: "none", wallet: "none", auth: "none",
@@ -149,7 +149,7 @@ export function registerWalletCommands(reg: CommandRegistry, services: Services)
   } satisfies CommandDefinition);
 
   // ── wallet set-active ────────────────────────────────────────────────────────
-  const setActiveFields = z.object({ account: z.string().min(1).describe("accountId, label, or address to activate") });
+  const setActiveFields = z.object({ account: z.string().min(1).describe("accountId, label, or address to make active for future commands") });
   reg.add({
     id: "wallet.set-active", path: ["set-active"], network: "none", wallet: "none", auth: "none",
     summary: "set the active account", fields: setActiveFields, input: setActiveFields,
@@ -169,17 +169,14 @@ export function registerWalletCommands(reg: CommandRegistry, services: Services)
   } satisfies CommandDefinition);
 
   // ── wallet export-address ────────────────────────────────────────────────────
-  // Chain is selected by --network (resolved to its family); omitted → show both chains.
-  const exportFields = z.object({
-    network: z.string().optional().describe("show the address for this network's chain (omit = all chains)"),
-  });
+  // Chain is selected by global --network (resolved to its family); omitted → show both chains.
   reg.add({
     id: "wallet.export-address", path: ["export-address"], network: "none", wallet: "optional", auth: "none",
-    summary: "show an account's receive addresses", fields: exportFields, input: exportFields,
+    summary: "show an account's receive addresses", fields: empty, input: empty,
     examples: [{ cmd: "wallet-cli wallet export-address --network nile --account main" }],
-    run: async (ctx, _net, input) => {
+    run: async (ctx) => {
       const d = ks.describe(ctx.activeAccount);
-      const family = input.network ? ctx.networkRegistry.resolve(input.network).family : undefined;
+      const family = ctx.network ? ctx.networkRegistry.resolve(ctx.network).family : undefined;
       const addresses = family ? { [family]: d.addresses[family] } : d.addresses;
       return { ...d, addresses };
     },
@@ -187,8 +184,8 @@ export function registerWalletCommands(reg: CommandRegistry, services: Services)
 
   // ── wallet rename ─────────────────────────────────────────────────────────────
   const renameFields = z.object({
-    account: z.string().min(1).describe("accountId, current label, or address"),
-    label: Schemas.label().describe("new unique label"),
+    account: z.string().min(1).describe("accountId, current label, or address to rename"),
+    label: Schemas.label().describe("new unique label, 1-64 chars"),
   });
   reg.add({
     id: "wallet.rename", path: ["rename"], network: "none", wallet: "none", auth: "none",
@@ -202,9 +199,9 @@ export function registerWalletCommands(reg: CommandRegistry, services: Services)
 
   // ── wallet add-account ────────────────────────────────────────────────────────
   const addAccountFields = z.object({
-    account: z.string().min(1).describe("seed wallet (accountId, label, or address) to derive from"),
-    index: z.coerce.number().int().nonnegative().optional().describe("explicit HD account index (default: next free)"),
-    label: Schemas.label().optional().describe("label for the new sub-account"),
+    account: z.string().min(1).describe("seed wallet accountId, label, or address to derive from"),
+    index: z.coerce.number().int().nonnegative().optional().describe("explicit HD account index, in account index; omit to use the next free index"),
+    label: Schemas.label().optional().describe("label for the new derived account, 1-64 chars; omit to auto-generate"),
   });
   reg.add({
     id: "wallet.add-account", path: ["add-account"], network: "none", wallet: "none", auth: "required",
@@ -220,8 +217,8 @@ export function registerWalletCommands(reg: CommandRegistry, services: Services)
 
   // ── wallet delete ─────────────────────────────────────────────────────────────
   const deleteFields = z.object({
-    account: accountRef("account or wallet (accountId, label, or address)"),
-    yes: z.boolean().optional().describe("skip the interactive confirmation"),
+    account: accountRef("account or wallet to delete, addressed by accountId, label, or address"),
+    yes: z.boolean().default(false).describe("skip the interactive confirmation; required for non-TTY deletion"),
   });
   reg.add({
     id: "wallet.delete", path: ["delete"], network: "none", wallet: "none", auth: "none",
@@ -244,8 +241,8 @@ export function registerWalletCommands(reg: CommandRegistry, services: Services)
   // screen, logs and AI context. stdout returns only metadata + the written path.
   // master password via dispatch prime (passwordMode: "verify"); --password-stdin is the non-interactive source.
   const backupFields = z.object({
-    account: accountRef("account or wallet (accountId, label, or address)"),
-    out: z.string().optional().describe("output file path (default: <root>/backups/<accountId>-<ts>.json)"),
+    account: accountRef("account or wallet to export, addressed by accountId, label, or address"),
+    out: z.string().optional().describe("output file path; omit to write <wallet-cli-root>/backups/<accountId>-<timestamp>.json; file is created with mode 0600 and never overwritten"),
   });
   reg.add({
     id: "wallet.backup", path: ["backup"], network: "none", wallet: "none", auth: "required", passwordMode: "verify",
