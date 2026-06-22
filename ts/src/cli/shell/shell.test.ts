@@ -102,12 +102,30 @@ describe("gapFillRequiredFields", () => {
     expect(prompter.selectCalls).toHaveLength(0);
   });
 
-  it("does NOT prompt for an optional field (z.string().optional()) missing under TTY", async () => {
+  it("offers an optional field but Enter (empty) skips it → left unset", async () => {
     const cmd = makeCmd({ label: z.string().optional() });
+    const argv: Record<string, unknown> = {};
+    const prompter = makeFakePrompter({ tty: true }); // no answer queued → "" (Enter)
+    await gapFillRequiredFields(cmd, argv, prompter);
+    expect(argv.label).toBeUndefined(); // skipped → command default applies
+    expect(prompter.textCalls).toHaveLength(1);
+    expect(prompter.textCalls[0]!.label).toBe("label (optional, Enter to skip)");
+  });
+
+  it("sets an optional field when the user types a value", async () => {
+    const cmd = makeCmd({ label: z.string().optional() });
+    const argv: Record<string, unknown> = {};
+    const prompter = makeFakePrompter({ tty: true, textAnswers: ["main"] });
+    await gapFillRequiredFields(cmd, argv, prompter);
+    expect(argv.label).toBe("main");
+  });
+
+  it("does NOT prompt for an optional boolean flag", async () => {
+    const cmd = makeCmd({ yes: z.boolean().optional() });
     const argv: Record<string, unknown> = {};
     const prompter = makeFakePrompter({ tty: true });
     await gapFillRequiredFields(cmd, argv, prompter);
-    expect(argv.label).toBeUndefined();
+    expect(argv.yes).toBeUndefined();
     expect(prompter.textCalls).toHaveLength(0);
   });
 
@@ -196,7 +214,6 @@ describe("dispatch password-prime wiring", () => {
       output: "text" as const,
       quiet: true,
       verbose: false,
-      noDeviceWait: false,
     };
     const deps = { config, networkRegistry, streams, secrets, keystore, prompter, formatter };
     const capabilityRegistry = new CapabilityRegistry();
@@ -263,7 +280,6 @@ describe("dispatch password-prime wiring", () => {
       output: "text" as const,
       quiet: true,
       verbose: false,
-      noDeviceWait: false,
     };
     const deps = { config, networkRegistry, streams, secrets, keystore, prompter, formatter };
     const capabilityRegistry = new CapabilityRegistry();

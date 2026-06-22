@@ -44,7 +44,6 @@ const GLOBAL_OPTS = {
   timeout: { type: "number" },
   quiet: { type: "boolean" },
   verbose: { type: "boolean" },
-  "no-device-wait": { type: "boolean" },
   "grpc-endpoint": { type: "string" },
   "rpc-url": { type: "string" },
   // secret/data channels: `--<kind>-stdin` reads fd 0 (at most one secret per run). The
@@ -156,9 +155,11 @@ async function dispatch(opts: ShellOptions, ns: string, argv: any): Promise<void
 }
 
 /**
- * Fill required, no-default, missing non-secret fields by prompting — only under a TTY.
- * Enum fields use arrow selection; everything else free text. Non-TTY leaves argv untouched
- * so parseInput surfaces the usual missing_option. (spec §4.3)
+ * Fill missing non-secret fields by prompting — only under a TTY (non-TTY leaves argv untouched so
+ * parseInput surfaces the usual missing_option). Required fields must be answered (enum → arrow
+ * select, else free text); OPTIONAL value fields are still offered but Enter skips them (the
+ * command's own default applies, e.g. an auto-generated wallet label). Boolean flags are never
+ * prompted (their default is false). Fields with a zod default are filled by zod, so skipped. (spec §4.3)
  */
 export async function gapFillRequiredFields(
   cmd: CommandDefinition,
@@ -167,8 +168,15 @@ export async function gapFillRequiredFields(
 ): Promise<void> {
   if (!prompter.isTTY()) return;
   for (const f of introspectFields(cmd.fields)) {
-    if (f.optional || f.hasDefault) continue;
-    if (argv[f.name] !== undefined) continue;
+    if (f.hasDefault) continue; // zod supplies the value
+    if (argv[f.name] !== undefined) continue; // already given on argv
+    if (f.baseType === "boolean") continue; // never prompt for flags
+    if (f.optional) {
+      // offered but skippable: empty (Enter) → leave unset so the command's default applies.
+      const v = await prompter.text({ label: `${f.kebab} (optional, Enter to skip)` });
+      if (v !== "") argv[f.name] = v;
+      continue;
+    }
     const options = enumOptions(cmd.fields.shape[f.name] as any);
     argv[f.name] = options
       ? await prompter.select({ label: f.kebab, choices: options.map((o) => ({ value: o, label: o })) })
