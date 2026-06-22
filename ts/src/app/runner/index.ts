@@ -48,7 +48,6 @@ interface ParsedGlobals {
   timeout?: number;
   quiet: boolean;
   verbose: boolean;
-  noDeviceWait: boolean;
   grpcEndpoint?: string;
   rpcUrl?: string;
   secretPaths: SecretPaths;
@@ -71,7 +70,7 @@ const SECRET_STDIN_FLAGS: Record<string, keyof SecretPaths> = {
 };
 
 export function parseGlobals(tokens: string[]): ParsedGlobals {
-  const g: ParsedGlobals = { quiet: false, verbose: false, noDeviceWait: false, secretPaths: {} };
+  const g: ParsedGlobals = { quiet: false, verbose: false, secretPaths: {} };
   for (let i = 0; i < tokens.length; i++) {
     let tok = tokens[i]!;
     let inlineVal: string | undefined;
@@ -100,7 +99,6 @@ export function parseGlobals(tokens: string[]): ParsedGlobals {
     switch (tok) {
       case "--quiet": g.quiet = true; break;
       case "--verbose": g.verbose = true; break;
-      case "--no-device-wait": g.noDeviceWait = true; break;
     }
   }
   return g;
@@ -195,7 +193,6 @@ export async function main(argv: string[]): Promise<ExitCode> {
     timeoutMs: g.timeout,
     quiet: g.quiet,
     verbose: g.verbose,
-    noDeviceWait: g.noDeviceWait,
     grpcEndpoint: g.grpcEndpoint,
     rpcUrl: g.rpcUrl,
   };
@@ -219,5 +216,8 @@ export async function main(argv: string[]): Promise<ExitCode> {
     if (err.code === "internal_error") streams.diagnostic("debug", `internal error: ${String(e)}`);
     formatter.error(err, { commandId: session.current?.commandId, net: session.current?.net });
     return err.exitCode();
+  } finally {
+    // release the /dev/tty stream (if any prompt opened it) so the event loop drains and we exit.
+    prompter.close();
   }
 }
