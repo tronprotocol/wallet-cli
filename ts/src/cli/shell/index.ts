@@ -134,13 +134,12 @@ async function dispatch(opts: ShellOptions, ns: string, argv: any): Promise<void
   }
   session.current = { commandId: cmd.id, net };
 
-  await gapFillRequiredFields(cmd, argv, deps.prompter);
-  const input = parseInput(cmd, argv);
   capGate.check(cmd, net);
 
-  const ctx = buildExecutionContext(globals, deps);
   // auth: opt-in interactive password priming via passwordMode; fallback lazy guard for
   // non-interactive callers (spec §3 / §4.4). Ledger/watch commands skip this block entirely.
+  // Password prompting MUST precede gap-fill so the user always sets/verifies the master
+  // password before being asked for any other field (e.g. an optional wallet label).
   if (cmd.passwordMode) {
     const initialized = deps.keystore.isInitialized();
     const mode = cmd.passwordMode === "establish" ? (initialized ? "verify" : "set") : "verify";
@@ -148,6 +147,11 @@ async function dispatch(opts: ShellOptions, ns: string, argv: any): Promise<void
   } else if (cmd.auth === "required" && !deps.secrets.hasMasterPassword()) {
     throw new ExecutionError("auth_required", "master password required: pass --password-stdin");
   }
+
+  await gapFillRequiredFields(cmd, argv, deps.prompter);
+  const input = parseInput(cmd, argv);
+
+  const ctx = buildExecutionContext(globals, deps);
   if (cmd.wallet !== "none") void ctx.activeAccount; // resolve account (default active) up front; throws missing_wallet_address if none exists
 
   const data = await cmd.run(ctx, net, input);
