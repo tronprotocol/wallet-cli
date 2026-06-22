@@ -1,14 +1,21 @@
 package org.tron.walletcli.cli.commands;
 
+import java.util.Arrays;
+import org.bouncycastle.util.encoders.Hex;
+import org.tron.common.crypto.pqc.PQSchemeRegistry;
+import org.tron.common.crypto.pqc.PQSignature;
 import org.tron.keystore.WalletFile;
 import org.tron.mnemonic.MnemonicUtils;
 import org.tron.keystore.WalletUtils;
 import org.tron.ledger.LedgerFileUtil;
+import org.tron.protos.Protocol.PQScheme;
 import org.tron.walletcli.WalletApiWrapper.CliWalletCreationResult;
 import org.tron.walletcli.cli.ActiveWalletConfig;
 import org.tron.walletcli.cli.CommandDefinition;
 import org.tron.walletcli.cli.CommandRegistry;
 import org.tron.walletcli.cli.OptionDef;
+import org.tron.walletcli.cli.OutputFormatter;
+import org.tron.walletcli.cli.ParsedOptions;
 import org.tron.walletserver.WalletApi;
 
 
@@ -34,6 +41,185 @@ public class WalletCommands {
         registerResetWallet(registry);
         registerModifyWalletName(registry);
         registerGenerateSubAccount(registry);
+        registerGeneratePQKey(registry);
+        registerRegisterWalletPQ(registry);
+        registerImportWalletPQ(registry);
+    }
+
+    private static PQScheme parsePQSchemeOption(OutputFormatter out, ParsedOptions opts) {
+        String schemeName = opts.has("scheme") ? opts.getString("scheme") : "FN_DSA_512";
+        try {
+            PQScheme scheme = PQScheme.valueOf(schemeName);
+            if (!PQSchemeRegistry.contains(scheme)) {
+                out.usageError("Unsupported scheme: " + schemeName, null);
+                return null;
+            }
+            return scheme;
+        } catch (IllegalArgumentException e) {
+            out.usageError("Unsupported scheme: " + schemeName, null);
+            return null;
+        }
+    }
+
+    private static void registerGeneratePQKey(CommandRegistry registry) {
+        registry.add(noAuthCommand()
+                .name("generate-pq-key")
+                .aliases("generatepqkey")
+                .description("Generate a new post-quantum keypair (no keystore written)")
+                .option("scheme", "PQ signature scheme (default: FN_DSA_512)", false)
+                .handler((ctx, opts, wrapper, out) -> {
+                    PQScheme scheme = parsePQSchemeOption(out, opts);
+                    if (scheme == null) {
+                        return;
+                    }
+                    int seedLen = PQSchemeRegistry.getSeedLength(scheme);
+                    byte[] seed = new byte[seedLen];
+                    new java.security.SecureRandom().nextBytes(seed);
+                    byte[] priv = null;
+                    byte[] persisted = null;
+                    try {
+                        PQSignature signer = PQSchemeRegistry.fromSeed(scheme, seed);
+                        String address = WalletApi.encode58Check(signer.getAddress());
+                        priv = signer.getPrivateKey();
+                        persisted = signer.getPersistedPrivateKey();
+                        Map<String, Object> json = new LinkedHashMap<String, Object>();
+                        json.put("scheme", scheme.name());
+                        json.put("seed", Hex.toHexString(seed));
+                        json.put("private_key", Hex.toHexString(priv));
+                        json.put("public_key", Hex.toHexString(signer.getPublicKey()));
+                        json.put("address", address);
+                        json.put("private_key_persisted_form", Hex.toHexString(persisted));
+                        json.put("warning",
+                                "store the seed and the persisted private key securely.");
+                        out.success("Generated PQ key for address: " + address, json);
+                    } finally {
+                        java.util.Arrays.fill(seed, (byte) 0);
+                        if (priv != null) {
+                            java.util.Arrays.fill(priv, (byte) 0);
+                        }
+                        if (persisted != null) {
+                            java.util.Arrays.fill(persisted, (byte) 0);
+                        }
+                    }
+                })
+                .build());
+    }
+
+    private static void registerRegisterWalletPQ(CommandRegistry registry) {
+        registry.add(noAuthCommand()
+                .name("register-wallet-pq")
+                .aliases("registerwalletpq")
+                .description("Create a new post-quantum wallet")
+                .option("name", "Wallet name", true)
+                .option("scheme", "PQ signature scheme (default: FN_DSA_512)", false)
+                .handler((ctx, opts, wrapper, out) -> {
+                    PQScheme scheme = parsePQSchemeOption(out, opts);
+                    if (scheme == null) {
+                        return;
+                    }
+                    String envPassword = ctx.getMasterPassword();
+                    if (envPassword == null || envPassword.isEmpty()) {
+                        out.error("execution_error",
+                                "Set MASTER_PASSWORD environment variable for non-interactive wallet creation");
+                        return;
+                    }
+                    char[] password = envPassword.toCharArray();
+                    try {
+                        CliWalletCreationResult result = wrapper.registerWalletPQForCli(
+                                password, scheme, opts.getString("name"));
+                        ActiveWalletConfig.setActiveAddress(result.getAddress());
+                        Map<String, Object> json = new LinkedHashMap<String, Object>();
+                        json.put("keystore", result.getKeystoreName());
+                        json.put("address", result.getAddress());
+                        json.put("wallet_name", result.getWalletName());
+                        json.put("scheme", scheme.name());
+                        out.success("Register a PQ wallet successful, keystore file name is "
+                                + result.getKeystoreName(), json);
+                    } finally {
+                        org.tron.keystore.StringUtils.clear(password);
+                    }
+                })
+                .build());
+    }
+
+    private static void registerImportWalletPQ(CommandRegistry registry) {
+        registry.add(noAuthCommand()
+                .name("import-wallet-pq")
+                .aliases("importwalletpq")
+                .description("Import a post-quantum wallet from a seed or extended private key")
+                .option("name", "Wallet name", true)
+                .option("scheme", "PQ signature scheme (default: FN_DSA_512)", false)
+                .option("extended-private-key-hex",
+                        "Hex-encoded key material (either the 48-byte seed or the full extended private||public bytes)", true)
+                .handler((ctx, opts, wrapper, out) -> {
+                    PQScheme scheme = parsePQSchemeOption(out, opts);
+                    if (scheme == null) {
+                        return;
+                    }
+                    String hex = opts.getString("extended-private-key-hex");
+                    byte[] decoded;
+                    try {
+                        decoded = Hex.decode(hex);
+                    } catch (Exception e) {
+                        out.usageError("Invalid hex for --extended-private-key-hex", null);
+                        return;
+                    }
+                    int expectedExtLen = PQSchemeRegistry.getPersistedPrivateKeyLength(scheme);
+                    int expectedSeedLen = PQSchemeRegistry.getSeedLength(scheme);
+
+                    byte[] seed = null;
+                    byte[] extendedPriv = null;
+
+                    if (decoded.length == expectedSeedLen) {
+                        seed = decoded;
+                        try {
+                            PQSchemeRegistry.fromSeed(scheme, seed);
+                        } catch (RuntimeException e) {
+                            java.util.Arrays.fill(seed, (byte) 0);
+                            out.error("execution_error", "Failed to derive " + scheme.name()
+                                    + " keypair from seed: " + e.getMessage());
+                            return;
+                        }
+                    } else if (decoded.length == expectedExtLen) {
+                        extendedPriv = decoded;
+                    } else {
+                        Arrays.fill(decoded, (byte) 0);
+                        out.usageError("extended-private-key-hex must decode to " + expectedSeedLen
+                                + " bytes (seed) or " + expectedExtLen + " bytes (persisted private key) for "
+                                + scheme.name() + " (got " + decoded.length + ")", null);
+                        return;
+                    }
+
+                    String envPassword = ctx.getMasterPassword();
+                    if (envPassword == null || envPassword.isEmpty()) {
+                        out.error("execution_error",
+                                "Set MASTER_PASSWORD environment variable for non-interactive wallet import");
+                        Arrays.fill(decoded, (byte) 0);
+                        return;
+                    }
+                    char[] password = envPassword.toCharArray();
+                    try {
+                        CliWalletCreationResult result = wrapper.importWalletPQForCli(
+                                password, scheme, extendedPriv, seed, opts.getString("name"));
+                        ActiveWalletConfig.setActiveAddress(result.getAddress());
+                        Map<String, Object> json = new LinkedHashMap<String, Object>();
+                        json.put("keystore", result.getKeystoreName());
+                        json.put("address", result.getAddress());
+                        json.put("wallet_name", result.getWalletName());
+                        json.put("scheme", scheme.name());
+                        out.success("Import a PQ wallet successful, keystore file name is "
+                                + result.getKeystoreName(), json);
+                    } finally {
+                        org.tron.keystore.StringUtils.clear(password);
+                        if (extendedPriv != null) {
+                            java.util.Arrays.fill(extendedPriv, (byte) 0);
+                        }
+                        if (seed != null) {
+                            java.util.Arrays.fill(seed, (byte) 0);
+                        }
+                    }
+                })
+                .build());
     }
 
     private static void registerRegisterWallet(CommandRegistry registry) {

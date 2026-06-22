@@ -133,7 +133,7 @@
 | GetMemoFee                                        | Get memo fee                                                            |
 | ListNodes                                         | Query the list of nodes connected to the API node                       |
 |---------------------------------------------------+-------------------------------------------------------------------------+
-|                WALLET OPERATIONS (25)             |                                                                         |
+|                WALLET OPERATIONS (28)             |                                                                         |
 +---------------------------------------------------+-------------------------------------------------------------------------+
 | Lock                                              | Lock the current wallet account                                         |
 | Unlock                                            | Unlock the current wallet account                                       |
@@ -148,6 +148,9 @@
 | ImportWalletByLedger                              | Import wallet through Ledger                                            |
 | ImportWalletByKeystore                            | Import wallet through Keystore file                                     |
 | ImportWalletByBase64                              | Import wallet through base64                                            |
+| GeneratePQKey                                     | Generate a post-quantum (Falcon-512) keypair without saving a keystore  |
+| RegisterWalletPQ                                  | Register a new post-quantum wallet (Falcon-512 / FN-DSA-512)            |
+| ImportWalletPQ                                    | Import a post-quantum wallet from a seed or extended private key        |
 | GenerateSubAccount                                | Generate sub accounts through mnemonic words                            |
 | ExportWalletKeystore                              | Export the Keystore file                                                |
 | ExportWalletMnemonic                              | Export wallet mnemonic words                                            |

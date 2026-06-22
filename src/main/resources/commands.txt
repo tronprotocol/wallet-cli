@@ -853,3 +853,32 @@ Summary:
 Get witnesses voting information in pages.
 Usage example:
 wallet> GetPaginatedNowWitnessList 0 10
+Syntax:
+GeneratePQKey [scheme]
+Summary:
+Generate a post-quantum keypair and print the address, public key, and persisted private key. Supported schemes: FN_DSA_512 (Falcon-512, default), ML_DSA_44 (CRYSTALS-Dilithium-2 / FIPS-204). The key is NOT persisted to a keystore; use RegisterWalletPQ if you want it saved.
+Usage example:
+wallet> GeneratePQKey
+wallet> GeneratePQKey FN_DSA_512
+wallet> GeneratePQKey ML_DSA_44
+Syntax:
+RegisterWalletPQ [scheme]
+Summary:
+Register a new post-quantum wallet. Generates a fresh keypair for the given scheme, prompts for a password, and writes an encrypted keystore under Wallet/. Supported schemes: FN_DSA_512 (default), ML_DSA_44.
+Usage example:
+wallet> RegisterWalletPQ
+wallet> RegisterWalletPQ FN_DSA_512
+wallet> RegisterWalletPQ ML_DSA_44
+Syntax:
+ImportWalletPQ [scheme] <seed_or_persisted_private_key_hex_or_file>
+Summary:
+Import a post-quantum wallet from key material. Supported schemes: FN_DSA_512 (default), ML_DSA_44. The argument is required and may be either the hex string itself or a path to a file containing it. Format is auto-detected by length against the scheme:
+  - FN_DSA_512: 48-byte / 96-hex-char seed, or 2176-byte / 4352-hex-char extended private key (f||g||F||h).
+  - ML_DSA_44:  32-byte / 64-hex-char seed, or 2560-byte / 5120-hex-char encoded private key (rho||K||tr||s1||s2||t0).
+Interactive paste is not supported because most terminals truncate lines longer than ~1024 chars.
+Usage example:
+wallet> ImportWalletPQ FN_DSA_512 0102030405060708...   (96 hex chars = Falcon seed)
+wallet> ImportWalletPQ FN_DSA_512 /tmp/my-falcon-seed.hex
+wallet> ImportWalletPQ FN_DSA_512 /tmp/my-falcon-extpriv.hex
+wallet> ImportWalletPQ ML_DSA_44 /tmp/my-mldsa-seed.hex
+wallet> ImportWalletPQ /tmp/my-falcon-seed.hex

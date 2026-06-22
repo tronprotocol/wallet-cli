@@ -1,5 +1,6 @@
 package org.tron.keystore;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonSetter;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
@@ -24,6 +25,11 @@ public class WalletFile {
     private Crypto crypto;
     private String id;
     private int version;
+    // Signature scheme discriminator: null/"ECKEY" for legacy ECDSA wallets,
+    // "SM2" for SM2 wallets, "FN_DSA_512" for Falcon-512 PQ wallets. Omitted on
+    // serialization when null so existing keystore files stay byte-identical.
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    private String scheme;
     @Getter
     @Setter
     private File sourceFile;
@@ -77,6 +83,14 @@ public class WalletFile {
         this.version = version;
     }
 
+    public String getScheme() {
+        return scheme;
+    }
+
+    public void setScheme(String scheme) {
+        this.scheme = scheme;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -98,19 +112,25 @@ public class WalletFile {
                 : that.getCrypto() != null) {
             return false;
         } 
-        if (getId() != null 
+        if (getId() != null
                 ? !getId().equals(that.getId())
                 : that.getId() != null) {
             return false;
         }
+        if (getScheme() != null
+                ? !getScheme().equals(that.getScheme())
+                : that.getScheme() != null) {
+            return false;
+        }
         return version == that.version;
-    } 
+    }
 
     @Override
     public int hashCode() {
         int result = getAddress() != null ? getAddress().hashCode() : 0;
         result = 31 * result + (getCrypto() != null ? getCrypto().hashCode() : 0);
         result = 31 * result + (getId() != null ? getId().hashCode() : 0);
+        result = 31 * result + (getScheme() != null ? getScheme().hashCode() : 0);
         result = 31 * result + version;
         return result;
     }  
@@ -124,6 +144,19 @@ public class WalletFile {
         private KdfParams kdfparams;
 
         private String mac;
+
+        // Optional parallel ciphertext for the 48-byte FN-DSA seed. When present,
+        // the seed is encrypted under the same scrypt-derived AES key as
+        // `ciphertext` but with an INDEPENDENT random IV and its own MAC.
+        // Omitted from JSON when null so legacy ECKey/SM2 wallets stay
+        // byte-identical and PQ wallets that only persist the extended private
+        // key do not emit empty fields.
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        private String seedciphertext;
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        private CipherParams seedcipherparams;
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        private String seedmac;
 
         public Crypto() {
         }
@@ -188,6 +221,30 @@ public class WalletFile {
             this.mac = mac;
         }
 
+        public String getSeedciphertext() {
+            return seedciphertext;
+        }
+
+        public void setSeedciphertext(String seedciphertext) {
+            this.seedciphertext = seedciphertext;
+        }
+
+        public CipherParams getSeedcipherparams() {
+            return seedcipherparams;
+        }
+
+        public void setSeedcipherparams(CipherParams seedcipherparams) {
+            this.seedcipherparams = seedcipherparams;
+        }
+
+        public String getSeedmac() {
+            return seedmac;
+        }
+
+        public void setSeedmac(String seedmac) {
+            this.seedmac = seedmac;
+        }
+
         @Override
         public boolean equals(Object o) {
             if (this == o) {
@@ -196,9 +253,9 @@ public class WalletFile {
             if (!(o instanceof Crypto)) {
                 return false;
             }
-            
+
             Crypto that = (Crypto) o;
-            
+
             if (getCipher() != null
                     ? !getCipher().equals(that.getCipher())
                     : that.getCipher() != null) {
@@ -224,9 +281,24 @@ public class WalletFile {
                     : that.getKdfparams() != null) {
                 return false;
             }
-            return getMac() != null
-                    ? getMac().equals(that.getMac()) : that.getMac() == null;
-        }  
+            if (getMac() != null
+                    ? !getMac().equals(that.getMac())
+                    : that.getMac() != null) {
+                return false;
+            }
+            if (getSeedciphertext() != null
+                    ? !getSeedciphertext().equals(that.getSeedciphertext())
+                    : that.getSeedciphertext() != null) {
+                return false;
+            }
+            if (getSeedcipherparams() != null
+                    ? !getSeedcipherparams().equals(that.getSeedcipherparams())
+                    : that.getSeedcipherparams() != null) {
+                return false;
+            }
+            return getSeedmac() != null
+                    ? getSeedmac().equals(that.getSeedmac()) : that.getSeedmac() == null;
+        }
 
         @Override
         public int hashCode() {
@@ -236,9 +308,12 @@ public class WalletFile {
             result = 31 * result + (getKdf() != null ? getKdf().hashCode() : 0);
             result = 31 * result + (getKdfparams() != null ? getKdfparams().hashCode() : 0);
             result = 31 * result + (getMac() != null ? getMac().hashCode() : 0);
+            result = 31 * result + (getSeedciphertext() != null ? getSeedciphertext().hashCode() : 0);
+            result = 31 * result + (getSeedcipherparams() != null ? getSeedcipherparams().hashCode() : 0);
+            result = 31 * result + (getSeedmac() != null ? getSeedmac().hashCode() : 0);
             return result;
         }
-        
+
     }
 
     public static class CipherParams {

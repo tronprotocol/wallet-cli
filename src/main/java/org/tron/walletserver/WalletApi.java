@@ -44,7 +44,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.math.BigInteger;
-import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
 import java.security.SecureRandom;
@@ -81,8 +80,9 @@ import org.tron.common.crypto.ECKey;
 import org.tron.common.crypto.Hash;
 import org.tron.common.crypto.Sha256Sm3Hash;
 import org.tron.common.crypto.SignInterface;
-import org.tron.common.crypto.SignatureInterface;
+import org.tron.common.crypto.pqc.PQSignature;
 import org.tron.common.crypto.sm2.SM2;
+import org.tron.protos.Protocol.PQScheme;
 import org.tron.common.enums.NetType;
 import org.tron.common.utils.Base58;
 import org.tron.common.utils.ByteArray;
@@ -278,7 +278,7 @@ public class WalletApi {
       solidityNode = fullNode;
       isSoliditynodeEmpty = true;
     }
-  
+
     WalletApi.setAddressPreFixByte(ADD_PRE_FIX_BYTE_DEFAULT);
 
     if (config.hasPath("crypto.engine")) {
@@ -398,6 +398,11 @@ public class WalletApi {
   public static WalletFile CreateLedgerWalletFile(byte[] password, String address, String path)
       throws CipherException {
     return Wallet.createStandardLedger(password, address, path);
+  }
+
+  public static WalletFile CreatePQWalletFile(byte[] password, PQScheme scheme,
+      byte[] extendedPrivateKey, byte[] seed, byte[] publicKey) throws CipherException {
+    return Wallet.createStandardPQ(password, scheme, extendedPrivateKey, seed, publicKey);
   }
 
   public static void storeMnemonicWords(byte[] password, SignInterface ecKeySm2Pair, List<String> mnemonicWords) throws CipherException, IOException {
@@ -538,6 +543,38 @@ public class WalletApi {
 
   public SM2 getSM2(WalletFile walletFile, byte[] password) throws CipherException {
     return Wallet.decryptSM2(password, walletFile);
+  }
+
+  public PQSignature getPQSignature(WalletFile walletFile, byte[] password)
+      throws CipherException {
+    return Wallet.decryptPQ(password, walletFile);
+  }
+
+  public static PQScheme getWalletPQScheme(WalletFile walletFile) {
+    if (walletFile == null || StringUtils.isBlank(walletFile.getScheme())) {
+      return null;
+    }
+    try {
+      return PQScheme.valueOf(walletFile.getScheme());
+    } catch (IllegalArgumentException e) {
+      throw new IllegalStateException("Unsupported PQ scheme: " + walletFile.getScheme(), e);
+    }
+  }
+
+  // The Trident SDK ApiClient takes a hex string private key and assumes it is
+  // a 32-byte ECDSA secp256k1 / SM2 key. A PQ persisted private key (2176 or
+  // 2560 bytes) cannot be used there — silently passing it would produce
+  // invalid signatures or runtime errors deep inside Trident. Operations that
+  // must construct an ApiClient directly should call this before reading the
+  // key out of the keystore, mirroring the pre-flight check in
+  // {@code WalletApiWrapper.gasFreeTransferInternal}.
+  private void rejectPQForEcdsaSigning(String operation) {
+    WalletFile wf = getWalletFile();
+    if (wf != null && wf.getScheme() != null && !wf.getScheme().isEmpty()) {
+      throw new UnsupportedOperationException(
+          operation + " is not supported for post-quantum wallets ("
+              + wf.getScheme() + "); requires an ECDSA wallet.");
+    }
   }
 
   public byte[] getPrivateBytes(byte[] password) throws CipherException, IOException {
@@ -835,7 +872,17 @@ public class WalletApi {
       throw new IOException(
           "No keystore file found, please use " + greenBoldHighlight("RegisterWallet") + " or " + greenBoldHighlight("ImportWallet") + " first!");
     }
-    Credentials credentials = WalletUtils.loadCredentials(oldPassword, wallet);
+    WalletFile existing = WalletUtils.loadWalletFile(wallet);
+    // PQ wallets use a different keystore shape (scheme + ext/seed segments).
+    // The legacy ECDSA/SM2 re-encrypt path would silently rewrite a PQ keystore
+    // as an EC keystore, losing the scheme tag and seed segment.
+    if (existing.getScheme() != null && !existing.getScheme().isEmpty()) {
+      WalletFile reEncrypted = Wallet.reEncryptPQ(oldPassword, newPassowrd, existing);
+      WalletUtils.writeWalletFile(reEncrypted, wallet);
+      // PQ wallets do not currently persist a BIP-39 mnemonic file.
+      return true;
+    }
+    Credentials credentials = WalletUtils.loadCredentials(oldPassword, existing);
     WalletUtils.updateWalletFile(newPassowrd, credentials.getPair(), wallet, true);
 
     // update the password of mnemonicFile
@@ -952,7 +999,10 @@ public class WalletApi {
         return null;
       }
     } else {
-      if (isEckey) {
+      PQScheme pqScheme = getWalletPQScheme(wf);
+      if (pqScheme != null) {
+        transaction = TransactionUtils.signPQ(transaction, this.getPQSignature(wf, passwd), pqScheme);
+      } else if (isEckey) {
         transaction = TransactionUtils.sign(transaction, this.getEcKey(wf, passwd));
       } else {
         transaction = TransactionUtils.sign(transaction, this.getSM2(wf, passwd));
@@ -1025,7 +1075,10 @@ public class WalletApi {
           return null;
         }
       } else {
-        if (isEckey) {
+        PQScheme pqScheme = getWalletPQScheme(wf);
+        if (pqScheme != null) {
+          transaction = TransactionUtils.signPQ(transaction, this.getPQSignature(wf, passwd), pqScheme);
+        } else if (isEckey) {
           transaction = TransactionUtils.sign(transaction, this.getEcKey(wf, passwd));
         } else {
           transaction = TransactionUtils.sign(transaction, this.getSM2(wf, passwd));
@@ -1121,7 +1174,10 @@ public class WalletApi {
         TransactionSignManager.getInstance().setTransaction(null);
         throw new CancelException(weight.getResult().getMessage());
       }
-      if (isEckey) {
+      PQScheme pqScheme = getWalletPQScheme(wf);
+      if (pqScheme != null) {
+        transaction = TransactionUtils.signPQ(transaction, this.getPQSignature(wf, passwd), pqScheme);
+      } else if (isEckey) {
         transaction = TransactionUtils.sign(transaction, this.getEcKey(wf, passwd));
       } else {
         transaction = TransactionUtils.sign(transaction, this.getSM2(wf, passwd));
@@ -3733,6 +3789,7 @@ public class WalletApi {
     if (!isUnlocked()) {
       throw new IllegalStateException(LOCK_WARNING);
     }
+    rejectPQForEcdsaSigning("DeployContract");
     if (owner == null) {
       owner = getAddress();
     }
@@ -3759,6 +3816,8 @@ public class WalletApi {
     }
     Response.TransactionExtention transactionExtention;
     try {
+      // TODO: add PQ support — switch to the deployContract overload that takes an explicit
+      //  owner address.
       transactionExtention = tmpApiCli.deployContract(contractName, ABI,
           code, Collections.emptyList(), feeLimit, consumeUserResourcePercent, originEnergyLimit,
           value, tokenId, tokenValue);
@@ -3815,6 +3874,7 @@ public class WalletApi {
     if (!isUnlocked()) {
       throw new IllegalStateException(LOCK_WARNING);
     }
+    rejectPQForEcdsaSigning("DeployContract");
     if (owner == null) {
       owner = getAddress();
     }
@@ -3841,6 +3901,8 @@ public class WalletApi {
     }
     Response.TransactionExtention transactionExtention;
     try {
+      // TODO: add PQ support — switch to the deployContract overload that takes an explicit
+      //  owner address.
       transactionExtention = tmpApiCli.deployContract(contractName, ABI,
           code, Collections.emptyList(), feeLimit, consumeUserResourcePercent, originEnergyLimit,
           value, tokenId, tokenValue);
@@ -4453,7 +4515,10 @@ public class WalletApi {
       System.out.println("Please input your password.");
       passwd = char2Byte(inputPassword(false));
     }
-    if (isEckey) {
+    PQScheme pqScheme = getWalletPQScheme(wf);
+    if (pqScheme != null) {
+      transaction = TransactionUtils.signPQ(transaction, this.getPQSignature(wf, passwd), pqScheme);
+    } else if (isEckey) {
       transaction = TransactionUtils.sign(transaction, this.getEcKey(wf, passwd));
     } else {
       transaction = TransactionUtils.sign(transaction, this.getSM2(wf, passwd));

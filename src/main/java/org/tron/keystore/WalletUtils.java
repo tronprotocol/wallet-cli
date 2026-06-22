@@ -190,15 +190,14 @@ public class WalletUtils {
   public static Credentials loadCredentials(byte[] password, File source)
       throws IOException, CipherException {
     WalletFile walletFile = objectMapper.readValue(source, WalletFile.class);
-
-    if (isEckey) {
-      return CredentialsEckey.create(Wallet.decrypt(password, walletFile));
-    }
-    return CredentialsSM2.create(Wallet.decryptSM2(password, walletFile));
+    return loadCredentials(password, walletFile);
   }
 
   public static Credentials loadCredentials(byte[] password, WalletFile walletFile)
       throws CipherException {
+    if (walletFile.getScheme() != null && !walletFile.getScheme().isEmpty()) {
+      return CredentialsPQ.create(Wallet.decryptPQ(password, walletFile));
+    }
     if (isEckey) {
       return CredentialsEckey.create(Wallet.decrypt(password, walletFile));
     }
@@ -207,6 +206,15 @@ public class WalletUtils {
 
   public static WalletFile loadWalletFile(File source) throws IOException {
     return objectMapper.readValue(source, WalletFile.class);
+  }
+
+  // Persists `walletFile` to `destination`, overwriting any existing content,
+  // and re-applies owner-only permissions. Unlike updateWalletFile this does
+  // NOT regenerate ciphertext — callers are responsible for producing the
+  // already-encrypted WalletFile (e.g. via Wallet.reEncryptPQ).
+  public static void writeWalletFile(WalletFile walletFile, File destination) throws IOException {
+    objectMapper.writeValue(destination, walletFile);
+    FilePermissionUtils.setOwnerOnlyFile(destination.toPath());
   }
 //
 //    public static Credentials loadBip39Credentials(String password, String mnemonic) {

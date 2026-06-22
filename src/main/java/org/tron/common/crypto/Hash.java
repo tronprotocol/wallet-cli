@@ -23,7 +23,6 @@ import static java.util.Arrays.copyOfRange;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.Provider;
-import java.security.Security;
 import lombok.extern.slf4j.Slf4j;
 import org.tron.common.crypto.jce.TronCastleProvider;
 import org.tron.common.utils.ByteArray;
@@ -38,8 +37,7 @@ public class Hash {
   private static final String HASH_512_ALGORITHM_NAME;
 
   static {
-    Security.addProvider(TronCastleProvider.getInstance());
-    CRYPTO_PROVIDER = Security.getProvider("BC");
+    CRYPTO_PROVIDER = TronCastleProvider.getInstance();
     HASH_256_ALGORITHM_NAME = "TRON-KECCAK-256";
     HASH_512_ALGORITHM_NAME = "TRON-KECCAK-512";
   }
