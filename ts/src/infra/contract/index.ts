@@ -13,7 +13,7 @@ import type {
   NetworkDescriptor,
   ResultEnvelope,
 } from "../../core/types/index.js";
-import { addressCodec } from "../../core/address/index.js";
+import { addressCodec } from "../../core/family/index.js";
 
 type CliErrorEnvelopeShape = { code: string; message: string; details?: object };
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { walletImportLedgerInput } from "./neutral.js";
+import { walletImportLedgerInput } from "./wallet.js";
 
 const ok = (v: unknown) => walletImportLedgerInput.safeParse(v).success;
 

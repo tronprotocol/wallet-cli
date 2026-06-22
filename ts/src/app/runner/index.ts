@@ -4,7 +4,9 @@
  * output + a 0/1/2 exit code. yargs only parses + dispatches; it never writes or exits. (plan §3 L5)
  */
 import { hideBin } from "yargs/helpers";
-import type { ExitCode, Globals, NetworkDescriptor, OutputMode } from "../../core/types/index.js";
+import type { ChainFamily, ExitCode, Globals, NetworkDescriptor, OutputMode } from "../../core/types/index.js";
+import type { FamilyAdapter, SignStrategy } from "../../core/family/index.js";
+import { CHAIN_FAMILIES } from "../../core/family/index.js";
 import { normalizeError } from "../../core/errors/index.js";
 import { ConfigLoader, NetworkRegistry } from "../../infra/config/index.js";
 import { AtomicFileStore } from "../../core/fs/index.js";
@@ -12,6 +14,8 @@ import { StreamManager } from "../../core/stream/index.js";
 import { SecretResolver, type SecretPaths } from "../../infra/secret/index.js";
 import { Keystore } from "../../infra/keystore/index.js";
 import { Ledger } from "../../infra/ledger/index.js";
+import { TokenBook } from "../../infra/tokenbook/index.js";
+import { createPriceProvider } from "../../infra/price/index.js";
 import { SignerResolver } from "../../runtime/signer/index.js";
 import { TxPipeline } from "../../runtime/pipeline/index.js";
 import { CapabilityRegistry } from "../../runtime/chain/index.js";
@@ -21,10 +25,13 @@ import { createOutputFormatter } from "../../runtime/output/index.js";
 import { HelpService, hasMeta } from "../../cli/help/index.js";
 import { buildCli, type SessionRef } from "../../cli/shell/index.js";
 import { EvmRpcClient, TronRpcClient } from "../../infra/rpc/index.js";
+import { evmSignStrategy, tronSignStrategy } from "../../runtime/signer/strategies.js";
 import type { ChainModule } from "../../core/types/index.js";
-import { registerNeutralCommands } from "../../commands/neutral.js";
-import { TronModule } from "../../commands/tron.js";
-import { EvmModule } from "../../commands/evm.js";
+import { registerWalletCommands } from "../../commands/wallet.js";
+import { registerConfigCommands } from "../../commands/config.js";
+import { registerChainCommands } from "../../commands/chain.js";
+import { TronModule } from "../../commands/tron/index.js";
+import { EvmModule } from "../../commands/evm/index.js";
 
 export const VERSION = "0.1.0";
 
@@ -52,15 +59,8 @@ const VALUE_FLAGS: Record<string, keyof ParsedGlobals> = {
   "--timeout": "timeout", "--grpc-endpoint": "grpcEndpoint", "--rpc-url": "rpcUrl",
 };
 
-/** secret/data channels: `--<kind>-file <path>` (path = - | file | /dev/fd/N). */
-const SECRET_FILE_FLAGS: Record<string, keyof SecretPaths> = {
-  "--password-file": "password",
-  "--private-key-file": "privateKey",
-  "--mnemonic-file": "mnemonic",
-  "--tx-file": "tx",
-  "--message-file": "message",
-};
-/** `--<kind>-stdin` = `--<kind>-file -` alias. */
+/** `--<kind>-stdin` reads fd 0 (secretPaths value "-"). The `--<kind>-file`/`/dev/fd/N` multi-fd
+ *  path was removed; commands needing a 2nd secret go interactive (spec §6 / plan §7.13.1). */
 const SECRET_STDIN_FLAGS: Record<string, keyof SecretPaths> = {
   "--password-stdin": "password",
   "--private-key-stdin": "privateKey",
@@ -89,12 +89,6 @@ export function parseGlobals(tokens: string[]): ParsedGlobals {
       } else if (valueKey === "output") {
         if (v === "json" || v === "text") g.output = v; // invalid → undefined; yargs choices reports it
       } else (g as any)[valueKey] = v;
-      continue;
-    }
-    const fileKind = SECRET_FILE_FLAGS[tok];
-    if (fileKind) {
-      const v = inlineVal ?? tokens[++i];
-      if (v !== undefined) g.secretPaths[fileKind] = v;
       continue;
     }
     const stdinKind = SECRET_STDIN_FLAGS[tok];
@@ -131,10 +125,25 @@ export async function main(argv: string[]): Promise<ExitCode> {
   const store = new AtomicFileStore();
   const capabilityRegistry = new CapabilityRegistry();
 
-  const rpcFactory = (d: NetworkDescriptor) =>
-    d.family === "tron"
-      ? new TronRpcClient(d.rpcUrl ?? httpFromGrpc(d.grpcEndpoint))
-      : new EvmRpcClient(d.rpcUrl ?? "");
+  // Composition root: the single place that knows concrete per-family classes. Each FamilyAdapter
+  // bundles a family's behaviour (rpc construction + sign strategy); lower layers receive only the
+  // injected slices they need (plan §7.12.1). Adding a chain = one more entry here + one in FAMILIES.
+  const ADAPTERS: Record<ChainFamily, FamilyAdapter> = {
+    tron: {
+      family: "tron",
+      makeRpc: (d) => new TronRpcClient(d.rpcUrl ?? httpFromGrpc(d.grpcEndpoint)),
+      sign: tronSignStrategy,
+    },
+    evm: {
+      family: "evm",
+      makeRpc: (d) => new EvmRpcClient(d.rpcUrl ?? ""),
+      sign: evmSignStrategy,
+    },
+  };
+  const rpcFactory = (d: NetworkDescriptor) => ADAPTERS[d.family].makeRpc(d);
+  const signStrategies = Object.fromEntries(
+    CHAIN_FAMILIES.map((f) => [f, ADAPTERS[f].sign]),
+  ) as Record<ChainFamily, SignStrategy>;
   const networkRegistry = new NetworkRegistry(config, rpcFactory, {
     rpcUrl: g.rpcUrl,
     grpcEndpoint: g.grpcEndpoint,
@@ -142,12 +151,16 @@ export async function main(argv: string[]): Promise<ExitCode> {
   const secrets = new SecretResolver(streams, g.secretPaths);
   const keystore = new Keystore(root, store, () => secrets.masterPassword());
   const ledger = new Ledger();
-  const signerResolver = new SignerResolver(keystore, ledger);
+  const tokenBook = new TokenBook(root, store);
+  const priceProvider = createPriceProvider(config.price);
+  const signerResolver = new SignerResolver(keystore, ledger, signStrategies);
   const txPipeline = new TxPipeline(signerResolver);
-  const services = { keystore, ledger, signerResolver, txPipeline, capabilityRegistry };
+  const services = { keystore, ledger, tokenBook, priceProvider, signerResolver, txPipeline, capabilityRegistry };
 
   const registry = new CommandRegistry();
-  registerNeutralCommands(registry, services);
+  registerWalletCommands(registry, services);
+  registerConfigCommands(registry);
+  registerChainCommands(registry);
   const chainModules: ChainModule[] = [new TronModule(services), new EvmModule(services)];
   for (const m of chainModules) m.registerCommands(registry);
 

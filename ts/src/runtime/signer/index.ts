@@ -4,6 +4,7 @@
  * wallet decides whether hardware confirmation is needed" lands (修正⑦). (plan §3 L2)
  */
 import type { ChainFamily, Signer } from "../../core/types/index.js";
+import type { SignStrategy } from "../../core/family/index.js";
 import { Keystore, walletAddress } from "../../infra/keystore/index.js";
 import { Ledger, LedgerSigner } from "../../infra/ledger/index.js";
 import { SoftwareSigner } from "./software.js";
@@ -14,6 +15,7 @@ export class SignerResolver {
   constructor(
     private readonly keystore: Keystore,
     private readonly ledger: Ledger,
+    private readonly signStrategies: Record<ChainFamily, SignStrategy>,
   ) {}
 
   resolve(refOrLabel: string, family: ChainFamily): Signer {
@@ -23,11 +25,11 @@ export class SignerResolver {
 
     switch (wallet.source.type) {
       case "privateKey":
-        return new SoftwareSigner(this.keystore.decryptKey(wallet.source.keyId), address, family);
+        return new SoftwareSigner(this.keystore.decryptKey(wallet.source.keyId), address, this.signStrategies[family]);
       case "seed": {
         const seed = this.keystore.decryptSeed(wallet.source.vaultId);
         const kp = Derivation.derive(seed, Derivation.path(family, index));
-        return new SoftwareSigner(kp.privateKey, address, family);
+        return new SoftwareSigner(kp.privateKey, address, this.signStrategies[family]);
       }
       case "ledger":
         return new LedgerSigner(this.ledger, wallet.source.family, wallet.source.path, address);

@@ -1,46 +1,29 @@
 /**
  * SoftwareSigner (L1) — in-process signing; no device, unattended-OK (plan §3 L1).
- * Family-aware because TRON and EVM serialize/sign differently.
+ * Family-agnostic: the per-family serialize/sign difference lives in the injected SignStrategy
+ * (see runtime/signer/strategies.ts), so this class has no `if family` branch.
  */
 import { bytesToHex } from "@noble/hashes/utils.js";
-import { privateKeyToAccount } from "viem/accounts";
-import { TronWeb } from "tronweb";
-import type { Bytes, ChainFamily, SignedTx, Signer, SignerSignOpts, UnsignedTx } from "../../core/types/index.js";
-import { ChainError } from "../../core/errors/index.js";
+import type { Bytes, SignedTx, Signer, SignerSignOpts, UnsignedTx } from "../../core/types/index.js";
+import type { SignStrategy } from "../../core/family/index.js";
 
 export class SoftwareSigner implements Signer {
   readonly kind = "software" as const;
   #pkHex: `0x${string}`;
-  #tron?: InstanceType<typeof TronWeb>;
 
-  constructor(privateKey: Bytes, public readonly address: string, private readonly family: ChainFamily) {
+  constructor(
+    privateKey: Bytes,
+    public readonly address: string,
+    private readonly strategy: SignStrategy,
+  ) {
     this.#pkHex = `0x${bytesToHex(privateKey)}`;
   }
 
   async sign(tx: UnsignedTx, _opts: SignerSignOpts): Promise<SignedTx> {
-    if (this.family === "evm") {
-      const account = privateKeyToAccount(this.#pkHex);
-      return account.signTransaction(tx as any);
-    }
-    // TRON: sign the unsigned tx object (offline; no network call)
-    return this.#tw().trx.sign(tx as any, this.#pkHex.slice(2));
+    return this.strategy.sign(this.#pkHex, tx);
   }
 
   async signMessage(message: string, _opts: SignerSignOpts): Promise<string> {
-    if (this.family === "evm") {
-      const account = privateKeyToAccount(this.#pkHex);
-      return account.signMessage({ message });
-    }
-    try {
-      return this.#tw().trx.signMessageV2(message, this.#pkHex.slice(2));
-    } catch (e) {
-      throw new ChainError("signing_rejected", `TRON message sign failed: ${(e as Error).message}`);
-    }
-  }
-
-  #tw(): InstanceType<typeof TronWeb> {
-    // throwaway instance for offline signing (no fullHost calls are made by sign)
-    this.#tron ??= new TronWeb({ fullHost: "https://api.trongrid.io", privateKey: this.#pkHex.slice(2) });
-    return this.#tron;
+    return this.strategy.signMessage(this.#pkHex, message);
   }
 }

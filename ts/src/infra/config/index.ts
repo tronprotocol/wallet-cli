@@ -15,6 +15,7 @@ import type {
   OutputMode,
 } from "../../core/types/index.js";
 import { UsageError } from "../../core/errors/index.js";
+import { CHAIN_FAMILIES, FAMILIES } from "../../core/family/index.js";
 import { BUILTIN_NETWORKS, DEFAULT_CONFIG } from "./builtins.js";
 
 export class ConfigLoader {
@@ -37,14 +38,22 @@ export class ConfigLoader {
     let defaultOutput: OutputMode = DEFAULT_CONFIG.defaultOutput;
     let timeoutMs = DEFAULT_CONFIG.timeoutMs;
     const defaults: Config["defaults"] = { network: { ...DEFAULT_CONFIG.defaults.network } };
+    let price: Config["price"];
 
     const path = ConfigLoader.configPath(env);
     if (existsSync(path)) {
       const raw = parseYaml(readFileSync(path, "utf8")) ?? {};
       if (raw.defaultOutput === "json" || raw.defaultOutput === "text") defaultOutput = raw.defaultOutput;
       if (typeof raw.timeoutMs === "number") timeoutMs = raw.timeoutMs;
+      if (raw.price && typeof raw.price === "object") {
+        const p = raw.price as Record<string, unknown>;
+        const provider = p.provider === "none" ? "none" : "coingecko";
+        price = { provider };
+        if (typeof p.baseUrl === "string" && p.baseUrl.trim() !== "") price.baseUrl = p.baseUrl;
+        if (typeof p.apiKey === "string" && p.apiKey.trim() !== "") price.apiKey = p.apiKey;
+      }
       if (raw.defaults?.network && typeof raw.defaults.network === "object") {
-        for (const fam of ["tron", "evm"] as const) {
+        for (const fam of CHAIN_FAMILIES) {
           const v = raw.defaults.network[fam];
           if (typeof v === "string" && v.trim() !== "") defaults!.network![fam] = v;
         }
@@ -55,7 +64,7 @@ export class ConfigLoader {
         }
       }
     }
-    return { defaultOutput, timeoutMs, defaults, networks };
+    return { defaultOutput, timeoutMs, defaults, networks, price };
   }
 }
 
@@ -118,8 +127,7 @@ export class NetworkRegistry implements INetworkRegistry {
       }
       return net;
     }
-    const builtin = family === "tron" ? "tron:mainnet" : "evm:1";
-    return this.resolve(builtin);
+    return this.resolve(FAMILIES[family].defaultNetwork);
   }
 
   #attach(base: NetworkDescriptor): NetworkDescriptor {

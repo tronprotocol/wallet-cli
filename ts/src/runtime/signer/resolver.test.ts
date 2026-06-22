@@ -3,6 +3,7 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { SignerResolver } from "./index.js";
+import { evmSignStrategy, tronSignStrategy } from "./strategies.js";
 import { Keystore } from "../../infra/keystore/index.js";
 import { AtomicFileStore } from "../../core/fs/index.js";
 import type { Ledger } from "../../infra/ledger/index.js";
@@ -17,7 +18,8 @@ describe("SignerResolver — watch accounts", () => {
   let resolver: SignerResolver;
   beforeEach(() => {
     ks = freshKeystore();
-    resolver = new SignerResolver(ks, {} as unknown as Ledger); // ledger never touched for watch
+    // ledger never touched for watch; strategies never touched (watch can't sign)
+    resolver = new SignerResolver(ks, {} as unknown as Ledger, { tron: tronSignStrategy, evm: evmSignStrategy });
   });
 
   it("refuses to sign for a watch-only account (watch_only_no_signer)", () => {

@@ -7,14 +7,13 @@ import { z } from "zod";
 import type { CommandDefinition, ExitCode, StreamManager } from "../../core/types/index.js";
 import { CommandRegistry } from "../../runtime/registry/index.js";
 import { introspectFields } from "../../runtime/adapter/index.js";
+import { isChainFamily } from "../../core/family/index.js";
 
 const META = new Set(["--help", "-h", "--version", "--json-schema"]);
 
 export function hasMeta(tokens: string[]): boolean {
   return tokens.some((t) => META.has(t));
 }
-
-const CHAIN_NS = new Set(["tron", "evm"]);
 
 export class HelpService {
   constructor(
@@ -59,14 +58,14 @@ export class HelpService {
     if (positionals.length === 0) return null;
     const ns = positionals[0]!;
     const path = positionals.slice(1);
-    if (CHAIN_NS.has(ns)) return this.registry.resolveConcrete(ns, path);
-    // neutral: capabilities has empty path; others take one action
-    return this.registry.resolveConcrete(ns, path) ?? (ns === "capabilities" ? this.registry.resolveConcrete(ns, []) : null);
+    if (isChainFamily(ns)) return this.registry.resolveConcrete(ns, path);
+    // neutral namespaces take one action (wallet/config/chains)
+    return this.registry.resolveConcrete(ns, path);
   }
 
   #renderTree(nsFilter?: string): string {
     if (!nsFilter) return this.#renderRoot();
-    return CHAIN_NS.has(nsFilter) ? this.#renderChainNs(nsFilter) : this.#renderNeutralNs(nsFilter);
+    return isChainFamily(nsFilter) ? this.#renderChainNs(nsFilter) : this.#renderNeutralNs(nsFilter);
   }
 
   /** top-level overview: one row per namespace (chain → its resources; neutral → its actions). */
@@ -157,8 +156,8 @@ export class HelpService {
     ];
     const requires: string[] = [];
     if (cmd.network === "required") requires.push("--network <id|alias>");
-    if (cmd.auth === "required") requires.push("master password — --password-file <path> | --password-stdin");
-    if (cmd.wallet === "required") requires.push("an account — --account <ref|label> | a prior `wallet set-active`");
+    if (cmd.auth === "required") requires.push("master password — --password-stdin (import-*/backup: interactive)");
+    if (cmd.wallet !== "none") requires.push("an account — defaults to active; override with --account <ref|label> (or `wallet set-active`)");
     if (requires.length) {
       lines.push("", "Requires:");
       for (const r of requires) lines.push(`  ${r}`);
@@ -251,12 +250,11 @@ interface GlobalFlag {
 const GLOBAL_FLAGS: readonly GlobalFlag[] = [
   { flag: "--output", alias: "-o", type: "string", values: ["text", "json"], description: "output format (default from config)" },
   { flag: "--network", type: "string", description: "target network (id or alias)" },
-  { flag: "--account", type: "string", description: "account to use for this command (ref or label)" },
+  { flag: "--account", type: "string", description: "account to use for this command (ref, label, or one of your addresses)" },
   { flag: "--timeout", type: "number", description: "per-call timeout in ms" },
   { flag: "--quiet", type: "boolean", description: "suppress diagnostics" },
   { flag: "--verbose", type: "boolean", description: "extra diagnostics" },
-  { flag: "--<kind>-file", type: "string", description: "secret input from a path; kind = password|private-key|mnemonic|tx|message" },
-  { flag: "--<kind>-stdin", type: "boolean", description: "secret input from stdin (alias of --<kind>-file -)" },
+  { flag: "--<kind>-stdin", type: "boolean", description: "secret/data input from stdin (fd 0, one per run); kind = password|tx|message" },
 ];
 
 /** "--output, -o <text|json>" style header for text help. */

@@ -10,7 +10,8 @@
  */
 import type { AppConfig, ChainFamily, SignedTx, Signer, SignerSignOpts, UnsignedTx } from "../../core/types/index.js";
 import { ExecutionError, UsageError, WalletError } from "../../core/errors/index.js";
-import { COIN_TYPE, Derivation } from "../../core/derivation/index.js";
+import { Derivation } from "../../core/derivation/index.js";
+import { FAMILIES } from "../../core/family/index.js";
 
 export interface GetAddressOpts {
   /** false = silent derive (import scan / precheck); true = show on-device for user confirmation. */
@@ -56,10 +57,10 @@ export async function resolveLedgerPath(ledger: Ledger, family: ChainFamily, loc
   if (loc.path !== undefined) {
     const m = PATH_RE.exec(loc.path);
     const coin = m ? Number(m[1]) : NaN;
-    if (coin !== COIN_TYPE[family]) {
+    if (coin !== FAMILIES[family].coinType) {
       throw new UsageError(
         "invalid_option",
-        `--path coin_type ${m ? coin : "?"} does not match --app ${family} (expected ${COIN_TYPE[family]})`,
+        `--path coin_type ${m ? coin : "?"} does not match --app ${family} (expected ${FAMILIES[family].coinType})`,
       );
     }
     return loc.path;

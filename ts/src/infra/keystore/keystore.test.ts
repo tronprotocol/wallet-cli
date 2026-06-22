@@ -148,6 +148,19 @@ describe("Keystore", () => {
     expect(views[0]!.addresses.evm).not.toBe(views[1]!.addresses.evm);
   });
 
+  it("addAccount derives an explicit index and is idempotent", () => {
+    const ref = ks.import({ secret: MNEMONIC, type: "seed" });
+    const walletId = ref.split(".")[0]!;
+    const ref3 = ks.addAccount(walletId, 3);
+    expect(ref3).toBe(`${walletId}.3`);
+    expect(ks.list()).toHaveLength(2); // account 0 + account 3 (skipped 1,2)
+    const addr3 = ks.list().find((v) => v.ref === ref3)!.addresses.evm;
+    // re-deriving the same index is a no-op that returns the same ref/address
+    expect(ks.addAccount(walletId, 3)).toBe(ref3);
+    expect(ks.list()).toHaveLength(2);
+    expect(ks.list().find((v) => v.ref === ref3)!.addresses.evm).toBe(addr3);
+  });
+
   it("renames via unique labels and resolves by label", () => {
     const ref = ks.import({ secret: MNEMONIC, type: "seed", label: "main" });
     ks.rename("main", "primary");

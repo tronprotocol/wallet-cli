@@ -40,6 +40,15 @@ export interface Config {
   /** net=optional fallback network per family (§7.5). Missing → builtin mainnet. */
   defaults?: { network?: Partial<Record<ChainFamily, string>> };
   networks: Record<NetworkId, NetworkDescriptor>;
+  /** USD-valuation source for `account portfolio` (§7.17). Missing → builtin CoinGecko. */
+  price?: PriceConfig;
+}
+
+/** price service config (§7.17); best-effort — failures never fail a balance read. */
+export interface PriceConfig {
+  provider: "coingecko" | "none";
+  baseUrl?: string;
+  apiKey?: string;
 }
 
 // ── wallet data shapes (persisted in wallets.json) ─────────────────────────────
@@ -79,6 +88,23 @@ export interface WalletView {
   index: number | null;
   addresses: { tron?: string; evm?: string };
   active: boolean;
+}
+
+// ── token address-book (persisted in tokens.json; §7.17) ───────────────────────
+/** one TRC20/TRC10 token in the address book. id = contract (base58) | assetId (numeric). */
+export interface TokenEntry {
+  kind: "trc20" | "trc10";
+  id: string;
+  symbol: string;
+  decimals: number;
+  name?: string;
+}
+/** a book entry tagged with which layer it came from (official builtin vs user-added). */
+export type EffectiveTokenEntry = TokenEntry & { source: "official" | "user" };
+/** tokens.json — user layer only; keyed `"<networkId>|<accountRef>"`. */
+export interface TokensFile {
+  version: number;
+  entries: Record<string, TokenEntry[]>;
 }
 
 export type KeystoreType = "bip39-seed" | "raw-privkey" | "verifier";
@@ -196,8 +222,13 @@ export interface Example {
 }
 
 export type NetworkRequirement = "none" | "optional" | "required";
-export type WalletRequirement = "none" | "optional" | "required";
-export type AuthRequirement = "none" | "optional" | "required";
+// "optional" = the command operates on an account; --account is optional and falls back to the
+// active account (errors only if no account exists at all). "none" = never touches an account.
+// (No "required": no command forces --account — active is always a valid default. cf. network.)
+export type WalletRequirement = "none" | "optional";
+// "required" = unlocks the master password (sign / read secrets / encrypt);
+// "none" = never unlocks. (No middle state — a command either needs the password or it doesn't.)
+export type AuthRequirement = "none" | "required";
 
 export interface CommandDefinition<I = any, O = any> {
   id: string;

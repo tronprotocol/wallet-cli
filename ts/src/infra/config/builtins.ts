@@ -2,7 +2,8 @@
  * Builtin network defaults (plan §7.5 / §7.6). config.yaml overrides these per id.
  * TRON endpoints are HTTP fullHosts (tronweb); EVM are JSON-RPC URLs (viem).
  */
-import type { NetworkDescriptor } from "../../core/types/index.js";
+import type { ChainFamily, NetworkDescriptor } from "../../core/types/index.js";
+import { CHAIN_FAMILIES, FAMILIES } from "../../core/family/index.js";
 
 // A network's `capabilities` lists only network-specific TRAITS — things not derivable from the
 // command surface (e.g. EIP-1559 vs legacy fees). Command-backed capabilities come from each
@@ -64,5 +65,7 @@ export const DEFAULT_CONFIG = {
   defaultOutput: "text" as const,
   timeoutMs: 30000,
   // net=optional fallback (§7.5); config.yaml `defaults.network` overrides per family.
-  defaults: { network: { tron: "tron:mainnet", evm: "evm:1" } },
+  defaults: {
+    network: Object.fromEntries(CHAIN_FAMILIES.map((f) => [f, FAMILIES[f].defaultNetwork])) as Record<ChainFamily, string>,
+  },
 };

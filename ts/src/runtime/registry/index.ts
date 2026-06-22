@@ -10,7 +10,7 @@ import type {
   CommandTreeMeta,
 } from "../../core/types/index.js";
 
-const NEUTRAL_NAMESPACES = ["wallet", "config", "chains", "capabilities"] as const;
+const NEUTRAL_NAMESPACES = ["wallet", "config", "chains"] as const;
 
 function nsOf(cmd: CommandDefinition): string {
   return cmd.family ?? cmd.id.split(".")[0]!;

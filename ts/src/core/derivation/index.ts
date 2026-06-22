@@ -7,9 +7,8 @@ import { wordlist } from "@scure/bip39/wordlists/english.js";
 import { HDKey } from "@scure/bip32";
 import { secp256k1 } from "@noble/curves/secp256k1.js";
 import type { Bytes, ChainFamily, KeyPair } from "../types/index.js";
+import { FAMILIES } from "../family/index.js";
 import { WalletError } from "../errors/index.js";
-
-export const COIN_TYPE: Record<ChainFamily, number> = { tron: 195, evm: 60 };
 
 export class Derivation {
   static generateMnemonic(strength = 128): string {
@@ -35,7 +34,7 @@ export class Derivation {
 
   /** m/44'/{coin}'/{account}'/0/0 */
   static path(family: ChainFamily, account: number): string {
-    return `m/44'/${COIN_TYPE[family]}'/${account}'/0/0`;
+    return `m/44'/${FAMILIES[family].coinType}'/${account}'/0/0`;
   }
 
   /** Derive a keypair from a 64-byte seed at the given BIP44 path. publicKey is uncompressed (65B). */

@@ -4,6 +4,8 @@
  */
 import type { Keystore } from "../infra/keystore/index.js";
 import type { Ledger } from "../infra/ledger/index.js";
+import type { TokenBook } from "../infra/tokenbook/index.js";
+import type { PriceProvider } from "../infra/price/index.js";
 import type { SignerResolver } from "../runtime/signer/index.js";
 import type { TxPipeline } from "../runtime/pipeline/index.js";
 import type { CapabilityRegistry } from "../runtime/chain/index.js";
@@ -11,6 +13,8 @@ import type { CapabilityRegistry } from "../runtime/chain/index.js";
 export interface Services {
   keystore: Keystore;
   ledger: Ledger;
+  tokenBook: TokenBook;
+  priceProvider: PriceProvider;
   signerResolver: SignerResolver;
   txPipeline: TxPipeline;
   capabilityRegistry: CapabilityRegistry;

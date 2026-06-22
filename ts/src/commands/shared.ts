@@ -5,35 +5,31 @@
  */
 import { z } from "zod";
 import type { ChainFamily, CommandDefinition, TxOutcome } from "../core/types/index.js";
-import { Schemas } from "../infra/contract/index.js";
 import type { Services } from "./services.js";
+import { FAMILIES } from "../core/family/index.js";
 import { UsageError } from "../core/errors/index.js";
 
-const unitOf = (f: ChainFamily) => (f === "tron" ? "sun" : "wei");
-const sampleNet = (f: ChainFamily) => (f === "tron" ? "nile" : "base");
+const unitOf = (f: ChainFamily) => FAMILIES[f].nativeUnit;
 
-// ── execution-mode flags shared by every signing command (plan §6 二次確認) ──────
-/** dry-run / broadcast / sign-only fields; default (no flag) = dry-run (safest). */
+// ── execution-mode flags shared by every signing command ─────────────────────────
+/** dry-run / sign-only fields; default (no flag) = sign AND broadcast on-chain. */
 export const txModeFields = {
-  dryRun: z.boolean().default(false).describe("build + estimate only — no sign, no broadcast (default mode)"),
-  broadcast: z.boolean().default(false).describe("sign AND broadcast on-chain (high-risk; explicit opt-in)"),
+  dryRun: z.boolean().default(false).describe("build + estimate only — no sign, no broadcast"),
   signOnly: z.boolean().default(false).describe("sign and output the tx, do not broadcast (feed tx broadcast)"),
 };
 export interface TxModeInput {
   dryRun?: boolean;
-  broadcast?: boolean;
   signOnly?: boolean;
 }
-/** resolve the three flags into the two TxPipeline knobs; absence ⇒ dry-run. */
+/** resolve the flags into the two TxPipeline knobs; absence ⇒ broadcast (default). */
 export function txMode(input: TxModeInput): { dryRun: boolean; broadcast: boolean } {
-  // the three modes are mutually exclusive; e.g. `--dry-run --broadcast` must NOT silently
-  // broadcast (the user asked for a dry run). Contradictory combos are a usage error (§6).
-  if ([input.dryRun, input.broadcast, input.signOnly].filter(Boolean).length > 1) {
-    throw new UsageError("invalid_option", "choose at most one of --dry-run, --broadcast, --sign-only");
+  // --dry-run and --sign-only are mutually exclusive; combining them is a usage error.
+  if (input.dryRun && input.signOnly) {
+    throw new UsageError("invalid_option", "choose at most one of --dry-run, --sign-only");
   }
-  if (input.broadcast) return { dryRun: false, broadcast: true };
+  if (input.dryRun) return { dryRun: true, broadcast: false };
   if (input.signOnly) return { dryRun: false, broadcast: false };
-  return { dryRun: true, broadcast: false };
+  return { dryRun: false, broadcast: true };
 }
 /** shape a TxOutcome into command output data. */
 export function outcomeData(o: TxOutcome): Record<string, unknown> {
@@ -42,11 +38,9 @@ export function outcomeData(o: TxOutcome): Record<string, unknown> {
   return o as unknown as Record<string, unknown>;
 }
 
-/** account balance — read native balance of the active (or given) address. */
+/** account balance — read native balance of the active account (or --account). */
 export function balanceCommand(family: ChainFamily): CommandDefinition {
-  const fields = z.object({
-    address: Schemas.addressFor(family).optional().describe("target address (default: active account)"),
-  });
+  const fields = z.object({});
   return {
     id: `${family}.account.balance`,
     path: ["account", "balance"],
@@ -58,9 +52,9 @@ export function balanceCommand(family: ChainFamily): CommandDefinition {
     summary: `get native ${unitOf(family)} balance`,
     fields,
     input: fields,
-    examples: [{ cmd: `wallet-cli ${family} account balance --network ${sampleNet(family)}` }],
-    run: async (ctx, net, input) => {
-      const address = input.address ?? ctx.resolveAddress(family);
+    examples: [{ cmd: `wallet-cli ${family} account balance` }],
+    run: async (ctx, net) => {
+      const address = ctx.resolveAddress(family);
       const balance = await net!.rpc!.getNativeBalance(address);
       return { address, balance, unit: unitOf(family) };
     },
@@ -69,16 +63,16 @@ export function balanceCommand(family: ChainFamily): CommandDefinition {
 
 /** message sign — direct SignerResolver path (no node, no TxPipeline). */
 export function messageSignCommand(family: ChainFamily, services: Services): CommandDefinition {
-  // --message OR --message-file (the latter is a global data channel via SecretResolver).
+  // --message OR --message-stdin (the latter is a global data channel via SecretResolver).
   const fields = z.object({
-    message: z.string().min(1).optional().describe("message to sign (or use --message-file)"),
+    message: z.string().min(1).optional().describe("message to sign (or use --message-stdin)"),
   });
   return {
     id: `${family}.message.sign`,
     path: ["message", "sign"],
     family,
     network: "optional",
-    wallet: "required",
+    wallet: "optional",
     auth: "required",
     capability: "message.sign",
     summary: "sign an arbitrary message (TIP-191/V2 · EIP-191)",

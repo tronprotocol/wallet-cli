@@ -19,10 +19,10 @@ describe("parseGlobals", () => {
     expect(parseGlobals(["--output", "json"]).output).toBe("json");
   });
 
-  it("maps --<kind>-stdin to a '-' path and --<kind>-file to its path", () => {
-    const g = parseGlobals(["wallet", "import-mnemonic", "--mnemonic-stdin", "--password-file", "/dev/fd/63"]);
+  it("maps --<kind>-stdin to a '-' path (the only secret source)", () => {
+    const g = parseGlobals(["wallet", "import-mnemonic", "--mnemonic-stdin"]);
     expect(g.secretPaths.mnemonic).toBe("-");
-    expect(g.secretPaths.password).toBe("/dev/fd/63");
+    expect(g.secretPaths.password).toBeUndefined();
     expect(g.secretPaths.privateKey).toBeUndefined();
   });
 

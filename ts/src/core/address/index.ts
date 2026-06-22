@@ -69,11 +69,5 @@ export class TronAddress implements AddressCodec {
   }
 }
 
-export const ADDRESS_CODECS: Record<ChainFamily, AddressCodec> = {
-  tron: new TronAddress(),
-  evm: new EvmAddress(),
-};
-
-export function addressCodec(family: ChainFamily): AddressCodec {
-  return ADDRESS_CODECS[family];
-}
+// NOTE: the family→codec registry (ADDRESS_CODECS) and addressCodec() moved to core/family,
+// which is the single per-family fact table. This module keeps only the codec classes.

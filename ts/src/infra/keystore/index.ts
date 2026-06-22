@@ -20,7 +20,7 @@ import type {
 } from "../../core/types/index.js";
 import { CryptoEnvelope } from "../../core/crypto/index.js";
 import { Derivation } from "../../core/derivation/index.js";
-import { addressCodec } from "../../core/address/index.js";
+import { CHAIN_FAMILIES, addressCodec, familyOf } from "../../core/family/index.js";
 import { AtomicFileStore } from "../../core/fs/index.js";
 import { UsageError, WalletError } from "../../core/errors/index.js";
 
@@ -146,7 +146,9 @@ export class Keystore {
     });
   }
 
-  addAccount(walletId: string): AccountRef {
+  /** Derive an HD sub-account. `index` picks an explicit slot (idempotent if already derived);
+   *  omitted → the next free index. */
+  addAccount(walletId: string, index?: number): AccountRef {
     return this.store.withLock(this.walletsPath, () => {
       const file = this.#read();
       const wallet = file.wallets.find((w) => w.id === walletId);
@@ -156,10 +158,13 @@ export class Keystore {
         const hint = wallet.source.type === "ledger" ? " — import another path with 'wallet import --type ledger'" : "";
         throw new WalletError("invalid_value", `${wallet.source.type} wallets are not HD; cannot add accounts${hint}`);
       }
-      const next = (Math.max(-1, ...accountIndices(wallet.source)) + 1) | 0;
-      const seed = this.#decryptSeedFromVault(wallet.source.vaultId);
-      wallet.source.addresses[String(next)] = deriveSeedAddresses(seed, next);
-      this.#write(file);
+      const next = index ?? ((Math.max(-1, ...accountIndices(wallet.source)) + 1) | 0);
+      const key = String(next);
+      if (!wallet.source.addresses[key]) {
+        const seed = this.#decryptSeedFromVault(wallet.source.vaultId);
+        wallet.source.addresses[key] = deriveSeedAddresses(seed, next);
+        this.#write(file);
+      }
       return accountRefOf(wallet, next);
     });
   }
@@ -301,18 +306,14 @@ export class Keystore {
     if (!blob) throw new WalletError("invalid_value", `missing key ${keyId}`);
     this.#assertPassword({ createIfAbsent: false });
     const pw = this.getPassword();
-    const out = CryptoEnvelope.decrypt(blob, pw); // MAC mismatch → auth_failed
-    this.#backfillVerifier(pw);
-    return out;
+    return CryptoEnvelope.decrypt(blob, pw); // MAC mismatch → auth_failed
   }
-  /** recover the BIP39 mnemonic from a seed vault (for `wallet backup --reveal-secret`). */
+  /** recover the BIP39 mnemonic from a seed vault (for `wallet backup`). */
   revealMnemonic(vaultId: string): string {
     const blob = this.store.readJson<KeystoreBlob>(this.#blobPath("vaults", vaultId));
     if (!blob) throw new WalletError("invalid_value", `missing vault ${vaultId}`);
     this.#assertPassword({ createIfAbsent: false });
-    const pw = this.getPassword();
-    const { entropy } = decodeVault(CryptoEnvelope.decrypt(blob, pw));
-    this.#backfillVerifier(pw);
+    const { entropy } = decodeVault(CryptoEnvelope.decrypt(blob, this.getPassword()));
     return Derivation.entropyToMnemonic(entropy);
   }
 
@@ -321,9 +322,7 @@ export class Keystore {
     const blob = this.store.readJson<KeystoreBlob>(this.#blobPath("vaults", vaultId));
     if (!blob) throw new WalletError("invalid_value", `missing vault ${vaultId}`);
     this.#assertPassword({ createIfAbsent: false });
-    const pw = this.getPassword();
-    const { entropy, passphrase } = decodeVault(CryptoEnvelope.decrypt(blob, pw));
-    this.#backfillVerifier(pw);
+    const { entropy, passphrase } = decodeVault(CryptoEnvelope.decrypt(blob, this.getPassword()));
     return Derivation.mnemonicToSeed(Derivation.entropyToMnemonic(entropy), passphrase);
   }
 
@@ -333,9 +332,11 @@ export class Keystore {
   }
   /**
    * The keystore-wide invariant that every encrypted blob shares ONE master password.
-   * Encrypting writes call with createIfAbsent:true (first write defines the password,
-   * later writes verify); decrypt paths call with false (verify only — a missing sentinel
-   * is backfilled from a real blob AFTER it decrypts successfully, see #backfillVerifier).
+   * Only the encrypting import paths call with createIfAbsent:true (first import defines the
+   * password, later imports verify) — so the master password is *born* solely at `wallet
+   * create` / `import-mnemonic` / `import-private-key`. Decrypt paths call with false (verify
+   * only, never write): every blob this keystore writes is preceded by the sentinel in the same
+   * lock, so a present blob always has a matching sentinel — no backfill path exists.
    */
   #assertPassword(opts: { createIfAbsent: boolean }): void {
     const password = this.getPassword();
@@ -351,10 +352,6 @@ export class Keystore {
       this.#verifierPath(),
       CryptoEnvelope.encrypt(randomBytes(32), password, "verifier", "verifier"),
     );
-  }
-  /** one-time backfill: a legacy keystore with blobs but no sentinel gets one after a good decrypt. */
-  #backfillVerifier(password: string): void {
-    if (!this.store.readJson<KeystoreBlob>(this.#verifierPath())) this.#writeVerifier(password);
   }
 
   #blobPath(dir: "vaults" | "keys", id: string): string {
@@ -388,7 +385,7 @@ export class Keystore {
     const v = input.trim();
     if (v.startsWith("wlt_")) return v;
     // address form (T… / 0x…): match the unique account holding it in its cache (§7.3 / §7.10).
-    if (addressCodec("tron").validate(v) || addressCodec("evm").validate(v)) {
+    if (familyOf(v) !== undefined) {
       const hits: AccountRef[] = [];
       for (const w of file.wallets) {
         for (const { index, addr } of enumerateAddresses(w)) {
@@ -497,14 +494,17 @@ export function decodeVault(plaintext: Bytes): { entropy: Bytes; passphrase?: st
   return { entropy: hexToBytes(obj.entropy), passphrase: obj.passphrase };
 }
 function deriveSeedAddresses(seed: Bytes, index: number): ChainAddresses {
-  return {
-    tron: addressCodec("tron").fromPublicKey(Derivation.derive(seed, Derivation.path("tron", index)).publicKey),
-    evm: addressCodec("evm").fromPublicKey(Derivation.derive(seed, Derivation.path("evm", index)).publicKey),
-  };
+  const out = {} as Record<ChainFamily, string>;
+  for (const f of CHAIN_FAMILIES) {
+    out[f] = addressCodec(f).fromPublicKey(Derivation.derive(seed, Derivation.path(f, index)).publicKey);
+  }
+  return out;
 }
 function derivePrivAddresses(pk: Bytes): ChainAddresses {
   const pub = Derivation.publicKeyFromPrivate(pk);
-  return { tron: addressCodec("tron").fromPublicKey(pub), evm: addressCodec("evm").fromPublicKey(pub) };
+  const out = {} as Record<ChainFamily, string>;
+  for (const f of CHAIN_FAMILIES) out[f] = addressCodec(f).fromPublicKey(pub);
+  return out;
 }
 
 /** (index, cached addresses) pairs of a wallet — the one shape both dedup and views walk. */

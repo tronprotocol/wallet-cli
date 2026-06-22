@@ -18,6 +18,7 @@ import { CapabilityGate } from "../../runtime/capability/index.js";
 import { buildExecutionContext, type RuntimeDeps } from "../../runtime/context/index.js";
 import { OutputFormatter } from "../../runtime/output/index.js";
 import { ZodYargsAdapter, camelToKebab } from "../../runtime/adapter/index.js";
+import { isChainFamily } from "../../core/family/index.js";
 import { UsageError, ExecutionError } from "../../core/errors/index.js";
 
 export interface SessionRef {
@@ -43,19 +44,15 @@ const GLOBAL_OPTS = {
   timeout: { type: "number" },
   quiet: { type: "boolean" },
   verbose: { type: "boolean" },
-  stream: { type: "boolean" },
   "no-device-wait": { type: "boolean" },
   "grpc-endpoint": { type: "string" },
   "rpc-url": { type: "string" },
-  // secret/data channels: `--<kind>-file <path>` (path = - | file | /dev/fd/N), `--<kind>-stdin` alias.
-  "password-file": { type: "string" },
-  "private-key-file": { type: "string" },
-  "mnemonic-file": { type: "string" },
-  "tx-file": { type: "string" },
-  "message-file": { type: "string" },
+  // secret/data channels: `--<kind>-stdin` reads fd 0 (at most one secret per run). The
+  // `--<kind>-file`/`/dev/fd/N` multi-fd path was removed; commands needing a 2nd secret
+  // (import-mnemonic/import-private-key/backup) go interactive. (spec §6 / plan §7.13.1)
   "password-stdin": { type: "boolean" },
-  "private-key-stdin": { type: "boolean" },
-  "mnemonic-stdin": { type: "boolean" },
+  "private-key-stdin": { type: "boolean" }, // TODO:interactive — temporary until prompt layer lands
+  "mnemonic-stdin": { type: "boolean" }, // TODO:interactive — temporary until prompt layer lands
   "tx-stdin": { type: "boolean" },
   "message-stdin": { type: "boolean" },
 } as const;
@@ -92,12 +89,27 @@ export function buildCli(opts: ShellOptions): Argv {
       (argv) => dispatch(opts, ns, argv),
     );
   }
+  // Catch-all: an unrecognised top-level namespace (e.g. `foobar list`) matches none of the
+  // commands above. Without this, yargs (non-strict, no default command) silently exits 0 —
+  // bad for an agent CLI. Mirror the unknown-subcommand path → unknown_command (exit 2).
+  // Bare invocation (no positionals) is left untouched.
+  cli.command(
+    "*",
+    false,
+    (y) => y,
+    (argv) => {
+      const positionals = (argv._ as (string | number)[]).map(String).filter(Boolean);
+      if (positionals.length > 0) {
+        throw new UsageError("unknown_command", `unknown command: ${positionals.join(" ")}`);
+      }
+    },
+  );
   return cli;
 }
 
 async function dispatch(opts: ShellOptions, ns: string, argv: any): Promise<void> {
   const { registry, globals, deps, capGate, streams, formatter, session } = opts;
-  const family = ns === "tron" || ns === "evm" ? (ns as ChainFamily) : undefined;
+  const family = isChainFamily(ns) ? ns : undefined;
   const path = family
     ? [argv.group, argv.verb].filter(Boolean)
     : [argv.verb].filter(Boolean);
@@ -129,9 +141,9 @@ async function dispatch(opts: ShellOptions, ns: string, argv: any): Promise<void
   const ctx = buildExecutionContext(globals, deps);
   // enforce the declared wallet/auth contract up front (deterministic, before run()).
   if (cmd.auth === "required" && !deps.secrets.hasMasterPassword()) {
-    throw new ExecutionError("auth_required", "master password required: pass --password-file <path> (or --password-stdin)");
+    throw new ExecutionError("auth_required", "master password required: pass --password-stdin");
   }
-  if (cmd.wallet === "required") void ctx.activeAccount; // throws missing_wallet_address if none
+  if (cmd.wallet !== "none") void ctx.activeAccount; // resolve account (default active) up front; throws missing_wallet_address if none exists
 
   const data = await cmd.run(ctx, net, input);
   streams.result(formatter.success(cmd, net, data));

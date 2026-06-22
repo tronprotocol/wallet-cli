@@ -22,9 +22,4 @@ export class CapabilityRegistry {
   list(networkId: NetworkId): string[] {
     return (this.#byNetwork.get(networkId) ?? []).map((d) => d.key);
   }
-
-  /** key + human summary, for the `capabilities` command. */
-  describe(networkId: NetworkId): CapabilityDescriptor[] {
-    return [...(this.#byNetwork.get(networkId) ?? [])];
-  }
 }

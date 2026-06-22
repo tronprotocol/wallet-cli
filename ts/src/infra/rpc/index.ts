@@ -299,6 +299,23 @@ export class TronRpcClient implements RpcClient {
       this.#tw.transactionBuilder.cancelUnfreezeBalanceV2(owner) as Promise<any>,
     );
   }
+  async buildDelegateResource(
+    owner: string, amountSun: string, resource: "ENERGY" | "BANDWIDTH",
+    receiver: string, lock: boolean, lockPeriod?: number,
+  ): Promise<any> {
+    const n = this.#safeNumber(amountSun);
+    return this.#wrap("delegateResource", () =>
+      this.#tw.transactionBuilder.delegateResource(n, receiver, resource, owner, lock, lockPeriod) as Promise<any>,
+    );
+  }
+  async buildUndelegateResource(
+    owner: string, amountSun: string, resource: "ENERGY" | "BANDWIDTH", receiver: string,
+  ): Promise<any> {
+    const n = this.#safeNumber(amountSun);
+    return this.#wrap("undelegateResource", () =>
+      this.#tw.transactionBuilder.undelegateResource(n, receiver, resource, owner) as Promise<any>,
+    );
+  }
 
   // ── prices ─────────────────────────────────────────────────────────────────────
   async getEnergyPrices(): Promise<string> {
