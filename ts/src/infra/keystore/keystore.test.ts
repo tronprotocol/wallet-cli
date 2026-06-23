@@ -236,8 +236,6 @@ describe("Keystore", () => {
     ks.addAccount(walletId); // now has .0 and .1
     expect(() => ks.resolveAccount(walletId)).toThrow(/multi-account|specify an account/i);
     expect(ks.resolveAccount(`${walletId}.1`).index).toBe(1); // explicit ref still resolves
-    // the .0 descriptor lists its sibling index
-    expect(ks.describe(`${walletId}.0`).siblings).toEqual([1]);
   });
 
   it("delete by account ref forgets only that HD account; the vault/secret survives", () => {

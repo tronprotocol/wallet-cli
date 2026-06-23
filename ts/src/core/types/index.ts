@@ -84,7 +84,7 @@ export interface WalletsFile {
  * The one account shape every `wallet` command returns (max-disclosure descriptor).
  * `accountId` is the canonical ref you pass back to `--account` (seed: `wlt_x.<index>`;
  * privateKey/ledger/watch: `wlt_x`). `family`/`path` appear only for ledger/watch (single-chain)
- * and ledger respectively; `siblings` lists a seed wallet's other known HD indices. The wallet
+ * and ledger respectively. The wallet
  * id is intentionally omitted — it is just `accountId` minus the `.index` suffix.
  */
 export interface AccountDescriptor {
@@ -96,7 +96,6 @@ export interface AccountDescriptor {
   addresses: { tron?: string; evm?: string };
   family?: ChainFamily;
   path?: string;
-  siblings?: number[];
 }
 
 /** mutators that may hit an existing account report whether they actually created one. */

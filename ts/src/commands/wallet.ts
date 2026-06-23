@@ -273,7 +273,7 @@ export function registerWalletCommands(reg: CommandRegistry, services: Services)
       const path = backupOutPath(input.out, d.accountId);
       const bytes = writeBackupFile(path, backup);
       // envelope: full descriptor + secret-shape metadata + file facts — but no secret material.
-      return { ...d, secretType, passphraseSet, out: path, fileMode: "0600", bytes };
+      return { ...d, secretType, out: path, fileMode: "0600", bytes };
     },
   } satisfies CommandDefinition);
 }

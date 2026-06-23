@@ -263,10 +263,7 @@ export class Keystore {
       active: file.activeAccount === ref,
       addresses: viewAddresses(w, index),
     };
-    if (s.type === "seed") {
-      const others = accountIndices(s).filter((i) => i !== index);
-      if (others.length) d.siblings = others;
-    } else if (s.type === "ledger") {
+    if (s.type === "ledger") {
       d.family = s.family;
       d.path = s.path;
     } else if (s.type === "watch") {

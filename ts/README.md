@@ -10,17 +10,17 @@ discipline, wallet-centric encrypted keystore, env/stdin auth (no secrets in arg
 ## Quick start
 
 ```bash
-pnpm install
-pnpm test          # unit + golden CLI tests
-pnpm run build     # → dist/index.js (executable)
-pnpm dev -- --help # run from source via tsx
+npm install
+npm test           # unit + golden CLI tests
+npm run build      # → dist/index.js (executable)
+npm run dev -- --help # run from source via tsx
 
 # examples (WALLET_CLI_HOME isolates state; MASTER_PASSWORD unlocks the keystore)
 export WALLET_CLI_HOME=$(mktemp -d) MASTER_PASSWORD=secretpwA
-echo "$MNEMONIC" | pnpm dev -- wallet import --type seed --mnemonic-stdin --label main
-pnpm dev -- --output json wallet list
-pnpm dev -- --output json evm message sign --message "hello world"
-pnpm dev -- --output json capabilities --network nile
+echo "$MNEMONIC" | npm run dev -- wallet import --type seed --mnemonic-stdin --label main
+npm run dev -- --output json wallet list
+npm run dev -- --output json evm message sign --message "hello world"
+npm run dev -- --output json capabilities --network nile
 ```
 
 Grammar (plan decision **B**): `wallet-cli <family> <resource> <action> --network <net> [flags]`
