@@ -53,6 +53,21 @@ import org.tron.trident.proto.Chain;
 public class TransactionUtils {
   private static final ThreadLocal<Integer> PERMISSION_ID_OVERRIDE = new ThreadLocal<>();
 
+  // Protobuf field number of Transaction.pq_auth_sig (Tron.proto). The Trident
+  // SDK's Chain.Transaction does not define this field, so on those objects PQ
+  // auth signatures are preserved only as unknown field 6.
+  // TODO(trident-pq): once the Trident SDK models pq_auth_sig on
+  // Chain.Transaction, drop this constant and use the generated accessors.
+  private static final int PQ_AUTH_SIG_FIELD_NUMBER = 6;
+
+  /** True if the (possibly Trident-typed) transaction carries any PQ auth signature. */
+  // TODO(trident-pq): replace the unknown-field probe with
+  // transaction.getPqAuthSigCount() > 0 when Trident's Chain.Transaction
+  // exposes pq_auth_sig natively.
+  private static boolean hasPqAuthSig(Chain.Transaction transaction) {
+    return transaction.getUnknownFields().hasField(PQ_AUTH_SIG_FIELD_NUMBER);
+  }
+
   /**
    * Obtain a data bytes after removing the id and SHA-256(data)
    *
@@ -306,6 +321,9 @@ public class TransactionUtils {
     return transaction;
   }
 
+  // TODO(trident-pq): this Chain<->Protocol byte round-trip only exists because
+  // Trident's Chain.Transaction cannot carry pq_auth_sig. Drop the conversion
+  // and add the PQAuthSig directly once Trident models the field.
   public static Chain.Transaction signPQ(
       Chain.Transaction transaction, PQSignature signer, PQScheme scheme)
       throws InvalidProtocolBufferException {
@@ -352,8 +370,13 @@ public class TransactionUtils {
   }
 
   public static Chain.Transaction setExpirationTime(Chain.Transaction transaction, boolean multi) {
-    if (transaction.getSignatureCount() == 0) {
-      long expirationTime = System.currentTimeMillis() + (multi ? 24L * 3600 * 1000 : 6 * 60 * 60 * 1000);
+    // Both ECDSA signatures and PQ auth signatures cover raw_data (the
+    // expiration lives there), so refuse to rewrite expiration once EITHER kind
+    // of signature is attached — otherwise an already-attached pq_auth_sig is
+    // silently invalidated (txid changes -> SIGERROR on broadcast).
+    if (transaction.getSignatureCount() == 0 && !hasPqAuthSig(transaction)) {
+      long expirationTime =
+          System.currentTimeMillis() + (multi ? 24L * 3600 * 1000 : 6 * 60 * 60 * 1000);
       Chain.Transaction.Builder builder = transaction.toBuilder();
       Chain.Transaction.raw.Builder rowBuilder =
           transaction.getRawData().toBuilder();
@@ -364,6 +387,10 @@ public class TransactionUtils {
     return transaction;
   }
 
+  // TODO(trident-pq): the Chain<->Protocol byte round-trip is only needed to
+  // preserve pq_auth_sig (and read getPqAuthSigCount() in the Protocol overload)
+  // because Trident's Chain.Transaction lacks the field. Simplify once Trident
+  // models pq_auth_sig.
   public static Chain.Transaction setPermissionId(Chain.Transaction transaction, String tipString)
       throws CancelException, InvalidProtocolBufferException {
     return Chain.Transaction.parseFrom(
@@ -372,7 +399,11 @@ public class TransactionUtils {
 
   public static Transaction setPermissionId(Transaction transaction, String tipString)
       throws CancelException {
+    // Changing permissionId mutates raw_data, which would invalidate any
+    // already-attached signature — including PQ auth signatures, which do not
+    // bump getSignatureCount(). Bail out if either kind is present.
     if (transaction.getSignatureCount() != 0
+        || transaction.getPqAuthSigCount() != 0
         || transaction.getRawData().getContract(0).getPermissionId() != 0) {
       return transaction;
     }

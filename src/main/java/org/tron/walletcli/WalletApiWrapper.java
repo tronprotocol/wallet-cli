@@ -3379,6 +3379,10 @@ public class WalletApiWrapper {
       return false;
     }
     WalletFile activeWalletFile = wallet.getWalletFile();
+    // GasFree uses an EIP-712 off-chain permit signature (ECDSA secp256k1 via
+    // GasFreeApi.signOffChain; recovered with ecrecover by the GasFree
+    // service/contract), so it is inherently ECDSA-only. Lifting it requires the
+    // GasFree protocol itself to define a PQ signature scheme.
     if (activeWalletFile != null
         && activeWalletFile.getScheme() != null
         && !activeWalletFile.getScheme().isEmpty()) {

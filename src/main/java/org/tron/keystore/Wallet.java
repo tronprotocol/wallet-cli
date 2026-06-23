@@ -283,6 +283,18 @@ public class Wallet {
 
     validate(walletFile);
 
+    // PQ keystores may be seed-only (no main ciphertext/mac), so the ECDSA-style
+    // ciphertext/mac check below would wrongly report "Invalid password". Route
+    // them through the PQ verify-and-decrypt path, which validates whichever
+    // segments (ext and/or seed) are actually present. The non-null + non-empty
+    // scheme test matches how the rest of the codebase distinguishes PQ wallets
+    // from legacy ECDSA ones (scheme null/empty == ECDSA).
+    if (walletFile.getScheme() != null && !walletFile.getScheme().isEmpty()) {
+      PQKeyMaterial material = verifyAndDecryptPQ(password, walletFile);
+      material.clearSecrets();
+      return true;
+    }
+
     WalletFile.Crypto crypto = walletFile.getCrypto();
 
     byte[] mac = ByteArray.fromHexString(crypto.getMac());

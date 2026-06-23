@@ -4,6 +4,7 @@ import java.util.Collections;
 import java.util.EnumMap;
 import java.util.Map;
 import org.tron.common.crypto.Hash;
+import org.tron.common.utils.DecodeUtil;
 import org.tron.protos.Protocol.PQScheme;
 
 /**
@@ -253,8 +254,12 @@ public final class PQSchemeRegistry {
    */
   public static byte[] computeAddress(PQScheme scheme, byte[] publicKey) {
     byte[] h = deriveHash(scheme, publicKey);
+    if (h.length < 20) {
+      throw new IllegalStateException(
+          "deriveHash returned " + h.length + " bytes, need at least 20 for address derivation");
+    }
     byte[] addr = new byte[21];
-    addr[0] = 0x41;
+    addr[0] = DecodeUtil.addressPreFixByte;
     System.arraycopy(h, h.length - 20, addr, 1, 20);
     return addr;
   }

@@ -1812,9 +1812,10 @@ PQ key sizes:
 | `ML_DSA_44`  | 32 B |     1312 B | 2560 B — encoded `rho‖K‖tr‖s1‖s2‖t0` (pk re-derivable from it) | fixed 2420 B             |
 
 The address is derived with the same formula as ECDSA / SM2:
-`0x41 ‖ Keccak-256(public_key)[12..32]`, so a PQ address is indistinguishable from a
-regular T-address until it signs a transaction (PQ signatures land in
-`Transaction.pq_auth_sig` instead of `Transaction.signature`).
+`prefix ‖ Keccak-256(public_key)[12..32]`, where `prefix` is the network address
+prefix (`DecodeUtil.addressPreFixByte`, `0x41` on mainnet/Nile). So a PQ address is
+indistinguishable from a regular T-address until it signs a transaction (PQ
+signatures land in `Transaction.pq_auth_sig` instead of `Transaction.signature`).
 
 ### Generate a PQ keypair (no keystore)
 
@@ -1834,8 +1835,16 @@ publicKey (1312 bytes):         <2624 hex chars>
 privateKey (2560 bytes):        <5120 hex chars>
 privateKey persisted form ...:  <5120 hex chars>
 
-WARNING: store either the seed or the persisted private key securely.
+WARNING: store the persisted private key securely — it is the portable backup.
+The seed can also be used as a backup to re-derive this key.
 ```
+
+> **Backup caveat for `FN_DSA_512` (Falcon).** Falcon key generation uses
+> floating-point sampling, so re-deriving the keypair from the 48-byte seed is
+> only guaranteed to reproduce the *same* key on the same CPU architecture + JVM.
+> For Falcon, **back up the persisted private key** (the portable form); treat the
+> seed as same-architecture-only. ML-DSA-44 keygen is deterministic, so its seed
+> is a fully portable backup. `GeneratePQKey` prints this caveat for Falcon.
 
 ### Register a PQ wallet (creates a keystore)
 
@@ -1859,8 +1868,12 @@ RegisterWalletPQ successful, keystore file: ./Wallet/TXxxxxxxxxxxxxxxxxxxxxxxxxx
 
     >ImportWalletPQ [scheme] <seed_or_persisted_private_key_hex_or_file>
 > Import an existing PQ keypair. The argument is **required** and may be either the
-hex string itself or a path to a file containing it. The format is auto-detected by
-length against the chosen scheme:
+hex string itself or a path to a file containing it. The two are disambiguated
+without guessing: if the argument is itself a valid hex string of exactly the
+seed or persisted-key length for the scheme, it is used as the key material
+directly (even if a same-named file happens to exist); otherwise it is treated as
+a file path. Within each source the form is then auto-detected by length against
+the chosen scheme:
 >
 > - **FN_DSA_512**: 48-byte / 96-hex-char seed (derives the full keypair
 >   deterministically), or 2176-byte / 4352-hex-char extended private key
@@ -1923,15 +1936,25 @@ MASTER_PASSWORD='testpassword123A' \
   java -jar build/libs/wallet-cli.jar --output json register-wallet-pq \
     --name pqalice --scheme ML_DSA_44
 
-# Import an existing keypair from its persisted-private-key (or seed) hex
+# Import an existing keypair. Prefer --key-file: it reads the hex from a file
+# (or from stdin with '-') and keeps the secret out of shell history and the
+# process list. '--extended-private-key-hex' still works but is discouraged
+# because the secret is visible in shell history and in `ps`. Provide exactly
+# one of the two — passing both is rejected.
+MASTER_PASSWORD='testpassword123A' \
+  java -jar build/libs/wallet-cli.jar --output json import-wallet-pq \
+    --name pqalice \
+    --key-file /tmp/my-falcon-key.hex
+# Read from stdin instead of a file:
+MASTER_PASSWORD='testpassword123A' \
+  printf '%s' "$PQ_KEY_HEX" | java -jar build/libs/wallet-cli.jar --output json import-wallet-pq \
+    --name pqalice --scheme ML_DSA_44 \
+    --key-file -
+# Discouraged (secret exposed on the command line):
 MASTER_PASSWORD='testpassword123A' \
   java -jar build/libs/wallet-cli.jar --output json import-wallet-pq \
     --name pqalice \
     --extended-private-key-hex <persisted-private-key or seed hex>
-MASTER_PASSWORD='testpassword123A' \
-  java -jar build/libs/wallet-cli.jar --output json import-wallet-pq \
-    --name pqalice --scheme ML_DSA_44 \
-    --extended-private-key-hex <ML-DSA-44 seed or encoded private key hex>
 ```
 
 `generate-pq-key` returns a JSON envelope containing `scheme`, `address`,

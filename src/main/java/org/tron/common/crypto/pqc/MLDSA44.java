@@ -3,14 +3,14 @@ package org.tron.common.crypto.pqc;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair;
-import org.bouncycastle.pqc.crypto.mldsa.MLDSAKeyGenerationParameters;
-import org.bouncycastle.pqc.crypto.mldsa.MLDSAKeyPairGenerator;
-import org.bouncycastle.pqc.crypto.mldsa.MLDSAParameters;
-import org.bouncycastle.pqc.crypto.mldsa.MLDSAPrivateKeyParameters;
-import org.bouncycastle.pqc.crypto.mldsa.MLDSAPublicKeyParameters;
-import org.bouncycastle.pqc.crypto.mldsa.MLDSASigner;
+import org.bouncycastle.crypto.generators.MLDSAKeyPairGenerator;
+import org.bouncycastle.crypto.params.MLDSAKeyGenerationParameters;
+import org.bouncycastle.crypto.params.MLDSAParameters;
+import org.bouncycastle.crypto.params.MLDSAPrivateKeyParameters;
+import org.bouncycastle.crypto.params.MLDSAPublicKeyParameters;
 import org.bouncycastle.crypto.params.ParametersWithRandom;
 import org.bouncycastle.crypto.prng.FixedSecureRandom;
+import org.bouncycastle.crypto.signers.MLDSASigner;
 import org.tron.protos.Protocol.PQScheme;
 
 /**
