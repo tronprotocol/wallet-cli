@@ -2224,18 +2224,20 @@ public class Client {
 
 
   private void outputGetCanDelegatedMaxSizeTip() {
-    System.out.println("Using getcandelegatedmaxsize command needs 2 parameters like: ");
-    System.out.println("getcandelegatedmaxsize ownerAddress type");
+    System.out.println("Using getcandelegatedmaxsize command needs 2 or 3 parameters like: ");
+    System.out.println("getcandelegatedmaxsize ownerAddress type [scheme]");
+    System.out.println("  scheme (optional): FN_DSA_512, ML_DSA_44");
   }
 
   private void getCanDelegatedMaxSize(String[] parameters) throws CipherException, IOException, CancelException {
-    if (parameters == null || !(parameters.length == 1 || parameters.length == 2)) {
+    if (parameters == null || !(parameters.length == 1 || parameters.length == 2 || parameters.length == 3)) {
       this.outputGetCanDelegatedMaxSizeTip();
       return;
     }
     int index = 0;
     int type = 0;
     byte[] ownerAddress = null;
+    PQScheme scheme = null;
 
     if (parameters.length == 1) {
       try {
@@ -2271,10 +2273,33 @@ public class Client {
         this.outputGetCanDelegatedMaxSizeTip();
         return;
       }
+    } else if (parameters.length == 3) {
+      ownerAddress = getAddressBytes(parameters[index++]);
+      if (ownerAddress == null) {
+        this.outputGetCanDelegatedMaxSizeTip();
+        return;
+      }
+
+      try {
+        type = Integer.parseInt(parameters[index++]);
+        if (ResourceCode.BANDWIDTH.ordinal() != type && ResourceCode.ENERGY.ordinal() != type) {
+          System.out.println("getcandelegatedmaxsize type must be: 0 or 1");
+          return;
+        }
+      } catch (NumberFormatException nfe) {
+        this.outputGetCanDelegatedMaxSizeTip();
+        return;
+      }
+
+      scheme = parsePQScheme(new String[]{parameters[index]});
+      if (scheme == null) {
+        System.out.println("Unsupported PQ scheme. Supported: " + supportedPQSchemes());
+        return;
+      }
     }
 
     try {
-      long size = WalletApi.getCanDelegatedMaxSize(ownerAddress, type);
+      long size = WalletApi.getCanDelegatedMaxSize(ownerAddress, type, scheme);
       System.out.println("GetCanDelegatedMaxSize=" + size);
       System.out.println("GetCanDelegatedMaxSize " + successfulHighlight() + " !!!");
     } catch (Exception e) {

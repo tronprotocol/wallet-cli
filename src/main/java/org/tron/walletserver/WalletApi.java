@@ -2577,6 +2577,12 @@ public class WalletApi {
         System.out.println("delegateBalance must be greater than or equal to 1 TRX");
         return false;
       }
+      // TODO(pq-delegate): When delegating from a PQ wallet, the bandwidth consumed by the
+      // delegate transaction itself is larger (PQAuthSig vs ECDSA sig). Pass the active
+      // wallet's PQ scheme so the node reserves room for the larger signature — without it,
+      // the returned max may be too large and the subsequent delegate transaction could fail
+      // with insufficient bandwidth. Requires the Trident SDK to accept a PQScheme parameter
+      // in its getCanDelegatedMaxSize call (see TODO in ApiClient.java).
       long canDelegatedMaxSize = apiCli.getCanDelegatedMaxSize(ownerAddress, resourceCode);
       if (balance > canDelegatedMaxSize) {
         System.out.println("delegateBalance must be less than or equal to available FreezeV2 balance");
@@ -3013,6 +3019,20 @@ public class WalletApi {
 
   public static long getCanDelegatedMaxSize(byte[] ownerAddress, int type) {
     return apiCli.getCanDelegatedMaxSize(ownerAddress, type);
+  }
+
+  /**
+   * Get the max delegatable size for a resource type, optionally accounting for
+   * the post-quantum signature overhead.
+   *
+   * @param ownerAddress owner address bytes
+   * @param type resource type (0 = BANDWIDTH, 1 = ENERGY)
+   * @param pqScheme the PQ scheme to reserve bandwidth for, or null/UNKNOWN_PQ_SCHEME
+   *                 for the default ECDSA-sized estimate
+   * @return max delegatable size
+   */
+  public static long getCanDelegatedMaxSize(byte[] ownerAddress, int type, PQScheme pqScheme) {
+    return apiCli.getCanDelegatedMaxSize(ownerAddress, type, pqScheme);
   }
 
   public static long getAvailableUnfreezeCount(byte[] ownerAddress) {
