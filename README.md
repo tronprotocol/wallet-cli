@@ -1876,8 +1876,9 @@ a file path. Within each source the form is then auto-detected by length against
 the chosen scheme:
 >
 > - **FN_DSA_512**: 48-byte / 96-hex-char seed (derives the full keypair
->   deterministically), or 2176-byte / 4352-hex-char extended private key
->   (`f‖g‖F‖h`, used verbatim).
+>   deterministically **on the same CPU architecture and JVM**; cross-platform
+>   replay is not guaranteed — see the backup caveat above), or 2176-byte /
+>   4352-hex-char extended private key (`f‖g‖F‖h`, used verbatim).
 > - **ML_DSA_44**: 32-byte / 64-hex-char seed, or 2560-byte / 5120-hex-char
 >   encoded private key (`rho‖K‖tr‖s1‖s2‖t0`).
 >
