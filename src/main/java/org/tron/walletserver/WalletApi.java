@@ -4228,12 +4228,11 @@ public class WalletApi {
     // serialized size so the estimate is not biased low for PQ transactions.
     // TODO(trident-pq): once Trident models pq_auth_sig, sum the serialized
     // sizes of getPqAuthSigList() instead of reading unknown field 6.
-    final int PQ_AUTH_SIG_FIELD_NUMBER = 6;
     long pqAuthSigBytes = 0;
     com.google.protobuf.UnknownFieldSet unknownFields = transaction.getUnknownFields();
-    if (unknownFields.hasField(PQ_AUTH_SIG_FIELD_NUMBER)) {
-      pqAuthSigBytes =
-          unknownFields.getField(PQ_AUTH_SIG_FIELD_NUMBER).getSerializedSize(PQ_AUTH_SIG_FIELD_NUMBER);
+    if (unknownFields.hasField(TransactionUtils.PQ_AUTH_SIG_FIELD_NUMBER)) {
+      pqAuthSigBytes = unknownFields.getField(TransactionUtils.PQ_AUTH_SIG_FIELD_NUMBER)
+          .getSerializedSize(TransactionUtils.PQ_AUTH_SIG_FIELD_NUMBER);
     }
     long bandwidthBuffer = DATA_HEX_PROTOBUF_EXTRA
         + SIGNATURE_PER_BANDWIDTH * (transaction.getSignatureCount() + 1)

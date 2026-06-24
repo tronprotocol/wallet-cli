@@ -684,7 +684,7 @@ public class QueryCommands {
                 .description("Get max delegatable size for a resource type")
                 .option("owner", "Owner address", true)
                 .option("type", "Resource type (0=BANDWIDTH, 1=ENERGY)", true, OptionDef.Type.LONG)
-                .option("scheme", "PQ signature scheme (e.g. FN_DSA_512, ML_DSA_44). When set, the BANDWIDTH estimate reserves room for the PQAuthSig wire size instead of ECDSA", false)
+                .option("scheme", "PQ signature scheme (e.g. FN_DSA_512, ML_DSA_44). Reserved for accounting the larger PQAuthSig wire size in the BANDWIDTH estimate; currently a no-op pending Trident SDK support, so the returned value is unaffected", false)
                 .handler((ctx, opts, wrapper, out) -> {
                     int type = opts.getInt("type");
                     CommandSupport.requireResourceCode(out, "type", type);

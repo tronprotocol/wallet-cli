@@ -2227,6 +2227,8 @@ public class Client {
     System.out.println("Using getcandelegatedmaxsize command needs 2 or 3 parameters like: ");
     System.out.println("getcandelegatedmaxsize ownerAddress type [scheme]");
     System.out.println("  scheme (optional): FN_DSA_512, ML_DSA_44");
+    System.out.println("  note: scheme is currently a no-op pending Trident SDK support;"
+        + " the returned size is unaffected.");
   }
 
   private void getCanDelegatedMaxSize(String[] parameters) throws CipherException, IOException, CancelException {

@@ -55,10 +55,11 @@ public class TransactionUtils {
 
   // Protobuf field number of Transaction.pq_auth_sig (Tron.proto). The Trident
   // SDK's Chain.Transaction does not define this field, so on those objects PQ
-  // auth signatures are preserved only as unknown field 6.
+  // auth signatures are preserved only as unknown field 6. Shared so the
+  // bandwidth estimate in WalletApi reads the same field number.
   // TODO(trident-pq): once the Trident SDK models pq_auth_sig on
   // Chain.Transaction, drop this constant and use the generated accessors.
-  private static final int PQ_AUTH_SIG_FIELD_NUMBER = 6;
+  public static final int PQ_AUTH_SIG_FIELD_NUMBER = 6;
 
   /** True if the (possibly Trident-typed) transaction carries any PQ auth signature. */
   // TODO(trident-pq): replace the unknown-field probe with

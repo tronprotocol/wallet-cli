@@ -577,7 +577,6 @@ public class Wallet {
       throw new CipherException("Unsupported PQ scheme: " + scheme);
     }
 
-    validate(walletFile);
     WalletFile.Crypto crypto = walletFile.getCrypto();
 
     boolean extPresent = isExtSegmentPresent(crypto);
