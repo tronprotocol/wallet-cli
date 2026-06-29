@@ -283,6 +283,16 @@ public class Wallet {
 
     validate(walletFile);
 
+    // PQ keystores may be seed-only (no main ciphertext/mac), so the ECDSA-style
+    // ciphertext/mac check below would wrongly report "Invalid password". Route
+    // them through a MAC-only validation path that does not decrypt key material
+    // or construct a signer, so no private-key bytes leak into heap. The
+    // non-null + non-empty scheme test matches how the rest of the codebase
+    // distinguishes PQ wallets from legacy ECDSA ones (scheme null/empty == ECDSA).
+    if (walletFile.getScheme() != null && !walletFile.getScheme().isEmpty()) {
+      return validatePasswordPQ(password, walletFile);
+    }
+
     WalletFile.Crypto crypto = walletFile.getCrypto();
 
     byte[] mac = ByteArray.fromHexString(crypto.getMac());
@@ -545,6 +555,57 @@ public class Wallet {
       if (seed != null) {
         StringUtils.clear(seed);
       }
+    }
+  }
+
+  // Password-validation-only path for PQ keystores. Verifies MACs (and
+  // structural invariants) without decrypting any key material or constructing
+  // a signer, so no private-key bytes leak into heap. Used by validPassword to
+  // avoid the signer-retention issue of the full verifyAndDecryptPQ path.
+  private static boolean validatePasswordPQ(byte[] password, WalletFile walletFile)
+      throws CipherException {
+    if (walletFile.getScheme() == null) {
+      throw new CipherException("Wallet has no PQ scheme tag");
+    }
+    final PQScheme scheme;
+    try {
+      scheme = PQScheme.valueOf(walletFile.getScheme());
+    } catch (IllegalArgumentException e) {
+      throw new CipherException("Unsupported PQ scheme: " + walletFile.getScheme(), e);
+    }
+    if (!PQSchemeRegistry.contains(scheme)) {
+      throw new CipherException("Unsupported PQ scheme: " + scheme);
+    }
+
+    WalletFile.Crypto crypto = walletFile.getCrypto();
+
+    boolean extPresent = isExtSegmentPresent(crypto);
+    boolean seedPresent = isSeedSegmentPresent(crypto);
+    requireSegmentShape(crypto, extPresent, seedPresent);
+    if (!extPresent && !seedPresent) {
+      throw new CipherException(
+          "PQ wallet has neither ciphertext nor seedciphertext");
+    }
+
+    byte[] derivedKey = deriveScryptKey(password, crypto);
+    try {
+      if (extPresent) {
+        byte[] extCipherText = ByteArray.fromHexString(crypto.getCiphertext());
+        byte[] storedMac = ByteArray.fromHexString(crypto.getMac());
+        if (!Arrays.equals(generateMac(derivedKey, extCipherText), storedMac)) {
+          throw new CipherException("Invalid password provided");
+        }
+      }
+      if (seedPresent) {
+        byte[] seedCipherText = ByteArray.fromHexString(crypto.getSeedciphertext());
+        byte[] storedMac = ByteArray.fromHexString(crypto.getSeedmac());
+        if (!Arrays.equals(generateMac(derivedKey, seedCipherText), storedMac)) {
+          throw new CipherException("Invalid password provided");
+        }
+      }
+      return true;
+    } finally {
+      StringUtils.clear(derivedKey);
     }
   }
 

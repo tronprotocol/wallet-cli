@@ -1,9 +1,13 @@
 package org.tron.walletcli.cli.commands;
 
 import com.alibaba.fastjson.JSON;
+import org.tron.common.crypto.pqc.PQSchemeRegistry;
+import org.tron.protos.Protocol.PQScheme;
 import org.tron.walletcli.cli.CommandDefinition;
 import org.tron.walletcli.cli.CommandRegistry;
 import org.tron.walletcli.cli.OptionDef;
+import org.tron.walletcli.cli.OutputFormatter;
+import org.tron.walletcli.cli.ParsedOptions;
 import org.tron.walletserver.WalletApi;
 import org.tron.trident.proto.Chain;
 import org.tron.trident.proto.Common;
@@ -21,6 +25,33 @@ public class QueryCommands {
 
     private static CommandDefinition.Builder noAuthCommand() {
         return CommandDefinition.builder().authPolicy(CommandDefinition.AuthPolicy.NEVER);
+    }
+
+    /**
+     * Parses the optional {@code --scheme} option as a registered PQ scheme.
+     * Returns {@code null} when the option is absent (meaning "use the ECDSA-sized
+     * estimate"), and also returns {@code null} after emitting an error when the
+     * option is present but invalid. Callers should check {@code opts.has("scheme")}
+     * to distinguish "not provided" from "invalid".
+     */
+    private static PQScheme parseOptionalPQScheme(OutputFormatter out, ParsedOptions opts) {
+        if (!opts.has("scheme")) {
+            return null;
+        }
+        String schemeName = opts.getString("scheme");
+        try {
+            PQScheme scheme = PQScheme.valueOf(schemeName);
+            if (!PQSchemeRegistry.contains(scheme)) {
+                out.usageError("Unsupported PQ scheme: " + schemeName
+                        + ". Supported: FN_DSA_512, ML_DSA_44", null);
+                return null;
+            }
+            return scheme;
+        } catch (IllegalArgumentException e) {
+            out.usageError("Unknown PQ scheme: " + schemeName
+                    + ". Supported: FN_DSA_512, ML_DSA_44", null);
+            return null;
+        }
     }
 
     public static void register(CommandRegistry registry) {
@@ -653,11 +684,17 @@ public class QueryCommands {
                 .description("Get max delegatable size for a resource type")
                 .option("owner", "Owner address", true)
                 .option("type", "Resource type (0=BANDWIDTH, 1=ENERGY)", true, OptionDef.Type.LONG)
+                .option("scheme", "PQ signature scheme (e.g. FN_DSA_512, ML_DSA_44). Reserved for accounting the larger PQAuthSig wire size in the BANDWIDTH estimate; currently a no-op pending Trident SDK support, so the returned value is unaffected", false)
                 .handler((ctx, opts, wrapper, out) -> {
                     int type = opts.getInt("type");
                     CommandSupport.requireResourceCode(out, "type", type);
+                    PQScheme pqScheme = parseOptionalPQScheme(out, opts);
+                    if (pqScheme == null && opts.has("scheme")) {
+                        // parseOptionalPQScheme already emitted an error
+                        return;
+                    }
                     long maxSize = WalletApi.getCanDelegatedMaxSize(
-                            opts.getAccountAddress("owner"), type);
+                            opts.getAccountAddress("owner"), type, pqScheme);
                     Map<String, Object> json = new LinkedHashMap<String, Object>();
                     json.put("max_size", maxSize);
                     out.success("Max delegatable size: " + maxSize, json);

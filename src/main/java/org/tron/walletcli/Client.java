@@ -2224,18 +2224,22 @@ public class Client {
 
 
   private void outputGetCanDelegatedMaxSizeTip() {
-    System.out.println("Using getcandelegatedmaxsize command needs 2 parameters like: ");
-    System.out.println("getcandelegatedmaxsize ownerAddress type");
+    System.out.println("Using getcandelegatedmaxsize command needs 2 or 3 parameters like: ");
+    System.out.println("getcandelegatedmaxsize ownerAddress type [scheme]");
+    System.out.println("  scheme (optional): FN_DSA_512, ML_DSA_44");
+    System.out.println("  note: scheme is currently a no-op pending Trident SDK support;"
+        + " the returned size is unaffected.");
   }
 
   private void getCanDelegatedMaxSize(String[] parameters) throws CipherException, IOException, CancelException {
-    if (parameters == null || !(parameters.length == 1 || parameters.length == 2)) {
+    if (parameters == null || !(parameters.length == 1 || parameters.length == 2 || parameters.length == 3)) {
       this.outputGetCanDelegatedMaxSizeTip();
       return;
     }
     int index = 0;
     int type = 0;
     byte[] ownerAddress = null;
+    PQScheme scheme = null;
 
     if (parameters.length == 1) {
       try {
@@ -2271,10 +2275,33 @@ public class Client {
         this.outputGetCanDelegatedMaxSizeTip();
         return;
       }
+    } else if (parameters.length == 3) {
+      ownerAddress = getAddressBytes(parameters[index++]);
+      if (ownerAddress == null) {
+        this.outputGetCanDelegatedMaxSizeTip();
+        return;
+      }
+
+      try {
+        type = Integer.parseInt(parameters[index++]);
+        if (ResourceCode.BANDWIDTH.ordinal() != type && ResourceCode.ENERGY.ordinal() != type) {
+          System.out.println("getcandelegatedmaxsize type must be: 0 or 1");
+          return;
+        }
+      } catch (NumberFormatException nfe) {
+        this.outputGetCanDelegatedMaxSizeTip();
+        return;
+      }
+
+      scheme = parsePQScheme(new String[]{parameters[index]});
+      if (scheme == null) {
+        System.out.println("Unsupported PQ scheme. Supported: " + supportedPQSchemes());
+        return;
+      }
     }
 
     try {
-      long size = WalletApi.getCanDelegatedMaxSize(ownerAddress, type);
+      long size = WalletApi.getCanDelegatedMaxSize(ownerAddress, type, scheme);
       System.out.println("GetCanDelegatedMaxSize=" + size);
       System.out.println("GetCanDelegatedMaxSize " + successfulHighlight() + " !!!");
     } catch (Exception e) {
@@ -3241,7 +3268,19 @@ public class Client {
       System.out.println("address: " + addressStr);
       System.out.println("privateKey persisted form (" + persisted.length + " bytes): "
           + persistedStr);
-      System.out.println("WARNING: store the seed and the persisted private key securely.");
+      System.out.println("WARNING: store the persisted private key securely — it is the "
+          + "portable backup.");
+      if (scheme == PQScheme.FN_DSA_512) {
+        // FN-DSA (Falcon) keygen uses floating-point sampling; re-deriving the
+        // keypair from the seed is only guaranteed to reproduce the same key on
+        // the same CPU architecture + JVM. Prefer the persisted private key as
+        // the cross-platform backup.
+        System.out.println("WARNING: for " + scheme.name() + ", the seed is only guaranteed "
+            + "to reproduce this key on the same architecture/JVM. Back up the persisted "
+            + "private key for portability.");
+      } else {
+        System.out.println("The seed can also be used as a backup to re-derive this key.");
+      }
     } catch (Exception e) {
       System.out.println("GeneratePQKey " + failedHighlight() + " !!! " + e.getMessage());
     } finally {
@@ -3389,27 +3428,36 @@ public class Client {
   private static PQKeyMaterial readPQKeyMaterialFromArg(
       PQScheme scheme, String hexOrPath, int expectedLen) {
     String hex = hexOrPath;
-    java.io.File file = new java.io.File(hexOrPath);
-    if (file.isFile()) {
-      try {
-        hex = new String(java.nio.file.Files.readAllBytes(file.toPath()),
-            java.nio.charset.StandardCharsets.US_ASCII);
-      } catch (IOException e) {
-        System.out.println("Failed to read file: " + e.getMessage());
-        return null;
-      }
-    }
-    hex = hex.replaceAll("\\s+", "");
     int seedLen = PQSchemeRegistry.getSeedLength(scheme);
     int seedHexLen = seedLen * 2;
     int extHexLen = expectedLen * 2;
+    // Disambiguate hex-vs-path: if the argument is already a hex string of
+    // exactly the seed or persisted-key length, treat it as the key material
+    // itself, even if a same-named file happens to exist. Only fall back to
+    // reading a file when the argument is not such a hex string. This avoids a
+    // valid key being shadowed by a coincidentally-named file.
+    String trimmedArg = hexOrPath.replaceAll("\\s+", "");
+    boolean argIsKeyHex =
+        (trimmedArg.length() == seedHexLen || trimmedArg.length() == extHexLen)
+            && trimmedArg.matches("[0-9a-fA-F]+");
+    if (!argIsKeyHex) {
+      File file = new File(hexOrPath);
+      if (file.isFile()) {
+        try {
+          hex = new String(Files.readAllBytes(file.toPath()), StandardCharsets.US_ASCII);
+        } catch (IOException e) {
+          System.out.println("Failed to read file: " + e.getMessage());
+          return null;
+        }
+      }
+    }
+    hex = hex.replaceAll("\\s+", "");
     if (hex.length() != seedHexLen && hex.length() != extHexLen) {
       System.out.println("Invalid PQ key length: got " + hex.length() + " hex chars, expected "
           + seedHexLen + " (seed) or " + extHexLen + " (persisted private key).");
       return null;
     }
-    byte[] decoded = StringUtils.hexs2Bytes(
-        hex.getBytes(java.nio.charset.StandardCharsets.US_ASCII));
+    byte[] decoded = StringUtils.hexs2Bytes(hex.getBytes(StandardCharsets.US_ASCII));
     if (decoded == null) {
       System.out.println("Invalid PQ key hex (not a valid hex string).");
       return null;
@@ -3418,7 +3466,7 @@ public class Client {
       try {
         PQSchemeRegistry.fromSeed(scheme, decoded);
       } catch (RuntimeException e) {
-        java.util.Arrays.fill(decoded, (byte) 0);
+        Arrays.fill(decoded, (byte) 0);
         System.out.println("Failed to derive " + scheme.name() + " keypair from seed: "
             + e.getMessage());
         return null;

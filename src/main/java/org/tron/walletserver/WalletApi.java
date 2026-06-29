@@ -568,6 +568,9 @@ public class WalletApi {
   // must construct an ApiClient directly should call this before reading the
   // key out of the keystore, mirroring the pre-flight check in
   // {@code WalletApiWrapper.gasFreeTransferInternal}.
+  // TODO(trident-pq): this guard exists only because Trident's ApiClient-based
+  // signing path cannot attach pq_auth_sig. Once Trident supports PQ signing,
+  // route these operations through the PQ signing flow and remove the rejection.
   private void rejectPQForEcdsaSigning(String operation) {
     WalletFile wf = getWalletFile();
     if (wf != null && wf.getScheme() != null && !wf.getScheme().isEmpty()) {
@@ -2574,6 +2577,12 @@ public class WalletApi {
         System.out.println("delegateBalance must be greater than or equal to 1 TRX");
         return false;
       }
+      // TODO(pq-delegate): When delegating from a PQ wallet, the bandwidth consumed by the
+      // delegate transaction itself is larger (PQAuthSig vs ECDSA sig). Pass the active
+      // wallet's PQ scheme so the node reserves room for the larger signature — without it,
+      // the returned max may be too large and the subsequent delegate transaction could fail
+      // with insufficient bandwidth. Requires the Trident SDK to accept a PQScheme parameter
+      // in its getCanDelegatedMaxSize call (see TODO in ApiClient.java).
       long canDelegatedMaxSize = apiCli.getCanDelegatedMaxSize(ownerAddress, resourceCode);
       if (balance > canDelegatedMaxSize) {
         System.out.println("delegateBalance must be less than or equal to available FreezeV2 balance");
@@ -3010,6 +3019,20 @@ public class WalletApi {
 
   public static long getCanDelegatedMaxSize(byte[] ownerAddress, int type) {
     return apiCli.getCanDelegatedMaxSize(ownerAddress, type);
+  }
+
+  /**
+   * Get the max delegatable size for a resource type, optionally accounting for
+   * the post-quantum signature overhead.
+   *
+   * @param ownerAddress owner address bytes
+   * @param type resource type (0 = BANDWIDTH, 1 = ENERGY)
+   * @param pqScheme the PQ scheme to reserve bandwidth for, or null/UNKNOWN_PQ_SCHEME
+   *                 for the default ECDSA-sized estimate
+   * @return max delegatable size
+   */
+  public static long getCanDelegatedMaxSize(byte[] ownerAddress, int type, PQScheme pqScheme) {
+    return apiCli.getCanDelegatedMaxSize(ownerAddress, type, pqScheme);
   }
 
   public static long getAvailableUnfreezeCount(byte[] ownerAddress) {
@@ -3840,6 +3863,12 @@ public class WalletApi {
         .toBuilder();
     rawBuilder.setFeeLimit(feeLimit);
     transBuilder.setRawData(rawBuilder);
+    // Preserve unknown fields (notably pq_auth_sig / field 6, which Trident's
+    // Chain.Transaction does not model) so a PQ-carrying transaction is not
+    // silently stripped when rebuilt to inject the fee limit.
+    // TODO(trident-pq): once Trident models pq_auth_sig, copy it explicitly
+    // instead of relying on unknown-field preservation.
+    transBuilder.setUnknownFields(transactionExtention.getTransaction().getUnknownFields());
     for (int i = 0; i < transactionExtention.getTransaction().getSignatureCount(); i++) {
       ByteString s = transactionExtention.getTransaction().getSignature(i);
       transBuilder.setSignature(i, s);
@@ -3921,6 +3950,12 @@ public class WalletApi {
         .toBuilder();
     rawBuilder.setFeeLimit(feeLimit);
     transBuilder.setRawData(rawBuilder);
+    // Preserve unknown fields (notably pq_auth_sig / field 6, which Trident's
+    // Chain.Transaction does not model) so a PQ-carrying transaction is not
+    // silently stripped when rebuilt to inject the fee limit.
+    // TODO(trident-pq): once Trident models pq_auth_sig, copy it explicitly
+    // instead of relying on unknown-field preservation.
+    transBuilder.setUnknownFields(transactionExtention.getTransaction().getUnknownFields());
     for (int i = 0; i < transactionExtention.getTransaction().getSignatureCount(); i++) {
       ByteString s = transactionExtention.getTransaction().getSignature(i);
       transBuilder.setSignature(i, s);
@@ -4022,6 +4057,12 @@ public class WalletApi {
         .toBuilder();
     rawBuilder.setFeeLimit(feeLimit);
     transBuilder.setRawData(rawBuilder);
+    // Preserve unknown fields (notably pq_auth_sig / field 6, which Trident's
+    // Chain.Transaction does not model) so a PQ-carrying transaction is not
+    // silently stripped when rebuilt to inject the fee limit.
+    // TODO(trident-pq): once Trident models pq_auth_sig, copy it explicitly
+    // instead of relying on unknown-field preservation.
+    transBuilder.setUnknownFields(transactionExtention.getTransaction().getUnknownFields());
     for (int i = 0; i < transactionExtention.getTransaction().getSignatureCount(); i++) {
       ByteString s = transactionExtention.getTransaction().getSignature(i);
       transBuilder.setSignature(i, s);
@@ -4108,6 +4149,12 @@ public class WalletApi {
         .toBuilder();
     rawBuilder.setFeeLimit(feeLimit);
     transBuilder.setRawData(rawBuilder);
+    // Preserve unknown fields (notably pq_auth_sig / field 6, which Trident's
+    // Chain.Transaction does not model) so a PQ-carrying transaction is not
+    // silently stripped when rebuilt to inject the fee limit.
+    // TODO(trident-pq): once Trident models pq_auth_sig, copy it explicitly
+    // instead of relying on unknown-field preservation.
+    transBuilder.setUnknownFields(transactionExtention.getTransaction().getUnknownFields());
     for (int i = 0; i < transactionExtention.getTransaction().getSignatureCount(); i++) {
       ByteString s = transactionExtention.getTransaction().getSignature(i);
       transBuilder.setSignature(i, s);
@@ -4175,8 +4222,21 @@ public class WalletApi {
     final long SIGNATURE_PER_BANDWIDTH = 67;
     final long MAX_RESULT_SIZE_IN_TX = 64;
     long byteLength = (long) Math.ceil(hexString.length() / 2.0);
+    // PQ auth signatures are far larger than an ECDSA signature and do not count
+    // toward getSignatureCount(). Trident's Chain.Transaction does not define
+    // pq_auth_sig (field 6), so it is preserved as unknown field 6; add its
+    // serialized size so the estimate is not biased low for PQ transactions.
+    // TODO(trident-pq): once Trident models pq_auth_sig, sum the serialized
+    // sizes of getPqAuthSigList() instead of reading unknown field 6.
+    long pqAuthSigBytes = 0;
+    com.google.protobuf.UnknownFieldSet unknownFields = transaction.getUnknownFields();
+    if (unknownFields.hasField(TransactionUtils.PQ_AUTH_SIG_FIELD_NUMBER)) {
+      pqAuthSigBytes = unknownFields.getField(TransactionUtils.PQ_AUTH_SIG_FIELD_NUMBER)
+          .getSerializedSize(TransactionUtils.PQ_AUTH_SIG_FIELD_NUMBER);
+    }
     long bandwidthBuffer = DATA_HEX_PROTOBUF_EXTRA
         + SIGNATURE_PER_BANDWIDTH * (transaction.getSignatureCount() + 1)
+        + pqAuthSigBytes
         + MAX_RESULT_SIZE_IN_TX;
 
     return byteLength + bandwidthBuffer;

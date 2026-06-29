@@ -1111,6 +1111,7 @@ message GetAvailableUnfreezeCountResponseMessage {
 message CanDelegatedMaxSizeRequestMessage {
   int32 type = 1;
   bytes owner_address = 2;
+  PQScheme pq_scheme = 3;
 }
 message CanDelegatedMaxSizeResponseMessage {
   int64 max_size = 1;

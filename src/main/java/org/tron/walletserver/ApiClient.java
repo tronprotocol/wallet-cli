@@ -25,6 +25,7 @@ import org.tron.trident.core.utils.Utils;
 import org.tron.trident.proto.Chain;
 import org.tron.trident.proto.Common;
 import org.tron.trident.proto.Contract;
+import org.tron.protos.Protocol.PQScheme;
 import org.tron.trident.proto.Response;
 import org.tron.walletcli.ApiClientFactory;
 
@@ -459,6 +460,34 @@ public class ApiClient {
     } else  {
       return client.getCanDelegatedMaxSize(encode58Check(ownerAddress), type, FULL_NODE);
     }
+  }
+
+  /**
+   * Get the max delegatable size for a resource type, optionally accounting for
+   * the post-quantum signature overhead of a registered PQ scheme.
+   *
+   * @param ownerAddress owner address bytes
+   * @param type resource type (0 = BANDWIDTH, 1 = ENERGY)
+   * @param pqScheme  the PQ scheme to reserve bandwidth for, or null/UNKNOWN_PQ_SCHEME
+   *                  for the default ECDSA-sized estimate
+   * @return max delegatable size
+   */
+  public long getCanDelegatedMaxSize(byte[] ownerAddress, int type, PQScheme pqScheme) {
+    // TODO(trident-sdk): Trident's ApiWrapper.getCanDelegatedMaxSize does not yet accept a
+    // PQScheme parameter. Once the Trident SDK is updated (add pq_scheme to its
+    // CanDelegatedMaxSizeRequestMessage proto and regenerate), pass pqScheme to the
+    // ApiWrapper call below. Until then, the scheme hint is silently ignored and the
+    // node returns the ECDSA-sized estimate (backward-compatible default).
+    //
+    // When the SDK is ready, replace this body with:
+    //   if (!emptySolidityNode) {
+    //     return client.getCanDelegatedMaxSize(encode58Check(ownerAddress), type,
+    //         pqScheme, SOLIDITY_NODE);
+    //   } else {
+    //     return client.getCanDelegatedMaxSize(encode58Check(ownerAddress), type,
+    //         pqScheme, FULL_NODE);
+    //   }
+    return getCanDelegatedMaxSize(ownerAddress, type);
   }
 
   public long getAvailableUnfreezeCount(byte[] ownerAddress) {// pass
