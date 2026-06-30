@@ -16,8 +16,8 @@ describe("ConfigLoader defaultNetwork", () => {
     expect(config.defaultNetwork).toBe("base");
   });
 
-  it("resolveDefault resolves aliases to canonical networks", () => {
-    const config = ConfigLoader.load(envWithConfig("defaultNetwork: nile\n"));
+  it("resolveDefault resolves a canonical network id", () => {
+    const config = ConfigLoader.load(envWithConfig("defaultNetwork: tron:nile\n"));
     const registry = new NetworkRegistry(config);
     expect(registry.resolveDefault().id).toBe("tron:nile");
   });
@@ -31,10 +31,9 @@ describe("ConfigLoader defaultNetwork", () => {
 describe("NetworkRegistry.resolve case-insensitivity", () => {
   const registry = () => new NetworkRegistry(ConfigLoader.load(envWithConfig("")));
 
-  it("resolves an alias regardless of input casing (TRON brands Nile/Shasta capitalized)", () => {
-    expect(registry().resolve("Nile").id).toBe("tron:nile");
-    expect(registry().resolve("NILE").id).toBe("tron:nile");
-    expect(registry().resolve("TRON").id).toBe("tron:mainnet");
+  it("rejects network aliases", () => {
+    expect(() => registry().resolve("nile")).toThrow(/unknown network/);
+    expect(() => registry().resolve("tron")).toThrow(/unknown network/);
   });
 
   it("resolves a canonical id regardless of input casing", () => {

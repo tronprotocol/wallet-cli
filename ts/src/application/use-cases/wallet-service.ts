@@ -38,7 +38,7 @@ export class WalletService {
   importWatch(addressInput: string, label?: string) {
     const address = addressInput.trim();
     const family = familyOf(address);
-    if (!family) throw new UsageError("invalid_option", `unrecognised address format: ${address}`);
+    if (!family) throw new UsageError("invalid_value", `unrecognised address format: ${address}`);
     const result = this.wallets.registerWatch({ family, address, label });
     return { status: mutationStatus(result.created), ...this.wallets.describe(result.accountId) };
   }

@@ -41,7 +41,7 @@ export const GLOBAL_FLAG_SPECS: readonly GlobalFlagSpec[] = [
   { name: "output", alias: "o", kind: "value", valueType: "string", choices: ["text", "json"],
     description: "result format", defaultValue: "config.defaultOutput (built-in: text)" },
   { name: "network", kind: "value", valueType: "string",
-    description: "network id or alias, e.g. tron:mainnet, tron, nile, shasta; chain commands fall back to config.defaultNetwork when omitted" },
+    description: "canonical network id, e.g. tron:mainnet, tron:nile, tron:shasta; chain commands fall back to config.defaultNetwork when omitted" },
   { name: "account", kind: "value", valueType: "string",
     description: "accountId, label, or address for wallet-bound commands; falls back to the active account set by use" },
   { name: "timeout", kind: "value", valueType: "number", field: "timeoutMs",

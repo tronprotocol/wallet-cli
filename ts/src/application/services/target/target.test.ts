@@ -18,11 +18,11 @@ function policy(family: ChainFamily, wallet: ExecutionPolicy["wallet"] = "option
   };
 }
 
-function resolver(defaultNetwork = "tron", activeSource?: { type: "watch" | "ledger"; family: ChainFamily }) {
+function resolver(defaultNetwork = "tron:mainnet", activeSource?: { type: "watch" | "ledger"; family: ChainFamily }) {
   const networkRegistry = {
-    resolve(idOrAlias: string | undefined) {
-      const found = Object.values(networks).find((n) => n.id === idOrAlias || n.aliases.includes(idOrAlias ?? ""));
-      if (!found) throw new Error(`unknown network ${idOrAlias}`);
+    resolve(id: string | undefined) {
+      const found = Object.values(networks).find((n) => n.id === id);
+      if (!found) throw new Error(`unknown network ${id}`);
       return found;
     },
     resolveDefault() {
@@ -43,23 +43,23 @@ function resolver(defaultNetwork = "tron", activeSource?: { type: "watch" | "led
 
 describe("TargetResolver", () => {
   it("uses the single default network when --network is omitted", () => {
-    const target = resolver("tron").resolve(policy("tron"), {});
+    const target = resolver("tron:mainnet").resolve(policy("tron"), {});
     expect(target.network?.id).toBe("tron:mainnet");
   });
 
   it("uses explicit --network as the target", () => {
-    const target = resolver("tron").resolve(policy("evm" as any), { network: "eth" });
+    const target = resolver("tron:mainnet").resolve(policy("evm" as any), { network: "evm:1" });
     expect(target.network?.id).toBe("evm:1");
   });
 
   it("rejects a command implementation that does not support the selected network family", () => {
     expect(() =>
-      resolver("tron").resolve(policy("evm" as any), {}),
+      resolver("tron:mainnet").resolve(policy("evm" as any), {}),
     ).toThrow(/evm-only.*tron:mainnet/);
   });
 
   it("rejects a single-family account on a mismatched default network", () => {
-    const r = resolver("tron", { type: "watch", family: "evm" as any });
+    const r = resolver("tron:mainnet", { type: "watch", family: "evm" as any });
     expect(() => r.resolve(policy("tron"), {})).toThrow(
       /selected account is evm-only/,
     );

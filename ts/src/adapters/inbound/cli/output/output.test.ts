@@ -5,7 +5,7 @@ import { UsageError } from "../../../../domain/errors/index.js";
 import { commandId } from "../command-id.js";
 import type { NetworkDescriptor } from "../../../../domain/types/index.js";
 import type { CommandDefinition } from "../contracts/index.js";
-import { TextFormatters } from "../render/index.js";
+import { renderGenericText, TextFormatters } from "../render/index.js";
 
 function capture(output: "text" | "json") {
   const out: string[] = [];
@@ -26,6 +26,7 @@ describe("createOutputFormatter (json)", () => {
     const env = JSON.parse(f.success(cmd, net, { balance: "1" }));
     expect(env.success).toBe(true);
     expect(env.command).toBe("tron.account.balance");
+    expect(env.chain).toMatchObject({ networkId: "tron:nile", network: "tron:nile", chainId: "nile" });
     expect(env.data).toEqual({ balance: "1" });
     expect(env.meta).toMatchObject({ warnings: [] });
   });
@@ -49,6 +50,12 @@ describe("createOutputFormatter (json)", () => {
 });
 
 describe("createOutputFormatter (text)", () => {
+  it("generic output identifies the network by canonical id", () => {
+    const text = renderGenericText("tron.test", net, {});
+    expect(text).toContain("network: tron:nile");
+    expect(text).not.toContain("network: nile");
+  });
+
   it("success returns human lines naming the command", () => {
     const { sm } = capture("text");
     const f = createOutputFormatter("text", sm, 0);

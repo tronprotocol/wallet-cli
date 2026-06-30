@@ -102,12 +102,11 @@ export const TextFormatters = {
 
   config: ((data) => renderConfig(asObj(data))) satisfies TextFormatter,
   networks: ((data) => table(
-    ["Network", "Family", "Chain", "Aliases", "Fee model"],
+    ["Network", "Family", "Chain", "Fee model"],
     (Array.isArray(data) ? data : []).map(asObj).map((n) => [
       String(n.id ?? ""),
       String(n.family ?? ""),
       String(n.chainId ?? ""),
-      Array.isArray(n.aliases) ? n.aliases.join(",") : "",
       String(n.feeModel ?? ""),
     ]),
   )) satisfies TextFormatter,
@@ -234,7 +233,7 @@ export const TextFormatters = {
 
 export function renderGenericText(command: string, net: NetworkDescriptor | undefined, data: unknown): string {
   const lines: string[] = [`${ok()} ${command}`];
-  if (net) lines.push(`  network: ${net.aliases[0] ?? net.chainId} (${net.id})`);
+  if (net) lines.push(`  network: ${net.id}`);
   if (data && typeof data === "object" && !Array.isArray(data)) {
     for (const [k, v] of Object.entries(data as Obj)) {
       if (Array.isArray(v) && v.length > 0) {

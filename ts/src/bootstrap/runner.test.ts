@@ -13,20 +13,20 @@ describe("hasCommand (bare invocation → root help)", () => {
     expect(hasCommand([])).toBe(false);
     expect(hasCommand(["--output", "json"])).toBe(false); // value flag consumes 'json'
     expect(hasCommand(["-o", "json"])).toBe(false);
-    expect(hasCommand(["--network", "nile"])).toBe(false);
+    expect(hasCommand(["--network", "tron:nile"])).toBe(false);
     expect(hasCommand(["--verbose"])).toBe(false);
   });
   it("is true once a real command word is present", () => {
     expect(hasCommand(["list"])).toBe(true);
     expect(hasCommand(["--output", "json", "account", "balance"])).toBe(true);
-    expect(hasCommand(["--network=nile", "block"])).toBe(true);
+    expect(hasCommand(["--network=tron:nile", "block"])).toBe(true);
   });
 });
 
 describe("parseGlobals", () => {
   it("parses value flags, inline =, and short -o alias", () => {
-    const { globals } = parseGlobals(["--network", "nile", "--output=json", "tron", "account", "balance"]);
-    expect(globals.network).toBe("nile");
+    const { globals } = parseGlobals(["--network", "tron:nile", "--output=json", "tron", "account", "balance"]);
+    expect(globals.network).toBe("tron:nile");
     expect(globals.output).toBe("json");
   });
 

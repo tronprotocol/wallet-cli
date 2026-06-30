@@ -36,14 +36,14 @@ function send(service: TronTransactionService): CommandDefinition {
     network: "optional", wallet: "optional", auth: "required",
     broadcasts: true,
     capability: "tx.send",
-    summary: "send native TRX or TRC20/TRC10 tokens with human --amount",
+    summary: "Transfer native TRX (default) or a token",
     fields,
     input: fields.superRefine(amountSelector).superRefine(tokenOptional),
     examples: [
-      { cmd: "wallet-cli tx send --network nile --to T... --amount 1" },
-      { cmd: "wallet-cli tx send --network tron --to T... --token USDT --amount 5" },
-      { cmd: "wallet-cli tx send --network nile --to T... --contract TR7... --amount 5" },
-      { cmd: "wallet-cli tx send --network nile --to T... --asset-id 1002000 --raw-amount 1000000" },
+      { cmd: "wallet-cli tx send --network tron:nile --to T... --amount 1" },
+      { cmd: "wallet-cli tx send --network tron:mainnet --to T... --token USDT --amount 5" },
+      { cmd: "wallet-cli tx send --network tron:nile --to T... --contract TR7... --amount 5" },
+      { cmd: "wallet-cli tx send --network tron:nile --to T... --asset-id 1002000 --raw-amount 1000000" },
     ],
     formatText: TextFormatters.txReceipt,
     run: async (ctx, network, input) => service.send(ctx, network!, input),
@@ -60,10 +60,10 @@ function broadcast(service: TronTransactionService): CommandDefinition {
     network: "required", wallet: "none", auth: "none",
     broadcasts: true,
     capability: "tx.broadcast",
-    summary: "broadcast a presigned transaction",
+    summary: "Broadcast a presigned transaction",
     fields,
     input: fields,
-    examples: [{ cmd: "wallet-cli tx broadcast --network nile --tx-stdin < signed.json" }],
+    examples: [{ cmd: "wallet-cli tx broadcast --network tron:nile --tx-stdin < signed.json" }],
     formatText: TextFormatters.txReceipt,
     run: async (ctx, network, input) => {
       const raw = ctx.secrets.pick(input.transaction, "tx", "transaction");
@@ -84,10 +84,10 @@ function status(service: TronTransactionService): CommandDefinition {
   return {
     path: ["tx", "status"], family: "tron",
     network: "optional", wallet: "none", auth: "none",
-    summary: "confirmation status of a transaction",
+    summary: "Show confirmation status of a transaction",
     fields,
     input: fields,
-    examples: [{ cmd: "wallet-cli tx status --network nile --txid abc123" }],
+    examples: [{ cmd: "wallet-cli tx status --network tron:nile --txid abc123" }],
     formatText: TextFormatters.txStatus,
     run: async (_ctx, network, input) => service.status(network!, input.txid),
   };
@@ -98,10 +98,10 @@ function info(service: TronTransactionService): CommandDefinition {
   return {
     path: ["tx", "info"], family: "tron",
     network: "optional", wallet: "none", auth: "none",
-    summary: "full transaction detail + receipt",
+    summary: "Show full transaction detail + receipt",
     fields,
     input: fields,
-    examples: [{ cmd: "wallet-cli tx info --network nile --txid abc123" }],
+    examples: [{ cmd: "wallet-cli tx info --network tron:nile --txid abc123" }],
     formatText: TextFormatters.txInfo,
     run: async (_ctx, network, input) => service.info(network!, input.txid),
   };

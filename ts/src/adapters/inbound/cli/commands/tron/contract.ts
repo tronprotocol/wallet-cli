@@ -33,11 +33,11 @@ function call(service: TronContractService): CommandDefinition {
     path: ["contract", "call"], family: "tron",
     network: "optional", wallet: "none", auth: "none",
     capability: "contract.call",
-    summary: "read-only call (triggerConstantContract)",
+    summary: "Read-only call (triggerConstantContract)",
     fields,
     input: fields,
     examples: [{
-      cmd: `wallet-cli contract call --network nile --contract TR7... --method "balanceOf(address)" --params '[{"type":"address","value":"T..."}]'`,
+      cmd: `wallet-cli contract call --network tron:nile --contract TR7... --method "balanceOf(address)" --params '[{"type":"address","value":"T..."}]'`,
     }],
     formatText: TextFormatters.contractCall,
     run: async (_ctx, network, input) => service.call(
@@ -63,11 +63,11 @@ function send(service: TronContractService): CommandDefinition {
     network: "required", wallet: "optional", auth: "required",
     broadcasts: true,
     capability: "contract.call",
-    summary: "state-changing call (triggerSmartContract)",
+    summary: "State-changing call (triggerSmartContract)",
     fields,
     input: fields,
     examples: [{
-      cmd: `wallet-cli contract send --network nile --contract TR7... --method "transfer(address,uint256)" --params '[...]'`,
+      cmd: `wallet-cli contract send --network tron:nile --contract TR7... --method "transfer(address,uint256)" --params '[...]'`,
     }],
     formatText: TextFormatters.txReceipt,
     run: async (ctx, network, input) => service.send(ctx, network!, {
@@ -93,11 +93,11 @@ function deploy(service: TronContractService): CommandDefinition {
     network: "required", wallet: "optional", auth: "required",
     broadcasts: true,
     capability: "contract.deploy",
-    summary: "deploy a smart contract",
+    summary: "Deploy a smart contract",
     fields,
     input: fields,
     examples: [{
-      cmd: "wallet-cli contract deploy --network nile --abi '[...]' --bytecode 60... --fee-limit 1000000000",
+      cmd: "wallet-cli contract deploy --network tron:nile --abi '[...]' --bytecode 60... --fee-limit 1000000000",
     }],
     formatText: TextFormatters.txReceipt,
     run: async (ctx, network, input) => {
@@ -124,10 +124,10 @@ function info(service: TronContractService): CommandDefinition {
     path: ["contract", "info"], family: "tron",
     network: "optional", wallet: "none", auth: "none",
     capability: "contract.call",
-    summary: "contract ABI + metadata (getContract + getContractInfo)",
+    summary: "Show contract ABI + metadata",
     fields,
     input: fields,
-    examples: [{ cmd: "wallet-cli contract info --network nile --contract TR7..." }],
+    examples: [{ cmd: "wallet-cli contract info --network tron:nile --contract TR7..." }],
     formatText: TextFormatters.contractInfo,
     run: async (_ctx, network, input) => service.info(network!, input.contract),
   };

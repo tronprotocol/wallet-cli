@@ -41,7 +41,7 @@ function command(
     summary,
     fields,
     input: options.refine ? fields.superRefine(options.refine) : fields,
-    examples: [{ cmd: `wallet-cli stake ${action} --network nile` }],
+    examples: [{ cmd: `wallet-cli stake ${action} --network tron:nile` }],
     formatText: TextFormatters.txReceipt,
     run: async (context, network, input) => execute(context, network!, input),
   };
@@ -51,7 +51,7 @@ export function stakeCommands(service: TronStakeService): CommandDefinition[] {
   return [
     command(
       "freeze",
-      "stake TRX for energy/bandwidth (FreezeBalanceV2)",
+      "Stake TRX for energy/bandwidth (FreezeBalanceV2)",
       (context, network, input) => service.freeze(context, network, input),
       {
         amountSun: Schemas.uintString().describe("amount to freeze as staked TRX, in SUN"),
@@ -60,7 +60,7 @@ export function stakeCommands(service: TronStakeService): CommandDefinition[] {
     ),
     command(
       "unfreeze",
-      "unstake TRX (UnfreezeBalanceV2)",
+      "Unstake TRX (UnfreezeBalanceV2)",
       (context, network, input) => service.unfreeze(context, network, input),
       {
         amountSun: Schemas.uintString().describe("amount to unfreeze as staked TRX, in SUN"),
@@ -69,17 +69,17 @@ export function stakeCommands(service: TronStakeService): CommandDefinition[] {
     ),
     command(
       "withdraw",
-      "withdraw expired unfrozen TRX",
+      "Withdraw expired unfrozen TRX (WithdrawExpireUnfreeze)",
       (context, network, input) => service.withdraw(context, network, input),
     ),
     command(
       "cancel-unfreeze",
-      "cancel all pending unstakes (roll back to frozen)",
+      "Cancel all pending unstakes (roll back to frozen)",
       (context, network, input) => service.cancelUnfreeze(context, network, input),
     ),
     command(
       "delegate",
-      "delegate frozen resource to another address (DelegateResourceV2)",
+      "Delegate resource to another address (DelegateResourceV2)",
       (context, network, input) => service.delegate(context, network, input),
       {
         amountSun: Schemas.uintString()
@@ -107,7 +107,7 @@ export function stakeCommands(service: TronStakeService): CommandDefinition[] {
     ),
     command(
       "undelegate",
-      "reclaim delegated resource (UnDelegateResourceV2)",
+      "Reclaim delegated resource (UnDelegateResourceV2)",
       (context, network, input) => service.undelegate(context, network, input),
       {
         amountSun: Schemas.uintString()

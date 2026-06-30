@@ -12,12 +12,12 @@ export function registerNetworkCommands(reg: CommandRegistry): void {
   // ── networks ────────────────────────────────────────────────────────────────
   reg.add({
     path: ["networks"], network: "none", wallet: "none", auth: "none",
-    summary: "list known networks", fields: empty, input: empty,
+    summary: "List known networks", fields: empty, input: empty,
     examples: [{ cmd: "wallet-cli networks" }],
     formatText: TextFormatters.networks,
     run: async (ctx) =>
       ctx.networkRegistry.all().map((n) => ({
-        id: n.id, family: n.family, chainId: n.chainId, aliases: n.aliases, feeModel: n.feeModel,
+        id: n.id, family: n.family, chainId: n.chainId, feeModel: n.feeModel,
       })),
   } satisfies CommandDefinition);
 }

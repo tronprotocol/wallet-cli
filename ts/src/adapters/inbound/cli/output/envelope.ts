@@ -24,7 +24,7 @@ function chainView(net: NetworkDescriptor): ChainView {
   return {
     family: net.family,
     networkId: net.id,
-    network: net.aliases[0] ?? net.chainId,
+    network: net.id,
     chainId: net.chainId,
   };
 }

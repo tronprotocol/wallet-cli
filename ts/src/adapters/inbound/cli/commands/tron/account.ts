@@ -14,10 +14,10 @@ function balance(service: TronAccountService): CommandDefinition {
     path: ["account", "balance"], family: "tron",
     network: "optional", wallet: "optional", auth: "none",
     capability: "account.balance.native",
-    summary: "get native sun balance",
+    summary: "Show native balance (TRX/SUN)",
     fields,
     input: fields,
-    examples: [{ cmd: "wallet-cli account balance --network nile" }],
+    examples: [{ cmd: "wallet-cli account balance --network tron:nile" }],
     formatText: TextFormatters.accountBalance,
     run: async (ctx, network) => service.balance(ctx, network!, "tron"),
   };
@@ -28,10 +28,10 @@ function info(service: TronAccountService): CommandDefinition {
   return {
     path: ["account", "info"], family: "tron",
     network: "optional", wallet: "optional", auth: "none",
-    summary: "raw account + bandwidth/energy (getAccount + getAccountResources)",
+    summary: "Show raw account data (getAccount; TRON includes resources)",
     fields,
     input: fields,
-    examples: [{ cmd: "wallet-cli account info --network nile" }],
+    examples: [{ cmd: "wallet-cli account info --network tron:nile" }],
     formatText: TextFormatters.accountInfo,
     run: async (ctx, network) => service.info(ctx, network!),
   };
@@ -47,10 +47,10 @@ function history(service: TronAccountService): CommandDefinition {
   return {
     path: ["account", "history"], family: "tron",
     network: "optional", wallet: "optional", auth: "none",
-    summary: "transaction history (requires a TronGrid-compatible httpEndpoint)",
+    summary: "Show transaction history (requires TronGrid)",
     fields,
     input: fields,
-    examples: [{ cmd: "wallet-cli account history --network nile --limit 10" }],
+    examples: [{ cmd: "wallet-cli account history --network tron:nile --limit 10" }],
     formatText: TextFormatters.accountHistory,
     run: async (ctx, network, input) => service.historyFor(ctx, network!, input),
   };
@@ -62,10 +62,10 @@ function portfolio(service: TronAccountService): CommandDefinition {
     path: ["account", "portfolio"], family: "tron",
     network: "optional", wallet: "optional", auth: "none",
     capability: "account.portfolio",
-    summary: "native TRX + address-book token balances with best-effort USD valuation",
+    summary: "Show native + token balances with best-effort USD value",
     fields,
     input: fields,
-    examples: [{ cmd: "wallet-cli account portfolio --network nile" }],
+    examples: [{ cmd: "wallet-cli account portfolio --network tron:nile" }],
     formatText: TextFormatters.accountPortfolio,
     run: async (ctx, network) => service.portfolio(ctx, network!),
   };

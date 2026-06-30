@@ -146,9 +146,9 @@ describe("golden CLI — meta & introspection", () => {
     expect(get.status).toBe(0);
     expect(get.json.data).toMatchObject({ key: "defaultNetwork", value: "tron:mainnet" });
 
-    const set = run(["--output", "json", "config", "defaultNetwork", "nile"], { password: null });
+    const set = run(["--output", "json", "config", "defaultNetwork", "tron:nile"], { password: null });
     expect(set.status).toBe(0);
-    expect(set.json.data).toMatchObject({ key: "defaultNetwork", value: "tron:nile", input: "nile" });
+    expect(set.json.data).toMatchObject({ key: "defaultNetwork", value: "tron:nile", input: "tron:nile" });
 
     const getAgain = run(["--output", "json", "config", "defaultNetwork"], { password: null });
     expect(getAgain.json.data.value).toBe("tron:nile");
@@ -173,7 +173,7 @@ describe("golden CLI — wallet lifecycle (shared identity)", () => {
 
   it("routes root-level message sign through the selected network family", () => {
     seedWallet();
-    const r = run(["--output", "json", "message", "sign", "--network", "nile", "--message", "hello world"]);
+    const r = run(["--output", "json", "message", "sign", "--network", "tron:nile", "--message", "hello world"]);
     expect(r.status).toBe(0);
     expect(r.json.command).toBe("tron.message.sign");
     expect(r.json.chain.networkId).toBe("tron:nile");
@@ -181,7 +181,7 @@ describe("golden CLI — wallet lifecycle (shared identity)", () => {
 
   it("routes root-level send and validates human amount decimals before RPC", () => {
     seedWallet();
-    const r = run(["--output", "json", "tx", "send", "--network", "nile", "--to", TRON1, "--amount", "0.0000000000000000001", "--dry-run"]);
+    const r = run(["--output", "json", "tx", "send", "--network", "tron:nile", "--to", TRON1, "--amount", "0.0000000000000000001", "--dry-run"]);
     expect(r.status).toBe(2);
     expect(r.json.command).toBe("tron.tx.send");
     expect(r.json.error.code).toBe("invalid_amount");
@@ -190,7 +190,7 @@ describe("golden CLI — wallet lifecycle (shared identity)", () => {
   it("resolves TRON send --token from the address book before amount conversion", () => {
     seedWallet();
     const r = run([
-      "--output", "json", "tx", "send", "--network", "tron", "--to", "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7",
+      "--output", "json", "tx", "send", "--network", "tron:mainnet", "--to", "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7",
       "--token", "USDT", "--amount", "0.0000001", "--dry-run",
     ]);
     expect(r.status).toBe(2);
@@ -248,10 +248,10 @@ describe("golden CLI — watch wallet (import, no signer)", () => {
     expect(r.json.data.addresses.tron).toBe(TRON1);
   });
 
-  it("rejects an unrecognised watch address → invalid_option, exit 2 (§7.14.2)", () => {
+  it("rejects an unrecognised watch address → invalid_value, exit 2 (§7.14.2)", () => {
     const r = run(["--output", "json", "import", "watch", "--address", "not-an-address"]);
     expect(r.status).toBe(2);
-    expect(r.json.error.code).toBe("invalid_option");
+    expect(r.json.error.code).toBe("invalid_value");
   });
 
   it("deletes an account through the root positional delete command", () => {
@@ -264,7 +264,7 @@ describe("golden CLI — watch wallet (import, no signer)", () => {
 
   it("refuses to sign with a watch-only active account → watch_only_no_signer, exit 1", () => {
     run(["--output", "json", "import", "watch", "--address", TRON1, "--label", "obs"]);
-    const r = run(["--output", "json", "message", "sign", "--network", "nile", "--message", "hi"]);
+    const r = run(["--output", "json", "message", "sign", "--network", "tron:nile", "--message", "hi"]);
     expect(r.status).toBe(1);
     expect(r.json.error.code).toBe("watch_only_no_signer");
   });
@@ -272,7 +272,7 @@ describe("golden CLI — watch wallet (import, no signer)", () => {
 
 describe("golden CLI — error contract (exit codes)", () => {
   it("unknown command → exit 2", () => {
-    const r = run(["--output", "json", "tron", "bogus", "action", "--network", "nile"]);
+    const r = run(["--output", "json", "tron", "bogus", "action", "--network", "tron:nile"]);
     expect(r.status).toBe(2);
     expect(r.json.error.code).toBe("unknown_command");
   });
@@ -291,13 +291,13 @@ describe("golden CLI — error contract (exit codes)", () => {
   });
 
   it("invalid address value → exit 2", () => {
-    const r = run(["--output", "json", "token", "balance", "--network", "nile", "--contract", "0xnope"]);
+    const r = run(["--output", "json", "token", "balance", "--network", "tron:nile", "--contract", "0xnope"]);
     expect(r.status).toBe(2);
     expect(r.json.error.code).toBe("invalid_value");
   });
 
   it("stake delegate --lock-period without --lock → invalid_value, exit 2", () => {
-    const r = run(["--output", "json", "stake", "delegate", "--network", "nile",
+    const r = run(["--output", "json", "stake", "delegate", "--network", "tron:nile",
       "--amount-sun", "1000000", "--receiver", "TLa2f6VPqDgRE67v1736s7bJ8Ray5wYjU7", "--lock-period", "100"]);
     expect(r.status).toBe(2);
     expect(r.json.error.code).toBe("invalid_value");
@@ -305,14 +305,14 @@ describe("golden CLI — error contract (exit codes)", () => {
 
   it("wrong master password → auth_failed, exit 1", () => {
     seedWallet();
-    const r = run(["--output", "json", "message", "sign", "--network", "nile", "--message", "hi"], { password: "WRONGpw999" });
+    const r = run(["--output", "json", "message", "sign", "--network", "tron:nile", "--message", "hi"], { password: "WRONGpw999" });
     expect(r.status).toBe(1);
     expect(r.json.error.code).toBe("auth_failed");
   });
 
   it("auth-required command with no password source → auth_required up front, exit 1", () => {
     seedWallet();
-    const r = run(["--output", "json", "message", "sign", "--network", "nile", "--message", "hi"], { password: null });
+    const r = run(["--output", "json", "message", "sign", "--network", "tron:nile", "--message", "hi"], { password: null });
     expect(r.status).toBe(1);
     expect(r.json.error.code).toBe("auth_required");
   });
@@ -342,7 +342,7 @@ describe("golden CLI — token address-book (local, no RPC)", () => {
   it("token list shows a user-added token tagged user (nile, empty official layer)", () => {
     const ref = seedWallet();
     seedToken("tron:nile", ref, CUSTOM);
-    const r = run(["--output", "json", "token", "list", "--network", "nile"]);
+    const r = run(["--output", "json", "token", "list", "--network", "tron:nile"]);
     expect(r.status).toBe(0);
     expect(r.json.data.tokens).toHaveLength(1);
     expect(r.json.data.tokens[0]).toMatchObject({ symbol: "CUS", source: "user" });
@@ -358,17 +358,17 @@ describe("golden CLI — token address-book (local, no RPC)", () => {
   it("token remove of a user token succeeds; removing an absent one → token_not_in_book, exit 2", () => {
     const ref = seedWallet();
     seedToken("tron:nile", ref, CUSTOM);
-    const ok = run(["--output", "json", "token", "remove", "--network", "nile", "--contract", CUSTOM.id]);
+    const ok = run(["--output", "json", "token", "remove", "--network", "tron:nile", "--contract", CUSTOM.id]);
     expect(ok.status).toBe(0);
     expect(ok.json.data.removed.symbol).toBe("CUS");
-    const again = run(["--output", "json", "token", "remove", "--network", "nile", "--contract", CUSTOM.id]);
+    const again = run(["--output", "json", "token", "remove", "--network", "tron:nile", "--contract", CUSTOM.id]);
     expect(again.status).toBe(2);
     expect(again.json.error.code).toBe("token_not_in_book");
   });
 
   it("token add/remove require exactly one of --contract / --asset-id → exit 2", () => {
     seedWallet();
-    const r = run(["--output", "json", "token", "remove", "--network", "nile"]);
+    const r = run(["--output", "json", "token", "remove", "--network", "tron:nile"]);
     expect(r.status).toBe(2);
   });
 });
@@ -383,7 +383,7 @@ describe("golden CLI — fixes regression", () => {
   it("a value flag resolves via zod arity (raw-amount reaches the schema)", () => {
     seedWallet();
     // invalid (non-numeric) amount must be a zod invalid_value, proving the value reached the schema
-    const r = run(["--output", "json", "tx", "send", "--network", "nile", "--to",
+    const r = run(["--output", "json", "tx", "send", "--network", "tron:nile", "--to",
       TRON1, "--raw-amount", "notanumber", "--dry-run"]);
     expect(r.status).toBe(2);
     expect(r.json.error.code).toBe("invalid_value");

@@ -156,7 +156,7 @@ for (const command of helpCommands) run(command.split(/\s+/));
 
 heading("1. Wallet and account management");
 assertSuccess(runInteractive("private-key", "funded", privateKey), "private-key import");
-assertSuccess(run(["config", "defaultNetwork", "nile"]), "default network");
+assertSuccess(run(["config", "defaultNetwork", "tron:nile"]), "default network");
 assertSuccess(runPassword(["create", "--label", "recipient"]), "recipient create");
 const recipient2 = runJson(["create", "--label", "recipient2", "--password-stdin"], {
   input: `${password}\n`,
@@ -190,9 +190,8 @@ runJson(["config"]);
 
 heading("2. Account queries");
 run(["account", "balance"]);
-run(["account", "balance", "--network", "nile"]);
-run(["account", "balance", "--network", "shasta"]);
 run(["account", "balance", "--network", "tron:nile"]);
+run(["account", "balance", "--network", "tron:shasta"]);
 runJson(["account", "balance"]);
 run(["account", "balance", "--account", "recipient"]);
 run(["account", "balance", "--account", fundedAddress]);
@@ -308,4 +307,3 @@ sections.push(
 writeFileSync(reportPath, sections.join(""));
 process.stdout.write(`Nile live suite complete: ${reportPath}\n`);
 process.stdout.write(`invocations=${stats.total} exit0=${stats.exit0} exit1=${stats.exit1} exit2=${stats.exit2} other=${stats.other}\n`);
-

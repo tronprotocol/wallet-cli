@@ -134,7 +134,7 @@ export class HelpService {
     const row = (width: number) => (name: string, desc: string): string => `  ${name.padEnd(width)}${desc ? dim(desc) : ""}`.trimEnd();
     const optionRows = [
       ["-o, --output string", 'Output format ("text", "json") (default from config)'],
-      ["--network string", 'Network id or alias, e.g. "tron", "nile", "shasta"'],
+      ["--network string", 'Canonical network id, e.g. "tron:mainnet", "tron:nile", "tron:shasta"'],
       ["--account string", "Account label or address to act as (overrides active)"],
       ["--timeout int", "Request timeout in milliseconds"],
       ["-v, --verbose", "Verbose / debug logging"],
@@ -242,7 +242,7 @@ export class HelpService {
     if (c.summary) lines.push("", c.summary);
 
     const requires: string[] = [];
-    if (c.network === "required") requires.push("--network <id|alias>");
+    if (c.network === "required") requires.push("--network <id>");
     if (c.auth === "required") requires.push("master password — pass --password-stdin for non-interactive use, or enter it interactively in a TTY");
     if (c.wallet !== "none") requires.push("an account — defaults to active; override with --account <accountId|label> (or `use <account>`)");
     if (requires.length) {
@@ -367,7 +367,7 @@ const GROUP_DESCRIPTIONS: Record<string, string> = {
   token: "Manage the token address book and query tokens.",
   tx: "Build, send, broadcast, and inspect transactions.",
   contract: "Call, send, deploy, and inspect smart contracts.",
-  stake: "Stake / delegate resources.",
+  stake: "Stake / delegate resources (TRON Stake 2.0).",
   message: "Sign arbitrary messages.",
   block: "Get a block (latest if omitted).",
 };

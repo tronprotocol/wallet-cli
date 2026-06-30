@@ -54,7 +54,7 @@ export function registerWalletCommands(
   reg.add({
     path: ["create"], network: "none", wallet: "none", auth: "required", passwordMode: "establish",
     interactive: true, promptHints: { label: "default-label" },
-    summary: "create a new HD wallet (BIP39 seed)", fields: createFields, input: createFields,
+    summary: "Create a new HD wallet (BIP39 seed)", fields: createFields, input: createFields,
     examples: [{ cmd: "wallet-cli create --label main" }],
     formatText: TextFormatters.walletCreated("Created", [
       "Recovery phrase is encrypted locally and was not printed.",
@@ -71,7 +71,7 @@ export function registerWalletCommands(
   reg.add({
     path: ["import", "mnemonic"], stdin: "mnemonic", network: "none", wallet: "none", auth: "required", passwordMode: "establish",
     interactive: true, promptHints: { label: "default-label" },
-    summary: "import an existing BIP39 mnemonic (encrypted at rest)", fields: importMnemonicFields, input: importMnemonicFields,
+    summary: "Import a BIP39 mnemonic phrase", fields: importMnemonicFields, input: importMnemonicFields,
     examples: [{ cmd: "wallet-cli import mnemonic --label main" }],
     formatText: TextFormatters.walletCreated("Imported", [
       "Recovery phrase was read from hidden input and was not printed.",
@@ -87,7 +87,7 @@ export function registerWalletCommands(
   reg.add({
     path: ["import", "private-key"], stdin: "privateKey", network: "none", wallet: "none", auth: "required", passwordMode: "establish",
     interactive: true, promptHints: { label: "default-label" },
-    summary: "import an existing private key (encrypted at rest)", fields: importPrivateKeyFields, input: importPrivateKeyFields,
+    summary: "Import a raw private key", fields: importPrivateKeyFields, input: importPrivateKeyFields,
     examples: [{ cmd: "wallet-cli import private-key --label hot" }],
     formatText: TextFormatters.walletCreated("Imported", [
       "Private key was read from hidden input and was not printed.",
@@ -102,7 +102,7 @@ export function registerWalletCommands(
   reg.add({
     path: ["import", "ledger"], network: "none", wallet: "none", auth: "none",
     interactive: true, promptHints: { label: "default-label", index: "skip", path: "skip", address: "skip", scanLimit: "skip" },
-    summary: "register a Ledger account (watch-only; signs on the device)", fields: walletImportLedgerFields, input: walletImportLedgerInput,
+    summary: "Register a Ledger account (watch-only; signs on device)", fields: walletImportLedgerFields, input: walletImportLedgerInput,
     examples: [{ cmd: "wallet-cli import ledger --app tron --index 0 --label cold" }],
     formatText: TextFormatters.walletLedger,
     run: async (ctx, _net, input) => {
@@ -124,7 +124,7 @@ export function registerWalletCommands(
   reg.add({
     path: ["import", "watch"], network: "none", wallet: "none", auth: "none",
     interactive: true,
-    summary: "register a watch-only address (no secret)", fields: importWatchFields, input: importWatchFields,
+    summary: "Register a watch-only address (no secret)", fields: importWatchFields, input: importWatchFields,
     examples: [{ cmd: "wallet-cli import watch --address T... --label team-vault" }],
     formatText: TextFormatters.walletWatch,
     run: async (_ctx, _net, input) => {
@@ -135,7 +135,7 @@ export function registerWalletCommands(
   // ── list ─────────────────────────────────────────────────────────────────
   reg.add({
     path: ["list"], network: "none", wallet: "none", auth: "none",
-    summary: "list wallets/accounts (no unlock needed)", fields: empty, input: empty,
+    summary: "List wallets/accounts (no unlock needed)", fields: empty, input: empty,
     examples: [{ cmd: "wallet-cli list --output json" }],
     formatText: TextFormatters.walletList,
     run: async () => wallets.list(),
@@ -145,7 +145,7 @@ export function registerWalletCommands(
   const setActiveFields = z.object({ account: z.string().min(1).describe("accountId, label, or address to make active for future commands") });
   reg.add({
     path: ["use"], network: "none", wallet: "none", auth: "none", positionalAccount: true,
-    summary: "set the active account", fields: setActiveFields, input: setActiveFields,
+    summary: "Set the active account", fields: setActiveFields, input: setActiveFields,
     examples: [{ cmd: "wallet-cli use main" }],
     formatText: TextFormatters.walletUse,
     run: async (_ctx, _net, input) => {
@@ -159,7 +159,7 @@ export function registerWalletCommands(
   // advertising an --account override here.
   reg.add({
     path: ["current"], network: "none", wallet: "none", auth: "none",
-    summary: "show the current active account", fields: empty, input: empty,
+    summary: "Show the current active account", fields: empty, input: empty,
     examples: [{ cmd: "wallet-cli current" }],
     formatText: TextFormatters.walletCurrent,
     run: async () => wallets.current(),
@@ -172,7 +172,7 @@ export function registerWalletCommands(
   });
   reg.add({
     path: ["rename"], network: "none", wallet: "none", auth: "none", positionalAccount: true,
-    summary: "rename an account label", fields: renameFields, input: renameFields,
+    summary: "Rename an account label", fields: renameFields, input: renameFields,
     examples: [{ cmd: "wallet-cli rename main --label primary" }],
     formatText: TextFormatters.walletRename,
     run: async (_ctx, _net, input) => {
@@ -188,7 +188,7 @@ export function registerWalletCommands(
   });
   reg.add({
     path: ["derive"], network: "none", wallet: "none", auth: "required",
-    summary: "derive an HD account in a seed wallet (next free, or --index)", fields: addAccountFields, input: addAccountFields,
+    summary: "Derive an HD account in a seed wallet (next free, or --index)", fields: addAccountFields, input: addAccountFields,
     examples: [{ cmd: "wallet-cli derive --account main --index 3" }],
     formatText: TextFormatters.walletDerive,
     run: async (_ctx, _net, input) => {
@@ -203,7 +203,7 @@ export function registerWalletCommands(
   });
   reg.add({
     path: ["delete"], network: "none", wallet: "none", auth: "none", interactive: true, positionalAccount: true,
-    summary: "delete a wallet/account and clean orphan labels", fields: deleteFields, input: deleteFields,
+    summary: "Delete a wallet/account and clean orphan labels", fields: deleteFields, input: deleteFields,
     examples: [{ cmd: "wallet-cli delete old --yes" }],
     formatText: TextFormatters.walletDelete,
     run: async (ctx, _net, input) => {
@@ -231,7 +231,7 @@ export function registerWalletCommands(
   });
   reg.add({
     path: ["backup"], network: "none", wallet: "none", auth: "required", passwordMode: "verify", interactive: true, positionalAccount: true,
-    summary: "export an account's secret + metadata to a 0600 file", fields: backupFields, input: backupFields,
+    summary: "Export an account's secret + metadata to a 0600 file", fields: backupFields, input: backupFields,
     examples: [{ cmd: "wallet-cli backup main --out ~/main-backup.json --password-stdin" }],
     formatText: TextFormatters.walletBackup,
     run: async (_ctx, _net, input) => wallets.backup(input.account, input.out),

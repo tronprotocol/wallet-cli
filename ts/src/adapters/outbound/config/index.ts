@@ -1,6 +1,6 @@
 /**
  * ConfigLoader / NetworkRegistry — resolve the root dir, layer-merge config,
- * build the network registry, resolve alias→canonical. The descriptor stays pure data;
+ * build the network registry, and resolve canonical network ids. The descriptor stays pure data;
  * live RPC clients are owned by the chain gateway provider, not attached here.
  */
 import { existsSync, readFileSync } from "node:fs";
@@ -62,19 +62,11 @@ export class ConfigLoader {
 
 export class NetworkRegistry implements INetworkRegistry {
   #byId = new Map<string, NetworkDescriptor>();
-  #aliasToId = new Map<string, string[]>();
 
   constructor(private readonly config: Config) {
-    // keys are lower-cased so resolve() is case-insensitive (users type `Nile`/`TRON`, the
-    // canonical TRON branding, while ids/aliases are stored lowercase).
+    // Keys are lower-cased so canonical ids remain case-insensitive.
     for (const d of Object.values(config.networks)) {
       this.#byId.set(d.id.toLowerCase(), d);
-      for (const a of d.aliases) {
-        const key = a.toLowerCase();
-        const list = this.#aliasToId.get(key) ?? [];
-        list.push(d.id);
-        this.#aliasToId.set(key, list);
-      }
     }
   }
 
@@ -82,23 +74,16 @@ export class NetworkRegistry implements INetworkRegistry {
     return [...this.#byId.values()];
   }
 
-  resolve(idOrAlias: string | undefined): NetworkDescriptor {
-    if (!idOrAlias || idOrAlias.trim() === "") {
-      throw new UsageError("missing_network", "this command requires --network <id|alias>");
+  resolve(id: string | undefined): NetworkDescriptor {
+    if (!id || id.trim() === "") {
+      throw new UsageError("missing_network", "this command requires --network <id>");
     }
-    const key = idOrAlias.toLowerCase();
-    let id = key;
-    if (!this.#byId.has(key)) {
-      const matches = this.#aliasToId.get(key);
-      if (!matches || matches.length === 0) {
-        throw new UsageError("unsupported_network", `unknown network: ${idOrAlias}`);
-      }
-      if (matches.length > 1) {
-        throw new UsageError("ambiguous_network_alias", `alias '${idOrAlias}' maps to: ${matches.join(", ")}`);
-      }
-      id = matches[0]!.toLowerCase();
+    const key = id.toLowerCase();
+    const network = this.#byId.get(key);
+    if (!network) {
+      throw new UsageError("unsupported_network", `unknown network: ${id}`);
     }
-    return { ...this.#byId.get(id)! };
+    return { ...network };
   }
 
   /** default target for all chain commands when --network is omitted. */
