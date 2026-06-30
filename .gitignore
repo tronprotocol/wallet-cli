@@ -19,9 +19,9 @@ FileTest
 bin
 
 # Wallet keystore files created at runtime
-Wallet/
-Mnemonic/
-wallet_data/
+/Wallet/
+/Mnemonic/
+/wallet_data/
 
 # QA runtime output
 qa/results/
@@ -38,3 +38,6 @@ qa/.verify.lock/
 graphify-out/
 .vscode/
 docs/superpowers
+
+
+/ts-deprecated/

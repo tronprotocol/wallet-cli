@@ -1,0 +1,51 @@
+/**
+ * SharedTypes — identity & network: NetworkId/Descriptor, Config, capabilities.
+ */
+import type { OutputMode } from "./primitives.js";
+
+export type NetworkId = string; // canonical, e.g. "tron:nile"
+export type AccountRef = string; // "wlt_x.0" (HD) / "wlt_k" (privateKey)
+
+export type FeeModel = "legacy" | "eip1559" | "tron-resource";
+
+/** fields shared by every family; `family` is the discriminant for the union below. */
+interface NetworkBase {
+  id: NetworkId;
+  chainId: string;
+  aliases: string[];
+  feeModel?: FeeModel;
+  capabilities: string[];
+}
+
+/** TRON network. Reached via tronweb, which is HTTP-based — `httpEndpoint` is a FullNode HTTP REST
+ *  fullHost (NOT gRPC :50051 nor the eth-style JSON-RPC). Self-hosting → point it at your node's :8090. */
+export interface TronNetworkDescriptor extends NetworkBase {
+  family: "tron";
+  httpEndpoint?: string;
+}
+
+/** Single family today (TRON). Kept as a named alias so adding a family later means re-introducing
+ *  a discriminated union here without churn at every reference. */
+export type NetworkDescriptor = TronNetworkDescriptor;
+
+export interface CapabilityDescriptor {
+  key: string;
+  summary: string;
+}
+
+export interface Config {
+  /** one concrete default network for all chain commands when --network is omitted. */
+  defaultNetwork?: string;
+  defaultOutput: OutputMode;
+  timeoutMs: number;
+  networks: Record<NetworkId, NetworkDescriptor>;
+  /** USD-valuation source for `account portfolio`. Missing → builtin CoinGecko. */
+  price?: PriceConfig;
+}
+
+/** price service config ; best-effort — failures never fail a balance read. */
+export interface PriceConfig {
+  provider: "coingecko" | "none";
+  baseUrl?: string;
+  apiKey?: string;
+}

@@ -1,0 +1,86 @@
+/**
+ * TxPipeline — the shared signing flow for every transaction command:
+ * resolve signer → build → estimate → (dry-run?) → sign → (broadcast?).
+ * Ledger wait, timeout, and abort behavior lives here, not in each command.
+ * Chain-specific build/estimate come in as callbacks.
+ */
+import type { AccountRef, FeeReport, NetworkDescriptor, SignedTx, TxOutcome, UnsignedTx } from "../../../domain/types/index.js";
+import type { TransactionScope } from "../../contracts/execution-scope.js";
+import { SignerResolver } from "../signer/index.js";
+import { ChainError, UsageError } from "../../../domain/errors/index.js";
+import type { Broadcaster } from "../../ports/chain/broadcaster.js";
+
+export interface TxPipelineParams {
+  ctx: TransactionScope;
+  net: NetworkDescriptor;
+  account: AccountRef;
+  /** how the signed tx reaches the chain — the concrete client passed in by the command. */
+  broadcaster: Broadcaster;
+  build: (signerAddress: string) => Promise<UnsignedTx>;
+  estimate: (tx: UnsignedTx) => Promise<FeeReport>;
+  dryRun: boolean;
+  broadcast: boolean;
+  /** Optional post-broadcast confirmation: poll the chain for on-chain results (fee/energy/
+   *  withdrawn amount) and merge them into the broadcast outcome. Best-effort — it must never
+   *  throw; on timeout it returns undefined and the receipt falls back to txid + echoed inputs. */
+  confirm?: (txId: string) => Promise<Record<string, unknown> | undefined>;
+}
+
+export function withTimeout<T>(p: Promise<T>, ms: number, onTimeout: () => void): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      onTimeout();
+      reject(new ChainError("timeout", `operation timed out after ${ms}ms`));
+    }, ms);
+    p.then(
+      (v) => { clearTimeout(timer); resolve(v); },
+      (e) => { clearTimeout(timer); reject(e); },
+    );
+  });
+}
+
+export class TxPipeline {
+  constructor(private readonly signers: SignerResolver) {}
+
+  async run(p: TxPipelineParams): Promise<TxOutcome> {
+    const { timeoutMs } = p.ctx;
+    // --wait only makes sense when we actually broadcast (dry-run/sign-only never reach the chain).
+    if (p.ctx.wait && !p.broadcast) {
+      throw new UsageError("invalid_option", "choose at most one of --dry-run, --sign-only, --wait");
+    }
+    const signer = this.signers.resolve(p.account, p.net.family);
+
+    // every network/sign step is bounded by --timeout (a hung RPC must not hang the CLI).
+    // build/estimate never touch the device → a failing tx never asks for a Ledger tap.
+    const tx = await withTimeout(p.build(signer.address), timeoutMs, () => {});
+    const fee = await withTimeout(p.estimate(tx), timeoutMs, () => {});
+    if (p.dryRun) return { stage: "plan", tx, fee };
+
+    let signed: SignedTx;
+    if (signer.kind === "device") {
+      await signer.precheck?.();
+      p.ctx.emit({ type: "awaiting_device", reason: "sign" });
+      const ac = new AbortController();
+      signed = await withTimeout(signer.sign(tx, { signal: ac.signal }), timeoutMs, () => ac.abort());
+    } else {
+      signed = await withTimeout(signer.sign(tx, {}), timeoutMs, () => {});
+    }
+
+    if (!p.broadcast) return { stage: "signed", signed, fee };
+    const result = await withTimeout(p.broadcaster.broadcast(signed), timeoutMs, () => {});
+    const txId = String(result.txId ?? result.hash ?? "");
+    // default (no --wait): non-blocking, return the submitted txid only (fee/energy unknown yet).
+    if (!p.ctx.wait || !p.confirm || !txId) return { stage: "submitted", ...result };
+    // --wait: poll until the tx mines so the receipt carries real fee/energy/result.
+    // Best-effort — a confirmation failure/timeout never fails an already-broadcast tx; we just
+    // fall back to the submitted receipt.
+    let confirmed: Record<string, unknown> | undefined;
+    try {
+      confirmed = await p.confirm(txId);
+    } catch {
+      confirmed = undefined;
+    }
+    if (!confirmed) return { stage: "submitted", ...result };
+    return { stage: confirmed.failed ? "failed" : "confirmed", ...result, ...confirmed };
+  }
+}
