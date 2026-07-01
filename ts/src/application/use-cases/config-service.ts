@@ -48,8 +48,8 @@ export class ConfigService {
   ): string | number {
     if (key === "timeoutMs") {
       const value = Number(raw);
-      if (!Number.isFinite(value) || value < 0) {
-        throw new UsageError("invalid_value", "timeoutMs must be a non-negative number");
+      if (!Number.isFinite(value) || value <= 0) {
+        throw new UsageError("invalid_value", "timeoutMs must be a positive number");
       }
       return value;
     }

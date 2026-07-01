@@ -47,5 +47,4 @@ export interface Config {
 export interface PriceConfig {
   provider: "coingecko" | "none";
   baseUrl?: string;
-  apiKey?: string;
 }

@@ -24,6 +24,8 @@ export interface GlobalFlagSpec {
   valueType?: "string" | "number";
   /** value flags only: restrict accepted values (yargs `choices`). */
   choices?: readonly string[];
+  /** number flags only: minimum accepted value (inclusive). Defaults to 0. */
+  min?: number;
   /** secret-stdin flags only: which secret kind this `--<name>` binds. */
   secretKey?: SecretKind;
   /** override the derived camelCase field name when the runtime Globals key differs from the flag
@@ -44,7 +46,7 @@ export const GLOBAL_FLAG_SPECS: readonly GlobalFlagSpec[] = [
     description: "canonical network id, e.g. tron:mainnet, tron:nile, tron:shasta; chain commands fall back to config.defaultNetwork when omitted" },
   { name: "account", kind: "value", valueType: "string",
     description: "accountId, label, or address for wallet-bound commands; falls back to the active account set by use" },
-  { name: "timeout", kind: "value", valueType: "number", field: "timeoutMs",
+  { name: "timeout", kind: "value", valueType: "number", field: "timeoutMs", min: 1,
     description: "per RPC/device call timeout, in milliseconds", defaultValue: "config.timeoutMs (built-in: 60000)" },
   { name: "verbose", alias: "v", kind: "boolean",
     description: "show extra diagnostic output", defaultValue: false },
@@ -75,8 +77,8 @@ const VALUE_SPEC_BY_FIELD: Record<string, GlobalFlagSpec> = Object.fromEntries(
 
 /**
  * Coerce a raw value-flag string per its spec; `undefined` = invalid (caller falls back to default).
- * Derives entirely from valueType/choices: number flags accept a non-negative finite value (true of
- * every number global today — add a per-flag `min` if that ever changes), choice flags must match,
+ * Derives entirely from valueType/choices: number flags accept a finite value at or above the spec's
+ * `min` (default 0; --timeout sets min 1 since a 0ms bound aborts instantly), choice flags must match,
  * everything else passes through as a string.
  */
 export function coerceGlobalValue(field: string, raw: string): string | number | undefined {
@@ -84,7 +86,7 @@ export function coerceGlobalValue(field: string, raw: string): string | number |
   if (!spec) return raw;
   if (spec.valueType === "number") {
     const n = Number(raw);
-    return Number.isFinite(n) && n >= 0 ? n : undefined;
+    return Number.isFinite(n) && n >= (spec.min ?? 0) ? n : undefined;
   }
   if (spec.choices) return spec.choices.includes(raw) ? raw : undefined;
   return raw;

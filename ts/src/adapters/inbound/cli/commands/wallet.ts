@@ -124,7 +124,7 @@ export function registerWalletCommands(
   });
   reg.add({
     path: ["import", "watch"], network: "none", wallet: "none", auth: "none",
-    interactive: true,
+    interactive: true, promptHints: { label: "default-label" },
     summary: "Register a watch-only address (no secret)", fields: importWatchFields, input: importWatchFields,
     examples: [{ cmd: "wallet-cli import watch --address T... --label team-vault" }],
     formatText: TextFormatters.walletWatch,

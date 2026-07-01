@@ -38,6 +38,8 @@ export interface BootstrapOptions {
 /** Fully wired process-scoped dependencies. No command side effect runs during construction. */
 export function composeCliRuntime(options: BootstrapOptions) {
   const config = ConfigLoader.load();
+  // effective per-invocation RPC/device timeout: --timeout wins over the config default.
+  const timeoutMs = options.globals.timeoutMs ?? config.timeoutMs;
   const output: OutputMode = options.globals.output ?? config.defaultOutput;
   const streams = new StreamManager(output, options.globals.verbose);
   const formatter = createOutputFormatter(output, streams, options.startedAt);
@@ -58,9 +60,10 @@ export function composeCliRuntime(options: BootstrapOptions) {
     new SecureBackupWriter(root),
   );
   const tokenBook = new TokenBook(root, store);
-  const priceProvider = createPriceProvider(config.price);
+  const priceProvider = createPriceProvider(config.price, timeoutMs);
   const gatewayProvider = new ChainGatewayRegistry(
     familyMap((plugin) => plugin.createGateway),
+    timeoutMs,
   );
   const capabilityRegistry = new CapabilityRegistry();
   const signerResolver = new SignerResolver(
@@ -81,6 +84,7 @@ export function composeCliRuntime(options: BootstrapOptions) {
       prices: priceProvider,
       signers: signerResolver,
       transactions: txPipeline,
+      timeoutMs,
     }),
   );
   for (const module of chainModules) module.registerCommands(registry);

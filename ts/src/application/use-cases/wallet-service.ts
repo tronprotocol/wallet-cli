@@ -67,7 +67,6 @@ export class WalletService {
     const { wallet } = this.wallets.resolveAccount(account);
     const result = this.wallets.addAccount(wallet.id, index);
     if (label) this.wallets.rename(result.accountId, label);
-    this.wallets.setActive(result.accountId); // newly derived account becomes active (§1.7)
     return { status: mutationStatus(result.created), ...this.wallets.describe(result.accountId) };
   }
 
@@ -121,4 +120,3 @@ export class WalletService {
     return { status: mutationStatus(result.created), ...this.wallets.describe(result.accountId) };
   }
 }
-

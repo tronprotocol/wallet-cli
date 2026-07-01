@@ -6,6 +6,8 @@ import type {
 import type { NetworkDescriptor } from "../../../../domain/types/index.js";
 
 export class TronGridHistoryReader implements HistoryPort {
+  constructor(private readonly timeoutMs = 60_000) {}
+
   async get(
     network: NetworkDescriptor,
     address: string,
@@ -19,7 +21,7 @@ export class TronGridHistoryReader implements HistoryPort {
     const url = `${endpoint.replace(/\/$/, "")}/v1/accounts/${address}/${resource}?limit=${query.limit}&visible=true`;
     let response: Response;
     try {
-      response = await fetch(url);
+      response = await fetch(url, { signal: AbortSignal.timeout(this.timeoutMs) });
     } catch (error) {
       throw new ExecutionError(
         "history_not_supported",

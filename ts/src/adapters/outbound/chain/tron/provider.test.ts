@@ -8,8 +8,8 @@ const net = (family: "tron"): NetworkDescriptor =>
 
 describe("ChainGatewayRegistry injected factories", () => {
   const p = new ChainGatewayRegistry({
-    tron: (n) => new TronRpcClient(n.httpEndpoint ?? ""),
-  });
+    tron: (n, timeoutMs) => new TronRpcClient(n.httpEndpoint ?? "", timeoutMs),
+  }, 60_000);
   it("dispatches the tron factory and caches by net id", () => {
     expect(p.get(net("tron"), "tron")).toBeInstanceOf(TronRpcClient);
     expect(p.client(net("tron"))).toBe(p.client(net("tron"))); // cached

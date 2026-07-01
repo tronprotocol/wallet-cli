@@ -48,7 +48,6 @@ export class ConfigLoader {
         const provider = p.provider === "none" ? "none" : "coingecko";
         price = { provider };
         if (typeof p.baseUrl === "string" && p.baseUrl.trim() !== "") price.baseUrl = p.baseUrl;
-        if (typeof p.apiKey === "string" && p.apiKey.trim() !== "") price.apiKey = p.apiKey;
       }
       if (raw.networks && typeof raw.networks === "object") {
         for (const [id, d] of Object.entries(raw.networks as Record<string, Record<string, unknown>>)) {

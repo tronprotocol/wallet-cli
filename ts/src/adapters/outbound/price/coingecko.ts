@@ -14,7 +14,7 @@ export class CoinGeckoPriceProvider implements PriceProvider {
 
   constructor(
     private readonly baseUrl = "https://api.coingecko.com/api/v3",
-    private readonly apiKey?: string,
+    private readonly timeoutMs = 60_000,
   ) {}
 
   async nativeUsd(networkId: string): Promise<number | null> {
@@ -28,27 +28,26 @@ export class CoinGeckoPriceProvider implements PriceProvider {
     const out = new Map<string, number | null>(contracts.map((c) => [c, null]));
     const platform = CoinGeckoPriceProvider.#prefixed(CoinGeckoPriceProvider.#PLATFORMS, networkId);
     if (!platform || contracts.length === 0) return out;
-    // CoinGecko lowercases contract keys in its response; map back to the caller's casing.
-    const byLower = new Map(contracts.map((c) => [c.toLowerCase(), c]));
-    const csv = encodeURIComponent(contracts.join(","));
-    const body = await this.#get(
-      `/simple/token_price/${platform}?contract_addresses=${csv}&vs_currencies=usd`,
+    // The keyless tier caps token_price at one contract address per request, so query each
+    // contract on its own — a batched (comma-joined) request is rejected with HTTP 400.
+    await Promise.all(
+      contracts.map(async (contract) => {
+        const body = await this.#get(
+          `/simple/token_price/${platform}?contract_addresses=${encodeURIComponent(contract)}&vs_currencies=usd`,
+        );
+        if (!body || typeof body !== "object") return;
+        // CoinGecko lowercases contract keys in its response; match case-insensitively.
+        const entry = Object.entries(body).find(([addr]) => addr.toLowerCase() === contract.toLowerCase());
+        if (entry) out.set(contract, num((entry[1] as { usd?: unknown })?.usd));
+      }),
     );
-    if (body && typeof body === "object") {
-      for (const [addr, v] of Object.entries(body)) {
-        const original = byLower.get(addr.toLowerCase());
-        if (original) out.set(original, num((v as { usd?: unknown })?.usd));
-      }
-    }
     return out;
   }
 
   /** best-effort GET → parsed JSON, or null on ANY failure (network, non-2xx, bad JSON). */
   async #get(path: string): Promise<any | null> {
     try {
-      const headers: Record<string, string> = {};
-      if (this.apiKey) headers["x-cg-pro-api-key"] = this.apiKey;
-      const res = await fetch(`${this.baseUrl}${path}`, { headers });
+      const res = await fetch(`${this.baseUrl}${path}`, { signal: AbortSignal.timeout(this.timeoutMs) });
       if (!res.ok) return null;
       return await res.json();
     } catch {

@@ -23,7 +23,7 @@ export class NullPriceProvider implements PriceProvider {
 }
 
 /** build the provider from config (`price:`). Missing → CoinGecko default. */
-export function createPriceProvider(price?: PriceConfig): PriceProvider {
+export function createPriceProvider(price?: PriceConfig, timeoutMs?: number): PriceProvider {
   if (price?.provider === "none") return new NullPriceProvider();
-  return new CoinGeckoPriceProvider(price?.baseUrl, price?.apiKey);
+  return new CoinGeckoPriceProvider(price?.baseUrl, timeoutMs);
 }

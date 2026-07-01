@@ -411,7 +411,9 @@ The account is the unit of selection and operation. `--account` accepts a canoni
 
 ### 6.3 Active Account
 
-- The first registered account automatically becomes active.
+- A successful `create`, `import`, or `derive` persistently makes its target account active. This
+  also applies when `import` or `derive` resolves to an existing account rather than creating a new
+  one.
 - `use` persistently changes `activeAccount`; `--account` does not persist.
 - When the active account is deleted, the first remaining account is chosen; if none, it is set to `null`.
 - `current` returns only the persistent active account.

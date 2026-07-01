@@ -16,12 +16,14 @@ export interface FamilyApplicationDependencies {
   prices: PriceProvider;
   signers: SignerResolver;
   transactions: TxPipeline;
+  /** effective per-invocation RPC timeout, for adapters the module constructs itself (history reader). */
+  timeoutMs: number;
 }
 
 export interface FamilyPlugin<F extends ChainFamily> {
   readonly meta: FamilyMeta & { family: F };
   readonly signStrategy: SignStrategy;
-  createGateway(network: NetworkDescriptor): ChainGatewayMap[F];
+  createGateway(network: NetworkDescriptor, timeoutMs: number): ChainGatewayMap[F];
   createModule(dependencies: FamilyApplicationDependencies): ChainModule;
 }
 

@@ -33,7 +33,12 @@ describe("parseGlobals", () => {
   it("drops an invalid --timeout to undefined (falls back to config) instead of NaN", () => {
     expect(parseGlobals(["--timeout", "abc"]).globals.timeoutMs).toBeUndefined();
     expect(parseGlobals(["--timeout", "-5"]).globals.timeoutMs).toBeUndefined();
+    expect(parseGlobals(["--timeout", "0"]).globals.timeoutMs).toBeUndefined(); // 0ms = instant-abort, not a usable bound
     expect(parseGlobals(["--timeout", "2000"]).globals.timeoutMs).toBe(2000);
+  });
+
+  it("accepts --wait-timeout 0 (poll cap of 0 = give up after one poll)", () => {
+    expect(parseGlobals(["--wait-timeout", "0"]).globals.waitTimeoutMs).toBe(0);
   });
 
   it("leaves an invalid --output undefined (yargs choices reports it) rather than silently 'text'", () => {

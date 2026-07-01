@@ -7,7 +7,8 @@
 import type { AccountRef, FeeReport, NetworkDescriptor, SignedTx, TxOutcome, UnsignedTx } from "../../../domain/types/index.js";
 import type { TransactionScope } from "../../contracts/execution-scope.js";
 import { SignerResolver } from "../signer/index.js";
-import { ChainError, UsageError } from "../../../domain/errors/index.js";
+import { UsageError } from "../../../domain/errors/index.js";
+import { withTimeout } from "../../../domain/async/index.js";
 import type { Broadcaster } from "../../ports/chain/broadcaster.js";
 
 export interface TxPipelineParams {
@@ -26,19 +27,6 @@ export interface TxPipelineParams {
   confirm?: (txId: string) => Promise<Record<string, unknown> | undefined>;
 }
 
-export function withTimeout<T>(p: Promise<T>, ms: number, onTimeout: () => void): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => {
-      onTimeout();
-      reject(new ChainError("timeout", `operation timed out after ${ms}ms`));
-    }, ms);
-    p.then(
-      (v) => { clearTimeout(timer); resolve(v); },
-      (e) => { clearTimeout(timer); reject(e); },
-    );
-  });
-}
-
 export class TxPipeline {
   constructor(private readonly signers: SignerResolver) {}
 
@@ -50,10 +38,11 @@ export class TxPipeline {
     }
     const signer = this.signers.resolve(p.account, p.net.family);
 
-    // every network/sign step is bounded by --timeout (a hung RPC must not hang the CLI).
-    // build/estimate never touch the device → a failing tx never asks for a Ledger tap.
-    const tx = await withTimeout(p.build(signer.address), timeoutMs, () => {});
-    const fee = await withTimeout(p.estimate(tx), timeoutMs, () => {});
+    // RPC steps (build/estimate/broadcast) are bounded by the adapter's own --timeout, so they
+    // aren't wrapped here. The one thing no RPC timeout covers is a Ledger tap that never comes:
+    // bound the device signature and abort its prompt on timeout.
+    const tx = await p.build(signer.address);
+    const fee = await p.estimate(tx);
     if (p.dryRun) return { stage: "plan", tx, fee };
 
     let signed: SignedTx;
@@ -63,11 +52,11 @@ export class TxPipeline {
       const ac = new AbortController();
       signed = await withTimeout(signer.sign(tx, { signal: ac.signal }), timeoutMs, () => ac.abort());
     } else {
-      signed = await withTimeout(signer.sign(tx, {}), timeoutMs, () => {});
+      signed = await signer.sign(tx, {});
     }
 
     if (!p.broadcast) return { stage: "signed", signed, fee };
-    const result = await withTimeout(p.broadcaster.broadcast(signed), timeoutMs, () => {});
+    const result = await p.broadcaster.broadcast(signed);
     const txId = String(result.txId ?? result.hash ?? "");
     // default (no --wait): non-blocking, return the submitted txid only (fee/energy unknown yet).
     if (!p.ctx.wait || !p.confirm || !txId) {

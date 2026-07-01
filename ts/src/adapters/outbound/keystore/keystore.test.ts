@@ -70,6 +70,38 @@ describe("Keystore", () => {
     expect(ks.list()).toHaveLength(1);
   });
 
+  it("makes every imported or derived target active, including dedup hits", () => {
+    const seed = ks.import({ secret: MNEMONIC, type: "seed", label: "seed" });
+    const privateKey = ks.import({
+      secret: "59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d",
+      type: "privateKey",
+      label: "hot",
+    });
+    expect(ks.activeAccount()).toBe(privateKey.accountId);
+
+    const repeatedSeed = ks.import({ secret: MNEMONIC, type: "seed" });
+    expect(repeatedSeed.created).toBe(false);
+    expect(ks.activeAccount()).toBe(seed.accountId);
+
+    const ledger = ks.registerLedger({ family: "tron", path: "m/44'/195'/0'/0/0", address: TRON0 });
+    expect(ks.activeAccount()).toBe(ledger.accountId);
+
+    const watch = ks.registerWatch({ family: "tron", address: "Twatch-active" });
+    expect(ks.activeAccount()).toBe(watch.accountId);
+
+    const repeatedLedger = ks.registerLedger({ family: "tron", path: "m/44'/195'/0'/0/0", address: TRON0 });
+    expect(repeatedLedger.created).toBe(false);
+    expect(ks.activeAccount()).toBe(ledger.accountId);
+
+    const derived = ks.addAccount(seed.accountId.split(".")[0]!, 1);
+    expect(ks.activeAccount()).toBe(derived.accountId);
+
+    ks.setActive(watch.accountId);
+    const repeatedDerived = ks.addAccount(seed.accountId.split(".")[0]!, 1);
+    expect(repeatedDerived.created).toBe(false);
+    expect(ks.activeAccount()).toBe(derived.accountId);
+  });
+
   const LEDGER_PATH = "m/44'/195'/0'/0/0";
 
   it("registerLedger does not dedup against a software account with the same address", () => {
@@ -195,11 +227,11 @@ describe("Keystore", () => {
     const a = ks.import({ secret: MNEMONIC, type: "seed", label: "main" }).accountId;
     const pk = "59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d";
     const b = ks.import({ secret: pk, type: "privateKey", label: "hot" }).accountId;
-    expect(ks.activeAccount()).toBe(a);
-    const res = ks.setActive("hot");
-    expect(res.accountId).toBe(b);
-    expect(res.previous).toBe(a);
     expect(ks.activeAccount()).toBe(b);
+    const res = ks.setActive("main");
+    expect(res.accountId).toBe(a);
+    expect(res.previous).toBe(b);
+    expect(ks.activeAccount()).toBe(a);
   });
 
   it("round-trips a passphrase-protected seed (address matches signing key)", () => {

@@ -15,12 +15,12 @@ import type { FamilyPlugin } from "./types.js";
 export const tronFamily: FamilyPlugin<"tron"> = {
   meta: FAMILIES.tron,
   signStrategy: tronSignStrategy,
-  createGateway: (network) => new TronRpcClient(network.httpEndpoint ?? ""),
-  createModule: ({ gateways, tokens, prices, signers, transactions }) =>
+  createGateway: (network, timeoutMs) => new TronRpcClient(network.httpEndpoint ?? "", timeoutMs),
+  createModule: ({ gateways, tokens, prices, signers, transactions, timeoutMs }) =>
     new TronModule({
       tronAccount: new TronAccountService(
         gateways,
-        new TronGridHistoryReader(),
+        new TronGridHistoryReader(timeoutMs),
         tokens,
         prices,
       ),

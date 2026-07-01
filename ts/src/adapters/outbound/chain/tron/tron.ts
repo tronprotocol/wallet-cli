@@ -20,6 +20,7 @@ import type {
   TronTxInfo,
 } from "../../../../application/ports/chain/tron-gateway.js";
 import { ChainError, TransportError, UsageError } from "../../../../domain/errors/index.js";
+import { withTimeout } from "../../../../domain/async/index.js";
 import { tronHexToBase58 } from "../../../../domain/address/index.js";
 import { parseTronTx, parseTronTxInfo } from "./tron-responses.js";
 import { assertBuiltTx } from "./tx-guard.js";
@@ -38,10 +39,12 @@ export function hexToBase58(addr: unknown): string {
 export class TronRpcClient implements TronGateway, Broadcaster {
   #tw: InstanceType<typeof TronWeb>;
   readonly #fullHost: string;
-  constructor(fullHost: string) {
+  readonly #timeoutMs: number;
+  constructor(fullHost: string, timeoutMs = 60_000) {
     // a dummy address keeps tronweb happy for read-only/builder use (no key → cannot sign)
     this.#tw = new TronWeb({ fullHost });
     this.#fullHost = fullHost.replace(/\/+$/, "");
+    this.#timeoutMs = timeoutMs;
     this.#tw.setAddress(TRON_READ_OWNER);
   }
   get tronweb(): InstanceType<typeof TronWeb> {
@@ -54,8 +57,14 @@ export class TronRpcClient implements TronGateway, Broadcaster {
   async broadcast(signed: SignedTx): Promise<BroadcastResult> {
     let res: Types.BroadcastReturn<Types.SignedTransaction>;
     try {
-      res = await this.#tw.trx.sendRawTransaction(signed as Types.SignedTransaction);
+      // bound the RPC so a standalone `tx broadcast` (not routed through the pipeline) can't hang.
+      res = await withTimeout(
+        this.#tw.trx.sendRawTransaction(signed as Types.SignedTransaction),
+        this.#timeoutMs,
+        () => {},
+      );
     } catch (e) {
+      if (e instanceof ChainError) throw e; // preserve timeout as ChainError, don't remap to rpc_error
       throw new TransportError("rpc_error", `TRON broadcast failed: ${(e as Error).message}`);
     }
     // tronweb does NOT throw on node rejection — it returns { result:false, code, message }.
@@ -77,7 +86,12 @@ export class TronRpcClient implements TronGateway, Broadcaster {
   }
 
   // ── generic error wrapper for node reads/builds ──────────────────────────────
-  async #wrap<T>(label: string, fn: () => Promise<T>): Promise<T> {
+  // Timeout wraps the guard (not the reverse) so a timed-out call surfaces as ChainError("timeout")
+  // rather than being remapped to a generic rpc_error by the catch below.
+  #wrap<T>(label: string, fn: () => Promise<T>): Promise<T> {
+    return withTimeout(this.#guard(label, fn), this.#timeoutMs, () => {});
+  }
+  async #guard<T>(label: string, fn: () => Promise<T>): Promise<T> {
     try {
       return await fn();
     } catch (e) {
@@ -92,7 +106,7 @@ export class TronRpcClient implements TronGateway, Broadcaster {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ address: this.#tw.address.toHex(address) }),
-        signal: AbortSignal.timeout(30_000),
+        signal: AbortSignal.timeout(this.#timeoutMs),
       });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       return parseTronAccountResponse(await response.text());

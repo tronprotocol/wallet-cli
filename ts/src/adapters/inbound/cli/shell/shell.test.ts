@@ -124,7 +124,7 @@ describe("gapFillRequiredFields", () => {
     await gapFillRequiredFields(cmd, argv, prompter);
     expect(argv.label).toMatch(/^wallet_[0-9a-f]{6}$/);
     expect(prompter.textCalls).toHaveLength(1);
-    expect(prompter.textCalls[0]!.label).toMatch(/^Label \(wallet_[0-9a-f]{6}\)$/);
+    expect(prompter.textCalls[0]!.label).toMatch(/^Label \(default: wallet_[0-9a-f]{6}\)$/);
   });
 
   it("does not prompt optional Ledger locators; missing locator enters command-level selection", async () => {
@@ -136,7 +136,7 @@ describe("gapFillRequiredFields", () => {
     await gapFillRequiredFields(cmd, argv, prompter);
     expect(argv).toEqual({ app: "tron", label: "cold" });
     expect(prompter.selectCalls).toHaveLength(1);
-    expect(prompter.textCalls.map((c) => c.label)[0]).toMatch(/^Label \(wallet_[0-9a-f]{6}\)$/);
+    expect(prompter.textCalls.map((c) => c.label)[0]).toMatch(/^Label \(default: wallet_[0-9a-f]{6}\)$/);
   });
 
   it("does NOT prompt for an optional boolean flag", async () => {

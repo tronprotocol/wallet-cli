@@ -19,12 +19,15 @@ import type {
   ChainGatewayProvider,
 } from "../../../../application/ports/chain/gateway-provider.js";
 
-type GatewayFactory = (network: NetworkDescriptor) => AnyChainGateway;
+type GatewayFactory = (network: NetworkDescriptor, timeoutMs: number) => AnyChainGateway;
 
 export class ChainGatewayRegistry implements ChainGatewayProvider {
   #cache = new Map<string, AnyChainGateway>();
 
-  constructor(private readonly factories: Record<ChainFamily, GatewayFactory>) {}
+  constructor(
+    private readonly factories: Record<ChainFamily, GatewayFactory>,
+    private readonly timeoutMs: number,
+  ) {}
 
   /** family-agnostic accessor: the concrete client typed as the union (call shared methods only). */
   client(net: NetworkDescriptor): AnyChainGateway {
@@ -48,6 +51,6 @@ export class ChainGatewayRegistry implements ChainGatewayProvider {
   #make(net: NetworkDescriptor): AnyChainGateway {
     const factory = this.factories[net.family];
     if (!factory) throw new ExecutionError("internal_error", `no RPC client for family ${net.family}`);
-    return factory(net);
+    return factory(net, this.timeoutMs);
   }
 }

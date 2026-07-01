@@ -81,7 +81,11 @@ export class Keystore {
         const seed = Derivation.mnemonicToSeed(mnemonic, p.passphrase);
         const addr0 = deriveSeedAddresses(seed, 0);
         const dup = findByAddress(file, addr0);
-        if (dup) return { accountId: dup, created: false };
+        if (dup) {
+          file.activeAccount = dup;
+          this.#write(file);
+          return { accountId: dup, created: false };
+        }
         const vaultId = this.#freshId("vlt", file);
         // global master-password invariant: establish/verify the sentinel inside the
         // SAME lock as the blob write, so two parallel first-imports can't seed two passwords.
@@ -95,7 +99,11 @@ export class Keystore {
         if (pk.length !== 32) throw new WalletError("invalid_value", "private key must be 32 bytes");
         const addr = derivePrivAddresses(pk);
         const dup = findByAddress(file, addr);
-        if (dup) return { accountId: dup, created: false };
+        if (dup) {
+          file.activeAccount = dup;
+          this.#write(file);
+          return { accountId: dup, created: false };
+        }
         const keyId = this.#freshId("key", file);
         this.#assertPassword({ createIfAbsent: true }); // sentinel, inside this lock
         this.#writeBlob("keys", CryptoEnvelope.encrypt(pk, password, keyId, "raw-privkey"));
@@ -106,7 +114,7 @@ export class Keystore {
       const ref = accountRefOf(wallet, source.type === "seed" ? 0 : null);
       file.wallets.push(wallet);
       this.#assignLabel(file, ref, p.label);
-      if (!file.activeAccount) file.activeAccount = ref;
+      file.activeAccount = ref;
       this.#write(file);
       return { accountId: ref, created: true };
     });
@@ -118,7 +126,11 @@ export class Keystore {
       // ledger is single-chain watch-only; the dedup key is (family, path), not address
       // (a hardware account stays distinct from a software one sharing the same key).
       const dup = findBySource(file, (s) => s.type === "ledger" && s.family === p.family && s.path === p.path);
-      if (dup) return { accountId: dup, created: false };
+      if (dup) {
+        file.activeAccount = dup;
+        this.#write(file);
+        return { accountId: dup, created: false };
+      }
       const walletId = this.#freshId("wlt", file);
       // no encrypted blob: ledger holds no secret locally, only family+path+address.
       const wallet: Wallet = {
@@ -128,7 +140,7 @@ export class Keystore {
       const ref = accountRefOf(wallet, null);
       file.wallets.push(wallet);
       this.#assignLabel(file, ref, p.label);
-      if (!file.activeAccount) file.activeAccount = ref;
+      file.activeAccount = ref;
       this.#write(file);
       return { accountId: ref, created: true };
     });
@@ -140,7 +152,11 @@ export class Keystore {
       // watch is secret-less; like ledger it stays distinct from a software account with the
       // same address — the dedup key is (family, address), see findWatchByAddress.
       const dup = findBySource(file, (s) => s.type === "watch" && s.family === p.family && s.address === p.address);
-      if (dup) return { accountId: dup, created: false };
+      if (dup) {
+        file.activeAccount = dup;
+        this.#write(file);
+        return { accountId: dup, created: false };
+      }
       const walletId = this.#freshId("wlt", file);
       // no encrypted blob: a watch account holds no secret, only family+address.
       const wallet: Wallet = {
@@ -150,7 +166,7 @@ export class Keystore {
       const ref = accountRefOf(wallet, null);
       file.wallets.push(wallet);
       this.#assignLabel(file, ref, p.label);
-      if (!file.activeAccount) file.activeAccount = ref;
+      file.activeAccount = ref;
       this.#write(file);
       return { accountId: ref, created: true };
     });
@@ -174,10 +190,12 @@ export class Keystore {
       if (!wallet.source.addresses[key]) {
         const seed = this.#decryptSeedFromVault(wallet.source.vaultId);
         wallet.source.addresses[key] = deriveSeedAddresses(seed, next);
-        this.#write(file);
         created = true;
       }
-      return { accountId: accountRefOf(wallet, next), created };
+      const ref = accountRefOf(wallet, next);
+      file.activeAccount = ref;
+      this.#write(file);
+      return { accountId: ref, created };
     });
   }
 

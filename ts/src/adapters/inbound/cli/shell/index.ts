@@ -267,7 +267,7 @@ export async function gapFillRequiredFields(
       if (cmd.promptHints?.[f.name] === "skip") continue
       if (cmd.promptHints?.[f.name] === "default-label") {
         const defaultLabel = randomWalletLabel()
-        const v = await prompter.text({ label: `${humanFieldLabel(f.kebab)} (${defaultLabel})` })
+        const v = await prompter.text({ label: `${humanFieldLabel(f.kebab)} (default: ${defaultLabel})` })
         argv[f.name] = v === "" ? defaultLabel : v
         continue
       }
