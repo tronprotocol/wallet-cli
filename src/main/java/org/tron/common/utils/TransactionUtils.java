@@ -53,20 +53,8 @@ import org.tron.trident.proto.Chain;
 public class TransactionUtils {
   private static final ThreadLocal<Integer> PERMISSION_ID_OVERRIDE = new ThreadLocal<>();
 
-  // Protobuf field number of Transaction.pq_auth_sig (Tron.proto). The Trident
-  // SDK's Chain.Transaction does not define this field, so on those objects PQ
-  // auth signatures are preserved only as unknown field 6. Shared so the
-  // bandwidth estimate in WalletApi reads the same field number.
-  // TODO(trident-pq): once the Trident SDK models pq_auth_sig on
-  // Chain.Transaction, drop this constant and use the generated accessors.
-  public static final int PQ_AUTH_SIG_FIELD_NUMBER = 6;
-
-  /** True if the (possibly Trident-typed) transaction carries any PQ auth signature. */
-  // TODO(trident-pq): replace the unknown-field probe with
-  // transaction.getPqAuthSigCount() > 0 when Trident's Chain.Transaction
-  // exposes pq_auth_sig natively.
   private static boolean hasPqAuthSig(Chain.Transaction transaction) {
-    return transaction.getUnknownFields().hasField(PQ_AUTH_SIG_FIELD_NUMBER);
+    return transaction.getPqAuthSigCount() > 0;
   }
 
   /**
@@ -322,17 +310,8 @@ public class TransactionUtils {
     return transaction;
   }
 
-  // TODO(trident-pq): this Chain<->Protocol byte round-trip only exists because
-  // Trident's Chain.Transaction cannot carry pq_auth_sig. Drop the conversion
-  // and add the PQAuthSig directly once Trident models the field.
   public static Chain.Transaction signPQ(
-      Chain.Transaction transaction, PQSignature signer, PQScheme scheme)
-      throws InvalidProtocolBufferException {
-    return Chain.Transaction.parseFrom(
-        signPQ(Transaction.parseFrom(transaction.toByteArray()), signer, scheme).toByteArray());
-  }
-
-  public static Transaction signPQ(Transaction transaction, PQSignature signer, PQScheme scheme) {
+      Chain.Transaction transaction, PQSignature signer, PQScheme scheme) {
     if (!PQSchemeRegistry.contains(scheme)) {
       throw new IllegalArgumentException("Unsupported or unknown PQScheme: " + scheme);
     }
@@ -340,10 +319,15 @@ public class TransactionUtils {
       throw new IllegalArgumentException("Signer scheme " + signer.getScheme()
           + " does not match requested scheme " + scheme);
     }
+    Chain.PQScheme tridentScheme = Chain.PQScheme.forNumber(scheme.getNumber());
+    if (tridentScheme == null
+        || tridentScheme == Chain.PQScheme.UNKNOWN_PQ_SCHEME) {
+      throw new IllegalArgumentException("Unsupported or unknown Trident PQScheme: " + scheme);
+    }
     byte[] hash = Sha256Sm3Hash.hash(transaction.getRawData().toByteArray());
     byte[] sig = signer.sign(hash);
-    PQAuthSig pqSig = PQAuthSig.newBuilder()
-        .setScheme(scheme)
+    Chain.PQAuthSig pqSig = Chain.PQAuthSig.newBuilder()
+        .setScheme(tridentScheme)
         .setPublicKey(ByteString.copyFrom(signer.getPublicKey()))
         .setSignature(ByteString.copyFrom(sig))
         .build();
@@ -388,10 +372,6 @@ public class TransactionUtils {
     return transaction;
   }
 
-  // TODO(trident-pq): the Chain<->Protocol byte round-trip is only needed to
-  // preserve pq_auth_sig (and read getPqAuthSigCount() in the Protocol overload)
-  // because Trident's Chain.Transaction lacks the field. Simplify once Trident
-  // models pq_auth_sig.
   public static Chain.Transaction setPermissionId(Chain.Transaction transaction, String tipString)
       throws CancelException, InvalidProtocolBufferException {
     return Chain.Transaction.parseFrom(
