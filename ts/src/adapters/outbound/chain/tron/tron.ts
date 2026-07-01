@@ -18,6 +18,7 @@ import type {
 import { ChainError, TransportError, UsageError } from "../../../../domain/errors/index.js";
 import { tronHexToBase58 } from "../../../../domain/address/index.js";
 import { parseTronTx, parseTronTxInfo } from "./tron-responses.js";
+import { assertBuiltTx } from "./tx-guard.js";
 
 /** a valid base58 owner used as the caller for read-only (constant) contract calls. */
 const TRON_READ_OWNER = "T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb";
@@ -64,7 +65,8 @@ export class TronRpcClient implements TronGateway, Broadcaster {
   /** build an unsigned TRX transfer (tronweb fills ref block etc.). */
   async buildNativeTransfer(from: string, to: string, amountSun: string): Promise<Types.Transaction> {
     // tronweb's sendTrx amount param is a JS number; reject amounts that would lose precision.
-    return this.#tw.transactionBuilder.sendTrx(to, this.#safeNumber(amountSun), from);
+    const tx = await this.#tw.transactionBuilder.sendTrx(to, this.#safeNumber(amountSun), from);
+    return assertBuiltTx(tx, "TransferContract");
   }
 
   // ── generic error wrapper for node reads/builds ──────────────────────────────
@@ -148,20 +150,21 @@ export class TronRpcClient implements TronGateway, Broadcaster {
 
   async buildTrc20Transfer(from: string, to: string, contract: string, amount: string, feeLimit: number): Promise<Types.Transaction> {
     return this.#wrap("build trc20 transfer", async () => {
+      // txLocal: build & ABI-encode the call locally so the node never supplies the calldata.
       const { transaction } = await this.#tw.transactionBuilder.triggerSmartContract(
         contract,
         "transfer(address,uint256)",
-        { feeLimit },
+        { feeLimit, txLocal: true },
         [{ type: "address", value: to }, { type: "uint256", value: amount }],
         from,
       );
-      return transaction;
+      return assertBuiltTx(transaction, "TriggerSmartContract");
     });
   }
   async buildTrc10Transfer(from: string, to: string, assetId: string, amount: string): Promise<Types.Transaction> {
     const n = this.#safeNumber(amount);
-    return this.#wrap("build trc10 transfer", () =>
-      this.#tw.transactionBuilder.sendToken(to, n, assetId, from),
+    return this.#wrap("build trc10 transfer", async () =>
+      assertBuiltTx(await this.#tw.transactionBuilder.sendToken(to, n, assetId, from), "TransferAssetContract"),
     );
   }
 
@@ -189,24 +192,24 @@ export class TronRpcClient implements TronGateway, Broadcaster {
   // ── staking (Stake 2.0) ──────────────────────────────────────────────────────
   async buildFreezeV2(owner: string, amountSun: string, resource: RpcResourceCode): Promise<Types.Transaction> {
     const n = this.#safeNumber(amountSun);
-    return this.#wrap("freezeBalanceV2", () =>
-      this.#tw.transactionBuilder.freezeBalanceV2(n, resource, owner),
+    return this.#wrap("freezeBalanceV2", async () =>
+      assertBuiltTx(await this.#tw.transactionBuilder.freezeBalanceV2(n, resource, owner), "FreezeBalanceV2Contract"),
     );
   }
   async buildUnfreezeV2(owner: string, amountSun: string, resource: RpcResourceCode): Promise<Types.Transaction> {
     const n = this.#safeNumber(amountSun);
-    return this.#wrap("unfreezeBalanceV2", () =>
-      this.#tw.transactionBuilder.unfreezeBalanceV2(n, resource, owner),
+    return this.#wrap("unfreezeBalanceV2", async () =>
+      assertBuiltTx(await this.#tw.transactionBuilder.unfreezeBalanceV2(n, resource, owner), "UnfreezeBalanceV2Contract"),
     );
   }
   async buildWithdrawExpireUnfreeze(owner: string): Promise<Types.Transaction> {
-    return this.#wrap("withdrawExpireUnfreeze", () =>
-      this.#tw.transactionBuilder.withdrawExpireUnfreeze(owner),
+    return this.#wrap("withdrawExpireUnfreeze", async () =>
+      assertBuiltTx(await this.#tw.transactionBuilder.withdrawExpireUnfreeze(owner), "WithdrawExpireUnfreezeContract"),
     );
   }
   async buildCancelAllUnfreezeV2(owner: string): Promise<Types.Transaction> {
-    return this.#wrap("cancelUnfreezeBalanceV2", () =>
-      this.#tw.transactionBuilder.cancelUnfreezeBalanceV2(owner),
+    return this.#wrap("cancelUnfreezeBalanceV2", async () =>
+      assertBuiltTx(await this.#tw.transactionBuilder.cancelUnfreezeBalanceV2(owner), "CancelAllUnfreezeV2Contract"),
     );
   }
   async buildDelegateResource(
@@ -214,16 +217,16 @@ export class TronRpcClient implements TronGateway, Broadcaster {
     receiver: string, lock: boolean, lockPeriod?: number,
   ): Promise<Types.Transaction> {
     const n = this.#safeNumber(amountSun);
-    return this.#wrap("delegateResource", () =>
-      this.#tw.transactionBuilder.delegateResource(n, receiver, resource, owner, lock, lockPeriod),
+    return this.#wrap("delegateResource", async () =>
+      assertBuiltTx(await this.#tw.transactionBuilder.delegateResource(n, receiver, resource, owner, lock, lockPeriod), "DelegateResourceContract"),
     );
   }
   async buildUndelegateResource(
     owner: string, amountSun: string, resource: RpcResourceCode, receiver: string,
   ): Promise<Types.Transaction> {
     const n = this.#safeNumber(amountSun);
-    return this.#wrap("undelegateResource", () =>
-      this.#tw.transactionBuilder.undelegateResource(n, receiver, resource, owner),
+    return this.#wrap("undelegateResource", async () =>
+      assertBuiltTx(await this.#tw.transactionBuilder.undelegateResource(n, receiver, resource, owner), "UnDelegateResourceContract"),
     );
   }
 
@@ -249,24 +252,28 @@ export class TronRpcClient implements TronGateway, Broadcaster {
     opts: { feeLimit?: number; callValue?: number } = {},
   ): Promise<Types.Transaction> {
     return this.#wrap("triggerSmartContract", async () => {
+      // txLocal: ABI-encode the call client-side so the node never supplies the calldata/params.
       const { transaction } = await this.#tw.transactionBuilder.triggerSmartContract(
         contract,
         fn,
-        { feeLimit: opts.feeLimit, callValue: opts.callValue },
+        { feeLimit: opts.feeLimit, callValue: opts.callValue, txLocal: true },
         params as Types.ContractFunctionParameter[],
         from,
       );
-      return transaction;
+      return assertBuiltTx(transaction, "TriggerSmartContract");
     });
   }
   async deployContract(
     from: string,
     p: { abi: unknown; bytecode: string; feeLimit: number; parameters?: unknown[] },
   ): Promise<Types.Transaction> {
-    return this.#wrap("createSmartContract", () =>
-      this.#tw.transactionBuilder.createSmartContract(
-        { abi: p.abi as Types.CreateSmartContractOptions["abi"], bytecode: p.bytecode, feeLimit: p.feeLimit, parameters: p.parameters },
-        from,
+    return this.#wrap("createSmartContract", async () =>
+      assertBuiltTx(
+        await this.#tw.transactionBuilder.createSmartContract(
+          { abi: p.abi as Types.CreateSmartContractOptions["abi"], bytecode: p.bytecode, feeLimit: p.feeLimit, parameters: p.parameters },
+          from,
+        ),
+        "CreateSmartContract",
       ),
     );
   }
