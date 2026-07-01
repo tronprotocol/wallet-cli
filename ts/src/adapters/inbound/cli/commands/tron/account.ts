@@ -19,7 +19,7 @@ function balance(service: TronAccountService): CommandDefinition {
     input: fields,
     examples: [{ cmd: "wallet-cli account balance" }],
     formatText: TextFormatters.accountBalance,
-    run: async (ctx, network) => service.balance(ctx, network!, "tron"),
+    run: async (ctx, network) => service.balance(ctx, network, "tron"),
   };
 }
 
@@ -33,7 +33,7 @@ function info(service: TronAccountService): CommandDefinition {
     input: fields,
     examples: [{ cmd: "wallet-cli account info" }],
     formatText: TextFormatters.accountInfo,
-    run: async (ctx, network) => service.info(ctx, network!),
+    run: async (ctx, network) => service.info(ctx, network),
   };
 }
 
@@ -52,7 +52,7 @@ function history(service: TronAccountService): CommandDefinition {
     input: fields,
     examples: [{ cmd: "wallet-cli account history --limit 10" }],
     formatText: TextFormatters.accountHistory,
-    run: async (ctx, network, input) => service.historyFor(ctx, network!, input),
+    run: async (ctx, network, input) => service.historyFor(ctx, network, input),
   };
 }
 
@@ -67,6 +67,6 @@ function portfolio(service: TronAccountService): CommandDefinition {
     input: fields,
     examples: [{ cmd: "wallet-cli account portfolio" }],
     formatText: TextFormatters.accountPortfolio,
-    run: async (ctx, network) => service.portfolio(ctx, network!),
+    run: async (ctx, network) => service.portfolio(ctx, network),
   };
 }

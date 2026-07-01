@@ -46,7 +46,7 @@ function send(service: TronTransactionService): CommandDefinition {
       { cmd: "wallet-cli tx send --to T... --asset-id 1002000 --raw-amount 1000000" },
     ],
     formatText: TextFormatters.txReceipt,
-    run: async (ctx, network, input) => service.send(ctx, network!, input),
+    run: async (ctx, network, input) => service.send(ctx, network, input),
   };
 }
 
@@ -68,7 +68,7 @@ function broadcast(service: TronTransactionService): CommandDefinition {
     run: async (ctx, network, input) => {
       const raw = ctx.secrets.pick(input.transaction, "tx", "transaction");
       try {
-        return service.broadcast(ctx, network!, JSON.parse(raw));
+        return service.broadcast(ctx, network, JSON.parse(raw));
       } catch (error) {
         if (error instanceof SyntaxError) {
           throw new UsageError("invalid_value", "TRON presigned tx must be JSON");
@@ -89,7 +89,7 @@ function status(service: TronTransactionService): CommandDefinition {
     input: fields,
     examples: [{ cmd: "wallet-cli tx status --txid abc123" }],
     formatText: TextFormatters.txStatus,
-    run: async (_ctx, network, input) => service.status(network!, input.txid),
+    run: async (_ctx, network, input) => service.status(network, input.txid),
   };
 }
 
@@ -103,7 +103,7 @@ function info(service: TronTransactionService): CommandDefinition {
     input: fields,
     examples: [{ cmd: "wallet-cli tx info --txid abc123" }],
     formatText: TextFormatters.txInfo,
-    run: async (_ctx, network, input) => service.info(network!, input.txid),
+    run: async (_ctx, network, input) => service.info(network, input.txid),
   };
 }
 

@@ -14,7 +14,7 @@ import { createOutputFormatter } from "../output/index.js";
 import { registerWalletCommands, walletImportLedgerFields, walletImportLedgerInput } from "./wallet.js";
 import { CommandRegistry } from "../registry/index.js";
 import { commandId } from "../command-id.js";
-import type { Globals } from "../contracts/index.js";
+import type { Globals, NetworklessCommandDefinition } from "../contracts/index.js";
 import { Derivation } from "../../../../domain/derivation/index.js";
 import { WalletService } from "../../../../application/use-cases/wallet-service.js";
 
@@ -95,9 +95,10 @@ function buildServices(ks: Keystore) {
 }
 
 /** Resolve a command by its derived canonical id (e.g. "create", "import.mnemonic"). */
-function getCmd(registry: CommandRegistry, id: string): ReturnType<CommandRegistry["resolveNeutral"]> {
+function getCmd(registry: CommandRegistry, id: string): NetworklessCommandDefinition | null {
   const cmd = registry.all().find((c) => commandId(c) === id) ?? null;
   if (!cmd) throw new Error(`command not found: ${id}`);
+  if (cmd.network !== "none") throw new Error(`wallet command unexpectedly requires a network: ${id}`);
   return cmd;
 }
 

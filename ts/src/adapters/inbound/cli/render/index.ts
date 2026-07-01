@@ -192,7 +192,7 @@ export const TextFormatters = {
     ]);
   }) satisfies TextFormatter,
 
-  txReceipt: ((r) => renderTxReceipt(r)) satisfies TextFormatter<TxReceiptView>,
+  txReceipt: ((r, ctx?: TextRenderContext) => renderTxReceipt(r, ctx)) satisfies TextFormatter<TxReceiptView>,
   txStatus: ((r) => {
     // `failed` is computed by the command (tron: result ≠ SUCCESS) — no family branch.
     const status = r.failed ? `failed ${fail()}` : r.confirmed ? `confirmed ${ok()}` : `pending ${pending()}`;
@@ -325,12 +325,25 @@ function stakedSummary(account: Obj): string {
   const sums = new Map<Resource, bigint>(RESOURCES.map((r) => [r, 0n]));
   for (const f of frozen) {
     const r = resourceOfRpcCode(String(f.type ?? "")) ?? "bandwidth";
-    sums.set(r, (sums.get(r) ?? 0n) + BigInt(Number(f.amount ?? 0)));
+    const amount = safeUnsignedBigInt(f.amount ?? 0);
+    // An unsafe JS number has already lost precision. Omit the summary instead of presenting a
+    // plausible but incorrect total; the raw account payload remains available in JSON mode.
+    if (amount === null) return "";
+    sums.set(r, (sums.get(r) ?? 0n) + amount);
   }
   const total = RESOURCES.reduce((t, r) => t + (sums.get(r) ?? 0n), 0n);
   if (total === 0n) return "";
   const parts = RESOURCES.map((r) => `${r} ${formatSun(sums.get(r) ?? 0n)}`).join(" + ");
   return `${formatSun(total)} TRX (${parts})`;
+}
+
+function safeUnsignedBigInt(value: unknown): bigint | null {
+  if (typeof value === "bigint") return value >= 0n ? value : null;
+  if (typeof value === "number") {
+    return Number.isSafeInteger(value) && value >= 0 ? BigInt(value) : null;
+  }
+  if (typeof value === "string" && /^\d+$/.test(value)) return BigInt(value);
+  return null;
 }
 
 function renderContractInfo(d: Obj): string {
@@ -377,7 +390,7 @@ function configValue(v: unknown): string {
 
 /** Default-mode broadcast/dry-run/sign-only receipt for tx/stake/contract signing commands.
  *  Narrows on the typed `kind`/`family` — no stringly command-id matching, no alias probing. */
-function renderTxReceipt(r: TxReceiptView): string {
+function renderTxReceipt(r: TxReceiptView, ctx?: TextRenderContext): string {
   if (r.mode === "dry-run") {
     return receipt(pending(), `Dry run ${actionLabel(r.kind)}`, [
       ["Fee", formatFee(r.fee, r.family)],
@@ -400,13 +413,14 @@ function renderTxReceipt(r: TxReceiptView): string {
   if (stage === "submitted") {
     pairs.push(["Status", "pending — not yet on-chain"]);
     const body = receipt(pending(), summary, pairs);
-    return txid ? `${body}\n! Track it: wallet-cli tx info --txid ${txid}` : body;
+    const networkFlag = ctx?.net ? ` --network ${ctx.net.id}` : "";
+    return txid ? `${body}\n! Track it: wallet-cli tx info${networkFlag} --txid ${txid}` : body;
   }
 
   // confirmed / failed (after --wait): real on-chain block / fee / energy / result.
-  if (r.blockNumber) pairs.push(["Block", `#${formatInt(r.blockNumber)}`]);
-  if (r.energyUsed) pairs.push(["Energy", formatInt(r.energyUsed)]);
-  if (r.feeSun) pairs.push(["Fee", `${formatSun(r.feeSun)} TRX`]);
+  if (r.blockNumber !== undefined && r.blockNumber !== null) pairs.push(["Block", `#${formatInt(r.blockNumber)}`]);
+  if (r.energyUsed !== undefined && r.energyUsed !== null) pairs.push(["Energy", formatInt(r.energyUsed)]);
+  if (r.feeSun !== undefined && r.feeSun !== null) pairs.push(["Fee", `${formatSun(r.feeSun)} TRX`]);
   if (r.kind === "stake-unfreeze") pairs.push(["Withdrawable", "after the unlock period — then run `stake withdraw`"]);
   if (stage === "failed") {
     pairs.push(["Status", "failed"]);

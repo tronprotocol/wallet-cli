@@ -26,7 +26,7 @@ function balance(service: TronTokenService): CommandDefinition {
     input: selectorFields.superRefine(tokenSelector),
     examples: [{ cmd: "wallet-cli token balance --contract TR7..." }],
     formatText: TextFormatters.tokenBalance,
-    run: async (ctx, network, input) => service.balance(ctx, network!, input),
+    run: async (ctx, network, input) => service.balance(ctx, network, input),
   };
 }
 
@@ -40,7 +40,7 @@ function info(service: TronTokenService): CommandDefinition {
     input: selectorFields.superRefine(tokenSelector),
     examples: [{ cmd: "wallet-cli token info --contract TR7..." }],
     formatText: TextFormatters.tokenInfo,
-    run: async (_ctx, network, input) => service.info(network!, input),
+    run: async (_ctx, network, input) => service.info(network, input),
   };
 }
 
@@ -54,7 +54,7 @@ function add(service: TronTokenService): CommandDefinition {
     input: selectorFields.superRefine(tokenSelector),
     examples: [{ cmd: "wallet-cli token add --contract TR7..." }],
     formatText: TextFormatters.tokenBookAdd,
-    run: async (ctx, network, input) => service.add(ctx, network!, input),
+    run: async (ctx, network, input) => service.add(ctx, network, input),
   };
 }
 
@@ -69,7 +69,7 @@ function list(service: TronTokenService): CommandDefinition {
     input: fields,
     examples: [{ cmd: "wallet-cli token list" }],
     formatText: TextFormatters.tokenBookList,
-    run: async (ctx, network) => service.list(ctx, network!),
+    run: async (ctx, network) => service.list(ctx, network),
   };
 }
 
@@ -83,6 +83,6 @@ function remove(service: TronTokenService): CommandDefinition {
     input: selectorFields.superRefine(tokenSelector),
     examples: [{ cmd: "wallet-cli token remove --contract TR7..." }],
     formatText: TextFormatters.tokenBookRemove,
-    run: async (ctx, network, input) => service.remove(ctx, network!, input),
+    run: async (ctx, network, input) => service.remove(ctx, network, input),
   };
 }

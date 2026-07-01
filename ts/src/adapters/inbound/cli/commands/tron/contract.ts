@@ -41,7 +41,7 @@ function call(service: TronContractService): CommandDefinition {
     }],
     formatText: TextFormatters.contractCall,
     run: async (_ctx, network, input) => service.call(
-      network!, input.contract, input.method, jsonArray(input.params) as TronContractParameter[],
+      network, input.contract, input.method, jsonArray(input.params) as TronContractParameter[],
     ),
   };
 }
@@ -70,7 +70,7 @@ function send(service: TronContractService): CommandDefinition {
       cmd: `wallet-cli contract send --contract TR7... --method "transfer(address,uint256)" --params '[...]'`,
     }],
     formatText: TextFormatters.txReceipt,
-    run: async (ctx, network, input) => service.send(ctx, network!, {
+    run: async (ctx, network, input) => service.send(ctx, network, {
       ...input,
       parameters: jsonArray(input.params) as TronContractParameter[],
     }),
@@ -107,7 +107,7 @@ function deploy(service: TronContractService): CommandDefinition {
       } catch {
         throw new UsageError("invalid_value", "--abi must be valid JSON");
       }
-      return service.deploy(ctx, network!, {
+      return service.deploy(ctx, network, {
         ...input,
         abi,
         parameters: jsonArray(input.params),
@@ -129,6 +129,6 @@ function info(service: TronContractService): CommandDefinition {
     input: fields,
     examples: [{ cmd: "wallet-cli contract info --contract TR7..." }],
     formatText: TextFormatters.contractInfo,
-    run: async (_ctx, network, input) => service.info(network!, input.contract),
+    run: async (_ctx, network, input) => service.info(network, input.contract),
   };
 }

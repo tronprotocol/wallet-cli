@@ -66,13 +66,16 @@ describe("tokenBalance formatter", () => {
 
 describe("txReceipt formatter (typed kind, narrowed — no command-id matching)", () => {
   it("tx send submitted (default): pending receipt with txid + track hint, no fee/energy", () => {
-    const out = TextFormatters.txReceipt({ kind: "send", family: "tron", stage: "submitted", txId: "abc123", rawAmount: "5000000", token: "USDT", decimals: 6, to: "TrecipientAddress" });
+    const out = TextFormatters.txReceipt(
+      { kind: "send", family: "tron", stage: "submitted", txId: "abc123", rawAmount: "5000000", token: "USDT", decimals: 6, to: "TrecipientAddress" },
+      ctx({ net: { id: "tron:nile", family: "tron", chainId: "nile", feeModel: "tron-resource", aliases: [], capabilities: [] } }),
+    );
     expect(out).toContain("⏳");
     expect(out).toContain("Sent 5 USDT");
     expect(out).toContain("TrecipientAddress");
     expect(out).toContain("abc123");
     expect(out).toContain("pending — not yet on-chain");
-    expect(out).toContain("Track it: wallet-cli tx info --txid abc123");
+    expect(out).toContain("Track it: wallet-cli tx info --network tron:nile --txid abc123");
     expect(out).not.toContain("Fee");
   });
   it("tx send TRC20 via --contract --raw-amount (no symbol): never mislabels as TRX", () => {
@@ -92,6 +95,15 @@ describe("txReceipt formatter (typed kind, narrowed — no command-id matching)"
     expect(out).toContain("#66,000,000");
     expect(out).toContain("0.268 TRX");
     expect(out).toContain("success");
+  });
+  it("confirmed receipt preserves legitimate zero-valued chain fields", () => {
+    const out = TextFormatters.txReceipt({
+      kind: "send", family: "tron", stage: "confirmed", txId: "zero",
+      rawAmount: "0", to: "Tdest", blockNumber: 0, energyUsed: 0, feeSun: 0,
+    });
+    expect(out).toContain("#0");
+    expect(out).toMatch(/Energy\s+0/);
+    expect(out).toContain("0 TRX");
   });
   it("contract send failed (--wait): failure receipt with reason", () => {
     const out = TextFormatters.txReceipt({ kind: "contract-send", family: "tron", stage: "failed", txId: "abc", method: "transfer(address,uint256)", contract: "TR7contract", result: "OUT_OF_ENERGY", blockNumber: 1, failed: true });
@@ -155,6 +167,22 @@ describe("txInfo formatter (per-family, narrowed on family)", () => {
     expect(out).toContain("28,000");
     expect(out).toContain("0.268 TRX");
     expect(out).toContain("SUCCESS");
+  });
+});
+
+describe("accountInfo staking summary", () => {
+  const accountInfo = (amount: unknown) => TextFormatters.accountInfo({
+    address: "Towner",
+    account: { balance: 0, frozenV2: [{ type: "ENERGY", amount }] },
+    resources: {},
+  }, ctx());
+
+  it("preserves staking amounts above Number.MAX_SAFE_INTEGER when supplied as strings", () => {
+    expect(accountInfo("9007199254740993")).toContain("9007199254.740993 TRX");
+  });
+
+  it("omits the staking summary for an already-unsafe numeric amount", () => {
+    expect(accountInfo(9007199254740992)).not.toContain("Staked");
   });
 });
 

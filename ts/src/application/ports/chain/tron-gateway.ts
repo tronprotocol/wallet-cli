@@ -16,6 +16,32 @@ export interface TronAccountResources {
   EnergyLimit?: number;
 }
 
+export interface TronAccountAsset {
+  key?: string;
+  value?: string;
+  [key: string]: unknown;
+}
+
+export interface TronFrozenBalance {
+  type?: unknown;
+  amount?: string;
+  unfreeze_amount?: string;
+  frozen_balance?: string;
+  [key: string]: unknown;
+}
+
+/** Account payload normalized at the adapter boundary; all SUN/token quantities are strings. */
+export interface TronAccount {
+  balance?: string;
+  allowance?: string;
+  asset?: TronAccountAsset[];
+  assetV2?: TronAccountAsset[];
+  frozen?: TronFrozenBalance[];
+  frozenV2?: TronFrozenBalance[];
+  unfrozenV2?: TronFrozenBalance[];
+  [key: string]: unknown;
+}
+
 export interface TronTokenInfo {
   contract?: string;
   name?: unknown;
@@ -54,7 +80,7 @@ export interface TronFeeEstimate extends FeeReport {
 /** TRON-specific application boundary; chain-specific capabilities remain explicit. */
 export interface TronGateway extends Broadcaster {
   getNativeBalance(address: string): Promise<string>;
-  getAccount(address: string): Promise<unknown>;
+  getAccount(address: string): Promise<TronAccount>;
   getAccountResources(address: string): Promise<TronAccountResources>;
   getBlock(number?: number): Promise<unknown>;
   getTransactionById(txid: string): Promise<TronTx>;

@@ -18,7 +18,7 @@ function blockGet(service: TronBlockService): CommandDefinition {
       { cmd: "wallet-cli block 12345" },
     ],
     formatText: TextFormatters.block,
-    run: async (_ctx, net, input) => service.get(net!, input.number),
+    run: async (_ctx, net, input) => service.get(net, input.number),
   };
 }
 

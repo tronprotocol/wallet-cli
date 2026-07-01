@@ -29,7 +29,7 @@ export interface TextRenderContext {
 
 export type TextFormatter<O = unknown> = (data: O, ctx: TextRenderContext) => string | null;
 
-export interface CommandDefinition<I = any, O = any> {
+interface CommandDefinitionBase<I, O> {
   /** full typed path. Neutral commands carry their complete path (e.g. ["import","mnemonic"],
    *  ["config","get"], ["create"]); chain commands carry the logical path (e.g. ["tx","send"])
    *  shared across families. The only routing discriminator is `family` present/absent.
@@ -38,7 +38,6 @@ export interface CommandDefinition<I = any, O = any> {
   family?: ChainFamily;
   /** declares the command reads from a *-stdin channel; drives help/catalog input-flag docs. */
   stdin?: StdinChannel;
-  network: NetworkRequirement;
   wallet: WalletRequirement;
   auth: AuthRequirement;
   /** broadcasts a transaction on-chain (✍️); enables the --wait global flag in help projection. */
@@ -63,10 +62,28 @@ export interface CommandDefinition<I = any, O = any> {
   /** full validation schema (often fields.superRefine), used in dispatch. */
   input: ZodType<I>;
   examples: Example[];
-  run(ctx: ExecutionContext, net: NetworkDescriptor | undefined, input: I): Promise<O>;
   /** Optional command-specific renderer for text mode. JSON mode always uses the envelope. */
   formatText?: TextFormatter<O>;
 }
+
+/** A networkless command never receives a chain target. */
+export interface NetworklessCommandDefinition<I = any, O = any>
+  extends CommandDefinitionBase<I, O> {
+  network: "none";
+  run(ctx: ExecutionContext, net: undefined, input: I): Promise<O>;
+}
+
+/** Both policies resolve a concrete network; "optional" only means the CLI flag may be omitted. */
+export interface NetworkedCommandDefinition<I = any, O = any>
+  extends CommandDefinitionBase<I, O> {
+  network: Exclude<NetworkRequirement, "none">;
+  run(ctx: ExecutionContext, net: NetworkDescriptor, input: I): Promise<O>;
+}
+
+/** Network policy discriminates the run signature, preventing unsafe `network!` assertions. */
+export type CommandDefinition<I = any, O = any> =
+  | NetworklessCommandDefinition<I, O>
+  | NetworkedCommandDefinition<I, O>;
 
 export interface ChainModule {
   family: ChainFamily;

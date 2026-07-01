@@ -6,7 +6,7 @@
 import yargs, { type Argv } from "yargs"
 import { randomBytes } from "node:crypto"
 import { z } from "zod"
-import type { AccountDescriptor } from "../../../../domain/types/index.js";
+import type { AccountDescriptor, NetworkDescriptor } from "../../../../domain/types/index.js";
 import type { CommandDefinition, ExecutionContext, Globals, SessionRef, StreamManager } from "../contracts/index.js";
 import { CommandRegistry } from "../registry/index.js"
 import { CapabilityRegistry } from "../../../../application/services/capability/index.js"
@@ -200,8 +200,19 @@ async function executeCommand(opts: ShellOptions, cmd: CommandDefinition, argv: 
   const ctx = buildExecutionContext(globals, deps)
   if (cmd.wallet !== "none") void ctx.activeAccount // resolve account (default active) up front; throws missing_wallet_address if none exists
 
-  const data = await cmd.run(ctx, net, input)
+  const data = cmd.network === "none"
+    ? await cmd.run(ctx, undefined, input)
+    : await cmd.run(ctx, requireResolvedNetwork(cmd, net), input)
   streams.result(formatter.success(cmd, net, data, activeAccountLabel(cmd, ctx, deps)))
+}
+
+/** Runtime counterpart to CommandDefinition's network-policy discrimination. */
+function requireResolvedNetwork(
+  cmd: CommandDefinition,
+  net: NetworkDescriptor | undefined,
+): NetworkDescriptor {
+  if (net) return net
+  throw new Error(`network resolver returned no network for ${commandId(cmd)}`)
 }
 
 /** Central account-label resolution for text receipts: the user's --account label (or active

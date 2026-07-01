@@ -31,6 +31,7 @@
     "@scure/base": "^2.2.0",
     "@scure/bip32": "^2.2.0",
     "@scure/bip39": "^2.2.0",
+    "lossless-json": "^4.3.0",
     "tronweb": "^6.4.0",
     "yaml": "^2.9.0",
     "yargs": "^18.0.0",

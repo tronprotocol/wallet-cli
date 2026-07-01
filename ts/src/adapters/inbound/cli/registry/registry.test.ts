@@ -21,6 +21,22 @@ function command(family: ChainFamily, path: string[]): CommandDefinition {
 }
 
 describe("CommandRegistry logical resolution", () => {
+  it("rejects a family command that cannot resolve a network", () => {
+    const reg = new CommandRegistry();
+    const fields = z.object({});
+    expect(() => reg.add({
+      family: "tron",
+      path: ["invalid"],
+      network: "none",
+      wallet: "none",
+      auth: "none",
+      fields,
+      input: fields,
+      examples: [],
+      run: async () => ({}),
+    })).toThrow("family command must resolve a network: tron.invalid");
+  });
+
   it("returns every implementation for a logical path", () => {
     const reg = new CommandRegistry();
     // synthetic second family via cast: only tron ships, but the registry keys on the family

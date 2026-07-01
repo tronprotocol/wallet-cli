@@ -25,6 +25,11 @@ export class CommandRegistry implements CommandRegistryLike {
   #byKey = new Map<string, CommandDefinition>();
 
   add(cmd: CommandDefinition): void {
+    // Family commands are selected through a resolved network, so this combination cannot be
+    // dispatched. Keep this routing invariant here instead of coupling it to the run signature.
+    if (cmd.family && cmd.network === "none") {
+      throw new Error(`family command must resolve a network: ${commandId(cmd)}`);
+    }
     const key = keyOf(cmd);
     if (this.#byKey.has(key)) throw new Error(`duplicate command ${key}`);
     this.#byKey.set(key, cmd);

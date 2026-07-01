@@ -5,11 +5,13 @@
  */
 import { TronWeb } from "tronweb";
 import type { Types } from "tronweb";
+import { isLosslessNumber, parse as parseLosslessJson } from "lossless-json";
 import type { BroadcastResult, SignedTx } from "../../../../domain/types/index.js";
 import type { RpcResourceCode } from "../../../../domain/resources/index.js";
 import type { Broadcaster } from "../../../../application/ports/chain/broadcaster.js";
 import type {
   TronContractParameter,
+  TronAccount,
   TronGateway,
   TronTokenInfo,
   TronTx,
@@ -31,21 +33,19 @@ export function hexToBase58(addr: unknown): string {
 
 export class TronRpcClient implements TronGateway, Broadcaster {
   #tw: InstanceType<typeof TronWeb>;
+  readonly #fullHost: string;
   constructor(fullHost: string) {
     // a dummy address keeps tronweb happy for read-only/builder use (no key → cannot sign)
     this.#tw = new TronWeb({ fullHost });
+    this.#fullHost = fullHost.replace(/\/+$/, "");
     this.#tw.setAddress(TRON_READ_OWNER);
   }
   get tronweb(): InstanceType<typeof TronWeb> {
     return this.#tw;
   }
   async getNativeBalance(address: string): Promise<string> {
-    try {
-      const sun = await this.#tw.trx.getBalance(address);
-      return BigInt(sun).toString();
-    } catch (e) {
-      throw new TransportError("rpc_error", `TRON getBalance failed: ${(e as Error).message}`);
-    }
+    const account = await this.getAccount(address);
+    return account.balance ?? "0";
   }
   async broadcast(signed: SignedTx): Promise<BroadcastResult> {
     let res: Types.BroadcastReturn<Types.SignedTransaction>;
@@ -79,8 +79,17 @@ export class TronRpcClient implements TronGateway, Broadcaster {
   }
 
   // ── account / query ──────────────────────────────────────────────────────────
-  async getAccount(address: string): Promise<Types.Account> {
-    return this.#wrap("getAccount", () => this.#tw.trx.getAccount(address));
+  async getAccount(address: string): Promise<TronAccount> {
+    return this.#wrap("getAccount", async () => {
+      const response = await fetch(`${this.#fullHost}/walletsolidity/getaccount`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ address: this.#tw.address.toHex(address) }),
+        signal: AbortSignal.timeout(30_000),
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return parseTronAccountResponse(await response.text());
+    });
   }
   async getAccountResources(address: string): Promise<Types.AccountResourceMessage> {
     return this.#wrap("getAccountResources", () => this.#tw.trx.getAccountResources(address));
@@ -137,9 +146,9 @@ export class TronRpcClient implements TronGateway, Broadcaster {
 
   async getTrc10Balance(assetId: string, address: string): Promise<string> {
     return this.#wrap("trc10 balance", async () => {
-      const acct = await this.#tw.trx.getAccount(address);
+      const acct = await this.getAccount(address);
       const entry = (acct.assetV2 ?? []).find((a) => String(a.key) === String(assetId));
-      return BigInt(entry?.value ?? 0).toString();
+      return entry?.value ?? "0";
     });
   }
   async getTrc10Info(assetId: string): Promise<TronTokenInfo> {
@@ -291,6 +300,38 @@ export class TronRpcClient implements TronGateway, Broadcaster {
     }
     return Number(n);
   }
+}
+
+const ACCOUNT_QUANTITY_KEYS = new Set([
+  "amount",
+  "allowance",
+  "balance",
+  "frozen_amount",
+  "frozen_balance",
+  "total_supply",
+  "unfreeze_amount",
+  "value",
+]);
+
+/** Parse node account JSON without first coercing 64-bit quantities through JS number. */
+export function parseTronAccountResponse(text: string): TronAccount {
+  return normalizeAccountValue(parseLosslessJson(text)) as TronAccount;
+}
+
+function normalizeAccountValue(value: unknown, key?: string): unknown {
+  if (isLosslessNumber(value)) {
+    const exact = value.toString();
+    if (key && (ACCOUNT_QUANTITY_KEYS.has(key) || /balance/i.test(key))) return exact;
+    const number = Number(exact);
+    return Number.isSafeInteger(number) ? number : exact;
+  }
+  if (Array.isArray(value)) return value.map((entry) => normalizeAccountValue(entry));
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([entryKey, entry]) => [entryKey, normalizeAccountValue(entry, entryKey)]),
+    );
+  }
+  return value;
 }
 
 export interface FeeEstimate extends Record<string, unknown> {
